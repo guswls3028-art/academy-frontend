@@ -8,6 +8,7 @@
 import { test, expect } from "../fixtures/strictTest";
 import type { APIRequestContext, Page } from "@playwright/test";
 import { getApiBaseUrl, getBaseUrl, loginTokenViaRequest } from "../helpers/auth";
+import { acknowledgeFirstLoginGuideIfVisible } from "../helpers/firstLoginGuide";
 import { gotoAndSettle, waitForCondition, waitForRenderSettled } from "../helpers/wait";
 
 test.setTimeout(480_000);
@@ -426,11 +427,7 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
     await seedStudentBrowser(page, studentTokens);
     await gotoAndSettle(page, `${BASE}/student/exams/${created.examId}/result`, { timeout: 25_000 });
     await expect(page.getByRole("heading", { name: "시험 결과" })).toBeVisible({ timeout: 10_000 });
-    const firstLoginGuide = page.getByRole("dialog", { name: "계정 안내" });
-    if (await firstLoginGuide.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await firstLoginGuide.getByRole("button", { name: "확인", exact: true }).click();
-      await expect(firstLoginGuide).toBeHidden();
-    }
+    await acknowledgeFirstLoginGuideIfVisible(page);
     await expect(page.getByText("20 / 100점")).toBeVisible();
     await expect(page.getByText("보강 클리닉 대상")).toBeVisible();
     await expect(page.getByText("클리닉 페이지에서 일정을 예약하세요.")).toBeVisible();

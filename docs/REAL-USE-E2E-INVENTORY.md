@@ -48,7 +48,7 @@
 - 가입/계정복구 실발송과 학생 fixture를 만드는 OMR·과제·클리닉은 workflow의
   `controlled_write_canaries=true`에서만 통제 번호와 소유 ID cleanup으로 실행한다.
 - 통제 쓰기는 Playwright 재시도를 금지하고, 공유 운영 관리자 로그인은 공용
-  429 backoff helper를 사용한다. 클리닉 결과 이력은 삭제 보호로 archive되므로
+  429 backoff helper를 사용한다. OMR·클리닉 결과 이력은 삭제 보호로 archive될 수 있으므로
   실행 직후 backend `cleanup_e2e_residue` exact-token 정리와 production canary
   residue 0 확인이 필수다.
 - 일회성 screenshot/진단 spec은 필요할 때 명시 실행하고, 검증 종료 후 `_local`
@@ -73,11 +73,11 @@
 | 영역 | spec | 현재 가치 | 보강 필요 |
 |------|------|-----------|-----------|
 | 공개 회원가입 승인 | `e2e/flows/signup-approval-roundtrip.spec.ts` | 공개 가입 UI, 관리자 승인 UI, 학생 로그인, cleanup, 통제번호 Alimtalk provider/log 확인까지 하나의 라운드트립으로 검증 | 실발송 run은 `E2E_ALLOW_SIGNUP_APPROVAL_REAL_SEND=1` + `01031217466` 전용. 매 실행 전 통제번호 duplicate pre-flight 필요 |
-| 계정복구/교사 비번변경 | `e2e/auth/account-recovery-realuse.spec.ts` | 공용 비밀번호 찾기 UI -> 통제번호 실발송 -> account notification log -> 기존 비번 유지 -> staff reset/restore/delete cleanup | production run은 `E2E_ALLOW_ACCOUNT_RECOVERY_REAL_SEND=1` + `E2E_ACCOUNT_RECOVERY_CONTROLLED_PHONE=01031217466` 필요. temp-login activation은 수신값 env 제공 시 추가 검증 |
+| 계정복구/교사 비번변경 | `e2e/auth/account-recovery-realuse.spec.ts` | 공용 비밀번호 찾기 UI -> 통제번호 실발송 -> account notification log -> 기존 비번 유지 -> staff reset/restore/delete cleanup | production run은 `E2E_ALLOW_ACCOUNT_RECOVERY_REAL_SEND=1` + `E2E_ACCOUNT_RECOVERY_CONTROLLED_PHONE=01031217466` 필요. staff reset 응답은 실제 변경 성공 뒤에도 발송 여부만 알리는 보안상 공통 문구이며, 비밀번호 변경은 후속 JWT 발급으로 판정. temp-login activation은 수신값 env 제공 시 추가 검증 |
 | 학생 Excel·Ymath 제보 회귀 | `e2e/admin/student-excel-password-options.spec.ts` | canonical `/workspace/students` 진입, 내려받은 실제 양식에 안전 행을 추가한 파일 파싱, 전화번호 누락 경고, 세 가지 초기 비밀번호 방식과 등록 차단/활성화 검증. 통제 실행에서는 Ymath owner 대리 로그인으로 동일 양식과 기존 차시 시험의 운영·채점 결과·출결 화면도 검사 | 학생/성적/알림을 만들지 않는 운영 안전 spec. Ymath 검증은 `E2E_ENABLE_YMATH_EXCEL_REGRESSION=1`에서만 실행하며 `impersonation.start` 감사 로그를 남긴다. worker 등록·계정 안내·cleanup은 통제번호를 사용하는 별도 canary 증거가 필요 |
 | 차시/성적/시험/과제 진입 | `e2e/admin/session-assessment-realuse.spec.ts` | 강의 목록->강의->차시->성적/시험/과제 탭을 실제 클릭으로 확인 | 실제 생성/저장/학생 반영 없음 |
 | 학생 시험 결과 | `e2e/student/score-report-realuse.spec.ts` | 강의, 차시, 학생, 시험, 답안, 결과, 성적 보드를 새 데이터로 검증 | 관리자 UI 생성은 API-assisted. 학생 생성의 필수 계정안내가 두 건 발생하므로 운영 API에서는 실패 폐쇄하고 전용 메시징 경계를 가진 비운영 환경에서만 실행 |
-| OMR 업로드/검토/재채점 | `e2e/admin/omr-review-realuse.spec.ts` | 운영 API fixture와 생성 OMR PDF를 사용해 관리자 성적 탭 UI 업로드, worker answer rows, OMR 검토 저장, 학생 성적 projection까지 검증 | fixture 생성은 API-assisted. 테스트 재시도는 운영 잔여를 막기 위해 비활성화 |
+| OMR 업로드/검토/재채점 | `e2e/admin/omr-review-realuse.spec.ts` | 운영 API fixture와 생성 OMR PDF를 사용해 관리자 성적 탭 UI 업로드, worker answer rows, OMR 검토 저장, 학생 성적 projection까지 검증 | fixture 생성은 API-assisted. 테스트 재시도는 운영 잔여를 막기 위해 비활성화. 성적 복구 draft가 보이면 사용자가 보는 `버리기` 경로로 해소하고, 결과 이력 archive는 backend exact-token cleanup으로 인계 |
 | 정오표 워크스페이스 | `e2e/admin/manual-exam-grading.mock.spec.ts` | 성적표 시험명에서 채점표 진입, 문항별 객관식·숫자 단답형·서술형 표시, O/X/0과 사용자 지정 키의 입력 후 자동 이동, 엑셀/Ymath `O`·`.` 매트릭스 붙여넣기, 실행 취소·다시 실행, 자동채점 정오 조회, 문항 없는 시험의 답안 등록·빠른 시작, 인라인 배점 합계, 미리보기와 확정 POST 분리, 확정 후 서버 재조회 상태를 1100px 관리자 화면에서 검증 | 로컬 route-mock. 저장·tenant/role·선택형 답안 보존·혼합형 OMR 보존·혼재 순서의 유형 판별·배점 검증은 백엔드 `apps/support/results/tests/test_manual_exam_grading.py`가 검증 |
 | 성적 탭 UX | `e2e/admin/scores-tab-ux.spec.ts`, `e2e/admin/score-entry-autosave.spec.ts` | 빈 성적표 자동 입력, 기존 점수 안전 잠금→수정→저장 후 재잠금, 셀 확정 즉시 자동 저장 PATCH, Ctrl+S, Ctrl+Z/Redo, 탭 이동 저장, 복구 draft 우선, OMR CTA·성적 도구 그룹, 1366/1100/390px 확인 | 클릭 진입은 기존 Tenant 1 차시에 의존하되 점수 저장 계약은 route mock으로 운영 데이터 미접촉 |
 | 개인 성적표 | `e2e/admin/individual-score-report.spec.ts` | 성적 도구 진입, 학생 전환·다중 선택, 같은 강의 누적 추이, 요약 1쪽/상세 2~3쪽 미리보기, 단일·2명 통합 PDF의 실제 페이지 수를 local route mock으로 검증 | 교사 피드백 저장·서버 보관은 현재 범위 아님 |

@@ -9,6 +9,7 @@
 import { test, expect } from "../fixtures/strictTest";
 import type { APIRequestContext, Page } from "@playwright/test";
 import { getApiBaseUrl, getBaseUrl, loginTokenViaRequest } from "../helpers/auth";
+import { acknowledgeFirstLoginGuideIfVisible } from "../helpers/firstLoginGuide";
 import { gotoAndSettle, waitForCondition, waitForRenderSettled } from "../helpers/wait";
 
 test.setTimeout(360_000);
@@ -286,6 +287,7 @@ test.describe.serial("[E2E] 학생 과제 제출 실사용 검증", () => {
     await waitForRenderSettled(page, { timeout: 20_000 });
 
     await expect(page.getByRole("heading", { name: "과제 제출" })).toBeVisible();
+    await acknowledgeFirstLoginGuideIfVisible(page);
     await expect(page.getByText(HOMEWORK_TITLE)).toBeVisible({ timeout: 15_000 });
     await page.getByText(HOMEWORK_TITLE).click();
 
