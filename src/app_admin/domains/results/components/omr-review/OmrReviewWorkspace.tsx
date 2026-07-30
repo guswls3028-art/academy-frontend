@@ -24,9 +24,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Upload } from "lucide-react";
 
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { Badge } from "@/shared/ui/ds";
+import { Badge, Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { adminResultsQueryKeys } from "../../queryKeys";
 import {
@@ -137,9 +138,16 @@ type Props = {
   examTitle: string;
   open: boolean;
   onClose: () => void;
+  onOpenUpload?: () => void;
 };
 
-export default function OmrReviewWorkspace({ examId, examTitle, open, onClose }: Props) {
+export default function OmrReviewWorkspace({
+  examId,
+  examTitle,
+  open,
+  onClose,
+  onOpenUpload,
+}: Props) {
   const qc = useQueryClient();
 
   const [search, setSearch] = useState("");
@@ -295,6 +303,20 @@ export default function OmrReviewWorkspace({ examId, examTitle, open, onClose }:
             </span>
           </div>
           <div className="orw-header__actions">
+            {onOpenUpload && (
+              <Button
+                type="button"
+                intent="secondary"
+                size="sm"
+                className="orw-header__upload"
+                leftIcon={<Upload size={ICON_FOR_BUTTON.sm} />}
+                disabled={editDirty}
+                title={editDirty ? "수정한 답안을 저장한 뒤 새 OMR을 등록할 수 있습니다." : undefined}
+                onClick={onOpenUpload}
+              >
+                OMR 답안 등록
+              </Button>
+            )}
             <span className="orw-header__sub">
               학생 <span className="orw-kbd">J</span>/<span className="orw-kbd">K</span>
               {" · "}검토 문항 <span className="orw-kbd">N</span>/<span className="orw-kbd">P</span>
@@ -342,7 +364,14 @@ export default function OmrReviewWorkspace({ examId, examTitle, open, onClose }:
             {listLoading ? (
               <div className="orw-loading">불러오는 중…</div>
             ) : visibleRows.length === 0 ? (
-              <div className="orw-list-empty">조건에 맞는 제출이 없습니다.</div>
+              rows.length === 0 && filter === "all" && search.trim() === "" ? (
+                <div className="orw-list-empty orw-list-empty--first">
+                  <strong>등록된 OMR 답안이 없습니다.</strong>
+                  <span>상단의 OMR 답안 등록에서 이 시험의 스캔 파일을 추가하세요.</span>
+                </div>
+              ) : (
+                <div className="orw-list-empty">조건에 맞는 제출이 없습니다.</div>
+              )
             ) : (
               visibleRows.map((r) => {
                 const cat = categorize(r);

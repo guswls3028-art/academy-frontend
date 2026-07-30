@@ -153,7 +153,7 @@ type ScoreEditHistoryEntry = {
 
 // PassFailText 컴포넌트 제거(2026-05-12): 합불 컬럼 자체 제거 — 점수 셀 data-pass-status 색상/border로 대체.
 // OmrUploadButton 컴포넌트 제거(2026-05-13 P0-2): 헤더 위 absolute 미니버튼 제거.
-// OMR 업로드는 SessionScoresEntryPage 툴바 첫 CTA(시험 1개 직진 / 2+개 선택) 단일 경로.
+// OMR 업로드는 툴바 첫 CTA와 시험명 클릭 후의 해당 시험 작업 화면에서 연다.
 
 /** 클리닉 대상 여부 + 대상 사유 (시험 / 시험+과제 / 과제)
  *  row.clinic_required (서버 판정)이 SSOT. 사유만 로컬에서 표시용으로 추론. */
@@ -781,7 +781,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
       )}
       {/* P0-2 (2026-05-13): 테이블 위 absolute OMR 미니버튼 제거.
           학원장 캡처에서 헤더 위 "+OMR +OMR" 줄이 시각 노이즈 + 툴바 OMR 버튼과 중복.
-          OMR 업로드는 툴바 첫 CTA (시험 1개면 직진, 2+개면 선택) 단일 경로. */}
+          전체 시험 대상 업로드는 툴바, 한 시험의 업로드는 시험명 작업 화면에서 제공한다. */}
     <DomainTable
       tableClassName="ds-table--flat ds-table--center ds-scores-table"
       tableStyle={{ tableLayout: "fixed", width: tableWidth, ...stickyColumnVars }}
