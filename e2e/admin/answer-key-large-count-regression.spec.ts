@@ -89,7 +89,7 @@ test.describe("운영 회귀: 답안등록 대문항 안정성", () => {
       examId = await createExam(page, examTitle);
 
       await page.goto(
-        `${BASE}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${examId}`,
+        `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${examId}`,
         { waitUntil: "load", timeout: 20_000 },
       );
       await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
@@ -213,7 +213,7 @@ test.describe("운영 회귀: 답안등록 대문항 안정성", () => {
       expect(JSON.stringify(blockedApi.body)).toContain("최대 500문항");
 
       await page.goto(
-        `${BASE}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${examId}`,
+        `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${examId}`,
         { waitUntil: "load", timeout: 20_000 },
       );
       await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);

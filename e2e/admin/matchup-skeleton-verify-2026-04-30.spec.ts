@@ -83,7 +83,7 @@ test("매치업 skeleton INSERT 정식 검증 — 신규 업로드 → 즉시 �
   log(`업로드 완료: doc id=${docId}, status=${uploadJson.status}`);
 
   // 2. 매치업 화면 진입
-  await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "domcontentloaded", timeout: 30_000 });
+  await page.goto(`${BASE}/workspace/storage/matchup`, { waitUntil: "domcontentloaded", timeout: 30_000 });
   await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
   await expect(page.locator("[data-testid='matchup-doc-search']")).toBeVisible({ timeout: 15_000 });
 

@@ -76,7 +76,7 @@ test.describe("M2 /admin/storage/hit-reports", () => {
       const page = await ctx.newPage();
 
       await loginViaUI(page, "admin");
-      await page.goto(`${BASE}/admin/storage/hit-reports`, {
+      await page.goto(`${BASE}/workspace/storage/hit-reports`, {
         waitUntil: "networkidle",
         timeout: 30_000,
       });
@@ -145,7 +145,7 @@ test.describe("M4 /admin/community/board", () => {
       const page = await ctx.newPage();
 
       await loginViaUI(page, "admin");
-      await page.goto(`${BASE}/admin/community/board`, {
+      await page.goto(`${BASE}/workspace/community/board`, {
         waitUntil: "networkidle",
         timeout: 30_000,
       });

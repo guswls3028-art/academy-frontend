@@ -30,6 +30,7 @@ async function loginMobile(page: import("@playwright/test").Page) {
     localStorage.setItem("refresh", refresh);
     localStorage.removeItem("workspace:preferFull:tchul");
     localStorage.removeItem("teacher:preferAdmin");
+    localStorage.removeItem("teacher:preferAdmin:tchul");
     try { sessionStorage.setItem("tenantCode", "tchul"); } catch { return; }
   }, tokens);
 }
@@ -158,6 +159,7 @@ test.describe("데스크톱 → 통합 업무 유지", () => {
       localStorage.setItem("refresh", refresh);
       localStorage.removeItem("workspace:preferFull:tchul");
       localStorage.removeItem("teacher:preferAdmin");
+      localStorage.removeItem("teacher:preferAdmin:tchul");
       try { sessionStorage.setItem("tenantCode", "tchul"); } catch { return; }
     }, tokens);
 

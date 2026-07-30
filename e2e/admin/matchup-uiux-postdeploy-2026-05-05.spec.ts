@@ -76,7 +76,7 @@ test.use({ viewport: { width: 1440, height: 900 } });
 test.describe("매치업 UIUX 배포후 실사용", () => {
   test.beforeEach(async ({ page }) => {
     await loginViaUI(page, "admin");
-    await gotoAndSettle(page, `${BASE}/admin/storage/matchup`, { timeout: 30_000 });
+    await gotoAndSettle(page, `${BASE}/workspace/storage/matchup`, { timeout: 30_000 });
     await waitForMatchupList(page);
   });
 
@@ -154,7 +154,7 @@ test.describe("매치업 UIUX 배포후 실사용", () => {
   });
 
   test("06-hit-report-editor — 적중 보고서 편집기 4버튼 헤더", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/storage/hit-reports`, { timeout: 30_000 });
+    await gotoAndSettle(page, `${BASE}/workspace/storage/hit-reports`, { timeout: 30_000 });
     await waitForHitReportList(page);
     const firstReport = page.locator("[data-testid='hit-report-card'], [data-testid^='hit-report-row-']").first();
     if (await firstReport.count() === 0) test.skip(true, "적중 보고서 없음");
@@ -167,7 +167,7 @@ test.describe("매치업 UIUX 배포후 실사용", () => {
   });
 
   test("07-hit-report-list — 적중 보고서 리스트 헤더 (새로고침 버튼)", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/storage/hit-reports`, { timeout: 30_000 });
+    await gotoAndSettle(page, `${BASE}/workspace/storage/hit-reports`, { timeout: 30_000 });
     await waitForHitReportList(page);
     await page.screenshot({ path: `${OUT}/07-hit-report-list.png`, fullPage: false });
   });

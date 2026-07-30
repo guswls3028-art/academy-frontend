@@ -14,7 +14,7 @@ const BASE = getBaseUrl("admin");
 test.describe("커뮤니티 UIUX 개편 — 운영 검증", () => {
   test("관리자 상담 인박스 — 라벨 통일 + 답변하기 CTA", async ({ page }) => {
     await loginViaUI(page, "admin");
-    await gotoAndSettle(page, `${BASE}/admin/community/counsel`, { timeout: 20_000 });
+    await gotoAndSettle(page, `${BASE}/workspace/community/counsel`, { timeout: 20_000 });
 
     // 필터 라벨 통일
     await expect(page.getByRole("button", { name: /답변 대기/ })).toBeVisible();
@@ -27,7 +27,7 @@ test.describe("커뮤니티 UIUX 개편 — 운영 검증", () => {
 
   test("관리자 상담 — 첫 항목 선택 시 답변하기 CTA + 학생 패널", async ({ page }) => {
     await loginViaUI(page, "admin");
-    await gotoAndSettle(page, `${BASE}/admin/community/counsel`, { timeout: 20_000 });
+    await gotoAndSettle(page, `${BASE}/workspace/community/counsel`, { timeout: 20_000 });
 
     const firstCard = page.locator(".qna-inbox__card").first();
     const cardCount = await firstCard.count();
@@ -49,7 +49,7 @@ test.describe("커뮤니티 UIUX 개편 — 운영 검증", () => {
 
   test("관리자 QnA — 라벨 통일 유지", async ({ page }) => {
     await loginViaUI(page, "admin");
-    await gotoAndSettle(page, `${BASE}/admin/community/qna`, { timeout: 20_000 });
+    await gotoAndSettle(page, `${BASE}/workspace/community/qna`, { timeout: 20_000 });
 
     await expect(page.getByRole("button", { name: /답변 필요/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /답변 완료/ })).toBeVisible();

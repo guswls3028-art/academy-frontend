@@ -61,7 +61,7 @@ test.describe.serial("클리닉 UI 생성: 선생 -> 학생 확인", () => {
 
   test("2. 선생 클리닉 홈에서 생성된 세션이 UI에 보인다", async () => {
     // Navigate to clinic home
-    await adminPage.goto(`${BASE}/admin/clinic/home`);
+    await adminPage.goto(`${BASE}/workspace/clinic/home`);
     await adminPage.waitForLoadState("networkidle");
 
     // The page should load without errors
@@ -73,7 +73,7 @@ test.describe.serial("클리닉 UI 생성: 선생 -> 학생 확인", () => {
 
   test("3. 선생 클리닉 운영 콘솔에서 세션을 확인한다", async () => {
     // Navigate to the operations console to verify the session exists
-    await adminPage.goto(`${BASE}/admin/clinic/ops`);
+    await adminPage.goto(`${BASE}/workspace/clinic/ops`);
     await adminPage.waitForLoadState("networkidle");
 
     // The page should load without errors

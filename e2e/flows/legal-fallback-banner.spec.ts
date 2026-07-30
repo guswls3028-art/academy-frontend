@@ -16,7 +16,7 @@ test.describe("법적 고지 설정/공개 약관", () => {
     test.setTimeout(60_000);
     await loginViaUI(page, "admin");
 
-    await gotoAndSettle(page, `${BASE}/admin/settings/organization`, { timeout: 20_000 });
+    await gotoAndSettle(page, `${BASE}/workspace/settings/organization`, { timeout: 20_000 });
 
     // 법적 고지 정보 섹션 헤더가 렌더되어야 한다.
     await expect(page.getByText("법적 고지 정보").first()).toBeVisible({ timeout: 20_000 });

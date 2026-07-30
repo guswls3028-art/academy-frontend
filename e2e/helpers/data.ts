@@ -200,7 +200,7 @@ export async function cleanupEnsuredClinicSession(
  * scores/attendance 테스트에서 URL 구성에 사용.
  */
 export async function getFirstLectureSession(page: Page): Promise<LectureSession> {
-  const res = await apiCall(page, "GET", "/admin/lectures/");
+  const res = await apiCall(page, "GET", "/workspace/lectures/");
   if (res.status !== 200) {
     throw new Error(`Failed to fetch lectures: ${res.status}`);
   }
@@ -215,7 +215,7 @@ export async function getFirstLectureSession(page: Page): Promise<LectureSession
   const lectureName = lecture.name ?? `Lecture ${lectureId}`;
 
   // 차시 목록 조회
-  const sessRes = await apiCall(page, "GET", `/admin/lectures/${lectureId}/sessions/`);
+  const sessRes = await apiCall(page, "GET", `/workspace/lectures/${lectureId}/sessions/`);
   if (sessRes.status !== 200) {
     throw new Error(`Failed to fetch sessions for lecture ${lectureId}: ${sessRes.status}`);
   }
@@ -237,12 +237,12 @@ export async function getFirstLectureSession(page: Page): Promise<LectureSession
  * 점수/출결 테스트에서 의미 있는 데이터가 필요할 때 사용.
  */
 export async function getSessionWithParticipants(page: Page): Promise<LectureSession | null> {
-  const res = await apiCall(page, "GET", "/admin/lectures/");
+  const res = await apiCall(page, "GET", "/workspace/lectures/");
   if (res.status !== 200) return null;
 
   const lectures = res.body.results ?? res.body;
   for (const lecture of lectures) {
-    const sessRes = await apiCall(page, "GET", `/admin/lectures/${lecture.id}/sessions/`);
+    const sessRes = await apiCall(page, "GET", `/workspace/lectures/${lecture.id}/sessions/`);
     if (sessRes.status !== 200) continue;
 
     const sessions = sessRes.body.results ?? sessRes.body;

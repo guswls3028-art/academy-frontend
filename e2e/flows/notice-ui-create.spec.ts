@@ -48,7 +48,7 @@ test.describe.serial("공지 UI 작성: 선생 UI -> 학생 확인", () => {
     await loginViaUI(adminPage, "admin");
 
     // Navigate to notice admin page with scope=all so the list and create button appear
-    await adminPage.goto(`${BASE}/admin/community/notice?scope=all`);
+    await adminPage.goto(`${BASE}/workspace/community/notice?scope=all`);
     await adminPage.waitForLoadState("networkidle");
 
     // Click the "+ 추가" button to open the create pane

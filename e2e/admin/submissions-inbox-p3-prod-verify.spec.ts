@@ -44,7 +44,7 @@ test("pending API: is_discarded + discard_reason 필드 노출", async ({ reques
 test("inbox UI: 실패/폐기 탭 sub-filter 노출 + 잘못된 세션 접근 미발생", async ({ page }) => {
   test.setTimeout(120_000);
   await loginViaUI(page, "admin");
-  await page.goto(`${getBaseUrl("admin")}/admin/results/submissions`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${getBaseUrl("admin")}/workspace/results/submissions`, { waitUntil: "domcontentloaded" });
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 
   // 실패/폐기 탭 클릭

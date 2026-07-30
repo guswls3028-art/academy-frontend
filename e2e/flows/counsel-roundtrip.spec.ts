@@ -90,7 +90,7 @@ test.describe.serial("상담 왕복: 학생→관리자→학생", () => {
     adminPage = await ctx.newPage();
     await loginViaUI(adminPage, "admin");
 
-    await gotoAndSettle(adminPage, `${BASE}/admin/community/counsel`, { timeout: 20_000 });
+    await gotoAndSettle(adminPage, `${BASE}/workspace/community/counsel`, { timeout: 20_000 });
 
     const card = adminPage.locator(`text=${C_TITLE}`).first();
     await expect(card).toBeVisible({ timeout: 30_000 });

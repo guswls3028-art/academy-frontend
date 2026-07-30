@@ -70,7 +70,7 @@ test.describe("M2 /admin/storage/hit-reports", () => {
       const page = await ctx.newPage();
 
       await loginViaUI(page, "admin");
-      await gotoAndSettle(page, `${BASE}/admin/storage/hit-reports`, { timeout: 30_000 });
+      await gotoAndSettle(page, `${BASE}/workspace/storage/hit-reports`, { timeout: 30_000 });
 
       // At minimum the page container is visible
       const body = page.locator("body");
@@ -127,7 +127,7 @@ test.describe("M4 /admin/community/board", () => {
       const page = await ctx.newPage();
 
       await loginViaUI(page, "admin");
-      await gotoAndSettle(page, `${BASE}/admin/community/board`, { timeout: 30_000 });
+      await gotoAndSettle(page, `${BASE}/workspace/community/board`, { timeout: 30_000 });
 
       const body = page.locator("body");
       await expect(body).toBeVisible();

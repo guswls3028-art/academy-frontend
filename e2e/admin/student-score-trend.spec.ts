@@ -473,10 +473,10 @@ test.describe("학생별 회차 누적 성적 추이", () => {
   test("관리자 성적 콘솔에서 학생별 누적 추이와 다중 필터를 함께 관리한다", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 960 });
     await installApi(page);
-    await page.goto(`${BASE}/admin`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${BASE}/workspace`, { waitUntil: "domcontentloaded" });
 
-    await page.locator('a[href="/admin/results"]').first().click();
-    await expect(page).toHaveURL(/\/admin\/results$/);
+    await page.locator('a[href="/workspace/results"]').first().click();
+    await expect(page).toHaveURL(/\/workspace\/results$/);
     const console = page.getByTestId("results-performance-console");
     await expect(console).toBeVisible();
     await expect(console.getByText("학생의 변화를 회차로 봅니다")).toBeVisible();
@@ -537,12 +537,12 @@ test.describe("학생별 회차 누적 성적 추이", () => {
   test("관리자 학생 상세에서 자동 누적·강의 필터·정규화 점수를 확인한다", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 900 });
     await installApi(page);
-    await page.goto(`${BASE}/admin`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${BASE}/workspace`, { waitUntil: "domcontentloaded" });
 
-    await page.locator('a[href="/admin/students"]').first().click();
-    await expect(page).toHaveURL(/\/admin\/students\/home/);
+    await page.locator('a[href="/workspace/students"]').first().click();
+    await expect(page).toHaveURL(/\/workspace\/students\/home/);
     await page.getByRole("button", { name: /윤지용 학생/ }).first().click();
-    await expect(page).toHaveURL(/\/admin\/students\/101/);
+    await expect(page).toHaveURL(/\/workspace\/students\/101/);
     const detailOverlay = page.getByTestId("student-detail-overlay");
     await expect(detailOverlay).toBeVisible();
     await expect(page.locator(".ds-overlay-backdrop")).toHaveCount(1);
@@ -586,20 +586,20 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await expect.poll(() => detailScroller.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
     await page.screenshot({ path: "test-results/student-score-trend/admin-overlay-390-top.png" });
     await detailOverlay.getByRole("button", { name: "닫기" }).click();
-    await expect(page).toHaveURL(/\/admin\/students\/home/);
+    await expect(page).toHaveURL(/\/workspace\/students\/home/);
 
     await page.setViewportSize({ width: 1100, height: 820 });
-    await page.goto(`${BASE}/admin/students/101`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${BASE}/workspace/students/101`, { waitUntil: "domcontentloaded" });
     await expect(detailOverlay).toBeVisible();
     await expect(page.locator('[data-guide="students-table"]')).toBeVisible();
     await detailOverlay.getByRole("button", { name: "닫기" }).click();
-    await expect(page).toHaveURL(/\/admin\/students\/home/);
+    await expect(page).toHaveURL(/\/workspace\/students\/home/);
   });
 
   test("성적 콘솔 오류를 검토 대상 0건으로 표시하지 않는다", async ({ page }) => {
     await page.setViewportSize({ width: 1100, height: 820 });
     await installApi(page, { failPerformance: true });
-    await page.goto(`${BASE}/admin/results`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${BASE}/workspace/results`, { waitUntil: "domcontentloaded" });
 
     await expect(page.getByText("학생별 성적을 불러올 수 없습니다")).toBeVisible();
     const reviewQueue = page.getByTestId("reported-score-review-queue");
@@ -610,9 +610,9 @@ test.describe("학생별 회차 누적 성적 추이", () => {
   test("성적 API 오류를 실제 0건으로 오인시키지 않는다", async ({ page }) => {
     await page.setViewportSize({ width: 1100, height: 820 });
     await installApi(page, { failGrades: true });
-    await page.goto(`${BASE}/admin`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${BASE}/workspace`, { waitUntil: "domcontentloaded" });
 
-    await page.locator('a[href="/admin/students"]').first().click();
+    await page.locator('a[href="/workspace/students"]').first().click();
     await page.getByRole("button", { name: /윤지용 학생/ }).first().click();
     const examTab = page.getByRole("tab", { name: /시험/ });
     await expect(examTab).toContainText("확인 필요");
@@ -629,12 +629,12 @@ test.describe("학생별 회차 누적 성적 추이", () => {
   test("선생 모바일 학생 상세에서도 회차 추이가 내부 스크롤로 안정적으로 보인다", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await installApi(page);
-    await page.goto(`${BASE}/teacher`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${BASE}/workspace/mobile`, { waitUntil: "domcontentloaded" });
 
-    await page.locator('a[href="/teacher/students"]').first().click();
-    await expect(page).toHaveURL(/\/teacher\/students$/);
+    await page.locator('a[href="/workspace/mobile/students"]').first().click();
+    await expect(page).toHaveURL(/\/workspace\/mobile\/students$/);
     await page.getByRole("button", { name: /윤지용 학생/ }).first().click();
-    await expect(page).toHaveURL(/\/teacher\/students\/101/);
+    await expect(page).toHaveURL(/\/workspace\/mobile\/students\/101/);
     await page.getByRole("button", { name: "시험", exact: true }).click();
 
     const component = page.getByTestId("student-score-trend");

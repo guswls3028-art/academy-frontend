@@ -2,7 +2,7 @@
 /* App Header Pattern (SSOT) — Premium SaaS style
    - colors are role/layout tokens only
    - layout uses CSS, not inline color styling
-   - 상단 헤더 드롭다운 SSOT: .cursor/rules/header-dropdown-ssot.mdc
+   - 상단 헤더 드롭다운 SSOT: 이 파일의 .ds-header-dropdown 패턴
 */
 
 /* ========== 헤더 드롭다운 SSOT: 공통 패널 껍데기 (알림·작업박스·프로필 공통) ========== */

@@ -111,7 +111,7 @@ test("알림톡 발송 직전 카카오 디자인과 학생별 문구를 확인�
     });
   });
 
-  await gotoAndSettle(page, `${BASE}/admin/students`, { settleMs: 500 });
+  await gotoAndSettle(page, `${BASE}/workspace/students`, { settleMs: 500 });
 
   await expect(page.getByText("김민준", { exact: true })).toBeVisible();
   await expect(page.getByText("박서연", { exact: true })).toBeVisible();

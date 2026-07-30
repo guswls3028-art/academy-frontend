@@ -4,6 +4,8 @@
  */
 import { Suspense, type ReactNode } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
+import ExternalRedirect from "@/core/router/ExternalRedirect";
+import { PUBLIC_UPDATES_URL } from "@/shared/constants/origins";
 import { Navigate, Route, Routes } from "react-router-dom";
 import TeacherLayout from "@teacher/layout/TeacherLayout";
 import RoleGuard from "@teacher/shared/ui/RoleGuard";
@@ -62,7 +64,6 @@ const AppearancePage = lazy(() => import("@teacher/domains/settings/pages/Appear
 const ToolsHubPage = lazy(() => import("@teacher/domains/tools/pages/ToolsHubPage"));
 const ProblemSolverPage = lazy(() => import("@teacher/domains/tools/pages/ProblemSolverPage"));
 const StopwatchPage = lazy(() => import("@teacher/domains/tools/pages/StopwatchPage"));
-const PatchNotesPage = lazy(() => import("@teacher/domains/developer/pages/DeveloperPages").then((m) => ({ default: m.PatchNotesPage })));
 const BugReportPage = lazy(() => import("@teacher/domains/developer/pages/DeveloperPages").then((m) => ({ default: m.BugReportPage })));
 const FeedbackPage = lazy(() => import("@teacher/domains/developer/pages/DeveloperPages").then((m) => ({ default: m.FeedbackPage })));
 
@@ -179,7 +180,7 @@ export default function TeacherRouter() {
           <Route path="tools/stopwatch" element={<StopwatchPage />} />
 
           {/* To개발자 (Phase 4) */}
-          <Route path="developer" element={<PatchNotesPage />} />
+          <Route path="developer" element={<ExternalRedirect to={PUBLIC_UPDATES_URL} />} />
           <Route path="developer/bug" element={<BugReportPage />} />
           <Route path="developer/feedback" element={<FeedbackPage />} />
         </Route>

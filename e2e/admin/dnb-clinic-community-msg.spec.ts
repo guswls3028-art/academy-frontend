@@ -53,42 +53,42 @@ test.describe("DNB 클리닉/커뮤니티/메시징 검증", () => {
   // ===== CLINIC =====
 
   test("1. 클리닉 홈 렌더링", async ({ page }) => {
-    await visitAndAssertNo5xx(page, "/admin/clinic/home", "dnb-clinic-home");
+    await visitAndAssertNo5xx(page, "/workspace/clinic/home", "dnb-clinic-home");
   });
 
   test("2. 클리닉 운영 콘솔 렌더링", async ({ page }) => {
-    await visitAndAssertNo5xx(page, "/admin/clinic/operations", "dnb-clinic-operations");
+    await visitAndAssertNo5xx(page, "/workspace/clinic/operations", "dnb-clinic-operations");
   });
 
   test("3. 클리닉 예약 관리 렌더링", async ({ page }) => {
-    await visitAndAssertNo5xx(page, "/admin/clinic/bookings", "dnb-clinic-bookings");
+    await visitAndAssertNo5xx(page, "/workspace/clinic/bookings", "dnb-clinic-bookings");
   });
 
   test("4. 클리닉 리포트 렌더링", async ({ page }) => {
-    await visitAndAssertNo5xx(page, "/admin/clinic/reports", "dnb-clinic-reports");
+    await visitAndAssertNo5xx(page, "/workspace/clinic/reports", "dnb-clinic-reports");
   });
 
   test("5. 클리닉 설정 렌더링", async ({ page }) => {
-    await visitAndAssertNo5xx(page, "/admin/clinic/settings", "dnb-clinic-settings");
+    await visitAndAssertNo5xx(page, "/workspace/clinic/settings", "dnb-clinic-settings");
   });
 
   test("6. 클리닉 메시지 설정 렌더링", async ({ page }) => {
-    await visitAndAssertNo5xx(page, "/admin/clinic/msg-settings", "dnb-clinic-msg-settings");
+    await visitAndAssertNo5xx(page, "/workspace/clinic/msg-settings", "dnb-clinic-msg-settings");
   });
 
   test("7. 도구 > 클리닉 출력 렌더링", async ({ page }) => {
-    await visitAndAssertNo5xx(page, "/admin/tools/clinic", "dnb-tools-clinic");
+    await visitAndAssertNo5xx(page, "/workspace/tools/clinic", "dnb-tools-clinic");
   });
 
   // ===== COMMUNITY =====
 
   test("8. 게시판 렌더링", async ({ page }) => {
-    await visitAndAssertNo5xx(page, "/admin/community/board", "dnb-community-board");
+    await visitAndAssertNo5xx(page, "/workspace/community/board", "dnb-community-board");
   });
 
   test("9. 공지사항 렌더링 + 공지 추가 버튼", async ({ page }) => {
     const { networkErrors } = attachErrorCollectors(page);
-    await gotoAndSettle(page, `${DNB_BASE}/admin/community/notice`, { settleMs: 1500 });
+    await gotoAndSettle(page, `${DNB_BASE}/workspace/community/notice`, { settleMs: 1500 });
     await page.screenshot({ path: "e2e/screenshots/dnb-community-notice.png" });
 
     await expect(page.locator("body")).toBeVisible();
@@ -104,42 +104,42 @@ test.describe("DNB 클리닉/커뮤니티/메시징 검증", () => {
   });
 
   test("10. QnA 렌더링", async ({ page }) => {
-    await visitAndAssertNo5xx(page, "/admin/community/qna", "dnb-community-qna");
+    await visitAndAssertNo5xx(page, "/workspace/community/qna", "dnb-community-qna");
   });
 
   test("11. 상담 (커뮤니티) 렌더링", async ({ page }) => {
-    await visitAndAssertNo5xx(page, "/admin/community/counsel", "dnb-community-counsel");
+    await visitAndAssertNo5xx(page, "/workspace/community/counsel", "dnb-community-counsel");
   });
 
   test("12. 자료실 렌더링", async ({ page }) => {
-    await visitAndAssertNo5xx(page, "/admin/community/materials", "dnb-community-materials");
+    await visitAndAssertNo5xx(page, "/workspace/community/materials", "dnb-community-materials");
   });
 
   test("13. 커뮤니티 설정 렌더링", async ({ page }) => {
-    await visitAndAssertNo5xx(page, "/admin/community/settings", "dnb-community-settings");
+    await visitAndAssertNo5xx(page, "/workspace/community/settings", "dnb-community-settings");
   });
 
   // ===== MESSAGING =====
 
   test("14. 메시지 템플릿 렌더링", async ({ page }) => {
-    await visitAndAssertNo5xx(page, "/admin/message/templates", "dnb-message-templates");
+    await visitAndAssertNo5xx(page, "/workspace/message/templates", "dnb-message-templates");
   });
 
   test("15. 자동발송 렌더링", async ({ page }) => {
-    await visitAndAssertNo5xx(page, "/admin/message/auto-send", "dnb-message-auto-send");
+    await visitAndAssertNo5xx(page, "/workspace/message/auto-send", "dnb-message-auto-send");
   });
 
   test("16. 발송내역 렌더링", async ({ page }) => {
-    await visitAndAssertNo5xx(page, "/admin/message/log", "dnb-message-log");
+    await visitAndAssertNo5xx(page, "/workspace/message/log", "dnb-message-log");
   });
 
   test("17. 메시지 설정 렌더링", async ({ page }) => {
-    await visitAndAssertNo5xx(page, "/admin/message/settings", "dnb-message-settings");
+    await visitAndAssertNo5xx(page, "/workspace/message/settings", "dnb-message-settings");
   });
 
   // ===== COUNSEL (standalone) =====
 
   test("18. 상담 페이지 렌더링", async ({ page }) => {
-    await visitAndAssertNo5xx(page, "/admin/counsel", "dnb-counsel");
+    await visitAndAssertNo5xx(page, "/workspace/counsel", "dnb-counsel");
   });
 });

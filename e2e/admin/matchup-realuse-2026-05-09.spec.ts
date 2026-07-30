@@ -15,7 +15,7 @@ const ADMIN_PASS = process.env.E2E_ADMIN_PASS || "__MISSING_E2E_ADMIN_PASS__";
 const TENANT = "hakwonplus";
 
 const OUT = "../_artifacts/sessions/matchup-realuse-2026-05-09";
-const MATCHUP_URL = `${BASE}/admin/storage/matchup`;
+const MATCHUP_URL = `${BASE}/workspace/storage/matchup`;
 
 async function login(page: Page) {
   const resp = await page.request.post(`${API}/api/v1/token/`, {

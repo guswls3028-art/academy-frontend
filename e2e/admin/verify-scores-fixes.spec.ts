@@ -25,13 +25,13 @@ async function snap(page: Page, name: string) {
 }
 
 function scoresUrl() {
-  return `${BASE}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`;
+  return `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`;
 }
 function examsUrl() {
-  return `${BASE}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams`;
+  return `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams`;
 }
 function assignmentsUrl() {
-  return `${BASE}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/assignments`;
+  return `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/assignments`;
 }
 
 function activeModal(page: Page) {

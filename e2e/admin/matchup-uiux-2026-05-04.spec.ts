@@ -35,7 +35,7 @@ async function waitForDocDetail(page: Page): Promise<void> {
 test.describe("매치업 UIUX 개편 — 2026-05-04", () => {
   test.beforeEach(async ({ page }) => {
     await loginViaUI(page, "admin");
-    await gotoAndSettle(page, `${BASE}/admin/storage/matchup`, { timeout: 30_000 });
+    await gotoAndSettle(page, `${BASE}/workspace/storage/matchup`, { timeout: 30_000 });
     await waitForCondition(
       async () =>
         (await page.locator(DOC_ROW_SELECTOR).count()) > 0 ||

@@ -41,42 +41,42 @@ test.describe.serial("전체 운영 검증", () => {
 
   // ── 교사: 학생 목록 확인 ──
   test("02 교사: 학생 목록에서 0317테스트학생 확인", async () => {
-    await visitAndSnap(T, "/admin/students", "02-student-list", 2000);
+    await visitAndSnap(T, "/workspace/students", "02-student-list", 2000);
     const stu = T.locator("text=0317테스트학생");
     await expect(stu).toBeVisible({ timeout: 10000 });
   });
 
   // ── 교사: 강의 목록 확인 ──
   test("03 교사: 강의 목록", async () => {
-    await visitAndSnap(T, "/admin/lectures", "03-lectures");
+    await visitAndSnap(T, "/workspace/lectures", "03-lectures");
     await expect(T.locator("text=Not Found")).not.toBeVisible();
   });
 
   // ── 교사: 공지 목록 ──
   test("04 교사: 공지 목록", async () => {
-    await visitAndSnap(T, "/admin/community/notice", "04-notice-list");
+    await visitAndSnap(T, "/workspace/community/notice", "04-notice-list");
     await expect(T.locator("text=Not Found")).not.toBeVisible();
   });
 
   // ── 교사: QnA 목록 ──
   test("05 교사: QnA 목록", async () => {
-    await visitAndSnap(T, "/admin/community/qna", "05-qna-list");
+    await visitAndSnap(T, "/workspace/community/qna", "05-qna-list");
   });
 
   // ── 교사: 클리닉 홈 ──
   test("06 교사: 클리닉 홈", async () => {
-    await visitAndSnap(T, "/admin/clinic/home", "06-clinic-home");
+    await visitAndSnap(T, "/workspace/clinic/home", "06-clinic-home");
     await expect(T.locator("text=Not Found")).not.toBeVisible();
   });
 
   // ── 교사: 메시지 설정 ──
   test("07 교사: 메시지 템플릿", async () => {
-    await visitAndSnap(T, "/admin/message/templates", "07-msg-templates");
+    await visitAndSnap(T, "/workspace/message/templates", "07-msg-templates");
   });
 
   // ── 교사: 영상 ──
   test("08 교사: 영상 목록", async () => {
-    await visitAndSnap(T, "/admin/videos", "08-videos");
+    await visitAndSnap(T, "/workspace/videos", "08-videos");
   });
 
   // ══════════════════════════════
@@ -189,7 +189,7 @@ test.describe.serial("전체 운영 검증", () => {
   test("21 교사: QnA 답변", async () => {
     const ctx = await browser.newContext();
     qnaCleanupPage = await ctx.newPage();
-    await loginViaUI(qnaCleanupPage, "admin", { landingPath: "/admin/community/qna?scope=all" });
+    await loginViaUI(qnaCleanupPage, "admin", { landingPath: "/workspace/community/qna?scope=all" });
     await qnaCleanupPage.screenshot({ path: "test-results/21-teacher-qna.png" });
 
     const questionCard = qnaCleanupPage.locator(".qna-inbox__card").filter({ hasText: Q_TITLE }).first();
@@ -219,17 +219,17 @@ test.describe.serial("전체 운영 검증", () => {
 
   // ── 교사: 클리닉 운영 콘솔 ──
   test("22 교사: 클리닉 운영", async () => {
-    await visitAndSnap(T, "/admin/clinic/operations", "22-clinic-operations");
+    await visitAndSnap(T, "/workspace/clinic/operations", "22-clinic-operations");
   });
 
   // ── 교사: 스태프 ──
   test("23 교사: 스태프", async () => {
-    await visitAndSnap(T, "/admin/staff", "23-staff");
+    await visitAndSnap(T, "/workspace/staff", "23-staff");
   });
 
   // ── 교사: 설정 ──
   test("24 교사: 설정", async () => {
-    await visitAndSnap(T, "/admin/settings", "24-settings");
+    await visitAndSnap(T, "/workspace/settings", "24-settings");
   });
 
   // ══════════════════════════════

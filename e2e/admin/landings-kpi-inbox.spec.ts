@@ -28,7 +28,7 @@ test.describe("admin landings KPI inbox", () => {
   });
 
   test("results landing — KPI grid + tree toggle", async ({ page }) => {
-    await page.goto(`${BASE}/admin/results`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${BASE}/workspace/results`, { waitUntil: "domcontentloaded" });
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
     // KPI 그리드 노출
@@ -50,13 +50,13 @@ test.describe("admin landings KPI inbox", () => {
     await toggle.click();
 
     // 트리 모드: 좌측 트리(강의·차시) 노출
-    await page.waitForURL(/\/admin\/results\/tree/, { timeout: 10_000 });
+    await page.waitForURL(/\/workspace\/results\/tree/, { timeout: 10_000 });
     await expect(page.getByText("강의 · 차시", { exact: false })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("button", { name: "오늘의 작업" })).toBeVisible();
 
     // 다시 토글 → KPI 복귀
     await page.getByRole("button", { name: "오늘의 작업" }).click();
-    await page.waitForURL(/\/admin\/results$/, { timeout: 10_000 });
+    await page.waitForURL(/\/workspace\/results$/, { timeout: 10_000 });
     await expect(page.getByTestId("results-kpi-grid")).toBeVisible();
 
     // 새로고침 후에도 마지막 모드 기억 (KPI)
@@ -66,12 +66,12 @@ test.describe("admin landings KPI inbox", () => {
   });
 
   test("results landing — tree mode persists across reload", async ({ page }) => {
-    await page.goto(`${BASE}/admin/results`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${BASE}/workspace/results`, { waitUntil: "domcontentloaded" });
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
     // KPI → tree 토글
     await page.getByRole("button", { name: "강의별 탐색" }).click();
-    await page.waitForURL(/\/admin\/results\/tree/, { timeout: 10_000 });
+    await page.waitForURL(/\/workspace\/results\/tree/, { timeout: 10_000 });
     await expect(page.getByText("강의 · 차시", { exact: false })).toBeVisible({ timeout: 10_000 });
 
     // 새로고침 — 트리 모드가 유지되어야
@@ -91,7 +91,7 @@ test.describe("admin landings KPI inbox", () => {
       });
     });
 
-    await page.goto(`${BASE}/admin/results`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${BASE}/workspace/results`, { waitUntil: "domcontentloaded" });
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
     const kpiGrid = page.getByTestId("results-kpi-grid");
@@ -101,7 +101,7 @@ test.describe("admin landings KPI inbox", () => {
   });
 
   test("results landing — KPI click navigates to submissions inbox", async ({ page }) => {
-    await page.goto(`${BASE}/admin/results`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${BASE}/workspace/results`, { waitUntil: "domcontentloaded" });
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
     const kpiGrid = page.getByTestId("results-kpi-grid");
@@ -109,12 +109,12 @@ test.describe("admin landings KPI inbox", () => {
 
     // 「채점 대기」KPI 클릭 → /admin/results/submissions
     await kpiGrid.locator('button[data-kpi="true"]').first().click();
-    await page.waitForURL(/\/admin\/results\/submissions/, { timeout: 10_000 });
-    expect(page.url()).toContain("/admin/results/submissions");
+    await page.waitForURL(/\/workspace\/results\/submissions/, { timeout: 10_000 });
+    expect(page.url()).toContain("/workspace/results/submissions");
   });
 
   test("videos landing — KPI grid + tree toggle", async ({ page }) => {
-    await page.goto(`${BASE}/admin/videos`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${BASE}/workspace/videos`, { waitUntil: "domcontentloaded" });
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
     // KPI 그리드 노출

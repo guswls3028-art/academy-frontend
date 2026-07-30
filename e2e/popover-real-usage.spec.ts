@@ -83,7 +83,7 @@ async function shoot(page: Page, name: string) {
 }
 
 async function openModalLectures(page: Page) {
-  await page.goto(`${BASE}/admin/lectures`, { waitUntil: "load" });
+  await page.goto(`${BASE}/workspace/lectures`, { waitUntil: "load" });
   await page.waitForLoadState("networkidle", { timeout: 12000 }).catch(() => {});
   const btn = page.locator('[data-guide="lectures-add-btn"]').first();
   await btn.waitFor({ state: "visible", timeout: 15000 });
@@ -181,7 +181,7 @@ for (const vp of [
         test.skip(true, "강의 없음");
         return;
       }
-      await page.goto(`${BASE}/admin/lectures/${lectureId}/sessions`, { waitUntil: "load" });
+      await page.goto(`${BASE}/workspace/lectures/${lectureId}/sessions`, { waitUntil: "load" });
       await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
       // "+ 차시 추가" 클릭
       const addSessionBtn = page.getByRole("button", { name: /차시 추가/ }).first();
@@ -220,7 +220,7 @@ for (const vp of [
 
     test("3) ClinicCreatePanel: 클리닉 생성 패널 시간 popover (저장 X)", async ({ page }) => {
       await loginViaUI(page, "admin");
-      await page.goto(`${BASE}/admin/clinic/operations`, { waitUntil: "load" });
+      await page.goto(`${BASE}/workspace/clinic/operations`, { waitUntil: "load" });
       await page.waitForLoadState("networkidle", { timeout: 12000 }).catch(() => {});
 
       // "클리닉 만들기" 버튼 (사이드바 또는 빈 상태 CTA)
@@ -279,7 +279,7 @@ for (const vp of [
 
     test("6) ClinicCreatePanel: inline DatePicker + 장소 popover viewport 안", async ({ page }) => {
       await loginViaUI(page, "admin");
-      await page.goto(`${BASE}/admin/clinic/operations`, { waitUntil: "load" });
+      await page.goto(`${BASE}/workspace/clinic/operations`, { waitUntil: "load" });
       await page.waitForLoadState("networkidle", { timeout: 12000 }).catch(() => {});
 
       const addBtn = page.getByRole("button", { name: /클리닉 만들기/ }).first();
@@ -326,7 +326,7 @@ for (const vp of [
         test.skip(true, "강의·차시 데이터 없음");
         return;
       }
-      await page.goto(`${BASE}/admin/lectures/${ids.lectureId}/sessions/${ids.sessionId}/attendance`, { waitUntil: "load" });
+      await page.goto(`${BASE}/workspace/lectures/${ids.lectureId}/sessions/${ids.sessionId}/attendance`, { waitUntil: "load" });
       await page.waitForLoadState("networkidle", { timeout: 12000 }).catch(() => {});
 
       // 상태 필터 popover 트리거

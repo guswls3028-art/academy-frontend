@@ -44,7 +44,7 @@ test.describe("작업상태바 smoke", () => {
     }, { access: tokens.access, refresh: tokens.refresh });
 
     // 매치업 페이지 진입 — processing doc 있으면 작업박스에 자동 등록됨
-    await gotoAndSettle(page, `${BASE}/admin/storage/matchup`, { timeout: 30_000 });
+    await gotoAndSettle(page, `${BASE}/workspace/storage/matchup`, { timeout: 30_000 });
 
     // 작업박스 트리거 버튼 — aria-label 기반 (testid 없음)
     const trigger = page.getByRole("button", { name: /작업박스/ }).first();

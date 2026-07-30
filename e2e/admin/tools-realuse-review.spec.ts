@@ -19,7 +19,7 @@ import { gotoAndSettle } from "../helpers/wait";
 const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
 
 async function openOmrTool(page: import("@playwright/test").Page) {
-  await gotoAndSettle(page, `${BASE}/admin/dashboard`);
+  await gotoAndSettle(page, `${BASE}/workspace/dashboard`);
   await page.getByRole("link", { name: "도구", exact: true }).click();
   await page.getByRole("button", { name: "OMR 생성", exact: true }).click();
   await expect(page.getByRole("region", { name: "OMR 답안지 설정" })).toBeVisible();
@@ -50,7 +50,7 @@ test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
   // ── PPT ──────────────────────────────────────────
 
   test("PPT-1. 미지원 형식 드롭 시 toast 노출 (P0-1)", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/tools/ppt`);
+    await gotoAndSettle(page, `${BASE}/workspace/tools/ppt`);
 
     // hidden input에 .txt 파일 강제 주입 (드래그 불가환경 회피)
     const fileInput = page.locator('input[type="file"][accept*="image"]');
@@ -66,7 +66,7 @@ test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
   });
 
   test("PPT-2. PDF 모드 — 잘못된 형식 toast (P0-2)", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/tools/ppt`);
+    await gotoAndSettle(page, `${BASE}/workspace/tools/ppt`);
 
     // PDF 탭 전환
     await page.getByRole("button", { name: "PDF" }).click();
@@ -236,14 +236,14 @@ test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
       `${BASE}/omr-sheet.html?logo=x%22%20onerror%3D%22alert(document.domain)`,
     );
 
-    await expect(page).toHaveURL(/\/admin\/tools\/omr$/);
+    await expect(page).toHaveURL(/\/workspace\/tools\/omr$/);
     await expect(page.getByRole("region", { name: "OMR 답안지 설정" })).toBeVisible();
   });
 
   // ── Clinic ──────────────────────────────────────────
 
   test("CLN-1. 잘못된 paste → 가이드 toast (P1-5)", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/tools/clinic`);
+    await gotoAndSettle(page, `${BASE}/workspace/tools/clinic`);
 
     const ta = page.locator("#clinic-paste-ta");
     await ta.fill("이건 형식 안 맞는 무작위 텍스트입니다");
@@ -254,7 +254,7 @@ test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
   });
 
   test("CLN-2. 카테고리 paste → 미리보기 + 다운로드 버튼 활성화 (P0-3/P0-4)", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/tools/clinic`);
+    await gotoAndSettle(page, `${BASE}/workspace/tools/clinic`);
 
     const ta = page.locator("#clinic-paste-ta");
     await ta.fill("시험+과제: [E2E-tools] 홍길동, 김철수\n시험: [E2E-tools] 이영희\n과제: [E2E-tools] 박민수");
@@ -273,7 +273,7 @@ test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
   });
 
   test("CLN-3. PDF 다운로드 → %PDF- 매직", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/tools/clinic`);
+    await gotoAndSettle(page, `${BASE}/workspace/tools/clinic`);
 
     const ta = page.locator("#clinic-paste-ta");
     await ta.fill("시험+과제: [E2E-tools] 홍길동\n시험: [E2E-tools] 이영희");
@@ -295,7 +295,7 @@ test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
   // ── Timer ──────────────────────────────────────────
 
   test("TMR-1. ZIP endpoint 호출 OK", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/tools/stopwatch`);
+    await gotoAndSettle(page, `${BASE}/workspace/tools/stopwatch`);
 
     const respPromise = page.waitForResponse(
       (r) => r.url().includes("/tools/timer/download/") && r.request().method() === "GET",
@@ -310,7 +310,7 @@ test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
   });
 
   test("TMR-2. 타이머 진행 후 모드 전환 → confirm dialog (P1-4)", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/tools/stopwatch`);
+    await gotoAndSettle(page, `${BASE}/workspace/tools/stopwatch`);
 
     // 1분 프리셋 클릭 → ready phase
     await page.getByRole("button", { name: /^1분$/ }).click();

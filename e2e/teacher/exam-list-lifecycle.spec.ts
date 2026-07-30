@@ -24,7 +24,7 @@ test.describe("선생앱 시험/과제 목록 — status UI 폐기", () => {
   });
 
   test("시험 탭은 status 뱃지 없이 운영 시험 목록만 렌더링한다", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/exams`, { waitUntil: "domcontentloaded", timeout: 30_000 });
+    await page.goto(`${BASE}/workspace/mobile/exams`, { waitUntil: "domcontentloaded", timeout: 30_000 });
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
     await expect(page.getByRole("heading", { name: /시험\s*\/\s*과제/ })).toBeVisible({ timeout: 10_000 });
@@ -37,7 +37,7 @@ test.describe("선생앱 시험/과제 목록 — status UI 폐기", () => {
   });
 
   test("과제 탭도 status 뱃지 없이 렌더링한다", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/exams`, { waitUntil: "domcontentloaded", timeout: 30_000 });
+    await page.goto(`${BASE}/workspace/mobile/exams`, { waitUntil: "domcontentloaded", timeout: 30_000 });
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
     const homeworkTab = page.getByRole("tab", { name: /^과제$/, exact: true });

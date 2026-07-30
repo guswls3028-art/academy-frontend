@@ -43,7 +43,7 @@ test("VR-TCHUL. read-only 처리중 doc 시각 캡처", async ({ page }) => {
   test.setTimeout(60_000);
   await loginViaUI(page, "tchul-admin");
   await page.setViewportSize({ width: 1600, height: 1000 });
-  await gotoAndSettle(page, `${BASE}/admin/storage/matchup`, { timeout: 30_000 });
+  await gotoAndSettle(page, `${BASE}/workspace/storage/matchup`, { timeout: 30_000 });
   await waitForMatchupReady(page);
 
   // 처리중 chip 클릭 → 처리중 doc 목록만 표시

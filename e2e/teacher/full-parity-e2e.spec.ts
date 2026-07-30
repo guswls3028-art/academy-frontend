@@ -23,7 +23,7 @@ test.describe("선생님 모바일 — 전 기능 패리티", () => {
 
   // ── 설정 ──
   test("설정 — 전체 섹션 렌더링 (프로필/보안/테마/알림/앱)", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/settings`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/settings`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await expect(page.getByText("프로필").first()).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText("보안").first()).toBeVisible();
@@ -34,7 +34,7 @@ test.describe("선생님 모바일 — 전 기능 패리티", () => {
 
   // ── 강의 ──
   test("강의 목록 — 생성 버튼 존재", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/classes`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/classes`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await expect(page.getByRole("button", { name: /강의 (생성|추가)/ })).toBeVisible({ timeout: 10_000 });
     await page.screenshot({ path: "e2e/screenshots/parity-02-lectures.png" });
@@ -42,7 +42,7 @@ test.describe("선생님 모바일 — 전 기능 패리티", () => {
 
   // ── 학생 ──
   test("학생 목록 — 등록/엑셀/가져오기 버튼", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/students`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/students`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await expect(page.getByRole("button", { name: /추가/ })).toBeVisible({ timeout: 10_000 });
     await page.getByRole("button", { name: "더보기" }).click();
@@ -53,7 +53,7 @@ test.describe("선생님 모바일 — 전 기능 패리티", () => {
 
   // ── 시험 ──
   test("시험 목록 — 생성 버튼 존재", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/exams`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/exams`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await expect(page.getByRole("heading", { name: "시험 / 과제" })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("tab", { name: "시험", selected: true })).toBeVisible();
@@ -63,7 +63,7 @@ test.describe("선생님 모바일 — 전 기능 패리티", () => {
 
   // ── 영상 ──
   test("영상 목록 — 업로드 버튼 존재", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/videos`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/videos`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await expect(page.getByRole("button", { name: /영상 업로드/ })).toBeVisible({ timeout: 10_000 });
     await page.screenshot({ path: "e2e/screenshots/parity-05-videos.png" });
@@ -71,7 +71,7 @@ test.describe("선생님 모바일 — 전 기능 패리티", () => {
 
   // ── 클리닉 ──
   test("클리닉 — 페이지 렌더링", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/clinic`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/clinic`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     // 클리닉 헤딩이 보이면 OK (section_mode 비활성 시 안내 메시지)
     await expect(page.getByText("클리닉").first()).toBeVisible({ timeout: 10_000 });
@@ -80,7 +80,7 @@ test.describe("선생님 모바일 — 전 기능 패리티", () => {
 
   // ── 커뮤니티 ──
   test("커뮤니티 — 작성/검색 버튼 존재", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/comms`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/comms`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await expect(page.getByText("공지사항").first()).toBeVisible({ timeout: 10_000 });
     await page.screenshot({ path: "e2e/screenshots/parity-07-comms.png" });
@@ -88,7 +88,7 @@ test.describe("선생님 모바일 — 전 기능 패리티", () => {
 
   // ── 직원 관리 ──
   test("직원 관리 — 페이지 렌더링 + 등록 버튼", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/staff`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/staff`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await expect(page.getByText(/직원 관리/).first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("button", { name: /직원 추가/ })).toBeVisible({ timeout: 5_000 });
@@ -97,7 +97,7 @@ test.describe("선생님 모바일 — 전 기능 패리티", () => {
 
   // ── 근태/지출 ──
   test("근태/지출 — 페이지 렌더링 + 등록 버튼", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/my-records`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/my-records`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await expect(page.getByText(/근태/).first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("button", { name: /등록/ })).toBeVisible();
@@ -106,7 +106,7 @@ test.describe("선생님 모바일 — 전 기능 패리티", () => {
 
   // ── 메시지 템플릿 ──
   test("메시지 템플릿 — 페이지 렌더링", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/message-templates`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/message-templates`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await expect(page.getByRole("heading", { name: /템플릿 저장/ })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("button", { name: /새 템플릿/ })).toBeVisible();
@@ -115,7 +115,7 @@ test.describe("선생님 모바일 — 전 기능 패리티", () => {
 
   // ── 메시징 설정 ──
   test("메시징 설정 — 페이지 렌더링", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/messaging-settings`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/messaging-settings`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await expect(page.getByRole("heading", { name: /메시지 설정/ })).toBeVisible({ timeout: 15_000 });
     await page.screenshot({ path: "e2e/screenshots/parity-11-msg-settings.png" });
@@ -123,7 +123,7 @@ test.describe("선생님 모바일 — 전 기능 패리티", () => {
 
   // ── 발송 이력 ──
   test("발송 이력 — 페이지 렌더링", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/message-log`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/message-log`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await expect(page.getByRole("heading", { name: /발송 내역/ })).toBeVisible({ timeout: 15_000 });
     await page.screenshot({ path: "e2e/screenshots/parity-12-msg-log.png" });
@@ -131,7 +131,7 @@ test.describe("선생님 모바일 — 전 기능 패리티", () => {
 
   // ── 드로어 전체 메뉴 ──
   test("드로어 — 모든 메뉴 항목 확인", async ({ page }) => {
-    await page.goto(`${BASE}/teacher`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 햄버거 메뉴 열기

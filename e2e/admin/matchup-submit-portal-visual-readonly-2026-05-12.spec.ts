@@ -33,7 +33,7 @@ for (const vp of VIEWPORTS) {
     });
 
     test(`적중보고서 탭 — 포탈 widget + 카드 list`, async ({ page }) => {
-      await page.goto(`${TCHUL}/admin/hit-reports`, {
+      await page.goto(`${TCHUL}/workspace/hit-reports`, {
         waitUntil: "networkidle",
         timeout: 60_000,
       });
@@ -76,7 +76,7 @@ for (const vp of VIEWPORTS) {
     });
 
     test(`편집기 진입 — submit/unsubmit CTA 시각 위계`, async ({ page }) => {
-      await page.goto(`${TCHUL}/admin/hit-reports`, {
+      await page.goto(`${TCHUL}/workspace/hit-reports`, {
         waitUntil: "networkidle",
         timeout: 60_000,
       });
@@ -118,7 +118,7 @@ for (const vp of VIEWPORTS) {
       await editButton.click();
 
       // 매치업 페이지 도달 + 편집기 마운트 신호 — submit/unsubmit primary CTA 존재 검증
-      await page.waitForURL(/\/admin\/storage\/matchup/, { timeout: 30_000 });
+      await page.waitForURL(/\/workspace\/storage\/matchup/, { timeout: 30_000 });
       const primaryCta = page.locator(
         '[data-testid="matchup-hit-report-publish-btn"], [data-testid="matchup-hit-report-unsubmit-btn"]',
       ).first();

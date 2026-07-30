@@ -25,17 +25,17 @@ test.describe("선생앱 전체 스크린샷", () => {
   });
 
   const pages = [
-    { name: "01-dashboard", path: "/teacher" },
-    { name: "02-students", path: "/teacher/students" },
-    { name: "03-classes", path: "/teacher/classes" },
-    { name: "04-comms", path: "/teacher/comms" },
-    { name: "05-exams", path: "/teacher/exams" },
-    { name: "06-videos", path: "/teacher/videos" },
-    { name: "07-clinic", path: "/teacher/clinic" },
-    { name: "08-counseling", path: "/teacher/counseling" },
-    { name: "09-results", path: "/teacher/results" },
-    { name: "10-notifications", path: "/teacher/notifications" },
-    { name: "11-profile", path: "/teacher/profile" },
+    { name: "01-dashboard", path: "/workspace/mobile" },
+    { name: "02-students", path: "/workspace/mobile/students" },
+    { name: "03-classes", path: "/workspace/mobile/classes" },
+    { name: "04-comms", path: "/workspace/mobile/comms" },
+    { name: "05-exams", path: "/workspace/mobile/exams" },
+    { name: "06-videos", path: "/workspace/mobile/videos" },
+    { name: "07-clinic", path: "/workspace/mobile/clinic" },
+    { name: "08-counseling", path: "/workspace/mobile/counseling" },
+    { name: "09-results", path: "/workspace/mobile/results" },
+    { name: "10-notifications", path: "/workspace/mobile/notifications" },
+    { name: "11-profile", path: "/workspace/mobile/profile" },
   ];
 
   for (const p of pages) {
@@ -47,7 +47,7 @@ test.describe("선생앱 전체 스크린샷", () => {
   }
 
   test("12-drawer", async ({ page }) => {
-    await page.goto(`${BASE}/teacher`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile`, { waitUntil: "load", timeout: 20_000 });
     await waitForTeacherPageReady(page);
     await page.getByRole("button", { name: "메뉴" }).click();
     await expect(page.getByRole("button", { name: "설정", exact: true })).toBeVisible({ timeout: 10_000 });

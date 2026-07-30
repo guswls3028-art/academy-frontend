@@ -26,7 +26,7 @@ test.describe("공개 영상 리팩토링 검증", () => {
 
   test("관리자 강의 목록 — 시스템 강의 미노출", async ({ page }) => {
     await loginViaUI(page, "admin");
-    await page.goto(`${BASE}/admin/lectures`);
+    await page.goto(`${BASE}/workspace/lectures`);
     await page.waitForLoadState("networkidle");
 
     // 강의 관리 화면에서는 시스템 강의가 보이면 안 됨
@@ -41,7 +41,7 @@ test.describe("공개 영상 리팩토링 검증", () => {
 
   test("관리자 영상 탐색기 — 전체공개영상 라벨 표시", async ({ page }) => {
     await loginViaUI(page, "admin");
-    await page.goto(`${BASE}/admin/videos`);
+    await page.goto(`${BASE}/workspace/videos`);
     await page.waitForLoadState("networkidle");
 
     // 기본은 KPI 인박스이므로 폴더 탐색 모드로 전환한 뒤 좌측 트리를 확인한다.

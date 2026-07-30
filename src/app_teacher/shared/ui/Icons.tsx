@@ -1,5 +1,5 @@
 // PATH: src/app_teacher/shared/ui/Icons.tsx
-// 선생님 앱 — Lucide 아이콘 중앙 re-export (PC 데스크톱과 동일 아이콘 시스템)
+// 모바일 업무 화면 — Lucide 아이콘 중앙 re-export (통합 업무 화면과 동일 아이콘 시스템)
 export {
   // Navigation
   Home,

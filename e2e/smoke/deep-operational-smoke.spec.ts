@@ -53,7 +53,7 @@ test.describe("심층 운영 동선 검증", () => {
   test("강의 > 차시 > 성적 탭 심층 검증", async ({ page }) => {
     const { errors, apiErrors } = collectErrors(page);
 
-    await visit(page, "/admin/lectures");
+    await visit(page, "/workspace/lectures");
 
     const lectureLink = page.locator('a[href*="/lectures/"]').first();
     if (!await lectureLink.isVisible({ timeout: 5000 }).catch(() => false)) {
@@ -121,7 +121,7 @@ test.describe("심층 운영 동선 검증", () => {
   test("메시지 페이지 (올바른 경로)", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await visit(page, "/admin/message");
+    await visit(page, "/workspace/message");
 
     const content = page.locator('[class*="domain"], [class*="Domain"], h1, h2').first();
     await expect(content).toBeVisible({ timeout: 10000 });
@@ -145,7 +145,7 @@ test.describe("심층 운영 동선 검증", () => {
   test("제출함 (올바른 경로)", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await visit(page, "/admin/results/submissions");
+    await visit(page, "/workspace/results/submissions");
 
     const content = page.locator('[class*="domain"], [class*="Domain"], [class*="inbox"], table, h1, h2, [class*="empty"], [class*="Empty"]').first();
     await expect(content).toBeVisible({ timeout: 10000 });
@@ -160,7 +160,7 @@ test.describe("심층 운영 동선 검증", () => {
   test("시험 탐색기 — 시험 상세 진입", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await visit(page, "/admin/exams");
+    await visit(page, "/workspace/exams");
 
     const examItem = page.locator('a[href*="/exams/"], [class*="exam-card"], tr[class*="exam"], [data-exam-id]').first();
     if (await examItem.isVisible({ timeout: 5000 }).catch(() => false)) {
@@ -181,7 +181,7 @@ test.describe("심층 운영 동선 검증", () => {
   test("클리닉 운영 콘솔 — 달력/세션 전환", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await visit(page, "/admin/clinic/operations");
+    await visit(page, "/workspace/clinic/operations");
 
     const content = page.locator('[class*="clinic"], [class*="console"], [class*="domain"], h1, h2, [class*="empty"], [class*="Empty"]').first();
     await expect(content).toBeVisible({ timeout: 10000 });
@@ -196,7 +196,7 @@ test.describe("심층 운영 동선 검증", () => {
   test("학생 상세 팝업", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await visit(page, "/admin/students");
+    await visit(page, "/workspace/students");
 
     const studentRow = page.locator('tr a, [class*="student-row"], a[href*="/students/"]').first();
     if (await studentRow.isVisible({ timeout: 5000 }).catch(() => false)) {
@@ -217,7 +217,7 @@ test.describe("심층 운영 동선 검증", () => {
   test("강의 출결 매트릭스", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await visit(page, "/admin/lectures");
+    await visit(page, "/workspace/lectures");
 
     const lectureLink = page.locator('a[href*="/lectures/"]').first();
     if (!await lectureLink.isVisible({ timeout: 5000 }).catch(() => false)) return;

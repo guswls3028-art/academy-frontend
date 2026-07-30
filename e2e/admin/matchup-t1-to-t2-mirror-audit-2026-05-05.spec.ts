@@ -37,7 +37,7 @@ const TARGET_DOCS = [
 ];
 
 async function gotoMatchup(page: Page) {
-  await page.goto(`${BASE}/admin/storage/matchup`, {
+  await page.goto(`${BASE}/workspace/storage/matchup`, {
     waitUntil: "domcontentloaded",
     timeout: 60_000,
   });

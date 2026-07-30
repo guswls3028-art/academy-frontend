@@ -29,7 +29,7 @@ test.describe("Phase 2: 소통탭 + 알림센터", () => {
   });
 
   test("소통탭 6탭 렌더링과 검색·작성 진입점", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/teacher/comms`, { timeout: 20_000 });
+    await gotoAndSettle(page, `${BASE}/workspace/mobile/comms`, { timeout: 20_000 });
     await waitForTeacherPageReady(page);
 
     // 6개 탭 확인 — 뱃지 숫자 포함 가능하므로 포함 매칭
@@ -59,7 +59,7 @@ test.describe("Phase 2: 소통탭 + 알림센터", () => {
   });
 
   test("알림센터 페이지 렌더링", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/teacher/notifications`, { timeout: 20_000 });
+    await gotoAndSettle(page, `${BASE}/workspace/mobile/notifications`, { timeout: 20_000 });
 
     // 알림 센터 헤딩 확인
     await expect(page.getByRole("heading", { name: "알림 센터" })).toBeVisible({ timeout: 10_000 });
@@ -68,7 +68,7 @@ test.describe("Phase 2: 소통탭 + 알림센터", () => {
   });
 
   test("프로필 — 푸시 알림 설정 카드 렌더링", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/teacher/profile`, { timeout: 20_000 });
+    await gotoAndSettle(page, `${BASE}/workspace/mobile/profile`, { timeout: 20_000 });
 
     // 프로필 헤딩 확인
     await expect(page.getByRole("heading", { name: "프로필" })).toBeVisible({ timeout: 10_000 });
@@ -84,7 +84,7 @@ test.describe("Phase 2: 소통탭 + 알림센터", () => {
   });
 
   test("하단 탭바 소통 뱃지 렌더링", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/teacher`, { timeout: 20_000 });
+    await gotoAndSettle(page, `${BASE}/workspace/mobile`, { timeout: 20_000 });
 
     // 하단 탭바 존재 확인
     const tabBar = page.locator('nav[aria-label="하단 메뉴"]');

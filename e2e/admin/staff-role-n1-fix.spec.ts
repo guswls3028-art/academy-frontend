@@ -49,9 +49,9 @@ async function openStaffPage(page: Page): Promise<void> {
   if (await staffLink.isVisible({ timeout: 5_000 }).catch(() => false)) {
     await staffLink.click();
   } else {
-    await page.goto(`${BASE}/admin/staff`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/staff`, { waitUntil: "load", timeout: 20_000 });
   }
-  await expect(page).toHaveURL(/\/admin\/staff/, { timeout: 10_000 });
+  await expect(page).toHaveURL(/\/workspace\/staff/, { timeout: 10_000 });
   await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => undefined);
 }
 
@@ -95,7 +95,7 @@ test.describe("Staff role N+1 fix — 운영 E2E", () => {
     // Confirm we are on staff page
     const currentUrl = page.url();
     console.log(`Current URL after sidebar click: ${currentUrl}`);
-    expect(currentUrl).toContain("/admin/staff");
+    expect(currentUrl).toContain("/workspace/staff");
 
     // No 5xx errors
     expect(apiErrors, `5xx errors: ${apiErrors.join(", ")}`).toHaveLength(0);
@@ -263,7 +263,7 @@ test.describe("Staff role N+1 fix — 운영 E2E", () => {
     await page.screenshot({ path: "/c/academy/frontend/e2e/screenshots/staff-n1-C1-role-labels.png" });
 
     const currentUrl = page.url();
-    expect(currentUrl).toContain("/admin/staff");
+    expect(currentUrl).toContain("/workspace/staff");
 
     // Check role label in page DOM (current UI uses Korean labels; API still verifies raw roles)
     const bodyText = await page.locator("body").innerText();

@@ -14,7 +14,7 @@ const __dirname = path.dirname(__filename);
 const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
 
 async function gotoMatchup(page: Page): Promise<void> {
-  await gotoAndSettle(page, `${BASE}/admin/storage/matchup`, { timeout: 30_000 });
+  await gotoAndSettle(page, `${BASE}/workspace/storage/matchup`, { timeout: 30_000 });
   await expect(page.locator("[class*='_root']").first()).toBeVisible({ timeout: 5000 });
 }
 

@@ -152,7 +152,7 @@ test.describe("teacher session video thumbnails", () => {
       return json({ count: 0, results: [] });
     });
 
-    await page.goto(`${BASE}/teacher`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${BASE}/workspace/mobile`, { waitUntil: "domcontentloaded" });
     await page.getByRole("link", { name: "강의", exact: true }).click();
     await expect(page.getByRole("heading", { name: "강의 관리", exact: true })).toBeVisible();
 

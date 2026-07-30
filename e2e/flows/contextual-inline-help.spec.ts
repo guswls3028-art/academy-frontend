@@ -30,8 +30,8 @@ test.describe("컨텍스트 도움말 UI", () => {
   );
 
   test("관리자 대시보드 안내 문구는 ? 도움말로 열린다", async ({ page }) => {
-    await loginViaUI(page, "admin", { landingPath: "/admin/dashboard" });
-    await gotoAndSettle(page, `${BASE}/admin/dashboard`, { settleMs: 500 });
+    await loginViaUI(page, "admin", { landingPath: "/workspace/dashboard" });
+    await gotoAndSettle(page, `${BASE}/workspace/dashboard`, { settleMs: 500 });
 
     await expect(page.locator(".domain-layout__description").filter({
       hasText: "학원 운영 현황을 한눈에 확인하세요.",

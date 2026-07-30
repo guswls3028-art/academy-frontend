@@ -41,7 +41,7 @@ test("VR. 매치업 핵심 화면 핀포인트 캡처", async ({ page }) => {
   test.setTimeout(120_000);
   await loginViaUI(page, "admin");
   await page.setViewportSize({ width: 1600, height: 1000 });
-  await gotoAndSettle(page, `${BASE}/admin/storage/matchup`, { timeout: 30_000 });
+  await gotoAndSettle(page, `${BASE}/workspace/storage/matchup`, { timeout: 30_000 });
   await waitForMatchupReady(page);
 
   // 1. 좌측 트리 풀샷 (768x800 area)

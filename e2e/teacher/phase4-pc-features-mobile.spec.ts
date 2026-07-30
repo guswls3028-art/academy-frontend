@@ -85,7 +85,7 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test.beforeEach(async ({ page }) => {
     await installLocalFeesFeatureFlagOverride(page);
-    await loginViaUI(page, "admin", { landingPath: "/teacher" });
+    await loginViaUI(page, "admin", { landingPath: "/workspace/mobile" });
     await page.evaluate(() => { localStorage.removeItem("teacher:preferAdmin"); });
   });
 
@@ -93,7 +93,7 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test("제출함 인박스 — 4탭 + 새로고침", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await visit(page, "/teacher/submissions");
+    await visit(page, "/workspace/mobile/submissions");
 
     await expect(page.getByRole("heading", { name: /제출함/ })).toBeVisible();
     await expect(page.getByRole("button", { name: "대기 중" })).toBeVisible();
@@ -110,8 +110,8 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
   test("세션 상세 — 7탭 (시험·과제·클리닉 추가) 가로 스크롤", async ({ page }) => {
     const cap = attachNetCapture(page);
 
-    await visit(page, "/teacher/classes");
-    const firstClass = page.locator("a[href*='/teacher/classes/']").first();
+    await visit(page, "/workspace/mobile/classes");
+    const firstClass = page.locator("a[href*='/workspace/mobile/classes/']").first();
     if (await firstClass.count() === 0) {
       test.info().annotations.push({ type: "skip-reason", description: "강의 0개 환경" });
       return;
@@ -141,7 +141,7 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test("커뮤니티 학부모 상담 탭", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await visit(page, "/teacher/comms");
+    await visit(page, "/workspace/mobile/comms");
 
     await expect(page.getByRole("button", { name: /상담/ }).first()).toBeVisible();
     await page.getByRole("button", { name: /상담/ }).first().click();
@@ -212,7 +212,7 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test("자료실 — 내 자료 (쿼터 바 + 업로드 버튼)", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await visit(page, "/teacher/storage");
+    await visit(page, "/workspace/mobile/storage");
 
     await expect(page.getByRole("heading", { name: "자료 저장소" })).toBeVisible();
     await expect(page.getByRole("button", { name: "업로드", exact: true })).toBeVisible();
@@ -225,7 +225,7 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test("자료실 — 학생 인벤토리 (학생 검색)", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await visit(page, "/teacher/storage/inventory");
+    await visit(page, "/workspace/mobile/storage/inventory");
 
     await expect(page.getByRole("heading", { name: "학생 인벤토리" })).toBeVisible();
     await expect(page.getByPlaceholder(/학생 이름/)).toBeVisible();
@@ -237,7 +237,7 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test("학원 정보 설정 — 폼 + 저장 버튼", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await visit(page, "/teacher/settings/organization");
+    await visit(page, "/workspace/mobile/settings/organization");
 
     await expect(page.getByRole("heading", { name: "학원 정보" })).toBeVisible();
     await expect(page.getByRole("button", { name: /저장/ })).toBeVisible();
@@ -249,7 +249,7 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test("외관(테마) — 12종 그리드", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await visit(page, "/teacher/settings/appearance");
+    await visit(page, "/workspace/mobile/settings/appearance");
 
     await expect(page.getByRole("heading", { name: "테마" })).toBeVisible();
     await expect(page.getByText("Modern White")).toBeVisible();
@@ -265,7 +265,7 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test("타이머 — 시작/정지/리셋", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await visit(page, "/teacher/tools/stopwatch");
+    await visit(page, "/workspace/mobile/tools/stopwatch");
 
     await expect(page.getByRole("heading", { name: "타이머", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "시작" })).toBeVisible();
@@ -284,7 +284,7 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test("패치노트 — 카드 리스트 + 상세 BottomSheet", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await visit(page, "/teacher/developer");
+    await visit(page, "/workspace/mobile/developer");
 
     await expect(page.getByRole("heading", { name: "패치노트" })).toBeVisible();
     const latest = page.getByText("LATEST").first();
@@ -299,7 +299,7 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test("버그 제보 — 폼 (제목/내용/이미지)", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await visit(page, "/teacher/developer/bug");
+    await visit(page, "/workspace/mobile/developer/bug");
 
     await expect(page.getByRole("heading", { name: "버그 제보" })).toBeVisible();
     await expect(page.getByPlaceholder(/어떤 버그/)).toBeVisible();
@@ -312,7 +312,7 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test("피드백 — 폼", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await visit(page, "/teacher/developer/feedback");
+    await visit(page, "/workspace/mobile/developer/feedback");
 
     await expect(page.getByRole("heading", { name: "피드백" })).toBeVisible();
     await expect(page.getByRole("button", { name: /보내기/ })).toBeVisible();
@@ -324,7 +324,7 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
 
   test("PC에서 처리하는 기능 안내 (DesktopOnly)", async ({ page }) => {
     const cap = attachNetCapture(page);
-    await visit(page, "/teacher/desktop-only");
+    await visit(page, "/workspace/mobile/desktop-only");
 
     await expect(page.getByRole("heading", { name: /PC에서 처리/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /통합 업무 화면으로 이동/ })).toBeVisible();

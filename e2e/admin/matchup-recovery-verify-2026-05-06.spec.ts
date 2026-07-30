@@ -17,7 +17,7 @@ const REPORTS_TO_VERIFY = [
 test.describe.serial("매치업 적중보고서 복구 검증 — tchul 학원장", () => {
   test("로그인 + 적중 보고서 리스트 도달", async ({ page }) => {
     await loginViaUI(page, "tchul-admin");
-    await page.goto(`${TCHUL_BASE}/admin/hit-reports`);
+    await page.goto(`${TCHUL_BASE}/workspace/hit-reports`);
     await page.waitForLoadState("networkidle");
     await page.screenshot({ path: "e2e/_artifacts/recovery-verify/01-list.png", fullPage: true });
 
@@ -62,7 +62,7 @@ test.describe.serial("매치업 적중보고서 복구 검증 — tchul 학원�
       expect(filledEntries, `doc=${r.doc} restored selected entries`).toBeGreaterThanOrEqual(r.expectedFilled);
 
       // 매치업 페이지 → 보고서 자동 오픈
-      await page.goto(`${TCHUL_BASE}/admin/matchup`);
+      await page.goto(`${TCHUL_BASE}/workspace/matchup`);
       await page.waitForLoadState("networkidle");
       await page.locator("body").waitFor({ state: "visible", timeout: 5000 });
       await page.screenshot({ path: `e2e/_artifacts/recovery-verify/02-matchup-${r.doc}.png`, fullPage: true });

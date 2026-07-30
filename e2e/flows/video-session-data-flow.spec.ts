@@ -31,7 +31,7 @@ test.describe.serial("Video & Session 데이터 플로우", () => {
   });
 
   test("02 Admin: 강의 목록 페이지 로드 + 실제 데이터 확인", async () => {
-    await A.goto(`${BASE}/admin/lectures`, { waitUntil: "load" });
+    await A.goto(`${BASE}/workspace/lectures`, { waitUntil: "load" });
     await A.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await A.screenshot({ path: "test-results/video-session/02-admin-lectures.png" });
 

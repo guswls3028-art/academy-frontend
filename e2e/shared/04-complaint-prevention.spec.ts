@@ -79,7 +79,7 @@ test.describe("불만 방지 시나리오", () => {
   test("새로고침 후 데이터 유지: 관리자 커뮤니티 목록", async ({ page }) => {
     // TYPE: UI-DRIVEN
     await loginViaUI(page, "admin");
-    await page.goto(`${BASE}/admin/community/notice`);
+    await page.goto(`${BASE}/workspace/community/notice`);
     await page.waitForLoadState("networkidle");
 
     // 목록이 보이는지

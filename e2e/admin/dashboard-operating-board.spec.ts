@@ -5,7 +5,7 @@ test.describe("관리자 운영 대시보드", () => {
   test.skip(!hasRoleCredentials("admin"), "Tenant 1 admin E2E credentials are required");
 
   test("오늘 현황과 우선 업무를 시각적으로 구분하고 모바일에서도 넘치지 않는다", async ({ page }) => {
-    await loginViaUI(page, "admin", { landingPath: "/admin/dashboard" });
+    await loginViaUI(page, "admin", { landingPath: "/workspace/dashboard" });
 
     await expect(page.getByRole("heading", { name: "오늘 학원 운영" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "오늘 처리할 일" })).toBeVisible();
@@ -45,7 +45,7 @@ test.describe("관리자 운영 대시보드", () => {
       });
     });
 
-    await loginViaUI(page, "admin", { landingPath: "/admin/dashboard" });
+    await loginViaUI(page, "admin", { landingPath: "/workspace/dashboard" });
 
     const messagingCard = page.locator('section[data-status="error"]');
     await expect(messagingCard).toBeVisible();

@@ -12,7 +12,7 @@ test.describe("Fees Management", () => {
   test("Admin can navigate to fees page and see 3 tabs", async ({ page }) => {
     await loginViaUI(page, "admin");
 
-    await page.goto(`${BASE}/admin/fees`, { waitUntil: "load", timeout: 45000 });
+    await page.goto(`${BASE}/workspace/fees`, { waitUntil: "load", timeout: 45000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await page
       .waitForFunction(
@@ -41,7 +41,7 @@ test.describe("Fees Management", () => {
   test("Admin can navigate to templates tab and create a fee template", async ({ page }) => {
     await loginViaUI(page, "admin");
 
-    await page.goto(`${BASE}/admin/fees`, { waitUntil: "load" });
+    await page.goto(`${BASE}/workspace/fees`, { waitUntil: "load" });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await expect(page.locator("text=수납 관리")).toBeVisible({ timeout: 10000 });
     await page.locator(".ds-tab").filter({ hasText: "비목 관리" }).click();
@@ -90,7 +90,7 @@ test.describe("Fees Management", () => {
   test("Admin can navigate to invoices tab and see filters", async ({ page }) => {
     await loginViaUI(page, "admin");
 
-    await page.goto(`${BASE}/admin/fees`, { waitUntil: "load" });
+    await page.goto(`${BASE}/workspace/fees`, { waitUntil: "load" });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await expect(page.locator("text=수납 관리")).toBeVisible({ timeout: 10000 });
     await page.locator(".ds-tab").filter({ hasText: "청구서" }).click();

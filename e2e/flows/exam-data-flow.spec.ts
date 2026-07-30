@@ -56,7 +56,7 @@ test.describe.serial("Exam domain data flow", () => {
     await loginViaUI(adminPage, "admin");
 
     // Navigate to exam explorer
-    await gotoAndSettle(adminPage, `${BASE}/admin/exams`, { timeout: 15_000 });
+    await gotoAndSettle(adminPage, `${BASE}/workspace/exams`, { timeout: 15_000 });
 
     // The page should render without error — check for the DomainLayout wrapper
     const pageContent = adminPage.locator("[data-app], main, #root").first();
@@ -64,7 +64,7 @@ test.describe.serial("Exam domain data flow", () => {
 
     // Verify the exam explorer page loaded (not a login redirect)
     const url = adminPage.url();
-    expect(url).toContain("/admin/exams");
+    expect(url).toContain("/workspace/exams");
   });
 
   // ══════════════════════════════════════════════════════

@@ -7,6 +7,12 @@
 동작을 날짜순으로 설명한다.
 
 - 프로모션 사이드 메뉴와 모든 프로모션 페이지의 footer에서 진입한다.
+- 통합 업무의 `지원` 화면과 모바일 업무 drawer의 `업데이트 소식`도 이
+  공개 페이지를 연다. 기존 `/workspace/developer`와
+  `/workspace/mobile/developer` 패치노트 진입점은 공개 페이지로 이동하고,
+  버그 제보와 피드백 경로는 그대로 유지한다.
+- 모바일 업무 drawer는 현재 업무 그룹만 펼치는 accordion을 사용하며,
+  `업데이트 소식`은 새 탭으로 열어 진행 중인 업무 상태를 보존한다.
 - 최신 항목 CTA는 같은 페이지의 최신 업데이트로 이동한다.
 - 전체 기능 CTA는 `/promo/features`, 문의 CTA는 `/promo/contact`로 이동한다.
 - 모바일에서는 CTA를 한 열로 표시하고 타임라인 카드의 긴 한국어 문장을
@@ -48,6 +54,8 @@ pnpm build
 
 검증은 직접 URL 렌더링, desktop/mobile 메뉴와 footer CTA, 모든 내부 링크
 대상, 모바일 390px 레이아웃, 접근 가능한 제목·날짜·링크 이름을 포함한다.
+인증된 통합 업무와 모바일 업무의 기존 패치노트 URL에서는 이동 상태가
+보조기술에 전달되고 최종 URL이 `/promo/updates`인지 확인한다.
 Cloudflare production gate는 upload 후 `/promo/updates`의 200 응답, title과
 canonical URL을 별도로 확인하며 실패 시 직전 production baseline으로
 rollback한다.

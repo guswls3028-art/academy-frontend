@@ -66,10 +66,10 @@ test("C. footer — 자유게시판 + 수강 후기 + 성적 통계 3축", async
 test("D. 학원장 성적탭 — ⚙ popover에 '랜딩 게시' 진입점", async ({ page }) => {
   await loginAdmin(page);
   // 강의 list → 세션 → 성적탭. 사용자 명확한 경로 추출 어려움 — 일단 admin 진입만 확인
-  await page.goto(`${BASE}/admin`, { waitUntil: "load", timeout: 30_000 });
+  await page.goto(`${BASE}/workspace`, { waitUntil: "load", timeout: 30_000 });
   await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
   // 비로그인 redirect 가 아닌 admin 화면 노출
-  await expect(page).toHaveURL(/\/admin/, { timeout: 10_000 });
+  await expect(page).toHaveURL(/\/workspace/, { timeout: 10_000 });
 });
 
 test("E. /landing-public/showcase/ API — public list 호출 가능", async ({ request }) => {

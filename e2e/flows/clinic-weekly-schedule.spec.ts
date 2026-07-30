@@ -14,7 +14,7 @@ function tomorrowISO() {
 }
 
 test("관리자가 주간 예약 보드에서 세션을 확인하고 빠른 액션을 연다", async ({ page }) => {
-  await loginViaUI(page, "admin", { landingPath: "/admin/clinic/schedule" });
+  await loginViaUI(page, "admin", { landingPath: "/workspace/clinic/schedule" });
 
   let sessionId: number | null = null;
   try {
@@ -93,7 +93,7 @@ test("관리자가 주간 예약 보드에서 세션을 확인하고 빠른 액�
       });
     });
 
-    await page.goto(`${BASE}/admin/clinic/schedule`);
+    await page.goto(`${BASE}/workspace/clinic/schedule`);
     await page.waitForLoadState("networkidle").catch(() => undefined);
 
     await expect(page.getByRole("heading", { name: "예약 일정", exact: true })).toBeVisible();

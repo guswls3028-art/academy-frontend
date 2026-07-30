@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { expect, test } from "./fixtures/strictTest";
-import { onRequestGet } from "../functions/[[path]]";
+import { onRequestGet } from "../functions/[[path]].ts";
 import { getTenantCodeFromHostname } from "../src/shared/tenant";
 
 function manifestRequest(host: string, pathname: string) {

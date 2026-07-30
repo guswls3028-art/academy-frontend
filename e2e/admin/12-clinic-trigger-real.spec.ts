@@ -72,7 +72,7 @@ test.describe("클리닉 실전 트리거 — 프론트 클릭", () => {
     );
 
     // ── 2. 운영 콘솔 진입 (오늘 날짜 파라미터 포함) ──
-    await page.goto(`${BASE}/admin/clinic/operations?date=${session.date}`, {
+    await page.goto(`${BASE}/workspace/clinic/operations?date=${session.date}`, {
       waitUntil: "load",
       timeout: 20000,
     });

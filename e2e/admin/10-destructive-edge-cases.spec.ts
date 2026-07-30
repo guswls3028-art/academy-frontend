@@ -15,7 +15,7 @@ test.describe("관리자 파괴 테스트", () => {
   });
 
   test("직원 등록 - 짧은 비밀번호 차단", async ({ page }) => {
-    await page.goto(`${BASE}/admin/staff`);
+    await page.goto(`${BASE}/workspace/staff`);
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 직원 등록 버튼 찾기
@@ -47,7 +47,7 @@ test.describe("관리자 파괴 테스트", () => {
   });
 
   test("비용 추가 - NaN 금액 차단", async ({ page }) => {
-    await page.goto(`${BASE}/admin/staff`);
+    await page.goto(`${BASE}/workspace/staff`);
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 직원 목록에서 첫 번째 직원 클릭 → 운영 탭
@@ -67,12 +67,12 @@ test.describe("관리자 파괴 테스트", () => {
 
   test("근무 기록 - 종료시간 < 시작시간 차단", async ({ page }) => {
     // 이 테스트는 근무 기록 추가 모달에서 시간 역전을 검증
-    await page.goto(`${BASE}/admin/staff`);
+    await page.goto(`${BASE}/workspace/staff`);
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
   });
 
   test("대시보드 로딩 - 0건 플래시 없음", async ({ page }) => {
-    await page.goto(`${BASE}/admin`);
+    await page.goto(`${BASE}/workspace`);
     await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
 
     // 로딩 중 상태 확인 - "0건"이 "로딩 중" 전에 나타나면 안 됨
@@ -91,7 +91,7 @@ test.describe("관리자 파괴 테스트", () => {
   });
 
   test("학생 목록 페이지네이션 - 버튼 수 제한", async ({ page }) => {
-    await page.goto(`${BASE}/admin/students/home`);
+    await page.goto(`${BASE}/workspace/students/home`);
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 페이지네이션 버튼 수 확인 - 7개 + 양끝 포함 최대 11개 이내
@@ -102,7 +102,7 @@ test.describe("관리자 파괴 테스트", () => {
   });
 
   test("제출 상세 모달 - 다른 제출 전환 시 stale 데이터 없음", async ({ page }) => {
-    await page.goto(`${BASE}/admin/results`);
+    await page.goto(`${BASE}/workspace/results`);
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     // 제출 목록이 있으면 첫 번째 클릭 → 모달 → 닫기 → 두 번째 클릭
     // 두 번째 열 때 첫 번째 데이터가 잔존하면 안 됨

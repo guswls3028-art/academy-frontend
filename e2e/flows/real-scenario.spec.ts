@@ -281,7 +281,7 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
   // STEP 12: 교사 — QnA 답변 (브라우저)
   // ══════════════════════════════════════════════════════
   test("12. 교사가 QnA에 답변한다", async () => {
-    await teacherPage.goto(`${BASE}/admin/community/qna`);
+    await teacherPage.goto(`${BASE}/workspace/community/qna`);
     await teacherPage.waitForLoadState("load");
     await teacherPage.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
@@ -306,7 +306,7 @@ test.describe.serial("실제 운영 시나리오 (0317테스트학생)", () => {
   // STEP 13: 교사 — 클리닉 확인 (브라우저)
   // ══════════════════════════════════════════════════════
   test("13. 교사가 클리닉에서 예약자를 확인한다", async () => {
-    await teacherPage.goto(`${BASE}/admin/clinic/home`);
+    await teacherPage.goto(`${BASE}/workspace/clinic/home`);
     await teacherPage.waitForLoadState("load");
     await teacherPage.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 

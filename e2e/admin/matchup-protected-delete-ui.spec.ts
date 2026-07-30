@@ -160,7 +160,7 @@ test.describe("matchup protected delete UI", () => {
   test.beforeEach(async ({ page }) => {
     await seedAuth(page);
     await mockApi(page);
-    await page.goto(`${BASE}/admin/storage/matchup?docId=${DOC_ID}`, { waitUntil: "networkidle" });
+    await page.goto(`${BASE}/workspace/storage/matchup?docId=${DOC_ID}`, { waitUntil: "networkidle" });
     await expect(page.getByTestId("matchup-problem-card")).toHaveCount(3);
   });
 

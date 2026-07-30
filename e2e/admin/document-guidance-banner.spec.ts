@@ -113,7 +113,7 @@ async function mockDocRoutes(page: import("@playwright/test").Page, spec: DocSpe
 }
 
 async function selectDoc(page: import("@playwright/test").Page, docId: number) {
-  await page.goto(`${BASE}/admin/storage/matchup?docId=${docId}`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/workspace/storage/matchup?docId=${docId}`, { waitUntil: "networkidle" });
   // wait until banner mounts
   await page.waitForSelector("[data-testid='document-guidance-banner']", { timeout: 15000 });
 }
@@ -216,7 +216,7 @@ test.describe("DocumentGuidanceBanner — paper_type + quality + indexable", () 
     await page.route(`${API_BASE}/api/v1/matchup/categories/**`, async (route: Route) => {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
     });
-    await page.goto(`${BASE}/admin/storage/matchup?docId=${spec.id}`, { waitUntil: "networkidle" });
+    await page.goto(`${BASE}/workspace/storage/matchup?docId=${spec.id}`, { waitUntil: "networkidle" });
     // banner 자체가 mount 안 됨
     await expect(page.getByTestId("document-guidance-banner")).toHaveCount(0);
   });

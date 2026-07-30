@@ -11,7 +11,7 @@ test.describe("메시징 비즈니스 계약", () => {
   });
 
   test("설정은 공용 알림톡 상태만 보여주고 테넌트별 공급자·키 편집을 노출하지 않는다", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/message/settings`);
+    await gotoAndSettle(page, `${BASE}/workspace/message/settings`);
 
     await expect(page.getByText("공용 솔라피", { exact: true })).toBeVisible();
     await expect(page.getByText("알림톡 전용", { exact: true })).toBeVisible();
@@ -21,7 +21,7 @@ test.describe("메시징 비즈니스 계약", () => {
   });
 
   test("문구 화면은 문구와 승인 알림톡 상태를 구분하고 공급사 동기화를 노출하지 않는다", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/message/templates`);
+    await gotoAndSettle(page, `${BASE}/workspace/message/templates`);
 
     await expect(page.getByRole("heading", { name: "문구 저장" })).toBeVisible();
     await expect(page.getByText(/알림톡에 넣을 문구를 저장하고 수정합니다/)).toBeVisible();
@@ -30,7 +30,7 @@ test.describe("메시징 비즈니스 계약", () => {
   });
 
   test("자동발송 카드에서 발송 준비 필요와 항상 활성이 동시에 표시되지 않는다", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/message/auto-send`);
+    await gotoAndSettle(page, `${BASE}/workspace/message/auto-send`);
 
     const cards = page.locator("[data-card-state]");
     await expect(cards.first()).toBeVisible();

@@ -41,7 +41,7 @@ test("1. 성적 메시지 발송 직전 확인 + 발송 내역 확인", async ({
 
   await gotoAndSettle(
     page,
-    `${BASE}/admin/lectures/${session.lectureId}/sessions/${session.sessionId}/scores`,
+    `${BASE}/workspace/lectures/${session.lectureId}/sessions/${session.sessionId}/scores`,
     { settleMs: 2000 },
   );
   await snap(page, "01-scores-page");
@@ -131,7 +131,7 @@ test("1. 성적 메시지 발송 직전 확인 + 발송 내역 확인", async ({
   await snap(page, "08-confirm-guard-returned");
 
   // ── 발송 내역 이동 ──
-  await gotoAndSettle(page, `${BASE}/admin/message/log`, { settleMs: 2000 });
+  await gotoAndSettle(page, `${BASE}/workspace/message/log`, { settleMs: 2000 });
   await snap(page, "09-log-page");
 
   // ── 최신 발송 로그 행 클릭 ──
@@ -173,7 +173,7 @@ test("2. 클리닉 미리보기에서 #{장소} 정상 확인", async ({ page })
   test.setTimeout(120_000);
 
   await loginViaUI(page, "admin");
-  await gotoAndSettle(page, `${BASE}/admin/clinic/msg-settings`, { settleMs: 2000 });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/msg-settings`, { settleMs: 2000 });
   await snap(page, "20-clinic-msg-settings");
 
   const previewBtns = page.locator("button").filter({ hasText: "미리보기" });
@@ -217,7 +217,7 @@ test("3. 발송 내역 상세 팝업 UX 정밀 검증", async ({ page }) => {
   test.setTimeout(120_000);
 
   await loginViaUI(page, "admin");
-  await gotoAndSettle(page, `${BASE}/admin/message/log`, { settleMs: 2000 });
+  await gotoAndSettle(page, `${BASE}/workspace/message/log`, { settleMs: 2000 });
   await snap(page, "30-log-page");
 
   // ── 성공 필터 ──

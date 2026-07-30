@@ -159,7 +159,7 @@ test.describe("/dev 운영 콘솔 V2", () => {
 
     // 임퍼소네이션 트리거. 페이지 reload 발생하므로 navigation 대기.
     await Promise.all([
-      page.waitForNavigation({ url: /\/admin/, timeout: 20_000 }),
+      page.waitForNavigation({ url: /\/workspace/, timeout: 20_000 }),
       loginBtn.click(),
     ]);
 
