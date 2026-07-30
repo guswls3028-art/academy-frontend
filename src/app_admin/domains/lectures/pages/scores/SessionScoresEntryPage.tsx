@@ -12,7 +12,7 @@
 import { lazy, Suspense, useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ChevronDown, ClipboardCheck, ClipboardList, FileText, HeartPulse, LayoutGrid, LockKeyhole, Pencil, Plus, Printer, Trophy, UserRound, Users } from "lucide-react";
+import { AlertCircle, ChevronDown, ClipboardCheck, ClipboardList, FileText, HeartPulse, LayoutGrid, LockKeyhole, Pencil, Plus, Printer, ScanLine, Trophy, UserRound, Users } from "lucide-react";
 import { useConfirm } from "@/shared/ui/confirm";
 
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@admin/domains/scores/panels/SessionScoresPanel";
@@ -75,6 +75,7 @@ const StudentScoreReportModal = lazy(() => import("@admin/domains/scores/compone
 const ClinicPrintPreviewModal = lazy(() => import("@admin/domains/scores/components/ClinicPrintPreviewModal"));
 const AnonymousBillboardPreviewModal = lazy(() => import("@admin/domains/scores/components/AnonymousBillboardPreviewModal"));
 const ManualExamGradingGrid = lazy(() => import("@admin/domains/results/components/ManualExamGradingGrid"));
+const OmrReviewWorkspace = lazy(() => import("@admin/domains/results/components/omr-review/OmrReviewWorkspace"));
 
 export default function SessionScoresEntryPage({
   onOpenCreateExam,
@@ -119,7 +120,16 @@ export default function SessionScoresEntryPage({
   const [showClinicPreview, setShowClinicPreview] = useState(false);
   const [showBillboardPreview, setShowBillboardPreview] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const [gradingExam, setGradingExam] = useState<{ examId: number; title: string } | null>(null);
+  const [gradingExam, setGradingExam] = useState<{
+    examId: number;
+    title: string;
+    gradingMode: "written" | "mixed";
+    manualGradingMethod: "correctness" | "score";
+  } | null>(null);
+  const [omrReviewExam, setOmrReviewExam] = useState<{
+    examId: number;
+    title: string;
+  } | null>(null);
   const [manualGradingDirty, setManualGradingDirty] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const recoveryRestoreButtonRef = useRef<HTMLButtonElement>(null);
@@ -1292,7 +1302,7 @@ export default function SessionScoresEntryPage({
           viewFilter={viewFilter}
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={setSelectedEnrollmentIds}
-          onOpenExamGrading={(examId, title) => { void (async () => {
+          onOpenExamGrading={(examId, title, gradingMode, manualGradingMethod) => { void (async () => {
             if (recoveryBlocked) {
               feedback.info("이전 입력 복구 여부를 먼저 확인해 주세요.");
               return;
@@ -1305,8 +1315,17 @@ export default function SessionScoresEntryPage({
               if (!released) return;
               setIsEditMode(false);
             }
+            if (gradingMode === "choice") {
+              setOmrReviewExam({ examId, title });
+              return;
+            }
             setManualGradingDirty(false);
-            setGradingExam({ examId, title });
+            setGradingExam({
+              examId,
+              title,
+              gradingMode,
+              manualGradingMethod,
+            });
           })(); }}
         />
       )}
@@ -1403,7 +1422,7 @@ export default function SessionScoresEntryPage({
         />
       </AdminModal>
 
-      {/* 시험명에서 바로 여는 학생별 문항 채점표 */}
+      {/* 시험명에서 바로 여는 직접 채점표. 선택형은 아래 OMR 검토로 분기한다. */}
       {gradingExam && (
         <AdminModal
           open
@@ -1418,16 +1437,25 @@ export default function SessionScoresEntryPage({
             title={(
               <span className="scores-manual-grading-modal__title">
                 <ClipboardCheck size={20} aria-hidden />
-                {gradingExam.title} 문항별 채점
+                {gradingExam.title}{" "}
+                {gradingExam.gradingMode === "mixed"
+                  ? "혼합 채점"
+                  : gradingExam.manualGradingMethod === "correctness"
+                    ? "정오 직접입력"
+                    : "문항별 점수 입력"}
               </span>
             )}
-            description="학생별 정오·부분점수를 입력합니다. 오답은 오답노트에 자동 포함되고, 맞은 문항도 복습 대상으로 표시할 수 있습니다."
+            description={
+              gradingExam.gradingMode === "mixed"
+                ? "OMR 문항은 잠긴 상태로 확인하고, 직접 채점 문항만 입력합니다."
+                : "수기 채점 결과를 학생별로 입력합니다. 오답과 복습 지정 문항은 오답노트에 반영됩니다."
+            }
             noIcon
           />
           <ModalBody>
             <div className="scores-manual-grading-modal__body">
               <Suspense
-                fallback={<EmptyState scope="panel" tone="loading" title="문항별 채점표를 여는 중…" />}
+                fallback={<EmptyState scope="panel" tone="loading" title="직접 채점표를 여는 중…" />}
               >
                 <ManualExamGradingGrid
                   key={gradingExam.examId}
@@ -1449,12 +1477,47 @@ export default function SessionScoresEntryPage({
               </span>
             )}
             right={(
-              <Button intent="secondary" size="sm" onClick={() => { void closeManualGrading(); }}>
-                닫기
-              </Button>
+              <>
+                {gradingExam.gradingMode === "mixed" && (
+                  <Button
+                    intent="secondary"
+                    size="sm"
+                    leftIcon={<ScanLine size={ICON_FOR_BUTTON.sm} />}
+                    disabled={manualGradingDirty}
+                    title={
+                      manualGradingDirty
+                        ? "직접 채점 내용을 확정하거나 초기화한 뒤 OMR 결과를 보정할 수 있습니다."
+                        : undefined
+                    }
+                    onClick={() => setOmrReviewExam({
+                      examId: gradingExam.examId,
+                      title: gradingExam.title,
+                    })}
+                  >
+                    OMR 결과 보정
+                  </Button>
+                )}
+                <Button intent="secondary" size="sm" onClick={() => { void closeManualGrading(); }}>
+                  닫기
+                </Button>
+              </>
             )}
           />
         </AdminModal>
+      )}
+
+      {omrReviewExam && (
+        <Suspense fallback={null}>
+          <OmrReviewWorkspace
+            examId={omrReviewExam.examId}
+            examTitle={omrReviewExam.title}
+            open
+            onClose={() => {
+              setOmrReviewExam(null);
+              invalidateScores();
+            }}
+          />
+        </Suspense>
       )}
 
       {/* 성적표 인쇄 미리보기 */}

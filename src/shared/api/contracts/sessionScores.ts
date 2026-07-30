@@ -90,6 +90,8 @@ export type SessionScoreMeta = {
     title: string;
     pass_score: number;
     max_score: number;
+    grading_mode?: "choice" | "written" | "mixed";
+    manual_grading_method?: "correctness" | "score";
     choice_count?: number;
     essay_count?: number;
     objective_max_score?: number;
