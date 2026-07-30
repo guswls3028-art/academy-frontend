@@ -6,6 +6,7 @@ export type ManualGradeQuestion = {
   question_id: number;
   number: number;
   kind: "choice" | "essay";
+  answer_type?: "choice" | "numeric_short_answer" | "written";
   max_score: number;
   editable: boolean;
   entry_method: "omr" | "correctness" | "score";

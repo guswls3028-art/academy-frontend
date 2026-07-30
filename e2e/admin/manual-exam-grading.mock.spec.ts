@@ -254,6 +254,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
               question_id: QUESTION_IDS[0],
               number: 1,
               kind: gradingMode === "choice" ? "choice" : "essay",
+              answer_type: gradingMode === "choice" ? "choice" : "written",
               max_score: 40,
               editable,
               entry_method: editable ? "correctness" : "omr",
@@ -261,7 +262,11 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
             {
               question_id: QUESTION_IDS[1],
               number: 2,
-              kind: gradingMode === "choice" ? "choice" : "essay",
+              kind: "essay",
+              answer_type:
+                gradingMode === "choice"
+                  ? "numeric_short_answer"
+                  : "written",
               max_score: 60,
               editable,
               entry_method: editable ? "correctness" : "omr",
@@ -408,7 +413,7 @@ test.describe("문항별 직접 채점", () => {
 
     await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible();
     await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "문항별 직접 채점", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "정오표 워크스페이스", exact: true })).toBeVisible();
 
     await page.getByRole("spinbutton", { name: "1번 배점", exact: true }).fill("30");
     await page.getByRole("spinbutton", { name: "2번 배점", exact: true }).fill("70");
@@ -417,6 +422,24 @@ test.describe("문항별 직접 채점", () => {
     const studentRow = page.getByRole("row").filter({ hasText: "김학생" });
     const cells = studentRow.getByRole("button", { name: "미입력" });
     await expect(cells).toHaveCount(2);
+    await cells.nth(0).evaluate((element) => {
+      const clipboard = new DataTransfer();
+      clipboard.setData("text/plain", "O\t.");
+      element.dispatchEvent(new ClipboardEvent("paste", {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: clipboard,
+      }));
+    });
+    await expect(studentRow.getByRole("button", { name: "O" })).toHaveCount(1);
+    await expect(studentRow.getByRole("button", { name: "X" })).toHaveCount(1);
+    await page.keyboard.press("Control+z");
+    await expect(studentRow.getByRole("button", { name: "미입력" })).toHaveCount(2);
+    await page.keyboard.press("Control+y");
+    await expect(studentRow.getByRole("button", { name: "X" })).toHaveCount(1);
+    await page.keyboard.press("Control+z");
+    await expect(studentRow.getByRole("button", { name: "미입력" })).toHaveCount(2);
+
     await cells.nth(0).press("o");
     await studentRow.getByRole("button", { name: "미입력" }).press("0");
     await expect(studentRow.getByRole("button", { name: "O" })).toHaveCount(1);
@@ -486,9 +509,11 @@ test.describe("문항별 직접 채점", () => {
     });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByText(
-      "자동채점 결과를 표시하고 있습니다. 문항별 보정 기능이 열리기 전까지는 정오 목록을 조회할 수 있습니다.",
+      "자동채점 결과를 읽기 전용으로 표시하고 있습니다. 문항별 O/X와 점수는 그대로 확인할 수 있습니다.",
       { exact: true },
     )).toBeVisible();
+    await expect(dialog.getByText("객관식", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("단답형", { exact: true })).toBeVisible();
     await expect(dialog.locator('[aria-label="김학생 1번 자동채점 O"]')).toBeVisible();
     await expect(dialog.locator('[aria-label="김학생 2번 자동채점 X"]')).toBeVisible();
     await expect(dialog.getByRole("button", { name: "입력 내용 확인", exact: true })).toHaveCount(0);
@@ -517,7 +542,7 @@ test.describe("문항별 직접 채점", () => {
     await dialog.getByRole("spinbutton", { name: "전체 문항 수", exact: true }).fill("2");
     await dialog.getByRole("button", { name: "채점표 만들기", exact: true }).click();
 
-    await expect(dialog.getByRole("heading", { name: "문항별 직접 채점", exact: true })).toBeVisible();
+    await expect(dialog.getByRole("heading", { name: "정오표 워크스페이스", exact: true })).toBeVisible();
     await expect(dialog.getByRole("spinbutton", { name: "1번 배점", exact: true })).toHaveValue("40");
     await expect(dialog.getByRole("spinbutton", { name: "2번 배점", exact: true })).toHaveValue("60");
   });
@@ -621,7 +646,7 @@ test.describe("문항별 직접 채점", () => {
     await dialog.getByRole("button", { name: "저장", exact: true }).click();
 
     await expect(dialog.getByText("A 정답", { exact: true })).toBeVisible();
-    await expect(dialog.getByText("D 정답 · 오답노트에 포함", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("D 정답 · 복습", { exact: true })).toBeVisible();
     await cells.first().focus();
     await page.keyboard.press("a");
     await expect(cells.nth(1)).toBeFocused();
