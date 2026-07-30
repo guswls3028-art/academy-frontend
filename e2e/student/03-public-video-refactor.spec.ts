@@ -40,6 +40,9 @@ test.describe("공개 영상 리팩토링 검증", () => {
   });
 
   test("관리자 영상 탐색기 — 전체공개영상 라벨 표시", async ({ page }) => {
+    // 운영 로그인 throttle의 Retry-After를 끝까지 존중할 수 있도록 이 실제 로그인
+    // 시나리오만 여유를 둔다. 재시도 횟수와 최대 대기는 auth helper에서 제한한다.
+    test.setTimeout(360_000);
     await loginViaUI(page, "admin");
     await page.goto(`${BASE}/workspace/videos`);
     await page.waitForLoadState("networkidle");
