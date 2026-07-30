@@ -40,6 +40,7 @@ import { fetchAttendance } from "@admin/domains/lectures/api/attendance";
 import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useProgram } from "@/shared/program";
+import { InlineHelp } from "@/shared/ui/guide";
 import SessionOmrUploadAction, {
   SessionOmrUploadModal,
   type SessionOmrUploadTarget,
@@ -823,6 +824,30 @@ export default function SessionScoresEntryPage({
             </div>
           </>
         )}
+        <div className="scores-selection-bar__help">
+          <InlineHelp
+            title={isEditMode ? "빠른 성적 입력 안내" : "성적표 보기 안내"}
+            ariaLabel={isEditMode ? "성적 입력 도움말" : "성적표 도움말"}
+            tone="admin"
+            align="left"
+          >
+            {isEditMode ? (
+              <ul>
+                <li><strong>Enter</strong>: 입력 확정 후 다음 학생으로 이동</li>
+                <li><strong>/ + Enter</strong>: 미응시·미제출 처리</li>
+                <li><strong>Tab / Esc</strong>: 다음 칸 이동 / 입력 취소</li>
+                <li>입력은 자동 저장되며 <strong>Ctrl+S / Ctrl+Z</strong>도 사용할 수 있습니다.</li>
+              </ul>
+            ) : (
+              <ul>
+                <li>학생 행을 누르면 개별 성적 상세를 볼 수 있습니다.</li>
+                <li>시험명을 누르면 정오표 작성·OMR 검토·시험 설정을 선택할 수 있습니다.</li>
+                <li>시험·과제 머리글을 끌어 표시 순서를 바꿀 수 있습니다.</li>
+                <li>회색 <strong>-</strong>는 해당 시험·과제에 아직 배정되지 않은 상태입니다.</li>
+              </ul>
+            )}
+          </InlineHelp>
+        </div>
       </div>
 
       {/* 표시 옵션 펼침 — selectionBar 다음 줄로 inline expand. */}
@@ -1308,7 +1333,7 @@ export default function SessionScoresEntryPage({
           viewFilter={viewFilter}
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={setSelectedEnrollmentIds}
-          onOpenExamGrading={(examId, title, gradingMode, manualGradingMethod) => { void (async () => {
+          onOpenExamGrading={(examId, title, gradingMode, manualGradingMethod, action) => { void (async () => {
             if (recoveryBlocked) {
               feedback.info("이전 입력 복구 여부를 먼저 확인해 주세요.");
               return;
@@ -1321,8 +1346,12 @@ export default function SessionScoresEntryPage({
               if (!released) return;
               setIsEditMode(false);
             }
-            if (gradingMode === "choice") {
+            if (action === "omr") {
               setOmrReviewExam({ examId, title });
+              return;
+            }
+            if (gradingMode === "choice") {
+              feedback.info("이 시험은 OMR 검토에서 채점해 주세요.");
               return;
             }
             setManualGradingDirty(false);

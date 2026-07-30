@@ -8,6 +8,7 @@
  * 4. 안전 잠금·자동 저장·키보드 단축키 안내
  * 5. 성적 도구 메뉴의 정보 구조와 아이콘
  * 6. "수강생 일괄배정" 보조 기능 이동
+ * 7. 시험명 작업 선택 메뉴
  *
  * 대상: 운영 사이트 (hakwonplus.com), Tenant 1 admin
  * 강의 96 / 차시 158 (omr 테스트강의 — exam 1개, homework 2개, 학생 2명)
@@ -72,7 +73,9 @@ test.describe("성적 탭 UX 개선 검증", () => {
     console.log("[OMR] 상단 주 동선 버튼 확인됨");
 
     await expect(page.locator(".scores-read-help-strip")).toHaveCount(0);
-    const readHelpButton = page.getByRole("button", { name: "성적표 도움말" });
+    const readHelpButton = page
+      .locator(".scores-selection-bar__row")
+      .getByRole("button", { name: "성적표 도움말" });
     await expect(readHelpButton).toBeVisible({ timeout: 5000 });
     await readHelpButton.click();
     const readHelpDialog = page.getByRole("dialog", { name: "성적표 보기 안내" });
@@ -219,6 +222,16 @@ test.describe("성적 탭 UX 개선 검증", () => {
     // 점수 표시 형식: 점수/만점 셀이 실제 테이블에 렌더링된다.
     await expect(page.getByRole("cell", { name: /\d+\/\d+/ }).first()).toBeVisible({ timeout: 3000 });
     console.log("[점수 형식] 점수/만점 셀 확인됨");
+
+    const examActionTriggers = page.locator(".scores-table-exam-link");
+    expect(await examActionTriggers.count()).toBeGreaterThan(0);
+    await examActionTriggers.first().click();
+    const examActionMenu = page.locator('[role="menu"][aria-label$="작업 선택"]');
+    await expect(examActionMenu).toBeVisible({ timeout: 3000 });
+    await expect(examActionMenu.getByRole("menuitem", { name: /정오표 작성/ })).toBeVisible();
+    await expect(examActionMenu.getByRole("menuitem", { name: /OMR 검토/ })).toBeVisible();
+    await expect(examActionMenu.getByRole("menuitem", { name: /시험 설정/ })).toBeVisible();
+    console.log("[시험 작업] 정오표 작성·OMR 검토·시험 설정 메뉴 확인됨");
   });
 
   /**
