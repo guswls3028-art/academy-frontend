@@ -327,9 +327,10 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
       expect(exam).toHaveProperty("max_score");
       expect(exam).toHaveProperty("is_pass");
       expect(typeof exam.exam_id).toBe("number");
-      expect(typeof exam.total_score).toBe("number");
+      expect(exam.total_score === null || typeof exam.total_score === "number").toBeTruthy();
       expect(typeof exam.max_score).toBe("number");
-      expect(typeof exam.is_pass).toBe("boolean");
+      // 미응시이거나 합격 기준이 없는 시험은 점수가 있어도 판정을 내리지 않는다.
+      expect(exam.is_pass === null || typeof exam.is_pass === "boolean").toBeTruthy();
     }
 
     // 과제 결과 항목 구조 검증 (데이터가 있는 경우)
@@ -340,8 +341,8 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
       expect(hw).toHaveProperty("score");
       expect(hw).toHaveProperty("passed");
       expect(typeof hw.homework_id).toBe("number");
-      expect(typeof hw.score).toBe("number");
-      expect(typeof hw.passed).toBe("boolean");
+      expect(hw.score === null || typeof hw.score === "number").toBeTruthy();
+      expect(hw.passed === null || typeof hw.passed === "boolean").toBeTruthy();
     }
   });
 
