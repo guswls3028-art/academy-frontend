@@ -64,6 +64,14 @@ spec 전체의 trace, video, screenshot 저장은 비활성화한다.
 | L2 상품성 리뷰 | UI/UX, 초심자, 비의도 사용 | 출시 전/큰 화면 개편 후 | 스크린샷과 판정표, P0/P1/P2 이슈 분류 |
 | L3 운영 통합 | worker/provider/실발송/장시간 영상 | 영상, 알림톡, worker, 배포 변경 후 | provider/worker 로그와 실제 수신/재생 증거 |
 
+GitHub의 `.github/workflows/e2e.yml`을 수동 실행하면 먼저 전 메뉴 감사를
+제외한 모든 활성 spec을 core job에서 실행한다. core가 성공한 뒤
+admin/developer desktop, student mobile, teacher mobile 전 메뉴 감사를 역할별
+독립 job으로 실행한다. 세 감사 job은 같은 운영 E2E tenant의 인증 throttle과
+상호 간섭을 피하려고 `max-parallel: 1`로 직렬화한다. 각 job은 120분 상한을
+가지며, core와 세 감사가 모두 성공해야 수동 전체 E2E를 통과로 기록한다.
+core 성공만으로 전체 E2E를 통과 처리하지 않는다.
+
 ## 5. 공통 합격 기준
 
 아래 중 하나라도 실패하면 "실사용 검수 통과"라고 보지 않는다.

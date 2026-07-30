@@ -31,7 +31,7 @@
 |------|-----------|------|
 | `package.json` `test:e2e:gate` | 로그인, smoke, 계정복구, notice/qna/clinic/password, tenant isolation | 강의 생성, 차시 생성, 시험/과제 생성, 영상, 클리닉 판별까지는 닫지 않음 |
 | `.github/workflows/quality-gate.yml` `e2e-roundtrip` | 배포 후 notice/qna/clinic/password/session-assessment | `session-assessment`는 read-only 버튼/모달 중심. 실제 시험/과제 생성과 학생 제출은 아님 |
-| `.github/workflows/e2e.yml` | PR/수동 전체 E2E | `E2E_STRICT=report`이며 120분 장시간. 실사용 리뷰 판정표가 없음 |
+| `.github/workflows/e2e.yml` | PR 빠른 gate. 수동 실행은 core 전체 suite 후 desktop admin/dev, student mobile, teacher mobile 전 메뉴 감사를 역할별 독립 job으로 실행 | 전 메뉴 3개 job은 운영 E2E tenant의 인증 throttle/상호 간섭을 피하려고 `max-parallel: 1`로 직렬 실행. 각 job은 120분 상한이며 전체 workflow 성공은 core와 3개 감사 모두 성공해야 함 |
 
 ## 3. 재사용 우선 spec
 

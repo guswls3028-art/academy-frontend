@@ -93,7 +93,10 @@ jobs:
 
       - name: Run full E2E suite
         if: github.event_name == 'workflow_dispatch'
-        run: npx playwright test --reporter=github,html
+        # The exhaustive menu audit has three per-role timeouts totalling more
+        # than this job's 120-minute bound. It runs in the sequential matrix
+        # below; this job owns every other active spec.
+        run: npx playwright test --grep-invert "전 메뉴/버튼 사람형 클릭 감사" --reporter=github,html
 
       - name: Upload report
         if: always()
@@ -111,6 +114,101 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: frontend-server-log
+          path: /tmp/academy-vite.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+  all-menu-audit:
+    name: All-menu audit (${{ matrix.scope }})
+    if: github.event_name == 'workflow_dispatch' && needs.e2e.result == 'success'
+    needs: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      # These read-only audits share the production E2E tenant. Keep them
+      # sequential to avoid authentication throttling and cross-run noise.
+      max-parallel: 1
+      matrix:
+        include:
+          - scope: admin-dev-desktop
+            grep: '관리자 \+ 개발자 데스크톱 메뉴/버튼'
+          - scope: student-mobile
+            grep: '학생 모바일 메뉴/버튼'
+          - scope: teacher-mobile
+            grep: '선생님 모바일 메뉴/버튼'
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --shamefully-hoist
+
+      - name: Install Playwright
+        run: npx playwright install chromium --with-deps
+
+      - name: Guard production E2E safety boundaries
+        run: pnpm guard:e2e-safety
+
+      - name: Start checkout frontend
+        env:
+          VITE_DEV_PROXY_TARGET: ${{ secrets.E2E_API_URL || 'https://api.hakwonplus.com' }}
+        run: |
+          pnpm dev --host 127.0.0.1 --port 5174 --strictPort > /tmp/academy-vite.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:5174/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/academy-vite.log
+          exit 1
+
+      - name: Create .env.e2e
+        run: |
+          cat > .env.e2e << EOF
+          E2E_BASE_URL=http://127.0.0.1:5174
+          E2E_LOCAL_BASE_URL=http://127.0.0.1:5174
+          E2E_API_URL=${{ secrets.E2E_API_URL || 'https://api.hakwonplus.com' }}
+          E2E_TENANT_CODE=hakwonplus
+          E2E_ADMIN_USER=${{ secrets.E2E_ADMIN_USER }}
+          E2E_ADMIN_PASS=${{ secrets.E2E_ADMIN_PASS }}
+          E2E_STUDENT_USER=${{ secrets.E2E_STUDENT_USER }}
+          E2E_STUDENT_PASS=${{ secrets.E2E_STUDENT_PASS }}
+          E2E_STRICT=strict
+          E2E_ALLOW_REAL_ALIMTALK=0
+          EOF
+
+      - name: Run exhaustive read-only menu audit
+        run: >-
+          pnpm exec playwright test
+          e2e/stability/all-menu-button-click-audit.spec.ts
+          --grep "${{ matrix.grep }}"
+          --reporter=github,html
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-${{ matrix.scope }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload frontend server log
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-server-log-${{ matrix.scope }}
           path: /tmp/academy-vite.log
           retention-days: 7
           if-no-files-found: ignore
