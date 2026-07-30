@@ -200,7 +200,7 @@ export type ScoresTableHandle = {
     enrollmentId: number;
     type: "homework";
     homeworkId: number;
-  }) => void;
+  }) => boolean;
   /** 대기 중인 변경을 실제 성적 API에 반영 */
   flushPendingChanges: () => Promise<number>;
   /** 자동 저장/복원용: 현재 pending 스냅샷 */
@@ -583,28 +583,39 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     imperativeFocusCell(cell) {
       if (cell.type === "homework") {
         const el = homeworkInputRefs.current[`${cell.enrollmentId}-${cell.homeworkId}`];
-        if (el) { el.focus(); selectAllScoreCell(el); }
-        return;
+        if (!el) return false;
+        el.focus();
+        selectAllScoreCell(el);
+        return true;
       }
       if (cell.type === "exam") {
         if (cell.sub === "item" && cell.questionId != null) {
           const el = examItemInputRefs.current[`${cell.enrollmentId}-${cell.examId}-${cell.questionId}`];
-          if (el) el.focus();
-          return;
+          if (!el) return false;
+          el.focus();
+          return true;
         }
         if (cell.sub === "objective") {
           const el = examObjectiveInputRefs.current[`${cell.enrollmentId}-${cell.examId}-objective`];
-          if (el) { el.focus(); selectAllScoreCell(el); }
-          return;
+          if (!el) return false;
+          el.focus();
+          selectAllScoreCell(el);
+          return true;
         }
         if (cell.sub === "subjective") {
           const el = examSubjectiveInputRefs.current[`${cell.enrollmentId}-${cell.examId}-subjective`];
-          if (el) { el.focus(); selectAllScoreCell(el); }
-          return;
+          if (!el) return false;
+          el.focus();
+          selectAllScoreCell(el);
+          return true;
         }
         const el = examInputRefs.current[`${cell.enrollmentId}-${cell.examId}`];
-        if (el) { el.focus(); selectAllScoreCell(el); }
+        if (!el) return false;
+        el.focus();
+        selectAllScoreCell(el);
+        return true;
       }
+      return false;
     },
     flushPendingChanges,
     getPendingSnapshot,
@@ -1141,13 +1152,15 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           return (
                             <td
                               key={col.key}
-                              className="min-w-0 align-middle bg-[var(--color-bg-surface-hover)]"
+                              className="ds-scores-cell-unassigned min-w-0 text-center align-middle"
                               data-col-type="score"
+                              data-assignment-state="missing"
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
                               data-group-parity={groupParity}
                               title={`${ex.title} 응시 대상 미등록 — 상단 "수강생 일괄배정" 으로 추가하세요`}
+                              aria-label={`${row.student_name} · ${ex.title} 응시 대상 미배정`}
                             >
-                              <span className="text-[var(--color-text-muted)] select-none">-</span>
+                              <Badge variant="soft" tone="warning" size="xs" shape="square">미배정</Badge>
                             </td>
                           );
                         }
@@ -1670,13 +1683,15 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     <Fragment key={hw.homework_id}>
                       {notEnrolledForHw ? (
                           <td
-                            className={`min-w-0 align-middle bg-[var(--color-bg-surface-hover)]`}
+                            className="ds-scores-cell-unassigned min-w-0 text-center align-middle"
                             data-col-type="score"
+                            data-assignment-state="missing"
                             data-group-parity={hwParity}
                             {...(hwBodyIdx === 0 ? { "data-section-start": "" } : {})}
                             title={`${hw.title} 제출 대상 미등록 — 상단 "수강생 일괄배정" 으로 추가하세요`}
+                            aria-label={`${row.student_name} · ${hw.title} 제출 대상 미배정`}
                           >
-                            <span className="text-[var(--color-text-muted)] select-none">-</span>
+                            <Badge variant="soft" tone="warning" size="xs" shape="square">미배정</Badge>
                           </td>
                       ) : (
                       <td

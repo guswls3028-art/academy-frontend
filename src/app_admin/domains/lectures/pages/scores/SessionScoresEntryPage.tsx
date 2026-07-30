@@ -424,11 +424,40 @@ export default function SessionScoresEntryPage({
   };
   const handleSelectHomework = () => setHomeworkEdit((v) => !v);
 
-  /** 시험 또는 과제 둘 중 하나라도 등록된 수강생만 테이블에 표시 → 툴바 인원도 동일 기준 */
+  /** 차시 성적표의 실제 수강생 수와 평가별 미배정 상태를 함께 계산한다. */
   const displayCount = useMemo(() => {
-    const raw = data?.rows ?? [];
-    return raw.filter((r) => (r.exams?.length ?? 0) > 0 || (r.homeworks?.length ?? 0) > 0).length;
+    return data?.rows?.length ?? 0;
   }, [data?.rows]);
+  const assignmentGapSummary = useMemo(() => {
+    const rows = data?.rows ?? [];
+    const examIds = (data?.meta?.exams ?? []).map((exam) => exam.exam_id);
+    const homeworkIds = (data?.meta?.homeworks ?? []).map((homework) => homework.homework_id);
+    let missingExamCells = 0;
+    let missingHomeworkCells = 0;
+    const affectedEnrollmentIds = new Set<number>();
+
+    for (const row of rows) {
+      const assignedExamIds = new Set((row.exams ?? []).map((exam) => exam.exam_id));
+      const assignedHomeworkIds = new Set((row.homeworks ?? []).map((homework) => homework.homework_id));
+      for (const examId of examIds) {
+        if (assignedExamIds.has(examId)) continue;
+        missingExamCells += 1;
+        affectedEnrollmentIds.add(row.enrollment_id);
+      }
+      for (const homeworkId of homeworkIds) {
+        if (assignedHomeworkIds.has(homeworkId)) continue;
+        missingHomeworkCells += 1;
+        affectedEnrollmentIds.add(row.enrollment_id);
+      }
+    }
+
+    return {
+      affectedStudentCount: affectedEnrollmentIds.size,
+      missingExamCells,
+      missingHomeworkCells,
+      missingCellCount: missingExamCells + missingHomeworkCells,
+    };
+  }, [data?.meta?.exams, data?.meta?.homeworks, data?.rows]);
 
   /** 성적 일괄 변경 — Enter / 적용 버튼 단일 진입점.
       2026-05-13 3차: 동일 로직 40+줄이 onEnterConfirm + onClick 양쪽에 중복돼 있던 drift 위험을 한 곳으로. */
@@ -1219,19 +1248,30 @@ export default function SessionScoresEntryPage({
         </div>
       )}
 
-      {/* ── 안내 배너: 시험/과제는 있지만 대상자가 없을 때 ── */}
-      {!isLoading && !isError && hasExamsOrHomeworks && displayCount === 0 && (
-        <div className="scores-roster-warning">
+      {/* ── 안내 배너: 시험/과제별 응시·제출 대상이 일부라도 누락됐을 때 ── */}
+      {!isLoading && !isError && hasExamsOrHomeworks && assignmentGapSummary.missingCellCount > 0 && (
+        <section className="scores-roster-warning" aria-label="응시·제출 대상 미배정 안내">
           <AlertCircle size={18} aria-hidden />
           <div className="min-w-0">
             <div className="scores-roster-warning__title">
-              응시·제출 대상으로 등록된 수강생이 없습니다
+              {assignmentGapSummary.affectedStudentCount}명의 응시·제출 배정이 누락됐습니다
             </div>
             <div className="scores-roster-warning__copy">
-              차시 수강생 등록 상태를 확인한 뒤 성적 도구의 수강생 일괄배정으로 보강하세요.
+              시험 {assignmentGapSummary.missingExamCells}칸 · 과제 {assignmentGapSummary.missingHomeworkCells}칸은 점수를 입력할 수 없습니다.
+              표의 <strong>미배정</strong> 셀을 확인하거나 누락 수강생을 한 번에 배정하세요.
             </div>
           </div>
-        </div>
+          <Button
+            type="button"
+            intent="secondary"
+            size="sm"
+            leftIcon={<Users size={ICON_FOR_BUTTON.sm} />}
+            onClick={() => { void handleEnrollAll(); }}
+            disabled={enrollingAll}
+          >
+            {enrollingAll ? "배정 중…" : "누락 전부 배정"}
+          </Button>
+        </section>
       )}
 
       {!isLoading && !isError && (

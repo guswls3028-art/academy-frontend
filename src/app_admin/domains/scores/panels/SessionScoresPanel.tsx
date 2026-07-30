@@ -283,15 +283,54 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     return { r, c, ok: true as const };
   }, [rows.length, editableCols.length, rowIndex, clampCol, selectedColIndex]);
 
-  const focusAt = useCallback((r: number, c: number) => {
-    const row = rows[Math.max(0, Math.min(r, rows.length - 1))];
-    const col = editableCols[clampCol(c)];
-    if (!row || !col) return;
+  const focusAt = useCallback((r: number, c: number): boolean => {
+    if (r < 0 || r >= rows.length || c < 0 || c >= editableCols.length) return false;
+    const row = rows[r];
+    const col = editableCols[c];
+    if (!row || !col) return false;
+    // DOM에 실제 입력기가 없는 미배정·잠금 셀은 선택하지 않는다.
+    const focused = tableRef.current?.imperativeFocusCell({
+      enrollmentId: row.enrollment_id,
+      ...col,
+    } as Parameters<ScoresTableHandle["imperativeFocusCell"]>[0]) ?? false;
+    if (!focused) return false;
     setSelectedEnrollmentId(row.enrollment_id);
-    setSelectedColIndex(clampCol(c));
-    // Focus synchronously — no state→rerender→effect cycle
-    tableRef.current?.imperativeFocusCell({ enrollmentId: row.enrollment_id, ...col } as Parameters<ScoresTableHandle["imperativeFocusCell"]>[0]);
-  }, [rows, editableCols, clampCol]);
+    setSelectedColIndex(c);
+    return true;
+  }, [rows, editableCols]);
+
+  const focusLinear = useCallback((r: number, c: number, direction: 1 | -1) => {
+    const columnCount = editableCols.length;
+    if (columnCount === 0) return false;
+    const total = rows.length * columnCount;
+    let index = (r * columnCount) + c + direction;
+    while (index >= 0 && index < total) {
+      const nextRow = Math.floor(index / columnCount);
+      const nextCol = index % columnCount;
+      if (focusAt(nextRow, nextCol)) return true;
+      index += direction;
+    }
+    return false;
+  }, [editableCols.length, rows.length, focusAt]);
+
+  const focusVertical = useCallback((r: number, c: number, direction: 1 | -1) => {
+    let nextRow = r + direction;
+    while (nextRow >= 0 && nextRow < rows.length) {
+      if (focusAt(nextRow, c)) return true;
+      nextRow += direction;
+    }
+    return false;
+  }, [rows.length, focusAt]);
+
+  const focusFirstAvailable = useCallback(() => {
+    const columnCount = editableCols.length;
+    for (let r = 0; r < rows.length; r += 1) {
+      for (let c = 0; c < columnCount; c += 1) {
+        if (focusAt(r, c)) return true;
+      }
+    }
+    return false;
+  }, [editableCols.length, rows.length, focusAt]);
 
   const handleGridKeyDown = (e: React.KeyboardEvent) => {
     if (!isEditMode) return;
@@ -303,26 +342,22 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
 
     if (key === "ArrowDown" || key === "Enter") {
       e.preventDefault();
-      focusAt(cur.r + 1, cur.c);
+      focusVertical(cur.r, cur.c, 1);
       return;
     }
     if (key === "ArrowUp") {
       e.preventDefault();
-      focusAt(cur.r - 1, cur.c);
+      focusVertical(cur.r, cur.c, -1);
       return;
     }
     if (key === "ArrowRight" || (isTab && !e.shiftKey)) {
       e.preventDefault();
-      const nextC = cur.c + 1;
-      if (nextC >= editableCols.length) focusAt(cur.r + 1, 0);
-      else focusAt(cur.r, nextC);
+      focusLinear(cur.r, cur.c, 1);
       return;
     }
     if (key === "ArrowLeft" || (isTab && e.shiftKey)) {
       e.preventDefault();
-      const prevC = cur.c - 1;
-      if (prevC < 0) focusAt(cur.r - 1, editableCols.length - 1);
-      else focusAt(cur.r, prevC);
+      focusLinear(cur.r, cur.c, -1);
       return;
     }
   };
@@ -330,30 +365,26 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   const onRequestMoveNext = useCallback(() => {
     const cur = ensureSelection();
     if (!cur.ok) return;
-    const nextC = cur.c + 1;
-    if (nextC >= editableCols.length) focusAt(cur.r + 1, 0);
-    else focusAt(cur.r, nextC);
-  }, [ensureSelection, editableCols.length, focusAt]);
+    focusLinear(cur.r, cur.c, 1);
+  }, [ensureSelection, focusLinear]);
 
   const onRequestMovePrev = useCallback(() => {
     const cur = ensureSelection();
     if (!cur.ok) return;
-    const prevC = cur.c - 1;
-    if (prevC < 0) focusAt(cur.r - 1, editableCols.length - 1);
-    else focusAt(cur.r, prevC);
-  }, [ensureSelection, editableCols.length, focusAt]);
+    focusLinear(cur.r, cur.c, -1);
+  }, [ensureSelection, focusLinear]);
 
   const onRequestMoveDown = useCallback(() => {
     const cur = ensureSelection();
     if (!cur.ok) return;
-    focusAt(cur.r + 1, cur.c);
-  }, [ensureSelection, focusAt]);
+    focusVertical(cur.r, cur.c, 1);
+  }, [ensureSelection, focusVertical]);
 
   const onRequestMoveUp = useCallback(() => {
     const cur = ensureSelection();
     if (!cur.ok) return;
-    focusAt(cur.r - 1, cur.c);
-  }, [ensureSelection, focusAt]);
+    focusVertical(cur.r, cur.c, -1);
+  }, [ensureSelection, focusVertical]);
 
   useEffect(() => {
     if (!isEditMode) {
@@ -366,12 +397,11 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     prevEditModeRef.current = true;
     if (justEntered && rows.length > 0 && editableCols.length > 0) {
       const timer = setTimeout(() => {
-        setSelectedColIndex(0);
-        focusAt(0, 0);
+        focusFirstAvailable();
       }, 0);
       return () => clearTimeout(timer);
     }
-  }, [isEditMode, rows, editableCols.length, focusAt]);
+  }, [isEditMode, rows, editableCols.length, focusFirstAvailable]);
 
   useEffect(() => {
     if (!rows.length) {
