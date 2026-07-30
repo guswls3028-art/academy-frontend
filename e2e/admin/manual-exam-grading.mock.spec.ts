@@ -24,6 +24,26 @@ function fakeJwt(): string {
 
 type GradeState = "correct" | "incorrect" | "review" | null;
 
+function contrastRatio(foreground: string, background: string): number {
+  const channels = (value: string): number[] => {
+    const match = value.match(/rgba?\(([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/);
+    if (match == null) throw new Error(`Unsupported computed color: ${value}`);
+    return match.slice(1, 4).map(Number);
+  };
+  const luminance = (value: string): number => {
+    const linear = channels(value).map((channel) => {
+      const normalized = channel / 255;
+      return normalized <= 0.04045
+        ? normalized / 12.92
+        : ((normalized + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+  };
+  const light = Math.max(luminance(foreground), luminance(background));
+  const dark = Math.min(luminance(foreground), luminance(background));
+  return (light + 0.05) / (dark + 0.05);
+}
+
 type InstallApiOptions = {
   gradingMode?: "choice" | "written" | "mixed";
   manualGradingMethod?: "correctness" | "score";
@@ -634,7 +654,7 @@ test.describe("문항별 직접 채점", () => {
     await expect(cells.first()).toBeFocused();
   });
 
-  test("성적표 시험명에서 열고 단축키를 바꾸면 자동 이동과 함께 저장된다", async ({ page }) => {
+  test("성적표 시험명에서 열고 단축키를 바꾸면 자동 이동과 함께 저장된다", async ({ page }, testInfo) => {
     await installApi(page);
 
     await page.goto(
@@ -644,10 +664,37 @@ test.describe("문항별 직접 채점", () => {
 
     const editAction = page.locator(".scores-edit-action");
     const toolsTrigger = page.getByRole("button", { name: "성적 도구", exact: true });
+    const scoreTab = page.getByRole("tab", { name: "성적", exact: true, selected: true });
+    const attendanceTab = page.getByRole("tab", { name: "출결", exact: true, selected: false });
     await expect(editAction).toBeVisible();
     await expect(toolsTrigger).toBeVisible();
+    await expect(scoreTab).toBeVisible();
+    await expect(attendanceTab).toBeVisible();
     await expect(editAction).toHaveCSS("min-height", "38px");
     await expect(toolsTrigger).toHaveCSS("border-top-width", "1px");
+
+    const activeTabVisual = await scoreTab.evaluate((tab) => {
+      const style = getComputedStyle(tab);
+      return {
+        backgroundImage: style.backgroundImage,
+        borderRadius: style.borderRadius,
+        fontWeight: Number(style.fontWeight),
+      };
+    });
+    expect(activeTabVisual.backgroundImage).not.toBe("none");
+    expect(activeTabVisual.borderRadius).not.toBe("0px");
+    expect(activeTabVisual.fontWeight).toBeGreaterThanOrEqual(700);
+
+    await attendanceTab.hover();
+    const inactiveHoverVisual = await attendanceTab.evaluate((tab) => {
+      const style = getComputedStyle(tab);
+      return {
+        backgroundColor: style.backgroundColor,
+        color: style.color,
+      };
+    });
+    expect(inactiveHoverVisual.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+    expect(inactiveHoverVisual.color).not.toBe(inactiveHoverVisual.backgroundColor);
 
     const toolbarVisual = await toolsTrigger.evaluate((button) => {
       const label = button.querySelector<HTMLElement>(".ds-button__label");
@@ -673,8 +720,50 @@ test.describe("문항별 직접 채점", () => {
     expect(toolbarVisual?.boxShadow).not.toBe("none");
     expect(toolbarVisual?.backgroundImage).not.toBe("none");
     expect(toolbarVisual?.centerDelta).toBeLessThanOrEqual(1);
-    expect(toolbarVisual?.chevronWidth).toBe(24);
-    expect(toolbarVisual?.chevronHeight).toBe(24);
+    expect(toolbarVisual?.chevronWidth).toBe(18);
+    expect(toolbarVisual?.chevronHeight).toBe(18);
+
+    const toolsColorBeforeHover = await toolsTrigger.evaluate(
+      (button) => getComputedStyle(button).color,
+    );
+    await toolsTrigger.hover();
+    await expect.poll(() => toolsTrigger.evaluate(
+      (button) => getComputedStyle(button).color,
+    )).toBe(toolsColorBeforeHover);
+
+    await page.evaluate(() => {
+      const probe = document.createElement("button");
+      probe.type = "button";
+      probe.className = "ds-button";
+      probe.dataset.intent = "primary";
+      probe.dataset.contrastProbe = "true";
+      probe.setAttribute("aria-pressed", "true");
+      probe.textContent = "선택됨";
+      probe.style.position = "fixed";
+      probe.style.top = "8px";
+      probe.style.left = "8px";
+      probe.style.zIndex = "9999";
+      document.body.append(probe);
+    });
+    const contrastProbe = page.locator('[data-contrast-probe="true"]');
+    const selectedButtonColors = await contrastProbe.evaluate((button) => {
+      const style = getComputedStyle(button);
+      return { color: style.color, background: style.backgroundColor };
+    });
+    expect(contrastRatio(
+      selectedButtonColors.color,
+      selectedButtonColors.background,
+    )).toBeGreaterThanOrEqual(4.5);
+    await contrastProbe.hover();
+    const selectedButtonHoverColors = await contrastProbe.evaluate((button) => {
+      const style = getComputedStyle(button);
+      return { color: style.color, background: style.backgroundColor };
+    });
+    expect(contrastRatio(
+      selectedButtonHoverColors.color,
+      selectedButtonHoverColors.background,
+    )).toBeGreaterThanOrEqual(4.5);
+    await contrastProbe.evaluate((button) => button.remove());
 
     await toolsTrigger.click();
     await expect(page.getByRole("menu", { name: "성적 도구" })).toBeVisible();
@@ -683,10 +772,23 @@ test.describe("문항별 직접 채점", () => {
     await expect(page.getByRole("menu", { name: "성적 도구" })).toBeHidden();
 
     for (const viewport of [
+      { width: 1366, height: 900 },
       { width: 1100, height: 900 },
       { width: 390, height: 844 },
     ]) {
       await page.setViewportSize(viewport);
+      await page.evaluate(() => {
+        window.scrollTo(0, 0);
+        document.querySelectorAll<HTMLElement>("*").forEach((element) => {
+          if (element.scrollTop !== 0) element.scrollTop = 0;
+        });
+      });
+      const screenshotPath = testInfo.outputPath(`scores-workbench-${viewport.width}.png`);
+      await page.screenshot({ path: screenshotPath, fullPage: true });
+      await testInfo.attach(`scores-workbench-${viewport.width}`, {
+        path: screenshotPath,
+        contentType: "image/png",
+      });
       await expect(toolsTrigger).toBeVisible();
       const responsiveLayout = await toolsTrigger.evaluate((button) => {
         const label = button.querySelector<HTMLElement>(".ds-button__label");

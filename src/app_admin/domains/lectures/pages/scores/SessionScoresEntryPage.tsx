@@ -524,7 +524,6 @@ export default function SessionScoresEntryPage({
 
   const hasSelection = selectedEnrollmentIds.length > 0;
   const showSelectionActions = hasSelection || !isMobile;
-  const dimSelectionBar = !hasSelection && !isMobile;
   const recoveryBlocked =
     draft.isRecoveryCheckPending ||
     draft.recoveryCheckFailed ||
@@ -586,10 +585,7 @@ export default function SessionScoresEntryPage({
   // selectionBar 를 항상 노출(평상시 0명 + 액션 disabled). "선택 해제"는 액션 그룹 직후 자연 위치.
   const selectionBar = (
     <div className="scores-selection-bar">
-      <div
-        className="scores-selection-bar__row"
-        style={{ opacity: dimSelectionBar ? 0.62 : 1, transition: "opacity 0.15s" }}
-      >
+      <div className="scores-selection-bar__row">
         {showSelectionActions && (
           <span
             className="text-[13px] font-semibold whitespace-nowrap"
