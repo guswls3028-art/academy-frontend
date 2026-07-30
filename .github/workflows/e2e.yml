@@ -2,17 +2,23 @@ name: E2E Tests
 
 on:
   workflow_dispatch:
+    inputs:
+      controlled_write_canaries:
+        description: "통제 번호만 사용하는 가입/복구/OMR/과제/클리닉 운영 쓰기 canary 실행"
+        required: false
+        default: false
+        type: boolean
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
     paths:
-      - 'src/**'
-      - 'e2e/**'
-      - 'e2e-wrong-note-harness.html'
-      - 'index.html'
-      - 'package.json'
-      - 'playwright.config.ts'
-      - 'vite.config.ts'
+      - "src/**"
+      - "e2e/**"
+      - "e2e-wrong-note-harness.html"
+      - "index.html"
+      - "package.json"
+      - "playwright.config.ts"
+      - "vite.config.ts"
 
 concurrency:
   group: e2e-${{ github.event.pull_request.number || github.sha }}
@@ -20,9 +26,8 @@ concurrency:
 
 jobs:
   e2e:
+    name: E2E maintained release suite
     runs-on: ubuntu-latest
-    # PR은 빠른 안전 게이트만 실행한다. 운영 E2E tenant를 공유하는 전체 suite는
-    # 병렬화하지 않고 workflow_dispatch에서만 명시적으로 실행한다.
     timeout-minutes: 120
     # PR 또는 수동 실행에서만 동작 (push에서는 quality-gate.yml이 처리)
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
@@ -91,15 +96,33 @@ jobs:
         if: github.event_name == 'pull_request'
         run: pnpm test:e2e:gate --reporter=github,html
 
-      - name: Run full E2E suite
+      - name: Run maintained release E2E suite
         if: github.event_name == 'workflow_dispatch'
-        run: npx playwright test --reporter=github,html
+        run: pnpm test:e2e:release --reporter=github,html
+
+      - name: Run opt-in controlled production write canaries
+        if: github.event_name == 'workflow_dispatch' && inputs.controlled_write_canaries
+        env:
+          E2E_ALLOW_SIGNUP_APPROVAL_REAL_SEND: "1"
+          E2E_SIGNUP_CONTROLLED_PHONE: "01031217466"
+          E2E_ALLOW_ACCOUNT_RECOVERY_REAL_SEND: "1"
+          E2E_ACCOUNT_RECOVERY_CONTROLLED_PHONE: "01031217466"
+          E2E_ALLOW_CLINIC_REAL_NOTIFICATIONS: "1"
+          E2E_CLINIC_CONTROLLED_PHONE: "01031217466"
+        run: >-
+          pnpm exec playwright test
+          e2e/flows/signup-approval-roundtrip.spec.ts
+          e2e/auth/account-recovery-realuse.spec.ts
+          e2e/admin/omr-review-realuse.spec.ts
+          e2e/student/homework-submission-realuse.spec.ts
+          e2e/student/clinic-remediation-realuse.spec.ts
+          --reporter=github,html
 
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-report
+          name: playwright-report-maintained-release
           path: |
             playwright-report/
             test-results/
@@ -110,7 +133,102 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: frontend-server-log
+          name: frontend-server-log-maintained-release
+          path: /tmp/academy-vite.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+  all-menu-audit:
+    name: All-menu audit (${{ matrix.scope }})
+    if: github.event_name == 'workflow_dispatch' && needs.e2e.result == 'success'
+    needs: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      # These read-only audits share the production E2E tenant. Keep them
+      # sequential to avoid authentication throttling and cross-run noise.
+      max-parallel: 1
+      matrix:
+        include:
+          - scope: admin-dev-desktop
+            grep: '관리자 \+ 개발자 데스크톱 메뉴/버튼'
+          - scope: student-mobile
+            grep: "학생 모바일 메뉴/버튼"
+          - scope: teacher-mobile
+            grep: "선생님 모바일 메뉴/버튼"
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --shamefully-hoist
+
+      - name: Install Playwright
+        run: npx playwright install chromium --with-deps
+
+      - name: Guard production E2E safety boundaries
+        run: pnpm guard:e2e-safety
+
+      - name: Start checkout frontend
+        env:
+          VITE_DEV_PROXY_TARGET: ${{ secrets.E2E_API_URL || 'https://api.hakwonplus.com' }}
+        run: |
+          pnpm dev --host 127.0.0.1 --port 5174 --strictPort > /tmp/academy-vite.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:5174/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/academy-vite.log
+          exit 1
+
+      - name: Create .env.e2e
+        run: |
+          cat > .env.e2e << EOF
+          E2E_BASE_URL=http://127.0.0.1:5174
+          E2E_LOCAL_BASE_URL=http://127.0.0.1:5174
+          E2E_API_URL=${{ secrets.E2E_API_URL || 'https://api.hakwonplus.com' }}
+          E2E_TENANT_CODE=hakwonplus
+          E2E_ADMIN_USER=${{ secrets.E2E_ADMIN_USER }}
+          E2E_ADMIN_PASS=${{ secrets.E2E_ADMIN_PASS }}
+          E2E_STUDENT_USER=${{ secrets.E2E_STUDENT_USER }}
+          E2E_STUDENT_PASS=${{ secrets.E2E_STUDENT_PASS }}
+          E2E_STRICT=strict
+          E2E_ALLOW_REAL_ALIMTALK=0
+          EOF
+
+      - name: Run exhaustive read-only menu audit
+        run: >-
+          pnpm exec playwright test
+          e2e/stability/all-menu-button-click-audit.spec.ts
+          --grep "${{ matrix.grep }}"
+          --reporter=github,html
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-${{ matrix.scope }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload frontend server log
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-server-log-${{ matrix.scope }}
           path: /tmp/academy-vite.log
           retention-days: 7
           if-no-files-found: ignore

@@ -31,7 +31,25 @@
 |------|-----------|------|
 | `package.json` `test:e2e:gate` | 로그인, smoke, 계정복구, notice/qna/clinic/password, tenant isolation | 강의 생성, 차시 생성, 시험/과제 생성, 영상, 클리닉 판별까지는 닫지 않음 |
 | `.github/workflows/quality-gate.yml` `e2e-roundtrip` | 배포 후 notice/qna/clinic/password/session-assessment | `session-assessment`는 read-only 버튼/모달 중심. 실제 시험/과제 생성과 학생 제출은 아님 |
-| `.github/workflows/e2e.yml` | PR/수동 전체 E2E | `E2E_STRICT=report`이며 120분 장시간. 실사용 리뷰 판정표가 없음 |
+| `.github/workflows/e2e.yml` | PR 빠른 gate. 수동 실행은 `test:e2e:release` 유지보수 묶음, 선택적 통제 쓰기 canary, desktop admin/dev·student mobile·teacher mobile 전 메뉴 감사를 실행 | 같은 운영 E2E tenant의 인증 throttle/상호 간섭을 피하려고 직렬 실행. 유지보수 묶음과 선택한 쓰기 canary, 역할별 감사 3개가 모두 성공해야 해당 수동 실행을 통과로 기록 |
+
+### 2.1 릴리스 묶음과 역사성 자산의 경계
+
+2026-07-30 수동 실행 `30521523046`에서 전 메뉴 감사를 제외한 활성 spec
+전체를 두 shard로 나눈 첫 job이 120분 상한에 도달했다. 실패 산출물에는 재시도
+쌍 기준 85개의 최종 실패가 있었고, 오래된 일회성 시각 감사·진단·메시징 CRUD
+스냅샷과 현재 런타임 계약이 섞여 있었다. 따라서 활성 spec 파일 수나 과거 spec
+전체 실행을 릴리스 합격 기준으로 사용하지 않는다.
+
+- `pnpm test:e2e:release`는 반복 유지하는 로그인·권한·공지/QnA/클리닉·성적·
+  출결·영상·공개 CTA·오류 상태·모바일 guardrail·현재 기능 route-mock을 실행한다.
+- 데이터가 필요한 차시/평가 read-only 흐름은 데이터가 없으면 skip하지 않고
+  실패한다.
+- 가입/계정복구 실발송과 학생 fixture를 만드는 OMR·과제·클리닉은 workflow의
+  `controlled_write_canaries=true`에서만 통제 번호와 소유 ID cleanup으로 실행한다.
+- 일회성 screenshot/진단 spec은 필요할 때 명시 실행하고, 검증 종료 후 `_local`
+  또는 archive로 옮기거나 삭제한다. 이 자산의 실패를 숨기지 않되 릴리스 묶음의
+  성공과 동일시하지 않는다.
 
 ## 3. 재사용 우선 spec
 
@@ -113,7 +131,7 @@
 
 | 분류 | 처리 |
 |------|------|
-| 실제 chain canary | `e2e/realuse`로 승격 또는 package script에 묶음 |
+| 실제 chain canary | 반복 안전성이 확인된 read-only/cleanup 보장 흐름만 `test:e2e:release` 또는 통제 쓰기 canary에 명시 |
 | read-only smoke | `smoke` 또는 기존 위치 유지 |
 | 일회성 screenshot audit | 검증 종료 후 `_local` 또는 archive 후보 |
 | API-assisted setup이 명확한 spec | 파일 상단에 한계 유지, 실사용 gate에는 단독 사용 금지 |
