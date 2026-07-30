@@ -8,12 +8,14 @@
 import { test, expect } from "../fixtures/strictTest";
 import type { APIRequestContext, Page } from "@playwright/test";
 import { getApiBaseUrl, getBaseUrl } from "../helpers/auth";
+import { productionMultiNoticeFlowSkipReason } from "../helpers/safety";
 import { gotoAndSettle, waitForCondition, waitForRenderSettled } from "../helpers/wait";
 
 test.setTimeout(180_000);
 
 const API = getApiBaseUrl();
 const BASE = getBaseUrl("admin").replace(/\/+$/, "");
+const PRODUCTION_SKIP_REASON = productionMultiNoticeFlowSkipReason(API);
 const CODE = "hakwonplus";
 const ADMIN_USER = process.env.E2E_ADMIN_USER || "admin97";
 const ADMIN_PASS = process.env.E2E_ADMIN_PASS || "__MISSING_E2E_ADMIN_PASS__";
@@ -210,12 +212,13 @@ async function waitForResult(
 async function cleanup(request: APIRequestContext): Promise<void> {
   const token = created.adminAccess;
   if (!token) return;
+  const failures: string[] = [];
 
-  const safe = async (
+  const remove = async (
     method: string,
     path: string,
     data?: Record<string, unknown>,
-    options?: { logFailure?: boolean },
+    acceptedStatuses: number[] = [200, 202, 204, 404],
   ) => {
     let out: { status: number; body: unknown };
     try {
@@ -226,45 +229,56 @@ async function cleanup(request: APIRequestContext): Promise<void> {
         body: { error: error instanceof Error ? error.message : String(error) },
       };
     }
-    if ((options?.logFailure ?? true) && ![200, 202, 204, 404].includes(out.status)) {
-      console.log(`cleanup ${method} ${path}: ${out.status} ${JSON.stringify(out.body)}`);
+    if (!acceptedStatuses.includes(out.status)) {
+      failures.push(`${method} ${path} -> ${out.status} ${JSON.stringify(out.body)}`);
     }
     return out;
   };
 
-  let examRemovedFromSession = true;
   if (created.examId && created.sessionId) {
-    const examDelete = await safe(
+    await remove(
       "DELETE",
       `/exams/${created.examId}/?session_id=${created.sessionId}`,
       undefined,
-      { logFailure: false },
+      [200, 204, 404],
     );
-    examRemovedFromSession = [200, 204, 404].includes(examDelete.status);
-    if (!examRemovedFromSession) {
-      await safe("PATCH", `/exams/${created.examId}/`, {
-        is_active: false,
-        title: `${EXAM_TITLE} (archived)`,
-        close_at: new Date(Date.now() - 60_000).toISOString(),
-      });
-    }
   }
   for (const id of created.sessionEnrollmentIds) {
-    await safe("DELETE", `/enrollments/session-enrollments/${id}/`);
+    await remove("DELETE", `/enrollments/session-enrollments/${id}/`);
   }
-  if (created.primaryEnrollmentId) await safe("DELETE", `/enrollments/${created.primaryEnrollmentId}/`);
-  if (created.peerEnrollmentId) await safe("DELETE", `/enrollments/${created.peerEnrollmentId}/`);
+  if (created.primaryEnrollmentId) await remove("DELETE", `/enrollments/${created.primaryEnrollmentId}/`);
+  if (created.peerEnrollmentId) await remove("DELETE", `/enrollments/${created.peerEnrollmentId}/`);
   const studentIds = [created.primaryStudentId, created.peerStudentId]
     .filter((id): id is number => typeof id === "number" && Number.isFinite(id));
   if (studentIds.length > 0) {
-    await safe("POST", "/students/bulk_delete/", { ids: studentIds });
-    await safe("POST", "/students/bulk_permanent_delete/", { ids: studentIds });
+    await remove("POST", "/students/bulk_delete/", { ids: studentIds }, [200, 204]);
+    await remove("POST", "/students/bulk_permanent_delete/", { ids: studentIds }, [200, 204]);
   }
-  if (examRemovedFromSession && created.sessionId) await safe("DELETE", `/lectures/sessions/${created.sessionId}/`);
-  if (examRemovedFromSession && created.lectureId) await safe("DELETE", `/lectures/lectures/${created.lectureId}/`);
+  if (created.sessionId) await remove("DELETE", `/lectures/sessions/${created.sessionId}/`);
+  if (created.lectureId) await remove("DELETE", `/lectures/lectures/${created.lectureId}/`);
+
+  for (const [label, path] of [
+    ...(created.examId && created.sessionId
+      ? [[`exam ${created.examId}`, `/exams/${created.examId}/?session_id=${created.sessionId}`] as const]
+      : []),
+    ...studentIds.map((id) => [`student ${id}`, `/students/${id}/`] as const),
+    ...(created.sessionId ? [[`session ${created.sessionId}`, `/lectures/sessions/${created.sessionId}/`] as const] : []),
+    ...(created.lectureId ? [[`lecture ${created.lectureId}`, `/lectures/lectures/${created.lectureId}/`] as const] : []),
+  ]) {
+    const verification = await apiFetch(request, "GET", path, token);
+    if (verification.status !== 404) {
+      failures.push(`verify ${label} absent -> ${verification.status} ${JSON.stringify(verification.body)}`);
+    }
+  }
+
+  if (failures.length > 0) {
+    throw new Error(`score-report fixture cleanup failed:\n${failures.join("\n")}`);
+  }
 }
 
 test.describe.serial("[E2E] 학생 성적 리포트 실사용 검증", () => {
+  test.skip(Boolean(PRODUCTION_SKIP_REASON), PRODUCTION_SKIP_REASON ?? "");
+
   test.afterAll(async ({ request }) => {
     await cleanup(request);
   });

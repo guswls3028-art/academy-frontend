@@ -69,10 +69,10 @@ const CLICKABLE_SELECTOR = [
 const SAFE_QUERY_TEXT = /검색|조회|필터|새로고침|열기|닫기|취소|이전|다음|더보기|접기|펼치기|보기|미리보기|선택|전체|오늘|이번|지난|월|주|일|목록|돌아가기/i;
 
 const MUTATION_OR_EXTERNAL_TEXT =
-  /로그아웃|삭제|탈퇴|퇴원|제명|영구|발송|전송|보내기|알림톡|문자|SMS|저장|등록|생성|업로드|제출|승인|반려|거절|환불|결제|청구|정산|마감|확정|복구|동기화|분석|재분석|수정|변경|적용|초기화|잠금|차단|공개|비공개|예약|완료|처리|다운로드|인쇄|활성화|비활성화|사용\s*중지|사용\s*재개|운영\s*중지|운영\s*재개|켜기|끄기|토글|\bON\b|\bOFF\b/i;
+  /로그아웃|삭제|탈퇴|퇴원|제명|영구|발송|전송|보내기|알림톡|문자|SMS|저장|등록|생성|복사|copy|duplicate|업로드|제출|승인|반려|거절|환불|결제|청구|정산|마감|확정|복구|동기화|분석|재분석|수정|변경|적용|초기화|잠금|차단|공개|비공개|예약|완료|처리|다운로드|인쇄|활성화|비활성화|사용\s*중지|사용\s*재개|운영\s*중지|운영\s*재개|켜기|끄기|토글|\bON\b|\bOFF\b/i;
 
-const FATAL_TEXT =
-  /Application error|Unhandled Runtime Error|ChunkLoadError|Cannot read properties|is not a function|Something went wrong|페이지를 불러오지 못했습니다|오류가 발생했습니다/i;
+const FATAL_SCREEN_TEXT =
+  /Application error|Unhandled Runtime Error|ChunkLoadError|Something went wrong|페이지를 불러오지 못했습니다|화면을 표시하지 못했어요|오류가 발생했습니다\. 페이지를 새로고침해 주세요\./i;
 const TRANSIENT_OVERLAY_SELECTOR = [
   ".clinic-ops__trigger-preview-overlay",
   "[class*='fixed'][class*='inset-0'][class*='z-[90]']",
@@ -371,6 +371,14 @@ async function installRuntimeGuards(page: Page, report: AuditReport, role: strin
   page.on("download", async (download) => {
     await download.delete().catch(() => undefined);
   });
+  page.on("pageerror", (error) => {
+    report.defects.push({
+      role,
+      route: currentPathSafe(page),
+      action: "pageerror",
+      detail: `${error.name}: ${error.message}`,
+    });
+  });
   page.on("response", (response) => {
     const status = response.status();
     const url = response.url();
@@ -457,7 +465,7 @@ async function waitForSettledPage(page: Page, networkIdleTimeout = 1_500): Promi
 }
 
 function isRetryableNavigationError(message: string): boolean {
-  return /Timeout|ERR_CONNECTION_CLOSED|ERR_TIMED_OUT|ERR_HTTP2_PROTOCOL_ERROR|interrupted by another navigation|NS_BINDING_ABORTED/i.test(message);
+  return /Timeout|ERR_ABORTED|ERR_CONNECTION_CLOSED|ERR_TIMED_OUT|ERR_HTTP2_PROTOCOL_ERROR|interrupted by another navigation|NS_BINDING_ABORTED/i.test(message);
 }
 
 async function assertUsablePage(page: Page, report: AuditReport, role: string, route: AuditRoute, action: string): Promise<void> {
@@ -488,7 +496,7 @@ async function assertUsablePage(page: Page, report: AuditReport, role: string, r
       detail: "blank or nearly blank body",
     });
   }
-  if (FATAL_TEXT.test(normalized)) {
+  if (FATAL_SCREEN_TEXT.test(normalized)) {
     report.defects.push({
       role,
       route: route.path,
