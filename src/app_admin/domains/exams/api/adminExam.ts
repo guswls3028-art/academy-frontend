@@ -28,6 +28,8 @@ export async function updateAdminExam(
     | "max_attempts"
     | "pass_score"
     | "max_score"
+    | "grading_mode"
+    | "manual_grading_method"
     | "display_order"
     | "open_at"
     | "close_at"
