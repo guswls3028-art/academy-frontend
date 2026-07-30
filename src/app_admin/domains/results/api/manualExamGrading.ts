@@ -6,6 +6,7 @@ export type ManualGradeQuestion = {
   question_id: number;
   number: number;
   kind: "choice" | "essay";
+  answer_type?: "choice" | "numeric_short_answer" | "written";
   max_score: number;
   editable: boolean;
   entry_method: "omr" | "correctness" | "score";
@@ -41,6 +42,9 @@ export type ManualGradeSheet = {
   grading_mode: "choice" | "written" | "mixed";
   manual_grading_method: "correctness" | "score";
   has_manual_questions: boolean;
+  exam_max_score: number;
+  question_score_total: number;
+  score_adjustment_total: number;
   questions: ManualGradeQuestion[];
   rows: ManualGradeRow[];
 };
@@ -90,6 +94,11 @@ export type ManualGradePreview = {
   }>;
 };
 
+export type ManualGradeQuestionScoreChanges = {
+  question_scores: Record<string, number>;
+  expected_question_scores: Record<string, number>;
+};
+
 export async function fetchManualGradeSheet(
   examId: number,
 ): Promise<ManualGradeSheet> {
@@ -102,25 +111,28 @@ export async function fetchManualGradeSheet(
 export async function previewManualGrades(
   examId: number,
   rows: ManualGradeRequestRow[],
+  questionScoreChanges?: ManualGradeQuestionScoreChanges,
 ): Promise<ManualGradePreview> {
-  return submitManualGrades(examId, rows, false);
+  return submitManualGrades(examId, rows, false, questionScoreChanges);
 }
 
 export async function applyManualGrades(
   examId: number,
   rows: ManualGradeRequestRow[],
+  questionScoreChanges?: ManualGradeQuestionScoreChanges,
 ): Promise<ManualGradePreview> {
-  return submitManualGrades(examId, rows, true);
+  return submitManualGrades(examId, rows, true, questionScoreChanges);
 }
 
 async function submitManualGrades(
   examId: number,
   rows: ManualGradeRequestRow[],
   apply: boolean,
+  questionScoreChanges?: ManualGradeQuestionScoreChanges,
 ): Promise<ManualGradePreview> {
   const response = await api.post<ManualGradePreview>(
     `/results/admin/exams/${examId}/manual-grading/`,
-    { rows, apply },
+    { rows, apply, ...questionScoreChanges },
   );
   return response.data;
 }

@@ -24,9 +24,20 @@ function fakeJwt(): string {
 
 type GradeState = "correct" | "incorrect" | "review" | null;
 
-async function installApi(page: Page) {
+type InstallApiOptions = {
+  gradingMode?: "choice" | "written";
+  editable?: boolean;
+  hasQuestions?: boolean;
+  initialStates?: [GradeState, GradeState];
+};
+
+async function installApi(page: Page, options: InstallApiOptions = {}) {
   let applied = false;
+  let hasQuestions = options.hasQuestions ?? true;
   const postedRows: unknown[] = [];
+  const gradingMode = options.gradingMode ?? "written";
+  const editable = options.editable ?? true;
+  const initialStates = options.initialStates ?? [null, null];
 
   await page.addInitScript(({ token }) => {
     localStorage.setItem("access", token);
@@ -37,23 +48,23 @@ async function installApi(page: Page) {
 
   const cells = (): Record<string, {
     editable: boolean;
-    entry_method: "correctness";
+    entry_method: "correctness" | "omr";
     state: GradeState;
     score: number | null;
     include_in_wrong_note: boolean;
   }> => ({
     [String(QUESTION_IDS[0])]: {
-      editable: true,
-      entry_method: "correctness",
-      state: applied ? "correct" : null,
-      score: applied ? 40 : null,
+      editable,
+      entry_method: editable ? "correctness" : "omr",
+      state: applied ? "correct" : initialStates[0],
+      score: applied ? 40 : initialStates[0] === "correct" ? 40 : 0,
       include_in_wrong_note: false,
     },
     [String(QUESTION_IDS[1])]: {
-      editable: true,
-      entry_method: "correctness",
-      state: applied ? "review" : null,
-      score: applied ? 60 : null,
+      editable,
+      entry_method: editable ? "correctness" : "omr",
+      state: applied ? "review" : initialStates[1],
+      score: applied ? 60 : initialStates[1] === "correct" ? 60 : 0,
       include_in_wrong_note: applied,
     },
   });
@@ -188,7 +199,7 @@ async function installApi(page: Page) {
         max_attempts: 1,
         pass_score: 60,
         max_score: 100,
-        grading_mode: "written",
+        grading_mode: gradingMode,
         manual_grading_method: "correctness",
         choice_question_count: 0,
         segmentation_status: "ready",
@@ -203,6 +214,17 @@ async function installApi(page: Page) {
         created_at: "2026-07-30T09:00:00+09:00",
         updated_at: "2026-07-30T09:00:00+09:00",
       });
+      return;
+    }
+    if (path === `/exams/${EXAM_ID}/questions/init/` && method === "POST") {
+      hasQuestions = true;
+      await json(QUESTION_IDS.map((id, index) => ({
+        id,
+        sheet: 1,
+        number: index + 1,
+        question_kind: "choice",
+        score: index === 0 ? 40 : 60,
+      })));
       return;
     }
     if (
@@ -221,27 +243,35 @@ async function installApi(page: Page) {
         await json({
           exam_id: EXAM_ID,
           exam_title: "7월 진단평가",
-          grading_mode: "written",
+          grading_mode: gradingMode,
           manual_grading_method: "correctness",
-          has_manual_questions: true,
-          questions: [
+          has_manual_questions: hasQuestions && editable,
+          exam_max_score: 100,
+          question_score_total: hasQuestions ? 100 : 0,
+          score_adjustment_total: 0,
+          questions: hasQuestions ? [
             {
               question_id: QUESTION_IDS[0],
               number: 1,
-              kind: "essay",
+              kind: gradingMode === "choice" ? "choice" : "essay",
+              answer_type: gradingMode === "choice" ? "choice" : "written",
               max_score: 40,
-              editable: true,
-              entry_method: "correctness",
+              editable,
+              entry_method: editable ? "correctness" : "omr",
             },
             {
               question_id: QUESTION_IDS[1],
               number: 2,
               kind: "essay",
+              answer_type:
+                gradingMode === "choice"
+                  ? "numeric_short_answer"
+                  : "written",
               max_score: 60,
-              editable: true,
-              entry_method: "correctness",
+              editable,
+              entry_method: editable ? "correctness" : "omr",
             },
-          ],
+          ] : [],
           rows: [{
             enrollment_id: ENROLLMENT_ID,
             student_name: "김학생",
@@ -272,7 +302,7 @@ async function installApi(page: Page) {
         applied: body.apply === true,
         exam_id: EXAM_ID,
         exam_title: "7월 진단평가",
-        grading_mode: "written",
+        grading_mode: gradingMode,
         manual_grading_method: "correctness",
         matched_count: 1,
         question_count: 2,
@@ -383,11 +413,33 @@ test.describe("문항별 직접 채점", () => {
 
     await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible();
     await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "문항별 직접 채점", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "정오표 워크스페이스", exact: true })).toBeVisible();
+
+    await page.getByRole("spinbutton", { name: "1번 배점", exact: true }).fill("30");
+    await page.getByRole("spinbutton", { name: "2번 배점", exact: true }).fill("70");
+    await expect(page.getByText("배점 합계 100점 / 시험 만점 100점", { exact: true })).toBeVisible();
 
     const studentRow = page.getByRole("row").filter({ hasText: "김학생" });
     const cells = studentRow.getByRole("button", { name: "미입력" });
     await expect(cells).toHaveCount(2);
+    await cells.nth(0).evaluate((element) => {
+      const clipboard = new DataTransfer();
+      clipboard.setData("text/plain", "O\t.");
+      element.dispatchEvent(new ClipboardEvent("paste", {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: clipboard,
+      }));
+    });
+    await expect(studentRow.getByRole("button", { name: "O" })).toHaveCount(1);
+    await expect(studentRow.getByRole("button", { name: "X" })).toHaveCount(1);
+    await page.keyboard.press("Control+z");
+    await expect(studentRow.getByRole("button", { name: "미입력" })).toHaveCount(2);
+    await page.keyboard.press("Control+y");
+    await expect(studentRow.getByRole("button", { name: "X" })).toHaveCount(1);
+    await page.keyboard.press("Control+z");
+    await expect(studentRow.getByRole("button", { name: "미입력" })).toHaveCount(2);
+
     await cells.nth(0).press("o");
     await studentRow.getByRole("button", { name: "미입력" }).press("0");
     await expect(studentRow.getByRole("button", { name: "O" })).toHaveCount(1);
@@ -402,6 +454,14 @@ test.describe("문항별 직접 채점", () => {
     expect(apiState.postedRows).toEqual([
       expect.objectContaining({
         apply: false,
+        question_scores: {
+          [String(QUESTION_IDS[0])]: 30,
+          [String(QUESTION_IDS[1])]: 70,
+        },
+        expected_question_scores: {
+          [String(QUESTION_IDS[0])]: 40,
+          [String(QUESTION_IDS[1])]: 60,
+        },
         rows: [expect.objectContaining({
           enrollment_id: ENROLLMENT_ID,
           attendance: "present",
@@ -413,6 +473,10 @@ test.describe("문항별 직접 채점", () => {
       }),
       expect.objectContaining({
         apply: true,
+        question_scores: {
+          [String(QUESTION_IDS[0])]: 30,
+          [String(QUESTION_IDS[1])]: 70,
+        },
         rows: [expect.objectContaining({
           enrollment_id: ENROLLMENT_ID,
           attendance: "present",
@@ -423,6 +487,64 @@ test.describe("문항별 직접 채점", () => {
     await expect(studentRow.getByRole("button", { name: "O" })).toHaveCount(1);
     await expect(studentRow.getByRole("button", { name: "0" })).toHaveCount(1);
     await expect(page.getByText("확정 전 변경사항", { exact: true })).toHaveCount(0);
+  });
+
+  test("선택형 자동채점 정오를 직접 채점이 잠긴 상태에서도 표시한다", async ({ page }) => {
+    await installApi(page, {
+      gradingMode: "choice",
+      editable: false,
+      initialStates: ["correct", "incorrect"],
+    });
+
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await page.getByRole("button", {
+      name: "7월 진단평가 문항별 채점표 열기",
+    }).click();
+
+    const dialog = page.getByRole("dialog").filter({
+      hasText: "7월 진단평가 문항별 채점",
+    });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText(
+      "자동채점 결과를 읽기 전용으로 표시하고 있습니다. 문항별 O/X와 점수는 그대로 확인할 수 있습니다.",
+      { exact: true },
+    )).toBeVisible();
+    await expect(dialog.getByText("객관식", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("단답형", { exact: true })).toBeVisible();
+    await expect(dialog.locator('[aria-label="김학생 1번 자동채점 O"]')).toBeVisible();
+    await expect(dialog.locator('[aria-label="김학생 2번 자동채점 X"]')).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "입력 내용 확인", exact: true })).toHaveCount(0);
+  });
+
+  test("문항이 없으면 정답 등록과 문항 수 빠른 시작을 제공한다", async ({ page }) => {
+    await installApi(page, {
+      gradingMode: "choice",
+      editable: true,
+      hasQuestions: false,
+    });
+
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await page.getByRole("button", {
+      name: "7월 진단평가 문항별 채점표 열기",
+    }).click();
+
+    const dialog = page.getByRole("dialog").filter({
+      hasText: "7월 진단평가 문항별 채점",
+    });
+    await expect(dialog.getByRole("button", { name: "객관식 답안 등록" })).toBeVisible();
+    await dialog.getByRole("button", { name: "문항 수로 바로 시작" }).click();
+    await dialog.getByRole("spinbutton", { name: "전체 문항 수", exact: true }).fill("2");
+    await dialog.getByRole("button", { name: "채점표 만들기", exact: true }).click();
+
+    await expect(dialog.getByRole("heading", { name: "정오표 워크스페이스", exact: true })).toBeVisible();
+    await expect(dialog.getByRole("spinbutton", { name: "1번 배점", exact: true })).toHaveValue("40");
+    await expect(dialog.getByRole("spinbutton", { name: "2번 배점", exact: true })).toHaveValue("60");
   });
 
   test("성적표 시험명에서 열고 단축키를 바꾸면 자동 이동과 함께 저장된다", async ({ page }) => {
@@ -524,7 +646,7 @@ test.describe("문항별 직접 채점", () => {
     await dialog.getByRole("button", { name: "저장", exact: true }).click();
 
     await expect(dialog.getByText("A 정답", { exact: true })).toBeVisible();
-    await expect(dialog.getByText("D 정답 · 오답노트에 포함", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("D 정답 · 복습", { exact: true })).toBeVisible();
     await cells.first().focus();
     await page.keyboard.press("a");
     await expect(cells.nth(1)).toBeFocused();
