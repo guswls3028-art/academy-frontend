@@ -115,13 +115,22 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
     await expect(S.locator(".stu-skel").first()).toBeHidden({ timeout: 10000 });
 
     // 시험/과제 전환 탭은 성적 허브의 핵심 계약이다.
-    await expect(S.getByRole("button", { name: "시험 성적" })).toBeVisible({ timeout: 10000 });
+    const examMode = S.getByRole("button", { name: /^시험 성적(?: \d+)?$/ });
+    await expect(examMode).toBeVisible({ timeout: 10000 });
+    await expect(examMode).toHaveAttribute("aria-pressed", "true");
     await expect(S.getByRole("button", { name: "과제 현황" })).toBeVisible({ timeout: 10000 });
 
-    const hasExamContent = await S.getByRole("heading", { name: /시험 결과가 아직 없습니다|시험 결과/ })
-      .isVisible({ timeout: 5000 })
-      .catch(() => false);
-    expect(hasExamContent).toBeTruthy();
+    const examResultLinks = S.locator("a[href*='/student/exams/'][href*='/result']");
+    const emptyExamState = S.getByRole("heading", { name: "시험 결과가 아직 없습니다" });
+    await expect
+      .poll(async () => (await examResultLinks.count()) > 0 || await emptyExamState.isVisible().catch(() => false), {
+        timeout: 10_000,
+        message: "시험 결과 목록 또는 정상 빈 상태가 보여야 합니다.",
+      })
+      .toBeTruthy();
+    if (await examResultLinks.count()) {
+      await expect(examResultLinks.first()).toBeVisible();
+    }
   });
 
   test("06 Student: 과제 현황 확인", async () => {
