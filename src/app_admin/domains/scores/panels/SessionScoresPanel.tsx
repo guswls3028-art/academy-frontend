@@ -65,7 +65,12 @@ type Props = {
   selectedEnrollmentIds?: number[];
   onSelectionChange?: (enrollmentIds: number[]) => void;
   onPendingChange?: () => void;
-  onOpenExamGrading?: (examId: number, examTitle: string) => void;
+  onOpenExamGrading?: (
+    examId: number,
+    examTitle: string,
+    gradingMode: "choice" | "written" | "mixed",
+    manualGradingMethod: "correctness" | "score",
+  ) => void;
 };
 
 export type SessionScoresPanelHandle = {
