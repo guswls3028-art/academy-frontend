@@ -6,18 +6,18 @@
 
 ## 1. 재실측 스냅샷
 
-2026-07-27 기준 `frontend/e2e` 파일 재실측.
+2026-07-30 기준 `frontend/e2e` 파일 재실측.
 
 | 항목 | 값 |
 |------|----|
-| 활성 spec | `guard:e2e-safety` 기준 217개 (`frontend/e2e/*.spec.ts` 실파일 216개) |
-| 전체 TypeScript `test(` 라인 | 977개 |
-| `test.skip(` 라인 | 118개 |
+| 활성 spec | `guard:e2e-safety` 기준 229개 (tracked spec 230개 중 `_local` 1개 제외) |
+| 전체 TypeScript `test(` 라인 | 1,026개 |
+| `test.skip(` 라인 | 124개 |
 | `test.fixme(` 라인 | 0개 |
-| early `return;` 라인 | 약 201개 |
-| `waitForTimeout` 라인 | 약 44개 |
-| screenshot 호출 | 약 597개 |
-| API helper/request 사용 라인 | 약 234개 |
+| early `return;` 라인 | 약 264개 |
+| `waitForTimeout` 라인 | 약 42개 |
+| screenshot 호출 | 약 650개 |
+| API helper/request 사용 라인 | 약 484개 |
 
 해석:
 
@@ -39,8 +39,9 @@
 |------|------|-----------|-----------|
 | 공개 회원가입 승인 | `e2e/flows/signup-approval-roundtrip.spec.ts` | 공개 가입 UI, 관리자 승인 UI, 학생 로그인, cleanup, 통제번호 Alimtalk provider/log 확인까지 하나의 라운드트립으로 검증 | 실발송 run은 `E2E_ALLOW_SIGNUP_APPROVAL_REAL_SEND=1` + `01031217466` 전용. 매 실행 전 통제번호 duplicate pre-flight 필요 |
 | 계정복구/교사 비번변경 | `e2e/auth/account-recovery-realuse.spec.ts` | 공용 비밀번호 찾기 UI -> 통제번호 실발송 -> account notification log -> 기존 비번 유지 -> staff reset/restore/delete cleanup | production run은 `E2E_ALLOW_ACCOUNT_RECOVERY_REAL_SEND=1` + `E2E_ACCOUNT_RECOVERY_CONTROLLED_PHONE=01031217466` 필요. temp-login activation은 수신값 env 제공 시 추가 검증 |
+| 학생 Excel·Ymath 제보 회귀 | `e2e/admin/student-excel-password-options.spec.ts` | canonical `/workspace/students` 진입, 내려받은 실제 양식에 안전 행을 추가한 파일 파싱, 전화번호 누락 경고, 세 가지 초기 비밀번호 방식과 등록 차단/활성화 검증. 통제 실행에서는 Ymath owner 대리 로그인으로 동일 양식과 기존 차시 시험의 운영·채점 결과·출결 화면도 검사 | 학생/성적/알림을 만들지 않는 운영 안전 spec. Ymath 검증은 `E2E_ENABLE_YMATH_EXCEL_REGRESSION=1`에서만 실행하며 `impersonation.start` 감사 로그를 남긴다. worker 등록·계정 안내·cleanup은 통제번호를 사용하는 별도 canary 증거가 필요 |
 | 차시/성적/시험/과제 진입 | `e2e/admin/session-assessment-realuse.spec.ts` | 강의 목록->강의->차시->성적/시험/과제 탭을 실제 클릭으로 확인 | 실제 생성/저장/학생 반영 없음 |
-| 학생 시험 결과 | `e2e/student/score-report-realuse.spec.ts` | 강의, 차시, 학생, 시험, 답안, 결과, 성적 보드를 새 데이터로 검증 | 관리자 UI 생성은 API-assisted |
+| 학생 시험 결과 | `e2e/student/score-report-realuse.spec.ts` | 강의, 차시, 학생, 시험, 답안, 결과, 성적 보드를 새 데이터로 검증 | 관리자 UI 생성은 API-assisted. 학생 생성의 필수 계정안내가 두 건 발생하므로 운영 API에서는 실패 폐쇄하고 전용 메시징 경계를 가진 비운영 환경에서만 실행 |
 | OMR 업로드/검토/재채점 | `e2e/admin/omr-review-realuse.spec.ts` | 운영 API fixture와 생성 OMR PDF를 사용해 관리자 성적 탭 UI 업로드, worker answer rows, OMR 검토 저장, 학생 성적 projection까지 검증 | fixture 생성은 API-assisted. 테스트 재시도는 운영 잔여를 막기 위해 비활성화 |
 | 문항별 직접 채점 | `e2e/admin/manual-exam-grading.mock.spec.ts` | 성적표 시험명에서 채점표 진입, O/X/0과 사용자 지정 키의 입력 후 자동 이동, 기기 저장, 미리보기와 확정 POST 분리, 확정 후 서버 재조회 상태를 1100px 관리자 화면에서 검증 | 로컬 route-mock. 저장·tenant/role·혼합형 OMR 보존은 백엔드 `apps/support/results/tests/test_manual_exam_grading.py`가 검증 |
 | 성적 탭 UX | `e2e/admin/scores-tab-ux.spec.ts`, `e2e/admin/score-entry-autosave.spec.ts` | 빈 성적표 자동 입력, 기존 점수 안전 잠금→수정→저장 후 재잠금, 셀 확정 즉시 자동 저장 PATCH, Ctrl+S, Ctrl+Z/Redo, 탭 이동 저장, 복구 draft 우선, OMR CTA·성적 도구 그룹, 1366/1100/390px 확인 | 클릭 진입은 기존 Tenant 1 차시에 의존하되 점수 저장 계약은 route mock으로 운영 데이터 미접촉 |
@@ -125,6 +126,7 @@ L1 실사용 canary 최소 묶음:
 ```powershell
 cd C:\academy\frontend
 pnpm exec playwright test e2e/flows/signup-approval-roundtrip.spec.ts --reporter=list
+# development/preproduction API에서만 실행한다. 운영에서는 안전 guard가 skip한다.
 pnpm exec playwright test e2e/student/score-report-realuse.spec.ts --reporter=list
 pnpm exec playwright test e2e/admin/session-assessment-realuse.spec.ts --reporter=list
 pnpm exec playwright test e2e/admin/omr-review-realuse.spec.ts --reporter=list

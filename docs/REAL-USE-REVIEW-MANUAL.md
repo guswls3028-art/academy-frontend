@@ -18,16 +18,16 @@
 
 ## 2. 현재 근거
 
-2026-07-27 재실측 기준.
+2026-07-30 재실측 기준.
 
 | 구분 | 현재 사실 |
 |------|-----------|
 | 앱 라우트 | 통합 업무 `/workspace`, 모바일 업무 `/workspace/mobile`, 학생/학부모 `/student` |
-| E2E 파일 | 안전 가드 기준 활성 spec 217개 (`frontend/e2e/*.spec.ts` 실파일 216개) |
-| E2E 테스트 라인 | 전체 TypeScript 기준 `test(` 977개, `test.skip(` 118개 |
+| E2E 파일 | 안전 가드 기준 활성 spec 229개 (tracked spec 230개 중 `_local` 1개 제외) |
+| E2E 테스트 라인 | 전체 TypeScript 기준 `test(` 1,026개, `test.skip(` 124개 |
 | 기존 한계 | skip/annotation/early return/API-assisted 흐름이 많아 실사용 완주 증거로 약함 |
 | 기존 강점 | `e2e/student/score-report-realuse.spec.ts`는 강의->차시->학생->시험->학생 제출->성적 노출까지 깊게 검증 |
-| 배포 후 gate | `frontend/.github/workflows/quality-gate.yml`의 notice/qna/clinic/password/session-assessment 중심 |
+| 배포 후 gate | 격리 Cloudflare preview 검증 후 production baseline을 잡고, 배포 SHA·필수 lazy asset을 3회 연속 확인한 뒤 notice/qna/clinic/password/session-assessment를 실행 |
 | 사용자 가이드 | `frontend/docs/USER-GUIDE-ADMIN.md`, `frontend/docs/USER-GUIDE-STUDENT.md` |
 | 도메인 SSOT | 학생 생성/생명주기: `backend/docs/domain/student-creation.md`, `backend/docs/domain/student-lifecycle.md`; OMR: `backend/docs/domain/omr.md`; 메시징: `backend/docs/domain/messaging.md` |
 
@@ -46,6 +46,14 @@
 | repo 산출물 | 반복 지침은 `frontend/docs`, 일회성 증거는 `_artifacts` |
 
 운영 알림톡 실발송이 필요한 경우 통제 수신번호 `01031217466`로만 1건 발송한다. 다른 운영 번호로 테스트 발송하지 않는다.
+
+Tenant 1 밖의 고객 제보를 재현할 때는 플랫폼 대리 로그인 API/UI를 사용한다.
+이 경로는 `impersonation.start` 감사 로그를 남기므로 명시적 opt-in 환경변수로만
+실행하고, 기존 행·파일·시험을 읽는 검증을 우선한다. 테스트 helper가 원래 관리자
+토큰을 `addInitScript`로 주입했다면 대상 토큰도 마지막 초기화 스크립트로 고정해
+문서 이동 때 원래 토큰이 대리 로그인 토큰을 덮지 않도록 한다.
+대리 로그인 토큰과 고객 화면이 실패 산출물에 남지 않도록 해당 학생 Excel 운영
+spec 전체의 trace, video, screenshot 저장은 비활성화한다.
 
 ## 4. 실행 레벨
 
@@ -66,7 +74,20 @@
 - 데이터가 없어서 skip된 흐름을 통과로 기록했다.
 - 스크린샷은 있으나 사람이 무엇을 합격/불합격으로 봤는지 판정이 없다.
 - cleanup 대상 데이터가 남았는데 위치와 이유가 기록되지 않았다.
+- roundtrip spec의 `afterAll` cleanup이 실패했는데 경고만 남기고 테스트를 통과시켰다.
 - 알림톡/영상/worker 관련 변경인데 provider/worker 상태를 확인하지 않았다.
+- 점수·석차 검증처럼 알림 발송이 목적이 아닌 다중 학생 fixture를 운영에서
+  생성해 필수 계정안내 메시지를 여러 건 발송했다.
+- 전체 메뉴 감사에서 클라이언트 라우트 전환과 겹친 일시
+  `net::ERR_ABORTED`를 제품 결함으로 오인하고 남은 화면을 검사하지 않았다.
+- 전체 메뉴 감사에서 `복사`, `copy`, `duplicate` CTA를 조회 동작으로 분류해
+  운영 템플릿이나 문서를 복제했다.
+- 문의·게시글 같은 사용자 작성 본문의 오류 문자열을 실제 React 오류 화면으로
+  오인했다. 화면 오류는 브라우저 `pageerror`와 오류 경계의 정확한 사용자 문구로
+  판정한다.
+- 배포 직후 자동 수집된 frontend exception을 코드 결함이나 전파 오류로 추측만
+  했다. 배포 완료 시각과 초 단위로 대조하고, 현재 운영 SHA에서 동일 테넌트·역할·
+  라우트의 lazy 화면과 후속 탭을 실제로 다시 연다.
 
 ## 6. 시각/상품성 판정표
 
@@ -464,7 +485,10 @@ pnpm test:e2e:headed
 - [ ] 처음 쓰는 사용자 관점의 CTA/빈 상태/오류/되돌아가기 검수를 했다.
 - [ ] desktop/narrow/mobile 중 필요한 viewport 스크린샷을 남겼다.
 - [ ] 생성한 `[E2E-{timestamp}]` 데이터 cleanup 결과를 기록했다.
+- [ ] 운영 roundtrip cleanup은 HTTP 성공을 assertion하며 best-effort/예외 무시 경로가 없다.
 - [ ] 알림톡 실발송이 있었다면 통제 번호, provider/log, 수신 여부를 기록했다.
+- [ ] 알림 발송이 목적이 아닌 다중 학생 fixture는 운영에서 실행하지 않고
+      전용 메시징 경계를 가진 development/preproduction에서 실행했다.
 - [ ] 영상 worker가 있었다면 Batch/R2/READY/학생 재생 증거를 기록했다.
 - [ ] 자동 E2E skip은 통과로 계산하지 않았다.
 - [ ] 후속 이슈는 P0/P1/P2/P3로 분류했다.

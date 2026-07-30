@@ -58,10 +58,17 @@ test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
   });
 
   test.afterAll(async () => {
-    if (sessionId && adminPage) {
-      try { await apiCall(adminPage, "DELETE", `/clinic/sessions/${sessionId}/`); } catch { /* cleanup best-effort */ }
+    try {
+      if (sessionId && adminPage) {
+        const cleanupResp = await apiCall(adminPage, "DELETE", `/clinic/sessions/${sessionId}/`);
+        expect(
+          [200, 204],
+          `클리닉 E2E cleanup failed for session ${sessionId}: HTTP ${cleanupResp.status}`,
+        ).toContain(cleanupResp.status);
+      }
+    } finally {
+      await studentPage?.context()?.close();
+      await adminPage?.context()?.close();
     }
-    await studentPage?.context()?.close();
-    await adminPage?.context()?.close();
   });
 });

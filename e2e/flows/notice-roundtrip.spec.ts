@@ -61,14 +61,17 @@ test.describe.serial("공지 왕복: 선생→학생", () => {
   });
 
   test.afterAll(async () => {
-    if (postId && adminPage) {
-      try {
-        await apiCall(adminPage, "DELETE", `/community/posts/${postId}/`);
-      } catch (error) {
-        console.warn("[notice-roundtrip] cleanup skipped", error);
+    try {
+      if (postId && adminPage) {
+        const cleanupResp = await apiCall(adminPage, "DELETE", `/community/posts/${postId}/`);
+        expect(
+          [200, 204],
+          `공지 E2E cleanup failed for post ${postId}: HTTP ${cleanupResp.status}`,
+        ).toContain(cleanupResp.status);
       }
+    } finally {
+      await studentPage?.context()?.close();
+      await adminPage?.context()?.close();
     }
-    await studentPage?.context()?.close();
-    await adminPage?.context()?.close();
   });
 });
