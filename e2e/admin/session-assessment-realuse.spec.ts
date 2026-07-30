@@ -76,7 +76,7 @@ async function findActiveLectureWithSession(page: Page): Promise<TargetLecture |
 }
 
 function sessionTab(page: Page, label: "성적" | "시험" | "과제"): Locator {
-  return page.getByRole("button", { name: label, exact: true }).first();
+  return page.getByRole("tab", { name: label, exact: true }).first();
 }
 
 async function openLectureFromList(page: Page, lecture: TargetLecture): Promise<void> {
