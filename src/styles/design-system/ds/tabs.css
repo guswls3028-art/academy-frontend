@@ -39,9 +39,9 @@
 }
 
 .ds-tab.is-active {
-  color: var(--color-brand-primary);
+  color: var(--color-brand-primary-active);
   font-weight: 600;
-  border-bottom-color: var(--color-brand-primary);
+  border-bottom-color: var(--color-brand-primary-active);
   background: transparent;
 }
 
@@ -76,9 +76,9 @@
 }
 
 .ds-tabs--flat .ds-tab.is-active {
-  color: var(--color-brand-primary);
+  color: var(--color-brand-primary-active);
   font-weight: 600;
-  border-bottom-color: var(--color-brand-primary);
+  border-bottom-color: var(--color-brand-primary-active);
   background: transparent;
 }
 
@@ -126,7 +126,7 @@
       var(--color-bg-surface) 0%,
       color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface)) 100%
     );
-  color: var(--color-brand-primary);
+  color: var(--color-brand-primary-active);
   font-weight: 750;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.86),
@@ -134,7 +134,7 @@
 }
 
 .domain-header__tabs-wrap .ds-tabs--flat .ds-tab.is-active:hover {
-  color: var(--color-brand-primary);
+  color: var(--color-brand-primary-active);
   background:
     linear-gradient(
       180deg,

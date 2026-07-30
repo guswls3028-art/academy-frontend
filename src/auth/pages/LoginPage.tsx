@@ -26,6 +26,7 @@ import "@/auth/themes/ymath.css";
 import "@/auth/themes/sswe.css";
 import "@/auth/themes/dnb.css";
 import "@/auth/themes/movementhui.css";
+import "@/auth/themes/clean-decorations.css";
 import styles from "./LoginPage.module.css";
 
 const BRANDED_LOGIN_SCENES = new Set(["hakwonplus", "movementhui"]);

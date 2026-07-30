@@ -142,10 +142,11 @@
   --scale-Primary200: #f2d0a4;
   --scale-Primary300: #e5ac6a;
   --scale-Primary400: #d08a3e;
-  --scale-Primary500: #b5651d;
+  /* White text must stay readable on primary controls (WCAG AA). */
+  --scale-Primary500: #ad5f1b;
   --scale-Primary600: #9a5518;
   --scale-Primary700: #7a4313;
-  --color-primary-rgb: 181, 101, 29;
+  --color-primary-rgb: 173, 95, 27;
   --scale-Complement500: #0284c7;
 
   /* Space */
@@ -470,10 +471,11 @@
   --scale-Primary200: #9ef5d5;
   --scale-Primary300: #5ee4b8;
   --scale-Primary400: #1cc798;
-  --scale-Primary500: #059e7e;
-  --scale-Primary600: #048068;
-  --scale-Primary700: #036655;
-  --color-primary-rgb: 5, 158, 126;
+  /* Keep the Naver teal identity while preserving white-label contrast. */
+  --scale-Primary500: #04745d;
+  --scale-Primary600: #036655;
+  --scale-Primary700: #024d40;
+  --color-primary-rgb: 4, 116, 93;
   --scale-Complement500: #c026d3;
 
   /* Page·Header: 깨끗한 화이트 */

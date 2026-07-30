@@ -1,0 +1,8 @@
+/*
+ * Branded login scenes may keep their structural ambient background, but
+ * isolated point particles read as stray UI residue in otherwise empty space.
+ */
+[data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="ambient"] > span,
+[data-app="auth"][data-tenant="movementhui"] [data-auth-part="ambient"] > span:nth-child(n + 3) {
+  display: none;
+}

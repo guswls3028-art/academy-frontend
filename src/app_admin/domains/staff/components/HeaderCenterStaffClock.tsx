@@ -234,6 +234,9 @@ export function HeaderCenterStaffClock() {
     (a, b) => (ROLE_ORDER[a.role ?? ""] ?? 99) - (ROLE_ORDER[b.role ?? ""] ?? 99)
   );
 
+  const hasVisibleClockContent = sortedWorkingList.length > 0 || !staffMe?.is_owner;
+  if (!hasVisibleClockContent) return null;
+
   return (
     <div className="app-header__centerClock">
       {sortedWorkingList.length > 0 && (

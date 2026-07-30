@@ -29,6 +29,32 @@
 
 상세 구조·실행 방법·환경변수: [`frontend/e2e/README.md`](../e2e/README.md)
 
+### 테마와 공용 컨트롤 계약
+
+관리자·교사 앱의 12개 테마는 색상만 바꾸며 버튼과 탭의 의미·상태·조작
+방식은 동일하게 유지한다. 테마 선택 진입점은
+`/workspace/settings/appearance`이고 선택값은 브라우저에 저장되어 재방문
+시 복원된다.
+
+- 주요 버튼은 테마 브랜드색과 대비 텍스트를 사용한다.
+- 호버는 배경·테두리·그림자 중 하나 이상, 선택 상태는 브랜드 강조와 윤곽으로
+  기본 상태와 구분한다.
+- 키보드 포커스는 버튼과 탭 모두 외곽 링으로 표시하며, 비활성 상태는
+  불투명도와 커서로 함께 표현한다.
+- 내용이 없는 헤더 위젯은 카드 껍데기를 렌더링하지 않는다.
+- 로그인은 브랜드별 구조적 배경을 유지하되 빈 공간에 단독으로 남는 점 입자는
+  표시하지 않는다.
+
+소유 구현은 `src/styles/design-system/colors/themes/index.css`,
+`src/styles/design-system/patterns/button.css`,
+`src/styles/design-system/ds/tabs.css`, `src/auth/themes/`에 있다. 새 테마도
+기존 테마와 같은 상태·대비 검증을 통과해야 한다.
+
+```powershell
+pnpm build
+pnpm exec playwright test --config playwright.theme.config.ts --project=chromium --reporter=list
+```
+
 ## 스크립트 구조
 
 ```
