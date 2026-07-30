@@ -21,7 +21,12 @@ import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
 import { patchExamObjectiveScoreQuick } from "../api/patchExamObjectiveQuick";
 import { patchExamSubjectiveScoreQuick } from "../api/patchExamSubjectiveQuick";
 import { getHomeworkStatus } from "../utils/homeworkStatus";
-import { getScoreBlockOmrReviewStatus, getSessionScoresTableVerdict, isSessionRowProgressCompleted } from "../utils/sessionScoreRowVerdict";
+import {
+  getScoreBlockOmrReviewStatus,
+  getSessionRowAttentionSummary,
+  getSessionScoresTableVerdict,
+  isSessionRowProgressCompleted,
+} from "../utils/sessionScoreRowVerdict";
 import type { SessionScoresTableVerdictKind } from "../utils/sessionScoreRowVerdict";
 import ScoreInputCell from "./ScoreInputCell";
 import ExamHeaderQuickEdit from "./ExamHeaderQuickEdit";
@@ -51,9 +56,10 @@ const CLINIC_VERDICT_BADGE_META: Record<
   { label: string; tone: BadgeTone; title: string }
 > = {
   clinic_target: { label: "대상", tone: "warning", title: "클리닉 미해소 대상" },
-  review: { label: "검토", tone: "warning", title: "OMR 검토가 필요한 답안지" },
-  fail: { label: "불합", tone: "danger", title: "커트라인 미만 항목 있음" },
-  pass: { label: "합격", tone: "success", title: "전 항목 커트라인 이상" },
+  review: { label: "검수 대기", tone: "warning", title: "OMR 또는 교사 확인이 필요한 항목" },
+  incomplete: { label: "미입력", tone: "muted", title: "아직 점수가 입력되지 않은 항목" },
+  fail: { label: "미달", tone: "danger", title: "점수가 입력되었고 기준에 미달한 항목" },
+  pass: { label: "통과", tone: "success", title: "현재 입력·검수가 모두 완료된 항목" },
 };
 
 
@@ -2003,14 +2009,29 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       return <span className="text-[var(--color-text-muted)]" title="시험·과제 없음">-</span>;
                     }
                     const badgeMeta = CLINIC_VERDICT_BADGE_META[verdict];
+                    const attentionSummary = getSessionRowAttentionSummary(row);
+                    const attentionLabel = [
+                      verdict !== "review" && attentionSummary.reviewTitles.length > 0
+                        ? `검수 ${attentionSummary.reviewTitles.length}`
+                        : "",
+                      verdict !== "incomplete" && attentionSummary.missingTitles.length > 0
+                        ? `미입력 ${attentionSummary.missingTitles.length}`
+                        : "",
+                      verdict !== "fail" && attentionSummary.failedTitles.length > 0
+                        ? `미달 ${attentionSummary.failedTitles.length}`
+                        : "",
+                    ].filter(Boolean).join(" · ");
                     return (
                       <div className="inline-flex flex-col items-center gap-0.5 leading-tight">
                         <Badge variant="solid" size="sm" tone={badgeMeta.tone} title={badgeMeta.title}>
                           {badgeMeta.label}
                         </Badge>
-                        {clinicReason && (
-                          <span className="text-[11px] font-medium text-[var(--color-text-secondary)]">
-                            {clinicReason}
+                        {(verdict === "clinic_target" ? clinicReason : attentionLabel) && (
+                          <span
+                            className="block max-w-[88px] whitespace-normal break-keep text-[10px] font-semibold leading-tight text-[var(--color-text-secondary)]"
+                            title={verdict === "clinic_target" ? clinicReason : attentionLabel}
+                          >
+                            {verdict === "clinic_target" ? clinicReason : attentionLabel}
                           </span>
                         )}
                       </div>

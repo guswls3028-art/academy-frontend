@@ -226,6 +226,8 @@ const SCORE_REPORT_STYLE = `
   td.verdict-pass { color: #15613e; font-weight: 900; }
   td.verdict-fail { background: #fff1f0 !important; color: #a32622; font-weight: 900; }
   td.verdict-clinic { background: #fff6e8 !important; color: #9b5207; font-weight: 900; }
+  td.verdict-review { background: #fff9e8 !important; color: #8a5708; font-weight: 900; }
+  td.verdict-missing { background: #f4f6f9 !important; color: #5e6979; font-weight: 900; }
   .summary-row td {
     height: 8mm;
     border-color: #3a4659;
@@ -426,11 +428,15 @@ function buildBodyRows(
     const verdict = getSessionScoresTableVerdict(row);
     const verdictMeta = verdict === "clinic_target"
       ? ["클리닉", "verdict-clinic"]
-      : verdict === "fail"
-        ? ["미달", "verdict-fail"]
-        : verdict === "pass"
-          ? ["통과", "verdict-pass"]
-          : ["-", ""];
+      : verdict === "review"
+        ? ["검수 대기", "verdict-review"]
+        : verdict === "incomplete"
+          ? ["미입력", "verdict-missing"]
+          : verdict === "fail"
+            ? ["미달", "verdict-fail"]
+            : verdict === "pass"
+              ? ["통과", "verdict-pass"]
+              : ["-", ""];
     cells.push(`<td class="${verdictMeta[1]}">${verdictMeta[0]}</td>`);
     return `<tr>${cells.join("")}</tr>`;
   }).join("");

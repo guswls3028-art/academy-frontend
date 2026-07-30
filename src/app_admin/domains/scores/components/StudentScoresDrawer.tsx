@@ -28,17 +28,35 @@ import { submitClinicRetake, updateClinicRetake } from "@admin/domains/clinic/ap
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
 import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
 import { buildGenericScoreTemplate, buildScoreVars, buildScoreDetail, substituteScoreVars } from "@/shared/scoring/scoreReport";
-import { getSessionRowFailedItemTitles, isSessionRowProgressCompleted } from "../utils/sessionScoreRowVerdict";
+import {
+  getSessionRowAttentionCountLabel,
+  getSessionRowAttentionSummary,
+  getSessionScoresTableVerdict,
+  isSessionRowProgressCompleted,
+  type SessionRowAttentionSummary,
+  type SessionScoresTableVerdictKind,
+} from "../utils/sessionScoreRowVerdict";
 import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { DEFAULT_GRADES_PRESET_ID } from "@/shared/messaging/gradeTemplatePreset";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { scoresQueryKeys } from "../api/queryKeys";
 import CloseButton from "@/shared/ui/ds/CloseButton";
 import { Badge, Button, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
-import { AlertTriangle, CheckCircle2, ExternalLink, Image as ScanImageIcon, PencilLine } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  CircleDashed,
+  ClipboardCheck,
+  ExternalLink,
+  HeartPulse,
+  Image as ScanImageIcon,
+  PencilLine,
+  Send,
+} from "lucide-react";
 import "./StudentScoresDrawer.css";
 
 type Props = {
@@ -91,17 +109,30 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
     setExpandedExamId((prev) => (prev === examId ? null : examId));
   }, []);
 
-  const failedItems = useMemo(
-    () => getSessionRowFailedItemTitles(row),
+  const attentionSummary = useMemo(
+    () => getSessionRowAttentionSummary(row),
     [row],
   );
   const clinicRequired = !isSessionRowProgressCompleted(row) && !!row.clinic_required;
+  const verdict = getSessionScoresTableVerdict(row);
+  const attentionCount = attentionSummary.missingTitles.length
+    + attentionSummary.reviewTitles.length
+    + attentionSummary.failedTitles.length;
   const scoreSendDisabled = hasUnsavedChanges || row.student_id == null;
   const scoreSendTitle = hasUnsavedChanges
     ? "점수를 저장하고 잠근 뒤 알림톡을 발송할 수 있습니다."
     : row.student_id == null
       ? "학생 정보가 없어 발송할 수 없습니다."
       : "이 학생에게만 알림톡을 발송합니다.";
+
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      onClose();
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [onClose]);
 
   // Overall stats + completion rates
   const stats = useMemo(() => {
@@ -244,7 +275,11 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
         role="complementary"
         aria-labelledby="student-scores-drawer-title"
       >
-        <CloseButton className="student-scores-drawer__close" onClick={onClose} />
+        <CloseButton
+          className="student-scores-drawer__close"
+          aria-label="학생 성적 상세 닫기 (Esc)"
+          onClick={onClose}
+        />
 
         {/* Header */}
         <header className="student-scores-drawer__header">
@@ -273,31 +308,36 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
                 examNotSubmittedCount={row.exam_not_submitted_count}
               />
             </h2>
-            <span className="student-scores-drawer__header-id">ID {row.enrollment_id}</span>
+            <span className="student-scores-drawer__header-meta">
+              차시 성적 상세 <span aria-hidden>·</span> <kbd>Esc</kbd> 닫기
+            </span>
           </div>
           {/* 학원장 임근혁 요청 — 성적 발송 버튼 드로어 상단(헤더)에 prominent.
            * 학생 한 명 빠른 발송 진입점. 이전엔 하단 작은 링크 버튼이라 발견성 낮음. */}
-          <button
-            type="button"
+          <Button
             onClick={handleSendScoreReport}
             disabled={scoreSendDisabled}
-            className="ds-button"
-            data-intent="primary"
-            data-size="md"
-            style={{ flexShrink: 0, fontWeight: 700, marginRight: 12 }}
+            intent="primary"
+            size="sm"
+            className="student-scores-drawer__header-action"
+            leftIcon={<Send size={ICON_FOR_BUTTON.sm} />}
             title={scoreSendTitle}
           >
-            📨 알림톡 발송
-          </button>
+            알림톡
+          </Button>
         </header>
 
         {/* Body */}
         <div className="student-scores-drawer__body">
           {/* ── Final verdict banner ── */}
-          <VerdictBanner clinicRequired={clinicRequired} failedCount={failedItems.length} />
+          <VerdictBanner
+            kind={verdict}
+            clinicRequired={clinicRequired}
+            summary={attentionSummary}
+          />
 
           {/* ── Overall summary ── */}
-          {stats.count > 0 && (
+          {(stats.count > 0 || attentionCount > 0) && (
             <section className="student-scores-drawer__section">
               <h3 className="student-scores-drawer__section-title">종합</h3>
               <div className="student-scores-drawer__summary">
@@ -325,11 +365,27 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
                     </span>
                   </div>
                 )}
-                {failedItems.length > 0 && (
-                  <div className="student-scores-drawer__summary-row">
+                {attentionSummary.reviewTitles.length > 0 && (
+                  <div className="student-scores-drawer__summary-row" data-tone="review">
+                    <span className="student-scores-drawer__summary-label">검수 대기</span>
+                    <span className="student-scores-drawer__summary-value">
+                      {attentionSummary.reviewTitles.join(", ")}
+                    </span>
+                  </div>
+                )}
+                {attentionSummary.missingTitles.length > 0 && (
+                  <div className="student-scores-drawer__summary-row" data-tone="missing">
+                    <span className="student-scores-drawer__summary-label">미입력</span>
+                    <span className="student-scores-drawer__summary-value">
+                      {attentionSummary.missingTitles.join(", ")}
+                    </span>
+                  </div>
+                )}
+                {attentionSummary.failedTitles.length > 0 && (
+                  <div className="student-scores-drawer__summary-row" data-tone="failed">
                     <span className="student-scores-drawer__summary-label">미달 항목</span>
-                    <span className="student-scores-drawer__summary-value" style={{ color: "var(--color-error)" }}>
-                      {failedItems.join(", ")}
+                    <span className="student-scores-drawer__summary-value">
+                      {attentionSummary.failedTitles.join(", ")}
                     </span>
                   </div>
                 )}
@@ -992,7 +1048,19 @@ function AttemptTimeline({
                       className="ssd-attempt-card__input"
                       value={editScore}
                       onChange={(e) => setEditScore(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleEditSubmit(a.attempt_index); } if (e.key === "Escape") { setEditingAttempt(null); setEditScore(""); setEditPassScore(""); } }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleEditSubmit(a.attempt_index);
+                        }
+                        if (e.key === "Escape") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setEditingAttempt(null);
+                          setEditScore("");
+                          setEditPassScore("");
+                        }
+                      }}
                       placeholder="점수"
                       min={0}
                       max={attemptMax ?? undefined}
@@ -1259,8 +1327,11 @@ function CorrectionStatusControl({
           ? `${title}를 완료했습니다.`
           : `${title}를 미완료로 표시했습니다.`);
     },
-    onError: () => {
-      feedback.error(`${title} 상태를 저장하지 못했습니다. 다시 시도해 주세요.`);
+    onError: (error) => {
+      feedback.error(getApiErrorMessage(
+        error,
+        `${title} 상태를 저장하지 못했습니다. 다시 시도해 주세요.`,
+      ));
     },
   });
 
@@ -1441,29 +1512,56 @@ function PassBadge({ block }: { block: ScoreBlock }) {
   );
 }
 
-function VerdictBanner({ clinicRequired, failedCount }: { clinicRequired: boolean; failedCount: number }) {
-  const passed = !clinicRequired && failedCount === 0;
-  const tone = passed ? "success" : "danger";
+function VerdictBanner({
+  kind,
+  clinicRequired,
+  summary,
+}: {
+  kind: SessionScoresTableVerdictKind;
+  clinicRequired: boolean;
+  summary: SessionRowAttentionSummary;
+}) {
+  const tone = kind === "pass"
+    ? "success"
+    : kind === "fail"
+      ? "danger"
+      : kind === "clinic_target" || kind === "review"
+        ? "warning"
+        : "muted";
+  const value = kind === "clinic_target"
+    ? "클리닉 대상"
+    : kind === "review"
+      ? "검수 대기"
+      : kind === "incomplete"
+        ? "점수 미입력"
+        : kind === "fail"
+          ? "기준 미달"
+          : kind === "pass"
+            ? "확인 완료"
+            : "평가 없음";
+  const detail = clinicRequired
+    ? "후속 클리닉 조치가 등록되어 있습니다."
+    : getSessionRowAttentionCountLabel(summary)
+      || (kind === "pass" ? "입력과 검수가 모두 완료되었습니다." : "등록된 시험·과제가 없습니다.");
+  const Icon = kind === "pass"
+    ? CheckCircle2
+    : kind === "fail"
+      ? AlertTriangle
+      : kind === "clinic_target"
+        ? HeartPulse
+        : kind === "review"
+          ? ClipboardCheck
+          : CircleDashed;
+
   return (
     <div className="student-scores-drawer__verdict" data-tone={tone}>
       <span className="student-scores-drawer__verdict-icon" aria-hidden>
-        {passed ? (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        ) : (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-        )}
+        <Icon size={ICON.md} strokeWidth={2.35} />
       </span>
       <span className="student-scores-drawer__verdict-text">
-        <span className="student-scores-drawer__verdict-label">최종 판정</span>
-        <span className="student-scores-drawer__verdict-value">
-          {clinicRequired ? "클리닉 대상" : failedCount > 0 ? `미달 ${failedCount}건` : "전체 합격"}
-        </span>
+        <span className="student-scores-drawer__verdict-label">현재 상태</span>
+        <span className="student-scores-drawer__verdict-value">{value}</span>
+        <span className="student-scores-drawer__verdict-detail">{detail}</span>
       </span>
     </div>
   );
