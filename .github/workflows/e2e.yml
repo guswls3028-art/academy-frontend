@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       controlled_write_canaries:
-        description: '통제 번호만 사용하는 가입/복구/OMR/과제/클리닉 운영 쓰기 canary 실행'
+        description: "통제 번호만 사용하는 가입/복구/OMR/과제/클리닉 운영 쓰기 canary 실행"
         required: false
         default: false
         type: boolean
@@ -12,13 +12,13 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened]
     paths:
-      - 'src/**'
-      - 'e2e/**'
-      - 'e2e-wrong-note-harness.html'
-      - 'index.html'
-      - 'package.json'
-      - 'playwright.config.ts'
-      - 'vite.config.ts'
+      - "src/**"
+      - "e2e/**"
+      - "e2e-wrong-note-harness.html"
+      - "index.html"
+      - "package.json"
+      - "playwright.config.ts"
+      - "vite.config.ts"
 
 concurrency:
   group: e2e-${{ github.event.pull_request.number || github.sha }}
@@ -103,12 +103,12 @@ jobs:
       - name: Run opt-in controlled production write canaries
         if: github.event_name == 'workflow_dispatch' && inputs.controlled_write_canaries
         env:
-          E2E_ALLOW_SIGNUP_APPROVAL_REAL_SEND: '1'
-          E2E_SIGNUP_CONTROLLED_PHONE: '01031217466'
-          E2E_ALLOW_ACCOUNT_RECOVERY_REAL_SEND: '1'
-          E2E_ACCOUNT_RECOVERY_CONTROLLED_PHONE: '01031217466'
-          E2E_ALLOW_CLINIC_REAL_NOTIFICATIONS: '1'
-          E2E_CLINIC_CONTROLLED_PHONE: '01031217466'
+          E2E_ALLOW_SIGNUP_APPROVAL_REAL_SEND: "1"
+          E2E_SIGNUP_CONTROLLED_PHONE: "01031217466"
+          E2E_ALLOW_ACCOUNT_RECOVERY_REAL_SEND: "1"
+          E2E_ACCOUNT_RECOVERY_CONTROLLED_PHONE: "01031217466"
+          E2E_ALLOW_CLINIC_REAL_NOTIFICATIONS: "1"
+          E2E_CLINIC_CONTROLLED_PHONE: "01031217466"
         run: >-
           pnpm exec playwright test
           e2e/flows/signup-approval-roundtrip.spec.ts
@@ -154,9 +154,9 @@ jobs:
           - scope: admin-dev-desktop
             grep: '관리자 \+ 개발자 데스크톱 메뉴/버튼'
           - scope: student-mobile
-            grep: '학생 모바일 메뉴/버튼'
+            grep: "학생 모바일 메뉴/버튼"
           - scope: teacher-mobile
-            grep: '선생님 모바일 메뉴/버튼'
+            grep: "선생님 모바일 메뉴/버튼"
 
     steps:
       - uses: actions/checkout@v6
