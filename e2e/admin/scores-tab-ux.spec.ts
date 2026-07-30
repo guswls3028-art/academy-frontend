@@ -6,7 +6,7 @@
  * 2. 시험·과제 없을 때 워크플로우 가이드
  * 3. 대상자 0명일 때 경고 배너
  * 4. 안전 잠금·자동 저장·키보드 단축키 안내
- * 5. 더보기 메뉴 아이콘 추가
+ * 5. 성적 도구 메뉴의 정보 구조와 아이콘
  * 6. "수강생 일괄배정" 보조 기능 이동
  *
  * 대상: 운영 사이트 (hakwonplus.com), Tenant 1 admin
@@ -54,9 +54,9 @@ test.describe("성적 탭 UX 개선 검증", () => {
   });
 
   /**
-   * 1. OMR 주 동선 + "수강생 일괄배정" 보조 메뉴 + 더보기 메뉴 아이콘
+   * 1. OMR 주 동선 + "수강생 일괄배정" 보조 메뉴 + 성적 도구 아이콘
    */
-  test("1. OMR 등록 버튼·보조 메뉴·더보기 아이콘 확인", async ({ page }) => {
+  test("1. OMR 등록 버튼·보조 메뉴·성적 도구 아이콘 확인", async ({ page }) => {
     const ok = await navigateToScoresTab(page);
     await snap(page, "01-toolbar-overview");
 
@@ -83,7 +83,7 @@ test.describe("성적 탭 UX 개선 검증", () => {
     await expect(readHelpDialog).toBeHidden({ timeout: 3000 });
     console.log("[도움말] 성적표 보기 안내 팝업 확인됨");
 
-    // "수강생 일괄배정"은 초보 사용자 화면을 덜 복잡하게 하기 위해 더보기 안으로 이동.
+    // "수강생 일괄배정"은 초보 사용자 화면을 덜 복잡하게 하기 위해 성적 도구 안으로 이동.
     const enrollBtn = page.locator("button").filter({ hasText: "수강생 일괄배정" });
     await expect(enrollBtn).toHaveCount(0);
     console.log("[보조 기능] '수강생 일괄배정' 기본 노출 없음 확인");
@@ -93,31 +93,31 @@ test.describe("성적 탭 UX 개선 검증", () => {
     expect(await oldBtn.count()).toBe(0);
     console.log("[용어] '대상자 전원등록' 없음 확인");
 
-    // (5) 더보기 메뉴 (title="추가 기능") + 아이콘
-    const moreBtn = page.locator("button[title='추가 기능']");
+    // (5) 성적 도구 메뉴 + 아이콘
+    const moreBtn = page.getByRole("button", { name: "성적 도구" });
     await expect(moreBtn).toBeVisible({ timeout: 5000 });
     // 더보기 버튼 자체에 SVG 아이콘 (세로 점 3개)
     expect(await moreBtn.locator("svg").count()).toBeGreaterThanOrEqual(1);
-    console.log("[더보기] 버튼 + SVG 아이콘 확인됨");
+    console.log("[성적 도구] 버튼 + SVG 아이콘 확인됨");
 
     await moreBtn.click();
 
     const enrollMenuItem = page.locator("button").filter({ hasText: "수강생 일괄배정" }).first();
     await expect(enrollMenuItem).toBeVisible({ timeout: 3000 });
     expect(await enrollMenuItem.locator("svg").count()).toBeGreaterThanOrEqual(1);
-    console.log("[더보기] 수강생 일괄배정 메뉴 이동 확인됨");
+    console.log("[성적 도구] 수강생 일괄배정 메뉴 이동 확인됨");
 
     // 메뉴 아이템 아이콘 확인
     const printItem = page.locator("button").filter({ hasText: "성적표 출력" }).first();
     if (await printItem.isVisible({ timeout: 3000 }).catch(() => false)) {
       expect(await printItem.locator("svg").count()).toBeGreaterThanOrEqual(1);
-      console.log("[더보기] 성적표 출력 아이콘 확인됨");
+      console.log("[성적 도구] 성적표 출력 아이콘 확인됨");
     }
 
-    const clinicItem = page.locator("button").filter({ hasText: "클리닉 대상 보기" }).first();
+    const clinicItem = page.locator("button").filter({ hasText: "클리닉 대상" }).first();
     if (await clinicItem.isVisible({ timeout: 3000 }).catch(() => false)) {
       expect(await clinicItem.locator("svg").count()).toBeGreaterThanOrEqual(1);
-      console.log("[더보기] 클리닉 대상 보기 아이콘 확인됨");
+      console.log("[성적 도구] 클리닉 대상 아이콘 확인됨");
     }
 
     await snap(page, "01-more-menu-open");
@@ -235,14 +235,14 @@ test.describe("성적 탭 UX 개선 검증", () => {
     expect(html).toContain("OMR 스캔 등록");
     console.log("[DOM] 'OMR 스캔 등록' 존재 확인");
 
-    expect(html).toContain("추가 기능"); // 더보기 버튼 title
-    console.log("[DOM] '추가 기능' (더보기 title) 존재 확인");
+    expect(html).toContain("성적 도구");
+    console.log("[DOM] '성적 도구' 존재 확인");
 
-    expect(html).toContain("+ 시험");
-    console.log("[DOM] '+ 시험' 존재 확인");
-
-    expect(html).toContain("+ 과제");
-    console.log("[DOM] '+ 과제' 존재 확인");
+    await page.getByRole("button", { name: "성적 도구" }).click();
+    const toolsMenu = page.getByRole("menu", { name: "성적 도구" });
+    await expect(toolsMenu.getByRole("menuitem", { name: /시험 추가/ })).toBeVisible();
+    await expect(toolsMenu.getByRole("menuitem", { name: /과제 추가/ })).toBeVisible();
+    await expect(toolsMenu.getByRole("menuitem", { name: /개인 성적표/ })).toContainText("여러 학생 PDF");
 
     // 구 용어 부재 확인
     expect(html).not.toContain("대상자 전원등록");

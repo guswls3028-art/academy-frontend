@@ -114,6 +114,111 @@
   line-height: 1.5;
 }
 
+.shortcutPanel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, #0f766e 26%, var(--color-border-divider, #e2e8f0));
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, #0f766e 8%, transparent), transparent 54%),
+    var(--color-bg-surface, #fff);
+}
+
+.shortcutPanelHeading,
+.shortcutPanelHeading > div,
+.shortcutPanelActions {
+  display: flex;
+  align-items: center;
+}
+
+.shortcutPanelHeading {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.shortcutPanelHeading > div {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shortcutPanelHeading strong {
+  color: var(--color-text-primary, #0f172a);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.shortcutPanelHeading span {
+  color: var(--color-text-muted, #64748b);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.shortcutFields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.shortcutField {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 46px;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 9px 8px 11px;
+  border: 1px solid var(--color-border-divider, #e2e8f0);
+  border-radius: 8px;
+  background: var(--color-bg-surface, #fff);
+  color: var(--color-text-secondary, #475569);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.shortcutField input {
+  width: 46px;
+  height: 34px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  outline: none;
+  background: #fff;
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 900;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.shortcutField input:focus-visible {
+  border-color: var(--color-brand-primary, #2563eb);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary, #2563eb) 18%, transparent);
+}
+
+.shortcutField.correct {
+  border-left: 3px solid #22c55e;
+}
+
+.shortcutField.incorrect {
+  border-left: 3px solid #ef4444;
+}
+
+.shortcutField.review {
+  border-left: 3px solid #f59e0b;
+}
+
+.shortcutError {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.shortcutPanelActions {
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .tableWrap {
   max-height: min(62vh, 680px);
   overflow: auto;
@@ -337,7 +442,17 @@
   }
 
   .headerActions {
+    flex-wrap: wrap;
     justify-content: space-between;
+  }
+
+  .shortcutPanelHeading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .shortcutFields {
+    grid-template-columns: 1fr;
   }
 
   .table .studentColumn {

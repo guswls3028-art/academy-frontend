@@ -32,6 +32,7 @@ import type { TableColumnDef } from "@/shared/ui/domain";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { InlineHelp } from "@/shared/ui/guide";
+import { ClipboardCheck } from "lucide-react";
 
 /** 컬럼 기본 너비 */
 const COL_EDIT = 36;
@@ -261,6 +262,8 @@ type Props = {
   /** 컬럼 순서 변경 — 시험/과제 헤더 드래그앤드롭 (display_order patch).
    *  2026-05-13 학원장 결정: ◀▶ 버튼 폐기, drag-drop SSOT. fromId 를 toId 위치로 삽입. */
   onReorderColumnSwap?: (type: "exam" | "homework", fromId: number, toId: number) => void;
+  /** 시험명 클릭 — 성적 화면에서 문항별 직접 채점표를 연다. */
+  onOpenExamGrading?: (examId: number, examTitle: string) => void;
 
 };
 
@@ -282,6 +285,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   onSelectCell,
   onSelectRow,
   onReorderColumnSwap,
+  onOpenExamGrading,
   onRequestMoveNext,
   onRequestMovePrev,
   onRequestMoveDown,
@@ -852,7 +856,25 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 title={onReorderColumnSwap ? `${ex.title} — 끌어서 순서 변경` : ex.title}
               >
                 <Badge variant="soft" tone="primary" size="xs" shape="square" className="scores-table-kind-badge" ariaLabel="시험">시</Badge>
-                <span className="scores-table-head-title whitespace-normal break-keep min-w-0 leading-tight">{ex.title}</span>
+                {onOpenExamGrading ? (
+                  <button
+                    type="button"
+                    className="scores-table-exam-link"
+                    draggable={false}
+                    aria-label={`${ex.title} 문항별 채점표 열기`}
+                    title={`${ex.title} 문항별 채점표 열기`}
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onOpenExamGrading(ex.exam_id, ex.title);
+                    }}
+                  >
+                    <span className="scores-table-head-title whitespace-normal break-keep min-w-0 leading-tight">{ex.title}</span>
+                    <ClipboardCheck className="scores-table-exam-link__icon" size={14} aria-hidden />
+                  </button>
+                ) : (
+                  <span className="scores-table-head-title whitespace-normal break-keep min-w-0 leading-tight">{ex.title}</span>
+                )}
                 <span className="ds-col-action-btn shrink-0">
                   <ExamHeaderQuickEdit
                     examId={ex.exam_id}

@@ -22,6 +22,7 @@
 .print-preview-modal__paper--landscape {
   width: 297mm;
   min-height: 210mm;
+  height: var(--score-report-preview-height, 210mm);
   transform: scale(0.85);
 }
 
@@ -49,7 +50,7 @@
 }
 
 .print-preview-modal__iframe--landscape {
-  height: 210mm;
+  height: var(--score-report-preview-height, 210mm);
 }
 
 .print-preview-modal__iframe--portrait {

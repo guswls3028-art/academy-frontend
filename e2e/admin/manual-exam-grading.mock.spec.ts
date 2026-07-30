@@ -313,7 +313,44 @@ async function installApi(page: Page) {
       return;
     }
     if (path === `/results/admin/sessions/${SESSION_ID}/scores/`) {
-      await json({ meta: { exams: [], homeworks: [] }, rows: [] });
+      await json({
+        meta: {
+          session_title: "1차시",
+          lecture_title: "공통수학2 정규반",
+          lecture_id: LECTURE_ID,
+          exams: [{
+            exam_id: EXAM_ID,
+            title: "7월 진단평가",
+            pass_score: 60,
+            max_score: 100,
+            choice_count: 0,
+            essay_count: 2,
+            display_order: 0,
+          }],
+          homeworks: [],
+        },
+        rows: [{
+          enrollment_id: ENROLLMENT_ID,
+          student_id: 100,
+          student_name: "김학생",
+          lecture_title: "공통수학2 정규반",
+          lecture_color: "#2563eb",
+          lecture_chip_label: "수2",
+          exams: [{
+            exam_id: EXAM_ID,
+            title: "7월 진단평가",
+            pass_score: 60,
+            block: {
+              score: applied ? 100 : null,
+              max_score: 100,
+              passed: applied ? true : null,
+              clinic_required: false,
+            },
+          }],
+          homeworks: [],
+          updated_at: "2026-07-30T10:00:00+09:00",
+        }],
+      });
       return;
     }
 
@@ -386,5 +423,48 @@ test.describe("문항별 직접 채점", () => {
     await expect(studentRow.getByRole("button", { name: "O" })).toHaveCount(1);
     await expect(studentRow.getByRole("button", { name: "0" })).toHaveCount(1);
     await expect(page.getByText("확정 전 변경사항", { exact: true })).toHaveCount(0);
+  });
+
+  test("성적표 시험명에서 열고 단축키를 바꾸면 자동 이동과 함께 저장된다", async ({ page }) => {
+    await installApi(page);
+
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "domcontentloaded" },
+    );
+
+    const gradingEntry = page.getByRole("button", {
+      name: "7월 진단평가 문항별 채점표 열기",
+    });
+    await expect(gradingEntry).toBeVisible();
+    await gradingEntry.click();
+
+    const dialog = page.getByRole("dialog").filter({
+      hasText: "7월 진단평가 문항별 채점",
+    });
+    await expect(dialog).toBeVisible();
+    const cells = dialog.locator("[data-manual-grade-cell]");
+    await expect(cells).toHaveCount(2);
+    await expect(cells.first()).toBeFocused();
+
+    await page.keyboard.press("Shift+?");
+    await expect(dialog.getByText("정오 입력 단축키", { exact: true })).toBeVisible();
+    await dialog.getByRole("textbox", { name: "정답 단축키" }).press("a");
+    await dialog.getByRole("textbox", { name: "오답 단축키" }).press("s");
+    await dialog.getByRole("textbox", { name: "정답 + 오답노트 단축키" }).press("d");
+    await dialog.getByRole("button", { name: "저장", exact: true }).click();
+
+    await expect(dialog.getByText("A 정답", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("D 정답 · 오답노트에 포함", { exact: true })).toBeVisible();
+    await cells.first().focus();
+    await page.keyboard.press("a");
+    await expect(cells.nth(1)).toBeFocused();
+    await page.keyboard.press("d");
+    await expect(cells.first()).toHaveAccessibleName("김학생 1번 O");
+    await expect(cells.nth(1)).toHaveAccessibleName("김학생 2번 0");
+
+    await expect.poll(() => page.evaluate(() =>
+      localStorage.getItem("academy.manual-grading-shortcuts.v1"),
+    )).toBe(JSON.stringify({ correct: "A", incorrect: "S", review: "D" }));
   });
 });

@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   CheckCircle2,
   ClipboardCheck,
   RefreshCw,
+  Settings2,
 } from "lucide-react";
 
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
@@ -22,10 +23,22 @@ import {
   type ManualGradeState,
 } from "../api/manualExamGrading";
 import { adminResultsQueryKeys } from "../queryKeys";
+import {
+  DEFAULT_MANUAL_GRADING_SHORTCUTS,
+  getManualGradeStateFromShortcut,
+  loadManualGradingShortcuts,
+  normalizeManualGradingShortcutKey,
+  saveManualGradingShortcuts,
+  validateManualGradingShortcuts,
+  type ManualGradingShortcutSettings,
+} from "../utils/manualGradingShortcuts";
 import styles from "./ManualExamGradingGrid.module.css";
 
 type Props = {
   examId: number;
+  onApplied?: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
+  showUnavailableState?: boolean;
 };
 
 const STATE_ORDER: Array<ManualGradeState | null> = [
@@ -41,20 +54,35 @@ const STATE_LABEL: Record<ManualGradeState, string> = {
   review: "0",
 };
 
-export default function ManualExamGradingGrid({ examId }: Props) {
+export default function ManualExamGradingGrid({
+  examId,
+  onApplied,
+  onDirtyChange,
+  showUnavailableState = false,
+}: Props) {
   const queryClient = useQueryClient();
+  const tableWrapRef = useRef<HTMLDivElement>(null);
+  const autoFocusedExamRef = useRef<number | null>(null);
   const sheetQuery = useQuery({
     queryKey: adminResultsQueryKeys.manualGradeSheet(examId),
     queryFn: () => fetchManualGradeSheet(examId),
   });
   const [draftRows, setDraftRows] = useState<ManualGradeRow[]>([]);
   const [dirty, setDirty] = useState(false);
+  const [shortcuts, setShortcuts] = useState(loadManualGradingShortcuts);
+  const [shortcutDraft, setShortcutDraft] = useState(shortcuts);
+  const [shortcutSettingsOpen, setShortcutSettingsOpen] = useState(false);
+  const [shortcutError, setShortcutError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!sheetQuery.data) return;
     setDraftRows(cloneRows(sheetQuery.data.rows));
     setDirty(false);
   }, [sheetQuery.data]);
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
 
   const requestRows = useMemo(
     () => buildRequestRows(draftRows),
@@ -72,6 +100,8 @@ export default function ManualExamGradingGrid({ examId }: Props) {
     onSuccess: async (result) => {
       feedback.success(`${result.matched_count}명의 성적을 확정했습니다.`);
       previewMutation.reset();
+      setDirty(false);
+      onApplied?.();
       await Promise.all([
         sheetQuery.refetch(),
         queryClient.invalidateQueries({
@@ -93,6 +123,77 @@ export default function ManualExamGradingGrid({ examId }: Props) {
   });
 
   const data = sheetQuery.data;
+  const manualQuestions = useMemo(
+    () => data?.questions.filter((question) => question.editable) ?? [],
+    [data?.questions],
+  );
+  const preview = previewMutation.data;
+  const hasErrors = Boolean(preview?.errors.length);
+  const busy = previewMutation.isPending || applyMutation.isPending;
+
+  const focusCell = useCallback((
+    current: HTMLButtonElement,
+    direction: "next" | "previous" | "up" | "down",
+  ) => {
+    const cells = Array.from(
+      tableWrapRef.current?.querySelectorAll<HTMLButtonElement>(
+        "[data-manual-grade-cell]:not(:disabled)",
+      ) ?? [],
+    );
+    if (cells.length === 0) return;
+    const currentIndex = cells.indexOf(current);
+    if (currentIndex < 0) return;
+
+    if (direction === "next" || direction === "previous") {
+      const delta = direction === "next" ? 1 : -1;
+      const nextIndex = Math.max(0, Math.min(cells.length - 1, currentIndex + delta));
+      cells[nextIndex]?.focus();
+      return;
+    }
+
+    const rowIndex = Number(current.dataset.rowIndex);
+    const columnIndex = Number(current.dataset.columnIndex);
+    const delta = direction === "down" ? 1 : -1;
+    let candidateRow = rowIndex + delta;
+    while (candidateRow >= 0 && candidateRow < draftRows.length) {
+      const candidate = cells.find(
+        (cell) =>
+          Number(cell.dataset.rowIndex) === candidateRow &&
+          Number(cell.dataset.columnIndex) === columnIndex,
+      );
+      if (candidate) {
+        candidate.focus();
+        return;
+      }
+      candidateRow += delta;
+    }
+  }, [draftRows.length]);
+
+  useEffect(() => {
+    autoFocusedExamRef.current = null;
+  }, [examId]);
+
+  useEffect(() => {
+    if (
+      autoFocusedExamRef.current === examId ||
+      !data?.has_manual_questions ||
+      busy ||
+      shortcutSettingsOpen ||
+      draftRows.length === 0
+    ) {
+      return;
+    }
+    const frame = window.requestAnimationFrame(() => {
+      const firstCell = tableWrapRef.current?.querySelector<HTMLButtonElement>(
+        "[data-manual-grade-cell]:not(:disabled)",
+      );
+      if (!firstCell) return;
+      firstCell.focus();
+      autoFocusedExamRef.current = examId;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [busy, data?.has_manual_questions, draftRows.length, examId, shortcutSettingsOpen]);
+
   if (sheetQuery.isLoading) {
     return (
       <section className={styles.card}>
@@ -120,12 +221,51 @@ export default function ManualExamGradingGrid({ examId }: Props) {
       </section>
     );
   }
-  if (!data?.has_manual_questions) return null;
+  if (!data?.has_manual_questions) {
+    if (!showUnavailableState) return null;
+    return (
+      <section className={styles.card}>
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title="문항별 직접 채점이 없는 시험입니다."
+          description="선택형 시험은 성적 화면 상단의 OMR 스캔 등록을 이용하고, 합산 점수는 수정 모드에서 입력하세요."
+        />
+      </section>
+    );
+  }
 
-  const manualQuestions = data.questions.filter((question) => question.editable);
-  const preview = previewMutation.data;
-  const hasErrors = Boolean(preview?.errors.length);
-  const busy = previewMutation.isPending || applyMutation.isPending;
+  const openShortcutSettings = () => {
+    setShortcutDraft(shortcuts);
+    setShortcutError(null);
+    setShortcutSettingsOpen(true);
+  };
+
+  const closeShortcutSettings = () => {
+    setShortcutDraft(shortcuts);
+    setShortcutError(null);
+    setShortcutSettingsOpen(false);
+  };
+
+  const persistShortcutSettings = () => {
+    const error = validateManualGradingShortcuts(shortcutDraft);
+    if (error) {
+      setShortcutError(error);
+      return;
+    }
+    try {
+      const saved = saveManualGradingShortcuts(shortcutDraft);
+      setShortcuts(saved);
+      setShortcutDraft(saved);
+      setShortcutSettingsOpen(false);
+      setShortcutError(null);
+      feedback.success("정오 입력 단축키를 이 기기에 저장했습니다.");
+    } catch (error: unknown) {
+      setShortcutError(
+        error instanceof Error ? error.message : "단축키를 저장하지 못했습니다.",
+      );
+    }
+  };
 
   const updateCell = (
     enrollmentId: number,
@@ -169,7 +309,16 @@ export default function ManualExamGradingGrid({ examId }: Props) {
   };
 
   return (
-    <section className={styles.card} aria-labelledby="manual-grading-title">
+    <section
+      className={styles.card}
+      aria-labelledby="manual-grading-title"
+      onKeyDownCapture={(event) => {
+        if (event.shiftKey && event.key === "?") {
+          event.preventDefault();
+          openShortcutSettings();
+        }
+      }}
+    >
       <header className={styles.header}>
         <div className={styles.heading}>
           <span className={styles.icon} aria-hidden>
@@ -196,17 +345,28 @@ export default function ManualExamGradingGrid({ examId }: Props) {
           >
             되돌리기
           </Button>
+          {data.manual_grading_method === "correctness" && (
+            <Button
+              type="button"
+              intent="secondary"
+              size="sm"
+              leftIcon={<Settings2 size={ICON_FOR_BUTTON.sm} />}
+              onClick={openShortcutSettings}
+            >
+              단축키 설정
+            </Button>
+          )}
         </div>
       </header>
 
       {data.manual_grading_method === "correctness" ? (
         <div className={styles.legend} aria-label="정오 입력표 범례">
-          <span className={styles.legendCorrect}><b>O</b> 정답</span>
-          <span className={styles.legendWrong}><b>X</b> 오답</span>
+          <span className={styles.legendCorrect}><b>{shortcuts.correct}</b> 정답</span>
+          <span className={styles.legendWrong}><b>{shortcuts.incorrect}</b> 오답</span>
           <span className={styles.legendReview}>
-            <b>0</b> 정답 · 오답노트에 포함
+            <b>{shortcuts.review}</b> 정답 · 오답노트에 포함
           </span>
-          <span>셀을 누르거나 키보드 O/X/0으로 입력</span>
+          <span>입력 후 다음 칸 이동 · 방향키 이동 · Shift+? 단축키 보기</span>
         </div>
       ) : (
         <div className={styles.legend}>
@@ -224,7 +384,68 @@ export default function ManualExamGradingGrid({ examId }: Props) {
         </div>
       )}
 
-      <div className={styles.tableWrap}>
+      {shortcutSettingsOpen && (
+        <div className={styles.shortcutPanel} role="group" aria-labelledby="manual-shortcut-title">
+          <div className={styles.shortcutPanelHeading}>
+            <div>
+              <strong id="manual-shortcut-title">정오 입력 단축키</strong>
+              <span>입력칸을 누르고 원하는 한 글자 키를 누르세요.</span>
+            </div>
+            <span>이 기기에 저장</span>
+          </div>
+          <div className={styles.shortcutFields}>
+            <ShortcutKeyInput
+              label="정답"
+              value={shortcutDraft.correct}
+              tone="correct"
+              onChange={(correct) => {
+                setShortcutDraft((current) => ({ ...current, correct }));
+                setShortcutError(null);
+              }}
+            />
+            <ShortcutKeyInput
+              label="오답"
+              value={shortcutDraft.incorrect}
+              tone="incorrect"
+              onChange={(incorrect) => {
+                setShortcutDraft((current) => ({ ...current, incorrect }));
+                setShortcutError(null);
+              }}
+            />
+            <ShortcutKeyInput
+              label="정답 + 오답노트"
+              value={shortcutDraft.review}
+              tone="review"
+              onChange={(review) => {
+                setShortcutDraft((current) => ({ ...current, review }));
+                setShortcutError(null);
+              }}
+            />
+          </div>
+          {shortcutError && <p className={styles.shortcutError} role="alert">{shortcutError}</p>}
+          <div className={styles.shortcutPanelActions}>
+            <Button
+              type="button"
+              intent="ghost"
+              size="sm"
+              onClick={() => {
+                setShortcutDraft(DEFAULT_MANUAL_GRADING_SHORTCUTS);
+                setShortcutError(null);
+              }}
+            >
+              기본값으로
+            </Button>
+            <Button type="button" intent="secondary" size="sm" onClick={closeShortcutSettings}>
+              취소
+            </Button>
+            <Button type="button" intent="primary" size="sm" onClick={persistShortcutSettings}>
+              저장
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className={styles.tableWrap} ref={tableWrapRef}>
         <table className={styles.table}>
           <thead>
             <tr>
@@ -239,7 +460,7 @@ export default function ManualExamGradingGrid({ examId }: Props) {
             </tr>
           </thead>
           <tbody>
-            {draftRows.map((row) => (
+            {draftRows.map((row, rowIndex) => (
               <tr key={row.enrollment_id}>
                 <td className={styles.studentColumn}>
                   <StudentNameWithLectureChip
@@ -269,7 +490,7 @@ export default function ManualExamGradingGrid({ examId }: Props) {
                     {row.is_not_submitted ? "결시" : "응시"}
                   </button>
                 </td>
-                {manualQuestions.map((question) => {
+                {manualQuestions.map((question, columnIndex) => {
                   const key = String(question.question_id);
                   const cell = row.cells[key];
                   return (
@@ -278,6 +499,15 @@ export default function ManualExamGradingGrid({ examId }: Props) {
                         <CorrectnessCell
                           value={cell.state}
                           disabled={row.is_not_submitted || busy}
+                          studentName={row.student_name}
+                          questionNumber={question.number}
+                          rowIndex={rowIndex}
+                          columnIndex={columnIndex}
+                          shortcuts={shortcuts}
+                          onMoveFocus={(element, direction) =>
+                            focusCell(element, direction)
+                          }
+                          onShowShortcuts={openShortcutSettings}
                           onChange={(state) =>
                             updateCell(
                               row.enrollment_id,
@@ -387,22 +617,32 @@ export default function ManualExamGradingGrid({ examId }: Props) {
 function CorrectnessCell({
   value,
   disabled,
+  studentName,
+  questionNumber,
+  rowIndex,
+  columnIndex,
+  shortcuts,
+  onMoveFocus,
+  onShowShortcuts,
   onChange,
 }: {
   value: ManualGradeState | null;
   disabled: boolean;
+  studentName: string;
+  questionNumber: number;
+  rowIndex: number;
+  columnIndex: number;
+  shortcuts: ManualGradingShortcutSettings;
+  onMoveFocus: (
+    element: HTMLButtonElement,
+    direction: "next" | "previous" | "up" | "down",
+  ) => void;
+  onShowShortcuts: () => void;
   onChange: (value: ManualGradeState | null) => void;
 }) {
   const cycle = () => {
     const index = STATE_ORDER.indexOf(value);
     onChange(STATE_ORDER[(index + 1) % STATE_ORDER.length]);
-  };
-  const setFromKey = (key: string) => {
-    if (key.toLowerCase() === "o") onChange("correct");
-    else if (key.toLowerCase() === "x") onChange("incorrect");
-    else if (key === "0") onChange("review");
-    else return false;
-    return true;
   };
   return (
     <button
@@ -411,14 +651,81 @@ function CorrectnessCell({
         value ? styles[value] : styles.empty
       }`}
       disabled={disabled}
-      aria-label={value ? STATE_LABEL[value] : "미입력"}
+      aria-label={`${studentName} ${questionNumber}번 ${value ? STATE_LABEL[value] : "미입력"}`}
+      aria-keyshortcuts={`${shortcuts.correct} ${shortcuts.incorrect} ${shortcuts.review}`}
+      data-manual-grade-cell
+      data-row-index={rowIndex}
+      data-column-index={columnIndex}
       onClick={cycle}
       onKeyDown={(event) => {
-        if (setFromKey(event.key)) event.preventDefault();
+        if (event.nativeEvent.isComposing || event.ctrlKey || event.metaKey || event.altKey) return;
+        if (event.shiftKey && event.key === "?") {
+          event.preventDefault();
+          onShowShortcuts();
+          return;
+        }
+        const state = getManualGradeStateFromShortcut(event.key, shortcuts);
+        if (state) {
+          event.preventDefault();
+          const cell = event.currentTarget;
+          onChange(state);
+          window.requestAnimationFrame(() => onMoveFocus(cell, "next"));
+          return;
+        }
+        if (event.key === "ArrowRight" || event.key === "Enter" || (event.key === "Tab" && !event.shiftKey)) {
+          event.preventDefault();
+          onMoveFocus(event.currentTarget, "next");
+        } else if (event.key === "ArrowLeft" || (event.key === "Tab" && event.shiftKey)) {
+          event.preventDefault();
+          onMoveFocus(event.currentTarget, "previous");
+        } else if (event.key === "ArrowDown") {
+          event.preventDefault();
+          onMoveFocus(event.currentTarget, "down");
+        } else if (event.key === "ArrowUp") {
+          event.preventDefault();
+          onMoveFocus(event.currentTarget, "up");
+        } else if (event.key === "Backspace" || event.key === "Delete") {
+          event.preventDefault();
+          onChange(null);
+        } else if (event.key === " ") {
+          event.preventDefault();
+          cycle();
+        }
       }}
     >
       {value ? STATE_LABEL[value] : "·"}
     </button>
+  );
+}
+
+function ShortcutKeyInput({
+  label,
+  value,
+  tone,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  tone: "correct" | "incorrect" | "review";
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className={`${styles.shortcutField} ${styles[tone]}`}>
+      <span>{label}</span>
+      <input
+        type="text"
+        value={value}
+        readOnly
+        aria-label={`${label} 단축키`}
+        onFocus={(event) => event.currentTarget.select()}
+        onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing || event.ctrlKey || event.metaKey || event.altKey) return;
+          event.preventDefault();
+          const key = normalizeManualGradingShortcutKey(event.key);
+          if (key) onChange(key);
+        }}
+      />
+    </label>
   );
 }
 

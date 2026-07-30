@@ -90,7 +90,7 @@ test.describe("Verify Scores Fixes & UX", () => {
     expect(await dividers.count()).toBeGreaterThanOrEqual(1);
 
     // More menu
-    const moreBtnToClick = page.getByRole("button", { name: "추가 기능" }).first();
+    const moreBtnToClick = page.getByRole("button", { name: "성적 도구" }).first();
     await expect(moreBtnToClick).toBeVisible({ timeout: 10_000 });
     await moreBtnToClick.click();
     // 메뉴 항목이 보일 때까지 대기 (waitForTimeout 제거).
@@ -100,7 +100,7 @@ test.describe("Verify Scores Fixes & UX", () => {
     await expect(printItem).toBeVisible({ timeout: 5000 });
     await snap(page, "01-more-menu-open");
 
-    const clinicItem = menu.locator("button, [role='menuitem']").filter({ hasText: "클리닉 대상 보기" }).first();
+    const clinicItem = menu.locator("button, [role='menuitem']").filter({ hasText: "클리닉 대상" }).first();
     await expect(clinicItem).toBeVisible({ timeout: 5000 });
 
     await page.keyboard.press("Escape");
