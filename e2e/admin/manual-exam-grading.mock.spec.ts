@@ -26,6 +26,7 @@ type GradeState = "correct" | "incorrect" | "review" | null;
 
 type InstallApiOptions = {
   gradingMode?: "choice" | "written";
+  manualGradingMethod?: "correctness" | "score";
   editable?: boolean;
   hasQuestions?: boolean;
   initialStates?: [GradeState, GradeState];
@@ -36,6 +37,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
   let hasQuestions = options.hasQuestions ?? true;
   const postedRows: unknown[] = [];
   const gradingMode = options.gradingMode ?? "written";
+  const manualGradingMethod = options.manualGradingMethod ?? "correctness";
   const editable = options.editable ?? true;
   const initialStates = options.initialStates ?? [null, null];
 
@@ -48,23 +50,23 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
 
   const cells = (): Record<string, {
     editable: boolean;
-    entry_method: "correctness" | "omr";
+    entry_method: "correctness" | "score" | "omr";
     state: GradeState;
     score: number | null;
     include_in_wrong_note: boolean;
   }> => ({
     [String(QUESTION_IDS[0])]: {
       editable,
-      entry_method: editable ? "correctness" : "omr",
+      entry_method: editable ? manualGradingMethod : "omr",
       state: applied ? "correct" : initialStates[0],
-      score: applied ? 40 : initialStates[0] === "correct" ? 40 : 0,
+      score: applied ? 40 : manualGradingMethod === "score" ? 10 : initialStates[0] === "correct" ? 40 : 0,
       include_in_wrong_note: false,
     },
     [String(QUESTION_IDS[1])]: {
       editable,
-      entry_method: editable ? "correctness" : "omr",
+      entry_method: editable ? manualGradingMethod : "omr",
       state: applied ? "review" : initialStates[1],
-      score: applied ? 60 : initialStates[1] === "correct" ? 60 : 0,
+      score: applied ? 60 : manualGradingMethod === "score" ? 20 : initialStates[1] === "correct" ? 60 : 0,
       include_in_wrong_note: applied,
     },
   });
@@ -200,7 +202,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         pass_score: 60,
         max_score: 100,
         grading_mode: gradingMode,
-        manual_grading_method: "correctness",
+        manual_grading_method: manualGradingMethod,
         choice_question_count: 0,
         segmentation_status: "ready",
         source_filename: "july.pdf",
@@ -244,7 +246,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
           exam_id: EXAM_ID,
           exam_title: "7월 진단평가",
           grading_mode: gradingMode,
-          manual_grading_method: "correctness",
+          manual_grading_method: manualGradingMethod,
           has_manual_questions: hasQuestions && editable,
           exam_max_score: 100,
           question_score_total: hasQuestions ? 100 : 0,
@@ -257,7 +259,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
               answer_type: gradingMode === "choice" ? "choice" : "written",
               max_score: 40,
               editable,
-              entry_method: editable ? "correctness" : "omr",
+              entry_method: editable ? manualGradingMethod : "omr",
             },
             {
               question_id: QUESTION_IDS[1],
@@ -269,7 +271,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
                   : "written",
               max_score: 60,
               editable,
-              entry_method: editable ? "correctness" : "omr",
+              entry_method: editable ? manualGradingMethod : "omr",
             },
           ] : [],
           rows: [{
@@ -303,7 +305,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         exam_id: EXAM_ID,
         exam_title: "7월 진단평가",
         grading_mode: gradingMode,
-        manual_grading_method: "correctness",
+        manual_grading_method: manualGradingMethod,
         matched_count: 1,
         question_count: 2,
         overwrite_count: 0,
@@ -547,6 +549,31 @@ test.describe("문항별 직접 채점", () => {
     await expect(dialog.getByRole("spinbutton", { name: "2번 배점", exact: true })).toHaveValue("60");
   });
 
+  test("점수형 문항도 셀 전체에서 편집하고 방향키로 이동한다", async ({ page }) => {
+    await installApi(page, { manualGradingMethod: "score" });
+
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await page.getByRole("button", {
+      name: "7월 진단평가 문항별 채점표 열기",
+    }).click();
+
+    const dialog = page.getByRole("dialog").filter({
+      hasText: "7월 진단평가 문항별 채점",
+    });
+    const cells = dialog.locator("input[data-manual-grade-cell]");
+    await expect(cells).toHaveCount(2);
+    await expect(cells.first()).toBeFocused();
+    await page.keyboard.type("25");
+    await expect(cells.first()).toHaveValue("25");
+    await page.keyboard.press("ArrowRight");
+    await expect(cells.nth(1)).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(cells.first()).toBeFocused();
+  });
+
   test("성적표 시험명에서 열고 단축키를 바꾸면 자동 이동과 함께 저장된다", async ({ page }) => {
     await installApi(page);
 
@@ -637,6 +664,35 @@ test.describe("문항별 직접 채점", () => {
     const cells = dialog.locator("[data-manual-grade-cell]");
     await expect(cells).toHaveCount(2);
     await expect(cells.first()).toBeFocused();
+    const spreadsheetCell = await cells.first().evaluate((control) => {
+      const tableCell = control.closest("td");
+      if (!(tableCell instanceof HTMLTableCellElement)) return null;
+      const controlRect = control.getBoundingClientRect();
+      const cellRect = tableCell.getBoundingClientRect();
+      const controlStyle = getComputedStyle(control);
+      const cellStyle = getComputedStyle(tableCell);
+      return {
+        leftInset: Math.abs(controlRect.left - cellRect.left),
+        topInset: Math.abs(controlRect.top - cellRect.top),
+        rightInset: Math.abs(cellRect.right - controlRect.right),
+        bottomInset: Math.abs(cellRect.bottom - controlRect.bottom),
+        borderRadius: controlStyle.borderRadius,
+        cursor: controlStyle.cursor,
+        outlineStyle: cellStyle.outlineStyle,
+        outlineWidth: cellStyle.outlineWidth,
+        outlineOffset: cellStyle.outlineOffset,
+      };
+    });
+    expect(spreadsheetCell).not.toBeNull();
+    expect(spreadsheetCell?.leftInset).toBeLessThanOrEqual(1);
+    expect(spreadsheetCell?.topInset).toBeLessThanOrEqual(1);
+    expect(spreadsheetCell?.rightInset).toBeLessThanOrEqual(1);
+    expect(spreadsheetCell?.bottomInset).toBeLessThanOrEqual(1);
+    expect(spreadsheetCell?.borderRadius).toBe("0px");
+    expect(spreadsheetCell?.cursor).toBe("cell");
+    expect(spreadsheetCell?.outlineStyle).toBe("solid");
+    expect(spreadsheetCell?.outlineWidth).toBe("2px");
+    expect(spreadsheetCell?.outlineOffset).toBe("-2px");
 
     await page.keyboard.press("Shift+?");
     await expect(dialog.getByText("정오 입력 단축키", { exact: true })).toBeVisible();
