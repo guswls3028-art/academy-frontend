@@ -268,27 +268,67 @@ async function cleanup(request: APIRequestContext): Promise<void> {
     );
   }
   if (created.enrollmentId) await remove("DELETE", `/enrollments/${created.enrollmentId}/`);
+  let archivedExamHandoff = false;
   if (created.examId && created.sessionId) {
-    await remove(
+    const examDelete = await remove(
       "DELETE",
       `/exams/${created.examId}/?session_id=${created.sessionId}`,
       undefined,
-      [204, 404],
+      [200, 204, 404],
     );
+    if (examDelete.status === 200) {
+      const action = (examDelete.body as { action?: unknown } | null)?.action;
+      if (action !== "archived") {
+        failures.push(
+          `unexpected exam cleanup action -> 200 ${JSON.stringify(examDelete.body)}`,
+        );
+      } else {
+        archivedExamHandoff = true;
+      }
+    }
   }
-  if (created.sessionId) await remove("DELETE", `/lectures/sessions/${created.sessionId}/`);
-  if (created.lectureId) await remove("DELETE", `/lectures/lectures/${created.lectureId}/`);
+  if (!archivedExamHandoff && created.sessionId) {
+    await remove("DELETE", `/lectures/sessions/${created.sessionId}/`);
+  }
+  if (!archivedExamHandoff && created.lectureId) {
+    await remove("DELETE", `/lectures/lectures/${created.lectureId}/`);
+  }
 
   for (const [label, path] of [
     ...created.submissionIds.map((id) => [`submission ${id}`, `/submissions/submissions/${id}/`] as const),
-    ...(created.examId ? [[`exam ${created.examId}`, `/exams/${created.examId}/`] as const] : []),
+    ...(!archivedExamHandoff && created.examId
+      ? [[`exam ${created.examId}`, `/exams/${created.examId}/`] as const]
+      : []),
     ...(created.studentId ? [[`student ${created.studentId}`, `/students/${created.studentId}/`] as const] : []),
-    ...(created.sessionId ? [[`session ${created.sessionId}`, `/lectures/sessions/${created.sessionId}/`] as const] : []),
-    ...(created.lectureId ? [[`lecture ${created.lectureId}`, `/lectures/lectures/${created.lectureId}/`] as const] : []),
+    ...(!archivedExamHandoff && created.sessionId
+      ? [[`session ${created.sessionId}`, `/lectures/sessions/${created.sessionId}/`] as const]
+      : []),
+    ...(!archivedExamHandoff && created.lectureId
+      ? [[`lecture ${created.lectureId}`, `/lectures/lectures/${created.lectureId}/`] as const]
+      : []),
   ]) {
     const verification = await apiFetch(request, "GET", path, token);
     if (verification.status !== 404) {
       failures.push(`verify ${label} absent -> ${verification.status} ${JSON.stringify(verification.body)}`);
+    }
+  }
+
+  if (archivedExamHandoff && created.examId) {
+    const retained = await apiFetch<{ title?: string }>(
+      request,
+      "GET",
+      `/exams/${created.examId}/`,
+      token,
+    );
+    if (retained.status !== 200 || retained.body?.title !== EXAM_TITLE) {
+      failures.push(
+        `verify archived E2E exam handoff -> ${retained.status} ${JSON.stringify(retained.body)}`,
+      );
+    } else {
+      console.log(
+        `OMR cleanup handoff: archived exact E2E exam ${created.examId}; ` +
+        "backend cleanup_e2e_residue exact-token execution is required.",
+      );
     }
   }
 
@@ -409,7 +449,13 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       adminTokens,
       `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`,
     );
+    const draftDialog = page.getByRole("dialog", { name: /임시저장된 변경/ });
+    if (await draftDialog.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await draftDialog.getByRole("button", { name: "버리기", exact: true }).click();
+      await expect(draftDialog).toBeHidden({ timeout: 5_000 });
+    }
     await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeEnabled();
     await page.getByRole("button", { name: "OMR 스캔 등록" }).click();
     await expect(page.locator(".admin-omr-upload").getByText("스캔 파일 선택")).toBeVisible({ timeout: 10_000 });
 

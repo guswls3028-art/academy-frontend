@@ -274,7 +274,7 @@ test.describe.serial("[E2E] 계정복구/교사 비밀번호 변경 실사용 �
         temp_password: STAFF_TEMP_PW,
       },
     );
-    expect(staffReset.message).toContain("비밀번호가 변경되었습니다");
+    expect(staffReset.message).toContain("임시 비밀번호가 발송되었습니다");
     expect((await loginAttempt(request, STUDENT_USER, STAFF_TEMP_PW)).status).toBe(200);
     expect([400, 401]).toContain((await loginAttempt(request, STUDENT_USER, ORIGINAL_PW)).status);
 
@@ -290,7 +290,7 @@ test.describe.serial("[E2E] 계정복구/교사 비밀번호 변경 실사용 �
         temp_password: ORIGINAL_PW,
       },
     );
-    expect(restore.message).toContain("비밀번호가 변경되었습니다");
+    expect(restore.message).toContain("임시 비밀번호가 발송되었습니다");
     expect((await loginAttempt(request, STUDENT_USER, ORIGINAL_PW)).status).toBe(200);
   });
 });

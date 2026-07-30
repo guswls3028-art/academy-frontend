@@ -71,8 +71,8 @@ OMR·과제·클리닉 fixture를 통제 번호 및 소유 ID cleanup 경계 안
 실행한다. 그 뒤 admin/developer desktop, student mobile, teacher mobile 전
 메뉴 감사를 역할별 독립 job으로 직렬 실행한다. 유지보수 묶음, 선택한 통제
 쓰기 canary, 세 감사 job이 모두 성공해야 해당 수동 E2E를 통과로 기록한다.
-클리닉 canary의 성적 이력은 제품의 삭제 보호 계약 때문에 프런트 API cleanup이
-시험을 archive한다. 따라서 통제 쓰기 실행 직후 backend 운영 절차의
+OMR·클리닉 canary의 성적 이력은 제품의 삭제 보호 계약 때문에 프런트 API
+cleanup이 시험을 archive할 수 있다. 따라서 통제 쓰기 실행 직후 backend 운영 절차의
 `cleanup_e2e_residue --tenant-id 1` dry-run/exact-token execute를 수행하고,
 `run-production-canary.ps1 -Mode PostDeploy`의
 `production_e2e_residue_absent=0`까지 확인해야 최종 완료다. 이 후속 절차 없이
