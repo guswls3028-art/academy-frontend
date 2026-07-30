@@ -180,12 +180,23 @@ async function exerciseScoresMoreMenu(page: Page): Promise<void> {
 
   const menu = page.locator(".scores-more-menu").first();
   await expect(menu).toBeVisible({ timeout: 5_000 });
+  await expect(menu.getByRole("menuitem", { name: /시험 추가/ })).toBeVisible();
+  await expect(menu.getByRole("menuitem", { name: /과제 추가/ })).toBeVisible();
   await expect(menu.getByRole("menuitem", { name: /성적표 출력/ })).toBeVisible();
   await expect(menu.getByRole("menuitem", { name: /클리닉 대상/ })).toBeVisible();
   await expect(menu.getByRole("menuitem", { name: /수강생 일괄배정/ })).toBeVisible();
 
   await moreButton.click();
   await expect(menu).toBeHidden({ timeout: 5_000 });
+}
+
+async function openScoresToolAssessmentModal(page: Page, kind: "시험" | "과제"): Promise<void> {
+  const moreButton = page.getByRole("button", { name: "성적 도구" }).first();
+  await moreButton.click();
+
+  const menu = page.locator(".scores-more-menu").first();
+  await expect(menu).toBeVisible({ timeout: 5_000 });
+  await openCreateAssessmentModal(page, menu.getByRole("menuitem", { name: new RegExp(`${kind} 추가`) }), kind);
 }
 
 async function exerciseOmrIfAvailable(page: Page): Promise<"opened" | "not-rendered"> {
@@ -236,15 +247,14 @@ test.describe("admin real-use session assessment flow", () => {
     await assertCoreSessionTabs(page);
 
     await clickSessionTab(page, "성적", "scores");
-    const addExamFromScores = page.getByRole("button", { name: /^\+\s*시험$/ }).first();
-    const addHomeworkFromScores = page.getByRole("button", { name: /^\+\s*과제$/ }).first();
-    await expect(addExamFromScores, "scores tab +시험 button").toBeVisible({ timeout: 10_000 });
-    await expect(addHomeworkFromScores, "scores tab +과제 button").toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: "성적 도구" }), "scores tools button").toBeVisible({
+      timeout: 10_000,
+    });
     await expect(assessmentRemote(page), "성적 탭은 시험/과제 리모컨을 렌더하지 않는다").toHaveCount(0);
     await exerciseScoresMoreMenu(page);
     await exerciseOmrIfAvailable(page);
-    await openCreateAssessmentModal(page, addExamFromScores, "시험");
-    await openCreateAssessmentModal(page, addHomeworkFromScores, "과제");
+    await openScoresToolAssessmentModal(page, "시험");
+    await openScoresToolAssessmentModal(page, "과제");
 
     await clickSessionTab(page, "시험", "exams");
     await expect(assessmentRemote(page), "시험 탭은 시험/과제 리모컨을 유지한다").toBeVisible({ timeout: 10_000 });
