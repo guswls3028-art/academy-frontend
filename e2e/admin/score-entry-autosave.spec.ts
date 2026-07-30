@@ -234,13 +234,30 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(saveAndLockButton).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("status")).toContainText("수정 중 · 자동 저장 준비");
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(2);
-    await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeEnabled();
     await page.screenshot({ path: testInfo.outputPath("score-entry-empty-auto-edit-1366.png"), fullPage: true });
 
     await saveAndLockButton.click();
     await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
     await expect(page.getByRole("status")).toContainText("입력 잠금됨");
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
+  });
+
+  test("변경 없는 자동 수정 상태에서는 빈 lease를 해제하고 OMR 등록을 연다", async ({ page }) => {
+    await openScores(page, { initialScores: [null, null] });
+
+    const omrButton = page.getByRole("button", { name: "OMR 스캔 등록" });
+    await expect(omrButton).toBeEnabled({ timeout: 10_000 });
+    await omrButton.click();
+
+    await expect(page.locator(".admin-omr-upload").getByText("스캔 파일 선택")).toBeVisible();
+    await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
+    await expect
+      .poll(
+        () => draftCommits.filter((commit) => commit.release_lease === true).length,
+        { timeout: 2_000 },
+      )
+      .toBe(1);
   });
 
   test("빈 성적표라도 복구 초안이 있으면 자동 수정하지 않는다", async ({ page }) => {
@@ -287,7 +304,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await editButton.click();
     await expect(page.getByRole("button", { name: "저장하고 잠금", exact: true })).toBeVisible();
     await expect(page.getByText("Ctrl+S 저장 · Ctrl+Z 실행 취소")).toBeVisible();
-    await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeEnabled();
     const cells = page.locator(".ds-scores-cell-editable");
     await expect(cells.first()).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("score-entry-editing-1366.png"), fullPage: true });
