@@ -42,6 +42,7 @@ import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useProgram } from "@/shared/program";
 import SessionOmrUploadAction from "./SessionOmrUploadAction";
 import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/api/sessionAssessmentQueries";
+import { adminResultsQueryKeys } from "@admin/domains/results/queryKeys";
 import "./SessionScoresEntryPage.css";
 
 type SessionScoresEntryPageProps = {
@@ -1423,7 +1424,7 @@ export default function SessionScoresEntryPage({
       </AdminModal>
 
       {/* 시험명에서 바로 여는 직접 채점표. 선택형은 아래 OMR 검토로 분기한다. */}
-      {gradingExam && (
+      {gradingExam && !omrReviewExam && (
         <AdminModal
           open
           onClose={() => { void closeManualGrading(); }}
@@ -1513,8 +1514,12 @@ export default function SessionScoresEntryPage({
             examTitle={omrReviewExam.title}
             open
             onClose={() => {
+              const examId = omrReviewExam.examId;
               setOmrReviewExam(null);
               invalidateScores();
+              void qc.invalidateQueries({
+                queryKey: adminResultsQueryKeys.manualGradeSheet(examId),
+              });
             }}
           />
         </Suspense>
