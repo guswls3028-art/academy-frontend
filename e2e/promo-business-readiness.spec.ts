@@ -79,7 +79,11 @@ test.describe("promo business readiness", () => {
     await expect(productImages.first()).toBeVisible();
     await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
-    expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThan(5600);
+    await expect(
+      page.getByRole("heading", { name: "입시 현장의 선생님들도 사용하고 있습니다" }),
+    ).toBeVisible();
+    await expect(page.getByText("각 기관의 공식 제휴나 추천을 의미하지 않습니다.")).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThan(6000);
 
     const workflowCards = page.locator("a[data-workflow-card]");
     await expect(workflowCards).toHaveCount(4);
