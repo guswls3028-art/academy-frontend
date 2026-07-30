@@ -727,6 +727,11 @@
   background: color-mix(in srgb, var(--color-warning) 8%, var(--color-bg-surface));
 }
 
+.scores-roster-warning > .ds-button {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
 .scores-roster-warning svg {
   flex-shrink: 0;
   margin-top: 2px;
@@ -745,6 +750,17 @@
   font-size: 12px;
   font-weight: 600;
   line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .scores-roster-warning {
+    flex-wrap: wrap;
+  }
+
+  .scores-roster-warning > .ds-button {
+    width: 100%;
+    margin-left: 28px;
+  }
 }
 
 @media (max-width: 1180px) {

@@ -683,6 +683,21 @@ table.ds-table {
   background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
 }
 
+/* 응시·제출 대상 미배정 — 단순 빈칸과 구분하고 입력 불가 이유를 셀 안에 표시 */
+.ds-scores-table tbody td[data-assignment-state="missing"] {
+  background: color-mix(in srgb, var(--color-warning, #e6b800) 8%, var(--color-bg-surface)) !important;
+  cursor: help;
+}
+
+.ds-scores-table tbody tr:hover td[data-assignment-state="missing"] {
+  background: color-mix(in srgb, var(--color-warning, #e6b800) 13%, var(--color-bg-surface)) !important;
+}
+
+.ds-scores-table .ds-scores-cell-unassigned .ds-badge {
+  max-width: 100%;
+  white-space: nowrap;
+}
+
 /* 편집 모드 점수 셀(contenteditable) — 리스트 마커·가상 요소 제거(동그라미/고정 0 방지) */
 .ds-scores-table .ds-scores-cell-editable {
   list-style: none;

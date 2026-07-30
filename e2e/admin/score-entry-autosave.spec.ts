@@ -5,6 +5,7 @@ import { installLocalAuthApiStubs, installTenantOneInitScript } from "../helpers
 type ScoreRouteOptions = {
   initialScores?: Array<number | null>;
   initialDraft?: unknown[];
+  includeHomework?: boolean;
 };
 
 function createLocalJwt() {
@@ -45,6 +46,8 @@ async function ensureScoreEditing(page: Page): Promise<void> {
 }
 
 const scorePatches: Array<Record<string, unknown>> = [];
+const homeworkPatches: Array<Record<string, unknown>> = [];
+const assignmentPuts: Array<{ path: string; enrollmentIds: number[] }> = [];
 const scorePatchHeaders: Array<Record<string, string>> = [];
 const draftPuts: Array<Record<string, unknown>> = [];
 const draftCommits: Array<Record<string, unknown>> = [];
@@ -54,9 +57,14 @@ let failNextDraftCommit = false;
 let failNextLeaseRelease = false;
 let failNextDraftPut = false;
 let delayNextScorePatchMs = 0;
+let includeHomework = false;
+let homeworkAssignedRows = [false, true];
+let currentHomeworkScores: Array<number | null> = [null, 45];
 
 async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): Promise<void> {
   scorePatches.length = 0;
+  homeworkPatches.length = 0;
+  assignmentPuts.length = 0;
   scorePatchHeaders.length = 0;
   draftPuts.length = 0;
   draftCommits.length = 0;
@@ -66,6 +74,9 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
   failNextLeaseRelease = false;
   failNextDraftPut = false;
   delayNextScorePatchMs = 0;
+  includeHomework = options.includeHomework ?? false;
+  homeworkAssignedRows = [false, true];
+  currentHomeworkScores = [null, 45];
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -88,7 +99,13 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
               subjective_max_score: 0,
               display_order: 1,
             }],
-            homeworks: [],
+            homeworks: includeHomework ? [{
+              homework_id: 9151,
+              title: "단원 복습",
+              unit: "점",
+              max_score: 100,
+              display_order: 2,
+            }] : [],
           },
           rows: currentScores.map((score, index) => ({
             enrollment_id: 9201 + index,
@@ -115,7 +132,18 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
               },
               attempt_count: score == null ? 0 : 1,
             }],
-            homeworks: [],
+            homeworks: includeHomework && homeworkAssignedRows[index] ? [{
+              homework_id: 9151,
+              title: "단원 복습",
+              block: {
+                score: currentHomeworkScores[index],
+                max_score: 100,
+                passed: currentHomeworkScores[index] == null ? null : currentHomeworkScores[index]! >= 60,
+                clinic_required: currentHomeworkScores[index] == null ? false : currentHomeworkScores[index]! < 60,
+                is_locked: false,
+                meta: {},
+              },
+            }] : [],
             clinic_required: score == null ? false : score < 60,
             progress_completed: false,
             updated_at: "2026-07-25T12:00:00+09:00",
@@ -183,6 +211,49 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
           max_score: 100,
         },
       });
+      return;
+    }
+
+    if (path.endsWith("/api/v1/homework/scores/quick/") && method === "PATCH") {
+      const body = request.postDataJSON() as Record<string, unknown>;
+      homeworkPatches.push(body);
+      const enrollmentId = Number(body.enrollment_id);
+      const rowIndex = enrollmentId - 9201;
+      if (rowIndex >= 0 && rowIndex < currentHomeworkScores.length) {
+        currentHomeworkScores[rowIndex] = typeof body.score === "number" ? body.score : null;
+      }
+      await route.fulfill({ json: { ok: true } });
+      return;
+    }
+
+    if (path.endsWith("/api/v1/enrollments/session-enrollments/") && method === "GET") {
+      await route.fulfill({
+        json: {
+          count: 2,
+          results: currentScores.map((_, index) => ({
+            id: 9501 + index,
+            session: 9002,
+            enrollment: 9201 + index,
+            student_id: 9301 + index,
+            student_name: `자동저장학생${index + 1}`,
+          })),
+        },
+      });
+      return;
+    }
+
+    if (path.endsWith("/api/v1/exams/9101/enrollments/") && method === "PUT") {
+      const body = request.postDataJSON() as { enrollment_ids?: number[] };
+      assignmentPuts.push({ path, enrollmentIds: body.enrollment_ids ?? [] });
+      await route.fulfill({ json: { ok: true } });
+      return;
+    }
+
+    if (path.endsWith("/api/v1/homework/assignments/") && method === "PUT") {
+      const body = request.postDataJSON() as { enrollment_ids?: number[] };
+      assignmentPuts.push({ path, enrollmentIds: body.enrollment_ids ?? [] });
+      homeworkAssignedRows = currentScores.map(() => true);
+      await route.fulfill({ json: { ok: true } });
       return;
     }
 
@@ -283,6 +354,45 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("status")).toContainText("입력 잠금됨");
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
+  });
+
+  test("미배정 시험·과제는 셀과 상단에서 드러나고 누락 전부 배정으로 복구된다", async ({ page }, testInfo) => {
+    await openScores(page, { includeHomework: true });
+
+    await expect(page.getByText("총 2명", { exact: true })).toBeVisible();
+    const assignmentNotice = page.getByRole("region", { name: "응시·제출 대상 미배정 안내" });
+    await expect(assignmentNotice).toContainText("1명의 응시·제출 배정이 누락됐습니다");
+    await expect(assignmentNotice).toContainText("시험 0칸 · 과제 1칸");
+    await expect(page.getByRole("cell", { name: "자동저장학생1 · 단원 복습 제출 대상 미배정" })).toContainText("미배정");
+    await page.screenshot({ path: testInfo.outputPath("score-entry-unassigned-visible-1366.png"), fullPage: true });
+
+    await assignmentNotice.getByRole("button", { name: "누락 전부 배정" }).click();
+    await expect.poll(() => assignmentPuts.length).toBe(2);
+    expect(assignmentPuts.every((request) => request.enrollmentIds.join(",") === "9201,9202")).toBe(true);
+    await expect(assignmentNotice).toHaveCount(0);
+  });
+
+  test("키보드 이동은 미배정 칸을 건너뛰고 배정된 과제 점수는 셀에서 저장한다", async ({ page }) => {
+    await openScores(page, { includeHomework: true });
+    await ensureScoreEditing(page);
+
+    const firstExamCell = page.getByRole("textbox", { name: "자동저장학생1 · 주간 확인 점수 입력" });
+    const secondExamCell = page.getByRole("textbox", { name: "자동저장학생2 · 주간 확인 점수 입력" });
+    const assignedHomeworkCell = page.getByRole("textbox", { name: "자동저장학생2 · 단원 복습 점수 입력" });
+
+    await firstExamCell.click();
+    await firstExamCell.press("Tab");
+    await expect(secondExamCell).toBeFocused();
+
+    await assignedHomeworkCell.fill("88");
+    await page.keyboard.press("Control+s");
+    await expect.poll(() => homeworkPatches.at(-1)?.score, { timeout: 10_000 }).toBe(88);
+    expect(homeworkPatches.at(-1)).toMatchObject({
+      session_id: 9002,
+      enrollment_id: 9202,
+      homework_id: 9151,
+      score: 88,
+    });
   });
 
   test("수정 중 자동 저장·단축키를 지원하고 완료하면 다시 잠긴다", async ({ page }, testInfo) => {
