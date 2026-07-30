@@ -25,6 +25,22 @@ type DomainTabsProps = {
   onNavigate: (path: string) => void;
 };
 
+function isTabActive(tab: DomainTab, pathname: string): boolean {
+  if (tab.activePaths?.length) {
+    return tab.activePaths.some(
+      (path) =>
+        pathname === path ||
+        pathname === `${path}/` ||
+        pathname.startsWith(`${path}/`),
+    );
+  }
+  if (tab.path == null) return false;
+  if (tab.exact) {
+    return pathname === tab.path || pathname === `${tab.path}/`;
+  }
+  return pathname === tab.path || pathname.startsWith(`${tab.path}/`);
+}
+
 export default function DomainTabs({
   tabs,
   pathname,
@@ -32,11 +48,14 @@ export default function DomainTabs({
 }: DomainTabsProps) {
   return (
     <div className="ds-tabs ds-tabs--flat" role="tablist">
-      {tabs.map((tab) =>
-        tab.locked ? (
+      {tabs.map((tab) => {
+        const active = !tab.locked && isTabActive(tab, pathname);
+        return tab.locked ? (
           <button
             key={tab.key}
             type="button"
+            role="tab"
+            aria-selected="false"
             disabled
             title="준비 중인 기능입니다"
             className={`ds-tab ${LOCKED_TAB_CLASS}`}
@@ -58,20 +77,9 @@ export default function DomainTabs({
           <button
             key={tab.key}
             type="button"
-            className={`ds-tab ${
-              (() => {
-                if (tab.activePaths?.length) {
-                  return tab.activePaths.some(
-                    (p) => pathname === p || pathname === p + "/" || pathname.startsWith(p + "/")
-                  );
-                }
-                if (tab.path == null) return false;
-                if (tab.exact) return pathname === tab.path || pathname === tab.path + "/";
-                return pathname === tab.path || pathname.startsWith(tab.path + "/");
-              })()
-                ? "is-active"
-                : ""
-            }`}
+            role="tab"
+            aria-selected={active}
+            className={`ds-tab ${active ? "is-active" : ""}`}
             onClick={() => tab.path != null && onNavigate(tab.path)}
             aria-label={tab.badge ? `${tab.label} ${tab.badge}` : undefined}
           >
@@ -87,8 +95,8 @@ export default function DomainTabs({
               </Badge>
             )}
           </button>
-        )
-      )}
+        );
+      })}
     </div>
   );
 }

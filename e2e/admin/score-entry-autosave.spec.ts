@@ -512,11 +512,11 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await cells.nth(0).press("Enter");
     await expect(page.getByRole("status")).toContainText("자동 저장 중");
     await cells.nth(1).fill("81");
-    await page.getByRole("button", { name: "출결", exact: true }).first().click();
+    await page.getByRole("tab", { name: "출결", exact: true }).first().click();
     await expect(page).toHaveURL(/\/attendance/);
     await expect.poll(() => scorePatches.at(-2)?.score, { timeout: 10_000 }).toBe(79);
     await expect.poll(() => scorePatches.at(-1)?.score, { timeout: 10_000 }).toBe(81);
-    await page.getByRole("button", { name: "성적", exact: true }).first().click();
+    await page.getByRole("tab", { name: "성적", exact: true }).first().click();
     await expect(editButton).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("cell", { name: /79\/100/ }).first()).toBeVisible();
     await expect(page.getByRole("cell", { name: /81\/100/ }).first()).toBeVisible();
@@ -524,9 +524,9 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await editButton.click();
     failNextDraftPut = true;
     await cells.nth(0).fill("83");
-    await page.getByRole("button", { name: "출결", exact: true }).first().click();
+    await page.getByRole("tab", { name: "출결", exact: true }).first().click();
     await expect(page).toHaveURL(/\/attendance/);
-    await page.getByRole("button", { name: "성적", exact: true }).first().click();
+    await page.getByRole("tab", { name: "성적", exact: true }).first().click();
     const recoveryDialog = page.getByRole("dialog", { name: /임시저장된 변경 1건/ });
     await expect(recoveryDialog).toBeVisible({ timeout: 10_000 });
     await expect(editButton).toBeDisabled();
@@ -535,7 +535,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       (commit) => commit.release_lease === true,
     ).length;
     await page
-      .getByRole("button", { name: "출결", exact: true })
+      .getByRole("tab", { name: "출결", exact: true })
       .first()
       .evaluate((button) => (button as HTMLButtonElement).click());
     await expect(page).toHaveURL(/\/attendance/);
@@ -545,7 +545,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
         { timeout: 2_000 },
       )
       .toBe(releasedBeforeRecoveryNavigation);
-    await page.getByRole("button", { name: "성적", exact: true }).first().click();
+    await page.getByRole("tab", { name: "성적", exact: true }).first().click();
     await expect(recoveryDialog).toBeVisible({ timeout: 10_000 });
     failNextDraftCommit = true;
     await recoveryDialog.getByRole("button", { name: "버리기" }).click();
