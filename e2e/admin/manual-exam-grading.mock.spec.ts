@@ -35,6 +35,7 @@ type InstallApiOptions = {
 async function installApi(page: Page, options: InstallApiOptions = {}) {
   let applied = false;
   let hasQuestions = options.hasQuestions ?? true;
+  let manualSheetGetCount = 0;
   const postedRows: unknown[] = [];
   const gradingMode = options.gradingMode ?? "written";
   const manualGradingMethod = options.manualGradingMethod ?? "correctness";
@@ -246,6 +247,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     }
     if (path === `/results/admin/exams/${EXAM_ID}/manual-grading/`) {
       if (method === "GET") {
+        manualSheetGetCount += 1;
         await json({
           exam_id: EXAM_ID,
           exam_title: "7월 진단평가",
@@ -399,6 +401,9 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     get applied() {
       return applied;
     },
+    get manualSheetGetCount() {
+      return manualSheetGetCount;
+    },
     postedRows,
   };
 }
@@ -520,7 +525,7 @@ test.describe("문항별 직접 채점", () => {
   });
 
   test("혼합형은 OMR 문항을 잠그고 별도 결과 보정으로 이동한다", async ({ page }) => {
-    await installApi(page, {
+    const apiState = await installApi(page, {
       gradingMode: "mixed",
       initialStates: ["correct", null],
     });
@@ -545,7 +550,11 @@ test.describe("문항별 직접 채점", () => {
     await expect(dialog.getByRole("button", { name: "미입력" })).toHaveCount(1);
 
     await dialog.getByRole("button", { name: "OMR 결과 보정" }).click();
-    await expect(page.getByRole("dialog", { name: "OMR 검토" })).toBeVisible();
+    const omrDialog = page.getByRole("dialog", { name: "OMR 검토" });
+    await expect(omrDialog).toBeVisible();
+    await omrDialog.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(omrDialog).toHaveCount(0);
+    await expect.poll(() => apiState.manualSheetGetCount).toBeGreaterThan(1);
   });
 
   test("문항이 없으면 정답 등록과 문항 수 빠른 시작을 제공한다", async ({ page }) => {

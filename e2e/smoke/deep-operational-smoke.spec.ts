@@ -126,13 +126,18 @@ test.describe("심층 운영 동선 검증", () => {
     const content = page.locator('[class*="domain"], [class*="Domain"], h1, h2').first();
     await expect(content).toBeVisible({ timeout: 10000 });
 
-    const tabs = ["설정", "자동발송", "발송 내역", "템플릿"];
-    for (const tabName of tabs) {
-      const tab = page.locator('a, button, [role="tab"]').filter({ hasText: new RegExp(tabName) }).first();
-      if (await tab.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await tab.click();
-        await settle(page);
-      }
+    const messageTabs = page.locator(".domain-layout").getByRole("tablist");
+    await expect(messageTabs).toBeVisible();
+    const tabs = [
+      { name: "문구 저장", path: "/workspace/message/templates" },
+      { name: "자동발송", path: "/workspace/message/auto-send" },
+      { name: "발송 내역", path: "/workspace/message/log" },
+      { name: "설정", path: "/workspace/message/settings" },
+    ];
+    for (const { name, path } of tabs) {
+      await messageTabs.getByRole("button", { name, exact: true }).click();
+      await expect(page).toHaveURL(new RegExp(`${path.replaceAll("/", "\\/")}/?$`));
+      await settle(page);
     }
 
     const criticalErrors = errors.filter(e =>
