@@ -843,6 +843,7 @@ export default function SessionScoresEntryPage({
         type="button"
         intent={isEditMode ? "primary" : "secondary"}
         size="sm"
+        className="scores-edit-action"
         disabled={isSaving || draft.isStartingEdit || isLoading || isError || recoveryBlocked}
         leftIcon={isEditMode
           ? <LockKeyhole size={ICON_FOR_BUTTON.sm} />
@@ -877,19 +878,21 @@ export default function SessionScoresEntryPage({
           type="button"
           intent="secondary"
           size="sm"
+          className="scores-tools-trigger"
           leftIcon={<LayoutGrid size={ICON_FOR_BUTTON.sm} />}
+          rightIcon={(
+            <ChevronDown
+              size={ICON_FOR_BUTTON.sm}
+              className="scores-tools-trigger__chevron"
+              data-open={showMoreMenu ? "true" : "false"}
+            />
+          )}
           onClick={() => setShowMoreMenu((v) => !v)}
           aria-label="성적 도구"
           aria-expanded={showMoreMenu}
           title="시험·과제 추가, 성적표 출력, 클리닉 관리"
         >
           성적 도구
-          <ChevronDown
-            size={ICON_FOR_BUTTON.sm}
-            className="scores-tools-trigger__chevron"
-            data-open={showMoreMenu ? "true" : "false"}
-            aria-hidden
-          />
         </Button>
         {showMoreMenu && (
           <div className="scores-more-menu scores-tools-menu" role="menu" aria-label="성적 도구">

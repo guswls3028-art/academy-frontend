@@ -7,11 +7,17 @@
 
 .scores-entry-page .domain-list-toolbar {
   padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--scores-ui-border);
+  border: 1px solid color-mix(in srgb, var(--color-border-default) 82%, var(--color-brand-primary));
   border-radius: var(--radius-lg);
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--color-bg-surface) 96%, var(--color-primary)) 0%, var(--color-bg-surface) 100%);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-bg-surface) 94%, var(--color-brand-primary)) 0%,
+      var(--color-bg-surface) 58%
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    0 3px 10px rgba(15, 23, 42, 0.06);
 }
 
 .scores-entry-page .domain-list-toolbar > div:first-child {
@@ -19,28 +25,54 @@
 }
 
 .scores-entry-page .domain-list-toolbar .ds-input {
-  min-height: 34px;
-  border-color: var(--scores-ui-border);
+  min-height: 38px;
+  border: 1px solid var(--color-border-default);
   background: var(--color-bg-surface);
-  box-shadow: none;
+  box-shadow:
+    inset 0 1px 2px rgba(15, 23, 42, 0.035),
+    0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
 .scores-entry-page .domain-list-toolbar .ds-button {
-  box-shadow: none;
+  min-height: 38px;
+  font-weight: 750;
 }
 
-.scores-entry-page .domain-list-toolbar .ds-button:hover:not(:disabled):not([data-disabled="true"]) {
-  transform: none;
+.scores-entry-page .domain-list-toolbar .ds-button[data-intent="secondary"] {
+  border: 1px solid var(--scale-Neutral400);
+  background:
+    linear-gradient(
+      180deg,
+      var(--color-bg-surface) 0%,
+      var(--scale-Neutral100) 100%
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    0 2px 5px rgba(15, 23, 42, 0.08);
 }
 
-.scores-entry-page .domain-list-toolbar .ds-button[data-intent="secondary"],
+.scores-entry-page .domain-list-toolbar .ds-button[data-intent="secondary"]:hover:not(:disabled):not([data-disabled="true"]) {
+  border-color: var(--scale-Neutral500);
+  background:
+    linear-gradient(
+      180deg,
+      var(--color-bg-surface) 0%,
+      var(--scale-Neutral200) 100%
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 4px 9px rgba(15, 23, 42, 0.11);
+}
+
 .scores-entry-page .domain-list-toolbar .ds-button[data-intent="ghost"] {
-  border-color: var(--scores-ui-border);
+  border: 1px solid var(--color-border-default);
+  background: color-mix(in srgb, var(--color-bg-surface) 96%, var(--scale-Neutral200));
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.045);
 }
 
 .scores-entry-page .domain-list-toolbar .ds-button:disabled,
 .scores-entry-page .domain-list-toolbar .ds-button[data-disabled="true"] {
-  opacity: 0.48;
+  opacity: 0.65;
 }
 
 .scores-display-segment {
@@ -172,7 +204,10 @@
 }
 
 .scores-entry-page .scores-omr-primary.ds-button[data-intent="primary"] {
-  box-shadow: 0 6px 14px color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    0 5px 12px color-mix(in srgb, var(--color-brand-primary) 22%, transparent),
+    0 1px 2px rgba(15, 23, 42, 0.08);
 }
 
 .scores-omr-picker,
@@ -196,8 +231,57 @@
   right: 0;
 }
 
-.scores-tools-trigger__chevron {
+.scores-edit-action {
+  min-width: 72px;
+}
+
+.scores-entry-page .domain-list-toolbar .scores-tools-trigger.ds-button[data-intent="secondary"] {
+  min-width: 128px;
+  justify-content: flex-start;
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 34%, var(--scale-Neutral400));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface)) 0%,
+      color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface)) 100%
+    );
+  color: color-mix(in srgb, var(--color-brand-primary) 72%, var(--color-text-primary));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 2px 6px color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
+}
+
+.scores-entry-page .domain-list-toolbar .scores-tools-trigger.ds-button[data-intent="secondary"]:hover:not(:disabled):not([data-disabled="true"]),
+.scores-entry-page .domain-list-toolbar .scores-tools-trigger.ds-button[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 54%, var(--scale-Neutral400));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-brand-primary) 7%, var(--color-bg-surface)) 0%,
+      color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface)) 100%
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 4px 10px color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
+}
+
+.scores-tools-trigger .ds-button__label {
+  flex: 1;
+  overflow: visible;
+  text-align: left;
+}
+
+.scores-tools-trigger .ds-button__right {
+  width: 24px;
+  height: 24px;
   margin-left: 2px;
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
+}
+
+.scores-tools-trigger__chevron {
+  display: block;
   transition: transform 140ms ease;
 }
 
@@ -256,20 +340,31 @@
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2);
-  border: 1px solid var(--scores-ui-border);
+  border: 1px solid color-mix(in srgb, var(--color-border-default) 86%, var(--color-brand-primary));
   border-radius: var(--radius-md);
-  background: var(--color-bg-surface);
+  background:
+    linear-gradient(
+      180deg,
+      var(--color-bg-surface) 0%,
+      color-mix(in srgb, var(--color-brand-primary) 3%, var(--color-bg-surface)) 100%
+    );
   color: var(--color-text-primary);
   text-align: left;
   cursor: pointer;
-  transition: border-color 130ms ease, background 130ms ease, box-shadow 130ms ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    0 1px 3px rgba(15, 23, 42, 0.055);
+  transition: border-color 130ms ease, background 130ms ease, box-shadow 130ms ease, transform 130ms ease;
 }
 
 .scores-tool-card:hover:not(:disabled),
 .scores-tool-card:focus-visible {
   border-color: color-mix(in srgb, var(--color-brand-primary) 34%, var(--scores-ui-border));
-  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface));
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.07);
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.88),
+    0 5px 13px rgba(15, 23, 42, 0.095);
+  transform: translateY(-1px);
 }
 
 .scores-tool-card:focus-visible {
