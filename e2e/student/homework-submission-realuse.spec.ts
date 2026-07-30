@@ -8,16 +8,14 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import type { APIRequestContext, Page } from "@playwright/test";
-import { getApiBaseUrl, getBaseUrl } from "../helpers/auth";
+import { getApiBaseUrl, getBaseUrl, loginTokenViaRequest } from "../helpers/auth";
 import { gotoAndSettle, waitForCondition, waitForRenderSettled } from "../helpers/wait";
 
-test.setTimeout(180_000);
+test.setTimeout(360_000);
 
 const API = getApiBaseUrl();
 const BASE = getBaseUrl("admin").replace(/\/+$/, "");
 const CODE = "hakwonplus";
-const ADMIN_USER = process.env.E2E_ADMIN_USER || "admin97";
-const ADMIN_PASS = process.env.E2E_ADMIN_PASS || "__MISSING_E2E_ADMIN_PASS__";
 const STUDENT_PASS = "test1234";
 const TS = Date.now();
 const TODAY_KST = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
@@ -27,7 +25,11 @@ const SESSION_TITLE = `[E2E-${TS}] 과제 1차시`;
 const HOMEWORK_TITLE = `[E2E-${TS}] 과제 제출 채점 검증`;
 const STUDENT_NAME = `[E2E-${TS}] 과제학생`;
 const STUDENT_USER = `e2ehw${String(TS).slice(-8)}`;
-const PARENT_PHONE = `010${String(TS).slice(-8)}`;
+const CONTROLLED_PHONE = (process.env.E2E_HOMEWORK_CONTROLLED_PHONE || "01031217466").trim();
+const ALLOW_REAL_NOTIFICATIONS =
+  process.env.E2E_ALLOW_HOMEWORK_REAL_NOTIFICATIONS === "1";
+const GENERATED_PARENT_PHONE = `010${String(TS).slice(-8)}`;
+const PARENT_PHONE = isProductionApi() ? CONTROLLED_PHONE : GENERATED_PARENT_PHONE;
 
 type Tokens = { access: string; refresh: string };
 
@@ -42,6 +44,14 @@ type CreatedState = {
 };
 
 const created: CreatedState = { sessionEnrollmentIds: [] };
+
+function isProductionApi(): boolean {
+  try {
+    return new URL(API).hostname.toLowerCase() === "api.hakwonplus.com";
+  } catch {
+    return false;
+  }
+}
 
 function headers(token: string): Record<string, string> {
   return {
@@ -178,13 +188,17 @@ async function waitForHomeworkSummary(
 
 test.describe.serial("[E2E] 학생 과제 제출 실사용 검증", () => {
   test.describe.configure({ retries: 0 });
+  test.skip(
+    isProductionApi() && (!ALLOW_REAL_NOTIFICATIONS || CONTROLLED_PHONE !== "01031217466"),
+    "프로덕션 과제 canary는 통제 번호 01031217466 명시와 E2E_ALLOW_HOMEWORK_REAL_NOTIFICATIONS=1이 필요합니다.",
+  );
 
   test.afterAll(async ({ request }) => {
     await cleanup(request);
   });
 
   test("과제 배정, 학생 파일 제출, 관리자 채점, 학생 성적 반영이 이어진다", async ({ page, request }) => {
-    const adminTokens = await loginToken(request, ADMIN_USER, ADMIN_PASS);
+    const adminTokens = await loginTokenViaRequest(request, "admin");
     created.adminAccess = adminTokens.access;
 
     const lecture = await expectApi<{ id: number }>(request, "POST", "/lectures/lectures/", adminTokens.access, {

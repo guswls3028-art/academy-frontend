@@ -71,6 +71,12 @@ OMR·과제·클리닉 fixture를 통제 번호 및 소유 ID cleanup 경계 안
 실행한다. 그 뒤 admin/developer desktop, student mobile, teacher mobile 전
 메뉴 감사를 역할별 독립 job으로 직렬 실행한다. 유지보수 묶음, 선택한 통제
 쓰기 canary, 세 감사 job이 모두 성공해야 해당 수동 E2E를 통과로 기록한다.
+클리닉 canary의 성적 이력은 제품의 삭제 보호 계약 때문에 프런트 API cleanup이
+시험을 archive한다. 따라서 통제 쓰기 실행 직후 backend 운영 절차의
+`cleanup_e2e_residue --tenant-id 1` dry-run/exact-token execute를 수행하고,
+`run-production-canary.ps1 -Mode PostDeploy`의
+`production_e2e_residue_absent=0`까지 확인해야 최종 완료다. 이 후속 절차 없이
+GitHub E2E 성공만으로 운영 정리를 완료했다고 판정하지 않는다.
 
 활성 spec 전체는 릴리스 묶음이 아니다. 2026-07-30 실행 `30521523046`은
 첫 shard가 120분에 도달했고 과거 일회성 감사·진단 자산에서 재시도 쌍 기준
@@ -94,6 +100,8 @@ password-reset을 포함한 쓰기 시나리오는 통제 옵션에서만 실행
 - 스크린샷은 있으나 사람이 무엇을 합격/불합격으로 봤는지 판정이 없다.
 - cleanup 대상 데이터가 남았는데 위치와 이유가 기록되지 않았다.
 - roundtrip spec의 `afterAll` cleanup이 실패했는데 경고만 남기고 테스트를 통과시켰다.
+- 결과 이력 보호로 archive된 명시적 `[E2E-*]` 시험을 backend 공식 cleanup과
+  postdeploy canary 없이 남겼다.
 - 알림톡/영상/worker 관련 변경인데 provider/worker 상태를 확인하지 않았다.
 - 점수·석차 검증처럼 알림 발송이 목적이 아닌 다중 학생 fixture를 운영에서
   생성해 필수 계정안내 메시지를 여러 건 발송했다.

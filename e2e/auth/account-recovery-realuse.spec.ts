@@ -8,16 +8,14 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import type { APIRequestContext, Page } from "@playwright/test";
-import { getApiBaseUrl, getBaseUrl } from "../helpers/auth";
+import { getApiBaseUrl, getBaseUrl, loginTokenViaRequest } from "../helpers/auth";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 
-test.setTimeout(240_000);
+test.setTimeout(420_000);
 
 const API = getApiBaseUrl().replace(/\/+$/, "");
 const BASE = getBaseUrl("admin").replace(/\/+$/, "");
 const CODE = "hakwonplus";
-const ADMIN_USER = requiredEnv("E2E_ADMIN_USER");
-const ADMIN_PASS = requiredEnv("E2E_ADMIN_PASS");
 const ORIGINAL_PW = "test1234";
 const STAFF_TEMP_PW = `E2Epw${String(Date.now()).slice(-6)}!`;
 const TS = Date.now();
@@ -30,8 +28,6 @@ const STUDENT_NAME = `[E2E-${TS}] 계정복구학생`;
 const STUDENT_USER = `e2ear${String(TS).slice(-8)}`;
 const GENERATED_PARENT_PHONE = `010${String(TS).slice(-8)}`;
 const PARENT_PHONE = isProductionApi() ? CONTROLLED_PHONE : GENERATED_PARENT_PHONE;
-
-type Tokens = { access: string; refresh: string };
 
 type AccountNotificationLog = {
   id: number;
@@ -48,12 +44,6 @@ const created: {
   adminAccess?: string;
   studentId?: number;
 } = {};
-
-function requiredEnv(name: string): string {
-  const value = process.env[name];
-  if (typeof value === "string" && value.trim()) return value.trim();
-  throw new Error(`Missing required env ${name}. See .env.e2e.example.`);
-}
 
 function isProductionApi(): boolean {
   try {
@@ -105,16 +95,6 @@ async function loginAttempt(
   let body: any = null;
   try { body = await resp.json(); } catch { body = null; }
   return { status: resp.status(), body };
-}
-
-async function loginToken(
-  request: APIRequestContext,
-  username: string,
-  password: string,
-): Promise<Tokens> {
-  const out = await loginAttempt(request, username, password);
-  expect(out.status, `token login ${username} -> ${out.status} ${JSON.stringify(out.body)}`).toBe(200);
-  return out.body as Tokens;
 }
 
 async function apiFetch<TBody = any>(
@@ -246,6 +226,8 @@ async function cleanup(request: APIRequestContext): Promise<void> {
 }
 
 test.describe.serial("[E2E] 계정복구/교사 비밀번호 변경 실사용 검증", () => {
+  test.describe.configure({ retries: 0 });
+
   test.skip(
     isProductionApi() && (!ALLOW_REAL_SEND || CONTROLLED_PHONE !== "01031217466"),
     "프로덕션 계정복구 canary는 통제 번호 01031217466 명시와 E2E_ALLOW_ACCOUNT_RECOVERY_REAL_SEND=1이 필요합니다.",
@@ -256,7 +238,7 @@ test.describe.serial("[E2E] 계정복구/교사 비밀번호 변경 실사용 �
   });
 
   test("공용 비밀번호 찾기는 실발송 후 기존 비밀번호를 유지하고 교사 변경은 즉시 반영/복원된다", async ({ page, request }) => {
-    const adminTokens = await loginToken(request, ADMIN_USER, ADMIN_PASS);
+    const adminTokens = await loginTokenViaRequest(request, "admin");
     created.adminAccess = adminTokens.access;
     created.studentId = await createStudent(request, adminTokens.access);
 

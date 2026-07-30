@@ -110,6 +110,8 @@ jobs:
           E2E_ALLOW_PASSWORD_RESET_REAL_NOTIFICATIONS: "1"
           E2E_ALLOW_CLINIC_REAL_NOTIFICATIONS: "1"
           E2E_CLINIC_CONTROLLED_PHONE: "01031217466"
+          E2E_ALLOW_HOMEWORK_REAL_NOTIFICATIONS: "1"
+          E2E_HOMEWORK_CONTROLLED_PHONE: "01031217466"
         run: >-
           pnpm exec playwright test
           e2e/flows/signup-approval-roundtrip.spec.ts

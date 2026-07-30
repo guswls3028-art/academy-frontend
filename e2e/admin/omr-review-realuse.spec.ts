@@ -8,7 +8,7 @@
 import { test, expect } from "../fixtures/strictTest";
 import type { APIRequestContext, Page } from "@playwright/test";
 import { PDFDocument, rgb } from "pdf-lib";
-import { getApiBaseUrl, getBaseUrl } from "../helpers/auth";
+import { getApiBaseUrl, getBaseUrl, loginTokenViaRequest } from "../helpers/auth";
 import { gotoAndSettle, waitForRenderSettled } from "../helpers/wait";
 
 test.setTimeout(360_000);
@@ -16,8 +16,6 @@ test.setTimeout(360_000);
 const API = getApiBaseUrl().replace(/\/+$/, "");
 const BASE = getBaseUrl("admin").replace(/\/+$/, "");
 const CODE = "hakwonplus";
-const ADMIN_USER = process.env.E2E_ADMIN_USER || "admin97";
-const ADMIN_PASS = process.env.E2E_ADMIN_PASS || "__MISSING_E2E_ADMIN_PASS__";
 const STUDENT_PASS = "test1234";
 const TS = Date.now();
 const TODAY_KST = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
@@ -307,7 +305,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
   });
 
   test("OMR PDF 업로드 후 운영자 리뷰 저장이 성적과 학생 화면에 반영된다", async ({ page, request }) => {
-    const adminTokens = await loginToken(request, ADMIN_USER, ADMIN_PASS);
+    const adminTokens = await loginTokenViaRequest(request, "admin");
     created.adminAccess = adminTokens.access;
 
     const lecture = await expectApi<{ id: number }>(request, "POST", "/lectures/lectures/", adminTokens.access, {
