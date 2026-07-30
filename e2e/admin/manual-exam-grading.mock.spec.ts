@@ -437,7 +437,7 @@ test.describe("문항별 직접 채점", () => {
     await expect(cells).toHaveCount(2);
     await cells.nth(0).evaluate((element) => {
       const clipboard = new DataTransfer();
-      clipboard.setData("text/plain", "O\t.");
+      clipboard.setData("text/plain", "\t.");
       element.dispatchEvent(new ClipboardEvent("paste", {
         bubbles: true,
         cancelable: true,
@@ -450,6 +450,11 @@ test.describe("문항별 직접 채점", () => {
     await expect(studentRow.getByRole("button", { name: "미입력" })).toHaveCount(2);
     await page.keyboard.press("Control+y");
     await expect(studentRow.getByRole("button", { name: "X" })).toHaveCount(1);
+    await page.keyboard.press("Control+z");
+    await expect(studentRow.getByRole("button", { name: "미입력" })).toHaveCount(2);
+
+    await page.getByRole("button", { name: "빈칸 2칸 O로", exact: true }).click();
+    await expect(studentRow.getByRole("button", { name: "O" })).toHaveCount(2);
     await page.keyboard.press("Control+z");
     await expect(studentRow.getByRole("button", { name: "미입력" })).toHaveCount(2);
 
