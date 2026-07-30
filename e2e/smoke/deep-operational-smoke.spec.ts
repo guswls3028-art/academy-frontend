@@ -135,7 +135,7 @@ test.describe("심층 운영 동선 검증", () => {
       { name: "설정", path: "/workspace/message/settings" },
     ];
     for (const { name, path } of tabs) {
-      await messageTabs.getByRole("button", { name, exact: true }).click();
+      await messageTabs.getByRole("tab", { name, exact: true }).click();
       await expect(page).toHaveURL(new RegExp(`${path.replaceAll("/", "\\/")}/?$`));
       await settle(page);
     }

@@ -89,7 +89,7 @@ test.describe("매치업/인벤토리 업로드 fix 실사용 리뷰", () => {
     await gotoMatchup(page);
 
     // 매치업/저장소 토글에서 "저장소" 탭으로 이동
-    await page.getByRole("button", { name: /^저장소$/ }).click();
+    await page.getByRole("tab", { name: /^저장소$/ }).click();
     await expect(page.getByRole("button", { name: /^추가$/ })).toBeVisible({ timeout: 5000 });
 
     // "추가" 버튼 → 메뉴 → "파일 업로드"

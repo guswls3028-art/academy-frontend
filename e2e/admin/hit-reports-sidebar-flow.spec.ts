@@ -42,7 +42,7 @@ test.describe("HitReport sidebar 진입 흐름 (P1)", () => {
     });
 
     // 페이지 헤더 확인
-    await expect(page.getByRole("button", { name: /적중 보고서/ })).toBeVisible();
+    await expect(page.getByRole("tab", { name: /적중 보고서/ })).toBeVisible();
     await expect(page.getByRole("heading", { name: /적중 보고서/ })).toBeVisible();
   });
 

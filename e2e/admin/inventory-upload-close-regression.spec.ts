@@ -22,7 +22,7 @@ async function openInventoryUploadModal(page: import("@playwright/test").Page) {
     timeout: 20_000,
   });
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
-  await page.getByRole("button", { name: /^저장소$/ }).click();
+  await page.getByRole("tab", { name: /^저장소$/ }).click();
   await expect(page.getByRole("button", { name: /^추가$/ })).toBeVisible({ timeout: 5_000 });
   await page.getByRole("button", { name: /^추가$/ }).click();
   await expect(page.getByText("파일 업로드")).toBeVisible({ timeout: 5_000 });
