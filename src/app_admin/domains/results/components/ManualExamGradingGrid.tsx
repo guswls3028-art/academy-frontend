@@ -277,6 +277,22 @@ export default function ManualExamGradingGrid({
   const hasEditableQuestions = visibleQuestions.some(
     (question) => question.editable,
   );
+  const emptyCorrectnessCount = useMemo(() => {
+    if (data?.manual_grading_method !== "correctness") return 0;
+    return draftRows.reduce((total, row) => {
+      if (row.is_not_submitted) return total;
+      return total + visibleQuestions.reduce((rowTotal, question) => {
+        const cell = row.cells[String(question.question_id)];
+        return rowTotal + (
+          cell?.editable &&
+          cell.entry_method === "correctness" &&
+          cell.state == null
+            ? 1
+            : 0
+        );
+      }, 0);
+    }, 0);
+  }, [data?.manual_grading_method, draftRows, visibleQuestions]);
   const quickStartMaxScore = Number(data?.exam_max_score ?? exam?.max_score ?? 100);
   const quickStartDefaultScore =
     quickStartCount !== "" && Number(quickStartCount) > 0
@@ -688,6 +704,75 @@ export default function ManualExamGradingGrid({
     previewMutation.reset();
   };
 
+  const fillEmptyCorrectnessWithCorrect = () => {
+    const changes: ManualGradeCellChange[] = [];
+    for (const row of draftRowsRef.current) {
+      if (row.is_not_submitted) continue;
+      for (const question of visibleQuestions) {
+        const cell = row.cells[String(question.question_id)];
+        if (
+          !cell?.editable ||
+          cell.entry_method !== "correctness" ||
+          cell.state != null
+        ) {
+          continue;
+        }
+        changes.push({
+          enrollmentId: row.enrollment_id,
+          questionId: question.question_id,
+          before: { ...cell },
+          after: { ...cell, state: "correct" },
+        });
+      }
+    }
+
+    if (changes.length === 0) {
+      feedback.info("정답으로 채울 미입력 칸이 없습니다.");
+      return;
+    }
+
+    pushHistory({ kind: "cells", changes });
+    const changeKeys = new Set(
+      changes.map((change) => `${change.enrollmentId}:${change.questionId}`),
+    );
+    const nextRows = draftRowsRef.current.map((row) => {
+      if (row.is_not_submitted) return row;
+      let nextCells = row.cells;
+      for (const question of visibleQuestions) {
+        const key = String(question.question_id);
+        if (!changeKeys.has(`${row.enrollment_id}:${question.question_id}`)) {
+          continue;
+        }
+        if (nextCells === row.cells) nextCells = { ...row.cells };
+        nextCells[key] = { ...row.cells[key], state: "correct" };
+      }
+      return nextCells === row.cells ? row : { ...row, cells: nextCells };
+    });
+    draftRowsRef.current = nextRows;
+    setDraftRows(nextRows);
+    setDirty(true);
+    previewMutation.reset();
+    feedback.success(
+      `${changes.length}개 미입력 칸을 정답으로 채웠습니다. 기존 O/X/0은 유지됩니다.`,
+    );
+
+    const firstChange = changes[0];
+    const focusRowIndex = draftRowsRef.current.findIndex(
+      (row) => row.enrollment_id === firstChange?.enrollmentId,
+    );
+    const focusColumnIndex = visibleQuestions.findIndex(
+      (question) => question.question_id === firstChange?.questionId,
+    );
+    if (focusRowIndex >= 0 && focusColumnIndex >= 0) {
+      window.requestAnimationFrame(() => {
+        const target = tableWrapRef.current?.querySelector<HTMLElement>(
+          `[data-manual-grade-cell][data-row-index="${focusRowIndex}"][data-column-index="${focusColumnIndex}"]`,
+        );
+        target?.focus();
+      });
+    }
+  };
+
   const pasteCorrectnessMatrix = (
     text: string,
     startRowIndex: number,
@@ -940,12 +1025,25 @@ export default function ManualExamGradingGrid({
               <b>{shortcuts.review}</b> 정답 · 복습
             </span>
           </div>
-          <div className={styles.keyboardHints}>
-            <span><kbd>Tab</kbd> 다음 칸</span>
-            <span><kbd>Enter</kbd> 아래 칸</span>
-            <span><kbd>Ctrl V</kbd> 엑셀 붙여넣기</span>
-            <span><kbd>Ctrl Z</kbd> 실행 취소</span>
-            <span><kbd>Ctrl S</kbd> 확인·확정</span>
+          <div className={styles.commandBarActions}>
+            <Button
+              type="button"
+              intent="secondary"
+              size="sm"
+              leftIcon={<CheckCircle2 size={ICON_FOR_BUTTON.sm} />}
+              disabled={emptyCorrectnessCount === 0 || busy}
+              onClick={fillEmptyCorrectnessWithCorrect}
+              title="응시 학생의 미입력 칸만 정답으로 채웁니다. 기존 O/X/0은 바꾸지 않습니다."
+            >
+              빈칸 {emptyCorrectnessCount}칸 O로
+            </Button>
+            <div className={styles.keyboardHints}>
+              <span><kbd>Tab</kbd> 다음 칸</span>
+              <span><kbd>Enter</kbd> 아래 칸</span>
+              <span><kbd>Ctrl V</kbd> 엑셀 붙여넣기</span>
+              <span><kbd>Ctrl Z</kbd> 실행 취소</span>
+              <span><kbd>Ctrl S</kbd> 확인·확정</span>
+            </div>
           </div>
         </div>
       ) : (
@@ -1601,7 +1699,9 @@ function parseCorrectnessClipboard(
       const normalized = token.toLocaleUpperCase("ko-KR");
       let state: ManualGradeState | null | undefined;
       const configuredState = getManualGradeStateFromShortcut(token, shortcuts);
-      if (token === "" || token === "-") {
+      if (token === "") {
+        state = "correct";
+      } else if (token === "-") {
         state = null;
       } else if (configuredState) {
         state = configuredState;

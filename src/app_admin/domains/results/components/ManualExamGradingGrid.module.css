@@ -255,6 +255,14 @@
   background: transparent;
 }
 
+.commandBarActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
 .keyboardHints {
   display: flex;
   flex-wrap: wrap;
@@ -832,6 +840,11 @@
   .commandBar {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .commandBarActions {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .keyboardHints {
