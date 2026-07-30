@@ -14,7 +14,7 @@ test.describe("Timer Download Card — local dev render", () => {
 
   test("DL-1. 카드가 보이고 글자가 충분히 큼", async ({ page }) => {
     await loginViaUI(page, "admin");
-    await page.goto(`${BASE}/workspace/tools/stopwatch`, { waitUntil: "load", timeout: 20000 });
+    await page.goto(`${BASE}/admin/tools/stopwatch`, { waitUntil: "load", timeout: 20000 });
     await page.waitForTimeout(2500);
 
     // 사이드바 통한 네비 (실제 사용자 경로) 시도 — 실패해도 직접 goto fallback
@@ -48,7 +48,7 @@ test.describe("Timer Download Card — local dev render", () => {
 
   test("DL-2. 실행 방법 보기 클릭 → 가이드 노출", async ({ page }) => {
     await loginViaUI(page, "admin");
-    await page.goto(`${BASE}/workspace/tools/stopwatch`, { waitUntil: "load", timeout: 20000 });
+    await page.goto(`${BASE}/admin/tools/stopwatch`, { waitUntil: "load", timeout: 20000 });
     await page.waitForTimeout(2500);
 
     // 가이드는 기본 노출 — 토글 없이 바로 보여야 함
