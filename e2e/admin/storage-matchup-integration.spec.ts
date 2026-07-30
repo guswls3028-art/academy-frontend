@@ -43,7 +43,7 @@ test.describe("storage-as-canonical 통합", () => {
       (resp) => resp.url().endsWith("/matchup/documents/") && resp.request().method() === "GET",
       { timeout: 15_000 },
     );
-    await gotoStorage(page, "/admin/storage/matchup");
+    await gotoStorage(page, "/workspace/storage/matchup");
     const docs = (await (await docsResponse).json()) as Array<{ id: number; inventory_file_id: number | null }>;
 
     expect(docs.length).toBeGreaterThan(0);
@@ -57,7 +57,7 @@ test.describe("storage-as-canonical 통합", () => {
       (resp) => resp.url().includes("/storage/inventory/?scope=admin") && resp.request().method() === "GET",
       { timeout: 15_000 },
     );
-    await gotoStorage(page, "/admin/storage/files");
+    await gotoStorage(page, "/workspace/storage/files");
     const body = (await (await inventoryResponse).json()) as {
       files: Array<{ id: string; matchup?: { documentId: number; status: string; problemCount: number } }>;
     };
@@ -76,7 +76,7 @@ test.describe("storage-as-canonical 통합", () => {
       (resp) => resp.url().endsWith("/matchup/documents/") && resp.request().method() === "GET",
       { timeout: 15_000 },
     );
-    await gotoStorage(page, "/admin/storage/matchup");
+    await gotoStorage(page, "/workspace/storage/matchup");
     const docs = (await (await docsResponse).json()) as Array<{ id: number; inventory_file_id: number | null }>;
     const targetDoc = docs.find((doc) => doc.inventory_file_id);
 
@@ -92,11 +92,11 @@ test.describe("storage-as-canonical 통합", () => {
     await expect(storageLink, "storage 링크 버튼 노출 (inventory_file_id 있을 때만)").toBeVisible({ timeout: 5000 });
 
     await storageLink.click();
-    await expect(page).toHaveURL(/\/admin\/storage\/files/, { timeout: 8000 });
+    await expect(page).toHaveURL(/\/workspace\/storage\/files/, { timeout: 8000 });
   });
 
   test("저장소에서 매치업 승격된 파일 row 클릭 → '매치업 보기' 액션 (📚 뱃지 노출 동시 검증)", async ({ page }) => {
-    await gotoStorage(page, "/admin/storage/files");
+    await gotoStorage(page, "/workspace/storage/files");
 
     const promotedRow = page.locator(STORAGE_PROMOTED_ROW).first();
     if (await promotedRow.count() === 0) {
@@ -115,7 +115,7 @@ test.describe("storage-as-canonical 통합", () => {
   });
 
   test("매치업 자동등록 폴더 진입 시 안내 banner 노출 + 매치업 페이지 이동 CTA", async ({ page }) => {
-    await gotoStorage(page, "/admin/storage/files");
+    await gotoStorage(page, "/workspace/storage/files");
 
     // 좌측 트리에서 매치업-자동등록 폴더 클릭
     const matchupFolder = page.locator("text=매치업-자동등록").first();
@@ -131,7 +131,7 @@ test.describe("storage-as-canonical 통합", () => {
   });
 
   test("저장소 업로드 모달 — 다중 파일 드래그앤드롭 입력 시 파일 리스트에 모두 추가", async ({ page }) => {
-    await gotoStorage(page, "/admin/storage/files");
+    await gotoStorage(page, "/workspace/storage/files");
     await openStorageUploadModal(page);
 
     // 다중 파일 선택 (FileUploadZone 내부 input)
@@ -156,7 +156,7 @@ test.describe("storage-as-canonical 통합", () => {
   });
 
   test("저장소 업로드 모달 — 파일 선택 전엔 매치업 토글 hidden, PDF 선택 후 enabled로 노출", async ({ page }) => {
-    await gotoStorage(page, "/admin/storage/files");
+    await gotoStorage(page, "/workspace/storage/files");
     await openStorageUploadModal(page);
 
     const promoteToggle = page.locator("[data-testid='upload-modal-promote-matchup']");

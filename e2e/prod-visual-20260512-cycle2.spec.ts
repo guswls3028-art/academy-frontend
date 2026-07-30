@@ -50,7 +50,7 @@ async function scrollToPageBottom(page: Page): Promise<void> {
 }
 
 async function loginAdmin(page: Page): Promise<void> {
-  await gotoAndSettle(page, `${BASE}/admin`);
+  await gotoAndSettle(page, `${BASE}/workspace`);
   const userInput = page.locator("input[type='text'], input[name='username'], input[placeholder*='아이디'], input[placeholder*='ID']").first();
   await userInput.fill(ADMIN);
   const passInput = page.locator("input[type='password']").first();
@@ -151,7 +151,7 @@ test.describe("prod-visual-20260512-cycle2", () => {
     await shot(page, "V3-01-after-login");
 
     // Navigate to hit reports via sidebar/menu
-    await gotoAndSettle(page, `${BASE}/admin/storage/hit-reports`);
+    await gotoAndSettle(page, `${BASE}/workspace/storage/hit-reports`);
     await shot(page, "V3-02-hit-reports-list");
 
     // Find share chip
@@ -227,7 +227,7 @@ test.describe("prod-visual-20260512-cycle2", () => {
 
     await loginAdmin(adminPage);
 
-    await gotoAndSettle(adminPage, `${BASE}/admin/storage/hit-reports`);
+    await gotoAndSettle(adminPage, `${BASE}/workspace/storage/hit-reports`);
 
     // Intercept share link API to get token
     let shareUrl: string | null = null;

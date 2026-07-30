@@ -43,7 +43,7 @@ test("매치업 UI/UX 시각 검수 — 4 화면", async ({ page }) => {
   test.setTimeout(120_000);
 
   await loginViaUI(page, "admin");
-  await gotoAndSettle(page, `${BASE}/admin/storage/matchup`, { timeout: 30_000 });
+  await gotoAndSettle(page, `${BASE}/workspace/storage/matchup`, { timeout: 30_000 });
   await waitForMatchupList(page);
 
   // 1. 매치업 메인 화면 (doc list + 빈 상태)

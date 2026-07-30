@@ -44,7 +44,7 @@ test.describe("DNB 운영 전기능", () => {
 
   test("테넌트 격리 — API 요청에 X-Tenant-Code: dnb", async ({ page }) => {
     const headers = watchTenantHeaders(page);
-    await page.goto(`${DNB_BASE}/admin/students`);
+    await page.goto(`${DNB_BASE}/workspace/students`);
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     expect(headers.length).toBeGreaterThan(0);
     for (const h of headers) expect(h).toBe("dnb");
@@ -55,31 +55,31 @@ test.describe("DNB 운영 전기능", () => {
   });
 
   test("학생 관리", async ({ page }) => {
-    await page.goto(`${DNB_BASE}/admin/students`);
+    await page.goto(`${DNB_BASE}/workspace/students`);
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await assertNoRenderError(page);
   });
 
   test("강의 관리", async ({ page }) => {
-    await page.goto(`${DNB_BASE}/admin/lectures`);
+    await page.goto(`${DNB_BASE}/workspace/lectures`);
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await assertNoRenderError(page);
   });
 
   test("클리닉 홈", async ({ page }) => {
-    await page.goto(`${DNB_BASE}/admin/clinic/home`);
+    await page.goto(`${DNB_BASE}/workspace/clinic/home`);
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await assertNoRenderError(page);
   });
 
   test("클리닉 진행", async ({ page }) => {
-    await page.goto(`${DNB_BASE}/admin/clinic/operations`);
+    await page.goto(`${DNB_BASE}/workspace/clinic/operations`);
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await assertNoRenderError(page);
   });
 
   test("클리닉 진행중 항목", async ({ page }) => {
-    await page.goto(`${DNB_BASE}/admin/clinic/bookings`);
+    await page.goto(`${DNB_BASE}/workspace/clinic/bookings`);
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await assertNoRenderError(page);
 
@@ -89,25 +89,25 @@ test.describe("DNB 운영 전기능", () => {
   });
 
   test("영상 관리", async ({ page }) => {
-    await page.goto(`${DNB_BASE}/admin/videos`);
+    await page.goto(`${DNB_BASE}/workspace/videos`);
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await assertNoRenderError(page);
   });
 
   test("시험/성적", async ({ page }) => {
-    await page.goto(`${DNB_BASE}/admin/exams`);
+    await page.goto(`${DNB_BASE}/workspace/exams`);
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await assertNoRenderError(page);
   });
 
   test("출석", async ({ page }) => {
-    await page.goto(`${DNB_BASE}/admin/attendance`);
+    await page.goto(`${DNB_BASE}/workspace/attendance`);
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await assertNoRenderError(page);
   });
 
   test("메시지 설정", async ({ page }) => {
-    await page.goto(`${DNB_BASE}/admin/message/auto-send`);
+    await page.goto(`${DNB_BASE}/workspace/message/auto-send`);
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await assertNoRenderError(page);
   });

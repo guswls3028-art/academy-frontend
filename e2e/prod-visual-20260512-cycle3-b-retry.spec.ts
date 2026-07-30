@@ -55,7 +55,7 @@ test("[B-retry] share chip with clipboard permission granted", async ({ browser 
       sessionStorage.setItem("tenantCode", "hakwonplus");
     }, { access: tokens.access, refresh: tokens.refresh });
 
-    await page.goto(`${BASE}/admin/storage/hit-reports`, { waitUntil: "networkidle", timeout: 20000 });
+    await page.goto(`${BASE}/workspace/storage/hit-reports`, { waitUntil: "networkidle", timeout: 20000 });
     const shareBtn = page.locator("[data-testid='hit-report-share-copy']").first();
     await shareBtn.waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
     await shot(page, "B-retry-01-page-loaded");

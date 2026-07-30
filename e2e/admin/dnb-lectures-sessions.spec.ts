@@ -106,10 +106,10 @@ test.describe.serial("DNB Lectures / Sessions / Attendance E2E", () => {
   test("1. Sidebar > Lectures list renders with tabs", async ({ page }) => {
     accessToken = await dnbLogin(page);
 
-    const sidebarLink = page.locator('a[href="/admin/lectures"]').first();
+    const sidebarLink = page.locator('a[href="/workspace/lectures"]').first();
     await sidebarLink.waitFor({ state: "visible", timeout: 10000 });
     await sidebarLink.click();
-    await page.waitForURL("**/admin/lectures**", { timeout: 10000 });
+    await page.waitForURL("**/workspace/lectures**", { timeout: 10000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     await expect(page.locator("text=강의목록")).toBeVisible({ timeout: 5000 });
@@ -121,16 +121,16 @@ test.describe.serial("DNB Lectures / Sessions / Attendance E2E", () => {
   /* 1b. Tab switching */
   test("1b. Past lectures tab switch", async ({ page }) => {
     accessToken = await dnbLogin(page);
-    await gotoAndSettle(page, `${DNB_BASE}/admin/lectures`);
+    await gotoAndSettle(page, `${DNB_BASE}/workspace/lectures`);
 
     const pastTab = page.locator("a, button").filter({ hasText: "지난강의" }).first();
     await pastTab.click();
-    await expect(page).toHaveURL(/\/admin\/lectures\/past/);
+    await expect(page).toHaveURL(/\/workspace\/lectures\/past/);
     await screenshotAs(page, "01b-past-lectures-tab");
 
     const currentTab = page.locator("a, button").filter({ hasText: "강의목록" }).first();
     await currentTab.click();
-    await expect(page).toHaveURL(/\/admin\/lectures$/);
+    await expect(page).toHaveURL(/\/workspace\/lectures$/);
     await screenshotAs(page, "01b-current-lectures-tab");
   });
 
@@ -138,10 +138,10 @@ test.describe.serial("DNB Lectures / Sessions / Attendance E2E", () => {
   test("2. Create lecture via Add button + modal", async ({ page }) => {
     accessToken = await dnbLogin(page);
 
-    const sidebarLink = page.locator('a[href="/admin/lectures"]').first();
+    const sidebarLink = page.locator('a[href="/workspace/lectures"]').first();
     await sidebarLink.waitFor({ state: "visible", timeout: 10000 });
     await sidebarLink.click();
-    await page.waitForURL("**/admin/lectures**", { timeout: 10000 });
+    await page.waitForURL("**/workspace/lectures**", { timeout: 10000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     const addBtn = page.locator("button").filter({ hasText: /강의 추가|강의추가/ }).first();
@@ -212,7 +212,7 @@ test.describe.serial("DNB Lectures / Sessions / Attendance E2E", () => {
     expect(createdLectureId).not.toBeNull();
 
     await dnbLogin(page);
-    await gotoAndSettle(page, `${DNB_BASE}/admin/lectures`, { settleMs: 1500 });
+    await gotoAndSettle(page, `${DNB_BASE}/workspace/lectures`, { settleMs: 1500 });
 
     const lectureDom = page.locator(`text=${LECTURE_TITLE}`).first();
     await expect(lectureDom).toBeVisible({ timeout: 8000 });
@@ -223,11 +223,11 @@ test.describe.serial("DNB Lectures / Sessions / Attendance E2E", () => {
   test("3. Lecture detail page renders", async ({ page }) => {
     expect(createdLectureId).not.toBeNull();
     await dnbLogin(page);
-    await gotoAndSettle(page, `${DNB_BASE}/admin/lectures`, { settleMs: 1500 });
+    await gotoAndSettle(page, `${DNB_BASE}/workspace/lectures`, { settleMs: 1500 });
 
     const lectureLink = page.locator(`text=${LECTURE_TITLE}`).first();
     await lectureLink.click();
-    await page.waitForURL(`**/admin/lectures/${createdLectureId}**`, { timeout: 10000 });
+    await page.waitForURL(`**/workspace/lectures/${createdLectureId}**`, { timeout: 10000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     await expect(page.locator(`text=${LECTURE_TITLE}`).first()).toBeVisible({ timeout: 5000 });
@@ -289,7 +289,7 @@ test.describe.serial("DNB Lectures / Sessions / Attendance E2E", () => {
     expect(createdLectureId).not.toBeNull();
     await dnbLogin(page);
 
-    await gotoAndSettle(page, `${DNB_BASE}/admin/lectures/${createdLectureId}`, { settleMs: 1500 });
+    await gotoAndSettle(page, `${DNB_BASE}/workspace/lectures/${createdLectureId}`, { settleMs: 1500 });
 
     if (createdStudentId) {
       const studentEl = page.locator(`text=${STUDENT_NAME}`).first();
@@ -319,7 +319,7 @@ test.describe.serial("DNB Lectures / Sessions / Attendance E2E", () => {
     }
 
     await dnbLogin(page);
-    await gotoAndSettle(page, `${DNB_BASE}/admin/lectures/${createdLectureId}`, { settleMs: 1500 });
+    await gotoAndSettle(page, `${DNB_BASE}/workspace/lectures/${createdLectureId}`, { settleMs: 1500 });
 
     const sessionEl = page.locator("text=/1차시/i").first();
     await sessionEl.isVisible({ timeout: 5000 }).catch(() => false);
@@ -333,7 +333,7 @@ test.describe.serial("DNB Lectures / Sessions / Attendance E2E", () => {
     expect(createdSessionId).not.toBeNull();
     await dnbLogin(page);
 
-    const sessionUrl = `${DNB_BASE}/admin/lectures/${createdLectureId}/sessions/${createdSessionId}/attendance`;
+    const sessionUrl = `${DNB_BASE}/workspace/lectures/${createdLectureId}/sessions/${createdSessionId}/attendance`;
     await gotoAndSettle(page, sessionUrl, { settleMs: 1500 });
 
     const tabLabels = ["출결", "성적", "시험", "과제", "영상"];
@@ -364,7 +364,7 @@ test.describe.serial("DNB Lectures / Sessions / Attendance E2E", () => {
     expect(createdLectureId).not.toBeNull();
     await dnbLogin(page);
 
-    await gotoAndSettle(page, `${DNB_BASE}/admin/lectures/${createdLectureId}`, { settleMs: 1500 });
+    await gotoAndSettle(page, `${DNB_BASE}/workspace/lectures/${createdLectureId}`, { settleMs: 1500 });
 
     const sectionBtn = page.locator("button").filter({ hasText: "반 편성 관리" });
     expect(
@@ -375,7 +375,7 @@ test.describe.serial("DNB Lectures / Sessions / Attendance E2E", () => {
     if (createdSessionId) {
       await gotoAndSettle(
         page,
-        `${DNB_BASE}/admin/lectures/${createdLectureId}/sessions/${createdSessionId}/attendance`,
+        `${DNB_BASE}/workspace/lectures/${createdLectureId}/sessions/${createdSessionId}/attendance`,
         { settleMs: 1500 },
       );
 
@@ -395,7 +395,7 @@ test.describe.serial("DNB Lectures / Sessions / Attendance E2E", () => {
     expect(createdSessionId).not.toBeNull();
     await dnbLogin(page);
 
-    const attendanceUrl = `${DNB_BASE}/admin/lectures/${createdLectureId}/sessions/${createdSessionId}/attendance`;
+    const attendanceUrl = `${DNB_BASE}/workspace/lectures/${createdLectureId}/sessions/${createdSessionId}/attendance`;
     await gotoAndSettle(page, attendanceUrl, { settleMs: 1500 });
 
     await expect(page.locator("text=출결").first()).toBeVisible({ timeout: 5000 });

@@ -117,7 +117,7 @@ test.describe("teacher attendance secession undo", () => {
       await route.fulfill({ json: { count: 0, results: [] } });
     });
 
-    await page.goto(`${BASE}/teacher/attendance/99`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${BASE}/workspace/mobile/attendance/99`, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "출석 체크" })).toBeVisible();
     await expect(page.getByText("실사용퇴원학생")).toBeVisible();
     await expect(page.getByText("퇴원", { exact: true })).toBeVisible();

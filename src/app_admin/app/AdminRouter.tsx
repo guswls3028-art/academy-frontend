@@ -14,7 +14,9 @@ import {
 } from "react-router-dom";
 import { default as AppLayout } from "@admin/layout/AppLayout";
 import RouteFallback from "@/core/router/RouteFallback";
+import ExternalRedirect from "@/core/router/ExternalRedirect";
 import { renderLazyRoute } from "@/core/router/renderLazyRoute";
+import { PUBLIC_UPDATES_URL } from "@/shared/constants/origins";
 
 /* ================= Lazy: Dashboard ================= */
 const DashboardPage = lazy(() => import("@admin/domains/dashboard/pages/DashboardPage"));
@@ -91,7 +93,6 @@ const AdminGuidePage = lazy(() => import("@admin/domains/guide/pages/AdminGuideP
 
 /* ================= Lazy: Developer ================= */
 const DeveloperLayout = lazy(() => import("@admin/domains/developer/DeveloperLayout"));
-const PatchNotesPage = lazy(() => import("@admin/domains/developer/pages/DeveloperPage"));
 const BugReportPage = lazy(() => import("@admin/domains/developer/pages/DeveloperPage").then(m => ({ default: m.BugReportPage })));
 const FeedbackPage = lazy(() => import("@admin/domains/developer/pages/DeveloperPage").then(m => ({ default: m.FeedbackPage })));
 const FeatureFlagsPage = lazy(() => import("@admin/domains/developer/pages/FeatureFlagsPage"));
@@ -263,7 +264,7 @@ export default function AdminRouter() {
 
         {/* ================= Developer (To개발자) ================= */}
         <Route path="developer" element={renderLazyRoute(DeveloperLayout)}>
-          <Route index element={renderLazyRoute(PatchNotesPage)} />
+          <Route index element={<ExternalRedirect to={PUBLIC_UPDATES_URL} />} />
           <Route path="bug" element={renderLazyRoute(BugReportPage)} />
           <Route path="feedback" element={renderLazyRoute(FeedbackPage)} />
           <Route path="flags" element={renderLazyRoute(FeatureFlagsPage)} />

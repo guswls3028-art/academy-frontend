@@ -9,7 +9,7 @@ test.describe("매치업 업로드 의도 UI 구분", () => {
   });
 
   test("시험지/참고자료 버튼에 따라 업로드 모달 타이틀이 분리 노출된다", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
+    await page.goto(`${BASE}/workspace/storage/matchup`, { waitUntil: "networkidle" });
 
     const testUploadBtn = page.locator(
       "[data-testid='matchup-upload-button'], [data-testid='matchup-empty-test-btn']",
@@ -33,7 +33,7 @@ test.describe("매치업 업로드 의도 UI 구분", () => {
   });
 
   test("segmented 토글로 시험지/참고자료를 전환할 수 있다", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
+    await page.goto(`${BASE}/workspace/storage/matchup`, { waitUntil: "networkidle" });
     // 참고자료(reference) doc만 사용 — 시험지→참고자료 전환은 confirm 가드가 새로 끼어들어
     // 여기서는 기본 토글 동작만 검증 (confirm 가드는 matchup-uiux-2026-05-04.spec에서 별도 검증).
     const refDoc = page.locator("[data-testid='matchup-doc-row'][data-doc-intent='reference']").first();

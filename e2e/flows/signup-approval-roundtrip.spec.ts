@@ -304,7 +304,7 @@ async function restoreRegistrationSettings(request: APIRequestContext): Promise<
 
 async function approveFromAdminUi(page: Page): Promise<void> {
   if (!created.requestId) throw new Error("registration request id is missing");
-  await loginViaUI(page, "admin", { landingPath: "/admin/students/requests" });
+  await loginViaUI(page, "admin", { landingPath: "/workspace/students/requests" });
 
   const card = page.locator(".students-requests__card", { hasText: STUDENT_NAME }).first();
   await expect(card, "new signup request card").toBeVisible({ timeout: 30_000 });

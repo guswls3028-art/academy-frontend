@@ -36,7 +36,7 @@ test.describe("Phase 3: 시험/과제 + 영상 + 클리닉 + 상담", () => {
   });
 
   test("드로어에 Phase 3 메뉴 표시", async ({ page }) => {
-    await page.goto(`${BASE}/teacher`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 메뉴 탭 클릭 → 드로어 열기
@@ -53,7 +53,7 @@ test.describe("Phase 3: 시험/과제 + 영상 + 클리닉 + 상담", () => {
   });
 
   test("시험/과제 페이지 렌더링 + 탭 전환", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/exams`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/exams`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     await expect(page.getByRole("heading", { name: "시험" })).toBeVisible({ timeout: 10_000 });
@@ -76,7 +76,7 @@ test.describe("Phase 3: 시험/과제 + 영상 + 클리닉 + 상담", () => {
   });
 
   test("영상 목록 페이지 렌더링", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/videos`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/videos`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 페이지 헤딩 확인
@@ -86,7 +86,7 @@ test.describe("Phase 3: 시험/과제 + 영상 + 클리닉 + 상담", () => {
   });
 
   test("클리닉 페이지 렌더링", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/clinic`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/clinic`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 페이지 헤딩 확인 — "클리닉" 또는 "오늘 클리닉" (section_mode에 따라)
@@ -103,7 +103,7 @@ test.describe("Phase 3: 시험/과제 + 영상 + 클리닉 + 상담", () => {
   });
 
   test("상담 메모 페이지 렌더링 + 새 메모 버튼", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/counseling`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/counseling`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 페이지 헤딩 확인
@@ -116,7 +116,7 @@ test.describe("Phase 3: 시험/과제 + 영상 + 클리닉 + 상담", () => {
   });
 
   test("드로어에서 각 페이지 네비게이션", async ({ page }) => {
-    await page.goto(`${BASE}/teacher`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 헤더 햄버거 → 영상
@@ -124,14 +124,14 @@ test.describe("Phase 3: 시험/과제 + 영상 + 클리닉 + 상담", () => {
     await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
     await (await drawerButton(page, "영상")).click();
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-    expect(page.url()).toContain("/teacher/videos");
+    expect(page.url()).toContain("/workspace/mobile/videos");
 
     // 헤더 햄버거 → 상담 메모
     await page.getByRole("button", { name: "메뉴" }).click();
     await page.waitForLoadState("networkidle", { timeout: 3_000 }).catch(() => {});
     await (await drawerButton(page, "상담 메모")).click();
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
-    expect(page.url()).toContain("/teacher/counseling");
+    expect(page.url()).toContain("/workspace/mobile/counseling");
 
     await page.screenshot({ path: "e2e/screenshots/teacher-phase3-06-nav-flow.png" });
   });

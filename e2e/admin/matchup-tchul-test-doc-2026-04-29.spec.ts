@@ -14,7 +14,7 @@ import * as fs from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const BASE = getBaseUrl("tchul-admin");
-const MATCHUP_URL = `${BASE}/admin/storage/matchup`;
+const MATCHUP_URL = `${BASE}/workspace/storage/matchup`;
 const DOC_ROW_SELECTOR = "[data-testid='matchup-doc-row']";
 const __filename_ = fileURLToPath(import.meta.url);
 const __dirname_ = path.dirname(__filename_);

@@ -28,7 +28,7 @@ test.describe("메시징 미완 항목 완전 검증", () => {
   test("1. 성적 발송 — 강의113/차시153 → 성적 탭 → 수업결과 발송", async ({ page }) => {
     await gotoAndSettle(
       page,
-      `${BASE}/admin/lectures/${FIXTURES.lectureId}/sessions/${FIXTURES.sessionId}/scores`,
+      `${BASE}/workspace/lectures/${FIXTURES.lectureId}/sessions/${FIXTURES.sessionId}/scores`,
       { settleMs: 2000 },
     );
     await snap(page, "full-1-scores-page");
@@ -82,7 +82,7 @@ test.describe("메시징 미완 항목 완전 검증", () => {
   // 2. 템플릿 CRUD
   // ═══════════════════════════════════════════════════════════════
   test("2. 템플릿 CRUD — 생성/확인/삭제", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/message/templates`, { settleMs: 2000 });
+    await gotoAndSettle(page, `${BASE}/workspace/message/templates`, { settleMs: 2000 });
     await snap(page, "full-2-templates");
 
     // 카테고리에서 "사용자" 클릭 (옵셔널)
@@ -116,7 +116,7 @@ test.describe("메시징 미완 항목 완전 검증", () => {
   // 3. 발송 내역 상세
   // ═══════════════════════════════════════════════════════════════
   test("3. 발송 내역 상세 — 행 클릭 → 팝업 → 내용 확인", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/message/log`, { settleMs: 2000 });
+    await gotoAndSettle(page, `${BASE}/workspace/message/log`, { settleMs: 2000 });
     await snap(page, "full-3-log");
 
     const rows = page.locator("button").filter({ hasText: /\d{4}/ });
@@ -143,7 +143,7 @@ test.describe("메시징 미완 항목 완전 검증", () => {
   // 4. 클리닉 메시지 설정 + 미리보기 (#{장소} 수정 검증)
   // ═══════════════════════════════════════════════════════════════
   test("4. 클리닉 설정 + 미리보기 + #{장소} 변수 확인", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/clinic/msg-settings`, { settleMs: 2000 });
+    await gotoAndSettle(page, `${BASE}/workspace/clinic/msg-settings`, { settleMs: 2000 });
     await snap(page, "full-4-clinic-settings");
 
     // 트리거 카드 — 5종 SSOT 회귀 검증.
@@ -188,7 +188,7 @@ test.describe("메시징 미완 항목 완전 검증", () => {
   // 5. 알림톡 발송 직전 확인 검증
   // ═══════════════════════════════════════════════════════════════
   test("5. 알림톡 발송 — 최종 확인 전까지", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/students`, { settleMs: 2000 });
+    await gotoAndSettle(page, `${BASE}/workspace/students`, { settleMs: 2000 });
 
     const check = page.locator('input[type="checkbox"]').nth(1);
     if (!(await check.isVisible({ timeout: 5000 }).catch(() => false))) {

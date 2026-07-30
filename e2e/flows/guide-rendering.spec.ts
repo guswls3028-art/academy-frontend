@@ -13,7 +13,7 @@ test.describe("선생앱 가이드", () => {
   });
 
   test("워크플로우 카드가 렌더링된다", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/guide`, { timeout: 20_000 });
+    await gotoAndSettle(page, `${BASE}/workspace/guide`, { timeout: 20_000 });
 
     // 메인 영역에서 제목 확인 (사이드바와 구분)
     const main = page.locator("main");
@@ -32,7 +32,7 @@ test.describe("선생앱 가이드", () => {
   });
 
   test("카드 클릭 시 아코디언이 펼쳐진다", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/guide`, { timeout: 20_000 });
+    await gotoAndSettle(page, `${BASE}/workspace/guide`, { timeout: 20_000 });
 
     const main = page.locator("main");
     const card = main.locator("text=학생 등록하기");
@@ -51,7 +51,7 @@ test.describe("선생 모바일 가이드", () => {
   });
 
   test("현장용 가이드가 렌더링된다", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/teacher/guide`, { timeout: 20_000 });
+    await gotoAndSettle(page, `${BASE}/workspace/mobile/guide`, { timeout: 20_000 });
 
     await expect(page.locator("text=공식 선생님 가이드")).toBeVisible();
     await expect(page.locator("text=현장에서 먼저 볼 순서")).toBeVisible();

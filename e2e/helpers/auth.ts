@@ -202,7 +202,7 @@ export async function loginViaUI(
 
   const tokens = await requestLoginTokens(page, role, c);
 
-  const dashPath = options?.landingPath ?? (role === "student" ? "/student" : "/admin");
+  const dashPath = options?.landingPath ?? (role === "student" ? "/student" : "/workspace");
   const base = trimTrailingSlash(c.base);
   const loginPath = isLocalOrPreviewBase(base) ? `/login/${c.code}` : "/login";
 

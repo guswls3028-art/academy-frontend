@@ -42,7 +42,7 @@ test.describe("매치업 종합 시각 리뷰 2026-05-09", () => {
 
   test("01 - 1920 랜딩 (doc 자동선택 자연스러운지)", async ({ page }) => {
     await login(page);
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
+    await page.goto(`${BASE}/workspace/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
     await settle(page);
     await page.screenshot({ path: `${OUT}/01-landing-1920.png`, fullPage: true });
 
@@ -58,7 +58,7 @@ test.describe("매치업 종합 시각 리뷰 2026-05-09", () => {
 
   test("02 - 다양한 paper_type doc 헤더+배너 (3건)", async ({ page }) => {
     await login(page);
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
+    await page.goto(`${BASE}/workspace/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
     await settle(page);
 
     const allRows = page.locator('[data-testid="matchup-doc-row"][data-doc-status="done"]');
@@ -82,7 +82,7 @@ test.describe("매치업 종합 시각 리뷰 2026-05-09", () => {
 
   test("03 - 업로드 모달 단계별 (empty / 1 file / multi files)", async ({ page }) => {
     await login(page);
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
+    await page.goto(`${BASE}/workspace/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
     await settle(page);
 
     const modal = await openMatchupUploadModal(page, "reference");
@@ -121,7 +121,7 @@ test.describe("매치업 종합 시각 리뷰 2026-05-09", () => {
     const ctx = await browser.newContext({ viewport: { width: 1100, height: 720 } });
     const page = await ctx.newPage();
     await login(page);
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
+    await page.goto(`${BASE}/workspace/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
     await settle(page);
     await page.screenshot({ path: `${OUT}/04a-mobile-1100-landing.png`, fullPage: true });
 
@@ -135,7 +135,7 @@ test.describe("매치업 종합 시각 리뷰 2026-05-09", () => {
     const ctx = await browser.newContext({ viewport: { width: 1366, height: 768 } });
     const page = await ctx.newPage();
     await login(page);
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
+    await page.goto(`${BASE}/workspace/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
     await settle(page);
     await page.screenshot({ path: `${OUT}/05-1366-landing.png`, fullPage: true });
     await ctx.close();
@@ -143,7 +143,7 @@ test.describe("매치업 종합 시각 리뷰 2026-05-09", () => {
 
   test("06 - 적중보고서 편집기 진입", async ({ page }) => {
     await login(page);
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
+    await page.goto(`${BASE}/workspace/storage/matchup`, { waitUntil: "load", timeout: 30_000 });
     await settle(page);
 
     const reportBtn = page.locator('button:has-text("적중 보고서 작성"), button:has-text("보고서")').first();

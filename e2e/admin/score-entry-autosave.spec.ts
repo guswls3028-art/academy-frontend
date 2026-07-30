@@ -1,73 +1,37 @@
 import { expect, test, type Page } from "../fixtures/strictTest";
-import { apiCall } from "../helpers/api";
-import { loginViaUI } from "../helpers/auth";
-import { waitForRenderSettled } from "../helpers/wait";
-
-type ListEnvelope<T> = T[] | { results?: T[] };
-type LectureRow = { id?: number; title?: string; is_active?: boolean };
-type SessionRow = { id?: number };
-
-type TargetLecture = {
-  id: number;
-  title: string;
-};
+import { getBaseUrl } from "../helpers/auth";
+import { installLocalAuthApiStubs, installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 
 type ScoreRouteOptions = {
   initialScores?: Array<number | null>;
   initialDraft?: unknown[];
 };
 
-function rows<T>(value: ListEnvelope<T>): T[] {
-  return Array.isArray(value) ? value : value.results ?? [];
+function createLocalJwt() {
+  const encode = (payload: unknown) => Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const now = Math.floor(Date.now() / 1000);
+  return `${encode({ alg: "none", typ: "JWT" })}.${encode({
+    exp: now + 3600,
+    tenant_code: "hakwonplus",
+    user_id: 12,
+  })}.sig`;
 }
 
-async function findLectureWithSession(page: Page): Promise<TargetLecture | null> {
-  const lectureResponse = await apiCall<ListEnvelope<LectureRow>>(page, "GET", "/lectures/lectures/");
-  if (lectureResponse.status !== 200) return null;
-
-  for (const lecture of rows(lectureResponse.body)) {
-    if (!lecture.id || lecture.is_active === false) continue;
-    const sessionResponse = await apiCall<ListEnvelope<SessionRow>>(
-      page,
-      "GET",
-      `/lectures/sessions/?lecture=${lecture.id}`,
-    );
-    if (sessionResponse.status !== 200 || rows(sessionResponse.body).every((session) => !session.id)) continue;
-    return { id: lecture.id, title: lecture.title?.trim() || `Lecture ${lecture.id}` };
-  }
-  return null;
-}
-
-async function openScoresFromDashboard(
+async function openScores(
   page: Page,
-  lecture: TargetLecture,
   routeOptions: ScoreRouteOptions = {},
 ): Promise<void> {
-  const lecturesLink = page
-    .locator('nav a[href="/admin/lectures"], aside a[href="/admin/lectures"], [class*=sidebar] a[href="/admin/lectures"]')
-    .filter({ hasText: "강의" })
-    .first();
-  await expect(lecturesLink).toBeVisible({ timeout: 10_000 });
-  await lecturesLink.click();
-  await waitForRenderSettled(page, { timeout: 15_000 });
-
-  const lectureRow = page
-    .locator('[data-guide="lectures-table"] tbody tr[role="button"]')
-    .filter({ hasText: lecture.title })
-    .first();
-  await expect(lectureRow).toBeVisible({ timeout: 10_000 });
-  await lectureRow.click();
-
-  const sessionBlock = page.locator("button.session-block:not(.session-block--add)").first();
-  await expect(sessionBlock).toBeVisible({ timeout: 15_000 });
-  await sessionBlock.click();
-  await expect(page).toHaveURL(/\/admin\/lectures\/\d+\/sessions\/\d+\/attendance/);
-
+  const baseUrl = getBaseUrl("admin");
+  test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(baseUrl), "성적 입력 route-mock 검증은 로컬 dev 서버 전용");
+  await installLocalAuthApiStubs(page);
+  await installTenantOneInitScript(page);
+  await page.addInitScript((token) => {
+    localStorage.setItem("access", token);
+    localStorage.setItem("refresh", `${token}-refresh`);
+  }, createLocalJwt());
   await installScoreRoutes(page, routeOptions);
-  const scoresTab = page.getByRole("button", { name: "성적", exact: true }).first();
-  await expect(scoresTab).toBeVisible({ timeout: 10_000 });
-  await scoresTab.click();
-  await expect(page).toHaveURL(/\/admin\/lectures\/\d+\/sessions\/\d+\/scores/);
+  await page.goto(`${baseUrl}/workspace/lectures/9001/sessions/9002/scores`, { waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(/\/workspace\/lectures\/9001\/sessions\/9002\/scores/);
 }
 
 const scorePatches: Array<Record<string, unknown>> = [];
@@ -226,7 +190,26 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
       return;
     }
 
-    await route.continue();
+    if (path.endsWith("/api/v1/lectures/lectures/9001/") && method === "GET") {
+      await route.fulfill({
+        json: { id: 9001, title: "자동 저장 검증반", color: "#2563eb", chip_label: "자" },
+      });
+      return;
+    }
+
+    if (path.endsWith("/api/v1/lectures/sessions/9002/") && method === "GET") {
+      await route.fulfill({
+        json: { id: 9002, lecture: 9001, order: 1, title: "자동 저장 검증 차시", date: "2026-07-30" },
+      });
+      return;
+    }
+
+    if (path.endsWith("/api/v1/staffs/currently-working/") && method === "GET") {
+      await route.fulfill({ json: [] });
+      return;
+    }
+
+    await route.fallback();
   });
 }
 
@@ -235,13 +218,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
   test.use({ viewport: { width: 1366, height: 900 }, serviceWorkers: "block" });
 
   test("입력 이력이 전혀 없으면 바로 수정 상태로 열리고 저장 후 잠금은 유지된다", async ({ page }, testInfo) => {
-    await loginViaUI(page, "admin");
-    const target = await findLectureWithSession(page);
-    if (target == null) {
-      test.skip(true, "성적 탭으로 이동할 기존 Tenant 1 차시가 없습니다.");
-      return;
-    }
-    await openScoresFromDashboard(page, target, { initialScores: [null, null] });
+    await openScores(page, { initialScores: [null, null] });
 
     const saveAndLockButton = page.getByRole("button", { name: "저장하고 잠금", exact: true });
     await expect(saveAndLockButton).toBeVisible({ timeout: 10_000 });
@@ -257,13 +234,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
   });
 
   test("빈 성적표라도 복구 초안이 있으면 자동 수정하지 않는다", async ({ page }) => {
-    await loginViaUI(page, "admin");
-    const target = await findLectureWithSession(page);
-    if (target == null) {
-      test.skip(true, "성적 탭으로 이동할 기존 Tenant 1 차시가 없습니다.");
-      return;
-    }
-    await openScoresFromDashboard(page, target, {
+    await openScores(page, {
       initialScores: [null, null],
       initialDraft: [{
         type: "examTotal",
@@ -280,13 +251,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
   });
 
   test("0점은 입력된 데이터로 보고 잠금 상태를 유지한다", async ({ page }) => {
-    await loginViaUI(page, "admin");
-    const target = await findLectureWithSession(page);
-    if (target == null) {
-      test.skip(true, "성적 탭으로 이동할 기존 Tenant 1 차시가 없습니다.");
-      return;
-    }
-    await openScoresFromDashboard(page, target, { initialScores: [0, null] });
+    await openScores(page, { initialScores: [0, null] });
 
     await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("status")).toContainText("입력 잠금됨");
@@ -294,13 +259,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
   });
 
   test("수정 중 자동 저장·단축키를 지원하고 완료하면 다시 잠긴다", async ({ page }, testInfo) => {
-    await loginViaUI(page, "admin");
-    const target = await findLectureWithSession(page);
-    if (target == null) {
-      test.skip(true, "성적 탭으로 이동할 기존 Tenant 1 차시가 없습니다.");
-      return;
-    }
-    await openScoresFromDashboard(page, target);
+    await openScores(page);
 
     const editButton = page.getByRole("button", { name: "수정", exact: true });
     await expect(editButton).toBeVisible();

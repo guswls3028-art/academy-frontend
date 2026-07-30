@@ -57,7 +57,7 @@ test("HR-TCHUL. 학원장 적중 보고서 진입 200 + dangling 인디케이터
   await page.setViewportSize({ width: 1600, height: 1000 });
 
   // ── (1) 적중 보고서 목록 진입 ─────────────────
-  await page.goto(`${BASE}/admin/hit-reports`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/workspace/hit-reports`, { waitUntil: "networkidle" });
   await expect(page.locator("body")).toContainText(/적중 보고서|작성중|제출됨|적중/, { timeout: 15_000 });
   await page.screenshot({
     path: path.join(SHOTS, "01-hitreport-list.png"),

@@ -44,9 +44,9 @@ test.describe("매치업 운영 검증", () => {
       localStorage.setItem("refresh", refresh);
     }, { access: tokens.access, refresh: tokens.refresh });
 
-    await gotoAndSettle(page, `${BASE}/admin/storage/matchup`, { timeout: 30_000 });
+    await gotoAndSettle(page, `${BASE}/workspace/storage/matchup`, { timeout: 30_000 });
 
-    expect(page.url()).toContain("/admin/storage/matchup");
+    expect(page.url()).toContain("/workspace/storage/matchup");
     await page.screenshot({ path: `${ARTIFACTS}/01-prod-landing.png`, fullPage: true });
 
     // done doc 1건 선택

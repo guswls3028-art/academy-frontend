@@ -40,7 +40,7 @@ test.describe("클레임 회귀 — 공지사항 제목 수정", () => {
     console.log(`[공지 생성] id=${created.id}, title="${created.title}"`);
 
     // 공지사항 페이지로 이동 + 생성된 공지 선택
-    await page.goto(`${BASE}/admin/community/notice?scope=all&id=${created.id}`, { timeout: 15000 });
+    await page.goto(`${BASE}/workspace/community/notice?scope=all&id=${created.id}`, { timeout: 15000 });
     await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 
     await snap(page, "notice-detail");

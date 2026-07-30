@@ -80,7 +80,7 @@ export async function selectStableDoneMatchupDocument(page: Page): Promise<Match
   expect(selected, "직접 자르기 검증용 done 문서").toBeTruthy();
 
   const origin = new URL(page.url()).origin;
-  await page.goto(`${origin}/admin/storage/matchup?docId=${selected!.id}`, { waitUntil: "load", timeout: 30_000 });
+  await page.goto(`${origin}/workspace/storage/matchup?docId=${selected!.id}`, { waitUntil: "load", timeout: 30_000 });
   await waitForRenderSettled(page, { timeout: 20_000 });
 
   const row = page.locator(`[data-testid="matchup-doc-row"][data-doc-id="${selected!.id}"]`).first();

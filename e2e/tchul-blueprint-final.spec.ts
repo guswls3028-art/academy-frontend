@@ -339,7 +339,7 @@ test.describe("V5 — cross-tenant superuser report", () => {
         localStorage.setItem("access", access);
         localStorage.setItem("refresh", refresh);
       }, { access: tokens.access, refresh: tokens.refresh });
-      await page.goto(`${TCHUL}/admin`, { waitUntil: "load", timeout: 20000 });
+      await page.goto(`${TCHUL}/workspace`, { waitUntil: "load", timeout: 20000 });
       await settlePage(page);
       const url = page.url();
       console.log("[V5] admin97@tchul post-login url:", url);

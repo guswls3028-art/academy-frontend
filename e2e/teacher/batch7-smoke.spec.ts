@@ -49,28 +49,28 @@ test.describe("Batch 7 신규 라우트 스모크", () => {
   });
 
   test("시험 템플릿 관리 렌더링", async ({ page }) => {
-    await gotoAndAssertNoError(page, "/teacher/exams/templates", /템플릿 관리/);
+    await gotoAndAssertNoError(page, "/workspace/mobile/exams/templates", /템플릿 관리/);
   });
 
   test("시험 번들 관리 렌더링", async ({ page }) => {
-    await gotoAndAssertNoError(page, "/teacher/exams/bundles", /시험 묶음|시험 번들/);
+    await gotoAndAssertNoError(page, "/workspace/mobile/exams/bundles", /시험 묶음|시험 번들/);
   });
 
   test("클리닉 보고서 렌더링", async ({ page }) => {
-    await gotoAndAssertNoError(page, "/teacher/clinic/reports", /클리닉 보고서/);
+    await gotoAndAssertNoError(page, "/workspace/mobile/clinic/reports", /클리닉 보고서/);
   });
 
   test("클리닉 리모컨 렌더링 (2초 폴링)", async ({ page }) => {
-    await gotoAndAssertNoError(page, "/teacher/clinic/remote", /클리닉 리모컨/);
+    await gotoAndAssertNoError(page, "/workspace/mobile/clinic/remote", /클리닉 리모컨/);
   });
 
   test("결제/구독 조회 렌더링 (owner)", async ({ page }) => {
-    await gotoAndAssertNoError(page, "/teacher/billing", /결제 \/ 구독|요금제|구독/);
+    await gotoAndAssertNoError(page, "/workspace/mobile/billing", /결제 \/ 구독|요금제|구독/);
   });
 
   test("OMR 페이지 스켈레톤 렌더링 (examId=1 샘플)", async ({ page }) => {
     // examId 1이 실제 존재하지 않으면 에러 화면이 렌더되는데, 그것도 '시험을 찾을 수 없습니다'가 나와야 정상
-    await page.goto(`${BASE}/teacher/exams/1/omr`, { waitUntil: "domcontentloaded", timeout: 30_000 });
+    await page.goto(`${BASE}/workspace/mobile/exams/1/omr`, { waitUntil: "domcontentloaded", timeout: 30_000 });
     await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
     // 스켈레톤 또는 에러 둘 중 하나만 나와도 OK — 완전 whitescreen이 아니기만 하면 됨
     await expect.poll(async () => {
@@ -80,11 +80,11 @@ test.describe("Batch 7 신규 라우트 스모크", () => {
   });
 
   test("직원 관리 페이지 (owner 전용) 렌더링", async ({ page }) => {
-    await gotoAndAssertNoError(page, "/teacher/staff", /직원 관리|직원 등록/);
+    await gotoAndAssertNoError(page, "/workspace/mobile/staff", /직원 관리|직원 등록/);
   });
 
   test("학생 목록에서 선택 모드 토글 동작", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/students`, { waitUntil: "domcontentloaded", timeout: 30_000 });
+    await page.goto(`${BASE}/workspace/mobile/students`, { waitUntil: "domcontentloaded", timeout: 30_000 });
     await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
     // 선택 버튼 클릭 → 선택 모드 진입 확인
     const selectBtn = page.getByRole("button", { name: "선택" }).first();

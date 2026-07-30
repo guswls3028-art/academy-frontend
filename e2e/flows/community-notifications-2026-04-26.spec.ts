@@ -43,7 +43,7 @@ test.describe.serial("커뮤니티 알림 — counsel pending/답변", () => {
     await loginViaUI(adminPage, "admin");
 
     // 헤더 종 클릭 → 드롭다운 노출. 알림 카운터는 60초~2분 폴링이라 추가 새로고침 시도.
-    await gotoAndSettle(adminPage, `${BASE}/admin`, { timeout: 20_000 });
+    await gotoAndSettle(adminPage, `${BASE}/workspace`, { timeout: 20_000 });
 
     // 폴링 주기 우회를 위해 새로고침 + 종 클릭을 조건 충족까지 재시도.
     await waitForCondition(async () => {

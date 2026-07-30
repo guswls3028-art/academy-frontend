@@ -15,7 +15,7 @@ const SCREENSHOT_DIR = "e2e/_artifacts/tchul-matchup-review";
 const MATCHUP_DOC_ROW = '[data-testid="matchup-doc-row"]';
 
 async function openMatchup(page: Page): Promise<void> {
-  await gotoAndSettle(page, `${BASE}/admin/storage/matchup`, { timeout: 60_000 });
+  await gotoAndSettle(page, `${BASE}/workspace/storage/matchup`, { timeout: 60_000 });
   await expect(page.locator(MATCHUP_DOC_ROW).first()).toBeVisible({ timeout: 20_000 });
 }
 
@@ -98,7 +98,7 @@ test.describe("Tchul T2 매치업 실사용 시각 검수 (read-only)", () => {
   });
 
   test("HitReport 리스트 + 편집기 screenshot", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/hit-reports`, { timeout: 60_000 });
+    await gotoAndSettle(page, `${BASE}/workspace/hit-reports`, { timeout: 60_000 });
     await expect(page.locator('[data-testid="hit-report-card"]').first()).toBeVisible({ timeout: 20_000 });
     await page.screenshot({
       path: `${SCREENSHOT_DIR}/03-hit-reports-list.png`,

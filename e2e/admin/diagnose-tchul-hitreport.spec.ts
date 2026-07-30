@@ -17,7 +17,7 @@ test.describe.configure({ mode: "serial" });
 for (const r of REPORTS) {
   test(`hit-report-${r.reportId} editor capture`, async ({ page }) => {
     await loginViaUI(page, "tchul-admin");
-    await page.goto(`${BASE}/admin/storage/hit-reports`, { waitUntil: "load" });
+    await page.goto(`${BASE}/workspace/storage/hit-reports`, { waitUntil: "load" });
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
     // fetchHitReportDraft 응답을 명시적으로 기다림 — 30 query 병렬 후 응답.

@@ -6,7 +6,7 @@ import { gotoAndSettle } from "../helpers/wait";
 const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
 
 async function openFirstStudentMessageModal(page: import("@playwright/test").Page) {
-  await gotoAndSettle(page, `${BASE}/admin/students`);
+  await gotoAndSettle(page, `${BASE}/workspace/students`);
   const checkbox = page.locator("tbody input[type=checkbox]").first();
   await expect(checkbox).toBeVisible();
   await checkbox.check();

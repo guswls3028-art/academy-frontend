@@ -37,7 +37,7 @@ async function snap(page: Page, name: string) {
 
 /** 템플릿 목록 페이지로 이동 (사이드바 클릭 또는 직접 URL) */
 async function goToTemplates(page: Page) {
-  await page.goto(`${BASE}/admin/message/templates`, {
+  await page.goto(`${BASE}/workspace/message/templates`, {
     waitUntil: "load",
     timeout: 20000,
   });

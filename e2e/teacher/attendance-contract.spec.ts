@@ -46,7 +46,7 @@ test.describe("teacher attendance contract", () => {
       return;
     }
 
-    await page.goto(`${BASE}/teacher/attendance/${session.sessionId}`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${BASE}/workspace/mobile/attendance/${session.sessionId}`, { waitUntil: "domcontentloaded" });
     await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
     await expect(page.getByRole("heading", { name: "출석 체크" })).toBeVisible({ timeout: 10_000 });
     const hasSummary = await page.getByText(/총 \d+명/).isVisible({ timeout: 3_000 }).catch(() => false);
@@ -54,7 +54,7 @@ test.describe("teacher attendance contract", () => {
       await expect(page.getByText("출석 데이터가 없습니다")).toBeVisible();
     }
 
-    await page.goto(`${BASE}/teacher/classes/${session.lectureId}/attendance-matrix`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${BASE}/workspace/mobile/classes/${session.lectureId}/attendance-matrix`, { waitUntil: "domcontentloaded" });
     await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
     await expect(page.getByRole("heading", { name: "출석 현황" })).toBeVisible({ timeout: 10_000 });
   });

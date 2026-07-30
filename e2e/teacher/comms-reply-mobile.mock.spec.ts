@@ -115,7 +115,7 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
       sessionStorage.setItem("tenantCode", "hakwonplus");
     });
 
-    await page.goto(`${BASE}/teacher/comms?tab=qna`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/comms?tab=qna`, { waitUntil: "load", timeout: 20_000 });
 
     await expect(page.getByText(post.title)).toBeVisible({ timeout: 10_000 });
     await page.getByText(post.title).click();

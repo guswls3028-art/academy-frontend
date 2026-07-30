@@ -81,7 +81,7 @@ test.describe("선생님 소통 자료실 회귀", () => {
       });
       expect(upload.status()).toBe(201);
 
-      await gotoAndSettle(page, `${BASE}/teacher/comms`, { timeout: 20_000 });
+      await gotoAndSettle(page, `${BASE}/workspace/mobile/comms`, { timeout: 20_000 });
       await page.getByRole("button", { name: /자료/ }).first().click();
       await page.getByRole("button", { name: "검색 열기" }).click();
       await page.getByPlaceholder("제목, 내용, 작성자 검색").fill(title);
@@ -112,7 +112,7 @@ test.describe("선생님 소통 자료실 회귀", () => {
   });
 
   test("작성 중 닫기는 입력 유실 전 확인을 요구한다", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/teacher/comms`, { timeout: 20_000 });
+    await gotoAndSettle(page, `${BASE}/workspace/mobile/comms`, { timeout: 20_000 });
     await page.getByRole("button", { name: "공지사항 작성" }).click();
     await expect(page.getByText("공지사항 작성").first()).toBeVisible({ timeout: 10_000 });
 
@@ -149,6 +149,6 @@ async function loginAdmin(page: Page): Promise<void> {
     localStorage.setItem("refresh", refresh);
     sessionStorage.setItem("tenantCode", code);
   }, { access: tokens.access, refresh: tokens.refresh, code: TENANT_CODE });
-  await page.goto(`${BASE}/admin`, { waitUntil: "load", timeout: 20_000 });
+  await page.goto(`${BASE}/workspace`, { waitUntil: "load", timeout: 20_000 });
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
 }

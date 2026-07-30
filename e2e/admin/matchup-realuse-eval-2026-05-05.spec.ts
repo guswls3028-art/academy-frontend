@@ -13,8 +13,8 @@ import { loginViaUI } from "../helpers/auth";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 
 const BASE = "https://tchul.com";
-const MATCHUP_URL = `${BASE}/admin/storage/matchup`;
-const HIT_REPORTS_URL = `${BASE}/admin/hit-reports`;
+const MATCHUP_URL = `${BASE}/workspace/storage/matchup`;
+const HIT_REPORTS_URL = `${BASE}/workspace/hit-reports`;
 const SHOT_DIR = "e2e/_artifacts/matchup-realuse-eval-2026-05-05";
 const DOWNLOAD_DIR = path.join(SHOT_DIR, "downloads");
 
@@ -268,7 +268,7 @@ test.describe("박철T 매치업 실사용 만족도 평가 (read-only)", () => 
     });
     if (!accessToken) {
       // 로그인 페이지 거쳐 dashboard로 이동
-      await page.goto(`${BASE}/admin`, { waitUntil: "networkidle" });
+      await page.goto(`${BASE}/workspace`, { waitUntil: "networkidle" });
     }
     const tok = await page.evaluate(() => localStorage.getItem("access"));
     expect(tok).toBeTruthy();

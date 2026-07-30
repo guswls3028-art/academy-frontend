@@ -409,7 +409,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await seedBrowser(
       page,
       adminTokens,
-      `/admin/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`,
+      `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`,
     );
     await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeVisible({ timeout: 30_000 });
     await page.getByRole("button", { name: "OMR 스캔 등록" }).click();
@@ -456,7 +456,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
 
     await gotoAndSettle(
       page,
-      `${BASE}/admin/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${created.examId}`,
+      `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${created.examId}`,
       { timeout: 45_000 },
     );
     await page.getByRole("tab", { name: "채점·결과" }).click();

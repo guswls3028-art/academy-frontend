@@ -97,7 +97,7 @@ test.describe.serial("데이터 연결 전수 검증", () => {
     await S.screenshot({ path: "test-results/link/02a-qna-submitted.png" });
 
     // 교사: QnA 목록에서 학생 질문 확인 (실제 브라우저)
-    await T.goto(`${BASE}/admin/community/qna`);
+    await T.goto(`${BASE}/workspace/community/qna`);
     await T.waitForLoadState("load");
     await T.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     const question = T.locator(`text=연결검증`).first();
@@ -163,7 +163,7 @@ test.describe.serial("데이터 연결 전수 검증", () => {
     await expect(S.locator("text=Not Found")).not.toBeVisible();
 
     // 교사: 클리닉 홈에서 세션 확인 (실제 브라우저)
-    await T.goto(`${BASE}/admin/clinic/home`);
+    await T.goto(`${BASE}/workspace/clinic/home`);
     await T.waitForLoadState("load");
     await T.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     await T.screenshot({ path: "test-results/link/03b-teacher-clinic.png" });
@@ -187,24 +187,24 @@ test.describe.serial("데이터 연결 전수 검증", () => {
     }
 
     const pages = [
-      ["/admin/dashboard", "대시보드"],
-      ["/admin/students", "학생목록"],
-      ["/admin/lectures", "강의"],
-      ["/admin/community/notice", "공지"],
-      ["/admin/community/qna", "QnA"],
-      ["/admin/community/counsel", "상담"],
-      ["/admin/community/materials", "자료실"],
-      ["/admin/clinic/home", "클리닉홈"],
-      ["/admin/clinic/bookings", "클리닉예약"],
-      ["/admin/clinic/operations", "클리닉운영"],
-      ["/admin/videos", "영상"],
-      ["/admin/exams", "시험"],
-      ["/admin/results", "성적"],
-      ["/admin/message/templates", "메시지템플릿"],
-      ["/admin/message/auto-send", "자동발송"],
-      ["/admin/staff", "직원"],
-      ["/admin/storage", "저장소"],
-      ["/admin/settings", "설정"],
+      ["/workspace/dashboard", "대시보드"],
+      ["/workspace/students", "학생목록"],
+      ["/workspace/lectures", "강의"],
+      ["/workspace/community/notice", "공지"],
+      ["/workspace/community/qna", "QnA"],
+      ["/workspace/community/counsel", "상담"],
+      ["/workspace/community/materials", "자료실"],
+      ["/workspace/clinic/home", "클리닉홈"],
+      ["/workspace/clinic/bookings", "클리닉예약"],
+      ["/workspace/clinic/operations", "클리닉운영"],
+      ["/workspace/videos", "영상"],
+      ["/workspace/exams", "시험"],
+      ["/workspace/results", "성적"],
+      ["/workspace/message/templates", "메시지템플릿"],
+      ["/workspace/message/auto-send", "자동발송"],
+      ["/workspace/staff", "직원"],
+      ["/workspace/storage", "저장소"],
+      ["/workspace/settings", "설정"],
     ];
 
     for (const [path] of pages) {

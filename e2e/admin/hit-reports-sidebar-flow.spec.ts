@@ -20,7 +20,7 @@ test.describe("HitReport sidebar 진입 흐름 (P1)", () => {
   });
 
   test("자료실 '적중 보고서' 탭 노출 + click → 리스트 페이지", async ({ page }) => {
-    await page.goto(`${BASE}/admin/dashboard`, {
+    await page.goto(`${BASE}/workspace/dashboard`, {
       waitUntil: "networkidle",
       timeout: 60_000,
     });
@@ -29,12 +29,12 @@ test.describe("HitReport sidebar 진입 흐름 (P1)", () => {
       fullPage: true,
     });
 
-    await page.goto(`${BASE}/admin/storage/hit-reports`, {
+    await page.goto(`${BASE}/workspace/storage/hit-reports`, {
       waitUntil: "networkidle",
       timeout: 60_000,
     });
 
-    await page.waitForURL(/\/admin\/storage\/hit-reports/, { timeout: 30_000 });
+    await page.waitForURL(/\/workspace\/storage\/hit-reports/, { timeout: 30_000 });
     await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
     await page.screenshot({
       path: `${SCREENSHOT_DIR}/02-hit-reports-page.png`,
@@ -47,7 +47,7 @@ test.describe("HitReport sidebar 진입 흐름 (P1)", () => {
   });
 
   test("draft alert banner + 카드 click → 미리보기 후 편집기 진입", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/hit-reports`, {
+    await page.goto(`${BASE}/workspace/storage/hit-reports`, {
       waitUntil: "networkidle",
       timeout: 60_000,
     });
@@ -73,7 +73,7 @@ test.describe("HitReport sidebar 진입 흐름 (P1)", () => {
       const editButton = preview.getByTestId("hit-report-preview-edit");
       await expect(editButton).toBeVisible({ timeout: 5_000 });
       await editButton.click();
-      await page.waitForURL(/\/admin\/storage\/matchup/, { timeout: 30_000 });
+      await page.waitForURL(/\/workspace\/storage\/matchup/, { timeout: 30_000 });
       await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
       await page.screenshot({
         path: `${SCREENSHOT_DIR}/04-editor-opened.png`,

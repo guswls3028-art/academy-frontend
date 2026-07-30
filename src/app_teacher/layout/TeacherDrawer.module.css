@@ -76,13 +76,63 @@
   padding: var(--tc-space-2) 0;
 }
 
-.groupTitle {
-  padding: var(--tc-space-3) var(--tc-space-4) var(--tc-space-1);
+.groupButton {
+  display: flex;
+  width: calc(100% - (var(--tc-space-3) * 2));
+  min-height: 38px;
+  align-items: center;
+  gap: 8px;
+  margin: 2px var(--tc-space-3);
+  padding: 8px var(--tc-space-1);
+  border: 0;
+  border-radius: var(--tc-radius);
+  background: none;
   color: var(--tc-text-muted);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.3px;
+  text-align: left;
   text-transform: uppercase;
+  cursor: pointer;
+}
+
+.groupButton:hover,
+.groupButton:focus-visible {
+  color: var(--tc-text);
+  outline: none;
+  background: color-mix(in srgb, var(--tc-text) 5%, transparent);
+}
+
+.groupButtonOpen {
+  color: var(--tc-text);
+}
+
+.groupCount {
+  display: inline-flex;
+  min-width: 20px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  border-radius: 999px;
+  background: var(--tc-bg);
+  color: var(--tc-text-muted);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.groupChevron {
+  flex: 0 0 auto;
+  transition: transform var(--tc-motion-fast);
+}
+
+.groupChevronOpen {
+  transform: rotate(180deg);
+}
+
+.groupItems {
+  display: grid;
+  padding-bottom: var(--tc-space-1);
 }
 
 .menuItem {
@@ -100,6 +150,7 @@
   font-size: 14px;
   font-weight: 400;
   text-align: left;
+  text-decoration: none;
   transition: background var(--tc-motion-fast), border-color var(--tc-motion-fast), color var(--tc-motion-fast);
 }
 
@@ -123,6 +174,11 @@
   flex: 1;
 }
 
+.externalMark {
+  flex: 0 0 auto;
+  color: var(--tc-text-muted);
+}
+
 .badge {
   min-width: 18px;
   height: 18px;
@@ -134,12 +190,6 @@
   font-weight: 700;
   line-height: 18px;
   text-align: center;
-}
-
-.divider {
-  height: 1px;
-  margin: var(--tc-space-2) var(--tc-space-4);
-  background: var(--tc-border);
 }
 
 .actions {
@@ -188,8 +238,10 @@
     padding: var(--tc-space-3) var(--tc-space-2);
   }
 
-  .groupTitle {
-    padding: var(--tc-space-4) var(--tc-space-3) var(--tc-space-1);
+  .groupButton {
+    width: 100%;
+    margin: 2px 0;
+    padding: 8px var(--tc-space-3);
     font-size: 11px;
     letter-spacing: 0;
   }
@@ -209,10 +261,6 @@
     box-shadow: inset 3px 0 0 var(--tc-primary);
   }
 
-  .divider {
-    margin: var(--tc-space-3) var(--tc-space-3) var(--tc-space-2);
-  }
-
   .actions {
     padding: var(--tc-space-3) var(--tc-space-2);
   }
@@ -222,5 +270,11 @@
     padding: 8px var(--tc-space-3);
     border-radius: var(--tc-radius);
     font-size: 13px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .groupChevron {
+    transition: none;
   }
 }

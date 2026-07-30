@@ -33,11 +33,11 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
 
   test("02 Admin: 세션 성적 탭 렌더링 확인", async () => {
     // 강의 목록 진입
-    await T.goto(`${BASE}/admin/lectures`, { waitUntil: "load" });
+    await T.goto(`${BASE}/workspace/lectures`, { waitUntil: "load" });
     await T.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 첫 번째 강의 클릭
-    const lectureLink = T.locator("a[href*='/admin/lectures/']").first();
+    const lectureLink = T.locator("a[href*='/workspace/lectures/']").first();
     const hasLecture = await lectureLink.isVisible({ timeout: 5000 }).catch(() => false);
 
     if (hasLecture) {

@@ -31,7 +31,7 @@ test("done doc spinner check — 5s/10s/15s", async ({ page }) => {
     localStorage.setItem("refresh", t.refresh);
   }, tokens);
 
-  await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "load" });
+  await page.goto(`${BASE}/workspace/storage/matchup`, { waitUntil: "load" });
   await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
   // 다른 done doc 선택

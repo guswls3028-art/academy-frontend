@@ -99,6 +99,16 @@ const DEFAULT_DOCUMENT_STYLE: ProblemStudioDocumentStyle = {
   question_spacing_pt: 10,
   match_source_style: true,
 };
+
+function normalizeDocumentStyle(
+  value: Partial<ProblemStudioDocumentStyle> | null | undefined,
+): ProblemStudioDocumentStyle {
+  return {
+    ...DEFAULT_DOCUMENT_STYLE,
+    ...(value ?? {}),
+  };
+}
+
 const DEFAULT_PAGE_LAYOUT: ProblemStudioPageLayout = {
   mode: "source",
   margin_top_mm: 12,
@@ -392,7 +402,7 @@ export default function ProblemStudioPage() {
         ]);
         if (!active) return;
         setFontCatalog(fonts);
-        setDocumentStyle(preference);
+        setDocumentStyle(normalizeDocumentStyle(preference));
         setVoiceProfiles(profiles);
         setSelectedVoiceProfileId(
           profiles.find((profile) => profile.is_default)?.id || profiles[0]?.id || "",
@@ -461,7 +471,7 @@ export default function ProblemStudioPage() {
     setStyleSaving(true);
     try {
       const saved = await saveProblemStudioDocumentStyle(documentStyle);
-      setDocumentStyle(saved);
+      setDocumentStyle(normalizeDocumentStyle(saved));
       feedback.success("내 문서 스타일을 저장했습니다.");
     } catch (error) {
       feedback.error(error instanceof Error ? error.message : "문서 스타일을 저장하지 못했습니다.");

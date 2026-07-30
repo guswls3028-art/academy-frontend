@@ -36,8 +36,8 @@ test("HR-UIUX. tchul 적중 보고서 작성 화면 시각 검수", async ({ pag
   await loginViaUI(page, "tchul-admin");
 
   await page.setViewportSize({ width: 1500, height: 1000 });
-  await page.goto(`${BASE}/admin/hit-reports`, { waitUntil: "networkidle" });
-  await waitForAnyVisible(page, "[data-testid^='hit-report-card'], a[href*='/admin/storage/matchup']", 10_000);
+  await page.goto(`${BASE}/workspace/hit-reports`, { waitUntil: "networkidle" });
+  await waitForAnyVisible(page, "[data-testid^='hit-report-card'], a[href*='/workspace/storage/matchup']", 10_000);
 
   // 1. 보고서 리스트 풀샷
   await page.screenshot({
@@ -48,7 +48,7 @@ test("HR-UIUX. tchul 적중 보고서 작성 화면 시각 검수", async ({ pag
   // 2. 작성중(draft) 카드 클릭 → 보고서 편집기 자동 오픈
   const draftCard = page.locator("a, button, div").filter({ hasText: /작성중|draft/i }).first();
   // 카드 자체가 click target이 아닐 수 있으니 일반 카드 첫번째도 시도
-  const reportCard = page.locator("[data-testid^='hit-report-card'], a[href*='/admin/storage/matchup']").first();
+  const reportCard = page.locator("[data-testid^='hit-report-card'], a[href*='/workspace/storage/matchup']").first();
   let opened = false;
   if (await reportCard.count() > 0) {
     await reportCard.click();
@@ -60,7 +60,7 @@ test("HR-UIUX. tchul 적중 보고서 작성 화면 시각 검수", async ({ pag
 
   if (!opened) {
     console.log("[HR-UIUX] 보고서 카드 진입 못함 — 직접 매치업 페이지로");
-    await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
+    await page.goto(`${BASE}/workspace/storage/matchup`, { waitUntil: "networkidle" });
     await settle(page);
     // 시험지 doc 행 click → 보고서 작성 버튼
     const testRow = page.locator("[data-testid='matchup-doc-row']").first();

@@ -15,7 +15,7 @@ test.describe("2차 운영 안정화: 막다른 화면과 원시 alert 제거", 
   });
 
   test("자료 메뉴의 성적표/메시지 보류 화면은 실제 대체 경로를 안내한다", async ({ page }) => {
-    await visitAdmin(page, "/admin/materials/reports");
+    await visitAdmin(page, "/workspace/materials/reports");
 
     await expect(page.getByText("성적표는 차시 성적탭에서 바로 확인할 수 있습니다")).toBeVisible();
     await expect(page.getByText("아직 구현되지 않은 기능입니다")).toHaveCount(0);
@@ -23,9 +23,9 @@ test.describe("2차 운영 안정화: 막다른 화면과 원시 alert 제거", 
     const lecturesButton = page.getByRole("button", { name: "강의에서 성적표 열기" });
     await expect(lecturesButton).toBeVisible();
     await lecturesButton.click();
-    await page.waitForURL(/\/admin\/lectures/, { timeout: 10_000 });
+    await page.waitForURL(/\/workspace\/lectures/, { timeout: 10_000 });
 
-    await visitAdmin(page, "/admin/materials/messages");
+    await visitAdmin(page, "/workspace/materials/messages");
 
     await expect(page.getByText("알림톡 템플릿과 발송 이력은 메시지 메뉴에서 관리합니다")).toBeVisible();
     await expect(page.getByText("아직 구현되지 않은 기능입니다")).toHaveCount(0);
@@ -33,7 +33,7 @@ test.describe("2차 운영 안정화: 막다른 화면과 원시 alert 제거", 
     const templatesButton = page.getByRole("button", { name: "템플릿 관리" });
     await expect(templatesButton).toBeVisible();
     await templatesButton.click();
-    await page.waitForURL(/\/admin\/message\/templates/, { timeout: 10_000 });
+    await page.waitForURL(/\/workspace\/message\/templates/, { timeout: 10_000 });
   });
 
   test("공개 모더레이션 차단 입력 오류는 브라우저 alert 대신 앱 피드백으로 처리된다", async ({ page }) => {
@@ -43,7 +43,7 @@ test.describe("2차 운영 안정화: 막다른 화면과 원시 alert 제거", 
       await dialog.dismiss();
     });
 
-    await visitAdmin(page, "/admin/landing-public/inbox");
+    await visitAdmin(page, "/workspace/landing-public/inbox");
     await page.getByRole("button", { name: "차단 사용자" }).click();
 
     await expect(page.getByRole("heading", { name: "새 차단 추가" })).toBeVisible();

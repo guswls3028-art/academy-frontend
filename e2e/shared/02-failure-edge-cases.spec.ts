@@ -10,7 +10,7 @@ const BASE = getBaseUrl("admin");
 test.describe("실패/엣지 케이스 처리", () => {
 
   test("a) 비로그인 상태에서 /admin 접근 시 크래시하지 않는다", async ({ page }) => {
-    await page.goto(`${BASE}/admin/dashboard`);
+    await page.goto(`${BASE}/workspace/dashboard`);
     await page.waitForLoadState("networkidle");
     // SPA가 로그인 리다이렉트 또는 로그인 폼을 보여야 함 — 500/크래시가 아니어야
     await expect(page.locator("text=Internal Server Error")).not.toBeVisible();
@@ -22,7 +22,7 @@ test.describe("실패/엣지 케이스 처리", () => {
 
   test("b) 존재하지 않는 관리자 경로는 크래시 없이 처리된다", async ({ page }) => {
     await loginViaUI(page, "admin");
-    await page.goto(`${BASE}/admin/nonexistent-route-xyz`);
+    await page.goto(`${BASE}/workspace/nonexistent-route-xyz`);
     await page.waitForLoadState("networkidle");
     // 크래시(React error boundary)가 아닌지
     await expect(page.locator("text=Something went wrong")).not.toBeVisible();
@@ -33,9 +33,9 @@ test.describe("실패/엣지 케이스 처리", () => {
 
   test("c) 학생은 관리자 경로에 접근할 수 없다", async ({ page }) => {
     await loginViaUI(page, "student");
-    await page.goto(`${BASE}/admin/students`);
+    await page.goto(`${BASE}/workspace/students`);
     // 학생은 /student 영역으로 리다이렉트되거나 로그인으로 갈 것
-    await expect(page).not.toHaveURL(/\/admin\/students/, { timeout: 10_000 });
+    await expect(page).not.toHaveURL(/\/workspace\/students/, { timeout: 10_000 });
   });
 
   test("d) 존재하지 않는 리소스 API는 404를 반환한다", async ({ page }) => {
@@ -52,7 +52,7 @@ test.describe("실패/엣지 케이스 처리", () => {
       localStorage.removeItem("refresh");
     });
     // 페이지 이동 시도
-    await page.goto(`${BASE}/admin/dashboard`);
+    await page.goto(`${BASE}/workspace/dashboard`);
     await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
     // 크래시가 아닌지
     await expect(page.locator("text=Internal Server Error")).not.toBeVisible();

@@ -135,7 +135,7 @@ test.describe("Proposal Review UI v1", () => {
   });
 
   test("리스트가 렌더되고 내부 raw 필드가 노출되지 않는다", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/proposals`, { waitUntil: "networkidle" });
+    await page.goto(`${BASE}/workspace/storage/proposals`, { waitUntil: "networkidle" });
     await expect(page.getByTestId("proposal-review-page")).toBeVisible({ timeout: 10000 });
 
     const rows = page.getByTestId("proposal-review-row");
@@ -162,7 +162,7 @@ test.describe("Proposal Review UI v1", () => {
   });
 
   test("can_approve=false 행은 승인 버튼이 disabled 상태로 표시된다", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/proposals`, { waitUntil: "networkidle" });
+    await page.goto(`${BASE}/workspace/storage/proposals`, { waitUntil: "networkidle" });
     await expect(page.getByTestId("proposal-review-page")).toBeVisible({ timeout: 10000 });
 
     const conflictRow = page.locator(
@@ -175,7 +175,7 @@ test.describe("Proposal Review UI v1", () => {
   });
 
   test("number_conflict / manual_overlap 메시지가 사용자 친화적으로 표시된다", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/proposals`, { waitUntil: "networkidle" });
+    await page.goto(`${BASE}/workspace/storage/proposals`, { waitUntil: "networkidle" });
     await expect(page.getByTestId("proposal-review-page")).toBeVisible({ timeout: 10000 });
 
     await expect(
@@ -187,7 +187,7 @@ test.describe("Proposal Review UI v1", () => {
   });
 
   test("범위 외 UI(bbox 수정 / merge / split / batch approve)가 존재하지 않는다", async ({ page }) => {
-    await page.goto(`${BASE}/admin/storage/proposals`, { waitUntil: "networkidle" });
+    await page.goto(`${BASE}/workspace/storage/proposals`, { waitUntil: "networkidle" });
     await expect(page.getByTestId("proposal-review-page")).toBeVisible({ timeout: 10000 });
 
     // v1 스코프 외 UI testid 부재 검증

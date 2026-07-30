@@ -51,7 +51,7 @@ test.use({ viewport: { width: 1440, height: 900 } });
 test.describe("매치업 UIUX 시각 검수", () => {
   test.beforeEach(async ({ page }) => {
     await loginViaUI(page, "admin");
-    await gotoAndSettle(page, `${BASE}/admin/storage/matchup`, { timeout: 30_000 });
+    await gotoAndSettle(page, `${BASE}/workspace/storage/matchup`, { timeout: 30_000 });
     await waitForMatchupList(page);
   });
 

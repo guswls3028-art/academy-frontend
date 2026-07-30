@@ -51,7 +51,7 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: "fix", text: "선생앱 /billing/subscription/ 404 → /core/subscription/ + serializer 필드 정합화" },
       { category: "fix", text: "매치업 카메라 OCR 전처리 (워터마크 strip, 페이지폴백 false-positive 차단)" },
       { category: "fix", text: "PII 마스킹 + fees 단위테스트 12건 + 법적 고지 fallback 경고" },
-      { category: "fix", text: "Cursor audit 17건 (P0 4건 즉시 패치 + window.confirm 7건 useConfirm 이전)" },
+      { category: "fix", text: "정적 감사 17건 (P0 4건 즉시 패치 + window.confirm 7건 useConfirm 이전)" },
       { category: "fix", text: "Storage-Matchup 통합 — MatchupDocument.inventory_file FK NOT NULL + 승격 UI/API" },
       { category: "security", text: "C-1~C-4 학생 권한 누출 차단 + JWT tenant claim 검증" },
       { category: "security", text: "커뮤니티 MIME/sanitizer/파일명 보안 + counts 단일집계" },

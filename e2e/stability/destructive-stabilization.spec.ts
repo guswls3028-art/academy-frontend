@@ -16,7 +16,7 @@ const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
 async function recoverFromTransientEdgePage(page: Page) {
   const edgeError = page.locator("text=Bad gateway").or(page.locator("text=Error code 502")).first();
   if (!(await edgeError.isVisible({ timeout: 500 }).catch(() => false))) return;
-  await gotoAndSettle(page, `${BASE}/admin/dashboard`);
+  await gotoAndSettle(page, `${BASE}/workspace/dashboard`);
 }
 
 async function navTo(page: Page, menuText: string, timeout = 10000) {
@@ -296,7 +296,7 @@ test.describe("Admin 전 도메인 파괴테스트", () => {
       await settingsLink.click();
       await settle(page);
     } else {
-      await gotoAndSettle(page, `${BASE}/admin/settings`);
+      await gotoAndSettle(page, `${BASE}/workspace/settings`);
     }
     await snap(page, "12-settings-main");
   });
@@ -334,12 +334,12 @@ test.describe("Admin 전 도메인 파괴테스트", () => {
   // ── 14. 새로고침 내성 테스트 ──
   test("14. 새로고침 내성 — 주요 페이지 F5", async ({ page }) => {
     const pages = [
-      "/admin/students",
-      "/admin/lectures",
-      "/admin/attendance",
-      "/admin/clinic",
-      "/admin/message/templates",
-      "/admin/videos",
+      "/workspace/students",
+      "/workspace/lectures",
+      "/workspace/attendance",
+      "/workspace/clinic",
+      "/workspace/message/templates",
+      "/workspace/videos",
     ];
     for (const p of pages) {
       await gotoAndSettle(page, `${BASE}${p}`);

@@ -10,7 +10,7 @@ import type { Page } from "@playwright/test";
 const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
 
 async function gotoMatchup(page: Page): Promise<void> {
-  await gotoAndSettle(page, `${BASE}/admin/storage/matchup`, { timeout: 30_000 });
+  await gotoAndSettle(page, `${BASE}/workspace/storage/matchup`, { timeout: 30_000 });
   await waitForCondition(
     async () =>
       (await page.locator("[data-testid='matchup-upload-button']").count()) > 0 ||
@@ -26,7 +26,7 @@ test.describe("매치업 기능", () => {
   });
 
   test("사이드바 '자료실' 클릭 → 매치업 탭으로 이동 + 스크린샷", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin`, { timeout: 30_000 });
+    await gotoAndSettle(page, `${BASE}/workspace`, { timeout: 30_000 });
 
     // 사이드바에서 '자료 저장소' 클릭
     const navItem = page.getByRole("link", { name: /자료 저장소/ }).first();
@@ -34,7 +34,7 @@ test.describe("매치업 기능", () => {
     await navItem.click();
 
     // 매치업 탭이 활성화되어 있어야 함
-    await expect(page).toHaveURL(/\/admin\/storage\/matchup/, { timeout: 10000 });
+    await expect(page).toHaveURL(/\/workspace\/storage\/matchup/, { timeout: 10000 });
 
     await waitForCondition(
       async () =>
@@ -57,7 +57,7 @@ test.describe("매치업 기능", () => {
     // 저장소 탭 클릭
     const storageTab = page.getByRole("button", { name: /^저장소$/ }).first();
     await storageTab.click();
-    await expect(page).toHaveURL(/\/admin\/storage\/files/, { timeout: 10000 });
+    await expect(page).toHaveURL(/\/workspace\/storage\/files/, { timeout: 10000 });
     await expect(page.getByRole("button", { name: "추가" }).first()).toBeVisible({ timeout: 5000 });
 
     // 스크린샷: 저장소 탭
@@ -66,7 +66,7 @@ test.describe("매치업 기능", () => {
     // 다시 매치업 탭
     const matchupTab = page.getByRole("button", { name: /^매치업$/ }).first();
     await matchupTab.click();
-    await expect(page).toHaveURL(/\/admin\/storage\/matchup/, { timeout: 10000 });
+    await expect(page).toHaveURL(/\/workspace\/storage\/matchup/, { timeout: 10000 });
   });
 
   test("업로드 모달 열기/닫기 + 스크린샷", async ({ page }) => {

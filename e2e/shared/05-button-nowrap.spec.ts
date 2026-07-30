@@ -20,7 +20,7 @@ test.describe("Button nowrap & visibility", () => {
 
   test("학생 관리 - 버튼 줄바꿈 없고 secondary 버튼 가시성 확보", async ({ page }) => {
     // 사이드바에서 학생 클릭
-    await page.locator('[data-sidebar="students"], a[href*="/admin/students"]').first().click();
+    await page.locator('[data-sidebar="students"], a[href*="/workspace/students"]').first().click();
 
     // 고급 필터 버튼 - secondary intent
     const filterBtn = page.locator('button.ds-button[data-intent="secondary"]').filter({ hasText: "고급 필터" }).first();

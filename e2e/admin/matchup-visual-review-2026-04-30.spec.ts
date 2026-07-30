@@ -18,7 +18,7 @@ const SHOTS = path.resolve(__dirname_, "../reports/matchup-visual-review-2026-04
 fs.mkdirSync(SHOTS, { recursive: true });
 
 async function openMatchup(page: Page): Promise<void> {
-  await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/workspace/storage/matchup`, { waitUntil: "networkidle" });
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 }
 

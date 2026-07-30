@@ -18,7 +18,7 @@ const ts = Date.now();
 test.describe("Header Widgets P1·P2", () => {
   test.beforeEach(async ({ page }) => {
     await loginViaUI(page, "admin");
-    await expect(page).toHaveURL(/\/admin/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/workspace/, { timeout: 15_000 });
   });
 
   /* ────────────────────────────────────────────────

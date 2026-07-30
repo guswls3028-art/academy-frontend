@@ -25,7 +25,7 @@ test.describe("전 트리거 발송 UX", () => {
       return;
     }
 
-    await page.goto(`${BASE}/admin/lectures/${session.lectureId}/sessions/${session.sessionId}/scores`, { timeout: 15000 });
+    await page.goto(`${BASE}/workspace/lectures/${session.lectureId}/sessions/${session.sessionId}/scores`, { timeout: 15000 });
     await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
     if (await page.getByText(/세션 정보를 불러올 수 없습니다|Not Found/).first().isVisible({ timeout: 1000 }).catch(() => false)) {
       test.info().annotations.push({ type: "skip-reason", description: "동적 차시 접근 불가 — 수업결과 발송 UX 검증 무효" });

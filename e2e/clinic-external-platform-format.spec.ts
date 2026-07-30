@@ -109,8 +109,8 @@ async function openClinicTool(page: Page) {
     await loginViaUI(page, "admin");
   }
 
-  await page.goto(`${baseUrl}/admin/tools/clinic`, { waitUntil: "load" });
-  await expect(page).toHaveURL(/\/admin\/tools\/clinic/);
+  await page.goto(`${baseUrl}/workspace/tools/clinic`, { waitUntil: "load" });
+  await expect(page).toHaveURL(/\/workspace\/tools\/clinic/);
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
   await expect(page.locator("#clinic-paste-ta")).toBeEditable({ timeout: 15_000 });
 }

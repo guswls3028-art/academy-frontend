@@ -114,7 +114,7 @@ test("5. 학원장 로그인 → board write 진입 가능 + HitReportPicker 노
 
 test("6. 학원장 → /admin/landing-public/inbox 모더레이션 3탭", async ({ page }) => {
   await loginAdmin(page);
-  await page.goto(`${BASE}/admin/landing-public/inbox`, { waitUntil: "load", timeout: 30_000 });
+  await page.goto(`${BASE}/workspace/landing-public/inbox`, { waitUntil: "load", timeout: 30_000 });
   await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
   await expect(page.locator("h1")).toContainText("외부 공개 모더레이션", { timeout: 15_000 });

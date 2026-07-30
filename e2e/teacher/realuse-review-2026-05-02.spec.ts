@@ -72,13 +72,13 @@ test.describe("선생앱 모바일 실사용 리뷰 — 2026-05-02", () => {
 
   test.beforeEach(async ({ page }) => {
     await installLocalFeesFeatureFlagOverride(page);
-    await loginViaUI(page, "admin", { landingPath: "/teacher" });
+    await loginViaUI(page, "admin", { landingPath: "/workspace/mobile" });
     await page.evaluate(() => { localStorage.removeItem("teacher:preferAdmin"); });
   });
 
   test("01. Today — KPI2 (수업/출결) + 처리할 일 인박스 + 오늘 수업", async ({ page }) => {
     const { errors, netFails } = attachCapture(page);
-    await visit(page, "/teacher");
+    await visit(page, "/workspace/mobile");
     await page.screenshot({ path: `${SCREEN_DIR}/01-today.png`, fullPage: true });
     await expect(page.getByText(/안녕하세요/).first()).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText("오늘 수업").first()).toBeVisible();
@@ -91,7 +91,7 @@ test.describe("선생앱 모바일 실사용 리뷰 — 2026-05-02", () => {
 
   test("02. 강의 목록 + 강의 상세 + 출결 매트릭스", async ({ page }) => {
     const { errors, netFails } = attachCapture(page);
-    await visit(page, "/teacher/classes");
+    await visit(page, "/workspace/mobile/classes");
     await page.screenshot({ path: `${SCREEN_DIR}/02a-classes.png`, fullPage: true });
 
     // 강의 카드가 1개 이상이면 상세 진입
@@ -108,7 +108,7 @@ test.describe("선생앱 모바일 실사용 리뷰 — 2026-05-02", () => {
 
   test("03. 학생 목록 + 학생 상세", async ({ page }) => {
     const { errors, netFails } = attachCapture(page);
-    await visit(page, "/teacher/students");
+    await visit(page, "/workspace/mobile/students");
     await page.screenshot({ path: `${SCREEN_DIR}/03a-students.png`, fullPage: true });
     await expect(page.getByRole("button", { name: "추가" })).toBeVisible({ timeout: 10_000 });
 
@@ -118,7 +118,7 @@ test.describe("선생앱 모바일 실사용 리뷰 — 2026-05-02", () => {
 
   test("04. 커뮤니티 4탭 (공지/QnA/상담/등록요청)", async ({ page }) => {
     const { errors, netFails } = attachCapture(page);
-    await visit(page, "/teacher/comms");
+    await visit(page, "/workspace/mobile/comms");
     await page.screenshot({ path: `${SCREEN_DIR}/04-comms.png`, fullPage: true });
     await expect(page.getByText(/공지/).first()).toBeVisible({ timeout: 10_000 });
     expect(errors, `console: ${errors.join("\n")}`).toHaveLength(0);
@@ -127,13 +127,13 @@ test.describe("선생앱 모바일 실사용 리뷰 — 2026-05-02", () => {
 
   test("05. 시험/과제 + 시험 템플릿 + 시험 번들", async ({ page }) => {
     const { errors, netFails } = attachCapture(page);
-    await visit(page, "/teacher/exams");
+    await visit(page, "/workspace/mobile/exams");
     await page.screenshot({ path: `${SCREEN_DIR}/05a-exams.png`, fullPage: true });
 
-    await visit(page, "/teacher/exams/templates");
+    await visit(page, "/workspace/mobile/exams/templates");
     await page.screenshot({ path: `${SCREEN_DIR}/05b-templates.png`, fullPage: true });
 
-    await visit(page, "/teacher/exams/bundles");
+    await visit(page, "/workspace/mobile/exams/bundles");
     await page.screenshot({ path: `${SCREEN_DIR}/05c-bundles.png`, fullPage: true });
 
     expect(errors, `console: ${errors.join("\n")}`).toHaveLength(0);
@@ -142,7 +142,7 @@ test.describe("선생앱 모바일 실사용 리뷰 — 2026-05-02", () => {
 
   test("06. 영상 목록", async ({ page }) => {
     const { errors, netFails } = attachCapture(page);
-    await visit(page, "/teacher/videos");
+    await visit(page, "/workspace/mobile/videos");
     await page.screenshot({ path: `${SCREEN_DIR}/06-videos.png`, fullPage: true });
     expect(errors, `console: ${errors.join("\n")}`).toHaveLength(0);
     expect(netFails, `net fails: ${netFails.map((n) => `${n.method} ${n.status} ${n.url}`).join("\n")}`).toHaveLength(0);
@@ -150,11 +150,11 @@ test.describe("선생앱 모바일 실사용 리뷰 — 2026-05-02", () => {
 
   test("07. 클리닉 / 보고서 / 리모컨", async ({ page }) => {
     const { errors, netFails } = attachCapture(page);
-    await visit(page, "/teacher/clinic");
+    await visit(page, "/workspace/mobile/clinic");
     await page.screenshot({ path: `${SCREEN_DIR}/07a-clinic.png`, fullPage: true });
-    await visit(page, "/teacher/clinic/reports");
+    await visit(page, "/workspace/mobile/clinic/reports");
     await page.screenshot({ path: `${SCREEN_DIR}/07b-clinic-reports.png`, fullPage: true });
-    await visit(page, "/teacher/clinic/remote");
+    await visit(page, "/workspace/mobile/clinic/remote");
     await page.screenshot({ path: `${SCREEN_DIR}/07c-clinic-remote.png`, fullPage: true });
     expect(errors, `console: ${errors.join("\n")}`).toHaveLength(0);
     expect(netFails, `net fails: ${netFails.map((n) => `${n.method} ${n.status} ${n.url}`).join("\n")}`).toHaveLength(0);
@@ -162,11 +162,11 @@ test.describe("선생앱 모바일 실사용 리뷰 — 2026-05-02", () => {
 
   test("08. 상담 메모 + 성적 조회 + 제출함", async ({ page }) => {
     const { errors, netFails } = attachCapture(page);
-    await visit(page, "/teacher/counseling");
+    await visit(page, "/workspace/mobile/counseling");
     await page.screenshot({ path: `${SCREEN_DIR}/08a-counseling.png`, fullPage: true });
-    await visit(page, "/teacher/results");
+    await visit(page, "/workspace/mobile/results");
     await page.screenshot({ path: `${SCREEN_DIR}/08b-results.png`, fullPage: true });
-    await visit(page, "/teacher/submissions");
+    await visit(page, "/workspace/mobile/submissions");
     await page.screenshot({ path: `${SCREEN_DIR}/08c-submissions.png`, fullPage: true });
     expect(errors, `console: ${errors.join("\n")}`).toHaveLength(0);
     expect(netFails, `net fails: ${netFails.map((n) => `${n.method} ${n.status} ${n.url}`).join("\n")}`).toHaveLength(0);
@@ -174,13 +174,13 @@ test.describe("선생앱 모바일 실사용 리뷰 — 2026-05-02", () => {
 
   test("09. 메시징 — 발송 이력/템플릿/설정/알림센터", async ({ page }) => {
     const { errors, netFails } = attachCapture(page);
-    await visit(page, "/teacher/message-log");
+    await visit(page, "/workspace/mobile/message-log");
     await page.screenshot({ path: `${SCREEN_DIR}/09a-msg-log.png`, fullPage: true });
-    await visit(page, "/teacher/message-templates");
+    await visit(page, "/workspace/mobile/message-templates");
     await page.screenshot({ path: `${SCREEN_DIR}/09b-msg-tpl.png`, fullPage: true });
-    await visit(page, "/teacher/messaging-settings");
+    await visit(page, "/workspace/mobile/messaging-settings");
     await page.screenshot({ path: `${SCREEN_DIR}/09c-msg-setting.png`, fullPage: true });
-    await visit(page, "/teacher/notifications");
+    await visit(page, "/workspace/mobile/notifications");
     await page.screenshot({ path: `${SCREEN_DIR}/09d-notifications.png`, fullPage: true });
     expect(errors, `console: ${errors.join("\n")}`).toHaveLength(0);
     expect(netFails, `net fails: ${netFails.map((n) => `${n.method} ${n.status} ${n.url}`).join("\n")}`).toHaveLength(0);
@@ -188,9 +188,9 @@ test.describe("선생앱 모바일 실사용 리뷰 — 2026-05-02", () => {
 
   test("10. 자료실 + 인벤토리", async ({ page }) => {
     const { errors, netFails } = attachCapture(page);
-    await visit(page, "/teacher/storage");
+    await visit(page, "/workspace/mobile/storage");
     await page.screenshot({ path: `${SCREEN_DIR}/10a-storage.png`, fullPage: true });
-    await visit(page, "/teacher/storage/inventory");
+    await visit(page, "/workspace/mobile/storage/inventory");
     await page.screenshot({ path: `${SCREEN_DIR}/10b-inventory.png`, fullPage: true });
     expect(errors, `console: ${errors.join("\n")}`).toHaveLength(0);
     expect(netFails, `net fails: ${netFails.map((n) => `${n.method} ${n.status} ${n.url}`).join("\n")}`).toHaveLength(0);
@@ -236,9 +236,9 @@ test.describe("선생앱 모바일 실사용 리뷰 — 2026-05-02", () => {
 
   test("12. 직원 관리 + 근태/지출", async ({ page }) => {
     const { errors, netFails } = attachCapture(page);
-    await visit(page, "/teacher/staff");
+    await visit(page, "/workspace/mobile/staff");
     await page.screenshot({ path: `${SCREEN_DIR}/12a-staff.png`, fullPage: true });
-    await visit(page, "/teacher/my-records");
+    await visit(page, "/workspace/mobile/my-records");
     await page.screenshot({ path: `${SCREEN_DIR}/12b-my-records.png`, fullPage: true });
     expect(errors, `console: ${errors.join("\n")}`).toHaveLength(0);
     expect(netFails, `net fails: ${netFails.map((n) => `${n.method} ${n.status} ${n.url}`).join("\n")}`).toHaveLength(0);
@@ -246,13 +246,13 @@ test.describe("선생앱 모바일 실사용 리뷰 — 2026-05-02", () => {
 
   test("13. 도구/설정 — 스톱워치/외관/조직/PC전용", async ({ page }) => {
     const { errors, netFails } = attachCapture(page);
-    await visit(page, "/teacher/tools/stopwatch");
+    await visit(page, "/workspace/mobile/tools/stopwatch");
     await page.screenshot({ path: `${SCREEN_DIR}/13a-stopwatch.png`, fullPage: true });
-    await visit(page, "/teacher/settings/appearance");
+    await visit(page, "/workspace/mobile/settings/appearance");
     await page.screenshot({ path: `${SCREEN_DIR}/13b-appearance.png`, fullPage: true });
-    await visit(page, "/teacher/settings/organization");
+    await visit(page, "/workspace/mobile/settings/organization");
     await page.screenshot({ path: `${SCREEN_DIR}/13c-organization.png`, fullPage: true });
-    await visit(page, "/teacher/desktop-only");
+    await visit(page, "/workspace/mobile/desktop-only");
     await page.screenshot({ path: `${SCREEN_DIR}/13d-desktop-only.png`, fullPage: true });
     expect(errors, `console: ${errors.join("\n")}`).toHaveLength(0);
     expect(netFails, `net fails: ${netFails.map((n) => `${n.method} ${n.status} ${n.url}`).join("\n")}`).toHaveLength(0);
@@ -260,17 +260,17 @@ test.describe("선생앱 모바일 실사용 리뷰 — 2026-05-02", () => {
 
   test("14. 빌링 + 프로필 + 설정 + 패치노트/버그", async ({ page }) => {
     const { errors, netFails } = attachCapture(page);
-    await visit(page, "/teacher/billing");
+    await visit(page, "/workspace/mobile/billing");
     await page.screenshot({ path: `${SCREEN_DIR}/14a-billing.png`, fullPage: true });
-    await visit(page, "/teacher/profile");
+    await visit(page, "/workspace/mobile/profile");
     await page.screenshot({ path: `${SCREEN_DIR}/14b-profile.png`, fullPage: true });
-    await visit(page, "/teacher/settings");
+    await visit(page, "/workspace/mobile/settings");
     await page.screenshot({ path: `${SCREEN_DIR}/14c-settings.png`, fullPage: true });
-    await visit(page, "/teacher/developer");
+    await visit(page, "/workspace/mobile/developer");
     await page.screenshot({ path: `${SCREEN_DIR}/14d-patchnotes.png`, fullPage: true });
-    await visit(page, "/teacher/developer/bug");
+    await visit(page, "/workspace/mobile/developer/bug");
     await page.screenshot({ path: `${SCREEN_DIR}/14e-bug.png`, fullPage: true });
-    await visit(page, "/teacher/developer/feedback");
+    await visit(page, "/workspace/mobile/developer/feedback");
     await page.screenshot({ path: `${SCREEN_DIR}/14f-feedback.png`, fullPage: true });
     expect(errors, `console: ${errors.join("\n")}`).toHaveLength(0);
     expect(netFails, `net fails: ${netFails.map((n) => `${n.method} ${n.status} ${n.url}`).join("\n")}`).toHaveLength(0);
@@ -278,7 +278,7 @@ test.describe("선생앱 모바일 실사용 리뷰 — 2026-05-02", () => {
 
   test("15. 햄버거 드로어 — 그룹 7개 + 모든 메뉴 항목 노출", async ({ page }) => {
     const { errors, netFails } = attachCapture(page);
-    await visit(page, "/teacher");
+    await visit(page, "/workspace/mobile");
 
     const menuBtn = page.locator("button[aria-label*='메뉴'], header button").first();
     await menuBtn.click().catch(() => {});

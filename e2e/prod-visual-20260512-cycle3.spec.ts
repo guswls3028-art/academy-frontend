@@ -126,7 +126,7 @@ test("[B] Hit report share chip toast + style", async ({ page }) => {
     await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
   } else {
     // Direct navigation as fallback
-    await page.goto(`${BASE}/admin/storage/hit-reports`, { waitUntil: "networkidle", timeout: 20000 });
+    await page.goto(`${BASE}/workspace/storage/hit-reports`, { waitUntil: "networkidle", timeout: 20000 });
   }
   await waitForNetworkQuiet(page);
   await shot(page, "B-01-hit-reports-list");
@@ -201,7 +201,7 @@ test("[C] Board admin bulk action", async ({ page }) => {
     await sidebarCommunity.click();
     await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
   } else {
-    await page.goto(`${BASE}/admin/community/board`, { waitUntil: "networkidle", timeout: 20000 });
+    await page.goto(`${BASE}/workspace/community/board`, { waitUntil: "networkidle", timeout: 20000 });
   }
   await waitForNetworkQuiet(page);
   await shot(page, "C-01-board-page");

@@ -18,7 +18,7 @@ test("학생 엑셀 등록에서 초기 비밀번호 방식을 선택하고 번�
   const studentMenu = page.getByText("학생", { exact: true }).first();
   await expect(studentMenu).toBeVisible();
   await studentMenu.click();
-  await expect(page).toHaveURL(/\/admin\/students/);
+  await expect(page).toHaveURL(/\/workspace\/students/);
 
   await page.getByRole("button", { name: "학생 추가" }).first().click();
   const dialog = page.getByRole("dialog");

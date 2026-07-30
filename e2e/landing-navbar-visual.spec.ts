@@ -161,7 +161,7 @@ test("2. 로그인 — nav myconsole + LandingRoleFab", async ({ page }) => {
   // 2f. 매치업 보고서 → /admin/storage/hit-reports
   const matchupLink = page.locator("[data-testid=landing-fab-matchup-console]");
   await matchupLink.click();
-  await page.waitForURL(/\/admin\/storage\/hit-reports/, { timeout: 15_000 });
+  await page.waitForURL(/\/workspace\/storage\/hit-reports/, { timeout: 15_000 });
   console.log(`[PASS] 2f: navigated to ${page.url()}`);
   await page.screenshot({ path: `${SS}/2c_after_matchup_nav.png` });
 });

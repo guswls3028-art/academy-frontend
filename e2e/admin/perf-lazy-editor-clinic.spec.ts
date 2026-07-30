@@ -43,7 +43,7 @@ test.describe("시나리오 A — RichTextEditor lazy 분할 회귀", () => {
     await loginViaUI(page, "admin");
 
     // 1. 공지사항 페이지 진입
-    await page.goto(`${BASE}/admin/community/notice`, {
+    await page.goto(`${BASE}/workspace/community/notice`, {
       waitUntil: "load",
       timeout: 20000,
     });
@@ -145,7 +145,7 @@ test.describe("시나리오 A — RichTextEditor lazy 분할 회귀", () => {
         console.warn(`[A cleanup] 공지 API 삭제 실패 (id=${createdNoticeId}, status=${delResp.status})`);
       }
 
-      await p.goto(`${BASE}/admin/community/notice`, {
+      await p.goto(`${BASE}/workspace/community/notice`, {
         waitUntil: "load",
         timeout: 20000,
       });
@@ -224,7 +224,7 @@ test.describe("시나리오 B — clinic staleTime 회귀", () => {
     });
 
     // /admin/clinic 진입
-    await page.goto(`${BASE}/admin/clinic`, {
+    await page.goto(`${BASE}/workspace/clinic`, {
       waitUntil: "load",
       timeout: 20000,
     });
@@ -289,7 +289,7 @@ test.describe("시나리오 B — clinic staleTime 회귀", () => {
       }
     });
 
-    await page.goto(`${BASE}/admin/clinic`, {
+    await page.goto(`${BASE}/workspace/clinic`, {
       waitUntil: "load",
       timeout: 20000,
     });
@@ -379,7 +379,7 @@ test.describe("시나리오 C — lazy 분할 사이드 이펙트 스모크", ()
       if (msg.type() === "error") jsErrors.push(msg.text());
     });
 
-    await page.goto(`${BASE}/admin/students`, {
+    await page.goto(`${BASE}/workspace/students`, {
       waitUntil: "load",
       timeout: 20000,
     });

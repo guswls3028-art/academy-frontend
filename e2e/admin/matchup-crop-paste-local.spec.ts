@@ -26,7 +26,7 @@ test.describe("매치업 크롭/붙여넣기 — 로컬 시각 확인", () => {
   });
 
   test("업로드 모달: Ctrl+V 붙여넣기 안내문 노출", async ({ page }) => {
-    await page.goto(`${LOCAL}/admin/storage/matchup`, { waitUntil: "networkidle" });
+    await page.goto(`${LOCAL}/workspace/storage/matchup`, { waitUntil: "networkidle" });
 
     const uploadBtn = page.locator(
       "[data-testid='matchup-upload-button'], [data-testid='matchup-empty-test-btn']",
@@ -41,7 +41,7 @@ test.describe("매치업 크롭/붙여넣기 — 로컬 시각 확인", () => {
   });
 
   test("크롭 모달: 8방향 핸들 + 안내문 갱신", async ({ page }) => {
-    await page.goto(`${LOCAL}/admin/storage/matchup`, { waitUntil: "networkidle" });
+    await page.goto(`${LOCAL}/workspace/storage/matchup`, { waitUntil: "networkidle" });
 
     // 첫 문서 행 클릭 → 디테일 패널 → 직접 자르기
     const firstDoc = page.locator("[data-testid='matchup-doc-row']").first();

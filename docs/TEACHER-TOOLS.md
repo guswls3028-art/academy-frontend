@@ -17,6 +17,25 @@
 [강사 AI 문제 풀이 백엔드 문서](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/teacher-problem-solver.md)가
 소유한다.
 
+## 통합 업무 문항 스튜디오
+
+관리자·교사가 원본 시험지를 편집 가능한 HWPX와 검수 자료로 옮기는 문항
+스튜디오는 `/workspace/tools/problem-studio`에서 연다. 사용자는 원본을
+올리고 글로벌 AI 처리 범위를 확인한 뒤 전사·해설 작업을 시작하며, 완료
+전에는 다운로드가 자동으로 시작되지 않는다. 결과는 교사가 검수한 뒤
+명시적으로 HWPX 또는 검수본 ZIP으로 내려받는다.
+
+문서 스타일 API 응답은 배포 순서나 기존 저장값에 따라 새 선택 필드가
+일시적으로 없을 수 있다. 화면은 누락 필드를 안전한 기본값으로 보완해 모든
+글꼴·크기·자평·자간 입력을 계속 제어 상태로 유지한다. 설정 조회가 완전히
+실패하면 기존 초안과 출력 기능은 유지하고 경고만 표시한다. 테넌트 권한,
+원본 보존, 작업자와 다운로드 계약의 정본은
+[Problem Studio 백엔드 문서](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/problem-studio.md)다.
+
+집중 회귀는 `e2e/problem-studio-ai-typing.spec.ts`에서 데스크톱과 390px
+화면, 동의 전 실행 차단, 명시적 다운로드, 문체 학습, 선택 필드 누락 응답,
+브라우저 console 오류 0건을 확인한다.
+
 ### 배포 호환 경계
 
 위 `/workspace/mobile` 경로는 현재 소스 정본이다. 이 route 전환

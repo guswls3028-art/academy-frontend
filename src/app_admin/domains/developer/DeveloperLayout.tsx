@@ -6,7 +6,6 @@ import { DomainLayout } from "@/shared/ui/layout";
 import type { DomainTab } from "@/shared/ui/domain";
 
 const DEVELOPER_TABS: DomainTab[] = [
-  { key: "patchnotes", label: "패치노트", path: "/workspace/developer", exact: true },
   { key: "bug", label: "버그 제보", path: "/workspace/developer/bug" },
   { key: "feedback", label: "피드백", path: "/workspace/developer/feedback" },
   { key: "flags", label: "운영 설정", path: "/workspace/developer/flags" },
@@ -15,8 +14,8 @@ const DEVELOPER_TABS: DomainTab[] = [
 export default function DeveloperLayout() {
   return (
     <DomainLayout
-      title="To개발자"
-      description="패치노트, 버그 제보, 피드백"
+      title="지원"
+      description="버그 제보, 피드백과 운영 설정"
       tabs={DEVELOPER_TABS}
     >
       <Outlet />

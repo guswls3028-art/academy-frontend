@@ -323,7 +323,7 @@ async function fillParentPhone(dialog: Locator, phone: string): Promise<void> {
 }
 
 async function gotoStudents(page: Page, deleted = false): Promise<void> {
-  await gotoAndSettle(page, `${BASE}${deleted ? "/admin/students/deleted" : "/admin/students/home"}`, { timeout: 45_000 });
+  await gotoAndSettle(page, `${BASE}${deleted ? "/workspace/students/deleted" : "/workspace/students/home"}`, { timeout: 45_000 });
   await expect(page.locator("[data-guide='students-search']")).toBeVisible({ timeout: 15_000 });
 }
 
@@ -470,7 +470,7 @@ test.describe.serial("[E2E] fixture 기반 파괴/상태변경 버튼 전수 감
     const username = `e2ed${suffix("s")}`;
     const tempPassword = `Pw${suffix("!")}`;
 
-    await loginViaUI(page, "admin", { landingPath: "/admin/students/home" });
+    await loginViaUI(page, "admin", { landingPath: "/workspace/students/home" });
     await page.getByRole("button", { name: "학생 추가", exact: true }).click();
     const createDialog = await latestDialog(page, "학생 등록");
     await createDialog.getByText("1명만 등록", { exact: true }).click();
@@ -488,7 +488,7 @@ test.describe.serial("[E2E] fixture 기반 파괴/상태변경 버튼 전수 감
     const createdStudent = await waitForStudent(request, token, originalName);
     created.studentIds.add(createdStudent.id);
 
-    await gotoAndSettle(page, `${BASE}/admin/students/${createdStudent.id}`, { timeout: 45_000 });
+    await gotoAndSettle(page, `${BASE}/workspace/students/${createdStudent.id}`, { timeout: 45_000 });
     await page.getByRole("button", { name: "수정", exact: true }).click();
     const editDialog = await latestDialog(page, "학생 수정");
     await editDialog.getByPlaceholder("이름").fill(updatedName);
@@ -586,7 +586,7 @@ test.describe.serial("[E2E] fixture 기반 파괴/상태변경 버튼 전수 감
     );
     expect(approveReq.status, `approve registration create -> ${approveReq.status} ${JSON.stringify(approveReq.body)}`).toBe(201);
 
-    await loginViaUI(page, "admin", { landingPath: "/admin/students/requests" });
+    await loginViaUI(page, "admin", { landingPath: "/workspace/students/requests" });
     await expect(page.getByText(rejectName, { exact: false })).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText(approveName, { exact: false })).toBeVisible({ timeout: 20_000 });
 
@@ -623,7 +623,7 @@ test.describe.serial("[E2E] fixture 기반 파괴/상태변경 버튼 전수 감
     const student = await createStudentApi(request, token, name, username);
     const approvedTemplate = await findApprovedMessageTemplate(request, token);
 
-    await loginViaUI(page, "admin", { landingPath: "/admin/students/home" });
+    await loginViaUI(page, "admin", { landingPath: "/workspace/students/home" });
     await selectStudentInUi(page, name);
     await page.getByRole("button", { name: "메시지 발송", exact: true }).click();
     const dialog = await latestDialog(page, "알림톡 발송");
@@ -668,7 +668,7 @@ test.describe.serial("[E2E] fixture 기반 파괴/상태변경 버튼 전수 감
     await fs.mkdir(testInfo.outputDir, { recursive: true });
     await fs.writeFile(fixturePath, `${RUN} material attachment fixture\n`, "utf8");
 
-    await loginViaUI(page, "admin", { landingPath: "/admin/community/materials" });
+    await loginViaUI(page, "admin", { landingPath: "/workspace/community/materials" });
     await page.getByRole("button", { name: "+ 자료 등록", exact: true }).click();
     await page.getByPlaceholder("자료 제목을 입력하세요").fill(title);
     await page.getByRole("button", { name: "등록", exact: true }).click();
@@ -723,7 +723,7 @@ test.describe.serial("[E2E] fixture 기반 파괴/상태변경 버튼 전수 감
 
   test("결제/카드 영역은 fixture 카드가 없으면 실결제 버튼을 클릭하지 않고 차단 상태를 확인한다", async ({ page, request }) => {
     const token = created.access || (await loginToken(request)).access;
-    await loginViaUI(page, "admin", { landingPath: "/admin/settings/billing" });
+    await loginViaUI(page, "admin", { landingPath: "/workspace/settings/billing" });
     await expect(page.getByRole("heading", { name: "결제 / 구독", exact: true })).toBeVisible({ timeout: 20_000 });
 
     const cardsBody = await expectApi<any>(request, "GET", "/billing/cards/", token);

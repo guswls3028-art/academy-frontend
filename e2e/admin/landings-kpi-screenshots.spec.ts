@@ -24,8 +24,8 @@ test("KPI inbox screenshots — results + videos", async ({ page }) => {
   });
 
   for (const L of [
-    { slug: "40-results-kpi", path: "/admin/results" },
-    { slug: "50-videos-kpi", path: "/admin/videos" },
+    { slug: "40-results-kpi", path: "/workspace/results" },
+    { slug: "50-videos-kpi", path: "/workspace/videos" },
   ]) {
     await page.goto(`${BASE}${L.path}`, { waitUntil: "domcontentloaded" });
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});

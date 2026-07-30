@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures/strictTest";
-import { onRequestGet } from "../functions/[[path]]";
+import { onRequestGet } from "../functions/[[path]].ts";
 import { resolveBillingAmounts } from "../src/shared/product/billingAmounts";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";

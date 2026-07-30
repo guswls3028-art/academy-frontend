@@ -9,32 +9,32 @@ import { loginViaUI, getBaseUrl } from "../helpers/auth.ts";
 const BASE = getBaseUrl("admin");
 
 const PC_SUB = [
-  { path: "/admin/message", file: "pc-sub-01-message" },
-  { path: "/admin/results", file: "pc-sub-02-results" },
-  { path: "/admin/videos", file: "pc-sub-03-videos" },
-  { path: "/admin/community/notice", file: "pc-sub-04-community-notice" },
-  { path: "/admin/storage/files", file: "pc-sub-05-storage" },
-  { path: "/admin/fees/invoices", file: "pc-sub-06-fees-invoices" },
-  { path: "/admin/exams/templates", file: "pc-sub-07-exam-templates" },
-  { path: "/admin/clinic/operations", file: "pc-sub-08-clinic-operations" },
+  { path: "/workspace/message", file: "pc-sub-01-message" },
+  { path: "/workspace/results", file: "pc-sub-02-results" },
+  { path: "/workspace/videos", file: "pc-sub-03-videos" },
+  { path: "/workspace/community/notice", file: "pc-sub-04-community-notice" },
+  { path: "/workspace/storage/files", file: "pc-sub-05-storage" },
+  { path: "/workspace/fees/invoices", file: "pc-sub-06-fees-invoices" },
+  { path: "/workspace/exams/templates", file: "pc-sub-07-exam-templates" },
+  { path: "/workspace/clinic/operations", file: "pc-sub-08-clinic-operations" },
 ];
 
 const MOBILE_SUB = [
-  { path: "/teacher/message-log", file: "m-sub-01-message-log" },
-  { path: "/teacher/results", file: "m-sub-02-results" },
-  { path: "/teacher/submissions", file: "m-sub-03-submissions" },
-  { path: "/teacher/videos", file: "m-sub-04-videos" },
-  { path: "/teacher/storage", file: "m-sub-05-storage" },
-  { path: "/teacher/fees/invoices", file: "m-sub-06-fees-invoices" },
-  { path: "/teacher/notifications", file: "m-sub-07-notifications" },
-  { path: "/teacher/counseling", file: "m-sub-08-counseling" },
+  { path: "/workspace/mobile/message-log", file: "m-sub-01-message-log" },
+  { path: "/workspace/mobile/results", file: "m-sub-02-results" },
+  { path: "/workspace/mobile/submissions", file: "m-sub-03-submissions" },
+  { path: "/workspace/mobile/videos", file: "m-sub-04-videos" },
+  { path: "/workspace/mobile/storage", file: "m-sub-05-storage" },
+  { path: "/workspace/mobile/fees/invoices", file: "m-sub-06-fees-invoices" },
+  { path: "/workspace/mobile/notifications", file: "m-sub-07-notifications" },
+  { path: "/workspace/mobile/counseling", file: "m-sub-08-counseling" },
 ];
 
 const NARROW = [
-  { path: "/admin/dashboard", file: "narrow-01-dashboard" },
-  { path: "/admin/students/home", file: "narrow-02-students" },
-  { path: "/admin/exams", file: "narrow-03-exams" },
-  { path: "/admin/staff/home", file: "narrow-04-staff" },
+  { path: "/workspace/dashboard", file: "narrow-01-dashboard" },
+  { path: "/workspace/students/home", file: "narrow-02-students" },
+  { path: "/workspace/exams", file: "narrow-03-exams" },
+  { path: "/workspace/staff/home", file: "narrow-04-staff" },
 ];
 
 type CaptureTarget = { path: string; file: string };

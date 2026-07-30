@@ -36,8 +36,8 @@ async function openClinicTool(page: Page) {
   } else {
     await loginViaUI(page, "admin");
   }
-  await page.goto(`${baseUrl}/admin/tools/clinic`, { waitUntil: "load" });
-  await expect(page).toHaveURL(/\/admin\/tools\/clinic/);
+  await page.goto(`${baseUrl}/workspace/tools/clinic`, { waitUntil: "load" });
+  await expect(page).toHaveURL(/\/workspace\/tools\/clinic/);
   await expect(page.locator("#clinic-paste-ta")).toBeVisible({ timeout: 30_000 });
 }
 
@@ -275,7 +275,7 @@ async function openScoreClinicPreviewWithLocalStubs(page: Page) {
     sessionStorage.setItem("tenantCode", "hakwonplus");
   }, token);
 
-  await page.goto(`${baseUrl}/admin/lectures/990001/sessions/990002/scores`, { waitUntil: "load" });
+  await page.goto(`${baseUrl}/workspace/lectures/990001/sessions/990002/scores`, { waitUntil: "load" });
   await expect(page.locator("button[title='추가 기능']")).toBeVisible({ timeout: 30_000 });
 }
 

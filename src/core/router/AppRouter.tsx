@@ -7,6 +7,7 @@ import MobileWorkspaceRedirect, {
 } from "./MobileWorkspaceRedirect";
 import ErrorBoundary from "@/shared/ui/ErrorBoundary";
 import RouteFallback from "./RouteFallback";
+import ExternalRedirect from "./ExternalRedirect";
 import { ProductAnalyticsProvider } from "@/shared/productAnalytics";
 import {
   canonicalizeWorkspacePath,
@@ -45,13 +46,6 @@ const DEV_HOST_ALLOWED_PATHS = [
   "/privacy",
   "/error/tenant-required",
 ];
-
-function ExternalRedirect({ to }: { to: string }) {
-  useEffect(() => {
-    window.location.replace(to);
-  }, [to]);
-  return null;
-}
 
 function MaintenanceGate({ enabled }: { enabled: boolean }) {
   const location = useLocation();
@@ -274,7 +268,7 @@ export default function AppRouter() {
         </Route>
       </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </ProductAnalyticsProvider>
   );

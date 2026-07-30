@@ -23,7 +23,7 @@ test("미식별 제출 인박스 — 가드 + 액션 분기 + confirm 다이얼�
 
   await loginViaUI(page, "admin");
 
-  await page.goto(`${getBaseUrl("admin")}/admin/results/submissions`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${getBaseUrl("admin")}/workspace/results/submissions`, { waitUntil: "domcontentloaded" });
 
   // 데이터 로드 대기
   await page.waitForFunction(

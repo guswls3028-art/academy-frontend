@@ -131,7 +131,7 @@ test.describe.serial("Exam PDF upload flow", () => {
     const ctx = await browser.newContext();
     page = await ctx.newPage();
     await loginViaUI(page, "admin");
-    expect(page.url()).toContain("/admin");
+    expect(page.url()).toContain("/workspace");
   });
 
   // ══════════════════════════════════════════════════════
@@ -265,7 +265,7 @@ test.describe.serial("Exam PDF upload flow", () => {
     test.skip(!lectureId || !sessionId, "No session available");
 
     await page.goto(
-      `${BASE}/admin/lectures/${lectureId}/sessions/${sessionId}/exams`,
+      `${BASE}/workspace/lectures/${lectureId}/sessions/${sessionId}/exams`,
       { waitUntil: "load", timeout: 15000 },
     );
     await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);

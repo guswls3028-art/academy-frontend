@@ -9,7 +9,7 @@ test.describe("알림톡 숨은 모순", () => {
   test.beforeEach(async ({ page }) => loginViaUI(page, "admin"));
 
   test("결제 승인 양식이 없으면 사용 가능으로 가장하지 않는다", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/message/templates`);
+    await gotoAndSettle(page, `${BASE}/workspace/message/templates`);
     await page.getByText("결제", { exact: true }).first().click();
 
     const content = page.locator("main");
@@ -25,7 +25,7 @@ test.describe("알림톡 숨은 모순", () => {
   });
 
   test("가입 자동발송은 승인 전용 양식과 발송 가능 상태를 일관되게 표시한다", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/message/auto-send`);
+    await gotoAndSettle(page, `${BASE}/workspace/message/auto-send`);
     const signupCard = page.locator("[data-card-state]").filter({ hasText: "가입 안내(학생)" }).first();
     await expect(signupCard).toBeVisible();
     const text = await signupCard.innerText();
@@ -36,9 +36,9 @@ test.describe("알림톡 숨은 모순", () => {
   });
 
   test("설정 API 변경 UI와 공급사 템플릿 생성 UI가 다시 생기지 않는다", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/message/settings`);
+    await gotoAndSettle(page, `${BASE}/workspace/message/settings`);
     await expect(page.getByRole("textbox", { name: /PFID|API|발신번호/ })).toHaveCount(0);
-    await gotoAndSettle(page, `${BASE}/admin/message/templates`);
+    await gotoAndSettle(page, `${BASE}/workspace/message/templates`);
     await expect(page.getByRole("button", { name: /검수 신청|솔라피 동기화/ })).toHaveCount(0);
   });
 });

@@ -37,7 +37,7 @@ test.describe("DNB 코어 + 학생 관리 E2E", () => {
 
   // ─── 1. 대시보드 ───
   test("1. 대시보드 렌더링 + 사이드바 메뉴 visible", async ({ page }) => {
-    expect(page.url()).toContain("/admin");
+    expect(page.url()).toContain("/workspace");
 
     const sidebar = page.locator("nav, aside, [class*='sidebar'], [class*='Sidebar'], [class*='side-bar']").first();
     await expect(sidebar).toBeVisible({ timeout: 10000 });
@@ -67,8 +67,8 @@ test.describe("DNB 코어 + 학생 관리 E2E", () => {
       await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
     }
 
-    await page.waitForURL(/\/admin\/students/, { timeout: 10000 }).catch(() => {});
-    expect(page.url()).toContain("/admin/students");
+    await page.waitForURL(/\/workspace\/students/, { timeout: 10000 }).catch(() => {});
+    expect(page.url()).toContain("/workspace/students");
 
     const studentContent = page.locator(
       "table, [class*='card'], [class*='Card'], [class*='student'], [class*='Student'], [class*='list'], [class*='grid']"
@@ -88,7 +88,7 @@ test.describe("DNB 코어 + 학생 관리 E2E", () => {
 
   // ─── 3. 학생 등록 폼 ───
   test("3. 학생 추가 폼 - school_level_mode=elementary_middle 확인", async ({ page }) => {
-    await gotoAndSettle(page, `${DNB_BASE}/admin/students/home`, { settleMs: 1500 });
+    await gotoAndSettle(page, `${DNB_BASE}/workspace/students/home`, { settleMs: 1500 });
 
     const addBtn = page.getByRole("button", { name: /학생 추가/ });
     await expect(addBtn).toBeVisible({ timeout: 8000 });
@@ -113,7 +113,7 @@ test.describe("DNB 코어 + 학생 관리 E2E", () => {
 
   // ─── 4. 학생 상세 ───
   test("4. 학생 상세 - 클릭 → 팝업 → 탭 확인", async ({ page }) => {
-    await gotoAndSettle(page, `${DNB_BASE}/admin/students/home`, { settleMs: 1500 });
+    await gotoAndSettle(page, `${DNB_BASE}/workspace/students/home`, { settleMs: 1500 });
 
     const studentItem = page.locator(
       "table tbody tr, [class*='card'], [class*='Card'], [class*='student-item'], [class*='StudentItem'], [class*='list-item']"
@@ -156,14 +156,14 @@ test.describe("DNB 코어 + 학생 관리 E2E", () => {
         await reqMenu.click();
         await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
       } else {
-        await gotoAndSettle(page, `${DNB_BASE}/admin/students/requests`);
+        await gotoAndSettle(page, `${DNB_BASE}/workspace/students/requests`);
       }
     } else {
-      await gotoAndSettle(page, `${DNB_BASE}/admin/students/requests`);
+      await gotoAndSettle(page, `${DNB_BASE}/workspace/students/requests`);
     }
 
     await expect(page.locator("body")).toBeVisible();
-    expect(page.url()).toContain("/admin/students");
+    expect(page.url()).toContain("/workspace/students");
 
     await page.screenshot({ path: `e2e/screenshots/dnb-05-signup-requests-${TS}.png`, fullPage: true });
   });
@@ -180,10 +180,10 @@ test.describe("DNB 코어 + 학생 관리 E2E", () => {
         await profileMenu.click();
         await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
       } else {
-        await gotoAndSettle(page, `${DNB_BASE}/admin/settings/profile`);
+        await gotoAndSettle(page, `${DNB_BASE}/workspace/settings/profile`);
       }
     } else {
-      await gotoAndSettle(page, `${DNB_BASE}/admin/settings/profile`);
+      await gotoAndSettle(page, `${DNB_BASE}/workspace/settings/profile`);
     }
 
     await expect(page.locator("body")).toBeVisible();
@@ -192,7 +192,7 @@ test.describe("DNB 코어 + 학생 관리 E2E", () => {
 
   // ─── 7. 설정 > 학원 정보 ───
   test("7. 설정 > 학원 정보 - DnB 표시 확인", async ({ page }) => {
-    await gotoAndSettle(page, `${DNB_BASE}/admin/settings/organization`, { settleMs: 1500 });
+    await gotoAndSettle(page, `${DNB_BASE}/workspace/settings/organization`, { settleMs: 1500 });
 
     const orgName = page.locator("text=/DnB|DNB|dnb/i").first();
     await expect(orgName).toBeVisible({ timeout: 8000 });
@@ -202,7 +202,7 @@ test.describe("DNB 코어 + 학생 관리 E2E", () => {
 
   // ─── 8. 설정 > 외관 ───
   test("8. 설정 > 외관 렌더링", async ({ page }) => {
-    await gotoAndSettle(page, `${DNB_BASE}/admin/settings/appearance`, { settleMs: 1500 });
+    await gotoAndSettle(page, `${DNB_BASE}/workspace/settings/appearance`, { settleMs: 1500 });
 
     await expect(page.locator("body")).toBeVisible();
     // appearance 관련 라벨 — 환경/언어에 따라 다양 → 옵셔널 (silent log 제거).
@@ -211,14 +211,14 @@ test.describe("DNB 코어 + 학생 관리 E2E", () => {
 
   // ─── 9. 설정 > 랜딩 ───
   test("9. 설정 > 랜딩 렌더링", async ({ page }) => {
-    await gotoAndSettle(page, `${DNB_BASE}/admin/settings/landing`, { settleMs: 1500 });
+    await gotoAndSettle(page, `${DNB_BASE}/workspace/settings/landing`, { settleMs: 1500 });
     await expect(page.locator("body")).toBeVisible();
     await page.screenshot({ path: `e2e/screenshots/dnb-09-settings-landing-${TS}.png`, fullPage: true });
   });
 
   // ─── 10. 설정 > 결제 ───
   test("10. 설정 > 결제 렌더링", async ({ page }) => {
-    await gotoAndSettle(page, `${DNB_BASE}/admin/settings/billing`, { settleMs: 1500 });
+    await gotoAndSettle(page, `${DNB_BASE}/workspace/settings/billing`, { settleMs: 1500 });
     await expect(page.locator("body")).toBeVisible();
     await page.screenshot({ path: `e2e/screenshots/dnb-10-settings-billing-${TS}.png`, fullPage: true });
   });
@@ -235,10 +235,10 @@ test.describe("DNB 코어 + 학생 관리 E2E", () => {
         await patchMenu.click();
         await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
       } else {
-        await gotoAndSettle(page, `${DNB_BASE}/admin/developer`);
+        await gotoAndSettle(page, `${DNB_BASE}/workspace/developer`);
       }
     } else {
-      await gotoAndSettle(page, `${DNB_BASE}/admin/developer`);
+      await gotoAndSettle(page, `${DNB_BASE}/workspace/developer`);
     }
 
     await expect(page.locator("body")).toBeVisible();
@@ -247,7 +247,7 @@ test.describe("DNB 코어 + 학생 관리 E2E", () => {
 
   // ─── 12. 개발자 > 운영 설정(플래그) ───
   test("12. 개발자 > 플래그 - school_level_mode=elementary_middle 확인", async ({ page }) => {
-    await gotoAndSettle(page, `${DNB_BASE}/admin/developer/flags`, { settleMs: 1500 });
+    await gotoAndSettle(page, `${DNB_BASE}/workspace/developer/flags`, { settleMs: 1500 });
 
     await expect(page.locator("body")).toBeVisible();
 

@@ -408,7 +408,7 @@ test.describe("개인 성적표", () => {
     await page.setViewportSize({ width: 1366, height: 900 });
     const apiTracker = await installApi(page);
     const baseUrl = getBaseUrl("admin");
-    await page.goto(`${baseUrl}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
+    await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
 
     await expect(page.getByRole("button", { name: "추가 기능" })).toBeVisible({ timeout: 30_000 });
     await page.getByRole("button", { name: "추가 기능" }).click();
@@ -498,7 +498,7 @@ test.describe("개인 성적표", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await installApi(page);
     const baseUrl = getBaseUrl("admin");
-    await page.goto(`${baseUrl}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
+    await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
 
     await expect(page.getByRole("button", { name: "추가 기능" })).toBeVisible({ timeout: 30_000 });
     await page.getByRole("button", { name: "추가 기능" }).click();
@@ -545,7 +545,7 @@ test.describe("개인 성적표", () => {
     await page.setViewportSize({ width: 1366, height: 900 });
     await installApi(page, { denseReport: true, primaryColor: "#f97316" });
     const baseUrl = getBaseUrl("admin");
-    await page.goto(`${baseUrl}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
+    await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
 
     await expect(page.getByRole("button", { name: "추가 기능" })).toBeVisible({ timeout: 30_000 });
     await page.getByRole("button", { name: "추가 기능" }).click();

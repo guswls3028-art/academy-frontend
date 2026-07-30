@@ -2,19 +2,20 @@
  * PATH: src/app_teacher/layout/TeacherDrawer.tsx
  * 사이드 드로어 — PC 사이드바 구조 1:1 매칭. 4그룹 + Lucide 아이콘
  */
-import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ICON } from "@/shared/ui/ds";
 import { useNavigate, useLocation } from "react-router-dom";
 import useAuth from "@/auth/hooks/useAuth";
 import { setPreferFullWorkspace } from "@/core/router/MobileWorkspaceRedirect";
 import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
+import { PUBLIC_UPDATES_URL } from "@/shared/constants/origins";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import {
   Home, Users, BookOpen, Activity,
   ClipboardList, Award, Video, MessageSquare,
   FileText, Bell, User, Settings, Send, Clock,
   Monitor, LogOut, AlertCircle, X, FolderPlus, Calendar, Info,
-  RefreshCw, Bug, Globe, Wrench,
+  RefreshCw, Bug, Globe, ChevronDown, ExternalLink, Wrench,
 } from "@teacher/shared/ui/Icons";
 import styles from "./TeacherDrawer.module.css";
 
@@ -27,7 +28,8 @@ interface Props {
 /* PC 사이드바 4그룹 구조 */
 type MenuItem = {
   label: string;
-  path: string;
+  path?: string;
+  href?: string;
   icon: ReactNode;
   badge?: number;
 };
@@ -43,6 +45,7 @@ export default function TeacherDrawer({ open, onClose, persistent = false }: Pro
   const panelRef = useRef<HTMLDivElement>(null);
   const { clearAuth, user } = useAuth();
   const { counts } = useTeacherPendingCounts();
+  const [expandedGroup, setExpandedGroup] = useState("오늘 업무");
   const isOwnerOrAdmin = user?.tenantRole === "owner" || user?.tenantRole === "admin";
   const feesEnabled = useFeesEnabled();
   const recentSubmissions = counts?.recentSubmissions;
@@ -110,7 +113,7 @@ export default function TeacherDrawer({ open, onClose, persistent = false }: Pro
           { label: "학원 홈페이지", path: "/landing", icon: <Globe size={ICON.md} /> },
           { label: "도구", path: "/workspace/mobile/tools", icon: <Wrench size={ICON.md} /> },
           { label: "PC에서 처리하는 기능", path: "/workspace/mobile/desktop-only", icon: <Monitor size={ICON.md} /> },
-          { label: "패치노트", path: "/workspace/mobile/developer", icon: <FileText size={ICON.md} /> },
+          { label: "업데이트 소식", href: PUBLIC_UPDATES_URL, icon: <FileText size={ICON.md} /> },
           { label: "버그 제보", path: "/workspace/mobile/developer/bug", icon: <Bug size={ICON.md} /> },
           { label: "피드백", path: "/workspace/mobile/developer/feedback", icon: <MessageSquare size={ICON.md} /> },
         ],
@@ -118,6 +121,17 @@ export default function TeacherDrawer({ open, onClose, persistent = false }: Pro
     ],
     [feesEnabled, isOwnerOrAdmin, recentSubmissions, totalNotifications],
   );
+
+  useEffect(() => {
+    const activeGroup = menuGroups.find((group) =>
+      group.items.some((item) => {
+        if (!item.path) return false;
+        if (item.path === "/workspace/mobile") return location.pathname === "/workspace/mobile";
+        return location.pathname.startsWith(item.path);
+      }),
+    );
+    if (activeGroup) setExpandedGroup(activeGroup.title);
+  }, [location.pathname, menuGroups]);
 
   // Body scroll lock
   useEffect(() => {
@@ -165,7 +179,8 @@ export default function TeacherDrawer({ open, onClose, persistent = false }: Pro
     document.dispatchEvent(new Event("ui:bugreport:open"));
   };
 
-  const isActive = (path: string) => {
+  const isActive = (path?: string) => {
+    if (!path) return false;
     if (path === "/workspace/mobile") return location.pathname === "/workspace/mobile";
     return location.pathname.startsWith(path);
   };
@@ -205,40 +220,93 @@ export default function TeacherDrawer({ open, onClose, persistent = false }: Pro
 
         {/* Grouped menu — PC 사이드바 구조 */}
         <div className={styles.menuScroll}>
-          {menuGroups.map((group, gi) => (
+          {menuGroups.map((group, groupIndex) => (
             <div key={group.title}>
-              {/* Group header */}
-              <div className={styles.groupTitle}>
-                {group.title}
-              </div>
+              <button
+                type="button"
+                className={
+                  expandedGroup === group.title
+                    ? `${styles.groupButton} ${styles.groupButtonOpen}`
+                    : styles.groupButton
+                }
+                aria-expanded={expandedGroup === group.title}
+                aria-controls={`teacher-menu-group-${groupIndex}`}
+                onClick={() =>
+                  setExpandedGroup((current) =>
+                    current === group.title ? "" : group.title,
+                  )
+                }
+              >
+                <span>{group.title}</span>
+                <span className={styles.groupCount}>{group.items.length}</span>
+                <ChevronDown
+                  size={ICON.xs}
+                  className={
+                    expandedGroup === group.title
+                      ? `${styles.groupChevron} ${styles.groupChevronOpen}`
+                      : styles.groupChevron
+                  }
+                  aria-hidden
+                />
+              </button>
 
-              {/* Items */}
-              {group.items.map((item) => {
-                const active = isActive(item.path);
-                return (
-                  <button
-                    type="button"
-                    key={item.path}
-                    data-analytics-destination={item.path}
-                    onClick={() => handleNav(item.path)}
-                    className={active ? `${styles.menuItem} ${styles.menuItemActive}` : styles.menuItem}
-                  >
-                    <span className={active ? `${styles.itemIcon} ${styles.itemIconActive}` : styles.itemIcon}>
-                      {item.icon}
-                    </span>
-                    <span className={styles.itemLabel}>{item.label}</span>
-                    {item.badge != null && item.badge > 0 && (
-                      <span className={styles.badge}>
-                        {item.badge > 99 ? "99+" : item.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+              {expandedGroup === group.title && (
+                <div id={`teacher-menu-group-${groupIndex}`} className={styles.groupItems}>
+                  {group.items.map((item) => {
+                    const active = isActive(item.path);
+                    const itemClass = active
+                      ? `${styles.menuItem} ${styles.menuItemActive}`
+                      : styles.menuItem;
+                    const content = (
+                      <>
+                        <span className={active ? `${styles.itemIcon} ${styles.itemIconActive}` : styles.itemIcon}>
+                          {item.icon}
+                        </span>
+                        <span className={styles.itemLabel}>{item.label}</span>
+                        {item.badge != null && item.badge > 0 && (
+                          <span className={styles.badge}>
+                            {item.badge > 99 ? "99+" : item.badge}
+                          </span>
+                        )}
+                        {item.href && (
+                          <ExternalLink
+                            size={ICON.xs}
+                            className={styles.externalMark}
+                            aria-hidden
+                          />
+                        )}
+                      </>
+                    );
 
-              {/* Divider between groups */}
-              {gi < menuGroups.length - 1 && (
-                <div className={styles.divider} />
+                    if (item.href) {
+                      return (
+                        <a
+                          key={item.href}
+                          href={item.href}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={itemClass}
+                          onClick={onClose}
+                        >
+                          {content}
+                        </a>
+                      );
+                    }
+
+                    return (
+                      <button
+                        type="button"
+                        key={item.path}
+                        data-analytics-destination={item.path}
+                        onClick={() => item.path && handleNav(item.path)}
+                        className={itemClass}
+                        aria-current={active ? "page" : undefined}
+                      >
+                        {content}
+                      </button>
+                    );
+                  })}
+                </div>
               )}
             </div>
           ))}

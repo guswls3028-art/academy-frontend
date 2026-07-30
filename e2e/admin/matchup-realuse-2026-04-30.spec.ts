@@ -46,7 +46,7 @@ async function selectDoneDocumentWithProblems(
   const selected = (preferExam ? candidates.find(isExamLikeMatchupDocument) : undefined) ?? candidates[0] ?? null;
   if (!selected) return null;
 
-  await gotoAndSettle(page, `${BASE}/admin/storage/matchup?docId=${selected.id}`, { timeout: 30_000 });
+  await gotoAndSettle(page, `${BASE}/workspace/storage/matchup?docId=${selected.id}`, { timeout: 30_000 });
   const target = page.locator(`[data-testid='matchup-doc-row'][data-doc-id='${selected.id}']`).first();
   await expect(target).toBeVisible({ timeout: 15_000 });
   await target.click();
@@ -62,7 +62,7 @@ test.describe("매치업 실사용 리뷰 2026-04-30", () => {
   });
 
   test("01. 매치업 진입 + 문서 목록 + 카테고리 트리", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/storage/matchup`);
+    await gotoAndSettle(page, `${BASE}/workspace/storage/matchup`);
 
     await page.screenshot({ path: path.join(SHOTS, "01-landing.png"), fullPage: true });
 
@@ -84,7 +84,7 @@ test.describe("매치업 실사용 리뷰 2026-04-30", () => {
   });
 
   test("02. 시험지 doc 선택 → 액션바 + 문제 그리드 + 유사/cross 탭", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/storage/matchup`);
+    await gotoAndSettle(page, `${BASE}/workspace/storage/matchup`);
 
     const selected = await selectDoneDocumentWithProblems(page);
     if (!selected) {
@@ -167,7 +167,7 @@ test.describe("매치업 실사용 리뷰 2026-04-30", () => {
   });
 
   test("03. 적중 보고서 작성기 진입 (primary CTA 검증)", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/storage/matchup`);
+    await gotoAndSettle(page, `${BASE}/workspace/storage/matchup`);
 
     const selected = await selectDoneDocumentWithProblems(page);
     if (!selected) {
@@ -192,7 +192,7 @@ test.describe("매치업 실사용 리뷰 2026-04-30", () => {
   });
 
   test("04. 카테고리 인라인 편집 (변경 후 원복)", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/storage/matchup`);
+    await gotoAndSettle(page, `${BASE}/workspace/storage/matchup`);
 
     const firstRow = page.locator("[data-testid='matchup-doc-row'], [data-doc-id]").first();
     if (await firstRow.count() === 0) return;
@@ -239,7 +239,7 @@ test.describe("매치업 실사용 리뷰 2026-04-30", () => {
   });
 
   test("05. 직접 자르기 모달 진입 + 페이지 로드", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/storage/matchup`);
+    await gotoAndSettle(page, `${BASE}/workspace/storage/matchup`);
 
     const firstRow = page.locator("[data-testid='matchup-doc-row'][data-doc-status='done']").first();
     if (await firstRow.count() === 0) {
@@ -261,7 +261,7 @@ test.describe("매치업 실사용 리뷰 2026-04-30", () => {
   });
 
   test("06. 업로드 모달 진입 + 라디오/카테고리 prefill", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/admin/storage/matchup`);
+    await gotoAndSettle(page, `${BASE}/workspace/storage/matchup`);
 
     // 우상단 / 빈 상태 / 트리 어디서든 업로드 진입
     const uploadBtn = page.locator(

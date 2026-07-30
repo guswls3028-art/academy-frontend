@@ -147,7 +147,7 @@ test.describe("운영 회귀: 차시 시험 삭제", () => {
       await assertExamLinkedToSession(page, examId!, examTitle);
 
       await page.goto(
-        `${BASE}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${examId}`,
+        `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${examId}`,
         { waitUntil: "load", timeout: 20_000 },
       );
       await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
@@ -171,7 +171,7 @@ test.describe("운영 회귀: 차시 시험 삭제", () => {
       await deleteResponse;
 
       await expect(page).toHaveURL(
-        new RegExp(`/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams(?:$|[?#])`),
+        new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams(?:$|[?#])`),
         { timeout: 10_000 },
       );
       await expect(page).not.toHaveURL(/examId=/);

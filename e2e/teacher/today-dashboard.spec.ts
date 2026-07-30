@@ -20,7 +20,7 @@ const MOBILE_UA =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 
 async function gotoTeacherDashboard(page: Page) {
-  await gotoAndSettle(page, `${BASE}/teacher`, { timeout: 30_000 });
+  await gotoAndSettle(page, `${BASE}/workspace/mobile`, { timeout: 30_000 });
   await expect(page.getByText("지금 처리할 일", { exact: true })).toBeVisible({ timeout: 8_000 });
 }
 

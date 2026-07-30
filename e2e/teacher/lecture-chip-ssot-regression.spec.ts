@@ -20,7 +20,7 @@ test.describe("강의 딱지 SSOT 회귀", () => {
   });
 
   test("선생님 모바일 강의 생성은 chip_label을 저장하고 2글자 한글 칩을 깨지지 않게 표시한다", async ({ page }) => {
-    await loginViaUI(page, "admin", { landingPath: "/teacher/classes" });
+    await loginViaUI(page, "admin", { landingPath: "/workspace/mobile/classes" });
 
     const tag = `[E2E-${Date.now()}]`;
     const title = `${tag} 딱지 수업`;
@@ -48,7 +48,7 @@ test.describe("강의 딱지 SSOT 회귀", () => {
       lectureId = createdBody.id;
       expect(createdBody.chip_label).toBe("수심");
 
-      await gotoAndSettle(page, `${BASE}/teacher/classes`, { timeout: 20_000 });
+      await gotoAndSettle(page, `${BASE}/workspace/mobile/classes`, { timeout: 20_000 });
       const row = page.getByRole("button", { name: new RegExp(escapeRegex(title)) }).first();
       await expect(row).toBeVisible({ timeout: 15_000 });
 
@@ -56,7 +56,7 @@ test.describe("강의 딱지 SSOT 회귀", () => {
       await assertChipStable(chip, "수심");
       await assertVisibleLectureChipContract(page);
 
-      await gotoAndSettle(page, `${BASE}/admin/lectures`, { timeout: 20_000 });
+      await gotoAndSettle(page, `${BASE}/workspace/lectures`, { timeout: 20_000 });
       const adminRow = page.getByRole("button", { name: new RegExp(escapeRegex(title)) }).first();
       await expect(adminRow).toBeVisible({ timeout: 15_000 });
       await assertChipStable(adminRow.locator("[data-lecture-chip]").first(), "수심");

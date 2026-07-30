@@ -32,7 +32,7 @@ test.describe("알림톡 실사용 검증 — 템플릿 편집 → 발송 → �
 
   test("1. 자동발송 페이지 — 전체 섹션 + 트리거 상태 확인", async ({ page }) => {
     await loginViaUI(page, "admin");
-    await page.goto(`${BASE}/admin/message/auto-send`);
+    await page.goto(`${BASE}/workspace/message/auto-send`);
     await page.waitForLoadState("networkidle");
     // eslint-disable-next-line no-restricted-syntax
     await page.waitForTimeout(2000);
@@ -63,7 +63,7 @@ test.describe("알림톡 실사용 검증 — 템플릿 편집 → 발송 → �
 
   test("2. 템플릿 편집 — 커스텀 양식 생성 + 변수 블록 삽입", async ({ page }) => {
     await loginViaUI(page, "admin");
-    await page.goto(`${BASE}/admin/message/templates`);
+    await page.goto(`${BASE}/workspace/message/templates`);
     await page.waitForLoadState("networkidle");
     // eslint-disable-next-line no-restricted-syntax
     await page.waitForTimeout(2000);
@@ -269,7 +269,7 @@ test.describe("알림톡 실사용 검증 — 템플릿 편집 → 발송 → �
     const logsMissingBody = sentLogs.filter((item) => !String(item?.message_body || "").trim());
     expect(logsMissingBody, "성공 발송 로그는 본문을 내려줘야 함").toHaveLength(0);
 
-    await page.goto(`${BASE}/admin/message/log`);
+    await page.goto(`${BASE}/workspace/message/log`);
     await page.waitForLoadState("networkidle");
     // eslint-disable-next-line no-restricted-syntax
     await page.waitForTimeout(2000);

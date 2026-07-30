@@ -9,7 +9,7 @@ test.describe("클리닉 대상자 — 수동 지정 음영(딱지 제거)", () 
     await installLocalAuthApiStubs(page);
     await installTenantOneInitScript(page);
     await loginViaUI(page, "admin");
-    await page.goto(`${getBaseUrl("admin")}/admin/tools/clinic`, { waitUntil: "load" });
+    await page.goto(`${getBaseUrl("admin")}/workspace/tools/clinic`, { waitUntil: "load" });
 
     await page.locator("#clinic-paste-ta").fill(
       `시험: [E2E-${TS}]김철수, [E2E-${TS}]이영희\n과제: [E2E-${TS}]박민수`,
@@ -51,7 +51,7 @@ test.describe("클리닉 대상자 — 수동 지정 음영(딱지 제거)", () 
     await installLocalAuthApiStubs(page);
     await installTenantOneInitScript(page);
     await loginViaUI(page, "admin");
-    await page.goto(`${getBaseUrl("admin")}/admin/tools/clinic`, { waitUntil: "load" });
+    await page.goto(`${getBaseUrl("admin")}/workspace/tools/clinic`, { waitUntil: "load" });
 
     const many = Array.from({ length: 22 }, (_, i) => `[E2E-${TS}]학생${String(i + 1).padStart(2, "0")}`).join(", ");
     await page.locator("#clinic-paste-ta").fill(`시험: ${many}`);

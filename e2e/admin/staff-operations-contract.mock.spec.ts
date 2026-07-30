@@ -166,7 +166,7 @@ test.describe("직원 운영 계약", () => {
       },
     });
 
-    await page.goto(`${BASE}/admin/staff/home`, {
+    await page.goto(`${BASE}/workspace/staff/home`, {
       waitUntil: "domcontentloaded",
     });
 
@@ -191,7 +191,7 @@ test.describe("직원 운영 계약", () => {
     await mockStaffApi(page, { lockFailure: true });
     await page.setViewportSize({ width: 1366, height: 900 });
     await page.goto(
-      `${BASE}/admin/staff/month-lock?staffId=1&year=2026&month=7`,
+      `${BASE}/workspace/staff/month-lock?staffId=1&year=2026&month=7`,
       { waitUntil: "domcontentloaded" },
     );
 

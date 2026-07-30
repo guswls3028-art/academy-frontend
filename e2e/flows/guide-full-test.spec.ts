@@ -61,7 +61,7 @@ test.describe.serial("가이드 기반 전체 테스트", () => {
   });
 
   test("T02 대시보드 확인", async () => {
-    await visitAndSnap(T, "/admin/dashboard", "T02-dashboard-detail", 2000);
+    await visitAndSnap(T, "/workspace/dashboard", "T02-dashboard-detail", 2000);
     await expect(T.locator("text=Not Found")).not.toBeVisible();
   });
 
@@ -93,100 +93,100 @@ test.describe.serial("가이드 기반 전체 테스트", () => {
     });
     expect([201, 409]).toContain(resp.status);
 
-    await visitAndSnap(T, "/admin/students", "T03-students", 2000);
+    await visitAndSnap(T, "/workspace/students", "T03-students", 2000);
     await expect(T.locator(`text=${TEST_RECIPIENT.studentName}`)).toBeVisible({ timeout: 10000 });
   });
 
   test("T04 강의 목록", async () => {
-    await visitAndSnap(T, "/admin/lectures", "T04-lectures");
+    await visitAndSnap(T, "/workspace/lectures", "T04-lectures");
   });
 
   test("T05 공지 작성 + 확인", async () => {
-    await visitAndSnap(T, "/admin/community/notice", "T05-notice");
+    await visitAndSnap(T, "/workspace/community/notice", "T05-notice");
   });
 
   test("T06 QnA 확인", async () => {
-    await visitAndSnap(T, "/admin/community/qna", "T06-qna");
+    await visitAndSnap(T, "/workspace/community/qna", "T06-qna");
   });
 
   test("T07 자료실", async () => {
-    await visitAndSnap(T, "/admin/community/materials", "T07-materials");
+    await visitAndSnap(T, "/workspace/community/materials", "T07-materials");
   });
 
   test("T08 상담", async () => {
-    await visitAndSnap(T, "/admin/community/counsel", "T08-counsel");
+    await visitAndSnap(T, "/workspace/community/counsel", "T08-counsel");
   });
 
   test("T09 클리닉 홈", async () => {
-    await visitAndSnap(T, "/admin/clinic/home", "T09-clinic-home");
+    await visitAndSnap(T, "/workspace/clinic/home", "T09-clinic-home");
   });
 
   test("T10 클리닉 일정", async () => {
-    await visitAndSnap(T, "/admin/clinic/schedule", "T10-clinic-schedule");
+    await visitAndSnap(T, "/workspace/clinic/schedule", "T10-clinic-schedule");
   });
 
   test("T11 클리닉 예약관리", async () => {
-    await visitAndSnap(T, "/admin/clinic/bookings", "T11-clinic-bookings");
+    await visitAndSnap(T, "/workspace/clinic/bookings", "T11-clinic-bookings");
   });
 
   test("T12 클리닉 운영", async () => {
-    await visitAndSnap(T, "/admin/clinic/operations", "T12-clinic-ops");
+    await visitAndSnap(T, "/workspace/clinic/operations", "T12-clinic-ops");
   });
 
   test("T13 클리닉 리포트", async () => {
-    await visitAndSnap(T, "/admin/clinic/reports", "T13-clinic-reports");
+    await visitAndSnap(T, "/workspace/clinic/reports", "T13-clinic-reports");
   });
 
   test("T14 영상 관리", async () => {
-    await visitAndSnap(T, "/admin/videos", "T14-videos");
+    await visitAndSnap(T, "/workspace/videos", "T14-videos");
   });
 
   test("T15 시험 관리", async () => {
-    await visitAndSnap(T, "/admin/exams", "T15-exams");
+    await visitAndSnap(T, "/workspace/exams", "T15-exams");
   });
 
   test("T16 성적 관리", async () => {
-    await visitAndSnap(T, "/admin/results", "T16-results");
+    await visitAndSnap(T, "/workspace/results", "T16-results");
   });
 
   test("T17 메시지 템플릿", async () => {
-    await visitAndSnap(T, "/admin/message/templates", "T17-msg-templates");
+    await visitAndSnap(T, "/workspace/message/templates", "T17-msg-templates");
   });
 
   test("T18 자동발송 설정", async () => {
-    await visitAndSnap(T, "/admin/message/auto-send", "T18-auto-send");
+    await visitAndSnap(T, "/workspace/message/auto-send", "T18-auto-send");
   });
 
   test("T19 메시지 로그", async () => {
-    await visitAndSnap(T, "/admin/message/log", "T19-msg-log");
+    await visitAndSnap(T, "/workspace/message/log", "T19-msg-log");
   });
 
   test("T20 직원 관리", async () => {
-    await visitAndSnap(T, "/admin/staff", "T20-staff");
+    await visitAndSnap(T, "/workspace/staff", "T20-staff");
   });
 
   test("T21 저장소", async () => {
-    await visitAndSnap(T, "/admin/storage", "T21-storage");
+    await visitAndSnap(T, "/workspace/storage", "T21-storage");
   });
 
   test("T22 PPT 도구", async () => {
-    await visitAndSnap(T, "/admin/tools", "T22-tools");
+    await visitAndSnap(T, "/workspace/tools", "T22-tools");
   });
 
   test("T23 설정 - 프로필", async () => {
-    await visitAndSnap(T, "/admin/settings", "T23-settings");
+    await visitAndSnap(T, "/workspace/settings", "T23-settings");
   });
 
   test("T24 설정 - 학원정보", async () => {
-    await visitAndSnap(T, "/admin/settings/organization", "T24-org");
+    await visitAndSnap(T, "/workspace/settings/organization", "T24-org");
   });
 
   test("T25 설정 - 테마", async () => {
-    await visitAndSnap(T, "/admin/settings/appearance", "T25-theme");
+    await visitAndSnap(T, "/workspace/settings/appearance", "T25-theme");
   });
 
   test("T26 설정 - 구독", async () => {
-    await visitAndSnap(T, "/admin/settings/billing", "T26-billing");
+    await visitAndSnap(T, "/workspace/settings/billing", "T26-billing");
   });
 
   // ═══════════════════════════════════════════
@@ -301,7 +301,7 @@ test.describe.serial("가이드 기반 전체 테스트", () => {
   // ═══════════════════════════════════════════
 
   test("T27 교사 QnA 답변", async () => {
-    await gotoAndSettle(T, `${BASE}/admin/community/qna`, { settleMs: 2000 });
+    await gotoAndSettle(T, `${BASE}/workspace/community/qna`, { settleMs: 2000 });
 
     const q = T.locator("text=가이드 테스트").first();
     if (await q.isVisible({ timeout: 5000 }).catch(() => false)) {

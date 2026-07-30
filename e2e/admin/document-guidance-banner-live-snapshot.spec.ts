@@ -34,7 +34,7 @@ test.describe("Stage 6.7 P0 — live snapshot (read-only)", () => {
   for (const target of TARGETS) {
     test(`${target.label} — banner 노출 + 권장 행동 확인`, async ({ page }) => {
       // 직접 navigate (route mock 없음, 운영 데이터)
-      await page.goto(`${TCHUL}/admin/storage/matchup?docId=${target.docId}`, {
+      await page.goto(`${TCHUL}/workspace/storage/matchup?docId=${target.docId}`, {
         waitUntil: "networkidle",
         timeout: 30_000,
       });

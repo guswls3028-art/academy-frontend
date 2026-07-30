@@ -31,7 +31,7 @@ async function waitForQuietUi(page: Page) {
 }
 
 function scoresUrl() {
-  return `${BASE}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`;
+  return `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`;
 }
 
 /**

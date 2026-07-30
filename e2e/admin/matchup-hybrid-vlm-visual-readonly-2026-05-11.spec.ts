@@ -49,7 +49,7 @@ test("HYBRID-VLM. 박철T 매치업 read-only 시각 캡처 baseline", async ({ 
   await page.setViewportSize({ width: 1600, height: 1000 });
 
   // 매치업 메인 진입
-  await page.goto(`${BASE}/admin/storage/matchup`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/workspace/storage/matchup`, { waitUntil: "networkidle" });
   await expect(page.locator("[data-testid='matchup-doc-row'], [data-testid='matchup-upload-button']").first())
     .toBeVisible({ timeout: 15_000 });
   await page.screenshot({
@@ -60,7 +60,7 @@ test("HYBRID-VLM. 박철T 매치업 read-only 시각 캡처 baseline", async ({ 
   // PoC 검증 doc 4건 — 각각 진입 + 시각 캡처
   for (const docId of POC_DOC_IDS) {
     try {
-      const url = `${BASE}/admin/storage/matchup?docId=${docId}`;
+      const url = `${BASE}/workspace/storage/matchup?docId=${docId}`;
       await page.goto(url, { waitUntil: "networkidle", timeout: 30_000 });
       await expect(page.locator("[data-testid='matchup-doc-row'], [data-testid='matchup-problem-grid'], .problem-grid").first())
         .toBeVisible({ timeout: 15_000 });

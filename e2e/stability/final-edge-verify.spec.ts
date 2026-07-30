@@ -20,7 +20,7 @@ const API = process.env.E2E_API_URL || "https://api.hakwonplus.com";
 test.describe("1. 로그아웃 sessionStorage 정리", () => {
   test("로그아웃 후 session_expired, tenantCode 잔존 없음", async ({ page }) => {
     await loginViaUI(page, "admin");
-    await gotoAndSettle(page, `${BASE}/admin`);
+    await gotoAndSettle(page, `${BASE}/workspace`);
 
     await page.evaluate(() => {
       sessionStorage.setItem("session_expired", "1");
@@ -56,7 +56,7 @@ test.describe("1. 로그아웃 sessionStorage 정리", () => {
 
   test("로그아웃 후 재로그인 시 이전 세션 데이터 미잔존", async ({ page }) => {
     await loginViaUI(page, "admin");
-    await gotoAndSettle(page, `${BASE}/admin`);
+    await gotoAndSettle(page, `${BASE}/workspace`);
 
     await page.evaluate(() => {
       sessionStorage.setItem("session_expired", "1");
@@ -124,7 +124,7 @@ test.describe("2. 학생 프로필 비밀번호 validation", () => {
 test.describe("3. ConfirmDialog body scroll", () => {
   test("확인 다이얼로그 열렸을 때 배경 스크롤 여부", async ({ page }) => {
     await loginViaUI(page, "admin");
-    await gotoAndSettle(page, `${BASE}/admin/students`, { settleMs: 2000 });
+    await gotoAndSettle(page, `${BASE}/workspace/students`, { settleMs: 2000 });
 
     const firstRow = page.locator("table tbody tr").first();
     if (await firstRow.isVisible({ timeout: 5000 }).catch(() => false)) {
@@ -202,7 +202,7 @@ test.describe("4. 인벤토리 삭제 모달 z-index", () => {
 test.describe("5. 학생 상세 팝업 스크롤", () => {
   test("학생 상세 팝업 → 본문 스크롤 → 닫은 후 배경 스크롤 정상", async ({ page }) => {
     await loginViaUI(page, "admin");
-    await gotoAndSettle(page, `${BASE}/admin/students`, { settleMs: 2000 });
+    await gotoAndSettle(page, `${BASE}/workspace/students`, { settleMs: 2000 });
 
     const scrollBefore = await page.evaluate(() => document.body.style.overflow);
 
@@ -222,7 +222,7 @@ test.describe("5. 학생 상세 팝업 스크롤", () => {
       }
 
       await detailOverlay.getByRole("button", { name: "닫기" }).click();
-      await expect(page).toHaveURL(/\/admin\/students(?:\/home)?(?:\?.*)?$/);
+      await expect(page).toHaveURL(/\/workspace\/students(?:\/home)?(?:\?.*)?$/);
 
       const scrollAfterClose = await page.evaluate(() => document.body.style.overflow);
       await page.screenshot({ path: `${SS}/5-detail-overlay-closed.png` });
@@ -240,7 +240,7 @@ test.describe("5. 학생 상세 팝업 스크롤", () => {
 test.describe("6. 영상 댓글 실검증", () => {
   test("관리자 영상 댓글 — 수정 후 Enter 더블탭 시 중복 방지", async ({ page }) => {
     await loginViaUI(page, "admin");
-    await gotoAndSettle(page, `${BASE}/admin/videos`, { settleMs: 2000 });
+    await gotoAndSettle(page, `${BASE}/workspace/videos`, { settleMs: 2000 });
 
     const firstCard = page.locator('.video-domain-card, [class*="card"]').first();
     if (await firstCard.isVisible({ timeout: 5000 }).catch(() => false)) {
@@ -299,7 +299,7 @@ baseTest.describe("7b. 클리닉 네트워크 차단 에러 UI", () => {
 test.describe("8. 자료실 제목 Enter 중복 방지", () => {
   test("커뮤니티 → 자료실 진입 가능 확인", async ({ page }) => {
     await loginViaUI(page, "admin");
-    await gotoAndSettle(page, `${BASE}/admin/community`);
+    await gotoAndSettle(page, `${BASE}/workspace/community`);
 
     const matTab = page.locator('button, a, [role="tab"]').filter({ hasText: "자료실" }).first();
     if (await matTab.isVisible({ timeout: 3000 }).catch(() => false)) {
@@ -315,7 +315,7 @@ test.describe("8. 자료실 제목 Enter 중복 방지", () => {
 test.describe("9. 다양한 모달 상태 초기화", () => {
   test("시험 생성 모달 ESC → 재열기 시 초기 상태", async ({ page }) => {
     await loginViaUI(page, "admin");
-    await gotoAndSettle(page, `${BASE}/admin/exams`, { settleMs: 2000 });
+    await gotoAndSettle(page, `${BASE}/workspace/exams`, { settleMs: 2000 });
 
     const addBtn = page.locator(".ds-button").filter({ hasText: /추가|생성|새/ }).first();
     if (await addBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
@@ -357,12 +357,12 @@ test.describe("10. 권한 격리 추가 검증", () => {
     await loginViaUI(page, "student");
 
     const adminPaths = [
-      "/admin/students",
-      "/admin/lectures",
-      "/admin/exams",
-      "/admin/clinic/home",
-      "/admin/settings",
-      "/admin/community",
+      "/workspace/students",
+      "/workspace/lectures",
+      "/workspace/exams",
+      "/workspace/clinic/home",
+      "/workspace/settings",
+      "/workspace/community",
     ];
 
     for (const path of adminPaths) {

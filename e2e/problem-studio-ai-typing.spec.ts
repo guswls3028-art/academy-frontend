@@ -311,6 +311,10 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
             quality_level: "needs_attention",
             ai_transcribed_units: 1,
             fallback_ocr_units: 0,
+            generated_explanation_count: 2,
+            reconstruction_quality: {
+              source_page_preserved_count: 1,
+            },
           },
           error_message: null,
         },
@@ -330,12 +334,15 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
     });
   });
 
-  await page.goto(`${baseUrl}/admin/tools/problem-studio`, { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("heading", { name: "사진만 올리면, 한글 검수본까지" })).toBeVisible();
+  await page.goto(`${baseUrl}/workspace/tools/problem-studio`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "스캔만 올리면, 문제지와 내 문체 해설지까지" })).toBeVisible();
   await expect(page.getByText("원본 업로드")).toBeVisible();
   await expect(page.getByText(/처음 한 번만 ZIP을 풀고/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "4. 내 문서 스타일" })).toBeVisible();
-  await page.getByLabel("본문 글꼴").selectOption("builtin:malgun-gothic");
+  await expect(page.getByLabel("자평(%)")).toHaveValue("100");
+  await expect(page.getByLabel("자간(%)")).toHaveValue("0");
+  await expect(page.getByRole("checkbox", { name: /HWPX 원본의 본문/ })).toBeChecked();
+  await page.getByRole("combobox", { name: /^본문 글꼴/ }).selectOption("builtin:malgun-gothic");
   await page.getByRole("button", { name: "내 기본값 저장" }).click();
   const companionDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: "Windows 연결 프로그램 설치" }).click();
@@ -352,14 +359,14 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
 
   let automaticDownloads = 0;
   page.on("download", () => { automaticDownloads += 1; });
-  const transferButton = page.getByRole("button", { name: "AI 타이핑 시작" });
+  const transferButton = page.getByRole("button", { name: "문제지·해설지 만들기" });
   await expect(transferButton).toBeDisabled();
   await page.getByRole("checkbox", { name: /글로벌 AI 처리 안내/ }).check();
   await expect(transferButton).toBeEnabled();
   await transferButton.click();
-  await expect(page.getByRole("button", { name: "검수본 ZIP 내려받기" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "문제지·해설지 ZIP 내려받기" })).toBeVisible();
   await expect(page.getByRole("button", { name: "한글에서 열기", exact: true })).toBeVisible();
-  await expect(page.getByText("준비 완료 · AI 1쪽 · 검수 후보 1건", { exact: true })).toBeVisible();
+  await expect(page.getByText("준비 완료 · 전사 1쪽 · 해설 2개 · 원본 보존 1쪽", { exact: true })).toBeVisible();
   expect(automaticDownloads).toBe(0);
 
   await page.getByText("Beta 재작성", { exact: true }).click();
@@ -382,13 +389,13 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
   expect(reviewedQuestionIndex).toBe(1);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole("heading", { name: "사진만 올리면, 한글 검수본까지" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "스캔만 올리면, 문제지와 내 문체 해설지까지" })).toBeVisible();
   await page.locator('input[type="file"]').first().setInputFiles({
     name: "chemistry-mobile.png",
     mimeType: "image/png",
     buffer: Buffer.from("89504e470d0a1a0a", "hex"),
   });
   await page.getByRole("checkbox", { name: /글로벌 AI 처리 안내/ }).check();
-  await page.getByRole("button", { name: "AI 타이핑 시작" }).click();
-  await expect(page.getByRole("button", { name: "검수본 ZIP 내려받기" })).toBeVisible();
+  await page.getByRole("button", { name: "문제지·해설지 만들기" }).click();
+  await expect(page.getByRole("button", { name: "문제지·해설지 ZIP 내려받기" })).toBeVisible();
 });

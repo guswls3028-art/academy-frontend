@@ -34,7 +34,7 @@ test.describe("Admin: Clinic & Community 데이터 검증", () => {
 
   test("1. 클리닉 세션 목록이 정상 렌더된다", async ({ page }) => {
     test.setTimeout(30_000);
-    await gotoAndSettle(page, `${BASE}/admin/clinic/home`, { timeout: 20_000 });
+    await gotoAndSettle(page, `${BASE}/workspace/clinic/home`, { timeout: 20_000 });
 
     // 페이지가 에러 없이 로드됨
     await expect(page.locator("text=Not Found")).not.toBeVisible();
@@ -48,7 +48,7 @@ test.describe("Admin: Clinic & Community 데이터 검증", () => {
 
   test("2. 커뮤니티 QnA 인박스가 정상 렌더된다", async ({ page }) => {
     test.setTimeout(30_000);
-    await gotoAndSettle(page, `${BASE}/admin/community/qna`, { timeout: 20_000 });
+    await gotoAndSettle(page, `${BASE}/workspace/community/qna`, { timeout: 20_000 });
 
     // 페이지 에러 없음
     await expect(page.locator("text=Not Found")).not.toBeVisible();
@@ -69,7 +69,7 @@ test.describe("Admin: Clinic & Community 데이터 검증", () => {
 
   test("3. 공지 목록이 정상 렌더된다", async ({ page }) => {
     test.setTimeout(30_000);
-    await gotoAndSettle(page, `${BASE}/admin/community/notice`, { timeout: 20_000 });
+    await gotoAndSettle(page, `${BASE}/workspace/community/notice`, { timeout: 20_000 });
 
     // 에러 없음
     await expect(page.locator("text=Not Found")).not.toBeVisible();

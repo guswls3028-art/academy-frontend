@@ -12,7 +12,7 @@ test("inbox 일괄 선택 + 폐기 사유 모달 + cancel", async ({ page }) => 
   page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
 
   await loginViaUI(page, "admin");
-  await page.goto(`${getBaseUrl("admin")}/admin/results/submissions`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${getBaseUrl("admin")}/workspace/results/submissions`, { waitUntil: "domcontentloaded" });
 
   await page.waitForFunction(
     () => {

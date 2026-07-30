@@ -28,7 +28,7 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
   });
 
   test("설정 페이지 렌더링 — 프로필/보안/테마/알림/앱 섹션", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/settings`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/settings`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     const main = page.getByRole("main");
@@ -52,11 +52,11 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
   });
 
   test("설정 — 테마 변경 (Modern Dark 선택 후 복원)", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/settings`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/settings`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     await page.getByRole("main").getByRole("button", { name: /외관 \/ 테마 설정/ }).click();
-    await expect(page).toHaveURL(/\/teacher\/settings\/appearance/, { timeout: 10_000 });
+    await expect(page).toHaveURL(/\/workspace\/mobile\/settings\/appearance/, { timeout: 10_000 });
 
     // Modern Dark 테마 선택
     await page.getByRole("button", { name: /Modern Dark/ }).click();
@@ -74,7 +74,7 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
   });
 
   test("설정 — 프로필 편집 모드 진입", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/settings`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/settings`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 편집 버튼 클릭
@@ -94,7 +94,7 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
   });
 
   test("설정 — 학원 정보 페이지 렌더링", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/settings/organization`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/settings/organization`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     await expect(page.getByRole("heading", { name: "학원 정보" })).toBeVisible({ timeout: 10_000 });
@@ -105,7 +105,7 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
   });
 
   test("소통 — 공지사항 작성 버튼 + 스코프 선택", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/comms`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/comms`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 공지사항 탭에서 + 버튼 확인
@@ -118,7 +118,7 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
   });
 
   test("소통 — 검색 기능 동작", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/comms`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/comms`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 검색 아이콘 클릭 — Search 아이콘 버튼을 찾기
@@ -130,7 +130,7 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
   });
 
   test("학생 목록 → 상세 → 태그관리/메모/편집 버튼 확인", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/students`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/students`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 학생이 1명 이상 있는지 확인
@@ -159,7 +159,7 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
   });
 
   test("발송 이력 페이지 렌더링", async ({ page }) => {
-    await page.goto(`${BASE}/teacher/message-log`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile/message-log`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 발송 내역 헤딩 확인
@@ -169,7 +169,7 @@ test.describe("선생님 앱 설정 + UX 고도화", () => {
   });
 
   test("드로어 메뉴 — 설정/발송이력 메뉴 확인", async ({ page }) => {
-    await page.goto(`${BASE}/teacher`, { waitUntil: "load", timeout: 20_000 });
+    await page.goto(`${BASE}/workspace/mobile`, { waitUntil: "load", timeout: 20_000 });
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
     // 햄버거 메뉴 클릭

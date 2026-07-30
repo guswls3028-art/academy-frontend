@@ -52,7 +52,7 @@ test.describe.serial("QnA UI 답변: 학생질문 -> 선생 UI 답변 -> 학생 
     await loginViaUI(adminPage, "admin");
 
     // Navigate to QnA inbox — scope=all to show all questions
-    await adminPage.goto(`${BASE}/admin/community/qna?scope=all`);
+    await adminPage.goto(`${BASE}/workspace/community/qna?scope=all`);
     await adminPage.waitForLoadState("networkidle");
 
     // Find the E2E question in the list (it appears as a qna-inbox__card)

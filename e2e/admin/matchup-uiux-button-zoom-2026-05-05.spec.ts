@@ -12,7 +12,7 @@ test.use({ viewport: { width: 1440, height: 900 } });
 
 test("button-zoom — 헤더 액션바 + 문제 그리드 줄바꿈 확인", async ({ page }) => {
   await loginViaUI(page, "admin");
-  await gotoAndSettle(page, `${BASE}/admin/storage/matchup`, { timeout: 30_000 });
+  await gotoAndSettle(page, `${BASE}/workspace/storage/matchup`, { timeout: 30_000 });
   await waitForCondition(
     async () => (await page.locator("[data-testid='matchup-doc-row']").count()) > 0,
     { timeoutMs: 10_000, description: "matchup document rows visible" },

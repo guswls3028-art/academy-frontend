@@ -242,7 +242,7 @@ async function setRecipientTarget(dialog: Locator, targetLabel: "학부모" | "�
 }
 
 async function selectStudentInUi(page: Page, name: string): Promise<void> {
-  await gotoAndSettle(page, `${BASE}/admin/students/home`, { timeout: 45_000 });
+  await gotoAndSettle(page, `${BASE}/workspace/students/home`, { timeout: 45_000 });
   const search = page.locator("[data-guide='students-search']");
   await expect(search).toBeVisible({ timeout: 15_000 });
   await search.click({ clickCount: 3 });
@@ -321,7 +321,7 @@ test.describe.serial("[E2E] 통제번호 실제 알림톡 발송 검증", () => 
     const approvedTemplate = await findApprovedSendTemplate(request, token);
     const marker = `${RUN} 통제번호 실제 알림톡 발송`;
 
-    await loginViaUI(page, "admin", { landingPath: "/admin/students/home" });
+    await loginViaUI(page, "admin", { landingPath: "/workspace/students/home" });
     await selectStudentInUi(page, STUDENT_NAME);
     await page.getByRole("button", { name: "메시지 발송", exact: true }).click();
 

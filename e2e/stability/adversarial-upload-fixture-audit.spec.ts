@@ -220,12 +220,12 @@ async function confirmAction(page: Page, confirmText: string): Promise<void> {
 }
 
 async function gotoStudentsHome(page: Page): Promise<void> {
-  await gotoAndSettle(page, `${BASE}/admin/students/home`, { timeout: 45_000 });
+  await gotoAndSettle(page, `${BASE}/workspace/students/home`, { timeout: 45_000 });
   await expect(page.locator("[data-guide='students-search']")).toBeVisible({ timeout: 45_000 });
 }
 
 async function gotoMaterialsBoard(page: Page): Promise<void> {
-  await gotoAndSettle(page, `${BASE}/admin/community/materials`, { timeout: 45_000 });
+  await gotoAndSettle(page, `${BASE}/workspace/community/materials`, { timeout: 45_000 });
   await expect(page.getByRole("button", { name: "+ 자료 등록", exact: true })).toBeVisible({ timeout: 45_000 });
 }
 
@@ -261,7 +261,7 @@ test.describe.serial("[E2E] 이상행동/업로드 edge fixture 감사", () => {
     const marker = `${RUN} 중복클릭`;
     const username = `e2eadv${suffix("d")}`;
 
-    await loginViaUI(page, "admin", { landingPath: "/admin/students/home" });
+    await loginViaUI(page, "admin", { landingPath: "/workspace/students/home" });
     await gotoStudentsHome(page);
     await page.getByRole("button", { name: "학생 추가", exact: true }).click({ timeout: 45_000 });
     const dialog = await latestDialog(page, "학생 등록");
@@ -297,7 +297,7 @@ test.describe.serial("[E2E] 이상행동/업로드 edge fixture 감사", () => {
     const attemptedName = `${RUN} 세션만료 저장시도`;
     const student = await createStudentApi(request, token, originalName, `e2eadv${suffix("x")}`);
 
-    await loginViaUI(page, "admin", { landingPath: `/admin/students/${student.id}` });
+    await loginViaUI(page, "admin", { landingPath: `/workspace/students/${student.id}` });
     await page.getByRole("button", { name: "수정", exact: true }).click();
     const dialog = await latestDialog(page, "학생 수정");
     await dialog.getByPlaceholder("이름").fill(attemptedName);
@@ -328,7 +328,7 @@ test.describe.serial("[E2E] 이상행동/업로드 edge fixture 감사", () => {
     const files = await createUploadFixtures(testInfo.outputDir);
     const fileNames = files.map((file) => path.basename(file));
 
-    await loginViaUI(page, "admin", { landingPath: "/admin/community/materials" });
+    await loginViaUI(page, "admin", { landingPath: "/workspace/community/materials" });
     await gotoMaterialsBoard(page);
     await page.getByRole("button", { name: "+ 자료 등록", exact: true }).click({ timeout: 45_000 });
     await page.getByPlaceholder("자료 제목을 입력하세요").fill(title);

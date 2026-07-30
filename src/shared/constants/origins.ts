@@ -1,4 +1,5 @@
 export const PRIMARY_APP_ORIGIN = "https://hakwonplus.com";
+export const PUBLIC_UPDATES_URL = `${PRIMARY_APP_ORIGIN}/promo/updates`;
 export const DEV_CONSOLE_ORIGIN = "https://dev.hakwonplus.com";
 export const DEV_CONSOLE_HOSTNAME = "dev.hakwonplus.com";
 

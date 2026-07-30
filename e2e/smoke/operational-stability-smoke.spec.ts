@@ -59,7 +59,7 @@ test.describe("선생님 핵심 동선 스모크", () => {
 
   test("1. 대시보드 진입", async ({ page }) => {
     const { errors } = collectErrors(page);
-    await visit(page, "/admin");
+    await visit(page, "/workspace");
     await expect(page.locator('[data-page="dashboard"], main, .dashboard, h1, h2').first()).toBeVisible({ timeout: 10000 });
     expect(errors).toEqual([]);
   });
@@ -67,7 +67,7 @@ test.describe("선생님 핵심 동선 스모크", () => {
   test("2. 강의 목록 → 강의 상세 → 차시", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await visit(page, "/admin/lectures");
+    await visit(page, "/workspace/lectures");
     await expect(page.locator("main").first()).toBeVisible({ timeout: 10000 });
 
     const lectureLink = page.locator('a[href*="/lectures/"]').first();
@@ -93,7 +93,7 @@ test.describe("선생님 핵심 동선 스모크", () => {
   test("3. 성적 탭 진입 + 테이블 렌더링", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await visit(page, "/admin/lectures");
+    await visit(page, "/workspace/lectures");
 
     const lectureLink = page.locator('a[href*="/lectures/"]').first();
     if (!await lectureLink.isVisible({ timeout: 5000 }).catch(() => false)) {
@@ -129,7 +129,7 @@ test.describe("선생님 핵심 동선 스모크", () => {
   test("4. 학생 목록 페이지 + 검색 + 상세", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await visit(page, "/admin/students");
+    await visit(page, "/workspace/students");
 
     const content = page.locator('table, [class*="student"], [class*="card"], main').first();
     await expect(content).toBeVisible({ timeout: 10000 });
@@ -151,7 +151,7 @@ test.describe("선생님 핵심 동선 스모크", () => {
   test("5. 시험 관리 (시험탐색기)", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await visit(page, "/admin/exams");
+    await visit(page, "/workspace/exams");
     const content = page.locator('main, [class*="exam"], table').first();
     await expect(content).toBeVisible({ timeout: 10000 });
 
@@ -164,7 +164,7 @@ test.describe("선생님 핵심 동선 스모크", () => {
   test("6. 클리닉 홈 + 운영 페이지", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await visit(page, "/admin/clinic");
+    await visit(page, "/workspace/clinic");
     const content = page.locator("main").first();
     await expect(content).toBeVisible({ timeout: 10000 });
 
@@ -183,7 +183,7 @@ test.describe("선생님 핵심 동선 스모크", () => {
   test("7. 메시지 설정 페이지", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await visit(page, "/admin/message");
+    await visit(page, "/workspace/message");
     const content = page.locator("main").first();
     await expect(content).toBeVisible({ timeout: 10000 });
 
@@ -202,7 +202,7 @@ test.describe("선생님 핵심 동선 스모크", () => {
   test("8. 커뮤니티 페이지", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await visit(page, "/admin/community");
+    await visit(page, "/workspace/community");
     const content = page.locator("main").first();
     await expect(content).toBeVisible({ timeout: 10000 });
 
@@ -215,7 +215,7 @@ test.describe("선생님 핵심 동선 스모크", () => {
   test("9. 제출함 (인박스)", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await visit(page, "/admin/results/submissions");
+    await visit(page, "/workspace/results/submissions");
     const content = page.locator("main").first();
     await expect(content).toBeVisible({ timeout: 10000 });
 
@@ -228,7 +228,7 @@ test.describe("선생님 핵심 동선 스모크", () => {
   test("10. 직원 관리", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await visit(page, "/admin/staff");
+    await visit(page, "/workspace/staff");
     const content = page.locator("main").first();
     await expect(content).toBeVisible({ timeout: 10000 });
 
@@ -241,7 +241,7 @@ test.describe("선생님 핵심 동선 스모크", () => {
   test("11. 영상 관리", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await visit(page, "/admin/videos");
+    await visit(page, "/workspace/videos");
     const content = page.locator("main").first();
     await expect(content).toBeVisible({ timeout: 10000 });
 
@@ -254,7 +254,7 @@ test.describe("선생님 핵심 동선 스모크", () => {
   test("12. 설정 페이지", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await visit(page, "/admin/settings");
+    await visit(page, "/workspace/settings");
     const content = page.locator("main").first();
     await expect(content).toBeVisible({ timeout: 10000 });
 
@@ -267,7 +267,7 @@ test.describe("선생님 핵심 동선 스모크", () => {
   test("13. 도구 페이지", async ({ page }) => {
     const { errors } = collectErrors(page);
 
-    await visit(page, "/admin/tools");
+    await visit(page, "/workspace/tools");
     const content = page.locator("main").first();
     await expect(content).toBeVisible({ timeout: 10000 });
 
