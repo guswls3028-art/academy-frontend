@@ -26,6 +26,9 @@ type Props = {
   initialMaxScore: number | null;
   initialPassScore: number | null;
   sessionId: number;
+  open?: boolean;
+  hideTrigger?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 export default function ExamHeaderQuickEdit({
@@ -34,13 +37,21 @@ export default function ExamHeaderQuickEdit({
   initialMaxScore,
   initialPassScore,
   sessionId,
+  open: controlledOpen,
+  hideTrigger = false,
+  onOpenChange,
 }: Props) {
   const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const [showcaseOpen, setShowcaseOpen] = useState(false);
   const [title, setTitle] = useState<string>(examTitle);
   const [maxScore, setMaxScore] = useState<number | "">(initialMaxScore ?? 100);
   const [passScore, setPassScore] = useState<number | "">(initialPassScore ?? 0);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = (nextOpen: boolean) => {
+    if (controlledOpen === undefined) setUncontrolledOpen(nextOpen);
+    onOpenChange?.(nextOpen);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -72,15 +83,17 @@ export default function ExamHeaderQuickEdit({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); setOpen(true); }}
-        className="text-[11px] leading-none px-1 py-0.5 rounded text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] hover:bg-[var(--color-bg-surface-hover)]"
-        title="시험 설정 — 시험명/만점/커트라인 수정"
-        aria-label={`${examTitle} 시험 설정 편집`}
-      >
-        ⚙
-      </button>
+      {!hideTrigger && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+          className="text-[11px] leading-none px-1 py-0.5 rounded text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] hover:bg-[var(--color-bg-surface-hover)]"
+          title="시험 설정 — 시험명/만점/커트라인 수정"
+          aria-label={`${examTitle} 시험 설정 편집`}
+        >
+          ⚙
+        </button>
+      )}
 
       <AdminModal
         open={open}

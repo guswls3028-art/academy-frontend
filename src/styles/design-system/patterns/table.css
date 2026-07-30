@@ -256,9 +256,10 @@ table.ds-table {
 }
 
 .ds-table-wrap:has(.ds-scores-table) {
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   border-color: color-mix(in srgb, var(--color-border-divider) 82%, var(--color-text-primary) 6%);
   background: var(--color-bg-surface);
+  overscroll-behavior-x: contain;
   box-shadow:
     0 16px 36px -30px color-mix(in srgb, var(--color-text-primary) 34%, transparent),
     0 1px 0 color-mix(in srgb, var(--scale-Neutral0, #fff) 60%, transparent);
@@ -315,8 +316,9 @@ table.ds-table {
 .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table thead th,
 .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody td {
   text-align: center;
+  vertical-align: middle;
   line-height: 1.4;
-  padding: 8px 12px;
+  padding: 9px 12px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -463,7 +465,10 @@ table.ds-table {
 .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody td[data-col-type="attendance"] {
   left: calc(var(--scores-col-select-width, 36px) + var(--scores-col-name-width, 196px));
   z-index: 6;
-  box-shadow: 10px 0 16px -14px color-mix(in srgb, var(--color-text-primary) 36%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--color-border-divider) 78%, var(--color-text-primary) 7%);
+  box-shadow:
+    inset -1px 0 0 color-mix(in srgb, var(--color-bg-surface) 70%, transparent),
+    12px 0 18px -16px color-mix(in srgb, var(--color-text-primary) 42%, transparent);
 }
 
 .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table thead th[data-col-type="select"],
@@ -901,17 +906,6 @@ table.ds-table {
   background: color-mix(in srgb, var(--color-primary) 6.5%, var(--color-bg-surface)) !important;
   color: var(--color-text-primary);
   box-shadow: none;
-}
-
-.scores-context-help {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  min-height: 30px;
-}
-
-.scores-context-help--edit {
-  margin-bottom: var(--space-2);
 }
 
 /* ═══ 차수별 편집 셀 UI (편집모드) ═══ */

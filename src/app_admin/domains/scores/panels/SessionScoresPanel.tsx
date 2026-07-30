@@ -18,8 +18,8 @@ import StudentResultDrawer from "@admin/domains/results/components/StudentResult
 import { EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
-import { InlineHelp } from "@/shared/ui/guide";
 import { reorderSession } from "../api/reorderSession";
+import type { ExamHeaderAction } from "../components/ExamHeaderActionMenu";
 
 const HANGUL_SYLLABLE_START = 0xac00;
 const HANGUL_SYLLABLE_END = 0xd7a3;
@@ -70,6 +70,7 @@ type Props = {
     examTitle: string,
     gradingMode: "choice" | "written" | "mixed",
     manualGradingMethod: "correctness" | "score",
+    action: ExamHeaderAction,
   ) => void;
 };
 
@@ -475,18 +476,6 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
 
   return (
     <div className="flex flex-col gap-4">
-      {!isEditMode && (
-        <div className="scores-context-help">
-          <InlineHelp title="성적표 보기 안내" ariaLabel="성적표 도움말" tone="admin" align="left">
-            <ul>
-              <li>학생 행을 누르면 상세 드로어가 열립니다.</li>
-              <li>시험명 옆 설정 아이콘에서 만점과 커트라인을 수정합니다.</li>
-              <li>헤더를 드래그해 시험과 과제 컬럼 순서를 바꿉니다.</li>
-              <li>회색 "-"는 아직 시험·과제가 배정되지 않은 상태입니다.</li>
-            </ul>
-          </InlineHelp>
-        </div>
-      )}
       <div
         tabIndex={0}
         className="min-w-0 overflow-x-auto outline-none"

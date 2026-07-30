@@ -29,15 +29,13 @@ import {
 } from "../utils/sessionScoreRowVerdict";
 import type { SessionScoresTableVerdictKind } from "../utils/sessionScoreRowVerdict";
 import ScoreInputCell from "./ScoreInputCell";
-import ExamHeaderQuickEdit from "./ExamHeaderQuickEdit";
+import ExamHeaderActionMenu, { type ExamHeaderAction } from "./ExamHeaderActionMenu";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { Badge, type BadgeTone } from "@/shared/ui/ds";
 import { DomainTable, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { InlineHelp } from "@/shared/ui/guide";
-import { ClipboardCheck, ScanLine } from "lucide-react";
 
 /** 컬럼 기본 너비 */
 const COL_EDIT = 36;
@@ -281,12 +279,13 @@ type Props = {
   /** 컬럼 순서 변경 — 시험/과제 헤더 드래그앤드롭 (display_order patch).
    *  2026-05-13 학원장 결정: ◀▶ 버튼 폐기, drag-drop SSOT. fromId 를 toId 위치로 삽입. */
   onReorderColumnSwap?: (type: "exam" | "homework", fromId: number, toId: number) => void;
-  /** 시험명 클릭 — 채점 방식에 맞는 OMR 검토 또는 직접 채점표를 연다. */
+  /** 시험명 메뉴 — 선택한 OMR 검토 또는 직접 채점표를 연다. */
   onOpenExamGrading?: (
     examId: number,
     examTitle: string,
     gradingMode: "choice" | "written" | "mixed",
     manualGradingMethod: "correctness" | "score",
+    action: ExamHeaderAction,
   ) => void;
 
 };
@@ -767,18 +766,6 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
 
   return (
     <div>
-      {isEditMode && (
-        <div className="scores-context-help scores-context-help--edit">
-          <InlineHelp title="빠른 성적 입력 안내" ariaLabel="성적 입력 도움말" tone="admin" align="left">
-            <ul>
-              <li>점수 입력 후 <kbd>Enter</kbd>를 누르면 다음 셀로 이동합니다.</li>
-              <li><kbd>/</kbd> 입력 후 <kbd>Enter</kbd>를 누르면 미응시/미제출로 처리합니다.</li>
-              <li><kbd>Tab</kbd>은 다음 셀, <kbd>Esc</kbd>는 현재 입력 취소입니다.</li>
-              <li>입력한 점수는 자동 저장됩니다. <kbd>Ctrl</kbd>+<kbd>S</kbd>는 즉시 저장, <kbd>Ctrl</kbd>+<kbd>Z</kbd>는 실행 취소입니다.</li>
-            </ul>
-          </InlineHelp>
-        </div>
-      )}
       {/* P0-2 (2026-05-13): 테이블 위 absolute OMR 미니버튼 제거.
           학원장 캡처에서 헤더 위 "+OMR +OMR" 줄이 시각 노이즈 + 툴바 OMR 버튼과 중복.
           전체 시험 대상 업로드는 툴바, 한 시험의 업로드는 시험명 작업 화면에서 제공한다. */}
@@ -863,8 +850,6 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             const totalCol = examColsList.find((c) => c.sub === "total");
             const groupParity = exIdx % 2 === 0 ? "even" : "odd";
             const gradingMode = resolveExamGradingMode(ex);
-            const workspaceLabel =
-              gradingMode === "choice" ? "OMR 검토 열기" : "문항별 직접 채점 열기";
             /* 2026-05-13 학원장 결정: ◀▶ 버튼 폐기 → 드래그앤드롭. grip cursor 로 affordance. */
             const headerInner = (
               <span
@@ -895,15 +880,19 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               >
                 <Badge variant="soft" tone="primary" size="xs" shape="square" className="scores-table-kind-badge" ariaLabel="시험">시</Badge>
                 {onOpenExamGrading ? (
-                  <button
-                    type="button"
-                    className="scores-table-exam-link"
-                    draggable={false}
-                    aria-label={`${ex.title} ${workspaceLabel}`}
-                    title={`${ex.title} ${workspaceLabel}`}
-                    onMouseDown={(event) => event.stopPropagation()}
-                    onClick={(event) => {
-                      event.stopPropagation();
+                  <ExamHeaderActionMenu
+                    examId={ex.exam_id}
+                    examTitle={ex.title}
+                    gradingMode={gradingMode}
+                    manualGradingMethod={
+                      ex.manual_grading_method === "correctness"
+                        ? "correctness"
+                        : "score"
+                    }
+                    initialMaxScore={ex.max_score}
+                    initialPassScore={ex.pass_score}
+                    sessionId={sessionId}
+                    onSelect={(action) => {
                       onOpenExamGrading(
                         ex.exam_id,
                         ex.title,
@@ -911,28 +900,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                         ex.manual_grading_method === "correctness"
                           ? "correctness"
                           : "score",
+                        action,
                       );
                     }}
-                  >
-                    <span className="scores-table-head-title whitespace-normal break-keep min-w-0 leading-tight">{ex.title}</span>
-                    {gradingMode === "choice" ? (
-                      <ScanLine className="scores-table-exam-link__icon" size={14} aria-hidden />
-                    ) : (
-                      <ClipboardCheck className="scores-table-exam-link__icon" size={14} aria-hidden />
-                    )}
-                  </button>
+                  />
                 ) : (
                   <span className="scores-table-head-title whitespace-normal break-keep min-w-0 leading-tight">{ex.title}</span>
                 )}
-                <span className="ds-col-action-btn shrink-0">
-                  <ExamHeaderQuickEdit
-                    examId={ex.exam_id}
-                    examTitle={ex.title}
-                    initialMaxScore={ex.max_score}
-                    initialPassScore={ex.pass_score}
-                    sessionId={sessionId}
-                  />
-                </span>
               </span>
             );
             const headerClass = "group text-center font-medium text-[var(--color-text-primary)] align-middle";

@@ -191,6 +191,14 @@
   padding-left: var(--space-1);
 }
 
+.scores-selection-bar__help {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  margin-left: auto;
+  padding-left: var(--space-1);
+}
+
 .scores-toolbar-actions,
 .scores-primary-actions {
   display: flex;
@@ -471,15 +479,12 @@
 
 .scores-table-exam-link__icon {
   flex: 0 0 auto;
-  opacity: 0;
-  transform: translateX(-2px);
-  transition: opacity 120ms ease, transform 120ms ease;
+  opacity: 0.68;
+  transition: transform 120ms ease;
 }
 
-.scores-table-exam-link:hover .scores-table-exam-link__icon,
-.scores-table-exam-link:focus-visible .scores-table-exam-link__icon {
-  opacity: 1;
-  transform: translateX(0);
+.scores-table-exam-link[aria-expanded="true"] .scores-table-exam-link__icon {
+  transform: rotate(180deg);
 }
 
 .scores-manual-grading-modal__title {
@@ -659,6 +664,12 @@
   font-weight: 700;
 }
 
+@media (min-width: 1024px) and (max-width: 1180px) {
+  .scores-toolbar-actions {
+    width: 100%;
+  }
+}
+
 @media (max-width: 1023px) {
   .scores-selection-bar__row,
   .scores-selection-bar__options {
@@ -670,6 +681,10 @@
   .scores-primary-actions {
     width: 100%;
     flex-wrap: wrap;
+  }
+
+  .scores-selection-bar__help {
+    margin-left: 0;
   }
 
   .scores-action-divider {

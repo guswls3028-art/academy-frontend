@@ -1,0 +1,105 @@
+.popover :global(.ant-popover-inner) {
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+  box-shadow: 0 18px 44px -22px color-mix(in srgb, var(--color-text-primary) 48%, transparent);
+}
+
+.menu {
+  display: grid;
+  width: min(286px, calc(100vw - 24px));
+  padding: 7px;
+}
+
+.menuHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 8px 8px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.menuHeader strong {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+  font-size: 10px;
+}
+
+.menuAction {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.menuAction:hover:not(:disabled) {
+  background: var(--color-bg-surface-hover);
+}
+
+.menuAction:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: -2px;
+}
+
+.menuAction:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.menuActionAccent:not(:disabled) {
+  background: color-mix(in srgb, #0f766e 7%, var(--color-bg-surface));
+}
+
+.menuActionAccent:not(:disabled) .menuActionIcon {
+  background: color-mix(in srgb, #0f766e 13%, var(--color-bg-surface));
+  color: #0f766e;
+}
+
+.menuActionIcon {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--color-bg-surface-hover);
+  color: var(--color-text-secondary);
+}
+
+.menuActionCopy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.menuActionCopy strong {
+  color: inherit;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.menuActionCopy > span {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.menuDivider {
+  height: 1px;
+  margin: 5px 8px;
+  background: var(--color-border-divider);
+}
