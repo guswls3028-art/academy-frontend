@@ -55,8 +55,20 @@ export function productionUnisolatedScenarioSkipReason(apiUrl: string): string |
   return "소유 ID cleanup이 보장되지 않는 시나리오 E2E는 운영 API에서 실행할 수 없습니다.";
 }
 
-export function productionMultiNoticeFlowSkipReason(apiUrl: string): string | null {
+export function productionMultiNoticeFlowSkipReason(
+  apiUrl: string,
+  options: {
+    explicitlyAllowed?: boolean;
+    configuredPhone?: string;
+  } = {},
+): string | null {
   if (!isProductionApiUrl(apiUrl)) return null;
+  if (
+    options.explicitlyAllowed === true &&
+    normalizeE2EPhone(options.configuredPhone) === PRODUCTION_CONTROLLED_PHONE
+  ) {
+    return null;
+  }
   return "다중 계정 안내 발송 flow는 운영에서 금지됩니다. 격리 API의 계약 테스트로 실행하세요.";
 }
 

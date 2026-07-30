@@ -184,7 +184,7 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
     await S.screenshot({ path: "test-results/hw-scores/08-student-submit-score.png" });
 
     // 성적표 제출 타이틀
-    await expect(S.locator("text=성적표 제출")).toBeVisible({ timeout: 10000 });
+    await expect(S.getByRole("heading", { name: "성적표 제출", exact: true })).toBeVisible({ timeout: 10000 });
 
     // 파일 선택 버튼 존재 (학부모 계정이 아닌 경우)
     const hasFileBtn = await S.locator("button").filter({ hasText: /성적표 선택/ }).isVisible({ timeout: 5000 }).catch(() => false);
