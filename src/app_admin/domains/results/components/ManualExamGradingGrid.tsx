@@ -1,26 +1,44 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   CheckCircle2,
   ClipboardCheck,
+  ListChecks,
+  Redo2,
   RefreshCw,
+  ScanLine,
   Settings2,
+  TableProperties,
+  Undo2,
 } from "lucide-react";
 
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { Button, EmptyState, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import AnswerKeyRegisterModal from "@admin/domains/exams/components/AnswerKeyRegisterModal";
+import { initExamQuestions } from "@admin/domains/exams/api/questionInit.api";
+import { useAdminExam } from "@admin/domains/exams/hooks/useAdminExam";
 import { adminExamsQueryKeys } from "@admin/domains/exams/queryKeys";
 import {
   applyManualGrades,
   fetchManualGradeSheet,
   previewManualGrades,
   type ManualGradeCell,
+  type ManualGradeSheet,
   type ManualGradeRequestRow,
   type ManualGradeRow,
   type ManualGradeState,
+  type ManualGradeQuestion,
+  type ManualGradeQuestionScoreChanges,
 } from "../api/manualExamGrading";
 import { adminResultsQueryKeys } from "../queryKeys";
 import {
@@ -54,6 +72,31 @@ const STATE_LABEL: Record<ManualGradeState, string> = {
   review: "0",
 };
 
+type ManualGradeCellChange = {
+  enrollmentId: number;
+  questionId: number;
+  before: ManualGradeCell;
+  after: ManualGradeCell;
+};
+
+type ManualGradeHistoryEntry =
+  | {
+      kind: "cells";
+      changes: ManualGradeCellChange[];
+    }
+  | {
+      kind: "attendance";
+      enrollmentId: number;
+      before: boolean;
+      after: boolean;
+    }
+  | {
+      kind: "question-score";
+      questionId: number;
+      before: string;
+      after: string;
+    };
+
 export default function ManualExamGradingGrid({
   examId,
   onApplied,
@@ -67,18 +110,62 @@ export default function ManualExamGradingGrid({
     queryKey: adminResultsQueryKeys.manualGradeSheet(examId),
     queryFn: () => fetchManualGradeSheet(examId),
   });
+  const { data: exam } = useAdminExam(examId);
+  const data = sheetQuery.data;
   const [draftRows, setDraftRows] = useState<ManualGradeRow[]>([]);
+  const [questionScoreDraft, setQuestionScoreDraft] = useState<Record<string, string>>({});
+  const draftRowsRef = useRef<ManualGradeRow[]>([]);
+  const questionScoreDraftRef = useRef<Record<string, string>>({});
+  const undoStackRef = useRef<ManualGradeHistoryEntry[]>([]);
+  const redoStackRef = useRef<ManualGradeHistoryEntry[]>([]);
+  const [historyState, setHistoryState] = useState({ undo: 0, redo: 0 });
   const [dirty, setDirty] = useState(false);
+  const [answerKeyOpen, setAnswerKeyOpen] = useState(false);
+  const [quickStartOpen, setQuickStartOpen] = useState(false);
+  const [quickStartCount, setQuickStartCount] = useState<number | "">("");
   const [shortcuts, setShortcuts] = useState(loadManualGradingShortcuts);
   const [shortcutDraft, setShortcutDraft] = useState(shortcuts);
   const [shortcutSettingsOpen, setShortcutSettingsOpen] = useState(false);
   const [shortcutError, setShortcutError] = useState<string | null>(null);
 
+  const syncHistoryState = useCallback(() => {
+    setHistoryState({
+      undo: undoStackRef.current.length,
+      redo: redoStackRef.current.length,
+    });
+  }, []);
+
+  const clearHistory = useCallback(() => {
+    undoStackRef.current = [];
+    redoStackRef.current = [];
+    syncHistoryState();
+  }, [syncHistoryState]);
+
+  const pushHistory = useCallback((
+    entry: ManualGradeHistoryEntry,
+  ) => {
+    undoStackRef.current.push(entry);
+    if (undoStackRef.current.length > 100) undoStackRef.current.shift();
+    redoStackRef.current = [];
+    syncHistoryState();
+  }, [syncHistoryState]);
+
   useEffect(() => {
     if (!sheetQuery.data) return;
-    setDraftRows(cloneRows(sheetQuery.data.rows));
+    const nextRows = cloneRows(sheetQuery.data.rows);
+    const nextScores = Object.fromEntries(
+      sheetQuery.data.questions.map((question) => [
+        String(question.question_id),
+        formatScoreInput(question.max_score),
+      ]),
+    );
+    draftRowsRef.current = nextRows;
+    questionScoreDraftRef.current = nextScores;
+    setDraftRows(nextRows);
+    setQuestionScoreDraft(nextScores);
+    clearHistory();
     setDirty(false);
-  }, [sheetQuery.data]);
+  }, [clearHistory, sheetQuery.data]);
 
   useEffect(() => {
     onDirtyChange?.(dirty);
@@ -88,15 +175,29 @@ export default function ManualExamGradingGrid({
     () => buildRequestRows(draftRows),
     [draftRows],
   );
+  const questionScoreState = useMemo(
+    () => buildQuestionScoreState(data, questionScoreDraft),
+    [data, questionScoreDraft],
+  );
 
   const previewMutation = useMutation({
-    mutationFn: () => previewManualGrades(examId, requestRows),
+    mutationFn: () =>
+      previewManualGrades(
+        examId,
+        requestRows,
+        questionScoreState.changes,
+      ),
     onError: (error) =>
       feedback.error(extractApiError(error, "입력한 채점 결과를 확인하지 못했습니다.")),
   });
 
   const applyMutation = useMutation({
-    mutationFn: () => applyManualGrades(examId, requestRows),
+    mutationFn: () =>
+      applyManualGrades(
+        examId,
+        requestRows,
+        questionScoreState.changes,
+      ),
     onSuccess: async (result) => {
       feedback.success(`${result.matched_count}명의 성적을 확정했습니다.`);
       previewMutation.reset();
@@ -122,14 +223,149 @@ export default function ManualExamGradingGrid({
       feedback.error(extractApiError(error, "성적을 확정하지 못했습니다.")),
   });
 
-  const data = sheetQuery.data;
-  const manualQuestions = useMemo(
-    () => data?.questions.filter((question) => question.editable) ?? [],
+  const quickStartMutation = useMutation({
+    mutationFn: async () => {
+      const count = Number(quickStartCount);
+      if (!Number.isInteger(count) || count < 1 || count > 500) {
+        throw new Error("문항 수는 1개부터 500개까지 입력해 주세요.");
+      }
+      const maxScore = Number(data?.exam_max_score ?? exam?.max_score ?? 100);
+      return initExamQuestions({
+        examId,
+        total_questions: count,
+        default_score: maxScore > 0 ? maxScore / count : 1,
+      });
+    },
+    onSuccess: async () => {
+      feedback.success(`${quickStartCount}문항 채점표를 만들었습니다.`);
+      setQuickStartOpen(false);
+      setQuickStartCount("");
+      await Promise.all([
+        sheetQuery.refetch(),
+        queryClient.invalidateQueries({
+          queryKey: adminExamsQueryKeys.examQuestions(examId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: adminExamsQueryKeys.adminExam(examId),
+        }),
+      ]);
+    },
+    onError: (error) =>
+      feedback.error(extractApiError(error, "문항별 채점표를 만들지 못했습니다.")),
+  });
+
+  const visibleQuestions = useMemo(
+    () => data?.questions ?? [],
     [data?.questions],
   );
+  const questionTypeCounts = useMemo(
+    () =>
+      visibleQuestions.reduce(
+        (counts, question) => {
+          const answerType = getQuestionAnswerType(question);
+          counts[answerType] += 1;
+          return counts;
+        },
+        {
+          choice: 0,
+          numeric_short_answer: 0,
+          written: 0,
+        },
+      ),
+    [visibleQuestions],
+  );
+  const hasEditableQuestions = visibleQuestions.some(
+    (question) => question.editable,
+  );
+  const quickStartMaxScore = Number(data?.exam_max_score ?? exam?.max_score ?? 100);
+  const quickStartDefaultScore =
+    quickStartCount !== "" && Number(quickStartCount) > 0
+      ? quickStartMaxScore / Number(quickStartCount)
+      : null;
   const preview = previewMutation.data;
   const hasErrors = Boolean(preview?.errors.length);
-  const busy = previewMutation.isPending || applyMutation.isPending;
+  const busy =
+    previewMutation.isPending ||
+    applyMutation.isPending ||
+    quickStartMutation.isPending;
+
+  const closeAnswerKeyModal = () => {
+    setAnswerKeyOpen(false);
+    void Promise.all([
+      sheetQuery.refetch(),
+      queryClient.invalidateQueries({
+        queryKey: adminExamsQueryKeys.examQuestions(examId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: adminExamsQueryKeys.adminExam(examId),
+      }),
+    ]);
+  };
+
+  const applyHistoryEntry = useCallback((
+    entry: ManualGradeHistoryEntry,
+    direction: "undo" | "redo",
+  ) => {
+    if (entry.kind === "question-score") {
+      const key = String(entry.questionId);
+      const nextValue = direction === "undo" ? entry.before : entry.after;
+      const nextScores = {
+        ...questionScoreDraftRef.current,
+        [key]: nextValue,
+      };
+      questionScoreDraftRef.current = nextScores;
+      setQuestionScoreDraft(nextScores);
+    } else if (entry.kind === "attendance") {
+      const nextAbsent = direction === "undo" ? entry.before : entry.after;
+      const nextRows = draftRowsRef.current.map((row) =>
+        row.enrollment_id === entry.enrollmentId
+          ? { ...row, is_not_submitted: nextAbsent }
+          : row,
+      );
+      draftRowsRef.current = nextRows;
+      setDraftRows(nextRows);
+    } else {
+      const changes = new Map(
+        entry.changes.map((change) => [
+          `${change.enrollmentId}:${change.questionId}`,
+          direction === "undo" ? change.before : change.after,
+        ]),
+      );
+      const nextRows = draftRowsRef.current.map((row) => {
+        let nextCells = row.cells;
+        for (const questionId of Object.keys(row.cells)) {
+          const nextCell = changes.get(`${row.enrollment_id}:${questionId}`);
+          if (!nextCell) continue;
+          if (nextCells === row.cells) nextCells = { ...row.cells };
+          nextCells[questionId] = { ...nextCell };
+        }
+        return nextCells === row.cells ? row : { ...row, cells: nextCells };
+      });
+      draftRowsRef.current = nextRows;
+      setDraftRows(nextRows);
+    }
+    previewMutation.reset();
+  }, [previewMutation]);
+
+  const undoLastChange = useCallback(() => {
+    const entry = undoStackRef.current.pop();
+    if (!entry) return false;
+    applyHistoryEntry(entry, "undo");
+    redoStackRef.current.push(entry);
+    syncHistoryState();
+    setDirty(undoStackRef.current.length > 0);
+    return true;
+  }, [applyHistoryEntry, syncHistoryState]);
+
+  const redoLastChange = useCallback(() => {
+    const entry = redoStackRef.current.pop();
+    if (!entry) return false;
+    applyHistoryEntry(entry, "redo");
+    undoStackRef.current.push(entry);
+    syncHistoryState();
+    setDirty(true);
+    return true;
+  }, [applyHistoryEntry, syncHistoryState]);
 
   const focusCell = useCallback((
     current: HTMLButtonElement,
@@ -208,6 +444,10 @@ export default function ManualExamGradingGrid({
           scope="panel"
           tone="error"
           title="직접 채점표를 불러오지 못했습니다."
+          description={extractApiError(
+            sheetQuery.error,
+            "시험 문항과 접근 권한을 확인한 뒤 다시 불러오세요.",
+          )}
           actions={(
             <Button
               intent="secondary"
@@ -221,17 +461,117 @@ export default function ManualExamGradingGrid({
       </section>
     );
   }
-  if (!data?.has_manual_questions) {
+  if (!data) return null;
+  if (visibleQuestions.length === 0) {
     if (!showUnavailableState) return null;
     return (
-      <section className={styles.card}>
-        <EmptyState
-          scope="panel"
-          tone="empty"
-          title="문항별 직접 채점이 없는 시험입니다."
-          description="선택형 시험은 성적 화면 상단의 OMR 스캔 등록을 이용하고, 합산 점수는 수정 모드에서 입력하세요."
+      <>
+        <section className={`${styles.card} ${styles.emptyStart}`}>
+          <div className={styles.emptyStartHeading}>
+            <span className={styles.icon} aria-hidden>
+              <ClipboardCheck size={ICON.lg} />
+            </span>
+            <div>
+              <h3>문항을 어떤 방식으로 준비할까요?</h3>
+              <p>
+                객관식 자동채점은 정답을 등록하고, 정오만 빠르게 기록할 시험은
+                문항 수로 바로 시작하세요.
+              </p>
+            </div>
+          </div>
+          <div className={styles.emptyActionGrid}>
+            <button
+              type="button"
+              className={styles.emptyAction}
+              onClick={() => setAnswerKeyOpen(true)}
+            >
+              <span className={styles.emptyActionIcon} aria-hidden>
+                <ScanLine size={ICON.md} />
+              </span>
+              <span>
+                <strong>객관식 답안 등록</strong>
+                <small>정답·문항 유형·배점을 등록해 OMR 자동채점을 준비합니다.</small>
+              </span>
+            </button>
+            <button
+              type="button"
+              className={styles.emptyAction}
+              onClick={() => setQuickStartOpen((open) => !open)}
+              aria-expanded={quickStartOpen}
+            >
+              <span className={styles.emptyActionIcon} aria-hidden>
+                <ListChecks size={ICON.md} />
+              </span>
+              <span>
+                <strong>문항 수로 바로 시작</strong>
+                <small>정답표 없이 O/X와 문항별 배점을 이 표에서 입력합니다.</small>
+              </span>
+            </button>
+          </div>
+          {quickStartOpen && (
+            <div className={styles.quickStartForm}>
+              <label htmlFor={`manual-question-count-${examId}`}>
+                <span>전체 문항 수</span>
+                <input
+                  id={`manual-question-count-${examId}`}
+                  type="number"
+                  min={1}
+                  max={500}
+                  step={1}
+                  value={quickStartCount}
+                  onChange={(event) => {
+                    const raw = event.target.value;
+                    setQuickStartCount(raw === "" ? "" : Number(raw));
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && quickStartCount !== "") {
+                      quickStartMutation.mutate();
+                    }
+                  }}
+                  autoFocus
+                />
+              </label>
+              <div className={styles.quickStartPreview} aria-live="polite">
+                {quickStartDefaultScore == null ? (
+                  <p>문항 수를 입력하면 균등 배점을 바로 계산합니다.</p>
+                ) : (
+                  <>
+                    <strong>
+                      {quickStartCount}문항 · 문항당 약{" "}
+                      {formatScore(quickStartDefaultScore)}점
+                    </strong>
+                    <p>
+                      합계 {formatScore(quickStartMaxScore)}점 · 만든 뒤 문항별
+                      배점을 표에서 조정할 수 있습니다.
+                    </p>
+                  </>
+                )}
+              </div>
+              <Button
+                type="button"
+                intent="primary"
+                size="sm"
+                loading={quickStartMutation.isPending}
+                disabled={
+                  quickStartCount === "" ||
+                  quickStartCount < 1 ||
+                  quickStartCount > 500
+                }
+                onClick={() => quickStartMutation.mutate()}
+              >
+                채점표 만들기
+              </Button>
+            </div>
+          )}
+        </section>
+        <AnswerKeyRegisterModal
+          open={answerKeyOpen}
+          onClose={closeAnswerKeyModal}
+          examId={examId}
+          structureOwnerId={exam?.structure_owner_id ?? examId}
+          canEditQuestions={exam?.can_edit_structure ?? true}
         />
-      </section>
+      </>
     );
   }
 
@@ -272,52 +612,217 @@ export default function ManualExamGradingGrid({
     questionId: number,
     updater: (cell: ManualGradeCell) => ManualGradeCell,
   ) => {
-    setDraftRows((rows) =>
-      rows.map((row) => {
-        if (row.enrollment_id !== enrollmentId) return row;
-        const key = String(questionId);
-        const current = row.cells[key];
-        return {
-          ...row,
-          cells: {
-            ...row.cells,
-            [key]: updater(current),
-          },
-        };
-      }),
+    const row = draftRowsRef.current.find(
+      (candidate) => candidate.enrollment_id === enrollmentId,
     );
+    const key = String(questionId);
+    const current = row?.cells[key];
+    if (!row || !current) return;
+    const nextCell = updater({ ...current });
+    if (sameManualGradeCell(current, nextCell)) return;
+    pushHistory({
+      kind: "cells",
+      changes: [{
+        enrollmentId,
+        questionId,
+        before: { ...current },
+        after: { ...nextCell },
+      }],
+    });
+    const nextRows = draftRowsRef.current.map((candidate) =>
+      candidate.enrollment_id === enrollmentId
+        ? {
+            ...candidate,
+            cells: {
+              ...candidate.cells,
+              [key]: nextCell,
+            },
+          }
+        : candidate,
+    );
+    draftRowsRef.current = nextRows;
+    setDraftRows(nextRows);
     setDirty(true);
     previewMutation.reset();
   };
 
   const setAttendance = (enrollmentId: number, absent: boolean) => {
-    setDraftRows((rows) =>
-      rows.map((row) =>
-        row.enrollment_id === enrollmentId
-          ? { ...row, is_not_submitted: absent }
-          : row,
-      ),
+    const row = draftRowsRef.current.find(
+      (candidate) => candidate.enrollment_id === enrollmentId,
     );
+    if (!row || row.is_not_submitted === absent) return;
+    pushHistory({
+      kind: "attendance",
+      enrollmentId,
+      before: row.is_not_submitted,
+      after: absent,
+    });
+    const nextRows = draftRowsRef.current.map((candidate) =>
+      candidate.enrollment_id === enrollmentId
+        ? { ...candidate, is_not_submitted: absent }
+        : candidate,
+    );
+    draftRowsRef.current = nextRows;
+    setDraftRows(nextRows);
     setDirty(true);
     previewMutation.reset();
   };
 
+  const setQuestionScore = (questionId: number, score: string) => {
+    const key = String(questionId);
+    const current = questionScoreDraftRef.current[key] ?? "";
+    if (current === score) return;
+    pushHistory({
+      kind: "question-score",
+      questionId,
+      before: current,
+      after: score,
+    });
+    const nextScores = {
+      ...questionScoreDraftRef.current,
+      [key]: score,
+    };
+    questionScoreDraftRef.current = nextScores;
+    setQuestionScoreDraft(nextScores);
+    setDirty(true);
+    previewMutation.reset();
+  };
+
+  const pasteCorrectnessMatrix = (
+    text: string,
+    startRowIndex: number,
+    startColumnIndex: number,
+  ) => {
+    const parsed = parseCorrectnessClipboard(text, shortcuts);
+    if (parsed.error) {
+      feedback.error(parsed.error);
+      return;
+    }
+
+    const changes: ManualGradeCellChange[] = [];
+    parsed.matrix.forEach((values, rowOffset) => {
+      const rowIndex = startRowIndex + rowOffset;
+      const row = draftRowsRef.current[rowIndex];
+      if (!row || row.is_not_submitted) return;
+      values.forEach((state, columnOffset) => {
+        const columnIndex = startColumnIndex + columnOffset;
+        const question = visibleQuestions[columnIndex];
+        if (!question) return;
+        const cell = row.cells[String(question.question_id)];
+        if (!cell?.editable || cell.entry_method !== "correctness") return;
+        const nextCell = { ...cell, state };
+        if (!sameManualGradeCell(cell, nextCell)) {
+          changes.push({
+            enrollmentId: row.enrollment_id,
+            questionId: question.question_id,
+            before: { ...cell },
+            after: nextCell,
+          });
+        }
+      });
+    });
+
+    if (changes.length === 0) {
+      feedback.error("붙여넣을 수 있는 정오 입력칸이 없습니다.");
+      return;
+    }
+
+    pushHistory({ kind: "cells", changes });
+    const changeMap = new Map(
+      changes.map((change) => [
+        `${change.enrollmentId}:${change.questionId}`,
+        change.after,
+      ]),
+    );
+    const nextRows = draftRowsRef.current.map((row) => {
+      let nextCells = row.cells;
+      for (const [questionId] of Object.entries(row.cells)) {
+        const nextCell = changeMap.get(`${row.enrollment_id}:${questionId}`);
+        if (!nextCell) continue;
+        if (nextCells === row.cells) nextCells = { ...row.cells };
+        nextCells[questionId] = { ...nextCell };
+      }
+      return nextCells === row.cells ? row : { ...row, cells: nextCells };
+    });
+    draftRowsRef.current = nextRows;
+    setDraftRows(nextRows);
+    setDirty(true);
+    previewMutation.reset();
+    feedback.success(`${changes.length}칸을 붙여넣었습니다.`);
+
+    const lastChange = changes[changes.length - 1];
+    const focusRowIndex = draftRowsRef.current.findIndex(
+      (row) => row.enrollment_id === lastChange?.enrollmentId,
+    );
+    const focusColumnIndex = visibleQuestions.findIndex(
+      (question) => question.question_id === lastChange?.questionId,
+    );
+    if (focusRowIndex >= 0 && focusColumnIndex >= 0) {
+      window.requestAnimationFrame(() => {
+        const target = tableWrapRef.current?.querySelector<HTMLButtonElement>(
+          `[data-manual-grade-cell][data-row-index="${focusRowIndex}"][data-column-index="${focusColumnIndex}"]`,
+        );
+        target?.focus();
+      });
+    }
+  };
+
   const reset = () => {
-    setDraftRows(cloneRows(data.rows));
+    const nextRows = cloneRows(data.rows);
+    const nextScores = Object.fromEntries(
+      data.questions.map((question) => [
+        String(question.question_id),
+        formatScoreInput(question.max_score),
+      ]),
+    );
+    draftRowsRef.current = nextRows;
+    questionScoreDraftRef.current = nextScores;
+    setDraftRows(nextRows);
+    setQuestionScoreDraft(nextScores);
+    clearHistory();
     setDirty(false);
     previewMutation.reset();
+  };
+
+  const handleWorkspaceKeyDown = (
+    event: ReactKeyboardEvent<HTMLElement>,
+  ) => {
+    const commandKey = event.ctrlKey || event.metaKey;
+    const key = event.key.toLowerCase();
+    if (commandKey && !event.altKey && (key === "z" || key === "y")) {
+      event.preventDefault();
+      const redo = key === "y" || (key === "z" && event.shiftKey);
+      if (redo) redoLastChange();
+      else undoLastChange();
+      return;
+    }
+    if (commandKey && !event.altKey && key === "s") {
+      event.preventDefault();
+      if (!dirty || busy) return;
+      if (questionScoreState.error) {
+        feedback.error(questionScoreState.error);
+        return;
+      }
+      if (!preview || hasErrors) previewMutation.mutate();
+      else applyMutation.mutate();
+      return;
+    }
+    if (
+      hasEditableQuestions &&
+      data.manual_grading_method === "correctness" &&
+      event.shiftKey &&
+      event.key === "?"
+    ) {
+      event.preventDefault();
+      openShortcutSettings();
+    }
   };
 
   return (
     <section
       className={styles.card}
       aria-labelledby="manual-grading-title"
-      onKeyDownCapture={(event) => {
-        if (event.shiftKey && event.key === "?") {
-          event.preventDefault();
-          openShortcutSettings();
-        }
-      }}
+      onKeyDownCapture={handleWorkspaceKeyDown}
     >
       <header className={styles.header}>
         <div className={styles.heading}>
@@ -325,12 +830,29 @@ export default function ManualExamGradingGrid({
             <ClipboardCheck size={ICON.lg} />
           </span>
           <div>
-            <h3 id="manual-grading-title">문항별 직접 채점</h3>
+            <h3 id="manual-grading-title">정오표 워크스페이스</h3>
             <p>
-              {data.manual_grading_method === "correctness"
-                ? "조교가 정오를 입력한 뒤 한 번에 확인하고 성적을 확정합니다."
-                : "조교가 문항별 점수를 입력한 뒤 한 번에 확인하고 성적을 확정합니다."}
+              {data.grading_mode === "choice"
+                ? "자동채점 정오와 점수를 확인하고 필요한 문항만 보정합니다."
+                : data.grading_mode === "mixed"
+                  ? "선택형 자동채점 결과를 확인하고 답변형 점수를 함께 확정합니다."
+                  : data.manual_grading_method === "correctness"
+                    ? "정오를 입력한 뒤 한 번에 확인하고 성적을 확정합니다."
+                    : "문항별 점수를 입력한 뒤 한 번에 확인하고 성적을 확정합니다."}
             </p>
+            <div className={styles.workspaceStats} aria-label="채점표 구성">
+              <span>학생 {draftRows.length}명</span>
+              <span>문항 {visibleQuestions.length}개</span>
+              {questionTypeCounts.choice > 0 && (
+                <span>객관식 {questionTypeCounts.choice}</span>
+              )}
+              {questionTypeCounts.numeric_short_answer > 0 && (
+                <span>단답형 {questionTypeCounts.numeric_short_answer}</span>
+              )}
+              {questionTypeCounts.written > 0 && (
+                <span>서술형 {questionTypeCounts.written}</span>
+              )}
+            </div>
           </div>
         </div>
         <div className={styles.headerActions}>
@@ -339,13 +861,50 @@ export default function ManualExamGradingGrid({
             type="button"
             intent="ghost"
             size="sm"
+            leftIcon={<Undo2 size={ICON_FOR_BUTTON.sm} />}
+            disabled={historyState.undo === 0 || busy}
+            onClick={undoLastChange}
+            aria-label="마지막 변경 실행 취소"
+          >
+            실행 취소
+          </Button>
+          <Button
+            type="button"
+            intent="ghost"
+            size="sm"
+            leftIcon={<Redo2 size={ICON_FOR_BUTTON.sm} />}
+            disabled={historyState.redo === 0 || busy}
+            onClick={redoLastChange}
+            aria-label="마지막 변경 다시 실행"
+          >
+            다시 실행
+          </Button>
+          <Button
+            type="button"
+            intent="ghost"
+            size="sm"
             leftIcon={<RefreshCw size={ICON_FOR_BUTTON.sm} />}
             disabled={!dirty || busy}
             onClick={reset}
           >
-            되돌리기
+            전체 초기화
           </Button>
-          {data.manual_grading_method === "correctness" && (
+          <Button
+            type="button"
+            intent="secondary"
+            size="sm"
+            leftIcon={<TableProperties size={ICON_FOR_BUTTON.sm} />}
+            disabled={dirty || busy || exam?.can_edit_structure === false}
+            onClick={() => setAnswerKeyOpen(true)}
+            title={
+              dirty
+                ? "성적을 확정하거나 전체 초기화한 뒤 문항 구성을 바꿀 수 있습니다."
+                : undefined
+            }
+          >
+            문항 구성·정답
+          </Button>
+          {hasEditableQuestions && data.manual_grading_method === "correctness" && (
             <Button
               type="button"
               intent="secondary"
@@ -359,14 +918,27 @@ export default function ManualExamGradingGrid({
         </div>
       </header>
 
-      {data.manual_grading_method === "correctness" ? (
-        <div className={styles.legend} aria-label="정오 입력표 범례">
-          <span className={styles.legendCorrect}><b>{shortcuts.correct}</b> 정답</span>
-          <span className={styles.legendWrong}><b>{shortcuts.incorrect}</b> 오답</span>
-          <span className={styles.legendReview}>
-            <b>{shortcuts.review}</b> 정답 · 오답노트에 포함
-          </span>
-          <span>입력 후 다음 칸 이동 · 방향키 이동 · Shift+? 단축키 보기</span>
+      {!hasEditableQuestions ? (
+        <div className={styles.readOnlyNotice}>
+          자동채점 결과를 읽기 전용으로 표시하고 있습니다. 문항별 O/X와 점수는
+          그대로 확인할 수 있습니다.
+        </div>
+      ) : data.manual_grading_method === "correctness" ? (
+        <div className={styles.commandBar} aria-label="정오표 입력 도움말">
+          <div className={styles.legend}>
+            <span className={styles.legendCorrect}><b>{shortcuts.correct}</b> 정답</span>
+            <span className={styles.legendWrong}><b>{shortcuts.incorrect}</b> 오답</span>
+            <span className={styles.legendReview}>
+              <b>{shortcuts.review}</b> 정답 · 복습
+            </span>
+          </div>
+          <div className={styles.keyboardHints}>
+            <span><kbd>Tab</kbd> 다음 칸</span>
+            <span><kbd>Enter</kbd> 아래 칸</span>
+            <span><kbd>Ctrl V</kbd> 엑셀 붙여넣기</span>
+            <span><kbd>Ctrl Z</kbd> 실행 취소</span>
+            <span><kbd>Ctrl S</kbd> 확인·확정</span>
+          </div>
         </div>
       ) : (
         <div className={styles.legend}>
@@ -379,12 +951,32 @@ export default function ManualExamGradingGrid({
 
       {data.grading_mode === "mixed" && (
         <div className={styles.mixedNotice}>
-          선택형은 OMR 결과를 그대로 보존합니다. OMR 채점이 끝난 학생만 답변형 점수를
-          확정할 수 있습니다.
+          문항 순서와 관계없이 객관식 자동채점과 단답·서술형 입력을 같은 표에
+          표시합니다. 자동채점 답안은 보존되며 필요한 문항만 보정할 수 있습니다.
         </div>
       )}
 
-      {shortcutSettingsOpen && (
+      {hasEditableQuestions && (
+        <div
+          className={`${styles.scoreSummary} ${
+            questionScoreState.error ? styles.scoreSummaryError : ""
+          }`}
+          role={questionScoreState.error ? "alert" : "status"}
+        >
+          <span>
+            배점 합계{" "}
+            <strong>{formatScore(questionScoreState.configuredTotal)}점</strong>
+            {" / "}시험 만점 {formatScore(questionScoreState.examMaxScore)}점
+          </span>
+          {questionScoreState.error ? (
+            <span>{questionScoreState.error}</span>
+          ) : (
+            <span>문항 제목 아래 배점을 직접 수정할 수 있습니다.</span>
+          )}
+        </div>
+      )}
+
+      {hasEditableQuestions && shortcutSettingsOpen && (
         <div className={styles.shortcutPanel} role="group" aria-labelledby="manual-shortcut-title">
           <div className={styles.shortcutPanelHeading}>
             <div>
@@ -451,12 +1043,49 @@ export default function ManualExamGradingGrid({
             <tr>
               <th className={styles.studentColumn}>학생</th>
               <th className={styles.attendanceColumn}>응시</th>
-              {manualQuestions.map((question) => (
-                <th key={question.question_id}>
-                  <strong>{question.number}</strong>
-                  <span>{formatScore(question.max_score)}점</span>
-                </th>
-              ))}
+              {visibleQuestions.map((question) => {
+                const key = String(question.question_id);
+                const answerType = getQuestionAnswerType(question);
+                const answerTypeClass =
+                  answerType === "choice"
+                    ? styles.choiceType
+                    : answerType === "numeric_short_answer"
+                      ? styles.numericShortAnswerType
+                      : styles.writtenType;
+                return (
+                  <th key={question.question_id} className={styles.questionColumn}>
+                    <div className={styles.questionRail}>
+                      <span className={`${styles.questionType} ${answerTypeClass}`}>
+                        {getQuestionAnswerTypeLabel(answerType)}
+                      </span>
+                      <strong className={styles.questionNumber}>
+                        {question.number}
+                      </strong>
+                    </div>
+                    {question.editable ? (
+                      <label className={styles.questionScoreInput}>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.1"
+                          value={questionScoreDraft[key] ?? ""}
+                          disabled={busy}
+                          aria-label={`${question.number}번 배점`}
+                          onChange={(event) =>
+                            setQuestionScore(
+                              question.question_id,
+                              event.target.value,
+                            )
+                          }
+                        />
+                        <i>점</i>
+                      </label>
+                    ) : (
+                      <span>{formatScore(question.max_score)}점</span>
+                    )}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -483,6 +1112,7 @@ export default function ManualExamGradingGrid({
                       row.is_not_submitted ? styles.absent : ""
                     }`}
                     aria-pressed={row.is_not_submitted}
+                    disabled={!hasEditableQuestions || busy}
                     onClick={() =>
                       setAttendance(row.enrollment_id, !row.is_not_submitted)
                     }
@@ -490,12 +1120,22 @@ export default function ManualExamGradingGrid({
                     {row.is_not_submitted ? "결시" : "응시"}
                   </button>
                 </td>
-                {manualQuestions.map((question, columnIndex) => {
+                {visibleQuestions.map((question, columnIndex) => {
                   const key = String(question.question_id);
                   const cell = row.cells[key];
+                  const draftMaxScore = Number(questionScoreDraft[key]);
+                  const maxScore = Number.isFinite(draftMaxScore)
+                    ? draftMaxScore
+                    : question.max_score;
                   return (
                     <td key={question.question_id} className={styles.gradeCell}>
-                      {data.manual_grading_method === "correctness" ? (
+                      {!cell.editable ? (
+                        <ReadOnlyGradeCell
+                          cell={cell}
+                          studentName={row.student_name}
+                          questionNumber={question.number}
+                        />
+                      ) : data.manual_grading_method === "correctness" ? (
                         <CorrectnessCell
                           value={cell.state}
                           disabled={row.is_not_submitted || busy}
@@ -508,6 +1148,9 @@ export default function ManualExamGradingGrid({
                             focusCell(element, direction)
                           }
                           onShowShortcuts={openShortcutSettings}
+                          onPaste={(text) =>
+                            pasteCorrectnessMatrix(text, rowIndex, columnIndex)
+                          }
                           onChange={(state) =>
                             updateCell(
                               row.enrollment_id,
@@ -519,7 +1162,7 @@ export default function ManualExamGradingGrid({
                       ) : (
                         <ScoreCell
                           value={cell.score}
-                          maxScore={question.max_score}
+                          maxScore={maxScore}
                           review={cell.include_in_wrong_note}
                           disabled={row.is_not_submitted || busy}
                           onScoreChange={(score) =>
@@ -584,33 +1227,65 @@ export default function ManualExamGradingGrid({
         </div>
       )}
 
-      <footer className={styles.footer}>
-        <span>
-          확인 단계에서는 통계가 바뀌지 않습니다. 성적 확정 시에만 한 번에 반영됩니다.
-        </span>
-        {!preview || hasErrors ? (
-          <Button
-            type="button"
-            intent="primary"
-            onClick={() => previewMutation.mutate()}
-            loading={previewMutation.isPending}
-            disabled={!dirty || busy}
-          >
-            입력 내용 확인
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            intent="primary"
-            onClick={() => applyMutation.mutate()}
-            loading={applyMutation.isPending}
-            disabled={busy}
-          >
-            {preview.matched_count}명 성적 확정
-          </Button>
-        )}
-      </footer>
+      {hasEditableQuestions && (
+        <footer className={styles.footer}>
+          <span>
+            확인 단계에서는 통계가 바뀌지 않습니다. 성적 확정 시에만 한 번에 반영됩니다.
+          </span>
+          {!preview || hasErrors ? (
+            <Button
+              type="button"
+              intent="primary"
+              onClick={() => previewMutation.mutate()}
+              loading={previewMutation.isPending}
+              disabled={!dirty || busy || Boolean(questionScoreState.error)}
+            >
+              입력 내용 확인
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              intent="primary"
+              onClick={() => applyMutation.mutate()}
+              loading={applyMutation.isPending}
+              disabled={busy}
+            >
+              {preview.matched_count}명 성적 확정
+            </Button>
+          )}
+        </footer>
+      )}
+      <AnswerKeyRegisterModal
+        open={answerKeyOpen}
+        onClose={closeAnswerKeyModal}
+        examId={examId}
+        structureOwnerId={exam?.structure_owner_id ?? examId}
+        canEditQuestions={exam?.can_edit_structure ?? true}
+      />
     </section>
+  );
+}
+
+function ReadOnlyGradeCell({
+  cell,
+  studentName,
+  questionNumber,
+}: {
+  cell: ManualGradeCell;
+  studentName: string;
+  questionNumber: number;
+}) {
+  const label = cell.state ? STATE_LABEL[cell.state] : "·";
+  return (
+    <div
+      className={`${styles.correctnessCell} ${styles.readOnlyCell} ${
+        cell.state ? styles[cell.state] : styles.empty
+      }`}
+      aria-label={`${studentName} ${questionNumber}번 자동채점 ${cell.state ? STATE_LABEL[cell.state] : "결과 없음"}`}
+      title={cell.score == null ? "자동채점 결과 없음" : `${formatScore(cell.score)}점`}
+    >
+      {label}
+    </div>
   );
 }
 
@@ -624,6 +1299,7 @@ function CorrectnessCell({
   shortcuts,
   onMoveFocus,
   onShowShortcuts,
+  onPaste,
   onChange,
 }: {
   value: ManualGradeState | null;
@@ -638,6 +1314,7 @@ function CorrectnessCell({
     direction: "next" | "previous" | "up" | "down",
   ) => void;
   onShowShortcuts: () => void;
+  onPaste: (text: string) => void;
   onChange: (value: ManualGradeState | null) => void;
 }) {
   const cycle = () => {
@@ -657,6 +1334,17 @@ function CorrectnessCell({
       data-row-index={rowIndex}
       data-column-index={columnIndex}
       onClick={cycle}
+      onCopy={(event) => {
+        event.preventDefault();
+        event.clipboardData.setData(
+          "text/plain",
+          value ? STATE_LABEL[value] : "",
+        );
+      }}
+      onPaste={(event) => {
+        event.preventDefault();
+        onPaste(event.clipboardData.getData("text"));
+      }}
       onKeyDown={(event) => {
         if (event.nativeEvent.isComposing || event.ctrlKey || event.metaKey || event.altKey) return;
         if (event.shiftKey && event.key === "?") {
@@ -672,7 +1360,10 @@ function CorrectnessCell({
           window.requestAnimationFrame(() => onMoveFocus(cell, "next"));
           return;
         }
-        if (event.key === "ArrowRight" || event.key === "Enter" || (event.key === "Tab" && !event.shiftKey)) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          onMoveFocus(event.currentTarget, event.shiftKey ? "up" : "down");
+        } else if (event.key === "ArrowRight" || (event.key === "Tab" && !event.shiftKey)) {
           event.preventDefault();
           onMoveFocus(event.currentTarget, "next");
         } else if (event.key === "ArrowLeft" || (event.key === "Tab" && event.shiftKey)) {
@@ -803,6 +1494,159 @@ function cloneRows(rows: ManualGradeRow[]): ManualGradeRow[] {
   }));
 }
 
+function sameManualGradeCell(
+  left: ManualGradeCell,
+  right: ManualGradeCell,
+): boolean {
+  return (
+    left.state === right.state &&
+    left.score === right.score &&
+    left.include_in_wrong_note === right.include_in_wrong_note
+  );
+}
+
+function getQuestionAnswerType(
+  question: ManualGradeQuestion,
+): "choice" | "numeric_short_answer" | "written" {
+  return question.answer_type ?? (question.kind === "choice" ? "choice" : "written");
+}
+
+function getQuestionAnswerTypeLabel(
+  answerType: "choice" | "numeric_short_answer" | "written",
+): string {
+  if (answerType === "choice") return "객관식";
+  if (answerType === "numeric_short_answer") return "단답형";
+  return "서술형";
+}
+
+function parseCorrectnessClipboard(
+  text: string,
+  shortcuts: ManualGradingShortcutSettings,
+): {
+  matrix: Array<Array<ManualGradeState | null>>;
+  error: string | null;
+} {
+  const normalizedText = text.replace(/\r\n?/g, "\n");
+  const rows = normalizedText.split("\n");
+  while (rows.length > 1 && rows[rows.length - 1]?.trim() === "") rows.pop();
+
+  const matrix: Array<Array<ManualGradeState | null>> = [];
+  for (const [rowIndex, row] of rows.entries()) {
+    const tokens = row.includes("\t") ? row.split("\t") : [row];
+    const values: Array<ManualGradeState | null> = [];
+    for (const [columnIndex, rawToken] of tokens.entries()) {
+      const token = rawToken.trim();
+      const normalized = token.toLocaleUpperCase("ko-KR");
+      let state: ManualGradeState | null | undefined;
+      const configuredState = getManualGradeStateFromShortcut(token, shortcuts);
+      if (token === "" || token === "-") {
+        state = null;
+      } else if (configuredState) {
+        state = configuredState;
+      } else if (
+        normalized === "O" ||
+        token === "○" ||
+        token === "정답" ||
+        token === "맞음"
+      ) {
+        state = "correct";
+      } else if (
+        normalized === "X" ||
+        token === "×" ||
+        token === "." ||
+        token === "오답" ||
+        token === "틀림"
+      ) {
+        state = "incorrect";
+      } else if (token === "0" || token === "복습") {
+        state = "review";
+      } else {
+        state = undefined;
+      }
+
+      if (state === undefined) {
+        return {
+          matrix: [],
+          error: `${rowIndex + 1}행 ${columnIndex + 1}열의 “${token}”은 정오 값으로 붙여넣을 수 없습니다.`,
+        };
+      }
+      values.push(state);
+    }
+    matrix.push(values);
+  }
+
+  return { matrix, error: null };
+}
+
+function buildQuestionScoreState(
+  data: ManualGradeSheet | undefined,
+  draft: Record<string, string>,
+): {
+  configuredTotal: number;
+  examMaxScore: number;
+  changes?: ManualGradeQuestionScoreChanges;
+  error: string | null;
+} {
+  if (!data) {
+    return {
+      configuredTotal: 0,
+      examMaxScore: 0,
+      error: null,
+    };
+  }
+
+  const questionScores: Record<string, number> = {};
+  const expectedQuestionScores: Record<string, number> = {};
+  let questionTotal = 0;
+  let hasChanges = false;
+
+  for (const question of data.questions) {
+    const key = String(question.question_id);
+    const raw = draft[key] ?? formatScoreInput(question.max_score);
+    const score = Number(raw);
+    if (raw.trim() === "" || !Number.isFinite(score) || score < 0) {
+      return {
+        configuredTotal: questionTotal,
+        examMaxScore: Number(data.exam_max_score ?? 0),
+        error: `${question.number}번 배점을 0점 이상으로 입력해 주세요.`,
+      };
+    }
+    questionTotal += score;
+    if (question.editable && Math.abs(score - question.max_score) > 0.001) {
+      hasChanges = true;
+      questionScores[key] = score;
+      expectedQuestionScores[key] = question.max_score;
+    }
+  }
+
+  const configuredTotal =
+    questionTotal + Number(data.score_adjustment_total ?? 0);
+  const examMaxScore = Number(
+    data.exam_max_score ??
+      configuredTotal,
+  );
+  const totalError =
+    hasChanges && Math.abs(configuredTotal - examMaxScore) > 0.01
+      ? `배점 합계를 시험 만점 ${formatScore(examMaxScore)}점에 맞춰 주세요.`
+      : null;
+
+  return {
+    configuredTotal,
+    examMaxScore,
+    changes: hasChanges
+      ? {
+          question_scores: questionScores,
+          expected_question_scores: expectedQuestionScores,
+        }
+      : undefined,
+    error: totalError,
+  };
+}
+
 function formatScore(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function formatScoreInput(value: number): string {
+  return Number(value.toFixed(4)).toString();
 }
