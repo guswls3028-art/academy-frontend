@@ -828,9 +828,18 @@ export default function SessionScoresEntryPage({
       <SessionOmrUploadAction
         exams={examOptions}
         onRefresh={invalidateScores}
+        onPrepareOpen={async () => {
+          if (!isEditMode) return true;
+          const released = await draft.releaseEditLease();
+          if (!released) {
+            feedback.error("점수 입력 잠금을 마무리한 뒤 다시 시도해 주세요.");
+            return false;
+          }
+          setIsEditMode(false);
+          return true;
+        }}
         disabled={
           recoveryBlocked ||
-          isEditMode ||
           isSaving ||
           draft.hasPendingChanges ||
           draft.draftStatus === "saving" ||

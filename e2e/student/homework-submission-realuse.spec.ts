@@ -27,6 +27,7 @@ const HOMEWORK_TITLE = `[E2E-${TS}] 과제 제출 채점 검증`;
 const STUDENT_NAME = `[E2E-${TS}] 과제학생`;
 const STUDENT_USER = `e2ehw${String(TS).slice(-8)}`;
 const CONTROLLED_PHONE = (process.env.E2E_HOMEWORK_CONTROLLED_PHONE || "01031217466").trim();
+const SCORE_EDITOR_CLIENT = `e2e-homework-${TS}`;
 const ALLOW_REAL_NOTIFICATIONS =
   process.env.E2E_ALLOW_HOMEWORK_REAL_NOTIFICATIONS === "1";
 const GENERATED_PARENT_PHONE = `010${String(TS).slice(-8)}`;
@@ -82,10 +83,11 @@ async function apiFetch<TBody = any>(
   path: string,
   token: string,
   data?: Record<string, unknown>,
+  extraHeaders?: Record<string, string>,
 ): Promise<{ status: number; body: TBody }> {
   const resp = await request.fetch(`${API}/api/v1${path}`, {
     method,
-    headers: headers(token),
+    headers: { ...headers(token), ...extraHeaders },
     ...(data ? { data } : {}),
     timeout: 60_000,
   });
@@ -101,8 +103,9 @@ async function expectApi<TBody = any>(
   token: string,
   data?: Record<string, unknown>,
   okStatuses: number[] = [200, 201],
+  extraHeaders?: Record<string, string>,
 ): Promise<TBody> {
-  const out = await apiFetch<TBody>(request, method, path, token, data);
+  const out = await apiFetch<TBody>(request, method, path, token, data, extraHeaders);
   expect(
     okStatuses,
     `${method} ${path} -> ${out.status} ${JSON.stringify(out.body)}`,
@@ -305,20 +308,44 @@ test.describe.serial("[E2E] 학생 과제 제출 실사용 검증", () => {
     await page.getByRole("button", { name: "제출하기" }).click();
     await expect(page.getByText("제출이 완료되었습니다.").first()).toBeVisible({ timeout: 30_000 });
 
-    const score = await expectApi<any>(
+    const scoreEditorHeaders = { "X-Score-Editor-Client": SCORE_EDITOR_CLIENT };
+    await expectApi(
       request,
-      "PATCH",
-      "/homework/scores/quick/",
+      "PUT",
+      `/results/admin/sessions/${created.sessionId}/score-draft/`,
       adminTokens.access,
-      {
-        session_id: created.sessionId,
-        enrollment_id: created.enrollmentId,
-        homework_id: created.homeworkId,
-        score: 92,
-        max_score: 100,
-      },
+      { changes: [] },
       [200],
+      scoreEditorHeaders,
     );
+    let score: any;
+    try {
+      score = await expectApi<any>(
+        request,
+        "PATCH",
+        "/homework/scores/quick/",
+        adminTokens.access,
+        {
+          session_id: created.sessionId,
+          enrollment_id: created.enrollmentId,
+          homework_id: created.homeworkId,
+          score: 92,
+          max_score: 100,
+        },
+        [200],
+        scoreEditorHeaders,
+      );
+    } finally {
+      await expectApi(
+        request,
+        "POST",
+        `/results/admin/sessions/${created.sessionId}/score-draft/commit/`,
+        adminTokens.access,
+        { release_lease: true },
+        [200, 204],
+        scoreEditorHeaders,
+      );
+    }
     expect(Number(score.score)).toBe(92);
     expect(score.passed).toBe(true);
 

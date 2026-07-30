@@ -12,12 +12,19 @@ type ExamOption = SessionScoreMeta["exams"][number];
 type Props = {
   exams: ExamOption[];
   onRefresh: () => void;
+  onPrepareOpen?: () => boolean | Promise<boolean>;
   disabled?: boolean;
 };
 
-export default function SessionOmrUploadAction({ exams, onRefresh, disabled = false }: Props) {
+export default function SessionOmrUploadAction({
+  exams,
+  onRefresh,
+  onPrepareOpen,
+  disabled = false,
+}: Props) {
   const [selectedExam, setSelectedExam] = useState<{ examId: number; title: string } | null>(null);
   const [showPicker, setShowPicker] = useState(false);
+  const [isPreparing, setIsPreparing] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -44,11 +51,17 @@ export default function SessionOmrUploadAction({ exams, onRefresh, disabled = fa
 
   if (exams.length === 0) return null;
 
-  const openUpload = () => {
-    if (disabled) return;
+  const openUpload = async () => {
+    if (disabled || isPreparing) return;
     if (exams.length === 0) {
       feedback.info("시험을 먼저 추가해주세요.");
       return;
+    }
+    setIsPreparing(true);
+    try {
+      if (onPrepareOpen && !await onPrepareOpen()) return;
+    } finally {
+      setIsPreparing(false);
     }
     if (exams.length === 1) {
       setSelectedExam({ examId: exams[0].exam_id, title: exams[0].title });
@@ -70,9 +83,9 @@ export default function SessionOmrUploadAction({ exams, onRefresh, disabled = fa
           intent="primary"
           size="md"
           className="scores-omr-primary"
-          disabled={disabled}
-          onClick={openUpload}
-          title={disabled ? "이전 입력 복구 여부를 먼저 확인해 주세요." : "OMR 스캔 등록"}
+          disabled={disabled || isPreparing}
+          onClick={() => void openUpload()}
+          title={disabled ? "입력 중인 점수를 먼저 저장하거나 복구 여부를 확인해 주세요." : "OMR 스캔 등록"}
           leftIcon={<Upload size={ICON_FOR_BUTTON.md} />}
           rightIcon={exams.length > 1 ? <ChevronDown size={ICON_FOR_BUTTON.md} /> : undefined}
           aria-haspopup={exams.length > 1 ? "listbox" : undefined}
