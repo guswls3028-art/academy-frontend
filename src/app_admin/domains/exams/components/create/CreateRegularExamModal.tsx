@@ -686,12 +686,12 @@ export default function CreateRegularExamModal({
               </div>
 
               <fieldset className="grid gap-2">
-                <legend className="text-sm font-semibold">시험 구성</legend>
+                <legend className="text-sm font-semibold">채점 흐름</legend>
                 <div className="grid grid-cols-3 gap-2">
                   {([
-                    ["choice", "선택형", "OMR 자동 채점"],
-                    ["written", "답변형", "조교 직접 입력"],
-                    ["mixed", "혼합형", "OMR + 직접 입력"],
+                    ["choice", "OMR 자동채점", "학생 답안을 인식하고 오류는 OMR 검토에서 보정"],
+                    ["written", "직접 채점", "수기 채점한 정오 또는 점수를 학생별 입력"],
+                    ["mixed", "OMR + 직접 채점", "선택형은 OMR, 나머지 문항은 직접 입력"],
                   ] as const).map(([value, label, description]) => (
                     <button
                       key={value}
@@ -711,11 +711,16 @@ export default function CreateRegularExamModal({
                     </button>
                   ))}
                 </div>
+                <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
+                  종이에서 채점을 마친 뒤 학생별 O/X만 기록한다면{" "}
+                  <strong className="text-[var(--color-text-primary)]">직접 채점</strong>을
+                  선택하세요.
+                </p>
               </fieldset>
 
               {gradingMode !== "choice" && (
                 <fieldset className="grid gap-2">
-                  <legend className="text-sm font-semibold">답변형 채점 방식</legend>
+                  <legend className="text-sm font-semibold">직접입력 방식</legend>
                   <div className="grid grid-cols-2 gap-2">
                     {([
                       ["correctness", "정오 입력", "O / X / 0으로 빠르게 입력"],
@@ -744,7 +749,7 @@ export default function CreateRegularExamModal({
 
               {gradingMode === "mixed" && (
                 <label className="grid gap-1.5 text-sm font-semibold">
-                  앞쪽 선택형 문항 수
+                  OMR로 채점할 앞쪽 문항 수
                   <input
                     type="number"
                     min={1}

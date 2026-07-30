@@ -830,12 +830,20 @@ export default function ManualExamGradingGrid({
             <ClipboardCheck size={ICON.lg} />
           </span>
           <div>
-            <h3 id="manual-grading-title">정오표 워크스페이스</h3>
+            <h3 id="manual-grading-title">
+              {data.grading_mode === "choice"
+                ? "OMR 자동채점 결과"
+                : data.grading_mode === "mixed"
+                  ? "혼합 채점 워크스페이스"
+                  : data.manual_grading_method === "correctness"
+                    ? "정오 직접입력"
+                    : "문항별 점수 입력"}
+            </h3>
             <p>
               {data.grading_mode === "choice"
-                ? "자동채점 정오와 점수를 확인하고 필요한 문항만 보정합니다."
+                ? "자동채점 결과입니다. 인식 오류는 OMR 검토에서 학생 답안을 보정하세요."
                 : data.grading_mode === "mixed"
-                  ? "선택형 자동채점 결과를 확인하고 답변형 점수를 함께 확정합니다."
+                  ? "OMR 문항은 잠그고 직접 채점 문항만 입력해 함께 확정합니다."
                   : data.manual_grading_method === "correctness"
                     ? "정오를 입력한 뒤 한 번에 확인하고 성적을 확정합니다."
                     : "문항별 점수를 입력한 뒤 한 번에 확인하고 성적을 확정합니다."}
@@ -920,8 +928,8 @@ export default function ManualExamGradingGrid({
 
       {!hasEditableQuestions ? (
         <div className={styles.readOnlyNotice}>
-          자동채점 결과를 읽기 전용으로 표시하고 있습니다. 문항별 O/X와 점수는
-          그대로 확인할 수 있습니다.
+          이 표에서는 자동채점 결과를 변경하지 않습니다. OMR 검토에서 인식
+          답안을 보정하면 정오·점수·통계가 다시 계산됩니다.
         </div>
       ) : data.manual_grading_method === "correctness" ? (
         <div className={styles.commandBar} aria-label="정오표 입력 도움말">
@@ -961,7 +969,8 @@ export default function ManualExamGradingGrid({
       {data.grading_mode === "mixed" && (
         <div className={styles.mixedNotice}>
           문항 순서와 관계없이 객관식 자동채점과 단답·서술형 입력을 같은 표에
-          표시합니다. 자동채점 답안은 보존되며 필요한 문항만 보정할 수 있습니다.
+          표시합니다. 자동채점 문항은 잠겨 있으며, 인식 오류는 OMR 검토에서
+          답안을 보정합니다.
         </div>
       )}
 
