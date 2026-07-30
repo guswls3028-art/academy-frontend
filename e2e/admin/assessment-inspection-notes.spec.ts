@@ -21,7 +21,7 @@ function createLocalJwt() {
   })}.sig`;
 }
 
-async function installApi(page: Page) {
+async function installApi(page: Page, options: { failCorrection?: boolean } = {}) {
   const baseUrl = getBaseUrl("admin");
   test.skip(!isLocalBaseUrl(baseUrl), "검사 상태 route-mock 검증은 로컬 dev 서버 전용");
   const token = createLocalJwt();
@@ -50,8 +50,8 @@ async function installApi(page: Page) {
       return;
     }
     const pathname = new URL(request.url()).pathname;
-    const fulfill = (json: unknown) => route.fulfill({
-      status: 200,
+    const fulfill = (json: unknown, status = 200) => route.fulfill({
+      status,
       headers: corsHeaders,
       contentType: "application/json",
       json,
@@ -131,6 +131,13 @@ async function installApi(page: Page) {
             max_score: 100,
             display_order: 1,
             questions: [],
+          }, {
+            exam_id: 3102,
+            title: "함수 단원평가",
+            pass_score: 70,
+            max_score: 100,
+            display_order: 2,
+            questions: [],
           }],
           homeworks: [{
             homework_id: 4101,
@@ -167,6 +174,23 @@ async function installApi(page: Page) {
             items: [],
             attempt_count: 1,
             attempts: [],
+          }, {
+            exam_id: 3102,
+            title: "함수 단원평가",
+            pass_score: 70,
+            block: {
+              score: 40,
+              max_score: 100,
+              passed: false,
+              clinic_required: false,
+              correction_status: "COMPLETED",
+              correction_completed_at: "2026-07-29T16:20:00+09:00",
+              correction_note: "오답 확인 완료",
+              meta: null,
+            },
+            items: [],
+            attempt_count: 1,
+            attempts: [],
           }],
           homeworks: [{
             homework_id: 4101,
@@ -186,7 +210,7 @@ async function installApi(page: Page) {
             attempt_count: 0,
           }],
           updated_at: "2026-07-29T16:30:00+09:00",
-          clinic_required: true,
+          clinic_required: false,
           progress_completed: false,
           progress_status: "in_progress",
           correction_pending_count: homeworkStatus === "PENDING" ? 2 : 1,
@@ -205,6 +229,12 @@ async function installApi(page: Page) {
         note?: string;
       };
       correctionRequests.push(payload);
+      if (options.failCorrection) {
+        await fulfill({
+          source_id: ["점수가 입력된 항목만 상태를 바꿀 수 있습니다."],
+        }, 400);
+        return;
+      }
       if (payload.source_type === "homework") {
         homeworkStatus = payload.completed ? "COMPLETED" : "PENDING";
         homeworkNote = payload.note ?? homeworkNote;
@@ -260,7 +290,9 @@ async function openHomeworkInspection(page: Page) {
   await page.locator('tbody tr[role="button"]').first().locator('[data-col-type="name"]').click();
   const drawer = page.locator(".student-scores-drawer");
   await expect(drawer).toBeVisible();
-  await drawer.getByText("서술형 워크북 12~15번", { exact: true }).click();
+  await drawer.locator(".student-scores-drawer__hw-card")
+    .getByText("서술형 워크북 12~15번", { exact: true })
+    .click();
   await expect(drawer.getByRole("group", { name: "과제 검사 상태" })).toBeVisible();
   return drawer;
 }
@@ -275,6 +307,12 @@ test.describe("시험·과제 수동 검사 상태", () => {
     await page.goto(url, { waitUntil: "load", timeout: 45_000 });
 
     let drawer = await openHomeworkInspection(page);
+    await expect(drawer.getByText("검수 대기", { exact: true }).first()).toBeVisible();
+    await expect(drawer.getByText("방정식 단원평가", { exact: true }).first()).toBeVisible();
+    await expect(drawer.getByText("미입력", { exact: true })).toBeVisible();
+    await expect(drawer.getByText("서술형 워크북 12~15번", { exact: true }).first()).toBeVisible();
+    await expect(drawer.getByText("미달 항목", { exact: true })).toBeVisible();
+    await expect(drawer.getByText("함수 단원평가", { exact: true }).first()).toBeVisible();
     await expect(drawer.getByText("점수 미입력", { exact: true })).toBeVisible();
     const note = drawer.getByRole("textbox", { name: "과제 검사 비고" });
     await expect(note).toBeEnabled();
@@ -297,7 +335,10 @@ test.describe("시험·과제 수동 검사 상태", () => {
       note: "12~13번 완료, 14~15번 남음",
     });
 
-    await drawer.getByText("방정식 단원평가", { exact: true }).click();
+    await drawer.locator(".student-scores-drawer__exam-card")
+      .filter({ hasText: "방정식 단원평가" })
+      .getByText("방정식 단원평가", { exact: true })
+      .click();
     const examNote = drawer.getByRole("textbox", { name: "오답 확인 비고" });
     await expect(examNote).toHaveValue("서술형 3번 풀이 확인");
     await examNote.fill("서술형 3번 풀이와 단위를 다시 확인");
@@ -317,8 +358,7 @@ test.describe("시험·과제 수동 검사 상태", () => {
     await drawer.getByRole("button", { name: "완료", exact: true }).click();
     await expect(drawer.getByText("검사 완료", { exact: true }).first()).toBeVisible();
     await expect(drawer.getByText("1/1 완료", { exact: false })).toBeVisible();
-    await expect(drawer.getByText("방정식 단원평가, 서술형 워크북 12~15번", { exact: true }))
-      .toHaveCount(0);
+    await expect(drawer.getByText("미입력", { exact: true })).toHaveCount(0);
     expect(api.correctionRequests.at(-1)).toMatchObject({
       source_type: "homework",
       completed: true,
@@ -351,5 +391,29 @@ test.describe("시험·과제 수동 검사 상태", () => {
       path: testInfo.outputPath("assessment-inspection-390.png"),
       fullPage: false,
     });
+  });
+
+  test("학생 상세를 Escape로 닫고 서버 검증 사유를 그대로 안내한다", async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await installApi(page, { failCorrection: true });
+    const baseUrl = getBaseUrl("admin");
+    await page.goto(
+      `${baseUrl}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "load", timeout: 45_000 },
+    );
+
+    let drawer = await openHomeworkInspection(page);
+    await drawer.getByRole("button", { name: "미완료", exact: true }).click();
+    await expect(page.getByText("점수가 입력된 항목만 상태를 바꿀 수 있습니다.", { exact: true }))
+      .toBeVisible();
+    await expect(drawer.getByText("검사 미완료", { exact: true })).toHaveCount(0);
+
+    await page.keyboard.press("Escape");
+    await expect(drawer).toBeHidden();
+
+    drawer = await openHomeworkInspection(page);
+    await drawer.getByRole("button", { name: "학생 성적 상세 닫기 (Esc)" }).click();
+    await expect(drawer).toBeHidden();
   });
 });
