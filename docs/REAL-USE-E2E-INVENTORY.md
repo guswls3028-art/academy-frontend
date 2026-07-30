@@ -47,6 +47,10 @@
   실패한다.
 - 가입/계정복구 실발송과 학생 fixture를 만드는 OMR·과제·클리닉은 workflow의
   `controlled_write_canaries=true`에서만 통제 번호와 소유 ID cleanup으로 실행한다.
+- 통제 쓰기는 Playwright 재시도를 금지하고, 공유 운영 관리자 로그인은 공용
+  429 backoff helper를 사용한다. 클리닉 결과 이력은 삭제 보호로 archive되므로
+  실행 직후 backend `cleanup_e2e_residue` exact-token 정리와 production canary
+  residue 0 확인이 필수다.
 - 일회성 screenshot/진단 spec은 필요할 때 명시 실행하고, 검증 종료 후 `_local`
   또는 archive로 옮기거나 삭제한다. 이 자산의 실패를 숨기지 않되 릴리스 묶음의
   성공과 동일시하지 않는다.
@@ -83,7 +87,7 @@
 | QnA 왕복 | `e2e/flows/qna-roundtrip.spec.ts` | 학생 질문->관리자 답변->학생 확인 | 일부 API-assisted |
 | 상담 왕복 | `e2e/flows/counsel-roundtrip.spec.ts` | 상담 신청/관리자 확인 | 상담 UI 입력 체감 검증 부족 |
 | 클리닉 왕복 | `e2e/flows/clinic-roundtrip.spec.ts` | 클리닉 세션 생성 후 학생/관리자 화면 로드 | 학생 예약/승인/해소 없음 |
-| 클리닉 보강 해소 | `e2e/student/clinic-remediation-realuse.spec.ts` | 실패 성적 -> 클리닉 target -> 학생 예약 -> staff 완료 -> 재시험 통과 -> 학생 result/grades remediated projection | fixture 생성/retake submit은 API-assisted. production run은 controlled notification env 필요 |
+| 클리닉 보강 해소 | `e2e/student/clinic-remediation-realuse.spec.ts` | 실패 성적 -> 클리닉 target -> 학생 예약 -> staff 완료 -> 재시험 통과 -> 학생 result/grades remediated projection | fixture 생성/retake submit은 API-assisted. production run은 controlled notification env와 최초 계정 안내 확인이 필요하며, 결과 이력 archive는 직후 backend exact-token cleanup 대상으로 인계 |
 | 클리닉 UI 생성 | `e2e/flows/clinic-ui-create.spec.ts` | API로 세션을 만들고 관리자/학생 화면 확인 | 파일 자체에 API-assisted 한계 명시 |
 | 영상/세션 렌더 | `e2e/flows/video-session-data-flow.spec.ts` | 관리자/학생 영상/차시 데이터 렌더 확인 | 업로드/READY browser chain은 없음. HLS 재생과 progress persistence는 backend post-deploy smoke/API canary로 별도 통과 |
 | 공개 영상 | `e2e/student/03-public-video-refactor.spec.ts` | 공개영상 분리/라벨 확인 | 실제 재생/학습 흐름 없음 |
@@ -238,8 +242,10 @@ pnpm exec playwright test e2e/flows/notice-roundtrip.spec.ts e2e/flows/qna-round
     선택하고 답안을 `1,2,4,4,1`로 보정해 `60/100` 재채점을 확인했다.
   - 학생 `/student/grades` UI가 같은 시험명을 표시했고, 결과 API의 오답 번호는
     `[3,5]`였다.
-  - Active OMR canary 강의/차시/학생 residue는 0건이었다. 비활성 archived exam
-    `399`, `400`은 결과 이력 보존 delete guard `403`이 정상 동작한 것이다.
+  - Active OMR canary 강의/차시/학생 residue는 0건이었다. 당시 비활성 archived
+    exam `399`, `400`은 결과 이력 보존 delete guard `403` 증거였지만, 현재
+    운영 계약에서는 이런 명시적 E2E 이력도 backend
+    `cleanup_e2e_residue` exact-token 정리와 postdeploy canary 0 확인이 필요하다.
 
 2026-06-07 KST student-domain launch seal에서 운영 API + production bundle 기준으로
 아래를 추가 검증했다.

@@ -9,6 +9,8 @@ import { loginViaUI } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
 import { productionMultiNoticeFlowSkipReason } from "../helpers/safety";
 
+test.setTimeout(360_000);
+
 const API_BASE = process.env.E2E_API_URL || process.env.API_BASE_URL || "https://api.hakwonplus.com";
 const TS = Date.now();
 const PW_TEST_USER = `e2epw${String(TS).slice(-8)}`;
@@ -55,6 +57,8 @@ async function cleanupPasswordTestAccount(page: Page): Promise<void> {
 }
 
 test.describe.serial("[E2E] 비밀번호 일괄 변경", () => {
+  test.describe.configure({ retries: 0 });
+
   const productionBlock = productionMultiNoticeFlowSkipReason(API_BASE, {
     explicitlyAllowed: ALLOW_PRODUCTION_NOTIFICATIONS,
     configuredPhone: PARENT_PHONE,

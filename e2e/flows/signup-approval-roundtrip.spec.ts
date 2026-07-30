@@ -8,16 +8,19 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import type { APIRequestContext, Page } from "@playwright/test";
-import { getApiBaseUrl, getBaseUrl, loginViaUI } from "../helpers/auth";
+import {
+  getApiBaseUrl,
+  getBaseUrl,
+  loginTokenViaRequest,
+  loginViaUI,
+} from "../helpers/auth";
 import { gotoAndSettle, waitForRenderSettled } from "../helpers/wait";
 
-test.setTimeout(240_000);
+test.setTimeout(420_000);
 
 const API = getApiBaseUrl().replace(/\/+$/, "");
 const BASE = getBaseUrl("admin").replace(/\/+$/, "");
 const CODE = "hakwonplus";
-const ADMIN_USER = process.env.E2E_ADMIN_USER || "admin97";
-const ADMIN_PASS = process.env.E2E_ADMIN_PASS || "__MISSING_E2E_ADMIN_PASS__";
 const CONTROLLED_PHONE = (process.env.E2E_SIGNUP_CONTROLLED_PHONE || "").replace(/\D/g, "");
 const ALLOW_REAL_SEND = process.env.E2E_ALLOW_SIGNUP_APPROVAL_REAL_SEND === "1";
 const TS = Date.now();
@@ -84,15 +87,7 @@ function headers(token: string): Record<string, string> {
 }
 
 async function loginToken(request: APIRequestContext): Promise<Tokens> {
-  const resp = await request.post(`${API}/api/v1/token/`, {
-    data: { username: ADMIN_USER, password: ADMIN_PASS, tenant_code: CODE },
-    headers: { "Content-Type": "application/json", "X-Tenant-Code": CODE },
-    timeout: 60_000,
-  });
-  if (resp.status() !== 200) {
-    throw new Error(`admin token -> ${resp.status()} ${await resp.text()}`);
-  }
-  return await resp.json() as Tokens;
+  return await loginTokenViaRequest(request, "admin");
 }
 
 async function apiFetch<TBody = unknown>(

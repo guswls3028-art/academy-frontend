@@ -7,16 +7,14 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import type { APIRequestContext, Page } from "@playwright/test";
-import { getApiBaseUrl, getBaseUrl } from "../helpers/auth";
+import { getApiBaseUrl, getBaseUrl, loginTokenViaRequest } from "../helpers/auth";
 import { gotoAndSettle, waitForCondition, waitForRenderSettled } from "../helpers/wait";
 
-test.setTimeout(240_000);
+test.setTimeout(480_000);
 
 const API = getApiBaseUrl().replace(/\/+$/, "");
 const BASE = getBaseUrl("admin").replace(/\/+$/, "");
 const CODE = "hakwonplus";
-const ADMIN_USER = requiredEnv("E2E_ADMIN_USER");
-const ADMIN_PASS = requiredEnv("E2E_ADMIN_PASS");
 const STUDENT_PASS = "test1234";
 const TS = Date.now();
 
@@ -51,12 +49,6 @@ type CreatedState = {
 };
 
 const created: CreatedState = { sessionEnrollmentIds: [] };
-
-function requiredEnv(name: string): string {
-  const value = process.env[name];
-  if (typeof value === "string" && value.trim()) return value.trim();
-  throw new Error(`Missing required env ${name}. See .env.e2e.example.`);
-}
 
 function isProductionApi(): boolean {
   try {
@@ -307,6 +299,8 @@ async function cleanup(request: APIRequestContext): Promise<void> {
 }
 
 test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
+  test.describe.configure({ retries: 0 });
+
   test.skip(
     isProductionApi() && (!ALLOW_REAL_NOTIFICATIONS || CONTROLLED_PHONE !== "01031217466"),
     "프로덕션 클리닉 canary는 통제 번호 01031217466 명시와 E2E_ALLOW_CLINIC_REAL_NOTIFICATIONS=1이 필요합니다.",
@@ -317,7 +311,7 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
   });
 
   test("실패 성적이 클리닉 예약/출석/재시험 통과 후 학생 결과에서 보강 합격으로 바뀐다", async ({ page, request }) => {
-    const adminTokens = await loginToken(request, ADMIN_USER, ADMIN_PASS);
+    const adminTokens = await loginTokenViaRequest(request, "admin");
     created.adminAccess = adminTokens.access;
 
     const lecture = await expectApi<{ id: number }>(request, "POST", "/lectures/lectures/", adminTokens.access, {
@@ -432,6 +426,11 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
     await seedStudentBrowser(page, studentTokens);
     await gotoAndSettle(page, `${BASE}/student/exams/${created.examId}/result`, { timeout: 25_000 });
     await expect(page.getByRole("heading", { name: "시험 결과" })).toBeVisible({ timeout: 10_000 });
+    const firstLoginGuide = page.getByRole("dialog", { name: "계정 안내" });
+    if (await firstLoginGuide.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await firstLoginGuide.getByRole("button", { name: "확인", exact: true }).click();
+      await expect(firstLoginGuide).toBeHidden();
+    }
     await expect(page.getByText("20 / 100점")).toBeVisible();
     await expect(page.getByText("보강 클리닉 대상")).toBeVisible();
     await expect(page.getByText("클리닉 페이지에서 일정을 예약하세요.")).toBeVisible();
