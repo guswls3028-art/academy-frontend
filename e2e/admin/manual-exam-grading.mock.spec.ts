@@ -520,6 +520,16 @@ test.describe("문항별 직접 채점", () => {
     const omrDialog = page.getByRole("dialog", { name: "OMR 검토" });
     await expect(omrDialog).toBeVisible();
     await expect(omrDialog.getByText("7월 진단평가", { exact: true })).toBeVisible();
+    await expect(omrDialog.getByRole("button", { name: "OMR 답안 등록" })).toBeVisible();
+    await expect(omrDialog.getByText("등록된 OMR 답안이 없습니다.", { exact: true })).toBeVisible();
+
+    await omrDialog.getByRole("button", { name: "OMR 답안 등록" }).click();
+    const uploadDialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
+    await expect(uploadDialog).toBeVisible();
+    await expect(uploadDialog.getByText("7월 진단평가", { exact: true })).toBeVisible();
+    await expect(uploadDialog.getByText("스캔 파일 선택", { exact: true })).toBeVisible();
+    await uploadDialog.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(omrDialog).toBeVisible();
     await expect(page.getByRole("heading", { name: "OMR 자동채점 결과" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "입력 내용 확인", exact: true })).toHaveCount(0);
   });
@@ -548,6 +558,15 @@ test.describe("문항별 직접 채점", () => {
     )).toBeVisible();
     await expect(dialog.locator('[aria-label="김학생 1번 자동채점 O"]')).toBeVisible();
     await expect(dialog.getByRole("button", { name: "미입력" })).toHaveCount(1);
+    await expect(dialog.getByText("이 시험 작업", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("직접 문항 입력 중", { exact: true })).toBeVisible();
+
+    await dialog.getByRole("button", { name: "OMR 답안 등록" }).click();
+    const uploadDialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
+    await expect(uploadDialog).toBeVisible();
+    await expect(uploadDialog.getByText("7월 진단평가", { exact: true })).toBeVisible();
+    await uploadDialog.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(dialog).toBeVisible();
 
     await dialog.getByRole("button", { name: "OMR 결과 보정" }).click();
     const omrDialog = page.getByRole("dialog", { name: "OMR 검토" });

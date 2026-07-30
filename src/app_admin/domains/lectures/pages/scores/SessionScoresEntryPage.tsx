@@ -12,7 +12,7 @@
 import { lazy, Suspense, useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ChevronDown, ClipboardCheck, ClipboardList, FileText, HeartPulse, LayoutGrid, LockKeyhole, Pencil, Plus, Printer, ScanLine, Trophy, UserRound, Users } from "lucide-react";
+import { AlertCircle, ChevronDown, ClipboardCheck, ClipboardList, FileText, HeartPulse, LayoutGrid, LockKeyhole, Pencil, Plus, Printer, ScanLine, Trophy, Upload, UserRound, Users } from "lucide-react";
 import { useConfirm } from "@/shared/ui/confirm";
 
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@admin/domains/scores/panels/SessionScoresPanel";
@@ -40,7 +40,10 @@ import { fetchAttendance } from "@admin/domains/lectures/api/attendance";
 import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useProgram } from "@/shared/program";
-import SessionOmrUploadAction from "./SessionOmrUploadAction";
+import SessionOmrUploadAction, {
+  SessionOmrUploadModal,
+  type SessionOmrUploadTarget,
+} from "./SessionOmrUploadAction";
 import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/api/sessionAssessmentQueries";
 import { adminResultsQueryKeys } from "@admin/domains/results/queryKeys";
 import "./SessionScoresEntryPage.css";
@@ -131,6 +134,7 @@ export default function SessionScoresEntryPage({
     examId: number;
     title: string;
   } | null>(null);
+  const [omrUploadExam, setOmrUploadExam] = useState<SessionOmrUploadTarget | null>(null);
   const [manualGradingDirty, setManualGradingDirty] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const recoveryRestoreButtonRef = useRef<HTMLButtonElement>(null);
@@ -190,6 +194,11 @@ export default function SessionScoresEntryPage({
     void qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(numericSessionId) });
     void qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.exams(numericSessionId) });
     void qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.homeworks(numericSessionId) });
+  };
+  const invalidateExamWorkflow = (examId: number) => {
+    invalidateScores();
+    void qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewList(examId) });
+    void qc.invalidateQueries({ queryKey: adminResultsQueryKeys.manualGradeSheet(examId) });
   };
   const closeManualGrading = async () => {
     if (manualGradingDirty) {
@@ -1424,7 +1433,7 @@ export default function SessionScoresEntryPage({
       </AdminModal>
 
       {/* 시험명에서 바로 여는 직접 채점표. 선택형은 아래 OMR 검토로 분기한다. */}
-      {gradingExam && !omrReviewExam && (
+      {gradingExam && !omrReviewExam && !omrUploadExam && (
         <AdminModal
           open
           onClose={() => { void closeManualGrading(); }}
@@ -1455,6 +1464,55 @@ export default function SessionScoresEntryPage({
           />
           <ModalBody>
             <div className="scores-manual-grading-modal__body">
+              {gradingExam.gradingMode === "mixed" && (
+                <section className="scores-exam-workflow" aria-label="현재 시험 채점 경로">
+                  <div className="scores-exam-workflow__copy">
+                    <span className="scores-exam-workflow__eyebrow">이 시험 작업</span>
+                    <strong>OMR와 직접 채점을 한 화면에서 이어서 처리하세요.</strong>
+                    <span>스캔 등록과 인식 보정은 OMR 결과에만, 직접 입력은 답변형 문항에만 반영됩니다.</span>
+                  </div>
+                  <div className="scores-exam-workflow__actions">
+                    <span className="scores-exam-workflow__current">
+                      <ClipboardCheck size={ICON_FOR_BUTTON.sm} aria-hidden />
+                      직접 문항 입력 중
+                    </span>
+                    <Button
+                      intent="secondary"
+                      size="sm"
+                      leftIcon={<Upload size={ICON_FOR_BUTTON.sm} />}
+                      disabled={manualGradingDirty}
+                      title={
+                        manualGradingDirty
+                          ? "직접 채점 내용을 확정하거나 초기화한 뒤 OMR 답안을 등록할 수 있습니다."
+                          : undefined
+                      }
+                      onClick={() => setOmrUploadExam({
+                        examId: gradingExam.examId,
+                        title: gradingExam.title,
+                      })}
+                    >
+                      OMR 답안 등록
+                    </Button>
+                    <Button
+                      intent="secondary"
+                      size="sm"
+                      leftIcon={<ScanLine size={ICON_FOR_BUTTON.sm} />}
+                      disabled={manualGradingDirty}
+                      title={
+                        manualGradingDirty
+                          ? "직접 채점 내용을 확정하거나 초기화한 뒤 OMR 결과를 보정할 수 있습니다."
+                          : undefined
+                      }
+                      onClick={() => setOmrReviewExam({
+                        examId: gradingExam.examId,
+                        title: gradingExam.title,
+                      })}
+                    >
+                      OMR 결과 보정
+                    </Button>
+                  </div>
+                </section>
+              )}
               <Suspense
                 fallback={<EmptyState scope="panel" tone="loading" title="직접 채점표를 여는 중…" />}
               >
@@ -1478,52 +1536,40 @@ export default function SessionScoresEntryPage({
               </span>
             )}
             right={(
-              <>
-                {gradingExam.gradingMode === "mixed" && (
-                  <Button
-                    intent="secondary"
-                    size="sm"
-                    leftIcon={<ScanLine size={ICON_FOR_BUTTON.sm} />}
-                    disabled={manualGradingDirty}
-                    title={
-                      manualGradingDirty
-                        ? "직접 채점 내용을 확정하거나 초기화한 뒤 OMR 결과를 보정할 수 있습니다."
-                        : undefined
-                    }
-                    onClick={() => setOmrReviewExam({
-                      examId: gradingExam.examId,
-                      title: gradingExam.title,
-                    })}
-                  >
-                    OMR 결과 보정
-                  </Button>
-                )}
-                <Button intent="secondary" size="sm" onClick={() => { void closeManualGrading(); }}>
-                  닫기
-                </Button>
-              </>
+              <Button intent="secondary" size="sm" onClick={() => { void closeManualGrading(); }}>
+                닫기
+              </Button>
             )}
           />
         </AdminModal>
       )}
 
-      {omrReviewExam && (
+      {omrReviewExam && !omrUploadExam && (
         <Suspense fallback={null}>
           <OmrReviewWorkspace
             examId={omrReviewExam.examId}
             examTitle={omrReviewExam.title}
             open
+            onOpenUpload={() => setOmrUploadExam({
+              examId: omrReviewExam.examId,
+              title: omrReviewExam.title,
+            })}
             onClose={() => {
               const examId = omrReviewExam.examId;
               setOmrReviewExam(null);
-              invalidateScores();
-              void qc.invalidateQueries({
-                queryKey: adminResultsQueryKeys.manualGradeSheet(examId),
-              });
+              invalidateExamWorkflow(examId);
             }}
           />
         </Suspense>
       )}
+
+      <SessionOmrUploadModal
+        target={omrUploadExam}
+        onClose={() => setOmrUploadExam(null)}
+        onRefresh={() => {
+          if (omrUploadExam) invalidateExamWorkflow(omrUploadExam.examId);
+        }}
+      />
 
       {/* 성적표 인쇄 미리보기 */}
       {showPrintPreview && data?.meta && (

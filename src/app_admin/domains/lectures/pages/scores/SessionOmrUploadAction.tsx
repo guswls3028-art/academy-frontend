@@ -9,6 +9,11 @@ import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/mod
 
 type ExamOption = SessionScoreMeta["exams"][number];
 
+export type SessionOmrUploadTarget = {
+  examId: number;
+  title: string;
+};
+
 type Props = {
   exams: ExamOption[];
   onRefresh: () => void;
@@ -16,13 +21,55 @@ type Props = {
   disabled?: boolean;
 };
 
+type SessionOmrUploadModalProps = {
+  target: SessionOmrUploadTarget | null;
+  onClose: () => void;
+  onRefresh: () => void;
+};
+
+export function SessionOmrUploadModal({
+  target,
+  onClose,
+  onRefresh,
+}: SessionOmrUploadModalProps) {
+  if (target == null) return null;
+
+  const closeUpload = () => {
+    onClose();
+    onRefresh();
+  };
+
+  return (
+    <AdminModal open onClose={closeUpload} type="action" width={640} noMinimize>
+      <ModalHeader
+        type="action"
+        title="OMR 스캔 등록"
+        description={target.title}
+        noIcon
+      />
+      <ModalBody>
+        <div className="scores-omr-modal__body">
+          <AdminOmrBatchUploadBox examId={target.examId} onUploaded={onRefresh} />
+        </div>
+      </ModalBody>
+      <ModalFooter
+        right={
+          <Button intent="secondary" size="sm" onClick={closeUpload}>
+            닫기
+          </Button>
+        }
+      />
+    </AdminModal>
+  );
+}
+
 export default function SessionOmrUploadAction({
   exams,
   onRefresh,
   onPrepareOpen,
   disabled = false,
 }: Props) {
-  const [selectedExam, setSelectedExam] = useState<{ examId: number; title: string } | null>(null);
+  const [selectedExam, setSelectedExam] = useState<SessionOmrUploadTarget | null>(null);
   const [showPicker, setShowPicker] = useState(false);
   const [isPreparing, setIsPreparing] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
@@ -70,11 +117,6 @@ export default function SessionOmrUploadAction({
     setShowPicker((value) => !value);
   };
 
-  const closeUpload = () => {
-    setSelectedExam(null);
-    onRefresh();
-  };
-
   return (
     <>
       <div ref={pickerRef} className="scores-omr-action">
@@ -116,28 +158,11 @@ export default function SessionOmrUploadAction({
         )}
       </div>
 
-      {selectedExam && (
-        <AdminModal open={selectedExam != null} onClose={closeUpload} type="action" width={640} noMinimize>
-          <ModalHeader
-            type="action"
-            title="OMR 스캔 등록"
-            description={selectedExam.title}
-            noIcon
-          />
-          <ModalBody>
-            <div className="scores-omr-modal__body">
-              <AdminOmrBatchUploadBox examId={selectedExam.examId} onUploaded={onRefresh} />
-            </div>
-          </ModalBody>
-          <ModalFooter
-            right={
-              <Button intent="secondary" size="sm" onClick={closeUpload}>
-                닫기
-              </Button>
-            }
-          />
-        </AdminModal>
-      )}
+      <SessionOmrUploadModal
+        target={selectedExam}
+        onClose={() => setSelectedExam(null)}
+        onRefresh={onRefresh}
+      />
     </>
   );
 }
