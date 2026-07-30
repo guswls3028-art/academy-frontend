@@ -169,11 +169,10 @@ test.describe.serial("Homework / Scores / Inventory 데이터 플로우", () => 
       await S.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
       await S.screenshot({ path: "test-results/hw-scores/07-student-exam-result.png" });
 
-      // ExamResultPage 에서 점수 게이지, 합격/불합격 표시 확인
-      const hasScore = await S.locator("text=/\\d+\\s*\\/\\s*\\d+/").isVisible({ timeout: 5000 }).catch(() => false);
-      const hasPassBadge = await S.locator("text=/합격|불합격/").isVisible({ timeout: 5000 }).catch(() => false);
-      // 점수 또는 결과 배지 중 하나는 보여야 함
-      expect(hasScore || hasPassBadge).toBeTruthy();
+      // 합격 판정이 없는 결과도 점수 상세로 유효하다. 현재 접근성 계약을
+      // 기준으로 제목과 "획득 / 만점" 점수 표기를 직접 확인한다.
+      await expect(S.getByRole("heading", { name: "시험 결과" })).toBeVisible();
+      await expect(S.getByText(/\d+\s*\/\s*\d+점/, { exact: true })).toBeVisible();
     } else {
       // 시험 결과가 없으면 redirect 경로 테스트 (유효하지 않은 ID)
       await S.goto(`${BASE}/student/grades/exams/99999`, { waitUntil: "load" });

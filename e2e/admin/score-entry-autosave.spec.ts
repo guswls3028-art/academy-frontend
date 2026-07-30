@@ -37,11 +37,15 @@ async function openScores(
 
 async function ensureScoreEditing(page: Page): Promise<void> {
   const cells = page.locator(".ds-scores-cell-editable");
-  if (await cells.first().isVisible().catch(() => false)) return;
+  const saveAndLockButton = page.getByRole("button", { name: "저장하고 잠금", exact: true });
+  const isStableEditingState = await saveAndLockButton.isVisible().catch(() => false)
+    && await cells.first().isVisible().catch(() => false);
+  if (isStableEditingState) return;
 
   const editButton = page.getByRole("button", { name: "수정", exact: true });
   await expect(editButton).toBeVisible();
   await editButton.click();
+  await expect(saveAndLockButton).toBeVisible();
   await expect(cells.first()).toBeVisible();
 }
 
