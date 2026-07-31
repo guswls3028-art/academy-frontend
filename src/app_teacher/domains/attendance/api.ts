@@ -19,6 +19,7 @@ export const STATUS_CONFIG: Record<
   string,
   { label: string; color: string; bg: string }
 > = {
+  UNSET: { label: "미입력", color: "#64748b", bg: "rgba(100,116,139,0.08)" },
   PRESENT: { label: "출석", color: "#22c55e", bg: "rgba(34,197,94,0.12)" },
   LATE: { label: "지각", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
   ONLINE: { label: "온라인", color: "#06b6d4", bg: "rgba(6,182,212,0.12)" },

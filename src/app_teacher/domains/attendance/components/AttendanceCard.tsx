@@ -30,7 +30,7 @@ export default function AttendanceCard({
   onStatusChange,
   onTap,
 }: Props) {
-  const cfg = STATUS_CONFIG[record.status] ?? STATUS_CONFIG.PRESENT;
+  const cfg = STATUS_CONFIG[record.status] ?? STATUS_CONFIG.UNSET;
   const recordName = typeof record.name === "string" ? record.name : null;
   const studentName = recordName ?? record.student_name ?? "이름 없음";
   const lectureTitle = record.lecture_title;

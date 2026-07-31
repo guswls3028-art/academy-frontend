@@ -7,6 +7,7 @@
 | [ROUTING.md](ROUTING.md) | 공개 URL 네이밍, 권한 분리, 기존 경로 호환 규칙 |
 | [USER-GUIDE-ADMIN.md](USER-GUIDE-ADMIN.md) | 관리자 앱 사용 가이드 |
 | [USER-GUIDE-STUDENT.md](USER-GUIDE-STUDENT.md) | 학생 앱 사용 가이드 |
+| [GRADING-WRONG-NOTE-WORKFLOW.md](GRADING-WRONG-NOTE-WORKFLOW.md) | 시험명 작업 메뉴, 정오표 입력·반응형 계약, 현재 오답노트 경계와 검증 |
 | [REAL-USE-REVIEW-MANUAL.md](REAL-USE-REVIEW-MANUAL.md) | 실제 운영 흐름과 UI/UX 상품성을 함께 점검하는 반복 검수 매뉴얼 |
 | [REAL-USE-E2E-INVENTORY.md](REAL-USE-E2E-INVENTORY.md) | 기존 E2E 자산을 실사용 운영 리뷰 관점으로 분류한 인벤토리 |
 | [DEPLOYMENT-OPERATIONS.md](DEPLOYMENT-OPERATIONS.md) | Cloudflare preview/production/rollback, scoped token, PR 무쓰기 E2E, Actions 공급망 계약 |

@@ -53,6 +53,7 @@ export function Badge({
 /* ===== 출석 상태 뱃지 ===== */
 
 export type AttendanceStatus =
+  | "UNSET"
   | "PRESENT"
   | "LATE"
   | "ONLINE"
@@ -68,6 +69,7 @@ const ATTENDANCE_CONFIG: Record<
   AttendanceStatus,
   { label: string; short: string; tone: BadgeTone }
 > = {
+  UNSET: { label: "미입력", short: "－", tone: "neutral" },
   PRESENT: { label: "출석", short: "출", tone: "success" },
   ONLINE: { label: "영상", short: "영", tone: "primary" },
   SUPPLEMENT: { label: "보강", short: "보", tone: "teal" },

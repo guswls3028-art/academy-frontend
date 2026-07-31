@@ -383,7 +383,7 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
       {!isLoading && !error && wrongList.length === 0 && (
         <div className="wrong-note__empty">
           <strong>{scope === "exam" ? "이번 시험은 복습할 문항이 없습니다." : "누적된 복습 문항이 없습니다."}</strong>
-          <span>오답이나 숫자 0으로 지정한 문항이 생기면 바로 PDF로 만들 수 있습니다.</span>
+          <span>오답이나 오답노트로 지정한 문항이 생기면 바로 PDF로 만들 수 있습니다.</span>
         </div>
       )}
 
