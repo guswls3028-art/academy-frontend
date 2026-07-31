@@ -27,6 +27,12 @@
 | 배포 | `origin/main` quality gate → 격리 preview → 운영 baseline·소유권 확인 → direct deploy → 운영 E2E |
 | 백엔드 문서 | `backend/docs/README.md` |
 
+GitHub 저장소의 Action 허용 정책은 third-party action을 태그가 아니라 전체
+40자리 commit SHA로 고정한다. `.github/workflows/e2e.yml`과
+`.github/workflows/quality-gate.yml`은 검토 가능한 버전 주석(` # vN`)을
+함께 남기며, 버전을 올릴 때는 공식 action 저장소의 해당 태그 SHA를 다시
+조회해 모든 사용 위치를 같은 값으로 갱신한다.
+
 ## E2E 테스트 구조
 
 상세 구조·실행 방법·환경변수: [`frontend/e2e/README.md`](../e2e/README.md)
