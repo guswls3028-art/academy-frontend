@@ -12,6 +12,11 @@
   color: var(--gradebook-ink);
 }
 
+.performanceScopeContent {
+  display: grid;
+  gap: 18px;
+}
+
 .consoleHeader {
   position: relative;
   display: flex;
@@ -143,19 +148,19 @@
 
 .sessionScope {
   display: grid;
-  gap: 13px;
-  padding: 16px;
-  border: 1px solid color-mix(in srgb, var(--gradebook-blue) 20%, var(--gradebook-rule));
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--gradebook-rule);
   border-radius: 14px;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--gradebook-blue) 5%, var(--gradebook-paper)), var(--gradebook-paper) 62%);
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--gradebook-blue) 5%, transparent);
+  background: var(--gradebook-paper);
 }
 
 .sessionScopeIntro {
   display: flex;
-  align-items: end;
+  align-items: center;
   justify-content: space-between;
   gap: 18px;
+  padding: 14px 16px 13px;
 }
 
 .sessionScopeIntro > div {
@@ -184,25 +189,38 @@
 .sessionScopeTabs {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 1px;
+  border-top: 1px solid var(--gradebook-rule);
+  background: var(--gradebook-rule);
 }
 
 .sessionScopeTabs button {
+  position: relative;
   display: flex;
   min-width: 0;
-  min-height: 62px;
+  min-height: 68px;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 11px 13px;
-  border: 1px solid var(--gradebook-rule);
-  border-radius: 11px;
+  padding: 12px 16px 14px;
+  border: 0;
   color: var(--gradebook-muted);
-  background: color-mix(in srgb, var(--gradebook-soft) 70%, var(--gradebook-paper));
+  background: var(--gradebook-paper);
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+  transition: color 140ms ease, background-color 140ms ease;
+}
+
+.sessionScopeTabs button::after {
+  position: absolute;
+  right: 14px;
+  bottom: 0;
+  left: 14px;
+  height: 3px;
+  border-radius: 999px 999px 0 0;
+  content: "";
+  background: transparent;
 }
 
 .sessionScopeTabs button > span {
@@ -217,7 +235,7 @@
   font-weight: 830;
 }
 
-.sessionScopeTabs button small {
+.sessionScopeTabs button > span small {
   overflow: hidden;
   font-size: 10px;
   font-weight: 650;
@@ -226,33 +244,42 @@
 }
 
 .sessionScopeTabs button b {
-  display: inline-grid;
-  min-width: 32px;
-  height: 32px;
+  display: inline-flex;
+  min-width: 44px;
   flex-shrink: 0;
-  place-items: center;
-  padding: 0 8px;
-  border-radius: 999px;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 2px;
   color: var(--gradebook-muted);
-  background: var(--gradebook-paper);
-  font-size: 12px;
+  font-size: 19px;
+  font-weight: 850;
   font-variant-numeric: tabular-nums;
-  box-shadow: inset 0 0 0 1px var(--gradebook-rule);
+  letter-spacing: -0.035em;
+}
+
+.sessionScopeTabs button b small {
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0;
 }
 
 .sessionScopeTabs button[data-active="true"] {
-  border-color: color-mix(in srgb, var(--gradebook-blue) 48%, var(--gradebook-rule));
+  color: var(--gradebook-ink);
+  background: color-mix(in srgb, var(--gradebook-ink) 4%, var(--gradebook-paper));
+}
+
+.sessionScopeTabs button[data-session-type="REGULAR"][data-active="true"] {
   color: var(--gradebook-blue);
-  background: color-mix(in srgb, var(--gradebook-blue) 9%, var(--gradebook-paper));
-  box-shadow: 0 6px 16px color-mix(in srgb, var(--gradebook-blue) 10%, transparent);
-  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--gradebook-blue) 7%, var(--gradebook-paper));
 }
 
 .sessionScopeTabs button[data-session-type="SUPPLEMENT"][data-active="true"] {
-  border-color: color-mix(in srgb, var(--gradebook-teal) 52%, var(--gradebook-rule));
   color: var(--gradebook-teal);
-  background: color-mix(in srgb, var(--gradebook-teal) 9%, var(--gradebook-paper));
-  box-shadow: 0 6px 16px color-mix(in srgb, var(--gradebook-teal) 10%, transparent);
+  background: color-mix(in srgb, var(--gradebook-teal) 7%, var(--gradebook-paper));
+}
+
+.sessionScopeTabs button[data-active="true"]::after {
+  background: currentColor;
 }
 
 .sessionScopeTabs button[data-active="true"] strong,
@@ -260,13 +287,14 @@
   color: currentColor;
 }
 
-.sessionScopeTabs button[data-active="true"] b {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 24%, transparent);
+.sessionScopeTabs button:focus-visible {
+  z-index: 1;
+  outline: 3px solid color-mix(in srgb, var(--gradebook-blue) 34%, transparent);
+  outline-offset: -3px;
 }
 
-.sessionScopeTabs button:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--gradebook-blue) 32%, transparent);
-  outline-offset: 2px;
+.sessionScope[data-refreshing="true"] .sessionScopeTabs button b {
+  opacity: 0.62;
 }
 
 .sessionScopeNotice {
@@ -274,7 +302,10 @@
   align-items: center;
   gap: 6px;
   margin: 0;
+  padding: 9px 16px;
+  border-top: 1px solid color-mix(in srgb, #d97706 22%, var(--gradebook-rule));
   color: #8a5a10;
+  background: color-mix(in srgb, #f59e0b 7%, var(--gradebook-paper));
   font-size: 11px;
   line-height: 1.45;
 }
@@ -1139,9 +1170,8 @@
 }
 
 @media (max-width: 520px) {
-  .sessionScope { padding: 13px; }
   .sessionScopeTabs { grid-template-columns: 1fr; }
-  .sessionScopeTabs button { min-height: 54px; }
+  .sessionScopeTabs button { min-height: 58px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

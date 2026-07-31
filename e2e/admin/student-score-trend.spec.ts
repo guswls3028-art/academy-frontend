@@ -342,7 +342,11 @@ const performanceConsole = {
   }],
 };
 
-async function installApi(page: Page, options: { failGrades?: boolean; failPerformance?: boolean } = {}): Promise<void> {
+async function installApi(page: Page, options: {
+  emptyAcademy?: boolean;
+  failGrades?: boolean;
+  failPerformance?: boolean;
+} = {}): Promise<void> {
   const access = fakeJwt();
   await page.addInitScript(({ token }) => {
     localStorage.setItem("access", token);
@@ -425,6 +429,31 @@ async function installApi(page: Page, options: { failGrades?: boolean; failPerfo
         review_pagination: { ...performanceConsole.review_pagination, total_count: 0, total_rows: 0 },
         students: performanceConsole.students.map((row) => ({ ...row, pending_reported_score_count: 0 })),
       } : performanceConsole;
+      if (options.emptyAcademy) {
+        await route.fulfill({ json: {
+          ...resolvedConsole,
+          summary: {
+            ...resolvedConsole.summary,
+            student_count: 0,
+            scored_student_count: 0,
+            result_count: 0,
+            average_score_pct: null,
+            academy_student_count: 0,
+            under_60_student_count: 0,
+            improving_student_count: 0,
+            declining_student_count: 0,
+            session_type_result_count: {
+              all: 0,
+              REGULAR: 0,
+              SUPPLEMENT: 0,
+              UNCLASSIFIED: 0,
+            },
+          },
+          students: [],
+          pagination: { ...resolvedConsole.pagination, total_count: 0 },
+        } });
+        return;
+      }
       const sessionMetrics = sessionType === "REGULAR"
         ? {
           scored_count: 2,
@@ -555,24 +584,44 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await expect(detail).toContainText("성적을 세 갈래로 나눠 봅니다.");
     await console.getByRole("button", { name: /학원 시험/ }).first().click();
     const sessionTabs = console.getByRole("tablist", { name: "학원 시험 결과 범위" });
-    await expect(sessionTabs.getByRole("tab", { name: /전체 결과/ })).toHaveAttribute("aria-selected", "true");
+    const allSessionTab = sessionTabs.getByRole("tab", { name: /전체 결과/ });
+    const regularSessionTab = sessionTabs.getByRole("tab", { name: /정규수업/ });
+    const supplementSessionTab = sessionTabs.getByRole("tab", { name: /보강수업/ });
+    await expect(allSessionTab).toHaveAttribute("aria-selected", "true");
+    await expect(allSessionTab).toContainText("모든 학원 시험 기록");
+    await expect(allSessionTab).toContainText("3건");
     await expect(sessionTabs.getByRole("tab", { name: /정규수업/ })).toContainText("2");
     await expect(sessionTabs.getByRole("tab", { name: /보강수업/ })).toContainText("1");
+    await expect(allSessionTab).toHaveAttribute("tabindex", "0");
+    await expect(regularSessionTab).toHaveAttribute("tabindex", "-1");
+    await expect(console.locator("#academy-performance-results")).toHaveAttribute(
+      "aria-labelledby",
+      "academy-session-type-all",
+    );
     await expect(detail.getByTestId("student-score-trend")).toContainText("학원 시험 누적 추이");
     await expect(detail.getByTestId("student-score-trend")).toContainText("누적3회");
     await expect(detail.getByText("1회차", { exact: true }).first()).toBeVisible();
     await expect(detail.getByText("3회차", { exact: true }).first()).toBeVisible();
 
-    await sessionTabs.getByRole("tab", { name: /정규수업/ }).click();
+    await allSessionTab.focus();
+    await allSessionTab.press("ArrowRight");
+    await expect(regularSessionTab).toHaveAttribute("aria-selected", "true");
+    await expect(regularSessionTab).toHaveAttribute("tabindex", "0");
+    await regularSessionTab.press("Home");
+    await expect(allSessionTab).toHaveAttribute("aria-selected", "true");
+
+    await regularSessionTab.click();
     await expect(sessionTabs.getByRole("tab", { name: /정규수업/ })).toHaveAttribute("aria-selected", "true");
     await expect(detail.getByTestId("student-score-trend")).toContainText("누적2회");
     await expect(detail).toContainText("정규수업 차시에 연결된 테스트만");
     await expect(detail.getByText("보강", { exact: true })).toHaveCount(0);
+    await console.screenshot({ path: "test-results/student-score-trend/results-scope-regular-1366.png" });
 
-    await sessionTabs.getByRole("tab", { name: /보강수업/ }).click();
+    await supplementSessionTab.click();
     await expect(detail.getByTestId("student-score-trend")).toContainText("누적1회");
     await expect(detail).toContainText("보강수업 차시에 연결된 테스트만");
     await expect(detail.getByText("보강", { exact: true })).toBeVisible();
+    await console.screenshot({ path: "test-results/student-score-trend/results-scope-supplement-1366.png" });
     await console.getByRole("button", { name: /초기화/ }).first().click();
     await expect(sessionTabs.getByRole("tab", { name: /전체 결과/ })).toHaveAttribute("aria-selected", "true");
     await expect(detail.getByTestId("student-score-trend")).toContainText("누적3회");
@@ -675,6 +724,21 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await expect(page.locator('[data-guide="students-table"]')).toBeVisible();
     await detailOverlay.getByRole("button", { name: "닫기" }).click();
     await expect(page).toHaveURL(/\/workspace\/students\/home/);
+  });
+
+  test("학원 시험 결과가 없을 때 다음 상태를 이해할 수 있게 안내한다", async ({ page }) => {
+    await page.setViewportSize({ width: 1100, height: 820 });
+    await installApi(page, { emptyAcademy: true });
+    await page.goto(`${BASE}/workspace/results`, { waitUntil: "domcontentloaded" });
+
+    const console = page.getByTestId("results-performance-console");
+    await console.getByRole("button", { name: /학원 시험/ }).first().click();
+    const sessionTabs = console.getByRole("tablist", { name: "학원 시험 결과 범위" });
+    await expect(sessionTabs.getByRole("tab")).toHaveCount(3);
+    await expect(sessionTabs.getByRole("tab", { name: /전체 결과/ })).toContainText("0건");
+    await expect(console).toContainText("채점 결과가 쌓이면 정규수업과 보강수업으로 자동 분류됩니다.");
+    await expect(console.getByText("조건에 맞는 학생이 없습니다")).toBeVisible();
+    await page.screenshot({ path: "test-results/student-score-trend/results-scope-empty-1100.png", fullPage: true });
   });
 
   test("성적 콘솔 오류를 검토 대상 0건으로 표시하지 않는다", async ({ page }) => {
