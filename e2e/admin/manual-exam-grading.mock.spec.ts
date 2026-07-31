@@ -615,6 +615,75 @@ test.describe("문항별 직접 채점", () => {
     await expect(page.getByText("확정 전 변경사항", { exact: true })).toHaveCount(0);
   });
 
+  test("한글 입력 상태에서도 영문 물리키로 O·X·오답노트를 연속 입력한다", async ({ page }) => {
+    await installApi(page);
+
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await chooseExamHeaderAction(page, "정오표 작성");
+
+    const dialog = page.getByRole("dialog").filter({
+      hasText: "7월 진단평가 정오 직접입력",
+    });
+    const cells = dialog.locator("[data-manual-grade-cell]");
+    await expect(cells).toHaveCount(2);
+    const cdp = await page.context().newCDPSession(page);
+    const pressPhysicalKey = async (
+      key: string,
+      code: string,
+      virtualKeyCode: number,
+    ) => {
+      await cdp.send("Input.dispatchKeyEvent", {
+        type: "keyDown",
+        key,
+        code,
+        windowsVirtualKeyCode: virtualKeyCode,
+        nativeVirtualKeyCode: virtualKeyCode,
+      });
+      await cdp.send("Input.dispatchKeyEvent", {
+        type: "keyUp",
+        key,
+        code,
+        windowsVirtualKeyCode: virtualKeyCode,
+        nativeVirtualKeyCode: virtualKeyCode,
+      });
+    };
+
+    await cells.nth(0).focus();
+    await pressPhysicalKey("ㅐ", "KeyO", 79);
+    await expect(cells.nth(0)).toHaveAccessibleName("김학생 1번 O");
+    await expect(cells.nth(1)).toBeFocused();
+
+    await pressPhysicalKey("ㅌ", "KeyX", 88);
+    await expect(cells.nth(1)).toHaveAccessibleName("김학생 2번 X");
+
+    await cells.nth(0).focus();
+    await pressPhysicalKey("0", "Digit0", 48);
+    await expect(cells.nth(0)).toHaveAccessibleName("김학생 1번 오답노트");
+    await expect(cells.nth(1)).toBeFocused();
+
+    await dialog.getByRole("button", { name: "단축키 설정" }).click();
+    const correctShortcut = dialog.getByRole("textbox", { name: "정답 단축키" });
+    const incorrectShortcut = dialog.getByRole("textbox", { name: "오답 단축키" });
+    const reviewShortcut = dialog.getByRole("textbox", { name: "오답노트 단축키" });
+    await correctShortcut.press("a");
+    await incorrectShortcut.press("s");
+    await reviewShortcut.press("d");
+    await dialog.getByRole("button", { name: "저장", exact: true }).click();
+    await expect(dialog.getByText("A 키", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("S 키", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("D 키", { exact: true })).toBeVisible();
+
+    await cells.nth(0).focus();
+    await pressPhysicalKey("ㅁ", "KeyA", 65);
+    await expect(cells.nth(1)).toBeFocused();
+    await pressPhysicalKey("ㅇ", "KeyD", 68);
+    await expect(cells.nth(0)).toHaveAccessibleName("김학생 1번 O");
+    await expect(cells.nth(1)).toHaveAccessibleName("김학생 2번 오답노트");
+  });
+
   test("선택형 시험명은 직접 채점표 대신 OMR 검토를 연다", async ({ page }) => {
     await installApi(page, {
       gradingMode: "choice",

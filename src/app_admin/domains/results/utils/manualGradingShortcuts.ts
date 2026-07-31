@@ -34,6 +34,13 @@ export function normalizeManualGradingShortcutKey(key: string): string | null {
   return /^[a-z]$/i.test(key) ? key.toUpperCase() : key;
 }
 
+function normalizeManualGradingPhysicalKey(code: string): string | null {
+  const letter = /^Key([A-Z])$/.exec(code)?.[1];
+  if (letter) return letter;
+  const digit = /^(?:Digit|Numpad)([0-9])$/.exec(code)?.[1];
+  return digit ?? null;
+}
+
 export function validateManualGradingShortcuts(
   value: ManualGradingShortcutSettings,
 ): string | null {
@@ -103,4 +110,18 @@ export function getManualGradeStateFromShortcut(
   if (shortcuts.incorrect.toLocaleLowerCase("ko-KR") === matchKey) return "incorrect";
   if (shortcuts.review.toLocaleLowerCase("ko-KR") === matchKey) return "review";
   return null;
+}
+
+export function getManualGradeStateFromKeyboardShortcut(
+  key: string,
+  code: string,
+  shortcuts: ManualGradingShortcutSettings,
+): ManualGradeState | null {
+  return (
+    getManualGradeStateFromShortcut(key, shortcuts) ??
+    getManualGradeStateFromShortcut(
+      normalizeManualGradingPhysicalKey(code) ?? "",
+      shortcuts,
+    )
+  );
 }

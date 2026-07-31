@@ -46,6 +46,7 @@ import {
 import { adminResultsQueryKeys } from "../queryKeys";
 import {
   DEFAULT_MANUAL_GRADING_SHORTCUTS,
+  getManualGradeStateFromKeyboardShortcut,
   getManualGradeStateFromShortcut,
   loadManualGradingShortcuts,
   normalizeManualGradingShortcutKey,
@@ -1618,13 +1619,17 @@ function CorrectnessCell({
         onPaste(event.clipboardData.getData("text"));
       }}
       onKeyDown={(event) => {
-        if (event.nativeEvent.isComposing || event.ctrlKey || event.metaKey || event.altKey) return;
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
         if (event.shiftKey && event.key === "?") {
           event.preventDefault();
           onShowShortcuts();
           return;
         }
-        const state = getManualGradeStateFromShortcut(event.key, shortcuts);
+        const state = getManualGradeStateFromKeyboardShortcut(
+          event.key,
+          event.code,
+          shortcuts,
+        );
         if (state) {
           event.preventDefault();
           const cell = event.currentTarget;
@@ -1632,6 +1637,7 @@ function CorrectnessCell({
           window.requestAnimationFrame(() => onMoveFocus(cell, "next"));
           return;
         }
+        if (event.nativeEvent.isComposing) return;
         if (event.key === "Enter") {
           event.preventDefault();
           onMoveFocus(event.currentTarget, event.shiftKey ? "up" : "down");
