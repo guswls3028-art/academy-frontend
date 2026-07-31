@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -74,10 +74,17 @@ const SESSION_TYPE_OPTIONS: Array<{
   label: string;
   description: string;
 }> = [
-  { value: "all", label: "전체 결과", description: "정규·보강을 함께" },
+  { value: "all", label: "전체 결과", description: "모든 학원 시험 기록" },
   { value: "REGULAR", label: "정규수업", description: "정규 차시 시험만" },
   { value: "SUPPLEMENT", label: "보강수업", description: "보강 차시 시험만" },
 ];
+
+const EMPTY_SESSION_TYPE_COUNTS: StudentPerformanceConsoleResponse["summary"]["session_type_result_count"] = {
+  all: 0,
+  REGULAR: 0,
+  SUPPLEMENT: 0,
+  UNCLASSIFIED: 0,
+};
 
 const SCORE_BAND_OPTIONS: Array<{ value: ScoreBandFilter; label: string }> = [
   { value: "all", label: "전체 득점" },
@@ -214,6 +221,8 @@ export default function ResultsExplorerPage() {
   const [voidNote, setVoidNote] = useState("");
   const [page, setPage] = useState(1);
   const [reviewPage, setReviewPage] = useState(1);
+  const sessionTypeTabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const lastSessionTypeCountsRef = useRef(EMPTY_SESSION_TYPE_COUNTS);
   const performanceFilters = useMemo(() => ({
     source,
     sessionType: source === "academy" ? sessionType : "all" as const,
@@ -236,6 +245,13 @@ export default function ResultsExplorerPage() {
     refetchInterval: 60_000,
     refetchIntervalInBackground: false,
   });
+  const currentSessionTypeCounts = performanceQuery.data?.summary.session_type_result_count;
+  useEffect(() => {
+    if (currentSessionTypeCounts) {
+      lastSessionTypeCountsRef.current = currentSessionTypeCounts;
+    }
+  }, [currentSessionTypeCounts]);
+  const displayedSessionTypeCounts = currentSessionTypeCounts ?? lastSessionTypeCountsRef.current;
   const operationsQuery = useQuery({
     queryKey: adminResultsQueryKeys.landingStats,
     queryFn: fetchResultsLandingStats,
@@ -275,6 +291,7 @@ export default function ResultsExplorerPage() {
   );
 
   useEffect(() => {
+    if (performanceQuery.isLoading) return;
     if (filteredStudents.length === 0) {
       setSelectedStudentId(null);
       return;
@@ -282,7 +299,7 @@ export default function ResultsExplorerPage() {
     if (!filteredStudents.some((student) => student.student_id === selectedStudentId)) {
       setSelectedStudentId(filteredStudents[0].student_id);
     }
-  }, [filteredStudents, selectedStudentId]);
+  }, [filteredStudents, performanceQuery.isLoading, selectedStudentId]);
 
   useEffect(() => {
     const serverPage = performanceQuery.data?.review_pagination.page;
@@ -354,6 +371,37 @@ export default function ResultsExplorerPage() {
     setReviewPage(1);
   }
 
+  function selectSessionType(value: SessionTypeFilter) {
+    setSessionType(value);
+    resetResultPages();
+  }
+
+  function handleSessionTypeKeyDown(
+    event: KeyboardEvent<HTMLButtonElement>,
+    currentIndex: number,
+  ) {
+    let nextIndex: number | null = null;
+    if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % SESSION_TYPE_OPTIONS.length;
+    if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + SESSION_TYPE_OPTIONS.length) % SESSION_TYPE_OPTIONS.length;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = SESSION_TYPE_OPTIONS.length - 1;
+    if (nextIndex == null) return;
+
+    event.preventDefault();
+    selectSessionType(SESSION_TYPE_OPTIONS[nextIndex].value);
+    sessionTypeTabRefs.current[nextIndex]?.focus();
+  }
+
+  const sessionScopeDescription = performanceQuery.isError
+    ? "결과 범위를 불러오지 못했습니다. 아래에서 다시 시도해 주세요."
+    : performanceQuery.isLoading
+      ? "학원 시험 결과를 범위별로 정리하는 중입니다."
+      : performanceQuery.isFetching
+        ? "새 조건을 계산하는 중입니다. 건수는 직전 조회 기준입니다."
+        : displayedSessionTypeCounts.all === 0
+          ? "채점 결과가 쌓이면 정규수업과 보강수업으로 자동 분류됩니다."
+          : "선택한 범위가 요약, 학생 목록, 점수 추이와 시험 기록에 모두 적용됩니다.";
+
   return (
     <div className={styles.page} data-testid="results-performance-console">
       <section className={styles.consoleHeader} aria-labelledby="performance-console-title">
@@ -399,35 +447,43 @@ export default function ResultsExplorerPage() {
       </section>
 
       {source === "academy" && (
-        <section className={styles.sessionScope} aria-labelledby="session-scope-title">
+        <section
+          className={styles.sessionScope}
+          aria-labelledby="session-scope-title"
+          aria-busy={performanceQuery.isFetching}
+          data-refreshing={performanceQuery.isFetching ? "true" : "false"}
+        >
           <div className={styles.sessionScopeIntro}>
             <div>
               <span className={styles.panelKicker}>결과 범위</span>
               <h3 id="session-scope-title">정규수업과 보강수업을 나눠 봅니다</h3>
             </div>
-            <p>선택한 범위가 요약, 학생 목록, 점수 추이와 시험 기록에 모두 적용됩니다.</p>
+            <p>{sessionScopeDescription}</p>
           </div>
           <div className={styles.sessionScopeTabs} role="tablist" aria-label="학원 시험 결과 범위">
-            {SESSION_TYPE_OPTIONS.map((option) => {
-              const count = performanceQuery.data?.summary.session_type_result_count[option.value] ?? 0;
+            {SESSION_TYPE_OPTIONS.map((option, index) => {
+              const count = displayedSessionTypeCounts[option.value];
+              const tabId = `academy-session-type-${option.value.toLowerCase()}`;
               return (
                 <button
                   key={option.value}
+                  ref={(node) => { sessionTypeTabRefs.current[index] = node; }}
+                  id={tabId}
                   type="button"
                   role="tab"
                   aria-selected={sessionType === option.value}
+                  aria-controls="academy-performance-results"
+                  tabIndex={sessionType === option.value ? 0 : -1}
                   data-active={sessionType === option.value ? "true" : "false"}
                   data-session-type={option.value}
-                  onClick={() => {
-                    setSessionType(option.value);
-                    resetResultPages();
-                  }}
+                  onClick={() => selectSessionType(option.value)}
+                  onKeyDown={(event) => handleSessionTypeKeyDown(event, index)}
                 >
                   <span>
                     <strong>{option.label}</strong>
                     <small>{option.description}</small>
                   </span>
-                  <b aria-label={`${count}건`}>{count}</b>
+                  <b><span>{count}</span><small>건</small></b>
                 </button>
               );
             })}
@@ -442,7 +498,13 @@ export default function ResultsExplorerPage() {
         </section>
       )}
 
-      <section className={styles.filterPanel} aria-label="성적 콘솔 필터" data-guide="results-filter">
+      <div
+        className={styles.performanceScopeContent}
+        id={source === "academy" ? "academy-performance-results" : undefined}
+        role={source === "academy" ? "tabpanel" : undefined}
+        aria-labelledby={source === "academy" ? `academy-session-type-${sessionType.toLowerCase()}` : undefined}
+      >
+        <section className={styles.filterPanel} aria-label="성적 콘솔 필터" data-guide="results-filter">
         <div className={styles.periodGroup} aria-label="조회 기간">
           {PERIOD_OPTIONS.map((option) => (
             <button
@@ -504,22 +566,22 @@ export default function ResultsExplorerPage() {
             초기화{activeFilterCount > 0 ? ` ${activeFilterCount}` : ""}
           </button>
         </div>
-      </section>
+        </section>
 
-      {performanceQuery.isLoading ? (
-        <EmptyState scope="panel" tone="loading" title="누적 성적을 정리하는 중…" />
-      ) : performanceQuery.isError ? (
-        <EmptyState
-          scope="panel"
-          tone="error"
-          title="학생별 성적을 불러올 수 없습니다"
-          description="잠시 후 다시 시도해 주세요."
-          actions={<Button intent="secondary" onClick={() => performanceQuery.refetch()}>다시 시도</Button>}
-        />
-      ) : (
-        <>
-          <PerformanceSummary summary={performanceQuery.data?.summary} source={source} />
-          <div className={styles.workspace}>
+        {performanceQuery.isLoading ? (
+          <EmptyState scope="panel" tone="loading" title="누적 성적을 정리하는 중…" />
+        ) : performanceQuery.isError ? (
+          <EmptyState
+            scope="panel"
+            tone="error"
+            title="학생별 성적을 불러올 수 없습니다"
+            description="잠시 후 다시 시도해 주세요."
+            actions={<Button intent="secondary" onClick={() => performanceQuery.refetch()}>다시 시도</Button>}
+          />
+        ) : (
+          <>
+            <PerformanceSummary summary={performanceQuery.data?.summary} source={source} />
+            <div className={styles.workspace}>
             <section className={styles.rosterPanel} aria-labelledby="roster-title">
               <div className={styles.panelHeader}>
                 <div>
@@ -580,9 +642,10 @@ export default function ResultsExplorerPage() {
                 <EmptyState scope="panel" tone="empty" title="학생을 선택해 주세요" description="왼쪽 학생 목록에서 누적 추이를 확인할 학생을 선택합니다." />
               )}
             </section>
-          </div>
-        </>
-      )}
+            </div>
+          </>
+        )}
+      </div>
 
       <ReportedScoreReviewQueue
         rows={performanceQuery.data?.pending_reported_scores ?? []}
@@ -841,7 +904,7 @@ function StudentPerformanceDetail({
                 ? "정규수업 차시에 연결된 테스트만 회차순으로 비교합니다."
                 : sessionType === "SUPPLEMENT"
                   ? "보강수업 차시에 연결된 테스트만 회차순으로 비교합니다."
-                  : "정규수업과 보강수업 결과를 함께 회차순으로 비교합니다."
+                  : "모든 학원 시험 결과를 회차순으로 비교합니다."
               : "학생이 제출하고 선생님이 확인한 성적만 시험 순서대로 비교합니다."}
             badgeLabel={source === "academy" ? "자동 누적" : "확인된 성적"}
           />
