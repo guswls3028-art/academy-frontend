@@ -67,6 +67,15 @@ package script에 production-backed 쓰기 spec을 추가하면 CI가 먼저 실
 API route interception 없이 등록되면 실패한다.
 PR workflow는 `E2E_ALLOW_PRODUCTION_WRITES=0`을 증거로 남긴다.
 
+Dependabot PR은 GitHub 보안 경계상 repository/environment secret을 받지
+않는다. 따라서 해당 PR에서는 Cloudflare preview와 credential 기반 login
+spec을 실행하지 않고, 모든 활성 `*.mock.spec.ts`를 localhost UI에서 실행한다.
+Vite API proxy는 `http://127.0.0.1:9`로 고정해 누락된 mock 요청이 운영 API로
+나가지 않고 즉시 실패하게 한다. typecheck, lint, build, Hangul companion,
+E2E safety guard는 일반 PR과 동일하게 유지한다. Dependabot 변경이 main에
+들어가면 main workflow의 secret-backed preview와 운영 승인·rollback 경계는
+그대로 적용된다.
+
 운영 쓰기는 두 경로만 허용한다.
 
 - `workflow_dispatch`에서 `controlled_write_canaries=true`를 명시한 수동 실행:
@@ -84,7 +93,18 @@ postdeploy canary의 residue 0 증거까지 닫아야 한다.
   검증한 40자 commit SHA로 고정한다. 주석의 major version은 업데이트 맥락일
   뿐 실행 입력이 아니다.
 - `.github/dependabot.yml`은 pnpm/npm과 GitHub Actions 업데이트 PR을 매주
-  만든다. lockfile 변경은 기존 dependency 검증을 통과해야 merge한다.
+  만든다. lockfile 변경은 secretless route-mock을 포함한 dependency 검증을
+  통과해야 merge하며, Dependabot에 deployment나 E2E credential을 제공하지
+  않는다.
+- `pnpm audit --prod`는 현재
+  [GHSA-qwww-vcr4-c8h2](https://github.com/advisories/GHSA-qwww-vcr4-c8h2)를
+  High로 보고한다. 취약 경로는 React Router의 실험적 RSC server action이며,
+  현재 SPA에는 RSC entry, server action, `@react-router/dev`, RSC router API가
+  없다. 수정판 `react-router` 8.3.0은 React/React DOM 19.2.7 이상과
+  `react-router-dom` 제거를 포함하는 별도 메이저 전환이므로 이번 dependency
+  묶음에는 포함하지 않는다. 이 advisory는 audit 설정에서 숨기지 않으며 RSC
+  도입, React/Router 메이저 전환, advisory 범위 변경 중 하나가 생기면 즉시
+  재평가한다.
 - workflow 기본 token은 `contents:read`다. 프론트 배포는 GitHub contents
   write 권한을 사용하지 않는다.
 - Cloudflare token 교체는 새 token을 해당 environment에 저장하고 preview,
