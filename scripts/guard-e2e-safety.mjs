@@ -11,7 +11,17 @@ const pullRequestGateAllowlist = new Set([
   "e2e/smoke/smoke.spec.ts",
   "e2e/auth/account-recovery-modal.spec.ts",
   "e2e/auth/first-login-guide.mock.spec.ts",
+  "e2e/admin/manual-exam-grading.mock.spec.ts",
+  "e2e/admin/session-attendance-bulk-safety.mock.spec.ts",
+  "e2e/admin/score-entry-autosave.spec.ts",
+  "e2e/admin/staff-operations-contract.mock.spec.ts",
   "e2e/admin/student-custom-columns.mock.spec.ts",
+  "e2e/admin/student-detail-entrypoints.mock.spec.ts",
+  "e2e/admin/wrong-note-generation-contract.mock.spec.ts",
+  "e2e/shared/product-analytics-contract.mock.spec.ts",
+  "e2e/student/video-cdn-service-error.mock.spec.ts",
+  "e2e/teacher/comms-reply-mobile.mock.spec.ts",
+  "e2e/teacher/video-thumbnail-render.mock.spec.ts",
 ]);
 const requirements = new Map([
   ["e2e/stability/controlled-real-alimtalk-send.spec.ts", "realMessagingSkipReason"],

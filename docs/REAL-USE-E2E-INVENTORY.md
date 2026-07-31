@@ -29,7 +29,7 @@
 
 | 위치 | 현재 역할 | 한계 |
 |------|-----------|------|
-| `package.json` `test:e2e:gate` | PR용 production safety policy, 로그인, smoke, mock 계정복구/first-login/custom-columns | 운영 API를 사용해도 인증 외 product row mutation을 소유하지 않음. exact allowlist를 `guard-e2e-safety.mjs`가 강제 |
+| `package.json` `test:e2e:gate` | PR용 production safety policy, 로그인, smoke, 모든 활성 route-mock, 과제별 만점/성적 저장 계약 | 운영 API를 사용해도 인증 외 product row mutation을 소유하지 않음. exact allowlist를 `guard-e2e-safety.mjs`가 강제하고 `guard:test-coverage`가 새 mock 스펙 누락과 API interception 누락을 차단 |
 | `.github/workflows/quality-gate.yml` `e2e-roundtrip` | 승인된 main 배포 후 notice/qna/clinic/session-assessment bounded write canary | production baseline과 자동 rollback에 연결된 배포 후 전용 경로. 실제 시험/과제 생성과 학생 제출은 아님 |
 | `.github/workflows/e2e.yml` | PR safe gate. 수동 기본은 read-only/mock 유지보수 묶음과 역할별 메뉴 감사, 명시적 옵션만 통제 쓰기 canary | `controlled_write_canaries=true`에서만 notice/qna/clinic/password/session-assessment와 fixture 생성 spec을 추가. 같은 운영 tenant 간섭을 피하려고 직렬 실행 |
 
