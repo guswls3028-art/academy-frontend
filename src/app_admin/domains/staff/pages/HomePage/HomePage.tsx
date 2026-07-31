@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/staff/pages/HomePage/HomePage.tsx
 // 직위순 기본 정렬: 대표(owner) → 강사(TEACHER) → 조교(ASSISTANT)
 
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { StaffHomeTable } from "./StaffHomeTable";
 import { useStaffs } from "../../hooks/useStaffs";
@@ -26,6 +26,7 @@ const ROLE_ORDER: Record<string, number> = { TEACHER: 0, ASSISTANT: 1 };
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const qc = useQueryClient();
   const confirm = useConfirm();
   const {
@@ -301,7 +302,9 @@ export default function HomePage() {
           owner={owner}
           canManage={canManage}
           onOperate={(id) => navigate(`/workspace/staff/attendance?staffId=${id}`)}
-          onDetail={(id) => navigate(`/workspace/staff/${id}`)}
+          onDetail={(id) => navigate(`/workspace/staff/${id}`, {
+            state: { backgroundLocation: location },
+          })}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
           searchQuery={q}

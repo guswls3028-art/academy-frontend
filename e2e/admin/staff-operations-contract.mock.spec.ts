@@ -178,13 +178,73 @@ test.describe("직원 운영 계약", () => {
     await expect(page.getByText(/실지급|3\.3%/)).toHaveCount(0);
 
     await page.getByText("김조교", { exact: true }).first().click();
-    await expect(page.getByRole("dialog")).toBeVisible();
-    await expect(page.getByRole("button", { name: "퇴사 처리" }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: "잘못 등록한 직원 삭제" })).toHaveCount(0);
+    const staffDetail = page.getByTestId("staff-detail-overlay");
+    await expect(staffDetail).toBeVisible();
+    await expect(staffDetail.getByRole("button", { name: "퇴사 처리" })).toBeVisible();
+    await expect(staffDetail.getByRole("button", { name: "잘못 등록한 직원 삭제" })).toHaveCount(0);
 
-    await page.getByRole("button", { name: "퇴사 처리" }).first().click();
+    await staffDetail.getByRole("button", { name: "퇴사 처리" }).click();
     await page.getByRole("button", { name: "퇴사 처리" }).last().click();
     await expect.poll(() => patchBody).toEqual({ is_active: false });
+  });
+
+  test("직원 상세가 목록 위 팝업으로 열리고 동일한 위치로 닫힌다", async ({ page }) => {
+    await mockStaffApi(page);
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await page.goto(`${BASE}/workspace/staff/home`, {
+      waitUntil: "domcontentloaded",
+    });
+
+    const staffName = page.getByText("김조교", { exact: true }).first();
+    const staffRow = staffName.locator("xpath=ancestor::tr");
+    await expect(staffRow).toBeVisible();
+    await staffName.click();
+
+    await expect(page).toHaveURL(/\/workspace\/staff\/1$/);
+    await expect(page.getByTestId("staff-detail-overlay")).toBeVisible();
+    await expect(staffRow).toBeVisible();
+    await page.screenshot({
+      path: "test-results/staff-detail-overlay-1366.png",
+      fullPage: true,
+    });
+
+    await page.keyboard.press("Escape");
+    await expect(page).toHaveURL(/\/workspace\/staff\/home$/);
+    await expect(page.getByTestId("staff-detail-overlay")).toHaveCount(0);
+    await expect(staffRow).toBeVisible();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await staffName.click();
+    const mobileOverlay = page.getByTestId("staff-detail-overlay");
+    await expect(mobileOverlay).toBeVisible();
+    await expect(mobileOverlay.getByRole("heading", { name: "김조교" })).toBeVisible();
+    const mobileLayout = await mobileOverlay.evaluate((overlay) => {
+      const body = overlay.querySelector<HTMLElement>(".ds-overlay-body");
+      const rect = overlay.getBoundingClientRect();
+      return {
+        left: rect.left,
+        right: rect.right,
+        overflowY: body ? getComputedStyle(body).overflowY : "missing",
+      };
+    });
+    expect(mobileLayout.left).toBeGreaterThanOrEqual(0);
+    expect(mobileLayout.right).toBeLessThanOrEqual(390);
+    expect(mobileLayout.overflowY).toBe("auto");
+    await expect(mobileOverlay.getByRole("tab", { name: "시급·근무유형" })).toHaveCSS("white-space", "nowrap");
+    await page.screenshot({
+      path: "test-results/staff-detail-overlay-390.png",
+      fullPage: false,
+    });
+    await page.getByRole("button", { name: "닫기" }).click();
+    await expect(page).toHaveURL(/\/workspace\/staff\/home$/);
+
+    await page.goto(`${BASE}/workspace/staff/1`, {
+      waitUntil: "domcontentloaded",
+    });
+    await expect(page.getByTestId("staff-detail-overlay")).toBeVisible();
+    await expect(page.getByText("김조교", { exact: true }).first()).toBeVisible();
+    await page.getByRole("button", { name: "닫기" }).click();
+    await expect(page).toHaveURL(/\/workspace\/staff\/home$/);
   });
 
   test("마감 상태 조회 실패 시 쓰기를 막고 반응형으로 쌓인다", async ({ page }) => {

@@ -76,6 +76,9 @@ const ProfileExpensePage = lazy(() => import("@admin/domains/profile").then((m) 
 
 /* ================= Lazy: Staff ================= */
 const StaffRoutes = lazy(() => import("@admin/domains/staff/StaffRoutes"));
+const StaffDetailOverlay = lazy(
+  () => import("@admin/domains/staff/overlays/StaffDetailOverlay/StaffDetailOverlay"),
+) as ComponentType<{ staffId?: number; onClose?: () => void }>;
 
 /* ================= Lazy: Materials ================= */
 const MaterialsRoutes = lazy(() => import("@admin/domains/materials").then((m) => ({ default: m.MaterialsRoutes })));
@@ -145,10 +148,18 @@ export default function AdminRouter() {
         <StudentsDetailOverlay studentId={modalStudentId} onClose={() => navigate(-1)} />
       </Suspense>
     ) : undefined;
+  const staffDetailMatch = matchPath("/workspace/staff/:staffId", location.pathname);
+  const modalStaffId = Number(staffDetailMatch?.params.staffId);
+  const staffDetailOverlay =
+    backgroundLocation && Number.isInteger(modalStaffId) && modalStaffId > 0 ? (
+      <Suspense fallback={<RouteFallback />}>
+        <StaffDetailOverlay staffId={modalStaffId} onClose={() => navigate(-1)} />
+      </Suspense>
+    ) : undefined;
 
   return (
     <Routes location={backgroundLocation ?? location}>
-      <Route element={<AppLayout overlay={studentDetailOverlay} />}>
+      <Route element={<AppLayout overlay={studentDetailOverlay ?? staffDetailOverlay} />}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={renderLazyRoute(DashboardPage)} />
 
