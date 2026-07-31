@@ -6,7 +6,7 @@
   "packageManager": "pnpm@9.15.0",
   "pnpm": {
     "overrides": {
-      "@jridgewell/gen-mapping": "0.3.7",
+      "@jridgewell/gen-mapping": "0.3.13",
       "brace-expansion@1": "1.1.18",
       "brace-expansion@2": "2.1.4",
       "brace-expansion@>=5": "5.0.9",
@@ -88,7 +88,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
-    "@jridgewell/gen-mapping": "0.3.7",
+    "@jridgewell/gen-mapping": "0.3.13",
     "@playwright/test": "^1.58.2",
     "@tailwindcss/vite": "4.1.18",
     "@types/node": "^25.1.0",
