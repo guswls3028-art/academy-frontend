@@ -12,7 +12,9 @@ export type AdminHomeworkDetail = {
 
   /** Homework.meta JSON. default_max_score 등 추가 설정 보관. */
   meta?: Record<string, unknown> | null;
-  /** meta.default_max_score 편의 접근자 */
+  /** 과제별 만점. 서버가 meta.default_max_score의 유효 기본값까지 정규화한다. */
+  max_score?: number | null;
+  /** 레거시 호출부 호환용 편의 접근자 */
   default_max_score?: number | null;
 
   created_at: string;
@@ -38,7 +40,9 @@ function normalize(raw: unknown): AdminHomeworkDetail {
   const record = asRecord(raw);
   const rawSession = record.session_id ?? record.session ?? record.sessionId;
   const meta = record.meta != null ? asRecord(record.meta) : null;
-  const defaultMaxScore = meta ? asPositiveNumber(meta.default_max_score) : null;
+  const defaultMaxScore = asPositiveNumber(record.max_score)
+    ?? (meta ? asPositiveNumber(meta.default_max_score) : null)
+    ?? 100;
   const templateHomeworkId = record.template_homework != null
     ? asPositiveNumber(record.template_homework)
     : asPositiveNumber(record.template_homework_id);
@@ -53,6 +57,7 @@ function normalize(raw: unknown): AdminHomeworkDetail {
     description: typeof record.description === "string" ? record.description : undefined,
 
     meta,
+    max_score: defaultMaxScore,
     default_max_score: defaultMaxScore,
 
     created_at: String(record.created_at ?? ""),

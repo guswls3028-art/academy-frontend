@@ -6,6 +6,8 @@ type ScoreRouteOptions = {
   initialScores?: Array<number | null>;
   initialDraft?: unknown[];
   includeHomework?: boolean;
+  homeworkMaxScore?: number;
+  initialHomeworkScores?: Array<number | null>;
 };
 
 function createLocalJwt() {
@@ -62,6 +64,7 @@ let failNextLeaseRelease = false;
 let failNextDraftPut = false;
 let delayNextScorePatchMs = 0;
 let includeHomework = false;
+let homeworkMaxScore = 100;
 let homeworkAssignedRows = [false, true];
 let currentHomeworkScores: Array<number | null> = [null, 45];
 
@@ -79,8 +82,9 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
   failNextDraftPut = false;
   delayNextScorePatchMs = 0;
   includeHomework = options.includeHomework ?? false;
+  homeworkMaxScore = options.homeworkMaxScore ?? 100;
   homeworkAssignedRows = [false, true];
-  currentHomeworkScores = [null, 45];
+  currentHomeworkScores = [...(options.initialHomeworkScores ?? [null, 45])];
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -107,7 +111,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
               homework_id: 9151,
               title: "단원 복습",
               unit: "점",
-              max_score: 100,
+              max_score: homeworkMaxScore,
               display_order: 2,
             }] : [],
           },
@@ -141,7 +145,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
               title: "단원 복습",
               block: {
                 score: currentHomeworkScores[index],
-                max_score: 100,
+                max_score: homeworkMaxScore,
                 passed: currentHomeworkScores[index] == null ? null : currentHomeworkScores[index]! >= 60,
                 clinic_required: currentHomeworkScores[index] == null ? false : currentHomeworkScores[index]! < 60,
                 is_locked: false,
@@ -377,7 +381,12 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
   });
 
   test("키보드 이동은 미배정 칸을 건너뛰고 배정된 과제 점수는 셀에서 저장한다", async ({ page }) => {
-    await openScores(page, { includeHomework: true });
+    await openScores(page, {
+      includeHomework: true,
+      homeworkMaxScore: 43,
+      initialHomeworkScores: [null, 41],
+    });
+    await expect(page.getByRole("cell", { name: "41/43", exact: true })).toBeVisible();
     await ensureScoreEditing(page);
 
     const firstExamCell = page.getByRole("textbox", { name: "자동저장학생1 · 주간 확인 점수 입력" });
@@ -388,14 +397,15 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await firstExamCell.press("Tab");
     await expect(secondExamCell).toBeFocused();
 
-    await assignedHomeworkCell.fill("88");
+    await assignedHomeworkCell.fill("42");
     await page.keyboard.press("Control+s");
-    await expect.poll(() => homeworkPatches.at(-1)?.score, { timeout: 10_000 }).toBe(88);
+    await expect.poll(() => homeworkPatches.at(-1)?.score, { timeout: 10_000 }).toBe(42);
     expect(homeworkPatches.at(-1)).toMatchObject({
       session_id: 9002,
       enrollment_id: 9202,
       homework_id: 9151,
-      score: 88,
+      score: 42,
+      max_score: 43,
     });
   });
 

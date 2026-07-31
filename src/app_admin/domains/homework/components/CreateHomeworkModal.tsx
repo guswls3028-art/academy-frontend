@@ -184,6 +184,26 @@ export default function CreateHomeworkModal({
         : Math.max(0, Math.trunc(firstCutlineRaw)))
       : null;  // 빈값/NaN 만 null → default 적용
     const appliedCutline = firstCutline !== null ? firstCutline : (cutlineMode === "PERCENT" ? 80 : 40);
+    const invalidMaxRow = validRows.find((row) => {
+      const value = Number(row.maxScore);
+      return !Number.isFinite(value) || value <= 0;
+    });
+    if (invalidMaxRow) {
+      setSubmitting(false);
+      setError(`'${invalidMaxRow.title.trim()}' 과제의 만점은 1 이상이어야 합니다.`);
+      return;
+    }
+    if (cutlineMode === "COUNT") {
+      const conflictingRow = validRows.find((row) => Number(row.maxScore) < appliedCutline);
+      if (conflictingRow) {
+        setSubmitting(false);
+        setError(
+          `'${conflictingRow.title.trim()}' 과제의 만점(${Number(conflictingRow.maxScore)}점)이 ` +
+          `공통 커트라인(${appliedCutline}점)보다 낮습니다.`,
+        );
+        return;
+      }
+    }
     let policyPatched = false;
     let policyError: string | null = null;
 
@@ -208,25 +228,15 @@ export default function CreateHomeworkModal({
 
     for (const row of validRows) {
       try {
+        const maxScore = Number(row.maxScore);
         const res = await api.post("/homeworks/", {
           session_id: sessionId,
           title: row.title.trim(),
+          max_score: maxScore,
+          meta: row.dueDate ? { due_date: row.dueDate } : undefined,
         });
         const newId = Number(res.data?.id ?? res.data?.homework_id ?? res.data?.pk);
         if (!Number.isFinite(newId) || newId <= 0) throw new Error("생성 후 ID를 받지 못했습니다.");
-
-        // Save max_score + due_date
-        const ms = Number(row.maxScore);
-        const metaPatch: Record<string, unknown> = {};
-        if (Number.isFinite(ms) && ms > 0) metaPatch.default_max_score = ms;
-        if (row.dueDate) metaPatch.due_date = row.dueDate;
-        if (Object.keys(metaPatch).length > 0) {
-          try {
-            await api.patch(`/homeworks/${newId}/`, { meta: metaPatch });
-          } catch {
-            // best-effort
-          }
-        }
 
         const enrollResult = await autoEnroll(newId);
         enrollMaxPerHw = Math.max(enrollMaxPerHw, enrollResult.enrolled);
@@ -349,20 +359,10 @@ export default function CreateHomeworkModal({
         const res = await api.post("/homeworks/", {
           session_id: sessionId,
           title: item.title,
+          max_score: item.max_score,
         });
         const newId = Number(res.data?.id ?? res.data?.homework_id ?? res.data?.pk);
         if (!Number.isFinite(newId) || newId <= 0) throw new Error("생성 후 ID를 받지 못했습니다.");
-
-        // Copy max_score from source
-        if (item.max_score > 0) {
-          try {
-            await api.patch(`/homeworks/${newId}/`, {
-              meta: { default_max_score: item.max_score },
-            });
-          } catch {
-            // best-effort
-          }
-        }
 
         const enrollResult = await autoEnroll(newId);
         enrollMaxPerHw = Math.max(enrollMaxPerHw, enrollResult.enrolled);

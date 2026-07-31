@@ -197,7 +197,7 @@ export default function SessionItemBrowser({
           .map((h) => ({
             id: h.id,
             title: h.title,
-            max_score: 100, // homework doesn't have max_score in list — default
+            max_score: h.max_score,
           }));
         onSelectHomeworks(selected);
       }
