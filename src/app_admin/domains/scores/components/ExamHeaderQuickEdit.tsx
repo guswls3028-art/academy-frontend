@@ -54,7 +54,7 @@ const BASE_WORKFLOW_OPTIONS: {
   },
   {
     value: "manual_correctness",
-    label: "정오표 직접입력 (O/X/0)",
+    label: "정오표 직접입력 (O/X/오답노트)",
     description: "조교가 채점한 정오를 학생별 표에 입력해 점수와 오답노트를 확정합니다.",
   },
   {
@@ -155,7 +155,7 @@ export default function ExamHeaderQuickEdit({
           {
             value: "mixed_correctness" as const,
             label: "OMR + 정오표 혼합",
-            description: "OMR 문항은 잠그고 직접 채점 문항만 O/X/0으로 입력합니다.",
+            description: "OMR 문항은 잠그고 직접 채점 문항만 O/X/오답노트로 입력합니다.",
           },
           {
             value: "mixed_score" as const,

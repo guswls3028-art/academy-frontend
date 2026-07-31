@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -12,6 +13,8 @@ import {
   CheckCircle2,
   ClipboardCheck,
   ListChecks,
+  Minus,
+  Plus,
   Redo2,
   RefreshCw,
   ScanLine,
@@ -69,8 +72,34 @@ const STATE_ORDER: Array<ManualGradeState | null> = [
 const STATE_LABEL: Record<ManualGradeState, string> = {
   correct: "O",
   incorrect: "X",
-  review: "0",
+  review: "오답노트",
 };
+
+const STATE_CELL_LABEL: Record<ManualGradeState, string> = {
+  correct: "O",
+  incorrect: "X",
+  review: "노트",
+};
+
+const TABLE_SCALE_STEPS = [70, 80, 90, 100, 110, 120] as const;
+const TABLE_SCALE_STORAGE_KEY = "academy.manual-grading-table-scale.v1";
+
+function getClosestTableScale(value: number): (typeof TABLE_SCALE_STEPS)[number] {
+  return TABLE_SCALE_STEPS.reduce((closest, candidate) =>
+    Math.abs(candidate - value) < Math.abs(closest - value) ? candidate : closest,
+  );
+}
+
+function loadManualGradingTableScale(): (typeof TABLE_SCALE_STEPS)[number] | null {
+  try {
+    const value = Number(window.localStorage.getItem(TABLE_SCALE_STORAGE_KEY));
+    return TABLE_SCALE_STEPS.includes(value as (typeof TABLE_SCALE_STEPS)[number])
+      ? (value as (typeof TABLE_SCALE_STEPS)[number])
+      : null;
+  } catch {
+    return null;
+  }
+}
 
 type ManualGradeCellChange = {
   enrollmentId: number;
@@ -105,7 +134,15 @@ export default function ManualExamGradingGrid({
 }: Props) {
   const queryClient = useQueryClient();
   const tableWrapRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
   const autoFocusedExamRef = useRef<number | null>(null);
+  const autoFittedExamRef = useRef<number | null>(null);
+  const hasSavedTableScaleRef = useRef(false);
+  const [tableScale, setTableScale] = useState(() => {
+    const savedScale = loadManualGradingTableScale();
+    hasSavedTableScaleRef.current = savedScale != null;
+    return savedScale ?? 100;
+  });
   const sheetQuery = useQuery({
     queryKey: adminResultsQueryKeys.manualGradeSheet(examId),
     queryFn: () => fetchManualGradeSheet(examId),
@@ -305,6 +342,53 @@ export default function ManualExamGradingGrid({
     applyMutation.isPending ||
     quickStartMutation.isPending;
 
+  const applyTableScale = useCallback((nextScale: number, persist = true) => {
+    const scale = getClosestTableScale(nextScale);
+    setTableScale(scale);
+    if (!persist) return;
+    hasSavedTableScaleRef.current = true;
+    try {
+      window.localStorage.setItem(TABLE_SCALE_STORAGE_KEY, String(scale));
+    } catch {
+      // Private browsing or a storage policy can block persistence.
+    }
+  }, []);
+
+  const changeTableScale = useCallback((direction: -1 | 1) => {
+    const currentIndex = TABLE_SCALE_STEPS.indexOf(
+      tableScale as (typeof TABLE_SCALE_STEPS)[number],
+    );
+    const nextIndex = Math.min(
+      TABLE_SCALE_STEPS.length - 1,
+      Math.max(0, currentIndex + direction),
+    );
+    applyTableScale(TABLE_SCALE_STEPS[nextIndex]);
+  }, [applyTableScale, tableScale]);
+
+  const fitTableToViewport = useCallback((persist = false) => {
+    const tableWrap = tableWrapRef.current;
+    const table = tableRef.current;
+    if (!tableWrap || !table) return;
+
+    const naturalWidth = table.scrollWidth;
+    const viewportWidth = tableWrap.clientWidth;
+    if (naturalWidth <= 0) return;
+    if (naturalWidth <= viewportWidth + 1) {
+      applyTableScale(100, persist);
+      return;
+    }
+    const availableWidth = Math.max(1, viewportWidth - 4);
+
+    const idealScale = Math.min(
+      100,
+      Math.floor((availableWidth * 100) / naturalWidth),
+    );
+    const nextScale = [...TABLE_SCALE_STEPS]
+      .reverse()
+      .find((scale) => scale <= idealScale) ?? TABLE_SCALE_STEPS[0];
+    applyTableScale(nextScale, persist);
+  }, [applyTableScale]);
+
   const closeAnswerKeyModal = () => {
     setAnswerKeyOpen(false);
     void Promise.all([
@@ -423,7 +507,21 @@ export default function ManualExamGradingGrid({
 
   useEffect(() => {
     autoFocusedExamRef.current = null;
+    autoFittedExamRef.current = null;
   }, [examId]);
+
+  useEffect(() => {
+    if (
+      hasSavedTableScaleRef.current ||
+      autoFittedExamRef.current === examId ||
+      visibleQuestions.length === 0
+    ) {
+      return;
+    }
+    autoFittedExamRef.current = examId;
+    const frame = window.requestAnimationFrame(() => fitTableToViewport(false));
+    return () => window.cancelAnimationFrame(frame);
+  }, [examId, fitTableToViewport, visibleQuestions.length]);
 
   useEffect(() => {
     if (
@@ -753,7 +851,7 @@ export default function ManualExamGradingGrid({
     setDirty(true);
     previewMutation.reset();
     feedback.success(
-      `${changes.length}개 미입력 칸을 정답으로 채웠습니다. 기존 O/X/0은 유지됩니다.`,
+      `${changes.length}개 미입력 칸을 정답으로 채웠습니다. 기존 O/X/오답노트는 유지됩니다.`,
     );
 
     const firstChange = changes[0];
@@ -907,6 +1005,7 @@ export default function ManualExamGradingGrid({
     <section
       className={styles.card}
       aria-labelledby="manual-grading-title"
+      data-manual-grading-workspace
       onKeyDownCapture={handleWorkspaceKeyDown}
     >
       <header className={styles.header}>
@@ -1019,10 +1118,14 @@ export default function ManualExamGradingGrid({
       ) : data.manual_grading_method === "correctness" ? (
         <div className={styles.commandBar} aria-label="정오표 입력 도움말">
           <div className={styles.legend}>
-            <span className={styles.legendCorrect}><b>{shortcuts.correct}</b> 정답</span>
-            <span className={styles.legendWrong}><b>{shortcuts.incorrect}</b> 오답</span>
+            <span className={styles.legendCorrect}>
+              <b>O</b> 정답 <small>{shortcuts.correct} 키</small>
+            </span>
+            <span className={styles.legendWrong}>
+              <b>X</b> 오답 <small>{shortcuts.incorrect} 키</small>
+            </span>
             <span className={styles.legendReview}>
-              <b>{shortcuts.review}</b> 정답 · 복습
+              <b>오답노트</b> 정답 포함 <small>{shortcuts.review} 키</small>
             </span>
           </div>
           <div className={styles.commandBarActions}>
@@ -1033,7 +1136,7 @@ export default function ManualExamGradingGrid({
               leftIcon={<CheckCircle2 size={ICON_FOR_BUTTON.sm} />}
               disabled={emptyCorrectnessCount === 0 || busy}
               onClick={fillEmptyCorrectnessWithCorrect}
-              title="응시 학생의 미입력 칸만 정답으로 채웁니다. 기존 O/X/0은 바꾸지 않습니다."
+              title="응시 학생의 미입력 칸만 정답으로 채웁니다. 기존 O/X/오답노트는 바꾸지 않습니다."
             >
               빈칸 {emptyCorrectnessCount}칸 O로
             </Button>
@@ -1051,7 +1154,7 @@ export default function ManualExamGradingGrid({
           <div className={styles.legend}>
             <span>각 문항 배점 안에서 점수를 입력합니다.</span>
             <span className={styles.legendReview}>
-              <b>복습</b> 만점을 받아도 오답노트에 포함
+              <b>오답노트</b> 만점을 받아도 포함
             </span>
           </div>
           <div className={styles.keyboardHints}>
@@ -1121,7 +1224,7 @@ export default function ManualExamGradingGrid({
               }}
             />
             <ShortcutKeyInput
-              label="정답 + 오답노트"
+              label="오답노트"
               value={shortcutDraft.review}
               tone="review"
               onChange={(review) => {
@@ -1153,8 +1256,56 @@ export default function ManualExamGradingGrid({
         </div>
       )}
 
-      <div className={styles.tableWrap} ref={tableWrapRef}>
-        <table className={styles.table}>
+      <div className={styles.tableToolbar}>
+        <span>학생 이름과 응시는 고정되며, 표만 가로·세로로 이동합니다.</span>
+        <div className={styles.tableScaleControl} role="group" aria-label="채점표 배율">
+          <button
+            type="button"
+            disabled={tableScale === TABLE_SCALE_STEPS[0]}
+            onClick={() => changeTableScale(-1)}
+            aria-label="채점표 축소"
+            title="채점표 축소"
+          >
+            <Minus size={14} aria-hidden />
+          </button>
+          <output aria-live="polite" aria-label={`현재 채점표 배율 ${tableScale}%`}>
+            {tableScale}%
+          </output>
+          <button
+            type="button"
+            disabled={tableScale === TABLE_SCALE_STEPS[TABLE_SCALE_STEPS.length - 1]}
+            onClick={() => changeTableScale(1)}
+            aria-label="채점표 확대"
+            title="채점표 확대"
+          >
+            <Plus size={14} aria-hidden />
+          </button>
+          <button
+            type="button"
+            className={styles.fitButton}
+            onClick={() => {
+              hasSavedTableScaleRef.current = false;
+              try {
+                window.localStorage.removeItem(TABLE_SCALE_STORAGE_KEY);
+              } catch {
+                // Keep the fit action available even when storage is blocked.
+              }
+              fitTableToViewport(false);
+            }}
+          >
+            화면 맞춤
+          </button>
+        </div>
+      </div>
+
+      <div className={styles.tableWrap} ref={tableWrapRef} data-manual-grading-table-wrap>
+        <table
+          className={styles.table}
+          ref={tableRef}
+          style={{
+            "--manual-grading-table-scale": tableScale / 100,
+          } as CSSProperties}
+        >
           <thead>
             <tr>
               <th className={styles.studentColumn}>학생</th>
@@ -1396,7 +1547,7 @@ function ReadOnlyGradeCell({
   studentName: string;
   questionNumber: number;
 }) {
-  const label = cell.state ? STATE_LABEL[cell.state] : "·";
+  const label = cell.state ? STATE_CELL_LABEL[cell.state] : "·";
   return (
     <div
       className={`${styles.correctnessCell} ${styles.readOnlyCell} ${
@@ -1505,7 +1656,7 @@ function CorrectnessCell({
         }
       }}
     >
-      {value ? STATE_LABEL[value] : "·"}
+      {value ? STATE_CELL_LABEL[value] : "·"}
     </button>
   );
 }
@@ -1617,7 +1768,7 @@ function ScoreCell({
         aria-pressed={review}
         onClick={() => onReviewChange(!review)}
       >
-        복습
+        오답노트
       </button>
     </div>
   );
@@ -1720,7 +1871,12 @@ function parseCorrectnessClipboard(
         token === "틀림"
       ) {
         state = "incorrect";
-      } else if (token === "0" || token === "복습") {
+      } else if (
+        token === "0" ||
+        token === "복습" ||
+        token === "오답노트" ||
+        token === "노트"
+      ) {
         state = "review";
       } else {
         state = undefined;

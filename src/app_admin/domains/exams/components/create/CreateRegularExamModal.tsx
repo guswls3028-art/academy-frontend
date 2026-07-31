@@ -723,7 +723,7 @@ export default function CreateRegularExamModal({
                   <legend className="text-sm font-semibold">직접입력 방식</legend>
                   <div className="grid grid-cols-2 gap-2">
                     {([
-                      ["correctness", "정오 입력", "O / X / 0으로 빠르게 입력"],
+                      ["correctness", "정오 입력", "O / X / 오답노트로 빠르게 입력"],
                       ["score", "점수 입력", "문항별 부분점수 입력"],
                     ] as const).map(([value, label, description]) => (
                       <button

@@ -103,7 +103,7 @@ export default function ExamHeaderActionMenu({
         description={
           canOpenManualGrading
             ? manualGradingMethod === "correctness"
-              ? "학생별 O/X/0을 입력하고 성적 확정"
+              ? "학생별 O/X/오답노트를 입력하고 성적 확정"
               : "학생별 문항 점수를 입력하고 성적 확정"
             : "시험 설정에서 정오표 직접입력으로 변경"
         }
