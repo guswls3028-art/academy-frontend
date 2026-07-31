@@ -50,9 +50,18 @@ jobs:
       - name: Guard production E2E safety boundaries
         run: pnpm guard:e2e-safety
 
-      - name: Start checkout frontend
+      - name: Select E2E API proxy boundary
         env:
-          VITE_DEV_PROXY_TARGET: ${{ secrets.E2E_API_URL || 'https://api.hakwonplus.com' }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          TRUSTED_E2E_API_URL: ${{ secrets.E2E_API_URL }}
+        run: |
+          if [ "${PR_AUTHOR}" = "dependabot[bot]" ]; then
+            echo "VITE_DEV_PROXY_TARGET=http://127.0.0.1:9" >> "${GITHUB_ENV}"
+          else
+            echo "VITE_DEV_PROXY_TARGET=${TRUSTED_E2E_API_URL:-https://api.hakwonplus.com}" >> "${GITHUB_ENV}"
+          fi
+
+      - name: Start checkout frontend
         run: |
           pnpm dev --host 127.0.0.1 --port 5174 --strictPort > /tmp/academy-vite.log 2>&1 &
           for attempt in $(seq 1 60); do
@@ -65,6 +74,9 @@ jobs:
           exit 1
 
       - name: Create .env.e2e
+        if: >-
+          github.event_name == 'workflow_dispatch'
+          || github.event.pull_request.user.login != 'dependabot[bot]'
         run: |
           cat > .env.e2e << EOF
           # PR checkout의 실제 UI를 검증하고 API만 운영 E2E tenant로 proxy한다.
@@ -94,8 +106,32 @@ jobs:
           EOF
 
       - name: Run PR E2E gate
-        if: github.event_name == 'pull_request'
+        if: >-
+          github.event_name == 'pull_request'
+          && github.event.pull_request.user.login != 'dependabot[bot]'
         run: pnpm test:e2e:gate --reporter=github,html
+
+      - name: Run Dependabot secretless route-mock gate
+        if: >-
+          github.event_name == 'pull_request'
+          && github.event.pull_request.user.login == 'dependabot[bot]'
+        env:
+          E2E_BASE_URL: http://127.0.0.1:5174
+          E2E_LOCAL_BASE_URL: http://127.0.0.1:5174
+          E2E_STRICT: strict
+          E2E_ALLOW_REAL_ALIMTALK: "0"
+          E2E_ALLOW_PRODUCTION_WRITES: "0"
+        run: |
+          mapfile -t MOCK_SPECS < <(
+            find e2e -type f -name '*.mock.spec.ts' \
+              ! -path '*/_archive/*' ! -path '*/_local/*' | sort
+          )
+          if [ "${#MOCK_SPECS[@]}" -eq 0 ]; then
+            echo "::error::No active route-mock specs found"
+            exit 1
+          fi
+          pnpm exec playwright test "${MOCK_SPECS[@]}" \
+            --project=chromium --reporter=github,html
 
       - name: Run maintained release E2E suite
         if: github.event_name == 'workflow_dispatch'

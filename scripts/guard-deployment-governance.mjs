@@ -42,6 +42,7 @@ for (const required of [
   "CLOUDFLARE_PRODUCTION_API_TOKEN",
   "CLOUDFLARE_INFRA_API_TOKEN",
   "permissions:\n  contents: read",
+  "github.event.pull_request.user.login != 'dependabot[bot]'",
 ]) {
   if (!quality.includes(required)) {
     failures.push(`quality-gate.yml: missing deployment governance marker ${required}`);
@@ -51,6 +52,11 @@ for (const required of [
   "E2E_ALLOW_PRODUCTION_WRITES=0",
   'E2E_ALLOW_PRODUCTION_WRITES: "1"',
   "controlled_write_canaries",
+  'PR_AUTHOR: ${{ github.event.pull_request.user.login }}',
+  "VITE_DEV_PROXY_TARGET=http://127.0.0.1:9",
+  "Run Dependabot secretless route-mock gate",
+  "github.event.pull_request.user.login == 'dependabot[bot]'",
+  "github.event.pull_request.user.login != 'dependabot[bot]'",
 ]) {
   if (!e2e.includes(required)) {
     failures.push(`e2e.yml: missing write-boundary marker ${required}`);
