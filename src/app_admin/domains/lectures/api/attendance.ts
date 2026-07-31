@@ -2,6 +2,7 @@
 export {
   bulkCreateAttendance,
   bulkSetPresent,
+  bulkUndoPresent,
   deleteAttendance,
   downloadAttendanceExcel,
   fetchAttendance,

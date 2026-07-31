@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dropdown } from "antd";
+import { Redo2, Undo2 } from "lucide-react";
 import { fetchSessionEnrollments, fetchLectureEnrollments, lectureEnrollFromExcelUpload } from "../api/enrollments";
 import type { SessionEnrollmentRow } from "../api/enrollments";
 import { fetchSessions } from "../api/sessions";
@@ -25,6 +26,8 @@ import { Button, EmptyState } from "@/shared/ui/ds";
 import { TABLE_COL } from "@/shared/ui/domain";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
+import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
@@ -210,6 +213,16 @@ type SelectedItem = {
   grade?: number | null;
 };
 
+type SelectionState = {
+  current: SelectedItem[];
+  undo: SelectedItem[][];
+  redo: SelectedItem[][];
+};
+
+function sameSelection(left: SelectedItem[], right: SelectedItem[]) {
+  return left.length === right.length && left.every((item, index) => item.id === right[index]?.id);
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 export default function SessionEnrollModal({
   lectureId,
@@ -219,6 +232,7 @@ export default function SessionEnrollModal({
   onSuccess,
 }: Props) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const slm = useSchoolLevelMode();
   const [overlayStudentId, setOverlayStudentId] = useState<number | null>(null);
   // P2 (2026-05-13): "신규 학생 추가" 탭은 모달을 여는 함정 동작이라 탭 제거.
@@ -226,7 +240,12 @@ export default function SessionEnrollModal({
   const [keyword, setKeyword] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
+  const [selectionState, setSelectionState] = useState<SelectionState>({
+    current: [],
+    undo: [],
+    redo: [],
+  });
+  const selectedItems = selectionState.current;
   const [studentCreateOpen, setStudentCreateOpen] = useState(false);
   const [sort, setSort] = useState("name");
   const [schoolType, setSchoolType] = useState("");  // "" | "HIGH" | "MIDDLE"
@@ -240,6 +259,46 @@ export default function SessionEnrollModal({
   );
   const [copyFromPrevLoading, setCopyFromPrevLoading] = useState(false);
   const [copyFromLectureLoading, setCopyFromLectureLoading] = useState(false);
+
+  const updateSelection = useCallback((update: (current: SelectedItem[]) => SelectedItem[]) => {
+    setSelectionState((previous) => {
+      const next = update(previous.current);
+      if (sameSelection(previous.current, next)) return previous;
+      return {
+        current: next,
+        undo: [...previous.undo.slice(-19), previous.current],
+        redo: [],
+      };
+    });
+  }, []);
+
+  const resetSelection = useCallback(() => {
+    setSelectionState({ current: [], undo: [], redo: [] });
+  }, []);
+
+  const undoSelection = useCallback(() => {
+    setSelectionState((previous) => {
+      const restored = previous.undo[previous.undo.length - 1];
+      if (!restored) return previous;
+      return {
+        current: restored,
+        undo: previous.undo.slice(0, -1),
+        redo: [...previous.redo.slice(-19), previous.current],
+      };
+    });
+  }, []);
+
+  const redoSelection = useCallback(() => {
+    setSelectionState((previous) => {
+      const restored = previous.redo[previous.redo.length - 1];
+      if (!restored) return previous;
+      return {
+        current: restored,
+        undo: [...previous.undo.slice(-19), previous.current],
+        redo: previous.redo.slice(0, -1),
+      };
+    });
+  }, []);
 
   // Dynamic school/grade options from school level mode
   const schoolOptions = useMemo(() => [
@@ -424,7 +483,8 @@ export default function SessionEnrollModal({
         }
       }
       setExcelStatusByStudentId({});
-      setSelectedItems([]);
+      resetSelection();
+      feedback.success(`${studentIds.length}명을 출결 '미입력' 상태로 등록했습니다.`);
       onSuccess?.();
       onClose();
     },
@@ -512,18 +572,18 @@ export default function SessionEnrollModal({
         feedback.info("강의 수강생 중 추가할 학생이 없습니다. (이미 모두 등록되어 있거나 활성 학생이 없습니다)");
         return;
       }
-      setSelectedItems((prev) => {
+      updateSelection((prev) => {
         const byId = new Map(prev.map((s) => [s.id, s]));
         itemsToAdd.forEach((item) => byId.set(item.id, item));
         return Array.from(byId.values());
       });
-      feedback.success(`강의 수강생 ${itemsToAdd.length}명을 선택 목록에 추가했습니다. 아래에서 확인·편집 후 'N명 추가'로 등록하세요.`);
+      feedback.success(`강의 수강생 ${itemsToAdd.length}명을 선택 목록에 추가했습니다. 아래에서 확인·편집 후 'N명 검토 후 등록'으로 저장하세요.`);
     } catch (e) {
       feedback.error(e instanceof Error ? e.message : "강의 수강생 불러오기에 실패했습니다.");
     } finally {
       setCopyFromLectureLoading(false);
     }
-  }, [lectureId, alreadyEnrolledStudentIds]);
+  }, [lectureId, alreadyEnrolledStudentIds, updateSelection]);
 
   const handleCopyFromPrevToSelection = useCallback(async () => {
     if (!prevSession) return;
@@ -548,18 +608,18 @@ export default function SessionEnrollModal({
         feedback.info("가져올 새 수강생이 없습니다. (이미 모두 등록됨)");
         return;
       }
-      setSelectedItems((prev) => {
+      updateSelection((prev) => {
         const byId = new Map(prev.map((s) => [s.id, s]));
         itemsToAdd.forEach((item) => byId.set(item.id, item));
         return Array.from(byId.values());
       });
-      feedback.success(`직전 차시에서 ${itemsToAdd.length}명을 선택 목록에 추가했습니다. 아래에서 확인 후 'N명 추가'로 등록하세요.`);
+      feedback.success(`직전 차시에서 ${itemsToAdd.length}명을 선택 목록에 추가했습니다. 아래에서 확인 후 'N명 검토 후 등록'으로 저장하세요.`);
     } catch (e) {
       feedback.error(e instanceof Error ? e.message : "가져오기 실패");
     } finally {
       setCopyFromPrevLoading(false);
     }
-  }, [prevSession, alreadyEnrolledIds, alreadyEnrolledStudentIds]);
+  }, [prevSession, alreadyEnrolledIds, alreadyEnrolledStudentIds, updateSelection]);
 
   const toggleSelect = useCallback((student: ClientStudent) => {
     const id = student.id;
@@ -572,7 +632,7 @@ export default function SessionEnrollModal({
           chipLabel: (en as { lectureChipLabel?: string | null }).lectureChipLabel ?? undefined,
         }))
       : [];
-    setSelectedItems((prev) => {
+    updateSelection((prev) => {
       if (prev.some((s) => s.id === id)) return prev.filter((s) => s.id !== id);
       return [...prev, {
         id,
@@ -584,11 +644,11 @@ export default function SessionEnrollModal({
         grade: student.grade ?? null,
       }];
     });
-  }, []);
+  }, [updateSelection]);
 
   const removeSelected = useCallback((id: number) => {
-    setSelectedItems((prev) => prev.filter((s) => s.id !== id));
-  }, []);
+    updateSelection((prev) => prev.filter((s) => s.id !== id));
+  }, [updateSelection]);
 
   /** 현재 페이지(studentsToShow) 기준 전체 선택 여부 — DB 호출 없음 */
   const isCurrentPageAllSelected =
@@ -598,13 +658,13 @@ export default function SessionEnrollModal({
   /** 전체선택: 현재 페이지만 선택/해제. DB 안 때림. 실제 등록은 'N명 추가' 시에만. */
   const toggleSelectCurrentPage = useCallback(() => {
     if (isCurrentPageAllSelected) {
-      setSelectedItems((prev) => {
+      updateSelection((prev) => {
         const pageIds = new Set(studentsToShow.map((s) => s.id));
         return prev.filter((s) => !pageIds.has(s.id));
       });
       return;
     }
-    setSelectedItems((prev) => {
+    updateSelection((prev) => {
       const byId = new Map(prev.map((s) => [s.id, s]));
       studentsToShow.forEach((s) => {
         byId.set(s.id, {
@@ -625,7 +685,7 @@ export default function SessionEnrollModal({
       });
       return Array.from(byId.values());
     });
-  }, [isCurrentPageAllSelected, studentsToShow]);
+  }, [isCurrentPageAllSelected, studentsToShow, updateSelection]);
 
   const handleExcelFileSelect = useCallback(async (file: File) => {
     if (excelUploading) return;
@@ -688,11 +748,55 @@ export default function SessionEnrollModal({
     }
   }, [excelPendingFile, excelParsed, excelUploading, excelPasswordSettings, lectureId, sessionId, onSuccess, onClose]);
 
+  const requestClose = useCallback(async () => {
+    if (addByStudentMutation.isPending || excelUploading) {
+      feedback.info("등록 처리가 끝난 뒤 닫아 주세요.");
+      return;
+    }
+    if (selectedItems.length > 0 || excelPendingFile) {
+      const shouldClose = await confirm({
+        title: "수강생 등록을 닫을까요?",
+        message: `아직 등록하지 않은 준비 내용${selectedItems.length > 0 ? ` ${selectedItems.length}명` : ""}이 있습니다. 닫으면 현재 선택과 불러오기 내용이 사라집니다.`,
+        confirmText: "등록하지 않고 닫기",
+        danger: false,
+      });
+      if (!shouldClose) return;
+    }
+    resetSelection();
+    setExcelPendingFile(null);
+    setExcelParsed(null);
+    setExcelPasswordSettings({ ...DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS });
+    onClose();
+  }, [
+    addByStudentMutation.isPending,
+    confirm,
+    excelPendingFile,
+    excelUploading,
+    onClose,
+    resetSelection,
+    selectedItems.length,
+  ]);
+
+  const handleAddSelected = useCallback(async () => {
+    if (idsToAdd.length === 0 || addByStudentMutation.isPending) return;
+    const shouldAdd = await confirm({
+      title: "차시 수강생으로 등록할까요?",
+      message: `선택한 ${idsToAdd.length}명을 이 차시에 등록합니다.\n\n• 출결은 '미입력'으로 시작합니다.\n• 기존 학생의 출결 상태는 바뀌지 않습니다.\n• 등원 후 현장·영상·결석 등 실제 상태를 기록해 주세요.`,
+      confirmText: `${idsToAdd.length}명 등록`,
+      danger: false,
+    });
+    if (!shouldAdd) return;
+    addByStudentMutation.mutate({
+      studentIds: idsToAdd,
+      statusByStudentId: excelStatusByStudentId,
+    });
+  }, [addByStudentMutation, confirm, excelStatusByStudentId, idsToAdd]);
+
   // ── Keyboard shortcut ──────────────────────────────────────────────────────
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (!isOpen) return;
-      if (e.key === "Escape") onClose();
+      if (studentCreateOpen || overlayStudentId != null) return;
       const target = e.target as HTMLElement | null;
       const isFormControl = Boolean(
         target
@@ -701,12 +805,20 @@ export default function SessionEnrollModal({
           || target.isContentEditable
         )
       );
-      if (e.key === "Enter" && !isFormControl && !excelPendingFile && idsToAdd.length > 0 && !addByStudentMutation.isPending && !copyFromPrevLoading && !copyFromLectureLoading) {
+      if (e.key === "Escape") {
         e.preventDefault();
-        addByStudentMutation.mutate({
-          studentIds: idsToAdd,
-          statusByStudentId: excelStatusByStudentId,
-        });
+        void requestClose();
+        return;
+      }
+      if (!isFormControl && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) redoSelection();
+        else undoSelection();
+        return;
+      }
+      if (!isFormControl && (e.ctrlKey || e.metaKey) && e.key === "Enter" && !excelPendingFile && idsToAdd.length > 0 && !addByStudentMutation.isPending && !copyFromPrevLoading && !copyFromLectureLoading) {
+        e.preventDefault();
+        void handleAddSelected();
       }
     }
     window.addEventListener("keydown", onKeyDown);
@@ -714,12 +826,16 @@ export default function SessionEnrollModal({
   }, [
     isOpen,
     idsToAdd,
-    excelStatusByStudentId,
     addByStudentMutation,
     copyFromLectureLoading,
     copyFromPrevLoading,
     excelPendingFile,
-    onClose,
+    handleAddSelected,
+    overlayStudentId,
+    redoSelection,
+    requestClose,
+    studentCreateOpen,
+    undoSelection,
   ]);
 
   // ── Early return ───────────────────────────────────────────────────────────
@@ -728,11 +844,11 @@ export default function SessionEnrollModal({
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
-      <AdminModal open={true} onClose={onClose} type="action" width={840}>
+      <AdminModal open={true} onClose={() => { void requestClose(); }} type="action" width={840}>
         <ModalHeader
           type="action"
           title="차시 수강생 등록"
-          description="기존 학생을 선택해 추가하거나, 신규 학생을 등록한 뒤 차시에 포함할 수 있습니다."
+          description="학생을 선택 목록에서 검토한 뒤 등록합니다. 등록된 출결은 자동 현장 처리 없이 '미입력'으로 시작합니다."
         />
 
         <ModalBody>
@@ -845,9 +961,9 @@ export default function SessionEnrollModal({
                             </div>
                             <div className="mt-0.5 text-[11px] text-[var(--color-text-muted)] leading-snug">
                               {prevSession ? (
-                                <>직전 차시(<strong>{formatSessionBlockLabel(prevSession)}</strong>) 수강생을 선택 목록에 추가합니다. 합류·퇴원자는 아래에서 편집 후 '추가'로 등록.</>
+                                <>직전 차시(<strong>{formatSessionBlockLabel(prevSession)}</strong>) 수강생을 선택 목록에 추가합니다. 합류·퇴원자는 아래에서 편집 후 검토·등록합니다.</>
                               ) : (
-                                <>이 강의의 활성 수강생 전원을 선택 목록에 추가합니다. 1차시·새 강의 시작에 추천. 아래에서 편집 후 '추가'로 등록.</>
+                                <>이 강의의 활성 수강생 전원을 선택 목록에 추가합니다. 1차시·새 강의 시작에 추천. 아래에서 편집 후 검토·등록합니다.</>
                               )}
                             </div>
                           </div>
@@ -1240,9 +1356,24 @@ export default function SessionEnrollModal({
                 )}
               </section>
 
-              {/* N명 선택됨 · 선택 해제만 표시 */}
+              <div
+                className="flex items-start gap-2.5 rounded-lg border px-3 py-2.5 shrink-0"
+                style={{
+                  borderColor: "color-mix(in srgb, var(--color-brand-primary) 24%, var(--color-border-divider))",
+                  background: "color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface))",
+                }}
+                aria-label="등록 후 출결 시작 상태"
+              >
+                <AttendanceStatusBadge status="UNSET" variant="2ch" />
+                <span className="min-w-0 text-[11px] leading-[1.45] text-[var(--color-text-secondary)]">
+                  <strong className="block text-[12px] text-[var(--color-text-primary)]">등록 후 출결: 미입력</strong>
+                  등원 뒤 현장·영상·결석을 직접 기록합니다.
+                </span>
+              </div>
+
+              {/* 선택 목록은 서버 저장 전 단계이며, 최근 선택 변경을 되돌릴 수 있다. */}
               <section className="flex flex-col min-h-0 flex-1 overflow-hidden">
-                <div className="flex flex-wrap items-center gap-2 mb-2 shrink-0 pl-0.5">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2 shrink-0 pl-0.5">
                   <span
                     className="text-[13px] font-semibold"
                     style={{
@@ -1251,16 +1382,41 @@ export default function SessionEnrollModal({
                   >
                     {selectedItems.length}명 선택됨
                   </span>
-                  <span className="text-[var(--color-border-divider)]" aria-hidden>|</span>
-                  <Button
-                    intent="secondary"
-                    size="sm"
-                    onClick={() => setSelectedItems([])}
-                    disabled={selectedItems.length === 0}
-                    className="!text-[13px]"
-                  >
-                    전체 해제
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      type="button"
+                      intent="ghost"
+                      size="sm"
+                      onClick={undoSelection}
+                      disabled={selectionState.undo.length === 0}
+                      className="!min-w-8 !h-8 !p-0"
+                      aria-label="선택 되돌리기"
+                      title="선택 되돌리기 (Ctrl+Z)"
+                    >
+                      <Undo2 size={15} aria-hidden />
+                    </Button>
+                    <Button
+                      type="button"
+                      intent="ghost"
+                      size="sm"
+                      onClick={redoSelection}
+                      disabled={selectionState.redo.length === 0}
+                      className="!min-w-8 !h-8 !p-0"
+                      aria-label="선택 다시 실행"
+                      title="선택 다시 실행 (Ctrl+Shift+Z)"
+                    >
+                      <Redo2 size={15} aria-hidden />
+                    </Button>
+                    <Button
+                      intent="secondary"
+                      size="sm"
+                      onClick={() => updateSelection(() => [])}
+                      disabled={selectedItems.length === 0}
+                      className="!text-[12px]"
+                    >
+                      전체 해제
+                    </Button>
+                  </div>
                 </div>
                 <div
                   className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-lg border p-2"
@@ -1330,18 +1486,13 @@ export default function SessionEnrollModal({
         <ModalFooter
           right={
             <>
-              <Button intent="secondary" onClick={onClose} className="text-[13px]">
+              <Button intent="secondary" onClick={() => { void requestClose(); }} className="text-[13px]">
                 취소
               </Button>
               <Button
                 intent="primary"
                 className="text-[13px]"
-                onClick={() =>
-                  addByStudentMutation.mutate({
-                    studentIds: idsToAdd,
-                    statusByStudentId: excelStatusByStudentId,
-                  })
-                }
+                onClick={() => { void handleAddSelected(); }}
                 disabled={addByStudentMutation.isPending || copyFromPrevLoading || idsToAdd.length === 0}
                 title={copyFromPrevLoading ? "직전 차시 불러오기 진행 중…" : idsToAdd.length === 0 ? "왼쪽 테이블에서 학생을 선택하세요" : undefined}
               >
@@ -1349,7 +1500,7 @@ export default function SessionEnrollModal({
                   ? "등록 중…"
                   : copyFromPrevLoading
                     ? "불러오는 중…"
-                    : `${idsToAdd.length}명 추가`}
+                    : `${idsToAdd.length}명 검토 후 등록`}
               </Button>
             </>
           }

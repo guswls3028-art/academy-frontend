@@ -17,8 +17,8 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           dotnet-version: 8.0.x
       - name: Build Windows companion release
@@ -37,12 +37,12 @@ jobs:
       VITE_BUILD_VERSION: ${{ github.sha }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           # R-11 changed-files lint step에서 HEAD~1 또는 origin/main 비교 — 충분한 history 필요.
           fetch-depth: 50
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 22
           cache: pnpm
@@ -120,7 +120,7 @@ jobs:
         run: pnpm build
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: deploy-bundle
           path: |
@@ -141,7 +141,7 @@ jobs:
 
     steps:
       - name: Download build artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: deploy-bundle
 
@@ -181,11 +181,26 @@ jobs:
             PREVIEW_BRANCH="production-candidate-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           fi
 
-          npx wrangler@4.93.1 pages deploy dist/ \
-            --project-name="${CLOUDFLARE_PROJECT_NAME}" \
-            --branch="${PREVIEW_BRANCH}" \
-            --commit-hash="${CANDIDATE_SHA}" \
-            --commit-dirty=false
+          PREVIEW_DEPLOYED=false
+          for attempt in 1 2 3; do
+            echo "Cloudflare candidate preview attempt ${attempt}/3"
+            if npx wrangler@4.93.1 pages deploy dist/ \
+              --project-name="${CLOUDFLARE_PROJECT_NAME}" \
+              --branch="${PREVIEW_BRANCH}" \
+              --commit-hash="${CANDIDATE_SHA}" \
+              --commit-dirty=false; then
+              PREVIEW_DEPLOYED=true
+              break
+            fi
+
+            if [ "$attempt" -lt 3 ]; then
+              sleep $((attempt * 30))
+            fi
+          done
+          if [ "${PREVIEW_DEPLOYED}" != "true" ]; then
+            echo "::error::Cloudflare candidate preview failed after 3 attempts"
+            exit 1
+          fi
 
           AUTH=(
             -H "X-Auth-Email: ${CLOUDFLARE_EMAIL}"
@@ -313,7 +328,7 @@ jobs:
 
     steps:
       - name: Download build artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: deploy-bundle
 
@@ -754,14 +769,14 @@ jobs:
       E2E_STRICT: strict
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Download deployed bundle metadata
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: deploy-bundle
           path: .deploy-bundle
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 22
           cache: pnpm
@@ -875,7 +890,7 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: playwright-report
           path: playwright-report/
@@ -884,7 +899,7 @@ jobs:
 
       - name: Upload test traces
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: playwright-traces
           path: test-results/
