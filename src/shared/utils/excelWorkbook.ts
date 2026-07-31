@@ -1,6 +1,7 @@
 // PATH: src/shared/utils/excelWorkbook.ts
 import * as ExcelJS from "exceljs";
 import { downloadBlob } from "@/shared/utils/safeDownload";
+import { loadImportWorkbook, MAX_IMPORT_BYTES } from "@/shared/utils/excelImport";
 
 export type ExcelCell = string | number | boolean | Date | null | undefined;
 export type ExcelRow = ExcelCell[];
@@ -52,9 +53,12 @@ export async function readFirstWorksheetRows(file: File): Promise<unknown[][]> {
   if (!/\.xlsx$/i.test(file.name)) {
     throw new Error("보안상 .xlsx 파일만 지원합니다. 구형 .xls 또는 .csv 파일은 .xlsx로 저장한 뒤 업로드해 주세요.");
   }
+  if (file.size > MAX_IMPORT_BYTES) {
+    throw new Error("엑셀 파일은 최대 20MB까지 업로드할 수 있습니다.");
+  }
 
-  const workbook = createWorkbook();
-  await workbook.xlsx.load(await file.arrayBuffer());
+  const source = await file.arrayBuffer();
+  const workbook = await loadImportWorkbook(source);
   const worksheet = workbook.worksheets[0];
   if (!worksheet) {
     throw new Error("시트가 없습니다.");

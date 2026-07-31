@@ -24,6 +24,11 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import KakaoAlimtalkPreview from "@/shared/ui/notifications/KakaoAlimtalkPreview";
+import { extractApiError } from "@/shared/utils/extractApiError";
+import {
+  compactGradesPayloadVars,
+  compactGradesPerStudentPayloadVars,
+} from "./scorePayloadVars";
 import {
   fetchMessageTemplates,
   preflightSendMessage,
@@ -475,11 +480,17 @@ export default function SendMessageModal({
     const currentBody = body.trim();
     payload.raw_body = currentBody;
     if (subject.trim()) payload.raw_subject = subject.trim();
-    if (alimtalkExtraVars) payload.alimtalk_extra_vars = alimtalkExtraVars;
+    const payloadExtraVars = effectiveBlockCategory === "grades"
+      ? compactGradesPayloadVars(currentBody, alimtalkExtraVars)
+      : alimtalkExtraVars;
+    if (payloadExtraVars) payload.alimtalk_extra_vars = payloadExtraVars;
     if (scheduledSendAtIso) payload.scheduled_send_at = scheduledSendAtIso;
-    const perStudentVars = recomputePerStudentVarsRef?.current
+    const computedPerStudentVars = recomputePerStudentVarsRef?.current
       ? recomputePerStudentVarsRef.current(currentBody)
       : alimtalkExtraVarsPerStudent;
+    const perStudentVars = effectiveBlockCategory === "grades"
+      ? compactGradesPerStudentPayloadVars(currentBody, computedPerStudentVars)
+      : computedPerStudentVars;
     if (perStudentVars && Object.keys(perStudentVars).length > 0) {
       payload.alimtalk_extra_vars_per_student = perStudentVars;
     }
@@ -522,12 +533,9 @@ export default function SendMessageModal({
         setPreflightResultKey(preflightKey);
       } catch (error: unknown) {
         if (cancelled) return;
-        const detail = error && typeof error === "object" && "response" in error
-          ? (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
-          : null;
         setPreflightResults([]);
         setPreflightResultKey("");
-        setPreflightError(detail || "발송 전 확인에 실패했습니다.");
+        setPreflightError(extractApiError(error, "발송 전 확인에 실패했습니다."));
       } finally {
         if (!cancelled) setPreflightLoading(false);
       }
