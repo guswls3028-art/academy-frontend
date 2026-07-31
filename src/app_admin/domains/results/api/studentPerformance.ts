@@ -4,6 +4,7 @@ export type StudentPerformancePeriod = 30 | 90 | 180 | 365 | "all";
 export type StudentScoreBand = "under_60" | "60_to_79" | "80_plus" | "unscored";
 export type StudentTrendDirection = "up" | "down" | "flat" | "insufficient";
 export type StudentPerformanceSource = "overall" | "academy" | "school" | "mock";
+export type StudentPerformanceSessionType = "all" | "REGULAR" | "SUPPLEMENT";
 
 export type StudentPerformanceSourceSummary = {
   scored_count: number;
@@ -108,6 +109,12 @@ export type StudentPerformanceConsoleResponse = {
     mock_student_count: number;
     verified_school_score_count: number;
     verified_mock_score_count: number;
+    session_type_result_count: {
+      all: number;
+      REGULAR: number;
+      SUPPLEMENT: number;
+      UNCLASSIFIED: number;
+    };
   };
   filter_options: {
     lectures: StudentPerformanceLecture[];
@@ -133,6 +140,7 @@ export type StudentPerformanceConsoleResponse = {
 
 export type StudentPerformanceConsoleFilters = {
   source: StudentPerformanceSource;
+  sessionType: StudentPerformanceSessionType;
   subject: string;
   grade: number | "all";
   scoreBand: StudentScoreBand | "all";
@@ -161,6 +169,7 @@ export async function fetchStudentPerformanceConsole({
         days: period,
         lecture_id: lectureId ?? undefined,
         source: filters.source,
+        session_type: filters.sessionType,
         subject: filters.subject || undefined,
         grade: filters.grade === "all" ? undefined : filters.grade,
         score_band: filters.scoreBand,
@@ -176,6 +185,15 @@ export async function fetchStudentPerformanceConsole({
   );
   return {
     ...response.data,
+    summary: {
+      ...response.data.summary,
+      session_type_result_count: response.data?.summary?.session_type_result_count ?? {
+        all: 0,
+        REGULAR: 0,
+        SUPPLEMENT: 0,
+        UNCLASSIFIED: 0,
+      },
+    },
     filter_options: {
       lectures: Array.isArray(response.data?.filter_options?.lectures)
         ? response.data.filter_options.lectures
