@@ -49,7 +49,8 @@ export default function HomeworkPolicyPanel({ sessionId }: { sessionId: number }
       <div>
         <div className="text-lg font-semibold text-[var(--color-text-primary)]">과제 정책</div>
         <div className="mt-1 text-xs text-[var(--color-text-muted)] leading-relaxed">
-          합격 기준(커트라인)을 설정합니다. 기준 미만이면 불합격 처리되며, 클리닉 보강 대상이 됩니다.
+          이 차시의 모든 과제에 공통으로 적용되는 합격 기준입니다. 점수 기준은 각 과제의 만점을 넘을 수 없고,
+          기준 미만이면 클리닉 보강 대상이 됩니다.
         </div>
       </div>
 

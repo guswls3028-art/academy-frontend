@@ -335,6 +335,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   const redoStackRef = useRef<ScoreEditHistoryEntry[]>([]);
   const lastCommitInvalidRef = useRef(false);
   const liveHistoryKeyRef = useRef<string | null>(null);
+  const homeworkMaxScoreById = useMemo(
+    () => new Map((meta?.homeworks ?? []).map((homework) => [homework.homework_id, homework.max_score])),
+    [meta?.homeworks],
+  );
 
   const applyChangeToDom = useCallback((change: PendingChange) => {
     const setCellText = (el: HTMLElement | null | undefined, value: string) => {
@@ -439,6 +443,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             enrollmentId: p.enrollmentId,
             homeworkId: p.homeworkId,
             score: p.score,
+            maxScore: homeworkMaxScoreById.get(p.homeworkId),
             metaStatus: p.metaStatus ?? undefined,
           });
         }
@@ -464,7 +469,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
       throw new Error(`${failed.length}건의 점수를 저장하지 못했습니다. 입력값은 유지됩니다. 다시 저장해 주세요.`);
     }
     return successCount;
-  }, [applyChangeToDom, qc, sessionId]);
+  }, [applyChangeToDom, homeworkMaxScoreById, qc, sessionId]);
 
   /** 현재 pending 변경 목록 스냅샷 — 자동 저장/복원용 */
   const getPendingSnapshot = useCallback((): PendingChange[] => {
@@ -1773,7 +1778,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   );
                                   return;
                                 }
-                                const maxScore = block?.max_score ?? null;
+                                const maxScore = hw.max_score;
                                 const parsed = parseScoreInput(raw, maxScore);
                                 const max = maxScore != null && maxScore > 0 ? maxScore : 100;
                                 if (parsed != null && parsed >= 0 && parsed <= max) {
@@ -1819,9 +1824,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   );
                                   return;
                                 }
-                                const parsed = parseScoreInput(raw, block?.max_score ?? null);
+                                const parsed = parseScoreInput(raw, hw.max_score);
                                 if (parsed != null) {
-                                  if (!validateScore(parsed, block?.max_score)) {
+                                  if (!validateScore(parsed, hw.max_score)) {
                                     el.innerText = isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "");
                                     return;
                                   }
@@ -1884,9 +1889,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     onRequestMoveDown?.();
                                     return;
                                   }
-                                  const parsed = parseScoreInput(raw, block?.max_score ?? null);
+                                  const parsed = parseScoreInput(raw, hw.max_score);
                                   if (parsed != null) {
-                                    if (!validateScore(parsed, block?.max_score)) {
+                                    if (!validateScore(parsed, hw.max_score)) {
                                       if (el) el.innerText = isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "");
                                       return;
                                     }
@@ -1961,7 +1966,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                             />
                           ) : block ? (
                             <span className={`font-medium ${isNotSubmitted ? "text-[var(--color-text-muted)]" : "text-[var(--color-text-primary)]"}`}>
-                              {isNotSubmitted ? "미제출" : (block?.score != null ? (scoreFormat === "fraction" && (block.max_score ?? hw.max_score) != null ? `${block.score}/${block.max_score ?? hw.max_score}` : `${block.score}`) : "-")}
+                              {isNotSubmitted ? "미제출" : (block?.score != null ? (scoreFormat === "fraction" ? `${block.score}/${hw.max_score}` : `${block.score}`) : "-")}
                             </span>
                           ) : (
                             <span className="text-[var(--color-text-muted)]">-</span>

@@ -12,6 +12,7 @@ export type AssessmentHomeworkListItem = {
   id: number;
   title: string;
   session_id?: number;
+  max_score: number;
 };
 
 export type AssessmentHomeworkCutlineMode = "PERCENT" | "COUNT";
@@ -72,6 +73,9 @@ export async function fetchAssessmentHomeworks(params?: {
       id: Number(record.id),
       title: String(record.title ?? ""),
       session_id: asPositiveNumber(sid) ?? undefined,
+      max_score: asPositiveNumber(
+        record.max_score ?? asRecord(record.meta).default_max_score,
+      ) ?? 100,
     };
   });
 }

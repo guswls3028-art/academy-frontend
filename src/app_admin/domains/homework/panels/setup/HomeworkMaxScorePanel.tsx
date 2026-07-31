@@ -9,16 +9,18 @@ import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { feedback } from "@/shared/ui/feedback/feedback";
-import api from "@/shared/api/axios";
 import { useAdminHomework } from "../../hooks/useAdminHomework";
+import { updateAdminHomework } from "../../api/adminHomework";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { QUERY_KEYS } from "../../queryKeys";
+import { assessmentQueryKeys } from "@/shared/api/queryKeys/assessments";
+import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 
 export default function HomeworkMaxScorePanel({ homeworkId }: { homeworkId: number }) {
   const qc = useQueryClient();
   const { data: homework } = useAdminHomework(homeworkId);
   const homeworkRecordId = homework?.id;
-  const homeworkDefaultMaxScore = homework?.default_max_score;
+  const homeworkDefaultMaxScore = homework?.max_score ?? homework?.default_max_score;
 
   const [maxScore, setMaxScore] = useState<number | "">("");
   const [savedMaxScore, setSavedMaxScore] = useState<number | "">("");
@@ -36,11 +38,18 @@ export default function HomeworkMaxScorePanel({ homeworkId }: { homeworkId: numb
 
   const patchMut = useMutation({
     mutationFn: async (next: number) => {
-      const meta = { ...(homework?.meta ?? {}), default_max_score: next };
-      await api.patch(`/homeworks/${homeworkId}/`, { meta });
+      await updateAdminHomework(homeworkId, { max_score: next });
     },
     onSuccess: async (_, next) => {
-      await qc.invalidateQueries({ queryKey: QUERY_KEYS.ADMIN_HOMEWORK(homeworkId) });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: QUERY_KEYS.ADMIN_HOMEWORK(homeworkId) }),
+        homework?.session_id
+          ? qc.invalidateQueries({ queryKey: assessmentQueryKeys.sessionHomeworks(homework.session_id) })
+          : Promise.resolve(),
+        homework?.session_id
+          ? qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(homework.session_id) })
+          : Promise.resolve(),
+      ]);
       setSavedMaxScore(next);
       feedback.success(`만점이 ${next}점으로 저장되었습니다.`);
     },
@@ -65,7 +74,7 @@ export default function HomeworkMaxScorePanel({ homeworkId }: { homeworkId: numb
       <div className="border-b border-[var(--border-divider)] px-4 py-3">
         <div className="text-sm font-semibold text-[var(--text-primary)]">과제 만점</div>
         <div className="mt-0.5 text-xs text-[var(--text-muted)] leading-relaxed">
-          채점 시 입력한 점수를 이 만점 기준으로 백분율 환산합니다. (예: 만점 20점 · 입력 18점 → 90%)
+          이 과제의 성적표 분모이자 백분율 환산 기준입니다. (예: 만점 20점 · 입력 18점 → 18/20 · 90%)
         </div>
       </div>
 

@@ -42,6 +42,7 @@ type Props = {
 type HomeworkItem = {
   id: number;
   title: string;
+  maxScore: number;
 };
 
 type AssessmentKind = "exam" | "homework";
@@ -376,6 +377,7 @@ export default function SessionAssessmentSidePanel({
       return rows.map((homework) => ({
         id: Number(homework.id),
         title: homework.title,
+        maxScore: homework.max_score,
       }));
     },
     enabled: !!sessionId,
@@ -616,6 +618,7 @@ export default function SessionAssessmentSidePanel({
                 key={hw.id}
                 active={active}
                 label={hw.title}
+                maxScore={hw.maxScore}
                 cutlineMode={cutlineMode}
                 cutlineValue={cutlineValue}
                 onSelect={() => onSelectHomework(hw.id)}
@@ -696,12 +699,14 @@ function ExamItemCard({
 function HomeworkItemCard({
   active,
   label,
+  maxScore,
   cutlineMode,
   cutlineValue,
   onSelect,
 }: {
   active: boolean;
   label: string;
+  maxScore: number;
   cutlineMode: "PERCENT" | "COUNT";
   cutlineValue: number;
   onSelect: () => void;
@@ -721,7 +726,7 @@ function HomeworkItemCard({
       <div style={S.cardTopRow}>
         <div style={S.cardTitle} title={label}>{label}</div>
       </div>
-      <div style={S.cardMeta}>{metaLabel}</div>
+      <div style={S.cardMeta}>만점 {maxScore}점 · {metaLabel}</div>
     </button>
   );
 }
