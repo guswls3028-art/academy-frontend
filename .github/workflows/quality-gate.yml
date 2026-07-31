@@ -10,6 +10,9 @@ concurrency:
   group: frontend-quality-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   hangul-companion-check:
     name: Hangul companion Windows COM contract
@@ -133,6 +136,7 @@ jobs:
   candidate-preview:
     name: Cloudflare candidate preview
     runs-on: ubuntu-latest
+    environment: preview
     timeout-minutes: 15
     needs: [quality-check, hangul-companion-check]
     if: >-
@@ -163,8 +167,7 @@ jobs:
 
       - name: Deploy and verify isolated preview
         env:
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
-          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PREVIEW_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_PROJECT_NAME: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
           CANDIDATE_SHA: ${{ github.sha }}
@@ -203,8 +206,7 @@ jobs:
           fi
 
           AUTH=(
-            -H "X-Auth-Email: ${CLOUDFLARE_EMAIL}"
-            -H "X-Auth-Key: ${CLOUDFLARE_API_KEY}"
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"
           )
           DEPLOYMENTS_API="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CLOUDFLARE_PROJECT_NAME}/deployments"
           PREVIEW_URL=""
@@ -318,6 +320,7 @@ jobs:
   deploy:
     name: Deploy to Cloudflare Pages
     runs-on: ubuntu-latest
+    environment: production
     timeout-minutes: 25
     needs: [quality-check, hangul-companion-check, candidate-preview]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -347,16 +350,14 @@ jobs:
       - name: Capture production baseline and deployment ownership
         id: production-baseline
         env:
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
-          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_PROJECT_NAME: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           AUTH=(
-            -H "X-Auth-Email: ${CLOUDFLARE_EMAIL}"
-            -H "X-Auth-Key: ${CLOUDFLARE_API_KEY}"
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"
           )
           PROJECT_API="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CLOUDFLARE_PROJECT_NAME}"
           RESPONSE=$(curl --silent --show-error --fail-with-body \
@@ -421,8 +422,7 @@ jobs:
 
       - name: Ensure developer console custom domain
         env:
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
-          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_INFRA_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_PROJECT_NAME: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
         run: |
@@ -430,8 +430,7 @@ jobs:
           DOMAIN="dev.hakwonplus.com"
           API="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CLOUDFLARE_PROJECT_NAME}/domains"
           AUTH=(
-            -H "X-Auth-Email: ${CLOUDFLARE_EMAIL}"
-            -H "X-Auth-Key: ${CLOUDFLARE_API_KEY}"
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}"
             -H "Content-Type: application/json"
           )
 
@@ -566,8 +565,7 @@ jobs:
 
           exit 1
         env:
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
-          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Verify production revision propagation
@@ -715,8 +713,7 @@ jobs:
       - name: Roll back production after a failed post-deploy check
         if: failure() && steps.production-deploy.outcome == 'success'
         env:
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
-          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_PROJECT_NAME: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
           BASELINE_DEPLOYMENT_ID: ${{ steps.production-baseline.outputs.deployment_id }}
@@ -726,8 +723,7 @@ jobs:
           ROLLBACK_API="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CLOUDFLARE_PROJECT_NAME}/deployments/${BASELINE_DEPLOYMENT_ID}/rollback"
           RESPONSE=$(curl --silent --show-error --fail-with-body \
             -X POST \
-            -H "X-Auth-Email: ${CLOUDFLARE_EMAIL}" \
-            -H "X-Auth-Key: ${CLOUDFLARE_API_KEY}" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
             "${ROLLBACK_API}")
           if ! jq -e '.success == true' >/dev/null <<<"${RESPONSE}"; then
             echo "::error::Cloudflare Pages rollback request failed"
@@ -767,6 +763,7 @@ jobs:
       # 운영 side effect 없는 왕복 회귀와 session assessment는 strict 모드 적용 —
       # 배포 후 검증이라 console error 발견 시 즉시 fail 해야 함.
       E2E_STRICT: strict
+      E2E_ALLOW_PRODUCTION_WRITES: "1"
 
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -909,6 +906,7 @@ jobs:
   rollback-on-e2e-failure:
     name: Roll back failed production candidate
     runs-on: ubuntu-latest
+    environment: production-rollback
     timeout-minutes: 10
     needs: [deploy, e2e-roundtrip]
     if: >-
@@ -919,8 +917,7 @@ jobs:
     steps:
       - name: Restore pre-deploy Cloudflare Pages version
         env:
-          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
-          CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PRODUCTION_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_PROJECT_NAME: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
           BASELINE_DEPLOYMENT_ID: ${{ needs.deploy.outputs.baseline_deployment_id }}
@@ -934,8 +931,7 @@ jobs:
           ROLLBACK_API="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${CLOUDFLARE_PROJECT_NAME}/deployments/${BASELINE_DEPLOYMENT_ID}/rollback"
           RESPONSE=$(curl --silent --show-error --fail-with-body \
             -X POST \
-            -H "X-Auth-Email: ${CLOUDFLARE_EMAIL}" \
-            -H "X-Auth-Key: ${CLOUDFLARE_API_KEY}" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
             "${ROLLBACK_API}")
           if ! jq -e '.success == true' >/dev/null <<<"${RESPONSE}"; then
             echo "::error::Cloudflare Pages rollback request failed"

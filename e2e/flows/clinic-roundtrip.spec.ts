@@ -4,13 +4,17 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import type { Page, Browser } from "@playwright/test";
-import { loginViaUI, getBaseUrl } from "../helpers/auth";
+import { loginViaUI, getApiBaseUrl, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
+import { productionWriteOptInSkipReason } from "../helpers/safety";
 
 const BASE = getBaseUrl("admin");
+const PRODUCTION_WRITE_BLOCK = productionWriteOptInSkipReason(getApiBaseUrl());
 const TS = Date.now();
 
 test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
+  test.skip(Boolean(PRODUCTION_WRITE_BLOCK), PRODUCTION_WRITE_BLOCK ?? "");
+
   let browser: Browser;
   let adminPage: Page;
   let studentPage: Page;

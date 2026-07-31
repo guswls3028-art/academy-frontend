@@ -7,12 +7,13 @@
   "pnpm": {
     "overrides": {
       "@jridgewell/gen-mapping": "0.3.7",
-      "brace-expansion@1": "1.1.16",
-      "brace-expansion@2": "2.1.2",
-      "brace-expansion@>=5": "5.0.8",
+      "brace-expansion@1": "1.1.18",
+      "brace-expansion@2": "2.1.4",
+      "brace-expansion@>=5": "5.0.9",
       "form-data": "4.0.6",
       "linkify-it": "5.0.2",
       "markdown-it": "14.3.0",
+      "js-yaml": "4.3.0",
       "uuid": "11.1.1"
     }
   },
@@ -20,8 +21,9 @@
     "dev": "vite",
     "dev:remote": "env-cmd -f .env.remote vite",
     "build": "vite build && node scripts/check-bundle-budgets.mjs && node scripts/ensure-spa-mode.js",
-    "guard:legacy-api": "node scripts/guard-legacy-api-routes.mjs && node scripts/guard-workspace-route-names.mjs && node scripts/guard-staff-mobile-contract.mjs && node scripts/guard-messaging-policy.mjs && pnpm guard:e2e-safety && pnpm guard:runtime-recovery",
+    "guard:legacy-api": "node scripts/guard-legacy-api-routes.mjs && node scripts/guard-workspace-route-names.mjs && node scripts/guard-staff-mobile-contract.mjs && node scripts/guard-messaging-policy.mjs && pnpm guard:e2e-safety && pnpm guard:deployment-governance && pnpm guard:runtime-recovery",
     "guard:e2e-safety": "node scripts/guard-e2e-safety.mjs && node scripts/guard-strict-e2e-imports.mjs",
+    "guard:deployment-governance": "node scripts/guard-deployment-governance.mjs",
     "guard:runtime-recovery": "node --test scripts/tests/chunk-load-error.test.mjs scripts/tests/workspace-deployment-contract.test.mjs",
     "verify:student-routes": "node scripts/verify-student-routes.mjs",
     "verify:teacher-routes": "node scripts/verify-teacher-routes.mjs",
@@ -38,8 +40,8 @@
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "test:e2e:canary": "playwright test e2e/smoke/production-canary.spec.ts --project=chromium --reporter=list",
-    "test:e2e:gate": "playwright test e2e/admin/01-login-dashboard.spec.ts e2e/student/01-login-dashboard.spec.ts e2e/smoke/smoke.spec.ts e2e/auth/account-recovery-modal.spec.ts e2e/auth/first-login-guide.mock.spec.ts e2e/flows/notice-roundtrip.spec.ts e2e/flows/qna-roundtrip.spec.ts e2e/flows/clinic-roundtrip.spec.ts e2e/flows/password-reset-roundtrip.spec.ts e2e/admin/student-custom-columns.mock.spec.ts",
-    "test:e2e:release": "playwright test e2e/shared/e2e-safety-policy.spec.ts e2e/admin/01-login-dashboard.spec.ts e2e/student/01-login-dashboard.spec.ts e2e/smoke/smoke.spec.ts e2e/auth/account-recovery-modal.spec.ts e2e/auth/first-login-guide.mock.spec.ts e2e/flows/notice-roundtrip.spec.ts e2e/flows/qna-roundtrip.spec.ts e2e/flows/clinic-roundtrip.spec.ts e2e/admin/student-custom-columns.mock.spec.ts e2e/admin/session-assessment-realuse.spec.ts e2e/smoke/deep-operational-smoke.spec.ts e2e/smoke/production-canary.spec.ts e2e/student/student-domain-guardrails.spec.ts e2e/promo-pricing-single-plan.spec.ts e2e/refactor/promo-router.spec.ts e2e/refactor/landing-router.spec.ts e2e/admin/manual-exam-grading.mock.spec.ts e2e/admin/staff-operations-contract.mock.spec.ts e2e/admin/score-entry-autosave.spec.ts e2e/admin/individual-score-report.spec.ts e2e/admin/student-score-trend.spec.ts e2e/student/reported-score-submission.spec.ts e2e/teacher/attendance-undo-secession-local.spec.ts e2e/student/video-player-mobile-controls.spec.ts e2e/student/video-cdn-service-error.mock.spec.ts e2e/student/03-public-video-refactor.spec.ts e2e/flows/homework-scores-inventory-data-flow.spec.ts e2e/flows/video-session-data-flow.spec.ts",
+    "test:e2e:gate": "playwright test e2e/shared/e2e-safety-policy.spec.ts e2e/admin/01-login-dashboard.spec.ts e2e/student/01-login-dashboard.spec.ts e2e/smoke/smoke.spec.ts e2e/auth/account-recovery-modal.spec.ts e2e/auth/first-login-guide.mock.spec.ts e2e/admin/student-custom-columns.mock.spec.ts",
+    "test:e2e:release": "playwright test e2e/shared/e2e-safety-policy.spec.ts e2e/admin/01-login-dashboard.spec.ts e2e/student/01-login-dashboard.spec.ts e2e/smoke/smoke.spec.ts e2e/auth/account-recovery-modal.spec.ts e2e/auth/first-login-guide.mock.spec.ts e2e/admin/student-custom-columns.mock.spec.ts e2e/smoke/deep-operational-smoke.spec.ts e2e/smoke/production-canary.spec.ts e2e/student/student-domain-guardrails.spec.ts e2e/promo-pricing-single-plan.spec.ts e2e/refactor/promo-router.spec.ts e2e/refactor/landing-router.spec.ts e2e/admin/manual-exam-grading.mock.spec.ts e2e/admin/staff-operations-contract.mock.spec.ts e2e/admin/score-entry-autosave.spec.ts e2e/admin/individual-score-report.spec.ts e2e/admin/student-score-trend.spec.ts e2e/student/reported-score-submission.spec.ts e2e/teacher/attendance-undo-secession-local.spec.ts e2e/student/video-player-mobile-controls.spec.ts e2e/student/video-cdn-service-error.mock.spec.ts e2e/student/03-public-video-refactor.spec.ts e2e/flows/homework-scores-inventory-data-flow.spec.ts e2e/flows/video-session-data-flow.spec.ts",
     "test:e2e:landing-routes": "playwright test e2e/refactor/landing-router.spec.ts",
     "test:e2e:visual-audit": "playwright test e2e/visual/design-system-route-audit.spec.ts --project=chromium --reporter=list",
     "test:e2e:local": "playwright test e2e/_local/",
@@ -99,10 +101,10 @@
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.18",
     "globals": "^15.14.0",
-    "postcss": "8",
+    "postcss": "8.5.18",
     "tailwindcss": "4.1.18",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.22.0",
-    "vite": "^6.1.0"
+    "vite": "^6.4.3"
   }
 }

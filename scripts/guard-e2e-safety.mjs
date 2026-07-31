@@ -4,6 +4,15 @@ import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const pullRequestGateAllowlist = new Set([
+  "e2e/shared/e2e-safety-policy.spec.ts",
+  "e2e/admin/01-login-dashboard.spec.ts",
+  "e2e/student/01-login-dashboard.spec.ts",
+  "e2e/smoke/smoke.spec.ts",
+  "e2e/auth/account-recovery-modal.spec.ts",
+  "e2e/auth/first-login-guide.mock.spec.ts",
+  "e2e/admin/student-custom-columns.mock.spec.ts",
+]);
 const requirements = new Map([
   ["e2e/stability/controlled-real-alimtalk-send.spec.ts", "realMessagingSkipReason"],
   ["e2e/admin/12-clinic-trigger-real.spec.ts", "productionTriggerMutationSkipReason"],
@@ -12,9 +21,31 @@ const requirements = new Map([
   ["e2e/admin/dnb-student-app.spec.ts", "nonPrimaryTenantWriteSkipReason"],
   ["e2e/flows/real-scenario.spec.ts", "productionUnisolatedScenarioSkipReason"],
   ["e2e/flows/password-reset-roundtrip.spec.ts", "productionMultiNoticeFlowSkipReason"],
+  ["e2e/flows/notice-roundtrip.spec.ts", "productionWriteOptInSkipReason"],
+  ["e2e/flows/qna-roundtrip.spec.ts", "productionWriteOptInSkipReason"],
+  ["e2e/flows/clinic-roundtrip.spec.ts", "productionWriteOptInSkipReason"],
+  ["e2e/admin/session-assessment-realuse.spec.ts", "productionWriteOptInSkipReason"],
 ]);
 
 const failures = [];
+const packageJson = JSON.parse(
+  fs.readFileSync(path.join(root, "package.json"), "utf8"),
+);
+const gateSpecs = String(packageJson.scripts?.["test:e2e:gate"] ?? "")
+  .match(/e2e\/[^\s]+\.spec\.ts/g) ?? [];
+if (gateSpecs.length === 0) {
+  failures.push("package.json: test:e2e:gate must name its reviewed PR specs explicitly");
+}
+for (const spec of gateSpecs) {
+  if (!pullRequestGateAllowlist.has(spec)) {
+    failures.push(`${spec}: production-backed PR gate allows only reviewed login, read-only, or mock specs`);
+  }
+}
+for (const required of pullRequestGateAllowlist) {
+  if (!gateSpecs.includes(required)) {
+    failures.push(`package.json: test:e2e:gate is missing reviewed safe spec ${required}`);
+  }
+}
 const forbiddenCredentialHashes = new Set([
   // Former production E2E credential. Keep only the irreversible digest here.
   "45f607ae5d71d23397806a772cc3f7002b1ca91d049db22166fcd5ea540c8543",

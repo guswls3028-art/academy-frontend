@@ -26,10 +26,16 @@ export default function StaffRoutes() {
         <Route path="payroll-snapshot" element={renderLazyRoute(PayrollSnapshotPage)} />
         <Route path="reports" element={renderLazyRoute(ReportsPage)} />
         <Route path="settings" element={renderLazyRoute(StaffSettingsPage)} />
+        <Route
+          path=":staffId/*"
+          element={
+            <>
+              {renderLazyRoute(HomePage)}
+              {renderLazyRoute(StaffDetailOverlay)}
+            </>
+          }
+        />
       </Route>
-
-      {/* 직원 상세는 레이아웃 분리 (Overlay 성격) */}
-      <Route path=":staffId/*" element={renderLazyRoute(StaffDetailOverlay)} />
     </Routes>
   );
 }

@@ -4,16 +4,20 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import type { Page, Browser } from "@playwright/test";
-import { loginViaUI, getBaseUrl } from "../helpers/auth";
+import { loginViaUI, getApiBaseUrl, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
+import { productionWriteOptInSkipReason } from "../helpers/safety";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 
 const BASE = getBaseUrl("admin");
+const PRODUCTION_WRITE_BLOCK = productionWriteOptInSkipReason(getApiBaseUrl());
 const TS = Date.now();
 const TITLE = `[E2E] 공지 ${TS}`;
 const CONTENT = `E2E 자동 공지 테스트 본문 (${TS})`;
 
 test.describe.serial("공지 왕복: 선생→학생", () => {
+  test.skip(Boolean(PRODUCTION_WRITE_BLOCK), PRODUCTION_WRITE_BLOCK ?? "");
+
   let browser: Browser;
   let adminPage: Page;
   let studentPage: Page;

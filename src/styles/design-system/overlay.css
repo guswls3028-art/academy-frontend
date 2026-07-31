@@ -439,12 +439,26 @@
   box-sizing: border-box;
 }
 
-/* 직원 상세: 탭 많아서 패널 너비 확대 + 높이 제한으로 하단 잘림 방지 */
+/* 직원 상세: 학생 상세와 같은 고정 헤더 + 단일 본문 스크롤 */
 .ds-overlay-panel--staff-detail {
   max-width: 1200px;
-  max-height: calc(100vh - 48px);
+  max-height: calc(100vh - var(--panel-header, 64px) - var(--notice-banner-height, 0px) - 24px);
   display: flex;
   flex-direction: column;
+}
+
+.ds-overlay-panel--staff-detail .ds-overlay-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.ds-overlay-panel--staff-detail .ds-overlay-body__grid {
+  height: auto;
+  align-items: start;
 }
 
 .ds-overlay-lock-banner {
@@ -527,6 +541,31 @@
     padding-right: 0;
     overflow-y: visible;
     overflow-x: clip;
+  }
+
+  .ds-overlay-panel--staff-detail {
+    max-height: calc(100dvh - var(--panel-header, 64px) - var(--notice-banner-height, 0px) - 16px);
+  }
+
+  .ds-overlay-panel--staff-detail .ds-overlay-content-panel {
+    order: -1;
+  }
+
+  .ds-overlay-panel--staff-detail .ds-overlay-tabs {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+
+  .ds-overlay-panel--staff-detail .ds-overlay-tabs .ds-tabs {
+    width: max-content;
+    min-width: 100%;
+  }
+
+  .ds-overlay-panel--staff-detail .ds-overlay-tabs .ds-tab {
+    flex: 0 0 auto;
+    min-width: 88px;
+    white-space: nowrap;
   }
 }
 

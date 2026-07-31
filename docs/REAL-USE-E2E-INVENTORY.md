@@ -29,9 +29,9 @@
 
 | 위치 | 현재 역할 | 한계 |
 |------|-----------|------|
-| `package.json` `test:e2e:gate` | 로그인, smoke, 계정복구, notice/qna/clinic/password, tenant isolation | 강의 생성, 차시 생성, 시험/과제 생성, 영상, 클리닉 판별까지는 닫지 않음 |
-| `.github/workflows/quality-gate.yml` `e2e-roundtrip` | 배포 후 notice/qna/clinic/password/session-assessment | `session-assessment`는 read-only 버튼/모달 중심. 실제 시험/과제 생성과 학생 제출은 아님 |
-| `.github/workflows/e2e.yml` | PR 빠른 gate. 수동 실행은 `test:e2e:release` 유지보수 묶음, 선택적 통제 쓰기 canary, desktop admin/dev·student mobile·teacher mobile 전 메뉴 감사를 실행 | 같은 운영 E2E tenant의 인증 throttle/상호 간섭을 피하려고 직렬 실행. 유지보수 묶음과 선택한 쓰기 canary, 역할별 감사 3개가 모두 성공해야 해당 수동 실행을 통과로 기록 |
+| `package.json` `test:e2e:gate` | PR용 production safety policy, 로그인, smoke, mock 계정복구/first-login/custom-columns | 운영 API를 사용해도 인증 외 product row mutation을 소유하지 않음. exact allowlist를 `guard-e2e-safety.mjs`가 강제 |
+| `.github/workflows/quality-gate.yml` `e2e-roundtrip` | 승인된 main 배포 후 notice/qna/clinic/session-assessment bounded write canary | production baseline과 자동 rollback에 연결된 배포 후 전용 경로. 실제 시험/과제 생성과 학생 제출은 아님 |
+| `.github/workflows/e2e.yml` | PR safe gate. 수동 기본은 read-only/mock 유지보수 묶음과 역할별 메뉴 감사, 명시적 옵션만 통제 쓰기 canary | `controlled_write_canaries=true`에서만 notice/qna/clinic/password/session-assessment와 fixture 생성 spec을 추가. 같은 운영 tenant 간섭을 피하려고 직렬 실행 |
 
 ### 2.1 릴리스 묶음과 역사성 자산의 경계
 
@@ -41,11 +41,12 @@
 스냅샷과 현재 런타임 계약이 섞여 있었다. 따라서 활성 spec 파일 수나 과거 spec
 전체 실행을 릴리스 합격 기준으로 사용하지 않는다.
 
-- `pnpm test:e2e:release`는 반복 유지하는 로그인·권한·공지/QnA/클리닉·성적·
-  출결·영상·공개 CTA·오류 상태·모바일 guardrail·현재 기능 route-mock을 실행한다.
+- `pnpm test:e2e:release`는 반복 유지하는 로그인·권한·읽기 전용 성적·출결·
+  영상·공개 CTA·오류 상태·모바일 guardrail·현재 기능 route-mock을 실행한다.
 - 데이터가 필요한 차시/평가 read-only 흐름은 데이터가 없으면 skip하지 않고
   실패한다.
-- 가입/계정복구 실발송과 학생 fixture를 만드는 OMR·과제·클리닉은 workflow의
+- notice/QnA/clinic/password/session-assessment, 가입/계정복구 실발송과 학생
+  fixture를 만드는 OMR·과제·클리닉은 workflow의
   `controlled_write_canaries=true`에서만 통제 번호와 소유 ID cleanup으로 실행한다.
 - 통제 쓰기는 Playwright 재시도를 금지하고, 공유 운영 관리자 로그인은 공용
   429 backoff helper를 사용한다. OMR·클리닉 결과 이력은 삭제 보호로 archive될 수 있으므로

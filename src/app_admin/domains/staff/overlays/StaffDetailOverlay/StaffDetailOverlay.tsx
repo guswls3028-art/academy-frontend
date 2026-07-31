@@ -1,9 +1,9 @@
 // PATH: src/app_admin/domains/staff/overlays/StaffDetailOverlay/StaffDetailOverlay.tsx
 // Design SSOT: 학생 상세 오버레이와 동일한 ds-overlay-* 구조 (overlay.css)
 
-import { useParams, useNavigate, Navigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 import {
@@ -102,11 +102,21 @@ function staffAvatarRole(
   return "ASSISTANT";
 }
 
-export default function StaffDetailOverlay() {
-  const { staffId } = useParams();
+type StaffDetailOverlayProps = {
+  /** 목록 라우트 위에 띄울 때 전달. 없으면 URL의 staffId를 사용한다. */
+  staffId?: number;
+  onClose?: () => void;
+};
+
+export default function StaffDetailOverlay({
+  staffId,
+  onClose: closeOverride,
+}: StaffDetailOverlayProps = {}) {
+  const routeParams = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const qc = useQueryClient();
-  const sid = Number(staffId);
+  const sid = staffId ?? Number(routeParams.staffId);
   const [tab, setTab] = useState("summary");
   const [editOpen, setEditOpen] = useState(false);
 
@@ -114,7 +124,25 @@ export default function StaffDetailOverlay() {
   useEffect(() => { setTab("summary"); }, [sid]);
   const confirm = useConfirm();
   const deleteMutation = useDeleteStaff();
-  const onClose = () => navigate(-1);
+  const onClose = useCallback(() => {
+    if (closeOverride) {
+      closeOverride();
+      return;
+    }
+    if (location.key === "default") {
+      navigate("/workspace/staff/home", { replace: true });
+      return;
+    }
+    navigate(-1);
+  }, [closeOverride, location.key, navigate]);
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
 
   const { y, m, from, to } = getThisMonthRange();
 
@@ -156,8 +184,8 @@ export default function StaffDetailOverlay() {
   if (!sid) return null;
   if (staffQ.isError || meQ.isError) {
     return (
-      <div className="ds-overlay-wrap">
-        <div className="ds-overlay-panel ds-overlay-panel--staff-detail">
+      <StaffDetailShell onClose={onClose}>
+        <div className="ds-overlay-body">
           <EmptyState
             scope="panel"
             tone="error"
@@ -176,13 +204,20 @@ export default function StaffDetailOverlay() {
             }
           />
         </div>
-      </div>
+      </StaffDetailShell>
     );
   }
-  if (!staffQ.data) return null;
+  if (staffQ.isLoading || meQ.isLoading || !staffQ.data || !meQ.data) {
+    return (
+      <StaffDetailShell onClose={onClose}>
+        <div className="ds-overlay-body">
+          <EmptyState scope="panel" tone="loading" title="직원 정보를 불러오는 중…" />
+        </div>
+      </StaffDetailShell>
+    );
+  }
 
   // 권한 확인 완료 전 렌더 차단 — 비관리자에게 급여 데이터 노출 방지
-  if (!meQ.data) return null;
   if (!meQ.data.is_payroll_manager) {
     return <Navigate to="/workspace/dashboard" replace />;
   }
@@ -204,18 +239,7 @@ export default function StaffDetailOverlay() {
 
   return (
     <>
-      <div className="ds-overlay-backdrop" onClick={onClose} aria-hidden />
-
-      <div className="ds-overlay-wrap">
-        <div
-          className="ds-overlay-panel ds-overlay-panel--staff-detail"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="staff-detail-title"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <CloseButton className="ds-overlay-panel__close" onClick={onClose} />
-
+      <StaffDetailShell onClose={onClose}>
           {/* 월 마감 배너 — 학생 오버레이에는 없음, 직원 전용 */}
           {locked && (
             <div
@@ -437,8 +461,7 @@ export default function StaffDetailOverlay() {
               </div>
             </div>
           </div>
-        </div>
-      </div>
+      </StaffDetailShell>
 
       {editOpen &&
         createPortal(
@@ -454,6 +477,33 @@ export default function StaffDetailOverlay() {
           />,
           document.body
         )}
+    </>
+  );
+}
+
+function StaffDetailShell({
+  onClose,
+  children,
+}: {
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <>
+      <div className="ds-overlay-backdrop" onClick={onClose} aria-hidden />
+      <div className="ds-overlay-wrap">
+        <div
+          className="ds-overlay-panel ds-overlay-panel--staff-detail"
+          role="dialog"
+          aria-modal="true"
+          aria-label="직원 상세"
+          data-testid="staff-detail-overlay"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <CloseButton className="ds-overlay-panel__close" onClick={onClose} />
+          {children}
+        </div>
+      </div>
     </>
   );
 }

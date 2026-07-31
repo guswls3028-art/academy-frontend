@@ -27,7 +27,8 @@
 | E2E 테스트 라인 | 전체 TypeScript 기준 `test(` 1,026개, `test.skip(` 124개 |
 | 기존 한계 | skip/annotation/early return/API-assisted 흐름이 많아 실사용 완주 증거로 약함 |
 | 기존 강점 | `e2e/student/score-report-realuse.spec.ts`는 강의->차시->학생->시험->학생 제출->성적 노출까지 깊게 검증 |
-| 배포 후 gate | 격리 Cloudflare preview 검증 후 production baseline을 잡고, 배포 SHA·필수 lazy asset을 3회 연속 확인한 뒤 notice/qna/clinic/password/session-assessment를 실행 |
+| PR gate | production-backed 로그인/read-only/route-mock exact allowlist. notice/qna/clinic/password/session-assessment 쓰기는 포함하지 않음 |
+| 배포 후 gate | 격리 Cloudflare preview 검증과 `production` 승인 후 baseline을 잡고, 배포 SHA·필수 lazy asset을 3회 연속 확인한 뒤 bounded notice/qna/clinic/session-assessment를 실행. 실패 시 baseline rollback |
 | 사용자 가이드 | `frontend/docs/USER-GUIDE-ADMIN.md`, `frontend/docs/USER-GUIDE-STUDENT.md` |
 | 도메인 SSOT | 학생 생성/생명주기: `backend/docs/domain/student-creation.md`, `backend/docs/domain/student-lifecycle.md`; OMR: `backend/docs/domain/omr.md`; 메시징: `backend/docs/domain/messaging.md` |
 
@@ -59,15 +60,16 @@ spec 전체의 trace, video, screenshot 저장은 비활성화한다.
 
 | 레벨 | 목적 | 사용 시점 | 완료 기준 |
 |------|------|-----------|-----------|
-| L0 빠른 회귀 | 배포 직후 핵심 라우트/roundtrip | 매 배포 | `pnpm test:e2e:gate` 또는 CI gate 통과 |
+| L0 빠른 회귀 | PR 로그인/read-only/mock 또는 배포 후 bounded roundtrip | PR/매 배포 | PR `pnpm test:e2e:gate`; 배포는 `e2e-roundtrip`과 rollback 결과까지 통과 |
 | L1 실사용 canary | 운영 핵심 한 바퀴 | 큰 UI/도메인 변경 전후 | 새 데이터 생성, 학생/관리자 반영, cleanup |
 | L2 상품성 리뷰 | UI/UX, 초심자, 비의도 사용 | 출시 전/큰 화면 개편 후 | 스크린샷과 판정표, P0/P1/P2 이슈 분류 |
 | L3 운영 통합 | worker/provider/실발송/장시간 영상 | 영상, 알림톡, worker, 배포 변경 후 | provider/worker 로그와 실제 수신/재생 증거 |
 
 GitHub의 `.github/workflows/e2e.yml`을 수동 실행하면 먼저
-`pnpm test:e2e:release`의 유지보수 대상 실사용 묶음을 실행한다. 요청자가
-`controlled_write_canaries=true`를 명시한 실행만 가입·계정복구 실발송과
-OMR·과제·클리닉 fixture를 통제 번호 및 소유 ID cleanup 경계 안에서 추가
+`pnpm test:e2e:release`의 read-only/mock 유지보수 묶음을 실행한다. 요청자가
+`controlled_write_canaries=true`를 명시한 실행만 notice/QnA/clinic/password/
+session-assessment, 가입·계정복구 실발송과 OMR·과제·클리닉 fixture를 통제
+번호 및 소유 ID cleanup 경계 안에서 추가
 실행한다. 그 뒤 admin/developer desktop, student mobile, teacher mobile 전
 메뉴 감사를 역할별 독립 job으로 직렬 실행한다. 유지보수 묶음, 선택한 통제
 쓰기 canary, 세 감사 job이 모두 성공해야 해당 수동 E2E를 통과로 기록한다.
