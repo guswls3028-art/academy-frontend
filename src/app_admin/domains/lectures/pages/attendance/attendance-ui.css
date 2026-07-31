@@ -82,3 +82,78 @@ button:hover .attendance-status-badge--selected {
 button:active .attendance-status-badge--selected {
   transform: translateY(0);
 }
+
+/* 최근 일괄 출결 작업 — 사용자가 변경 범위와 복구 가능 상태를 즉시 확인한다. */
+.attendance-safety-record {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 28%, var(--color-border-divider));
+  border-left: 3px solid var(--color-brand-primary);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface));
+  box-shadow: 0 1px 2px rgb(15 23 42 / 5%);
+}
+
+.attendance-safety-record__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border-radius: 8px;
+  color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
+}
+
+.attendance-safety-record__copy {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--color-text-primary);
+}
+
+.attendance-safety-record__copy strong {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.attendance-safety-record__copy span {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
+.attendance-safety-record__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.attendance-safety-record__close {
+  min-width: 32px !important;
+  padding-inline: 7px !important;
+}
+
+@media (max-width: 640px) {
+  .attendance-safety-record {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .attendance-safety-record__copy {
+    flex-basis: calc(100% - 48px);
+  }
+
+  .attendance-safety-record__actions {
+    width: 100%;
+    justify-content: flex-end;
+    padding-left: 44px;
+  }
+}

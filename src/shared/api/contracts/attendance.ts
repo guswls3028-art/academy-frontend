@@ -136,7 +136,23 @@ export async function bulkSetPresent(sessionId: number) {
   const res = await api.post("/lectures/attendance/bulk_set_present/", {
     session: sessionId,
   });
-  return res.data as { updated: number; session: number };
+  return res.data as {
+    updated: number;
+    session: number;
+    undo_token: string | null;
+    undo_expires_in: number | null;
+  };
+}
+
+/* =========================================================
+ * 2-3 전체 현장 출석 되돌리기 (서명 토큰 기준 원자 복원)
+ * POST /api/v1/lectures/attendance/bulk_undo_present/
+ * ======================================================= */
+export async function bulkUndoPresent(undoToken: string) {
+  const res = await api.post("/lectures/attendance/bulk_undo_present/", {
+    undo_token: undoToken,
+  });
+  return res.data as { restored: number; session: number };
 }
 
 /* =========================================================

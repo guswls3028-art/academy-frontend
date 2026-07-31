@@ -8,6 +8,7 @@
 | [USER-GUIDE-ADMIN.md](USER-GUIDE-ADMIN.md) | 관리자 앱 사용 가이드 |
 | [USER-GUIDE-STUDENT.md](USER-GUIDE-STUDENT.md) | 학생 앱 사용 가이드 |
 | [GRADING-WRONG-NOTE-WORKFLOW.md](GRADING-WRONG-NOTE-WORKFLOW.md) | 시험명 작업 메뉴, 정오표 입력·반응형 계약, 현재 오답노트 경계와 검증 |
+| [ATTENDANCE-ROSTER-SAFETY.md](ATTENDANCE-ROSTER-SAFETY.md) | 차시 수강생 일괄배정의 미입력 시작, 선택 검토·실행취소, 전체 현장 출석의 원자적 되돌리기 계약 |
 | [REAL-USE-REVIEW-MANUAL.md](REAL-USE-REVIEW-MANUAL.md) | 실제 운영 흐름과 UI/UX 상품성을 함께 점검하는 반복 검수 매뉴얼 |
 | [REAL-USE-E2E-INVENTORY.md](REAL-USE-E2E-INVENTORY.md) | 기존 E2E 자산을 실사용 운영 리뷰 관점으로 분류한 인벤토리 |
 | [DEPLOYMENT-OPERATIONS.md](DEPLOYMENT-OPERATIONS.md) | Cloudflare preview/production/rollback, scoped token, PR 무쓰기 E2E, Actions 공급망 계약 |
@@ -26,6 +27,16 @@
 | 스크립트 | `frontend/scripts/` |
 | 배포 | `origin/main` quality gate → `preview` 격리 검증 → `production` 승인 → 운영 baseline·direct deploy → 운영 E2E/자동 rollback |
 | 백엔드 문서 | `backend/docs/README.md` |
+
+GitHub 저장소의 Action 허용 정책은 third-party action을 태그가 아니라 전체
+40자리 commit SHA로 고정한다. `.github/workflows/e2e.yml`과
+`.github/workflows/quality-gate.yml`은 검토 가능한 버전 주석(` # vN`)을
+함께 남기며, 버전을 올릴 때는 공식 action 저장소의 해당 태그 SHA를 다시
+조회해 모든 사용 위치를 같은 값으로 갱신한다.
+
+Cloudflare Pages 배포는 격리 후보와 운영 배포 모두 최대 3회까지 제한적으로
+재시도하며, 실패 사이에 점증 대기한다. 재시도는 일시적인 Cloudflare API
+5xx만 흡수하고, 후보 SHA·라우팅·정적 자산·운영 버전 검증은 그대로 필수다.
 
 ## E2E 테스트 구조
 

@@ -10,6 +10,7 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
+import { RotateCcw, ShieldCheck, X } from "lucide-react";
 import { useFloatingPosition } from "@/shared/ui/floating/useFloatingPosition";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -18,6 +19,7 @@ import {
   deleteAttendance,
   downloadAttendanceExcel,
   bulkSetPresent,
+  bulkUndoPresent,
 } from "@admin/domains/lectures/api/attendance";
 import api from "@/shared/api/axios";
 import { EmptyState, Button } from "@/shared/ui/ds";
@@ -29,6 +31,7 @@ import AttendanceStatusBadge, { type AttendanceStatus } from "@/shared/ui/badges
 import { ORDERED_ATTENDANCE_STATUS } from "@/shared/ui/badges/attendanceStatus";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
@@ -70,6 +73,12 @@ export default function SessionAttendancePage({
   const { openSendMessageModal } = useSendMessageModal();
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [deleting, setDeleting] = useState(false);
+  const [bulkPresentBusy, setBulkPresentBusy] = useState(false);
+  const [bulkPresentUndo, setBulkPresentUndo] = useState<{
+    token: string;
+    updated: number;
+    expiresIn: number;
+  } | null>(null);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -109,6 +118,10 @@ export default function SessionAttendancePage({
   useEffect(() => {
     setPage(1);
   }, [search, statusFilter]);
+
+  useEffect(() => {
+    setBulkPresentUndo(null);
+  }, [sessionId]);
 
   useEffect(() => {
     if (!statusPopoverOpen) return;
@@ -450,16 +463,48 @@ export default function SessionAttendancePage({
   );
 
   const handleBulkSetPresent = async () => {
-    const ok = await confirm({ title: "확인", message: "모든 학생의 출석 상태를 '현장'으로 설정합니다.", danger: false, confirmText: "확인" });
+    const ok = await confirm({
+      title: "전체 현장 출석으로 바꿀까요?",
+      message: "미입력·결석·지각 등 현재 상태가 있는 학생을 '현장'으로 바꿉니다.\n\n• 이미 현장인 학생은 그대로 유지됩니다.\n• 퇴원·비활성 학생은 변경하지 않습니다.\n• 변경 직후 10분 동안 이전 상태로 되돌릴 수 있습니다.",
+      danger: false,
+      confirmText: "전체 현장 적용",
+    });
     if (!ok) return;
+    setBulkPresentBusy(true);
     try {
       const result = await bulkSetPresent(sessionId);
       qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) });
       qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureId) });
       qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
-      feedback.success(result.updated > 0 ? `${result.updated}명 현장 출석으로 변경` : "이미 전원 현장 출석입니다.");
-    } catch {
-      feedback.error("일괄 출석 변경에 실패했습니다.");
+      if (result.updated > 0 && result.undo_token) {
+        setBulkPresentUndo({
+          token: result.undo_token,
+          updated: result.updated,
+          expiresIn: result.undo_expires_in ?? 600,
+        });
+      }
+      feedback.success(result.updated > 0 ? `${result.updated}명을 현장 출석으로 변경했습니다.` : "이미 전원 현장 출석입니다.");
+    } catch (error) {
+      feedback.error(extractApiError(error, "일괄 출석 변경에 실패했습니다."));
+    } finally {
+      setBulkPresentBusy(false);
+    }
+  };
+
+  const handleBulkUndoPresent = async () => {
+    if (!bulkPresentUndo) return;
+    setBulkPresentBusy(true);
+    try {
+      const result = await bulkUndoPresent(bulkPresentUndo.token);
+      qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) });
+      qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureId) });
+      qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
+      setBulkPresentUndo(null);
+      feedback.success(`${result.restored}명의 이전 출결 상태를 복구했습니다.`);
+    } catch (error) {
+      feedback.error(extractApiError(error, "되돌리기에 실패했습니다. 현재 출결 상태를 확인해 주세요."));
+    } finally {
+      setBulkPresentBusy(false);
     }
   };
 
@@ -481,8 +526,8 @@ export default function SessionAttendancePage({
       >
         결석 알림 발송
       </Button>
-      <Button type="button" intent="secondary" size="sm" onClick={handleBulkSetPresent}>
-        전체 현장 출석
+      <Button type="button" intent="secondary" size="sm" onClick={handleBulkSetPresent} disabled={bulkPresentBusy}>
+        {bulkPresentBusy ? "처리 중…" : "전체 현장 출석"}
       </Button>
       {onOpenEnrollModal && (
         <Button type="button" intent="primary" size="sm" onClick={onOpenEnrollModal}>
@@ -653,6 +698,42 @@ export default function SessionAttendancePage({
         primaryAction={primaryAction}
         belowSlot={selectionBar}
       />
+      {bulkPresentUndo && (
+        <section className="attendance-safety-record" aria-live="polite" aria-label="최근 일괄 출결 작업">
+          <div className="attendance-safety-record__icon" aria-hidden>
+            <ShieldCheck size={18} />
+          </div>
+          <div className="attendance-safety-record__copy">
+            <strong>전체 현장 출석 적용됨</strong>
+            <span>
+              {bulkPresentUndo.updated}명의 기존 상태를 바꿨습니다. 현재 상태가 그대로라면 {Math.max(1, Math.ceil(bulkPresentUndo.expiresIn / 60))}분 안에 복구할 수 있습니다.
+            </span>
+          </div>
+          <div className="attendance-safety-record__actions">
+            <Button
+              type="button"
+              intent="secondary"
+              size="sm"
+              leftIcon={<RotateCcw size={15} />}
+              onClick={handleBulkUndoPresent}
+              disabled={bulkPresentBusy}
+            >
+              {bulkPresentBusy ? "복구 중…" : "되돌리기"}
+            </Button>
+            <Button
+              type="button"
+              intent="ghost"
+              size="sm"
+              onClick={() => setBulkPresentUndo(null)}
+              aria-label="최근 작업 기록 닫기"
+              title="기록 닫기"
+              className="attendance-safety-record__close"
+            >
+              <X size={16} aria-hidden />
+            </Button>
+          </div>
+        </section>
+      )}
       <div className="overflow-x-auto w-full">
         {sorted.length === 0 ? (
           <EmptyState
