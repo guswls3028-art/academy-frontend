@@ -55,6 +55,15 @@ export function productionUnisolatedScenarioSkipReason(apiUrl: string): string |
   return "소유 ID cleanup이 보장되지 않는 시나리오 E2E는 운영 API에서 실행할 수 없습니다.";
 }
 
+export function productionWriteOptInSkipReason(
+  apiUrl: string,
+  optInValue = process.env.E2E_ALLOW_PRODUCTION_WRITES,
+): string | null {
+  if (!isProductionApiUrl(apiUrl)) return null;
+  if (String(optInValue ?? "").trim() === "1") return null;
+  return "운영 쓰기 E2E는 E2E_ALLOW_PRODUCTION_WRITES=1 명시 실행에서만 허용됩니다.";
+}
+
 export function productionMultiNoticeFlowSkipReason(
   apiUrl: string,
   options: {

@@ -53,7 +53,11 @@ pnpm test:e2e:gate
 ```
 
 Production delivery goes through `.github/workflows/quality-gate.yml`.
-Confirm deployed revision and the affected user flow. Ordinary automation uses
+PR E2E is login/read-only/mock only; production writes require the controlled
+manual canary flag or the rollback-bound post-deploy job. Cloudflare uses
+separate preview, production, and infrastructure-scoped API tokens plus
+`preview`, `production`, and `production-rollback` environments. Confirm
+deployed revision, rollback readiness, and the affected user flow. Ordinary automation uses
 repository OIDC/API-token secrets. Explicitly authorized manual work may use
 an already configured AWS account-root or Cloudflare master credential, but
 must never print/copy its value or bypass the quality, direct-deploy,

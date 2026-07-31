@@ -6,6 +6,7 @@ import {
   productionMultiNoticeFlowSkipReason,
   productionTriggerMutationSkipReason,
   productionUnisolatedScenarioSkipReason,
+  productionWriteOptInSkipReason,
   realMessagingSkipReason,
 } from "../helpers/safety";
 
@@ -53,6 +54,15 @@ test.describe("E2E production safety policy", () => {
     expect(
       productionUnisolatedScenarioSkipReason("https://api.hakwonplus.com"),
     ).not.toBeNull();
+    expect(
+      productionWriteOptInSkipReason("https://api.hakwonplus.com", undefined),
+    ).not.toBeNull();
+    expect(
+      productionWriteOptInSkipReason("https://api.hakwonplus.com", "1"),
+    ).toBeNull();
+    expect(
+      productionWriteOptInSkipReason("http://127.0.0.1:8000", undefined),
+    ).toBeNull();
     expect(
       productionMultiNoticeFlowSkipReason("https://api.hakwonplus.com"),
     ).not.toBeNull();

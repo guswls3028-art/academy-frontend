@@ -9,6 +9,7 @@
 | [USER-GUIDE-STUDENT.md](USER-GUIDE-STUDENT.md) | 학생 앱 사용 가이드 |
 | [REAL-USE-REVIEW-MANUAL.md](REAL-USE-REVIEW-MANUAL.md) | 실제 운영 흐름과 UI/UX 상품성을 함께 점검하는 반복 검수 매뉴얼 |
 | [REAL-USE-E2E-INVENTORY.md](REAL-USE-E2E-INVENTORY.md) | 기존 E2E 자산을 실사용 운영 리뷰 관점으로 분류한 인벤토리 |
+| [DEPLOYMENT-OPERATIONS.md](DEPLOYMENT-OPERATIONS.md) | Cloudflare preview/production/rollback, scoped token, PR 무쓰기 E2E, Actions 공급망 계약 |
 | [DEV-INBOX-GUIDE.md](DEV-INBOX-GUIDE.md) | 학원 직원 문의 제출·답변 확인과 플랫폼 문의 처리 가이드 |
 | [TENANT-BRANDING.md](TENANT-BRANDING.md) | 신규 테넌트 로그인·역할별 공용 헤더 브랜딩 계약과 검증표 |
 | [PRODUCT-USAGE-ANALYTICS.md](PRODUCT-USAGE-ANALYTICS.md) | 역할별 화면·CTA·대표 업무 사용 신호와 실패 안전 계약 |
@@ -22,7 +23,7 @@
 |------|------|
 | E2E 테스트 | `frontend/e2e/` |
 | 스크립트 | `frontend/scripts/` |
-| 배포 | `origin/main` quality gate → 격리 preview → 운영 baseline·소유권 확인 → direct deploy → 운영 E2E |
+| 배포 | `origin/main` quality gate → `preview` 격리 검증 → `production` 승인 → 운영 baseline·direct deploy → 운영 E2E/자동 rollback |
 | 백엔드 문서 | `backend/docs/README.md` |
 
 ## E2E 테스트 구조

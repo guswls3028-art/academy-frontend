@@ -32,11 +32,11 @@ jobs:
     # PR 또는 수동 실행에서만 동작 (push에서는 quality-gate.yml이 처리)
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 22
           cache: pnpm
@@ -90,6 +90,7 @@ jobs:
           E2E_STRICT=strict
           # PR/전체 suite는 provider 실발송 금지. 전용 수동 canary만 1로 실행한다.
           E2E_ALLOW_REAL_ALIMTALK=0
+          E2E_ALLOW_PRODUCTION_WRITES=0
           EOF
 
       - name: Run PR E2E gate
@@ -103,6 +104,7 @@ jobs:
       - name: Run opt-in controlled production write canaries
         if: github.event_name == 'workflow_dispatch' && inputs.controlled_write_canaries
         env:
+          E2E_ALLOW_PRODUCTION_WRITES: "1"
           E2E_ALLOW_SIGNUP_APPROVAL_REAL_SEND: "1"
           E2E_SIGNUP_CONTROLLED_PHONE: "01031217466"
           E2E_ALLOW_ACCOUNT_RECOVERY_REAL_SEND: "1"
@@ -117,6 +119,10 @@ jobs:
           e2e/flows/signup-approval-roundtrip.spec.ts
           e2e/auth/account-recovery-realuse.spec.ts
           e2e/flows/password-reset-roundtrip.spec.ts
+          e2e/flows/notice-roundtrip.spec.ts
+          e2e/flows/qna-roundtrip.spec.ts
+          e2e/flows/clinic-roundtrip.spec.ts
+          e2e/admin/session-assessment-realuse.spec.ts
           e2e/admin/omr-review-realuse.spec.ts
           e2e/student/homework-submission-realuse.spec.ts
           e2e/student/clinic-remediation-realuse.spec.ts
@@ -124,7 +130,7 @@ jobs:
 
       - name: Upload report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: playwright-report-maintained-release
           path: |
@@ -135,7 +141,7 @@ jobs:
 
       - name: Upload frontend server log
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: frontend-server-log-maintained-release
           path: /tmp/academy-vite.log
@@ -163,11 +169,11 @@ jobs:
             grep: "선생님 모바일 메뉴/버튼"
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 22
           cache: pnpm
@@ -208,6 +214,7 @@ jobs:
           E2E_STUDENT_PASS=${{ secrets.E2E_STUDENT_PASS }}
           E2E_STRICT=strict
           E2E_ALLOW_REAL_ALIMTALK=0
+          E2E_ALLOW_PRODUCTION_WRITES=0
           EOF
 
       - name: Run exhaustive read-only menu audit
@@ -219,7 +226,7 @@ jobs:
 
       - name: Upload report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: playwright-report-${{ matrix.scope }}
           path: |
@@ -230,7 +237,7 @@ jobs:
 
       - name: Upload frontend server log
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: frontend-server-log-${{ matrix.scope }}
           path: /tmp/academy-vite.log

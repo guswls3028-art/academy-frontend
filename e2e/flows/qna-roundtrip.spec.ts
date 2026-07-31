@@ -6,17 +6,21 @@
  */
 import { test, expect } from "../fixtures/strictTest";
 import type { Page, Browser } from "@playwright/test";
-import { loginViaUI, getBaseUrl } from "../helpers/auth";
+import { loginViaUI, getApiBaseUrl, getBaseUrl } from "../helpers/auth";
 import { apiCall } from "../helpers/api";
+import { productionWriteOptInSkipReason } from "../helpers/safety";
 import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = getBaseUrl("admin");
+const PRODUCTION_WRITE_BLOCK = productionWriteOptInSkipReason(getApiBaseUrl());
 const TIMESTAMP = Date.now();
 const Q_TITLE = `[E2E] QnA 테스트 질문 ${TIMESTAMP}`;
 const Q_CONTENT = `E2E 자동 테스트 — 답변 확인용 (${TIMESTAMP})`;
 const A_CONTENT = `E2E 답변입니다. 확인해주세요. (${TIMESTAMP})`;
 
 test.describe.serial("QnA 왕복: 학생→선생→학생", () => {
+  test.skip(Boolean(PRODUCTION_WRITE_BLOCK), PRODUCTION_WRITE_BLOCK ?? "");
+
   let browser: Browser;
   let studentPage: Page;
   let adminPage: Page;
