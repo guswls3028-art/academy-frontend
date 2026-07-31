@@ -54,12 +54,17 @@ backend `docs/operations/github-governance.md`와
 - 관리자/학생 login dashboard
 - smoke
 - mock account recovery와 first-login guide
-- mock student custom columns
+- 모든 활성 `*.mock.spec.ts`: 직접 채점, 출결 일괄 안전성, 직원 운영,
+  학생 맞춤 컬럼·상세 진입점, 오답노트, 제품 사용 분석, 영상 오류·썸네일,
+  선생님 모바일 답변
+- 과제별 만점과 저장 payload를 검증하는 로컬 성적 입력 계약
 
 notice/QnA/clinic/password/session-assessment처럼 행을 생성·수정하는 spec은 PR
 gate와 기본 `test:e2e:release`에서 제외한다.
 `scripts/guard-e2e-safety.mjs`가 `test:e2e:gate`의 exact allowlist를 검사하므로
 package script에 production-backed 쓰기 spec을 추가하면 CI가 먼저 실패한다.
+`pnpm guard:test-coverage`는 새 활성 `*.mock.spec.ts`가 PR gate에서 빠지거나
+API route interception 없이 등록되면 실패한다.
 PR workflow는 `E2E_ALLOW_PRODUCTION_WRITES=0`을 증거로 남긴다.
 
 운영 쓰기는 두 경로만 허용한다.
