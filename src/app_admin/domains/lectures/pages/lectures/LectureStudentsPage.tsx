@@ -17,6 +17,7 @@ import { adminLectureQueryKeys } from "@admin/domains/lectures/queryKeys";
 
 import AttendanceStatusBadge, { type AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import StudentDetailLink from "@admin/domains/students/components/StudentDetailLink";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainListToolbar, DomainTable, STUDENTS_TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
@@ -345,18 +346,23 @@ export default function LectureStudentsPage() {
                           />
                         </td>
                         <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate align-middle" style={{ width: columnWidths.name ?? STUDENTS_TABLE_COL.name }}>
-                          <StudentNameWithLectureChip
-                            name={row.displayName ?? row.name ?? ""}
-                            profilePhotoUrl={row.profile_photo_url ?? undefined}
-                            avatarSize={24}
-                            lectures={
-                              lecture?.title
-                                ? [{ lectureName: lecture.title, color: lecture.color, chipLabel: lecture.chip_label }]
-                                : undefined
-                            }
-                            chipSize={16}
-                            clinicHighlight={(row as { name_highlight_clinic_target?: boolean }).name_highlight_clinic_target === true}
-                          />
+                          <StudentDetailLink
+                            studentId={row.student_id}
+                            studentName={row.displayName ?? row.name ?? ""}
+                          >
+                            <StudentNameWithLectureChip
+                              name={row.displayName ?? row.name ?? ""}
+                              profilePhotoUrl={row.profile_photo_url ?? undefined}
+                              avatarSize={24}
+                              lectures={
+                                lecture?.title
+                                  ? [{ lectureName: lecture.title, color: lecture.color, chipLabel: lecture.chip_label }]
+                                  : undefined
+                              }
+                              chipSize={16}
+                              clinicHighlight={(row as { name_highlight_clinic_target?: boolean }).name_highlight_clinic_target === true}
+                            />
+                          </StudentDetailLink>
                         </td>
                         <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle" style={{ width: columnWidths.parentPhone ?? STUDENTS_TABLE_COL.parentPhone }}>
                           {formatPhone(row.parent_phone)}

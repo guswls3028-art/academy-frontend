@@ -31,6 +31,7 @@ import {
 import { useClinicTargets } from "@admin/domains/clinic/hooks/useClinicTargets";
 import type { ClinicTarget } from "@admin/domains/clinic/api/clinicTargets";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import StudentDetailLink from "@admin/domains/students/components/StudentDetailLink";
 import { EmptyState, Button } from "@/shared/ui/ds";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { adminSessionQueryKeys } from "../queryKeys";
@@ -56,6 +57,7 @@ interface ClinicSectionGroup {
 
 interface EnrolledStudent {
   enrollmentId: number;
+  studentId?: number;
   studentName: string;
   clinicTarget: ClinicTarget | null;
 }
@@ -157,6 +159,7 @@ export default function SessionClinicTab({
   const enrolledStudents: EnrolledStudent[] = useMemo(
     () => sessionEnrollments.map((se) => ({
       enrollmentId: se.enrollment,
+      studentId: se.student_id,
       studentName: se.student_name,
       clinicTarget: targetsLoading ? null : (sessionTargetMap.get(se.enrollment) ?? null),
     })),
@@ -339,12 +342,14 @@ function StudentRow({ student }: { student: EnrolledStudent }) {
     <div className="clinic-tab__row">
       <div className={dotClass} />
       <div className="clinic-tab__name">
-        <StudentNameWithLectureChip
-          name={student.studentName}
-          clinicHighlight={isTarget}
-          enrollmentId={student.enrollmentId}
-          avatarSize={24}
-        />
+        <StudentDetailLink studentId={student.studentId} studentName={student.studentName}>
+          <StudentNameWithLectureChip
+            name={student.studentName}
+            clinicHighlight={isTarget}
+            enrollmentId={student.enrollmentId}
+            avatarSize={24}
+          />
+        </StudentDetailLink>
       </div>
       <div className="clinic-tab__reason">
         {isTarget && reason !== "both" && t.exam_score != null && t.cutline_score != null && (

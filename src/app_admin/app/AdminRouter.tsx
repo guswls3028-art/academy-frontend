@@ -9,6 +9,7 @@ import {
   Navigate,
   matchPath,
   useLocation,
+  useNavigate,
   useParams,
   type Location,
 } from "react-router-dom";
@@ -132,6 +133,7 @@ function QnaReadRedirect() {
 
 export default function AdminRouter() {
   const location = useLocation();
+  const navigate = useNavigate();
   const backgroundLocation = (
     location.state as { backgroundLocation?: Location } | null
   )?.backgroundLocation;
@@ -140,7 +142,7 @@ export default function AdminRouter() {
   const studentDetailOverlay =
     backgroundLocation && Number.isInteger(modalStudentId) && modalStudentId > 0 ? (
       <Suspense fallback={<RouteFallback />}>
-        <StudentsDetailOverlay studentId={modalStudentId} />
+        <StudentsDetailOverlay studentId={modalStudentId} onClose={() => navigate(-1)} />
       </Suspense>
     ) : undefined;
 

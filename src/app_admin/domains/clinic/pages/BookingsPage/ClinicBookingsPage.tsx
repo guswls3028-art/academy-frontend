@@ -41,6 +41,7 @@ import {
 } from "../../api/clinicLinks.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import StudentDetailLink from "@admin/domains/students/components/StudentDetailLink";
 import ClinicSectionFilter from "../../components/ClinicSectionFilter";
 import { hhmmText } from "@/shared/ui/time/timeFormat";
 import { clinicQueryKeys } from "../../queryKeys";
@@ -189,22 +190,24 @@ export default function ClinicBookingsPage() {
                 {pendingRows.map((row) => {
                   const busy = approvalMutation.isPending;
                   return (
-                    <li key={row.id} className="clinic-bookings__pending-item">
-                      <div className="clinic-bookings__pending-item-info">
-                        <StudentNameWithLectureChip
-                          name={row.student_name}
-                          lectures={row.lecture_title ? [{
-                            lectureName: row.lecture_title,
-                            color: row.lecture_color,
-                            chipLabel: row.lecture_chip_label,
-                          }] : undefined}
-                          clinicHighlight={row.name_highlight_clinic_target}
-                          profilePhotoUrl={row.profile_photo_url}
-                          enrollmentId={row.enrollment_id}
-                          avatarSize={20}
-                          density="compact"
-                          className="clinic-bookings__pending-item-name"
-                        />
+                      <li key={row.id} className="clinic-bookings__pending-item">
+                        <div className="clinic-bookings__pending-item-info">
+                          <StudentDetailLink studentId={row.student} studentName={row.student_name}>
+                            <StudentNameWithLectureChip
+                              name={row.student_name}
+                              lectures={row.lecture_title ? [{
+                                lectureName: row.lecture_title,
+                                color: row.lecture_color,
+                                chipLabel: row.lecture_chip_label,
+                              }] : undefined}
+                              clinicHighlight={row.name_highlight_clinic_target}
+                              profilePhotoUrl={row.profile_photo_url}
+                              enrollmentId={row.enrollment_id}
+                              avatarSize={20}
+                              density="compact"
+                              className="clinic-bookings__pending-item-name"
+                            />
+                          </StudentDetailLink>
                         <span className="clinic-bookings__pending-item-meta">
                           <Clock size={13} aria-hidden />
                           {requestScheduleText(row)}
@@ -652,13 +655,15 @@ function RetakeTableRow({
   return (
     <tr className={isResolved ? "clinic-hub__row--resolved" : ""}>
       <td className="clinic-hub__cell-name">
-        <StudentNameWithLectureChip
-          name={item.student_name}
-          lectures={item.lecture_title ? [{ lectureName: item.lecture_title, color: item.lecture_color, chipLabel: item.lecture_chip_label }] : undefined}
-          clinicHighlight={item.name_highlight_clinic_target}
-          profilePhotoUrl={item.profile_photo_url}
-          avatarSize={20}
-        />
+        <StudentDetailLink studentId={item.student_id} studentName={item.student_name}>
+          <StudentNameWithLectureChip
+            name={item.student_name}
+            lectures={item.lecture_title ? [{ lectureName: item.lecture_title, color: item.lecture_color, chipLabel: item.lecture_chip_label }] : undefined}
+            clinicHighlight={item.name_highlight_clinic_target}
+            profilePhotoUrl={item.profile_photo_url}
+            avatarSize={20}
+          />
+        </StudentDetailLink>
       </td>
       <td className="clinic-hub__cell-session">{item.session_title || "-"}</td>
       <td className="clinic-hub__cell-source">

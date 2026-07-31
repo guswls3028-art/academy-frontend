@@ -18,6 +18,7 @@ import {
 import { AdminModal } from "@/shared/ui/modal";
 import { Button, EmptyState, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import StudentDetailLink from "@admin/domains/students/components/StudentDetailLink";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
 import { fetchClinicSessions, type ClinicSessionDetail } from "../../api/clinicSessions.api";
@@ -341,17 +342,22 @@ export default function ClinicSchedulePage() {
                                   <span className={styles.noParticipants}>아직 예약한 학생이 없습니다.</span>
                                 ) : (
                                   visibleRows.map((participant) => (
-                                    <StudentNameWithLectureChip
+                                    <StudentDetailLink
                                       key={participant.id}
-                                      name={participant.student_name}
-                                      lectures={participantLectures(participant)}
-                                      profilePhotoUrl={participant.profile_photo_url}
-                                      avatarSize={20}
-                                      enrollmentId={participant.enrollment_id}
-                                      clinicHighlight={participant.name_highlight_clinic_target}
-                                      density="compact"
-                                      maxLectureChips={1}
-                                    />
+                                      studentId={participant.student}
+                                      studentName={participant.student_name}
+                                    >
+                                      <StudentNameWithLectureChip
+                                        name={participant.student_name}
+                                        lectures={participantLectures(participant)}
+                                        profilePhotoUrl={participant.profile_photo_url}
+                                        avatarSize={20}
+                                        enrollmentId={participant.enrollment_id}
+                                        clinicHighlight={participant.name_highlight_clinic_target}
+                                        density="compact"
+                                        maxLectureChips={1}
+                                      />
+                                    </StudentDetailLink>
                                   ))
                                 )}
                                 {rows.length > visibleRows.length && (

@@ -13,12 +13,14 @@ import { EmptyState, Badge } from "@/shared/ui/ds";
 import { fetchSessionScores, type SessionScoreHomeworkEntry } from "@/shared/api/contracts/sessionScores";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import StudentDetailLink from "@admin/domains/students/components/StudentDetailLink";
 import { useQuery } from "@tanstack/react-query";
 import { getHomeworkStatus, homeworkStatusLabel, type HomeworkStatus, type HomeworkMetaStatus } from "@/shared/scoring/homeworkStatus";
 import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
 
 type HomeworkResultRow = {
   enrollment_id: number;
+  student_id?: number | null;
   student_name: string;
   status: HomeworkStatus;
   score: number | null;
@@ -96,6 +98,7 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
 
       rows.push({
         enrollment_id: row.enrollment_id,
+        student_id: row.student_id,
         student_name: row.student_name ?? "-",
         status,
         score: hw.block?.score ?? null,
@@ -286,15 +289,17 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
                           onClick={() => setSelectedEnrollmentId((prev) => (prev === r.enrollment_id ? null : r.enrollment_id))}
                         >
                           <td className="px-3 py-2 font-medium text-[var(--color-text-primary)]">
-                            <StudentNameWithLectureChip
-                              name={r.student_name}
-                              lectures={r.lecture_title ? [{ lectureName: r.lecture_title, color: r.lecture_color, chipLabel: r.lecture_chip_label }] : undefined}
-                              profilePhotoUrl={r.profile_photo_url}
-                              avatarSize={24}
-                              density="compact"
-                              maxLectureChips={1}
-                              clinicHighlight={r.name_highlight_clinic_target}
-                            />
+                            <StudentDetailLink studentId={r.student_id} studentName={r.student_name}>
+                              <StudentNameWithLectureChip
+                                name={r.student_name}
+                                lectures={r.lecture_title ? [{ lectureName: r.lecture_title, color: r.lecture_color, chipLabel: r.lecture_chip_label }] : undefined}
+                                profilePhotoUrl={r.profile_photo_url}
+                                avatarSize={24}
+                                density="compact"
+                                maxLectureChips={1}
+                                clinicHighlight={r.name_highlight_clinic_target}
+                              />
+                            </StudentDetailLink>
                           </td>
                           <td className="px-3 py-2">
                             <StatusBadge status={r.status} />
@@ -349,13 +354,15 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
                 <div className="border-b border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-3">
                   <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">선택 학생 상세</div>
                   <div className="mt-0.5 text-base font-bold text-[var(--color-text-primary)] truncate" title={selectedRow.student_name}>
-                    <StudentNameWithLectureChip
-                      name={selectedRow.student_name}
-                      lectures={selectedRow.lecture_title ? [{ lectureName: selectedRow.lecture_title, color: selectedRow.lecture_color, chipLabel: selectedRow.lecture_chip_label }] : undefined}
-                      profilePhotoUrl={selectedRow.profile_photo_url}
-                      avatarSize={24}
-                      clinicHighlight={selectedRow.name_highlight_clinic_target}
-                    />
+                    <StudentDetailLink studentId={selectedRow.student_id} studentName={selectedRow.student_name}>
+                      <StudentNameWithLectureChip
+                        name={selectedRow.student_name}
+                        lectures={selectedRow.lecture_title ? [{ lectureName: selectedRow.lecture_title, color: selectedRow.lecture_color, chipLabel: selectedRow.lecture_chip_label }] : undefined}
+                        profilePhotoUrl={selectedRow.profile_photo_url}
+                        avatarSize={24}
+                        clinicHighlight={selectedRow.name_highlight_clinic_target}
+                      />
+                    </StudentDetailLink>
                   </div>
                 </div>
 

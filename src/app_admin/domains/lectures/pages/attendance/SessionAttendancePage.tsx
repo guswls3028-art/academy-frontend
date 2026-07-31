@@ -9,6 +9,7 @@
 /* eslint-disable prefer-const, no-restricted-syntax, react-hooks/exhaustive-deps */
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useFloatingPosition } from "@/shared/ui/floating/useFloatingPosition";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -23,6 +24,7 @@ import { EmptyState, Button } from "@/shared/ui/ds";
 import { DomainListToolbar, DomainTable, STUDENTS_TABLE_COL, useTableColumnPrefs, ResizableTh } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import StudentDetailLink from "@admin/domains/students/components/StudentDetailLink";
 import AttendanceStatusBadge, { type AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge";
 import { ORDERED_ATTENDANCE_STATUS } from "@/shared/ui/badges/attendanceStatus";
 import { formatPhone } from "@/shared/utils/formatPhone";
@@ -61,6 +63,8 @@ export default function SessionAttendancePage({
   lectureId,
   onOpenEnrollModal,
 }: SessionAttendancePageProps) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const confirm = useConfirm();
   const { openSendMessageModal } = useSendMessageModal();
@@ -700,8 +704,23 @@ export default function SessionAttendancePage({
                 </tr>
               </thead>
               <tbody>
-                {sorted.map((att) => (
-                  <tr key={att.id} className={selectedSet.has(att.id) ? "ds-row-selected" : ""}>
+                {sorted.map((att) => {
+                  const studentId = att.student_id ?? att.enrollment?.student_id;
+                  const canOpenStudent = Number.isInteger(studentId) && Number(studentId) > 0;
+                  return (
+                  <tr
+                    key={att.id}
+                    className={[
+                      selectedSet.has(att.id) ? "ds-row-selected" : "",
+                      canOpenStudent ? "cursor-pointer" : "",
+                    ].filter(Boolean).join(" ")}
+                    onClick={() => {
+                      if (!canOpenStudent) return;
+                      navigate(`/workspace/students/${studentId}`, {
+                        state: { backgroundLocation: location },
+                      });
+                    }}
+                  >
                     <td className="ds-checkbox-cell" style={{ width: col.checkbox }} onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
@@ -713,25 +732,28 @@ export default function SessionAttendancePage({
                       />
                     </td>
                     <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate align-middle" style={{ width: columnWidths.name ?? col.name }}>
-                      <StudentNameWithLectureChip
-                        name={att.name ?? ""}
-                        profilePhotoUrl={att.profile_photo_url ?? undefined}
-                        avatarSize={24}
-                        lectures={
-                          att.lecture_title
-                            ? [{ lectureName: att.lecture_title, color: att.lecture_color ?? undefined, chipLabel: att.lecture_chip_label ?? undefined }]
-                            : lecture
-                              ? [{ lectureName: lecture.title ?? "", color: lecture.color ?? undefined, chipLabel: lecture.chip_label ?? undefined }]
-                              : undefined
-                        }
-                        chipSize={16}
-                        clinicHighlight={att.name_highlight_clinic_target === true}
-                      />
+                      <StudentDetailLink studentId={studentId} studentName={att.name ?? ""}>
+                        <StudentNameWithLectureChip
+                          name={att.name ?? ""}
+                          profilePhotoUrl={att.profile_photo_url ?? undefined}
+                          avatarSize={24}
+                          lectures={
+                            att.lecture_title
+                              ? [{ lectureName: att.lecture_title, color: att.lecture_color ?? undefined, chipLabel: att.lecture_chip_label ?? undefined }]
+                              : lecture
+                                ? [{ lectureName: lecture.title ?? "", color: lecture.color ?? undefined, chipLabel: lecture.chip_label ?? undefined }]
+                                : undefined
+                          }
+                          chipSize={16}
+                          clinicHighlight={att.name_highlight_clinic_target === true}
+                        />
+                      </StudentDetailLink>
                     </td>
                     <td className="text-center align-middle" style={{ width: columnWidths.status ?? col.statusBadge }}>
                       <button
                         type="button"
                         onClick={(e) => {
+                          e.stopPropagation();
                           if (openStatusRowAttId === att.id) {
                             setOpenStatusRowAttId(null);
                                                   statusRowTriggerRef.current = null;
@@ -755,7 +777,8 @@ export default function SessionAttendancePage({
                       {formatPhone(att.phone ?? att.student_phone)}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </DomainTable>
           </div>

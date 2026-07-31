@@ -17,6 +17,7 @@ import {
 } from "@admin/domains/submissions/statusMaps";
 import type { HomeworkSubmissionRow } from "@admin/domains/submissions/api/adminHomeworkSubmissions.api";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import StudentDetailLink from "@admin/domains/students/components/StudentDetailLink";
 import { Button, EmptyState, Badge, type BadgeTone } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPreviewModal";
@@ -136,16 +137,18 @@ export default function HomeworkSubmissionsPanel({
               <div
                 key={r.id}
                 className="flex items-center gap-3 px-4 py-3"
-              >
-                {/* 아바타 + 이름 + 강의칩 (SSOT) */}
-                <StudentNameWithLectureChip
-                  name={r.student_name}
-                  lectures={r.lecture_title ? [{ lectureName: r.lecture_title, color: r.lecture_color, chipLabel: r.lecture_chip_label }] : undefined}
-                  profilePhotoUrl={r.profile_photo_url}
-                  avatarSize={32}
-                  chipSize={18}
-                  clinicHighlight={r.name_highlight_clinic_target === true}
-                />
+                >
+                  {/* 아바타 + 이름 + 강의칩 (SSOT) */}
+                <StudentDetailLink studentId={r.student_id} studentName={r.student_name}>
+                  <StudentNameWithLectureChip
+                    name={r.student_name}
+                    lectures={r.lecture_title ? [{ lectureName: r.lecture_title, color: r.lecture_color, chipLabel: r.lecture_chip_label }] : undefined}
+                    profilePhotoUrl={r.profile_photo_url}
+                    avatarSize={32}
+                    chipSize={18}
+                    clinicHighlight={r.name_highlight_clinic_target === true}
+                  />
+                </StudentDetailLink>
 
                 {/* 과+과제명 뱃지 */}
                 <span

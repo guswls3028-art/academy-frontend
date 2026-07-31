@@ -31,6 +31,7 @@ import type { SessionScoresTableVerdictKind } from "../utils/sessionScoreRowVerd
 import ScoreInputCell from "./ScoreInputCell";
 import ExamHeaderActionMenu, { type ExamHeaderAction } from "./ExamHeaderActionMenu";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import StudentDetailLink from "@admin/domains/students/components/StudentDetailLink";
 import { Badge, type BadgeTone } from "@/shared/ui/ds";
 import { DomainTable, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
@@ -1110,26 +1111,28 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 >
                   {/* 아바타 + 이름 + 강의딱지 SSOT.
                       lectures: 단일 강의 → [{...}] 배열로 어댑트 (백엔드 row.lecture_* SSOT 그대로). */}
-                  <StudentNameWithLectureChip
-                    name={row.student_name ?? ""}
-                    profilePhotoUrl={row.profile_photo_url ?? undefined}
-                    avatarSize={28}
-                    lectures={
-                      row.lecture_title
-                        ? [{
-                            lectureName: row.lecture_title,
-                            color: row.lecture_color ?? undefined,
-                            chipLabel: row.lecture_chip_label ?? undefined,
-                          }]
-                        : null
-                    }
-                    clinicHighlight={
-                      row.name_highlight_followup_required
-                      ?? row.name_highlight_clinic_target
-                      ?? false
-                    }
-                    examNotSubmittedCount={row.exam_not_submitted_count}
-                  />
+                  <StudentDetailLink studentId={row.student_id} studentName={row.student_name ?? ""}>
+                    <StudentNameWithLectureChip
+                      name={row.student_name ?? ""}
+                      profilePhotoUrl={row.profile_photo_url ?? undefined}
+                      avatarSize={28}
+                      lectures={
+                        row.lecture_title
+                          ? [{
+                              lectureName: row.lecture_title,
+                              color: row.lecture_color ?? undefined,
+                              chipLabel: row.lecture_chip_label ?? undefined,
+                            }]
+                          : null
+                      }
+                      clinicHighlight={
+                        row.name_highlight_followup_required
+                        ?? row.name_highlight_clinic_target
+                        ?? false
+                      }
+                      examNotSubmittedCount={row.exam_not_submitted_count}
+                    />
+                  </StudentDetailLink>
                 </td>
 
                 <td className="text-center align-middle" data-col-type="attendance">
