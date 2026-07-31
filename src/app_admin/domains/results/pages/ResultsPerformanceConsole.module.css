@@ -141,6 +141,149 @@
 .sourceRail strong { font-size: 13px; font-weight: 820; }
 .sourceRail span { color: var(--gradebook-muted); font-size: 10px; }
 
+.sessionScope {
+  display: grid;
+  gap: 13px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--gradebook-blue) 20%, var(--gradebook-rule));
+  border-radius: 14px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--gradebook-blue) 5%, var(--gradebook-paper)), var(--gradebook-paper) 62%);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--gradebook-blue) 5%, transparent);
+}
+
+.sessionScopeIntro {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.sessionScopeIntro > div {
+  display: grid;
+  gap: 3px;
+}
+
+.sessionScopeIntro h3 {
+  margin: 0;
+  color: var(--gradebook-ink);
+  font-size: 16px;
+  font-weight: 840;
+  letter-spacing: -0.025em;
+}
+
+.sessionScopeIntro p {
+  max-width: 470px;
+  margin: 0;
+  color: var(--gradebook-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: right;
+  word-break: keep-all;
+}
+
+.sessionScopeTabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sessionScopeTabs button {
+  display: flex;
+  min-width: 0;
+  min-height: 62px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 13px;
+  border: 1px solid var(--gradebook-rule);
+  border-radius: 11px;
+  color: var(--gradebook-muted);
+  background: color-mix(in srgb, var(--gradebook-soft) 70%, var(--gradebook-paper));
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.sessionScopeTabs button > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.sessionScopeTabs button strong {
+  color: var(--gradebook-ink);
+  font-size: 13px;
+  font-weight: 830;
+}
+
+.sessionScopeTabs button small {
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sessionScopeTabs button b {
+  display: inline-grid;
+  min-width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  place-items: center;
+  padding: 0 8px;
+  border-radius: 999px;
+  color: var(--gradebook-muted);
+  background: var(--gradebook-paper);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  box-shadow: inset 0 0 0 1px var(--gradebook-rule);
+}
+
+.sessionScopeTabs button[data-active="true"] {
+  border-color: color-mix(in srgb, var(--gradebook-blue) 48%, var(--gradebook-rule));
+  color: var(--gradebook-blue);
+  background: color-mix(in srgb, var(--gradebook-blue) 9%, var(--gradebook-paper));
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--gradebook-blue) 10%, transparent);
+  transform: translateY(-1px);
+}
+
+.sessionScopeTabs button[data-session-type="SUPPLEMENT"][data-active="true"] {
+  border-color: color-mix(in srgb, var(--gradebook-teal) 52%, var(--gradebook-rule));
+  color: var(--gradebook-teal);
+  background: color-mix(in srgb, var(--gradebook-teal) 9%, var(--gradebook-paper));
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--gradebook-teal) 10%, transparent);
+}
+
+.sessionScopeTabs button[data-active="true"] strong,
+.sessionScopeTabs button[data-active="true"] b {
+  color: currentColor;
+}
+
+.sessionScopeTabs button[data-active="true"] b {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 24%, transparent);
+}
+
+.sessionScopeTabs button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--gradebook-blue) 32%, transparent);
+  outline-offset: 2px;
+}
+
+.sessionScopeNotice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: #8a5a10;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.sessionScopeNotice strong {
+  margin-left: -2px;
+  font-variant-numeric: tabular-nums;
+}
+
 .periodGroup {
   display: inline-flex;
   width: fit-content;
@@ -571,57 +714,8 @@
   font-size: 11px;
 }
 
-.sessionTypeFilter {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--gradebook-rule);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--gradebook-blue) 3%, var(--gradebook-paper));
-}
-
-.sessionTypeFilter > span {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-.sessionTypeFilter strong {
-  color: var(--gradebook-ink);
-  font-size: 12px;
-  font-weight: 820;
-}
-
-.sessionTypeFilter small {
-  color: var(--gradebook-muted);
-  font-size: 10px;
-  line-height: 1.35;
-  word-break: keep-all;
-}
-
-.sessionTypeFilter .periodGroup {
-  flex-shrink: 0;
-}
-
 .historyHeader {
   padding-top: 2px;
-}
-
-@media (max-width: 640px) {
-  .sessionTypeFilter {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .sessionTypeFilter .periodGroup {
-    width: 100%;
-  }
-
-  .sessionTypeFilter .periodGroup button {
-    flex: 1;
-  }
 }
 
 .historyHeader > span {
@@ -665,6 +759,17 @@
   color: var(--gradebook-muted);
   font-size: 11px;
   vertical-align: top;
+}
+
+.historySession {
+  display: grid;
+  justify-items: start;
+  gap: 5px;
+}
+
+.historySession > span:last-child {
+  color: var(--gradebook-muted);
+  line-height: 1.35;
 }
 
 .historyTable tbody tr:last-child td {
@@ -963,6 +1068,8 @@
   }
 
   .sourceRail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sessionScopeIntro { align-items: flex-start; flex-direction: column; gap: 5px; }
+  .sessionScopeIntro p { max-width: none; text-align: left; }
   .sourceCards { grid-template-columns: 1fr; }
 
   .selectControl select {
@@ -1029,6 +1136,16 @@
   .reviewRow { grid-template-columns: 1fr; align-items: stretch; }
   .reviewIndicators { display: flex; }
   .reviewActions { justify-content: flex-start; flex-wrap: wrap; }
+}
+
+@media (max-width: 520px) {
+  .sessionScope { padding: 13px; }
+  .sessionScopeTabs { grid-template-columns: 1fr; }
+  .sessionScopeTabs button { min-height: 54px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sessionScopeTabs button { transition: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

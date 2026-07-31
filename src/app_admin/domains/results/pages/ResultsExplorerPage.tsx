@@ -39,6 +39,7 @@ import {
   type StudentPerformancePeriod,
   type StudentPerformanceConsoleResponse,
   type StudentPerformanceRow,
+  type StudentPerformanceSessionType,
   type StudentPerformanceSource,
   type StudentPerformanceSourceSummary,
   type StudentReportedScore,
@@ -51,7 +52,7 @@ import styles from "./ResultsPerformanceConsole.module.css";
 type ScoreBandFilter = "all" | StudentScoreBand;
 type TrendFilter = "all" | StudentTrendDirection;
 type SortKey = "attention" | "latest_desc" | "change_desc" | "name";
-type SessionTypeFilter = "all" | "REGULAR" | "SUPPLEMENT";
+type SessionTypeFilter = StudentPerformanceSessionType;
 
 const SOURCE_OPTIONS: Array<{ value: StudentPerformanceSource; label: string; description: string }> = [
   { value: "overall", label: "종합", description: "세 갈래 성적을 함께 봅니다" },
@@ -66,6 +67,16 @@ const PERIOD_OPTIONS: Array<{ value: StudentPerformancePeriod; label: string }> 
   { value: 180, label: "180일" },
   { value: 365, label: "1년" },
   { value: "all", label: "전체" },
+];
+
+const SESSION_TYPE_OPTIONS: Array<{
+  value: SessionTypeFilter;
+  label: string;
+  description: string;
+}> = [
+  { value: "all", label: "전체 결과", description: "정규·보강을 함께" },
+  { value: "REGULAR", label: "정규수업", description: "정규 차시 시험만" },
+  { value: "SUPPLEMENT", label: "보강수업", description: "보강 차시 시험만" },
 ];
 
 const SCORE_BAND_OPTIONS: Array<{ value: ScoreBandFilter; label: string }> = [
@@ -205,6 +216,7 @@ export default function ResultsExplorerPage() {
   const [reviewPage, setReviewPage] = useState(1);
   const performanceFilters = useMemo(() => ({
     source,
+    sessionType: source === "academy" ? sessionType : "all" as const,
     subject: source === "school" || source === "mock" ? reportedSubject : "",
     grade,
     scoreBand,
@@ -215,7 +227,7 @@ export default function ResultsExplorerPage() {
     pageSize: 30,
     reviewPage,
     reviewPageSize: 20,
-  }), [grade, page, reportedSubject, reviewPage, scoreBand, search, sort, source, trend]);
+  }), [grade, page, reportedSubject, reviewPage, scoreBand, search, sessionType, sort, source, trend]);
 
   const performanceQuery = useQuery({
     queryKey: adminResultsQueryKeys.studentPerformance(period, lectureId, performanceFilters),
@@ -293,9 +305,7 @@ export default function ResultsExplorerPage() {
         && isWithinPeriod(point, period)
         && (
           sessionType === "all"
-          || (sessionType === "REGULAR"
-            ? point.session_type !== "SUPPLEMENT"
-            : point.session_type === "SUPPLEMENT")
+          || point.session_type === sessionType
         )
       ))
       .map((point, index) => ({ ...point, round_index: index + 1 })),
@@ -322,6 +332,7 @@ export default function ResultsExplorerPage() {
     grade !== "all",
     source !== "overall" && scoreBand !== "all",
     source !== "overall" && trend !== "all",
+    source === "academy" && sessionType !== "all",
     search !== "",
   ].filter(Boolean).length;
 
@@ -386,6 +397,50 @@ export default function ResultsExplorerPage() {
           </button>
         ))}
       </section>
+
+      {source === "academy" && (
+        <section className={styles.sessionScope} aria-labelledby="session-scope-title">
+          <div className={styles.sessionScopeIntro}>
+            <div>
+              <span className={styles.panelKicker}>결과 범위</span>
+              <h3 id="session-scope-title">정규수업과 보강수업을 나눠 봅니다</h3>
+            </div>
+            <p>선택한 범위가 요약, 학생 목록, 점수 추이와 시험 기록에 모두 적용됩니다.</p>
+          </div>
+          <div className={styles.sessionScopeTabs} role="tablist" aria-label="학원 시험 결과 범위">
+            {SESSION_TYPE_OPTIONS.map((option) => {
+              const count = performanceQuery.data?.summary.session_type_result_count[option.value] ?? 0;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="tab"
+                  aria-selected={sessionType === option.value}
+                  data-active={sessionType === option.value ? "true" : "false"}
+                  data-session-type={option.value}
+                  onClick={() => {
+                    setSessionType(option.value);
+                    resetResultPages();
+                  }}
+                >
+                  <span>
+                    <strong>{option.label}</strong>
+                    <small>{option.description}</small>
+                  </span>
+                  <b aria-label={`${count}건`}>{count}</b>
+                </button>
+              );
+            })}
+          </div>
+          {(performanceQuery.data?.summary.session_type_result_count.UNCLASSIFIED ?? 0) > 0 && (
+            <p className={styles.sessionScopeNotice}>
+              <CircleAlert size={ICON.sm} aria-hidden />
+              수업 유형을 하나로 확정할 수 없는
+              <strong>{performanceQuery.data?.summary.session_type_result_count.UNCLASSIFIED}건</strong>은 전체 결과에서만 확인됩니다.
+            </p>
+          )}
+        </section>
+      )}
 
       <section className={styles.filterPanel} aria-label="성적 콘솔 필터" data-guide="results-filter">
         <div className={styles.periodGroup} aria-label="조회 기간">
@@ -516,7 +571,6 @@ export default function ResultsExplorerPage() {
                   isLoading={source === "academy" && gradesQuery.isLoading}
                   isError={source === "academy" && gradesQuery.isError}
                   onRetry={() => { void gradesQuery.refetch(); }}
-                  onSessionTypeChange={setSessionType}
                   onOpenStudent={() => navigate(`/workspace/students/${selectedStudent.student_id}`, {
                     state: { backgroundLocation: location },
                   })}
@@ -734,7 +788,6 @@ function StudentPerformanceDetail({
   isLoading,
   isError,
   onRetry,
-  onSessionTypeChange,
   onOpenStudent,
   onVoid,
 }: {
@@ -747,7 +800,6 @@ function StudentPerformanceDetail({
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
-  onSessionTypeChange: (value: SessionTypeFilter) => void;
   onOpenStudent: () => void;
   onVoid: (row: StudentReportedScore) => void;
 }) {
@@ -780,41 +832,16 @@ function StudentPerformanceDetail({
         <EmptyState scope="panel" tone="error" title="회차별 성적을 불러올 수 없습니다" actions={<Button intent="secondary" size="sm" onClick={onRetry}>다시 시도</Button>} />
       ) : (
         <>
-          {source === "academy" && (
-            <div className={styles.sessionTypeFilter}>
-              <span>
-                <strong>누적 구분</strong>
-                <small>본수업과 보강 시험을 섞지 않고 봅니다.</small>
-              </span>
-              <div className={styles.periodGroup} role="group" aria-label="수업 유형">
-                {([
-                  { value: "all", label: "전체" },
-                  { value: "REGULAR", label: "본수업" },
-                  { value: "SUPPLEMENT", label: "보강" },
-                ] as const).map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    data-active={sessionType === option.value ? "true" : "false"}
-                    aria-pressed={sessionType === option.value}
-                    onClick={() => onSessionTypeChange(option.value)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
           <StudentScoreTrendChart
             points={trend}
             showLectureFilters={false}
             title={source === "academy" ? "학원 시험 누적 추이" : source === "school" ? "학교 내신 누적 추이" : "모의고사 누적 추이"}
             description={source === "academy"
               ? sessionType === "REGULAR"
-                ? "본수업에서 채점된 테스트만 회차순으로 비교합니다."
+                ? "정규수업 차시에 연결된 테스트만 회차순으로 비교합니다."
                 : sessionType === "SUPPLEMENT"
-                  ? "보강에서 채점된 테스트만 회차순으로 비교합니다."
-                  : "학원에서 채점된 테스트를 회차순으로 비교합니다."
+                  ? "보강수업 차시에 연결된 테스트만 회차순으로 비교합니다."
+                  : "정규수업과 보강수업 결과를 함께 회차순으로 비교합니다."
               : "학생이 제출하고 선생님이 확인한 성적만 시험 순서대로 비교합니다."}
             badgeLabel={source === "academy" ? "자동 누적" : "확인된 성적"}
           />
@@ -838,7 +865,17 @@ function StudentPerformanceDetail({
                         <td>{pointIndex >= 0 ? `${pointIndex + 1}회차` : "—"}</td>
                         <td><strong>{exam.title}</strong>{exam.archived && <small>보관된 시험</small>}</td>
                         <td><strong>{point ? formatPct(point.score_pct) : "—"}</strong><small>{exam.total_score ?? "—"} / {exam.max_score ?? "—"}점</small></td>
-                        <td>{exam.session_title || exam.lecture_title || "—"}</td>
+                        <td>
+                          <span className={styles.historySession}>
+                            <Badge
+                              tone={exam.session_type === "SUPPLEMENT" ? "teal" : exam.session_type === "REGULAR" ? "info" : "muted"}
+                              size="xs"
+                            >
+                              {exam.session_type === "SUPPLEMENT" ? "보강" : exam.session_type === "REGULAR" ? "정규" : "구분 필요"}
+                            </Badge>
+                            <span>{exam.session_title || exam.lecture_title || "—"}</span>
+                          </span>
+                        </td>
                         <td>{formatShortDate(exam.recorded_at || exam.submitted_at || exam.session_date)}</td>
                       </tr>
                     );

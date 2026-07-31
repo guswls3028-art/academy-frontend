@@ -64,6 +64,7 @@ const grades = {
       retake_count: 1,
       session_id: 701,
       session_title: "1차시",
+      session_type: "REGULAR",
       lecture_id: 501,
       lecture_title: "Ymath 중등 심화",
       lecture_color: "#2563eb",
@@ -82,6 +83,7 @@ const grades = {
       retake_count: 2,
       session_id: 702,
       session_title: "2차시",
+      session_type: "REGULAR",
       lecture_id: 501,
       lecture_title: "Ymath 중등 심화",
       lecture_color: "#2563eb",
@@ -99,7 +101,8 @@ const grades = {
       achievement: "PASS",
       retake_count: 1,
       session_id: 703,
-      session_title: "3차시",
+      session_title: "경시 보강",
+      session_type: "SUPPLEMENT",
       lecture_id: 502,
       lecture_title: "Ymath 경시 대비",
       lecture_color: "#7c3aed",
@@ -119,6 +122,7 @@ const grades = {
       retake_count: 1,
       session_id: 704,
       session_title: "4차시",
+      session_type: "REGULAR",
       lecture_id: 501,
       lecture_title: "Ymath 중등 심화",
       lecture_color: "#2563eb",
@@ -142,6 +146,7 @@ const grades = {
       session_title: "1차시",
       session_order: 1,
       session_regular_order: 1,
+      session_type: "REGULAR",
       session_date: "2026-07-01",
       lecture_id: 501,
       lecture_title: "Ymath 중등 심화",
@@ -167,6 +172,7 @@ const grades = {
       session_title: "2차시",
       session_order: 2,
       session_regular_order: 2,
+      session_type: "REGULAR",
       session_date: "2026-07-08",
       lecture_id: 501,
       lecture_title: "Ymath 중등 심화",
@@ -192,6 +198,7 @@ const grades = {
       session_title: "3차시",
       session_order: 3,
       session_regular_order: 3,
+      session_type: "SUPPLEMENT",
       session_date: "2026-07-15",
       lecture_id: 502,
       lecture_title: "Ymath 경시 대비",
@@ -230,6 +237,12 @@ const performanceConsole = {
     mock_student_count: 1,
     verified_school_score_count: 2,
     verified_mock_score_count: 1,
+    session_type_result_count: {
+      all: 3,
+      REGULAR: 2,
+      SUPPLEMENT: 1,
+      UNCLASSIFIED: 0,
+    },
   },
   filter_options: {
     lectures: student.enrollments.map((enrollment) => ({
@@ -403,6 +416,7 @@ async function installApi(page: Page, options: { failGrades?: boolean; failPerfo
         return;
       }
       const scoreBand = new URL(request.url()).searchParams.get("score_band");
+      const sessionType = new URL(request.url()).searchParams.get("session_type");
       const filteredOut = scoreBand === "under_60";
       const resolvedConsole = scoreReviewResolved ? {
         ...performanceConsole,
@@ -411,12 +425,59 @@ async function installApi(page: Page, options: { failGrades?: boolean; failPerfo
         review_pagination: { ...performanceConsole.review_pagination, total_count: 0, total_rows: 0 },
         students: performanceConsole.students.map((row) => ({ ...row, pending_reported_score_count: 0 })),
       } : performanceConsole;
-      await route.fulfill({ json: filteredOut ? {
+      const sessionMetrics = sessionType === "REGULAR"
+        ? {
+          scored_count: 2,
+          average_score_pct: 85,
+          latest_score_pct: 90,
+          change_pct_points: 10,
+          first_to_latest_pct_points: 10,
+          best_score_pct: 90,
+          score_band: "80_plus",
+          trend_direction: "up",
+        }
+        : sessionType === "SUPPLEMENT"
+          ? {
+            scored_count: 1,
+            average_score_pct: 96,
+            latest_score_pct: 96,
+            change_pct_points: null,
+            first_to_latest_pct_points: null,
+            best_score_pct: 96,
+            score_band: "80_plus",
+            trend_direction: "insufficient",
+          }
+          : null;
+      const scopedConsole = sessionMetrics ? {
         ...resolvedConsole,
-        summary: { ...resolvedConsole.summary, student_count: 0, scored_student_count: 0 },
-        pagination: { ...resolvedConsole.pagination, total_count: 0 },
+        summary: {
+          ...resolvedConsole.summary,
+          result_count: sessionMetrics.scored_count,
+          average_score_pct: sessionMetrics.average_score_pct,
+          improving_student_count: sessionType === "REGULAR" ? 1 : 0,
+        },
+        students: resolvedConsole.students.map((row) => ({
+          ...row,
+          scored_count: sessionMetrics.scored_count,
+          average_score_pct: sessionMetrics.average_score_pct,
+          latest_score_pct: sessionMetrics.latest_score_pct,
+          change_pct_points: sessionMetrics.change_pct_points,
+          first_to_latest_pct_points: sessionMetrics.first_to_latest_pct_points,
+          best_score_pct: sessionMetrics.best_score_pct,
+          score_band: sessionMetrics.score_band,
+          trend_direction: sessionMetrics.trend_direction,
+          source_summaries: {
+            ...row.source_summaries,
+            academy: sessionMetrics,
+          },
+        })),
+      } : resolvedConsole;
+      await route.fulfill({ json: filteredOut ? {
+        ...scopedConsole,
+        summary: { ...scopedConsole.summary, student_count: 0, scored_student_count: 0 },
+        pagination: { ...scopedConsole.pagination, total_count: 0 },
         students: [],
-      } : resolvedConsole });
+      } : scopedConsole });
       return;
     }
     if (path.includes("/results/admin/reported-scores/") && path.endsWith("/review/") && request.method() === "PATCH") {
@@ -493,10 +554,28 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await expect(detail).toContainText("윤지용 학생");
     await expect(detail).toContainText("성적을 세 갈래로 나눠 봅니다.");
     await console.getByRole("button", { name: /학원 시험/ }).first().click();
+    const sessionTabs = console.getByRole("tablist", { name: "학원 시험 결과 범위" });
+    await expect(sessionTabs.getByRole("tab", { name: /전체 결과/ })).toHaveAttribute("aria-selected", "true");
+    await expect(sessionTabs.getByRole("tab", { name: /정규수업/ })).toContainText("2");
+    await expect(sessionTabs.getByRole("tab", { name: /보강수업/ })).toContainText("1");
     await expect(detail.getByTestId("student-score-trend")).toContainText("학원 시험 누적 추이");
     await expect(detail.getByTestId("student-score-trend")).toContainText("누적3회");
     await expect(detail.getByText("1회차", { exact: true }).first()).toBeVisible();
     await expect(detail.getByText("3회차", { exact: true }).first()).toBeVisible();
+
+    await sessionTabs.getByRole("tab", { name: /정규수업/ }).click();
+    await expect(sessionTabs.getByRole("tab", { name: /정규수업/ })).toHaveAttribute("aria-selected", "true");
+    await expect(detail.getByTestId("student-score-trend")).toContainText("누적2회");
+    await expect(detail).toContainText("정규수업 차시에 연결된 테스트만");
+    await expect(detail.getByText("보강", { exact: true })).toHaveCount(0);
+
+    await sessionTabs.getByRole("tab", { name: /보강수업/ }).click();
+    await expect(detail.getByTestId("student-score-trend")).toContainText("누적1회");
+    await expect(detail).toContainText("보강수업 차시에 연결된 테스트만");
+    await expect(detail.getByText("보강", { exact: true })).toBeVisible();
+    await console.getByRole("button", { name: /초기화/ }).first().click();
+    await expect(sessionTabs.getByRole("tab", { name: /전체 결과/ })).toHaveAttribute("aria-selected", "true");
+    await expect(detail.getByTestId("student-score-trend")).toContainText("누적3회");
 
     await console.getByLabel("강의").selectOption("501");
     await expect(detail.getByTestId("student-score-trend")).toContainText("누적2회");
@@ -525,6 +604,8 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await reviewQueue.getByRole("button", { name: "전체 확인·반영" }).click();
     await expect(reviewQueue).toContainText("확인할 성적표가 없습니다.");
 
+    await console.getByRole("button", { name: /학원 시험/ }).first().click();
+    await expect(console.getByRole("tablist", { name: "학원 시험 결과 범위" })).toBeVisible();
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: "test-results/student-score-trend/results-console-top-1366.png" });
     await page.screenshot({ path: "test-results/student-score-trend/results-console-1366.png", fullPage: true });
