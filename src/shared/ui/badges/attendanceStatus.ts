@@ -1,4 +1,5 @@
 export type AttendanceStatus =
+  | "UNSET"
   | "PRESENT"
   | "LATE"
   | "ONLINE"
@@ -10,8 +11,9 @@ export type AttendanceStatus =
   | "INACTIVE"
   | "SECESSION";
 
-/** 역할별 순서: 출석인정 -> 경고 -> 부정 -> 중립 */
+/** 역할별 순서: 미입력 -> 출석인정 -> 경고 -> 부정 -> 중립 */
 export const ORDERED_ATTENDANCE_STATUS: AttendanceStatus[] = [
+  "UNSET",
   "PRESENT",
   "ONLINE",
   "SUPPLEMENT",
@@ -29,6 +31,7 @@ export const ATTENDANCE_STATUS_META: Record<
   AttendanceStatus,
   { label: string; short: string; tone: string }
 > = {
+  UNSET: { label: "미입력", short: "－", tone: "neutral" },
   PRESENT: { label: "현장", short: "현", tone: "success" },
   ONLINE: { label: "영상", short: "영", tone: "primary" },
   SUPPLEMENT: { label: "보강", short: "보", tone: "teal" },

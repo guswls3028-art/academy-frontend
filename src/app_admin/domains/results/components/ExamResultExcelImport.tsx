@@ -94,7 +94,8 @@ export default function ExamResultExcelImport({ examId, examTitle }: Props) {
           <div>
             <h3 id="exam-result-excel-title" className={styles.title}>엑셀로 채점 결과 넣기</h3>
             <p className={styles.description}>
-              정답 O, 오답 X, 맞았지만 다시 볼 문항은 숫자 0으로 표시합니다.
+              정답 O, 오답 X, 맞았지만 다시 볼 문항은 오답노트로 표시합니다.
+              기존 Ymath의 숫자 0도 같은 값으로 읽습니다.
             </p>
           </div>
         </div>
@@ -114,7 +115,7 @@ export default function ExamResultExcelImport({ examId, examTitle }: Props) {
       <div className={styles.guide}>
         <span><strong>정답</strong> 빈칸 또는 O</span>
         <span><strong>오답</strong> X</span>
-        <span><strong>오답노트 포함</strong> 기존 엑셀의 숫자 0</span>
+        <span><strong>오답노트 포함</strong> 오답노트·노트·복습 또는 기존 숫자 0</span>
         <span><strong>전 문항 공란</strong> 응시 여부에서 응시 또는 결시 선택</span>
         <span>기존 엑셀도 이름·연락처·문항 번호 열이 있으면 확인할 수 있어요.</span>
       </div>
