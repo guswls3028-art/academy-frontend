@@ -51,7 +51,7 @@ type SessionAttendancePageProps = {
 
 function toAttendanceStatus(status: string | null | undefined): AttendanceStatus {
   const value = status as AttendanceStatus;
-  return ORDERED_ATTENDANCE_STATUS.includes(value) ? value : "INACTIVE";
+  return ORDERED_ATTENDANCE_STATUS.includes(value) ? value : "UNSET";
 }
 
 function attendanceStatusRank(status: string | null | undefined): number {

@@ -543,6 +543,10 @@ test.describe("문항별 직접 채점", () => {
     const studentRow = page.getByRole("row").filter({ hasText: "김학생" });
     const cells = studentRow.getByRole("button", { name: "미입력" });
     await expect(cells).toHaveCount(2);
+    await page.getByRole("button", { name: "전원 결시로 설정", exact: true }).click();
+    await expect(studentRow.getByRole("button", { name: "결시", exact: true })).toBeVisible();
+    await page.keyboard.press("Control+z");
+    await expect(studentRow.getByRole("button", { name: "응시", exact: true })).toBeVisible();
     await cells.nth(0).evaluate((element) => {
       const clipboard = new DataTransfer();
       clipboard.setData("text/plain", "\t.");
@@ -868,6 +872,13 @@ test.describe("문항별 직접 채점", () => {
     await expect(dialog.getByLabel("현재 채점표 배율 80%")).toHaveText("80%");
 
     const cells = dialog.locator("[data-manual-grade-cell]");
+    await cells.nth(0).click();
+    for (let index = 0; index < 20; index += 1) {
+      await page.keyboard.press("o");
+    }
+    await expect(cells.nth(19)).toHaveAccessibleName("김학생 20번 O");
+    await expect(cells.nth(20)).toBeFocused();
+
     await cells.first().evaluate((element) => {
       const clipboard = new DataTransfer();
       clipboard.setData("text/plain", "0\t오답노트");

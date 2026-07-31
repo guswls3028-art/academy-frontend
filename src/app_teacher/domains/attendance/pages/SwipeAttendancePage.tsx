@@ -24,6 +24,7 @@ const EMPTY_RECORDS: AttendanceListItem[] = [];
 type AttendanceSummary = {
   present: number;
   absent: number;
+  unset: number;
   other: number;
 };
 
@@ -110,10 +111,11 @@ export default function SwipeAttendancePage() {
       if (["PRESENT", "ONLINE", "LATE", "SUPPLEMENT"].includes(r.status))
         acc.present++;
       else if (["ABSENT", "RUNAWAY"].includes(r.status)) acc.absent++;
+      else if (r.status === "UNSET") acc.unset++;
       else acc.other++;
       return acc;
     },
-    { present: 0, absent: 0, other: 0 },
+    { present: 0, absent: 0, unset: 0, other: 0 },
   );
 
   return (
@@ -141,6 +143,11 @@ export default function SwipeAttendancePage() {
         <span className={styles.summaryAbsent}>
           결석 {summary.absent}
         </span>
+        {summary.unset > 0 && (
+          <span className={styles.summaryOther}>
+            미입력 {summary.unset}
+          </span>
+        )}
         {summary.other > 0 && (
           <span className={styles.summaryOther}>
             기타 {summary.other}

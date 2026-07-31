@@ -1,4 +1,5 @@
 import {
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -21,6 +22,7 @@ import {
   Settings2,
   TableProperties,
   Undo2,
+  UserX,
 } from "lucide-react";
 
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
@@ -116,9 +118,11 @@ type ManualGradeHistoryEntry =
     }
   | {
       kind: "attendance";
-      enrollmentId: number;
-      before: boolean;
-      after: boolean;
+      changes: Array<{
+        enrollmentId: number;
+        before: boolean;
+        after: boolean;
+      }>;
     }
   | {
       kind: "question-score";
@@ -417,11 +421,16 @@ export default function ManualExamGradingGrid({
       questionScoreDraftRef.current = nextScores;
       setQuestionScoreDraft(nextScores);
     } else if (entry.kind === "attendance") {
-      const nextAbsent = direction === "undo" ? entry.before : entry.after;
+      const changes = new Map(
+        entry.changes.map((change) => [
+          change.enrollmentId,
+          direction === "undo" ? change.before : change.after,
+        ]),
+      );
       const nextRows = draftRowsRef.current.map((row) =>
-        row.enrollment_id === entry.enrollmentId
-          ? { ...row, is_not_submitted: nextAbsent }
-          : row,
+        changes.has(row.enrollment_id)
+          ? { ...row, is_not_submitted: changes.get(row.enrollment_id) ?? false }
+          : row
       );
       draftRowsRef.current = nextRows;
       setDraftRows(nextRows);
@@ -472,39 +481,51 @@ export default function ManualExamGradingGrid({
     current: HTMLElement,
     direction: "next" | "previous" | "up" | "down",
   ) => {
-    const cells = Array.from(
-      tableWrapRef.current?.querySelectorAll<HTMLElement>(
-        "[data-manual-grade-cell]:not(:disabled)",
-      ) ?? [],
-    );
-    if (cells.length === 0) return;
-    const currentIndex = cells.indexOf(current);
-    if (currentIndex < 0) return;
-
-    if (direction === "next" || direction === "previous") {
-      const delta = direction === "next" ? 1 : -1;
-      const nextIndex = Math.max(0, Math.min(cells.length - 1, currentIndex + delta));
-      cells[nextIndex]?.focus();
+    const rowIndex = Number(current.dataset.rowIndex);
+    const columnIndex = Number(current.dataset.columnIndex);
+    const columnCount = visibleQuestions.length;
+    if (
+      !Number.isInteger(rowIndex) ||
+      !Number.isInteger(columnIndex) ||
+      columnCount === 0
+    ) {
       return;
     }
 
-    const rowIndex = Number(current.dataset.rowIndex);
-    const columnIndex = Number(current.dataset.columnIndex);
+    const findFocusableCell = (candidateRow: number, candidateColumn: number) =>
+      tableWrapRef.current?.querySelector<HTMLElement>(
+        `[data-manual-grade-cell][data-row-index="${candidateRow}"][data-column-index="${candidateColumn}"]:not(:disabled)`,
+      ) ?? null;
+
+    if (direction === "next" || direction === "previous") {
+      const delta = direction === "next" ? 1 : -1;
+      const lastIndex = draftRows.length * columnCount - 1;
+      let candidateIndex = rowIndex * columnCount + columnIndex + delta;
+      while (candidateIndex >= 0 && candidateIndex <= lastIndex) {
+        const candidate = findFocusableCell(
+          Math.floor(candidateIndex / columnCount),
+          candidateIndex % columnCount,
+        );
+        if (candidate) {
+          candidate.focus();
+          return;
+        }
+        candidateIndex += delta;
+      }
+      return;
+    }
+
     const delta = direction === "down" ? 1 : -1;
     let candidateRow = rowIndex + delta;
     while (candidateRow >= 0 && candidateRow < draftRows.length) {
-      const candidate = cells.find(
-        (cell) =>
-          Number(cell.dataset.rowIndex) === candidateRow &&
-          Number(cell.dataset.columnIndex) === columnIndex,
-      );
+      const candidate = findFocusableCell(candidateRow, columnIndex);
       if (candidate) {
         candidate.focus();
         return;
       }
       candidateRow += delta;
     }
-  }, [draftRows.length]);
+  }, [draftRows.length, visibleQuestions.length]);
 
   useEffect(() => {
     autoFocusedExamRef.current = null;
@@ -768,14 +789,35 @@ export default function ManualExamGradingGrid({
     if (!row || row.is_not_submitted === absent) return;
     pushHistory({
       kind: "attendance",
-      enrollmentId,
-      before: row.is_not_submitted,
-      after: absent,
+      changes: [{
+        enrollmentId,
+        before: row.is_not_submitted,
+        after: absent,
+      }],
     });
     const nextRows = draftRowsRef.current.map((candidate) =>
       candidate.enrollment_id === enrollmentId
         ? { ...candidate, is_not_submitted: absent }
         : candidate,
+    );
+    draftRowsRef.current = nextRows;
+    setDraftRows(nextRows);
+    setDirty(true);
+    previewMutation.reset();
+  };
+
+  const setAllAbsent = () => {
+    const changes = draftRowsRef.current
+      .filter((row) => !row.is_not_submitted)
+      .map((row) => ({
+        enrollmentId: row.enrollment_id,
+        before: false,
+        after: true,
+      }));
+    if (changes.length === 0) return;
+    pushHistory({ kind: "attendance", changes });
+    const nextRows = draftRowsRef.current.map((row) =>
+      row.is_not_submitted ? row : { ...row, is_not_submitted: true }
     );
     draftRowsRef.current = nextRows;
     setDraftRows(nextRows);
@@ -1050,6 +1092,22 @@ export default function ManualExamGradingGrid({
         </div>
         <div className={styles.headerActions}>
           {dirty && <span className={styles.unsaved}>확정 전 변경사항</span>}
+          {hasEditableQuestions && (
+            <Button
+              type="button"
+              intent="secondary"
+              size="sm"
+              leftIcon={<UserX size={ICON_FOR_BUTTON.sm} />}
+              disabled={
+                busy ||
+                draftRows.length === 0
+              }
+              onClick={setAllAbsent}
+              title="전원을 결시로 표시한 뒤 제출한 학생만 응시로 바꿔 입력할 수 있습니다. 확정 전에는 서버에 저장되지 않습니다."
+            >
+              전원 결시로 설정
+            </Button>
+          )}
           <Button
             type="button"
             intent="ghost"
@@ -1358,109 +1416,22 @@ export default function ManualExamGradingGrid({
           </thead>
           <tbody>
             {draftRows.map((row, rowIndex) => (
-              <tr key={row.enrollment_id}>
-                <td className={styles.studentColumn}>
-                  <StudentNameWithLectureChip
-                    name={row.student_name}
-                    enrollmentId={row.enrollment_id}
-                    lectures={row.lectures.map((lecture) => ({
-                      lectureName: lecture.lecture_name,
-                      color: lecture.color,
-                      chipLabel: lecture.chip_label,
-                    }))}
-                    density="compact"
-                    maxLectureChips={1}
-                    examNotSubmittedCount={row.exam_not_submitted_count}
-                  />
-                </td>
-                <td className={styles.attendanceColumn}>
-                  <button
-                    type="button"
-                    className={`${styles.attendanceButton} ${
-                      row.is_not_submitted ? styles.absent : ""
-                    }`}
-                    aria-pressed={row.is_not_submitted}
-                    disabled={!hasEditableQuestions || busy}
-                    onClick={() =>
-                      setAttendance(row.enrollment_id, !row.is_not_submitted)
-                    }
-                  >
-                    {row.is_not_submitted ? "결시" : "응시"}
-                  </button>
-                </td>
-                {visibleQuestions.map((question, columnIndex) => {
-                  const key = String(question.question_id);
-                  const cell = row.cells[key];
-                  const draftMaxScore = Number(questionScoreDraft[key]);
-                  const maxScore = Number.isFinite(draftMaxScore)
-                    ? draftMaxScore
-                    : question.max_score;
-                  return (
-                    <td key={question.question_id} className={styles.gradeCell}>
-                      {!cell.editable ? (
-                        <ReadOnlyGradeCell
-                          cell={cell}
-                          studentName={row.student_name}
-                          questionNumber={question.number}
-                        />
-                      ) : data.manual_grading_method === "correctness" ? (
-                        <CorrectnessCell
-                          value={cell.state}
-                          disabled={row.is_not_submitted || busy}
-                          studentName={row.student_name}
-                          questionNumber={question.number}
-                          rowIndex={rowIndex}
-                          columnIndex={columnIndex}
-                          shortcuts={shortcuts}
-                          onMoveFocus={(element, direction) =>
-                            focusCell(element, direction)
-                          }
-                          onShowShortcuts={openShortcutSettings}
-                          onPaste={(text) =>
-                            pasteCorrectnessMatrix(text, rowIndex, columnIndex)
-                          }
-                          onChange={(state) =>
-                            updateCell(
-                              row.enrollment_id,
-                              question.question_id,
-                              (current) => ({ ...current, state }),
-                            )
-                          }
-                        />
-                      ) : (
-                        <ScoreCell
-                          value={cell.score}
-                          maxScore={maxScore}
-                          review={cell.include_in_wrong_note}
-                          disabled={row.is_not_submitted || busy}
-                          studentName={row.student_name}
-                          questionNumber={question.number}
-                          rowIndex={rowIndex}
-                          columnIndex={columnIndex}
-                          onMoveFocus={focusCell}
-                          onScoreChange={(score) =>
-                            updateCell(
-                              row.enrollment_id,
-                              question.question_id,
-                              (current) => ({ ...current, score }),
-                            )
-                          }
-                          onReviewChange={(review) =>
-                            updateCell(
-                              row.enrollment_id,
-                              question.question_id,
-                              (current) => ({
-                                ...current,
-                                include_in_wrong_note: review,
-                              }),
-                            )
-                          }
-                        />
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
+              <ManualGradingTableRow
+                key={row.enrollment_id}
+                row={row}
+                rowIndex={rowIndex}
+                questions={visibleQuestions}
+                questionScoreDraft={questionScoreDraft}
+                manualGradingMethod={data.manual_grading_method}
+                hasEditableQuestions={hasEditableQuestions}
+                busy={busy}
+                shortcuts={shortcuts}
+                onSetAttendance={setAttendance}
+                onUpdateCell={updateCell}
+                onMoveFocus={focusCell}
+                onShowShortcuts={openShortcutSettings}
+                onPasteCorrectnessMatrix={pasteCorrectnessMatrix}
+              />
             ))}
           </tbody>
         </table>
@@ -1538,6 +1509,161 @@ export default function ManualExamGradingGrid({
     </section>
   );
 }
+
+type ManualGradingTableRowProps = {
+  row: ManualGradeRow;
+  rowIndex: number;
+  questions: ManualGradeQuestion[];
+  questionScoreDraft: Record<string, string>;
+  manualGradingMethod: ManualGradeSheet["manual_grading_method"];
+  hasEditableQuestions: boolean;
+  busy: boolean;
+  shortcuts: ManualGradingShortcutSettings;
+  onSetAttendance: (enrollmentId: number, absent: boolean) => void;
+  onUpdateCell: (
+    enrollmentId: number,
+    questionId: number,
+    updater: (cell: ManualGradeCell) => ManualGradeCell,
+  ) => void;
+  onMoveFocus: (
+    element: HTMLElement,
+    direction: "next" | "previous" | "up" | "down",
+  ) => void;
+  onShowShortcuts: () => void;
+  onPasteCorrectnessMatrix: (
+    text: string,
+    rowIndex: number,
+    columnIndex: number,
+  ) => void;
+};
+
+const ManualGradingTableRow = memo(function ManualGradingTableRow({
+  row,
+  rowIndex,
+  questions,
+  questionScoreDraft,
+  manualGradingMethod,
+  hasEditableQuestions,
+  busy,
+  shortcuts,
+  onSetAttendance,
+  onUpdateCell,
+  onMoveFocus,
+  onShowShortcuts,
+  onPasteCorrectnessMatrix,
+}: ManualGradingTableRowProps) {
+  return (
+    <tr>
+      <td className={styles.studentColumn}>
+        <StudentNameWithLectureChip
+          name={row.student_name}
+          enrollmentId={row.enrollment_id}
+          lectures={row.lectures.map((lecture) => ({
+            lectureName: lecture.lecture_name,
+            color: lecture.color,
+            chipLabel: lecture.chip_label,
+          }))}
+          density="compact"
+          maxLectureChips={1}
+          examNotSubmittedCount={row.exam_not_submitted_count}
+        />
+      </td>
+      <td className={styles.attendanceColumn}>
+        <button
+          type="button"
+          className={`${styles.attendanceButton} ${
+            row.is_not_submitted ? styles.absent : ""
+          }`}
+          aria-pressed={row.is_not_submitted}
+          disabled={!hasEditableQuestions || busy}
+          onClick={() =>
+            onSetAttendance(row.enrollment_id, !row.is_not_submitted)
+          }
+        >
+          {row.is_not_submitted ? "결시" : "응시"}
+        </button>
+      </td>
+      {questions.map((question, columnIndex) => {
+        const key = String(question.question_id);
+        const cell = row.cells[key];
+        const draftMaxScore = Number(questionScoreDraft[key]);
+        const maxScore = Number.isFinite(draftMaxScore)
+          ? draftMaxScore
+          : question.max_score;
+        return (
+          <td key={question.question_id} className={styles.gradeCell}>
+            {!cell.editable ? (
+              <ReadOnlyGradeCell
+                cell={cell}
+                studentName={row.student_name}
+                questionNumber={question.number}
+              />
+            ) : manualGradingMethod === "correctness" ? (
+              <CorrectnessCell
+                value={cell.state}
+                disabled={row.is_not_submitted || busy}
+                studentName={row.student_name}
+                questionNumber={question.number}
+                rowIndex={rowIndex}
+                columnIndex={columnIndex}
+                shortcuts={shortcuts}
+                onMoveFocus={onMoveFocus}
+                onShowShortcuts={onShowShortcuts}
+                onPaste={(text) =>
+                  onPasteCorrectnessMatrix(text, rowIndex, columnIndex)
+                }
+                onChange={(state) =>
+                  onUpdateCell(
+                    row.enrollment_id,
+                    question.question_id,
+                    (current) => ({ ...current, state }),
+                  )
+                }
+              />
+            ) : (
+              <ScoreCell
+                value={cell.score}
+                maxScore={maxScore}
+                review={cell.include_in_wrong_note}
+                disabled={row.is_not_submitted || busy}
+                studentName={row.student_name}
+                questionNumber={question.number}
+                rowIndex={rowIndex}
+                columnIndex={columnIndex}
+                onMoveFocus={onMoveFocus}
+                onScoreChange={(score) =>
+                  onUpdateCell(
+                    row.enrollment_id,
+                    question.question_id,
+                    (current) => ({ ...current, score }),
+                  )
+                }
+                onReviewChange={(review) =>
+                  onUpdateCell(
+                    row.enrollment_id,
+                    question.question_id,
+                    (current) => ({
+                      ...current,
+                      include_in_wrong_note: review,
+                    }),
+                  )
+                }
+              />
+            )}
+          </td>
+        );
+      })}
+    </tr>
+  );
+}, (previous, next) =>
+  previous.row === next.row &&
+  previous.rowIndex === next.rowIndex &&
+  previous.questions === next.questions &&
+  previous.questionScoreDraft === next.questionScoreDraft &&
+  previous.manualGradingMethod === next.manualGradingMethod &&
+  previous.hasEditableQuestions === next.hasEditableQuestions &&
+  previous.busy === next.busy &&
+  previous.shortcuts === next.shortcuts);
 
 function ReadOnlyGradeCell({
   cell,
@@ -1634,7 +1760,7 @@ function CorrectnessCell({
           event.preventDefault();
           const cell = event.currentTarget;
           onChange(state);
-          window.requestAnimationFrame(() => onMoveFocus(cell, "next"));
+          onMoveFocus(cell, "next");
           return;
         }
         if (event.nativeEvent.isComposing) return;
