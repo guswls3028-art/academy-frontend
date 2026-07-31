@@ -57,11 +57,30 @@ PR E2E is login/read-only/mock only; production writes require the controlled
 manual canary flag or the rollback-bound post-deploy job. Cloudflare uses
 separate preview, production, and infrastructure-scoped API tokens plus
 `preview`, `production`, and `production-rollback` environments. Confirm
-deployed revision, rollback readiness, and the affected user flow. Ordinary automation uses
-repository OIDC/API-token secrets. Explicitly authorized manual work may use
-an already configured AWS account-root or Cloudflare master credential, but
-must never print/copy its value or bypass the quality, direct-deploy,
-production-readback, or real-use gates.
+deployed revision, rollback readiness, and the affected user flow. Ordinary
+automation uses
+repository OIDC/API-token secrets. For assigned production work, an already
+configured AWS account-root or Cloudflare master credential may be used by the
+owning manual workflow when the normal least-privilege path is insufficient,
+but its value must never be printed/copied and the quality, direct-deploy,
+production-readback, and real-use gates remain mandatory.
+
+An assigned implementation, release, operations, or cleanup task authorizes
+its normal in-scope commit, push, PR, merge, messaging, deployment, production
+mutation, and residue cleanup steps. Proceed through the owning workflow
+without repeated approval prompts. This standing authority does not expand the
+task, resolve an ambiguous destructive target, waive user-data protection,
+bypass a release gate, or replace an approval required by an external platform.
+
+For concurrent Codex work, keep canonical `C:\academy\frontend` and
+`C:\academy\backend` on clean `main`. Create a uniquely owned worktree from
+current `origin/main` with
+`C:\academy\backend\scripts\codex\session-worktree.ps1 -Action Start`; never share a
+worktree or edit another task's dirty tree. Exactly one task owns release, and
+other tasks stop at an exact committed SHA plus CI evidence. Close only a clean
+branch already merged or fully patch-equivalent to `origin/main`; the script
+refuses dirty, foreign, and uniquely unmerged worktrees. The lifecycle contract
+is `C:\academy\backend\docs\operations\concurrent-codex-sessions.md`.
 
 Finish with `git diff --check` and `git status --short`. Stage explicit files
 only and preserve pre-existing changes.
