@@ -1483,7 +1483,7 @@ export default function SessionScoresEntryPage({
             description={
               gradingExam.gradingMode === "mixed"
                 ? "OMR 문항은 잠긴 상태로 확인하고, 직접 채점 문항만 입력합니다."
-                : "수기 채점 결과를 학생별로 입력합니다. 오답과 복습 지정 문항은 오답노트에 반영됩니다."
+                : "수기 채점 결과를 학생별로 입력합니다. 오답과 오답노트 지정 문항은 오답노트에 반영됩니다."
             }
             noIcon
           />

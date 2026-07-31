@@ -494,17 +494,38 @@
 }
 
 .scores-manual-grading-modal .modal-body {
+  flex: 1 1 auto;
   min-height: 0;
 }
 
+.scores-manual-grading-modal .admin-modal__inner {
+  height: calc(100vh - 32px);
+  max-height: calc(100vh - 32px);
+}
+
 .scores-manual-grading-modal__body {
-  max-height: calc(100vh - 220px);
-  min-height: 320px;
-  overflow: auto;
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
   padding: var(--space-4);
   background:
     linear-gradient(135deg, color-mix(in srgb, #0f766e 4%, transparent), transparent 42%),
     var(--color-bg-canvas);
+}
+
+.scores-manual-grading-modal__body > [data-manual-grading-workspace] {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.scores-manual-grading-modal__body [data-manual-grading-table-wrap] {
+  flex: 1 1 260px;
+  min-height: 180px;
+  max-height: none;
 }
 
 .scores-exam-workflow {
@@ -727,8 +748,6 @@
   }
 
   .scores-manual-grading-modal__body {
-    max-height: calc(100vh - 190px);
-    min-height: 240px;
     padding: var(--space-2);
   }
 

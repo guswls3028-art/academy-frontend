@@ -67,6 +67,10 @@ type InstallApiOptions = {
   editable?: boolean;
   hasQuestions?: boolean;
   initialStates?: [GradeState, GradeState];
+  sheetSize?: {
+    students: number;
+    questions: number;
+  };
 };
 
 async function installApi(page: Page, options: InstallApiOptions = {}) {
@@ -307,7 +311,20 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
           exam_max_score: 100,
           question_score_total: hasQuestions ? 100 : 0,
           score_adjustment_total: 0,
-          questions: hasQuestions ? [
+          questions: !hasQuestions ? [] : options.sheetSize
+            ? Array.from({ length: options.sheetSize.questions }, (_, index) => ({
+                question_id: QUESTION_IDS[0] + index,
+                number: index + 1,
+                kind: "essay",
+                answer_type: "written",
+                max_score: 100 / options.sheetSize!.questions,
+                editable: editable && gradingMode !== "choice",
+                entry_method:
+                  editable && gradingMode !== "choice"
+                    ? manualGradingMethod
+                    : "omr",
+              }))
+            : [
             {
               question_id: QUESTION_IDS[0],
               number: 1,
@@ -333,8 +350,44 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
                 ? manualGradingMethod
                 : "omr",
             },
-          ] : [],
-          rows: [{
+          ],
+          rows: options.sheetSize
+            ? Array.from({ length: options.sheetSize.students }, (_, studentIndex) => ({
+                enrollment_id: ENROLLMENT_ID + studentIndex,
+                student_name:
+                  studentIndex === 0
+                    ? "김학생"
+                    : `테스트학생 ${String(studentIndex + 1).padStart(2, "0")}`,
+                school: "테스트고",
+                lectures: [{
+                  id: LECTURE_ID,
+                  lecture_name: "공통수학2 정규반",
+                  color: "#2563eb",
+                  chip_label: "수2",
+                }],
+                expected_version: null,
+                is_not_submitted: false,
+                exam_not_submitted_count: 0,
+                cells: Object.fromEntries(
+                  Array.from({ length: options.sheetSize!.questions }, (_, questionIndex) => {
+                    const questionId = QUESTION_IDS[0] + questionIndex;
+                    return [
+                      String(questionId),
+                      {
+                        editable: editable && gradingMode !== "choice",
+                        entry_method:
+                          editable && gradingMode !== "choice"
+                            ? manualGradingMethod
+                            : "omr",
+                        state: null,
+                        score: null,
+                        include_in_wrong_note: false,
+                      },
+                    ];
+                  }),
+                ),
+              }))
+            : [{
             enrollment_id: ENROLLMENT_ID,
             student_name: "김학생",
             school: "테스트고",
@@ -471,7 +524,7 @@ test.describe("문항별 직접 채점", () => {
     serviceWorkers: "block",
   });
 
-  test("O·X·0 키 입력을 미리 확인한 뒤 확정하고 재조회한다", async ({ page }) => {
+  test("O·X·오답노트 키 입력을 미리 확인한 뒤 확정하고 재조회한다", async ({ page }) => {
     const apiState = await installApi(page);
 
     await page.goto(
@@ -516,7 +569,7 @@ test.describe("문항별 직접 채점", () => {
     await cells.nth(0).press("o");
     await studentRow.getByRole("button", { name: "미입력" }).press("0");
     await expect(studentRow.getByRole("button", { name: "O" })).toHaveCount(1);
-    await expect(studentRow.getByRole("button", { name: "0" })).toHaveCount(1);
+    await expect(studentRow.getByRole("button", { name: "오답노트" })).toHaveCount(1);
 
     await page.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
     await expect(page.getByText("1명 · 결시 0명 · 성적 계산 완료", { exact: true })).toBeVisible();
@@ -558,7 +611,7 @@ test.describe("문항별 직접 채점", () => {
     ]);
 
     await expect(studentRow.getByRole("button", { name: "O" })).toHaveCount(1);
-    await expect(studentRow.getByRole("button", { name: "0" })).toHaveCount(1);
+    await expect(studentRow.getByRole("button", { name: "오답노트" })).toHaveCount(1);
     await expect(page.getByText("확정 전 변경사항", { exact: true })).toHaveCount(0);
   });
 
@@ -610,7 +663,7 @@ test.describe("문항별 직접 채점", () => {
     await expect(settingsDialog.getByRole("spinbutton", { name: /^커트라인/ })).toHaveValue("60");
     await expect(
       settingsDialog.getByRole("radio", {
-        name: /정오표 직접입력 \(O\/X\/0\)/,
+        name: /정오표 직접입력 \(O\/X\/오답노트\)/,
       }),
     ).toBeChecked();
     await settingsDialog.getByRole("button", { name: "취소", exact: true }).click();
@@ -644,7 +697,7 @@ test.describe("문항별 직접 채점", () => {
       hasText: "시험 설정",
     });
     await settingsDialog.getByRole("radio", {
-      name: /정오표 직접입력 \(O\/X\/0\)/,
+      name: /정오표 직접입력 \(O\/X\/오답노트\)/,
     }).check();
     await expect(settingsDialog.getByRole("status")).toContainText(
       "기존 문항과 입력된 성적은 삭제되지 않습니다.",
@@ -675,6 +728,90 @@ test.describe("문항별 직접 채점", () => {
         hasText: "7월 진단평가 정오 직접입력",
       }),
     ).toBeVisible();
+  });
+
+  test("46명 20문항 표를 창에 맞추고 한 스크롤 영역에서 배율을 유지한다", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await installApi(page, {
+      sheetSize: {
+        students: 46,
+        questions: 20,
+      },
+    });
+
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await chooseExamHeaderAction(page, "정오표 작성");
+
+    let dialog = page.getByRole("dialog").filter({
+      hasText: "7월 진단평가 정오 직접입력",
+    });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText("학생 46명", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("문항 20개", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("오답노트", { exact: true }).first()).toBeVisible();
+    await expect(dialog.getByText("정답 · 복습", { exact: true })).toHaveCount(0);
+
+    const scaleOutput = dialog.getByLabel(/현재 채점표 배율/);
+    await expect(scaleOutput).toHaveText("70%");
+    const layout = await dialog.evaluate((element) => {
+      const body = element.querySelector<HTMLElement>(".scores-manual-grading-modal__body");
+      const workspace = element.querySelector<HTMLElement>("[data-manual-grading-workspace]");
+      const tableWrap = element.querySelector<HTMLElement>("[data-manual-grading-table-wrap]");
+      const table = tableWrap?.querySelector<HTMLTableElement>("table");
+      const footer = workspace?.querySelector<HTMLElement>("footer");
+      if (!body || !workspace || !tableWrap || !table || !footer) return null;
+      const bodyRect = body.getBoundingClientRect();
+      const footerRect = footer.getBoundingClientRect();
+      const tableRect = table.getBoundingClientRect();
+      const tableWrapRect = tableWrap.getBoundingClientRect();
+      return {
+        bodyOverflowY: getComputedStyle(body).overflowY,
+        footerBottomDelta: footerRect.bottom - bodyRect.bottom,
+        tableHeight: tableWrap.clientHeight,
+        tableVerticalOverflow: tableWrap.scrollHeight - tableWrap.clientHeight,
+        tableVisualHorizontalOverflow: tableRect.width - tableWrapRect.width,
+        tableZoom: getComputedStyle(table).zoom,
+      };
+    });
+    expect(layout).not.toBeNull();
+    expect(layout?.bodyOverflowY).toBe("hidden");
+    expect(layout?.footerBottomDelta).toBeLessThanOrEqual(1);
+    expect(layout?.tableHeight).toBeGreaterThanOrEqual(175);
+    expect(layout?.tableVerticalOverflow).toBeGreaterThan(0);
+    expect(layout?.tableVisualHorizontalOverflow).toBeLessThanOrEqual(20);
+    expect(layout?.tableZoom).toBe("0.7");
+
+    await dialog.getByRole("button", { name: "채점표 확대" }).click();
+    await expect(scaleOutput).toHaveText("80%");
+    await expect.poll(() => page.evaluate(() =>
+      localStorage.getItem("academy.manual-grading-table-scale.v1"),
+    )).toBe("80");
+
+    await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await chooseExamHeaderAction(page, "정오표 작성");
+    dialog = page.getByRole("dialog").filter({
+      hasText: "7월 진단평가 정오 직접입력",
+    });
+    await expect(dialog.getByLabel("현재 채점표 배율 80%")).toHaveText("80%");
+
+    const cells = dialog.locator("[data-manual-grade-cell]");
+    await cells.first().evaluate((element) => {
+      const clipboard = new DataTransfer();
+      clipboard.setData("text/plain", "0\t오답노트");
+      element.dispatchEvent(new ClipboardEvent("paste", {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: clipboard,
+      }));
+    });
+    await expect(cells.nth(0)).toHaveAccessibleName("김학생 1번 오답노트");
+    await expect(cells.nth(1)).toHaveAccessibleName("김학생 2번 오답노트");
+    await expect(cells.nth(0)).toHaveText("노트");
+    await expect(cells.nth(1)).toHaveText("노트");
   });
 
   test("짧은 모바일 화면에서도 모든 채점 설정과 저장 버튼에 접근한다", async ({ page }) => {
@@ -1012,17 +1149,18 @@ test.describe("문항별 직접 채점", () => {
     await expect(dialog.getByText("정오 입력 단축키", { exact: true })).toBeVisible();
     await dialog.getByRole("textbox", { name: "정답 단축키" }).press("a");
     await dialog.getByRole("textbox", { name: "오답 단축키" }).press("s");
-    await dialog.getByRole("textbox", { name: "정답 + 오답노트 단축키" }).press("d");
+    await dialog.getByRole("textbox", { name: "오답노트 단축키" }).press("d");
     await dialog.getByRole("button", { name: "저장", exact: true }).click();
 
-    await expect(dialog.getByText("A 정답", { exact: true })).toBeVisible();
-    await expect(dialog.getByText("D 정답 · 복습", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("A 키", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("D 키", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("오답노트", { exact: true }).first()).toBeVisible();
     await cells.first().focus();
     await page.keyboard.press("a");
     await expect(cells.nth(1)).toBeFocused();
     await page.keyboard.press("d");
     await expect(cells.first()).toHaveAccessibleName("김학생 1번 O");
-    await expect(cells.nth(1)).toHaveAccessibleName("김학생 2번 0");
+    await expect(cells.nth(1)).toHaveAccessibleName("김학생 2번 오답노트");
 
     await expect.poll(() => page.evaluate(() =>
       localStorage.getItem("academy.manual-grading-shortcuts.v1"),

@@ -114,7 +114,7 @@ export default function ExamResultExcelImport({ examId, examTitle }: Props) {
       <div className={styles.guide}>
         <span><strong>정답</strong> 빈칸 또는 O</span>
         <span><strong>오답</strong> X</span>
-        <span><strong>정답 · 복습</strong> 숫자 0</span>
+        <span><strong>오답노트 포함</strong> 기존 엑셀의 숫자 0</span>
         <span><strong>전 문항 공란</strong> 응시 여부에서 응시 또는 결시 선택</span>
         <span>기존 엑셀도 이름·연락처·문항 번호 열이 있으면 확인할 수 있어요.</span>
       </div>
@@ -206,7 +206,7 @@ export default function ExamResultExcelImport({ examId, examTitle }: Props) {
                     <th>학생</th>
                     <th>정답</th>
                     <th>오답 문항</th>
-                    <th>복습 지정</th>
+                    <th>오답노트 지정</th>
                     <th>점수</th>
                     <th>반영 방식</th>
                   </tr>

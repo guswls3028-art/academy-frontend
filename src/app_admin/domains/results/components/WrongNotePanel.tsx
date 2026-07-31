@@ -336,7 +336,7 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
         <div className="wrong-note__hero-copy">
           <span className="wrong-note__eyebrow">자동 문항 선별</span>
           <h2>틀린 문제와 다시 볼 문제를 한 권에</h2>
-          <p>최신 채점 결과의 오답과 복습 지정 문항을 주차 순서대로 묶습니다.</p>
+          <p>최신 채점 결과의 오답과 오답노트 지정 문항을 주차 순서대로 묶습니다.</p>
         </div>
         <div className="wrong-note__summary" aria-label="오답노트 준비 상태">
           <strong>{totalWrongCount}</strong>
@@ -419,7 +419,7 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
                       <strong>
                         {questionLabel(item)}
                         {item.is_correct && item.include_in_wrong_note && (
-                          <span className="wrong-note__review-badge">정답 · 복습 지정</span>
+                          <span className="wrong-note__review-badge">정답 · 오답노트 지정</span>
                         )}
                       </strong>
                       <dl>
