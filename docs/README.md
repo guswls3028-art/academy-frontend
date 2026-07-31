@@ -33,6 +33,10 @@ GitHub 저장소의 Action 허용 정책은 third-party action을 태그가 아�
 함께 남기며, 버전을 올릴 때는 공식 action 저장소의 해당 태그 SHA를 다시
 조회해 모든 사용 위치를 같은 값으로 갱신한다.
 
+Cloudflare Pages 배포는 격리 후보와 운영 배포 모두 최대 3회까지 제한적으로
+재시도하며, 실패 사이에 점증 대기한다. 재시도는 일시적인 Cloudflare API
+5xx만 흡수하고, 후보 SHA·라우팅·정적 자산·운영 버전 검증은 그대로 필수다.
+
 ## E2E 테스트 구조
 
 상세 구조·실행 방법·환경변수: [`frontend/e2e/README.md`](../e2e/README.md)
