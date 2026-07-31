@@ -18,6 +18,52 @@
 [`exam-wrong-note-hwpx-plan.md`](https://github.com/guswls3028-art/academy-backend/blob/main/docs/refactor/exam-wrong-note-hwpx-plan.md)에
 둔다.
 
+## Codex 빠른 복구 안내
+
+이 절은 새 작업 세션이 과거 대화나 배포 보고를 다시 읽지 않고도 현재 기능을
+찾기 위한 시작점이다. 날짜별 진행 기록이나 운영 SHA를 이 문서에 복제하지
+않는다. 실행 코드와 테스트가 이 문서와 다르면 코드·테스트를 먼저 확인하고
+이 문서를 함께 고친다.
+
+### 처음 5분에 읽을 순서
+
+1. 이 문서에서 사용자 동선과 프론트엔드 상태를 확인한다.
+2. 채점 방식·저장·권한·tenant·transaction 판단은 백엔드
+   [`exam-grading.md`](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/exam-grading.md)를 읽는다.
+3. 실제 진입은 `SessionScoresEntryPage.tsx`, 시험명 메뉴는
+   `ExamHeaderActionMenu.tsx`, 시험 방식 변경은 `ExamHeaderQuickEdit.tsx`를
+   확인한다.
+4. 표 동작은 `ManualExamGradingGrid.tsx`, 요청 형식은
+   `manualExamGrading.ts`, 화면 회귀는
+   `e2e/admin/manual-exam-grading.mock.spec.ts`를 확인한다.
+5. 오답노트 출력은 `WrongNotePanel.tsx`와 백엔드 현재 계약을 확인한다.
+   HWPX나 회차 범위 확장은 구현으로 추정하지 말고 별도 제안 문서를 읽는다.
+
+### 증상별 첫 확인 위치
+
+| 사용자 증상 | 먼저 확인할 것 | 정상 경계 또는 흔한 원인 |
+|-------------|----------------|--------------------------|
+| 시험명을 눌렀는데 OMR만 쓸 수 있음 | 시험명 메뉴의 `grading_mode`, 시험 설정 | `choice`면 정오표가 비활성이고 OMR이 정상이다. 필요하면 시험 설정에서 직접입력으로 전환하며 기존 결과는 보존한다. |
+| 정오표에서 O/X가 입력되지 않음 | 입력 잠금, 문항의 `editable`, `KeyboardEvent.code`, 사용자 단축키 저장값 | 혼합형 OMR 문항은 읽기 전용이다. 한글 입력 상태에서도 기본 O/X 물리키는 동작해야 한다. |
+| 표 오른쪽이나 상단 도구가 잘림 | 단일 스크롤 영역, 70~120% 배율, 화면 맞춤, 1100/390px 회귀 | 브라우저 전체 배율에 의존하지 않고 표 내부 배율과 가로 이동으로 접근 가능해야 한다. |
+| 일부 학생만 먼저 제출해서 저장이 번거로움 | **전원 결시로 설정**, 실행 취소, 미리보기 | 로컬 초안에서 전원을 결시로 두고 제출 학생만 응시로 바꾼다. `apply=true` 전에는 서버를 쓰지 않는다. |
+| 점수·합불·통계가 예상과 다름 | 시험 만점, 문항 배점, 가감점, 결시 상태, 백엔드 미리보기 응답 | 프론트에서 계산 규칙을 재구현하지 않는다. 서버 미리보기와 저장 후 재조회를 기준으로 판정한다. |
+| 오답노트에 문항이 없거나 이미지가 빠짐 | `is_correct`, `include_in_wrong_note`, 대표 결과, 문항 이미지, PDF job 상태 | 이미지가 없어도 답안 정보는 포함된다. 현재 출력은 PDF이며 HWPX 완료로 안내하지 않는다. |
+
+### 작업할 때 지킬 경계
+
+- OMR과 정오표는 서로 제거하는 기능이 아니다. `choice`, `written`, `mixed`
+  세 방식을 모두 유지한다.
+- Ymath의 기존 숫자 `0`은 호환 입력이지 화면 개념명이 아니다. 사용자에게는
+  **오답노트**로 표시한다.
+- 시험 방식 변경은 기존 문항·정답·성적을 삭제하는 명령이 아니다.
+- 로컬 mock E2E 성공은 운영 저장·tenant 격리·worker/R2 왕복 성공의 증거가
+  아니다. 운영 완료 판정에는 배포 revision, 실제 API health, 권한이 통제된
+  저장·재조회 또는 복구 가능한 canary 증거가 별도로 필요하다.
+- 동시 작업 중에는 canonical 저장소를 수정하지 않는다. Academy의
+  `session-worktree.ps1`로 전용 worktree를 만들고 작업 종료 시 임시 서버와
+  worktree 잔여를 확인한다.
+
 ## 진입과 시험별 작업 선택
 
 1. **강의 → 차시 → 성적**으로 이동한다.
