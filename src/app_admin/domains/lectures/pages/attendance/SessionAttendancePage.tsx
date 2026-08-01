@@ -59,6 +59,16 @@ function isAttendanceSort(value: string | null): value is AttendanceSort {
   return ATTENDANCE_SORT_VALUES.includes(value as AttendanceSort);
 }
 
+function getStoredAttendanceSort(storageKey: string | null): AttendanceSort {
+  if (!storageKey || typeof window === "undefined") return DEFAULT_ATTENDANCE_SORT;
+  try {
+    const savedSort = window.localStorage.getItem(storageKey);
+    return isAttendanceSort(savedSort) ? savedSort : DEFAULT_ATTENDANCE_SORT;
+  } catch {
+    return DEFAULT_ATTENDANCE_SORT;
+  }
+}
+
 type SessionAttendancePageProps = {
   sessionId: number;
   lectureId?: number;
@@ -70,10 +80,6 @@ type SessionAttendancePageProps = {
 function toAttendanceStatus(status: string | null | undefined): AttendanceStatus {
   const value = status as AttendanceStatus;
   return ORDERED_ATTENDANCE_STATUS.includes(value) ? value : "UNSET";
-}
-
-function attendanceStatusRank(status: string | null | undefined): number {
-  return ORDERED_ATTENDANCE_STATUS.indexOf(toAttendanceStatus(status));
 }
 
 export default function SessionAttendancePage({
@@ -88,6 +94,7 @@ export default function SessionAttendancePage({
   const qc = useQueryClient();
   const confirm = useConfirm();
   const { user } = useAuth();
+  const sortStorageKey = user?.id ? `attendance:sort:u${user.id}` : null;
   const { openSendMessageModal } = useSendMessageModal();
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [deleting, setDeleting] = useState(false);
@@ -100,7 +107,7 @@ export default function SessionAttendancePage({
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [sort, setSort] = useState<AttendanceSort>(DEFAULT_ATTENDANCE_SORT);
+  const [sort, setSort] = useState<AttendanceSort>(() => getStoredAttendanceSort(sortStorageKey));
   const [page, setPage] = useState(1);
   const [statusPopoverOpen, setStatusPopoverOpen] = useState(false);
   const statusTriggerRef = useRef<HTMLButtonElement>(null);
@@ -135,24 +142,14 @@ export default function SessionAttendancePage({
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter]);
+  }, [search, statusFilter, sort]);
 
   useEffect(() => {
     setBulkPresentUndo(null);
   }, [sessionId]);
 
-  const sortStorageKey = user?.id ? `attendance:sort:u${user.id}` : null;
   useEffect(() => {
-    if (!sortStorageKey) {
-      setSort(DEFAULT_ATTENDANCE_SORT);
-      return;
-    }
-    try {
-      const savedSort = window.localStorage.getItem(sortStorageKey);
-      setSort(isAttendanceSort(savedSort) ? savedSort : DEFAULT_ATTENDANCE_SORT);
-    } catch {
-      setSort(DEFAULT_ATTENDANCE_SORT);
-    }
+    setSort(getStoredAttendanceSort(sortStorageKey));
   }, [sortStorageKey]);
 
   useEffect(() => {
@@ -180,13 +177,14 @@ export default function SessionAttendancePage({
   }, [openStatusRowAttId]);
 
   const { data: attendanceResult, isLoading } = useQuery({
-    queryKey: adminLectureQueryKeys.attendance(sessionId, page, search, statusFilter),
+    queryKey: adminLectureQueryKeys.attendance(sessionId, page, search, statusFilter, sort),
     queryFn: () =>
       fetchAttendance(sessionId, {
         page,
         page_size: PAGE_SIZE,
         search: search.trim() || undefined,
         status: statusFilter || undefined,
+        ordering: sort || "id",
       }),
     enabled: Number.isFinite(sessionId),
   });
@@ -221,35 +219,7 @@ export default function SessionAttendancePage({
 
   // 강의 전체 차시 출결 매트릭스 — 차시 내부 출결탭에서는 불필요 (강의 수강생 페이지에서만 표시)
 
-  const filtered = useMemo(() => pageData, [pageData]);
-
-  const sorted = useMemo(() => {
-    const list = [...filtered];
-    const key = sort.startsWith("-") ? sort.slice(1) : sort;
-    const asc = !sort.startsWith("-");
-    list.sort((a, b) => {
-      if (key === "name") {
-        const va = (a.name ?? "").localeCompare(b.name ?? "", "ko");
-        return asc ? va : -va;
-      }
-      if (key === "status") {
-        const order = attendanceStatusRank(a.status) - attendanceStatusRank(b.status);
-        return asc ? order : -order;
-      }
-      if (key === "phone") {
-        const va = (formatPhone(a.phone ?? a.student_phone) ?? "").localeCompare(
-          formatPhone(b.phone ?? b.student_phone) ?? ""
-        );
-        return asc ? va : -va;
-      }
-      if (key === "parent_phone") {
-        const va = (formatPhone(a.parent_phone) ?? "").localeCompare(formatPhone(b.parent_phone) ?? "");
-        return asc ? va : -va;
-      }
-      return 0;
-    });
-    return list;
-  }, [filtered, sort]);
+  const sorted = pageData;
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 

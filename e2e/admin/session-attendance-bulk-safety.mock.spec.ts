@@ -17,6 +17,7 @@ function localJwt(): string {
 }
 
 type MockState = {
+  attendanceOrderings: string[];
   bulkCreatePayloads: number[][];
   bulkSetCalls: number;
   bulkUndoTokens: string[];
@@ -80,13 +81,17 @@ async function installApi(page: Page, state: MockState) {
       });
     }
     if (path === "/lectures/attendance/" && method === "GET") {
+      const ordering = url.searchParams.get("ordering") || "name";
+      state.attendanceOrderings.push(ordering);
+      const rows = [
+        { id: 501, status: "UNSET", name: "미입력학생", student_id: 1001, parent_phone: "01011112222", student_phone: "01033334444" },
+        { id: 502, status: "ABSENT", name: "결석학생", student_id: 1002, parent_phone: "01055556666", student_phone: "01077778888" },
+      ];
+      if (ordering === "name") rows.reverse();
       return json({
         count: 2,
         page_size: Number(url.searchParams.get("page_size")) || 50,
-        results: [
-          { id: 501, status: "UNSET", name: "미입력학생", student_id: 1001, parent_phone: "01011112222", student_phone: "01033334444" },
-          { id: 502, status: "ABSENT", name: "결석학생", student_id: 1002, parent_phone: "01055556666", student_phone: "01077778888" },
-        ],
+        results: rows,
       });
     }
     if (path === "/lectures/attendance/bulk_create/" && method === "POST") {
@@ -180,6 +185,7 @@ async function openAttendance(page: Page, state: MockState) {
 
 function createState(overrides: Partial<MockState> = {}): MockState {
   return {
+    attendanceOrderings: [],
     bulkCreatePayloads: [],
     bulkSetCalls: 0,
     bulkUndoTokens: [],
@@ -196,10 +202,12 @@ test("출석 명단은 이름 가나다순이 기본이고 계정별 정렬 선�
   await expect(studentLinks).toHaveCount(2);
   await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "결석학생 학생 상세 열기");
   await expect(page.getByRole("columnheader", { name: /이름/ })).toHaveAttribute("aria-sort", "ascending");
+  await expect.poll(() => state.attendanceOrderings).toContain("name");
 
   await page.getByRole("columnheader", { name: /이름/ }).click();
   await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "미입력학생 학생 상세 열기");
   await expect.poll(() => page.evaluate(() => localStorage.getItem("attendance:sort:u12"))).toBe("-name");
+  await expect.poll(() => state.attendanceOrderings).toContain("-name");
 
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.getByRole("button", { name: "수강생 등록" }).first()).toBeVisible();
