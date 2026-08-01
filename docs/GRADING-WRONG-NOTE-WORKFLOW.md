@@ -116,8 +116,10 @@ OMR 등록·검토를 쓸 수 있고, 직접 채점 시험과 혼합 시험은 �
   `requestAnimationFrame` 지연을 두지 않는다.
 - `Tab`, `Shift+Tab`, 방향키, `Enter`, `Shift+Enter`로 이동하고
   `Backspace`/`Delete`로 지운다.
-- `Ctrl+Z`/`Ctrl+Y`는 실행 취소·다시 실행, `Ctrl+S`는 확인 또는 확정을
-  실행한다.
+- Windows·Linux의 `Ctrl+Z`/`Ctrl+Shift+Z`와 macOS의
+  `⌘Z`/`⌘Shift+Z`는 실행 취소·다시 실행한다. `Ctrl+S` 또는 `⌘S`는
+  브라우저 저장 창을 열지 않고 첫 입력에서 확인, 확인 완료 후에는 확정을
+  실행한다. 화면 도움말은 현재 OS의 기본 보조키를 표시한다.
 - 엑셀/Ymath 매트릭스 붙여넣기는 빈칸·O·정답, X·`.`·오답,
   오답노트·노트·복습·기존 숫자 `0`, 미입력 `-`를 구분한다. 알 수 없는
   값이 하나라도 있으면 일부만 쓰지 않고 전체를 거부한다.
@@ -177,6 +179,7 @@ stale version, 편집 lease 충돌, 문항·배점 오류는 서버가 전체 �
 
 ```powershell
 pnpm exec playwright test e2e/admin/manual-exam-grading.mock.spec.ts --reporter=list
+pnpm test:e2e:manual-grading-shortcuts
 pnpm typecheck
 pnpm lint
 pnpm guard:legacy-api
@@ -187,7 +190,9 @@ pnpm build
 
 - 시험명 클릭 작업 메뉴와 채점 방식별 활성화
 - O/X/오답노트, 한글 IME 물리키, 사용자 단축키, 연속 20칸 입력
-- 46명×20문항, 붙여넣기, 실행 취소·다시 실행
+- 46명×20문항, 붙여넣기, Ctrl/⌘ 실행 취소·다시 실행·확정
+- Chromium·Firefox·WebKit에서 Windows/Linux `Ctrl` 및 macOS `⌘`
+  이벤트 경로와 브라우저 기본 저장 동작 차단
 - 70~120% 배율, 화면 맞춤, 고정 열, 1366/1100/390px overflow
 - 미리보기 무기록, 확정 후 서버 재조회
 - 혼합형 OMR 문항 잠금과 OMR 검토 후 표 재조회

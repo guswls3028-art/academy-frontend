@@ -619,6 +619,58 @@ test.describe("문항별 직접 채점", () => {
     await expect(page.getByText("확정 전 변경사항", { exact: true })).toHaveCount(0);
   });
 
+  test.describe("운영체제·브라우저 단축키", { tag: "@manual-grading-shortcuts" }, () => {
+    for (const shortcut of [
+      { platform: "Win32", modifier: "Control", label: "Ctrl" },
+      { platform: "MacIntel", modifier: "Meta", label: "⌘" },
+    ] as const) {
+      test(`${shortcut.label} 단축키로 실행 취소·다시 실행·확정을 처리한다`, async ({ page }) => {
+        await page.addInitScript(({ platform }) => {
+          Object.defineProperty(navigator, "platform", {
+            configurable: true,
+            get: () => platform,
+          });
+        }, { platform: shortcut.platform });
+        const apiState = await installApi(page);
+
+        await page.goto(
+          `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
+          { waitUntil: "domcontentloaded" },
+        );
+        await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+        await expect(page.getByRole("heading", { name: "정오 직접입력", exact: true })).toBeVisible();
+
+        const hints = page.getByLabel("정오표 입력 도움말");
+        await expect(hints.getByText(`${shortcut.label}+V 엑셀 붙여넣기`, { exact: true })).toBeVisible();
+        await expect(hints.getByText(`${shortcut.label}+Z 실행 취소`, { exact: true })).toBeVisible();
+        await expect(hints.getByText(`${shortcut.label}+S 확인·확정`, { exact: true })).toBeVisible();
+
+        const studentRow = page.getByRole("row").filter({ hasText: "김학생" });
+        const firstCell = studentRow.locator('[data-row-index="0"][data-column-index="0"]');
+        await firstCell.press("o");
+        await page.keyboard.press(`${shortcut.modifier}+z`);
+        await expect(firstCell).toHaveAccessibleName("김학생 1번 미입력");
+        await page.keyboard.press(`${shortcut.modifier}+Shift+z`);
+        await expect(firstCell).toHaveAccessibleName("김학생 1번 O");
+
+        await page.evaluate(() => {
+          window.addEventListener("keydown", (event) => {
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+              document.documentElement.dataset.saveShortcutPrevented = String(event.defaultPrevented);
+            }
+          });
+        });
+        await page.keyboard.press(`${shortcut.modifier}+s`);
+        await expect(page.getByText("1명 · 결시 0명 · 성적 계산 완료", { exact: true })).toBeVisible();
+        await expect.poll(() => page.locator("html").getAttribute("data-save-shortcut-prevented")).toBe("true");
+
+        await page.keyboard.press(`${shortcut.modifier}+s`);
+        await expect.poll(() => apiState.applied).toBe(true);
+        await expect.poll(() => apiState.postedRows.length).toBe(2);
+      });
+    }
+  });
+
   test("한글 입력 상태에서도 영문 물리키로 O·X·오답노트를 연속 입력한다", async ({ page }) => {
     await installApi(page);
 
