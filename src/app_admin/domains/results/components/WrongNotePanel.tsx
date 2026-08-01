@@ -64,6 +64,13 @@ function readPersistedPdfJob(key: string): PersistedPdfJob | null {
 
 function sessionLabel(item: WrongNoteItem): string {
   if (item.session_order != null && item.session_title) {
+    const compactTitle = item.session_title.replace(/\s/g, "");
+    if (
+      compactTitle === `${item.session_order}주차` ||
+      compactTitle === `${item.session_order}회차`
+    ) {
+      return item.session_title;
+    }
     return `${item.session_order}주차 · ${item.session_title}`;
   }
   if (item.session_order != null) return `${item.session_order}주차`;
@@ -78,6 +85,8 @@ function questionLabel(item: WrongNoteItem): string {
 
 export default function WrongNotePanel({ enrollmentId, examId }: Props) {
   const [scope, setScope] = useState<Scope>("exam");
+  const [fromSessionOrderInput, setFromSessionOrderInput] = useState("1");
+  const [toSessionOrderInput, setToSessionOrderInput] = useState("");
   const [pdfJob, setPdfJob] = useState<WrongNotePDFCreateResponse | null>(null);
   const [pdfFileUrl, setPdfFileUrl] = useState("");
   const [pdfError, setPdfError] = useState("");
@@ -88,22 +97,61 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
   const shouldFocusDownloadRef = useRef(false);
 
   const queryExamId = scope === "exam" ? examId : undefined;
-  const requestContext = `${enrollmentId}:${queryExamId ?? "lecture"}:${scope}`;
+  const parsedFromSessionOrder = Number(fromSessionOrderInput);
+  const parsedToSessionOrder = toSessionOrderInput.trim()
+    ? Number(toSessionOrderInput)
+    : undefined;
+  const hasValidFromSessionOrder =
+    Number.isInteger(parsedFromSessionOrder) && parsedFromSessionOrder >= 1;
+  const hasValidToSessionOrder =
+    parsedToSessionOrder === undefined ||
+    (Number.isInteger(parsedToSessionOrder) && parsedToSessionOrder >= 1);
+  const hasReversedSessionRange =
+    hasValidFromSessionOrder &&
+    hasValidToSessionOrder &&
+    parsedToSessionOrder !== undefined &&
+    parsedToSessionOrder < parsedFromSessionOrder;
+  const hasInvalidSessionRange =
+    scope === "lecture" &&
+    (!hasValidFromSessionOrder ||
+      !hasValidToSessionOrder ||
+      hasReversedSessionRange);
+  const fromSessionOrder =
+    scope === "lecture" && hasValidFromSessionOrder
+      ? parsedFromSessionOrder
+      : undefined;
+  const toSessionOrder =
+    scope === "lecture" &&
+    !hasInvalidSessionRange &&
+    parsedToSessionOrder !== undefined
+      ? parsedToSessionOrder
+      : undefined;
+  const sessionRangeTitle = hasInvalidSessionRange
+    ? "회차 범위를 확인해 주세요"
+    : `${fromSessionOrder}~${toSessionOrder ?? "현재"}회차 오답노트`;
+  const requestContext = `${enrollmentId}:${queryExamId ?? "lecture"}:${scope}:${fromSessionOrder ?? "-"}:${toSessionOrder ?? "current"}`;
   const storageKey = pdfJobStorageKey(requestContext);
   const requestContextRef = useRef(requestContext);
   const mutationContextRef = useRef("");
   const mutationFingerprintRef = useRef("");
   requestContextRef.current = requestContext;
   const { data, isLoading, isFetching, error, refetch } = useQuery({
-    queryKey: adminResultsQueryKeys.wrongNotes(enrollmentId, scope, queryExamId),
+    queryKey: adminResultsQueryKeys.wrongNotes(
+      enrollmentId,
+      scope,
+      queryExamId,
+      fromSessionOrder,
+      toSessionOrder,
+    ),
     queryFn: () =>
       fetchWrongNotes({
         enrollment_id: enrollmentId,
         exam_id: queryExamId,
-        from_session_order: scope === "lecture" ? 1 : undefined,
+        from_session_order: fromSessionOrder,
+        to_session_order: toSessionOrder,
         limit: 200,
       }),
-    enabled: Number.isFinite(enrollmentId),
+    enabled: Number.isFinite(enrollmentId) && !hasInvalidSessionRange,
   });
 
   const wrongList = useMemo(() => data?.results ?? [], [data]);
@@ -170,7 +218,8 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
       return createWrongNotePDF({
         enrollment_id: enrollmentId,
         exam_id: queryExamId,
-        from_session_order: scope === "lecture" ? 1 : undefined,
+        from_session_order: fromSessionOrder,
+        to_session_order: toSessionOrder,
       });
     },
     onSuccess: (response) => {
@@ -365,13 +414,71 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
           disabled={isCreating}
           onClick={() => setScope("lecture")}
         >
-          강의 누적
-          <span>1주차부터 주차별 오답</span>
+          회차 범위
+          <span>시작~종료 회차의 오답</span>
         </button>
       </div>
 
-      {isLoading && <div className="wrong-note__state">오답을 모으고 있습니다…</div>}
-      {error && (
+      {scope === "lecture" && (
+        <div className="wrong-note__range" data-testid="wrong-note-range">
+          <div className="wrong-note__range-heading">
+            <strong>수록 회차</strong>
+            <span>시작과 종료 회차를 모두 포함합니다.</span>
+          </div>
+          <div className="wrong-note__range-fields">
+            <label>
+              <span>시작 회차</span>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                inputMode="numeric"
+                value={fromSessionOrderInput}
+                disabled={isCreating}
+                aria-invalid={hasInvalidSessionRange}
+                aria-describedby="wrong-note-range-guidance"
+                data-testid="wrong-note-range-from"
+                onChange={(event) => setFromSessionOrderInput(event.target.value)}
+              />
+            </label>
+            <span className="wrong-note__range-separator" aria-hidden>
+              ~
+            </span>
+            <label>
+              <span>종료 회차</span>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                inputMode="numeric"
+                placeholder="현재"
+                value={toSessionOrderInput}
+                disabled={isCreating}
+                aria-invalid={hasInvalidSessionRange}
+                aria-describedby="wrong-note-range-guidance"
+                data-testid="wrong-note-range-to"
+                onChange={(event) => setToSessionOrderInput(event.target.value)}
+              />
+            </label>
+          </div>
+          <p
+            id="wrong-note-range-guidance"
+            className={hasInvalidSessionRange ? "is-error" : ""}
+            role={hasInvalidSessionRange ? "alert" : undefined}
+          >
+            {hasReversedSessionRange
+              ? "종료 회차는 시작 회차보다 빠를 수 없습니다."
+              : !hasValidFromSessionOrder || !hasValidToSessionOrder
+                ? "회차는 1 이상의 숫자로 입력해 주세요."
+                : `${fromSessionOrder}~${toSessionOrder ?? "현재"}회차의 오답과 오답노트 지정 문항을 모읍니다.`}
+          </p>
+        </div>
+      )}
+
+      {!hasInvalidSessionRange && isLoading && (
+        <div className="wrong-note__state">오답을 모으고 있습니다…</div>
+      )}
+      {!hasInvalidSessionRange && error && (
         <div className="wrong-note__state wrong-note__state--error" role="alert">
           <span>{extractApiError(error, "오답을 불러오지 못했습니다.")}</span>
           <Button intent="ghost" size="sm" onClick={() => void refetch()}>
@@ -380,14 +487,14 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
         </div>
       )}
 
-      {!isLoading && !error && wrongList.length === 0 && (
+      {!hasInvalidSessionRange && !isLoading && !error && wrongList.length === 0 && (
         <div className="wrong-note__empty">
           <strong>{scope === "exam" ? "이번 시험은 복습할 문항이 없습니다." : "누적된 복습 문항이 없습니다."}</strong>
           <span>오답이나 오답노트로 지정한 문항이 생기면 바로 PDF로 만들 수 있습니다.</span>
         </div>
       )}
 
-      {!isLoading && !error && groups.length > 0 && (
+      {!hasInvalidSessionRange && !isLoading && !error && groups.length > 0 && (
         <div className="wrong-note__groups">
           {groups.map((group) => (
             <section className="wrong-note__group" key={group.key}>
@@ -441,7 +548,7 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
         </div>
       )}
 
-      {missingImageCount > 0 && wrongList.length > 0 && (
+      {!hasInvalidSessionRange && missingImageCount > 0 && wrongList.length > 0 && (
         <div className="wrong-note__image-hint">
           <strong>
             {isPreviewLimited ? "미리보기 문항 중 " : ""}문제 이미지 {missingImageCount}개가 비어
@@ -453,8 +560,14 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
 
       <div className="wrong-note__action-bar">
         <div>
-          <strong>{scope === "exam" ? "이번 시험 오답노트" : "강의 누적 오답노트"}</strong>
-          {exceedsPdfLimit ? (
+          <strong>
+            {scope === "exam"
+              ? "이번 시험 오답노트"
+              : sessionRangeTitle}
+          </strong>
+          {hasInvalidSessionRange ? (
+            <span>범위를 바로잡으면 해당 회차의 문항 수를 다시 계산합니다.</span>
+          ) : exceedsPdfLimit ? (
             <span
               className="wrong-note__limit-guidance"
               id="wrong-note-limit-guidance"
@@ -462,7 +575,7 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
             >
               한 번에 최대 {MAX_WRONG_NOTE_PDF_ITEMS}문항까지 만들 수 있습니다.{" "}
               {scope === "lecture"
-                ? "‘이번 시험’으로 범위를 좁혀 주세요."
+                ? "시작·종료 회차를 좁혀 주세요."
                 : `오답이 ${MAX_WRONG_NOTE_PDF_ITEMS}문항을 넘는 단일 시험은 PDF 생성을 지원하지 않습니다.`}
             </span>
           ) : (
@@ -484,7 +597,12 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
           <Button
             intent="primary"
             onClick={() => pdfMutation.mutate()}
-            disabled={wrongList.length === 0 || exceedsPdfLimit || isCreating}
+            disabled={
+              wrongList.length === 0 ||
+              exceedsPdfLimit ||
+              isCreating ||
+              hasInvalidSessionRange
+            }
             loading={isCreating}
             aria-describedby={exceedsPdfLimit ? "wrong-note-limit-guidance" : undefined}
             data-testid="wrong-note-create"

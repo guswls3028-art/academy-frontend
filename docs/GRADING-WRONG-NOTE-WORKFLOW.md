@@ -13,8 +13,8 @@
 1. 종이에서 끝낸 채점 결과를 학생별 O/X/오답노트 또는 부분점수로 확정한다.
 2. 확정된 대표 결과의 오답과 오답노트 지정 문항으로 PDF를 만든다.
 
-편집 가능한 HWPX 시험지 생성과 임의의 시작·종료 회차 선택은 현재 기능이
-아니다. 다음 구현 경계와 수용 기준은 백엔드
+편집 가능한 HWPX 시험지 생성은 현재 기능이 아니다. 다음 구현 경계와
+수용 기준은 백엔드
 [`exam-wrong-note-hwpx-plan.md`](https://github.com/guswls3028-art/academy-backend/blob/main/docs/refactor/exam-wrong-note-hwpx-plan.md)에
 둔다.
 
@@ -36,8 +36,9 @@
 4. 표 동작은 `ManualExamGradingGrid.tsx`, 요청 형식은
    `manualExamGrading.ts`, 화면 회귀는
    `e2e/admin/manual-exam-grading.mock.spec.ts`를 확인한다.
-5. 오답노트 출력은 `WrongNotePanel.tsx`와 백엔드 현재 계약을 확인한다.
-   HWPX나 회차 범위 확장은 구현으로 추정하지 말고 별도 제안 문서를 읽는다.
+5. 오답노트 출력과 회차 범위는 `WrongNotePanel.tsx`,
+   `wrong-note-generation-contract.mock.spec.ts`와 백엔드 현재 계약을 확인한다.
+   HWPX 확장은 구현으로 추정하지 말고 별도 제안 문서를 읽는다.
 
 ### 증상별 첫 확인 위치
 
@@ -155,10 +156,11 @@ stale version, 편집 lease 충돌, 문항·배점 오류는 서버가 전체 �
 
 ## 현재 오답노트 계약
 
-- 학생 상세의 **오답노트 만들기**에서 **이번 시험** 또는 **강의 누적**을
+- 학생 상세의 **오답노트 만들기**에서 **이번 시험** 또는 **회차 범위**를
   선택한다.
-- 강의 누적 UI는 1회차부터 현재까지다. 시작·종료 회차를 각각 지정하는
-  기능은 아직 없다.
+- 회차 범위는 시작과 종료를 모두 포함한다. 종료 회차를 비우면 시작
+  회차부터 현재까지 누적한다. 종료가 시작보다 빠르거나 1 미만이면 조회와
+  생성을 막고 입력 바로 아래에서 이유를 안내한다.
 - 현재 대표 `ResultItem`에서 오답이거나 `include_in_wrong_note=true`인
   문항만 모은다. 재채점 후 맞고 복습 지정도 아니면 다음 조회에서 빠진다.
 - 시험 설정에 저장된 문항 이미지가 있으면 PDF에 싣는다. 이미지가 없으면
@@ -189,6 +191,7 @@ pnpm build
 - 70~120% 배율, 화면 맞춤, 고정 열, 1366/1100/390px overflow
 - 미리보기 무기록, 확정 후 서버 재조회
 - 혼합형 OMR 문항 잠금과 OMR 검토 후 표 재조회
+- 1~1, 2~4, 시작~현재 회차 조회와 동일 범위 PDF 요청, 역전 범위 차단
 
 이 테스트는 local route mock 기반 화면 계약이다. 운영 데이터의 실제
 저장·tenant/role·transaction·worker/R2는 백엔드 집중 테스트와 통제된

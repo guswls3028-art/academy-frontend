@@ -44,6 +44,8 @@ async function mockWrongNoteApi(
 ) {
   let createCalls = 0;
   let statusCalls = 0;
+  const listRequestUrls: string[] = [];
+  const createPayloads: Array<Record<string, unknown>> = [];
   let currentWrongNoteItem = wrongNoteItem;
   await page.route("https://download.example/**", (route) =>
     route.fulfill({
@@ -67,6 +69,7 @@ async function mockWrongNoteApi(
 
     const path = new URL(request.url()).pathname;
     if (path.endsWith("/results/wrong-notes") && request.method() === "GET") {
+      listRequestUrls.push(request.url());
       return json(route, {
         count: options.total,
         next: null,
@@ -76,6 +79,7 @@ async function mockWrongNoteApi(
     }
     if (path.endsWith("/results/wrong-notes/pdf/") && request.method() === "POST") {
       createCalls += 1;
+      createPayloads.push(request.postDataJSON() as Record<string, unknown>);
       if (options.createDelayMs) {
         await new Promise((resolve) => setTimeout(resolve, options.createDelayMs));
       }
@@ -109,6 +113,12 @@ async function mockWrongNoteApi(
     },
     get statusCalls() {
       return statusCalls;
+    },
+    get listRequestUrls() {
+      return listRequestUrls;
+    },
+    get createPayloads() {
+      return createPayloads;
     },
     setWrongNoteItem(item: typeof wrongNoteItem) {
       currentWrongNoteItem = item;
@@ -144,12 +154,12 @@ test.describe("오답노트 생성 계약", () => {
     await page.setViewportSize({ width: 1366, height: 900 });
     await page.goto(`${BASE}/e2e-wrong-note-harness.html`);
 
-    await page.getByRole("button", { name: /강의 누적/ }).click();
+    await page.getByRole("button", { name: /회차 범위/ }).click();
     await expect(page.getByTestId("wrong-note-limit-guidance")).toContainText(
       "한 번에 최대 100문항",
     );
     await expect(page.getByTestId("wrong-note-limit-guidance")).toContainText(
-      "이번 시험",
+      "시작·종료 회차",
     );
     await expect(page.getByTestId("wrong-note-create")).toBeDisabled();
     await page.screenshot({
@@ -167,7 +177,7 @@ test.describe("오답노트 생성 계약", () => {
     await page.setViewportSize({ width: 375, height: 812 });
     const guidance = page.getByTestId("wrong-note-limit-guidance");
     await expect(guidance).toBeVisible();
-    await expect(guidance).toContainText("이번 시험");
+    await expect(guidance).toContainText("시작·종료 회차");
     expect(
       await guidance.evaluate((element) => ({
         clientWidth: element.clientWidth,
@@ -190,7 +200,7 @@ test.describe("오답노트 생성 계약", () => {
 
     await page.getByTestId("wrong-note-create").click();
     await expect(page.getByTestId("wrong-note-create")).toContainText("PDF 만드는 중");
-    await expect(page.getByRole("button", { name: /강의 누적/ })).toBeDisabled();
+    await expect(page.getByRole("button", { name: /회차 범위/ })).toBeDisabled();
     await expect(page.getByTestId("wrong-note-download")).toBeVisible();
     await expect(page.getByRole("alert")).toHaveCount(0);
   });
@@ -262,6 +272,56 @@ test.describe("오답노트 생성 계약", () => {
     await expect(page.getByText("수정된 진단평가")).toBeVisible();
     await expect(page.getByTestId("wrong-note-download")).toHaveCount(0);
     await expect(page.getByTestId("wrong-note-create")).toBeEnabled();
+  });
+
+  test("시작~종료 회차를 조회와 PDF 생성에 같은 값으로 보낸다", async ({ page }) => {
+    const calls = await mockWrongNoteApi(page, { total: 1 });
+    await page.goto(`${BASE}/e2e-wrong-note-harness.html`);
+
+    await page.getByRole("button", { name: /회차 범위/ }).click();
+    await page.getByTestId("wrong-note-range-from").fill("2");
+    await page.getByTestId("wrong-note-range-to").fill("4");
+
+    await expect.poll(
+      () => calls.listRequestUrls[calls.listRequestUrls.length - 1] ?? "",
+    ).toContain(
+      "from_session_order=2",
+    );
+    await expect.poll(
+      () => calls.listRequestUrls[calls.listRequestUrls.length - 1] ?? "",
+    ).toContain(
+      "to_session_order=4",
+    );
+    await expect(page.getByText("2~4회차의 오답과 오답노트 지정 문항을 모읍니다.")).toBeVisible();
+
+    await page.getByTestId("wrong-note-create").click();
+    await expect(page.getByTestId("wrong-note-download")).toBeVisible();
+    expect(calls.createPayloads).toContainEqual(
+      expect.objectContaining({
+        enrollment_id: 7,
+        from_session_order: 2,
+        to_session_order: 4,
+      }),
+    );
+  });
+
+  test("종료 회차가 시작보다 빠르면 생성하지 않는다", async ({ page }) => {
+    const calls = await mockWrongNoteApi(page, { total: 1 });
+    await page.goto(`${BASE}/e2e-wrong-note-harness.html`);
+
+    await page.getByRole("button", { name: /회차 범위/ }).click();
+    await page.getByTestId("wrong-note-range-from").fill("5");
+    await page.getByTestId("wrong-note-range-to").fill("3");
+
+    await expect(page.getByRole("alert")).toContainText(
+      "종료 회차는 시작 회차보다 빠를 수 없습니다.",
+    );
+    await expect(page.locator(".wrong-note__group")).toHaveCount(0);
+    await expect(
+      page.getByText("범위를 바로잡으면 해당 회차의 문항 수를 다시 계산합니다."),
+    ).toBeVisible();
+    await expect(page.getByTestId("wrong-note-create")).toBeDisabled();
+    expect(calls.createCalls).toBe(0);
   });
 });
 
