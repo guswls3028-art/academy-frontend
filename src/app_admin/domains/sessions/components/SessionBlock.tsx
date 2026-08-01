@@ -12,9 +12,15 @@ import { fetchSessions, type Session } from "@/shared/api/contracts/sessions";
 import { fetchSections, type Section as SectionType } from "@/shared/api/contracts/lectureSections";
 import { updateSession, deleteSession } from "@admin/domains/lectures/api/sessions";
 import { SessionBlockView, formatSessionBlockLabel } from "@/shared/ui/session-block";
-import { isSupplementSession, sortSessionsByDisplayOrder } from "@/shared/product/sessions/sessionOrdering";
+import {
+  getSessionType,
+  isSupplementSession,
+  sortSessionsByDisplayOrder,
+  type SessionType,
+} from "@/shared/product/sessions/sessionOrdering";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
+import { Tabs } from "@/shared/ui/ds";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { adminSessionQueryKeys } from "../queryKeys";
 import styles from "./SessionBlock.module.css";
@@ -37,6 +43,7 @@ type SessionItem = {
   section?: number | null;
 };
 type SessionRowTone = "primary" | "warning" | "muted";
+type SessionScope = SessionType;
 
 /** 차시 블록 우상단 톱니바퀴 → 수정/삭제/반변경 팝오버 */
 function SessionGearMenu({
@@ -46,8 +53,9 @@ function SessionGearMenu({
 }: {
   session: SessionItem;
   sections?: SectionType[];
-  onDone: () => void;
+  onDone: (action: "updated" | "deleted") => void;
 }) {
+  const supplement = isSupplementSession(session);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(session.title ?? "");
@@ -81,17 +89,17 @@ function SessionGearMenu({
 
   const handleDelete = async () => {
     const ok = await confirm({
-      title: "차시 삭제",
-      message: `이 차시를 삭제하시겠습니까? 관련된 시험, 과제, 출결 데이터가 모두 삭제됩니다.`,
+      title: supplement ? "보강 삭제" : "차시 삭제",
+      message: `이 ${supplement ? "보강" : "차시"}을 삭제하시겠습니까? 관련된 시험, 과제, 출결 데이터가 모두 삭제됩니다.`,
       confirmText: "삭제",
     });
     if (!ok) return;
     setBusy(true);
     try {
       await deleteSession(session.id);
-      feedback.success("차시가 삭제되었습니다.");
+      feedback.success(`${supplement ? "보강" : "차시"}이 삭제되었습니다.`);
       setOpen(false);
-      onDone();
+      onDone("deleted");
     } catch {
       feedback.error("차시 삭제에 실패했습니다.");
     } finally {
@@ -100,6 +108,10 @@ function SessionGearMenu({
   };
 
   const handleSaveEdit = async () => {
+    if (supplement && !editTitle.trim()) {
+      feedback.warning("보강 이름을 입력하세요.");
+      return;
+    }
     if (!editTitle.trim() && !editDate.trim()) return;
     setBusy(true);
     try {
@@ -107,10 +119,10 @@ function SessionGearMenu({
       if (editTitle.trim()) payload.title = editTitle.trim();
       if (editDate.trim()) payload.date = editDate.trim();
       await updateSession(session.id, payload);
-      feedback.success("차시가 수정되었습니다.");
+      feedback.success(`${supplement ? "보강" : "차시"}이 수정되었습니다.`);
       setOpen(false);
       setEditing(false);
-      onDone();
+      onDone("updated");
     } catch {
       feedback.error("차시 수정에 실패했습니다.");
     } finally {
@@ -134,10 +146,10 @@ function SessionGearMenu({
               <div className={styles.dropdownDivider} />
               <div className="px-3 py-1 text-[11px] text-[var(--color-text-muted)]">반 이동</div>
               {session.section && (
-                <button type="button" className="w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-bg-surface-hover)]" onClick={async () => { setBusy(true); try { await updateSession(session.id, { section: null }); feedback.success("반 미지정으로 이동"); setOpen(false); onDone(); } catch { feedback.error("이동 실패"); } setBusy(false); }} disabled={busy}>미지정</button>
+                <button type="button" className="w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-bg-surface-hover)]" onClick={async () => { setBusy(true); try { await updateSession(session.id, { section: null }); feedback.success("반 미지정으로 이동"); setOpen(false); onDone("updated"); } catch { feedback.error("이동 실패"); } setBusy(false); }} disabled={busy}>미지정</button>
               )}
               {sections.filter(s => s.id !== session.section).map(s => (
-                <button key={s.id} type="button" className="w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-bg-surface-hover)]" onClick={async () => { setBusy(true); try { await updateSession(session.id, { section: s.id }); feedback.success(`${s.section_type === "CLASS" ? "수업" : "클리닉"} ${s.label}반으로 이동`); setOpen(false); onDone(); } catch { feedback.error("이동 실패"); } setBusy(false); }} disabled={busy}>{s.section_type === "CLASS" ? "수업" : "클리닉"} {s.label}반</button>
+                <button key={s.id} type="button" className="w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-bg-surface-hover)]" onClick={async () => { setBusy(true); try { await updateSession(session.id, { section: s.id }); feedback.success(`${s.section_type === "CLASS" ? "수업" : "클리닉"} ${s.label}반으로 이동`); setOpen(false); onDone("updated"); } catch { feedback.error("이동 실패"); } setBusy(false); }} disabled={busy}>{s.section_type === "CLASS" ? "수업" : "클리닉"} {s.label}반</button>
               ))}
               <div className={styles.dropdownDivider} />
             </>
@@ -155,8 +167,18 @@ function SessionGearMenu({
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-medium text-[var(--color-text-muted)]">제목</label>
-            <input className="ds-input text-sm" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="차시 제목" autoFocus />
+            <label htmlFor={`session-title-${session.id}`} className="text-xs font-medium text-[var(--color-text-muted)]">
+              {supplement ? "보강 이름" : "제목"}
+            </label>
+            <input
+              id={`session-title-${session.id}`}
+              className="ds-input text-sm"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              placeholder={supplement ? "예: 토요일 심화 클리닉" : "차시 제목"}
+              maxLength={255}
+              autoFocus
+            />
             <label className="text-xs font-medium text-[var(--color-text-muted)]">날짜</label>
             <input type="date" className="ds-input text-sm" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
             <div className="flex justify-end gap-1 mt-1">
@@ -172,7 +194,7 @@ function SessionGearMenu({
 
   return (
     <div className={styles.gearWrap}>
-      <button ref={gearRef} type="button" onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); setEditing(false); }} className={`session-block__gear ${open ? styles.gearOpen : ""}`} aria-label="차시 설정">
+      <button ref={gearRef} type="button" onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); setEditing(false); }} className={`session-block__gear ${open ? styles.gearOpen : ""}`} aria-label={`${supplement ? "보강" : "차시"} 설정`}>
         <Settings size={14} strokeWidth={2.5} />
       </button>
       {dropdownContent}
@@ -184,10 +206,15 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const qc = useQueryClient();
-  const [createForSection, setCreateForSection] = useState<{ id: number | null; label: string | null } | null>(null);
+  const [sessionScope, setSessionScope] = useState<SessionScope>("REGULAR");
+  const [createForSection, setCreateForSection] = useState<{
+    id: number | null;
+    label: string | null;
+    sessionType: SessionScope;
+  } | null>(null);
   const { sectionMode, clinicMode } = useSectionMode();
 
-  const { data: rawSessions = [], isLoading } = useQuery({
+  const { data: rawSessions = [], isLoading, isError, refetch } = useQuery({
     queryKey: adminSessionQueryKeys.lectureSessions(lectureId),
     queryFn: () => fetchSessions(lectureId),
     enabled: Number.isFinite(lectureId),
@@ -199,7 +226,16 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
     enabled: Number.isFinite(lectureId) && sectionMode,
   });
 
-  const sessions = sortSessionsByDisplayOrder(rawSessions);
+  const sessions = useMemo(
+    () => sortSessionsByDisplayOrder(rawSessions.filter((session) => getSessionType(session) === sessionScope)),
+    [rawSessions, sessionScope],
+  );
+  const sessionCounts = useMemo(() => rawSessions.reduce(
+    (counts, session) => {
+      counts[getSessionType(session)] += 1;
+      return counts;
+    },
+    { REGULAR: 0, SUPPLEMENT: 0 } as Record<SessionScope, number>), [rawSessions]);
 
   const invalidate = useCallback(() => {
     qc.invalidateQueries({ queryKey: adminSessionQueryKeys.lectureSessions(lectureId) });
@@ -220,6 +256,27 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
     return `/workspace/lectures/${lectureId}/sessions/${nextSessionId}/${targetTab}`;
   }, [currentSessionId, lectureId, location.pathname]);
 
+  useEffect(() => {
+    if (currentSessionId == null) return;
+    const currentSession = rawSessions.find((session) => Number(session.id) === Number(currentSessionId));
+    if (currentSession) setSessionScope(getSessionType(currentSession));
+  }, [currentSessionId, rawSessions]);
+
+  const handleScopeChange = useCallback((nextScope: SessionScope) => {
+    setSessionScope(nextScope);
+    if (currentSessionId == null) return;
+
+    const currentSession = rawSessions.find((session) => Number(session.id) === Number(currentSessionId));
+    if (!currentSession || getSessionType(currentSession) === nextScope) return;
+
+    const sameSectionTarget = rawSessions.find((session) => (
+      getSessionType(session) === nextScope && session.section === currentSession.section
+    ));
+    const target = sameSectionTarget
+      ?? rawSessions.find((session) => getSessionType(session) === nextScope);
+    navigate(target ? getSessionTargetPath(target.id) : `/workspace/lectures/${lectureId}`);
+  }, [currentSessionId, getSessionTargetPath, lectureId, navigate, rawSessions]);
+
   // section_mode 분기: 반별 row 데이터
   const sectionRows = useMemo(() => {
     if (!sectionMode) return null;
@@ -234,19 +291,19 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
 
     // 공통 차시 (section=null)
     const commonSessions = sortSessionsByDisplayOrder((rawSessions as Session[])
-      .filter((s) => !s.section)
+      .filter((s) => !s.section && getSessionType(s) === sessionScope)
     );
 
     // 반별 차시
     const rows = activeSections.map((sec) => ({
       section: sec,
       sessions: sortSessionsByDisplayOrder((rawSessions as Session[])
-        .filter((s) => s.section === sec.id)
+        .filter((s) => s.section === sec.id && getSessionType(s) === sessionScope)
       ),
     }));
 
     return { commonSessions, rows };
-  }, [sectionMode, sections, rawSessions]);
+  }, [sectionMode, sections, rawSessions, sessionScope]);
 
   // --- 렌더: section_mode ---
   if (sectionMode && sectionRows) {
@@ -255,9 +312,20 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
 
     return (
       <>
-        <div className={styles.sectionModeStack}>
+        <SessionScopeSwitcher
+          value={sessionScope}
+          counts={sessionCounts}
+          onChange={handleScopeChange}
+        />
+        <div
+          id="lecture-session-scope-panel"
+          role="tabpanel"
+          className={styles.sectionModeStack}
+        >
           {isLoading ? (
             <span className={styles.loadingText}>불러오는 중…</span>
+          ) : isError ? (
+            <SessionLoadError onRetry={() => void refetch()} />
           ) : !hasAnySections ? (
             <EmptySectionNotice
               onGoToSections={() => navigate(`/workspace/lectures/${lectureId}/sections`)}
@@ -278,7 +346,8 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                   navigate={navigate}
                   getSessionTargetPath={getSessionTargetPath}
                   invalidate={invalidate}
-                  onAdd={() => setCreateForSection({ id: null, label: null })}
+                  onAdd={() => setCreateForSection({ id: null, label: null, sessionType: sessionScope })}
+                  sessionScope={sessionScope}
                   isUnassigned
                 />
               )}
@@ -302,7 +371,12 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                     navigate={navigate}
                     getSessionTargetPath={getSessionTargetPath}
                     invalidate={invalidate}
-                    onAdd={() => setCreateForSection({ id: sec.id, label: `${isClinic ? "클리닉" : "수업"} ${sec.label}반` })}
+                    onAdd={() => setCreateForSection({
+                      id: sec.id,
+                      label: `${isClinic ? "클리닉" : "수업"} ${sec.label}반`,
+                      sessionType: sessionScope,
+                    })}
+                    sessionScope={sessionScope}
                     sectionType={sec.section_type}
                   />
                 );
@@ -313,7 +387,13 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
 
         {showCreate && (
           <Suspense fallback={null}>
-            <SessionCreateModal lectureId={lectureId} sectionId={createForSection?.id} sectionLabel={createForSection?.label} onClose={handleClose} />
+            <SessionCreateModal
+              lectureId={lectureId}
+              sectionId={createForSection?.id}
+              sectionLabel={createForSection?.label}
+              initialSessionType={createForSection?.sessionType}
+              onClose={handleClose}
+            />
           </Suspense>
         )}
       </>
@@ -323,9 +403,20 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
   // --- 렌더: 기존 (section_mode OFF) ---
   return (
     <>
-      <div className={styles.legacyBar}>
+      <SessionScopeSwitcher
+        value={sessionScope}
+        counts={sessionCounts}
+        onChange={handleScopeChange}
+      />
+      <div
+        id="lecture-session-scope-panel"
+        role="tabpanel"
+        className={styles.legacyBar}
+      >
         {isLoading ? (
           <span className={styles.loadingText}>불러오는 중…</span>
+        ) : isError ? (
+          <SessionLoadError onRetry={() => void refetch()} />
         ) : (
           <>
             {(sessions as SessionItem[]).map((s) => {
@@ -333,23 +424,110 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
               const supplement = isSupplementSession(s);
               return (
                 <div key={s.id} className="relative group">
-                  <SessionBlockView variant={supplement ? "supplement" : "n1"} compact selected={isActive} title={formatSessionBlockLabel(s)} desc={s.date ?? "-"} onClick={() => navigate(getSessionTargetPath(s.id))} />
-                  <SessionGearMenu session={s} onDone={() => { invalidate(); if (currentSessionId === s.id) navigate(`/workspace/lectures/${lectureId}`); }} />
+                  <SessionBlockView
+                    variant={supplement ? "supplement" : "n1"}
+                    compact
+                    selected={isActive}
+                    title={formatSessionBlockLabel(s)}
+                    desc={s.date ?? "-"}
+                    className={supplement ? styles.supplementCard : undefined}
+                    onClick={() => navigate(getSessionTargetPath(s.id))}
+                  />
+                  <SessionGearMenu session={s} onDone={(action) => { invalidate(); if (action === "deleted" && currentSessionId === s.id) navigate(`/workspace/lectures/${lectureId}`); }} />
                 </div>
               );
             })}
-            <SessionBlockView variant="add" compact onClick={() => setCreateForSection({ id: null, label: null })} ariaLabel="차시 추가">
-              <Plus size={22} strokeWidth={2.5} />
-            </SessionBlockView>
+            {sessions.length === 0 ? (
+              <button
+                type="button"
+                className={styles.scopeEmptyButton}
+                onClick={() => setCreateForSection({ id: null, label: null, sessionType: sessionScope })}
+              >
+                <Plus size={16} strokeWidth={2.4} />
+                <span>
+                  <strong>{sessionScope === "REGULAR" ? "정규 수업" : "보강"}이 아직 없습니다</strong>
+                  <small>첫 {sessionScope === "REGULAR" ? "차시" : "보강"}를 추가하세요</small>
+                </span>
+              </button>
+            ) : (
+              <SessionBlockView
+                variant="add"
+                compact
+                onClick={() => setCreateForSection({ id: null, label: null, sessionType: sessionScope })}
+                ariaLabel={`${sessionScope === "REGULAR" ? "정규 수업" : "보강"} 추가`}
+              >
+                <Plus size={22} strokeWidth={2.5} />
+              </SessionBlockView>
+            )}
           </>
         )}
       </div>
       {showCreate && (
         <Suspense fallback={null}>
-          <SessionCreateModal lectureId={lectureId} sectionId={createForSection?.id} sectionLabel={createForSection?.label} onClose={handleClose} />
+          <SessionCreateModal
+            lectureId={lectureId}
+            sectionId={createForSection?.id}
+            sectionLabel={createForSection?.label}
+            initialSessionType={createForSection?.sessionType}
+            onClose={handleClose}
+          />
         </Suspense>
       )}
     </>
+  );
+}
+
+function SessionLoadError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className={styles.sessionLoadError} role="alert">
+      <span>수업 목록을 불러오지 못했습니다.</span>
+      <button type="button" onClick={onRetry}>다시 불러오기</button>
+    </div>
+  );
+}
+
+function SessionScopeSwitcher({
+  value,
+  counts,
+  onChange,
+}: {
+  value: SessionScope;
+  counts: Record<SessionScope, number>;
+  onChange: (scope: SessionScope) => void;
+}) {
+  const options: Array<{ value: SessionScope; label: string; description: string }> = [
+    { value: "REGULAR", label: "정규 수업", description: "차시별 수업" },
+    { value: "SUPPLEMENT", label: "보강", description: "클리닉·추가 수업" },
+  ];
+
+  return (
+    <div className={styles.scopeHeader}>
+      <Tabs
+        value={value}
+        ariaLabel="수업 구분"
+        className={styles.scopeTabs}
+        onChange={(nextValue) => onChange(nextValue as SessionScope)}
+        items={options.map((option) => ({
+          key: option.value,
+          label: (
+            <>
+              <span className={styles.scopeTabText}>
+                <strong>{option.label}</strong>
+                <small>{option.description}</small>
+              </span>
+              <span className={styles.scopeCount} aria-label={`${counts[option.value]}개`}>
+                {counts[option.value]}
+              </span>
+            </>
+          ),
+        }))}
+      />
+      <p className={styles.scopeHelp}>
+        {value === "REGULAR"
+          ? "정규 진도와 성적은 차시 순서대로 관리합니다."
+          : "주말 클리닉처럼 정규 진도와 별개인 수업을 관리합니다."}
+      </p>
+    </div>
   );
 }
 
@@ -379,7 +557,7 @@ function EmptySectionNotice({ onGoToSections }: { onGoToSections: () => void }) 
 /** 한 줄: 라벨 + 차시 블록들 + 추가 버튼 */
 function SessionRow({
   label, sublabel, tone, sessions, sections, lectureId, currentSessionId, navigate, getSessionTargetPath, invalidate, onAdd,
-  sectionType, isUnassigned,
+  sessionScope, sectionType, isUnassigned,
 }: {
   label: string;
   sublabel?: string;
@@ -392,6 +570,7 @@ function SessionRow({
   getSessionTargetPath: (sessionId: number) => string;
   invalidate: () => void;
   onAdd: () => void;
+  sessionScope: SessionScope;
   sectionType?: "CLASS" | "CLINIC";
   isUnassigned?: boolean;
 }) {
@@ -425,8 +604,16 @@ function SessionRow({
         const supplement = isSupplementSession(s);
         return (
           <div key={s.id} className="relative group">
-            <SessionBlockView variant={supplement ? "supplement" : "n1"} compact selected={isActive} title={formatSessionBlockLabel(s)} desc={s.date ?? "-"} onClick={() => navigate(getSessionTargetPath(s.id))} />
-            <SessionGearMenu session={s} sections={sections} onDone={() => { invalidate(); if (currentSessionId === s.id) navigate(`/workspace/lectures/${lectureId}`); }} />
+            <SessionBlockView
+              variant={supplement ? "supplement" : "n1"}
+              compact
+              selected={isActive}
+              title={formatSessionBlockLabel(s)}
+              desc={s.date ?? "-"}
+              className={supplement ? styles.supplementCard : undefined}
+              onClick={() => navigate(getSessionTargetPath(s.id))}
+            />
+            <SessionGearMenu session={s} sections={sections} onDone={(action) => { invalidate(); if (action === "deleted" && currentSessionId === s.id) navigate(`/workspace/lectures/${lectureId}`); }} />
           </div>
         );
       })}
@@ -436,15 +623,20 @@ function SessionRow({
         <button
           type="button"
           onClick={onAdd}
-          aria-label={`${label} 차시 추가`}
+          aria-label={`${label} ${sessionScope === "REGULAR" ? "정규 수업" : "보강"} 추가`}
           className={styles.emptyAddButton}
           data-tone={tone}
         >
           <Plus size={15} strokeWidth={2.2} />
-          차시를 추가하세요
+          {sessionScope === "REGULAR" ? "정규 수업을 추가하세요" : "보강을 추가하세요"}
         </button>
       ) : (
-        <SessionBlockView variant="add" compact onClick={onAdd} ariaLabel={`${label} 차시 추가`}>
+        <SessionBlockView
+          variant="add"
+          compact
+          onClick={onAdd}
+          ariaLabel={`${label} ${sessionScope === "REGULAR" ? "정규 수업" : "보강"} 추가`}
+        >
           <Plus size={18} strokeWidth={2.5} />
         </SessionBlockView>
       )}

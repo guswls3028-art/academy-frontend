@@ -25,6 +25,7 @@ import {
   isSupplementSession,
   sortSessionsByDisplayOrder,
   type SessionOrderLike,
+  type SessionType,
 } from "@/shared/product/sessions/sessionOrdering";
 
 type SessionCreateKind = "regular" | "supplement";
@@ -38,6 +39,8 @@ interface Props {
   sectionId?: number | null;
   /** 반 라벨 (모달 타이틀 표시용) */
   sectionLabel?: string | null;
+  /** 정규/보강 범위에서 연 경우 해당 유형을 미리 선택한다. */
+  initialSessionType?: SessionType;
   onClose: () => void;
 }
 
@@ -61,11 +64,24 @@ function nextWeekDate(lastDateStr: string | null | undefined): string {
   return `${y}-${m}-${day}`;
 }
 
-export default function SessionCreateModal({ lectureId, sectionId, sectionLabel, onClose }: Props) {
+export default function SessionCreateModal({
+  lectureId,
+  sectionId,
+  sectionLabel,
+  initialSessionType,
+  onClose,
+}: Props) {
   const [busy, setBusy] = useState(false);
-  const [sessionType, setSessionType] = useState<SessionCreateKind | null>(null);
+  const [sessionType, setSessionType] = useState<SessionCreateKind | null>(
+    initialSessionType === "REGULAR"
+      ? "regular"
+      : initialSessionType === "SUPPLEMENT"
+        ? "supplement"
+        : null,
+  );
   const [regularMode, setRegularMode] = useState<RegularMode>("auto");
   const [regularOrderInput, setRegularOrderInput] = useState("");
+  const [supplementTitle, setSupplementTitle] = useState("보강");
   const [supplementAfterOrder, setSupplementAfterOrder] = useState<number | null>(null);
   const [dateMode, setDateMode] = useState<DateMode>("default");
   const [date, setDate] = useState("");
@@ -127,7 +143,11 @@ export default function SessionCreateModal({ lectureId, sectionId, sectionLabel,
   const lectureTimeExtract = useMemo(() => extractTimeFromLectureTime(lecture?.lecture_time), [lecture?.lecture_time]);
 
   const defaultTitle =
-    sessionType === "regular" ? `${effectiveRegularOrder}차시` : sessionType === "supplement" ? "보강" : "";
+    sessionType === "regular"
+      ? `${effectiveRegularOrder}차시`
+      : sessionType === "supplement"
+        ? supplementTitle.trim()
+        : "";
 
   // 보강 선택 시 날짜·시간 모두 직접선택만 가능
   useEffect(() => {
@@ -176,6 +196,9 @@ export default function SessionCreateModal({ lectureId, sectionId, sectionLabel,
         return `이미 ${manualRegularOrder}차시가 있습니다.`;
       }
     }
+    if (sessionType === "supplement" && !supplementTitle.trim()) {
+      return "보강 이름을 입력하세요.";
+    }
     if (!effectiveDate?.trim()) return "날짜를 선택하세요.";
     if (sessionType === "supplement" || timeMode === "custom") {
       if (!timeInput.trim()) return "시간을 입력하세요.";
@@ -194,6 +217,7 @@ export default function SessionCreateModal({ lectureId, sectionId, sectionLabel,
         ? timeInput.trim()
         : lectureTimeExtract || lectureTimeRaw;
     if (timeStr) title = `${title} (${timeStr})`;
+    if (title.length > 255) return feedback.warning("보강 이름과 시간을 합쳐 255자 이내로 입력하세요.");
 
     setBusy(true);
     try {
@@ -292,6 +316,27 @@ export default function SessionCreateModal({ lectureId, sectionId, sectionLabel,
                   disabled={busy}
                 />
               )}
+            </div>
+          )}
+
+          {sessionType === "supplement" && (
+            <div>
+              <label className="modal-section-label mb-3 block" htmlFor="supplement-session-title">
+                보강 이름
+              </label>
+              <input
+                id="supplement-session-title"
+                className="ds-input"
+                value={supplementTitle}
+                onChange={(e) => setSupplementTitle(e.target.value)}
+                maxLength={220}
+                placeholder="예: 토요일 심화 클리닉"
+                aria-label="보강 이름"
+                disabled={busy}
+              />
+              <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+                강의 화면과 출결·성적 화면에 이 이름으로 표시됩니다.
+              </p>
             </div>
           )}
 

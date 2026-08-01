@@ -40,7 +40,12 @@ export function getDisplayOrder(session: SessionOrderLike | null | undefined): n
 }
 
 export function formatSessionLabel(session: SessionOrderLike | null | undefined): string {
-  if (isSupplementSession(session)) return "보강";
+  if (isSupplementSession(session)) {
+    const title = (session?.title ?? "").trim();
+    if (title) return title;
+    const displayLabel = (session?.display_label ?? "").trim();
+    return displayLabel || "보강";
+  }
 
   const regularOrder = getRegularOrder(session);
   if (regularOrder != null) return `${regularOrder}차시`;
