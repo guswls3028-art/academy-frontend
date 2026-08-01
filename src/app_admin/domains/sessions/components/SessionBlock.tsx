@@ -238,11 +238,15 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
     enabled: Number.isFinite(lectureId) && sectionMode,
   });
 
+  const orderedSessions = useMemo(
+    () => sortSessionsByDisplayOrder(rawSessions),
+    [rawSessions],
+  );
   const sessions = useMemo(
-    () => sortSessionsByDisplayOrder(rawSessions.filter((session) => (
-      viewMode === "ALL" || getSessionType(session) === sessionScope
-    ))),
-    [rawSessions, sessionScope, viewMode],
+    () => viewMode === "ALL"
+      ? orderedSessions
+      : orderedSessions.filter((session) => getSessionType(session) === sessionScope),
+    [orderedSessions, sessionScope, viewMode],
   );
   const sessionCounts = useMemo(() => rawSessions.reduce(
     (counts, session) => {
@@ -274,6 +278,12 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
   }, [currentSessionId, lectureId, location.pathname]);
 
   useEffect(() => {
+    setViewMode("ALL");
+    setSessionScope("REGULAR");
+    setCreateForSection(null);
+  }, [lectureId]);
+
+  useEffect(() => {
     if (currentSessionId == null) return;
     const currentSession = rawSessions.find((session) => Number(session.id) === Number(currentSessionId));
     if (currentSession) setSessionScope(getSessionType(currentSession));
@@ -283,16 +293,16 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
     setSessionScope(nextScope);
     if (currentSessionId == null) return;
 
-    const currentSession = rawSessions.find((session) => Number(session.id) === Number(currentSessionId));
+    const currentSession = orderedSessions.find((session) => Number(session.id) === Number(currentSessionId));
     if (!currentSession || getSessionType(currentSession) === nextScope) return;
 
-    const sameSectionTarget = rawSessions.find((session) => (
+    const sameSectionTarget = orderedSessions.find((session) => (
       getSessionType(session) === nextScope && session.section === currentSession.section
     ));
     const target = sameSectionTarget
-      ?? rawSessions.find((session) => getSessionType(session) === nextScope);
+      ?? orderedSessions.find((session) => getSessionType(session) === nextScope);
     navigate(target ? getSessionTargetPath(target.id) : `/workspace/lectures/${lectureId}`);
-  }, [currentSessionId, getSessionTargetPath, lectureId, navigate, rawSessions]);
+  }, [currentSessionId, getSessionTargetPath, lectureId, navigate, orderedSessions]);
 
   // section_mode 분기: 반별 row 데이터
   const sectionRows = useMemo(() => {
@@ -306,21 +316,22 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
         return a.label.localeCompare(b.label);
       });
 
-    // 공통 차시 (section=null)
-    const commonSessions = sortSessionsByDisplayOrder((rawSessions as Session[])
-      .filter((s) => !s.section && (viewMode === "ALL" || getSessionType(s) === sessionScope))
-    );
+    const sessionsBySection = new Map<number | null, Session[]>();
+    sessions.forEach((session) => {
+      const sectionId = session.section ?? null;
+      const groupedSessions = sessionsBySection.get(sectionId);
+      if (groupedSessions) groupedSessions.push(session);
+      else sessionsBySection.set(sectionId, [session]);
+    });
 
-    // 반별 차시
+    const commonSessions = sessionsBySection.get(null) ?? [];
     const rows = activeSections.map((sec) => ({
       section: sec,
-      sessions: sortSessionsByDisplayOrder((rawSessions as Session[])
-        .filter((s) => s.section === sec.id && (viewMode === "ALL" || getSessionType(s) === sessionScope))
-      ),
+      sessions: sessionsBySection.get(sec.id) ?? [],
     }));
 
     return { commonSessions, rows };
-  }, [sectionMode, sections, rawSessions, sessionScope, viewMode]);
+  }, [sectionMode, sections, sessions]);
 
   // --- 렌더: section_mode ---
   if (sectionMode && sectionRows) {

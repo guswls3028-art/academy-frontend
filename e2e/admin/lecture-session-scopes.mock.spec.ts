@@ -200,7 +200,9 @@ test("기존 전체 보기를 기본으로 유지하고 분리 보기에서 보�
   await page.getByRole("button", { name: "저장", exact: true }).click();
 
   await expect.poll(() => state.patchTitles).toEqual(["일요일 취약 단원 클리닉"]);
-  await expect(page.getByRole("button", { name: /일요일 취약 단원 클리닉/ })).toBeVisible();
+  const renamedSupplementCard = page.getByRole("button", { name: /일요일 취약 단원 클리닉/ });
+  await expect(renamedSupplementCard).toBeVisible();
+  await expect(renamedSupplementCard.locator(".session-block__title")).toHaveCSS("word-break", "keep-all");
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.getByRole("button", { name: "전체 보기", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: /일요일 취약 단원 클리닉/ })).toBeVisible();
