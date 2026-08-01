@@ -175,6 +175,8 @@ export default function SessionDetailPage() {
             <SessionAttendancePage
               sessionId={sId}
               lectureId={lecId}
+              sessionType={session.session_type}
+              sessionDate={session.date}
               onOpenEnrollModal={() => setShowEnrollModal(true)}
             />
           )}

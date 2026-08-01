@@ -15,35 +15,33 @@ import {
 import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
-  AlertTriangle,
   ArrowRight,
   BellRing,
-  BookOpenCheck,
-  CalendarDays,
-  CheckCircle2,
   ClipboardCheck,
   FileCheck2,
   MessageCircleQuestion,
 } from "lucide-react";
 import { fetchCommunityQuestions } from "@admin/domains/community/api/community.api";
 import { fetchExams } from "@admin/domains/exams/api/exams.api";
-import { fetchLectures } from "@/shared/api/contracts/sessions";
 import { useMessagingInfo } from "@admin/domains/messages/hooks/useMessagingInfo";
 import { fetchAdminSubmissions } from "@admin/domains/submissions/api/adminSubmissions";
+import {
+  arrivalOverviewQueryKey,
+  fetchArrivalOverview,
+  type ArrivalOverviewItem,
+} from "@/shared/api/contracts/arrivalOverview";
 import { Button } from "@/shared/ui/ds";
 import { InlineHelp } from "@/shared/ui/guide";
 import { DomainLayout } from "@/shared/ui/layout";
 import { adminDashboardQueryKeys } from "../queryKeys";
 import ClinicRemoconIcon from "../components/ClinicRemoconIcon";
+import {
+  ArrivalOperationsBoard,
+  TomorrowArrivalCard,
+} from "../components/ArrivalOperationsBoard";
 import styles from "./DashboardPage.module.css";
 
 const ClinicPasscardModal = lazy(() => import("@admin/domains/clinic/components/ClinicPasscardModal"));
-
-const TODAY_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
-  month: "long",
-  day: "numeric",
-  weekday: "long",
-});
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -59,11 +57,6 @@ export default function DashboardPage() {
     queryFn: () => fetchCommunityQuestions(null),
     staleTime: 60 * 1000,
   });
-  const { data: lectures = [], isLoading: lLoading, isError: lError } = useQuery({
-    queryKey: adminDashboardQueryKeys.lectures,
-    queryFn: () => fetchLectures({ is_active: true }),
-    staleTime: 60 * 1000,
-  });
   const { data: exams = [], isLoading: eLoading, isError: eError } = useQuery({
     queryKey: adminDashboardQueryKeys.exams,
     queryFn: () => fetchExams(),
@@ -74,61 +67,29 @@ export default function DashboardPage() {
     queryFn: () => fetchAdminSubmissions({ limit: 50 }),
     staleTime: 60 * 1000,
   });
+  const arrivalQuery = useQuery({
+    queryKey: arrivalOverviewQueryKey,
+    queryFn: fetchArrivalOverview,
+    staleTime: 20 * 1000,
+    refetchInterval: 30 * 1000,
+  });
 
   const pendingQnaCount = questions.filter((question) => !question.is_answered).length;
   const activeExams = exams.filter((exam) => exam.is_active);
   const pendingSubs = recentSubs.filter(
     (submission) => submission.status !== "done" && submission.status !== "failed",
   );
-  const todaySubs = recentSubs.filter((submission) => {
-    const submittedAt = new Date(submission.created_at);
-    return submittedAt.toDateString() === new Date().toDateString();
-  });
-
-  const overview = [
-    {
-      label: "운영 강의",
-      value: lectures.length,
-      unit: "개",
-      note: "현재 활성 강의",
-      loading: lLoading,
-      error: lError,
-      icon: BookOpenCheck,
-      tone: "lecture",
-    },
-    {
-      label: "운영 중 시험",
-      value: activeExams.length,
-      unit: "건",
-      note: "진행·채점 확인",
-      loading: eLoading,
-      error: eError,
-      icon: ClipboardCheck,
-      tone: "exam",
-    },
-    {
-      label: "오늘 학생 제출",
-      value: todaySubs.length,
-      unit: "건",
-      note: "오늘 들어온 자료",
-      loading: sLoading,
-      error: sError,
-      icon: FileCheck2,
-      tone: "submission",
-    },
-    {
-      label: "미답변 질문",
-      value: pendingQnaCount,
-      unit: "건",
-      note: "답변을 기다리는 질문",
-      loading: qLoading,
-      error: qError,
-      icon: MessageCircleQuestion,
-      tone: "question",
-    },
-  ] as const;
-
-  const hasOverviewError = overview.some((item) => item.error);
+  const openArrival = (item: ArrivalOverviewItem) => {
+    if (item.source === "supplement" && item.lecture_id && item.session_id) {
+      navigate(`/workspace/lectures/${item.lecture_id}/sessions/${item.session_id}/attendance`);
+      return;
+    }
+    if (item.clinic_session_id) {
+      navigate(`/workspace/clinic/operations?session=${item.clinic_session_id}`);
+      return;
+    }
+    navigate("/workspace/clinic/bookings");
+  };
   const alimtalkState = messagingLoading
     ? "loading"
     : messagingError || !messagingInfo
@@ -161,58 +122,13 @@ export default function DashboardPage() {
       description="학원 운영 현황을 한눈에 확인하세요."
     >
       <div className={styles.dashboard}>
-        <section className={styles.overviewBoard} aria-labelledby="dashboard-today-title">
-          <header className={styles.overviewHeader}>
-            <div>
-              <span className={styles.dateLabel}>
-                <CalendarDays size={15} aria-hidden="true" />
-                {TODAY_FORMATTER.format(new Date())}
-              </span>
-              <h2 id="dashboard-today-title">오늘 학원 운영</h2>
-              <p>수업을 시작하기 전에 확인할 현황을 한곳에 모았습니다.</p>
-            </div>
-            <span className={styles.boardState} data-error={hasOverviewError ? "true" : "false"}>
-              {hasOverviewError ? (
-                <>
-                  <AlertTriangle size={15} aria-hidden="true" />
-                  일부 현황 확인 필요
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 size={15} aria-hidden="true" />
-                  운영 현황 확인
-                </>
-              )}
-            </span>
-          </header>
-
-          <div className={styles.metricGrid}>
-            {overview.map((item) => {
-              const Icon = item.icon;
-              return (
-                <article key={item.label} className={styles.metricCard} data-tone={item.tone}>
-                  <span className={styles.metricIcon}>
-                    <Icon size={19} aria-hidden="true" />
-                  </span>
-                  <div className={styles.metricBody}>
-                    <span>{item.label}</span>
-                    {item.loading ? (
-                      <span className={styles.metricLoading} aria-label="로딩 중" />
-                    ) : item.error ? (
-                      <strong className={styles.metricError}>확인 필요</strong>
-                    ) : (
-                      <strong>
-                        {item.value}
-                        <small>{item.unit}</small>
-                      </strong>
-                    )}
-                    <small>{item.note}</small>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </section>
+        <ArrivalOperationsBoard
+          data={arrivalQuery.data}
+          loading={arrivalQuery.isLoading}
+          error={arrivalQuery.isError}
+          onRetry={() => arrivalQuery.refetch()}
+          onNavigate={openArrival}
+        />
 
         <div className={styles.workspaceGrid}>
           <section className={styles.taskBoard} aria-labelledby="dashboard-task-title">
@@ -281,42 +197,12 @@ export default function DashboardPage() {
           </section>
 
           <aside className={styles.sideColumn}>
-            <section className={styles.flowCard} aria-labelledby="dashboard-flow-title">
-              <header className={styles.compactHeader}>
-                <span>운영 흐름</span>
-                <h2 id="dashboard-flow-title">기록이 이어지는 순서</h2>
-              </header>
-              <ol className={styles.flowList}>
-                <li>
-                  <span>01</span>
-                  <div>
-                    <strong>강의 운영</strong>
-                    <small>활성 강의 {lLoading ? "확인 중" : `${lectures.length}개`}</small>
-                  </div>
-                </li>
-                <li>
-                  <span>02</span>
-                  <div>
-                    <strong>시험·제출</strong>
-                    <small>오늘 제출 {sLoading ? "확인 중" : `${todaySubs.length}건`}</small>
-                  </div>
-                </li>
-                <li>
-                  <span>03</span>
-                  <div>
-                    <strong>질문·피드백</strong>
-                    <small>미답변 {qLoading ? "확인 중" : `${pendingQnaCount}건`}</small>
-                  </div>
-                </li>
-                <li>
-                  <span>04</span>
-                  <div>
-                    <strong>후속 안내</strong>
-                    <small>대상과 내용을 확인해 알림톡 발송</small>
-                  </div>
-                </li>
-              </ol>
-            </section>
+            <TomorrowArrivalCard
+              data={arrivalQuery.data}
+              loading={arrivalQuery.isLoading}
+              error={arrivalQuery.isError}
+              onNavigate={openArrival}
+            />
 
             <section
               className={styles.messageCard}
