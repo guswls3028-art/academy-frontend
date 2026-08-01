@@ -28,11 +28,14 @@ export type ArrivalOverview = {
   generated_at: string;
   today: string;
   tomorrow: string;
+  range_end: string;
+  range_days: number;
   soon_window_minutes: number;
   summary: {
     soon: number;
     today: number;
     tomorrow: number;
+    upcoming: number;
     time_unset: number;
     overdue: number;
   };

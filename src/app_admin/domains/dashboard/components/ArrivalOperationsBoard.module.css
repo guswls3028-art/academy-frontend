@@ -26,7 +26,8 @@
 }
 
 .header h2,
-.tomorrowCard h2 {
+.emptyBoard h2,
+.upcomingCard h2 {
   margin: 7px 0 5px;
   color: var(--arrival-ink, #17233a);
   font-size: 24px;
@@ -110,6 +111,11 @@
 .summary > span[data-tone="soon"] {
   border-color: #b9d2fa;
   background: #edf4ff;
+}
+
+.summary > span[data-tone="upcoming"] {
+  border-color: #cad8ed;
+  background: #f5f8fc;
 }
 
 .summary > span[data-tone="unset"] {
@@ -260,7 +266,7 @@
   color: #25835f;
 }
 
-.empty {
+.todayEmpty {
   display: flex;
   align-items: center;
   gap: 11px;
@@ -272,23 +278,75 @@
   padding: 18px;
 }
 
-.empty > div {
+.todayEmpty > div {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.empty strong {
+.todayEmpty strong {
   color: var(--arrival-ink);
   font-size: 13px;
 }
 
-.empty span {
+.todayEmpty span {
   color: #768399;
   font-size: 11px;
 }
 
-.tomorrowCard {
+.emptyBoard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-block: 19px;
+}
+
+.emptyCopy h2 {
+  margin: 5px 0 3px;
+  font-size: 17px;
+}
+
+.emptyCopy p {
+  margin: 0;
+  color: var(--arrival-muted);
+  font-size: 11px;
+}
+
+.emptyActions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.emptyActions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #bfd2f2;
+  border-radius: 9px;
+  background: #edf4ff;
+  color: #27599f;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  padding: 8px 10px;
+}
+
+.emptyActions button + button {
+  border-color: #d8e1ed;
+  background: #fff;
+  color: #53647c;
+}
+
+.emptyActions button:hover,
+.emptyActions button:focus-visible {
+  border-color: #8eafe1;
+  outline: none;
+}
+
+.upcomingCard {
   border: 1px solid #dbe3ef;
   border-radius: 18px;
   background: #fff;
@@ -296,17 +354,17 @@
   padding: 19px;
 }
 
-.tomorrowCard header {
+.upcomingCard header {
   position: relative;
 }
 
-.tomorrowCard header > span {
+.upcomingCard header > span {
   color: #3561aa;
   font-size: 11px;
   font-weight: 800;
 }
 
-.tomorrowCard header > strong {
+.upcomingCard header > strong {
   position: absolute;
   top: 3px;
   right: 0;
@@ -314,19 +372,37 @@
   font-size: 18px;
 }
 
-.tomorrowCard h2 {
+.upcomingCard h2 {
   margin-top: 4px;
   font-size: 19px;
 }
 
-.tomorrowList {
+.upcomingList {
   display: flex;
   margin-top: 12px;
   flex-direction: column;
   gap: 6px;
 }
 
-.tomorrowList button {
+.upcomingDay {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.upcomingDay + .upcomingDay {
+  margin-top: 4px;
+  border-top: 1px solid #edf1f6;
+  padding-top: 8px;
+}
+
+.upcomingDayLabel {
+  color: #60718a;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.upcomingList button {
   display: grid;
   grid-template-columns: 58px minmax(0, 1fr) auto;
   align-items: center;
@@ -341,18 +417,18 @@
   text-align: left;
 }
 
-.tomorrowList button:hover,
-.tomorrowList button:focus-visible {
+.upcomingList button:hover,
+.upcomingList button:focus-visible {
   border-color: #adc3e7;
   background: #f3f7fd;
 }
 
-.tomorrowList strong {
+.upcomingList button > strong {
   color: #315ca9;
   font-size: 12px;
 }
 
-.tomorrowList span {
+.upcomingList span {
   overflow: hidden;
   color: #27364e;
   font-size: 11px;
@@ -360,15 +436,9 @@
   white-space: nowrap;
 }
 
-.tomorrowList small,
-.tomorrowEmpty {
+.upcomingList small {
   color: #7a879b;
   font-size: 10px;
-}
-
-.tomorrowEmpty {
-  margin: 12px 0 0;
-  line-height: 1.6;
 }
 
 .moreCount {
@@ -456,6 +526,15 @@
 
   .header {
     flex-direction: column;
+  }
+
+  .emptyBoard {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .emptyActions {
+    flex-wrap: wrap;
   }
 
   .nextArrival {

@@ -39,8 +39,10 @@ const arrivalOverview = {
   generated_at: "2026-08-01T09:00:00+09:00",
   today: "2026-08-01",
   tomorrow: "2026-08-02",
+  range_end: "2026-08-07",
+  range_days: 7,
   soon_window_minutes: 60,
-  summary: { soon: 1, today: 3, tomorrow: 1, time_unset: 1, overdue: 1 },
+  summary: { soon: 1, today: 3, tomorrow: 1, upcoming: 5, time_unset: 1, overdue: 1 },
   items: [
     {
       key: "supplement:501",
@@ -126,6 +128,27 @@ const arrivalOverview = {
       is_resolved: false,
       is_overdue: false,
     },
+    {
+      key: "supplement:606",
+      source: "supplement",
+      attendance_id: 606,
+      clinic_participant_id: null,
+      clinic_session_id: null,
+      student_id: 2005,
+      student_name: "한지민",
+      lecture_id: LECTURE_ID,
+      lecture_title: "수학 보강",
+      lecture_color: "#f59e0b",
+      session_id: SESSION_ID,
+      session_title: "주말 보강",
+      date: "2026-08-07",
+      time: "10:00",
+      location: "",
+      memo: "주간 테스트 준비",
+      status: "unset",
+      is_resolved: false,
+      is_overdue: false,
+    },
   ],
 };
 
@@ -142,7 +165,7 @@ async function seed(page: Page) {
   }, localJwt());
 }
 
-async function installApi(page: Page, state: MockState) {
+async function installApi(page: Page, state: MockState, overview: unknown = arrivalOverview) {
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -158,7 +181,7 @@ async function installApi(page: Page, state: MockState) {
     if (path === "/core/program/") return json({ tenantCode: "hakwonplus", isPlatformAdmin: true, display_name: "학원플러스", feature_flags: {}, is_active: true });
     if (path === "/core/me/") return json({ id: 12, username: "admin", name: "관리자", is_staff: true, is_superuser: true, tenantRole: "admin", must_change_password: false });
     if (path === "/staffs/currently-working/") return json([]);
-    if (path === "/lectures/attendance/arrival-overview/") return json(arrivalOverview);
+    if (path === "/lectures/attendance/arrival-overview/") return json(overview);
     if (path === `/lectures/sessions/${SESSION_ID}/`) return json({ id: SESSION_ID, lecture: LECTURE_ID, title: "주말 보강", order: 9, regular_order: null, session_type: "SUPPLEMENT", date: "2026-08-01" });
     if (path === `/lectures/lectures/${LECTURE_ID}/`) return json({ id: LECTURE_ID, title: "수학 보강", color: "#f59e0b", chip_label: "보강" });
     if (path === "/lectures/sessions/") return json({ count: 1, results: [{ id: SESSION_ID, lecture: LECTURE_ID, title: "주말 보강", order: 9, regular_order: null, session_type: "SUPPLEMENT", date: "2026-08-01" }] });
@@ -238,13 +261,15 @@ test("대시보드와 우상단 알림이 보강·클리닉 준비를 같은 현
   await expect(board).toContainText("이하늘");
   await expect(board).toContainText("시간 미정");
   await expect(board).toContainText("확인 필요");
-  await expect(page.getByRole("heading", { name: "내일 등원" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "오늘 이후 일정" })).toBeVisible();
   await expect(page.getByText("최도윤", { exact: true })).toBeVisible();
+  await expect(page.getByText("한지민", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "알림" }).first().click();
   await expect(page.getByText("예정 시간 지난 등원", { exact: true })).toBeVisible();
   await expect(page.getByText("1시간 내 등원 예정", { exact: true })).toBeVisible();
-  await expect(page.getByText("시간 미정 보강", { exact: true })).toBeVisible();
+  await expect(page.getByText("내일 등원 준비", { exact: true })).toBeVisible();
+  await expect(page.getByText("시간 미정 등원", { exact: true })).toBeVisible();
   await page.screenshot({ path: "test-results/arrival-operations-1366.png", fullPage: true });
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -253,4 +278,26 @@ test("대시보드와 우상단 알림이 보강·클리닉 준비를 같은 현
   expect(rect?.x ?? -1).toBeGreaterThanOrEqual(0);
   expect((rect?.x ?? 0) + (rect?.width ?? 999)).toBeLessThanOrEqual(390);
   await page.screenshot({ path: "test-results/arrival-operations-390.png", fullPage: false });
+});
+
+test("7일 일정이 없으면 대시보드를 압축하고 기존 입력 화면으로 바로 연결한다", async ({ page }) => {
+  const state = createState();
+  await seed(page);
+  await installApi(page, state, {
+    ...arrivalOverview,
+    summary: { soon: 0, today: 0, tomorrow: 0, upcoming: 0, time_unset: 0, overdue: 0 },
+    items: [],
+  });
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await page.goto(`${BASE}/workspace/dashboard`, { waitUntil: "domcontentloaded" });
+
+  const board = page.getByRole("region", { name: "예정된 보강·클리닉 등원이 없습니다." });
+  await expect(board).toBeVisible();
+  await expect(board.getByText("0명", { exact: true })).toHaveCount(0);
+  await expect(board.getByRole("button", { name: "강의에서 보강 입력" })).toBeVisible();
+  await expect(board.getByRole("button", { name: "클리닉 예약 보기" })).toBeVisible();
+  await page.screenshot({ path: "test-results/arrival-empty-1366.png", fullPage: false });
+
+  await board.getByRole("button", { name: "강의에서 보강 입력" }).click();
+  await expect(page).toHaveURL(/\/workspace\/lectures(?:\?.*)?$/);
 });

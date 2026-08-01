@@ -124,7 +124,12 @@ function ProfileDropdown({
 /** 알림 항목 type → data-level 매핑 (헤더 알림 색상 톤) */
 function alarmLevelFor(type: AdminNotificationItem["type"]): "info" | "warning" | "error" {
   if (type === "video_failed" || type === "arrivals_overdue") return "error";
-  if (type === "registration_requests" || type === "clinic" || type === "arrivals_soon") return "warning";
+  if (
+    type === "registration_requests"
+    || type === "clinic"
+    || type === "arrivals_soon"
+    || type === "arrivals_tomorrow"
+  ) return "warning";
   return "info";
 }
 
