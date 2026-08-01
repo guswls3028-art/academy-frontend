@@ -20,6 +20,7 @@ import {
   type SessionScoreExamEntry,
   type SessionScoreHomeworkEntry,
   type SessionScoreMeta,
+  type SessionScoresResponse,
 } from "../api/sessionScores";
 import { deriveAchievement, deriveFinalPass, achievementLabel, achievementTone } from "@/shared/scoring/achievement";
 import { fetchAdminExamResultDetail } from "@admin/domains/results/api/adminExamResultDetail";
@@ -1317,8 +1318,36 @@ function CorrectionStatusControl({
     onSuccess: (data, variables) => {
       setNote(data.correction_note ?? variables.nextNote);
       if (sessionId != null) {
+        const queryKey = scoresQueryKeys.sessionScores(sessionId);
+        qc.setQueryData<SessionScoresResponse>(queryKey, (current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            rows: current.rows.map((row) => {
+              if (row.enrollment_id !== enrollmentId) return row;
+              if (sourceType === "exam") {
+                return {
+                  ...row,
+                  exams: row.exams.map((entry) => (
+                    entry.exam_id === sourceId
+                      ? { ...entry, block: { ...entry.block, ...data } }
+                      : entry
+                  )),
+                };
+              }
+              return {
+                ...row,
+                homeworks: row.homeworks.map((entry) => (
+                  entry.homework_id === sourceId
+                    ? { ...entry, block: { ...entry.block, ...data } }
+                    : entry
+                )),
+              };
+            }),
+          };
+        });
         void qc.invalidateQueries({
-          queryKey: scoresQueryKeys.sessionScores(sessionId),
+          queryKey,
         });
       }
       feedback.success(variables.action === "note"
