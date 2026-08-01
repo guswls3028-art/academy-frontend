@@ -59,13 +59,14 @@ export type AttendanceListItem = Record<string, unknown> & {
 
 export async function fetchAttendance(
   sessionId: number,
-  options?: { page?: number; page_size?: number; search?: string; status?: string }
+  options?: { page?: number; page_size?: number; search?: string; status?: string; ordering?: string }
 ): Promise<AttendanceListResponse> {
   const params: Record<string, string | number> = { session: sessionId };
   if (options?.page != null) params.page = options.page;
   if (options?.page_size != null) params.page_size = options.page_size;
   if (options?.search?.trim()) params.search = options.search.trim();
   if (options?.status?.trim()) params.status = options.status.trim();
+  if (options?.ordering?.trim()) params.ordering = options.ordering.trim();
 
   const res = await api.get("/lectures/attendance/", { params });
 
