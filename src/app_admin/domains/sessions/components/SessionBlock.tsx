@@ -473,6 +473,7 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
               <button
                 type="button"
                 className={styles.scopeEmptyButton}
+                aria-label={`${createKindLabel} 추가`}
                 onClick={() => setCreateForSection({ id: null, label: null, sessionType: createSessionType })}
               >
                 <Plus size={16} strokeWidth={2.4} />

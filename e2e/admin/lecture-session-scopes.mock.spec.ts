@@ -8,6 +8,8 @@ const LECTURE_ID = 9951;
 const REGULAR_SESSION_ID = 9952;
 const SUPPLEMENT_SESSION_ID = 9953;
 const SECTION_ID = 9954;
+const SECOND_LECTURE_ID = 9955;
+const SECOND_REGULAR_SESSION_ID = 9956;
 
 function localJwt(): string {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -24,9 +26,25 @@ type MockState = {
   sessionListFailures?: number;
   sessionListRequests?: number;
   sectionMode?: boolean;
+  regularIncluded?: boolean;
+  supplementIncluded?: boolean;
 };
 
-function sessionRows(state: MockState) {
+function sessionRows(state: MockState, lectureId = LECTURE_ID) {
+  if (lectureId === SECOND_LECTURE_ID) {
+    return [{
+      id: SECOND_REGULAR_SESSION_ID,
+      lecture: SECOND_LECTURE_ID,
+      title: "1차시",
+      display_label: "1차시",
+      order: 1,
+      regular_order: 1,
+      session_type: "REGULAR",
+      date: "2026-08-03",
+      section: null,
+    }];
+  }
+
   return [
     {
       id: REGULAR_SESSION_ID,
@@ -50,7 +68,11 @@ function sessionRows(state: MockState) {
       date: "2026-08-02",
       section: state.sectionMode ? SECTION_ID : null,
     },
-  ];
+  ].filter((session) => (
+    session.session_type === "REGULAR"
+      ? state.regularIncluded !== false
+      : state.supplementIncluded !== false
+  ));
 }
 
 async function installApi(page: Page, state: MockState) {
@@ -86,10 +108,11 @@ async function installApi(page: Page, state: MockState) {
         must_change_password: false,
       });
     }
-    if (path === `/lectures/lectures/${LECTURE_ID}/`) {
+    if (path === `/lectures/lectures/${LECTURE_ID}/` || path === `/lectures/lectures/${SECOND_LECTURE_ID}/`) {
+      const lectureId = path.includes(`/${SECOND_LECTURE_ID}/`) ? SECOND_LECTURE_ID : LECTURE_ID;
       return json({
-        id: LECTURE_ID,
-        title: "고1 Hyper 정규반",
+        id: lectureId,
+        title: lectureId === LECTURE_ID ? "고1 Hyper 정규반" : "고2 Hyper 정규반",
         name: "김준혁",
         subject: "수학",
         start_date: "2026-08-01",
@@ -103,7 +126,8 @@ async function installApi(page: Page, state: MockState) {
         state.sessionListFailures = (state.sessionListFailures ?? 0) - 1;
         return json({ detail: "일시적으로 수업 목록을 불러올 수 없습니다." }, 503);
       }
-      return json(sessionRows(state));
+      const lectureId = Number(url.searchParams.get("lecture") || LECTURE_ID);
+      return json(sessionRows(state, lectureId));
     }
     if (path === `/lectures/sessions/${REGULAR_SESSION_ID}/`) {
       return json(sessionRows(state)[0]);
@@ -287,4 +311,41 @@ test("보기 필터와 보강 이름은 1366·1100·390px에서 접근 가능하
     await page.getByRole("tab", { name: /^보강/ }).click();
     await expect(page.getByRole("button", { name: /토요일 심화 클리닉/ })).toBeVisible();
   }
+});
+
+test("정규 수업이 없는 범위는 정규 유형이 선택된 추가 모달로 이어진다", async ({ page }) => {
+  const state: MockState = {
+    supplementTitle: "토요일 심화 클리닉",
+    patchTitles: [],
+    regularIncluded: false,
+  };
+  await openLecture(page, state);
+
+  await page.getByRole("button", { name: "정규·보강 나눠 보기", exact: true }).click();
+  await expect(page.getByText("정규 수업이 아직 없습니다", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "정규 수업 추가", exact: true }).click();
+
+  await expect(page.getByRole("button", { name: /정규 차시 추가/ })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("다른 강의로 SPA 이동하면 이전 강의의 분리 보기 상태를 이어받지 않는다", async ({ page }) => {
+  const state: MockState = {
+    supplementTitle: "토요일 심화 클리닉",
+    patchTitles: [],
+  };
+  await openLecture(page, state);
+
+  await page.getByRole("button", { name: "정규·보강 나눠 보기", exact: true }).click();
+  await page.getByRole("tab", { name: /^보강/ }).click();
+  await expect(page.getByRole("tab", { name: /^보강/ })).toHaveAttribute("aria-selected", "true");
+
+  await page.evaluate((lectureId) => {
+    window.history.pushState({}, "", `/workspace/lectures/${lectureId}`);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }, SECOND_LECTURE_ID);
+
+  await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${SECOND_LECTURE_ID}$`));
+  await expect(page.getByRole("button", { name: "전체 보기", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("tab", { name: /정규 수업/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /1차시/ })).toBeVisible();
 });
