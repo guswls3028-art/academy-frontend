@@ -21,7 +21,13 @@ function createLocalJwt() {
   })}.sig`;
 }
 
-async function installApi(page: Page, options: { failCorrection?: boolean } = {}) {
+async function installApi(
+  page: Page,
+  options: {
+    failCorrection?: boolean;
+    failScoreRefreshAfterCorrection?: boolean;
+  } = {},
+) {
   const baseUrl = getBaseUrl("admin");
   test.skip(!isLocalBaseUrl(baseUrl), "검사 상태 route-mock 검증은 로컬 dev 서버 전용");
   const token = createLocalJwt();
@@ -39,6 +45,8 @@ async function installApi(page: Page, options: { failCorrection?: boolean } = {}
   }> = [];
   let examStatus: "PENDING" | "COMPLETED" = "PENDING";
   let examNote = "서술형 3번 풀이 확인";
+  let correctionSaved = false;
+  let scoreRefreshFailures = 0;
 
   await page.route("**/version.json?*", async (route) => {
     await route.fulfill({ status: 404, contentType: "text/plain", body: "" });
@@ -119,6 +127,11 @@ async function installApi(page: Page, options: { failCorrection?: boolean } = {}
       return;
     }
     if (pathname.endsWith(`/results/admin/sessions/${SESSION_ID}/scores/`)) {
+      if (options.failScoreRefreshAfterCorrection && correctionSaved) {
+        scoreRefreshFailures += 1;
+        await fulfill({ detail: "일시적인 재조회 실패" }, 503);
+        return;
+      }
       await fulfill({
         meta: {
           session_title: "4차시",
@@ -235,6 +248,7 @@ async function installApi(page: Page, options: { failCorrection?: boolean } = {}
         }, 400);
         return;
       }
+      correctionSaved = true;
       if (payload.source_type === "homework") {
         homeworkStatus = payload.completed ? "COMPLETED" : "PENDING";
         homeworkNote = payload.note ?? homeworkNote;
@@ -283,7 +297,10 @@ async function installApi(page: Page, options: { failCorrection?: boolean } = {}
     sessionStorage.setItem("tenantCode", "hakwonplus");
   }, token);
 
-  return { correctionRequests };
+  return {
+    correctionRequests,
+    getScoreRefreshFailures: () => scoreRefreshFailures,
+  };
 }
 
 async function openHomeworkInspection(page: Page) {
@@ -390,6 +407,32 @@ test.describe("시험·과제 수동 검사 상태", () => {
     await page.screenshot({
       path: testInfo.outputPath("assessment-inspection-390.png"),
       fullPage: false,
+    });
+  });
+
+  test("저장 성공 뒤 재조회가 실패해도 완료 상태를 되돌리지 않는다", async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width: 1366, height: 900 });
+    const api = await installApi(page, { failScoreRefreshAfterCorrection: true });
+    const baseUrl = getBaseUrl("admin");
+    await page.goto(
+      `${baseUrl}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "load", timeout: 45_000 },
+    );
+
+    const drawer = await openHomeworkInspection(page);
+    const examCard = drawer.locator(".student-scores-drawer__exam-card")
+      .filter({ hasText: "방정식 단원평가" });
+    await examCard.getByText("방정식 단원평가", { exact: true }).click();
+    await examCard.getByRole("button", { name: "완료", exact: true }).click();
+
+    await expect(examCard.getByText("오답 완료", { exact: true }).first()).toBeVisible();
+    await expect.poll(api.getScoreRefreshFailures).toBeGreaterThan(0);
+    await expect(examCard.getByText("오답 완료", { exact: true }).first()).toBeVisible();
+    expect(api.correctionRequests.at(-1)).toMatchObject({
+      source_type: "exam",
+      completed: true,
+      note: "서술형 3번 풀이 확인",
     });
   });
 
