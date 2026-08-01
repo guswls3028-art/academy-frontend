@@ -11,11 +11,18 @@ interface TabsProps {
   value: string;
   items: TabItem[];
   onChange: (key: string) => void;
+  ariaLabel?: string;
+  className?: string;
 }
 
-export function Tabs({ value, items, onChange }: TabsProps) {
+export function Tabs({ value, items, onChange, ariaLabel, className = "" }: TabsProps) {
   return (
-    <div className="ds-tabs" role="tablist" aria-orientation="horizontal">
+    <div
+      className={`ds-tabs ${className}`.trim()}
+      role="tablist"
+      aria-label={ariaLabel}
+      aria-orientation="horizontal"
+    >
       {items.map((t) => {
         const active = value === t.key;
         return (

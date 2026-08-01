@@ -12,6 +12,7 @@ const pullRequestGateAllowlist = new Set([
   "e2e/auth/account-recovery-modal.spec.ts",
   "e2e/auth/first-login-guide.mock.spec.ts",
   "e2e/admin/arrival-operations.mock.spec.ts",
+  "e2e/admin/lecture-session-scopes.mock.spec.ts",
   "e2e/admin/manual-exam-grading.mock.spec.ts",
   "e2e/admin/session-attendance-bulk-safety.mock.spec.ts",
   "e2e/admin/score-entry-autosave.spec.ts",
