@@ -23,7 +23,16 @@ export const adminResultsQueryKeys = {
     enrollmentId: number,
     scope: "exam" | "lecture",
     examId: number | undefined,
-  ) => ["wrong-notes", enrollmentId, scope, examId] as const,
+    fromSessionOrder?: number,
+    toSessionOrder?: number,
+  ) => [
+    "wrong-notes",
+    enrollmentId,
+    scope,
+    examId,
+    fromSessionOrder,
+    toSessionOrder,
+  ] as const,
   wrongNotesEnrollment: (enrollmentId: number) =>
     ["wrong-notes", enrollmentId] as const,
 

@@ -21,6 +21,7 @@ export async function fetchWrongNotes(params: {
   exam_id?: number;
   lecture_id?: number;
   from_session_order?: number;
+  to_session_order?: number;
   offset?: number;
   limit?: number;
 }) {
@@ -33,6 +34,7 @@ export async function createWrongNotePDF(payload: {
   exam_id?: number;
   lecture_id?: number;
   from_session_order?: number;
+  to_session_order?: number;
 }) {
   const res = await api.post("/results/wrong-notes/pdf/", payload, {
     timeout: WRONG_NOTE_PDF_CREATE_TIMEOUT_MS,
