@@ -12,6 +12,7 @@ export type OperationalNotificationCounts = {
   reportsPending: number;
   communityUnread: number;
   arrivalsSoon: number;
+  arrivalsTomorrow: number;
   arrivalsOverdue: number;
   arrivalsTimeUnset: number;
   total: number;
@@ -28,6 +29,7 @@ export type OperationalNotificationSource =
   | "reports"
   | "community"
   | "arrivals_soon"
+  | "arrivals_tomorrow"
   | "arrivals_overdue"
   | "arrivals_time_unset";
 
@@ -72,6 +74,7 @@ export function createEmptyOperationalNotificationCounts(): OperationalNotificat
     reportsPending: 0,
     communityUnread: 0,
     arrivalsSoon: 0,
+    arrivalsTomorrow: 0,
     arrivalsOverdue: 0,
     arrivalsTimeUnset: 0,
     total: 0,
@@ -241,6 +244,9 @@ export async function fetchOperationalNotificationCounts(): Promise<OperationalN
   const reportsPending = reportsRes ?? 0;
   const communityUnread = communityRes ?? 0;
   const arrivalsSoon = arrivalRes?.summary.soon ?? 0;
+  const arrivalsTomorrow = arrivalRes?.items.filter(
+    (item) => item.date === arrivalRes.tomorrow && !item.is_resolved,
+  ).length ?? 0;
   const arrivalsOverdue = arrivalRes?.summary.overdue ?? 0;
   const arrivalsTimeUnset = arrivalRes?.summary.time_unset ?? 0;
   const total =
@@ -254,6 +260,7 @@ export async function fetchOperationalNotificationCounts(): Promise<OperationalN
     reportsPending +
     communityUnread +
     arrivalsSoon +
+    arrivalsTomorrow +
     arrivalsOverdue +
     arrivalsTimeUnset;
 
@@ -273,6 +280,7 @@ export async function fetchOperationalNotificationCounts(): Promise<OperationalN
       reportsPending,
       communityUnread,
       arrivalsSoon,
+      arrivalsTomorrow,
       arrivalsOverdue,
       arrivalsTimeUnset,
       total,
@@ -306,10 +314,18 @@ export function buildOperationalNotificationItems(
       to: "/workspace/dashboard#arrival-overview",
     });
   }
+  if (counts.arrivalsTomorrow > 0) {
+    items.push({
+      type: "arrivals_tomorrow",
+      label: "내일 등원 준비",
+      count: counts.arrivalsTomorrow,
+      to: "/workspace/dashboard#arrival-overview",
+    });
+  }
   if (counts.arrivalsTimeUnset > 0) {
     items.push({
       type: "arrivals_time_unset",
-      label: "시간 미정 보강",
+      label: "시간 미정 등원",
       count: counts.arrivalsTimeUnset,
       to: "/workspace/dashboard#arrival-overview",
     });

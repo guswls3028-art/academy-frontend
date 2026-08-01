@@ -14,6 +14,7 @@ export const TEACHER_PENDING_ROUTES: Record<TeacherPendingItem["type"], string> 
   reports: "/workspace/community/reports",  // 신고함 — admin console
   community: "/student/community",  // 본인 글 새 활동 — 학생/staff 모두 student community에서 본인 알림 확인
   arrivals_soon: "/workspace/dashboard#arrival-overview",
+  arrivals_tomorrow: "/workspace/dashboard#arrival-overview",
   arrivals_overdue: "/workspace/dashboard#arrival-overview",
   arrivals_time_unset: "/workspace/dashboard#arrival-overview",
 };

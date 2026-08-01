@@ -37,7 +37,7 @@ import { adminDashboardQueryKeys } from "../queryKeys";
 import ClinicRemoconIcon from "../components/ClinicRemoconIcon";
 import {
   ArrivalOperationsBoard,
-  TomorrowArrivalCard,
+  UpcomingArrivalCard,
 } from "../components/ArrivalOperationsBoard";
 import styles from "./DashboardPage.module.css";
 
@@ -128,6 +128,8 @@ export default function DashboardPage() {
           error={arrivalQuery.isError}
           onRetry={() => arrivalQuery.refetch()}
           onNavigate={openArrival}
+          onOpenSupplement={() => navigate("/workspace/lectures")}
+          onOpenClinic={() => navigate("/workspace/clinic/bookings")}
         />
 
         <div className={styles.workspaceGrid}>
@@ -197,7 +199,7 @@ export default function DashboardPage() {
           </section>
 
           <aside className={styles.sideColumn}>
-            <TomorrowArrivalCard
+            <UpcomingArrivalCard
               data={arrivalQuery.data}
               loading={arrivalQuery.isLoading}
               error={arrivalQuery.isError}
