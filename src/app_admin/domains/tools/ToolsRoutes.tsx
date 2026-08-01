@@ -2,7 +2,7 @@
 // 도구 라우트 — lazy 로딩
 
 import { Suspense } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import styles from "./ToolsRoutes.module.css";
 

@@ -1,7 +1,7 @@
 // PATH: src/app_teacher/domains/fees/pages/FeesInvoicesPage.tsx
 // 수납 청구서 목록 + 상세 BottomSheet + 결제 기록
 import { useEffect, useState, type ReactNode } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
 import { Card, BackButton } from "@teacher/shared/ui/Card";

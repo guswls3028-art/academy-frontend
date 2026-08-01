@@ -3,7 +3,7 @@
 // PromoLayout 바깥에서 렌더링되므로 자체 헤더/네비 제공.
 
 import { useState, useEffect, type FormEvent, type MouseEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { cx } from "@/shared/utils/cx";
 import { getTemplateComponent } from "../templates";

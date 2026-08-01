@@ -1,7 +1,7 @@
 // PATH: src/app_teacher/domains/exams/pages/ExamDetailPage.tsx
 // 시험 상세 — 제출현황 + 간이 채점 (admin endpoint SSOT, enrollment_id schema)
 import { useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
 import { Settings, Camera } from "@teacher/shared/ui/Icons";

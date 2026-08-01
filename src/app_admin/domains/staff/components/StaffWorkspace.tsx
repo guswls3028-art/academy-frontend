@@ -3,7 +3,7 @@
 // Selected staff and month persist across tab switches via URL.
 
 import { useMemo } from "react";
-import { useSearchParams, useLocation, Outlet } from "react-router-dom";
+import { useSearchParams, useLocation, Outlet } from "react-router";
 import { User } from "lucide-react";
 import StaffOperationTable from "../pages/OperationsPage/StaffOperationTable";
 import { StaffWorkspaceHeader } from "./StaffWorkspaceHeader";

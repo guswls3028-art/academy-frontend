@@ -8,7 +8,7 @@
  * - "재시험 버튼" 판단은 Result API의 can_retake만 신뢰 ✅
  */
 
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
 import EmptyState from "../../../layout/EmptyState";
 import { useStudentExam } from "@student/domains/exams/hooks/useStudentExams";

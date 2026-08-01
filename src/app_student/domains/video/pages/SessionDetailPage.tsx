@@ -3,7 +3,7 @@
  */
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
-import { useParams, useNavigate, useSearchParams, Link, useLocation } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams, Link, useLocation } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchStudentSessionVideos, fetchStudentVideoPlayback, type StudentVideoListItem } from "../api/video.api";
 import EmptyState from "@student/layout/EmptyState";

@@ -2,7 +2,7 @@
 // BrowserRouter 내부 최상위 — hook 호출 + 라우터 + 오버레이
 
 import { useEffect, useRef } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation } from "react-router";
 
 import AppRouter from "@/core/router/AppRouter";
 import { useVersionChecker } from "@/shared/ui/layout/VersionChecker";

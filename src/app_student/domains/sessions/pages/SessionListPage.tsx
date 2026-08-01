@@ -3,7 +3,7 @@
  * 일정 — 3탭: 내 일정(달력) | 예약 | 지난 일정
  */
 import { useState, useMemo, useRef, useEffect, useCallback, type CSSProperties } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { AxiosError } from "axios";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";

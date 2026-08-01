@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/profile/layout/ProfileLayout.tsx
-import { Outlet } from "react-router-dom";
+import { Outlet } from "react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DomainLayout } from "@/shared/ui/layout";
 

@@ -12,7 +12,7 @@ import {
   useNavigate,
   useParams,
   type Location,
-} from "react-router-dom";
+} from "react-router";
 import { default as AppLayout } from "@admin/layout/AppLayout";
 import RouteFallback from "@/core/router/RouteFallback";
 import ExternalRedirect from "@/core/router/ExternalRedirect";

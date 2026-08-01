@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Outlet, Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, Link, Navigate, useLocation, useNavigate } from "react-router";
 import { Search } from "lucide-react";
 import { logout } from "@/auth/api/auth.api";
 import { useProgram } from "@/shared/program";

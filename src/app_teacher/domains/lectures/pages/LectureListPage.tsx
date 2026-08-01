@@ -1,7 +1,7 @@
 // PATH: src/app_teacher/domains/lectures/pages/LectureListPage.tsx
 // 강의 목록 — 활성/과거 탭 + 딱지 + 강사 + 시간
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";

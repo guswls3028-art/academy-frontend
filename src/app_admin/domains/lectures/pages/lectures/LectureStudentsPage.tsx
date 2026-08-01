@@ -4,7 +4,7 @@
 // TODO(R-11 cleanup): 인라인 style → className/DS token, useMemo deps 정리. baseline 동결 위해 file-level disable.
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 

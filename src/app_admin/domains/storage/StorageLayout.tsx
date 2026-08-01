@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/storage/StorageLayout.tsx
 // 자료실 — DomainLayout 탭 SSOT (매치업 + 저장소)
 
-import { Outlet } from "react-router-dom";
+import { Outlet } from "react-router";
 import { DomainLayout } from "@/shared/ui/layout";
 import type { DomainTab } from "@/shared/ui/domain";
 

@@ -5,7 +5,7 @@
  */
 /* eslint-disable no-restricted-syntax */
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Globe } from "lucide-react";
 import { getStudentTenantBranding } from "@student/shared/tenant/studentTenantBranding";

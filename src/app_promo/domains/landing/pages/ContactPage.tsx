@@ -1,6 +1,6 @@
 // PATH: src/app_promo/domains/landing/pages/ContactPage.tsx
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { getPromoLeadErrorMessage, submitPromoContactLead } from "../api/promoLead";
 import { CONSULT_PHONE_DISPLAY } from "../business";
 import LeadPrivacyConsent from "../components/LeadPrivacyConsent";

@@ -6,7 +6,7 @@
 
 import type { LandingConfig, LandingSection, FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, HitReportPublicCard } from "../types";
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router";
 import { scrollToLandingSection } from "../utils/scrollToSection";
 import useAuth from "@/auth/hooks/useAuth";
 import api, { type ApiRequestConfig, saveReturnPath } from "@/shared/api/axios";

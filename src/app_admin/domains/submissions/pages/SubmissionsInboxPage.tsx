@@ -21,7 +21,7 @@
  */
 
 import { useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, EmptyState, Tabs, Badge } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";

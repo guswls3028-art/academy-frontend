@@ -7,7 +7,7 @@
  *  (응시 가능 / 채점 완료). 기존 동선(버튼)은 그대로 유지.
  */
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { fetchStudentExams, type StudentExam } from "@student/domains/exams/api/exams.api";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";

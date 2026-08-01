@@ -10,7 +10,7 @@
 /* eslint-disable no-restricted-syntax */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import type { HitReportPublicCard, HitReportShowcaseItem, HeroCarouselItem } from "../types";
 import { fetchPublicHitReportsCached, normalizeHitReportIds } from "../api/hitReports";

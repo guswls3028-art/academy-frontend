@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/community/pages/CommunityPage.tsx
 // 커뮤니티 — 게시 관리(게시판+공지) · QnA · 자료실
 
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router";
 import { Settings } from "lucide-react";
 import { DomainLayout } from "@/shared/ui/layout";
 import { ICON } from "@/shared/ui/ds";

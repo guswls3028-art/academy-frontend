@@ -6,7 +6,7 @@
 //   role=teacher/staff 는 수신자 이름·메시지 본문을 마스킹.
 //   role=owner/admin 만 풀 정보 노출. 학원장 발신 메시지 본문에 학생 로그인
 //   정보(아이디/비밀번호)가 포함될 수 있으므로 staff 권한자에게는 가림.
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { ChevronLeft, Check, X } from "@teacher/shared/ui/Icons";

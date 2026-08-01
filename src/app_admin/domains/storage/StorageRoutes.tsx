@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/storage/StorageRoutes.tsx
 // 자료실 — 매치업 + 저장소 통합 라우팅
 
-import { Routes, Route, Navigate, useParams } from "react-router-dom";
+import { Routes, Route, Navigate, useParams } from "react-router";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import { renderLazyRoute } from "@/core/router/renderLazyRoute";
 import { EmptyState } from "@/shared/ui/ds";

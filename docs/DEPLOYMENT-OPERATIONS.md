@@ -96,15 +96,17 @@ postdeploy canary의 residue 0 증거까지 닫아야 한다.
   만든다. lockfile 변경은 secretless route-mock을 포함한 dependency 검증을
   통과해야 merge하며, Dependabot에 deployment나 E2E credential을 제공하지
   않는다.
-- `pnpm audit --prod`는 현재
-  [GHSA-qwww-vcr4-c8h2](https://github.com/advisories/GHSA-qwww-vcr4-c8h2)를
-  High로 보고한다. 취약 경로는 React Router의 실험적 RSC server action이며,
-  현재 SPA에는 RSC entry, server action, `@react-router/dev`, RSC router API가
-  없다. 수정판 `react-router` 8.3.0은 React/React DOM 19.2.7 이상과
-  `react-router-dom` 제거를 포함하는 별도 메이저 전환이므로 이번 dependency
-  묶음에는 포함하지 않는다. 이 advisory는 audit 설정에서 숨기지 않으며 RSC
-  도입, React/Router 메이저 전환, advisory 범위 변경 중 하나가 생기면 즉시
-  재평가한다.
+- [GHSA-qwww-vcr4-c8h2](https://github.com/advisories/GHSA-qwww-vcr4-c8h2)는
+  `react-router >=7.12.0 <8.3.0`의 실험적 RSC server action 경로에 영향을
+  주며 공식 수정 버전은 8.3.0이다. 앱은 `BrowserRouter`/`Routes` 기반 SPA로
+  RSC entry, server action, `@react-router/dev`, RSC router API를 사용하지
+  않지만 audit 경고를 숨기지 않고 React/React DOM 19.2.7 및 `react-router`
+  8.3.0으로 전환했다. v8은 Node 22.22 이상과 ESM을 요구하며 DOM 라우팅 API도
+  `react-router-dom`이 아닌 `react-router`에서 가져온다. RSC 또는 framework
+  mode 도입은 이 SPA 계약의 변경이므로 별도 보안·배포 검토가 필요하다.
+- `quality-check`는 lockfile 설치 직후 `pnpm audit --prod`를 차단 게이트로
+  실행한다. production dependency advisory가 생기면 preview와 운영 배포로
+  진행하지 않으며 audit ignore나 취약 버전 override로 통과시키지 않는다.
 - workflow 기본 token은 `contents:read`다. 프론트 배포는 GitHub contents
   write 권한을 사용하지 않는다.
 - Cloudflare token 교체는 새 token을 해당 environment에 저장하고 preview,
@@ -116,6 +118,7 @@ postdeploy canary의 residue 0 증거까지 닫아야 한다.
 ```powershell
 pnpm guard:e2e-safety
 pnpm guard:runtime-recovery
+pnpm audit --prod
 pnpm typecheck
 pnpm build
 ```

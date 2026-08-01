@@ -1,5 +1,5 @@
 // PATH: src/app_promo/app/PromoRouter.tsx
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router";
 import { Suspense, type ComponentType, type LazyExoticComponent } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import PromoLayout from "../layout/PromoLayout";

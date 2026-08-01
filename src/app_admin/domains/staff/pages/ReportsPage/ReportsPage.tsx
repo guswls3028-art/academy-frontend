@@ -2,7 +2,7 @@
 // Report/Statement tab: payroll history and lock history for selected staff. Section-style layout.
 
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import PayrollHistoryTable from "./PayrollHistoryTable";
 import WorkMonthLockHistory from "./WorkMonthLockHistory";
 

@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/storage/components/matchup/MatchupEmptyState.tsx
 
 import { FileSearch, MessageCircle, BookOpen, ClipboardList, FolderOpen, Info } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { ICON, Button } from "@/shared/ui/ds";
 import css from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "./MatchupEmptyState.module.css";

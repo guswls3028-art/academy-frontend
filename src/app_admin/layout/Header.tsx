@@ -2,7 +2,7 @@
 //
 // 헤더 레이아웃은 design-system/patterns/header.css의 app-header 패턴을 SSOT로 사용.
 import { lazy, Suspense, useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Badge as AntBadge } from "antd";
 import {

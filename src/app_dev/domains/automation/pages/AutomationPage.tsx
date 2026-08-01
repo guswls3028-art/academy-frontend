@@ -2,7 +2,7 @@
 // /dev 자동화 콘솔: 감사 로그 조회 + 크론 트리거.
 
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useAuditLog, useCronList, useTriggerCron } from "@dev/domains/automation/hooks/useAutomation";
 import { useDevToast } from "@dev/shared/components/useDevToast";
 import type { AuditFilters } from "@dev/domains/automation/api/automation.api";

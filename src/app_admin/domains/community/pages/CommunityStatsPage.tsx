@@ -6,7 +6,7 @@
 /* eslint-disable no-restricted-syntax */
 
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 
 interface CommunityStats {

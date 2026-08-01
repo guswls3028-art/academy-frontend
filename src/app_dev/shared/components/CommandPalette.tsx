@@ -2,7 +2,7 @@
 // 글로벌 Cmd+K 검색 팔레트 — 테넌트 + 사용자 검색.
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { Search } from "lucide-react";
 import api from "@/shared/api/axios";
 import { useImpersonate } from "@dev/domains/tenants/hooks/useTenants";

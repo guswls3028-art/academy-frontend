@@ -2,7 +2,7 @@
 // 클리닉 도메인 — Domain Header + ds-tabs + panel (프리미엄 SaaS 톤)
 
 import "./clinic.css";
-import { Outlet } from "react-router-dom";
+import { Outlet } from "react-router";
 import { DomainLayout } from "@/shared/ui/layout";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 

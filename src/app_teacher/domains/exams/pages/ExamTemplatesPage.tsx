@@ -1,7 +1,7 @@
 // PATH: src/app_teacher/domains/exams/pages/ExamTemplatesPage.tsx
 // 시험 템플릿 — 조회 + 적용 강의 목록 (편집은 강의→차시→시험에서)
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
 import { InlineHelp } from "@/shared/ui/guide";

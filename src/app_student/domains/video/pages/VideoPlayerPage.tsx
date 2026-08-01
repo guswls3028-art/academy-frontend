@@ -1,7 +1,7 @@
 // PATH: src/app_student/domains/video/pages/VideoPlayerPage.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router";
 
 import EmptyState from "../../../layout/EmptyState";
 import {
@@ -12,7 +12,7 @@ import {
   type StudentSessionVideosResponse,
   type StudentVideoPlayback,
 } from "../api/video.api";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { resolveTenantCodeString } from "@/shared/tenant";
 

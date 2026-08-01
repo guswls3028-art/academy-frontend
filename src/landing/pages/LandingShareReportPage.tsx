@@ -11,7 +11,7 @@
 /* eslint-disable no-restricted-syntax */
 
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchLandingPublic } from "../api";

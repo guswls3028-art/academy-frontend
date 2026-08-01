@@ -4,7 +4,7 @@
 /* eslint-disable no-restricted-syntax */
 
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 import type { NoticePopupConfig } from "../types";
 
 const SKIP_KEY = "landing-notice-popup-skip"; // localStorage key

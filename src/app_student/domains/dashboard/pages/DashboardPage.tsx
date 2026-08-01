@@ -15,7 +15,7 @@
  */
 import { useState, useEffect, useMemo, memo } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useAuthContext } from "@/auth/context/AuthContext";
 import { Badge } from "@/shared/ui/ds";
 import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";

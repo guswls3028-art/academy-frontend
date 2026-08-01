@@ -5,7 +5,7 @@
  *        /workspace/results/submissions (제출함)
  */
 
-import { Outlet } from "react-router-dom";
+import { Outlet } from "react-router";
 import { DomainLayout } from "@/shared/ui/layout";
 import type { DomainTab } from "@/shared/ui/domain";
 

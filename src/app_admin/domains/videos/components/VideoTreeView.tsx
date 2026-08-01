@@ -8,7 +8,7 @@
  * 디자인/동작 변경 없음. 페이지에서 KPI 모드와 분리하기 위한 추출만 수행.
  */
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useConfirm } from "@/shared/ui/confirm";
 import { FilePlus, Video, Folder, Eye, ArrowUpDown, Play } from "lucide-react";

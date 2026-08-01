@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/materials/reports/ReportsPage.tsx
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { Section, Panel, EmptyState, Button } from "@/shared/ui/ds";
 
 export default function ReportsPage() {

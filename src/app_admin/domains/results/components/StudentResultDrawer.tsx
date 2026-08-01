@@ -18,7 +18,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router";
 import CloseButton from "@/shared/ui/ds/CloseButton";
 import { fetchAdminExamResultDetail, type ExamResultItem } from "../api/adminExamResultDetail";
 import { fetchAttemptHistory, type AttemptEntry } from "@admin/domains/scores/api/attemptHistory";

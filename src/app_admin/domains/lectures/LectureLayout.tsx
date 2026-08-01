@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/lectures/layout/LectureLayout.tsx
-import { Outlet, useParams, useNavigate } from "react-router-dom";
+import { Outlet, useParams, useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { Users } from "lucide-react";

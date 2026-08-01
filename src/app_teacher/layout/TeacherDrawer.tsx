@@ -4,7 +4,7 @@
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ICON } from "@/shared/ui/ds";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
 import { setPreferFullWorkspace } from "@/core/router/MobileWorkspaceRedirect";
 import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";

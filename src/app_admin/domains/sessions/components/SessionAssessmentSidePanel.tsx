@@ -1,6 +1,6 @@
 // PATH: src/app_admin/domains/sessions/components/SessionAssessmentSidePanel.tsx
 import { lazy, Suspense, useMemo, useState, useEffect, type CSSProperties, type ReactNode } from "react";
-import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ClipboardList, FileText, Layers, Plus } from "lucide-react";
 

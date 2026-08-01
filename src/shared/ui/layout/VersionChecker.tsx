@@ -6,7 +6,7 @@
  * useVersionChecker() hook을 App.tsx에서 직접 호출한다.
  */
 import { useEffect, useRef } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation } from "react-router";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { hardReloadWithCacheBust } from "@/shared/utils/hardReload";
 

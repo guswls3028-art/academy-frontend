@@ -1,6 +1,6 @@
 // PATH: src/app_admin/domains/auth/pages/TenantRequiredPage.tsx
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { useProgram } from "@/shared/program";
 

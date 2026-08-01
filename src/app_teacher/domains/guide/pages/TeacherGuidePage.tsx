@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { ICON } from "@/shared/ui/ds";
 import { Card, SectionTitle } from "@teacher/shared/ui/Card";
 import {

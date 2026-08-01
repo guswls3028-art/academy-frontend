@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/staff/components/StaffWorkspaceHeader.tsx
 // Persistent header when a staff is selected: name, role, pay type, wage tag, month selector, KPI chips
 
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useStaffs } from "../hooks/useStaffs";
 import { useQuery } from "@tanstack/react-query";

@@ -2,7 +2,7 @@
  * 시험 홈 탭 — 상태별 그룹핑 (응시가능 / 마감임박 / 완료·마감)
  */
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import EmptyState from "@student/layout/EmptyState";
 import { IconExam, IconChevronRight } from "@student/shared/ui/icons/Icons";
 import type { StudentExam } from "../api/exams.api";

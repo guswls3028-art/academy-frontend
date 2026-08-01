@@ -3,7 +3,7 @@
  * SessionAssignmentAction — 차시의 과제 제출 액션
  * submission_hub 또는 /student/submit 으로 진입.
  */
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 type SessionAssignmentActionProps = {
   sessionId?: number;

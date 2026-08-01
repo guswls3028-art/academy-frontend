@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { Badge, ICON } from "@/shared/ui/ds";
 import { cx } from "@/shared/utils/cx";
 import { BackButton } from "@teacher/shared/ui/Card";

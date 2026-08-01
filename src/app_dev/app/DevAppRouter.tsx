@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router";
 import { DevToastProvider } from "@dev/shared/components/DevToast";
 import DevLayout from "@dev/layout/DevLayout";
 import DashboardPage from "@dev/domains/dashboard/pages/DashboardPage";

@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/students/StudentsLayout.tsx
-import { Outlet } from "react-router-dom";
+import { Outlet } from "react-router";
 import { DomainLayout } from "@/shared/ui/layout";
 
 const STUDENTS_TABS = [

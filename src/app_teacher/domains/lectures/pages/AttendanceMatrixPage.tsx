@@ -1,6 +1,6 @@
 // PATH: src/app_teacher/domains/lectures/pages/AttendanceMatrixPage.tsx
 // 출석 매트릭스 — 모바일 개량: 학생별 카드 + 가로 스크롤 세션 컬럼
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
 import { ChevronLeft, Download } from "@teacher/shared/ui/Icons";

@@ -2,7 +2,7 @@
 // PATH: src/app_teacher/domains/exams/pages/ExamBundlesPage.tsx
 // 시험 번들 — 여러 시험/과제 템플릿을 묶어 차시에 일괄 적용하는 CRUD
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { InlineHelp } from "@/shared/ui/guide";

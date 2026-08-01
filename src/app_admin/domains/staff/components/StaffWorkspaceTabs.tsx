@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/staff/components/StaffWorkspaceTabs.tsx
 // Tab bar: uses global design system .ds-tabs / .ds-tab. Preserves staffId, year, month when switching.
 
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 
 const TABS = [
   { key: "attendance", label: "근태", path: "/workspace/staff/attendance" },

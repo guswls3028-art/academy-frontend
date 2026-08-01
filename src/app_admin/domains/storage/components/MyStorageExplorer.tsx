@@ -4,7 +4,7 @@
 
 import { useMemo, useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { FolderOpen, FilePlus, FolderPlus, X, Download, Trash2, Pencil, Sparkles } from "lucide-react";
 import StorageFileThumbnail from "./StorageFileThumbnail";
 import { Button, CloseButton } from "@/shared/ui/ds";

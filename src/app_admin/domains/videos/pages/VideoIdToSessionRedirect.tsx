@@ -2,7 +2,7 @@
 // /workspace/videos/:videoId 직접 접근 시 해당 영상이 있는 강의-차시-영상 탭으로 리다이렉트
 
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router";
 import { fetchVideoDetail } from "../api/videos.api";
 import { fetchSession } from "@/shared/api/contracts/sessions";
 import styles from "./VideoIdToSessionRedirect.module.css";

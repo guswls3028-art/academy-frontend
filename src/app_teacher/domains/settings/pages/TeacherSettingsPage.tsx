@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { ICON } from "@/shared/ui/ds";
 import { useTheme } from "@/shared/contexts/ThemeContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import useAuth from "@/auth/hooks/useAuth";
 import { useA2HS } from "@teacher/shared/hooks/useA2HS";

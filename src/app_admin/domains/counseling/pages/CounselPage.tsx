@@ -1,6 +1,6 @@
 // PATH: src/app_admin/domains/counseling/pages/CounselPage.tsx
 // 기존 상담 페이지 → 커뮤니티 상담 신청 탭으로 리다이렉트
-import { Navigate } from "react-router-dom";
+import { Navigate } from "react-router";
 
 export default function CounselPage() {
   return <Navigate to="/workspace/community/counsel" replace />;

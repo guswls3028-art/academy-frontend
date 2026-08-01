@@ -3,7 +3,7 @@
 
 import { useMemo, useState, useCallback, type CSSProperties } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { Settings } from "lucide-react";
 
 import api from "@/shared/api/axios";

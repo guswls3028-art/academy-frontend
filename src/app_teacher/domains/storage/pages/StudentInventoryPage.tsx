@@ -1,7 +1,7 @@
 // PATH: src/app_teacher/domains/storage/pages/StudentInventoryPage.tsx
 // 학생 인벤토리 — 학생 선택 → 그 학생의 자료 조회/업로드/삭제
 import { useState, useRef, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
 import { SectionTitle, BackButton } from "@teacher/shared/ui/Card";

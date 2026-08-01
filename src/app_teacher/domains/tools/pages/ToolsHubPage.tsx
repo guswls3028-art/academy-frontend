@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { Badge, ICON } from "@/shared/ui/ds";
 import { cx } from "@/shared/utils/cx";
 import {

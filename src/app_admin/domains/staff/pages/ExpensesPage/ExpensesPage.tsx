@@ -2,7 +2,7 @@
 // Cost/Expense tab content only. Layout is in StaffWorkspace.
 
 import { useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { WorkMonthProvider } from "../../operations/context/WorkMonthContext";
 import ExpensesPanel from "../OperationsPage/ExpensesPanel";
 

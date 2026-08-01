@@ -3,7 +3,7 @@
 // counsel 블록 유형이 없으면 자동 생성 → 사용자에게 설정 요구 없음
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchAdminPosts,

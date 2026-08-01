@@ -4,7 +4,7 @@
  * 라우트: /workspace/exams (강의별 시험), /workspace/exams/templates (템플릿 관리)
  */
 
-import { Outlet } from "react-router-dom";
+import { Outlet } from "react-router";
 import { DomainLayout, type DomainTab } from "@/shared/ui/domain";
 
 const EXAM_TABS: DomainTab[] = [

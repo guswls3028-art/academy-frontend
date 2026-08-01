@@ -5,7 +5,7 @@
  */
 
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { FilePlus, ClipboardList, FileCheck } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";

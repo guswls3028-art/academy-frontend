@@ -2,7 +2,7 @@
 // Billing admin dashboard — tenant subscription overview + actions
 
 import { useMemo, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { CalendarPlus, Search } from "lucide-react";
 import {
   useBillingTenants,

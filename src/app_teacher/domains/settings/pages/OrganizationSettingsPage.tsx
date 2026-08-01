@@ -2,7 +2,7 @@
 // 학원 정보 — 조회/수정 (owner 전용 권장, RoleGuard는 라우터에서)
 import { useState, useEffect } from "react";
 import type { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
 import { Card, SectionTitle, BackButton } from "@teacher/shared/ui/Card";

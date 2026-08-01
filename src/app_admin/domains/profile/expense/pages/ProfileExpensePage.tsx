@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/profile/expense/pages/ProfileExpensePage.tsx
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext } from "react-router";
 import { Button, EmptyState, Section } from "@/shared/ui/ds";
 import { ProfileOutletContext } from "../../ProfileLayout";
 

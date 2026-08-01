@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/students/overlays/StudentsDetailOverlay.tsx
 // 학생 상세 팝업 — URL/뒤로가기를 유지하면서 현재 업무 화면 위에 표시
 
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router";
 import { lazy, Suspense, useState, useEffect, useCallback, type CSSProperties, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createPortal } from "react-dom";

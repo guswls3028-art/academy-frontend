@@ -4,7 +4,7 @@
  * 라우트: /workspace/videos (오늘의 작업), /workspace/videos/tree (폴더별 탐색)
  */
 
-import { Outlet } from "react-router-dom";
+import { Outlet } from "react-router";
 import { DomainLayout } from "@/shared/ui/layout";
 import type { DomainTab } from "@/shared/ui/domain";
 

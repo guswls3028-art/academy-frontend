@@ -2,7 +2,7 @@
 // PATH: src/app_teacher/domains/storage/pages/MyStoragePage.tsx
 // 내 자료 — admin scope 인벤토리 조회/업로드/다운로드/삭제 (R-11 baseline 동결)
 import { useState, useRef, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { setPreferFullWorkspace } from "@/core/router/MobileWorkspaceRedirect";

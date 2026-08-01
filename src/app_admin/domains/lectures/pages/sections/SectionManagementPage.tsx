@@ -9,7 +9,7 @@
  * 기존 좌우 분할 UI 폐기 — 4조합을 한 눈에 볼 수 있도록 2차원 그리드로 재편.
  */
 import { useState, useMemo, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, BookOpen, Stethoscope, ArrowLeft, Wand2, UserPlus, AlertTriangle } from "lucide-react";
 import api from "@/shared/api/axios";

@@ -5,7 +5,7 @@
  */
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { fetchClinicIdcard } from "../api/idcard";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";

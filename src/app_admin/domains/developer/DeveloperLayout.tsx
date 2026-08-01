@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/developer/layout/DeveloperLayout.tsx
 // To개발자 — DomainLayout 탭 SSOT
 
-import { Outlet } from "react-router-dom";
+import { Outlet } from "react-router";
 import { DomainLayout } from "@/shared/ui/layout";
 import type { DomainTab } from "@/shared/ui/domain";
 

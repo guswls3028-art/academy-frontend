@@ -5,7 +5,7 @@
  * — 사이드바 「성적」 및 KPI 인박스의 「강의별 탐색」 탭에서 노출
  */
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart2 } from "lucide-react";
 import Breadcrumb from "@/shared/ui/navigation/PathBreadcrumb";

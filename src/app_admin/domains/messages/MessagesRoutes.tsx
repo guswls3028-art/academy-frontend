@@ -1,6 +1,6 @@
 // PATH: src/app_admin/domains/messages/MessagesRoutes.tsx
 
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import { renderLazyRoute } from "@/core/router/renderLazyRoute";
 

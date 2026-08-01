@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/profile/pages/BillingPage.tsx
 // 요금제/구독 조회 — 현재 요금제, 상태, 남은 일수, 결제 예정일
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { ChevronLeft, AlertCircle, CheckCircle, Award } from "@teacher/shared/ui/Icons";

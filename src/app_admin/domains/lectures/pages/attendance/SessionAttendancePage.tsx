@@ -9,7 +9,7 @@
 /* eslint-disable prefer-const, no-restricted-syntax, react-hooks/exhaustive-deps */
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 import { RotateCcw, ShieldCheck, X } from "lucide-react";
 import { useFloatingPosition } from "@/shared/ui/floating/useFloatingPosition";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";

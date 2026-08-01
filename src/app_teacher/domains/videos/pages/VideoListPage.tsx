@@ -2,7 +2,7 @@
 // PATH: src/app_teacher/domains/videos/pages/VideoListPage.tsx
 // 영상 목록 — 검색·상태필터·정렬 + 인코딩 상태/시청 현황
 import { useState, useRef, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { Link2, Upload, Trash2, Youtube } from "@teacher/shared/ui/Icons";

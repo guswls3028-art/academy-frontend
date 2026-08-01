@@ -1,5 +1,5 @@
 import { useEffect, useState, type FocusEvent, type KeyboardEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import {
   ArrowRight,
   BellRing,

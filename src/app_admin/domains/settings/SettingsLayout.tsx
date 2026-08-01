@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/settings/SettingsLayout.tsx
 // Premium SaaS 설정 레이아웃 — 사이드바 네비게이션 + 콘텐츠 영역
 
-import { NavLink, Outlet, Link } from "react-router-dom";
+import { NavLink, Outlet, Link } from "react-router";
 import { FiUser, FiHome, FiMonitor, FiCreditCard, FiGlobe, FiInbox } from "react-icons/fi";
 import styles from "./SettingsLayout.module.css";
 import useAuth from "@/auth/hooks/useAuth";

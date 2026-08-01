@@ -4,7 +4,7 @@
  */
 import { Suspense } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
-import { Navigate, Route, Routes, useParams } from "react-router-dom";
+import { Navigate, Route, Routes, useParams } from "react-router";
 import StudentLayout from "@student/layout/StudentLayout";
 import styles from "./StudentRouter.module.css";
 

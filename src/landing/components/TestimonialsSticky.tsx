@@ -7,7 +7,7 @@
 // 데이터: usePublicTestimonials() — 학원장 승인된 후기. 상위 3개만.
 /* eslint-disable no-restricted-syntax */
 
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { usePublicTestimonials } from "../templates/shared";
 
 interface StickyTokens {

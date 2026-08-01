@@ -2,7 +2,7 @@
 // 근태 탭 — KPI 배너 상단 + 캘린더/상세 하단
 
 import { useMemo, useState, type CSSProperties } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { WorkMonthProvider } from "../../operations/context/WorkMonthContext";
 import WorkRecordsPanel from "../OperationsPage/WorkRecordsPanel";
 import { AttendanceCalendar } from "../../components/AttendanceCalendar";

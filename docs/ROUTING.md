@@ -35,6 +35,12 @@
 
 - canonical 경로와 호환 경로의 단일 기준은
   `src/core/router/workspaceRoutes.ts`이다.
+- 런타임은 React/React DOM 19.2.7 이상과 `react-router` 8.3.0 이상을 사용하는
+  `BrowserRouter` 기반 선언형 SPA다. DOM 라우팅 API는 v8에서 제거된
+  `react-router-dom` 호환 패키지가 아니라 `react-router`에서 import한다.
+- 서버 route module, action/loader 서버 실행, RSC entry와 `@react-router/dev`
+  는 현재 라우팅 경계에 포함되지 않는다. 이를 도입할 때는 SPA 빌드·Cloudflare
+  fallback·CSRF 경계를 다시 설계하고 운영 검증 문서를 함께 갱신한다.
 - `app_admin`과 `app_teacher` 디렉터리명은 기존 구현 경계를 나타내는 내부
   이름이다. 공개 URL이나 사용자 역할 계약으로 사용하지 않는다.
 - 하위 페이지 링크는 canonical 경로만 생성한다.

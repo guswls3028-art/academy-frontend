@@ -2,7 +2,7 @@
 // 학생 인벤토리 관리 — 좌측 학생 리스트 | 우측 인벤토리 탐색기 (3컬럼 통합 뷰)
 
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Search, User } from "lucide-react";
 import { fetchStudents } from "@admin/domains/students/api/students.api";

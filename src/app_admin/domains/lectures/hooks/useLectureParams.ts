@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/lectures/hooks/useLectureParams.ts
-import { useParams } from "react-router-dom";
+import { useParams } from "react-router";
 
 export function useLectureParams() {
   const { lectureId, sessionId } = useParams<{

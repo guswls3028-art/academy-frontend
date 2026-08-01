@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 import { Search } from "lucide-react";
 import { useTenantList, useCreateTenant, useUpdateTenant, useRegisterOwner } from "@dev/domains/tenants/hooks/useTenants";
 import { useDevToast } from "@dev/shared/components/useDevToast";

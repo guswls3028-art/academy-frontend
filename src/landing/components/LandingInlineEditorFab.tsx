@@ -13,7 +13,7 @@
 /* eslint-disable no-restricted-syntax */
 
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
 import api from "@/shared/api/axios";
 import { feedback } from "@/shared/ui/feedback/feedback";

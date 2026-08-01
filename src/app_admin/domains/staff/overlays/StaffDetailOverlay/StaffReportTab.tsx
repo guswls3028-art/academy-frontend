@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/staff/overlays/StaffDetailOverlay/StaffReportTab.tsx
 
 import { useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 
 import { fetchStaffSummaryByRange } from "../../api/staff.detail.api";

@@ -1,7 +1,7 @@
 /**
  * 제출 허브 — 성적표 제출 / 과제 제출(동영상·사진) 선택
  */
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import { IconGrade, IconBoard, IconFolder, IconChevronRight } from "@student/shared/ui/icons/Icons";
 import styles from "./SubmitHubPage.module.css";

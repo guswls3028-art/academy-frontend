@@ -41,6 +41,7 @@ for (const required of [
   "CLOUDFLARE_PREVIEW_API_TOKEN",
   "CLOUDFLARE_PRODUCTION_API_TOKEN",
   "CLOUDFLARE_INFRA_API_TOKEN",
+  "run: pnpm audit --prod",
   "permissions:\n  contents: read",
   "github.event.pull_request.user.login != 'dependabot[bot]'",
 ]) {

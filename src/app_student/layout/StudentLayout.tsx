@@ -3,7 +3,7 @@
  * 테넌트별 테마: data-student-tenant 에 따라 theme/tenants/{code}.css 적용
  */
 import { useState, useEffect, useCallback } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { useAuthContext } from "@/auth/context/AuthContext";

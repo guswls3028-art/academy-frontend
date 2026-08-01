@@ -1,7 +1,7 @@
 // PATH: src/app_teacher/domains/comms/pages/CommunicationPage.tsx
 // 소통 — 5탭 (공지/Q&A/등록요청/게시판/자료) + 작성 + 검색
 import { useState, useCallback, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";

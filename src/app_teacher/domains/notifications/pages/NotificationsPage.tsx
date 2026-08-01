@@ -4,7 +4,7 @@
 //
 // inline style 면제 — 알림 카드는 도메인별 컬러/뱃지 등 동적 token 사용.
 /* eslint-disable no-restricted-syntax */
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import type { ReactNode } from "react";
 import {
   useTeacherPendingCounts,

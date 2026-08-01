@@ -15,7 +15,7 @@
 //
 // SessionLayout 데드락 회피: navigate 전 target_resolved 가드.
 import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";

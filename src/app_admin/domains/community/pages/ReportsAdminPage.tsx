@@ -6,7 +6,7 @@
 /* eslint-disable no-restricted-syntax */
 
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { AlertTriangle, Ban, ExternalLink, Inbox, ShieldQuestion } from "lucide-react";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import { Button, ICON } from "@/shared/ui/ds";

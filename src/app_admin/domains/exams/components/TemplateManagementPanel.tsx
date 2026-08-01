@@ -6,7 +6,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { FileText } from "lucide-react";
 import { EmptyState } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";

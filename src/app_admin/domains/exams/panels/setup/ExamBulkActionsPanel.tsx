@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/exams/panels/setup/ExamBulkActionsPanel.tsx
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { recalculateExam } from "../../api/adminExam";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";

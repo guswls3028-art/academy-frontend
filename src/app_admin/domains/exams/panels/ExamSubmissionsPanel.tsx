@@ -7,7 +7,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { fetchExamSubmissions } from "@admin/domains/submissions/api/adminSubmissions.api";
 import { useAdminExam } from "../hooks/useAdminExam";
 import {

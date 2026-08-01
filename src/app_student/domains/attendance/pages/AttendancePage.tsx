@@ -2,7 +2,7 @@
  * 출결 현황 — 본인 누적 카운트 + 최근 차시별 상태
  */
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
 import api from "@student/shared/api/student.api";

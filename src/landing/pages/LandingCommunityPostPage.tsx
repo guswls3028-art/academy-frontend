@@ -11,7 +11,7 @@
 
 import DOMPurify from "dompurify";
 import { useEffect, useState } from "react";
-import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router";
 import { CornerDownRight, Flag, Heart, LockKeyhole, MessageCircle, Share2 } from "lucide-react";
 import api, { type ApiRequestConfig, saveReturnPath } from "@/shared/api/axios";
 import useAuth from "@/auth/hooks/useAuth";

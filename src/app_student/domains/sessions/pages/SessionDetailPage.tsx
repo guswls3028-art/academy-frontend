@@ -10,7 +10,7 @@
  * - 없으면 "시험으로 이동" 같은 범용 링크만 제공
  */
 
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
 import EmptyState from "../../../layout/EmptyState";
 import { useSessionDetail } from "@student/domains/sessions/hooks/useStudentSessions";

@@ -2,7 +2,7 @@
 // 문제 신고 모달 — 현재 컨텍스트 자동 수집 + Sentry User Feedback 전송
 
 import { useCallback, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation } from "react-router";
 import { Modal, Input, Typography } from "antd";
 import { SendOutlined } from "@ant-design/icons";
 import * as Sentry from "@sentry/react";
