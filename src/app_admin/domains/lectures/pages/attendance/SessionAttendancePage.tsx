@@ -39,12 +39,22 @@ import { substituteScoreVars, buildScoreVars, buildGenericScoreTemplate, buildSc
 import { DEFAULT_GRADES_PRESET_ID } from "@/shared/messaging/gradeTemplatePreset";
 import { fetchSessionScores } from "@/shared/api/contracts/sessionScores";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
+import useAuth from "@/auth/hooks/useAuth";
 import { adminLectureQueryKeys } from "../../queryKeys";
 import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPreviewModal";
 import "./attendance-ui.css";
 
 const STATUS_LIST = ORDERED_ATTENDANCE_STATUS;
 const PAGE_SIZE = 50;
+const DEFAULT_ATTENDANCE_SORT = "name";
+const ATTENDANCE_SORT_VALUES = ["", "name", "-name", "status", "-status", "parent_phone", "-parent_phone", "phone", "-phone"] as const;
+
+type AttendanceSort = typeof ATTENDANCE_SORT_VALUES[number];
+type AttendanceSortColumn = "name" | "status" | "parent_phone" | "phone";
+
+function isAttendanceSort(value: string | null): value is AttendanceSort {
+  return ATTENDANCE_SORT_VALUES.includes(value as AttendanceSort);
+}
 
 type SessionAttendancePageProps = {
   sessionId: number;
@@ -70,6 +80,7 @@ export default function SessionAttendancePage({
   const navigate = useNavigate();
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const { user } = useAuth();
   const { openSendMessageModal } = useSendMessageModal();
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [deleting, setDeleting] = useState(false);
@@ -82,7 +93,7 @@ export default function SessionAttendancePage({
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [sort, setSort] = useState("-name");
+  const [sort, setSort] = useState<AttendanceSort>(DEFAULT_ATTENDANCE_SORT);
   const [page, setPage] = useState(1);
   const [statusPopoverOpen, setStatusPopoverOpen] = useState(false);
   const statusTriggerRef = useRef<HTMLButtonElement>(null);
@@ -122,6 +133,20 @@ export default function SessionAttendancePage({
   useEffect(() => {
     setBulkPresentUndo(null);
   }, [sessionId]);
+
+  const sortStorageKey = user?.id ? `attendance:sort:u${user.id}` : null;
+  useEffect(() => {
+    if (!sortStorageKey) {
+      setSort(DEFAULT_ATTENDANCE_SORT);
+      return;
+    }
+    try {
+      const savedSort = window.localStorage.getItem(sortStorageKey);
+      setSort(isAttendanceSort(savedSort) ? savedSort : DEFAULT_ATTENDANCE_SORT);
+    } catch {
+      setSort(DEFAULT_ATTENDANCE_SORT);
+    }
+  }, [sortStorageKey]);
 
   useEffect(() => {
     if (!statusPopoverOpen) return;
@@ -608,8 +633,15 @@ export default function SessionAttendancePage({
   );
 
   /** 정렬 토글 핸들러 */
-  function toggleSort(colKey: string) {
-    setSort(sort === colKey ? `-${colKey}` : sort === `-${colKey}` ? "" : colKey);
+  function toggleSort(colKey: AttendanceSortColumn) {
+    const nextSort: AttendanceSort = sort === colKey ? `-${colKey}` : sort === `-${colKey}` ? "" : colKey;
+    setSort(nextSort);
+    if (!sortStorageKey) return;
+    try {
+      window.localStorage.setItem(sortStorageKey, nextSort);
+    } catch {
+      // localStorage 접근이 막힌 환경에서는 현재 화면 정렬만 유지한다.
+    }
   }
 
   return (
