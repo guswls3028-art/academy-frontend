@@ -88,6 +88,24 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
       });
       return;
     }
+    if (pathname.endsWith("/tools/problem-studio/beta-access/") && request.method() === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        json: {
+          beta_access: {
+            label: "Beta",
+            free_run_limit: 3,
+            completed_runs: 0,
+            reserved_runs: 0,
+            remaining_runs: 3,
+            can_start: true,
+            review_required: true,
+          },
+        },
+      });
+      return;
+    }
     if (pathname.endsWith("/tools/problem-studio/voice-profiles/") && request.method() === "GET") {
       await route.fulfill({
         status: 200,
@@ -272,6 +290,15 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
           source_files: [{ name: "chemistry.png", kind: "이미지", sizeLabel: "1KB", extractedChars: 0 }],
           warnings: [],
           source_text_chars: 0,
+          beta_access: {
+            label: "Beta",
+            free_run_limit: 3,
+            completed_runs: 0,
+            reserved_runs: 1,
+            remaining_runs: 2,
+            can_start: true,
+            review_required: true,
+          },
         },
       });
       return;
@@ -315,8 +342,22 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
             reconstruction_quality: {
               source_page_preserved_count: 1,
             },
+            beta: {
+              label: "Beta",
+              free_trial: true,
+              review_required: true,
+            },
           },
           error_message: null,
+          beta_access: {
+            label: "Beta",
+            free_run_limit: 3,
+            completed_runs: 1,
+            reserved_runs: 0,
+            remaining_runs: 2,
+            can_start: true,
+            review_required: true,
+          },
         },
       });
       return;
@@ -336,6 +377,8 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
 
   await page.goto(`${baseUrl}/workspace/tools/problem-studio`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "스캔만 올리면, 문제지와 내 문체 해설지까지" })).toBeVisible();
+  await expect(page.getByText("Beta", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("테넌트 무료 체험 3/3회 남음", { exact: true })).toBeVisible();
   await expect(page.getByText("원본 업로드")).toBeVisible();
   await expect(page.getByText(/처음 한 번만 ZIP을 풀고/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "4. 내 문서 스타일" })).toBeVisible();
@@ -367,6 +410,7 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
   await expect(page.getByRole("button", { name: "문제지·해설지 ZIP 내려받기" })).toBeVisible();
   await expect(page.getByRole("button", { name: "한글에서 열기", exact: true })).toBeVisible();
   await expect(page.getByText("준비 완료 · 전사 1쪽 · 해설 2개 · 원본 보존 1쪽", { exact: true })).toBeVisible();
+  await expect(page.getByText("테넌트 무료 체험 2/3회 남음", { exact: true })).toBeVisible();
   expect(automaticDownloads).toBe(0);
 
   await page.getByText("Beta 재작성", { exact: true }).click();
@@ -398,4 +442,32 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
   await page.getByRole("checkbox", { name: /글로벌 AI 처리 안내/ }).check();
   await page.getByRole("button", { name: "문제지·해설지 만들기" }).click();
   await expect(page.getByRole("button", { name: "문제지·해설지 ZIP 내려받기" })).toBeVisible();
+
+  await page.route("**/api/v1/tools/problem-studio/beta-access/", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      json: {
+        beta_access: {
+          label: "Beta",
+          free_run_limit: 3,
+          completed_runs: 3,
+          reserved_runs: 0,
+          remaining_runs: 0,
+          can_start: false,
+          review_required: true,
+        },
+      },
+    });
+  });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByText("테넌트 무료 체험 0/3회 남음", { exact: true })).toBeVisible();
+  await page.locator('input[type="file"]').first().setInputFiles({
+    name: "chemistry-exhausted.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("89504e470d0a1a0a", "hex"),
+  });
+  const aiConsent = page.getByRole("checkbox", { name: /글로벌 AI 처리 안내/ });
+  if (!(await aiConsent.isChecked())) await aiConsent.check();
+  await expect(page.getByRole("button", { name: "Beta 무료 체험 소진" })).toBeDisabled();
 });

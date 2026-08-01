@@ -53,6 +53,7 @@ export type ProblemStudioJobCreateResponse = {
   source_files: ProblemStudioSourceFile[];
   warnings: string[];
   source_text_chars: number;
+  beta_access?: ProblemStudioBetaAccess;
 };
 
 export type ProblemStudioTransferJobCreateResponse = ProblemStudioJobCreateResponse;
@@ -83,6 +84,11 @@ export type ProblemStudioTransferJobResult = {
   generated_explanation_count?: number;
   explanation_engine?: string;
   explanation_ai_calls?: number;
+  beta?: {
+    label: "Beta" | string;
+    free_trial: boolean;
+    review_required: boolean;
+  };
   detected_layout?: {
     mode: string;
     page_width_mm: number;
@@ -122,6 +128,17 @@ export type ProblemStudioTransferJobStatusResponse = {
   result?: ProblemStudioTransferJobResult | null;
   error_message?: string | null;
   message?: string;
+  beta_access?: ProblemStudioBetaAccess;
+};
+
+export type ProblemStudioBetaAccess = {
+  label: "Beta" | string;
+  free_run_limit: number;
+  completed_runs: number;
+  reserved_runs: number;
+  remaining_runs: number;
+  can_start: boolean;
+  review_required: boolean;
 };
 
 export type ProblemStudioHangulCompanionDownload = {
@@ -248,6 +265,13 @@ export async function getProblemStudioVoiceProfiles(): Promise<ProblemStudioVoic
     "/tools/problem-studio/voice-profiles/",
   );
   return data.profiles;
+}
+
+export async function getProblemStudioBetaAccess(): Promise<ProblemStudioBetaAccess> {
+  const { data } = await api.get<{ beta_access: ProblemStudioBetaAccess }>(
+    "/tools/problem-studio/beta-access/",
+  );
+  return data.beta_access;
 }
 
 export async function createProblemStudioVoiceProfile(payload: {

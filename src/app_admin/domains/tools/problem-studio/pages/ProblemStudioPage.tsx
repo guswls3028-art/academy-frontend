@@ -42,6 +42,7 @@ import {
   createProblemStudioVoiceProfile,
   deleteProblemStudioFont,
   getProblemStudioHangulCompanionDownload,
+  getProblemStudioBetaAccess,
   getProblemStudioDocumentStyle,
   getProblemStudioFonts,
   getProblemStudioJob,
@@ -51,6 +52,7 @@ import {
   saveProblemStudioDocumentStyle,
   uploadProblemStudioFont,
   type ProblemStudioDocumentStyle,
+  type ProblemStudioBetaAccess,
   type ProblemStudioFontCatalog,
   type ProblemStudioGeneratedQuestion,
   type ProblemStudioGeneratePayload,
@@ -87,7 +89,7 @@ const DEFAULT_ANSWER = "①";
 const DEFAULT_EXPLANATION = "해설을 입력하면 해설지 PDF에만 표시됩니다.";
 const JOB_POLL_INTERVAL_MS = 1500;
 const JOB_TIMEOUT_MS = 900_000;
-const TRANSFER_JOB_TIMEOUT_MS = 1_800_000;
+const TRANSFER_JOB_TIMEOUT_MS = 3_660_000;
 const DEFAULT_DOCUMENT_STYLE: ProblemStudioDocumentStyle = {
   title_font: "builtin:hamchorom-dotum",
   body_font: "builtin:hamchorom-batang",
@@ -381,6 +383,7 @@ export default function ProblemStudioPage() {
   const [generationQuestionIndexById, setGenerationQuestionIndexById] = useState<Record<string, number>>({});
   const [reviewedQuestionIndexes, setReviewedQuestionIndexes] = useState<Set<number>>(() => new Set());
   const [reviewingQuestionIndex, setReviewingQuestionIndex] = useState<number | null>(null);
+  const [betaAccess, setBetaAccess] = useState<ProblemStudioBetaAccess | null>(null);
 
   useEffect(() => {
     try {
@@ -395,15 +398,17 @@ export default function ProblemStudioPage() {
     const loadTypography = async () => {
       setStyleLoading(true);
       try {
-        const [fonts, preference, profiles] = await Promise.all([
+        const [fonts, preference, profiles, beta] = await Promise.all([
           getProblemStudioFonts(),
           getProblemStudioDocumentStyle(),
           getProblemStudioVoiceProfiles(),
+          getProblemStudioBetaAccess().catch(() => null),
         ]);
         if (!active) return;
         setFontCatalog(fonts);
         setDocumentStyle(normalizeDocumentStyle(preference));
         setVoiceProfiles(profiles);
+        if (beta) setBetaAccess(beta);
         setSelectedVoiceProfileId(
           profiles.find((profile) => profile.is_default)?.id || profiles[0]?.id || "",
         );
@@ -797,6 +802,7 @@ export default function ProblemStudioPage() {
       };
       setGenerationNote("원본을 안전하게 업로드하는 중");
       const job = await createProblemStudioTransferJob(payload, sourceFileBlobs);
+      if (job.beta_access) setBetaAccess(job.beta_access);
       const pendingSourceFiles = job.source_files.length > 0
         ? toSourceEntries(job.source_files)
         : sourceFiles;
@@ -805,6 +811,7 @@ export default function ProblemStudioPage() {
       setGenerationNote(`AI 타이핑 대기 · ${job.job_id.slice(0, 8)}`);
 
       const result = await waitForProblemStudioTransferJob(job.job_id, (jobStatus) => {
+        if (jobStatus.beta_access) setBetaAccess(jobStatus.beta_access);
         setGenerationNote(`AI 타이핑 중 · ${job.job_id.slice(0, 8)} · ${problemStudioTransferStatusLabel(jobStatus)}`);
       });
       setTransferResult(result);
@@ -816,7 +823,7 @@ export default function ProblemStudioPage() {
         result.structured_item_count > 0 && (result.generated_explanation_count || 0) === 0
           ? "자동 해설을 만들지 못해 해설 검수본에서 직접 작성해야 합니다."
           : "",
-        result.structure_limit_reached ? "구조화 한도 80개를 넘어 나머지는 원본 보존 문서에서 확인해야 합니다." : "",
+        result.structure_limit_reached ? "Beta 구조화 한도 1,000개를 넘어 나머지는 원본 보존 문서에서 확인해야 합니다." : "",
         result.reconstruction_quality && result.reconstruction_quality.gate !== "benchmark_candidate"
           ? "표·박스·그림의 자동 재배치가 완성 기준에 못 미쳐 원본충실 대조본과 함께 확인해야 합니다."
           : "",
@@ -827,6 +834,11 @@ export default function ProblemStudioPage() {
       );
       feedback.success("원문 문제지와 선생님 문체 해설지가 준비됐습니다.");
     } catch (error) {
+      try {
+        setBetaAccess(await getProblemStudioBetaAccess());
+      } catch {
+        // 작업 오류 안내를 우선하며, 잔여 횟수 재조회 실패는 다음 화면 진입에서 복구한다.
+      }
       feedback.error(error instanceof Error ? error.message : "AI 타이핑을 완료할 수 없습니다.");
     } finally {
       setTransferring(false);
@@ -1031,11 +1043,22 @@ export default function ProblemStudioPage() {
     <div className={styles.page}>
       <section className={styles.builderHero} aria-labelledby="worksheet-builder-title">
         <div className={styles.builderHeroText}>
-          <Badge tone="primary" size="md">AI 문제집 재작성</Badge>
+          <div className={styles.heroBadges}>
+            <Badge tone="primary" size="md">AI 문제집 재작성</Badge>
+            <Badge tone="warning" size="md">Beta</Badge>
+          </div>
           <h2 id="worksheet-builder-title" className={styles.title}>스캔만 올리면, 문제지와 내 문체 해설지까지</h2>
           <p className={styles.lead}>
             문제·선지는 원문 그대로 전사하고 정답·해설만 자동 작성합니다. 편집 가능한 HWPX와 표·박스·그림·상대 배치를 픽셀 그대로 보존한 원본충실 HWPX를 함께 제공합니다.
           </p>
+          <div className={styles.betaTrial} role="status">
+            <strong>
+              {betaAccess
+                ? `테넌트 무료 체험 ${betaAccess.remaining_runs}/${betaAccess.free_run_limit}회 남음`
+                : "테넌트 무료 체험 3회"}
+            </strong>
+            <span>완료된 문제집 단위로 차감되며, AI 정답·해설은 선생님 검수가 필요합니다.</span>
+          </div>
         </div>
         <div className={styles.processRail} aria-label="AI 시험지 타이핑 3단계">
           <span><b>1</b> 원본 업로드</span>
@@ -1843,11 +1866,17 @@ export default function ProblemStudioPage() {
                 intent="primary"
                 size="md"
                 loading={transferring}
-                disabled={sourceFileBlobs.length === 0 || !externalAiConfirmed}
+                disabled={
+                  sourceFileBlobs.length === 0
+                  || !externalAiConfirmed
+                  || betaAccess?.can_start === false
+                }
                 leftIcon={<Sparkles size={ICON_FOR_BUTTON.md} />}
                 onClick={handleTransferOriginal}
               >
-                문제지·해설지 만들기
+                {betaAccess?.can_start === false
+                  ? "Beta 무료 체험 소진"
+                  : "문제지·해설지 만들기"}
               </Button>
               <div className={styles.companionSetup}>
                 <Button
