@@ -123,8 +123,8 @@ function ProfileDropdown({
 
 /** 알림 항목 type → data-level 매핑 (헤더 알림 색상 톤) */
 function alarmLevelFor(type: AdminNotificationItem["type"]): "info" | "warning" | "error" {
-  if (type === "video_failed") return "error";
-  if (type === "registration_requests" || type === "clinic") return "warning";
+  if (type === "video_failed" || type === "arrivals_overdue") return "error";
+  if (type === "registration_requests" || type === "clinic" || type === "arrivals_soon") return "warning";
   return "info";
 }
 
@@ -440,7 +440,7 @@ export default function Header() {
                     {hasNotificationFailures && (
                       <span
                         className="alarm-panel__header-warning"
-                        title={`일부 알림을 불러오지 못했습니다 (${adminNotificationFailures.length}/6). 다시 불러오기를 눌러주세요.`}
+                        title={`일부 알림을 불러오지 못했습니다 (${adminNotificationFailures.length}개 항목). 다시 불러오기를 눌러주세요.`}
                         aria-label={`일부 알림 로드 실패 ${adminNotificationFailures.length}건`}
                       >
                         <AlertTriangle size={ICON.sm} aria-hidden />

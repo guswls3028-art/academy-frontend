@@ -10,6 +10,9 @@ import { pollJobUntilDone, downloadFromUrl } from "@/shared/api/jobExport";
 export type AttendanceRow = {
   id: number;
   status: string;
+  memo?: string | null;
+  planned_arrival_date?: string | null;
+  planned_arrival_time?: string | null;
   name?: string | null;
   phone?: string | null;
   student_phone?: string | null;
@@ -36,6 +39,9 @@ export type AttendanceListResponse = {
 export type AttendanceListItem = Record<string, unknown> & {
   id: number;
   status: string;
+  memo?: string | null;
+  planned_arrival_date?: string | null;
+  planned_arrival_time?: string | null;
   name?: string | null;
   student_name?: string | null;
   phone?: string | null;
@@ -111,7 +117,13 @@ export async function fetchAttendanceEnrolledStudentIds(
  * ======================================================= */
 export async function updateAttendance(
   id: number,
-  payload: { status?: string; memo?: string; confirm_secession?: boolean }
+  payload: {
+    status?: string;
+    memo?: string;
+    planned_arrival_date?: string | null;
+    planned_arrival_time?: string | null;
+    confirm_secession?: boolean;
+  }
 ) {
   if (payload.status === "SECESSION" && payload.confirm_secession !== true) {
     throw new Error("퇴원 처리는 명시 확인 후에만 실행할 수 있습니다.");

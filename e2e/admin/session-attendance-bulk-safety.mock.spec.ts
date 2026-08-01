@@ -210,6 +210,7 @@ test("출석 명단은 이름 가나다순이 기본이고 계정별 정렬 선�
 test("차시 수강생은 선택 목록에서 undo/redo와 최종 확인 후 미입력으로 등록한다", async ({ page }) => {
   const state = createState();
   await openAttendance(page, state);
+  await expect(page.getByRole("columnheader", { name: "등원 예정" })).toHaveCount(0);
 
   await page.getByRole("button", { name: "수강생 등록" }).first().click();
   await expect(page.getByText("차시 수강생 등록", { exact: true })).toBeVisible();

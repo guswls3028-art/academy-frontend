@@ -36,6 +36,9 @@ const ICON_MAP: Record<ItemType, ReactNode> = {
   consult: <MessageCircle size={ICON.sm} />,
   reports: <ClipboardList size={ICON.sm} />,
   community: <MessageCircle size={ICON.sm} />,
+  arrivals_soon: <Calendar size={ICON.sm} />,
+  arrivals_overdue: <Calendar size={ICON.sm} />,
+  arrivals_time_unset: <Calendar size={ICON.sm} />,
 };
 
 const DEST_LABEL: Record<ItemType, string> = {
@@ -48,6 +51,9 @@ const DEST_LABEL: Record<ItemType, string> = {
   consult: "관리실에서 응대",
   reports: "커뮤니티 신고함에서 검토",
   community: "내 글에 새 활동 확인",
+  arrivals_soon: "대시보드에서 등원 준비",
+  arrivals_overdue: "대시보드에서 출석 확인",
+  arrivals_time_unset: "대시보드에서 시간 입력",
 };
 
 export default function NotificationsPage() {

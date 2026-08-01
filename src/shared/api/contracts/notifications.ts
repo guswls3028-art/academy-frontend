@@ -1,4 +1,5 @@
 import api from "@/shared/api/axios";
+import { fetchArrivalOverview } from "@/shared/api/contracts/arrivalOverview";
 
 export type OperationalNotificationCounts = {
   qnaPending: number;
@@ -10,6 +11,9 @@ export type OperationalNotificationCounts = {
   consultUnread: number;
   reportsPending: number;
   communityUnread: number;
+  arrivalsSoon: number;
+  arrivalsOverdue: number;
+  arrivalsTimeUnset: number;
   total: number;
 };
 
@@ -22,7 +26,10 @@ export type OperationalNotificationSource =
   | "video_failed"
   | "consult"
   | "reports"
-  | "community";
+  | "community"
+  | "arrivals_soon"
+  | "arrivals_overdue"
+  | "arrivals_time_unset";
 
 export type OperationalNotificationCountsResult = {
   counts: OperationalNotificationCounts;
@@ -64,6 +71,9 @@ export function createEmptyOperationalNotificationCounts(): OperationalNotificat
     consultUnread: 0,
     reportsPending: 0,
     communityUnread: 0,
+    arrivalsSoon: 0,
+    arrivalsOverdue: 0,
+    arrivalsTimeUnset: 0,
     total: 0,
   };
 }
@@ -195,6 +205,7 @@ export async function fetchOperationalNotificationCounts(): Promise<OperationalN
     consultRes,
     reportsRes,
     communityRes,
+    arrivalRes,
   ] = await Promise.all([
     fetchClinicPendingCount(),
     countPendingPosts("qna"),
@@ -205,6 +216,7 @@ export async function fetchOperationalNotificationCounts(): Promise<OperationalN
     fetchConsultUnread(),
     fetchReportsPending(),
     fetchCommunityUnread(),
+    fetchArrivalOverview().catch(() => null),
   ]);
 
   const failures: OperationalNotificationSource[] = [];
@@ -217,6 +229,7 @@ export async function fetchOperationalNotificationCounts(): Promise<OperationalN
   if (consultRes === null) failures.push("consult");
   if (reportsRes === null) failures.push("reports");
   if (communityRes === null) failures.push("community");
+  if (arrivalRes === null) failures.push("arrivals_soon");
 
   const qna = qnaCount ?? 0;
   const counsel = counselCount ?? 0;
@@ -227,6 +240,9 @@ export async function fetchOperationalNotificationCounts(): Promise<OperationalN
   const consultUnread = consultRes ?? 0;
   const reportsPending = reportsRes ?? 0;
   const communityUnread = communityRes ?? 0;
+  const arrivalsSoon = arrivalRes?.summary.soon ?? 0;
+  const arrivalsOverdue = arrivalRes?.summary.overdue ?? 0;
+  const arrivalsTimeUnset = arrivalRes?.summary.time_unset ?? 0;
   const total =
     qna +
     counsel +
@@ -236,9 +252,12 @@ export async function fetchOperationalNotificationCounts(): Promise<OperationalN
     videoFailed +
     consultUnread +
     reportsPending +
-    communityUnread;
+    communityUnread +
+    arrivalsSoon +
+    arrivalsOverdue +
+    arrivalsTimeUnset;
 
-  if (failures.length === 9) {
+  if (failures.length === 10) {
     return { counts: createEmptyOperationalNotificationCounts(), failures };
   }
 
@@ -253,6 +272,9 @@ export async function fetchOperationalNotificationCounts(): Promise<OperationalN
       consultUnread,
       reportsPending,
       communityUnread,
+      arrivalsSoon,
+      arrivalsOverdue,
+      arrivalsTimeUnset,
       total,
     },
     failures,
@@ -267,6 +289,30 @@ export function buildOperationalNotificationItems(
   const items: OperationalNotificationItem[] = [];
   if (counts.videoFailed > 0) {
     items.push({ type: "video_failed", label: "영상 인코딩 실패", count: counts.videoFailed, to: "/workspace/videos" });
+  }
+  if (counts.arrivalsOverdue > 0) {
+    items.push({
+      type: "arrivals_overdue",
+      label: "예정 시간 지난 등원",
+      count: counts.arrivalsOverdue,
+      to: "/workspace/dashboard#arrival-overview",
+    });
+  }
+  if (counts.arrivalsSoon > 0) {
+    items.push({
+      type: "arrivals_soon",
+      label: "1시간 내 등원 예정",
+      count: counts.arrivalsSoon,
+      to: "/workspace/dashboard#arrival-overview",
+    });
+  }
+  if (counts.arrivalsTimeUnset > 0) {
+    items.push({
+      type: "arrivals_time_unset",
+      label: "시간 미정 보강",
+      count: counts.arrivalsTimeUnset,
+      to: "/workspace/dashboard#arrival-overview",
+    });
   }
   if (counts.consultUnread > 0) {
     items.push({ type: "consult", label: "새 상담 요청", count: counts.consultUnread, to: "/workspace/settings/consult" });

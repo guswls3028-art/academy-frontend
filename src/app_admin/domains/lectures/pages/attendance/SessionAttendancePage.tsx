@@ -42,6 +42,9 @@ import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import useAuth from "@/auth/hooks/useAuth";
 import { adminLectureQueryKeys } from "../../queryKeys";
 import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPreviewModal";
+import { arrivalOverviewQueryKey } from "@/shared/api/contracts/arrivalOverview";
+import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
+import ArrivalPlanCell, { type ArrivalPlanPayload } from "./ArrivalPlanCell";
 import "./attendance-ui.css";
 
 const STATUS_LIST = ORDERED_ATTENDANCE_STATUS;
@@ -59,6 +62,8 @@ function isAttendanceSort(value: string | null): value is AttendanceSort {
 type SessionAttendancePageProps = {
   sessionId: number;
   lectureId?: number;
+  sessionType?: string | null;
+  sessionDate?: string | null;
   onOpenEnrollModal?: () => void;
 };
 
@@ -74,6 +79,8 @@ function attendanceStatusRank(status: string | null | undefined): number {
 export default function SessionAttendancePage({
   sessionId,
   lectureId,
+  sessionType,
+  sessionDate,
   onOpenEnrollModal,
 }: SessionAttendancePageProps) {
   const location = useLocation();
@@ -247,16 +254,20 @@ export default function SessionAttendancePage({
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
   const col = STUDENTS_TABLE_COL;
+  const isSupplementSession = sessionType === "SUPPLEMENT";
   // SESSION_COL_WIDTH 제거 — 매트릭스 컬럼 삭제
   const attendanceColumnDefs: TableColumnDef[] = useMemo(
     () => [
       { key: "checkbox", label: "선택", defaultWidth: col.checkbox, minWidth: 28, maxWidth: 28 },
       { key: "name", label: "이름", defaultWidth: col.name, minWidth: 80, maxWidth: 400 },
       { key: "status", label: "상태", defaultWidth: col.statusBadge, minWidth: 60, maxWidth: 140 },
+      ...(isSupplementSession
+        ? [{ key: "arrival_plan", label: "등원 예정", defaultWidth: 220, minWidth: 170, maxWidth: 360 }]
+        : []),
       { key: "parent_phone", label: "학부모 전화번호", defaultWidth: col.parentPhone, minWidth: 90, maxWidth: 200 },
       { key: "phone", label: "학생 전화번호", defaultWidth: col.studentPhone, minWidth: 90, maxWidth: 200 },
     ],
-    []
+    [isSupplementSession]
   );
   const { columnWidths, setColumnWidth } = useTableColumnPrefs("session-attendance", attendanceColumnDefs);
   const fixedColsWidth = useMemo(
@@ -278,6 +289,21 @@ export default function SessionAttendancePage({
   function toggleSelectAll() {
     if (allSelected) setSelectedIds([]);
     else setSelectedIds([...allIds]);
+  }
+
+  async function saveArrivalPlan(attendanceId: number, payload: ArrivalPlanPayload) {
+    try {
+      await updateAttendance(attendanceId, payload);
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) }),
+        qc.invalidateQueries({ queryKey: arrivalOverviewQueryKey }),
+        qc.invalidateQueries({ queryKey: notificationQueryKeys.operationalCounts }),
+      ]);
+      feedback.success("등원 예정을 저장했습니다.");
+    } catch (error) {
+      feedback.error(extractApiError(error, "등원 예정을 저장하지 못했습니다."));
+      throw error;
+    }
   }
 
   const handleExcelDownload = () => {
@@ -808,6 +834,18 @@ export default function SessionAttendancePage({
                   <ResizableTh columnKey="status" width={columnWidths.status ?? col.statusBadge} minWidth={60} maxWidth={140} onWidthChange={setColumnWidth} scope="col" onClick={() => toggleSort("status")} className="cursor-pointer select-none text-center" aria-sort={sort === "status" ? "ascending" : sort === "-status" ? "descending" : "none"}>
                     <span className="inline-flex items-center gap-1">상태 <span aria-hidden style={{ fontSize: 10, opacity: sort === "status" || sort === "-status" ? 1 : 0.3, color: "var(--color-primary)" }}>{sort === "status" ? "▲" : sort === "-status" ? "▼" : "⇅"}</span></span>
                   </ResizableTh>
+                  {isSupplementSession && (
+                    <ResizableTh
+                      columnKey="arrival_plan"
+                      width={columnWidths.arrival_plan ?? 220}
+                      minWidth={170}
+                      maxWidth={360}
+                      onWidthChange={setColumnWidth}
+                      scope="col"
+                    >
+                      등원 예정
+                    </ResizableTh>
+                  )}
                   <ResizableTh columnKey="parent_phone" width={columnWidths.parent_phone ?? col.parentPhone} minWidth={90} maxWidth={200} onWidthChange={setColumnWidth} scope="col" onClick={() => toggleSort("parent_phone")} className="cursor-pointer select-none text-center" aria-sort={sort === "parent_phone" ? "ascending" : sort === "-parent_phone" ? "descending" : "none"}>
                     <span className="inline-flex items-center gap-1">학부모 <span aria-hidden style={{ fontSize: 10, opacity: sort === "parent_phone" || sort === "-parent_phone" ? 1 : 0.3, color: "var(--color-primary)" }}>{sort === "parent_phone" ? "▲" : sort === "-parent_phone" ? "▼" : "⇅"}</span></span>
                   </ResizableTh>
@@ -883,6 +921,22 @@ export default function SessionAttendancePage({
                         <AttendanceStatusBadge status={toAttendanceStatus(att.status)} variant="2ch" selected />
                       </button>
                     </td>
+                    {isSupplementSession && (
+                      <td
+                        className="align-middle"
+                        style={{ width: columnWidths.arrival_plan ?? 220 }}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <ArrivalPlanCell
+                          studentName={att.name ?? "학생"}
+                          plannedDate={att.planned_arrival_date}
+                          plannedTime={att.planned_arrival_time}
+                          memo={att.memo}
+                          defaultDate={sessionDate}
+                          onSave={(payload) => saveArrivalPlan(att.id, payload)}
+                        />
+                      </td>
+                    )}
                     <td className="text-[13px] leading-6 text-[var(--color-text-secondary)] truncate align-middle text-center" style={{ width: columnWidths.parent_phone ?? col.parentPhone }}>
                       {formatPhone(att.parent_phone)}
                     </td>
