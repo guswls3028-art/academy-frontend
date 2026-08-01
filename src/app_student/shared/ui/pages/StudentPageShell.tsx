@@ -1,7 +1,7 @@
 // PATH: src/app_student/shared/components/StudentPageShell.tsx
 
 import { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { IconChevronRight } from "../icons/Icons";
 import { InlineHelp } from "@/shared/ui/guide";
 

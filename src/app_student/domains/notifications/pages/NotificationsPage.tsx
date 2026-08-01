@@ -6,7 +6,7 @@
  * - 로딩 상태 및 에러 처리 개선
  */
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import { useNotificationCounts } from "../hooks/useNotificationCounts";
 import { useMarkNotificationsSeen } from "../hooks/useSeenNotifications";

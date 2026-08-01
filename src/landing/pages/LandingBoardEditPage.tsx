@@ -9,7 +9,7 @@
 /* eslint-disable no-restricted-syntax */
 
 import { useEffect, useState } from "react";
-import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import { fetchLandingPublic } from "../api";

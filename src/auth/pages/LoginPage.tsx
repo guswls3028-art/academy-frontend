@@ -1,6 +1,6 @@
 // 통합 로그인 페이지 — 테넌트별 테마는 data-tenant + themes/*.css 로 적용
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, useParams, Navigate, Link } from "react-router-dom";
+import { useNavigate, useParams, Navigate, Link } from "react-router";
 import { Eye, EyeOff } from "lucide-react";
 import { login } from "@/auth/api/auth.api";
 import type { AccountRecoveryMode } from "@/auth/api/recovery.api";

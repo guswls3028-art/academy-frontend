@@ -7,7 +7,7 @@
 
 import type { FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, HeroCarouselItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
 import { getEnabledSections, SvgIcon, FaqAccordion, HitReportCards, useTenantHitStats, LandingNavBar, ConsultRequestForm, usePublicTestimonials, TestimonialSubmitForm, resolveHeroPrimaryCta, type TemplateProps, type NavBarTokens } from "./shared";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import LandingFooter, { FOOTER_TOKENS_LIGHT } from "../components/LandingFooter";
 import LandingCommunityShowcase from "../components/LandingCommunityShowcase";
 import HeroCarousel from "../components/HeroCarousel";

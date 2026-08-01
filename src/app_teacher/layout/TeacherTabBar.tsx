@@ -4,7 +4,7 @@
  * 용어·순서: PC 사이드바 SSOT와 통일
  */
 import type { ReactNode } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink } from "react-router";
 import { ICON } from "@/shared/ui/ds";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { Home, BookOpen, Users, MessageSquare } from "@teacher/shared/ui/Icons";

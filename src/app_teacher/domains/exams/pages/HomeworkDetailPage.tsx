@@ -1,7 +1,7 @@
 // PATH: src/app_teacher/domains/exams/pages/HomeworkDetailPage.tsx
 // 과제 상세 — 제출 현황
 import type { ReactNode } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";

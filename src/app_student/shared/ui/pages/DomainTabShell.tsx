@@ -4,7 +4,7 @@
  * state 기반 탭 전환 + ?tab= searchParam 동기화.
  */
 import { type ReactNode, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { InlineHelp } from "@/shared/ui/guide";
 
 export type DomainTab = {

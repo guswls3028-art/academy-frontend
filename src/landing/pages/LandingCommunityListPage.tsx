@@ -13,7 +13,7 @@
 /* eslint-disable no-restricted-syntax */
 
 import { useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { Heart, LockKeyhole, PencilLine } from "lucide-react";
 import api, { type ApiRequestConfig, saveReturnPath } from "@/shared/api/axios";
 import useAuth from "@/auth/hooks/useAuth";

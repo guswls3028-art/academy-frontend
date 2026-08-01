@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 import api from "@/shared/api/axios";
 import type { TenantRole } from "@/auth/context/AuthContext";
 import styles from "./FirstLoginGuideModal.module.css";

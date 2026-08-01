@@ -13,7 +13,7 @@
 /* eslint-disable no-restricted-syntax */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { AlertTriangle, CheckCircle2, RefreshCw, XCircle } from "lucide-react";
 import { Badge, Button, ICON, ICON_FOR_BADGE } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";

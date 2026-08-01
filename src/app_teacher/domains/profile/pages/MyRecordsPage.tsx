@@ -2,7 +2,7 @@
 // PATH: src/app_teacher/domains/profile/pages/MyRecordsPage.tsx
 // 내 근태 + 지출 관리 — 등록/편집/삭제
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { ChevronLeft, Plus, Pencil, Trash2 } from "@teacher/shared/ui/Icons";

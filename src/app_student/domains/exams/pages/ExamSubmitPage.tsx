@@ -3,7 +3,7 @@
  * 시험 답안 입력 페이지 — 문항별 1, 2, 3, 4, 5 입력 후 제출
  */
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useConfirm } from "@/shared/ui/confirm";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";

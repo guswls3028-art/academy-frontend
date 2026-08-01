@@ -4,7 +4,7 @@
  * 영상 도메인 「오늘의 작업」 탭 — KPI 인박스 + 처리 중/재시도 인박스
  * 부모 VideoDomainLayout 이 제목/탭을 제공한다.
  */
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useConfirm } from "@/shared/ui/confirm";
 import { Button, KPI } from "@/shared/ui/ds";

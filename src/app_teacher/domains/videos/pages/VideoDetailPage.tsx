@@ -2,7 +2,7 @@
 // PATH: src/app_teacher/domains/videos/pages/VideoDetailPage.tsx
 // 영상 상세 — 시청 통계 + 댓글
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { Send, MoreVertical, Pencil, Trash2, Save, X } from "@teacher/shared/ui/Icons";

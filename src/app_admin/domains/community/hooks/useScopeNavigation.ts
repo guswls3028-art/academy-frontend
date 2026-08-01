@@ -2,7 +2,7 @@
 // 트리 셀렉트 콜백 공통화 — selectAll/selectLecture/selectSession + URL sync
 
 import { useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 interface Options {
   /** 선택 변경 시 추가 사이드 이펙트 (예: setShowCreate(false)) */

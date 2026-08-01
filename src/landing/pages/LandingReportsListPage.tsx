@@ -7,7 +7,7 @@
 /* eslint-disable no-restricted-syntax */
 
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { fetchLandingPublic } from "../api";
 import type { LandingPublicResponse, HitReportPublicCard, HitReportShowcaseItem } from "../types";
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";

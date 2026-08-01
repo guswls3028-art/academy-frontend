@@ -8,7 +8,7 @@
 /* eslint-disable no-restricted-syntax */
 
 import { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate } from "react-router";
 import { fetchLandingPublic } from "../api";
 import { getTemplateComponent } from "../templates";
 import type { LandingPublicResponse } from "../types";

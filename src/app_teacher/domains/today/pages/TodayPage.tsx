@@ -2,7 +2,7 @@
 // PATH: src/app_teacher/domains/today/pages/TodayPage.tsx
 // 오늘 홈 — 우선순위 업무 + 오늘 수업 + 빠른 처리
 import { useMemo, type CSSProperties, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import useAuth from "@/auth/hooks/useAuth";

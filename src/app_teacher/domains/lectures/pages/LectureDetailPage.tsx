@@ -2,7 +2,7 @@
 // PATH: src/app_teacher/domains/lectures/pages/LectureDetailPage.tsx
 // 강의 상세 — 탭 구조: 차시 목록 + 수강생 목록 + CRUD
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";

@@ -12,7 +12,7 @@
 
 import DOMPurify from "dompurify";
 import { useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { LockKeyhole } from "lucide-react";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import useAuth from "@/auth/hooks/useAuth";

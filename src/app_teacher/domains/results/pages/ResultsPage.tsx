@@ -1,7 +1,7 @@
 // PATH: src/app_teacher/domains/results/pages/ResultsPage.tsx
 // 성적 — 조회 + 통계 탭
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";

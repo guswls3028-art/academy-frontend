@@ -3,7 +3,7 @@
  * 유튜브 모바일형, 아이콘 + 라벨
  */
 import type { ComponentType, SVGProps } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink } from "react-router";
 
 import type { NotificationCounts } from "@student/domains/notifications/api/notifications.api";
 import { useNotificationCounts } from "@student/domains/notifications/hooks/useNotificationCounts";

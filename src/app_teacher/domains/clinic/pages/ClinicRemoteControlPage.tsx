@@ -2,7 +2,7 @@
 // 클리닉 리모컨 — 학생 패스카드 배경 3색 실시간 변경 (2초 폴링)
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
 import { InlineHelp } from "@/shared/ui/guide";

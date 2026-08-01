@@ -1,7 +1,7 @@
 /**
  * 강좌별 시험 성적 그룹 — GradesPage에서 추출
  */
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { IconExam, IconChevronRight } from "@student/shared/ui/icons/Icons";
 import GradeBadge from "./GradeBadge";
 import type { MyExamGradeSummary } from "../api/grades.api";

@@ -1,7 +1,7 @@
 // PATH: src/app_teacher/domains/fees/pages/FeesDashboardPage.tsx
 // 수납 대시보드 — 당월 청구/수납/미납 요약 + 연체 리스트
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
 import { Card, SectionTitle, KpiCard, BackButton } from "@teacher/shared/ui/Card";

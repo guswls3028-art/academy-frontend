@@ -9,7 +9,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { AlertTriangle } from "lucide-react";
 import { useLectureSessionParams } from "@/shared/hooks/useLectureSessionParams";
 import {

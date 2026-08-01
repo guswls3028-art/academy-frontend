@@ -1,5 +1,5 @@
 // PATH: src/shared/ui/layout/Sidebar.tsx
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation } from "react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {

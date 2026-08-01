@@ -2,7 +2,7 @@
 // 이용약관 — Korean Terms of Service
 // 법적 근거: 전자상거래법 제13조, 시행령 제6조, 개인정보 보호법 제30조
 
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { PLATFORM_LEGAL_CONFIG } from "../config/platformLegalConfig";
 import styles from "./LegalPage.module.css";
 

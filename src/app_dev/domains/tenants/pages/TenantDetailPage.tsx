@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router";
 import {
   useTenantDetail, useTenantOwners, useUpdateTenant, useRegisterOwner, useUpdateOwner, useRemoveOwner,
   useTenantUsage, useTenantActivity, useImpersonate,

@@ -2,7 +2,7 @@
  * 학생앱 사용 가이드 — 업무 흐름 중심 워크플로우 + 아코디언 + 투어
  */
 import { useState, useCallback, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useGuideTour } from "@/shared/ui/guide";
 import type { GuideWorkflow } from "@/shared/ui/guide";
 import { STUDENT_WORKFLOWS } from "../data/studentWorkflows";

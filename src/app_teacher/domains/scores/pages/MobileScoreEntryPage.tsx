@@ -1,7 +1,7 @@
 // PATH: src/app_teacher/domains/scores/pages/MobileScoreEntryPage.tsx
 // 성적 입력 — 모바일 최적화. 숫자 키패드 + 자동 다음 포커스 + 만점/평균 KPI + 즉시 검증
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback";

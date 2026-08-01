@@ -1,6 +1,6 @@
 // PATH: src/app_admin/domains/lectures/pages/sessions/LectureSessionsPage.tsx
 import { useState, useMemo, useCallback } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { fetchSessions, sortSessionsByDisplayOrder, type Session } from "../../api/sessions";

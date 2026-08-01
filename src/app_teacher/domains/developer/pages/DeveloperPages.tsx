@@ -2,7 +2,7 @@
 // To개발자 — 패치노트 · 버그 제보 · 피드백 (모바일)
 import { useState, useEffect, useRef } from "react";
 import { ICON } from "@/shared/ui/ds";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, BackButton } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";

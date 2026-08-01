@@ -4,6 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=22.22.0"
+  },
   "pnpm": {
     "overrides": {
       "@jridgewell/gen-mapping": "0.3.13",
@@ -80,10 +83,10 @@
     "lightningcss-win32-x64-msvc": "^1.32.0",
     "lucide-react": "^0.563.0",
     "pdf-lib": "^1.17.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "react-icons": "^5.7.0",
-    "react-router-dom": "^7.18.1",
+    "react-router": "8.3.0",
     "recharts": "^3.7.0"
   },
   "devDependencies": {

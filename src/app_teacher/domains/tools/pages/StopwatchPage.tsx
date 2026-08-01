@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ICON } from "@/shared/ui/ds";
 import { cx } from "@/shared/utils/cx";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { SectionTitle, BackButton } from "@teacher/shared/ui/Card";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { Download } from "@teacher/shared/ui/Icons";

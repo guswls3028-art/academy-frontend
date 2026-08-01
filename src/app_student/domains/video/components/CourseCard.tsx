@@ -3,7 +3,7 @@
 
 import { memo } from "react";
 import type { CSSProperties } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { IconPlay } from "@student/shared/ui/icons/Icons";
 import { formatDuration } from "../utils/format";
 import VideoThumbnailWrapper from "./VideoThumbnailWrapper";

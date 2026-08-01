@@ -53,6 +53,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --shamefully-hoist
 
+      - name: Production dependency audit
+        run: pnpm audit --prod
+
       # 차단 게이트: 타입 에러 = 배포 차단
       - name: Typecheck
         run: pnpm exec tsc --noEmit -p tsconfig.app.json

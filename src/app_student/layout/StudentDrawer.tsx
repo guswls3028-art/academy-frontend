@@ -3,7 +3,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import type { ComponentType, SVGProps } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 import { logout } from "@/auth/api/auth.api";
 import { cx } from "@/shared/utils/cx";

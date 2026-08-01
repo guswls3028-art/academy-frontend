@@ -13,7 +13,7 @@
 
 import { lazy, Suspense, useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useLocation, useSearchParams, Navigate, useNavigate } from "react-router-dom";
+import { useLocation, useSearchParams, Navigate, useNavigate } from "react-router";
 import { BarChart3, ClipboardList, FileText, Plus } from "lucide-react";
 
 import api from "@/shared/api/axios";

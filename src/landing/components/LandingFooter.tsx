@@ -5,7 +5,7 @@
 // eslint-disable react-refresh/only-export-components: tokens 상수는 컴포넌트와 함께 export(SSOT 격리).
 /* eslint-disable no-restricted-syntax, react-refresh/only-export-components */
 
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router";
 import type { LandingConfig, LandingSection } from "../types";
 import { scrollToLandingSection } from "../utils/scrollToSection";
 

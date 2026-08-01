@@ -8,7 +8,7 @@
 /* eslint-disable no-restricted-syntax */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { fetchLandingPublic } from "../api";
 import {
   fetchMatchupShowcaseList,

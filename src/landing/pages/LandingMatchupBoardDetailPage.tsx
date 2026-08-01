@@ -9,7 +9,7 @@
 /* eslint-disable no-restricted-syntax */
 
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 import { fetchLandingPublic } from "../api";
 import { fetchMatchupShowcaseDetail, type MatchupShowcaseCard } from "../api/matchupShowcase";
 import type { LandingPublicResponse } from "../types";

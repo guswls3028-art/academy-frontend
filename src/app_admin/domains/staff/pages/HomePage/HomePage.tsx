@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/staff/pages/HomePage/HomePage.tsx
 // 직위순 기본 정렬: 대표(owner) → 강사(TEACHER) → 조교(ASSISTANT)
 
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 import { useMemo, useState } from "react";
 import { StaffHomeTable } from "./StaffHomeTable";
 import { useStaffs } from "../../hooks/useStaffs";

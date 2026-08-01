@@ -1,7 +1,7 @@
 // PATH: src/app_teacher/domains/attendance/pages/SwipeAttendancePage.tsx
 // 출석 체크 — 스와이프 UI. 우측=출석, 좌측=결석, 탭=상태 선택
 import { useState, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback";

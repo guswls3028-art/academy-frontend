@@ -1,7 +1,7 @@
 // PATH: src/app_teacher/domains/profile/pages/DesktopOnlyPage.tsx
 // 모바일 미지원 기능 안내 — 수납/자료실/랜딩 편집 등 PC 전용 도메인 진입로
 import type { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { ICON } from "@/shared/ui/ds";
 import { setPreferFullWorkspace } from "@/core/router/MobileWorkspaceRedirect";
 import { Card, BackButton, SectionTitle } from "@teacher/shared/ui/Card";

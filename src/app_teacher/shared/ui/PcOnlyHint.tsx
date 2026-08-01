@@ -1,7 +1,7 @@
 // PATH: src/app_teacher/shared/ui/PcOnlyHint.tsx
 // PC 전용 기능 안내 — 모바일에서 미지원 도메인 진입 시 표시.
 // "통합 업무 화면 열기" 버튼으로 데스크톱 업무 라우트로 즉시 전환.
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { ICON } from "@/shared/ui/ds";
 import { setPreferFullWorkspace } from "@/core/router/MobileWorkspaceRedirect";
 import { Monitor, ChevronLeft } from "@teacher/shared/ui/Icons";

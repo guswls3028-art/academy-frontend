@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-syntax -- legacy teacher theme cards use tokenized inline styles; this change only centralizes theme state. */
 // PATH: src/app_teacher/domains/settings/pages/AppearancePage.tsx
 // 외관(테마) — 테마 12종 선택. 데스크톱 applyThemeToDom 재사용.
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { Card, SectionTitle, BackButton } from "@teacher/shared/ui/Card";
 import { useTheme } from "@/shared/contexts/ThemeContext";
 import {

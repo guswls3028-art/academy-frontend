@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/tools/ToolsLayout.tsx
 // 도구 레이아웃 — 탭 네비게이션 (PPT, PDF 등 확장 가능)
 
-import { Outlet } from "react-router-dom";
+import { Outlet } from "react-router";
 import { DomainLayout, type DomainTab } from "@/shared/ui/layout";
 
 const TOOLS_TABS: DomainTab[] = [

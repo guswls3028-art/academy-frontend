@@ -2,7 +2,7 @@
 // 설정 > 내 정보 — 소속 학원 등록(학원명·전화). 학생앱 "학원문의"에 노출.
 
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { FaBuilding } from "react-icons/fa";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchTenantInfo, updateTenantInfo } from "../../api/profile.api";

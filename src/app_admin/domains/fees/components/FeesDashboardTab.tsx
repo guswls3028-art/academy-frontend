@@ -2,7 +2,7 @@
 // 수납 현황 대시보드 — KPI 카드 + 연체 학생 테이블
 
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { KPI, EmptyState } from "@/shared/ui/ds";
 import { DomainTable } from "@/shared/ui/domain";

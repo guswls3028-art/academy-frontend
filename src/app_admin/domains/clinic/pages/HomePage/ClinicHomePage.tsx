@@ -4,7 +4,7 @@
 // Phase 7: 빈 상태 CTA, 조건부 액션바, 세션 미니 진행 표시, "다음" 뱃지
 
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";

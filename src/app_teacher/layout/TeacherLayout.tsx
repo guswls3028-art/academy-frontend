@@ -3,7 +3,7 @@
  * 선생님 전용 레이아웃 — 모바일 탭바, 데스크탑 고정 사이드바
  */
 import { useState, useCallback, Suspense } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet } from "react-router";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { useFavicon } from "@/shared/hooks/useFavicon";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";

@@ -1,7 +1,7 @@
 // PATH: src/app_teacher/domains/exams/pages/OmrPage.tsx
 // OMR 관리 — 답안지 PDF 다운로드 + 카메라/파일로 스캔 업로드
 import { useState, useEffect, useId, useMemo, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Switch } from "antd";
 import { EmptyState, ICON } from "@/shared/ui/ds";

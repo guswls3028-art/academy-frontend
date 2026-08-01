@@ -1,7 +1,7 @@
 // PATH: src/app_teacher/domains/results/components/ResultsStatsTab.tsx
 // 성적 통계 탭 — 강의 → 시험 선택 후 KPI + 차트 + 문항분석 + 학생 석차
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";

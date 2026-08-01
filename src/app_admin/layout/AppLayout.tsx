@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-syntax -- legacy admin shell layout uses tokenized inline styles; current touch removes duplicate theme provider only. */
 // PATH: src/app_admin/layout/AppLayout.tsx
 import { lazy, Suspense, type ReactNode } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation } from "react-router";
 import { ConfigProvider, App } from "antd";
 import Sidebar from "./Sidebar";
 import Header from "./Header";

@@ -1,6 +1,6 @@
 // PATH: src/app_promo/domains/landing/components/LoginModal.tsx
 import { useState, useEffect, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { login } from "@/auth/api/auth.api";
 import useAuth from "@/auth/hooks/useAuth";
 

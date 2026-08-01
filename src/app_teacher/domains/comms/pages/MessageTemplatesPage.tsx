@@ -2,7 +2,7 @@
 // PATH: src/app_teacher/domains/comms/pages/MessageTemplatesPage.tsx
 // 알림톡에 담을 사용자 문구 관리. 카카오 승인 봉투와 저장 문구를 구분해 표시한다.
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { ChevronLeft, Plus, Pencil, Trash2, Eye, MessageCircle } from "@teacher/shared/ui/Icons";

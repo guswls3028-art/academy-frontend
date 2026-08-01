@@ -1,5 +1,5 @@
 // PATH: src/app_promo/domains/landing/components/CtaSection.tsx
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { CONSULT_PHONE_DISPLAY } from "../business";
 import PhoneInquiryLink from "./PhoneInquiryLink";
 import styles from "./CtaSection.module.css";

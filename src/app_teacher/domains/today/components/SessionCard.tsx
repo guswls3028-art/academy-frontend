@@ -1,6 +1,6 @@
 // PATH: src/app_teacher/domains/today/components/SessionCard.tsx
 // 수업 카드 — LectureChip + 진행상태 + 출결 진척 + 퀵 액션(출석/성적)
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import type { ReactNode } from "react";
 import { ICON } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";

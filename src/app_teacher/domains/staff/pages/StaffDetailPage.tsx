@@ -2,7 +2,7 @@
 // PATH: src/app_teacher/domains/staff/pages/StaffDetailPage.tsx
 // 직원 상세 — 근태/비용/급여 월별 조회 + 관리 (원장/조교 관리자용)
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { ChevronLeft, Plus, Pencil, Trash2, Check, X, Lock } from "@teacher/shared/ui/Icons";

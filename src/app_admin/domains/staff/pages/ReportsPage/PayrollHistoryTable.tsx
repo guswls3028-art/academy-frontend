@@ -1,6 +1,6 @@
 // PATH: src/app_admin/domains/staff/pages/ReportsPage/PayrollHistoryTable.tsx
 import { useMemo } from "react";
-import { useParams } from "react-router-dom";
+import { useParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 
 import {

@@ -10,7 +10,7 @@
 /* eslint-disable no-restricted-syntax */
 
 import { useCallback, useEffect, useState } from "react";
-import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";

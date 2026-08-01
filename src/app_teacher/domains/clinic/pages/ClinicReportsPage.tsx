@@ -2,7 +2,7 @@
 // PATH: src/app_teacher/domains/clinic/pages/ClinicReportsPage.tsx
 // 클리닉 보고서 — 월별 캘린더 + 날짜별 세션 수/참가자 수 조회
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { ChevronLeft, ChevronLeft as ChevL, ChevronRight as ChevR } from "@teacher/shared/ui/Icons";

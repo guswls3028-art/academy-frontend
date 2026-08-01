@@ -8,7 +8,7 @@ import { useMemo, useState, useEffect, type CSSProperties } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { CalendarPlus } from "lucide-react";
 import { fetchClinicSessionTree, deleteClinicSession } from "../../api/clinicSessions.api";
 import type { ClinicSessionDetail } from "../../api/clinicSessions.api";

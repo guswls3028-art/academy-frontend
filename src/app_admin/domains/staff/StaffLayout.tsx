@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/staff/StaffLayout.tsx
 // 직원 관리: 홈 | 급여. 급여 구간은 staff-centered workspace (좌 패널 + 우 헤더/탭/콘텐츠)
 import "./styles/staff-area.css";
-import { Outlet, useLocation, Navigate } from "react-router-dom";
+import { Outlet, useLocation, Navigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { DomainLayout } from "@/shared/ui/layout";
 import { StaffWorkspace } from "./components/StaffWorkspace";

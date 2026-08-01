@@ -1,6 +1,6 @@
 // PATH: src/app_admin/domains/sessions/components/SessionAssessmentCreateModals.tsx
 import { lazy, Suspense } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";

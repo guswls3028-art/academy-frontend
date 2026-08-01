@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import { Suspense, useEffect, useRef } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import ProtectedRoute from "./ProtectedRoute";

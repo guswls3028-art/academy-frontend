@@ -2,7 +2,7 @@
 // 차시 블록 SSOT — 마크업·클래스는 이 컴포넌트만 사용. 스타일은 session-block.css
 
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { cx } from "@/shared/utils/cx";
 
 import {

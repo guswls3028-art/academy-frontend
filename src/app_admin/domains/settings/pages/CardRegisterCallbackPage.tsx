@@ -2,7 +2,7 @@
 // Toss Payments 카드 등록 콜백 페이지 — 리다이렉트 후 authKey 처리
 
 import { useEffect, useRef } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { processCardCallback } from "../api/billing.api";
 import { adminSettingsQueryKeys } from "../queryKeys";

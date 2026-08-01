@@ -1,6 +1,6 @@
 // PATH: src/app_admin/domains/sessions/components/SessionAssessmentWorkspace.tsx
 import { lazy, Suspense, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 import { useLectureSessionParams } from "@/shared/hooks/useLectureSessionParams";
 import { readAssessmentItemId } from "@/shared/lib/assessmentQueryParams";

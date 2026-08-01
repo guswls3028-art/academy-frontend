@@ -1,6 +1,6 @@
 // PATH: src/app_promo/domains/landing/pages/DemoPage.tsx
 import { useState, type FormEvent } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router";
 import { getPromoLeadErrorMessage, submitPromoDemoLead } from "../api/promoLead";
 import { CONSULT_PHONE_DISPLAY } from "../business";
 import LeadPrivacyConsent from "../components/LeadPrivacyConsent";

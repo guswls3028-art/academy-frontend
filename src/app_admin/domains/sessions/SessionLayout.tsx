@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/sessions/layout/SessionLayout.tsx
 // 구조: students 도메인과 동일 — DomainLayout > Outlet (페이지가 콘텐츠 전담)
 import { useMemo } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { DomainLayout } from "@/shared/ui/layout";

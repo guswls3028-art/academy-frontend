@@ -3,7 +3,7 @@
 // 레이아웃을 쓰는 페이지는 탭 아래에 SectionHeader 등 "내부 헤더"를 넣지 말 것.
 
 import { ReactNode } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router";
 
 import DomainTabs, { type DomainTab } from "./DomainTabs";
 import DomainPanel from "./DomainPanel";

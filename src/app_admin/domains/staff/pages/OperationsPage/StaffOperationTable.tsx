@@ -3,7 +3,7 @@
 
 import { Children, type ReactNode, useMemo, useState } from "react";
 import { useStaffs } from "../../hooks/useStaffs";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router";
 import type { Staff } from "../../api/staff.api";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";

@@ -2,7 +2,7 @@
  * 선생앱(관리자) 공식 사용 가이드 — 계약 직후 온보딩 + 업무 흐름 + 투어
  */
 import { useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { ArrowRight, CheckCircle2, ChevronDown, CircleAlert, KeyRound, Play } from "lucide-react";
 import { DomainLayout } from "@/shared/ui/layout";
 import { useGuideTour } from "@/shared/ui/guide";

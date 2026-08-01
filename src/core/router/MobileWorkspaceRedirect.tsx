@@ -7,7 +7,7 @@
  * - 사용자가 통합 업무 화면을 선택하면 테넌트별로 선호를 기억
  * - PWA standalone 모드에서는 이미 선택한 화면을 유지
  */
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
 import { resolveTenantCodeString } from "@/shared/tenant";
 import { WORKSPACE_PATHS } from "./workspaceRoutes";

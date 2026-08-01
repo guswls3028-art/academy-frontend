@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/fees/pages/FeesPage.tsx
 // 관리자 수납 관리 — DomainLayout (탭: 수납 현황 / 청구서 / 비목 관리)
 
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet } from "react-router";
 import { DomainLayout, type DomainTab } from "@/shared/ui/domain";
 import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
 import { useProgram } from "@/shared/program";

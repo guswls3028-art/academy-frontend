@@ -2,7 +2,7 @@
 // 통합 | 강의별 | 세션별 scope + 선택된 강의/세션 (URL 쿼리와 동기화)
 
 import { useMemo, useState, useEffect, type ReactNode } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import type { CommunityScope } from "../api/community.api";
 import { CommunityScopeContext, type CommunityScopeContextValue } from "./communityScopeCore";
 

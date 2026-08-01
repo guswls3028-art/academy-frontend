@@ -1,7 +1,7 @@
 // PATH: src/app_teacher/domains/comms/pages/MessagingSettingsPage.tsx
 // 메시지 설정 — 공용 알림톡 상태 + 자동발송. 테넌트별 공급자/키/PFID 편집은 노출하지 않는다.
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { ChevronLeft, Check, AlertCircle, Send, MessageCircle, Settings, Lock, Pencil, Eye } from "@teacher/shared/ui/Icons";

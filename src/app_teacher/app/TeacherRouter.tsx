@@ -6,7 +6,7 @@ import { Suspense, type ReactNode } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import ExternalRedirect from "@/core/router/ExternalRedirect";
 import { PUBLIC_UPDATES_URL } from "@/shared/constants/origins";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router";
 import TeacherLayout from "@teacher/layout/TeacherLayout";
 import RoleGuard from "@teacher/shared/ui/RoleGuard";
 import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";

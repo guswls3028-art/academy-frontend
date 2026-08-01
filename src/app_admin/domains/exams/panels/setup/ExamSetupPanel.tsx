@@ -1,4 +1,4 @@
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { useLectureSessionParams } from "@/shared/hooks/useLectureSessionParams";
 import ExamPolicyPanel from "./ExamPolicyPanel";
 import ExamEnrollmentPanel from "./ExamEnrollmentPanel";

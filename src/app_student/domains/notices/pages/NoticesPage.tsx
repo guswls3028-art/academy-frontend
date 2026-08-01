@@ -2,7 +2,7 @@
  * 공지 목록 페이지 — 전체공지 / 강의공지 / 차시공지 탭
  */
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import { fetchNotices, type PostEntity } from "../api/notices.api";

@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/messages/MessageLayout.tsx
 // 메시지 — DomainLayout 탭 SSOT
 
-import { Outlet, Link } from "react-router-dom";
+import { Outlet, Link } from "react-router";
 import { DomainLayout } from "@/shared/ui/layout";
 import type { DomainTab } from "@/shared/ui/domain";
 import { useMessagingInfo } from "@admin/domains/messages/hooks/useMessagingInfo";

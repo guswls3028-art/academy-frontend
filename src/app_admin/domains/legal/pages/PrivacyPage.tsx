@@ -2,7 +2,7 @@
 // 개인정보 처리방침 — Korean Privacy Policy
 // 법적 근거: 개인정보 보호법 제30조, 시행령 제31조, PIPC 작성지침 2025.4
 
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { PLATFORM_LEGAL_CONFIG } from "../config/platformLegalConfig";
 import styles from "./LegalPage.module.css";
 

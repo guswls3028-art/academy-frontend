@@ -4,7 +4,7 @@
  * 서버 권한 기반 정답 노출 (answer_visibility)
  */
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
 import { useMyExamResult } from "@student/domains/exams/hooks/useMyExamResult";

@@ -1,6 +1,6 @@
 // PATH: src/app_teacher/domains/profile/pages/ProfilePage.tsx
 // 내 프로필 — 프로필 + PWA 설치 + 푸시 알림 설정
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
 import { ICON } from "@/shared/ui/ds";
 import { cx } from "@/shared/utils/cx";

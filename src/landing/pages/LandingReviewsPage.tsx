@@ -4,7 +4,7 @@
 /* eslint-disable no-restricted-syntax */
 
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
 import { fetchLandingPublic } from "../api";
 import {

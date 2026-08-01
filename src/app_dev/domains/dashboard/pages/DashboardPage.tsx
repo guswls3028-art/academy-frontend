@@ -1,5 +1,5 @@
 /* eslint-disable no-restricted-syntax */
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useDashboardSummary } from "@dev/domains/dashboard/hooks/useDashboard";
 import type { DashboardSummary } from "@dev/domains/dashboard/api/dashboard.api";
 import s from "@dev/layout/DevLayout.module.css";

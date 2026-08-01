@@ -2,7 +2,7 @@
 // Monthly closing tab content only. Layout is in StaffWorkspace.
 
 import { useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { WorkMonthProvider } from "../../operations/context/WorkMonthContext";
 import MonthLockPanel from "../OperationsPage/MonthLockPanel";
 

@@ -3,7 +3,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
-import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router";
 import { useQuery, useQueries } from "@tanstack/react-query";
 import {
   fetchVideoMe,

@@ -2,7 +2,7 @@
 // PATH: src/app_teacher/domains/staff/pages/StaffManagePage.tsx
 // 직원 관리 — 목록 + 등록 + 편집/퇴사 처리 + 시급태그 + 비밀번호
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { ChevronLeft, Plus, Pencil, Trash2, Search } from "@teacher/shared/ui/Icons";

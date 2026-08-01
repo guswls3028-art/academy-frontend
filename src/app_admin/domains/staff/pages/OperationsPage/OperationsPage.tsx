@@ -2,7 +2,7 @@
 // Design: docs/DESIGN_SSOT.md 단일진실
 
 import { useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { WorkMonthProvider } from "../../operations/context/WorkMonthContext";
 
 import StaffOperationTable from "./StaffOperationTable";

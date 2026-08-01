@@ -1,7 +1,7 @@
 // PATH: src/app_teacher/domains/exams/pages/ExamListPage.tsx
 // 시험/과제 목록 — 차시에 살아있는 운영 시험/과제만 조회한다.
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
 import { cx } from "@/shared/utils/cx";

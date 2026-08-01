@@ -1,7 +1,7 @@
 /**
  * 설정 — 내 정보 링크 + 화면 모드(라이트/다크/시스템) 전환
  */
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import { IconUser } from "@student/shared/ui/icons/Icons";
 import { useStudentTheme } from "@student/shared/context/studentTheme";

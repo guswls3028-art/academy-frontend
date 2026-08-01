@@ -92,7 +92,6 @@ export default defineConfig(({ mode }) => {
               normalized.includes("/node_modules/react/") ||
               normalized.includes("/node_modules/react-dom/") ||
               normalized.includes("/node_modules/react-router/") ||
-              normalized.includes("/node_modules/react-router-dom/") ||
               normalized.includes("/node_modules/scheduler/") ||
               normalized.includes("react/jsx")
             ) {

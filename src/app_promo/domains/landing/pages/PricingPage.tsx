@@ -1,5 +1,5 @@
 // PATH: src/app_promo/domains/landing/pages/PricingPage.tsx
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import CtaSection from "../components/CtaSection";
 import PhoneInquiryLink from "../components/PhoneInquiryLink";
 import {

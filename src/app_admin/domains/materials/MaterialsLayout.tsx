@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/materials/layout/MaterialsLayout.tsx
 // Students UI SSOT — Domain Header + ds-tabs + panel
 
-import { Outlet } from "react-router-dom";
+import { Outlet } from "react-router";
 import { DomainLayout } from "@/shared/ui/layout";
 
 const MATERIALS_TABS = [
