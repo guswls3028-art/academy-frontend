@@ -7,6 +7,7 @@ const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const LECTURE_ID = 9951;
 const REGULAR_SESSION_ID = 9952;
 const SUPPLEMENT_SESSION_ID = 9953;
+const SECTION_ID = 9954;
 
 function localJwt(): string {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -22,6 +23,7 @@ type MockState = {
   patchTitles: string[];
   sessionListFailures?: number;
   sessionListRequests?: number;
+  sectionMode?: boolean;
 };
 
 function sessionRows(state: MockState) {
@@ -35,6 +37,7 @@ function sessionRows(state: MockState) {
       regular_order: 1,
       session_type: "REGULAR",
       date: "2026-08-01",
+      section: state.sectionMode ? SECTION_ID : null,
     },
     {
       id: SUPPLEMENT_SESSION_ID,
@@ -45,6 +48,7 @@ function sessionRows(state: MockState) {
       regular_order: null,
       session_type: "SUPPLEMENT",
       date: "2026-08-02",
+      section: state.sectionMode ? SECTION_ID : null,
     },
   ];
 }
@@ -67,7 +71,7 @@ async function installApi(page: Page, state: MockState) {
         tenantCode: "hakwonplus",
         isPlatformAdmin: true,
         display_name: "학원플러스",
-        feature_flags: { section_mode: false },
+        feature_flags: { section_mode: state.sectionMode ?? false },
         is_active: true,
       });
     }
@@ -115,7 +119,26 @@ async function installApi(page: Page, state: MockState) {
     if (path === `/lectures/sessions/${SUPPLEMENT_SESSION_ID}/`) {
       return json(sessionRows(state)[1]);
     }
-    if (path === "/lectures/sections/") return json([]);
+    if (path === "/lectures/sections/") {
+      return json(state.sectionMode ? [{
+        id: SECTION_ID,
+        tenant: 1,
+        lecture: LECTURE_ID,
+        label: "A",
+        section_type: "CLASS",
+        section_type_display: "수업",
+        day_of_week: 6,
+        day_of_week_display: "토",
+        start_time: "14:00:00",
+        end_time: "16:00:00",
+        location: "",
+        max_capacity: null,
+        is_active: true,
+        assignment_count: 0,
+        created_at: "2026-08-01T00:00:00Z",
+        updated_at: "2026-08-01T00:00:00Z",
+      }] : []);
+    }
     if (path === "/enrollments/") return json([]);
     if (path === "/enrollments/session-enrollments/") return json([]);
     if (path === "/lectures/attendance/") return json({ count: 0, results: [] });
@@ -137,16 +160,26 @@ async function openLecture(page: Page, state: MockState) {
     waitUntil: "domcontentloaded",
     timeout: 45_000,
   });
-  await expect(page.getByRole("tab", { name: /정규 수업/ })).toBeVisible();
+  await expect(page.getByRole("group", { name: "수업 보기 방식" })).toBeVisible();
 }
 
-test("정규 수업과 보강을 따로 진입하고 보강 이름을 수정·재조회한다", async ({ page }) => {
+test("기존 전체 보기를 기본으로 유지하고 분리 보기에서 보강 이름을 수정·재조회한다", async ({ page }) => {
   const state: MockState = {
     supplementTitle: "토요일 심화 클리닉 (10:00~12:00)",
     patchTitles: [],
   };
   await openLecture(page, state);
 
+  const allView = page.getByRole("button", { name: "전체 보기", exact: true });
+  const scopedView = page.getByRole("button", { name: "정규·보강 나눠 보기", exact: true });
+  await expect(allView).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: /1차시/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /토요일 심화 클리닉/ })).toBeVisible();
+  await expect(page.getByRole("tab", { name: /정규 수업/ })).toHaveCount(0);
+
+  await scopedView.focus();
+  await page.keyboard.press("Enter");
+  await expect(scopedView).toHaveAttribute("aria-pressed", "true");
   const regularTab = page.getByRole("tab", { name: /정규 수업/ });
   const supplementTab = page.getByRole("tab", { name: /^보강/ });
   await expect(regularTab).toHaveAttribute("aria-selected", "true");
@@ -169,10 +202,17 @@ test("정규 수업과 보강을 따로 진입하고 보강 이름을 수정·�
   await expect.poll(() => state.patchTitles).toEqual(["일요일 취약 단원 클리닉"]);
   await expect(page.getByRole("button", { name: /일요일 취약 단원 클리닉/ })).toBeVisible();
   await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("button", { name: "전체 보기", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: /일요일 취약 단원 클리닉/ })).toBeVisible();
 
+  await page.getByRole("button", { name: "정규·보강 나눠 보기", exact: true }).click();
+  await expect(page.getByRole("tab", { name: /^보강/ })).toHaveAttribute("aria-selected", "true");
   await page.getByRole("tab", { name: /정규 수업/ }).click();
   await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/attendance`));
+
+  await page.getByRole("button", { name: "전체 보기", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/attendance`));
+  await expect(page.getByRole("button", { name: /일요일 취약 단원 클리닉/ })).toBeVisible();
 });
 
 test("보강 범위의 추가 버튼은 보강 유형과 이름 입력을 바로 연다", async ({ page }) => {
@@ -182,6 +222,7 @@ test("보강 범위의 추가 버튼은 보강 유형과 이름 입력을 바로
   };
   await openLecture(page, state);
 
+  await page.getByRole("button", { name: "정규·보강 나눠 보기", exact: true }).click();
   await page.getByRole("tab", { name: /^보강/ }).click();
   await page.getByRole("button", { name: "보강 추가" }).click();
 
@@ -206,7 +247,27 @@ test("수업 목록 조회 실패는 기존 화면을 비우지 않고 다시 �
   await expect.poll(() => state.sessionListRequests).toBeGreaterThanOrEqual(2);
 });
 
-test("수업 구분과 보강 이름은 1366·1100·390px에서 접근 가능하다", async ({ page }) => {
+test("반별 레인에서도 전체 보기와 정규·보강 분리 보기가 같은 목록을 안전하게 전환한다", async ({ page }) => {
+  const state: MockState = {
+    supplementTitle: "토요일 심화 클리닉",
+    patchTitles: [],
+    sectionMode: true,
+  };
+  await openLecture(page, state);
+
+  await expect(page.getByText("수업 A반")).toBeVisible();
+  await expect(page.getByRole("button", { name: /1차시/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /토요일 심화 클리닉/ })).toBeVisible();
+
+  await page.getByRole("button", { name: "정규·보강 나눠 보기", exact: true }).click();
+  await expect(page.getByRole("button", { name: /1차시/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /토요일 심화 클리닉/ })).toHaveCount(0);
+  await page.getByRole("tab", { name: /^보강/ }).click();
+  await expect(page.getByRole("button", { name: /토요일 심화 클리닉/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /1차시/ })).toHaveCount(0);
+});
+
+test("보기 필터와 보강 이름은 1366·1100·390px에서 접근 가능하다", async ({ page }) => {
   const state: MockState = {
     supplementTitle: "토요일 심화 클리닉",
     patchTitles: [],
@@ -219,6 +280,8 @@ test("수업 구분과 보강 이름은 1366·1100·390px에서 접근 가능하
   ]) {
     await page.setViewportSize(viewport);
     await openLecture(page, state);
+    await expect(page.getByRole("button", { name: /토요일 심화 클리닉/ })).toBeVisible();
+    await page.getByRole("button", { name: "정규·보강 나눠 보기", exact: true }).click();
     await page.getByRole("tab", { name: /^보강/ }).click();
     await expect(page.getByRole("button", { name: /토요일 심화 클리닉/ })).toBeVisible();
   }

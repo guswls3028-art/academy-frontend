@@ -44,6 +44,17 @@ type SessionItem = {
 };
 type SessionRowTone = "primary" | "warning" | "muted";
 type SessionScope = SessionType;
+type SessionViewMode = "ALL" | "SCOPED";
+
+function formatSessionScopeName(scope?: SessionScope): string {
+  if (scope == null) return "수업";
+  return scope === "REGULAR" ? "정규 수업" : "보강";
+}
+
+function formatFirstSessionObject(scope?: SessionScope): string {
+  if (scope == null) return "첫 수업을";
+  return scope === "REGULAR" ? "첫 차시를" : "첫 보강을";
+}
 
 /** 차시 블록 우상단 톱니바퀴 → 수정/삭제/반변경 팝오버 */
 function SessionGearMenu({
@@ -206,11 +217,12 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const qc = useQueryClient();
+  const [viewMode, setViewMode] = useState<SessionViewMode>("ALL");
   const [sessionScope, setSessionScope] = useState<SessionScope>("REGULAR");
   const [createForSection, setCreateForSection] = useState<{
     id: number | null;
     label: string | null;
-    sessionType: SessionScope;
+    sessionType?: SessionScope;
   } | null>(null);
   const { sectionMode, clinicMode } = useSectionMode();
 
@@ -227,8 +239,10 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
   });
 
   const sessions = useMemo(
-    () => sortSessionsByDisplayOrder(rawSessions.filter((session) => getSessionType(session) === sessionScope)),
-    [rawSessions, sessionScope],
+    () => sortSessionsByDisplayOrder(rawSessions.filter((session) => (
+      viewMode === "ALL" || getSessionType(session) === sessionScope
+    ))),
+    [rawSessions, sessionScope, viewMode],
   );
   const sessionCounts = useMemo(() => rawSessions.reduce(
     (counts, session) => {
@@ -248,6 +262,9 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
     invalidate();
   };
   const showCreate = createForSection !== null;
+  const createSessionType = viewMode === "SCOPED" ? sessionScope : undefined;
+  const createKindLabel = formatSessionScopeName(createSessionType);
+  const firstSessionObject = formatFirstSessionObject(createSessionType);
 
   const getSessionTargetPath = useCallback((nextSessionId: number) => {
     const match = location.pathname.match(/\/workspace\/lectures\/\d+\/sessions\/\d+\/(attendance|scores|exams|assignments|videos|clinic)(?:\/|$)/);
@@ -291,19 +308,19 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
 
     // 공통 차시 (section=null)
     const commonSessions = sortSessionsByDisplayOrder((rawSessions as Session[])
-      .filter((s) => !s.section && getSessionType(s) === sessionScope)
+      .filter((s) => !s.section && (viewMode === "ALL" || getSessionType(s) === sessionScope))
     );
 
     // 반별 차시
     const rows = activeSections.map((sec) => ({
       section: sec,
       sessions: sortSessionsByDisplayOrder((rawSessions as Session[])
-        .filter((s) => s.section === sec.id && getSessionType(s) === sessionScope)
+        .filter((s) => s.section === sec.id && (viewMode === "ALL" || getSessionType(s) === sessionScope))
       ),
     }));
 
     return { commonSessions, rows };
-  }, [sectionMode, sections, rawSessions, sessionScope]);
+  }, [sectionMode, sections, rawSessions, sessionScope, viewMode]);
 
   // --- 렌더: section_mode ---
   if (sectionMode && sectionRows) {
@@ -312,14 +329,16 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
 
     return (
       <>
-        <SessionScopeSwitcher
-          value={sessionScope}
+        <SessionViewControls
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          sessionScope={sessionScope}
           counts={sessionCounts}
-          onChange={handleScopeChange}
+          onScopeChange={handleScopeChange}
         />
         <div
-          id="lecture-session-scope-panel"
-          role="tabpanel"
+          id={viewMode === "SCOPED" ? "lecture-session-scope-panel" : undefined}
+          role={viewMode === "SCOPED" ? "tabpanel" : undefined}
           className={styles.sectionModeStack}
         >
           {isLoading ? (
@@ -346,8 +365,8 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                   navigate={navigate}
                   getSessionTargetPath={getSessionTargetPath}
                   invalidate={invalidate}
-                  onAdd={() => setCreateForSection({ id: null, label: null, sessionType: sessionScope })}
-                  sessionScope={sessionScope}
+                  onAdd={() => setCreateForSection({ id: null, label: null, sessionType: createSessionType })}
+                  sessionScope={createSessionType}
                   isUnassigned
                 />
               )}
@@ -374,9 +393,9 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                     onAdd={() => setCreateForSection({
                       id: sec.id,
                       label: `${isClinic ? "클리닉" : "수업"} ${sec.label}반`,
-                      sessionType: sessionScope,
+                      sessionType: createSessionType,
                     })}
-                    sessionScope={sessionScope}
+                    sessionScope={createSessionType}
                     sectionType={sec.section_type}
                   />
                 );
@@ -403,14 +422,16 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
   // --- 렌더: 기존 (section_mode OFF) ---
   return (
     <>
-      <SessionScopeSwitcher
-        value={sessionScope}
+      <SessionViewControls
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        sessionScope={sessionScope}
         counts={sessionCounts}
-        onChange={handleScopeChange}
+        onScopeChange={handleScopeChange}
       />
       <div
-        id="lecture-session-scope-panel"
-        role="tabpanel"
+        id={viewMode === "SCOPED" ? "lecture-session-scope-panel" : undefined}
+        role={viewMode === "SCOPED" ? "tabpanel" : undefined}
         className={styles.legacyBar}
       >
         {isLoading ? (
@@ -441,20 +462,20 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
               <button
                 type="button"
                 className={styles.scopeEmptyButton}
-                onClick={() => setCreateForSection({ id: null, label: null, sessionType: sessionScope })}
+                onClick={() => setCreateForSection({ id: null, label: null, sessionType: createSessionType })}
               >
                 <Plus size={16} strokeWidth={2.4} />
                 <span>
-                  <strong>{sessionScope === "REGULAR" ? "정규 수업" : "보강"}이 아직 없습니다</strong>
-                  <small>첫 {sessionScope === "REGULAR" ? "차시" : "보강"}를 추가하세요</small>
+                  <strong>{createKindLabel}이 아직 없습니다</strong>
+                  <small>{firstSessionObject} 추가하세요</small>
                 </span>
               </button>
             ) : (
               <SessionBlockView
                 variant="add"
                 compact
-                onClick={() => setCreateForSection({ id: null, label: null, sessionType: sessionScope })}
-                ariaLabel={`${sessionScope === "REGULAR" ? "정규 수업" : "보강"} 추가`}
+                onClick={() => setCreateForSection({ id: null, label: null, sessionType: createSessionType })}
+                ariaLabel={`${createKindLabel} 추가`}
               >
                 <Plus size={22} strokeWidth={2.5} />
               </SessionBlockView>
@@ -474,6 +495,60 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
         </Suspense>
       )}
     </>
+  );
+}
+
+function SessionViewControls({
+  viewMode,
+  onViewModeChange,
+  sessionScope,
+  counts,
+  onScopeChange,
+}: {
+  viewMode: SessionViewMode;
+  onViewModeChange: (mode: SessionViewMode) => void;
+  sessionScope: SessionScope;
+  counts: Record<SessionScope, number>;
+  onScopeChange: (scope: SessionScope) => void;
+}) {
+  return (
+    <div className={styles.viewControls}>
+      <div className={styles.viewModeHeader}>
+        <div className={styles.viewModeFilter}>
+          <span className={styles.viewModeLabel}>보기 방식</span>
+          <div className={`ds-segment ${styles.viewModeSegment}`} role="group" aria-label="수업 보기 방식">
+            <button
+              type="button"
+              className="ds-segment__btn"
+              aria-pressed={viewMode === "ALL"}
+              onClick={() => onViewModeChange("ALL")}
+            >
+              전체 보기
+            </button>
+            <button
+              type="button"
+              className="ds-segment__btn"
+              aria-pressed={viewMode === "SCOPED"}
+              onClick={() => onViewModeChange("SCOPED")}
+            >
+              정규·보강 나눠 보기
+            </button>
+          </div>
+        </div>
+        <p className={styles.viewModeHelp}>
+          {viewMode === "ALL"
+            ? "기존처럼 모든 수업을 순서대로 봅니다."
+            : "정규 수업과 보강을 선택해서 봅니다."}
+        </p>
+      </div>
+      {viewMode === "SCOPED" && (
+        <SessionScopeSwitcher
+          value={sessionScope}
+          counts={counts}
+          onChange={onScopeChange}
+        />
+      )}
+    </div>
   );
 }
 
@@ -570,12 +645,13 @@ function SessionRow({
   getSessionTargetPath: (sessionId: number) => string;
   invalidate: () => void;
   onAdd: () => void;
-  sessionScope: SessionScope;
+  sessionScope?: SessionScope;
   sectionType?: "CLASS" | "CLINIC";
   isUnassigned?: boolean;
 }) {
   const LabelIcon = sectionType === "CLINIC" ? Stethoscope : isUnassigned ? Layers : BookOpen;
   const iconSize = 13;
+  const addKindLabel = formatSessionScopeName(sessionScope);
 
   return (
     <div className={styles.sessionRow}>
@@ -623,19 +699,19 @@ function SessionRow({
         <button
           type="button"
           onClick={onAdd}
-          aria-label={`${label} ${sessionScope === "REGULAR" ? "정규 수업" : "보강"} 추가`}
+          aria-label={`${label} ${addKindLabel} 추가`}
           className={styles.emptyAddButton}
           data-tone={tone}
         >
           <Plus size={15} strokeWidth={2.2} />
-          {sessionScope === "REGULAR" ? "정규 수업을 추가하세요" : "보강을 추가하세요"}
+          {addKindLabel}을 추가하세요
         </button>
       ) : (
         <SessionBlockView
           variant="add"
           compact
           onClick={onAdd}
-          ariaLabel={`${label} ${sessionScope === "REGULAR" ? "정규 수업" : "보강"} 추가`}
+          ariaLabel={`${label} ${addKindLabel} 추가`}
         >
           <Plus size={18} strokeWidth={2.5} />
         </SessionBlockView>

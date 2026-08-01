@@ -35,6 +35,49 @@
   opacity: 1;
 }
 
+.viewControls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 2px 0 var(--space-3);
+}
+
+.viewModeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.viewModeFilter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.viewModeLabel {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.viewModeSegment :global(.ds-segment__btn) {
+  min-width: 108px;
+}
+
+.viewModeSegment :global(.ds-segment__btn:last-child) {
+  min-width: 168px;
+}
+
+.viewModeHelp {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: right;
+}
+
 .scopeHeader {
   display: flex;
   align-items: center;
@@ -395,10 +438,34 @@
 }
 
 @media (max-width: 640px) {
+  .viewModeHeader,
   .scopeHeader {
     align-items: stretch;
     flex-direction: column;
     gap: var(--space-2);
+  }
+
+  .viewModeFilter {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .viewModeSegment {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr);
+    width: 100%;
+  }
+
+  .viewModeSegment :global(.ds-segment__btn),
+  .viewModeSegment :global(.ds-segment__btn:last-child) {
+    min-width: 0;
+    padding-inline: 8px;
+  }
+
+  .viewModeHelp,
+  .scopeHelp {
+    text-align: left;
   }
 
   .scopeTabs {
@@ -415,10 +482,6 @@
 
   .scopeTabText small {
     display: none;
-  }
-
-  .scopeHelp {
-    text-align: left;
   }
 
   .supplementCard {
