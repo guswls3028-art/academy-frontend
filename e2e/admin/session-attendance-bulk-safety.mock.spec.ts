@@ -188,6 +188,25 @@ function createState(overrides: Partial<MockState> = {}): MockState {
   };
 }
 
+test("출석 명단은 이름 가나다순이 기본이고 계정별 정렬 선택을 새로고침 후에도 유지한다", async ({ page }) => {
+  const state = createState();
+  await openAttendance(page, state);
+
+  const studentLinks = page.locator('tbody a[aria-label$=" 학생 상세 열기"]');
+  await expect(studentLinks).toHaveCount(2);
+  await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "결석학생 학생 상세 열기");
+  await expect(page.getByRole("columnheader", { name: /이름/ })).toHaveAttribute("aria-sort", "ascending");
+
+  await page.getByRole("columnheader", { name: /이름/ }).click();
+  await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "미입력학생 학생 상세 열기");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("attendance:sort:u12"))).toBe("-name");
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("button", { name: "수강생 등록" }).first()).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: /이름/ })).toHaveAttribute("aria-sort", "descending");
+  await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "미입력학생 학생 상세 열기");
+});
+
 test("차시 수강생은 선택 목록에서 undo/redo와 최종 확인 후 미입력으로 등록한다", async ({ page }) => {
   const state = createState();
   await openAttendance(page, state);
