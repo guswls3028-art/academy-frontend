@@ -87,6 +87,12 @@ const STATE_CELL_LABEL: Record<ManualGradeState, string> = {
 const TABLE_SCALE_STEPS = [70, 80, 90, 100, 110, 120] as const;
 const TABLE_SCALE_STORAGE_KEY = "academy.manual-grading-table-scale.v1";
 
+function getPrimaryShortcutModifierLabel(): "Ctrl" | "⌘" {
+  if (typeof navigator === "undefined") return "Ctrl";
+  const platform = navigator.platform || navigator.userAgent;
+  return /Mac|iPhone|iPad|iPod/i.test(platform) ? "⌘" : "Ctrl";
+}
+
 function getClosestTableScale(value: number): (typeof TABLE_SCALE_STEPS)[number] {
   return TABLE_SCALE_STEPS.reduce((closest, candidate) =>
     Math.abs(candidate - value) < Math.abs(closest - value) ? candidate : closest,
@@ -169,6 +175,7 @@ export default function ManualExamGradingGrid({
   const [shortcutDraft, setShortcutDraft] = useState(shortcuts);
   const [shortcutSettingsOpen, setShortcutSettingsOpen] = useState(false);
   const [shortcutError, setShortcutError] = useState<string | null>(null);
+  const primaryShortcutModifier = getPrimaryShortcutModifierLabel();
 
   const syncHistoryState = useCallback(() => {
     setHistoryState({
@@ -1029,6 +1036,7 @@ export default function ManualExamGradingGrid({
         feedback.error(questionScoreState.error);
         return;
       }
+      event.currentTarget.focus({ preventScroll: true });
       if (!preview || hasErrors) previewMutation.mutate();
       else applyMutation.mutate();
       return;
@@ -1048,6 +1056,8 @@ export default function ManualExamGradingGrid({
     <section
       className={styles.card}
       aria-labelledby="manual-grading-title"
+      aria-keyshortcuts="Control+V Meta+V Control+Z Meta+Z Control+Shift+Z Meta+Shift+Z Control+Y Meta+Y Control+S Meta+S"
+      tabIndex={-1}
       data-manual-grading-workspace
       onKeyDownCapture={handleWorkspaceKeyDown}
     >
@@ -1202,9 +1212,9 @@ export default function ManualExamGradingGrid({
             <div className={styles.keyboardHints}>
               <span><kbd>Tab</kbd> 다음 칸</span>
               <span><kbd>Enter</kbd> 아래 칸</span>
-              <span><kbd>Ctrl V</kbd> 엑셀 붙여넣기</span>
-              <span><kbd>Ctrl Z</kbd> 실행 취소</span>
-              <span><kbd>Ctrl S</kbd> 확인·확정</span>
+              <span><kbd>{primaryShortcutModifier}+V</kbd> 엑셀 붙여넣기</span>
+              <span><kbd>{primaryShortcutModifier}+Z</kbd> 실행 취소</span>
+              <span><kbd>{primaryShortcutModifier}+S</kbd> 확인·확정</span>
             </div>
           </div>
         </div>
@@ -1220,8 +1230,8 @@ export default function ManualExamGradingGrid({
             <span><kbd>Tab</kbd> 다음 칸</span>
             <span><kbd>Enter</kbd> 아래 칸</span>
             <span><kbd>방향키</kbd> 셀 이동</span>
-            <span><kbd>Ctrl Z</kbd> 실행 취소</span>
-            <span><kbd>Ctrl S</kbd> 확인·확정</span>
+            <span><kbd>{primaryShortcutModifier}+Z</kbd> 실행 취소</span>
+            <span><kbd>{primaryShortcutModifier}+S</kbd> 확인·확정</span>
           </div>
         </div>
       )}
