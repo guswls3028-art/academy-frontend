@@ -25,6 +25,63 @@
   box-shadow: inset 4px 0 0 color-mix(in srgb, var(--color-primary) 72%, #0f766e);
 }
 
+.draftRecovery {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--color-warning) 42%, var(--color-border-divider));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-surface) 92%, var(--color-warning) 8%);
+  box-shadow: inset 4px 0 0 color-mix(in srgb, var(--color-warning) 72%, var(--color-primary));
+}
+
+.draftRecovery > svg {
+  flex: 0 0 auto;
+  color: var(--color-warning);
+}
+
+.draftRecoveryCopy {
+  min-width: 0;
+  flex: 1;
+}
+
+.draftRecoveryCopy strong,
+.draftRecoveryCopy span {
+  display: block;
+}
+
+.draftRecoveryCopy strong {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.draftRecoveryCopy span {
+  margin-top: 3px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.draftRecoveryActions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+@media (max-width: 720px) {
+  .draftRecovery {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .draftRecoveryActions {
+    width: 100%;
+    padding-left: 32px;
+  }
+}
+
 .processRail {
   display: flex;
   align-items: center;

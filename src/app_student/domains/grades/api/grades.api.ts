@@ -5,6 +5,10 @@ import type {
   StudentExamSummary,
   StudentExamTrendPoint,
 } from "@/shared/api/contracts/studentGrades";
+import {
+  normalizeStudentGradeReportLayout,
+  type StudentGradeReportLayout,
+} from "@/shared/api/contracts/studentGradeReportLayout";
 
 /** achievement: PASS=1차합격, REMEDIATED=보강후합격, FAIL=불합격, NOT_SUBMITTED=미응시 */
 export type Achievement = "PASS" | "REMEDIATED" | "FAIL" | "NOT_SUBMITTED";
@@ -32,6 +36,7 @@ export type MyExamGradeSummary = {
   wrong_count?: number;
   accuracy_rate?: number | null;
   wrong_question_numbers?: number[];
+  correction_status?: "PENDING" | "COMPLETED" | "NOT_REQUIRED" | null;
 };
 
 export type MyHomeworkGradeSummary = {
@@ -54,6 +59,7 @@ export type MyGradesSummary = {
   exam_summary: StudentExamSummary;
   /** 학원장이 커스텀한 합/불 라벨. 빈 문자열이면 GradeBadge 기본값 사용. */
   labels?: { pass?: string; fail?: string };
+  report_layout: StudentGradeReportLayout;
 };
 
 const EMPTY_EXAM_SUMMARY: StudentExamSummary = {
@@ -125,6 +131,7 @@ export async function fetchMyGradesSummary(): Promise<MyGradesSummary> {
     exam_trend: Array.isArray(data.exam_trend) ? data.exam_trend : [],
     exam_summary: data.exam_summary ?? EMPTY_EXAM_SUMMARY,
     labels: data.labels ?? undefined,
+    report_layout: normalizeStudentGradeReportLayout(data.report_layout),
   };
 }
 

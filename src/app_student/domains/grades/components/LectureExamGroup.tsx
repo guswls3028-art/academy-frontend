@@ -3,6 +3,7 @@
  */
 import { Link } from "react-router";
 import { IconExam, IconChevronRight } from "@student/shared/ui/icons/Icons";
+import { Badge } from "@/shared/ui/ds";
 import GradeBadge from "./GradeBadge";
 import type { MyExamGradeSummary } from "../api/grades.api";
 import styles from "./LectureGradeGroup.module.css";
@@ -36,6 +37,11 @@ export default function LectureExamGroup({ group, labels }: { group: ExamGroup; 
           const hasQuestionAnalysis = Number(e.total_questions ?? 0) > 0 && e.meta_status !== "NOT_SUBMITTED";
           const wrongCount = Number(e.wrong_count ?? 0);
           const wrongNumbers = wrongPreview(e.wrong_question_numbers);
+          const correction = e.correction_status === "COMPLETED"
+            ? { label: "오답 완료", tone: "success" as const }
+            : e.correction_status === "PENDING"
+              ? { label: "오답 미완료", tone: "danger" as const }
+              : null;
 
           return (
             <Link
@@ -53,19 +59,28 @@ export default function LectureExamGroup({ group, labels }: { group: ExamGroup; 
                     {e.session_title && `${e.session_title} · `}
                     {fmtScore(e.total_score, e.max_score)}
                   </div>
-                  {hasQuestionAnalysis && (
+                  {(hasQuestionAnalysis || correction) && (
                     <div
                       className={styles.analysisLine}
                       data-has-wrong={wrongCount > 0}
                       data-testid="grade-wrong-summary"
                     >
-                      {wrongCount > 0 ? (
+                      {hasQuestionAnalysis && (wrongCount > 0 ? (
                         <>
                           <span className={styles.analysisLabel}>오답 {wrongCount}문항</span>
                           {wrongNumbers && <span className={styles.analysisNumbers}>{wrongNumbers}번</span>}
                         </>
                       ) : (
                         <span className={styles.analysisLabel}>전 문항 정답</span>
+                      ))}
+                      {correction && (
+                        <Badge
+                          size="xs"
+                          tone={correction.tone}
+                          className={styles.correctionBadge}
+                        >
+                          {correction.label}
+                        </Badge>
                       )}
                     </div>
                   )}

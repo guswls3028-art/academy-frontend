@@ -33,6 +33,8 @@ type AttendanceRow = {
 type MockState = {
   attendance: AttendanceRow;
   patches: Record<string, unknown>[];
+  arrivalOverviewRequests: number;
+  dashboardSubmissionRequests: number;
 };
 
 const arrivalOverview = {
@@ -181,7 +183,10 @@ async function installApi(page: Page, state: MockState, overview: unknown = arri
     if (path === "/core/program/") return json({ tenantCode: "hakwonplus", isPlatformAdmin: true, display_name: "학원플러스", feature_flags: {}, is_active: true });
     if (path === "/core/me/") return json({ id: 12, username: "admin", name: "관리자", is_staff: true, is_superuser: true, tenantRole: "admin", must_change_password: false });
     if (path === "/staffs/currently-working/") return json([]);
-    if (path === "/lectures/attendance/arrival-overview/") return json(overview);
+    if (path === "/lectures/attendance/arrival-overview/") {
+      state.arrivalOverviewRequests += 1;
+      return json(overview);
+    }
     if (path === `/lectures/sessions/${SESSION_ID}/`) return json({ id: SESSION_ID, lecture: LECTURE_ID, title: "주말 보강", order: 9, regular_order: null, session_type: "SUPPLEMENT", date: "2026-08-01" });
     if (path === `/lectures/lectures/${LECTURE_ID}/`) return json({ id: LECTURE_ID, title: "수학 보강", color: "#f59e0b", chip_label: "보강" });
     if (path === "/lectures/sessions/") return json({ count: 1, results: [{ id: SESSION_ID, lecture: LECTURE_ID, title: "주말 보강", order: 9, regular_order: null, session_type: "SUPPLEMENT", date: "2026-08-01" }] });
@@ -194,9 +199,14 @@ async function installApi(page: Page, state: MockState, overview: unknown = arri
     }
     if (path === "/community/admin/posts/") return json({ count: 0, results: [] });
     if (path === "/exams/") return json([]);
-    if (path === "/submissions/submissions/" || path === "/submissions/submissions/pending/") return json([]);
+    if (path === "/submissions/submissions/") {
+      state.dashboardSubmissionRequests += 1;
+      return json([]);
+    }
+    if (path === "/submissions/submissions/pending/") return json([]);
     if (path === "/messaging/info/") return json({ alimtalk_available: true });
-    if (path === "/clinic/participants/" || path === "/students/registration_requests/") return json({ count: 0, results: [] });
+    if (path === "/clinic/participants/") return json({ count: 3, results: [] });
+    if (path === "/students/registration_requests/") return json({ count: 0, results: [] });
     if (path === "/results/admin/teacher-dashboard-counts/") return json({ video_failed: 0 });
     if (path === "/core/landing/admin/consult/") return json({ summary: { unread: 0 } });
     if (path === "/community/admin/reports/pending-count/" || path === "/community/notifications/unread-count/") return json({ count: 0 });
@@ -221,6 +231,8 @@ function createState(): MockState {
       phone: "01033334444",
     },
     patches: [],
+    arrivalOverviewRequests: 0,
+    dashboardSubmissionRequests: 0,
   };
 }
 
@@ -265,7 +277,9 @@ test("대시보드와 우상단 알림이 보강·클리닉 준비를 같은 현
   await expect(page.getByText("최도윤", { exact: true })).toBeVisible();
   await expect(page.getByText("한지민", { exact: true })).toBeVisible();
   await expect(page.getByText("클리닉 승인 대기", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "예약 확인" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /클리닉 승인 대기.*3건.*예약 확인/ })).toBeVisible();
+  await expect.poll(() => state.arrivalOverviewRequests).toBe(1);
+  await expect.poll(() => state.dashboardSubmissionRequests).toBe(0);
 
   await page.getByRole("button", { name: "알림" }).first().click();
   await expect(page.getByText("예정 시간 지난 등원", { exact: true })).toBeVisible();

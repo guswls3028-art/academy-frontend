@@ -11,6 +11,10 @@ import { useMyGradesAnalytics } from "../hooks/useMyGradesAnalytics";
 import { useMyGradesSummary } from "../hooks/useMyGradesSummary";
 import GradesHomeTab from "../components/GradesHomeTab";
 import GradesStatsTab from "../components/GradesStatsTab";
+import {
+  defaultStudentGradeReportLayout,
+  STUDENT_GRADE_REPORT_ANALYTICS_SECTION_IDS,
+} from "@/shared/api/contracts/studentGradeReportLayout";
 
 const TABS = [
   { key: "home", label: "요약" },
@@ -20,11 +24,17 @@ const TABS = [
 export default function GradesPage() {
   const [tab, setTab] = useState("home");
   const { data, isLoading, isError, refetch } = useMyGradesSummary();
+  const reportLayout = data?.report_layout ?? defaultStudentGradeReportLayout();
+  const hasVisibleAnalytics = reportLayout.sections.some(
+    (section) => section.visible && STUDENT_GRADE_REPORT_ANALYTICS_SECTION_IDS.includes(section.id),
+  );
   const {
     data: analytics,
     isLoading: analyticsLoading,
     isError: analyticsError,
-  } = useMyGradesAnalytics({ enabled: tab === "stats" && !isLoading && !isError });
+  } = useMyGradesAnalytics({
+    enabled: tab === "stats" && !isLoading && !isError && hasVisibleAnalytics,
+  });
   const exams = data?.exams ?? [];
   const homeworks = data?.homeworks ?? [];
   const examTrend = data?.exam_trend ?? [];
@@ -67,6 +77,7 @@ export default function GradesPage() {
           analytics={analytics}
           analyticsLoading={analyticsLoading}
           analyticsError={analyticsError}
+          reportLayout={reportLayout}
         />
       )}
     </DomainTabShell>

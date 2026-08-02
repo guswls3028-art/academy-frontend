@@ -1,5 +1,8 @@
 import api from "@/shared/api/axios";
-import { fetchArrivalOverview } from "@/shared/api/contracts/arrivalOverview";
+import {
+  fetchArrivalOverview,
+  type ArrivalOverview,
+} from "@/shared/api/contracts/arrivalOverview";
 
 export type OperationalNotificationCounts = {
   qnaPending: number;
@@ -197,7 +200,9 @@ async function fetchConsultUnread(): Promise<number | null> {
   }
 }
 
-export async function fetchOperationalNotificationCounts(): Promise<OperationalNotificationCountsResult> {
+export async function fetchOperationalNotificationCounts(
+  loadArrivalOverview: () => Promise<ArrivalOverview> = fetchArrivalOverview,
+): Promise<OperationalNotificationCountsResult> {
   const [
     clinicPendingRes,
     qnaCount,
@@ -219,7 +224,7 @@ export async function fetchOperationalNotificationCounts(): Promise<OperationalN
     fetchConsultUnread(),
     fetchReportsPending(),
     fetchCommunityUnread(),
-    fetchArrivalOverview().catch(() => null),
+    loadArrivalOverview().catch(() => null),
   ]);
 
   const failures: OperationalNotificationSource[] = [];
