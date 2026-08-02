@@ -58,16 +58,40 @@ const sessions = [
     target_lecture_names: [{ id: 41, title: "대수 정규반", color: "#2563eb", chip_label: "대수" }],
   },
   {
-    id: 202,
-    title: "함수 주말 클리닉",
+    id: 201,
+    title: "토요일 1시 클리닉",
     date: openDate,
-    start_time: "10:30:00",
-    end_time: "12:00:00",
+    start_time: "13:00:00",
+    end_time: "14:30:00",
+    location: "2층 보강실",
+    participant_count: 3,
+    booked_count: 3,
+    max_participants: 10,
+    target_lecture_names: [{ id: 77, title: "기하 정규반", color: "#7c3aed", chip_label: "기하" }],
+  },
+  {
+    id: 202,
+    title: "토요일 5시 클리닉",
+    date: openDate,
+    start_time: "17:00:00",
+    end_time: "18:30:00",
     location: "1층 세미나실",
     participant_count: 6,
     booked_count: 6,
     max_participants: 10,
     target_lecture_names: [{ id: 41, title: "대수 정규반", color: "#2563eb", chip_label: "대수" }],
+  },
+  {
+    id: 203,
+    title: "토요일 7시 클리닉",
+    date: openDate,
+    start_time: "19:00:00",
+    end_time: "20:30:00",
+    location: "3층 자습실",
+    participant_count: 1,
+    booked_count: 1,
+    max_participants: 8,
+    target_lecture_names: [{ id: 78, title: "미적분 정규반", color: "#ea580c", chip_label: "미적" }],
   },
 ];
 
@@ -146,9 +170,9 @@ async function installApi(page: Page, state: MockState) {
       const booking = {
         id: 503,
         session: payload.session,
-        session_title: "함수 주말 클리닉",
+        session_title: "토요일 5시 클리닉",
         session_date: openDate,
-        session_start_time: "10:30:00",
+        session_start_time: "17:00:00",
         session_location: "1층 세미나실",
         status: "pending",
         memo: payload.memo,
@@ -188,9 +212,9 @@ async function installApi(page: Page, state: MockState) {
       state.bookings = [{
         id: 502,
         session: 202,
-        session_title: "함수 주말 클리닉",
+        session_title: "토요일 5시 클리닉",
         session_date: openDate,
-        session_start_time: "10:30:00",
+        session_start_time: "17:00:00",
         session_location: "1층 세미나실",
         status: "pending",
         memo: payload.memo,
@@ -221,10 +245,17 @@ test.describe("학생 클리닉 예약 UX", () => {
     const bookedDateRegion = page.getByRole("region", { name: koreanDateLabel(bookedDate) });
     const openDateRegion = page.getByRole("region", { name: koreanDateLabel(openDate) });
     await expect(bookedDateRegion).toContainText("대수 오답 클리닉");
-    await expect(openDateRegion).toContainText("함수 주말 클리닉");
-    await expect(openDateRegion).toContainText("10:30–12:00");
+    await expect(openDateRegion).toContainText("토요일 5시 클리닉");
+    await expect(openDateRegion).toContainText("17:00–18:30");
     await expect(openDateRegion).toContainText("1층 세미나실");
     await expect(openDateRegion).toContainText("내 보강과 맞음");
+    await expect(openDateRegion.getByText("3개 수업", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("2일, 4개 시간대")).toBeVisible();
+    await expect(openDateRegion.locator("button span").filter({ hasText: /^\d{2}:\d{2}–/ })).toHaveText([
+      "13:00–14:30",
+      "17:00–18:30",
+      "19:00–20:30",
+    ]);
     await expect(page.getByRole("button", { name: "이전 달" })).toHaveCount(0);
 
     const dateNumber = openDateRegion.locator("time strong");
@@ -244,7 +275,7 @@ test.describe("학생 클리닉 예약 UX", () => {
     await page.getByRole("button", { name: "일정 바꾸기" }).click();
     await expect(page.getByRole("region", { name: "변경 중인 예약" })).toContainText("대수 오답 클리닉");
     const openDateRegion = page.getByRole("region", { name: koreanDateLabel(openDate) });
-    const openSessionButton = openDateRegion.getByRole("button", { name: /함수 주말 클리닉/ });
+    const openSessionButton = openDateRegion.getByRole("button", { name: /토요일 5시 클리닉/ });
     await openSessionButton.click();
     await page.getByRole("button", { name: "이 일정으로 변경하기" }).click();
 
@@ -261,7 +292,7 @@ test.describe("학생 클리닉 예약 UX", () => {
     await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
 
     const openDateRegion = page.getByRole("region", { name: koreanDateLabel(openDate) });
-    await openDateRegion.getByRole("button", { name: /함수 주말 클리닉/ }).click();
+    await openDateRegion.getByRole("button", { name: /토요일 5시 클리닉/ }).click();
     await page.getByLabel("학원에 전할 내용 (선택)").fill("개념서 지참");
     await page.getByRole("button", { name: "이 일정 예약하기" }).click();
 
@@ -276,7 +307,7 @@ test.describe("학생 클리닉 예약 UX", () => {
     await expect(page.getByRole("status")).toContainText("예약 신청이 접수되었습니다.");
 
     await page.getByRole("tab", { name: "내 일정 2" }).click();
-    const bookingCard = page.locator("article").filter({ hasText: "함수 주말 클리닉" });
+    const bookingCard = page.locator("article").filter({ hasText: "토요일 5시 클리닉" });
     await bookingCard.getByRole("button", { name: "예약 취소" }).click();
     await page.getByRole("alertdialog", { name: "예약 취소" })
       .getByRole("button", { name: "예약 취소" })

@@ -41,6 +41,7 @@ type CreatedState = {
   lectureId?: number;
   sourceSessionId?: number;
   clinicSessionId?: number;
+  clinicSessionIds: number[];
   examId?: number;
   studentId?: number;
   enrollmentId?: number;
@@ -49,7 +50,7 @@ type CreatedState = {
   clinicLinkId?: number;
 };
 
-const created: CreatedState = { sessionEnrollmentIds: [] };
+const created: CreatedState = { clinicSessionIds: [], sessionEnrollmentIds: [] };
 
 function isProductionApi(): boolean {
   try {
@@ -261,8 +262,8 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   if (created.participantId) {
     await safe("DELETE", `/clinic/participants/${created.participantId}/`);
   }
-  if (created.clinicSessionId) {
-    await safe("DELETE", `/clinic/sessions/${created.clinicSessionId}/`);
+  for (const clinicSessionId of created.clinicSessionIds.reverse()) {
+    await safe("DELETE", `/clinic/sessions/${clinicSessionId}/`);
   }
 
   let examRemovedFromSession = true;
@@ -432,48 +433,65 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
     await expect(page.getByText("보강 클리닉 대상")).toBeVisible();
     await expect(page.getByText("클리닉 페이지에서 일정을 예약하세요.")).toBeVisible();
 
-    const clinicSession = await expectApi<{ id: number }>(request, "POST", "/clinic/sessions/", adminTokens.access, {
-      title: CLINIC_TITLE,
-      date: CLINIC_DATE,
-      start_time: "16:20",
-      duration_minutes: 60,
-      location: CLINIC_LOCATION,
-      max_participants: 3,
-      target_grade: null,
-      target_school_type: null,
-      target_lecture_ids: [created.lectureId],
-    });
-    created.clinicSessionId = Number(clinicSession.id);
+    const clinicSlots = [
+      { title: `${CLINIC_TITLE} 13시`, startTime: "13:20" },
+      { title: `${CLINIC_TITLE} 17시`, startTime: "17:20" },
+      { title: `${CLINIC_TITLE} 19시`, startTime: "19:20" },
+    ];
+    for (const slot of clinicSlots) {
+      const clinicSession = await expectApi<{ id: number }>(request, "POST", "/clinic/sessions/", adminTokens.access, {
+        title: slot.title,
+        date: CLINIC_DATE,
+        start_time: slot.startTime,
+        duration_minutes: 60,
+        location: CLINIC_LOCATION,
+        max_participants: 3,
+        target_grade: null,
+        target_school_type: null,
+        target_lecture_ids: [created.lectureId],
+      });
+      created.clinicSessionIds.push(Number(clinicSession.id));
+    }
+    created.clinicSessionId = created.clinicSessionIds[1];
 
     await page.getByRole("link", { name: /보강 클리닉 대상/ }).click();
     await waitForRenderSettled(page, { timeout: 20_000 });
     await expect(page).toHaveURL(/\/student\/clinic/);
-    await expect(page.getByRole("button", { name: "예약", exact: true })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "예약하기", exact: true })).toBeVisible();
     await expect(page.getByText("보강이 필요한 항목 1개")).toBeVisible();
     await expect(page.getByText(SESSION_TITLE)).toBeVisible();
     await expect(page.getByText("시험 보강")).toBeVisible();
 
-    const clinicDay = String(Number(CLINIC_DATE.slice(-2)));
-    const bookingDateHeading = page.getByText(`${CLINIC_DATE} 예약하기`, { exact: true });
-    if (!(await bookingDateHeading.isVisible())) {
-      await page.locator("button:not(:disabled)").filter({ hasText: new RegExp(`^${clinicDay}$`) }).click();
-    }
-    await expect(bookingDateHeading).toBeVisible();
-    const clinicSessionButton = page.locator("button").filter({ hasText: CLINIC_TITLE }).first();
+    const [clinicYear, clinicMonth, clinicDay] = CLINIC_DATE.split("-").map(Number);
+    const clinicWeekday = ["일", "월", "화", "수", "목", "금", "토"][
+      new Date(clinicYear, clinicMonth - 1, clinicDay).getDay()
+    ];
+    const clinicDateRegion = page.getByRole("region", {
+      name: `${clinicYear}년 ${clinicMonth}월 ${clinicDay}일 ${clinicWeekday}요일`,
+    });
+    await expect(clinicDateRegion).toContainText("3개 수업");
+    await expect(clinicDateRegion.getByRole("button")).toContainText([
+      "13:20–14:20",
+      "17:20–18:20",
+      "19:20–20:20",
+    ]);
+    const clinicSessionButton = clinicDateRegion.getByRole("button", {
+      name: new RegExp(`${CLINIC_TITLE} 17시`),
+    });
     await expect(clinicSessionButton).toBeVisible();
-    await expect(clinicSessionButton.getByText("내 보강 일정")).toBeVisible();
+    await expect(clinicSessionButton.getByText("내 보강과 맞음")).toBeVisible();
     await clinicSessionButton.click();
-    await page.getByPlaceholder("예약 시 참고사항을 입력해주세요.").fill("E2E 보강 예약 중복/반영 검증");
+    await page.getByLabel("학원에 전할 내용 (선택)").fill("E2E 보강 예약 중복/반영 검증");
 
-    const bookingButton = page.getByRole("button", { name: "예약 신청하기" });
+    const bookingButton = page.getByRole("button", { name: "이 일정 예약하기" });
     const box = await bookingButton.boundingBox();
     await bookingButton.click();
     if (box) {
       await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { clickCount: 2 });
     }
-    await expect(page.getByRole("button", { name: /내 일정/ })).toContainText("1", { timeout: 15_000 });
-    await page.getByRole("button", { name: /내 일정/ }).click();
-    await expect(page.getByText(/승인 대기|승인됨/).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("tab", { name: /내 일정/ })).toContainText("1", { timeout: 15_000 });
+    await page.getByRole("tab", { name: /내 일정/ }).click();
+    await expect(page.getByText(/승인 대기|예약 확정/).first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(CLINIC_LOCATION)).toBeVisible();
 
     const participant = await waitForParticipant(request, adminTokens.access);
@@ -494,9 +512,8 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
     }
 
     await gotoAndSettle(page, `${BASE}/student/clinic`, { timeout: 20_000 });
-    await page.getByRole("button", { name: /내 일정/ }).click();
-    await expect(page.getByText("승인됨").first()).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText("확정")).toBeVisible();
+    await page.getByRole("tab", { name: /내 일정/ }).click();
+    await expect(page.getByText("예약 확정").first()).toBeVisible({ timeout: 15_000 });
 
     const completed = await expectApi<any>(
       request,

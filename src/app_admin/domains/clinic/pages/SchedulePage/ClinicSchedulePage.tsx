@@ -201,7 +201,7 @@ export default function ClinicSchedulePage() {
               intent="primary"
               size="md"
               leftIcon={<CalendarPlus size={ICON_FOR_BUTTON.md} />}
-              onClick={() => openCreate(today)}
+              onClick={() => openCreate(isCurrentWeek ? today : weekFrom)}
             >
               클리닉 만들기
             </Button>
@@ -288,26 +288,33 @@ export default function ClinicSchedulePage() {
                         <strong className={styles.dayDate}>{date.format("M/D")}</strong>
                       </div>
                       <span className={styles.dayLoad}>
-                        {dayParticipants.length}/{dayCapacity || 0}명
+                        <strong>{daySessions.length}개</strong>
+                        <span>{dayParticipants.length}/{dayCapacity || 0}명</span>
                       </span>
                     </div>
 
                     <div className={styles.dayBody}>
+                      <button
+                        type="button"
+                        className={styles.dayAddButton}
+                        aria-label={`${date.format("M월 D일")} 클리닉 시간대 추가`}
+                        onClick={() => openCreate(dateISO)}
+                      >
+                        <CalendarPlus size={ICON.sm} aria-hidden />
+                        <span>{daySessions.length === 0 ? "첫 시간대 만들기" : "시간대 추가"}</span>
+                      </button>
+
                       {daySessions.length === 0 ? (
-                        <button
-                          type="button"
-                          className={styles.emptyDay}
-                          onClick={() => openCreate(dateISO)}
-                        >
-                          <CalendarPlus size={ICON.md} aria-hidden />
-                          <span>이 날짜에 만들기</span>
-                        </button>
-                      ) : (
-                        daySessions.map((session) => {
+                        <div className={styles.emptyDay}>
+                          <Clock3 size={ICON.lg} aria-hidden />
+                          <strong>아직 열린 시간대가 없습니다</strong>
+                          <span>위 버튼에서 첫 수업을 개설하세요.</span>
+                        </div>
+                      ) : daySessions.map((session) => {
                           const rows = activeParticipants(participantsBySession.get(session.id) ?? []);
                           const capacity = Math.max(1, session.max_participants || 1);
                           const fillPercent = Math.min(100, Math.round((rows.length / capacity) * 100));
-                          const visibleRows = rows.slice(0, 4);
+                          const visibleRows = rows.slice(0, 3);
 
                           return (
                             <article key={session.id} className={styles.sessionCard}>
@@ -398,8 +405,7 @@ export default function ClinicSchedulePage() {
                               </div>
                             </article>
                           );
-                        })
-                      )}
+                        })}
                     </div>
                   </section>
                 );
@@ -417,7 +423,11 @@ export default function ClinicSchedulePage() {
               <p>
                 {copySource
                   ? "시간·장소·정원 설정을 불러왔습니다. 필요한 항목을 바꾼 뒤 새로 만드세요."
-                  : `${dayjs(createDate).format("M월 D일 (ddd)")} 예약 세션을 만듭니다.`}
+                  : `${dayjs(createDate).format("M월 D일 (ddd)")}에 새 시간대를 만듭니다.${
+                      (sessionsByDate.get(createDate)?.length ?? 0) > 0
+                        ? ` 현재 ${sessionsByDate.get(createDate)?.length ?? 0}개 시간대가 있습니다.`
+                        : ""
+                    }`}
               </p>
             </div>
             <ClinicCreatePanel

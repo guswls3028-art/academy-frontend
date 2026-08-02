@@ -169,11 +169,13 @@ export default function ClinicPage() {
       [...sessions].sort((left, right) => {
         const dateDifference = left.date.localeCompare(right.date);
         if (dateDifference !== 0) return dateDifference;
+        const timeDifference = left.start_time.localeCompare(right.start_time);
+        if (timeDifference !== 0) return timeDifference;
         const recommendedDifference =
           Number(sessionMatchesTargets(right, currentTargetLectureIds)) -
           Number(sessionMatchesTargets(left, currentTargetLectureIds));
         if (recommendedDifference !== 0) return recommendedDifference;
-        return left.start_time.localeCompare(right.start_time);
+        return left.id - right.id;
       }),
     [currentTargetLectureIds, sessions],
   );
@@ -192,19 +194,22 @@ export default function ClinicPage() {
     orderedSessions.find((session) => session.id === selectedSessionId) ?? null;
 
   useEffect(() => {
-    if (selectedSession && !isSessionFull(selectedSession)) return;
-    const nextSession = orderedSessions.find(
-      (session) =>
-        !isSessionFull(session) &&
-        session.id !== changingBooking?.session &&
-        !myRequests.some(
-          (request) =>
-            request.session === session.id &&
-            (request.status === "pending" || request.status === "booked"),
-        ),
+    if (selectedSessionId === null) return;
+    const activeRequest = myRequests.some(
+      (request) =>
+        request.session === selectedSession?.id &&
+        (request.status === "pending" || request.status === "booked"),
     );
-    setSelectedSessionId(nextSession?.id ?? null);
-  }, [changingBooking?.session, myRequests, orderedSessions, selectedSession]);
+    if (
+      selectedSession &&
+      !isSessionFull(selectedSession) &&
+      selectedSession.id !== changingBooking?.session &&
+      !activeRequest
+    ) {
+      return;
+    }
+    setSelectedSessionId(null);
+  }, [changingBooking?.session, myRequests, selectedSession, selectedSessionId]);
 
   const bookingMutation = useMutation({
     mutationFn: (data: { session: number; memo?: string }) =>
@@ -485,7 +490,13 @@ export default function ClinicPage() {
                   <p className={styles.openScheduleEyebrow}>예약 가능한 수업</p>
                   <h2 id="clinic-open-schedule-title">열린 일정</h2>
                 </div>
-                <p>날짜를 확인하고 원하는 수업을 바로 선택하세요.</p>
+                <div
+                  className={styles.openScheduleSummary}
+                  aria-label={`${sessionGroups.length}일, ${orderedSessions.length}개 시간대`}
+                >
+                  <strong>{sessionGroups.length}일</strong>
+                  <span>{orderedSessions.length}개 시간대</span>
+                </div>
               </header>
 
               {visibleSessionGroups.length === 0 ? (
@@ -507,6 +518,7 @@ export default function ClinicPage() {
                           <span>{parts.month}월</span>
                           <strong>{parts.day}</strong>
                           <span>{parts.weekday}요일</span>
+                          <small>{group.sessions.length}개 수업</small>
                         </time>
                         <div className={styles.dateSessions}>
                           {group.sessions.map((session) => {

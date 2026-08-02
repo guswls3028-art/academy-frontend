@@ -83,8 +83,8 @@
 
 .board {
   display: grid;
-  grid-template-columns: repeat(7, minmax(194px, 1fr));
-  min-width: 1358px;
+  grid-template-columns: repeat(7, minmax(160px, 1fr));
+  min-width: 1120px;
   min-height: 560px;
 }
 
@@ -142,9 +142,18 @@
 }
 
 .dayLoad {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
   color: var(--color-text-muted);
   font-size: 11px;
   font-weight: 700;
+}
+
+.dayLoad strong {
+  color: var(--color-text-primary);
+  font-size: 12px;
 }
 
 .dayBody {
@@ -155,6 +164,34 @@
   padding: var(--space-3);
 }
 
+.dayAddButton {
+  display: flex;
+  width: 100%;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 28%, var(--color-border-default));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-brand-primary) 5%, var(--color-surface-primary));
+  color: var(--color-brand-primary);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.dayAddButton:hover {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-surface-primary));
+  transform: translateY(-1px);
+}
+
+.dayAddButton:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-brand-primary) 24%, transparent);
+  outline-offset: 2px;
+}
+
 .emptyDay {
   display: flex;
   flex: 1;
@@ -163,25 +200,29 @@
   justify-content: center;
   flex-direction: column;
   gap: var(--space-2);
-  border: 1px dashed var(--color-border-default);
+  padding: var(--space-5) var(--space-3);
+  border: 1px dashed var(--color-border-subtle);
   border-radius: var(--radius-lg);
-  background: transparent;
+  background: color-mix(in srgb, var(--color-surface-secondary) 65%, transparent);
   color: var(--color-text-muted);
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+  text-align: center;
 }
 
-.emptyDay:hover {
-  border-color: var(--color-brand-primary);
-  background: color-mix(in srgb, var(--color-brand-primary) 4%, transparent);
-  color: var(--color-brand-primary);
+.emptyDay strong {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.emptyDay span {
+  font-size: 11px;
+  line-height: 1.45;
+  word-break: keep-all;
 }
 
 .sessionCard {
   padding: var(--space-3);
   border: 1px solid var(--color-border-subtle);
+  border-left: 3px solid color-mix(in srgb, var(--color-brand-primary) 78%, var(--color-border-subtle));
   border-radius: var(--radius-lg);
   background: var(--color-surface-primary);
   box-shadow: var(--elevation-1);
@@ -256,7 +297,7 @@
 
 .participants {
   display: flex;
-  min-height: 68px;
+  min-height: 48px;
   flex-direction: column;
   gap: 5px;
   padding-bottom: var(--space-3);
@@ -341,5 +382,11 @@
 
   .summary {
     justify-content: flex-end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dayAddButton {
+    transition: none;
   }
 }
