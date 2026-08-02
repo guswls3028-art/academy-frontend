@@ -7,7 +7,6 @@ import { formatBillingDate as formatDate, formatKRW as formatPrice } from "@/sha
 import { resolveBillingAmounts } from "@/shared/product/billingAmounts";
 import useAuth from "@/auth/hooks/useAuth";
 import BankTransferSection from "../components/BankTransferSection";
-import CardManagementSection from "../components/CardManagementSection";
 import { adminSettingsQueryKeys } from "../queryKeys";
 import styles from "./BillingSettingsPage.module.css";
 
@@ -51,7 +50,7 @@ async function fetchSubscription(): Promise<SubscriptionInfo> {
 }
 
 const BILLING_MODE_LABELS: Record<string, string> = {
-  AUTO_CARD: "카드 자동결제",
+  AUTO_CARD: "계좌이체 선택 전",
   INVOICE_REQUEST: "계좌이체 청구",
 };
 
@@ -228,15 +227,7 @@ export default function BillingSettingsPage() {
       </div>
 
       {canManageBilling ? (
-        <>
-          {/* Immediate no-PG collection path */}
-          <BankTransferSection />
-
-          {/* Keep saved-card controls available even after switching modes. */}
-          <CardManagementSection
-            allowRegistration={data.billing_mode === "AUTO_CARD"}
-          />
-        </>
+        <BankTransferSection />
       ) : (
         <div className={styles.ownerOnlyNotice}>
           결제 방식 변경과 결제 정보 관리는 학원 소유자 계정에서 할 수

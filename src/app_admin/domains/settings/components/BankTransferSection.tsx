@@ -218,7 +218,7 @@ export default function BankTransferSection() {
     const accepted = await confirm({
       title: "계좌이체로 변경",
       message:
-        "앞으로 이용료 청구 방식이 계좌이체로 변경됩니다. 기존에 등록한 카드는 삭제되지 않지만 계좌이체 모드에서는 자동 청구되지 않습니다.",
+        "앞으로 이용료 청구 방식이 계좌이체로 변경됩니다. 청구서를 만든 뒤 안내 계좌로 납부해 주세요.",
       confirmText: "계좌이체로 변경",
       cancelText: "취소",
     });
@@ -263,7 +263,7 @@ export default function BankTransferSection() {
           <span className={styles.eyebrow}>BANK TRANSFER</span>
           <h3 id="bank-transfer-title">계좌이체로 이용료 납부</h3>
           <p>
-            카드 등록 없이 안내 계좌로 보내고, 입금 정보를 알려주시면 됩니다.
+            안내 계좌로 보내고, 입금 정보를 알려주시면 됩니다.
           </p>
         </div>
         <span className={styles.secureBadge}>

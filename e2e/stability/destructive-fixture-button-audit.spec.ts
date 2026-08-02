@@ -721,23 +721,12 @@ test.describe.serial("[E2E] fixture 기반 파괴/상태변경 버튼 전수 감
     created.postIds.delete((post as PostRow).id);
   });
 
-  test("결제/카드 영역은 fixture 카드가 없으면 실결제 버튼을 클릭하지 않고 차단 상태를 확인한다", async ({ page, request }) => {
-    const token = created.access || (await loginToken(request)).access;
+  test("결제/구독 영역은 계좌이체만 노출하고 카드 결제를 숨긴다", async ({ page }) => {
     await loginViaUI(page, "admin", { landingPath: "/workspace/settings/billing" });
     await expect(page.getByRole("heading", { name: "결제 / 구독", exact: true })).toBeVisible({ timeout: 20_000 });
-
-    const cardsBody = await expectApi<any>(request, "GET", "/billing/cards/", token);
-    const cards = listFromBody<any>(cardsBody).filter((card) => card.is_active !== false);
-    if (cards.length === 0) {
-      await expect(page.getByText("등록된 카드가 없습니다.", { exact: true })).toBeVisible({ timeout: 15_000 });
-      await expect(page.getByRole("button", { name: "카드 등록", exact: true })).toBeVisible();
-    } else {
-      test.info().annotations.push({
-        type: "destructive-fixture-guard",
-        description: `활성 결제 카드 ${cards.length}건은 fixture가 아니므로 삭제 버튼을 클릭하지 않음`,
-      });
-      await expect(page.getByRole("button", { name: "삭제", exact: true }).first()).toBeVisible();
-    }
+    await expect(page.getByRole("heading", { name: "계좌이체로 이용료 납부", exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "결제 카드", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "카드 등록", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /결제하기|즉시 결제/ })).toHaveCount(0);
   });
 });
