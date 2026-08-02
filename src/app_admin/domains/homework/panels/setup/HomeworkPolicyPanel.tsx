@@ -10,6 +10,7 @@ import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { isStaleResourceConflict } from "@/shared/api/optimisticConcurrency";
 import { useAssessmentDirtyRegistration } from "@/shared/ui/assessment/AssessmentEditGuard";
+import { useAssessmentPolicyDraft } from "@/shared/ui/assessment/useAssessmentPolicyDraft";
 
 import { updateAdminHomework, type AdminHomeworkDetail } from "../../api/adminHomework";
 import { useAdminHomework } from "../../hooks/useAdminHomework";
@@ -95,6 +96,18 @@ export default function HomeworkPolicyPanel({ homeworkId }: { homeworkId: number
     baseUpdatedAtRef.current &&
     homework.updated_at !== baseUpdatedAtRef.current,
   );
+  const {
+    recoverableDraftSavedAt,
+    restoreDraft,
+    clearDraft,
+  } = useAssessmentPolicyDraft<HomeworkPolicyForm>({
+    resourceKind: "homework",
+    resourceId: homeworkId,
+    baseUpdatedAt: baseUpdatedAtRef.current,
+    form,
+    dirty,
+    onRestore: setForm,
+  });
 
   const updateMutation = useMutation({
     mutationFn: async (nextForm: HomeworkPolicyForm) => {
@@ -132,6 +145,7 @@ export default function HomeworkPolicyPanel({ homeworkId }: { homeworkId: number
       );
     },
     onSuccess: async (updated) => {
+      clearDraft();
       qc.setQueryData(QUERY_KEYS.ADMIN_HOMEWORK(homeworkId), updated);
       syncFromHomework(updated);
       await Promise.all([
@@ -184,7 +198,10 @@ export default function HomeworkPolicyPanel({ homeworkId }: { homeworkId: number
       if (!confirmed) return;
     }
     const result = await refetch();
-    if (result.data) syncFromHomework(result.data);
+    if (result.data) {
+      clearDraft();
+      syncFromHomework(result.data);
+    }
   };
 
   return (
@@ -199,6 +216,24 @@ export default function HomeworkPolicyPanel({ homeworkId }: { homeworkId: number
       </div>
 
       <div className={formStyles.body}>
+        {recoverableDraftSavedAt && (
+          <div className={formStyles.inlineStatus} role="status" data-testid="assessment-draft-recovery">
+            <div>
+              <strong>저장되지 않은 과제 설정이 있습니다</strong>
+              <p>
+                {new Date(recoverableDraftSavedAt).toLocaleString("ko-KR")}에 이 브라우저에 임시 저장했습니다.
+              </p>
+            </div>
+            <div className={formStyles.inlineActions}>
+              <Button type="button" intent="secondary" size="sm" onClick={restoreDraft}>
+                이어서 편집
+              </Button>
+              <Button type="button" intent="ghost" size="sm" onClick={clearDraft}>
+                초안 지우기
+              </Button>
+            </div>
+          </div>
+        )}
         <div className={formStyles.group}>
           <h3 className={formStyles.groupTitle}>기본 정보</h3>
           <div className={formStyles.fieldGrid}>

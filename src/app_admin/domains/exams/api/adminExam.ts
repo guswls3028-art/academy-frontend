@@ -37,7 +37,7 @@ export async function updateAdminExam(
     | "close_at"
     | "answer_visibility"
   >>,
-  expectedUpdatedAt?: string,
+  expectedUpdatedAt: string,
 ): Promise<Exam> {
   const res = await api.patch(`/exams/${examId}/`, payload, {
     headers: expectedUpdatedAtHeaders(expectedUpdatedAt),

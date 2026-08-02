@@ -1,4 +1,4 @@
-/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
+/* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/exams/components/ExamManageSheet.tsx
 // 시험 관리 시트 — 편집/삭제/상태토글/정답/합격점/재계산/OMR/PDF
 // R-11: 기존 인라인 style baseline. 마이그레이션은 별도 백로그.
@@ -10,14 +10,16 @@ import { Upload } from "@teacher/shared/ui/Icons";
 import { ICON } from "@/shared/ui/ds";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { isStaleResourceConflict } from "@/shared/api/optimisticConcurrency";
 import { useConfirm } from "@/shared/ui/confirm";
 import api from "@/shared/api/axios";
 import { teacherExamsQueryKeys } from "../queryKeys";
+import { normalizeExam, type TeacherExamDetail } from "../normalizers";
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  exam: any;
+  exam: TeacherExamDetail;
   onDeleted: () => void;
 }
 
@@ -41,10 +43,31 @@ export default function ExamManageSheet({ open, onClose, exam, onDeleted }: Prop
   const [msg, setMsg] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const syncUpdatedExam = (updated: unknown) => {
+    const normalized = normalizeExam(updated);
+    if (normalized) {
+      qc.setQueryData(teacherExamsQueryKeys.exam(exam.id), normalized);
+    }
+    qc.invalidateQueries({ queryKey: teacherExamsQueryKeys.exams });
+  };
+
+  const handleUpdateError = async (error: unknown, fallback: string) => {
+    if (isStaleResourceConflict(error)) {
+      await qc.invalidateQueries({ queryKey: teacherExamsQueryKeys.exam(exam.id) });
+      teacherToast.error("다른 화면에서 시험이 변경되었습니다. 최신 설정을 확인한 뒤 다시 저장해 주세요.");
+      return;
+    }
+    teacherToast.error(extractApiError(error, fallback));
+  };
+
   const editMut = useMutation({
-    mutationFn: () => updateExam(exam.id, { title, pass_score: passScore ? Number(passScore) : undefined }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: teacherExamsQueryKeys.exams }); setMsg("저장됨"); },
-    onError: (e) => teacherToast.error(extractApiError(e, "시험을 수정하지 못했습니다.")),
+    mutationFn: () => updateExam(
+      exam.id,
+      { title, pass_score: passScore ? Number(passScore) : undefined },
+      exam.updated_at,
+    ),
+    onSuccess: (updated) => { syncUpdatedExam(updated); setMsg("저장됨"); },
+    onError: (e) => void handleUpdateError(e, "시험을 수정하지 못했습니다."),
   });
 
   const deleteMut = useMutation({
@@ -54,9 +77,9 @@ export default function ExamManageSheet({ open, onClose, exam, onDeleted }: Prop
   });
 
   const toggleMut = useMutation({
-    mutationFn: () => updateExam(exam.id, { is_active: !exam.is_active }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: teacherExamsQueryKeys.exams }); setMsg(exam.is_active ? "시험 닫힘" : "시험 열림"); },
-    onError: (e) => teacherToast.error(extractApiError(e, "상태를 변경하지 못했습니다.")),
+    mutationFn: () => updateExam(exam.id, { is_active: !exam.is_active }, exam.updated_at),
+    onSuccess: (updated) => { syncUpdatedExam(updated); setMsg(exam.is_active ? "시험 닫힘" : "시험 열림"); },
+    onError: (e) => void handleUpdateError(e, "상태를 변경하지 못했습니다."),
   });
 
   const recalcMut = useMutation({

@@ -51,7 +51,7 @@ import {
   carryOverClinicLink,
   submitClinicRetake,
 } from "../../api/clinicLinks.api";
-import { updateAdminExam } from "@admin/domains/exams/api/adminExam";
+import { fetchAdminExam, updateAdminExam } from "@admin/domains/exams/api/adminExam";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useAutoSendConfig } from "@admin/domains/messages/hooks/useAutoSendConfig";
 import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPreviewModal";
@@ -1722,10 +1722,11 @@ export default function ClinicConsoleWorkspace({
                                   const linkId = t.clinic_link_id!;
                                   setRemediatingLinkIds((prev) => new Set(prev).add(linkId));
                                   try {
+                                    const latestExam = await fetchAdminExam(t.exam_id!);
                                     await updateAdminExam(t.exam_id!, {
                                       allow_retake: true,
                                       max_attempts: 99,
-                                    });
+                                    }, latestExam.updated_at);
                                     feedback.success("재시험이 허용되었습니다. 학생이 다시 응시할 수 있습니다.");
                                     qc.invalidateQueries({ queryKey: clinicQueryKeys.targets });
                                   } catch {

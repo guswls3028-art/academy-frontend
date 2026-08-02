@@ -110,7 +110,7 @@ export async function fetchAdminHomework(homeworkId: number) {
 export async function updateAdminHomework(
   homeworkId: number,
   payload: Partial<AdminHomeworkDetail>,
-  expectedUpdatedAt?: string,
+  expectedUpdatedAt: string,
 ) {
   const res = await api.patch(`/homeworks/${homeworkId}/`, payload, {
     headers: expectedUpdatedAtHeaders(expectedUpdatedAt),

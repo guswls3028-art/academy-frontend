@@ -13,7 +13,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { isStaleResourceConflict } from "@/shared/api/optimisticConcurrency";
 import { updateAdminExam } from "@admin/domains/exams/api/adminExam";
+import { useAdminExam } from "@admin/domains/exams/hooks/useAdminExam";
+import { adminExamsQueryKeys } from "@admin/domains/exams/queryKeys";
 import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/api/sessionAssessmentQueries";
 import { scoresQueryKeys } from "../api/queryKeys";
 import ShowcasePublishModal from "./ShowcasePublishModal";
@@ -121,6 +124,11 @@ export default function ExamHeaderQuickEdit({
     workflowFrom(initialGradingMode, initialManualGradingMethod),
   );
   const open = controlledOpen ?? uncontrolledOpen;
+  const {
+    data: latestExam,
+    isFetching: isFetchingLatestExam,
+    refetch: refetchLatestExam,
+  } = useAdminExam(open ? examId : undefined);
   const setOpen = (nextOpen: boolean) => {
     if (controlledOpen === undefined) setUncontrolledOpen(nextOpen);
     onOpenChange?.(nextOpen);
@@ -129,14 +137,18 @@ export default function ExamHeaderQuickEdit({
   useEffect(() => {
     if (!open) return;
     // 모달 열릴 때마다 latest 값으로 동기화
-    setTitle(examTitle);
-    setMaxScore(initialMaxScore ?? 100);
-    setPassScore(initialPassScore ?? 0);
+    setTitle(latestExam?.title ?? examTitle);
+    setMaxScore(latestExam?.max_score ?? initialMaxScore ?? 100);
+    setPassScore(latestExam?.pass_score ?? initialPassScore ?? 0);
     setGradingWorkflow(
-      workflowFrom(initialGradingMode, initialManualGradingMethod),
+      workflowFrom(
+        latestExam?.grading_mode ?? initialGradingMode,
+        latestExam?.manual_grading_method ?? initialManualGradingMethod,
+      ),
     );
   }, [
     open,
+    latestExam,
     examTitle,
     initialGradingMode,
     initialManualGradingMethod,
@@ -144,12 +156,16 @@ export default function ExamHeaderQuickEdit({
     initialPassScore,
   ]);
 
+  const latestGradingMode = latestExam?.grading_mode ?? initialGradingMode;
+  const latestManualGradingMethod = latestExam?.manual_grading_method
+    ?? initialManualGradingMethod;
+
   const initialWorkflow = workflowFrom(
-    initialGradingMode,
-    initialManualGradingMethod,
+    latestGradingMode,
+    latestManualGradingMethod,
   );
   const gradingWorkflowOptions =
-    initialGradingMode === "mixed"
+    latestGradingMode === "mixed"
       ? [
           ...BASE_WORKFLOW_OPTIONS,
           {
@@ -171,21 +187,30 @@ export default function ExamHeaderQuickEdit({
       const ps = typeof passScore === "number" ? passScore : 0;
       const t = (title ?? "").trim() || examTitle;
       if (ps > ms) throw new Error(`커트라인(${ps})이 만점(${ms})보다 클 수 없습니다.`);
+      if (!latestExam?.updated_at) {
+        throw new Error("최신 시험 설정을 확인한 뒤 다시 저장해 주세요.");
+      }
       return updateAdminExam(examId, {
         title: t,
         max_score: ms,
         pass_score: ps,
         ...workflowPayload(gradingWorkflow),
-      });
+      }, latestExam.updated_at);
     },
-    onSuccess: async () => {
+    onSuccess: async (updated) => {
+      qc.setQueryData(adminExamsQueryKeys.adminExam(examId), updated);
       await qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
       await qc.invalidateQueries({ queryKey: scoresQueryKeys.adminExam(examId) });
       await qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.exams(sessionId) });
       feedback.success(`${title || examTitle} 저장됨`);
       setOpen(false);
     },
-    onError: (e: unknown) => {
+    onError: async (e: unknown) => {
+      if (isStaleResourceConflict(e)) {
+        await refetchLatestExam();
+        feedback.warning("다른 화면에서 시험이 변경되었습니다. 최신 설정을 확인한 뒤 다시 저장해 주세요.");
+        return;
+      }
       feedback.error(extractApiError(e, "저장 실패"));
     },
   });
@@ -209,11 +234,20 @@ export default function ExamHeaderQuickEdit({
         onClose={() => !saveMut.isPending && setOpen(false)}
         type="action"
         width={MODAL_WIDTH.md}
-        onEnterConfirm={() => { if (!saveMut.isPending) saveMut.mutate(); }}
+        onEnterConfirm={() => {
+          if (!saveMut.isPending && !isFetchingLatestExam && latestExam?.updated_at) {
+            saveMut.mutate();
+          }
+        }}
       >
         <ModalHeader type="action" title="시험 설정" subtitle={examTitle} />
         <ModalBody>
           <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+            {isFetchingLatestExam && (
+              <p className="m-0 text-xs text-[var(--color-text-muted)]" role="status">
+                최신 시험 설정을 확인하는 중…
+              </p>
+            )}
             {/* 시험명 */}
             <label className="block">
               <span className="mb-1 block text-sm font-semibold text-[var(--color-text-primary)]">
@@ -353,7 +387,7 @@ export default function ExamHeaderQuickEdit({
                 intent="primary"
                 size="sm"
                 onClick={() => saveMut.mutate()}
-                disabled={saveMut.isPending}
+                disabled={saveMut.isPending || isFetchingLatestExam || !latestExam?.updated_at}
               >
                 {saveMut.isPending ? "저장 중…" : "저장"}
               </Button>

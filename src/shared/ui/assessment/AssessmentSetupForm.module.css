@@ -228,6 +228,12 @@
   line-height: 1.45;
 }
 
+.inlineActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .error {
   margin: 0;
   color: var(--color-error);
@@ -295,6 +301,10 @@
   .footer {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .inlineActions {
+    width: 100%;
   }
 }
 

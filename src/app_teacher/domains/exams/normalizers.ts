@@ -2,6 +2,9 @@ export type TeacherExamDetail = {
   id: number;
   title: string;
   max_score: number | null;
+  pass_score: number | null;
+  is_active: boolean;
+  updated_at: string;
   session_ids: number[];
 };
 
@@ -109,6 +112,9 @@ export function normalizeExam(value: unknown): TeacherExamDetail | null {
     id,
     title: toStringValue(record.title) ?? "시험",
     max_score: toNumber(record.max_score),
+    pass_score: toNumber(record.pass_score),
+    is_active: record.is_active !== false,
+    updated_at: toStringValue(record.updated_at) ?? "",
     session_ids: sessionIds,
   };
 }
