@@ -1,4 +1,5 @@
 import { expect, test } from "../fixtures/strictTest";
+import { waitForCondition } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
 
@@ -37,6 +38,7 @@ test.describe("학생 성적표 구성", () => {
 
   test("학원 관리자는 표시 여부와 순서를 미리 본 뒤 저장한다", async ({ page }) => {
     let savedLayout: unknown = null;
+    let layoutReads = 0;
     await page.addInitScript(({ token }) => {
       localStorage.setItem("access", token);
       localStorage.setItem("refresh", "layout-refresh");
@@ -81,6 +83,7 @@ test.describe("학생 성적표 구성", () => {
           savedLayout = request.postDataJSON();
           return route.fulfill({ json: savedLayout });
         }
+        layoutReads += 1;
         return route.fulfill({ json: initialLayout });
       }
       return route.fulfill({ json: { count: 0, next: null, previous: null, results: [] } });
@@ -91,6 +94,20 @@ test.describe("학생 성적표 구성", () => {
 
     await page.getByRole("switch", { name: "보완 우선순위 숨기기" }).click();
     await expect(page.getByRole("switch", { name: "보완 우선순위 표시하기" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "전체 표시로 되돌리기" })).toBeVisible();
+
+    const staleAt = Date.now() + 10_100;
+    await waitForCondition(
+      async () => Date.now() >= staleAt,
+      { timeoutMs: 11_000, intervalMs: 200, description: "성적표 설정 쿼리가 stale 상태가 됨" },
+    );
+    await page.evaluate(() => {
+      window.dispatchEvent(new Event("offline"));
+      window.dispatchEvent(new Event("online"));
+    });
+    await expect.poll(() => layoutReads).toBeGreaterThan(1);
+    await expect(page.getByRole("switch", { name: "보완 우선순위 표시하기" })).toBeVisible();
+
     await page.getByRole("button", { name: "성적 비교 위로 이동" }).click();
 
     const preview = page.getByRole("complementary", { name: "학생 화면 미리보기" });

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, Eye, EyeOff, RotateCcw, Save } from "lucide-react";
 
@@ -61,14 +61,22 @@ export default function StudentGradeReportLayoutEditor() {
     queryFn: fetchStudentGradeReportLayout,
   });
   const [draft, setDraft] = useState<StudentGradeReportLayout>(defaultStudentGradeReportLayout);
+  const lastSyncedLayout = useRef<StudentGradeReportLayout | null>(null);
 
   useEffect(() => {
-    if (layoutQuery.data) setDraft(layoutQuery.data);
+    if (!layoutQuery.data) return;
+    setDraft((current) => (
+      !lastSyncedLayout.current || sameLayout(current, lastSyncedLayout.current)
+        ? layoutQuery.data
+        : current
+    ));
+    lastSyncedLayout.current = layoutQuery.data;
   }, [layoutQuery.data]);
 
   const saveMutation = useMutation({
     mutationFn: updateStudentGradeReportLayout,
     onSuccess: (saved) => {
+      lastSyncedLayout.current = saved;
       queryClient.setQueryData(accountQueryKeys.studentGradeReportLayout, saved);
       setDraft(saved);
       feedback.success("학생 성적표 구성을 저장했습니다.");
@@ -93,10 +101,11 @@ export default function StudentGradeReportLayoutEditor() {
     }));
   };
 
-  const move = (index: number, delta: -1 | 1) => {
-    const nextIndex = index + delta;
-    if (nextIndex < 0 || nextIndex >= draft.sections.length) return;
+  const move = (id: StudentGradeReportSectionId, delta: -1 | 1) => {
     setDraft((current) => {
+      const index = current.sections.findIndex((section) => section.id === id);
+      const nextIndex = index + delta;
+      if (index < 0 || nextIndex < 0 || nextIndex >= current.sections.length) return current;
       const sections = [...current.sections];
       [sections[index], sections[nextIndex]] = [sections[nextIndex], sections[index]];
       return { ...current, sections };
@@ -155,7 +164,7 @@ export default function StudentGradeReportLayoutEditor() {
                     leftIcon={<ArrowUp size={ICON.xs} />}
                     aria-label={`${copy.label} 위로 이동`}
                     disabled={index === 0}
-                    onClick={() => move(index, -1)}
+                    onClick={() => move(section.id, -1)}
                   />
                   <Button
                     iconOnly
@@ -164,7 +173,7 @@ export default function StudentGradeReportLayoutEditor() {
                     leftIcon={<ArrowDown size={ICON.xs} />}
                     aria-label={`${copy.label} 아래로 이동`}
                     disabled={index === draft.sections.length - 1}
-                    onClick={() => move(index, 1)}
+                    onClick={() => move(section.id, 1)}
                   />
                 </div>
               </div>
@@ -203,7 +212,7 @@ export default function StudentGradeReportLayoutEditor() {
           disabled={saveMutation.isPending}
           onClick={() => setDraft(defaultStudentGradeReportLayout())}
         >
-          기본 구성으로 되돌리기
+          전체 표시로 되돌리기
         </Button>
         <Button
           size="sm"

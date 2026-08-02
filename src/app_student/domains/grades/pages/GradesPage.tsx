@@ -11,7 +11,10 @@ import { useMyGradesAnalytics } from "../hooks/useMyGradesAnalytics";
 import { useMyGradesSummary } from "../hooks/useMyGradesSummary";
 import GradesHomeTab from "../components/GradesHomeTab";
 import GradesStatsTab from "../components/GradesStatsTab";
-import { defaultStudentGradeReportLayout } from "@/shared/api/contracts/studentGradeReportLayout";
+import {
+  defaultStudentGradeReportLayout,
+  STUDENT_GRADE_REPORT_ANALYTICS_SECTION_IDS,
+} from "@/shared/api/contracts/studentGradeReportLayout";
 
 const TABS = [
   { key: "home", label: "요약" },
@@ -21,16 +24,21 @@ const TABS = [
 export default function GradesPage() {
   const [tab, setTab] = useState("home");
   const { data, isLoading, isError, refetch } = useMyGradesSummary();
+  const reportLayout = data?.report_layout ?? defaultStudentGradeReportLayout();
+  const hasVisibleAnalytics = reportLayout.sections.some(
+    (section) => section.visible && STUDENT_GRADE_REPORT_ANALYTICS_SECTION_IDS.includes(section.id),
+  );
   const {
     data: analytics,
     isLoading: analyticsLoading,
     isError: analyticsError,
-  } = useMyGradesAnalytics({ enabled: tab === "stats" && !isLoading && !isError });
+  } = useMyGradesAnalytics({
+    enabled: tab === "stats" && !isLoading && !isError && hasVisibleAnalytics,
+  });
   const exams = data?.exams ?? [];
   const homeworks = data?.homeworks ?? [];
   const examTrend = data?.exam_trend ?? [];
   const labels = data?.labels;
-  const reportLayout = data?.report_layout ?? defaultStudentGradeReportLayout();
   const shellTitle = tab === "stats" ? "성장 그래프" : "성적 보드";
   const shellDescription =
     tab === "stats"

@@ -21,6 +21,12 @@ export type StudentGradeReportLayout = {
   sections: StudentGradeReportSection[];
 };
 
+export const STUDENT_GRADE_REPORT_ANALYTICS_SECTION_IDS: readonly StudentGradeReportSectionId[] = [
+  "score_comparison",
+  "lecture_average",
+  "improvement_priority",
+];
+
 const SECTION_ID_SET = new Set<string>(STUDENT_GRADE_REPORT_SECTION_IDS);
 
 export function defaultStudentGradeReportLayout(): StudentGradeReportLayout {
