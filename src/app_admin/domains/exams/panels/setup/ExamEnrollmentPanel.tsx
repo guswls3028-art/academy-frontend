@@ -1,12 +1,3 @@
-/**
- * ExamEnrollmentPanel – OPERATOR UX
- *
- * WHY:
- * - 대상자 관리는 "설정 화면"이 아니라 "선택 모달"이 맞다
- * - ExamEnrollment PUT = 완전 치환 계약 유지
- * - enrollment_id만 사용 (student_id 추론 ❌)
- */
-
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
@@ -21,6 +12,8 @@ import EnrollmentManageModal from "@/shared/ui/enrollment/EnrollmentManageModal"
 import type { EnrollmentRow } from "@/shared/ui/enrollment/types";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
+import formStyles from "@/shared/ui/assessment/AssessmentSetupForm.module.css";
 import { adminExamsQueryKeys } from "../../queryKeys";
 import styles from "./ExamEnrollmentPanel.module.css";
 
@@ -76,11 +69,16 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
   }, [selected, originSelected]);
 
   const apply = async () => {
-    await updateMut.mutateAsync({
-      enrollment_ids: Array.from(selected),
-    });
-    await qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examEnrollment(examId, sessionId) });
-    setOpen(false);
+    try {
+      await updateMut.mutateAsync({
+        enrollment_ids: Array.from(selected),
+      });
+      await qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examEnrollment(examId, sessionId) });
+      feedback.success(`시험 대상 학생을 ${selected.size}명으로 저장했습니다.`);
+      setOpen(false);
+    } catch (error: unknown) {
+      feedback.error(extractApiError(error, "시험 대상 학생을 저장하지 못했습니다."));
+    }
   };
 
   const rows: EnrollmentRow[] = useMemo(
@@ -123,17 +121,21 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
   }
 
   return (
-    <section className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)]">
-      <div className="border-b border-[var(--border-divider)] px-4 py-3">
-        <div className="text-sm font-semibold text-[var(--text-primary)]">
-          시험 대상 학생
-        </div>
-        <div className="text-xs text-[var(--text-muted)] leading-relaxed">
-          이 시험에 응시할 학생을 지정합니다. 대상으로 등록된 학생만 성적탭에 표시되고 점수 입력이 가능합니다.
+    <section
+      id="assessment-audience"
+      tabIndex={-1}
+      className={formStyles.section}
+    >
+      <div className={formStyles.header}>
+        <div>
+          <h2 className={formStyles.title}>시험 대상 학생</h2>
+          <p className={formStyles.description}>
+            이 시험에 응시할 학생을 지정합니다. 대상으로 등록된 학생만 성적탭에 표시되고 점수 입력이 가능합니다.
+          </p>
         </div>
       </div>
 
-      <div className="space-y-3 p-4">
+      <div className={formStyles.body}>
         {!rowsQ.isLoading && selectedCountFromServer === 0 && (
           <div
             role="alert"
@@ -200,11 +202,12 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
           open={open}
           onClose={() => setOpen(false)}
           title="시험 대상 학생 관리"
-          sessionId={sessionId}
+          description="현재 차시 수강생 중 시험에 응시할 학생을 선택합니다."
           rows={rows}
           loading={rowsQ.isLoading}
           error={rowsQ.isError ? "목록 조회 실패" : null}
           selectedIds={selected}
+          originSelectedIds={originSelected}
           onToggle={toggle}
           onSetSelectedIds={setSelected}
           onSave={() => {

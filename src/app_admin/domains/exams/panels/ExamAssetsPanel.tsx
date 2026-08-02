@@ -1,125 +1,94 @@
-/**
- * ExamAssetsPanel (Production)
- * - assets 단일진실: GET /exams/{id}/assets/ (regular도 template resolve)
- * - template과 문항이 비어 있는 regular에서 업로드 UI 노출
- * - 시험지 PDF: ExamPdfUploadModal (통합 모달) — AnswerKeyRegisterModal과 동일
- * - OMR 답안지: AssetUploadSection (인라인)
- */
-
 import { useState } from "react";
+
+import { Badge, Button, EmptyState } from "@/shared/ui/ds";
+import formStyles from "@/shared/ui/assessment/AssessmentSetupForm.module.css";
+import { extractApiError } from "@/shared/utils/extractApiError";
+
 import { useAdminExam } from "../hooks/useAdminExam";
 import { useExamAssets } from "../hooks/useExamAssets";
-
 import AssetUploadSection from "../components/assets/AssetUploadSection";
 import ExamPdfUploadModal from "../components/ExamPdfUploadModal";
 import BlockReason from "../components/BlockReason";
-import { extractApiError } from "@/shared/utils/extractApiError";
 
 export default function ExamAssetsPanel({ examId }: { examId: number }) {
   const { data: exam } = useAdminExam(examId);
-  const q = useExamAssets(examId);
+  const assetsQuery = useExamAssets(examId);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
 
   if (!exam) return null;
 
   const isTemplate = exam.exam_type === "template";
   const canUploadRegularSource =
-    !isTemplate &&
-    ["none", "failed", "conversion_required"].includes(
-      exam.segmentation_status,
+    !isTemplate && ["none", "failed", "conversion_required"].includes(exam.segmentation_status);
+  const status = exam.segmentation_status;
+  const statusCopy = status === "processing"
+    ? "문항을 분리하고 있습니다. 완료되면 이 화면에 반영됩니다."
+    : status === "ready"
+      ? `${exam.source_filename || "원본 시험지"}의 문항 분리가 완료되었습니다.`
+      : status === "conversion_required"
+        ? "HWP 원본은 보관되었습니다. 수식과 배치를 보존하도록 PDF로 저장해 추가로 올려 주세요."
+        : status === "failed"
+          ? "문항 분리를 완료하지 못했습니다. 원본을 확인하고 PDF를 다시 올려 주세요."
+          : "PDF 원본을 올리면 표지와 일정표를 제외하고 문항별로 분리합니다.";
+  const statusBadge = status === "ready"
+    ? { tone: "success" as const, label: "준비됨" }
+    : status === "processing"
+      ? { tone: "info" as const, label: "처리 중" }
+      : status === "failed"
+        ? { tone: "danger" as const, label: "확인 필요" }
+        : { tone: "warning" as const, label: "등록 필요" };
+
+  if (assetsQuery.isLoading) {
+    return <EmptyState mode="embedded" scope="panel" tone="loading" title="시험 자료 불러오는 중…" />;
+  }
+
+  if (assetsQuery.isError) {
+    return (
+      <BlockReason
+        title="시험 자료를 불러오지 못했습니다"
+        description={extractApiError(assetsQuery.error, "잠시 후 다시 시도해 주세요.")}
+      />
     );
+  }
 
   return (
-    <div className="space-y-4">
-      {q.isLoading && (
-        <div className="text-sm text-[var(--text-muted)]">
-          자산 불러오는 중...
+    <section id="assessment-materials" tabIndex={-1} className={formStyles.section}>
+      <div className={formStyles.header}>
+        <div>
+          <h2 className={formStyles.title}>시험지 원본</h2>
+          <p className={formStyles.description}>학생에게 배부한 시험지와 문항 분리 상태를 관리합니다.</p>
         </div>
-      )}
+        <Badge tone={statusBadge.tone} size="md" shape="square">{statusBadge.label}</Badge>
+      </div>
 
-      {q.isError && (
-        <BlockReason
-          title="파일을 불러오지 못했습니다"
-          description={extractApiError(q.error, "자산 정보를 불러오지 못했습니다.")}
-        />
-      )}
-
-      {!q.isLoading && !q.isError && isTemplate && (
-        <div className="space-y-4">
-          {/* 시험지 PDF — 통합 모달 */}
-          <div className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-semibold text-[var(--text-primary)]">
-                  시험지 PDF
-                </div>
-                <div className="text-xs text-[var(--text-muted)]">
-                  운영 시험 제출/채점에 필요합니다.
-                </div>
-              </div>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => setPdfModalOpen(true)}
-              >
-                시험지 업로드
-              </button>
-            </div>
+      <div className={formStyles.body}>
+        <div className={formStyles.inlineStatus}>
+          <div>
+            <strong>{status === "ready" ? "시험지 원본 준비 완료" : "시험지 원본 확인"}</strong>
+            <p>{statusCopy}</p>
           </div>
+          {(isTemplate || canUploadRegularSource) && (
+            <Button type="button" intent="secondary" size="sm" onClick={() => setPdfModalOpen(true)}>
+              {status === "none" ? "시험지 업로드" : "PDF 다시 올리기"}
+            </Button>
+          )}
+        </div>
 
-          <ExamPdfUploadModal
-            open={pdfModalOpen}
-            onClose={() => setPdfModalOpen(false)}
-            examId={examId}
-          />
-
+        {isTemplate && (
           <AssetUploadSection
             examId={examId}
             assetType="omr_sheet"
             title="OMR 답안지"
             accept="application/pdf"
           />
-        </div>
-      )}
+        )}
+      </div>
 
-      {!q.isLoading && !q.isError && !isTemplate && (
-        <div className="space-y-4">
-          <div className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold text-[var(--text-primary)]">
-                  시험지 원본 · 문항 자동 분리
-                </div>
-                <div className="mt-1 text-xs text-[var(--text-muted)]">
-                  {exam.segmentation_status === "processing"
-                    ? "문항을 분리하고 있습니다."
-                    : exam.segmentation_status === "ready"
-                    ? `${exam.source_filename || "원본 시험지"}의 문항 분리가 완료되었습니다.`
-                    : exam.segmentation_status === "conversion_required"
-                    ? "HWP 원본을 PDF로 저장한 뒤 추가로 올려 주세요."
-                    : "PDF 원본을 올리면 표지와 일정표를 제외하고 문항별로 자릅니다."}
-                </div>
-              </div>
-              {canUploadRegularSource && (
-                <button
-                  type="button"
-                  className="btn-primary"
-                  onClick={() => setPdfModalOpen(true)}
-                >
-                  {exam.segmentation_status === "none"
-                    ? "시험지 업로드"
-                    : "PDF 다시 올리기"}
-                </button>
-              )}
-            </div>
-          </div>
-          <ExamPdfUploadModal
-            open={pdfModalOpen}
-            onClose={() => setPdfModalOpen(false)}
-            examId={examId}
-          />
-        </div>
-      )}
-    </div>
+      <ExamPdfUploadModal
+        open={pdfModalOpen}
+        onClose={() => setPdfModalOpen(false)}
+        examId={examId}
+      />
+    </section>
   );
 }

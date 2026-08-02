@@ -30,6 +30,7 @@ export async function updateAdminExam(
     | "max_score"
     | "grading_mode"
     | "manual_grading_method"
+    | "choice_question_count"
     | "display_order"
     | "open_at"
     | "close_at"
