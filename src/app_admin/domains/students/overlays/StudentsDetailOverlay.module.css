@@ -2,6 +2,257 @@
   padding: 24px;
 }
 
+.modalBackdrop,
+.modalWrap {
+  left: 0;
+}
+
+.modalBackdrop.modalBackdrop {
+  z-index: var(--z-panel-overlay, 2000);
+}
+
+.modalWrap.modalWrap {
+  z-index: calc(var(--z-panel-overlay, 2000) + 1);
+}
+
+.detailHeader {
+  padding: 18px 24px 16px;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface)) 0 4px, transparent 4px),
+    var(--color-bg-surface);
+}
+
+.identityAvatar {
+  width: 76px;
+  height: 76px;
+  border: 3px solid var(--color-bg-surface);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-brand-primary) 22%, var(--color-border-divider)),
+    0 8px 22px color-mix(in srgb, var(--color-brand-primary) 14%, transparent);
+  font-size: 30px;
+}
+
+.headerTitleBlock {
+  gap: 9px;
+  padding: 0;
+}
+
+.identityMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+}
+
+.identityMetaItem {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--color-bg-surface-soft) 72%, var(--color-bg-surface));
+}
+
+.identityMetaItem dt {
+  padding: 4px 7px;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.identityMetaItem dd {
+  margin: 0;
+  padding: 4px 8px 4px 0;
+  color: var(--color-text-primary);
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.015em;
+}
+
+.headerActions {
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--color-bg-surface-soft) 58%, var(--color-bg-surface));
+  box-shadow: 0 1px 2px rgb(15 23 42 / 5%);
+}
+
+.statusControl {
+  display: grid;
+  gap: 2px;
+  padding: 0 4px;
+}
+
+.statusLabel {
+  color: var(--color-text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.statusToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 58px;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.statusToggle[data-active="true"] {
+  color: var(--color-success);
+}
+
+.statusToggle:hover:not(:disabled) {
+  color: var(--color-brand-primary);
+}
+
+.statusToggle:focus-visible {
+  border-radius: 5px;
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 3px;
+}
+
+.statusToggle:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.statusDot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--color-text-muted);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-text-muted) 12%, transparent);
+}
+
+.statusToggle[data-active="true"] .statusDot {
+  background: var(--color-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 14%, transparent);
+}
+
+.actionDivider {
+  width: 1px;
+  height: 26px;
+  margin: 0 2px;
+  background: var(--color-border-divider);
+}
+
+.deleteAction {
+  color: var(--color-text-muted);
+}
+
+.deleteAction:hover {
+  background: color-mix(in srgb, var(--color-danger) 8%, transparent);
+  color: var(--color-danger);
+}
+
+.statTabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-bg-surface-soft) 70%, var(--color-bg-surface));
+}
+
+.statTab {
+  all: unset;
+  box-sizing: border-box;
+  display: grid;
+  min-width: 0;
+  min-height: 64px;
+  align-content: center;
+  justify-items: start;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.statTab:hover {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 16%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-bg-surface) 84%, transparent);
+}
+
+.statTab:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 1px;
+}
+
+.statTabActive {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 28%, var(--color-border-divider));
+  background: var(--color-bg-surface);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
+  transform: translateY(-1px);
+}
+
+.statTabMuted:not(.statTabActive) {
+  opacity: 0.58;
+}
+
+.statTabLabel {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.statTabActive .statTabLabel {
+  color: var(--color-brand-primary);
+}
+
+.statTabValue {
+  overflow: hidden;
+  max-width: 100%;
+  color: var(--color-text-primary);
+  font-size: 15px;
+  font-weight: 850;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.statTabValueSuccess {
+  color: var(--color-success);
+}
+
+.statTabValueDanger {
+  color: var(--color-error);
+}
+
+.statTabActive .statTabValue {
+  color: var(--color-brand-primary);
+}
+
+.statTabSub {
+  overflow: hidden;
+  max-width: 100%;
+  color: var(--color-text-muted);
+  font-size: 9px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inventoryTrigger {
+  width: 46px;
+  height: 46px;
+  color: var(--color-brand-primary);
+  font-size: 0;
+}
+
 .centerAction {
   display: flex;
   justify-content: center;
@@ -466,5 +717,44 @@
 
   50% {
     opacity: 0.55;
+  }
+}
+
+@media (max-width: 768px) {
+  .detailHeader {
+    padding: 14px 16px 12px;
+  }
+
+  .identityAvatar {
+    width: 60px;
+    height: 60px;
+    font-size: 24px;
+  }
+
+  .headerActions {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .statTabs {
+    display: flex;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+
+  .statTab {
+    flex: 0 0 92px;
+  }
+
+  .inventoryTrigger {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .statTab {
+    transition: none;
   }
 }

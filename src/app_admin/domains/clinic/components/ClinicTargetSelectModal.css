@@ -37,3 +37,23 @@
   background: var(--color-bg-surface-soft);
   border-color: var(--color-border-divider);
 }
+.clinic-target-select-modal__student-detail {
+  display: inline-flex;
+  max-width: 100%;
+  padding: 1px 2px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.clinic-target-select-modal__student-detail:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, transparent);
+}
+
+.clinic-target-select-modal__student-detail:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}

@@ -103,13 +103,44 @@ async function installApi(page: Page) {
       return json({
         id: 1001,
         name: "테스트학생",
-        active: true,
+        is_managed: true,
         tags: [],
         enrollments: [],
       });
     }
+    if (path === "/students/1002/") {
+      return json({
+        id: 1002,
+        name: "클리닉학생",
+        is_managed: true,
+        tags: [],
+        enrollments: [],
+      });
+    }
+    if (path === "/students/") {
+      return json({
+        count: 1,
+        results: [{
+          id: 1002,
+          name: "클리닉학생",
+          is_managed: true,
+          parent_phone: "01055556666",
+          phone: "01077778888",
+          school_type: "HIGH",
+          high_school: "테스트고",
+          grade: 2,
+          enrollments: [],
+        }],
+      });
+    }
     if (path === "/results/admin/clinic-targets/") {
-      return json([]);
+      return json([{
+        enrollment_id: 2002,
+        student_id: 1002,
+        student_name: "클리닉학생",
+        session_title: "클리닉 진단",
+        created_at: "2026-08-02T00:00:00Z",
+      }]);
     }
     if (path === "/staffs/currently-working/") {
       return json([]);
@@ -144,12 +175,68 @@ test("출결 상태 액션은 유지하고 학생 행은 학생 상세를 연다
 
   await studentLink.click();
   await expect(page).toHaveURL(/\/workspace\/students\/1001$/);
-  await expect(page.getByTestId("student-detail-overlay")).toBeVisible();
-  await expect(page.getByTestId("student-detail-overlay").getByRole("heading", {
+  const overlay = page.getByTestId("student-detail-overlay");
+  await expect(overlay).toBeVisible();
+  await expect(overlay.getByRole("heading", {
     name: "테스트학생",
   })).toBeVisible();
+  await expect(overlay.getByRole("button", {
+    name: "현재 활성, 비활성으로 변경",
+  })).toBeVisible();
+  await expect(overlay.getByRole("tab", { name: "수강" })).toHaveAttribute("aria-selected", "true");
+  await overlay.getByRole("tab", { name: "시험" }).click();
+  await expect(overlay.getByRole("tab", { name: "시험" })).toHaveAttribute("aria-selected", "true");
 
-  await page.getByTestId("student-detail-overlay").getByRole("button", { name: "닫기" }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(overlay.getByRole("button", { name: "정보 수정" })).toBeVisible();
+  await expect(overlay.getByRole("tab", { name: "클리닉" })).toBeVisible();
+
+  if (process.env.CAPTURE_STUDENT_DETAIL === "1") {
+    await page.screenshot({
+      path: "../_artifacts/student-detail-polish-mobile.png",
+      fullPage: true,
+    });
+  }
+
+  await overlay.getByRole("button", { name: "닫기" }).click();
   await expect(page).toHaveURL(/\/workspace\/lectures\/441\/sessions\/428\/attendance$/);
   await expect(studentLink).toBeVisible();
+});
+
+test("클리닉 대상자 선택 중 학생 상세를 열고 선택 화면으로 돌아온다", async ({ page }) => {
+  await installTenantOneInitScript(page);
+  await page.addInitScript((jwt) => {
+    localStorage.setItem("access", jwt);
+    localStorage.setItem("refresh", `${jwt}-refresh`);
+  }, localJwt());
+  await installApi(page);
+
+  await page.goto(`${BASE}/workspace/clinic/schedule`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+
+  await page.getByRole("button", { name: "클리닉 만들기", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "클리닉 만들기", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "대상자 추가", exact: true }).click();
+
+  const targetGrid = page.getByRole("grid", { name: "미통과 대상자 명단" });
+  await expect(targetGrid).toBeVisible();
+  await targetGrid.getByRole("button", { name: "클리닉학생 학생 상세 열기" }).click();
+
+  const overlay = page.getByTestId("student-detail-overlay");
+  await expect(overlay).toBeVisible();
+  await expect(overlay.getByRole("heading", { name: "클리닉학생" })).toBeVisible();
+
+  if (process.env.CAPTURE_STUDENT_DETAIL === "1") {
+    await page.screenshot({
+      path: "../_artifacts/student-detail-polish-nested-modal.png",
+      fullPage: true,
+    });
+  }
+
+  await overlay.getByRole("button", { name: "닫기" }).click();
+  await expect(overlay).toHaveCount(0);
+  await expect(targetGrid).toBeVisible();
+  await expect(targetGrid.getByRole("checkbox", { name: "클리닉학생 선택" })).not.toBeChecked();
 });

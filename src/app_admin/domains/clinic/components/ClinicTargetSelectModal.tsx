@@ -2,6 +2,7 @@
 // 클리닉 생성 — 대상자 선택 모달 (수강대상등록 스타일, 예약 대상자 | 전체 학생 탭)
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "antd";
 
@@ -9,6 +10,7 @@ import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/mod
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { TABLE_COL } from "@/shared/ui/domain";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import StudentsDetailOverlay from "@admin/domains/students/overlays/StudentsDetailOverlay";
 import type { LectureInfo } from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { formatPhone } from "@/shared/utils/formatPhone";
 
@@ -25,6 +27,7 @@ import "./ClinicTargetSelectModal.css";
  */
 type UnifiedRow = {
   id: number; // targets: enrollment_id, students: student id
+  studentId: number | null;
   name: string;
   parentPhone: string;
   studentPhone: string;
@@ -108,6 +111,7 @@ function targetToRow(t: ClinicTarget): UnifiedRow {
     : [];
   return {
     id: t.enrollment_id,
+    studentId: t.student_id ?? null,
     name: t.student_name,
     parentPhone: t.parent_phone || "",
     studentPhone: t.student_phone || "",
@@ -153,6 +157,7 @@ function targetRowsByEnrollment(targets: ClinicTarget[]): UnifiedRow[] {
 function studentToRow(s: ClinicStudent): UnifiedRow {
   return {
     id: s.id,
+    studentId: s.id,
     name: s.name,
     parentPhone: s.parent_phone || "",
     studentPhone: s.student_phone || "",
@@ -180,6 +185,7 @@ export default function ClinicTargetSelectModal({
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<number[]>(() => [...stableIds]);
   const [selectedIdToName, setSelectedIdToName] = useState<Map<number, string>>(new Map());
+  const [detailStudentId, setDetailStudentId] = useState<number | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
 
   const prevOpenRef = useRef(false);
@@ -193,6 +199,7 @@ export default function ClinicTargetSelectModal({
     setPage(1);
     setSelectedIds([...stableIds]);
     setSelectedIdToName(new Map());
+    setDetailStudentId(null);
   }, [open, initialMode, stableIds]);
 
   // 검색 디바운스
@@ -356,6 +363,7 @@ export default function ClinicTargetSelectModal({
   if (!open) return null;
 
   return (
+    <>
     <AdminModal open={true} onClose={onClose} type="action" width={840}>
       <ModalHeader
         type="action"
@@ -524,14 +532,32 @@ export default function ClinicTargetSelectModal({
                                 />
                               </td>
                               <td className="modal-inner-table__name py-1.5 px-3 text-[var(--color-text-primary)] truncate font-medium leading-6">
-                                <StudentNameWithLectureChip
-                                  name={r.name || "(이름 없음)"}
-                                  profilePhotoUrl={r.profilePhotoUrl}
-                                  avatarSize={20}
-                                  lectures={r.lectures}
-                                  chipSize={14}
-                                  clinicHighlight={r.clinicHighlight}
-                                />
+                                {r.studentId != null && r.studentId > 0 ? (
+                                  <button
+                                    type="button"
+                                    className="clinic-target-select-modal__student-detail"
+                                    onClick={() => setDetailStudentId(r.studentId)}
+                                    aria-label={`${r.name} 학생 상세 열기`}
+                                  >
+                                    <StudentNameWithLectureChip
+                                      name={r.name || "(이름 없음)"}
+                                      profilePhotoUrl={r.profilePhotoUrl}
+                                      avatarSize={20}
+                                      lectures={r.lectures}
+                                      chipSize={14}
+                                      clinicHighlight={r.clinicHighlight}
+                                    />
+                                  </button>
+                                ) : (
+                                  <StudentNameWithLectureChip
+                                    name={r.name || "(이름 없음)"}
+                                    profilePhotoUrl={r.profilePhotoUrl}
+                                    avatarSize={20}
+                                    lectures={r.lectures}
+                                    chipSize={14}
+                                    clinicHighlight={r.clinicHighlight}
+                                  />
+                                )}
                               </td>
                               <td className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate leading-6">{formatPhone(r.parentPhone)}</td>
                               <td className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate leading-6">{formatPhone(r.studentPhone)}</td>
@@ -646,5 +672,14 @@ export default function ClinicTargetSelectModal({
         }
       />
     </AdminModal>
+    {detailStudentId != null && createPortal(
+        <StudentsDetailOverlay
+          studentId={detailStudentId}
+          onClose={() => setDetailStudentId(null)}
+          layer="modal"
+        />,
+        document.body,
+    )}
+    </>
   );
 }
