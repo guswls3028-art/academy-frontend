@@ -117,7 +117,7 @@ function gradesFor(points: TrendPoint[]) {
     : null;
   return {
     exams: [
-      ...points.map((point) => ({
+      ...points.map((point, index) => ({
         exam_id: point.exam_id,
         enrollment_id: point.enrollment_id,
         title: point.title,
@@ -134,6 +134,11 @@ function gradesFor(points: TrendPoint[]) {
         cohort_size: point.cohort_size,
         cohort_avg: point.cohort_avg,
         submitted_at: point.recorded_at,
+        total_questions: 20,
+        correct_count: index === 0 ? 18 : 17,
+        wrong_count: index === 0 ? 2 : 3,
+        wrong_question_numbers: index === 0 ? [7, 9] : [5, 11, 13],
+        correction_status: index === 0 ? "COMPLETED" : "PENDING",
       })),
       {
         exam_id: 999,
@@ -187,18 +192,22 @@ function analyticsFor(points: TrendPoint[]) {
       percentile: 20,
       cohort_size: 10,
     })),
-    lecture_breakdown: [],
-    weak_questions: [],
+    lecture_breakdown: [{ lecture_title: "Ymath 중등 심화", exam_count: points.length, avg_score_pct: 88 }],
+    weak_questions: [{ question_number: 7, wrong_count: 2 }],
     homework: { assigned_count: 0, graded_count: 0, avg_score_pct: null, pass_rate_pct: null },
-    highlights: { latest_exam: null, best_exam: null, weakest_exam: null },
-    insights: [],
+    highlights: {
+      latest_exam: null,
+      best_exam: null,
+      weakest_exam: { exam_id: 301, title: "Ymath 주간 테스트 1회", score_pct: 80 },
+    },
+    insights: ["7번 문항을 먼저 복습해 보세요."],
   };
 }
 
 async function installApi(
   page: Page,
   viewer: Viewer,
-  options: { studentPoints?: TrendPoint[]; failAnalytics?: boolean } = {},
+  options: { studentPoints?: TrendPoint[]; failAnalytics?: boolean; reportLayout?: unknown } = {},
 ): Promise<string[]> {
   const selectedHeaders: string[] = [];
   await page.addInitScript(({ token }) => {
@@ -259,7 +268,12 @@ async function installApi(
     }
     if (path.endsWith("/student/grades/")) {
       selectedHeaders.push(rawSelectedId ?? "missing");
-      await route.fulfill({ json: gradesFor(selectedPoints) });
+      await route.fulfill({
+        json: {
+          ...gradesFor(selectedPoints),
+          ...(options.reportLayout ? { report_layout: options.reportLayout } : {}),
+        },
+      });
       return;
     }
     if (path.endsWith("/student/me/")) {
@@ -300,6 +314,49 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
     await expect(page.getByRole("region", { name: "성적 비교" })).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
     await page.screenshot({ path: "test-results/student-score-trend/student-390.png", fullPage: true });
+  });
+
+  test("시험 카드에서 교사가 확인한 오답 완료와 미완료 상태를 바로 확인한다", async ({ page }) => {
+    await installApi(page, "student");
+    await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
+
+    const completedCard = page.getByRole("link").filter({ hasText: "Ymath 주간 테스트 1회" });
+    const pendingCard = page.getByRole("link").filter({ hasText: "Ymath 주간 테스트 2회" });
+    await expect(completedCard).toContainText("오답 완료");
+    await expect(pendingCard).toContainText("오답 미완료");
+    await expect(completedCard).toContainText("7, 9번");
+    await page.screenshot({ path: "test-results/student-correction-status/student-grade-cards-390.png", fullPage: true });
+  });
+
+  test("학원 설정에 따라 성장 그래프 섹션을 숨기고 순서를 바꾼다", async ({ page }) => {
+    await installApi(page, "student", {
+      reportLayout: {
+        version: 1,
+        sections: [
+          { id: "score_comparison", visible: true },
+          { id: "score_trend", visible: true },
+          { id: "lecture_average", visible: true },
+          { id: "improvement_priority", visible: false },
+          { id: "exam_summary", visible: false },
+          { id: "rank_position", visible: false },
+          { id: "weakest_lecture", visible: false },
+          { id: "homework_summary", visible: false },
+        ],
+      },
+    });
+    await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });
+
+    const comparison = page.getByRole("region", { name: "성적 비교" });
+    const trend = page.getByTestId("student-score-trend");
+    await expect(comparison).toBeVisible();
+    await expect(trend).toBeVisible();
+    await expect(page.getByRole("region", { name: "강좌별 평균" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "보완 우선순위" })).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "시험 성적 요약" })).toHaveCount(0);
+    await expect.poll(async () => comparison.evaluate((node, trendSelector) => {
+      const trendNode = document.querySelector(trendSelector);
+      return Boolean(trendNode && (node.compareDocumentPosition(trendNode) & Node.DOCUMENT_POSITION_FOLLOWING));
+    }, '[data-testid="student-score-trend"]')).toBe(true);
   });
 
   test("학부모가 자녀를 바꾸면 선택한 자녀의 누적 성적만 다시 표시한다", async ({ page }) => {

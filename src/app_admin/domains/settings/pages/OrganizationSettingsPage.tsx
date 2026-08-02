@@ -16,6 +16,7 @@ import { accountQueryKeys } from "@/shared/api/queryKeys/account";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useProgram } from "@/shared/program";
+import StudentGradeReportLayoutEditor from "@/shared/ui/assessment/StudentGradeReportLayoutEditor";
 
 import s from "../components/SettingsSection.module.css";
 import { adminSettingsQueryKeys } from "../queryKeys";
@@ -171,6 +172,7 @@ export default function OrganizationSettingsPage() {
 
   const meQ = useQuery({ queryKey: accountQueryKeys.me, queryFn: fetchMe });
   const isOwner = meQ.data?.tenantRole === "owner" || meQ.data?.is_superuser;
+  const canManageStudentReport = isOwner || meQ.data?.tenantRole === "admin";
 
   const tenantQ = useQuery({
     queryKey: accountQueryKeys.tenantInfo,
@@ -236,6 +238,7 @@ export default function OrganizationSettingsPage() {
     return (
       <div className={s.page}>
         <AcademyModeSection />
+        {canManageStudentReport && <StudentGradeReportLayoutEditor />}
         <div className={s.sectionHeader}>
           <h2 className={s.sectionTitle}>학원 정보</h2>
           <p className={s.sectionDescription}>학원명, 전화번호 등 학원 기본 정보를 관리합니다.</p>
@@ -392,6 +395,9 @@ export default function OrganizationSettingsPage() {
 
       {/* ── 합/불 라벨 커스텀 ── */}
       <PassFailLabelsSection tenantData={tenantQ.data} saving={updateMut.isPending} />
+
+      {/* ── 학생 성장 그래프 노출/순서 ── */}
+      <StudentGradeReportLayoutEditor />
 
       {/* ── 법적 고지 정보 ── */}
       <LegalInfoSection />

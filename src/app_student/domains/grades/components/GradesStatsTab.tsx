@@ -2,11 +2,15 @@
  * 성적 통계 탭 — StatCard 그리드 + 추이 차트 + 과제 진행바
  * GradesPage에서 추출.
  */
-import { useMemo } from "react";
+import { Fragment, useMemo, type ReactNode } from "react";
 import { StatCard, StatGrid } from "@student/shared/ui/components/StatCard";
 import ProgressRing from "@student/shared/ui/components/ProgressRing";
 import type { StudentExamTrendPoint } from "@/shared/api/contracts/studentGrades";
 import StudentScoreTrendChart from "@/shared/ui/assessment/StudentScoreTrendChart";
+import type {
+  StudentGradeReportLayout,
+  StudentGradeReportSectionId,
+} from "@/shared/api/contracts/studentGradeReportLayout";
 import type { MyExamGradeSummary, MyGradesAnalytics, MyHomeworkGradeSummary } from "../api/grades.api";
 import styles from "./GradesStatsTab.module.css";
 
@@ -17,6 +21,7 @@ type Props = {
   analytics?: MyGradesAnalytics;
   analyticsLoading?: boolean;
   analyticsError?: boolean;
+  reportLayout: StudentGradeReportLayout;
 };
 
 type TrendDatum = {
@@ -25,7 +30,21 @@ type TrendDatum = {
   전체평균?: number;
 };
 
-export default function GradesStatsTab({ exams, homeworks, examTrend, analytics, analyticsLoading, analyticsError }: Props) {
+const ANALYTICS_SECTION_IDS: StudentGradeReportSectionId[] = [
+  "score_comparison",
+  "lecture_average",
+  "improvement_priority",
+];
+
+export default function GradesStatsTab({
+  exams,
+  homeworks,
+  examTrend,
+  analytics,
+  analyticsLoading,
+  analyticsError,
+  reportLayout,
+}: Props) {
   const examStats = useMemo(() => {
     if (exams.length === 0) return null;
     const scoredExams = exams.filter((e) => e.total_score != null);
@@ -107,137 +126,138 @@ export default function GradesStatsTab({ exams, homeworks, examTrend, analytics,
   const homeworkPassPct = hwStats && hwStats.total > 0 ? (hwStats.passed / hwStats.total) * 100 : 0;
   const homeworkFailPct = hwStats && hwStats.total > 0 ? (hwStats.failed / hwStats.total) * 100 : 0;
 
-  return (
-    <div className={styles.stack}>
-      <StudentScoreTrendChart points={examTrend} audience="learner" />
+  const firstVisibleAnalytics = reportLayout.sections.find(
+    (section) => section.visible && ANALYTICS_SECTION_IDS.includes(section.id),
+  )?.id;
+  const withAnalyticsState = (
+    sectionId: StudentGradeReportSectionId,
+    content: ReactNode,
+  ): ReactNode => {
+    if (analyticsLoading) {
+      return sectionId === firstVisibleAnalytics ? <AnalyticsLoading /> : null;
+    }
+    if (analyticsError || !analytics) {
+      return analyticsError && sectionId === firstVisibleAnalytics ? (
+        <div className={styles.analyticsNotice}>
+          비교 분석을 불러오지 못했습니다. 다른 성적 정보는 계속 확인할 수 있습니다.
+        </div>
+      ) : null;
+    }
+    return content;
+  };
 
-      <AnalyticsOverview
-        analytics={analytics}
-        loading={analyticsLoading}
-        error={analyticsError}
-      />
-
-      {/* 시험 통계 요약 */}
-      {examStats && (
-        <div>
-          <div className={styles.sectionTitle}>시험 성적 요약</div>
-          <div className={styles.examSummary}>
-            <ProgressRing
-              percent={examStats.avgPct}
-              size={88}
-              color={examStats.avgPct >= 70 ? "var(--stu-success)" : examStats.avgPct >= 40 ? "var(--stu-warn)" : "var(--stu-danger)"}
-              sublabel="평균"
-            />
-            <div className={styles.summaryStats}>
-              <StatGrid>
-                <StatCard label="합격률" value={`${examStats.passRate}%`} accent={examStats.passRate >= 70 ? "success" : examStats.passRate > 0 ? "danger" : undefined} />
-                <StatCard label="시험 수" value={`${examStats.count}건`} />
-                {examStats.avgRank != null
-                  ? <StatCard label="평균 등수" value={`${examStats.avgRank}등`} />
-                  : <StatCard label="응시완료" value={`${exams.filter((e) => e.total_score != null).length}건`} />
-                }
-              </StatGrid>
-            </div>
+  const sections: Record<StudentGradeReportSectionId, ReactNode> = {
+    score_trend: <StudentScoreTrendChart points={examTrend} audience="learner" />,
+    score_comparison: withAnalyticsState(
+      "score_comparison",
+      <ScoreComparisonSection analytics={analytics!} />,
+    ),
+    lecture_average: withAnalyticsState(
+      "lecture_average",
+      <LectureAverageSection analytics={analytics!} />,
+    ),
+    improvement_priority: withAnalyticsState(
+      "improvement_priority",
+      <ImprovementPrioritySection analytics={analytics!} />,
+    ),
+    exam_summary: examStats ? (
+      <section aria-label="시험 성적 요약">
+        <div className={styles.sectionTitle}>시험 성적 요약</div>
+        <div className={styles.examSummary}>
+          <ProgressRing
+            percent={examStats.avgPct}
+            size={88}
+            color={examStats.avgPct >= 70 ? "var(--stu-success)" : examStats.avgPct >= 40 ? "var(--stu-warn)" : "var(--stu-danger)"}
+            sublabel="평균"
+          />
+          <div className={styles.summaryStats}>
+            <StatGrid>
+              <StatCard label="합격률" value={`${examStats.passRate}%`} accent={examStats.passRate >= 70 ? "success" : examStats.passRate > 0 ? "danger" : undefined} />
+              <StatCard label="시험 수" value={`${examStats.count}건`} />
+              {examStats.avgRank != null
+                ? <StatCard label="평균 등수" value={`${examStats.avgRank}등`} />
+                : <StatCard label="응시완료" value={`${exams.filter((e) => e.total_score != null).length}건`} />
+              }
+            </StatGrid>
           </div>
         </div>
-      )}
-
-      {/* 시험 석차 & 위치 요약 */}
-      {examStats && rankInsight && (
-          <div>
-            <div className={styles.sectionTitle}>내 위치 분석</div>
-            <StatGrid>
-              <StatCard label="상위권" value={`${rankInsight.topQuartile}회`} accent="success" />
-              <StatCard label="중위권" value={`${rankInsight.midRange}회`} />
-              <StatCard label="하위권" value={`${rankInsight.bottom}회`} accent={rankInsight.bottom > 0 ? "danger" : undefined} />
-            </StatGrid>
-            <div className={styles.rankNotes}>
-              {rankInsight.bestExam && (
-                <div>
-                  <span className={styles.bestLabel}>최고 성적</span>{" "}
-                  {rankInsight.bestExam.title} — {rankInsight.bestExam.rank}등/{rankInsight.bestExam.cohort_size}명
-                </div>
-              )}
-              {rankInsight.worstExam && rankInsight.worstExam.exam_id !== rankInsight.bestExam?.exam_id && (
-                <div>
-                  <span className={styles.worstLabel}>보완 필요</span>{" "}
-                  {rankInsight.worstExam.title} — {rankInsight.worstExam.rank}등/{rankInsight.worstExam.cohort_size}명
-                </div>
-              )}
+      </section>
+    ) : null,
+    rank_position: examStats && rankInsight ? (
+      <section aria-label="내 위치 분석">
+        <div className={styles.sectionTitle}>내 위치 분석</div>
+        <StatGrid>
+          <StatCard label="상위권" value={`${rankInsight.topQuartile}회`} accent="success" />
+          <StatCard label="중위권" value={`${rankInsight.midRange}회`} />
+          <StatCard label="하위권" value={`${rankInsight.bottom}회`} accent={rankInsight.bottom > 0 ? "danger" : undefined} />
+        </StatGrid>
+        <div className={styles.rankNotes}>
+          {rankInsight.bestExam && (
+            <div>
+              <span className={styles.bestLabel}>최고 성적</span>{" "}
+              {rankInsight.bestExam.title} — {rankInsight.bestExam.rank}등/{rankInsight.bestExam.cohort_size}명
             </div>
-          </div>
-      )}
-
-      {/* 강좌별 성적 분석 */}
-      {weakestLecture && (
-          <div className={styles.weaknessCard}>
-            <div className={styles.sectionTitle}>약점 강좌</div>
-            <div className={styles.weaknessText}>
-              <span className={styles.weaknessEmphasis}>{weakestLecture.name}</span> 강좌의
-              평균 득점률이 <strong className={styles.weaknessEmphasis}>{weakestLecture.avg}%</strong>로 가장 낮습니다.
-              {weakestLecture.passRate < 50 && ` 합격률도 ${weakestLecture.passRate}%입니다.`}
+          )}
+          {rankInsight.worstExam && rankInsight.worstExam.exam_id !== rankInsight.bestExam?.exam_id && (
+            <div>
+              <span className={styles.worstLabel}>보완 필요</span>{" "}
+              {rankInsight.worstExam.title} — {rankInsight.worstExam.rank}등/{rankInsight.worstExam.cohort_size}명
             </div>
-          </div>
-      )}
-
-      {/* 과제 현황 통계 */}
-      {hwStats && (
-        <div>
-          <div className={styles.sectionTitle}>과제 현황</div>
-          <StatGrid>
-            <StatCard label="채점 완료" value={`${hwStats.graded}/${hwStats.total}건`} />
-            <StatCard label="평균 득점률" value={hwStats.avgPct != null ? `${hwStats.avgPct}%` : "-"} />
-            <StatCard label="합격률" value={`${hwStats.passRate}%`} accent={hwStats.passRate >= 70 ? "success" : hwStats.passRate > 0 ? "danger" : undefined} />
-          </StatGrid>
-
-          {hwStats.total > 0 && (
-            <svg
-              className={styles.homeworkBar}
-              viewBox="0 0 100 8"
-              preserveAspectRatio="none"
-              aria-hidden="true"
-            >
-              <rect width="100" height="8" fill="var(--stu-surface-soft)" rx="4" />
-              <rect className={styles.homeworkFill} width={homeworkPassPct} height="8" fill="var(--stu-success)" rx="4" />
-              <rect className={styles.homeworkFill} x={homeworkPassPct} width={homeworkFailPct} height="8" fill="var(--stu-danger)" rx="4" />
-            </svg>
           )}
         </div>
-      )}
+      </section>
+    ) : null,
+    weakest_lecture: weakestLecture ? (
+      <section className={styles.weaknessCard} aria-label="약점 강좌">
+        <div className={styles.sectionTitle}>약점 강좌</div>
+        <div className={styles.weaknessText}>
+          <span className={styles.weaknessEmphasis}>{weakestLecture.name}</span> 강좌의
+          평균 득점률이 <strong className={styles.weaknessEmphasis}>{weakestLecture.avg}%</strong>로 가장 낮습니다.
+          {weakestLecture.passRate < 50 && ` 합격률도 ${weakestLecture.passRate}%입니다.`}
+        </div>
+      </section>
+    ) : null,
+    homework_summary: hwStats ? (
+      <section aria-label="과제 현황">
+        <div className={styles.sectionTitle}>과제 현황</div>
+        <StatGrid>
+          <StatCard label="채점 완료" value={`${hwStats.graded}/${hwStats.total}건`} />
+          <StatCard label="평균 득점률" value={hwStats.avgPct != null ? `${hwStats.avgPct}%` : "-"} />
+          <StatCard label="합격률" value={`${hwStats.passRate}%`} accent={hwStats.passRate >= 70 ? "success" : hwStats.passRate > 0 ? "danger" : undefined} />
+        </StatGrid>
+        {hwStats.total > 0 && (
+          <svg className={styles.homeworkBar} viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
+            <rect width="100" height="8" fill="var(--stu-surface-soft)" rx="4" />
+            <rect className={styles.homeworkFill} width={homeworkPassPct} height="8" fill="var(--stu-success)" rx="4" />
+            <rect className={styles.homeworkFill} x={homeworkPassPct} width={homeworkFailPct} height="8" fill="var(--stu-danger)" rx="4" />
+          </svg>
+        )}
+      </section>
+    ) : null,
+  };
+
+  return (
+    <div className={styles.stack}>
+      {reportLayout.sections
+        .filter((section) => section.visible)
+        .map((section) => <Fragment key={section.id}>{sections[section.id]}</Fragment>)}
     </div>
   );
 }
 
-function AnalyticsOverview({
-  analytics,
-  loading,
-  error,
-}: {
-  analytics?: MyGradesAnalytics;
-  loading?: boolean;
-  error?: boolean;
-}) {
-  if (loading) {
-    return (
-      <div className={styles.analyticsPanel}>
-        <div className={styles.analyticsHeader}>
-          <span>성적 비교</span>
-          <span className={styles.analyticsMeta}>전체 평균과 비교</span>
-        </div>
-        <div className={styles.analyticsSkeletonGrid}>
-          <div />
-          <div />
-          <div />
-        </div>
+function AnalyticsLoading() {
+  return (
+    <div className={styles.analyticsPanel} role="status">
+      <div className={styles.analyticsHeader}>
+        <span>성적 분석</span>
+        <span className={styles.analyticsMeta}>불러오는 중</span>
       </div>
-    );
-  }
-  if (error || !analytics) {
-    return error ? (
-      <div className={styles.analyticsNotice}>비교 분석을 불러오지 못했습니다. 누적 성적은 위 그래프에서 계속 확인할 수 있습니다.</div>
-    ) : null;
-  }
+      <div className={styles.analyticsSkeletonGrid}><div /><div /><div /></div>
+    </div>
+  );
+}
 
+function ScoreComparisonSection({ analytics }: { analytics: MyGradesAnalytics }) {
   const summary = analytics.summary;
   const trendData = analytics.trends
     .filter((row) => row.score_pct != null)
@@ -248,7 +268,6 @@ function AnalyticsOverview({
       전체평균: row.cohort_avg_pct != null ? Math.round(row.cohort_avg_pct) : undefined,
     }));
   const risk = riskLabel(summary.risk_level);
-  const highlight = analytics.highlights?.weakest_exam ?? analytics.highlights?.latest_exam;
 
   return (
     <section className={styles.analyticsPanel} aria-label="성적 비교">
@@ -291,47 +310,56 @@ function AnalyticsOverview({
         </div>
       )}
 
-      <div className={styles.analyticsSplit}>
-        {analytics.lecture_breakdown.length > 0 && (
-          <div className={styles.analyticsList}>
-            <span className={styles.metricLabel}>강좌별 평균</span>
-            {analytics.lecture_breakdown.slice(0, 4).map((row) => (
-              <div key={row.lecture_title} className={styles.barRow}>
-                <span>{row.lecture_title}</span>
-                <svg className={styles.barTrack} viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
-                  <rect className={styles.barTrackBg} width="100" height="8" rx="4" />
-                  <rect className={styles.barTrackFill} width={Math.max(0, Math.min(100, row.avg_score_pct ?? 0))} height="8" rx="4" />
-                </svg>
-                <strong>{formatPct(row.avg_score_pct)}</strong>
-              </div>
+    </section>
+  );
+}
+
+function LectureAverageSection({ analytics }: { analytics: MyGradesAnalytics }) {
+  if (analytics.lecture_breakdown.length === 0) return null;
+  return (
+    <section className={styles.analyticsPanel} aria-label="강좌별 평균">
+      <div className={styles.analyticsHeader}>
+        <span>강좌별 평균</span>
+        <span className={styles.analyticsMeta}>강좌별 득점률</span>
+      </div>
+      <div className={styles.analyticsList}>
+        {analytics.lecture_breakdown.slice(0, 4).map((row) => (
+          <div key={row.lecture_title} className={styles.barRow}>
+            <span>{row.lecture_title}</span>
+            <svg className={styles.barTrack} viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
+              <rect className={styles.barTrackBg} width="100" height="8" rx="4" />
+              <rect className={styles.barTrackFill} width={Math.max(0, Math.min(100, row.avg_score_pct ?? 0))} height="8" rx="4" />
+            </svg>
+            <strong>{formatPct(row.avg_score_pct)}</strong>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ImprovementPrioritySection({ analytics }: { analytics: MyGradesAnalytics }) {
+  const highlight = analytics.highlights?.weakest_exam ?? analytics.highlights?.latest_exam;
+  if (!highlight && analytics.weak_questions.length === 0 && analytics.insights.length === 0) return null;
+  return (
+    <section className={styles.analyticsPanel} aria-label="보완 우선순위">
+      <div className={styles.analyticsHeader}>
+        <span>보완 우선순위</span>
+        <span className={styles.analyticsMeta}>최근 결과 기준</span>
+      </div>
+      <div className={styles.analyticsList}>
+        {highlight && <div className={styles.priorityLine}>{highlight.title} · {formatPct(highlight.score_pct)}</div>}
+        {analytics.weak_questions.length > 0 && (
+          <div className={styles.questionChips}>
+            {analytics.weak_questions.slice(0, 6).map((row) => (
+              <span key={row.question_number}>{row.question_number}번 · {row.wrong_count}회</span>
             ))}
           </div>
         )}
-
-        {(analytics.weak_questions.length > 0 || highlight) && (
-          <div className={styles.analyticsList}>
-            <span className={styles.metricLabel}>보완 우선순위</span>
-            {highlight && (
-              <div className={styles.priorityLine}>
-                {highlight.title} · {formatPct(highlight.score_pct)}
-              </div>
-            )}
-            {analytics.weak_questions.length > 0 && (
-              <div className={styles.questionChips}>
-                {analytics.weak_questions.slice(0, 6).map((row) => (
-                  <span key={row.question_number}>{row.question_number}번 · {row.wrong_count}회</span>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
       </div>
-
       {analytics.insights.length > 0 && (
         <div className={styles.insights}>
-          {analytics.insights.slice(0, 3).map((text) => (
-            <span key={text}>{text}</span>
-          ))}
+          {analytics.insights.slice(0, 3).map((text) => <span key={text}>{text}</span>)}
         </div>
       )}
     </section>

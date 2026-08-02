@@ -10,6 +10,7 @@ import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { Plus, Trash2 } from "@teacher/shared/ui/Icons";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { teacherSharedQueryKeys } from "@teacher/shared/api/queryKeys";
+import StudentGradeReportLayoutEditor from "@/shared/ui/assessment/StudentGradeReportLayoutEditor";
 import {
   fetchTenantInfo,
   updateTenantInfo,
@@ -211,6 +212,9 @@ export default function OrganizationSettingsPage() {
           >
             {saveMut.isPending ? "저장 중…" : "저장"}
           </button>
+
+          <SectionTitle>학생 성적표</SectionTitle>
+          <StudentGradeReportLayoutEditor />
         </>
       )}
     </div>
