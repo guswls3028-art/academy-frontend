@@ -18,7 +18,8 @@ function localJwt(): string {
 async function installApi(page: Page) {
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
-    const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
+    const requestUrl = new URL(request.url());
+    const path = requestUrl.pathname.replace(/^\/api\/v1/, "");
     const json = (body: unknown, status = 200) =>
       route.fulfill({
         status,
@@ -142,6 +143,25 @@ async function installApi(page: Page) {
         created_at: "2026-08-02T00:00:00Z",
       }]);
     }
+    if (
+      path === "/clinic/participants/" &&
+      requestUrl.searchParams.get("student") === "1001"
+    ) {
+      return json({
+        count: 1,
+        results: [{
+          id: 7001,
+          session: 9001,
+          student: 1001,
+          student_name: "테스트학생",
+          session_date: "2026-08-01",
+          session_start_time: "09:00:00",
+          session_location: "지하 1층",
+          status: "booked",
+          clinic_reason: "exam",
+        }],
+      });
+    }
     if (path === "/staffs/currently-working/") {
       return json([]);
     }
@@ -201,6 +221,47 @@ test("출결 상태 액션은 유지하고 학생 행은 학생 상세를 연다
   await overlay.getByRole("button", { name: "닫기" }).click();
   await expect(page).toHaveURL(/\/workspace\/lectures\/441\/sessions\/428\/attendance$/);
   await expect(studentLink).toBeVisible();
+});
+
+test("학생 상세의 클리닉 이력은 해당 날짜와 세션의 출석 화면을 연다", async ({ page }) => {
+  await installTenantOneInitScript(page);
+  await page.addInitScript((jwt) => {
+    localStorage.setItem("access", jwt);
+    localStorage.setItem("refresh", `${jwt}-refresh`);
+  }, localJwt());
+  await installApi(page);
+
+  await page.goto(`${BASE}/workspace/students/1001`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+
+  const overlay = page.getByTestId("student-detail-overlay");
+  await expect(overlay).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const clinicTab = overlay.getByRole("tab", { name: "클리닉" });
+  await clinicTab.click();
+  await expect(clinicTab).toHaveAttribute("aria-selected", "true");
+
+  const clinicLink = overlay.getByRole("button", {
+    name: "테스트학생 클리닉 출석·진행 열기",
+  });
+  await expect(clinicLink).toContainText("출석·진행 열기");
+  await expect(clinicLink).toBeVisible();
+  if (process.env.CAPTURE_STUDENT_DETAIL === "1") {
+    await page.screenshot({
+      path: "../_artifacts/student-detail-clinic-link-mobile.png",
+      fullPage: true,
+    });
+  }
+
+  await clinicLink.press("Enter");
+
+  await expect(page).toHaveURL(
+    /\/workspace\/clinic\/operations\?date=2026-08-01&session=9001$/,
+  );
+  await expect(overlay).toHaveCount(0);
 });
 
 test("클리닉 대상자 선택 중 학생 상세를 열고 선택 화면으로 돌아온다", async ({ page }) => {
