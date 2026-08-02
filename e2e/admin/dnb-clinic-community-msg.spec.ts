@@ -68,11 +68,7 @@ test.describe("DNB 클리닉/커뮤니티/메시징 검증", () => {
     await visitAndAssertNo5xx(page, "/workspace/clinic/reports", "dnb-clinic-reports");
   });
 
-  test("5. 클리닉 설정 렌더링", async ({ page }) => {
-    await visitAndAssertNo5xx(page, "/workspace/clinic/settings", "dnb-clinic-settings");
-  });
-
-  test("6. 클리닉 메시지 설정 렌더링", async ({ page }) => {
+  test("5. 클리닉 메시지 설정 렌더링", async ({ page }) => {
     await visitAndAssertNo5xx(page, "/workspace/clinic/msg-settings", "dnb-clinic-msg-settings");
   });
 

@@ -235,7 +235,6 @@ test.describe.serial("데이터 연결 전수 검증", () => {
       ["/student/grades", "성적"],
       ["/student/submit", "제출"],
       ["/student/clinic", "클리닉"],
-      ["/student/idcard", "인증패스"],
       ["/student/community", "커뮤니티"],
       ["/student/inventory", "보관함"],
       ["/student/profile", "프로필"],

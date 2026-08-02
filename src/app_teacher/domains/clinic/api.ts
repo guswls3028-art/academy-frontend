@@ -102,27 +102,6 @@ export async function createClinicParticipant(payload: {
   return res.data;
 }
 
-/* ─── Settings ─── */
-export type ClinicColorTuple = [string, string, string];
-
-export type ClinicSettingsPayload = {
-  auto_approve_booking?: boolean;
-  use_daily_random?: boolean;
-  colors?: ClinicColorTuple;
-};
-
-export type ClinicSettings = ClinicSettingsPayload & Record<string, unknown>;
-
-export async function fetchClinicSettings(): Promise<ClinicSettings> {
-  const res = await api.get<ClinicSettings>("/clinic/settings/");
-  return res.data;
-}
-
-export async function updateClinicSettings(payload: ClinicSettingsPayload): Promise<ClinicSettings> {
-  const res = await api.patch<ClinicSettings>("/clinic/settings/", payload);
-  return res.data;
-}
-
 /* ─── Targets ─── */
 export async function fetchClinicTargets(params?: { section_id?: number }) {
   const res = await api.get("/clinic/targets/", { params });

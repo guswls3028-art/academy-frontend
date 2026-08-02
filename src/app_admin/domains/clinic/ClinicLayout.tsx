@@ -8,11 +8,10 @@ import { useSectionMode } from "@/shared/hooks/useSectionMode";
 
 const CLINIC_TABS = [
   { key: "home", label: "오늘", path: "/workspace/clinic/home" },
-  { key: "schedule", label: "예약 일정", path: "/workspace/clinic/schedule" },
-  { key: "operations", label: "당일 진행", path: "/workspace/clinic/operations" },
-  { key: "bookings", label: "미통과 관리", path: "/workspace/clinic/bookings" },
-  { key: "settings", label: "패스카드", path: "/workspace/clinic/settings" },
-  { key: "msg-settings", label: "메시지", path: "/workspace/clinic/msg-settings" },
+  { key: "schedule", label: "일정·배정", path: "/workspace/clinic/schedule" },
+  { key: "operations", label: "출석·진행", path: "/workspace/clinic/operations" },
+  { key: "bookings", label: "미통과", path: "/workspace/clinic/bookings" },
+  { key: "msg-settings", label: "알림 설정", path: "/workspace/clinic/msg-settings" },
 ];
 
 const DESCRIPTIONS: Record<string, string> = {

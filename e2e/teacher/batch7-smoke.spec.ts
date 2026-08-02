@@ -60,10 +60,6 @@ test.describe("Batch 7 신규 라우트 스모크", () => {
     await gotoAndAssertNoError(page, "/workspace/mobile/clinic/reports", /클리닉 보고서/);
   });
 
-  test("클리닉 리모컨 렌더링 (2초 폴링)", async ({ page }) => {
-    await gotoAndAssertNoError(page, "/workspace/mobile/clinic/remote", /클리닉 리모컨/);
-  });
-
   test("결제/구독 조회 렌더링 (owner)", async ({ page }) => {
     await gotoAndAssertNoError(page, "/workspace/mobile/billing", /결제 \/ 구독|요금제|구독/);
   });

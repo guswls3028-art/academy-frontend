@@ -264,6 +264,8 @@ test("대시보드와 우상단 알림이 보강·클리닉 준비를 같은 현
   await expect(page.getByRole("heading", { name: "오늘 이후 일정" })).toBeVisible();
   await expect(page.getByText("최도윤", { exact: true })).toBeVisible();
   await expect(page.getByText("한지민", { exact: true })).toBeVisible();
+  await expect(page.getByText("클리닉 승인 대기", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "예약 확인" })).toBeVisible();
 
   await page.getByRole("button", { name: "알림" }).first().click();
   await expect(page.getByText("예정 시간 지난 등원", { exact: true })).toBeVisible();

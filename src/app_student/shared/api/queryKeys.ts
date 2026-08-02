@@ -14,7 +14,6 @@ export const studentQueryKeys = {
   inventory: (ps: string) => ["student-inventory", ps] as const,
   storageQuota: ["storage-quota"] as const,
   attendanceSummary: ["student", "attendance", "summary"] as const,
-  clinicIdcard: ["clinic-idcard"] as const,
   notices: ["student-notices"] as const,
   notice: (noticeId: number | null) => ["student-notice", noticeId] as const,
   feesInvoices: (studentId: number | null) =>

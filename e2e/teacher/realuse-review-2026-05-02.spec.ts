@@ -148,14 +148,12 @@ test.describe("선생앱 모바일 실사용 리뷰 — 2026-05-02", () => {
     expect(netFails, `net fails: ${netFails.map((n) => `${n.method} ${n.status} ${n.url}`).join("\n")}`).toHaveLength(0);
   });
 
-  test("07. 클리닉 / 보고서 / 리모컨", async ({ page }) => {
+  test("07. 클리닉 / 보고서", async ({ page }) => {
     const { errors, netFails } = attachCapture(page);
     await visit(page, "/workspace/mobile/clinic");
     await page.screenshot({ path: `${SCREEN_DIR}/07a-clinic.png`, fullPage: true });
     await visit(page, "/workspace/mobile/clinic/reports");
     await page.screenshot({ path: `${SCREEN_DIR}/07b-clinic-reports.png`, fullPage: true });
-    await visit(page, "/workspace/mobile/clinic/remote");
-    await page.screenshot({ path: `${SCREEN_DIR}/07c-clinic-remote.png`, fullPage: true });
     expect(errors, `console: ${errors.join("\n")}`).toHaveLength(0);
     expect(netFails, `net fails: ${netFails.map((n) => `${n.method} ${n.status} ${n.url}`).join("\n")}`).toHaveLength(0);
   });

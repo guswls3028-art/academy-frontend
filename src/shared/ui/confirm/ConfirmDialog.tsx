@@ -1,5 +1,5 @@
 // PATH: src/shared/ui/confirm/ConfirmDialog.tsx
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDraggableModal } from "@/shared/ui/modal/useDraggableModal";
 import "./confirm-dialog.css";
@@ -39,6 +39,8 @@ export default function ConfirmDialog({
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
   const confirmedRef = useRef(false);
   const [remember, setRemember] = useState(false);
+  const titleId = useId();
+  const messageId = useId();
 
   const safeConfirm = useCallback(() => {
     if (confirmedRef.current) return;
@@ -95,9 +97,16 @@ export default function ConfirmDialog({
         onMouseDown={onMouseDown}
         onTouchStart={onTouchStart}
       >
-        <div className="confirm-dialog__card" onClick={(e) => e.stopPropagation()}>
-          <h3 className="confirm-dialog__title confirm-drag-handle">{title}</h3>
-          <p className="confirm-dialog__message">{message}</p>
+        <div
+          className="confirm-dialog__card"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          aria-describedby={messageId}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h3 id={titleId} className="confirm-dialog__title confirm-drag-handle">{title}</h3>
+          <p id={messageId} className="confirm-dialog__message">{message}</p>
           {rememberKey && (
             <label className="confirm-dialog__remember">
               <input
