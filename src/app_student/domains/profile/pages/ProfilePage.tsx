@@ -15,6 +15,7 @@ import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import type { SchoolType } from "@/shared/hooks/useSchoolLevelMode";
 import { formatPhone } from "@/shared/utils/formatPhone";
+import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 
 /** 미입력 표시 JSX — italic 회색 */
 const EMPTY_PLACEHOLDER = (
@@ -88,7 +89,7 @@ export default function ProfilePage() {
       setEditGrade(profile.grade != null ? String(profile.grade) : "");
       setEditHighSchoolClass(profile.high_school_class || "");
       setEditMajor(profile.major || "");
-      setEditMemo(profile.memo || "");
+      setEditMemo(richHtmlToPlainText(profile.memo));
     }
   }, [profile]);
 
@@ -160,7 +161,7 @@ export default function ProfilePage() {
       setEditGrade(profile.grade != null ? String(profile.grade) : "");
       setEditHighSchoolClass(profile.high_school_class || "");
       setEditMajor(profile.major || "");
-      setEditMemo(profile.memo || "");
+      setEditMemo(richHtmlToPlainText(profile.memo));
       setEditing(true);
     }
   };
@@ -613,7 +614,7 @@ export default function ProfilePage() {
                   placeholder="메모 (선택)"
                 />
               ) : (
-                <div style={{ fontWeight: 600, fontSize: 16 }}>{valueOrEmpty(profile.memo)}</div>
+                <div style={{ fontWeight: 600, fontSize: 16 }}>{valueOrEmpty(profile.memo, richHtmlToPlainText)}</div>
               )}
             </div>
 

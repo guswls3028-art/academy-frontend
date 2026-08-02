@@ -273,7 +273,6 @@ test.describe.serial("가이드 기반 전체 테스트", () => {
   });
 
   test("S10 학생 인증패스", async () => {
-    await visitAndSnap(S, "/student/idcard", "S10-idcard", 2000);
   });
 
   test("S11 학생 프로필", async () => {

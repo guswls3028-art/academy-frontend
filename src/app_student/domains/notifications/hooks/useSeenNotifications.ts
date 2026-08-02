@@ -4,10 +4,8 @@
  * - 카운트 계산 시 seen ID를 제외하여 배지 숫자 갱신
  * - 30일 지난 항목은 자동 정리
  *
- * 자녀 격리: 학부모 멀티자녀 환경에서는 자녀별 X-Student-Id로 키 스코프 분리.
- * 그렇지 않으면 자녀 전환 시 in-memory cache(_seenCache)와 storage entry가 섞여
- * 다른 자녀의 seen 상태가 잠깐 노출될 수 있음 (ID 자체는 글로벌 unique지만
- * 캐시 무효화 타이밍 + UX 일관성 차원에서 분리).
+ * 사용자 격리: 학부모는 선택 자녀 ID, 학생은 본인 프로필 ID로 키 스코프 분리.
+ * 공용 기기에서 자녀 전환 또는 계정 전환 시 동일 알림 ID의 읽음 상태가 섞이지 않는다.
  */
 import { useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -21,10 +19,13 @@ const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30일
 
 type SeenEntry = { id: string; at: number };
 
-function storageKey(): string {
+function storageKey(profileId?: number | null): string {
   const tc = resolveTenantCodeString();
   const sid = getParentStudentId();
-  return sid != null ? `${STORAGE_KEY_PREFIX}:${tc}:${sid}` : `${STORAGE_KEY_PREFIX}:${tc}`;
+  const scopeId = sid ?? (typeof profileId === "number" && Number.isFinite(profileId) ? profileId : null);
+  return scopeId != null
+    ? `${STORAGE_KEY_PREFIX}:${tc}:${scopeId}`
+    : `${STORAGE_KEY_PREFIX}:${tc}:unknown`;
 }
 
 // 이전 글로벌 키(stu:seen-notifications) 정리 — 자녀별 분리 전 버전에서 사용. 1회성.
@@ -49,10 +50,10 @@ let _seenCacheKey = "";
 let _seenCacheTime = 0;
 const CACHE_TTL_MS = 500; // 500ms 캐시
 
-function loadSeen(): SeenEntry[] {
+function loadSeen(profileId?: number | null): SeenEntry[] {
   cleanupLegacyKey();
   const now = Date.now();
-  const key = storageKey();
+  const key = storageKey(profileId);
   if (_seenCache && _seenCacheKey === key && now - _seenCacheTime < CACHE_TTL_MS) return _seenCache;
   try {
     const raw = localStorage.getItem(key);
@@ -71,8 +72,8 @@ function loadSeen(): SeenEntry[] {
   }
 }
 
-function saveSeen(entries: SeenEntry[]) {
-  const key = storageKey();
+function saveSeen(entries: SeenEntry[], profileId?: number | null) {
+  const key = storageKey(profileId);
   try {
     localStorage.setItem(key, JSON.stringify(entries));
     _seenCache = entries;
@@ -84,25 +85,33 @@ function saveSeen(entries: SeenEntry[]) {
 }
 
 /** 특정 ID가 이미 seen인지 확인 */
-export function isNotificationSeen(type: string, id: number | string): boolean {
+export function isNotificationSeen(
+  type: string,
+  id: number | string,
+  profileId?: number | null,
+): boolean {
   const key = `${type}:${id}`;
-  return loadSeen().some((e) => e.id === key);
+  return loadSeen(profileId).some((e) => e.id === key);
 }
 
 /** 현재 알림 목록의 seen 필터링된 카운트 반환 */
-export function getUnseenCount(type: string, ids: (number | string)[]): number {
-  const seen = new Set(loadSeen().map((e) => e.id));
+export function getUnseenCount(
+  type: string,
+  ids: (number | string)[],
+  profileId?: number | null,
+): number {
+  const seen = new Set(loadSeen(profileId).map((e) => e.id));
   return ids.filter((notificationId) => !seen.has(`${type}:${notificationId}`)).length;
 }
 
 /** 알림 페이지에서 사용: 현재 보이는 알림들을 seen으로 마킹 + 카운트 갱신 */
-export function useMarkNotificationsSeen() {
+export function useMarkNotificationsSeen(profileId?: number | null) {
   const queryClient = useQueryClient();
 
   return useCallback(
     (items: { type: string; id: number | string }[]) => {
       if (items.length === 0) return;
-      const existing = loadSeen();
+      const existing = loadSeen(profileId);
       const existingSet = new Set(existing.map((e) => e.id));
       const now = Date.now();
       let changed = false;
@@ -117,11 +126,11 @@ export function useMarkNotificationsSeen() {
       }
 
       if (changed) {
-        saveSeen(existing);
+        saveSeen(existing, profileId);
         // 카운트 쿼리 무효화 → 배지 숫자 즉시 갱신
         queryClient.invalidateQueries({ queryKey: studentQueryKeys.notificationCounts });
       }
     },
-    [queryClient],
+    [profileId, queryClient],
   );
 }

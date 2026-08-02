@@ -41,7 +41,10 @@ function decodeHtmlEntitiesOnce(value: string): string {
 
 function decodeHtmlEntities(value: string): string {
   let decoded = value;
-  for (let i = 0; i < 2; i += 1) {
+  // Legacy editor/import paths can encode the same fragment more than twice.
+  // Keep the loop bounded, but normalize deeply enough that HTML detection and
+  // sanitization always receive the same fully decoded value.
+  for (let i = 0; i < 5; i += 1) {
     const next = decodeHtmlEntitiesOnce(decoded);
     if (next === decoded) break;
     decoded = next;

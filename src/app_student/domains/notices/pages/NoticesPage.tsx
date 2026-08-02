@@ -9,7 +9,7 @@ import { fetchNotices, type PostEntity } from "../api/notices.api";
 import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
-import { richHtmlToPreviewText } from "@/shared/utils/richHtml";
+import { richHtmlToPlainText, richHtmlToPreviewText } from "@/shared/utils/richHtml";
 
 type NoticeTab = "all" | "lecture" | "session";
 
@@ -132,7 +132,7 @@ export default function NoticesPage() {
                       {notice.is_pinned && !notice.is_urgent && (
                         <span className="student-notice-card__badge student-notice-card__badge--pinned">고정</span>
                       )}
-                      <span className="student-notice-card__title">{notice.title}</span>
+                      <span className="student-notice-card__title">{richHtmlToPlainText(notice.title)}</span>
                     </div>
                     {notice.content && (() => {
                       const preview = richHtmlToPreviewText(notice.content, 80);

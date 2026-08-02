@@ -22,7 +22,7 @@ type AdminModalProps = {
   width?: number | string;
   /** 모달 위에 또 다른 모달을 띄울 때 상위 모달에 더 높은 값 지정 (기본 1000) */
   zIndex?: number;
-  /** 추가 클래스명 (예: 클리닉 패스카드 모달 반응형) */
+  /** 추가 클래스명 (화면별 반응형 조정용) */
   className?: string;
   /** Enter 키로 긍정 버튼(등록/적용/확인) 실행. textarea 포커스 시에는 동작하지 않음 */
   onEnterConfirm?: () => void;

@@ -9,7 +9,6 @@ const ClinicHomePage = lazy(() => import("./pages/HomePage/ClinicHomePage"));
 const ClinicSchedulePage = lazy(() => import("./pages/SchedulePage/ClinicSchedulePage"));
 const ClinicOperationsConsolePage = lazy(() => import("./pages/OperationsConsolePage/ClinicOperationsConsolePage"));
 const ClinicReportsPage = lazy(() => import("./pages/ReportsPage/ClinicReportsPage"));
-const ClinicSettingsPage = lazy(() => import("./pages/SettingsPage/ClinicSettingsPage"));
 const ClinicMsgSettingsPage = lazy(() => import("./pages/MsgSettingsPage/ClinicMsgSettingsPage"));
 
 export default function ClinicRoutes() {
@@ -22,7 +21,7 @@ export default function ClinicRoutes() {
         <Route path="operations" element={renderLazyRoute(ClinicOperationsConsolePage)} />
         <Route path="bookings" element={renderLazyRoute(ClinicBookingsPage)} />
         <Route path="reports" element={renderLazyRoute(ClinicReportsPage)} />
-        <Route path="settings" element={renderLazyRoute(ClinicSettingsPage)} />
+        <Route path="settings" element={<Navigate to="/workspace/clinic/home" replace />} />
         <Route path="msg-settings" element={renderLazyRoute(ClinicMsgSettingsPage)} />
       </Route>
     </Routes>

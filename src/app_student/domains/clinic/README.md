@@ -1,43 +1,57 @@
 # 학생 앱 클리닉
 
-학생이 자신의 미통과 항목을 확인하고, 맞는 클리닉 세션을 예약하며,
-승인 상태와 일정을 확인하는 도메인입니다.
+학생이 자신의 미통과 항목을 확인하고, 열린 클리닉 날짜와 수업을 예약하며,
+승인 상태와 예정 일정을 확인하는 도메인입니다.
 
 ## 사용자 흐름
 
-1. `GET /clinic/idcard/`에서 활성 수강 전체의 `current_targets`를 조회합니다.
-2. 예약 화면은 미통과 강의·차시·사유를 먼저 보여줍니다.
-3. `GET /clinic/sessions/`의 `target_lecture_names`와 대상 강의를 비교해
-   맞는 세션에 **내 보강 일정**을 표시합니다. 대상 강의를 제한하지 않은
-   공용 세션도 추천할 수 있습니다.
-4. 학생이 `POST /clinic/participants/`로 신청하면 학원 설정에 따라
-   `pending` 또는 `booked`가 됩니다.
-5. `pending` 예약은 학생이 취소하거나 다른 세션으로 변경할 수 있습니다.
-   `booked` 예약의 변경·취소는 관리자에게 요청합니다.
+1. `/student/clinic`의 **예약하기**에서 보강이 필요한 강의·차시·사유를
+   먼저 확인합니다.
+2. 향후 60일의 실제 개설 세션만 날짜표와 함께 시간순으로 표시합니다.
+   월간 달력의 빈 날짜는 보여주지 않습니다.
+3. 대상 강의와 맞는 세션은 **내 보강과 맞음**으로 안내하되, 최종 예약
+   가능 여부와 수강 연결은 백엔드가 결정합니다.
+4. 학생이 세션을 고르고 신청하면 학원 설정에 따라 `pending` 또는
+   `booked`가 됩니다.
+5. **내 일정**에서 `pending` 예약은 다른 날짜·시간으로 원자적으로
+   변경하거나 취소할 수 있습니다. `booked` 변경·취소는 학원에 요청합니다.
 
-## 수강 연결 규칙
+## 상태와 API 소유권
 
-- `enrollment_id`와 `student_id`는 같은 ID가 아니며 섞어 보내지 않습니다.
-- 학생에게 활성 수강이 여러 개 있으면 백엔드가 세션의 대상 강의와
-  미해결 `ClinicLink`를 함께 확인해 예약 소유 수강을 정합니다.
-- 특정 강의 대상 세션과 맞는 활성 수강이 없으면 다른 최신 수강으로
-  임의 연결하지 않고 예약을 거절합니다.
+- 대상 요약은 호환 읽기 API `GET /clinic/idcard/`의 `current_targets`와
+  `current_result`만 소비합니다. 패스카드 색상·시계·이력 UI는 제거되었습니다.
+- 예약 가능 세션: `GET /clinic/sessions/`
+- 내 예약: `GET /clinic/participants/`
+- 신청: `POST /clinic/participants/`
+- 일정 변경: `POST /clinic/participants/{id}/change-booking/`
+- 취소: `PATCH /clinic/participants/{id}/set_status/`
+- 예약·출석은 일정 상태이며 `ClinicLink`를 해소하지 않습니다. 시험·과제
+  통과 또는 관리자 수동 처리만 미통과 대상을 해소합니다.
+- 학생·학부모 요청은 현재 선택된 학생과 테넌트로 실패 폐쇄됩니다.
 
-## 상태의 단일 진실
+## 패스카드 제거 호환 경계
 
-- 예약 상태: `pending → booked → attended/no_show`, 또는
-  `pending → cancelled/rejected`.
-- 예약과 출석은 일정·출결 상태이며 `ClinicLink`를 해소하지 않습니다.
-- 시험 통과, 과제 통과, 관리자 수동 통과/면제만 미통과 대상을 해소합니다.
-- 예약 변경은 새 예약 생성과 기존 예약 취소를 하나의 백엔드 트랜잭션으로
-  처리해 실패 시 기존 예약을 보존합니다.
+- 사용되지 않던 학생 패스카드, 관리자 색상 설정, 교사용 리모컨 화면과
+  메뉴를 제거했습니다.
+- 구 링크 `/student/idcard`, `/workspace/clinic/settings`,
+  `/workspace/mobile/clinic/remote`는 각각 현재 클리닉 홈으로 리다이렉트합니다.
+- 백엔드의 기존 색상 필드와 읽기 엔드포인트는 구버전 클라이언트 호환과
+  무중단 전환을 위해 그대로 보존하며, 현재 프론트에서는 쓰거나 변경하지
+  않습니다. 기존 예약·출석·미통과 데이터는 변경되지 않습니다.
 
-## 주요 화면과 계약
+## 화면 상태와 반응형
 
-- 학생 예약: `/student/clinic`
-- 클리닉 인증 패스: `/student/clinic-idcard`
-- 통합 업무 예약 일정: `/workspace/clinic/schedule`
-- 통합 업무 승인·미통과 관리: `/workspace/clinic/bookings`
-- 통합 업무 당일 운영: `/workspace/clinic/operations`
+- 로딩은 예약·세션 스켈레톤으로, 전체 조회 실패는 재시도 화면으로,
+  대상 요약만 실패한 경우는 해당 카드 안에서 재시도합니다.
+- 세션이 없으면 일정 개설 후 표시된다는 빈 상태를 제공합니다.
+- 390px 모바일에서 날짜표·시간·장소·상태·행동 버튼이 가로로 넘치지 않아야
+  하며, 키보드 포커스와 `prefers-reduced-motion`을 지원합니다.
 
-학생 이름은 공통 `StudentNameWithLectureChip` 규칙을 따릅니다.
+## 검증
+
+- 학생 화면·날짜 가시성·다른 날짜 변경·제거 경로 리다이렉트:
+  `e2e/student/clinic-booking-ux.mock.spec.ts`
+- 권한·다중 수강 연결·원자적 변경:
+  `backend/apps/domains/clinic/tests.py::StudentClinicPermissionAPITest`
+- 대상 생성부터 예약·출석·재시험 해소:
+  `e2e/student/clinic-remediation-realuse.spec.ts`

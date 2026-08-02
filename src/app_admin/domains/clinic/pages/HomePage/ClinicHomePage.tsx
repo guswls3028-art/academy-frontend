@@ -233,11 +233,11 @@ export default function ClinicHomePage() {
     bulkApproveMutation.mutate(pendingList.map((p) => p.id));
   };
 
-  const todayLabel = dayjs(today).format("YYYY-MM-DD (dd)");
+  const todayLabel = dayjs(today).format("M월 D일 dddd");
 
   return (
     <div className="clinic-page clinic-home clinic-home--workspace">
-      {/* ── 1) 액션바: 승인 대기 + 불참 + 자동승인 — 할 일이 없으면 완전 숨김 ── */}
+      {/* ── 1) 액션바: 승인 대기 + 불참 — 할 일이 없으면 완전 숨김 ── */}
       {hasActionableItems && (
         <div className="clinic-home__action-bar">
           <div className="clinic-home__action-bar-left">
@@ -271,39 +271,6 @@ export default function ClinicHomePage() {
             )}
           </div>
 
-          <div className="clinic-home__action-bar-right">
-            <label className="clinic-home__auto-approve-compact">
-              <input
-                type="checkbox"
-                checked={autoApproved}
-                onChange={(e) => updateAutoApprovedM.mutate(e.target.checked)}
-                disabled={updateAutoApprovedM.isPending}
-                className="clinic-home__auto-approve-checkbox-sm"
-              />
-              <span className="clinic-home__auto-approve-text-sm">자동 승인</span>
-            </label>
-            {settingsQ.isError && (
-              <span className="clinic-home__body-text clinic-home__body-text--error">
-                설정 불러오기 실패
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 자동 승인 토글 — 액션바 없을 때만 독립 표시 */}
-      {!hasActionableItems && !settingsQ.isLoading && (
-        <div className="clinic-home__auto-approve-standalone">
-          <label className="clinic-home__auto-approve-compact">
-            <input
-              type="checkbox"
-              checked={autoApproved}
-              onChange={(e) => updateAutoApprovedM.mutate(e.target.checked)}
-              disabled={updateAutoApprovedM.isPending}
-              className="clinic-home__auto-approve-checkbox-sm"
-            />
-            <span className="clinic-home__auto-approve-text-sm">자동 승인</span>
-          </label>
         </div>
       )}
 
@@ -311,9 +278,33 @@ export default function ClinicHomePage() {
       <div className="clinic-home__section">
         <div className="clinic-home__header">
           <div>
-            <h2 className="clinic-home__title">오늘 클리닉 일정</h2>
-            <p className="clinic-home__meta">{todayLabel}</p>
+            <h2 className="clinic-home__title">오늘 클리닉</h2>
+            <p className="clinic-home__meta">
+              {todayLabel} · 일정 {sessions.length}개
+            </p>
           </div>
+          {!settingsQ.isLoading && (
+            <div className="clinic-home__booking-policy">
+              <label className="clinic-home__auto-approve-compact">
+                <input
+                  type="checkbox"
+                  checked={autoApproved}
+                  onChange={(e) => updateAutoApprovedM.mutate(e.target.checked)}
+                  disabled={updateAutoApprovedM.isPending}
+                  className="clinic-home__auto-approve-checkbox-sm"
+                />
+                <span className="clinic-home__booking-policy-copy">
+                  <strong>예약 자동 승인</strong>
+                  <small>학생 신청을 바로 확정</small>
+                </span>
+              </label>
+              {settingsQ.isError && (
+                <span className="clinic-home__body-text clinic-home__body-text--error">
+                  설정 불러오기 실패
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="clinic-home__body">
@@ -339,7 +330,7 @@ export default function ClinicHomePage() {
                 onClick={() => nav("/workspace/clinic/schedule")}
               >
                 <CalendarPlus size={15} aria-hidden />
-                예약 일정에서 만들기
+                오늘 일정 만들기
               </button>
             </div>
           )}

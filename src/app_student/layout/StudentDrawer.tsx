@@ -11,7 +11,6 @@ import {
   IconBell,
   IconBoard,
   IconCalendar,
-  IconCheck,
   IconClinic,
   IconClipboard,
   IconExam,
@@ -57,7 +56,6 @@ const NAV: NavGroup[] = [
     category: "클리닉",
     items: [
       { label: "클리닉", to: "/student/clinic", Icon: IconClinic },
-      { label: "클리닉 인증 패스", to: "/student/idcard", Icon: IconCheck },
     ],
   },
   {

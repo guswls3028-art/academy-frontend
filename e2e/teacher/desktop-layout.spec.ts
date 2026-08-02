@@ -11,7 +11,6 @@ const TEACHER_DESKTOP_ROUTES = [
   "/workspace/mobile/students",
   "/workspace/mobile/classes",
   "/workspace/mobile/clinic",
-  "/workspace/mobile/clinic/remote",
   "/workspace/mobile/clinic/reports",
   "/workspace/mobile/exams",
   "/workspace/mobile/exams/templates",
@@ -47,13 +46,6 @@ const CONTEXTUAL_HELP_CHECKS = [
     dialogTitle: "시험 묶음 안내",
     hiddenText: "여러 시험·과제 템플릿을 한 번에 묶어 차시에 일괄 적용할 때 사용합니다.",
     contentText: "차시에 일괄 적용할 때 사용합니다.",
-  },
-  {
-    route: "/workspace/mobile/clinic/remote",
-    ariaLabel: "클리닉 리모컨 도움말",
-    dialogTitle: "클리닉 리모컨 안내",
-    hiddenText: "학생 클리닉 패스카드에 표시되는 3색 배경을 실시간으로 변경합니다.",
-    contentText: "학생 화면은 2초마다 자동으로 갱신됩니다.",
   },
 ];
 
