@@ -36,21 +36,27 @@ import {
 } from "../utils/worksheetDocument";
 import {
   addProblemStudioVoiceSample,
+  createProblemStudioExplanationRun,
   createProblemStudioHangulHandoff,
   createProblemStudioJob,
   createProblemStudioTransferJob,
   createProblemStudioVoiceProfile,
   deleteProblemStudioFont,
   getProblemStudioHangulCompanionDownload,
+  getProblemStudioBetaAccess,
   getProblemStudioDocumentStyle,
+  getProblemStudioExplanationRun,
   getProblemStudioFonts,
   getProblemStudioJob,
   getProblemStudioTransferJob,
   getProblemStudioVoiceProfiles,
   reviewProblemStudioGeneration,
+  resumeProblemStudioExplanationRun,
   saveProblemStudioDocumentStyle,
   uploadProblemStudioFont,
   type ProblemStudioDocumentStyle,
+  type ProblemStudioBetaAccess,
+  type ProblemStudioExplanationRunStatus,
   type ProblemStudioFontCatalog,
   type ProblemStudioGeneratedQuestion,
   type ProblemStudioGeneratePayload,
@@ -77,6 +83,7 @@ type SourceFileEntry = HangulSourceFile & {
 };
 
 const DRAFT_KEY = "problem-studio:worksheet-draft:v1";
+const EXPLANATION_RUN_KEY = "problem-studio:explanation-run:v1";
 const SOURCE_ACCEPT = ".pdf,.hwp,.hwpx,.doc,.docx,.zip,.png,.jpg,.jpeg,.webp,.bmp";
 const MAX_SOURCE_FILES = 40;
 const MAX_SOURCE_FILE_BYTES = 120 * 1024 * 1024;
@@ -87,7 +94,8 @@ const DEFAULT_ANSWER = "①";
 const DEFAULT_EXPLANATION = "해설을 입력하면 해설지 PDF에만 표시됩니다.";
 const JOB_POLL_INTERVAL_MS = 1500;
 const JOB_TIMEOUT_MS = 900_000;
-const TRANSFER_JOB_TIMEOUT_MS = 1_800_000;
+const TRANSFER_JOB_TIMEOUT_MS = 3_660_000;
+const EXPLANATION_RUN_TIMEOUT_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_DOCUMENT_STYLE: ProblemStudioDocumentStyle = {
   title_font: "builtin:hamchorom-dotum",
   body_font: "builtin:hamchorom-batang",
@@ -337,6 +345,27 @@ async function waitForProblemStudioTransferJob(
   throw new Error("원본 이관 작업이 오래 걸리고 있습니다. 잠시 뒤 다시 확인해 주세요.");
 }
 
+async function waitForProblemStudioExplanationRun(
+  runId: string,
+  onProgress: (status: ProblemStudioExplanationRunStatus) => void,
+  shouldContinue: () => boolean = () => true,
+): Promise<ProblemStudioExplanationRunStatus> {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < EXPLANATION_RUN_TIMEOUT_MS && shouldContinue()) {
+    const status = await getProblemStudioExplanationRun(runId);
+    onProgress(status);
+    if (status.status === "DONE") {
+      if (status.result?.download_url) return status;
+      throw new Error("정답·해설 PDF 다운로드 링크를 불러오지 못했습니다.");
+    }
+    if (status.status === "FAILED") {
+      throw new Error(status.error_message || "정답·해설 PDF 작업을 완료하지 못했습니다.");
+    }
+    await sleep(2_500);
+  }
+  throw new Error("정답·해설 생성은 계속 진행 중입니다. 이 화면을 다시 열면 이어서 확인합니다.");
+}
+
 export default function ProblemStudioPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const fontInputRef = useRef<HTMLInputElement | null>(null);
@@ -381,6 +410,9 @@ export default function ProblemStudioPage() {
   const [generationQuestionIndexById, setGenerationQuestionIndexById] = useState<Record<string, number>>({});
   const [reviewedQuestionIndexes, setReviewedQuestionIndexes] = useState<Set<number>>(() => new Set());
   const [reviewingQuestionIndex, setReviewingQuestionIndex] = useState<number | null>(null);
+  const [betaAccess, setBetaAccess] = useState<ProblemStudioBetaAccess | null>(null);
+  const [explanationRun, setExplanationRun] = useState<ProblemStudioExplanationRunStatus | null>(null);
+  const [explanationRunning, setExplanationRunning] = useState(false);
 
   useEffect(() => {
     try {
@@ -395,15 +427,17 @@ export default function ProblemStudioPage() {
     const loadTypography = async () => {
       setStyleLoading(true);
       try {
-        const [fonts, preference, profiles] = await Promise.all([
+        const [fonts, preference, profiles, beta] = await Promise.all([
           getProblemStudioFonts(),
           getProblemStudioDocumentStyle(),
           getProblemStudioVoiceProfiles(),
+          getProblemStudioBetaAccess().catch(() => null),
         ]);
         if (!active) return;
         setFontCatalog(fonts);
         setDocumentStyle(normalizeDocumentStyle(preference));
         setVoiceProfiles(profiles);
+        if (beta) setBetaAccess(beta);
         setSelectedVoiceProfileId(
           profiles.find((profile) => profile.is_default)?.id || profiles[0]?.id || "",
         );
@@ -416,6 +450,46 @@ export default function ProblemStudioPage() {
       }
     };
     void loadTypography();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const runId = localStorage.getItem(EXPLANATION_RUN_KEY);
+    if (!runId) return undefined;
+    let active = true;
+    const restoreRun = async () => {
+      try {
+        const current = await getProblemStudioExplanationRun(runId);
+        if (!active) return;
+        setExplanationRun(current);
+        setBetaAccess(current.beta_access);
+        if (!["PENDING", "RUNNING"].includes(current.status)) return;
+        setExplanationRunning(true);
+        await waitForProblemStudioExplanationRun(
+          runId,
+          (next) => {
+            if (!active) return;
+            setExplanationRun(next);
+            setBetaAccess(next.beta_access);
+          },
+          () => active,
+        );
+      } catch (error) {
+        if (!active) return;
+        const message = error instanceof Error ? error.message : "정답·해설 작업 상태를 불러오지 못했습니다.";
+        if (message.includes("찾을 수 없습니다")) {
+          localStorage.removeItem(EXPLANATION_RUN_KEY);
+          setExplanationRun(null);
+        } else if (!message.includes("계속 진행 중")) {
+          feedback.warning(message);
+        }
+      } finally {
+        if (active) setExplanationRunning(false);
+      }
+    };
+    void restoreRun();
     return () => {
       active = false;
     };
@@ -764,6 +838,88 @@ export default function ProblemStudioPage() {
     feedback.success(`${parsed.length}개 문항을 추가했습니다.`);
   };
 
+  const monitorExplanationRun = async (runId: string) => {
+    const completed = await waitForProblemStudioExplanationRun(runId, (status) => {
+      setExplanationRun(status);
+      setBetaAccess(status.beta_access);
+    });
+    setExplanationRun(completed);
+    setBetaAccess(completed.beta_access);
+    return completed;
+  };
+
+  const handleExplanationRun = async () => {
+    if (sourceFileBlobs.length !== 1 || !isPdfFile(sourceFileBlobs[0])) {
+      feedback.warning("정답·해설 PDF Beta는 PDF 한 파일만 선택해 주세요.");
+      return;
+    }
+    if (!externalAiConfirmed) {
+      feedback.warning("글로벌 AI 처리 안내를 확인해 주세요.");
+      return;
+    }
+    if (betaAccess?.can_start === false) {
+      feedback.warning("테넌트 무료 체험 3회를 모두 사용했습니다.");
+      return;
+    }
+    setExplanationRunning(true);
+    try {
+      const started = await createProblemStudioExplanationRun(
+        { subject: draft.subject, note_policy: notePolicy },
+        sourceFileBlobs[0],
+      );
+      localStorage.setItem(EXPLANATION_RUN_KEY, started.run_id);
+      setExplanationRun(started);
+      setBetaAccess(started.beta_access);
+      const completed = await monitorExplanationRun(started.run_id);
+      feedback.success(
+        `정답·해설 PDF가 준비됐습니다. ${completed.result?.review_required_count || 0}개 표시 문항을 먼저 검수하세요.`,
+      );
+    } catch (error) {
+      try {
+        setBetaAccess(await getProblemStudioBetaAccess());
+      } catch {
+        // 작업 오류 안내를 우선한다.
+      }
+      feedback.error(error instanceof Error ? error.message : "정답·해설 PDF를 만들 수 없습니다.");
+    } finally {
+      setExplanationRunning(false);
+    }
+  };
+
+  const handleExplanationResume = async () => {
+    if (!explanationRun?.run_id) return;
+    setExplanationRunning(true);
+    try {
+      const resumed = await resumeProblemStudioExplanationRun(explanationRun.run_id);
+      setExplanationRun(resumed);
+      setBetaAccess(resumed.beta_access);
+      const completed = await monitorExplanationRun(resumed.run_id);
+      feedback.success(
+        `정답·해설 PDF가 준비됐습니다. ${completed.result?.review_required_count || 0}개 표시 문항을 먼저 검수하세요.`,
+      );
+    } catch (error) {
+      feedback.error(error instanceof Error ? error.message : "정답·해설 작업을 재개할 수 없습니다.");
+    } finally {
+      setExplanationRunning(false);
+    }
+  };
+
+  const handleExplanationDownload = async () => {
+    if (!explanationRun?.run_id) return;
+    try {
+      const refreshed = await getProblemStudioExplanationRun(explanationRun.run_id);
+      setExplanationRun(refreshed);
+      setBetaAccess(refreshed.beta_access);
+      if (refreshed.status !== "DONE" || !refreshed.result?.download_url) {
+        throw new Error("정답·해설 PDF 다운로드 링크를 새로 만들지 못했습니다.");
+      }
+      downloadPresignedUrl(refreshed.result.download_url, refreshed.result.filename);
+      feedback.success("정답·해설 PDF를 저장했습니다.");
+    } catch (error) {
+      feedback.error(error instanceof Error ? error.message : "정답·해설 PDF를 내려받지 못했습니다.");
+    }
+  };
+
   const handleTransferOriginal = async () => {
     if (sourceFileBlobs.length === 0) {
       feedback.warning("AI가 타이핑할 원본 파일을 먼저 올려 주세요.");
@@ -787,7 +943,7 @@ export default function ProblemStudioPage() {
         use_ai: true,
         transfer_only: true,
         ai_transcription: true,
-        auto_explanations: true,
+        auto_explanations: false,
         learn_source_explanation_style: learnSourceTone,
         source_style_rights_confirmed: learnSourceTone,
         document_style: documentStyle,
@@ -797,6 +953,7 @@ export default function ProblemStudioPage() {
       };
       setGenerationNote("원본을 안전하게 업로드하는 중");
       const job = await createProblemStudioTransferJob(payload, sourceFileBlobs);
+      if (job.beta_access) setBetaAccess(job.beta_access);
       const pendingSourceFiles = job.source_files.length > 0
         ? toSourceEntries(job.source_files)
         : sourceFiles;
@@ -805,6 +962,7 @@ export default function ProblemStudioPage() {
       setGenerationNote(`AI 타이핑 대기 · ${job.job_id.slice(0, 8)}`);
 
       const result = await waitForProblemStudioTransferJob(job.job_id, (jobStatus) => {
+        if (jobStatus.beta_access) setBetaAccess(jobStatus.beta_access);
         setGenerationNote(`AI 타이핑 중 · ${job.job_id.slice(0, 8)} · ${problemStudioTransferStatusLabel(jobStatus)}`);
       });
       setTransferResult(result);
@@ -813,20 +971,22 @@ export default function ProblemStudioPage() {
         (result.fallback_ocr_units || 0) > 0 ? `${result.fallback_ocr_units}쪽은 AI 대신 로컬 OCR로 처리했습니다.` : "",
         result.warning_count > 0 ? `변환 경고 ${result.warning_count}건은 ZIP 안의 검수표에서 확인하세요.` : "",
         result.ocr_candidate_count > 0 ? `수식·표·도형 등 남은 검수 후보 ${result.ocr_candidate_count}건이 있습니다.` : "",
-        result.structured_item_count > 0 && (result.generated_explanation_count || 0) === 0
-          ? "자동 해설을 만들지 못해 해설 검수본에서 직접 작성해야 합니다."
-          : "",
-        result.structure_limit_reached ? "구조화 한도 80개를 넘어 나머지는 원본 보존 문서에서 확인해야 합니다." : "",
+        result.structure_limit_reached ? "Beta 구조화 한도 1,000개를 넘어 나머지는 원본 보존 문서에서 확인해야 합니다." : "",
         result.reconstruction_quality && result.reconstruction_quality.gate !== "benchmark_candidate"
           ? "표·박스·그림의 자동 재배치가 완성 기준에 못 미쳐 원본충실 대조본과 함께 확인해야 합니다."
           : "",
       ].filter(Boolean);
       setGenerationWarnings(transferWarnings);
       setGenerationNote(
-        `검수본 준비 완료 · AI 타이핑 ${result.ai_transcribed_units || 0}쪽 · 자동 해설 ${result.generated_explanation_count || 0}개 · ${result.detected_layout?.column_count || 1}단`,
+        `편집본 준비 완료 · AI 타이핑 ${result.ai_transcribed_units || 0}쪽 · ${result.detected_layout?.column_count || 1}단`,
       );
-      feedback.success("원문 문제지와 선생님 문체 해설지가 준비됐습니다.");
+      feedback.success("편집용 문제지와 원본 대조본이 준비됐습니다.");
     } catch (error) {
+      try {
+        setBetaAccess(await getProblemStudioBetaAccess());
+      } catch {
+        // 작업 오류 안내를 우선하며, 잔여 횟수 재조회 실패는 다음 화면 진입에서 복구한다.
+      }
       feedback.error(error instanceof Error ? error.message : "AI 타이핑을 완료할 수 없습니다.");
     } finally {
       setTransferring(false);
@@ -1027,22 +1187,43 @@ export default function ProblemStudioPage() {
     }
   };
 
+  const explanationProgress = explanationRun?.progress;
+  const explanationStatusText = explanationRun?.status === "DONE"
+    ? `완료 · ${explanationRun.result?.question_count || 0}문항 · 검수 표시 ${explanationRun.result?.review_required_count || 0}개`
+    : explanationRun?.status === "FAILED"
+      ? `중단됨 · ${explanationRun.error_message || "재개할 수 있습니다."}`
+      : explanationProgress
+        ? `${explanationProgress.step_name_display} · ${explanationProgress.percent}%`
+        : "PDF 한 권을 올리면 원본 뒤에 정답·해설 부록을 붙입니다.";
+
   return (
     <div className={styles.page}>
       <section className={styles.builderHero} aria-labelledby="worksheet-builder-title">
         <div className={styles.builderHeroText}>
-          <Badge tone="primary" size="md">AI 문제집 재작성</Badge>
-          <h2 id="worksheet-builder-title" className={styles.title}>스캔만 올리면, 문제지와 내 문체 해설지까지</h2>
+          <div className={styles.heroBadges}>
+            <Badge tone="primary" size="md">AI 문제집 정답·해설</Badge>
+            <Badge tone="warning" size="md">Beta</Badge>
+          </div>
+          <h2 id="worksheet-builder-title" className={styles.title}>문제집 한 권을, 검수 가능한 정답·해설 PDF로</h2>
           <p className={styles.lead}>
-            문제·선지는 원문 그대로 전사하고 정답·해설만 자동 작성합니다. 편집 가능한 HWPX와 표·박스·그림·상대 배치를 픽셀 그대로 보존한 원본충실 HWPX를 함께 제공합니다.
+            원본 페이지는 건드리지 않고 뒤에 정답·해설 부록을 붙입니다. 빈 정답은 두 번 풀어 비교하고,
+            불일치 문항은 PDF에 검수 필요로 표시합니다. 편집용 HWPX는 별도로 만들 수 있습니다.
           </p>
+          <div className={styles.betaTrial} role="status">
+            <strong>
+              {betaAccess
+                ? `테넌트 무료 체험 ${betaAccess.remaining_runs}/${betaAccess.free_run_limit}회 남음`
+                : "테넌트 무료 체험 3회"}
+            </strong>
+            <span>완료된 문제집 단위로 차감되며, AI 정답·해설은 선생님 검수가 필요합니다.</span>
+          </div>
         </div>
-        <div className={styles.processRail} aria-label="AI 시험지 타이핑 3단계">
-          <span><b>1</b> 원본 업로드</span>
+        <div className={styles.processRail} aria-label="정답·해설 PDF 3단계">
+          <span><b>1</b> 문항 분석</span>
           <ArrowRight aria-hidden size={16} />
-          <span><b>2</b> 전사·해설</span>
+          <span><b>2</b> 해설·검산</span>
           <ArrowRight aria-hidden size={16} />
-          <span><b>3</b> 한글 검수</span>
+          <span><b>3</b> PDF 검수</span>
         </div>
       </section>
 
@@ -1825,16 +2006,92 @@ export default function ProblemStudioPage() {
           <section className={styles.panel} aria-labelledby="output-title">
             <div className={styles.panelHeader}>
               <div>
-                <h3 id="output-title">3. 문제지·해설지·원본충실 HWPX</h3>
-                <p>AI 작업이 끝나면 편집본과 원본 시각 대조본을 나란히 검수합니다.</p>
+                <h3 id="output-title">3. 결과 만들기</h3>
+                <p>정답·해설 PDF를 먼저 검수하고, 필요한 경우 편집용 HWPX를 만듭니다.</p>
               </div>
+            </div>
+            <div
+              className={styles.explanationRunCard}
+              data-state={explanationRun?.status?.toLowerCase() || "empty"}
+              aria-live="polite"
+            >
+              <div className={styles.explanationRunHeading}>
+                <div>
+                  <Badge tone="warning" size="sm">Beta</Badge>
+                  <strong>정답·해설 PDF</strong>
+                </div>
+                {explanationProgress && <b>{explanationProgress.percent}%</b>}
+              </div>
+              <p>{explanationStatusText}</p>
+              {explanationProgress && (
+                <progress
+                  className={styles.explanationProgress}
+                  aria-label={explanationProgress.step_name_display}
+                  max={100}
+                  value={explanationProgress.percent}
+                />
+              )}
+              {explanationProgress && explanationProgress.total_questions > 0 && (
+                <div className={styles.explanationCounts}>
+                  <span>해설 {explanationProgress.completed_questions}/{explanationProgress.total_questions}</span>
+                  <span>독립 검산 {explanationProgress.verified_questions}</span>
+                  <span data-attention={explanationProgress.review_required_questions > 0 ? "true" : "false"}>
+                    검수 표시 {explanationProgress.review_required_questions}
+                  </span>
+                </div>
+              )}
+              <div className={styles.explanationActions}>
+                <Button
+                  type="button"
+                  intent="primary"
+                  size="md"
+                  loading={explanationRunning}
+                  disabled={
+                    explanationRunning
+                    || sourceFileBlobs.length !== 1
+                    || !sourceFileBlobs[0]
+                    || !isPdfFile(sourceFileBlobs[0])
+                    || !externalAiConfirmed
+                    || betaAccess?.can_start === false
+                  }
+                  leftIcon={<Sparkles size={ICON_FOR_BUTTON.md} />}
+                  onClick={handleExplanationRun}
+                >
+                  {betaAccess?.can_start === false
+                    ? "Beta 무료 체험 소진"
+                    : "정답·해설 PDF 만들기"}
+                </Button>
+                {explanationRun?.can_resume && (
+                  <Button
+                    type="button"
+                    intent="secondary"
+                    size="md"
+                    loading={explanationRunning}
+                    onClick={handleExplanationResume}
+                  >
+                    중단 지점에서 다시 시작
+                  </Button>
+                )}
+                {explanationRun?.status === "DONE" && explanationRun.result && (
+                  <Button
+                    type="button"
+                    intent="secondary"
+                    size="md"
+                    leftIcon={<Download size={ICON_FOR_BUTTON.md} />}
+                    onClick={handleExplanationDownload}
+                  >
+                    정답·해설 PDF 내려받기
+                  </Button>
+                )}
+              </div>
+              <small>화면을 닫아도 작업은 계속됩니다. 다시 열면 마지막 배치부터 상태를 확인합니다.</small>
             </div>
             <div className={styles.reviewBundle}>
               <FileCheck2 size={ICON.sm} />
               <span>
                 {transferResult
-                  ? `준비 완료 · 전사 ${transferResult.ai_transcribed_units || 0}쪽 · 해설 ${transferResult.generated_explanation_count || 0}개 · 원본 보존 ${transferResult.reconstruction_quality?.source_page_preserved_count || 0}쪽`
-                  : "편집 문제지 · 선생님 문체 해설지 · 원본충실 레이아웃 대조본 포함"}
+                  ? `편집본 준비 완료 · 전사 ${transferResult.ai_transcribed_units || 0}쪽 · 원본 보존 ${transferResult.reconstruction_quality?.source_page_preserved_count || 0}쪽`
+                  : "편집 문제지 HWPX · 원본충실 레이아웃 대조본"}
               </span>
             </div>
             <div className={styles.outputButtons}>
@@ -1843,11 +2100,14 @@ export default function ProblemStudioPage() {
                 intent="primary"
                 size="md"
                 loading={transferring}
-                disabled={sourceFileBlobs.length === 0 || !externalAiConfirmed}
+                disabled={
+                  sourceFileBlobs.length === 0
+                  || !externalAiConfirmed
+                }
                 leftIcon={<Sparkles size={ICON_FOR_BUTTON.md} />}
                 onClick={handleTransferOriginal}
               >
-                문제지·해설지 만들기
+                편집용 문제지 HWPX 만들기
               </Button>
               <div className={styles.companionSetup}>
                 <Button
@@ -1874,7 +2134,7 @@ export default function ProblemStudioPage() {
                     leftIcon={<Download size={ICON_FOR_BUTTON.md} />}
                     onClick={handlePreparedDownload}
                   >
-                    문제지·해설지 ZIP 내려받기
+                    편집용 HWPX ZIP 내려받기
                   </Button>
                   <Button
                     type="button"
