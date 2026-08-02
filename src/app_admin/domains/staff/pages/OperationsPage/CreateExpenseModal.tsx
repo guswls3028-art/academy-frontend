@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useWorkMonth } from "../../operations/context/workMonthHooks";
 import { useExpenses } from "../../hooks/useExpenses";
+import type { ExpenseRecord } from "../../api/expenses.api";
 
 import {
   AdminModal,
@@ -16,13 +17,15 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 export default function CreateExpenseModal({
   open,
   onClose,
+  initial,
 }: {
   open: boolean;
   onClose: () => void;
+  initial?: ExpenseRecord | null;
 }) {
   const { staffId, range, writeBlocked } = useWorkMonth();
 
-  const { createM } = useExpenses({
+  const { createM, patchM } = useExpenses({
     staff: staffId,
     date_from: range.from,
     date_to: range.to,
@@ -38,13 +41,13 @@ export default function CreateExpenseModal({
   useEffect(() => {
     if (open) {
       setForm({
-        date: range.from,
-        title: "",
-        amount: "",
-        memo: "",
+        date: initial?.date ?? range.from,
+        title: initial?.title ?? "",
+        amount: initial ? String(initial.amount) : "",
+        memo: initial?.memo ?? "",
       });
     }
-  }, [open, range.from]);
+  }, [initial, open, range.from]);
 
   if (writeBlocked) return null;
 
@@ -60,32 +63,55 @@ export default function CreateExpenseModal({
       feedback.warning("현재 선택한 월 안의 날짜를 선택해 주세요.");
       return;
     }
-    if (!createM.isPending) {
+    const payload = {
+      date: form.date,
+      title: form.title.trim(),
+      amount: parsedAmount,
+      memo: form.memo.trim(),
+    };
+    if (initial) {
+      if (patchM.isPending) return;
+      patchM.mutate(
+        { id: initial.id, payload },
+        { onSuccess: onClose },
+      );
+    } else if (!createM.isPending) {
       createM.mutate(
         {
           staff: staffId,
-          date: form.date,
-          title: form.title,
-          amount: parsedAmount,
-          memo: form.memo,
+          ...payload,
         },
         { onSuccess: onClose }
       );
     }
   };
 
+  const isPending = createM.isPending || patchM.isPending;
+  const isEdit = Boolean(initial);
+
   return (
-    <AdminModal open={open} onClose={onClose} type="action" onEnterConfirm={handleSubmit}>
+    <AdminModal
+      open={open}
+      onClose={onClose}
+      type="action"
+      closeDisabled={isPending}
+      onEnterConfirm={!isPending && canSubmit ? handleSubmit : undefined}
+    >
       <ModalHeader
-        title="선결제 환급 추가"
-        description="직원이 개인 비용으로 먼저 결제한 환급 항목을 추가합니다."
+        title={isEdit ? "선결제 환급 수정" : "선결제 환급 추가"}
+        description={
+          isEdit
+            ? "승인 전 환급의 날짜·항목·금액·메모를 정정합니다."
+            : "직원이 개인 비용으로 먼저 결제한 환급 항목을 추가합니다."
+        }
         type="action"
       />
 
       <ModalBody>
         <div className="grid gap-3">
-          <Field label="날짜">
+          <Field id="staff-expense-date" label="날짜">
             <DatePicker
+              id="staff-expense-date"
               value={form.date}
               onChange={(v) =>
                 setForm((p) => ({ ...p, date: v }))
@@ -93,8 +119,9 @@ export default function CreateExpenseModal({
             />
           </Field>
 
-          <Field label="항목 *">
+          <Field id="staff-expense-title" label="항목 *">
             <input
+              id="staff-expense-title"
               className="ds-input"
               value={form.title}
               onChange={(e) =>
@@ -103,8 +130,9 @@ export default function CreateExpenseModal({
             />
           </Field>
 
-          <Field label="금액(원) *">
+          <Field id="staff-expense-amount" label="금액(원) *">
             <input
+              id="staff-expense-amount"
               type="number"
               className="ds-input"
               value={form.amount}
@@ -117,8 +145,9 @@ export default function CreateExpenseModal({
             />
           </Field>
 
-          <Field label="메모">
+          <Field id="staff-expense-memo" label="메모">
             <textarea
+              id="staff-expense-memo"
               className="ds-input"
               rows={3}
               value={form.memo}
@@ -133,13 +162,14 @@ export default function CreateExpenseModal({
       <ModalFooter
         right={
           <>
-            <ActionButton action="close" onClick={onClose} />
+            <ActionButton action="close" onClick={onClose} disabled={isPending} />
             <ActionButton
-              action="create"
-              loading={createM.isPending}
+              action={isEdit ? "save" : "create"}
+              loading={isPending}
+              disabled={!canSubmit}
               onClick={handleSubmit}
             >
-              추가
+              {isEdit ? "저장" : "추가"}
             </ActionButton>
           </>
         }
@@ -148,12 +178,12 @@ export default function CreateExpenseModal({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
   return (
     <div className="grid gap-1">
-      <div className="text-xs font-semibold text-[var(--text-muted)]">
+      <label htmlFor={id} className="text-xs font-semibold text-[var(--text-muted)]">
         {label}
-      </div>
+      </label>
       {children}
     </div>
   );

@@ -59,10 +59,12 @@ export default function ExpenseTable({
   rows,
   onEdit,
   onDelete,
+  deletingId,
 }: {
   rows: Expense[];
   onEdit: (r: Expense) => void;
   onDelete: (r: Expense) => void;
+  deletingId?: number | null;
 }) {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [sort, setSort] = useState("");
@@ -197,6 +199,8 @@ export default function ExpenseTable({
                   iconOnly
                   onClick={() => onEdit(r)}
                   title="수정"
+                  aria-label={`${r.title} 지출 수정`}
+                  disabled={deletingId === r.id}
                 >
                   <FiEdit2 size={14} />
                 </Button>
@@ -207,6 +211,8 @@ export default function ExpenseTable({
                   iconOnly
                   onClick={() => onDelete(r)}
                   title="삭제"
+                  aria-label={`${r.title} 지출 삭제`}
+                  disabled={deletingId === r.id}
                 >
                   <FiTrash2 size={14} />
                 </Button>

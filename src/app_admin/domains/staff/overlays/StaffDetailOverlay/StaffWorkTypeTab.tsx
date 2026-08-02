@@ -13,6 +13,7 @@ import type { StaffWorkType } from "../../api/staffWorkType.api";
 import { isLightColor, contrastTextColor } from "@/shared/ui/domain/constants";
 import { staffQueryKeys } from "../../queryKeys";
 import styles from "./StaffWorkTypeTab.module.css";
+import { useConfirm } from "@/shared/ui/confirm";
 
 function WageBadge({
   st,
@@ -62,6 +63,7 @@ function WageBadge({
 
 export default function StaffWorkTypeTab({ staffId }: { staffId: number }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
 
   const staffTypesQ = useQuery({
     queryKey: staffQueryKeys.staffWorkTypes(staffId),
@@ -119,9 +121,15 @@ export default function StaffWorkTypeTab({ staffId }: { staffId: number }) {
             key={st.id}
             st={st}
             onRemove={() => {
-              if (!confirm(`"${st.work_type.name}" 근무유형을 제거할까요?`))
-                return;
-              deleteM.mutate(st.id);
+              void (async () => {
+                const ok = await confirm({
+                  title: "근무유형 제거",
+                  message: `"${st.work_type.name}" 근무유형을 제거하시겠습니까?`,
+                  confirmText: "제거",
+                  danger: true,
+                });
+                if (ok) deleteM.mutate(st.id);
+              })();
             }}
             isRemoving={deleteM.isPending}
           />

@@ -43,7 +43,20 @@ export default function ProfileExpensePage() {
         </Section>
 
         <Section>
-          {!domain.isLoading && domain.rows.length === 0 && (
+          {domain.isError ? (
+            <EmptyState
+              tone="error"
+              title="지출 내역을 불러올 수 없습니다"
+              description="연결 상태를 확인한 뒤 다시 시도해 주세요."
+              actions={
+                <Button intent="secondary" size="sm" onClick={() => void domain.refetch()}>
+                  다시 시도
+                </Button>
+              }
+            />
+          ) : domain.isLoading ? (
+            <EmptyState tone="loading" title="지출 내역을 불러오는 중…" />
+          ) : domain.rows.length === 0 ? (
             <EmptyState
               title="지출 내역 없음"
               description="선택한 기간에 지출이 없습니다."
@@ -58,13 +71,12 @@ export default function ProfileExpensePage() {
                 </Button>
               }
             />
-          )}
-
-          {domain.rows.length > 0 && (
+          ) : (
             <ExpenseTable
               rows={domain.rows}
               onEdit={domain.openEdit}
               onDelete={domain.remove}
+              deletingId={domain.deletingId}
             />
           )}
         </Section>

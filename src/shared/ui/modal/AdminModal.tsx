@@ -7,6 +7,7 @@ import { BRAND_AND_LIGHT_THEMES, MODAL_DEFAULT_WIDTH } from "./constants";
 import { useModalKeyboard } from "./useModalKeyboard";
 import { useDraggableModal } from "./useDraggableModal";
 import { useModalWindow } from "./ModalWindowContext";
+import ModalHeader, { type ModalHeaderProps } from "./ModalHeader";
 
 export type AdminModalType = "action" | "confirm" | "inspect";
 
@@ -28,8 +29,36 @@ type AdminModalProps = {
   onEnterConfirm?: () => void;
   /** 우측 상단 최소화 버튼(━) 숨김 — 단발성 모달(발송/확인 등)에서 사용 */
   noMinimize?: boolean;
+  /** 저장·처리 중 Escape, 배경, 닫기 버튼으로 이탈하지 못하게 함 */
+  closeDisabled?: boolean;
   children: React.ReactNode;
 };
+
+function findModalTitle(children: React.ReactNode): React.ReactNode | undefined {
+  let title: React.ReactNode | undefined;
+  React.Children.forEach(children, (child) => {
+    if (title !== undefined || !React.isValidElement(child)) return;
+    if (child.type === ModalHeader) {
+      title = (child.props as ModalHeaderProps).title;
+      return;
+    }
+    if (child.type === React.Fragment) {
+      title = findModalTitle((child.props as { children?: React.ReactNode }).children);
+    }
+  });
+  return title;
+}
+
+function getAccessibleText(node: React.ReactNode): string {
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (!React.isValidElement(node)) return "";
+  return React.Children.toArray(
+    (node.props as { children?: React.ReactNode }).children,
+  )
+    .map(getAccessibleText)
+    .join("")
+    .trim();
+}
 
 export default function AdminModal({
   open,
@@ -40,6 +69,7 @@ export default function AdminModal({
   className,
   onEnterConfirm,
   noMinimize = false,
+  closeDisabled = false,
   children,
 }: AdminModalProps) {
   const isConfirm = type === "confirm";
@@ -48,6 +78,11 @@ export default function AdminModal({
   const ctx = useModalWindow();
   const [minimized, setMinimized] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const accessibleTitle = findModalTitle(children);
+  const accessibleTitleText = getAccessibleText(accessibleTitle) || "대화상자";
+  const requestClose = () => {
+    if (!closeDisabled) onClose();
+  };
 
   const {
     offset,
@@ -72,6 +107,7 @@ export default function AdminModal({
           type,
           onRestore: () => setMinimized(false),
           onClose: () => {
+            if (closeDisabled) return;
             setMinimized(false);
             onClose();
           },
@@ -96,13 +132,24 @@ export default function AdminModal({
   }, [ctx, modalId]);
 
   const actuallyOpen = open && !minimized;
-  useModalKeyboard(actuallyOpen, onClose, onEnterConfirm);
+  useModalKeyboard(actuallyOpen, requestClose, onEnterConfirm);
 
   const hasOffset = offset.x !== 0 || offset.y !== 0;
   const baseClass = className
     ? `admin-modal admin-modal--${type} ${className}`
     : `admin-modal admin-modal--${type}`;
   const modalStyles: NonNullable<ModalProps["styles"]> = {
+    header: {
+      position: "absolute",
+      width: 1,
+      height: 1,
+      padding: 0,
+      margin: -1,
+      overflow: "hidden",
+      clip: "rect(0, 0, 0, 0)",
+      whiteSpace: "nowrap",
+      border: 0,
+    },
     body: {
       padding: 0,
       overflow: "hidden",
@@ -119,14 +166,19 @@ export default function AdminModal({
     <>
       <Modal
         open={actuallyOpen}
-        onCancel={onClose}
+        onCancel={requestClose}
         footer={null}
+        title={<span aria-label={accessibleTitleText} />}
         width={width}
         centered
         destroyOnHidden
         zIndex={zIndex}
-        mask={{ closable: !isConfirm }}
-        closable={!isConfirm}
+        mask={{ closable: !isConfirm && !closeDisabled }}
+        closable={
+          !isConfirm && !closeDisabled
+            ? { "aria-label": "대화상자 종료" }
+            : false
+        }
         keyboard={false}
         styles={modalStyles}
         className={baseClass}
@@ -158,7 +210,7 @@ export default function AdminModal({
           }
         >
           {/* 최소화 버튼 — confirm 타입 + noMinimize prop 제외 */}
-          {!isConfirm && ctx && !noMinimize && (
+          {!isConfirm && ctx && !noMinimize && !closeDisabled && (
             <button
               type="button"
               className="modal-minimize-btn"

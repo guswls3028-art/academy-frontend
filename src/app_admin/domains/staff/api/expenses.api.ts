@@ -69,10 +69,19 @@ export async function createExpense(payload: {
 export async function patchExpense(
   id: number,
   payload: Partial<{
+    staff: number;
+    date: string;
+    title: string;
+    amount: number;
     status: ExpenseStatus;
     memo: string;
   }>
 ) {
   const res = await api.patch(`/staffs/expense-records/${id}/`, payload);
   return res.data as ExpenseRecord;
+}
+
+/** 대기 중인 선결제 환급만 삭제할 수 있다. */
+export async function deleteExpense(id: number) {
+  await api.delete(`/staffs/expense-records/${id}/`);
 }

@@ -4,6 +4,7 @@ import {
   fetchExpenses,
   patchExpense,
   createExpense,
+  deleteExpense,
   ExpenseStatus,
 } from "../api/expenses.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -52,9 +53,23 @@ export function useExpenses(params: UseExpensesParams) {
       payload: Parameters<typeof patchExpense>[1];
     }) =>
       patchExpense(id, payload),
-    onSuccess: () => { invalidate(); feedback.success("비용이 처리되었습니다."); },
+    onSuccess: (_data, variables) => {
+      invalidate();
+      if (variables.payload.status === "APPROVED") feedback.success("선결제 환급을 승인했습니다.");
+      else if (variables.payload.status === "REJECTED") feedback.success("선결제 환급을 반려했습니다.");
+      else feedback.success("선결제 환급을 수정했습니다.");
+    },
     onError: (e: unknown) => feedback.error(extractApiError(e, "비용 처리에 실패했습니다.")),
   });
 
-  return { listQ, createM, patchM };
+  const deleteM = useMutation({
+    mutationFn: deleteExpense,
+    onSuccess: () => {
+      invalidate();
+      feedback.success("대기 중인 선결제 환급을 삭제했습니다.");
+    },
+    onError: (e: unknown) => feedback.error(extractApiError(e, "선결제 환급 삭제에 실패했습니다.")),
+  });
+
+  return { listQ, createM, patchM, deleteM };
 }

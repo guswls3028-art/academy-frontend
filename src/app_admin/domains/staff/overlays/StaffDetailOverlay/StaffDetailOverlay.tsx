@@ -155,14 +155,6 @@ export default function StaffDetailOverlay({
     navigate(-1);
   }, [closeOverride, location.key, navigate]);
 
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
-
   const { y, m, from, to } = getThisMonthRange();
 
   const staffQ = useQuery({
@@ -525,16 +517,68 @@ function StaffDetailShell({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const focusableSelector =
+      "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex='-1'])";
+    const focusCloseButton = window.requestAnimationFrame(() => {
+      panelRef.current?.querySelector<HTMLElement>("button[aria-label='닫기']")?.focus();
+    });
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const focusable = Array.from(
+        panelRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ?? [],
+      ).filter((element) => element.getClientRects().length > 0);
+      if (focusable.length === 0) {
+        event.preventDefault();
+        panelRef.current?.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusCloseButton);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus();
+    };
+  }, [onClose]);
+
   return (
     <>
       <div className="ds-overlay-backdrop" onClick={onClose} aria-hidden />
       <div className="ds-overlay-wrap">
         <div
+          ref={panelRef}
           className="ds-overlay-panel ds-overlay-panel--staff-detail"
           role="dialog"
           aria-modal="true"
           aria-label="직원 상세"
           data-testid="staff-detail-overlay"
+          tabIndex={-1}
           onClick={(event) => event.stopPropagation()}
         >
           <CloseButton className="ds-overlay-panel__close" onClick={onClose} />

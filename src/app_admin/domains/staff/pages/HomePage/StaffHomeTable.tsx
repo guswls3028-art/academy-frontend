@@ -425,9 +425,18 @@ export function StaffHomeTable({
           {sortedDataSource.map((r) => (
             <tr
               key={r.id}
-              onClick={() => onDetail(r.id)}
+              onClick={(event) => {
+                event.currentTarget.focus();
+                onDetail(r.id);
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                onDetail(r.id);
+              }}
               tabIndex={0}
               role="button"
+              aria-label={`${r.name} 직원 상세 열기`}
               className={`group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40 ${selectedSet.has(r.id) ? "ds-row-selected" : ""}`}
             >
               {/* eslint-disable-next-line no-restricted-syntax -- 체크박스 컬럼 폭을 colgroup과 맞춘다. */}

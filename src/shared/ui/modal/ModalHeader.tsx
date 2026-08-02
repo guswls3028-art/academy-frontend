@@ -2,7 +2,7 @@
 import { AlertTriangle, Plus, Search } from "lucide-react";
 import React from "react";
 
-type ModalHeaderProps = {
+export type ModalHeaderProps = {
   title: React.ReactNode;
   description?: React.ReactNode;
   /** description alias — 일부 caller 가 subtitle 명칭을 더 자연스럽게 사용 (예: ExamHeaderQuickEdit) */
@@ -51,9 +51,9 @@ export default function ModalHeader({
         )}
 
         <div className="modal-header__copy">
-          <div className="modal-header__title">
+          <h2 className="modal-header__title">
             {title}
-          </div>
+          </h2>
 
           {resolvedDescription && (
             <div className="modal-header__description">

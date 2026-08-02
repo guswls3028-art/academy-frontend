@@ -56,7 +56,7 @@ export default function StaffPasswordModal({ open, onClose, staffList }: Props) 
   const names = staffList.map((s) => s.name).join(", ");
 
   return (
-    <AdminModal open onClose={onClose} type="action" onEnterConfirm={!busy ? handleSubmit : undefined}>
+    <AdminModal open onClose={onClose} type="action" closeDisabled={busy} onEnterConfirm={!busy ? handleSubmit : undefined}>
       <ModalHeader
         type="action"
         title="임시 비밀번호 설정"
@@ -65,8 +65,9 @@ export default function StaffPasswordModal({ open, onClose, staffList }: Props) 
       <ModalBody>
         <div className={styles.form}>
           <div className={styles.field}>
-            <div className={styles.label}>새 비밀번호 *</div>
+            <label htmlFor="staff-password" className={styles.label}>새 비밀번호 *</label>
             <input
+              id="staff-password"
               type="password"
               className="ds-input"
               value={password}
@@ -74,6 +75,7 @@ export default function StaffPasswordModal({ open, onClose, staffList }: Props) 
               placeholder="4자 이상 입력"
               autoFocus
               disabled={busy}
+              autoComplete="new-password"
             />
           </div>
           <div className={styles.notice}>
