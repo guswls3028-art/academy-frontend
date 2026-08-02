@@ -16,8 +16,42 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
   await installLocalAuthApiStubs(page);
   await installTenantOneInitScript(page);
   await page.addInitScript((token) => {
-    localStorage.setItem("access", token);
-    localStorage.setItem("refresh", `${token}-refresh`);
+    try {
+      localStorage.setItem("access", token);
+      localStorage.setItem("refresh", `${token}-refresh`);
+      if (window.top !== window) return;
+      localStorage.setItem("problem-studio:worksheet-draft:v1:hakwonplus:u12", JSON.stringify({
+        title: "현재 계정 초안",
+        className: "중2A",
+        subject: "수학",
+        date: "2026-08-02",
+        teacher: "관리자",
+        instructions: "현재 계정에 분리 저장된 내용",
+        questions: [],
+      }));
+      localStorage.setItem("problem-studio:worksheet-draft:v1", JSON.stringify({
+        title: "이전 초안 복구 확인",
+        className: "중2A",
+        subject: "수학",
+        date: "2026-08-02",
+        teacher: "관리자",
+        instructions: "계정 확인 후 가져오기",
+        questions: [{
+          id: "legacy-q1",
+          prompt: "이전 초안 문항",
+          choices: "① 1\n② 2",
+          answer: "①",
+          explanation: "이전 초안 해설",
+          attachments: [],
+        }],
+      }));
+      localStorage.setItem(
+        "problem-studio:explanation-run:v1",
+        "44444444-4444-4444-8444-444444444444",
+      );
+    } catch {
+      // A failed navigation can briefly execute init scripts in an opaque document.
+    }
   }, localJwt());
   let voiceProfileVersion = 1;
   let reviewSaved = false;
@@ -341,6 +375,17 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
       return;
     }
     if (
+      pathname.endsWith("/tools/problem-studio/explanation-runs/44444444-4444-4444-8444-444444444444/")
+      && request.method() === "GET"
+    ) {
+      await route.fulfill({
+        status: 404,
+        contentType: "application/json",
+        json: { detail: "찾을 수 없습니다." },
+      });
+      return;
+    }
+    if (
       pathname.endsWith("/tools/problem-studio/explanation-runs/33333333-3333-4333-8333-333333333333/resume/")
       && request.method() === "POST"
     ) {
@@ -549,6 +594,23 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
 
   await page.goto(`${baseUrl}/workspace/tools/problem-studio`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "문제집 한 권을, 검수 가능한 정답·해설 PDF로" })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => ({
+    legacy: localStorage.getItem("problem-studio:explanation-run:v1"),
+    scoped: localStorage.getItem("problem-studio:explanation-run:v1:hakwonplus:u12"),
+  }))).toEqual({
+    legacy: "44444444-4444-4444-8444-444444444444",
+    scoped: null,
+  });
+  await expect(page.getByLabel("제목", { exact: true })).toHaveValue("현재 계정 초안");
+  const draftRecovery = page.getByRole("status", { name: "이전 문제지 초안 복구" });
+  await expect(draftRecovery).toContainText("계정 분리 전 초안");
+  page.once("dialog", (dialog) => dialog.accept());
+  await draftRecovery.getByRole("button", { name: "이전 초안 가져오기" }).click();
+  await expect(page.getByLabel("제목", { exact: true })).toHaveValue("이전 초안 복구 확인");
+  await expect.poll(() => page.evaluate(() => ({
+    legacy: localStorage.getItem("problem-studio:worksheet-draft:v1"),
+    scoped: localStorage.getItem("problem-studio:worksheet-draft:v1:hakwonplus:u12"),
+  }))).toEqual({ legacy: null, scoped: expect.any(String) });
   await expect(page.getByText("Beta", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("테넌트 무료 체험 3/3회 남음", { exact: true })).toBeVisible();
   await expect(page.getByText("문항 분석")).toBeVisible();
@@ -578,6 +640,19 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
   await expect(explanationButton).toBeDisabled();
   await page.getByRole("checkbox", { name: /글로벌 AI 처리 안내/ }).check();
   await expect(explanationButton).toBeEnabled();
+  await page.evaluate((blockedKey) => {
+    const originalSetItem = Storage.prototype.setItem;
+    Object.defineProperty(window, "__restoreProblemStudioStorage", {
+      configurable: true,
+      value: () => {
+        Storage.prototype.setItem = originalSetItem;
+      },
+    });
+    Storage.prototype.setItem = function setItem(key, value) {
+      if (key === blockedKey) throw new DOMException("Blocked by test policy", "SecurityError");
+      return originalSetItem.call(this, key, value);
+    };
+  }, "problem-studio:explanation-run:v1:hakwonplus:u12");
   await explanationButton.click();
   await expect(page.getByRole("button", { name: "정답·해설 PDF 내려받기" })).toBeVisible();
   await expect(page.getByText("완료 · 2문항 · 검수 표시 1개", { exact: true })).toBeVisible();
@@ -608,6 +683,17 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
   expect(reviewSaved).toBe(true);
   expect(reviewedQuestionIndex).toBe(1);
 
+  await page.evaluate(({ key, runId }) => {
+    const browserWindow = window as typeof window & {
+      __restoreProblemStudioStorage?: () => void;
+    };
+    browserWindow.__restoreProblemStudioStorage?.();
+    delete browserWindow.__restoreProblemStudioStorage;
+    localStorage.setItem(key, runId);
+  }, {
+    key: "problem-studio:explanation-run:v1:hakwonplus:u12",
+    runId: "33333333-3333-4333-8333-333333333333",
+  });
   explanationRunMode = "failed";
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.getByRole("button", { name: "중단 지점에서 다시 시작" })).toBeVisible();
@@ -642,7 +728,7 @@ test("AI 시험지 타이핑은 완료 후 명시적으로 다운로드한다", 
       },
     });
   });
-  await page.evaluate(() => localStorage.removeItem("problem-studio:explanation-run:v1"));
+  await page.evaluate(() => localStorage.removeItem("problem-studio:explanation-run:v1:hakwonplus:u12"));
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.getByText("테넌트 무료 체험 0/3회 남음", { exact: true })).toBeVisible();
   await page.locator('input[type="file"]').first().setInputFiles({

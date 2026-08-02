@@ -21,6 +21,8 @@ import { Badge, Button, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { cx } from "@/shared/utils/cx";
 import { downloadPresignedUrl } from "@/shared/utils/safeDownload";
+import useAuth from "@/auth/hooks/useAuth";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import {
   buildWorksheetPreviewHtml,
   downloadWorksheetPdf,
@@ -82,8 +84,8 @@ type SourceFileEntry = HangulSourceFile & {
   warning?: string | null;
 };
 
-const DRAFT_KEY = "problem-studio:worksheet-draft:v1";
-const EXPLANATION_RUN_KEY = "problem-studio:explanation-run:v1";
+const LEGACY_DRAFT_KEY = "problem-studio:worksheet-draft:v1";
+const LEGACY_EXPLANATION_RUN_KEY = "problem-studio:explanation-run:v1";
 const SOURCE_ACCEPT = ".pdf,.hwp,.hwpx,.doc,.docx,.zip,.png,.jpg,.jpeg,.webp,.bmp";
 const MAX_SOURCE_FILES = 40;
 const MAX_SOURCE_FILE_BYTES = 120 * 1024 * 1024;
@@ -190,13 +192,40 @@ function isDraft(value: unknown): value is WorksheetDraft {
   return typeof draft.title === "string" && Array.isArray(draft.questions);
 }
 
-function loadDraft(): WorksheetDraft {
-  if (typeof window === "undefined") return defaultDraft();
+function safeStorageGet(key: string | null): string | null {
+  if (!key || typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(DRAFT_KEY);
-    if (!raw) return defaultDraft();
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeStorageSet(key: string | null, value: string): boolean {
+  if (!key || typeof window === "undefined") return false;
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function safeStorageRemove(key: string | null): void {
+  if (!key || typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // Storage can be blocked by browser policy. Server state remains authoritative.
+  }
+}
+
+function readStoredDraft(key: string | null): WorksheetDraft | null {
+  try {
+    const raw = safeStorageGet(key);
+    if (!raw) return null;
     const parsed = JSON.parse(raw) as unknown;
-    if (!isDraft(parsed)) return defaultDraft();
+    if (!isDraft(parsed)) return null;
     return {
       ...defaultDraft(),
       ...parsed,
@@ -207,8 +236,12 @@ function loadDraft(): WorksheetDraft {
       })),
     };
   } catch {
-    return defaultDraft();
+    return null;
   }
+}
+
+function loadDraft(key: string | null): WorksheetDraft {
+  return readStoredDraft(key) ?? defaultDraft();
 }
 
 function isImageFile(file: File): boolean {
@@ -367,13 +400,26 @@ async function waitForProblemStudioExplanationRun(
 }
 
 export default function ProblemStudioPage() {
+  const { user } = useAuth();
+  const tenantCode = getTenantCodeForApiRequest();
+  const storageScope = tenantCode && user?.id ? `${tenantCode}:u${user.id}` : null;
+  const draftStorageKey = storageScope
+    ? `${LEGACY_DRAFT_KEY}:${storageScope}`
+    : null;
+  const explanationRunStorageKey = storageScope
+    ? `${LEGACY_EXPLANATION_RUN_KEY}:${storageScope}`
+    : null;
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const fontInputRef = useRef<HTMLInputElement | null>(null);
   const [sourceFiles, setSourceFiles] = useState<SourceFileEntry[]>([]);
   const [sourceFileBlobs, setSourceFileBlobs] = useState<File[]>([]);
   const [templateName] = useState("매치업 기존 양식");
   const [notePolicy, setNotePolicy] = useState("핵심 조건을 먼저 짚고, 정답 근거와 대표 오답 이유를 수업에서 설명하듯 간결하게 작성합니다.");
-  const [draft, setDraft] = useState<WorksheetDraft>(() => loadDraft());
+  const [draft, setDraft] = useState<WorksheetDraft>(() => loadDraft(draftStorageKey));
+  const [activeDraftStorageKey, setActiveDraftStorageKey] = useState(draftStorageKey);
+  const [legacyDraftAvailable, setLegacyDraftAvailable] = useState(() => (
+    readStoredDraft(LEGACY_DRAFT_KEY) != null
+  ));
   const [pasteText, setPasteText] = useState("");
   const [rewriteMode, setRewriteMode] = useState<RewriteMode>("same-type");
   const [rewriteCount, setRewriteCount] = useState(3);
@@ -415,12 +461,17 @@ export default function ProblemStudioPage() {
   const [explanationRunning, setExplanationRunning] = useState(false);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-    } catch {
-      // 이미지가 많은 초안은 localStorage 한도를 넘을 수 있다. 저장 실패는 출력 기능을 막지 않는다.
-    }
-  }, [draft]);
+    if (draftStorageKey === activeDraftStorageKey) return;
+    setDraft(loadDraft(draftStorageKey));
+    setLegacyDraftAvailable(readStoredDraft(LEGACY_DRAFT_KEY) != null);
+    setActiveDraftStorageKey(draftStorageKey);
+  }, [activeDraftStorageKey, draftStorageKey]);
+
+  useEffect(() => {
+    if (draftStorageKey !== activeDraftStorageKey) return;
+    // 이미지가 많은 초안이나 저장소 차단은 출력 기능을 막지 않는다.
+    safeStorageSet(draftStorageKey, JSON.stringify(draft));
+  }, [activeDraftStorageKey, draft, draftStorageKey]);
 
   useEffect(() => {
     let active = true;
@@ -456,13 +507,19 @@ export default function ProblemStudioPage() {
   }, []);
 
   useEffect(() => {
-    const runId = localStorage.getItem(EXPLANATION_RUN_KEY);
+    if (!explanationRunStorageKey) return undefined;
+    const scopedRunId = safeStorageGet(explanationRunStorageKey);
+    const legacyRunId = scopedRunId ? null : safeStorageGet(LEGACY_EXPLANATION_RUN_KEY);
+    const runId = scopedRunId ?? legacyRunId;
     if (!runId) return undefined;
     let active = true;
     const restoreRun = async () => {
       try {
         const current = await getProblemStudioExplanationRun(runId);
         if (!active) return;
+        if (legacyRunId && safeStorageSet(explanationRunStorageKey, runId)) {
+          safeStorageRemove(LEGACY_EXPLANATION_RUN_KEY);
+        }
         setExplanationRun(current);
         setBetaAccess(current.beta_access);
         if (!["PENDING", "RUNNING"].includes(current.status)) return;
@@ -480,7 +537,10 @@ export default function ProblemStudioPage() {
         if (!active) return;
         const message = error instanceof Error ? error.message : "정답·해설 작업 상태를 불러오지 못했습니다.";
         if (message.includes("찾을 수 없습니다")) {
-          localStorage.removeItem(EXPLANATION_RUN_KEY);
+          safeStorageRemove(explanationRunStorageKey);
+          // A legacy key has no owner metadata. A 404 can mean that another
+          // signed-in account owns it, so retain it until an authorized read
+          // proves the current account can safely migrate the pointer.
           setExplanationRun(null);
         } else if (!message.includes("계속 진행 중")) {
           feedback.warning(message);
@@ -493,7 +553,7 @@ export default function ProblemStudioPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [explanationRunStorageKey]);
 
   const typography = useMemo<WorksheetTypography>(() => {
     const resolveFont = (selection: string, fallback: string) => {
@@ -867,7 +927,9 @@ export default function ProblemStudioPage() {
         { subject: draft.subject, note_policy: notePolicy },
         sourceFileBlobs[0],
       );
-      localStorage.setItem(EXPLANATION_RUN_KEY, started.run_id);
+      // Persistence is best-effort. A blocked/quota-full storage must not turn a
+      // successfully started server job into a false failure or duplicate retry.
+      safeStorageSet(explanationRunStorageKey, started.run_id);
       setExplanationRun(started);
       setBetaAccess(started.beta_access);
       const completed = await monitorExplanationRun(started.run_id);
@@ -1180,10 +1242,30 @@ export default function ProblemStudioPage() {
     setReviewedQuestionIndexes(new Set());
     setExternalAiConfirmed(false);
     setGenerationNote("아직 생성 전입니다.");
-    try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(next));
-    } catch {
-      // ignore
+    safeStorageSet(draftStorageKey, JSON.stringify(next));
+  };
+
+  const importLegacyDraft = () => {
+    const previousDraft = readStoredDraft(LEGACY_DRAFT_KEY);
+    if (!previousDraft) {
+      setLegacyDraftAvailable(false);
+      feedback.warning("가져올 이전 초안을 찾지 못했습니다.");
+      return;
+    }
+    if (!draftStorageKey) {
+      feedback.warning("계정 정보를 확인한 뒤 다시 시도해 주세요.");
+      return;
+    }
+    if (!window.confirm("이 브라우저의 이전 초안을 현재 계정으로 가져올까요? 현재 초안은 덮어씁니다. 공용 PC라면 작성 계정을 먼저 확인해 주세요.")) {
+      return;
+    }
+    setDraft(previousDraft);
+    if (safeStorageSet(draftStorageKey, JSON.stringify(previousDraft))) {
+      safeStorageRemove(LEGACY_DRAFT_KEY);
+      setLegacyDraftAvailable(false);
+      feedback.success("이전 초안을 현재 계정으로 가져왔습니다.");
+    } else {
+      feedback.warning("현재 화면에는 초안을 열었지만 브라우저에 다시 저장하지 못했습니다.");
     }
   };
 
@@ -1226,6 +1308,24 @@ export default function ProblemStudioPage() {
           <span><b>3</b> PDF 검수</span>
         </div>
       </section>
+
+      {legacyDraftAvailable ? (
+        <aside className={styles.draftRecovery} role="status" aria-label="이전 문제지 초안 복구">
+          <RotateCcw size={ICON.md} aria-hidden="true" />
+          <div className={styles.draftRecoveryCopy}>
+            <strong>계정 분리 전 초안이 이 브라우저에 남아 있습니다.</strong>
+            <span>공용 PC라면 작성 계정을 확인한 뒤 현재 계정으로 가져오세요. 내용은 가져오기 전까지 열지 않습니다.</span>
+          </div>
+          <div className={styles.draftRecoveryActions}>
+            <Button type="button" intent="secondary" size="sm" onClick={importLegacyDraft}>
+              이전 초안 가져오기
+            </Button>
+            <Button type="button" intent="ghost" size="sm" onClick={() => setLegacyDraftAvailable(false)}>
+              나중에
+            </Button>
+          </div>
+        </aside>
+      ) : null}
 
       <section className={styles.builderShell}>
         <div className={styles.editorColumn}>

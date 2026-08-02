@@ -16,10 +16,8 @@ import {
   FileCheck2,
   MessageCircleQuestion,
 } from "lucide-react";
-import { fetchCommunityQuestions } from "@admin/domains/community/api/community.api";
 import { fetchExams } from "@admin/domains/exams/api/exams.api";
 import { useMessagingInfo } from "@admin/domains/messages/hooks/useMessagingInfo";
-import { fetchAdminSubmissions } from "@admin/domains/submissions/api/adminSubmissions";
 import {
   arrivalOverviewQueryKey,
   fetchArrivalOverview,
@@ -28,6 +26,7 @@ import {
 import { Button } from "@/shared/ui/ds";
 import { InlineHelp } from "@/shared/ui/guide";
 import { DomainLayout } from "@/shared/ui/layout";
+import { useOperationalNotificationCounts } from "@/shared/hooks/useOperationalNotificationCounts";
 import { adminDashboardQueryKeys } from "../queryKeys";
 import {
   ArrivalOperationsBoard,
@@ -37,25 +36,16 @@ import styles from "./DashboardPage.module.css";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const operationalNotifications = useOperationalNotificationCounts();
 
   const {
     data: messagingInfo,
     isLoading: messagingLoading,
     isError: messagingError,
   } = useMessagingInfo();
-  const { data: questions = [], isLoading: qLoading, isError: qError } = useQuery({
-    queryKey: adminDashboardQueryKeys.pendingQuestions,
-    queryFn: () => fetchCommunityQuestions(null),
-    staleTime: 60 * 1000,
-  });
   const { data: exams = [], isLoading: eLoading, isError: eError } = useQuery({
     queryKey: adminDashboardQueryKeys.exams,
     queryFn: () => fetchExams(),
-    staleTime: 60 * 1000,
-  });
-  const { data: recentSubs = [], isLoading: sLoading, isError: sError } = useQuery({
-    queryKey: adminDashboardQueryKeys.recentSubmissions,
-    queryFn: () => fetchAdminSubmissions({ limit: 50 }),
     staleTime: 60 * 1000,
   });
   const arrivalQuery = useQuery({
@@ -65,14 +55,13 @@ export default function DashboardPage() {
     refetchInterval: 30 * 1000,
   });
 
-  const pendingQnaCount = questions.filter((question) => !question.is_answered).length;
-  const activeExams = exams.filter((exam) => exam.is_active);
-  const pendingSubs = recentSubs.filter(
-    (submission) => submission.status !== "done" && submission.status !== "failed",
+  const notificationSourceFailed = (source: typeof operationalNotifications.failures[number]) => (
+    operationalNotifications.isError || operationalNotifications.failures.includes(source)
   );
-  const pendingClinicCount = (arrivalQuery.data?.items ?? []).filter(
-    (item) => item.source === "clinic" && item.status === "pending",
-  ).length;
+  const pendingQnaCount = operationalNotifications.counts.qnaPending;
+  const activeExams = exams.filter((exam) => exam.is_active);
+  const pendingSubmissionCount = operationalNotifications.counts.recentSubmissions;
+  const pendingClinicCount = operationalNotifications.counts.clinicPending;
   const openArrival = (item: ArrivalOverviewItem) => {
     if (item.source === "supplement" && item.lecture_id && item.session_id) {
       navigate(`/workspace/lectures/${item.lecture_id}/sessions/${item.session_id}/attendance`);
@@ -150,8 +139,8 @@ export default function DashboardPage() {
               <TaskCard
                 label="미답변 질문"
                 description="학생 질문에 답변합니다."
-                loading={qLoading}
-                error={qError}
+                loading={operationalNotifications.isLoading}
+                error={notificationSourceFailed("qna")}
                 value={pendingQnaCount}
                 action="답변하기"
                 tone="question"
@@ -161,9 +150,9 @@ export default function DashboardPage() {
               <TaskCard
                 label="제출 채점 대기"
                 description="들어온 제출 자료를 확인합니다."
-                loading={sLoading}
-                error={sError}
-                value={pendingSubs.length}
+                loading={operationalNotifications.isLoading}
+                error={notificationSourceFailed("submissions")}
+                value={pendingSubmissionCount}
                 action="채점하기"
                 tone="submission"
                 icon={<FileCheck2 size={20} aria-hidden="true" />}
@@ -183,8 +172,8 @@ export default function DashboardPage() {
               <TaskCard
                 label="클리닉 승인 대기"
                 description="학생이 신청한 일정을 확인합니다."
-                loading={arrivalQuery.isLoading}
-                error={arrivalQuery.isError}
+                loading={operationalNotifications.isLoading}
+                error={notificationSourceFailed("clinic")}
                 value={pendingClinicCount}
                 action="예약 확인"
                 tone="clinic"

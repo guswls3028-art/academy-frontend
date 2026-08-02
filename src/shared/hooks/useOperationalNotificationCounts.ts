@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   buildOperationalNotificationItems,
   createEmptyOperationalNotificationCounts,
@@ -8,11 +8,20 @@ import {
   type OperationalNotificationSource,
 } from "@/shared/api/contracts/notifications";
 import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
+import {
+  arrivalOverviewQueryKey,
+  fetchArrivalOverview,
+} from "@/shared/api/contracts/arrivalOverview";
 
 export function useOperationalNotificationCounts() {
+  const queryClient = useQueryClient();
   const q = useQuery({
     queryKey: notificationQueryKeys.operationalCounts,
-    queryFn: fetchOperationalNotificationCounts,
+    queryFn: () => fetchOperationalNotificationCounts(() => queryClient.fetchQuery({
+      queryKey: arrivalOverviewQueryKey,
+      queryFn: fetchArrivalOverview,
+      staleTime: 20 * 1000,
+    })),
     staleTime: 20 * 1000,
     refetchInterval: 30 * 1000,
   });
