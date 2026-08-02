@@ -11,6 +11,7 @@ import { useMyGradesAnalytics } from "../hooks/useMyGradesAnalytics";
 import { useMyGradesSummary } from "../hooks/useMyGradesSummary";
 import GradesHomeTab from "../components/GradesHomeTab";
 import GradesStatsTab from "../components/GradesStatsTab";
+import { defaultStudentGradeReportLayout } from "@/shared/api/contracts/studentGradeReportLayout";
 
 const TABS = [
   { key: "home", label: "요약" },
@@ -29,6 +30,7 @@ export default function GradesPage() {
   const homeworks = data?.homeworks ?? [];
   const examTrend = data?.exam_trend ?? [];
   const labels = data?.labels;
+  const reportLayout = data?.report_layout ?? defaultStudentGradeReportLayout();
   const shellTitle = tab === "stats" ? "성장 그래프" : "성적 보드";
   const shellDescription =
     tab === "stats"
@@ -67,6 +69,7 @@ export default function GradesPage() {
           analytics={analytics}
           analyticsLoading={analyticsLoading}
           analyticsError={analyticsError}
+          reportLayout={reportLayout}
         />
       )}
     </DomainTabShell>

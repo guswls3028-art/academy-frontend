@@ -4,4 +4,5 @@ export const accountQueryKeys = {
   me: ["me"] as const,
   tenantInfo: ["tenant-info"] as const,
   tenantLabels: ["tenant-info", "labels"] as const,
+  studentGradeReportLayout: ["student-grade-report-layout"] as const,
 };
