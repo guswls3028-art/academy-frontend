@@ -1,6 +1,7 @@
 // PATH: src/app_teacher/domains/exams/api.ts
 // 시험/과제 API — 기존 admin API 재사용
 import api, { isApiErrorStatus } from "@/shared/api/axios";
+import { expectedUpdatedAtHeaders } from "@/shared/api/optimisticConcurrency";
 import { listFromApiResponse } from "@/shared/api/response";
 
 /** 선생님이 담당하는 운영 시험 목록 (최근순) */
@@ -62,8 +63,14 @@ export async function createRegularExam(payload: { title: string; template_exam_
   return res.data;
 }
 
-export async function updateExam(examId: number, payload: Record<string, unknown>) {
-  const res = await api.patch(`/exams/${examId}/`, payload);
+export async function updateExam(
+  examId: number,
+  payload: Record<string, unknown>,
+  expectedUpdatedAt: string,
+) {
+  const res = await api.patch(`/exams/${examId}/`, payload, {
+    headers: expectedUpdatedAtHeaders(expectedUpdatedAt),
+  });
   return res.data;
 }
 

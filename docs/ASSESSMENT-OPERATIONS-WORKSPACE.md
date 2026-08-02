@@ -66,6 +66,21 @@
 먼저 저장한 경우 현재 입력을 덮어쓰지 않는다. 사용자는 변경 안내에서 최신
 설정을 불러온 뒤 다시 편집한다.
 
+미저장 정책은 500ms 뒤 브라우저에도 임시 저장한다. 저장 키는 tenant 코드,
+로그인 사용자 ID, 평가 종류와 평가 ID로 분리하고 서버에서 처음 읽은
+`updated_at`을 함께 기록한다. 같은 계정·같은 평가라도 서버 버전이 달라졌거나
+7일이 지난 초안은 자동 폐기해 과거 입력을 최신 설정 위에 되살리지 않는다.
+유효한 초안은 자동 적용하지 않고 **이어서 편집**과 **초안 지우기**를 제공한다.
+정상 저장 또는 최신 설정 불러오기 뒤에는 초안을 제거한다. 저장소 사용이
+차단된 브라우저에서는 기존 이탈 경고만 유지한다.
+
+지원되는 시험 수정 진입점은 모두 `X-Expected-Updated-At`을 필수로 보낸다.
+여기에는 관리자 운영 설정, 성적표 시험 헤더 빠른 편집, 선생님 모바일 시험
+관리와 클리닉의 재시험 허용이 포함된다. 빠른 단일 동작은 저장 직전에 최신
+시험을 읽고 변경 필드만 전송하며, 폼 편집은 화면에 표시한 버전을 기준으로
+저장한다. 이 규칙은 서버가 호환 목적으로 유지하는 무헤더 외부 클라이언트의
+동작을 프런트 내부 경로가 우회하지 않게 한다.
+
 ## 대상 학생 관리
 
 시험과 과제는 공용 대상자 편집기를 사용하지만 각 도메인의 API와 캐시 키는
@@ -110,6 +125,7 @@
 - 점검선: `src/shared/ui/assessment/AssessmentReadinessStrip.tsx`
 - 시험 설정: `src/app_admin/domains/exams/panels/setup/`
 - 과제 설정: `src/app_admin/domains/homework/panels/setup/`
+- 미저장 초안: `src/shared/ui/assessment/useAssessmentPolicyDraft.ts`
 - 공용 대상자 편집기: `src/shared/ui/enrollment/EnrollmentManageModal.tsx`
 - 집중 회귀: `e2e/admin/assessment-operations-workspace.mock.spec.ts`
 - 기존 과제 회귀: `e2e/admin/lecture-session-scopes.mock.spec.ts`
@@ -126,6 +142,7 @@ pnpm build
 ```
 
 회귀는 시험 정책 저장 후 재조회, 과거 혼합형 경계 복구, 빈 숫자 저장 차단,
-미저장 탭 이동 확인, 동시 수정 충돌 보존, 차시 기본 기준의 필드 단위 PATCH,
+미저장 탭 이동·브라우저 재시작 초안 복구, 서버 버전이 달라진 초안 폐기,
+동시 수정 충돌 보존, 차시 기본 기준의 필드 단위 PATCH,
 기한 없는 과제의 준비 완료, 대상자 추가·제외·최종 인원과 최신 조회 대기,
 조회 실패와 재시도, 1366·1100·390px 및 가로 넘침을 포함한다.

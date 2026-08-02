@@ -106,7 +106,10 @@ async function installApi(page: Page, state: MockState) {
     if (path === "/homeworks/") return json({ count: 0, results: [] });
     if (path === `/exams/${EXAM_ID}/` && method === "PATCH") {
       const expectedUpdatedAt = request.headers()["x-expected-updated-at"];
-      if (expectedUpdatedAt && expectedUpdatedAt !== state.exam.updated_at) {
+      if (!expectedUpdatedAt) {
+        return json({ detail: "수정 기준 시각이 필요합니다." }, 428);
+      }
+      if (expectedUpdatedAt !== state.exam.updated_at) {
         return json({
           detail: "다른 화면에서 변경된 시험입니다.",
           code: "stale_resource",
@@ -305,4 +308,94 @@ test("미저장 시험 설정은 탭 이동 전에 확인하고 동시 수정은
     .getByRole("button", { name: "저장하지 않고 이동", exact: true })
     .click();
   await expect(page.getByRole("tab", { name: "채점·결과", exact: true })).toHaveAttribute("aria-selected", "true");
+});
+
+test("브라우저가 종료되어도 같은 계정·같은 서버 버전의 시험 초안만 복구한다", async ({ page }, testInfo) => {
+  const state: MockState = {
+    exam: {
+      id: EXAM_ID,
+      title: "중간 점검",
+      description: "",
+      subject: "",
+      exam_type: "regular",
+      is_active: true,
+      allow_retake: false,
+      max_attempts: 1,
+      pass_score: 80,
+      max_score: 100,
+      grading_mode: "choice",
+      manual_grading_method: "score",
+      choice_question_count: 0,
+      segmentation_status: "ready",
+      source_filename: "중간점검.pdf",
+      display_order: 0,
+      open_at: null,
+      close_at: null,
+      template_exam_id: null,
+      structure_owner_id: EXAM_ID,
+      can_edit_structure: true,
+      answer_visibility: "hidden",
+      created_at: "2026-08-02T00:00:00Z",
+      updated_at: "2026-08-02T00:00:00Z",
+    },
+    examPatchPayloads: [],
+    selectedEnrollmentIds: [601, 602],
+  };
+
+  await openExam(page, state);
+  await page.getByLabel("합격 기준").fill("79");
+  await expect.poll(() => page.evaluate(() => {
+    const key = Object.keys(localStorage).find((candidate) =>
+      candidate.includes("assessment-policy-draft:v1:") && candidate.endsWith(":exam:9972"));
+    if (!key) return null;
+    const stored = JSON.parse(localStorage.getItem(key) ?? "null") as { form?: { passScore?: string } } | null;
+    return stored?.form?.passScore ?? null;
+  })).toBe("79");
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  const recovery = page.getByTestId("assessment-draft-recovery");
+  await expect(recovery).toContainText("저장되지 않은 시험 설정이 있습니다");
+  await page.screenshot({
+    path: testInfo.outputPath("assessment-draft-recovery-1366.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByTestId("assessment-draft-recovery")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)).toBe(false);
+  await recovery.scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: testInfo.outputPath("assessment-draft-recovery-390.png"),
+    fullPage: true,
+  });
+  await recovery.getByRole("button", { name: "이어서 편집", exact: true }).click();
+  await expect(page.getByLabel("합격 기준")).toHaveValue("79");
+  await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
+  await expect.poll(() => state.examPatchPayloads.length).toBe(1);
+  await expect.poll(() => page.evaluate(() =>
+    Object.keys(localStorage).some((candidate) =>
+      candidate.includes("assessment-policy-draft:v1:") && candidate.endsWith(":exam:9972")),
+  )).toBe(false);
+
+  await page.getByLabel("합격 기준").fill("78");
+  await expect.poll(() => page.evaluate(() =>
+    Object.keys(localStorage).some((candidate) =>
+      candidate.includes("assessment-policy-draft:v1:") && candidate.endsWith(":exam:9972")),
+  )).toBe(true);
+  state.exam = { ...state.exam, pass_score: 77, updated_at: "2026-08-03T02:00:00Z" };
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByTestId("assessment-draft-recovery")).toHaveCount(0);
+  await expect(page.getByLabel("합격 기준")).toHaveValue("77");
+
+  await page.getByLabel("합격 기준").fill("76");
+  await expect.poll(() => page.evaluate(() =>
+    Object.keys(localStorage).some((candidate) =>
+      candidate.includes("assessment-policy-draft:v1:") && candidate.endsWith(":exam:9972")),
+  )).toBe(true);
+  await page.getByLabel("합격 기준").fill("77");
+  await expect.poll(() => page.evaluate(() =>
+    Object.keys(localStorage).some((candidate) =>
+      candidate.includes("assessment-policy-draft:v1:") && candidate.endsWith(":exam:9972")),
+  )).toBe(false);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByTestId("assessment-draft-recovery")).toHaveCount(0);
 });

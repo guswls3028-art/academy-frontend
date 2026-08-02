@@ -6,6 +6,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { isStaleResourceConflict } from "@/shared/api/optimisticConcurrency";
 import { useAssessmentDirtyRegistration } from "@/shared/ui/assessment/AssessmentEditGuard";
+import { useAssessmentPolicyDraft } from "@/shared/ui/assessment/useAssessmentPolicyDraft";
 import formStyles from "@/shared/ui/assessment/AssessmentSetupForm.module.css";
 import { fetchLectures, fetchSessions } from "@/shared/api/contracts/sessions";
 
@@ -196,6 +197,18 @@ export default function ExamPolicyPanel({
     baseUpdatedAtRef.current &&
     exam.updated_at !== baseUpdatedAtRef.current,
   );
+  const {
+    recoverableDraftSavedAt,
+    restoreDraft,
+    clearDraft,
+  } = useAssessmentPolicyDraft<ExamPolicyForm>({
+    resourceKind: "exam",
+    resourceId: examId,
+    baseUpdatedAt: baseUpdatedAtRef.current,
+    form,
+    dirty,
+    onRestore: setForm,
+  });
 
   const patchMutation = useMutation({
     mutationFn: async (nextForm: ExamPolicyForm) => {
@@ -213,6 +226,7 @@ export default function ExamPolicyPanel({
       }, baseUpdatedAtRef.current);
     },
     onSuccess: (updated) => {
+      clearDraft();
       qc.setQueryData(adminExamsQueryKeys.adminExam(examId), updated);
       syncFromExam(updated);
       feedback.success("시험 운영 설정을 저장했습니다.");
@@ -305,7 +319,10 @@ export default function ExamPolicyPanel({
       if (!confirmed) return;
     }
     const result = await refetch();
-    if (result.data) syncFromExam(result.data);
+    if (result.data) {
+      clearDraft();
+      syncFromExam(result.data);
+    }
   };
 
   return (
@@ -321,6 +338,24 @@ export default function ExamPolicyPanel({
         </div>
 
         <div className={formStyles.body}>
+          {recoverableDraftSavedAt && (
+            <div className={formStyles.inlineStatus} role="status" data-testid="assessment-draft-recovery">
+              <div>
+                <strong>저장되지 않은 시험 설정이 있습니다</strong>
+                <p>
+                  {new Date(recoverableDraftSavedAt).toLocaleString("ko-KR")}에 이 브라우저에 임시 저장했습니다.
+                </p>
+              </div>
+              <div className={formStyles.inlineActions}>
+                <Button type="button" intent="secondary" size="sm" onClick={restoreDraft}>
+                  이어서 편집
+                </Button>
+                <Button type="button" intent="ghost" size="sm" onClick={clearDraft}>
+                  초안 지우기
+                </Button>
+              </div>
+            </div>
+          )}
           <div className={formStyles.group}>
             <h3 className={formStyles.groupTitle}>채점 방식</h3>
             <p className={formStyles.groupDescription}>실제 채점 작업에 맞는 흐름을 선택하세요.</p>
