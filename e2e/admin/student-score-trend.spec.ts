@@ -347,6 +347,7 @@ async function installApi(page: Page, options: {
   failGrades?: boolean;
   failPerformance?: boolean;
 } = {}): Promise<void> {
+  await page.clock.setFixedTime(new Date("2026-07-19T12:00:00+09:00"));
   const access = fakeJwt();
   await page.addInitScript(({ token }) => {
     localStorage.setItem("access", token);
@@ -685,6 +686,33 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await assertTrend(component);
     await expect(page.getByText("미응시", { exact: true })).toBeVisible();
     await component.screenshot({ path: "test-results/student-score-trend/admin-1366.png" });
+
+    const detailScopeTabs = detailOverlay.getByRole("tablist", { name: "개인 시험 결과 범위" });
+    const detailAllTab = detailScopeTabs.getByRole("tab", { name: /전체/ });
+    const detailRegularTab = detailScopeTabs.getByRole("tab", { name: /정규 수업/ });
+    const detailSupplementTab = detailScopeTabs.getByRole("tab", { name: /보강/ });
+    await expect(detailAllTab).toHaveAttribute("aria-selected", "true");
+    await expect(detailAllTab).toContainText("4건");
+    await expect(detailRegularTab).toContainText("3건");
+    await expect(detailSupplementTab).toContainText("1건");
+
+    await detailAllTab.focus();
+    await detailAllTab.press("ArrowRight");
+    await expect(detailRegularTab).toHaveAttribute("aria-selected", "true");
+    await expect(component).toContainText("누적2회");
+    await expect(detailOverlay.getByText("Ymath 경시 테스트 3회", { exact: true })).toHaveCount(0);
+    await expect(detailOverlay.getByText("Ymath 주간 테스트 미응시", { exact: true })).toBeVisible();
+
+    await detailRegularTab.press("End");
+    await expect(detailSupplementTab).toHaveAttribute("aria-selected", "true");
+    await expect(component).toContainText("누적1회");
+    await expect(detailOverlay.getByText("Ymath 경시 테스트 3회", { exact: true })).toBeVisible();
+    await expect(detailOverlay.getByText("Ymath 주간 테스트 1회", { exact: true })).toHaveCount(0);
+    await detailOverlay.screenshot({ path: "test-results/student-score-trend/admin-scope-supplement-1366.png" });
+
+    await detailSupplementTab.press("Home");
+    await expect(detailAllTab).toHaveAttribute("aria-selected", "true");
+    await expect(component).toContainText("누적3회");
 
     const dots = component.locator(".recharts-line-dots circle");
     await expect(dots).toHaveCount(3);

@@ -8,7 +8,6 @@
 
 import { useMemo, useState } from "react";
 import { useAdminHomework } from "../hooks/useAdminHomework";
-import { useHomeworkPolicy } from "../hooks/useHomeworkPolicy";
 import { EmptyState, Badge } from "@/shared/ui/ds";
 import { fetchSessionScores, type SessionScoreHomeworkEntry } from "@/shared/api/contracts/sessionScores";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
@@ -65,7 +64,6 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
   const labels = useTenantLabels();
   const { data: homework, isLoading: hwLoading } = useAdminHomework(homeworkId);
   const sessionId = useMemo(() => Number(homework?.session_id) || 0, [homework?.session_id]);
-  const { data: policy } = useHomeworkPolicy(sessionId);
 
   const { data: scoresData, isLoading: scoresLoading } = useQuery({
     queryKey: scoresQueryKeys.sessionScores(sessionId),
@@ -172,9 +170,9 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
     return <EmptyState scope="panel" tone="loading" title="성적 불러오는 중…" />;
   }
 
-  const cutlineMode = policy?.cutline_mode ?? "PERCENT";
-  const cutlineValue = policy?.cutline_value ?? 80;
-  const cutlineLabel = cutlineMode === "COUNT" ? `최소 ${cutlineValue}문항(점)` : `커트라인 ${cutlineValue}%`;
+  const cutlineMode = homework.effective_cutline_mode;
+  const cutlineValue = homework.effective_cutline_value;
+  const cutlineLabel = cutlineMode === "COUNT" ? `최소 ${cutlineValue}점` : `커트라인 ${cutlineValue}%`;
   const hasData = summary.assigned > 0;
 
   return (
@@ -183,7 +181,7 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
       <section className="space-y-6 rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-5">
         <div>
           <div className="text-lg font-semibold">채점결과</div>
-          <div className="text-xs text-[var(--color-text-muted)]">과제 제출·채점 기준 요약입니다. 커트라인은 기본설정에서 퍼센트 또는 문항 수로 설정할 수 있습니다.</div>
+          <div className="text-xs text-[var(--color-text-muted)]">과제 제출·채점 기준 요약입니다. 커트라인은 기본설정에서 이 과제별로 설정할 수 있습니다.</div>
         </div>
 
         {!hasData ? (

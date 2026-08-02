@@ -25,7 +25,6 @@ export const sessionAssessmentQueryKeys = {
   exams: (sessionId: number) => ["admin-session-exams", sessionId] as const,
   examsSummary: (sessionId: number) => ["session-exams-summary", sessionId] as const,
   homeworks: assessmentQueryKeys.sessionHomeworks,
-  homeworkPolicy: assessmentQueryKeys.homeworkPolicy,
 };
 
 export async function fetchSessionExamsSummary(sessionId: number): Promise<SessionExamsSummary> {

@@ -1,5 +1,6 @@
 // PATH: src/app_admin/domains/homework/api/adminHomework.ts
 import api from "@/shared/api/axios";
+import type { HomeworkCutlineMode } from "../types";
 
 export type AdminHomeworkDetail = {
   id: number;
@@ -16,6 +17,13 @@ export type AdminHomeworkDetail = {
   max_score?: number | null;
   /** 레거시 호출부 호환용 편의 접근자 */
   default_max_score?: number | null;
+  cutline_mode: HomeworkCutlineMode | null;
+  cutline_value: number | null;
+  round_unit_percent: number | null;
+  effective_cutline_mode: HomeworkCutlineMode;
+  effective_cutline_value: number;
+  effective_round_unit_percent: number;
+  uses_session_cutline_default: boolean;
 
   created_at: string;
   updated_at: string;
@@ -36,6 +44,10 @@ function normalizeHomeworkType(value: unknown): NonNullable<AdminHomeworkDetail[
   return value === "template" || value === "regular" ? value : "regular";
 }
 
+function normalizeCutlineMode(value: unknown): HomeworkCutlineMode {
+  return String(value).toUpperCase() === "COUNT" ? "COUNT" : "PERCENT";
+}
+
 function normalize(raw: unknown): AdminHomeworkDetail {
   const record = asRecord(raw);
   const rawSession = record.session_id ?? record.session ?? record.sessionId;
@@ -46,6 +58,15 @@ function normalize(raw: unknown): AdminHomeworkDetail {
   const templateHomeworkId = record.template_homework != null
     ? asPositiveNumber(record.template_homework)
     : asPositiveNumber(record.template_homework_id);
+  const rawCutlineMode = record.cutline_mode == null
+    ? null
+    : normalizeCutlineMode(record.cutline_mode);
+  const rawCutlineValue = record.cutline_value == null
+    ? null
+    : Number(record.cutline_value);
+  const rawRoundUnit = record.round_unit_percent == null
+    ? null
+    : Number(record.round_unit_percent);
 
   return {
     id: Number(record.id),
@@ -59,6 +80,21 @@ function normalize(raw: unknown): AdminHomeworkDetail {
     meta,
     max_score: defaultMaxScore,
     default_max_score: defaultMaxScore,
+    cutline_mode: rawCutlineMode,
+    cutline_value: Number.isFinite(rawCutlineValue) ? rawCutlineValue : null,
+    round_unit_percent: Number.isFinite(rawRoundUnit) ? rawRoundUnit : null,
+    effective_cutline_mode: normalizeCutlineMode(
+      record.effective_cutline_mode ?? rawCutlineMode,
+    ),
+    effective_cutline_value: Number(
+      record.effective_cutline_value ?? rawCutlineValue ?? 80,
+    ),
+    effective_round_unit_percent: Number(
+      record.effective_round_unit_percent ?? rawRoundUnit ?? 5,
+    ),
+    uses_session_cutline_default: Boolean(
+      record.uses_session_cutline_default ?? rawCutlineMode == null,
+    ),
 
     created_at: String(record.created_at ?? ""),
     updated_at: String(record.updated_at ?? ""),
