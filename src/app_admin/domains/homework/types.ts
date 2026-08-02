@@ -1,6 +1,6 @@
 // PATH: src/app_admin/domains/homework/types.ts
 /**
- * HomeworkPolicy (Session 단위 정책)
+ * Homework 과제별 합격 기준
  *
  * ✅ LOCKED
  * - 프론트는 "설정 입력"만 한다
@@ -13,6 +13,12 @@
  */
 
 export type HomeworkCutlineMode = "PERCENT" | "COUNT";
+
+export type HomeworkCutlineSettings = {
+  cutline_mode: HomeworkCutlineMode;
+  cutline_value: number;
+  round_unit_percent: number;
+};
 
 /** 시험 ExamTabKey와 동일한 구조: design 시 4탭, operate 시 setup | results */
 export type HomeworkTabKey = "setup" | "assets" | "submissions" | "results";
@@ -48,17 +54,4 @@ export type SessionEnrollment = {
   enrollment: number;
   student_name: string;
   created_at: string;
-};
-
-export type HomeworkPolicy = {
-  id: number;
-  session: number;
-
-  cutline_mode: HomeworkCutlineMode; // "PERCENT" | "COUNT"
-  cutline_value: number; // 70 or 40
-
-  round_unit_percent: number; // percent 모드에서만 실질 의미 (예: 5)
-
-  created_at: string;
-  updated_at: string;
 };

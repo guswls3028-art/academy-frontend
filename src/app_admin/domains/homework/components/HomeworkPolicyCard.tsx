@@ -7,10 +7,10 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import type { HomeworkPolicy, HomeworkCutlineMode } from "../types";
+import type { HomeworkCutlineMode, HomeworkCutlineSettings } from "../types";
 
 type PatchPayload = Partial<
-  Pick<HomeworkPolicy, "cutline_mode" | "cutline_value" | "round_unit_percent">
+  HomeworkCutlineSettings
 >;
 
 export default function HomeworkPolicyCard({
@@ -18,7 +18,7 @@ export default function HomeworkPolicyCard({
   onPatch,
   isPatching,
 }: {
-  policy: HomeworkPolicy | null;
+  policy: HomeworkCutlineSettings | null;
   onPatch: (payload: PatchPayload) => void;
   isPatching: boolean;
 }) {
@@ -54,7 +54,6 @@ export default function HomeworkPolicyCard({
     setCutlineValue(normalizeCutlineValue(policy?.cutline_value ?? 80, policy?.cutline_mode ?? "PERCENT"));
     setRoundUnit(normalizeRoundUnit(policy?.round_unit_percent ?? 5));
   }, [
-    policy?.id,
     policy?.cutline_mode,
     policy?.cutline_value,
     policy?.round_unit_percent,
@@ -78,9 +77,9 @@ export default function HomeworkPolicyCard({
   if (!policy) {
     return (
       <div className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)] p-3 text-sm text-[var(--color-text-muted)]">
-        ⚠️ 이 세션의 과제 정책이 아직 없습니다.
+        ⚠️ 이 과제의 합격 기준을 불러오지 못했습니다.
         <div className="mt-1 text-xs">
-          - 정책 생성은 백엔드에서만 가능합니다.
+          잠시 후 다시 시도해 주세요.
         </div>
       </div>
     );
@@ -205,7 +204,7 @@ export default function HomeworkPolicyCard({
             });
           }}
         >
-          {isPatching ? "저장 중..." : "정책 저장"}
+          {isPatching ? "저장 중..." : "기준 저장"}
         </button>
       </div>
     </div>

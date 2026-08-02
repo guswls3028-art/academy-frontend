@@ -32,7 +32,7 @@ export default function AdminHomeworkDetail({
   mode = "design",
 }: {
   homeworkId: number;
-  /** URL의 sessionId (과제 정책 조회용, 있으면 과제 로드 전에도 사용) */
+  /** URL의 sessionId (상단 차시 이동 경로 유지용) */
   sessionId?: number;
   /** operate 시 3탭(운영|제출관리|결과), design 시 4탭 — 시험과 동일 */
   mode?: HomeworkDetailMode;
@@ -76,8 +76,6 @@ export default function AdminHomeworkDetail({
       {mode === "design" && activeTab === "setup" && (
         <HomeworkSetupPanel
           homeworkId={homeworkId}
-          sessionIdFromRoute={sessionIdFromRoute}
-          homeworkSessionId={data?.session_id}
         />
       )}
       {mode === "design" && activeTab === "assets" && (
@@ -89,8 +87,6 @@ export default function AdminHomeworkDetail({
         <div className="space-y-6">
           <HomeworkSetupPanel
             homeworkId={homeworkId}
-            sessionIdFromRoute={sessionIdFromRoute}
-            homeworkSessionId={data?.session_id}
           />
           <HomeworkAssetsPanel homeworkId={homeworkId} />
         </div>

@@ -6,7 +6,6 @@ import { ClipboardList, FileText, Layers, Plus } from "lucide-react";
 
 import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import {
-  fetchAssessmentHomeworkPolicyBySession,
   type AssessmentHomeworkListItem,
 } from "@/shared/api/contracts/assessments";
 import { fetchAdminSessionExams } from "@admin/domains/results/api/adminSessionExams";
@@ -43,6 +42,8 @@ type HomeworkItem = {
   id: number;
   title: string;
   maxScore: number;
+  cutlineMode: "PERCENT" | "COUNT";
+  cutlineValue: number;
 };
 
 type AssessmentKind = "exam" | "homework";
@@ -364,12 +365,6 @@ export default function SessionAssessmentSidePanel({
     return map;
   }, [examsSummary]);
 
-  const { data: homeworkPolicy } = useQuery({
-    queryKey: sessionAssessmentQueryKeys.homeworkPolicy(sessionId),
-    queryFn: () => fetchAssessmentHomeworkPolicyBySession(sessionId),
-    enabled: !!sessionId,
-  });
-
   const { data: homeworks = [], isLoading: hwLoading, isError: hwError } = useQuery({
     queryKey: sessionAssessmentQueryKeys.homeworks(sessionId),
     queryFn: async (): Promise<HomeworkItem[]> => {
@@ -378,6 +373,8 @@ export default function SessionAssessmentSidePanel({
         id: Number(homework.id),
         title: homework.title,
         maxScore: homework.max_score,
+        cutlineMode: homework.effective_cutline_mode,
+        cutlineValue: homework.effective_cutline_value,
       }));
     },
     enabled: !!sessionId,
@@ -611,16 +608,14 @@ export default function SessionAssessmentSidePanel({
           )}
           {homeworks.map((hw) => {
             const active = homeworkId === hw.id;
-            const cutlineMode = homeworkPolicy?.cutline_mode ?? "PERCENT";
-            const cutlineValue = homeworkPolicy?.cutline_value ?? 80;
             return (
               <HomeworkItemCard
                 key={hw.id}
                 active={active}
                 label={hw.title}
                 maxScore={hw.maxScore}
-                cutlineMode={cutlineMode}
-                cutlineValue={cutlineValue}
+                cutlineMode={hw.cutlineMode}
+                cutlineValue={hw.cutlineValue}
                 onSelect={() => onSelectHomework(hw.id)}
               />
             );

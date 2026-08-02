@@ -28,6 +28,8 @@ type MockState = {
   sectionMode?: boolean;
   regularIncluded?: boolean;
   supplementIncluded?: boolean;
+  createdHomeworkPayloads?: Array<Record<string, unknown>>;
+  homeworkPatchPayloads?: Array<Record<string, unknown>>;
 };
 
 function sessionRows(state: MockState, lectureId = LECTURE_ID) {
@@ -165,6 +167,75 @@ async function installApi(page: Page, state: MockState) {
     }
     if (path === "/enrollments/") return json([]);
     if (path === "/enrollments/session-enrollments/") return json([]);
+    if (path === "/homeworks/" && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      state.createdHomeworkPayloads ??= [];
+      state.createdHomeworkPayloads.push(payload);
+      const id = 9960 + state.createdHomeworkPayloads.length;
+      return json({
+        id,
+        session: REGULAR_SESSION_ID,
+        homework_type: "regular",
+        title: payload.title,
+        max_score: payload.max_score,
+        cutline_mode: payload.cutline_mode,
+        cutline_value: payload.cutline_value,
+        round_unit_percent: payload.round_unit_percent,
+        effective_cutline_mode: payload.cutline_mode,
+        effective_cutline_value: payload.cutline_value,
+        effective_round_unit_percent: payload.round_unit_percent,
+        uses_session_cutline_default: false,
+        meta: payload.meta ?? {},
+        created_at: "2026-08-02T00:00:00Z",
+        updated_at: "2026-08-02T00:00:00Z",
+      });
+    }
+    if (path === "/homeworks/" && method === "GET") {
+      const rows = (state.createdHomeworkPayloads ?? []).map((payload, index) => ({
+        id: 9961 + index,
+        session: REGULAR_SESSION_ID,
+        title: payload.title,
+        max_score: payload.max_score,
+        effective_cutline_mode: payload.cutline_mode,
+        effective_cutline_value: payload.cutline_value,
+      }));
+      return json({ count: rows.length, results: rows });
+    }
+    const homeworkDetailMatch = path.match(/^\/homeworks\/(\d+)\/$/);
+    if (homeworkDetailMatch) {
+      const id = Number(homeworkDetailMatch[1]);
+      const index = id - 9961;
+      const existing = state.createdHomeworkPayloads?.[index];
+      if (!existing) return json({ detail: "과제를 찾을 수 없습니다." }, 404);
+      if (method === "PATCH") {
+        const payload = request.postDataJSON() as Record<string, unknown>;
+        state.homeworkPatchPayloads ??= [];
+        state.homeworkPatchPayloads.push({ id, ...payload });
+        state.createdHomeworkPayloads![index] = { ...existing, ...payload };
+      }
+      const current = state.createdHomeworkPayloads![index];
+      return json({
+        id,
+        session: REGULAR_SESSION_ID,
+        homework_type: "regular",
+        title: current.title,
+        max_score: current.max_score,
+        cutline_mode: current.cutline_mode,
+        cutline_value: current.cutline_value,
+        round_unit_percent: current.round_unit_percent ?? 5,
+        effective_cutline_mode: current.cutline_mode,
+        effective_cutline_value: current.cutline_value,
+        effective_round_unit_percent: current.round_unit_percent ?? 5,
+        uses_session_cutline_default: false,
+        meta: current.meta ?? {},
+        created_at: "2026-08-02T00:00:00Z",
+        updated_at: "2026-08-02T00:00:00Z",
+      });
+    }
+    if (path === "/homework/assignments/" && method === "GET") {
+      return json({ items: [], selected_ids: [] });
+    }
+    if (path === "/homework/assignments/" && method === "PUT") return json({ ok: true });
     if (path === "/lectures/attendance/") return json({ count: 0, results: [] });
     if (path === "/results/admin/clinic-targets/") return json([]);
     if (path === "/staffs/currently-working/") return json([]);
@@ -254,6 +325,96 @@ test("보강 범위의 추가 버튼은 보강 유형과 이름 입력을 바로
 
   await expect(page.getByLabel("보강 이름")).toHaveValue("보강");
   await expect(page.getByRole("button", { name: /보강 차시 · 날짜·시간 직접 선택/ })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("한 회차에서 만드는 여러 과제는 커트라인을 행마다 따로 저장한다", async ({ page }, testInfo) => {
+  const state: MockState = {
+    supplementTitle: "토요일 심화 클리닉",
+    patchTitles: [],
+    createdHomeworkPayloads: [],
+  };
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openLecture(page, state);
+  await page.goto(
+    `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/assignments`,
+    { waitUntil: "domcontentloaded" },
+  );
+
+  await page.getByRole("button", { name: "과제 추가", exact: true }).first().click();
+  await page.getByText("처음부터 만들기", { exact: true }).click();
+  await page.getByRole("button", { name: "점 (점수)", exact: true }).click();
+  await page.getByLabel("과제 1 제목").fill("연산 복습");
+  await page.getByLabel("과제 1 만점").fill("20");
+  await page.getByLabel("과제 1 커트라인").fill("15");
+  await page.getByRole("button", { name: "+ 추가", exact: true }).click();
+  await page.getByLabel("과제 2 제목").fill("심화 서술형");
+  await page.getByLabel("과제 2 만점").fill("30");
+  await page.getByLabel("과제 2 커트라인").fill("24");
+  await page.screenshot({
+    path: testInfo.outputPath("homework-per-item-cutlines-390.png"),
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "2개 과제 만들기", exact: true }).click();
+
+  await expect.poll(() => state.createdHomeworkPayloads?.length).toBe(2);
+  expect(state.createdHomeworkPayloads).toEqual([
+    expect.objectContaining({
+      title: "연산 복습",
+      max_score: 20,
+      cutline_mode: "COUNT",
+      cutline_value: 15,
+    }),
+    expect.objectContaining({
+      title: "심화 서술형",
+      max_score: 30,
+      cutline_mode: "COUNT",
+      cutline_value: 24,
+    }),
+  ]);
+});
+
+test("과제 상세에서 바꾼 커트라인은 선택 과제와 카드에만 반영된다", async ({ page }) => {
+  const state: MockState = {
+    supplementTitle: "토요일 심화 클리닉",
+    patchTitles: [],
+    createdHomeworkPayloads: [
+      {
+        title: "연산 복습",
+        max_score: 20,
+        cutline_mode: "COUNT",
+        cutline_value: 15,
+        round_unit_percent: 5,
+      },
+      {
+        title: "심화 서술형",
+        max_score: 30,
+        cutline_mode: "COUNT",
+        cutline_value: 24,
+        round_unit_percent: 5,
+      },
+    ],
+    homeworkPatchPayloads: [],
+  };
+  await openLecture(page, state);
+  await page.goto(
+    `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/assignments?assessment=homework%3A9961`,
+    { waitUntil: "domcontentloaded" },
+  );
+
+  await expect(page.getByText("과제별 합격 기준", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("커트라인 값")).toHaveValue("15");
+  await page.getByLabel("커트라인 값").fill("17");
+  await page.getByRole("button", { name: "기준 저장", exact: true }).click();
+
+  await expect.poll(() => state.homeworkPatchPayloads?.length).toBe(1);
+  expect(state.homeworkPatchPayloads?.[0]).toMatchObject({
+    id: 9961,
+    cutline_mode: "COUNT",
+    cutline_value: 17,
+    round_unit_percent: 5,
+  });
+  await expect(page.getByRole("button", { name: /연산 복습.*기준 17점/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /심화 서술형.*기준 24점/ })).toBeVisible();
 });
 
 test("수업 목록 조회 실패는 기존 화면을 비우지 않고 다시 불러온다", async ({ page }) => {

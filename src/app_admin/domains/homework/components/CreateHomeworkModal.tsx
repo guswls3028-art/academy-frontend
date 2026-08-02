@@ -16,7 +16,6 @@ import { Badge, Button } from "@/shared/ui/ds";
 import LectureChipLabel from "@/shared/ui/chips/LectureChipLabel";
 import { SessionBlockView } from "@/shared/ui/session-block";
 import { fetchHomeworkTemplatesWithUsage, type HomeworkTemplateWithUsage } from "../api/adminHomework";
-import { fetchHomeworkPolicyBySession, patchHomeworkPolicy } from "../api/homeworkPolicy";
 import { fetchSessionEnrollments } from "../api/sessionEnrollments";
 import { putHomeworkAssignments } from "../api/homeworkAssignments";
 import SessionItemBrowser, { type SelectedHomeworkItem } from "@/shared/ui/assessment/SessionItemBrowser";
@@ -171,19 +170,6 @@ export default function CreateHomeworkModal({
     const createdIds: number[] = [];
     const failed: string[] = [];
 
-    // 커트라인은 row[0]의 입력값을 항상 사용 (UI에서 row[0]만 편집 가능).
-    // 과거 validRows[0] 사용 시 row[0] 제목이 비어 있으면 다른 행의 default(80)가 잘못 들어가는 버그가 있었음.
-    // 2026-05-12 fix: 사용자가 0 입력 시도 — Math.max 가드만 적용, 명시적 silent default 제거.
-    // PERCENT 모드 0~100, COUNT 모드 0~(int 상한). 0 = "모두 합격" 의도 명확. firstCutline NaN/빈값일
-    // 때만 안전 default (이전엔 0/음수도 default fallback → 사용자 0 입력 의도 깨졌음).
-    const firstCutlineText = String(rows[0]?.cutline ?? "").trim();
-    const firstCutlineRaw = firstCutlineText === "" ? NaN : Number(firstCutlineText);
-    const firstCutline = Number.isFinite(firstCutlineRaw)
-      ? (cutlineMode === "PERCENT"
-        ? Math.max(0, Math.min(100, Math.trunc(firstCutlineRaw)))
-        : Math.max(0, Math.trunc(firstCutlineRaw)))
-      : null;  // 빈값/NaN 만 null → default 적용
-    const appliedCutline = firstCutline !== null ? firstCutline : (cutlineMode === "PERCENT" ? 80 : 40);
     const invalidMaxRow = validRows.find((row) => {
       const value = Number(row.maxScore);
       return !Number.isFinite(value) || value <= 0;
@@ -193,34 +179,19 @@ export default function CreateHomeworkModal({
       setError(`'${invalidMaxRow.title.trim()}' 과제의 만점은 1 이상이어야 합니다.`);
       return;
     }
-    if (cutlineMode === "COUNT") {
-      const conflictingRow = validRows.find((row) => Number(row.maxScore) < appliedCutline);
-      if (conflictingRow) {
-        setSubmitting(false);
-        setError(
-          `'${conflictingRow.title.trim()}' 과제의 만점(${Number(conflictingRow.maxScore)}점)이 ` +
-          `공통 커트라인(${appliedCutline}점)보다 낮습니다.`,
-        );
-        return;
-      }
-    }
-    let policyPatched = false;
-    let policyError: string | null = null;
-
-    try {
-      const policy = await fetchHomeworkPolicyBySession(sessionId);
-      if (policy?.id) {
-        await patchHomeworkPolicy(policy.id, {
-          cutline_mode: cutlineMode,
-          cutline_value: appliedCutline,
-        });
-        policyPatched = true;
-      } else {
-        policyError = "세션 정책 조회 실패 — 커트라인이 적용되지 않았습니다.";
-      }
-    } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } } };
-      policyError = err?.response?.data?.detail || "커트라인 저장 실패";
+    const invalidCutlineRow = validRows.find((row) => {
+      const value = Number(row.cutline);
+      if (!Number.isFinite(value) || value < 0 || !Number.isInteger(value)) return true;
+      if (cutlineMode === "PERCENT") return value > 100;
+      return value > Number(row.maxScore);
+    });
+    if (invalidCutlineRow) {
+      setSubmitting(false);
+      const suffix = cutlineMode === "PERCENT"
+        ? "0~100 사이의 정수여야 합니다."
+        : `0~${Number(invalidCutlineRow.maxScore)}점 사이의 정수여야 합니다.`;
+      setError(`'${invalidCutlineRow.title.trim()}' 과제의 커트라인은 ${suffix}`);
+      return;
     }
 
     let enrollMaxPerHw = 0;
@@ -229,10 +200,14 @@ export default function CreateHomeworkModal({
     for (const row of validRows) {
       try {
         const maxScore = Number(row.maxScore);
+        const cutlineValue = Number(row.cutline);
         const res = await api.post("/homeworks/", {
           session_id: sessionId,
           title: row.title.trim(),
           max_score: maxScore,
+          cutline_mode: cutlineMode,
+          cutline_value: cutlineValue,
+          round_unit_percent: 5,
           meta: row.dueDate ? { due_date: row.dueDate } : undefined,
         });
         const newId = Number(res.data?.id ?? res.data?.homework_id ?? res.data?.pk);
@@ -262,14 +237,10 @@ export default function CreateHomeworkModal({
         ? ` · 수강생 ${enrollMaxPerHw}명 제출 대상 등록됨`
         : ` · 제출 대상이 등록되지 않았습니다 (차시 수강생 0명)`;
       const msg = `${createdIds.length}개 과제 생성 완료` +
-        (policyPatched ? ` (커트라인 ${appliedCutline}${cutlineMode === "PERCENT" ? "%" : "점"})` : "") +
+        ` · 과제별 커트라인 저장됨` +
         (failed.length > 0 ? ` · ${failed.length}개 실패` : "") +
         enrollMsg;
       feedback.success(msg);
-    }
-    if (policyError) {
-      // 커트라인 저장 실패는 silent fail이 아니라 명시 노출 — 학원장이 즉시 인지
-      feedback.warning(policyError);
     }
     if (failed.length > 0 && createdIds.length === 0) {
       setError(`모든 과제 생성에 실패했습니다: ${failed.join(", ")}`);
@@ -360,6 +331,9 @@ export default function CreateHomeworkModal({
           session_id: sessionId,
           title: item.title,
           max_score: item.max_score,
+          cutline_mode: item.cutline_mode,
+          cutline_value: item.cutline_value,
+          round_unit_percent: 5,
         });
         const newId = Number(res.data?.id ?? res.data?.homework_id ?? res.data?.pk);
         if (!Number.isFinite(newId) || newId <= 0) throw new Error("생성 후 ID를 받지 못했습니다.");
@@ -531,21 +505,11 @@ export default function CreateHomeworkModal({
           {/* ── Stage: new (bulk form) ── */}
           {stage === "new" && (
             <div className="modal-form-group">
-              {/* 공통 커트라인 — 모든 과제 일괄 적용 (모드 전환 직관화) */}
+              {/* 커트라인 모드 — 값은 과제 행별로 입력 */}
               <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-3 py-2.5">
-                <label className="text-sm font-semibold text-[var(--color-text-primary)] shrink-0" htmlFor="bulk-hw-cutline">
-                  공통 커트라인
-                </label>
-                <input
-                  id="bulk-hw-cutline"
-                  type="number"
-                  min={0}
-                  className="ds-input"
-                  style={{ width: 96 }}
-                  value={rows[0]?.cutline ?? ""}
-                  onChange={(e) => updateRow(rows[0].key, "cutline", e.target.value)}
-                  aria-label="공통 커트라인"
-                />
+                <span className="text-sm font-semibold text-[var(--color-text-primary)] shrink-0">
+                  커트라인 기준
+                </span>
                 <div
                   className="inline-flex rounded-md border border-[var(--color-border-divider)] overflow-hidden"
                   role="group"
@@ -577,7 +541,7 @@ export default function CreateHomeworkModal({
                   </button>
                 </div>
                 <span className="text-xs text-[var(--color-text-muted)]">
-                  모든 과제에 동일 적용 · 미만은 클리닉 보강 대상
+                  값은 아래 과제마다 따로 입력 · 미만은 클리닉 보강 대상
                 </span>
               </div>
 
@@ -624,7 +588,7 @@ export default function CreateHomeworkModal({
                         </button>
                       </div>
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_96px_150px]">
+                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_96px_110px_150px]">
                       <label className="grid gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
                         제목
                         <input
@@ -635,6 +599,18 @@ export default function CreateHomeworkModal({
                           placeholder={`${idx + 1}주차 과제`}
                           autoFocus={idx === 0}
                           aria-label={`과제 ${idx + 1} 제목`}
+                        />
+                      </label>
+                      <label className="grid gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
+                        커트라인 ({cutlineMode === "PERCENT" ? "%" : "점"})
+                        <input
+                          type="number"
+                          min={0}
+                          max={cutlineMode === "PERCENT" ? 100 : Number(row.maxScore) || undefined}
+                          className="ds-input w-full"
+                          value={row.cutline}
+                          onChange={(e) => updateRow(row.key, "cutline", e.target.value)}
+                          aria-label={`과제 ${idx + 1} 커트라인`}
                         />
                       </label>
                       <label className="grid gap-1 text-xs font-semibold text-[var(--color-text-muted)]">

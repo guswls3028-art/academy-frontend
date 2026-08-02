@@ -27,6 +27,8 @@ export type SelectedHomeworkItem = {
   id: number;
   title: string;
   max_score: number;
+  cutline_mode: "PERCENT" | "COUNT";
+  cutline_value: number;
 };
 
 type Props = {
@@ -198,6 +200,8 @@ export default function SessionItemBrowser({
             id: h.id,
             title: h.title,
             max_score: h.max_score,
+            cutline_mode: h.effective_cutline_mode,
+            cutline_value: h.effective_cutline_value,
           }));
         onSelectHomeworks(selected);
       }
@@ -314,6 +318,7 @@ export default function SessionItemBrowser({
                 const checked = selectedIds.has(item.id);
                 const isExam = mode === "exam";
                 const exam = isExam ? (item as AssessmentExamListItem) : null;
+                const homework = !isExam ? (item as AssessmentHomeworkListItem) : null;
                 return (
                   <label
                     key={item.id}
@@ -334,6 +339,12 @@ export default function SessionItemBrowser({
                       {exam && (
                         <div className="text-xs text-[var(--color-text-muted)] mt-0.5">
                           만점 {exam.max_score ?? 100} · 커트라인 {exam.pass_score ?? 0}
+                        </div>
+                      )}
+                      {homework && (
+                        <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                          만점 {homework.max_score} · 기준 {homework.effective_cutline_value}
+                          {homework.effective_cutline_mode === "PERCENT" ? "%" : "점"}
                         </div>
                       )}
                     </div>
