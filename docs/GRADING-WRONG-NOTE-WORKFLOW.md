@@ -186,6 +186,9 @@ pnpm guard:legacy-api
 pnpm build
 ```
 
+`test:e2e:manual-grading-shortcuts`는 전용 Vite 서버를 `127.0.0.1:5173`에
+자동으로 띄우고 종료하므로 별도 개발 서버를 먼저 실행하지 않는다.
+
 핵심 회귀 시나리오:
 
 - 시험명 클릭 작업 메뉴와 채점 방식별 활성화
