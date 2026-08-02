@@ -7,6 +7,7 @@
 | [ROUTING.md](ROUTING.md) | 공개 URL 네이밍, 권한 분리, 기존 경로 호환 규칙 |
 | [USER-GUIDE-ADMIN.md](USER-GUIDE-ADMIN.md) | 관리자 앱 사용 가이드 |
 | [USER-GUIDE-STUDENT.md](USER-GUIDE-STUDENT.md) | 학생 앱 사용 가이드 |
+| [STUDENT-PARENT-APP-CONTRACT.md](STUDENT-PARENT-APP-CONTRACT.md) | 학생·학부모 앱의 표시 경계, 모바일 레이아웃, 권한·자녀 선택·알림 읽음 계약 |
 | [GRADING-WRONG-NOTE-WORKFLOW.md](GRADING-WRONG-NOTE-WORKFLOW.md) | Codex 빠른 복구 순서, 시험명 작업 메뉴, 정오표 입력·반응형 계약, 증상별 확인 위치와 현재 오답노트 경계 |
 | [HOMEWORK-SCORING.md](HOMEWORK-SCORING.md) | 과제별 만점·합격 기준, 성적표 분모·저장 계약 |
 | [ATTENDANCE-ROSTER-SAFETY.md](ATTENDANCE-ROSTER-SAFETY.md) | 차시 수강생 일괄배정의 미입력 시작, 선택 검토·실행취소, 전체 현장 출석의 원자적 되돌리기 계약 |

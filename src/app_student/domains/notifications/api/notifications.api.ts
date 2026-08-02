@@ -47,7 +47,7 @@ export async function fetchNotificationCounts(
         if (b.status !== "booked") return false;
         const t = b.status_changed_at ?? b.updated_at ?? b.created_at;
         if (new Date(t).getTime() <= sevenDaysAgo) return false;
-        return !isNotificationSeen("clinic", b.id);
+        return !isNotificationSeen("clinic", b.id, options?.profileId);
       }).length;
     }
 
@@ -57,7 +57,7 @@ export async function fetchNotificationCounts(
         if ((p.replies_count || 0) === 0) return false;
         const t = p.updated_at ?? p.created_at;
         if (new Date(t).getTime() <= sevenDaysAgo) return false;
-        return !isNotificationSeen("qna", p.id);
+        return !isNotificationSeen("qna", p.id, options?.profileId);
       }).length;
     }
 
@@ -67,7 +67,7 @@ export async function fetchNotificationCounts(
         if ((p.replies_count || 0) === 0) return false;
         const t = p.updated_at ?? p.created_at;
         if (new Date(t).getTime() <= sevenDaysAgo) return false;
-        return !isNotificationSeen("counsel", p.id);
+        return !isNotificationSeen("counsel", p.id, options?.profileId);
       }).length;
     }
 
@@ -77,7 +77,7 @@ export async function fetchNotificationCounts(
         if (!e.submitted_at) return false;
         if (e.meta_status === "NOT_SUBMITTED") return false;
         if (new Date(e.submitted_at).getTime() <= sevenDaysAgo) return false;
-        return !isNotificationSeen("grade", e.exam_id);
+        return !isNotificationSeen("grade", e.exam_id, options?.profileId);
       }).length;
     }
 

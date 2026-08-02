@@ -27,7 +27,12 @@ export default function RichHtmlContent({
   const hasContent = content.trim().length > 0;
   const shouldRenderHtml = hasContent && isRichHtml(content);
   const safeHtml = useMemo(
-    () => (shouldRenderHtml ? DOMPurify.sanitize(content) : ""),
+    () => (shouldRenderHtml ? DOMPurify.sanitize(content, {
+      USE_PROFILES: { html: true },
+      // Pasted editor markup must not carry fixed dimensions, positioning,
+      // foreign typography, or selector hooks into a role app surface.
+      FORBID_ATTR: ["style", "class", "id", "width", "height", "face", "size"],
+    }) : ""),
     [content, shouldRenderHtml]
   );
 

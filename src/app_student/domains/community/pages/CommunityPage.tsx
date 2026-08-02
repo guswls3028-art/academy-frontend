@@ -311,7 +311,7 @@ function NoticeDetail({ id, onBack }: { id: number; onBack: () => void }) {
     <StudentPageShell title="공지사항" onBack={onBack}>
       <div className="stu-section stu-section--nested community-detail-card">
         <div>
-          <h1 className="community-detail-title">{post.title}</h1>
+          <h1 className="community-detail-title">{richHtmlToPlainText(post.title)}</h1>
           <div className="community-meta-row">
             <Tag variant={scopeVariant}>{getScopeLabel(post)}</Tag>
             <span className="stu-muted community-meta-text">{formatYmd(post.created_at)}</span>
@@ -678,7 +678,7 @@ function BoardDetail({ id, onBack }: { id: number; onBack: () => void }) {
     <StudentPageShell title="게시물" onBack={onBack}>
       <div className="stu-section stu-section--nested community-detail-card">
         <div>
-          <h1 className="community-detail-title">{post.title}</h1>
+          <h1 className="community-detail-title">{richHtmlToPlainText(post.title)}</h1>
           <div className="community-meta-row">
             <Tag variant={scopeVariant}>{getScopeLabel(post)}</Tag>
             <span className="stu-muted community-meta-text">{formatYmd(post.created_at)}</span>
@@ -1006,7 +1006,7 @@ function MaterialsDetail({ id, onBack }: { id: number; onBack: () => void }) {
     <StudentPageShell title="자료실" onBack={onBack}>
       <div className="stu-section stu-section--nested community-detail-card">
         <div>
-          <h1 className="community-detail-title">{post.title}</h1>
+          <h1 className="community-detail-title">{richHtmlToPlainText(post.title)}</h1>
           <div className="community-meta-row">
             <Tag variant={scopeVariant}>{getScopeLabel(post)}</Tag>
             <span className="stu-muted community-meta-text">{formatYmd(post.created_at)}</span>
@@ -1344,7 +1344,7 @@ function PostRow({
           {post.is_pinned && !post.is_urgent && (
             <span className="community-post-badge community-post-badge--pinned">고정</span>
           )}
-          <span className="community-post-title-text">{post.title}</span>
+          <span className="community-post-title-text">{richHtmlToPlainText(post.title)}</span>
         </div>
         {/* 본문 미리보기 */}
         {preview && (

@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { IconChevronRight } from "../icons/Icons";
 import { InlineHelp } from "@/shared/ui/guide";
+import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 
 export default function StudentPageShell({
   title,
@@ -28,8 +29,10 @@ export default function StudentPageShell({
   noSectionFrame?: boolean;
 }) {
   const navigate = useNavigate();
-  const helpContent = help ?? (descriptionMode === "help" ? description : null);
-  const showVisibleDescription = Boolean(description && descriptionMode === "visible");
+  const displayTitle = richHtmlToPlainText(title);
+  const displayDescription = richHtmlToPlainText(description);
+  const helpContent = help ?? (descriptionMode === "help" ? displayDescription : null);
+  const showVisibleDescription = Boolean(displayDescription && descriptionMode === "visible");
   const hasHeader = Boolean(title || description || help || actions || onBack);
 
   const handleBack = () => {
@@ -57,13 +60,13 @@ export default function StudentPageShell({
             )}
             {title && (
               <div className="student-page-shell__title-line">
-                <h1 className="student-page-shell__title">{title}</h1>
+                <h1 className="student-page-shell__title">{displayTitle}</h1>
                 {helpContent && (
                   <InlineHelp
-                    title={helpTitle ?? `${title} 안내`}
+                    title={helpTitle ?? `${displayTitle} 안내`}
                     tone="student"
                     align="left"
-                    ariaLabel={`${title} 도움말`}
+                    ariaLabel={`${displayTitle} 도움말`}
                     className="student-page-shell__help"
                   >
                     {typeof helpContent === "string" ? <p>{helpContent}</p> : helpContent}
@@ -73,7 +76,7 @@ export default function StudentPageShell({
             )}
             {showVisibleDescription && (
               <p className="student-page-shell__description">
-                {description}
+                {displayDescription}
               </p>
             )}
           </div>
