@@ -50,8 +50,8 @@ export default function HomeworkSetupPanel({
     {
       id: "deadline",
       label: "제출기한",
-      summary: dueDate || "기한 없음",
-      state: dueDate ? "ready" : "attention",
+      summary: dueDate || "기한 없이 운영",
+      state: "ready",
       targetId: "assessment-policy",
     },
     {

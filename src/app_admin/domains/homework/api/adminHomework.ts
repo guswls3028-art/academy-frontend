@@ -1,5 +1,6 @@
 // PATH: src/app_admin/domains/homework/api/adminHomework.ts
 import api from "@/shared/api/axios";
+import { expectedUpdatedAtHeaders } from "@/shared/api/optimisticConcurrency";
 import type { HomeworkCutlineMode } from "../types";
 
 export type AdminHomeworkDetail = {
@@ -108,9 +109,12 @@ export async function fetchAdminHomework(homeworkId: number) {
 
 export async function updateAdminHomework(
   homeworkId: number,
-  payload: Partial<AdminHomeworkDetail>
+  payload: Partial<AdminHomeworkDetail>,
+  expectedUpdatedAt?: string,
 ) {
-  const res = await api.patch(`/homeworks/${homeworkId}/`, payload);
+  const res = await api.patch(`/homeworks/${homeworkId}/`, payload, {
+    headers: expectedUpdatedAtHeaders(expectedUpdatedAt),
+  });
   return normalize(res.data);
 }
 

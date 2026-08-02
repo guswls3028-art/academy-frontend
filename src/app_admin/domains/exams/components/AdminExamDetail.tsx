@@ -4,6 +4,7 @@ import { useAdminExam } from "../hooks/useAdminExam";
 import ExamTabs from "./common/ExamTabs";
 import ExamHeader from "./common/ExamHeader";
 import { EmptyState } from "@/shared/ui/ds";
+import { useAssessmentEditGuard } from "@/shared/ui/assessment/AssessmentEditGuard";
 
 import ExamSetupPanel from "../panels/setup/ExamSetupPanel";
 import ExamAssetsPanel from "../panels/ExamAssetsPanel";
@@ -20,6 +21,7 @@ type Props = {
 
 export default function AdminExamDetail({ examId, mode = "design", sessionId }: Props) {
   const { data: exam, isLoading } = useAdminExam(examId);
+  const { confirmDiscard } = useAssessmentEditGuard();
   const [tab, setTab] = useState<"setup" | "assets" | "submissions" | "results">(
     "setup"
   );
@@ -64,7 +66,12 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
 
       <ExamTabs
         activeTab={tab}
-        onChange={setTab}
+        onChange={(nextTab) => {
+          if (nextTab === tab) return;
+          void confirmDiscard().then((confirmed) => {
+            if (confirmed) setTab(nextTab);
+          });
+        }}
         hasSession={true}
         assetsReady={true}
         mode={mode}

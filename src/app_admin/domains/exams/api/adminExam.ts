@@ -1,4 +1,5 @@
 import api from "@/shared/api/axios";
+import { expectedUpdatedAtHeaders } from "@/shared/api/optimisticConcurrency";
 import type { Exam } from "../types";
 import { normalizeExam } from "./examNormalize";
 
@@ -35,9 +36,12 @@ export async function updateAdminExam(
     | "open_at"
     | "close_at"
     | "answer_visibility"
-  >>
+  >>,
+  expectedUpdatedAt?: string,
 ): Promise<Exam> {
-  const res = await api.patch(`/exams/${examId}/`, payload);
+  const res = await api.patch(`/exams/${examId}/`, payload, {
+    headers: expectedUpdatedAtHeaders(expectedUpdatedAt),
+  });
   return normalizeExam(res.data);
 }
 
