@@ -1,6 +1,6 @@
 // PATH: src/shared/ui/modal/AdminModal.tsx
 import { Modal, type ModalProps } from "antd";
-import React, { useEffect, useId, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { BRAND_AND_LIGHT_THEMES, MODAL_DEFAULT_WIDTH } from "./constants";
@@ -78,11 +78,17 @@ export default function AdminModal({
   const ctx = useModalWindow();
   const [minimized, setMinimized] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
   const accessibleTitle = findModalTitle(children);
   const accessibleTitleText = getAccessibleText(accessibleTitle) || "대화상자";
   const requestClose = () => {
     if (!closeDisabled) onClose();
   };
+  const restoreTriggerFocus = useCallback(() => {
+    const target = returnFocusRef.current;
+    returnFocusRef.current = null;
+    if (target?.isConnected) target.focus();
+  }, []);
 
   const {
     offset,
@@ -93,6 +99,14 @@ export default function AdminModal({
     reset,
     onMinimizeRef,
   } = useDraggableModal(".modal-header");
+
+  useEffect(() => {
+    if (!open || returnFocusRef.current) return;
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && active !== document.body) {
+      returnFocusRef.current = active;
+    }
+  }, [open]);
 
   // 매 렌더마다 최신 minimize 콜백 할당
   onMinimizeRef.current = ctx
@@ -128,8 +142,9 @@ export default function AdminModal({
   useEffect(() => {
     return () => {
       ctx?.remove(modalId);
+      restoreTriggerFocus();
     };
-  }, [ctx, modalId]);
+  }, [ctx, modalId, restoreTriggerFocus]);
 
   const actuallyOpen = open && !minimized;
   useModalKeyboard(actuallyOpen, requestClose, onEnterConfirm);
@@ -167,6 +182,9 @@ export default function AdminModal({
       <Modal
         open={actuallyOpen}
         onCancel={requestClose}
+        afterClose={() => {
+          if (!open) restoreTriggerFocus();
+        }}
         footer={null}
         title={<span aria-label={accessibleTitleText} />}
         width={width}

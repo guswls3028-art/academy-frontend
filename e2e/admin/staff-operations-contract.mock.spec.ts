@@ -441,9 +441,16 @@ test.describe("직원 운영 계약", () => {
       waitUntil: "domcontentloaded",
     });
     await expect(page.getByText("개인 교통비", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "지출 등록" }).click();
+    const createTrigger = page.getByRole("button", { name: "지출 등록" });
+    await createTrigger.click();
 
     const createDialog = page.getByRole("dialog", { name: "지출 등록" });
+    await expect(createDialog).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(createDialog).toHaveCount(0);
+    await expect(createTrigger).toBeFocused();
+
+    await createTrigger.click();
     await expect(createDialog).toBeVisible();
     await createDialog.getByLabel("항목").fill("교재 배송비");
     await createDialog.getByLabel("금액").fill("4500");
