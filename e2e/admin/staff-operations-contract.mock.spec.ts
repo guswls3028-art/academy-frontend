@@ -201,8 +201,19 @@ test.describe("직원 운영 계약", () => {
     await staffName.click();
 
     await expect(page).toHaveURL(/\/workspace\/staff\/1$/);
-    await expect(page.getByTestId("staff-detail-overlay")).toBeVisible();
+    const staffDetail = page.getByTestId("staff-detail-overlay");
+    await expect(staffDetail).toBeVisible();
     await expect(staffRow).toBeVisible();
+    await expect(staffDetail.getByLabel("재직 상태: 재직")).toBeVisible();
+    await expect(staffDetail.getByRole("button", { name: "정보 수정" })).toBeVisible();
+    await expect(staffDetail.getByRole("button", { name: "관리자 권한 없음, 권한 부여" })).toBeVisible();
+    const summaryTab = staffDetail.getByRole("tab", { name: "요약", exact: true });
+    const workTypeTab = staffDetail.getByRole("tab", { name: "시급·근무유형", exact: true });
+    await expect(summaryTab).toHaveAttribute("aria-selected", "true");
+    await summaryTab.focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(workTypeTab).toHaveAttribute("aria-selected", "true");
+    await expect(workTypeTab).toBeFocused();
     await page.screenshot({
       path: "test-results/staff-detail-overlay-1366.png",
       fullPage: true,
@@ -245,6 +256,17 @@ test.describe("직원 운영 계약", () => {
     await expect(page.getByText("김조교", { exact: true }).first()).toBeVisible();
     await page.getByRole("button", { name: "닫기" }).click();
     await expect(page).toHaveURL(/\/workspace\/staff\/home$/);
+
+    await page.goto(`${BASE}/workspace/staff/attendance?staffId=1&year=2026&month=8`, {
+      waitUntil: "domcontentloaded",
+    });
+    const workspaceDetailEntry = page.getByRole("button", { name: "김조교 직원 상세 열기" });
+    await expect(workspaceDetailEntry).toBeVisible();
+    await workspaceDetailEntry.click();
+    await expect(page).toHaveURL(/\/workspace\/staff\/1$/);
+    await expect(page.getByTestId("staff-detail-overlay")).toBeVisible();
+    await page.getByTestId("staff-detail-overlay").getByRole("button", { name: "닫기" }).click();
+    await expect(page).toHaveURL(/\/workspace\/staff\/attendance\?staffId=1&year=2026&month=8$/);
   });
 
   test("마감 상태 조회 실패 시 쓰기를 막고 반응형으로 쌓인다", async ({ page }) => {
