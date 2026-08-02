@@ -16,7 +16,7 @@ function tomorrowISO() {
 test("관리자가 주간 예약 보드에서 세션을 확인하고 빠른 액션을 연다", async ({ page }) => {
   await loginViaUI(page, "admin", { landingPath: "/workspace/clinic/schedule" });
 
-  let sessionId: number | null = null;
+  const sessionIds: number[] = [];
   try {
     const date = tomorrowISO();
     type SessionRow = { id: number; title?: string };
@@ -34,16 +34,22 @@ test("관리자가 주간 예약 보드에서 세션을 확인하고 빠른 액�
       }
     }
 
-    const created = await apiCall<{ id: number }>(page, "POST", "/clinic/sessions/", {
-      date,
-      start_time: "17:00:00",
-      duration_minutes: 60,
-      location: LOCATION,
-      max_participants: 10,
-      title: TITLE,
-    });
-    expect(created.status).toBe(201);
-    sessionId = created.body.id;
+    for (const slot of [
+      { title: `${TITLE} 13시`, start_time: "13:00:00" },
+      { title: `${TITLE} 17시`, start_time: "17:00:00" },
+      { title: `${TITLE} 19시`, start_time: "19:00:00" },
+    ]) {
+      const created = await apiCall<{ id: number }>(page, "POST", "/clinic/sessions/", {
+        date,
+        start_time: slot.start_time,
+        duration_minutes: 60,
+        location: LOCATION,
+        max_participants: 10,
+        title: slot.title,
+      });
+      expect(created.status).toBe(201);
+      sessionIds.push(created.body.id);
+    }
 
     await page.route("**/api/v1/results/admin/clinic-targets/**", async (route) => {
       await route.fulfill({
@@ -98,11 +104,24 @@ test("관리자가 주간 예약 보드에서 세션을 확인하고 빠른 액�
 
     await expect(page.getByRole("heading", { name: "예약 일정", exact: true })).toBeVisible();
     await expect(page.getByRole("gridcell")).toHaveCount(7);
-    await expect(page.getByRole("article").filter({ hasText: TITLE })).toHaveCount(1);
+    const dayCell = page.getByRole("gridcell").filter({ hasText: `${TITLE} 13시` });
+    await expect(dayCell.getByRole("article").filter({ hasText: TITLE })).toHaveCount(3);
+    await expect(dayCell.getByRole("article").filter({ hasText: TITLE })).toContainText([
+      "13:00–14:00",
+      "17:00–18:00",
+      "19:00–20:00",
+    ]);
+    await expect(dayCell.getByRole("button", { name: /클리닉 시간대 추가/ })).toBeVisible();
     await expect(page.getByRole("tab", { name: "예약 일정", exact: true })).toBeVisible();
 
-    const sessionCard = page.getByRole("article").filter({ hasText: TITLE });
-    await sessionCard.getByRole("button", { name: `${TITLE} 설정 복사` }).click();
+    await dayCell.getByRole("button", { name: /클리닉 시간대 추가/ }).click();
+    const createDialogForDate = page.getByRole("dialog").filter({ hasText: "클리닉 만들기" });
+    await expect(createDialogForDate).toContainText("현재 3개 시간대가 있습니다.");
+    await page.locator(".ant-modal-close").click();
+
+    const firstTitle = `${TITLE} 13시`;
+    const sessionCard = page.getByRole("article").filter({ hasText: firstTitle });
+    await sessionCard.getByRole("button", { name: `${firstTitle} 설정 복사` }).click();
     await expect(page.getByRole("heading", { name: "클리닉 설정 복사" })).toBeVisible();
     await expect(page.getByPlaceholder("장소 / 룸")).toHaveValue(LOCATION);
     await page.locator(".ant-modal-close").click();
@@ -149,7 +168,7 @@ test("관리자가 주간 예약 보드에서 세션을 확인하고 빠른 액�
       });
     }
   } finally {
-    if (sessionId) {
+    for (const sessionId of sessionIds.reverse()) {
       const deleted = await apiCall(page, "DELETE", `/clinic/sessions/${sessionId}/`);
       expect([204, 404]).toContain(deleted.status);
     }
