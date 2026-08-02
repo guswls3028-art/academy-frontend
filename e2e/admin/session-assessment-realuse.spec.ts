@@ -169,7 +169,7 @@ async function openCreateAssessmentModal(page: Page, trigger: Locator, kind: "�
   await expect(fromScratch, `${kind} from-scratch option`).toBeVisible({ timeout: 5_000 });
   await fromScratch.click();
 
-  await expect(dialog).toContainText(kind === "시험" ? "커트라인" : "공통 커트라인");
+  await expect(dialog).toContainText(kind === "시험" ? "커트라인" : "값은 아래 과제마다 따로 입력");
   await expect(dialog.getByRole("button", { name: new RegExp(`${kind} 만들기`) })).toBeDisabled();
 
   await closeDialog(page);
