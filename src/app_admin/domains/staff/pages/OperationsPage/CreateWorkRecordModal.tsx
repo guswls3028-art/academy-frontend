@@ -108,7 +108,13 @@ export default function CreateWorkRecordModal({ open, onClose }: Props) {
   };
 
   return (
-    <AdminModal open={open} onClose={onClose} type="action" onEnterConfirm={handleSubmit}>
+    <AdminModal
+      open={open}
+      onClose={onClose}
+      type="action"
+      closeDisabled={createM.isPending}
+      onEnterConfirm={!createM.isPending ? handleSubmit : undefined}
+    >
       <ModalHeader
         title="근무 기록 추가"
         description="직원의 근무 기록을 등록합니다."

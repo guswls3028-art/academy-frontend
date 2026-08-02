@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { LockBadge } from "../../components/StatusBadge";
 import ActionButton from "../../components/ActionButton";
 import { staffQueryKeys } from "../../queryKeys";
+import { useConfirm } from "@/shared/ui/confirm";
 
 function getThisMonthRange() {
   const d = new Date();
@@ -18,6 +19,7 @@ function getThisMonthRange() {
 }
 
 export default function StaffWorkRecordsTab({ staffId }: { staffId: number }) {
+  const confirm = useConfirm();
   const { y, m, from, to } = useMemo(getThisMonthRange, []);
   const recordsQ = useWorkRecords({ staff: staffId, date_from: from, date_to: to });
 
@@ -105,8 +107,15 @@ export default function StaffWorkRecordsTab({ staffId }: { staffId: number }) {
                 }
                 onClick={() => {
                   if (writeBlocked) return;
-                  if (!confirm("이 근무 기록을 삭제할까요?")) return;
-                  recordsQ.deleteM.mutate(r.id);
+                  void (async () => {
+                    const ok = await confirm({
+                      title: "근무 기록 삭제",
+                      message: `${r.date} · ${r.work_type_name} 근무 기록을 삭제하시겠습니까?`,
+                      confirmText: "삭제",
+                      danger: true,
+                    });
+                    if (ok) recordsQ.deleteM.mutate(r.id);
+                  })();
                 }}
               >
                 삭제

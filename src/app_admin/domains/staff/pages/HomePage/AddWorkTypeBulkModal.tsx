@@ -52,7 +52,7 @@ export default function AddWorkTypeBulkModal({ open, onClose, staffIds }: Props)
       if (result.failed === 0) {
         feedback.success(`선택한 직원 ${result.added}명에게 시급 태그를 추가했습니다.`);
       } else {
-        feedback.success(`${result.added}명 추가, ${result.failed}명은 이미 해당 태그가 있거나 오류로 건너뛰었습니다.`);
+        feedback.warning(`${result.added}명 추가, ${result.failed}명은 이미 해당 태그가 있거나 오류로 건너뛰었습니다.`);
       }
       onClose();
     },
@@ -69,7 +69,7 @@ export default function AddWorkTypeBulkModal({ open, onClose, staffIds }: Props)
   if (!open) return null;
 
   return (
-    <AdminModal open={open} onClose={onClose}>
+    <AdminModal open={open} onClose={onClose} closeDisabled={addBulkM.isPending}>
       <ModalHeader
         title="시급 태그 추가"
         description={`선택한 직원 ${staffIds.length}명에게 적용할 시급 태그를 선택하세요.`}
@@ -77,6 +77,13 @@ export default function AddWorkTypeBulkModal({ open, onClose, staffIds }: Props)
       <ModalBody>
         {workTypesQ.isLoading ? (
           <p className="text-sm text-[var(--color-text-muted)]">태그 목록 불러오는 중…</p>
+        ) : workTypesQ.isError ? (
+          <div className="flex items-center justify-between gap-3 text-sm text-[var(--color-danger)]">
+            <span>시급 태그 목록을 불러오지 못했습니다.</span>
+            <Button intent="secondary" size="sm" onClick={() => void workTypesQ.refetch()}>
+              다시 시도
+            </Button>
+          </div>
         ) : workTypes.length === 0 ? (
           <p className="text-sm text-[var(--color-text-muted)]">등록된 시급 태그가 없습니다. 먼저 시급태그 생성을 해 주세요.</p>
         ) : (
@@ -112,7 +119,7 @@ export default function AddWorkTypeBulkModal({ open, onClose, staffIds }: Props)
       </ModalBody>
       <ModalFooter
         right={
-          <Button intent="secondary" onClick={onClose}>
+          <Button intent="secondary" onClick={onClose} disabled={addBulkM.isPending}>
             취소
           </Button>
         }

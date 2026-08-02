@@ -37,19 +37,26 @@ export default function ConfirmDialog({
   onCancel,
 }: Props) {
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
-  const confirmedRef = useRef(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const settledRef = useRef(false);
   const [remember, setRemember] = useState(false);
   const titleId = useId();
   const messageId = useId();
 
   const safeConfirm = useCallback(() => {
-    if (confirmedRef.current) return;
-    confirmedRef.current = true;
+    if (settledRef.current) return;
+    settledRef.current = true;
     if (rememberKey && remember) {
       try { localStorage.setItem(rememberKey, "1"); } catch { /* private mode */ }
     }
     onConfirm();
   }, [onConfirm, remember, rememberKey]);
+
+  const safeCancel = useCallback(() => {
+    if (settledRef.current) return;
+    settledRef.current = true;
+    onCancel();
+  }, [onCancel]);
 
   const { offset, onMouseDown, onTouchStart } = useDraggableModal(
     ".confirm-drag-handle",
@@ -57,11 +64,15 @@ export default function ConfirmDialog({
   );
 
   useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopImmediatePropagation();
-        onCancel();
+        safeCancel();
       } else if (e.key === "Enter") {
         // input/textarea/select/contenteditable에서는 Enter 무시
         const tag = (e.target as HTMLElement)?.tagName;
@@ -76,21 +87,40 @@ export default function ConfirmDialog({
         e.preventDefault();
         e.stopImmediatePropagation();
         safeConfirm();
+      } else if (e.key === "Tab") {
+        const focusable = Array.from(
+          cardRef.current?.querySelectorAll<HTMLElement>(
+            "button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex='-1'])",
+          ) ?? [],
+        ).filter((element) => element.getClientRects().length > 0);
+        if (focusable.length === 0) {
+          e.preventDefault();
+          return;
+        }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     };
     document.addEventListener("keydown", handler, true);
-    return () => document.removeEventListener("keydown", handler, true);
-  }, [onCancel, safeConfirm]);
-
-  // Focus confirm button on mount for accessibility
-  useEffect(() => {
     confirmBtnRef.current?.focus();
-  }, []);
+    return () => {
+      document.removeEventListener("keydown", handler, true);
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus();
+    };
+  }, [safeCancel, safeConfirm]);
 
   const hasOffset = offset.x !== 0 || offset.y !== 0;
 
   return createPortal(
-    <div data-confirm-dialog className="confirm-dialog__backdrop" onClick={onCancel}>
+    <div data-confirm-dialog className="confirm-dialog__backdrop" onClick={safeCancel}>
       <div
         className="confirm-dialog__positioner"
         style={hasOffset ? { transform: `translate(${offset.x}px, ${offset.y}px)` } : undefined}
@@ -98,6 +128,7 @@ export default function ConfirmDialog({
         onTouchStart={onTouchStart}
       >
         <div
+          ref={cardRef}
           className="confirm-dialog__card"
           role="alertdialog"
           aria-modal="true"
@@ -119,7 +150,7 @@ export default function ConfirmDialog({
             </label>
           )}
           <div className="confirm-dialog__actions">
-            <button type="button" className="confirm-dialog__button confirm-dialog__button--cancel" onClick={onCancel}>
+            <button type="button" className="confirm-dialog__button confirm-dialog__button--cancel" onClick={safeCancel}>
               {cancelText}
             </button>
             <button

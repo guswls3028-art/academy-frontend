@@ -175,14 +175,25 @@ export default function WorkTypeCreateModal({
   // ─── LIST VIEW ───
   if (view === "list") {
     return (
-      <AdminModal open={open} onClose={onClose} type="action">
+      <AdminModal open={open} onClose={onClose} type="action" closeDisabled={deleteM.isPending}>
         <ModalHeader
           title="시급태그 관리"
           description="시급태그를 생성·수정·삭제할 수 있습니다."
           type="action"
         />
         <ModalBody>
-          {workTypes.length === 0 ? (
+          {workTypesQ.isLoading ? (
+            <div className="py-6 text-center text-sm text-[var(--text-muted)]">
+              시급태그를 불러오는 중…
+            </div>
+          ) : workTypesQ.isError ? (
+            <div className="flex items-center justify-between gap-3 py-4 text-sm text-[var(--color-danger)]">
+              <span>시급태그를 불러오지 못했습니다.</span>
+              <button type="button" className="ds-button" data-intent="secondary" data-size="sm" onClick={() => void workTypesQ.refetch()}>
+                다시 시도
+              </button>
+            </div>
+          ) : workTypes.length === 0 ? (
             <div className="py-6 text-center text-sm text-[var(--text-muted)]">
               등록된 시급태그가 없습니다.
             </div>
@@ -242,8 +253,8 @@ export default function WorkTypeCreateModal({
         <ModalFooter
           right={
             <>
-              <ActionButton action="close" onClick={onClose} />
-              <ActionButton action="create" onClick={openCreate}>
+              <ActionButton action="close" onClick={onClose} disabled={deleteM.isPending} />
+              <ActionButton action="create" onClick={openCreate} disabled={deleteM.isPending || workTypesQ.isError}>
                 새 시급태그
               </ActionButton>
             </>
@@ -261,6 +272,7 @@ export default function WorkTypeCreateModal({
       open={open}
       onClose={() => setView("list")}
       type="action"
+      closeDisabled={isSaving}
       onEnterConfirm={() => {
         if (!isSaving) handleSave();
       }}

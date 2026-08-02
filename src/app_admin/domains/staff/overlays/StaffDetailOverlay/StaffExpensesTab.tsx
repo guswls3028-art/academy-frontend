@@ -9,6 +9,7 @@ import { staffQueryKeys } from "../../queryKeys";
 
 import ActionButton from "../../components/ActionButton";
 import { ExpenseStatusBadge, LockBadge } from "../../components/StatusBadge";
+import { useConfirm } from "@/shared/ui/confirm";
 
 function getThisMonthRange() {
   const d = new Date();
@@ -24,10 +25,11 @@ function fmtDateTime(v?: string | null) {
   if (!v) return "-";
   const d = new Date(v);
   if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleString();
+  return d.toLocaleString("ko-KR", { dateStyle: "short", timeStyle: "short" });
 }
 
 export default function StaffExpensesTab({ staffId }: { staffId: number }) {
+  const confirm = useConfirm();
   const { y, m, from, to } = useMemo(getThisMonthRange, []);
   const expenses = useExpenses({ staff: staffId, date_from: from, date_to: to });
 
@@ -138,8 +140,14 @@ export default function StaffExpensesTab({ staffId }: { staffId: number }) {
                     }
                     onClick={() => {
                       if (actionDisabled || !isPending) return;
-                      if (!confirm("이 비용을 승인할까요?")) return;
-                      expenses.patchM.mutate({ id: e.id, payload: { status: "APPROVED" } });
+                      void (async () => {
+                        const ok = await confirm({
+                          title: "선결제 환급 승인",
+                          message: `${e.date} · ${e.title} · ${e.amount.toLocaleString()}원을 승인하시겠습니까?`,
+                          confirmText: "승인",
+                        });
+                        if (ok) expenses.patchM.mutate({ id: e.id, payload: { status: "APPROVED" } });
+                      })();
                     }}
                   >
                     승인
@@ -163,8 +171,15 @@ export default function StaffExpensesTab({ staffId }: { staffId: number }) {
                     }
                     onClick={() => {
                       if (actionDisabled || !isPending) return;
-                      if (!confirm("이 비용을 반려할까요?")) return;
-                      expenses.patchM.mutate({ id: e.id, payload: { status: "REJECTED" } });
+                      void (async () => {
+                        const ok = await confirm({
+                          title: "선결제 환급 반려",
+                          message: `${e.date} · ${e.title} · ${e.amount.toLocaleString()}원을 반려하시겠습니까?`,
+                          confirmText: "반려",
+                          danger: true,
+                        });
+                        if (ok) expenses.patchM.mutate({ id: e.id, payload: { status: "REJECTED" } });
+                      })();
                     }}
                   >
                     반려

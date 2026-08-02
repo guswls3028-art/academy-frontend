@@ -74,7 +74,13 @@ export default function StaffCreateModal({ open, onClose }: Props) {
   const invalidName = !String(form.name || "").trim();
 
   return (
-    <AdminModal open={open} onClose={onClose} type="action" onEnterConfirm={!createM.isPending && !invalidUsername && !invalidPassword && !invalidName ? () => createM.mutate() : undefined}>
+    <AdminModal
+      open={open}
+      onClose={onClose}
+      type="action"
+      closeDisabled={createM.isPending}
+      onEnterConfirm={!createM.isPending && !invalidUsername && !invalidPassword && !invalidName ? () => createM.mutate() : undefined}
+    >
       <ModalHeader
         title="직원 추가"
         description="로그인 계정을 포함한 직원 정보를 등록합니다."
@@ -83,8 +89,9 @@ export default function StaffCreateModal({ open, onClose }: Props) {
 
       <ModalBody>
         <div className={styles.form}>
-          <Field label="로그인 아이디 *">
+          <Field id="staff-create-username" label="로그인 아이디 *">
             <input
+              id="staff-create-username"
               className="ds-input"
               value={form.username}
               onChange={(e) =>
@@ -93,11 +100,13 @@ export default function StaffCreateModal({ open, onClose }: Props) {
               data-required="true"
               data-invalid={invalidUsername ? "true" : "false"}
               autoFocus
+              autoComplete="username"
             />
           </Field>
 
-          <Field label="비밀번호 * (4자 이상)">
+          <Field id="staff-create-password" label="비밀번호 * (4자 이상)">
             <input
+              id="staff-create-password"
               type="password"
               className="ds-input"
               value={form.password}
@@ -106,11 +115,13 @@ export default function StaffCreateModal({ open, onClose }: Props) {
               }
               data-required="true"
               data-invalid={invalidPassword ? "true" : "false"}
+              autoComplete="new-password"
             />
           </Field>
 
-          <Field label="이름 *">
+          <Field id="staff-create-name" label="이름 *">
             <input
+              id="staff-create-name"
               className="ds-input"
               value={form.name}
               onChange={(e) =>
@@ -118,22 +129,27 @@ export default function StaffCreateModal({ open, onClose }: Props) {
               }
               data-required="true"
               data-invalid={invalidName ? "true" : "false"}
+              autoComplete="name"
             />
           </Field>
 
-          <Field label="전화번호">
+          <Field id="staff-create-phone" label="전화번호">
             <input
+              id="staff-create-phone"
+              type="tel"
               className="ds-input"
               value={form.phone}
               onChange={(e) =>
                 setForm((p) => ({ ...p, phone: e.target.value }))
               }
               placeholder="010XXXXXXXX"
+              autoComplete="tel"
             />
           </Field>
 
-          <Field label="권한 *">
+          <Field id="staff-create-role" label="권한 *">
             <select
+              id="staff-create-role"
               className="ds-input"
               value={form.permission_role}
               onChange={(e) =>
@@ -181,15 +197,17 @@ export default function StaffCreateModal({ open, onClose }: Props) {
 }
 
 function Field({
+  id,
   label,
   children,
 }: {
+  id: string;
   label: string;
   children: React.ReactNode;
 }) {
   return (
     <div className={styles.field}>
-      <div className={styles.label}>{label}</div>
+      <label htmlFor={id} className={styles.label}>{label}</label>
       {children}
     </div>
   );

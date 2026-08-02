@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { cx } from "@/shared/utils/cx";
+import { useConfirm } from "@/shared/ui/confirm";
 import { LockBadge } from "../../components/StatusBadge";
 import { useWorkMonth } from "../../operations/context/workMonthHooks";
 import { useWorkRecords } from "../../hooks/useWorkRecords";
@@ -12,6 +13,7 @@ import CreateWorkRecordModal from "./CreateWorkRecordModal";
 import "../../styles/staff-area.css";
 
 export default function WorkRecordsPanel() {
+  const confirm = useConfirm();
   const {
     staffId,
     range,
@@ -162,8 +164,15 @@ export default function WorkRecordsPanel() {
                       }
                       onClick={() => {
                         if (writeBlocked || deleteM.isPending) return;
-                        if (!confirm("이 근무 기록을 삭제할까요?")) return;
-                        deleteM.mutate(r.id);
+                        void (async () => {
+                          const ok = await confirm({
+                            title: "근무 기록 삭제",
+                            message: `${r.date} · ${r.work_type_name} 근무 기록을 삭제하시겠습니까?`,
+                            confirmText: "삭제",
+                            danger: true,
+                          });
+                          if (ok) deleteM.mutate(r.id);
+                        })();
                       }}
                     >
                       삭제

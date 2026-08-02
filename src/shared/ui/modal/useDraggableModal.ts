@@ -9,6 +9,17 @@ type Options = {
   enableMinimize?: boolean;
 };
 
+type DragBounds = {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+};
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
 export function useDraggableModal(
   handleSelector = ".modal-header",
   options?: Options,
@@ -31,6 +42,20 @@ export function useDraggableModal(
         startY: clientY,
         baseX: offsetRef.current.x,
         baseY: offsetRef.current.y,
+        bounds: (() => {
+          const modal = target.closest<HTMLElement>(".ant-modal");
+          if (!modal) return null;
+          const rect = modal.getBoundingClientRect();
+          const originalLeft = rect.left - offsetRef.current.x;
+          const originalTop = rect.top - offsetRef.current.y;
+          const margin = 8;
+          return {
+            minX: margin - originalLeft,
+            maxX: window.innerWidth - margin - originalLeft - rect.width,
+            minY: margin - originalTop,
+            maxY: window.innerHeight - margin - originalTop - rect.height,
+          } satisfies DragBounds;
+        })(),
       };
     },
     [handleSelector],
@@ -44,12 +69,18 @@ export function useDraggableModal(
       document.body.style.userSelect = "none";
       setDragging(true);
 
-      const { startX, startY, baseX, baseY } = s;
+      const { startX, startY, baseX, baseY, bounds } = s;
       const onMove = (ev: MouseEvent) => {
-        const next = {
+        const raw = {
           x: baseX + ev.clientX - startX,
           y: baseY + ev.clientY - startY,
         };
+        const next = bounds
+          ? {
+              x: clamp(raw.x, Math.min(bounds.minX, bounds.maxX), Math.max(bounds.minX, bounds.maxX)),
+              y: clamp(raw.y, Math.min(bounds.minY, bounds.maxY), Math.max(bounds.minY, bounds.maxY)),
+            }
+          : raw;
         offsetRef.current = next;
         setOffset(next);
         if (enableMinimize) {
@@ -84,13 +115,20 @@ export function useDraggableModal(
       if (!s) return;
       setDragging(true);
 
-      const { startX, startY, baseX, baseY } = s;
+      const { startX, startY, baseX, baseY, bounds } = s;
       const onMove = (ev: TouchEvent) => {
+        ev.preventDefault();
         const t = ev.touches[0];
-        const next = {
+        const raw = {
           x: baseX + t.clientX - startX,
           y: baseY + t.clientY - startY,
         };
+        const next = bounds
+          ? {
+              x: clamp(raw.x, Math.min(bounds.minX, bounds.maxX), Math.max(bounds.minX, bounds.maxX)),
+              y: clamp(raw.y, Math.min(bounds.minY, bounds.maxY), Math.max(bounds.minY, bounds.maxY)),
+            }
+          : raw;
         offsetRef.current = next;
         setOffset(next);
         if (enableMinimize) {

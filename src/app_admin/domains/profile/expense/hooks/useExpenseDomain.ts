@@ -10,6 +10,9 @@ import {
   updateExpense,
 } from "../../api/profile.api";
 import { adminProfileQueryKeys } from "../../queryKeys";
+import { useConfirm } from "@/shared/ui/confirm";
+import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object";
@@ -31,6 +34,7 @@ function inRange(date: string, from: string, to: string) {
 
 export function useExpenseDomain(month: string, range: { from: string; to: string }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
 
   const listQ = useQuery({
     queryKey: adminProfileQueryKeys.myExpenses(month),
@@ -54,18 +58,30 @@ export function useExpenseDomain(month: string, range: { from: string; to: strin
 
   const createMut = useMutation({
     mutationFn: createExpense,
-    onSuccess: invalidateExpenses,
+    onSuccess: () => {
+      invalidateExpenses();
+      feedback.success("지출을 등록했습니다.");
+    },
   });
 
   const updateMut = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: Partial<ExpenseMutationPayload> }) =>
       updateExpense(id, payload),
-    onSuccess: invalidateExpenses,
+    onSuccess: () => {
+      invalidateExpenses();
+      feedback.success("지출을 수정했습니다.");
+    },
   });
 
   const deleteMut = useMutation({
     mutationFn: (id: number) => deleteExpense(id),
-    onSuccess: invalidateExpenses,
+    onSuccess: () => {
+      invalidateExpenses();
+      feedback.success("지출을 삭제했습니다.");
+    },
+    onError: (error: unknown) => {
+      feedback.error(extractApiError(error, "지출 삭제에 실패했습니다."));
+    },
   });
 
   const [open, setOpen] = useState(false);
@@ -103,8 +119,18 @@ export function useExpenseDomain(month: string, range: { from: string; to: strin
   };
 
   const remove = async (row: Expense) => {
-    if (!confirm("해당 지출을 삭제하시겠습니까?")) return;
-    await deleteMut.mutateAsync(row.id);
+    const ok = await confirm({
+      title: "지출 삭제",
+      message: `${row.date} · ${row.title} 지출을 삭제하시겠습니까?`,
+      confirmText: "삭제",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await deleteMut.mutateAsync(row.id);
+    } catch {
+      // mutation onError가 사용자 피드백을 담당한다.
+    }
   };
 
   return {
@@ -112,10 +138,13 @@ export function useExpenseDomain(month: string, range: { from: string; to: strin
     allRows,
     total,
     isLoading: listQ.isLoading,
+    isError: listQ.isError,
+    refetch: listQ.refetch,
 
     open,
     editing,
     submitting: createMut.isPending || updateMut.isPending,
+    deletingId: deleteMut.isPending ? deleteMut.variables : null,
 
     openCreate,
     openEdit,

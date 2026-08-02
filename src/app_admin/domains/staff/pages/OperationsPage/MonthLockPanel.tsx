@@ -5,9 +5,11 @@ import { Button } from "@/shared/ui/ds";
 import { cx } from "@/shared/utils/cx";
 import { LockBadge } from "../../components/StatusBadge";
 import { useWorkMonth } from "../../operations/context/workMonthHooks";
+import { useConfirm } from "@/shared/ui/confirm";
 import "../../styles/staff-area.css";
 
 export default function MonthLockPanel() {
+  const confirm = useConfirm();
   const {
     year,
     month,
@@ -71,13 +73,15 @@ export default function MonthLockPanel() {
             }
             onClick={() => {
               if (disabledReason || lockM.isPending) return;
-              if (
-                !confirm(
-                  `${year}년 ${month}월을 마감할까요?\n\n마감 후에는 근무·환급 기록 수정이 불가능합니다.`
-                )
-              )
-                return;
-              lockM.mutate();
+              void (async () => {
+                const ok = await confirm({
+                  title: `${year}년 ${month}월 마감`,
+                  message: "근태와 승인 환급을 고정합니다. 마감 후에는 해당 월 기록을 수정할 수 없습니다.",
+                  confirmText: "월 마감",
+                  danger: true,
+                });
+                if (ok) lockM.mutate();
+              })();
             }}
           >
             {lockM.isPending ? "처리 중…" : "월 마감"}

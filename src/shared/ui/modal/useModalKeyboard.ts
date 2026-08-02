@@ -25,8 +25,15 @@ function shouldSkipEnter(): boolean {
   if (el.tagName === "TEXTAREA") return true;
   if (el.getAttribute?.("contenteditable") === "true") return true;
 
-  // input 포커스 중 → Enter = 폼 내 행 이동/값 확정 (모달 저장 아님)
-  if (el.tagName === "INPUT") return true;
+  // 버튼은 브라우저 기본 클릭에 맡기고, 선택형 컨트롤은 값 확정에 Enter를 사용한다.
+  if (el.tagName === "BUTTON" || el.tagName === "SELECT") return true;
+  if (el.tagName === "INPUT") {
+    const type = (el as HTMLInputElement).type;
+    if (["checkbox", "radio", "file", "color", "range", "date", "time", "month", "week"].includes(type)) {
+      return true;
+    }
+    if (el.getAttribute("aria-expanded") === "true") return true;
+  }
 
   // antd Select/Picker/Dropdown 열린 상태 → Enter = 항목 선택
   if (
@@ -62,6 +69,7 @@ function autoClickPrimary(): boolean {
 
 function globalKeyHandler(e: KeyboardEvent) {
   if (stack.length === 0) return;
+  if (e.isComposing) return;
 
   // ConfirmDialog가 열려 있으면 ConfirmDialog 자체 핸들러에 위임
   if (document.querySelector("[data-confirm-dialog]")) return;
