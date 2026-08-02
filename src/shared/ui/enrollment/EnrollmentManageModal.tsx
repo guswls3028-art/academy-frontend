@@ -1,18 +1,12 @@
-// PATH: src/shared/ui/enrollment/EnrollmentManageModal.tsx
 /**
- * EnrollmentManageModal
- *
- * ✅ 차시 수강생 등록 모달(SessionEnrollModal)과 동일한 디자인·레이아웃 적용
- * - AdminModal + ModalHeader/ModalBody/ModalFooter
- * - 좌: 검색·툴바·테이블 / 우: 선택 목록(220px)
- *
- * API / state 관리 ❌ (Panel에서 주입)
+ * 시험과 과제가 함께 사용하는 대상자 편집기.
+ * API와 편집 상태는 각 도메인 패널이 소유한다.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { EnrollmentRow } from "./types";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
-import { Button, EmptyState } from "@/shared/ui/ds";
+import { Badge, Button, EmptyState } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { TABLE_COL } from "@/shared/ui/domain";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
@@ -46,13 +40,12 @@ type Props = {
   title: string;
   description?: string;
 
-  sessionId: number;
-
   rows: EnrollmentRow[];
   loading?: boolean;
   error?: string | null;
 
   selectedIds: Set<number>;
+  originSelectedIds?: ReadonlySet<number>;
   onToggle?: (id: number) => void;
   onSetSelectedIds?: (next: Set<number>) => void;
 
@@ -72,6 +65,7 @@ export default function EnrollmentManageModal({
   loading,
   error,
   selectedIds,
+  originSelectedIds,
   onToggle,
   onSetSelectedIds,
   onSave,
@@ -92,10 +86,10 @@ export default function EnrollmentManageModal({
       return;
     }
     const ok = await confirm({
-      title: "수강 해제",
+      title: "변경사항 버리기",
       message: "변경사항이 있습니다.\n저장하지 않고 닫을까요?",
       danger: true,
-      confirmText: "해제",
+      confirmText: "버리고 닫기",
     });
     if (ok) onClose();
   }, [saving, dirty, onClose, confirm]);
@@ -119,6 +113,23 @@ export default function EnrollmentManageModal({
     () => rows.filter((r) => selectedIds.has(r.enrollment_id)),
     [rows, selectedIds]
   );
+  const addedCount = useMemo(() => {
+    if (!originSelectedIds) return 0;
+    let count = 0;
+    selectedIds.forEach((id) => {
+      if (!originSelectedIds.has(id)) count += 1;
+    });
+    return count;
+  }, [originSelectedIds, selectedIds]);
+  const removedCount = useMemo(() => {
+    if (!originSelectedIds) return 0;
+    let count = 0;
+    originSelectedIds.forEach((id) => {
+      if (!selectedIds.has(id)) count += 1;
+    });
+    return count;
+  }, [originSelectedIds, selectedIds]);
+  const originCount = originSelectedIds?.size ?? selectedIds.size;
 
   const readOnly = !onSave;
 
@@ -150,8 +161,12 @@ export default function EnrollmentManageModal({
   };
 
   return (
-    <AdminModal open={true} onClose={safeClose} type="action" width={840}>
-      <ModalHeader type="action" title={title} description={description} />
+    <AdminModal open={true} onClose={safeClose} type="action" width={960}>
+      <ModalHeader
+        type="action"
+        title={title}
+        description={description ?? "현재 차시에 등록된 수강생 중 이 평가에 참여할 학생을 선택합니다."}
+      />
 
       <ModalBody>
         <div
@@ -177,10 +192,15 @@ export default function EnrollmentManageModal({
                   />
                 </div>
               </div>
-              {selectedIds.size > 0 && (
-                <span className="text-[13px] font-semibold text-[var(--color-brand-primary)]">
-                  {selectedIds.size}명 선택됨
-                </span>
+              {!readOnly && filtered.length > 0 && (
+                <div className="enrollment-manage-modal__bulk-actions flex flex-wrap items-center gap-2">
+                  <Button intent="secondary" size="sm" onClick={selectAll} disabled={!canInteract}>
+                    검색 결과 전체 선택
+                  </Button>
+                  <Button intent="ghost" size="sm" onClick={clearAll} disabled={!canInteract}>
+                    검색 결과 해제
+                  </Button>
+                </div>
               )}
             </div>
 
@@ -353,17 +373,38 @@ export default function EnrollmentManageModal({
             </div>
           </div>
 
-          {/* 우측: 선택 목록 */}
+          {/* 우측: 변경 요약 + 최종 대상 목록 */}
           <div
             className="enrollment-manage-modal__selected-panel flex flex-col gap-4 rounded-xl border p-4 w-[220px] shrink-0 self-stretch min-h-0 overflow-hidden"
           >
+            <section className="enrollment-manage-modal__change-summary" aria-label="대상자 변경 요약">
+              <span className="enrollment-manage-modal__summary-label">변경 요약</span>
+              <dl className="enrollment-manage-modal__summary-grid">
+                <div>
+                  <dt>기존</dt>
+                  <dd>{originCount}명</dd>
+                </div>
+                <div>
+                  <dt>추가</dt>
+                  <dd><Badge tone="success" size="sm">+{addedCount}</Badge></dd>
+                </div>
+                <div>
+                  <dt>제외</dt>
+                  <dd><Badge tone={removedCount > 0 ? "warning" : "neutral"} size="sm">-{removedCount}</Badge></dd>
+                </div>
+                <div data-final="true">
+                  <dt>저장 후</dt>
+                  <dd>{selectedIds.size}명</dd>
+                </div>
+              </dl>
+            </section>
             <section className="flex flex-col min-h-0 flex-1 overflow-hidden">
               <div className="flex flex-wrap items-center gap-2 mb-2 shrink-0 pl-0.5">
                 <span
                   className="enrollment-manage-modal__selected-count text-[13px] font-semibold"
                   data-selected={selectedIds.size > 0 ? "true" : "false"}
                 >
-                  {selectedIds.size}명 선택됨
+                  최종 대상 {selectedIds.size}명
                 </span>
                 <span className="text-[var(--color-border-divider)]" aria-hidden>|</span>
                 {!readOnly && onSetSelectedIds && (
@@ -451,7 +492,7 @@ export default function EnrollmentManageModal({
                     : "저장"
                 }
               >
-                {saving ? "저장 중…" : "선택 확정(저장)"}
+                {saving ? "저장 중…" : `${selectedIds.size}명으로 저장`}
               </Button>
             )}
           </>

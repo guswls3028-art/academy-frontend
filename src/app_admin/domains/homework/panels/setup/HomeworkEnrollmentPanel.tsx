@@ -1,22 +1,16 @@
-// PATH: src/app_admin/domains/homework/panels/setup/HomeworkEnrollmentPanel.tsx
 /**
- * HomeworkEnrollmentPanel ✅ FINAL (0명 문제 종결판)
- *
- * 규칙(대기업 기준):
- * - "선택됨 N명" 요약은 항상 서버 단일 진실(query)로 표시
- * - 모달은 편집용 임시 state만 사용
- * - 저장 성공 시에만 invalidate (닫기/취소 시 invalidate 금지)
- * - 모달 open 시 refetch로 최신 편집 시작
+ * 서버 배정 목록을 요약의 단일 진실로 사용하고 모달에는 임시 편집 상태만 둔다.
  */
 
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import HomeworkEnrollmentManageModal from "@admin/domains/homework/components/HomeworkEnrollmentManageModal";
+import EnrollmentManageModal from "@/shared/ui/enrollment/EnrollmentManageModal";
 import type { EnrollmentRow } from "@/shared/ui/enrollment/types";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import formStyles from "@/shared/ui/assessment/AssessmentSetupForm.module.css";
 
 import { QUERY_KEYS } from "@admin/domains/homework/queryKeys";
 import { useAdminHomework } from "@admin/domains/homework/hooks/useAdminHomework";
@@ -39,7 +33,6 @@ export default function HomeworkEnrollmentPanel({
   const { data: homework } = useAdminHomework(hid);
   const sessionId = Number(homework?.session_id ?? 0);
 
-  // ✅ 단일 진실 query (요약 표시용)
   const {
     data: assignments,
     isLoading: loadingAssignments,
@@ -47,11 +40,9 @@ export default function HomeworkEnrollmentPanel({
     refetch: refetchAssignments,
   } = useHomeworkAssignments(hid);
 
-  // ----------------------------
-  // modal local editing states
-  // ----------------------------
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editorLoading, setEditorLoading] = useState(false);
 
   const [rows, setRows] = useState<EnrollmentRow[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -60,7 +51,6 @@ export default function HomeworkEnrollmentPanel({
   );
 
   const selectedCount = useMemo(() => {
-    // ✅ 요약은 단일 진실
     return assignments?.selected_ids?.length ?? 0;
   }, [assignments?.selected_ids]);
 
@@ -93,23 +83,28 @@ export default function HomeworkEnrollmentPanel({
     setOriginSelectedIds(new Set(initSelected));
   };
 
-  // 모달 열 때 최신 데이터로 편집 시작
   useEffect(() => {
     if (!open) return;
 
     let cancelled = false;
     setError(null);
+    setEditorLoading(true);
 
-    // 1) 최신화
     Promise.resolve(refetchAssignments())
       .then((res) => {
         if (cancelled) return;
-        hydrateLocalFromQuery(res.data);
+        if (res.error) {
+          setError("최신 명단을 불러오지 못했습니다. 현재 목록으로 계속 편집할 수 있습니다.");
+        }
+        hydrateLocalFromQuery(res.data ?? assignments);
       })
       .catch(() => {
         if (cancelled) return;
-        // refetch 실패해도 기존 캐시로라도 편집 시작
+        setError("최신 명단을 불러오지 못했습니다. 현재 목록으로 계속 편집할 수 있습니다.");
         hydrateLocalFromQuery(assignments);
+      })
+      .finally(() => {
+        if (!cancelled) setEditorLoading(false);
       });
 
     return () => {
@@ -118,9 +113,6 @@ export default function HomeworkEnrollmentPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // ----------------------------
-  // dirty 계산 (모달 내부 단일 진실)
-  // ----------------------------
   const dirty = useMemo(() => {
     if (selectedIds.size !== originSelectedIds.size) return true;
     for (const id of selectedIds) {
@@ -141,9 +133,6 @@ export default function HomeworkEnrollmentPanel({
     });
   };
 
-  // ----------------------------
-  // SAVE (성공 시에만 invalidate)
-  // ----------------------------
   const saveMut = useMutation({
     mutationFn: async () => {
       setError(null);
@@ -153,11 +142,9 @@ export default function HomeworkEnrollmentPanel({
       });
     },
     onSuccess: async () => {
-      // ✅ 편집 상태 확정
       setOriginSelectedIds(new Set(selectedIds));
       setOpen(false);
 
-      // ✅ 단일 진실 동기화 (저장 성공 시만)
       await qc.invalidateQueries({
         queryKey: QUERY_KEYS.HOMEWORK_ASSIGNMENTS(hid),
       });
@@ -171,6 +158,7 @@ export default function HomeworkEnrollmentPanel({
           queryKey: QUERY_KEYS.HOMEWORK_SESSION_ENROLLMENTS(sessionId),
         });
       }
+      feedback.success(`과제 대상 학생을 ${selectedIds.size}명으로 저장했습니다.`);
     },
     onError: (e: unknown) => {
       setError(extractApiError(e, "저장에 실패했습니다. 다시 시도해주세요."));
@@ -178,17 +166,21 @@ export default function HomeworkEnrollmentPanel({
   });
 
   return (
-    <section className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)]">
-      <div className="border-b border-[var(--border-divider)] px-4 py-3">
-        <div className="text-sm font-semibold text-[var(--text-primary)]">
-          과제 대상 학생
-        </div>
-        <div className="text-xs text-[var(--text-muted)] leading-relaxed">
-          이 과제를 제출할 학생을 지정합니다. 대상으로 등록된 학생만 성적탭에 표시되고 점수 입력이 가능합니다.
+    <section
+      id="assessment-audience"
+      tabIndex={-1}
+      className={formStyles.section}
+    >
+      <div className={formStyles.header}>
+        <div>
+          <h2 className={formStyles.title}>과제 대상 학생</h2>
+          <p className={formStyles.description}>
+            이 과제를 제출할 학생을 지정합니다. 대상으로 등록된 학생만 성적탭에 표시되고 점수 입력이 가능합니다.
+          </p>
         </div>
       </div>
 
-      <div className="space-y-3 p-4">
+      <div className={formStyles.body}>
         {!hasHomework && (
           <div className="rounded border bg-[var(--bg-surface-soft)] p-3 text-sm text-[var(--text-muted)]">
             ⚠️ homeworkId가 없어 대상자를 관리할 수 없습니다.
@@ -259,14 +251,16 @@ export default function HomeworkEnrollmentPanel({
         )}
       </div>
 
-      <HomeworkEnrollmentManageModal
+      <EnrollmentManageModal
         open={open}
         onClose={() => setOpen(false)}
         title="과제 대상 학생 관리"
+        description="현재 차시 수강생 중 이 과제를 제출할 학생을 선택합니다."
         rows={rows}
-        loading={saveMut.isPending ? false : false /* 모달 내부 로딩은 refetch로 처리 */}
+        loading={editorLoading}
         error={error}
         selectedIds={selectedIds}
+        originSelectedIds={originSelectedIds}
         onToggle={toggleOne}
         onSetSelectedIds={setSelectedIds}
         onSave={() => {
