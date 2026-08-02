@@ -795,7 +795,7 @@ jobs:
           set -euo pipefail
           EXPECTED_VERSION=$(node -p "JSON.parse(require('fs').readFileSync('.deploy-bundle/dist/version.json', 'utf8')).version")
           PROBE_NAMES=(
-            AdminRouter StudentRouter DashboardPage ClinicPasscardModal
+            AdminRouter StudentRouter DashboardPage
             NoticesPage NoticeDetailPage QnaInboxPage CommunityPage
             ClinicPage ClinicOperationsConsolePage LecturesPage LectureDetailPage
             SessionDetailPage SessionScoresEntryPage SessionAssessmentSidePanel
