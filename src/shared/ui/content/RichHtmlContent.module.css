@@ -1,4 +1,6 @@
 .root {
+  min-width: 0;
+  max-width: 100%;
   color: inherit;
   line-height: 1.65;
   overflow-wrap: anywhere;
@@ -80,6 +82,7 @@
 }
 
 .root :where(pre) {
+  max-width: 100%;
   margin: 0.85em 0;
   padding: 0.85em;
   overflow-x: auto;
@@ -101,15 +104,21 @@
 }
 
 .root :where(table) {
+  display: block;
   width: 100%;
+  max-width: 100%;
   margin: 0.85em 0;
+  overflow-x: auto;
   border-collapse: collapse;
   font-size: 0.95em;
+  -webkit-overflow-scrolling: touch;
 }
 
 .root :where(th, td) {
   padding: 0.45em 0.55em;
   border: 1px solid var(--tc-border, var(--stu-border, #e2e8f0));
+  overflow-wrap: anywhere;
+  word-break: break-word;
   vertical-align: top;
 }
 

@@ -199,6 +199,7 @@ async function auditRoute(page: Page, testInfo: TestInfo, base: string, route: s
       overflowX,
       bodyTextLength: bodyText.trim().length,
       hasErrorText: /Not Found|ChunkLoadError|Application error|Something went wrong|404/i.test(bodyText),
+      hasEscapedHtml: /<\/?(?:p|div|span|br|table|tbody|thead|tr|td|th|strong|em|h[1-6])(?:\s|\/?>)/i.test(bodyText),
     };
   }, [...REQUIRED_TOKENS]);
 
@@ -206,7 +207,10 @@ async function auditRoute(page: Page, testInfo: TestInfo, base: string, route: s
   expect(snapshot.hasErrorText, `${route} rendered an error-like page at ${snapshot.url}`).toBe(false);
   expect(snapshot.missingTokens, `${route} missing design tokens`).toEqual([]);
   expect(snapshot.badControls, `${route} controls not inheriting app font`).toEqual([]);
-  expect(snapshot.overflowX, `${route} body horizontal overflow`).toBeLessThanOrEqual(80);
+  expect(snapshot.overflowX, `${route} body horizontal overflow`).toBeLessThanOrEqual(route.startsWith("/student/") ? 1 : 80);
+  if (route.startsWith("/student/")) {
+    expect(snapshot.hasEscapedHtml, `${route} exposed escaped HTML to the user`).toBe(false);
+  }
 
   const screenshotPath = testInfo.outputPath(`${routeName(route)}.png`);
   await page.screenshot({

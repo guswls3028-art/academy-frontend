@@ -19,6 +19,7 @@ import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { IconChevronRight, IconClinic, IconNotice } from "@student/shared/ui/icons/Icons";
 import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
+import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 import styles from "./NotificationsPage.module.css";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
@@ -112,7 +113,7 @@ export default function NotificationsPage() {
   ], [approvedClinicBookings, answeredQnaPosts, answeredCounselPosts, newGrades]);
 
   // 알림 페이지 진입 시 현재 보이는 항목들을 "읽음" 처리
-  const markSeen = useMarkNotificationsSeen();
+  const markSeen = useMarkNotificationsSeen(profile?.id ?? null);
   const markedRef = useRef<string>("");
   useEffect(() => {
     if (isLoading) return;
@@ -279,7 +280,7 @@ function NotificationLink({
       className={`stu-panel stu-panel--pressable ${styles.card}`}
     >
       <div className={styles.cardText}>
-        <div className={styles.itemTitle}>{title}</div>
+        <div className={styles.itemTitle}>{richHtmlToPlainText(title)}</div>
         <div className={`stu-muted ${styles.itemMeta}`}>{meta}</div>
       </div>
       <span className={styles.cardArrow} aria-hidden="true">

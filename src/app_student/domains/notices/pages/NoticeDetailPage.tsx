@@ -11,6 +11,7 @@ import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { formatCompactFileSize as formatAttachmentSize } from "@/shared/utils/fileSize";
+import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 import styles from "./NoticeDetailPage.module.css";
 
 function isImageAttachment(att: PostAttachment): boolean {
@@ -63,7 +64,7 @@ export default function NoticeDetailPage() {
           {/* 제목 */}
           <div>
             <h1 className={styles.title}>
-              {notice.title}
+              {richHtmlToPlainText(notice.title)}
             </h1>
             <div className={styles.metaRow}>
               {lectureTitle && (
