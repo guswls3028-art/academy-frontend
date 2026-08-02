@@ -19,6 +19,26 @@
   grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
 }
 
+.staff-detail-entry {
+  padding: 2px 1px;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  transition: color 140ms ease, border-color 140ms ease;
+}
+
+.staff-detail-entry:hover {
+  border-bottom-color: color-mix(in srgb, var(--color-brand-primary) 38%, transparent);
+  color: var(--color-brand-primary);
+}
+
+.staff-detail-entry:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 3px;
+}
+
 @media (max-width: 1199px) {
   .staff-area .staff-workspace-grid,
   .staff-area .staff-workspace-grid--operations {

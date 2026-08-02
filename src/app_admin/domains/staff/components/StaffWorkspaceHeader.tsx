@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/staff/components/StaffWorkspaceHeader.tsx
 // Persistent header when a staff is selected: name, role, pay type, wage tag, month selector, KPI chips
 
-import { useSearchParams } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useStaffs } from "../hooks/useStaffs";
 import { useQuery } from "@tanstack/react-query";
@@ -28,6 +28,8 @@ type Props = {
 
 export function StaffWorkspaceHeader({ staffId, year, month }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { data: staffData } = useStaffs();
   const staffs = staffData?.staffs ?? [];
   const staff = staffs.find((s) => s.id === staffId);
@@ -60,7 +62,19 @@ export function StaffWorkspaceHeader({ staffId, year, month }: Props) {
   return (
     <div className="staff-panel__header flex flex-wrap items-center justify-between gap-4 border-b border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-border-divider)_4%,var(--color-bg-surface))]">
       <div className="flex items-center gap-3 flex-wrap">
-        {staff && <span className="staff-page-title text-base font-semibold text-[var(--color-text-primary)]">{staff.name}</span>}
+        {staff && (
+          <button
+            type="button"
+            className="staff-page-title staff-detail-entry text-base font-semibold text-[var(--color-text-primary)]"
+            onClick={() => navigate(`/workspace/staff/${staff.id}`, {
+              state: { backgroundLocation: location },
+            })}
+            aria-label={`${staff.name} 직원 상세 열기`}
+            title="직원 상세 열기"
+          >
+            {staff.name}
+          </button>
+        )}
         {staff && (
           <>
             <Badge variant="solid" actionable tone={staff.role === "TEACHER" ? "primary" : "neutral"}>
