@@ -74,8 +74,8 @@ importers:
         specifier: ^1.18.1
         version: 1.18.1
       dayjs:
-        specifier: ^1.11.19
-        version: 1.11.20
+        specifier: ^1.11.21
+        version: 1.11.21
       dompurify:
         specifier: ^3.4.12
         version: 3.4.12
@@ -875,6 +875,7 @@ packages:
 
   '@rollup/rollup-linux-x64-gnu@4.60.2':
     resolution: {integrity: sha512-UQjrkIdWrKI626Du8lCQ6MJp/6V1LAo2bOK9OTu4mSn8GGXIkPXk/Vsp4bLHCd9Z9Iz2OTEaokUE90VweJgIYQ==}
+    cpu: [x64]
     os: [linux]
 
   '@rollup/rollup-linux-x64-musl@4.60.2':
@@ -909,6 +910,7 @@ packages:
 
   '@rollup/rollup-win32-x64-msvc@4.60.2':
     resolution: {integrity: sha512-Nd/SgG27WoA9e+/TdK74KnHz852TLa94ovOYySo/yMPuTmpckK/jIF2jSwS3g7ELSKXK13/cVdmg1Z/DaCWKxA==}
+    cpu: [x64]
     os: [win32]
 
   '@sentry-internal/browser-utils@10.49.0':
@@ -992,6 +994,7 @@ packages:
   '@swc/core-linux-x64-gnu@1.15.30':
     resolution: {integrity: sha512-5Pizw3NgfOJ5BJOBK8TIRa59xFW2avESTOBDPTAYwZYa1JNDs+KMF9lUfjJiJLM5HiMs/wPheA9eiT0q9m2AoA==}
     engines: {node: '>=10'}
+    cpu: [x64]
     os: [linux]
 
   '@swc/core-linux-x64-musl@1.15.30':
@@ -1015,6 +1018,7 @@ packages:
   '@swc/core-win32-x64-msvc@1.15.30':
     resolution: {integrity: sha512-4iObHPR+Q4oDY110EF5SF5eIaaVJNpMdG9C0q3Q92BsJ5y467uHz7sYQhP60WYlLFsLQ1el2YrIPUItUAQGOKg==}
     engines: {node: '>=10'}
+    cpu: [x64]
     os: [win32]
 
   '@swc/core@1.15.30':
@@ -1672,8 +1676,8 @@ packages:
     resolution: {integrity: sha512-ndfJ/JxxMd3nw31uyKoY2naivF+r29V+Lc0svZxe1JvvIRmi8hUsrMvdOwgS1o6uBHmiz91geQ0ylPP0aj1VUA==}
     engines: {node: '>=12'}
 
-  dayjs@1.11.20:
-    resolution: {integrity: sha512-YbwwqR/uYpeoP4pu043q+LTDLFBLApUP6VxRihdfNTqu4ubqMlGDLd6ErXhEgsyvY0K6nCs7nggYumAN+9uEuQ==}
+  dayjs@1.11.21:
+    resolution: {integrity: sha512-98IT+HOahAisibz/yjKbzuOBwYcjJ7BCLPzARyHiyEBmRz4fatF+KPJszEHXsGYjUG234aH/cOjW1wwTbKUZlA==}
 
   debug@4.4.3:
     resolution: {integrity: sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==}
@@ -2121,6 +2125,7 @@ packages:
   lightningcss-linux-x64-gnu@1.32.0:
     resolution: {integrity: sha512-V7Qr52IhZmdKPVr+Vtw8o+WLsQJYCTd8loIfpDaMRWGUZfBOYEJeyJIkqGIDMZPwPx24pUMfwSxxI8phr/MbOA==}
     engines: {node: '>= 12.0.0'}
+    cpu: [x64]
     os: [linux]
 
   lightningcss-linux-x64-musl@1.30.2:
@@ -2144,6 +2149,7 @@ packages:
   lightningcss-win32-x64-msvc@1.32.0:
     resolution: {integrity: sha512-Amq9B/SoZYdDi1kFrojnoqPLxYhQ4Wo5XiL8EVJrVsB8ARoC1PWW6VGtT0WKCemjy8aC+louJnjS7U18x3b06Q==}
     engines: {node: '>= 12.0.0'}
+    cpu: [x64]
     os: [win32]
 
   lightningcss@1.30.2:
@@ -3150,7 +3156,7 @@ snapshots:
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
 
-  '@rc-component/picker@1.9.1(dayjs@1.11.20)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+  '@rc-component/picker@1.9.1(dayjs@1.11.21)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
       '@rc-component/overflow': 1.0.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@rc-component/resize-observer': 1.1.2(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -3160,7 +3166,7 @@ snapshots:
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
     optionalDependencies:
-      dayjs: 1.11.20
+      dayjs: 1.11.21
 
   '@rc-component/portal@2.2.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
@@ -3984,7 +3990,7 @@ snapshots:
       '@rc-component/mutate-observer': 2.0.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@rc-component/notification': 1.2.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@rc-component/pagination': 1.2.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@rc-component/picker': 1.9.1(dayjs@1.11.20)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@rc-component/picker': 1.9.1(dayjs@1.11.21)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@rc-component/progress': 1.0.2(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@rc-component/qrcode': 1.1.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@rc-component/rate': 1.0.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -4005,7 +4011,7 @@ snapshots:
       '@rc-component/upload': 1.1.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@rc-component/util': 1.10.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       clsx: 2.1.1
-      dayjs: 1.11.20
+      dayjs: 1.11.21
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
       scroll-into-view-if-needed: 3.1.0
@@ -4254,7 +4260,7 @@ snapshots:
 
   d3-timer@3.0.1: {}
 
-  dayjs@1.11.20: {}
+  dayjs@1.11.21: {}
 
   debug@4.4.3:
     dependencies:
@@ -4436,7 +4442,7 @@ snapshots:
   exceljs@4.4.0:
     dependencies:
       archiver: 5.3.2
-      dayjs: 1.11.20
+      dayjs: 1.11.21
       fast-csv: 4.3.6
       jszip: 3.10.1
       readable-stream: 3.6.2
