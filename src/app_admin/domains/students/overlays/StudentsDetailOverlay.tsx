@@ -2,7 +2,18 @@
 // 학생 상세 팝업 — URL/뒤로가기를 유지하면서 현재 업무 화면 위에 표시
 
 import { useParams, useNavigate, useLocation } from "react-router";
-import { lazy, Suspense, useState, useEffect, useCallback, type CSSProperties, type ReactNode } from "react";
+import {
+  lazy,
+  Suspense,
+  useState,
+  useEffect,
+  useCallback,
+  useId,
+  useRef,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+} from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
 import api from "@/shared/api/axios";
@@ -43,6 +54,16 @@ const StudentEnrollmentMatrixDrawer = lazy(() => import("../components/StudentEn
 const StudentStorageExplorer = lazy(() => import("@admin/domains/storage/components/StudentStorageExplorer"));
 
 type StatTabKey = "enroll" | "score" | "homework" | "clinic" | "question";
+type ExamSessionScope = "all" | "REGULAR" | "SUPPLEMENT";
+
+const EXAM_SESSION_SCOPE_OPTIONS: Array<{
+  value: ExamSessionScope;
+  label: string;
+}> = [
+  { value: "all", label: "전체" },
+  { value: "REGULAR", label: "정규 수업" },
+  { value: "SUPPLEMENT", label: "보강" },
+];
 type ClinicParticipant = {
   id: number | string;
   status?: string | null;
@@ -1058,6 +1079,9 @@ function ScoreTab({
   onNavigate: (path: string) => void;
 }) {
   const labels = useTenantLabels();
+  const [sessionScope, setSessionScope] = useState<ExamSessionScope>("all");
+  const sessionScopeTabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const sessionScopePanelId = useId();
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="성적 추이를 불러오는 중…" />;
   if (isError) {
     return (
@@ -1084,12 +1108,81 @@ function ScoreTab({
   // PASS/FAIL 라벨은 학원장 커스텀 (Phase #5). REMEDIATED("보강합격")는 자체 정책.
   const achievementLabel: Record<string, string> = { PASS: labels.pass, FAIL: labels.fail, REMEDIATED: "보강합격", NOT_SUBMITTED: "미응시" };
   const achievementTone: Record<string, string> = { PASS: "success", FAIL: "danger", REMEDIATED: "warning", NOT_SUBMITTED: "muted" };
+  const sessionScopeCounts: Record<ExamSessionScope, number> = {
+    all: data.length,
+    REGULAR: data.filter((exam) => exam.session_type === "REGULAR").length,
+    SUPPLEMENT: data.filter((exam) => exam.session_type === "SUPPLEMENT").length,
+  };
+  const visibleExams = sessionScope === "all"
+    ? data
+    : data.filter((exam) => exam.session_type === sessionScope);
+  const visibleTrend = sessionScope === "all"
+    ? trend
+    : trend.filter((point) => point.session_type === sessionScope);
+  const selectedScopeLabel = EXAM_SESSION_SCOPE_OPTIONS.find((option) => option.value === sessionScope)?.label ?? "전체";
+
+  function selectSessionScope(value: ExamSessionScope) {
+    setSessionScope(value);
+  }
+
+  function handleSessionScopeKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, currentIndex: number) {
+    let nextIndex: number | null = null;
+    if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % EXAM_SESSION_SCOPE_OPTIONS.length;
+    if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + EXAM_SESSION_SCOPE_OPTIONS.length) % EXAM_SESSION_SCOPE_OPTIONS.length;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = EXAM_SESSION_SCOPE_OPTIONS.length - 1;
+    if (nextIndex == null) return;
+
+    event.preventDefault();
+    selectSessionScope(EXAM_SESSION_SCOPE_OPTIONS[nextIndex].value);
+    sessionScopeTabRefs.current[nextIndex]?.focus();
+  }
 
   return (
     <div>
-      <StudentScoreTrendChart points={trend} />
+      <section className={styles.scoreScope} aria-labelledby={`${sessionScopePanelId}-title`}>
+        <div className={styles.scoreScopeHeader}>
+          <div>
+            <span>시험 범위</span>
+            <strong id={`${sessionScopePanelId}-title`}>정규 수업과 보강을 나눠 봅니다</strong>
+          </div>
+          <p>차시의 수업 구분에 따라 추이와 목록이 함께 바뀝니다.</p>
+        </div>
+        <div className={styles.scoreScopeTabs} role="tablist" aria-label="개인 시험 결과 범위">
+          {EXAM_SESSION_SCOPE_OPTIONS.map((option, index) => {
+            const tabId = `${sessionScopePanelId}-${option.value.toLowerCase()}`;
+            return (
+              <button
+                key={option.value}
+                ref={(node) => { sessionScopeTabRefs.current[index] = node; }}
+                id={tabId}
+                type="button"
+                role="tab"
+                aria-selected={sessionScope === option.value}
+                aria-controls={sessionScopePanelId}
+                tabIndex={sessionScope === option.value ? 0 : -1}
+                data-active={sessionScope === option.value ? "true" : "false"}
+                data-session-type={option.value}
+                onClick={() => selectSessionScope(option.value)}
+                onKeyDown={(event) => handleSessionScopeKeyDown(event, index)}
+              >
+                <span>{option.label}</span>
+                <strong>{sessionScopeCounts[option.value]}<small>건</small></strong>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+      <div
+        id={sessionScopePanelId}
+        role="tabpanel"
+        aria-labelledby={`${sessionScopePanelId}-${sessionScope.toLowerCase()}`}
+      >
+      {visibleExams.length > 0 ? (
+        <>
+      <StudentScoreTrendChart points={visibleTrend} />
       <div className={styles.tabList}>
-      {data.map((exam, i) => {
+      {visibleExams.map((exam, i) => {
         const lectureId = exam.lecture_id;
         const sessionId = exam.session_id;
         const canNav = !!lectureId && !!sessionId;
@@ -1105,7 +1198,15 @@ function ScoreTab({
               <LectureChip lectureName={exam.lecture_title} color={exam.lecture_color ?? undefined} chipLabel={exam.lecture_chip_label} size={24} />
             )}
             <div className={styles.recordMain}>
-              <span className={styles.recordTitle}>{exam.title}</span>
+              <div className={styles.recordTitleRow}>
+                <span className={styles.recordTitle}>{exam.title}</span>
+                <Badge
+                  size="xs"
+                  tone={exam.session_type === "REGULAR" ? "info" : exam.session_type === "SUPPLEMENT" ? "teal" : "muted"}
+                >
+                  {exam.session_type === "REGULAR" ? "정규" : exam.session_type === "SUPPLEMENT" ? "보강" : "구분 필요"}
+                </Badge>
+              </div>
               <div className={styles.recordMetaRow}>
                 {exam.session_title && <span>{exam.session_title}</span>}
                 {(exam.retake_count ?? 0) > 1 && <span>· 재시도 {(exam.retake_count ?? 0) - 1}회</span>}
@@ -1141,6 +1242,18 @@ function ScoreTab({
           </div>
         );
       })}
+      </div>
+        </>
+      ) : (
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title={`${selectedScopeLabel} 시험 성적이 없습니다.`}
+          description={sessionScope === "all"
+            ? "첫 시험 점수가 입력되면 1회차부터 자동으로 누적됩니다."
+            : `차시가 ${selectedScopeLabel}으로 구분된 시험이 여기에 표시됩니다.`}
+        />
+      )}
       </div>
     </div>
   );
