@@ -1,0 +1,247 @@
+.detailHeader {
+  padding: 18px 24px 16px;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface)) 0 4px, transparent 4px),
+    var(--color-bg-surface);
+}
+
+.identityAvatar {
+  width: 76px;
+  height: 76px;
+  border: 3px solid var(--color-bg-surface);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-brand-primary) 22%, var(--color-border-divider)),
+    0 8px 22px color-mix(in srgb, var(--color-brand-primary) 14%, transparent);
+}
+
+.headerTitleBlock {
+  gap: 9px;
+  padding: 0;
+}
+
+.identityMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+}
+
+.identityMetaItem {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--color-bg-surface-soft) 72%, var(--color-bg-surface));
+}
+
+.identityMetaItem dt {
+  padding: 4px 7px;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.identityMetaItem dd {
+  margin: 0;
+  padding: 4px 8px 4px 0;
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.identityMetaItem:last-child dd {
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", monospace;
+  letter-spacing: 0.015em;
+}
+
+.headerActions {
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--color-bg-surface-soft) 58%, var(--color-bg-surface));
+  box-shadow: 0 1px 2px rgb(15 23 42 / 5%);
+}
+
+.employmentStatus {
+  display: grid;
+  gap: 2px;
+  padding: 0 4px;
+}
+
+.statusLabel {
+  color: var(--color-text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.statusValue {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 54px;
+  padding: 2px 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.statusValue[data-active="true"] {
+  color: var(--color-success);
+}
+
+.statusDot,
+.managerDot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--color-text-muted);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-text-muted) 12%, transparent);
+}
+
+.statusValue[data-active="true"] .statusDot,
+.managerToggle[data-active="true"] .managerDot {
+  background: var(--color-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 14%, transparent);
+}
+
+.actionDivider {
+  width: 1px;
+  height: 26px;
+  margin: 0 2px;
+  background: var(--color-border-divider);
+}
+
+.destructiveAction.destructiveAction {
+  color: color-mix(in srgb, var(--color-danger) 78%, var(--color-text-secondary));
+}
+
+.destructiveAction.destructiveAction:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-danger) 8%, transparent);
+  color: var(--color-danger);
+}
+
+.managerToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.managerToggle[data-active="true"] {
+  color: var(--color-success);
+}
+
+.managerToggle:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-brand-primary) 7%, transparent);
+  color: var(--color-brand-primary);
+}
+
+.managerToggle:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+.managerToggle:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.staffTabs {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-bg-surface-soft) 70%, var(--color-bg-surface));
+}
+
+.staffTab {
+  all: unset;
+  box-sizing: border-box;
+  display: grid;
+  min-width: 0;
+  min-height: 48px;
+  place-items: center;
+  padding: 8px 7px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: var(--color-text-secondary);
+  font-size: 11.5px;
+  font-weight: 750;
+  line-height: 1.25;
+  text-align: center;
+  word-break: keep-all;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.staffTab:hover {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 16%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-bg-surface) 84%, transparent);
+}
+
+.staffTab:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 1px;
+}
+
+.staffTabActive {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 28%, var(--color-border-divider));
+  background: var(--color-bg-surface);
+  color: var(--color-brand-primary);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
+  transform: translateY(-1px);
+}
+
+.tabPanel {
+  margin-top: 12px;
+}
+
+@media (max-width: 768px) {
+  .detailHeader {
+    padding: 14px 16px 12px;
+  }
+
+  .identityAvatar {
+    width: 60px;
+    height: 60px;
+  }
+
+  .headerActions {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .staffTabs {
+    display: flex;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+
+  .staffTab {
+    flex: 0 0 104px;
+    min-height: 52px;
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .staffTab {
+    transition: none;
+  }
+}

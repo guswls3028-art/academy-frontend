@@ -3,7 +3,15 @@
 
 import { useParams, useNavigate, useLocation, Navigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect, useCallback, type ReactNode } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useId,
+  useRef,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 
 import {
@@ -34,6 +42,9 @@ import StaffExpensesTab from "./StaffExpensesTab";
 import StaffPayrollHistoryTab from "./StaffPayrollHistoryTab";
 import StaffReportTab from "./StaffReportTab";
 import StaffEditModal from "../../components/StaffEditModal";
+import styles from "./StaffDetailOverlay.module.css";
+
+type StaffTabKey = "summary" | "worktype" | "records" | "expenses" | "history" | "report";
 
 function StaffManagerToggle({
   staffId,
@@ -57,12 +68,10 @@ function StaffManagerToggle({
     },
   });
   return (
-    <Badge
-      as="button"
-      variant="solid"
-      actionable
-      className="cursor-pointer"
-      status={isManager ? "active" : "inactive"}
+    <button
+      type="button"
+      className={styles.managerToggle}
+      data-active={isManager ? "true" : "false"}
       disabled={mutation.isPending}
       onClick={async () => {
         const nextManager = !isManager;
@@ -76,10 +85,12 @@ function StaffManagerToggle({
         });
         if (ok) mutation.mutate({ is_manager: nextManager });
       }}
-      ariaLabel={isManager ? "관리자 해제" : "관리자 부여"}
+      aria-label={isManager ? "관리자 권한 있음, 권한 해제" : "관리자 권한 없음, 권한 부여"}
+      title={isManager ? "눌러서 관리자 권한 해제" : "눌러서 관리자 권한 부여"}
     >
-      {mutation.isPending ? "…" : isManager ? "ON" : "OFF"}
-    </Badge>
+      <span className={styles.managerDot} aria-hidden />
+      {mutation.isPending ? "변경 중" : isManager ? "권한 있음" : "권한 없음"}
+    </button>
   );
 }
 
@@ -102,6 +113,12 @@ function staffAvatarRole(
   return "ASSISTANT";
 }
 
+function staffRoleLabel(role: string) {
+  if (role === "OWNER") return "대표";
+  if (role === "TEACHER") return "강사";
+  return "조교";
+}
+
 type StaffDetailOverlayProps = {
   /** 목록 라우트 위에 띄울 때 전달. 없으면 URL의 staffId를 사용한다. */
   staffId?: number;
@@ -117,8 +134,10 @@ export default function StaffDetailOverlay({
   const location = useLocation();
   const qc = useQueryClient();
   const sid = staffId ?? Number(routeParams.staffId);
-  const [tab, setTab] = useState("summary");
+  const [tab, setTab] = useState<StaffTabKey>("summary");
   const [editOpen, setEditOpen] = useState(false);
+  const tabPanelId = useId();
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   // staffId 변경 시 탭을 기본값으로 리셋
   useEffect(() => { setTab("summary"); }, [sid]);
@@ -228,7 +247,7 @@ export default function StaffDetailOverlay({
   const lockFailed = locksQ.isError;
   const canManage = true; // meQ guard 통과 = payroll manager 확정
 
-  const tabItems = [
+  const tabItems: Array<{ key: StaffTabKey; label: string; children: ReactNode }> = [
     { key: "summary", label: "요약", children: <StaffSummaryTab staffId={sid} /> },
     { key: "worktype", label: "시급·근무유형", children: <StaffWorkTypeTab staffId={sid} /> },
     { key: "records", label: "근무기록", children: <StaffWorkRecordsTab staffId={sid} /> },
@@ -236,6 +255,19 @@ export default function StaffDetailOverlay({
     { key: "history", label: "급여 히스토리", children: <StaffPayrollHistoryTab /> },
     { key: "report", label: "리포트", children: <StaffReportTab /> },
   ];
+
+  function handleTabKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, currentIndex: number) {
+    let nextIndex: number | null = null;
+    if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % tabItems.length;
+    if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + tabItems.length) % tabItems.length;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = tabItems.length - 1;
+    if (nextIndex == null) return;
+
+    event.preventDefault();
+    setTab(tabItems[nextIndex].key);
+    tabRefs.current[nextIndex]?.focus();
+  }
 
   return (
     <>
@@ -259,11 +291,11 @@ export default function StaffDetailOverlay({
             </div>
           )}
 
-          <header className="ds-overlay-header">
+          <header className={`ds-overlay-header ${styles.detailHeader}`}>
             <div className="ds-overlay-header__inner">
               <div className="ds-overlay-header__left">
                 <div className="ds-overlay-header__avatar-wrap" aria-hidden>
-                  <span className="ds-overlay-header__avatar ds-overlay-header__avatar--icon">
+                  <span className={`ds-overlay-header__avatar ds-overlay-header__avatar--icon ${styles.identityAvatar}`}>
                     <StaffRoleAvatar
                       role={staffAvatarRole(staff.role)}
                       size={40}
@@ -271,50 +303,46 @@ export default function StaffDetailOverlay({
                     />
                   </span>
                 </div>
-                <div className="ds-overlay-header__title-block">
+                <div className={`ds-overlay-header__title-block ${styles.headerTitleBlock}`}>
                   <h1 id="staff-detail-title" className="ds-overlay-header__title">{staff.name}</h1>
-                  <div className="ds-overlay-header__pills">
-                    {staff.user_is_staff && (
-                      <Badge
-                        className="ds-overlay-header__pill-id"
-                        title="직원 계정"
-                      >
-                        STAFF
-                      </Badge>
-                    )}
-                    <Badge
-                      className="ds-overlay-header__pill-code"
-                      title="계정"
-                    >
-                      {staff.user_username ?? "계정 없음"}
-                    </Badge>
-                  </div>
+                  <dl className={styles.identityMeta}>
+                    <div className={styles.identityMetaItem}>
+                      <dt>역할</dt>
+                      <dd>{staffRoleLabel(staff.role)}</dd>
+                    </div>
+                    <div className={styles.identityMetaItem}>
+                      <dt>계정</dt>
+                      <dd>{staff.user_username ?? "계정 없음"}</dd>
+                    </div>
+                  </dl>
                 </div>
               </div>
               <div className="ds-overlay-header__right">
-                <div className="ds-overlay-header__actions">
-                  <Badge
-                    variant="solid"
-                    status={staff.is_active ? "active" : "inactive"}
-                    ariaLabel="재직 상태"
-                  >
-                    {staff.is_active ? "재직" : "퇴사"}
-                  </Badge>
+                <div className={`ds-overlay-header__actions ${styles.headerActions}`}>
+                  <div className={styles.employmentStatus} aria-label={`재직 상태: ${staff.is_active ? "재직" : "퇴사"}`}>
+                    <span className={styles.statusLabel}>재직 상태</span>
+                    <span className={styles.statusValue} data-active={staff.is_active ? "true" : "false"}>
+                      <span className={styles.statusDot} aria-hidden />
+                      {staff.is_active ? "재직" : "퇴사"}
+                    </span>
+                  </div>
+                  <span className={styles.actionDivider} aria-hidden />
                   {canManage && (
                     <Button
                       type="button"
-                      intent="primary"
+                      intent="secondary"
                       size="sm"
                       onClick={() => setEditOpen(true)}
                     >
-                      수정
+                      정보 수정
                     </Button>
                   )}
                   {canManage && staff.is_active && (
                     <Button
                       type="button"
-                      intent="danger"
+                      intent="ghost"
                       size="sm"
+                      className={styles.destructiveAction}
                       disabled={offboardMutation.isPending}
                       onClick={async () => {
                         const ok = await confirm({
@@ -333,8 +361,9 @@ export default function StaffDetailOverlay({
                   {canManage && !staff.is_active && (
                     <Button
                       type="button"
-                      intent="danger"
+                      intent="ghost"
                       size="sm"
+                      className={styles.destructiveAction}
                       disabled={deleteMutation.isPending}
                       onClick={async () => {
                         const ok = await confirm({
@@ -438,24 +467,32 @@ export default function StaffDetailOverlay({
 
               {/* 우측 — 탭 + 콘텐츠 (학생 상세와 동일 플랫탭) */}
               <div className="ds-overlay-content-panel">
-                <div className="ds-overlay-tabs">
-                  <div className="ds-tabs ds-tabs--flat" role="tablist">
-                    {tabItems.map((t) => (
+                <div className={styles.staffTabs} role="tablist" aria-label="직원 상세 보기">
+                    {tabItems.map((t, index) => (
                       <button
                         key={t.key}
+                        ref={(node) => { tabRefs.current[index] = node; }}
+                        id={`${tabPanelId}-${t.key}`}
                         type="button"
                         role="tab"
                         aria-selected={tab === t.key}
-                        className={`ds-tab ${tab === t.key ? "is-active" : ""}`}
+                        aria-controls={tabPanelId}
+                        tabIndex={tab === t.key ? 0 : -1}
+                        className={`${styles.staffTab}${tab === t.key ? ` ${styles.staffTabActive}` : ""}`}
                         onClick={() => setTab(t.key)}
+                        onKeyDown={(event) => handleTabKeyDown(event, index)}
                       >
                         {t.label}
                       </button>
                     ))}
-                  </div>
                 </div>
 
-                <div className="ds-overlay-tab-content">
+                <div
+                  id={tabPanelId}
+                  role="tabpanel"
+                  aria-labelledby={`${tabPanelId}-${tab}`}
+                  className={`ds-overlay-tab-content ${styles.tabPanel}`}
+                >
                   {tabItems.find((i) => i.key === tab)?.children}
                 </div>
               </div>

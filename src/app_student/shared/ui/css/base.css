@@ -205,6 +205,7 @@ html:has([data-app="student"]) {
 
 .student-page-shell {
   display: flex;
+  min-width: 0;
   flex-direction: column;
   gap: var(--stu-space-4);
 }
@@ -235,12 +236,15 @@ html:has([data-app="student"]) {
 }
 
 .student-page-shell__title {
+  min-width: 0;
   margin: 0;
   color: var(--stu-text-strong, var(--stu-text));
   font-size: 22px;
   line-height: 1.16;
   font-weight: 900;
   letter-spacing: 0;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
 }
 
 .student-page-shell__title::after {
@@ -263,6 +267,8 @@ html:has([data-app="student"]) {
   font-size: var(--stu-font-size-13);
   line-height: var(--stu-line-18);
   font-weight: 650;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
 }
 
 .student-page-shell__actions {
@@ -695,6 +701,8 @@ html:has([data-app="student"]) {
    Action Slot Container - 사용자 상태 기반 UI
    ========================= */
 .stu-panel {
+  min-width: 0;
+  max-width: 100%;
   background: var(--stu-surface-1);
   border: 1px solid color-mix(in srgb, var(--stu-border) 84%, transparent);
   border-radius: var(--stu-radius-md);
@@ -1118,6 +1126,8 @@ button.media-tile--course {
    3) Section (기존 호환성 유지)
    ========================= */
 .stu-section {
+  min-width: 0;
+  max-width: 100%;
   background: var(--stu-surface-1);
   border: 1px solid color-mix(in srgb, var(--stu-border) 84%, transparent);
   border-radius: var(--stu-radius-md);
@@ -1465,6 +1475,8 @@ button.media-tile--course {
 
 /* Back-compat: 기존 카드 클래스 → Section으로 매핑 (프리미엄 스타일 적용) */
 .stu-card {
+  min-width: 0;
+  max-width: 100%;
   background: var(--stu-surface-1);
   border: 1px solid color-mix(in srgb, var(--stu-border) 84%, transparent);
   border-radius: var(--stu-radius-md);

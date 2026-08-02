@@ -20,6 +20,7 @@ import type {
   StudentScoreSubmissionPayload,
 } from "@/shared/api/contracts/storage";
 import { formatCompactFileSize as formatBytes } from "@/shared/utils/fileSize";
+import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 import styles from "./SubmitScorePage.module.css";
 
 const ACCEPT = "image/png,image/jpeg,.pdf";
@@ -410,7 +411,7 @@ export default function SubmitScorePage() {
                           : `${submission.subject} · ${submission.score}/${submission.max_score}점`
                         : file.displayName || file.name}</small>
                     </span>
-                    {status && <span className={styles.statusBadge} data-status={submission?.status}><strong>{status.label}</strong><small>{submission?.review_note || status.description}</small></span>}
+                    {status && <span className={styles.statusBadge} data-status={submission?.status}><strong>{status.label}</strong><small>{richHtmlToPlainText(submission?.review_note) || status.description}</small></span>}
                     <span className={styles.fileMeta}>{formatDate(file.createdAt)}</span>
                     <button type="button" className={`stu-btn stu-btn--ghost stu-btn--sm ${styles.iconButton}`} onClick={() => handleDownload(file)} title="성적표 원본 보기" aria-label="성적표 원본 보기">
                       <IconDownload className={styles.downloadIcon} />
