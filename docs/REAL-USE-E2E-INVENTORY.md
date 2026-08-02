@@ -103,7 +103,7 @@
 | 과제/성적/보관함 | `e2e/flows/homework-scores-inventory-data-flow.spec.ts`, `e2e/student/homework-submission-realuse.spec.ts` | 렌더/API shape와 과제 생성->학생 파일 제출->관리자 채점->학생 성적 반영 체인 확인 | 관리자 UI 생성은 아직 API-assisted |
 | 학생 성적표->관리자 확인->누적 반영 | `e2e/student/reported-score-submission.spec.ts`, `e2e/admin/student-score-trend.spec.ts` | 학생 입력·원본 첨부와 관리자 출처별 검수·누적 UI 계약을 각각 검증 | local route-mock 2개로 역할별 계약 확인. 운영 데이터 roundtrip은 별도 canary 대상 |
 | 운영 전체 스크린샷 | `e2e/flows/real-full-check.spec.ts` | 많은 화면 캡처와 일부 QnA roundtrip | skip/optional branch가 많고 판정표 없음 |
-| 역할별 정적 화면 시각 감사 | `e2e/visual/design-system-route-audit.spec.ts` | 관리자·학생·강사·프로모션·시스템·테넌트 랜딩·개발자 콘솔의 정적 진입 화면을 역할별 1366/1440px 또는 390px로 렌더하고 screenshot, 글꼴·토큰·빈 화면·오류 문구·가로 overflow·버튼 잘림/겹침을 누적 판정 | 상세 ID가 필요한 화면은 목록의 실제 대표 진입과 별도 read-only 흐름으로 보완하며, 중앙 도메인의 `/landing/*` 프로모션 redirect를 테넌트 랜딩으로 오인하지 않음 |
+| 역할별 정적 화면 시각 감사 | `e2e/visual/design-system-route-audit.spec.ts` | 관리자·학생·강사·프로모션·시스템·테넌트 랜딩·개발자 콘솔의 정적 진입 화면을 역할별 1366/1440px 또는 390px로 렌더하고 screenshot, 글꼴·토큰·빈 화면·오류 문구·가로 overflow·버튼 잘림과 같은 시각 영역 안의 겹침을 누적 판정 | 상세 ID가 필요한 화면은 목록의 실제 대표 진입과 별도 read-only 흐름으로 보완하며, 숨겨진 사이드 메뉴·고정 하단 메뉴·서로 다른 섹션의 좌표는 겹침 쌍으로 비교하지 않고 중앙 도메인의 `/landing/*` 프로모션 redirect를 테넌트 랜딩으로 오인하지 않음 |
 | 운영 시나리오 | `e2e/flows/real-scenario.spec.ts` | 의도한 큰 흐름을 담고 있음 | API setup 중심, cleanup 없음, 실사용 gate로는 위험 |
 | 학생 이상행동 guardrail | `e2e/student/student-domain-guardrails.spec.ts` | 비로그인/가짜토큰 보호 라우트, 로그아웃 뒤로가기, 390px 모바일 overflow를 hard expect로 검증 | 상품성 시각 리뷰는 별도 manual 판정표 필요 |
 

@@ -274,6 +274,19 @@ async function auditRoute(page: Page, testInfo: TestInfo, base: string, route: s
         .replace(/\s+/g, " ")
         .slice(0, 60);
 
+    const controlScope = (element: HTMLElement) =>
+      element.closest<HTMLElement>(
+        "header, footer, nav, section, article, form, [role='dialog'], [role='menu'], [role='toolbar'], [role='tablist']",
+      );
+
+    const sharesVisualScope = (first: HTMLElement, second: HTMLElement) => {
+      const firstScope = controlScope(first);
+      const secondScope = controlScope(second);
+      if (firstScope || secondScope) return firstScope === secondScope;
+      return first.parentElement === second.parentElement ||
+        first.parentElement?.parentElement === second.parentElement?.parentElement;
+    };
+
     const clippedControls = actionableControls
       .map(({ element }) => element)
       .filter((element) => element.scrollWidth > element.clientWidth + 4 || element.scrollHeight > element.clientHeight + 4)
@@ -292,6 +305,7 @@ async function auditRoute(page: Page, testInfo: TestInfo, base: string, route: s
       for (let secondIndex = firstIndex + 1; secondIndex < actionableControls.length; secondIndex += 1) {
         const second = actionableControls[secondIndex]!;
         if (first.element.contains(second.element) || second.element.contains(first.element)) continue;
+        if (!sharesVisualScope(first.element, second.element)) continue;
         const secondRect = second.rect;
         const overlapWidth = Math.min(firstRect.right, secondRect.right) - Math.max(firstRect.left, secondRect.left);
         const overlapHeight = Math.min(firstRect.bottom, secondRect.bottom) - Math.max(firstRect.top, secondRect.top);
