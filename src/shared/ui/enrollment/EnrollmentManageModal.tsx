@@ -43,6 +43,7 @@ type Props = {
   rows: EnrollmentRow[];
   loading?: boolean;
   error?: string | null;
+  onRetry?: () => void;
 
   selectedIds: Set<number>;
   originSelectedIds?: ReadonlySet<number>;
@@ -51,6 +52,7 @@ type Props = {
 
   onSave?: () => void;
   saving?: boolean;
+  saveDisabled?: boolean;
 
   /** 변경 여부(저장 버튼 활성화·푸터 문구) */
   dirty?: boolean;
@@ -64,12 +66,14 @@ export default function EnrollmentManageModal({
   rows,
   loading,
   error,
+  onRetry,
   selectedIds,
   originSelectedIds,
   onToggle,
   onSetSelectedIds,
   onSave,
   saving,
+  saveDisabled = false,
   dirty = true,
 }: Props) {
   const confirm = useConfirm();
@@ -136,7 +140,7 @@ export default function EnrollmentManageModal({
   if (!open) return null;
 
   const canInteract = !loading && !saving;
-  const canSave = !readOnly && dirty && !loading && !saving;
+  const canSave = !readOnly && dirty && !loading && !saving && !saveDisabled;
 
   const selectAll = () => {
     if (!canInteract || readOnly || !onSetSelectedIds) return;
@@ -206,9 +210,14 @@ export default function EnrollmentManageModal({
 
             {error && (
               <div
-                className="enrollment-manage-modal__error rounded-lg border px-3 py-2 text-sm"
+                className="enrollment-manage-modal__error flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm"
               >
-                {error}
+                <span>{error}</span>
+                {onRetry && (
+                  <Button intent="secondary" size="sm" onClick={onRetry} disabled={loading || saving}>
+                    다시 불러오기
+                  </Button>
+                )}
               </div>
             )}
 
@@ -489,7 +498,9 @@ export default function EnrollmentManageModal({
                 title={
                   !dirty
                     ? "변경사항이 없어서 저장할 수 없습니다."
-                    : "저장"
+                    : saveDisabled
+                      ? "최신 명단을 불러온 뒤 저장할 수 있습니다."
+                      : "저장"
                 }
               >
                 {saving ? "저장 중…" : `${selectedIds.size}명으로 저장`}

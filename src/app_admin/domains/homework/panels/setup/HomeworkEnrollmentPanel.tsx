@@ -2,7 +2,7 @@
  * 서버 배정 목록을 요약의 단일 진실로 사용하고 모달에는 임시 편집 상태만 둔다.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import EnrollmentManageModal from "@/shared/ui/enrollment/EnrollmentManageModal";
@@ -10,6 +10,7 @@ import type { EnrollmentRow } from "@/shared/ui/enrollment/types";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { useConfirm } from "@/shared/ui/confirm";
 import formStyles from "@/shared/ui/assessment/AssessmentSetupForm.module.css";
 
 import { QUERY_KEYS } from "@admin/domains/homework/queryKeys";
@@ -27,6 +28,7 @@ export default function HomeworkEnrollmentPanel({
   homeworkId: number;
 }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const hid = Number(homeworkId);
   const hasHomework = Number.isFinite(hid) && hid > 0;
 
@@ -39,6 +41,10 @@ export default function HomeworkEnrollmentPanel({
     isError: isAssignmentsError,
     refetch: refetchAssignments,
   } = useHomeworkAssignments(hid);
+  const assignmentsRef = useRef(assignments);
+  const refetchAssignmentsRef = useRef(refetchAssignments);
+  assignmentsRef.current = assignments;
+  refetchAssignmentsRef.current = refetchAssignments;
 
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +62,7 @@ export default function HomeworkEnrollmentPanel({
 
   const showEmptyAssignmentWarning = !loadingAssignments && selectedCount === 0;
 
-  const hydrateLocalFromQuery = (q: HomeworkAssignmentsState | undefined) => {
+  const hydrateLocalFromQuery = useCallback((q: HomeworkAssignmentsState | undefined) => {
     const items = q?.items ?? [];
     const normalizedRows: EnrollmentRow[] = items.map((x) => ({
       enrollment_id: x.enrollment_id,
@@ -81,37 +87,27 @@ export default function HomeworkEnrollmentPanel({
     setRows(normalizedRows);
     setSelectedIds(new Set(initSelected));
     setOriginSelectedIds(new Set(initSelected));
-  };
+  }, []);
+
+  const loadEditor = useCallback(async () => {
+    setError(null);
+    setEditorLoading(true);
+    try {
+      const result = await refetchAssignmentsRef.current();
+      if (result.error || !result.data) throw result.error ?? new Error("목록 조회 실패");
+      hydrateLocalFromQuery(result.data);
+    } catch {
+      hydrateLocalFromQuery(assignmentsRef.current);
+      setError("최신 명단을 불러오지 못했습니다. 다시 불러온 뒤 저장해 주세요.");
+    } finally {
+      setEditorLoading(false);
+    }
+  }, [hydrateLocalFromQuery]);
 
   useEffect(() => {
     if (!open) return;
-
-    let cancelled = false;
-    setError(null);
-    setEditorLoading(true);
-
-    Promise.resolve(refetchAssignments())
-      .then((res) => {
-        if (cancelled) return;
-        if (res.error) {
-          setError("최신 명단을 불러오지 못했습니다. 현재 목록으로 계속 편집할 수 있습니다.");
-        }
-        hydrateLocalFromQuery(res.data ?? assignments);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setError("최신 명단을 불러오지 못했습니다. 현재 목록으로 계속 편집할 수 있습니다.");
-        hydrateLocalFromQuery(assignments);
-      })
-      .finally(() => {
-        if (!cancelled) setEditorLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+    void loadEditor();
+  }, [loadEditor, open]);
 
   const dirty = useMemo(() => {
     if (selectedIds.size !== originSelectedIds.size) return true;
@@ -218,10 +214,19 @@ export default function HomeworkEnrollmentPanel({
                   type="button"
                   intent="secondary"
                   size="sm"
-                  disabled={loadingAssignments || saveMut.isPending || !assignments?.items?.length}
+                  disabled={loadingAssignments || isAssignmentsError || saveMut.isPending || !assignments?.items?.length}
                   onClick={async () => {
                     const allIds = (assignments?.items ?? []).map((x) => x.enrollment_id);
                     if (allIds.length === 0) return;
+                    const newlyIncluded = Math.max(0, allIds.length - selectedCount);
+                    const confirmed = await confirm({
+                      title: `${allIds.length}명을 이 과제에 배정`,
+                      message: newlyIncluded > 0
+                        ? `현재 ${selectedCount}명에서 ${allIds.length}명으로 바뀝니다. 제외해 둔 학생 ${newlyIncluded}명도 다시 포함됩니다.`
+                        : "현재 차시 수강생 전원이 이미 과제 대상입니다.",
+                      confirmText: `${allIds.length}명 배정`,
+                    });
+                    if (!confirmed) return;
                     try {
                       await putHomeworkAssignments({ homeworkId: hid, enrollment_ids: allIds });
                       await qc.invalidateQueries({ queryKey: QUERY_KEYS.HOMEWORK_ASSIGNMENTS(hid) });
@@ -241,7 +246,10 @@ export default function HomeworkEnrollmentPanel({
                   type="button"
                   intent="secondary"
                   size="sm"
-                  onClick={() => setOpen(true)}
+                  onClick={() => {
+                    setEditorLoading(true);
+                    setOpen(true);
+                  }}
                 >
                   대상자 관리
                 </Button>
@@ -259,6 +267,7 @@ export default function HomeworkEnrollmentPanel({
         rows={rows}
         loading={editorLoading}
         error={error}
+        onRetry={() => void loadEditor()}
         selectedIds={selectedIds}
         originSelectedIds={originSelectedIds}
         onToggle={toggleOne}
@@ -269,6 +278,7 @@ export default function HomeworkEnrollmentPanel({
           saveMut.mutate();
         }}
         saving={saveMut.isPending}
+        saveDisabled={Boolean(error)}
         dirty={dirty}
       />
     </section>

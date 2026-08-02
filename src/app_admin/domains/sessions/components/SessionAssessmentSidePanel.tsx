@@ -23,6 +23,7 @@ import {
 } from "@/shared/lib/assessmentQueryParams";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import SessionAssessmentCreateModals from "./SessionAssessmentCreateModals";
+import { useAssessmentEditGuard } from "@/shared/ui/assessment/AssessmentEditGuard";
 
 const ApplyBundleModal = lazy(() => import("@admin/domains/exams/components/create/ApplyBundleModal"));
 
@@ -310,6 +311,7 @@ export default function SessionAssessmentSidePanel({
   onOpenCreateHomework: onOpenCreateHomeworkProp,
 }: Props) {
   const navigate = useNavigate();
+  const { confirmDiscard } = useAssessmentEditGuard();
   const qc = useQueryClient();
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -484,12 +486,23 @@ export default function SessionAssessmentSidePanel({
   const invalidateSessionScores = () => qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
   const invalidateHomeworks = () => qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.homeworks(sessionId) });
 
-  const onSelectExam = (examId: number) => {
-    navigate({ pathname: `${base}/exams`, search: buildAssessmentSearch("exam", examId) });
+  const onSelectExam = async (nextExamId: number) => {
+    if (examId === nextExamId && examsActive) return;
+    if (!(await confirmDiscard())) return;
+    navigate({ pathname: `${base}/exams`, search: buildAssessmentSearch("exam", nextExamId) });
   };
 
-  const onSelectHomework = (homeworkId: number) => {
-    navigate({ pathname: `${base}/assignments`, search: buildAssessmentSearch("homework", homeworkId) });
+  const onSelectHomework = async (nextHomeworkId: number) => {
+    if (homeworkId === nextHomeworkId && assignmentsActive) return;
+    if (!(await confirmDiscard())) return;
+    navigate({ pathname: `${base}/assignments`, search: buildAssessmentSearch("homework", nextHomeworkId) });
+  };
+
+  const navigateAssessmentKind = async (kind: AssessmentKind) => {
+    if ((kind === "exam" && examsActive) || (kind === "homework" && assignmentsActive)) return;
+    const target = kind === "exam" ? `${base}/exams` : `${base}/assignments`;
+    if (!(await confirmDiscard())) return;
+    navigate(target);
   };
 
   return (
@@ -513,7 +526,7 @@ export default function SessionAssessmentSidePanel({
             type="button"
             style={S.quickNavButton(examsActive)}
             aria-current={examsActive ? "page" : undefined}
-            onClick={() => navigate(`${base}/exams`)}
+            onClick={() => void navigateAssessmentKind("exam")}
           >
             <ClipboardList size={16} aria-hidden />
             <span>시험</span>
@@ -523,7 +536,7 @@ export default function SessionAssessmentSidePanel({
             type="button"
             style={S.quickNavButton(assignmentsActive)}
             aria-current={assignmentsActive ? "page" : undefined}
-            onClick={() => navigate(`${base}/assignments`)}
+            onClick={() => void navigateAssessmentKind("homework")}
           >
             <FileText size={16} aria-hidden />
             <span>과제</span>
@@ -576,7 +589,7 @@ export default function SessionAssessmentSidePanel({
                 label={exam.title}
                 maxScore={maxScore}
                 gradedCount={gradedCount}
-                onSelect={() => onSelectExam(Number(exam.exam_id))}
+                onSelect={() => void onSelectExam(Number(exam.exam_id))}
               />
             );
           })}
@@ -616,7 +629,7 @@ export default function SessionAssessmentSidePanel({
                 maxScore={hw.maxScore}
                 cutlineMode={hw.cutlineMode}
                 cutlineValue={hw.cutlineValue}
-                onSelect={() => onSelectHomework(hw.id)}
+                onSelect={() => void onSelectHomework(hw.id)}
               />
             );
           })}
@@ -643,8 +656,8 @@ export default function SessionAssessmentSidePanel({
               invalidateExamsSummary();
               invalidateHomeworks();
               invalidateSessionScores();
-              if (examIds.length > 0) onSelectExam(examIds[0]);
-              else if (homeworkIds.length > 0) onSelectHomework(homeworkIds[0]);
+              if (examIds.length > 0) void onSelectExam(examIds[0]);
+              else if (homeworkIds.length > 0) void onSelectHomework(homeworkIds[0]);
             }}
           />
         )}

@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { EmptyState, Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
+import { isStaleResourceConflict } from "@/shared/api/optimisticConcurrency";
+import { useAssessmentDirtyRegistration } from "@/shared/ui/assessment/AssessmentEditGuard";
 import formStyles from "@/shared/ui/assessment/AssessmentSetupForm.module.css";
 import { fetchLectures, fetchSessions } from "@/shared/api/contracts/sessions";
 
@@ -98,6 +101,12 @@ function gradingChoice(form: ExamPolicyForm): GradingChoice {
 }
 
 function formError(form: ExamPolicyForm): string | null {
+  if (!form.maxScore.trim()) return "만점을 입력해 주세요.";
+  if (!form.passScore.trim()) return "합격 기준을 입력해 주세요.";
+  if (form.allowRetake && !form.maxAttempts.trim()) return "최대 응시 횟수를 입력해 주세요.";
+  if (form.gradingMode === "mixed" && !form.choiceQuestionCount.trim()) {
+    return "혼합 채점의 선택형 문항 수를 입력해 주세요.";
+  }
   const maxScore = Number(form.maxScore);
   const passScore = Number(form.passScore);
   const maxAttempts = Number(form.maxAttempts);
@@ -134,16 +143,28 @@ export default function ExamPolicyPanel({
   sessionId?: number;
 }) {
   const qc = useQueryClient();
-  const { data: exam, isLoading, isError } = useAdminExam(examId);
+  const confirm = useConfirm();
+  const { data: exam, isLoading, isError, refetch } = useAdminExam(examId);
   const [form, setForm] = useState<ExamPolicyForm | null>(null);
   const [answerModalOpen, setAnswerModalOpen] = useState(false);
+  const [conflictDetected, setConflictDetected] = useState(false);
   const initializedExamId = useRef<number | null>(null);
+  const baseFormRef = useRef<ExamPolicyForm | null>(null);
+  const baseUpdatedAtRef = useRef("");
+
+  const syncFromExam = useCallback((nextExam: Exam) => {
+    const nextForm = formFromExam(nextExam);
+    initializedExamId.current = nextExam.id;
+    baseFormRef.current = nextForm;
+    baseUpdatedAtRef.current = nextExam.updated_at;
+    setForm(nextForm);
+    setConflictDetected(false);
+  }, []);
 
   useEffect(() => {
     if (!exam || initializedExamId.current === exam.id) return;
-    initializedExamId.current = exam.id;
-    setForm(formFromExam(exam));
-  }, [exam]);
+    syncFromExam(exam);
+  }, [exam, syncFromExam]);
 
   const questionsQuery = useQuery({
     queryKey: adminExamsQueryKeys.examQuestions(examId),
@@ -166,10 +187,15 @@ export default function ExamPolicyPanel({
   const resolvedSessionName = sessionData?.find((session) => session.id === sessionId)?.title ?? "";
 
   const dirty = useMemo(() => {
-    if (!exam || !form) return false;
-    return JSON.stringify(form) !== JSON.stringify(formFromExam(exam));
-  }, [exam, form]);
+    if (!form || !baseFormRef.current) return false;
+    return JSON.stringify(form) !== JSON.stringify(baseFormRef.current);
+  }, [form]);
   const validationError = form ? formError(form) : null;
+  const remoteChanged = Boolean(
+    exam?.updated_at &&
+    baseUpdatedAtRef.current &&
+    exam.updated_at !== baseUpdatedAtRef.current,
+  );
 
   const patchMutation = useMutation({
     mutationFn: async (nextForm: ExamPolicyForm) => {
@@ -184,17 +210,51 @@ export default function ExamPolicyPanel({
         open_at: toIsoDateTime(nextForm.openAt),
         close_at: toIsoDateTime(nextForm.closeAt),
         answer_visibility: nextForm.answerVisibility,
-      });
+      }, baseUpdatedAtRef.current);
     },
     onSuccess: (updated) => {
       qc.setQueryData(adminExamsQueryKeys.adminExam(examId), updated);
-      setForm(formFromExam(updated));
+      syncFromExam(updated);
       feedback.success("시험 운영 설정을 저장했습니다.");
     },
-    onError: (error: unknown) => {
+    onError: async (error: unknown) => {
+      if (isStaleResourceConflict(error)) {
+        setConflictDetected(true);
+        await refetch();
+        feedback.warning("다른 사용자의 변경을 확인했습니다. 최신 설정을 불러온 뒤 다시 저장해 주세요.");
+        return;
+      }
       feedback.error((error as Error)?.message ?? "시험 운영 설정을 저장하지 못했습니다.");
     },
   });
+
+  const questionChoiceCount = questions.filter(
+    (question) => question.question_kind === "choice",
+  ).length;
+  const canRepairMixedBoundary =
+    questions.length > 0 &&
+    questionChoiceCount > 0 &&
+    questionChoiceCount < questions.length;
+
+  useEffect(() => {
+    if (
+      !form ||
+      form.gradingMode !== "mixed" ||
+      Number(form.choiceQuestionCount) > 0 ||
+      !canRepairMixedBoundary
+    ) return;
+    setForm({ ...form, choiceQuestionCount: String(questionChoiceCount) });
+  }, [canRepairMixedBoundary, form, questionChoiceCount]);
+
+  useEffect(() => {
+    if (!exam || !form || dirty || !remoteChanged) return;
+    syncFromExam(exam);
+  }, [dirty, exam, form, remoteChanged, syncFromExam]);
+
+  useAssessmentDirtyRegistration(
+    `exam-policy:${examId}`,
+    dirty && !patchMutation.isPending,
+  );
 
   if (isError) {
     return <EmptyState mode="embedded" scope="panel" tone="error" title="시험 설정을 불러오지 못했습니다." />;
@@ -205,6 +265,10 @@ export default function ExamPolicyPanel({
 
   const currentChoice = gradingChoice(form);
   const choiceBoundaryLocked = questions.length > 0;
+  const mixedUnavailable =
+    currentChoice !== "mixed" &&
+    Number(form.choiceQuestionCount) < 1 &&
+    (questionsQuery.isLoading || questionsQuery.isError || (questions.length > 0 && !canRepairMixedBoundary));
   const structureOwnerId = exam.structure_owner_id ?? exam.id;
 
   const chooseGrading = (choice: GradingChoice) => {
@@ -217,8 +281,31 @@ export default function ExamPolicyPanel({
       if (choice === "written_score") {
         return { ...current, gradingMode: "written", manualGradingMethod: "score" };
       }
-      return { ...current, gradingMode: "mixed" };
+      return {
+        ...current,
+        gradingMode: "mixed",
+        choiceQuestionCount:
+          Number(current.choiceQuestionCount) > 0
+            ? current.choiceQuestionCount
+            : canRepairMixedBoundary
+              ? String(questionChoiceCount)
+              : current.choiceQuestionCount,
+      };
     });
+  };
+
+  const loadLatest = async () => {
+    if (dirty) {
+      const confirmed = await confirm({
+        title: "최신 설정 불러오기",
+        message: "현재 입력한 변경사항을 버리고 다른 사용자가 저장한 최신 설정을 불러옵니다.",
+        confirmText: "최신 설정 불러오기",
+        danger: true,
+      });
+      if (!confirmed) return;
+    }
+    const result = await refetch();
+    if (result.data) syncFromExam(result.data);
   };
 
   return (
@@ -244,10 +331,18 @@ export default function ExamPolicyPanel({
                   type="button"
                   className={formStyles.choiceButton}
                   aria-pressed={currentChoice === option.value}
+                  disabled={option.value === "mixed" && mixedUnavailable}
+                  title={option.value === "mixed" && mixedUnavailable
+                    ? "선택형과 직접 채점 문항이 함께 있는 시험에서만 전환할 수 있습니다."
+                    : undefined}
                   onClick={() => chooseGrading(option.value)}
                 >
                   <strong>{option.title}</strong>
-                  <small>{option.description}</small>
+                  <small>
+                    {option.value === "mixed" && mixedUnavailable
+                      ? "현재 문항 구성에서는 혼합 채점으로 전환할 수 없습니다."
+                      : option.description}
+                  </small>
                 </button>
               ))}
             </div>
@@ -393,6 +488,17 @@ export default function ExamPolicyPanel({
             </div>
           </div>
 
+          {(conflictDetected || remoteChanged) && (
+            <div className={formStyles.inlineStatus} role="alert">
+              <div>
+                <strong>다른 화면에서 설정이 변경되었습니다</strong>
+                <p>현재 입력을 덮어쓰지 않았습니다. 최신 설정을 불러온 뒤 다시 편집해 주세요.</p>
+              </div>
+              <Button type="button" intent="secondary" size="sm" onClick={() => void loadLatest()}>
+                최신 설정 불러오기
+              </Button>
+            </div>
+          )}
           {validationError && <p className={formStyles.error} role="alert">{validationError}</p>}
         </div>
 
@@ -404,7 +510,7 @@ export default function ExamPolicyPanel({
             type="button"
             intent="primary"
             size="md"
-            disabled={!dirty || Boolean(validationError) || patchMutation.isPending}
+            disabled={!dirty || Boolean(validationError) || conflictDetected || remoteChanged || patchMutation.isPending}
             loading={patchMutation.isPending}
             onClick={() => patchMutation.mutate(form)}
           >

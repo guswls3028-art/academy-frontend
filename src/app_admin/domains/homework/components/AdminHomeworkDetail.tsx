@@ -23,6 +23,7 @@ import HomeworkSetupPanel from "../panels/HomeworkSetupPanel";
 import HomeworkAssetsPanel from "../panels/HomeworkAssetsPanel";
 import HomeworkSubmissionsPanel from "../panels/HomeworkSubmissionsPanel";
 import HomeworkResultsPanel from "../panels/HomeworkResultsPanel";
+import { useAssessmentEditGuard } from "@/shared/ui/assessment/AssessmentEditGuard";
 
 export type HomeworkDetailMode = "design" | "operate";
 
@@ -38,6 +39,7 @@ export default function AdminHomeworkDetail({
   mode?: HomeworkDetailMode;
 }) {
   const [activeTab, setActiveTab] = useState<HomeworkTabKey>("setup");
+  const { confirmDiscard } = useAssessmentEditGuard();
   const { data, isLoading, isError } = useAdminHomework(homeworkId);
 
   // homeworkId 변경 시 탭 리셋
@@ -68,7 +70,12 @@ export default function AdminHomeworkDetail({
       <HomeworkHeader homework={summary} sessionId={sessionIdFromRoute ?? data?.session_id} />
       <HomeworkTabs
         activeTab={activeTab}
-        onChange={setActiveTab}
+        onChange={(nextTab) => {
+          if (nextTab === activeTab) return;
+          void confirmDiscard().then((confirmed) => {
+            if (confirmed) setActiveTab(nextTab);
+          });
+        }}
         mode={mode}
       />
 

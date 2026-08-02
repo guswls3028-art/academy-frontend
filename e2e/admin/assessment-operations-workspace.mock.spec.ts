@@ -105,6 +105,14 @@ async function installApi(page: Page, state: MockState) {
     }
     if (path === "/homeworks/") return json({ count: 0, results: [] });
     if (path === `/exams/${EXAM_ID}/` && method === "PATCH") {
+      const expectedUpdatedAt = request.headers()["x-expected-updated-at"];
+      if (expectedUpdatedAt && expectedUpdatedAt !== state.exam.updated_at) {
+        return json({
+          detail: "다른 화면에서 변경된 시험입니다.",
+          code: "stale_resource",
+          current_updated_at: state.exam.updated_at,
+        }, 409);
+      }
       const payload = request.postDataJSON() as Record<string, unknown>;
       state.examPatchPayloads.push(payload);
       state.exam = { ...state.exam, ...payload, updated_at: "2026-08-03T01:00:00Z" };
@@ -200,6 +208,15 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
     fullPage: true,
   });
 
+  await gradingGroup.getByRole("button", { name: /^OMR \+ 직접 채점/ }).click();
+  await expect(page.getByLabel("앞쪽 선택형 문항 수")).toHaveValue("1");
+  await expect(page.getByLabel("앞쪽 선택형 문항 수")).toBeDisabled();
+
+  await page.getByLabel("합격 기준").fill("");
+  await expect(page.getByRole("alert")).toContainText("합격 기준을 입력해 주세요.");
+  await expect(page.getByRole("button", { name: "운영 설정 저장", exact: true })).toBeDisabled();
+  await page.getByLabel("합격 기준").fill("80");
+
   await gradingGroup.getByRole("button", { name: /^직접 정오 입력/ }).click();
   await page.getByLabel("응시 시작").fill("2026-08-03T09:00");
   await page.getByRole("textbox", { name: /^마감 비워/ }).fill("2026-08-03T22:00");
@@ -235,4 +252,57 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
     path: testInfo.outputPath("assessment-workspace-390.png"),
     fullPage: true,
   });
+});
+
+test("미저장 시험 설정은 탭 이동 전에 확인하고 동시 수정은 덮어쓰지 않는다", async ({ page }) => {
+  const state: MockState = {
+    exam: {
+      id: EXAM_ID,
+      title: "중간 점검",
+      description: "",
+      subject: "",
+      exam_type: "regular",
+      is_active: true,
+      allow_retake: false,
+      max_attempts: 1,
+      pass_score: 80,
+      max_score: 100,
+      grading_mode: "choice",
+      manual_grading_method: "score",
+      choice_question_count: 0,
+      segmentation_status: "ready",
+      source_filename: "중간점검.pdf",
+      display_order: 0,
+      open_at: null,
+      close_at: null,
+      template_exam_id: null,
+      structure_owner_id: EXAM_ID,
+      can_edit_structure: true,
+      answer_visibility: "hidden",
+      created_at: "2026-08-02T00:00:00Z",
+      updated_at: "2026-08-02T00:00:00Z",
+    },
+    examPatchPayloads: [],
+    selectedEnrollmentIds: [601, 602],
+  };
+
+  await openExam(page, state);
+  await page.getByLabel("합격 기준").fill("79");
+
+  await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+  const discardDialog = page.getByRole("alertdialog", { name: "저장하지 않은 설정이 있습니다" });
+  await expect(discardDialog).toBeVisible();
+  await discardDialog.getByRole("button", { name: "계속 편집", exact: true }).click();
+  await expect(page.getByLabel("합격 기준")).toHaveValue("79");
+
+  state.exam = { ...state.exam, pass_score: 75, updated_at: "2026-08-02T00:10:00Z" };
+  await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("다른 화면에서 설정이 변경되었습니다");
+  expect(state.examPatchPayloads).toHaveLength(0);
+
+  await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+  await page.getByRole("alertdialog", { name: "저장하지 않은 설정이 있습니다" })
+    .getByRole("button", { name: "저장하지 않고 이동", exact: true })
+    .click();
+  await expect(page.getByRole("tab", { name: "채점·결과", exact: true })).toHaveAttribute("aria-selected", "true");
 });

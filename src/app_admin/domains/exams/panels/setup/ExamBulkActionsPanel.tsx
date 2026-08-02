@@ -4,6 +4,7 @@ import { useNavigate } from "react-router";
 import { Button } from "@/shared/ui/ds";
 import formStyles from "@/shared/ui/assessment/AssessmentSetupForm.module.css";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 
 import { recalculateExam } from "../../api/adminExam";
 import { adminExamsQueryKeys } from "../../queryKeys";
@@ -17,6 +18,7 @@ type Props = {
 export default function ExamBulkActionsPanel({ examId, lectureId, sessionId }: Props) {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const canOpenScores =
     Number.isFinite(lectureId) && Number(lectureId) > 0 &&
     Number.isFinite(sessionId) && Number(sessionId) > 0;
@@ -71,7 +73,15 @@ export default function ExamBulkActionsPanel({ examId, lectureId, sessionId }: P
               size="sm"
               disabled={recalculate.isPending}
               loading={recalculate.isPending}
-              onClick={() => recalculate.mutate()}
+              onClick={async () => {
+                const confirmed = await confirm({
+                  title: "기존 결과를 다시 채점",
+                  message: "현재 문항·답안을 기준으로 이 시험의 기존 제출 결과 전체와 합격·클리닉 판정을 다시 계산합니다.",
+                  confirmText: "재채점 실행",
+                  danger: true,
+                });
+                if (confirmed) recalculate.mutate();
+              }}
             >
               {recalculate.isPending ? "재채점 중…" : "재채점 실행"}
             </Button>

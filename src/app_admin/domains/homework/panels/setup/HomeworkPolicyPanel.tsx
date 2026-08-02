@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Button, EmptyState } from "@/shared/ui/ds";
@@ -7,6 +7,9 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { assessmentQueryKeys } from "@/shared/api/queryKeys/assessments";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { useConfirm } from "@/shared/ui/confirm";
+import { isStaleResourceConflict } from "@/shared/api/optimisticConcurrency";
+import { useAssessmentDirtyRegistration } from "@/shared/ui/assessment/AssessmentEditGuard";
 
 import { updateAdminHomework, type AdminHomeworkDetail } from "../../api/adminHomework";
 import { useAdminHomework } from "../../hooks/useAdminHomework";
@@ -35,6 +38,9 @@ function formFromHomework(homework: AdminHomeworkDetail): HomeworkPolicyForm {
 }
 
 function validateForm(form: HomeworkPolicyForm): string | null {
+  if (!form.maxScore.trim()) return "만점을 입력해 주세요.";
+  if (!form.cutlineValue.trim()) return "합격 기준을 입력해 주세요.";
+  if (!form.roundUnitPercent.trim()) return "반올림 단위를 입력해 주세요.";
   const maxScore = Number(form.maxScore);
   const cutlineValue = Number(form.cutlineValue);
   const roundUnit = Number(form.roundUnitPercent);
@@ -56,42 +62,78 @@ function validateForm(form: HomeworkPolicyForm): string | null {
 
 export default function HomeworkPolicyPanel({ homeworkId }: { homeworkId: number }) {
   const qc = useQueryClient();
-  const { data: homework, isLoading, isError } = useAdminHomework(homeworkId);
+  const confirm = useConfirm();
+  const { data: homework, isLoading, isError, refetch } = useAdminHomework(homeworkId);
   const [form, setForm] = useState<HomeworkPolicyForm | null>(null);
+  const [conflictDetected, setConflictDetected] = useState(false);
   const initializedHomeworkId = useRef<number | null>(null);
+  const baseFormRef = useRef<HomeworkPolicyForm | null>(null);
+  const baseUpdatedAtRef = useRef("");
+
+  const syncFromHomework = useCallback((nextHomework: AdminHomeworkDetail) => {
+    const nextForm = formFromHomework(nextHomework);
+    initializedHomeworkId.current = nextHomework.id;
+    baseFormRef.current = nextForm;
+    baseUpdatedAtRef.current = nextHomework.updated_at;
+    setForm(nextForm);
+    setConflictDetected(false);
+  }, []);
 
   useEffect(() => {
     if (!homework || initializedHomeworkId.current === homework.id) return;
-    initializedHomeworkId.current = homework.id;
-    setForm(formFromHomework(homework));
-  }, [homework]);
+    syncFromHomework(homework);
+  }, [homework, syncFromHomework]);
 
   const dirty = useMemo(() => {
-    if (!homework || !form) return false;
-    return JSON.stringify(form) !== JSON.stringify(formFromHomework(homework));
-  }, [homework, form]);
+    if (!form || !baseFormRef.current) return false;
+    return JSON.stringify(form) !== JSON.stringify(baseFormRef.current);
+  }, [form]);
   const validationError = form ? validateForm(form) : null;
   const sessionId = Number(homework?.session_id ?? 0);
+  const remoteChanged = Boolean(
+    homework?.updated_at &&
+    baseUpdatedAtRef.current &&
+    homework.updated_at !== baseUpdatedAtRef.current,
+  );
 
   const updateMutation = useMutation({
     mutationFn: async (nextForm: HomeworkPolicyForm) => {
       if (!homework) throw new Error("과제 정보를 불러오지 못했습니다.");
-      const nextMeta: Record<string, unknown> = { ...(homework.meta ?? {}) };
-      if (nextForm.dueDate) nextMeta.due_date = nextForm.dueDate;
-      else delete nextMeta.due_date;
+      const baseForm = baseFormRef.current;
+      if (!baseForm) throw new Error("과제 설정 기준값을 불러오지 못했습니다.");
+      const payload: Partial<AdminHomeworkDetail> = {};
 
-      return updateAdminHomework(homeworkId, {
-        title: nextForm.title.trim(),
-        max_score: Number(nextForm.maxScore),
-        cutline_mode: nextForm.cutlineMode,
-        cutline_value: Number(nextForm.cutlineValue),
-        round_unit_percent: Number(nextForm.roundUnitPercent),
-        meta: nextMeta,
-      });
+      if (nextForm.title !== baseForm.title) {
+        payload.title = nextForm.title.trim();
+      }
+      if (nextForm.maxScore !== baseForm.maxScore) {
+        payload.max_score = Number(nextForm.maxScore);
+      }
+      if (
+        nextForm.cutlineMode !== baseForm.cutlineMode ||
+        nextForm.cutlineValue !== baseForm.cutlineValue ||
+        nextForm.roundUnitPercent !== baseForm.roundUnitPercent
+      ) {
+        payload.cutline_mode = nextForm.cutlineMode;
+        payload.cutline_value = Number(nextForm.cutlineValue);
+        payload.round_unit_percent = Number(nextForm.roundUnitPercent);
+      }
+      if (nextForm.dueDate !== baseForm.dueDate) {
+        const nextMeta: Record<string, unknown> = { ...(homework.meta ?? {}) };
+        if (nextForm.dueDate) nextMeta.due_date = nextForm.dueDate;
+        else delete nextMeta.due_date;
+        payload.meta = nextMeta;
+      }
+
+      return updateAdminHomework(
+        homeworkId,
+        payload,
+        baseUpdatedAtRef.current,
+      );
     },
     onSuccess: async (updated) => {
       qc.setQueryData(QUERY_KEYS.ADMIN_HOMEWORK(homeworkId), updated);
-      setForm(formFromHomework(updated));
+      syncFromHomework(updated);
       await Promise.all([
         qc.invalidateQueries({ queryKey: QUERY_KEYS.ADMIN_HOMEWORK(homeworkId) }),
         sessionId > 0
@@ -103,10 +145,26 @@ export default function HomeworkPolicyPanel({ homeworkId }: { homeworkId: number
       ]);
       feedback.success("과제 운영 설정을 저장했습니다.");
     },
-    onError: (error: unknown) => {
+    onError: async (error: unknown) => {
+      if (isStaleResourceConflict(error)) {
+        setConflictDetected(true);
+        await refetch();
+        feedback.warning("다른 사용자의 변경을 확인했습니다. 최신 설정을 불러온 뒤 다시 저장해 주세요.");
+        return;
+      }
       feedback.error(extractApiError(error, "과제 운영 설정을 저장하지 못했습니다."));
     },
   });
+
+  useEffect(() => {
+    if (!homework || !form || dirty || !remoteChanged) return;
+    syncFromHomework(homework);
+  }, [dirty, form, homework, remoteChanged, syncFromHomework]);
+
+  useAssessmentDirtyRegistration(
+    `homework-policy:${homeworkId}`,
+    dirty && !updateMutation.isPending,
+  );
 
   if (isError) {
     return <EmptyState mode="embedded" scope="panel" tone="error" title="과제 설정을 불러오지 못했습니다." />;
@@ -114,6 +172,20 @@ export default function HomeworkPolicyPanel({ homeworkId }: { homeworkId: number
   if (isLoading || !homework || !form) {
     return <EmptyState mode="embedded" scope="panel" tone="loading" title="과제 설정 불러오는 중…" />;
   }
+
+  const loadLatest = async () => {
+    if (dirty) {
+      const confirmed = await confirm({
+        title: "최신 설정 불러오기",
+        message: "현재 입력한 변경사항을 버리고 다른 사용자가 저장한 최신 설정을 불러옵니다.",
+        confirmText: "최신 설정 불러오기",
+        danger: true,
+      });
+      if (!confirmed) return;
+    }
+    const result = await refetch();
+    if (result.data) syncFromHomework(result.data);
+  };
 
   return (
     <section id="assessment-policy" tabIndex={-1} className={formStyles.section}>
@@ -162,7 +234,7 @@ export default function HomeworkPolicyPanel({ homeworkId }: { homeworkId: number
             <div className={formStyles.inlineStatus}>
               <div>
                 <strong>현재 차시 기본 기준을 사용 중입니다</strong>
-                <p>저장하면 이 과제의 개별 기준으로 고정됩니다.</p>
+                <p>점수나 합격 기준을 바꿔 저장할 때만 이 과제의 개별 기준으로 고정됩니다.</p>
               </div>
             </div>
           )}
@@ -231,6 +303,17 @@ export default function HomeworkPolicyPanel({ homeworkId }: { homeworkId: number
           </div>
         </div>
 
+        {(conflictDetected || remoteChanged) && (
+          <div className={formStyles.inlineStatus} role="alert">
+            <div>
+              <strong>다른 화면에서 설정이 변경되었습니다</strong>
+              <p>현재 입력을 덮어쓰지 않았습니다. 최신 설정을 불러온 뒤 다시 편집해 주세요.</p>
+            </div>
+            <Button type="button" intent="secondary" size="sm" onClick={() => void loadLatest()}>
+              최신 설정 불러오기
+            </Button>
+          </div>
+        )}
         {validationError && <p className={formStyles.error} role="alert">{validationError}</p>}
       </div>
 
@@ -240,7 +323,7 @@ export default function HomeworkPolicyPanel({ homeworkId }: { homeworkId: number
           type="button"
           intent="primary"
           size="md"
-          disabled={!dirty || Boolean(validationError) || updateMutation.isPending}
+          disabled={!dirty || Boolean(validationError) || conflictDetected || remoteChanged || updateMutation.isPending}
           loading={updateMutation.isPending}
           onClick={() => updateMutation.mutate(form)}
         >

@@ -32,6 +32,7 @@ type MockState = {
   homeworkPatchPayloads?: Array<Record<string, unknown>>;
   homeworkAssignmentIds?: number[];
   homeworkAssignmentPuts?: number[][];
+  homeworkAssignmentDelayMs?: number;
 };
 
 function sessionRows(state: MockState, lectureId = LECTURE_ID) {
@@ -198,8 +199,8 @@ async function installApi(page: Page, state: MockState) {
         session: REGULAR_SESSION_ID,
         title: payload.title,
         max_score: payload.max_score,
-        effective_cutline_mode: payload.cutline_mode,
-        effective_cutline_value: payload.cutline_value,
+        effective_cutline_mode: payload.effective_cutline_mode ?? payload.cutline_mode,
+        effective_cutline_value: payload.effective_cutline_value ?? payload.cutline_value,
       }));
       return json({ count: rows.length, results: rows });
     }
@@ -216,25 +217,29 @@ async function installApi(page: Page, state: MockState) {
         state.createdHomeworkPayloads![index] = { ...existing, ...payload };
       }
       const current = state.createdHomeworkPayloads![index];
+      const usesSessionDefault = current.uses_session_cutline_default === true;
       return json({
         id,
         session: REGULAR_SESSION_ID,
         homework_type: "regular",
         title: current.title,
         max_score: current.max_score,
-        cutline_mode: current.cutline_mode,
-        cutline_value: current.cutline_value,
-        round_unit_percent: current.round_unit_percent ?? 5,
-        effective_cutline_mode: current.cutline_mode,
-        effective_cutline_value: current.cutline_value,
-        effective_round_unit_percent: current.round_unit_percent ?? 5,
-        uses_session_cutline_default: false,
+        cutline_mode: current.cutline_mode ?? null,
+        cutline_value: current.cutline_value ?? null,
+        round_unit_percent: current.round_unit_percent ?? null,
+        effective_cutline_mode: current.effective_cutline_mode ?? current.cutline_mode,
+        effective_cutline_value: current.effective_cutline_value ?? current.cutline_value,
+        effective_round_unit_percent: current.effective_round_unit_percent ?? current.round_unit_percent ?? 5,
+        uses_session_cutline_default: usesSessionDefault,
         meta: current.meta ?? {},
         created_at: "2026-08-02T00:00:00Z",
         updated_at: "2026-08-02T00:00:00Z",
       });
     }
     if (path === "/homework/assignments/" && method === "GET") {
+      if ((state.homeworkAssignmentDelayMs ?? 0) > 0) {
+        await new Promise((resolve) => setTimeout(resolve, state.homeworkAssignmentDelayMs));
+      }
       const selected = new Set(state.homeworkAssignmentIds ?? []);
       return json({
         items: [
@@ -435,6 +440,48 @@ test("과제 운영 설정을 한곳에서 저장하고 선택 과제 카드에�
   await expect(page.getByRole("button", { name: /심화 서술형.*기준 24점/ })).toBeVisible();
 });
 
+test("차시 기본 기준 과제는 제목만 저장해도 상속을 유지하고 기한 없음은 준비 완료로 본다", async ({ page }) => {
+  const state: MockState = {
+    supplementTitle: "토요일 심화 클리닉",
+    patchTitles: [],
+    createdHomeworkPayloads: [{
+      title: "공통 연산 복습",
+      max_score: 100,
+      cutline_mode: null,
+      cutline_value: null,
+      round_unit_percent: null,
+      effective_cutline_mode: "PERCENT",
+      effective_cutline_value: 80,
+      effective_round_unit_percent: 5,
+      uses_session_cutline_default: true,
+      meta: {},
+    }],
+    homeworkPatchPayloads: [],
+  };
+  await openLecture(page, state);
+  await page.goto(
+    `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/assignments?assessment=homework%3A9961`,
+    { waitUntil: "domcontentloaded" },
+  );
+
+  await expect(page.getByText("현재 차시 기본 기준을 사용 중입니다", { exact: true })).toBeVisible();
+  const noDeadlineItem = page.getByRole("button", { name: /제출기한: 기한 없이 운영/ });
+  await expect(noDeadlineItem).toBeVisible();
+  await expect(noDeadlineItem.locator("..")).toHaveAttribute("data-state", "ready");
+
+  await page.getByLabel("합격 기준 (%)").fill("");
+  await expect(page.getByRole("alert")).toContainText("합격 기준을 입력해 주세요.");
+  await expect(page.getByRole("button", { name: "운영 설정 저장", exact: true })).toBeDisabled();
+  await page.getByLabel("합격 기준 (%)").fill("80");
+
+  await page.getByRole("textbox", { name: "과제명", exact: true }).fill("공통 연산 복습 - 수정");
+  await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
+
+  await expect.poll(() => state.homeworkPatchPayloads?.length).toBe(1);
+  expect(state.homeworkPatchPayloads?.[0]).toEqual({ id: 9961, title: "공통 연산 복습 - 수정" });
+  expect(state.createdHomeworkPayloads?.[0].uses_session_cutline_default).toBe(true);
+});
+
 test("과제 대상자 편집은 기존·추가·제외·최종 인원을 보여 주고 저장한다", async ({ page }) => {
   const state: MockState = {
     supplementTitle: "토요일 심화 클리닉",
@@ -449,6 +496,7 @@ test("과제 대상자 편집은 기존·추가·제외·최종 인원을 보여
     }],
     homeworkAssignmentIds: [501, 502],
     homeworkAssignmentPuts: [],
+    homeworkAssignmentDelayMs: 250,
   };
   await page.setViewportSize({ width: 1100, height: 800 });
   await openLecture(page, state);
@@ -462,6 +510,8 @@ test("과제 대상자 편집은 기존·추가·제외·최종 인원을 보여
 
   const dialog = page.getByRole("dialog").filter({ hasText: "과제 대상 학생 관리" });
   await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("불러오는 중…", { exact: true })).toBeVisible();
+  await expect(dialog.getByLabel("박지후 선택")).toBeVisible();
   await expect(dialog.getByText("기존").locator("..")).toContainText("2명");
   await expect(dialog.getByText("저장 후").locator("..")).toContainText("2명");
 

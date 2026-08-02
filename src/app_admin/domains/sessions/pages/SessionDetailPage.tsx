@@ -20,6 +20,7 @@ import api from "@/shared/api/axios";
 import { useLectureParams } from "@admin/domains/lectures/hooks/useLectureParams";
 import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import RouteFallback from "@/core/router/RouteFallback";
+import { AssessmentEditGuardProvider } from "@/shared/ui/assessment/AssessmentEditGuard";
 
 import AssessmentDeleteBar from "../components/AssessmentDeleteBar";
 import SessionAssessmentCreateModals from "../components/SessionAssessmentCreateModals";
@@ -147,7 +148,8 @@ export default function SessionDetailPage() {
     activeTab === "assignments";
 
   return (
-    <Suspense fallback={<RouteFallback />}>
+    <AssessmentEditGuardProvider>
+      <Suspense fallback={<RouteFallback />}>
       {showSessionStrip && (
         <div className="session-detail-session-strip">
           <SessionBlock lectureId={lecId} currentSessionId={sId} />
@@ -258,7 +260,8 @@ export default function SessionDetailPage() {
           onCloseCreateHomework={() => setOpenCreateHomework(false)}
         />
       )}
-    </Suspense>
+      </Suspense>
+    </AssessmentEditGuardProvider>
   );
 }
 

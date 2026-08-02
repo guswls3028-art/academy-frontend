@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 import { AlertTriangle } from "lucide-react";
@@ -13,12 +13,15 @@ import type { EnrollmentRow } from "@/shared/ui/enrollment/types";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { useConfirm } from "@/shared/ui/confirm";
 import formStyles from "@/shared/ui/assessment/AssessmentSetupForm.module.css";
 import { adminExamsQueryKeys } from "../../queryKeys";
 import styles from "./ExamEnrollmentPanel.module.css";
+import type { ExamEnrollmentManageResponse } from "../../api/examEnrollments";
 
 export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const { sessionId: sessionIdFromPath } = useLectureSessionParams();
   const [sp] = useSearchParams();
   const sessionIdFromQuery = Number(sp.get("session_id"));
@@ -28,27 +31,48 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
 
   const rowsQ = useExamEnrollmentRows(examId, sessionId);
   const updateMut = useUpdateExamEnrollmentRows(examId, sessionId);
+  const rowsDataRef = useRef(rowsQ.data);
+  const refetchRowsRef = useRef(rowsQ.refetch);
+  rowsDataRef.current = rowsQ.data;
+  refetchRowsRef.current = rowsQ.refetch;
 
   const serverRows = useMemo(() => rowsQ.data?.items ?? [], [rowsQ.data?.items]);
 
   const [open, setOpen] = useState(false);
+  const [editorLoading, setEditorLoading] = useState(false);
+  const [editorError, setEditorError] = useState<string | null>(null);
+  const [editorRows, setEditorRows] = useState<ExamEnrollmentManageResponse["items"]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [originSelected, setOriginSelected] = useState<Set<number>>(new Set());
 
-  useEffect(() => {
-    if (!open) return;
+  const hydrateEditor = useCallback((data?: ExamEnrollmentManageResponse) => {
+    const nextRows = data?.items ?? [];
     const init = new Set<number>();
-    serverRows.forEach((r) => r.is_selected && init.add(r.enrollment_id));
+    nextRows.forEach((row) => row.is_selected && init.add(row.enrollment_id));
+    setEditorRows(nextRows);
     setSelected(new Set(init));
     setOriginSelected(new Set(init));
-  }, [open, serverRows]);
+  }, []);
+
+  const loadEditor = useCallback(async () => {
+    setEditorError(null);
+    setEditorLoading(true);
+    try {
+      const result = await refetchRowsRef.current();
+      if (result.error || !result.data) throw result.error ?? new Error("목록 조회 실패");
+      hydrateEditor(result.data);
+    } catch {
+      hydrateEditor(rowsDataRef.current);
+      setEditorError("최신 명단을 불러오지 못했습니다. 다시 불러온 뒤 저장해 주세요.");
+    } finally {
+      setEditorLoading(false);
+    }
+  }, [hydrateEditor]);
 
   useEffect(() => {
     if (!open) return;
-    // 최신 목록으로 편집 시작
-    rowsQ.refetch?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+    void loadEditor();
+  }, [loadEditor, open]);
 
   const toggle = (enrollmentId: number) => {
     setSelected((prev) => {
@@ -83,7 +107,7 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
 
   const rows: EnrollmentRow[] = useMemo(
     () =>
-      serverRows.map((r) => ({
+      editorRows.map((r) => ({
         enrollment_id: r.enrollment_id,
         student_name: r.student_name,
         profile_photo_url: r.profile_photo_url ?? undefined,
@@ -102,7 +126,7 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
         school: r.school ?? null,
         grade: r.grade ?? null,
       })),
-    [serverRows]
+    [editorRows]
   );
 
   const selectedCountFromServer = useMemo(
@@ -171,10 +195,19 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
               type="button"
               intent="secondary"
               size="sm"
-              disabled={rowsQ.isLoading || updateMut.isPending || serverRows.length === 0}
+              disabled={rowsQ.isLoading || rowsQ.isError || updateMut.isPending || serverRows.length === 0}
               onClick={async () => {
                 const allIds = serverRows.map((r) => r.enrollment_id);
                 if (allIds.length === 0) return;
+                const newlyIncluded = Math.max(0, allIds.length - selectedCountFromServer);
+                const confirmed = await confirm({
+                  title: `${allIds.length}명을 이 시험에 배정`,
+                  message: newlyIncluded > 0
+                    ? `현재 ${selectedCountFromServer}명에서 ${allIds.length}명으로 바뀝니다. 제외해 둔 학생 ${newlyIncluded}명도 다시 포함됩니다.`
+                    : "현재 차시 수강생 전원이 이미 시험 대상입니다.",
+                  confirmText: `${allIds.length}명 배정`,
+                });
+                if (!confirmed) return;
                 try {
                   await updateMut.mutateAsync({ enrollment_ids: allIds });
                   await qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examEnrollment(examId, sessionId) });
@@ -191,7 +224,10 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
               type="button"
               intent="secondary"
               size="sm"
-              onClick={() => setOpen(true)}
+              onClick={() => {
+                setEditorLoading(true);
+                setOpen(true);
+              }}
             >
               대상자 관리
             </Button>
@@ -204,8 +240,9 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
           title="시험 대상 학생 관리"
           description="현재 차시 수강생 중 시험에 응시할 학생을 선택합니다."
           rows={rows}
-          loading={rowsQ.isLoading}
-          error={rowsQ.isError ? "목록 조회 실패" : null}
+          loading={editorLoading}
+          error={editorError}
+          onRetry={() => void loadEditor()}
           selectedIds={selected}
           originSelectedIds={originSelected}
           onToggle={toggle}
@@ -216,6 +253,7 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
             apply();
           }}
           saving={updateMut.isPending}
+          saveDisabled={Boolean(editorError)}
           dirty={dirty}
         />
       </div>
