@@ -67,6 +67,7 @@ const EXAM_SESSION_SCOPE_OPTIONS: Array<{
 ];
 type ClinicParticipant = {
   id: number | string;
+  session?: number | string | null;
   status?: string | null;
   lecture_title?: string | null;
   lecture_color?: string | null;
@@ -996,12 +997,27 @@ function ClinicTab({ data, onNavigate }: { data: ClinicParticipant[]; onNavigate
         const lectureName = p.lecture_title;
         const lectureColor = p.lecture_color;
         const lectureChip = p.lecture_chip_label;
+        const sessionId = Number(p.session);
+        const searchParams = new URLSearchParams();
+        if (p.session_date && /^\d{4}-\d{2}-\d{2}$/.test(p.session_date)) {
+          searchParams.set("date", p.session_date);
+        }
+        if (Number.isInteger(sessionId) && sessionId > 0) {
+          searchParams.set("session", String(sessionId));
+        }
+        const queryString = searchParams.toString();
+        const clinicPath = `/workspace/clinic/operations${queryString ? `?${queryString}` : ""}`;
+        const clinicLabel = p.student_name
+          ? `${p.student_name} 클리닉 출석·진행 열기`
+          : "클리닉 출석·진행 열기";
         return (
-          <div
+          <button
             key={p.id}
+            type="button"
             className={styles.tabRecord}
             data-clickable=""
-            onClick={() => onNavigate("/workspace/clinic/operations")}
+            aria-label={clinicLabel}
+            onClick={() => onNavigate(clinicPath)}
           >
             {lectureName && <LectureChip lectureName={lectureName} color={lectureColor ?? undefined} chipLabel={lectureChip} size={24} />}
             <div className={styles.recordMain}>
@@ -1020,8 +1036,9 @@ function ClinicTab({ data, onNavigate }: { data: ClinicParticipant[]; onNavigate
             <Badge variant="solid" size="sm" tone={(statusTone[st] || "muted") as BadgeTone}>
               {statusLabel[st] || p.status}
             </Badge>
+            <span className={styles.recordActionHint}>출석·진행 열기</span>
             <ChevronIcon />
-          </div>
+          </button>
         );
       })}
     </div>

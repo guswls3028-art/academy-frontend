@@ -260,14 +260,28 @@
   letter-spacing: -0.03em;
 }
 
-.openScheduleHeader > p {
-  max-width: 210px;
-  margin: 1px 0 0;
+.openScheduleSummary {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 20%, var(--stu-border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--stu-primary) 5%, var(--stu-surface));
+  font-variant-numeric: tabular-nums;
+}
+
+.openScheduleSummary strong {
+  color: var(--stu-text);
+  font-size: 13px;
+}
+
+.openScheduleSummary span {
   color: var(--stu-text-muted);
-  font-size: 12px;
-  line-height: 1.45;
-  text-align: right;
-  word-break: keep-all;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .dateGroupList {
@@ -312,6 +326,17 @@
   font-weight: 750;
 }
 
+.dateTicket small {
+  padding: 3px 6px;
+  margin-top: 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface));
+  color: var(--stu-primary);
+  font-size: 10px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
 .dateTicket strong {
   margin: 1px 0 2px;
   color: var(--stu-primary);
@@ -327,6 +352,7 @@
 }
 
 .sessionCard {
+  position: relative;
   overflow: hidden;
   border: 1px solid var(--stu-border);
   border-radius: 12px;
@@ -334,9 +360,23 @@
   transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
+.sessionCard::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  background: color-mix(in srgb, var(--stu-primary) 65%, var(--stu-border));
+  content: "";
+}
+
 .sessionCardSelected {
   border-color: var(--stu-primary);
   box-shadow: 0 0 0 1px var(--stu-primary);
+}
+
+.sessionCardSelected::before {
+  background: var(--stu-primary);
 }
 
 .sessionSelectButton {
@@ -692,12 +732,7 @@
 
 @media (max-width: 520px) {
   .openScheduleHeader {
-    flex-direction: column;
-  }
-
-  .openScheduleHeader > p {
-    max-width: none;
-    text-align: left;
+    align-items: center;
   }
 
   .targetSummaryHeader,
