@@ -55,7 +55,7 @@
   "dependencies": {
     "@ant-design/icons": "^6.1.1",
     "@rollup/rollup-linux-x64-gnu": "^4.60.0",
-    "@rollup/rollup-win32-x64-msvc": "^4.60.0",
+    "@rollup/rollup-win32-x64-msvc": "^4.62.3",
     "@sentry/react": "^10.43.0",
     "@swc/core-linux-x64-gnu": "^1.15.21",
     "@swc/core-win32-x64-msvc": "^1.15.21",
