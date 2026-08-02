@@ -807,6 +807,125 @@
   color: #0f766e;
 }
 
+.explanationRunCard {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 13px 12px 13px 17px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 30%, var(--color-border-divider));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-surface) 94%, var(--color-primary) 6%);
+  box-shadow:
+    inset 3px 0 0 var(--color-primary),
+    inset 6px 0 0 color-mix(in srgb, var(--color-warning) 72%, var(--color-primary));
+}
+
+.explanationRunCard[data-state="done"] {
+  border-color: color-mix(in srgb, #0f766e 42%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--bg-surface) 91%, #0f9f9a 9%);
+}
+
+.explanationRunCard[data-state="failed"] {
+  border-color: color-mix(in srgb, #b91c1c 42%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--bg-surface) 93%, #b91c1c 7%);
+  box-shadow:
+    inset 3px 0 0 #b91c1c,
+    inset 6px 0 0 color-mix(in srgb, var(--color-warning) 72%, #b91c1c);
+}
+
+.explanationRunHeading,
+.explanationRunHeading > div,
+.explanationCounts {
+  display: flex;
+  align-items: center;
+}
+
+.explanationRunHeading {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.explanationRunHeading > div {
+  gap: 7px;
+  min-width: 0;
+}
+
+.explanationRunHeading strong {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.explanationRunHeading b {
+  color: var(--color-primary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.explanationRunCard > p,
+.explanationRunCard > small {
+  margin: 0;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.explanationRunCard > p {
+  font-size: 12px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.explanationRunCard > small {
+  color: var(--color-text-muted);
+  font-size: 10.5px;
+}
+
+.explanationProgress {
+  appearance: none;
+  overflow: hidden;
+  width: 100%;
+  height: 7px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-border-divider) 74%, transparent);
+}
+
+.explanationProgress::-webkit-progress-bar {
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--color-border-divider) 74%, transparent);
+}
+
+.explanationProgress::-webkit-progress-value,
+.explanationProgress::-moz-progress-bar {
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-primary), #0f9f9a);
+}
+
+.explanationCounts {
+  flex-wrap: wrap;
+  gap: 5px 10px;
+}
+
+.explanationCounts span {
+  color: var(--color-text-muted);
+  font-size: 10.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.explanationCounts span[data-attention="true"] {
+  color: #b91c1c;
+}
+
+.explanationActions {
+  display: grid;
+  gap: 7px;
+}
+
+.explanationActions button {
+  width: 100%;
+}
+
 .optionalPanel {
   display: grid;
   gap: 10px;

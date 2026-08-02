@@ -141,6 +141,48 @@ export type ProblemStudioBetaAccess = {
   review_required: boolean;
 };
 
+export type ProblemStudioExplanationRunResult = {
+  download_url: string;
+  filename: string;
+  size_bytes: number;
+  source_pages: number;
+  appendix_pages: number;
+  output_pages: number;
+  question_count: number;
+  solution_count: number;
+  review_required: boolean;
+  review_required_count: number;
+  verification_counts?: Record<string, number>;
+  answer_source_counts?: Record<string, number>;
+  beta: {
+    label: "Beta" | string;
+    free_trial: boolean;
+    review_required: boolean;
+  };
+};
+
+export type ProblemStudioExplanationRunStatus = {
+  run_id: string;
+  status: "PENDING" | "RUNNING" | "DONE" | "FAILED" | string;
+  stage: "extract" | "solve" | "verify" | "build" | "done" | string;
+  source_name: string;
+  progress: {
+    percent: number;
+    step_index: number;
+    step_total: number;
+    step_name: string;
+    step_name_display: string;
+    completed_questions: number;
+    total_questions: number;
+    verified_questions: number;
+    review_required_questions: number;
+  };
+  result: ProblemStudioExplanationRunResult | null;
+  error_message?: string | null;
+  can_resume: boolean;
+  beta_access: ProblemStudioBetaAccess;
+};
+
 export type ProblemStudioHangulCompanionDownload = {
   download_url: string;
   filename: string;
@@ -272,6 +314,43 @@ export async function getProblemStudioBetaAccess(): Promise<ProblemStudioBetaAcc
     "/tools/problem-studio/beta-access/",
   );
   return data.beta_access;
+}
+
+export async function createProblemStudioExplanationRun(
+  payload: Pick<ProblemStudioGeneratePayload, "subject" | "note_policy">,
+  sourceFile: File,
+): Promise<ProblemStudioExplanationRunStatus> {
+  const form = new FormData();
+  form.append("payload", JSON.stringify(payload));
+  form.append("source_files", sourceFile);
+  const { data } = await api.post<ProblemStudioExplanationRunStatus>(
+    "/tools/problem-studio/explanation-runs/",
+    form,
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+      timeout: 120_000,
+    },
+  );
+  return data;
+}
+
+export async function getProblemStudioExplanationRun(
+  runId: string,
+): Promise<ProblemStudioExplanationRunStatus> {
+  const { data } = await api.get<ProblemStudioExplanationRunStatus>(
+    `/tools/problem-studio/explanation-runs/${encodeURIComponent(runId)}/`,
+  );
+  return data;
+}
+
+export async function resumeProblemStudioExplanationRun(
+  runId: string,
+): Promise<ProblemStudioExplanationRunStatus> {
+  const { data } = await api.post<ProblemStudioExplanationRunStatus>(
+    `/tools/problem-studio/explanation-runs/${encodeURIComponent(runId)}/resume/`,
+    {},
+  );
+  return data;
 }
 
 export async function createProblemStudioVoiceProfile(payload: {
