@@ -1,0 +1,307 @@
+.section {
+  scroll-margin-top: 20px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.035);
+}
+
+.section:focus {
+  outline: none;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 17px 20px;
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.title {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.description {
+  margin: 5px 0 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.body {
+  display: grid;
+  gap: 22px;
+  padding: 20px;
+}
+
+.group {
+  display: grid;
+  gap: 12px;
+}
+
+.group + .group {
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border-divider);
+}
+
+.groupTitle {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.groupDescription {
+  margin: -7px 0 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.fieldGridThree {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.field {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.fieldWide {
+  grid-column: 1 / -1;
+}
+
+.label {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.input,
+.select {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  padding: 8px 11px;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.input:focus,
+.select:focus {
+  border-color: var(--color-brand-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 13%, transparent);
+}
+
+.input:disabled,
+.select:disabled {
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.helper {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.choiceGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.choiceGridThree {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.choiceButton {
+  display: grid;
+  min-height: 76px;
+  align-content: start;
+  gap: 4px;
+  padding: 11px 12px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 9px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.choiceButton:hover {
+  background: var(--color-bg-surface-hover);
+}
+
+.choiceButton[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 62%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-brand-primary) 7%, var(--color-bg-surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
+  color: var(--color-brand-primary);
+}
+
+.choiceButton strong {
+  color: inherit;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.choiceButton small {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.switchRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 13px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 9px;
+  background: var(--color-bg-surface-soft);
+}
+
+.switchCopy {
+  display: grid;
+  gap: 3px;
+}
+
+.switchCopy strong {
+  color: var(--color-text-primary);
+  font-size: 12px;
+}
+
+.switchCopy small {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.inlineStatus {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 13px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 9px;
+  background: var(--color-bg-surface-soft);
+}
+
+.inlineStatus strong {
+  display: block;
+  color: var(--color-text-primary);
+  font-size: 12px;
+}
+
+.inlineStatus p {
+  margin: 3px 0 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.error {
+  margin: 0;
+  color: var(--color-error);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-bg-surface-soft) 55%, var(--color-bg-surface));
+}
+
+.footerCopy {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.advanced {
+  border-top: 1px solid var(--color-border-divider);
+}
+
+.advanced summary {
+  padding: 14px 20px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.advancedBody {
+  padding: 0 20px 18px;
+}
+
+@media (max-width: 860px) {
+  .choiceGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fieldGridThree {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .header,
+  .body,
+  .footer {
+    padding-right: 15px;
+    padding-left: 15px;
+  }
+
+  .fieldGrid,
+  .fieldGridThree,
+  .choiceGrid,
+  .choiceGridThree {
+    grid-template-columns: 1fr;
+  }
+
+  .footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .input,
+  .select,
+  .choiceButton {
+    transition: none;
+  }
+}

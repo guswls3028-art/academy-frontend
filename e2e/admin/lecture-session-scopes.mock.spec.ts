@@ -30,6 +30,8 @@ type MockState = {
   supplementIncluded?: boolean;
   createdHomeworkPayloads?: Array<Record<string, unknown>>;
   homeworkPatchPayloads?: Array<Record<string, unknown>>;
+  homeworkAssignmentIds?: number[];
+  homeworkAssignmentPuts?: number[][];
 };
 
 function sessionRows(state: MockState, lectureId = LECTURE_ID) {
@@ -233,9 +235,22 @@ async function installApi(page: Page, state: MockState) {
       });
     }
     if (path === "/homework/assignments/" && method === "GET") {
-      return json({ items: [], selected_ids: [] });
+      const selected = new Set(state.homeworkAssignmentIds ?? []);
+      return json({
+        items: [
+          { enrollment_id: 501, student_name: "김민준", school: "한빛고", grade: 1, is_selected: selected.has(501) },
+          { enrollment_id: 502, student_name: "이서윤", school: "한빛고", grade: 1, is_selected: selected.has(502) },
+          { enrollment_id: 503, student_name: "박지후", school: "새봄고", grade: 2, is_selected: selected.has(503) },
+        ],
+      });
     }
-    if (path === "/homework/assignments/" && method === "PUT") return json({ ok: true });
+    if (path === "/homework/assignments/" && method === "PUT") {
+      const payload = request.postDataJSON() as { enrollment_ids?: number[] };
+      state.homeworkAssignmentIds = payload.enrollment_ids ?? [];
+      state.homeworkAssignmentPuts ??= [];
+      state.homeworkAssignmentPuts.push([...state.homeworkAssignmentIds]);
+      return json({ selected_count: state.homeworkAssignmentIds.length });
+    }
     if (path === "/lectures/attendance/") return json({ count: 0, results: [] });
     if (path === "/results/admin/clinic-targets/") return json([]);
     if (path === "/staffs/currently-working/") return json([]);
@@ -373,7 +388,7 @@ test("한 회차에서 만드는 여러 과제는 커트라인을 행마다 따�
   ]);
 });
 
-test("과제 상세에서 바꾼 커트라인은 선택 과제와 카드에만 반영된다", async ({ page }) => {
+test("과제 운영 설정을 한곳에서 저장하고 선택 과제 카드에만 반영한다", async ({ page }) => {
   const state: MockState = {
     supplementTitle: "토요일 심화 클리닉",
     patchTitles: [],
@@ -401,10 +416,12 @@ test("과제 상세에서 바꾼 커트라인은 선택 과제와 카드에만 �
     { waitUntil: "domcontentloaded" },
   );
 
-  await expect(page.getByText("과제별 합격 기준", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("커트라인 값")).toHaveValue("15");
-  await page.getByLabel("커트라인 값").fill("17");
-  await page.getByRole("button", { name: "기준 저장", exact: true }).click();
+  await expect(page.getByText("과제 운영 준비", { exact: true })).toBeVisible();
+  await expect(page.getByText("과제 운영 설정", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("합격 기준 (점)")).toHaveValue("15");
+  await page.locator('#assessment-policy input[type="date"]').fill("2026-08-09");
+  await page.getByLabel("합격 기준 (점)").fill("17");
+  await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
 
   await expect.poll(() => state.homeworkPatchPayloads?.length).toBe(1);
   expect(state.homeworkPatchPayloads?.[0]).toMatchObject({
@@ -412,9 +429,49 @@ test("과제 상세에서 바꾼 커트라인은 선택 과제와 카드에만 �
     cutline_mode: "COUNT",
     cutline_value: 17,
     round_unit_percent: 5,
+    meta: expect.objectContaining({ due_date: "2026-08-09" }),
   });
   await expect(page.getByRole("button", { name: /연산 복습.*기준 17점/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /심화 서술형.*기준 24점/ })).toBeVisible();
+});
+
+test("과제 대상자 편집은 기존·추가·제외·최종 인원을 보여 주고 저장한다", async ({ page }) => {
+  const state: MockState = {
+    supplementTitle: "토요일 심화 클리닉",
+    patchTitles: [],
+    createdHomeworkPayloads: [{
+      title: "연산 복습",
+      max_score: 20,
+      cutline_mode: "COUNT",
+      cutline_value: 15,
+      round_unit_percent: 5,
+      meta: { due_date: "2026-08-09" },
+    }],
+    homeworkAssignmentIds: [501, 502],
+    homeworkAssignmentPuts: [],
+  };
+  await page.setViewportSize({ width: 1100, height: 800 });
+  await openLecture(page, state);
+  await page.goto(
+    `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/assignments?assessment=homework%3A9961`,
+    { waitUntil: "domcontentloaded" },
+  );
+
+  await expect(page.getByRole("button", { name: /대상 학생: 2명 등록/ })).toBeVisible();
+  await page.getByRole("button", { name: "대상자 관리", exact: true }).click();
+
+  const dialog = page.getByRole("dialog").filter({ hasText: "과제 대상 학생 관리" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("기존").locator("..")).toContainText("2명");
+  await expect(dialog.getByText("저장 후").locator("..")).toContainText("2명");
+
+  await dialog.getByLabel("박지후 선택").check();
+  await expect(dialog.getByText("추가").locator("..")).toContainText("+1");
+  await expect(dialog.getByText("저장 후").locator("..")).toContainText("3명");
+  await dialog.getByRole("button", { name: "3명으로 저장", exact: true }).click();
+
+  await expect.poll(() => state.homeworkAssignmentPuts?.length).toBe(1);
+  expect(state.homeworkAssignmentPuts?.[0]).toEqual([501, 502, 503]);
 });
 
 test("수업 목록 조회 실패는 기존 화면을 비우지 않고 다시 불러온다", async ({ page }) => {
