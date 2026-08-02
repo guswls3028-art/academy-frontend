@@ -5,6 +5,7 @@ import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainTable } from "@/shared/ui/domain";
+import StudentDetailLink from "@admin/domains/students/components/StudentDetailLink";
 import AdminModal from "@/shared/ui/modal/AdminModal";
 import { ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { MODAL_WIDTH } from "@/shared/ui/modal/constants";
@@ -291,7 +292,11 @@ export default function FeesInvoicesTab() {
                   className={styles.invoiceRow}
                   data-status={inv.status}
                 >
-                  <td>{inv.student_name}</td>
+                  <td>
+                    <StudentDetailLink studentId={inv.student} studentName={inv.student_name}>
+                      {inv.student_name}
+                    </StudentDetailLink>
+                  </td>
                   <td className={styles.invoiceNumber}>{inv.invoice_number}</td>
                   <td className={styles.alignRight}>{formatKRW(inv.total_amount)}</td>
                   <td className={styles.alignRight}>{formatKRW(inv.paid_amount)}</td>

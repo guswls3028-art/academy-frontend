@@ -6,6 +6,7 @@ import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { KPI, EmptyState } from "@/shared/ui/ds";
 import { DomainTable } from "@/shared/ui/domain";
+import StudentDetailLink from "@admin/domains/students/components/StudentDetailLink";
 import { formatKRW } from "@/shared/product/fees/feesFormat";
 import { fetchDashboard, fetchOverdueInvoices, type DashboardStats, type StudentInvoice } from "../api/fees.api";
 import { adminFeesQueryKeys } from "../queryKeys";
@@ -145,7 +146,11 @@ export default function FeesDashboardTab() {
               <tbody>
                 {overdueList.map((inv: StudentInvoice) => (
                   <tr key={inv.id}>
-                    <td>{inv.student_name}</td>
+                    <td>
+                      <StudentDetailLink studentId={inv.student} studentName={inv.student_name}>
+                        {inv.student_name}
+                      </StudentDetailLink>
+                    </td>
                     <td>{inv.billing_year}.{String(inv.billing_month).padStart(2, "0")}</td>
                     <td className={styles.amountCell}>{formatKRW(inv.total_amount)}</td>
                     <td className={`${styles.amountCell} ${styles.outstandingCell}`}>

@@ -16,6 +16,7 @@ import {
 } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
+import { FolderOpen } from "lucide-react";
 import api from "@/shared/api/axios";
 
 import {
@@ -41,7 +42,7 @@ import {
   type StudentGradesResponse,
   type StudentHomeworkGrade,
 } from "@/shared/api/contracts/studentGrades";
-import { EmptyState, Button, CloseButton, Badge, type BadgeTone } from "@/shared/ui/ds";
+import { EmptyState, Button, CloseButton, Badge, ICON, type BadgeTone } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { formatPhone, formatStudentPhoneDisplay, formatOmrCode, formatGenderDisplay } from "@/shared/utils/formatPhone";
 import { adminStudentsQueryKeys } from "../queryKeys";
@@ -100,11 +101,14 @@ type StudentsDetailOverlayProps = {
   /** 라우트가 아닌 곳(예: 모달)에서 띄울 때 전달. 있으면 onClose로만 닫고 라우트 변경 없음 */
   studentId?: number;
   onClose?: () => void;
+  /** 다른 AdminModal 위에서 열 때 사용하는 명시적 레이어 */
+  layer?: "workspace" | "modal";
 };
 
 export default function StudentsDetailOverlay({
   studentId,
   onClose: closeOverride,
+  layer = "workspace",
 }: StudentsDetailOverlayProps = {}) {
   const routeParams = useParams();
   const navigate = useNavigate();
@@ -227,7 +231,7 @@ export default function StudentsDetailOverlay({
   // 에러 상태 (존재하지 않는 학생 ID 등)
   if (isError || (!isLoading && !student && !!id)) {
     return (
-      <StudentDetailShell onClose={onClose}>
+      <StudentDetailShell onClose={onClose} layer={layer}>
         <div className={`ds-overlay-body ${styles.bodyPadded}`}>
           <EmptyState scope="panel" tone="error" title="학생 정보를 찾을 수 없습니다" description="삭제되었거나 잘못된 학생 ID입니다." />
           <div className={styles.centerAction}>
@@ -241,7 +245,7 @@ export default function StudentsDetailOverlay({
   // 로딩 스켈레톤
   if (isLoading || !student) {
     return (
-      <StudentDetailShell onClose={onClose}>
+      <StudentDetailShell onClose={onClose} layer={layer}>
         <header className="ds-overlay-header">
           <div className="ds-overlay-header__inner">
             <div className="ds-overlay-header__left">
@@ -269,12 +273,12 @@ export default function StudentsDetailOverlay({
 
   return (
     <>
-      <StudentDetailShell onClose={onClose}>
-          <header className="ds-overlay-header">
+      <StudentDetailShell onClose={onClose} layer={layer}>
+          <header className={`ds-overlay-header ${styles.detailHeader}`}>
             <div className="ds-overlay-header__inner">
               <div className="ds-overlay-header__left">
                 <div className="ds-overlay-header__avatar-wrap" aria-hidden>
-                  <span className="ds-overlay-header__avatar">
+                  <span className={`ds-overlay-header__avatar ${styles.identityAvatar}`}>
                     {student.profilePhotoUrl ? (
                       <img src={student.profilePhotoUrl} alt="" className="w-full h-full object-cover" />
                     ) : (
@@ -282,7 +286,7 @@ export default function StudentsDetailOverlay({
                     )}
                   </span>
                 </div>
-                <div className="ds-overlay-header__title-block">
+                <div className={`ds-overlay-header__title-block ${styles.headerTitleBlock}`}>
                   <h1 className="ds-overlay-header__title">
                     <StudentNameWithLectureChip
                       name={student.name ?? ""}
@@ -299,32 +303,40 @@ export default function StudentsDetailOverlay({
                       }
                     />
                   </h1>
-                  <div className="ds-overlay-header__pills">
-                    <Badge className="ds-overlay-header__pill-id" title="아이디">
-                      {student.psNumber ?? "—"}
-                    </Badge>
-                    <Badge className="ds-overlay-header__pill-code" title="시험 식별코드">
-                      {formatOmrCode(student.omrCode)}
-                    </Badge>
-                  </div>
+                  <dl className={styles.identityMeta}>
+                    <div className={styles.identityMetaItem}>
+                      <dt>아이디</dt>
+                      <dd>{student.psNumber ?? "—"}</dd>
+                    </div>
+                    <div className={styles.identityMetaItem}>
+                      <dt>시험코드</dt>
+                      <dd>{formatOmrCode(student.omrCode)}</dd>
+                    </div>
+                  </dl>
                 </div>
               </div>
               <div className="ds-overlay-header__right">
-                <div className="ds-overlay-header__actions">
-                  <Badge
-                    as="button"
-                    variant="solid"
-                    actionable
+                <div className={`ds-overlay-header__actions ${styles.headerActions}`}>
+                  <div className={styles.statusControl}>
+                    <span className={styles.statusLabel}>학생 상태</span>
+                    <button
+                    type="button"
+                    className={styles.statusToggle}
+                    data-active={student.active ? "true" : "false"}
                     onClick={() => toggleActive.mutate(!student.active)}
                     disabled={toggleActive.isPending}
-                    status={student.active ? "active" : "inactive"}
+                    aria-label={student.active ? "현재 활성, 비활성으로 변경" : "현재 비활성, 활성으로 변경"}
+                    title={student.active ? "눌러서 비활성으로 변경" : "눌러서 활성으로 변경"}
                   >
-                    {toggleActive.isPending ? "…" : student.active ? "활성" : "비활성"}
-                  </Badge>
-                  <Button type="button" intent="primary" size="sm" onClick={() => setEditOpen(true)}>
-                    수정
+                      <span className={styles.statusDot} aria-hidden />
+                      {toggleActive.isPending ? "변경 중" : student.active ? "활성" : "비활성"}
+                    </button>
+                  </div>
+                  <span className={styles.actionDivider} aria-hidden />
+                  <Button type="button" intent="secondary" size="sm" onClick={() => setEditOpen(true)}>
+                    정보 수정
                   </Button>
-                  <Button type="button" intent="danger" size="sm" onClick={() => setDeleteConfirmOpen(true)}>
+                  <Button type="button" intent="ghost" size="sm" className={styles.deleteAction} onClick={() => setDeleteConfirmOpen(true)}>
                     삭제
                   </Button>
                 </div>
@@ -530,12 +542,12 @@ export default function StudentsDetailOverlay({
           <div className="ds-overlay-inventory-wrap">
             <button
               type="button"
-              className="ds-inventory-trigger-btn"
+              className={`ds-inventory-trigger-btn ${styles.inventoryTrigger}`}
               onClick={() => setInventoryOpen(true)}
               title="인벤토리"
               aria-label="인벤토리 열기"
             >
-              📁
+              <FolderOpen size={ICON.lg} aria-hidden />
             </button>
           </div>
       </StudentDetailShell>
@@ -621,14 +633,17 @@ export default function StudentsDetailOverlay({
 function StudentDetailShell({
   onClose,
   children,
+  layer,
 }: {
   onClose: () => void;
   children: ReactNode;
+  layer: "workspace" | "modal";
 }) {
+  const elevated = layer === "modal";
   return (
     <>
-      <div className="ds-overlay-backdrop" onClick={onClose} aria-hidden />
-      <div className="ds-overlay-wrap">
+      <div className={`ds-overlay-backdrop${elevated ? ` ${styles.modalBackdrop}` : ""}`} onClick={onClose} aria-hidden />
+      <div className={`ds-overlay-wrap${elevated ? ` ${styles.modalWrap}` : ""}`}>
         <div
           className="ds-overlay-panel ds-overlay-panel--student-detail"
           role="dialog"
@@ -842,7 +857,7 @@ function StudentStatTabs({
   const isZero = (v: string) => v === "0" || v === "0건";
 
   return (
-    <div className="ds-stat-tabs" role="tablist">
+    <div className={styles.statTabs} role="tablist" aria-label="학생 활동 요약">
       {tabs.map((t) => {
         const active = activeTab === t.key;
         const muted = isZero(t.value);
@@ -852,14 +867,14 @@ function StudentStatTabs({
             type="button"
             role="tab"
             aria-selected={active}
-            className={`ds-stat-tab${active ? " ds-stat-tab--active" : ""}${muted ? " ds-stat-tab--muted" : ""}`}
+            className={`${styles.statTab}${active ? ` ${styles.statTabActive}` : ""}${muted ? ` ${styles.statTabMuted}` : ""}`}
             onClick={() => onTabChange(t.key)}
           >
-            <span className="ds-stat-tab__label">{t.label}</span>
-            <span className={`ds-stat-tab__value${t.tone === "success" ? " ds-stat-tab__value--success" : t.tone === "danger" ? " ds-stat-tab__value--danger" : ""}`}>
+            <span className={styles.statTabLabel}>{t.label}</span>
+            <span className={`${styles.statTabValue}${t.tone === "success" ? ` ${styles.statTabValueSuccess}` : t.tone === "danger" ? ` ${styles.statTabValueDanger}` : ""}`}>
               {t.value}
             </span>
-            {t.sub && <span className="ds-stat-tab__sub">{t.sub}</span>}
+            {t.sub && <span className={styles.statTabSub}>{t.sub}</span>}
           </button>
         );
       })}

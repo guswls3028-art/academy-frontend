@@ -1198,6 +1198,7 @@ export default function SessionEnrollModal({
                         <StudentsDetailOverlay
                           studentId={overlayStudentId}
                           onClose={() => setOverlayStudentId(null)}
+                          layer="modal"
                         />,
                         document.body
                       )}
