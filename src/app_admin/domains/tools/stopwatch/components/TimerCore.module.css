@@ -2,8 +2,6 @@
 /* Premium Countdown Timer — 시험 남은시간 타이머 */
 /* Default = Light, Projector = Dark (beam onto blackboard) */
 
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
-
 /* ═══════════════════════════════════════
    DEFAULT MODE — LIGHT, CLEAN, PREMIUM
    ═══════════════════════════════════════ */
@@ -20,6 +18,7 @@
   --sw-success: #2b8a3e;
   --sw-gold: #e67700;
   --sw-warning: #ff6b6b;
+  --sw-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Consolas, "Liberation Mono", monospace;
 
   position: relative;
   background: var(--sw-bg);
@@ -261,7 +260,7 @@
   display: flex;
   align-items: baseline;
   justify-content: center;
-  font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+  font-family: var(--sw-mono);
   font-weight: 600;
   font-size: clamp(72px, 13vw, 160px);
   letter-spacing: -2px;
@@ -376,7 +375,7 @@
   border-radius: 10px;
   font-size: 22px;
   font-weight: 600;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--sw-mono);
   text-align: center;
   background: var(--sw-surface);
   color: var(--sw-text);
@@ -399,7 +398,7 @@
   font-size: 24px;
   font-weight: 600;
   color: var(--sw-text-dim);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--sw-mono);
 }
 
 .startSetBtn {
@@ -563,7 +562,7 @@
 }
 
 .fontMono {
-  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-family: var(--sw-mono);
 }
 
 .fontClassic {
@@ -596,7 +595,7 @@
   padding: 2px 6px;
   border: 1px solid rgba(0,0,0,0.08);
   border-radius: 4px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--sw-mono);
   font-size: 10px;
   background: rgba(0,0,0,0.03);
   margin-right: 3px;

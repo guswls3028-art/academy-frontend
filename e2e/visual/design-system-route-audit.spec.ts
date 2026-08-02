@@ -2,13 +2,21 @@ import type { Page, TestInfo } from "@playwright/test";
 import { test, expect } from "../fixtures/strictTest";
 import { getBaseUrl, loginViaUI } from "../helpers/auth";
 
+const TENANT_LANDING_BASE = process.env.TCHUL_BASE_URL || "https://tchul.com";
+
 const ADMIN_ROUTES = [
   "/workspace/dashboard",
   "/workspace/guide",
   "/workspace/students/home",
   "/workspace/students/requests",
+  "/workspace/students/deleted",
   "/workspace/lectures",
+  "/workspace/lectures/past",
+  "/workspace/fees",
+  "/workspace/fees/invoices",
+  "/workspace/fees/templates",
   "/workspace/clinic/home",
+  "/workspace/clinic/schedule",
   "/workspace/clinic/operations",
   "/workspace/clinic/bookings",
   "/workspace/clinic/reports",
@@ -21,6 +29,7 @@ const ADMIN_ROUTES = [
   "/workspace/results/submissions",
   "/workspace/videos",
   "/workspace/videos/tree",
+  "/workspace/counsel",
   "/workspace/message/templates",
   "/workspace/message/auto-send",
   "/workspace/message/log",
@@ -47,6 +56,9 @@ const ADMIN_ROUTES = [
   "/workspace/tools/clinic",
   "/workspace/tools/stopwatch",
   "/workspace/tools/problem-studio",
+  "/workspace/developer/bug",
+  "/workspace/developer/feedback",
+  "/workspace/developer/flags",
   "/workspace/staff/home",
   "/workspace/staff/attendance",
   "/workspace/staff/expenses",
@@ -110,12 +122,15 @@ const TEACHER_ROUTES = [
   "/workspace/mobile/staff",
   "/workspace/mobile/my-records",
   "/workspace/mobile/billing",
+  "/workspace/mobile/desktop-only",
   "/workspace/mobile/fees",
   "/workspace/mobile/fees/invoices",
   "/workspace/mobile/storage",
   "/workspace/mobile/storage/inventory",
   "/workspace/mobile/settings/organization",
   "/workspace/mobile/settings/appearance",
+  "/workspace/mobile/tools",
+  "/workspace/mobile/tools/problem-solver",
   "/workspace/mobile/tools/stopwatch",
   "/workspace/mobile/developer",
   "/workspace/mobile/developer/bug",
@@ -125,14 +140,49 @@ const TEACHER_ROUTES = [
 const PROMO_ROUTES = [
   "/promo",
   "/promo/features",
+  "/promo/matchup-ppt",
   "/promo/parent-trust",
   "/promo/ai-grading",
   "/promo/video-platform",
   "/promo/pricing",
+  "/promo/updates",
   "/promo/faq",
   "/promo/contact",
   "/promo/demo",
   "/promo/landing-samples",
+] as const;
+
+const SYSTEM_ROUTES = [
+  "/login",
+  "/terms",
+  "/privacy",
+  "/maintenance",
+  "/error/tenant-required",
+] as const;
+
+const TENANT_LANDING_ROUTES = [
+  "/landing",
+  "/landing/reports",
+  "/landing/community/board",
+  "/landing/community/notice",
+  "/landing/community/qna",
+  "/landing/community/materials",
+  "/landing/community/counsel",
+  "/landing/board",
+  "/landing/reviews",
+  "/landing/scores",
+  "/landing/about",
+  "/landing/guide",
+  "/landing/matchup-board",
+] as const;
+
+const DEV_ROUTES = [
+  "/dev/dashboard",
+  "/dev/tenants",
+  "/dev/billing",
+  "/dev/inbox",
+  "/dev/automation",
+  "/dev/product-analytics",
 ] as const;
 
 const REQUIRED_TOKENS = [
@@ -166,14 +216,98 @@ async function auditRoute(page: Page, testInfo: TestInfo, base: string, route: s
     const rootStyle = getComputedStyle(document.documentElement);
     const bodyStyle = getComputedStyle(document.body);
     const bodyFont = bodyStyle.fontFamily;
+    const visibleRect = (element: HTMLElement) => {
+      const rect = element.getBoundingClientRect();
+      let left = Math.max(0, rect.left);
+      let top = Math.max(0, rect.top);
+      let right = Math.min(window.innerWidth, rect.right);
+      let bottom = Math.min(window.innerHeight, rect.bottom);
+      let ancestor = element.parentElement;
+
+      while (ancestor && ancestor !== document.body) {
+        const style = getComputedStyle(ancestor);
+        const ancestorRect = ancestor.getBoundingClientRect();
+        if (style.overflowX !== "visible") {
+          left = Math.max(left, ancestorRect.left);
+          right = Math.min(right, ancestorRect.right);
+        }
+        if (style.overflowY !== "visible") {
+          top = Math.max(top, ancestorRect.top);
+          bottom = Math.min(bottom, ancestorRect.bottom);
+        }
+        ancestor = ancestor.parentElement;
+      }
+
+      return {
+        left,
+        top,
+        right,
+        bottom,
+        width: Math.max(0, right - left),
+        height: Math.max(0, bottom - top),
+      };
+    };
+
+    const isVisuallyReachable = (element: HTMLElement) => {
+      if (element.closest("[aria-hidden='true'], [inert]")) return false;
+      const style = getComputedStyle(element);
+      const rect = visibleRect(element);
+      return style.display !== "none" && style.visibility !== "hidden" && style.opacity !== "0" && rect.width > 0 && rect.height > 0;
+    };
+
     const visibleControls = Array.from(
       document.querySelectorAll<HTMLElement>("button, input, select, textarea, [role='button'], .ant-btn"),
     ).filter((element) => {
       if (element.closest("[data-visual-font-intent]")) return false;
-      const style = getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
-      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+      return isVisuallyReachable(element);
     });
+
+    const actionableControls = Array.from(
+      document.querySelectorAll<HTMLElement>("button, a[href], [role='button']"),
+    )
+      .filter(isVisuallyReachable)
+      .map((element) => ({ element, rect: visibleRect(element) }));
+
+    const controlLabel = (element: HTMLElement) =>
+      (element.innerText || element.getAttribute("aria-label") || element.getAttribute("title") || "")
+        .trim()
+        .replace(/\s+/g, " ")
+        .slice(0, 60);
+
+    const clippedControls = actionableControls
+      .map(({ element }) => element)
+      .filter((element) => element.scrollWidth > element.clientWidth + 4 || element.scrollHeight > element.clientHeight + 4)
+      .map((element) => ({
+        tag: element.tagName.toLowerCase(),
+        text: controlLabel(element),
+        client: `${element.clientWidth}x${element.clientHeight}`,
+        scroll: `${element.scrollWidth}x${element.scrollHeight}`,
+      }))
+      .slice(0, 8);
+
+    const overlappingControls: Array<{ first: string; second: string }> = [];
+    for (let firstIndex = 0; firstIndex < actionableControls.length; firstIndex += 1) {
+      const first = actionableControls[firstIndex]!;
+      const firstRect = first.rect;
+      for (let secondIndex = firstIndex + 1; secondIndex < actionableControls.length; secondIndex += 1) {
+        const second = actionableControls[secondIndex]!;
+        if (first.element.contains(second.element) || second.element.contains(first.element)) continue;
+        const secondRect = second.rect;
+        const overlapWidth = Math.min(firstRect.right, secondRect.right) - Math.max(firstRect.left, secondRect.left);
+        const overlapHeight = Math.min(firstRect.bottom, secondRect.bottom) - Math.max(firstRect.top, secondRect.top);
+        if (overlapWidth <= 4 || overlapHeight <= 4) continue;
+        const overlapArea = overlapWidth * overlapHeight;
+        const smallerArea = Math.min(firstRect.width * firstRect.height, secondRect.width * secondRect.height);
+        if (overlapArea < smallerArea * 0.2) continue;
+        const probeX = Math.max(firstRect.left, secondRect.left) + overlapWidth / 2;
+        const probeY = Math.max(firstRect.top, secondRect.top) + overlapHeight / 2;
+        const topControl = document.elementFromPoint(probeX, probeY)?.closest("button, a[href], [role='button']");
+        if (topControl !== first.element && topControl !== second.element) continue;
+        overlappingControls.push({ first: controlLabel(first.element), second: controlLabel(second.element) });
+        if (overlappingControls.length >= 8) break;
+      }
+      if (overlappingControls.length >= 8) break;
+    }
 
     const badControls = visibleControls
       .map((element) => ({
@@ -195,21 +329,27 @@ async function auditRoute(page: Page, testInfo: TestInfo, base: string, route: s
       title: document.title,
       bodyFont,
       badControls,
+      clippedControls,
+      overlappingControls,
       missingTokens,
       overflowX,
       bodyTextLength: bodyText.trim().length,
-      hasErrorText: /Not Found|ChunkLoadError|Application error|Something went wrong|404/i.test(bodyText),
+      hasErrorText: /Not Found|ChunkLoadError|Application error|Something went wrong|Unable to preload CSS|오류가 발생했습니다|404/i.test(bodyText),
       hasEscapedHtml: /<\/?(?:p|div|span|br|table|tbody|thead|tr|td|th|strong|em|h[1-6])(?:\s|\/?>)/i.test(bodyText),
     };
   }, [...REQUIRED_TOKENS]);
 
-  expect(snapshot.bodyTextLength, `${route} rendered empty at ${snapshot.url}`).toBeGreaterThan(8);
-  expect(snapshot.hasErrorText, `${route} rendered an error-like page at ${snapshot.url}`).toBe(false);
-  expect(snapshot.missingTokens, `${route} missing design tokens`).toEqual([]);
-  expect(snapshot.badControls, `${route} controls not inheriting app font`).toEqual([]);
-  expect(snapshot.overflowX, `${route} body horizontal overflow`).toBeLessThanOrEqual(route.startsWith("/student/") ? 1 : 80);
+  expect.soft(snapshot.bodyTextLength, `${route} rendered empty at ${snapshot.url}`).toBeGreaterThan(8);
+  expect.soft(snapshot.hasErrorText, `${route} rendered an error-like page at ${snapshot.url}`).toBe(false);
+  expect.soft(snapshot.missingTokens, `${route} missing design tokens`).toEqual([]);
+  expect.soft(snapshot.badControls, `${route} controls not inheriting app font`).toEqual([]);
+  expect.soft(snapshot.clippedControls, `${route} clipped controls`).toEqual([]);
+  expect.soft(snapshot.overlappingControls, `${route} overlapping controls`).toEqual([]);
+  expect.soft(snapshot.overflowX, `${route} body horizontal overflow`).toBeLessThanOrEqual(
+    route.startsWith("/student/") || route.startsWith("/workspace/mobile") ? 1 : 80,
+  );
   if (route.startsWith("/student/")) {
-    expect(snapshot.hasEscapedHtml, `${route} exposed escaped HTML to the user`).toBe(false);
+    expect.soft(snapshot.hasEscapedHtml, `${route} exposed escaped HTML to the user`).toBe(false);
   }
 
   const screenshotPath = testInfo.outputPath(`${routeName(route)}.png`);
@@ -223,8 +363,6 @@ async function auditRoute(page: Page, testInfo: TestInfo, base: string, route: s
     contentType: "image/png",
   });
 }
-
-test.describe.configure({ mode: "serial" });
 
 test.describe("design-system route visual audit", () => {
   test("admin static route surface is visually stable", async ({ page }, testInfo) => {
@@ -266,6 +404,37 @@ test.describe("design-system route visual audit", () => {
     const base = getBaseUrl("admin").replace(/\/+$/, "");
 
     for (const route of PROMO_ROUTES) {
+      await auditRoute(page, testInfo, base, route);
+    }
+  });
+
+  test("system public route surface is visually stable", async ({ page }, testInfo) => {
+    test.setTimeout(7 * 60_000);
+    await page.setViewportSize({ width: 1366, height: 900 });
+    const base = getBaseUrl("admin").replace(/\/+$/, "");
+
+    for (const route of SYSTEM_ROUTES) {
+      await auditRoute(page, testInfo, base, route);
+    }
+  });
+
+  test("tenant landing route surface is visually stable", async ({ page }, testInfo) => {
+    test.setTimeout(7 * 60_000);
+    await page.setViewportSize({ width: 1366, height: 900 });
+    const base = TENANT_LANDING_BASE.replace(/\/+$/, "");
+
+    for (const route of TENANT_LANDING_ROUTES) {
+      await auditRoute(page, testInfo, base, route);
+    }
+  });
+
+  test("developer route surface is visually stable", async ({ page }, testInfo) => {
+    test.setTimeout(7 * 60_000);
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    const base = getBaseUrl("admin").replace(/\/+$/, "");
+    await loginViaUI(page, "admin", { landingPath: "/dev/dashboard" });
+
+    for (const route of DEV_ROUTES) {
       await auditRoute(page, testInfo, base, route);
     }
   });

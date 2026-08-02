@@ -30,6 +30,7 @@ export function isChunkLoadError(
     message.includes("Failed to fetch") ||
     message.includes("Loading chunk") ||
     message.includes("Loading CSS chunk") ||
+    message.includes("Unable to preload CSS") ||
     message.includes("LAZY_DEFAULT_UNDEFINED") ||
     stack.includes("dynamically imported module") ||
     stack.includes("Importing a module script failed") ||

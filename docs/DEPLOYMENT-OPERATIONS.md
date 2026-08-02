@@ -22,6 +22,13 @@
    후속 E2E 실패는 별도 `production-rollback` environment가 승인 대기 없이
    baseline으로 보상하고 실제 version 복귀를 확인한다.
 
+배포 교체 중 이전 앱 셸이 새 lazy JavaScript 또는 CSS asset을 가리키지 못하면
+`vite:preloadError`, window error/rejection, React ErrorBoundary가 같은
+`isChunkLoadError` 분류를 사용해 제한된 cache-bust reload를 수행한다.
+`Unable to preload CSS`도 배포 자산 경합으로 분류하며, 반복 상한 뒤에는 사용자에게
+일반화된 새로고침 안내만 남긴다. route-critical CSS는 외부 Google Fonts 같은
+CSP 차단 의존성을 두지 않는다.
+
 Cloudflare Git production auto-deploy는 direct-upload workflow와 경쟁하면 안
 된다. workflow는 project source 설정과 reserved production branch 부재를
 readback하며, drift이면 upload 전에 실패한다.
@@ -121,6 +128,7 @@ pnpm guard:runtime-recovery
 pnpm audit --prod
 pnpm typecheck
 pnpm build
+pnpm test:e2e:visual-audit
 ```
 
 workflow 변경은 YAML parse, 모든 `uses:`의 40자 SHA, secret 이름과 environment

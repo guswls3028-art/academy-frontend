@@ -97,6 +97,7 @@ export default function StopwatchPage() {
       <section className={styles.timeCard}>
         <div
           className={cx(styles.timeDisplay, running && styles.timeDisplayRunning)}
+          data-testid="mobile-stopwatch-display"
         >
           {formatElapsed(elapsed)}
         </div>
