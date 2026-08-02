@@ -149,7 +149,6 @@ test.describe("S. Student mobile 390", () => {
       ["community",       `${BASE}/student/community`],
       ["notices",         `${BASE}/student/notices`],
       ["notifications",   `${BASE}/student/notifications`],
-      ["idcard",          `${BASE}/student/idcard`],
       ["clinic",          `${BASE}/student/clinic`],
       ["attendance",      `${BASE}/student/attendance`],
       ["guide",           `${BASE}/student/guide`],

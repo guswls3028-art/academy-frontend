@@ -15,7 +15,7 @@ import {
   ClipboardList, Award, Video, MessageSquare,
   FileText, Bell, User, Settings, Send, Clock,
   Monitor, LogOut, AlertCircle, X, FolderPlus, Calendar, Info,
-  RefreshCw, Bug, Globe, ChevronDown, ExternalLink, Wrench,
+  Bug, Globe, ChevronDown, ExternalLink, Wrench,
 } from "@teacher/shared/ui/Icons";
 import styles from "./TeacherDrawer.module.css";
 
@@ -71,7 +71,6 @@ export default function TeacherDrawer({ open, onClose, persistent = false }: Pro
           { label: "성적", path: "/workspace/mobile/results", icon: <Award size={ICON.md} /> },
           { label: "영상", path: "/workspace/mobile/videos", icon: <Video size={ICON.md} /> },
           { label: "클리닉", path: "/workspace/mobile/clinic", icon: <Activity size={ICON.md} /> },
-          { label: "클리닉 리모컨", path: "/workspace/mobile/clinic/remote", icon: <RefreshCw size={ICON.md} /> },
           { label: "클리닉 보고서", path: "/workspace/mobile/clinic/reports", icon: <Calendar size={ICON.md} /> },
         ],
       },

@@ -116,7 +116,7 @@ test.describe("Batch 10 실사용 리뷰", () => {
     expect(errors).toHaveLength(0);
   });
 
-  test("클리닉 보고서 + 리모컨 — 캘린더, 3색 패스카드", async ({ page }) => {
+  test("클리닉 보고서 — 주간 캘린더", async ({ page }) => {
     const { errors } = attachNetCapture(page);
     await visit(page, "/workspace/mobile/clinic/reports");
     await page.screenshot({ path: `${SCREEN_DIR}/clinic-reports.png`, fullPage: true });
@@ -124,12 +124,6 @@ test.describe("Batch 10 실사용 리뷰", () => {
     for (const d of ["일", "월", "화", "수", "목", "금", "토"]) {
       await expect(page.getByText(d, { exact: true }).first()).toBeVisible();
     }
-
-    await visit(page, "/workspace/mobile/clinic/remote");
-    await page.screenshot({ path: `${SCREEN_DIR}/clinic-remote.png`, fullPage: true });
-    await expect(page.getByText("클리닉 리모컨").first()).toBeVisible();
-    await expect(page.getByRole("button", { name: /랜덤 3색 배치/ })).toBeVisible();
-
     expect(errors).toHaveLength(0);
   });
 

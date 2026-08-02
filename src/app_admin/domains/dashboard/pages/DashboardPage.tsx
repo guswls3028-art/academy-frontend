@@ -5,18 +5,13 @@
  * Existing read contracts remain the SSOT. This page only reorganizes the
  * current lecture, exam, submission, QnA, clinic, and messaging signals.
  */
-import {
-  lazy,
-  Suspense,
-  useState,
-  type ButtonHTMLAttributes,
-  type ReactNode,
-} from "react";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
   BellRing,
+  CalendarClock,
   ClipboardCheck,
   FileCheck2,
   MessageCircleQuestion,
@@ -34,18 +29,14 @@ import { Button } from "@/shared/ui/ds";
 import { InlineHelp } from "@/shared/ui/guide";
 import { DomainLayout } from "@/shared/ui/layout";
 import { adminDashboardQueryKeys } from "../queryKeys";
-import ClinicRemoconIcon from "../components/ClinicRemoconIcon";
 import {
   ArrivalOperationsBoard,
   UpcomingArrivalCard,
 } from "../components/ArrivalOperationsBoard";
 import styles from "./DashboardPage.module.css";
 
-const ClinicPasscardModal = lazy(() => import("@admin/domains/clinic/components/ClinicPasscardModal"));
-
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const [clinicPasscardModalOpen, setClinicPasscardModalOpen] = useState(false);
 
   const {
     data: messagingInfo,
@@ -79,6 +70,9 @@ export default function DashboardPage() {
   const pendingSubs = recentSubs.filter(
     (submission) => submission.status !== "done" && submission.status !== "failed",
   );
+  const pendingClinicCount = (arrivalQuery.data?.items ?? []).filter(
+    (item) => item.source === "clinic" && item.status === "pending",
+  ).length;
   const openArrival = (item: ArrivalOverviewItem) => {
     if (item.source === "supplement" && item.lecture_id && item.session_id) {
       navigate(`/workspace/lectures/${item.lecture_id}/sessions/${item.session_id}/attendance`);
@@ -187,13 +181,15 @@ export default function DashboardPage() {
                 onClick={() => navigate("/workspace/exams")}
               />
               <TaskCard
-                label="클리닉 패스카드"
-                description="학생용 패스카드 화면을 준비합니다."
-                action="설정 열기"
+                label="클리닉 승인 대기"
+                description="학생이 신청한 일정을 확인합니다."
+                loading={arrivalQuery.isLoading}
+                error={arrivalQuery.isError}
+                value={pendingClinicCount}
+                action="예약 확인"
                 tone="clinic"
-                icon={<ClinicRemoconIcon />}
-                onClick={() => setClinicPasscardModalOpen(true)}
-                data-testid="dashboard-shortcut-clinic-passcard"
+                icon={<CalendarClock size={20} aria-hidden="true" />}
+                onClick={() => navigate("/workspace/clinic/bookings?focus=pending")}
               />
             </div>
           </section>
@@ -231,12 +227,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <Suspense fallback={null}>
-        <ClinicPasscardModal
-          open={clinicPasscardModalOpen}
-          onClose={() => setClinicPasscardModalOpen(false)}
-        />
-      </Suspense>
     </DomainLayout>
   );
 }

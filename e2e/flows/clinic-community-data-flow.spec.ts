@@ -9,12 +9,11 @@
  *  2. Admin: 커뮤니티 QnA 인박스
  *  3. Admin: 공지 목록
  *  4. Student: 클리닉 페이지 (예약 탭)
- *  5. Student: 클리닉 인증패스카드
- *  6. Student: 공지 목록
- *  7. Student: 알림 페이지
- *  8. API: 클리닉 예약 조회
- *  9. API: 커뮤니티 게시글 조회 (tenant-scoped)
- * 10. Student: 커뮤니티/QnA 페이지
+ *  5. Student: 공지 목록
+ *  6. Student: 알림 페이지
+ *  7. API: 클리닉 예약 조회
+ *  8. API: 커뮤니티 게시글 조회 (tenant-scoped)
+ *  9. Student: 커뮤니티/QnA 페이지
  */
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
@@ -113,21 +112,6 @@ test.describe("Student: Clinic & Community 데이터 검증", () => {
     }
 
     await page.screenshot({ path: "test-results/clinic-community/04-student-clinic.png" });
-  });
-
-  test("5. 클리닉 인증패스카드가 학생 이름과 함께 렌더된다", async ({ page }) => {
-    test.setTimeout(30_000);
-    await gotoAndSettle(page, `${BASE}/student/idcard`, { timeout: 20_000 });
-
-    // 에러 없음
-    await expect(page.locator("text=Not Found")).not.toBeVisible();
-
-    // 패스카드 페이지 로드됨 — 시계, 학생 이름, 색상 카드 중 하나 이상 존재
-    const hasTime = await page.locator("text=/오전|오후/").first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasCard = await page.locator("[class*='idcard'], [class*='passcard'], [class*='card']").first().isVisible({ timeout: 5000 }).catch(() => false);
-    expect(hasTime || hasCard).toBeTruthy();
-
-    await page.screenshot({ path: "test-results/clinic-community/05-student-idcard.png" });
   });
 
   test("6. 공지 목록이 정상 렌더된다", async ({ page }) => {

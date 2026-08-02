@@ -21,7 +21,6 @@ export function isStudentScopedQueryKey(queryKey: readonly unknown[]): boolean {
   return (
     head === "student" ||
     head.startsWith("student-") ||
-    head === "clinic-idcard" ||
     head === "video-comments" ||
     head === "storage-quota"
   );
