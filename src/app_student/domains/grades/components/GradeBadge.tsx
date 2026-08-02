@@ -25,8 +25,8 @@ const DASH_SVG = (
 );
 
 export default function GradeBadge({ passed, achievement, label, showNotSubmitted, size = "md" }: GradeBadgeProps) {
-  const passText = label?.pass ?? "합격";
-  const failText = label?.fail ?? "불합격";
+  const passText = label?.pass?.trim() || "합격";
+  const failText = label?.fail?.trim() || "불합격";
   const sizeClass = size === "sm" ? " stu-badge--sm" : "";
 
   // 보강 합격 — 최고 우선순위

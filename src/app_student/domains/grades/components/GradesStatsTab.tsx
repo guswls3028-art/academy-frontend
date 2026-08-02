@@ -11,6 +11,7 @@ import type {
   StudentGradeReportLayout,
   StudentGradeReportSectionId,
 } from "@/shared/api/contracts/studentGradeReportLayout";
+import { STUDENT_GRADE_REPORT_ANALYTICS_SECTION_IDS } from "@/shared/api/contracts/studentGradeReportLayout";
 import type { MyExamGradeSummary, MyGradesAnalytics, MyHomeworkGradeSummary } from "../api/grades.api";
 import styles from "./GradesStatsTab.module.css";
 
@@ -29,12 +30,6 @@ type TrendDatum = {
   득점률: number;
   전체평균?: number;
 };
-
-const ANALYTICS_SECTION_IDS: StudentGradeReportSectionId[] = [
-  "score_comparison",
-  "lecture_average",
-  "improvement_priority",
-];
 
 export default function GradesStatsTab({
   exams,
@@ -127,7 +122,7 @@ export default function GradesStatsTab({
   const homeworkFailPct = hwStats && hwStats.total > 0 ? (hwStats.failed / hwStats.total) * 100 : 0;
 
   const firstVisibleAnalytics = reportLayout.sections.find(
-    (section) => section.visible && ANALYTICS_SECTION_IDS.includes(section.id),
+    (section) => section.visible && STUDENT_GRADE_REPORT_ANALYTICS_SECTION_IDS.includes(section.id),
   )?.id;
   const withAnalyticsState = (
     sectionId: StudentGradeReportSectionId,
