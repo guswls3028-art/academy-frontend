@@ -19,6 +19,7 @@ if (!TENANTS.length) throw new Error("Tenant registry empty");
 import ErrorBoundary from "@/shared/ui/ErrorBoundary";
 import { DevErrorBoundary, DevErrorLogger } from "@/core/DevErrorLogger";
 import { hardReloadWithCacheBust, stripHardReloadParam } from "@/shared/utils/hardReload";
+import { isChunkLoadError } from "@/shared/utils/chunkLoadError";
 import { ConfirmProvider } from "@/shared/ui/confirm/ConfirmProvider";
 import { ModalWindowProvider } from "@/shared/ui/modal/ModalWindowContext";
 import ModalTaskbar from "@/shared/ui/modal/ModalTaskbar";
@@ -60,7 +61,7 @@ function installChunkReloadHandler() {
   });
   window.addEventListener("error", (e) => {
     const msg = String((e as ErrorEvent).message || "");
-    if (msg.includes("Failed to fetch dynamically imported module") || msg.includes("Importing a module script failed")) {
+    if (isChunkLoadError((e as ErrorEvent).error || { message: msg })) {
       reloadOnce();
       return;
     }
@@ -68,7 +69,7 @@ function installChunkReloadHandler() {
   });
   window.addEventListener("unhandledrejection", (e) => {
     const msg = String((e as PromiseRejectionEvent).reason?.message || "");
-    if (msg.includes("Failed to fetch dynamically imported module") || msg.includes("Importing a module script failed")) {
+    if (isChunkLoadError((e as PromiseRejectionEvent).reason || { message: msg })) {
       reloadOnce();
       return;
     }

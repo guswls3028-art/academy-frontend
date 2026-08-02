@@ -2,8 +2,6 @@
 /* Premium Academy Stopwatch */
 /* Default = Light (white bg), Projector = Dark (black bg, bright text for beam onto blackboard) */
 
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
-
 /* ═══════════════════════════════════════
    DEFAULT MODE — LIGHT, CLEAN, PREMIUM
    ═══════════════════════════════════════ */
@@ -19,6 +17,7 @@
   --sw-danger: #e03131;
   --sw-success: #2b8a3e;
   --sw-gold: #e67700;
+  --sw-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Consolas, "Liberation Mono", monospace;
 
   position: relative;
   background: var(--sw-bg);
@@ -248,7 +247,7 @@
   display: flex;
   align-items: baseline;
   justify-content: center;
-  font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+  font-family: var(--sw-mono);
   font-weight: 600;
   font-size: clamp(72px, 13vw, 160px);
   letter-spacing: -2px;
@@ -391,8 +390,8 @@
 .lap:first-child { border-top: 1px solid rgba(0,0,0,0.05); }
 
 .lapN { color: var(--sw-text-dim); font-weight: 600; font-size: 11px; letter-spacing: 1.5px; min-width: 60px; }
-.lapS { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--sw-text-dim); }
-.lapT { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--sw-text); font-weight: 600; }
+.lapS { font-family: var(--sw-mono); font-size: 12px; color: var(--sw-text-dim); }
+.lapT { font-family: var(--sw-mono); font-size: 12px; color: var(--sw-text); font-weight: 600; }
 .lapBest .lapT { color: var(--sw-success); }
 .lapWorst .lapT { color: var(--sw-danger); }
 
@@ -419,7 +418,7 @@
   padding: 2px 6px;
   border: 1px solid rgba(0,0,0,0.08);
   border-radius: 4px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--sw-mono);
   font-size: 10px;
   background: rgba(0,0,0,0.03);
   margin-right: 3px;

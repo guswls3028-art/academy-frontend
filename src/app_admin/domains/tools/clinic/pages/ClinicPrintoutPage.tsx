@@ -516,6 +516,7 @@ export default function ClinicPrintoutPage() {
             </div>
             <label className={styles.srOnly} htmlFor="clinic-paste-ta">성적표 데이터</label>
             <textarea
+              data-visual-font-intent="tabular-input"
               id="clinic-paste-ta"
               className={styles.pasteArea}
               value={pasteText}

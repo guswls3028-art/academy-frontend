@@ -458,7 +458,7 @@ export default function TimerCore({ logoUrl, academyName, startFullscreen, mode 
         ) : (
           <>
             {/* Time display */}
-            <div className={`${displayCls} ${FONT_CLASS_BY_KEY[fontKey]}`}>
+            <div data-testid="timer-display" className={`${displayCls} ${FONT_CLASS_BY_KEY[fontKey]}`}>
               <span className={styles.digit}>{t.h}</span>
               <span className={styles.sep}>:</span>
               <span className={styles.digit}>{t.m}</span>

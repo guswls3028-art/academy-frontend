@@ -33,4 +33,8 @@ test("known dynamic import failures remain recoverable", () => {
     true,
   );
   assert.equal(isChunkLoadError(new Error("LAZY_DEFAULT_UNDEFINED")), true);
+  assert.equal(
+    isChunkLoadError(new Error("Unable to preload CSS for /assets/StopwatchPage-example.css")),
+    true,
+  );
 });

@@ -20,6 +20,7 @@ const pullRequestGateAllowlist = new Set([
   "e2e/admin/session-attendance-bulk-safety.mock.spec.ts",
   "e2e/admin/score-entry-autosave.spec.ts",
   "e2e/admin/staff-operations-contract.mock.spec.ts",
+  "e2e/admin/stopwatch-visual-runtime.mock.spec.ts",
   "e2e/admin/student-custom-columns.mock.spec.ts",
   "e2e/admin/student-detail-entrypoints.mock.spec.ts",
   "e2e/admin/wrong-note-generation-contract.mock.spec.ts",

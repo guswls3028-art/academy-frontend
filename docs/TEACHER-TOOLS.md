@@ -103,6 +103,23 @@ SPA shell의 HTTP 200만으로 route 전환 완료를 판단하지 않는다. �
 catalog와 route, 실제 페이지를 함께 추가해 목록 증가가 기존 도구
 동작에 영향을 주지 않게 한다.
 
+## 타이머 표시와 실패 복구
+
+타이머는 관리자 `/workspace/tools/stopwatch`와 강사
+`/workspace/mobile/tools/stopwatch`에서 숫자 폭이 흔들리지 않아야 한다.
+관리자 PC 타이머의 시간·랩 숫자는 운영체제 내장 고정폭 글꼴을 사용하고,
+강사 모바일 스톱워치는 tabular 숫자 폭을 사용한다. 두 화면 모두 외부 웹 글꼴을
+요청하지 않으므로 테넌트 CSP나 네트워크 상태가 시간 표시를 바꾸면 안 된다.
+
+배포 교체 중 lazy JavaScript 또는 CSS 자산을 받지 못하면 현재 입력을 서버에
+전송하지 않은 채 cache-bust 새로고침으로 최신 앱 셸을 다시 받는다. 짧은 시간에
+반복되면 무한 새로고침을 막고 복구 중 안내, 수동 새로고침, 일반화된 오류만
+표시한다. 내부 asset 경로나 provider 오류는 정상 사용자 흐름에 노출하지 않는다.
+브라우저 검증은 두 정식 경로에서 CSP 오류 0건, 타이머 숫자 고정폭, 모드 전환,
+390px와 1366px 가로 overflow 없음까지 확인한다.
+로컬 회귀는 `e2e/admin/stopwatch-visual-runtime.mock.spec.ts`, 전체 정적 화면 감사는
+`e2e/visual/design-system-route-audit.spec.ts`가 소유한다.
+
 ## AI 풀이·해설 사용자 흐름
 
 1. 사용자가 JPG, PNG, WEBP 문제 사진 한 장을 촬영하거나 선택한다.
