@@ -13,7 +13,8 @@
 }
 
 .notice-tree--viewport {
-  min-height: calc(100vh - 180px);
+  height: calc(100vh - 230px);
+  min-height: 520px;
 }
 
 .notice-tree__nav {
