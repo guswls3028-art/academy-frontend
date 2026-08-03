@@ -35,8 +35,9 @@ export async function createWrongNotePDF(payload: {
   lecture_id?: number;
   from_session_order?: number;
   to_session_order?: number;
+  output_format?: "pdf" | "hwpx";
 }) {
-  const res = await api.post("/results/wrong-notes/pdf/", payload, {
+  const res = await api.post("/results/wrong-notes/documents/", payload, {
     timeout: WRONG_NOTE_PDF_CREATE_TIMEOUT_MS,
   });
   return res.data as WrongNotePDFCreateResponse;
@@ -44,6 +45,6 @@ export async function createWrongNotePDF(payload: {
 
 export async function fetchWrongNotePDFStatus(jobId: number) {
   // ✅ 보완: polling 전용 API
-  const res = await api.get(`/results/wrong-notes/pdf/${jobId}/`);
+  const res = await api.get(`/results/wrong-notes/documents/${jobId}/`);
   return res.data as WrongNotePDFStatusResponse;
 }

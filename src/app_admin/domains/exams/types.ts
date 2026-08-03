@@ -6,6 +6,7 @@ export type ManualGradingMethod = "correctness" | "score";
 export type ExamSegmentationStatus =
   | "none"
   | "processing"
+  | "review_required"
   | "ready"
   | "failed"
   | "conversion_required";

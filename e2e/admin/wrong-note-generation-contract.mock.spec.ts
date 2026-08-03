@@ -14,6 +14,8 @@ const wrongNoteItem = {
   session_title: "1주차",
   question_image_url: "",
   has_question_image: false,
+  explanation_image_url: "",
+  has_teacher_explanation: true,
   student_answer: "2",
   correct_answer: "3",
   is_correct: false,
@@ -47,6 +49,7 @@ async function mockWrongNoteApi(
   const listRequestUrls: string[] = [];
   const createPayloads: Array<Record<string, unknown>> = [];
   let currentWrongNoteItem = wrongNoteItem;
+  let outputFormat: "pdf" | "hwpx" = "pdf";
   await page.route("https://download.example/**", (route) =>
     route.fulfill({
       status: 200,
@@ -77,19 +80,22 @@ async function mockWrongNoteApi(
         results: [currentWrongNoteItem],
       });
     }
-    if (path.endsWith("/results/wrong-notes/pdf/") && request.method() === "POST") {
+    if (path.endsWith("/results/wrong-notes/documents/") && request.method() === "POST") {
       createCalls += 1;
-      createPayloads.push(request.postDataJSON() as Record<string, unknown>);
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      outputFormat = payload.output_format === "hwpx" ? "hwpx" : "pdf";
+      createPayloads.push(payload);
       if (options.createDelayMs) {
         await new Promise((resolve) => setTimeout(resolve, options.createDelayMs));
       }
       return json(route, {
         job_id: 9,
         status: "PENDING",
-        status_url: `${BASE}/api/v1/results/wrong-notes/pdf/9/`,
+        status_url: `${BASE}/api/v1/results/wrong-notes/documents/9/`,
+        output_format: payload.output_format,
       }, 202);
     }
-    if (path.endsWith("/results/wrong-notes/pdf/9/") && request.method() === "GET") {
+    if (path.endsWith("/results/wrong-notes/documents/9/") && request.method() === "GET") {
       const configured =
         options.statusResponses?.[
           Math.min(statusCalls, options.statusResponses.length - 1)
@@ -98,9 +104,11 @@ async function mockWrongNoteApi(
       return json(route, {
         job_id: 9,
         status: configured?.status ?? "DONE",
-        file_path: "tenants/1/results/wrong-notes/9.pdf",
-        file_url: configured?.file_url ?? "https://download.example/wrong-note.pdf",
+        file_path: `tenants/1/results/wrong-notes/9.${outputFormat}`,
+        file_url: configured?.file_url ?? `https://download.example/wrong-note.${outputFormat}`,
         error_message: configured?.error_message ?? "",
+        output_format: outputFormat,
+        filename: `wrong-note-9.${outputFormat}`,
         created_at: "2026-07-28T00:00:00Z",
         updated_at: "2026-07-28T00:00:01Z",
       });
@@ -199,7 +207,7 @@ test.describe("오답노트 생성 계약", () => {
     await page.goto(`${BASE}/e2e-wrong-note-harness.html`);
 
     await page.getByTestId("wrong-note-create").click();
-    await expect(page.getByTestId("wrong-note-create")).toContainText("PDF 만드는 중");
+    await expect(page.getByTestId("wrong-note-create")).toContainText("시험지 만드는 중");
     await expect(page.getByRole("button", { name: /회차 범위/ })).toBeDisabled();
     await expect(page.getByTestId("wrong-note-download")).toBeVisible();
     await expect(page.getByRole("alert")).toHaveCount(0);
@@ -302,6 +310,19 @@ test.describe("오답노트 생성 계약", () => {
         from_session_order: 2,
         to_session_order: 4,
       }),
+    );
+  });
+
+  test("한글 HWPX를 선택하면 원본 해설 포함 형식으로 요청한다", async ({ page }) => {
+    const calls = await mockWrongNoteApi(page, { total: 1 });
+    await page.goto(`${BASE}/e2e-wrong-note-harness.html`);
+
+    await page.getByRole("button", { name: /한글 HWPX/ }).click();
+    await expect(page.getByTestId("wrong-note-create")).toContainText("오답노트 한글 만들기");
+    await page.getByTestId("wrong-note-create").click();
+    await expect(page.getByTestId("wrong-note-download")).toContainText("한글 다운로드");
+    expect(calls.createPayloads).toContainEqual(
+      expect.objectContaining({ output_format: "hwpx" }),
     );
   });
 

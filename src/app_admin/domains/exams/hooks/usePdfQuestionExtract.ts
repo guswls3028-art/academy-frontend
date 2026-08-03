@@ -148,7 +148,7 @@ export function usePdfQuestionExtract(examId: number) {
             setResult(resultPayload);
 
             feedback.success(
-              `문항 분할 완료: ${resultPayload.totalQuestions}개 문항 인식`
+              `문항 분할 완료: ${resultPayload.totalQuestions}개 후보를 검수해 주세요.`
             );
 
             // 캐시 무효화 → 문항 목록·자산 자동 갱신
@@ -220,7 +220,7 @@ export function usePdfQuestionExtract(examId: number) {
         // Step 3: 폴링 시작
         setStatus("processing");
         setProgress({ percent: 15, stepName: "AI 문항 분할 시작" });
-        feedback.info("AI가 문항을 분석 중입니다...");
+        feedback.info("문항과 선생님 원본 해설을 맞추고 있습니다...");
         pollJobStatus(jobId);
       } catch (e: unknown) {
         stopPolling();

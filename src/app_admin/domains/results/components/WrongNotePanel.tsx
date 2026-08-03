@@ -23,6 +23,7 @@ type Props = {
 };
 
 type Scope = "exam" | "lecture";
+type OutputFormat = "pdf" | "hwpx";
 
 type WrongNoteGroup = {
   key: string;
@@ -85,6 +86,7 @@ function questionLabel(item: WrongNoteItem): string {
 
 export default function WrongNotePanel({ enrollmentId, examId }: Props) {
   const [scope, setScope] = useState<Scope>("exam");
+  const [outputFormat, setOutputFormat] = useState<OutputFormat>("pdf");
   const [fromSessionOrderInput, setFromSessionOrderInput] = useState("1");
   const [toSessionOrderInput, setToSessionOrderInput] = useState("");
   const [pdfJob, setPdfJob] = useState<WrongNotePDFCreateResponse | null>(null);
@@ -129,7 +131,7 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
   const sessionRangeTitle = hasInvalidSessionRange
     ? "회차 범위를 확인해 주세요"
     : `${fromSessionOrder}~${toSessionOrder ?? "현재"}회차 오답노트`;
-  const requestContext = `${enrollmentId}:${queryExamId ?? "lecture"}:${scope}:${fromSessionOrder ?? "-"}:${toSessionOrder ?? "current"}`;
+  const requestContext = `${enrollmentId}:${queryExamId ?? "lecture"}:${scope}:${fromSessionOrder ?? "-"}:${toSessionOrder ?? "current"}:${outputFormat}`;
   const storageKey = pdfJobStorageKey(requestContext);
   const requestContextRef = useRef(requestContext);
   const mutationContextRef = useRef("");
@@ -174,6 +176,8 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
           item.include_in_wrong_note,
           item.has_question_image,
           item.question_image_url,
+          item.has_teacher_explanation,
+          item.explanation_image_url,
         ]),
       ]),
     [totalWrongCount, wrongList],
@@ -220,6 +224,7 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
         exam_id: queryExamId,
         from_session_order: fromSessionOrder,
         to_session_order: toSessionOrder,
+        output_format: outputFormat,
       });
     },
     onSuccess: (response) => {
@@ -235,11 +240,11 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
       setPdfJob(response);
       setPdfFileUrl("");
       setPdfError("");
-      setPdfAnnouncement("PDF 생성 요청이 접수되었습니다.");
+      setPdfAnnouncement(`${outputFormat === "hwpx" ? "한글" : "PDF"} 생성 요청이 접수되었습니다.`);
     },
     onError: (mutationError: unknown) => {
       if (requestContextRef.current !== mutationContextRef.current) return;
-      setPdfError(extractApiError(mutationError, "오답노트 PDF를 만들지 못했습니다."));
+      setPdfError(extractApiError(mutationError, "오답노트 시험지를 만들지 못했습니다."));
     },
   });
 
@@ -292,9 +297,9 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
             setPdfFileUrl(status.file_url);
             setPdfUrlFetchedAt(Date.now());
             setPdfError("");
-            setPdfAnnouncement("오답노트 PDF 다운로드가 준비되었습니다.");
+            setPdfAnnouncement("오답노트 시험지 다운로드가 준비되었습니다.");
           } else {
-            setPdfError("PDF는 만들어졌지만 다운로드 주소를 확인하지 못했습니다.");
+            setPdfError("시험지는 만들어졌지만 다운로드 주소를 확인하지 못했습니다.");
           }
           return;
         }
@@ -302,13 +307,13 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
         if (status.status === "FAILED") {
           removeSessionItem(storageKey);
           setPdfJob(null);
-          setPdfError(status.error_message || "오답노트 PDF를 만들지 못했습니다.");
+          setPdfError(status.error_message || "오답노트 시험지를 만들지 못했습니다.");
           return;
         }
 
         attempts += 1;
         if (attempts >= PDF_POLL_LIMIT) {
-          setPdfError("PDF 생성이 오래 걸리고 있습니다. 잠시 후 상태를 다시 확인해 주세요.");
+          setPdfError("시험지 생성이 오래 걸리고 있습니다. 잠시 후 상태를 다시 확인해 주세요.");
           return;
         }
         timer = setTimeout(tick, 1500);
@@ -316,7 +321,7 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
         if (stopped || requestContextRef.current !== pollContext) return;
         attempts += 1;
         if (attempts >= 3) {
-          setPdfError(extractApiError(statusError, "PDF 상태를 확인하지 못했습니다."));
+          setPdfError(extractApiError(statusError, "시험지 상태를 확인하지 못했습니다."));
           return;
         }
         timer = setTimeout(tick, 2000);
@@ -490,7 +495,7 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
       {!hasInvalidSessionRange && !isLoading && !error && wrongList.length === 0 && (
         <div className="wrong-note__empty">
           <strong>{scope === "exam" ? "이번 시험은 복습할 문항이 없습니다." : "누적된 복습 문항이 없습니다."}</strong>
-          <span>오답이나 오답노트로 지정한 문항이 생기면 바로 PDF로 만들 수 있습니다.</span>
+          <span>오답이나 오답노트로 지정한 문항이 생기면 PDF나 한글 시험지로 만들 수 있습니다.</span>
         </div>
       )}
 
@@ -528,6 +533,9 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
                         {item.is_correct && item.include_in_wrong_note && (
                           <span className="wrong-note__review-badge">정답 · 오답노트 지정</span>
                         )}
+                        {item.has_teacher_explanation && (
+                          <span className="wrong-note__solution-badge">선생님 해설</span>
+                        )}
                       </strong>
                       <dl>
                         <div>
@@ -554,7 +562,7 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
             {isPreviewLimited ? "미리보기 문항 중 " : ""}문제 이미지 {missingImageCount}개가 비어
             있습니다.
           </strong>
-          <span>해당 시험의 시험 설정 → 답안 등록 → 이미지 등록에서 문항 사진을 붙이면 PDF에 자동 반영됩니다.</span>
+          <span>해당 시험의 시험 설정 → 답안 등록 → 이미지 등록에서 문항 사진을 붙이면 생성 문서에 자동 반영됩니다.</span>
         </div>
       )}
 
@@ -584,6 +592,28 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
               들어갑니다.
             </span>
           )}
+          <div className="wrong-note__format" role="group" aria-label="출력 형식">
+            <button
+              type="button"
+              className={outputFormat === "pdf" ? "is-active" : ""}
+              aria-pressed={outputFormat === "pdf"}
+              disabled={isCreating}
+              onClick={() => setOutputFormat("pdf")}
+            >
+              PDF
+              <span>바로 인쇄</span>
+            </button>
+            <button
+              type="button"
+              className={outputFormat === "hwpx" ? "is-active" : ""}
+              aria-pressed={outputFormat === "hwpx"}
+              disabled={isCreating}
+              onClick={() => setOutputFormat("hwpx")}
+            >
+              한글 HWPX
+              <span>한글에서 열기</span>
+            </button>
+          </div>
         </div>
         {pdfFileUrl ? (
           <Button
@@ -591,7 +621,7 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
             onClick={downloadPdf}
             data-testid="wrong-note-download"
           >
-            PDF 다운로드
+            {outputFormat === "hwpx" ? "한글 다운로드" : "PDF 다운로드"}
           </Button>
         ) : (
           <Button
@@ -607,7 +637,9 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
             aria-describedby={exceedsPdfLimit ? "wrong-note-limit-guidance" : undefined}
             data-testid="wrong-note-create"
           >
-            {isCreating ? "PDF 만드는 중" : "오답노트 PDF 만들기"}
+            {isCreating
+              ? "시험지 만드는 중"
+              : `오답노트 ${outputFormat === "hwpx" ? "한글" : "PDF"} 만들기`}
           </Button>
         )}
       </div>
