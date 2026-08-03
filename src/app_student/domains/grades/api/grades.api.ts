@@ -4,6 +4,7 @@ import api from "@student/shared/api/student.api";
 import type {
   StudentExamSummary,
   StudentExamTrendPoint,
+  StudentScoreLectureOption,
 } from "@/shared/api/contracts/studentGrades";
 import {
   normalizeStudentGradeReportLayout,
@@ -57,6 +58,7 @@ export type MyGradesSummary = {
   homeworks: MyHomeworkGradeSummary[];
   exam_trend: StudentExamTrendPoint[];
   exam_summary: StudentExamSummary;
+  lecture_options: StudentScoreLectureOption[];
   /** 학원장이 커스텀한 합/불 라벨. 빈 문자열이면 GradeBadge 기본값 사용. */
   labels?: { pass?: string; fail?: string };
   report_layout: StudentGradeReportLayout;
@@ -130,6 +132,7 @@ export async function fetchMyGradesSummary(): Promise<MyGradesSummary> {
     homeworks: Array.isArray(data.homeworks) ? data.homeworks : [],
     exam_trend: Array.isArray(data.exam_trend) ? data.exam_trend : [],
     exam_summary: data.exam_summary ?? EMPTY_EXAM_SUMMARY,
+    lecture_options: Array.isArray(data.lecture_options) ? data.lecture_options : [],
     labels: data.labels ?? undefined,
     report_layout: normalizeStudentGradeReportLayout(data.report_layout),
   };

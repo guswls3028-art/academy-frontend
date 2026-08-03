@@ -38,6 +38,7 @@ export default function GradesPage() {
   const exams = data?.exams ?? [];
   const homeworks = data?.homeworks ?? [];
   const examTrend = data?.exam_trend ?? [];
+  const lectureOptions = data?.lecture_options ?? [];
   const labels = data?.labels;
   const shellTitle = tab === "stats" ? "성장 그래프" : "성적 보드";
   const shellDescription =
@@ -74,6 +75,7 @@ export default function GradesPage() {
           exams={exams}
           homeworks={homeworks}
           examTrend={examTrend}
+          lectureOptions={lectureOptions}
           analytics={analytics}
           analyticsLoading={analyticsLoading}
           analyticsError={analyticsError}
