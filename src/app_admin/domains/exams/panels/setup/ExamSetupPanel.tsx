@@ -65,6 +65,17 @@ export default function ExamSetupPanel({ examId }: { examId: number }) {
       targetId: "assessment-policy",
     },
     {
+      id: "student-results",
+      label: "학생 성적",
+      summary: exam
+        ? exam.student_results_published
+          ? "공개"
+          : "비공개"
+        : "확인 중",
+      state: exam ? "ready" : "attention",
+      targetId: "assessment-policy",
+    },
+    {
       id: "questions",
       label: "문항·답안",
       summary: questionsQuery.isError

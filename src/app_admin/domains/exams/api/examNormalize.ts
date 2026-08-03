@@ -95,6 +95,7 @@ export function normalizeExam(raw: unknown): Exam {
     can_edit_structure: data.can_edit_structure !== false,
 
     answer_visibility: normalizeAnswerVisibility(data.answer_visibility),
+    student_results_published: data.student_results_published !== false,
 
     created_at: text(data.created_at),
     updated_at: text(data.updated_at),

@@ -16,9 +16,17 @@ export type StudentGradeReportSection = {
   id: StudentGradeReportSectionId;
   visible: boolean;
 };
+export const STUDENT_GRADE_REPORT_SCORE_COMPARISON_METRIC_IDS = [
+  "average_score",
+  "pass_rate",
+  "status",
+] as const;
+export type StudentGradeReportScoreComparisonMetricId =
+  typeof STUDENT_GRADE_REPORT_SCORE_COMPARISON_METRIC_IDS[number];
 export type StudentGradeReportLayout = {
-  version: 1;
+  version: 2;
   sections: StudentGradeReportSection[];
+  score_comparison_metrics: Record<StudentGradeReportScoreComparisonMetricId, boolean>;
 };
 
 export const STUDENT_GRADE_REPORT_ANALYTICS_SECTION_IDS: readonly StudentGradeReportSectionId[] = [
@@ -31,8 +39,13 @@ const SECTION_ID_SET = new Set<string>(STUDENT_GRADE_REPORT_SECTION_IDS);
 
 export function defaultStudentGradeReportLayout(): StudentGradeReportLayout {
   return {
-    version: 1,
+    version: 2,
     sections: STUDENT_GRADE_REPORT_SECTION_IDS.map((id) => ({ id, visible: true })),
+    score_comparison_metrics: {
+      average_score: true,
+      pass_rate: true,
+      status: true,
+    },
   };
 }
 
@@ -57,7 +70,18 @@ export function normalizeStudentGradeReportLayout(value: unknown): StudentGradeR
   for (const section of defaults.sections) {
     if (!seen.has(section.id)) sections.push(section);
   }
-  return { version: 1, sections };
+  const rawMetrics = (value as { score_comparison_metrics?: unknown }).score_comparison_metrics;
+  const scoreComparisonMetrics = { ...defaults.score_comparison_metrics };
+  if (rawMetrics && typeof rawMetrics === "object") {
+    for (const id of STUDENT_GRADE_REPORT_SCORE_COMPARISON_METRIC_IDS) {
+      scoreComparisonMetrics[id] = (rawMetrics as Record<string, unknown>)[id] !== false;
+    }
+  }
+  return {
+    version: 2,
+    sections,
+    score_comparison_metrics: scoreComparisonMetrics,
+  };
 }
 
 export async function fetchStudentGradeReportLayout(): Promise<StudentGradeReportLayout> {

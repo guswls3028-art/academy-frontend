@@ -19,7 +19,8 @@ export type ExamResultAnalysis = {
   wrong_question_numbers: number[];
 };
 
-export type MyExamResult = {
+type PublishedExamResult = {
+  student_results_published?: true;
   exam_id: number;
   attempt_id: number;
   total_score: number;
@@ -42,6 +43,16 @@ export type MyExamResult = {
   cohort_avg?: number | null;
   analysis?: ExamResultAnalysis;
 };
+
+type UnpublishedExamResult = {
+  student_results_published: false;
+  exam_id: number;
+  allow_retake: boolean;
+  max_attempts: number;
+  can_retake: boolean;
+};
+
+export type MyExamResult = PublishedExamResult | UnpublishedExamResult;
 
 export type MyExamResultItem = {
   question_id: number;

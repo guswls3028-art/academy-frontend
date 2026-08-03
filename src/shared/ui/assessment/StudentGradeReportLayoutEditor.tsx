@@ -7,6 +7,7 @@ import {
   fetchStudentGradeReportLayout,
   updateStudentGradeReportLayout,
   type StudentGradeReportLayout,
+  type StudentGradeReportScoreComparisonMetricId,
   type StudentGradeReportSectionId,
 } from "@/shared/api/contracts/studentGradeReportLayout";
 import { accountQueryKeys } from "@/shared/api/queryKeys/account";
@@ -22,7 +23,7 @@ const SECTION_COPY: Record<StudentGradeReportSectionId, { label: string; descrip
   },
   score_comparison: {
     label: "성적 비교",
-    description: "평균 득점률, 통과율, 전체 평균 비교 그래프",
+    description: "선택한 요약 항목과 전체 평균 비교 그래프",
   },
   lecture_average: {
     label: "강좌별 평균",
@@ -50,8 +51,17 @@ const SECTION_COPY: Record<StudentGradeReportSectionId, { label: string; descrip
   },
 };
 
+const SCORE_COMPARISON_METRIC_COPY: Record<
+  StudentGradeReportScoreComparisonMetricId,
+  string
+> = {
+  average_score: "평균 득점률",
+  pass_rate: "통과율",
+  status: "상태",
+};
+
 function sameLayout(a: StudentGradeReportLayout, b: StudentGradeReportLayout): boolean {
-  return JSON.stringify(a.sections) === JSON.stringify(b.sections);
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 export default function StudentGradeReportLayoutEditor() {
@@ -91,6 +101,9 @@ export default function StudentGradeReportLayoutEditor() {
     () => draft.sections.filter((section) => section.visible),
     [draft.sections],
   );
+  const scoreComparisonVisible = draft.sections.some(
+    (section) => section.id === "score_comparison" && section.visible,
+  );
 
   const toggle = (id: StudentGradeReportSectionId) => {
     setDraft((current) => ({
@@ -110,6 +123,16 @@ export default function StudentGradeReportLayoutEditor() {
       [sections[index], sections[nextIndex]] = [sections[nextIndex], sections[index]];
       return { ...current, sections };
     });
+  };
+
+  const toggleScoreComparisonMetric = (id: StudentGradeReportScoreComparisonMetricId) => {
+    setDraft((current) => ({
+      ...current,
+      score_comparison_metrics: {
+        ...current.score_comparison_metrics,
+        [id]: !current.score_comparison_metrics[id],
+      },
+    }));
   };
 
   if (layoutQuery.isLoading) {
@@ -179,6 +202,27 @@ export default function StudentGradeReportLayoutEditor() {
               </div>
             );
           })}
+          <div className={styles.metricPanel} data-enabled={scoreComparisonVisible}>
+            <div className={styles.metricHeading}>
+              <strong>성적 비교 요약 항목</strong>
+              <span>그래프 위에 함께 보여 줄 항목을 고릅니다.</span>
+            </div>
+            <div className={styles.metricButtons}>
+              {(Object.keys(SCORE_COMPARISON_METRIC_COPY) as StudentGradeReportScoreComparisonMetricId[])
+                .map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="switch"
+                    aria-checked={draft.score_comparison_metrics[id]}
+                    disabled={!scoreComparisonVisible}
+                    onClick={() => toggleScoreComparisonMetric(id)}
+                  >
+                    {SCORE_COMPARISON_METRIC_COPY[id]}
+                  </button>
+                ))}
+            </div>
+          </div>
         </div>
 
         <aside className={styles.preview} aria-label="학생 화면 미리보기">
@@ -190,7 +234,13 @@ export default function StudentGradeReportLayoutEditor() {
             {visibleSections.map((section, index) => (
               <div key={section.id} className={styles.previewSection}>
                 <span>{index + 1}</span>
-                {SECTION_COPY[section.id].label}
+                {section.id === "score_comparison"
+                  ? `성적 비교 · ${(
+                      Object.keys(SCORE_COMPARISON_METRIC_COPY) as StudentGradeReportScoreComparisonMetricId[]
+                    ).filter((id) => draft.score_comparison_metrics[id])
+                      .map((id) => SCORE_COMPARISON_METRIC_COPY[id])
+                      .join(", ") || "그래프만"}`
+                  : SECTION_COPY[section.id].label}
               </div>
             ))}
             {!hasVisibleSection && (

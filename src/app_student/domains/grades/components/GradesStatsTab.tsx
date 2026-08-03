@@ -9,6 +9,7 @@ import type { StudentExamTrendPoint } from "@/shared/api/contracts/studentGrades
 import StudentScoreTrendChart from "@/shared/ui/assessment/StudentScoreTrendChart";
 import type {
   StudentGradeReportLayout,
+  StudentGradeReportScoreComparisonMetricId,
   StudentGradeReportSectionId,
 } from "@/shared/api/contracts/studentGradeReportLayout";
 import { STUDENT_GRADE_REPORT_ANALYTICS_SECTION_IDS } from "@/shared/api/contracts/studentGradeReportLayout";
@@ -145,7 +146,10 @@ export default function GradesStatsTab({
     score_trend: <StudentScoreTrendChart points={examTrend} audience="learner" />,
     score_comparison: withAnalyticsState(
       "score_comparison",
-      <ScoreComparisonSection analytics={analytics!} />,
+      <ScoreComparisonSection
+        analytics={analytics!}
+        metrics={reportLayout.score_comparison_metrics}
+      />,
     ),
     lecture_average: withAnalyticsState(
       "lecture_average",
@@ -252,7 +256,13 @@ function AnalyticsLoading() {
   );
 }
 
-function ScoreComparisonSection({ analytics }: { analytics: MyGradesAnalytics }) {
+function ScoreComparisonSection({
+  analytics,
+  metrics,
+}: {
+  analytics: MyGradesAnalytics;
+  metrics: Record<StudentGradeReportScoreComparisonMetricId, boolean>;
+}) {
   const summary = analytics.summary;
   const trendData = analytics.trends
     .filter((row) => row.score_pct != null)
@@ -272,21 +282,27 @@ function ScoreComparisonSection({ analytics }: { analytics: MyGradesAnalytics })
       </div>
 
       <div className={styles.analyticsGrid}>
-        <div className={styles.metricTile}>
-          <span className={styles.metricLabel}>평균 득점률</span>
-          <strong>{formatPct(summary.avg_score_pct)}</strong>
-          <span>중앙값 {formatPct(summary.median_score_pct)}</span>
-        </div>
-        <div className={styles.metricTile}>
-          <span className={styles.metricLabel}>통과율</span>
-          <strong>{formatPct(summary.pass_rate_pct)}</strong>
-          <span>분석 시험 {summary.scored_exam_count}건</span>
-        </div>
-        <div className={styles.metricTile}>
-          <span className={styles.metricLabel}>상태</span>
-          <strong className={styles[risk.className]}>{risk.label}</strong>
-          <span>미응시 {summary.not_submitted_count}건</span>
-        </div>
+        {metrics.average_score && (
+          <div className={styles.metricTile}>
+            <span className={styles.metricLabel}>평균 득점률</span>
+            <strong>{formatPct(summary.avg_score_pct)}</strong>
+            <span>중앙값 {formatPct(summary.median_score_pct)}</span>
+          </div>
+        )}
+        {metrics.pass_rate && (
+          <div className={styles.metricTile}>
+            <span className={styles.metricLabel}>통과율</span>
+            <strong>{formatPct(summary.pass_rate_pct)}</strong>
+            <span>분석 시험 {summary.scored_exam_count}건</span>
+          </div>
+        )}
+        {metrics.status && (
+          <div className={styles.metricTile}>
+            <span className={styles.metricLabel}>상태</span>
+            <strong className={styles[risk.className]}>{risk.label}</strong>
+            <span>미응시 {summary.not_submitted_count}건</span>
+          </div>
+        )}
       </div>
 
       {trendData.length >= 2 && (

@@ -164,3 +164,68 @@ test("student score report shows rank and wrong question analysis", async ({ pag
   await expect(page.getByTestId("wrong-number-chip")).toHaveText(["2", "5"]);
   await expect(page.getByText("정답 내용은 비공개입니다. 틀린 번호와 내 답만 확인할 수 있습니다.")).toBeVisible();
 });
+
+test("unpublished exam result explains the state without exposing score data", async ({ page }) => {
+  const token = fakeJwt();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(({ access }) => {
+    localStorage.setItem("access", access);
+    localStorage.setItem("refresh", "refresh-token");
+    localStorage.setItem("tenant_code", "hakwonplus");
+    sessionStorage.setItem("tenantCode", "hakwonplus");
+  }, { access: token });
+
+  await page.route("**/api/v1/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/core/program/")) {
+      await route.fulfill({ json: {
+        tenantCode: "hakwonplus",
+        display_name: "학원플러스",
+        ui_config: {},
+        feature_flags: {},
+        is_active: true,
+      } });
+      return;
+    }
+    if (path.endsWith("/core/me/")) {
+      await route.fulfill({ json: {
+        id: 1,
+        username: "score-student",
+        name: "테스트학생",
+        is_staff: false,
+        is_superuser: false,
+        tenantRole: "student",
+      } });
+      return;
+    }
+    if (path.endsWith("/student/me/")) {
+      await route.fulfill({ json: { id: 1, name: "테스트학생", is_student: true } });
+      return;
+    }
+    if (path.endsWith("/student/results/me/exams/101/items/")) {
+      await route.fulfill({ json: { items: [] } });
+      return;
+    }
+    if (path.endsWith("/student/results/me/exams/101/")) {
+      await route.fulfill({ json: {
+        exam_id: 101,
+        student_results_published: false,
+        allow_retake: false,
+        max_attempts: 1,
+        can_retake: false,
+      } });
+      return;
+    }
+    await route.fulfill({ json: { items: [] } });
+  });
+
+  await page.goto(`${BASE}/student/exams/101/result`, { waitUntil: "networkidle" });
+
+  await expect(page.getByText("성적 공개 전입니다.", { exact: true })).toBeVisible();
+  await expect(page.getByText("선생님이 공개하면", { exact: false })).toBeVisible();
+  await expect(page.getByTestId("score-analysis-card")).toHaveCount(0);
+  await expect(page.getByText(/\d+\s*\/\s*\d+점/)).toHaveCount(0);
+  await expect.poll(() => page.evaluate(
+    () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+  )).toBe(true);
+});

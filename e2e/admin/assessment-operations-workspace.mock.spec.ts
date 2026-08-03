@@ -190,6 +190,7 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
       structure_owner_id: EXAM_ID,
       can_edit_structure: true,
       answer_visibility: "hidden",
+      student_results_published: true,
       created_at: "2026-08-02T00:00:00Z",
       updated_at: "2026-08-02T00:00:00Z",
     },
@@ -204,6 +205,10 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
   await expect(page.getByText("준비 완료", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /대상 학생: 2명 등록/ })).toBeVisible();
   await expect(page.getByText("시험 운영 설정", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("학생 성적 공개")).toBeChecked();
+  await page.getByTestId("student-results-visibility-control").screenshot({
+    path: testInfo.outputPath("student-results-visibility-1366.png"),
+  });
   const gradingGroup = page.getByRole("group", { name: "시험 채점 방식" });
   await expect(gradingGroup.getByRole("button", { name: /^OMR 자동 채점/ })).toHaveAttribute("aria-pressed", "true");
   await page.screenshot({
@@ -224,6 +229,7 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
   await page.getByLabel("응시 시작").fill("2026-08-03T09:00");
   await page.getByRole("textbox", { name: /^마감 비워/ }).fill("2026-08-03T22:00");
   await page.getByLabel("정답 공개").selectOption("after_closed");
+  await page.getByLabel("학생 성적 공개").uncheck();
   await page.getByLabel("재응시 허용").check();
   await page.getByLabel("최대 응시 횟수").fill("3");
   await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
@@ -235,6 +241,7 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
     allow_retake: true,
     max_attempts: 3,
     answer_visibility: "after_closed",
+    student_results_published: false,
   });
   expect(state.examPatchPayloads[0].open_at).toEqual(expect.any(String));
   expect(state.examPatchPayloads[0].close_at).toEqual(expect.any(String));
@@ -244,11 +251,15 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
     page.getByRole("group", { name: "시험 채점 방식" }).getByRole("button", { name: /^직접 정오 입력/ }),
   ).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByLabel("재응시 허용")).toBeChecked();
+  await expect(page.getByLabel("학생 성적 공개")).not.toBeChecked();
   await expect(page.getByLabel("최대 응시 횟수")).toHaveValue("3");
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByText("시험 운영 준비", { exact: true })).toBeVisible();
   await expect(page.getByText("시험 운영 설정", { exact: true })).toBeVisible();
+  await page.getByTestId("student-results-visibility-control").screenshot({
+    path: testInfo.outputPath("student-results-visibility-390.png"),
+  });
   const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   expect(hasHorizontalOverflow).toBe(false);
   await page.screenshot({

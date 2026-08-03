@@ -16,6 +16,7 @@ export type StudentExam = {
   status?: string;
   has_result?: boolean;
   attempt_count?: number;
+  student_results_published?: boolean;
 };
 
 export type ExamsListResponse = {

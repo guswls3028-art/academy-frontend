@@ -130,6 +130,9 @@ function getUrgency(exam: StudentExam): string | undefined {
 }
 
 function getExamStatus(exam: StudentExam): { label: string; variant: "success" | "danger" | "warn" | "neutral" } {
+  if (exam.has_result && exam.student_results_published === false) {
+    return { label: "성적 공개 전", variant: "neutral" };
+  }
   if (exam.has_result) return { label: "채점완료", variant: "success" };
   if ((exam.attempt_count ?? 0) > 0) return { label: "응시완료", variant: "neutral" };
   const closeAt = exam.close_at ? new Date(exam.close_at) : null;

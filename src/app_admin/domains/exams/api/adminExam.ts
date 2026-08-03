@@ -36,6 +36,7 @@ export async function updateAdminExam(
     | "open_at"
     | "close_at"
     | "answer_visibility"
+    | "student_results_published"
   >>,
   expectedUpdatedAt: string,
 ): Promise<Exam> {
