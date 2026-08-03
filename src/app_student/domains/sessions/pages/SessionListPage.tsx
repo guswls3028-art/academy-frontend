@@ -51,7 +51,7 @@ function getTabItems(): { key: ScheduleTab; label: string }[] {
 export default function SessionListPage() {
   const [tab, setTab] = useState<ScheduleTab>("calendar");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const { data: sessions = [], isLoading, isError } = useMySessions();
+  const { data: sessions = [], isLoading, isError, refetch } = useMySessions();
   const qc = useQueryClient();
   const confirm = useConfirm();
   const [undoTarget, setUndoTarget] = useState<{ id: number; title: string } | null>(null);
@@ -227,7 +227,11 @@ export default function SessionListPage() {
   if (isError || !sessions) {
     return (
       <StudentPageShell title="일정">
-        <EmptyState title="일정을 불러오지 못했습니다." description="잠시 후 다시 시도해주세요." />
+        <EmptyState
+          title="일정을 불러오지 못했습니다."
+          description="잠시 후 다시 시도해주세요."
+          onRetry={() => refetch()}
+        />
       </StudentPageShell>
     );
   }
