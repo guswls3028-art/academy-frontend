@@ -57,7 +57,7 @@ async function assertNoRenderedHtmlLeak(page: Page) {
 
 async function installStudentApi(
   page: Page,
-  options: { profileId?: () => number; examId?: number; legacyHtml?: boolean } = {},
+  options: { profileId?: () => number; examId?: number; legacyHtml?: boolean; failDataRequests?: boolean } = {},
 ) {
   await page.addInitScript(({ token }) => {
     localStorage.setItem("access", token);
@@ -95,6 +95,10 @@ async function installStudentApi(
         tenantRole: "student",
         linkedStudents: [],
       } });
+      return;
+    }
+    if (options.failDataRequests) {
+      await route.fulfill({ status: 503, json: { detail: "temporary student API failure" } });
       return;
     }
     if (path.endsWith("/student/me/")) {
@@ -414,7 +418,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
 
   test("여러 번 이스케이프된 공지 HTML을 안전하게 복원하고 붙여넣기 레이아웃을 격리한다", async ({ page }) => {
     await installStudentApi(page);
-    await page.goto(`${BASE}/student/notices/77`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${BASE}/student/notices/77`, { waitUntil: "domcontentloaded", timeout: 45_000 });
 
     const content = page.locator(".stu-html-content");
     await expect(content).toContainText("학생과 학부모님께 드리는 안내입니다.");
@@ -493,5 +497,31 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     await page.setViewportSize({ width: 320, height: 720 });
     await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 45_000 });
     await assertNoRenderedHtmlLeak(page);
+  });
+
+  test("주요 학생 화면은 API 장애에도 빈 화면 대신 다시 시도 동작을 제공한다", async ({ page }) => {
+    test.setTimeout(5 * 60_000);
+    await installStudentApi(page, { failDataRequests: true });
+    const routes = [
+      ["/student/dashboard", "정보를 불러오지 못했어요."],
+      ["/student/sessions", "일정을 불러오지 못했습니다."],
+      ["/student/attendance", "출결 정보를 불러오지 못했습니다"],
+      ["/student/exams", "시험을 불러오지 못했습니다"],
+      ["/student/grades", "성적을 불러올 수 없습니다."],
+      ["/student/notices", "공지를 불러오지 못했습니다."],
+      ["/student/community", "공지사항을 불러오지 못했습니다"],
+      ["/student/notifications", "알림을 불러오지 못했습니다"],
+      ["/student/clinic", "클리닉 정보를 불러오지 못했습니다"],
+      ["/student/fees", "청구서를 불러오지 못했습니다"],
+      ["/student/profile", "프로필을 불러오지 못했습니다."],
+      ["/student/video/sessions/24", "재생 목록을 불러오지 못했어요"],
+    ] as const;
+
+    for (const [path, errorText] of routes) {
+      await page.goto(`${BASE}${path}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+      await expect(page.locator("body"), path).toContainText(errorText);
+      await expect(page.getByRole("button", { name: "다시 시도" }), path).toBeVisible();
+      await assertNoRenderedHtmlLeak(page);
+    }
   });
 });
