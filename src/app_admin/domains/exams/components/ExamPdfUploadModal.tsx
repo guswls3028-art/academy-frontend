@@ -29,10 +29,12 @@ const STATUS_LABELS: Record<PdfExtractStatus, string> = {
 export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
   const { status, error, progress, result, upload, reset } = usePdfQuestionExtract(examId);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [explanationFile, setExplanationFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (!open) {
       setSelectedFile(null);
+      setExplanationFile(null);
       reset();
     }
   }, [open, reset]);
@@ -43,8 +45,8 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
   };
 
   const handleUpload = () => {
-    if (!selectedFile) return;
-    upload(selectedFile);
+    if (!selectedFile || pairedPrimaryInvalid) return;
+    upload(selectedFile, explanationFile);
   };
 
   const isUploading = status === "uploading";
@@ -53,6 +55,11 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
   const isFailed = status === "failed";
   const isBusy = isUploading || isProcessing;
   const progressValue = Math.min(100, Math.max(0, progress.percent));
+  const pairedPrimaryInvalid = Boolean(
+    explanationFile
+    && selectedFile
+    && !/\.(pdf|png|jpe?g)$/i.test(selectedFile.name),
+  );
 
   return (
     <AdminModal
@@ -70,9 +77,9 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
       <ModalBody>
         <div className={`modal-scroll-body modal-scroll-body--compact ${styles.body}`}>
           <FileUploadZone
-            titleLabel="시험지 원본"
+            titleLabel="답 표시가 없는 문제지"
             accept=".pdf,.png,.jpg,.jpeg,.hwp"
-            hintText="PDF, HWP, PNG, JPG 파일 (50MB 이하)"
+            hintText="PDF 권장 · HWP, PNG, JPG 파일 (50MB 이하)"
             selectedFile={selectedFile}
             onFilesSelect={handleFilesSelect}
             onClearFile={() => {
@@ -84,6 +91,31 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
               const ext = f.name.toLowerCase();
               return ext.endsWith(".pdf") || ext.endsWith(".hwp") || ext.endsWith(".png") || ext.endsWith(".jpg") || ext.endsWith(".jpeg");
             }}
+            onInvalidFile={() => {}}
+          />
+          {pairedPrimaryInvalid && (
+            <p className={styles.pairError}>
+              선생님 해설 HWP를 함께 쓸 때는 위 문제지로 PDF, PNG 또는 JPG를 선택해 주세요.
+            </p>
+          )}
+
+          <div className={styles.pairGuide}>
+            <strong>선생님이 직접 쓴 해설을 함께 쓰려면</strong>
+            <p>
+              위에는 학생용 문제지 PDF를, 아래에는 같은 시험의 해설 HWP를 올려 주세요.
+              문항 번호로 연결하고 문제지에는 해설 필기를 섞지 않습니다.
+            </p>
+          </div>
+
+          <FileUploadZone
+            titleLabel="선생님 해설 HWP (선택)"
+            accept=".hwp"
+            hintText="번호가 있는 미주 해설 이미지가 포함된 HWP 5.x · 50MB 이하"
+            selectedFile={explanationFile}
+            onFilesSelect={(files) => setExplanationFile(files[0] ?? null)}
+            onClearFile={() => setExplanationFile(null)}
+            disabled={isBusy}
+            validateFile={(f) => f.name.toLowerCase().endsWith(".hwp")}
             onInvalidFile={() => {}}
           />
 
@@ -174,7 +206,7 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
                   닫기
                 </Button>
                 {selectedFile && status === "idle" && (
-                  <Button intent="primary" onClick={handleUpload}>
+                  <Button intent="primary" onClick={handleUpload} disabled={pairedPrimaryInvalid}>
                     업로드 및 문항 분석
                   </Button>
                 )}
@@ -184,7 +216,7 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
                   </Button>
                 )}
                 {isFailed && selectedFile && (
-                  <Button intent="primary" onClick={handleUpload}>
+                  <Button intent="primary" onClick={handleUpload} disabled={pairedPrimaryInvalid}>
                     재시도
                   </Button>
                 )}

@@ -67,6 +67,7 @@ type InstallApiOptions = {
   editable?: boolean;
   hasQuestions?: boolean;
   initialStates?: [GradeState, GradeState];
+  segmentationStatus?: "none" | "review_required" | "ready";
   sheetSize?: {
     students: number;
     questions: number;
@@ -84,6 +85,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     options.manualGradingMethod ?? "correctness";
   const editable = options.editable ?? true;
   const initialStates = options.initialStates ?? [null, null];
+  const segmentationStatus = options.segmentationStatus ?? "ready";
   const questionEditable = () => [
     editable && gradingMode === "written",
     editable && gradingMode !== "choice",
@@ -262,8 +264,8 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         grading_mode: gradingMode,
         manual_grading_method: manualGradingMethod,
         choice_question_count: 0,
-        segmentation_status: "ready",
-        source_filename: "july.pdf",
+        segmentation_status: segmentationStatus,
+        source_filename: segmentationStatus === "ready" ? "july.pdf" : "",
         display_order: 0,
         open_at: null,
         close_at: null,
@@ -285,6 +287,32 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         question_kind: "choice",
         score: index === 0 ? 40 : 60,
       })));
+      return;
+    }
+    if (path === `/exams/${EXAM_ID}/segmentation-review/`) {
+      const previewSvg = encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1200"><rect width="800" height="1200" fill="white"/><text x="60" y="100" font-size="48">3. Ymath 문제</text><path d="M60 180H740M60 300H740M60 420H740" stroke="black" stroke-width="8"/><text x="60" y="650" font-size="44" fill="#dc2626">선생님 원본 해설</text></svg>',
+      );
+      await json({
+        exam_id: EXAM_ID,
+        status: "review_required",
+        source_filename: "ymath-teacher.hwp",
+        items: [{
+          id: 3001,
+          position: 1,
+          number: 3,
+          detected_number: 3,
+          page_index: 2,
+          included: true,
+          engine: "hwp_endnote",
+          problem_crop_ratio: 0.3,
+          crop_adjustable: true,
+          problem_image_url: `data:image/svg+xml,${previewSvg}`,
+          explanation_text: "",
+          explanation_image_url: `data:image/svg+xml,${previewSvg}`,
+          has_teacher_explanation: true,
+        }],
+      });
       return;
     }
     if (
@@ -522,6 +550,54 @@ test.describe("문항별 직접 채점", () => {
   test.use({
     viewport: { width: 1100, height: 900 },
     serviceWorkers: "block",
+  });
+
+  test("학생용 문제지와 교사 HWP를 분리해 받고 잘못된 HWP 짝을 막는다", async ({ page }) => {
+    await installApi(page, { segmentationStatus: "none" });
+
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "시험지 업로드", exact: true }).click();
+
+    const dialog = page.getByRole("dialog").filter({ hasText: "시험지 원본 업로드" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText("답 표시가 없는 문제지", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("선생님 해설 HWP (선택)", { exact: true })).toBeVisible();
+
+    const fileInputs = dialog.locator('input[type="file"]');
+    await expect(fileInputs).toHaveCount(2);
+    await fileInputs.nth(0).setInputFiles({
+      name: "teacher-marked-problems.hwp",
+      mimeType: "application/x-hwp",
+      buffer: Buffer.from("HWP problem fixture"),
+    });
+    await fileInputs.nth(1).setInputFiles({
+      name: "teacher-explanations.hwp",
+      mimeType: "application/x-hwp",
+      buffer: Buffer.from("HWP explanation fixture"),
+    });
+
+    await expect(dialog.getByText(/해설 HWP를 함께 쓸 때는/)).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "업로드 및 문항 분석" })).toBeDisabled();
+  });
+
+  test("단일 HWP 문항은 문제 영역을 원본 해설 위에서 직접 조절한다", async ({ page }) => {
+    await installApi(page, { segmentationStatus: "review_required" });
+
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
+      { waitUntil: "domcontentloaded" },
+    );
+    const slider = page.getByRole("slider", { name: "3번 문제 영역 높이" });
+    await expect(slider).toBeVisible();
+    await expect(slider).toHaveValue("30");
+    await slider.fill("42");
+    await expect(slider).toHaveValue("42");
+    await expect(page.getByText("42%", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("3번 문제 영역 미리보기")).toBeVisible();
   });
 
   test("O·X·오답노트 키 입력을 미리 확인한 뒤 확정하고 재조회한다", async ({ page }) => {

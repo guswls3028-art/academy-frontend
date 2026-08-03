@@ -315,10 +315,26 @@ test.describe.serial("Exam PDF upload flow", () => {
       await expect(modalTitle).toBeVisible({ timeout: 5000 });
       console.log("  ExamPdfUploadModal opened successfully");
 
-      // Verify FileUploadZone exists
-      const uploadZone = modal.getByText(/PDF, PNG, JPG/).first();
-      await expect(uploadZone).toBeVisible({ timeout: 3000 });
-      console.log("  FileUploadZone visible in modal");
+      // Verify the clean-problem + teacher-HWP paired upload contract.
+      await expect(modal.getByText("답 표시가 없는 문제지")).toBeVisible({ timeout: 3000 });
+      await expect(modal.getByText("선생님 해설 HWP (선택)")).toBeVisible({ timeout: 3000 });
+      const fileInputs = modal.locator('input[type="file"]');
+      await expect(fileInputs).toHaveCount(2);
+
+      // A teacher HWP cannot be paired with another HWP as the problem source.
+      await fileInputs.nth(0).setInputFiles({
+        name: "teacher-marked-problems.hwp",
+        mimeType: "application/x-hwp",
+        buffer: Buffer.from("HWP problem fixture"),
+      });
+      await fileInputs.nth(1).setInputFiles({
+        name: "teacher-explanations.hwp",
+        mimeType: "application/x-hwp",
+        buffer: Buffer.from("HWP explanation fixture"),
+      });
+      await expect(modal.getByText(/해설 HWP를 함께 쓸 때는/)).toBeVisible();
+      await expect(modal.getByRole("button", { name: "업로드 및 문항 분석" })).toBeDisabled();
+      console.log("  Paired upload zones and fail-closed primary validation visible");
 
       // Take screenshot of modal
       await page.screenshot({ path: "e2e/screenshots/exam-pdf-upload-modal.png" });

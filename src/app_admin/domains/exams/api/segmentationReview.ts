@@ -8,6 +8,8 @@ export type SegmentationReviewItem = {
   page_index: number;
   included: boolean;
   engine: string;
+  problem_crop_ratio: number;
+  crop_adjustable: boolean;
   problem_image_url: string;
   explanation_text: string;
   explanation_image_url: string;
@@ -28,7 +30,12 @@ export async function fetchSegmentationReview(examId: number) {
 
 export async function approveSegmentationReview(
   examId: number,
-  items: Array<{ id: number; number: number; included: boolean }>,
+  items: Array<{
+    id: number;
+    number: number;
+    included: boolean;
+    problem_crop_ratio?: number;
+  }>,
 ) {
   const response = await api.post(
     `/exams/${examId}/segmentation-review/approve/`,
