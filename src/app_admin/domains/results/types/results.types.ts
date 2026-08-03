@@ -239,6 +239,7 @@ export type WrongNoteItem = {
 
 export type WrongNoteListResponse = {
   count: number;
+  source_fingerprint: string;
   next: number | null;
   prev: number | null;
   results: WrongNoteItem[];
@@ -250,6 +251,7 @@ export type WrongNotePdfCreateResponse = {
   status: string;
   status_url?: string;
   output_format?: "pdf" | "hwpx";
+  source_fingerprint?: string;
 };
 
 export type WrongNotePdfStatusResponse = {

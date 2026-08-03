@@ -36,6 +36,7 @@ export async function createWrongNotePDF(payload: {
   from_session_order?: number;
   to_session_order?: number;
   output_format?: "pdf" | "hwpx";
+  source_fingerprint?: string;
 }) {
   const res = await api.post("/results/wrong-notes/documents/", payload, {
     timeout: WRONG_NOTE_PDF_CREATE_TIMEOUT_MS,

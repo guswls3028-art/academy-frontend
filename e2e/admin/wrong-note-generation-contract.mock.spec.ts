@@ -49,6 +49,7 @@ async function mockWrongNoteApi(
   const listRequestUrls: string[] = [];
   const createPayloads: Array<Record<string, unknown>> = [];
   let currentWrongNoteItem = wrongNoteItem;
+  let sourceFingerprint = "a".repeat(64);
   let outputFormat: "pdf" | "hwpx" = "pdf";
   await page.route("https://download.example/**", (route) =>
     route.fulfill({
@@ -75,6 +76,7 @@ async function mockWrongNoteApi(
       listRequestUrls.push(request.url());
       return json(route, {
         count: options.total,
+        source_fingerprint: sourceFingerprint,
         next: null,
         prev: null,
         results: [currentWrongNoteItem],
@@ -83,8 +85,14 @@ async function mockWrongNoteApi(
     if (path.endsWith("/results/wrong-notes/documents/") && request.method() === "POST") {
       createCalls += 1;
       const payload = request.postDataJSON() as Record<string, unknown>;
-      outputFormat = payload.output_format === "hwpx" ? "hwpx" : "pdf";
       createPayloads.push(payload);
+      if (payload.source_fingerprint !== sourceFingerprint) {
+        return json(route, {
+          detail: "채점 또는 문항이 변경되었습니다. 최신 오답을 다시 불러와 주세요.",
+          source_fingerprint: sourceFingerprint,
+        }, 409);
+      }
+      outputFormat = payload.output_format === "hwpx" ? "hwpx" : "pdf";
       if (options.createDelayMs) {
         await new Promise((resolve) => setTimeout(resolve, options.createDelayMs));
       }
@@ -93,6 +101,7 @@ async function mockWrongNoteApi(
         status: "PENDING",
         status_url: `${BASE}/api/v1/results/wrong-notes/documents/9/`,
         output_format: payload.output_format,
+        source_fingerprint: payload.source_fingerprint,
       }, 202);
     }
     if (path.endsWith("/results/wrong-notes/documents/9/") && request.method() === "GET") {
@@ -130,6 +139,17 @@ async function mockWrongNoteApi(
     },
     setWrongNoteItem(item: typeof wrongNoteItem) {
       currentWrongNoteItem = item;
+      sourceFingerprint = "b".repeat(64);
+    },
+    setWrongNoteImageUrlWithoutSourceChange(url: string) {
+      currentWrongNoteItem = {
+        ...currentWrongNoteItem,
+        has_question_image: true,
+        question_image_url: url,
+      };
+    },
+    changeSourceBeforeCreate() {
+      sourceFingerprint = "c".repeat(64);
     },
   };
 }
@@ -282,6 +302,49 @@ test.describe("오답노트 생성 계약", () => {
     await expect(page.getByTestId("wrong-note-create")).toBeEnabled();
   });
 
+  test("서명 이미지 URL만 갱신되면 기존 다운로드를 유지한다", async ({ page }) => {
+    const calls = await mockWrongNoteApi(page, { total: 1 });
+    await page.goto(`${BASE}/e2e-wrong-note-harness.html`);
+    await page.getByTestId("wrong-note-create").click();
+    await expect(page.getByTestId("wrong-note-download")).toBeVisible();
+
+    calls.setWrongNoteImageUrlWithoutSourceChange(
+      "https://download.example/refreshed-question.png",
+    );
+    await page.evaluate(async () => {
+      const client = (
+        window as typeof window & {
+          __wrongNoteQueryClient: {
+            invalidateQueries: (options: { queryKey: unknown[] }) => Promise<void>;
+          };
+        }
+      ).__wrongNoteQueryClient;
+      await client.invalidateQueries({ queryKey: ["wrong-notes", 7] });
+    });
+
+    await expect(page.getByAltText("1번 문제")).toHaveAttribute(
+      "src",
+      "https://download.example/refreshed-question.png",
+    );
+    await expect(page.getByTestId("wrong-note-download")).toBeVisible();
+    await expect(page.getByTestId("wrong-note-create")).toHaveCount(0);
+  });
+
+  test("생성 직전 원본이 바뀌면 최신 오답을 자동으로 다시 불러온다", async ({ page }) => {
+    const calls = await mockWrongNoteApi(page, { total: 1 });
+    await page.goto(`${BASE}/e2e-wrong-note-harness.html`);
+    await expect(page.getByTestId("wrong-note-create")).toBeEnabled();
+
+    calls.changeSourceBeforeCreate();
+    await page.getByTestId("wrong-note-create").click();
+
+    await expect(page.getByText(/최신 오답을 다시 불러와 주세요/)).toBeVisible();
+    await expect.poll(() => calls.listRequestUrls.length).toBeGreaterThan(1);
+    expect(calls.createPayloads.at(-1)).toMatchObject({
+      source_fingerprint: "a".repeat(64),
+    });
+  });
+
   test("시작~종료 회차를 조회와 PDF 생성에 같은 값으로 보낸다", async ({ page }) => {
     const calls = await mockWrongNoteApi(page, { total: 1 });
     await page.goto(`${BASE}/e2e-wrong-note-harness.html`);
@@ -309,6 +372,7 @@ test.describe("오답노트 생성 계약", () => {
         enrollment_id: 7,
         from_session_order: 2,
         to_session_order: 4,
+        source_fingerprint: "a".repeat(64),
       }),
     );
   });
