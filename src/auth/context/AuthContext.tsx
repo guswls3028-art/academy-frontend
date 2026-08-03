@@ -17,6 +17,7 @@ import {
   getSessionItem,
   removeSessionItem,
 } from "@/shared/utils/safeSessionStorage";
+import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 
 export type TenantRole =
   | "owner"
@@ -47,6 +48,25 @@ export interface User {
   must_change_password?: boolean;
   /** 생애 첫 계정 안내를 아직 확인하지 않았는지 여부 */
   first_login_guide_required?: boolean;
+}
+
+function plainOptional(value: string | null | undefined): string | null | undefined {
+  return value == null ? value : richHtmlToPlainText(value);
+}
+
+function normalizeUserDisplay(user: User | null): User | null {
+  if (!user) return null;
+  return {
+    ...user,
+    name: plainOptional(user.name) ?? null,
+    linkedStudentName: plainOptional(user.linkedStudentName),
+    linkedStudents: Array.isArray(user.linkedStudents)
+      ? user.linkedStudents.map((student) => ({
+          ...student,
+          name: richHtmlToPlainText(student.name),
+        }))
+      : user.linkedStudents,
+  };
 }
 
 type AuthState = {
@@ -115,7 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const res = await api.get<User>("/core/me/");
-      const u = res.data ?? null;
+      const u = normalizeUserDisplay(res.data ?? null);
       setUser(u);
       setAuthUnavailable(false);
       if (u) setSentryUser(u);
@@ -149,7 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         const res = await api.get<User>("/core/me/");
-        const u = res.data ?? null;
+        const u = normalizeUserDisplay(res.data ?? null);
         setUser(u);
         setAuthUnavailable(false);
         if (u) setSentryUser(u);
@@ -200,7 +220,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       api.get<User>("/core/me/").then(
         (res) => {
-          const newUser = res.data ?? null;
+          const newUser = normalizeUserDisplay(res.data ?? null);
           setUser(newUser);
           setAuthUnavailable(false);
           if (newUser) setSentryUser(newUser);

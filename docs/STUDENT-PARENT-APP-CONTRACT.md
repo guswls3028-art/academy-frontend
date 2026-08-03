@@ -18,6 +18,14 @@
   `richHtmlToPlainText` 또는 `richHtmlToPreviewText`로 정규화한다. 예전 데이터에
   HTML 또는 여러 번 이스케이프된 엔티티가 있어도 태그 문자열을 사용자에게
   노출하지 않는다.
+- 이 규칙은 화면 본문뿐 아니라 버튼·카드, 썸네일 `alt`, `aria-label`, `title`,
+  `placeholder`에도 동일하게 적용한다. 영상 영역은 `video.api.ts`에서 강의명,
+  차시명, 영상명과 재생 응답을 먼저 정규화하므로 홈 카드, 차시 목록, 플레이어,
+  재생목록이 서로 다른 문자열을 노출하지 않는다.
+- 공통 `Program`·인증 사용자 표시명과 학생 프로필, 성적 사용자 지정 라벨,
+  커뮤니티 활동 배지도 API 응답 경계에서 평문으로 정규화한다. 로그인 헤더나
+  합격 배지처럼 여러 화면에서 재사용되는 값은 개별 컴포넌트에서 중복 처리하지
+  않는다.
 - 공지·질문·상담 본문처럼 서식이 의미 있는 필드는 `RichHtmlContent`로만
   렌더링한다. 이 컴포넌트는 허용 가능한 HTML을 정화하고, 편집기에서 붙은
   `style`, 고정 `width`·`height`, 외부 `class`·`id`, 글꼴 속성을 제거한다.
@@ -58,10 +66,12 @@
 pnpm typecheck
 pnpm exec playwright test e2e/student/student-content-resilience.mock.spec.ts --project=chromium
 pnpm exec playwright test e2e/student/student-score-trend.spec.ts --project=chromium
-pnpm exec playwright test e2e/visual/design-system-route-audit.spec.ts --grep "student mobile route surface" --project=chromium
+pnpm exec playwright test e2e/visual/design-system-route-audit.spec.ts --grep "student (mobile|desktop) route surface" --project=chromium
 ```
 
-첫 테스트는 다중 이스케이프 HTML, 붙여넣기 고정 폭, 긴 URL·표, 390/320px
-레이아웃과 계정별 알림 격리를 검증한다. 운영 정적 경로 감사는 학생 화면마다
-누출된 태그 문자열, 빈 화면, 오류 문구, 디자인 토큰·폰트 누락과 문서 전체의
-가로 넘침을 실패로 처리한다.
+첫 테스트 묶음은 다중 이스케이프 HTML, 영상 홈→차시→재생 흐름, 대시보드·출결·
+클리닉·시험·성적·과제·커뮤니티·알림 제목, 붙여넣기 고정 폭, 긴 URL·표,
+390/320px 레이아웃과 계정별 알림 격리를 검증한다. 운영 정적 경로 감사는 학생
+모바일과 1366px 데스크톱을 각각 순회하고, 모든 역할 화면에서 본문 및 접근성
+속성의 태그/엔티티 문자열, 빈 화면, 오류 문구, 디자인 토큰·폰트 누락과 문서
+전체의 가로 넘침을 실패로 처리한다.

@@ -2,6 +2,7 @@
 // 학생 앱 클리닉 예약 API
 
 import api from "@student/shared/api/student.api";
+import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 
 /** DRF Paginated wrapper — list endpoint 가 page_size param 으로 응답할 때. */
 type Paginated<T> = { results?: T[]; count?: number; next?: string | null; previous?: string | null };
@@ -73,6 +74,36 @@ function normalizeBookingStatus(status: ClinicParticipantRaw["status"]): ClinicB
   return null;
 }
 
+function normalizeClinicSession(session: ClinicSession): ClinicSession {
+  return {
+    ...session,
+    title: session.title == null ? session.title : richHtmlToPlainText(session.title),
+    location: richHtmlToPlainText(session.location),
+    target_lecture_names: Array.isArray(session.target_lecture_names)
+      ? session.target_lecture_names.map((lecture) => ({
+          ...lecture,
+          title: richHtmlToPlainText(lecture.title),
+          chip_label: lecture.chip_label == null
+            ? lecture.chip_label
+            : richHtmlToPlainText(lecture.chip_label),
+        }))
+      : session.target_lecture_names,
+  };
+}
+
+function normalizeClinicBookingRequest(request: ClinicBookingRequest): ClinicBookingRequest {
+  return {
+    ...request,
+    session_title: request.session_title == null
+      ? request.session_title
+      : richHtmlToPlainText(request.session_title),
+    session_location: request.session_location == null
+      ? request.session_location
+      : richHtmlToPlainText(request.session_location),
+    memo: request.memo == null ? request.memo : richHtmlToPlainText(request.memo),
+  };
+}
+
 /**
  * 예약 가능한 클리닉 세션 목록 조회
  * GET /clinic/sessions/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
@@ -106,7 +137,7 @@ export async function fetchAvailableClinicSessions(params?: {
     ? res.data.results
     : [];
 
-  return sessions;
+  return sessions.map(normalizeClinicSession);
 }
 
 /**
@@ -130,7 +161,7 @@ export async function fetchMyClinicBookingRequests(): Promise<ClinicBookingReque
   return participants
     .map((p) => ({ raw: p, status: normalizeBookingStatus(p.status) }))
     .filter((p): p is { raw: ClinicParticipantRaw; status: ClinicBookingStatus } => p.status !== null)
-    .map(({ raw, status }) => ({
+    .map(({ raw, status }) => normalizeClinicBookingRequest({
       id: raw.id,
       session: raw.session ?? null, // ✅ 세션이 없을 수 있음
       session_title: raw.session_title,
@@ -167,7 +198,7 @@ export async function createClinicBookingRequest(data: {
   });
 
   const status = normalizeBookingStatus(res.data.status) ?? "pending";
-  return {
+  return normalizeClinicBookingRequest({
     id: res.data.id,
     session: res.data.session,
     session_title: res.data.session_title,
@@ -177,7 +208,7 @@ export async function createClinicBookingRequest(data: {
     status,
     memo: res.data.memo,
     created_at: res.data.created_at,
-  };
+  });
 }
 
 /**
@@ -211,7 +242,7 @@ export async function changeClinicBooking(
   );
 
   const status = normalizeBookingStatus(res.data.status) ?? "pending";
-  return {
+  return normalizeClinicBookingRequest({
     id: res.data.id,
     session: res.data.session,
     session_title: res.data.session_title,
@@ -221,5 +252,5 @@ export async function changeClinicBooking(
     status,
     memo: res.data.memo,
     created_at: res.data.created_at,
-  };
+  });
 }

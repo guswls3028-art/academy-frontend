@@ -1,4 +1,5 @@
 import type { AxiosRequestConfig } from "axios";
+import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 
 export const COMMUNITY_PREFIX = "/community";
 
@@ -160,8 +161,37 @@ function listFromResponse<T>(data: unknown): T[] {
   return Array.isArray(data) ? (data as T[]) : [];
 }
 
+function plainOptional(value: string | null | undefined): string | null | undefined {
+  return value == null ? value : richHtmlToPlainText(value);
+}
+
+export function normalizeCommunityPostDisplay(post: PostEntity): PostEntity {
+  return {
+    ...post,
+    title: richHtmlToPlainText(post.title),
+    created_by_display: plainOptional(post.created_by_display),
+    category_label: plainOptional(post.category_label),
+    mappings: Array.isArray(post.mappings)
+      ? post.mappings.map((mapping) => ({
+          ...mapping,
+          node_detail: {
+            ...mapping.node_detail,
+            lecture_title: richHtmlToPlainText(mapping.node_detail.lecture_title),
+            session_title: plainOptional(mapping.node_detail.session_title) ?? null,
+          },
+        }))
+      : [],
+    attachments: Array.isArray(post.attachments)
+      ? post.attachments.map((attachment) => ({
+          ...attachment,
+          original_name: richHtmlToPlainText(attachment.original_name),
+        }))
+      : post.attachments,
+  };
+}
+
 export function communityRowsFromResponse(data: unknown): PostEntity[] {
-  return listFromResponse<PostEntity>(data);
+  return listFromResponse<PostEntity>(data).map(normalizeCommunityPostDisplay);
 }
 
 export function dedupeCommunityPostsById<T extends { id: number }>(rows: T[]): T[] {
@@ -258,7 +288,11 @@ export async function fetchCommunityScopeNodes(
   client: CommunityHttpClient,
 ): Promise<ScopeNodeMinimal[]> {
   const res = await client.get(`${COMMUNITY_PREFIX}/scope-nodes/`, { params: { page_size: 500 } });
-  return listFromResponse<ScopeNodeMinimal>(res.data);
+  return listFromResponse<ScopeNodeMinimal>(res.data).map((node) => ({
+    ...node,
+    lecture_title: richHtmlToPlainText(node.lecture_title),
+    session_title: plainOptional(node.session_title) ?? null,
+  }));
 }
 
 export async function fetchCommunityPosts(
@@ -284,7 +318,7 @@ export async function fetchCommunityPost(
 ): Promise<PostEntity | null> {
   try {
     const res = await client.get<PostEntity>(`${COMMUNITY_PREFIX}/posts/${id}/`);
-    return res.data;
+    return normalizeCommunityPostDisplay(res.data);
   } catch (error: unknown) {
     if (isHttpStatus(error, 404)) return null;
     throw error;
@@ -347,7 +381,9 @@ export async function fetchCommunityAdminPosts(
     },
   );
   return {
-    results: Array.isArray(res.data.results) ? res.data.results : [],
+    results: Array.isArray(res.data.results)
+      ? res.data.results.map(normalizeCommunityPostDisplay)
+      : [],
     count: typeof res.data.count === "number" ? res.data.count : 0,
   };
 }
@@ -357,7 +393,7 @@ export async function createCommunityPost(
   data: CommunityPostCreatePayload,
 ): Promise<PostEntity> {
   const res = await client.post<PostEntity>(`${COMMUNITY_PREFIX}/posts/`, data);
-  return res.data;
+  return normalizeCommunityPostDisplay(res.data);
 }
 
 export async function updateCommunityPostNodes(
@@ -368,7 +404,7 @@ export async function updateCommunityPostNodes(
   const res = await client.patch<PostEntity>(`${COMMUNITY_PREFIX}/posts/${postId}/nodes/`, {
     node_ids: nodeIds,
   });
-  return res.data;
+  return normalizeCommunityPostDisplay(res.data);
 }
 
 export async function updateCommunityPost(
@@ -377,7 +413,7 @@ export async function updateCommunityPost(
   data: Partial<PostUpdatePayload>,
 ): Promise<PostEntity> {
   const res = await client.patch<PostEntity>(`${COMMUNITY_PREFIX}/posts/${postId}/`, data);
-  return res.data;
+  return normalizeCommunityPostDisplay(res.data);
 }
 
 export async function deleteCommunityPost(client: CommunityHttpClient, postId: number): Promise<void> {
@@ -405,7 +441,10 @@ export async function fetchCommunityPostReplies(
     const res = await client.get<Answer[] | { results?: Answer[] }>(
       `${COMMUNITY_PREFIX}/posts/${postId}/replies/`,
     );
-    return listFromResponse<Answer>(res.data);
+    return listFromResponse<Answer>(res.data).map((answer) => ({
+      ...answer,
+      created_by_display: plainOptional(answer.created_by_display),
+    }));
   } catch (error: unknown) {
     if (options?.fallbackToEmpty || (options?.emptyOn404 && isHttpStatus(error, 404))) return [];
     throw error;
@@ -430,7 +469,7 @@ export async function createCommunityAnswer(
     question: res.data.question ?? res.data.post ?? questionId,
     content: res.data.content,
     created_at: res.data.created_at,
-    created_by_display: res.data.created_by_display ?? null,
+    created_by_display: plainOptional(res.data.created_by_display) ?? null,
   };
 }
 
@@ -444,7 +483,10 @@ export async function updateCommunityReply(
     `${COMMUNITY_PREFIX}/posts/${postId}/replies/${replyId}/`,
     { content },
   );
-  return res.data;
+  return {
+    ...res.data,
+    created_by_display: plainOptional(res.data.created_by_display),
+  };
 }
 
 export async function deleteCommunityReply(
@@ -469,7 +511,12 @@ export async function uploadCommunityPostAttachments(
     formData,
     { headers: { "Content-Type": "multipart/form-data" } },
   );
-  return Array.isArray(res.data) ? res.data : [];
+  return Array.isArray(res.data)
+    ? res.data.map((attachment) => ({
+        ...attachment,
+        original_name: richHtmlToPlainText(attachment.original_name),
+      }))
+    : [];
 }
 
 export function createClientRequestKey(): string {
@@ -492,7 +539,10 @@ export async function getCommunityAttachmentDownloadUrl(
   const res = await client.get<{ url: string; original_name: string }>(
     `${COMMUNITY_PREFIX}/posts/${postId}/attachments/${attId}/download/`,
   );
-  return res.data;
+  return {
+    ...res.data,
+    original_name: richHtmlToPlainText(res.data.original_name),
+  };
 }
 
 export async function deleteCommunityPostAttachment(

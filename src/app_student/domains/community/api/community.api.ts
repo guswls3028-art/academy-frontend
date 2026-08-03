@@ -2,6 +2,7 @@
 // 학생 커뮤니티 단일 API — post_type 기반 분류
 
 import { isApiErrorStatus } from "@/shared/api/axios";
+import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 import studentApi from "@student/shared/api/student.api";
 import {
   createCommunityPost,
@@ -60,7 +61,15 @@ export interface MyActivityResponse {
 
 export async function fetchMyActivity(days = 30): Promise<MyActivityResponse> {
   const r = await studentApi.get<MyActivityResponse>("/community/posts/my-activity/", { params: { days } });
-  return r.data;
+  return {
+    ...r.data,
+    badges: Array.isArray(r.data.badges)
+      ? r.data.badges.map((badge) => ({
+          ...badge,
+          label: richHtmlToPlainText(badge.label),
+        }))
+      : r.data.badges,
+  };
 }
 
 /** 첨부파일 업로드 */

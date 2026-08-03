@@ -1,6 +1,7 @@
 // PATH: src/app_student/domains/exams/api/exams.ts
 
 import api from "@student/shared/api/student.api";
+import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 
 export type StudentExam = {
   id: number;
@@ -23,17 +24,29 @@ export type ExamsListResponse = {
   items: StudentExam[];
 };
 
+function normalizeStudentExam(exam: StudentExam): StudentExam {
+  return {
+    ...exam,
+    title: richHtmlToPlainText(exam.title),
+    description: exam.description == null
+      ? exam.description
+      : richHtmlToPlainText(exam.description),
+  };
+}
+
 export async function fetchStudentExams(params?: { session_id?: number; include_upcoming?: boolean }): Promise<ExamsListResponse> {
   const res = await api.get<ExamsListResponse | StudentExam[]>("/student/exams/", { params });
   const data = res.data;
-  if (data && !Array.isArray(data) && Array.isArray(data.items)) return data;
-  if (Array.isArray(data)) return { items: data };
+  if (data && !Array.isArray(data) && Array.isArray(data.items)) {
+    return { ...data, items: data.items.map(normalizeStudentExam) };
+  }
+  if (Array.isArray(data)) return { items: data.map(normalizeStudentExam) };
   return { items: [] };
 }
 
 export async function fetchStudentExam(examId: number): Promise<StudentExam> {
   const res = await api.get(`/student/exams/${examId}/`);
-  return res.data as StudentExam;
+  return normalizeStudentExam(res.data as StudentExam);
 }
 
 export type StudentExamQuestion = {

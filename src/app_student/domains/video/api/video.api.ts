@@ -1,5 +1,6 @@
 import api from "@student/shared/api/student.api";
 import type { AccessMode, VideoSourceType } from "@/shared/api/contracts/videos";
+import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 
 /** GET /student/video/me/ 응답 — 영상 탭용 */
 export type StudentVideoMeSession = {
@@ -32,12 +33,31 @@ export type StudentVideoMeResponse = {
   lectures: StudentVideoMeLecture[];
 };
 
+function normalizeStudentVideoSession(session: StudentVideoMeSession): StudentVideoMeSession {
+  return {
+    ...session,
+    title: richHtmlToPlainText(session.title),
+  };
+}
+
+function normalizeStudentVideoLecture(lecture: StudentVideoMeLecture): StudentVideoMeLecture {
+  return {
+    ...lecture,
+    title: richHtmlToPlainText(lecture.title),
+    sessions: Array.isArray(lecture.sessions)
+      ? lecture.sessions.map(normalizeStudentVideoSession)
+      : [],
+  };
+}
+
 export async function fetchVideoMe(): Promise<StudentVideoMeResponse> {
   const res = await api.get<StudentVideoMeResponse>("/student/video/me/");
   const d = res.data;
   return {
     public: d?.public ?? null,
-    lectures: Array.isArray(d?.lectures) ? d.lectures : [],
+    lectures: Array.isArray(d?.lectures)
+      ? d.lectures.map(normalizeStudentVideoLecture)
+      : [],
   };
 }
 
@@ -71,6 +91,13 @@ export type StudentVideoListItem = {
 export type StudentSessionVideosResponse = {
   items: StudentVideoListItem[];
 };
+
+function normalizeStudentVideoItem(video: StudentVideoListItem): StudentVideoListItem {
+  return {
+    ...video,
+    title: richHtmlToPlainText(video.title),
+  };
+}
 
 export type StudentVideoPlayback = {
   video: StudentVideoListItem;
@@ -123,7 +150,9 @@ export async function fetchStudentSessionVideos(
   });
   const d = res?.data;
   return {
-    items: Array.isArray(d?.items) ? d.items : [],
+    items: Array.isArray(d?.items)
+      ? d.items.map(normalizeStudentVideoItem)
+      : [],
   };
 }
 
@@ -150,7 +179,14 @@ export async function fetchStudentVideoPlayback(
   if (data == null || typeof data !== "object") {
     throw new Error("재생 정보를 받지 못했습니다.");
   }
-  return data as StudentVideoPlayback;
+  const playback = data as StudentVideoPlayback;
+  return {
+    ...playback,
+    video: normalizeStudentVideoItem(playback.video),
+    detail: typeof playback.detail === "string"
+      ? richHtmlToPlainText(playback.detail)
+      : playback.detail,
+  };
 }
 
 /**
@@ -186,7 +222,12 @@ export async function fetchVideoStats(): Promise<VideoStatsResponse> {
     completion_rate: d?.completion_rate ?? 0,
     total_watch_duration: d?.total_watch_duration ?? 0,
     total_content_duration: d?.total_content_duration ?? 0,
-    lectures: Array.isArray(d?.lectures) ? d.lectures : [],
+    lectures: Array.isArray(d?.lectures)
+      ? d.lectures.map((lecture) => ({
+          ...lecture,
+          title: richHtmlToPlainText(lecture.title),
+        }))
+      : [],
   };
 }
 

@@ -1,6 +1,7 @@
 // PATH: src/app_student/domains/dashboard/api/dashboard.ts
 
 import api from "@student/shared/api/student.api";
+import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 
 /**
  * ✅ Student Dashboard API (HOME 전용)
@@ -51,7 +52,7 @@ export async function fetchStudentDashboard(): Promise<StudentDashboardResponse>
   const notices = Array.isArray(data.notices)
     ? (data.notices as DashboardNotice[]).map((n) => ({
         id: Number(n.id),
-        title: String(n.title ?? ""),
+        title: richHtmlToPlainText(String(n.title ?? "")),
         created_at: n.created_at != null ? String(n.created_at) : null,
         is_urgent: Boolean(n.is_urgent),
       }))
@@ -61,7 +62,7 @@ export async function fetchStudentDashboard(): Promise<StudentDashboardResponse>
         const type: DashboardSession["type"] = s.type === "clinic" ? "clinic" : "session";
         return {
           id: Number(s.id),
-          title: String(s.title ?? ""),
+          title: richHtmlToPlainText(String(s.title ?? "")),
           date: s.date != null ? String(s.date) : null,
           status: s.status != null ? String(s.status) : null,
           type,
@@ -80,12 +81,12 @@ export async function fetchStudentDashboard(): Promise<StudentDashboardResponse>
     tenant_info:
       data.tenant_info && typeof data.tenant_info === "object"
         ? {
-            name: String(data.tenant_info.name ?? ""),
+            name: richHtmlToPlainText(String(data.tenant_info.name ?? "")),
             phone: String(data.tenant_info.phone ?? ""),
             headquarters_phone: String(data.tenant_info.headquarters_phone ?? ""),
             academies: Array.isArray(data.tenant_info.academies)
               ? (data.tenant_info.academies as { name?: string; phone?: string }[]).map((a) => ({
-                  name: String(a.name ?? ""),
+                  name: richHtmlToPlainText(String(a.name ?? "")),
                   phone: String(a.phone ?? ""),
                 }))
               : undefined,
