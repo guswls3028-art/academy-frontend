@@ -15,6 +15,71 @@ import styles from "./ExamSegmentationReview.module.css";
 
 type DraftItem = SegmentationReviewItem & { numberInput: string };
 
+function ProblemCropPreview({
+  item,
+}: {
+  item: DraftItem;
+}) {
+  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const sourceUrl = item.crop_adjustable
+    ? item.explanation_image_url
+    : item.problem_image_url;
+
+  if (!sourceUrl) {
+    return <div className={styles.missing}>문제 이미지 없음</div>;
+  }
+  if (!item.crop_adjustable || !item.explanation_image_url) {
+    return <img src={sourceUrl} alt={`${item.numberInput}번 문제 후보`} loading="lazy" />;
+  }
+  if (previewFailed) {
+    return (
+      <img
+        src={item.problem_image_url}
+        alt={`${item.numberInput}번 문제 후보`}
+        loading="lazy"
+      />
+    );
+  }
+
+  const cropHeight = dimensions
+    ? Math.max(1, Math.round(dimensions.height * item.problem_crop_ratio))
+    : 0;
+  return (
+    <div className={styles.cropPreviewWrap}>
+      <img
+        className={styles.measureImage}
+        src={item.explanation_image_url}
+        alt=""
+        onError={() => setPreviewFailed(true)}
+        onLoad={(event) => {
+          setDimensions({
+            width: event.currentTarget.naturalWidth,
+            height: event.currentTarget.naturalHeight,
+          });
+        }}
+      />
+      {dimensions ? (
+        <svg
+          className={styles.cropPreview}
+          viewBox={`0 0 ${dimensions.width} ${cropHeight}`}
+          role="img"
+          aria-label={`${item.numberInput}번 문제 영역 미리보기`}
+        >
+          <image
+            href={item.explanation_image_url}
+            width={dimensions.width}
+            height={dimensions.height}
+            preserveAspectRatio="xMinYMin meet"
+          />
+        </svg>
+      ) : (
+        <div className={styles.missing}>문제 영역 미리보기 준비 중…</div>
+      )}
+    </div>
+  );
+}
+
 export default function ExamSegmentationReview({ examId }: { examId: number }) {
   const queryClient = useQueryClient();
   const review = useQuery({
@@ -53,6 +118,9 @@ export default function ExamSegmentationReview({ examId }: { examId: number }) {
           id: item.id,
           number: Number(item.numberInput),
           included: item.included,
+          problem_crop_ratio: item.crop_adjustable
+            ? item.problem_crop_ratio
+            : undefined,
         })),
       ),
     onSuccess: async (result) => {
@@ -146,9 +214,28 @@ export default function ExamSegmentationReview({ examId }: { examId: number }) {
             <figure className={styles.proofPane}>
               <figcaption>문제 이미지</figcaption>
               {item.problem_image_url ? (
-                <img src={item.problem_image_url} alt={`${item.numberInput}번 문제 후보`} loading="lazy" />
-              ) : (
-                <div className={styles.missing}>문제 이미지 없음</div>
+                <ProblemCropPreview item={item} />
+              ) : <div className={styles.missing}>문제 이미지 없음</div>}
+              {item.crop_adjustable && (
+                <label className={styles.cropControl}>
+                  <span>
+                    문제 영역 높이
+                    <output>{Math.round(item.problem_crop_ratio * 100)}%</output>
+                  </span>
+                  <input
+                    type="range"
+                    min={8}
+                    max={98}
+                    step={1}
+                    value={Math.round(item.problem_crop_ratio * 100)}
+                    disabled={!item.included || approve.isPending}
+                    onChange={(event) => update(item.id, {
+                      problem_crop_ratio: Number(event.target.value) / 100,
+                    })}
+                    aria-label={`${item.numberInput}번 문제 영역 높이`}
+                  />
+                  <small>풀이가 보이면 줄이고, 문제·보기·도표가 잘리면 늘려 주세요.</small>
+                </label>
               )}
             </figure>
 

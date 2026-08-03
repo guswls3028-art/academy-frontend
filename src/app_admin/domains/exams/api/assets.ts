@@ -1,6 +1,10 @@
 import api from "@/shared/api/axios";
 
-export type ExamAssetType = "problem_pdf" | "omr_sheet";
+export type ExamAssetType =
+  | "problem_pdf"
+  | "problem_source"
+  | "teacher_explanation_source"
+  | "omr_sheet";
 
 export interface ExamAsset {
   id: number;

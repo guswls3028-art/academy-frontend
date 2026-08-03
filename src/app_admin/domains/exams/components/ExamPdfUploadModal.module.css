@@ -2,6 +2,35 @@
   min-height: 200px;
 }
 
+.pairGuide {
+  margin: 14px 0;
+  padding: 12px 14px;
+  border-left: 3px solid var(--color-brand-primary);
+  border-radius: 0 10px 10px 0;
+  background: color-mix(in srgb, var(--color-brand-primary) 7%, #fff);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.pairGuide strong {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
+.pairGuide p {
+  margin: 0;
+}
+
+.pairError {
+  margin: -0.25rem 0 0;
+  color: var(--color-error);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
 .progress {
   display: block;
   width: 100%;

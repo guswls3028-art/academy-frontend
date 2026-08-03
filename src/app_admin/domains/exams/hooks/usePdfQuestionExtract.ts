@@ -184,7 +184,7 @@ export function usePdfQuestionExtract(examId: number) {
   );
 
   const upload = useCallback(
-    async (file: File) => {
+    async (file: File, explanationFile?: File | null) => {
       stopPolling();
       setStatus("uploading");
       setError(null);
@@ -207,6 +207,9 @@ export function usePdfQuestionExtract(examId: number) {
         const extractFd = new FormData();
         extractFd.append("file", file);
         extractFd.append("exam_id", String(examId));
+        if (explanationFile) {
+          extractFd.append("explanation_file", explanationFile);
+        }
 
         const extractResp = await api.post("/exams/pdf-extract/", extractFd, {
           headers: { "Content-Type": "multipart/form-data" },
