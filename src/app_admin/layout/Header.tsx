@@ -14,7 +14,6 @@ import {
   LogOut,
   Globe as GlobeIcon,
   Menu as MenuIcon,
-  Home as HomeIcon,
   Bell as BellIcon,
   Inbox as InboxIcon,
   Check as CheckIcon,
@@ -54,14 +53,12 @@ function ProfileDropdown({
   onToggle,
   onClose,
   content,
-  ariaLabel,
   children,
 }: {
   open: boolean;
   onToggle: () => void;
   onClose: () => void;
   content: React.ReactNode;
-  ariaLabel?: string;
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -88,24 +85,13 @@ function ProfileDropdown({
     };
   }, [open]);
 
-  // <button> 안에 children Button(<button>)을 넣으면 invalid HTML.
-  // role="button" + tabIndex + onKeyDown 패턴으로 키보드 접근성 확보.
+  // 실제 children Button이 키보드/ARIA 트리거를 소유한다.
+  // 이 래퍼는 메뉴 위치와 바깥 클릭 경계만 담당한다.
   return (
     <div ref={ref} className="app-header__profileDropdown">
       <div
         className="app-header__profileDropdownTrigger"
-        role="button"
-        tabIndex={0}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        aria-label={ariaLabel}
         onClick={onToggle}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            onToggle();
-          }
-        }}
       >
         {children}
       </div>
@@ -314,38 +300,24 @@ export default function Header() {
       <div className="app-header" data-mobile={isMobile || undefined}>
         {/* LEFT */}
         <div className="app-header__left">
-          {/* 아이콘 액션 그룹(햄버거 + 홈) — brand와 시각적 분리 */}
-          <div className="app-header__iconGroup">
-            <Button
-              intent="secondary"
-              size="lg"
-              iconOnly
-              className="app-header__iconBtn"
-              onClick={() =>
-                isMobile
-                  ? adminLayout?.openDrawer()
-                  : document.dispatchEvent(new Event("ui:sidebar:toggle"))
-              }
-              aria-label={isMobile ? "메뉴 열기" : "사이드바 토글"}
-              leftIcon={<MenuIcon size={ICON_FOR_BUTTON.lg} aria-hidden />}
-            />
-
-            <Button
-              intent="secondary"
-              size="lg"
-              iconOnly
-              className="app-header__iconBtn"
-              aria-label="대시보드로 이동"
-              title="대시보드로 이동"
-              data-testid="app-header-go-dashboard"
-              onClick={() => nav("/workspace/dashboard")}
-              leftIcon={<HomeIcon size={ICON_FOR_BUTTON.lg} aria-hidden />}
-            />
-          </div>
+          <Button
+            intent="secondary"
+            size="lg"
+            iconOnly
+            className="app-header__iconBtn"
+            onClick={() =>
+              isMobile
+                ? adminLayout?.openDrawer()
+                : document.dispatchEvent(new Event("ui:sidebar:toggle"))
+            }
+            aria-label={isMobile ? "메뉴 열기" : "사이드바 토글"}
+            leftIcon={<MenuIcon size={ICON_FOR_BUTTON.lg} aria-hidden />}
+          />
 
           <button
             type="button"
             className="app-header__brand"
+            data-testid="app-header-go-dashboard"
             data-tenant-header-brand={headerBrandStyle ? "" : undefined}
             style={headerBrandStyle as React.CSSProperties | undefined}
             title={`${academyName} 대시보드`}
@@ -387,7 +359,6 @@ export default function Header() {
               open={workbox.workboxOpen}
               onToggle={() => handleWorkboxOpenChange(!workbox.workboxOpen)}
               onClose={() => handleWorkboxOpenChange(false)}
-              ariaLabel="작업박스"
               content={
                 <div className="ds-header-dropdown app-header__alarmDropdown alarm-panel--workbox-style">
                   <WorkboxPanelContent onClose={() => workbox.setWorkboxOpen(false)} />
@@ -406,6 +377,8 @@ export default function Header() {
                         ? `작업박스 (실패 ${errorCount}건)`
                         : "작업박스 열기"
                   }
+                  aria-expanded={workbox.workboxOpen}
+                  aria-haspopup="menu"
                   title={
                     workbox.workboxOpen
                       ? "작업박스 닫기"
@@ -436,7 +409,6 @@ export default function Header() {
             open={alarmDropdownOpen}
             onToggle={() => setAlarmDropdownOpen((v) => !v)}
             onClose={() => setAlarmDropdownOpen(false)}
-            ariaLabel={hasNotificationFailures ? "알림 (일부 로드 실패)" : "알림"}
             content={
               <div className="ds-header-dropdown app-header__alarmDropdown alarm-panel--workbox-style">
                 <div className="alarm-panel__header">
@@ -525,6 +497,8 @@ export default function Header() {
                 iconOnly
                 className={`app-header__iconBtn ${hasNotificationFailures ? "app-header__iconBtn--warning" : ""}`}
                 aria-label={hasNotificationFailures ? "알림 (일부 로드 실패)" : "알림"}
+                aria-expanded={alarmDropdownOpen}
+                aria-haspopup="menu"
                 title={hasNotificationFailures ? "일부 알림을 불러오지 못했습니다" : "알림"}
                 leftIcon={
                   <AntBadge
@@ -555,14 +529,15 @@ export default function Header() {
             open={profileDropdownOpen}
             onToggle={() => setProfileDropdownOpen((v) => !v)}
             onClose={() => setProfileDropdownOpen(false)}
-            ariaLabel="프로필 메뉴"
             content={profileDropdownContent}
           >
             <Button
               intent="secondary"
               size="lg"
               className="app-header__userBtn"
-              aria-label="프로필"
+              aria-label="프로필 메뉴"
+              aria-expanded={profileDropdownOpen}
+              aria-haspopup="menu"
               leftIcon={
                 me ? (
                   <StaffRoleAvatar

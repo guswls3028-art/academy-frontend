@@ -43,7 +43,6 @@ type LectureItem = {
 
 type LectureSortKey = "title" | "subject" | "name" | "lecture_time" | "dateRange";
 
-const FIT_CONTENT_STYLE: CSSProperties = { width: "fit-content" };
 const ACTION_COLUMN_STYLE: CSSProperties = { width: 56 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -276,7 +275,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
           ) : list.length === 0 ? (
             <EmptyState scope="panel" tone="empty" title="표시할 강의가 없습니다." />
           ) : (
-            <div data-guide="lectures-table" style={FIT_CONTENT_STYLE}>
+            <div data-guide="lectures-table">
               <DomainTable
                 tableClassName="ds-table--flat ds-table--center"
                 tableStyle={{ tableLayout: "fixed", width: tableWidth }}

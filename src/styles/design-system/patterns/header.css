@@ -52,14 +52,6 @@
   min-width: 0;
 }
 
-/* 좌측 아이콘 액션 그룹 (햄버거 + 홈 등) — brand와 시각적 분리 */
-[data-app="admin"] .app-header__iconGroup {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
 [data-app="admin"] .app-header[data-mobile] .app-header__left {
   flex: 1;
   min-width: 0;
@@ -68,13 +60,21 @@
 }
 
 [data-app="admin"] .app-header[data-mobile] .app-header__brand {
-  flex: 1 1 72px;
-  max-width: min(42vw, 220px);
-  overflow: hidden;
+  flex: 0 0 auto;
+  max-width: none;
+  overflow: visible;
 }
 
 [data-app="admin"] .app-header[data-mobile] .app-header__brandMark img {
   max-width: 72px;
+}
+
+[data-app="admin"] .app-header[data-mobile] .app-header__brand[data-tenant-header-brand] {
+  padding: 5px;
+}
+
+[data-app="admin"] .app-header[data-mobile] .app-header__brandName {
+  display: none;
 }
 
 [data-app="admin"] .app-header__brand {

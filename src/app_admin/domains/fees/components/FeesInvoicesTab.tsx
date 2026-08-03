@@ -272,8 +272,7 @@ export default function FeesInvoicesTab() {
         <EmptyState title="해당 월의 청구서가 없습니다" />
       ) : (
         <DomainTable>
-          <table className="ds-table">
-            <thead>
+          <thead>
               <tr>
                 <th>학생</th>
                 <th>청구번호</th>
@@ -283,8 +282,8 @@ export default function FeesInvoicesTab() {
                 <th>상태</th>
                 <th>납부기한</th>
               </tr>
-            </thead>
-            <tbody>
+          </thead>
+          <tbody>
               {invoices.map((inv) => (
                 <tr
                   key={inv.id}
@@ -307,8 +306,7 @@ export default function FeesInvoicesTab() {
                   <td>{inv.due_date}</td>
                 </tr>
               ))}
-            </tbody>
-          </table>
+          </tbody>
         </DomainTable>
       )}
 

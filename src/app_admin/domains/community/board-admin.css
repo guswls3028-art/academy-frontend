@@ -223,6 +223,7 @@
 
 .cms-list-card {
   display: flex;
+  flex: 0 0 auto;
   width: 100%;
   border: 1px solid var(--color-border-divider, #e5e7eb);
   border-radius: var(--radius-lg, 12px);

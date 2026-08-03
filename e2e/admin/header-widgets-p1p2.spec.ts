@@ -137,21 +137,19 @@ test.describe("Header Widgets P1·P2", () => {
   });
 
   /* ────────────────────────────────────────────────
-   * Widget 3 — Help (?) Button — Keyboard A11y
+   * Widget 3 — Guidebook Button — Keyboard A11y
    * ──────────────────────────────────────────────── */
-  test("3. 헬프 버튼 키보드 접근성 — Tab+Enter 열기, Esc 닫기, aria-expanded", async ({ page }) => {
-    // DOM snapshot: button "도움말"
-    const helpBtn = page.locator('button[aria-label="도움말"]').first();
+  test("3. 가이드북 버튼 키보드 접근성 — Tab+Enter 열기, Esc 닫기, aria-expanded", async ({ page }) => {
+    const helpBtn = page.locator('button[aria-label^="가이드북"]').first();
     await expect(helpBtn).toBeVisible({ timeout: 8_000 });
 
     // Mouse click to open
     await helpBtn.click();
 
-    const guideItem = page.locator("text=사용 가이드");
+    const guideItem = page.getByRole("dialog", { name: "관리자 가이드북" });
     await expect(guideItem).toBeVisible({ timeout: 5_000 });
-    const devItem = page.locator("text=개발자 문의");
-    await expect(devItem).toBeVisible({ timeout: 5_000 });
-    console.log("PASS: 마우스 클릭으로 드롭다운 열림 — '사용 가이드', '개발자 문의' 확인");
+    await expect(page.getByRole("button", { name: "관리자 전체 가이드" })).toBeVisible();
+    console.log("PASS: 마우스 클릭으로 관리자 가이드북 열림");
 
     // Check aria-expanded=true somewhere in the help widget area
     // The trigger div/button may carry aria-expanded
@@ -178,7 +176,7 @@ test.describe("Header Widgets P1·P2", () => {
     // Keyboard: focus + Enter to open
     await helpBtn.focus();
     await page.keyboard.press("Enter");
-    const guideAfterEnter = page.locator("text=사용 가이드");
+    const guideAfterEnter = page.getByRole("dialog", { name: "관리자 가이드북" });
     await expect(guideAfterEnter).toBeVisible({ timeout: 5_000 });
     console.log("PASS: 키보드 Enter로 드롭다운 열림");
 
@@ -190,7 +188,7 @@ test.describe("Header Widgets P1·P2", () => {
 
     await helpBtn.focus();
     await page.keyboard.press("Space");
-    const guideAfterSpace = page.locator("text=사용 가이드");
+    const guideAfterSpace = page.getByRole("dialog", { name: "관리자 가이드북" });
     await expect(guideAfterSpace).toBeVisible({ timeout: 5_000 });
     console.log("PASS: 키보드 Space로 드롭다운 열림");
 
@@ -204,12 +202,14 @@ test.describe("Header Widgets P1·P2", () => {
    * Widget 4 — Profile Dropdown
    * ──────────────────────────────────────────────── */
   test("4. 프로필 드롭다운 — 사용자 카드, 메뉴 항목, 키보드 접근성", async ({ page }) => {
-    // ProfileDropdown is a div[role="button"] with aria-label="프로필 메뉴" (not a <button>)
-    const profileMenuBtn = page.locator('[role="button"][aria-label="프로필 메뉴"]').first();
+    // 실제 button이 메뉴 상태와 키보드 조작을 소유한다.
+    const profileMenuBtn = page.getByRole("button", { name: "프로필 메뉴" }).first();
     await expect(profileMenuBtn).toBeVisible({ timeout: 10_000 });
+    await expect(profileMenuBtn).toHaveAttribute("aria-expanded", "false");
 
     // Mouse click to open
     await profileMenuBtn.click();
+    await expect(profileMenuBtn).toHaveAttribute("aria-expanded", "true");
 
     // P2-5: Menu labels
     await expect(page.locator("text=내 프로필")).toBeVisible({ timeout: 5_000 });
