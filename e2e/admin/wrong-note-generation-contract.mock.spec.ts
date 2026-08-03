@@ -315,9 +315,21 @@ test.describe("오답노트 생성 계약", () => {
 
   test("한글 HWPX를 선택하면 원본 해설 포함 형식으로 요청한다", async ({ page }) => {
     const calls = await mockWrongNoteApi(page, { total: 1 });
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${BASE}/e2e-wrong-note-harness.html`);
 
-    await page.getByRole("button", { name: /한글 HWPX/ }).click();
+    const hwpxButton = page.getByRole("button", { name: /한글 HWPX/ });
+    await hwpxButton.click();
+    await expect(hwpxButton).toContainText(
+      "원본 보존 · 메모 편집",
+    );
+    const hwpxBox = await hwpxButton.boundingBox();
+    expect(hwpxBox?.height).toBeGreaterThanOrEqual(40);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+      ),
+    ).toBe(true);
     await expect(page.getByTestId("wrong-note-create")).toContainText("오답노트 한글 만들기");
     await page.getByTestId("wrong-note-create").click();
     await expect(page.getByTestId("wrong-note-download")).toContainText("한글 다운로드");
