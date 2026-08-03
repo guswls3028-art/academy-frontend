@@ -295,27 +295,49 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
   test.skip(!isLocalBase(BASE), "Local route-mock visual contract spec.");
   test.use({ serviceWorkers: "block", viewport: { width: 390, height: 844 } });
 
-  test("학생은 1회차부터 자동 누적된 성장선과 원점수를 확인한다", async ({ page }) => {
-    await installApi(page, "student");
+  test("학생은 강좌별 성장선과 등수 우선 지표를 확인한다", async ({ page }) => {
+    const firstLectureTitle = "[26년 여름방학] 고1 Hyper 정규반 공통수학2 Routine";
+    const secondLectureTitle = "[26년 여름방학] 고1 Hyper 특강 대수 Remake";
+    const studentPoints = trendA.map((point) => ({
+      ...point,
+      lecture_title: point.lecture_id === 501 ? firstLectureTitle : secondLectureTitle,
+    }));
+    await installApi(page, "student", { studentPoints });
     await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });
 
     const chart = page.getByTestId("student-score-trend");
     await expect(chart).toBeVisible();
-    await expect(chart).toContainText("시험이 추가될 때마다 1회차부터 자동으로 이어집니다.");
-    await expect(chart).toContainText("최근96%");
-    await expect(chart).toContainText("누적3회");
+    const lectureSelect = chart.getByRole("combobox", { name: "강좌별 성적 추이" });
+    await expect(lectureSelect).toHaveValue("501");
+    await expect(lectureSelect.getByRole("option")).toHaveCount(2);
+    await expect(lectureSelect.getByRole("option").first()).toHaveText(firstLectureTitle);
+    await expect(lectureSelect.getByRole("option", { name: "전체", exact: true })).toHaveCount(0);
+
+    const metricButtons = chart.getByRole("group", { name: "성적 추이 기준" }).getByRole("button");
+    await expect(metricButtons).toHaveText(["등수", "상위 %", "득점률"]);
+    await expect(chart.getByRole("button", { name: "등수", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(chart).toContainText("같은 시험 응시자 중 1차 응시 점수 기준 내 등수입니다.");
+    await expect(chart).toContainText("최근2등 / 10명");
+    await expect(chart).toContainText("누적2회");
     await expect(chart.getByText("1회차", { exact: true })).toBeVisible();
-    await expect(chart.getByText("3회차", { exact: true })).toBeVisible();
-    await expect(chart.locator(".recharts-line-dots circle")).toHaveCount(3);
-    await chart.locator(".recharts-line-dots circle").nth(2).hover();
-    await expect(chart).toContainText("48 / 50점 · 득점률 96%");
-    await chart.getByRole("button", { name: "등수", exact: true }).click();
-    await expect(chart).toContainText("최근1등 / 10명");
-    await expect(chart).toContainText("직전 대비1등 상승");
+    await expect(chart.getByText("2회차", { exact: true })).toBeVisible();
+    await expect(chart.getByText("3회차", { exact: true })).toHaveCount(0);
+    await expect(chart.locator(".recharts-line-dots circle")).toHaveCount(2);
+    await page.screenshot({ path: "test-results/student-score-trend/student-390-initial.png", fullPage: true });
     await chart.getByRole("button", { name: "상위 %", exact: true }).click();
-    await expect(chart).toContainText("최근10%");
+    await expect(chart).toContainText("최근20%");
     await expect(chart).toContainText("직전 대비10%p 상승");
     await chart.getByRole("button", { name: "득점률", exact: true }).click();
+    await expect(chart).toContainText("최근90%");
+
+    await lectureSelect.selectOption("502");
+    await expect(chart).toContainText("최근96%");
+    await expect(chart).toContainText("누적1회");
+    await expect(chart.getByText("1회차", { exact: true })).toBeVisible();
+    await expect(chart.getByText("2회차", { exact: true })).toHaveCount(0);
+    await expect(chart.locator(".recharts-line-dots circle")).toHaveCount(1);
+    await chart.locator(".recharts-line-dots circle").hover();
+    await expect(chart).toContainText("48 / 50점 · 득점률 96%");
     await expect(chart).not.toContainText("미응시 테스트");
     await expect(page.getByRole("region", { name: "성적 비교" })).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
@@ -409,14 +431,15 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
     await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });
 
     const chart = page.getByTestId("student-score-trend");
-    await expect(chart).toContainText("누적3회");
+    await expect(chart).toContainText("누적2회");
+    await expect(chart).toContainText("최근2등 / 10명");
     const switcher = page.getByRole("tablist", { name: "자녀 선택" });
     await switcher.getByRole("tab", { name: "김둘째" }).click();
     await expect(page).toHaveURL(/\/student\/dashboard/);
     await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });
 
     await expect(chart).toContainText("누적1회");
-    await expect(chart).toContainText("최근70%");
+    await expect(chart).toContainText("최근3등 / 10명");
     await expect(chart).not.toContainText("최근96%");
     expect(selectedHeaders).toContain("11");
     expect(selectedHeaders).toContain("12");
@@ -435,8 +458,8 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
     await expect(app).toHaveAttribute("data-student-dark", "true");
     const chart = page.getByTestId("student-score-trend");
     await expect(chart).toBeVisible();
-    await expect(chart).toContainText("최근96%");
-    await expect(chart.locator(".recharts-line-dots circle")).toHaveCount(3);
+    await expect(chart).toContainText("최근2등 / 10명");
+    await expect(chart.locator(".recharts-line-dots circle")).toHaveCount(2);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
     await page.screenshot({ path: "test-results/student-score-trend/student-dark-390.png", fullPage: true });
   });

@@ -43,10 +43,16 @@ type LectureOption = {
   chipLabel: string | null;
 };
 
-const METRIC_OPTIONS: Array<{ value: StudentScoreTrendMetric; label: string }> = [
+const STAFF_METRIC_OPTIONS: Array<{ value: StudentScoreTrendMetric; label: string }> = [
   { value: "score_pct", label: "득점률" },
   { value: "rank", label: "등수" },
   { value: "percentile", label: "상위 %" },
+];
+
+const LEARNER_METRIC_OPTIONS: typeof STAFF_METRIC_OPTIONS = [
+  { value: "rank", label: "등수" },
+  { value: "percentile", label: "상위 %" },
+  { value: "score_pct", label: "득점률" },
 ];
 
 function formatPct(value: number | null | undefined) {
@@ -143,8 +149,15 @@ export default function StudentScoreTrendChart({
   badgeLabel = "자동 누적",
 }: Props) {
   const titleId = useId();
+  const hasComparativeMetrics = points.some(
+    (point) => studentScoreTrendMetricValue(point, "rank") != null
+      || studentScoreTrendMetricValue(point, "percentile") != null,
+  );
   const [lectureFilter, setLectureFilter] = useState<StudentScoreLectureFilter>(ALL_LECTURES);
-  const [metric, setMetric] = useState<StudentScoreTrendMetric>("score_pct");
+  const [metric, setMetric] = useState<StudentScoreTrendMetric>(
+    audience === "learner" && hasComparativeMetrics ? "rank" : "score_pct",
+  );
+  const metricOptions = audience === "learner" ? LEARNER_METRIC_OPTIONS : STAFF_METRIC_OPTIONS;
   const lectureOptions = useMemo(() => {
     const map = new Map<number, LectureOption>();
     for (const point of points) {
@@ -158,9 +171,11 @@ export default function StudentScoreTrendChart({
     }
     return Array.from(map.values());
   }, [points]);
-  const selectedLecture = lectureFilter === ALL_LECTURES || lectureOptions.some((option) => option.id === lectureFilter)
+  const selectedLecture = lectureOptions.some((option) => option.id === lectureFilter)
     ? lectureFilter
-    : ALL_LECTURES;
+    : audience === "learner"
+      ? lectureOptions[0]?.id ?? ALL_LECTURES
+      : ALL_LECTURES;
   const displayPoints = useMemo(
     () => filterStudentScoreTrend(points, selectedLecture),
     [points, selectedLecture],
@@ -174,10 +189,6 @@ export default function StudentScoreTrendChart({
     [displayPoints, metric],
   );
   const latestMetricPoint = metricDisplayPoints[metricDisplayPoints.length - 1];
-  const hasComparativeMetrics = points.some(
-    (point) => studentScoreTrendMetricValue(point, "rank") != null
-      || studentScoreTrendMetricValue(point, "percentile") != null,
-  );
   const chartWidth = Math.max(320, metricDisplayPoints.length * 72);
   const chartUpperBound = metric === "score_pct"
     ? Math.max(100, Math.ceil((metrics.best ?? 100) / 25) * 25)
@@ -220,21 +231,36 @@ export default function StudentScoreTrendChart({
       {(hasComparativeMetrics || (showLectureFilters && lectureOptions.length > 1)) && (
         <div className={styles.controls}>
           {showLectureFilters && lectureOptions.length > 1 && (
-            <div className={styles.filters} aria-label="강의별 성적 추이">
-              <button type="button" aria-pressed={selectedLecture === ALL_LECTURES} data-active={selectedLecture === ALL_LECTURES} onClick={() => setLectureFilter(ALL_LECTURES)}>
-                전체
-              </button>
-              {lectureOptions.map((option) => (
-                <button key={option.id} type="button" aria-pressed={selectedLecture === option.id} data-active={selectedLecture === option.id} onClick={() => setLectureFilter(option.id)}>
-                  <LectureChip lectureName={option.title} color={option.color ?? undefined} chipLabel={option.chipLabel} size={20} />
-                  <span>{option.title}</span>
+            audience === "learner" ? (
+              <div className={styles.lectureSelect}>
+                <select
+                  className="stu-select"
+                  aria-label="강좌별 성적 추이"
+                  value={selectedLecture}
+                  onChange={(event) => setLectureFilter(Number(event.target.value))}
+                >
+                  {lectureOptions.map((option) => (
+                    <option key={option.id} value={option.id}>{option.title}</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className={styles.filters} aria-label="강의별 성적 추이">
+                <button type="button" aria-pressed={selectedLecture === ALL_LECTURES} data-active={selectedLecture === ALL_LECTURES} onClick={() => setLectureFilter(ALL_LECTURES)}>
+                  전체
                 </button>
-              ))}
-            </div>
+                {lectureOptions.map((option) => (
+                  <button key={option.id} type="button" aria-pressed={selectedLecture === option.id} data-active={selectedLecture === option.id} onClick={() => setLectureFilter(option.id)}>
+                    <LectureChip lectureName={option.title} color={option.color ?? undefined} chipLabel={option.chipLabel} size={20} />
+                    <span>{option.title}</span>
+                  </button>
+                ))}
+              </div>
+            )
           )}
           {hasComparativeMetrics && (
             <div className={styles.metricSwitch} role="group" aria-label="성적 추이 기준">
-              {METRIC_OPTIONS.map((option) => (
+              {metricOptions.map((option) => (
                 <button
                   key={option.value}
                   type="button"
@@ -307,7 +333,7 @@ export default function StudentScoreTrendChart({
                   <Line
                     type="monotone"
                     dataKey="metric_value"
-                    name={METRIC_OPTIONS.find((option) => option.value === metric)?.label}
+                    name={metricOptions.find((option) => option.value === metric)?.label}
                     stroke="var(--score-line)"
                     strokeWidth={3}
                     dot={{ r: 5, fill: "var(--score-surface)", stroke: "var(--score-line)", strokeWidth: 3 }}

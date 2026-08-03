@@ -114,7 +114,21 @@
 
 .controls {
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 10px;
+}
+
+.lectureSelect {
+  min-width: 0;
+  flex: 1 1 100%;
+}
+
+.lectureSelect select {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .filters button,
@@ -171,6 +185,7 @@
 }
 
 .filters button:focus-visible,
+.lectureSelect select:focus-visible,
 .metricSwitch button:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--score-line) 50%, transparent);
   outline-offset: 2px;
