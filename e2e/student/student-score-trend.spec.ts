@@ -406,6 +406,9 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
 
     const chart = page.getByTestId("student-score-trend");
     const metricButtons = chart.getByRole("group", { name: "성적 추이 기준" }).getByRole("button");
+    await expect(chart.getByRole("combobox", { name: "강좌별 성적 추이" })).toHaveCount(0);
+    await expect(chart.getByTestId("student-score-trend-current-lecture")).toContainText("고1 Hyper 정규반");
+    await expect(chart.getByTestId("student-score-trend-current-lecture")).toContainText("수강 중");
     await expect(metricButtons).toHaveText(["등수", "상위 %", "득점률"]);
     await expect(chart.getByRole("button", { name: "등수", exact: true })).toBeDisabled();
     await expect(chart.getByRole("button", { name: "상위 %", exact: true })).toBeDisabled();
@@ -513,10 +516,8 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
     await expect(chart).toContainText("누적1회");
     await expect(chart).toContainText("최근3등 / 10명");
     await expect(chart).not.toContainText("최근96%");
-    const singleLectureSelect = chart.getByRole("combobox", { name: "강좌별 성적 추이" });
-    await expect(singleLectureSelect).toBeVisible();
-    await expect(singleLectureSelect.getByRole("option")).toHaveCount(1);
-    await expect(singleLectureSelect).toHaveValue("501");
+    await expect(chart.getByRole("combobox", { name: "강좌별 성적 추이" })).toHaveCount(0);
+    await expect(chart.getByTestId("student-score-trend-current-lecture")).toHaveAccessibleName("현재 강좌: [Y] Ymath 중등 심화");
     expect(selectedHeaders).toContain("11");
     expect(selectedHeaders).toContain("12");
     expect(selectedHeaders).not.toContain("missing");
@@ -574,5 +575,38 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
       return Boolean(scroller && scroller.scrollWidth > scroller.clientWidth);
     })).toBe(true);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  });
+
+  test("데스크톱에서 한 강좌는 선택 상자 대신 컴팩트한 현재 강좌 티켓으로 표시한다", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await installApi(page, "student", {
+      studentPoints: trendA.slice(0, 2),
+      lectureOptions: [
+        { id: 501, title: "[26년 여름방학] 고1 Hyper 정규반 공통수학2 Routine", color: "#2563eb", chip_label: "Y" },
+      ],
+    });
+    await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });
+
+    const chart = page.getByTestId("student-score-trend");
+    const currentLecture = chart.getByTestId("student-score-trend-current-lecture");
+    await expect(chart.getByRole("combobox", { name: "강좌별 성적 추이" })).toHaveCount(0);
+    await expect(currentLecture).toContainText("[26년 여름방학] 고1 Hyper 정규반 공통수학2 Routine");
+    await expect(currentLecture).toContainText("수강 중");
+    const geometry = await chart.evaluate((node) => {
+      const lecture = node.querySelector<HTMLElement>('[data-testid="student-score-trend-current-lecture"]');
+      const metrics = node.querySelector<HTMLElement>('[data-testid="student-score-trend-metric-switch"]');
+      if (!lecture || !metrics) return null;
+      const lectureRect = lecture.getBoundingClientRect();
+      const metricsRect = metrics.getBoundingClientRect();
+      return {
+        lectureWidth: lectureRect.width,
+        sameRow: Math.abs(lectureRect.top - metricsRect.top) < 24,
+      };
+    });
+    expect(geometry).not.toBeNull();
+    expect(geometry?.lectureWidth).toBeLessThanOrEqual(520);
+    expect(geometry?.sameRow).toBe(true);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    await page.screenshot({ path: "test-results/student-score-trend/student-single-lecture-1440.png", fullPage: true });
   });
 });

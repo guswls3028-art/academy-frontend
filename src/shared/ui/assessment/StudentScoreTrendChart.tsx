@@ -26,7 +26,7 @@ import {
   type StudentScoreTrendDisplayPoint,
   type StudentScoreTrendMetric,
 } from "@/shared/scoring/studentScoreTrend";
-import { ArrowDownRight, ArrowUpRight, Minus, Route } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, ChevronDown, Minus, Route } from "lucide-react";
 import styles from "./StudentScoreTrendChart.module.css";
 
 type Props = {
@@ -223,6 +223,7 @@ export default function StudentScoreTrendChart({
     ? description
     : metricDescription(metric, audience);
   const selectedLectureOption = lectureOptions.find((option) => option.id === selectedLecture);
+  const hasMultipleLectures = lectureOptions.length > 1;
   const showLectureControl = showLectureFilters && (
     audience === "learner" ? lectureOptions.length > 0 : lectureOptions.length > 1
   );
@@ -271,21 +272,45 @@ export default function StudentScoreTrendChart({
         <div className={styles.controls}>
           {showLectureControl && (
             audience === "learner" ? (
-              <label className={styles.lectureSelect}>
-                <span>강좌 선택</span>
-                <select
-                  className="stu-select"
-                  aria-label="강좌별 성적 추이"
-                  data-testid="student-score-trend-lecture-select"
-                  title={selectedLectureOption?.title}
-                  value={selectedLecture}
-                  onChange={(event) => setLectureFilter(Number(event.target.value))}
-                >
-                  {lectureOptions.map((option) => (
-                    <option key={option.id} value={option.id}>{lectureOptionLabel(option)}</option>
-                  ))}
-                </select>
-              </label>
+              <div className={styles.lectureContext} data-multiple={hasMultipleLectures}>
+                <span className={styles.lectureContextLabel}>
+                  {hasMultipleLectures ? `강좌별 보기 · ${lectureOptions.length}개` : "현재 강좌"}
+                </span>
+                {hasMultipleLectures ? (
+                  <label className={styles.lectureSelectShell}>
+                    <select
+                      aria-label="강좌별 성적 추이"
+                      data-testid="student-score-trend-lecture-select"
+                      title={selectedLectureOption?.title}
+                      value={selectedLecture}
+                      onChange={(event) => setLectureFilter(Number(event.target.value))}
+                    >
+                      {lectureOptions.map((option) => (
+                        <option key={option.id} value={option.id}>{lectureOptionLabel(option)}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={ICON.sm} aria-hidden />
+                  </label>
+                ) : selectedLectureOption ? (
+                  <div
+                    className={styles.currentLecture}
+                    aria-label={`현재 강좌: ${lectureOptionLabel(selectedLectureOption)}`}
+                    data-testid="student-score-trend-current-lecture"
+                    title={selectedLectureOption.title}
+                  >
+                    <span className={styles.currentLectureChip} aria-hidden>
+                      <LectureChip
+                        lectureName={selectedLectureOption.title}
+                        color={selectedLectureOption.color ?? undefined}
+                        chipLabel={selectedLectureOption.chip_label}
+                        size={24}
+                      />
+                    </span>
+                    <strong>{selectedLectureOption.title}</strong>
+                    <span className={styles.currentLectureStatus}>수강 중</span>
+                  </div>
+                ) : null}
+              </div>
             ) : (
               <div className={styles.filters} aria-label="강의별 성적 추이">
                 <button type="button" aria-pressed={selectedLecture === ALL_LECTURES} data-active={selectedLecture === ALL_LECTURES} onClick={() => setLectureFilter(ALL_LECTURES)}>
@@ -301,7 +326,7 @@ export default function StudentScoreTrendChart({
             )
           )}
           {showMetricControl && (
-            <div className={styles.metricSwitch} role="group" aria-label="성적 추이 기준">
+            <div className={styles.metricSwitch} role="group" aria-label="성적 추이 기준" data-testid="student-score-trend-metric-switch">
               {metricOptions.map((option) => {
                 const unavailable = audience === "learner"
                   && option.value !== "score_pct"
