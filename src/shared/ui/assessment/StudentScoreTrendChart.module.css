@@ -119,8 +119,16 @@
 }
 
 .lectureSelect {
+  display: grid;
   min-width: 0;
   flex: 1 1 100%;
+  gap: 5px;
+}
+
+.lectureSelect > span {
+  color: var(--score-text-muted);
+  font-size: 10px;
+  font-weight: 750;
 }
 
 .lectureSelect select {
@@ -175,6 +183,11 @@
   border-color: color-mix(in srgb, var(--score-line) 48%, var(--score-border));
   color: var(--score-line);
   background: color-mix(in srgb, var(--score-line) 8%, var(--score-surface));
+}
+
+.metricSwitch button:disabled {
+  color: color-mix(in srgb, var(--score-text-muted) 58%, transparent);
+  cursor: not-allowed;
 }
 
 .metricSwitch button[data-active="true"] {

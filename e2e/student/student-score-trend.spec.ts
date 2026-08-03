@@ -109,6 +109,27 @@ const trendB = [{
 
 type TrendPoint = (typeof trendA)[number];
 
+type LectureOption = {
+  id: number;
+  title: string;
+  color: string | null;
+  chip_label: string | null;
+};
+
+function lectureOptionsFor(points: TrendPoint[]): LectureOption[] {
+  const options = new Map<number, LectureOption>();
+  for (const point of points) {
+    if (point.lecture_id == null || !point.lecture_title || options.has(point.lecture_id)) continue;
+    options.set(point.lecture_id, {
+      id: point.lecture_id,
+      title: point.lecture_title,
+      color: point.lecture_color,
+      chip_label: point.lecture_chip_label,
+    });
+  }
+  return Array.from(options.values());
+}
+
 function gradesFor(points: TrendPoint[]) {
   const latest = points.at(-1)?.score_pct ?? null;
   const previous = points.length > 1 ? points.at(-2)?.score_pct ?? null : null;
@@ -212,6 +233,8 @@ async function installApi(
     failAnalytics?: boolean;
     reportLayout?: unknown;
     analyticsRequests?: string[];
+    lectureOptions?: LectureOption[];
+    omitLectureOptions?: boolean;
   } = {},
 ): Promise<string[]> {
   const selectedHeaders: string[] = [];
@@ -277,6 +300,9 @@ async function installApi(
       await route.fulfill({
         json: {
           ...gradesFor(selectedPoints),
+          ...(!options.omitLectureOptions ? {
+            lecture_options: options.lectureOptions ?? lectureOptionsFor(selectedPoints),
+          } : {}),
           ...(options.reportLayout ? { report_layout: options.reportLayout } : {}),
         },
       });
@@ -298,19 +324,28 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
   test("학생은 강좌별 성장선과 등수 우선 지표를 확인한다", async ({ page }) => {
     const firstLectureTitle = "[26년 여름방학] 고1 Hyper 정규반 공통수학2 Routine";
     const secondLectureTitle = "[26년 여름방학] 고1 Hyper 특강 대수 Remake";
+    const emptyLectureTitle = "[26년 여름방학] 고1 Hyper 주말 클리닉";
     const studentPoints = trendA.map((point) => ({
       ...point,
       lecture_title: point.lecture_id === 501 ? firstLectureTitle : secondLectureTitle,
     }));
-    await installApi(page, "student", { studentPoints });
+    await installApi(page, "student", {
+      studentPoints,
+      lectureOptions: [
+        { id: 501, title: firstLectureTitle, color: "#2563eb", chip_label: "Y" },
+        { id: 502, title: secondLectureTitle, color: "#7c3aed", chip_label: "경" },
+        { id: 503, title: emptyLectureTitle, color: "#16a34a", chip_label: "클" },
+      ],
+    });
     await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });
 
     const chart = page.getByTestId("student-score-trend");
     await expect(chart).toBeVisible();
     const lectureSelect = chart.getByRole("combobox", { name: "강좌별 성적 추이" });
     await expect(lectureSelect).toHaveValue("501");
-    await expect(lectureSelect.getByRole("option")).toHaveCount(2);
-    await expect(lectureSelect.getByRole("option").first()).toHaveText(firstLectureTitle);
+    await expect(lectureSelect.getByRole("option")).toHaveCount(3);
+    await expect(lectureSelect.getByRole("option").first()).toHaveText(`[Y] ${firstLectureTitle}`);
+    await expect(lectureSelect.getByRole("option").last()).toHaveText(`[클] ${emptyLectureTitle}`);
     await expect(lectureSelect.getByRole("option", { name: "전체", exact: true })).toHaveCount(0);
 
     const metricButtons = chart.getByRole("group", { name: "성적 추이 기준" }).getByRole("button");
@@ -340,6 +375,16 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
     await expect(chart).toContainText("48 / 50점 · 득점률 96%");
     await expect(chart).not.toContainText("미응시 테스트");
     await expect(page.getByRole("region", { name: "성적 비교" })).toBeVisible();
+
+    await chart.getByRole("button", { name: "등수", exact: true }).click();
+    await lectureSelect.selectOption("503");
+    await expect(chart).toContainText("이 강좌에는 아직 연결할 점수가 없습니다.");
+    await expect(chart.getByRole("button", { name: "등수", exact: true })).toBeDisabled();
+    await expect(chart.getByRole("button", { name: "상위 %", exact: true })).toBeDisabled();
+    await expect(chart.getByRole("button", { name: "득점률", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await lectureSelect.selectOption("501");
+    await expect(chart.getByRole("button", { name: "등수", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(chart).toContainText("최근2등 / 10명");
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
     await page.screenshot({ path: "test-results/student-score-trend/student-390.png", fullPage: true });
   });
@@ -441,6 +486,10 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
     await expect(chart).toContainText("누적1회");
     await expect(chart).toContainText("최근3등 / 10명");
     await expect(chart).not.toContainText("최근96%");
+    const singleLectureSelect = chart.getByRole("combobox", { name: "강좌별 성적 추이" });
+    await expect(singleLectureSelect).toBeVisible();
+    await expect(singleLectureSelect.getByRole("option")).toHaveCount(1);
+    await expect(singleLectureSelect).toHaveValue("501");
     expect(selectedHeaders).toContain("11");
     expect(selectedHeaders).toContain("12");
     expect(selectedHeaders).not.toContain("missing");
@@ -451,13 +500,14 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
     await page.addInitScript(() => {
       localStorage.setItem("hakwonplus:student-theme-mode", "dark");
     });
-    await installApi(page, "student");
+    await installApi(page, "student", { omitLectureOptions: true });
     await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });
 
     const app = page.locator("[data-app='student']");
     await expect(app).toHaveAttribute("data-student-dark", "true");
     const chart = page.getByTestId("student-score-trend");
     await expect(chart).toBeVisible();
+    await expect(chart.getByRole("combobox", { name: "강좌별 성적 추이" })).toBeVisible();
     await expect(chart).toContainText("최근2등 / 10명");
     await expect(chart.locator(".recharts-line-dots circle")).toHaveCount(2);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);

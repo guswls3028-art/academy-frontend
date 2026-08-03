@@ -81,6 +81,13 @@ export type StudentExamSummary = {
   best_score_pct: number | null;
 };
 
+export type StudentScoreLectureOption = {
+  id: number;
+  title: string;
+  color: string | null;
+  chip_label: string | null;
+};
+
 export type StudentGradesResponse = {
   exams: StudentExamGrade[];
   homeworks: StudentHomeworkGrade[];

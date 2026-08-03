@@ -5,7 +5,10 @@
 import { Fragment, useMemo, type ReactNode } from "react";
 import { StatCard, StatGrid } from "@student/shared/ui/components/StatCard";
 import ProgressRing from "@student/shared/ui/components/ProgressRing";
-import type { StudentExamTrendPoint } from "@/shared/api/contracts/studentGrades";
+import type {
+  StudentExamTrendPoint,
+  StudentScoreLectureOption,
+} from "@/shared/api/contracts/studentGrades";
 import StudentScoreTrendChart from "@/shared/ui/assessment/StudentScoreTrendChart";
 import type {
   StudentGradeReportLayout,
@@ -20,6 +23,7 @@ type Props = {
   exams: MyExamGradeSummary[];
   homeworks: MyHomeworkGradeSummary[];
   examTrend: StudentExamTrendPoint[];
+  lectureOptions: StudentScoreLectureOption[];
   analytics?: MyGradesAnalytics;
   analyticsLoading?: boolean;
   analyticsError?: boolean;
@@ -36,6 +40,7 @@ export default function GradesStatsTab({
   exams,
   homeworks,
   examTrend,
+  lectureOptions,
   analytics,
   analyticsLoading,
   analyticsError,
@@ -143,7 +148,13 @@ export default function GradesStatsTab({
   };
 
   const sections: Record<StudentGradeReportSectionId, ReactNode> = {
-    score_trend: <StudentScoreTrendChart points={examTrend} audience="learner" />,
+    score_trend: (
+      <StudentScoreTrendChart
+        points={examTrend}
+        audience="learner"
+        lectureOptions={lectureOptions}
+      />
+    ),
     score_comparison: withAnalyticsState(
       "score_comparison",
       <ScoreComparisonSection
