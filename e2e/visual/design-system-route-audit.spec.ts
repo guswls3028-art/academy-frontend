@@ -206,6 +206,10 @@ async function gotoSettled(page: Page, url: string) {
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
   await page.locator("body").waitFor({ state: "visible", timeout: 15_000 });
+  await page.waitForFunction(() => {
+    const bodyText = (document.body.innerText || "").trim().replace(/\s+/g, " ");
+    return !/^(?:불러오는 중|로딩 중)(?:\.{3}|…)?$/.test(bodyText);
+  }, undefined, { timeout: 15_000 }).catch(() => undefined);
   await page.evaluate(() => document.fonts?.ready).catch(() => undefined);
 }
 
@@ -337,6 +341,13 @@ async function auditRoute(page: Page, testInfo: TestInfo, base: string, route: s
     const body = document.body;
     const overflowX = Math.max(html.scrollWidth, body.scrollWidth) - window.innerWidth;
     const bodyText = body.innerText || "";
+    const escapedHtmlPattern = /<\/?(?:p|div|span|br|table|tbody|thead|tr|td|th|strong|em|h[1-6])\b|&(?:amp;)*(?:lt|gt);/i;
+    const escapedHtmlAttributes = Array.from(
+      document.querySelectorAll<HTMLElement>("[aria-label], [title], [alt], [placeholder]"),
+    ).flatMap((element) => ["aria-label", "title", "alt", "placeholder"].map((attribute) => ({
+      attribute,
+      value: element.getAttribute(attribute) ?? "",
+    }))).filter(({ value }) => escapedHtmlPattern.test(value)).slice(0, 8);
 
     return {
       url: location.href,
@@ -350,7 +361,8 @@ async function auditRoute(page: Page, testInfo: TestInfo, base: string, route: s
       viewportWidth: window.innerWidth,
       bodyTextLength: bodyText.trim().length,
       hasErrorText: /Not Found|ChunkLoadError|Application error|Something went wrong|Unable to preload CSS|오류가 발생했습니다|404/i.test(bodyText),
-      hasEscapedHtml: /<\/?(?:p|div|span|br|table|tbody|thead|tr|td|th|strong|em|h[1-6])(?:\s|\/?>)/i.test(bodyText),
+      hasEscapedHtml: escapedHtmlPattern.test(bodyText),
+      escapedHtmlAttributes,
     };
   }, [...REQUIRED_TOKENS]);
 
@@ -363,9 +375,8 @@ async function auditRoute(page: Page, testInfo: TestInfo, base: string, route: s
   expect.soft(snapshot.overflowX, `${route} body horizontal overflow`).toBeLessThanOrEqual(
     route.startsWith("/student/") || route.startsWith("/workspace/mobile") || snapshot.viewportWidth <= 640 ? 1 : 80,
   );
-  if (route.startsWith("/student/")) {
-    expect.soft(snapshot.hasEscapedHtml, `${route} exposed escaped HTML to the user`).toBe(false);
-  }
+  expect.soft(snapshot.hasEscapedHtml, `${route} exposed escaped HTML to the user`).toBe(false);
+  expect.soft(snapshot.escapedHtmlAttributes, `${route} exposed escaped HTML in accessible text`).toEqual([]);
 
   const screenshotPath = testInfo.outputPath(`${routeName(route)}.png`);
   await page.screenshot({
@@ -405,6 +416,17 @@ test.describe("design-system route visual audit", () => {
   test("student mobile route surface is visually stable", async ({ page }, testInfo) => {
     test.setTimeout(8 * 60_000);
     await page.setViewportSize({ width: 390, height: 844 });
+    const base = getBaseUrl("student").replace(/\/+$/, "");
+    await loginViaUI(page, "student", { landingPath: "/student/dashboard" });
+
+    for (const route of STUDENT_ROUTES) {
+      await auditRoute(page, testInfo, base, route);
+    }
+  });
+
+  test("student desktop route surface is visually stable", async ({ page }, testInfo) => {
+    test.setTimeout(8 * 60_000);
+    await page.setViewportSize({ width: 1366, height: 900 });
     const base = getBaseUrl("student").replace(/\/+$/, "");
     await loginViaUI(page, "student", { landingPath: "/student/dashboard" });
 

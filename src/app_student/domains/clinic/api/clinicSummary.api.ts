@@ -1,4 +1,5 @@
 import api from "@student/shared/api/student.api";
+import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 
 export type ClinicCurrentTarget = {
   clinic_link_id: number;
@@ -29,7 +30,18 @@ export async function fetchStudentClinicSummary(): Promise<StudentClinicSummary>
   const data = response.data as Partial<StudentClinicSummary>;
 
   return {
-    current_targets: Array.isArray(data.current_targets) ? data.current_targets : [],
+    current_targets: Array.isArray(data.current_targets)
+      ? data.current_targets.map((target) => ({
+          ...target,
+          lecture_title: richHtmlToPlainText(target.lecture_title),
+          lecture_chip_label: target.lecture_chip_label == null
+            ? target.lecture_chip_label
+            : richHtmlToPlainText(target.lecture_chip_label),
+          session_title: target.session_title == null
+            ? target.session_title
+            : richHtmlToPlainText(target.session_title),
+        }))
+      : [],
     current_result: data.current_result === "FAIL" ? "FAIL" : "SUCCESS",
   };
 }

@@ -8,6 +8,7 @@ import EmptyState from "@student/layout/EmptyState";
 import api from "@student/shared/api/student.api";
 import { formatYmd } from "@student/shared/utils/date";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
+import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 import styles from "./AttendancePage.module.css";
 
 type AttendanceSummary = {
@@ -55,7 +56,16 @@ const STATUS_TONE: Partial<Record<string, AttendanceTone>> = {
 
 async function fetchAttendanceSummary(): Promise<AttendanceSummary> {
   const res = await api.get<AttendanceSummary>("/student/attendance/summary/");
-  return res.data;
+  return {
+    ...res.data,
+    recent: Array.isArray(res.data.recent)
+      ? res.data.recent.map((row) => ({
+          ...row,
+          lecture_title: richHtmlToPlainText(row.lecture_title),
+          session_title: richHtmlToPlainText(row.session_title),
+        }))
+      : [],
+  };
 }
 
 export default function AttendancePage() {

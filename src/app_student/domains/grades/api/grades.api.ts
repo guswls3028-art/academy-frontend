@@ -10,6 +10,7 @@ import {
   normalizeStudentGradeReportLayout,
   type StudentGradeReportLayout,
 } from "@/shared/api/contracts/studentGradeReportLayout";
+import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 
 /** achievement: PASS=1차합격, REMEDIATED=보강후합격, FAIL=불합격, NOT_SUBMITTED=미응시 */
 export type Achievement = "PASS" | "REMEDIATED" | "FAIL" | "NOT_SUBMITTED";
@@ -72,6 +73,28 @@ const EMPTY_EXAM_SUMMARY: StudentExamSummary = {
   best_score_pct: null,
 };
 
+function plainOptional(value: string | null | undefined): string | null | undefined {
+  return value == null ? value : richHtmlToPlainText(value);
+}
+
+function normalizeExamGrade(exam: MyExamGradeSummary): MyExamGradeSummary {
+  return {
+    ...exam,
+    title: richHtmlToPlainText(exam.title),
+    session_title: plainOptional(exam.session_title) ?? null,
+    lecture_title: plainOptional(exam.lecture_title) ?? null,
+  };
+}
+
+function normalizeHomeworkGrade(homework: MyHomeworkGradeSummary): MyHomeworkGradeSummary {
+  return {
+    ...homework,
+    title: richHtmlToPlainText(homework.title),
+    session_title: plainOptional(homework.session_title) ?? null,
+    lecture_title: plainOptional(homework.lecture_title) ?? null,
+  };
+}
+
 export type MyGradesAnalytics = {
   student?: { id: number; name: string };
   date_range?: { days: number; from: string | null; to: string | null };
@@ -128,12 +151,31 @@ export async function fetchMyGradesSummary(): Promise<MyGradesSummary> {
   const res = await api.get<Partial<MyGradesSummary>>("/student/grades/");
   const data = res.data ?? {};
   return {
-    exams: Array.isArray(data.exams) ? data.exams : [],
-    homeworks: Array.isArray(data.homeworks) ? data.homeworks : [],
-    exam_trend: Array.isArray(data.exam_trend) ? data.exam_trend : [],
+    exams: Array.isArray(data.exams) ? data.exams.map(normalizeExamGrade) : [],
+    homeworks: Array.isArray(data.homeworks) ? data.homeworks.map(normalizeHomeworkGrade) : [],
+    exam_trend: Array.isArray(data.exam_trend)
+      ? data.exam_trend.map((point) => ({
+          ...point,
+          title: richHtmlToPlainText(point.title),
+          session_title: plainOptional(point.session_title) ?? null,
+          lecture_title: plainOptional(point.lecture_title) ?? null,
+          lecture_chip_label: plainOptional(point.lecture_chip_label) ?? null,
+        }))
+      : [],
     exam_summary: data.exam_summary ?? EMPTY_EXAM_SUMMARY,
-    lecture_options: Array.isArray(data.lecture_options) ? data.lecture_options : [],
-    labels: data.labels ?? undefined,
+    lecture_options: Array.isArray(data.lecture_options)
+      ? data.lecture_options.map((lecture) => ({
+          ...lecture,
+          title: richHtmlToPlainText(lecture.title),
+          chip_label: plainOptional(lecture.chip_label) ?? null,
+        }))
+      : [],
+    labels: data.labels
+      ? {
+          pass: plainOptional(data.labels.pass) ?? undefined,
+          fail: plainOptional(data.labels.fail) ?? undefined,
+        }
+      : undefined,
     report_layout: normalizeStudentGradeReportLayout(data.report_layout),
   };
 }
@@ -143,6 +185,9 @@ export async function fetchMyGradesAnalytics(): Promise<MyGradesAnalytics> {
   const data = res.data;
   return {
     ...data,
+    student: data.student
+      ? { ...data.student, name: richHtmlToPlainText(data.student.name) }
+      : data.student,
     summary: data.summary ?? {
       exam_count: 0,
       scored_exam_count: 0,
@@ -152,8 +197,19 @@ export async function fetchMyGradesAnalytics(): Promise<MyGradesAnalytics> {
       not_submitted_count: 0,
       risk_level: "insufficient",
     },
-    trends: Array.isArray(data.trends) ? data.trends : [],
-    lecture_breakdown: Array.isArray(data.lecture_breakdown) ? data.lecture_breakdown : [],
+    trends: Array.isArray(data.trends)
+      ? data.trends.map((trend) => ({
+          ...trend,
+          title: richHtmlToPlainText(trend.title),
+          lecture_title: plainOptional(trend.lecture_title) ?? null,
+        }))
+      : [],
+    lecture_breakdown: Array.isArray(data.lecture_breakdown)
+      ? data.lecture_breakdown.map((lecture) => ({
+          ...lecture,
+          lecture_title: richHtmlToPlainText(lecture.lecture_title),
+        }))
+      : [],
     weak_questions: Array.isArray(data.weak_questions) ? data.weak_questions : [],
     homework: data.homework ?? {
       assigned_count: 0,
@@ -161,11 +217,19 @@ export async function fetchMyGradesAnalytics(): Promise<MyGradesAnalytics> {
       avg_score_pct: null,
       pass_rate_pct: null,
     },
-    highlights: data.highlights ?? {
-      latest_exam: null,
-      best_exam: null,
-      weakest_exam: null,
-    },
-    insights: Array.isArray(data.insights) ? data.insights : [],
+    highlights: data.highlights
+      ? {
+          latest_exam: data.highlights.latest_exam
+            ? { ...data.highlights.latest_exam, title: richHtmlToPlainText(data.highlights.latest_exam.title) }
+            : null,
+          best_exam: data.highlights.best_exam
+            ? { ...data.highlights.best_exam, title: richHtmlToPlainText(data.highlights.best_exam.title) }
+            : null,
+          weakest_exam: data.highlights.weakest_exam
+            ? { ...data.highlights.weakest_exam, title: richHtmlToPlainText(data.highlights.weakest_exam.title) }
+            : null,
+        }
+      : { latest_exam: null, best_exam: null, weakest_exam: null },
+    insights: Array.isArray(data.insights) ? data.insights.map(richHtmlToPlainText) : [],
   };
 }

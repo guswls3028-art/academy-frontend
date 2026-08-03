@@ -3,6 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import { getTenantBranding, getTenantIdFromCode, resolveTenantCode } from "@/shared/tenant";
+import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 
 export type Program = {
   tenantCode: string;
@@ -53,6 +54,23 @@ function getDevFallbackProgram(): Program {
   };
 }
 
+function plainOptional(value: string | undefined): string | undefined {
+  return value == null ? value : richHtmlToPlainText(value);
+}
+
+function normalizeProgramDisplay(program: Program): Program {
+  return {
+    ...program,
+    display_name: richHtmlToPlainText(program.display_name),
+    ui_config: {
+      ...program.ui_config,
+      login_title: plainOptional(program.ui_config?.login_title),
+      login_subtitle: plainOptional(program.ui_config?.login_subtitle),
+      window_title: plainOptional(program.ui_config?.window_title),
+    },
+  };
+}
+
 type ProgramState = {
   program: Program | null;
   isLoading: boolean;
@@ -80,7 +98,7 @@ function fetchProgramBootstrap(): Promise<Program | null> {
     const attemptFetch = async (attempt = 0): Promise<Program | null> => {
       try {
         const res = await api.get<Program>("/core/program/", { skipAuth: true } as ApiRequestConfig);
-        return res.data ?? null;
+        return res.data ? normalizeProgramDisplay(res.data) : null;
       } catch (e: unknown) {
         if (import.meta.env.DEV) {
           const err = e as {
