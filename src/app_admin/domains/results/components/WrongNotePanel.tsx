@@ -611,7 +611,7 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
               onClick={() => setOutputFormat("hwpx")}
             >
               한글 HWPX
-              <span>한글에서 열기</span>
+              <span>원본 보존 · 메모 편집</span>
             </button>
           </div>
         </div>
