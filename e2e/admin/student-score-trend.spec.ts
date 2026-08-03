@@ -668,9 +668,7 @@ test.describe("학생별 회차 누적 성적 추이", () => {
   test("관리자 학생 상세에서 자동 누적·강의 필터·정규화 점수를 확인한다", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 900 });
     await installApi(page);
-    await page.goto(`${BASE}/workspace`, { waitUntil: "domcontentloaded" });
-
-    await page.locator('a[href="/workspace/students"]').first().click();
+    await page.goto(`${BASE}/workspace/students/home`, { waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/\/workspace\/students\/home/);
     await page.getByRole("button", { name: /윤지용 학생/ }).first().click();
     await expect(page).toHaveURL(/\/workspace\/students\/101/);

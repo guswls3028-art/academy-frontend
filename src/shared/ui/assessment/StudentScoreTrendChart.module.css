@@ -197,6 +197,14 @@
   box-shadow: 0 1px 3px color-mix(in srgb, var(--score-text) 8%, transparent);
 }
 
+.comparisonHint {
+  flex: 1 1 100%;
+  margin: -4px 0 0;
+  color: var(--score-text-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
 .filters button:focus-visible,
 .lectureSelect select:focus-visible,
 .metricSwitch button:focus-visible {
