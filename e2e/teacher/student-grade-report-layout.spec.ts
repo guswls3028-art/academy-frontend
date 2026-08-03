@@ -19,7 +19,7 @@ function fakeJwt(): string {
 }
 
 const initialLayout = {
-  version: 1 as const,
+  version: 2 as const,
   sections: [
     { id: "score_trend", visible: true },
     { id: "score_comparison", visible: true },
@@ -30,6 +30,11 @@ const initialLayout = {
     { id: "weakest_lecture", visible: true },
     { id: "homework_summary", visible: true },
   ],
+  score_comparison_metrics: {
+    average_score: true,
+    pass_rate: true,
+    status: true,
+  },
 };
 
 test.describe("학생 성적표 구성", () => {
@@ -93,6 +98,8 @@ test.describe("학생 성적표 구성", () => {
     await expect(page.getByRole("heading", { name: "학생 성적표 구성" })).toBeVisible();
 
     await page.getByRole("switch", { name: "보완 우선순위 숨기기" }).click();
+    await page.getByRole("switch", { name: "통과율" }).click();
+    await page.getByRole("switch", { name: "상태" }).click();
     await expect(page.getByRole("switch", { name: "보완 우선순위 표시하기" })).toBeVisible();
     await expect(page.getByRole("button", { name: "전체 표시로 되돌리기" })).toBeVisible();
 
@@ -111,7 +118,7 @@ test.describe("학생 성적표 구성", () => {
     await page.getByRole("button", { name: "성적 비교 위로 이동" }).click();
 
     const preview = page.getByRole("complementary", { name: "학생 화면 미리보기" });
-    await expect(preview.locator("div").filter({ hasText: /^1성적 비교$/ })).toBeVisible();
+    await expect(preview.locator("div").filter({ hasText: /^1성적 비교 · 평균 득점률$/ })).toBeVisible();
     await expect(preview).not.toContainText("보완 우선순위");
     await page.getByRole("button", { name: "구성 저장" }).click();
 
@@ -123,6 +130,11 @@ test.describe("학생 성적표 구성", () => {
       { id: "lecture_average", visible: true },
       { id: "improvement_priority", visible: false },
     ]);
+    expect((savedLayout as { score_comparison_metrics: Record<string, boolean> }).score_comparison_metrics).toEqual({
+      average_score: true,
+      pass_rate: false,
+      status: false,
+    });
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
     await page.getByRole("heading", { name: "학생 성적표 구성" }).scrollIntoViewIfNeeded();
     await page.screenshot({ path: "test-results/student-grade-report-layout/teacher-mobile-390.png", fullPage: true });

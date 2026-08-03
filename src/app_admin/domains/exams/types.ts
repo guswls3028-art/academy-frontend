@@ -51,6 +51,7 @@ export type Exam = {
   can_edit_structure: boolean;
 
   answer_visibility: AnswerVisibility;
+  student_results_published: boolean;
 
   created_at: string;
   updated_at: string;

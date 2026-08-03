@@ -93,9 +93,15 @@ export default function ExamDetailPage() {
           </div>
 
           <div className={styles.actionStack}>
-            <Link to={`/student/exams/${exam.id}/result`} className="stu-cta-link">
-              결과 보기
-            </Link>
+            {exam.student_results_published === false ? (
+              <div className={`stu-muted ${styles.hintText}`} role="status">
+                성적은 선생님이 공개한 뒤 확인할 수 있습니다.
+              </div>
+            ) : (
+              <Link to={`/student/exams/${exam.id}/result`} className="stu-cta-link">
+                결과 보기
+              </Link>
+            )}
 
             {/* ✅ can_retake만 신뢰. null = 로딩 중(버튼 미표시). 학부모는 응시 불가. 마감된 시험은 응시 불가 */}
             {isParent ? (

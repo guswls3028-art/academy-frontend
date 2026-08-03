@@ -338,7 +338,7 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
   test("학원 설정에 따라 성장 그래프 섹션을 숨기고 순서를 바꾼다", async ({ page }) => {
     await installApi(page, "student", {
       reportLayout: {
-        version: 1,
+        version: 2,
         sections: [
           { id: "score_comparison", visible: true },
           { id: "score_trend", visible: true },
@@ -349,6 +349,11 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
           { id: "weakest_lecture", visible: false },
           { id: "homework_summary", visible: false },
         ],
+        score_comparison_metrics: {
+          average_score: true,
+          pass_rate: false,
+          status: false,
+        },
       },
     });
     await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });
@@ -358,6 +363,9 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
     await expect(comparison).toBeVisible();
     await expect(trend).toBeVisible();
     await expect(page.getByRole("region", { name: "강좌별 평균" })).toBeVisible();
+    await expect(comparison.getByText("평균 득점률", { exact: true })).toBeVisible();
+    await expect(comparison.getByText("통과율", { exact: true })).toHaveCount(0);
+    await expect(comparison.getByText("상태", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("region", { name: "보완 우선순위" })).toHaveCount(0);
     await expect(page.getByRole("region", { name: "시험 성적 요약" })).toHaveCount(0);
     await expect.poll(async () => comparison.evaluate((node, trendSelector) => {
@@ -371,7 +379,7 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
     await installApi(page, "student", {
       analyticsRequests,
       reportLayout: {
-        version: 1,
+        version: 2,
         sections: [
           { id: "score_trend", visible: true },
           { id: "score_comparison", visible: false },
@@ -382,6 +390,11 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
           { id: "weakest_lecture", visible: false },
           { id: "homework_summary", visible: false },
         ],
+        score_comparison_metrics: {
+          average_score: true,
+          pass_rate: true,
+          status: true,
+        },
       },
     });
     await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });

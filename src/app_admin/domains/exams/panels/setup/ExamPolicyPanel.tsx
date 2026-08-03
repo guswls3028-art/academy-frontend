@@ -33,6 +33,7 @@ type ExamPolicyForm = {
   openAt: string;
   closeAt: string;
   answerVisibility: AnswerVisibility;
+  studentResultsPublished: boolean;
 };
 
 type GradingChoice = "choice" | "written_correctness" | "written_score" | "mixed";
@@ -90,6 +91,7 @@ function formFromExam(exam: Exam): ExamPolicyForm {
     openAt: toLocalDateTime(exam.open_at),
     closeAt: toLocalDateTime(exam.close_at),
     answerVisibility: exam.answer_visibility,
+    studentResultsPublished: exam.student_results_published,
   };
 }
 
@@ -223,6 +225,7 @@ export default function ExamPolicyPanel({
         open_at: toIsoDateTime(nextForm.openAt),
         close_at: toIsoDateTime(nextForm.closeAt),
         answer_visibility: nextForm.answerVisibility,
+        student_results_published: nextForm.studentResultsPublished,
       }, baseUpdatedAtRef.current);
     },
     onSuccess: (updated) => {
@@ -332,7 +335,7 @@ export default function ExamPolicyPanel({
           <div>
             <h2 className={formStyles.title}>시험 운영 설정</h2>
             <p className={formStyles.description}>
-              점수, 채점 방식, 응시 기간과 정답 공개를 한곳에서 관리합니다.
+              점수, 채점 방식, 응시 기간과 학생 성적·정답 공개를 한곳에서 관리합니다.
             </p>
           </div>
         </div>
@@ -451,6 +454,33 @@ export default function ExamPolicyPanel({
           <div className={formStyles.group}>
             <h3 className={formStyles.groupTitle}>응시와 공개</h3>
             <div className={formStyles.fieldGrid}>
+              <div
+                className={`${formStyles.field} ${formStyles.fieldWide}`}
+                data-testid="student-results-visibility-control"
+              >
+                <span className={formStyles.label}>학생 성적 공개</span>
+                <div className={formStyles.switchRow}>
+                  <span className={formStyles.switchCopy}>
+                    <strong>
+                      {form.studentResultsPublished
+                        ? "학생·학부모에게 공개"
+                        : "교직원만 확인"}
+                    </strong>
+                    <small>
+                      비공개해도 채점 기록은 유지되며 학생·학부모의 성적 목록과 분석에는 표시되지 않습니다.
+                    </small>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={form.studentResultsPublished}
+                    onChange={(event) => setForm({
+                      ...form,
+                      studentResultsPublished: event.target.checked,
+                    })}
+                    aria-label="학생 성적 공개"
+                  />
+                </div>
+              </div>
               <label className={formStyles.field}>
                 <span className={formStyles.label}>응시 시작</span>
                 <input

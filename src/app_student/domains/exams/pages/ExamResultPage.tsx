@@ -52,6 +52,23 @@ export default function ExamResultPage() {
   }
 
   const r = resultQ.data;
+  if (r.student_results_published === false) {
+    return (
+      <StudentPageShell
+        title="시험 결과"
+        actions={
+          <Link to="/student/exams" className="stu-cta-link">
+            시험 목록
+          </Link>
+        }
+      >
+        <EmptyState
+          title="성적 공개 전입니다."
+          description="선생님이 공개하면 이 화면에서 점수와 문항별 결과를 확인할 수 있어요."
+        />
+      </StudentPageShell>
+    );
+  }
   const items = itemsQ.data ?? [];
   const pct = r.max_score > 0 ? clampPercent(Math.round((r.total_score / r.max_score) * 100)) : 0;
   // 최종 합격 여부: 1차 합격(is_pass) OR 클리닉 재시험 통과(remediated)

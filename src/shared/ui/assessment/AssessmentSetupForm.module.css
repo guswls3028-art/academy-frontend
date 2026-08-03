@@ -188,6 +188,10 @@
   background: var(--color-bg-surface-soft);
 }
 
+.fieldWide {
+  grid-column: 1 / -1;
+}
+
 .switchCopy {
   display: grid;
   gap: 3px;
