@@ -132,8 +132,7 @@ export default function FeesDashboardTab() {
           <EmptyState title="연체 학생이 없습니다" />
         ) : (
           <DomainTable>
-            <table className="ds-table">
-              <thead>
+            <thead>
                 <tr>
                   <th>학생</th>
                   <th>청구월</th>
@@ -142,8 +141,8 @@ export default function FeesDashboardTab() {
                   <th>납부기한</th>
                   <th>상태</th>
                 </tr>
-              </thead>
-              <tbody>
+            </thead>
+            <tbody>
                 {overdueList.map((inv: StudentInvoice) => (
                   <tr key={inv.id}>
                     <td>
@@ -160,8 +159,7 @@ export default function FeesDashboardTab() {
                     <td><StatusBadge status={inv.status} /></td>
                   </tr>
                 ))}
-              </tbody>
-            </table>
+            </tbody>
           </DomainTable>
         )}
       </div>

@@ -58,15 +58,15 @@ export default function DomainListToolbar({
 
   return (
     <div className="domain-list-toolbar flex flex-col gap-3">
-    <div className="flex flex-wrap items-center gap-3">
-      <span className={styles.totalDesktop}>
-        {totalLabel}
-      </span>
-      {searchSlot}
-      {filterSlot}
-      {primaryAction}
-    </div>
-    {belowSlot}
+      <div className={styles.desktopMainRow}>
+        <span className={styles.totalDesktop}>
+          {totalLabel}
+        </span>
+        <div className={styles.desktopSearch}>{searchSlot}</div>
+        <div className={styles.desktopPrimary}>{primaryAction}</div>
+      </div>
+      {filterSlot && <div className={styles.desktopFilters}>{filterSlot}</div>}
+      {belowSlot && <div className={styles.desktopBelow}>{belowSlot}</div>}
     </div>
   );
 }

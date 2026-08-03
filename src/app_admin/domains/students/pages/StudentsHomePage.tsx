@@ -163,6 +163,7 @@ export default function StudentsHomePage() {
 
   const selectionBar = (
     <div className={styles.selectionBar}>
+      {selectedCount > 0 && (
       <div className={`flex items-center gap-2 pl-1 ${styles.selectionActions}`}>
         <span
           className={`text-[13px] font-semibold ${styles.selectedCount}`}
@@ -324,6 +325,7 @@ export default function StudentsHomePage() {
           </>
         )}
       </div>
+      )}
 
     {totalPages > 1 && (
       <div className="flex flex-wrap items-center gap-1 pl-1">
@@ -448,7 +450,7 @@ export default function StudentsHomePage() {
               </Button>
             ) : null
           }
-          belowSlot={selectionBar}
+          belowSlot={selectedCount > 0 || totalPages > 1 ? selectionBar : undefined}
         />
 
         {/* 엑셀 업로드 진행바 (모달 닫고 진행 중일 때) */}

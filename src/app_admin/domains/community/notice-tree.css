@@ -313,3 +313,36 @@
   display: flex;
   align-items: center;
 }
+
+@media (max-width: 640px) {
+  .notice-tree,
+  .notice-tree--viewport {
+    height: auto;
+    min-height: 0 !important;
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  .notice-tree__nav {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    height: min(42vh, 320px);
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border-divider);
+  }
+
+  .notice-tree > .qna-inbox__list {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    height: min(58vh, 440px);
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border-divider);
+  }
+
+  .notice-tree > .qna-inbox__thread {
+    width: 100%;
+    min-height: min(62vh, 520px);
+  }
+}

@@ -173,8 +173,7 @@ export default function FeesTemplatesTab() {
         <EmptyState title="등록된 비목이 없습니다" description="'비목 추가' 버튼으로 수강료, 교재비 등을 등록하세요." />
       ) : (
         <DomainTable>
-          <table className="ds-table">
-            <thead>
+          <thead>
               <tr>
                 <th>비목 이름</th>
                 <th>유형</th>
@@ -185,8 +184,8 @@ export default function FeesTemplatesTab() {
                 <th>상태</th>
                 <th className={styles.actionColumn}></th>
               </tr>
-            </thead>
-            <tbody>
+          </thead>
+          <tbody>
               {templates.map((t) => (
                 <tr key={t.id}>
                   <td className={styles.nameCell}>{t.name}</td>
@@ -220,8 +219,7 @@ export default function FeesTemplatesTab() {
                   </td>
                 </tr>
               ))}
-            </tbody>
-          </table>
+          </tbody>
         </DomainTable>
       )}
 

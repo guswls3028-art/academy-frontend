@@ -91,17 +91,20 @@ export default function HomePage() {
 
   const selectionBar = (
     <div className="staff-toolbar">
-      <span
-        className={styles.selectionCount}
-        data-selected={selectedIds.length > 0 ? "true" : "false"}
-      >
-        {selectedIds.length}명 선택됨
-      </span>
-      <span className="staff-toolbar__divider" />
+      {selectedIds.length > 0 && (
+        <>
+          <span className={styles.selectionCount} data-selected="true">
+            {selectedIds.length}명 선택됨
+          </span>
+          <span className="staff-toolbar__divider" />
+        </>
+      )}
       <div className="staff-toolbar__group">
-        <Button intent="secondary" size="sm" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0}>
-          선택 해제
-        </Button>
+        {selectedIds.length > 0 && (
+          <Button intent="secondary" size="sm" onClick={() => setSelectedIds([])}>
+            선택 해제
+          </Button>
+        )}
         <Button
           intent="secondary"
           size="sm"
@@ -145,39 +148,45 @@ export default function HomePage() {
         >
           {exportingPayroll ? "준비 중…" : "이번 달 정산 엑셀"}
         </Button>
-        <Button
-          intent="secondary"
-          size="sm"
-          onClick={() => {
-            if (selectedStaffIds.length === 0) {
-              feedback.info("직원을 선택한 뒤 시급 태그 추가를 눌러 주세요.");
-              return;
-            }
-            setOpenAddWorkTypeBulk(true);
-          }}
-        >
-          시급 태그 추가
-        </Button>
-        <Button
-          intent="secondary"
-          size="sm"
-          onClick={() => {
-            if (selectedStaffIds.length !== 1) {
-              feedback.info("비밀번호를 변경할 직원 한 명만 선택해 주세요.");
-              return;
-            }
-            setOpenPasswordModal(true);
-          }}
-        >
-          비밀번호 변경
-        </Button>
+        {selectedIds.length > 0 && (
+          <>
+            <Button
+              intent="secondary"
+              size="sm"
+              onClick={() => {
+                if (selectedStaffIds.length === 0) {
+                  feedback.info("직원을 선택한 뒤 시급 태그 추가를 눌러 주세요.");
+                  return;
+                }
+                setOpenAddWorkTypeBulk(true);
+              }}
+            >
+              시급 태그 추가
+            </Button>
+            <Button
+              intent="secondary"
+              size="sm"
+              onClick={() => {
+                if (selectedStaffIds.length !== 1) {
+                  feedback.info("비밀번호를 변경할 직원 한 명만 선택해 주세요.");
+                  return;
+                }
+                setOpenPasswordModal(true);
+              }}
+            >
+              비밀번호 변경
+            </Button>
+          </>
+        )}
       </div>
-      <span className="staff-toolbar__divider" />
-      <Button
-        intent="danger"
-        size="sm"
-        disabled={selectedStaffIds.length === 0 || offboarding}
-        onClick={async () => {
+      {selectedIds.length > 0 && (
+        <>
+          <span className="staff-toolbar__divider" />
+          <Button
+            intent="danger"
+            size="sm"
+            disabled={selectedStaffIds.length === 0 || offboarding}
+            onClick={async () => {
           if (selectedStaffIds.length === 0) return;
 
           const activeTargets = rows.filter(
@@ -233,10 +242,12 @@ export default function HomePage() {
           }
 
           setOffboarding(false);
-        }}
-      >
-        {offboarding ? "처리 중…" : "퇴사 처리"}
-      </Button>
+            }}
+          >
+            {offboarding ? "처리 중…" : "퇴사 처리"}
+          </Button>
+        </>
+      )}
     </div>
   );
 

@@ -347,6 +347,7 @@ async function auditRoute(page: Page, testInfo: TestInfo, base: string, route: s
       overlappingControls,
       missingTokens,
       overflowX,
+      viewportWidth: window.innerWidth,
       bodyTextLength: bodyText.trim().length,
       hasErrorText: /Not Found|ChunkLoadError|Application error|Something went wrong|Unable to preload CSS|오류가 발생했습니다|404/i.test(bodyText),
       hasEscapedHtml: /<\/?(?:p|div|span|br|table|tbody|thead|tr|td|th|strong|em|h[1-6])(?:\s|\/?>)/i.test(bodyText),
@@ -360,7 +361,7 @@ async function auditRoute(page: Page, testInfo: TestInfo, base: string, route: s
   expect.soft(snapshot.clippedControls, `${route} clipped controls`).toEqual([]);
   expect.soft(snapshot.overlappingControls, `${route} overlapping controls`).toEqual([]);
   expect.soft(snapshot.overflowX, `${route} body horizontal overflow`).toBeLessThanOrEqual(
-    route.startsWith("/student/") || route.startsWith("/workspace/mobile") ? 1 : 80,
+    route.startsWith("/student/") || route.startsWith("/workspace/mobile") || snapshot.viewportWidth <= 640 ? 1 : 80,
   );
   if (route.startsWith("/student/")) {
     expect.soft(snapshot.hasEscapedHtml, `${route} exposed escaped HTML to the user`).toBe(false);
@@ -382,6 +383,17 @@ test.describe("design-system route visual audit", () => {
   test("admin static route surface is visually stable", async ({ page }, testInfo) => {
     test.setTimeout(12 * 60_000);
     await page.setViewportSize({ width: 1440, height: 1000 });
+    const base = getBaseUrl("admin").replace(/\/+$/, "");
+    await loginViaUI(page, "admin", { landingPath: "/workspace/dashboard" });
+
+    for (const route of ADMIN_ROUTES) {
+      await auditRoute(page, testInfo, base, route);
+    }
+  });
+
+  test("admin compact route surface is visually stable", async ({ page }, testInfo) => {
+    test.setTimeout(12 * 60_000);
+    await page.setViewportSize({ width: 390, height: 844 });
     const base = getBaseUrl("admin").replace(/\/+$/, "");
     await loginViaUI(page, "admin", { landingPath: "/workspace/dashboard" });
 
