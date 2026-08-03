@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { getApiErrorStatus } from "@/shared/api/axios";
 import { Button } from "@/shared/ui/ds";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import {
@@ -160,7 +161,7 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
   const totalWrongCount = data?.count ?? wrongList.length;
   const wrongListFingerprint = useMemo(
     () =>
-      JSON.stringify([
+      data?.source_fingerprint || JSON.stringify([
         totalWrongCount,
         ...wrongList.map((item) => [
           item.exam_id,
@@ -175,12 +176,10 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
           item.is_correct,
           item.include_in_wrong_note,
           item.has_question_image,
-          item.question_image_url,
           item.has_teacher_explanation,
-          item.explanation_image_url,
         ]),
       ]),
-    [totalWrongCount, wrongList],
+    [data?.source_fingerprint, totalWrongCount, wrongList],
   );
   const isPreviewLimited = totalWrongCount > wrongList.length;
   const exceedsPdfLimit = totalWrongCount > MAX_WRONG_NOTE_PDF_ITEMS;
@@ -225,6 +224,7 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
         from_session_order: fromSessionOrder,
         to_session_order: toSessionOrder,
         output_format: outputFormat,
+        source_fingerprint: data?.source_fingerprint,
       });
     },
     onSuccess: (response) => {
@@ -245,6 +245,7 @@ export default function WrongNotePanel({ enrollmentId, examId }: Props) {
     onError: (mutationError: unknown) => {
       if (requestContextRef.current !== mutationContextRef.current) return;
       setPdfError(extractApiError(mutationError, "오답노트 시험지를 만들지 못했습니다."));
+      if (getApiErrorStatus(mutationError) === 409) void refetch();
     },
   });
 
