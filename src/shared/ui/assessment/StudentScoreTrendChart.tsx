@@ -152,6 +152,7 @@ export default function StudentScoreTrendChart({
   lectureOptions: providedLectureOptions = [],
 }: Props) {
   const titleId = useId();
+  const comparisonHintId = useId();
   const hasComparativeMetrics = points.some(
     (point) => studentScoreTrendMetricValue(point, "rank") != null
       || studentScoreTrendMetricValue(point, "percentile") != null,
@@ -225,6 +226,18 @@ export default function StudentScoreTrendChart({
   const showLectureControl = showLectureFilters && (
     audience === "learner" ? lectureOptions.length > 0 : lectureOptions.length > 1
   );
+  const selectedHasRank = displayPoints.some(
+    (point) => studentScoreTrendMetricValue(point, "rank") != null,
+  );
+  const selectedHasPercentile = displayPoints.some(
+    (point) => studentScoreTrendMetricValue(point, "percentile") != null,
+  );
+  const showMetricControl = audience === "learner"
+    ? showLectureControl || points.length > 0
+    : hasComparativeMetrics;
+  const showComparisonHint = audience === "learner"
+    && showMetricControl
+    && (!selectedHasRank || !selectedHasPercentile);
 
   return (
     <section
@@ -254,7 +267,7 @@ export default function StudentScoreTrendChart({
         )}
       </div>
 
-      {(hasComparativeMetrics || showLectureControl) && (
+      {(showMetricControl || showLectureControl) && (
         <div className={styles.controls}>
           {showLectureControl && (
             audience === "learner" ? (
@@ -287,14 +300,12 @@ export default function StudentScoreTrendChart({
               </div>
             )
           )}
-          {hasComparativeMetrics && (
+          {showMetricControl && (
             <div className={styles.metricSwitch} role="group" aria-label="성적 추이 기준">
               {metricOptions.map((option) => {
                 const unavailable = audience === "learner"
                   && option.value !== "score_pct"
-                  && !displayPoints.some(
-                    (point) => studentScoreTrendMetricValue(point, option.value) != null,
-                  );
+                  && (option.value === "rank" ? !selectedHasRank : !selectedHasPercentile);
                 return (
                   <button
                     key={option.value}
@@ -303,6 +314,7 @@ export default function StudentScoreTrendChart({
                     data-active={metric === option.value}
                     data-testid={`student-score-trend-metric-${option.value}`}
                     disabled={unavailable}
+                    aria-describedby={unavailable ? comparisonHintId : undefined}
                     title={unavailable ? "이 강좌에는 아직 비교 데이터가 없습니다." : undefined}
                     onClick={() => setMetricPreference(option.value)}
                   >
@@ -311,6 +323,11 @@ export default function StudentScoreTrendChart({
                 );
               })}
             </div>
+          )}
+          {showComparisonHint && (
+            <p id={comparisonHintId} className={styles.comparisonHint}>
+              같은 시험에 2명 이상 응시하면 등수와 상위 %를 확인할 수 있습니다.
+            </p>
           )}
         </div>
       )}

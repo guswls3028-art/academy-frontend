@@ -389,6 +389,33 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
     await page.screenshot({ path: "test-results/student-score-trend/student-390.png", fullPage: true });
   });
 
+  test("석차가 없는 강좌도 세 지표 순서와 비교 데이터 안내를 유지한다", async ({ page }) => {
+    const scoreOnlyPoints = trendA.slice(0, 2).map((point) => ({
+      ...point,
+      rank: null,
+      percentile: null,
+      cohort_size: null,
+    }));
+    await installApi(page, "student", {
+      studentPoints: scoreOnlyPoints,
+      lectureOptions: [
+        { id: 501, title: "고1 Hyper 정규반", color: "#2563eb", chip_label: "Y" },
+      ],
+    });
+    await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });
+
+    const chart = page.getByTestId("student-score-trend");
+    const metricButtons = chart.getByRole("group", { name: "성적 추이 기준" }).getByRole("button");
+    await expect(metricButtons).toHaveText(["등수", "상위 %", "득점률"]);
+    await expect(chart.getByRole("button", { name: "등수", exact: true })).toBeDisabled();
+    await expect(chart.getByRole("button", { name: "상위 %", exact: true })).toBeDisabled();
+    await expect(chart.getByRole("button", { name: "득점률", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(chart).toContainText("같은 시험에 2명 이상 응시하면 등수와 상위 %를 확인할 수 있습니다.");
+    await expect(chart).toContainText("최근90%");
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    await page.screenshot({ path: "test-results/student-score-trend/student-score-only-390.png", fullPage: true });
+  });
+
   test("시험 카드에서 교사가 확인한 오답 완료와 미완료 상태를 바로 확인한다", async ({ page }) => {
     await installApi(page, "student");
     await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
