@@ -118,24 +118,111 @@
   gap: 10px;
 }
 
-.lectureSelect {
+.lectureContext {
   display: grid;
   min-width: 0;
-  flex: 1 1 100%;
+  max-width: 520px;
+  flex: 1 1 360px;
   gap: 5px;
 }
 
-.lectureSelect > span {
+.lectureContextLabel {
   color: var(--score-text-muted);
   font-size: 10px;
   font-weight: 750;
 }
 
-.lectureSelect select {
+.lectureSelectShell,
+.currentLecture {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  max-width: 520px;
+  min-height: 42px;
+  align-items: center;
+  border: 1px solid var(--score-border-strong);
+  border-radius: 11px;
+  background: var(--score-surface);
+}
+
+.lectureSelectShell {
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.lectureSelectShell:hover {
+  border-color: color-mix(in srgb, var(--score-line) 45%, var(--score-border));
+}
+
+.lectureSelectShell:focus-within {
+  border-color: color-mix(in srgb, var(--score-line) 62%, var(--score-border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--score-line) 12%, transparent);
+}
+
+.lectureSelectShell select {
+  position: relative;
+  z-index: 1;
   display: block;
-  max-width: 100%;
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  appearance: none;
+  padding: 8px 38px 8px 12px;
   overflow: hidden;
+  border: 0;
+  border-radius: inherit;
+  outline: 0;
+  color: var(--score-text);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lectureSelectShell > svg {
+  position: absolute;
+  z-index: 2;
+  right: 12px;
+  color: var(--score-text-muted);
+  pointer-events: none;
+}
+
+.currentLecture {
+  gap: 9px;
+  padding: 8px 10px 8px 12px;
+  border-color: color-mix(in srgb, var(--score-line) 30%, var(--score-border));
+  background: color-mix(in srgb, var(--score-line) 3.5%, var(--score-surface));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--score-line) 72%, var(--score-border));
+}
+
+.currentLectureChip {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.currentLecture > strong {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: var(--score-text);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.currentLectureStatus {
+  flex-shrink: 0;
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: var(--score-line);
+  background: color-mix(in srgb, var(--score-line) 9%, var(--score-surface));
+  font-size: 9px;
+  font-weight: 800;
   white-space: nowrap;
 }
 
@@ -206,7 +293,6 @@
 }
 
 .filters button:focus-visible,
-.lectureSelect select:focus-visible,
 .metricSwitch button:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--score-line) 50%, transparent);
   outline-offset: 2px;
@@ -329,6 +415,11 @@
   .controls {
     align-items: flex-start;
     flex-wrap: wrap;
+  }
+
+  .lectureContext {
+    max-width: none;
+    flex-basis: 100%;
   }
 
   .metricSwitch {
