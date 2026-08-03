@@ -11,12 +11,12 @@
 현재 구현은 다음 두 작업을 연결한다.
 
 1. 종이에서 끝낸 채점 결과를 학생별 O/X/오답노트 또는 부분점수로 확정한다.
-2. 확정된 대표 결과의 오답과 오답노트 지정 문항으로 PDF를 만든다.
+2. 확정된 대표 결과의 오답과 오답노트 지정 문항으로 PDF 또는 HWPX를 만든다.
+3. 두 형식 모두 앞에는 답 없는 문제, 뒤에는 정답과 선생님 원본 해설을 둔다.
 
-편집 가능한 HWPX 시험지 생성은 현재 기능이 아니다. 다음 구현 경계와
-수용 기준은 백엔드
-[`exam-wrong-note-hwpx-plan.md`](https://github.com/guswls3028-art/academy-backend/blob/main/docs/refactor/exam-wrong-note-hwpx-plan.md)에
-둔다.
+HWPX는 한글에서 열고 인쇄할 수 있는 원본 보존 페이지 이미지이며 필기·수식을
+편집 가능한 한글 개체로 재구성하지 않는다. 남은 구현 경계는 백엔드
+[`exam-wrong-note-hwpx-plan.md`](https://github.com/guswls3028-art/academy-backend/blob/main/docs/refactor/exam-wrong-note-hwpx-plan.md)에 둔다.
 
 ## Codex 빠른 복구 안내
 
@@ -36,9 +36,9 @@
 4. 표 동작은 `ManualExamGradingGrid.tsx`, 요청 형식은
    `manualExamGrading.ts`, 화면 회귀는
    `e2e/admin/manual-exam-grading.mock.spec.ts`를 확인한다.
-5. 오답노트 출력과 회차 범위는 `WrongNotePanel.tsx`,
+5. 오답노트 출력·회차 범위·PDF/HWPX 선택은 `WrongNotePanel.tsx`,
    `wrong-note-generation-contract.mock.spec.ts`와 백엔드 현재 계약을 확인한다.
-   HWPX 확장은 구현으로 추정하지 말고 별도 제안 문서를 읽는다.
+   문항·해설 검수는 `ExamSegmentationReview.tsx`를 확인한다.
 
 ### 증상별 첫 확인 위치
 
@@ -49,7 +49,7 @@
 | 표 오른쪽이나 상단 도구가 잘림 | 단일 스크롤 영역, 70~120% 배율, 화면 맞춤, 1100/390px 회귀 | 브라우저 전체 배율에 의존하지 않고 표 내부 배율과 가로 이동으로 접근 가능해야 한다. |
 | 일부 학생만 먼저 제출해서 저장이 번거로움 | **전원 결시로 설정**, 실행 취소, 미리보기 | 로컬 초안에서 전원을 결시로 두고 제출 학생만 응시로 바꾼다. `apply=true` 전에는 서버를 쓰지 않는다. |
 | 점수·합불·통계가 예상과 다름 | 시험 만점, 문항 배점, 가감점, 결시 상태, 백엔드 미리보기 응답 | 프론트에서 계산 규칙을 재구현하지 않는다. 서버 미리보기와 저장 후 재조회를 기준으로 판정한다. |
-| 오답노트에 문항이 없거나 이미지가 빠짐 | `is_correct`, `include_in_wrong_note`, 대표 결과, 문항 이미지, PDF job 상태 | 이미지가 없어도 답안 정보는 포함된다. 현재 출력은 PDF이며 HWPX 완료로 안내하지 않는다. |
+| 오답노트에 문항이 없거나 이미지가 빠짐 | `is_correct`, `include_in_wrong_note`, 대표 결과, 문제·해설 이미지, 문서 job 상태 | 이미지가 없어도 해당 문항은 포함된다. PDF/HWPX 모두 문제 뒤에 해설을 분리한다. |
 
 ### 작업할 때 지킬 경계
 
@@ -165,13 +165,13 @@ stale version, 편집 lease 충돌, 문항·배점 오류는 서버가 전체 �
   생성을 막고 입력 바로 아래에서 이유를 안내한다.
 - 현재 대표 `ResultItem`에서 오답이거나 `include_in_wrong_note=true`인
   문항만 모은다. 재채점 후 맞고 복습 지정도 아니면 다음 조회에서 빠진다.
-- 시험 설정에 저장된 문항 이미지가 있으면 PDF에 싣는다. 이미지가 없으면
-  답안 정보만 포함하며 UI에서 이미지 등록 경로를 안내한다.
+- 시험 설정에 저장된 문항 이미지가 있으면 문제 쪽에, 선생님 원본 해설이
+  있으면 후반 해설 쪽에 싣는다. 미리보기는 **선생님 해설** 배지를 표시한다.
 - 한 번에 최대 100문항이다.
 - 생성은 비동기 작업으로 요청하고 상태를 polling한다. 완료된 다운로드
   주소는 만료될 수 있으므로 장시간 열린 화면은 상태 API로 주소를 갱신한다.
-- 현재 출력은 PDF다. HWP/HWPX 출력으로 표현하거나 Problem Studio가 시험
-  문항을 자동 저장한다고 안내하면 안 된다.
+- 출력 형식은 **PDF / 한글 HWPX**다. HWPX는 이미지 기반 원본 보존 문서이며
+  편집 가능한 수식·필기 개체라고 안내하면 안 된다.
 
 ## 검증
 
@@ -199,7 +199,7 @@ pnpm build
 - 70~120% 배율, 화면 맞춤, 고정 열, 1366/1100/390px overflow
 - 미리보기 무기록, 확정 후 서버 재조회
 - 혼합형 OMR 문항 잠금과 OMR 검토 후 표 재조회
-- 1~1, 2~4, 시작~현재 회차 조회와 동일 범위 PDF 요청, 역전 범위 차단
+- 1~1, 2~4, 시작~현재 회차 조회와 동일 범위 PDF/HWPX 요청, 역전 범위 차단
 
 이 테스트는 local route mock 기반 화면 계약이다. 운영 데이터의 실제
 저장·tenant/role·transaction·worker/R2는 백엔드 집중 테스트와 통제된

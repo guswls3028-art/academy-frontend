@@ -53,6 +53,16 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
           <span className="ml-2">원본 파일을 확인하고 다시 올려 주세요.</span>
         </button>
       )}
+      {exam.segmentation_status === "review_required" && (
+        <button
+          type="button"
+          className="w-full rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-900"
+          onClick={() => setTab(mode === "design" ? "assets" : "setup")}
+        >
+          <strong>문항과 선생님 원본 해설을 맞춰 두었습니다.</strong>
+          <span className="ml-2">번호를 확인하고 확정해야 채점과 오답노트에 반영됩니다.</span>
+        </button>
+      )}
       {exam.segmentation_status === "conversion_required" && (
         <button
           type="button"

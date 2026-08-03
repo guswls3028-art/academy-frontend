@@ -880,6 +880,20 @@
   vertical-align: middle;
 }
 
+.wrong-note__solution-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
 .wrong-note__thumb {
   display: grid;
   place-items: center;
@@ -1020,6 +1034,43 @@
   white-space: normal;
 }
 
+.wrong-note__format {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.wrong-note__format button {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 6px 9px;
+  border: 1px solid var(--color-border-divider, #e5e7eb);
+  border-radius: 8px;
+  background: var(--color-bg-surface, #fff);
+  color: var(--color-text-secondary, #6b7280);
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.wrong-note__format button.is-active {
+  border-color: color-mix(in srgb, var(--color-brand-primary, #6366f1) 55%, white);
+  background: color-mix(in srgb, var(--color-brand-primary, #6366f1) 9%, white);
+  color: var(--color-brand-primary, #4f46e5);
+}
+
+.wrong-note__format button:disabled { cursor: wait; opacity: .6; }
+
+.wrong-note__action-bar .wrong-note__format span {
+  overflow: visible;
+  color: inherit;
+  font-size: 9px;
+  font-weight: 500;
+  text-overflow: clip;
+  white-space: normal;
+}
+
 .wrong-note__action-bar .ds-button {
   flex-shrink: 0;
   white-space: nowrap;
@@ -1082,6 +1133,9 @@
   .wrong-note__action-bar .ds-button {
     width: 100%;
   }
+
+  .wrong-note__format { width: 100%; }
+  .wrong-note__format button { flex: 1; justify-content: center; }
 }
 
 @media (prefers-reduced-motion: reduce) {

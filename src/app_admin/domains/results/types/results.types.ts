@@ -222,6 +222,8 @@ export type WrongNoteItem = {
   answer_type: string;
   question_image_url: string;
   has_question_image: boolean;
+  explanation_image_url: string;
+  has_teacher_explanation: boolean;
 
   student_answer: string;
   correct_answer: string;
@@ -247,6 +249,7 @@ export type WrongNotePdfCreateResponse = {
   job_id: number;
   status: string;
   status_url?: string;
+  output_format?: "pdf" | "hwpx";
 };
 
 export type WrongNotePdfStatusResponse = {
@@ -255,6 +258,8 @@ export type WrongNotePdfStatusResponse = {
   file_path: string;
   file_url: string | null;
   error_message: string;
+  output_format: "pdf" | "hwpx";
+  filename: string;
   created_at: string;
   updated_at: string;
 };

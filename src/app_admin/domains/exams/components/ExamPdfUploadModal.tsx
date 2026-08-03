@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/exams/components/ExamPdfUploadModal.tsx
-// 통합 모달 — 시험지 PDF 업로드 + AI 문항 분할 진행률 + 결과 표시
+// 통합 모달 — 시험지 원본 업로드 + 문항·해설 맞춤 진행률 + 결과 표시
 // 진입점: ExamAssetsPanel(자산 탭), AnswerKeyRegisterModal(답안 등록)
 
 import { useState, useEffect } from "react";
@@ -21,7 +21,7 @@ type Props = {
 const STATUS_LABELS: Record<PdfExtractStatus, string> = {
   idle: "",
   uploading: "시험지 업로드 중…",
-  processing: "AI 문항 분할 처리 중…",
+  processing: "문항·해설 맞춤 처리 중…",
   done: "문항 분할 완료",
   failed: "처리 실패",
 };
@@ -63,16 +63,16 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
     >
       <ModalHeader
         type="action"
-        title="시험지 PDF 업로드"
-        description="시험지 PDF를 업로드하면 AI가 문항을 자동으로 인식합니다."
+        title="시험지 원본 업로드"
+        description="PDF나 HWP를 올리면 문제와 선생님 원본 해설을 번호별로 맞춥니다."
       />
 
       <ModalBody>
         <div className={`modal-scroll-body modal-scroll-body--compact ${styles.body}`}>
           <FileUploadZone
-            titleLabel="시험지 PDF"
-            accept=".pdf,.png,.jpg,.jpeg"
-            hintText="PDF, PNG, JPG 파일 (50MB 이하)"
+            titleLabel="시험지 원본"
+            accept=".pdf,.png,.jpg,.jpeg,.hwp"
+            hintText="PDF, HWP, PNG, JPG 파일 (50MB 이하)"
             selectedFile={selectedFile}
             onFilesSelect={handleFilesSelect}
             onClearFile={() => {
@@ -82,7 +82,7 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
             disabled={isBusy}
             validateFile={(f) => {
               const ext = f.name.toLowerCase();
-              return ext.endsWith(".pdf") || ext.endsWith(".png") || ext.endsWith(".jpg") || ext.endsWith(".jpeg");
+              return ext.endsWith(".pdf") || ext.endsWith(".hwp") || ext.endsWith(".png") || ext.endsWith(".jpg") || ext.endsWith(".jpeg");
             }}
             onInvalidFile={() => {}}
           />
@@ -147,15 +147,15 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
                     <p>페이지 수: {result.pageCount}페이지</p>
                   )}
                   <p className="mt-1 text-[var(--color-text-tertiary)]">
-                    문항 목록에서 결과를 확인하고 수정할 수 있습니다.
+                    시험 자료에서 문제와 원본 해설의 번호를 확인한 뒤 확정해 주세요.
                   </p>
                 </div>
               )}
 
-              {/* 파일만 저장된 경우 (AI 분할 전) */}
+              {/* 파일만 저장된 경우 (문항 맞춤 전) */}
               {isUploading && (
                 <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-                  파일 업로드 후 AI 문항 분할이 자동으로 시작됩니다.
+                  파일 업로드 후 문항·해설 맞춤이 자동으로 시작됩니다.
                 </p>
               )}
             </div>

@@ -49,6 +49,7 @@ function normalizeManualGradingMethod(value: unknown): ManualGradingMethod {
 
 function normalizeSegmentationStatus(value: unknown): ExamSegmentationStatus {
   return value === "processing" ||
+    value === "review_required" ||
     value === "ready" ||
     value === "failed" ||
     value === "conversion_required" ||

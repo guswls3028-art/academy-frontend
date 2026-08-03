@@ -8,6 +8,7 @@ import { useAdminExam } from "../hooks/useAdminExam";
 import { useExamAssets } from "../hooks/useExamAssets";
 import AssetUploadSection from "../components/assets/AssetUploadSection";
 import ExamPdfUploadModal from "../components/ExamPdfUploadModal";
+import ExamSegmentationReview from "../components/ExamSegmentationReview";
 import BlockReason from "../components/BlockReason";
 
 export default function ExamAssetsPanel({ examId }: { examId: number }) {
@@ -23,6 +24,8 @@ export default function ExamAssetsPanel({ examId }: { examId: number }) {
   const status = exam.segmentation_status;
   const statusCopy = status === "processing"
     ? "문항을 분리하고 있습니다. 완료되면 이 화면에 반영됩니다."
+    : status === "review_required"
+      ? "자동 분리된 문제와 선생님 원본 해설의 번호를 확인하고 확정해 주세요."
     : status === "ready"
       ? `${exam.source_filename || "원본 시험지"}의 문항 분리가 완료되었습니다.`
       : status === "conversion_required"
@@ -34,6 +37,8 @@ export default function ExamAssetsPanel({ examId }: { examId: number }) {
     ? { tone: "success" as const, label: "준비됨" }
     : status === "processing"
       ? { tone: "info" as const, label: "처리 중" }
+      : status === "review_required"
+        ? { tone: "warning" as const, label: "검수 필요" }
       : status === "failed"
         ? { tone: "danger" as const, label: "확인 필요" }
         : { tone: "warning" as const, label: "등록 필요" };
@@ -81,6 +86,10 @@ export default function ExamAssetsPanel({ examId }: { examId: number }) {
             title="OMR 답안지"
             accept="application/pdf"
           />
+        )}
+
+        {status === "review_required" && (
+          <ExamSegmentationReview examId={examId} />
         )}
       </div>
 

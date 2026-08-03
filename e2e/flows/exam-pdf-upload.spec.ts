@@ -83,7 +83,7 @@ function isExamAsset(value: unknown): value is ExamAsset {
 }
 
 function pdfUploadModal(page: Page) {
-  return page.locator(".admin-modal__inner").filter({ hasText: "시험지 PDF 업로드" }).last();
+  return page.locator(".admin-modal__inner").filter({ hasText: "시험지 원본 업로드" }).last();
 }
 
 test.describe.serial("Exam PDF upload flow", () => {
@@ -311,7 +311,7 @@ test.describe.serial("Exam PDF upload flow", () => {
 
       // Verify modal opened
       const modal = pdfUploadModal(page);
-      const modalTitle = modal.locator(".modal-header").filter({ hasText: "시험지 PDF 업로드" }).first();
+      const modalTitle = modal.locator(".modal-header").filter({ hasText: "시험지 원본 업로드" }).first();
       await expect(modalTitle).toBeVisible({ timeout: 5000 });
       console.log("  ExamPdfUploadModal opened successfully");
 
@@ -356,7 +356,7 @@ test.describe.serial("Exam PDF upload flow", () => {
 
     // Verify modal opened
     const modal = pdfUploadModal(page);
-    const modalHeader = modal.locator(".modal-header").filter({ hasText: "시험지 PDF 업로드" }).first();
+    const modalHeader = modal.locator(".modal-header").filter({ hasText: "시험지 원본 업로드" }).first();
     await expect(modalHeader).toBeVisible({ timeout: 5000 });
 
     // Upload a file via input[type=file]
@@ -378,9 +378,9 @@ test.describe.serial("Exam PDF upload flow", () => {
     await expect(submitBtn).toBeVisible({ timeout: 5000 });
     await submitBtn.click();
 
-    // Verify progress display: upload, AI processing, done, or failed.
+    // Verify progress display: upload, matching, done, or failed.
     const uploadingText = modal.getByText("시험지 업로드 중…").first();
-    const processingText = modal.getByText("AI 문항 분할 처리 중…").first();
+    const processingText = modal.getByText("문항·해설 맞춤 처리 중…").first();
     const doneText = modal.getByText("문항 분할 완료").first();
     const failedText = modal.getByText("처리 실패").first();
 

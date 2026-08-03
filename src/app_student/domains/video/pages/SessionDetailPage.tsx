@@ -215,7 +215,7 @@ export default function SessionDetailPage() {
     return () => window.removeEventListener("storage", handleStorageChange);
   }, [currentVideoStorageKey]);
 
-  const { data: videosData, isLoading, isError, error: queryError } = useQuery({
+  const { data: videosData, isLoading, isError, error: queryError, refetch } = useQuery({
     queryKey: studentVideoQueryKeys.sessionVideos(sessionIdNum, enrollmentId),
     queryFn: () => fetchStudentSessionVideos(sessionIdNum!, enrollmentId),
     enabled: !!sessionIdNum,
@@ -270,6 +270,7 @@ export default function SessionDetailPage() {
           <EmptyState
             title="재생 목록을 불러오지 못했어요"
             description="잠시 후 다시 시도해 주세요."
+            onRetry={() => refetch()}
           />
         </div>
       </StudentPageShell>

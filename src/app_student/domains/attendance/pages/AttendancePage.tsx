@@ -69,7 +69,7 @@ async function fetchAttendanceSummary(): Promise<AttendanceSummary> {
 }
 
 export default function AttendancePage() {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: studentQueryKeys.attendanceSummary,
     queryFn: fetchAttendanceSummary,
     staleTime: 30_000,
@@ -89,7 +89,11 @@ export default function AttendancePage() {
   if (isError || !data) {
     return (
       <StudentPageShell title="출결 현황">
-        <EmptyState title="출결 정보를 불러오지 못했습니다" description="잠시 후 다시 시도해 주세요." />
+        <EmptyState
+          title="출결 정보를 불러오지 못했습니다"
+          description="잠시 후 다시 시도해 주세요."
+          onRetry={() => refetch()}
+        />
       </StudentPageShell>
     );
   }
