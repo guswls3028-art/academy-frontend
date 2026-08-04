@@ -41,7 +41,7 @@ import {
 } from "../../api/clinicLinks.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import StudentDetailLink from "@admin/domains/students/components/StudentDetailLink";
+import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
 import ClinicSectionFilter from "../../components/ClinicSectionFilter";
 import { hhmmText } from "@/shared/ui/time/timeFormat";
 import { clinicQueryKeys } from "../../queryKeys";

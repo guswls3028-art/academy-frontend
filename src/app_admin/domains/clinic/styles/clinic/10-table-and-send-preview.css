@@ -1,0 +1,555 @@
+/* ══════════════════════════════════════════════════════════
+   Clinic Retake — 인라인 점수 입력 스타일
+   ══════════════════════════════════════════════════════════ */
+
+/* ── Table extra columns ── */
+.clinic-hub__cell-source {
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.clinic-hub__cell-input { min-width: 140px; }
+
+.clinic-hub__type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.clinic-hub__type-badge[data-type="exam"] {
+  background: var(--color-bg-info, #eff6ff);
+  color: var(--color-info, #3b82f6);
+}
+.clinic-hub__type-badge[data-type="homework"] {
+  background: var(--color-bg-warning, #fffbeb);
+  color: var(--color-warning, #f59e0b);
+}
+
+/* ── Score input group ── */
+.clinic-hub__score-input-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.clinic-hub__score-input {
+  width: 64px;
+  height: 28px;
+  padding: 2px 6px;
+  border: 1px solid var(--color-border, #d1d5db);
+  border-radius: 4px;
+  font-size: 13px;
+  text-align: right;
+  background: var(--color-bg-surface, #fff);
+  transition: border-color 0.15s;
+}
+
+.clinic-hub__score-input:focus {
+  outline: none;
+  border-color: var(--color-brand-primary, #6366f1);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+
+.clinic-hub__score-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Hide spinner arrows for number input */
+.clinic-hub__score-input::-webkit-outer-spin-button,
+.clinic-hub__score-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.clinic-hub__score-input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.clinic-hub__score-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-brand-primary, #6366f1);
+  border-radius: 4px;
+  background: var(--color-brand-primary, #6366f1);
+  color: #fff;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.clinic-hub__score-submit:hover:not(:disabled) { opacity: 0.85; }
+.clinic-hub__score-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ══════════════════════════════════════════════════════════
+   Clinic Session Block — 주간 요약 차시블록 (hover 편집)
+   ══════════════════════════════════════════════════════════ */
+
+.clinic-session-block {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  font-size: 11px;
+  font-weight: 500;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.clinic-session-block:hover {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 40%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface));
+}
+
+.clinic-session-block__text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 톱니 아이콘 — hover 시에만 표시 */
+.clinic-session-block__gear {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s, background-color 0.12s, color 0.12s;
+}
+
+.clinic-session-block:hover .clinic-session-block__gear {
+  opacity: 1;
+}
+
+.clinic-session-block__gear:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+}
+
+/* 액션 드롭다운 */
+.clinic-session-block__menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 50;
+  margin-top: 4px;
+  min-width: 100px;
+  padding: 4px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  box-shadow: var(--elevation-2);
+}
+
+.clinic-session-block__menu button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background-color 0.12s, color 0.12s;
+}
+
+.clinic-session-block__menu button:hover {
+  background: var(--color-bg-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.clinic-session-block__menu-danger {
+  color: var(--color-error) !important;
+}
+
+.clinic-session-block__menu-danger:hover {
+  background: color-mix(in srgb, var(--color-error) 8%, var(--color-bg-surface)) !important;
+  color: var(--color-error) !important;
+}
+
+/* 삭제 경고 */
+.clinic-session-block__delete-warn {
+  display: flex;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+}
+
+.clinic-session-block__delete-warn-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-lg, 12px);
+  background: color-mix(in srgb, var(--color-error) 10%, var(--color-bg-surface));
+  color: var(--color-error);
+}
+
+.clinic-session-block__delete-warn-body {
+  flex: 1;
+}
+
+.clinic-session-block__delete-warn-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-2) 0;
+}
+
+.clinic-session-block__delete-warn-desc {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin: 0 0 var(--space-3) 0;
+}
+
+.clinic-session-block__delete-warn-detail {
+  display: inline-flex;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm, 4px);
+  background: color-mix(in srgb, var(--color-error) 8%, var(--color-bg-surface));
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-error);
+}
+
+/* ── Resolved inline label ── */
+.clinic-hub__resolved-inline {
+  font-size: 12px;
+  color: var(--color-success, #10b981);
+  font-weight: 500;
+}
+
+/* ── Row resolved state ── */
+.clinic-hub__row--resolved td {
+  opacity: 0.5;
+  background: var(--color-bg-muted, #f9fafb);
+}
+
+/* ── Item row: source title ── */
+.clinic-hub__item-source-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--color-text-primary, #111827);
+}
+
+/* ── Item row: retake input area ── */
+.clinic-hub__item-retake {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 12px;
+}
+
+.clinic-hub__retake-label {
+  font-size: 12px;
+  color: var(--color-text-secondary, #6b7280);
+  white-space: nowrap;
+}
+
+/* ── Attempt history chips ── */
+.clinic-hub__item-attempts {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.clinic-hub__attempt-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  background: var(--color-bg-error, #fef2f2);
+  color: var(--color-error, #ef4444);
+}
+
+.clinic-hub__attempt-chip--passed {
+  background: var(--color-bg-success, #f0fdf4);
+  color: var(--color-success, #10b981);
+}
+
+/* ═══ 발송 완료 팝업 ═══ */
+.clinic-send-result__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1060;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(3px);
+  animation: clinic-send-result-fade-in 0.18s ease;
+}
+@keyframes clinic-send-result-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.clinic-send-result__popup {
+  width: 380px;
+  max-height: 85vh;
+  overflow: auto;
+  border-radius: 16px;
+  background: var(--color-bg-surface, #fff);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.06);
+  animation: clinic-send-result-slide-up 0.22s ease;
+}
+@keyframes clinic-send-result-slide-up {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Header */
+.clinic-send-result__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--color-border-divider, #f0f0f0);
+}
+.clinic-send-result__header-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #ecfdf5;
+  color: #10b981;
+  flex-shrink: 0;
+}
+.clinic-send-result__header-text {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.clinic-send-result__title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary, #111);
+  margin: 0;
+}
+.clinic-send-result__mode-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #fef3c7;
+  color: #92400e;
+  letter-spacing: 0.02em;
+}
+.clinic-send-result__close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  color: var(--color-text-muted, #999);
+  flex-shrink: 0;
+  transition: background 0.12s;
+}
+.clinic-send-result__close:hover {
+  background: var(--color-bg-surface-soft, #f5f5f5);
+}
+
+/* Body */
+.clinic-send-result__body {
+  padding: 16px 20px 12px;
+}
+.clinic-send-result__section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted, #999);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.clinic-send-result__students {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.clinic-send-result__student-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--color-bg-surface-soft, #f5f6f8);
+  color: var(--color-text-primary, #222);
+  border: 1px solid var(--color-border-divider, #e5e7eb);
+}
+
+/* 미리보기 버튼 */
+.clinic-send-result__preview-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--color-primary, #2563eb);
+  background: color-mix(in srgb, var(--color-primary, #2563eb) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-primary, #2563eb) 18%, transparent);
+  cursor: pointer;
+  transition: background 0.12s;
+  margin-bottom: 4px;
+}
+.clinic-send-result__preview-btn:hover {
+  background: color-mix(in srgb, var(--color-primary, #2563eb) 12%, transparent);
+}
+
+/* 카카오톡 스타일 미리보기 */
+.clinic-send-result__kakao-wrap {
+  margin-top: 12px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  background: #b2c7d9;
+  animation: clinic-send-result-fade-in 0.15s ease;
+}
+.clinic-send-result__kakao-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #4a6984;
+}
+.clinic-send-result__kakao-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: #fee500;
+  color: #3c1e1e;
+  font-size: 12px;
+  font-weight: 800;
+}
+.clinic-send-result__kakao-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+}
+.clinic-send-result__kakao-bubble {
+  padding: 14px 12px 16px;
+}
+.clinic-send-result__kakao-body {
+  background: #fff;
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 13px;
+  line-height: 1.75;
+  color: #1a1a1a;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 280px;
+  overflow-y: auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  position: relative;
+}
+/* 카카오 말풍선 꼬리 */
+.clinic-send-result__kakao-body::before {
+  content: "";
+  position: absolute;
+  top: 12px;
+  left: -7px;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-radius: 0 0 0 4px;
+  clip-path: polygon(100% 0, 100% 100%, 0 0);
+}
+
+/* Footer */
+.clinic-send-result__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--color-border-divider, #f0f0f0);
+}
+.clinic-send-result__confirm-btn {
+  padding: 8px 28px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  background: var(--color-primary, #2563eb);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.clinic-send-result__confirm-btn:hover {
+  background: color-mix(in srgb, var(--color-primary, #2563eb) 85%, #000);
+}
+.clinic-send-result__hint {
+  font-size: 11px;
+  color: var(--color-text-muted, #aaa);
+}
+
+/* ── Section filter (반 필터) ── */
+.clinic-section-filter {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  min-width: 100px;
+}
+.clinic-section-filter:focus {
+  outline: none;
+  border-color: var(--color-brand-primary);
+}
+
+/* ── Resolved toggle chip ── */
+.clinic-hub__filter-chip--toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  margin-left: 4px;
+}
+.clinic-hub__filter-chip--toggle input[type="checkbox"] {
+  width: 13px;
+  height: 13px;
+  accent-color: var(--color-brand-primary);
+}

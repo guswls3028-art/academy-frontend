@@ -10,7 +10,7 @@ import {
   parseStudentExcel,
   downloadStudentExcelTemplate,
   type ParseStudentExcelResult,
-} from "@admin/domains/students/excel/studentExcel";
+} from "@/shared/product/students/studentExcel";
 import { lectureEnrollFromExcelUpload } from "../api/enrollments";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";

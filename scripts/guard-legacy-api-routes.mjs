@@ -9,6 +9,7 @@ const sourceFiles = tracked
   .split("\0")
   .filter(Boolean)
   .filter((file) => /\.(tsx?|jsx?)$/.test(file))
+  .filter((file) => !file.startsWith("src/shared/api/generated/"))
   .filter((file) => !file.startsWith("e2e/reports/"))
   .filter((file) => existsSync(file));
 

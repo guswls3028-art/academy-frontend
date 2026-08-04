@@ -5,6 +5,8 @@
 | 문서 | 내용 |
 |------|------|
 | [ROUTING.md](ROUTING.md) | 공개 URL 네이밍, 권한 분리, 기존 경로 호환 규칙 |
+| [API-CONTRACTS.md](API-CONTRACTS.md) | 백엔드 OpenAPI 고정 SHA와 생성 TypeScript 타입 드리프트 계약 |
+| [REFACTOR-GUARDRAILS.md](REFACTOR-GUARDRAILS.md) | 도메인 공개 표면, 대형 파일, 생성 코드 분리와 CI 부채 예산 |
 | [USER-GUIDE-ADMIN.md](USER-GUIDE-ADMIN.md) | 관리자 앱 사용 가이드 |
 | [USER-GUIDE-STUDENT.md](USER-GUIDE-STUDENT.md) | 학생 앱 사용 가이드 |
 | [STUDENT-PARENT-APP-CONTRACT.md](STUDENT-PARENT-APP-CONTRACT.md) | 학생·학부모 앱의 표시 경계, 모바일 레이아웃, 권한·자녀 선택·알림 읽음 계약 |

@@ -1,0 +1,767 @@
+/* ========== 패널 내 섹션 — 위계 구분 (프리미엄 SaaS) ========== */
+.clinic-section {
+  padding-bottom: var(--space-6);
+  margin-bottom: var(--space-6);
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.clinic-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.clinic-section__header {
+  margin-bottom: var(--space-4);
+}
+
+.clinic-section__title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+/* 운영 일정 패널 — 시간대별 섹션 카드형 위계 (구조 변경 없음) */
+.ds-card-modal .clinic-schedule-slot.clinic-section {
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  box-shadow: var(--elevation-1);
+  border-bottom: none;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.ds-card-modal .clinic-schedule-slot.clinic-section:last-child {
+  margin-bottom: 0;
+}
+
+.ds-card-modal .clinic-schedule-slot.clinic-section .clinic-section__header {
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border-divider) 60%, transparent);
+}
+
+.ds-card-modal .clinic-schedule-slot.clinic-section .clinic-section__title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  text-transform: none;
+}
+
+.ds-card-modal .clinic-schedule-slot.clinic-section .clinic-section__meta {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
+}
+
+/* 상태별 왼쪽 액센트 유지, 카드 내부 패딩 보정 */
+.ds-card-modal .clinic-schedule-slot.clinic-section.clinic-schedule-slot--status-normal,
+.ds-card-modal .clinic-schedule-slot.clinic-section.clinic-schedule-slot--status-almost,
+.ds-card-modal .clinic-schedule-slot.clinic-section.clinic-schedule-slot--status-full {
+  padding-left: calc(var(--space-5) + 6px);
+}
+
+/* ========== 패널 — 모달 SSOT(ds-card-modal)와 동일 셸 톤 ========== */
+/* 단독 .clinic-panel 사용처(설정/리포트 등): card-modal과 동일한 border/shadow/radius */
+.clinic-panel {
+  border-radius: var(--radius-2xl);
+  overflow: hidden;
+  border: 1px solid var(--color-border-divider);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
+    inset 0 2px 8px rgba(255, 255, 255, 0.06),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.04),
+    0 0 0 1px rgba(0, 0, 0, 0.04),
+    var(--elevation-3),
+    0 24px 48px -12px rgba(0, 0, 0, 0.18);
+  background: var(--color-modal-bg, var(--color-bg-surface));
+}
+
+/* 3단 패널에서 ds-card-modal 본문 패딩 */
+.clinic-panel.ds-card-modal .ds-card-modal__body,
+.ds-card-modal.clinic-panel .ds-card-modal__body {
+  padding: var(--space-4) var(--space-5);
+}
+
+/* ========== clinic-create — clean form layout (asModal=true) ========== */
+.clinic-create {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.clinic-create__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: 0;
+}
+/* When inside the card layout, reuse same form spacing */
+.ds-card-modal .clinic-create__form {
+  gap: var(--space-5);
+}
+.clinic-create__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.clinic-create__field--grow {
+  flex: 1;
+  min-width: 0;
+}
+.clinic-create__field--capacity {
+  flex: 0 0 120px;
+  min-width: 120px;
+}
+.clinic-create__label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+.clinic-create__footer {
+  padding-top: var(--space-4);
+  margin-top: var(--space-5);
+  border-top: 1px solid var(--color-border-divider);
+}
+
+/* 장소 — input + text buttons row */
+.clinic-create__location-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.clinic-create__location-input {
+  flex: 1;
+  min-width: 0;
+}
+.clinic-create__location-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+.clinic-create__location-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.clinic-create__location-btn:hover {
+  background: var(--color-bg-surface-hover);
+  color: var(--color-brand-primary);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 40%, var(--color-border-divider));
+}
+
+/* 정원 — stepper left-aligned */
+.clinic-create__capacity-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.clinic-create__capacity-hint {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+/* 대상 조건 — collapse trigger */
+.clinic-create__collapse-trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.clinic-create__collapse-icon {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  display: flex;
+}
+.clinic-create__filter-badge {
+  font-size: 11px;
+  color: var(--color-brand-primary);
+  font-weight: 600;
+}
+.clinic-create__filter-default {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* 필터 경고 배너 */
+.clinic-create__filter-warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-warning) 10%, var(--color-bg-surface));
+  border: 1px solid color-mix(in srgb, var(--color-warning) 40%, var(--color-border-divider));
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+.clinic-create__filter-warning span[aria-hidden] {
+  font-size: 14px;
+}
+
+/* 필터 본문 */
+.clinic-create__filter-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+}
+.clinic-create__filter-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.clinic-create__filter-row--top {
+  align-items: flex-start;
+}
+.clinic-create__filter-row-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  width: 40px;
+  flex-shrink: 0;
+}
+.clinic-create__filter-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.clinic-create__filter-chip {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+.clinic-create__filter-chip--active {
+  font-weight: 600;
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+}
+.clinic-create__filter-reset {
+  align-self: flex-end;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-decoration: underline;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.12s ease;
+}
+.clinic-create__filter-reset:hover {
+  color: var(--color-text-primary);
+}
+.clinic-create__select-full {
+  width: 100%;
+}
+.clinic-create__select-min {
+  min-width: 0;
+}
+.clinic-create__section-empty-hint {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* 대상자 선택 row */
+.clinic-create__target-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.clinic-create__target-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/* 클리닉 생성: 한 페이지 컴팩트 레이아웃 — 스크롤은 대상자 리스트만 */
+.clinic-create-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.clinic-create-body .modal-scroll-body {
+  max-height: none;
+}
+
+/* 생성 패널 — 폼 그룹·라벨 위계 (프리미엄 SaaS, 전역 DS 유지) */
+.clinic-panel .modal-form-group {
+  margin-top: var(--space-5);
+  border-radius: var(--radius-lg);
+}
+.clinic-panel .modal-form-group:first-of-type {
+  margin-top: 0;
+}
+.clinic-panel .modal-section-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2);
+}
+.clinic-panel .ds-card-modal__header-right .text-xs {
+  font-size: 13px !important;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-brand-primary);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 25%, var(--color-border-divider));
+}
+
+/* 장소 저장/불러오기 아이콘 버튼 */
+.clinic-location-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.clinic-location-icon-btn:hover {
+  background: var(--color-bg-surface-hover);
+  color: var(--color-brand-primary);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 40%, var(--color-border-divider));
+}
+
+.clinic-location-popover {
+  min-width: 220px;
+  max-width: 280px;
+}
+.clinic-location-popover-empty {
+  padding: 4px 0;
+}
+.clinic-location-popover-list {
+  max-height: 240px;
+  overflow-y: auto;
+}
+.clinic-location-popover-item-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: var(--radius-sm);
+}
+.clinic-location-popover-item-row:hover {
+  background: var(--color-bg-surface-hover);
+}
+.clinic-location-popover-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.clinic-location-popover-item:hover {
+  background: var(--color-bg-surface-hover);
+}
+
+.clinic-location-popover-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+.clinic-location-popover-delete:hover {
+  color: var(--color-error, #dc2626);
+  background: color-mix(in srgb, var(--color-error, #dc2626) 12%, transparent);
+}
+
+/* 정원 ± 스테퍼 (숫자 업다운 대신 − / + 버튼) */
+.clinic-capacity-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-bg-surface);
+}
+.clinic-capacity-stepper__btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-primary);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.clinic-capacity-stepper__btn:hover:not(:disabled) {
+  background: var(--color-bg-surface-hover);
+  color: var(--color-brand-primary);
+}
+.clinic-capacity-stepper__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.clinic-capacity-stepper__value {
+  min-width: 44px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  border-left: 1px solid var(--color-border-divider);
+  border-right: 1px solid var(--color-border-divider);
+}
+
+/* ========== 리포트 — 월 네비 + 캘린더 한 묶음 ========== */
+.clinic-reports-calendar-block {
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-surface);
+  overflow: hidden;
+  padding: var(--space-6);
+}
+.clinic-reports-calendar-block__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+/* 월 표시(년+월+이전/다음) — 우측 중앙 배치 */
+.clinic-reports-calendar-block__month-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+  margin-right: auto;
+}
+.clinic-reports-calendar-block__nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.clinic-reports-calendar-block__nav-btn:hover {
+  background: var(--color-bg-surface-hover);
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-primary);
+}
+.clinic-reports-calendar-block__month {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.clinic-reports-calendar-block__year {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.clinic-reports-calendar-block__month-label {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+.clinic-reports-calendar-block__grid {
+  border-top: 1px solid var(--color-border-divider);
+  padding-top: var(--space-4);
+}
+.clinic-reports-calendar-block__error-message {
+  text-align: center;
+  padding: 48px 24px;
+}
+.clinic-reports-calendar-block__empty-month {
+  text-align: center;
+  padding: 40px 24px;
+  color: var(--color-text-muted);
+}
+.clinic-reports-calendar-block__empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.clinic-reports-calendar-block__empty-desc {
+  font-size: 13px;
+}
+.clinic-reports-calendar-block__compact {
+  border-top: 1px solid var(--color-border-divider);
+  padding-top: var(--space-4);
+}
+
+.clinic-panel__header {
+  padding: var(--space-6) var(--space-7);
+  padding-left: var(--space-7);
+  border-bottom: none;
+  background: transparent;
+  position: relative;
+}
+
+/* 제목 옆 인디케이터: 아주 얇고 짧게 포인트만 */
+.clinic-panel__header::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 14px;
+  border-radius: 1px;
+  background: var(--color-brand-primary);
+  opacity: 0.7;
+}
+
+.clinic-panel__title {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
+.clinic-panel__meta {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-top: var(--space-2);
+}
+
+/* 패널 본문 — 여백 1.5배 느낌 (숨 쉴 공간) */
+.clinic-panel__body {
+  padding: var(--space-8);
+  border-top: 1px solid var(--color-border-divider);
+}
+
+.clinic-panel__body,
+.clinic-panel__body .ds-section__empty,
+.clinic-panel__body .ds-section__item-label,
+.clinic-panel__body .ds-section__item-meta {
+  font-size: var(--text-md);
+}
+
+.clinic-panel__body .ds-section__empty {
+  padding: var(--space-7) var(--space-5);
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.clinic-panel__body .ds-section__kpi-label {
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+/* ========== 보조 버튼 — 시선 고려해 작고 절제되게 ========== */
+.clinic-btn-reset {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  padding: 4px 10px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.clinic-btn-reset:hover {
+  background: color-mix(in srgb, var(--color-border-divider) 12%, var(--color-bg-surface));
+  color: var(--color-text-primary);
+}
+
+/* ========== 패널 — 모달 SSOT(ds-card-modal)와 동일 셸 톤 ========== */
+
+/* 클리닉 일정 슬롯 상태 색상 — 예약 0명(정상) 포함 */
+.clinic-schedule-slot--status-normal {
+  --clinic-slot-bg: color-mix(in srgb, var(--color-success, #22c55e) 12%, var(--color-bg-surface));
+  --clinic-slot-border: color-mix(in srgb, var(--color-success, #22c55e) 28%, var(--color-border-divider));
+  border-left: 3px solid var(--color-success, #22c55e);
+  padding-left: var(--space-4);
+  margin-left: 2px;
+}
+
+.clinic-schedule-slot--status-normal .clinic-schedule-slot__empty {
+  background: var(--clinic-slot-bg);
+  border-color: var(--clinic-slot-border);
+  color: var(--color-text-primary);
+}
+
+.clinic-schedule-slot--status-almost {
+  --clinic-slot-bg: color-mix(in srgb, var(--color-warning, #eab308) 14%, var(--color-bg-surface));
+  --clinic-slot-border: color-mix(in srgb, var(--color-warning, #eab308) 35%, var(--color-border-divider));
+  border-left: 3px solid var(--color-warning, #eab308);
+  padding-left: var(--space-4);
+  margin-left: 2px;
+}
+
+.clinic-schedule-slot--status-almost .clinic-schedule-slot__empty {
+  background: var(--clinic-slot-bg);
+  border-color: var(--clinic-slot-border);
+  color: var(--color-text-primary);
+}
+
+.clinic-schedule-slot--status-full {
+  --clinic-slot-bg: color-mix(in srgb, var(--color-error, #ef4444) 12%, var(--color-bg-surface));
+  --clinic-slot-border: color-mix(in srgb, var(--color-error, #ef4444) 28%, var(--color-border-divider));
+  border-left: 3px solid var(--color-error, #ef4444);
+  padding-left: var(--space-4);
+  margin-left: 2px;
+}
+
+.clinic-schedule-slot--status-full .clinic-schedule-slot__empty {
+  background: var(--clinic-slot-bg);
+  border-color: var(--clinic-slot-border);
+  color: var(--color-text-primary);
+}
+
+/* 세션 카드 — 좌측 컬러 띠(인원현황) + 장소·예약인원 + 휴지통만 */
+.clinic-session-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.clinic-session-card {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.clinic-session-card:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.clinic-session-card__bar {
+  flex-shrink: 0;
+  width: 4px;
+  align-self: stretch;
+  min-height: 32px;
+  border-radius: 2px;
+  margin-right: var(--space-3);
+}
+
+.clinic-session-card--normal .clinic-session-card__bar {
+  background: var(--color-success, #22c55e);
+}
+
+.clinic-session-card--almost .clinic-session-card__bar {
+  background: var(--color-warning, #eab308);
+}
+
+.clinic-session-card--full .clinic-session-card__bar {
+  background: var(--color-status-error, #ef4444);
+}
+
+.clinic-session-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.clinic-session-card__location {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
+.clinic-session-card__count {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.clinic-session-card__delete {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.clinic-session-card__delete:hover {
+  color: var(--color-status-error, #ef4444);
+  background: color-mix(in srgb, var(--color-status-error, #ef4444) 10%, transparent);
+}
+
+.clinic-schedule-slot__list {
+  margin-top: 0;
+}

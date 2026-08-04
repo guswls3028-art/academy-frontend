@@ -31,7 +31,7 @@ import {
 import { useClinicTargets } from "@admin/domains/clinic/hooks/useClinicTargets";
 import type { ClinicTarget } from "@admin/domains/clinic/api/clinicTargets";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import StudentDetailLink from "@admin/domains/students/components/StudentDetailLink";
+import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
 import { EmptyState, Button } from "@/shared/ui/ds";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { adminSessionQueryKeys } from "../queryKeys";

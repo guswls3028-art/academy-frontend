@@ -18,7 +18,7 @@ import {
 import { AdminModal } from "@/shared/ui/modal";
 import { Button, EmptyState, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import StudentDetailLink from "@admin/domains/students/components/StudentDetailLink";
+import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
 import { fetchClinicSessions, type ClinicSessionDetail } from "../../api/clinicSessions.api";

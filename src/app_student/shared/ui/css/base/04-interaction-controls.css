@@ -1,0 +1,555 @@
+/* ======================================================
+   10) Section – Advanced Interaction (Premium SaaS)
+   Shadow 제거, Border + Tint 기반
+   ====================================================== */
+
+/* Section 포커스 접근성 (Border 기반) */
+.stu-section--pressable:focus-within,
+.stu-card--pressable:focus-within {
+  border-color: var(--stu-primary);
+  border-width: 2px;
+  outline: none;
+}
+
+/* ======================================================
+   11) Button – Premium SaaS Interaction
+   Shadow 제거, Border 기반
+   ====================================================== */
+
+/* 버튼 포커스 (Border 기반) */
+.stu-btn:focus-visible {
+  outline: 2px solid var(--stu-primary);
+  outline-offset: 2px;
+}
+
+/* ======================================================
+   12) TabBar Active Accent (프리미엄 스타일)
+   ====================================================== */
+
+.stu-tabbar .stu-tabbar__link[aria-current="page"] {
+  /* 활성 탭에 미묘한 배경 */
+  background: var(--stu-tint-primary);
+  transform: scale(1.05);
+}
+
+.stu-tabbar .stu-tabbar__link:active {
+  transform: scale(0.98);
+}
+
+.stu-tabbar .stu-tabbar__link[aria-current="page"]:active {
+  transform: scale(1.02);
+}
+
+/* ======================================================
+   13) Subtle Motion (Premium SaaS)
+   Shadow 관련 transition 제거
+   ====================================================== */
+
+@media (prefers-reduced-motion: no-preference) {
+  .stu-section--pressable,
+  .stu-card--pressable,
+  .stu-btn {
+    transition:
+      background-color 120ms ease,
+      border-color 120ms ease,
+      color 120ms ease;
+  }
+}
+
+/* ======================================================
+   14) [data-app="student"] 스코프 — 전역 DS/Tailwind에 덮이지 않도록
+   관리자(data-app=admin) / 로그인(data-app=auth) / 학생(data-app=student) 분리
+   ====================================================== */
+[data-app="student"] .stu-btn--primary {
+  background: var(--stu-primary);
+  color: var(--stu-primary-contrast);
+  border: 1px solid var(--stu-primary);
+}
+[data-app="student"] .stu-btn--primary:hover:not(:disabled) {
+  background: var(--stu-primary-hover);
+  border-color: var(--stu-primary-hover);
+}
+[data-app="student"] .stu-btn--danger {
+  background: var(--stu-danger);
+  color: #fff;
+  border: 1px solid var(--stu-danger);
+}
+[data-app="student"] .stu-btn--danger:hover:not(:disabled) {
+  background: var(--stu-danger-hover);
+  border-color: var(--stu-danger-hover);
+}
+
+/* 컬러 배경 버튼 내부 아이콘은 흰색 (테넌트 gradient 오버라이드) */
+[data-app="student"] .stu-btn--danger .stu-icon,
+[data-app="student"] .stu-btn--danger .stu-icon path,
+[data-app="student"] .stu-btn--danger .stu-icon circle,
+[data-app="student"] .stu-btn--danger .stu-icon rect,
+[data-app="student"] .stu-btn--danger .stu-icon polygon,
+[data-app="student"] .stu-btn--primary .stu-icon,
+[data-app="student"] .stu-btn--primary .stu-icon path,
+[data-app="student"] .stu-btn--primary .stu-icon circle,
+[data-app="student"] .stu-btn--primary .stu-icon rect,
+[data-app="student"] .stu-btn--primary .stu-icon polygon {
+  stroke: currentColor !important;
+}
+[data-app="student"] .stu-btn--danger .stu-icon path[fill="currentColor"],
+[data-app="student"] .stu-btn--danger .stu-icon circle[fill="currentColor"],
+[data-app="student"] .stu-btn--danger .stu-icon polygon[fill="currentColor"],
+[data-app="student"] .stu-btn--primary .stu-icon path[fill="currentColor"],
+[data-app="student"] .stu-btn--primary .stu-icon circle[fill="currentColor"],
+[data-app="student"] .stu-btn--primary .stu-icon polygon[fill="currentColor"] {
+  fill: currentColor !important;
+}
+[data-app="student"] .stu-btn--secondary {
+  background: var(--stu-surface-1);
+  border: 1px solid var(--stu-border-normal);
+  color: var(--stu-text);
+}
+[data-app="student"] .stu-btn--ghost {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--stu-text);
+}
+[data-app="student"] .stu-btn--ghost:hover:not(:disabled) {
+  background: var(--stu-tint-primary);
+}
+
+/* =========================
+   15) HTML Content (rich text from admin editor)
+   ========================= */
+.stu-html-content h1,
+.stu-html-content h2,
+.stu-html-content h3 {
+  margin: 0.8em 0 0.4em;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.stu-html-content > :first-child { margin-top: 0; }
+.stu-html-content > :last-child { margin-bottom: 0; }
+.stu-html-content h1 { font-size: 1.4em; }
+.stu-html-content h2 { font-size: 1.2em; }
+.stu-html-content h3 { font-size: 1.1em; }
+
+.stu-html-content p {
+  margin: 0.5em 0;
+}
+
+.stu-html-content ul,
+.stu-html-content ol {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+.stu-html-content a {
+  color: var(--stu-primary);
+  text-decoration: underline;
+}
+
+.stu-html-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--stu-radius);
+  margin: 0.5em 0;
+}
+
+.stu-html-content blockquote {
+  margin: 0.8em 0;
+  padding: 0.75em 0.9em;
+  border-left: 3px solid var(--stu-primary);
+  border-radius: var(--stu-radius-md);
+  background: var(--stu-tint-primary);
+  color: var(--stu-text-muted);
+}
+
+.stu-html-content table {
+  width: 100%;
+  margin: 0.8em 0;
+  border-collapse: collapse;
+}
+
+.stu-html-content th,
+.stu-html-content td {
+  padding: 0.55em 0.65em;
+  border: 1px solid var(--stu-border-normal);
+  text-align: left;
+  vertical-align: top;
+}
+
+.stu-html-content th {
+  background: var(--stu-surface-1);
+  font-weight: 700;
+}
+
+.stu-html-content code {
+  padding: 0.12em 0.34em;
+  border-radius: 6px;
+  background: var(--stu-surface-1);
+  font-size: 0.92em;
+}
+
+/* =========================
+   Accessible Tab Bar
+   ========================= */
+[data-app="student"] [role="tablist"] {
+  display: flex;
+  gap: var(--stu-space-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: var(--stu-space-2);
+}
+
+[data-app="student"] [role="tablist"]::-webkit-scrollbar {
+  display: none;
+}
+
+[data-app="student"] [role="tab"] {
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: var(--stu-radius-md);
+  border: 1.5px solid var(--stu-border);
+  background: var(--stu-surface);
+  color: var(--stu-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--stu-motion-fast), border-color var(--stu-motion-fast), color var(--stu-motion-fast);
+  flex-shrink: 0;
+}
+
+[data-app="student"] [role="tab"][aria-selected="true"] {
+  background: var(--stu-surface-1);
+  border-color: color-mix(in srgb, var(--stu-primary) 18%, var(--stu-border));
+  color: var(--stu-primary);
+  font-weight: 700;
+}
+
+[data-app="student"] [role="tab"]:active {
+  transform: scale(0.97);
+}
+
+[data-app="student"] .domain-tab-shell__tabs[role="tablist"] {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  gap: 4px;
+  overflow: visible;
+  padding: 4px;
+  border-radius: var(--stu-radius-md);
+  background: color-mix(in srgb, var(--stu-surface-soft) 72%, var(--stu-surface));
+  border: 1px solid color-mix(in srgb, var(--stu-border) 82%, transparent);
+}
+
+[data-app="student"] .domain-tab-shell__tab[role="tab"] {
+  flex-shrink: 1;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: calc(var(--stu-radius-md) - 4px);
+  background: transparent;
+  box-shadow: none;
+  color: var(--stu-text-muted);
+  font-size: 14px;
+  font-weight: 760;
+}
+
+[data-app="student"] .domain-tab-shell__tab[role="tab"][aria-selected="true"],
+[data-app="student"] .domain-tab-shell__tab--active[role="tab"] {
+  background: var(--stu-surface-1);
+  color: var(--stu-primary);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.72) inset,
+    0 5px 14px rgba(15, 23, 42, 0.055);
+}
+
+/* =========================
+   Touch Target Enforcement (44px)
+   ========================= */
+[data-app="student"] .stu-btn {
+  min-height: 44px;
+}
+
+[data-app="student"] .stu-btn--sm {
+  min-height: 44px;
+}
+
+/* =========================
+   Sticky Submit Bar
+   ========================= */
+.stu-sticky-submit {
+  position: sticky;
+  bottom: 0;
+  z-index: 100;
+  padding: var(--stu-space-4);
+  background: var(--stu-surface);
+  border-top: 1px solid var(--stu-border);
+  backdrop-filter: blur(12px);
+}
+
+/* =========================
+   Logout Confirm Dialog
+   ========================= */
+.stu-logout-dialog__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9100;
+  background: var(--stu-backdrop);
+  display: grid;
+  place-items: center;
+  padding: var(--stu-space-4);
+}
+
+.stu-logout-dialog__box {
+  background: var(--stu-surface);
+  border-radius: var(--stu-radius-xl);
+  padding: var(--stu-space-8);
+  max-width: 320px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.stu-logout-dialog__title {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--stu-text);
+  margin-bottom: var(--stu-space-3);
+}
+
+.stu-logout-dialog__desc {
+  font-size: 14px;
+  color: var(--stu-text-muted);
+  margin-bottom: var(--stu-space-6);
+  line-height: 1.5;
+}
+
+.stu-logout-dialog__actions {
+  display: flex;
+  gap: var(--stu-space-3);
+}
+
+.stu-logout-dialog__actions button {
+  flex: 1;
+  min-height: 44px;
+  border-radius: var(--stu-radius-md);
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background var(--stu-motion-fast);
+}
+
+.stu-logout-dialog__cancel {
+  background: var(--stu-surface-soft);
+  color: var(--stu-text);
+  border: 1px solid var(--stu-border);
+}
+
+.stu-logout-dialog__confirm {
+  background: var(--stu-danger);
+  color: #fff;
+  border: none;
+}
+
+/* =========================
+   Premium Components (2026-04 UX 고도화)
+   ========================= */
+
+/* 원형 아이콘 버튼 — 캘린더 화살표, 뒤로가기 등 */
+[data-app="student"] .stu-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--stu-text);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--stu-motion-fast), border-color var(--stu-motion-fast), transform var(--stu-motion-fast);
+}
+[data-app="student"] .stu-icon-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--stu-primary) 8%, transparent);
+}
+[data-app="student"] .stu-icon-btn:active:not(:disabled) {
+  transform: scale(0.94);
+  background: color-mix(in srgb, var(--stu-primary) 14%, transparent);
+}
+[data-app="student"] .stu-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+[data-app="student"] .stu-icon-btn--outlined {
+  border-color: var(--stu-border);
+  background: var(--stu-surface-1);
+}
+[data-app="student"] .stu-icon-btn--primary {
+  color: var(--stu-primary);
+}
+[data-app="student"] .stu-icon-btn--sm {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+}
+
+/* 리스트 chevron — 클릭 가능 신호 강화 */
+[data-app="student"] .stu-chevron {
+  color: color-mix(in srgb, var(--stu-text-muted) 70%, transparent);
+  flex-shrink: 0;
+  transition: transform var(--stu-motion-fast);
+}
+[data-app="student"] a:hover > .stu-chevron,
+[data-app="student"] button:hover > .stu-chevron {
+  color: var(--stu-primary);
+  transform: translateX(2px);
+}
+
+/* Primary 버튼 disabled — 연회색이 아닌 톤 다운된 primary 유지 */
+[data-app="student"] .stu-btn--primary:disabled {
+  background: color-mix(in srgb, var(--stu-primary) 38%, var(--stu-surface-1));
+  border-color: color-mix(in srgb, var(--stu-primary) 38%, var(--stu-surface-1));
+  color: #fff;
+  opacity: 1;
+  box-shadow: none;
+}
+
+/* Secondary 버튼 — primary outline 강조 (HTML 느낌 제거) */
+[data-app="student"] .stu-btn--secondary {
+  background: var(--stu-surface-1);
+  border: 1px solid color-mix(in srgb, var(--stu-border) 88%, transparent);
+  color: var(--stu-text);
+  font-weight: 600;
+  box-shadow: none;
+}
+[data-app="student"] .stu-btn--secondary:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--stu-primary) 18%, var(--stu-border));
+  background: color-mix(in srgb, var(--stu-primary) 4%, var(--stu-surface-1));
+  transform: none;
+  box-shadow: none;
+}
+[data-app="student"] .stu-btn--secondary:active:not(:disabled) {
+  background: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface-1));
+  transform: scale(0.98);
+}
+
+/* Ghost 버튼 — 모바일 터치에서도 버튼감 유지 */
+[data-app="student"] .stu-btn--ghost {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--stu-text);
+  font-weight: 600;
+  box-shadow: none;
+}
+[data-app="student"] .stu-btn--ghost:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface-1));
+  border-color: color-mix(in srgb, var(--stu-primary) 18%, transparent);
+  transform: none;
+  box-shadow: none;
+}
+
+/* Back 버튼 — 페이지 상단 "뒤로" */
+[data-app="student"] .stu-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px 8px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 14%, var(--stu-border));
+  background: var(--stu-surface-1);
+  color: var(--stu-text);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--stu-motion-fast), border-color var(--stu-motion-fast), transform var(--stu-motion-fast);
+}
+[data-app="student"] .stu-back-btn:hover {
+  background: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1));
+  border-color: color-mix(in srgb, var(--stu-primary) 26%, var(--stu-border));
+}
+[data-app="student"] .stu-back-btn:active {
+  transform: scale(0.97);
+}
+
+/* Input — 기존 스타일 보강 (primary tint border, 더 부드러운 focus) */
+[data-app="student"] .stu-input {
+  border: 1.5px solid color-mix(in srgb, var(--stu-primary) 10%, var(--stu-border));
+  box-shadow: none;
+  font-size: 15px;
+  font-weight: 500;
+}
+[data-app="student"] .stu-input:hover:not(:focus) {
+  border-color: color-mix(in srgb, var(--stu-primary) 20%, var(--stu-border));
+}
+[data-app="student"] .stu-input:focus {
+  border-width: 1.5px;
+  border-color: var(--stu-primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--stu-primary) 12%, transparent);
+}
+
+/* Select — chevron 포함한 커스텀 스타일 */
+[data-app="student"] select.stu-select,
+[data-app="student"] .stu-select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 36px 10px 14px;
+  border-radius: var(--stu-radius-md);
+  border: 1.5px solid color-mix(in srgb, var(--stu-primary) 10%, var(--stu-border));
+  background: var(--stu-surface-1) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>") no-repeat right 12px center;
+  background-size: 16px 16px;
+  color: var(--stu-text);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--stu-motion-fast), box-shadow var(--stu-motion-fast);
+}
+[data-app="student"] select.stu-select:hover,
+[data-app="student"] .stu-select:hover {
+  border-color: color-mix(in srgb, var(--stu-primary) 24%, var(--stu-border));
+}
+[data-app="student"] select.stu-select:focus,
+[data-app="student"] .stu-select:focus {
+  outline: none;
+  border-color: var(--stu-primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--stu-primary) 12%, transparent);
+}
+
+/* Segmented Control — "내 일정/예약" 같은 탭 보강 */
+[data-app="student"] .stu-segment {
+  display: inline-flex;
+  padding: 3px;
+  background: color-mix(in srgb, var(--stu-primary) 4%, var(--stu-surface-soft));
+  border-radius: 10px;
+  gap: 2px;
+}
+[data-app="student"] .stu-segment__item {
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--stu-text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--stu-motion-fast), color var(--stu-motion-fast);
+}
+[data-app="student"] .stu-segment__item[aria-selected="true"] {
+  background: var(--stu-surface-1);
+  color: var(--stu-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+/* 다크모드: 컴포넌트 보강 */
+[data-app="student"][data-student-dark="true"] .stu-icon-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--stu-primary) 14%, transparent);
+}
+[data-app="student"][data-student-dark="true"] .stu-back-btn {
+  background: var(--stu-surface-2);
+}

@@ -77,7 +77,7 @@ const CONFIRM_BAR_DELTA_STYLE: CSSProperties = { marginRight: 8 };
 const CUTLINE_MARKER_STYLE: CSSProperties = { left: "100%" };
 
 const StudentsDetailOverlay = lazy(
-  () => import("@admin/domains/students/overlays/StudentsDetailOverlay")
+  () => import("@admin/domains/students/public/StudentsDetailOverlay")
 );
 
 /* ── helpers ── */

@@ -2,7 +2,6 @@
 /**
  * 과제 제출관리 패널
  * - 학생별 제출 목록: 아바타 + 이름 + 강의칩 + 과+과제명 + 상태 + 파일 보기
- * - 주관식 과제 자동채점 TODO 버튼
  */
 
 import { useState } from "react";
@@ -17,7 +16,7 @@ import {
 } from "@admin/domains/submissions/statusMaps";
 import type { HomeworkSubmissionRow } from "@admin/domains/submissions/api/adminHomeworkSubmissions.api";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import StudentDetailLink from "@admin/domains/students/components/StudentDetailLink";
+import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
 import { Button, EmptyState, Badge, type BadgeTone } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPreviewModal";

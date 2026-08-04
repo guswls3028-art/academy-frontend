@@ -1,21 +1,21 @@
 {
   "summary": {
-    "same_app_domain_import": 155,
-    "large_frontend_file": 34,
-    "e2e_wait_for_timeout": 69
+    "same_app_domain_import": 153,
+    "large_frontend_file": 41,
+    "e2e_wait_for_timeout": 33
   },
   "metrics": {
-    "local_format_defs": 123,
-    "status_map_defs": 37,
-    "query_key_literals": 904,
-    "inline_style_objects": 3835,
-    "raw_badge_classes": 21,
-    "api_response_type_defs": 102,
+    "local_format_defs": 105,
+    "status_map_defs": 25,
+    "query_key_literals": 9,
+    "inline_style_objects": 3771,
+    "raw_badge_classes": 0,
+    "api_response_type_defs": 77,
     "direct_axios_calls": 0,
-    "fetch_calls": 10,
-    "local_storage_refs": 159,
-    "session_storage_refs": 40,
-    "explicit_any_refs": 127,
-    "ts_expect_error_refs": 6
+    "fetch_calls": 3,
+    "local_storage_refs": 144,
+    "session_storage_refs": 38,
+    "explicit_any_refs": 111,
+    "ts_expect_error_refs": 0
   }
 }

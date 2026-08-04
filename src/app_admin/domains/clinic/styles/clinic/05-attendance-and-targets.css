@@ -1,0 +1,557 @@
+/* ======================================================================
+   Phase 7 — 오늘 탭 강화
+   ====================================================================== */
+
+/* 오늘 출석 요약 한 줄 */
+.clinic-home__today-summary {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-3) 0;
+  padding: 0;
+  letter-spacing: -0.01em;
+}
+
+/* 빈 세션 — CTA 포함 */
+.clinic-home__empty-sessions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+}
+
+.clinic-home__empty-sessions-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.clinic-home__empty-sessions-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-brand-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  transition: background 0.15s ease;
+}
+
+.clinic-home__empty-sessions-cta:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
+}
+
+/* "다음" 세션 카드 강조 */
+.clinic-home__timeline-card--next {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 35%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-brand-primary) 5%, var(--color-bg-surface-soft));
+}
+
+.clinic-home__timeline-card-next-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--color-brand-primary);
+  padding: 1px 8px;
+  border-radius: 999px;
+  line-height: 1.6;
+  flex-shrink: 0;
+}
+.clinic-home__section-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-brand-primary) 14%, transparent);
+  color: var(--color-brand-primary);
+  margin-right: 6px;
+}
+
+/* 지난 세션 미니 출석 표시 */
+.clinic-home__timeline-card-progress {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-border-divider) 15%, transparent);
+  white-space: nowrap;
+}
+
+/* ======================================================================
+   Phase 8 — 예약 탭 강화
+   ====================================================================== */
+
+/* 미예약 전체 선택 버튼 */
+.clinic-bookings__select-unbooked-btn {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-brand-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+.clinic-bookings__select-unbooked-btn:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
+  text-decoration: underline;
+}
+
+/* 빈 대상자 목록 */
+.clinic-bookings__targets-empty {
+  padding: var(--space-10) var(--space-6);
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.clinic-bookings__toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* ── 대상자 결손 사유 상세 ── */
+
+/* 대상자 테이블: 세션 + 점수 래퍼 */
+.clinic-bookings__target-detail {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* 점수 표시 (시험 72/80점) — 대상자 테이블 */
+.clinic-target__score {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  letter-spacing: -0.01em;
+}
+
+/* 차시 제목 (수학 3회차) — 대상자 테이블 */
+.clinic-target__session {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  letter-spacing: -0.01em;
+}
+
+/* 세션과 점수 사이 구분점 */
+.clinic-bookings__target-detail .clinic-target__session + .clinic-target__score::before {
+  content: "·";
+  margin-right: var(--space-2);
+  color: var(--color-text-muted);
+}
+
+/* 운영 콘솔: 사유 뱃지 아래 상세 라인 */
+.clinic-console__reason-detail {
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 240px;
+}
+
+/* ── 운영 콘솔: 출석/불참 버튼 ── */
+.clinic-console__attendance-group {
+  display: inline-flex;
+  gap: 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--color-border-divider);
+  margin-right: var(--space-2);
+}
+
+.clinic-console__attendance-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  border: none;
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.clinic-console__attendance-btn:hover:not(:disabled) {
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-secondary);
+}
+
+.clinic-console__attendance-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 구분선: 두 버튼 사이 */
+.clinic-console__attendance-btn + .clinic-console__attendance-btn {
+  border-left: 1px solid var(--color-border-divider);
+}
+
+/* 출석 활성 — 녹색 */
+.clinic-console__attendance-btn--attended.clinic-console__attendance-btn--active {
+  background: color-mix(in srgb, var(--color-success) 14%, var(--color-bg-surface));
+  color: var(--scale-Success700);
+}
+.clinic-console__attendance-btn--attended.clinic-console__attendance-btn--active:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-success) 22%, var(--color-bg-surface));
+}
+
+/* 불참 활성 — 적색 */
+.clinic-console__attendance-btn--no-show.clinic-console__attendance-btn--active {
+  background: color-mix(in srgb, var(--color-error) 14%, var(--color-bg-surface));
+  color: var(--scale-Error700);
+}
+.clinic-console__attendance-btn--no-show.clinic-console__attendance-btn--active:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-error) 22%, var(--color-bg-surface));
+}
+
+/* 전체 출석 버튼 */
+.clinic-console__bulk-attend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  padding: 6px 14px;
+  margin-bottom: var(--space-4);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  border: 1px solid color-mix(in srgb, var(--color-success) 40%, var(--color-border-divider));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-success) 8%, var(--color-bg-surface));
+  color: var(--scale-Success700);
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.clinic-console__bulk-attend:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-success) 16%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-success) 60%, var(--color-border-divider));
+}
+.clinic-console__bulk-attend:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── 클리닉 진행: participant card states ── */
+
+.clinic-console__card {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  padding: var(--space-5);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, opacity 0.2s ease;
+}
+
+.clinic-console__card--attended {
+  opacity: 0.7;
+  border-color: color-mix(in srgb, var(--color-success) 30%, var(--color-border-divider));
+}
+
+.clinic-console__card--no-show {
+  border-color: color-mix(in srgb, var(--color-error) 30%, var(--color-border-divider));
+}
+
+.clinic-console__status-label {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm, 4px);
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+.clinic-console__status-label--attended {
+  color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+}
+
+.clinic-console__status-label--no-show {
+  color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 12%, transparent);
+}
+
+/* All-done message below progress bar */
+.clinic-console__progress-done {
+  margin: var(--space-2) 0 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-success);
+  letter-spacing: -0.01em;
+}
+
+/* Empty session with CTA */
+.clinic-console__empty-session {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-8);
+  text-align: center;
+  border: 1px dashed var(--color-border-divider);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface-soft);
+}
+
+.clinic-console__empty-session-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* ── 예약 탭: section divider between approval and targets ── */
+
+.clinic-bookings__section-divider {
+  height: 1px;
+  background: var(--color-border-divider);
+  margin: var(--space-2) 0;
+}
+
+/* Deselect all button */
+.clinic-bookings__deselect-btn {
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm, 4px);
+  transition: color 0.12s ease, background 0.12s ease;
+}
+
+.clinic-bookings__deselect-btn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface-hover);
+}
+
+/* Floating selection bar */
+.clinic-bookings__floating-bar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-bg-elevated, var(--color-bg-surface));
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
+  z-index: 100;
+  animation: clinic-float-in 0.2s ease;
+}
+
+@keyframes clinic-float-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.clinic-bookings__floating-bar-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.clinic-bookings__floating-bar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-4);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-inverse, #fff);
+  background: var(--color-brand-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.12s ease;
+  white-space: nowrap;
+}
+
+.clinic-bookings__floating-bar-btn:hover {
+  background: var(--color-brand-primary-hover, color-mix(in srgb, var(--color-brand-primary) 85%, #000));
+}
+
+/* Better empty target state */
+.clinic-bookings__targets-empty-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.clinic-bookings__targets-empty-desc {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  opacity: 0.7;
+  margin: var(--space-1) 0 0 0;
+}
+
+/* ── Clinic Create: Compact Row Layout ── */
+.clinic-create__row {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+.clinic-create__field--half {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 480px) {
+  .clinic-create__row {
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+}
+
+/* ── Clinic Create: Visual Polish ── */
+
+/* 필드 사이 구분선 */
+.clinic-create__form > .clinic-create__field + .clinic-create__field,
+.clinic-create__form > .clinic-create__row + .clinic-create__field,
+.clinic-create__form > .clinic-create__field + .clinic-create__row {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border-divider);
+}
+
+/* 라벨 강화 */
+.clinic-create__label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* 대상 조건 섹션 — 배경 구분 */
+.clinic-create__collapse-trigger {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface));
+  border: 1px solid var(--color-border-divider);
+  transition: background 0.15s;
+}
+.clinic-create__collapse-trigger:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface));
+}
+
+/* 대상자 선택 버튼 강화 */
+.clinic-create__target-row [data-intent="secondary"] {
+  border: 1px dashed var(--color-brand-primary);
+  color: var(--color-brand-primary);
+}
+.clinic-create__target-row [data-intent="secondary"]:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface));
+  border-style: solid;
+}
+
+/* 선택 인원 카운트 강화 */
+.clinic-create__target-count {
+  font-weight: 700;
+  color: var(--color-brand-primary);
+}
+.clinic-create__target-count--empty {
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+/* submit 버튼 영역 강화 */
+.clinic-create__footer {
+  background: color-mix(in srgb, var(--color-brand-primary) 3%, var(--color-bg-surface));
+  padding: var(--space-4);
+  margin: var(--space-4) calc(-1 * var(--space-5)) calc(-1 * var(--space-5));
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  border-top: 1px solid var(--color-border-divider);
+}
+
+/* 정원 stepper 강화 */
+.clinic-capacity-stepper {
+  border: 1px solid var(--color-border-divider-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.clinic-capacity-stepper__btn {
+  background: var(--color-bg-surface);
+  border: none;
+  width: 32px;
+  height: 32px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.clinic-capacity-stepper__btn:hover:not(:disabled) {
+  background: var(--color-bg-surface-hover);
+  color: var(--color-brand-primary);
+}
+.clinic-capacity-stepper__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.clinic-capacity-stepper__value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 32px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  background: var(--color-bg-canvas);
+  border-left: 1px solid var(--color-border-divider);
+  border-right: 1px solid var(--color-border-divider);
+}
+
+/* 장소 저장/불러오기 버튼 — 더 눈에 띄게 */
+.clinic-create__location-btn {
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ── Schedule card: clickable → navigates to 클리닉 진행 ── */
+.clinic-schedule__card--clickable {
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+.clinic-schedule__card--clickable:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+.clinic-schedule__card--clickable:active {
+  transform: scale(0.99);
+}

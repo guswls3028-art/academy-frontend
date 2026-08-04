@@ -1,0 +1,877 @@
+/* ========== Filled Input — 클리닉 생성 패널용 (전역 DS: role 배경 토큰) ========== */
+.clinic-input-filled.ant-input,
+.clinic-input-filled .ant-input,
+.clinic-input-filled .ant-select-selector {
+  background: color-mix(in srgb, var(--color-border-divider) 12%, var(--color-bg-surface)) !important;
+  border: none !important;
+  border-radius: var(--radius-md);
+  transition: box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.clinic-input-filled.ant-input:focus,
+.clinic-input-filled.ant-input-focused,
+.clinic-input-filled .ant-select-focused .ant-select-selector {
+  box-shadow: 0 0 0 1.5px var(--color-brand-primary) !important;
+  background: var(--color-bg-surface) !important;
+}
+
+.clinic-input-filled.ant-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* Textarea 동일 */
+.clinic-input-filled.ant-input-textarea textarea {
+  background: color-mix(in srgb, var(--color-border-divider) 12%, var(--color-bg-surface)) !important;
+  border: none !important;
+  border-radius: var(--radius-md);
+}
+
+.clinic-input-filled.ant-input-textarea textarea:focus {
+  box-shadow: 0 0 0 1.5px var(--color-brand-primary) !important;
+  background: var(--color-bg-surface) !important;
+}
+
+/* ========== 빠른 시간 버튼 (+30분, +1시간) — DS secondary/ghost 톤, hover 시 primary 옅은 배경 ========== */
+.clinic-quick-time-btn {
+  border-radius: var(--radius-md) !important;
+  border: 1px solid var(--color-border-divider) !important;
+  background: var(--color-bg-surface-soft) !important;
+  font-weight: 600 !important;
+  transition: background 0.15s ease, border-color 0.15s ease !important;
+}
+
+.clinic-quick-time-btn:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface)) !important;
+  border-color: color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider)) !important;
+}
+
+/* ========== 트리 요약 (월/주차) — 선택 시에만 배경, 평소엔 텍스트만 ========== */
+.clinic-tree__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  list-style: none;
+}
+
+.clinic-tree__summary::-webkit-details-marker,
+.clinic-tree__summary::marker {
+  display: none;
+}
+
+.clinic-tree__summary:hover {
+  background: color-mix(in srgb, var(--color-border-divider) 8%, var(--color-bg-surface));
+}
+
+details[open] > .clinic-tree__summary {
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+}
+
+/* 트리 날짜 — 미선택 시 테두리 없이 텍스트만, 선택 시 배경 채움 ========== */
+.clinic-tree__day {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.clinic-tree__day:hover {
+  background: color-mix(in srgb, var(--color-border-divider) 8%, var(--color-bg-surface));
+}
+
+.clinic-tree__day--active {
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+}
+
+.clinic-tree__day-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 14%, transparent);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+/* 액션 행 (전체 선택) — DS 경계 톤 ========== */
+.clinic-action-row {
+  display: flex;
+  align-items: center;
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-md);
+  border: none;
+  background: color-mix(in srgb, var(--color-border-divider) 6%, var(--color-bg-surface));
+  transition: background 0.15s ease;
+}
+
+.clinic-action-row:hover {
+  background: color-mix(in srgb, var(--color-border-divider) 12%, var(--color-bg-surface));
+}
+
+.clinic-action-row label {
+  cursor: pointer;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+}
+
+/* 폼 본문 가독성 */
+.clinic-panel__body input,
+.clinic-panel__body textarea,
+.clinic-panel__body .ant-input,
+.clinic-panel__body .ant-select-selector {
+  font-size: var(--text-md);
+}
+
+/* ========== 빈 상태 — 아이콘 + 문구 ========== */
+.clinic-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8) var(--space-6);
+  text-align: center;
+}
+
+.clinic-empty-state__icon {
+  width: 48px;
+  height: 48px;
+  margin-bottom: var(--space-4);
+  color: var(--color-text-muted);
+  opacity: 0.6;
+}
+
+.clinic-empty-state__text {
+  font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+/* 주간 일정 셀 등 (다른 패널에서 사용) — DS elevation ========== */
+.clinic-day-cell {
+  border-radius: var(--radius-lg);
+  border: none;
+  background: var(--color-bg-surface-soft);
+  padding: var(--space-4);
+  font-size: var(--text-md);
+  font-weight: 600;
+  box-shadow: var(--elevation-1);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+
+.clinic-day-cell:hover {
+  background: var(--color-bg-surface-hover);
+}
+
+.clinic-day-cell--today {
+  box-shadow: 0 0 0 1.5px var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
+}
+
+.clinic-time-block {
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-surface-soft);
+  border: none;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  box-shadow: var(--elevation-1);
+}
+
+.clinic-time-block--alert {
+  color: var(--color-error);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Phase 3 — 클리닉 홈 "오늘의 워크스페이스" 단일 컬럼 레이아웃
+   ────────────────────────────────────────────────────────────── */
+
+.clinic-home--workspace {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 720px;
+}
+
+/* ── 액션바 ── */
+.clinic-home__action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: 12px;
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.clinic-home__action-bar-left {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.clinic-home__action-bar-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.clinic-home__action-bar-badge {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.clinic-home__action-bar-badge--pending {
+  background: color-mix(in srgb, var(--color-warning) 15%, var(--color-bg-surface));
+  color: var(--color-warning-text, #92400e);
+}
+
+.clinic-home__action-bar-badge--alert {
+  background: color-mix(in srgb, var(--color-error) 12%, var(--color-bg-surface));
+  color: var(--color-error);
+  font-weight: 700;
+}
+
+.clinic-home__action-bar-badge--clear {
+  color: var(--color-text-muted);
+  background: transparent;
+}
+
+.clinic-home__action-bar-link {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-brand-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+.clinic-home__action-bar-link:hover {
+  text-decoration: underline;
+}
+
+/* 자동 승인 — 컴팩트 인라인 */
+.clinic-home__auto-approve-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.clinic-home__auto-approve-compact:hover {
+  background: var(--color-bg-surface-hover);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider));
+}
+
+.clinic-home__auto-approve-checkbox-sm {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-brand-primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.clinic-home__booking-policy {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.clinic-home__booking-policy-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.clinic-home__booking-policy-copy strong {
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.clinic-home__booking-policy-copy small {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* ── 타임라인 (오늘 일정) ── */
+.clinic-home__timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.clinic-home__timeline-row {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-3);
+}
+
+.clinic-home__timeline-time {
+  flex-shrink: 0;
+  width: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: var(--space-3);
+  border-right: 2px solid var(--color-border-divider);
+}
+
+.clinic-home__timeline-time-text {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.clinic-home__timeline-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: 10px;
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+}
+
+.clinic-home__timeline-card-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+}
+
+.clinic-home__timeline-card-location {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  white-space: normal;
+  word-break: keep-all;
+}
+
+.clinic-home__timeline-card-fill {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.clinic-home__timeline-card-alert {
+  color: var(--color-error);
+  font-weight: 700;
+}
+
+.clinic-home__timeline-card-action {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-brand-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+.clinic-home__timeline-card-action:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, transparent);
+}
+
+/* ── 미예약 배너 ── */
+.clinic-home__unbooked-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-warning) 30%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-warning) 8%, var(--color-bg-surface));
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.clinic-home__unbooked-banner:hover {
+  background: color-mix(in srgb, var(--color-warning) 14%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-warning) 50%, var(--color-border-divider));
+}
+
+.clinic-home__unbooked-banner-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.clinic-home__unbooked-banner-text strong {
+  font-weight: 700;
+}
+
+.clinic-home__unbooked-banner-arrow {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-brand-primary);
+  white-space: nowrap;
+}
+
+/* ── 반응형: 좁은 화면에서 타임라인 세로 배치 ── */
+@media (max-width: 480px) {
+  .clinic-home__section .clinic-home__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .clinic-home__booking-policy,
+  .clinic-home__auto-approve-compact {
+    width: 100%;
+  }
+
+  .clinic-home__timeline-time {
+    width: 90px;
+  }
+
+  .clinic-home__timeline-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .clinic-home__action-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ============================================================================
+ * 예약 대상자 — 단일 컬럼 워크플로우 (clinic-bookings__)
+ * ========================================================================= */
+
+.clinic-bookings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.clinic-bookings-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.clinic-bookings-page__remediation {
+  min-width: 0;
+}
+
+/* ── Toolbar ────────────────────────────────────────────────────────────── */
+
+.clinic-bookings__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-lg, 12px);
+}
+
+.clinic-bookings__toolbar-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.clinic-bookings__toolbar-stat strong {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.clinic-bookings__toolbar-stat--alert {
+  color: var(--color-error);
+}
+
+.clinic-bookings__toolbar-stat--alert strong {
+  color: var(--color-error);
+}
+
+.clinic-bookings__toolbar-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--color-border-divider);
+  flex-shrink: 0;
+}
+
+/* ── Pending approvals (collapsible) ────────────────────────────────────── */
+
+.clinic-bookings__pending {
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--color-bg-surface);
+  overflow: hidden;
+}
+
+.clinic-bookings__pending-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3) var(--space-5);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.clinic-bookings__pending-header:hover {
+  background: var(--color-bg-surface-hover, var(--color-bg-surface-soft));
+}
+
+.clinic-bookings__pending-toggle {
+  display: flex;
+  align-items: center;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.clinic-bookings__pending-title {
+  font-weight: 600;
+}
+
+.clinic-bookings__pending-badge {
+  margin-left: var(--space-2);
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--color-error);
+  padding: 1px 8px;
+  border-radius: 999px;
+  line-height: 1.6;
+}
+
+.clinic-bookings__pending-done {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: var(--space-2);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-success);
+}
+
+.clinic-bookings__pending-body {
+  border-top: 1px solid var(--color-border-divider);
+}
+
+.clinic-bookings__pending-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.clinic-bookings__pending-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.clinic-bookings__pending-item:last-child {
+  border-bottom: none;
+}
+
+.clinic-bookings__pending-item-info {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+  flex: 1;
+}
+
+.clinic-bookings__pending-item-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.clinic-bookings__pending-item-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.clinic-bookings__pending-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.clinic-bookings__action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 14px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  transition: opacity 0.15s;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.clinic-bookings__action-btn:hover {
+  opacity: 0.88;
+}
+
+.clinic-bookings__action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.clinic-bookings__action-btn--approve {
+  background: var(--color-success);
+}
+
+.clinic-bookings__action-btn--reject {
+  background: var(--color-error);
+}
+
+/* ── Targets section ────────────────────────────────────────────────────── */
+
+.clinic-bookings__targets {
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--color-bg-surface);
+  overflow: hidden;
+}
+
+.clinic-bookings__targets-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+}
+
+.clinic-bookings__targets-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.clinic-bookings__targets-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px 8px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+  background: var(--color-bg-surface-soft);
+  max-width: 200px;
+}
+
+.clinic-bookings__targets-search-icon {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.clinic-bookings__targets-search-input {
+  font-size: 13px !important;
+  padding: 2px 4px !important;
+  background: transparent !important;
+}
+
+.clinic-bookings__targets-selectbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-5);
+  border-top: 1px solid var(--color-border-divider);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+  font-size: 13px;
+}
+
+.clinic-bookings__targets-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.clinic-bookings__targets-list {
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.clinic-bookings__target-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--color-border-divider);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.clinic-bookings__target-row:last-child {
+  border-bottom: none;
+}
+
+.clinic-bookings__target-row:hover {
+  background: var(--color-bg-surface-hover, var(--color-bg-surface-soft));
+}
+
+.clinic-bookings__target-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+}
+
+.clinic-bookings__target-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.clinic-bookings__target-reason {
+  font-size: 10px !important;
+  flex-shrink: 0;
+}
+
+.clinic-bookings__target-status {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  line-height: 1.6;
+}
+
+.clinic-bookings__target-status--unbooked {
+  color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
+}
+
+.clinic-bookings__target-status--booked {
+  color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 10%, transparent);
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .clinic-bookings__toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+  }
+
+  .clinic-bookings__toolbar-info {
+    justify-content: center;
+  }
+
+  .clinic-bookings__pending-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .clinic-bookings__pending-item-info {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .clinic-bookings__targets-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+  }
+
+  .clinic-bookings__targets-search {
+    max-width: none;
+  }
+}

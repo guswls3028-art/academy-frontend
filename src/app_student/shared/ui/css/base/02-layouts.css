@@ -1,0 +1,734 @@
+/* Back-compat for existing classes used in domains */
+.student-muted {
+  color: var(--stu-text-muted);
+  font-size: var(--stu-font-size-13);
+  line-height: var(--stu-line-18);
+}
+
+/* =========================
+   2) Panel (Action Console Mode)
+   Action Slot Container - 사용자 상태 기반 UI
+   ========================= */
+.stu-panel {
+  min-width: 0;
+  max-width: 100%;
+  background: var(--stu-surface-1);
+  border: 1px solid color-mix(in srgb, var(--stu-border) 84%, transparent);
+  border-radius: var(--stu-radius-md);
+  padding: 14px;
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.62) inset,
+    0 8px 20px rgba(15, 23, 42, 0.045);
+}
+
+.stu-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0));
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.stu-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* =========================
+   Action Slot Variants
+   ========================= */
+.stu-panel--nav {
+  /* 단순 이동용 */
+}
+
+.stu-panel--action {
+  /* 지금 해야함 - Primary 강조 */
+  border-color: color-mix(in srgb, var(--stu-primary) 18%, var(--stu-border));
+  background: var(--stu-surface-1);
+}
+
+.stu-panel--danger {
+  /* 미제출 / 마감 임박 */
+  border-color: var(--stu-danger-border);
+  background: var(--stu-danger-bg);
+}
+
+/* =========================
+   Temporal Emphasis (시간 압박 시각화)
+   ========================= */
+@keyframes stu-pulse-soft {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.15);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+.stu-panel--danger[data-urgency="high"] {
+  animation: stu-pulse-soft 1.8s infinite;
+}
+
+.stu-panel--complete {
+  /* 완료됨 */
+  opacity: 0.65;
+}
+
+.stu-panel--locked {
+  /* 접근불가 */
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.stu-panel--soft {
+  background: color-mix(in srgb, var(--stu-surface-2) 70%, var(--stu-surface-1));
+}
+
+.stu-panel--media {
+  /* 영상 도메인 전용 (별도 스타일) */
+}
+
+/* =========================
+   Media Tile System (Video Domain Only)
+   Panel System에서 분리된 Media Library Navigation
+   ========================= */
+.media-tile {
+  display: block;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: transform var(--stu-motion-fast);
+  text-decoration: none;
+  color: inherit;
+}
+
+.media-tile--course {
+  position: relative;
+  width: 100%;
+  border: 1px solid var(--stu-border);
+  border-radius: 8px;
+  background: var(--stu-surface);
+  box-shadow: var(--stu-shadow-1);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+button.media-tile--course {
+  padding: 0;
+  appearance: none;
+}
+
+.media-tile--course:hover {
+  border-color: var(--stu-border-strong);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  transform: translateY(-6px);
+}
+
+.media-tile:active {
+  transform: scale(0.98);
+}
+
+.media-tile--course:active {
+  transform: translateY(-3px) scale(0.98);
+}
+
+.media-tile__thumb {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #111;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.media-tile__title {
+  margin-top: 6px;
+  font-size: 14px;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.media-tile__thumb--course {
+  position: relative;
+  z-index: 0;
+  border-radius: 0;
+  background: var(--stu-surface-soft);
+}
+
+.media-tile__thumb-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.media-tile__fallback {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  background: var(--stu-gradient, linear-gradient(135deg, #6b7280, #4b5563));
+}
+
+.media-tile__fallback-icon {
+  width: 48px;
+  height: 48px;
+  color: rgba(255, 255, 255, 0.9);
+  opacity: 0.8;
+}
+
+.media-tile__count {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-top-left-radius: 6px;
+  background: rgba(0, 0, 0, 0.82);
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 11px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.media-tile__count-icon {
+  width: 12px;
+  height: 12px;
+  opacity: 0.8;
+}
+
+.media-tile__progress {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.media-tile__progress-fill {
+  width: var(--course-progress, 0%);
+  height: 100%;
+  background: var(--stu-primary);
+  transition: width 0.3s ease;
+}
+
+.media-tile__badges {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+}
+
+.media-tile__badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: var(--stu-primary-contrast);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.media-tile__badge--new {
+  background: var(--stu-danger);
+  text-transform: uppercase;
+}
+
+.media-tile__badge--continue {
+  background: var(--stu-primary);
+}
+
+.media-tile__badge--completed {
+  background: var(--stu-success);
+}
+
+.media-tile__content {
+  position: relative;
+  z-index: 1;
+  margin-top: 6px;
+  padding: 0 4px 8px;
+}
+
+.media-tile__title--course {
+  color: var(--stu-text);
+  font-weight: 600;
+}
+
+.media-tile__meta {
+  margin-top: 2px;
+  color: var(--stu-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* =========================
+   Status Surface (Dashboard Status Display)
+   ========================= */
+.stu-status-surface {
+  padding: var(--stu-space-5);
+  border-radius: 8px;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.02),
+    transparent
+  );
+}
+
+.stu-status-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--stu-text-muted);
+  margin-bottom: 2px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.stu-status-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--stu-text);
+}
+
+/* =========================
+   Action Tiles (Quick Action Buttons)
+   ========================= */
+.stu-action-tile {
+  border-radius: 12px;
+  padding: 12px;
+  /* background 단축형 대신 background-color 사용 (테넌트별 그라데이션 오버라이드 가능) */
+  background-color: var(--stu-surface-1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: transform var(--stu-motion-fast), box-shadow var(--stu-motion-fast), border-color var(--stu-motion-fast);
+  text-decoration: none;
+  color: inherit;
+  border: 2px solid var(--stu-border-subtle);
+  position: relative;
+  overflow: hidden;
+  /* 프리미엄: 질감과 위계 */
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.stu-action-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.03) 0%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.02) 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.stu-action-tile > * {
+  position: relative;
+  z-index: 1;
+}
+
+.stu-action-tile:active {
+  transform: scale(0.96);
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.stu-action-tile__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  /* background 단축형 대신 background-color 사용 (테넌트별 그라데이션 오버라이드 가능) */
+  background-color: var(--stu-tint-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stu-action-tile__label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--stu-text);
+}
+
+/* =========================
+   항상 존재하는 Primary Accent Flow
+   ========================= */
+.stu-panel--accent {
+  padding-left: calc(var(--stu-space-5) + 3px);
+}
+
+.stu-panel--accent::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--stu-gradient, var(--stu-primary));
+  opacity: 0.62;
+  z-index: 1;
+}
+
+/* Video Domain 예외 처리 - accent 제거 */
+.stu-panel--media.stu-panel--accent::before {
+  display: none;
+}
+
+/* =========================
+   Panel Interaction (Material Density)
+   ========================= */
+.stu-panel--pressable {
+  cursor: pointer;
+  transition:
+    background var(--stu-motion-base),
+    border-color var(--stu-motion-base),
+    transform var(--stu-motion-fast),
+    filter var(--stu-motion-fast),
+    box-shadow var(--stu-motion-fast);
+}
+
+/* 프리미엄: hover 제거 - 상태 기반 강조만 사용 */
+.stu-panel--pressable:hover {
+  /* 상태 variant가 있으면 hover 효과 제거 */
+  box-shadow:
+    0 10px 26px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.62);
+  border-color: var(--stu-border-normal);
+}
+
+.stu-panel--nav.stu-panel--pressable:hover {
+  background: var(--stu-tint-hover);
+  border-color: var(--stu-border-normal);
+}
+
+.stu-panel--pressable:active {
+  /* 프리미엄: 밀도 변화 (색이 아닌 재질) */
+  transform: scale(0.985);
+  filter: brightness(0.97);
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* =========================
+   3) Section (기존 호환성 유지)
+   ========================= */
+.stu-section {
+  min-width: 0;
+  max-width: 100%;
+  background: var(--stu-surface-1);
+  border: 1px solid color-mix(in srgb, var(--stu-border) 84%, transparent);
+  border-radius: var(--stu-radius-md);
+  padding: 14px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.62) inset,
+    0 8px 20px rgba(15, 23, 42, 0.045);
+  position: relative;
+  overflow: hidden;
+}
+
+.stu-section::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0));
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.stu-section > * {
+  position: relative;
+  z-index: 1;
+}
+
+.stu-section--nested {
+  background: color-mix(in srgb, var(--stu-surface-2) 48%, var(--stu-surface-1));
+  border: 1px solid color-mix(in srgb, var(--stu-border) 80%, transparent);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.54) inset,
+    0 6px 16px rgba(15, 23, 42, 0.035);
+}
+
+.stu-section--pressable {
+  transition:
+    background 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.stu-section--pressable:hover {
+  background: var(--stu-surface-1);
+  border-color: var(--stu-border-normal);
+  /* 호버 시 그림자 강화 */
+  box-shadow:
+    0 10px 26px rgba(15, 23, 42, 0.06),
+    0 0 0 1px rgba(15, 23, 42, 0.015);
+  transform: translateY(-1px);
+}
+
+.stu-section--pressable:active {
+  background: color-mix(in srgb, var(--stu-surface-2) 42%, var(--stu-surface-1));
+  transform: translateY(0);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.03),
+    0 0 0 1px rgba(0, 0, 0, 0.02);
+}
+
+/* Section Header (Primary Tint로 브랜딩) */
+.stu-section-header {
+  border-left: 3px solid var(--stu-primary);
+  padding-left: var(--stu-space-6);
+  margin-bottom: var(--stu-space-6);
+  /* 프리미엄: 섹션 헤더에 미묘한 배경 */
+  background: linear-gradient(to right, var(--stu-tint-primary), transparent);
+  padding-top: var(--stu-space-2);
+  padding-bottom: var(--stu-space-2);
+  border-radius: var(--stu-radius-sm) 0 0 var(--stu-radius-sm);
+}
+
+/* =========================
+   Domain Entry Shell
+   공통 진입 화면: 제목을 단독 문자열이 아닌 화면 구조로 표현
+   ========================= */
+.domain-tab-shell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stu-space-4);
+}
+
+.domain-tab-shell__header {
+  position: relative;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--stu-space-4);
+  min-height: 72px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--stu-border) 88%, transparent);
+  border-radius: var(--stu-radius-md);
+  background: var(--stu-surface-1);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.64) inset,
+    0 8px 20px rgba(15, 23, 42, 0.04);
+  overflow: visible;
+}
+
+.domain-tab-shell__header::after {
+  display: none;
+}
+
+.domain-tab-shell__mark {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--stu-radius-md);
+  color: var(--stu-primary);
+  background: color-mix(in srgb, var(--stu-primary) 7%, var(--stu-surface));
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 16%, var(--stu-border));
+}
+
+.domain-tab-shell__mark svg {
+  width: 20px;
+  height: 20px;
+}
+
+.domain-tab-shell__initial {
+  font-size: 18px;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.domain-tab-shell__copy {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+.domain-tab-shell__eyebrow {
+  color: var(--stu-primary);
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 900;
+}
+
+.domain-tab-shell__title {
+  margin: 2px 0 0;
+  color: var(--stu-text);
+  font-size: 20px;
+  line-height: 1.22;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.domain-tab-shell__title-line {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: var(--stu-space-2);
+}
+
+.domain-tab-shell__help {
+  margin-top: 0;
+}
+
+.domain-tab-shell__description {
+  margin: 5px 0 0;
+  color: var(--stu-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 650;
+}
+
+.domain-tab-shell__actions {
+  position: relative;
+  z-index: 1;
+}
+
+.domain-tab-shell__tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--stu-radius-md);
+  background: color-mix(in srgb, var(--stu-surface-soft) 70%, var(--stu-surface));
+  border: 1px solid color-mix(in srgb, var(--stu-border) 86%, transparent);
+}
+
+.domain-tab-shell__tab {
+  min-height: 40px;
+  border-radius: var(--stu-radius-sm);
+  color: var(--stu-text-muted);
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    background var(--stu-motion-base),
+    color var(--stu-motion-base),
+    box-shadow var(--stu-motion-base),
+    transform var(--stu-motion-fast);
+}
+
+.domain-tab-shell__tab:hover {
+  color: var(--stu-text);
+  background: color-mix(in srgb, var(--stu-surface) 80%, transparent);
+}
+
+.domain-tab-shell__tab:active {
+  transform: scale(0.99);
+}
+
+.domain-tab-shell__tab--active {
+  color: var(--stu-text);
+  background: var(--stu-surface);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.64) inset,
+    0 5px 14px rgba(15, 23, 42, 0.055);
+}
+
+.domain-tab-shell__content {
+  min-width: 0;
+}
+
+.domain-tab-shell--plain {
+  gap: var(--stu-space-4);
+}
+
+.domain-tab-shell--plain .domain-tab-shell__header {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--stu-space-3);
+  min-height: 0;
+  padding: 2px 4px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.domain-tab-shell--plain .domain-tab-shell__header::after {
+  display: none;
+}
+
+.domain-tab-shell--plain .domain-tab-shell__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.domain-tab-shell--plain .domain-tab-shell__mark {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  color: var(--stu-primary);
+  background: color-mix(in srgb, var(--stu-primary) 7%, var(--stu-surface));
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 16%, var(--stu-border));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.domain-tab-shell--plain .domain-tab-shell__mark svg {
+  width: 20px;
+  height: 20px;
+}
+
+.domain-tab-shell--plain .domain-tab-shell__title {
+  margin: 0;
+  color: var(--stu-text-strong, var(--stu-text));
+  font-size: 24px;
+  line-height: 1.14;
+  font-weight: 900;
+}
+
+.domain-tab-shell--plain .domain-tab-shell__title::after {
+  content: "";
+  display: block;
+  width: 28px;
+  height: 3px;
+  margin-top: 7px;
+  border-radius: 999px;
+  background: var(--stu-primary);
+}
+
+.domain-tab-shell--plain .domain-tab-shell__description {
+  margin: 0;
+}
+
+.domain-tab-shell--plain .domain-tab-shell__tabs {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 3px;
+  background: var(--stu-surface);
+}
+
+.domain-tab-shell--plain .domain-tab-shell__tab {
+  min-height: 38px;
+  font-size: 14px;
+}
