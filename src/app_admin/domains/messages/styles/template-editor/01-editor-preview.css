@@ -1,0 +1,552 @@
+/* PATH: src/features/messages/styles/templateEditor.css
+ * 템플릿 에디터·카드 — 디자인 시스템 토큰만 사용 (students 도메인과 통일)
+ */
+
+/* ----- 좌측: 미리보기 + 블록 ----- */
+.template-editor__left {
+  background: color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface));
+  border: 1px solid var(--color-border-divider);
+  border-left: 4px solid var(--color-primary);
+  border-radius: 12px;
+}
+
+.template-editor__preview-title,
+.template-editor__blocks-title {
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+/* ----- 우측: 본문 편집 ----- */
+.template-editor__right {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  border-left: 4px solid var(--color-border-strong);
+  border-radius: 12px;
+}
+
+.template-editor__editor-title {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.template-editor__textarea {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+  color: var(--color-text-primary);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.template-editor__textarea:focus {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-border-focus) 25%, transparent);
+}
+
+.template-editor__textarea:disabled {
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+/* 메시지 도메인 공통 플레이스홀더 디자인 (자동발송·발송 모달·템플릿 편집 등) */
+.message-domain-input::placeholder,
+.template-editor__textarea::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.9;
+}
+
+.template-editor__preview-placeholder {
+  color: var(--color-text-muted);
+}
+
+/* ----- 아이폰 메시지 미리보기 ----- */
+.template-preview-phone {
+  width: 100%;
+  max-width: 260px;
+  margin: 0 auto;
+  background: #1c1c1e;
+  border-radius: 36px;
+  padding: 12px;
+  box-shadow:
+    0 0 0 3px #2c2c2e,
+    0 0 0 6px #1c1c1e,
+    0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.template-preview-phone__screen {
+  background: #000;
+  border-radius: 28px;
+  min-height: 200px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 44px 12px 16px;
+  position: relative;
+}
+
+/* 스크롤바 숨김 (깔끔한 미리보기) */
+.template-preview-phone__screen::-webkit-scrollbar { width: 3px; }
+.template-preview-phone__screen::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+.template-preview-phone__screen::-webkit-scrollbar-track { background: transparent; }
+
+.template-preview-phone__screen::before {
+  content: "";
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 22px;
+  background: #000;
+  border-radius: 0 0 20px 20px;
+  z-index: 1;
+}
+
+.template-preview-phone__bubble {
+  max-width: 85%;
+  margin-left: auto;
+  padding: 10px 14px;
+  background: #34c759;
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.4;
+  border-radius: 18px 18px 4px 18px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.template-preview-phone__time {
+  margin-top: 4px;
+  margin-left: auto;
+  width: fit-content;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.template-preview-phone__bubble .template-editor__preview-placeholder {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* ----- 카카오톡 알림톡 미리보기 (2026-05-14 디자인 upgrade + wrap polish) ----- */
+.template-preview-kakao {
+  width: 100%;
+  max-width: 340px;
+  margin: 0 auto;
+  background: #b2c7d9; /* 카카오톡 채팅창 배경색 */
+  border: 1px solid #92aabd;
+  border-radius: 14px;
+  padding: 14px 12px;
+  min-height: 200px;
+  box-shadow: 0 6px 18px rgba(42, 58, 74, 0.16);
+}
+
+/* 미리보기 위 보조 안내 (말풍선 밖) */
+.template-preview-kakao__helper {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.92);
+  text-align: center;
+  margin-bottom: 8px;
+  letter-spacing: -0.2px;
+  line-height: 1.45;
+  word-break: keep-all; /* 한글 어절 단위 wrap */
+  padding: 0 4px;
+}
+
+.template-preview-kakao__card {
+  background: #fff;
+  border: 1px solid rgba(60, 30, 30, 0.08);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(42, 58, 74, 0.14);
+}
+
+/* 카카오톡 알림톡 노란 헤더 — 채널 식별 */
+.template-preview-kakao__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fee500; /* 카카오 옐로우 */
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #3c1e1e;
+  letter-spacing: -0.2px;
+}
+.template-preview-kakao__header-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+}
+
+.template-preview-kakao__header-label::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #3c1e1e;
+  content: "";
+}
+.template-preview-kakao__header-channel {
+  font-size: 10px;
+  font-weight: 600;
+  color: #6b4f1f;
+  opacity: 0.8;
+}
+
+.template-preview-kakao__title {
+  padding: 12px 14px 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1c1c1e;
+  background: #fff;
+}
+
+.template-preview-kakao__body {
+  padding: 10px 14px 16px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: #1c1c1e;
+  white-space: pre-wrap;
+  /* 한글 어절 단위 wrap + 긴 영문/숫자도 overflow 방지 */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  letter-spacing: -0.2px;
+}
+
+/* 자동 채움 변수 영역 (변수 substituted 후 강조) */
+.template-preview-kakao__body em {
+  font-style: normal;
+  font-weight: 600;
+  color: #2563eb;
+}
+
+.template-preview-kakao__footer {
+  border-top: 1px solid #f0f0f0;
+  padding: 10px 14px;
+  font-size: 11px;
+  color: #6b7280;
+  background: #fafafa;
+}
+.template-preview-kakao__footer a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+/* 블록 버튼 (좌측) — 레거시, 현재는 우측 본문 패널에서 사용 */
+.template-editor__block-btn {
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+}
+
+.template-editor__block-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface));
+  border-color: var(--color-primary);
+}
+
+/* ----- 본문 2패널: 좌측 입력 | 우측 삽입 블록 ----- */
+.template-editor__body-row {
+  border: 1px solid var(--color-border-divider);
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+  padding: 12px;
+}
+
+.template-editor__body-input .template-editor__textarea {
+  flex: 1;
+  min-height: 260px;
+}
+
+.template-editor__body-blocks {
+  border-left: 1px solid var(--color-border-divider);
+  padding-left: 12px;
+}
+
+.template-editor__block-list {
+  min-height: 200px;
+}
+
+/* 삽입 블록 태그 — 색상·태그 스타일 */
+.template-editor__block-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 11px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 6px;
+  border: 1.5px solid;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.2s ease, opacity 0.2s ease, filter 0.15s;
+  letter-spacing: -0.2px;
+}
+
+.template-editor__block-tag--compact {
+  padding: 4px 10px;
+  font-size: 11px;
+}
+
+.template-editor__block-tag:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  filter: brightness(0.95);
+}
+
+.template-editor__block-tag:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.template-editor__block-tag:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* 카테고리별 톤 + n0/n1/n2로 3가지 색 교차 */
+.template-editor__block-tag--default.template-editor__block-tag--n0,
+.template-editor__block-tag--lecture.template-editor__block-tag--n0,
+.template-editor__block-tag--clinic.template-editor__block-tag--n0 {
+  background: color-mix(in srgb, var(--color-primary) 14%, var(--color-bg-surface));
+  color: var(--color-primary);
+  border-color: color-mix(in srgb, var(--color-primary) 35%, transparent);
+}
+.template-editor__block-tag--default.template-editor__block-tag--n1,
+.template-editor__block-tag--lecture.template-editor__block-tag--n1 {
+  background: color-mix(in srgb, var(--color-success, #22c55e) 14%, var(--color-bg-surface));
+  color: var(--color-success, #16a34a);
+  border-color: color-mix(in srgb, var(--color-success, #22c55e) 35%, transparent);
+}
+.template-editor__block-tag--default.template-editor__block-tag--n2 {
+  background: color-mix(in srgb, var(--color-warning, #eab308) 14%, var(--color-bg-surface));
+  color: var(--color-warning, #ca8a04);
+  border-color: color-mix(in srgb, var(--color-warning, #eab308) 35%, transparent);
+}
+.template-editor__block-tag--lecture.template-editor__block-tag--n2 {
+  background: color-mix(in srgb, #0ea5e9 14%, var(--color-bg-surface));
+  color: #0284c7;
+  border-color: color-mix(in srgb, #0ea5e9 35%, transparent);
+}
+.template-editor__block-tag--clinic.template-editor__block-tag--n1 {
+  background: color-mix(in srgb, #f97316 14%, var(--color-bg-surface));
+  color: #ea580c;
+  border-color: color-mix(in srgb, #f97316 35%, transparent);
+}
+.template-editor__block-tag--clinic.template-editor__block-tag--n2 {
+  background: color-mix(in srgb, var(--color-success, #22c55e) 14%, var(--color-bg-surface));
+  color: var(--color-success, #16a34a);
+  border-color: color-mix(in srgb, var(--color-success, #22c55e) 35%, transparent);
+}
+
+.template-editor__block-tag--grades-student,
+.template-editor__block-tag--grades-site,
+.template-editor__block-tag--grades-default {
+  background: color-mix(in srgb, var(--color-primary) 14%, var(--color-bg-surface));
+  color: var(--color-primary);
+  border-color: color-mix(in srgb, var(--color-primary) 35%, transparent);
+}
+
+.template-editor__block-tag--grades-lecture {
+  background: color-mix(in srgb, var(--color-success, #22c55e) 14%, var(--color-bg-surface));
+  color: var(--color-success, #16a34a);
+  border-color: color-mix(in srgb, var(--color-success, #22c55e) 35%, transparent);
+}
+
+.template-editor__block-tag--grades-exam {
+  background: color-mix(in srgb, var(--color-error, #ef4444) 14%, var(--color-bg-surface));
+  color: var(--color-error, #dc2626);
+  border-color: color-mix(in srgb, var(--color-error, #ef4444) 35%, transparent);
+}
+
+.template-editor__block-tag--grades-homework {
+  background: color-mix(in srgb, var(--color-warning, #eab308) 15%, var(--color-bg-surface));
+  color: var(--color-warning, #ca8a04);
+  border-color: color-mix(in srgb, var(--color-warning, #eab308) 36%, transparent);
+}
+
+.template-editor__block-tag--grades-summary {
+  background: color-mix(in srgb, var(--color-info, #0ea5e9) 14%, var(--color-bg-surface));
+  color: var(--color-info, #0284c7);
+  border-color: color-mix(in srgb, var(--color-info, #0ea5e9) 35%, transparent);
+}
+
+.template-editor__block-tag--grades-exam.template-editor__block-tag--n1,
+.template-editor__block-tag--grades-homework.template-editor__block-tag--n1 {
+  filter: saturate(1.08);
+}
+
+.template-editor__block-tag--grades-exam.template-editor__block-tag--n2,
+.template-editor__block-tag--grades-homework.template-editor__block-tag--n2 {
+  filter: saturate(0.92);
+}
+
+.grades-block-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.grades-block-panel__tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.grades-block-panel__tag-row--tight {
+  gap: 3px;
+}
+
+.grades-block-panel__group-label {
+  margin-top: 8px;
+  margin-bottom: 4px;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.grades-block-panel__group-label--flush {
+  margin-top: 0;
+}
+
+.grades-block-panel__add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.grades-block-panel__add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  border: 1.5px solid color-mix(in srgb, var(--color-primary) 30%, var(--color-border-divider));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface));
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+}
+
+.grades-block-panel__add-btn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-surface));
+}
+
+.grades-block-panel__add-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.grades-block-panel__hint {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.grades-block-panel__toggle {
+  padding: 6px 0 2px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.grades-block-panel__individual {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 4px;
+}
+
+/* 제목(알림톡) 슬롯 — 탭 전환해도 높이 고정 */
+.template-editor__subject-slot {
+  min-height: 56px;
+  flex-shrink: 0;
+}
+
+.template-editor__subject-placeholder {
+  height: 56px;
+  pointer-events: none;
+}
+
+/* 모달 내 메시지|알림톡 탭 — 디자인 토큰, 다크 테마 가독성 (ds-tabs 사용) */
+.template-editor__tabs .ds-tabs {
+  display: flex;
+  gap: var(--space-1, 4px);
+  margin-bottom: 12px;
+}
+
+.template-editor__tabs--top .ds-tabs {
+  margin-bottom: 8px;
+}
+
+.template-editor__tabs .ds-tab {
+  padding: var(--space-2, 8px) var(--space-4, 16px);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  border-radius: 8px;
+  transition: color 0.2s, background 0.2s;
+}
+
+.template-editor__tabs .ds-tab:hover:not(.is-active):not(:disabled) {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+}
+
+.template-editor__tabs .ds-tab.is-active {
+  color: var(--color-primary);
+}
+
+.template-editor__tabs.ant-tabs {
+  display: block;
+}
+
+.template-editor__tabs .ant-tabs-nav {
+  display: flex;
+  margin: 0 0 12px 0;
+}
+
+.template-editor__tabs .ant-tabs-nav-list {
+  display: flex;
+  gap: var(--space-1, 4px);
+}
+
+.template-editor__tabs .ant-tabs-tab {
+  padding: var(--space-2, 8px) var(--space-4, 16px);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.template-editor__tabs .ant-tabs-tab:hover {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+}
+
+.template-editor__tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--color-primary);
+}
+
+.template-editor__tabs .ant-tabs-tab-btn {
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.template-editor__tabs .ant-tabs-ink-bar {
+  background: var(--color-primary);
+  height: 2px;
+}

@@ -6,7 +6,7 @@ import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { KPI, EmptyState } from "@/shared/ui/ds";
 import { DomainTable } from "@/shared/ui/domain";
-import StudentDetailLink from "@admin/domains/students/components/StudentDetailLink";
+import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
 import { formatKRW } from "@/shared/product/fees/feesFormat";
 import { fetchDashboard, fetchOverdueInvoices, type DashboardStats, type StudentInvoice } from "../api/fees.api";
 import { adminFeesQueryKeys } from "../queryKeys";

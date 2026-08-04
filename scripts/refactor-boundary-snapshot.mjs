@@ -5,6 +5,7 @@ import url from 'node:url';
 const ROOT = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), '..');
 const SRC = path.join(ROOT, 'src');
 const E2E = path.join(ROOT, 'e2e');
+const GENERATED_API = path.join(SRC, 'shared', 'api', 'generated');
 const APP_ALIASES = ['@admin/', '@student/', '@teacher/', '@dev/', '@promo/'];
 const APP_ALIAS_TO_DIR = {
   '@admin/': 'app_admin',
@@ -72,12 +73,13 @@ function importSpecifiers(text) {
 }
 
 function domainFromRelPath(relative) {
-  const match = relative.match(/^src\/(app_[^/]+)\/domains\/([^/]+)\//);
+  const match = relative.match(/^src\/(app_[^/]+)\/domains\/([^/]+)\/(.*)$/);
   if (!match) return null;
   return {
     app: match[1],
     domain: match[2],
     key: `${match[1]}/${match[2]}`,
+    publicContract: match[3] === 'public' || match[3].startsWith('public/'),
   };
 }
 
@@ -90,6 +92,7 @@ function domainFromSpecifier(spec, fromFile) {
       app,
       domain: parts[1],
       key: `${app}/${parts[1]}`,
+      publicContract: parts[2] === 'public',
     };
   }
 
@@ -120,8 +123,14 @@ function topEntries(map, limit = 20) {
 const findings = [];
 const domainOutbound = new Map();
 const domainPairs = new Map();
-const srcFiles = walk(SRC, (file) => TEXT_EXTS.has(path.extname(file)));
-const allSrcTextFiles = walk(SRC, (file) => ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.css'].includes(path.extname(file)));
+const isGeneratedApiFile = (file) => file.startsWith(`${GENERATED_API}${path.sep}`);
+const srcFiles = walk(SRC, (file) => TEXT_EXTS.has(path.extname(file))).filter(
+  (file) => !isGeneratedApiFile(file),
+);
+const allSrcTextFiles = walk(
+  SRC,
+  (file) => ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.css'].includes(path.extname(file)),
+).filter((file) => !isGeneratedApiFile(file));
 const metrics = {
   api_generated_dir_present: fs.existsSync(path.join(SRC, 'shared', 'api', 'generated')),
   local_format_defs: 0,
@@ -150,7 +159,10 @@ for (const file of srcFiles) {
   metrics.query_key_literals += countMatches(metricText, /\bqueryKey\s*:\s*\[/g);
   metrics.inline_style_objects += countMatches(metricText, /\bstyle\s*=\s*\{\s*\{/g);
   metrics.raw_badge_classes += countMatches(metricText, /\bclassName\s*=\s*["'][^"']*\bds-[^"']*badge\b[^"']*["']/g);
-  metrics.api_response_type_defs += countMatches(metricText, /\b(?:interface|type)\s+[A-Za-z0-9_]*(?:Response|DTO|Dto)\b/g);
+  metrics.api_response_type_defs += countMatches(
+    metricText,
+    /^\s*(?:export\s+)?(?:declare\s+)?(?:interface\s+[A-Za-z0-9_]*(?:Response|DTO|Dto)\b(?:\s+extends[^\{]+)?\s*\{|type\s+[A-Za-z0-9_]*(?:Response|DTO|Dto)\b\s*=)/gm,
+  );
   if (!DIRECT_AXIOS_ALLOWED_FILES.has(relative)) {
     metrics.direct_axios_calls += countMatches(metricText, /\baxios\s*\./g);
   }
@@ -188,7 +200,8 @@ for (const file of srcFiles) {
       if (
         targetDomain &&
         targetDomain.app === currentDomain.app &&
-        targetDomain.domain !== currentDomain.domain
+        targetDomain.domain !== currentDomain.domain &&
+        !targetDomain.publicContract
       ) {
         const pair = `${currentDomain.key}->${targetDomain.key}`;
         domainOutbound.set(currentDomain.key, (domainOutbound.get(currentDomain.key) ?? 0) + 1);

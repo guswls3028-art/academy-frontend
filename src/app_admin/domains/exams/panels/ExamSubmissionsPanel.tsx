@@ -3,7 +3,6 @@
  * ExamSubmissionsPanel - 제출관리 통합
  * - OMR 제출 목록 확인
  * - 학생별 제출 목록: 아바타 + 이름 + 강의칩 + 시+시험명 + 상태 + 파일 보기
- * - 시험 자동채점 객관식 TODO 버튼
  */
 
 import { useQuery } from "@tanstack/react-query";

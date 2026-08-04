@@ -13,14 +13,14 @@ import { fetchSessions } from "../api/sessions";
 import { bulkCreateAttendance, updateAttendance, fetchAttendanceEnrolledStudentIds } from "../api/attendance";
 import { fetchStudents, type ClientStudent } from "@/shared/api/contracts/students";
 import StudentCreateModal from "@admin/domains/students/components/StudentCreateModal";
-import StudentsDetailOverlay from "@admin/domains/students/overlays/StudentsDetailOverlay";
+import StudentsDetailOverlay from "@admin/domains/students/public/StudentsDetailOverlay";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import ExcelUploadZone from "@/shared/ui/excel/ExcelUploadZone";
 import {
   downloadStudentExcelTemplate,
   parseStudentExcel,
   type ParseStudentExcelResult,
-} from "@admin/domains/students/excel/studentExcel";
+} from "@/shared/product/students/studentExcel";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { TABLE_COL } from "@/shared/ui/domain";

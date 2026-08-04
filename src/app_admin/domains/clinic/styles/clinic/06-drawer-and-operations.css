@@ -1,0 +1,705 @@
+/* ══════════════════════════════════════════════════════════════
+   운영 콘솔: 미통과 항목 인라인 + 상세 드로어
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── 미통과 항목 리스트 ── */
+.clinic-console__deficit-list {
+  list-style: none;
+  margin: var(--space-3) 0 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.clinic-console__deficit-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-error) 6%, var(--color-bg-surface));
+  cursor: pointer;
+  transition: background 0.12s ease;
+  font-family: inherit;
+  text-align: left;
+}
+.clinic-console__deficit-item:hover {
+  background: color-mix(in srgb, var(--color-error) 12%, var(--color-bg-surface));
+}
+
+.clinic-console__deficit-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm, 4px);
+  flex-shrink: 0;
+}
+.clinic-console__deficit-badge--exam {
+  color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 14%, transparent);
+}
+.clinic-console__deficit-badge--homework {
+  color: var(--color-warning, #d97706);
+  background: color-mix(in srgb, var(--color-warning, #d97706) 14%, transparent);
+}
+
+.clinic-console__deficit-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 자율 학습 라벨 ── */
+.clinic-console__self-study {
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-soft);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   운영 콘솔: 상세 드로어 (우측 360px)
+   ══════════════════════════════════════════════════════════════ */
+
+.clinic-console__drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 900;
+  animation: clinic-drawer-fade-in 0.15s ease;
+}
+
+@keyframes clinic-drawer-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.clinic-console__drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 360px;
+  max-width: 100vw;
+  background: var(--color-bg-surface);
+  z-index: 901;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+  animation: clinic-drawer-slide-in 0.2s ease;
+}
+
+@keyframes clinic-drawer-slide-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.clinic-console__drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-5) var(--space-5);
+  border-bottom: 1px solid var(--color-border-divider);
+  flex-shrink: 0;
+}
+
+.clinic-console__drawer-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.clinic-console__drawer-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  font-family: inherit;
+}
+.clinic-console__drawer-close:hover {
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-primary);
+}
+
+.clinic-console__drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.clinic-console__drawer-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.clinic-console__drawer-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.clinic-console__drawer-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+/* Score block */
+.clinic-console__drawer-score-block {
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface-soft);
+  border: 1px solid var(--color-border-divider);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.clinic-console__drawer-score-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.clinic-console__drawer-score-value {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+.clinic-console__drawer-score-value--fail {
+  color: var(--color-error);
+}
+
+.clinic-console__drawer-score-bar {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-border-divider);
+  margin-top: var(--space-1);
+  overflow: visible;
+}
+
+.clinic-console__drawer-score-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+.clinic-console__drawer-score-fill--fail {
+  background: var(--color-error);
+  opacity: 0.7;
+}
+
+.clinic-console__drawer-score-cutline {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 12px;
+  background: var(--color-text-primary);
+  border-radius: 1px;
+  transform: translateX(-1px);
+}
+
+/* Drawer footer */
+.clinic-console__drawer-footer {
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--color-border-divider);
+  flex-shrink: 0;
+}
+
+.clinic-console__drawer-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  width: 100%;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-brand-primary, var(--color-primary));
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.12s ease, opacity 0.12s ease;
+}
+.clinic-console__drawer-action:hover:not(:disabled) {
+  opacity: 0.9;
+}
+.clinic-console__drawer-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.clinic-console__drawer-done {
+  display: block;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-success);
+  padding: 10px 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   클리닉 진행: 운영 워크스페이스 재설계
+   clinic-ops__ 네임스페이스 — 처리 큐 + 운영 헤더 + 상태 필터
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── A. 운영 헤더 ── */
+.clinic-ops__header {
+  margin-bottom: var(--space-5);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.clinic-ops__header-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.clinic-ops__header-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.clinic-ops__header-date {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.clinic-ops__header-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.clinic-ops__header-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.clinic-ops__header-meta-note {
+  margin-left: 4px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
+  color: var(--color-brand-primary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.clinic-ops__header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.clinic-ops__action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
+  line-height: 1;
+}
+
+.clinic-ops__action-btn--ghost {
+  border: 1px solid var(--color-border-divider);
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.clinic-ops__action-btn--ghost:hover {
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, transparent);
+}
+
+.clinic-ops__action-btn--danger {
+  border: 1px solid color-mix(in srgb, var(--color-error) 30%, var(--color-border-divider));
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.clinic-ops__action-btn--danger:hover {
+  border-color: var(--color-error);
+  color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 6%, transparent);
+}
+
+.clinic-ops__action-btn--secondary {
+  border: 1px dashed var(--color-brand-primary);
+  background: transparent;
+  color: var(--color-brand-primary);
+}
+
+.clinic-ops__action-btn--secondary:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, transparent);
+}
+
+.clinic-ops__action-btn--notice {
+  border: 1px solid color-mix(in srgb, var(--color-info, #2563eb) 30%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-info, #2563eb) 7%, var(--color-bg-surface));
+  color: color-mix(in srgb, var(--color-info, #2563eb) 82%, #0f172a);
+}
+
+.clinic-ops__action-btn--notice:hover {
+  border-color: color-mix(in srgb, var(--color-info, #2563eb) 56%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-info, #2563eb) 12%, var(--color-bg-surface));
+}
+
+.clinic-ops__action-btn--notice-hot {
+  border-color: color-mix(in srgb, var(--color-warning, #d97706) 42%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-warning, #d97706) 12%, var(--color-bg-surface));
+  color: color-mix(in srgb, var(--color-warning, #d97706) 84%, #111827);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-warning, #d97706) 10%, transparent);
+}
+
+.clinic-ops__action-btn--primary {
+  border: 1px solid color-mix(in srgb, var(--color-success) 40%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-success) 8%, var(--color-bg-surface));
+  color: var(--scale-Success700);
+}
+
+.clinic-ops__action-btn--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-success) 16%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-success) 60%, var(--color-border-divider));
+}
+
+.clinic-ops__action-btn--primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .clinic-domain-layout .domain-header__tabs-wrap {
+    width: 100%;
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+
+  .clinic-domain-layout .domain-header__tabs-wrap .ds-tabs {
+    width: 100%;
+    min-width: 0;
+    justify-content: space-between;
+    gap: 0;
+  }
+
+  .clinic-domain-layout .domain-header__tabs-wrap .ds-tab {
+    flex: 0 1 auto;
+    min-width: 0;
+    padding: var(--space-2) 5px;
+    font-size: 13px;
+  }
+
+  .clinic-ops__header {
+    padding: var(--space-4);
+    gap: var(--space-3);
+  }
+
+  .clinic-ops__header-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .clinic-ops__header-title-row,
+  .clinic-ops__header-meta,
+  .clinic-ops__kpi-counters,
+  .clinic-ops__filters {
+    flex-wrap: wrap;
+  }
+
+  .clinic-ops__header-actions {
+    width: 100%;
+    min-width: 0;
+    flex-shrink: 1;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .clinic-ops__action-btn {
+    flex: 1 1 calc(50% - var(--space-2));
+    min-width: 0;
+    justify-content: center;
+    padding: 8px 10px;
+  }
+
+  .clinic-ops__action-btn--primary {
+    flex-basis: 100%;
+  }
+}
+
+.clinic-ops__change-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--color-warning, #d97706) 24%, var(--color-border-divider));
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-warning, #d97706) 10%, var(--color-bg-surface)) 0%,
+      var(--color-bg-surface) 62%
+    );
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.clinic-ops__change-alert-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.clinic-ops__change-alert-kicker {
+  font-size: 11px;
+  font-weight: 800;
+  color: color-mix(in srgb, var(--color-warning, #d97706) 82%, #111827);
+}
+
+.clinic-ops__change-alert-title {
+  font-size: 14px;
+  color: var(--color-text-primary);
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+.clinic-ops__change-alert-route {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
+.clinic-ops__change-alert-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 8px 14px;
+  border: 1px solid color-mix(in srgb, var(--color-warning, #d97706) 52%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-warning, #d97706) 82%, #111827);
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.clinic-ops__change-alert-cta:hover {
+  filter: brightness(0.96);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 640px) {
+  .clinic-ops__change-alert {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .clinic-ops__change-alert-cta {
+    width: 100%;
+  }
+}
+
+/* ── KPI counters ── */
+.clinic-ops__kpi-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.clinic-ops__kpi-counters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.clinic-ops__kpi {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.clinic-ops__kpi-value {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.clinic-ops__kpi-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.clinic-ops__kpi--attended { color: var(--color-success); }
+.clinic-ops__kpi--noshow { color: var(--color-error); }
+.clinic-ops__kpi--pending { color: var(--color-text-muted); }
+.clinic-ops__kpi--approval { color: var(--color-brand-primary); }
+
+/* Progress bar */
+.clinic-ops__progress-bar {
+  display: flex;
+  height: 5px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--color-border-divider);
+}
+
+.clinic-ops__progress-seg {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.clinic-ops__progress-seg--attended { background: var(--color-success); }
+.clinic-ops__progress-seg--noshow { background: var(--color-error); }
+.clinic-ops__progress-seg--pending {
+  background: var(--color-text-muted);
+  opacity: 0.3;
+}
+.clinic-ops__progress-seg--completed { background: var(--color-brand-primary, #6366f1); }
+
+/* 프로그레스 행 (라벨 + 바 + 분수) */
+.clinic-ops__progress-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.clinic-ops__progress-row .clinic-ops__progress-bar {
+  flex: 1;
+}
+
+.clinic-ops__progress-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  width: 28px;
+  flex-shrink: 0;
+}
+
+.clinic-ops__progress-fraction {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  min-width: 32px;
+  text-align: right;
+}
+
+/* KPI 완료 */
+.clinic-ops__kpi--completed {
+  color: var(--color-brand-primary, #6366f1);
+}
+
+/* ── 삭제 확인 모달 ── */
+.clinic-delete-modal__title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 8px;
+}
+
+.clinic-delete-modal__desc {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin: 0 0 6px;
+  line-height: 1.5;
+}
+
+.clinic-delete-modal__body {
+  padding: 24px;
+}
+
+.clinic-delete-modal__warning {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-error, #ef4444);
+  margin: 0 0 4px;
+  line-height: 1.5;
+}
+
+.clinic-delete-modal__warning--last {
+  margin-bottom: 20px;
+}
+
+.clinic-delete-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.clinic-ops__all-done {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-success);
+  letter-spacing: -0.01em;
+}

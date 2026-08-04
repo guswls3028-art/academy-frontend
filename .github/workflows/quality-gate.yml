@@ -63,6 +63,14 @@ jobs:
       - name: API and E2E safety contract guards
         run: pnpm guard:legacy-api
 
+      - name: Refactor debt budget
+        run: |
+          node --test scripts/tests/refactor-boundary-snapshot.test.mjs
+          pnpm refactor:budget
+
+      - name: Generated API type drift
+        run: pnpm api-types:check
+
       # warning-only: 기존 lint 에러 존재. 점진 수정 후 차단으로 승격 예정.
       - name: Lint (warning-only, full repo)
         run: pnpm lint || echo "::warning::Lint errors found"

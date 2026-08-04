@@ -1,0 +1,876 @@
+/* Drawer: self-study completed state */
+.clinic-ops__drawer-self-study {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.clinic-ops__drawer-completed {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-status-success, #16a34a) 10%, var(--color-bg-surface));
+  color: var(--color-status-success, #16a34a);
+  font-size: 13px;
+  font-weight: 600;
+}
+.clinic-ops__drawer-completed .clinic-ops__remediation-btn {
+  margin-left: auto;
+}
+
+/* ── Schedule page: edit/import buttons ── */
+.clinic-schedule__toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.clinic-schedule__card-edit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+.clinic-schedule__card-edit:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+}
+
+/* ── Previous week import modal ── */
+.clinic-import {
+  display: flex;
+  flex-direction: column;
+  max-height: 70vh;
+}
+
+.clinic-import__header {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.clinic-import__title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 4px;
+}
+
+.clinic-import__subtitle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.clinic-import__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-5);
+}
+
+.clinic-import__loading,
+.clinic-import__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.clinic-import__select-all {
+  margin-bottom: var(--space-3);
+}
+
+.clinic-import__select-all-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.clinic-import__select-all-btn:hover {
+  color: var(--color-brand-primary);
+}
+
+.clinic-import__checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-bg-surface);
+  flex-shrink: 0;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+.clinic-import__checkbox--checked {
+  background: var(--color-brand-primary);
+  border-color: var(--color-brand-primary);
+  color: #fff;
+}
+
+.clinic-import__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.clinic-import__date-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.clinic-import__date-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  padding: 2px 0;
+  text-transform: uppercase;
+}
+
+.clinic-import__session-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+  text-align: left;
+  width: 100%;
+}
+.clinic-import__session-item:hover {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface));
+}
+.clinic-import__session-item--selected {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface));
+}
+
+.clinic-import__session-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+.clinic-import__session-time,
+.clinic-import__session-location,
+.clinic-import__session-capacity {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.clinic-import__session-time { font-weight: 600; }
+.clinic-import__session-location { color: var(--color-text-secondary); }
+.clinic-import__session-title {
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+.clinic-import__session-capacity {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.clinic-import__session-mapped {
+  font-size: 11px;
+  color: var(--color-brand-primary);
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.clinic-import__dup-badge {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  color: var(--color-danger);
+  font-weight: 600;
+}
+.clinic-import__session-item--duplicate {
+  opacity: 0.55;
+}
+.clinic-import__session-item--duplicate .clinic-import__session-mapped {
+  color: var(--color-text-muted);
+}
+
+.clinic-import__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--color-border-divider);
+}
+
+/* Loading skeleton */
+.clinic-ops__loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.clinic-ops__skeleton {
+  height: 72px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-surface-soft) 25%,
+    color-mix(in srgb, var(--color-border-divider) 60%, var(--color-bg-surface-soft)) 50%,
+    var(--color-bg-surface-soft) 75%
+  );
+  background-size: 200% 100%;
+  animation: panelShimmer 1.5s ease-in-out infinite;
+}
+
+/* Empty filter state */
+.clinic-ops__empty-filter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+  text-align: center;
+}
+
+.clinic-ops__empty-filter-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* ── D. 상세/처리 드로어 (재설계) ── */
+.clinic-ops__drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 900;
+  animation: clinic-drawer-fade-in 0.15s ease;
+}
+
+.clinic-ops__drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 380px;
+  max-width: 100vw;
+  background: var(--color-bg-surface);
+  z-index: 901;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+  animation: clinic-drawer-slide-in 0.2s ease;
+}
+
+.clinic-ops__drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-5);
+  border-bottom: 1px solid var(--color-border-divider);
+  flex-shrink: 0;
+}
+
+.clinic-ops__drawer-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.clinic-ops__drawer-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  font-family: inherit;
+}
+
+.clinic-ops__drawer-close:hover {
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-primary);
+}
+
+/* Status section — 처리 공간 (드로어 상단) */
+.clinic-ops__drawer-status-section {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.clinic-ops__drawer-status-current {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.clinic-ops__drawer-status-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.clinic-ops__drawer-status-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.clinic-ops__drawer-status-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.clinic-ops__drawer-status-btn:hover:not(:disabled) {
+  border-color: var(--color-text-muted);
+  color: var(--color-text-secondary);
+}
+
+.clinic-ops__drawer-status-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.clinic-ops__drawer-status-btn--attend.clinic-ops__drawer-status-btn--active {
+  background: color-mix(in srgb, var(--color-success) 12%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-success) 50%, var(--color-border-divider));
+  color: var(--scale-Success700);
+}
+
+.clinic-ops__drawer-status-btn--noshow.clinic-ops__drawer-status-btn--active {
+  background: color-mix(in srgb, var(--color-error) 12%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-error) 50%, var(--color-border-divider));
+  color: var(--scale-Error700);
+}
+
+.clinic-ops__drawer-status-btn--approve {
+  background: color-mix(in srgb, var(--color-success) 10%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-success) 38%, var(--color-border-divider));
+  color: var(--scale-Success700);
+}
+
+.clinic-ops__drawer-status-btn--reject {
+  background: color-mix(in srgb, var(--color-error) 8%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-error) 34%, var(--color-border-divider));
+  color: var(--scale-Error700);
+}
+
+/* Drawer body */
+.clinic-ops__drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.clinic-ops__drawer-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.clinic-ops__drawer-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+.clinic-ops__drawer-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.clinic-ops__drawer-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.clinic-ops__drawer-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.clinic-ops__drawer-student-link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: inherit;
+  font-weight: inherit;
+  font-family: inherit;
+  color: var(--color-brand-primary);
+  text-decoration: none;
+  transition: text-decoration-color 0.12s ease;
+}
+
+.clinic-ops__drawer-student-link:hover {
+  text-decoration: underline;
+}
+
+.clinic-ops__drawer-empty {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* Reason cards in drawer */
+.clinic-ops__drawer-reasons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.clinic-ops__drawer-reason-card {
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.clinic-ops__drawer-reason-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.clinic-ops__reason-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.clinic-ops__reason-icon--exam {
+  color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 12%, transparent);
+}
+
+.clinic-ops__reason-icon--homework {
+  color: var(--color-warning, #d97706);
+  background: color-mix(in srgb, var(--color-warning, #d97706) 12%, transparent);
+}
+
+.clinic-ops__drawer-reason-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.clinic-ops__drawer-reason-session {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clinic-ops__drawer-reason-type {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  line-height: 1.3;
+}
+
+/* Score visualization in drawer */
+.clinic-ops__drawer-score {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.clinic-ops__drawer-score-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.clinic-ops__drawer-score-val {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.clinic-ops__drawer-score-val--fail {
+  color: var(--color-error);
+}
+
+.clinic-ops__drawer-score-bar-wrap {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-border-divider);
+  margin-top: var(--space-1);
+  overflow: visible;
+}
+
+.clinic-ops__drawer-score-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.clinic-ops__drawer-score-fill--fail {
+  background: var(--color-error);
+  opacity: 0.7;
+}
+
+.clinic-ops__drawer-score-cutline {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 12px;
+  background: var(--color-text-primary);
+  border-radius: 1px;
+  transform: translateX(-1px);
+}
+
+/* Memo in drawer */
+.clinic-ops__drawer-memo-text {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ── E. 좌측 사이드바 강화 ── */
+.clinic-sidebar__section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: var(--space-3);
+}
+
+.clinic-sidebar__section-label {
+  padding: var(--space-2) var(--space-4);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.clinic-sidebar__section-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.clinic-sidebar__section-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.clinic-sidebar__section-action-btn:hover {
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, transparent);
+}
+
+.clinic-sidebar__section-action-btn--primary {
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, transparent);
+}
+
+.clinic-sidebar__section-action-btn--primary:hover {
+  background: var(--color-brand-primary);
+  color: #fff;
+}
+
+.clinic-sidebar__section-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-top: 1px solid var(--color-border-divider);
+  padding: var(--space-3) var(--space-4);
+}
+
+.clinic-sidebar__section-filter-chip {
+  padding: 3px 10px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 999px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.clinic-sidebar__section-filter-chip:hover {
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-primary);
+}
+
+.clinic-sidebar__section-filter-chip--active {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+  font-weight: 700;
+}
+
+.clinic-sidebar__session-section {
+  border-top: 1px solid var(--color-border-divider);
+  padding: var(--space-2) 0;
+}
+
+.clinic-sidebar__empty-text {
+  margin: 0;
+  padding: var(--space-4);
+  font-size: 13px;
+}
+
+.clinic-sidebar__session-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 var(--space-2) var(--space-2);
+}
+
+.clinic-sidebar__session-section-badge {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-brand-primary) 16%, transparent);
+  color: var(--color-brand-primary);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+/* 세션 항목 래퍼: 버튼 + 인라인 액션 가로 배치 */
+.clinic-console__sidebar-session-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.clinic-console__sidebar-session-wrap > .clinic-console__sidebar-session {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 세션 항목 인라인 액션 (수정/삭제) — 우측 세로 배치 */
+.clinic-sidebar__session-inline-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex-shrink: 0;
+  padding-right: 2px;
+}
+
+.clinic-sidebar__session-inline-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.clinic-sidebar__session-inline-btn:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
+  color: var(--color-brand-primary);
+}
+
+.clinic-sidebar__session-inline-btn--danger:hover {
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
+  color: var(--color-error);
+}
+
+.clinic-sidebar__session-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.clinic-sidebar__mini-progress {
+  display: block;
+  width: 100%;
+  height: 2px;
+  border: 0;
+  border-radius: 1px;
+  background: var(--color-border-divider);
+  overflow: hidden;
+  appearance: none;
+}
+
+.clinic-sidebar__mini-progress::-webkit-progress-bar {
+  border-radius: 1px;
+  background: var(--color-border-divider);
+}
+
+.clinic-sidebar__mini-progress::-webkit-progress-value {
+  border-radius: 1px;
+  background: var(--color-success);
+  transition: width 0.3s ease;
+}
+
+.clinic-sidebar__mini-progress::-moz-progress-bar {
+  border-radius: 1px;
+  background: var(--color-success);
+}
+
+/* Session meta: pending dot + count */
+.clinic-console__sidebar-session-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.clinic-console__sidebar-session-pending-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-warning, #eab308);
+  flex-shrink: 0;
+}
+
+/* ── 운영 헤더 강화 ── */
+.clinic-ops__header-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.clinic-ops__header-session-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  letter-spacing: -0.01em;
+}
+
+.clinic-ops__header-meta-item--count {
+  color: var(--color-text-primary);
+}
+
+/* KPI highlight — 미확인이 있으면 강조 */
+.clinic-ops__kpi--highlight {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-warning, #eab308) 10%, transparent);
+}
+
+/* 필터 칩 인디케이터 도트 */
+.clinic-ops__filter-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.clinic-ops__filter-dot--pending {
+  background: var(--color-warning, #eab308);
+}
+
+.clinic-ops__filter-dot--approval {
+  background: var(--color-brand-primary);
+}
+
+.clinic-ops__filter-dot--noshow {
+  background: var(--color-error);
+}
+
+/* 미확인 카드 좌측 바 강화 — 더 넓게 */
+.clinic-ops__card--pending .clinic-ops__card-indicator {
+  width: 5px;
+}
+
+.clinic-ops__card--approval .clinic-ops__card-indicator {
+  width: 5px;
+}
+
+/* 출석 완료 카드 — 더 차분하게 */
+.clinic-ops__card--attended {
+  opacity: 0.55;
+}
+
+.clinic-ops__card--attended:hover {
+  opacity: 0.75;
+}

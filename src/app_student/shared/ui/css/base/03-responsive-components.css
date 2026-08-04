@@ -1,0 +1,551 @@
+@media (max-width: 520px) {
+  .domain-tab-shell__header {
+    grid-template-columns: 40px minmax(0, 1fr);
+    min-height: 84px;
+    padding: var(--stu-space-5);
+  }
+
+  .domain-tab-shell__mark {
+    width: 40px;
+    height: 40px;
+  }
+
+  .domain-tab-shell__mark svg {
+    width: 21px;
+    height: 21px;
+  }
+
+  .domain-tab-shell__title {
+    font-size: 20px;
+  }
+
+  .domain-tab-shell__description {
+    font-size: 12px;
+  }
+
+  .domain-tab-shell__actions {
+    grid-column: 1 / -1;
+  }
+
+  .domain-tab-shell--plain .domain-tab-shell__header {
+    min-height: 0;
+    padding: 2px 4px 0;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+  }
+
+  .domain-tab-shell--plain .domain-tab-shell__mark {
+    width: 38px;
+    height: 38px;
+  }
+
+  .domain-tab-shell--plain .domain-tab-shell__title {
+    font-size: 24px;
+  }
+
+  .domain-tab-shell--plain .domain-tab-shell__actions {
+    grid-column: auto;
+  }
+}
+
+/* Back-compat: 기존 카드 클래스 → Section으로 매핑 (프리미엄 스타일 적용) */
+.stu-card {
+  min-width: 0;
+  max-width: 100%;
+  background: var(--stu-surface-1);
+  border: 1px solid color-mix(in srgb, var(--stu-border) 84%, transparent);
+  border-radius: var(--stu-radius-md);
+  padding: 14px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.62) inset,
+    0 8px 20px rgba(15, 23, 42, 0.045);
+  position: relative;
+  overflow: hidden;
+}
+
+.stu-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0));
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.stu-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.stu-card--soft {
+  background: color-mix(in srgb, var(--stu-surface-2) 48%, var(--stu-surface-1));
+  border: 1px solid color-mix(in srgb, var(--stu-border) 80%, transparent);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.58) inset,
+    0 8px 22px rgba(15, 23, 42, 0.04);
+}
+
+.stu-card--pressable {
+  transition:
+    background 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.stu-card--pressable:hover {
+  background: var(--stu-surface-1);
+  border-color: var(--stu-border-normal);
+  /* 호버 시 그림자 강화와 미묘한 상승 효과 */
+  box-shadow:
+    0 10px 26px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.62);
+  transform: translateY(-1px);
+}
+
+.stu-card--pressable:active {
+  background: var(--stu-tint-primary);
+  /* 프리미엄: 밀도 변화 */
+  transform: scale(0.985);
+  filter: brightness(0.97);
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Back-compat for existing class used in StudentPageShell */
+.student-card {
+  background: var(--stu-surface-1);
+  border: 1px solid color-mix(in srgb, var(--stu-border) 84%, transparent);
+  border-radius: var(--stu-radius-md);
+  padding: 14px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.62) inset,
+    0 8px 20px rgba(15, 23, 42, 0.045);
+  background-image: none;
+}
+
+/* =========================
+   3) Buttons (class-based)
+   - TSX Button primitive가 없더라도 즉시 쓸 수 있게
+   ========================= */
+.stu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+
+  min-height: 44px; /* touch target */
+  padding: 10px 14px;
+  border-radius: var(--stu-radius-md);
+  font-weight: 600; /* Premium SaaS: 더 부드러운 느낌 */
+  letter-spacing: 0;
+
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--stu-text);
+
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+
+  /* 프리미엄: Motion Token 사용 */
+  transition:
+    background var(--stu-motion-base),
+    border-color var(--stu-motion-base),
+    box-shadow var(--stu-motion-base),
+    transform var(--stu-motion-fast),
+    filter var(--stu-motion-fast);
+}
+
+.stu-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.stu-btn:active {
+  /* transform 제거 - Premium SaaS 스타일 */
+}
+
+.stu-btn--primary {
+  background: var(--stu-primary);
+  color: var(--stu-primary-contrast);
+  border: 1px solid var(--stu-primary);
+  /* 프리미엄: 미묘한 그림자로 깊이감 */
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.stu-btn--primary:hover {
+  background: var(--stu-primary-hover);
+  border-color: var(--stu-primary-hover);
+  /* 호버 시 그림자 강화 */
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.12),
+    0 4px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.stu-btn--primary:active {
+  /* 프리미엄: 밀도 변화 */
+  transform: scale(0.98);
+  filter: brightness(0.95);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.stu-btn--secondary {
+  background: var(--stu-surface-1);
+  border-color: var(--stu-border-normal);
+  color: var(--stu-text);
+  /* 미묘한 그림자 */
+  box-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.04),
+    0 0 0 1px rgba(0, 0, 0, 0.02);
+}
+
+.stu-btn--secondary:hover {
+  background: var(--stu-tint-hover);
+  border-color: var(--stu-border-strong);
+  box-shadow:
+    0 2px 2px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(0, 0, 0, 0.03);
+  transform: translateY(-1px);
+}
+
+.stu-btn--secondary:active {
+  /* 프리미엄: 밀도 변화 */
+  transform: scale(0.98);
+  filter: brightness(0.97);
+  box-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.stu-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--stu-text);
+}
+
+.stu-btn--ghost:hover {
+  background: var(--stu-tint-primary);
+  border-color: transparent;
+}
+
+.stu-btn--danger {
+  background: var(--stu-danger);
+  color: #fff;
+  border: 1px solid var(--stu-danger);
+  /* 프리미엄: 미묘한 그림자 */
+  box-shadow:
+    0 1px 2px rgba(185, 28, 28, 0.2),
+    0 2px 4px rgba(185, 28, 28, 0.15);
+}
+
+.stu-btn--danger:hover {
+  background: var(--stu-danger-hover);
+  border-color: var(--stu-danger-hover);
+  box-shadow:
+    0 2px 4px rgba(185, 28, 28, 0.25),
+    0 4px 8px rgba(185, 28, 28, 0.2);
+  transform: translateY(-1px);
+}
+
+.stu-btn--danger:active {
+  /* 프리미엄: 밀도 변화 */
+  transform: scale(0.98);
+  filter: brightness(0.95);
+  box-shadow:
+    0 1px 2px rgba(185, 28, 28, 0.2);
+}
+
+.stu-btn--sm {
+  min-height: 38px;
+  padding: 8px 10px;
+  border-radius: var(--stu-radius-sm);
+  font-size: var(--stu-font-size-13);
+}
+
+.stu-btn--lg {
+  min-height: 48px;
+  padding: 12px 16px;
+  border-radius: var(--stu-radius-lg);
+  font-size: var(--stu-font-size-15);
+}
+
+/* =========================
+   4) Inputs
+   ========================= */
+.stu-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: var(--stu-radius-md);
+  border: 1px solid var(--stu-border-normal);
+  background: var(--stu-surface-1);
+  color: var(--stu-text);
+  /* 프리미엄: 미묘한 인셋 그림자 */
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.02),
+    0 0 0 1px rgba(0, 0, 0, 0.02);
+
+  transition:
+    border-color 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    background 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stu-input::placeholder {
+  color: var(--stu-text-subtle);
+}
+
+.stu-input:focus {
+  outline: none;
+  border-color: var(--stu-primary);
+  border-width: 2px;
+  /* 포커스 시 미묘한 외부 그림자 */
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.02),
+    0 0 0 3px rgba(13, 71, 161, 0.1),
+    0 0 0 1px var(--stu-primary);
+}
+
+/* Phone 010-block (PhoneInput010Blocks용 고정 블록) */
+.stu-phone-block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.5rem;
+  min-height: 44px;
+  padding: 0 12px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--stu-text-muted);
+  background: var(--stu-surface-soft);
+  border: 1px solid var(--stu-border);
+  border-radius: var(--stu-radius);
+  user-select: none;
+}
+
+.stu-textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+/* =========================
+   5) Badges / Pills
+   ========================= */
+.stu-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: var(--stu-font-size-12);
+  line-height: var(--stu-line-16);
+  font-weight: 900;
+  border: 1px solid transparent;
+}
+
+.stu-badge--neutral {
+  background: var(--stu-surface-2);
+  border-color: var(--stu-border-normal);
+  color: var(--stu-text);
+}
+
+.stu-badge--success {
+  background: var(--stu-success-bg);
+  border-color: var(--stu-success-border);
+  color: var(--stu-success-text);
+}
+
+.stu-badge--warn {
+  background: var(--stu-warn-bg);
+  border-color: var(--stu-warn-border);
+  color: var(--stu-warn-text);
+}
+
+.stu-badge--danger {
+  background: var(--stu-danger-bg);
+  border-color: var(--stu-danger-border);
+  color: var(--stu-danger-text);
+}
+
+/* Badge size variants */
+.stu-badge--sm {
+  padding: 3px 7px;
+  font-size: 11px;
+  gap: 3px;
+}
+
+/* =========================
+   6) CTA Link (프리미엄 스타일)
+   ========================= */
+.stu-cta-link {
+  color: var(--stu-primary);
+  font-weight: 700;
+  font-size: var(--stu-font-size-13);
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    color 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+}
+
+.stu-cta-link::after {
+  content: "→";
+  transition: transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-block;
+}
+
+.stu-cta-link:hover {
+  color: var(--stu-primary-hover);
+  transform: translateX(2px);
+}
+
+.stu-cta-link:hover::after {
+  transform: translateX(2px);
+}
+
+.stu-cta-link:active {
+  transform: translateX(0);
+}
+
+/* =========================
+   7) Divider (프리미엄: Gradient)
+   ========================= */
+.stu-divider {
+  height: 1px;
+  width: 100%;
+  /* 프리미엄: 라인이 아니라 빛의 경계처럼 */
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--stu-border-subtle),
+    transparent
+  );
+}
+
+/* =========================
+   7) Skeleton
+   ========================= */
+.stu-skel {
+  border: 1px solid color-mix(in srgb, var(--stu-border) 70%, transparent);
+  border-radius: var(--stu-radius-md);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--stu-surface-2) 92%, var(--stu-primary) 8%),
+    color-mix(in srgb, var(--stu-surface-1) 82%, #ffffff 18%),
+    color-mix(in srgb, var(--stu-surface-2) 92%, var(--stu-primary) 8%)
+  );
+  background-size: 200% 100%;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  animation: stuShimmer 1.05s ease-in-out infinite;
+}
+
+.stu-skel-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stu-space-3);
+}
+
+.stu-skel-stack--compact {
+  gap: 8px;
+}
+
+.stu-skel-stack--loose {
+  gap: var(--stu-space-4);
+}
+
+.stu-skel-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--stu-space-4);
+}
+
+.stu-skel--xs {
+  height: 44px;
+}
+
+.stu-skel--sm {
+  height: 52px;
+}
+
+.stu-skel--md {
+  height: 68px;
+}
+
+.stu-skel--lg {
+  height: 80px;
+}
+
+.stu-skel--xl {
+  height: 160px;
+}
+
+.stu-skel--xxl {
+  height: 200px;
+}
+
+.student-page-shell__back-icon {
+  width: 16px;
+  height: 16px;
+  transform: rotate(180deg);
+}
+
+/* stu-skel--dark: 레거시 다크 스켈레톤 제거됨 — 공통 .stu-skel 사용 */
+
+@keyframes stuShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes stuSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================
+   8) Toast Host (future)
+   ========================= */
+.stu-toast-host {
+  position: fixed;
+  left: 50%;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px) + var(--stu-tabbar-h));
+  transform: translateX(-50%);
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* =========================
+   9) Mobile tuning
+   ========================= */
+@media (max-width: 640px) {
+  body {
+    font-size: var(--stu-font-size-14);
+  }
+
+  .stu-section,
+  .stu-card,
+  .student-card {
+    padding: var(--stu-space-8);
+    border-radius: var(--stu-radius-md);
+  }
+}

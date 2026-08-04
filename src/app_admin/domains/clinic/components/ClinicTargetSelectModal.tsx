@@ -10,7 +10,7 @@ import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/mod
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { TABLE_COL } from "@/shared/ui/domain";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import StudentsDetailOverlay from "@admin/domains/students/overlays/StudentsDetailOverlay";
+import StudentsDetailOverlay from "@admin/domains/students/public/StudentsDetailOverlay";
 import type { LectureInfo } from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { formatPhone } from "@/shared/utils/formatPhone";
 

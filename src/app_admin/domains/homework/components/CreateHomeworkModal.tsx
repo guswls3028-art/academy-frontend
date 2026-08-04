@@ -7,7 +7,7 @@
 // 대상자 자동 등록
 // ------------------------------------------------------------
 /* eslint-disable no-restricted-syntax */
-// TODO(R-11 cleanup): 이 파일의 인라인 style → className/DS token 마이그레이션. baseline 동결 위해 file-level disable. 신규 인라인 style 추가 시 본 directive 무력화하지 말 것.
+// R-11 legacy baseline: existing inline styles stay frozen; new styles use className/DS tokens.
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import api from "@/shared/api/axios";

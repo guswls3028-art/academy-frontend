@@ -12,7 +12,7 @@ import { EmptyState, Badge } from "@/shared/ui/ds";
 import { fetchSessionScores, type SessionScoreHomeworkEntry } from "@/shared/api/contracts/sessionScores";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import StudentDetailLink from "@admin/domains/students/components/StudentDetailLink";
+import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
 import { useQuery } from "@tanstack/react-query";
 import { getHomeworkStatus, homeworkStatusLabel, type HomeworkStatus, type HomeworkMetaStatus } from "@/shared/scoring/homeworkStatus";
 import { useTenantLabels } from "@/shared/hooks/useTenantLabels";

@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/lectures/pages/lectures/LectureStudentsPage.tsx
 // 학생 테이블 = 세션 출결 테이블 UI/UX 카피: 강의 뱃지 + 체크박스, 이름, 학부모/학생 전화, N차…1차(역순) 1글자
 /* eslint-disable no-restricted-syntax, react-hooks/exhaustive-deps */
-// TODO(R-11 cleanup): 인라인 style → className/DS token, useMemo deps 정리. baseline 동결 위해 file-level disable.
+// R-11 legacy baseline: existing inline styles stay frozen; new styles use className/DS tokens.
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
@@ -17,7 +17,7 @@ import { adminLectureQueryKeys } from "@admin/domains/lectures/queryKeys";
 
 import AttendanceStatusBadge, { type AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import StudentDetailLink from "@admin/domains/students/components/StudentDetailLink";
+import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainListToolbar, DomainTable, STUDENTS_TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";

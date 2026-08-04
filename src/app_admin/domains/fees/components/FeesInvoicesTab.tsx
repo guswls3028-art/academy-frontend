@@ -5,7 +5,7 @@ import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainTable } from "@/shared/ui/domain";
-import StudentDetailLink from "@admin/domains/students/components/StudentDetailLink";
+import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
 import AdminModal from "@/shared/ui/modal/AdminModal";
 import { ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { MODAL_WIDTH } from "@/shared/ui/modal/constants";
