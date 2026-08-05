@@ -204,8 +204,8 @@ test("출결 상태 액션은 유지하고 학생 행은 학생 상세를 연다
     name: "현재 활성, 비활성으로 변경",
   })).toBeVisible();
   await expect(overlay.getByRole("tab", { name: "수강" })).toHaveAttribute("aria-selected", "true");
-  await overlay.getByRole("tab", { name: "시험" }).click();
-  await expect(overlay.getByRole("tab", { name: "시험" })).toHaveAttribute("aria-selected", "true");
+  await overlay.getByRole("tab", { name: "시험 0건", exact: true }).click();
+  await expect(overlay.getByRole("tab", { name: "시험 0건", exact: true })).toHaveAttribute("aria-selected", "true");
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(overlay.getByRole("button", { name: "정보 수정" })).toBeVisible();
