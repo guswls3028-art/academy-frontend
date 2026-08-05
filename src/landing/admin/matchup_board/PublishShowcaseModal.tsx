@@ -55,29 +55,27 @@ export default function PublishShowcaseModal({ open, initialMode = "upload", onC
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // reports — modal own state. open 첫 시점 1회 fetch.
+  // reports — modal own state. 열 때마다 최신 원본 목록을 다시 읽는다.
   const [reports, setReports] = useState<HitReportListItem[]>([]);
   const [reportsLoading, setReportsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // open 변경 시 state 리셋 + reports fetch.
+  // open 변경 시 state 리셋 + reports fetch. 목록 응답으로 mode가 다시 upload로
+  // 돌아가던 race를 막기 위해 reports.length를 이 effect의 조건으로 쓰지 않는다.
   useEffect(() => {
     if (!open) return;
     setPublishMode(initialMode);
     setForm(INITIAL_FORM);
     setUploadFile(null);
-    if (reports.length === 0) {
-      setReportsLoading(true);
-      fetchHitReportList({})
-        .then((resp) => setReports(resp.reports || []))
-        .catch((e) => {
-          const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-          feedback.error(typeof detail === "string" ? detail : "적중보고서 목록 조회 실패");
-        })
-        .finally(() => setReportsLoading(false));
-    }
-    // reports.length 의존 — open 한 번에 1회만 fetch. eslint dep 정합.
-  }, [open, initialMode, reports.length]);
+    setReportsLoading(true);
+    fetchHitReportList({})
+      .then((resp) => setReports(resp.reports || []))
+      .catch((e) => {
+        const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+        feedback.error(typeof detail === "string" ? detail : "적중보고서 목록 조회 실패");
+      })
+      .finally(() => setReportsLoading(false));
+  }, [open, initialMode]);
 
   const selectedReport = useMemo(
     () => reports.find((r) => r.id === form.hit_report_id) || null,
@@ -149,7 +147,7 @@ export default function PublishShowcaseModal({ open, initialMode = "upload", onC
   return (
     <div
       onClick={() => !submitting && onClose()}
-      style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(8,12,22,0.55)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+      style={{ position: "fixed", inset: 0, zIndex: 420, background: "rgba(8,12,22,0.66)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
     >
       <div onClick={(e) => e.stopPropagation()} style={{ width: "min(640px, 100%)", maxHeight: "90vh", background: "#fff", borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column" }}>
         <div style={{ padding: "16px 20px", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>

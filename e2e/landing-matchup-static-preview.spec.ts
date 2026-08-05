@@ -130,7 +130,9 @@ test("tenant report opens one static comparison image without a PDF renderer", a
   await page.setViewportSize({ width: 390, height: 844 });
   // Vite의 첫 premium_dark 변환은 Windows 콜드 캐시에서 30초를 넘길 수 있다.
   await page.goto(`${BASE}/landing`, { waitUntil: "load", timeout: 75_000 });
-  await expect(page.getByRole("heading", { name: "수업의 결과를 자료로 공개합니다" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /수업에서 준비한 내용/ })).toBeVisible();
+  await expect(page.locator('img[src="/tenants/tchul/classroom-lecture-01.webp"]')).toBeVisible();
+  await expect(page.locator('a[href="/landing/matchup-board/9"] img')).toBeVisible();
   await expect(page.getByRole("link", { name: /매치업 자료실/ }).first()).toHaveAttribute("href", "/landing/matchup-board");
   await page.goto(`${BASE}/landing/reports/7`, { waitUntil: "load" });
 
@@ -170,11 +172,14 @@ test("showcase card opens a dedicated mobile-readable article", async ({ page })
   await opener.click();
   await expect(page).toHaveURL(/\/landing\/matchup-board\/9$/);
   await expect(page.getByRole("heading", { name: "2026 숙명여고 적중 보고서" })).toBeVisible();
-  await expect(page.getByText("좌우로 밀어 크게 볼 수 있습니다")).toBeVisible();
+  await expect(page.getByText("대표 화면을 누르면 크게 볼 수 있습니다")).toBeVisible();
   const detailPreview = page.getByTestId("static-report-preview").locator("img");
   await expect(detailPreview).toBeVisible();
   await expect.poll(async () => detailPreview.evaluate((img) => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0)).toBe(true);
-  await expect(page.getByRole("link", { name: "전체 화면 PDF 보기" })).toBeVisible();
+  await page.getByTestId("static-report-preview").getByRole("button", { name: /크게 보기/ }).click();
+  await expect(page.getByTestId("landing-image-lightbox")).toBeVisible();
+  await page.getByTestId("landing-image-lightbox").getByRole("button", { name: "닫기" }).click();
+  await expect(page.getByRole("link", { name: "PDF 전체보기" })).toBeVisible();
   await expect(page.locator("iframe")).toHaveCount(0);
   await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
@@ -211,11 +216,53 @@ test("owner mobile flow starts with a local PDF upload", async ({ page }) => {
   await page.route("**/api/v1/matchup/hit-reports/**", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ reports: [] }) });
   });
+  await page.route("**/api/v1/landing-public/matchup-showcase/", async (route) => {
+    const isAuthenticatedRequest = Boolean(route.request().headers().authorization);
+    const result = isAuthenticatedRequest ? {
+      id: 88,
+      title: "[E2E] 관리 전용 비공개 자료",
+      description: "공개 자료실에는 나오면 안 됨",
+      status: "hidden",
+      published_at: "2026-07-25T12:00:00+09:00",
+      published_until: null,
+      snapshot_meta: {},
+      view_count: 0,
+      expired: false,
+      visible: true,
+      hit_report_id_ref: null,
+      pdf_url: "/api/v1/landing-public/matchup-showcase/88/pdf/?tenant=tchul",
+      preview_url: "/api/v1/landing-public/matchup-showcase/88/preview/?tenant=tchul",
+    } : {
+      id: 9,
+      title: "2026 숙명여고 적중 보고서",
+      description: "실제 시험과 사전 대비 자료 비교",
+      status: "published",
+      published_at: "2026-07-25T12:00:00+09:00",
+      published_until: null,
+      snapshot_meta: { hit_rate: 0.8, hit_count: 8, counted_entries: 10 },
+      view_count: 1,
+      expired: false,
+      visible: true,
+      hit_report_id_ref: 7,
+      pdf_url: "/api/v1/landing-public/matchup-showcase/9/pdf/?tenant=tchul",
+      preview_url: "/api/v1/landing-public/matchup-showcase/9/preview/?tenant=tchul",
+    };
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ count: 1, results: [result] }),
+    });
+  });
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(`${BASE}/landing/admin/matchup-board?compose=upload`, { waitUntil: "load" });
+  await page.goto(`${BASE}/landing/matchup-board`, { waitUntil: "load" });
 
-  await expect(page.getByRole("heading", { name: "매치업 자료실 관리" })).toBeVisible();
+  await expect(page.getByTestId("landing-matchup-card-9")).toBeVisible();
+  await expect(page.getByText("[E2E] 관리 전용 비공개 자료")).toHaveCount(0);
+  await page.getByRole("button", { name: "PDF 자료 올리기" }).click();
+
+  await expect(page).toHaveURL(/\/landing\/matchup-board\?manage=1/);
+  await expect(page.getByRole("dialog", { name: "매치업 게시물 관리" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "새 매치업 자료 올리기" })).toBeVisible();
   await expect(page.getByTestId("publish-mode-upload")).toContainText("내 컴퓨터의 PDF");
   await expect(page.getByText("PDF 파일을 끌어 놓거나 클릭해서 선택")).toBeVisible();

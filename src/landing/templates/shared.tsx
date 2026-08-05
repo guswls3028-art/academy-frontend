@@ -208,7 +208,7 @@ function buildMenuCategories(sections: LandingSection[], isOwner: boolean = fals
       label: "수정하기 (학원장)",
       items: [
         { key: "edit_page", label: "페이지 편집 (브랜드/히어로)", kind: "route", target: "/landing?edit=1" },
-        { key: "matchup_board", label: "매치업 적중보고서 게시판 관리", kind: "route", target: "/landing/admin/matchup-board", badge: "NEW" },
+        { key: "matchup_board", label: "매치업 게시물 관리", kind: "route", target: "/landing/matchup-board?manage=1" },
       ],
     });
   }

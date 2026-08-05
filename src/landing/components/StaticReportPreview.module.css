@@ -5,7 +5,7 @@
 }
 
 .frame {
-  overflow: auto;
+  overflow: hidden;
   border: 1px solid rgba(148, 163, 184, 0.24);
   border-radius: 12px;
   background: #fff;
@@ -13,7 +13,12 @@
 }
 
 .mobileHint {
-  display: none;
+  display: block;
+  margin-bottom: 10px;
+  color: #b8c9df;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
 }
 
 .compact .frame {
@@ -47,6 +52,31 @@
   background: #fff;
 }
 
+.zoomButton {
+  position: relative;
+  width: 100%;
+  padding: 0;
+  display: block;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+.zoomButton > span {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255,255,255,.3);
+  border-radius: 6px;
+  color: #fff;
+  background: rgba(4,15,28,.78);
+  font-size: 11px;
+  font-weight: 800;
+  backdrop-filter: blur(8px);
+}
+
 .caption {
   margin-top: 14px;
   color: #9ca3af;
@@ -58,23 +88,10 @@
 
 @media (max-width: 640px) {
   .figure:not(.compact) .frame {
-    max-height: 72vh;
     border-radius: 8px;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .figure:not(.compact) .image {
-    width: 820px;
-    max-width: none;
   }
 
   .mobileHint {
-    display: block;
     margin-bottom: 8px;
-    color: #b8c9df;
-    font-size: 12px;
-    line-height: 1.5;
-    text-align: center;
   }
 }

@@ -25,6 +25,12 @@ import EditShowcaseModal from "./matchup_board/EditShowcaseModal";
 import PublishShowcaseModal, { type PublishMode } from "./matchup_board/PublishShowcaseModal";
 import { formatDate } from "./matchup_board/helpers";
 
+type LandingMatchupBoardAdminPageProps = {
+  modal?: boolean;
+  onClose?: () => void;
+  onChanged?: () => void;
+};
+
 function StatusBadge({ status, expired }: { status: MatchupShowcaseStatus; expired: boolean }) {
   let label = "공개";
   let bg = "#16a34a";
@@ -44,7 +50,11 @@ function StatusBadge({ status, expired }: { status: MatchupShowcaseStatus; expir
 
 // PublishFormState / INITIAL_FORM 은 PublishShowcaseModal 안 own state 로 이동.
 
-export default function LandingMatchupBoardAdminPage() {
+export default function LandingMatchupBoardAdminPage({
+  modal = false,
+  onClose,
+  onChanged,
+}: LandingMatchupBoardAdminPageProps = {}) {
   const { user, isAuthenticated, isLoading } = useAuth();
   const isOwner = !!(user?.is_superuser || user?.tenantRole === "owner" || user?.tenantRole === "admin");
   const navigate = useNavigate();
@@ -92,7 +102,8 @@ export default function LandingMatchupBoardAdminPage() {
   const handlePublished = useCallback(async () => {
     setPublishOpen(false);
     await reload();
-  }, [reload]);
+    onChanged?.();
+  }, [onChanged, reload]);
 
   // ?compose=upload / ?compose=existing 감지 → 자동 모달 open + mode 설정.
   useEffect(() => {
@@ -105,6 +116,15 @@ export default function LandingMatchupBoardAdminPage() {
       setSearchParams(next, { replace: true });
     }
   }, [isOwner, searchParams, setSearchParams, openPublishModal]);
+
+  useEffect(() => {
+    if (!modal) return undefined;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [modal]);
 
   const openEdit = useCallback((card: MatchupShowcaseCard) => {
     setEditing(card);
@@ -148,16 +168,16 @@ export default function LandingMatchupBoardAdminPage() {
 
   const handleDelete = useCallback(async (card: MatchupShowcaseCard) => {
     const ok = await confirm({
-      title: "게시물 삭제",
-      message: `"${card.title}" 게시물을 삭제하시겠습니까?\n(게시판에서 사라지며 일반인에게 노출되지 않습니다.)`,
-      confirmText: "삭제",
+      title: "자료실에서 내리기",
+      message: `"${card.title}" 자료를 홈페이지에서 내릴까요?\n원본 PDF와 작성 내용은 보존됩니다.`,
+      confirmText: "내리기",
       cancelText: "취소",
       danger: true,
     });
     if (!ok) return;
     try {
       await deleteMatchupShowcase(card.id);
-      feedback.success("삭제했습니다.");
+      feedback.success("홈페이지 자료실에서 내렸습니다.");
       await reload();
     } catch (e) {
       const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
@@ -187,14 +207,51 @@ export default function LandingMatchupBoardAdminPage() {
     );
   }
 
+  const closeManager = () => {
+    if (onClose) onClose();
+    else navigate("/landing/matchup-board");
+  };
+
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a" }}>
+    <div
+      data-testid={modal ? "matchup-manager-backdrop" : undefined}
+      onMouseDown={(event) => {
+        if (modal && event.target === event.currentTarget) closeManager();
+      }}
+      style={modal ? {
+        position: "fixed",
+        inset: 0,
+        zIndex: 320,
+        padding: "clamp(10px, 2.5vw, 28px)",
+        display: "grid",
+        placeItems: "center",
+        background: "rgba(2, 10, 22, 0.78)",
+        backdropFilter: "blur(10px)",
+      } : { minHeight: "100vh", background: "#f8fafc", color: "#0f172a" }}
+    >
+      <section
+        role={modal ? "dialog" : undefined}
+        aria-modal={modal || undefined}
+        aria-labelledby="matchup-manager-title"
+        style={modal ? {
+          width: "min(1160px, 100%)",
+          maxHeight: "calc(100vh - clamp(20px, 5vw, 56px))",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          color: "#0f172a",
+          background: "#f8fafc",
+          border: "1px solid rgba(191, 230, 255, 0.3)",
+          borderRadius: 18,
+          boxShadow: "0 34px 100px rgba(0, 0, 0, 0.48)",
+        } : undefined}
+      >
       {/* 헤더 */}
       <div style={{ background: "#fff", borderBottom: "1px solid #e2e8f0", padding: "20px 24px" }}>
         <div style={{ maxWidth: 1080, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#1268f3", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>홈페이지 자료 관리</div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>매치업 자료실 관리</h1>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#1268f3", letterSpacing: "-0.01em", marginBottom: 4 }}>홈페이지에 보여줄 자료</div>
+            <h1 id="matchup-manager-title" style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>매치업 게시물 관리</h1>
             <p style={{ fontSize: 13, color: "#64748b", margin: "6px 0 0", lineHeight: 1.5 }}>
               컴퓨터에서 수정한 PDF를 일반 게시글처럼 올리고, 학생·학부모에게 공유할 링크를 복사할 수 있습니다.
             </p>
@@ -202,9 +259,9 @@ export default function LandingMatchupBoardAdminPage() {
           <div style={{ display: "flex", gap: 8 }}>
             <button
               type="button"
-              onClick={() => navigate("/landing")}
+              onClick={closeManager}
               style={{ padding: "10px 16px", borderRadius: 10, border: "1px solid #cbd5e1", background: "#fff", color: "#475569", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-            >← 홈으로</button>
+            >{modal ? "닫기" : "← 자료실"}</button>
             <button
               type="button"
               data-testid="open-publish-modal"
@@ -221,7 +278,7 @@ export default function LandingMatchupBoardAdminPage() {
       </div>
 
       {/* list */}
-      <div style={{ maxWidth: 1080, margin: "0 auto", padding: "24px" }}>
+      <div style={{ width: "100%", maxWidth: 1080, margin: "0 auto", padding: "24px", overflowY: modal ? "auto" : undefined }}>
         {loading ? (
           <div style={{ padding: 80, textAlign: "center", color: "#64748b" }}>불러오는 중…</div>
         ) : error ? (
@@ -242,7 +299,7 @@ export default function LandingMatchupBoardAdminPage() {
         ) : (
           <div style={{ display: "grid", gap: 12 }}>
             {items.map((card) => (
-              <div key={card.id} data-testid={`matchup-showcase-row-${card.id}`} style={{ background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", padding: 16, display: "grid", gridTemplateColumns: "1fr auto", gap: 12 }}>
+              <div key={card.id} data-testid={`matchup-showcase-row-${card.id}`} style={{ background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", padding: 16, display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 14 }}>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
                     <StatusBadge status={card.status} expired={card.expired} />
@@ -264,7 +321,7 @@ export default function LandingMatchupBoardAdminPage() {
                     {card.snapshot_meta?.author_name && <span>강사 {card.snapshot_meta.author_name}</span>}
                   </div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, flexWrap: "wrap" }}>
                   {/* 박철T spec (Phase #74, 2026-05-13): "매치업만 볼 수 있는 링크에
                       위에 올린 파일만". 게시물 단일 detail URL 카톡 1클릭 공유. */}
                   <button type="button" onClick={() => handleCopyShareLink(card)}
@@ -282,7 +339,7 @@ export default function LandingMatchupBoardAdminPage() {
                   )}
                   <button type="button" onClick={() => handleDelete(card)}
                     style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #fecaca", background: "#fff", color: "#b91c1c", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-                  >삭제</button>
+                  >자료 내리기</button>
                 </div>
               </div>
             ))}
@@ -306,6 +363,7 @@ export default function LandingMatchupBoardAdminPage() {
           onSaved={handleEditSaved}
         />
       )}
+      </section>
     </div>
   );
 }

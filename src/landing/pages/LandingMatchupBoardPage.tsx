@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router";
 
 import useAuth from "@/auth/hooks/useAuth";
 
@@ -7,14 +7,18 @@ import { fetchLandingPublic } from "../api";
 import { fetchMatchupShowcaseList, type MatchupShowcaseCard } from "../api/matchupShowcase";
 import type { LandingPublicResponse } from "../types";
 import { formatLandingYmdDateOrRaw as formatDate } from "../utils/dateFormat";
+import { resolvePublicReportUrl } from "../utils/publicReportUrl";
 import { MatchupCenterSpin, MatchupCenterState, MatchupLandingShell } from "./LandingMatchupBoardShell";
 import styles from "./LandingMatchupBoardPage.module.css";
+
+const LandingMatchupBoardAdminPage = lazy(() => import("../admin/LandingMatchupBoardAdminPage"));
 
 export default function LandingMatchupBoardPage() {
   const [config, setConfig] = useState<LandingPublicResponse | null>(null);
   const [items, setItems] = useState<MatchupShowcaseCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const isOwner = Boolean(
     user?.is_superuser || user?.tenantRole === "owner" || user?.tenantRole === "admin",
@@ -26,7 +30,9 @@ export default function LandingMatchupBoardPage() {
     try {
       const [landing, showcase] = await Promise.all([
         fetchLandingPublic(),
-        fetchMatchupShowcaseList({ skipAuth: !user }),
+        // 공개 자료실은 로그인한 원장에게도 학생/학부모와 똑같은 목록만 보여준다.
+        // 관리용 초안·비공개 자료는 아래 관리 팝업에서만 조회한다.
+        fetchMatchupShowcaseList({ skipAuth: true }),
       ]);
       setConfig(landing);
       setItems(showcase.results);
@@ -36,11 +42,25 @@ export default function LandingMatchupBoardPage() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, []);
 
   useEffect(() => { void reload(); }, [reload]);
 
   const cfg = config?.config;
+  const managerOpen = isOwner && searchParams.get("manage") === "1";
+  const openManager = (compose?: "upload" | "existing") => {
+    const next = new URLSearchParams(searchParams);
+    next.set("manage", "1");
+    if (compose) next.set("compose", compose);
+    else next.delete("compose");
+    setSearchParams(next);
+  };
+  const closeManager = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("manage");
+    next.delete("compose");
+    setSearchParams(next, { replace: true });
+  };
   if (!cfg && loading) return <MatchupCenterSpin label="자료실을 불러오는 중..." />;
 
   if (!cfg) {
@@ -58,7 +78,7 @@ export default function LandingMatchupBoardPage() {
       <header className={styles.header}>
         <div className={styles.headerInner}>
           <div>
-            <span className={styles.utility}>Tchul archive · matchup</span>
+            <span className={styles.utility}>학교별 매치업 자료</span>
             <h1>매치업 자료실</h1>
             <p>
               수업 전에 준비한 자료와 실제 학교 시험을 비교해, 박철T가 직접 정리한 보고서를 공개합니다.
@@ -66,11 +86,11 @@ export default function LandingMatchupBoardPage() {
           </div>
           {isOwner ? (
             <div className={styles.ownerActions}>
-              <Link className={styles.uploadLink} to="/landing/admin/matchup-board?compose=upload">
+              <button className={styles.uploadLink} type="button" onClick={() => openManager("upload")}>
                 PDF 자료 올리기
                 <UploadIcon />
-              </Link>
-              <Link className={styles.manageLink} to="/landing/admin/matchup-board">게시물 관리</Link>
+              </button>
+              <button className={styles.manageLink} type="button" onClick={() => openManager()}>게시물 관리</button>
             </div>
           ) : null}
         </div>
@@ -99,7 +119,7 @@ export default function LandingMatchupBoardPage() {
           <div className={styles.notice}>
             <strong>첫 매치업 자료를 준비하고 있습니다.</strong>
             <span>업로드가 완료되면 이곳에서 바로 확인할 수 있습니다.</span>
-            {isOwner ? <Link to="/landing/admin/matchup-board?compose=upload">첫 PDF 올리기</Link> : null}
+            {isOwner ? <button type="button" onClick={() => openManager("upload")}>첫 PDF 올리기</button> : null}
           </div>
         ) : (
           <div className={styles.archiveGrid}>
@@ -109,26 +129,43 @@ export default function LandingMatchupBoardPage() {
           </div>
         )}
       </main>
+
+      {managerOpen ? (
+        <Suspense fallback={<div className={styles.managerLoading}>게시물 관리창을 여는 중…</div>}>
+          <LandingMatchupBoardAdminPage modal onClose={closeManager} onChanged={() => void reload()} />
+        </Suspense>
+      ) : null}
     </MatchupLandingShell>
   );
 }
 
 function ArchiveCard({ item, featured }: { item: MatchupShowcaseCard; featured: boolean }) {
+  const previewUrl = item.preview_url ? resolvePublicReportUrl(item.preview_url) : null;
+  const hitRate = item.snapshot_meta?.hit_rate;
+  const hitCount = item.snapshot_meta?.hit_count;
+  const countedEntries = item.snapshot_meta?.counted_entries;
   const content = (
     <>
-      <div className={styles.cardTop}>
-        <span>{item.expired ? "공개 종료" : "PUBLIC PDF"}</span>
-        <span>{formatDate(item.published_at)}</span>
+      <div className={styles.cardPreview}>
+        {previewUrl ? (
+          <img src={previewUrl} alt="" loading={featured ? "eager" : "lazy"} />
+        ) : (
+          <div className={styles.cardPreviewFallback}>매치업 PDF</div>
+        )}
+        <span>{item.expired ? "공개 종료" : "대표 비교 화면"}</span>
       </div>
       <div className={styles.cardBody}>
-        <span className={styles.cardType}>Matchup report</span>
+        <div className={styles.cardTop}>
+          <span>{formatDate(item.published_at)}</span>
+          {hitRate !== undefined ? <strong>적중률 {Math.round((hitRate || 0) * 100)}%</strong> : null}
+        </div>
         <h2>{item.title}</h2>
         <p>{item.description || "실제 시험과 사전 대비 자료를 비교한 매치업 보고서입니다."}</p>
       </div>
       <div className={styles.cardMeta}>
         <span>{item.snapshot_meta?.author_name || "박철T"}</span>
+        {hitCount !== undefined && countedEntries !== undefined ? <span>{hitCount}/{countedEntries}문항 적중</span> : null}
         <span>조회 {item.view_count}</span>
-        <span className={styles.cardArrow}>{item.expired ? "기간 종료" : "자료 열기 →"}</span>
       </div>
     </>
   );
