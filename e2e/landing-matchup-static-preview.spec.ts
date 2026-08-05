@@ -205,6 +205,9 @@ test("a failed report preview retries after route change", async ({ page }) => {
 
 test("showcase detail renders every page as one continuous mobile article", async ({ page }) => {
   await stubLandingReport(page);
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "devicePixelRatio", { configurable: true, value: 3 });
+  });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${BASE}/landing/matchup-board`, { waitUntil: "load" });
 
@@ -232,16 +235,23 @@ test("showcase detail renders every page as one continuous mobile article", asyn
     const mobileBox = await canvas.boundingBox();
     expect(mobileBox?.width || 999).toBeLessThanOrEqual(390);
     expect(await canvas.evaluate((element) => element.width > 0 && element.height > 0)).toBe(true);
+    expect(await canvas.evaluate((element) => element.width / element.clientWidth)).toBeGreaterThanOrEqual(2.4);
   }
   await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
-  await page.setViewportSize({ width: 1366, height: 900 });
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   const firstPage = pages.first();
+  await expect(firstPage).toHaveAttribute("data-render-status", "waiting", { timeout: 20_000 });
+  await expect.poll(async () => firstPage.getByTestId("matchup-pdf-canvas").evaluate((element) => ({ width: element.width, height: element.height }))).toEqual({ width: 1, height: 1 });
+
+  await page.setViewportSize({ width: 1366, height: 900 });
   await firstPage.scrollIntoViewIfNeeded();
   await expect(firstPage).toHaveAttribute("data-render-status", "ready", { timeout: 20_000 });
-  const desktopBox = await firstPage.getByTestId("matchup-pdf-canvas").boundingBox();
+  const desktopCanvas = firstPage.getByTestId("matchup-pdf-canvas");
+  const desktopBox = await desktopCanvas.boundingBox();
   expect(desktopBox?.width || 0).toBeGreaterThan(800);
   expect(desktopBox?.width || 9999).toBeLessThanOrEqual(920);
+  expect(await desktopCanvas.evaluate((element) => element.width / element.clientWidth)).toBeGreaterThanOrEqual(1.4);
   await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 

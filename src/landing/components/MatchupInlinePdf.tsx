@@ -45,19 +45,24 @@ function PdfPage({
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          setNearViewport(true);
-          observer.disconnect();
-        }
+        setNearViewport(entries.some((entry) => entry.isIntersecting));
       },
-      { rootMargin: "1400px 0px" },
+      { rootMargin: "700px 0px" },
     );
     observer.observe(surface);
     return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
-    if (!nearViewport || surfaceWidth < 1) return undefined;
+    if (!nearViewport || surfaceWidth < 1) {
+      const canvas = canvasRef.current;
+      if (canvas && (canvas.width > 1 || canvas.height > 1)) {
+        canvas.width = 1;
+        canvas.height = 1;
+      }
+      setStatus("waiting");
+      return undefined;
+    }
 
     let disposed = false;
     let page: PDFPageProxy | null = null;
@@ -76,9 +81,9 @@ function PdfPage({
         }
 
         const cssScale = surfaceWidth / baseViewport.width;
-        // 긴 보고서(20~30쪽)를 모두 읽어도 모바일/데스크톱 canvas bitmap이
-        // 과도하게 메모리를 점유하지 않도록 화면 크기별 상한을 둔다.
-        const pixelRatio = Math.min(window.devicePixelRatio || 1, surfaceWidth >= 700 ? 1 : 1.5);
+        // 모바일 고밀도 화면에서는 글자가 흐려지지 않도록 충분한 배율을 쓰고,
+        // 화면에서 멀어진 canvas는 위에서 비워 긴 보고서의 메모리 누적을 막는다.
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, surfaceWidth >= 700 ? 1.5 : 2.5);
         const viewport = page.getViewport({ scale: cssScale * pixelRatio });
         const canvas = canvasRef.current;
         if (!canvas) return;

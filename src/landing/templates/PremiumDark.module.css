@@ -509,9 +509,9 @@
   .heroGrid { position: relative; width: 100%; min-height: 0; display: block; }
   .heroContent { min-height: 500px; padding: 70px 20px 42px; }
   .heroContent::after { position: absolute; inset: 0; z-index: -1; content: ""; background: linear-gradient(90deg, #07111f 0%, rgba(7, 17, 31, 0.94) 58%, rgba(7, 17, 31, 0.24) 100%); }
-  .portraitPanel { position: absolute; inset: 0 0 0 auto; z-index: 0; width: 58%; min-height: 0; border: 0; opacity: 0.52; }
+  .portraitPanel { position: absolute; inset: 0 0 0 auto; z-index: 0; width: 58%; min-height: 0; border: 0; opacity: 0.58; }
   .portraitPanel::after { background: linear-gradient(90deg, #07111f 0%, transparent 72%), linear-gradient(0deg, #07111f 0%, transparent 54%); }
-  .classroomHero { object-position: 56% center; }
+  .classroomHero { object-position: 56% center; filter: saturate(.9) contrast(1.05) brightness(.74); }
   .classroomLabel { display: none; }
   .portraitInset { top: 42px; right: -10px; width: min(48vw, 205px); height: 330px; border-color: rgba(223,242,255,.2); box-shadow: -18px 20px 50px rgba(0,0,0,.24); }
   .portrait { object-position: 50% 32%; }
