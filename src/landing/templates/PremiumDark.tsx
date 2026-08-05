@@ -1,2061 +1,378 @@
-// PATH: src/app_admin/domains/landing/templates/PremiumDark.tsx
-// 템플릿 2: 프리미엄 다크 — 검정 + 딥네이비 + 골드 액센트.
-// 박철과학 인스타 시그니처(검정/골드/Pretendard heavy) 매칭.
-//
-// 랜딩 템플릿은 inline style 기반 — 도메인 전체 면제 (MinimalTutor와 동일 사유).
-/* eslint-disable no-restricted-syntax, @typescript-eslint/no-unused-vars */
-
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
-import type { LandingConfig, LandingSection, FeatureItem, TestimonialItem, ProgramItem, FaqItem, HitReportShowcaseItem, HeroCarouselItem, InstructorProfileItem, ManagementCardItem, ProcessStepItem } from "../types";
-import { getEnabledSections, SvgIcon, HitReportCards, useTenantHitStats, LandingNavBar, ConsultRequestForm, usePublicTestimonials, TestimonialSubmitForm, resolveHeroPrimaryCta, type TemplateProps, type NavBarTokens } from "./shared";
-import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
-import LandingCommunityShowcase from "../components/LandingCommunityShowcase";
-import TestimonialsSticky from "../components/TestimonialsSticky";
-import LandingSectionTabs from "../components/LandingSectionTabs";
-import { Fragment } from "react";
-import { hexToRgb } from "./colorUtils";
+
 import useAuth from "@/auth/hooks/useAuth";
-import { scrollToLandingSection } from "../utils/scrollToSection";
+
+import { fetchMatchupShowcaseList, type MatchupShowcaseCard } from "../api/matchupShowcase";
+import LandingFooter from "../components/LandingFooter";
+import type {
+  FeatureItem,
+  InstructorProfileItem,
+  LandingSection,
+  ManagementCardItem,
+  ProgramItem,
+} from "../types";
+import {
+  getEnabledSections,
+  LandingNavBar,
+  resolveHeroPrimaryCta,
+  SvgIcon,
+  type NavBarTokens,
+  type TemplateProps,
+} from "./shared";
+import styles from "./PremiumDark.module.css";
+
+const NAV_TOKENS: NavBarTokens = {
+  bg: "rgba(7, 17, 31, 0.92)",
+  border: "rgba(151, 174, 208, 0.18)",
+  textPrimary: "#F7FAFF",
+  textSecondary: "#AAB8CC",
+  primaryColor: "#66A3FF",
+  primaryRgb: "102, 163, 255",
+  ctaGradient: "linear-gradient(135deg, #76B1FF 0%, #3478F6 100%)",
+  ctaTextColor: "#05101E",
+  panelBg: "#0A1728",
+};
+
+const FOOTER_TOKENS = {
+  bg: "#07111F",
+  border: "rgba(151, 174, 208, 0.16)",
+  textPrimary: "#F7FAFF",
+  textSecondary: "#93A4BB",
+  textMuted: "#6E819C",
+  accent: "#66A3FF",
+};
+
+type ArchiveState = {
+  loading: boolean;
+  failed: boolean;
+  items: MatchupShowcaseCard[];
+};
+
+const DEFAULT_STANDARDS: FeatureItem[] = [
+  { icon: "search", title: "학교별 시험 분석", description: "학교와 시험 범위를 기준으로 출제 흐름과 대비 자료를 다시 점검합니다." },
+  { icon: "document", title: "수업 자료 직접 제작", description: "수업 전 준비부터 시험 후 매치업 자료까지 같은 기준으로 직접 정리합니다." },
+  { icon: "check", title: "시험 후 결과 공개", description: "말로 끝내지 않고 실제 시험과 대비 자료의 결과를 공개 자료로 남깁니다." },
+];
 
 export default function PremiumDark({ config }: TemplateProps) {
-  const c = config.primary_color || "#1E3A5F";
-  const rgb = hexToRgb(c);
   const sections = getEnabledSections(config);
+  const hero = findSection(sections, "hero");
+  const instructor = firstItem<InstructorProfileItem>(findSection(sections, "instructor_profile"));
+  const program = firstItem<ProgramItem>(findSection(sections, "programs"));
+  const features = sectionItems<FeatureItem>(findSection(sections, "features")).slice(0, 4);
+  const management = sectionItems<ManagementCardItem>(findSection(sections, "management_system")).slice(0, 3);
+  const primaryCta = resolveHeroPrimaryCta(config, hero || ({ type: "hero" } as LandingSection));
+  const { user } = useAuth();
+  const isOwner = Boolean(
+    user?.is_superuser || user?.tenantRole === "owner" || user?.tenantRole === "admin",
+  );
+  const [archive, setArchive] = useState<ArchiveState>({ loading: true, failed: false, items: [] });
 
-  // Section enter scroll animation — IntersectionObserver로 모든 [data-stype] section을
-  // viewport 진입 시 fade-up. 학원장 spec "디테일 애니메이션 스튜디오 감성" (#D2 cycle 12).
   useEffect(() => {
-    if (typeof window === "undefined" || !("IntersectionObserver" in window)) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const observed = new Set<Element>();
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting) {
-            e.target.classList.add("pd-in-view");
-            io.unobserve(e.target);
-            observed.delete(e.target);
-          }
+    let cancelled = false;
+    fetchMatchupShowcaseList({ skipAuth: true })
+      .then((response) => {
+        if (!cancelled) {
+          setArchive({ loading: false, failed: false, items: response.results.slice(0, 3) });
         }
-      },
-      { rootMargin: "-10% 0px -10% 0px", threshold: 0.05 },
-    );
-    // hero는 entrance fade-up 이미 있어 제외.
-    const targets = document.querySelectorAll('section[data-stype]:not([data-stype="hero"])');
-    targets.forEach((t) => {
-      t.classList.add("pd-fade-target");
-      io.observe(t);
-      observed.add(t);
-    });
-    return () => { observed.forEach((t) => io.unobserve(t)); io.disconnect(); };
+      })
+      .catch(() => {
+        if (!cancelled) setArchive({ loading: false, failed: true, items: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // 박철과학 시그니처 다크 팔레트
-  const bg = "#0A0E1A";
-  const bgAlt = "#0F1525";
-  const cardBg = "rgba(255,255,255,0.03)";
-  const cardBorder = "rgba(255,255,255,0.08)";
-  const cardHoverBorder = "rgba(212,160,76,0.35)";
-  const textPrimary = "#F5F1E8";
-  const textSecondary = "#9CA3AF";
-  const textMuted = "#6B7280";
-  const gold = "#D4A04C";
-  const goldRgb = "212,160,76";
-
-  const navTokens: NavBarTokens = {
-    bg: "rgba(10,14,26,0.85)",
-    border: cardBorder,
-    textPrimary,
-    textSecondary,
-    primaryColor: gold,
-    primaryRgb: goldRgb,
-    ctaGradient: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`,
-    ctaTextColor: "#0A0E1A",
-    panelBg: "#0F1525",
-  };
+  const heroImage = instructor?.photo_url || config.hero_image_url || config.hero_images?.[0] || "";
+  const heroTitle = hero?.title || config.tagline || `${config.brand_name} 통합과학`;
+  const heroDescription = hero?.description || config.subtitle;
+  const credentials = (instructor?.experience || []).slice(0, 3);
+  const standards = useMemo(() => {
+    if (features.length > 0) return features;
+    const managementStandards = management.map((item) => ({
+      icon: item.icon,
+      title: item.title,
+      description: item.description,
+    }));
+    return managementStandards.length > 0 ? managementStandards : DEFAULT_STANDARDS;
+  }, [features, management]);
 
   return (
-    <div style={{
-      fontFamily: "'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
-      color: textPrimary,
-      background: bg,
-      minHeight: "100vh",
-      letterSpacing: "-0.011em",
-    }}>
+    <div className={styles.site}>
       <LandingNavBar
         config={config}
         sections={sections}
-        tokens={navTokens}
-        brandMark={<BrandMark name={config.brand_name || "Brand"} gold={gold} />}
+        tokens={NAV_TOKENS}
+        brandMark={<BrandMark name={config.brand_name} />}
         topNavVariant="slab"
       />
-      <LandingSectionTabs sections={sections} tokens={navTokens} />
 
-      {sections.map((section) => {
-        switch (section.type) {
-          case "hero": {
-            // hero 직후 자동 회전 캐러셀 — 학원장 요청(2026-05-11).
-            // Phase B(#63 2026-05-12): hero_carousel section.items 우선, 없으면 hit_reports로 fallback.
-            const carouselSection = sections.find((s) => s.type === "hero_carousel");
-            const carouselItems = (carouselSection?.items as HeroCarouselItem[] | undefined) || undefined;
-            const hitSection = sections.find((s) => s.type === "hit_reports");
-            const hitItems = (hitSection?.items as HitReportShowcaseItem[] | undefined) || undefined;
-            // hero primary CTA — 학원장 LandingEditor 설정(consult/matchup/video/custom).
-            const primaryCta = resolveHeroPrimaryCta(config, section);
-            return (
-              <Fragment key="hero">
-                <PremiumHeroStage
-                  config={config}
-                  sections={sections}
-                  heroSection={section}
-                  carouselItems={carouselItems}
-                  hitItems={hitItems}
-                  primaryCta={primaryCta}
-                  textPrimary={textPrimary}
-                  textSecondary={textSecondary}
-                  textMuted={textMuted}
-                  gold={gold}
-                  goldRgb={goldRgb}
-                  primaryRgb={rgb}
-                  cardBorder={cardBorder}
-                />
-                <PremiumDecisionBand
-                  sections={sections}
-                  primaryCta={primaryCta}
-                  textPrimary={textPrimary}
-                  textSecondary={textSecondary}
-                  textMuted={textMuted}
-                  gold={gold}
-                  goldRgb={goldRgb}
-                  cardBorder={cardBorder}
-                  bgAlt={bgAlt}
-                />
-                <TestimonialsSticky theme="dark" />
-              </Fragment>
-            );
-          }
+      <main>
+        <section className={styles.hero} data-stype="hero" aria-labelledby="premium-home-title">
+          <div className={styles.heroGrid}>
+            <div className={styles.heroContent}>
+              <div className={styles.kicker}>
+                <span className={styles.kickerDot} />
+                Science instruction · Seoul
+              </div>
+              <h1 id="premium-home-title" className={styles.heroTitle}>{heroTitle}</h1>
+              {heroDescription ? <p className={styles.heroDescription}>{heroDescription}</p> : null}
 
-          case "features": {
-            // empty hide SSOT (2026-05-12 — MinimalTutor와 일관)
-            const featureItems = (section.items as FeatureItem[] | undefined) || [];
-            if (featureItems.length === 0) return null;
-            return (
-              <section key="features" data-stype="features" style={{ padding: "120px 24px", background: bgAlt, position: "relative", overflow: "hidden" }}>
-                <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 60% 40% at 50% 0%, rgba(${goldRgb},0.04) 0%, transparent 70%)`, pointerEvents: "none" }} />
-                <div style={{ maxWidth: 1200, margin: "0 auto", position: "relative" }}>
-                  {section.title && (
-                    <SectionHeader eyebrow="System" title={section.title} description={section.description} gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
-                  )}
-                  <PremiumSystemBoard
-                    items={featureItems}
-                    gold={gold}
-                    goldRgb={goldRgb}
-                    cardBg={cardBg}
-                    cardBorder={cardBorder}
-                    cardHoverBorder={cardHoverBorder}
-                    textPrimary={textPrimary}
-                    textSecondary={textSecondary}
-                    textMuted={textMuted}
-                    bg={bg}
-                  />
-                </div>
-              </section>
-            );
-          }
+              <div className={styles.heroActions}>
+                <SmartLink to={primaryCta.link} className={styles.primaryAction} testId="landing-hero-primary-cta">
+                  {primaryCta.label}
+                  <Arrow />
+                </SmartLink>
+                <Link to="/landing/matchup-board" className={styles.secondaryAction}>
+                  매치업 자료 보기
+                </Link>
+              </div>
 
-          case "about": {
-            // about: description 실제 콘텐츠가 본질 — title 단독은 의미 없음. trim() 빈 케이스 hide.
-            if (!section.description || !section.description.trim()) return null;
-            return (
-              <section key="about" data-stype="about" style={{ padding: "120px 24px", position: "relative" }}>
-                <div style={{ maxWidth: 820, margin: "0 auto", textAlign: "center" }}>
-                  {section.title && (
-                    <SectionHeader eyebrow="About" title={section.title} gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
-                  )}
-                  <p style={{
-                    fontSize: 18, lineHeight: 1.85, color: textSecondary,
-                    margin: "32px 0 0", whiteSpace: "pre-line", fontWeight: 400,
-                  }}>
-                    {section.description}
-                  </p>
-                </div>
-              </section>
-            );
-          }
+              <div className={styles.heroProof} aria-label="강의 핵심 정보">
+                <span>대치동 현장 강의</span>
+                <span>학교별 내신 분석</span>
+                <span>수업 후 클리닉</span>
+              </div>
+            </div>
 
-          case "instructor_profile": {
-            // 강사 통산 KPI 자동 — 학원장이 picker에 박은 hit_reports의 누적 적중률.
-            const hitSec = sections.find((s) => s.type === "hit_reports");
-            const reportIds = (hitSec?.items as HitReportShowcaseItem[] | undefined ?? []).map((it) => it.report_id);
-            // 강사 카드 비면 hide (#D2 cycle 13 — 빈 검정 공간 방지).
-            const instructorItems = (section.items as InstructorProfileItem[] | undefined) || [];
-            if (instructorItems.length === 0) return null;
-            const fallbackPhotoUrl = getHeroPosterFallback(config);
-            return (
-              <section key="instructor_profile" data-stype="instructor_profile" style={{ padding: "120px 24px", position: "relative", overflow: "hidden" }}>
-                <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 50% 60% at 30% 50%, rgba(${goldRgb},0.08) 0%, transparent 60%)`, pointerEvents: "none" }} />
-                <div style={{ maxWidth: 1200, margin: "0 auto", position: "relative" }}>
-                  <SectionHeader eyebrow="Instructor" title={section.title || "강사 프로필"} description={section.description} gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
-                  <div style={{ display: "grid", gridTemplateColumns: ((section.items as InstructorProfileItem[] | undefined)?.length || 0) > 1 ? "repeat(auto-fit, minmax(320px, 1fr))" : "1fr", gap: 32, marginTop: 64 }}>
-                    {((section.items as InstructorProfileItem[]) || []).map((it, i) => (
-                      <InstructorCard key={i} item={it} fallbackPhotoUrl={i === 0 ? fallbackPhotoUrl : ""} reportIds={reportIds} gold={gold} goldRgb={goldRgb} cardBg={cardBg} cardBorder={cardBorder} textPrimary={textPrimary} textSecondary={textSecondary} textMuted={textMuted} bg={bg} />
-                    ))}
-                  </div>
-                </div>
-              </section>
-            );
-          }
-
-          case "management_system": {
-            const mgItems = (section.items as ManagementCardItem[] | undefined) || [];
-            if (mgItems.length === 0) return null;
-            return (
-              <section key="management_system" data-stype="management_system" style={{ padding: "120px 24px", background: bgAlt }}>
-                <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-                  <SectionHeader eyebrow="Management" title={section.title || "학생 관리 시스템"} description={section.description || "수업 외 시간에도 학생을 끊김 없이 챙깁니다."} gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 18, marginTop: 56 }}>
-                    {mgItems.map((it, i) => (
-                      <div key={i} style={{
-                        padding: 28, borderRadius: 8,
-                        background: bg, border: `1px solid ${cardBorder}`,
-                        display: "flex", flexDirection: "column", gap: 12,
-                      }}>
-                        <div style={{
-                          width: 44, height: 44, borderRadius: 8,
-                          background: `linear-gradient(135deg, rgba(${goldRgb},0.15) 0%, rgba(${goldRgb},0.05) 100%)`,
-                          border: `1px solid rgba(${goldRgb},0.2)`,
-                          display: "flex", alignItems: "center", justifyContent: "center", color: gold,
-                        }}>
-                          <SvgIcon name={it.icon} size={22} />
-                        </div>
-                        <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, letterSpacing: "-0.015em" }}>{it.title}</h3>
-                        <p style={{ fontSize: 13.5, lineHeight: 1.65, color: textSecondary, margin: 0, fontWeight: 400 }}>{it.description}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </section>
-            );
-          }
-
-          case "process_timeline": {
-            const stepItems = (section.items as ProcessStepItem[] | undefined) || [];
-            if (stepItems.length === 0) return null;
-            return (
-              <section key="process_timeline" data-stype="process_timeline" style={{ padding: "120px 24px", position: "relative" }}>
-                <div style={{ maxWidth: 980, margin: "0 auto" }}>
-                  <SectionHeader eyebrow="Process" title={section.title || "수업 진행 흐름"} description={section.description || "한 사이클이 어떻게 진행되는지 한눈에 보세요."} gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
-                  <div style={{ display: "flex", flexDirection: "column", gap: 0, marginTop: 56, position: "relative" }}>
-                    {stepItems.map((it, i, arr) => (
-                      <div key={i} style={{ display: "flex", gap: 24, alignItems: "flex-start", position: "relative", paddingBottom: i === arr.length - 1 ? 0 : 32 }}>
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
-                          <div style={{
-                            width: 56, height: 56, borderRadius: 14,
-                            background: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`,
-                            color: "#0A0E1A", fontSize: 13, fontWeight: 800,
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            letterSpacing: "-0.02em",
-                            boxShadow: `0 6px 16px rgba(${goldRgb},0.25)`,
-                          }}>{it.step_label}</div>
-                          {i < arr.length - 1 && (
-                            <div style={{ width: 2, flex: 1, minHeight: 40, background: `linear-gradient(180deg, rgba(${goldRgb},0.4) 0%, rgba(${goldRgb},0.05) 100%)`, marginTop: 8 }} />
-                          )}
-                        </div>
-                        <div style={{ flex: 1, paddingTop: 6 }}>
-                          <h3 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 8px", letterSpacing: "-0.015em" }}>{it.title}</h3>
-                          <p style={{ fontSize: 14.5, lineHeight: 1.7, color: textSecondary, margin: 0 }}>{it.description}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </section>
-            );
-          }
-
-          case "hit_reports": {
-            // 빈 picker = 섹션 hide (시각 검수 2026-05-12 H-1).
-            const hitArr = (section.items as HitReportShowcaseItem[] | undefined) || [];
-            if (hitArr.length === 0) return null;
-            const hitDescription = section.description?.includes("본문 PDF")
-              ? "카드를 선택하면 실제 시험과 사전 대비 자료의 대표 비교 화면을 확인할 수 있습니다. 전체 문항은 PDF로 제공합니다."
-              : section.description;
-            return (
-              <section key="hit_reports" data-stype="hit_reports" style={{ padding: "120px 24px", background: bgAlt, position: "relative", overflow: "hidden" }}>
-                <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 50% 40% at 50% 0%, rgba(${goldRgb},0.06) 0%, transparent 70%)`, pointerEvents: "none" }} />
-                <div style={{ maxWidth: 1200, margin: "0 auto", position: "relative" }}>
-                  <SectionHeader
-                    eyebrow="Hit Records"
-                    title={section.title || "최근 적중 사례"}
-                    description={hitDescription || "실제 시험과 사전 대비 자료를 비교한 최근 적중 사례입니다."}
-                    gold={gold}
-                    goldRgb={goldRgb}
-                    textSecondary={textSecondary}
-                  />
-                  <div style={{ marginTop: 56 }}>
-                    <HitReportCards
-                      items={hitArr}
-                      color={gold}
-                      rgb={goldRgb}
-                      theme="dark"
-                    />
-                  </div>
-                  {hitArr.length >= 2 && (
-                    <div style={{ textAlign: "center", marginTop: 32 }}>
-                      <Link to="/landing/reports" style={{
-                        display: "inline-flex", alignItems: "center", gap: 6,
-                        padding: "10px 22px", borderRadius: 999,
-                        background: `rgba(${goldRgb}, 0.08)`, color: gold,
-                        border: `1px solid rgba(${goldRgb}, 0.25)`,
-                        fontSize: 13, fontWeight: 700, textDecoration: "none",
-                        letterSpacing: "-0.01em",
-                      }}>적중 사례 모두 보기 →</Link>
-                    </div>
-                  )}
-                  <p style={{ fontSize: 12, color: textMuted, textAlign: "center", margin: "24px 0 0", letterSpacing: "0.02em" }}>
-                    적중수 = 강의 자료에서 큐레이션한 동일·유사 문항 수 / 총 문항수 = 시험지 전체 문항
-                  </p>
-                </div>
-              </section>
-            );
-          }
-
-          case "programs": {
-            const programItems = (section.items as ProgramItem[] | undefined) || [];
-            if (programItems.length === 0) return null;
-            const heroSection = getEnabledSection(sections, "hero") || section;
-            const primaryCta = resolveHeroPrimaryCta(config, heroSection);
-            const hasReports = Boolean(getEnabledSection(sections, "hit_reports"));
-            return (
-              <section key="programs" data-stype="programs" style={{ padding: "120px 24px", position: "relative", overflow: "hidden" }}>
-                <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 42% 46% at 74% 18%, rgba(${goldRgb},0.08) 0%, transparent 72%)`, pointerEvents: "none" }} />
-                <div style={{ maxWidth: 1200, margin: "0 auto", position: "relative" }}>
-                  <SectionHeader
-                    eyebrow="Class"
-                    title={section.title || "프로그램"}
-                    description={section.description || buildProgramSectionDescription(programItems[0])}
-                    gold={gold}
-                    goldRgb={goldRgb}
-                    textSecondary={textSecondary}
-                  />
-                  <div style={{ display: "grid", gap: 24, marginTop: 64 }}>
-                    {programItems.map((item, i) => (
-                      <PremiumProgramOffer
-                        key={i}
-                        item={item}
-                        index={i}
-                        primaryCta={primaryCta}
-                        phone={config.contact?.phone}
-                        hasReports={hasReports}
-                        gold={gold}
-                        goldRgb={goldRgb}
-                        cardBorder={cardBorder}
-                        textPrimary={textPrimary}
-                        textSecondary={textSecondary}
-                        textMuted={textMuted}
-                        bg={bg}
-                        bgAlt={bgAlt}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </section>
-            );
-          }
-
-          case "testimonials":
-            return (
-              <DarkTestimonialsSection
-                key="testimonials" sectionItems={(section.items as TestimonialItem[]) || []}
-                bgAlt={bgAlt} cardBg={cardBg} cardBorder={cardBorder}
-                gold={gold} goldRgb={goldRgb}
-                textPrimary={textPrimary} textSecondary={textSecondary} textMuted={textMuted}
-              />
-            );
-
-          case "faq": {
-            const faqItems = (section.items as FaqItem[] | undefined) || [];
-            if (faqItems.length === 0) return null;
-            return (
-              <section key="faq" data-stype="faq" style={{ padding: "120px 24px" }}>
-                <div style={{ maxWidth: 760, margin: "0 auto" }}>
-                  <SectionHeader eyebrow="Q & A" title="자주 묻는 질문" gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
-                  <div style={{ marginTop: 56 }}>
-                    <DarkFaqAccordion items={faqItems} cardBorder={cardBorder} textPrimary={textPrimary} textSecondary={textSecondary} />
-                  </div>
-                </div>
-              </section>
-            );
-          }
-
-          case "contact":
-            return (
-              <section key="contact" data-stype="contact" style={{ padding: "120px 24px", background: bgAlt }}>
-                <div style={{ maxWidth: 1120, margin: "0 auto" }}>
-                  <SectionHeader eyebrow="Contact" title="문의" gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(320px, 100%), 1fr))", gap: 32, marginTop: 56 }}>
-                    {/* 좌: 연락처 카드들 */}
-                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                      {config.contact?.phone && (
-                        <ContactCard label="전화" value={config.contact.phone} cardBg={cardBg} cardBorder={cardBorder} textMuted={textMuted} textPrimary={textPrimary} gold={gold} />
-                      )}
-                      {config.contact?.email && (
-                        <ContactCard label="문자" value={config.contact.email} cardBg={cardBg} cardBorder={cardBorder} textMuted={textMuted} textPrimary={textPrimary} gold={gold} />
-                      )}
-                      {config.contact?.address && (
-                        <ContactCard label="주소" value={config.contact.address} cardBg={cardBg} cardBorder={cardBorder} textMuted={textMuted} textPrimary={textPrimary} gold={gold} />
-                      )}
-                    </div>
-                    {/* 우: 상담 요청 form */}
-                    <div style={{ padding: 28, borderRadius: 18, background: cardBg, border: `1px solid ${cardBorder}` }}>
-                      <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 16px", color: textPrimary, letterSpacing: "-0.015em" }}>
-                        상담 요청 보내기
-                      </h3>
-                      <ConsultRequestForm accent={gold} dark />
-                    </div>
-                  </div>
-                </div>
-              </section>
-            );
-
-          case "notice":
-            return (
-              <section key="notice" data-stype="notice" style={{ padding: "48px 24px", background: `rgba(${goldRgb},0.04)`, borderTop: `1px solid rgba(${goldRgb},0.15)`, borderBottom: `1px solid rgba(${goldRgb},0.15)` }}>
-                <div style={{ maxWidth: 760, margin: "0 auto", textAlign: "center" }}>
-                  <p style={{ fontSize: 15, color: textSecondary, margin: 0, lineHeight: 1.7 }}>{section.description}</p>
-                </div>
-              </section>
-            );
-
-          default:
-            return null;
-        }
-      })}
-
-      <LandingCommunityShowcase theme="dark" />
-      <LandingFooter config={config} sections={config.sections || []} tokens={FOOTER_TOKENS_DARK} />
-    </div>
-  );
-}
-
-type PremiumHeroTarget =
-  | { kind: "route"; to: string }
-  | { kind: "href"; href: string }
-  | { kind: "section"; sectionType: string };
-
-interface PremiumHeroStageItem {
-  key: string;
-  kicker: string;
-  title: string;
-  body?: string;
-  navTitle: string;
-  ctaLabel?: string;
-  target?: PremiumHeroTarget;
-}
-
-function compactText(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function getInstructorProfiles(sections: LandingSection[]): InstructorProfileItem[] {
-  const section = sections.find((s) => s.type === "instructor_profile" && s.enabled);
-  return ((section?.items as InstructorProfileItem[] | undefined) || []).filter((it) => (
-    compactText(it.name) || compactText(it.title) || compactText(it.bio)
-  ));
-}
-
-function getHeroPosterFallback(config: LandingConfig): string {
-  const heroImages = (config.hero_images || []).map((src) => compactText(src)).filter(Boolean);
-  return heroImages[0] || compactText(config.hero_image_url);
-}
-
-function getItems<T>(sections: LandingSection[], type: string): T[] {
-  const section = sections.find((s) => s.type === type && s.enabled);
-  return ((section?.items as T[] | undefined) || []);
-}
-
-function splitSubtitle(value: unknown): { lead: string; tail: string } {
-  const text = compactText(value);
-  const parts = text.split(/\s[-–—]\s/);
-  if (parts.length <= 1) return { lead: text, tail: "" };
-  return { lead: compactText(parts[0]), tail: compactText(parts.slice(1).join(" - ")) };
-}
-
-function buildHeroMainTitle(config: LandingConfig, sections: LandingSection[]): string {
-  const subtitle = splitSubtitle(config.subtitle);
-  if (subtitle.lead && /내신|수능|입시|반$/.test(subtitle.lead)) return subtitle.lead;
-  const instructor = getInstructorProfiles(sections)[0];
-  const program = getItems<ProgramItem>(sections, "programs")[0];
-  const subject = compactText(program?.title).match(/통합과학|물리|화학|생명과학|지구과학|수학|영어|국어/)?.[0] || "";
-  if (instructor?.name && subject) return `${instructor.name} ${subject} 내신대비반`;
-  return compactText(config.tagline) || compactText(config.brand_name) || "내신 대비 안내";
-}
-
-function buildHeroMainBody(config: LandingConfig, sections: LandingSection[]): string {
-  const subtitle = splitSubtitle(config.subtitle);
-  const featureText = getItems<FeatureItem>(sections, "features")
-    .map((item) => `${item.title} ${item.description}`)
-    .join(" ");
-  const hasMock = /기출변형|모의고사/.test(featureText);
-  const hasClinic = /클리닉|질의응답/.test(featureText);
-  if (subtitle.tail && hasMock && hasClinic) {
-    return `${subtitle.tail}. 매주 기출변형 모의고사와 수업 후 클리닉으로 시험 전까지 관리합니다.`;
-  }
-  return subtitle.tail || compactText(config.subtitle) || compactText(config.tagline);
-}
-
-interface PremiumHeroFact {
-  label: string;
-  value: string;
-}
-
-function buildHeroFacts(sections: LandingSection[]): PremiumHeroFact[] {
-  const facts: PremiumHeroFact[] = [];
-  const seen = new Set<string>();
-  const add = (label: string, value: string) => {
-    const clean = compactText(value);
-    if (!clean || seen.has(label)) return;
-    seen.add(label);
-    facts.push({ label, value: clean });
-  };
-
-  const program = getItems<ProgramItem>(sections, "programs")[0];
-  const programText = `${program?.badge || ""} ${program?.title || ""} ${program?.description || ""}`;
-  const featureText = getItems<FeatureItem>(sections, "features").map((item) => `${item.title} ${item.description}`).join(" ");
-  const managementText = getItems<ManagementCardItem>(sections, "management_system").map((item) => `${item.title} ${item.description}`).join(" ");
-  const instructorText = getInstructorProfiles(sections).map((item) => `${item.bio || ""} ${(item.experience || []).join(" ")}`).join(" ");
-  const allText = `${programText} ${featureText} ${managementText} ${instructorText}`;
-
-  if (/마포.*고등학교|모든 고등학교|고등학생/.test(programText)) add("대상", "마포 고등학생");
-  if (program?.badge) add("개강", program.badge);
-  if (/6\s*\+?\s*1|직보/.test(programText)) add("구성", "6+1 직보");
-  if (/기출변형|모의고사/.test(allText)) add("실전", "매주 기출변형");
-  if (/클리닉|질의응답/.test(allText)) add("관리", "수업 후 클리닉");
-  if (/복습\s*영상|영상 무한|영상 무제한/.test(allText)) add("복습", "영상 무제한");
-  if (/대치/.test(instructorText)) add("검증", "대치동 출강");
-
-  return facts.slice(0, 4);
-}
-
-function buildProgramFacts(item?: ProgramItem): PremiumHeroFact[] {
-  if (!item) return [];
-  const facts: PremiumHeroFact[] = [];
-  const seen = new Set<string>();
-  const add = (label: string, value: string) => {
-    const clean = compactText(value).replace(/\s+/g, " ");
-    if (!clean || seen.has(label)) return;
-    seen.add(label);
-    facts.push({ label, value: clean });
-  };
-
-  const text = `${item.badge || ""} ${item.title || ""} ${item.description || ""}`;
-  const timeMatch = text.match(/(?:AM|PM|오전|오후)?\s*\d{1,2}:\d{2}\s*(?:[-~–]\s*(?:AM|PM|오전|오후)?\s*\d{1,2}:\d{2})?/i);
-  const clinicMatch = text.match(/~\s*(?:AM|PM|오전|오후)?\s*\d{1,2}:\d{2}/i);
-
-  if (item.badge) add("개강", item.badge);
-  if (/마포.*고등학교|모든 고등학교|고등학생|고교/.test(text)) add("대상", "마포 전 고교");
-  if (timeMatch?.[0]) add("수업", timeMatch[0].replace(/\s*[-–]\s*/g, "-").trim());
-  if (/6\s*\+?\s*1|직보/.test(text)) add("구성", "6+1 직보");
-  if (/기출변형|모의고사/.test(text)) add("실전", "매주 기출변형");
-  if (/클리닉|질의응답/.test(text)) add("클리닉", clinicMatch?.[0] ? `수업 후 ${clinicMatch[0].replace(/\s+/g, "")}` : "수업 후 관리");
-  if (/복습\s*영상|영상 무한|영상 무제한/.test(text)) add("복습", "영상 무제한");
-
-  return facts.slice(0, 6);
-}
-
-function buildProgramSectionDescription(item?: ProgramItem): string | undefined {
-  const facts = buildProgramFacts(item).slice(0, 4);
-  if (facts.length === 0) return undefined;
-  return facts.map((fact) => `${fact.label} ${fact.value}`).join(" · ");
-}
-
-function getEnabledSection(sections: LandingSection[], type: string): LandingSection | undefined {
-  return sections.find((s) => s.type === type && s.enabled);
-}
-
-function targetFromLink(link: string, isInternal?: boolean): PremiumHeroTarget {
-  if (isInternal || link.startsWith("/")) return { kind: "route", to: link || "/landing" };
-  return { kind: "href", href: link || "/landing" };
-}
-
-function buildPremiumHeroItems({
-  config,
-  sections,
-  carouselItems,
-  primaryCta,
-}: {
-  config: LandingConfig;
-  sections: LandingSection[];
-  carouselItems?: HeroCarouselItem[];
-  primaryCta: { label: string; link: string; isInternal: boolean };
-}): PremiumHeroStageItem[] {
-  const items: PremiumHeroStageItem[] = [{
-    key: "hero-main",
-    kicker: compactText(config.tagline) || "Premium Class",
-    title: buildHeroMainTitle(config, sections),
-    body: buildHeroMainBody(config, sections),
-    navTitle: "처음으로",
-    ctaLabel: primaryCta.label,
-    target: targetFromLink(primaryCta.link, primaryCta.isInternal),
-  }];
-
-  for (const [i, item] of (carouselItems || []).entries()) {
-    if (items.length >= 5) break;
-    if (item.kind === "custom") {
-      const title = compactText(item.title);
-      const body = compactText(item.subtitle);
-      if (!title && !body) continue;
-      const link = compactText(item.cta_link);
-      items.push({
-        key: `carousel-custom-${i}`,
-        kicker: compactText(item.category) || "Spotlight",
-        title: title || compactText(item.category) || "학원 소식",
-        body,
-        navTitle: title || compactText(item.category) || `배너 ${i + 1}`,
-        ctaLabel: compactText(item.cta_label) || "자세히 보기",
-        target: link ? targetFromLink(link) : { kind: "route", to: "/landing" },
-      });
-    }
-    if (item.kind === "hit_report" && Number.isFinite(item.report_id)) {
-      items.push({
-        key: `carousel-hit-${item.report_id}`,
-        kicker: "Matchup",
-        title: "학교별 적중 보고서",
-        body: "시험지와 강의 자료를 비교한 유사 문항 근거를 확인할 수 있습니다.",
-        navTitle: `적중 ${items.length}`,
-        ctaLabel: "보고서 보기",
-        target: { kind: "route", to: `/landing/reports/${item.report_id}` },
-      });
-    }
-  }
-
-  const find = (type: string) => sections.find((s) => s.type === type && s.enabled);
-  const addSection = (type: string, fallbackTitle: string, kicker: string, navTitle: string, ctaLabel?: string, target?: PremiumHeroTarget) => {
-    if (items.length >= 5) return;
-    const section = find(type);
-    if (!section) return;
-    const title = compactText(section.title) || fallbackTitle;
-    const body = compactText(section.description);
-    items.push({
-      key: `section-${type}`,
-      kicker,
-      title,
-      body,
-      navTitle,
-      ctaLabel,
-      target: target || { kind: "section", sectionType: type },
-    });
-  };
-
-  addSection("instructor_profile", "강사 프로필", "Instructor", "강사");
-  addSection("features", "강의 운영 방식", "System", "시스템");
-  addSection("management_system", "학생 관리 시스템", "Care", "관리");
-  addSection("hit_reports", "최근 학교별 적중 사례", "Matchup", "적중", "보고서 보기", { kind: "route", to: "/landing/reports" });
-  addSection("programs", "프로그램 안내", "Class", "프로그램");
-  addSection("contact", "상담 문의", "Contact", "문의", compactText(config.cta_text) || "수강 문의", targetFromLink(compactText(config.cta_link) || "/login"));
-
-  return items.slice(0, 5);
-}
-
-function PremiumHeroStage({ config, sections, heroSection: _heroSection, carouselItems, hitItems: _hitItems, primaryCta, textPrimary, textSecondary, textMuted, gold, goldRgb, primaryRgb, cardBorder }: {
-  config: LandingConfig;
-  sections: LandingSection[];
-  heroSection: LandingSection;
-  carouselItems?: HeroCarouselItem[];
-  hitItems?: HitReportShowcaseItem[];
-  primaryCta: { label: string; link: string; isInternal: boolean };
-  textPrimary: string;
-  textSecondary: string;
-  textMuted: string;
-  gold: string;
-  goldRgb: string;
-  primaryRgb: string;
-  cardBorder: string;
-}) {
-  const heroItems = buildPremiumHeroItems({ config, sections, carouselItems, primaryCta });
-  const [idx, setIdx] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const instructorItems = getInstructorProfiles(sections);
-  const heroPosterFallback = getHeroPosterFallback(config);
-  const featuredInstructor = instructorItems.find((it) => compactText(it.photo_url)) || instructorItems[0] || null;
-  const featuredPhoto = featuredInstructor ? (compactText(featuredInstructor.photo_url) || heroPosterFallback) : "";
-  const featuredUsesHeroPoster = Boolean(featuredInstructor && featuredPhoto && !compactText(featuredInstructor.photo_url));
-  const heroImgs = (config.hero_images || []).filter(Boolean);
-  const heroSingle = compactText(config.hero_image_url);
-  const visualSlides = heroImgs.length > 0 ? heroImgs : (heroSingle ? [heroSingle] : (featuredPhoto ? [featuredPhoto] : []));
-  const visualUsesInstructorFallback = heroImgs.length === 0 && !heroSingle && Boolean(featuredPhoto);
-  const heroFacts = buildHeroFacts(sections);
-  const scheduleTarget: PremiumHeroTarget | null = getEnabledSection(sections, "programs")
-    ? { kind: "section", sectionType: "programs" }
-    : null;
-  const proofTarget: PremiumHeroTarget | null = getEnabledSection(sections, "hit_reports")
-    ? { kind: "route", to: "/landing/reports" }
-    : null;
-  const current = heroItems[idx % heroItems.length] || heroItems[0];
-  const activeVisual = visualSlides.length > 0 ? idx % visualSlides.length : -1;
-
-  useEffect(() => {
-    if (heroItems.length <= 1 || paused) return;
-    const id = window.setInterval(() => {
-      setIdx((prev) => (prev + 1) % heroItems.length);
-    }, 7000);
-    return () => window.clearInterval(id);
-  }, [heroItems.length, paused]);
-
-  const goTo = (next: number) => {
-    if (!heroItems.length) return;
-    setPaused(true);
-    setIdx(((next % heroItems.length) + heroItems.length) % heroItems.length);
-  };
-
-  const cta = current?.ctaLabel && current.target
-    ? { label: current.ctaLabel, target: current.target }
-    : { label: primaryCta.label, target: targetFromLink(primaryCta.link, primaryCta.isInternal) };
-
-  return (
-    <section
-      data-stype="hero"
-      data-testid="landing-premium-hero-stage"
-      className="pd-hero-stage"
-      aria-labelledby="premium-hero-title"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      onFocus={() => setPaused(true)}
-      onBlur={() => setPaused(false)}
-      style={{
-        position: "relative",
-        minHeight: "clamp(560px, 74vh, 720px)",
-        display: "flex",
-        alignItems: "center",
-        padding: "clamp(72px, 8vh, 96px) 24px 116px",
-        overflow: "hidden",
-        background: "#070B14",
-        isolation: "isolate",
-      }}
-    >
-      <div className="pd-hero-media" aria-hidden="true" style={{ position: "absolute", inset: 0, zIndex: 0 }}>
-        {visualSlides.length > 0 ? visualSlides.map((src, i) => (
-          <img
-            key={`${src}-${i}`}
-            src={src}
-            alt=""
-            loading={i === 0 ? "eager" : "lazy"}
-            style={{
-              position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              objectPosition: visualUsesInstructorFallback ? "72% 30%" : "center 28%",
-              opacity: i === activeVisual || visualSlides.length === 1 ? (visualUsesInstructorFallback ? 0.48 : 0.66) : 0,
-              transform: i === activeVisual ? "scale(1.02)" : "scale(1.07)",
-              transition: "opacity 900ms ease, transform 7s ease",
-            }}
-          />
-        )) : null}
-        <div style={{ position: "absolute", inset: 0, background: `linear-gradient(180deg, rgba(7,11,20,0.98) 0%, rgba(7,11,20,0.74) 12%, rgba(7,11,20,0.20) 34%, rgba(7,11,20,0.34) 100%), radial-gradient(ellipse 70% 58% at 76% 16%, rgba(${goldRgb},0.20) 0%, transparent 56%), radial-gradient(ellipse 62% 52% at 14% 84%, rgba(${primaryRgb},0.34) 0%, transparent 62%), linear-gradient(90deg, rgba(7,11,20,0.94) 0%, rgba(7,11,20,0.70) 46%, rgba(7,11,20,0.36) 100%)` }} />
-        <div className="pd-hero-grain" style={{ position: "absolute", inset: 0, opacity: 0.20, mixBlendMode: "overlay", backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.86' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.18'/></svg>\")" }} />
-      </div>
-
-      <div className="pd-hero-copy" style={{ width: "min(1200px, 100%)", margin: "0 auto", position: "relative", zIndex: 2 }}>
-        <div style={{ maxWidth: featuredPhoto ? 620 : 700 }}>
-          <div className="pd-hero-eyebrow" style={{
-            display: "inline-flex", alignItems: "center", gap: 8,
-            minHeight: 30,
-            padding: "6px 14px",
-            borderRadius: 999,
-            background: `rgba(${goldRgb},0.12)`,
-            border: `1px solid rgba(${goldRgb},0.38)`,
-            color: gold,
-            fontSize: 12,
-            fontWeight: 800,
-            letterSpacing: 0,
-            textTransform: "uppercase",
-            marginBottom: 22,
-            boxShadow: `0 0 22px rgba(${goldRgb},0.20)`,
-          }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: gold, boxShadow: `0 0 10px ${gold}` }} />
-            {current.kicker}
+            <div className={styles.portraitPanel} aria-label={instructor?.name || config.brand_name}>
+              <div className={styles.blueprintGrid} aria-hidden="true" />
+              {heroImage ? (
+                <img className={styles.portrait} src={heroImage} alt={instructor?.name || config.brand_name} />
+              ) : (
+                <div className={styles.portraitFallback}>{(instructor?.name || config.brand_name).charAt(0)}</div>
+              )}
+              <div className={styles.portraitCaption}>
+                <span className={styles.utilityLabel}>Lead instructor</span>
+                <strong>{instructor?.name || config.brand_name}</strong>
+                <span>{instructor?.title || "통합과학 전임"}</span>
+              </div>
+              <div className={styles.axisLabel} aria-hidden="true">EVIDENCE / CLASS / 2026</div>
+            </div>
           </div>
-          <h1 id="premium-hero-title" className="pd-hero-h1" style={{
-            fontSize: "clamp(40px, 6vw, 72px)",
-            fontWeight: 900,
-            lineHeight: 1.06,
-            margin: "0 0 24px",
-            letterSpacing: 0,
-            wordBreak: "keep-all",
-            overflowWrap: "normal",
-            textWrap: "balance",
-            color: "#FFFFFF",
-            textShadow: "0 3px 22px rgba(0,0,0,0.62)",
-          }}>
-            {current.title}
-          </h1>
-          {(current.body || config.subtitle) && (
-            <p className="pd-hero-sub" style={{
-              fontSize: "clamp(17px, 2vw, 21px)",
-              lineHeight: 1.68,
-              color: textSecondary,
-              margin: "0 0 36px",
-              maxWidth: 620,
-              fontWeight: 500,
-              textShadow: "0 2px 14px rgba(0,0,0,0.55)",
-              whiteSpace: "pre-line",
-            }}>
-              {current.body || config.subtitle}
+        </section>
+
+        <nav className={styles.quickNav} aria-label="주요 메뉴">
+          <QuickLink index="01" label="강사와 수업" detail="철학 · 커리큘럼" to="/landing/about" />
+          <QuickLink index="02" label="매치업 자료실" detail="직접 올린 분석 자료" to="/landing/matchup-board" featured />
+          <QuickLink index="03" label="수강 안내" detail="시간표 · 상담" to="#contact" />
+        </nav>
+
+        <section className={styles.archiveSection} data-stype="hit_reports" aria-labelledby="archive-title">
+          <div className={styles.sectionHeadingRow}>
+            <div>
+              <span className={styles.utilityLabel}>Matchup archive</span>
+              <h2 id="archive-title">수업의 결과를 자료로 공개합니다</h2>
+              <p>선생님이 직접 완성한 매치업 PDF를 빠르게 열람하고 공유할 수 있습니다.</p>
+            </div>
+            <div className={styles.archiveActions}>
+              {isOwner ? (
+                <Link to="/landing/admin/matchup-board?compose=upload" className={styles.uploadAction}>
+                  PDF 자료 올리기
+                  <UploadIcon />
+                </Link>
+              ) : null}
+              <Link to="/landing/matchup-board" className={styles.textAction}>전체 자료 보기 <Arrow /></Link>
+            </div>
+          </div>
+
+          <ArchiveGrid archive={archive} />
+        </section>
+
+        <section className={styles.standardSection} data-stype="features" aria-labelledby="standard-title">
+          <div className={styles.standardIntro}>
+            <span className={styles.utilityLabel}>Class standard</span>
+            <h2 id="standard-title">설명보다 운영 기준이 먼저 보이는 수업</h2>
+            <p>
+              자료 제작부터 시험 후 분석까지 같은 기준으로 이어집니다. 자세한 강사 이력과 수업 흐름은 소개 페이지에서 확인할 수 있습니다.
             </p>
-          )}
+            <Link to="/landing/about" className={styles.textAction}>수업 기준 자세히 보기 <Arrow /></Link>
+          </div>
 
-          {heroFacts.length > 0 && (
-            <div className="pd-hero-facts" style={{
-              display: "grid",
-              gridTemplateColumns: `repeat(${heroFacts.length}, minmax(0, 1fr))`,
-              gap: 8,
-              maxWidth: 620,
-              margin: "-12px 0 30px",
-            }}>
-              {heroFacts.map((fact) => (
-                <div key={fact.label} style={{
-                  minWidth: 0,
-                  padding: "11px 12px",
-                  borderRadius: 8,
-                  background: "rgba(7,11,20,0.46)",
-                  border: `1px solid ${cardBorder}`,
-                  backdropFilter: "blur(10px)",
-                  WebkitBackdropFilter: "blur(10px)",
-                }}>
-                  <div style={{ fontSize: 10, fontWeight: 900, color: gold, letterSpacing: 0, textTransform: "uppercase", marginBottom: 4 }}>{fact.label}</div>
-                  <div style={{ fontSize: 14, fontWeight: 900, color: "#fff", lineHeight: 1.22, letterSpacing: 0 }}>{fact.value}</div>
-                </div>
-              ))}
+          <div className={styles.standardGrid}>
+            {standards.slice(0, 4).map((item, index) => (
+              <article className={styles.standardCard} key={`${item.title}-${index}`}>
+                <span className={styles.standardNumber}>{String(index + 1).padStart(2, "0")}</span>
+                <div className={styles.standardIcon}><SvgIcon name={item.icon || "check"} size={20} /></div>
+                <h3>{item.title}</h3>
+                <p>{item.description}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className={styles.profileSection} data-stype="instructor_profile" aria-labelledby="profile-title">
+          <div className={styles.profileCard}>
+            <div>
+              <span className={styles.utilityLabel}>Instructor note</span>
+              <h2 id="profile-title">{instructor?.name || config.brand_name}</h2>
+              <p className={styles.profileBio}>
+                {instructor?.bio || "수업 전 자료와 수업 후 관리가 하나의 흐름으로 이어지도록 직접 설계하고 운영합니다."}
+              </p>
             </div>
-          )}
+            {credentials.length > 0 ? (
+              <ul className={styles.credentials}>
+                {credentials.map((item) => <li key={item}>{item}</li>)}
+              </ul>
+            ) : null}
+          </div>
 
-          <div className="pd-hero-cta" style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-            <PremiumHeroCta label={cta.label} target={cta.target} gold={gold} goldRgb={goldRgb} />
-            {scheduleTarget && (
-              <PremiumHeroSecondaryCta label="시간표 보기" target={scheduleTarget} textPrimary={textPrimary} cardBorder={cardBorder} />
-            )}
-            {!scheduleTarget && proofTarget && (
-              <PremiumHeroSecondaryCta label="적중 사례" target={proofTarget} textPrimary={textPrimary} cardBorder={cardBorder} />
-            )}
-            {config.contact?.phone && (
-              <a href={`tel:${config.contact.phone.replace(/-/g,"")}`} style={{
-                display: "inline-flex", alignItems: "center", gap: 8,
-                minHeight: 52,
-                padding: "0 22px",
-                background: "rgba(7,11,20,0.38)",
-                color: textPrimary,
-                border: `1px solid ${cardBorder}`,
-                borderRadius: 8,
-                fontSize: 15,
-                fontWeight: 800,
-                textDecoration: "none",
-                letterSpacing: 0,
-                backdropFilter: "blur(8px)",
-              }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
-                {config.contact.phone}
+          <div className={styles.programCard} data-stype="programs">
+            <span className={styles.utilityLabel}>Current class</span>
+            <h2>{program?.title || "통합과학 내신대비"}</h2>
+            <p>{program?.description || config.subtitle}</p>
+            {program?.badge ? <span className={styles.programBadge}>{program.badge}</span> : null}
+          </div>
+        </section>
+
+        <section id="contact" className={styles.contactSection} data-stype="contact" aria-labelledby="contact-title">
+          <div>
+            <span className={styles.utilityLabel}>Admissions</span>
+            <h2 id="contact-title">수업과 자료에 대해<br />편하게 문의하세요</h2>
+          </div>
+          <div className={styles.contactDetails}>
+            {config.contact?.phone ? (
+              <a href={`tel:${config.contact.phone.replace(/[^0-9+]/g, "")}`}>
+                <span>전화</span>
+                <strong>{config.contact.phone}</strong>
               </a>
-            )}
+            ) : null}
+            {config.contact?.address ? (
+              <div>
+                <span>위치</span>
+                <strong>{config.contact.address}</strong>
+              </div>
+            ) : null}
+            <SmartLink to={primaryCta.link} className={styles.contactAction}>
+              {primaryCta.label}
+              <Arrow />
+            </SmartLink>
           </div>
+        </section>
+      </main>
 
-          <div style={{ marginTop: 28, display: "flex", alignItems: "center", gap: 10, color: textMuted, fontSize: 13, fontWeight: 700 }}>
-            <span style={{ color: gold }}>{String((idx % heroItems.length) + 1).padStart(2, "0")}</span>
-            <span>/</span>
-            <span>{String(heroItems.length).padStart(2, "0")}</span>
-          </div>
-        </div>
-      </div>
-
-      {featuredInstructor && featuredPhoto && (
-        <div
-          className="pd-hero-featured-instructor"
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            right: "max(24px, calc((100vw - 1200px) / 2 + 24px))",
-            bottom: 116,
-            width: 268,
-            zIndex: 2,
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-            pointerEvents: "none",
-          }}
-        >
-          <InstructorPortrait
-            src={featuredPhoto}
-            name={featuredInstructor.name}
-            initial={(featuredInstructor.name || "").trim().charAt(0) || "•"}
-            isHeroPosterCrop={featuredUsesHeroPoster}
-            width="100%"
-            height={346}
-            gold={gold}
-            goldRgb={goldRgb}
-            cardBorder={cardBorder}
-            bg="#0A0E1A"
-          />
-          <div style={{
-            padding: "12px 14px",
-            borderRadius: 8,
-            background: "rgba(7,11,20,0.62)",
-            border: `1px solid ${cardBorder}`,
-            backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
-            boxShadow: "0 18px 44px rgba(0,0,0,0.28)",
-          }}>
-            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0, textTransform: "uppercase", color: gold, marginBottom: 4 }}>Lead Instructor</div>
-            <div style={{ fontSize: 19, fontWeight: 900, color: "#fff", lineHeight: 1.15, letterSpacing: 0 }}>{featuredInstructor.name}</div>
-            {featuredInstructor.title && (
-              <div style={{ marginTop: 4, fontSize: 12, fontWeight: 700, color: "rgba(245,241,232,0.72)", lineHeight: 1.35 }}>{featuredInstructor.title}</div>
-            )}
-          </div>
-        </div>
-      )}
-
-      <div
-        className="pd-hero-rail"
-        aria-label="히어로 배너"
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 5,
-          display: "grid",
-          gridTemplateColumns: "248px minmax(0, 1fr)",
-          minHeight: 76,
-          background: "rgba(7,9,13,0.78)",
-          borderTop: "1px solid rgba(245,241,232,0.12)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-        }}
-      >
-        <div className="pd-hero-rail-controls" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", borderRight: "1px solid rgba(245,241,232,0.12)" }}>
-          <RailButton label="이전 배너" onClick={() => goTo(idx - 1)}>
-            <path d="M15 18l-6-6 6-6" />
-          </RailButton>
-          <RailButton label="다음 배너" onClick={() => goTo(idx + 1)}>
-            <path d="M9 6l6 6-6 6" />
-          </RailButton>
-          <button
-            type="button"
-            aria-label={paused ? "배너 자동 넘김 재생" : "배너 자동 넘김 정지"}
-            aria-pressed={paused}
-            onClick={() => setPaused((v) => !v)}
-            style={{
-              border: 0,
-              borderRight: "1px solid rgba(245,241,232,0.12)",
-              background: paused ? `rgba(${goldRgb},0.18)` : "rgba(17,20,30,0.36)",
-              color: paused ? gold : textPrimary,
-              fontSize: 16,
-              fontWeight: 900,
-              cursor: "pointer",
-            }}
-          >
-            {paused ? "▶" : "Ⅱ"}
-          </button>
-        </div>
-        <ol
-          className="pd-hero-rail-list"
-          style={{
-            display: "grid",
-            gridTemplateColumns: `repeat(${heroItems.length}, minmax(0, 1fr))`,
-            margin: 0,
-            padding: 0,
-            listStyle: "none",
-            minWidth: 0,
-          }}
-        >
-          {heroItems.map((item, i) => {
-            const active = i === idx % heroItems.length;
-            return (
-              <li key={item.key} className={active ? "is-active" : undefined} style={{ minWidth: 0, borderRight: "1px solid rgba(245,241,232,0.10)", background: active ? `linear-gradient(90deg, rgba(${goldRgb},0.22), rgba(${goldRgb},0.03))` : "transparent" }}>
-                <button
-                  type="button"
-                  onClick={() => goTo(i)}
-                  data-testid={`landing-hero-rail-${item.key}`}
-                  aria-current={active ? "true" : undefined}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    width: "100%",
-                    height: "100%",
-                    minHeight: 76,
-                    minWidth: 0,
-                    padding: "0 20px",
-                    border: 0,
-                    background: "transparent",
-                    color: active ? gold : "rgba(245,241,232,0.72)",
-                    textAlign: "left",
-                    cursor: "pointer",
-                  }}
-                >
-                  <span style={{ display: "inline-grid", placeItems: "center", width: 24, height: 24, borderRadius: "50%", background: active ? `rgba(${goldRgb},0.30)` : "rgba(245,241,232,0.10)", color: active ? gold : "rgba(245,241,232,0.70)", fontSize: 12, fontWeight: 900, flex: "0 0 auto" }}>{i + 1}</span>
-                  <strong style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 14, fontWeight: 900, letterSpacing: 0 }}>{item.navTitle}</strong>
-                </button>
-              </li>
-            );
-          })}
-        </ol>
-      </div>
-
-      <style>{`
-        @keyframes premiumFadeUp {
-          from { opacity: 0; transform: translateY(20px) }
-          to { opacity: 1; transform: translateY(0) }
-        }
-        .pd-hero-eyebrow { animation: premiumFadeUp 0.6s cubic-bezier(.2,.7,.2,1) both }
-        .pd-hero-h1 { animation: premiumFadeUp 0.7s 0.08s cubic-bezier(.2,.7,.2,1) both }
-        .pd-hero-sub { animation: premiumFadeUp 0.7s 0.16s cubic-bezier(.2,.7,.2,1) both }
-        .pd-hero-cta { animation: premiumFadeUp 0.7s 0.24s cubic-bezier(.2,.7,.2,1) both }
-        .pd-fade-target { opacity: 0; transform: translateY(24px); transition: opacity 0.7s cubic-bezier(.2,.7,.2,1), transform 0.7s cubic-bezier(.2,.7,.2,1) }
-        .pd-fade-target.pd-in-view { opacity: 1; transform: translateY(0) }
-        .pd-hero-rail button:hover,
-        .pd-hero-rail button:focus-visible {
-          color: ${gold} !important;
-          background: rgba(${goldRgb},0.10) !important;
-          outline: none;
-        }
-        a[data-testid="landing-hero-primary-cta"],
-        button[data-testid="landing-hero-primary-cta"] {
-          transition: transform 0.2s cubic-bezier(.2,.7,.2,1), box-shadow 0.2s;
-        }
-        a[data-testid="landing-hero-primary-cta"]:hover,
-        button[data-testid="landing-hero-primary-cta"]:hover {
-          transform: translateY(-2px);
-        }
-        @media (max-width: 1080px) {
-          .pd-hero-featured-instructor {
-            display: none !important;
-          }
-        }
-        @media (max-width: 880px) {
-          .pd-hero-stage {
-            min-height: clamp(600px, 82vh, 760px) !important;
-            padding: 64px 18px 132px !important;
-            align-items: flex-start !important;
-          }
-          .pd-hero-copy {
-            padding-top: 18px;
-          }
-          .pd-hero-media img {
-            transform: none !important;
-          }
-          .pd-instructor-portrait-image.is-fallback-crop {
-            transform: none !important;
-            object-position: 78% 60% !important;
-          }
-          .pd-hero-rail {
-            grid-template-columns: 1fr !important;
-          }
-          .pd-hero-rail-controls {
-            min-height: 44px;
-            border-right: 0 !important;
-            border-bottom: 1px solid rgba(245,241,232,0.10);
-          }
-          .pd-hero-rail-list {
-            display: grid !important;
-            grid-auto-flow: column !important;
-            grid-auto-columns: minmax(150px, 1fr) !important;
-            grid-template-columns: none !important;
-            overflow-x: auto;
-            scrollbar-width: none;
-          }
-          .pd-hero-rail-list::-webkit-scrollbar {
-            display: none;
-          }
-          .pd-hero-rail-list button {
-            min-height: 64px !important;
-            padding: 0 14px !important;
-          }
-          .pd-hero-facts {
-            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-            margin: -14px 0 24px !important;
-          }
-          .pd-hero-h1 {
-            font-size: 36px !important;
-            line-height: 1.08 !important;
-          }
-          .pd-hero-sub {
-            font-size: 15.5px !important;
-            line-height: 1.62 !important;
-            margin-bottom: 30px !important;
-          }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .pd-hero-eyebrow, .pd-hero-h1, .pd-hero-sub, .pd-hero-cta, .pd-fade-target {
-            animation: none !important;
-            opacity: 1 !important;
-            transform: none !important;
-            transition: none !important;
-          }
-          .pd-hero-media img {
-            transform: none !important;
-            transition: none !important;
-          }
-        }
-      `}</style>
-    </section>
+      <LandingFooter config={config} sections={sections} tokens={FOOTER_TOKENS} />
+    </div>
   );
 }
 
-function PremiumHeroCta({ label, target, gold, goldRgb }: { label: string; target: PremiumHeroTarget; gold: string; goldRgb: string }) {
-  const content = (
-    <>
-      {label}
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-    </>
-  );
-  const style = {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    minHeight: 52,
-    padding: "0 30px",
-    background: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`,
-    color: "#0A0E1A",
-    borderRadius: 8,
-    border: "none",
-    fontSize: 16,
-    fontWeight: 900,
-    letterSpacing: 0,
-    textDecoration: "none",
-    boxShadow: `0 12px 32px rgba(${goldRgb},0.35), inset 0 1px 0 rgba(255,255,255,0.25)`,
-    cursor: "pointer",
-  };
-
-  if (target.kind === "section") {
+function ArchiveGrid({ archive }: { archive: ArchiveState }) {
+  if (archive.loading) {
     return (
-      <button type="button" data-testid="landing-hero-primary-cta" onClick={() => scrollToLandingSection(target.sectionType)} style={style}>
-        {content}
-      </button>
+      <div className={styles.archiveGrid} aria-label="자료를 불러오는 중">
+        {[0, 1, 2].map((item) => <div className={styles.archiveSkeleton} key={item} />)}
+      </div>
     );
   }
-  if (target.kind === "route") {
+
+  if (archive.failed) {
     return (
-      <Link to={target.to} data-testid="landing-hero-primary-cta" style={style}>
-        {content}
-      </Link>
+      <div className={styles.archiveState} role="status">
+        자료 목록을 불러오지 못했습니다. 자료실에서 다시 확인해주세요.
+        <Link to="/landing/matchup-board">자료실로 이동</Link>
+      </div>
     );
   }
-  return (
-    <a href={target.href} data-testid="landing-hero-primary-cta" style={style}>
-      {content}
-    </a>
-  );
-}
 
-function PremiumHeroSecondaryCta({ label, target, textPrimary, cardBorder }: { label: string; target: PremiumHeroTarget; textPrimary: string; cardBorder: string }) {
-  const content = (
-    <>
-      {label}
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
-    </>
-  );
-  const style = {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 9,
-    minHeight: 52,
-    padding: "0 22px",
-    background: "rgba(245,241,232,0.08)",
-    color: textPrimary,
-    border: `1px solid ${cardBorder}`,
-    borderRadius: 8,
-    fontSize: 15,
-    fontWeight: 900,
-    letterSpacing: 0,
-    textDecoration: "none",
-    cursor: "pointer",
-    backdropFilter: "blur(8px)",
-  };
-
-  if (target.kind === "section") {
+  if (archive.items.length === 0) {
     return (
-      <button type="button" onClick={() => scrollToLandingSection(target.sectionType)} style={style}>
-        {content}
-      </button>
+      <div className={styles.archiveState}>
+        첫 매치업 자료를 준비하고 있습니다.
+        <Link to="/landing/matchup-board">자료실 보기</Link>
+      </div>
     );
   }
-  if (target.kind === "route") {
-    return (
-      <Link to={target.to} style={style}>
-        {content}
-      </Link>
-    );
-  }
-  return (
-    <a href={target.href} style={style}>
-      {content}
-    </a>
-  );
-}
-
-function RailButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      style={{
-        border: 0,
-        borderRight: "1px solid rgba(245,241,232,0.12)",
-        background: "rgba(17,20,30,0.36)",
-        color: "#F5F1E8",
-        cursor: "pointer",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        {children}
-      </svg>
-    </button>
-  );
-}
-
-function PremiumDecisionBand({
-  sections,
-  primaryCta,
-  textPrimary,
-  textSecondary,
-  textMuted,
-  gold,
-  goldRgb,
-  cardBorder,
-  bgAlt,
-}: {
-  sections: LandingSection[];
-  primaryCta: { label: string; link: string; isInternal: boolean };
-  textPrimary: string;
-  textSecondary: string;
-  textMuted: string;
-  gold: string;
-  goldRgb: string;
-  cardBorder: string;
-  bgAlt: string;
-}) {
-  const facts = buildHeroFacts(sections);
-  if (facts.length === 0) return null;
-  const hasPrograms = Boolean(getEnabledSection(sections, "programs"));
-  const hasReports = Boolean(getEnabledSection(sections, "hit_reports"));
-  return (
-    <div style={{
-      background: bgAlt,
-      borderTop: `1px solid ${cardBorder}`,
-      borderBottom: `1px solid ${cardBorder}`,
-      padding: "22px 24px",
-    }}>
-      <div style={{
-        maxWidth: 1200,
-        margin: "0 auto",
-        display: "grid",
-        gridTemplateColumns: "minmax(220px, 0.78fr) minmax(0, 1.22fr) auto",
-        gap: 18,
-        alignItems: "center",
-      }} className="pd-decision-band">
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: 0, textTransform: "uppercase", color: gold, marginBottom: 6 }}>Before You Call</div>
-          <div style={{ fontSize: 20, fontWeight: 900, color: textPrimary, lineHeight: 1.25, letterSpacing: 0 }}>수강 전에 확인할 내용</div>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(${facts.length}, minmax(0, 1fr))`, gap: 10 }} className="pd-decision-facts">
-          {facts.map((fact) => (
-            <div key={fact.label} style={{ minWidth: 0, padding: "10px 12px", borderRadius: 8, background: "rgba(255,255,255,0.035)", border: `1px solid ${cardBorder}` }}>
-              <div style={{ fontSize: 10, fontWeight: 900, color: textMuted, letterSpacing: 0, textTransform: "uppercase", marginBottom: 4 }}>{fact.label}</div>
-              <div style={{ fontSize: 14, fontWeight: 900, color: textPrimary, lineHeight: 1.25, letterSpacing: 0 }}>{fact.value}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-          {hasPrograms && (
-            <button type="button" onClick={() => scrollToLandingSection("programs")} style={{ minHeight: 42, padding: "0 14px", borderRadius: 8, border: `1px solid rgba(${goldRgb},0.42)`, background: `rgba(${goldRgb},0.13)`, color: gold, fontSize: 13, fontWeight: 900, cursor: "pointer", letterSpacing: 0 }}>
-              시간표
-            </button>
-          )}
-          {hasReports && (
-            <Link to="/landing/reports" style={{ display: "inline-flex", alignItems: "center", minHeight: 42, padding: "0 14px", borderRadius: 8, border: `1px solid ${cardBorder}`, color: textSecondary, textDecoration: "none", fontSize: 13, fontWeight: 900, letterSpacing: 0 }}>
-              적중 사례
-            </Link>
-          )}
-          <a href={primaryCta.link || "/landing#contact"} style={{ display: "inline-flex", alignItems: "center", minHeight: 42, padding: "0 14px", borderRadius: 8, border: `1px solid ${cardBorder}`, color: textSecondary, textDecoration: "none", fontSize: 13, fontWeight: 900, letterSpacing: 0 }}>
-            문의
-          </a>
-        </div>
-      </div>
-      <style>{`
-        @media (max-width: 920px) {
-          .pd-decision-band {
-            grid-template-columns: 1fr !important;
-          }
-          .pd-decision-facts {
-            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-          }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-function PremiumSystemBoard({
-  items,
-  gold,
-  goldRgb,
-  cardBg,
-  cardBorder,
-  cardHoverBorder,
-  textPrimary,
-  textSecondary,
-  textMuted,
-  bg,
-}: {
-  items: FeatureItem[];
-  gold: string;
-  goldRgb: string;
-  cardBg: string;
-  cardBorder: string;
-  cardHoverBorder: string;
-  textPrimary: string;
-  textSecondary: string;
-  textMuted: string;
-  bg: string;
-}) {
-  const lead = items[0];
-  const tiles = items.slice(1);
-  const sequence = items.slice(0, 3).map((item) => compactText(item.title)).filter(Boolean);
 
   return (
-    <div
-      className="pd-system-board"
-      data-testid="premium-system-board"
-      style={{
-        display: "grid",
-        gridTemplateColumns: tiles.length > 0 ? "minmax(280px, 0.95fr) minmax(0, 1.35fr)" : "minmax(0, 1fr)",
-        gap: 20,
-        marginTop: 64,
-        alignItems: "stretch",
-      }}
-    >
-      <div style={{
-        minHeight: 360,
-        padding: 34,
-        borderRadius: 8,
-        background: `linear-gradient(145deg, rgba(${goldRgb},0.18) 0%, rgba(${goldRgb},0.04) 42%, ${bg} 100%)`,
-        border: `1px solid rgba(${goldRgb},0.32)`,
-        boxShadow: `0 24px 70px rgba(${goldRgb},0.08), inset 0 1px 0 rgba(255,255,255,0.06)`,
-        position: "relative",
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
-      }}>
-        <div style={{ position: "absolute", inset: 0, background: `linear-gradient(90deg, rgba(${goldRgb},0.14), transparent 42%)`, pointerEvents: "none" }} />
-        <div style={{ position: "relative" }}>
-          <div style={{
-            width: 56,
-            height: 56,
-            borderRadius: 8,
-            background: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`,
-            color: "#0A0E1A",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow: `0 14px 34px rgba(${goldRgb},0.28)`,
-            marginBottom: 26,
-          }}>
-            <SvgIcon name={lead.icon} size={26} />
+    <div className={styles.archiveGrid}>
+      {archive.items.map((item, index) => (
+        <Link className={styles.archiveCard} to={`/landing/matchup-board/${item.id}`} key={item.id}>
+          <div className={styles.archiveCardTop}>
+            <span>PDF · MATCHUP</span>
+            <span>{String(index + 1).padStart(2, "0")}</span>
           </div>
-          <div style={{ fontSize: 11, fontWeight: 900, color: gold, letterSpacing: 0, textTransform: "uppercase", marginBottom: 10 }}>
-            Core Method
+          <h3>{item.title}</h3>
+          <p>{item.description || "실제 시험과 사전 대비 자료를 비교한 매치업 보고서입니다."}</p>
+          <div className={styles.archiveMeta}>
+            <span>{formatArchiveDate(item.published_at)}</span>
+            <span>조회 {item.view_count}</span>
           </div>
-          <h3 style={{ fontSize: 30, lineHeight: 1.18, fontWeight: 900, color: textPrimary, letterSpacing: 0, margin: "0 0 16px" }}>
-            {lead.title}
-          </h3>
-          <p style={{ fontSize: 15.5, lineHeight: 1.78, color: textSecondary, margin: 0, fontWeight: 500 }}>
-            {lead.description}
-          </p>
-        </div>
-        {sequence.length > 1 && (
-          <div style={{
-            position: "relative",
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 8,
-            marginTop: 32,
-            paddingTop: 18,
-            borderTop: `1px solid ${cardBorder}`,
-          }}>
-            {sequence.map((label, i) => (
-              <span key={`${label}-${i}`} style={{
-                display: "inline-flex",
-                alignItems: "center",
-                minHeight: 30,
-                padding: "0 10px",
-                borderRadius: 8,
-                background: "rgba(255,255,255,0.055)",
-                border: `1px solid ${cardBorder}`,
-                color: i === 0 ? gold : textMuted,
-                fontSize: 12,
-                fontWeight: 900,
-                letterSpacing: 0,
-              }}>
-                {String(i + 1).padStart(2, "0")} {label}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {tiles.length > 0 && (
-        <div className="pd-system-tiles" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14 }}>
-          {tiles.map((item, i) => (
-            <div
-              key={i}
-              className="pd-system-tile"
-              style={{
-                minWidth: 0,
-                padding: 24,
-                borderRadius: 8,
-                background: cardBg,
-                border: `1px solid ${cardBorder}`,
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
-                <div style={{
-                  width: 42,
-                  height: 42,
-                  flex: "0 0 auto",
-                  borderRadius: 8,
-                  background: `rgba(${goldRgb},0.12)`,
-                  border: `1px solid rgba(${goldRgb},0.22)`,
-                  color: gold,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}>
-                  <SvgIcon name={item.icon} size={21} />
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 11, color: textMuted, fontWeight: 900, letterSpacing: 0, textTransform: "uppercase", marginBottom: 8 }}>
-                    System {String(i + 2).padStart(2, "0")}
-                  </div>
-                  <h3 style={{ fontSize: 18, fontWeight: 900, color: textPrimary, margin: "0 0 10px", lineHeight: 1.28, letterSpacing: 0 }}>
-                    {item.title}
-                  </h3>
-                  <p style={{ fontSize: 14, lineHeight: 1.68, color: textSecondary, margin: 0, fontWeight: 500 }}>
-                    {item.description}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <style>{`
-        .pd-system-tile {
-          transition: border-color 0.24s cubic-bezier(.2,.7,.2,1), transform 0.24s cubic-bezier(.2,.7,.2,1), box-shadow 0.24s;
-        }
-        .pd-system-tile:hover {
-          border-color: ${cardHoverBorder} !important;
-          transform: translateY(-2px);
-          box-shadow: 0 18px 46px rgba(${goldRgb},0.08), inset 0 1px 0 rgba(255,255,255,0.05) !important;
-        }
-        @media (max-width: 900px) {
-          .pd-system-board {
-            grid-template-columns: 1fr !important;
-            margin-top: 44px !important;
-          }
-          .pd-system-tiles {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-function PremiumProgramOffer({
-  item,
-  index,
-  primaryCta,
-  phone,
-  hasReports,
-  gold,
-  goldRgb,
-  cardBorder,
-  textPrimary,
-  textSecondary,
-  textMuted,
-  bg,
-  bgAlt,
-}: {
-  item: ProgramItem;
-  index: number;
-  primaryCta: { label: string; link: string; isInternal: boolean };
-  phone?: string;
-  hasReports: boolean;
-  gold: string;
-  goldRgb: string;
-  cardBorder: string;
-  textPrimary: string;
-  textSecondary: string;
-  textMuted: string;
-  bg: string;
-  bgAlt: string;
-}) {
-  const facts = buildProgramFacts(item);
-  const ctaTarget = targetFromLink(primaryCta.link || "/login", primaryCta.isInternal);
-  const dial = compactText(phone).replace(/[^\d+]/g, "");
-
-  return (
-    <div
-      className="pd-program-offer"
-      data-testid="premium-program-offer"
-      style={{
-        display: "grid",
-        gridTemplateColumns: "minmax(0, 0.96fr) minmax(0, 1.04fr)",
-        gap: 0,
-        borderRadius: 8,
-        background: `linear-gradient(135deg, rgba(${goldRgb},0.14) 0%, rgba(${goldRgb},0.03) 44%, ${bgAlt} 100%)`,
-        border: `1px solid rgba(${goldRgb},0.24)`,
-        boxShadow: "0 24px 70px rgba(0,0,0,0.28)",
-        overflow: "hidden",
-      }}
-    >
-      <div style={{
-        padding: 38,
-        background: `linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.012) 100%)`,
-        borderRight: `1px solid ${cardBorder}`,
-        position: "relative",
-      }}>
-        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, rgba(${goldRgb},0.65), transparent)` }} />
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
-          <span style={{ fontSize: 11, fontWeight: 900, color: gold, letterSpacing: 0, textTransform: "uppercase" }}>
-            Class {String(index + 1).padStart(2, "0")}
-          </span>
-          {item.badge && (
-            <span style={{
-              display: "inline-flex",
-              alignItems: "center",
-              minHeight: 28,
-              padding: "0 11px",
-              borderRadius: 8,
-              background: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`,
-              color: "#0A0E1A",
-              fontSize: 12,
-              fontWeight: 900,
-              letterSpacing: 0,
-            }}>
-              {item.badge}
-            </span>
-          )}
-        </div>
-        <h3 style={{ fontSize: "clamp(26px, 3vw, 36px)", lineHeight: 1.16, fontWeight: 900, margin: "0 0 18px", color: textPrimary, letterSpacing: 0 }}>
-          {item.title}
-        </h3>
-        <p style={{ fontSize: 15.5, lineHeight: 1.78, color: textSecondary, margin: 0, fontWeight: 500, whiteSpace: "pre-line" }}>
-          {item.description}
-        </p>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 30 }}>
-          <PremiumSectionCta label={primaryCta.label || "수강 문의"} target={ctaTarget} gold={gold} goldRgb={goldRgb} />
-          {dial && (
-            <a href={`tel:${dial}`} style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minHeight: 46,
-              padding: "0 16px",
-              borderRadius: 8,
-              border: `1px solid ${cardBorder}`,
-              color: textPrimary,
-              textDecoration: "none",
-              fontSize: 14,
-              fontWeight: 900,
-              letterSpacing: 0,
-              background: "rgba(255,255,255,0.045)",
-            }}>
-              {phone}
-            </a>
-          )}
-          {hasReports && (
-            <Link to="/landing/reports" style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minHeight: 46,
-              padding: "0 16px",
-              borderRadius: 8,
-              border: `1px solid ${cardBorder}`,
-              color: textSecondary,
-              textDecoration: "none",
-              fontSize: 14,
-              fontWeight: 900,
-              letterSpacing: 0,
-              background: "rgba(255,255,255,0.025)",
-            }}>
-              적중 사례
-            </Link>
-          )}
-        </div>
-      </div>
-
-      <div style={{ padding: 30, background: bg, display: "flex", flexDirection: "column", gap: 18, justifyContent: "space-between" }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 900, color: textMuted, letterSpacing: 0, textTransform: "uppercase", marginBottom: 5 }}>
-                Class Snapshot
-              </div>
-              <div style={{ fontSize: 19, lineHeight: 1.28, fontWeight: 900, color: textPrimary, letterSpacing: 0 }}>
-                등록 전에 확인할 정보
-              </div>
-            </div>
-            <div style={{
-              flex: "0 0 auto",
-              width: 42,
-              height: 42,
-              borderRadius: 8,
-              background: `rgba(${goldRgb},0.12)`,
-              border: `1px solid rgba(${goldRgb},0.24)`,
-              color: gold,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}>
-              <SvgIcon name="calendar" size={21} />
-            </div>
-          </div>
-
-          <div className="pd-program-facts" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
-            {facts.map((fact) => (
-              <div key={fact.label} style={{
-                minWidth: 0,
-                padding: "16px 14px",
-                borderRadius: 8,
-                background: "rgba(255,255,255,0.035)",
-                border: `1px solid ${cardBorder}`,
-              }}>
-                <div style={{ fontSize: 10, fontWeight: 900, color: gold, letterSpacing: 0, textTransform: "uppercase", marginBottom: 7 }}>
-                  {fact.label}
-                </div>
-                <div style={{ fontSize: 16, lineHeight: 1.22, fontWeight: 900, color: textPrimary, letterSpacing: 0 }}>
-                  {fact.value}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-          gap: 8,
-          paddingTop: 18,
-          borderTop: `1px solid ${cardBorder}`,
-        }} className="pd-program-flow">
-          {["상담 문의", "시간표 확인", "수업 합류"].map((label, i) => (
-            <div key={label} style={{
-              minHeight: 40,
-              borderRadius: 8,
-              border: `1px solid ${i === 0 ? `rgba(${goldRgb},0.32)` : cardBorder}`,
-              color: i === 0 ? gold : textMuted,
-              background: i === 0 ? `rgba(${goldRgb},0.10)` : "rgba(255,255,255,0.025)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              textAlign: "center",
-              fontSize: 12,
-              fontWeight: 900,
-              letterSpacing: 0,
-              padding: "0 8px",
-            }}>
-              {label}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <style>{`
-        @media (max-width: 900px) {
-          .pd-program-offer {
-            grid-template-columns: 1fr !important;
-          }
-          .pd-program-offer > div:first-child {
-            border-right: 0 !important;
-            border-bottom: 1px solid ${cardBorder} !important;
-          }
-        }
-        @media (max-width: 560px) {
-          .pd-program-offer > div {
-            padding: 24px !important;
-          }
-          .pd-program-facts {
-            grid-template-columns: 1fr !important;
-          }
-          .pd-program-flow {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-function PremiumSectionCta({ label, target, gold, goldRgb }: { label: string; target: PremiumHeroTarget; gold: string; goldRgb: string }) {
-  const content = (
-    <>
-      {label}
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-    </>
-  );
-  const style = {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    minHeight: 46,
-    padding: "0 18px",
-    borderRadius: 8,
-    border: "none",
-    background: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`,
-    color: "#0A0E1A",
-    textDecoration: "none",
-    fontSize: 14,
-    fontWeight: 900,
-    letterSpacing: 0,
-    boxShadow: `0 12px 28px rgba(${goldRgb},0.28)`,
-    cursor: "pointer",
-  };
-
-  if (target.kind === "section") {
-    return (
-      <button type="button" data-testid="landing-program-primary-cta" onClick={() => scrollToLandingSection(target.sectionType)} style={style}>
-        {content}
-      </button>
-    );
-  }
-  if (target.kind === "route") {
-    return (
-      <Link to={target.to} data-testid="landing-program-primary-cta" style={style}>
-        {content}
-      </Link>
-    );
-  }
-  return (
-    <a href={target.href} data-testid="landing-program-primary-cta" style={style}>
-      {content}
-    </a>
-  );
-}
-
-/** Section header — eyebrow + title + optional description, 일관된 톤 */
-function SectionHeader({ eyebrow, title, description, gold, goldRgb, textSecondary }: { eyebrow: string; title: string; description?: string; gold: string; goldRgb: string; textSecondary: string }) {
-  return (
-    <div style={{ textAlign: "center", maxWidth: 720, margin: "0 auto" }}>
-      <div style={{
-        display: "inline-flex", alignItems: "center", gap: 8,
-        padding: "5px 12px", borderRadius: 99,
-        background: `rgba(${goldRgb},0.08)`, border: `1px solid rgba(${goldRgb},0.2)`,
-        color: gold, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
-        marginBottom: 18,
-      }}>
-        {eyebrow}
-      </div>
-      <h2 style={{
-        fontSize: "clamp(28px, 3.5vw, 40px)", fontWeight: 800, margin: 0,
-        letterSpacing: "-0.025em", lineHeight: 1.2,
-      }}>{title}</h2>
-      {description && (
-        <p style={{ fontSize: 16, lineHeight: 1.7, color: textSecondary, margin: "16px auto 0", maxWidth: 540, fontWeight: 400 }}>
-          {description}
-        </p>
-      )}
-    </div>
-  );
-}
-
-/** Feature card with hover border luminance */
-function FeatureCard({ item, gold, goldRgb, cardBg, cardBorder, cardHoverBorder, textSecondary }: { item: FeatureItem; gold: string; goldRgb: string; cardBg: string; cardBorder: string; cardHoverBorder: string; textSecondary: string }) {
-  const [hover, setHover] = useState(false);
-  return (
-    <div
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        padding: 32, borderRadius: 18,
-        background: cardBg,
-        border: `1px solid ${hover ? cardHoverBorder : cardBorder}`,
-        transition: "border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease",
-        transform: hover ? "translateY(-2px)" : "none",
-        boxShadow: hover ? `0 16px 40px rgba(${goldRgb},0.08)` : "none",
-      }}
-    >
-      <div style={{
-        width: 52, height: 52, borderRadius: 14,
-        background: `linear-gradient(135deg, rgba(${goldRgb},0.15) 0%, rgba(${goldRgb},0.05) 100%)`,
-        border: `1px solid rgba(${goldRgb},0.2)`,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        marginBottom: 22, color: gold,
-      }}>
-        <SvgIcon name={item.icon} size={24} />
-      </div>
-      <h3 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 10px", letterSpacing: "-0.015em" }}>{item.title}</h3>
-      <p style={{ fontSize: 14.5, lineHeight: 1.7, color: textSecondary, margin: 0, fontWeight: 400 }}>{item.description}</p>
-    </div>
-  );
-}
-
-function InstructorPortrait({
-  src,
-  name,
-  initial,
-  isHeroPosterCrop,
-  width,
-  height,
-  gold,
-  goldRgb,
-  cardBorder,
-  bg,
-}: {
-  src?: string;
-  name: string;
-  initial: string;
-  isHeroPosterCrop?: boolean;
-  width: number | string;
-  height: number | string;
-  gold: string;
-  goldRgb: string;
-  cardBorder: string;
-  bg: string;
-}) {
-  const [failed, setFailed] = useState(false);
-  const photo = compactText(src);
-  const showPhoto = Boolean(photo && !failed);
-
-  return (
-    <div className="pd-instructor-portrait" style={{
-      position: "relative",
-      width,
-      height,
-      borderRadius: 8,
-      overflow: "hidden",
-      background: `linear-gradient(135deg, ${bg} 0%, rgba(${goldRgb},0.15) 100%)`,
-      border: `1px solid ${cardBorder}`,
-      boxShadow: `0 18px 46px rgba(0,0,0,0.48), 0 0 0 1px rgba(${goldRgb},0.12) inset`,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      color: gold,
-      fontSize: 64,
-      fontWeight: 900,
-      letterSpacing: 0,
-    }}>
-      {showPhoto ? (
-        <img
-          className={`pd-instructor-portrait-image${isHeroPosterCrop ? " is-fallback-crop" : ""}`}
-          src={photo}
-          alt={name}
-          onError={() => setFailed(true)}
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            objectPosition: isHeroPosterCrop ? "78% 60%" : "center top",
-            transform: isHeroPosterCrop ? "scale(2.75)" : "none",
-            transformOrigin: isHeroPosterCrop ? "78% 61%" : "center",
-          }}
-        />
-      ) : (
-        <span>{initial}</span>
-      )}
-      <div style={{ position: "absolute", inset: 0, boxShadow: `inset 0 0 38px rgba(${goldRgb},0.12)`, pointerEvents: "none" }} />
-    </div>
-  );
-}
-
-function InstructorCard({ item, fallbackPhotoUrl = "", reportIds = [], gold, goldRgb, cardBg, cardBorder, textPrimary, textSecondary, textMuted, bg }: { item: InstructorProfileItem; fallbackPhotoUrl?: string; reportIds?: number[]; gold: string; goldRgb: string; cardBg: string; cardBorder: string; textPrimary: string; textSecondary: string; textMuted: string; bg: string }) {
-  const initial = (item.name || "").trim().charAt(0) || "•";
-  const stats = useTenantHitStats(reportIds);
-  const ownPhoto = compactText(item.photo_url);
-  const photo = ownPhoto || compactText(fallbackPhotoUrl);
-  return (
-    <div style={{
-      padding: 36, borderRadius: 8,
-      background: `linear-gradient(180deg, rgba(${goldRgb},0.04) 0%, rgba(${goldRgb},0.01) 100%)`,
-      border: `1px solid ${cardBorder}`,
-      display: "flex", gap: 32, alignItems: "flex-start", flexWrap: "wrap",
-      position: "relative", overflow: "hidden",
-    }}>
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, rgba(${goldRgb},0.5), transparent)` }} />
-      {/* 사진 (URL 있으면 img, 없으면 이니셜 mark) */}
-      <div style={{ flex: "0 0 220px", position: "relative", maxWidth: "100%" }}>
-        <div style={{ position: "absolute", inset: -8, background: `radial-gradient(ellipse, rgba(${goldRgb},0.18) 0%, transparent 70%)`, filter: "blur(20px)", pointerEvents: "none" }} />
-        <InstructorPortrait
-          src={photo}
-          name={item.name}
-          initial={initial}
-          isHeroPosterCrop={!ownPhoto && Boolean(photo)}
-          width={220}
-          height={282}
-          gold={gold}
-          goldRgb={goldRgb}
-          cardBorder={cardBorder}
-          bg={bg}
-        />
-      </div>
-      {/* 이름 + 직함 + 경력 + bio */}
-      <div style={{ flex: "1 1 280px", minWidth: 280 }}>
-        <div style={{
-          display: "inline-flex", alignItems: "center", gap: 6,
-          padding: "4px 10px", borderRadius: 99,
-          background: `rgba(${goldRgb},0.1)`, color: gold,
-          fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
-          marginBottom: 12,
-        }}>
-          {item.title || "Instructor"}
-        </div>
-        <h3 style={{ fontSize: 32, fontWeight: 800, margin: "0 0 16px", letterSpacing: "-0.025em", color: textPrimary }}>
-          {item.name}
-        </h3>
-        {item.bio && (
-          <p style={{ fontSize: 15, lineHeight: 1.75, color: textSecondary, margin: "0 0 22px", fontWeight: 400, whiteSpace: "pre-line" }}>
-            {item.bio}
-          </p>
-        )}
-        {item.experience && item.experience.length > 0 && (
-          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-            {item.experience.map((line, i) => (
-              <li key={i} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: textSecondary, fontWeight: 500 }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={gold} strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-                {line}
-              </li>
-            ))}
-          </ul>
-        )}
-        {stats && stats.reportCount > 0 && (
-          <div style={{
-            marginTop: 22, paddingTop: 18, borderTop: `1px solid ${cardBorder}`,
-            display: "flex", gap: 20, alignItems: "baseline",
-          }}>
-            <div>
-              <div style={{ fontSize: 11, color: textMuted, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>통산 적중률</div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                <span style={{ fontSize: 28, fontWeight: 800, color: gold, lineHeight: 1, letterSpacing: "-0.02em" }}>{Math.round(stats.avgHitRatePct)}</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: gold, opacity: 0.85 }}>%</span>
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: textMuted, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>누적 보고서</div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                <span style={{ fontSize: 28, fontWeight: 800, color: textPrimary, lineHeight: 1, letterSpacing: "-0.02em" }}>{stats.reportCount}</span>
-                <span style={{ fontSize: 14, fontWeight: 600, color: textSecondary }}>건</span>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ContactCard({ label, value, cardBg, cardBorder, textMuted, textPrimary, gold }: { label: string; value: string; cardBg: string; cardBorder: string; textMuted: string; textPrimary: string; gold: string }) {
-  return (
-    <div style={{
-      padding: "24px 20px", borderRadius: 14,
-      background: cardBg, border: `1px solid ${cardBorder}`,
-    }}>
-      <p style={{ fontSize: 11, color: textMuted, margin: "0 0 6px", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600 }}>
-        {label}
-      </p>
-      <p style={{ fontSize: 16, fontWeight: 600, margin: 0, color: textPrimary, letterSpacing: "-0.01em" }}>{value}</p>
-    </div>
-  );
-}
-
-/** 브랜드 로고 SVG fallback — config.logo_url + tenant 브랜딩 모두 미설정 시. */
-function BrandMark({ name, gold }: { name: string; gold: string }) {
-  const initial = (name || "").trim().charAt(0) || "•";
-  return (
-    <div style={{
-      width: 40, height: 40, borderRadius: 10,
-      background: `linear-gradient(135deg, ${gold} 0%, #8B5E1F 100%)`,
-      display: "flex", alignItems: "center", justifyContent: "center",
-      color: "#0A0E1A", fontSize: 20, fontWeight: 800,
-      boxShadow: `0 4px 12px rgba(212,160,76,0.3), inset 0 1px 0 rgba(255,255,255,0.3)`,
-      letterSpacing: "-0.02em",
-    }}>{initial}</div>
-  );
-}
-
-/** testimonials 섹션 — 학원장 입력 items + 학부모 공개 후기 합쳐서 표시 + 후기 남기기 form */
-function DarkTestimonialsSection({ sectionItems, bgAlt, cardBg, cardBorder, gold, goldRgb, textPrimary, textSecondary, textMuted }: { sectionItems: TestimonialItem[]; bgAlt: string; cardBg: string; cardBorder: string; gold: string; goldRgb: string; textPrimary: string; textSecondary: string; textMuted: string }) {
-  const publicReviews = usePublicTestimonials();
-  // 학원장 입력 items 우선, 그 다음 공개 후기 (중복 제거 X — 학원장이 큐레이션)
-  const merged = [
-    ...sectionItems.map((it) => ({ name: it.name, role: it.role, text: it.text })),
-    ...publicReviews.map((r) => ({ name: r.name, role: r.role, text: r.text })),
-  ];
-  return (
-    <section data-stype="testimonials" style={{ padding: "120px 24px", background: bgAlt }}>
-      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-        <SectionHeader eyebrow="Recommendations" title="수강생 추천사" gold={gold} goldRgb={goldRgb} textSecondary={textSecondary} />
-        {merged.length > 0 && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24, marginTop: 64 }}>
-            {merged.map((item, i) => (
-              <div key={i} style={{ padding: 32, borderRadius: 16, background: cardBg, border: `1px solid ${cardBorder}` }}>
-                <svg width="32" height="32" viewBox="0 0 24 24" fill={`rgba(${goldRgb},0.4)`}><path d="M4.583 17.321C3.553 16.227 3 15 3 13.011c0-3.5 2.457-6.637 6.03-8.188l.893 1.378c-3.335 1.804-3.987 4.145-4.247 5.621.537-.278 1.24-.375 1.929-.311C9.591 11.692 11 13.166 11 15c0 1.933-1.567 3.5-3.5 3.5-1.07 0-2.038-.438-2.917-1.179zM14.583 17.321C13.553 16.227 13 15 13 13.011c0-3.5 2.457-6.637 6.03-8.188l.893 1.378c-3.335 1.804-3.987 4.145-4.247 5.621.537-.278 1.24-.375 1.929-.311C19.591 11.692 21 13.166 21 15c0 1.933-1.567 3.5-3.5 3.5-1.07 0-2.038-.438-2.917-1.179z" /></svg>
-                <p style={{ fontSize: 15, lineHeight: 1.75, color: textSecondary, margin: "16px 0", fontWeight: 400 }}>{item.text}</p>
-                <div>
-                  <p style={{ fontSize: 15, fontWeight: 700, margin: 0, color: textPrimary }}>{item.name}</p>
-                  <p style={{ fontSize: 13, color: textMuted, margin: "2px 0 0" }}>{item.role}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        {/* 후기 남기기 form */}
-        <div style={{ marginTop: 56, padding: 28, borderRadius: 18, background: cardBg, border: `1px solid ${cardBorder}`, maxWidth: 720, marginInline: "auto" }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 6px", color: textPrimary, letterSpacing: "-0.015em" }}>
-            한 줄 추천사 남기기
-          </h3>
-          <p style={{ fontSize: 12, color: textSecondary, margin: "0 0 16px" }}>
-            학원장 승인 후 메인에 노출됩니다. 별점·사진 포함 정식 후기는 <Link to="/landing/reviews/write" style={{ color: gold, textDecoration: "underline", textUnderlineOffset: 2 }}>수강 후기</Link> 에서 작성해주세요.
-          </p>
-          <TestimonialSubmitForm accent={gold} dark />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function DarkFaqAccordion({ items, cardBorder, textPrimary, textSecondary }: { items: FaqItem[]; cardBorder: string; textPrimary: string; textSecondary: string }) {
-  const [openIdx, setOpenIdx] = useState<number | null>(null);
-  return (
-    <div style={{ display: "flex", flexDirection: "column" }}>
-      {items.map((item, i) => (
-        <div key={i} style={{ borderBottom: `1px solid ${cardBorder}` }}>
-          <button onClick={() => setOpenIdx(openIdx === i ? null : i)} style={{
-            display: "flex", justifyContent: "space-between", alignItems: "center",
-            width: "100%", padding: "22px 0", background: "none", border: "none",
-            cursor: "pointer", fontSize: 16, fontWeight: 600, textAlign: "left",
-            color: textPrimary, letterSpacing: "-0.01em",
-          }}>
-            <span>{item.question}</span>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: openIdx === i ? "rotate(180deg)" : "none", transition: "transform 0.2s", flexShrink: 0, marginLeft: 16 }}><path d="M19 9l-7 7-7-7" /></svg>
-          </button>
-          {openIdx === i && (
-            <div style={{ padding: "0 0 22px", color: textSecondary, fontSize: 15, lineHeight: 1.75 }}>{item.answer}</div>
-          )}
-        </div>
+        </Link>
       ))}
     </div>
   );
+}
+
+function QuickLink({ index, label, detail, to, featured = false }: {
+  index: string;
+  label: string;
+  detail: string;
+  to: string;
+  featured?: boolean;
+}) {
+  return (
+    <SmartLink to={to} className={`${styles.quickLink} ${featured ? styles.quickLinkFeatured : ""}`}>
+      <span className={styles.quickIndex}>{index}</span>
+      <span className={styles.quickCopy}><strong>{label}</strong><small>{detail}</small></span>
+      <Arrow />
+    </SmartLink>
+  );
+}
+
+function SmartLink({ to, className, testId, children }: {
+  to: string;
+  className: string;
+  testId?: string;
+  children: ReactNode;
+}) {
+  if (to.startsWith("/")) {
+    return <Link to={to} className={className} data-testid={testId}>{children}</Link>;
+  }
+  return <a href={to} className={className} data-testid={testId}>{children}</a>;
+}
+
+function BrandMark({ name }: { name: string }) {
+  return (
+    <div className={styles.brandMark} aria-hidden="true">
+      <span>{(name || "박").trim().charAt(0)}</span>
+      <i />
+    </div>
+  );
+}
+
+function Arrow() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+function UploadIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M12 16V4m0 0-4 4m4-4 4 4M5 15v4h14v-4" />
+    </svg>
+  );
+}
+
+function findSection(sections: LandingSection[], type: LandingSection["type"]) {
+  return sections.find((section) => section.type === type);
+}
+
+function sectionItems<T>(section?: LandingSection): T[] {
+  return Array.isArray(section?.items) ? section.items as T[] : [];
+}
+
+function firstItem<T>(section?: LandingSection): T | undefined {
+  return sectionItems<T>(section)[0];
+}
+
+function formatArchiveDate(value: string | null) {
+  if (!value) return "게시일 미정";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }

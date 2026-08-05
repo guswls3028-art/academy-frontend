@@ -173,16 +173,15 @@ function buildMenuCategories(sections: LandingSection[], isOwner: boolean = fals
     ],
   });
 
-  // 3. 매치업 / 적중사례 — 학원장 핵심 마케팅.
-  // 테넌트2 운영 데이터 기준: 게시판 쇼케이스가 비어 있어도 hit_reports 보고서는 공개되어 있다.
-  // 따라서 "매치업" 1차 진입은 실제 보고서 목록(/landing/reports)으로 연결한다.
+  // 3. 매치업 / 적중사례 — 강사가 직접 올린 공개 자료실을 1차 진입점으로 둔다.
+  // 자동 생성 보고서와 별개로, PC에서 교정한 PDF를 일반 게시글처럼 올리는 흐름이 핵심이다.
   {
-    const matchupItems: NavMenuItem[] = [];
+    const matchupItems: NavMenuItem[] = [
+      { key: "matchup_board", label: "매치업 자료실", kind: "route", target: "/landing/matchup-board", badge: "PDF" },
+    ];
     if (has("hit_reports")) {
-      matchupItems.push({ key: "reports_all", label: "적중 보고서", kind: "route", target: "/landing/reports", badge: "LIVE" });
+      matchupItems.push({ key: "reports_all", label: "자동 적중 보고서", kind: "route", target: "/landing/reports", badge: "DATA" });
       matchupItems.push({ key: "hit_reports", label: "적중 사례 요약 (홈)", kind: "section", target: "hit_reports" });
-    } else {
-      matchupItems.push({ key: "matchup_board", label: "적중보고서 게시판", kind: "route", target: "/landing/matchup-board", badge: "NEW" });
     }
     categories.push({ key: "matchup", label: "매치업", items: matchupItems });
   }
@@ -222,7 +221,7 @@ function selectInlineNavItem(cat: NavMenuCategory): NavMenuItem {
     return cat.items[0];
   }
   if (cat.key === "matchup") {
-    return cat.items.find((it) => it.key === "reports_all") || cat.items.find((it) => it.kind === "route") || cat.items[0];
+    return cat.items.find((it) => it.key === "matchup_board") || cat.items.find((it) => it.kind === "route") || cat.items[0];
   }
   return cat.items.find((it) => it.kind === "route") || cat.items[0];
 }

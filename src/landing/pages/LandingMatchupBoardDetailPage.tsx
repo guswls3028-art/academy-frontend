@@ -78,7 +78,7 @@ export default function LandingMatchupBoardDetailPage() {
   }, [card, config]);
 
   const cfg = config?.config;
-  const accent = cfg?.primary_color || MATCHUP_COLORS.gold;
+  const accent = MATCHUP_COLORS.gold;
   const brandName = cfg?.brand_name || "학원";
 
   if (loading) {
@@ -150,7 +150,7 @@ export default function LandingMatchupBoardDetailPage() {
       {/* 헤더 (카드 메타) */}
       <div
         style={{
-          background: `radial-gradient(circle at 20% 0%, rgba(212,160,76,0.16), transparent 30%), linear-gradient(180deg, ${MATCHUP_COLORS.bgAlt} 0%, ${MATCHUP_COLORS.bg} 100%)`,
+            background: `radial-gradient(circle at 20% 0%, rgba(18,104,243,0.2), transparent 32%), linear-gradient(180deg, ${MATCHUP_COLORS.bgAlt} 0%, ${MATCHUP_COLORS.bg} 100%)`,
           borderBottom: `1px solid ${MATCHUP_COLORS.border}`,
           flexShrink: 0,
         }}
@@ -170,7 +170,7 @@ export default function LandingMatchupBoardDetailPage() {
                 border: `1px solid ${MATCHUP_COLORS.border}`,
               }}
             >
-              적중 보고서 목록
+              매치업 자료실
             </Link>
             {isOwner && (
               <Link
@@ -178,12 +178,12 @@ export default function LandingMatchupBoardDetailPage() {
                 style={{
                   padding: "8px 13px",
                   borderRadius: 8,
-                  background: "rgba(212,160,76,0.14)",
-                  color: "#F5D08C",
+                  background: "rgba(18,104,243,0.16)",
+                  color: "#a9ceff",
                   fontSize: 12.5,
                   fontWeight: 800,
                   textDecoration: "none",
-                  border: "1px solid rgba(212,160,76,0.36)",
+                  border: "1px solid rgba(18,104,243,0.42)",
                 }}
               >
                 게시판 관리
@@ -222,13 +222,13 @@ export default function LandingMatchupBoardDetailPage() {
       {pdfUrl && (
         <div style={{ background: MATCHUP_COLORS.bgAlt, borderBottom: `1px solid ${MATCHUP_COLORS.border}`, padding: "10px 24px", flexShrink: 0 }}>
           <div style={{ maxWidth: 1080, margin: "0 auto", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <span style={{ fontSize: 12, color: MATCHUP_COLORS.textSecondary }}>전체 문항 보기</span>
+            <span style={{ fontSize: 12, color: MATCHUP_COLORS.textSecondary }}>자료 전체 보기</span>
             <a
               href={pdfUrl}
               target="_blank"
               rel="noopener noreferrer"
               style={{ padding: "7px 14px", borderRadius: 8, background: accent, color: MATCHUP_COLORS.bg, fontSize: 12.5, fontWeight: 800, textDecoration: "none" }}
-            >PDF 전체 보기</a>
+            >전체 화면 PDF 보기</a>
             <a
               href={pdfUrl}
               download
@@ -245,7 +245,7 @@ export default function LandingMatchupBoardDetailPage() {
             imageUrl={previewUrl}
             pdfUrl={pdfUrl}
             alt={`${card.title} 실제 시험 문제와 우리 학원 사전 대비 자료 비교`}
-            caption="대표 비교 화면입니다. 전체 문항은 위의 ‘PDF 전체 보기’에서 확인할 수 있습니다."
+            caption="대표 화면입니다. 전체 내용은 위의 ‘전체 화면 PDF 보기’에서 확인할 수 있습니다."
           />
         ) : (
           <div style={{ padding: 48, textAlign: "center", color: MATCHUP_COLORS.textSecondary, lineHeight: 1.6 }}>

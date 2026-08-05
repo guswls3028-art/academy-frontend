@@ -27,6 +27,7 @@ export default function StaticReportPreview({
       data-testid="static-report-preview"
       className={`${styles.figure} ${compact ? styles.compact : ""}`}
     >
+      {!compact ? <div className={styles.mobileHint}>좌우로 밀어 크게 볼 수 있습니다</div> : null}
       <div className={styles.frame}>
         {failed ? (
           <div className={styles.failed}>

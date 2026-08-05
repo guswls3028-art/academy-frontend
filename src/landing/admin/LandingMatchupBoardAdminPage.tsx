@@ -57,7 +57,7 @@ export default function LandingMatchupBoardAdminPage() {
   // publish 모달 — PublishShowcaseModal 컴포넌트 분리 (P1 audit step 2 2026-05-14).
   // state 모두 모달 안 own. main page 는 open + initialMode 만.
   const [publishOpen, setPublishOpen] = useState(false);
-  const [publishInitialMode, setPublishInitialMode] = useState<PublishMode>("existing");
+  const [publishInitialMode, setPublishInitialMode] = useState<PublishMode>("upload");
 
   // ?compose=upload query param 자동 진입.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -84,7 +84,7 @@ export default function LandingMatchupBoardAdminPage() {
     if (isOwner) void reload();
   }, [isOwner, reload]);
 
-  const openPublishModal = useCallback((initialMode: PublishMode = "existing") => {
+  const openPublishModal = useCallback((initialMode: PublishMode = "upload") => {
     setPublishInitialMode(initialMode);
     setPublishOpen(true);
   }, []);
@@ -193,10 +193,10 @@ export default function LandingMatchupBoardAdminPage() {
       <div style={{ background: "#fff", borderBottom: "1px solid #e2e8f0", padding: "20px 24px" }}>
         <div style={{ maxWidth: 1080, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#D4A04C", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>학원장 콘솔</div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>매치업 적중보고서 게시판</h1>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#1268f3", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>홈페이지 자료 관리</div>
+            <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>매치업 자료실 관리</h1>
             <p style={{ fontSize: 13, color: "#64748b", margin: "6px 0 0", lineHeight: 1.5 }}>
-              작성 완료한 적중보고서를 게시판에 박아 학생/학부모에게 노출합니다. 게시 시점의 PDF가 저장되어 이후 원본 변경 무관 (스냅샷).
+              컴퓨터에서 수정한 PDF를 일반 게시글처럼 올리고, 학생·학부모에게 공유할 링크를 복사할 수 있습니다.
             </p>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -208,14 +208,14 @@ export default function LandingMatchupBoardAdminPage() {
             <button
               type="button"
               data-testid="open-publish-modal"
-              onClick={() => void openPublishModal("existing")}
+              onClick={() => void openPublishModal("upload")}
               style={{
                 padding: "10px 18px", borderRadius: 10, border: "none",
-                background: "linear-gradient(135deg, #D4A04C 0%, #B8862F 100%)",
-                color: "#0A0E1A", fontSize: 13, fontWeight: 700, cursor: "pointer",
-                boxShadow: "0 6px 18px rgba(212,160,76,0.28)",
+                background: "#1268f3",
+                color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                boxShadow: "0 6px 18px rgba(18,104,243,0.22)",
               }}
-            >+ 적중보고서 게시</button>
+            >+ PDF 자료 올리기</button>
           </div>
         </div>
       </div>
@@ -234,10 +234,10 @@ export default function LandingMatchupBoardAdminPage() {
             <div style={{ fontSize: 36, marginBottom: 12 }}>📭</div>
             <p style={{ fontSize: 16, fontWeight: 700, margin: "0 0 8px" }}>아직 게시된 적중보고서가 없습니다</p>
             <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 20px", lineHeight: 1.5 }}>
-              매치업에서 적중보고서를 작성한 뒤 우상단 <strong>+ 적중보고서 게시</strong> 버튼으로 게시판에 박아두세요.<br />
-              학생/학부모는 학원 홈페이지의 매치업 섹션에서 PDF를 봅니다.
+              컴퓨터에 저장해 수정한 매치업 PDF를 우상단 <strong>+ PDF 자료 올리기</strong> 버튼으로 올려보세요.<br />
+              게시 직후 학생·학부모에게 보낼 전용 링크가 생깁니다.
             </p>
-            <button type="button" onClick={() => void openPublishModal("existing")} style={{ padding: "10px 18px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #D4A04C 0%, #B8862F 100%)", color: "#0A0E1A", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+ 적중보고서 게시</button>
+            <button type="button" onClick={() => void openPublishModal("upload")} style={{ padding: "10px 18px", borderRadius: 10, border: "none", background: "#1268f3", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+ PDF 자료 올리기</button>
           </div>
         ) : (
           <div style={{ display: "grid", gap: 12 }}>
