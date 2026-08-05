@@ -34,7 +34,7 @@ function contentSecurityPolicy(nonce: string): string {
     "font-src 'self' data:",
     "connect-src 'self' https: wss:",
     "media-src 'self' data: blob: https:",
-    "frame-src https://www.youtube.com https://www.youtube-nocookie.com",
+    "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://api.hakwonplus.com",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
     "upgrade-insecure-requests",
