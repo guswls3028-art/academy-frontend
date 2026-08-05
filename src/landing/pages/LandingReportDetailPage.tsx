@@ -1,6 +1,6 @@
 // PATH: src/landing/pages/LandingReportDetailPage.tsx
 // 적중보고서 상세 — 학원장 picker 등록 보고서만 (backend 404 게이트).
-// 학원 정체성 헤더 + KPI + 정적 비교 이미지 + 전체 PDF 링크 + 다른 보고서 둘러보기.
+// 학원 정체성 헤더 + KPI + 전체 PDF 연속 본문 + 다른 보고서 둘러보기.
 //
 // 학부모가 새 탭으로 사라지지 않고 사이트 내부 라우트 — 진짜 홈페이지 정체성 유지.
 /* eslint-disable no-restricted-syntax */
@@ -13,7 +13,7 @@ import type { LandingPublicResponse, HitReportPublicCard, HitReportShowcaseItem 
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingRoleFab from "../components/LandingRoleFab";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
-import StaticReportPreview from "../components/StaticReportPreview";
+import MatchupInlinePdf from "../components/MatchupInlinePdf";
 import { resolvePublicReportUrl } from "../utils/publicReportUrl";
 import { resolveTenantCode } from "@/shared/tenant";
 import { setLandingMeta as setMeta } from "../utils/seoMeta";
@@ -106,7 +106,6 @@ export default function LandingReportDetailPage() {
   const tcRes = resolveTenantCode();
   const tcParam = tcRes.ok ? `?tenant=${encodeURIComponent(tcRes.code)}` : "";
   const pdfUrl = resolvePublicReportUrl(`/api/v1/matchup/landing/public/${report.id}/curated.pdf${tcParam}`);
-  const previewUrl = resolvePublicReportUrl(`/api/v1/matchup/landing/public/${report.id}/preview.jpg${tcParam}`);
 
   // 톤은 PremiumDark 시그니처 (template_key와 무관 — 보고서 detail은 통일된 다크 톤)
   const bg = "#0A0E1A";
@@ -196,27 +195,24 @@ export default function LandingReportDetailPage() {
               </button>
               <a
                 href={pdfUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+                download
                 style={{ padding: "10px 18px", borderRadius: 10, background: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`, color: "#0A0E1A", textDecoration: "none", fontSize: 14, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
-                PDF 전체 보기
+                원본 PDF 다운로드
               </a>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 브라우저 PDF 렌더 대신 서버에 저장된 대표 비교 이미지 한 장을 즉시 노출. */}
-      <section style={{ padding: "32px 24px 16px", background: bgAlt }}>
+      {/* 방문자는 별도 PDF 뷰어 없이 첫 쪽부터 끝까지 게시물처럼 이어 본다. */}
+      <section style={{ padding: "16px 24px 64px", background: bgAlt }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-          <StaticReportPreview
-            imageUrl={previewUrl}
-            pdfUrl={pdfUrl}
-            alt={`${subj} 실제 시험 문제와 우리 학원 사전 대비 자료 비교`}
-            caption="대표 비교 화면 한 장입니다. 전체 문항은 위의 ‘PDF 전체 보기’에서 확인할 수 있습니다."
-          />
+          <div style={{ padding: "0 0 16px", color: textSecondary, fontSize: 12.5, lineHeight: 1.6 }}>
+            전체 자료 · 아래에서 첫 쪽부터 끝까지 이어서 보세요
+          </div>
+          <MatchupInlinePdf url={pdfUrl} title={report.doc_title || subj} />
         </div>
       </section>
 

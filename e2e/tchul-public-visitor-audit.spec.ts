@@ -66,7 +66,12 @@ async function buildRouteInventory(request: APIRequestContext): Promise<AuditRou
       inlineMatchupPdf: true,
     })),
     { name: "자동 적중보고서", path: "/landing/reports", expectedText: /학교별 적중 사례/ },
-    ...reportIds.map((id) => ({ name: `자동 적중보고서 상세 ${id}`, path: `/landing/reports/${id}`, expectedText: /PDF 전체 보기/ })),
+    ...reportIds.map((id) => ({
+      name: `자동 적중보고서 상세 ${id}`,
+      path: `/landing/reports/${id}`,
+      expectedText: /전체 자료|모든 페이지가 순서대로/,
+      inlineMatchupPdf: true,
+    })),
     { name: "자유게시판", path: "/landing/board", expectedText: /자유게시판/ },
     { name: "수강 후기", path: "/landing/reviews", expectedText: /수강 후기/ },
     { name: "성적 통계", path: "/landing/scores", expectedText: /시험 결과 통계/ },
