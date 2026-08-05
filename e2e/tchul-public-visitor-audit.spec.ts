@@ -9,6 +9,7 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import type { APIRequestContext, Page } from "@playwright/test";
+import { resolvePublicProgramCopy } from "../src/landing/utils/publicProgramCopy";
 import { expect, test } from "./fixtures/strictTest";
 
 const BASE_URL = (process.env.TCHUL_AUDIT_BASE_URL || "https://tchul.com").replace(/\/+$/, "");
@@ -154,6 +155,7 @@ async function auditRoute(page: Page, route: AuditRoute, viewport: ViewportAudit
   }
   if (bodyText.trim().length < 20) defects.push(`본문이 비어 있음 (${bodyText.trim().length}자)`);
   if (/application error|chunkloaderror|페이지를 표시할 수 없습니다/i.test(bodyText)) defects.push("치명적 오류 문구 노출");
+  if (/[.!?。！？]\s+[,·]/.test(bodyText)) defects.push("문장부호 뒤에 불필요한 쉼표가 노출됨");
   for (const match of bodyText.matchAll(/(^|[^0-9])(\d{1,2})\/(\d{1,2})\s*개강/g)) {
     const month = Number(match[2]);
     const day = Number(match[3]);
@@ -200,6 +202,17 @@ async function auditRoute(page: Page, route: AuditRoute, viewport: ViewportAudit
 }
 
 test.describe("tchul 공개 홈페이지 전체 방문 동선", () => {
+  test("지난 개강일을 지운 공개 문구에 불필요한 쉼표를 남기지 않는다", () => {
+    const copy = resolvePublicProgramCopy({
+      title: "통합과학 내신대비 연합반 (월)",
+      description: "PM 6:00-9:00 강의 + ~9:30 클리닉. 5/11 개강, 6+1(직보) 회차 구성.",
+      badge: "5/11 개강",
+    }, new Date("2026-08-05T12:00:00+09:00"));
+
+    expect(copy?.badge).toBe("개강 일정 문의");
+    expect(copy?.description).toBe("PM 6:00-9:00 강의 + ~9:30 클리닉. 6+1(직보) 회차 구성.");
+  });
+
   test.beforeEach(async ({ context }) => {
     await context.addInitScript(() => {
       localStorage.setItem("tenant_code", "tchul");
