@@ -18,10 +18,12 @@
 
 | 경로 | 역할 |
 |---|---|
-| `/landing` | 짧은 공식 홈. 첫 화면, 빠른 메뉴, 최신 매치업 3건, 수업 기준, 강사 정보, 상담 |
+| `/landing` | 짧은 공식 홈. 첫 화면, 빠른 메뉴, 최신 매치업 3건, 시험 분석 최신 2건, 수업 기준, 강사 정보, 상담 |
 | `/landing/about`, `/landing/guide` | 강사·수업·관리 방식 소개와 수강 전 안내 |
 | `/landing/matchup-board` | 공개 매치업 자료 아카이브 |
 | `/landing/matchup-board/:id` | 문자·카카오톡에 공유할 수 있는 단일 자료 페이지 |
+| `/landing/analysis` | 선생님 검수 완료 시험 분석 공개 목록 |
+| `/landing/analysis/:id` | 총평·출제 축·단원/난도·핵심 문항·문항표·다음 학습을 읽는 단일 분석 글 |
 | `/landing/matchup-board?manage=1` | 공개 자료실 위에 열리는 원장/관리자 게시물 관리 팝업 |
 | `/landing/matchup-board?manage=1&compose=upload` | 관리 팝업과 PDF 직접 업로드 창을 함께 여는 진입점 |
 | `/landing/reports`, `/landing/reports/:id`, `/landing/share/:token` | 기존 자동 생성 보고서 목록·상세·공유 호환 경로 |
@@ -34,6 +36,10 @@
 
 홈 내비게이션과 푸터에는 매치업 자료실을 항상 노출한다. 자동 생성 보고서가
 설정되어 있어도 자료실 링크를 숨기지 않는다.
+
+홈의 `시험 분석 노트`는 최신 공개본 2건을 종이 리포트 형태로 보여 준다. 홍보
+문구를 크게 외치기보다 실제 분석 구조와 다음 수업 처방을 근거로 보여 주며,
+빠른 메뉴와 매치업 햄버거 메뉴에서도 `/landing/analysis`로 진입할 수 있다.
 
 정의되지 않은 `/landing/*` 주소는 인증 화면이나 다른 제품 루트로 보내지 않고
 공개 홈 `/landing`으로 복구한다. 잘못된 커뮤니티 게시판 이름은 학원 가족
@@ -57,6 +63,12 @@
 유지되며, 공개 중단은 게시물 관리에서 별도로 실행한다.
 자동 보고서를 게시할 때 공개 제목은 오래된 보고서 임시 제목보다 실제 시험
 문서의 `document_title`을 우선해 중간·기말고사 이름이 뒤섞이지 않게 한다.
+
+문제 리뷰 도구의 `홈페이지 공개`는 선생님이 저장한 검수 버전만
+`PublicProblemReviewShowcase`에 복제한다. 공개 본문과 PDF에는 원문 OCR 발췌,
+내부 검토 메모, 유효성 메모, 신뢰도, 경고를 넣지 않는다. 재공개는 같은 게시물
+URL을 유지하며 새 스냅샷이 안전하게 저장된 뒤 이전 PDF를 정리한다. 공개 중단은
+도구 publication DELETE 계약으로 hidden 처리하고 스냅샷 데이터는 보존한다.
 
 원장/관리자만 게시·수정·비공개·내리기를 실행할 수 있다. 게시물 관리는 별도
 흰색 관리 페이지로 이동하지 않고 공개 자료실 위의 큰 팝업에서 처리한다. 직접
@@ -90,6 +102,10 @@ URL로 들어오는 기존 `/landing/admin/matchup-board` 경로는 호환용으
   사용한다.
 - 공개 본문은 iframe을 사용하지 않으므로 브라우저 PDF plugin이나 `frame-src`
   허용 여부에 의존하지 않는다. 원본 API 응답은 PDF.js가 직접 읽고 canvas로 표시한다.
+- 시험 분석 상세는 PDF 뷰어를 본문으로 사용하지 않는다. 카페 게시물처럼 총평,
+  출제 축, 단원·난도, 핵심 문항, 문항별 분석표, 다음 수업을 HTML로 이어서 읽고,
+  공개 PDF는 저장·인쇄가 필요한 방문자용 보조 링크로만 제공한다. 긴 문항표는
+  모바일에서 표 내부만 가로 스크롤하고 페이지 자체에는 가로 overflow를 만들지 않는다.
 - 목록·상세 API가 실패하면 빈 화면으로 오인시키지 않고 오류와 다시 시도를
   표시한다. 자료가 없으면 첫 게시를 안내한다.
 - 비공개·기간 만료·없는 게시물은 각각 접근 불가 상태를 안내하며 다른 테넌트
@@ -140,6 +156,7 @@ URL로 들어오는 기존 `/landing/admin/matchup-board` 경로는 호환용으
 ```powershell
 pnpm exec eslint src/landing/templates/PremiumDark.tsx src/landing/pages/LandingMatchupBoardPage.tsx src/landing/pages/LandingMatchupBoardDetailPage.tsx
 pnpm exec playwright test e2e/landing-matchup-static-preview.spec.ts --project=chromium --reporter=list
+pnpm exec playwright test e2e/landing-problem-analysis.mock.spec.ts --project=chromium --reporter=list
 pnpm exec playwright test e2e/tchul-public-visitor-audit.spec.ts --project=chromium --reporter=list
 pnpm build
 ```

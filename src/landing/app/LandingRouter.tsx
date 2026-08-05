@@ -26,6 +26,8 @@ const LandingScoresDetailPage = lazy(() =>
 const LandingMatchupBoardAdminPage = lazy(() => import("@/landing/admin/LandingMatchupBoardAdminPage"));
 const LandingMatchupBoardPage = lazy(() => import("@/landing/pages/LandingMatchupBoardPage"));
 const LandingMatchupBoardDetailPage = lazy(() => import("@/landing/pages/LandingMatchupBoardDetailPage"));
+const LandingProblemAnalysisPage = lazy(() => import("@/landing/pages/LandingProblemAnalysisPage"));
+const LandingProblemAnalysisDetailPage = lazy(() => import("@/landing/pages/LandingProblemAnalysisDetailPage"));
 const LandingAboutPage = lazy(() => import("@/landing/pages/LandingAboutPage"));
 const LandingGuidePage = lazy(() => import("@/landing/pages/LandingGuidePage"));
 
@@ -61,6 +63,8 @@ export default function LandingRouter() {
       <Route path="guide" element={<LandingGuidePage />} />
       <Route path="matchup-board" element={<LandingMatchupBoardPage />} />
       <Route path="matchup-board/:id" element={<LandingMatchupBoardDetailPage />} />
+      <Route path="analysis" element={<LandingProblemAnalysisPage />} />
+      <Route path="analysis/:id" element={<LandingProblemAnalysisDetailPage />} />
       <Route path="admin/matchup-board" element={<LandingMatchupBoardAdminPage />} />
       <Route path="*" element={<Navigate to="/landing" replace />} />
     </Routes>

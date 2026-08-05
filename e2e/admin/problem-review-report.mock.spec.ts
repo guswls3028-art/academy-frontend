@@ -105,6 +105,7 @@ async function installApp(page: Page) {
     version: 1,
     draft: sampleDraft(),
     savedOneLine: "",
+    publishedVersion: 0,
   };
   const report = () => ({
     id: REPORT_ID,
@@ -147,6 +148,18 @@ async function installApp(page: Page) {
       state.savedOneLine = payload.draft.summary.one_line;
       return json(report());
     }
+    if (path === `/tools/problem-review/reports/${REPORT_ID}/publication/` && method === "POST") {
+      const payload = request.postDataJSON() as { version: number };
+      state.publishedVersion = payload.version;
+      return json({
+        id: 91,
+        title: state.draft.metadata.title,
+        status: "published",
+        published_at: "2026-08-06T06:00:00+09:00",
+        public_url: "/landing/analysis/91",
+        pdf_url: "/api/v1/landing-public/problem-review-showcase/91/pdf/?tenant=hakwonplus",
+      });
+    }
     if (path === `/tools/problem-review/reports/${REPORT_ID}/exports/` && method === "POST") return json({ job_id: "export-job-1", status: "PENDING", output_format: "pdf" }, 202);
     if (path === `/tools/problem-review/reports/${REPORT_ID}/exports/export-job-1/`) return json({
       job_id: "export-job-1",
@@ -175,6 +188,10 @@ test("문제 리뷰를 검수 저장하고 PDF로 내려받으며 390px에서도
   await page.getByRole("button", { name: "변경 저장" }).click();
   await expect.poll(() => state.savedOneLine).toBe("자료 해석의 근거를 끝까지 확인한 시험입니다.");
   await expect(page.getByText("자료 해석의 근거를 끝까지 확인한 시험입니다.", { exact: true })).toBeVisible();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "홈페이지 공개" }).click();
+  await expect.poll(() => state.publishedVersion).toBe(2);
+  await expect(page.getByRole("button", { name: "공개본 보기" })).toBeVisible();
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "PDF", exact: true }).click();
   expect((await download).suggestedFilename()).toBe("문제리뷰.pdf");

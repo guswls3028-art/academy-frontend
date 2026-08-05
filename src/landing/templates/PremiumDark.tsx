@@ -4,6 +4,10 @@ import { Link } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
 
 import { fetchMatchupShowcaseList, type MatchupShowcaseCard } from "../api/matchupShowcase";
+import {
+  fetchProblemReviewShowcaseList,
+  type ProblemReviewShowcaseCard,
+} from "../api/problemReviewShowcase";
 import LandingFooter from "../components/LandingFooter";
 import ResilientPublicImage from "../components/ResilientPublicImage";
 import type {
@@ -55,6 +59,12 @@ type ArchiveState = {
   items: MatchupShowcaseCard[];
 };
 
+type AnalysisState = {
+  loading: boolean;
+  failed: boolean;
+  items: ProblemReviewShowcaseCard[];
+};
+
 const DEFAULT_STANDARDS: FeatureItem[] = [
   { icon: "search", title: "학교별 시험 분석", description: "학교와 시험 범위를 기준으로 출제 흐름과 대비 자료를 다시 점검합니다." },
   { icon: "document", title: "수업 자료 직접 제작", description: "수업 전 준비부터 시험 후 매치업 자료까지 같은 기준으로 직접 정리합니다." },
@@ -104,6 +114,7 @@ export default function PremiumDark({ config }: TemplateProps) {
     user?.is_superuser || user?.tenantRole === "owner" || user?.tenantRole === "admin",
   );
   const [archive, setArchive] = useState<ArchiveState>({ loading: true, failed: false, items: [] });
+  const [analysis, setAnalysis] = useState<AnalysisState>({ loading: true, failed: false, items: [] });
 
   useEffect(() => {
     let cancelled = false;
@@ -119,6 +130,18 @@ export default function PremiumDark({ config }: TemplateProps) {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchProblemReviewShowcaseList({ skipAuth: true })
+      .then((response) => {
+        if (!cancelled) setAnalysis({ loading: false, failed: false, items: response.results.slice(0, 2) });
+      })
+      .catch(() => {
+        if (!cancelled) setAnalysis({ loading: false, failed: true, items: [] });
+      });
+    return () => { cancelled = true; };
   }, []);
 
   const heroTitle = hero?.title || config.tagline || `${config.brand_name} 통합과학`;
@@ -194,6 +217,7 @@ export default function PremiumDark({ config }: TemplateProps) {
         <nav className={styles.quickNav} aria-label="주요 메뉴">
           <QuickLink label="강사와 수업" detail="박철T 소개와 수업 방식" to="/landing/about" />
           <QuickLink label="매치업 자료실" detail="학교 시험과 수업 자료 비교" to="/landing/matchup-board" featured />
+          <QuickLink label="시험 분석" detail="문항별 리뷰와 다음 학습" to="/landing/analysis" />
           <QuickLink label="수강 안내" detail="시간표와 상담 연락처" to="#contact" />
         </nav>
 
@@ -216,6 +240,20 @@ export default function PremiumDark({ config }: TemplateProps) {
           </div>
 
           <ArchiveGrid archive={archive} />
+        </section>
+
+        <section className={styles.analysisSection} aria-labelledby="analysis-title">
+          <div className={styles.analysisHeading}>
+            <div>
+              <span className={styles.utilityLabel}>시험 분석 노트</span>
+              <h2 id="analysis-title">시험이 끝나면,<br />다음 수업이 시작됩니다</h2>
+            </div>
+            <div className={styles.analysisIntro}>
+              <p>문항별 출제 포인트와 학생이 막힌 지점을 다시 읽습니다. 총평에서 끝내지 않고 다음 시험을 위한 수업 처방까지 남깁니다.</p>
+              <Link to="/landing/analysis" className={styles.textAction}>전체 분석 보기 <Arrow /></Link>
+            </div>
+          </div>
+          <AnalysisShowcaseGrid analysis={analysis} />
         </section>
 
         <section className={styles.standardSection} data-stype="features" aria-labelledby="standard-title">
@@ -372,6 +410,40 @@ function ArchiveGrid({ archive }: { archive: ArchiveState }) {
           </Link>
         );
       })}
+    </div>
+  );
+}
+
+function AnalysisShowcaseGrid({ analysis }: { analysis: AnalysisState }) {
+  if (analysis.loading) {
+    return <div className={styles.analysisCards} aria-label="시험 분석을 불러오는 중"><div className={styles.analysisSkeleton} /><div className={styles.analysisSkeleton} /></div>;
+  }
+  if (analysis.failed || analysis.items.length === 0) {
+    return (
+      <div className={styles.analysisEmpty}>
+        <span>{analysis.failed ? "시험 분석 목록을 불러오지 못했습니다." : "첫 시험 분석 공개본을 준비하고 있습니다."}</span>
+        <Link to="/landing/analysis">시험 분석 노트 보기</Link>
+      </div>
+    );
+  }
+  return (
+    <div className={styles.analysisCards}>
+      {analysis.items.map((item, index) => (
+        <Link className={styles.analysisCard} to={`/landing/analysis/${item.id}`} key={item.id}>
+          <div className={styles.analysisPaper} aria-hidden="true">
+            <span>0{index + 1}</span>
+            <small>EXAM REVIEW</small>
+            <strong>{item.metadata.school || "학교별 시험"}</strong>
+            <i />
+          </div>
+          <div className={styles.analysisCardCopy}>
+            <div><span>{item.metadata.exam_name || item.metadata.subject || "시험 분석"}</span><span>{formatArchiveDate(item.published_at)}</span></div>
+            <h3>{item.title}</h3>
+            <p>{item.description || "문항별 출제 의도와 다음 학습 방향을 정리했습니다."}</p>
+            <footer><span>{item.summary.total_questions || "-"}문항 분석</span><strong>리포트 읽기 <Arrow /></strong></footer>
+          </div>
+        </Link>
+      ))}
     </div>
   );
 }
