@@ -10,8 +10,7 @@ import {
   type HomeworkQuestionGrading,
   type HomeworkQuestionMark,
 } from "../api/adminHomework";
-
-const gradingKey = (homeworkId: number) => ["homework-question-grading", homeworkId] as const;
+import { QUERY_KEYS } from "../queryKeys";
 
 type CellValue = "unset" | "correct" | "wrong" | "review";
 
@@ -31,7 +30,7 @@ function valueToMark(value: CellValue): HomeworkQuestionMark {
 export default function HomeworkQuestionLedger({ homeworkId }: { homeworkId: number }) {
   const queryClient = useQueryClient();
   const grading = useQuery({
-    queryKey: gradingKey(homeworkId),
+    queryKey: QUERY_KEYS.WORKBOOK_QUESTION_GRADING(homeworkId),
     queryFn: () => fetchHomeworkQuestionGrading(homeworkId),
   });
   const update = useMutation({
@@ -44,7 +43,7 @@ export default function HomeworkQuestionLedger({ homeworkId }: { homeworkId: num
       }]);
     },
     onSuccess: (data: HomeworkQuestionGrading) => {
-      queryClient.setQueryData(gradingKey(homeworkId), data);
+      queryClient.setQueryData(QUERY_KEYS.WORKBOOK_QUESTION_GRADING(homeworkId), data);
     },
     onError: (error: unknown) => {
       feedback.error(extractApiError(error, "문항 표시를 저장하지 못했습니다."));

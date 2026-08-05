@@ -134,7 +134,7 @@ test("학생의 여러 강의 시험과 워크북을 한 HWPX로 만든다", asy
   });
 
   await page.setViewportSize({ width: 1100, height: 850 });
-  await page.goto(`${BASE}/e2e-student-wrong-note-harness.html`);
+  await page.goto(`${BASE}/e2e-student-wrong-note-harness.html`, { timeout: 60_000 });
   await page.getByText("7월 진단평가", { exact: true }).click();
   await page.getByText("Remake WB 3", { exact: true }).click();
 

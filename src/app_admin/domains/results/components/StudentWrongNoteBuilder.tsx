@@ -13,6 +13,7 @@ import {
   type WrongNoteSource,
   type WrongNoteSourceSelection,
 } from "../api/wrongNotes";
+import { adminResultsQueryKeys } from "../queryKeys";
 import styles from "./StudentWrongNoteBuilder.module.css";
 
 function sourceKey(source: WrongNoteSourceSelection): string {
@@ -24,7 +25,7 @@ export default function StudentWrongNoteBuilder({ studentId }: { studentId: numb
   const [outputFormat, setOutputFormat] = useState<"pdf" | "hwpx">("pdf");
   const [jobId, setJobId] = useState<number | null>(null);
   const sourcesQuery = useQuery({
-    queryKey: ["student-wrong-note-sources", studentId],
+    queryKey: adminResultsQueryKeys.studentWrongNoteSources(studentId),
     queryFn: () => fetchWrongNoteSources(studentId),
     enabled: Number.isFinite(studentId) && studentId > 0,
   });
@@ -43,7 +44,7 @@ export default function StudentWrongNoteBuilder({ studentId }: { studentId: numb
   }, [selectionToken, outputFormat]);
 
   const preview = useQuery({
-    queryKey: ["student-wrong-note-preview", studentId, selectionToken],
+    queryKey: adminResultsQueryKeys.studentWrongNotePreview(studentId, selectionToken),
     queryFn: () => previewSelectedWrongNotes({
       student_id: studentId,
       source_selection: selected,
@@ -63,7 +64,7 @@ export default function StudentWrongNoteBuilder({ studentId }: { studentId: numb
     },
   });
   const job = useQuery({
-    queryKey: ["wrong-note-document", jobId],
+    queryKey: adminResultsQueryKeys.wrongNoteDocument(jobId),
     queryFn: () => fetchWrongNotePDFStatus(Number(jobId)),
     enabled: jobId != null,
     refetchInterval: (query) => {

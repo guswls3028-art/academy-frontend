@@ -16,6 +16,9 @@ export const QUERY_KEYS = {
   HOMEWORK_ASSIGNMENTS: (homeworkId: number) =>
     ["homework-assignments", homeworkId] as const,
 
+  WORKBOOK_QUESTION_GRADING: (homeworkId: number) =>
+    ["homework-question-grading", homeworkId] as const,
+
   HOMEWORK_SESSION_ENROLLMENTS: (sessionId: number) =>
     ["homework-session-enrollments", sessionId] as const,
 

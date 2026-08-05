@@ -46,7 +46,7 @@ import { EmptyState, Button, CloseButton, Badge, ICON, type BadgeTone } from "@/
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { formatPhone, formatStudentPhoneDisplay, formatOmrCode, formatGenderDisplay } from "@/shared/utils/formatPhone";
 import { adminStudentsQueryKeys } from "../queryKeys";
-import StudentWrongNoteBuilder from "@admin/domains/results/components/StudentWrongNoteBuilder";
+import StudentWrongNoteBuilder from "@admin/domains/results/public/StudentWrongNoteBuilder";
 import styles from "./StudentsDetailOverlay.module.css";
 
 const StudentFormModal = lazy(() => import("../components/EditStudentModal"));

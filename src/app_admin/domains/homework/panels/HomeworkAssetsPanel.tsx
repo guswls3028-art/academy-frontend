@@ -5,8 +5,10 @@ import { Badge, Button, EmptyState } from "@/shared/ui/ds";
 import formStyles from "@/shared/ui/assessment/AssessmentSetupForm.module.css";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
-import ExamPdfUploadModal from "@admin/domains/exams/components/ExamPdfUploadModal";
-import ExamSegmentationReview from "@admin/domains/exams/components/ExamSegmentationReview";
+import {
+  ExamPdfUploadModal,
+  ExamSegmentationReview,
+} from "@admin/domains/exams/public/workbookSource";
 
 import { ensureHomeworkSourceExam } from "../api/adminHomework";
 import { useAdminHomework } from "../hooks/useAdminHomework";
