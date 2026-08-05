@@ -35,6 +35,12 @@ export const adminResultsQueryKeys = {
   ] as const,
   wrongNotesEnrollment: (enrollmentId: number) =>
     ["wrong-notes", enrollmentId] as const,
+  studentWrongNoteSources: (studentId: number) =>
+    ["student-wrong-note-sources", studentId] as const,
+  studentWrongNotePreview: (studentId: number, selectionToken: string) =>
+    ["student-wrong-note-preview", studentId, selectionToken] as const,
+  wrongNoteDocument: (jobId: number | null) =>
+    ["wrong-note-document", jobId] as const,
 
   omrReviewList: (examId: number) => ["omr-review-list", examId] as const,
   omrReviewDetail: (submissionId: number | null | undefined) => ["omr-review-detail", submissionId] as const,

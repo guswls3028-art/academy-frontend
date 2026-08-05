@@ -2,10 +2,9 @@
 // 통합 hook — 시험지 PDF 업로드 + AI 문항 분할 + 결과 폴링
 //
 // 플로우:
-//   1. POST /exams/{examId}/assets/ (자산 저장)
-//   2. POST /exams/pdf-extract/ (AI 문항 분할 job 제출)
-//   3. GET /jobs/{jobId}/ (폴링 → 완료 대기)
-//   4. 완료 시 캐시 무효화 → 문항 목록 자동 반영
+//   1. POST /exams/pdf-extract/ (원본 저장 + 자료 유형 판별 + job 제출)
+//   2. GET /jobs/{jobId}/ (폴링 → 완료 대기)
+//   3. 완료 시 캐시 무효화 → 문항 목록 자동 반영
 //
 // 진입점 2개(자산 탭, 답안 등록 모달)에서 동일하게 사용
 
@@ -21,6 +20,7 @@ export type PdfExtractStatus =
   | "uploading"       // 파일 업로드 중
   | "processing"      // AI 문항 분할 처리 중
   | "done"            // 완료
+  | "conversion_required" // 원형 보존을 위해 문제 PDF가 추가로 필요함
   | "failed";         // 실패
 
 export type PdfExtractProgress = {
@@ -34,6 +34,9 @@ export type PdfExtractResult = {
   totalQuestions: number;
   explanationCount: number;
   pageCount: number;
+  conversionRequired: boolean;
+  sourceMode?: string;
+  message?: string;
 } | null;
 
 type JobStatusPayload = {
@@ -81,6 +84,9 @@ function normalizeResult(value: unknown): Exclude<PdfExtractResult, null> {
     totalQuestions: asNumber(record.total_questions) ?? boxes.length,
     explanationCount: matchedExplanations.length,
     pageCount: asNumber(record.page_count) ?? 1,
+    conversionRequired: record.conversion_required === true,
+    sourceMode: asString(record.source_mode),
+    message: asString(record.message),
   };
 }
 
@@ -144,8 +150,20 @@ export function usePdfQuestionExtract(examId: number) {
               totalQuestions: 0,
               explanationCount: 0,
               pageCount: 1,
+              conversionRequired: false,
             };
             setResult(resultPayload);
+
+            if (resultPayload.conversionRequired) {
+              setStatus("conversion_required");
+              feedback.warning(
+                resultPayload.message
+                || "원본을 보존하려면 같은 문제지를 PDF로 저장해 다시 올려 주세요.",
+              );
+              qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examAssets(examId) });
+              qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExam(examId) });
+              return;
+            }
 
             feedback.success(
               `문항 분할 완료: ${resultPayload.totalQuestions}개 후보를 검수해 주세요.`
@@ -192,18 +210,7 @@ export function usePdfQuestionExtract(examId: number) {
       setProgress({ percent: 0 });
 
       try {
-        // Step 1: 자산으로 저장 (기존 동작 유지)
-        const assetFd = new FormData();
-        assetFd.append("asset_type", "problem_pdf");
-        assetFd.append("file", file);
-
-        await api.post(`/exams/${examId}/assets/`, assetFd, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-
-        setProgress({ percent: 10, stepName: "파일 업로드 완료" });
-
-        // Step 2: AI 문항 분할 job 제출
+        // 원본 저장과 job 제출을 한 요청으로 처리해 큰 파일을 두 번 보내지 않는다.
         const extractFd = new FormData();
         extractFd.append("file", file);
         extractFd.append("exam_id", String(examId));
@@ -215,12 +222,29 @@ export function usePdfQuestionExtract(examId: number) {
           headers: { "Content-Type": "multipart/form-data" },
         });
 
-        const jobId = asString(asRecord(extractResp.data).job_id);
+        setProgress({ percent: 10, stepName: "원본 업로드 완료" });
+
+        const responseRecord = asRecord(extractResp.data);
+        if (asString(responseRecord.status) === "conversion_required") {
+          setStatus("conversion_required");
+          setResult({
+            totalQuestions: 0,
+            explanationCount: 0,
+            pageCount: 1,
+            conversionRequired: true,
+            message: asString(responseRecord.message),
+          });
+          qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examAssets(examId) });
+          qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExam(examId) });
+          return;
+        }
+
+        const jobId = asString(responseRecord.job_id);
         if (!jobId) {
           throw new Error("AI job 제출 실패: job_id를 받지 못했습니다.");
         }
 
-        // Step 3: 폴링 시작
+        // 처리 상태 폴링 시작
         setStatus("processing");
         setProgress({ percent: 15, stepName: "AI 문항 분할 시작" });
         feedback.info("문항과 선생님 원본 해설을 맞추고 있습니다...");
@@ -233,7 +257,7 @@ export function usePdfQuestionExtract(examId: number) {
         feedback.error(msg);
       }
     },
-    [examId, pollJobStatus, stopPolling],
+    [examId, pollJobStatus, qc, stopPolling],
   );
 
   const reset = useCallback(() => {

@@ -15,33 +15,11 @@ import { apiCall } from "../helpers/api";
 
 const BASE = getBaseUrl("admin");
 const TS = Date.now();
-
-type ExamSummary = {
-  id?: number | string | null;
-  exam_id?: number | string | null;
-  exam_type?: string | null;
-  template_exam_id?: number | string | null;
-  title?: string | null;
-};
-
-type LectureSummary = {
-  id?: number | string | null;
-  title?: string | null;
-  name?: string | null;
-};
-
-type SessionSummary = {
-  id?: number | string | null;
-};
+const TODAY = new Date().toISOString().slice(0, 10);
 
 type ExamAsset = {
   asset_type?: string | null;
   file_key?: string | null;
-};
-
-type UploadAssetResult = {
-  status: number;
-  body: unknown;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -62,28 +40,13 @@ function listOf<T>(body: unknown, guard: (value: unknown) => value is T): T[] {
   return Array.isArray(source) ? source.filter(guard) : [];
 }
 
-function isExamSummary(value: unknown): value is ExamSummary {
-  if (!isRecord(value)) return false;
-  return numberFrom(value.id ?? value.exam_id) !== null || stringFrom(value.title) !== null;
-}
-
-function isLectureSummary(value: unknown): value is LectureSummary {
-  if (!isRecord(value)) return false;
-  return numberFrom(value.id) !== null;
-}
-
-function isSessionSummary(value: unknown): value is SessionSummary {
-  if (!isRecord(value)) return false;
-  return numberFrom(value.id) !== null;
-}
-
 function isExamAsset(value: unknown): value is ExamAsset {
   if (!isRecord(value)) return false;
   return stringFrom(value.asset_type) !== null || stringFrom(value.file_key) !== null;
 }
 
 function pdfUploadModal(page: Page) {
-  return page.locator(".admin-modal__inner").filter({ hasText: "시험지 원본 업로드" }).last();
+  return page.locator(".admin-modal__inner").filter({ hasText: "시험 자료 올리기" }).last();
 }
 
 test.describe.serial("Exam PDF upload flow", () => {
@@ -95,6 +58,8 @@ test.describe.serial("Exam PDF upload flow", () => {
   let templateExamId: number | null = null;
   let sessionId: number | null = null;
   let lectureId: number | null = null;
+  let createdLecture = false;
+  let createdSession = false;
   let createdTemplate = false;
   let createdRegular = false;
   let cleanupDone = false;
@@ -115,6 +80,14 @@ test.describe.serial("Exam PDF upload flow", () => {
       if (createdTemplate && templateExamId) {
         const r = await apiCall(page, "DELETE", `/exams/${templateExamId}/`);
         console.log(`  Cleanup template exam ${templateExamId}: ${r.status}`);
+      }
+      if (createdSession && sessionId) {
+        const r = await apiCall(page, "DELETE", `/lectures/sessions/${sessionId}/`);
+        console.log(`  Cleanup session ${sessionId}: ${r.status}`);
+      }
+      if (createdLecture && lectureId) {
+        const r = await apiCall(page, "DELETE", `/lectures/lectures/${lectureId}/`);
+        console.log(`  Cleanup lecture ${lectureId}: ${r.status}`);
       }
       await page.context().close().catch(() => undefined);
     }
@@ -138,66 +111,57 @@ test.describe.serial("Exam PDF upload flow", () => {
   // 2. Create a fresh exam with session context
   // ══════════════════════════════════════════════════════
   test("2. Create exam with session + template context", async () => {
-    // Step A: sample existing state for debug only. Upload targets must be fresh,
-    // because templates already used by production exams are intentionally sealed.
-    const resp = await apiCall(page, "GET", "/exams/");
-    const allExams = listOf<ExamSummary>(resp.body, isExamSummary);
-    console.log(`  Total exams found: ${allExams.length}`);
-    for (const e of allExams.slice(0, 5)) {
-      console.log(
-        `    exam id=${e.id ?? e.exam_id} type=${e.exam_type} template_exam_id=${e.template_exam_id} title="${e.title}"`,
-      );
+    const lectureResp = await apiCall(page, "POST", "/lectures/lectures/", {
+      title: `[E2E-${TS}] 시험 자료 업로드 검증`,
+      name: "E2E 시험 자료 업로드",
+      subject: "수학",
+      description: "격리된 시험 자료 업로드 canary",
+      start_date: TODAY,
+      lecture_time: "수 08:00 ~ 09:00",
+      color: "#2563eb",
+      chip_label: "검증",
+      is_active: true,
+    });
+    lectureId = numberFrom(isRecord(lectureResp.body) ? lectureResp.body.id : null);
+    if (lectureResp.status >= 300 || !lectureId) {
+      throw new Error(`Lecture creation failed: ${lectureResp.status} ${JSON.stringify(lectureResp.body)}`);
     }
+    createdLecture = true;
 
-    // Step B: Find session/lecture context for navigation
-    const lecturesResp = await apiCall(page, "GET", "/lectures/lectures/");
-    const lectures = listOf<LectureSummary>(lecturesResp.body, isLectureSummary);
-
-    console.log(`  Lectures found: ${lectures.length}`);
-
-    for (const lec of lectures) {
-      const lid = numberFrom(lec.id);
-      if (!lid) continue;
-      const sessResp = await apiCall(page, "GET", `/lectures/sessions/?lecture=${lid}`);
-      const sessions = listOf<SessionSummary>(sessResp.body, isSessionSummary);
-      console.log(`    lecture ${lid} "${lec.title || lec.name}" → ${sessions.length} sessions`);
-
-      if (sessions.length > 0) {
-        lectureId = lid;
-        sessionId = numberFrom(sessions[0].id);
-        if (!sessionId) continue;
-
-        const tmplResp = await apiCall(page, "POST", "/exams/", {
-          title: `[E2E-${TS}] Template`,
-          subject: "E2E",
-          exam_type: "template",
-        });
-        const createdTemplateId = numberFrom(isRecord(tmplResp.body) ? tmplResp.body.id : null);
-        if (tmplResp.status >= 300 || !createdTemplateId) {
-          throw new Error(`Template creation failed: ${tmplResp.status} ${JSON.stringify(tmplResp.body)}`);
-        }
-        templateExamId = createdTemplateId;
-        createdTemplate = true;
-        console.log(`  Created template exam: ${templateExamId}`);
-
-        const regResp = await apiCall(page, "POST", "/exams/", {
-          title: `[E2E-${TS}] Regular`,
-          template_exam_id: templateExamId,
-          session_id: sessionId,
-          exam_type: "regular",
-        });
-        const createdRegularId = numberFrom(isRecord(regResp.body) ? regResp.body.id : null);
-        if (regResp.status >= 300 || !createdRegularId) {
-          throw new Error(`Regular exam creation failed: ${regResp.status} ${JSON.stringify(regResp.body)}`);
-        }
-        regularExamId = createdRegularId;
-        createdRegular = true;
-        console.log(`  Created regular exam: ${regularExamId} -> template ${templateExamId}`);
-
-        console.log(`  Using lecture=${lectureId}, session=${sessionId}`);
-        break;
-      }
+    const sessionResp = await apiCall(page, "POST", "/lectures/sessions/", {
+      lecture: lectureId,
+      title: `[E2E-${TS}] 업로드 차시`,
+      date: TODAY,
+      order: 1,
+    });
+    sessionId = numberFrom(isRecord(sessionResp.body) ? sessionResp.body.id : null);
+    if (sessionResp.status >= 300 || !sessionId) {
+      throw new Error(`Session creation failed: ${sessionResp.status} ${JSON.stringify(sessionResp.body)}`);
     }
+    createdSession = true;
+
+    const tmplResp = await apiCall(page, "POST", "/exams/", {
+      title: `[E2E-${TS}] Template`,
+      subject: "수학",
+      exam_type: "template",
+    });
+    templateExamId = numberFrom(isRecord(tmplResp.body) ? tmplResp.body.id : null);
+    if (tmplResp.status >= 300 || !templateExamId) {
+      throw new Error(`Template creation failed: ${tmplResp.status} ${JSON.stringify(tmplResp.body)}`);
+    }
+    createdTemplate = true;
+
+    const regResp = await apiCall(page, "POST", "/exams/", {
+      title: `[E2E-${TS}] Regular`,
+      template_exam_id: templateExamId,
+      session_id: sessionId,
+      exam_type: "regular",
+    });
+    regularExamId = numberFrom(isRecord(regResp.body) ? regResp.body.id : null);
+    if (regResp.status >= 300 || !regularExamId) {
+      throw new Error(`Regular exam creation failed: ${regResp.status} ${JSON.stringify(regResp.body)}`);
+    }
+    createdRegular = true;
 
     expect(templateExamId).toBeGreaterThan(0);
     expect(regularExamId).toBeGreaterThan(0);
@@ -212,43 +176,36 @@ test.describe.serial("Exam PDF upload flow", () => {
     test.skip(!templateExamId, "No template exam available");
     if (!templateExamId) throw new Error("No template exam available");
 
-    const result = await page.evaluate(
-      async ({ examId, apiBase }): Promise<UploadAssetResult> => {
-        const token = localStorage.getItem("access") || "";
-        const host = window.location.hostname.toLowerCase();
-        const tenantMap: Record<string, string> = {
-          "hakwonplus.com": "hakwonplus", "www.hakwonplus.com": "hakwonplus",
-          "localhost": "hakwonplus",
-        };
-        const tenantCode = tenantMap[host] || "hakwonplus";
-
-        // Minimal valid PDF
-        const pdfContent = "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n190\n%%EOF";
-        const blob = new Blob([pdfContent], { type: "application/pdf" });
-        const file = new File([blob], "e2e-test-exam.pdf", { type: "application/pdf" });
-
-        const fd = new FormData();
-        fd.append("asset_type", "problem_pdf");
-        fd.append("file", file);
-
-        const res = await fetch(`${apiBase}/api/v1/exams/${examId}/assets/`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "X-Tenant-Code": tenantCode,
-          },
-          body: fd,
-        });
-
-        let body: unknown;
-        try { body = await res.json(); } catch { body = null; }
-        return { status: res.status, body };
-      },
-      { examId: templateExamId, apiBase: process.env.E2E_API_URL || "https://api.hakwonplus.com" },
+    const auth = await page.evaluate(() => ({
+      access: localStorage.getItem("access") || "",
+      tenantCode: sessionStorage.getItem("tenantCode") || "hakwonplus",
+    }));
+    const pdfContent = Buffer.from(
+      "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n190\n%%EOF",
     );
+    const apiBase = process.env.E2E_API_URL || "https://api.hakwonplus.com";
+    const response = await page.request.post(
+      `${apiBase}/api/v1/exams/${templateExamId}/assets/`,
+      {
+        headers: {
+          Authorization: `Bearer ${auth.access}`,
+          "X-Tenant-Code": auth.tenantCode,
+        },
+        multipart: {
+          asset_type: "problem_pdf",
+          file: {
+            name: "e2e-test-exam.pdf",
+            mimeType: "application/pdf",
+            buffer: pdfContent,
+          },
+        },
+      },
+    );
+    let body: unknown = null;
+    try { body = await response.json(); } catch { body = null; }
+    const result = { status: response.status(), body };
 
     console.log(`  POST /exams/${templateExamId}/assets/ → ${result.status}`);
-    console.log(`  Response:`, JSON.stringify(result.body));
 
     expect(result.status).toBeLessThan(300);
     if (!isExamAsset(result.body)) {
@@ -265,7 +222,7 @@ test.describe.serial("Exam PDF upload flow", () => {
     test.skip(!lectureId || !sessionId, "No session available");
 
     await page.goto(
-      `${BASE}/workspace/lectures/${lectureId}/sessions/${sessionId}/exams`,
+      `${BASE}/workspace/lectures/${lectureId}/sessions/${sessionId}/exams?examId=${regularExamId}`,
       { waitUntil: "load", timeout: 15000 },
     );
     await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
@@ -304,22 +261,30 @@ test.describe.serial("Exam PDF upload flow", () => {
       uploadBtn = page.locator("button").filter({ hasText: /시험지.*PDF|시험지 업로드/ }).first();
     }
 
-    const btnVisible = await uploadBtn.isVisible({ timeout: 5000 }).catch(() => false);
-
-    if (btnVisible) {
-      await uploadBtn.click();
+    await expect(uploadBtn).toBeVisible({ timeout: 10000 });
+    await uploadBtn.click();
 
       // Verify modal opened
       const modal = pdfUploadModal(page);
-      const modalTitle = modal.locator(".modal-header").filter({ hasText: "시험지 원본 업로드" }).first();
+      const modalTitle = modal.locator(".modal-header").filter({ hasText: "시험 자료 올리기" }).first();
       await expect(modalTitle).toBeVisible({ timeout: 5000 });
       console.log("  ExamPdfUploadModal opened successfully");
 
-      // Verify the clean-problem + teacher-HWP paired upload contract.
-      await expect(modal.getByText("답 표시가 없는 문제지")).toBeVisible({ timeout: 3000 });
-      await expect(modal.getByText("선생님 해설 HWP (선택)")).toBeVisible({ timeout: 3000 });
-      const fileInputs = modal.locator('input[type="file"]');
+      // A single entry accepts combined HWP/HWPX or a problem-only PDF/image.
+      await expect(modal.getByText("문제+해설 한 파일")).toBeVisible({ timeout: 3000 });
+      await expect(modal.getByText("문제 파일만")).toBeVisible({ timeout: 3000 });
+      await expect(modal.getByText("문제·해설 두 파일")).toBeVisible({ timeout: 3000 });
+      await expect(modal.getByText("시험 자료", { exact: true })).toBeVisible();
+      let fileInputs = modal.locator('input[type="file"]');
+      await expect(fileInputs).toHaveCount(1);
+      await expect(fileInputs.first()).toHaveAttribute("accept", /\.hwpx/);
+
+      await modal.getByRole("button", { name: "문제지와 해설지가 따로 있어요" }).click();
+      await expect(modal.getByText("문제 파일", { exact: true })).toBeVisible();
+      await expect(modal.getByText("선생님 해설 파일", { exact: true })).toBeVisible();
+      fileInputs = modal.locator('input[type="file"]');
       await expect(fileInputs).toHaveCount(2);
+      await expect(fileInputs.nth(1)).toHaveAttribute("accept", ".hwp,.hwpx");
 
       // A teacher HWP cannot be paired with another HWP as the problem source.
       await fileInputs.nth(0).setInputFiles({
@@ -332,9 +297,9 @@ test.describe.serial("Exam PDF upload flow", () => {
         mimeType: "application/x-hwp",
         buffer: Buffer.from("HWP explanation fixture"),
       });
-      await expect(modal.getByText(/해설 HWP를 함께 쓸 때는/)).toBeVisible();
+      await expect(modal.getByText(/해설 파일을 따로 올릴 때/)).toBeVisible();
       await expect(modal.getByRole("button", { name: "업로드 및 문항 분석" })).toBeDisabled();
-      console.log("  Paired upload zones and fail-closed primary validation visible");
+      console.log("  Single-entry modes and fail-closed paired validation visible");
 
       // Take screenshot of modal
       await page.screenshot({ path: "e2e/screenshots/exam-pdf-upload-modal.png" });
@@ -344,10 +309,6 @@ test.describe.serial("Exam PDF upload flow", () => {
       if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
         await closeBtn.click();
         await expect(modal).toBeHidden({ timeout: 5000 });
-      }
-    } else {
-      console.log("  Upload button not found — taking screenshot for debugging");
-      await page.screenshot({ path: "e2e/screenshots/exam-pdf-upload-no-button.png" });
     }
   });
 
@@ -359,20 +320,12 @@ test.describe.serial("Exam PDF upload flow", () => {
 
     // Find and click upload button
     const uploadBtn = page.locator("button").filter({ hasText: /시험지.*PDF|시험지 업로드/ }).first();
-    const visible = await uploadBtn.isVisible({ timeout: 3000 }).catch(() => false);
-
-    if (!visible) {
-      console.log("  Upload button not visible — skipping modal test");
-      console.log("  (API upload in step 3 validates backend works)");
-      await page.screenshot({ path: "e2e/screenshots/exam-pdf-upload-step6-skip.png" });
-      return;
-    }
-
+    await expect(uploadBtn).toBeVisible({ timeout: 10000 });
     await uploadBtn.click();
 
     // Verify modal opened
     const modal = pdfUploadModal(page);
-    const modalHeader = modal.locator(".modal-header").filter({ hasText: "시험지 원본 업로드" }).first();
+    const modalHeader = modal.locator(".modal-header").filter({ hasText: "시험 자료 올리기" }).first();
     await expect(modalHeader).toBeVisible({ timeout: 5000 });
 
     // Upload a file via input[type=file]
@@ -433,27 +386,18 @@ test.describe.serial("Exam PDF upload flow", () => {
   // 7. Verify asset via API
   // ══════════════════════════════════════════════════════
   test("7. Verify uploaded asset via API", async () => {
-    test.skip(!templateExamId, "No template exam");
+    test.skip(!regularExamId, "No regular exam");
 
-    // Access via regular exam (which resolves to template)
-    const examIdForQuery = regularExamId ?? templateExamId!;
-    const resp = await apiCall(page, "GET", `/exams/${examIdForQuery}/assets/`);
-    console.log(`  GET /exams/${examIdForQuery}/assets/ → ${resp.status}`);
+    const resp = await apiCall(page, "GET", `/exams/${regularExamId}/assets/`);
+    console.log(`  GET /exams/${regularExamId}/assets/ → ${resp.status}`);
 
-    if (resp.status === 200) {
-      const assets = listOf<ExamAsset>(resp.body, isExamAsset);
-      console.log(`  Assets count: ${assets.length}`);
+    expect(resp.status).toBe(200);
+    const assets = listOf<ExamAsset>(resp.body, isExamAsset);
+    console.log(`  Assets count: ${assets.length}`);
 
-      const pdfAsset = assets.find((a) => a.asset_type === "problem_pdf");
-      if (pdfAsset) {
-        expect(pdfAsset.file_key).toBeTruthy();
-        console.log(`  problem_pdf found: ${pdfAsset.file_key}`);
-      } else {
-        console.log("  No problem_pdf asset found (may have been sealed)");
-      }
-    } else {
-      console.log(`  Assets query returned ${resp.status} — exam may not be accessible`);
-    }
+    const sourceAsset = assets.find((a) => a.asset_type === "problem_source");
+    expect(sourceAsset?.file_key).toBeTruthy();
+    console.log(`  problem_source found: ${sourceAsset?.file_key}`);
   });
 
   // ══════════════════════════════════════════════════════

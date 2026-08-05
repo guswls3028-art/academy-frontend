@@ -39,8 +39,9 @@ HWPX는 문제·선생님 필기 해설 원본을 이미지로 보존하고 제�
    `e2e/admin/manual-exam-grading.mock.spec.ts`를 확인한다.
 5. 오답노트 출력·회차 범위·PDF/HWPX 선택은 `WrongNotePanel.tsx`,
    `wrong-note-generation-contract.mock.spec.ts`와 백엔드 현재 계약을 확인한다.
-   주 문제지와 선택 해설 HWP 업로드는 `ExamPdfUploadModal.tsx`, 문항·해설
-   검수와 단일 HWP 문제 영역 조절은 `ExamSegmentationReview.tsx`를 확인한다.
+   단일 문제+해설 PDF/HWP/HWPX, 문제 파일, 선택 해설 HWP/HWPX 업로드는
+   `ExamPdfUploadModal.tsx`, 문항·해설 검수와 통합 문서 문제 영역 조절은
+   `ExamSegmentationReview.tsx`를 확인한다.
 
 ### 증상별 첫 확인 위치
 
@@ -52,7 +53,7 @@ HWPX는 문제·선생님 필기 해설 원본을 이미지로 보존하고 제�
 | 일부 학생만 먼저 제출해서 저장이 번거로움 | **전원 결시로 설정**, 실행 취소, 미리보기 | 로컬 초안에서 전원을 결시로 두고 제출 학생만 응시로 바꾼다. `apply=true` 전에는 서버를 쓰지 않는다. |
 | 점수·합불·통계가 예상과 다름 | 시험 만점, 문항 배점, 가감점, 결시 상태, 백엔드 미리보기 응답 | 프론트에서 계산 규칙을 재구현하지 않는다. 서버 미리보기와 저장 후 재조회를 기준으로 판정한다. |
 | 오답노트에 문항이 없거나 이미지가 빠짐 | `is_correct`, `include_in_wrong_note`, 대표 결과, 문제·해설 이미지, 문서 job 상태 | 이미지가 없어도 해당 문항은 포함된다. PDF/HWPX 모두 문제 뒤에 해설을 분리한다. |
-| 문제 이미지에 정답 필기가 섞임 | 업로드한 주 파일, 선택 해설 HWP, 검수 화면 문제 영역 | 학생용 PDF/이미지와 교사 HWP를 함께 올리는 것이 우선 경로다. 단일 HWP만 쓴 경우 문항별 문제 영역을 조절하며, 선택지 위에 덧쓴 필기는 깨끗한 학생용 원본이 필요하다. |
+| 문제 이미지에 정답 필기가 섞임 | 업로드한 주 파일, 선택 해설 HWP/HWPX, 검수 화면 문제 영역 | 학생용 PDF/이미지와 교사 HWP/HWPX를 함께 올리거나 완전한 통합 HWP/HWPX를 쓴다. 통합 문서는 문항별 문제 영역을 조절하며, 선택지 위에 덧쓴 필기는 깨끗한 학생용 원본이 필요하다. |
 
 ### 작업할 때 지킬 경계
 
@@ -170,9 +171,11 @@ stale version, 편집 lease 충돌, 문항·배점 오류는 서버가 전체 �
   문항만 모은다. 재채점 후 맞고 복습 지정도 아니면 다음 조회에서 빠진다.
 - 시험 설정에 저장된 문항 이미지가 있으면 문제 쪽에, 선생님 원본 해설이
   있으면 후반 해설 쪽에 싣는다. 미리보기는 **선생님 해설** 배지를 표시한다.
-- Ymath 자료는 답 표시가 없는 PDF/이미지를 주 파일로, 같은 문항 번호의 교사
-  HWP를 선택 해설 파일로 올린다. HWP 하나만 올린 과거 자료는 검수 화면에서
-  각 문항의 문제 영역을 원본 높이 8~98%로 조절할 수 있다.
+- Ymath 자료 업로드는 한 화면에서 세 형태를 받는다. 통합 PDF/HWP/HWPX 하나,
+  문제 PDF/이미지 하나, 또는 문제 PDF/이미지와 교사 해설 HWP/HWPX 한 쌍이다.
+  통합 문서는 모든 번호의 미주 원본 그림이 있어야 하며, 일부만 있으면 부분
+  도형을 전체 해설로 간주하지 않고 PDF 변환을 안내한다. 완전한 통합 문서는
+  검수 화면에서 각 문항의 문제 영역을 원본 높이 8~98%로 조절할 수 있다.
 - 한 번에 최대 100문항이다.
 - 생성은 비동기 작업으로 요청하고 상태를 polling한다. 완료된 다운로드
   주소는 만료될 수 있으므로 장시간 열린 화면은 상태 API로 주소를 갱신한다.
@@ -192,12 +195,27 @@ stale version, 편집 lease 충돌, 문항·배점 오류는 서버가 전체 �
 - 문제 페이지는 원본 길이에 맞춰 풀이 공간을 확보하고, 세로로 긴 해설은
   흰 여백과 저밀도 행 경계에서 여러 페이지로 나눠 읽을 수 있는 크기를 지킨다.
 
+### 학생별 통합 제작
+
+- 학생 상세의 **오답노트** 탭은 학생의 모든 수강 강의를 강의별로 묶고, 각 시험과
+  문항 검수가 끝난 워크북을 선택 목록으로 보여 준다.
+- 각 자료는 현재 오답/X와 O·복습 수록 문항 수를 표시한다. 0문항이거나 워크북
+  검수 전인 자료는 선택할 수 없고, 빈 상태는 과제 원본·채점 위치를 안내한다.
+- 선택 즉시 `/results/wrong-notes/preview/`로 서버 미리보기를 읽고 자료별 문항
+  번호와 전체 수록 수를 보여 준다. 프런트가 시험·학생·강의 관계를 추론하지 않는다.
+- PDF/HWPX 생성 요청에는 `student_id`, 정확한 `source_selection`, 미리보기
+  fingerprint를 함께 보낸다. job polling과 100문항 제한은 기존 생성 흐름과 같다.
+- 소유 구현은 `StudentWrongNoteBuilder.tsx`, `api/wrongNotes.ts`, 학생 상세의
+  `wrong-note` 탭이다. 기존 단일 시험·회차 `WrongNotePanel`은 호환 경로로 유지한다.
+
 ## 검증
 
 정오표 변경은 최소한 아래 검증을 통과한다.
 
 ```powershell
 pnpm exec playwright test e2e/admin/manual-exam-grading.mock.spec.ts --reporter=list
+pnpm exec playwright test e2e/flows/exam-pdf-upload.spec.ts --reporter=list
+pnpm exec playwright test e2e/admin/student-unified-wrong-note.mock.spec.ts --reporter=list
 pnpm test:e2e:manual-grading-shortcuts
 pnpm typecheck
 pnpm lint

@@ -562,10 +562,14 @@ test.describe("문항별 직접 채점", () => {
     await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "시험지 업로드", exact: true }).click();
 
-    const dialog = page.getByRole("dialog").filter({ hasText: "시험지 원본 업로드" });
+    const dialog = page.getByRole("dialog").filter({ hasText: "시험 자료 올리기" });
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByText("답 표시가 없는 문제지", { exact: true })).toBeVisible();
-    await expect(dialog.getByText("선생님 해설 HWP (선택)", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("문제+해설 한 파일", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("문제 파일만", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("문제·해설 두 파일", { exact: true })).toBeVisible();
+    await dialog.getByRole("button", { name: "문제지와 해설지가 따로 있어요" }).click();
+    await expect(dialog.getByText("문제 파일", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("선생님 해설 파일", { exact: true })).toBeVisible();
 
     const fileInputs = dialog.locator('input[type="file"]');
     await expect(fileInputs).toHaveCount(2);
@@ -580,7 +584,7 @@ test.describe("문항별 직접 채점", () => {
       buffer: Buffer.from("HWP explanation fixture"),
     });
 
-    await expect(dialog.getByText(/해설 HWP를 함께 쓸 때는/)).toBeVisible();
+    await expect(dialog.getByText(/해설 파일을 따로 올릴 때/)).toBeVisible();
     await expect(dialog.getByRole("button", { name: "업로드 및 문항 분석" })).toBeDisabled();
   });
 

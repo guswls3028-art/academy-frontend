@@ -16,6 +16,7 @@ import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink"
 import { useQuery } from "@tanstack/react-query";
 import { getHomeworkStatus, homeworkStatusLabel, type HomeworkStatus, type HomeworkMetaStatus } from "@/shared/scoring/homeworkStatus";
 import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
+import HomeworkQuestionLedger from "./HomeworkQuestionLedger";
 
 type HomeworkResultRow = {
   enrollment_id: number;
@@ -231,11 +232,15 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
         )}
       </section>
 
-      {/* ========== 통계 (과제는 문항별 정답률 없음) ========== */}
+      {homework.source_status === "ready" && (
+        <HomeworkQuestionLedger homeworkId={homeworkId} />
+      )}
+
+      {/* ========== 통계 ========== */}
       <section className="space-y-6 rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-5">
         <div>
           <div className="text-lg font-semibold">통계</div>
-          <div className="text-xs text-[var(--color-text-muted)]">제출·채점 현황 요약입니다. 과제는 문항별 정답률 통계가 없습니다.</div>
+          <div className="text-xs text-[var(--color-text-muted)]">제출·채점 현황 요약입니다. 워크북 문항별 O/X/복습 표시는 위 채점표에서 관리합니다.</div>
         </div>
         <div className="rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-4 text-sm text-[var(--color-text-muted)]">
           제출률 {summary.assigned > 0 ? ((summary.assigned - summary.notSubmitted) / summary.assigned * 100).toFixed(1) : 0}% · 채점완료 {summary.graded}명

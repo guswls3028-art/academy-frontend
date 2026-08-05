@@ -2,6 +2,49 @@
   min-height: 200px;
 }
 
+.sourceModes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.sourceModes > div {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 10px;
+  background: var(--color-bg-secondary);
+}
+
+.sourceModes strong,
+.sourceModes span {
+  display: block;
+}
+
+.sourceModes strong {
+  color: var(--color-text-primary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.sourceModes span {
+  margin-top: 3px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.pairToggle {
+  width: 100%;
+  margin-top: 10px;
+  border: 1px dashed var(--color-border-strong);
+}
+
+.separateFiles {
+  margin-top: 10px;
+}
+
 .pairGuide {
   margin: 14px 0;
   padding: 12px 14px;
@@ -29,6 +72,31 @@
   color: var(--color-error);
   font-size: 0.75rem;
   line-height: 1.5;
+}
+
+.conversionGuide {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-warning) 10%, #fff);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.conversionGuide strong {
+  display: block;
+  color: var(--color-text-primary);
+}
+
+.conversionGuide p {
+  margin: 2px 0 0;
+}
+
+@media (max-width: 640px) {
+  .sourceModes {
+    grid-template-columns: 1fr;
+  }
 }
 
 .progress {
