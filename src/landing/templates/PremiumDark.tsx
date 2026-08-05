@@ -16,7 +16,7 @@ import type {
 import { formatLandingYmdDateOrRaw as formatArchiveDate } from "../utils/dateFormat";
 import { resolvePublicProgramCopy } from "../utils/publicProgramCopy";
 import { resolvePublicReportUrl } from "../utils/publicReportUrl";
-import { formatMatchupHitRate } from "../utils/matchupHitRate";
+import { matchupHitRateLabel } from "../utils/matchupHitRate";
 import { resolveTenantCode } from "@/shared/tenant";
 import {
   getEnabledSections,
@@ -344,7 +344,7 @@ function ArchiveGrid({ archive }: { archive: ArchiveState }) {
   return (
     <div className={styles.archiveGrid}>
       {archive.items.map((item, index) => {
-        const hitRateLabel = formatMatchupHitRate(item.snapshot_meta?.hit_rate);
+        const hitRateLabel = matchupHitRateLabel(item.snapshot_meta?.hit_rate);
         return (
           <Link className={styles.archiveCard} to={`/landing/matchup-board/${item.id}`} key={item.id}>
           <div className={styles.archivePreview}>

@@ -8,7 +8,7 @@ import { fetchMatchupShowcaseList, type MatchupShowcaseCard } from "../api/match
 import type { LandingPublicResponse } from "../types";
 import { formatLandingYmdDateOrRaw as formatDate } from "../utils/dateFormat";
 import { resolvePublicReportUrl } from "../utils/publicReportUrl";
-import { formatMatchupHitRate } from "../utils/matchupHitRate";
+import { matchupHitRateLabel } from "../utils/matchupHitRate";
 import ResilientPublicImage from "../components/ResilientPublicImage";
 import { MatchupCenterSpin, MatchupCenterState, MatchupLandingShell } from "./LandingMatchupBoardShell";
 import styles from "./LandingMatchupBoardPage.module.css";
@@ -144,7 +144,7 @@ export default function LandingMatchupBoardPage() {
 function ArchiveCard({ item, featured }: { item: MatchupShowcaseCard; featured: boolean }) {
   const previewUrl = item.preview_url ? resolvePublicReportUrl(item.preview_url) : null;
   const hitRate = item.snapshot_meta?.hit_rate;
-  const hitRateLabel = formatMatchupHitRate(hitRate);
+  const hitRateLabel = matchupHitRateLabel(hitRate);
   const hitCount = item.snapshot_meta?.hit_count;
   const countedEntries = item.snapshot_meta?.counted_entries;
   const content = (

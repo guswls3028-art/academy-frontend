@@ -25,7 +25,7 @@ import { resolvePublicReportUrl } from "../utils/publicReportUrl";
 import { resolveTenantCode } from "@/shared/tenant";
 import useAuth from "@/auth/hooks/useAuth";
 import MatchupInlinePdf from "../components/MatchupInlinePdf";
-import { formatMatchupHitRate } from "../utils/matchupHitRate";
+import { matchupHitRateLabel } from "../utils/matchupHitRate";
 
 export default function LandingMatchupBoardDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -115,7 +115,7 @@ export default function LandingMatchupBoardDetailPage() {
   }
 
   const hitRate = card.snapshot_meta?.hit_rate;
-  const hitRateLabel = formatMatchupHitRate(hitRate);
+  const hitRateLabel = matchupHitRateLabel(hitRate);
   const hitCount = card.snapshot_meta?.hit_count;
   const countedEntries = card.snapshot_meta?.counted_entries;
   const visibleNow = card.visible;
