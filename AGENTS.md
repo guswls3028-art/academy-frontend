@@ -35,6 +35,10 @@ record why, migration/compatibility behavior, and persisted-state handling.
 - Check long Korean text and 1100/1366 desktop or 390 mobile as applicable.
 - Browser evidence requires DOM assertions and persisted state, not a
   screenshot alone.
+- User-visible changes include purposeful motion and interaction polish when
+  they materially clarify state, hierarchy, or navigation. Prefer brief
+  opacity/transform transitions, keep scrolling and input responsive, respect
+  `prefers-reduced-motion`, and avoid decorative or input-blocking animation.
 
 ## Contract verification
 
@@ -64,6 +68,15 @@ configured AWS account-root or Cloudflare master credential may be used by the
 owning manual workflow when the normal least-privilege path is insufficient,
 but its value must never be printed/copied and the quality, direct-deploy,
 production-readback, and real-use gates remain mandatory.
+
+Production verification is a feedback loop, not a report-only checkpoint.
+After the exact revision propagates, inspect the affected live routes on
+desktop and 390px mobile for hierarchy, interaction feedback, motion timing,
+loading/error states, overflow, and perceived responsiveness. If that live
+review exposes a defect, keep ownership, implement the correction, rerun the
+relevant gates, redeploy, and verify again. During an assigned implementation,
+do not ask whether to deploy or continue unless an explicit opt-out or a
+genuine scope/authority blocker applies.
 
 Unless the user explicitly limits the task to local-only, no-deploy,
 draft/PR-only, or read-only work, an assigned implementation, change, or build
