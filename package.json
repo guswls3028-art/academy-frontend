@@ -109,7 +109,7 @@
     "eslint-plugin-react-refresh": "^0.4.18",
     "globals": "^17.8.0",
     "openapi-typescript": "7.13.0",
-    "postcss": "8.5.18",
+    "postcss": "8.5.23",
     "tailwindcss": "4.1.18",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.22.0",
