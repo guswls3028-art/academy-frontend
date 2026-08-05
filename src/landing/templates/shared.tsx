@@ -178,6 +178,7 @@ function buildMenuCategories(sections: LandingSection[], isOwner: boolean = fals
   {
     const matchupItems: NavMenuItem[] = [
       { key: "matchup_board", label: "매치업 자료실", kind: "route", target: "/landing/matchup-board", badge: "PDF" },
+      { key: "problem_analysis", label: "시험 분석 노트", kind: "route", target: "/landing/analysis", badge: "리포트" },
     ];
     if (has("hit_reports")) {
       matchupItems.push({ key: "reports_all", label: "자동 적중 보고서", kind: "route", target: "/landing/reports", badge: "자료" });
@@ -284,7 +285,9 @@ export function LandingNavBar({ config, sections, tokens, brandMark, topNavVaria
       return location.pathname === "/landing/reports"
         || location.pathname.startsWith("/landing/reports/")
         || location.pathname === "/landing/matchup-board"
-        || location.pathname.startsWith("/landing/matchup-board/");
+        || location.pathname.startsWith("/landing/matchup-board/")
+        || location.pathname === "/landing/analysis"
+        || location.pathname.startsWith("/landing/analysis/");
     }
     if (item.kind === "route") {
       if (item.target === "/landing") return location.pathname === "/landing";

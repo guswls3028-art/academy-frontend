@@ -101,6 +101,15 @@ export type ProblemReviewExportStatus = {
   error_message?: string | null;
 };
 
+export type ProblemReviewPublication = {
+  id: number;
+  title: string;
+  status: "published";
+  published_at: string;
+  public_url: string;
+  pdf_url: string;
+};
+
 export async function listProblemReviewReports(): Promise<ProblemReviewReport[]> {
   const { data } = await api.get<{ reports: ProblemReviewReport[] }>(
     "/tools/problem-review/reports/",
@@ -162,6 +171,17 @@ export async function getProblemReviewExport(
 ): Promise<ProblemReviewExportStatus> {
   const { data } = await api.get<ProblemReviewExportStatus>(
     `/tools/problem-review/reports/${encodeURIComponent(reportId)}/exports/${encodeURIComponent(jobId)}/`,
+  );
+  return data;
+}
+
+export async function publishProblemReviewReport(
+  reportId: string,
+  version: number,
+): Promise<ProblemReviewPublication> {
+  const { data } = await api.post<ProblemReviewPublication>(
+    `/tools/problem-review/reports/${encodeURIComponent(reportId)}/publication/`,
+    { version },
   );
   return data;
 }

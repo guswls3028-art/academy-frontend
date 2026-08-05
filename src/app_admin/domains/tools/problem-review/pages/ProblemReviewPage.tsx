@@ -13,6 +13,7 @@ import {
   ChevronRight,
   FileArchive,
   FileText,
+  Globe2,
   Layers3,
   Plus,
   Presentation,
@@ -32,6 +33,7 @@ import {
   getProblemReviewExport,
   getProblemReviewReport,
   listProblemReviewReports,
+  publishProblemReviewReport,
   saveProblemReviewReport,
   type ProblemReviewDifficulty,
   type ProblemReviewDraft,
@@ -95,6 +97,8 @@ export default function ProblemReviewPage() {
   const [starting, setStarting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState<"pdf" | "pptx" | null>(null);
+  const [publishing, setPublishing] = useState(false);
+  const [publicationUrl, setPublicationUrl] = useState<string | null>(null);
   const [analysisMessage, setAnalysisMessage] = useState("시험지에서 문항과 출제 구조를 읽고 있습니다.");
   const [pageError, setPageError] = useState("");
   const pollToken = useRef(0);
@@ -289,6 +293,29 @@ export default function ProblemReviewPage() {
     }
   }
 
+  async function handlePublish() {
+    if (!current || !draft) return;
+    const confirmed = window.confirm(
+      "현재 선생님 검수본을 홈페이지에 공개할까요? 기존 공개본이 있으면 이 내용으로 갱신됩니다.",
+    );
+    if (!confirmed) return;
+    setPublishing(true);
+    setPageError("");
+    try {
+      const saved = await persistDraft();
+      if (!saved) return;
+      const publication = await publishProblemReviewReport(saved.id, saved.version);
+      setPublicationUrl(publication.public_url);
+      feedback.success("홈페이지에 시험 분석 공개본을 게시했습니다.");
+    } catch (error) {
+      const message = errorMessage(error, "홈페이지 공개본을 게시하지 못했습니다.");
+      setPageError(message);
+      feedback.error(message);
+    } finally {
+      setPublishing(false);
+    }
+  }
+
   function updateMetadata(key: keyof ProblemReviewMetadata, value: string) {
     if (!draft) return;
     markDraft({ ...draft, metadata: { ...draft.metadata, [key]: value } });
@@ -351,6 +378,14 @@ export default function ProblemReviewPage() {
                 <Button intent="secondary" size="sm" loading={saving} leftIcon={<Save size={ICON_FOR_BUTTON.sm} />} onClick={() => void persistDraft()}>
                   {dirty ? "변경 저장" : "저장됨"}
                 </Button>
+                <Button intent="secondary" size="sm" loading={publishing} leftIcon={<Globe2 size={ICON_FOR_BUTTON.sm} />} onClick={() => void handlePublish()}>
+                  홈페이지 공개
+                </Button>
+                {publicationUrl ? (
+                  <Button intent="ghost" size="sm" onClick={() => window.open(publicationUrl, "_blank", "noopener,noreferrer")}>
+                    공개본 보기
+                  </Button>
+                ) : null}
                 <Button intent="secondary" size="sm" loading={exporting === "pdf"} leftIcon={<FileText size={ICON_FOR_BUTTON.sm} />} onClick={() => void handleExport("pdf")}>
                   PDF
                 </Button>
@@ -518,8 +553,17 @@ export default function ProblemReviewPage() {
                         const keyItems = draft.key_items.map((entry, entryIndex) => entryIndex === index ? { ...entry, title: event.target.value } : entry);
                         markDraft({ ...draft, key_items: keyItems });
                       }} /></label>
+                      <label>문항 번호 <span className={styles.labelHint}>쉼표로 구분</span><input value={item.question_numbers.join(", ")} onChange={(event) => {
+                        const questionNumbers = event.target.value.split(",").map((value) => value.trim()).filter(Boolean);
+                        const keyItems = draft.key_items.map((entry, entryIndex) => entryIndex === index ? { ...entry, question_numbers: questionNumbers } : entry);
+                        markDraft({ ...draft, key_items: keyItems });
+                      }} /></label>
                       <label>왜 어려운가<textarea rows={2} value={item.reason} onChange={(event) => {
                         const keyItems = draft.key_items.map((entry, entryIndex) => entryIndex === index ? { ...entry, reason: event.target.value } : entry);
+                        markDraft({ ...draft, key_items: keyItems });
+                      }} /></label>
+                      <label>막히는 지점<textarea rows={2} value={item.collapse_point} onChange={(event) => {
+                        const keyItems = draft.key_items.map((entry, entryIndex) => entryIndex === index ? { ...entry, collapse_point: event.target.value } : entry);
                         markDraft({ ...draft, key_items: keyItems });
                       }} /></label>
                       <label>다음 시험 처방<textarea rows={2} value={item.prescription} onChange={(event) => {

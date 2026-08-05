@@ -23,12 +23,18 @@ Last verified: 2026-08-06
    출제 기조, 전 문항, 핵심 변별과 결론을 접을 수 있는 섹션으로 나눠 긴 시험도
    현재 맥락을 잃지 않게 한다.
 5. 원문 발췌는 읽기 전용 근거로만 보인다. 난이도·핵심 포인트·학생이 빠질
-   함정·출제 검토 메모와 번호는 선생님이 수정한다. 숨은 source 번호가 근거
-   연결을 유지하며, 오인식 문항을 삭제하면 저장·재조회 뒤에도 되살아나지 않는다.
+   함정·출제 검토 메모와 번호는 선생님이 수정한다. 핵심 변별 항목도 문항 번호와
+   실제로 막히는 지점까지 편집한다. 숨은 source 번호가 근거 연결을 유지하며,
+   오인식 문항을 삭제하면 저장·재조회 뒤에도 되살아나지 않는다. 교사가 추가한
+   문항은 기존 원문 번호와 표시 번호가 겹쳐도 별도 항목으로 남고, 문항 수와
+   난도 분포는 저장된 검수본에서 다시 계산된다.
 6. 저장 성공 뒤 dirty 표시가 사라진다. version 충돌은 오류로 알리고 기존
    화면의 변경을 조용히 덮어쓰지 않는다.
 7. PDF/PPTX 버튼은 미저장 변경을 먼저 저장하고 async export 완료 뒤 새
    presigned URL로 내려받는다.
+8. `홈페이지 공개`는 현재 검수본을 먼저 저장한 뒤 확인 창을 거쳐 공개
+   스냅샷을 게시한다. 같은 리포트가 이미 공개됐다면 URL은 유지하고 최신
+   검수본으로 갱신한다. 성공 후 `공개본 보기`로 새 공개 글을 확인할 수 있다.
 
 ## 상태와 실패 처리
 
@@ -40,6 +46,8 @@ Last verified: 2026-08-06
 - repeat/reload: 최근 20개 teacher-owned report를 최신 수정순으로 읽고 분석 중
   report도 다시 polling한다.
 - unsaved navigation: dirty 초안에서 다른 report나 새 report로 이동할 때 확인한다.
+- publication: 공개본은 내부 메모·원문 OCR 조각·경고를 포함하지 않는다. 공개
+  API 실패 시 편집 화면과 기존 저장본은 유지하고 상단 오류와 toast로 알린다.
 
 ## 반응형·접근성·모션
 
@@ -59,7 +67,7 @@ Last verified: 2026-08-06
 pnpm typecheck
 pnpm exec eslint src/app_admin/domains/tools/problem-review src/app_admin/domains/tools/ToolsLayout.tsx src/app_admin/domains/tools/ToolsRoutes.tsx
 pnpm build
-pnpm exec playwright test e2e/admin/problem-review-report.mock.spec.ts --project=chromium --reporter=list
+pnpm exec playwright test e2e/admin/problem-review-report.mock.spec.ts e2e/landing-problem-analysis.mock.spec.ts --project=chromium --reporter=list
 ```
 
 브라우저 검증은 1366px desktop과 390px mobile에서 최초 화면, 분석 loading,
