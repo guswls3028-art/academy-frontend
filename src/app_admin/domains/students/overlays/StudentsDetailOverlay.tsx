@@ -46,6 +46,7 @@ import { EmptyState, Button, CloseButton, Badge, ICON, type BadgeTone } from "@/
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { formatPhone, formatStudentPhoneDisplay, formatOmrCode, formatGenderDisplay } from "@/shared/utils/formatPhone";
 import { adminStudentsQueryKeys } from "../queryKeys";
+import StudentWrongNoteBuilder from "@admin/domains/results/components/StudentWrongNoteBuilder";
 import styles from "./StudentsDetailOverlay.module.css";
 
 const StudentFormModal = lazy(() => import("../components/EditStudentModal"));
@@ -54,7 +55,7 @@ const DeleteConfirmModal = lazy(() => import("../components/DeleteConfirmModal")
 const StudentEnrollmentMatrixDrawer = lazy(() => import("../components/StudentEnrollmentMatrixDrawer"));
 const StudentStorageExplorer = lazy(() => import("@admin/domains/storage/components/StudentStorageExplorer"));
 
-type StatTabKey = "enroll" | "score" | "homework" | "clinic" | "question";
+type StatTabKey = "enroll" | "score" | "homework" | "wrong-note" | "clinic" | "question";
 type ExamSessionScope = "all" | "REGULAR" | "SUPPLEMENT";
 
 const EXAM_SESSION_SCOPE_OPTIONS: Array<{
@@ -532,6 +533,7 @@ export default function StudentsDetailOverlay({
                       onNavigate={(path) => { closeOverride?.(); navigate(path); }}
                     />
                   )}
+                  {tab === "wrong-note" && <StudentWrongNoteBuilder studentId={id} />}
                   {tab === "clinic" && <ClinicTab data={clinicData ?? []} onNavigate={(path) => { closeOverride?.(); navigate(path); }} />}
                   {tab === "question" && <QuestionTab data={questionsData ?? []} onNavigate={(path) => { closeOverride?.(); navigate(path); }} />}
                 </div>
@@ -841,6 +843,12 @@ function StudentStatTabs({
       label: "과제",
       value: gradesLoading ? "…" : gradesError ? "확인 필요" : `${hwTotal}건`,
       sub: gradesLoading ? "불러오는 중" : gradesError ? "불러오기 실패" : hwTotal > 0 ? `완료 ${hwPassCount}` : undefined,
+    },
+    {
+      key: "wrong-note",
+      label: "오답노트",
+      value: "통합",
+      sub: "시험 + 워크북",
     },
     {
       key: "clinic",

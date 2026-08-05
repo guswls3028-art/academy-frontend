@@ -30,7 +30,9 @@ export async function fetchWrongNotes(params: {
 }
 
 export async function createWrongNotePDF(payload: {
-  enrollment_id: number;
+  enrollment_id?: number;
+  student_id?: number;
+  source_selection?: WrongNoteSourceSelection[];
   exam_id?: number;
   lecture_id?: number;
   from_session_order?: number;
@@ -42,6 +44,36 @@ export async function createWrongNotePDF(payload: {
     timeout: WRONG_NOTE_PDF_CREATE_TIMEOUT_MS,
   });
   return res.data as WrongNotePDFCreateResponse;
+}
+
+export type WrongNoteSourceSelection = {
+  type: "exam" | "homework";
+  id: number;
+  enrollment_id: number;
+};
+
+export type WrongNoteSource = WrongNoteSourceSelection & {
+  lecture_id: number;
+  lecture_title: string;
+  title: string;
+  session_order: number | null;
+  wrong_note_count: number;
+  ready: boolean;
+};
+
+export async function fetchWrongNoteSources(studentId: number) {
+  const res = await api.get("/results/wrong-notes/sources/", {
+    params: { student_id: studentId },
+  });
+  return res.data as { student_id: number; sources: WrongNoteSource[] };
+}
+
+export async function previewSelectedWrongNotes(payload: {
+  student_id: number;
+  source_selection: WrongNoteSourceSelection[];
+}) {
+  const res = await api.post("/results/wrong-notes/preview/", payload);
+  return res.data as WrongNoteResponse & { source_selection: WrongNoteSourceSelection[] };
 }
 
 export async function fetchWrongNotePDFStatus(jobId: number) {

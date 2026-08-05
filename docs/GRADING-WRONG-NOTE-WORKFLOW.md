@@ -195,6 +195,19 @@ stale version, 편집 lease 충돌, 문항·배점 오류는 서버가 전체 �
 - 문제 페이지는 원본 길이에 맞춰 풀이 공간을 확보하고, 세로로 긴 해설은
   흰 여백과 저밀도 행 경계에서 여러 페이지로 나눠 읽을 수 있는 크기를 지킨다.
 
+### 학생별 통합 제작
+
+- 학생 상세의 **오답노트** 탭은 학생의 모든 수강 강의를 강의별로 묶고, 각 시험과
+  문항 검수가 끝난 워크북을 선택 목록으로 보여 준다.
+- 각 자료는 현재 오답/X와 O·복습 수록 문항 수를 표시한다. 0문항이거나 워크북
+  검수 전인 자료는 선택할 수 없고, 빈 상태는 과제 원본·채점 위치를 안내한다.
+- 선택 즉시 `/results/wrong-notes/preview/`로 서버 미리보기를 읽고 자료별 문항
+  번호와 전체 수록 수를 보여 준다. 프런트가 시험·학생·강의 관계를 추론하지 않는다.
+- PDF/HWPX 생성 요청에는 `student_id`, 정확한 `source_selection`, 미리보기
+  fingerprint를 함께 보낸다. job polling과 100문항 제한은 기존 생성 흐름과 같다.
+- 소유 구현은 `StudentWrongNoteBuilder.tsx`, `api/wrongNotes.ts`, 학생 상세의
+  `wrong-note` 탭이다. 기존 단일 시험·회차 `WrongNotePanel`은 호환 경로로 유지한다.
+
 ## 검증
 
 정오표 변경은 최소한 아래 검증을 통과한다.
@@ -202,6 +215,7 @@ stale version, 편집 lease 충돌, 문항·배점 오류는 서버가 전체 �
 ```powershell
 pnpm exec playwright test e2e/admin/manual-exam-grading.mock.spec.ts --reporter=list
 pnpm exec playwright test e2e/flows/exam-pdf-upload.spec.ts --reporter=list
+pnpm exec playwright test e2e/admin/student-unified-wrong-note.mock.spec.ts --reporter=list
 pnpm test:e2e:manual-grading-shortcuts
 pnpm typecheck
 pnpm lint

@@ -80,7 +80,13 @@ function ProblemCropPreview({
   );
 }
 
-export default function ExamSegmentationReview({ examId }: { examId: number }) {
+export default function ExamSegmentationReview({
+  examId,
+  onApproved,
+}: {
+  examId: number;
+  onApproved?: () => void;
+}) {
   const queryClient = useQueryClient();
   const review = useQuery({
     queryKey: ["exam-segmentation-review", examId],
@@ -131,6 +137,7 @@ export default function ExamSegmentationReview({ examId }: { examId: number }) {
         queryClient.invalidateQueries({ queryKey: adminExamsQueryKeys.examExplanations(examId) }),
         queryClient.invalidateQueries({ queryKey: ["exam-segmentation-review", examId] }),
       ]);
+      onApproved?.();
     },
     onError: (error: unknown) => {
       feedback.error(extractApiError(error, "문항을 확정하지 못했습니다."));

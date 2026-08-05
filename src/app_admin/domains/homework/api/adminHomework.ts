@@ -8,6 +8,10 @@ export type AdminHomeworkDetail = {
   session_id?: number;
   homework_type?: "template" | "regular";
   template_homework_id?: number | null;
+  source_exam_id: number | null;
+  source_status: "none" | "processing" | "review_required" | "ready" | "failed" | "conversion_required";
+  source_filename: string;
+  source_question_count: number;
 
   title: string;
   description?: string;
@@ -74,6 +78,10 @@ function normalize(raw: unknown): AdminHomeworkDetail {
     session_id: asPositiveNumber(rawSession) ?? undefined,
     homework_type: normalizeHomeworkType(record.homework_type),
     template_homework_id: templateHomeworkId,
+    source_exam_id: asPositiveNumber(record.source_exam_id),
+    source_status: String(record.source_status ?? "none") as AdminHomeworkDetail["source_status"],
+    source_filename: String(record.source_filename ?? ""),
+    source_question_count: Number(record.source_question_count ?? 0),
 
     title: String(record.title ?? ""),
     description: typeof record.description === "string" ? record.description : undefined,
@@ -122,6 +130,48 @@ export async function updateAdminHomework(
 export async function saveHomeworkAsTemplate(homeworkId: number) {
   const res = await api.post(`/homeworks/${homeworkId}/save-as-template/`);
   return res.data;
+}
+
+export async function ensureHomeworkSourceExam(homeworkId: number) {
+  const res = await api.post(`/homeworks/${homeworkId}/source-exam/`);
+  return normalize(res.data);
+}
+
+export type HomeworkQuestionMark = {
+  is_correct: boolean | null;
+  include_in_wrong_note: boolean;
+};
+
+export type HomeworkQuestionGrading = {
+  homework_id: number;
+  source_exam_id: number;
+  source_status: string;
+  questions: Array<{ id: number; number: number; image_key: string }>;
+  rows: Array<{
+    enrollment_id: number;
+    student_id: number;
+    student_name: string;
+    score_id: number | null;
+    marks: Record<string, HomeworkQuestionMark>;
+  }>;
+};
+
+export async function fetchHomeworkQuestionGrading(homeworkId: number) {
+  const res = await api.get(`/homeworks/${homeworkId}/question-grading/`);
+  return res.data as HomeworkQuestionGrading;
+}
+
+export async function updateHomeworkQuestionGrading(
+  homeworkId: number,
+  updates: Array<{
+    enrollment_id: number;
+    question_number: number;
+    is_correct: boolean | null;
+    include_in_wrong_note: boolean;
+  }>,
+) {
+  const res = await api.patch(`/homeworks/${homeworkId}/question-grading/`, { updates });
+  return res.data as HomeworkQuestionGrading;
 }
 
 export type HomeworkTemplateWithUsage = {

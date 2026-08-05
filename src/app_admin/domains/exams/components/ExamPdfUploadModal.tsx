@@ -17,6 +17,7 @@ type Props = {
   open: boolean;
   onClose: () => void;
   examId: number;
+  sourceKind?: "exam" | "workbook";
 };
 
 const STATUS_LABELS: Record<PdfExtractStatus, string> = {
@@ -28,7 +29,7 @@ const STATUS_LABELS: Record<PdfExtractStatus, string> = {
   failed: "처리 실패",
 };
 
-export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
+export default function ExamPdfUploadModal({ open, onClose, examId, sourceKind = "exam" }: Props) {
   const { status, error, progress, result, upload, reset } = usePdfQuestionExtract(examId);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [explanationFile, setExplanationFile] = useState<File | null>(null);
@@ -65,6 +66,10 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
     && selectedFile
     && !/\.(pdf|png|jpe?g)$/i.test(selectedFile.name),
   );
+  const sourceLabel = sourceKind === "workbook" ? "워크북" : "시험";
+  const statusLabel = status === "uploading"
+    ? `${sourceLabel} 자료 업로드 중…`
+    : STATUS_LABELS[status];
 
   return (
     <AdminModal
@@ -75,7 +80,7 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
     >
       <ModalHeader
         type="action"
-        title="시험 자료 올리기"
+        title={`${sourceLabel} 자료 올리기`}
         description="한 파일이어도, 문제지와 해설지가 따로여도 자료 구성을 확인해 번호별로 맞춥니다."
       />
 
@@ -97,7 +102,7 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
           </div>
 
           <FileUploadZone
-            titleLabel={showSeparateFiles ? "문제 파일" : "시험 자료"}
+            titleLabel={showSeparateFiles ? "문제 파일" : `${sourceLabel} 자료`}
             accept=".pdf,.png,.jpg,.jpeg,.hwp,.hwpx"
             hintText="PDF, HWP/HWPX, PNG, JPG · 50MB 이하"
             selectedFile={selectedFile}
@@ -139,7 +144,7 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
             <div className={styles.separateFiles}>
               <div className={styles.pairGuide}>
                 <strong>두 파일은 문항 번호로 연결합니다</strong>
-                <p>위에는 답 표시가 없는 문제 PDF를, 아래에는 같은 시험의 선생님 해설을 올려 주세요.</p>
+                <p>위에는 답 표시가 없는 문제 PDF를, 아래에는 같은 {sourceLabel}의 선생님 해설을 올려 주세요.</p>
               </div>
               <FileUploadZone
                 titleLabel="선생님 해설 파일"
@@ -184,7 +189,7 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
                   isConversionRequired ? "text-[var(--color-warning)]" :
                   "text-[var(--color-text-primary)]"
                 }`}>
-                  {STATUS_LABELS[status]}
+                  {statusLabel}
                 </span>
               </div>
 
@@ -228,7 +233,7 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
                     <p>페이지 수: {result.pageCount}페이지</p>
                   )}
                   <p className="mt-1 text-[var(--color-text-tertiary)]">
-                    시험 자료에서 문제와 원본 해설의 번호를 확인한 뒤 확정해 주세요.
+                    {sourceLabel} 자료에서 문제와 원본 해설의 번호를 확인한 뒤 확정해 주세요.
                   </p>
                 </div>
               )}
