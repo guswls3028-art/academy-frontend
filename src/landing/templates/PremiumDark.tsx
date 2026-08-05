@@ -13,6 +13,7 @@ import type {
   ProgramItem,
 } from "../types";
 import { formatLandingYmdDateOrRaw as formatArchiveDate } from "../utils/dateFormat";
+import { resolvePublicReportUrl } from "../utils/publicReportUrl";
 import {
   getEnabledSections,
   LandingNavBar,
@@ -54,6 +55,11 @@ const DEFAULT_STANDARDS: FeatureItem[] = [
   { icon: "search", title: "학교별 시험 분석", description: "학교와 시험 범위를 기준으로 출제 흐름과 대비 자료를 다시 점검합니다." },
   { icon: "document", title: "수업 자료 직접 제작", description: "수업 전 준비부터 시험 후 매치업 자료까지 같은 기준으로 직접 정리합니다." },
   { icon: "check", title: "시험 후 결과 공개", description: "말로 끝내지 않고 실제 시험과 대비 자료의 결과를 공개 자료로 남깁니다." },
+];
+
+const CLASSROOM_PHOTOS = [
+  "/tenants/tchul/classroom-lecture-01.webp",
+  "/tenants/tchul/classroom-lecture-02.webp",
 ];
 
 export default function PremiumDark({ config }: TemplateProps) {
@@ -116,7 +122,7 @@ export default function PremiumDark({ config }: TemplateProps) {
             <div className={styles.heroContent}>
               <div className={styles.kicker}>
                 <span className={styles.kickerDot} />
-                Science instruction · Seoul
+                마포에서 만나는 대치동 통합과학
               </div>
               <h1 id="premium-home-title" className={styles.heroTitle}>{heroTitle}</h1>
               {heroDescription ? <p className={styles.heroDescription}>{heroDescription}</p> : null}
@@ -138,39 +144,41 @@ export default function PremiumDark({ config }: TemplateProps) {
               </div>
             </div>
 
-            <div className={styles.portraitPanel} aria-label={instructor?.name || config.brand_name}>
-              <div className={styles.blueprintGrid} aria-hidden="true" />
-              {heroImage ? (
-                <img className={styles.portrait} src={heroImage} alt={instructor?.name || config.brand_name} />
-              ) : (
-                <div className={styles.portraitFallback}>{(instructor?.name || config.brand_name).charAt(0)}</div>
-              )}
+            <div className={styles.portraitPanel} aria-label={`${instructor?.name || config.brand_name} 수업 현장`}>
+              <img className={styles.classroomHero} src={CLASSROOM_PHOTOS[0]} alt="학생들과 함께하는 박철T 통합과학 수업 현장" />
+              <div className={styles.classroomLabel}>실제 수업 현장</div>
+              <div className={styles.portraitInset}>
+                {heroImage ? (
+                  <img className={styles.portrait} src={heroImage} alt={instructor?.name || config.brand_name} />
+                ) : (
+                  <div className={styles.portraitFallback}>{(instructor?.name || config.brand_name).charAt(0)}</div>
+                )}
+              </div>
               <div className={styles.portraitCaption}>
-                <span className={styles.utilityLabel}>Lead instructor</span>
+                <span className={styles.utilityLabel}>통합과학 전임 강사</span>
                 <strong>{instructor?.name || config.brand_name}</strong>
                 <span>{instructor?.title || "통합과학 전임"}</span>
               </div>
-              <div className={styles.axisLabel} aria-hidden="true">EVIDENCE / CLASS / 2026</div>
             </div>
           </div>
         </section>
 
         <nav className={styles.quickNav} aria-label="주요 메뉴">
-          <QuickLink index="01" label="강사와 수업" detail="철학 · 커리큘럼" to="/landing/about" />
-          <QuickLink index="02" label="매치업 자료실" detail="직접 올린 분석 자료" to="/landing/matchup-board" featured />
-          <QuickLink index="03" label="수강 안내" detail="시간표 · 상담" to="#contact" />
+          <QuickLink label="강사와 수업" detail="박철T 소개와 수업 방식" to="/landing/about" />
+          <QuickLink label="매치업 자료실" detail="학교 시험과 수업 자료 비교" to="/landing/matchup-board" featured />
+          <QuickLink label="수강 안내" detail="시간표와 상담 연락처" to="#contact" />
         </nav>
 
         <section className={styles.archiveSection} data-stype="hit_reports" aria-labelledby="archive-title">
           <div className={styles.sectionHeadingRow}>
             <div>
-              <span className={styles.utilityLabel}>Matchup archive</span>
-              <h2 id="archive-title">수업의 결과를 자료로 공개합니다</h2>
-              <p>선생님이 직접 완성한 매치업 PDF를 빠르게 열람하고 공유할 수 있습니다.</p>
+              <span className={styles.utilityLabel}>학교별 매치업 자료</span>
+              <h2 id="archive-title">수업에서 준비한 내용,<br />시험지로 확인해 보세요</h2>
+              <p>실제 학교 시험과 수업 전에 준비한 자료를 나란히 비교했습니다. 대표 화면을 먼저 보고, 필요한 자료는 전체 PDF로 편하게 읽을 수 있습니다.</p>
             </div>
             <div className={styles.archiveActions}>
               {isOwner ? (
-                <Link to="/landing/admin/matchup-board?compose=upload" className={styles.uploadAction}>
+                <Link to="/landing/matchup-board?manage=1&compose=upload" className={styles.uploadAction}>
                   PDF 자료 올리기
                   <UploadIcon />
                 </Link>
@@ -184,8 +192,8 @@ export default function PremiumDark({ config }: TemplateProps) {
 
         <section className={styles.standardSection} data-stype="features" aria-labelledby="standard-title">
           <div className={styles.standardIntro}>
-            <span className={styles.utilityLabel}>Class standard</span>
-            <h2 id="standard-title">설명보다 운영 기준이 먼저 보이는 수업</h2>
+            <span className={styles.utilityLabel}>수업 운영 기준</span>
+            <h2 id="standard-title">수업 전 준비부터<br />시험 후 확인까지</h2>
             <p>
               자료 제작부터 시험 후 분석까지 같은 기준으로 이어집니다. 자세한 강사 이력과 수업 흐름은 소개 페이지에서 확인할 수 있습니다.
             </p>
@@ -195,7 +203,6 @@ export default function PremiumDark({ config }: TemplateProps) {
           <div className={styles.standardGrid}>
             {standards.slice(0, 4).map((item, index) => (
               <article className={styles.standardCard} key={`${item.title}-${index}`}>
-                <span className={styles.standardNumber}>{String(index + 1).padStart(2, "0")}</span>
                 <div className={styles.standardIcon}><SvgIcon name={item.icon || "check"} size={20} /></div>
                 <h3>{item.title}</h3>
                 <p>{item.description}</p>
@@ -205,9 +212,16 @@ export default function PremiumDark({ config }: TemplateProps) {
         </section>
 
         <section className={styles.profileSection} data-stype="instructor_profile" aria-labelledby="profile-title">
+          <figure className={styles.classroomFigure}>
+            <img src={CLASSROOM_PHOTOS[1]} alt="칠판 앞에서 학생들에게 통합과학을 설명하는 박철T" loading="lazy" />
+            <figcaption>
+              <strong>현장에서 직접 설명하고 확인합니다</strong>
+              <span>학생이 어디에서 막히는지 수업 중 바로 살핍니다.</span>
+            </figcaption>
+          </figure>
           <div className={styles.profileCard}>
             <div>
-              <span className={styles.utilityLabel}>Instructor note</span>
+              <span className={styles.utilityLabel}>박철T 소개</span>
               <h2 id="profile-title">{instructor?.name || config.brand_name}</h2>
               <p className={styles.profileBio}>
                 {instructor?.bio || "수업 전 자료와 수업 후 관리가 하나의 흐름으로 이어지도록 직접 설계하고 운영합니다."}
@@ -221,7 +235,7 @@ export default function PremiumDark({ config }: TemplateProps) {
           </div>
 
           <div className={styles.programCard} data-stype="programs">
-            <span className={styles.utilityLabel}>Current class</span>
+            <span className={styles.utilityLabel}>현재 모집 강좌</span>
             <h2>{program?.title || "통합과학 내신대비"}</h2>
             <p>{program?.description || config.subtitle}</p>
             {program?.badge ? <span className={styles.programBadge}>{program.badge}</span> : null}
@@ -230,7 +244,7 @@ export default function PremiumDark({ config }: TemplateProps) {
 
         <section id="contact" className={styles.contactSection} data-stype="contact" aria-labelledby="contact-title">
           <div>
-            <span className={styles.utilityLabel}>Admissions</span>
+            <span className={styles.utilityLabel}>수강 상담</span>
             <h2 id="contact-title">수업과 자료에 대해<br />편하게 문의하세요</h2>
           </div>
           <div className={styles.contactDetails}>
@@ -290,14 +304,25 @@ function ArchiveGrid({ archive }: { archive: ArchiveState }) {
     <div className={styles.archiveGrid}>
       {archive.items.map((item, index) => (
         <Link className={styles.archiveCard} to={`/landing/matchup-board/${item.id}`} key={item.id}>
+          <div className={styles.archivePreview}>
+            {item.preview_url ? (
+              <img src={resolvePublicReportUrl(item.preview_url)} alt="" loading={index === 0 ? "eager" : "lazy"} />
+            ) : (
+              <span>매치업 PDF</span>
+            )}
+          </div>
           <div className={styles.archiveCardTop}>
-            <span>PDF · MATCHUP</span>
-            <span>{String(index + 1).padStart(2, "0")}</span>
+            <span>{formatArchiveDate(item.published_at)}</span>
+            {item.snapshot_meta?.hit_rate !== undefined ? (
+              <strong>적중률 {Math.round((item.snapshot_meta.hit_rate || 0) * 100)}%</strong>
+            ) : null}
           </div>
           <h3>{item.title}</h3>
           <p>{item.description || "실제 시험과 사전 대비 자료를 비교한 매치업 보고서입니다."}</p>
           <div className={styles.archiveMeta}>
-            <span>{formatArchiveDate(item.published_at)}</span>
+            <span>{item.snapshot_meta?.hit_count !== undefined && item.snapshot_meta?.counted_entries !== undefined
+              ? `${item.snapshot_meta.hit_count}/${item.snapshot_meta.counted_entries}문항 적중`
+              : "PDF 전체 자료"}</span>
             <span>조회 {item.view_count}</span>
           </div>
         </Link>
@@ -306,8 +331,7 @@ function ArchiveGrid({ archive }: { archive: ArchiveState }) {
   );
 }
 
-function QuickLink({ index, label, detail, to, featured = false }: {
-  index: string;
+function QuickLink({ label, detail, to, featured = false }: {
   label: string;
   detail: string;
   to: string;
@@ -315,9 +339,7 @@ function QuickLink({ index, label, detail, to, featured = false }: {
 }) {
   return (
     <SmartLink to={to} className={`${styles.quickLink} ${featured ? styles.quickLinkFeatured : ""}`}>
-      <span className={styles.quickIndex}>{index}</span>
       <span className={styles.quickCopy}><strong>{label}</strong><small>{detail}</small></span>
-      <Arrow />
     </SmartLink>
   );
 }

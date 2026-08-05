@@ -229,7 +229,7 @@ export default function HitReportListPage() {
               <Button
                 size="sm"
                 intent="ghost"
-                onClick={() => navigate("/landing/admin/matchup-board")}
+                onClick={() => navigate("/landing/matchup-board?manage=1")}
                 style={{ width: isMobile ? "100%" : undefined }}
               >
                 게시판 관리
@@ -237,7 +237,7 @@ export default function HitReportListPage() {
               <Button
                 size="sm"
                 intent="primary"
-                onClick={() => navigate("/landing/admin/matchup-board?compose=upload")}
+                onClick={() => navigate("/landing/matchup-board?manage=1&compose=upload")}
                 style={{ width: isMobile ? "100%" : undefined, gridColumn: isMobile ? "1 / -1" : undefined }}
               >
                 + PDF 업로드 게시

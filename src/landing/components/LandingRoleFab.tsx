@@ -35,7 +35,7 @@ function actionsForRole(role: string, isSuperuser: boolean): RoleAction[] {
         ),
       },
       {
-        key: "matchup-publish", label: "홈페이지 자료 올리기", to: "/landing/admin/matchup-board?compose=upload",
+        key: "matchup-publish", label: "홈페이지 자료 올리기", to: "/landing/matchup-board?manage=1&compose=upload",
         title: "컴퓨터의 PDF를 매치업 자료실에 게시",
         icon: (
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M20 15v5H4v-5"/></svg>

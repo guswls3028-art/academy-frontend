@@ -91,7 +91,7 @@ export default function LandingMatchupBoardDetailPage() {
         <div style={{ fontSize: 34, marginBottom: 10 }}>!</div>
         <h1 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 8px" }}>{error || "게시물 없음"}</h1>
         <p style={{ fontSize: 13, color: MATCHUP_COLORS.textSecondary, margin: 0, lineHeight: 1.65 }}>
-          공개 기간이 끝났거나 학원에서 비공개로 전환했을 수 있어요.
+          공개가 끝났거나 학원에서 잠시 내려둔 자료일 수 있습니다.
         </p>
         <Link
           to="/landing/matchup-board"
@@ -174,7 +174,7 @@ export default function LandingMatchupBoardDetailPage() {
             </Link>
             {isOwner && (
               <Link
-                to="/landing/admin/matchup-board"
+                to="/landing/matchup-board?manage=1"
                 style={{
                   padding: "8px 13px",
                   borderRadius: 8,
@@ -186,7 +186,7 @@ export default function LandingMatchupBoardDetailPage() {
                   border: "1px solid rgba(18,104,243,0.42)",
                 }}
               >
-                게시판 관리
+                게시물 관리
               </Link>
             )}
           </div>
@@ -222,13 +222,13 @@ export default function LandingMatchupBoardDetailPage() {
       {pdfUrl && (
         <div style={{ background: MATCHUP_COLORS.bgAlt, borderBottom: `1px solid ${MATCHUP_COLORS.border}`, padding: "10px 24px", flexShrink: 0 }}>
           <div style={{ maxWidth: 1080, margin: "0 auto", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <span style={{ fontSize: 12, color: MATCHUP_COLORS.textSecondary }}>자료 전체 보기</span>
+            <span style={{ fontSize: 12, color: MATCHUP_COLORS.textSecondary }}>전체 자료</span>
             <a
               href={pdfUrl}
               target="_blank"
               rel="noopener noreferrer"
               style={{ padding: "7px 14px", borderRadius: 8, background: accent, color: MATCHUP_COLORS.bg, fontSize: 12.5, fontWeight: 800, textDecoration: "none" }}
-            >전체 화면 PDF 보기</a>
+            >PDF 전체보기</a>
             <a
               href={pdfUrl}
               download
@@ -245,7 +245,8 @@ export default function LandingMatchupBoardDetailPage() {
             imageUrl={previewUrl}
             pdfUrl={pdfUrl}
             alt={`${card.title} 실제 시험 문제와 우리 학원 사전 대비 자료 비교`}
-            caption="대표 화면입니다. 전체 내용은 위의 ‘전체 화면 PDF 보기’에서 확인할 수 있습니다."
+            caption="대표 비교 화면입니다. 전체 문항은 위의 ‘PDF 전체보기’에서 이어서 확인할 수 있습니다."
+            zoomable
           />
         ) : (
           <div style={{ padding: 48, textAlign: "center", color: MATCHUP_COLORS.textSecondary, lineHeight: 1.6 }}>
