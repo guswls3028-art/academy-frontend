@@ -181,6 +181,22 @@ test("public product updates route is edge-allowlisted and indexable", async () 
   }
 });
 
+test("security headers allow the exact API host used by public Matchup PDF frames", async () => {
+  const document = await documentRequest("tchul.com", "/landing/matchup-board/16");
+  const csp = document.headers.get("Content-Security-Policy") || "";
+  const staticHeaders = readFileSync(resolve(process.cwd(), "public/_headers"), "utf8");
+
+  expect(csp).toContain(
+    "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://api.hakwonplus.com",
+  );
+  expect(staticHeaders).toContain(
+    "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://api.hakwonplus.com",
+  );
+  const frameDirective = csp.split(";").map((part) => part.trim())
+    .find((part) => part.startsWith("frame-src ")) || "";
+  expect(frameDirective.split(/\s+/)).not.toContain("https:");
+});
+
 test("deployment gate owns the developer custom domain lifecycle", () => {
   const workflow = readFileSync(
     resolve(process.cwd(), ".github/workflows/quality-gate.yml"),
