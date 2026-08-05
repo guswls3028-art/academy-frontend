@@ -256,6 +256,9 @@ test.describe("tchul 공개 홈페이지 전체 방문 동선", () => {
 
   for (const viewport of VIEWPORTS) {
     test(`${viewport.name} ${viewport.width}x${viewport.height} 전체 route 누적 감사`, async ({ browser, request }) => {
+      // 공개 매치업 5건의 실제 PDF 전 페이지를 순회하므로 운영 네트워크와
+      // 캔버스 렌더 시간을 포함해 충분한 감사 시간을 보장한다.
+      test.setTimeout(15 * 60_000);
       const screenshotDir = join(ARTIFACT_DIR, "screenshots", viewport.name);
       await mkdir(screenshotDir, { recursive: true });
       const routes = await buildRouteInventory(request);
