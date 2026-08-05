@@ -27,6 +27,7 @@ function removePastOpeningDates(value: string, now: Date): string {
       isPastOpeningDate(Number(month), Number(day), now) ? prefix : full
     ))
     .replace(/\s*,\s*,/g, ", ")
+    .replace(/([.!?。！？])\s*[,·]\s*/g, "$1 ")
     .replace(/^\s*[,·]\s*|\s*[,·]\s*$/g, "")
     .replace(/\s{2,}/g, " ")
     .trim();
