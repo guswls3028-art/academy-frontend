@@ -1048,8 +1048,8 @@ export async function unsubmitHitReport(reportId: number): Promise<HitReport> {
   return data;
 }
 
-// 학원장 mental model (2026-05-11): submit = 학원 홈페이지에 게시.
-// 응답에 landing_url + published_to_landing 포함 — 게시 결과 즉시 CTA toast 표시.
+// submit은 보고서 작성을 완료하고 편집을 잠근다. 홈페이지 공개를 약속하는 호출자는
+// 새 PublicMatchupShowcase publish API를 별도로 성공시켜야 한다.
 export type HitReportSubmitResponse = HitReport & {
   published_to_landing?: boolean;
   total_published?: number;
@@ -1063,39 +1063,8 @@ export async function submitHitReport(
 ): Promise<HitReportSubmitResponse> {
   const { data } = await api.post<HitReportSubmitResponse>(
     `/matchup/hit-reports/${reportId}/submit/`,
-    { publish_to_landing: options?.publishToLanding ?? true },
+    { publish_to_landing: options?.publishToLanding ?? false },
     { timeout: HIT_REPORT_SAVE_TIMEOUT_MS },
-  );
-  return data;
-}
-
-// admin 포탈 widget — 학원 홈페이지에 게시된 적중보고서 mini list.
-// HitReportListPage 상단 띠 (cafe 게시판 분위기) + submit 후 invalidateQuery 로 reload.
-export type BoardPreviewCard = {
-  id: number;
-  doc_title: string;
-  doc_category: string;
-  hit_count: number;
-  total_problems: number;
-  hit_rate_pct: number;
-  author_name: string;
-  title: string;
-  submitted_at: string | null;
-  created_at: string | null;
-  landing_url: string;
-};
-
-export type BoardPreviewResponse = {
-  reports: BoardPreviewCard[];
-  total_published: number;
-};
-
-export async function fetchHitReportBoardPreview(
-  limit: number = 5,
-): Promise<BoardPreviewResponse> {
-  const { data } = await api.get<BoardPreviewResponse>(
-    `/matchup/hit-reports/board-preview/`,
-    { params: { limit } },
   );
   return data;
 }
@@ -1224,35 +1193,6 @@ export async function rejectProposal(
       reason: payload?.reason ?? "",
       code: payload?.code ?? "manual_reject",
     },
-  );
-  return data;
-}
-
-/** 어드민이 자기 학원의 published landing에 노출된 적중보고서 ID 목록 fetch */
-export async function fetchPublishedHitReportIds(): Promise<number[]> {
-  try {
-    const { data } = await api.get<{
-      draft_config?: { sections?: Array<{ type: string; enabled?: boolean; items?: Array<{ report_id?: number }> }> };
-    }>("/core/landing/admin/");
-    const sections = data?.draft_config?.sections ?? [];
-    const hit = sections.find((s) => s.type === "hit_reports");
-    if (!hit) return [];
-    return (hit.items ?? [])
-      .map((it) => Number(it.report_id))
-      .filter((n) => Number.isFinite(n) && n > 0);
-  } catch {
-    return [];
-  }
-}
-
-/** 적중보고서 한 클릭 토글 — 홈페이지 hit_reports 섹션에 add/remove + auto-publish */
-export async function toggleHitReportShowcase(
-  reportId: number,
-  action: "add" | "remove",
-): Promise<{ ok: boolean; registered: boolean; total_registered?: number; published?: boolean }> {
-  const { data } = await api.post<{ ok: boolean; registered: boolean; total_registered?: number; published?: boolean }>(
-    "/core/landing/admin/hit-report-toggle/",
-    { report_id: reportId, action, auto_publish: true },
   );
   return data;
 }

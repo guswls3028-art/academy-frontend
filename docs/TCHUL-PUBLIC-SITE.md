@@ -38,6 +38,14 @@
 5. 게시 후 원본 PDF는 게시 시점 스냅샷으로 보존한다. 컴퓨터 파일이나 자동
    보고서가 나중에 바뀌어도 이미 게시한 자료는 바뀌지 않는다.
 
+기존 매치업 적중 보고서 편집기와 목록의 `홈페이지에 게시`도 같은
+`PublicMatchupShowcase` 스냅샷을 생성한다. 보고서의 `submitted` 상태는 작성 완료와
+편집 잠금만 뜻하며 공개 여부의 근거로 사용하지 않는다. 실제 공개 여부는 공개
+자료실 목록 응답으로 확인한다. 작성 완료를 다시 열어도 이미 공개된 스냅샷은
+유지되며, 공개 중단은 게시물 관리에서 별도로 실행한다.
+자동 보고서를 게시할 때 공개 제목은 오래된 보고서 임시 제목보다 실제 시험
+문서의 `document_title`을 우선해 중간·기말고사 이름이 뒤섞이지 않게 한다.
+
 원장/관리자만 게시·수정·비공개·내리기를 실행할 수 있다. 게시물 관리는 별도
 흰색 관리 페이지로 이동하지 않고 공개 자료실 위의 큰 팝업에서 처리한다. 직접
 URL로 들어오는 기존 `/landing/admin/matchup-board` 경로는 호환용으로 유지한다.
@@ -57,10 +65,11 @@ URL로 들어오는 기존 `/landing/admin/matchup-board` 경로는 호환용으
 - 홈과 목록은 PDF 렌더러를 미리 띄우지 않는다. 각 카드에 캐시된 대표 비교
   화면, 학교·시험 제목, 적중률·적중 문항 수를 먼저 보여준다. 카드 전체가 상세
   링크이며 작은 화살표만 별도 조작 대상으로 두지 않는다.
-- 상세는 서버가 만든 정적 대표 이미지를 화면 폭에 맞춰 먼저 보여준다. 모바일은
-  가로로 밀어야 첫 내용을 읽을 수 있는 고정 너비를 사용하지 않는다. 대표 화면을
-  누르면 전체 화면으로 확대할 수 있다.
-- 전체 내용은 새 창 `PDF 전체보기`와 다운로드로 제공한다.
+- 상세는 진입 즉시 전체 PDF를 본문에 표시한다. 방문자는 별도 버튼을 한 번 더
+  누르지 않고 문서 안에서 모든 페이지를 스크롤해 확인할 수 있어야 한다. 모바일은
+  페이지 자체에 가로 overflow를 만들지 않는다.
+- `새 창에서 크게 보기`와 다운로드는 브라우저 내장 PDF 표시를 사용할 수 없는
+  환경을 위한 보조 동선이다. 정적 대표 이미지는 홈과 목록 카드에만 사용한다.
 - 목록·상세 API가 실패하면 빈 화면으로 오인시키지 않고 오류와 다시 시도를
   표시한다. 자료가 없으면 첫 게시를 안내한다.
 - 비공개·기간 만료·없는 게시물은 각각 접근 불가 상태를 안내하며 다른 테넌트
@@ -90,7 +99,7 @@ URL로 들어오는 기존 `/landing/admin/matchup-board` 경로는 호환용으
 ## 검증
 
 ```powershell
-pnpm exec eslint src/landing/templates/PremiumDark.tsx src/landing/pages/LandingMatchupBoardPage.tsx
+pnpm exec eslint src/landing/templates/PremiumDark.tsx src/landing/pages/LandingMatchupBoardPage.tsx src/landing/pages/LandingMatchupBoardDetailPage.tsx
 pnpm exec playwright test e2e/landing-matchup-static-preview.spec.ts --project=chromium --reporter=list
 pnpm build
 ```

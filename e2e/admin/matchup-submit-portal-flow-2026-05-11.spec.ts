@@ -1,5 +1,5 @@
 /**
- * 매치업 submit = 게시 흐름 + 적중보고서 탭 포탈 widget (2026-05-11).
+ * 매치업 작성 완료 + 공개 자료실 포탈 widget (2026-08-05 계약 갱신).
  *
  * 학원장 mental model 정정 (2026-05-11 P-1 실측):
  *  - submitted 보고서 0건 / 223 doc — submit routine 정착 부재
@@ -9,7 +9,7 @@
  * 검증 (Tenant 1, read-only):
  *  1. /admin/hit-reports 진입 → 포탈 widget "🌐 우리 학원 매치업 게시판" 노출
  *  2. widget header 버튼 (새로고침 / 전체 보기) 노출
- *  3. 정정된 텍스트 노출 (필터 옵션 "홈페이지 게시 중" / banner 문구)
+ *  3. 작성 완료와 실제 홈페이지 게시 상태를 혼동하지 않는 텍스트 노출
  *
  * 메모리 정책: feedback_no_e2e_on_real_tenants — Tenant 1 만, 박철T 등 실사용 X.
  */
@@ -42,12 +42,12 @@ test.describe("매치업 submit = 게시 통합 흐름 (1번 테넌트, read-onl
     await expect(widget.getByRole("button", { name: /전체 보기/ })).toBeVisible();
     await expect(widget.getByRole("button", { name: /새로고침|갱신 중/ })).toBeVisible();
 
-    // 필터 옵션 — "홈페이지 게시 중" (기존 "제출 완료" 정정)
+    // 필터 옵션 — submitted는 홈페이지 공개가 아니라 작성 완료 상태다.
     const statusSelect = page.locator("select").first();
     await expect(statusSelect).toBeVisible();
     const optionTexts = await statusSelect.locator("option").allInnerTexts();
     expect(optionTexts).toContain("작성 중");
-    expect(optionTexts).toContain("홈페이지 게시 중");
+    expect(optionTexts).toContain("작성 완료");
     // 정정 검증 — 기존 "제출 완료" 단어 사라짐
     expect(optionTexts).not.toContain("제출 완료");
 
@@ -73,13 +73,7 @@ test.describe("매치업 submit = 게시 통합 흐름 (1번 테넌트, read-onl
     // 정정 검증 — 어떤 empty 메시지든 "학원에 제출된" 단어 없어야 함
     const bodyText = await page.locator("body").innerText();
     expect(bodyText).not.toContain("학원에 제출된 보고서가 없습니다");
-    // 게시 단어가 노출되어야 함 — widget header(매치업 게시판) 또는 empty state(홈페이지 게시).
-    // T1 admin은 widget이 자동 렌더되므로 둘 중 widget header 매칭이 안정적.
-    const hasPublishWording =
-      bodyText.includes("매치업 게시판")
-      || /홈페이지.*게시/.test(bodyText)
-      || bodyText.includes("게시 중");
-    expect(hasPublishWording).toBe(true);
+    expect(bodyText).toContain("매치업 게시판");
 
     await page.screenshot({
       path: `${SCREENSHOT_DIR}/03-empty-state-with-publish-wording.png`,
@@ -87,11 +81,11 @@ test.describe("매치업 submit = 게시 통합 흐름 (1번 테넌트, read-onl
     });
   });
 
-  test("포탈 widget 새로고침 버튼 클릭 → board-preview API 재호출", async ({ page }) => {
-    let boardPreviewCalled = false;
+  test("포탈 widget 새로고침 버튼 클릭 → 공개 자료실 API 재호출", async ({ page }) => {
+    let showcaseListCalled = false;
     page.on("request", (req) => {
-      if (req.url().includes("/matchup/hit-reports/board-preview/")) {
-        boardPreviewCalled = true;
+      if (req.url().includes("/landing-public/matchup-showcase/")) {
+        showcaseListCalled = true;
       }
     });
 
@@ -107,13 +101,13 @@ test.describe("매치업 submit = 게시 통합 흐름 (1번 테넌트, read-onl
     await expect(widget).toBeVisible({ timeout: 15_000 });
 
     // 신호 reset → widget 내부 새로고침 클릭 → board-preview 재호출
-    boardPreviewCalled = false;
+    showcaseListCalled = false;
     const refreshBtn = widget.getByRole("button", { name: /새로고침|갱신 중/ });
     await refreshBtn.click();
     // eslint-disable-next-line no-restricted-syntax
     await page.waitForTimeout(2000);
 
-    expect(boardPreviewCalled).toBe(true);
+    expect(showcaseListCalled).toBe(true);
 
     await page.screenshot({
       path: `${SCREENSHOT_DIR}/04-after-refresh.png`,

@@ -120,7 +120,7 @@ export default function HitReportPreviewModal({ report, open, onClose, onEdit }:
                   padding: "2px 8px", borderRadius: 999, fontSize: 10, fontWeight: 700,
                   background: "var(--color-status-success-bg, #dcfce7)",
                   color: "var(--color-status-success, #16a34a)",
-                }}>🌐 게시 중</span>
+                }}>작성 완료</span>
               ) : (
                 <span style={{
                   padding: "2px 8px", borderRadius: 999, fontSize: 10, fontWeight: 700,

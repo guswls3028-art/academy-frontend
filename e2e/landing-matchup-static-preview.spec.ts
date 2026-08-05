@@ -7,6 +7,7 @@ const BASE = process.env.E2E_LOCAL_BASE_URL || "http://127.0.0.1:5174";
 const PREVIEW_IMAGE = readFileSync(
   resolve(process.cwd(), "public/promo/matchup-actual-vs-prepared-q1-20260726.jpg"),
 );
+const TEST_PDF = readFileSync(resolve(process.cwd(), "e2e/fixtures/test-matchup.pdf"));
 
 async function stubLandingReport(page: Page) {
   await page.addInitScript(() => {
@@ -78,6 +79,10 @@ async function stubLandingReport(page: Page) {
   });
   await page.route("**/api/v1/landing-public/**", async (route) => {
     const pathname = new URL(route.request().url()).pathname;
+    if (pathname.endsWith("/matchup-showcase/9/pdf/")) {
+      await route.fulfill({ status: 200, contentType: "application/pdf", body: TEST_PDF });
+      return;
+    }
     if (pathname.endsWith("/matchup-showcase/9/preview/")) {
       await route.fulfill({ status: 200, contentType: "image/jpeg", body: PREVIEW_IMAGE });
       return;
@@ -89,6 +94,7 @@ async function stubLandingReport(page: Page) {
       status: "published",
       published_at: "2026-07-25T12:00:00+09:00",
       published_until: null,
+      snapshot_at: "2026-07-25T12:00:00+09:00",
       snapshot_meta: { hit_rate: 0.8, hit_count: 8, counted_entries: 10 },
       view_count: 1,
       expired: false,
@@ -164,7 +170,7 @@ test("a failed report preview retries after route change", async ({ page }) => {
   await expect(page.getByTestId("static-report-preview").locator("img")).toBeVisible();
 });
 
-test("showcase card opens a dedicated mobile-readable article", async ({ page }) => {
+test("showcase detail immediately embeds every PDF page without a second click", async ({ page }) => {
   await stubLandingReport(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${BASE}/landing/matchup-board`, { waitUntil: "load" });
@@ -174,15 +180,22 @@ test("showcase card opens a dedicated mobile-readable article", async ({ page })
   await opener.click();
   await expect(page).toHaveURL(/\/landing\/matchup-board\/9$/);
   await expect(page.getByRole("heading", { name: "2026 숙명여고 적중 보고서" })).toBeVisible();
-  await expect(page.getByText("대표 화면을 누르면 크게 볼 수 있습니다")).toBeVisible();
-  const detailPreview = page.getByTestId("static-report-preview").locator("img");
-  await expect(detailPreview).toBeVisible();
-  await expect.poll(async () => detailPreview.evaluate((img) => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0)).toBe(true);
-  await page.getByTestId("static-report-preview").getByRole("button", { name: /크게 보기/ }).click();
-  await expect(page.getByTestId("landing-image-lightbox")).toBeVisible();
-  await page.getByTestId("landing-image-lightbox").getByRole("button", { name: "닫기" }).click();
-  await expect(page.getByRole("link", { name: "PDF 전체보기" })).toBeVisible();
-  await expect(page.locator("iframe")).toHaveCount(0);
+  await expect(page.getByText("전체 PDF · 아래에서 모든 페이지를 바로 확인하세요")).toBeVisible();
+  const fullPdf = page.getByTestId("matchup-full-pdf");
+  await expect(fullPdf).toBeVisible();
+  await expect(fullPdf).toHaveAttribute("src", /\/api\/v1\/landing-public\/matchup-showcase\/9\/pdf\/\?tenant=tchul/);
+  await expect(page.getByTestId("static-report-preview")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "새 창에서 크게 보기" })).toBeVisible();
+  await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  const mobileBox = await fullPdf.boundingBox();
+  expect(mobileBox?.width).toBeLessThanOrEqual(390);
+  expect(mobileBox?.height).toBeGreaterThanOrEqual(680);
+
+  await page.setViewportSize({ width: 1366, height: 900 });
+  const desktopBox = await fullPdf.boundingBox();
+  expect(desktopBox?.width).toBeGreaterThan(1000);
+  expect(desktopBox?.height).toBeGreaterThanOrEqual(700);
   await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
@@ -227,6 +240,7 @@ test("owner mobile flow starts with a local PDF upload", async ({ page }) => {
       status: "hidden",
       published_at: "2026-07-25T12:00:00+09:00",
       published_until: null,
+      snapshot_at: "2026-07-25T12:00:00+09:00",
       snapshot_meta: {},
       view_count: 0,
       expired: false,

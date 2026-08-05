@@ -4,7 +4,7 @@
 // 호소: "홈페이지 매치업만 볼 수 있는 링크에 제가 위에 올린 파일만 업로드.
 // 내일 수업 자랑하고 싶음." → 학원 전체 list URL 이 아닌 PDF 1개만 보이는 dedicated URL.
 //
-// 이 페이지: 학원 brand 헤더 + 카드 메타 + 정적 JPEG 미리보기 + 전체 PDF 링크. 비로그인 OK
+// 이 페이지: 학원 brand 헤더 + 카드 메타 + 전체 PDF 즉시 본문 표시. 비로그인 OK
 // (backend `is_publicly_visible()` 통과 시점만). 학원장은 항상 preview 가능.
 /* eslint-disable no-restricted-syntax */
 
@@ -21,7 +21,6 @@ import {
 import { MATCHUP_COLORS } from "./LandingMatchupBoardTokens";
 import { setLandingMeta as setMeta } from "../utils/seoMeta";
 import { formatLandingYmdDateOrRaw as formatDate } from "../utils/dateFormat";
-import StaticReportPreview from "../components/StaticReportPreview";
 import { resolvePublicReportUrl } from "../utils/publicReportUrl";
 import { resolveTenantCode } from "@/shared/tenant";
 import useAuth from "@/auth/hooks/useAuth";
@@ -130,9 +129,6 @@ export default function LandingMatchupBoardDetailPage() {
     return abs;
   };
   const pdfUrl = resolveTenantMediaUrl(card.pdf_url);
-  const previewUrl = resolveTenantMediaUrl(
-    card.preview_url || card.pdf_url?.replace("/pdf/", "/preview/"),
-  );
 
   if (!cfg) {
     return (
@@ -218,17 +214,19 @@ export default function LandingMatchupBoardDetailPage() {
         </div>
       </div>
 
-      {/* 전체 PDF는 보조 동선으로 두고, 본문은 정적 이미지 미리보기를 사용. */}
+      {/* 상세 진입 즉시 전체 PDF를 본문에 표시한다. 새 창/다운로드는 브라우저 호환 fallback. */}
       {pdfUrl && (
         <div style={{ background: MATCHUP_COLORS.bgAlt, borderBottom: `1px solid ${MATCHUP_COLORS.border}`, padding: "10px 24px", flexShrink: 0 }}>
           <div style={{ maxWidth: 1080, margin: "0 auto", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <span style={{ fontSize: 12, color: MATCHUP_COLORS.textSecondary }}>전체 자료</span>
+            <span style={{ fontSize: 12, color: MATCHUP_COLORS.textSecondary, marginRight: "auto" }}>
+              전체 PDF · 아래에서 모든 페이지를 바로 확인하세요
+            </span>
             <a
               href={pdfUrl}
               target="_blank"
               rel="noopener noreferrer"
               style={{ padding: "7px 14px", borderRadius: 8, background: accent, color: MATCHUP_COLORS.bg, fontSize: 12.5, fontWeight: 800, textDecoration: "none" }}
-            >PDF 전체보기</a>
+            >새 창에서 크게 보기</a>
             <a
               href={pdfUrl}
               download
@@ -238,16 +236,24 @@ export default function LandingMatchupBoardDetailPage() {
         </div>
       )}
 
-      {/* 대표 비교 이미지 한 장 — 브라우저 PDF 렌더 대기 제거. */}
-      <div style={{ flex: 1, background: "#101827", minHeight: 420, padding: "24px" }}>
-        {pdfUrl && previewUrl ? (
-          <StaticReportPreview
-            imageUrl={previewUrl}
-            pdfUrl={pdfUrl}
-            alt={`${card.title} 실제 시험 문제와 우리 학원 사전 대비 자료 비교`}
-            caption="대표 비교 화면입니다. 전체 문항은 위의 ‘PDF 전체보기’에서 이어서 확인할 수 있습니다."
-            zoomable
-          />
+      <div style={{ flex: 1, background: "#101827", minHeight: 420, padding: "clamp(8px, 2vw, 24px)" }}>
+        {pdfUrl ? (
+          <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+            <iframe
+              data-testid="matchup-full-pdf"
+              src={pdfUrl}
+              title={`${card.title} 전체 PDF`}
+              loading="eager"
+              style={{
+                display: "block",
+                width: "100%",
+                height: "clamp(680px, calc(100dvh - 120px), 980px)",
+                border: `1px solid ${MATCHUP_COLORS.border}`,
+                borderRadius: 10,
+                background: "#fff",
+              }}
+            />
+          </div>
         ) : (
           <div style={{ padding: 48, textAlign: "center", color: MATCHUP_COLORS.textSecondary, lineHeight: 1.6 }}>
             <div style={{ fontSize: 32, marginBottom: 12 }}>!</div>

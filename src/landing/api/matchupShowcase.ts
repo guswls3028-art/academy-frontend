@@ -47,6 +47,17 @@ export interface MatchupShowcaseListResponse {
 
 const BASE = "/landing-public/matchup-showcase";
 
+/** staff 목록에는 초안/비공개/기간 밖 자료도 포함되므로 공개 중인 스냅샷만 명시적으로 고른다. */
+export function isActiveMatchupShowcase(
+  card: MatchupShowcaseCard,
+  now: number = Date.now(),
+): boolean {
+  if (card.status !== "published" || !card.snapshot_at || card.expired) return false;
+  if (!card.published_at) return false;
+  const publishedAt = Date.parse(card.published_at);
+  return Number.isFinite(publishedAt) && publishedAt <= now;
+}
+
 /** 공개/내부 list — 비로그인 OK (PUBLISHED + window). staff 시점에 DRAFT/HIDDEN 까지. */
 export async function fetchMatchupShowcaseList(opts?: { skipAuth?: boolean }): Promise<MatchupShowcaseListResponse> {
   const cfg: ApiRequestConfig | undefined = opts?.skipAuth ? ({ skipAuth: true } as ApiRequestConfig) : undefined;
