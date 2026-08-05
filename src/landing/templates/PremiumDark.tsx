@@ -16,6 +16,8 @@ import type {
 import { formatLandingYmdDateOrRaw as formatArchiveDate } from "../utils/dateFormat";
 import { resolvePublicProgramCopy } from "../utils/publicProgramCopy";
 import { resolvePublicReportUrl } from "../utils/publicReportUrl";
+import { matchupHitRateLabel } from "../utils/matchupHitRate";
+import { resolveTenantCode } from "@/shared/tenant";
 import {
   getEnabledSections,
   LandingNavBar,
@@ -69,6 +71,12 @@ const INSTRUCTOR_PORTRAITS = {
   casual: "/tenants/tchul/instructor-casual-portrait.webp",
 };
 
+const TCHUL_INQUIRIES = [
+  { label: "두각학원", phone: "02-556-1988" },
+  { label: "명인학원", phone: "02-6382-0909" },
+  { label: "박철 과학 연구소", phone: "010-3502-3313" },
+];
+
 export default function PremiumDark({ config }: TemplateProps) {
   const sections = getEnabledSections(config);
   const hero = findSection(sections, "hero");
@@ -78,6 +86,19 @@ export default function PremiumDark({ config }: TemplateProps) {
   const features = sectionItems<FeatureItem>(findSection(sections, "features")).slice(0, 4);
   const management = sectionItems<ManagementCardItem>(findSection(sections, "management_system")).slice(0, 3);
   const primaryCta = resolveHeroPrimaryCta(config, hero || ({ type: "hero" } as LandingSection));
+  const tenantCode = resolveTenantCode();
+  const isTchul = tenantCode.ok && tenantCode.code === "tchul";
+  const configuredInquiries = (config.contact?.inquiries || []).filter(
+    (item) => item.label?.trim() && item.phone?.trim(),
+  );
+  const inquiries = configuredInquiries.length > 0
+    ? configuredInquiries
+    : (isTchul ? TCHUL_INQUIRIES : (config.contact?.phone
+      ? [{ label: "수강 문의", phone: config.contact.phone }]
+      : []));
+  const publicPrimaryCta = isTchul
+    ? { label: "두각학원 수강 문의", link: `tel:${TCHUL_INQUIRIES[0].phone.replace(/[^0-9+]/g, "")}` }
+    : primaryCta;
   const { user } = useAuth();
   const isOwner = Boolean(
     user?.is_superuser || user?.tenantRole === "owner" || user?.tenantRole === "admin",
@@ -129,14 +150,14 @@ export default function PremiumDark({ config }: TemplateProps) {
             <div className={styles.heroContent}>
               <div className={styles.kicker}>
                 <span className={styles.kickerDot} />
-                마포에서 만나는 대치동 통합과학
+                대치동 두각에서 시작하는 통합과학
               </div>
               <h1 id="premium-home-title" className={styles.heroTitle}>{heroTitle}</h1>
               {heroDescription ? <p className={styles.heroDescription}>{heroDescription}</p> : null}
 
               <div className={styles.heroActions}>
-                <SmartLink to={primaryCta.link} className={styles.primaryAction} testId="landing-hero-primary-cta">
-                  {primaryCta.label}
+                <SmartLink to={publicPrimaryCta.link} className={styles.primaryAction} testId="landing-hero-primary-cta">
+                  {publicPrimaryCta.label}
                   <Arrow />
                 </SmartLink>
                 <Link to="/landing/matchup-board" className={styles.secondaryAction}>
@@ -181,7 +202,7 @@ export default function PremiumDark({ config }: TemplateProps) {
             <div>
               <span className={styles.utilityLabel}>학교별 매치업 자료</span>
               <h2 id="archive-title">수업에서 준비한 내용,<br />시험지로 확인해 보세요</h2>
-              <p>실제 학교 시험과 수업 전에 준비한 자료를 나란히 비교했습니다. 대표 화면을 먼저 보고, 필요한 자료는 전체 PDF로 편하게 읽을 수 있습니다.</p>
+              <p>실제 학교 시험과 수업 전에 준비한 자료를 나란히 비교했습니다. 카드를 누르면 첫 쪽부터 끝까지 하나의 게시물처럼 바로 이어서 읽을 수 있습니다.</p>
             </div>
             <div className={styles.archiveActions}>
               {isOwner ? (
@@ -263,20 +284,25 @@ export default function PremiumDark({ config }: TemplateProps) {
             <h2 id="contact-title">수업과 자료에 대해<br />편하게 문의하세요</h2>
           </div>
           <div className={styles.contactDetails}>
-            {config.contact?.phone ? (
-              <a href={`tel:${config.contact.phone.replace(/[^0-9+]/g, "")}`}>
-                <span>전화</span>
-                <strong>{config.contact.phone}</strong>
+            {inquiries.map((inquiry, index) => (
+              <a
+                className={index === 0 && isTchul ? styles.contactPrimary : undefined}
+                href={`tel:${inquiry.phone.replace(/[^0-9+]/g, "")}`}
+                key={`${inquiry.label}-${inquiry.phone}`}
+              >
+                <span>{index === 0 && isTchul ? "주요 수강 문의" : "수강 문의"}</span>
+                <strong>{inquiry.label}</strong>
+                <small>{inquiry.phone}</small>
               </a>
-            ) : null}
-            {config.contact?.address ? (
+            ))}
+            {!isTchul && config.contact?.address ? (
               <div>
                 <span>위치</span>
                 <strong>{config.contact.address}</strong>
               </div>
             ) : null}
-            <SmartLink to={primaryCta.link} className={styles.contactAction}>
-              {primaryCta.label}
+            <SmartLink to={publicPrimaryCta.link} className={styles.contactAction}>
+              {publicPrimaryCta.label}
               <Arrow />
             </SmartLink>
           </div>
@@ -317,20 +343,22 @@ function ArchiveGrid({ archive }: { archive: ArchiveState }) {
 
   return (
     <div className={styles.archiveGrid}>
-      {archive.items.map((item, index) => (
-        <Link className={styles.archiveCard} to={`/landing/matchup-board/${item.id}`} key={item.id}>
+      {archive.items.map((item, index) => {
+        const hitRateLabel = matchupHitRateLabel(item.snapshot_meta?.hit_rate);
+        return (
+          <Link className={styles.archiveCard} to={`/landing/matchup-board/${item.id}`} key={item.id}>
           <div className={styles.archivePreview}>
             <ResilientPublicImage
               src={item.preview_url ? resolvePublicReportUrl(item.preview_url) : undefined}
               alt=""
               loading={index === 0 ? "eager" : "lazy"}
-              fallback={<span>매치업 PDF</span>}
+              fallback={<span>매치업 자료</span>}
             />
           </div>
           <div className={styles.archiveCardTop}>
             <span>{formatArchiveDate(item.published_at)}</span>
-            {item.snapshot_meta?.hit_rate !== undefined ? (
-              <strong>적중률 {Math.round((item.snapshot_meta.hit_rate || 0) * 100)}%</strong>
+            {hitRateLabel ? (
+              <strong>적중률 {hitRateLabel}</strong>
             ) : null}
           </div>
           <h3>{item.title}</h3>
@@ -338,11 +366,12 @@ function ArchiveGrid({ archive }: { archive: ArchiveState }) {
           <div className={styles.archiveMeta}>
             <span>{item.snapshot_meta?.hit_count !== undefined && item.snapshot_meta?.counted_entries !== undefined
               ? `${item.snapshot_meta.hit_count}/${item.snapshot_meta.counted_entries}문항 적중`
-              : "PDF 전체 자료"}</span>
+              : "전체 자료"}</span>
             <span>조회 {item.view_count}</span>
           </div>
-        </Link>
-      ))}
+          </Link>
+        );
+      })}
     </div>
   );
 }

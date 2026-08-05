@@ -24,6 +24,8 @@ import { formatLandingYmdDateOrRaw as formatDate } from "../utils/dateFormat";
 import { resolvePublicReportUrl } from "../utils/publicReportUrl";
 import { resolveTenantCode } from "@/shared/tenant";
 import useAuth from "@/auth/hooks/useAuth";
+import MatchupInlinePdf from "../components/MatchupInlinePdf";
+import { matchupHitRateLabel } from "../utils/matchupHitRate";
 
 export default function LandingMatchupBoardDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -113,6 +115,7 @@ export default function LandingMatchupBoardDetailPage() {
   }
 
   const hitRate = card.snapshot_meta?.hit_rate;
+  const hitRateLabel = matchupHitRateLabel(hitRate);
   const hitCount = card.snapshot_meta?.hit_count;
   const countedEntries = card.snapshot_meta?.counted_entries;
   const visibleNow = card.visible;
@@ -188,9 +191,9 @@ export default function LandingMatchupBoardDetailPage() {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
             <span style={{ display: "inline-flex", alignItems: "center", padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 800, letterSpacing: "0.04em", background: accent, color: MATCHUP_COLORS.bg }}>적중 보고서</span>
-            {hitRate !== undefined && (
+            {hitRateLabel && (
               <span style={{ fontSize: 12, fontWeight: 800, color: accent }}>
-                적중률 {Math.round((hitRate || 0) * 100)}%
+                적중률 {hitRateLabel}
                 {hitCount !== undefined && countedEntries !== undefined && (
                   <span style={{ color: MATCHUP_COLORS.textMuted, fontWeight: 600, marginLeft: 4 }}>({hitCount}/{countedEntries})</span>
                 )}
@@ -214,46 +217,25 @@ export default function LandingMatchupBoardDetailPage() {
         </div>
       </div>
 
-      {/* 상세 진입 즉시 전체 PDF를 본문에 표시한다. 새 창/다운로드는 브라우저 호환 fallback. */}
+      {/* PDF는 보관 원본이고, 방문자는 브라우저 뷰어 없이 모든 쪽을 게시물처럼 이어 본다. */}
       {pdfUrl && (
         <div style={{ background: MATCHUP_COLORS.bgAlt, borderBottom: `1px solid ${MATCHUP_COLORS.border}`, padding: "10px 24px", flexShrink: 0 }}>
           <div style={{ maxWidth: 1080, margin: "0 auto", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <span style={{ fontSize: 12, color: MATCHUP_COLORS.textSecondary, marginRight: "auto" }}>
-              전체 PDF · 아래에서 모든 페이지를 바로 확인하세요
+              전체 자료 · 아래에서 첫 쪽부터 끝까지 이어서 보세요
             </span>
-            <a
-              href={pdfUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ padding: "7px 14px", borderRadius: 8, background: accent, color: MATCHUP_COLORS.bg, fontSize: 12.5, fontWeight: 800, textDecoration: "none" }}
-            >새 창에서 크게 보기</a>
             <a
               href={pdfUrl}
               download
               style={{ padding: "7px 14px", borderRadius: 8, background: "rgba(255,255,255,0.06)", color: MATCHUP_COLORS.textSecondary, fontSize: 12.5, fontWeight: 800, textDecoration: "none", border: `1px solid ${MATCHUP_COLORS.border}` }}
-            >다운로드</a>
+            >원본 PDF 다운로드</a>
           </div>
         </div>
       )}
 
-      <div style={{ flex: 1, background: "#101827", minHeight: 420, padding: "clamp(8px, 2vw, 24px)" }}>
+      <div style={{ flex: 1, background: "#101827", minHeight: 420, padding: "clamp(8px, 2.5vw, 30px) clamp(6px, 2vw, 24px) 64px" }}>
         {pdfUrl ? (
-          <div style={{ maxWidth: 1180, margin: "0 auto" }}>
-            <iframe
-              data-testid="matchup-full-pdf"
-              src={pdfUrl}
-              title={`${card.title} 전체 PDF`}
-              loading="eager"
-              style={{
-                display: "block",
-                width: "100%",
-                height: "clamp(680px, calc(100dvh - 120px), 980px)",
-                border: `1px solid ${MATCHUP_COLORS.border}`,
-                borderRadius: 10,
-                background: "#fff",
-              }}
-            />
-          </div>
+          <MatchupInlinePdf url={pdfUrl} title={card.title} />
         ) : (
           <div style={{ padding: 48, textAlign: "center", color: MATCHUP_COLORS.textSecondary, lineHeight: 1.6 }}>
             <div style={{ fontSize: 32, marginBottom: 12 }}>!</div>
