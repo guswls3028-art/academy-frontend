@@ -12,6 +12,7 @@ import type {
   ManagementCardItem,
   ProgramItem,
 } from "../types";
+import { formatLandingYmdDateOrRaw as formatArchiveDate } from "../utils/dateFormat";
 import {
   getEnabledSections,
   LandingNavBar,
@@ -368,11 +369,4 @@ function sectionItems<T>(section?: LandingSection): T[] {
 
 function firstItem<T>(section?: LandingSection): T | undefined {
   return sectionItems<T>(section)[0];
-}
-
-function formatArchiveDate(value: string | null) {
-  if (!value) return "게시일 미정";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }
