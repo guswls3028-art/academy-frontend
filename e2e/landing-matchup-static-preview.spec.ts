@@ -132,6 +132,8 @@ test("tenant report opens one static comparison image without a PDF renderer", a
   await page.goto(`${BASE}/landing`, { waitUntil: "load", timeout: 75_000 });
   await expect(page.getByRole("heading", { name: /수업에서 준비한 내용/ })).toBeVisible();
   await expect(page.locator('img[src="/tenants/tchul/classroom-lecture-01.webp"]')).toBeVisible();
+  await expect(page.locator('img[src="/tenants/tchul/instructor-formal-portrait.webp"]')).toBeVisible();
+  await expect(page.locator('img[src="/tenants/tchul/instructor-casual-portrait.webp"]')).toBeAttached();
   await expect(page.locator('a[href="/landing/matchup-board/9"] img')).toBeVisible();
   await expect(page.getByRole("link", { name: /매치업 자료실/ }).first()).toHaveAttribute("href", "/landing/matchup-board");
   await page.goto(`${BASE}/landing/reports/7`, { waitUntil: "load" });

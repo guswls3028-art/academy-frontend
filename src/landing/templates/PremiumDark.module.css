@@ -206,14 +206,14 @@
 .portraitInset {
   position: absolute;
   z-index: 2;
-  top: 28px;
-  right: 26px;
-  width: 168px;
-  height: 220px;
+  top: 24px;
+  right: 22px;
+  width: 226px;
+  height: 352px;
   overflow: hidden;
   border: 1px solid rgba(223, 242, 255, .38);
   border-radius: 7px;
-  background: #0b1a2e;
+  background: #d8d6d7;
   box-shadow: 0 20px 55px rgba(0,0,0,.38);
 }
 
@@ -221,18 +221,8 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 50% 43%;
-  filter: saturate(.82) contrast(1.02);
-}
-
-.portraitFallback {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  color: rgba(154, 216, 255, 0.5);
-  font-size: 180px;
-  font-weight: 900;
+  object-position: 50% 34%;
+  filter: saturate(.9) contrast(1.02);
 }
 
 .portraitPanel::after {
@@ -445,13 +435,30 @@
   background: #0b192a;
 }
 
-.profileCard { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 36px; }
+.profileCard {
+  padding: 30px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(200px, .95fr);
+  gap: 26px;
+}
 .profileCard h2 { font-size: 38px; }
 .profileBio,
 .programCard p { margin: 20px 0 0; color: #aab8cc; font-size: 14px; line-height: 1.76; word-break: keep-all; }
-.credentials { margin: 4px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--official-line); }
+.credentials { margin: 24px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--official-line); }
 .credentials li { padding: 16px 0; border-bottom: 1px solid var(--official-line); color: #c9d4e3; font-size: 13px; }
 .credentials li::before { margin-right: 10px; color: var(--official-blue); content: "↳"; }
+.profilePortraitFigure {
+  position: relative;
+  min-height: 340px;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(223, 242, 255, .18);
+  border-radius: 5px;
+  background: #d8d6d7;
+}
+.profilePortraitFigure::after { position: absolute; inset: 40% 0 0; content: ""; background: linear-gradient(0deg, rgba(6,17,30,.82), transparent); }
+.profilePortraitFigure img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 31%; filter: saturate(.88) contrast(1.01); }
+.profilePortraitFigure figcaption { position: absolute; z-index: 1; right: 16px; bottom: 15px; left: 16px; color: #eaf4ff; font-size: 12px; font-weight: 750; letter-spacing: -.02em; }
 .programCard { position: relative; overflow: hidden; background: #0d2341; }
 .programCard::after { position: absolute; right: -70px; bottom: -70px; width: 220px; height: 220px; border: 1px solid rgba(154, 216, 255, 0.22); border-radius: 50%; content: ""; }
 .programCard h2 { max-width: 440px; font-size: 32px; }
@@ -489,7 +496,9 @@
   .profileSection,
   .contactSection { width: calc(100% - 40px); }
   .standardSection { gap: 38px; }
+  .portraitInset { width: 190px; height: 296px; }
   .profileCard { grid-template-columns: 1fr; }
+  .profilePortraitFigure { min-height: 260px; }
 }
 
 @media (max-width: 760px) {
@@ -500,8 +509,9 @@
   .portraitPanel { position: absolute; inset: 0 0 0 auto; z-index: 0; width: 58%; min-height: 0; border: 0; opacity: 0.52; }
   .portraitPanel::after { background: linear-gradient(90deg, #07111f 0%, transparent 72%), linear-gradient(0deg, #07111f 0%, transparent 54%); }
   .classroomHero { object-position: 56% center; }
-  .portraitInset,
   .classroomLabel { display: none; }
+  .portraitInset { top: 42px; right: -10px; width: min(48vw, 205px); height: 330px; border-color: rgba(223,242,255,.2); box-shadow: -18px 20px 50px rgba(0,0,0,.24); }
+  .portrait { object-position: 50% 32%; }
   .portraitCaption { display: none; }
   .heroTitle { max-width: 86%; font-size: clamp(40px, 12vw, 54px); }
   .heroDescription { max-width: 86%; margin-top: 20px; font-size: 15px; line-height: 1.68; }
@@ -534,6 +544,7 @@
   .profileCard,
   .programCard { min-height: 0; padding: 28px; }
   .profileCard { grid-template-columns: 1fr; }
+  .profilePortraitFigure { min-height: 330px; }
 
   .contactSection { margin-bottom: 60px; padding: 34px 24px; grid-template-columns: 1fr; gap: 34px; }
   .contactDetails { grid-template-columns: 1fr; }

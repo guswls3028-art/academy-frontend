@@ -62,6 +62,11 @@ const CLASSROOM_PHOTOS = [
   "/tenants/tchul/classroom-lecture-02.webp",
 ];
 
+const INSTRUCTOR_PORTRAITS = {
+  formal: "/tenants/tchul/instructor-formal-portrait.webp",
+  casual: "/tenants/tchul/instructor-casual-portrait.webp",
+};
+
 export default function PremiumDark({ config }: TemplateProps) {
   const sections = getEnabledSections(config);
   const hero = findSection(sections, "hero");
@@ -92,7 +97,6 @@ export default function PremiumDark({ config }: TemplateProps) {
     };
   }, []);
 
-  const heroImage = instructor?.photo_url || config.hero_image_url || config.hero_images?.[0] || "";
   const heroTitle = hero?.title || config.tagline || `${config.brand_name} 통합과학`;
   const heroDescription = hero?.description || config.subtitle;
   const credentials = (instructor?.experience || []).slice(0, 3);
@@ -148,11 +152,11 @@ export default function PremiumDark({ config }: TemplateProps) {
               <img className={styles.classroomHero} src={CLASSROOM_PHOTOS[0]} alt="학생들과 함께하는 박철T 통합과학 수업 현장" />
               <div className={styles.classroomLabel}>실제 수업 현장</div>
               <div className={styles.portraitInset}>
-                {heroImage ? (
-                  <img className={styles.portrait} src={heroImage} alt={instructor?.name || config.brand_name} />
-                ) : (
-                  <div className={styles.portraitFallback}>{(instructor?.name || config.brand_name).charAt(0)}</div>
-                )}
+                <img
+                  className={styles.portrait}
+                  src={INSTRUCTOR_PORTRAITS.formal}
+                  alt={`정장을 입은 ${instructor?.name || config.brand_name} 공식 프로필`}
+                />
               </div>
               <div className={styles.portraitCaption}>
                 <span className={styles.utilityLabel}>통합과학 전임 강사</span>
@@ -220,18 +224,26 @@ export default function PremiumDark({ config }: TemplateProps) {
             </figcaption>
           </figure>
           <div className={styles.profileCard}>
-            <div>
+            <div className={styles.profileCopy}>
               <span className={styles.utilityLabel}>박철T 소개</span>
               <h2 id="profile-title">{instructor?.name || config.brand_name}</h2>
               <p className={styles.profileBio}>
                 {instructor?.bio || "수업 전 자료와 수업 후 관리가 하나의 흐름으로 이어지도록 직접 설계하고 운영합니다."}
               </p>
+              {credentials.length > 0 ? (
+                <ul className={styles.credentials}>
+                  {credentials.map((item) => <li key={item}>{item}</li>)}
+                </ul>
+              ) : null}
             </div>
-            {credentials.length > 0 ? (
-              <ul className={styles.credentials}>
-                {credentials.map((item) => <li key={item}>{item}</li>)}
-              </ul>
-            ) : null}
+            <figure className={styles.profilePortraitFigure}>
+              <img
+                src={INSTRUCTOR_PORTRAITS.casual}
+                alt={`${instructor?.name || config.brand_name} 강사 프로필`}
+                loading="lazy"
+              />
+              <figcaption>통합과학을 더 분명하게</figcaption>
+            </figure>
           </div>
 
           <div className={styles.programCard} data-stype="programs">
