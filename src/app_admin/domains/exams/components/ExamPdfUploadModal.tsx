@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import FileUploadZone from "@/shared/ui/upload/FileUploadZone";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import {
   usePdfQuestionExtract,
   type PdfExtractStatus,
@@ -23,6 +24,7 @@ const STATUS_LABELS: Record<PdfExtractStatus, string> = {
   uploading: "시험지 업로드 중…",
   processing: "문항·해설 맞춤 처리 중…",
   done: "문항 분할 완료",
+  conversion_required: "문제 PDF가 더 필요합니다",
   failed: "처리 실패",
 };
 
@@ -30,11 +32,13 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
   const { status, error, progress, result, upload, reset } = usePdfQuestionExtract(examId);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [explanationFile, setExplanationFile] = useState<File | null>(null);
+  const [showSeparateFiles, setShowSeparateFiles] = useState(false);
 
   useEffect(() => {
     if (!open) {
       setSelectedFile(null);
       setExplanationFile(null);
+      setShowSeparateFiles(false);
       reset();
     }
   }, [open, reset]);
@@ -52,6 +56,7 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
   const isUploading = status === "uploading";
   const isProcessing = status === "processing";
   const isDone = status === "done";
+  const isConversionRequired = status === "conversion_required";
   const isFailed = status === "failed";
   const isBusy = isUploading || isProcessing;
   const progressValue = Math.min(100, Math.max(0, progress.percent));
@@ -66,20 +71,35 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
       open={open}
       onClose={onClose}
       type="action"
-      width={MODAL_WIDTH.sm}
+      width={MODAL_WIDTH.md}
     >
       <ModalHeader
         type="action"
-        title="시험지 원본 업로드"
-        description="PDF나 HWP를 올리면 문제와 선생님 원본 해설을 번호별로 맞춥니다."
+        title="시험 자료 올리기"
+        description="한 파일이어도, 문제지와 해설지가 따로여도 자료 구성을 확인해 번호별로 맞춥니다."
       />
 
       <ModalBody>
         <div className={`modal-scroll-body modal-scroll-body--compact ${styles.body}`}>
+          <div className={styles.sourceModes} aria-label="지원하는 자료 구성">
+            <div>
+              <strong>문제+해설 한 파일</strong>
+              <span>PDF 또는 미주 HWP·HWPX</span>
+            </div>
+            <div>
+              <strong>문제 파일만</strong>
+              <span>PDF·PNG·JPG</span>
+            </div>
+            <div>
+              <strong>문제·해설 두 파일</strong>
+              <span>문제 PDF + 해설 HWP·HWPX</span>
+            </div>
+          </div>
+
           <FileUploadZone
-            titleLabel="답 표시가 없는 문제지"
-            accept=".pdf,.png,.jpg,.jpeg,.hwp"
-            hintText="PDF 권장 · HWP, PNG, JPG 파일 (50MB 이하)"
+            titleLabel={showSeparateFiles ? "문제 파일" : "시험 자료"}
+            accept=".pdf,.png,.jpg,.jpeg,.hwp,.hwpx"
+            hintText="PDF, HWP/HWPX, PNG, JPG · 50MB 이하"
             selectedFile={selectedFile}
             onFilesSelect={handleFilesSelect}
             onClearFile={() => {
@@ -89,35 +109,51 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
             disabled={isBusy}
             validateFile={(f) => {
               const ext = f.name.toLowerCase();
-              return ext.endsWith(".pdf") || ext.endsWith(".hwp") || ext.endsWith(".png") || ext.endsWith(".jpg") || ext.endsWith(".jpeg");
+              return ext.endsWith(".pdf") || ext.endsWith(".hwp") || ext.endsWith(".hwpx") || ext.endsWith(".png") || ext.endsWith(".jpg") || ext.endsWith(".jpeg");
             }}
-            onInvalidFile={() => {}}
+            onInvalidFile={(message) => feedback.warning(message)}
           />
           {pairedPrimaryInvalid && (
             <p className={styles.pairError}>
-              선생님 해설 HWP를 함께 쓸 때는 위 문제지로 PDF, PNG 또는 JPG를 선택해 주세요.
+              해설 파일을 따로 올릴 때 문제 파일은 PDF, PNG 또는 JPG여야 합니다.
             </p>
           )}
 
-          <div className={styles.pairGuide}>
-            <strong>선생님이 직접 쓴 해설을 함께 쓰려면</strong>
-            <p>
-              위에는 학생용 문제지 PDF를, 아래에는 같은 시험의 해설 HWP를 올려 주세요.
-              문항 번호로 연결하고 문제지에는 해설 필기를 섞지 않습니다.
-            </p>
-          </div>
-
-          <FileUploadZone
-            titleLabel="선생님 해설 HWP (선택)"
-            accept=".hwp"
-            hintText="번호가 있는 미주 해설 이미지가 포함된 HWP 5.x · 50MB 이하"
-            selectedFile={explanationFile}
-            onFilesSelect={(files) => setExplanationFile(files[0] ?? null)}
-            onClearFile={() => setExplanationFile(null)}
+          <Button
+            intent="ghost"
+            size="sm"
+            className={styles.pairToggle}
+            aria-expanded={showSeparateFiles}
+            onClick={() => {
+              setShowSeparateFiles((current) => {
+                if (current) setExplanationFile(null);
+                return !current;
+              });
+            }}
             disabled={isBusy}
-            validateFile={(f) => f.name.toLowerCase().endsWith(".hwp")}
-            onInvalidFile={() => {}}
-          />
+          >
+            {showSeparateFiles ? "한 파일로 올리기" : "문제지와 해설지가 따로 있어요"}
+          </Button>
+
+          {showSeparateFiles && (
+            <div className={styles.separateFiles}>
+              <div className={styles.pairGuide}>
+                <strong>두 파일은 문항 번호로 연결합니다</strong>
+                <p>위에는 답 표시가 없는 문제 PDF를, 아래에는 같은 시험의 선생님 해설을 올려 주세요.</p>
+              </div>
+              <FileUploadZone
+                titleLabel="선생님 해설 파일"
+                accept=".hwp,.hwpx"
+                hintText="번호가 있는 미주 해설 HWP 또는 HWPX · 50MB 이하"
+                selectedFile={explanationFile}
+                onFilesSelect={(files) => setExplanationFile(files[0] ?? null)}
+                onClearFile={() => setExplanationFile(null)}
+                disabled={isBusy}
+                validateFile={(f) => /\.hwpx?$/i.test(f.name)}
+                onInvalidFile={(message) => feedback.warning(message)}
+              />
+            </div>
+          )}
 
           {/* 진행 상태 표시 */}
           {status !== "idle" && (
@@ -137,9 +173,15 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
                   </svg>
                 )}
+                {isConversionRequired && (
+                  <svg className="w-4 h-4 text-[var(--color-warning)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.3 3.7 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.7a2 2 0 0 0-3.4 0Z" />
+                  </svg>
+                )}
                 <span className={`text-sm font-medium ${
                   isDone ? "text-[var(--color-success)]" :
                   isFailed ? "text-[var(--color-error)]" :
+                  isConversionRequired ? "text-[var(--color-warning)]" :
                   "text-[var(--color-text-primary)]"
                 }`}>
                   {STATUS_LABELS[status]}
@@ -166,6 +208,13 @@ export default function ExamPdfUploadModal({ open, onClose, examId }: Props) {
               {/* 에러 메시지 */}
               {error && (
                 <p className="mt-1 text-xs text-[var(--color-error)]">{error}</p>
+              )}
+
+              {isConversionRequired && (
+                <div className={styles.conversionGuide} role="status">
+                  <strong>원본은 보관했습니다.</strong>
+                  <p>{result?.message || "문항마다 수식과 배치를 보존하려면 같은 문제지를 PDF로 저장해 다시 선택해 주세요."}</p>
+                </div>
               )}
 
               {/* 성공 결과 */}
