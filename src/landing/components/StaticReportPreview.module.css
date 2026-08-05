@@ -5,11 +5,15 @@
 }
 
 .frame {
-  overflow: hidden;
+  overflow: auto;
   border: 1px solid rgba(148, 163, 184, 0.24);
   border-radius: 12px;
   background: #fff;
   box-shadow: 0 18px 52px rgba(0, 0, 0, 0.28);
+}
+
+.mobileHint {
+  display: none;
 }
 
 .compact .frame {
@@ -50,4 +54,27 @@
   line-height: 1.7;
   text-align: center;
   word-break: keep-all;
+}
+
+@media (max-width: 640px) {
+  .figure:not(.compact) .frame {
+    max-height: 72vh;
+    border-radius: 8px;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .figure:not(.compact) .image {
+    width: 820px;
+    max-width: none;
+  }
+
+  .mobileHint {
+    display: block;
+    margin-bottom: 8px;
+    color: #b8c9df;
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: center;
+  }
 }

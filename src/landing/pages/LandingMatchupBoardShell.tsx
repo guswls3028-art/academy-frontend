@@ -3,7 +3,7 @@
 /* eslint-disable no-restricted-syntax */
 
 import type { ReactNode } from "react";
-import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
+import LandingFooter, { type FooterTokens } from "../components/LandingFooter";
 import LandingRoleFab from "../components/LandingRoleFab";
 import { LandingNavBar } from "../templates/shared";
 import type { LandingConfig } from "../types";
@@ -16,13 +16,14 @@ function MatchupBrandMark({ name }: { name: string }) {
       style={{
         width: 36,
         height: 36,
-        borderRadius: 8,
-        background: "linear-gradient(135deg, #D4A04C 0%, #8B5E1F 100%)",
+        borderRadius: 5,
+        background: "#0B1A2E",
+        border: "1px solid rgba(154,216,255,0.5)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        color: "#0A0E1A",
-        fontSize: 18,
+        color: "#DFF2FF",
+        fontSize: 14,
         fontWeight: 900,
       }}
     >
@@ -30,6 +31,15 @@ function MatchupBrandMark({ name }: { name: string }) {
     </div>
   );
 }
+
+const MATCHUP_FOOTER_TOKENS: FooterTokens = {
+  bg: "#07111F",
+  textPrimary: "#F7FAFF",
+  textSecondary: "#93A4BB",
+  textMuted: "#6E819C",
+  border: "rgba(151,174,208,0.16)",
+  accent: "#66A3FF",
+};
 
 export function MatchupCenterState({ children }: { children: ReactNode }) {
   return (
@@ -98,7 +108,7 @@ export function MatchupLandingShell({
         brandMark={<MatchupBrandMark name={cfg.brand_name} />}
       />
       <main style={fill ? { flex: 1, display: "flex", flexDirection: "column" } : undefined}>{children}</main>
-      <LandingFooter config={cfg} sections={cfg.sections || []} tokens={FOOTER_TOKENS_DARK} />
+      <LandingFooter config={cfg} sections={cfg.sections || []} tokens={MATCHUP_FOOTER_TOKENS} />
       <LandingRoleFab />
     </div>
   );

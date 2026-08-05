@@ -41,7 +41,7 @@ interface MetaLink { key: string; label: string; kind: "section" | "route" | "an
 /** 학원장 sections에서 자동 빌드되는 footer 메타 링크 4분할.
  *
  * - 학원 소개: instructor_profile, features, management_system, programs sections
- * - 매치업: hit_reports + 보고서 모두 보기 라우트
+ * - 매치업: 강사 직접 업로드 자료실 + 자동 보고서 라우트
  * - 커뮤니티: 자유게시판/질문/공지/자료 (라우트 placeholder)
  * - 도움/문의: faq, contact, testimonials sections
  *
@@ -59,12 +59,14 @@ function buildFooterColumns(sections: LandingSection[]): { title: string; items:
   if (has("programs")) about.push({ key: "programs", label: "프로그램", kind: "section", target: "programs" });
   if (about.length) cols.push({ title: "학원 소개", items: about });
 
-  const matchup: MetaLink[] = [];
+  const matchup: MetaLink[] = [
+    { key: "matchup_board", label: "매치업 자료실", kind: "route", target: "/landing/matchup-board" },
+  ];
   if (has("hit_reports")) {
-    matchup.push({ key: "hit_reports", label: "적중 사례", kind: "section", target: "hit_reports" });
-    matchup.push({ key: "reports", label: "보고서 모두 보기", kind: "route", target: "/landing/reports" });
+    matchup.push({ key: "hit_reports", label: "적중 사례 요약", kind: "section", target: "hit_reports" });
+    matchup.push({ key: "reports", label: "자동 보고서", kind: "route", target: "/landing/reports" });
   }
-  if (matchup.length) cols.push({ title: "매치업", items: matchup });
+  cols.push({ title: "매치업", items: matchup });
 
   // 외부 공개 커뮤니티 트랙(2026-05-12) — 자유게시판 / 수강 후기 / 성적 통계. family-only는 학생/선생/어드민앱에 격리.
   cols.push({

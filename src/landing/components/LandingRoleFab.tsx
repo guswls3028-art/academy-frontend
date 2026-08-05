@@ -35,10 +35,10 @@ function actionsForRole(role: string, isSuperuser: boolean): RoleAction[] {
         ),
       },
       {
-        key: "matchup-console", label: "매치업 보고서", to: "/workspace/storage/hit-reports",
-        title: "매치업 적중 보고서 콘솔로 이동",
+        key: "matchup-publish", label: "홈페이지 자료 올리기", to: "/landing/admin/matchup-board?compose=upload",
+        title: "컴퓨터의 PDF를 매치업 자료실에 게시",
         icon: (
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3,17 9,11 13,15 21,7" /><polyline points="14,7 21,7 21,14" /></svg>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M20 15v5H4v-5"/></svg>
         ),
       },
       {

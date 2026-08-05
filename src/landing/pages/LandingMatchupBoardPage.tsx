@@ -1,75 +1,38 @@
-// PATH: src/landing/pages/LandingMatchupBoardPage.tsx
-// 공개 매치업 적중보고서 게시판 — 학생/학부모/외부인 read (Phase #69, 2026-05-13).
-//
-// 본질: 학원장이 게시한 PublicMatchupShowcase 목록 + 정적 JPEG 미리보기.
-//   - PUBLISHED + window 안 게시물만 backend가 반환 (window 밖은 EXPIRED 카드만)
-//   - 카드 클릭 → modal로 대표 비교 이미지, 전체 PDF는 명시 버튼으로만 열기
-//   - 비로그인 OK (학원 family 가입 안 한 외부 학부모도 접근)
-/* eslint-disable no-restricted-syntax */
-
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
-import { fetchLandingPublic } from "../api";
-import {
-  fetchMatchupShowcaseList,
-  type MatchupShowcaseCard,
-} from "../api/matchupShowcase";
-import type { LandingPublicResponse } from "../types";
-import {
-  MatchupCenterSpin,
-  MatchupCenterState,
-  MatchupLandingShell,
-} from "./LandingMatchupBoardShell";
-import { MATCHUP_COLORS } from "./LandingMatchupBoardTokens";
-import { formatLandingYmdDateOrRaw as formatDate } from "../utils/dateFormat";
-import { resolveTenantCode } from "@/shared/tenant";
-import useAuth from "@/auth/hooks/useAuth";
-import StaticReportPreview from "../components/StaticReportPreview";
-import { resolvePublicReportUrl } from "../utils/publicReportUrl";
 
-function StatusBadge({ card, accent }: { card: MatchupShowcaseCard; accent: string }) {
-  if (card.expired) {
-    return (
-      <span style={{ display: "inline-flex", alignItems: "center", padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", background: "rgba(245,158,11,0.15)", color: "#FBBF24" }}>
-        기간 만료
-      </span>
-    );
-  }
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", background: accent, color: "#fff" }}>
-      공개
-    </span>
-  );
-}
+import useAuth from "@/auth/hooks/useAuth";
+
+import { fetchLandingPublic } from "../api";
+import { fetchMatchupShowcaseList, type MatchupShowcaseCard } from "../api/matchupShowcase";
+import type { LandingPublicResponse } from "../types";
+import { formatLandingYmdDateOrRaw as formatDate } from "../utils/dateFormat";
+import { MatchupCenterSpin, MatchupCenterState, MatchupLandingShell } from "./LandingMatchupBoardShell";
+import styles from "./LandingMatchupBoardPage.module.css";
 
 export default function LandingMatchupBoardPage() {
   const [config, setConfig] = useState<LandingPublicResponse | null>(null);
   const [items, setItems] = useState<MatchupShowcaseCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewing, setViewing] = useState<MatchupShowcaseCard | null>(null);
-  const dialogRef = useRef<HTMLDivElement | null>(null);
-  const openerRef = useRef<HTMLButtonElement | null>(null);
   const { user } = useAuth();
-  const isOwner = !!(user?.is_superuser || user?.tenantRole === "owner" || user?.tenantRole === "admin");
-  const tenantCode = resolveTenantCode();
-  const hasHitReports = (config?.config?.sections || []).some((section) => (
-    section.enabled && section.type === "hit_reports" && Array.isArray(section.items) && section.items.length > 0
-  ));
+  const isOwner = Boolean(
+    user?.is_superuser || user?.tenantRole === "owner" || user?.tenantRole === "admin",
+  );
 
   const reload = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [landingResp, listResp] = await Promise.all([
+      const [landing, showcase] = await Promise.all([
         fetchLandingPublic(),
         fetchMatchupShowcaseList({ skipAuth: !user }),
       ]);
-      setConfig(landingResp);
-      setItems(listResp.results);
-    } catch (e) {
-      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      setError(typeof detail === "string" ? detail : "게시판 조회 실패");
+      setConfig(landing);
+      setItems(showcase.results);
+    } catch (requestError) {
+      const detail = (requestError as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setError(typeof detail === "string" ? detail : "자료 목록을 불러오지 못했습니다.");
     } finally {
       setLoading(false);
     }
@@ -77,279 +40,114 @@ export default function LandingMatchupBoardPage() {
 
   useEffect(() => { void reload(); }, [reload]);
 
-  useEffect(() => {
-    if (!viewing) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const dialog = dialogRef.current;
-    const focusable = dialog
-      ? Array.from(dialog.querySelectorAll<HTMLElement>('button, a[href], [tabindex]:not([tabindex="-1"])'))
-      : [];
-    focusable[0]?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setViewing(null);
-        return;
-      }
-      if (e.key !== "Tab" || focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      document.removeEventListener("keydown", onKey);
-      openerRef.current?.focus();
-    };
-  }, [viewing]);
-
   const cfg = config?.config;
-  const accent = cfg?.primary_color || MATCHUP_COLORS.gold;
-  const brandName = cfg?.brand_name || "학원";
-
-  if (!cfg && loading) {
-    return <MatchupCenterSpin />;
-  }
+  if (!cfg && loading) return <MatchupCenterSpin label="자료실을 불러오는 중..." />;
 
   if (!cfg) {
     return (
       <MatchupCenterState>
-        <div style={{ fontSize: 34, marginBottom: 12 }}>!</div>
-        <h1 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 8px" }}>적중 보고서를 불러오지 못했습니다</h1>
-        <p style={{ fontSize: 13, color: MATCHUP_COLORS.textSecondary, margin: 0, lineHeight: 1.65 }}>
-          {error || "랜딩 설정을 다시 확인해주세요."}
-        </p>
-        <Link
-          to="/landing"
-          style={{
-            display: "inline-flex",
-            marginTop: 18,
-            padding: "10px 16px",
-            borderRadius: 8,
-            background: MATCHUP_COLORS.gold,
-            color: MATCHUP_COLORS.bg,
-            fontSize: 13,
-            fontWeight: 800,
-            textDecoration: "none",
-          }}
-        >
-          홈으로 이동
-        </Link>
+        <h1 className={styles.stateTitle}>자료실을 불러오지 못했습니다</h1>
+        <p className={styles.stateCopy}>{error || "잠시 후 다시 확인해주세요."}</p>
+        <Link className={styles.stateLink} to="/landing">홈으로 이동</Link>
       </MatchupCenterState>
     );
   }
 
   return (
     <MatchupLandingShell cfg={cfg}>
-      <section
-        style={{
-          position: "relative",
-          overflow: "hidden",
-          borderBottom: `1px solid ${MATCHUP_COLORS.border}`,
-          background: `radial-gradient(circle at 20% 0%, rgba(212,160,76,0.18), transparent 32%), linear-gradient(180deg, ${MATCHUP_COLORS.bgAlt} 0%, ${MATCHUP_COLORS.bg} 100%)`,
-        }}
-      >
-        <div style={{ maxWidth: 1080, margin: "0 auto", padding: "42px 24px 28px", display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 20, flexWrap: "wrap" }}>
+      <header className={styles.header}>
+        <div className={styles.headerInner}>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: accent, marginBottom: 9 }}>Matchup</div>
-            <h1 style={{ fontSize: "clamp(28px, 4vw, 42px)", fontWeight: 900, margin: "0 0 10px", lineHeight: 1.16 }}>적중 보고서</h1>
-            <p style={{ fontSize: 14.5, color: MATCHUP_COLORS.textSecondary, margin: 0, lineHeight: 1.7, maxWidth: 620 }}>
-              {brandName}이(가) 학교 시험에서 적중시킨 문항을 강사 자필 코멘트와 함께 공유합니다.
+            <span className={styles.utility}>Tchul archive · matchup</span>
+            <h1>매치업 자료실</h1>
+            <p>
+              수업 전에 준비한 자료와 실제 학교 시험을 비교해, 박철T가 직접 정리한 보고서를 공개합니다.
             </p>
           </div>
-          {isOwner && (
-            <Link
-              to="/landing/admin/matchup-board"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: 38,
-                padding: "9px 14px",
-                borderRadius: 8,
-                background: "rgba(212,160,76,0.14)",
-                color: "#F5D08C",
-                fontSize: 12.5,
-                fontWeight: 800,
-                textDecoration: "none",
-                border: "1px solid rgba(212,160,76,0.36)",
-              }}
-            >
-              게시판 관리
-            </Link>
-          )}
+          {isOwner ? (
+            <div className={styles.ownerActions}>
+              <Link className={styles.uploadLink} to="/landing/admin/matchup-board?compose=upload">
+                PDF 자료 올리기
+                <UploadIcon />
+              </Link>
+              <Link className={styles.manageLink} to="/landing/admin/matchup-board">게시물 관리</Link>
+            </div>
+          ) : null}
         </div>
-      </section>
+      </header>
 
-      <div style={{ maxWidth: 1080, margin: "0 auto", padding: "28px 24px 72px" }}>
+      <main className={styles.content}>
+        <div className={styles.contentBar}>
+          <div>
+            <strong>전체 자료</strong>
+            <span>{loading ? "불러오는 중" : `${items.length}건`}</span>
+          </div>
+          <Link to="/landing/reports">자동 적중 분석 보기</Link>
+        </div>
+
         {loading ? (
-          <div style={{ padding: 80, textAlign: "center", color: MATCHUP_COLORS.textSecondary }}>불러오는 중...</div>
+          <div className={styles.skeletonGrid} aria-label="자료를 불러오는 중">
+            {[0, 1, 2].map((item) => <div className={styles.skeleton} key={item} />)}
+          </div>
         ) : error ? (
-          <div style={{ padding: 24, borderRadius: 8, background: "rgba(153,27,27,0.16)", border: "1px solid rgba(248,113,113,0.28)", color: "#FCA5A5" }}>
-            {error}
+          <div className={styles.notice} role="alert">
+            <strong>자료를 표시하지 못했습니다.</strong>
+            <span>{error}</span>
+            <button type="button" onClick={() => void reload()}>다시 시도</button>
           </div>
         ) : items.length === 0 ? (
-          <div style={{ padding: 64, textAlign: "center", background: MATCHUP_COLORS.bgSoft, borderRadius: 8, border: `1px dashed ${MATCHUP_COLORS.borderStrong}` }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>+</div>
-            <p style={{ fontSize: 15, fontWeight: 800, margin: "0 0 8px" }}>아직 공개된 적중 보고서가 없습니다</p>
-            <p style={{ fontSize: 13, color: MATCHUP_COLORS.textSecondary, margin: 0, lineHeight: 1.5 }}>
-              학원에서 게시 준비 중입니다. 잠시 후 다시 확인해주세요.
-            </p>
-            {hasHitReports && (
-              <Link
-                to="/landing/reports"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginTop: 18,
-                  padding: "10px 18px",
-                  borderRadius: 8,
-                  background: accent,
-                  color: MATCHUP_COLORS.bg,
-                  fontSize: 13,
-                  fontWeight: 800,
-                  textDecoration: "none",
-                }}
-              >
-                기존 적중 보고서 보기
-              </Link>
-            )}
+          <div className={styles.notice}>
+            <strong>첫 매치업 자료를 준비하고 있습니다.</strong>
+            <span>업로드가 완료되면 이곳에서 바로 확인할 수 있습니다.</span>
+            {isOwner ? <Link to="/landing/admin/matchup-board?compose=upload">첫 PDF 올리기</Link> : null}
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
-            {items.map((card) => {
-              const clickable = card.visible && card.pdf_url;
-              const hitRate = card.snapshot_meta?.hit_rate;
-              const hitCount = card.snapshot_meta?.hit_count;
-              const countedEntries = card.snapshot_meta?.counted_entries;
-              return (
-                <button
-                  key={card.id}
-                  type="button"
-                  data-testid={`landing-matchup-card-${card.id}`}
-                  onClick={(event) => {
-                    if (!clickable) return;
-                    openerRef.current = event.currentTarget;
-                    setViewing(card);
-                  }}
-                  disabled={!clickable}
-                  style={{
-                    textAlign: "left",
-                    background: MATCHUP_COLORS.bgSoft,
-                    borderRadius: 8,
-                    border: `1px solid ${MATCHUP_COLORS.border}`,
-                    padding: 18,
-                    cursor: clickable ? "pointer" : "default",
-                    opacity: clickable ? 1 : 0.7,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 10,
-                    transition: "transform 0.15s, box-shadow 0.15s",
-                  }}
-                  onMouseEnter={(e) => { if (clickable) { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 16px 32px rgba(0,0,0,0.22)"; e.currentTarget.style.borderColor = "rgba(212,160,76,0.32)"; } }}
-                  onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.borderColor = MATCHUP_COLORS.border; }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <StatusBadge card={card} accent={accent} />
-                    {hitRate !== undefined && (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: accent }}>
-                        적중률 {Math.round((hitRate || 0) * 100)}%
-                      </span>
-                    )}
-                    {hitCount !== undefined && countedEntries !== undefined && (
-                      <span style={{ fontSize: 11, color: MATCHUP_COLORS.textMuted }}>
-                        {hitCount}/{countedEntries}
-                      </span>
-                    )}
-                  </div>
-                  <h3 style={{ fontSize: 15, fontWeight: 800, margin: 0, lineHeight: 1.4, color: MATCHUP_COLORS.textPrimary, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{card.title}</h3>
-                  {card.description && (
-                    <p style={{ fontSize: 12.5, color: MATCHUP_COLORS.textSecondary, margin: 0, lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{card.description}</p>
-                  )}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, color: MATCHUP_COLORS.textMuted, marginTop: "auto", paddingTop: 8, borderTop: `1px solid ${MATCHUP_COLORS.border}` }}>
-                    <span>
-                      {card.snapshot_meta?.author_name || ""} · {formatDate(card.published_at)}
-                    </span>
-                    <span>조회 {card.view_count}</span>
-                  </div>
-                  {!clickable && card.expired && (
-                    <div style={{ marginTop: 4, fontSize: 11, color: "#FBBF24", padding: "6px 10px", borderRadius: 6, background: "rgba(245,158,11,0.1)" }}>
-                      공개 기간이 종료되었습니다.
-                    </div>
-                  )}
-                </button>
-              );
-            })}
+          <div className={styles.archiveGrid}>
+            {items.map((item, index) => (
+              <ArchiveCard item={item} featured={index === 0} key={item.id} />
+            ))}
           </div>
         )}
-      </div>
-
-      {/* 정적 이미지 미리보기 modal — 전체 PDF는 명시 링크로만 연다. */}
-      {viewing && viewing.pdf_url && (
-        <div
-          onClick={() => setViewing(null)}
-          style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(8,12,22,0.7)", backdropFilter: "blur(6px)", display: "flex", flexDirection: "column", padding: 0 }}
-        >
-          <div
-            ref={dialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="matchup-preview-dialog-title"
-            onClick={(e) => e.stopPropagation()}
-            style={{ width: "min(960px, 100%)", height: "100%", margin: "0 auto", background: "#f1f5f9", display: "flex", flexDirection: "column" }}
-          >
-            <div style={{ padding: "12px 16px", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexShrink: 0 }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 2 }}>적중 보고서</div>
-                <h3 id="matchup-preview-dialog-title" style={{ fontSize: 14, fontWeight: 700, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{viewing.title}</h3>
-              </div>
-              <button type="button" onClick={() => setViewing(null)} aria-label="닫기"
-                style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff", color: "#475569", cursor: "pointer", fontSize: 18, lineHeight: 1, flexShrink: 0 }}
-              >×</button>
-            </div>
-            {(() => {
-              const addTenant = (raw: string) => {
-                const abs = resolvePublicReportUrl(raw);
-                return tenantCode.ok && !abs.includes("tenant=")
-                  ? `${abs}${abs.includes("?") ? "&" : "?"}tenant=${encodeURIComponent(tenantCode.code)}`
-                  : abs;
-              };
-              const pdfUrl = addTenant(viewing.pdf_url || "");
-              const previewUrl = addTenant(
-                viewing.preview_url || (viewing.pdf_url || "").replace("/pdf/", "/preview/"),
-              );
-              return (
-                <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
-                  <StaticReportPreview
-                    imageUrl={previewUrl}
-                    pdfUrl={pdfUrl}
-                    alt={`${viewing.title} 실제 시험 문제와 우리 학원 사전 대비 자료 비교`}
-                    compact
-                  />
-                  <div style={{ marginTop: 14, textAlign: "center" }}>
-                    <a
-                      href={pdfUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ display: "inline-flex", padding: "10px 16px", borderRadius: 8, background: "#0F172A", color: "#fff", textDecoration: "none", fontSize: 13, fontWeight: 800 }}
-                    >
-                      PDF 전체 보기
-                    </a>
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-        </div>
-      )}
+      </main>
     </MatchupLandingShell>
+  );
+}
+
+function ArchiveCard({ item, featured }: { item: MatchupShowcaseCard; featured: boolean }) {
+  const content = (
+    <>
+      <div className={styles.cardTop}>
+        <span>{item.expired ? "공개 종료" : "PUBLIC PDF"}</span>
+        <span>{formatDate(item.published_at)}</span>
+      </div>
+      <div className={styles.cardBody}>
+        <span className={styles.cardType}>Matchup report</span>
+        <h2>{item.title}</h2>
+        <p>{item.description || "실제 시험과 사전 대비 자료를 비교한 매치업 보고서입니다."}</p>
+      </div>
+      <div className={styles.cardMeta}>
+        <span>{item.snapshot_meta?.author_name || "박철T"}</span>
+        <span>조회 {item.view_count}</span>
+        <span className={styles.cardArrow}>{item.expired ? "기간 종료" : "자료 열기 →"}</span>
+      </div>
+    </>
+  );
+
+  const className = `${styles.card} ${featured ? styles.featured : ""} ${item.expired ? styles.expired : ""}`;
+  if (item.visible && item.pdf_url) {
+    return (
+      <Link className={className} data-testid={`landing-matchup-card-${item.id}`} to={`/landing/matchup-board/${item.id}`}>
+        {content}
+      </Link>
+    );
+  }
+  return <article className={className}>{content}</article>;
+}
+
+function UploadIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M12 16V4m0 0-4 4m4-4 4 4M5 15v4h14v-4" />
+    </svg>
   );
 }

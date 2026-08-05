@@ -22,6 +22,7 @@
 | [DEPLOYMENT-OPERATIONS.md](DEPLOYMENT-OPERATIONS.md) | Cloudflare preview/production/rollback, scoped token, PR 무쓰기 E2E, Actions 공급망 계약 |
 | [DEV-INBOX-GUIDE.md](DEV-INBOX-GUIDE.md) | 학원 직원 문의 제출·답변 확인과 플랫폼 문의 처리 가이드 |
 | [TENANT-BRANDING.md](TENANT-BRANDING.md) | 신규 테넌트 로그인·역할별 공용 헤더 브랜딩 계약과 검증표 |
+| [TCHUL-PUBLIC-SITE.md](TCHUL-PUBLIC-SITE.md) | tchul 공식 홈페이지의 정보 구조, 매치업 PDF 게시·공유, 반응형·실패 처리 계약 |
 | [PRODUCT-USAGE-ANALYTICS.md](PRODUCT-USAGE-ANALYTICS.md) | 역할별 화면·CTA·대표 업무 사용 신호와 실패 안전 계약 |
 | [TEACHER-TOOLS.md](TEACHER-TOOLS.md) | 강사 도구함 확장 규칙과 AI 풀이·해설 Beta 상호작용 계약 |
 | [FIRST-LOGIN-GUIDE.md](FIRST-LOGIN-GUIDE.md) | 신규 계정의 공통 1회 계정 안내 UX와 역할별 이동 경로 |

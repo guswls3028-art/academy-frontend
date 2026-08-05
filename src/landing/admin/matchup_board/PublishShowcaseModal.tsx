@@ -49,7 +49,7 @@ interface Props {
   onPublished: () => void;  // 성공 시 main reload
 }
 
-export default function PublishShowcaseModal({ open, initialMode = "existing", onClose, onPublished }: Props) {
+export default function PublishShowcaseModal({ open, initialMode = "upload", onClose, onPublished }: Props) {
   const [publishMode, setPublishMode] = useState<PublishMode>(initialMode);
   const [form, setForm] = useState<PublishFormState>(INITIAL_FORM);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -153,7 +153,7 @@ export default function PublishShowcaseModal({ open, initialMode = "existing", o
     >
       <div onClick={(e) => e.stopPropagation()} style={{ width: "min(640px, 100%)", maxHeight: "90vh", background: "#fff", borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column" }}>
         <div style={{ padding: "16px 20px", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>적중보고서 게시</h3>
+          <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>새 매치업 자료 올리기</h3>
           <button type="button" onClick={onClose} disabled={submitting} aria-label="닫기"
             style={{ width: 30, height: 30, borderRadius: 6, background: "transparent", border: "1px solid #cbd5e1", cursor: "pointer", color: "#475569", fontSize: 16, lineHeight: 1 }}
           >×</button>
@@ -161,29 +161,29 @@ export default function PublishShowcaseModal({ open, initialMode = "existing", o
         <div style={{ padding: 20, overflowY: "auto", flex: 1 }}>
           {/* mode 라디오 */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
-            <button type="button" data-testid="publish-mode-existing"
-              onClick={() => setPublishMode("existing")}
-              style={{
-                padding: "12px 14px", borderRadius: 10, cursor: "pointer",
-                background: publishMode === "existing" ? "rgba(212,160,76,0.12)" : "#f8fafc",
-                border: `1px solid ${publishMode === "existing" ? "rgba(212,160,76,0.55)" : "#e2e8f0"}`,
-                textAlign: "left",
-              }}
-            >
-              <div style={{ fontSize: 13, fontWeight: 700, color: publishMode === "existing" ? "#B8862F" : "#0f172a" }}>📋 콘솔의 보고서 그대로</div>
-              <div style={{ fontSize: 11, color: "#64748b", marginTop: 2, lineHeight: 1.4 }}>작성하신 보고서를 그대로 게시 (서버가 PDF 생성)</div>
-            </button>
             <button type="button" data-testid="publish-mode-upload"
               onClick={() => setPublishMode("upload")}
               style={{
                 padding: "12px 14px", borderRadius: 10, cursor: "pointer",
-                background: publishMode === "upload" ? "rgba(212,160,76,0.12)" : "#f8fafc",
-                border: `1px solid ${publishMode === "upload" ? "rgba(212,160,76,0.55)" : "#e2e8f0"}`,
+                background: publishMode === "upload" ? "rgba(18,104,243,0.08)" : "#f8fafc",
+                border: `1px solid ${publishMode === "upload" ? "rgba(18,104,243,0.55)" : "#e2e8f0"}`,
                 textAlign: "left",
               }}
             >
-              <div style={{ fontSize: 13, fontWeight: 700, color: publishMode === "upload" ? "#B8862F" : "#0f172a" }}>📎 내 PC의 PDF 업로드</div>
-              <div style={{ fontSize: 11, color: "#64748b", marginTop: 2, lineHeight: 1.4 }}>다운받아 수정한 PDF 직접 올리기 (출처 가린 버전 등)</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: publishMode === "upload" ? "#1268f3" : "#0f172a" }}>내 컴퓨터의 PDF</div>
+              <div style={{ fontSize: 11, color: "#64748b", marginTop: 2, lineHeight: 1.4 }}>수정이 끝난 PDF를 바로 게시</div>
+            </button>
+            <button type="button" data-testid="publish-mode-existing"
+              onClick={() => setPublishMode("existing")}
+              style={{
+                padding: "12px 14px", borderRadius: 10, cursor: "pointer",
+                background: publishMode === "existing" ? "rgba(18,104,243,0.08)" : "#f8fafc",
+                border: `1px solid ${publishMode === "existing" ? "rgba(18,104,243,0.55)" : "#e2e8f0"}`,
+                textAlign: "left",
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 700, color: publishMode === "existing" ? "#1268f3" : "#0f172a" }}>콘솔 보고서 불러오기</div>
+              <div style={{ fontSize: 11, color: "#64748b", marginTop: 2, lineHeight: 1.4 }}>작성된 보고서로 PDF를 자동 생성</div>
             </button>
           </div>
 
@@ -240,9 +240,9 @@ export default function PublishShowcaseModal({ open, initialMode = "existing", o
                   if (f) setUploadFile(f);
                 }}
                 style={{
-                  border: `2px dashed ${uploadFile ? "rgba(212,160,76,0.5)" : "#cbd5e1"}`,
+                  border: `2px dashed ${uploadFile ? "rgba(18,104,243,0.55)" : "#cbd5e1"}`,
                   borderRadius: 12, padding: 24, marginBottom: 12,
-                  cursor: "pointer", background: uploadFile ? "rgba(212,160,76,0.06)" : "#f8fafc",
+                  cursor: "pointer", background: uploadFile ? "rgba(18,104,243,0.05)" : "#f8fafc",
                   textAlign: "center",
                 }}
               >
