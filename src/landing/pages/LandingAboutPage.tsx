@@ -12,6 +12,7 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
+import { resolveTenantCode } from "@/shared/tenant";
 import { fetchLandingPublic } from "../api";
 import type {
   FeatureItem,
@@ -25,6 +26,7 @@ import type {
 import { LandingNavBar, SvgIcon, type NavBarTokens } from "../templates/shared";
 import LandingFooter, { FOOTER_TOKENS_DARK, FOOTER_TOKENS_LIGHT } from "../components/LandingFooter";
 import LandingRoleFab from "../components/LandingRoleFab";
+import { resolvePublicProgramCopy } from "../utils/publicProgramCopy";
 import { setLandingMeta as setMeta } from "../utils/seoMeta";
 
 function BrandMark({ name, color }: { name: string; color: string }) {
@@ -97,6 +99,11 @@ export default function LandingAboutPage() {
   const textSecondary = isDark ? "#9CA3AF" : "#64748b";
   const cardBg = isDark ? "rgba(255,255,255,0.03)" : "#f8fafc";
   const cardBorder = isDark ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.08)";
+  const tenantResult = resolveTenantCode();
+  const usesTchulPortrait = tenantResult.ok && tenantResult.code === "tchul";
+  const instructorFallbackUrl = usesTchulPortrait
+    ? "/tenants/tchul/instructor-formal-portrait.webp"
+    : (cfg.hero_images || []).find(Boolean) || cfg.hero_image_url || "";
 
   // 학원소개 카테고리에 속하는 section 만 추출 (sidebar buildMenuCategories 와 정합)
   const aboutTypes = new Set(["instructor_profile", "features", "management_system", "process_timeline", "programs"]);
@@ -109,7 +116,7 @@ export default function LandingAboutPage() {
       {/* 페이지 헤더 */}
       <div style={{ borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.06)"}` }}>
         <div style={{ maxWidth: 1080, margin: "0 auto", padding: "56px 24px 36px" }}>
-          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: primary, marginBottom: 10 }}>About</div>
+          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", color: primary, marginBottom: 10 }}>학원 소개</div>
           <h1 style={{ fontSize: 32, fontWeight: 800, margin: 0, letterSpacing: "-0.025em" }}>{cfg.brand_name} 소개</h1>
           <p style={{ fontSize: 14, color: textSecondary, margin: "10px 0 0", lineHeight: 1.7, maxWidth: 720 }}>
             {cfg.tagline || "어떤 학원인지 한눈에 살펴보세요."}
@@ -140,7 +147,8 @@ export default function LandingAboutPage() {
             <SectionBlock
               key={sec.type}
               section={sec}
-              heroImageUrl={(cfg.hero_images || []).find(Boolean) || cfg.hero_image_url || ""}
+              heroImageUrl={instructorFallbackUrl}
+              fallbackIsPoster={!usesTchulPortrait}
               primary={primary}
               isDark={isDark}
               textPrimary={textPrimary}
@@ -170,10 +178,11 @@ export default function LandingAboutPage() {
 }
 
 function SectionBlock({
-  section, heroImageUrl, primary, isDark, textPrimary, textSecondary, cardBg, cardBorder,
+  section, heroImageUrl, fallbackIsPoster, primary, isDark, textPrimary, textSecondary, cardBg, cardBorder,
 }: {
   section: LandingSection;
   heroImageUrl?: string;
+  fallbackIsPoster: boolean;
   primary: string;
   isDark: boolean;
   textPrimary: string;
@@ -191,13 +200,20 @@ function SectionBlock({
     process_timeline: "수업 흐름",
     programs: "프로그램",
   };
+  const eyebrowMap: Record<string, string> = {
+    instructor_profile: "강사 소개",
+    features: "수업 방식",
+    management_system: "학습 관리",
+    process_timeline: "수업 흐름",
+    programs: "수강 안내",
+  };
   const title = section.title || titleMap[section.type] || section.type;
 
   return (
     <section style={{ marginTop: 48 }}>
       <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: primary, marginBottom: 6 }}>
-          {section.type.replace(/_/g, " ")}
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", color: primary, marginBottom: 6 }}>
+          {eyebrowMap[section.type] || "학원 안내"}
         </div>
         <h2 style={{ fontSize: 24, fontWeight: 800, margin: 0, letterSpacing: "-0.02em", color: textPrimary }}>{title}</h2>
         {section.description && (
@@ -209,7 +225,7 @@ function SectionBlock({
         <div style={{ display: "grid", gap: 16 }}>
           {(items as InstructorProfileItem[]).map((it, i) => {
             const photoUrl = (it.photo_url || "").trim() || (i === 0 ? (heroImageUrl || "").trim() : "");
-            const usesHeroPoster = !((it.photo_url || "").trim()) && Boolean(photoUrl);
+            const usesHeroPoster = fallbackIsPoster && !((it.photo_url || "").trim()) && Boolean(photoUrl);
             return (
               <div key={i} style={{ padding: 24, borderRadius: 8, background: cardBg, border: `1px solid ${cardBorder}`, display: "grid", gridTemplateColumns: "120px 1fr", gap: 20, alignItems: "start" }}>
                 {photoUrl ? (
@@ -222,7 +238,7 @@ function SectionBlock({
                 </div>
               )}
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: primary, marginBottom: 6 }}>{it.title || "Instructor"}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", color: primary, marginBottom: 6 }}>{it.title || "강사"}</div>
                 <h3 style={{ fontSize: 22, fontWeight: 800, margin: "0 0 10px", letterSpacing: "-0.02em", color: textPrimary }}>{it.name}</h3>
                 {it.bio && (
                   <p style={{ fontSize: 14, color: textSecondary, margin: "0 0 12px", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{it.bio}</p>
@@ -285,7 +301,9 @@ function SectionBlock({
 
       {section.type === "programs" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
-          {(items as ProgramItem[]).map((it, i) => (
+          {(items as ProgramItem[]).map((item, i) => {
+            const it = resolvePublicProgramCopy(item)!;
+            return (
             <div key={i} style={{ padding: 22, borderRadius: 14, background: cardBg, border: `1px solid ${cardBorder}`, position: "relative" }}>
               {it.badge && (
                 <span style={{ position: "absolute", top: 14, right: 14, padding: "3px 9px", borderRadius: 999, background: `${primary}22`, color: primary, fontSize: 10, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase" }}>
@@ -295,7 +313,8 @@ function SectionBlock({
               <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 8px", letterSpacing: "-0.01em", color: textPrimary, paddingRight: it.badge ? 60 : 0 }}>{it.title}</h3>
               <p style={{ fontSize: 13.5, color: textSecondary, margin: 0, lineHeight: 1.65 }}>{it.description}</p>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </section>

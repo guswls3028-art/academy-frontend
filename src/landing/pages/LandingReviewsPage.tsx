@@ -104,7 +104,7 @@ export default function LandingReviewsPage() {
       <section style={{ padding: "56px 24px 32px", borderBottom: `1px solid ${border}` }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: gold, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>
-            Reviews · 수강 후기
+            수강생과 학부모 이야기
           </div>
           <h1 style={{ fontSize: "clamp(24px, 3vw, 34px)", fontWeight: 800, margin: 0, letterSpacing: "-0.025em", lineHeight: 1.25 }}>
             진짜 학원 가족이 남긴 수강 후기
@@ -126,7 +126,7 @@ export default function LandingReviewsPage() {
       {/* 정렬 + 별점 필터 */}
       <section style={{ background: bg, borderBottom: `1px solid ${border}`, position: "sticky", top: 64, zIndex: 30, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "12px 24px", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-          <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {[
               { v: 0, label: "전체 별점" },
               { v: 5, label: "★ 5" },

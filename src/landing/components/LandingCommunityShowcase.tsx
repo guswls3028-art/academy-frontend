@@ -70,7 +70,7 @@ export default function LandingCommunityShowcase({ theme = "dark" }: Props) {
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 16, marginBottom: 24 }}>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, color: accent, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>
-                Reviews · 수강 후기
+                수강생과 학부모 이야기
               </div>
               <h2 style={{ fontSize: "clamp(22px, 2.6vw, 30px)", fontWeight: 800, color: textPrimary, letterSpacing: "-0.025em", margin: 0, lineHeight: 1.25 }}>
                 학원 가족의 진짜 수강 후기
@@ -143,7 +143,7 @@ export default function LandingCommunityShowcase({ theme = "dark" }: Props) {
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 16, marginBottom: 24 }}>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, color: accent, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>
-                Public Board · 자유게시판
+                학원 자유게시판
               </div>
               <h2 style={{ fontSize: "clamp(22px, 2.6vw, 30px)", fontWeight: 800, color: textPrimary, letterSpacing: "-0.025em", margin: 0, lineHeight: 1.25 }}>
                 학원 가족이 함께 쓰는 자유게시판
@@ -182,7 +182,7 @@ export default function LandingCommunityShowcase({ theme = "dark" }: Props) {
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
                       {p.is_pinned && <Chip color={accent} bg={`${accent}22`}>고정</Chip>}
-                      {p.is_hot && <Chip color="#ef4444" bg="rgba(239,68,68,0.12)">HOT</Chip>}
+                      {p.is_hot && <Chip color="#ef4444" bg="rgba(239,68,68,0.12)">인기</Chip>}
                       <span style={{ fontSize: 14.5, fontWeight: 600, letterSpacing: "-0.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
                         {p.title || "제목 없음"}
                       </span>

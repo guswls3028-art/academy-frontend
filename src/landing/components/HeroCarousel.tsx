@@ -221,7 +221,7 @@ export default function HeroCarousel({ items, carouselItems, theme = "dark" }: {
 
   const current = slides[idx % slides.length];
   const isMatchupCarousel = slides.every((s) => s.kind === "hit_report");
-  const labelText = isMatchupCarousel ? "Matchup · 매치업 적중 보고서" : "Spotlight · 학원장 강조";
+  const labelText = isMatchupCarousel ? "매치업 적중 보고서" : "학원 주요 소식";
 
   const goPrev = () => setIdx((i) => (i - 1 + slides.length) % slides.length);
   const goNext = () => setIdx((i) => (i + 1) % slides.length);

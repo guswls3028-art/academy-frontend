@@ -8,6 +8,7 @@ import { fetchMatchupShowcaseList, type MatchupShowcaseCard } from "../api/match
 import type { LandingPublicResponse } from "../types";
 import { formatLandingYmdDateOrRaw as formatDate } from "../utils/dateFormat";
 import { resolvePublicReportUrl } from "../utils/publicReportUrl";
+import ResilientPublicImage from "../components/ResilientPublicImage";
 import { MatchupCenterSpin, MatchupCenterState, MatchupLandingShell } from "./LandingMatchupBoardShell";
 import styles from "./LandingMatchupBoardPage.module.css";
 
@@ -147,11 +148,12 @@ function ArchiveCard({ item, featured }: { item: MatchupShowcaseCard; featured: 
   const content = (
     <>
       <div className={styles.cardPreview}>
-        {previewUrl ? (
-          <img src={previewUrl} alt="" loading={featured ? "eager" : "lazy"} />
-        ) : (
-          <div className={styles.cardPreviewFallback}>매치업 PDF</div>
-        )}
+        <ResilientPublicImage
+          src={previewUrl || undefined}
+          alt=""
+          loading={featured ? "eager" : "lazy"}
+          fallback={<div className={styles.cardPreviewFallback}>매치업 PDF</div>}
+        />
         <span>{item.expired ? "공개 종료" : "대표 비교 화면"}</span>
       </div>
       <div className={styles.cardBody}>

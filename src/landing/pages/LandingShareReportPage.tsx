@@ -198,7 +198,7 @@ export default function LandingShareReportPage() {
       <section style={{ padding: "48px 24px 24px", borderBottom: `1px solid ${cardBorder}` }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: gold, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>
-            Hit Report · {brandName}
+            {brandName} 적중 자료
           </div>
           <h1 style={{ fontSize: "clamp(24px, 3vw, 36px)", fontWeight: 800, margin: "0 0 12px", letterSpacing: "-0.025em", lineHeight: 1.25 }}>
             {meta.doc_title || subj}

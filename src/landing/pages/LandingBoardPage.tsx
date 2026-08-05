@@ -120,7 +120,7 @@ export default function LandingBoardPage() {
       <section style={{ padding: "56px 24px 28px", borderBottom: `1px solid ${border}` }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: gold, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>
-            Public Board · 자유게시판
+            학원 소식과 이야기
           </div>
           <h1 style={{ fontSize: "clamp(24px, 3vw, 34px)", fontWeight: 800, margin: 0, letterSpacing: "-0.025em", lineHeight: 1.25, wordBreak: "keep-all", overflowWrap: "break-word" }}>
             학원 가족이 함께 쓰는 자유게시판
@@ -134,7 +134,7 @@ export default function LandingBoardPage() {
       {/* 카테고리 + 정렬 + 검색 */}
       <section style={{ background: bg, borderBottom: `1px solid ${border}`, position: "sticky", top: 64, zIndex: 30, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "12px 24px", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-          <div style={{ display: "flex", gap: 4, overflowX: "auto", flex: 1, minWidth: 0, scrollbarWidth: "none" }}>
+          <div style={{ display: "flex", gap: 4, flex: "1 1 420px", minWidth: 0, flexWrap: "wrap" }}>
             {CATEGORIES.map((c) => {
               const on = c.key === category;
               return (
@@ -244,7 +244,7 @@ function BoardCard({ post, border, cardBg, accent, textPrimary, textSecondary, t
     >
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
         {post.is_pinned && <Chip color={accent} bg={`${accent}22`}>고정</Chip>}
-        {post.is_hot && <Chip color="#ef4444" bg="rgba(239,68,68,0.12)">HOT</Chip>}
+        {post.is_hot && <Chip color="#ef4444" bg="rgba(239,68,68,0.12)">인기</Chip>}
         <Chip color={textSecondary} bg="rgba(255,255,255,0.04)">{categoryLabel(post.category)}</Chip>
       </div>
       <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, lineHeight: 1.4, letterSpacing: "-0.015em", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
