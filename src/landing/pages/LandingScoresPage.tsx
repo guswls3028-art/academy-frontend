@@ -105,7 +105,7 @@ export function LandingScoresListPage() {
       <section style={{ padding: "56px 24px 28px", borderBottom: `1px solid ${BORDER}` }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: GOLD, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>
-            Score Stats · 성적 통계
+            공개 성적 통계
           </div>
           <h1 style={{ fontSize: "clamp(24px, 3vw, 34px)", fontWeight: 800, margin: 0, letterSpacing: "-0.025em", lineHeight: 1.25 }}>
             우리 학원 시험 결과 통계

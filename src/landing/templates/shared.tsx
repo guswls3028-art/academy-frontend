@@ -180,7 +180,7 @@ function buildMenuCategories(sections: LandingSection[], isOwner: boolean = fals
       { key: "matchup_board", label: "매치업 자료실", kind: "route", target: "/landing/matchup-board", badge: "PDF" },
     ];
     if (has("hit_reports")) {
-      matchupItems.push({ key: "reports_all", label: "자동 적중 보고서", kind: "route", target: "/landing/reports", badge: "DATA" });
+      matchupItems.push({ key: "reports_all", label: "자동 적중 보고서", kind: "route", target: "/landing/reports", badge: "자료" });
       matchupItems.push({ key: "hit_reports", label: "적중 사례 요약 (홈)", kind: "section", target: "hit_reports" });
     }
     categories.push({ key: "matchup", label: "매치업", items: matchupItems });

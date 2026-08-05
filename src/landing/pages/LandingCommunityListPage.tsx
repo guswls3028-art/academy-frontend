@@ -162,7 +162,7 @@ export default function LandingCommunityListPage() {
       <section style={{ padding: "48px 24px 24px", borderBottom: `1px solid ${border}` }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: gold, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>
-            Community · 커뮤니티
+            학원 커뮤니티
           </div>
           <h1 style={{ fontSize: "clamp(24px, 3vw, 34px)", fontWeight: 800, margin: 0, letterSpacing: "-0.025em", lineHeight: 1.25 }}>
             {tabLabel}

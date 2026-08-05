@@ -5,6 +5,7 @@ import useAuth from "@/auth/hooks/useAuth";
 
 import { fetchMatchupShowcaseList, type MatchupShowcaseCard } from "../api/matchupShowcase";
 import LandingFooter from "../components/LandingFooter";
+import ResilientPublicImage from "../components/ResilientPublicImage";
 import type {
   FeatureItem,
   InstructorProfileItem,
@@ -13,6 +14,7 @@ import type {
   ProgramItem,
 } from "../types";
 import { formatLandingYmdDateOrRaw as formatArchiveDate } from "../utils/dateFormat";
+import { resolvePublicProgramCopy } from "../utils/publicProgramCopy";
 import { resolvePublicReportUrl } from "../utils/publicReportUrl";
 import {
   getEnabledSections,
@@ -72,6 +74,7 @@ export default function PremiumDark({ config }: TemplateProps) {
   const hero = findSection(sections, "hero");
   const instructor = firstItem<InstructorProfileItem>(findSection(sections, "instructor_profile"));
   const program = firstItem<ProgramItem>(findSection(sections, "programs"));
+  const publicProgram = resolvePublicProgramCopy(program);
   const features = sectionItems<FeatureItem>(findSection(sections, "features")).slice(0, 4);
   const management = sectionItems<ManagementCardItem>(findSection(sections, "management_system")).slice(0, 3);
   const primaryCta = resolveHeroPrimaryCta(config, hero || ({ type: "hero" } as LandingSection));
@@ -247,10 +250,10 @@ export default function PremiumDark({ config }: TemplateProps) {
           </div>
 
           <div className={styles.programCard} data-stype="programs">
-            <span className={styles.utilityLabel}>현재 모집 강좌</span>
-            <h2>{program?.title || "통합과학 내신대비"}</h2>
-            <p>{program?.description || config.subtitle}</p>
-            {program?.badge ? <span className={styles.programBadge}>{program.badge}</span> : null}
+            <span className={styles.utilityLabel}>{publicProgram?.scheduleNeedsConfirmation ? "수강 안내" : "현재 모집 강좌"}</span>
+            <h2>{publicProgram?.title || "통합과학 내신대비"}</h2>
+            <p>{publicProgram?.description || config.subtitle}</p>
+            {publicProgram?.badge ? <span className={styles.programBadge}>{publicProgram.badge}</span> : null}
           </div>
         </section>
 
@@ -317,11 +320,12 @@ function ArchiveGrid({ archive }: { archive: ArchiveState }) {
       {archive.items.map((item, index) => (
         <Link className={styles.archiveCard} to={`/landing/matchup-board/${item.id}`} key={item.id}>
           <div className={styles.archivePreview}>
-            {item.preview_url ? (
-              <img src={resolvePublicReportUrl(item.preview_url)} alt="" loading={index === 0 ? "eager" : "lazy"} />
-            ) : (
-              <span>매치업 PDF</span>
-            )}
+            <ResilientPublicImage
+              src={item.preview_url ? resolvePublicReportUrl(item.preview_url) : undefined}
+              alt=""
+              loading={index === 0 ? "eager" : "lazy"}
+              fallback={<span>매치업 PDF</span>}
+            />
           </div>
           <div className={styles.archiveCardTop}>
             <span>{formatArchiveDate(item.published_at)}</span>

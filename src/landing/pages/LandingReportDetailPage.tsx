@@ -158,7 +158,7 @@ export default function LandingReportDetailPage() {
       <section style={{ padding: "48px 24px 24px", borderBottom: `1px solid ${cardBorder}` }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: gold, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>
-            Hit Report · 적중 보고서
+            학교별 적중 자료
           </div>
           <h1 style={{ fontSize: "clamp(24px, 3vw, 36px)", fontWeight: 800, margin: "0 0 12px", letterSpacing: "-0.025em", lineHeight: 1.25 }}>
             {report.doc_title || subj}
@@ -329,7 +329,7 @@ function RelatedReviewsBlock({ textPrimary, textSecondary, cardBg, cardBorder, b
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: gold, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>
-              Reviews · 수강 후기
+              수강생과 학부모 이야기
             </div>
             <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em", color: textPrimary }}>이 학원의 수강 후기</h2>
             {summary && summary.count > 0 && (

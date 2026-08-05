@@ -1,6 +1,7 @@
 // PATH: src/app_admin/domains/landing/api/index.ts
 
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
+import { resolveTenantCode } from "@/shared/tenant";
 import type {
   LandingPublicResponse,
   LandingAdminResponse,
@@ -9,19 +10,44 @@ import type {
   TemplateMeta,
 } from "../types";
 
+const publicLandingCache = new Map<string, LandingPublicResponse>();
+const publicLandingInflight = new Map<string, Promise<LandingPublicResponse>>();
+
+function currentTenantCacheKey(): string {
+  const tenant = resolveTenantCode();
+  return tenant.ok ? tenant.code : "unresolved";
+}
+
+export function clearLandingPublicCache(): void {
+  publicLandingCache.delete(currentTenantCacheKey());
+}
+
 /** 공개 랜딩 데이터 조회 (인증 불필요) */
-export async function fetchLandingPublic(): Promise<LandingPublicResponse> {
-  const { data } = await api.get("/core/landing/public/", { skipAuth: true } as ApiRequestConfig);
-  if (data?.config && data.template_key) {
-    return {
-      ...data,
-      config: {
-        ...data.config,
-        template_key: data.template_key,
-      },
-    };
-  }
-  return data;
+export function fetchLandingPublic(): Promise<LandingPublicResponse> {
+  const key = currentTenantCacheKey();
+  const cached = publicLandingCache.get(key);
+  if (cached) return Promise.resolve(cached);
+  const inflight = publicLandingInflight.get(key);
+  if (inflight) return inflight;
+
+  const request = api.get("/core/landing/public/", { skipAuth: true } as ApiRequestConfig)
+    .then(({ data }) => {
+      const normalized = data?.config && data.template_key
+        ? {
+            ...data,
+            config: {
+              ...data.config,
+              template_key: data.template_key,
+            },
+          }
+        : data;
+      publicLandingCache.set(key, normalized);
+      return normalized as LandingPublicResponse;
+    })
+    .finally(() => publicLandingInflight.delete(key));
+
+  publicLandingInflight.set(key, request);
+  return request;
 }
 
 /** 랜딩 게시 여부만 빠르게 확인 */
@@ -42,18 +68,21 @@ export async function updateLandingDraft(params: {
   draft_config?: LandingConfig;
 }): Promise<LandingAdminResponse> {
   const { data } = await api.put("/core/landing/admin/", params);
+  clearLandingPublicCache();
   return data;
 }
 
 /** Admin: 게시 */
 export async function publishLanding(): Promise<{ is_published: boolean }> {
   const { data } = await api.post("/core/landing/publish/");
+  clearLandingPublicCache();
   return data;
 }
 
 /** Admin: 게시 중단 */
 export async function unpublishLanding(): Promise<{ is_published: boolean }> {
   const { data } = await api.post("/core/landing/unpublish/");
+  clearLandingPublicCache();
   return data;
 }
 

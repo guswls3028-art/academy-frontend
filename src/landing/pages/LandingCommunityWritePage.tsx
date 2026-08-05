@@ -236,7 +236,7 @@ export default function LandingCommunityWritePage() {
       <section style={{ padding: "40px 24px 24px", borderBottom: `1px solid ${border}` }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: gold, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>
-            Community · 글쓰기
+            학원 커뮤니티 글쓰기
           </div>
           <h1 style={{ fontSize: "clamp(22px, 2.6vw, 30px)", fontWeight: 800, margin: 0, letterSpacing: "-0.025em", lineHeight: 1.3 }}>
             새 글 쓰기

@@ -62,7 +62,7 @@ export default function LandingRouter() {
       <Route path="matchup-board" element={<LandingMatchupBoardPage />} />
       <Route path="matchup-board/:id" element={<LandingMatchupBoardDetailPage />} />
       <Route path="admin/matchup-board" element={<LandingMatchupBoardAdminPage />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to="/landing" replace />} />
     </Routes>
   );
 }

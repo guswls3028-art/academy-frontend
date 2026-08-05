@@ -92,7 +92,7 @@ export default function CommunityPreviewSection({ theme = "dark" }: { theme?: "d
             <div style={{
               fontSize: 12, fontWeight: 700, color: accent,
               letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8,
-            }}>Community · 커뮤니티</div>
+            }}>학원 커뮤니티</div>
             <h2 style={{
               fontSize: "clamp(22px, 2.6vw, 30px)", fontWeight: 800,
               color: textPrimary, letterSpacing: "-0.025em", margin: 0, lineHeight: 1.25,

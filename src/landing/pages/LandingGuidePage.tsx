@@ -97,7 +97,7 @@ export default function LandingGuidePage() {
       {/* 페이지 헤더 */}
       <div style={{ borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.06)"}` }}>
         <div style={{ maxWidth: 960, margin: "0 auto", padding: "56px 24px 36px" }}>
-          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: primary, marginBottom: 10 }}>Guide</div>
+          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", color: primary, marginBottom: 10 }}>수강 전 확인</div>
           <h1 style={{ fontSize: 32, fontWeight: 800, margin: 0, letterSpacing: "-0.025em" }}>가이드</h1>
           <p style={{ fontSize: 14, color: textSecondary, margin: "10px 0 0", lineHeight: 1.7, maxWidth: 640 }}>
             {cfg.brand_name}에 대해 자주 묻는 질문을 모았습니다. 더 궁금한 점은 우측 상담 문의로 알려주세요.

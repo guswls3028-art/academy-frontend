@@ -552,7 +552,7 @@ function LightInstructorCard({ item, reportIds = [], color, rgb }: { item: Instr
           background: `rgba(${rgb}, 0.1)`, color,
           fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
           marginBottom: 10,
-        }}>{item.title || "Instructor"}</div>
+        }}>{item.title || "강사"}</div>
         <h3 style={{ fontSize: 26, fontWeight: 800, margin: "0 0 14px", letterSpacing: "-0.02em", color: "#0f172a" }}>
           {item.name}
         </h3>

@@ -146,13 +146,13 @@ export default function LandingReportsListPage() {
       <section style={{ padding: "64px 24px 32px", borderBottom: `1px solid ${cardBorder}` }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: gold, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 14 }}>
-            Hit Records · 적중 보고서 모음
+            학교별 적중 자료
           </div>
           <h1 style={{ fontSize: "clamp(28px, 3.5vw, 40px)", fontWeight: 800, margin: "0 0 14px", letterSpacing: "-0.025em", lineHeight: 1.25 }}>
             {cfg.brand_name}의 학교별 적중 사례
           </h1>
           <p style={{ fontSize: 16, color: textSecondary, margin: 0, lineHeight: 1.7, maxWidth: 640 }}>
-            매주 학교별 기출변형 모의고사로 학교 시험을 정조준한 결과입니다. 카드를 누르면 시험지와 강의 자료를 비교한 본문 PDF가 열립니다.
+            매주 학교별 기출변형 모의고사로 학교 시험을 정조준한 결과입니다. 카드를 누르면 시험지와 강의 자료의 대표 비교 화면과 전체 PDF를 확인할 수 있습니다.
           </p>
           {reports.length > 0 && (
             <div style={{ display: "flex", gap: 32, marginTop: 36, flexWrap: "wrap" }}>
@@ -278,7 +278,7 @@ export default function LandingReportsListPage() {
                     </div>
                     <div style={{ fontSize: 11, color: textSecondary, marginTop: 4, fontWeight: 600, letterSpacing: "0.04em", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <span>자세히 보기 →</span>
-                      {dateStr && <span style={{ opacity: 0.7 }}>📅 {dateStr}</span>}
+                      {dateStr && <span style={{ opacity: 0.7 }}>{dateStr}</span>}
                     </div>
                   </Link>
                 );

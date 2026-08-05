@@ -262,7 +262,7 @@ export default function LandingBoardDetailPage() {
         <article data-testid="board-detail-article" style={{ padding: "32px 36px", background: cardBg, border: `1px solid ${border}`, borderRadius: 18 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
             {post.is_pinned && <Chip color={gold} bg={`${gold}22`}>고정</Chip>}
-            {post.is_hot && <Chip color="#ef4444" bg="rgba(239,68,68,0.12)">HOT</Chip>}
+            {post.is_hot && <Chip color="#ef4444" bg="rgba(239,68,68,0.12)">인기</Chip>}
             <Chip color={textSecondary} bg="rgba(255,255,255,0.04)">{categoryLabel(post.category)}</Chip>
             {post.status !== "published" && <Chip color="#ef4444" bg="rgba(239,68,68,0.12)">{post.status === "hidden" ? "숨김" : "삭제"}</Chip>}
             {!post.external_visible && <Chip color={textSecondary} bg="rgba(148,163,184,0.18)">비공개</Chip>}

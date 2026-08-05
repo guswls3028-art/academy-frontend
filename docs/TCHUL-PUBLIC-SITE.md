@@ -19,14 +19,26 @@
 | 경로 | 역할 |
 |---|---|
 | `/landing` | 짧은 공식 홈. 첫 화면, 빠른 메뉴, 최신 매치업 3건, 수업 기준, 강사 정보, 상담 |
+| `/landing/about`, `/landing/guide` | 강사·수업·관리 방식 소개와 수강 전 안내 |
 | `/landing/matchup-board` | 공개 매치업 자료 아카이브 |
 | `/landing/matchup-board/:id` | 문자·카카오톡에 공유할 수 있는 단일 자료 페이지 |
 | `/landing/matchup-board?manage=1` | 공개 자료실 위에 열리는 원장/관리자 게시물 관리 팝업 |
 | `/landing/matchup-board?manage=1&compose=upload` | 관리 팝업과 PDF 직접 업로드 창을 함께 여는 진입점 |
-| `/landing/reports/:id` | 기존 자동 생성 보고서 호환 상세 |
+| `/landing/reports`, `/landing/reports/:id`, `/landing/share/:token` | 기존 자동 생성 보고서 목록·상세·공유 호환 경로 |
+| `/landing/board`, `/landing/board/:postId` | 외부 공개 자유게시판 목록·상세 |
+| `/landing/board/write`, `/landing/board/:postId/edit` | 로그인 후 공개 게시글 작성·수정 |
+| `/landing/reviews`, `/landing/reviews/:reviewId`, `/landing/reviews/write` | 공개 수강 후기 목록·상세·작성 |
+| `/landing/scores`, `/landing/scores/:id` | 공개 시험 결과 통계 목록·상세 |
+| `/landing/community/:boardType` | 학원 가족 전용 자유·질문·공지·자료 게시판 |
+| `/landing/community/:boardType/posts/:postId`, `/landing/community/:boardType/write` | 학원 가족 전용 글 상세·작성 |
 
 홈 내비게이션과 푸터에는 매치업 자료실을 항상 노출한다. 자동 생성 보고서가
 설정되어 있어도 자료실 링크를 숨기지 않는다.
+
+정의되지 않은 `/landing/*` 주소는 인증 화면이나 다른 제품 루트로 보내지 않고
+공개 홈 `/landing`으로 복구한다. 잘못된 커뮤니티 게시판 이름은 학원 가족
+자유게시판으로 복구하며, 로그인이 필요한 작성·수정·커뮤니티 본문은 로그인 안내나
+보호 상태를 명확히 표시한다.
 
 ## 게시와 공유 계약
 
@@ -77,6 +89,15 @@ URL로 들어오는 기존 `/landing/admin/matchup-board` 경로는 호환용으
   표시한다. 자료가 없으면 첫 게시를 안내한다.
 - 비공개·기간 만료·없는 게시물은 각각 접근 불가 상태를 안내하며 다른 테넌트
   자료로 대체하지 않는다.
+- 공개 랜딩 설정은 테넌트별로 메모리 캐시하고 동시에 발생한 요청은 하나로
+  합친다. 홈에서 자료 카드나 메뉴로 이동할 때 같은 설정을 화면마다 다시 받아
+  로딩 상태에 머무르지 않게 한다. 같은 앱에서 관리자가 초안을 저장하거나 게시·
+  게시 중단하면 해당 테넌트 캐시는 즉시 비운다.
+- 대표 썸네일이 일시적으로 실패하면 깨진 이미지 아이콘 대신 `매치업 PDF`
+  대체 화면을 표시하고, 다른 이미지 URL로 바뀌면 다시 정상 로드를 시도한다.
+- 연도 없는 `M/D 개강` 문구가 현재 연도 기준 이미 지난 날짜라면 원본 설정은
+  보존하면서 공개 화면에서만 `개강 일정 문의`로 바꾸고 지난 날짜는 설명에서
+  제거한다. 새 일정은 관리자가 원본 설정에서 확정한다.
 
 ## 시각·반응형 계약
 
@@ -92,6 +113,10 @@ URL로 들어오는 기존 `/landing/admin/matchup-board` 경로는 호환용으
 두 프로필은 원본 비율을 보존한 WebP로 제공하고 화면 크기에 따라 `object-fit`으로
 잘라 쓰며, 실제 수업 현장 사진은 별도의 근거 이미지로 계속 노출한다.
 
+공개 페이지의 작은 분류 문구와 상태 배지는 번역체 영문 장식 대신 자연스러운
+한국어를 사용한다. 모바일의 게시판 카테고리와 후기 별점 필터는 숨은 가로 스크롤에
+기대지 않고 줄바꿈해 마지막 항목까지 바로 누를 수 있어야 한다.
+
 - 데스크톱은 1100~1366px에서 첫 화면 안에 정체성, 핵심 설명, 주요 CTA와 다음
   섹션의 시작이 함께 보여야 한다.
 - 모바일 기준은 390px이며 320px까지 가로 페이지 overflow가 없어야 한다.
@@ -104,11 +129,19 @@ URL로 들어오는 기존 `/landing/admin/matchup-board` 경로는 호환용으
 ```powershell
 pnpm exec eslint src/landing/templates/PremiumDark.tsx src/landing/pages/LandingMatchupBoardPage.tsx src/landing/pages/LandingMatchupBoardDetailPage.tsx
 pnpm exec playwright test e2e/landing-matchup-static-preview.spec.ts --project=chromium --reporter=list
+pnpm exec playwright test e2e/tchul-public-visitor-audit.spec.ts --project=chromium --reporter=list
 pnpm build
 ```
 
-시각 검수는 비로그인 공개 화면에서 `/landing`, `/landing/matchup-board`, 단일
-게시물 상세를 데스크톱 1366x900과 모바일 390x844로 직접 확인한다. 원장 화면은
+`tchul-public-visitor-audit.spec.ts`는 운영 공개 API를 읽기만 하며 그 시점의
+모든 매치업 상세 ID와 설정된 자동 보고서 ID를 동적으로 감사 목록에 넣는다.
+위 표의 방문자 경로와 비회원 보호·없는 자료·잘못된 주소 상태를 데스크톱
+1366x900과 모바일 390x844로 끝까지 스크롤하고, 본문·가로 overflow·깨진 이미지·
+화면 밖 조작 요소를 누적 검사한 뒤 전체 스크린샷을 남긴다. 한 경로 결함 때문에
+뒤 경로 검수가 생략되지 않아야 한다.
+
+시각 검수는 비로그인 공개 화면에서 위 전체 경로와 현재 공개된 모든 매치업·보고서
+상세를 데스크톱 1366x900과 모바일 390x844로 직접 확인한다. 원장 화면은
 `PDF 자료 올리기`가 자료실 위의 관리 팝업과 직접 업로드 탭으로 시작하는지
 확인한다. 공개 목록 요청은 로그인 상태와 무관하게 공개 응답이어야 한다. 운영
 자료를 생성한 검수라면 같은 실행에서 정확한 게시물 ID와 스토리지 키를 정리하고
