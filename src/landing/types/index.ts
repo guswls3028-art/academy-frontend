@@ -147,6 +147,10 @@ export interface LandingContact {
   phone: string;
   email: string;
   address: string;
+  inquiries?: Array<{
+    label: string;
+    phone: string;
+  }>;
 }
 
 /** 공지 popup(2026-05-11) — 학원장이 LandingEditor에서 enable. localStorage 24h skip. */

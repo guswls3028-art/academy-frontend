@@ -8,6 +8,7 @@ import { fetchMatchupShowcaseList, type MatchupShowcaseCard } from "../api/match
 import type { LandingPublicResponse } from "../types";
 import { formatLandingYmdDateOrRaw as formatDate } from "../utils/dateFormat";
 import { resolvePublicReportUrl } from "../utils/publicReportUrl";
+import { formatMatchupHitRate } from "../utils/matchupHitRate";
 import ResilientPublicImage from "../components/ResilientPublicImage";
 import { MatchupCenterSpin, MatchupCenterState, MatchupLandingShell } from "./LandingMatchupBoardShell";
 import styles from "./LandingMatchupBoardPage.module.css";
@@ -143,6 +144,7 @@ export default function LandingMatchupBoardPage() {
 function ArchiveCard({ item, featured }: { item: MatchupShowcaseCard; featured: boolean }) {
   const previewUrl = item.preview_url ? resolvePublicReportUrl(item.preview_url) : null;
   const hitRate = item.snapshot_meta?.hit_rate;
+  const hitRateLabel = formatMatchupHitRate(hitRate);
   const hitCount = item.snapshot_meta?.hit_count;
   const countedEntries = item.snapshot_meta?.counted_entries;
   const content = (
@@ -152,14 +154,14 @@ function ArchiveCard({ item, featured }: { item: MatchupShowcaseCard; featured: 
           src={previewUrl || undefined}
           alt=""
           loading={featured ? "eager" : "lazy"}
-          fallback={<div className={styles.cardPreviewFallback}>매치업 PDF</div>}
+          fallback={<div className={styles.cardPreviewFallback}>매치업 자료</div>}
         />
         <span>{item.expired ? "공개 종료" : "대표 비교 화면"}</span>
       </div>
       <div className={styles.cardBody}>
         <div className={styles.cardTop}>
           <span>{formatDate(item.published_at)}</span>
-          {hitRate !== undefined ? <strong>적중률 {Math.round((hitRate || 0) * 100)}%</strong> : null}
+          {hitRateLabel ? <strong>적중률 {hitRateLabel}</strong> : null}
         </div>
         <h2>{item.title}</h2>
         <p>{item.description || "실제 시험과 사전 대비 자료를 비교한 매치업 보고서입니다."}</p>

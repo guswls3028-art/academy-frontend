@@ -1,15 +1,34 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { Page } from "@playwright/test";
+import { PDFDocument, rgb } from "pdf-lib";
 import { expect, test } from "./fixtures/strictTest";
 
 const BASE = process.env.E2E_LOCAL_BASE_URL || "http://127.0.0.1:5174";
 const PREVIEW_IMAGE = readFileSync(
   resolve(process.cwd(), "public/promo/matchup-actual-vs-prepared-q1-20260726.jpg"),
 );
-const TEST_PDF = readFileSync(resolve(process.cwd(), "e2e/fixtures/test-matchup.pdf"));
+let testPdfPromise: Promise<Buffer> | null = null;
+
+function buildTestPdf(): Promise<Buffer> {
+  testPdfPromise ??= (async () => {
+    const pdf = await PDFDocument.create();
+    [
+      rgb(0.92, 0.96, 1),
+      rgb(0.96, 0.94, 1),
+      rgb(0.93, 0.98, 0.95),
+    ].forEach((color, index) => {
+      const page = pdf.addPage([595, 842]);
+      page.drawRectangle({ x: 36, y: 36, width: 523, height: 770, color });
+      page.drawRectangle({ x: 70, y: 690 - index * 20, width: 455, height: 52, color: rgb(0.07, 0.41, 0.95) });
+    });
+    return Buffer.from(await pdf.save());
+  })();
+  return testPdfPromise;
+}
 
 async function stubLandingReport(page: Page) {
+  const testPdf = await buildTestPdf();
   await page.addInitScript(() => {
     localStorage.setItem("tenant_code", "tchul");
   });
@@ -39,7 +58,16 @@ async function stubLandingReport(page: Page) {
           primary_color: "#D4A04C",
           cta_text: "상담 문의",
           cta_link: "#contact",
-          contact: {},
+          contact: {
+            phone: "02-556-1988",
+            email: "",
+            address: "",
+            inquiries: [
+              { label: "두각학원", phone: "02-556-1988" },
+              { label: "명인학원", phone: "02-6382-0909" },
+              { label: "박철 과학 연구소", phone: "010-3502-3313" },
+            ],
+          },
           sections: [
             {
               type: "hit_reports",
@@ -80,7 +108,7 @@ async function stubLandingReport(page: Page) {
   await page.route("**/api/v1/landing-public/**", async (route) => {
     const pathname = new URL(route.request().url()).pathname;
     if (pathname.endsWith("/matchup-showcase/9/pdf/")) {
-      await route.fulfill({ status: 200, contentType: "application/pdf", body: TEST_PDF });
+      await route.fulfill({ status: 200, contentType: "application/pdf", body: testPdf });
       return;
     }
     if (pathname.endsWith("/matchup-showcase/9/preview/")) {
@@ -95,7 +123,7 @@ async function stubLandingReport(page: Page) {
       published_at: "2026-07-25T12:00:00+09:00",
       published_until: null,
       snapshot_at: "2026-07-25T12:00:00+09:00",
-      snapshot_meta: { hit_rate: 0.8, hit_count: 8, counted_entries: 10 },
+      snapshot_meta: { hit_rate: 0.895, hit_count: 17, counted_entries: 19 },
       view_count: 1,
       expired: false,
       visible: true,
@@ -141,6 +169,11 @@ test("tenant report opens one static comparison image without a PDF renderer", a
   await expect(page.locator('img[src="/tenants/tchul/instructor-formal-portrait.webp"]')).toBeVisible();
   await expect(page.locator('img[src="/tenants/tchul/instructor-casual-portrait.webp"]')).toBeAttached();
   await expect(page.locator('a[href="/landing/matchup-board/9"] img')).toBeVisible();
+  await expect(page.getByText("적중률 89.5%").first()).toBeVisible();
+  await expect(page.getByRole("link", { name: /두각학원.*02-556-1988/ })).toHaveAttribute("href", "tel:025561988");
+  await expect(page.getByRole("link", { name: /명인학원.*02-6382-0909/ })).toHaveAttribute("href", "tel:0263820909");
+  await expect(page.getByRole("link", { name: /박철 과학 연구소.*010-3502-3313/ })).toHaveAttribute("href", "tel:01035023313");
+  await expect(page.getByTestId("landing-hero-primary-cta")).toContainText("두각학원 수강 문의");
   await expect(page.getByRole("link", { name: /매치업 자료실/ }).first()).toHaveAttribute("href", "/landing/matchup-board");
   await page.goto(`${BASE}/landing/reports/7`, { waitUntil: "load" });
 
@@ -170,7 +203,7 @@ test("a failed report preview retries after route change", async ({ page }) => {
   await expect(page.getByTestId("static-report-preview").locator("img")).toBeVisible();
 });
 
-test("showcase detail immediately embeds every PDF page without a second click", async ({ page }) => {
+test("showcase detail renders every page as one continuous mobile article", async ({ page }) => {
   await stubLandingReport(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${BASE}/landing/matchup-board`, { waitUntil: "load" });
@@ -180,22 +213,35 @@ test("showcase detail immediately embeds every PDF page without a second click",
   await opener.click();
   await expect(page).toHaveURL(/\/landing\/matchup-board\/9$/);
   await expect(page.getByRole("heading", { name: "2026 숙명여고 적중 보고서" })).toBeVisible();
-  await expect(page.getByText("전체 PDF · 아래에서 모든 페이지를 바로 확인하세요")).toBeVisible();
-  const fullPdf = page.getByTestId("matchup-full-pdf");
-  await expect(fullPdf).toBeVisible();
-  await expect(fullPdf).toHaveAttribute("src", /\/api\/v1\/landing-public\/matchup-showcase\/9\/pdf\/\?tenant=tchul/);
+  await expect(page.getByText("적중률 89.5%")).toBeVisible();
+  await expect(page.getByText("전체 자료 · 아래에서 첫 쪽부터 끝까지 이어서 보세요")).toBeVisible();
+  const inlinePdf = page.getByTestId("matchup-inline-pdf");
+  await expect(inlinePdf).toHaveAttribute("data-page-count", "3", { timeout: 30_000 });
+  await expect(page.getByTestId("matchup-pdf-page")).toHaveCount(3);
+  await expect(page.locator("iframe")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "새 창에서 크게 보기" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "원본 PDF 다운로드" })).toHaveAttribute("href", /\/api\/v1\/landing-public\/matchup-showcase\/9\/pdf\/\?tenant=tchul/);
   await expect(page.getByTestId("static-report-preview")).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "새 창에서 크게 보기" })).toBeVisible();
+
+  const pages = page.getByTestId("matchup-pdf-page");
+  for (let index = 0; index < 3; index += 1) {
+    const pdfPage = pages.nth(index);
+    await pdfPage.scrollIntoViewIfNeeded();
+    await expect(pdfPage).toHaveAttribute("data-render-status", "ready", { timeout: 20_000 });
+    const canvas = pdfPage.getByTestId("matchup-pdf-canvas");
+    const mobileBox = await canvas.boundingBox();
+    expect(mobileBox?.width || 999).toBeLessThanOrEqual(390);
+    expect(await canvas.evaluate((element) => element.width > 0 && element.height > 0)).toBe(true);
+  }
   await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
-  const mobileBox = await fullPdf.boundingBox();
-  expect(mobileBox?.width).toBeLessThanOrEqual(390);
-  expect(mobileBox?.height).toBeGreaterThanOrEqual(680);
-
   await page.setViewportSize({ width: 1366, height: 900 });
-  const desktopBox = await fullPdf.boundingBox();
-  expect(desktopBox?.width).toBeGreaterThan(1000);
-  expect(desktopBox?.height).toBeGreaterThanOrEqual(700);
+  const firstPage = pages.first();
+  await firstPage.scrollIntoViewIfNeeded();
+  await expect(firstPage).toHaveAttribute("data-render-status", "ready", { timeout: 20_000 });
+  const desktopBox = await firstPage.getByTestId("matchup-pdf-canvas").boundingBox();
+  expect(desktopBox?.width || 0).toBeGreaterThan(800);
+  expect(desktopBox?.width || 9999).toBeLessThanOrEqual(920);
   await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 

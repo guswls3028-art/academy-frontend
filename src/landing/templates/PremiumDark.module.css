@@ -468,7 +468,7 @@
   margin-bottom: 96px;
   padding: 58px;
   display: grid;
-  grid-template-columns: 0.9fr 1.1fr;
+  grid-template-columns: 0.7fr 1.3fr;
   gap: 70px;
   align-items: center;
   color: #06111e;
@@ -477,11 +477,14 @@
 }
 .contactSection .utilityLabel { color: #2767d7; }
 .contactSection h2 { color: #091525; font-family: ui-serif, "Noto Serif KR", "Nanum Myeongjo", serif; font-size: clamp(30px, 3.4vw, 46px); font-weight: 700; letter-spacing: -0.05em; }
-.contactDetails { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.contactDetails { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .contactDetails > a:not(.contactAction),
 .contactDetails > div { min-height: 92px; padding: 18px; display: grid; align-content: center; gap: 6px; border: 1px solid #d5deea; border-radius: 4px; color: #091525; text-decoration: none; background: #fff; }
 .contactDetails span { color: #607087; font-size: 10px; font-weight: 800; }
 .contactDetails strong { font-size: 14px; line-height: 1.5; }
+.contactDetails small { color: #52657e; font-size: 12px; font-weight: 750; }
+.contactDetails .contactPrimary { border-color: #1264e5; box-shadow: inset 0 3px 0 #1264e5; background: #f4f8ff; }
+.contactDetails .contactPrimary span { color: #1264e5; }
 .contactAction { grid-column: 1 / -1; color: #fff; background: #1264e5; }
 .contactAction:hover { background: #0b55c7; }
 

@@ -24,7 +24,7 @@ type AuditRoute = {
   path: string;
   expectedText?: RegExp;
   expectedPath?: RegExp;
-  embeddedMatchupPdf?: boolean;
+  inlineMatchupPdf?: boolean;
 };
 
 const VIEWPORTS: ViewportAudit[] = [
@@ -62,8 +62,8 @@ async function buildRouteInventory(request: APIRequestContext): Promise<AuditRou
     ...matchupIds.map((id) => ({
       name: `매치업 상세 ${id}`,
       path: `/landing/matchup-board/${id}`,
-      expectedText: /전체 PDF|새 창에서 크게 보기/,
-      embeddedMatchupPdf: true,
+      expectedText: /전체 자료|모든 페이지가 순서대로/,
+      inlineMatchupPdf: true,
     })),
     { name: "자동 적중보고서", path: "/landing/reports", expectedText: /학교별 적중 사례/ },
     ...reportIds.map((id) => ({ name: `자동 적중보고서 상세 ${id}`, path: `/landing/reports/${id}`, expectedText: /PDF 전체 보기/ })),
@@ -135,23 +135,56 @@ async function auditRoute(page: Page, route: AuditRoute, viewport: ViewportAudit
   if (route.expectedText && !route.expectedText.test(bodyText)) {
     defects.push(`필수 문구 ${route.expectedText} 없음`);
   }
-  if (route.embeddedMatchupPdf) {
-    const iframe = page.getByTestId("matchup-full-pdf");
-    const iframeSrc = await iframe.getAttribute("src").catch(() => null);
-    if (!iframeSrc) {
-      defects.push("전체 PDF iframe 없음");
+  if (route.inlineMatchupPdf) {
+    const download = page.getByRole("link", { name: "원본 PDF 다운로드" });
+    const pdfHref = await download.getAttribute("href").catch(() => null);
+    if (!pdfHref) {
+      defects.push("원본 PDF 다운로드 주소 없음");
     } else {
-      const parsed = new URL(iframeSrc, finalUrl);
+      const parsed = new URL(pdfHref, finalUrl);
       const localAudit = ["127.0.0.1", "localhost"].includes(new URL(BASE_URL).hostname);
       const expectedHost = localAudit ? new URL(BASE_URL).hostname : "api.hakwonplus.com";
-      if (parsed.hostname !== expectedHost) defects.push(`PDF iframe 호스트가 잘못됨: ${parsed.hostname}`);
-      if (parsed.searchParams.get("tenant") !== "tchul") defects.push("PDF iframe tenant 누락");
+      if (parsed.hostname !== expectedHost) defects.push(`PDF 원본 호스트가 잘못됨: ${parsed.hostname}`);
+      if (parsed.searchParams.get("tenant") !== "tchul") defects.push("PDF 원본 tenant 누락");
       const pdfResponse = await page.request.get(parsed.toString(), { headers: TENANT_HEADERS, timeout: 30_000 }).catch(() => null);
       const contentType = pdfResponse?.headers()["content-type"] || "";
       if (!pdfResponse?.ok() || !/application\/pdf/i.test(contentType)) {
-        defects.push(`PDF iframe 응답 실패: ${pdfResponse?.status() || "no response"} ${contentType}`);
+        defects.push(`PDF 원본 응답 실패: ${pdfResponse?.status() || "no response"} ${contentType}`);
       }
       await pdfResponse?.dispose();
+    }
+
+    if (await page.locator("iframe").count()) defects.push("브라우저 내장 PDF iframe이 남아 있음");
+    if (await page.getByRole("link", { name: "새 창에서 크게 보기" }).count()) defects.push("새 창 보기 버튼이 남아 있음");
+    const inlineDocument = page.getByTestId("matchup-inline-pdf");
+    const pageCount = Number(await inlineDocument.getAttribute("data-page-count").catch(() => 0));
+    const pages = page.getByTestId("matchup-pdf-page");
+    if (!Number.isFinite(pageCount) || pageCount < 1) {
+      defects.push("연속 본문 페이지 수를 확인할 수 없음");
+    } else if (await pages.count() !== pageCount) {
+      defects.push(`연속 본문 페이지 누락: ${await pages.count()}/${pageCount}`);
+    } else {
+      for (let index = 0; index < pageCount; index += 1) {
+        const pdfPage = pages.nth(index);
+        await pdfPage.scrollIntoViewIfNeeded().catch(() => undefined);
+        const rendered = await expect(pdfPage)
+          .toHaveAttribute("data-render-status", "ready", { timeout: 30_000 })
+          .then(() => true)
+          .catch(() => false);
+        if (!rendered) {
+          const status = await pdfPage.getAttribute("data-render-status").catch(() => null);
+          defects.push(`${index + 1}쪽 렌더 상태가 ready가 아님: ${status || "없음"}`);
+          continue;
+        }
+        const canvas = pdfPage.getByTestId("matchup-pdf-canvas");
+        const canvasState = await canvas.evaluate((element) => ({
+          width: element.width,
+          height: element.height,
+          visualWidth: element.getBoundingClientRect().width,
+        })).catch(() => ({ width: 0, height: 0, visualWidth: 0 }));
+        if (canvasState.width < 1 || canvasState.height < 1) defects.push(`${index + 1}쪽 canvas가 비어 있음`);
+        if (canvasState.visualWidth > viewport.width + 1) defects.push(`${index + 1}쪽이 화면보다 넓음: ${canvasState.visualWidth}px`);
+      }
     }
   }
   if (bodyText.trim().length < 20) defects.push(`본문이 비어 있음 (${bodyText.trim().length}자)`);
@@ -267,7 +300,7 @@ test.describe("tchul 공개 홈페이지 전체 방문 동선", () => {
     const firstPreview = page.locator('a[href^="/landing/matchup-board/"] img').first();
     await expect(firstPreview).toBeAttached();
     await firstPreview.dispatchEvent("error");
-    await expect(page.getByText("매치업 PDF").first()).toBeVisible();
+    await expect(page.getByText("매치업 자료").first()).toBeVisible();
 
     const firstMatchup = page.locator('a[href^="/landing/matchup-board/"]').first();
     await expect(firstMatchup).toBeVisible();

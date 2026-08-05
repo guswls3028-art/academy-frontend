@@ -24,6 +24,7 @@ import {
 import EditShowcaseModal from "./matchup_board/EditShowcaseModal";
 import PublishShowcaseModal, { type PublishMode } from "./matchup_board/PublishShowcaseModal";
 import { formatDate } from "./matchup_board/helpers";
+import { formatMatchupHitRate } from "../utils/matchupHitRate";
 
 type LandingMatchupBoardAdminPageProps = {
   modal?: boolean;
@@ -306,7 +307,7 @@ export default function LandingMatchupBoardAdminPage({
                     <span style={{ fontSize: 11, color: "#64748b" }}>#{card.id}</span>
                     {card.snapshot_meta?.hit_rate !== undefined && (
                       <span style={{ fontSize: 11, color: "#D4A04C", fontWeight: 700 }}>
-                        적중률 {Math.round((card.snapshot_meta.hit_rate || 0) * 100)}% ({card.snapshot_meta.hit_count}/{card.snapshot_meta.counted_entries})
+                        적중률 {formatMatchupHitRate(card.snapshot_meta.hit_rate)} ({card.snapshot_meta.hit_count}/{card.snapshot_meta.counted_entries})
                       </span>
                     )}
                   </div>
