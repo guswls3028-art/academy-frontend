@@ -83,6 +83,7 @@ docs/*
 !docs/REFACTOR-GUARDRAILS.md
 !docs/PRODUCT-USAGE-ANALYTICS.md
 !docs/TEACHER-TOOLS.md
+!docs/PROBLEM-REVIEW-REPORT.md
 !docs/FIRST-LOGIN-GUIDE.md
 prompts/
 specs/
