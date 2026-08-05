@@ -222,16 +222,20 @@ test.describe("tchul 공개 홈페이지 전체 방문 동선", () => {
   });
 
   for (const viewport of VIEWPORTS) {
-    test(`${viewport.name} ${viewport.width}x${viewport.height} 전체 route 누적 감사`, async ({ context, request }) => {
+    test(`${viewport.name} ${viewport.width}x${viewport.height} 전체 route 누적 감사`, async ({ browser, request }) => {
       const screenshotDir = join(ARTIFACT_DIR, "screenshots", viewport.name);
       await mkdir(screenshotDir, { recursive: true });
       const routes = await buildRouteInventory(request);
       const defects: string[] = [];
 
       for (const route of routes) {
-        const routePage = await context.newPage();
+        const routeContext = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height } });
+        await routeContext.addInitScript(() => {
+          localStorage.setItem("tenant_code", "tchul");
+          sessionStorage.setItem("tenantCode", "tchul");
+        });
+        const routePage = await routeContext.newPage();
         const strict = attachStrictBrowserGuards(routePage);
-        await routePage.setViewportSize({ width: viewport.width, height: viewport.height });
         try {
           defects.push(...await auditRoute(routePage, route, viewport, screenshotDir));
           try {
@@ -240,7 +244,7 @@ test.describe("tchul 공개 홈페이지 전체 방문 동선", () => {
             defects.push(`[${viewport.name}] ${route.name} (${route.path}) — ${String(error)}`);
           }
         } finally {
-          await routePage.close();
+          await routeContext.close();
         }
       }
 
