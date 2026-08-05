@@ -11,6 +11,7 @@ import { join } from "node:path";
 import type { APIRequestContext, Page } from "@playwright/test";
 import { resolvePublicProgramCopy } from "../src/landing/utils/publicProgramCopy";
 import { expect, test } from "./fixtures/strictTest";
+import { attachStrictBrowserGuards } from "./helpers/strictBrowser";
 
 const BASE_URL = (process.env.TCHUL_AUDIT_BASE_URL || "https://tchul.com").replace(/\/+$/, "");
 const API_URL = (process.env.TCHUL_AUDIT_API_URL || "https://api.hakwonplus.com").replace(/\/+$/, "");
@@ -221,15 +222,26 @@ test.describe("tchul 공개 홈페이지 전체 방문 동선", () => {
   });
 
   for (const viewport of VIEWPORTS) {
-    test(`${viewport.name} ${viewport.width}x${viewport.height} 전체 route 누적 감사`, async ({ page, request }) => {
+    test(`${viewport.name} ${viewport.width}x${viewport.height} 전체 route 누적 감사`, async ({ context, request }) => {
       const screenshotDir = join(ARTIFACT_DIR, "screenshots", viewport.name);
       await mkdir(screenshotDir, { recursive: true });
-      await page.setViewportSize({ width: viewport.width, height: viewport.height });
       const routes = await buildRouteInventory(request);
       const defects: string[] = [];
 
       for (const route of routes) {
-        defects.push(...await auditRoute(page, route, viewport, screenshotDir));
+        const routePage = await context.newPage();
+        const strict = attachStrictBrowserGuards(routePage);
+        await routePage.setViewportSize({ width: viewport.width, height: viewport.height });
+        try {
+          defects.push(...await auditRoute(routePage, route, viewport, screenshotDir));
+          try {
+            strict.assertZeroDefects();
+          } catch (error) {
+            defects.push(`[${viewport.name}] ${route.name} (${route.path}) — ${String(error)}`);
+          }
+        } finally {
+          await routePage.close();
+        }
       }
 
       await test.info().attach("route-inventory", {
