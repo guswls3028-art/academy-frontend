@@ -80,9 +80,9 @@ function SelectionPanelInner({
             flexShrink: 0,
           }}
         >
-          🔒 홈페이지 게시 중 — 자료 추가/제거가 잠긴 상태입니다.
+          🔒 보고서 작성 완료 — 자료 추가/제거가 잠긴 상태입니다.
           <div style={{ fontWeight: 500, color: "var(--color-text-secondary)", marginTop: 2 }}>
-            다시 편집하려면 위쪽 <strong style={{ color: "var(--color-status-success)" }}>"재편집 시작"</strong> 버튼을 눌러주세요.
+            다시 편집하려면 위쪽 <strong style={{ color: "var(--color-status-success)" }}>"작성 다시 열기"</strong> 버튼을 눌러주세요.
           </div>
         </div>
       )}
@@ -320,7 +320,7 @@ function SelectRow({
             onClick={(e) => { e.stopPropagation(); onToggle(); }}
             disabled={disabled}
             aria-label={isSelected ? "PDF에서 제외" : "PDF에 포함"}
-            title={disabled ? "홈페이지 게시 중 — 위쪽 '게시 취소 · 편집' 버튼을 눌러 잠금을 푸세요." : undefined}
+            title={disabled ? "보고서 작성 완료 — 위쪽 '작성 다시 열기' 버튼을 눌러 잠금을 푸세요." : undefined}
             style={{
               padding: "4px 10px",
               fontSize: 11, fontWeight: 700,

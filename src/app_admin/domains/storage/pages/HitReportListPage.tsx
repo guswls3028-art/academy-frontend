@@ -9,7 +9,6 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { useQueryClient } from "@tanstack/react-query";
 import { FileText, Filter, RefreshCw, AlertTriangle } from "lucide-react";
 import { ICON, Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -17,12 +16,15 @@ import useAuth from "@/auth/hooks/useAuth";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import {
   fetchHitReportList,
-  fetchPublishedHitReportIds,
-  toggleHitReportShowcase,
   generateHitReportShareLink,
   type HitReportListItem,
   type HitReportListResponse,
 } from "../api/matchup.api";
+import {
+  fetchMatchupShowcaseList,
+  isActiveMatchupShowcase,
+  publishMatchupShowcase,
+} from "@/landing/api/matchupShowcase";
 import HitReportBoardPreviewStrip from "../components/matchup/HitReportBoardPreviewStrip";
 import HitReportPreviewModal from "../components/matchup/HitReportPreviewModal";
 
@@ -31,7 +33,6 @@ type StatusFilter = "" | "draft" | "submitted";
 
 export default function HitReportListPage() {
   const navigate = useNavigate();
-  useQueryClient();  // 캐시 무효화 시 사용 가능 (현재는 직접 invalidate X)
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const isAcademyAdmin = !!(
@@ -45,7 +46,7 @@ export default function HitReportListPage() {
   const [data, setData] = useState<HitReportListResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showcaseIds, setShowcaseIds] = useState<Set<number>>(new Set());
+  const [showcaseByReport, setShowcaseByReport] = useState<Map<number, number>>(new Map());
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
@@ -70,32 +71,48 @@ export default function HitReportListPage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  // 학원장(owner/admin)만 picker 등록 ID fetch — chip 활성/비활성 표시용
-  useEffect(() => {
+  const loadShowcases = useCallback(async () => {
     if (!isAcademyAdmin) return;
-    fetchPublishedHitReportIds().then((ids) => setShowcaseIds(new Set(ids))).catch(() => {});
+    const resp = await fetchMatchupShowcaseList();
+    setShowcaseByReport(new Map(
+      resp.results
+        .filter(isActiveMatchupShowcase)
+        .flatMap((card) => card.hit_report_id_ref ? [[card.hit_report_id_ref, card.id] as const] : []),
+    ));
   }, [isAcademyAdmin]);
 
-  const handleShowcaseToggle = useCallback(async (reportId: number, currentlyOn: boolean) => {
+  // staff 목록에는 숨김/만료 자료도 섞이므로 현재 공개 중인 스냅샷만 chip에 반영한다.
+  useEffect(() => {
+    void loadShowcases().catch(() => {});
+  }, [loadShowcases]);
+
+  const handleShowcasePublish = useCallback(async (report: HitReportListItem) => {
     if (togglingId !== null) return;
-    setTogglingId(reportId);
+    if (showcaseByReport.has(report.id)) {
+      navigate("/landing/matchup-board?manage=1");
+      return;
+    }
+    setTogglingId(report.id);
     try {
-      const action: "add" | "remove" = currentlyOn ? "remove" : "add";
-      await toggleHitReportShowcase(reportId, action);
-      setShowcaseIds((prev) => {
-        const next = new Set(prev);
-        if (action === "add") next.add(reportId);
-        else next.delete(reportId);
+      const card = await publishMatchupShowcase({
+        hit_report_id: report.id,
+        // 공개 제목은 오래된 보고서 임시 제목보다 실제 시험 문서 제목을 우선한다.
+        title: report.document_title || report.title || undefined,
+      });
+      setShowcaseByReport((prev) => {
+        const next = new Map(prev);
+        next.set(report.id, card.id);
         return next;
       });
-      feedback.success(action === "add" ? "홈페이지에 노출했습니다" : "홈페이지에서 내렸습니다");
+      window.dispatchEvent(new CustomEvent("matchup:board-preview:refresh", { detail: { card } }));
+      feedback.success("홈페이지 매치업 자료실에 게시했습니다. '자료실 게시됨'을 누르면 공개 상태를 관리할 수 있습니다.");
     } catch (e) {
       const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      feedback.error(typeof detail === "string" ? detail : "변경 실패");
+      feedback.error(typeof detail === "string" ? detail : "자료실 게시 실패");
     } finally {
       setTogglingId(null);
     }
-  }, [togglingId]);
+  }, [navigate, showcaseByReport, togglingId]);
 
   // 1클릭 공유 링크 복사 (#67, 2026-05-12) — 학원장/선생이 학생/학부모 카톡 share용.
   // backend: 없으면 generate, 있으면 그대로 반환. clipboard에 절대 URL 복사.
@@ -199,7 +216,7 @@ export default function HitReportListPage() {
               {tab === "mine" ? "내가 작성한 보고서" : "학원 전체 보고서"}
               {summary && (
                 <span>
-                  {"  ·  "}총 {summary.total}건 (게시 {summary.submitted} / 작성중 {summary.drafts})
+                  {"  ·  "}총 {summary.total}건 (작성 완료 {summary.submitted} / 작성 중 {summary.drafts})
                 </span>
               )}
             </div>
@@ -248,7 +265,7 @@ export default function HitReportListPage() {
       </div>
 
       {/* 학원장 포탈 widget (2026-05-11) — 작성/관리(admin) ↔ 학원 게시판(landing) 단일 흐름.
-          submit/unsubmit 후 자동 reload, 새 게시 카드 ✨ pulse 3초. */}
+          공개 자료실 게시 후 자동 reload, 새 게시 카드 ✨ pulse 3초. */}
       {isAcademyAdmin && <HitReportBoardPreviewStrip />}
 
       {/* Draft alert banner — 학원장 시각 인지 자극 */}
@@ -264,7 +281,7 @@ export default function HitReportListPage() {
         }}>
           <AlertTriangle size={ICON.sm} />
           <span style={{ flex: 1 }}>
-            작성중 {draftCount}건 — 학원 홈페이지 매치업 게시판에 올릴 보고서를 마무리해주세요.
+            작성 중 {draftCount}건 — 공개할 보고서 내용을 마무리해주세요.
           </span>
         </div>
       )}
@@ -293,7 +310,7 @@ export default function HitReportListPage() {
         >
           <option value="">상태: 전체</option>
           <option value="draft">작성 중</option>
-          <option value="submitted">홈페이지 게시 중</option>
+          <option value="submitted">작성 완료</option>
         </select>
       </div>
 
@@ -316,7 +333,7 @@ export default function HitReportListPage() {
             color: "var(--color-text-secondary)", fontSize: 13, lineHeight: 1.6,
           }}>
             <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6, color: "var(--color-text-primary)" }}>
-              {tab === "mine" ? "작성한 보고서가 없습니다" : "학원 홈페이지에 게시된 보고서가 없습니다"}
+              {tab === "mine" ? "작성한 보고서가 없습니다" : "학원에서 작성한 보고서가 없습니다"}
             </div>
             <div style={{ fontSize: 12 }}>
               매치업 페이지에서 시험지 자료를 선택 → 적중 보고서 작성 버튼을 누르세요.
@@ -335,9 +352,9 @@ export default function HitReportListPage() {
                 report={r}
                 showAuthor={tab === "all"}
                 onClick={() => handleRowClick(r)}
-                showcaseOn={showcaseIds.has(r.id)}
+                showcaseOn={showcaseByReport.has(r.id)}
                 showcaseToggling={togglingId === r.id}
-                onShowcaseToggle={isAcademyAdmin ? () => handleShowcaseToggle(r.id, showcaseIds.has(r.id)) : undefined}
+                onShowcaseToggle={isAcademyAdmin ? () => handleShowcasePublish(r) : undefined}
                 onShareCopy={() => handleShareCopy(r.id)}
                 shareLoading={sharingId === r.id}
                 compact={isMobile}
@@ -422,7 +439,7 @@ function ReportRow({
       data-testid="hit-report-card"
       data-report-id={report.id}
       data-report-status={report.status}
-      aria-label={`${report.title || report.document_title || "(제목 없음)"} — ${isSubmitted ? "게시 중" : "작성 중"}`}
+      aria-label={`${report.title || report.document_title || "(제목 없음)"} — ${isSubmitted ? "작성 완료" : "작성 중"}`}
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -460,7 +477,7 @@ function ReportRow({
               background: "var(--color-status-success-bg, #dcfce7)",
               color: "var(--color-status-success)",
             }}>
-              🌐 게시 중
+              작성 완료
             </span>
           ) : (
             <span style={{
@@ -474,9 +491,11 @@ function ReportRow({
           {onShowcaseToggle && (
             <button
               type="button"
+              data-testid="hit-report-showcase-action"
+              data-showcase-on={showcaseOn ? "true" : "false"}
               onClick={(e) => { e.stopPropagation(); onShowcaseToggle(); }}
               disabled={showcaseToggling}
-              title={showcaseOn ? "홈페이지에서 내리기" : "홈페이지에 노출"}
+              title={showcaseOn ? "게시물 관리에서 공개 상태를 변경합니다" : "홈페이지 매치업 자료실에 게시"}
               style={{
                 padding: "1px 9px 1px 7px", borderRadius: 999, fontSize: 10, fontWeight: 700,
                 background: showcaseOn ? "rgba(37,99,235,0.12)" : "rgba(15,23,42,0.05)",
@@ -488,7 +507,7 @@ function ReportRow({
                 letterSpacing: "-0.01em",
               }}
             >
-              {showcaseOn ? "🌐 홈페이지" : "+ 홈페이지"}
+              {showcaseOn ? "🌐 자료실 게시됨" : "+ 자료실 게시"}
             </button>
           )}
           {onShareCopy && (
@@ -534,7 +553,7 @@ function ReportRow({
             </span>
           )}
           {report.submitted_at && (
-            <span>게시일: {new Date(report.submitted_at).toLocaleDateString("ko-KR")}</span>
+            <span>완료일: {new Date(report.submitted_at).toLocaleDateString("ko-KR")}</span>
           )}
         </div>
       </div>

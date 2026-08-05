@@ -14,9 +14,10 @@ import { ExternalLink, RefreshCw, Sparkles } from "lucide-react";
 import { ICON, Button } from "@/shared/ui/ds";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import {
-  fetchHitReportBoardPreview,
-  type BoardPreviewCard,
-} from "../../api/matchup.api";
+  fetchMatchupShowcaseList,
+  isActiveMatchupShowcase,
+  type MatchupShowcaseCard,
+} from "@/landing/api/matchupShowcase";
 
 type Props = {
   /** 학원장(owner/admin) 권한일 때만 렌더 결정 — 호출 측 책임. */
@@ -25,7 +26,7 @@ type Props = {
 
 export default function HitReportBoardPreviewStrip({ open = true }: Props) {
   const isMobile = useIsMobile();
-  const [cards, setCards] = useState<BoardPreviewCard[]>([]);
+  const [cards, setCards] = useState<MatchupShowcaseCard[]>([]);
   const [totalPublished, setTotalPublished] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,12 +36,13 @@ export default function HitReportBoardPreviewStrip({ open = true }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const r = await fetchHitReportBoardPreview(5);
-      // 새로 추가된 카드 식별 — submit 직후 reload 시 첫 번째 카드가 신규일 가능성 큼.
+      const r = await fetchMatchupShowcaseList();
+      const activeCards = r.results.filter(isActiveMatchupShowcase);
+      // 새로 추가된 카드 식별 — 공개 직후 reload 시 첫 번째 카드가 신규일 가능성 큼.
       const prevIds = new Set(cards.map((c) => c.id));
-      const newCard = r.reports.find((c) => !prevIds.has(c.id));
-      setCards(r.reports);
-      setTotalPublished(r.total_published);
+      const newCard = activeCards.find((c) => !prevIds.has(c.id));
+      setCards(activeCards.slice(0, 5));
+      setTotalPublished(activeCards.length);
       if (newCard && cards.length > 0) {
         setRecentlyAddedId(newCard.id);
         // 3초 후 pulse 해제
@@ -61,9 +63,22 @@ export default function HitReportBoardPreviewStrip({ open = true }: Props) {
     if (open) void load();
   }, [open, load]);
 
-  // 외부 reload 신호 — submit/unsubmit 핸들러에서 발사.
+  // 외부 reload 신호 — 서버가 확정한 신규 카드는 즉시 반영해 재조회 경쟁 상태를 피한다.
   useEffect(() => {
-    const handler = () => void load();
+    const handler = (event: Event) => {
+      const card = (event as CustomEvent<{ card?: MatchupShowcaseCard }>).detail?.card;
+      if (!card || !isActiveMatchupShowcase(card)) {
+        void load();
+        return;
+      }
+      setCards((prev) => {
+        if (prev.some((item) => item.id === card.id)) return prev;
+        return [card, ...prev].slice(0, 5);
+      });
+      setTotalPublished((prev) => prev + 1);
+      setRecentlyAddedId(card.id);
+      setTimeout(() => setRecentlyAddedId(null), 3000);
+    };
     window.addEventListener("matchup:board-preview:refresh", handler);
     return () => window.removeEventListener("matchup:board-preview:refresh", handler);
   }, [load]);
@@ -134,7 +149,7 @@ export default function HitReportBoardPreviewStrip({ open = true }: Props) {
           <Button
             size="sm"
             intent="primary"
-            onClick={() => window.open("/landing", "_blank", "noopener,noreferrer")}
+            onClick={() => window.open("/landing/matchup-board", "_blank", "noopener,noreferrer")}
             leftIcon={<ExternalLink size={ICON.sm} />}
             title="학원 홈페이지 매치업 게시판 전체 보기 (새 탭)"
             style={{ width: isMobile ? "100%" : undefined }}
@@ -160,7 +175,7 @@ export default function HitReportBoardPreviewStrip({ open = true }: Props) {
         >
           {loading
             ? "게시판 불러오는 중…"
-            : "아직 게시된 보고서가 없어요. 보고서 편집기에서 '🌐 홈페이지에 게시' 버튼을 누르면 이 자리에 카드가 올라옵니다."}
+            : "아직 게시된 보고서가 없어요. 보고서 편집기나 목록에서 '홈페이지에 게시'를 누르면 이 자리에 카드가 올라옵니다."}
         </div>
       ) : (
         <div
@@ -174,13 +189,16 @@ export default function HitReportBoardPreviewStrip({ open = true }: Props) {
         >
           {cards.map((c) => {
             const isPulse = c.id === recentlyAddedId;
+            const hitRatePct = Math.round((c.snapshot_meta?.hit_rate || 0) * 100);
+            const hitCount = c.snapshot_meta?.hit_count || 0;
+            const totalProblems = c.snapshot_meta?.counted_entries || 0;
             return (
               <a
                 key={c.id}
-                href={c.landing_url}
+                href={`/landing/matchup-board/${c.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                title={`${c.title || c.doc_title} · ${c.doc_category} · 적중률 ${c.hit_rate_pct}%`}
+                title={`${c.title} · 적중률 ${hitRatePct}%`}
                 style={{
                   display: "flex",
                   flexDirection: "column",
@@ -234,7 +252,7 @@ export default function HitReportBoardPreviewStrip({ open = true }: Props) {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {c.title || c.doc_title || `보고서 #${c.id}`}
+                  {c.title || `보고서 #${c.id}`}
                 </div>
                 <div
                   style={{
@@ -245,8 +263,8 @@ export default function HitReportBoardPreviewStrip({ open = true }: Props) {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {c.doc_category || "—"}
-                  {c.author_name && ` · ${c.author_name}`}
+                  {c.snapshot_meta?.document_title || "매치업 적중 보고서"}
+                  {c.snapshot_meta?.author_name && ` · ${c.snapshot_meta.author_name}`}
                 </div>
                 <div
                   style={{
@@ -262,23 +280,23 @@ export default function HitReportBoardPreviewStrip({ open = true }: Props) {
                       borderRadius: 10,
                       fontWeight: 700,
                       background:
-                        c.hit_rate_pct >= 50
+                        hitRatePct >= 50
                           ? "var(--color-status-success-bg, #d1fae5)"
-                          : c.hit_rate_pct >= 25
+                          : hitRatePct >= 25
                           ? "var(--color-brand-primary-bg, #dbeafe)"
                           : "var(--color-bg-elevated, #f1f5f9)",
                       color:
-                        c.hit_rate_pct >= 50
+                        hitRatePct >= 50
                           ? "var(--color-status-success, #059669)"
-                          : c.hit_rate_pct >= 25
+                          : hitRatePct >= 25
                           ? "var(--color-brand-primary, #2563eb)"
                           : "var(--color-text-muted)",
                     }}
                   >
-                    적중률 {c.hit_rate_pct}%
+                    적중률 {hitRatePct}%
                   </span>
                   <span style={{ color: "var(--color-text-muted)", fontSize: 10 }}>
-                    {c.hit_count}/{c.total_problems}
+                    {hitCount}/{totalProblems}
                   </span>
                 </div>
               </a>
