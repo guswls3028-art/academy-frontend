@@ -18,6 +18,19 @@ export type ProblemReviewMetadata = {
 
 export type ProblemReviewThinkingAction = "확인" | "해석" | "계산" | "서술" | "복합" | "검수 필요";
 
+export type ProblemReviewReadiness = {
+  ready_for_finalize: boolean;
+  is_finalized: boolean;
+  fingerprint: string;
+  finalized_at?: string | null;
+  total_questions: number;
+  verified_questions: number;
+  unresolved_questions: number;
+  progress_percent: number;
+  sections: Array<{ key: string; label: string; ready: boolean }>;
+  questions: Array<{ index: number; number: number; ready: boolean; issues: string[] }>;
+};
+
 export type ProblemReviewDraft = {
   schema_version: string;
   metadata: ProblemReviewMetadata;
@@ -59,6 +72,7 @@ export type ProblemReviewDraft = {
     review_note: string;
     source_excerpt: string;
     confidence: "high" | "medium" | "low";
+    review_status: "unverified" | "verified";
   }>;
   key_items: Array<{
     rank: number;
@@ -106,6 +120,7 @@ export type ProblemReviewReport = {
   created_at: string;
   updated_at: string;
   artifacts: ProblemReviewArtifact[];
+  review_readiness?: ProblemReviewReadiness | null;
 };
 
 export type ProblemReviewArtifact = {
@@ -120,6 +135,7 @@ export type ProblemReviewArtifact = {
   size_bytes: number;
   sha256: string;
   error_message: string;
+  verified: boolean;
   download_url?: string;
   created_at: string;
   updated_at: string;
@@ -193,6 +209,17 @@ export async function createProblemReviewExport(
   const { data } = await api.post(
     `/tools/problem-review/reports/${encodeURIComponent(reportId)}/exports/`,
     { output_format: outputFormat },
+  );
+  return data;
+}
+
+export async function finalizeProblemReviewReport(
+  reportId: string,
+  version: number,
+): Promise<ProblemReviewReport> {
+  const { data } = await api.post<ProblemReviewReport>(
+    `/tools/problem-review/reports/${encodeURIComponent(reportId)}/verification/`,
+    { version },
   );
   return data;
 }

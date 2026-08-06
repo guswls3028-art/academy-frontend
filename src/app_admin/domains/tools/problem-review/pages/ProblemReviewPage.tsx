@@ -10,12 +10,16 @@ import {
   ArrowLeft,
   BarChart3,
   Check,
+  ChevronLeft,
   ChevronRight,
+  CircleCheckBig,
   Download,
+  Eye,
   FileArchive,
   FileText,
   Globe2,
   Layers3,
+  ListChecks,
   Plus,
   Presentation,
   RefreshCw,
@@ -25,6 +29,7 @@ import {
   Sparkles,
   Trash2,
   UploadCloud,
+  X,
 } from "lucide-react";
 import { Badge, Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -34,6 +39,7 @@ import {
   createProblemReviewReport,
   getProblemReviewExport,
   getProblemReviewReport,
+  finalizeProblemReviewReport,
   listProblemReviewReports,
   publishProblemReviewReport,
   saveProblemReviewReport,
@@ -89,23 +95,24 @@ function reportLabel(report: ProblemReviewReport): string {
 }
 
 function statusBadge(report: ProblemReviewReport) {
-  if (report.status === "draft") return <Badge tone="success">검수 초안</Badge>;
+  if (report.status === "draft" && report.review_readiness?.is_finalized) return <Badge tone="success">최종 검수 완료</Badge>;
+  if (report.status === "draft") return <Badge tone="warning">미검수 {report.review_readiness?.unresolved_questions ?? "-"}</Badge>;
   if (report.status === "failed") return <Badge tone="danger">분석 실패</Badge>;
   return <Badge tone="info">분석 중</Badge>;
 }
 
-function reportReadiness(draft: ProblemReviewDraft) {
-  const checks = [
-    { label: "총평", ready: Boolean(draft.summary.one_line && draft.summary.character) },
-    { label: "출제 기조", ready: draft.assessment_axes.filter((item) => item.title && item.description).length >= 3 },
-    { label: "전 문항 핵심", ready: draft.questions.length > 0 && draft.questions.every((item) => item.key_point && item.difficulty !== "검수 필요") },
-    { label: "오답 함정", ready: draft.questions.length > 0 && draft.questions.filter((item) => item.trap).length / draft.questions.length >= 0.8 },
-    { label: "핵심 변별", ready: draft.key_items.some((item) => item.title && item.reason && item.collapse_point && item.prescription) },
-    { label: "실패 패턴", ready: draft.failure_patterns.some((item) => item.title && item.symptom && item.cause && item.prescription) },
-    { label: "결론·처방", ready: Boolean(draft.conclusion.headline && draft.conclusion.actions.filter(Boolean).length) },
-  ];
-  const completed = checks.filter((item) => item.ready).length;
-  return { checks, percent: Math.round((completed / checks.length) * 100) };
+function questionIssues(question: ProblemReviewDraft["questions"][number], includeConfirmation = true): string[] {
+  const missing = [
+    ["단원", question.unit],
+    ["정답·정답 예시", question.answer],
+    ["핵심 포인트", question.key_point],
+    ["오답 함정", question.trap],
+    ["타당성 메모", question.validity],
+  ].filter(([, value]) => !value || ["검수 필요", "확인 필요", "미확인", "-"].includes(String(value).trim())).map(([label]) => label);
+  if (question.difficulty === "검수 필요") missing.push("난이도");
+  if (question.thinking_action === "검수 필요") missing.push("사고행동");
+  if (includeConfirmation && question.review_status !== "verified") missing.push("원문·정답 대조");
+  return missing;
 }
 
 type ExportProgress = {
@@ -131,14 +138,28 @@ export default function ProblemReviewPage() {
   const [loadingRecent, setLoadingRecent] = useState(true);
   const [starting, setStarting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
   const [exporting, setExporting] = useState<"pdf" | "pptx" | null>(null);
   const [exportProgress, setExportProgress] = useState(EMPTY_EXPORT_PROGRESS);
   const [publishing, setPublishing] = useState(false);
   const [publicationUrl, setPublicationUrl] = useState<string | null>(null);
   const [analysisMessage, setAnalysisMessage] = useState("시험지에서 문항과 출제 구조를 읽고 있습니다.");
   const [pageError, setPageError] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [questionFilter, setQuestionFilter] = useState<"unresolved" | "all">("unresolved");
+  const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
   const pollToken = useRef(0);
-  const readiness = draft ? reportReadiness(draft) : null;
+  const readiness = current?.review_readiness ?? null;
+  const isReportFinalized = Boolean(!dirty && readiness?.is_finalized);
+  const unresolvedQuestionIndexes = draft
+    ? draft.questions.map((question, index) => questionIssues(question).length ? index : -1).filter((index) => index >= 0)
+    : [];
+  const visibleQuestionIndexes = draft
+    ? (questionFilter === "unresolved" ? unresolvedQuestionIndexes : draft.questions.map((_, index) => index))
+    : [];
+  const selectedQuestionIndex = visibleQuestionIndexes.includes(activeQuestionIndex)
+    ? activeQuestionIndex
+    : (visibleQuestionIndexes[0] ?? 0);
 
   useEffect(() => {
     let active = true;
@@ -157,6 +178,21 @@ export default function ProblemReviewPage() {
       pollToken.current += 1;
     };
   }, []);
+
+  useEffect(() => {
+    if (!previewOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    const mobilePreview = window.matchMedia("(max-width: 1180px)").matches;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPreviewOpen(false);
+    };
+    if (mobilePreview) document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [previewOpen]);
 
   function markDraft(next: ProblemReviewDraft) {
     setDraft(next);
@@ -314,8 +350,40 @@ export default function ProblemReviewPage() {
     }
   }
 
+  async function handleFinalize() {
+    if (!current || !draft) return;
+    setFinalizing(true);
+    setPageError("");
+    try {
+      const saved = await persistDraft();
+      if (!saved) return;
+      if (!saved.review_readiness?.ready_for_finalize) {
+        const remaining = saved.review_readiness?.unresolved_questions ?? unresolvedQuestionIndexes.length;
+        throw new Error(remaining > 0
+          ? `원문·정답 대조가 남은 문항 ${remaining}개를 먼저 확인해 주세요.`
+          : "검수 현황의 남은 필수 항목을 확인해 주세요.");
+      }
+      const finalized = await finalizeProblemReviewReport(saved.id, saved.version);
+      setCurrent(finalized);
+      setDraft(finalized.draft ?? draft);
+      setDirty(false);
+      setRecentReports((items) => [finalized, ...items.filter((item) => item.id !== finalized.id)].slice(0, 20));
+      feedback.success("현재 버전의 최종 검수를 확정했습니다. 다운로드와 공개가 열렸습니다.");
+    } catch (error) {
+      const message = errorMessage(error, "최종 검수를 확정하지 못했습니다.");
+      setPageError(message);
+      feedback.error(message);
+    } finally {
+      setFinalizing(false);
+    }
+  }
+
   async function handleExport(outputFormat: "pdf" | "pptx") {
     if (!current || !draft) return;
+    if (!isReportFinalized) {
+      feedback.warning("전 문항 대조와 최종 검수 확정 뒤 파일을 만들 수 있습니다.");
+      return;
+    }
     setExporting(outputFormat);
     setExportProgress((value) => ({
       ...value,
@@ -385,6 +453,10 @@ export default function ProblemReviewPage() {
 
   async function handlePublish() {
     if (!current || !draft) return;
+    if (!isReportFinalized) {
+      feedback.warning("전 문항 대조와 최종 검수 확정 뒤 홈페이지에 공개할 수 있습니다.");
+      return;
+    }
     const confirmed = window.confirm(
       "현재 선생님 검수본을 홈페이지에 공개할까요? 기존 공개본이 있으면 이 내용으로 갱신됩니다.",
     );
@@ -414,9 +486,24 @@ export default function ProblemReviewPage() {
   function updateQuestion(index: number, key: keyof ProblemReviewDraft["questions"][number], value: string | number) {
     if (!draft) return;
     const questions = draft.questions.map((question, questionIndex) => (
-      questionIndex === index ? { ...question, [key]: value } : question
+      questionIndex === index
+        ? { ...question, [key]: value, ...(key === "review_status" ? {} : { review_status: "unverified" as const }) }
+        : question
     ));
     markDraft({ ...draft, questions, summary: { ...draft.summary, total_questions: questions.length } });
+  }
+
+  function confirmQuestion(index: number) {
+    if (!draft) return;
+    const question = draft.questions[index];
+    const missing = questionIssues(question, false);
+    if (missing.length) {
+      feedback.warning(`확인 전 입력해 주세요: ${missing.join(", ")}`);
+      return;
+    }
+    updateQuestion(index, "review_status", "verified");
+    const nextIndex = draft.questions.findIndex((item, itemIndex) => itemIndex > index && questionIssues(item).length > 0);
+    if (nextIndex >= 0) setActiveQuestionIndex(nextIndex);
   }
 
   function addQuestion() {
@@ -438,6 +525,7 @@ export default function ProblemReviewPage() {
         review_note: "",
         source_excerpt: "",
         confidence: "low",
+        review_status: "unverified",
       }],
       summary: { ...draft.summary, total_questions: draft.questions.length + 1 },
     });
@@ -469,8 +557,14 @@ export default function ProblemReviewPage() {
                 <Button intent="secondary" size="sm" loading={saving} leftIcon={<Save size={ICON_FOR_BUTTON.sm} />} onClick={() => void persistDraft()}>
                   {dirty ? "변경 저장" : "저장됨"}
                 </Button>
-                <Button intent="secondary" size="sm" loading={publishing} leftIcon={<Globe2 size={ICON_FOR_BUTTON.sm} />} onClick={() => void handlePublish()}>
+                <Button intent={isReportFinalized ? "secondary" : "primary"} size="sm" loading={finalizing} leftIcon={<CircleCheckBig size={ICON_FOR_BUTTON.sm} />} onClick={() => void handleFinalize()} disabled={isReportFinalized}>
+                  {isReportFinalized ? "확정됨" : "최종 검수 확정"}
+                </Button>
+                <Button intent="secondary" size="sm" loading={publishing} leftIcon={<Globe2 size={ICON_FOR_BUTTON.sm} />} onClick={() => void handlePublish()} disabled={!isReportFinalized}>
                   홈페이지 공개
+                </Button>
+                <Button intent="ghost" size="sm" leftIcon={<Eye size={ICON_FOR_BUTTON.sm} />} onClick={() => setPreviewOpen(true)} className={styles.previewToggle}>
+                  미리보기
                 </Button>
                 {publicationUrl ? (
                   <Button intent="ghost" size="sm" onClick={() => window.open(publicationUrl, "_blank", "noopener,noreferrer")}>
@@ -508,13 +602,15 @@ export default function ProblemReviewPage() {
               </div>
 
               {readiness ? (
-                <div className={styles.readinessPanel}>
-                  {/* eslint-disable-next-line no-restricted-syntax -- 검수 완료율은 리포트마다 달라 동적 원형 게이지로 표시한다. */}
-                  <div className={styles.readinessScore} style={{ background: `conic-gradient(#d91e3f ${readiness.percent}%, #e9edf3 0)` }}><strong>{readiness.percent}</strong><span>%</span></div>
+                <div className={styles.readinessPanel} data-finalized={isReportFinalized}>
+                  {/* eslint-disable-next-line no-restricted-syntax -- 서버 검수 진행률은 리포트마다 달라 동적 원형 게이지로 표시한다. */}
+                  <div className={styles.readinessScore} style={{ background: `conic-gradient(#d91e3f ${readiness.progress_percent}%, #e9edf3 0)` }}><strong>{readiness.progress_percent}</strong><span>%</span></div>
                   <div className={styles.readinessCopy}>
-                    <strong>공개 설득력 점검</strong>
-                    <p>근거가 채워진 항목만 공개 리포트와 다운로드 결과에 힘을 더합니다.</p>
-                    <div>{readiness.checks.map((item) => <span data-ready={item.ready} key={item.label}>{item.ready ? "✓" : "·"} {item.label}</span>)}</div>
+                    <strong>{isReportFinalized ? "현재 버전은 최종 검수 완료" : "선생님 최종 검수 현황"}</strong>
+                    <p>{isReportFinalized
+                      ? `${readiness.finalized_at ? new Date(readiness.finalized_at).toLocaleString("ko-KR") : ""} 확정 · 수정하면 자동으로 다시 잠깁니다.`
+                      : `원문과 정답을 대조한 문항 ${readiness.verified_questions}/${readiness.total_questions} · 미검수 ${readiness.unresolved_questions}문항`}</p>
+                    <div>{readiness.sections.map((item) => <span data-ready={item.ready} key={item.key}>{item.ready ? "✓" : "·"} {item.label}</span>)}</div>
                   </div>
                 </div>
               ) : null}
@@ -522,8 +618,10 @@ export default function ProblemReviewPage() {
                 <div className={styles.exportHeading}>
                   <div>
                     <span>EXAM SPECTRUM EXPORT</span>
-                    <h2>검수본을 바로 내려받으세요</h2>
-                    <p>PDF와 PPTX는 같은 저장 버전과 snapshot을 사용하며, 홈페이지 공개는 별도로 진행됩니다.</p>
+                    <h2>{isReportFinalized ? "확정된 검수본을 내려받으세요" : "최종 검수 확정 뒤 다운로드가 열립니다"}</h2>
+                    <p>{isReportFinalized
+                      ? "PDF와 PPTX는 같은 검수 버전과 fingerprint를 사용합니다."
+                      : "미검수 상태의 내용은 파일이나 홈페이지에 나가지 않습니다."}</p>
                   </div>
                   <Badge tone="neutral">현재 v{current.version}</Badge>
                 </div>
@@ -543,6 +641,7 @@ export default function ProblemReviewPage() {
                           intent={isPdf ? "secondary" : "primary"}
                           size="sm"
                           loading={exporting === format}
+                          disabled={!isReportFinalized}
                           leftIcon={progress.status === "failed" ? <RotateCcw size={ICON_FOR_BUTTON.sm} /> : <Download size={ICON_FOR_BUTTON.sm} />}
                           onClick={() => void handleExport(format)}
                         >
@@ -562,7 +661,7 @@ export default function ProblemReviewPage() {
                           <strong>{artifact.filename || `${artifact.output_format.toUpperCase()} 생성 중`}</strong>
                           <small>v{artifact.report_version} · {artifact.source_fingerprint.slice(0, 8)} · {artifact.size_bytes ? fileSize(artifact.size_bytes) : new Date(artifact.created_at).toLocaleString("ko-KR")}</small>
                         </span>
-                        {artifact.status === "ready" ? <Button intent="ghost" size="sm" onClick={() => void downloadArtifact(artifact)}>다시 받기</Button> : <span className={styles.artifactState}>{artifact.status === "failed" ? "실패" : "생성 중"}</span>}
+                        {artifact.status === "ready" && artifact.verified ? <Button intent="ghost" size="sm" onClick={() => void downloadArtifact(artifact)}>다시 받기</Button> : <span className={styles.artifactState}>{artifact.status === "ready" ? "검수 증표 없음" : artifact.status === "failed" ? "실패" : "생성 중"}</span>}
                       </div>
                     ))}
                   </div>
@@ -690,32 +789,75 @@ export default function ProblemReviewPage() {
               </details>
 
               <details className={styles.editorSection} open>
-                <summary><span><BarChart3 size={18} />전 문항 리뷰 <em>{draft.questions.length}</em></span><ChevronRight size={17} /></summary>
+                <summary><span><ListChecks size={18} />문항별 원문·정답 대조 <em>{draft.questions.length}</em></span><ChevronRight size={17} /></summary>
                 <div className={styles.sectionBody}>
-                  <div className={styles.questionList}>
-                    {draft.questions.map((question, index) => (
-                      <article className={styles.questionCard} key={`${question.number}-${index}`}>
+                  <div className={styles.questionReviewToolbar}>
+                    <div className={styles.questionFilter} role="group" aria-label="문항 검수 필터">
+                      <button type="button" data-active={questionFilter === "unresolved"} onClick={() => setQuestionFilter("unresolved")}>미검수 {unresolvedQuestionIndexes.length}</button>
+                      <button type="button" data-active={questionFilter === "all"} onClick={() => setQuestionFilter("all")}>전체 {draft.questions.length}</button>
+                    </div>
+                    <p>한 문항씩 원문, 정답, 분석 내용을 확인하세요. 확정 뒤 내용을 고치면 해당 문항은 자동으로 미검수로 돌아갑니다.</p>
+                  </div>
+                  {visibleQuestionIndexes.length > 0 ? (
+                    <>
+                      <nav className={styles.questionRail} aria-label="검수할 문항 선택">
+                        {visibleQuestionIndexes.map((index) => {
+                          const question = draft.questions[index];
+                          return (
+                            <button
+                              type="button"
+                              key={`${question.source_number}-${index}`}
+                              data-active={index === selectedQuestionIndex}
+                              data-ready={questionIssues(question).length === 0}
+                              onClick={() => setActiveQuestionIndex(index)}
+                              aria-label={`${question.number}번 ${question.review_status === "verified" ? "검수 완료" : "미검수"}`}
+                            >{question.number}</button>
+                          );
+                        })}
+                      </nav>
+                      {(() => {
+                        const question = draft.questions[selectedQuestionIndex];
+                        const missing = questionIssues(question, false);
+                        const position = visibleQuestionIndexes.indexOf(selectedQuestionIndex);
+                        return (
+                      <article className={styles.questionCard} key={`${question.number}-${selectedQuestionIndex}`} data-verified={question.review_status === "verified"}>
+                        <div className={styles.questionStatusLine}>
+                          <span>{question.review_status === "verified" ? <CircleCheckBig size={17} /> : <AlertTriangle size={17} />}{question.review_status === "verified" ? "원문·정답 대조 완료" : "선생님 확인 필요"}</span>
+                          <small>{position + 1}/{visibleQuestionIndexes.length}</small>
+                        </div>
                         <header>
-                          <label>문항<input type="number" min={1} max={999} value={question.number} onChange={(event) => updateQuestion(index, "number", Number(event.target.value))} /></label>
-                          <label>단원<input value={question.unit} onChange={(event) => updateQuestion(index, "unit", event.target.value)} /></label>
-                          <label>배점<input value={question.points} onChange={(event) => updateQuestion(index, "points", event.target.value)} /></label>
-                          <label>사고행동<select value={question.thinking_action} onChange={(event) => updateQuestion(index, "thinking_action", event.target.value as ProblemReviewThinkingAction)}>{THINKING_ACTIONS.map((action) => <option key={action}>{action}</option>)}</select></label>
-                          <label>난이도<select value={question.difficulty} onChange={(event) => updateQuestion(index, "difficulty", event.target.value as ProblemReviewDifficulty)}>{DIFFICULTIES.map((difficulty) => <option key={difficulty}>{difficulty}</option>)}</select></label>
-                          <button type="button" onClick={() => removeQuestion(index)} aria-label={`${question.number}번 문항 삭제`}><Trash2 size={16} /></button>
+                          <label>문항<input type="number" min={1} max={999} value={question.number} onChange={(event) => updateQuestion(selectedQuestionIndex, "number", Number(event.target.value))} /></label>
+                          <label>단원<input value={question.unit} onChange={(event) => updateQuestion(selectedQuestionIndex, "unit", event.target.value)} /></label>
+                          <label>배점<input value={question.points} onChange={(event) => updateQuestion(selectedQuestionIndex, "points", event.target.value)} /></label>
+                          <label>사고행동<select value={question.thinking_action} onChange={(event) => updateQuestion(selectedQuestionIndex, "thinking_action", event.target.value as ProblemReviewThinkingAction)}>{THINKING_ACTIONS.map((action) => <option key={action}>{action}</option>)}</select></label>
+                          <label>난이도<select value={question.difficulty} onChange={(event) => updateQuestion(selectedQuestionIndex, "difficulty", event.target.value as ProblemReviewDifficulty)}>{DIFFICULTIES.map((difficulty) => <option key={difficulty}>{difficulty}</option>)}</select></label>
+                          <button type="button" onClick={() => removeQuestion(selectedQuestionIndex)} aria-label={`${question.number}번 문항 삭제`}><Trash2 size={16} /></button>
                         </header>
-                        {question.source_excerpt && <div className={styles.sourceExcerpt}><span>원문 근거</span>{question.source_excerpt}</div>}
-                        <label>핵심 포인트<textarea rows={2} value={question.key_point} onChange={(event) => updateQuestion(index, "key_point", event.target.value)} /></label>
+                        {question.source_excerpt && <details className={styles.sourceExcerpt}><summary>OCR 원문 발췌 펼치기</summary><p>{question.source_excerpt}</p><small>OCR은 틀릴 수 있습니다. 업로드한 원본 시험지와 직접 대조해 주세요.</small></details>}
+                        <label>핵심 포인트<textarea rows={2} value={question.key_point} onChange={(event) => updateQuestion(selectedQuestionIndex, "key_point", event.target.value)} /></label>
                         <div className={styles.twoFields}>
-                          <label>학생이 빠질 함정<textarea rows={2} value={question.trap} onChange={(event) => updateQuestion(index, "trap", event.target.value)} /></label>
-                          <label>출제 검토 메모<textarea rows={2} value={question.review_note} onChange={(event) => updateQuestion(index, "review_note", event.target.value)} /></label>
+                          <label>학생이 빠질 함정<textarea rows={2} value={question.trap} onChange={(event) => updateQuestion(selectedQuestionIndex, "trap", event.target.value)} /></label>
+                          <label>출제 검토 메모 <span className={styles.labelHint}>선택</span><textarea rows={2} value={question.review_note} onChange={(event) => updateQuestion(selectedQuestionIndex, "review_note", event.target.value)} /></label>
                         </div>
                         <div className={styles.twoFields}>
-                          <label>정답·정답 예시<input value={question.answer} onChange={(event) => updateQuestion(index, "answer", event.target.value)} /></label>
-                          <label>문항 타당성·모호성 메모<input value={question.validity} onChange={(event) => updateQuestion(index, "validity", event.target.value)} /></label>
+                          <label>정답·정답 예시<input value={question.answer} onChange={(event) => updateQuestion(selectedQuestionIndex, "answer", event.target.value)} /></label>
+                          <label>문항 타당성·모호성 메모<input value={question.validity} onChange={(event) => updateQuestion(selectedQuestionIndex, "validity", event.target.value)} /></label>
+                        </div>
+                        <div className={styles.questionApproval}>
+                          <div>{missing.length ? <><strong>확인 전 남은 입력</strong><span>{missing.join(" · ")}</span></> : <><strong>원문과 정답을 직접 대조했나요?</strong><span>이 확인은 AI가 대신 처리하지 않습니다.</span></>}</div>
+                          <Button intent={question.review_status === "verified" ? "secondary" : "primary"} size="sm" leftIcon={question.review_status === "verified" ? <CircleCheckBig size={ICON_FOR_BUTTON.sm} /> : <ShieldCheck size={ICON_FOR_BUTTON.sm} />} disabled={missing.length > 0 || question.review_status === "verified"} onClick={() => confirmQuestion(selectedQuestionIndex)}>{question.review_status === "verified" ? "대조 완료" : "대조 완료로 표시"}</Button>
+                        </div>
+                        <div className={styles.questionPager}>
+                          <Button intent="ghost" size="sm" leftIcon={<ChevronLeft size={ICON_FOR_BUTTON.sm} />} disabled={position <= 0} onClick={() => setActiveQuestionIndex(visibleQuestionIndexes[position - 1])}>이전</Button>
+                          <Button intent="ghost" size="sm" disabled={position >= visibleQuestionIndexes.length - 1} onClick={() => setActiveQuestionIndex(visibleQuestionIndexes[position + 1])}>다음</Button>
                         </div>
                       </article>
-                    ))}
-                  </div>
+                        );
+                      })()}
+                    </>
+                  ) : (
+                    <div className={styles.questionComplete}><CircleCheckBig size={28} /><strong>모든 문항 대조를 마쳤습니다.</strong><span>검수 현황의 나머지 항목을 확인한 뒤 최종 검수를 확정하세요.</span></div>
+                  )}
                   <Button intent="secondary" size="sm" leftIcon={<Plus size={ICON_FOR_BUTTON.sm} />} onClick={addQuestion}>문항 추가</Button>
                 </div>
               </details>
@@ -836,7 +978,8 @@ export default function ProblemReviewPage() {
               </details>
             </div>
 
-            <aside className={styles.previewPane} aria-label="리포트 미리보기">
+            <aside className={styles.previewPane} aria-label="리포트 미리보기" data-open={previewOpen}>
+              <button type="button" className={styles.previewClose} onClick={() => setPreviewOpen(false)} aria-label="미리보기 닫기"><X size={19} /></button>
               <div className={styles.previewSticky}>
                 <div className={styles.previewLabel}><span>LIVE PREVIEW</span><span>{dirty ? "저장 전 변경 있음" : `v${current.version}`}</span></div>
                 <div className={styles.reportPage}>
@@ -969,7 +1112,11 @@ export default function ProblemReviewPage() {
               {recentReports.map((report) => (
                 <button type="button" key={report.id} onClick={() => void openReport(report)}>
                   <span className={styles.reportIcon}><FileText size={18} /></span>
-                  <span className={styles.reportInfo}><strong>{reportLabel(report)}</strong><small>{report.source_name || new Date(report.updated_at).toLocaleDateString("ko-KR")}</small></span>
+                  <span className={styles.reportInfo}>
+                    <strong>{reportLabel(report)}</strong>
+                    <small>{report.source_name || "원본 파일"}</small>
+                    <small>v{report.version} · {new Date(report.updated_at).toLocaleString("ko-KR")}</small>
+                  </span>
                   {statusBadge(report)}
                   <ChevronRight size={17} />
                 </button>
