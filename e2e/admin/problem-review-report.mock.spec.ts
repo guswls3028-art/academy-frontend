@@ -65,6 +65,7 @@ function sampleDraft() {
         review_note: "표현을 한 번 더 확인합니다.",
         source_excerpt: "1. 별의 진화 과정에서 생성되는 원소를 고르시오.",
         confidence: "high",
+        review_status: "unverified",
       },
       {
         number: 2,
@@ -80,6 +81,7 @@ function sampleDraft() {
         review_note: "변별 문항으로 적절합니다.",
         source_excerpt: "2. 자료를 보고 원소의 주기적 성질을 추론하시오.",
         confidence: "medium",
+        review_status: "unverified",
       },
     ],
     key_items: [{
@@ -115,6 +117,33 @@ async function installApp(page: Page) {
     draft: sampleDraft(),
     savedOneLine: "",
     publishedVersion: 0,
+    finalizedVersion: 0,
+  };
+  const reviewReadiness = () => {
+    const questions = state.draft.questions.map((question, index) => ({
+      index,
+      number: question.number,
+      ready: question.review_status === "verified",
+      issues: question.review_status === "verified" ? [] : ["원문·정답 대조"],
+    }));
+    const verified = questions.filter((question) => question.ready).length;
+    const ready = verified === questions.length;
+    return {
+      ready_for_finalize: ready,
+      is_finalized: ready && state.finalizedVersion === state.version,
+      fingerprint: "abcdef0123456789",
+      finalized_at: state.finalizedVersion === state.version ? "2026-08-06T06:00:00+09:00" : null,
+      total_questions: questions.length,
+      verified_questions: verified,
+      unresolved_questions: questions.length - verified,
+      progress_percent: ready ? 100 : Math.round((verified / questions.length) * 70 + 30),
+      sections: [
+        { key: "metadata", label: "시험 기본 정보", ready: true },
+        { key: "summary", label: "총평", ready: true },
+        { key: "questions", label: "전 문항 원문·정답 대조", ready },
+      ],
+      questions,
+    };
   };
   const report = () => ({
     id: REPORT_ID,
@@ -128,6 +157,7 @@ async function installApp(page: Page) {
     created_at: "2026-08-06T00:00:00+09:00",
     updated_at: "2026-08-06T00:05:00+09:00",
     artifacts: [],
+    review_readiness: reviewReadiness(),
   });
 
   await page.route("**/mock-files/**", (route) => {
@@ -157,8 +187,15 @@ async function installApp(page: Page) {
       const payload = request.postDataJSON() as { version: number; draft: ReturnType<typeof sampleDraft> };
       if (payload.version !== state.version) return json({ detail: "다른 화면에서 리포트가 수정되었습니다." }, 409);
       state.version += 1;
+      state.finalizedVersion = 0;
       state.draft = payload.draft;
       state.savedOneLine = payload.draft.summary.one_line;
+      return json(report());
+    }
+    if (path === `/tools/problem-review/reports/${REPORT_ID}/verification/` && method === "POST") {
+      const payload = request.postDataJSON() as { version: number };
+      if (payload.version !== state.version || !reviewReadiness().ready_for_finalize) return json({ detail: "남은 검수 항목을 확인해 주세요." }, 409);
+      state.finalizedVersion = state.version;
       return json(report());
     }
     if (path === `/tools/problem-review/reports/${REPORT_ID}/publication/` && method === "POST") {
@@ -175,12 +212,12 @@ async function installApp(page: Page) {
     }
     if (path === `/tools/problem-review/reports/${REPORT_ID}/exports/` && method === "POST") {
       const format = (request.postDataJSON() as { output_format: "pdf" | "pptx" }).output_format;
-      return json({ id: `00000000-0000-4000-8000-00000000000${format === "pdf" ? "1" : "2"}`, job_id: `export-${format}`, status: "pending", output_format: format, report_version: state.version, source_fingerprint: "abcdef0123456789", filename: "", content_type: "", size_bytes: 0, sha256: "", error_message: "", created_at: "2026-08-06T00:06:00+09:00", updated_at: "2026-08-06T00:06:00+09:00" }, 202);
+      return json({ id: `00000000-0000-4000-8000-00000000000${format === "pdf" ? "1" : "2"}`, job_id: `export-${format}`, status: "pending", output_format: format, report_version: state.version, source_fingerprint: "abcdef0123456789", filename: "", content_type: "", size_bytes: 0, sha256: "", error_message: "", verified: true, created_at: "2026-08-06T00:06:00+09:00", updated_at: "2026-08-06T00:06:00+09:00" }, 202);
     }
     const exportMatch = path.match(new RegExp(`/tools/problem-review/reports/${REPORT_ID}/exports/(.+)/`));
     if (exportMatch) {
       const format = exportMatch[1].endsWith("2") || exportMatch[1].includes("pptx") ? "pptx" : "pdf";
-      const artifact = { id: exportMatch[1], job_id: `export-${format}`, status: "ready", download_url: `${BASE}/mock-files/problem-review.${format}`, filename: `아카데미고_문제리뷰_v${state.version}_abcdef01.${format}`, size_bytes: 24, output_format: format, report_version: state.version, source_fingerprint: "abcdef0123456789", content_type: format === "pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.presentationml.presentation", sha256: "1234", error_message: "", created_at: "2026-08-06T00:06:00+09:00", updated_at: "2026-08-06T00:06:01+09:00" };
+      const artifact = { id: exportMatch[1], job_id: `export-${format}`, status: "ready", download_url: `${BASE}/mock-files/problem-review.${format}`, filename: `아카데미고_문제리뷰_v${state.version}_abcdef01.${format}`, size_bytes: 24, output_format: format, report_version: state.version, source_fingerprint: "abcdef0123456789", content_type: format === "pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.presentationml.presentation", sha256: "1234", error_message: "", verified: true, created_at: "2026-08-06T00:06:00+09:00", updated_at: "2026-08-06T00:06:01+09:00" };
       return json({ ...artifact, progress: { percent: 100, step_name_display: "다운로드 준비 완료" }, result: artifact });
     }
     return json({ count: 0, results: [] });
@@ -200,23 +237,29 @@ test("문제 리뷰를 검수 저장하고 PDF·PPTX로 내려받으며 390px에
   await expect(page.getByRole("heading", { name: /시험의 증거를 잇고/ })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
   await page.getByRole("button", { name: /아카데미고 통합과학 중간고사 문제 리뷰/ }).click();
-  await expect(page.getByText("공개 설득력 점검")).toBeVisible();
+  await expect(page.getByText("선생님 최종 검수 현황")).toBeVisible();
+  await expect(page.getByRole("button", { name: "미검수 2", exact: true })).toBeVisible();
   await expect(page.getByLabel("시험 한 줄 평")).toHaveValue("개념 연결과 자료 해석을 함께 확인한 시험입니다.");
   await expect(page.getByLabel("실패 패턴 1 증상")).toHaveValue("첫 조건만 적용합니다.");
   await page.getByLabel("시험 한 줄 평").fill("자료 해석의 근거를 끝까지 확인한 시험입니다.");
   await page.getByRole("button", { name: "변경 저장" }).click();
   await expect.poll(() => state.savedOneLine).toBe("자료 해석의 근거를 끝까지 확인한 시험입니다.");
   await expect(page.getByText("자료 해석의 근거를 끝까지 확인한 시험입니다.", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "대조 완료로 표시" }).click();
+  await page.getByRole("button", { name: "대조 완료로 표시" }).click();
+  await expect(page.getByText("모든 문항 대조를 마쳤습니다.")).toBeVisible();
+  await page.getByRole("button", { name: "최종 검수 확정" }).click();
+  await expect(page.getByText("현재 버전은 최종 검수 완료")).toBeVisible();
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "홈페이지 공개" }).click();
-  await expect.poll(() => state.publishedVersion).toBe(2);
+  await expect.poll(() => state.publishedVersion).toBe(3);
   await expect(page.getByRole("button", { name: "공개본 보기" })).toBeVisible();
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "생성·받기", exact: true }).first().click();
-  expect((await download).suggestedFilename()).toBe("아카데미고_문제리뷰_v2_abcdef01.pdf");
+  expect((await download).suggestedFilename()).toBe("아카데미고_문제리뷰_v3_abcdef01.pdf");
   const pptxDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: "생성·받기", exact: true }).nth(1).click();
-  expect((await pptxDownload).suggestedFilename()).toBe("아카데미고_문제리뷰_v2_abcdef01.pptx");
+  expect((await pptxDownload).suggestedFilename()).toBe("아카데미고_문제리뷰_v3_abcdef01.pptx");
   await page.screenshot({ path: testInfo.outputPath("problem-review-editor-1366.png"), fullPage: true });
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -225,6 +268,9 @@ test("문제 리뷰를 검수 저장하고 PDF·PPTX로 내려받으며 390px에
   await expect(page.getByLabel("시험 한 줄 평")).toHaveValue("자료 해석의 근거를 끝까지 확인한 시험입니다.");
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
   await expect(page.getByRole("button", { name: "생성·받기", exact: true })).toHaveCount(2);
-  await page.getByRole("heading", { name: "검수본을 바로 내려받으세요" }).scrollIntoViewIfNeeded();
+  await page.getByRole("button", { name: "미리보기" }).click();
+  await expect(page.getByRole("button", { name: "미리보기 닫기" })).toBeVisible();
+  await page.getByRole("button", { name: "미리보기 닫기" }).click();
+  await page.getByRole("heading", { name: "확정된 검수본을 내려받으세요" }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: testInfo.outputPath("problem-review-editor-390.png"), fullPage: true });
 });
