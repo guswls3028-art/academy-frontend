@@ -43,9 +43,10 @@ async function fetchJson<T>(request: APIRequestContext, path: string): Promise<T
 }
 
 async function buildRouteInventory(request: APIRequestContext): Promise<AuditRoute[]> {
-  const [landing, matchup] = await Promise.all([
+  const [landing, matchup, analysis] = await Promise.all([
     fetchJson<{ config?: { sections?: Array<{ type: string; enabled?: boolean; items?: Array<{ report_id?: number }> }> } }>(request, "/core/landing/public/"),
     fetchJson<{ results?: Array<{ id: number; title: string }> }>(request, "/landing-public/matchup-showcase/"),
+    fetchJson<{ results?: Array<{ id: number; title: string }> }>(request, "/landing-public/problem-review-showcase/"),
   ]);
 
   const reportIds = (landing.config?.sections || [])
@@ -53,11 +54,18 @@ async function buildRouteInventory(request: APIRequestContext): Promise<AuditRou
     ?.items?.map((item) => Number(item.report_id))
     .filter((id) => Number.isFinite(id)) || [];
   const matchupIds = (matchup.results || []).map((item) => Number(item.id)).filter(Number.isFinite);
+  const analysisIds = (analysis.results || []).map((item) => Number(item.id)).filter(Number.isFinite);
 
   return [
     { name: "홈", path: "/landing", expectedText: /박철T 통합과학/ },
     { name: "학원 소개", path: "/landing/about", expectedText: /박철 과학 소개/ },
     { name: "가이드", path: "/landing/guide", expectedText: /가이드/ },
+    { name: "시험 분석", path: "/landing/analysis", expectedText: /시험 분석 노트/ },
+    ...analysisIds.map((id) => ({
+      name: `시험 분석 상세 ${id}`,
+      path: `/landing/analysis/${id}`,
+      expectedText: /시험 총평|변별을 만든 핵심 문항/,
+    })),
     { name: "매치업 자료실", path: "/landing/matchup-board", expectedText: /매치업 자료실/ },
     ...matchupIds.map((id) => ({
       name: `매치업 상세 ${id}`,
@@ -89,6 +97,7 @@ async function buildRouteInventory(request: APIRequestContext): Promise<AuditRou
     { name: "없는 후기", path: "/landing/reviews/999999999", expectedText: /찾을 수 없습니다/ },
     { name: "없는 성적 통계", path: "/landing/scores/999999999", expectedText: /찾을 수 없습니다/ },
     { name: "없는 매치업", path: "/landing/matchup-board/999999999", expectedText: /찾을 수 없습니다|공개되지 않은/ },
+    { name: "없는 시험 분석", path: "/landing/analysis/999999999", expectedText: /찾을 수 없습니다|표시할 수 없습니다/ },
     { name: "없는 자동 보고서", path: "/landing/reports/999999999", expectedText: /찾을 수 없습니다|불러올 수 없습니다/ },
     { name: "유효하지 않은 공유 링크", path: "/landing/share/00000000-0000-0000-0000-000000000000", expectedText: /유효하지 않|찾을 수 없|만료/ },
     { name: "잘못된 공개 경로 복구", path: "/landing/not-a-public-page", expectedPath: /\/landing\/?$/ },
