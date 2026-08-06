@@ -1,0 +1,98 @@
+.listHero {
+  composes: listHero from "./LandingProblemAnalysis.module.css";
+  background:
+    linear-gradient(90deg, #cf1537 0 7px, transparent 7px),
+    radial-gradient(circle at 78% 20%, rgb(207 21 55 / 17%), transparent 30%),
+    #07132f;
+}
+
+.kicker {
+  composes: kicker from "./LandingProblemAnalysis.module.css";
+  color: #f14460;
+}
+
+.listBar {
+  composes: listBar from "./LandingProblemAnalysis.module.css";
+}
+
+.listBar a {
+  color: #f14460;
+}
+
+.methodNote {
+  composes: methodNote from "./LandingProblemAnalysis.module.css";
+  border-color: rgb(207 21 55 / 32%);
+  border-left-color: #cf1537;
+}
+
+.analysisCard {
+  composes: analysisCard from "./LandingProblemAnalysis.module.css";
+  background: #0a1833;
+}
+
+.analysisCard:hover {
+  border-color: rgb(241 68 96 / 55%);
+  background: #0d1c3a;
+}
+
+.paperPreview {
+  composes: paperPreview from "./LandingProblemAnalysis.module.css";
+  box-shadow: 12px 12px 0 rgb(207 21 55 / 12%);
+}
+
+.paperPreview::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 5px;
+  content: "";
+  background: #cf1537;
+}
+
+.paperPreview::after {
+  border-color: #eadfe2;
+}
+
+.paperPreview > span {
+  color: #cf1537;
+}
+
+.paperPreview .cardScoreMap {
+  margin-top: auto;
+  display: grid;
+  gap: 8px;
+}
+
+.cardScoreMap {
+  composes: cardScoreMap from "./LandingProblemAnalysis.module.css";
+}
+
+.cardScoreMap > b {
+  color: #6e7888;
+  font-size: 8px;
+}
+
+.cardScoreMap > div {
+  display: flex;
+  gap: 2px;
+  height: 8px;
+}
+
+.paperPreview .cardScoreMap i {
+  width: auto;
+  height: 100%;
+  min-width: 3px;
+  background: #aeb8c7;
+}
+
+.paperPreview .cardScoreMap i[data-level="하"] { background: #68a77b; }
+.paperPreview .cardScoreMap i[data-level="중"] { background: #5ba4c9; }
+.paperPreview .cardScoreMap i[data-level="중상"] { background: #f0a733; }
+.paperPreview .cardScoreMap i[data-level="상"] { background: #cf1537; }
+.paperPreview .cardScoreMap i[data-level="최상"] { background: #10234d; }
+
+.cardScoreMap > small {
+  color: #7b8493;
+  font-size: 7px;
+}

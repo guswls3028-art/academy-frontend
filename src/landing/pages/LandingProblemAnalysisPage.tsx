@@ -13,7 +13,10 @@ import {
   MatchupCenterState,
   MatchupLandingShell,
 } from "./LandingMatchupBoardShell";
-import styles from "./LandingProblemAnalysis.module.css";
+import baseStyles from "./LandingProblemAnalysis.module.css";
+import accentStyles from "./LandingProblemAnalysisListAccent.module.css";
+
+const styles = { ...baseStyles, ...accentStyles };
 
 export default function LandingProblemAnalysisPage() {
   const [config, setConfig] = useState<LandingPublicResponse | null>(null);
@@ -54,9 +57,9 @@ export default function LandingProblemAnalysisPage() {
       <header className={styles.listHero}>
         <div>
           <span className={styles.kicker}>박철T 시험 분석 노트</span>
-          <h1>시험이 끝난 뒤에도<br />분석은 계속됩니다</h1>
+          <h1>점수보다 먼저,<br />무너진 이유를 찾습니다</h1>
           <p>
-            문항별 출제 포인트와 학생이 막히는 지점을 다시 읽고, 다음 시험을 위한 수업 기준으로 정리합니다.
+            시험지를 문항별 근거로 다시 읽고, 점수가 갈린 구조와 학생이 멈춘 지점을 다음 수업의 처방으로 연결합니다.
           </p>
         </div>
         <div className={styles.methodNote}>
@@ -85,17 +88,23 @@ export default function LandingProblemAnalysisPage() {
 
 function AnalysisCard({ item, index }: { item: ProblemReviewShowcaseCard; index: number }) {
   const distributions = item.difficulty?.distribution || [];
+  const difficultyCount = distributions.reduce((sum, entry) => sum + entry.question_numbers.length, 0) || 1;
   return (
     <Link className={styles.analysisCard} to={`/landing/analysis/${item.id}`}>
       <div className={styles.cardIndex}>{String(index + 1).padStart(2, "0")}</div>
       <div className={styles.paperPreview} aria-hidden="true">
-        <span>EXAM REVIEW</span>
+        <span>EVIDENCE REPORT</span>
         <strong>{item.metadata.school || "학교별 시험"}</strong>
         <small>{item.metadata.exam_name || item.metadata.subject || "문제 분석"}</small>
-        <div>
-          <i />
-          <i />
-          <i />
+        <div className={styles.cardScoreMap}>
+          <b>난도 지도</b>
+          <div>
+            {distributions.map((entry) => (
+              /* eslint-disable-next-line no-restricted-syntax -- 공개 분석의 난도별 문항 비중을 미니맵 폭으로 반영한다. */
+              <i data-level={entry.label} key={entry.label} style={{ flexGrow: entry.question_numbers.length / difficultyCount }} />
+            ))}
+          </div>
+          <small>{distributions.map((entry) => `${entry.label} ${entry.question_numbers.length}`).join(" · ")}</small>
         </div>
       </div>
       <div className={styles.cardCopy}>
