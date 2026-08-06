@@ -169,6 +169,7 @@ async function auditRoute(page: Page, route: AuditRoute, viewport: ViewportAudit
     } else if (await pages.count() !== pageCount) {
       defects.push(`연속 본문 페이지 누락: ${await pages.count()}/${pageCount}`);
     } else {
+      const visualCheckpoints = new Set([0, Math.floor((pageCount - 1) / 2), pageCount - 1]);
       for (let index = 0; index < pageCount; index += 1) {
         const pdfPage = pages.nth(index);
         await pdfPage.scrollIntoViewIfNeeded().catch(() => undefined);
@@ -189,6 +190,14 @@ async function auditRoute(page: Page, route: AuditRoute, viewport: ViewportAudit
         })).catch(() => ({ width: 0, height: 0, visualWidth: 0 }));
         if (canvasState.width < 1 || canvasState.height < 1) defects.push(`${index + 1}쪽 canvas가 비어 있음`);
         if (canvasState.visualWidth > viewport.width + 1) defects.push(`${index + 1}쪽이 화면보다 넓음: ${canvasState.visualWidth}px`);
+        if (visualCheckpoints.has(index)) {
+          const checkpoint = index === 0 ? "" : index === pageCount - 1 ? "-last" : "-middle";
+          await page.screenshot({
+            path: join(screenshotDir, `${String(viewport.width)}x${String(viewport.height)}-${slug(route.path)}${checkpoint}.png`),
+            fullPage: false,
+            timeout: 30_000,
+          }).catch((error) => defects.push(`${index + 1}쪽 시각 캡처 실패: ${String(error)}`));
+        }
       }
     }
   }
@@ -232,13 +241,13 @@ async function auditRoute(page: Page, route: AuditRoute, viewport: ViewportAudit
   if (geometry.brokenImages.length) defects.push(`깨진 이미지: ${geometry.brokenImages.join(", ")}`);
   if (geometry.clippedControls.length) defects.push(`화면 밖 조작 요소: ${geometry.clippedControls.join(", ")}`);
 
-  await page.screenshot({
-    path: join(screenshotDir, `${String(viewport.width)}x${String(viewport.height)}-${slug(route.path)}.png`),
-    fullPage: true,
-    // 실제 적중 PDF는 20쪽을 넘겨 전체 캡처 높이가 수만 px가 된다.
-    // 기본 8초 action timeout 대신 이미지 인코딩까지 끝낼 시간을 보장한다.
-    timeout: 60_000,
-  }).catch((error) => defects.push(`스크린샷 실패: ${String(error)}`));
+  if (!route.inlineMatchupPdf) {
+    await page.screenshot({
+      path: join(screenshotDir, `${String(viewport.width)}x${String(viewport.height)}-${slug(route.path)}.png`),
+      fullPage: true,
+      timeout: 60_000,
+    }).catch((error) => defects.push(`스크린샷 실패: ${String(error)}`));
+  }
 
   return defects.map((defect) => `[${viewport.name}] ${route.name} (${route.path}) — ${defect}`);
 }
