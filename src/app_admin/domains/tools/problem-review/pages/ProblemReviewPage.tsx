@@ -11,6 +11,7 @@ import {
   BarChart3,
   Check,
   ChevronRight,
+  Download,
   FileArchive,
   FileText,
   Globe2,
@@ -18,6 +19,7 @@ import {
   Plus,
   Presentation,
   RefreshCw,
+  RotateCcw,
   Save,
   ShieldCheck,
   Sparkles,
@@ -38,16 +40,22 @@ import {
   type ProblemReviewDifficulty,
   type ProblemReviewDraft,
   type ProblemReviewMetadata,
+  type ProblemReviewArtifact,
   type ProblemReviewReport,
+  type ProblemReviewThinkingAction,
 } from "../api/problemReview.api";
 import styles from "./ProblemReviewPage.module.css";
 
 const SOURCE_ACCEPT = ".pdf,.hwp,.hwpx,.doc,.docx,.zip,.png,.jpg,.jpeg,.webp,.bmp";
 const MAX_SOURCE_FILES = 6;
+const MAX_SOURCE_FILE_BYTES = 120 * 1024 * 1024;
+const MAX_SOURCE_TOTAL_BYTES = 512 * 1024 * 1024;
+const SUPPORTED_SOURCE_EXTENSIONS = new Set(["pdf", "hwp", "hwpx", "doc", "docx", "zip", "png", "jpg", "jpeg", "webp", "bmp"]);
 const ANALYSIS_TIMEOUT_MS = 15 * 60 * 1000;
 const EXPORT_TIMEOUT_MS = 5 * 60 * 1000;
 const POLL_INTERVAL_MS = 1600;
 const DIFFICULTIES: ProblemReviewDifficulty[] = ["검수 필요", "하", "중", "중상", "상", "최상"];
+const THINKING_ACTIONS: ProblemReviewThinkingAction[] = ["검수 필요", "확인", "해석", "계산", "서술", "복합"];
 
 const EMPTY_METADATA: Partial<ProblemReviewMetadata> = {
   title: "",
@@ -56,6 +64,7 @@ const EMPTY_METADATA: Partial<ProblemReviewMetadata> = {
   grade: "",
   exam_name: "",
   exam_date: "",
+  report_purpose: "teacher_review",
 };
 
 function sleep(ms: number) {
@@ -99,6 +108,18 @@ function reportReadiness(draft: ProblemReviewDraft) {
   return { checks, percent: Math.round((completed / checks.length) * 100) };
 }
 
+type ExportProgress = {
+  status: "idle" | "pending" | "ready" | "failed";
+  label: string;
+  percent?: number;
+  artifact?: ProblemReviewArtifact;
+};
+
+const EMPTY_EXPORT_PROGRESS: Record<"pdf" | "pptx", ExportProgress> = {
+  pdf: { status: "idle", label: "A4 세로 편집물" },
+  pptx: { status: "idle", label: "발표·촬영용 슬라이드" },
+};
+
 export default function ProblemReviewPage() {
   const [metadata, setMetadata] = useState<Partial<ProblemReviewMetadata>>(EMPTY_METADATA);
   const [sourceFiles, setSourceFiles] = useState<File[]>([]);
@@ -111,6 +132,7 @@ export default function ProblemReviewPage() {
   const [starting, setStarting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState<"pdf" | "pptx" | null>(null);
+  const [exportProgress, setExportProgress] = useState(EMPTY_EXPORT_PROGRESS);
   const [publishing, setPublishing] = useState(false);
   const [publicationUrl, setPublicationUrl] = useState<string | null>(null);
   const [analysisMessage, setAnalysisMessage] = useState("시험지에서 문항과 출제 구조를 읽고 있습니다.");
@@ -142,6 +164,20 @@ export default function ProblemReviewPage() {
   }
 
   function selectFiles(files: File[]) {
+    const unsupported = files.filter((file) => !SUPPORTED_SOURCE_EXTENSIONS.has(file.name.split(".").pop()?.toLowerCase() ?? ""));
+    if (unsupported.length) {
+      feedback.warning(`지원하지 않는 파일입니다: ${unsupported.slice(0, 3).map((file) => file.name).join(", ")}`);
+      return;
+    }
+    const oversized = files.filter((file) => file.size > MAX_SOURCE_FILE_BYTES);
+    if (oversized.length) {
+      feedback.warning(`파일 하나는 120MB까지 올릴 수 있습니다: ${oversized[0].name}`);
+      return;
+    }
+    if (files.reduce((sum, file) => sum + file.size, 0) > MAX_SOURCE_TOTAL_BYTES) {
+      feedback.warning("전체 파일 용량은 512MB까지 올릴 수 있습니다.");
+      return;
+    }
     const accepted = files.slice(0, MAX_SOURCE_FILES);
     if (files.length > MAX_SOURCE_FILES) {
       feedback.warning(`한 번에 파일은 ${MAX_SOURCE_FILES}개까지 등록할 수 있습니다.`);
@@ -248,6 +284,7 @@ export default function ProblemReviewPage() {
     setSourceFiles([]);
     setMetadata(EMPTY_METADATA);
     setAiConfirmed(false);
+    setExportProgress(EMPTY_EXPORT_PROGRESS);
     setPageError("");
   }
 
@@ -280,20 +317,44 @@ export default function ProblemReviewPage() {
   async function handleExport(outputFormat: "pdf" | "pptx") {
     if (!current || !draft) return;
     setExporting(outputFormat);
+    setExportProgress((value) => ({
+      ...value,
+      [outputFormat]: { status: "pending", label: "저장된 검수본을 고밀도 리포트로 조판하고 있습니다.", percent: 0 },
+    }));
     setPageError("");
     try {
       const saved = await persistDraft();
-      if (!saved) return;
-      const exportJob = await createProblemReviewExport(saved.id, outputFormat);
+      if (!saved) {
+        setExportProgress((value) => ({ ...value, [outputFormat]: { status: "failed", label: "검수본 저장 뒤 다시 시도해 주세요." } }));
+        return;
+      }
+      const exportArtifact = await createProblemReviewExport(saved.id, outputFormat);
+      if (exportArtifact.status === "ready" && exportArtifact.download_url) {
+        downloadPresignedUrl(exportArtifact.download_url, exportArtifact.filename);
+        setExportProgress((value) => ({ ...value, [outputFormat]: { status: "ready", label: exportArtifact.filename, artifact: exportArtifact } }));
+        setCurrent((value) => value ? { ...value, artifacts: [exportArtifact, ...(value.artifacts ?? []).filter((item) => item.id !== exportArtifact.id)] } : value);
+        feedback.success(`${outputFormat.toUpperCase()} 파일을 준비했습니다.`);
+        return;
+      }
       const startedAt = Date.now();
       while (Date.now() - startedAt < EXPORT_TIMEOUT_MS) {
-        const status = await getProblemReviewExport(saved.id, exportJob.job_id);
-        if (status.status === "DONE" && status.result?.download_url) {
+        const status = await getProblemReviewExport(saved.id, exportArtifact.id || exportArtifact.job_id);
+        setExportProgress((value) => ({
+          ...value,
+          [outputFormat]: {
+            status: "pending",
+            label: status.progress?.step_name_display || "파일을 생성하고 있습니다.",
+            percent: status.progress?.percent,
+          },
+        }));
+        if (["ready", "DONE"].includes(status.status) && status.result?.download_url) {
           downloadPresignedUrl(status.result.download_url, status.result.filename);
+          setExportProgress((value) => ({ ...value, [outputFormat]: { status: "ready", label: status.result!.filename, artifact: status.result! } }));
+          setCurrent((value) => value ? { ...value, artifacts: [status.result!, ...(value.artifacts ?? []).filter((item) => item.id !== status.result!.id)] } : value);
           feedback.success(`${outputFormat.toUpperCase()} 파일을 준비했습니다.`);
           return;
         }
-        if (["FAILED", "DEAD", "CANCELLED"].includes(status.status)) {
+        if (["failed", "FAILED", "DEAD", "CANCELLED"].includes(status.status)) {
           throw new Error(status.error_message || "다운로드 파일 생성에 실패했습니다.");
         }
         await sleep(POLL_INTERVAL_MS);
@@ -301,10 +362,24 @@ export default function ProblemReviewPage() {
       throw new Error("파일 생성이 예상보다 오래 걸립니다. 잠시 뒤 다시 시도해 주세요.");
     } catch (error) {
       const message = errorMessage(error, "다운로드 파일을 만들지 못했습니다.");
+      setExportProgress((value) => ({ ...value, [outputFormat]: { status: "failed", label: message } }));
       setPageError(message);
       feedback.error(message);
     } finally {
       setExporting(null);
+    }
+  }
+
+  async function downloadArtifact(artifact: ProblemReviewArtifact) {
+    if (!current) return;
+    try {
+      const status = await getProblemReviewExport(current.id, artifact.id);
+      if (!status.result?.download_url) throw new Error(status.error_message || "이전 산출물의 다운로드 주소를 만들지 못했습니다.");
+      downloadPresignedUrl(status.result.download_url, status.result.filename);
+    } catch (error) {
+      const message = errorMessage(error, "이전 산출물을 내려받지 못했습니다.");
+      setPageError(message);
+      feedback.error(message);
     }
   }
 
@@ -331,7 +406,7 @@ export default function ProblemReviewPage() {
     }
   }
 
-  function updateMetadata(key: keyof ProblemReviewMetadata, value: string) {
+  function updateMetadata<K extends keyof ProblemReviewMetadata>(key: K, value: ProblemReviewMetadata[K]) {
     if (!draft) return;
     markDraft({ ...draft, metadata: { ...draft.metadata, [key]: value } });
   }
@@ -356,6 +431,7 @@ export default function ProblemReviewPage() {
         answer: "",
         points: "",
         difficulty: "검수 필요",
+        thinking_action: "검수 필요",
         key_point: "",
         trap: "",
         validity: "",
@@ -401,12 +477,6 @@ export default function ProblemReviewPage() {
                     공개본 보기
                   </Button>
                 ) : null}
-                <Button intent="secondary" size="sm" loading={exporting === "pdf"} leftIcon={<FileText size={ICON_FOR_BUTTON.sm} />} onClick={() => void handleExport("pdf")}>
-                  PDF
-                </Button>
-                <Button intent="primary" size="sm" loading={exporting === "pptx"} leftIcon={<Presentation size={ICON_FOR_BUTTON.sm} />} onClick={() => void handleExport("pptx")}>
-                  PPTX
-                </Button>
               </>
             )}
           </div>
@@ -448,11 +518,62 @@ export default function ProblemReviewPage() {
                   </div>
                 </div>
               ) : null}
+              <section className={styles.exportStudio} aria-label="PDF와 PPTX 내보내기">
+                <div className={styles.exportHeading}>
+                  <div>
+                    <span>EXAM SPECTRUM EXPORT</span>
+                    <h2>검수본을 바로 내려받으세요</h2>
+                    <p>PDF와 PPTX는 같은 저장 버전과 snapshot을 사용하며, 홈페이지 공개는 별도로 진행됩니다.</p>
+                  </div>
+                  <Badge tone="neutral">현재 v{current.version}</Badge>
+                </div>
+                <div className={styles.exportActions}>
+                  {(["pdf", "pptx"] as const).map((format) => {
+                    const progress = exportProgress[format];
+                    const isPdf = format === "pdf";
+                    return (
+                      <div className={styles.exportAction} key={format} data-status={progress.status}>
+                        <div className={styles.exportIcon}>{isPdf ? <FileText size={22} /> : <Presentation size={22} />}</div>
+                        <div className={styles.exportCopy}>
+                          <strong>{isPdf ? "PDF 다운로드" : "PPTX 다운로드"}</strong>
+                          <span>{progress.label}</span>
+                          {progress.status === "pending" && <progress className={styles.exportProgress} value={Math.max(8, progress.percent ?? 18)} max={100} aria-label={`${format.toUpperCase()} 생성 진행률`} />}
+                        </div>
+                        <Button
+                          intent={isPdf ? "secondary" : "primary"}
+                          size="sm"
+                          loading={exporting === format}
+                          leftIcon={progress.status === "failed" ? <RotateCcw size={ICON_FOR_BUTTON.sm} /> : <Download size={ICON_FOR_BUTTON.sm} />}
+                          onClick={() => void handleExport(format)}
+                        >
+                          {progress.status === "failed" ? "다시 생성" : "생성·받기"}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+                {(current.artifacts ?? []).length > 0 && (
+                  <div className={styles.artifactHistory}>
+                    <div className={styles.artifactTitle}><strong>이전 산출물</strong><span>파일명·검수 버전·snapshot을 확인하고 다시 받을 수 있습니다.</span></div>
+                    {(current.artifacts ?? []).slice(0, 8).map((artifact) => (
+                      <div className={styles.artifactRow} key={artifact.id}>
+                        <Badge tone={artifact.status === "ready" ? "success" : artifact.status === "failed" ? "danger" : "info"}>{artifact.output_format.toUpperCase()}</Badge>
+                        <span className={styles.artifactInfo}>
+                          <strong>{artifact.filename || `${artifact.output_format.toUpperCase()} 생성 중`}</strong>
+                          <small>v{artifact.report_version} · {artifact.source_fingerprint.slice(0, 8)} · {artifact.size_bytes ? fileSize(artifact.size_bytes) : new Date(artifact.created_at).toLocaleString("ko-KR")}</small>
+                        </span>
+                        {artifact.status === "ready" ? <Button intent="ghost" size="sm" onClick={() => void downloadArtifact(artifact)}>다시 받기</Button> : <span className={styles.artifactState}>{artifact.status === "failed" ? "실패" : "생성 중"}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
 
               <details className={styles.editorSection} open>
                 <summary><span><FileText size={18} />기본 정보와 총평</span><ChevronRight size={17} /></summary>
                 <div className={styles.sectionBody}>
                   <div className={styles.fieldGrid}>
+                    <label className={styles.wideField}>리포트 목적<select value={draft.metadata.report_purpose} onChange={(event) => updateMetadata("report_purpose", event.target.value as ProblemReviewMetadata["report_purpose"])}><option value="teacher_review">내 문제 검수</option><option value="exam_analysis">학교 시험 분석·홍보</option></select></label>
                     <label className={styles.wideField}>리포트 제목<input value={draft.metadata.title} onChange={(event) => updateMetadata("title", event.target.value)} /></label>
                     <label>학교<input value={draft.metadata.school} onChange={(event) => updateMetadata("school", event.target.value)} /></label>
                     <label>과목<input value={draft.metadata.subject} onChange={(event) => updateMetadata("subject", event.target.value)} /></label>
@@ -552,7 +673,19 @@ export default function ProblemReviewPage() {
                       <button type="button" onClick={() => markDraft({ ...draft, failure_patterns: draft.failure_patterns.filter((_, itemIndex) => itemIndex !== index) })} aria-label={`실패 패턴 ${index + 1} 삭제`}><Trash2 size={15} /></button>
                     </div>
                   ))}
-                  <Button intent="ghost" size="sm" leftIcon={<Plus size={ICON_FOR_BUTTON.sm} />} onClick={() => markDraft({ ...draft, failure_patterns: [...draft.failure_patterns, { title: "", symptom: "", cause: "", prescription: "" }].slice(0, 8) })}>실패 패턴 추가</Button>
+                  <Button
+                    intent="ghost"
+                    size="sm"
+                    leftIcon={<Plus size={ICON_FOR_BUTTON.sm} />}
+                    disabled={draft.failure_patterns.length >= 4}
+                    onClick={() => markDraft({
+                      ...draft,
+                      failure_patterns: [
+                        ...draft.failure_patterns,
+                        { title: "", symptom: "", cause: "", prescription: "" },
+                      ].slice(0, 4),
+                    })}
+                  >오류 패턴 추가</Button>
                 </div>
               </details>
 
@@ -566,6 +699,7 @@ export default function ProblemReviewPage() {
                           <label>문항<input type="number" min={1} max={999} value={question.number} onChange={(event) => updateQuestion(index, "number", Number(event.target.value))} /></label>
                           <label>단원<input value={question.unit} onChange={(event) => updateQuestion(index, "unit", event.target.value)} /></label>
                           <label>배점<input value={question.points} onChange={(event) => updateQuestion(index, "points", event.target.value)} /></label>
+                          <label>사고행동<select value={question.thinking_action} onChange={(event) => updateQuestion(index, "thinking_action", event.target.value as ProblemReviewThinkingAction)}>{THINKING_ACTIONS.map((action) => <option key={action}>{action}</option>)}</select></label>
                           <label>난이도<select value={question.difficulty} onChange={(event) => updateQuestion(index, "difficulty", event.target.value as ProblemReviewDifficulty)}>{DIFFICULTIES.map((difficulty) => <option key={difficulty}>{difficulty}</option>)}</select></label>
                           <button type="button" onClick={() => removeQuestion(index)} aria-label={`${question.number}번 문항 삭제`}><Trash2 size={16} /></button>
                         </header>
@@ -613,9 +747,89 @@ export default function ProblemReviewPage() {
                         const keyItems = draft.key_items.map((entry, entryIndex) => entryIndex === index ? { ...entry, prescription: event.target.value } : entry);
                         markDraft({ ...draft, key_items: keyItems });
                       }} /></label>
+                      <label>X-ray 근거<textarea rows={3} value={item.evidence} onChange={(event) => {
+                        const keyItems = draft.key_items.map((entry, entryIndex) => entryIndex === index ? { ...entry, evidence: event.target.value } : entry);
+                        markDraft({ ...draft, key_items: keyItems });
+                      }} /></label>
+                      <label>무너지는 분기 3개 <span className={styles.labelHint}>줄바꿈으로 구분</span><textarea rows={4} value={item.collapse_branches.join("\n")} onChange={(event) => {
+                        const keyItems = draft.key_items.map((entry, entryIndex) => entryIndex === index ? { ...entry, collapse_branches: event.target.value.split("\n").filter(Boolean).slice(0, 3) } : entry);
+                        markDraft({ ...draft, key_items: keyItems });
+                      }} /></label>
+                      <label>복구 4단계 <span className={styles.labelHint}>줄바꿈으로 구분</span><textarea rows={5} value={item.recovery_steps.join("\n")} onChange={(event) => {
+                        const keyItems = draft.key_items.map((entry, entryIndex) => entryIndex === index ? { ...entry, recovery_steps: event.target.value.split("\n").filter(Boolean).slice(0, 4) } : entry);
+                        markDraft({ ...draft, key_items: keyItems });
+                      }} /></label>
+                      <label>학습 신호<textarea rows={2} value={item.learning_point} onChange={(event) => {
+                        const keyItems = draft.key_items.map((entry, entryIndex) => entryIndex === index ? { ...entry, learning_point: event.target.value } : entry);
+                        markDraft({ ...draft, key_items: keyItems });
+                      }} /></label>
                     </div>
                   ))}
-                  <Button intent="ghost" size="sm" leftIcon={<Plus size={ICON_FOR_BUTTON.sm} />} onClick={() => markDraft({ ...draft, key_items: [...draft.key_items, { rank: draft.key_items.length + 1, title: "", question_numbers: [], reason: "", collapse_point: "", prescription: "" }].slice(0, 8) })}>핵심 변별 군 추가</Button>
+                  <Button
+                    intent="ghost"
+                    size="sm"
+                    leftIcon={<Plus size={ICON_FOR_BUTTON.sm} />}
+                    disabled={draft.key_items.length >= 8}
+                    onClick={() => markDraft({
+                      ...draft,
+                      key_items: [
+                        ...draft.key_items,
+                        {
+                          rank: draft.key_items.length + 1,
+                          title: "",
+                          question_numbers: [],
+                          reason: "",
+                          collapse_point: "",
+                          prescription: "",
+                          evidence: "",
+                          collapse_branches: [],
+                          recovery_steps: [],
+                          learning_point: "",
+                        },
+                      ].slice(0, 8),
+                    })}
+                  >핵심 변별 / X-ray 추가</Button>
+                  <div className={styles.protocolEditor}>
+                    <div className={styles.keyRank}>RECOVERY PROTOCOL</div>
+                    <div className={styles.threeFields}>
+                      <label>72시간 안 <span className={styles.labelHint}>줄바꿈으로 구분</span><textarea rows={5} value={draft.recovery_protocol.within_72_hours.join("\n")} onChange={(event) => markDraft({ ...draft, recovery_protocol: { ...draft.recovery_protocol, within_72_hours: event.target.value.split("\n").filter(Boolean) } })} /></label>
+                      <label>2주 안 <span className={styles.labelHint}>줄바꿈으로 구분</span><textarea rows={5} value={draft.recovery_protocol.within_two_weeks.join("\n")} onChange={(event) => markDraft({ ...draft, recovery_protocol: { ...draft.recovery_protocol, within_two_weeks: event.target.value.split("\n").filter(Boolean) } })} /></label>
+                      <label>다음 시험 <span className={styles.labelHint}>줄바꿈으로 구분</span><textarea rows={5} value={draft.recovery_protocol.next_exam.join("\n")} onChange={(event) => markDraft({ ...draft, recovery_protocol: { ...draft.recovery_protocol, next_exam: event.target.value.split("\n").filter(Boolean) } })} /></label>
+                    </div>
+                    <div className={styles.keyRank}>ACHIEVEMENT SIGNALS</div>
+                    {draft.achievement_bands.map((band, index) => (
+                      <div className={styles.inlineCard} key={`achievement-${index}`}>
+                        <div className={styles.indexBadge}>{String(index + 1).padStart(2, "0")}</div>
+                        <div className={styles.inlineFields}>
+                          <input aria-label={`성취 구간 ${index + 1} 이름`} value={band.label} onChange={(event) => {
+                            const achievementBands = draft.achievement_bands.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item);
+                            markDraft({ ...draft, achievement_bands: achievementBands });
+                          }} />
+                          <textarea aria-label={`성취 구간 ${index + 1} 확인 신호`} rows={2} value={band.signal} onChange={(event) => {
+                            const achievementBands = draft.achievement_bands.map((item, itemIndex) => itemIndex === index ? { ...item, signal: event.target.value } : item);
+                            markDraft({ ...draft, achievement_bands: achievementBands });
+                          }} />
+                          <textarea aria-label={`성취 구간 ${index + 1} 처방`} rows={2} value={band.prescription} onChange={(event) => {
+                            const achievementBands = draft.achievement_bands.map((item, itemIndex) => itemIndex === index ? { ...item, prescription: event.target.value } : item);
+                            markDraft({ ...draft, achievement_bands: achievementBands });
+                          }} />
+                        </div>
+                      </div>
+                    ))}
+                    <Button
+                      intent="ghost"
+                      size="sm"
+                      leftIcon={<Plus size={ICON_FOR_BUTTON.sm} />}
+                      disabled={draft.achievement_bands.length >= 3}
+                      onClick={() => markDraft({
+                        ...draft,
+                        achievement_bands: [
+                          ...draft.achievement_bands,
+                          { label: "", signal: "", prescription: "" },
+                        ].slice(0, 3),
+                      })}
+                    >성취 구간 추가</Button>
+                  </div>
                   <label>최종 결론<input value={draft.conclusion.headline} onChange={(event) => markDraft({ ...draft, conclusion: { ...draft.conclusion, headline: event.target.value } })} /></label>
                   <label>다음 시험까지 할 일 <span className={styles.labelHint}>줄바꿈으로 구분</span><textarea rows={4} value={draft.conclusion.actions.join("\n")} onChange={(event) => markDraft({ ...draft, conclusion: { ...draft.conclusion, actions: event.target.value.split("\n") } })} /></label>
                 </div>
@@ -627,7 +841,7 @@ export default function ProblemReviewPage() {
                 <div className={styles.previewLabel}><span>LIVE PREVIEW</span><span>{dirty ? "저장 전 변경 있음" : `v${current.version}`}</span></div>
                 <div className={styles.reportPage}>
                   <div className={styles.reportRail} />
-                  <div className={styles.reportEyebrow}>PROBLEM REVIEW REPORT</div>
+                  <div className={styles.reportEyebrow}>OBSERVATION RECORD · EXAM SPECTRUM</div>
                   <h2>{draft.metadata.title || `${draft.metadata.school} ${draft.metadata.exam_name}` || "문제 리뷰 리포트"}</h2>
                   <p className={styles.reportMeta}>{[draft.metadata.school, draft.metadata.grade, draft.metadata.subject, draft.metadata.exam_date].filter(Boolean).join(" · ") || "시험 정보를 입력해 주세요."}</p>
                   <div className={styles.reportMetrics}>
@@ -636,25 +850,31 @@ export default function ProblemReviewPage() {
                     <div><span>변별 문항</span><strong>{draft.key_items.length}</strong></div>
                   </div>
                   <section className={styles.reportLead}>
-                    <span>시험 한 줄 평</span>
+                    <span>3-MINUTE SIGNAL</span>
                     <h3>{draft.summary.one_line || "시험의 핵심 특징을 한 문장으로 정리해 주세요."}</h3>
                     <p>{draft.summary.character || "시험 성격에 대한 설명이 이곳에 표시됩니다."}</p>
                   </section>
+                  <section className={styles.spectrumPreview} aria-label="문항별 시험 스펙트럼">
+                    <div className={styles.spectrumLine} />
+                    {draft.questions.slice(0, 30).map((question) => (
+                      <span key={`spectrum-${question.source_number}-${question.number}`} data-action={question.thinking_action} data-level={question.difficulty} title={`${question.number}번 · ${question.thinking_action} · ${question.difficulty}`} />
+                    ))}
+                  </section>
                   <section className={styles.reportSection}>
-                    <div className={styles.reportSectionTitle}><span>01</span><h3>출제 기조</h3></div>
+                    <div className={styles.reportSectionTitle}><h3>평가 DNA</h3></div>
                     <div className={styles.axisPreview}>
                       {draft.assessment_axes.slice(0, 3).map((axis, index) => <div key={`preview-axis-${index}`}><strong>{axis.title || `기조 ${index + 1}`}</strong><p>{axis.description}</p></div>)}
                     </div>
                   </section>
                   <section className={styles.reportSection}>
-                    <div className={styles.reportSectionTitle}><span>02</span><h3>문항 리뷰</h3></div>
+                    <div className={styles.reportSectionTitle}><h3>증거 원장</h3></div>
                     <div className={styles.questionPreview}>
                       {draft.questions.slice(0, 5).map((question) => <div key={`preview-q-${question.number}`}><b>{question.number}</b><span>{question.unit || "단원 미입력"}</span><em data-level={question.difficulty}>{question.difficulty}</em><p>{question.key_point || "핵심 포인트를 입력해 주세요."}</p></div>)}
                     </div>
                   </section>
-                  {draft.key_items[0] && <section className={styles.killerPreview}><span>KILLER REVIEW #1</span><h3>{draft.key_items[0].title}</h3><p>{draft.key_items[0].reason}</p></section>}
-                  <section className={styles.reportConclusion}><Check size={18} /><div><span>FINAL TAKEAWAY</span><strong>{draft.conclusion.headline || draft.summary.one_line}</strong></div></section>
-                  <footer>선생님 검수본 · PDF / PPTX 다운로드 지원</footer>
+                  {draft.key_items[0] && <section className={styles.killerPreview}><span>QUESTION X-RAY</span><h3>{draft.key_items[0].title}</h3><p>{draft.key_items[0].evidence || draft.key_items[0].reason}</p></section>}
+                  <section className={styles.reportConclusion}><Check size={18} /><div><span>NEXT SIGNAL</span><strong>{draft.conclusion.headline || draft.summary.one_line}</strong></div></section>
+                  <footer>검수본 v{current.version} · PDF/PPTX 동일 snapshot</footer>
                 </div>
               </div>
             </aside>
@@ -668,9 +888,9 @@ export default function ProblemReviewPage() {
     <section className={styles.page} aria-label="문제 리뷰 리포트 만들기">
       <div className={styles.hero}>
         <div className={styles.heroCopy}>
-          <div className={styles.eyebrow}>TEACHER REVIEW WORKSPACE</div>
-          <h1>시험지를 올리면,<br /><span>리뷰가 바로 수업 자료가 됩니다.</span></h1>
-          <p>직접 만든 문제의 출제 의도와 문항별 포인트를 검토하고, 학부모 설명용 리포트까지 한 화면에서 다듬으세요.</p>
+          <div className={styles.eyebrow}>EXAM SPECTRUM WORKSPACE</div>
+          <h1>시험의 증거를 잇고,<br /><span>다음 행동까지 설명합니다.</span></h1>
+          <p>내 문제 검수와 학교 시험 분석을 목적에 맞게 나눠 시작하세요. 전 문항의 근거·함정·복구 순서를 검수한 뒤 PDF와 PPTX로 바로 받습니다.</p>
           <div className={styles.heroProof}>
             <span><ShieldCheck size={17} />선생님별 비공개</span>
             <span><FileText size={17} />PDF</span>
@@ -696,7 +916,7 @@ export default function ProblemReviewPage() {
             <input type="file" accept={SOURCE_ACCEPT} multiple onChange={handleFileInput} />
             <div className={styles.uploadIcon}><UploadCloud size={28} /></div>
             <strong>파일을 놓거나 눌러서 선택</strong>
-            <span>PDF · HWP/HWPX · DOCX · 이미지 · ZIP</span>
+            <span>PDF · HWP/HWPX · DOCX · 이미지 · ZIP · 파일당 120MB / 전체 512MB</span>
           </label>
           {sourceFiles.length > 0 && (
             <div className={styles.fileList}>
@@ -710,6 +930,17 @@ export default function ProblemReviewPage() {
           )}
 
           <div className={styles.metadataFields}>
+            <fieldset className={styles.purposeSelector}>
+              <legend>이번 리포트의 목적</legend>
+              <label data-selected={metadata.report_purpose === "teacher_review"}>
+                <input type="radio" name="report-purpose" value="teacher_review" checked={metadata.report_purpose === "teacher_review"} onChange={() => setMetadata((value) => ({ ...value, report_purpose: "teacher_review" }))} />
+                <span><strong>내 문제 검수</strong><small>직접 만든 문제의 타당성·표현·변별 구조를 봅니다.</small></span>
+              </label>
+              <label data-selected={metadata.report_purpose === "exam_analysis"}>
+                <input type="radio" name="report-purpose" value="exam_analysis" checked={metadata.report_purpose === "exam_analysis"} onChange={() => setMetadata((value) => ({ ...value, report_purpose: "exam_analysis" }))} />
+                <span><strong>학교 시험 분석·홍보</strong><small>학생·학부모 설명과 홈페이지 게시용 근거를 정리합니다.</small></span>
+              </label>
+            </fieldset>
             <label className={styles.fullField}>리포트 제목<input placeholder="예: 1학기 중간고사 통합과학 문제 리뷰" value={metadata.title ?? ""} onChange={(event) => setMetadata((value) => ({ ...value, title: event.target.value }))} /></label>
             <label>학교<input placeholder="학교명" value={metadata.school ?? ""} onChange={(event) => setMetadata((value) => ({ ...value, school: event.target.value }))} /></label>
             <label>과목<input placeholder="통합과학" value={metadata.subject ?? ""} onChange={(event) => setMetadata((value) => ({ ...value, subject: event.target.value }))} /></label>
