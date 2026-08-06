@@ -616,6 +616,10 @@ test.describe("문항별 직접 채점", () => {
     await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
     await expect(page.getByRole("heading", { name: "정오 직접입력", exact: true })).toBeVisible();
 
+    const excelImport = page.locator('section[aria-labelledby="exam-result-excel-title"]');
+    await expect(excelImport).toContainText("기존 엑셀 양식의 숫자 0도 오답노트로 읽습니다.");
+    await expect(excelImport).not.toContainText("Ymath");
+
     await page.getByRole("spinbutton", { name: "1번 배점", exact: true }).fill("30");
     await page.getByRole("spinbutton", { name: "2번 배점", exact: true }).fill("70");
     await expect(page.getByText("배점 합계 100점 / 시험 만점 100점", { exact: true })).toBeVisible();

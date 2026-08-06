@@ -95,7 +95,7 @@ export default function ExamResultExcelImport({ examId, examTitle }: Props) {
             <h3 id="exam-result-excel-title" className={styles.title}>엑셀로 채점 결과 넣기</h3>
             <p className={styles.description}>
               정답 O, 오답 X, 맞았지만 다시 볼 문항은 오답노트로 표시합니다.
-              기존 Ymath의 숫자 0도 같은 값으로 읽습니다.
+              기존 엑셀 양식의 숫자 0도 오답노트로 읽습니다.
             </p>
           </div>
         </div>
