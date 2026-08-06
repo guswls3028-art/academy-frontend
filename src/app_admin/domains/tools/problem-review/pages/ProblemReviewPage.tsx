@@ -59,7 +59,7 @@ const MAX_SOURCE_FILE_BYTES = 120 * 1024 * 1024;
 const MAX_SOURCE_TOTAL_BYTES = 512 * 1024 * 1024;
 const SUPPORTED_SOURCE_EXTENSIONS = new Set(["pdf", "hwp", "hwpx", "doc", "docx", "zip", "png", "jpg", "jpeg", "webp", "bmp"]);
 const ANALYSIS_TIMEOUT_MS = 15 * 60 * 1000;
-const EXPORT_TIMEOUT_MS = 5 * 60 * 1000;
+const EXPORT_TIMEOUT_MS = 8 * 60 * 1000;
 const POLL_INTERVAL_MS = 1600;
 const DIFFICULTIES: ProblemReviewDifficulty[] = ["검수 필요", "하", "중", "중상", "상", "최상"];
 const THINKING_ACTIONS: ProblemReviewThinkingAction[] = ["검수 필요", "확인", "해석", "계산", "서술", "복합"];
@@ -365,6 +365,10 @@ export default function ProblemReviewPage() {
 
   async function handleExport(outputFormat: "pdf" | "pptx") {
     if (!current || !draft) return;
+    if (exporting) {
+      feedback.warning(`${exporting.toUpperCase()} 파일을 먼저 준비하고 있습니다.`);
+      return;
+    }
     if (!isReportFinalized) {
       feedback.warning("전 문항 대조와 최종 검수 확정 뒤 파일을 만들 수 있습니다.");
       return;
@@ -372,7 +376,7 @@ export default function ProblemReviewPage() {
     setExporting(outputFormat);
     setExportProgress((value) => ({
       ...value,
-      [outputFormat]: { status: "pending", label: "저장된 검수본을 고밀도 리포트로 조판하고 있습니다.", percent: 0 },
+      [outputFormat]: { status: "pending", label: "검수본을 조판하고 있습니다. 절전 상태에서는 작업 준비에 몇 분이 걸릴 수 있습니다.", percent: 0 },
     }));
     setPageError("");
     try {
@@ -412,7 +416,9 @@ export default function ProblemReviewPage() {
         }
         await sleep(POLL_INTERVAL_MS);
       }
-      throw new Error("파일 생성이 예상보다 오래 걸립니다. 잠시 뒤 다시 시도해 주세요.");
+      const message = "파일 생성은 계속 진행 중입니다. 잠시 뒤 다시 누르거나 이전 산출물에서 확인해 주세요.";
+      setExportProgress((value) => ({ ...value, [outputFormat]: { status: "pending", label: message } }));
+      feedback.warning(message);
     } catch (error) {
       const message = errorMessage(error, "다운로드 파일을 만들지 못했습니다.");
       setExportProgress((value) => ({ ...value, [outputFormat]: { status: "failed", label: message } }));
@@ -626,7 +632,7 @@ export default function ProblemReviewPage() {
                           intent={isPdf ? "secondary" : "primary"}
                           size="sm"
                           loading={exporting === format}
-                          disabled={!isReportFinalized}
+                          disabled={!isReportFinalized || exporting !== null}
                           leftIcon={progress.status === "failed" ? <RotateCcw size={ICON_FOR_BUTTON.sm} /> : <Download size={ICON_FOR_BUTTON.sm} />}
                           onClick={() => void handleExport(format)}
                         >

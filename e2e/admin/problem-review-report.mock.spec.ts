@@ -216,6 +216,7 @@ async function installApp(page: Page) {
     }
     const exportMatch = path.match(new RegExp(`/tools/problem-review/reports/${REPORT_ID}/exports/(.+)/`));
     if (exportMatch) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
       const format = exportMatch[1].endsWith("2") || exportMatch[1].includes("pptx") ? "pptx" : "pdf";
       const artifact = { id: exportMatch[1], job_id: `export-${format}`, status: "ready", download_url: `${BASE}/mock-files/problem-review.${format}`, filename: `아카데미고_문제리뷰_v${state.version}_abcdef01.${format}`, size_bytes: 24, output_format: format, report_version: state.version, source_fingerprint: "abcdef0123456789", content_type: format === "pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.presentationml.presentation", sha256: "1234", error_message: "", verified: true, created_at: "2026-08-06T00:06:00+09:00", updated_at: "2026-08-06T00:06:01+09:00" };
       return json({ ...artifact, progress: { percent: 100, step_name_display: "다운로드 준비 완료" }, result: artifact });
@@ -256,7 +257,10 @@ test("문제 리뷰를 검수 저장하고 PDF·PPTX로 내려받으며 390px에
   await expect(page.getByRole("button", { name: "공개본 보기" })).toBeVisible();
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "생성·받기", exact: true }).first().click();
+  await expect(page.getByRole("button", { name: "생성·받기", exact: true }).nth(1)).toBeDisabled();
   expect((await download).suggestedFilename()).toBe("아카데미고_문제리뷰_v3_abcdef01.pdf");
+  await expect(page.getByRole("button", { name: "생성·받기", exact: true }).first()).toBeEnabled();
+  await expect(page.getByRole("button", { name: "생성·받기", exact: true }).nth(1)).toBeEnabled();
   const pptxDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: "생성·받기", exact: true }).nth(1).click();
   expect((await pptxDownload).suggestedFilename()).toBe("아카데미고_문제리뷰_v3_abcdef01.pptx");
