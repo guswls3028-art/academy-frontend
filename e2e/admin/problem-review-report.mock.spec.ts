@@ -183,7 +183,9 @@ test("문제 리뷰를 검수 저장하고 PDF로 내려받으며 390px에서도
   await expect(page.getByRole("heading", { name: /시험지를 올리면/ })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
   await page.getByRole("button", { name: /아카데미고 통합과학 중간고사 문제 리뷰/ }).click();
+  await expect(page.getByText("공개 설득력 점검")).toBeVisible();
   await expect(page.getByLabel("시험 한 줄 평")).toHaveValue("개념 연결과 자료 해석을 함께 확인한 시험입니다.");
+  await expect(page.getByLabel("실패 패턴 1 증상")).toHaveValue("첫 조건만 적용합니다.");
   await page.getByLabel("시험 한 줄 평").fill("자료 해석의 근거를 끝까지 확인한 시험입니다.");
   await page.getByRole("button", { name: "변경 저장" }).click();
   await expect.poll(() => state.savedOneLine).toBe("자료 해석의 근거를 끝까지 확인한 시험입니다.");

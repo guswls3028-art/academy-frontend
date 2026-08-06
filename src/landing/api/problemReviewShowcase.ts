@@ -38,6 +38,7 @@ export type PublicProblemReviewSnapshot = {
   };
   questions: Array<{
     number: number;
+    source_number?: number;
     unit: string;
     answer: string;
     points: string;

@@ -85,6 +85,20 @@ function statusBadge(report: ProblemReviewReport) {
   return <Badge tone="info">분석 중</Badge>;
 }
 
+function reportReadiness(draft: ProblemReviewDraft) {
+  const checks = [
+    { label: "총평", ready: Boolean(draft.summary.one_line && draft.summary.character) },
+    { label: "출제 기조", ready: draft.assessment_axes.filter((item) => item.title && item.description).length >= 3 },
+    { label: "전 문항 핵심", ready: draft.questions.length > 0 && draft.questions.every((item) => item.key_point && item.difficulty !== "검수 필요") },
+    { label: "오답 함정", ready: draft.questions.length > 0 && draft.questions.filter((item) => item.trap).length / draft.questions.length >= 0.8 },
+    { label: "핵심 변별", ready: draft.key_items.some((item) => item.title && item.reason && item.collapse_point && item.prescription) },
+    { label: "실패 패턴", ready: draft.failure_patterns.some((item) => item.title && item.symptom && item.cause && item.prescription) },
+    { label: "결론·처방", ready: Boolean(draft.conclusion.headline && draft.conclusion.actions.filter(Boolean).length) },
+  ];
+  const completed = checks.filter((item) => item.ready).length;
+  return { checks, percent: Math.round((completed / checks.length) * 100) };
+}
+
 export default function ProblemReviewPage() {
   const [metadata, setMetadata] = useState<Partial<ProblemReviewMetadata>>(EMPTY_METADATA);
   const [sourceFiles, setSourceFiles] = useState<File[]>([]);
@@ -102,6 +116,7 @@ export default function ProblemReviewPage() {
   const [analysisMessage, setAnalysisMessage] = useState("시험지에서 문항과 출제 구조를 읽고 있습니다.");
   const [pageError, setPageError] = useState("");
   const pollToken = useRef(0);
+  const readiness = draft ? reportReadiness(draft) : null;
 
   useEffect(() => {
     let active = true;
@@ -422,6 +437,18 @@ export default function ProblemReviewPage() {
                 <div><strong>AI가 만든 검수 초안입니다.</strong><span>정답·배점·난이도와 표현을 선생님이 확인한 뒤 내려받아 주세요.</span></div>
               </div>
 
+              {readiness ? (
+                <div className={styles.readinessPanel}>
+                  {/* eslint-disable-next-line no-restricted-syntax -- 검수 완료율은 리포트마다 달라 동적 원형 게이지로 표시한다. */}
+                  <div className={styles.readinessScore} style={{ background: `conic-gradient(#d91e3f ${readiness.percent}%, #e9edf3 0)` }}><strong>{readiness.percent}</strong><span>%</span></div>
+                  <div className={styles.readinessCopy}>
+                    <strong>공개 설득력 점검</strong>
+                    <p>근거가 채워진 항목만 공개 리포트와 다운로드 결과에 힘을 더합니다.</p>
+                    <div>{readiness.checks.map((item) => <span data-ready={item.ready} key={item.label}>{item.ready ? "✓" : "·"} {item.label}</span>)}</div>
+                  </div>
+                </div>
+              ) : null}
+
               <details className={styles.editorSection} open>
                 <summary><span><FileText size={18} />기본 정보와 총평</span><ChevronRight size={17} /></summary>
                 <div className={styles.sectionBody}>
@@ -500,20 +527,32 @@ export default function ProblemReviewPage() {
                     <label>권장 설명 문구 <span className={styles.labelHint}>줄바꿈으로 구분</span><textarea rows={4} value={draft.parent_guidance.recommended.join("\n")} onChange={(event) => markDraft({ ...draft, parent_guidance: { ...draft.parent_guidance, recommended: event.target.value.split("\n") } })} /></label>
                   </div>
                   {draft.failure_patterns.map((pattern, index) => (
-                    <div className={styles.inlineCard} key={`failure-${index}`}>
+                    <div className={styles.patternEditor} key={`failure-${index}`}>
                       <div className={styles.indexBadge}>{String(index + 1).padStart(2, "0")}</div>
                       <div className={styles.inlineFields}>
-                        <input aria-label={`실패 패턴 ${index + 1} 제목`} value={pattern.title} onChange={(event) => {
+                        <label>패턴 제목<input aria-label={`실패 패턴 ${index + 1} 제목`} value={pattern.title} onChange={(event) => {
                           const failurePatterns = draft.failure_patterns.map((item, itemIndex) => itemIndex === index ? { ...item, title: event.target.value } : item);
                           markDraft({ ...draft, failure_patterns: failurePatterns });
-                        }} />
-                        <textarea aria-label={`실패 패턴 ${index + 1} 처방`} rows={2} value={pattern.prescription} onChange={(event) => {
+                        }} /></label>
+                        <div className={styles.twoFields}>
+                          <label>보이는 증상<textarea aria-label={`실패 패턴 ${index + 1} 증상`} rows={2} value={pattern.symptom} onChange={(event) => {
+                            const failurePatterns = draft.failure_patterns.map((item, itemIndex) => itemIndex === index ? { ...item, symptom: event.target.value } : item);
+                            markDraft({ ...draft, failure_patterns: failurePatterns });
+                          }} /></label>
+                          <label>학습 원인<textarea aria-label={`실패 패턴 ${index + 1} 원인`} rows={2} value={pattern.cause} onChange={(event) => {
+                            const failurePatterns = draft.failure_patterns.map((item, itemIndex) => itemIndex === index ? { ...item, cause: event.target.value } : item);
+                            markDraft({ ...draft, failure_patterns: failurePatterns });
+                          }} /></label>
+                        </div>
+                        <label>수업 처방<textarea aria-label={`실패 패턴 ${index + 1} 처방`} rows={2} value={pattern.prescription} onChange={(event) => {
                           const failurePatterns = draft.failure_patterns.map((item, itemIndex) => itemIndex === index ? { ...item, prescription: event.target.value } : item);
                           markDraft({ ...draft, failure_patterns: failurePatterns });
-                        }} />
+                        }} /></label>
                       </div>
+                      <button type="button" onClick={() => markDraft({ ...draft, failure_patterns: draft.failure_patterns.filter((_, itemIndex) => itemIndex !== index) })} aria-label={`실패 패턴 ${index + 1} 삭제`}><Trash2 size={15} /></button>
                     </div>
                   ))}
+                  <Button intent="ghost" size="sm" leftIcon={<Plus size={ICON_FOR_BUTTON.sm} />} onClick={() => markDraft({ ...draft, failure_patterns: [...draft.failure_patterns, { title: "", symptom: "", cause: "", prescription: "" }].slice(0, 8) })}>실패 패턴 추가</Button>
                 </div>
               </details>
 
@@ -536,6 +575,10 @@ export default function ProblemReviewPage() {
                           <label>학생이 빠질 함정<textarea rows={2} value={question.trap} onChange={(event) => updateQuestion(index, "trap", event.target.value)} /></label>
                           <label>출제 검토 메모<textarea rows={2} value={question.review_note} onChange={(event) => updateQuestion(index, "review_note", event.target.value)} /></label>
                         </div>
+                        <div className={styles.twoFields}>
+                          <label>정답·정답 예시<input value={question.answer} onChange={(event) => updateQuestion(index, "answer", event.target.value)} /></label>
+                          <label>문항 타당성·모호성 메모<input value={question.validity} onChange={(event) => updateQuestion(index, "validity", event.target.value)} /></label>
+                        </div>
                       </article>
                     ))}
                   </div>
@@ -548,7 +591,7 @@ export default function ProblemReviewPage() {
                 <div className={styles.sectionBody}>
                   {draft.key_items.map((item, index) => (
                     <div className={styles.keyItemEditor} key={`key-${index}`}>
-                      <div className={styles.keyRank}>#{item.rank || index + 1}</div>
+                      <div className={styles.keyEditorHeader}><div className={styles.keyRank}>#{item.rank || index + 1}</div><button type="button" onClick={() => markDraft({ ...draft, key_items: draft.key_items.filter((_, itemIndex) => itemIndex !== index) })} aria-label={`핵심 변별 ${index + 1} 삭제`}><Trash2 size={15} /></button></div>
                       <label>제목<input value={item.title} onChange={(event) => {
                         const keyItems = draft.key_items.map((entry, entryIndex) => entryIndex === index ? { ...entry, title: event.target.value } : entry);
                         markDraft({ ...draft, key_items: keyItems });
@@ -572,6 +615,7 @@ export default function ProblemReviewPage() {
                       }} /></label>
                     </div>
                   ))}
+                  <Button intent="ghost" size="sm" leftIcon={<Plus size={ICON_FOR_BUTTON.sm} />} onClick={() => markDraft({ ...draft, key_items: [...draft.key_items, { rank: draft.key_items.length + 1, title: "", question_numbers: [], reason: "", collapse_point: "", prescription: "" }].slice(0, 8) })}>핵심 변별 군 추가</Button>
                   <label>최종 결론<input value={draft.conclusion.headline} onChange={(event) => markDraft({ ...draft, conclusion: { ...draft.conclusion, headline: event.target.value } })} /></label>
                   <label>다음 시험까지 할 일 <span className={styles.labelHint}>줄바꿈으로 구분</span><textarea rows={4} value={draft.conclusion.actions.join("\n")} onChange={(event) => markDraft({ ...draft, conclusion: { ...draft.conclusion, actions: event.target.value.split("\n") } })} /></label>
                 </div>

@@ -123,10 +123,12 @@ test("홈 시험 분석 카드에서 네이티브 리포트로 이어지고 390p
   await page.setViewportSize({ width: 1366, height: 900 });
   await page.goto(`${BASE}/landing/analysis/71`, { waitUntil: "load", timeout: 75_000 });
   await expect(page.getByRole("heading", { name: snapshot.metadata.title })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "문항별 분석표" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "전 문항 근거표" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "점수는 어디에서 갈렸나" })).toBeVisible();
+  await expect(page.getByText(/실제 정답률과 학교 성적 분포가 없는 항목/)).toBeVisible();
   await expect(page.getByText("가계도 복합 추론")).toBeVisible();
   await expect(page.locator("iframe")).toHaveCount(0);
-  await expect(page.getByRole("link", { name: /PDF 리포트로 보기/ })).toHaveAttribute("href", /problem-review-showcase\/71\/pdf/);
+  await expect(page.getByRole("link", { name: /분석 PDF 전체본/ })).toHaveAttribute("href", /problem-review-showcase\/71\/pdf/);
   await page.screenshot({ path: testInfo.outputPath("problem-analysis-detail-1366.png"), fullPage: true });
 
   await page.setViewportSize({ width: 390, height: 844 });
