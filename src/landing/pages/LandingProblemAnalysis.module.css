@@ -32,7 +32,6 @@
 .metricRow b { margin-right: 4px; color: #ddebff; font-size: 16px; }
 .metricRow .difficultyChip { padding: 4px 8px; color: #a8d1ff; border: 1px solid rgba(143,196,255,.22); border-radius: 999px; }
 .notice { margin-top: 24px; padding: 34px; color: #9aacc1; border: 1px solid rgba(151,174,208,.18); background: #0b192a; }
-
 .detailHero { border-bottom: 1px solid rgba(151,174,208,.17); background: radial-gradient(circle at 18% 0, rgba(79,148,255,.19), transparent 32%), #081424; }
 .detailHeroInner { width: min(1000px, calc(100% - 48px)); margin: 0 auto; padding: 54px 0 70px; }
 .backLink { color: #9bcaff; font-size: 12px; font-weight: 800; text-decoration: none; }
@@ -94,7 +93,6 @@
 .conclusionSection ol { margin: 30px 0 0; padding-left: 22px; color: #b4c4d7; }
 .conclusionSection li { margin-top: 10px; padding-left: 6px; font-size: 13px; line-height: 1.65; }
 .pdfLink { margin-top: 32px; padding: 13px 18px; display: inline-flex; color: #071525; font-size: 12px; font-weight: 900; text-decoration: none; background: #8fc4ff; }
-
 @media (max-width: 760px) {
   .listHero { padding: 66px 20px 58px; grid-template-columns: 1fr; gap: 34px; }
   .listHero h1 { font-size: 43px; }
@@ -997,90 +995,4 @@
   .actionGrid { grid-template-columns: 1fr; }
   .conclusionSection h2 { font-size: 30px; }
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .articleRail { scroll-behavior: auto; }
-}
-
-.listHero {
-  background:
-    linear-gradient(90deg, #cf1537 0 7px, transparent 7px),
-    radial-gradient(circle at 78% 20%, rgb(207 21 55 / 17%), transparent 30%),
-    #07132f;
-}
-
-.kicker,
-.listBar a {
-  color: #f14460;
-}
-
-.methodNote {
-  border-color: rgb(207 21 55 / 32%);
-  border-left-color: #cf1537;
-}
-
-.analysisCard {
-  background: #0a1833;
-}
-
-.analysisCard:hover {
-  border-color: rgb(241 68 96 / 55%);
-  background: #0d1c3a;
-}
-
-.paperPreview {
-  box-shadow: 12px 12px 0 rgb(207 21 55 / 12%);
-}
-
-.paperPreview::before {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 5px;
-  content: "";
-  background: #cf1537;
-}
-
-.paperPreview::after {
-  border-color: #eadfe2;
-}
-
-.paperPreview > span {
-  color: #cf1537;
-}
-
-.paperPreview .cardScoreMap {
-  margin-top: auto;
-  display: grid;
-  gap: 8px;
-}
-
-.cardScoreMap > b {
-  color: #6e7888;
-  font-size: 8px;
-}
-
-.cardScoreMap > div {
-  display: flex;
-  gap: 2px;
-  height: 8px;
-}
-
-.paperPreview .cardScoreMap i {
-  width: auto;
-  height: 100%;
-  min-width: 3px;
-  background: #aeb8c7;
-}
-
-.paperPreview .cardScoreMap i[data-level="하"] { background: #68a77b; }
-.paperPreview .cardScoreMap i[data-level="중"] { background: #5ba4c9; }
-.paperPreview .cardScoreMap i[data-level="중상"] { background: #f0a733; }
-.paperPreview .cardScoreMap i[data-level="상"] { background: #cf1537; }
-.paperPreview .cardScoreMap i[data-level="최상"] { background: #10234d; }
-
-.cardScoreMap > small {
-  color: #7b8493;
-  font-size: 7px;
-}
+@media (prefers-reduced-motion: reduce) { .articleRail { scroll-behavior: auto; } }

@@ -13,7 +13,10 @@ import {
   MatchupCenterState,
   MatchupLandingShell,
 } from "./LandingMatchupBoardShell";
-import styles from "./LandingProblemAnalysis.module.css";
+import baseStyles from "./LandingProblemAnalysis.module.css";
+import accentStyles from "./LandingProblemAnalysisListAccent.module.css";
+
+const styles = { ...baseStyles, ...accentStyles };
 
 export default function LandingProblemAnalysisPage() {
   const [config, setConfig] = useState<LandingPublicResponse | null>(null);

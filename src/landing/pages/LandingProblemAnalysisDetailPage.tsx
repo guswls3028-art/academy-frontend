@@ -96,7 +96,7 @@ export default function LandingProblemAnalysisDetailPage() {
           <div className={styles.detailMetrics}>
             <span><small>분석 문항</small><b>{snapshot.summary.total_questions || "-"}</b></span>
             <span><small>서답형</small><b>{analysis.subjectiveCount ? `${analysis.subjectiveCount}문항` : "확인 필요"}</b></span>
-            <span><small>상·최상 배점</small><b>{analysis.hardPoints ? `${formatScore(analysis.hardPoints)}점` : "확인 필요"}</b></span>
+            <span><small>상·최상 배점</small><b>{analysis.hardPoints ? `${scoreText(analysis.hardPoints)}점` : "확인 필요"}</b></span>
             <span><small>핵심 변별 군</small><b>{snapshot.key_items.length}개</b></span>
           </div>
         </div>
@@ -131,8 +131,8 @@ export default function LandingProblemAnalysisDetailPage() {
           <section className={styles.articleSection} id="score-map">
             <SectionHeading number="02" english="SCORE MAP" title="점수는 어디에서 갈렸나" />
             <div className={styles.structureGrid}>
-              <div><span>선택형</span><strong>{analysis.objectiveCount}문항</strong><small>{analysis.objectivePoints ? `${formatScore(analysis.objectivePoints)}점` : "배점 확인 필요"}</small></div>
-              <div><span>서답형</span><strong>{analysis.subjectiveCount}문항</strong><small>{analysis.subjectivePoints ? `${formatScore(analysis.subjectivePoints)}점` : "배점 확인 필요"}</small></div>
+              <div><span>선택형</span><strong>{analysis.objectiveCount}문항</strong><small>{analysis.objectivePoints ? `${scoreText(analysis.objectivePoints)}점` : "배점 확인 필요"}</small></div>
+              <div><span>서답형</span><strong>{analysis.subjectiveCount}문항</strong><small>{analysis.subjectivePoints ? `${scoreText(analysis.subjectivePoints)}점` : "배점 확인 필요"}</small></div>
               <div className={styles.structureNarrative}><span>시험 구조</span><p>{snapshot.summary.student_burden || snapshot.summary.character}</p></div>
             </div>
 
@@ -170,7 +170,7 @@ export default function LandingProblemAnalysisDetailPage() {
                 <h3>난도별 배점</h3>
                 {analysis.difficultyStats.map((entry) => (
                   <article data-level={entry.label} key={entry.label}>
-                    <div><strong>{entry.label}</strong><b>{entry.points ? `${formatScore(entry.points)}점` : `${entry.count}문항`}</b></div>
+                    <div><strong>{entry.label}</strong><b>{entry.points ? `${scoreText(entry.points)}점` : `${entry.count}문항`}</b></div>
                     <span>
                       {/* eslint-disable-next-line no-restricted-syntax -- 문항별 실제 배점 또는 개수 비율을 막대 길이로 반영한다. */}
                       <i style={{ width: `${Math.max(4, percent(entry.points || entry.count, entry.points ? analysis.totalPoints : snapshot.questions.length))}%` }} />
@@ -279,7 +279,7 @@ function percent(value: number, total: number): number {
   return total > 0 ? Math.min(100, (value / total) * 100) : 0;
 }
 
-function formatScore(value: number): string {
+function scoreText(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1).replace(/\.0$/, "");
 }
 
