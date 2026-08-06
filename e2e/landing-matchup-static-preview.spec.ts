@@ -27,7 +27,7 @@ function buildTestPdf(): Promise<Buffer> {
   return testPdfPromise;
 }
 
-async function stubLandingReport(page: Page) {
+async function stubLandingReport(page: Page, options: { failingReportId?: number } = {}) {
   const testPdf = await buildTestPdf();
   await page.addInitScript(() => {
     localStorage.setItem("tenant_code", "tchul");
@@ -84,6 +84,18 @@ async function stubLandingReport(page: Page) {
   });
   await page.route("**/api/v1/matchup/landing/public/**", async (route) => {
     const pathname = new URL(route.request().url()).pathname;
+    if (pathname.endsWith("/curated.pdf")) {
+      if (options.failingReportId && pathname.includes(`/${options.failingReportId}/`)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/pdf",
+          body: Buffer.from("not-a-pdf"),
+        });
+        return;
+      }
+      await route.fulfill({ status: 200, contentType: "application/pdf", body: testPdf });
+      return;
+    }
     if (pathname.endsWith("/preview.jpg")) {
       await route.fulfill({ status: 200, contentType: "image/jpeg", body: PREVIEW_IMAGE });
       return;
@@ -159,7 +171,7 @@ async function stubLandingReport(page: Page) {
   });
 }
 
-test("tenant report opens one static comparison image without a PDF renderer", async ({ page }) => {
+test("tenant report opens every PDF page as one continuous article", async ({ page }) => {
   await stubLandingReport(page);
   await page.setViewportSize({ width: 390, height: 844 });
   // Vite의 첫 premium_dark 변환은 Windows 콜드 캐시에서 30초를 넘길 수 있다.
@@ -177,30 +189,63 @@ test("tenant report opens one static comparison image without a PDF renderer", a
   await expect(page.getByRole("link", { name: /매치업 자료실/ }).first()).toHaveAttribute("href", "/landing/matchup-board");
   await page.goto(`${BASE}/landing/reports/7`, { waitUntil: "load" });
 
-  const preview = page.getByTestId("static-report-preview");
-  await expect(preview).toBeVisible();
-  await expect(preview.locator('img[src*="/preview.jpg"]')).toBeVisible();
+  const inlinePdf = page.getByTestId("matchup-inline-pdf");
+  await expect(inlinePdf).toHaveAttribute("data-page-count", "3", { timeout: 30_000 });
+  await expect(page.getByTestId("matchup-pdf-page")).toHaveCount(3);
   await expect(page.locator("iframe")).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "PDF 전체 보기" })).toHaveAttribute("href", /curated\.pdf/);
+  await expect(page.getByTestId("static-report-preview")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "원본 PDF 다운로드" })).toHaveAttribute("href", /curated\.pdf/);
   await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
-test("a failed report preview retries after route change", async ({ page }) => {
-  await stubLandingReport(page);
-  await page.route("**/api/v1/matchup/landing/public/*/preview.jpg*", async (route) => {
-    const pathname = new URL(route.request().url()).pathname;
-    if (pathname.includes("/7/")) {
-      await route.fulfill({ status: 500, contentType: "application/json", body: "{}" });
-      return;
-    }
-    await route.fulfill({ status: 200, contentType: "image/jpeg", body: PREVIEW_IMAGE });
-  });
+test("a pending report PDF is replaced after route change", async ({ page }) => {
+  await stubLandingReport(page, { failingReportId: 7 });
 
   await page.goto(`${BASE}/landing/reports/7`, { waitUntil: "load" });
-  await expect(page.getByText("미리보기를 불러오지 못했습니다.")).toBeVisible();
+  await expect(page.getByTestId("matchup-inline-pdf-loading")).toBeVisible();
 
   await page.locator('a[href="/landing/reports/8"]').click();
-  await expect(page.getByTestId("static-report-preview").locator("img")).toBeVisible();
+  await expect(page.getByTestId("matchup-inline-pdf")).toHaveAttribute("data-page-count", "3", { timeout: 30_000 });
+});
+
+test("shared report link also opens every page without another click", async ({ page }) => {
+  await stubLandingReport(page);
+  await page.route("**/api/v1/matchup/share/public-token/**", async (route) => {
+    const pathname = new URL(route.request().url()).pathname;
+    if (pathname.endsWith("/curated.pdf")) {
+      await route.fulfill({ status: 200, contentType: "application/pdf", body: await buildTestPdf() });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: 7,
+        title: "공유 적중 보고서",
+        doc_title: "2026 개포고 1학기 중간고사",
+        doc_category: "통합과학",
+        hit_count: 8,
+        total_problems: 10,
+        hit_rate_pct: 80,
+        author_name: "박철",
+        submitted_at: "2026-07-25T12:00:00+09:00",
+        created_at: "2026-07-25T12:00:00+09:00",
+        tenant_name: "테스트 학원",
+        tenant_code: "tchul",
+        pdf_url: "/api/v1/matchup/share/public-token/curated.pdf",
+        other_reports: [],
+      }),
+    });
+  });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${BASE}/landing/share/public-token`, { waitUntil: "load" });
+  await expect(page.getByTestId("matchup-inline-pdf")).toHaveAttribute("data-page-count", "3", { timeout: 30_000 });
+  await expect(page.getByTestId("matchup-pdf-page")).toHaveCount(3);
+  await expect(page.getByTestId("static-report-preview")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "원본 PDF 다운로드" })).toHaveAttribute("href", /curated\.pdf/);
+  await expect(page.locator("iframe")).toHaveCount(0);
+  await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 test("showcase detail renders every page as one continuous mobile article", async ({ page }) => {

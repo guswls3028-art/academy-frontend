@@ -1,7 +1,7 @@
 // PATH: src/landing/pages/LandingShareReportPage.tsx
 // 1클릭 공유 토큰 진입 페이지 (#67, 2026-05-12).
 // 학원장 spec: 선생이 학생/학부모에게 카톡으로 링크만 보내면, 학생은 별도 로그인이나
-// 학원 가입 없이 클릭 한 번으로 적중보고서 대표 비교 이미지를 즉시 확인.
+// 학원 가입 없이 클릭 한 번으로 적중보고서 전체를 게시물처럼 연속 확인.
 //
 // URL: /landing/share/:token
 // Backend: GET /matchup/share/<uuid:token>/        → 메타
@@ -19,7 +19,7 @@ import type { LandingPublicResponse } from "../types";
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
 import LandingFooter, { FOOTER_TOKENS_DARK } from "../components/LandingFooter";
 import LandingRoleFab from "../components/LandingRoleFab";
-import StaticReportPreview from "../components/StaticReportPreview";
+import MatchupInlinePdf from "../components/MatchupInlinePdf";
 import { resolvePublicReportUrl } from "../utils/publicReportUrl";
 import { setLandingMeta } from "../utils/seoMeta";
 import { fetchPublicHitReportsCached } from "../api/hitReports";
@@ -145,9 +145,6 @@ export default function LandingShareReportPage() {
   const ratePct = Math.round(meta.hit_rate_pct);
   const subj = meta.doc_category || meta.doc_title;
   const pdfUrl = resolvePublicReportUrl(meta.pdf_url);
-  const previewUrl = resolvePublicReportUrl(
-    meta.preview_url || meta.pdf_url.replace(/curated\.pdf(?:\?.*)?$/, "preview.jpg"),
-  );
 
   const bg = "#0A0E1A";
   const bgAlt = "#0F1525";
@@ -235,28 +232,27 @@ export default function LandingShareReportPage() {
               </button>
               <a
                 href={pdfUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+                download
                 style={{ padding: "10px 18px", borderRadius: 10, background: `linear-gradient(135deg, ${gold} 0%, #B8862F 100%)`, color: "#0A0E1A", textDecoration: "none", fontSize: 14, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
-                PDF 전체 보기
+                원본 PDF 다운로드
               </a>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 대표 비교 이미지 — PDF 브라우저 렌더를 기다리지 않고 정적 JPEG 한 장을 노출. */}
-      <section style={{ padding: "32px 24px", background: bgAlt }}>
+      {/* 카톡 링크로 들어와도 별도 PDF 뷰어 없이 모든 쪽을 이어서 읽는다. */}
+      <section style={{ padding: "16px 24px 64px", background: bgAlt }}>
         <div style={{ maxWidth: 1200, margin: "0 auto" }}>
           {meta.hit_count > 0 ? (
-            <StaticReportPreview
-              imageUrl={previewUrl}
-              pdfUrl={pdfUrl}
-              alt={`${subj} 실제 시험 문제와 우리 학원 사전 대비 자료 비교`}
-              caption="대표 비교 화면 한 장입니다. 전체 문항은 위의 ‘PDF 전체 보기’에서 확인할 수 있습니다."
-            />
+            <>
+              <div style={{ padding: "0 0 16px", color: textSecondary, fontSize: 12.5, lineHeight: 1.6 }}>
+                전체 자료 · 아래에서 첫 쪽부터 끝까지 이어서 보세요
+              </div>
+              <MatchupInlinePdf url={pdfUrl} title={meta.doc_title || subj} />
+            </>
           ) : (
             // 적중 자료 0건 — 강사가 본문 매칭 자료를 아직 등록하지 않은 상태.
             // PDF iframe 띄우면 흰 화면 (cover만 있는 빈 PDF) → 학생이 "왜 빈 페이지?" 혼란.
