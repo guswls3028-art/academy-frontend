@@ -135,5 +135,12 @@ test("홈 시험 분석 카드에서 네이티브 리포트로 이어지고 390p
   await page.reload({ waitUntil: "load", timeout: 75_000 });
   await expect(page.getByRole("heading", { name: snapshot.metadata.title })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+  const mobileRailLinks = page.getByRole("complementary", { name: "리포트 목차" }).getByRole("link");
+  await expect(mobileRailLinks).toHaveCount(7);
+  const clippedRailLinks = await mobileRailLinks.evaluateAll((links) => links.filter((link) => {
+    const rect = link.getBoundingClientRect();
+    return rect.left < -1 || rect.right > window.innerWidth + 1;
+  }).map((link) => link.textContent?.trim()));
+  expect(clippedRailLinks).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath("problem-analysis-detail-390.png"), fullPage: true });
 });
