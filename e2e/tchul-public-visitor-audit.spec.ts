@@ -235,6 +235,9 @@ async function auditRoute(page: Page, route: AuditRoute, viewport: ViewportAudit
   await page.screenshot({
     path: join(screenshotDir, `${String(viewport.width)}x${String(viewport.height)}-${slug(route.path)}.png`),
     fullPage: true,
+    // 실제 적중 PDF는 20쪽을 넘겨 전체 캡처 높이가 수만 px가 된다.
+    // 기본 8초 action timeout 대신 이미지 인코딩까지 끝낼 시간을 보장한다.
+    timeout: 60_000,
   }).catch((error) => defects.push(`스크린샷 실패: ${String(error)}`));
 
   return defects.map((defect) => `[${viewport.name}] ${route.name} (${route.path}) — ${defect}`);
