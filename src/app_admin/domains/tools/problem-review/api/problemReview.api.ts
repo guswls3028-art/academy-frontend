@@ -13,7 +13,10 @@ export type ProblemReviewMetadata = {
   total_score: string;
   instructor_name: string;
   audience: string;
+  report_purpose: "teacher_review" | "exam_analysis";
 };
+
+export type ProblemReviewThinkingAction = "확인" | "해석" | "계산" | "서술" | "복합" | "검수 필요";
 
 export type ProblemReviewDraft = {
   schema_version: string;
@@ -49,6 +52,7 @@ export type ProblemReviewDraft = {
     answer: string;
     points: string;
     difficulty: ProblemReviewDifficulty;
+    thinking_action: ProblemReviewThinkingAction;
     key_point: string;
     trap: string;
     validity: string;
@@ -63,6 +67,10 @@ export type ProblemReviewDraft = {
     reason: string;
     collapse_point: string;
     prescription: string;
+    evidence: string;
+    collapse_branches: string[];
+    recovery_steps: string[];
+    learning_point: string;
   }>;
   failure_patterns: Array<{
     title: string;
@@ -71,6 +79,12 @@ export type ProblemReviewDraft = {
     prescription: string;
   }>;
   parent_guidance: { avoid: string[]; recommended: string[] };
+  recovery_protocol: {
+    within_72_hours: string[];
+    within_two_weeks: string[];
+    next_exam: string[];
+  };
+  achievement_bands: Array<{ label: string; signal: string; prescription: string }>;
   conclusion: { headline: string; actions: string[] };
   warnings: string[];
 };
@@ -91,13 +105,31 @@ export type ProblemReviewReport = {
   draft?: ProblemReviewDraft;
   created_at: string;
   updated_at: string;
+  artifacts: ProblemReviewArtifact[];
+};
+
+export type ProblemReviewArtifact = {
+  id: string;
+  job_id: string;
+  status: "pending" | "ready" | "failed" | string;
+  output_format: "pdf" | "pptx";
+  report_version: number;
+  source_fingerprint: string;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+  sha256: string;
+  error_message: string;
+  download_url?: string;
+  created_at: string;
+  updated_at: string;
 };
 
 export type ProblemReviewExportStatus = {
   job_id: string;
   status: string;
   progress?: { percent?: number; step_name_display?: string } | null;
-  result?: { download_url: string; filename: string; size_bytes: number; output_format: string } | null;
+  result?: ProblemReviewArtifact | null;
   error_message?: string | null;
 };
 
@@ -157,7 +189,7 @@ export async function saveProblemReviewReport(
 export async function createProblemReviewExport(
   reportId: string,
   outputFormat: "pdf" | "pptx",
-): Promise<{ job_id: string; status: string; output_format: string }> {
+): Promise<ProblemReviewArtifact> {
   const { data } = await api.post(
     `/tools/problem-review/reports/${encodeURIComponent(reportId)}/exports/`,
     { output_format: outputFormat },
