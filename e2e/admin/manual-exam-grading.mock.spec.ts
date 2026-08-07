@@ -68,6 +68,8 @@ type InstallApiOptions = {
   hasQuestions?: boolean;
   initialStates?: [GradeState, GradeState];
   segmentationStatus?: "none" | "review_required" | "ready";
+  segmentationEngine?: string;
+  segmentationCropAdjustable?: boolean;
   sheetSize?: {
     students: number;
     questions: number;
@@ -304,9 +306,9 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
           detected_number: 3,
           page_index: 2,
           included: true,
-          engine: "hwp_endnote",
-          problem_crop_ratio: 0.3,
-          crop_adjustable: true,
+          engine: options.segmentationEngine ?? "hwp_endnote",
+          problem_crop_ratio: options.segmentationCropAdjustable === false ? 1 : 0.3,
+          crop_adjustable: options.segmentationCropAdjustable ?? true,
           problem_image_url: `data:image/svg+xml,${previewSvg}`,
           explanation_text: "",
           explanation_image_url: `data:image/svg+xml,${previewSvg}`,
@@ -602,6 +604,24 @@ test.describe("문항별 직접 채점", () => {
     await expect(slider).toHaveValue("42");
     await expect(page.getByText("42%", { exact: true })).toBeVisible();
     await expect(page.getByLabel("3번 문제 영역 미리보기")).toBeVisible();
+  });
+
+  test("한글 본문 문제와 미주 해설을 구조로 분리한 후보를 표시한다", async ({ page }) => {
+    await installApi(page, {
+      segmentationStatus: "review_required",
+      segmentationEngine: "hwp_body_endnote",
+      segmentationCropAdjustable: false,
+    });
+
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
+      { waitUntil: "domcontentloaded" },
+    );
+
+    await expect(page.getByText("한글 본문·미주 분리", { exact: true })).toBeVisible();
+    await expect(page.getByRole("slider", { name: "3번 문제 영역 높이" })).toHaveCount(0);
+    await expect(page.getByAltText("3번 문제 후보")).toBeVisible();
+    await expect(page.getByAltText("3번 선생님 원본 해설")).toBeVisible();
   });
 
   test("O·X·오답노트 키 입력을 미리 확인한 뒤 확정하고 재조회한다", async ({ page }) => {

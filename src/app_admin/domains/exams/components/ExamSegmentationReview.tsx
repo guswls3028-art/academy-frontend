@@ -115,6 +115,9 @@ export default function ExamSegmentationReview({
   const teacherExplanationCount = selected.filter(
     (item) => item.has_teacher_explanation,
   ).length;
+  const usesHangulBodyEndnotes = items.some(
+    (item) => item.engine === "hwp_body_endnote" || item.engine === "hwpx_body_endnote",
+  );
 
   const approve = useMutation({
     mutationFn: () =>
@@ -185,6 +188,9 @@ export default function ExamSegmentationReview({
 
       <div className={styles.sourceLine}>
         <Badge tone="info" shape="square">원본 보존</Badge>
+        {usesHangulBodyEndnotes && (
+          <Badge tone="success" shape="square">한글 본문·미주 분리</Badge>
+        )}
         <span>{review.data.source_filename || "업로드 시험지"}</span>
       </div>
 
