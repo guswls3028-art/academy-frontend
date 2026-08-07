@@ -959,7 +959,7 @@ test.describe("문항별 직접 채점", () => {
     ).toBeVisible();
   });
 
-  test("46명 20문항 표를 창에 맞추고 한 스크롤 영역에서 배율을 유지한다", async ({ page }) => {
+  test("46명 20문항 표를 10%까지 조망하고 한 스크롤 영역에서 배율을 유지한다", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 768 });
     await installApi(page, {
       sheetSize: {
@@ -983,8 +983,10 @@ test.describe("문항별 직접 채점", () => {
     await expect(dialog.getByText("오답노트", { exact: true }).first()).toBeVisible();
     await expect(dialog.getByText("정답 · 복습", { exact: true })).toHaveCount(0);
 
-    const scaleOutput = dialog.getByLabel(/현재 채점표 배율/);
-    await expect(scaleOutput).toHaveText("70%");
+    const scaleSelect = dialog.getByLabel("채점표 배율 선택");
+    const initialScale = Number(await scaleSelect.inputValue());
+    expect(initialScale).toBeGreaterThanOrEqual(50);
+    expect(initialScale).toBeLessThanOrEqual(70);
     const layout = await dialog.evaluate((element) => {
       const body = element.querySelector<HTMLElement>(".scores-manual-grading-modal__body");
       const workspace = element.querySelector<HTMLElement>("[data-manual-grading-workspace]");
@@ -1011,13 +1013,42 @@ test.describe("문항별 직접 채점", () => {
     expect(layout?.tableHeight).toBeGreaterThanOrEqual(175);
     expect(layout?.tableVerticalOverflow).toBeGreaterThan(0);
     expect(layout?.tableVisualHorizontalOverflow).toBeLessThanOrEqual(20);
-    expect(layout?.tableZoom).toBe("0.7");
+    expect(layout?.tableZoom).toBe(String(initialScale / 100));
 
     await dialog.getByRole("button", { name: "채점표 확대" }).click();
-    await expect(scaleOutput).toHaveText("80%");
+    const enlargedScale = initialScale + 10;
+    await expect(scaleSelect).toHaveValue(String(enlargedScale));
     await expect.poll(() => page.evaluate(() =>
       localStorage.getItem("academy.manual-grading-table-scale.v1"),
-    )).toBe("80");
+    )).toBe(String(enlargedScale));
+
+    await scaleSelect.selectOption("10");
+    await expect(scaleSelect).toHaveValue("10");
+    await expect(dialog.getByText("전체 조망 중", { exact: false })).toBeVisible();
+    await expect(dialog.locator("[data-manual-grade-cell]").first()).toBeDisabled();
+    await expect.poll(() => page.evaluate(() =>
+      localStorage.getItem("academy.manual-grading-table-scale.v1"),
+    )).toBe("10");
+    const overviewLayout = await dialog.evaluate((element) => {
+      const tableWrap = element.querySelector<HTMLElement>("[data-manual-grading-table-wrap]");
+      const table = tableWrap?.querySelector<HTMLTableElement>("table");
+      if (!tableWrap || !table) return null;
+      return {
+        horizontalOverflow: tableWrap.scrollWidth - tableWrap.clientWidth,
+        verticalOverflow: tableWrap.scrollHeight - tableWrap.clientHeight,
+        tableZoom: getComputedStyle(table).zoom,
+      };
+    });
+    expect(overviewLayout).not.toBeNull();
+    expect(overviewLayout?.horizontalOverflow).toBeLessThanOrEqual(1);
+    expect(overviewLayout?.verticalOverflow).toBeLessThan(layout?.tableVerticalOverflow ?? 0);
+    expect(overviewLayout?.tableZoom).toBe("0.1");
+    await dialog.getByRole("button", { name: "전체 조망" }).click();
+    await expect(dialog.getByText("전체 조망 중", { exact: false })).toBeVisible();
+
+    await scaleSelect.selectOption("50");
+    await expect(dialog.getByText("전체 조망 중", { exact: false })).toHaveCount(0);
+    await expect(dialog.locator("[data-manual-grade-cell]").first()).toBeEnabled();
 
     await dialog.getByRole("button", { name: "닫기", exact: true }).click();
     await expect(dialog).toHaveCount(0);
@@ -1025,7 +1056,7 @@ test.describe("문항별 직접 채점", () => {
     dialog = page.getByRole("dialog").filter({
       hasText: "7월 진단평가 정오 직접입력",
     });
-    await expect(dialog.getByLabel("현재 채점표 배율 80%")).toHaveText("80%");
+    await expect(dialog.getByLabel("채점표 배율 선택")).toHaveValue("50");
 
     const cells = dialog.locator("[data-manual-grade-cell]");
     await cells.nth(0).click();
@@ -1048,6 +1079,50 @@ test.describe("문항별 직접 채점", () => {
     await expect(cells.nth(1)).toHaveAccessibleName("김학생 2번 오답노트");
     await expect(cells.nth(0)).toHaveText("노트");
     await expect(cells.nth(1)).toHaveText("노트");
+    await dialog.getByLabel("채점표 배율 선택").selectOption("10");
+    await expect(dialog.getByText("전체 조망 중", { exact: false })).toBeVisible();
+  });
+
+  test("390px에서도 10% 전체 조망 컨트롤을 모두 사용할 수 있다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await installApi(page, {
+      sheetSize: {
+        students: 31,
+        questions: 20,
+      },
+    });
+
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await chooseExamHeaderAction(page, "정오표 작성");
+
+    const dialog = page.getByRole("dialog").filter({
+      hasText: "7월 진단평가 정오 직접입력",
+    });
+    const scaleControl = dialog.locator('[role="group"][aria-label="채점표 배율"]');
+    await expect(dialog.getByRole("button", { name: "전체 조망" })).toBeVisible();
+    await expect(dialog.getByLabel("채점표 배율 선택")).toBeVisible();
+    const mobileScaleLayout = await scaleControl.evaluate((element) => {
+      const toolbar = element.parentElement;
+      if (!toolbar) return null;
+      const controlRect = element.getBoundingClientRect();
+      const toolbarRect = toolbar.getBoundingClientRect();
+      return {
+        height: controlRect.height,
+        leftDelta: toolbarRect.left - controlRect.left,
+        rightDelta: controlRect.right - toolbarRect.right,
+      };
+    });
+    expect(mobileScaleLayout).not.toBeNull();
+    expect(mobileScaleLayout?.height).toBeGreaterThanOrEqual(60);
+    expect(mobileScaleLayout?.leftDelta).toBeLessThanOrEqual(1);
+    expect(mobileScaleLayout?.rightDelta).toBeLessThanOrEqual(1);
+
+    await dialog.getByLabel("채점표 배율 선택").selectOption("10");
+    await expect(dialog.getByText("전체 조망 중", { exact: false })).toBeVisible();
+    await expect(dialog.locator("[data-manual-grade-cell]").first()).toBeDisabled();
   });
 
   test("짧은 모바일 화면에서도 모든 채점 설정과 저장 버튼에 접근한다", async ({ page }) => {

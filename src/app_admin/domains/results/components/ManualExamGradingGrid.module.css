@@ -512,6 +512,15 @@
   white-space: nowrap;
 }
 
+.tableToolbar > .overviewHint {
+  padding: 5px 9px;
+  border: 1px solid #99f6e4;
+  border-radius: 999px;
+  background: #f0fdfa;
+  color: #0f766e;
+  font-weight: 750;
+}
+
 .tableScaleControl {
   display: inline-flex;
   flex: 0 0 auto;
@@ -525,7 +534,7 @@
 }
 
 .tableScaleControl button,
-.tableScaleControl output {
+.tableScaleControl select {
   display: inline-grid;
   min-width: 34px;
   height: 30px;
@@ -543,12 +552,15 @@
 }
 
 .tableScaleControl button:hover:not(:disabled),
+.tableScaleControl select:hover,
+.tableScaleControl select:focus-visible,
 .tableScaleControl button:focus-visible {
   background: var(--color-bg-surface-hover, #f8fafc);
   color: var(--color-text-primary, #0f172a);
 }
 
-.tableScaleControl button:focus-visible {
+.tableScaleControl button:focus-visible,
+.tableScaleControl select:focus-visible {
   position: relative;
   z-index: 1;
   outline: 2px solid var(--color-brand-primary, #2563eb);
@@ -560,17 +572,31 @@
   opacity: 0.38;
 }
 
-.tableScaleControl output {
-  min-width: 48px;
+.tableScaleControl select {
+  min-width: 58px;
+  padding: 0 6px;
+  cursor: pointer;
   color: var(--color-text-primary, #0f172a);
   font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 .tableScaleControl .fitButton {
   min-width: 72px;
   padding: 0 10px;
+  white-space: nowrap;
+}
+
+.tableScaleControl .overviewButton {
+  min-width: 82px;
+  padding: 0 10px;
   border-right: 0;
   white-space: nowrap;
+}
+
+.tableScaleControl .overviewButton[aria-pressed="true"] {
+  background: #ecfeff;
+  color: #0f766e;
 }
 
 .table {
@@ -583,6 +609,10 @@
   zoom: var(--manual-grading-table-scale, 1);
 }
 
+.overviewTable {
+  margin-inline: auto;
+}
+
 .table th,
 .table td {
   min-width: 68px;
@@ -592,6 +622,13 @@
   border-bottom: 1px solid var(--color-border-divider, #e2e8f0);
   background: var(--color-bg-surface, #fff);
   text-align: center;
+}
+
+.overviewTable th,
+.overviewTable td {
+  min-width: max(68px, var(--manual-grading-overview-question-width));
+  height: max(48px, var(--manual-grading-overview-row-height));
+  padding: 0;
 }
 
 .table th {
@@ -606,6 +643,17 @@
   min-width: 66px;
   padding-top: 7px;
   padding-bottom: 7px;
+}
+
+.overviewTable .questionColumn,
+.overviewTable .gradeCell {
+  min-width: max(66px, var(--manual-grading-overview-question-width)) !important;
+}
+
+.overviewTable .questionType,
+.overviewTable .questionScoreInput,
+.overviewTable .questionColumn > span {
+  display: none;
 }
 
 .table th strong,
@@ -663,6 +711,10 @@
   line-height: 1;
 }
 
+.overviewTable th .questionNumber {
+  font-size: max(14px, var(--manual-grading-overview-font-size));
+}
+
 .questionScoreInput {
   display: inline-flex;
   align-items: center;
@@ -705,6 +757,32 @@
   text-align: left;
 }
 
+.studentDetail {
+  display: block;
+}
+
+.overviewStudentName {
+  display: none;
+}
+
+.overviewTable .studentColumn {
+  min-width: max(170px, var(--manual-grading-overview-student-width));
+  padding: 0 8px;
+}
+
+.overviewTable .studentDetail {
+  display: none;
+}
+
+.overviewTable .overviewStudentName {
+  display: block;
+  overflow: hidden;
+  font-size: max(12px, var(--manual-grading-overview-font-size));
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .table th.studentColumn {
   z-index: 5;
 }
@@ -714,6 +792,12 @@
   z-index: 2;
   left: 170px;
   min-width: 60px;
+}
+
+.overviewTable .attendanceColumn {
+  left: max(170px, var(--manual-grading-overview-student-width));
+  min-width: max(60px, var(--manual-grading-overview-attendance-width));
+  padding: 0;
 }
 
 .table th.attendanceColumn {
@@ -749,6 +833,12 @@
   font-size: 14px;
   font-weight: 900;
   transition: background 120ms ease, filter 120ms ease;
+}
+
+.overviewTable .correctnessCell {
+  min-height: max(47px, var(--manual-grading-overview-row-height));
+  font-size: max(14px, var(--manual-grading-overview-font-size));
+  cursor: default;
 }
 
 .correctnessCell:not(:disabled) {
@@ -812,6 +902,26 @@
   color: #166534;
   font-size: 11px;
   font-weight: 800;
+}
+
+.attendanceOverviewLabel {
+  display: none;
+}
+
+.overviewTable .attendanceButton {
+  min-width: max(44px, var(--manual-grading-overview-attendance-width));
+  padding: 0;
+  border-width: 0;
+  border-radius: 0;
+  font-size: max(11px, var(--manual-grading-overview-font-size));
+}
+
+.overviewTable .attendanceFullLabel {
+  display: none;
+}
+
+.overviewTable .attendanceOverviewLabel {
+  display: inline;
 }
 
 .attendanceButton.absent {
@@ -973,12 +1083,52 @@
     white-space: normal;
   }
 
+  .tableScaleControl {
+    display: grid;
+    width: 100%;
+    min-height: 62px;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .tableScaleControl button:first-of-type,
+  .tableScaleControl button:nth-of-type(2) {
+    min-width: 0;
+    grid-column: span 1;
+  }
+
+  .tableScaleControl button:nth-of-type(2) {
+    border-right: 0;
+  }
+
+  .tableScaleControl select {
+    width: 100%;
+    min-width: 0;
+    grid-column: span 4;
+  }
+
+  .tableScaleControl .fitButton,
+  .tableScaleControl .overviewButton {
+    width: 100%;
+    min-width: 0;
+    height: 31px;
+    grid-column: span 3;
+    border-top: 1px solid var(--color-border-divider, #e2e8f0);
+  }
+
   .table .studentColumn {
     min-width: 140px;
   }
 
   .table .attendanceColumn {
     left: 140px;
+  }
+
+  .overviewTable .studentColumn {
+    min-width: max(140px, var(--manual-grading-overview-student-width));
+  }
+
+  .overviewTable .attendanceColumn {
+    left: max(140px, var(--manual-grading-overview-student-width));
   }
 }
 

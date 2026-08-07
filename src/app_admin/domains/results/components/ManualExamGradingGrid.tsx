@@ -84,8 +84,9 @@ const STATE_CELL_LABEL: Record<ManualGradeState, string> = {
   review: "노트",
 };
 
-const TABLE_SCALE_STEPS = [70, 80, 90, 100, 110, 120] as const;
+const TABLE_SCALE_STEPS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120] as const;
 const TABLE_SCALE_STORAGE_KEY = "academy.manual-grading-table-scale.v1";
+const TABLE_OVERVIEW_MAX_SCALE = 40;
 
 function getPrimaryShortcutModifierLabel(): "Ctrl" | "⌘" {
   if (typeof navigator === "undefined") return "Ctrl";
@@ -146,6 +147,7 @@ export default function ManualExamGradingGrid({
   const queryClient = useQueryClient();
   const tableWrapRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
+  const naturalTableSizeRef = useRef<{ width: number; height: number } | null>(null);
   const autoFocusedExamRef = useRef<number | null>(null);
   const autoFittedExamRef = useRef<number | null>(null);
   const hasSavedTableScaleRef = useRef(false);
@@ -176,6 +178,7 @@ export default function ManualExamGradingGrid({
   const [shortcutSettingsOpen, setShortcutSettingsOpen] = useState(false);
   const [shortcutError, setShortcutError] = useState<string | null>(null);
   const primaryShortcutModifier = getPrimaryShortcutModifierLabel();
+  const isOverviewMode = tableScale <= TABLE_OVERVIEW_MAX_SCALE;
 
   const syncHistoryState = useCallback(() => {
     setHistoryState({
@@ -377,10 +380,24 @@ export default function ManualExamGradingGrid({
     applyTableScale(TABLE_SCALE_STEPS[nextIndex]);
   }, [applyTableScale, tableScale]);
 
+  const measureNaturalTable = useCallback(() => {
+    const tableWrap = tableWrapRef.current;
+    const table = tableRef.current;
+    if (!tableWrap || !table) return null;
+
+    const measured = {
+      width: table.scrollWidth,
+      height: table.scrollHeight,
+    };
+    if (!isOverviewMode) naturalTableSizeRef.current = measured;
+    return naturalTableSizeRef.current ?? measured;
+  }, [isOverviewMode]);
+
   const fitTableToViewport = useCallback((persist = false) => {
     const tableWrap = tableWrapRef.current;
     const table = tableRef.current;
-    if (!tableWrap || !table) return;
+    const naturalTable = measureNaturalTable();
+    if (!tableWrap || !table || !naturalTable) return;
 
     const naturalWidth = table.scrollWidth;
     const viewportWidth = tableWrap.clientWidth;
@@ -399,7 +416,28 @@ export default function ManualExamGradingGrid({
       .reverse()
       .find((scale) => scale <= idealScale) ?? TABLE_SCALE_STEPS[0];
     applyTableScale(nextScale, persist);
-  }, [applyTableScale]);
+  }, [applyTableScale, measureNaturalTable]);
+
+  const fitEntireTableToViewport = useCallback(() => {
+    const tableWrap = tableWrapRef.current;
+    const naturalTable = measureNaturalTable();
+    if (!tableWrap || !naturalTable) return;
+
+    const availableWidth = Math.max(1, tableWrap.clientWidth - 4);
+    const availableHeight = Math.max(1, tableWrap.clientHeight - 4);
+    const idealScale = Math.min(
+      100,
+      Math.floor(Math.min(
+        availableWidth / naturalTable.width,
+        availableHeight / naturalTable.height,
+      ) * 100),
+    );
+    const nextScale = [...TABLE_SCALE_STEPS]
+      .reverse()
+      .find((scale) => scale <= idealScale) ?? TABLE_SCALE_STEPS[0];
+    applyTableScale(nextScale);
+    tableWrap.scrollTo({ left: 0, top: 0 });
+  }, [applyTableScale, measureNaturalTable]);
 
   const closeAnswerKeyModal = () => {
     setAnswerKeyOpen(false);
@@ -537,20 +575,30 @@ export default function ManualExamGradingGrid({
   useEffect(() => {
     autoFocusedExamRef.current = null;
     autoFittedExamRef.current = null;
+    naturalTableSizeRef.current = null;
   }, [examId]);
 
   useEffect(() => {
     if (
       hasSavedTableScaleRef.current ||
       autoFittedExamRef.current === examId ||
-      visibleQuestions.length === 0
+      visibleQuestions.length === 0 ||
+      draftRows.length === 0
     ) {
       return;
     }
     autoFittedExamRef.current = examId;
     const frame = window.requestAnimationFrame(() => fitTableToViewport(false));
     return () => window.cancelAnimationFrame(frame);
-  }, [examId, fitTableToViewport, visibleQuestions.length]);
+  }, [draftRows.length, examId, fitTableToViewport, visibleQuestions.length]);
+
+  useEffect(() => {
+    if (draftRows.length === 0 || isOverviewMode) return;
+    const frame = window.requestAnimationFrame(() => {
+      measureNaturalTable();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [draftRows.length, isOverviewMode, measureNaturalTable, visibleQuestions.length]);
 
   useEffect(() => {
     if (
@@ -1326,7 +1374,11 @@ export default function ManualExamGradingGrid({
       )}
 
       <div className={styles.tableToolbar}>
-        <span>학생 이름과 응시는 고정되며, 표만 가로·세로로 이동합니다.</span>
+        <span className={isOverviewMode ? styles.overviewHint : undefined} role="status">
+          {isOverviewMode
+            ? "전체 조망 중 · 색상 흐름을 살펴보고, 입력은 50% 이상에서 이어가세요."
+            : "학생 이름과 응시는 고정되며, 표만 가로·세로로 이동합니다."}
+        </span>
         <div className={styles.tableScaleControl} role="group" aria-label="채점표 배율">
           <button
             type="button"
@@ -1337,9 +1389,16 @@ export default function ManualExamGradingGrid({
           >
             <Minus size={14} aria-hidden />
           </button>
-          <output aria-live="polite" aria-label={`현재 채점표 배율 ${tableScale}%`}>
-            {tableScale}%
-          </output>
+          <select
+            value={tableScale}
+            aria-label="채점표 배율 선택"
+            title="채점표 배율 선택"
+            onChange={(event) => applyTableScale(Number(event.target.value))}
+          >
+            {TABLE_SCALE_STEPS.map((scale) => (
+              <option key={scale} value={scale}>{scale}%</option>
+            ))}
+          </select>
           <button
             type="button"
             disabled={tableScale === TABLE_SCALE_STEPS[TABLE_SCALE_STEPS.length - 1]}
@@ -1364,15 +1423,29 @@ export default function ManualExamGradingGrid({
           >
             화면 맞춤
           </button>
+          <button
+            type="button"
+            className={styles.overviewButton}
+            onClick={fitEntireTableToViewport}
+            aria-pressed={isOverviewMode}
+            title="학생과 문항 전체를 한 화면에 맞춤"
+          >
+            전체 조망
+          </button>
         </div>
       </div>
 
       <div className={styles.tableWrap} ref={tableWrapRef} data-manual-grading-table-wrap>
         <table
-          className={styles.table}
+          className={`${styles.table} ${isOverviewMode ? styles.overviewTable : ""}`}
           ref={tableRef}
           style={{
             "--manual-grading-table-scale": tableScale / 100,
+            "--manual-grading-overview-row-height": `${1000 / tableScale}px`,
+            "--manual-grading-overview-question-width": `${1200 / tableScale}px`,
+            "--manual-grading-overview-student-width": `${7600 / tableScale}px`,
+            "--manual-grading-overview-attendance-width": `${3200 / tableScale}px`,
+            "--manual-grading-overview-font-size": `${900 / tableScale}px`,
           } as CSSProperties}
         >
           <thead>
@@ -1405,7 +1478,7 @@ export default function ManualExamGradingGrid({
                           min={0}
                           step="0.1"
                           value={questionScoreDraft[key] ?? ""}
-                          disabled={busy}
+                          disabled={busy || isOverviewMode}
                           aria-label={`${question.number}번 배점`}
                           onChange={(event) =>
                             setQuestionScore(
@@ -1434,7 +1507,7 @@ export default function ManualExamGradingGrid({
                 questionScoreDraft={questionScoreDraft}
                 manualGradingMethod={data.manual_grading_method}
                 hasEditableQuestions={hasEditableQuestions}
-                busy={busy}
+                busy={busy || isOverviewMode}
                 shortcuts={shortcuts}
                 onSetAttendance={setAttendance}
                 onUpdateCell={updateCell}
@@ -1565,18 +1638,21 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
   return (
     <tr>
       <td className={styles.studentColumn}>
-        <StudentNameWithLectureChip
-          name={row.student_name}
-          enrollmentId={row.enrollment_id}
-          lectures={row.lectures.map((lecture) => ({
-            lectureName: lecture.lecture_name,
-            color: lecture.color,
-            chipLabel: lecture.chip_label,
-          }))}
-          density="compact"
-          maxLectureChips={1}
-          examNotSubmittedCount={row.exam_not_submitted_count}
-        />
+        <div className={styles.studentDetail}>
+          <StudentNameWithLectureChip
+            name={row.student_name}
+            enrollmentId={row.enrollment_id}
+            lectures={row.lectures.map((lecture) => ({
+              lectureName: lecture.lecture_name,
+              color: lecture.color,
+              chipLabel: lecture.chip_label,
+            }))}
+            density="compact"
+            maxLectureChips={1}
+            examNotSubmittedCount={row.exam_not_submitted_count}
+          />
+        </div>
+        <span className={styles.overviewStudentName}>{row.student_name}</span>
       </td>
       <td className={styles.attendanceColumn}>
         <button
@@ -1585,12 +1661,18 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
             row.is_not_submitted ? styles.absent : ""
           }`}
           aria-pressed={row.is_not_submitted}
+          aria-label={`${row.student_name} ${row.is_not_submitted ? "결시" : "응시"}`}
           disabled={!hasEditableQuestions || busy}
           onClick={() =>
             onSetAttendance(row.enrollment_id, !row.is_not_submitted)
           }
         >
-          {row.is_not_submitted ? "결시" : "응시"}
+          <span className={styles.attendanceFullLabel}>
+            {row.is_not_submitted ? "결시" : "응시"}
+          </span>
+          <span className={styles.attendanceOverviewLabel} aria-hidden>
+            {row.is_not_submitted ? "결" : "응"}
+          </span>
         </button>
       </td>
       {questions.map((question, columnIndex) => {
