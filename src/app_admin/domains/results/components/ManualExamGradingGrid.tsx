@@ -57,6 +57,7 @@ import {
   type ManualGradingShortcutSettings,
 } from "../utils/manualGradingShortcuts";
 import styles from "./ManualExamGradingGrid.module.css";
+import overviewStyles from "./ManualExamGradingOverview.module.css";
 
 type Props = {
   examId: number;
@@ -1374,12 +1375,12 @@ export default function ManualExamGradingGrid({
       )}
 
       <div className={styles.tableToolbar}>
-        <span className={isOverviewMode ? styles.overviewHint : undefined} role="status">
+        <span className={isOverviewMode ? overviewStyles.overviewHint : undefined} role="status">
           {isOverviewMode
             ? "전체 조망 중 · 색상 흐름을 살펴보고, 입력은 50% 이상에서 이어가세요."
             : "학생 이름과 응시는 고정되며, 표만 가로·세로로 이동합니다."}
         </span>
-        <div className={styles.tableScaleControl} role="group" aria-label="채점표 배율">
+        <div className={overviewStyles.scaleControl} role="group" aria-label="채점표 배율">
           <button
             type="button"
             disabled={tableScale === TABLE_SCALE_STEPS[0]}
@@ -1410,7 +1411,7 @@ export default function ManualExamGradingGrid({
           </button>
           <button
             type="button"
-            className={styles.fitButton}
+            className={overviewStyles.fitButton}
             onClick={() => {
               hasSavedTableScaleRef.current = false;
               try {
@@ -1425,7 +1426,7 @@ export default function ManualExamGradingGrid({
           </button>
           <button
             type="button"
-            className={styles.overviewButton}
+            className={overviewStyles.overviewButton}
             onClick={fitEntireTableToViewport}
             aria-pressed={isOverviewMode}
             title="학생과 문항 전체를 한 화면에 맞춤"
@@ -1437,7 +1438,7 @@ export default function ManualExamGradingGrid({
 
       <div className={styles.tableWrap} ref={tableWrapRef} data-manual-grading-table-wrap>
         <table
-          className={`${styles.table} ${isOverviewMode ? styles.overviewTable : ""}`}
+          className={`${styles.table} ${isOverviewMode ? overviewStyles.overviewTable : ""}`}
           ref={tableRef}
           style={{
             "--manual-grading-table-scale": tableScale / 100,
@@ -1638,7 +1639,7 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
   return (
     <tr>
       <td className={styles.studentColumn}>
-        <div className={styles.studentDetail}>
+        <div className={overviewStyles.studentDetail}>
           <StudentNameWithLectureChip
             name={row.student_name}
             enrollmentId={row.enrollment_id}
@@ -1652,12 +1653,12 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
             examNotSubmittedCount={row.exam_not_submitted_count}
           />
         </div>
-        <span className={styles.overviewStudentName}>{row.student_name}</span>
+        <span className={overviewStyles.overviewStudentName}>{row.student_name}</span>
       </td>
       <td className={styles.attendanceColumn}>
         <button
           type="button"
-          className={`${styles.attendanceButton} ${
+          className={`${styles.attendanceButton} ${overviewStyles.attendanceButton} ${
             row.is_not_submitted ? styles.absent : ""
           }`}
           aria-pressed={row.is_not_submitted}
@@ -1667,10 +1668,10 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
             onSetAttendance(row.enrollment_id, !row.is_not_submitted)
           }
         >
-          <span className={styles.attendanceFullLabel}>
+          <span className={overviewStyles.attendanceFullLabel}>
             {row.is_not_submitted ? "결시" : "응시"}
           </span>
-          <span className={styles.attendanceOverviewLabel} aria-hidden>
+          <span className={overviewStyles.attendanceOverviewLabel} aria-hidden>
             {row.is_not_submitted ? "결" : "응"}
           </span>
         </button>

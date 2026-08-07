@@ -1,0 +1,215 @@
+.overviewHint {
+  padding: 5px 9px;
+  border: 1px solid #99f6e4;
+  border-radius: 999px;
+  background: #f0fdfa;
+  color: #0f766e;
+  font-weight: 750;
+}
+
+.scaleControl {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-height: 32px;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--color-border-divider, #e2e8f0);
+  border-radius: 8px;
+  background: var(--color-bg-surface, #fff);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.scaleControl button,
+.scaleControl select {
+  display: inline-grid;
+  min-width: 34px;
+  height: 30px;
+  place-items: center;
+  border: 0;
+  border-right: 1px solid var(--color-border-divider, #e2e8f0);
+  background: transparent;
+  color: var(--color-text-secondary, #475569);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.scaleControl button {
+  cursor: pointer;
+}
+
+.scaleControl button:hover:not(:disabled),
+.scaleControl select:hover,
+.scaleControl select:focus-visible,
+.scaleControl button:focus-visible {
+  background: var(--color-bg-surface-hover, #f8fafc);
+  color: var(--color-text-primary, #0f172a);
+}
+
+.scaleControl button:focus-visible,
+.scaleControl select:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid var(--color-brand-primary, #2563eb);
+  outline-offset: -2px;
+}
+
+.scaleControl button:disabled {
+  cursor: default;
+  opacity: 0.38;
+}
+
+.scaleControl select {
+  min-width: 58px;
+  padding: 0 6px;
+  cursor: pointer;
+  color: var(--color-text-primary, #0f172a);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.fitButton {
+  min-width: 72px !important;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.overviewButton {
+  min-width: 82px !important;
+  padding: 0 10px;
+  border-right: 0 !important;
+  white-space: nowrap;
+}
+
+.overviewButton[aria-pressed="true"] {
+  background: #ecfeff;
+  color: #0f766e;
+}
+
+.overviewTable {
+  margin-inline: auto;
+}
+
+.overviewTable th,
+.overviewTable td {
+  min-width: max(68px, var(--manual-grading-overview-question-width));
+  height: max(48px, var(--manual-grading-overview-row-height));
+  padding: 0;
+}
+
+.overviewTable th:nth-child(n+3),
+.overviewTable td:nth-child(n+3) {
+  min-width: max(66px, var(--manual-grading-overview-question-width)) !important;
+}
+
+.overviewTable thead th:nth-child(n+3) span,
+.overviewTable thead th:nth-child(n+3) > label {
+  display: none;
+}
+
+.overviewTable thead th:nth-child(n+3) strong {
+  font-size: max(14px, var(--manual-grading-overview-font-size));
+}
+
+.studentDetail {
+  display: block;
+}
+
+.overviewStudentName {
+  display: none;
+}
+
+.overviewTable th:first-child,
+.overviewTable td:first-child {
+  min-width: max(170px, var(--manual-grading-overview-student-width));
+  padding: 0 8px;
+}
+
+.overviewTable .studentDetail {
+  display: none;
+}
+
+.overviewTable .overviewStudentName {
+  display: block;
+  overflow: hidden;
+  font-size: max(12px, var(--manual-grading-overview-font-size));
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overviewTable th:nth-child(2),
+.overviewTable td:nth-child(2) {
+  left: max(170px, var(--manual-grading-overview-student-width));
+  min-width: max(60px, var(--manual-grading-overview-attendance-width));
+  padding: 0;
+}
+
+.overviewTable tbody td:nth-child(n+3) > * {
+  min-height: max(47px, var(--manual-grading-overview-row-height));
+  font-size: max(14px, var(--manual-grading-overview-font-size));
+  cursor: default;
+}
+
+.attendanceOverviewLabel {
+  display: none;
+}
+
+.overviewTable .attendanceButton {
+  min-width: max(44px, var(--manual-grading-overview-attendance-width));
+  padding: 0;
+  border-width: 0;
+  border-radius: 0;
+  font-size: max(11px, var(--manual-grading-overview-font-size));
+}
+
+.overviewTable .attendanceFullLabel {
+  display: none;
+}
+
+.overviewTable .attendanceOverviewLabel {
+  display: inline;
+}
+
+@media (max-width: 720px) {
+  .scaleControl {
+    display: grid;
+    width: 100%;
+    min-height: 62px;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .scaleControl button:first-of-type,
+  .scaleControl button:nth-of-type(2) {
+    min-width: 0;
+    grid-column: span 1;
+  }
+
+  .scaleControl button:nth-of-type(2) {
+    border-right: 0;
+  }
+
+  .scaleControl select {
+    width: 100%;
+    min-width: 0;
+    grid-column: span 4;
+  }
+
+  .scaleControl .fitButton,
+  .scaleControl .overviewButton {
+    width: 100%;
+    min-width: 0 !important;
+    height: 31px;
+    grid-column: span 3;
+    border-top: 1px solid var(--color-border-divider, #e2e8f0);
+  }
+
+  .overviewTable th:first-child,
+  .overviewTable td:first-child {
+    min-width: max(140px, var(--manual-grading-overview-student-width));
+  }
+
+  .overviewTable th:nth-child(2),
+  .overviewTable td:nth-child(2) {
+    left: max(140px, var(--manual-grading-overview-student-width));
+  }
+}
