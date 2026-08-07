@@ -1043,6 +1043,12 @@ test.describe("문항별 직접 채점", () => {
     expect(overviewLayout?.horizontalOverflow).toBeLessThanOrEqual(1);
     expect(overviewLayout?.verticalOverflow).toBeLessThan(layout?.tableVerticalOverflow ?? 0);
     expect(overviewLayout?.tableZoom).toBe("0.1");
+
+    await dialog.getByRole("button", { name: "화면 맞춤" }).click();
+    await expect(scaleSelect).toHaveValue(String(initialScale));
+    await expect(dialog.getByText("전체 조망 중", { exact: false })).toHaveCount(0);
+    await expect(dialog.locator("[data-manual-grade-cell]").first()).toBeEnabled();
+
     await dialog.getByRole("button", { name: "전체 조망" }).click();
     await expect(dialog.getByText("전체 조망 중", { exact: false })).toBeVisible();
 

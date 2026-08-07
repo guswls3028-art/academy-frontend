@@ -382,17 +382,29 @@ export default function ManualExamGradingGrid({
   }, [applyTableScale, tableScale]);
 
   const measureNaturalTable = useCallback(() => {
-    const tableWrap = tableWrapRef.current;
     const table = tableRef.current;
-    if (!tableWrap || !table) return null;
+    if (!table) return null;
 
-    const measured = {
-      width: table.scrollWidth,
-      height: table.scrollHeight,
-    };
-    if (!isOverviewMode) naturalTableSizeRef.current = measured;
-    return naturalTableSizeRef.current ?? measured;
-  }, [isOverviewMode]);
+    const hadOverviewClass = table.classList.contains(overviewStyles.overviewTable);
+    const previousMinWidth = table.style.minWidth;
+    const previousZoom = table.style.getPropertyValue("zoom");
+    if (hadOverviewClass) table.classList.remove(overviewStyles.overviewTable);
+    table.style.minWidth = "0";
+    table.style.setProperty("zoom", "1");
+
+    try {
+      const measured = {
+        width: table.scrollWidth,
+        height: table.scrollHeight,
+      };
+      naturalTableSizeRef.current = measured;
+      return measured;
+    } finally {
+      table.style.minWidth = previousMinWidth;
+      table.style.setProperty("zoom", previousZoom);
+      if (hadOverviewClass) table.classList.add(overviewStyles.overviewTable);
+    }
+  }, []);
 
   const fitTableToViewport = useCallback((persist = false) => {
     const tableWrap = tableWrapRef.current;
@@ -400,7 +412,7 @@ export default function ManualExamGradingGrid({
     const naturalTable = measureNaturalTable();
     if (!tableWrap || !table || !naturalTable) return;
 
-    const naturalWidth = table.scrollWidth;
+    const naturalWidth = naturalTable.width;
     const viewportWidth = tableWrap.clientWidth;
     if (naturalWidth <= 0) return;
     if (naturalWidth <= viewportWidth + 1) {
