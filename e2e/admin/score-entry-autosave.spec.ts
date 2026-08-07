@@ -8,6 +8,7 @@ type ScoreRouteOptions = {
   includeHomework?: boolean;
   homeworkMaxScore?: number;
   initialHomeworkScores?: Array<number | null>;
+  homeworkGradingMode?: "SCORE" | "COMPLETION";
 };
 
 function createLocalJwt() {
@@ -65,6 +66,7 @@ let failNextDraftPut = false;
 let delayNextScorePatchMs = 0;
 let includeHomework = false;
 let homeworkMaxScore = 100;
+let homeworkGradingMode: "SCORE" | "COMPLETION" = "SCORE";
 let homeworkAssignedRows = [false, true];
 let currentHomeworkScores: Array<number | null> = [null, 45];
 
@@ -83,6 +85,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
   delayNextScorePatchMs = 0;
   includeHomework = options.includeHomework ?? false;
   homeworkMaxScore = options.homeworkMaxScore ?? 100;
+  homeworkGradingMode = options.homeworkGradingMode ?? "SCORE";
   homeworkAssignedRows = [false, true];
   currentHomeworkScores = [...(options.initialHomeworkScores ?? [null, 45])];
 
@@ -111,6 +114,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
               homework_id: 9151,
               title: "단원 복습",
               unit: "점",
+              grading_mode: homeworkGradingMode,
               max_score: homeworkMaxScore,
               display_order: 2,
             }] : [],
@@ -146,8 +150,16 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
               block: {
                 score: currentHomeworkScores[index],
                 max_score: homeworkMaxScore,
-                passed: currentHomeworkScores[index] == null ? null : currentHomeworkScores[index]! >= 60,
-                clinic_required: currentHomeworkScores[index] == null ? false : currentHomeworkScores[index]! < 60,
+                passed: currentHomeworkScores[index] == null
+                  ? null
+                  : homeworkGradingMode === "COMPLETION"
+                    ? currentHomeworkScores[index]! >= 1
+                    : currentHomeworkScores[index]! >= 60,
+                clinic_required: currentHomeworkScores[index] == null
+                  ? false
+                  : homeworkGradingMode === "COMPLETION"
+                    ? currentHomeworkScores[index]! < 1
+                    : currentHomeworkScores[index]! < 60,
                 is_locked: false,
                 meta: {},
               },
@@ -407,6 +419,31 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       score: 42,
       max_score: 43,
     });
+  });
+
+  test("완료형 과제는 숫자 칸 대신 완료 상태 선택기로 저장한다", async ({ page }) => {
+    await openScores(page, {
+      includeHomework: true,
+      homeworkMaxScore: 1,
+      homeworkGradingMode: "COMPLETION",
+      initialHomeworkScores: [null, 0],
+    });
+    await ensureScoreEditing(page);
+
+    const completionSelect = page.getByRole("combobox", {
+      name: "자동저장학생2 · 단원 복습 완료 상태",
+    });
+    await expect(completionSelect).toHaveValue("미완료");
+    await completionSelect.selectOption("완료");
+
+    await expect.poll(() => homeworkPatches.at(-1)?.score, { timeout: 10_000 }).toBe(1);
+    expect(homeworkPatches.at(-1)).toMatchObject({
+      enrollment_id: 9202,
+      homework_id: 9151,
+      max_score: 1,
+    });
+    await expect(completionSelect).toHaveValue("완료");
+    await page.screenshot({ path: "test-results/homework-completion/scores-completion-select.png", fullPage: true });
   });
 
   test("수정 중 자동 저장·단축키를 지원하고 완료하면 다시 잠긴다", async ({ page }, testInfo) => {

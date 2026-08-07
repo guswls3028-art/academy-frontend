@@ -346,6 +346,7 @@ async function installApi(page: Page, options: {
   emptyAcademy?: boolean;
   failGrades?: boolean;
   failPerformance?: boolean;
+  homeworkQuickEdit?: boolean;
 } = {}): Promise<void> {
   await page.clock.setFixedTime(new Date("2026-07-19T12:00:00+09:00"));
   const access = fakeJwt();
@@ -358,6 +359,8 @@ async function installApi(page: Page, options: {
   }, { token: access });
 
   let scoreReviewResolved = false;
+  let completionScore = 0;
+  let numericScore = 28;
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
@@ -407,12 +410,70 @@ async function installApi(page: Page, options: {
       await route.fulfill({ json: { count: 1, page_size: 50, results: [student] } });
       return;
     }
+    if (options.homeworkQuickEdit && path.includes("/results/admin/sessions/") && path.endsWith("/score-draft/")) {
+      await route.fulfill({ json: { changes: [] } });
+      return;
+    }
+    if (options.homeworkQuickEdit && path.endsWith("/score-draft/commit/")) {
+      await route.fulfill({ status: 204 });
+      return;
+    }
+    if (options.homeworkQuickEdit && path.endsWith("/homework/scores/quick/") && request.method() === "PATCH") {
+      const payload = request.postDataJSON() as { homework_id: number; score: number };
+      if (payload.homework_id === 801) completionScore = Number(payload.score);
+      if (payload.homework_id === 802) numericScore = Number(payload.score);
+      await route.fulfill({ json: {
+        id: payload.homework_id,
+        score: payload.score,
+        max_score: payload.homework_id === 801 ? 1 : 30,
+        passed: payload.homework_id === 801 ? payload.score >= 1 : payload.score >= 24,
+      } });
+      return;
+    }
     if (path.endsWith("/results/admin/student-grades/")) {
       if (options.failGrades) {
         await route.fulfill({ status: 500, json: { detail: "성적 조회 일시 실패" } });
         return;
       }
-      await route.fulfill({ json: grades });
+      await route.fulfill({ json: options.homeworkQuickEdit ? {
+        ...grades,
+        homeworks: [
+          {
+            homework_id: 801,
+            enrollment_id: 201,
+            title: "어휘 암기 확인",
+            grading_mode: "COMPLETION",
+            score: completionScore,
+            max_score: 1,
+            passed: completionScore >= 1,
+            achievement: completionScore >= 1 ? "PASS" : "FAIL",
+            session_id: 710,
+            session_title: "10차시",
+            lecture_id: 501,
+            lecture_title: "Ymath 중등 심화",
+            lecture_color: "#2563eb",
+            lecture_chip_label: "Y",
+            is_locked: false,
+          },
+          {
+            homework_id: 802,
+            enrollment_id: 201,
+            title: "연산 30제",
+            grading_mode: "SCORE",
+            score: numericScore,
+            max_score: 30,
+            passed: numericScore >= 24,
+            achievement: numericScore >= 24 ? "PASS" : "FAIL",
+            session_id: 710,
+            session_title: "10차시",
+            lecture_id: 501,
+            lecture_title: "Ymath 중등 심화",
+            lecture_color: "#2563eb",
+            lecture_chip_label: "Y",
+            is_locked: false,
+          },
+        ],
+      } : grades });
       return;
     }
     if (path.endsWith("/results/admin/student-performance/")) {
@@ -750,6 +811,44 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await expect(page.locator('[data-guide="students-table"]')).toBeVisible();
     await detailOverlay.getByRole("button", { name: "닫기" }).click();
     await expect(page).toHaveURL(/\/workspace\/students\/home/);
+  });
+
+  test("학생 상세에서 완료형 상태와 숫자형 점수를 차시 이동 없이 바로 수정한다", async ({ page }) => {
+    await page.setViewportSize({ width: 1100, height: 820 });
+    await installApi(page, { homeworkQuickEdit: true });
+    await page.goto(`${BASE}/workspace/students/home`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: /윤지용 학생/ }).first().click();
+
+    const detailOverlay = page.getByTestId("student-detail-overlay");
+    await detailOverlay.getByRole("tab", { name: /과제/ }).click();
+
+    const completionRow = detailOverlay
+      .getByText("어휘 암기 확인", { exact: true })
+      .locator("xpath=ancestor::*[contains(@class,'tabRecord')][1]");
+    await expect(completionRow).toContainText("미완료");
+    await completionRow.getByRole("button", { name: "바로 수정" }).click();
+    const completionEditor = detailOverlay.getByRole("region", { name: "어휘 암기 확인 바로 수정" });
+    await completionEditor.getByRole("button", { name: "완료", exact: true }).click();
+    await expect(completionRow).toContainText("완료");
+    await expect(completionEditor.getByRole("button", { name: "완료", exact: true })).toHaveAttribute("aria-pressed", "true");
+
+    const numericRow = detailOverlay
+      .getByText("연산 30제", { exact: true })
+      .locator("xpath=ancestor::*[contains(@class,'tabRecord')][1]");
+    await expect(numericRow).toContainText("28/30");
+    await numericRow.getByRole("button", { name: "바로 수정" }).click();
+    const numericEditor = detailOverlay.getByRole("region", { name: "연산 30제 바로 수정" });
+    await numericEditor.getByRole("button", { name: "전부 완료" }).click();
+    await expect(numericRow).toContainText("30/30");
+    await detailOverlay.screenshot({ path: "test-results/homework-completion/student-detail-1100.png" });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await numericEditor.scrollIntoViewIfNeeded();
+    await expect.poll(() => detailOverlay.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    )).toBe(true);
+    await expect(numericEditor).toBeVisible();
+    await detailOverlay.screenshot({ path: "test-results/homework-completion/student-detail-390.png" });
   });
 
   test("학원 시험 결과가 없을 때 다음 상태를 이해할 수 있게 안내한다", async ({ page }) => {

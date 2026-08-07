@@ -719,6 +719,48 @@ table.ds-table {
   box-shadow: none !important;
 }
 
+.ds-scores-table .ds-scores-completion-select {
+  width: 100%;
+  min-width: 88px;
+  border: 1px solid var(--color-border-divider-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  padding: 0.35rem 1.65rem 0.35rem 0.55rem;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.ds-scores-table .ds-scores-completion-select[data-completion-state="complete"] {
+  border-color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 10%, var(--color-bg-surface));
+  color: var(--color-success-strong, var(--color-success));
+}
+
+.ds-scores-table .ds-scores-completion-select[data-completion-state="incomplete"] {
+  border-color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 9%, var(--color-bg-surface));
+  color: var(--color-danger);
+}
+
+.ds-scores-table .ds-scores-completion-select:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.ds-scores-table .ds-scores-completion-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-scores-table .ds-scores-completion-select {
+    transition: none;
+  }
+}
+
 /* Active cell — 엑셀 스타일 굵은 테두리 */
 .ds-scores-table tbody td.ds-scores-cell-active {
   outline: 2px solid var(--color-brand-primary) !important;

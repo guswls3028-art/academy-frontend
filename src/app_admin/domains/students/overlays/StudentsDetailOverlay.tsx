@@ -38,6 +38,7 @@ import LectureChip from "@/shared/ui/chips/LectureChip";
 import StudentScoreTrendChart from "@/shared/ui/assessment/StudentScoreTrendChart";
 import {
   fetchAdminStudentGrades,
+  updateStudentHomeworkGrade,
   type StudentExamGrade,
   type StudentGradesResponse,
   type StudentHomeworkGrade,
@@ -530,6 +531,7 @@ export default function StudentsDetailOverlay({
                       isLoading={gradesLoading}
                       isError={gradesError}
                       onRetry={() => { void refetchGrades(); }}
+                      onUpdated={async () => { await refetchGrades(); }}
                       onNavigate={(path) => { closeOverride?.(); navigate(path); }}
                     />
                   )}
@@ -1305,14 +1307,17 @@ function HomeworkTab({
   isLoading,
   isError,
   onRetry,
+  onUpdated,
   onNavigate,
 }: {
   data: StudentHomeworkGrade[];
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
+  onUpdated: () => Promise<unknown>;
   onNavigate: (path: string) => void;
 }) {
+  const [editingKey, setEditingKey] = useState<string | null>(null);
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="과제 성적을 불러오는 중…" />;
   if (isError) {
     return (
@@ -1337,9 +1342,11 @@ function HomeworkTab({
         const sessionId = hw.session_id;
         const canNav = !!lectureId && !!sessionId;
         const navPath = canNav ? `/workspace/lectures/${lectureId}/sessions/${sessionId}/scores` : "";
+        const rowKey = `${hw.homework_id}-${hw.enrollment_id}-${i}`;
+        const isEditing = editingKey === rowKey;
         return (
+          <div key={rowKey} className={styles.homeworkRecordGroup}>
           <div
-            key={`${hw.homework_id}-${hw.enrollment_id}-${i}`}
             className={styles.tabRecord}
             data-clickable={canNav ? "" : undefined}
             onClick={canNav ? () => onNavigate(navPath) : undefined}
@@ -1355,7 +1362,7 @@ function HomeworkTab({
               </div>
             </div>
             <div className={styles.recordActions}>
-              {hw.score != null && (
+              {hw.grading_mode !== "COMPLETION" && hw.score != null && (
                 <span className={styles.scoreValue}>
                   {Math.round(hw.score)}<span className={styles.scoreMax}>/{hw.max_score ?? 100}</span>
                 </span>
@@ -1365,13 +1372,183 @@ function HomeworkTab({
                   {achievementLabel[hw.achievement] || hw.achievement}
                 </Badge>
               )}
+              <Button
+                type="button"
+                intent="secondary"
+                size="sm"
+                aria-expanded={isEditing}
+                aria-controls={`homework-quick-editor-${hw.homework_id}-${hw.enrollment_id}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setEditingKey(isEditing ? null : rowKey);
+                }}
+              >
+                바로 수정
+              </Button>
               {canNav && (
                 <ChevronIcon />
               )}
             </div>
           </div>
+          {isEditing && (
+            <HomeworkQuickEditor
+              grade={hw}
+              onClose={() => setEditingKey(null)}
+              onUpdated={onUpdated}
+            />
+          )}
+          </div>
         );
       })}
+    </div>
+  );
+}
+
+function HomeworkQuickEditor({
+  grade,
+  onClose,
+  onUpdated,
+}: {
+  grade: StudentHomeworkGrade;
+  onClose: () => void;
+  onUpdated: () => Promise<unknown>;
+}) {
+  const maxScore = Number(grade.max_score ?? (grade.grading_mode === "COMPLETION" ? 1 : 100));
+  const [draft, setDraft] = useState(grade.score == null ? "" : String(grade.score));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDraft(grade.score == null ? "" : String(grade.score));
+  }, [grade.homework_id, grade.enrollment_id, grade.score]);
+
+  const save = async (score: number) => {
+    if (grade.is_locked || saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await updateStudentHomeworkGrade(grade, score);
+      await onUpdated();
+      feedback.success(
+        grade.grading_mode === "COMPLETION"
+          ? score >= 1 ? "과제를 완료로 변경했습니다." : "과제를 미완료로 변경했습니다."
+          : "과제 점수를 변경했습니다.",
+      );
+    } catch (requestError) {
+      const detail = (requestError as {
+        response?: { data?: { detail?: string | { detail?: string } } };
+        message?: string;
+      })?.response?.data?.detail;
+      setError(
+        typeof detail === "string"
+          ? detail
+          : requestError instanceof Error
+            ? requestError.message
+            : "과제 상태를 변경하지 못했습니다.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveDraft = () => {
+    const score = Number(draft);
+    if (!Number.isFinite(score) || score < 0 || score > maxScore) {
+      setError(`점수는 0부터 ${maxScore} 사이로 입력해 주세요.`);
+      return;
+    }
+    void save(score);
+  };
+
+  const completionValue = grade.score == null ? null : grade.score >= 1;
+
+  return (
+    <div
+      id={`homework-quick-editor-${grade.homework_id}-${grade.enrollment_id}`}
+      className={styles.homeworkQuickEditor}
+      role="region"
+      aria-label={`${grade.title} 바로 수정`}
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.stopPropagation();
+          onClose();
+        }
+      }}
+    >
+      <div className={styles.homeworkQuickHeader}>
+        <div>
+          <strong>{grade.grading_mode === "COMPLETION" ? "완료 상태 변경" : "점수 바로 수정"}</strong>
+          <p>
+            {grade.grading_mode === "COMPLETION"
+              ? "선택 즉시 저장되고 클리닉 판정도 함께 갱신됩니다."
+              : "점수를 저장하면 합격 기준에 따라 완료 상태가 다시 계산됩니다."}
+          </p>
+        </div>
+        <button type="button" className={styles.homeworkQuickClose} onClick={onClose} aria-label="과제 바로 수정 닫기">×</button>
+      </div>
+
+      {grade.is_locked ? (
+        <p className={styles.homeworkQuickError} role="alert">
+          이 과제 결과는 현재 잠겨 있어 변경할 수 없습니다.
+        </p>
+      ) : grade.grading_mode === "COMPLETION" ? (
+        <div className={styles.homeworkCompletionChoices} role="group" aria-label="완료 상태">
+          <Button
+            type="button"
+            intent={completionValue === false ? "danger" : "secondary"}
+            size="sm"
+            disabled={saving}
+            aria-pressed={completionValue === false}
+            onClick={() => void save(0)}
+          >
+            미완료
+          </Button>
+          <Button
+            type="button"
+            intent={completionValue === true ? "primary" : "secondary"}
+            size="sm"
+            disabled={saving}
+            aria-pressed={completionValue === true}
+            onClick={() => void save(1)}
+          >
+            완료
+          </Button>
+        </div>
+      ) : (
+        <div className={styles.homeworkScoreEditor}>
+          <label>
+            <span>현재 점수</span>
+            <span className={styles.homeworkScoreInputWrap}>
+              <input
+                type="number"
+                min={0}
+                max={maxScore}
+                step="any"
+                value={draft}
+                disabled={saving}
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    saveDraft();
+                  }
+                }}
+              />
+              <span>/ {maxScore}</span>
+            </span>
+          </label>
+          <div className={styles.homeworkQuickActions}>
+            <Button type="button" intent="secondary" size="sm" disabled={saving} onClick={() => void save(maxScore)}>
+              전부 완료
+            </Button>
+            <Button type="button" intent="primary" size="sm" disabled={saving || !draft.trim()} onClick={saveDraft}>
+              {saving ? "저장 중…" : "점수 저장"}
+            </Button>
+          </div>
+        </div>
+      )}
+      {error && <p className={styles.homeworkQuickError} role="alert">{error}</p>}
     </div>
   );
 }

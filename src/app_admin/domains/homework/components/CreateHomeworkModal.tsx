@@ -31,10 +31,12 @@ type Props = {
 type Stage = "choose" | "new" | "import" | "copy";
 
 type CutlineMode = "PERCENT" | "COUNT";
+type GradingMode = "SCORE" | "COMPLETION";
 
 type BulkRow = {
   key: number;
   title: string;
+  gradingMode: GradingMode;
   maxScore: string;
   cutline: string;
   dueDate: string;
@@ -51,7 +53,14 @@ function getDefaultDueDate(): string {
 
 let rowKeyCounter = 0;
 function makeRow(): BulkRow {
-  return { key: ++rowKeyCounter, title: "", maxScore: "100", cutline: "80", dueDate: getDefaultDueDate() };
+  return {
+    key: ++rowKeyCounter,
+    title: "",
+    gradingMode: "SCORE",
+    maxScore: "100",
+    cutline: "80",
+    dueDate: getDefaultDueDate(),
+  };
 }
 
 export default function CreateHomeworkModal({
@@ -139,7 +148,11 @@ export default function CreateHomeworkModal({
   const removeRow = (key: number) =>
     setRows((prev) => (prev.length <= 1 ? prev : prev.filter((r) => r.key !== key)));
 
-  const updateRow = (key: number, field: keyof Omit<BulkRow, "key">, value: string) =>
+  const updateRow = <K extends keyof Omit<BulkRow, "key">>(
+    key: number,
+    field: K,
+    value: BulkRow[K],
+  ) =>
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, [field]: value } : r)));
 
   const moveRow = (key: number, direction: "up" | "down") =>
@@ -170,7 +183,8 @@ export default function CreateHomeworkModal({
     const createdIds: number[] = [];
     const failed: string[] = [];
 
-    const invalidMaxRow = validRows.find((row) => {
+    const scoreRows = validRows.filter((row) => row.gradingMode === "SCORE");
+    const invalidMaxRow = scoreRows.find((row) => {
       const value = Number(row.maxScore);
       return !Number.isFinite(value) || value <= 0;
     });
@@ -179,7 +193,7 @@ export default function CreateHomeworkModal({
       setError(`'${invalidMaxRow.title.trim()}' 과제의 만점은 1 이상이어야 합니다.`);
       return;
     }
-    const invalidCutlineRow = validRows.find((row) => {
+    const invalidCutlineRow = scoreRows.find((row) => {
       const value = Number(row.cutline);
       if (!Number.isFinite(value) || value < 0 || !Number.isInteger(value)) return true;
       if (cutlineMode === "PERCENT") return value > 100;
@@ -204,10 +218,15 @@ export default function CreateHomeworkModal({
         const res = await api.post("/homeworks/", {
           session_id: sessionId,
           title: row.title.trim(),
-          max_score: maxScore,
-          cutline_mode: cutlineMode,
-          cutline_value: cutlineValue,
-          round_unit_percent: 5,
+          grading_mode: row.gradingMode,
+          ...(row.gradingMode === "SCORE"
+            ? {
+                max_score: maxScore,
+                cutline_mode: cutlineMode,
+                cutline_value: cutlineValue,
+                round_unit_percent: 5,
+              }
+            : {}),
           meta: row.dueDate ? { due_date: row.dueDate } : undefined,
         });
         const newId = Number(res.data?.id ?? res.data?.homework_id ?? res.data?.pk);
@@ -330,6 +349,7 @@ export default function CreateHomeworkModal({
         const res = await api.post("/homeworks/", {
           session_id: sessionId,
           title: item.title,
+          grading_mode: item.grading_mode,
           max_score: item.max_score,
           cutline_mode: item.cutline_mode,
           cutline_value: item.cutline_value,
@@ -505,10 +525,10 @@ export default function CreateHomeworkModal({
           {/* ── Stage: new (bulk form) ── */}
           {stage === "new" && (
             <div className="modal-form-group">
-              {/* 커트라인 모드 — 값은 과제 행별로 입력 */}
+              {/* 점수형 과제의 커트라인 모드 — 값은 과제 행별로 입력 */}
               <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-3 py-2.5">
                 <span className="text-sm font-semibold text-[var(--color-text-primary)] shrink-0">
-                  커트라인 기준
+                  점수형 과제 기준
                 </span>
                 <div
                   className="inline-flex rounded-md border border-[var(--color-border-divider)] overflow-hidden"
@@ -541,7 +561,7 @@ export default function CreateHomeworkModal({
                   </button>
                 </div>
                 <span className="text-xs text-[var(--color-text-muted)]">
-                  값은 아래 과제마다 따로 입력 · 미만은 클리닉 보강 대상
+                  완료형 과제는 완료/미완료만 선택합니다.
                 </span>
               </div>
 
@@ -551,10 +571,40 @@ export default function CreateHomeworkModal({
                     key={row.key}
                     className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-3"
                   >
-                    <div className="mb-3 flex items-center justify-between gap-2">
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                       <span className="text-xs font-bold text-[var(--color-text-muted)]">
                         {idx + 1}번
                       </span>
+                      <div
+                        className="inline-flex overflow-hidden rounded-md border border-[var(--color-border-divider)]"
+                        role="group"
+                        aria-label={`과제 ${idx + 1} 채점 방식`}
+                      >
+                        <button
+                          type="button"
+                          className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
+                            row.gradingMode === "SCORE"
+                              ? "bg-[var(--color-brand-primary)] text-white"
+                              : "bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)]"
+                          }`}
+                          aria-pressed={row.gradingMode === "SCORE"}
+                          onClick={() => updateRow(row.key, "gradingMode", "SCORE")}
+                        >
+                          숫자 채점
+                        </button>
+                        <button
+                          type="button"
+                          className={`border-l border-[var(--color-border-divider)] px-3 py-1.5 text-xs font-semibold transition-colors ${
+                            row.gradingMode === "COMPLETION"
+                              ? "bg-[var(--color-brand-primary)] text-white"
+                              : "bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)]"
+                          }`}
+                          aria-pressed={row.gradingMode === "COMPLETION"}
+                          onClick={() => updateRow(row.key, "gradingMode", "COMPLETION")}
+                        >
+                          완료 체크
+                        </button>
+                      </div>
                       <div className="inline-flex items-center gap-1">
                         <button
                           type="button"
@@ -588,7 +638,12 @@ export default function CreateHomeworkModal({
                         </button>
                       </div>
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_96px_110px_150px]">
+                    <div className={`grid gap-3 ${
+                      row.gradingMode === "SCORE"
+                        ? "sm:grid-cols-[minmax(0,1fr)_96px_110px_150px]"
+                        : "sm:grid-cols-[minmax(0,1fr)_minmax(180px,0.7fr)_150px]"
+                    }`}>
+                      {row.gradingMode === "SCORE" ? <>
                       <label className="grid gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
                         제목
                         <input
@@ -613,6 +668,12 @@ export default function CreateHomeworkModal({
                           aria-label={`과제 ${idx + 1} 커트라인`}
                         />
                       </label>
+                      </> : (
+                        <div className="grid content-center gap-1 rounded-lg bg-[var(--color-bg-surface-soft)] px-3 py-2 text-xs text-[var(--color-text-secondary)]">
+                          <strong className="text-[var(--color-text-primary)]">완료 / 미완료</strong>
+                          <span>문제 수 없이 두 상태로만 검사합니다.</span>
+                        </div>
+                      )}
                       <label className="grid gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
                         만점
                         <input

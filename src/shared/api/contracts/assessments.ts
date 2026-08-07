@@ -13,6 +13,7 @@ export type AssessmentHomeworkListItem = {
   title: string;
   session_id?: number;
   max_score: number;
+  grading_mode: "SCORE" | "COMPLETION";
   effective_cutline_mode: AssessmentHomeworkCutlineMode;
   effective_cutline_value: number;
 };
@@ -68,6 +69,10 @@ export async function fetchAssessmentHomeworks(params?: {
       max_score: asPositiveNumber(
         record.max_score ?? asRecord(record.meta).default_max_score,
       ) ?? 100,
+      grading_mode:
+        String(record.grading_mode).toUpperCase() === "COMPLETION"
+          ? "COMPLETION"
+          : "SCORE",
       effective_cutline_mode:
         String(record.effective_cutline_mode).toUpperCase() === "COUNT"
           ? "COUNT"
