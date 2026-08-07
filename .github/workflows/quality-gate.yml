@@ -809,6 +809,21 @@ jobs:
             SessionDetailPage SessionScoresEntryPage SessionAssessmentSidePanel
           )
           PROBE_ASSETS=()
+          mapfile -t ENTRY_ASSETS < <(node - <<'NODE'
+          const fs = require('fs');
+          const html = fs.readFileSync('.deploy-bundle/dist/index.html', 'utf8');
+          const assets = new Set();
+          for (const match of html.matchAll(/(?:src|href)=["']\/assets\/([^"']+\.(?:js|css))["']/g)) {
+            assets.add(match[1]);
+          }
+          process.stdout.write([...assets].sort().join('\n'));
+          NODE
+          )
+          if [ "${#ENTRY_ASSETS[@]}" -eq 0 ]; then
+            echo "::error::No entry JavaScript or CSS assets were found in deployed index.html"
+            exit 1
+          fi
+          PROBE_ASSETS+=("${ENTRY_ASSETS[@]}")
           for NAME in "${PROBE_NAMES[@]}"; do
             mapfile -t MATCHES < <(find .deploy-bundle/dist/assets -maxdepth 1 -type f -name "${NAME}-*.js" -printf '%f\n')
             if [ "${#MATCHES[@]}" -eq 0 ]; then
@@ -818,7 +833,7 @@ jobs:
             PROBE_ASSETS+=("${MATCHES[@]}")
           done
           mapfile -t PROBE_ASSETS < <(printf '%s\n' "${PROBE_ASSETS[@]}" | sort -u)
-          echo "Checking ${#PROBE_ASSETS[@]} route-critical assets"
+          echo "Checking ${#PROBE_ASSETS[@]} entry and route-critical assets"
 
           CURL_ARGS=(--connect-timeout 5 -fsS)
           DEADLINE=$((SECONDS + 300))
