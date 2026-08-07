@@ -1674,7 +1674,7 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
             row.is_not_submitted ? styles.absent : ""
           }`}
           aria-pressed={row.is_not_submitted}
-          aria-label={`${row.student_name} ${row.is_not_submitted ? "결시" : "응시"}`}
+          aria-label={row.is_not_submitted ? "결시" : "응시"}
           disabled={!hasEditableQuestions || busy}
           onClick={() =>
             onSetAttendance(row.enrollment_id, !row.is_not_submitted)
