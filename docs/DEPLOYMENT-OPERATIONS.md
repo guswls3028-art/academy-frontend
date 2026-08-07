@@ -16,8 +16,10 @@
    ownership을 읽고 rollback baseline으로 고정한다.
 4. `production` GitHub Environment의 승인 뒤 같은 artifact를
    `CLOUDFLARE_PRODUCTION_API_TOKEN`으로 direct upload한다.
-5. 운영 `version.json`과 route-critical asset이 연속 3회 일치한 뒤 login,
-   tenant availability, notice/QnA/clinic/session-assessment canary를 실행한다.
+5. 운영 `version.json`, 배포 `index.html`이 직접 참조하는 진입 JS/CSS, 그리고
+   route-critical lazy asset이 연속 3회 일치한 뒤 login, tenant availability,
+   notice/QnA/clinic/session-assessment canary를 실행한다. 진입 자산을 빼면 새
+   HTML만 먼저 전파되어 `index-*.js`가 404인 순간을 안정화 완료로 오인할 수 있다.
 6. deploy job 내부 검증 실패는 같은 승인 job에서 즉시 baseline으로 rollback한다.
    후속 E2E 실패는 별도 `production-rollback` environment가 승인 대기 없이
    baseline으로 보상하고 실제 version 복귀를 확인한다.
