@@ -89,7 +89,7 @@ export default function ExamPdfUploadModal({ open, onClose, examId, sourceKind =
           <div className={styles.sourceModes} aria-label="지원하는 자료 구성">
             <div>
               <strong>문제+해설 한 파일</strong>
-              <span>PDF 또는 미주 HWP·HWPX</span>
+              <span>PDF 또는 본문 문제·미주 해설 HWP·HWPX</span>
             </div>
             <div>
               <strong>문제 파일만</strong>
