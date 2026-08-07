@@ -47,6 +47,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { formatPhone, formatStudentPhoneDisplay, formatOmrCode, formatGenderDisplay } from "@/shared/utils/formatPhone";
 import { adminStudentsQueryKeys } from "../queryKeys";
 import StudentWrongNoteBuilder from "@admin/domains/results/public/StudentWrongNoteBuilder";
+import HomeworkQuickEditor from "./HomeworkQuickEditor";
 import styles from "./StudentsDetailOverlay.module.css";
 
 const StudentFormModal = lazy(() => import("../components/EditStudentModal"));
@@ -530,6 +531,7 @@ export default function StudentsDetailOverlay({
                       isLoading={gradesLoading}
                       isError={gradesError}
                       onRetry={() => { void refetchGrades(); }}
+                      onUpdated={async () => { await refetchGrades(); }}
                       onNavigate={(path) => { closeOverride?.(); navigate(path); }}
                     />
                   )}
@@ -1305,14 +1307,17 @@ function HomeworkTab({
   isLoading,
   isError,
   onRetry,
+  onUpdated,
   onNavigate,
 }: {
   data: StudentHomeworkGrade[];
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
+  onUpdated: () => Promise<unknown>;
   onNavigate: (path: string) => void;
 }) {
+  const [editingKey, setEditingKey] = useState<string | null>(null);
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="과제 성적을 불러오는 중…" />;
   if (isError) {
     return (
@@ -1337,9 +1342,11 @@ function HomeworkTab({
         const sessionId = hw.session_id;
         const canNav = !!lectureId && !!sessionId;
         const navPath = canNav ? `/workspace/lectures/${lectureId}/sessions/${sessionId}/scores` : "";
+        const rowKey = `${hw.homework_id}-${hw.enrollment_id}-${i}`;
+        const isEditing = editingKey === rowKey;
         return (
+          <div key={rowKey} className={styles.homeworkRecordGroup}>
           <div
-            key={`${hw.homework_id}-${hw.enrollment_id}-${i}`}
             className={styles.tabRecord}
             data-clickable={canNav ? "" : undefined}
             onClick={canNav ? () => onNavigate(navPath) : undefined}
@@ -1355,7 +1362,7 @@ function HomeworkTab({
               </div>
             </div>
             <div className={styles.recordActions}>
-              {hw.score != null && (
+              {hw.grading_mode !== "COMPLETION" && hw.score != null && (
                 <span className={styles.scoreValue}>
                   {Math.round(hw.score)}<span className={styles.scoreMax}>/{hw.max_score ?? 100}</span>
                 </span>
@@ -1365,10 +1372,31 @@ function HomeworkTab({
                   {achievementLabel[hw.achievement] || hw.achievement}
                 </Badge>
               )}
+              <Button
+                type="button"
+                intent="secondary"
+                size="sm"
+                aria-expanded={isEditing}
+                aria-controls={`homework-quick-editor-${hw.homework_id}-${hw.enrollment_id}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setEditingKey(isEditing ? null : rowKey);
+                }}
+              >
+                바로 수정
+              </Button>
               {canNav && (
                 <ChevronIcon />
               )}
             </div>
+          </div>
+          {isEditing && (
+            <HomeworkQuickEditor
+              grade={hw}
+              onClose={() => setEditingKey(null)}
+              onUpdated={onUpdated}
+            />
+          )}
           </div>
         );
       })}

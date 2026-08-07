@@ -27,6 +27,7 @@ export type SelectedHomeworkItem = {
   id: number;
   title: string;
   max_score: number;
+  grading_mode: "SCORE" | "COMPLETION";
   cutline_mode: "PERCENT" | "COUNT";
   cutline_value: number;
 };
@@ -200,6 +201,7 @@ export default function SessionItemBrowser({
             id: h.id,
             title: h.title,
             max_score: h.max_score,
+            grading_mode: h.grading_mode,
             cutline_mode: h.effective_cutline_mode,
             cutline_value: h.effective_cutline_value,
           }));
@@ -343,8 +345,10 @@ export default function SessionItemBrowser({
                       )}
                       {homework && (
                         <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-                          만점 {homework.max_score} · 기준 {homework.effective_cutline_value}
-                          {homework.effective_cutline_mode === "PERCENT" ? "%" : "점"}
+                          {homework.grading_mode === "COMPLETION"
+                            ? "완료/미완료로 검사"
+                            : <>만점 {homework.max_score} · 기준 {homework.effective_cutline_value}
+                                {homework.effective_cutline_mode === "PERCENT" ? "%" : "점"}</>}
                         </div>
                       )}
                     </div>

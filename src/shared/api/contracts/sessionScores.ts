@@ -109,6 +109,7 @@ export type SessionScoreMeta = {
     homework_id: number;
     title: string;
     unit: string | null;
+    grading_mode: "SCORE" | "COMPLETION";
     max_score: number;
     display_order: number;
   }[];

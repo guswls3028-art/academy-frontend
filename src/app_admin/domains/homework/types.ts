@@ -13,6 +13,7 @@
  */
 
 export type HomeworkCutlineMode = "PERCENT" | "COUNT";
+export type HomeworkGradingMode = "SCORE" | "COMPLETION";
 
 export type HomeworkCutlineSettings = {
   cutline_mode: HomeworkCutlineMode;
@@ -29,6 +30,7 @@ export type HomeworkSummary = {
   session_id?: number;
   homework_type?: "template" | "regular";
   template_homework_id?: number | null;
+  grading_mode?: HomeworkGradingMode;
 };
 
 export type HomeworkScore = {

@@ -4231,6 +4231,38 @@ export interface paths {
         patch: operations["homeworks_partial_update"];
         trace?: never;
     };
+    "/api/v1/homeworks/{id}/question-grading/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["homeworks_question_grading_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["homeworks_question_grading_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/homeworks/{id}/source-exam/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["homeworks_source_exam_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/homeworks/templates/with-usage/": {
         parameters: {
             query?: never;
@@ -4825,6 +4857,57 @@ export interface paths {
          *     그 자체로 게시 (서버가 curated PDF generate → R2 copy).
          */
         post: operations["landing_public_matchup_showcase_publish_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/landing-public/problem-review-showcase/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Public, tenant-scoped snapshots of teacher-reviewed exam analyses. */
+        get: operations["landing_public_problem_review_showcase_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/landing-public/problem-review-showcase/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Public, tenant-scoped snapshots of teacher-reviewed exam analyses. */
+        get: operations["landing_public_problem_review_showcase_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/landing-public/problem-review-showcase/{id}/pdf/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Public, tenant-scoped snapshots of teacher-reviewed exam analyses. */
+        get: operations["landing_public_problem_review_showcase_pdf_retrieve"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -8237,6 +8320,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/results/wrong-notes/preview/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["results_wrong_notes_preview_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/results/wrong-notes/sources/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["results_wrong_notes_sources_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/staffs/": {
         parameters: {
             query?: never;
@@ -10527,6 +10642,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tools/problem-review/reports/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tools_problem_review_report_list"];
+        put?: never;
+        post: operations["tools_problem_review_report_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tools/problem-review/reports/{report_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tools_problem_review_report_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["tools_problem_review_report_update"];
+        trace?: never;
+    };
+    "/api/v1/tools/problem-review/reports/{report_id}/exports/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tools_problem_review_export_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tools/problem-review/reports/{report_id}/exports/{job_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tools_problem_review_export_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tools/problem-review/reports/{report_id}/publication/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tools_problem_review_publish"];
+        delete: operations["tools_problem_review_unpublish"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tools/problem-review/reports/{report_id}/verification/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tools_problem_review_finalize"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tools/problem-solver/jobs/": {
         parameters: {
             query?: never;
@@ -11525,7 +11736,7 @@ export interface components {
              *     * `written` - 답변형
              *     * `mixed` - 혼합형
              */
-            grading_mode?: components["schemas"]["GradingModeEnum"];
+            grading_mode?: components["schemas"]["ExamGradingMode"];
             readonly id: number;
             is_active?: boolean;
             /**
@@ -11658,7 +11869,7 @@ export interface components {
              *     * `written` - 답변형
              *     * `mixed` - 혼합형
              */
-            grading_mode?: components["schemas"]["GradingModeEnum"];
+            grading_mode?: components["schemas"]["ExamGradingMode"];
             /**
              * @description 답변형 문항을 문항별 점수 또는 정오로 입력하는 방식.
              *
@@ -11715,7 +11926,7 @@ export interface components {
              *     * `written` - 답변형
              *     * `mixed` - 혼합형
              */
-            grading_mode?: components["schemas"]["GradingModeEnum"];
+            grading_mode?: components["schemas"]["ExamGradingMode"];
             /**
              * @description 답변형 문항을 문항별 점수 또는 정오로 입력하는 방식.
              *
@@ -11737,6 +11948,13 @@ export interface components {
             subject?: string;
             title: string;
         };
+        /**
+         * @description * `choice` - 선택형
+         *     * `written` - 답변형
+         *     * `mixed` - 혼합형
+         * @enum {string}
+         */
+        ExamGradingMode: "choice" | "written" | "mixed";
         /**
          * @description * `POLICY` - 정책 기준
          *     * `EXAM` - 시험 기준
@@ -11786,7 +12004,7 @@ export interface components {
              *     * `written` - 답변형
              *     * `mixed` - 혼합형
              */
-            grading_mode?: components["schemas"]["GradingModeEnum"];
+            grading_mode?: components["schemas"]["ExamGradingMode"];
             is_active?: boolean;
             /**
              * @description 답변형 문항을 문항별 점수 또는 정오로 입력하는 방식.
@@ -11850,7 +12068,7 @@ export interface components {
              *     * `written` - 답변형
              *     * `mixed` - 혼합형
              */
-            grading_mode?: components["schemas"]["GradingModeEnum"];
+            grading_mode?: components["schemas"]["ExamGradingMode"];
             is_active?: boolean;
             /**
              * @description 답변형 문항을 문항별 점수 또는 정오로 입력하는 방식.
@@ -12034,13 +12252,6 @@ export interface components {
          * @enum {string}
          */
         GenderEnum: "M" | "F";
-        /**
-         * @description * `choice` - 선택형
-         *     * `written` - 답변형
-         *     * `mixed` - 혼합형
-         * @enum {string}
-         */
-        GradingModeEnum: "choice" | "written" | "mixed";
         Homework: {
             /** Format: date-time */
             readonly created_at: string;
@@ -12064,6 +12275,13 @@ export interface components {
             readonly effective_cutline_mode: string;
             readonly effective_cutline_value: number;
             readonly effective_round_unit_percent: number;
+            /**
+             * @description SCORE는 수치 점수, COMPLETION은 완료/미완료(1/0)로 기록한다.
+             *
+             *     * `SCORE` - 점수형
+             *     * `COMPLETION` - 완료형
+             */
+            grading_mode?: components["schemas"]["HomeworkGradingMode"];
             homework_type?: components["schemas"]["HomeworkTypeEnum"];
             readonly id: number;
             /** Format: double */
@@ -12076,6 +12294,10 @@ export interface components {
             round_unit_percent?: number | null;
             /** @description 일반(regular) 과제는 필수. 템플릿은 null. */
             session?: number | null;
+            readonly source_exam_id: number;
+            readonly source_filename: string;
+            readonly source_question_count: number;
+            readonly source_status: string;
             /** @description 일반 과제가 참조하는 템플릿 */
             template_homework?: number | null;
             title: string;
@@ -12089,6 +12311,12 @@ export interface components {
          * @enum {string}
          */
         HomeworkCutlineModeEnum: "PERCENT" | "COUNT";
+        /**
+         * @description * `SCORE` - 점수형
+         *     * `COMPLETION` - 완료형
+         * @enum {string}
+         */
+        HomeworkGradingMode: "SCORE" | "COMPLETION";
         /**
          * @description * `SUBMIT` - 제출만
          *     * `SCORE` - 점수
@@ -12154,6 +12382,13 @@ export interface components {
              * @description 성적탭 내 표시 순서 (작을수록 앞)
              */
             display_order?: number;
+            /**
+             * @description SCORE는 수치 점수, COMPLETION은 완료/미완료(1/0)로 기록한다.
+             *
+             *     * `SCORE` - 점수형
+             *     * `COMPLETION` - 완료형
+             */
+            grading_mode?: components["schemas"]["HomeworkGradingMode"];
             homework_type?: components["schemas"]["HomeworkTypeEnum"];
             /** Format: double */
             max_score?: number;
@@ -12595,6 +12830,12 @@ export interface components {
         ManualGradingMethodEnum: "correctness" | "score";
         /** @enum {unknown} */
         NullEnum: null;
+        /**
+         * @description * `pdf` - pdf
+         *     * `pptx` - pptx
+         * @enum {string}
+         */
+        OutputFormatEnum: "pdf" | "pptx";
         PaginatedAnswerKeyList: {
             /** @example 123 */
             count: number;
@@ -12984,6 +13225,21 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["PublicBoardPostList"][];
+        };
+        PaginatedPublicProblemReviewShowcaseList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["PublicProblemReviewShowcase"][];
         };
         PaginatedPublicReviewListList: {
             /** @example 123 */
@@ -13547,7 +13803,7 @@ export interface components {
              *     * `written` - 답변형
              *     * `mixed` - 혼합형
              */
-            grading_mode?: components["schemas"]["GradingModeEnum"];
+            grading_mode?: components["schemas"]["ExamGradingMode"];
             is_active?: boolean;
             /**
              * @description 답변형 문항을 문항별 점수 또는 정오로 입력하는 방식.
@@ -13629,6 +13885,13 @@ export interface components {
              * @description 성적탭 내 표시 순서 (작을수록 앞)
              */
             display_order?: number;
+            /**
+             * @description SCORE는 수치 점수, COMPLETION은 완료/미완료(1/0)로 기록한다.
+             *
+             *     * `SCORE` - 점수형
+             *     * `COMPLETION` - 완료형
+             */
+            grading_mode?: components["schemas"]["HomeworkGradingMode"];
             homework_type?: components["schemas"]["HomeworkTypeEnum"];
             /** Format: double */
             max_score?: number;
@@ -13782,6 +14045,11 @@ export interface components {
              */
             order?: number;
             title?: string;
+        };
+        PatchedProblemReviewReportPatchRequest: {
+            draft?: unknown;
+            title?: string;
+            version?: number;
         };
         PatchedProgressPolicyRequest: {
             /**
@@ -14403,6 +14671,67 @@ export interface components {
          * @enum {string}
          */
         PostTypeEnum: "notice" | "board" | "materials" | "qna" | "counsel";
+        ProblemReviewExportCreate: {
+            readonly download_url: string;
+            readonly filename: string;
+            /** Format: uuid */
+            readonly id: string;
+            readonly job_id: string;
+            readonly output_format: components["schemas"]["OutputFormatEnum"];
+            readonly report_version: number;
+            readonly source_fingerprint: string;
+            readonly status: string;
+        };
+        ProblemReviewExportRequestRequest: {
+            output_format: components["schemas"]["OutputFormatEnum"];
+        };
+        ProblemReviewExportStatus: {
+            readonly error_message: string | null;
+            readonly job_id: string;
+            readonly progress: unknown;
+            readonly result: unknown;
+            readonly status: string;
+        };
+        ProblemReviewFinalizeRequestRequest: {
+            version: number;
+        };
+        ProblemReviewPublishRequestRequest: {
+            version: number;
+        };
+        ProblemReviewPublishResponse: {
+            readonly id: number;
+            readonly pdf_url: string;
+            readonly public_url: string;
+            /** Format: date-time */
+            readonly published_at: string;
+            readonly status: string;
+            readonly title: string;
+        };
+        ProblemReviewReport: {
+            readonly artifacts: unknown;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly draft: unknown;
+            /** Format: uuid */
+            readonly id: string;
+            readonly last_error: string;
+            readonly review_readiness: unknown;
+            readonly source_name: string;
+            readonly source_summary: unknown;
+            readonly status: string;
+            readonly title: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+            readonly version: number;
+        };
+        ProblemReviewReportCreateRequest: {
+            external_ai_confirmed: boolean;
+            metadata?: unknown;
+            source_files: string[];
+        };
+        ProblemReviewReportList: {
+            readonly reports: components["schemas"]["ProblemReviewReport"][];
+        };
         ProgressPolicy: {
             /** Format: date-time */
             readonly created_at: string;
@@ -14593,6 +14922,22 @@ export interface components {
             /** @description 확장 필드: matchup_report_ids 등 cross-attach */
             meta?: unknown;
             title: string;
+        };
+        PublicProblemReviewShowcase: {
+            readonly description: string;
+            readonly difficulty: unknown;
+            readonly id: number;
+            readonly metadata: unknown;
+            readonly pdf_url: string | null;
+            /** Format: date-time */
+            readonly published_at: string | null;
+            readonly snapshot: unknown;
+            /** Format: date-time */
+            readonly snapshot_at: string | null;
+            readonly status: string;
+            readonly summary: unknown;
+            readonly title: string;
+            readonly view_count: number;
         };
         PublicReviewDetail: {
             /** @description 작성 당시 역할(student/parent) */
@@ -16380,6 +16725,12 @@ export interface components {
             refresh: string;
         };
         /**
+         * @description * `exam` - exam
+         *     * `homework` - homework
+         * @enum {string}
+         */
+        TypeEnum: "exam" | "homework";
+        /**
          * @description * `ENROLLED` - 수강생 전용
          *     * `PUBLIC` - 전체 공개
          * @enum {string}
@@ -16406,6 +16757,77 @@ export interface components {
             staff: number;
             /** Format: int64 */
             year: number;
+        };
+        /**
+         * @description 오답노트 단일 문항 아이템
+         *
+         *     ✅ 의도:
+         *     - ResultFact/ResultItem 구조가 프로젝트마다 조금 달라도
+         *       View에서 dict로 만들어 serialize 가능하게 "단순 Serializer"로 고정
+         */
+        WrongNoteItem: {
+            answer_type?: string;
+            /** Format: date-time */
+            attempt_created_at: string | null;
+            attempt_id: number;
+            correct_answer?: string;
+            exam_id: number;
+            exam_title?: string;
+            explanation_image_url?: string;
+            extra?: unknown;
+            has_question_image?: boolean;
+            has_teacher_explanation?: boolean;
+            include_in_wrong_note?: boolean;
+            is_correct: boolean;
+            /** Format: double */
+            max_score: number;
+            meta?: unknown;
+            question_id: number;
+            question_image_url?: string;
+            question_number?: number | null;
+            /** Format: double */
+            score: number;
+            session_order?: number | null;
+            session_title?: string;
+            student_answer?: string;
+        };
+        WrongNoteSelectedPreviewRequestRequest: {
+            source_selection: components["schemas"]["WrongNoteSourceSelectionRequest"][];
+            student_id: number;
+        };
+        /** @description 페이지네이션 포함 응답 */
+        WrongNoteSelectedPreviewResponse: {
+            count: number;
+            next: number | null;
+            prev: number | null;
+            results: components["schemas"]["WrongNoteItem"][];
+            source_fingerprint: string;
+            source_selection: components["schemas"]["WrongNoteSourceSelection"][];
+        };
+        WrongNoteSource: {
+            enrollment_id: number;
+            id: number;
+            lecture_id: number;
+            lecture_title: string;
+            ready: boolean;
+            session_order: number | null;
+            title: string;
+            type: components["schemas"]["TypeEnum"];
+            wrong_note_count: number;
+        };
+        WrongNoteSourceCatalogResponse: {
+            sources: components["schemas"]["WrongNoteSource"][];
+            student_id: number;
+        };
+        WrongNoteSourceSelection: {
+            enrollment_id: number;
+            id: number;
+            type: components["schemas"]["TypeEnum"];
+        };
+        WrongNoteSourceSelectionRequest: {
+            enrollment_id: number;
+            id: number;
+            type: components["schemas"]["TypeEnum"];
         };
     };
     responses: never;
@@ -23343,6 +23765,84 @@ export interface operations {
             };
         };
     };
+    homeworks_question_grading_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description homework을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Homework"];
+                };
+            };
+        };
+    };
+    homeworks_question_grading_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description homework을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedHomeworkRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedHomeworkRequest"];
+                "multipart/form-data": components["schemas"]["PatchedHomeworkRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Homework"];
+                };
+            };
+        };
+    };
+    homeworks_source_exam_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description homework을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HomeworkRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["HomeworkRequest"];
+                "multipart/form-data": components["schemas"]["HomeworkRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Homework"];
+                };
+            };
+        };
+    };
     homeworks_templates_with_usage_retrieve: {
         parameters: {
             query?: never;
@@ -23972,6 +24472,72 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    landing_public_problem_review_showcase_list: {
+        parameters: {
+            query?: {
+                /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedPublicProblemReviewShowcaseList"];
+                };
+            };
+        };
+    };
+    landing_public_problem_review_showcase_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description public problem review showcase을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicProblemReviewShowcase"];
+                };
+            };
+        };
+    };
+    landing_public_problem_review_showcase_pdf_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description public problem review showcase을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicProblemReviewShowcase"];
+                };
             };
         };
     };
@@ -29386,6 +29952,52 @@ export interface operations {
             };
         };
     };
+    results_wrong_notes_preview_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WrongNoteSelectedPreviewRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["WrongNoteSelectedPreviewRequestRequest"];
+                "multipart/form-data": components["schemas"]["WrongNoteSelectedPreviewRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WrongNoteSelectedPreviewResponse"];
+                };
+            };
+        };
+    };
+    results_wrong_notes_sources_retrieve: {
+        parameters: {
+            query: {
+                student_id: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WrongNoteSourceCatalogResponse"];
+                };
+            };
+        };
+    };
     staffs_list: {
         parameters: {
             query?: {
@@ -33148,6 +33760,213 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    tools_problem_review_report_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemReviewReportList"];
+                };
+            };
+        };
+    };
+    tools_problem_review_report_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProblemReviewReportCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ProblemReviewReportCreateRequest"];
+                "multipart/form-data": components["schemas"]["ProblemReviewReportCreateRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemReviewReport"];
+                };
+            };
+        };
+    };
+    tools_problem_review_report_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemReviewReport"];
+                };
+            };
+        };
+    };
+    tools_problem_review_report_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedProblemReviewReportPatchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemReviewReport"];
+                };
+            };
+        };
+    };
+    tools_problem_review_export_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProblemReviewExportRequestRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemReviewExportCreate"];
+                };
+            };
+        };
+    };
+    tools_problem_review_export_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemReviewExportStatus"];
+                };
+            };
+        };
+    };
+    tools_problem_review_publish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProblemReviewPublishRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemReviewPublishResponse"];
+                };
+            };
+        };
+    };
+    tools_problem_review_unpublish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    tools_problem_review_finalize: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProblemReviewFinalizeRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemReviewReport"];
+                };
             };
         };
     };

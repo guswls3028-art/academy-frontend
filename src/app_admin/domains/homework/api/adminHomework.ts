@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/homework/api/adminHomework.ts
 import api from "@/shared/api/axios";
 import { expectedUpdatedAtHeaders } from "@/shared/api/optimisticConcurrency";
-import type { HomeworkCutlineMode } from "../types";
+import type { HomeworkCutlineMode, HomeworkGradingMode } from "../types";
 
 export type AdminHomeworkDetail = {
   id: number;
@@ -15,6 +15,7 @@ export type AdminHomeworkDetail = {
 
   title: string;
   description?: string;
+  grading_mode: HomeworkGradingMode;
 
   /** Homework.meta JSON. default_max_score 등 추가 설정 보관. */
   meta?: Record<string, unknown> | null;
@@ -53,6 +54,10 @@ function normalizeCutlineMode(value: unknown): HomeworkCutlineMode {
   return String(value).toUpperCase() === "COUNT" ? "COUNT" : "PERCENT";
 }
 
+function normalizeGradingMode(value: unknown): HomeworkGradingMode {
+  return String(value).toUpperCase() === "COMPLETION" ? "COMPLETION" : "SCORE";
+}
+
 function normalize(raw: unknown): AdminHomeworkDetail {
   const record = asRecord(raw);
   const rawSession = record.session_id ?? record.session ?? record.sessionId;
@@ -85,6 +90,7 @@ function normalize(raw: unknown): AdminHomeworkDetail {
 
     title: String(record.title ?? ""),
     description: typeof record.description === "string" ? record.description : undefined,
+    grading_mode: normalizeGradingMode(record.grading_mode),
 
     meta,
     max_score: defaultMaxScore,

@@ -318,7 +318,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   onSelectionChange,
 }: Props, ref) {
   const qc = useQueryClient();
-  const homeworkInputRefs = useRef<Record<string, HTMLSpanElement | null>>({});
+  const homeworkInputRefs = useRef<Record<string, HTMLElement | null>>({});
   const examInputRefs = useRef<Record<string, HTMLSpanElement | null>>({});
   const examObjectiveInputRefs = useRef<Record<string, HTMLSpanElement | null>>({});
   const examSubjectiveInputRefs = useRef<Record<string, HTMLSpanElement | null>>({});
@@ -336,6 +336,15 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   const liveHistoryKeyRef = useRef<string | null>(null);
   const homeworkMaxScoreById = useMemo(
     () => new Map((meta?.homeworks ?? []).map((homework) => [homework.homework_id, homework.max_score])),
+    [meta?.homeworks],
+  );
+  const homeworkGradingModeById = useMemo(
+    () => new Map(
+      (meta?.homeworks ?? []).map((homework) => [
+        homework.homework_id,
+        homework.grading_mode ?? "SCORE",
+      ]),
+    ),
     [meta?.homeworks],
   );
 
@@ -361,8 +370,19 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
       return;
     }
     const el = homeworkInputRefs.current[`${change.enrollmentId}-${change.homeworkId}`];
+    if (homeworkGradingModeById.get(change.homeworkId) === "COMPLETION") {
+      const label = change.score == null ? "미입력" : change.score >= 1 ? "완료" : "미완료";
+      if (el instanceof HTMLSelectElement) el.value = label;
+      else setCellText(el, label);
+      el?.setAttribute(
+        "data-completion-state",
+        change.score == null ? "empty" : change.score >= 1 ? "complete" : "incomplete",
+      );
+      el?.setAttribute("aria-pressed", change.score != null && change.score >= 1 ? "true" : "false");
+      return;
+    }
     setCellText(el, change.metaStatus === "NOT_SUBMITTED" ? "미제출" : (change.score != null ? String(change.score) : ""));
-  }, []);
+  }, [homeworkGradingModeById]);
 
   const applyPendingChangeToMountedCell = useCallback((key: string): boolean => {
     const pending = pendingRef.current.get(key);
@@ -536,6 +556,14 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         const block = entry?.block;
         const metaStatus = block?.meta?.status;
         const score = block?.score;
+        if (hw.grading_mode === "COMPLETION") {
+          const label = score == null ? "미입력" : score >= 1 ? "완료" : "미완료";
+          if (el instanceof HTMLSelectElement) el.value = label;
+          else el.innerText = label;
+          el.dataset.completionState = score == null ? "empty" : score >= 1 ? "complete" : "incomplete";
+          el.setAttribute("aria-pressed", score != null && score >= 1 ? "true" : "false");
+          return;
+        }
         if (metaStatus === "NOT_SUBMITTED") {
           el.innerText = "미제출";
         } else {
@@ -1009,6 +1037,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               >
                 <Badge variant="soft" tone="teal" size="xs" shape="square" className="scores-table-kind-badge" ariaLabel="과제">과</Badge>
                 <span className="scores-table-head-title whitespace-normal break-keep min-w-0 leading-tight">{hw.title}</span>
+                {hw.grading_mode === "COMPLETION" && (
+                  <Badge variant="soft" tone="success" size="xs" shape="square" ariaLabel="완료형 과제">✓</Badge>
+                )}
               </span>
             </ResizableTh>
           ))}
@@ -1728,7 +1759,67 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                         }}
                       >
                         <span className="inline-flex items-center gap-2 flex-wrap">
-                          {canEditScore ? (
+                          {hw.grading_mode === "COMPLETION" ? (
+                            canEditScore ? (
+                              <select
+                                ref={(el) => {
+                                  const key = `${row.enrollment_id}-${hw.homework_id}`;
+                                  homeworkInputRefs.current[key] = el;
+                                  if (el) {
+                                    const pendingKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
+                                    if (!applyPendingChangeToMountedCell(pendingKey)) {
+                                      const label = block?.score == null
+                                        ? "미입력"
+                                        : block.score >= 1 ? "완료" : "미완료";
+                                      el.value = label;
+                                      el.dataset.completionState = block?.score == null
+                                        ? "empty"
+                                        : block.score >= 1 ? "complete" : "incomplete";
+                                    }
+                                  }
+                                }}
+                                className="ds-scores-completion-select"
+                                aria-label={`${row.student_name} · ${hw.title} 완료 상태`}
+                                disabled={Boolean(block?.is_locked)}
+                                defaultValue={block?.score == null ? "미입력" : block.score >= 1 ? "완료" : "미완료"}
+                                onClick={(event) => event.stopPropagation()}
+                                onChange={(event) => {
+                                  const score = event.target.value === "완료"
+                                    ? 1
+                                    : event.target.value === "미완료" ? 0 : null;
+                                  const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
+                                  const next: PendingChange = {
+                                    type: "homework",
+                                    enrollmentId: row.enrollment_id,
+                                    homeworkId: hw.homework_id,
+                                    score,
+                                  };
+                                  const serverValue: PendingChange = {
+                                    type: "homework",
+                                    enrollmentId: row.enrollment_id,
+                                    homeworkId: hw.homework_id,
+                                    score: block?.score ?? null,
+                                  };
+                                  stagePendingChange(cellKey, next, serverValue);
+                                  applyChangeToDom(next);
+                                }}
+                              >
+                                <option value="미입력">미입력</option>
+                                <option value="미완료">미완료</option>
+                                <option value="완료">완료</option>
+                              </select>
+                            ) : block?.score != null ? (
+                              <Badge
+                                variant="soft"
+                                tone={block.score >= 1 ? "success" : "danger"}
+                                size="xs"
+                              >
+                                {block.score >= 1 ? "완료" : "미완료"}
+                              </Badge>
+                            ) : (
+                              <span className="text-[var(--color-text-muted)]">미입력</span>
+                            )
+                          ) : canEditScore ? (
                             <span
                               ref={(el) => {
                                 const key = `${row.enrollment_id}-${hw.homework_id}`;

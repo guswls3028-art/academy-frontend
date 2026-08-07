@@ -585,6 +585,143 @@
   text-align: left;
 }
 
+.homeworkRecordGroup {
+  display: grid;
+  gap: 8px;
+}
+
+.homeworkQuickEditor {
+  margin: -2px 8px 4px 38px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 26%, var(--color-border-divider));
+  border-radius: 10px;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface)) 0%,
+      var(--color-bg-surface) 62%
+    );
+  box-shadow: var(--shadow-sm);
+  animation: homeworkQuickReveal 160ms ease-out;
+}
+
+@keyframes homeworkQuickReveal {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.homeworkQuickHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.homeworkQuickHeader strong {
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
+.homeworkQuickHeader p {
+  margin: 3px 0 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.homeworkQuickClose {
+  display: grid;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--color-text-muted);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.homeworkQuickClose:hover,
+.homeworkQuickClose:focus-visible {
+  border-color: var(--color-border-divider);
+  background: var(--color-bg-surface-hover);
+  color: var(--color-text-primary);
+  outline: none;
+}
+
+.homeworkCompletionChoices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.homeworkScoreEditor {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.homeworkScoreEditor > label {
+  display: grid;
+  flex: 1;
+  gap: 5px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.homeworkScoreInputWrap {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-divider-strong);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+}
+
+.homeworkScoreInputWrap:focus-within {
+  border-color: var(--color-brand-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 16%, transparent);
+}
+
+.homeworkScoreInputWrap input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 8px 10px;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+
+.homeworkScoreInputWrap > span {
+  flex: 0 0 auto;
+  padding-right: 10px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.homeworkQuickActions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.homeworkQuickError {
+  margin: 10px 0 0;
+  color: var(--color-danger);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .questionRecord {
   padding: 12px 16px;
 }
@@ -779,6 +916,31 @@
     font-size: 11px;
   }
 
+  .tabRecord {
+    align-items: flex-start;
+    padding: 12px;
+  }
+
+  .recordActions {
+    max-width: 46%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .homeworkQuickEditor {
+    margin: -2px 0 4px;
+    padding: 12px;
+  }
+
+  .homeworkScoreEditor {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .homeworkQuickActions > * {
+    flex: 1;
+  }
+
   .inventoryTrigger {
     width: 40px;
     height: 40px;
@@ -786,7 +948,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .statTab {
+  .statTab,
+  .homeworkQuickEditor {
     transition: none;
+    animation: none;
   }
 }

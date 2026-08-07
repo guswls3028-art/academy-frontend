@@ -15,11 +15,12 @@ import { useAssessmentPolicyDraft } from "@/shared/ui/assessment/useAssessmentPo
 import { updateAdminHomework, type AdminHomeworkDetail } from "../../api/adminHomework";
 import { useAdminHomework } from "../../hooks/useAdminHomework";
 import { QUERY_KEYS } from "../../queryKeys";
-import type { HomeworkCutlineMode } from "../../types";
+import type { HomeworkCutlineMode, HomeworkGradingMode } from "../../types";
 
 type HomeworkPolicyForm = {
   title: string;
   dueDate: string;
+  gradingMode: HomeworkGradingMode;
   maxScore: string;
   cutlineMode: HomeworkCutlineMode;
   cutlineValue: string;
@@ -31,6 +32,7 @@ function formFromHomework(homework: AdminHomeworkDetail): HomeworkPolicyForm {
   return {
     title: homework.title,
     dueDate,
+    gradingMode: homework.grading_mode,
     maxScore: String(homework.max_score ?? homework.default_max_score ?? 100),
     cutlineMode: homework.effective_cutline_mode,
     cutlineValue: String(homework.effective_cutline_value),
@@ -39,6 +41,8 @@ function formFromHomework(homework: AdminHomeworkDetail): HomeworkPolicyForm {
 }
 
 function validateForm(form: HomeworkPolicyForm): string | null {
+  if (!form.title.trim()) return "과제명을 입력해 주세요.";
+  if (form.gradingMode === "COMPLETION") return null;
   if (!form.maxScore.trim()) return "만점을 입력해 주세요.";
   if (!form.cutlineValue.trim()) return "합격 기준을 입력해 주세요.";
   if (!form.roundUnitPercent.trim()) return "반올림 단위를 입력해 주세요.";
@@ -46,7 +50,6 @@ function validateForm(form: HomeworkPolicyForm): string | null {
   const cutlineValue = Number(form.cutlineValue);
   const roundUnit = Number(form.roundUnitPercent);
 
-  if (!form.title.trim()) return "과제명을 입력해 주세요.";
   if (!Number.isFinite(maxScore) || maxScore < 1) return "만점은 1점 이상이어야 합니다.";
   if (!Number.isInteger(cutlineValue) || cutlineValue < 0) return "합격 기준은 0 이상의 정수여야 합니다.";
   if (form.cutlineMode === "PERCENT" && cutlineValue > 100) {
@@ -118,6 +121,9 @@ export default function HomeworkPolicyPanel({ homeworkId }: { homeworkId: number
 
       if (nextForm.title !== baseForm.title) {
         payload.title = nextForm.title.trim();
+      }
+      if (nextForm.gradingMode !== baseForm.gradingMode) {
+        payload.grading_mode = nextForm.gradingMode;
       }
       if (nextForm.maxScore !== baseForm.maxScore) {
         payload.max_score = Number(nextForm.maxScore);
@@ -260,6 +266,55 @@ export default function HomeworkPolicyPanel({ homeworkId }: { homeworkId: number
         </div>
 
         <div className={formStyles.group}>
+          <h3 className={formStyles.groupTitle}>채점 방식</h3>
+          <p className={formStyles.groupDescription}>
+            문제 수를 기록할 과제와 완료 여부만 확인할 과제를 구분합니다.
+          </p>
+          <div className={formStyles.choiceGrid} role="group" aria-label="과제 채점 방식">
+            <button
+              type="button"
+              className={formStyles.choiceButton}
+              aria-pressed={form.gradingMode === "SCORE"}
+              onClick={() => setForm({
+                ...form,
+                gradingMode: "SCORE",
+                ...(form.gradingMode === "COMPLETION"
+                  ? {
+                      maxScore: "100",
+                      cutlineMode: "PERCENT" as const,
+                      cutlineValue: "80",
+                      roundUnitPercent: "5",
+                    }
+                  : {}),
+              })}
+            >
+              <strong>숫자 채점</strong>
+              <small>0/30처럼 수행량이나 점수를 입력합니다.</small>
+            </button>
+            <button
+              type="button"
+              className={formStyles.choiceButton}
+              aria-pressed={form.gradingMode === "COMPLETION"}
+              onClick={() => setForm({
+                ...form,
+                gradingMode: "COMPLETION",
+                maxScore: "1",
+                cutlineMode: "COUNT",
+                cutlineValue: "1",
+                roundUnitPercent: "1",
+              })}
+            >
+              <strong>완료 체크</strong>
+              <small>완료와 미완료 두 상태로만 검사합니다.</small>
+            </button>
+          </div>
+          <span className={formStyles.helper}>
+            결과가 한 번이라도 입력된 과제는 기존 기록 보호를 위해 방식을 바꿀 수 없습니다.
+          </span>
+        </div>
+
+        {form.gradingMode === "SCORE" ? (
+        <div className={formStyles.group}>
           <h3 className={formStyles.groupTitle}>점수와 합격 기준</h3>
           <p className={formStyles.groupDescription}>
             기준 미만은 클리닉 보강 대상으로 표시됩니다. 합격 여부는 서버가 계산합니다.
@@ -337,6 +392,17 @@ export default function HomeworkPolicyPanel({ homeworkId }: { homeworkId: number
             </label>
           </div>
         </div>
+        ) : (
+          <div className={formStyles.group}>
+            <h3 className={formStyles.groupTitle}>완료 기준</h3>
+            <div className={formStyles.inlineStatus} role="status">
+              <div>
+                <strong>완료를 선택하면 통과, 미완료를 선택하면 보강 대상으로 판정합니다.</strong>
+                <p>성적표와 학생 상세에서는 숫자 대신 완료/미완료 버튼이 표시됩니다.</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {(conflictDetected || remoteChanged) && (
           <div className={formStyles.inlineStatus} role="alert">
@@ -353,7 +419,9 @@ export default function HomeworkPolicyPanel({ homeworkId }: { homeworkId: number
       </div>
 
       <div className={formStyles.footer}>
-        <span className={formStyles.footerCopy}>저장 후 성적표와 클리닉 판정에 같은 기준이 적용됩니다.</span>
+        <span className={formStyles.footerCopy}>
+          저장 후 성적표와 학생 상세에 같은 채점 방식이 적용됩니다.
+        </span>
         <Button
           type="button"
           intent="primary"

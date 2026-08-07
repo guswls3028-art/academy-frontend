@@ -180,13 +180,14 @@ async function installApi(page: Page, state: MockState) {
         session: REGULAR_SESSION_ID,
         homework_type: "regular",
         title: payload.title,
-        max_score: payload.max_score,
-        cutline_mode: payload.cutline_mode,
-        cutline_value: payload.cutline_value,
-        round_unit_percent: payload.round_unit_percent,
-        effective_cutline_mode: payload.cutline_mode,
-        effective_cutline_value: payload.cutline_value,
-        effective_round_unit_percent: payload.round_unit_percent,
+        grading_mode: payload.grading_mode ?? "SCORE",
+        max_score: payload.grading_mode === "COMPLETION" ? 1 : payload.max_score,
+        cutline_mode: payload.grading_mode === "COMPLETION" ? "COUNT" : payload.cutline_mode,
+        cutline_value: payload.grading_mode === "COMPLETION" ? 1 : payload.cutline_value,
+        round_unit_percent: payload.grading_mode === "COMPLETION" ? 1 : payload.round_unit_percent,
+        effective_cutline_mode: payload.grading_mode === "COMPLETION" ? "COUNT" : payload.cutline_mode,
+        effective_cutline_value: payload.grading_mode === "COMPLETION" ? 1 : payload.cutline_value,
+        effective_round_unit_percent: payload.grading_mode === "COMPLETION" ? 1 : payload.round_unit_percent,
         uses_session_cutline_default: false,
         meta: payload.meta ?? {},
         created_at: "2026-08-02T00:00:00Z",
@@ -198,7 +199,8 @@ async function installApi(page: Page, state: MockState) {
         id: 9961 + index,
         session: REGULAR_SESSION_ID,
         title: payload.title,
-        max_score: payload.max_score,
+        grading_mode: payload.grading_mode ?? "SCORE",
+        max_score: payload.grading_mode === "COMPLETION" ? 1 : payload.max_score,
         effective_cutline_mode: payload.effective_cutline_mode ?? payload.cutline_mode,
         effective_cutline_value: payload.effective_cutline_value ?? payload.cutline_value,
       }));
@@ -223,7 +225,8 @@ async function installApi(page: Page, state: MockState) {
         session: REGULAR_SESSION_ID,
         homework_type: "regular",
         title: current.title,
-        max_score: current.max_score,
+        grading_mode: current.grading_mode ?? "SCORE",
+        max_score: current.grading_mode === "COMPLETION" ? 1 : current.max_score,
         cutline_mode: current.cutline_mode ?? null,
         cutline_value: current.cutline_value ?? null,
         round_unit_percent: current.round_unit_percent ?? null,
@@ -391,6 +394,48 @@ test("한 회차에서 만드는 여러 과제는 커트라인을 행마다 따�
       cutline_value: 24,
     }),
   ]);
+});
+
+test("같은 차시에서도 과제마다 숫자 채점과 완료 체크를 선택한다", async ({ page }, testInfo) => {
+  const state: MockState = {
+    supplementTitle: "토요일 심화 클리닉",
+    patchTitles: [],
+    createdHomeworkPayloads: [],
+  };
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openLecture(page, state);
+  await page.goto(
+    `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/assignments`,
+    { waitUntil: "domcontentloaded" },
+  );
+
+  await page.getByRole("button", { name: "과제 추가", exact: true }).first().click();
+  await page.getByText("처음부터 만들기", { exact: true }).click();
+  await page.getByLabel("과제 1 제목").fill("연산 30제");
+  await page.getByRole("button", { name: "+ 추가", exact: true }).click();
+  await page.getByLabel("과제 2 제목").fill("교재 지참 확인");
+  await page.getByRole("group", { name: "과제 2 채점 방식" })
+    .getByRole("button", { name: "완료 체크" })
+    .click();
+  await expect(page.getByText("문제 수 없이 두 상태로만 검사합니다.")).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath("homework-grading-modes-390.png"),
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "2개 과제 만들기", exact: true }).click();
+
+  await expect.poll(() => state.createdHomeworkPayloads?.length).toBe(2);
+  expect(state.createdHomeworkPayloads?.[0]).toMatchObject({
+    title: "연산 30제",
+    grading_mode: "SCORE",
+    max_score: 100,
+  });
+  expect(state.createdHomeworkPayloads?.[1]).toEqual(expect.objectContaining({
+    title: "교재 지참 확인",
+    grading_mode: "COMPLETION",
+  }));
+  expect(state.createdHomeworkPayloads?.[1]).not.toHaveProperty("max_score");
+  expect(state.createdHomeworkPayloads?.[1]).not.toHaveProperty("cutline_value");
 });
 
 test("과제 운영 설정을 한곳에서 저장하고 선택 과제 카드에만 반영한다", async ({ page }) => {
