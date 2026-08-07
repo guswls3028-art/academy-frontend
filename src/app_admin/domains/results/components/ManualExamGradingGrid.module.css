@@ -512,67 +512,6 @@
   white-space: nowrap;
 }
 
-.tableScaleControl {
-  display: inline-flex;
-  flex: 0 0 auto;
-  min-height: 32px;
-  align-items: center;
-  overflow: hidden;
-  border: 1px solid var(--color-border-divider, #e2e8f0);
-  border-radius: 8px;
-  background: var(--color-bg-surface, #fff);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-}
-
-.tableScaleControl button,
-.tableScaleControl output {
-  display: inline-grid;
-  min-width: 34px;
-  height: 30px;
-  place-items: center;
-  border: 0;
-  border-right: 1px solid var(--color-border-divider, #e2e8f0);
-  background: transparent;
-  color: var(--color-text-secondary, #475569);
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.tableScaleControl button {
-  cursor: pointer;
-}
-
-.tableScaleControl button:hover:not(:disabled),
-.tableScaleControl button:focus-visible {
-  background: var(--color-bg-surface-hover, #f8fafc);
-  color: var(--color-text-primary, #0f172a);
-}
-
-.tableScaleControl button:focus-visible {
-  position: relative;
-  z-index: 1;
-  outline: 2px solid var(--color-brand-primary, #2563eb);
-  outline-offset: -2px;
-}
-
-.tableScaleControl button:disabled {
-  cursor: default;
-  opacity: 0.38;
-}
-
-.tableScaleControl output {
-  min-width: 48px;
-  color: var(--color-text-primary, #0f172a);
-  font-variant-numeric: tabular-nums;
-}
-
-.tableScaleControl .fitButton {
-  min-width: 72px;
-  padding: 0 10px;
-  border-right: 0;
-  white-space: nowrap;
-}
-
 .table {
   width: max-content;
   min-width: 100%;
@@ -980,6 +919,7 @@
   .table .attendanceColumn {
     left: 140px;
   }
+
 }
 
 @media (prefers-reduced-motion: reduce) {
