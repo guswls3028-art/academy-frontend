@@ -900,6 +900,14 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await expect.poll(() => detailOverlay.evaluate(
       (element) => element.scrollWidth <= element.clientWidth,
     )).toBe(true);
+    await expect.poll(() => detailOverlay.locator('div[class*="homeworkRecordGroup"]').evaluateAll((groups) => (
+      groups.every((group) => {
+        const record = group.querySelector<HTMLElement>('div[class*="tabRecord"]');
+        const actions = group.querySelector<HTMLElement>('div[class*="recordActions"]');
+        if (!record || !actions) return false;
+        return actions.getBoundingClientRect().right <= record.getBoundingClientRect().right + 1;
+      })
+    ))).toBe(true);
     await expect(numericEditor).toBeVisible();
     await detailOverlay.screenshot({ path: "test-results/homework-completion/student-detail-390.png" });
   });
