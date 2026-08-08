@@ -295,6 +295,9 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       const previewSvg = encodeURIComponent(
         '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1200"><rect width="800" height="1200" fill="white"/><text x="60" y="100" font-size="48">3. Ymath 문제</text><path d="M60 180H740M60 300H740M60 420H740" stroke="black" stroke-width="8"/><text x="60" y="650" font-size="44" fill="#dc2626">선생님 원본 해설</text></svg>',
       );
+      const sourceAttachmentSvg = encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1200"><rect width="800" height="1200" fill="white"/><text x="60" y="100" font-size="48">삽입 그림 원본</text><text x="60" y="220" font-size="36" fill="#dc2626">교직원 직접 확인</text></svg>',
+      );
       await json({
         exam_id: EXAM_ID,
         status: "review_required",
@@ -312,6 +315,9 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
           problem_image_url: `data:image/svg+xml,${previewSvg}`,
           explanation_text: "",
           explanation_image_url: `data:image/svg+xml,${previewSvg}`,
+          source_render_mode: "source_content_reconstruction",
+          source_attachment_image_url: `data:image/svg+xml,${sourceAttachmentSvg}`,
+          source_attachment_requires_review: true,
           has_teacher_explanation: true,
         }],
       });
@@ -621,7 +627,23 @@ test.describe("문항별 직접 채점", () => {
     await expect(page.getByText("한글 본문·미주 분리", { exact: true })).toBeVisible();
     await expect(page.getByRole("slider", { name: "3번 문제 영역 높이" })).toHaveCount(0);
     await expect(page.getByAltText("3번 문제 후보")).toBeVisible();
-    await expect(page.getByAltText("3번 선생님 원본 해설")).toBeVisible();
+    await expect(page.getByAltText("3번 번호 확정 원문 해설")).toBeVisible();
+    const explanationChoice = page.getByRole("group", { name: "3번 해설 원본 선택" });
+    await expect(explanationChoice.getByRole("button", { name: /본문·수식/ })).toHaveAttribute("data-active", "");
+    const reviewRegion = page.getByRole("region", { name: "문항·해설 맞춤 확인" });
+    await reviewRegion.screenshot({ path: "test-results/hwp-explanation-review/default-1100.png" });
+    await explanationChoice.getByRole("button", { name: /삽입 그림/ }).click();
+    await expect(page.getByAltText("3번 삽입 그림")).toBeVisible();
+    await expect(page.getByText(/표지나 인접 문항이 섞일 수 있습니다/)).toBeVisible();
+    await page.setViewportSize({ width: 390, height: 844 });
+    const mobileExplanationChoice = page.getByRole("group", { name: "3번 해설 원본 선택" });
+    await mobileExplanationChoice.getByRole("button", { name: /삽입 그림/ }).click();
+    await expect(page.getByAltText("3번 삽입 그림")).toBeVisible();
+    await mobileExplanationChoice.scrollIntoViewIfNeeded();
+    await expect.poll(() => reviewRegion.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    )).toBe(true);
+    await reviewRegion.screenshot({ path: "test-results/hwp-explanation-review/source-attachment-390.png" });
   });
 
   test("O·X·오답노트 키 입력을 미리 확인한 뒤 확정하고 재조회한다", async ({ page }) => {

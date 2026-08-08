@@ -13,7 +13,11 @@ import {
 import { adminExamsQueryKeys } from "../queryKeys";
 import styles from "./ExamSegmentationReview.module.css";
 
-type DraftItem = SegmentationReviewItem & { numberInput: string };
+type ExplanationVariant = "reconstructed" | "source_attachment";
+type DraftItem = SegmentationReviewItem & {
+  numberInput: string;
+  explanationVariant: ExplanationVariant;
+};
 
 function ProblemCropPreview({
   item,
@@ -100,6 +104,7 @@ export default function ExamSegmentationReview({
       review.data.items.map((item) => ({
         ...item,
         numberInput: String(item.number),
+        explanationVariant: "reconstructed",
       })),
     );
   }, [review.data]);
@@ -130,6 +135,7 @@ export default function ExamSegmentationReview({
           problem_crop_ratio: item.crop_adjustable
             ? item.problem_crop_ratio
             : undefined,
+          explanation_variant: item.explanationVariant,
         })),
       ),
     onSuccess: async (result) => {
@@ -254,15 +260,52 @@ export default function ExamSegmentationReview({
 
             <figure className={`${styles.proofPane} ${styles.explanationPane}`}>
               <figcaption>
-                선생님 원본 해설
+                {item.explanationVariant === "source_attachment"
+                  ? "삽입 그림 원본"
+                  : "번호 확정 원문 해설"}
                 {item.has_teacher_explanation && <Badge tone="success" size="sm">보존됨</Badge>}
               </figcaption>
-              {item.explanation_image_url ? (
-                <img src={item.explanation_image_url} alt={`${item.numberInput}번 선생님 원본 해설`} loading="lazy" />
+              {item.source_attachment_image_url && (
+                <div className={styles.explanationVariant} role="group" aria-label={`${item.numberInput}번 해설 원본 선택`}>
+                  <button
+                    type="button"
+                    data-active={item.explanationVariant === "reconstructed" ? "" : undefined}
+                    disabled={!item.included || approve.isPending}
+                    onClick={() => update(item.id, { explanationVariant: "reconstructed" })}
+                  >
+                    본문·수식 <small>권장</small>
+                  </button>
+                  <button
+                    type="button"
+                    data-active={item.explanationVariant === "source_attachment" ? "" : undefined}
+                    disabled={!item.included || approve.isPending}
+                    onClick={() => update(item.id, { explanationVariant: "source_attachment" })}
+                  >
+                    삽입 그림 <small>직접 확인</small>
+                  </button>
+                </div>
+              )}
+              {(item.explanationVariant === "source_attachment"
+                ? item.source_attachment_image_url
+                : item.explanation_image_url) ? (
+                <img
+                  src={item.explanationVariant === "source_attachment"
+                    ? item.source_attachment_image_url
+                    : item.explanation_image_url}
+                  alt={`${item.numberInput}번 ${item.explanationVariant === "source_attachment" ? "삽입 그림" : "번호 확정 원문 해설"}`}
+                  loading="lazy"
+                />
               ) : item.explanation_text ? (
                 <p>{item.explanation_text}</p>
               ) : (
                 <div className={styles.missing}>연결된 해설 없음</div>
+              )}
+              {item.source_attachment_image_url && (
+                <small className={styles.explanationGuidance} data-warning={item.explanationVariant === "source_attachment" ? "" : undefined}>
+                  {item.explanationVariant === "source_attachment"
+                    ? "삽입 그림에는 표지나 인접 문항이 섞일 수 있습니다. 왼쪽 문제와 같을 때만 확정하세요."
+                    : "한글 미주 번호에 직접 연결된 본문과 수식을 재현했습니다."}
+                </small>
               )}
             </figure>
           </article>

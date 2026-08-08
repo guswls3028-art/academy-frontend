@@ -443,6 +443,7 @@ async function installApi(page: Page, options: {
             enrollment_id: 201,
             title: "어휘 암기 확인",
             grading_mode: "COMPLETION",
+            meta_status: null,
             score: completionScore,
             max_score: 1,
             passed: completionScore >= 1,
@@ -460,10 +461,47 @@ async function installApi(page: Page, options: {
             enrollment_id: 201,
             title: "연산 30제",
             grading_mode: "SCORE",
+            meta_status: null,
             score: numericScore,
             max_score: 30,
             passed: numericScore >= 24,
             achievement: numericScore >= 24 ? "PASS" : "FAIL",
+            session_id: 710,
+            session_title: "10차시",
+            lecture_id: 501,
+            lecture_title: "Ymath 중등 심화",
+            lecture_color: "#2563eb",
+            lecture_chip_label: "Y",
+            is_locked: false,
+          },
+          {
+            homework_id: 803,
+            enrollment_id: 201,
+            title: "수학 일일 과제",
+            grading_mode: "SCORE",
+            meta_status: "NOT_SUBMITTED",
+            score: null,
+            max_score: 30,
+            passed: null,
+            achievement: "NOT_SUBMITTED",
+            session_id: 710,
+            session_title: "10차시",
+            lecture_id: 501,
+            lecture_title: "Ymath 중등 심화",
+            lecture_color: "#2563eb",
+            lecture_chip_label: "Y",
+            is_locked: false,
+          },
+          {
+            homework_id: 804,
+            enrollment_id: 201,
+            title: "주말 복습 과제",
+            grading_mode: "COMPLETION",
+            meta_status: null,
+            score: null,
+            max_score: 1,
+            passed: null,
+            achievement: null,
             session_id: 710,
             session_title: "10차시",
             lecture_id: 501,
@@ -840,6 +878,20 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     const numericEditor = detailOverlay.getByRole("region", { name: "연산 30제 바로 수정" });
     await numericEditor.getByRole("button", { name: "전부 완료" }).click();
     await expect(numericRow).toContainText("30/30");
+
+    const notSubmittedRow = detailOverlay
+      .getByText("수학 일일 과제", { exact: true })
+      .locator("xpath=ancestor::*[contains(@class,'tabRecord')][1]");
+    await expect(notSubmittedRow).toContainText("숫자 채점");
+    await expect(notSubmittedRow).toContainText("미제출");
+    await expect(notSubmittedRow).not.toContainText("0/30");
+
+    const ungradedRow = detailOverlay
+      .getByText("주말 복습 과제", { exact: true })
+      .locator("xpath=ancestor::*[contains(@class,'tabRecord')][1]");
+    await expect(ungradedRow).toContainText("완료 체크");
+    await expect(ungradedRow).toContainText("검사 전");
+    await expect(detailOverlay.getByRole("tab", { name: /과제/ })).toContainText("미제출 1");
     await detailOverlay.screenshot({ path: "test-results/homework-completion/student-detail-1100.png" });
 
     await page.setViewportSize({ width: 390, height: 844 });
@@ -884,7 +936,7 @@ test.describe("학생별 회차 누적 성적 추이", () => {
 
     await page.locator('a[href="/workspace/students"]').first().click();
     await page.getByRole("button", { name: /윤지용 학생/ }).first().click();
-    const examTab = page.getByRole("tab", { name: /시험/ });
+    const examTab = page.getByRole("tab", { name: /^시험/ });
     await expect(examTab).toContainText("확인 필요");
     await expect(examTab).toContainText("불러오기 실패");
     await examTab.click();
