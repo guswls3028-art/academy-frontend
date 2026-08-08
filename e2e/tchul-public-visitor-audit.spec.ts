@@ -42,6 +42,15 @@ async function fetchJson<T>(request: APIRequestContext, path: string): Promise<T
   return await response.json() as T;
 }
 
+async function measureHeroTransition(page: Page): Promise<number | null> {
+  return await page.evaluate(() => {
+    const proof = document.querySelector<HTMLElement>('[data-stype="hero"] [aria-label="강의 핵심 정보"]');
+    const quickNav = document.querySelector<HTMLElement>('nav[aria-label="주요 메뉴"]');
+    if (!proof || !quickNav) return null;
+    return quickNav.getBoundingClientRect().top - proof.getBoundingClientRect().bottom;
+  });
+}
+
 async function buildRouteInventory(request: APIRequestContext): Promise<AuditRoute[]> {
   const [landing, matchup, analysis] = await Promise.all([
     fetchJson<{ config?: { sections?: Array<{ type: string; enabled?: boolean; items?: Array<{ report_id?: number }> }> } }>(request, "/core/landing/public/"),
@@ -171,9 +180,17 @@ async function auditRoute(page: Page, route: AuditRoute, viewport: ViewportAudit
     if (await page.locator("iframe").count()) defects.push("브라우저 내장 PDF iframe이 남아 있음");
     if (await page.getByRole("link", { name: "새 창에서 크게 보기" }).count()) defects.push("새 창 보기 버튼이 남아 있음");
     const inlineDocument = page.getByTestId("matchup-inline-pdf");
+    const documentReady = await expect(inlineDocument)
+      .toHaveAttribute("data-page-count", /^\d+$/, { timeout: 45_000 })
+      .then(() => true)
+      .catch(() => false);
+    const documentErrored = !documentReady && await page.getByTestId("matchup-inline-pdf-error").count() > 0;
+    if (documentErrored) {
+      defects.push("연속 본문 PDF가 오류 상태로 끝남");
+    }
     const pageCount = Number(await inlineDocument.getAttribute("data-page-count").catch(() => 0));
     const pages = page.getByTestId("matchup-pdf-page");
-    if (!Number.isFinite(pageCount) || pageCount < 1) {
+    if (!documentErrored && (!Number.isFinite(pageCount) || pageCount < 1)) {
       defects.push("연속 본문 페이지 수를 확인할 수 없음");
     } else if (await pages.count() !== pageCount) {
       defects.push(`연속 본문 페이지 누락: ${await pages.count()}/${pageCount}`);
@@ -249,6 +266,15 @@ async function auditRoute(page: Page, route: AuditRoute, viewport: ViewportAudit
   if (geometry.scrollWidth > geometry.viewportWidth + 1) defects.push(`가로 넘침 ${geometry.scrollWidth}px > ${geometry.viewportWidth}px`);
   if (geometry.brokenImages.length) defects.push(`깨진 이미지: ${geometry.brokenImages.join(", ")}`);
   if (geometry.clippedControls.length) defects.push(`화면 밖 조작 요소: ${geometry.clippedControls.join(", ")}`);
+
+  if (route.path === "/landing" && viewport.width <= 430) {
+    const heroTransition = await measureHeroTransition(page).catch(() => null);
+    if (heroTransition === null) {
+      defects.push("모바일 첫 화면과 주요 메뉴의 연결 지점을 확인할 수 없음");
+    } else if (heroTransition > 64) {
+      defects.push(`모바일 첫 화면 아래 불필요한 공백: ${Math.round(heroTransition)}px`);
+    }
+  }
 
   if (!route.inlineMatchupPdf) {
     await page.screenshot({
@@ -326,6 +352,9 @@ test.describe("tchul 공개 홈페이지 전체 방문 동선", () => {
     });
     await page.goto(`${BASE_URL}/landing`, { waitUntil: "domcontentloaded" });
     await expect(page.locator("h1")).toBeVisible();
+    const heroTransition = await measureHeroTransition(page);
+    expect(heroTransition, "모바일 첫 화면 핵심 정보와 주요 메뉴의 연결 간격").not.toBeNull();
+    expect(heroTransition || 0).toBeLessThanOrEqual(64);
     const firstPreview = page.locator('a[href^="/landing/matchup-board/"] img').first();
     await expect(firstPreview).toBeAttached();
     await firstPreview.dispatchEvent("error");

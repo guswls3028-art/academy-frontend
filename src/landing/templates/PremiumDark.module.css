@@ -576,7 +576,7 @@
 @media (max-width: 760px) {
   .hero { overflow: hidden; }
   .heroGrid { position: relative; width: 100%; min-height: 0; display: block; }
-  .heroContent { min-height: 500px; padding: 70px 20px 42px; }
+  .heroContent { min-height: 0; padding: 70px 20px 42px; }
   .heroContent::after { position: absolute; inset: 0; z-index: -1; content: ""; background: linear-gradient(90deg, #07111f 0%, rgba(7, 17, 31, 0.94) 58%, rgba(7, 17, 31, 0.24) 100%); }
   .portraitPanel { position: absolute; inset: 0 0 0 auto; z-index: 0; width: 58%; min-height: 0; border: 0; opacity: 0.58; }
   .portraitPanel::after { background: linear-gradient(90deg, #07111f 0%, transparent 72%), linear-gradient(0deg, #07111f 0%, transparent 54%); }
@@ -628,7 +628,7 @@
 }
 
 @media (max-width: 430px) {
-  .heroContent { min-height: 480px; padding-top: 56px; }
+  .heroContent { padding-top: 56px; }
   .kicker { margin-bottom: 20px; font-size: 9px; }
   .heroTitle { font-size: 40px; line-height: 1.06; }
   .heroDescription { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
