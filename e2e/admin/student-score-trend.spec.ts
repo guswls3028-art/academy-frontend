@@ -895,19 +895,25 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await expect(detailOverlay.getByRole("tab", { name: /과제/ })).toContainText("미제출 1");
     await detailOverlay.screenshot({ path: "test-results/homework-completion/student-detail-1100.png" });
 
-    await page.setViewportSize({ width: 390, height: 844 });
-    await numericEditor.scrollIntoViewIfNeeded();
-    await expect.poll(() => detailOverlay.evaluate(
-      (element) => element.scrollWidth <= element.clientWidth,
-    )).toBe(true);
-    await expect.poll(() => detailOverlay.locator('div[class*="homeworkRecordGroup"]').evaluateAll((groups) => (
+    const homeworkActionsStayWithinCards = () => detailOverlay.locator('div[class*="homeworkRecordGroup"]').evaluateAll((groups) => (
       groups.every((group) => {
         const record = group.querySelector<HTMLElement>('div[class*="tabRecord"]');
         const actions = group.querySelector<HTMLElement>('div[class*="recordActions"]');
         if (!record || !actions) return false;
         return actions.getBoundingClientRect().right <= record.getBoundingClientRect().right + 1;
       })
-    ))).toBe(true);
+    ));
+
+    await page.setViewportSize({ width: 1025, height: 820 });
+    await expect.poll(homeworkActionsStayWithinCards).toBe(true);
+    await detailOverlay.screenshot({ path: "test-results/homework-completion/student-detail-1025.png" });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await numericEditor.scrollIntoViewIfNeeded();
+    await expect.poll(() => detailOverlay.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    )).toBe(true);
+    await expect.poll(homeworkActionsStayWithinCards).toBe(true);
     await expect(numericEditor).toBeVisible();
     await detailOverlay.screenshot({ path: "test-results/homework-completion/student-detail-390.png" });
   });
