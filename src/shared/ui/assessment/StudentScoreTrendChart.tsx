@@ -260,7 +260,7 @@ export default function StudentScoreTrendChart({
             </p>
           </div>
         </div>
-        {metrics.firstToLatest != null && (
+        {audience !== "learner" && metrics.firstToLatest != null && (
           <div className={styles.growth} data-tone={improvementTone(metric, metrics.firstToLatest)}>
             <span>첫 회차 대비</span>
             <strong>{formatMetricDelta(metric, metrics.firstToLatest)}</strong>

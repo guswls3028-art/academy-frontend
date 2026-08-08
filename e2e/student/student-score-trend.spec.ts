@@ -354,6 +354,7 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
     await expect(chart).toContainText("같은 시험 응시자 중 1차 응시 점수 기준 내 등수입니다.");
     await expect(chart).toContainText("최근2등 / 10명");
     await expect(chart).toContainText("누적2회");
+    await expect(chart).not.toContainText("첫 회차 대비");
     await expect(chart.getByText("1회차", { exact: true })).toBeVisible();
     await expect(chart.getByText("2회차", { exact: true })).toBeVisible();
     await expect(chart.getByText("3회차", { exact: true })).toHaveCount(0);

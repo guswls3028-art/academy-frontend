@@ -641,6 +641,7 @@ async function assertTrend(component: ReturnType<Page["getByTestId"]>): Promise<
   await expect(component).toContainText("최근96%");
   await expect(component).toContainText("누적3회");
   await expect(component).toContainText("평균88.7%");
+  await expect(component).toContainText("첫 회차 대비+16%p");
   await expect(component).toContainText("직전 대비+6%p");
   await expect(component.getByText("1회차", { exact: true })).toBeVisible();
   await expect(component.getByText("2회차", { exact: true })).toBeVisible();
