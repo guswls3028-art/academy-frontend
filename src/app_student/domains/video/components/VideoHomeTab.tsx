@@ -5,7 +5,7 @@ import EmptyState from "@student/layout/EmptyState";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { IconChevronRight, IconNotice, IconVideo } from "@student/shared/ui/icons/Icons";
-import { fetchNotices } from "@student/domains/notices/api/notices.api";
+import { fetchStudentNotices } from "@student/shared/api/notices.api";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import CourseCard from "./CourseCard";
 import type { StudentVideoMeLecture, StudentVideoMePublic } from "../api/video.api";
@@ -20,7 +20,7 @@ export default function VideoHomeTab({ lectures, publicData }: Props) {
   const hasPublic = (publicData?.video_count ?? 0) > 0;
   const { data: notices, isLoading: noticesLoading, isError: noticesError } = useQuery({
     queryKey: studentQueryKeys.notices,
-    queryFn: fetchNotices,
+    queryFn: () => fetchStudentNotices(),
     enabled: hasLectures,
     staleTime: 60 * 1000,
   });
