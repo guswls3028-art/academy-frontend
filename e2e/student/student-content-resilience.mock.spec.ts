@@ -57,7 +57,7 @@ async function assertNoRenderedHtmlLeak(page: Page) {
 
 async function installStudentApi(
   page: Page,
-  options: { profileId?: () => number; examId?: number; legacyHtml?: boolean; failDataRequests?: boolean } = {},
+  options: { profileId?: () => number; examId?: number; legacyHtml?: boolean; failDataRequests?: boolean; lectureNotices?: boolean } = {},
 ) {
   await page.addInitScript(({ token }) => {
     localStorage.setItem("access", token);
@@ -367,7 +367,38 @@ async function installStudentApi(
       return;
     }
     if (path.endsWith("/community/posts/notices/") || path.endsWith("/community/posts/board/") || path.endsWith("/community/posts/materials/")) {
-      await route.fulfill({ json: options.legacyHtml ? [{
+      const lectureNoticeRows = options.lectureNotices && path.endsWith("/community/posts/notices/") ? [{
+        id: 91,
+        post_type: "notice",
+        title: "수학 I 개강 안내",
+        content: "<p>교재와 필기도구를 준비해 주세요.</p>",
+        created_by: 1,
+        created_by_display: "담당 선생님",
+        created_at: "2026-08-08T09:00:00+09:00",
+        mappings: [{ id: 11, post: 91, node: 11, created_at: "2026-08-08T09:00:00+09:00", node_detail: { id: 11, level: "COURSE", lecture: 71, session: null, lecture_title: "고등 수학", session_title: null } }],
+        attachments: [],
+      }, {
+        id: 92,
+        post_type: "notice",
+        title: "수학 II 휴강 안내",
+        content: "<p>다음 주 수업 일정을 확인해 주세요.</p>",
+        created_by: 1,
+        created_by_display: "담당 선생님",
+        created_at: "2026-08-07T09:00:00+09:00",
+        mappings: [{ id: 12, post: 92, node: 12, created_at: "2026-08-07T09:00:00+09:00", node_detail: { id: 12, level: "COURSE", lecture: 72, session: null, lecture_title: "수학 II", session_title: null } }],
+        attachments: [],
+      }, {
+        id: 93,
+        post_type: "notice",
+        title: "1차시 준비물 안내",
+        content: "<p>프린트를 가져오세요.</p>",
+        created_by: 1,
+        created_by_display: "담당 선생님",
+        created_at: "2026-08-06T09:00:00+09:00",
+        mappings: [{ id: 13, post: 93, node: 13, created_at: "2026-08-06T09:00:00+09:00", node_detail: { id: 13, level: "SESSION", lecture: 71, session: 24, lecture_title: "고등 수학", session_title: "1차시 · 미적분" } }],
+        attachments: [],
+      }] : null;
+      await route.fulfill({ json: lectureNoticeRows ?? (options.legacyHtml ? [{
         id: 81,
         post_type: path.includes("notices") ? "notice" : path.includes("materials") ? "materials" : "board",
         title: escapedHtml("커뮤니티 안내", "strong"),
@@ -377,7 +408,7 @@ async function installStudentApi(
         created_at: "2026-08-03T09:00:00+09:00",
         mappings: [{ id: 1, post: 81, node: 1, created_at: "2026-08-03T09:00:00+09:00", node_detail: { id: 1, level: "SESSION", lecture: 71, session: 24, lecture_title: escapedHtml("수학 강의", "strong"), session_title: escapedHtml("정규 수업", "p") } }],
         attachments: [],
-      }] : [] });
+      }] : []) });
       return;
     }
     if (path.endsWith("/community/posts/")) {
@@ -459,7 +490,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     await expect(page.getByText("고등 수학", { exact: true })).toBeVisible();
     await assertNoRenderedHtmlLeak(page);
 
-    await page.getByRole("link", { name: /고등 수학/ }).click();
+    await page.locator('a[href="/student/video/courses/71"]').click();
     await expect(page.getByRole("heading", { name: "고등 수학" })).toBeVisible();
     await expect(page.getByText("1차시 · 미적분", { exact: true })).toBeVisible();
     await assertNoRenderedHtmlLeak(page);
@@ -470,6 +501,58 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
 
     await page.setViewportSize({ width: 390, height: 844 });
     await assertNoRenderedHtmlLeak(page);
+  });
+
+  test("강의 탭에서 공지를 발견하고 선택한 강의 범위로 바로 연다", async ({ page }, testInfo) => {
+    test.setTimeout(5 * 60_000);
+    await installStudentApi(page, { lectureNotices: true });
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await page.goto(`${BASE}/student/video`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+
+    const noticeEntry = page.getByTestId("lecture-notice-entry");
+    await expect(noticeEntry).toContainText("강의 공지");
+    await expect(noticeEntry).toContainText("고등 수학 · 수학 I 개강 안내");
+    await expect(noticeEntry).toContainText("1건");
+    await expect(noticeEntry).toHaveAttribute("href", "/student/notices?tab=lecture");
+    await testInfo.attach("lecture-notice-home-desktop", {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: "image/png",
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(noticeEntry).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    await testInfo.attach("lecture-notice-home-mobile", {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: "image/png",
+    });
+    await page.setViewportSize({ width: 1366, height: 900 });
+
+    await page.locator('a[href="/student/video/courses/71"]').click();
+    const courseNoticeLink = page.getByRole("link", { name: /이 강의 공지/ });
+    await expect(courseNoticeLink).toHaveAttribute("href", "/student/notices?tab=lecture&lecture=71");
+    await courseNoticeLink.click();
+
+    await expect(page).toHaveURL(/\/student\/notices\?tab=lecture&lecture=71$/);
+    await expect(page.getByText("고등 수학 공지만 보고 있어요", { exact: true })).toBeVisible();
+    await expect(page.getByText("수학 I 개강 안내", { exact: true })).toBeVisible();
+    await expect(page.getByText("수학 II 휴강 안내", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("1차시 준비물 안내", { exact: true })).toHaveCount(0);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    await page.getByRole("link", { name: "전체 강의" }).click();
+    await expect(page).toHaveURL(/\/student\/notices\?tab=lecture$/);
+    await expect(page.getByText("수학 I 개강 안내", { exact: true })).toBeVisible();
+    await expect(page.getByText("수학 II 휴강 안내", { exact: true })).toBeVisible();
+    await expect(page.getByText("1차시 준비물 안내", { exact: true })).toHaveCount(0);
+    await assertNoRenderedHtmlLeak(page);
+
+    await page.goto(`${BASE}/student/video`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+    await expect(page.getByTestId("lecture-notice-entry")).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    await page.locator('a[href="/student/video/courses/71"]').click();
+    await expect(page.getByRole("link", { name: /이 강의 공지/ })).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   });
 
   test("학생·학부모 주요 목록은 레거시 HTML 제목과 범위명을 노출하지 않는다", async ({ page }) => {

@@ -2,7 +2,7 @@
  * 공지 목록 페이지 — 전체공지 / 강의공지 / 차시공지 탭
  */
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import { fetchNotices, type PostEntity } from "../api/notices.api";
@@ -19,22 +19,39 @@ const TAB_CONFIG: { key: NoticeTab; label: string }[] = [
   { key: "session", label: "차시공지" },
 ];
 
-function filterNotices(notices: PostEntity[], tab: NoticeTab): PostEntity[] {
+function filterNotices(notices: PostEntity[], tab: NoticeTab, lectureId?: number | null): PostEntity[] {
   if (tab === "all") return notices;
-  if (tab === "lecture") return notices.filter((n) => n.mappings?.some((m) => m.node_detail?.level === "COURSE"));
+  if (tab === "lecture") {
+    return notices.filter((notice) => notice.mappings?.some((mapping) => (
+      mapping.node_detail?.level === "COURSE" &&
+      (lectureId == null || mapping.node_detail.lecture === lectureId)
+    )));
+  }
   if (tab === "session") return notices.filter((n) => n.mappings?.some((m) => m.node_detail?.level === "SESSION"));
   return notices;
 }
 
 export default function NoticesPage() {
-  const [activeTab, setActiveTab] = useState<NoticeTab>("all");
+  const [searchParams] = useSearchParams();
+  const requestedLectureId = Number(searchParams.get("lecture"));
+  const lectureId = Number.isInteger(requestedLectureId) && requestedLectureId > 0
+    ? requestedLectureId
+    : null;
+  const requestedTab = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState<NoticeTab>(() => (
+    lectureId != null || requestedTab === "lecture"
+      ? "lecture"
+      : requestedTab === "session"
+        ? "session"
+        : "all"
+  ));
 
   const { data: notices, isLoading, isError, refetch } = useQuery({
     queryKey: studentQueryKeys.notices,
     queryFn: fetchNotices,
   });
 
-  const lectureCount = notices ? filterNotices(notices, "lecture").length : 0;
+  const lectureCount = notices ? filterNotices(notices, "lecture", lectureId).length : 0;
   const sessionCount = notices ? filterNotices(notices, "session").length : 0;
   const allCount = notices?.length ?? 0;
 
@@ -44,7 +61,12 @@ export default function NoticesPage() {
     session: sessionCount,
   };
 
-  const filtered = notices ? filterNotices(notices, activeTab) : [];
+  const filtered = notices ? filterNotices(notices, activeTab, lectureId) : [];
+  const lectureTitle = lectureId == null
+    ? null
+    : notices?.flatMap((notice) => notice.mappings ?? [])
+      .find((mapping) => mapping.node_detail?.lecture === lectureId)
+      ?.node_detail?.lecture_title ?? null;
 
   if (isLoading) {
     return (
@@ -96,6 +118,18 @@ export default function NoticesPage() {
           );
         })}
       </div>
+
+      {activeTab === "lecture" && lectureId != null && (
+        <div className="student-notice-scopebar">
+          <span className="student-notice-scopebar__copy">
+            <span className="student-notice-scopebar__eyebrow">강의별 보기</span>
+            <strong>{lectureTitle ?? "선택한 강의"} 공지만 보고 있어요</strong>
+          </span>
+          <Link to="/student/notices?tab=lecture" className="student-notice-scopebar__reset">
+            전체 강의
+          </Link>
+        </div>
+      )}
 
       {/* 목록 */}
       {filtered.length === 0 ? (

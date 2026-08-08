@@ -12,7 +12,7 @@ import {
 } from "../api/video.api";
 import EmptyState from "@student/layout/EmptyState";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
-import { IconChevronRight, IconPlay } from "@student/shared/ui/icons/Icons";
+import { IconChevronRight, IconNotice, IconPlay } from "@student/shared/ui/icons/Icons";
 import { formatDuration } from "../utils/format";
 import {
   canPlayStudentVideo,
@@ -282,6 +282,19 @@ export default function CourseDetailPage() {
               <span className="video-stat-pill">{formatDuration(totalDuration)}</span>
             )}
           </div>
+          {!isPublic && lecture && (
+            <Link
+              to={`/student/notices?tab=lecture&lecture=${lecture.id}`}
+              className="video-hero__notice-link"
+            >
+              <IconNotice className="video-hero__notice-icon" aria-hidden="true" />
+              <span className="video-hero__notice-copy">
+                <strong>이 강의 공지</strong>
+                <span>선생님이 남긴 안내를 바로 확인해요</span>
+              </span>
+              <IconChevronRight className="video-hero__notice-chevron" aria-hidden="true" />
+            </Link>
+          )}
         </section>
 
         <section className="video-list" aria-label="차시 목록">
