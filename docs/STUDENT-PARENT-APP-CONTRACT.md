@@ -56,6 +56,25 @@
 `docs/domain/student-core.md`, `docs/domain/parent-account.md`가 소유한다.
 프론트엔드는 그 계약을 완화하거나 기본 자녀를 추정하지 않는다.
 
+## 강의 공지 발견 계약
+
+- 학생·학부모의 `/student/video` 강의 탭은 수강 강의 카드 앞에 **강의 공지**
+  진입점을 둔다. 공지가 있으면 현재 수강 강의에 연결된 `COURSE` 범위 공지 수와
+  우선 공지 제목을 보여주고, 로딩·빈 결과·조회 실패 상태에서도 공지 목록으로
+  이동할 수 있어야 한다.
+- `/student/video/courses/:lectureId`의 **이 강의 공지**는
+  `/student/notices?tab=lecture&lecture=:lectureId`로 이동한다. 공지 화면은 API가
+  반환한 `mappings[].node_detail.lecture`와 `level=COURSE`를 함께 확인해 선택한
+  강의 공지만 표시하며, **전체 강의**로 범위를 해제할 수 있다. URL의 강의 ID는
+  표시 필터일 뿐 권한을 넓히지 않으며 서버의 학생·선택 자녀 범위 응답을 그대로
+  따른다.
+- 공지 목록 데이터는 기존 `GET /api/v1/community/posts/notices/`가 소유한다.
+  프론트엔드는 강의 제목이나 공지 본문을 별도로 복제하지 않는다. 공개 강의에는
+  수강 강의 공지 진입점을 노출하지 않는다.
+- 390px에서는 공지 요약을 한 줄로 줄이고 아이콘·건수·진입 동작을 유지한다.
+  키보드 포커스와 `prefers-reduced-motion`을 지원하며 문서 전체 가로 스크롤을
+  만들지 않는다.
+
 ## 실패 동작과 검증
 
 리치 콘텐츠 정화가 실패해도 원본 HTML을 실행해서는 안 된다. 로컬 저장소가

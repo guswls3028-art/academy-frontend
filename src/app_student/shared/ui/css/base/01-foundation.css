@@ -517,6 +517,55 @@ html:has([data-app="student"]) {
   background: var(--stu-surface-soft);
 }
 
+.student-notice-scopebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 0 16px;
+  padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 18%, var(--stu-border));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface));
+}
+
+.student-notice-scopebar__copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+  color: var(--stu-text);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.student-notice-scopebar__eyebrow {
+  color: var(--stu-primary);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.student-notice-scopebar__copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.student-notice-scopebar__reset {
+  flex: 0 0 auto;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: var(--stu-surface);
+  color: var(--stu-primary);
+  font-size: 12px;
+  font-weight: 850;
+  text-decoration: none;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--stu-primary) 14%, var(--stu-border));
+}
+
 .student-notice-tab {
   display: inline-flex;
   align-items: center;
