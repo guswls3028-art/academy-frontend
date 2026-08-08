@@ -398,6 +398,7 @@
 .tabList {
   display: grid;
   gap: 8px;
+  container-type: inline-size;
 }
 
 .scoreScope {
@@ -947,7 +948,7 @@
   }
 }
 
-@media (max-width: 480px) {
+@container (max-width: 500px) {
   .homeworkRecordGroup .tabRecord {
     display: grid;
     grid-template-columns: 24px minmax(0, 1fr);
