@@ -813,7 +813,12 @@ function StudentStatTabs({
   const avgScore = examSummary?.average_score_pct ?? null;
   const passRate = examJudged > 0 ? `${Math.round((examPassCount / examJudged) * 100)}%` : null;
 
-  const hwPassCount = homeworkGrades.filter((homework) => homework.passed === true).length;
+  const hwPassCount = homeworkGrades.filter((homework) => (
+    homework.achievement === "PASS" || homework.achievement === "REMEDIATED"
+  )).length;
+  const hwNotSubmittedCount = homeworkGrades.filter((homework) => (
+    homework.achievement === "NOT_SUBMITTED"
+  )).length;
   const hwTotal = homeworkGrades.length;
 
   const clinicCount = (clinicData ?? []).length;
@@ -844,7 +849,13 @@ function StudentStatTabs({
       key: "homework",
       label: "과제",
       value: gradesLoading ? "…" : gradesError ? "확인 필요" : `${hwTotal}건`,
-      sub: gradesLoading ? "불러오는 중" : gradesError ? "불러오기 실패" : hwTotal > 0 ? `완료 ${hwPassCount}` : undefined,
+      sub: gradesLoading
+        ? "불러오는 중"
+        : gradesError
+          ? "불러오기 실패"
+          : hwTotal > 0
+            ? [`완료 ${hwPassCount}`, hwNotSubmittedCount > 0 ? `미제출 ${hwNotSubmittedCount}` : null].filter(Boolean).join(" · ")
+            : undefined,
     },
     {
       key: "wrong-note",
@@ -1332,8 +1343,18 @@ function HomeworkTab({
   }
   if (!data?.length) return <EmptyState scope="panel" tone="empty" title="과제 성적이 없습니다." />;
 
-  const achievementLabel: Record<string, string> = { PASS: "완료", FAIL: "미완료", REMEDIATED: "보강완료" };
-  const achievementTone: Record<string, string> = { PASS: "success", FAIL: "danger", REMEDIATED: "warning" };
+  const achievementLabel: Record<string, string> = {
+    PASS: "완료",
+    FAIL: "미완료",
+    REMEDIATED: "보강완료",
+    NOT_SUBMITTED: "미제출",
+  };
+  const achievementTone: Record<string, BadgeTone> = {
+    PASS: "success",
+    FAIL: "danger",
+    REMEDIATED: "warning",
+    NOT_SUBMITTED: "danger",
+  };
 
   return (
     <div className={styles.tabList}>
@@ -1358,6 +1379,7 @@ function HomeworkTab({
               <span className={styles.recordTitle}>{hw.title}</span>
               <div className={styles.recordMetaRow}>
                 {hw.session_title && <span>{hw.session_title}</span>}
+                <span>· {hw.grading_mode === "COMPLETION" ? "완료 체크" : "숫자 채점"}</span>
                 {(hw.retake_count ?? 0) > 1 && <span>· 재시도 {(hw.retake_count ?? 0) - 1}회</span>}
               </div>
             </div>
@@ -1367,11 +1389,9 @@ function HomeworkTab({
                   {Math.round(hw.score)}<span className={styles.scoreMax}>/{hw.max_score ?? 100}</span>
                 </span>
               )}
-              {hw.achievement && (
-                <Badge variant="solid" size="sm" tone={(achievementTone[hw.achievement] || "muted") as BadgeTone}>
-                  {achievementLabel[hw.achievement] || hw.achievement}
-                </Badge>
-              )}
+              <Badge variant="solid" size="sm" tone={hw.achievement ? (achievementTone[hw.achievement] || "muted") : "muted"}>
+                {hw.achievement ? (achievementLabel[hw.achievement] || hw.achievement) : "검사 전"}
+              </Badge>
               <Button
                 type="button"
                 intent="secondary"

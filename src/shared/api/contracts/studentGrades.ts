@@ -41,6 +41,7 @@ export type StudentHomeworkGrade = {
   is_locked?: boolean;
   lock_reason?: string | null;
   score_updated_at?: string | null;
+  meta_status?: string | null;
   achievement?: StudentAchievement | null;
   retake_count?: number | null;
   session_id?: number | null;

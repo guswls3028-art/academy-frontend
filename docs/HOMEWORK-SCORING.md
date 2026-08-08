@@ -65,6 +65,12 @@
 
 ## 학생 상세에서 바로 수정
 
+- 학생 상세 과제 탭은 점수가 생긴 과제만 나열하지 않고 이 학생에게 배정된
+  운영 과제를 기준으로 표시한다. 따라서 검사 전 과제도 행이 유지된다. 서버의
+  `meta_status=NOT_SUBMITTED`는 **미제출**, 점수·미제출 기록이 모두 없는 상태는
+  **검사 전**으로 표시하며 둘을 `0점`이나 빈 목록으로 바꾸지 않는다.
+- 각 행은 채점 방식을 `숫자 채점` 또는 `완료 체크`로 함께 보여 준다. 상단
+  요약은 완료 수와 미제출 수를 분리하고, 완료형에 `0/1`을 노출하지 않는다.
 - **학생 목록 → 학생 상세 → 과제**에서 각 과제의 `바로 수정`을 누르면 현재
   화면 안에 작은 편집 패널이 열린다. 차시 화면으로 이동하지 않는다.
 - 완료형은 `미완료/완료` 두 버튼을 누르는 즉시 저장한다. 숫자형은 점수를
@@ -96,6 +102,8 @@
 - 차시 과제 카드: `src/app_admin/domains/sessions/components/SessionAssessmentSidePanel.tsx`
 - 성적표: `src/app_admin/domains/scores/components/ScoresTable.tsx`
 - API 응답 정규화: `src/shared/api/contracts/assessments.ts`
+- 학생 상세 목록: `src/app_admin/domains/students/overlays/StudentsDetailOverlay.tsx`,
+  `src/shared/api/contracts/studentGrades.ts`
 - 회귀 E2E: `e2e/admin/score-entry-autosave.spec.ts`
 - 학생 상세 회귀 E2E: `e2e/admin/student-score-trend.spec.ts`
 
