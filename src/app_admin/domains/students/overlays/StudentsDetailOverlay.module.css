@@ -947,6 +947,25 @@
   }
 }
 
+@media (max-width: 480px) {
+  .homeworkRecordGroup .tabRecord {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr);
+    row-gap: 8px;
+  }
+
+  .homeworkRecordGroup .recordMain,
+  .homeworkRecordGroup .recordActions {
+    grid-column: 2;
+  }
+
+  .homeworkRecordGroup .recordActions {
+    width: 100%;
+    max-width: none;
+    justify-content: flex-end;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .statTab,
   .homeworkQuickEditor {
