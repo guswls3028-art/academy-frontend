@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { EmptyState, Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
+import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { isStaleResourceConflict } from "@/shared/api/optimisticConcurrency";
 import { useAssessmentDirtyRegistration } from "@/shared/ui/assessment/AssessmentEditGuard";
 import { useAssessmentPolicyDraft } from "@/shared/ui/assessment/useAssessmentPolicyDraft";
@@ -241,7 +242,7 @@ export default function ExamPolicyPanel({
         feedback.warning("다른 사용자의 변경을 확인했습니다. 최신 설정을 불러온 뒤 다시 저장해 주세요.");
         return;
       }
-      feedback.error((error as Error)?.message ?? "시험 운영 설정을 저장하지 못했습니다.");
+      feedback.error(getApiErrorMessage(error, "시험 운영 설정을 저장하지 못했습니다."));
     },
   });
 

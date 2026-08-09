@@ -20,6 +20,7 @@ function localJwt(): string {
 type MockState = {
   exam: Record<string, unknown>;
   examPatchPayloads: Array<Record<string, unknown>>;
+  examPatchFailure?: { status: number; body: unknown };
   selectedEnrollmentIds: number[];
 };
 
@@ -118,6 +119,9 @@ async function installApi(page: Page, state: MockState) {
       }
       const payload = request.postDataJSON() as Record<string, unknown>;
       state.examPatchPayloads.push(payload);
+      if (state.examPatchFailure) {
+        return json(state.examPatchFailure.body, state.examPatchFailure.status);
+      }
       state.exam = { ...state.exam, ...payload, updated_at: "2026-08-03T01:00:00Z" };
       return json(state.exam);
     }
@@ -266,6 +270,60 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
     path: testInfo.outputPath("assessment-workspace-390.png"),
     fullPage: true,
   });
+});
+
+test("0점 합격 기준을 저장하고 서버 필드 오류를 입력값과 함께 보존한다", async ({ page }) => {
+  const state: MockState = {
+    exam: {
+      id: EXAM_ID,
+      title: "중3 공개 시험",
+      description: "",
+      subject: "수학",
+      exam_type: "regular",
+      is_active: true,
+      allow_retake: false,
+      max_attempts: 1,
+      pass_score: 0,
+      max_score: 15,
+      grading_mode: "written",
+      manual_grading_method: "correctness",
+      choice_question_count: 0,
+      segmentation_status: "ready",
+      source_filename: "",
+      display_order: 0,
+      open_at: null,
+      close_at: null,
+      template_exam_id: null,
+      structure_owner_id: EXAM_ID,
+      can_edit_structure: true,
+      answer_visibility: "hidden",
+      student_results_published: true,
+      created_at: "2026-08-02T00:00:00Z",
+      updated_at: "2026-08-02T00:00:00Z",
+    },
+    examPatchPayloads: [],
+    selectedEnrollmentIds: [601, 602],
+  };
+
+  await openExam(page, state);
+  await expect(page.getByLabel("합격 기준")).toHaveValue("0");
+  await page.getByLabel("만점").fill("16");
+  await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
+
+  await expect.poll(() => state.examPatchPayloads.length).toBe(1);
+  expect(state.examPatchPayloads[0]).toMatchObject({ max_score: 16, pass_score: 0 });
+  await expect(page.getByLabel("만점")).toHaveValue("16");
+
+  state.examPatchFailure = {
+    status: 400,
+    body: { max_score: ["문항 배점 합계와 만점이 일치하지 않습니다."] },
+  };
+  await page.getByLabel("만점").fill("17");
+  await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
+
+  await expect(page.getByText("문항 배점 합계와 만점이 일치하지 않습니다.", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("만점")).toHaveValue("17");
+  expect(state.exam.max_score).toBe(16);
 });
 
 test("미저장 시험 설정은 탭 이동 전에 확인하고 동시 수정은 덮어쓰지 않는다", async ({ page }) => {
