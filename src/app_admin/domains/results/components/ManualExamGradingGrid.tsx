@@ -555,17 +555,32 @@ export default function ManualExamGradingGrid({
         `[data-manual-grade-cell][data-row-index="${candidateRow}"][data-column-index="${candidateColumn}"]:not(:disabled)`,
       ) ?? null;
 
+    const focusCandidate = (candidateRow: number, candidateColumn: number) => {
+      const candidate = findFocusableCell(candidateRow, candidateColumn);
+      if (!candidate) return false;
+      candidate.focus();
+      window.requestAnimationFrame(() => {
+        const activeElement = document.activeElement;
+        if (
+          activeElement !== document.body &&
+          activeElement !== current &&
+          activeElement !== candidate
+        ) {
+          return;
+        }
+        findFocusableCell(candidateRow, candidateColumn)?.focus();
+      });
+      return true;
+    };
+
     if (direction === "next" || direction === "previous") {
       const delta = direction === "next" ? 1 : -1;
       const lastIndex = draftRows.length * columnCount - 1;
       let candidateIndex = rowIndex * columnCount + columnIndex + delta;
       while (candidateIndex >= 0 && candidateIndex <= lastIndex) {
-        const candidate = findFocusableCell(
-          Math.floor(candidateIndex / columnCount),
-          candidateIndex % columnCount,
-        );
-        if (candidate) {
-          candidate.focus();
+        const candidateRow = Math.floor(candidateIndex / columnCount);
+        const candidateColumn = candidateIndex % columnCount;
+        if (focusCandidate(candidateRow, candidateColumn)) {
           return;
         }
         candidateIndex += delta;
@@ -576,9 +591,7 @@ export default function ManualExamGradingGrid({
     const delta = direction === "down" ? 1 : -1;
     let candidateRow = rowIndex + delta;
     while (candidateRow >= 0 && candidateRow < draftRows.length) {
-      const candidate = findFocusableCell(candidateRow, columnIndex);
-      if (candidate) {
-        candidate.focus();
+      if (focusCandidate(candidateRow, columnIndex)) {
         return;
       }
       candidateRow += delta;

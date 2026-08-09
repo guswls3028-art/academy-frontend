@@ -146,6 +146,9 @@ export default defineConfig(({ mode }) => {
   },
 
   optimizeDeps: {
+    // Scan lazy route modules up front so cold E2E runs cannot trigger a
+    // mid-test dependency re-bundle and full-page reload.
+    entries: ["index.html", "e2e-*-harness.html", "src/**/*.{ts,tsx}"],
     include: ["react", "react-dom"],
   },
   };
