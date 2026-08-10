@@ -15,7 +15,6 @@ type Props = {
   examId: number;
   assetType: string; // "problem_pdf" | "omr_sheet"
   title: string;
-  accept: string;
 };
 
 function humanizeBytes(bytes: number) {
@@ -45,7 +44,6 @@ export default function AssetUploadSection({
   examId,
   assetType,
   title,
-  accept,
 }: Props) {
   const qc = useQueryClient();
 
@@ -100,7 +98,7 @@ export default function AssetUploadSection({
             {title}
           </div>
           <div className="text-xs text-[var(--text-muted)]">
-            운영 시험 제출/채점에 필요합니다. (asset_type: <b>{assetType}</b>)
+            PDF, HWP/HWPX, DOCX, PPTX, 이미지 등 안전한 원본을 최대 50MB까지 보관합니다.
           </div>
         </div>
 
@@ -121,7 +119,7 @@ export default function AssetUploadSection({
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="file"
-          accept={accept}
+          aria-label={`${title} 파일 선택`}
           onChange={(e) => {
             setDoneMsg(null);
             setError(null);

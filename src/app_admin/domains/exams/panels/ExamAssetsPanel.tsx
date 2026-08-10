@@ -84,7 +84,6 @@ export default function ExamAssetsPanel({ examId }: { examId: number }) {
             examId={examId}
             assetType="omr_sheet"
             title="OMR 답안지"
-            accept="application/pdf"
           />
         )}
 
