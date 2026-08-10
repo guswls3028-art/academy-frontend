@@ -69,8 +69,8 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
           className="w-full rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-900"
           onClick={() => setTab(mode === "design" ? "assets" : "setup")}
         >
-          <strong>HWP 원본은 보관되었습니다.</strong>
-          <span className="ml-2">수식과 쪽 배치를 보존하도록 PDF로 저장해 추가로 올려 주세요.</span>
+          <strong>자료 원본은 형식 그대로 보관되었습니다.</strong>
+          <span className="ml-2">자동 분리가 완전하지 않으면 문항과 해설을 직접 등록해 검수할 수 있습니다.</span>
         </button>
       )}
 

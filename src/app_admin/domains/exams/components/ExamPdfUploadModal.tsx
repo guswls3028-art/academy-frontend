@@ -6,7 +6,6 @@ import { useState, useEffect } from "react";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import FileUploadZone from "@/shared/ui/upload/FileUploadZone";
-import { feedback } from "@/shared/ui/feedback/feedback";
 import {
   usePdfQuestionExtract,
   type PdfExtractStatus,
@@ -22,10 +21,10 @@ type Props = {
 
 const STATUS_LABELS: Record<PdfExtractStatus, string> = {
   idle: "",
-  uploading: "시험지 업로드 중…",
+  uploading: "시험 자료 업로드 중…",
   processing: "문항·해설 맞춤 처리 중…",
   done: "문항 분할 완료",
-  conversion_required: "문제 PDF가 더 필요합니다",
+  conversion_required: "원본 저장 완료 · 직접 검수 필요",
   failed: "처리 실패",
 };
 
@@ -50,7 +49,7 @@ export default function ExamPdfUploadModal({ open, onClose, examId, sourceKind =
   };
 
   const handleUpload = () => {
-    if (!selectedFile || pairedPrimaryInvalid) return;
+    if (!selectedFile) return;
     upload(selectedFile, explanationFile);
   };
 
@@ -61,11 +60,6 @@ export default function ExamPdfUploadModal({ open, onClose, examId, sourceKind =
   const isFailed = status === "failed";
   const isBusy = isUploading || isProcessing;
   const progressValue = Math.min(100, Math.max(0, progress.percent));
-  const pairedPrimaryInvalid = Boolean(
-    explanationFile
-    && selectedFile
-    && !/\.(pdf|png|jpe?g)$/i.test(selectedFile.name),
-  );
   const sourceLabel = sourceKind === "workbook" ? "워크북" : "시험";
   const statusLabel = status === "uploading"
     ? `${sourceLabel} 자료 업로드 중…`
@@ -89,22 +83,21 @@ export default function ExamPdfUploadModal({ open, onClose, examId, sourceKind =
           <div className={styles.sourceModes} aria-label="지원하는 자료 구성">
             <div>
               <strong>문제+해설 한 파일</strong>
-              <span>PDF 또는 본문 문제·미주 해설 HWP·HWPX</span>
+              <span>모든 안전한 원본 형식</span>
             </div>
             <div>
               <strong>문제 파일만</strong>
-              <span>PDF·PNG·JPG</span>
+              <span>모든 안전한 원본 형식</span>
             </div>
             <div>
               <strong>문제·해설 두 파일</strong>
-              <span>문제 PDF + 해설 HWP·HWPX</span>
+              <span>두 원본의 형식과 관계없이 각각 보관</span>
             </div>
           </div>
 
           <FileUploadZone
             titleLabel={showSeparateFiles ? "문제 파일" : `${sourceLabel} 자료`}
-            accept=".pdf,.png,.jpg,.jpeg,.hwp,.hwpx"
-            hintText="PDF, HWP/HWPX, PNG, JPG · 50MB 이하"
+            hintText="모든 안전한 원본 형식 · 실행·스크립트 제외 · 50MB 이하"
             selectedFile={selectedFile}
             onFilesSelect={handleFilesSelect}
             onClearFile={() => {
@@ -112,17 +105,7 @@ export default function ExamPdfUploadModal({ open, onClose, examId, sourceKind =
               reset();
             }}
             disabled={isBusy}
-            validateFile={(f) => {
-              const ext = f.name.toLowerCase();
-              return ext.endsWith(".pdf") || ext.endsWith(".hwp") || ext.endsWith(".hwpx") || ext.endsWith(".png") || ext.endsWith(".jpg") || ext.endsWith(".jpeg");
-            }}
-            onInvalidFile={(message) => feedback.warning(message)}
           />
-          {pairedPrimaryInvalid && (
-            <p className={styles.pairError}>
-              해설 파일을 따로 올릴 때 문제 파일은 PDF, PNG 또는 JPG여야 합니다.
-            </p>
-          )}
 
           <Button
             intent="ghost"
@@ -144,18 +127,15 @@ export default function ExamPdfUploadModal({ open, onClose, examId, sourceKind =
             <div className={styles.separateFiles}>
               <div className={styles.pairGuide}>
                 <strong>두 파일은 문항 번호로 연결합니다</strong>
-                <p>위에는 답 표시가 없는 문제 PDF를, 아래에는 같은 {sourceLabel}의 선생님 해설을 올려 주세요.</p>
+                <p>문제와 해설 원본을 형식 그대로 올려 주세요. 지원 조합은 번호로 자동 연결하고, 나머지는 원본을 보관해 직접 검수할 수 있습니다.</p>
               </div>
               <FileUploadZone
                 titleLabel="선생님 해설 파일"
-                accept=".hwp,.hwpx"
-                hintText="번호가 있는 미주 해설 HWP 또는 HWPX · 50MB 이하"
+                hintText="모든 안전한 해설 원본 형식 · 실행·스크립트 제외 · 50MB 이하"
                 selectedFile={explanationFile}
                 onFilesSelect={(files) => setExplanationFile(files[0] ?? null)}
                 onClearFile={() => setExplanationFile(null)}
                 disabled={isBusy}
-                validateFile={(f) => /\.hwpx?$/i.test(f.name)}
-                onInvalidFile={(message) => feedback.warning(message)}
               />
             </div>
           )}
@@ -218,7 +198,7 @@ export default function ExamPdfUploadModal({ open, onClose, examId, sourceKind =
               {isConversionRequired && (
                 <div className={styles.conversionGuide} role="status">
                   <strong>원본은 보관했습니다.</strong>
-                  <p>{result?.message || "문항마다 수식과 배치를 보존하려면 같은 문제지를 PDF로 저장해 다시 선택해 주세요."}</p>
+                  <p>{result?.message || "자동 분리가 완전하지 않으면 시험 상세에서 문항과 해설을 직접 등록해 검수할 수 있습니다. PDF 재업로드는 필수가 아닙니다."}</p>
                 </div>
               )}
 
@@ -260,7 +240,7 @@ export default function ExamPdfUploadModal({ open, onClose, examId, sourceKind =
                   닫기
                 </Button>
                 {selectedFile && status === "idle" && (
-                  <Button intent="primary" onClick={handleUpload} disabled={pairedPrimaryInvalid}>
+                  <Button intent="primary" onClick={handleUpload}>
                     업로드 및 문항 분석
                   </Button>
                 )}
@@ -270,7 +250,7 @@ export default function ExamPdfUploadModal({ open, onClose, examId, sourceKind =
                   </Button>
                 )}
                 {isFailed && selectedFile && (
-                  <Button intent="primary" onClick={handleUpload} disabled={pairedPrimaryInvalid}>
+                  <Button intent="primary" onClick={handleUpload}>
                     재시도
                   </Button>
                 )}

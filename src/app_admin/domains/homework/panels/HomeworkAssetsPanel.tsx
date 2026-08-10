@@ -65,7 +65,7 @@ export default function HomeworkAssetsPanel({ homeworkId }: { homeworkId: number
       : status === "processing"
         ? "미주 번호와 문제·해설 원본을 맞추고 있습니다. 완료되면 검수 화면이 열립니다."
         : status === "conversion_required"
-          ? "원본은 보관했습니다. 수식과 배치를 보존할 문제 PDF를 추가로 올려 주세요."
+          ? "원본은 형식 그대로 보관했습니다. 자동 분리가 완전하지 않으면 문항과 해설을 직접 등록해 검수해 주세요."
           : status === "failed"
             ? "분리를 완료하지 못했습니다. 원본 구성을 확인하고 다시 올려 주세요."
             : "문제+해설 한 파일, 문제만, 문제·해설 두 파일을 같은 진입점에서 처리합니다.";

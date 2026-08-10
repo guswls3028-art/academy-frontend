@@ -238,8 +238,8 @@ test.describe.serial("Exam PDF upload flow", () => {
   test("5. Open ExamPdfUploadModal from exam page", async () => {
     test.skip(!lectureId || !sessionId, "No session available");
 
-    // Try to find "시험지 PDF 업로드" or "시험지 업로드" button
-    let uploadBtn = page.locator("button").filter({ hasText: /시험지.*PDF|시험지 업로드/ }).first();
+    // Find the source upload entry from the exam assets panel.
+    let uploadBtn = page.locator("button").filter({ hasText: /시험 자료 업로드|시험 자료 올리기/ }).first();
 
     // If not visible, try to click on an exam in the left panel to load detail
     if (!(await uploadBtn.isVisible({ timeout: 3000 }).catch(() => false))) {
@@ -258,7 +258,7 @@ test.describe.serial("Exam PDF upload flow", () => {
       }
 
       // Try again after selecting
-      uploadBtn = page.locator("button").filter({ hasText: /시험지.*PDF|시험지 업로드/ }).first();
+      uploadBtn = page.locator("button").filter({ hasText: /시험 자료 업로드|시험 자료 올리기/ }).first();
     }
 
     await expect(uploadBtn).toBeVisible({ timeout: 10000 });
@@ -270,36 +270,35 @@ test.describe.serial("Exam PDF upload flow", () => {
       await expect(modalTitle).toBeVisible({ timeout: 5000 });
       console.log("  ExamPdfUploadModal opened successfully");
 
-      // A single entry accepts combined HWP/HWPX or a problem-only PDF/image.
+      // Every safe source format is selectable; automatic processing remains capability-based.
       await expect(modal.getByText("문제+해설 한 파일")).toBeVisible({ timeout: 3000 });
       await expect(modal.getByText("문제 파일만")).toBeVisible({ timeout: 3000 });
       await expect(modal.getByText("문제·해설 두 파일")).toBeVisible({ timeout: 3000 });
       await expect(modal.getByText("시험 자료", { exact: true })).toBeVisible();
       let fileInputs = modal.locator('input[type="file"]');
       await expect(fileInputs).toHaveCount(1);
-      await expect(fileInputs.first()).toHaveAttribute("accept", /\.hwpx/);
+      expect(await fileInputs.first().getAttribute("accept")).toBeNull();
 
       await modal.getByRole("button", { name: "문제지와 해설지가 따로 있어요" }).click();
       await expect(modal.getByText("문제 파일", { exact: true })).toBeVisible();
       await expect(modal.getByText("선생님 해설 파일", { exact: true })).toBeVisible();
       fileInputs = modal.locator('input[type="file"]');
       await expect(fileInputs).toHaveCount(2);
-      await expect(fileInputs.nth(1)).toHaveAttribute("accept", ".hwp,.hwpx");
+      expect(await fileInputs.nth(1).getAttribute("accept")).toBeNull();
 
-      // A teacher HWP cannot be paired with another HWP as the problem source.
       await fileInputs.nth(0).setInputFiles({
-        name: "teacher-marked-problems.hwp",
-        mimeType: "application/x-hwp",
-        buffer: Buffer.from("HWP problem fixture"),
+        name: "student-problems.docx",
+        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        buffer: Buffer.from("DOCX problem fixture"),
       });
       await fileInputs.nth(1).setInputFiles({
-        name: "teacher-explanations.hwp",
-        mimeType: "application/x-hwp",
-        buffer: Buffer.from("HWP explanation fixture"),
+        name: "teacher-explanations.pptx",
+        mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        buffer: Buffer.from("PPTX explanation fixture"),
       });
-      await expect(modal.getByText(/해설 파일을 따로 올릴 때/)).toBeVisible();
-      await expect(modal.getByRole("button", { name: "업로드 및 문항 분석" })).toBeDisabled();
-      console.log("  Single-entry modes and fail-closed paired validation visible");
+      await expect(modal.getByText(/두 원본의 형식과 관계없이/)).toBeVisible();
+      await expect(modal.getByRole("button", { name: "업로드 및 문항 분석" })).toBeEnabled();
+      console.log("  Multi-format source selection visible");
 
       // Take screenshot of modal
       await page.screenshot({ path: "e2e/screenshots/exam-pdf-upload-modal.png" });
@@ -319,7 +318,7 @@ test.describe.serial("Exam PDF upload flow", () => {
     test.skip(!lectureId || !sessionId, "No session context");
 
     // Find and click upload button
-    const uploadBtn = page.locator("button").filter({ hasText: /시험지.*PDF|시험지 업로드/ }).first();
+    const uploadBtn = page.locator("button").filter({ hasText: /시험 자료 업로드|시험 자료 올리기/ }).first();
     await expect(uploadBtn).toBeVisible({ timeout: 10000 });
     await uploadBtn.click();
 
@@ -348,7 +347,7 @@ test.describe.serial("Exam PDF upload flow", () => {
     await submitBtn.click();
 
     // Verify progress display: upload, matching, done, or failed.
-    const uploadingText = modal.getByText("시험지 업로드 중…").first();
+    const uploadingText = modal.getByText("시험 자료 업로드 중…").first();
     const processingText = modal.getByText("문항·해설 맞춤 처리 중…").first();
     const doneText = modal.getByText("문항 분할 완료").first();
     const failedText = modal.getByText("처리 실패").first();

@@ -924,16 +924,16 @@ export default function AnswerKeyRegisterModal({
               size="sm"
               onClick={() => setPdfModalOpen(true)}
               disabled={!structureReady}
-              title="시험지 PDF를 올리면 AI가 문항을 자동 인식합니다"
+              title="시험 자료 원본을 올리면 지원 형식은 AI가 문항을 자동 인식합니다"
             >
-              시험지 PDF 업로드
+              시험 자료 업로드
             </Button>
           </div>
         }
         description="선택형·서술형 문항별 정답을 입력하고 저장합니다. 채점 시 사용됩니다."
       />
 
-      {/* PDF 업로드 통합 모달 — 현재 구조 소유자에 업로드 */}
+      {/* 시험 자료 업로드 통합 모달 — 현재 구조 소유자에 업로드 */}
       <ExamPdfUploadModal
         open={pdfModalOpen}
         onClose={() => setPdfModalOpen(false)}
