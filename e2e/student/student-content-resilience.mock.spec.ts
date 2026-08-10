@@ -320,7 +320,7 @@ async function installStudentApi(
           meta_status: null,
           session_title: escapedHtml("정규 수업", "p"),
           lecture_title: escapedHtml("수학 강의", "strong"),
-          submitted_at: "2026-08-03T09:00:00+09:00",
+          submitted_at: new Date().toISOString(),
         }],
         homeworks: [{
           homework_id: 601,

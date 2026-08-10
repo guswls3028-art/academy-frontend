@@ -560,7 +560,7 @@ test.describe("문항별 직접 채점", () => {
     serviceWorkers: "block",
   });
 
-  test("학생용 문제지와 교사 HWP를 분리해 받고 잘못된 HWP 짝을 막는다", async ({ page }) => {
+  test("문제지와 해설을 형식 제한 없이 각각 선택한다", async ({ page }) => {
     await installApi(page, { segmentationStatus: "none" });
 
     await page.goto(
@@ -568,7 +568,7 @@ test.describe("문항별 직접 채점", () => {
       { waitUntil: "domcontentloaded" },
     );
     await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "시험지 업로드", exact: true }).click();
+    await page.getByRole("button", { name: "시험 자료 업로드", exact: true }).click();
 
     const dialog = page.getByRole("dialog").filter({ hasText: "시험 자료 올리기" });
     await expect(dialog).toBeVisible();
@@ -581,19 +581,57 @@ test.describe("문항별 직접 채점", () => {
 
     const fileInputs = dialog.locator('input[type="file"]');
     await expect(fileInputs).toHaveCount(2);
+    expect(await fileInputs.nth(0).getAttribute("accept")).toBeNull();
+    expect(await fileInputs.nth(1).getAttribute("accept")).toBeNull();
     await fileInputs.nth(0).setInputFiles({
-      name: "teacher-marked-problems.hwp",
-      mimeType: "application/x-hwp",
-      buffer: Buffer.from("HWP problem fixture"),
+      name: "student-problems.docx",
+      mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      buffer: Buffer.from("DOCX problem fixture"),
     });
     await fileInputs.nth(1).setInputFiles({
-      name: "teacher-explanations.hwp",
-      mimeType: "application/x-hwp",
-      buffer: Buffer.from("HWP explanation fixture"),
+      name: "teacher-explanations.pptx",
+      mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      buffer: Buffer.from("PPTX explanation fixture"),
     });
 
-    await expect(dialog.getByText(/해설 파일을 따로 올릴 때/)).toBeVisible();
-    await expect(dialog.getByRole("button", { name: "업로드 및 문항 분석" })).toBeDisabled();
+    await expect(dialog.getByText(/두 원본의 형식과 관계없이/)).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "업로드 및 문항 분석" })).toBeEnabled();
+  });
+
+  test("390px에서도 다형식 문제·해설 업로드 모달이 잘리지 않는다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await installApi(page, { segmentationStatus: "none" });
+
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible();
+    const uploadButton = page.getByRole("button", { name: "시험 자료 업로드", exact: true });
+    await uploadButton.scrollIntoViewIfNeeded();
+    await uploadButton.click();
+
+    const dialog = page.getByRole("dialog").filter({ hasText: "시험 자료 올리기" });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "문제지와 해설지가 따로 있어요" }).click();
+    const fileInputs = dialog.locator('input[type="file"]');
+    await expect(fileInputs).toHaveCount(2);
+    await fileInputs.nth(0).setInputFiles({
+      name: "student-problems.docx",
+      mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      buffer: Buffer.from("DOCX problem fixture"),
+    });
+    await fileInputs.nth(1).setInputFiles({
+      name: "teacher-explanations.pptx",
+      mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      buffer: Buffer.from("PPTX explanation fixture"),
+    });
+    await expect(dialog.getByRole("button", { name: "업로드 및 문항 분석" })).toBeVisible();
+
+    const dialogBox = await dialog.boundingBox();
+    expect(dialogBox).not.toBeNull();
+    expect(dialogBox?.x ?? -1).toBeGreaterThanOrEqual(0);
+    expect((dialogBox?.x ?? 0) + (dialogBox?.width ?? 0)).toBeLessThanOrEqual(390);
   });
 
   test("단일 HWP 문항은 문제 영역을 원본 해설 위에서 직접 조절한다", async ({ page }) => {

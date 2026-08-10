@@ -29,10 +29,10 @@ export default function ExamAssetsPanel({ examId }: { examId: number }) {
     : status === "ready"
       ? `${exam.source_filename || "원본 시험지"}의 문항 분리가 완료되었습니다.`
       : status === "conversion_required"
-        ? "HWP 원본은 보관되었습니다. 수식과 배치를 보존하도록 PDF로 저장해 추가로 올려 주세요."
+        ? "원본은 형식 그대로 보관되었습니다. 자동 분리가 완전하지 않으면 문항과 해설을 직접 등록해 검수해 주세요."
         : status === "failed"
-          ? "문항 분리를 완료하지 못했습니다. 원본을 확인하고 PDF를 다시 올려 주세요."
-          : "PDF 원본을 올리면 표지와 일정표를 제외하고 문항별로 분리합니다.";
+          ? "문항 분리를 완료하지 못했습니다. 원본을 확인하거나 문항을 직접 등록해 주세요."
+          : "자료 원본을 올리면 지원 형식은 자동 분리하고, 나머지 형식도 그대로 보관합니다.";
   const statusBadge = status === "ready"
     ? { tone: "success" as const, label: "준비됨" }
     : status === "processing"
@@ -74,7 +74,7 @@ export default function ExamAssetsPanel({ examId }: { examId: number }) {
           </div>
           {(isTemplate || canUploadRegularSource) && (
             <Button type="button" intent="secondary" size="sm" onClick={() => setPdfModalOpen(true)}>
-              {status === "none" ? "시험지 업로드" : "PDF 다시 올리기"}
+              {status === "none" ? "시험 자료 업로드" : "자료 다시 올리기"}
             </Button>
           )}
         </div>

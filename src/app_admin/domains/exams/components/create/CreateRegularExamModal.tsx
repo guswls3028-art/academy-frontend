@@ -225,9 +225,10 @@ export default function CreateRegularExamModal({
       });
 
       onCreated(createdExamId);
-      if (uploadResponse.data?.status === "conversion_required") {
+      if (["conversion_required", "source_saved"].includes(uploadResponse.data?.status)) {
         feedback.warning(
-          "시험과 원본을 저장했습니다. 자동 문항 분리를 위해 한컴에서 PDF로 저장한 파일을 추가로 올려 주세요.",
+          uploadResponse.data?.message
+          || "시험과 원본을 저장했습니다. 시험 상세에서 문항과 해설을 직접 등록해 검수할 수 있습니다.",
         );
       } else {
         const enrollmentMessage = enrollResult.error
@@ -768,21 +769,20 @@ export default function CreateRegularExamModal({
                 시험지 원본
                 <input
                   type="file"
-                  accept=".pdf,.png,.jpg,.jpeg,.hwp,.hwpx"
                   className="ds-input"
                   onChange={(event) => setSourceFile(event.target.files?.[0] ?? null)}
                 />
                 <span className="text-xs font-normal text-[var(--color-text-muted)]">
-                  PDF 권장 · 문항 번호가 보이는 원본 · 50MB 이하
+                  모든 안전한 원본 형식 · 실행·스크립트 제외 · 50MB 이하
                 </span>
               </label>
 
               <div className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] p-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
                 <strong className="text-[var(--color-text-primary)]">자동 분리 안내</strong>
                 <br />
-                표지·일정표는 제외하고 문항 번호 순서대로 이미지를 자릅니다. HWP/HWPX는
-                원본을 보관하지만 수식과 쪽 배치를 보존하려면 한컴에서 PDF로 저장한 파일을
-                추가로 올려야 합니다.
+                PDF·이미지·HWP/HWPX는 자동 문항 분리를 시도합니다. 그 밖의 형식도 원본을
+                그대로 보관하며, 자동 분리가 어려우면 시험 상세에서 직접 등록해 검수할 수
+                있습니다. PDF 재업로드는 필수가 아닙니다.
               </div>
             </div>
           )}
@@ -1019,7 +1019,7 @@ export default function CreateRegularExamModal({
                 onClick={handleGuidedSubmit}
                 disabled={submitting || !guidedTitle.trim() || !sourceFile}
               >
-                {submitting ? "시험지 처리 중…" : "시험 만들고 문항 분리"}
+                {submitting ? "시험 자료 처리 중…" : "시험 만들고 자료 올리기"}
               </Button>
             )}
             {stage === "new" && (() => {

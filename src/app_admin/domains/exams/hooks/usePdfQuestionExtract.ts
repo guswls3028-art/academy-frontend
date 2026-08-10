@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/exams/hooks/usePdfQuestionExtract.ts
-// 통합 hook — 시험지 PDF 업로드 + AI 문항 분할 + 결과 폴링
+// 통합 hook — 시험 자료 원본 업로드 + 지원 형식 AI 문항 분할 + 결과 폴링
 //
 // 플로우:
 //   1. POST /exams/pdf-extract/ (원본 저장 + 자료 유형 판별 + job 제출)
@@ -20,7 +20,7 @@ export type PdfExtractStatus =
   | "uploading"       // 파일 업로드 중
   | "processing"      // AI 문항 분할 처리 중
   | "done"            // 완료
-  | "conversion_required" // 원형 보존을 위해 문제 PDF가 추가로 필요함
+  | "conversion_required" // 원본은 보관되었고 직접 등록·검수가 필요함
   | "failed";         // 실패
 
 export type PdfExtractProgress = {
@@ -158,7 +158,7 @@ export function usePdfQuestionExtract(examId: number) {
               setStatus("conversion_required");
               feedback.warning(
                 resultPayload.message
-                || "원본을 보존하려면 같은 문제지를 PDF로 저장해 다시 올려 주세요.",
+                || "원본은 보관했습니다. 자동 분리가 완전하지 않으면 직접 등록해 검수해 주세요.",
               );
               qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examAssets(examId) });
               qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExam(examId) });
@@ -225,7 +225,7 @@ export function usePdfQuestionExtract(examId: number) {
         setProgress({ percent: 10, stepName: "원본 업로드 완료" });
 
         const responseRecord = asRecord(extractResp.data);
-        if (asString(responseRecord.status) === "conversion_required") {
+        if (["conversion_required", "source_saved"].includes(asString(responseRecord.status) ?? "")) {
           setStatus("conversion_required");
           setResult({
             totalQuestions: 0,
@@ -234,6 +234,10 @@ export function usePdfQuestionExtract(examId: number) {
             conversionRequired: true,
             message: asString(responseRecord.message),
           });
+          feedback.warning(
+            asString(responseRecord.message)
+            || "원본을 저장했습니다. 시험 상세에서 문항과 해설을 직접 등록해 검수해 주세요.",
+          );
           qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examAssets(examId) });
           qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExam(examId) });
           return;
@@ -252,7 +256,7 @@ export function usePdfQuestionExtract(examId: number) {
       } catch (e: unknown) {
         stopPolling();
         setStatus("failed");
-        const msg = extractApiError(e, "시험지 처리 실패");
+        const msg = extractApiError(e, "시험 자료 처리 실패");
         setError(msg);
         feedback.error(msg);
       }
