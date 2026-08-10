@@ -62,6 +62,7 @@ function contrastRatio(foreground: string, background: string): number {
 }
 
 type InstallApiOptions = {
+  examType?: "regular" | "template";
   gradingMode?: "choice" | "written" | "mixed";
   manualGradingMethod?: "correctness" | "score";
   editable?: boolean;
@@ -257,7 +258,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         title: "7월 진단평가",
         description: "답변형 정오 입력 검증",
         subject: "MATH",
-        exam_type: "regular",
+        exam_type: options.examType ?? "regular",
         is_active: true,
         allow_retake: false,
         max_attempts: 1,
@@ -278,6 +279,17 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         created_at: "2026-07-30T09:00:00+09:00",
         updated_at: "2026-07-30T09:00:00+09:00",
       });
+      return;
+    }
+    if (path === `/exams/${EXAM_ID}/assets/`) {
+      await json(method === "POST" ? {
+        id: 3001,
+        exam: EXAM_ID,
+        asset_type: "omr_sheet",
+        file_key: "fixtures/answer-sheet.pptx",
+        file_type: "application/octet-stream",
+        file_size: 20,
+      } : []);
       return;
     }
     if (path === `/exams/${EXAM_ID}/questions/init/` && method === "POST") {
@@ -596,6 +608,25 @@ test.describe("문항별 직접 채점", () => {
 
     await expect(dialog.getByText(/두 원본의 형식과 관계없이/)).toBeVisible();
     await expect(dialog.getByRole("button", { name: "업로드 및 문항 분석" })).toBeEnabled();
+  });
+
+  test("템플릿 OMR 원본도 PDF 변환 없이 선택한다", async ({ page }) => {
+    await installApi(page, { examType: "template", segmentationStatus: "none" });
+
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
+      { waitUntil: "domcontentloaded" },
+    );
+    const input = page.getByLabel("OMR 답안지 파일 선택");
+    await expect(input).toBeVisible();
+    expect(await input.getAttribute("accept")).toBeNull();
+    await input.setInputFiles({
+      name: "answer-sheet.pptx",
+      mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      buffer: Buffer.from("PPTX OMR source fixture"),
+    });
+    await expect(page.getByText("answer-sheet.pptx", { exact: true })).toBeVisible();
+    await expect(page.getByText(/안전한 원본을 최대 50MB/)).toBeVisible();
   });
 
   test("390px에서도 다형식 문제·해설 업로드 모달이 잘리지 않는다", async ({ page }) => {
