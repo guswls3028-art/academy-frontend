@@ -121,9 +121,13 @@ postdeploy canary의 residue 0 증거까지 닫아야 한다.
   다중 `background-image`의 `!important`는 선언 끝에 한 번만 두며, 각 레이어
   사이에 넣지 않는다. 이 규칙은 모든 학생 테넌트 테마에 동일하게 적용한다.
   Rolldown 청크 경계는 `build.rolldownOptions.output.codeSplitting`이 소유한다.
-  React core·아이콘·HEIC·Excel 경계를 우선 고정하고, Ant Design group에만
-  560 KiB 목표 상한을 적용해 각 산출물이 동일한 bundle budget을 지키면서
-  나머지 vendor를 불필요하게 세분화하지 않는다.
+  React core·아이콘·HEIC·Excel 경계를 우선 고정하되, Ant Design과
+  rc-component의 상호 의존 모듈은 `maxSize`로 강제 분할하지 않는다. 강제
+  분할은 서로 import하는 운영 청크를 만들어 초기화 전 binding을 실행할 수
+  있다. `scripts/check-bundle-budgets.mjs`는 Ant Design JavaScript 산출물이
+  정확히 한 개인지와 크기 예산을 함께 검증한다. 운영과 같은 정적 build를
+  대상으로 `production-canary.spec.ts`의 공개 화면을 실행해 청크 실행
+  순서까지 확인한다.
 - [GHSA-qwww-vcr4-c8h2](https://github.com/advisories/GHSA-qwww-vcr4-c8h2)는
   `react-router >=7.12.0 <8.3.0`의 실험적 RSC server action 경로에 영향을
   주며 공식 수정 버전은 8.3.0이다. 앱은 `BrowserRouter`/`Routes` 기반 SPA로

@@ -17,6 +17,14 @@ if (files.length === 0) {
   throw new Error("Bundle budget guard found no JavaScript assets in dist/assets.");
 }
 
+const antDesignAssets = files.filter((name) => name.startsWith("vendor-antd-"));
+if (antDesignAssets.length !== 1) {
+  throw new Error(
+    "Ant Design must remain one runtime chunk; splitting its circular dependency graph can break initialization. " +
+    `Found ${antDesignAssets.length}: ${antDesignAssets.join(", ")}`,
+  );
+}
+
 const violations = [];
 for (const name of files) {
   const filePath = path.join(ASSETS_DIR, name);

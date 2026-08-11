@@ -11,14 +11,19 @@ const viteConfig = readFileSync(
   "utf8",
 );
 
-test("Vite 8 uses supported Rolldown chunk groups and bounded Ant Design assets", () => {
+test("Vite 8 keeps the Ant Design dependency graph in one Rolldown group", () => {
   assert.match(viteConfig, /rolldownOptions:\s*\{/);
   assert.match(viteConfig, /codeSplitting:\s*\{/);
   assert.doesNotMatch(viteConfig, /manualChunks\s*\(/);
-  assert.match(
-    viteConfig,
-    /name:\s*"vendor-antd"[\s\S]*?maxSize:\s*560 \* 1024[\s\S]*?priority:\s*30/,
+  const antDesignGroupStart = viteConfig.indexOf('name: "vendor-antd"');
+  const antDesignGroupEnd = viteConfig.indexOf("priority: 30", antDesignGroupStart);
+  assert.ok(antDesignGroupStart >= 0 && antDesignGroupEnd > antDesignGroupStart);
+  const antDesignGroup = viteConfig.slice(
+    antDesignGroupStart,
+    antDesignGroupEnd + "priority: 30".length,
   );
+  assert.match(antDesignGroup, /priority:\s*30/);
+  assert.doesNotMatch(antDesignGroup, /maxSize\s*:/);
   assert.match(viteConfig, /name:\s*"vendor-core"[\s\S]*?priority:\s*50/);
   assert.match(viteConfig, /name:\s*"vendor-icons"[\s\S]*?priority:\s*45/);
 });

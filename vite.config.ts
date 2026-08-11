@@ -132,7 +132,9 @@ export default defineConfig(({ mode }) => {
                   normalized.includes("@rc-component/")
                 );
               },
-              maxSize: 560 * 1024,
+              // Ant Design and rc-component contain mutually dependent modules.
+              // A maxSize split can turn that source graph into circular output
+              // chunks whose bindings run before initialization in production.
               priority: 30,
             },
             {
