@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, ChevronLeft, ChevronRight, Link2, Upload as UploadIcon, Youtube } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Link2, SquarePlay as Youtube, Upload as UploadIcon } from "lucide-react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";

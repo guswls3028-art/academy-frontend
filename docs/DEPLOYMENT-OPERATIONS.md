@@ -112,7 +112,9 @@ postdeploy canary의 residue 0 증거까지 닫아야 한다.
   검증한 40자 commit SHA로 고정한다. 주석의 major version은 업데이트 맥락일
   뿐 실행 입력이 아니다.
 - `.github/dependabot.yml`은 pnpm/npm과 GitHub Actions 업데이트 PR을 매주
-  만든다. lockfile 변경은 secretless route-mock을 포함한 dependency 검증을
+  만든다. React/React DOM과 타입, Tiptap 확장군은 각 런타임 묶음으로 함께
+  갱신하고, 나머지 개발 의존성과 Actions의 minor/patch는 묶어서 CI 중복을
+  줄인다. lockfile 변경은 secretless route-mock을 포함한 dependency 검증을
   통과해야 merge하며, Dependabot에 deployment나 E2E credential을 제공하지
   않는다.
 - [GHSA-qwww-vcr4-c8h2](https://github.com/advisories/GHSA-qwww-vcr4-c8h2)는

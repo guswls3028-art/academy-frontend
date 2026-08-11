@@ -9,6 +9,20 @@ updates:
       timezone: Asia/Seoul
     open-pull-requests-limit: 5
     labels: [dependencies, security]
+    groups:
+      react-runtime:
+        patterns: [react, react-dom, "@types/react", "@types/react-dom"]
+      tiptap-runtime:
+        patterns: ["@tiptap/*"]
+      development-minor-patch:
+        dependency-type: development
+        update-types: [minor, patch]
+        exclude-patterns:
+          - react
+          - react-dom
+          - "@types/react"
+          - "@types/react-dom"
+          - "@tiptap/*"
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -18,3 +32,7 @@ updates:
       timezone: Asia/Seoul
     open-pull-requests-limit: 5
     labels: [dependencies, security]
+    groups:
+      actions-minor-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]

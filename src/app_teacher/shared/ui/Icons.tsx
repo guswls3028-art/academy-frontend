@@ -32,7 +32,7 @@ export {
   FileText,
   ClipboardList,
   Video,
-  Youtube,
+  SquarePlay as Youtube,
   Image,
   Calendar,
   Clock,
