@@ -53,10 +53,10 @@ for (const required of [
   "E2E_ALLOW_PRODUCTION_WRITES=0",
   'E2E_ALLOW_PRODUCTION_WRITES: "1"',
   "controlled_write_canaries",
-  'PR_AUTHOR: ${{ github.event.pull_request.user.login }}',
-  "VITE_DEV_PROXY_TARGET=http://127.0.0.1:9",
-  "Run Dependabot secretless route-mock gate",
-  "github.event.pull_request.user.login == 'dependabot[bot]'",
+  "name: E2E closed-proxy route mocks",
+  "VITE_DEV_PROXY_TARGET: http://127.0.0.1:9",
+  "run: pnpm test:e2e:gate:readonly --reporter=github,html",
+  "run: pnpm test:e2e:gate:mock --reporter=github,html",
   "github.event.pull_request.user.login != 'dependabot[bot]'",
 ]) {
   if (!e2e.includes(required)) {

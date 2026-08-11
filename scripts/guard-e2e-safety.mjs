@@ -2,39 +2,19 @@ import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import {
+  e2eGateSpecs,
+  productionReadOnlySpecs,
+  routeMockSpecs,
+} from "./e2e-gate-specs.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const pullRequestGateAllowlist = new Set([
+const reviewedProductionReadOnlySpecs = [
   "e2e/shared/e2e-safety-policy.spec.ts",
   "e2e/admin/01-login-dashboard.spec.ts",
   "e2e/student/01-login-dashboard.spec.ts",
   "e2e/smoke/smoke.spec.ts",
-  "e2e/auth/account-recovery-modal.spec.ts",
-  "e2e/auth/first-login-guide.mock.spec.ts",
-  "e2e/admin/arrival-operations.mock.spec.ts",
-  "e2e/admin/billing-bank-transfer-only.mock.spec.ts",
-  "e2e/admin/assessment-operations-workspace.mock.spec.ts",
-  "e2e/admin/clinic-weekly-multisession.mock.spec.ts",
-  "e2e/admin/lecture-session-scopes.mock.spec.ts",
-  "e2e/admin/manual-exam-grading.mock.spec.ts",
-  "e2e/admin/problem-review-report.mock.spec.ts",
-  "e2e/admin/matchup-showcase-publish.mock.spec.ts",
-  "e2e/landing-problem-analysis.mock.spec.ts",
-  "e2e/admin/session-attendance-bulk-safety.mock.spec.ts",
-  "e2e/admin/score-entry-autosave.spec.ts",
-  "e2e/admin/staff-operations-contract.mock.spec.ts",
-  "e2e/admin/stopwatch-visual-runtime.mock.spec.ts",
-  "e2e/admin/student-custom-columns.mock.spec.ts",
-  "e2e/admin/student-detail-entrypoints.mock.spec.ts",
-  "e2e/admin/student-unified-wrong-note.mock.spec.ts",
-  "e2e/admin/wrong-note-generation-contract.mock.spec.ts",
-  "e2e/shared/product-analytics-contract.mock.spec.ts",
-  "e2e/student/student-content-resilience.mock.spec.ts",
-  "e2e/student/clinic-booking-ux.mock.spec.ts",
-  "e2e/student/video-cdn-service-error.mock.spec.ts",
-  "e2e/teacher/comms-reply-mobile.mock.spec.ts",
-  "e2e/teacher/video-thumbnail-render.mock.spec.ts",
-]);
+];
 const requirements = new Map([
   ["e2e/stability/controlled-real-alimtalk-send.spec.ts", "realMessagingSkipReason"],
   ["e2e/admin/12-clinic-trigger-real.spec.ts", "productionTriggerMutationSkipReason"],
@@ -53,20 +33,43 @@ const failures = [];
 const packageJson = JSON.parse(
   fs.readFileSync(path.join(root, "package.json"), "utf8"),
 );
-const gateSpecs = String(packageJson.scripts?.["test:e2e:gate"] ?? "")
-  .match(/e2e\/[^\s]+\.spec\.ts/g) ?? [];
-if (gateSpecs.length === 0) {
-  failures.push("package.json: test:e2e:gate must name its reviewed PR specs explicitly");
+const gateCommand = String(packageJson.scripts?.["test:e2e:gate"] ?? "");
+const readOnlyGateCommand = String(packageJson.scripts?.["test:e2e:gate:readonly"] ?? "");
+const mockGateCommand = String(packageJson.scripts?.["test:e2e:gate:mock"] ?? "");
+if (gateCommand !== "playwright test --config=playwright.pr-gate.config.ts") {
+  failures.push("package.json: test:e2e:gate must use playwright.pr-gate.config.ts");
 }
-for (const spec of gateSpecs) {
-  if (!pullRequestGateAllowlist.has(spec)) {
-    failures.push(`${spec}: production-backed PR gate allows only reviewed login, read-only, or mock specs`);
+if (
+  readOnlyGateCommand
+  !== "playwright test --config=playwright.pr-gate.config.ts --project=pr-readonly-4"
+) {
+  failures.push("package.json: test:e2e:gate:readonly must run the final serial dependency project");
+}
+if (
+  mockGateCommand
+  !== "playwright test --config=playwright.pr-gate.config.ts --project=pr-route-mocks --no-deps"
+) {
+  failures.push("package.json: test:e2e:gate:mock must run only the dependency-free route-mock project");
+}
+if (JSON.stringify(productionReadOnlySpecs) !== JSON.stringify(reviewedProductionReadOnlySpecs)) {
+  failures.push("scripts/e2e-gate-specs.mjs: production-backed PR specs must remain the reviewed serial allowlist");
+}
+for (const spec of routeMockSpecs) {
+  const absolutePath = path.join(root, spec);
+  if (!fs.existsSync(absolutePath)) {
+    failures.push(`${spec}: route-mock gate spec is missing`);
+    continue;
+  }
+  const source = fs.readFileSync(absolutePath, "utf8");
+  if (!source.includes("page.route(")) {
+    failures.push(`${spec}: parallel PR gate specs must install page.route mocks`);
+  }
+  if (!source.replaceAll("\\/", "/").includes("api/v1/")) {
+    failures.push(`${spec}: parallel PR gate specs must intercept the API boundary`);
   }
 }
-for (const required of pullRequestGateAllowlist) {
-  if (!gateSpecs.includes(required)) {
-    failures.push(`package.json: test:e2e:gate is missing reviewed safe spec ${required}`);
-  }
+if (new Set(e2eGateSpecs).size !== e2eGateSpecs.length) {
+  failures.push("scripts/e2e-gate-specs.mjs: PR gate specs must be unique");
 }
 const forbiddenCredentialHashes = new Set([
   // Former production E2E credential. Keep only the irreversible digest here.
