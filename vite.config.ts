@@ -81,51 +81,87 @@ export default defineConfig(({ mode }) => {
 
   build: {
     target: ["es2020", "chrome92", "edge92", "safari14", "firefox90"],
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks(id) {
-          const normalized = id.replace(/\\/g, "/");
-          if (normalized.endsWith(".css")) return undefined;
-          if (id.includes("node_modules")) {
-            // React + react-router는 반드시 같은 청크에 (createContext 등 의존)
-            if (
-              normalized.includes("/node_modules/react/") ||
-              normalized.includes("/node_modules/react-dom/") ||
-              normalized.includes("/node_modules/react-router/") ||
-              normalized.includes("/node_modules/scheduler/") ||
-              normalized.includes("react/jsx")
-            ) {
-              return "vendor-core";
-            }
-            if (normalized.includes("@tanstack/react-query")) return "vendor-query";
-            if (
-              normalized.includes("/antd/") ||
-              normalized.includes("@ant-design/") ||
-              normalized.includes("/rc-") ||
-              normalized.includes("@rc-component/")
-            ) return "vendor-antd";
-            if (normalized.includes("lucide-react") || normalized.includes("react-icons")) return "vendor-icons";
-            if (normalized.includes("recharts") || normalized.includes("/d3-")) return "vendor-charts";
-            if (normalized.includes("/exceljs/")) return "vendor-excel";
-            if (normalized.includes("pdfjs-dist")) return "vendor-pdfjs";
-            if (normalized.includes("pdf-lib")) return "vendor-pdf-lib";
-            if (normalized.includes("/html2canvas/")) return "vendor-html-canvas";
-            if (normalized.includes("/jspdf/")) return "vendor-pdf-generate";
-            if (normalized.includes("hls.js")) return "vendor-hls";
-            if (
-              normalized.includes("@tiptap/") ||
-              normalized.includes("/prosemirror-") ||
-              normalized.includes("dompurify")
-            ) return "vendor-editor";
-            if (normalized.includes("heic2any")) return "vendor-heic";
-            if (normalized.includes("@sentry/")) return "vendor-observability";
-            if (normalized.includes("axios") || normalized.includes("dayjs")) return "vendor-utils";
-          }
-          // 테넌트 레지스트리: 앱 초기화 시 hostname→tenant 매핑 필수 — 메인 entry와 동일 청크
-          if (normalized.includes("shared/tenant")) {
-            return "index";
-          }
-          return undefined;
+        codeSplitting: {
+          groups: [
+            {
+              name: "vendor-core",
+              test: (id) => {
+                const normalized = id.replace(/\\/g, "/");
+                return (
+                  normalized.includes("/node_modules/react/") ||
+                  normalized.includes("/node_modules/react-dom/") ||
+                  normalized.includes("/node_modules/react-router/") ||
+                  normalized.includes("/node_modules/scheduler/") ||
+                  normalized.includes("react/jsx")
+                );
+              },
+              priority: 50,
+            },
+            {
+              name: "vendor-icons",
+              test: (id) => {
+                const normalized = id.replace(/\\/g, "/");
+                return (
+                  normalized.includes("@ant-design/icons") ||
+                  normalized.includes("lucide-react") ||
+                  normalized.includes("react-icons")
+                );
+              },
+              priority: 45,
+            },
+            {
+              name: "vendor-heic",
+              test: (id) => id.replace(/\\/g, "/").includes("heic2any"),
+              priority: 40,
+            },
+            {
+              name: "vendor-excel",
+              test: (id) => id.replace(/\\/g, "/").includes("/exceljs/"),
+              priority: 40,
+            },
+            {
+              name: "vendor-antd",
+              test: (id) => {
+                const normalized = id.replace(/\\/g, "/");
+                return (
+                  normalized.includes("/antd/") ||
+                  normalized.includes("@ant-design/") ||
+                  normalized.includes("/rc-") ||
+                  normalized.includes("@rc-component/")
+                );
+              },
+              maxSize: 560 * 1024,
+              priority: 30,
+            },
+            {
+              name(id) {
+                const normalized = id.replace(/\\/g, "/");
+                if (normalized.endsWith(".css")) return null;
+                if (normalized.includes("node_modules")) {
+                  if (normalized.includes("@tanstack/react-query")) return "vendor-query";
+                  if (normalized.includes("recharts") || normalized.includes("/d3-")) return "vendor-charts";
+                  if (normalized.includes("pdfjs-dist")) return "vendor-pdfjs";
+                  if (normalized.includes("pdf-lib")) return "vendor-pdf-lib";
+                  if (normalized.includes("/html2canvas/")) return "vendor-html-canvas";
+                  if (normalized.includes("/jspdf/")) return "vendor-pdf-generate";
+                  if (normalized.includes("hls.js")) return "vendor-hls";
+                  if (
+                    normalized.includes("@tiptap/") ||
+                    normalized.includes("/prosemirror-") ||
+                    normalized.includes("dompurify")
+                  ) return "vendor-editor";
+                  if (normalized.includes("@sentry/")) return "vendor-observability";
+                  if (normalized.includes("axios") || normalized.includes("dayjs")) return "vendor-utils";
+                }
+                // 테넌트 레지스트리: 앱 초기화 시 hostname→tenant 매핑 필수 — 메인 entry와 동일 청크
+                if (normalized.includes("shared/tenant")) return "index";
+                return null;
+              },
+              priority: 20,
+            },
+          ],
         },
       },
     },

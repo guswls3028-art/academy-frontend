@@ -127,7 +127,7 @@
 
 [data-app="student"][data-student-theme="hakwonplus"] {
     background-image:
-        linear-gradient(135deg, rgba(37, 99, 235, 0.04) 0%, rgba(96, 165, 250, 0.03) 50%, rgba(30, 58, 138, 0.03) 100%) !important,
+        linear-gradient(135deg, rgba(37, 99, 235, 0.04) 0%, rgba(96, 165, 250, 0.03) 50%, rgba(30, 58, 138, 0.03) 100%),
         var(--stu-bg-pattern) !important;
     background-size: 100% 100%, var(--stu-bg-pattern-size) !important;
     background-color: var(--stu-bg) !important;

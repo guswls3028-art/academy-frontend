@@ -113,10 +113,17 @@ postdeploy canary의 residue 0 증거까지 닫아야 한다.
   뿐 실행 입력이 아니다.
 - `.github/dependabot.yml`은 pnpm/npm과 GitHub Actions 업데이트 PR을 매주
   만든다. React/React DOM과 타입, Tiptap 확장군은 각 런타임 묶음으로 함께
-  갱신하고, 나머지 개발 의존성과 Actions의 minor/patch는 묶어서 CI 중복을
+  갱신하고, 나머지 런타임·개발 의존성과 Actions의 minor/patch는 각각 묶어서 CI 중복을
   줄인다. lockfile 변경은 secretless route-mock을 포함한 dependency 검증을
   통과해야 merge하며, Dependabot에 deployment나 E2E credential을 제공하지
   않는다.
+- Vite 8부터 운영 build는 Lightning CSS의 엄격한 문법 검증을 통과해야 한다.
+  다중 `background-image`의 `!important`는 선언 끝에 한 번만 두며, 각 레이어
+  사이에 넣지 않는다. 이 규칙은 모든 학생 테넌트 테마에 동일하게 적용한다.
+  Rolldown 청크 경계는 `build.rolldownOptions.output.codeSplitting`이 소유한다.
+  React core·아이콘·HEIC·Excel 경계를 우선 고정하고, Ant Design group에만
+  560 KiB 목표 상한을 적용해 각 산출물이 동일한 bundle budget을 지키면서
+  나머지 vendor를 불필요하게 세분화하지 않는다.
 - [GHSA-qwww-vcr4-c8h2](https://github.com/advisories/GHSA-qwww-vcr4-c8h2)는
   `react-router >=7.12.0 <8.3.0`의 실험적 RSC server action 경로에 영향을
   주며 공식 수정 버전은 8.3.0이다. 앱은 `BrowserRouter`/`Routes` 기반 SPA로

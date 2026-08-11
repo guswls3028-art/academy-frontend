@@ -6,6 +6,22 @@ const workflow = readFileSync(
   new URL("../../.github/workflows/quality-gate.yml", import.meta.url),
   "utf8",
 );
+const viteConfig = readFileSync(
+  new URL("../../vite.config.ts", import.meta.url),
+  "utf8",
+);
+
+test("Vite 8 uses supported Rolldown chunk groups and bounded Ant Design assets", () => {
+  assert.match(viteConfig, /rolldownOptions:\s*\{/);
+  assert.match(viteConfig, /codeSplitting:\s*\{/);
+  assert.doesNotMatch(viteConfig, /manualChunks\s*\(/);
+  assert.match(
+    viteConfig,
+    /name:\s*"vendor-antd"[\s\S]*?maxSize:\s*560 \* 1024[\s\S]*?priority:\s*30/,
+  );
+  assert.match(viteConfig, /name:\s*"vendor-core"[\s\S]*?priority:\s*50/);
+  assert.match(viteConfig, /name:\s*"vendor-icons"[\s\S]*?priority:\s*45/);
+});
 
 test("workspace route contracts run before the deploy artifact is built", () => {
   const contractIndex = workflow.indexOf(
