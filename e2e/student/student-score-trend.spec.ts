@@ -176,7 +176,66 @@ function gradesFor(points: TrendPoint[]) {
         submitted_at: null,
       },
     ],
-    homeworks: [],
+    homeworks: [
+      {
+        homework_id: 703,
+        enrollment_id: points[0]?.enrollment_id ?? 201,
+        title: "최근 차시 완료 과제",
+        score: 45,
+        max_score: 45,
+        passed: true,
+        achievement: "PASS",
+        grading_mode: "SCORE",
+        display_order: 0,
+        session_id: 710,
+        session_title: "10차시",
+        session_order: 10,
+        session_regular_order: 10,
+        session_type: "REGULAR",
+        lecture_id: 501,
+        lecture_title: "Ymath 중등 심화",
+        recorded_at: "2026-08-10T09:00:00Z",
+      },
+      {
+        homework_id: 702,
+        enrollment_id: points[0]?.enrollment_id ?? 201,
+        title: "보강 검사 대기 과제",
+        score: null,
+        max_score: 20,
+        passed: null,
+        achievement: null,
+        grading_mode: "SCORE",
+        display_order: 0,
+        session_id: 708,
+        session_title: "오답 보강",
+        session_order: 8,
+        session_regular_order: null,
+        session_type: "SUPPLEMENT",
+        lecture_id: 501,
+        lecture_title: "Ymath 중등 심화",
+        recorded_at: null,
+      },
+      {
+        homework_id: 701,
+        enrollment_id: points[0]?.enrollment_id ?? 201,
+        title: "1차시 미제출 과제",
+        score: null,
+        max_score: 30,
+        passed: false,
+        achievement: "NOT_SUBMITTED",
+        meta_status: "NOT_SUBMITTED",
+        grading_mode: "SCORE",
+        display_order: 0,
+        session_id: 701,
+        session_title: "1차시",
+        session_order: 1,
+        session_regular_order: 1,
+        session_type: "REGULAR",
+        lecture_id: 501,
+        lecture_title: "Ymath 중등 심화",
+        recorded_at: null,
+      },
+    ],
     exam_trend: points,
     exam_summary: {
       scored_count: points.length,
@@ -431,6 +490,36 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
     await expect(completedCard).toContainText("합격");
     await expect(completedCard).toContainText("7, 9번");
     await page.screenshot({ path: "test-results/student-correction-status/student-grade-cards-390.png", fullPage: true });
+  });
+
+  test("학생 과제 현황은 차시순·정규 보강·채점 상태를 안전하게 구분한다", async ({ page }) => {
+    await installApi(page, "student");
+    await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "과제 현황 3" }).click();
+
+    const cards = page.locator("[data-session-order]");
+    await expect(cards).toHaveCount(3);
+    await expect.poll(() => cards.evaluateAll((items) => items.map((item) => item.getAttribute("data-session-order"))))
+      .toEqual(["10", "8", "1"]);
+    await expect(cards.nth(0)).toContainText("45/45");
+    await expect(cards.nth(1)).toContainText("검사 전");
+    await expect(cards.nth(2)).toContainText("미제출");
+    await expect(page.getByText(/null\//)).toHaveCount(0);
+
+    await page.getByRole("combobox", { name: "과제 정렬" }).selectOption("session_asc");
+    await expect.poll(() => cards.evaluateAll((items) => items.map((item) => item.getAttribute("data-session-order"))))
+      .toEqual(["1", "8", "10"]);
+
+    await page.getByRole("combobox", { name: "과제 수업 범위" }).selectOption("SUPPLEMENT");
+    await expect(cards).toHaveCount(1);
+    await expect(cards.first()).toContainText("보강 검사 대기 과제");
+
+    await page.getByRole("combobox", { name: "과제 수업 범위" }).selectOption("all");
+    await page.getByRole("button", { name: "확인 필요 2" }).click();
+    await expect(cards).toHaveCount(2);
+    await expect(page.getByText("최근 차시 완료 과제", { exact: true })).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    await page.screenshot({ path: "test-results/student-homework-ledger/student-homework-390.png", fullPage: true });
   });
 
   test("학원 설정에 따라 성장 그래프 섹션을 숨기고 순서를 바꾼다", async ({ page }) => {

@@ -48,10 +48,21 @@ export type MyHomeworkGradeSummary = {
   score: number | null;
   max_score: number | null;
   passed: boolean | null;
-  achievement?: Achievement;
+  meta_status?: string | null;
+  achievement?: Achievement | null;
   retake_count?: number;
+  grading_mode?: "SCORE" | "COMPLETION";
+  display_order?: number;
+  session_id?: number | null;
   session_title: string | null;
+  session_order?: number | null;
+  session_regular_order?: number | null;
+  session_type?: "REGULAR" | "SUPPLEMENT" | null;
+  lecture_id?: number | null;
   lecture_title: string | null;
+  lecture_color?: string | null;
+  lecture_chip_label?: string | null;
+  recorded_at?: string | null;
 };
 
 export type MyGradesSummary = {

@@ -450,6 +450,10 @@ async function installApi(page: Page, options: {
             achievement: completionScore >= 1 ? "PASS" : "FAIL",
             session_id: 710,
             session_title: "10차시",
+            session_order: 10,
+            session_regular_order: 10,
+            session_type: "REGULAR",
+            display_order: 0,
             lecture_id: 501,
             lecture_title: "Ymath 중등 심화",
             lecture_color: "#2563eb",
@@ -466,8 +470,12 @@ async function installApi(page: Page, options: {
             max_score: 30,
             passed: numericScore >= 24,
             achievement: numericScore >= 24 ? "PASS" : "FAIL",
-            session_id: 710,
-            session_title: "10차시",
+            session_id: 709,
+            session_title: "9차시",
+            session_order: 9,
+            session_regular_order: 9,
+            session_type: "REGULAR",
+            display_order: 0,
             lecture_id: 501,
             lecture_title: "Ymath 중등 심화",
             lecture_color: "#2563eb",
@@ -484,8 +492,12 @@ async function installApi(page: Page, options: {
             max_score: 30,
             passed: null,
             achievement: "NOT_SUBMITTED",
-            session_id: 710,
-            session_title: "10차시",
+            session_id: 708,
+            session_title: "보강",
+            session_order: 8,
+            session_regular_order: null,
+            session_type: "SUPPLEMENT",
+            display_order: 0,
             lecture_id: 501,
             lecture_title: "Ymath 중등 심화",
             lecture_color: "#2563eb",
@@ -502,8 +514,12 @@ async function installApi(page: Page, options: {
             max_score: 1,
             passed: null,
             achievement: null,
-            session_id: 710,
-            session_title: "10차시",
+            session_id: 701,
+            session_title: "1차시",
+            session_order: 1,
+            session_regular_order: 1,
+            session_type: "REGULAR",
+            display_order: 0,
             lecture_id: 501,
             lecture_title: "Ymath 중등 심화",
             lecture_color: "#2563eb",
@@ -860,6 +876,15 @@ test.describe("학생별 회차 누적 성적 추이", () => {
 
     const detailOverlay = page.getByTestId("student-detail-overlay");
     await detailOverlay.getByRole("tab", { name: /과제/ }).click();
+
+    const homeworkTitles = detailOverlay.locator('span[class*="recordTitle"]');
+    await expect(homeworkTitles).toHaveText(["어휘 암기 확인", "연산 30제", "수학 일일 과제", "주말 복습 과제"]);
+    await detailOverlay.getByRole("combobox", { name: "정렬" }).selectOption("session_asc");
+    await expect(homeworkTitles).toHaveText(["주말 복습 과제", "수학 일일 과제", "연산 30제", "어휘 암기 확인"]);
+    await detailOverlay.getByRole("combobox", { name: "수업" }).selectOption("SUPPLEMENT");
+    await expect(homeworkTitles).toHaveText(["수학 일일 과제"]);
+    await detailOverlay.getByRole("combobox", { name: "수업" }).selectOption("all");
+    await detailOverlay.getByRole("combobox", { name: "정렬" }).selectOption("session_desc");
 
     const completionRow = detailOverlay
       .getByText("어휘 암기 확인", { exact: true })

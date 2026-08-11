@@ -401,6 +401,69 @@
   container-type: inline-size;
 }
 
+.homeworkHistoryControls {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-brand-primary) 3%, var(--color-bg-surface));
+}
+
+.homeworkHistorySummary {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 2px;
+}
+
+.homeworkHistorySummary strong {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.homeworkHistorySummary span {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.homeworkHistoryFilters {
+  display: flex;
+  min-width: 0;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.homeworkHistoryFilters label {
+  display: grid;
+  gap: 4px;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.homeworkHistoryFilters select {
+  min-height: 34px;
+  padding: 0 28px 0 10px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 9px;
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.homeworkHistoryFilters select:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-brand-primary) 28%, transparent);
+  outline-offset: 1px;
+}
+
 .scoreScope {
   margin-bottom: 12px;
   overflow: hidden;
@@ -882,6 +945,31 @@
 }
 
 @media (max-width: 768px) {
+  .homeworkHistoryControls {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+    padding: 11px;
+  }
+
+  .homeworkHistorySummary {
+    grid-template-columns: 1fr auto;
+    align-items: baseline;
+  }
+
+  .homeworkHistoryFilters {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .homeworkHistoryFilters select {
+    width: 100%;
+    min-width: 0;
+    padding-right: 18px;
+    padding-left: 7px;
+    font-size: 11px;
+  }
+
   .detailHeader {
     padding: 14px 16px 12px;
   }
