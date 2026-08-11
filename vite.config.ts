@@ -122,20 +122,6 @@ export default defineConfig(({ mode }) => {
               priority: 40,
             },
             {
-              name: "vendor-antd",
-              test: (id) => {
-                const normalized = id.replace(/\\/g, "/");
-                return (
-                  normalized.includes("/antd/") ||
-                  normalized.includes("@ant-design/") ||
-                  normalized.includes("/rc-") ||
-                  normalized.includes("@rc-component/")
-                );
-              },
-              maxSize: 560 * 1024,
-              priority: 30,
-            },
-            {
               name(id) {
                 const normalized = id.replace(/\\/g, "/");
                 if (normalized.endsWith(".css")) return null;
