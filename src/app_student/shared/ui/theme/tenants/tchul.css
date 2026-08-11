@@ -134,7 +134,7 @@
   /* 배경에 약한 그라데이션 + 기존 패턴 */
   background-image: 
     /* 약한 브랜드 그라데이션 */
-    linear-gradient(135deg, rgba(13, 71, 161, 0.04) 0%, rgba(0, 105, 92, 0.03) 50%, rgba(0, 77, 64, 0.03) 100%) !important,
+    linear-gradient(135deg, rgba(13, 71, 161, 0.04) 0%, rgba(0, 105, 92, 0.03) 50%, rgba(0, 77, 64, 0.03) 100%),
     /* 기존 패턴 */
     var(--stu-bg-pattern) !important;
   background-size: 
