@@ -13,9 +13,7 @@ export type HwGroup = {
   avgPct: number | null;
 };
 
-function formatScore(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1).replace(/\.0$/, "");
-}
+const HOMEWORK_SCORE_NUMBER = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 1 });
 
 export default function LectureHwGroup({ group }: { group: HwGroup }) {
   return (
@@ -38,8 +36,10 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
           const scoreText = gradingMode === "COMPLETION"
             ? score == null ? "검사 전" : score > 0 ? "완료" : "미완료"
             : score == null
-              ? maxScore == null ? "검사 전" : `–/${formatScore(maxScore)}`
-              : maxScore == null ? formatScore(score) : `${formatScore(score)}/${formatScore(maxScore)}`;
+              ? maxScore == null ? "검사 전" : `–/${HOMEWORK_SCORE_NUMBER.format(maxScore)}`
+              : maxScore == null
+                ? HOMEWORK_SCORE_NUMBER.format(score)
+                : `${HOMEWORK_SCORE_NUMBER.format(score)}/${HOMEWORK_SCORE_NUMBER.format(maxScore)}`;
           const badgePassed = h.achievement == null && score == null ? null : h.passed;
           return (
             <div
@@ -79,7 +79,7 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
                   className={styles.homeworkProgress}
                   value={Math.min(Math.max(score ?? 0, 0), maxScore)}
                   max={maxScore}
-                  aria-label={`${h.title} 진행 ${score == null ? "검사 전" : `${formatScore(score)}/${formatScore(maxScore)}`}`}
+                  aria-label={`${h.title} 진행 ${score == null ? "검사 전" : `${HOMEWORK_SCORE_NUMBER.format(score)}/${HOMEWORK_SCORE_NUMBER.format(maxScore)}`}`}
                 />
               )}
             </div>

@@ -47,7 +47,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { formatPhone, formatStudentPhoneDisplay, formatOmrCode, formatGenderDisplay } from "@/shared/utils/formatPhone";
 import { adminStudentsQueryKeys } from "../queryKeys";
 import StudentWrongNoteBuilder from "@admin/domains/results/public/StudentWrongNoteBuilder";
-import HomeworkQuickEditor from "./HomeworkQuickEditor";
+import StudentHomeworkTab from "./StudentHomeworkTab";
 import styles from "./StudentsDetailOverlay.module.css";
 
 const StudentFormModal = lazy(() => import("../components/EditStudentModal"));
@@ -58,8 +58,6 @@ const StudentStorageExplorer = lazy(() => import("@admin/domains/storage/compone
 
 type StatTabKey = "enroll" | "score" | "homework" | "wrong-note" | "clinic" | "question";
 type ExamSessionScope = "all" | "REGULAR" | "SUPPLEMENT";
-type HomeworkStatusScope = "all" | "attention" | "done";
-type HomeworkSortMode = "session_desc" | "session_asc" | "updated";
 
 const EXAM_SESSION_SCOPE_OPTIONS: Array<{
   value: ExamSessionScope;
@@ -528,7 +526,7 @@ export default function StudentsDetailOverlay({
                     />
                   )}
                   {tab === "homework" && (
-                    <HomeworkTab
+                    <StudentHomeworkTab
                       data={homeworkGrades}
                       isLoading={gradesLoading}
                       isError={gradesError}
@@ -1310,187 +1308,6 @@ function ScoreTab({
         />
       )}
       </div>
-    </div>
-  );
-}
-
-/** 과제 탭 — admin/student-grades API 기반 */
-function HomeworkTab({
-  data,
-  isLoading,
-  isError,
-  onRetry,
-  onUpdated,
-  onNavigate,
-}: {
-  data: StudentHomeworkGrade[];
-  isLoading: boolean;
-  isError: boolean;
-  onRetry: () => void;
-  onUpdated: () => Promise<unknown>;
-  onNavigate: (path: string) => void;
-}) {
-  const [editingKey, setEditingKey] = useState<string | null>(null);
-  const [sessionScope, setSessionScope] = useState<ExamSessionScope>("all");
-  const [statusScope, setStatusScope] = useState<HomeworkStatusScope>("all");
-  const [sortMode, setSortMode] = useState<HomeworkSortMode>("session_desc");
-  if (isLoading) return <EmptyState scope="panel" tone="loading" title="과제 성적을 불러오는 중…" />;
-  if (isError) {
-    return (
-      <EmptyState
-        scope="panel"
-        tone="error"
-        title="과제 성적을 불러오지 못했습니다."
-        description="잠시 후 다시 불러와 주세요."
-        actions={<Button size="sm" onClick={onRetry}>다시 불러오기</Button>}
-      />
-    );
-  }
-  if (!data?.length) return <EmptyState scope="panel" tone="empty" title="과제 성적이 없습니다." />;
-
-  const achievementLabel: Record<string, string> = {
-    PASS: "완료",
-    FAIL: "미완료",
-    REMEDIATED: "보강완료",
-    NOT_SUBMITTED: "미제출",
-  };
-  const achievementTone: Record<string, BadgeTone> = {
-    PASS: "success",
-    FAIL: "danger",
-    REMEDIATED: "warning",
-    NOT_SUBMITTED: "danger",
-  };
-  const isDone = (homework: StudentHomeworkGrade) => (
-    homework.achievement === "PASS"
-    || homework.achievement === "REMEDIATED"
-    || homework.passed === true
-  );
-  const visibleData = data
-    .filter((homework) => {
-      if (sessionScope !== "all" && homework.session_type !== sessionScope) return false;
-      if (statusScope === "done") return isDone(homework);
-      if (statusScope === "attention") return !isDone(homework);
-      return true;
-    })
-    .sort((a, b) => {
-      if (sortMode === "updated") {
-        const updatedDiff = Date.parse(b.score_updated_at ?? "") - Date.parse(a.score_updated_at ?? "");
-        if (Number.isFinite(updatedDiff) && updatedDiff !== 0) return updatedDiff;
-      } else {
-        const aOrder = a.session_regular_order ?? a.session_order;
-        const bOrder = b.session_regular_order ?? b.session_order;
-        if (aOrder == null && bOrder != null) return 1;
-        if (aOrder != null && bOrder == null) return -1;
-        if (aOrder != null && bOrder != null && aOrder !== bOrder) {
-          return sortMode === "session_desc" ? bOrder - aOrder : aOrder - bOrder;
-        }
-      }
-      const displayOrderDiff = (a.display_order ?? 0) - (b.display_order ?? 0);
-      if (displayOrderDiff !== 0) return displayOrderDiff;
-      return b.homework_id - a.homework_id;
-    });
-
-  return (
-    <div>
-      <section className={styles.homeworkHistoryControls} aria-label="과제 이력 표시 기준">
-        <div className={styles.homeworkHistorySummary}>
-          <strong>차시별 과제</strong>
-          <span aria-live="polite">{visibleData.length}/{data.length}건 표시</span>
-        </div>
-        <div className={styles.homeworkHistoryFilters}>
-          <label>
-            <span>수업</span>
-            <select value={sessionScope} onChange={(event) => setSessionScope(event.target.value as ExamSessionScope)}>
-              <option value="all">정규·보강 전체</option>
-              <option value="REGULAR">정규 수업</option>
-              <option value="SUPPLEMENT">보강</option>
-            </select>
-          </label>
-          <label>
-            <span>상태</span>
-            <select value={statusScope} onChange={(event) => setStatusScope(event.target.value as HomeworkStatusScope)}>
-              <option value="all">전체 상태</option>
-              <option value="attention">확인 필요</option>
-              <option value="done">완료</option>
-            </select>
-          </label>
-          <label>
-            <span>정렬</span>
-            <select value={sortMode} onChange={(event) => setSortMode(event.target.value as HomeworkSortMode)}>
-              <option value="session_desc">최근 차시순</option>
-              <option value="session_asc">1차시부터</option>
-              <option value="updated">최근 수정순</option>
-            </select>
-          </label>
-        </div>
-      </section>
-      {visibleData.length === 0 ? (
-        <EmptyState scope="panel" tone="empty" title="조건에 맞는 과제가 없습니다." description="수업 또는 상태 필터를 바꿔 주세요." />
-      ) : (
-        <div className={styles.tabList}>
-          {visibleData.map((hw, i) => {
-            const lectureId = hw.lecture_id;
-            const sessionId = hw.session_id;
-            const canNav = !!lectureId && !!sessionId;
-            const navPath = canNav ? `/workspace/lectures/${lectureId}/sessions/${sessionId}/scores` : "";
-            const rowKey = `${hw.homework_id}-${hw.enrollment_id}-${i}`;
-            const isEditing = editingKey === rowKey;
-            return (
-              <div key={rowKey} className={styles.homeworkRecordGroup}>
-                <div
-                  className={styles.tabRecord}
-                  data-clickable={canNav ? "" : undefined}
-                  onClick={canNav ? () => onNavigate(navPath) : undefined}
-                >
-                  {hw.lecture_title && (
-                    <LectureChip lectureName={hw.lecture_title} color={hw.lecture_color ?? undefined} chipLabel={hw.lecture_chip_label} size={24} />
-                  )}
-                  <div className={styles.recordMain}>
-                    <span className={styles.recordTitle}>{hw.title}</span>
-                    <div className={styles.recordMetaRow}>
-                      {hw.session_title && <span>{hw.session_title}</span>}
-                      {hw.session_type && <span>· {hw.session_type === "SUPPLEMENT" ? "보강" : "정규"}</span>}
-                      <span>· {hw.grading_mode === "COMPLETION" ? "완료 체크" : "숫자 채점"}</span>
-                      {(hw.retake_count ?? 0) > 1 && <span>· 재시도 {(hw.retake_count ?? 0) - 1}회</span>}
-                    </div>
-                  </div>
-                  <div className={styles.recordActions}>
-                    {hw.grading_mode !== "COMPLETION" && hw.score != null && (
-                      <span className={styles.scoreValue}>
-                        {Math.round(hw.score)}<span className={styles.scoreMax}>/{hw.max_score ?? 100}</span>
-                      </span>
-                    )}
-                    <Badge variant="solid" size="sm" tone={hw.achievement ? (achievementTone[hw.achievement] || "muted") : "muted"}>
-                      {hw.achievement ? (achievementLabel[hw.achievement] || hw.achievement) : "검사 전"}
-                    </Badge>
-                    <Button
-                      type="button"
-                      intent="secondary"
-                      size="sm"
-                      aria-expanded={isEditing}
-                      aria-controls={`homework-quick-editor-${hw.homework_id}-${hw.enrollment_id}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setEditingKey(isEditing ? null : rowKey);
-                      }}
-                    >
-                      바로 수정
-                    </Button>
-                    {canNav && <ChevronIcon />}
-                  </div>
-                </div>
-                {isEditing && (
-                  <HomeworkQuickEditor
-                    grade={hw}
-                    onClose={() => setEditingKey(null)}
-                    onUpdated={onUpdated}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }
