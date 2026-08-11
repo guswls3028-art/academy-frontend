@@ -15,6 +15,64 @@
   margin-bottom: var(--stu-space-4);
 }
 
+.homeworkControls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stu-space-3);
+  padding: var(--stu-space-4);
+  margin-bottom: var(--stu-space-5);
+  background: var(--stu-surface-soft);
+  border: 1px solid var(--stu-border);
+  border-radius: var(--stu-radius-xl);
+}
+
+.controlRow,
+.filterChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--stu-space-2);
+  align-items: center;
+}
+
+.controlLabel {
+  min-width: 30px;
+  color: var(--stu-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.selectLabel {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--stu-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.selectLabel select {
+  min-height: 34px;
+  padding: 0 28px 0 10px;
+  color: var(--stu-text);
+  font: inherit;
+  font-weight: 600;
+  background: var(--stu-surface);
+  border: 1px solid var(--stu-border);
+  border-radius: 10px;
+}
+
+.selectLabel select:focus-visible {
+  outline: 2px solid var(--stu-primary);
+  outline-offset: 2px;
+}
+
+.visibleCount {
+  margin-left: auto;
+  color: var(--stu-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .sortChip {
   padding: 5px 12px;
   color: var(--stu-text-muted);
@@ -52,4 +110,26 @@
   font-weight: 700;
   background: var(--stu-primary);
   border-color: var(--stu-primary);
+}
+
+@media (max-width: 390px) {
+  .homeworkControls {
+    padding: var(--stu-space-3);
+  }
+
+  .controlRow {
+    align-items: flex-start;
+  }
+
+  .selectLabel {
+    flex: 1 1 140px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .visibleCount {
+    width: 100%;
+    margin-left: 0;
+    text-align: right;
+  }
 }

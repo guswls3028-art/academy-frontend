@@ -47,7 +47,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { formatPhone, formatStudentPhoneDisplay, formatOmrCode, formatGenderDisplay } from "@/shared/utils/formatPhone";
 import { adminStudentsQueryKeys } from "../queryKeys";
 import StudentWrongNoteBuilder from "@admin/domains/results/public/StudentWrongNoteBuilder";
-import HomeworkQuickEditor from "./HomeworkQuickEditor";
+import StudentHomeworkTab from "./StudentHomeworkTab";
 import styles from "./StudentsDetailOverlay.module.css";
 
 const StudentFormModal = lazy(() => import("../components/EditStudentModal"));
@@ -526,7 +526,7 @@ export default function StudentsDetailOverlay({
                     />
                   )}
                   {tab === "homework" && (
-                    <HomeworkTab
+                    <StudentHomeworkTab
                       data={homeworkGrades}
                       isLoading={gradesLoading}
                       isError={gradesError}
@@ -1308,118 +1308,6 @@ function ScoreTab({
         />
       )}
       </div>
-    </div>
-  );
-}
-
-/** 과제 탭 — admin/student-grades API 기반 */
-function HomeworkTab({
-  data,
-  isLoading,
-  isError,
-  onRetry,
-  onUpdated,
-  onNavigate,
-}: {
-  data: StudentHomeworkGrade[];
-  isLoading: boolean;
-  isError: boolean;
-  onRetry: () => void;
-  onUpdated: () => Promise<unknown>;
-  onNavigate: (path: string) => void;
-}) {
-  const [editingKey, setEditingKey] = useState<string | null>(null);
-  if (isLoading) return <EmptyState scope="panel" tone="loading" title="과제 성적을 불러오는 중…" />;
-  if (isError) {
-    return (
-      <EmptyState
-        scope="panel"
-        tone="error"
-        title="과제 성적을 불러오지 못했습니다."
-        description="잠시 후 다시 불러와 주세요."
-        actions={<Button size="sm" onClick={onRetry}>다시 불러오기</Button>}
-      />
-    );
-  }
-  if (!data?.length) return <EmptyState scope="panel" tone="empty" title="과제 성적이 없습니다." />;
-
-  const achievementLabel: Record<string, string> = {
-    PASS: "완료",
-    FAIL: "미완료",
-    REMEDIATED: "보강완료",
-    NOT_SUBMITTED: "미제출",
-  };
-  const achievementTone: Record<string, BadgeTone> = {
-    PASS: "success",
-    FAIL: "danger",
-    REMEDIATED: "warning",
-    NOT_SUBMITTED: "danger",
-  };
-
-  return (
-    <div className={styles.tabList}>
-      {data.map((hw, i) => {
-        const lectureId = hw.lecture_id;
-        const sessionId = hw.session_id;
-        const canNav = !!lectureId && !!sessionId;
-        const navPath = canNav ? `/workspace/lectures/${lectureId}/sessions/${sessionId}/scores` : "";
-        const rowKey = `${hw.homework_id}-${hw.enrollment_id}-${i}`;
-        const isEditing = editingKey === rowKey;
-        return (
-          <div key={rowKey} className={styles.homeworkRecordGroup}>
-          <div
-            className={styles.tabRecord}
-            data-clickable={canNav ? "" : undefined}
-            onClick={canNav ? () => onNavigate(navPath) : undefined}
-          >
-            {hw.lecture_title && (
-              <LectureChip lectureName={hw.lecture_title} color={hw.lecture_color ?? undefined} chipLabel={hw.lecture_chip_label} size={24} />
-            )}
-            <div className={styles.recordMain}>
-              <span className={styles.recordTitle}>{hw.title}</span>
-              <div className={styles.recordMetaRow}>
-                {hw.session_title && <span>{hw.session_title}</span>}
-                <span>· {hw.grading_mode === "COMPLETION" ? "완료 체크" : "숫자 채점"}</span>
-                {(hw.retake_count ?? 0) > 1 && <span>· 재시도 {(hw.retake_count ?? 0) - 1}회</span>}
-              </div>
-            </div>
-            <div className={styles.recordActions}>
-              {hw.grading_mode !== "COMPLETION" && hw.score != null && (
-                <span className={styles.scoreValue}>
-                  {Math.round(hw.score)}<span className={styles.scoreMax}>/{hw.max_score ?? 100}</span>
-                </span>
-              )}
-              <Badge variant="solid" size="sm" tone={hw.achievement ? (achievementTone[hw.achievement] || "muted") : "muted"}>
-                {hw.achievement ? (achievementLabel[hw.achievement] || hw.achievement) : "검사 전"}
-              </Badge>
-              <Button
-                type="button"
-                intent="secondary"
-                size="sm"
-                aria-expanded={isEditing}
-                aria-controls={`homework-quick-editor-${hw.homework_id}-${hw.enrollment_id}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setEditingKey(isEditing ? null : rowKey);
-                }}
-              >
-                바로 수정
-              </Button>
-              {canNav && (
-                <ChevronIcon />
-              )}
-            </div>
-          </div>
-          {isEditing && (
-            <HomeworkQuickEditor
-              grade={hw}
-              onClose={() => setEditingKey(null)}
-              onUpdated={onUpdated}
-            />
-          )}
-          </div>
-        );
-      })}
     </div>
   );
 }

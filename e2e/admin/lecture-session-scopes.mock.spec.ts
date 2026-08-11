@@ -170,6 +170,23 @@ async function installApi(page: Page, state: MockState) {
     }
     if (path === "/enrollments/") return json([]);
     if (path === "/enrollments/session-enrollments/") return json([]);
+    if (path === "/lectures/attendance/matrix/") {
+      const sessions = sessionRows(state);
+      return json({
+        lecture: { id: LECTURE_ID, title: "고1 Hyper 정규반", color: "#2563eb", chip_label: "Y" },
+        sessions,
+        students: [{
+          student_id: 501,
+          name: "김민준",
+          phone: "01012345678",
+          parent_phone: "01087654321",
+          attendance: Object.fromEntries(sessions.map((session, index) => [
+            String(session.id),
+            { attendance_id: 700 + index, status: "PRESENT" },
+          ])),
+        }],
+      });
+    }
     if (path === "/homeworks/" && method === "POST") {
       const payload = request.postDataJSON() as Record<string, unknown>;
       state.createdHomeworkPayloads ??= [];
@@ -280,6 +297,29 @@ async function openLecture(page: Page, state: MockState) {
   });
   await expect(page.getByRole("group", { name: "수업 보기 방식" })).toBeVisible();
 }
+
+test("출석 관리는 정규 차시만 기본 표시하고 보강·전체 범위를 전환한다", async ({ page }) => {
+  const state: MockState = {
+    supplementTitle: "토요일 심화 클리닉",
+    patchTitles: [],
+  };
+  await openLecture(page, state);
+
+  const scope = page.getByRole("group", { name: "출석 차시 범위" });
+  await expect(scope).toBeVisible();
+  await expect(scope.getByRole("button", { name: "정규 1" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("columnheader", { name: "1차" })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: /토요일 심화 클리닉/ })).toHaveCount(0);
+
+  await scope.getByRole("button", { name: "보강 1" }).click();
+  await expect(page.getByRole("columnheader", { name: "1차" })).toHaveCount(0);
+  await expect(page.getByRole("columnheader", { name: /토요일 심화 클리닉/ })).toBeVisible();
+
+  await scope.getByRole("button", { name: "전체 2" }).click();
+  await expect(page.getByRole("columnheader", { name: "1차" })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: /토요일 심화 클리닉/ })).toBeVisible();
+  await expect(page.getByText("김민준", { exact: true }).locator("xpath=ancestor::tr[1]")).toContainText("현");
+});
 
 test("기존 전체 보기를 기본으로 유지하고 분리 보기에서 보강 이름을 수정·재조회한다", async ({ page }) => {
   const state: MockState = {
