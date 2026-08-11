@@ -104,8 +104,8 @@ importers:
         specifier: ^1.32.0
         version: 1.32.0
       lucide-react:
-        specifier: ^0.563.0
-        version: 0.563.0(react@19.2.7)
+        specifier: ^1.30.0
+        version: 1.30.0(react@19.2.7)
       pdf-lib:
         specifier: ^1.17.1
         version: 1.17.1
@@ -2343,8 +2343,8 @@ packages:
   lodash.uniq@4.5.0:
     resolution: {integrity: sha512-xfBaXQd9ryd9dlSDvnvI0lvxfLJlYAZzXomUYzLKtUeOQvOP5piqAWuGtrhWeqaXK9hhoM/iyJc5AV+XfsX3HQ==}
 
-  lucide-react@0.563.0:
-    resolution: {integrity: sha512-8dXPB2GI4dI8jV4MgUDGBeLdGk8ekfqVZ0BdLcrRzocGgG75ltNEmWS+gE7uokKF/0oSUuczNDT+g9hFJ23FkA==}
+  lucide-react@1.30.0:
+    resolution: {integrity: sha512-tUIr2jXLbWpCkdtH8XP7P7YppM9ueWgTky99lpWDY6z5REs6B+O6ZQ3U5tHkUUY59ANyOv/PBcs8E4Fe3KO3eA==}
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
@@ -5052,7 +5052,7 @@ snapshots:
 
   lodash.uniq@4.5.0: {}
 
-  lucide-react@0.563.0(react@19.2.7):
+  lucide-react@1.30.0(react@19.2.7):
     dependencies:
       react: 19.2.7
 
