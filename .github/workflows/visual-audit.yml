@@ -1,0 +1,100 @@
+name: Weekly Live Visual Audit
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Saturday 04:00 KST. The audit is read-only but intentionally off-peak.
+    - cron: "0 19 * * 5"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: weekly-live-visual-audit
+  cancel-in-progress: true
+
+jobs:
+  route-surface:
+    name: Live visual audit (${{ matrix.scope }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - scope: admin-desktop
+            grep: admin static route surface
+          - scope: admin-mobile
+            grep: admin compact route surface
+          - scope: student-mobile
+            grep: student mobile route surface
+          - scope: student-desktop
+            grep: student desktop route surface
+          - scope: teacher-mobile
+            grep: teacher mobile route surface
+          - scope: promo-public
+            grep: promo public route surface
+          - scope: system-public
+            grep: system public route surface
+          - scope: tenant-landing
+            grep: tenant landing route surface
+          - scope: developer-desktop
+            grep: developer route surface
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --shamefully-hoist
+
+      - name: Install Playwright
+        run: npx playwright install chromium --with-deps
+
+      - name: Guard production E2E safety boundaries
+        run: pnpm guard:e2e-safety
+
+      - name: Create read-only live audit environment
+        run: |
+          cat > .env.e2e << EOF
+          E2E_BASE_URL=https://hakwonplus.com
+          E2E_LOCAL_BASE_URL=https://hakwonplus.com
+          E2E_API_URL=${{ secrets.E2E_API_URL || 'https://api.hakwonplus.com' }}
+          E2E_TENANT_CODE=hakwonplus
+          E2E_ADMIN_USER=${{ secrets.E2E_ADMIN_USER }}
+          E2E_ADMIN_PASS=${{ secrets.E2E_ADMIN_PASS }}
+          E2E_STUDENT_USER=${{ secrets.E2E_STUDENT_USER }}
+          E2E_STUDENT_PASS=${{ secrets.E2E_STUDENT_PASS }}
+          TCHUL_BASE_URL=https://tchul.com
+          E2E_STRICT=strict
+          E2E_ALLOW_REAL_ALIMTALK=0
+          E2E_ALLOW_PRODUCTION_WRITES=0
+          EOF
+
+      - name: Audit live route surface
+        env:
+          AUDIT_GREP: ${{ matrix.grep }}
+        run: >-
+          pnpm exec playwright test
+          e2e/visual/design-system-route-audit.spec.ts
+          --project=chromium
+          --grep "$AUDIT_GREP"
+          --reporter=github,html
+
+      - name: Upload route screenshots and traces
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: live-visual-audit-${{ matrix.scope }}-attempt-${{ github.run_attempt }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+          if-no-files-found: error

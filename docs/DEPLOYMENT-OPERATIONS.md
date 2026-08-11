@@ -143,6 +143,14 @@ pnpm build
 pnpm test:e2e:visual-audit
 ```
 
+`.github/workflows/visual-audit.yml`은 매주 토요일 04:00 KST와 수동 dispatch에
+실제 운영 route surface를 읽기 전용으로 렌더한다. 관리자 desktop/390px,
+학생 desktop/390px, 선생님 390px, promo, system, tenant landing, developer를
+9개 scope로 나누고 최대 2개만 병렬 실행한다. 운영 쓰기 플래그는 항상 0이며
+각 route의 screenshot, trace와 HTML report를 scope별 artifact로 14일 보존한다.
+실패는 빈 화면·오류 문구·design token/font 누락·control 잘림/겹침·가로
+overflow·escaped HTML 중 어느 route에서 발생했는지 artifact로 추적한다.
+
 workflow 변경은 YAML parse, 모든 `uses:`의 40자 SHA, secret 이름과 environment
 binding, PR safe allowlist, production rollback 경로를 함께 검토한다. 로컬
 `pnpm test:e2e:gate`가 production API를 가리키면 인증 외 mutation이 없어야

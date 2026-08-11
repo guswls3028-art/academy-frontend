@@ -24,6 +24,10 @@ const quality = fs.readFileSync(
 const e2e = fs
   .readFileSync(path.join(workflowRoot, "e2e.yml"), "utf8")
   .replaceAll("\r\n", "\n");
+const visualAuditPath = path.join(workflowRoot, "visual-audit.yml");
+const visualAudit = fs.existsSync(visualAuditPath)
+  ? fs.readFileSync(visualAuditPath, "utf8").replaceAll("\r\n", "\n")
+  : "";
 for (const forbidden of [
   "CLOUDFLARE_API_KEY",
   "CLOUDFLARE_EMAIL",
@@ -61,6 +65,19 @@ for (const required of [
 ]) {
   if (!e2e.includes(required)) {
     failures.push(`e2e.yml: missing write-boundary marker ${required}`);
+  }
+}
+for (const required of [
+  "name: Weekly Live Visual Audit",
+  'cron: "0 19 * * 5"',
+  "max-parallel: 2",
+  "E2E_BASE_URL=https://hakwonplus.com",
+  "E2E_ALLOW_PRODUCTION_WRITES=0",
+  "e2e/visual/design-system-route-audit.spec.ts",
+  "retention-days: 14",
+]) {
+  if (!visualAudit.includes(required)) {
+    failures.push(`visual-audit.yml: missing live visual audit marker ${required}`);
   }
 }
 if (!fs.existsSync(path.join(root, ".github", "dependabot.yml"))) {
