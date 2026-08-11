@@ -6,21 +6,35 @@ const workflow = readFileSync(
   new URL("../../.github/workflows/quality-gate.yml", import.meta.url),
   "utf8",
 );
+const e2eWorkflow = readFileSync(
+  new URL("../../.github/workflows/e2e.yml", import.meta.url),
+  "utf8",
+);
 const viteConfig = readFileSync(
   new URL("../../vite.config.ts", import.meta.url),
   "utf8",
 );
 
-test("Vite 8 uses supported Rolldown chunk groups and bounded Ant Design assets", () => {
+test("Vite 8 preserves Rolldown shared-module semantics for Ant Design", () => {
   assert.match(viteConfig, /rolldownOptions:\s*\{/);
   assert.match(viteConfig, /codeSplitting:\s*\{/);
   assert.doesNotMatch(viteConfig, /manualChunks\s*\(/);
-  assert.match(
-    viteConfig,
-    /name:\s*"vendor-antd"[\s\S]*?maxSize:\s*560 \* 1024[\s\S]*?priority:\s*30/,
-  );
+  assert.doesNotMatch(viteConfig, /name:\s*"vendor-antd"/);
   assert.match(viteConfig, /name:\s*"vendor-core"[\s\S]*?priority:\s*50/);
   assert.match(viteConfig, /name:\s*"vendor-icons"[\s\S]*?priority:\s*45/);
+});
+
+test("closed-proxy CI boots the production bundle before merge", () => {
+  const routeMockIndex = e2eWorkflow.indexOf("- name: Run parallel route-mock gate");
+  const buildIndex = e2eWorkflow.indexOf("- name: Build production bundle", routeMockIndex);
+  const previewIndex = e2eWorkflow.indexOf("- name: Start production bundle preview", buildIndex);
+  const smokeIndex = e2eWorkflow.indexOf("- name: Run production bundle runtime smoke", previewIndex);
+
+  assert.ok(routeMockIndex >= 0, "route-mock gate is missing");
+  assert.ok(buildIndex > routeMockIndex, "production build must follow route mocks");
+  assert.ok(previewIndex > buildIndex, "production preview must follow the build");
+  assert.ok(smokeIndex > previewIndex, "runtime smoke must follow the preview");
+  assert.match(e2eWorkflow, /E2E_BASE_URL:\s*http:\/\/127\.0\.0\.1:4173/);
 });
 
 test("workspace route contracts run before the deploy artifact is built", () => {

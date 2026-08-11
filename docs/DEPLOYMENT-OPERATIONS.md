@@ -121,9 +121,11 @@ postdeploy canary의 residue 0 증거까지 닫아야 한다.
   다중 `background-image`의 `!important`는 선언 끝에 한 번만 두며, 각 레이어
   사이에 넣지 않는다. 이 규칙은 모든 학생 테넌트 테마에 동일하게 적용한다.
   Rolldown 청크 경계는 `build.rolldownOptions.output.codeSplitting`이 소유한다.
-  React core·아이콘·HEIC·Excel 경계를 우선 고정하고, Ant Design group에만
-  560 KiB 목표 상한을 적용해 각 산출물이 동일한 bundle budget을 지키면서
-  나머지 vendor를 불필요하게 세분화하지 않는다.
+  React core·아이콘·HEIC·Excel 경계만 우선 고정하고, Ant Design과 rc 계열은
+  Rolldown의 기본 공유 모듈 그래프에 맡긴다. Ant Design에 별도 `maxSize` group을
+  강제하면 내부 순환 의존이 여러 청크로 갈라져 초기 로드가 실패할 수 있다.
+  PR의 closed-proxy gate는 route mock 뒤 실제 production bundle을 다시 빌드하고
+  preview에서 `/promo`를 strict browser로 부팅해 pageerror와 빈 root를 차단한다.
 - [GHSA-qwww-vcr4-c8h2](https://github.com/advisories/GHSA-qwww-vcr4-c8h2)는
   `react-router >=7.12.0 <8.3.0`의 실험적 RSC server action 경로에 영향을
   주며 공식 수정 버전은 8.3.0이다. 앱은 `BrowserRouter`/`Routes` 기반 SPA로

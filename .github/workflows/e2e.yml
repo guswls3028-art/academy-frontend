@@ -206,6 +206,29 @@ jobs:
           E2E_ALLOW_PRODUCTION_WRITES: "0"
         run: pnpm test:e2e:gate:mock --reporter=github,html
 
+      - name: Build production bundle
+        run: pnpm build
+
+      - name: Start production bundle preview
+        run: |
+          pnpm preview --host 127.0.0.1 --port 4173 --strictPort > /tmp/academy-vite-preview.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:4173/promo > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/academy-vite-preview.log
+          exit 1
+
+      - name: Run production bundle runtime smoke
+        env:
+          E2E_BASE_URL: http://127.0.0.1:4173
+          E2E_STRICT: strict
+          E2E_ALLOW_REAL_ALIMTALK: "0"
+          E2E_ALLOW_PRODUCTION_WRITES: "0"
+        run: pnpm test:e2e:bundle-smoke
+
       - name: Upload route-mock report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -223,6 +246,15 @@ jobs:
         with:
           name: frontend-server-log-pr-route-mocks
           path: /tmp/academy-vite.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload production bundle preview log
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: frontend-preview-log-pr-route-mocks
+          path: /tmp/academy-vite-preview.log
           retention-days: 7
           if-no-files-found: ignore
 

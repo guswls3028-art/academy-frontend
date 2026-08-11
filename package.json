@@ -46,6 +46,7 @@
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "test:e2e:canary": "playwright test e2e/smoke/production-canary.spec.ts --project=chromium --reporter=list",
+    "test:e2e:bundle-smoke": "playwright test e2e/smoke/built-bundle-runtime.spec.ts --project=chromium --reporter=github,list",
     "test:e2e:gate": "playwright test --config=playwright.pr-gate.config.ts",
     "test:e2e:gate:readonly": "playwright test --config=playwright.pr-gate.config.ts --project=pr-readonly-4",
     "test:e2e:gate:mock": "playwright test --config=playwright.pr-gate.config.ts --project=pr-route-mocks --no-deps",
