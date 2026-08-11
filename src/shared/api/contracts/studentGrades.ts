@@ -15,6 +15,7 @@ export type StudentExamGrade = {
   remediated?: boolean | null;
   final_pass?: boolean | null;
   retake_count?: number | null;
+  display_order?: number;
   session_id?: number | null;
   session_title?: string | null;
   session_order?: number | null;
@@ -44,8 +45,12 @@ export type StudentHomeworkGrade = {
   meta_status?: string | null;
   achievement?: StudentAchievement | null;
   retake_count?: number | null;
+  display_order?: number;
   session_id?: number | null;
   session_title?: string | null;
+  session_order?: number | null;
+  session_regular_order?: number | null;
+  session_type?: "REGULAR" | "SUPPLEMENT" | null;
   lecture_id?: number | null;
   lecture_title?: string | null;
   lecture_color?: string | null;

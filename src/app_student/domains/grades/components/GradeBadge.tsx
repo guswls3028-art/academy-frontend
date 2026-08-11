@@ -9,6 +9,9 @@ type GradeBadgeProps = {
   label?: { pass?: string; fail?: string };
   /** 미응시/미입력 구분: true면 "미응시" 표시, false/undefined면 뱃지 미표시 */
   showNotSubmitted?: boolean;
+  notSubmittedLabel?: string;
+  emptyLabel?: string;
+  remediatedLabel?: string;
   size?: "sm" | "md";
 };
 
@@ -24,7 +27,16 @@ const DASH_SVG = (
   </svg>
 );
 
-export default function GradeBadge({ passed, achievement, label, showNotSubmitted, size = "md" }: GradeBadgeProps) {
+export default function GradeBadge({
+  passed,
+  achievement,
+  label,
+  showNotSubmitted,
+  notSubmittedLabel = "미응시",
+  emptyLabel = "미입력",
+  remediatedLabel = "보강 합격",
+  size = "md",
+}: GradeBadgeProps) {
   const passText = label?.pass?.trim() || "합격";
   const failText = label?.fail?.trim() || "불합격";
   const sizeClass = size === "sm" ? " stu-badge--sm" : "";
@@ -34,7 +46,7 @@ export default function GradeBadge({ passed, achievement, label, showNotSubmitte
     return (
       <span className={`stu-badge stu-badge--success${sizeClass} ${styles.withIcon}`}>
         {CHECK_SVG}
-        보강 합격
+        {remediatedLabel}
       </span>
     );
   }
@@ -44,7 +56,7 @@ export default function GradeBadge({ passed, achievement, label, showNotSubmitte
     return (
       <span className={`stu-badge stu-badge--warn${sizeClass} ${styles.withIcon}`}>
         {DASH_SVG}
-        미응시
+        {notSubmittedLabel}
       </span>
     );
   }
@@ -55,7 +67,7 @@ export default function GradeBadge({ passed, achievement, label, showNotSubmitte
       return (
         <span className={`stu-badge stu-badge--neutral${sizeClass} ${styles.withIcon}`}>
           {DASH_SVG}
-          미입력
+          {emptyLabel}
         </span>
       );
     }

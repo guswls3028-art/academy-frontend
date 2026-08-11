@@ -11,6 +11,9 @@ import styles from "./GradesHomeTab.module.css";
 
 type SubTab = "exams" | "homework";
 type SortMode = "lecture" | "recent";
+type HomeworkSortMode = "session_desc" | "session_asc" | "recent";
+type HomeworkStatusFilter = "all" | "todo" | "done";
+type HomeworkSessionScope = "all" | "REGULAR" | "SUPPLEMENT";
 
 const UNGROUPED_KEY = "__ungrouped__";
 
@@ -70,6 +73,40 @@ function groupHomeworks(homeworks: MyHomeworkGradeSummary[]): HwGroup[] {
   return groups;
 }
 
+function isHomeworkDone(homework: MyHomeworkGradeSummary): boolean {
+  return homework.achievement === "PASS"
+    || homework.achievement === "REMEDIATED"
+    || homework.passed === true;
+}
+
+function homeworkSessionOrder(homework: MyHomeworkGradeSummary): number | null {
+  const value = homework.session_regular_order ?? homework.session_order;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function sortHomeworks(
+  homeworks: MyHomeworkGradeSummary[],
+  mode: HomeworkSortMode,
+): MyHomeworkGradeSummary[] {
+  return [...homeworks].sort((a, b) => {
+    if (mode === "recent") {
+      const recordedDiff = Date.parse(b.recorded_at ?? "") - Date.parse(a.recorded_at ?? "");
+      if (Number.isFinite(recordedDiff) && recordedDiff !== 0) return recordedDiff;
+    } else {
+      const aOrder = homeworkSessionOrder(a);
+      const bOrder = homeworkSessionOrder(b);
+      if (aOrder == null && bOrder != null) return 1;
+      if (aOrder != null && bOrder == null) return -1;
+      if (aOrder != null && bOrder != null && aOrder !== bOrder) {
+        return mode === "session_desc" ? bOrder - aOrder : aOrder - bOrder;
+      }
+    }
+    const displayOrderDiff = (a.display_order ?? 0) - (b.display_order ?? 0);
+    if (displayOrderDiff !== 0) return displayOrderDiff;
+    return b.homework_id - a.homework_id;
+  });
+}
+
 type Props = {
   exams: MyExamGradeSummary[];
   homeworks: MyHomeworkGradeSummary[];
@@ -79,6 +116,9 @@ type Props = {
 export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
   const [subTab, setSubTab] = useState<SubTab>("exams");
   const [examSort, setExamSort] = useState<SortMode>("lecture");
+  const [homeworkSort, setHomeworkSort] = useState<HomeworkSortMode>("session_desc");
+  const [homeworkStatus, setHomeworkStatus] = useState<HomeworkStatusFilter>("all");
+  const [homeworkSessionScope, setHomeworkSessionScope] = useState<HomeworkSessionScope>("all");
 
   const sortedExams = useMemo(() => {
     if (examSort !== "recent") return exams;
@@ -90,7 +130,17 @@ export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
   }, [exams, examSort]);
 
   const examGroups = useMemo(() => groupExams(exams), [exams]);
-  const hwGroups = useMemo(() => groupHomeworks(homeworks), [homeworks]);
+  const visibleHomeworks = useMemo(() => {
+    const filtered = homeworks.filter((homework) => {
+      if (homeworkSessionScope !== "all" && homework.session_type !== homeworkSessionScope) return false;
+      if (homeworkStatus === "done") return isHomeworkDone(homework);
+      if (homeworkStatus === "todo") return !isHomeworkDone(homework);
+      return true;
+    });
+    return sortHomeworks(filtered, homeworkSort);
+  }, [homeworkSessionScope, homeworkSort, homeworkStatus, homeworks]);
+  const hwGroups = useMemo(() => groupHomeworks(visibleHomeworks), [visibleHomeworks]);
+  const homeworkDoneCount = useMemo(() => homeworks.filter(isHomeworkDone).length, [homeworks]);
 
   return (
     <div className={styles.stack}>
@@ -138,11 +188,56 @@ export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
           {homeworks.length === 0 ? (
             <EmptyState title="과제 성적이 아직 없습니다." description="과제 점수가 입력되면 여기에 표시됩니다." />
           ) : (
-            <div className={styles.gradeList}>
-              {hwGroups.map((group) => (
-                <LectureHwGroup key={group.key} group={group} labels={labels} />
-              ))}
-            </div>
+            <>
+              <section className={styles.homeworkControls} aria-label="과제 표시 기준">
+                <div className={styles.controlRow}>
+                  <span className={styles.controlLabel}>상태</span>
+                  <div className={styles.filterChips} role="group" aria-label="과제 상태 필터">
+                    <SortChip active={homeworkStatus === "all"} onClick={() => setHomeworkStatus("all")} label={`전체 ${homeworks.length}`} />
+                    <SortChip active={homeworkStatus === "todo"} onClick={() => setHomeworkStatus("todo")} label={`확인 필요 ${homeworks.length - homeworkDoneCount}`} />
+                    <SortChip active={homeworkStatus === "done"} onClick={() => setHomeworkStatus("done")} label={`완료 ${homeworkDoneCount}`} />
+                  </div>
+                </div>
+                <div className={styles.controlRow}>
+                  <label className={styles.selectLabel}>
+                    <span>수업</span>
+                    <select
+                      value={homeworkSessionScope}
+                      onChange={(event) => setHomeworkSessionScope(event.target.value as HomeworkSessionScope)}
+                      aria-label="과제 수업 범위"
+                    >
+                      <option value="all">정규·보강 전체</option>
+                      <option value="REGULAR">정규 수업</option>
+                      <option value="SUPPLEMENT">보강</option>
+                    </select>
+                  </label>
+                  <label className={styles.selectLabel}>
+                    <span>정렬</span>
+                    <select
+                      value={homeworkSort}
+                      onChange={(event) => setHomeworkSort(event.target.value as HomeworkSortMode)}
+                      aria-label="과제 정렬"
+                    >
+                      <option value="session_desc">최근 차시순</option>
+                      <option value="session_asc">1차시부터</option>
+                      <option value="recent">최근 기록순</option>
+                    </select>
+                  </label>
+                  <span className={styles.visibleCount} aria-live="polite">
+                    {visibleHomeworks.length}/{homeworks.length}건 표시
+                  </span>
+                </div>
+              </section>
+              {visibleHomeworks.length === 0 ? (
+                <EmptyState title="조건에 맞는 과제가 없습니다." description="상태나 수업 필터를 바꿔 다시 확인해 보세요." />
+              ) : (
+                <div className={styles.gradeList}>
+                  {hwGroups.map((group) => (
+                    <LectureHwGroup key={group.key} group={group} />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

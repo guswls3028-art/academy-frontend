@@ -31,6 +31,8 @@ const LECTURE_STUDENTS_FIXED_COLUMNS: TableColumnDef[] = [
   { key: "session", label: "차시", defaultWidth: STUDENTS_TABLE_COL.sessionCol, minWidth: 34 },
 ];
 
+type AttendanceSessionScope = "REGULAR" | "SUPPLEMENT" | "ALL";
+
 function LectureStudentsSortableTh({
   colKey,
   label,
@@ -85,6 +87,7 @@ export default function LectureStudentsPage() {
   const [showEnrollExcelModal, setShowEnrollExcelModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [sort, setSort] = useState("");
+  const [sessionScope, setSessionScope] = useState<AttendanceSessionScope>("REGULAR");
   const { columnWidths, setColumnWidth } = useTableColumnPrefs("lecture-students", LECTURE_STUDENTS_FIXED_COLUMNS);
 
   useEffect(() => {
@@ -106,7 +109,22 @@ export default function LectureStudentsPage() {
 
   const rawStudents = matrix?.students ?? [];
   const sessions = matrix?.sessions ?? [];
-  const sessionsByDateDesc = useMemo(() => sortSessionsByDateDesc(sessions), [sessions]);
+  const sessionCounts = useMemo(() => ({
+    REGULAR: sessions.filter((session) => session.session_type !== "SUPPLEMENT").length,
+    SUPPLEMENT: sessions.filter((session) => session.session_type === "SUPPLEMENT").length,
+  }), [sessions]);
+  const visibleSessions = useMemo(
+    () => sortSessionsByDateDesc(
+      sessionScope === "ALL"
+        ? sessions
+        : sessions.filter((session) => (
+          sessionScope === "SUPPLEMENT"
+            ? session.session_type === "SUPPLEMENT"
+            : session.session_type !== "SUPPLEMENT"
+        )),
+    ),
+    [sessionScope, sessions],
+  );
 
   // 동명이인 displayName 부여
   const students = useMemo(() => {
@@ -169,7 +187,7 @@ export default function LectureStudentsPage() {
     (columnWidths.name ?? STUDENTS_TABLE_COL.name) +
     (columnWidths.parentPhone ?? STUDENTS_TABLE_COL.parentPhone) +
     (columnWidths.studentPhone ?? STUDENTS_TABLE_COL.studentPhone) +
-    sessionsByDateDesc.length * sessionColWidth;
+    visibleSessions.length * sessionColWidth;
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const allIds = useMemo(() => sortedFiltered.map((s) => s.student_id), [sortedFiltered]);
@@ -229,6 +247,34 @@ export default function LectureStudentsPage() {
               style={{ maxWidth: 360 }}
             />
           }
+          filterSlot={
+            <div className="ds-segment" role="group" aria-label="출석 차시 범위">
+              <button
+                type="button"
+                className="ds-segment__btn"
+                aria-pressed={sessionScope === "REGULAR"}
+                onClick={() => setSessionScope("REGULAR")}
+              >
+                정규 {sessionCounts.REGULAR}
+              </button>
+              <button
+                type="button"
+                className="ds-segment__btn"
+                aria-pressed={sessionScope === "SUPPLEMENT"}
+                onClick={() => setSessionScope("SUPPLEMENT")}
+              >
+                보강 {sessionCounts.SUPPLEMENT}
+              </button>
+              <button
+                type="button"
+                className="ds-segment__btn"
+                aria-pressed={sessionScope === "ALL"}
+                onClick={() => setSessionScope("ALL")}
+              >
+                전체 {sessions.length}
+              </button>
+            </div>
+          }
           primaryAction={
             <Button intent="primary" onClick={() => setShowLectureEnroll(true)}>
               수강생 등록
@@ -265,7 +311,7 @@ export default function LectureStudentsPage() {
                     <col style={{ width: columnWidths.name ?? STUDENTS_TABLE_COL.name }} />
                     <col style={{ width: columnWidths.parentPhone ?? STUDENTS_TABLE_COL.parentPhone }} />
                     <col style={{ width: columnWidths.studentPhone ?? STUDENTS_TABLE_COL.studentPhone }} />
-                    {sessionsByDateDesc.map((s) => (
+                    {visibleSessions.map((s) => (
                       <col key={s.id} style={{ width: sessionColWidth }} />
                     ))}
                   </colgroup>
@@ -307,7 +353,7 @@ export default function LectureStudentsPage() {
                         onSort={handleSort}
                         onWidthChange={setColumnWidth}
                       />
-                      {sessionsByDateDesc.map((s) => (
+                      {visibleSessions.map((s) => (
                         <ResizableTh
                           key={s.id}
                           columnKey="session"
@@ -370,7 +416,7 @@ export default function LectureStudentsPage() {
                         <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle" style={{ width: columnWidths.studentPhone ?? STUDENTS_TABLE_COL.studentPhone }}>
                           {formatPhone(row.phone)}
                         </td>
-                        {sessionsByDateDesc.map((s) => {
+                        {visibleSessions.map((s) => {
                           const cell = row.attendance?.[String(s.id)];
                           return (
                             <td
