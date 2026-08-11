@@ -40,7 +40,7 @@ test("weekly live audit shards every maintained route surface exactly once", () 
 
 test("weekly live audit remains read-only, bounded, and evidence-producing", () => {
   assert.match(workflow, /cron: "0 19 \* \* 5"/);
-  assert.match(workflow, /max-parallel: 2/);
+  assert.match(workflow, /max-parallel: 1/);
   assert.match(workflow, /E2E_ALLOW_PRODUCTION_WRITES=0/);
   assert.match(workflow, /E2E_ALLOW_REAL_ALIMTALK=0/);
   assert.match(workflow, /retention-days: 14/);
