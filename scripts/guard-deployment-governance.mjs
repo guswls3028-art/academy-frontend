@@ -70,7 +70,7 @@ for (const required of [
 for (const required of [
   "name: Weekly Live Visual Audit",
   'cron: "0 19 * * 5"',
-  "max-parallel: 2",
+  "max-parallel: 1",
   "E2E_BASE_URL=https://hakwonplus.com",
   "E2E_ALLOW_PRODUCTION_WRITES=0",
   "e2e/visual/design-system-route-audit.spec.ts",
