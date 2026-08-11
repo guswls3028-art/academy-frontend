@@ -18,6 +18,12 @@ on:
       - "index.html"
       - "package.json"
       - "playwright.config.ts"
+      - "playwright.pr-gate.config.ts"
+      - "scripts/e2e-gate-specs.mjs"
+      - "scripts/guard-e2e-safety.mjs"
+      - "scripts/guard-deployment-governance.mjs"
+      - "scripts/tests/e2e-gate-coverage.test.mjs"
+      - ".github/workflows/e2e.yml"
       - "vite.config.ts"
 
 concurrency:
@@ -26,11 +32,16 @@ concurrency:
 
 jobs:
   e2e:
-    name: E2E maintained release suite
+    name: E2E read-only and maintained release suite
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    # PR 또는 수동 실행에서만 동작 (push에서는 quality-gate.yml이 처리)
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
+    # Dependabot PR은 아래 closed-proxy route-mock job만 실행한다.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (
+        github.event_name == 'pull_request'
+        && github.event.pull_request.user.login != 'dependabot[bot]'
+      )
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -50,18 +61,9 @@ jobs:
       - name: Guard production E2E safety boundaries
         run: pnpm guard:e2e-safety
 
-      - name: Select E2E API proxy boundary
-        env:
-          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-          TRUSTED_E2E_API_URL: ${{ secrets.E2E_API_URL }}
-        run: |
-          if [ "${PR_AUTHOR}" = "dependabot[bot]" ]; then
-            echo "VITE_DEV_PROXY_TARGET=http://127.0.0.1:9" >> "${GITHUB_ENV}"
-          else
-            echo "VITE_DEV_PROXY_TARGET=${TRUSTED_E2E_API_URL:-https://api.hakwonplus.com}" >> "${GITHUB_ENV}"
-          fi
-
       - name: Start checkout frontend
+        env:
+          VITE_DEV_PROXY_TARGET: ${{ secrets.E2E_API_URL || 'https://api.hakwonplus.com' }}
         run: |
           pnpm dev --host 127.0.0.1 --port 5174 --strictPort > /tmp/academy-vite.log 2>&1 &
           for attempt in $(seq 1 60); do
@@ -74,9 +76,6 @@ jobs:
           exit 1
 
       - name: Create .env.e2e
-        if: >-
-          github.event_name == 'workflow_dispatch'
-          || github.event.pull_request.user.login != 'dependabot[bot]'
         run: |
           cat > .env.e2e << EOF
           # PR checkout의 실제 UI를 검증하고 API만 운영 E2E tenant로 proxy한다.
@@ -106,32 +105,8 @@ jobs:
           EOF
 
       - name: Run PR E2E gate
-        if: >-
-          github.event_name == 'pull_request'
-          && github.event.pull_request.user.login != 'dependabot[bot]'
-        run: pnpm test:e2e:gate --reporter=github,html
-
-      - name: Run Dependabot secretless route-mock gate
-        if: >-
-          github.event_name == 'pull_request'
-          && github.event.pull_request.user.login == 'dependabot[bot]'
-        env:
-          E2E_BASE_URL: http://127.0.0.1:5174
-          E2E_LOCAL_BASE_URL: http://127.0.0.1:5174
-          E2E_STRICT: strict
-          E2E_ALLOW_REAL_ALIMTALK: "0"
-          E2E_ALLOW_PRODUCTION_WRITES: "0"
-        run: |
-          mapfile -t MOCK_SPECS < <(
-            find e2e -type f -name '*.mock.spec.ts' \
-              ! -path '*/_archive/*' ! -path '*/_local/*' | sort
-          )
-          if [ "${#MOCK_SPECS[@]}" -eq 0 ]; then
-            echo "::error::No active route-mock specs found"
-            exit 1
-          fi
-          pnpm exec playwright test "${MOCK_SPECS[@]}" \
-            --project=chromium --reporter=github,html
+        if: github.event_name == 'pull_request'
+        run: pnpm test:e2e:gate:readonly --reporter=github,html
 
       - name: Run maintained release E2E suite
         if: github.event_name == 'workflow_dispatch'
@@ -180,6 +155,73 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: frontend-server-log-maintained-release
+          path: /tmp/academy-vite.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+  pr-route-mocks:
+    name: E2E closed-proxy route mocks
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --shamefully-hoist
+
+      - name: Install Playwright
+        run: npx playwright install chromium --with-deps
+
+      - name: Guard production E2E safety boundaries
+        run: pnpm guard:e2e-safety
+
+      - name: Start closed-proxy checkout frontend
+        env:
+          VITE_DEV_PROXY_TARGET: http://127.0.0.1:9
+        run: |
+          pnpm dev --host 127.0.0.1 --port 5174 --strictPort > /tmp/academy-vite.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:5174/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/academy-vite.log
+          exit 1
+
+      - name: Run parallel route-mock gate
+        env:
+          E2E_BASE_URL: http://127.0.0.1:5174
+          E2E_LOCAL_BASE_URL: http://127.0.0.1:5174
+          E2E_STRICT: strict
+          E2E_ALLOW_REAL_ALIMTALK: "0"
+          E2E_ALLOW_PRODUCTION_WRITES: "0"
+        run: pnpm test:e2e:gate:mock --reporter=github,html
+
+      - name: Upload route-mock report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: playwright-report-pr-route-mocks
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload route-mock server log
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: frontend-server-log-pr-route-mocks
           path: /tmp/academy-vite.log
           retention-days: 7
           if-no-files-found: ignore

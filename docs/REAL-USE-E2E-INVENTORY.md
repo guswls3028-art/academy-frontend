@@ -29,9 +29,9 @@
 
 | 위치 | 현재 역할 | 한계 |
 |------|-----------|------|
-| `package.json` `test:e2e:gate` | PR용 production safety policy, 로그인, smoke, 모든 활성 route-mock, 과제별 만점/성적 저장 계약 | 운영 API를 사용해도 인증 외 product row mutation을 소유하지 않음. exact allowlist를 `guard-e2e-safety.mjs`가 강제하고 `guard:test-coverage`가 새 mock 스펙 누락과 API interception 누락을 차단 |
+| `package.json` `test:e2e:gate` | PR용 production safety policy, 로그인, smoke, 모든 활성 route-mock, 과제별 만점/성적 저장 계약 | 운영 API를 사용하는 safety/login/health는 한 job의 직렬 dependency chain으로 유지한다. 별도 closed-proxy job은 browser-context route-mock 파일만 CI 최대 4 worker로 병렬 실행하며 두 job은 동시에 시작한다. `scripts/e2e-gate-specs.mjs`의 분류를 `guard-e2e-safety.mjs`가 강제하고 `guard:test-coverage`가 새 mock 스펙 누락과 API interception 누락을 차단 |
 | `.github/workflows/quality-gate.yml` `e2e-roundtrip` | 승인된 main 배포 후 notice/qna/clinic/session-assessment bounded write canary | production baseline과 자동 rollback에 연결된 배포 후 전용 경로. 실제 시험/과제 생성과 학생 제출은 아님 |
-| `.github/workflows/e2e.yml` | PR safe gate. 일반 PR은 credential 기반 login/read-only와 route-mock, Dependabot PR은 secretless route-mock만 실행. 수동 기본은 read-only/mock 유지보수 묶음과 역할별 메뉴 감사, 명시적 옵션만 통제 쓰기 canary | Dependabot API proxy는 localhost 폐쇄 포트로 고정해 운영 요청을 막는다. `controlled_write_canaries=true`에서만 notice/qna/clinic/password/session-assessment와 fixture 생성 spec을 추가. 같은 운영 tenant 간섭을 피하려고 직렬 실행 |
+| `.github/workflows/e2e.yml` | PR safe gate. 일반 PR은 credential 기반 read-only 직렬 job과 closed-proxy route-mock 병렬 job을 함께 실행하고, Dependabot PR은 closed-proxy job만 실행한다. 수동 기본은 read-only/mock 유지보수 묶음과 역할별 메뉴 감사, 명시적 옵션만 통제 쓰기 canary | Route-mock API proxy는 모든 PR에서 localhost 폐쇄 포트로 고정해 운영 요청을 막는다. `controlled_write_canaries=true`에서만 notice/qna/clinic/password/session-assessment와 fixture 생성 spec을 추가. 운영 tenant를 공유하는 수동 전 메뉴 감사는 직렬 실행 |
 
 ### 2.1 릴리스 묶음과 역사성 자산의 경계
 

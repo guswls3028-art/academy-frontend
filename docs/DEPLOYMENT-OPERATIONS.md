@@ -70,18 +70,28 @@ backend `docs/operations/github-governance.md`와
 
 notice/QnA/clinic/password/session-assessment처럼 행을 생성·수정하는 spec은 PR
 gate와 기본 `test:e2e:release`에서 제외한다.
-`scripts/guard-e2e-safety.mjs`가 `test:e2e:gate`의 exact allowlist를 검사하므로
-package script에 production-backed 쓰기 spec을 추가하면 CI가 먼저 실패한다.
+`scripts/guard-e2e-safety.mjs`가 `scripts/e2e-gate-specs.mjs`의 분류와 package
+script 진입점을 검사하므로 production-backed 쓰기 spec을 추가하면 CI가 먼저
+실패한다.
 `pnpm guard:test-coverage`는 새 활성 `*.mock.spec.ts`가 PR gate에서 빠지거나
 API route interception 없이 등록되면 실패한다.
 PR workflow는 `E2E_ALLOW_PRODUCTION_WRITES=0`을 증거로 남긴다.
 
+PR workflow는 production-backed safety/login/health 네 파일을 한 job의 dependency
+chain으로 직렬 실행한다. 별도 job은 API proxy를 `http://127.0.0.1:9`로 닫고 각
+browser context에 API interception을 설치하는 route-mock 파일만 CI 최대 4 worker로
+병렬 실행한다. 두 job은 서로 기다리지 않으므로 운영 계정 직렬성은 보존하면서
+route-mock wall time을 줄인다. `scripts/e2e-gate-specs.mjs`가 두 집합의 단일 목록이며
+safety guard가 production allowlist, route interception, 중복 여부와 package script
+진입점을 함께 차단한다.
+
 Dependabot PR은 GitHub 보안 경계상 repository/environment secret을 받지
 않는다. 따라서 해당 PR에서는 Cloudflare preview와 credential 기반 login
-spec을 실행하지 않고, 모든 활성 `*.mock.spec.ts`를 localhost UI에서 실행한다.
+spec을 실행하지 않고, 일반 PR과 같은 closed-proxy route-mock job만 실행한다.
 Vite API proxy는 `http://127.0.0.1:9`로 고정해 누락된 mock 요청이 운영 API로
-나가지 않고 즉시 실패하게 한다. typecheck, lint, build, Hangul companion,
-E2E safety guard는 일반 PR과 동일하게 유지한다. Dependabot 변경이 main에
+나가지 않고 즉시 실패하게 한다. 이 job은 같은 PR gate config의
+`pr-route-mocks` project만 dependency 없이 실행하며, typecheck, lint, build,
+Hangul companion, E2E safety guard는 일반 PR과 동일하게 유지한다. Dependabot 변경이 main에
 들어가면 main workflow의 secret-backed preview와 운영 승인·rollback 경계는
 그대로 적용된다.
 
