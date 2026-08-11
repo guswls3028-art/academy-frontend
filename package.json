@@ -100,7 +100,7 @@
     "@jridgewell/gen-mapping": "0.3.13",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/vite": "4.1.18",
-    "@types/node": "^25.1.0",
+    "@types/node": "^26.2.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react-swc": "^4.2.0",
