@@ -9,6 +9,7 @@ import {
 import { useLocation, useNavigate } from "react-router";
 import { Clock3, CornerDownLeft, Search, X } from "lucide-react";
 import { ICON } from "@/shared/ui/ds";
+import { getLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
 import styles from "./QuickNavigationDialog.module.css";
 
 export type QuickNavigationItem = {
@@ -43,7 +44,7 @@ function matchesCurrentPath(pathname: string, destination: string): boolean {
 function readRecent(storageKey: string | null, destinations: Set<string>): string[] {
   if (!storageKey) return [];
   try {
-    const parsed = JSON.parse(localStorage.getItem(storageKey) ?? "[]");
+    const parsed = JSON.parse(getLocalItem(storageKey) ?? "[]");
     if (!Array.isArray(parsed)) return [];
     return parsed
       .filter((value): value is string => typeof value === "string" && destinations.has(value))
@@ -56,7 +57,7 @@ function readRecent(storageKey: string | null, destinations: Set<string>): strin
 function writeRecent(storageKey: string | null, destinations: string[]) {
   if (!storageKey) return;
   try {
-    localStorage.setItem(storageKey, JSON.stringify(destinations.slice(0, MAX_RECENT_ITEMS)));
+    setLocalItem(storageKey, JSON.stringify(destinations.slice(0, MAX_RECENT_ITEMS)));
   } catch {
     // 저장소가 차단되어도 현재 세션의 빠른 이동은 계속 동작한다.
   }
