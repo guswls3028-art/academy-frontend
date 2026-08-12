@@ -2,6 +2,7 @@ import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
+import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 
@@ -177,9 +178,10 @@ test("출결 상태 액션은 유지하고 학생 행은 학생 상세를 연다
   }, localJwt());
   await installApi(page);
 
-  await page.goto(
+  await gotoAndSettle(
+    page,
     `${BASE}/workspace/lectures/441/sessions/428/attendance`,
-    { waitUntil: "domcontentloaded", timeout: 45_000 },
+    { timeout: 45_000 },
   );
 
   const studentLink = page.getByRole("link", {
@@ -231,13 +233,10 @@ test("학생 상세의 클리닉 이력은 해당 날짜와 세션의 출석 화
   }, localJwt());
   await installApi(page);
 
-  await page.goto(`${BASE}/workspace/students/1001`, {
-    waitUntil: "domcontentloaded",
-    timeout: 45_000,
-  });
+  await gotoAndSettle(page, `${BASE}/workspace/students/1001`, { timeout: 45_000 });
 
   const overlay = page.getByTestId("student-detail-overlay");
-  await expect(overlay).toBeVisible();
+  await expect(overlay).toBeVisible({ timeout: 20_000 });
 
   await page.setViewportSize({ width: 390, height: 844 });
   const clinicTab = overlay.getByRole("tab", { name: "클리닉" });
@@ -272,12 +271,11 @@ test("클리닉 대상자 선택 중 학생 상세를 열고 선택 화면으로
   }, localJwt());
   await installApi(page);
 
-  await page.goto(`${BASE}/workspace/clinic/schedule`, {
-    waitUntil: "domcontentloaded",
-    timeout: 45_000,
-  });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
 
-  await page.getByRole("button", { name: "클리닉 만들기", exact: true }).click();
+  const createClinicButton = page.getByRole("button", { name: "클리닉 만들기", exact: true });
+  await expect(createClinicButton).toBeVisible({ timeout: 20_000 });
+  await createClinicButton.click();
   await expect(page.getByRole("heading", { name: "클리닉 만들기", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "대상자 추가", exact: true }).click();
 
