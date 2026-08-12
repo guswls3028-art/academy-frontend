@@ -6,7 +6,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
-import { fetchMyProfile, updateMyProfile, updateMyProfilePhoto } from "../api/profile.api";
+import { changeMyPassword, fetchMyProfile, updateMyProfile, updateMyProfilePhoto } from "../api/profile.api";
+import { logout } from "@/auth/api/auth.api";
 import EmptyState from "@student/layout/EmptyState";
 import { IconPencil } from "@student/shared/ui/icons/Icons";
 import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
@@ -60,7 +61,7 @@ export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   /** Track which form triggered the last mutation to show errors in the correct form only */
-  const [lastMutationSource, setLastMutationSource] = useState<"profile" | "username" | "password" | null>(null);
+  const [lastMutationSource, setLastMutationSource] = useState<"profile" | "username" | null>(null);
 
   const slm = useSchoolLevelMode();
 
@@ -103,16 +104,22 @@ export default function ProfilePage() {
         setShowUsernameForm(false);
         setUsername("");
       }
-      if (variables.new_password !== undefined) {
-        setShowPasswordForm(false);
-        setPassword("");
-        setNewPassword("");
-        setConfirmPassword("");
-      }
     },
     onError: (err: unknown) => {
       const detail = (err as { response?: { data?: { detail?: string } } } | null)?.response?.data?.detail;
       studentToast.error(typeof detail === "string" ? detail : "저장에 실패했습니다.");
+    },
+  });
+
+  const passwordMutation = useMutation({
+    mutationFn: changeMyPassword,
+    onSuccess: () => {
+      studentToast.success("비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해 주세요.");
+      logout();
+    },
+    onError: (err: unknown) => {
+      const detail = (err as { response?: { data?: { detail?: string } } } | null)?.response?.data?.detail;
+      studentToast.error(typeof detail === "string" ? detail : "비밀번호 변경에 실패했습니다.");
     },
   });
 
@@ -209,9 +216,8 @@ export default function ProfilePage() {
       studentToast.error("새 비밀번호가 일치하지 않습니다.");
       return;
     }
-    setLastMutationSource("password");
-    updateProfileMutation.mutate({
-      current_password: password,
+    passwordMutation.mutate({
+      old_password: password,
       new_password: newPassword,
     });
   };
@@ -742,14 +748,14 @@ export default function ProfilePage() {
               <button
                 type="submit"
                 className="stu-btn stu-btn--primary"
-                disabled={updateProfileMutation.isPending || !password.trim() || !newPassword.trim() || !confirmPassword.trim()}
+                disabled={passwordMutation.isPending || !password.trim() || !newPassword.trim() || !confirmPassword.trim()}
               >
-                {updateProfileMutation.isPending ? "변경 중…" : "비밀번호 변경"}
+                {passwordMutation.isPending ? "변경 중…" : "비밀번호 변경"}
               </button>
             </div>
-            {updateProfileMutation.isError && lastMutationSource === "password" && (
+            {passwordMutation.isError && (
               <div className="stu-muted" style={{ fontSize: 13, color: "var(--stu-danger)" }}>
-                {(updateProfileMutation.error as { response?: { data?: { detail?: string } } } | null)?.response?.data?.detail || "비밀번호 변경에 실패했습니다."}
+                {(passwordMutation.error as { response?: { data?: { detail?: string } } } | null)?.response?.data?.detail || "비밀번호 변경에 실패했습니다."}
               </div>
             )}
           </form>
