@@ -18,6 +18,12 @@ import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import useAuth from "@/auth/hooks/useAuth";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import {
+  getLocalItem,
+  getTenantUserLocalKey,
+  removeLocalItem,
+  setLocalItem,
+} from "@/shared/utils/safeLocalStorage";
 import { fetchLandingPublic } from "../api";
 import type { LandingPublicResponse } from "../types";
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
@@ -83,8 +89,12 @@ export default function LandingCommunityWritePage() {
   const [err, setErr] = useState<string | null>(null);
   // 이미지 첨부 (P3) — backend는 PostAttachment multipart endpoint 완비.
   const [files, setFiles] = useState<File[]>([]);
-  // 자동저장 draft (#12) — localStorage. board별 별도 key. 5초 디바운스.
-  const draftKey = `landing-community-draft:${initialBoard}`;
+  // 사용자 작성 초안은 테넌트+계정+board 단위로만 복원한다. 소유자를 증명할 수
+  // 없는 기존 전역 키는 읽거나 지우지 않아 다른 학원/계정에 노출하지 않는다.
+  const draftStorageKey = getTenantUserLocalKey(
+    `landing-community-draft:${initialBoard}`,
+    user?.id,
+  );
   const [draftRestored, setDraftRestored] = useState(false);
   // markdown 미리보기 (#13)
   const [showPreview, setShowPreview] = useState(false);
@@ -96,12 +106,13 @@ export default function LandingCommunityWritePage() {
     let cancelled = false;
     (async () => {
       try {
-        const raw = window.localStorage.getItem(draftKey);
+        if (!draftStorageKey) return;
+        const raw = getLocalItem(draftStorageKey);
         if (!raw) return;
         const draft = JSON.parse(raw) as { title?: string; content?: string; board?: LandingCommunityBoard; savedAt?: number };
         // 7일 이상된 draft는 자동 폐기
         if (!draft.savedAt || Date.now() - draft.savedAt > 7 * 24 * 60 * 60 * 1000) {
-          window.localStorage.removeItem(draftKey);
+          removeLocalItem(draftStorageKey);
           return;
         }
         const hasBody = (draft.title?.trim() || draft.content?.trim());
@@ -119,26 +130,23 @@ export default function LandingCommunityWritePage() {
           if (isLandingCommunityBoard(draft.board)) setSelectedBoard(draft.board);
           setDraftRestored(true);
         } else {
-          window.localStorage.removeItem(draftKey);
+          removeLocalItem(draftStorageKey);
         }
       } catch { /* ignore */ }
     })();
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [confirm, draftStorageKey]);
 
   // 자동저장 — 입력 변경 후 5초 debounce. 제출 성공 시 자동 정리됨(아래 onSubmit).
   useEffect(() => {
-    if (!title.trim() && !content.trim()) return;
+    if (!draftStorageKey || (!title.trim() && !content.trim())) return;
     const tid = window.setTimeout(() => {
-      try {
-        window.localStorage.setItem(draftKey, JSON.stringify({
-          title, content, board: selectedBoard, savedAt: Date.now(),
-        }));
-      } catch { /* quota 초과 등 ignore */ }
+      setLocalItem(draftStorageKey, JSON.stringify({
+        title, content, board: selectedBoard, savedAt: Date.now(),
+      }));
     }, 5000);
     return () => window.clearTimeout(tid);
-  }, [title, content, selectedBoard, draftKey]);
+  }, [title, content, selectedBoard, draftStorageKey]);
 
   // URL이나 draft가 현재 역할의 작성 가능 게시판과 다르면 첫 작성 가능 게시판으로 정리한다.
   useEffect(() => {
@@ -220,7 +228,7 @@ export default function LandingCommunityWritePage() {
         }
       }
       // 등록 성공 → draft 정리
-      try { window.localStorage.removeItem(draftKey); } catch { /* ignore */ }
+      if (draftStorageKey) removeLocalItem(draftStorageKey);
       navigate(`/landing/community/${selectedBoard}/posts/${created.id}`);
     } catch (e) {
       const detail = (e as { response?: { data?: { detail?: string | string[] } } })?.response?.data?.detail;
@@ -261,7 +269,7 @@ export default function LandingCommunityWritePage() {
                   <span>✓ 이전에 저장된 작성 내용을 복구했어요.</span>
                   <button type="button" onClick={() => {
                     setTitle(""); setContent(""); setSelectedBoard(initialBoard); setDraftRestored(false);
-                    try { window.localStorage.removeItem(draftKey); } catch { /* ignore */ }
+                    if (draftStorageKey) removeLocalItem(draftStorageKey);
                   }} style={{ background: "transparent", border: "none", color: textSecondary, fontSize: 11, cursor: "pointer", fontWeight: 500 }}>새로 작성</button>
                 </div>
               )}

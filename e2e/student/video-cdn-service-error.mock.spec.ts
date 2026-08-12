@@ -52,6 +52,8 @@ test.describe("student video CDN service errors", () => {
       localStorage.setItem("refresh", token);
       localStorage.setItem("tenant_code", "limglish");
       sessionStorage.setItem("tenantCode", "limglish");
+      localStorage.setItem("video_pos_562", JSON.stringify({ pos: 999, ts: Date.now() }));
+      localStorage.setItem("student-current-video:enrollment:1304:limglish:user:9999", "777");
     }, { token: fakeJwt() });
 
     await page.route("https://cdn.hakwonplus.com/e2e/**", async (route) => {
@@ -120,6 +122,15 @@ test.describe("student video CDN service errors", () => {
     await expect(page.getByRole("heading", { name: "재생을 시작할 수 없어요" })).toBeVisible();
     await expect(page.getByText("영상 서비스에서 재생 파일을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.")).toBeVisible();
     await expect(page.getByText(/인터넷.*확인|새로고침/)).toHaveCount(0);
+
+    const storageState = await page.evaluate(() => ({
+      current: localStorage.getItem("student-current-video:enrollment:1304:limglish:user:1772"),
+      legacyPosition: localStorage.getItem("video_pos_562"),
+      otherUser: localStorage.getItem("student-current-video:enrollment:1304:limglish:user:9999"),
+    }));
+    expect(storageState.current).toBe("562");
+    expect(JSON.parse(storageState.legacyPosition || "null")?.pos).toBe(999);
+    expect(storageState.otherUser).toBe("777");
 
     await page.getByRole("button", { name: "다시 시도" }).click();
     await expect.poll(() => playbackRequests).toBeGreaterThanOrEqual(2);

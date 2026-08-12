@@ -14,7 +14,8 @@ import {
 } from "../api/video.api";
 import { Link } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { resolveTenantCodeString } from "@/shared/tenant";
+import { useAuthContext } from "@/auth/context/AuthContext";
+import { removeLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
 
 import StudentVideoPlayer, {
   PlaybackBootstrap,
@@ -34,29 +35,11 @@ import {
 } from "../utils/videoAccess";
 import { sortStudentVideos } from "../utils/videoSort";
 import { studentVideoQueryKeys } from "../queryKeys";
-
-/* ─── localStorage 기반 이어보기 ─── */
-function getStoredPosition(videoId: number | null): number {
-  if (!videoId) return 0;
-  try {
-    const raw = localStorage.getItem(`video_pos_${videoId}`);
-    if (!raw) return 0;
-    const parsed = JSON.parse(raw);
-    if (Date.now() - (parsed.ts || 0) > 7 * 24 * 60 * 60 * 1000) return 0;
-    return parsed.pos || 0;
-  } catch {
-    return 0;
-  }
-}
-
-function storePosition(videoId: number | null, pos: number) {
-  if (!videoId || pos < 1) return;
-  try {
-    localStorage.setItem(`video_pos_${videoId}`, JSON.stringify({ pos: Math.round(pos), ts: Date.now() }));
-  } catch {
-    // localStorage can be unavailable in private/restricted browser modes.
-  }
-}
+import {
+  getStoredVideoPosition,
+  getStudentCurrentVideoStorageKey,
+  storeVideoPosition,
+} from "../utils/videoPlaybackStorage";
 
 function playlistProgressStyle(progress: number): CSSProperties {
   return { "--vpp-progress": `${Math.min(100, Math.max(0, progress))}%` } as CSSProperties;
@@ -134,6 +117,7 @@ export default function VideoPlayerPage() {
   const q = useQueryParams();
   const params = useParams();
   const queryClient = useQueryClient();
+  const { user } = useAuthContext();
 
   const videoId =
     safeParseInt(params.videoId) ??
@@ -145,7 +129,11 @@ export default function VideoPlayerPage() {
     safeParseInt(q.get("enrollment_id")) ??
     safeParseInt(params.enrollmentId);
   const enrollmentId = rawEnrollmentId != null && Number.isFinite(rawEnrollmentId) ? rawEnrollmentId : null;
-  const currentVideoStorageKey = `student_current_video_id:${resolveTenantCodeString()}`;
+  const playbackStorageScope = useMemo(() => ({
+    userId: user?.id,
+    enrollmentId,
+  }), [enrollmentId, user?.id]);
+  const currentVideoStorageKey = getStudentCurrentVideoStorageKey(playbackStorageScope);
 
   /* ─── Playback 데이터 (React Query) ─── */
   const playbackQuery = useQuery({
@@ -158,11 +146,7 @@ export default function VideoPlayerPage() {
 
   // localStorage에 현재 videoId 저장 (side effect)
   useEffect(() => {
-    if (videoId) {
-      try { localStorage.setItem(currentVideoStorageKey, String(videoId)); } catch {
-        // Keep playback usable even if storage writes are blocked.
-      }
-    }
+    if (videoId && currentVideoStorageKey) setLocalItem(currentVideoStorageKey, String(videoId));
   }, [videoId, currentVideoStorageKey]);
 
   // playbackData → video, boot, loadError 파생
@@ -291,9 +275,9 @@ export default function VideoPlayerPage() {
   const initialPosition = useMemo(() => {
     if (!videoId) return 0;
     const apiPos = video?.last_position ?? 0;
-    const localPos = getStoredPosition(videoId);
+    const localPos = getStoredVideoPosition(videoId, playbackStorageScope);
     return Math.max(apiPos, localPos);
-  }, [videoId, video?.last_position]);
+  }, [playbackStorageScope, videoId, video?.last_position]);
 
   const progressMutation = useMutation({
     mutationFn: (data: { progress?: number; completed?: boolean; last_position?: number }) => {
@@ -353,7 +337,7 @@ export default function VideoPlayerPage() {
         last_position: data.last_position,
         completed: data.completed,
       });
-      storePosition(videoId, data.last_position ?? 0);
+      storeVideoPosition(videoId, data.last_position ?? 0, playbackStorageScope);
 
       // 영상 완료 시 자동 다음 재생 시작 (nextVideoRef로 최신 값 참조)
       if (data.completed && nextVideoRef.current && !autoPlayTimerRef.current) {
@@ -372,7 +356,7 @@ export default function VideoPlayerPage() {
         }, 1000);
       }
     },
-    [videoId]
+    [playbackStorageScope, videoId]
   );
 
   // Reset state when videoId changes
@@ -388,9 +372,7 @@ export default function VideoPlayerPage() {
 
   useEffect(() => {
     return () => {
-      try { localStorage.removeItem(currentVideoStorageKey); } catch {
-        // Storage cleanup is best effort.
-      }
+      if (currentVideoStorageKey) removeLocalItem(currentVideoStorageKey);
     };
   }, [currentVideoStorageKey]);
 

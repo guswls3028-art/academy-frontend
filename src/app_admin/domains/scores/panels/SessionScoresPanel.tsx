@@ -12,7 +12,7 @@ import {
   type SessionScoresSummaryColumnMode,
 } from "../api/sessionScores";
 import { scoresQueryKeys } from "../api/queryKeys";
-import { fetchAttendance, updateAttendance } from "@admin/domains/lectures/api/attendance";
+import { fetchAttendance, updateAttendance } from "@/shared/api/contracts/attendance";
 
 import ScoresTable, { type ScoresTableHandle } from "../components/ScoresTable";
 import StudentScoresDrawer from "../components/StudentScoresDrawer";

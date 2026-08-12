@@ -36,6 +36,12 @@ import { PreviewPane } from "./HitReportEditor.parts/PreviewPane";
 import { SelectionPanel } from "./HitReportEditor.parts/SelectionPanel";
 import type { CandidateMeta } from "./HitReportEditor.parts/types";
 import { publishMatchupShowcase } from "@/landing/api/matchupShowcase";
+import { useAuthContext } from "@/auth/context/AuthContext";
+import {
+  getLocalItem,
+  getTenantUserLocalKey,
+  removeLocalItem,
+} from "@/shared/utils/safeLocalStorage";
 
 type Props = {
   docId: number;
@@ -43,6 +49,7 @@ type Props = {
 };
 
 const CANDIDATE_BATCH_SIZE = 16;
+const SUBMIT_SKIP_CONFIRM_STORAGE_KEY = "matchup.hitreport.submit.skipConfirm";
 
 type EntryDraft = {
   examProblemId: number;
@@ -86,6 +93,7 @@ function selectedMetaById(resp: HitReportDraftResponse): Record<number, HitRepor
 
 export default function HitReportEditor({ docId, onClose }: Props) {
   const confirm = useConfirm();
+  const { user } = useAuthContext();
   const loadSeqRef = useRef(0);
   const candidateProblemIdsRef = useRef<number[]>([]);
   const [data, setData] = useState<HitReportDraftResponse | null>(null);
@@ -116,17 +124,23 @@ export default function HitReportEditor({ docId, onClose }: Props) {
   // 상단 인디케이터를 빨간 "저장 실패" 상태로 stuck 시키고 클릭하면 재시도.
   const [autosaveError, setAutosaveError] = useState<boolean>(false);
 
-  // submit 자동 게시 모드 (localStorage rememberKey) — 사용자가 "다음부터 묻지 않기"
+  // submit 자동 게시 모드 (tenant/user scoped rememberKey) — 사용자가 "다음부터 묻지 않기"
   // 체크 후 확인했으면 dialog skip. 매번 묻기로 되돌리기 1클릭 UX 위해 노출 상태 관리.
-  const SKIP_CONFIRM_KEY = "matchup.hitreport.submit.skipConfirm";
-  const [submitSkipConfirm, setSubmitSkipConfirm] = useState<boolean>(() => {
-    try { return localStorage.getItem(SKIP_CONFIRM_KEY) === "1"; } catch { return false; }
-  });
+  const submitSkipConfirmKey = getTenantUserLocalKey(
+    SUBMIT_SKIP_CONFIRM_STORAGE_KEY,
+    user?.id,
+  );
+  const [submitSkipConfirm, setSubmitSkipConfirm] = useState(false);
+  useEffect(() => {
+    setSubmitSkipConfirm(
+      submitSkipConfirmKey ? getLocalItem(submitSkipConfirmKey) === "1" : false,
+    );
+  }, [submitSkipConfirmKey]);
   const resetSubmitConfirm = useCallback(() => {
-    try { localStorage.removeItem(SKIP_CONFIRM_KEY); } catch { /* private mode */ }
+    if (submitSkipConfirmKey) removeLocalItem(submitSkipConfirmKey);
     setSubmitSkipConfirm(false);
     feedback.info("다음부터 게시 전에 다시 확인합니다.");
-  }, []);
+  }, [submitSkipConfirmKey]);
 
   const applyDraft = useCallback((
     resp: HitReportDraftResponse,
@@ -425,15 +439,15 @@ export default function HitReportEditor({ docId, onClose }: Props) {
       message: confirmMsg,
       confirmText: "홈페이지에 게시",
       cancelText: "취소",
-      rememberKey: SKIP_CONFIRM_KEY,
+      rememberKey: submitSkipConfirmKey ?? undefined,
       rememberLabel: "다음부터 묻지 않고 바로 게시",
     });
     if (!ok) return;
     // confirm 통과 후 flag state 재동기 — 사용자가 방금 체크했으면 다음부터 인디케이터 노출
-    try {
-      const nowSkip = localStorage.getItem(SKIP_CONFIRM_KEY) === "1";
-      if (nowSkip !== submitSkipConfirm) setSubmitSkipConfirm(nowSkip);
-    } catch { /* private mode */ }
+    const nowSkip = submitSkipConfirmKey
+      ? getLocalItem(submitSkipConfirmKey) === "1"
+      : false;
+    if (nowSkip !== submitSkipConfirm) setSubmitSkipConfirm(nowSkip);
     setSubmitting(true);
     try {
       if (dirtyCount > 0) {
@@ -476,7 +490,17 @@ export default function HitReportEditor({ docId, onClose }: Props) {
     } finally {
       setSubmitting(false);
     }
-  }, [dirtyCount, documentTitle, isSubmitted, reportId, reportTitle, saveAll, confirm, submitSkipConfirm]);
+  }, [
+    confirm,
+    dirtyCount,
+    documentTitle,
+    isSubmitted,
+    reportId,
+    reportTitle,
+    saveAll,
+    submitSkipConfirm,
+    submitSkipConfirmKey,
+  ]);
 
   // 작성 다시 열기. 이미 공개된 스냅샷은 보존하고 자료실 관리에서 별도로 내린다.
   const [unsubmitting, setUnsubmitting] = useState(false);
