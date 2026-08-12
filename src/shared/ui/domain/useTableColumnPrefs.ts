@@ -20,6 +20,7 @@ type StoredTablePrefs = {
   visible: string[];
   widths: Record<string, number>;
   known: string[];
+  options: Record<string, string>;
 };
 
 function loadPrefs(tableId: string): StoredTablePrefs | null {
@@ -34,6 +35,11 @@ function loadPrefs(tableId: string): StoredTablePrefs | null {
         known: Array.isArray(parsed.known)
           ? parsed.known.filter((x: unknown) => typeof x === "string")
           : [],
+        options: parsed.options && typeof parsed.options === "object"
+          ? Object.fromEntries(
+              Object.entries(parsed.options).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+            )
+          : {},
       };
     }
   } catch {
@@ -47,15 +53,28 @@ function savePrefs(
   visible: string[],
   widths: Record<string, number>,
   known: string[],
+  options: Record<string, string> = {},
 ) {
   try {
     localStorage.setItem(
       STORAGE_PREFIX + tableId,
-      JSON.stringify({ visible, widths, known })
+      JSON.stringify({ visible, widths, known, options })
     );
   } catch {
     /* ignore */
   }
+}
+
+export function getStoredTableOption(tableId: string, key: string): string | null {
+  return loadPrefs(tableId)?.options[key] ?? null;
+}
+
+export function setStoredTableOption(tableId: string, key: string, value: string): void {
+  const current = loadPrefs(tableId) ?? { visible: [], widths: {}, known: [], options: {} };
+  savePrefs(tableId, current.visible, current.widths, current.known, {
+    ...current.options,
+    [key]: value,
+  });
 }
 
 function clampWidth(width: unknown, column: TableColumnDef): number {

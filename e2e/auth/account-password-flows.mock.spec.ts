@@ -189,7 +189,8 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
       old_password: "temporary-password",
       new_password: "permanent-password",
     });
-    await expect.poll(() => page.evaluate(() => ({
+    await page.waitForURL(`${BASE}/`, { waitUntil: "domcontentloaded" });
+    expect(await page.evaluate(() => ({
       access: localStorage.getItem("access"),
       refresh: localStorage.getItem("refresh"),
     }))).toEqual({ access: null, refresh: null });
