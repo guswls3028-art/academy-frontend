@@ -15,6 +15,11 @@ import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { teacherStaffQueryKeys } from "../queryKeys";
+import {
+  generateTemporaryPassword,
+  isPasswordConfirmationReady,
+} from "@/shared/auth/passwordPolicy";
+import { PasswordChecklist, PasswordInput } from "@/shared/ui/password";
 
 /* ─── API (복수형 /staffs/ — 백엔드 실제 엔드포인트) ─── */
 async function fetchStaff(search?: string) {
@@ -166,7 +171,7 @@ export default function StaffManagePage() {
           />
         )}
 
-      <StaffFormSheet open={createOpen} onClose={() => setCreateOpen(false)} />
+      {createOpen && <StaffFormSheet open onClose={() => setCreateOpen(false)} />}
       {editTarget && <StaffFormSheet open={!!editTarget} onClose={() => setEditTarget(null)} editData={editTarget} />}
     </div>
   );
@@ -180,12 +185,35 @@ function StaffFormSheet({ open, onClose, editData }: { open: boolean; onClose: (
   const [phone, setPhone] = useState(editData?.phone || "");
   const [username, setUsername] = useState(editData?.username || "");
   const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [role, setRole] = useState(editData?.role || "ASSISTANT");
   const [isActive, setIsActive] = useState(editData?.is_active !== false);
+  const passwordReady = isPasswordConfirmationReady(password.trim(), passwordConfirmation.trim());
   const canSubmit = isEdit
     ? !!name.trim()
-    : !!name.trim() && !!username.trim() && password.trim().length >= 4;
-  const canResetPassword = isEdit && password.trim().length >= 4;
+    : !!name.trim() && !!username.trim() && passwordReady;
+  const canResetPassword = isEdit && passwordReady;
+
+  const handleGeneratePassword = () => {
+    try {
+      const generated = generateTemporaryPassword();
+      setPassword(generated);
+      setPasswordConfirmation(generated);
+      teacherToast.success("안전한 임시 비밀번호를 만들었습니다.");
+    } catch (error: unknown) {
+      teacherToast.error(extractApiError(error, "비밀번호를 자동으로 만들 수 없습니다."));
+    }
+  };
+
+  const handleCopyPassword = async () => {
+    if (!password) return;
+    try {
+      await navigator.clipboard.writeText(password);
+      teacherToast.success("임시 비밀번호를 복사했습니다. 안전한 방법으로 전달해 주세요.");
+    } catch {
+      teacherToast.error("복사하지 못했습니다. 비밀번호 보기 후 직접 복사해 주세요.");
+    }
+  };
 
   const createMut = useMutation({
     mutationFn: () => {
@@ -216,7 +244,11 @@ function StaffFormSheet({ open, onClose, editData }: { open: boolean; onClose: (
 
   const pwResetMut = useMutation({
     mutationFn: () => resetStaffPassword(editData?.id, password.trim()),
-    onSuccess: () => { setPassword(""); teacherToast.success("비밀번호가 변경되었습니다."); },
+    onSuccess: () => {
+      setPassword("");
+      setPasswordConfirmation("");
+      teacherToast.success("임시 비밀번호가 설정되었습니다. 다음 로그인에서 본인 비밀번호 변경이 필요합니다.");
+    },
     onError: (e) => teacherToast.error(extractApiError(e, "비밀번호를 변경하지 못했습니다.")),
   });
 
@@ -226,13 +258,17 @@ function StaffFormSheet({ open, onClose, editData }: { open: boolean; onClose: (
         <Fld label="이름 *" value={name} onChange={setName} placeholder="직원 이름" />
         <Fld label="전화" value={phone} onChange={setPhone} type="tel" placeholder="010-" />
         {!isEdit && <Fld label="아이디 *" value={username} onChange={setUsername} placeholder="로그인 아이디" />}
-        <Fld
-          label={isEdit ? "새 비밀번호" : "초기 비밀번호 *"}
-          value={password}
-          onChange={setPassword}
-          type="password"
-          placeholder={isEdit ? "변경 시 4자 이상" : "4자 이상"}
-        />
+        {!isEdit && (
+          <StaffPasswordFields
+            password={password}
+            confirmation={passwordConfirmation}
+            onPasswordChange={setPassword}
+            onConfirmationChange={setPasswordConfirmation}
+            onGenerate={handleGeneratePassword}
+            onCopy={handleCopyPassword}
+            label="초기 비밀번호 *"
+          />
+        )}
 
         <div>
           <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>역할</label>
@@ -280,15 +316,101 @@ function StaffFormSheet({ open, onClose, editData }: { open: boolean; onClose: (
           {createMut.isPending ? "저장 중..." : isEdit ? "수정" : "등록"}
         </button>
 
-        {isEdit && password && (
-          <button onClick={() => pwResetMut.mutate()} disabled={!canResetPassword || pwResetMut.isPending}
-            className="w-full text-sm font-semibold cursor-pointer"
-            style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-warn)", background: "none", color: canResetPassword ? "var(--tc-warn)" : "var(--tc-text-muted)" }}>
-            비밀번호 변경
-          </button>
+        {isEdit && (
+          <div className="flex flex-col gap-2.5 mt-2 pt-3" style={{ borderTop: "1px solid var(--tc-border-subtle)" }}>
+            <div>
+              <div className="text-[13px] font-bold" style={{ color: "var(--tc-text)" }}>임시 비밀번호 재설정</div>
+              <div className="text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
+                직원 정보 저장과 별도 작업입니다. 변경하면 기존 로그인이 만료됩니다.
+              </div>
+            </div>
+            <StaffPasswordFields
+              password={password}
+              confirmation={passwordConfirmation}
+              onPasswordChange={setPassword}
+              onConfirmationChange={setPasswordConfirmation}
+              onGenerate={handleGeneratePassword}
+              onCopy={handleCopyPassword}
+              label="새 임시 비밀번호"
+            />
+            <button onClick={() => pwResetMut.mutate()} disabled={!canResetPassword || pwResetMut.isPending}
+              className="w-full text-sm font-semibold cursor-pointer"
+              style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-warn)", background: "none", color: canResetPassword ? "var(--tc-warn)" : "var(--tc-text-muted)", opacity: pwResetMut.isPending ? 0.6 : 1 }}>
+              {pwResetMut.isPending ? "변경 중…" : "임시 비밀번호 변경"}
+            </button>
+          </div>
         )}
       </div>
     </BottomSheet>
+  );
+}
+
+function StaffPasswordFields({
+  password,
+  confirmation,
+  onPasswordChange,
+  onConfirmationChange,
+  onGenerate,
+  onCopy,
+  label,
+}: {
+  password: string;
+  confirmation: string;
+  onPasswordChange: (value: string) => void;
+  onConfirmationChange: (value: string) => void;
+  onGenerate: () => void;
+  onCopy: () => void;
+  label: string;
+}) {
+  const inputStyle = {
+    padding: "8px 10px",
+    borderRadius: "var(--tc-radius-sm)",
+    border: "1px solid var(--tc-border-strong)",
+    background: "var(--tc-surface-soft)",
+    color: "var(--tc-text)",
+    outline: "none",
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div>
+        <label htmlFor="teacher-staff-password" className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>{label}</label>
+        <PasswordInput
+          id="teacher-staff-password"
+          label={label.replace(" *", "")}
+          value={password}
+          onValueChange={onPasswordChange}
+          placeholder="4자 이상"
+          autoComplete="new-password"
+          inputClassName="text-sm"
+          inputStyle={inputStyle}
+        />
+      </div>
+      <div>
+        <label htmlFor="teacher-staff-password-confirmation" className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>임시 비밀번호 확인 *</label>
+        <PasswordInput
+          id="teacher-staff-password-confirmation"
+          label="임시 비밀번호 확인"
+          value={confirmation}
+          onValueChange={onConfirmationChange}
+          placeholder="한 번 더 입력"
+          autoComplete="new-password"
+          inputClassName="text-sm"
+          inputStyle={inputStyle}
+        />
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        <button type="button" onClick={onGenerate} className="text-[11px] font-semibold cursor-pointer"
+          style={{ padding: "6px 9px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-primary)" }}>
+          안전한 비밀번호 만들기
+        </button>
+        <button type="button" onClick={onCopy} disabled={!password} className="text-[11px] font-semibold cursor-pointer"
+          style={{ padding: "6px 9px", borderRadius: "var(--tc-radius-sm)", border: "none", background: "transparent", color: password ? "var(--tc-text-secondary)" : "var(--tc-text-muted)" }}>
+          복사
+        </button>
+      </div>
+      <PasswordChecklist password={password} confirmation={confirmation} />
+    </div>
   );
 }
 

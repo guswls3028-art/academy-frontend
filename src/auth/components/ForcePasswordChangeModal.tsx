@@ -3,8 +3,9 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/shared/ui/ds";
 import api from "@/shared/api/axios";
-
-const inputCls = "ds-input w-full";
+import { isPasswordChangeReady } from "@/shared/auth/passwordPolicy";
+import { PasswordChecklist, PasswordInput } from "@/shared/ui/password";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 async function forceChangePassword(payload: { old_password: string; new_password: string }) {
   const { data } = await api.post("/core/change-password/", payload);
@@ -22,6 +23,7 @@ export default function ForcePasswordChangeModal({
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
   const [msg, setMsg] = useState("");
+  const ready = isPasswordChangeReady(oldPw, newPw, confirmPw);
 
   const submit = async () => {
     setMsg("");
@@ -50,16 +52,12 @@ export default function ForcePasswordChangeModal({
       await mut.mutateAsync({ old_password: oldPw, new_password: newPw });
       onSuccess();
     } catch (e: unknown) {
-      const detail =
-        e && typeof e === "object" && "response" in e
-          ? (e as { response?: { data?: { detail?: string } } }).response?.data?.detail
-          : undefined;
-      setMsg(detail || "비밀번호 변경에 실패했습니다.");
+      setMsg(extractApiError(e, "비밀번호 변경에 실패했습니다."));
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !mut.isPending) {
+    if (e.key === "Enter" && ready && !mut.isPending) {
       e.preventDefault();
       submit();
     }
@@ -90,7 +88,8 @@ export default function ForcePasswordChangeModal({
           borderRadius: 16,
           border: "1px solid var(--color-border-divider, #e5e7eb)",
           boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
-          overflow: "hidden",
+          maxHeight: "calc(100vh - 32px)",
+          overflow: "auto",
         }}
       >
         {/* Header */}
@@ -134,12 +133,12 @@ export default function ForcePasswordChangeModal({
               <label htmlFor="force-current-password" className="text-xs font-medium" style={{ color: "var(--color-text-secondary, #666)" }}>
                 현재/임시 비밀번호
               </label>
-              <input
+              <PasswordInput
                 id="force-current-password"
-                type="password"
-                className={inputCls}
+                label="현재/임시 비밀번호"
+                inputClassName="ds-input w-full"
                 value={oldPw}
-                onChange={(e) => setOldPw(e.target.value)}
+                onValueChange={setOldPw}
                 placeholder="받은 임시 비밀번호"
                 autoComplete="current-password"
                 autoFocus
@@ -149,12 +148,12 @@ export default function ForcePasswordChangeModal({
               <label htmlFor="force-new-password" className="text-xs font-medium" style={{ color: "var(--color-text-secondary, #666)" }}>
                 새 비밀번호
               </label>
-              <input
+              <PasswordInput
                 id="force-new-password"
-                type="password"
-                className={inputCls}
+                label="새 비밀번호"
+                inputClassName="ds-input w-full"
                 value={newPw}
-                onChange={(e) => setNewPw(e.target.value)}
+                onValueChange={setNewPw}
                 placeholder="4자 이상"
                 autoComplete="new-password"
               />
@@ -163,16 +162,21 @@ export default function ForcePasswordChangeModal({
               <label htmlFor="force-confirm-password" className="text-xs font-medium" style={{ color: "var(--color-text-secondary, #666)" }}>
                 새 비밀번호 확인
               </label>
-              <input
+              <PasswordInput
                 id="force-confirm-password"
-                type="password"
-                className={inputCls}
+                label="새 비밀번호 확인"
+                inputClassName="ds-input w-full"
                 value={confirmPw}
-                onChange={(e) => setConfirmPw(e.target.value)}
+                onValueChange={setConfirmPw}
                 placeholder="새 비밀번호 확인"
                 autoComplete="new-password"
               />
             </div>
+            <PasswordChecklist
+              password={newPw}
+              currentPassword={oldPw}
+              confirmation={confirmPw}
+            />
             {msg && (
               <div
                 className="rounded-lg border px-3 py-2 text-sm"
@@ -202,7 +206,7 @@ export default function ForcePasswordChangeModal({
             intent="primary"
             size="md"
             onClick={submit}
-            disabled={mut.isPending}
+            disabled={mut.isPending || !ready}
             loading={mut.isPending}
           >
             {mut.isPending ? "변경 중…" : "비밀번호 변경"}

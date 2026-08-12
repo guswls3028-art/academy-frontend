@@ -7,6 +7,8 @@ import { useMutation } from "@tanstack/react-query";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { changePassword } from "../../api/profile.api";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { isPasswordChangeReady } from "@/shared/auth/passwordPolicy";
+import { PasswordChecklist, PasswordInput } from "@/shared/ui/password";
 import styles from "./ProfileAccountComponents.module.css";
 
 const inputCls =
@@ -44,6 +46,7 @@ export default function ChangePasswordModal({
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
   const [msg, setMsg] = useState("");
+  const ready = isPasswordChangeReady(oldPw, newPw, confirmPw);
 
   useEffect(() => {
     if (!open) {
@@ -99,38 +102,43 @@ export default function ChangePasswordModal({
       <ModalBody>
         <div className="flex flex-col gap-4">
           <Field label="현재 비밀번호">
-            <input
-              type="password"
-              className={inputCls}
+            <PasswordInput
+              label="현재 비밀번호"
+              inputClassName={inputCls}
               value={oldPw}
-              onChange={(e) => setOldPw(e.target.value)}
+              onValueChange={setOldPw}
               placeholder="현재 비밀번호"
               aria-label="현재 비밀번호"
               autoComplete="current-password"
             />
           </Field>
           <Field label="새 비밀번호">
-            <input
-              type="password"
-              className={inputCls}
+            <PasswordInput
+              label="새 비밀번호"
+              inputClassName={inputCls}
               value={newPw}
-              onChange={(e) => setNewPw(e.target.value)}
+              onValueChange={setNewPw}
               placeholder="새 비밀번호"
               aria-label="새 비밀번호"
               autoComplete="new-password"
             />
           </Field>
           <Field label="새 비밀번호 확인">
-            <input
-              type="password"
-              className={inputCls}
+            <PasswordInput
+              label="새 비밀번호 확인"
+              inputClassName={inputCls}
               value={confirmPw}
-              onChange={(e) => setConfirmPw(e.target.value)}
+              onValueChange={setConfirmPw}
               placeholder="새 비밀번호 확인"
               aria-label="새 비밀번호 확인"
               autoComplete="new-password"
             />
           </Field>
+          <PasswordChecklist
+            password={newPw}
+            currentPassword={oldPw}
+            confirmation={confirmPw}
+          />
           {msg && (
             <div
               className={`rounded-lg border px-3 py-2 text-sm ${styles.passwordError}`}
@@ -151,7 +159,7 @@ export default function ChangePasswordModal({
               intent="primary"
               size="md"
               onClick={submit}
-              disabled={mut.isPending}
+              disabled={mut.isPending || !ready}
               loading={mut.isPending}
             >
               {mut.isPending ? "변경 중…" : "비밀번호 변경"}
