@@ -6,6 +6,7 @@ import { Button } from "@/shared/ui/ds";
 import { useMutation } from "@tanstack/react-query";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { changePassword } from "../../api/profile.api";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import styles from "./ProfileAccountComponents.module.css";
 
 const inputCls =
@@ -31,20 +32,24 @@ function Field({
 export default function ChangePasswordModal({
   open,
   onClose,
+  onSuccess,
 }: {
   open: boolean;
   onClose: () => void;
+  onSuccess: () => void;
 }) {
   const mut = useMutation({ mutationFn: changePassword });
 
   const [oldPw, setOldPw] = useState("");
   const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
   const [msg, setMsg] = useState("");
 
   useEffect(() => {
     if (!open) {
       setOldPw("");
       setNewPw("");
+      setConfirmPw("");
       setMsg("");
       mut.reset();
     }
@@ -58,6 +63,18 @@ export default function ChangePasswordModal({
       setMsg("현재 비밀번호와 새 비밀번호를 모두 입력하세요.");
       return;
     }
+    if (newPw.length < 4) {
+      setMsg("새 비밀번호는 4자 이상이어야 합니다.");
+      return;
+    }
+    if (oldPw === newPw) {
+      setMsg("새 비밀번호는 현재 비밀번호와 달라야 합니다.");
+      return;
+    }
+    if (newPw !== confirmPw) {
+      setMsg("새 비밀번호가 일치하지 않습니다.");
+      return;
+    }
 
     try {
       await mut.mutateAsync({
@@ -65,12 +82,9 @@ export default function ChangePasswordModal({
         new_password: newPw,
       });
       onClose();
+      onSuccess();
     } catch (e: unknown) {
-      const detail =
-        e && typeof e === "object" && "response" in e
-          ? (e as { response?: { data?: { detail?: string } } }).response?.data?.detail
-          : undefined;
-      setMsg(detail || "비밀번호 변경 실패");
+      setMsg(extractApiError(e, "비밀번호 변경에 실패했습니다."));
     }
   };
 
@@ -103,6 +117,17 @@ export default function ChangePasswordModal({
               onChange={(e) => setNewPw(e.target.value)}
               placeholder="새 비밀번호"
               aria-label="새 비밀번호"
+              autoComplete="new-password"
+            />
+          </Field>
+          <Field label="새 비밀번호 확인">
+            <input
+              type="password"
+              className={inputCls}
+              value={confirmPw}
+              onChange={(e) => setConfirmPw(e.target.value)}
+              placeholder="새 비밀번호 확인"
+              aria-label="새 비밀번호 확인"
               autoComplete="new-password"
             />
           </Field>

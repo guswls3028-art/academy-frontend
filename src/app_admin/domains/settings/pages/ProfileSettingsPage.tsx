@@ -14,10 +14,12 @@ import {
   meToStaffRole,
 } from "@admin/domains/profile/api/profile.api";
 import useAuth from "@/auth/hooks/useAuth";
+import { logout } from "@/auth/api/auth.api";
 import { accountQueryKeys } from "@/shared/api/queryKeys/account";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 
 import s from "../components/SettingsSection.module.css";
 
@@ -199,16 +201,14 @@ function PasswordChangeGroup({
     if (!oldPw || !newPw) { setError("현재 비밀번호와 새 비밀번호를 모두 입력하세요."); return; }
     if (newPw !== confirmPw) { setError("새 비밀번호가 일치하지 않습니다."); return; }
     if (newPw.length < 4) { setError("새 비밀번호는 4자 이상이어야 합니다."); return; }
+    if (oldPw === newPw) { setError("새 비밀번호는 현재 비밀번호와 달라야 합니다."); return; }
     try {
       await mut.mutateAsync({ old_password: oldPw, new_password: newPw });
-      feedback.success("비밀번호가 변경되었습니다.");
+      feedback.success("비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해 주세요.");
       onDone();
+      logout();
     } catch (e: unknown) {
-      const detail =
-        e && typeof e === "object" && "response" in e
-          ? (e as { response?: { data?: { detail?: string } } }).response?.data?.detail
-          : undefined;
-      setError(detail || "비밀번호 변경에 실패했습니다.");
+      setError(extractApiError(e, "비밀번호 변경에 실패했습니다."));
     }
   };
 

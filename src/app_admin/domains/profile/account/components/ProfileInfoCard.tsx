@@ -26,8 +26,6 @@ export default function ProfileInfoCard({
   onSave: (payload: {
     name?: string;
     phone?: string;
-    currentPassword?: string;
-    newPassword?: string;
   }) => Promise<void>;
   saving?: boolean;
   onPasswordClick?: () => void;
@@ -40,14 +38,10 @@ export default function ProfileInfoCard({
   const handleSaveFromModal = async (payload: {
     name: string;
     phone: string;
-    currentPassword?: string;
-    newPassword?: string;
   }) => {
     await onSave({
       name: payload.name || undefined,
       phone: payload.phone || undefined,
-      currentPassword: payload.currentPassword || undefined,
-      newPassword: payload.newPassword || undefined,
     });
   };
 

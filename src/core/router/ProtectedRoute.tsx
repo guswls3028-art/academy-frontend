@@ -5,6 +5,7 @@ import { Navigate, Outlet } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
 import { useProgram } from "@/shared/program";
 import ForcePasswordChangeModal from "@/auth/components/ForcePasswordChangeModal";
+import { logout } from "@/auth/api/auth.api";
 import FirstLoginGuideModal from "@/auth/components/FirstLoginGuideModal";
 import AuthUnavailableState from "@/auth/components/AuthUnavailableState";
 
@@ -114,7 +115,7 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
   }
 
   if (user.must_change_password) {
-    return <ForcePasswordChangeModal onSuccess={() => refreshMe()} />;
+    return <ForcePasswordChangeModal onSuccess={logout} />;
   }
 
   if (user.first_login_guide_required) {

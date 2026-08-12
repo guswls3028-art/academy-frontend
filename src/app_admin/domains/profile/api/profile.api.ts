@@ -52,7 +52,7 @@ export async function changePassword(payload: {
   old_password: string;
   new_password: string;
 }) {
-  const { data } = await api.post("/core/profile/change-password/", payload);
+  const { data } = await api.post("/core/change-password/", payload);
   return data as { message?: string };
 }
 

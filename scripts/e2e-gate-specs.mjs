@@ -6,6 +6,7 @@ export const productionReadOnlySpecs = [
 ];
 
 export const routeMockSpecs = [
+  "e2e/auth/account-password-flows.mock.spec.ts",
   "e2e/auth/account-recovery-modal.spec.ts",
   "e2e/auth/first-login-guide.mock.spec.ts",
   "e2e/admin/arrival-operations.mock.spec.ts",

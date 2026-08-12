@@ -4,9 +4,10 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { fetchMe, updateProfile, changePassword } from "../../api/profile.api";
+import { fetchMe, updateProfile } from "../../api/profile.api";
 import { adminProfileQueryKeys } from "../../queryKeys";
 import useAuth from "@/auth/hooks/useAuth";
+import { logout } from "@/auth/api/auth.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
 import ProfileInfoCard from "../components/ProfileInfoCard";
@@ -28,19 +29,11 @@ export default function ProfileAccountPage() {
     mutationFn: async (payload: {
       name?: string;
       phone?: string;
-      currentPassword?: string;
-      newPassword?: string;
     }) => {
       if (payload.name !== undefined || payload.phone !== undefined) {
         await updateProfile({
           name: payload.name?.trim() || undefined,
           phone: payload.phone?.trim() || undefined,
-        });
-      }
-      if (payload.currentPassword && payload.newPassword) {
-        await changePassword({
-          old_password: payload.currentPassword,
-          new_password: payload.newPassword,
         });
       }
     },
@@ -57,8 +50,6 @@ export default function ProfileAccountPage() {
   const save = async (payload: {
     name?: string;
     phone?: string;
-    currentPassword?: string;
-    newPassword?: string;
   }) => {
     await updateMut.mutateAsync(payload);
   };
@@ -107,7 +98,14 @@ export default function ProfileAccountPage() {
         )}
 
       </div>
-      <ChangePasswordModal open={pwOpen} onClose={() => setPwOpen(false)} />
+      <ChangePasswordModal
+        open={pwOpen}
+        onClose={() => setPwOpen(false)}
+        onSuccess={() => {
+          feedback.success("비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해 주세요.");
+          logout();
+        }}
+      />
     </>
   );
 }
