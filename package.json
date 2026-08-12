@@ -25,7 +25,7 @@
     "dev:remote": "env-cmd -f .env.remote vite",
     "build": "vite build && node scripts/check-bundle-budgets.mjs && node scripts/ensure-spa-mode.js",
     "guard:legacy-api": "node scripts/guard-legacy-api-routes.mjs && node scripts/guard-workspace-route-names.mjs && node scripts/guard-staff-mobile-contract.mjs && node scripts/guard-messaging-policy.mjs && pnpm guard:test-coverage && pnpm guard:e2e-safety && pnpm guard:deployment-governance && pnpm guard:runtime-recovery",
-    "guard:test-coverage": "node --test scripts/tests/e2e-gate-coverage.test.mjs",
+    "guard:test-coverage": "node --test scripts/tests/e2e-gate-coverage.test.mjs scripts/tests/product-analytics-registry.test.mjs",
     "guard:e2e-safety": "node scripts/guard-e2e-safety.mjs && node scripts/guard-strict-e2e-imports.mjs",
     "guard:deployment-governance": "node scripts/guard-deployment-governance.mjs && node --test scripts/tests/visual-audit-workflow.test.mjs",
     "guard:runtime-recovery": "node --test scripts/tests/chunk-load-error.test.mjs scripts/tests/workspace-deployment-contract.test.mjs",

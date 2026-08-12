@@ -11,6 +11,7 @@ import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
+import { useTrackedTask } from "@/shared/productAnalytics";
 import formStyles from "@/shared/ui/assessment/AssessmentSetupForm.module.css";
 
 import { QUERY_KEYS } from "@admin/domains/homework/queryKeys";
@@ -29,6 +30,7 @@ export default function HomeworkEnrollmentPanel({
 }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const runTrackedTask = useTrackedTask();
   const hid = Number(homeworkId);
   const hasHomework = Number.isFinite(hid) && hid > 0;
 
@@ -132,10 +134,13 @@ export default function HomeworkEnrollmentPanel({
   const saveMut = useMutation({
     mutationFn: async () => {
       setError(null);
-      await putHomeworkAssignments({
-        homeworkId: hid,
-        enrollment_ids: Array.from(selectedIds),
-      });
+      await runTrackedTask(
+        "assignments.enrollment.save",
+        () => putHomeworkAssignments({
+          homeworkId: hid,
+          enrollment_ids: Array.from(selectedIds),
+        }),
+      );
     },
     onSuccess: async () => {
       setOriginSelectedIds(new Set(selectedIds));
@@ -228,7 +233,10 @@ export default function HomeworkEnrollmentPanel({
                     });
                     if (!confirmed) return;
                     try {
-                      await putHomeworkAssignments({ homeworkId: hid, enrollment_ids: allIds });
+                      await runTrackedTask(
+                        "assignments.enrollment.save",
+                        () => putHomeworkAssignments({ homeworkId: hid, enrollment_ids: allIds }),
+                      );
                       await qc.invalidateQueries({ queryKey: QUERY_KEYS.HOMEWORK_ASSIGNMENTS(hid) });
                       if (Number.isFinite(sessionId) && sessionId > 0) {
                         await qc.invalidateQueries({ queryKey: QUERY_KEYS.SESSION_SCORES(sessionId) });

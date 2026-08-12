@@ -47,6 +47,7 @@ import SessionOmrUploadAction, {
 } from "./SessionOmrUploadAction";
 import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/api/sessionAssessmentQueries";
 import { adminResultsQueryKeys } from "@admin/domains/results/queryKeys";
+import { useTrackedTask } from "@/shared/productAnalytics";
 import "./SessionScoresEntryPage.css";
 
 type SessionScoresEntryPageProps = {
@@ -91,6 +92,7 @@ export default function SessionScoresEntryPage({
   const numericLectureId = Number(lectureIdParam);
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const runTrackedTask = useTrackedTask();
   const isMobile = useIsMobile();
   const { program } = useProgram();
   const isAnonymousBillboardMode = program?.feature_flags?.score_output_mode === "anonymous_billboard";
@@ -296,7 +298,10 @@ export default function SessionScoresEntryPage({
     await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
     setIsSaving(true);
     try {
-      const savedCount = await saveScoreDraftNow();
+      const savedCount = await runTrackedTask(
+        "scores.session.save",
+        saveScoreDraftNow,
+      );
       if (announce) {
         feedback.success(savedCount > 0 ? `${savedCount}건의 점수를 저장했습니다.` : "모든 점수가 저장되어 있습니다.");
       }
@@ -307,7 +312,7 @@ export default function SessionScoresEntryPage({
     } finally {
       setIsSaving(false);
     }
-  }, [saveScoreDraftNow]);
+  }, [runTrackedTask, saveScoreDraftNow]);
 
   useEffect(() => {
     if (!draft.hasDraftToRestore) return;
