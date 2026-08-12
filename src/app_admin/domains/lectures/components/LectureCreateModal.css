@@ -1,6 +1,12 @@
 /* 강의 추가 모달 — 폼 전체 폰트 굵기, 블록 중첩 최소화 */
 .lecture-create-modal-form {
+  width: 100%;
   max-width: 400px;
+  min-width: 0;
+}
+
+.lecture-create-modal-form > * {
+  min-width: 0;
 }
 
 .lecture-create-modal-form .ds-input,
@@ -113,4 +119,40 @@
 
 .lecture-create-description {
   resize: none;
+}
+
+@media (max-width: 480px) {
+  .lecture-create-field-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lecture-create-modal-form .shared-time-range-card {
+    padding: 12px 8px;
+  }
+
+  .lecture-create-modal-form .shared-time-range-grid {
+    grid-template-columns: 32px minmax(0, 1fr) 96px;
+    column-gap: 6px;
+  }
+
+  .lecture-create-modal-form .shared-time-range-trigger {
+    height: 44px;
+    gap: 4px;
+    padding-inline: 6px;
+    font-size: 13px;
+  }
+
+  .lecture-create-modal-form .shared-time-range-trigger-clock {
+    display: none;
+  }
+
+  .lecture-create-modal-form .shared-time-range-trigger-icon {
+    width: 14px;
+  }
+
+  .lecture-create-modal-form .shared-time-range-btn {
+    min-height: 44px;
+    padding-inline: 2px;
+    font-size: 12px;
+  }
 }
