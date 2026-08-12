@@ -20,6 +20,7 @@ import { IconChevronRight, IconExam, IconClipboard, IconImage, IconVideo } from 
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { useAuthContext } from "@/auth/context/AuthContext";
+import { useTrackedTask } from "@/shared/productAnalytics";
 import styles from "./SubmitAssignmentPage.module.css";
 
 const ACCEPT = "image/*,video/*";
@@ -32,6 +33,7 @@ export default function SubmitAssignmentPage() {
   const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuthContext();
+  const runTrackedTask = useTrackedTask();
   const isParent = user?.tenantRole === "parent";
 
   const [selected, setSelected] = useState<SelectedTarget | null>(null);
@@ -77,10 +79,13 @@ export default function SubmitAssignmentPage() {
       fd.append("enrollment_id", String(selected.enrollmentId));
       fd.append("file", selectedFile);
 
-      const res = await studentApi.post<Submission>(
-        "/submissions/submissions/",
-        fd,
-        { headers: { "Content-Type": "multipart/form-data" } },
+      const res = await runTrackedTask(
+        "assignments.student.submit",
+        () => studentApi.post<Submission>(
+          "/submissions/submissions/",
+          fd,
+          { headers: { "Content-Type": "multipart/form-data" } },
+        ),
       );
       return res.data;
     },

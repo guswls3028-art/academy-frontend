@@ -67,6 +67,7 @@ import {
 } from "./AlimtalkTemplateInfoPanel";
 import { stripInternalAlimtalkMemoToken } from "../constants/alimtalkEnvelope";
 import { lintAlimtalkTemplateQuality } from "../utils/templateQuality";
+import { useTrackedTask } from "@/shared/productAnalytics";
 import "../styles/templateEditor.css";
 
 // ─── Types ───
@@ -286,6 +287,7 @@ export default function SendMessageModal({
 }: SendMessageModalProps) {
   const queryClient = useQueryClient();
   const confirm = useConfirm();
+  const runTrackedTask = useTrackedTask();
 
   // ─── State ───
   const [subject, setSubject] = useState("");
@@ -877,16 +879,18 @@ export default function SendMessageModal({
       const totalCalls = sendToTargets.length;
 
       const targets = sendToTargets;
-      for (const sendTo of targets) {
-        const res = await sendMessage(buildSendPayload(sendTo));
-        totalEnqueued += res.enqueued ?? 0;
-        totalScheduled += res.scheduled ?? 0;
-        totalSkipped += res.skipped_no_phone ?? 0;
-        totalEnqueueFailed += res.enqueue_failed ?? 0;
-        completedTargetLabels.push(formatSendTargetLabel(sendTo));
-        completedCalls++;
-        asyncStatusStore.updateProgress(taskId, Math.round((completedCalls / totalCalls) * 90));
-      }
+      await runTrackedTask("messaging.alimtalk.request", async () => {
+        for (const sendTo of targets) {
+          const res = await sendMessage(buildSendPayload(sendTo));
+          totalEnqueued += res.enqueued ?? 0;
+          totalScheduled += res.scheduled ?? 0;
+          totalSkipped += res.skipped_no_phone ?? 0;
+          totalEnqueueFailed += res.enqueue_failed ?? 0;
+          completedTargetLabels.push(formatSendTargetLabel(sendTo));
+          completedCalls++;
+          asyncStatusStore.updateProgress(taskId, Math.round((completedCalls / totalCalls) * 90));
+        }
+      });
 
       const sendToLabel = sendToTargets.length === 2 ? "학부모·학생" : sendToTargets[0] === "parent" ? "학부모" : "학생";
       const accepted = totalEnqueued + totalScheduled;

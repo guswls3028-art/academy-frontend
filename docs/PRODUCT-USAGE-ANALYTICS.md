@@ -1,6 +1,6 @@
 # 제품 사용 분석 프런트엔드 계약
 
-**상태:** 운영 배포 완료, 전체 테넌트 수집 OFF
+**상태:** 내부 `hakwonplus` 단일 테넌트 28일 파일럿 진행 중
 
 **백엔드 정본:** [product-usage-analytics.md](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/product-usage-analytics.md)
 
@@ -36,7 +36,7 @@ workflow는 exact tenant code와 `ENABLE <code>`/`DISABLE <code>` 확인
 문구를 요구하고, GitHub secret의 플랫폼 계정으로 정식 tenant API를
 호출한 뒤 응답 flag를 readback한다. 토큰과 비밀번호는 출력하지 않는다.
 
-현재 registry는 22개 안정 feature ID와 69개 인증 route template을
+현재 registry는 22개 안정 feature ID와 68개 인증 route template을
 검증한다. 실행 SSOT는 다음 두 파일이다.
 
 - `src/shared/productAnalytics/featureRegistry.ts`
@@ -79,9 +79,20 @@ query와 hash를 route template으로 보내지 않는다.
 3. 오류 시 `task_failure`와 제한된 failure category
 4. 원래 반환값 또는 원래 오류를 그대로 호출자에게 전달
 
-현재 연결 범위는 선생님 출석, 학생 시험 제출, 학생·학부모 클리닉
-대표 작업이다. 분석 이벤트를 위해 업무 API 성공을 낙관하거나 오류를
-삼키지 않는다.
+현재 연결 범위는 선생님 출석·성적 저장·시험/과제 대상 저장·알림톡
+발송 요청, 학생 시험/과제 제출, 학생·학부모 클리닉 대표 작업이다.
+안정 action ID는 다음과 같다.
+
+- `scores.session.save`
+- `exams.enrollment.save`
+- `assignments.enrollment.save`
+- `messaging.alimtalk.request`
+- `assignments.student.submit`
+
+알림톡 task 성공은 발송 완료가 아니라 기존 API의 발송/예약 요청이
+오류 없이 반환된 뜻이다. 실제 전달 성공·실패는 기존 발송 내역 계약을
+따른다. 분석 이벤트를 위해 업무 API 성공을 낙관하거나 오류를 삼키지
+않는다.
 
 ## 4. 이벤트 queue와 실패 동작
 
@@ -153,13 +164,17 @@ pnpm exec playwright test e2e/shared/product-analytics-contract.mock.spec.ts
 
 registry 검증은 feature·route 중복, 안정 ID, canonical workspace route,
 query/hash·raw UUID, primary navigation placement와 button destination
-observer를 확인한다.
+observer를 확인한다. 같은 Node 계약은 대표 task action ID가 실제 API
+Promise 경계를 계속 감싸는지도 확인한다.
 
 route-mocked Chromium 계약은 다음을 증명한다.
 
 - 플래그 OFF: flush 시간 이후 analytics request와 session ID가 모두 0
 - 플래그 ON: canonical 익명 `screen_view` batch 발생
 - payload에 raw user·tenant identity가 없음
+
+`guard:test-coverage`가 registry·대표 task Promise 경계 계약을 PR의
+API/E2E safety gate에서 항상 실행한다.
 
 배포 전 전체 quality gate는 typecheck, API/E2E guard, lint, build,
 격리 preview를 통과한 뒤 Cloudflare 운영 기준선과 배포 소유권을
@@ -178,12 +193,12 @@ production branch로 바뀌면 운영 배포는 fail-closed 한다.
 
 ## 8. 현재 운영 상태
 
-2026-07-30 KST 기준 운영 `version.json`은
-`a04a01c1c5ee1ff017ec7d692442482bd8deb369`이고 분석 merge를 포함한다.
-이 revision의 quality workflow `30466665819`는 build, Cloudflare
-deploy, login canary, 7개 tenant 공개 화면, 왕복 흐름과
-성적·시험·과제 실사용 gate를 통과했다.
+`hakwonplus`는 정식 rollout workflow `30504193527`로 2026-07-30에
+활성화되어 2026-08-12 기준 28일 파일럿의 14번째 달력일을 진행 중이다.
+확인된 외부 테넌트는 비활성 상태를 유지한다. 파일럿 중에도 메뉴·CTA
+위치와 문구는 자동 변경하지 않으며 2026-08-26 첫 28일 판정 전에는
+제품 우선순위 변경 근거로 확정하지 않는다.
 
-7개 공개 Program readback 모두 분석 플래그가 없어서 OFF다. 따라서
-운영 코드와 UI는 준비되어 있지만 실제 행동 이벤트 수집과 제품
-우선순위 변경은 시작되지 않았다.
+백엔드 daily gate가 활성 tenant 범위, 최근 다른 tenant 이벤트, HMAC,
+DB 시간·write 비중과 90일 저장 전망을 감시한다. hard gate 자동 해제와
+운영 비용 판단은 백엔드 정본을 따른다.

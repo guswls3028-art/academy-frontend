@@ -14,6 +14,7 @@ import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
+import { useTrackedTask } from "@/shared/productAnalytics";
 import formStyles from "@/shared/ui/assessment/AssessmentSetupForm.module.css";
 import { adminExamsQueryKeys } from "../../queryKeys";
 import styles from "./ExamEnrollmentPanel.module.css";
@@ -22,6 +23,7 @@ import type { ExamEnrollmentManageResponse } from "../../api/examEnrollments";
 export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const runTrackedTask = useTrackedTask();
   const { sessionId: sessionIdFromPath } = useLectureSessionParams();
   const [sp] = useSearchParams();
   const sessionIdFromQuery = Number(sp.get("session_id"));
@@ -94,9 +96,12 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
 
   const apply = async () => {
     try {
-      await updateMut.mutateAsync({
-        enrollment_ids: Array.from(selected),
-      });
+      await runTrackedTask(
+        "exams.enrollment.save",
+        () => updateMut.mutateAsync({
+          enrollment_ids: Array.from(selected),
+        }),
+      );
       await qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examEnrollment(examId, sessionId) });
       feedback.success(`시험 대상 학생을 ${selected.size}명으로 저장했습니다.`);
       setOpen(false);
@@ -209,7 +214,10 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
                 });
                 if (!confirmed) return;
                 try {
-                  await updateMut.mutateAsync({ enrollment_ids: allIds });
+                  await runTrackedTask(
+                    "exams.enrollment.save",
+                    () => updateMut.mutateAsync({ enrollment_ids: allIds }),
+                  );
                   await qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examEnrollment(examId, sessionId) });
                   feedback.success(`이 시험에 수강생 ${allIds.length}명 일괄배정 완료`);
                 } catch {
