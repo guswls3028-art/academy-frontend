@@ -2,6 +2,7 @@ import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
+import { waitForRenderSettled } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const LECTURE_ID = 9970;
@@ -167,6 +168,7 @@ async function openExam(page: Page, state: MockState) {
     `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?assessment=exam%3A${EXAM_ID}`,
     { waitUntil: "domcontentloaded", timeout: 45_000 },
   );
+  await waitForRenderSettled(page, { timeout: 30_000 });
 }
 
 test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 모바일에서도 정돈된 순서를 유지한다", async ({ page }, testInfo) => {

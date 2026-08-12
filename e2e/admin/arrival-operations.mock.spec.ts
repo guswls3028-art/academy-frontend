@@ -2,6 +2,7 @@ import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
+import { waitForRenderSettled } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const LECTURE_ID = 8811;
@@ -241,6 +242,7 @@ test("보강 출석표에서 예정 날짜·시간·메모를 명시적으로 �
   await seed(page);
   await installApi(page, state);
   await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/attendance`, { waitUntil: "domcontentloaded" });
+  await waitForRenderSettled(page, { timeout: 30_000 });
 
   await expect(page.getByRole("columnheader", { name: "등원 예정" })).toBeVisible();
   await page.getByRole("button", { name: "김준혁 등원 예정 입력" }).click();

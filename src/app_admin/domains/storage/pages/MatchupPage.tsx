@@ -45,6 +45,11 @@ import {
 } from "../components/matchup/documentIntent";
 import { storageQueryKeys } from "../queryKeys";
 import css from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
+import {
+  getLocalItem,
+  getTenantUserLocalKey,
+  setLocalItem,
+} from "@/shared/utils/safeLocalStorage";
 
 const DocumentUploadModal = lazy(() => import("../components/matchup/DocumentUploadModal"));
 const PromoteFromInventoryModal = lazy(() => import("../components/matchup/PromoteFromInventoryModal"));
@@ -214,17 +219,18 @@ export default function MatchupPage() {
   // 좌측 트리 폭 — 시험지 제목이 길어 250px 고정으론 가독성이 떨어진다는 사용자 피드백.
   // localStorage 에 영속하되 user.id 별로 분리. 같은 PC 에서 학원장 A/B 가 다른 폭을
   // 쓸 때 마지막 사용자가 다른 사용자 설정을 덮어쓰던 결함 fix (B-2 2026-05-08).
-  const treeWidthKey = user?.id ? `matchup:tree-width:u${user.id}` : null;
+  const treeWidthKey = getTenantUserLocalKey("matchup:tree-width", user?.id);
   const [treeWidth, setTreeWidth] = useState<number>(280);
   // user 가 들어온 직후, 또는 user 가 바뀐 직후 (logout/login swap) 에 그 user 의
   // 저장값을 reload. 키가 없으면(비로그인 상태) default 유지.
   useEffect(() => {
-    if (!treeWidthKey) return;
-    try {
-      const raw = window.localStorage.getItem(treeWidthKey);
-      const n = raw ? Number(raw) : NaN;
-      if (Number.isFinite(n) && n >= 220 && n <= 520) setTreeWidth(n);
-    } catch { /* ignore */ }
+    if (!treeWidthKey) {
+      setTreeWidth(280);
+      return;
+    }
+    const raw = getLocalItem(treeWidthKey);
+    const n = raw ? Number(raw) : NaN;
+    setTreeWidth(Number.isFinite(n) && n >= 220 && n <= 520 ? n : 280);
   }, [treeWidthKey]);
   const handleTreeResizeStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -245,9 +251,7 @@ export default function MatchupPage() {
   // treeWidth 변경 시 localStorage 동기화 (드래그 중 매 프레임 저장).
   useEffect(() => {
     if (!treeWidthKey) return;
-    try {
-      window.localStorage.setItem(treeWidthKey, String(treeWidth));
-    } catch { /* ignore */ }
+    setLocalItem(treeWidthKey, String(treeWidth));
   }, [treeWidth, treeWidthKey]);
 
   // ── 문서 목록 ──
@@ -981,33 +985,30 @@ export default function MatchupPage() {
   // B-2 (2026-05-08) — user.id namespace. 같은 PC 학원장 A/B 가 토글을 공유하던
   // 결함 fix. 학원장 A 가 ON 으로 둔 상태로 학원장 B 로그인 시 B 의 의도 없이
   // reanalyze 가 트리거되던 위험 차단.
-  const autoReanalyzeKey = user?.id
-    ? `matchup-source-type-auto-reanalyze:u${user.id}`
-    : null;
+  const autoReanalyzeKey = getTenantUserLocalKey(
+    "matchup-source-type-auto-reanalyze",
+    user?.id,
+  );
+  const autoReanalyzeAcknowledgedKey = getTenantUserLocalKey(
+    "matchup-source-type-auto-reanalyze:acknowledged",
+    user?.id,
+  );
   const [autoReanalyze, setAutoReanalyze] = useState<boolean>(false);
   useEffect(() => {
     if (!autoReanalyzeKey) {
       setAutoReanalyze(false);
       return;
     }
-    try {
-      setAutoReanalyze(localStorage.getItem(autoReanalyzeKey) === "1");
-    } catch {
-      setAutoReanalyze(false);
-    }
+    setAutoReanalyze(getLocalItem(autoReanalyzeKey) === "1");
   }, [autoReanalyzeKey]);
   // 첫 ON 시 confirm (2026-05-11) — 학원장이 토글 의미를 모른 채 ON 하면 다음 chip
   // 변경 시 자동분리가 자동 재실행되어 손쉽게 가지고 있던 결과가 사라지는 인지 갭.
   // 한 번 동의하면 같은 user 의 localStorage 에 'acknowledged' 마킹 → 이후 confirm X.
   const toggleAutoReanalyze = useCallback(async (next: boolean) => {
     if (next && autoReanalyzeKey) {
-      const ackKey = `${autoReanalyzeKey}:acknowledged`;
-      let acknowledged = false;
-      try {
-        acknowledged = localStorage.getItem(ackKey) === "1";
-      } catch {
-        // localStorage 불가 환경 → confirm 매번
-      }
+      const acknowledged = autoReanalyzeAcknowledgedKey
+        ? getLocalItem(autoReanalyzeAcknowledgedKey) === "1"
+        : false;
       if (!acknowledged) {
         const ok = await confirm({
           title: "자동 재분석을 켤까요?",
@@ -1023,21 +1024,15 @@ export default function MatchupPage() {
           danger: false,
         });
         if (!ok) return;
-        try {
-          localStorage.setItem(ackKey, "1");
-        } catch {
-          // 무관 — 다음에 다시 confirm 떠도 안전
+        if (autoReanalyzeAcknowledgedKey) {
+          setLocalItem(autoReanalyzeAcknowledgedKey, "1");
         }
       }
     }
     setAutoReanalyze(next);
     if (!autoReanalyzeKey) return;
-    try {
-      localStorage.setItem(autoReanalyzeKey, next ? "1" : "0");
-    } catch {
-      // localStorage 불가 환경(시크릿 모드 등)에서도 in-memory state는 유지
-    }
-  }, [autoReanalyzeKey, confirm]);
+    setLocalItem(autoReanalyzeKey, next ? "1" : "0");
+  }, [autoReanalyzeAcknowledgedKey, autoReanalyzeKey, confirm]);
 
   // Phase 17 — post-upload source_type 보정. 학원장이 잘못 백필된 라벨 즉시 정정.
   // autoReanalyze ON이면 변경 즉시 재분석까지 트리거.

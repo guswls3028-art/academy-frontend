@@ -15,8 +15,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ChevronDown, ClipboardCheck, ClipboardList, FileText, HeartPulse, LayoutGrid, LockKeyhole, Pencil, Plus, Printer, ScanLine, Trophy, Upload, UserRound, Users } from "lucide-react";
 import { useConfirm } from "@/shared/ui/confirm";
 
-import SessionScoresPanel, { type SessionScoresPanelHandle } from "@admin/domains/scores/panels/SessionScoresPanel";
-import { useScoreEditDraft } from "@admin/domains/scores/hooks/useScoreEditDraft";
+import SessionScoresPanel, { type SessionScoresPanelHandle } from "@admin/domains/scores/public/SessionScoresPanel";
+import { useScoreEditDraft } from "@admin/domains/scores/public/useScoreEditDraft";
 import {
   fetchSessionScores,
   type SessionScoreRow,
@@ -38,7 +38,7 @@ import { updateExamEnrollmentRows } from "@admin/domains/exams/api/examEnrollmen
 import { putHomeworkAssignments } from "@admin/domains/homework/api/homeworkAssignments";
 import { adminLectureQueryKeys } from "../../queryKeys";
 import api from "@/shared/api/axios";
-import { fetchAttendance } from "@admin/domains/lectures/api/attendance";
+import { fetchAttendance } from "@/shared/api/contracts/attendance";
 import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useProgram } from "@/shared/program";
@@ -88,10 +88,10 @@ function isCompletelyBlankScoreSheet(data: SessionScoresResponse | undefined): b
   });
 }
 
-const ScorePrintPreviewModal = lazy(() => import("@admin/domains/scores/components/ScorePrintPreviewModal"));
-const StudentScoreReportModal = lazy(() => import("@admin/domains/scores/components/StudentScoreReportModal"));
-const ClinicPrintPreviewModal = lazy(() => import("@admin/domains/scores/components/ClinicPrintPreviewModal"));
-const AnonymousBillboardPreviewModal = lazy(() => import("@admin/domains/scores/components/AnonymousBillboardPreviewModal"));
+const ScorePrintPreviewModal = lazy(() => import("@admin/domains/scores/public/ScorePrintPreviewModal"));
+const StudentScoreReportModal = lazy(() => import("@admin/domains/scores/public/StudentScoreReportModal"));
+const ClinicPrintPreviewModal = lazy(() => import("@admin/domains/scores/public/ClinicPrintPreviewModal"));
+const AnonymousBillboardPreviewModal = lazy(() => import("@admin/domains/scores/public/AnonymousBillboardPreviewModal"));
 const ManualExamGradingGrid = lazy(() => import("@admin/domains/results/components/ManualExamGradingGrid"));
 const OmrReviewWorkspace = lazy(() => import("@admin/domains/results/components/omr-review/OmrReviewWorkspace"));
 
@@ -546,7 +546,7 @@ export default function SessionScoresEntryPage({
       return;
     }
     const meta = data?.meta;
-    const changes: import("@admin/domains/scores/api/scoreDraft").PendingChange[] = [];
+    const changes: import("@admin/domains/scores/public/scoreDraft").PendingChange[] = [];
     for (const enrollmentId of selectedEnrollmentIds) {
       if (bulkScoreTarget === "exam") {
         for (const exam of meta?.exams ?? []) {

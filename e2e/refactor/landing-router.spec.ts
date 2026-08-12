@@ -21,6 +21,15 @@ function resolveLocalBase(): string {
 
 const BASE = resolveLocalBase();
 
+function localJwt(userId: number): string {
+  const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
+  return `${encode({ alg: "none" })}.${encode({
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    tenant_code: "dnb",
+    user_id: userId,
+  })}.sig`;
+}
+
 const landingConfig = {
   brand_name: "테스트 아카데미",
   tagline: "구조 리팩토링 검증",
@@ -130,7 +139,7 @@ test.describe("landing route island", () => {
   });
 
   test("renders the public landing home through the isolated router", async ({ page }) => {
-    await page.goto(`${BASE}/landing`, { waitUntil: "load" });
+    await page.goto(`${BASE}/landing`, { waitUntil: "domcontentloaded" });
     await waitForRenderSettled(page);
 
     await expect(page).toHaveURL(/\/landing$/);
@@ -145,6 +154,83 @@ test.describe("landing route island", () => {
     await expect(page).toHaveURL(/\/landing\/about$/);
     await expect(page.getByRole("heading", { name: "테스트 아카데미 소개" })).toBeVisible();
     await expect(page.getByRole("link", { name: /적중 보고서/ }).first()).toBeVisible();
+  });
+
+  test("restores a community draft only for the exact tenant and user", async ({ page }) => {
+    const token = localJwt(12);
+    await page.addInitScript(({ access }) => {
+      const savedAt = Date.now();
+      localStorage.setItem("access", access);
+      localStorage.setItem("refresh", `${access}-refresh`);
+      localStorage.setItem("landing-community-draft:board", JSON.stringify({
+        title: "소유자를 알 수 없는 기존 초안",
+        content: "현재 사용자에게 자동 복원하면 안 됩니다.",
+        board: "board",
+        savedAt,
+      }));
+      localStorage.setItem("landing-community-draft:board:other:user:12", JSON.stringify({
+        title: "다른 학원 초안",
+        content: "테넌트가 다릅니다.",
+        board: "board",
+        savedAt,
+      }));
+      localStorage.setItem("landing-community-draft:board:dnb:user:13", JSON.stringify({
+        title: "다른 사용자 초안",
+        content: "계정이 다릅니다.",
+        board: "board",
+        savedAt,
+      }));
+      localStorage.setItem("landing-community-draft:board:dnb:user:12", JSON.stringify({
+        title: "현재 사용자 초안",
+        content: "이 내용만 안전하게 복원합니다.",
+        board: "board",
+        savedAt,
+      }));
+    }, { access: token });
+    await page.route("**/api/v1/core/me/**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: 12,
+          username: "dnb-teacher",
+          name: "담당 강사",
+          is_staff: true,
+          is_superuser: false,
+          tenantRole: "teacher",
+          must_change_password: false,
+          first_login_guide_required: false,
+        }),
+      });
+    });
+
+    await page.goto(`${BASE}/landing/community/board/write`, { waitUntil: "load" });
+    await expect(page.getByText("작성 중이던 글이 있어요. 이어 작성할까요?", { exact: false })).toBeVisible();
+    await expect(page.getByText("현재 사용자 초안", { exact: false })).toBeVisible();
+    await expect(page.getByText("다른 학원 초안", { exact: false })).toHaveCount(0);
+    await expect(page.getByText("다른 사용자 초안", { exact: false })).toHaveCount(0);
+    await page.getByRole("button", { name: "이어 작성", exact: true }).click();
+
+    const title = page.getByTestId("landing-community-write-title");
+    const content = page.getByTestId("landing-community-write-content");
+    await expect(title).toHaveValue("현재 사용자 초안");
+    await expect(content).toHaveValue("이 내용만 안전하게 복원합니다.");
+    await title.fill("현재 사용자 수정 초안");
+
+    await expect.poll(() => page.evaluate(() => {
+      const raw = localStorage.getItem("landing-community-draft:board:dnb:user:12");
+      return raw ? JSON.parse(raw).title : null;
+    })).toBe("현재 사용자 수정 초안");
+    const untouched = await page.evaluate(() => ({
+      legacy: JSON.parse(localStorage.getItem("landing-community-draft:board") || "null")?.title,
+      otherTenant: JSON.parse(localStorage.getItem("landing-community-draft:board:other:user:12") || "null")?.title,
+      otherUser: JSON.parse(localStorage.getItem("landing-community-draft:board:dnb:user:13") || "null")?.title,
+    }));
+    expect(untouched).toEqual({
+      legacy: "소유자를 알 수 없는 기존 초안",
+      otherTenant: "다른 학원 초안",
+      otherUser: "다른 사용자 초안",
+    });
   });
 
   test("scopes a 24-hour notice dismissal to the exact tenant notice", async ({ page }) => {

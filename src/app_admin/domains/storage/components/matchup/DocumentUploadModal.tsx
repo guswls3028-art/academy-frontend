@@ -18,6 +18,12 @@ import type { MergeProgress } from "./filesToPdf";
 import {
   type MatchupSourceType, intentToSourceType, suggestSourceType,
 } from "./documentIntent";
+import { useAuthContext } from "@/auth/context/AuthContext";
+import {
+  getLocalItem,
+  getTenantUserLocalKey,
+  setLocalItem,
+} from "@/shared/utils/safeLocalStorage";
 
 type Props = {
   onClose: () => void;
@@ -89,6 +95,7 @@ export default function DocumentUploadModal({
   gradeLevelSuggestions = [],
   defaultCategory = "",
 }: Props) {
+  const { user } = useAuthContext();
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState(defaultCategory);
   const [subject, setSubject] = useState("");
@@ -114,19 +121,19 @@ export default function DocumentUploadModal({
   // 1 PDF 합치기로 진행 → 2GB 한도/timeout 사고. 따라서 default를 entries 수와 intent 기반으로 자동 반전.
   // 사용자가 명시적으로 토글하면 splitModeTouched=true로 자동 결정 차단.
   // localStorage 학습: 학원장이 한 번 명시 선택하면 다음 업로드에 같은 선호 자동 적용 (intent별 개별 키).
-  const SPLIT_MODE_PREF_KEY = `matchup-split-mode-pref-${intent}`;
+  const splitModePreferenceKey = getTenantUserLocalKey(
+    `matchup-split-mode-pref-${intent}`,
+    user?.id,
+  );
   const [splitMode, setSplitMode] = useState(false);
   const [splitModeTouched, setSplitModeTouched] = useState(false);
-  const [splitModeRemembered, setSplitModeRemembered] = useState<boolean | null>(() => {
-    try {
-      const raw = localStorage.getItem(SPLIT_MODE_PREF_KEY);
-      if (raw === "split") return true;
-      if (raw === "merge") return false;
-      return null;
-    } catch {
-      return null;
-    }
-  });
+  const [splitModeRemembered, setSplitModeRemembered] = useState<boolean | null>(null);
+  useEffect(() => {
+    const raw = splitModePreferenceKey ? getLocalItem(splitModePreferenceKey) : null;
+    if (raw === "split") setSplitModeRemembered(true);
+    else if (raw === "merge") setSplitModeRemembered(false);
+    else setSplitModeRemembered(null);
+  }, [splitModePreferenceKey]);
   const [splitProgress, setSplitProgress] = useState<{
     done: number; total: number; current?: string; failed: number;
     // 평균 시간 기반 ETA 계산용
@@ -207,12 +214,10 @@ export default function DocumentUploadModal({
     setSplitMode(next);
     setSplitModeTouched(true);
     setSplitModeRemembered(next);
-    try {
-      localStorage.setItem(SPLIT_MODE_PREF_KEY, next ? "split" : "merge");
-    } catch {
-      // private mode 등 — in-memory state는 유지
+    if (splitModePreferenceKey) {
+      setLocalItem(splitModePreferenceKey, next ? "split" : "merge");
     }
-  }, [SPLIT_MODE_PREF_KEY]);
+  }, [splitModePreferenceKey]);
 
   // ESC로 닫기 (업로드 중에는 무시)
   useEffect(() => {

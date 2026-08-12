@@ -1,6 +1,6 @@
 {
   "summary": {
-    "same_app_domain_import": 153,
+    "same_app_domain_import": 145,
     "large_frontend_file": 41,
     "e2e_wait_for_timeout": 33
   },
@@ -13,7 +13,7 @@
     "api_response_type_defs": 77,
     "direct_axios_calls": 0,
     "fetch_calls": 3,
-    "local_storage_refs": 144,
+    "local_storage_refs": 111,
     "session_storage_refs": 38,
     "explicit_any_refs": 111,
     "ts_expect_error_refs": 0

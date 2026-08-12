@@ -10,7 +10,8 @@ import EmptyState from "@student/layout/EmptyState";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import { IconChevronRight, IconPlay } from "@student/shared/ui/icons/Icons";
 import { formatDuration, formatDurationDetailed } from "../utils/format";
-import { resolveTenantCodeString } from "@/shared/tenant";
+import { useAuthContext } from "@/auth/context/AuthContext";
+import { getLocalItem } from "@/shared/utils/safeLocalStorage";
 import { isYouTubeSource } from "@/shared/media/video/youtube";
 import {
   canPlayStudentVideo,
@@ -22,6 +23,7 @@ import {
 } from "../utils/videoAccess";
 import { sortStudentVideos } from "../utils/videoSort";
 import { studentVideoQueryKeys } from "../queryKeys";
+import { getStudentCurrentVideoStorageKey } from "../utils/videoPlaybackStorage";
 
 function progressWidthStyle(value: number): CSSProperties {
   return { "--video-progress": `${Math.min(Math.max(value, 0), 100)}%` } as CSSProperties;
@@ -171,6 +173,7 @@ export default function SessionDetailPage() {
   const location = useLocation();
   const nav = useNavigate();
   const qc = useQueryClient();
+  const { user } = useAuthContext();
   const routeState = (location.state || {}) as {
     sessionTitle?: string;
     courseTitle?: string;
@@ -180,7 +183,10 @@ export default function SessionDetailPage() {
 
   const sessionIdNum = sessionId ? parseInt(sessionId, 10) : null;
   const enrollmentId = searchParams.get("enrollment") ? parseInt(searchParams.get("enrollment")!, 10) : null;
-  const currentVideoStorageKey = `student_current_video_id:${resolveTenantCodeString()}`;
+  const currentVideoStorageKey = getStudentCurrentVideoStorageKey({
+    userId: user?.id,
+    enrollmentId,
+  });
 
   // Preload hls.js and player chunk for faster video playback start
   useEffect(() => {
@@ -193,12 +199,12 @@ export default function SessionDetailPage() {
   const [currentVideoId, setCurrentVideoId] = useState<number | null>(null);
   
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(currentVideoStorageKey);
-      setCurrentVideoId(stored ? parseInt(stored, 10) : null);
-    } catch {
+    if (!currentVideoStorageKey) {
       setCurrentVideoId(null);
+      return;
     }
+    const stored = getLocalItem(currentVideoStorageKey);
+    setCurrentVideoId(stored ? parseInt(stored, 10) : null);
     
     // localStorage 변경 감지 (다른 탭/창에서 변경 시)
     const handleStorageChange = (e: StorageEvent) => {

@@ -25,6 +25,14 @@ export function setLocalItem(key: string, value: string): void {
   }
 }
 
+export function removeLocalItem(key: string): void {
+  try {
+    getStorage()?.removeItem(key);
+  } catch {
+    // Storage cleanup is best effort.
+  }
+}
+
 function tenantStorageKey(key: string): string | null {
   const tenantCode = getTenantCodeForApiRequest();
   return tenantCode ? `${key}:${tenantCode}` : null;
@@ -38,4 +46,15 @@ export function getTenantLocalItem(key: string): string | null {
 export function setTenantLocalItem(key: string, value: string): void {
   const scopedKey = tenantStorageKey(key);
   if (scopedKey) setLocalItem(scopedKey, value);
+}
+
+export function getTenantUserLocalKey(
+  key: string,
+  userId: string | number | null | undefined,
+): string | null {
+  const scopedKey = tenantStorageKey(key);
+  const normalizedUserId = String(userId ?? "").trim();
+  return scopedKey && normalizedUserId
+    ? `${scopedKey}:user:${encodeURIComponent(normalizedUserId)}`
+    : null;
 }
