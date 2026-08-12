@@ -1,6 +1,8 @@
 import api from "@/shared/api/axios";
 import type { Achievement } from "@/shared/scoring/achievement";
 
+export type SessionScoresSummaryColumnMode = "verdict" | "exam_wrong";
+
 export type ScoreBlock = {
   score: number | null;
   max_score: number | null;

@@ -376,6 +376,38 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
   });
 
+  test("마지막 열을 테스트 오답으로 바꾸면 과제를 제외한 오답 여부가 사용자별로 유지된다", async ({ page }, testInfo) => {
+    await openScores(page, {
+      initialScores: [52, 100, null],
+      includeHomework: true,
+      initialHomeworkScores: [100, 20],
+    });
+
+    await expect(page.getByRole("columnheader", { name: /^판정/ })).toBeVisible();
+    await page.getByRole("button", { name: /표시 옵션/ }).click();
+    const summaryMode = page.getByRole("group", { name: "마지막 열 표시" });
+    await summaryMode.getByRole("button", { name: "테스트 오답", exact: true }).click();
+
+    await expect(page.getByRole("columnheader", { name: /^테스트 오답/ })).toBeVisible();
+    const wrongCells = page.locator('td[data-col-type="exam-wrong"]');
+    await expect(wrongCells).toHaveCount(3);
+    await expect(wrongCells.nth(0)).toContainText("오답 있음");
+    await expect(wrongCells.nth(0)).toContainText("오답 1");
+    await expect(wrongCells.nth(1)).toContainText("오답 없음");
+    await expect(wrongCells.nth(2)).toContainText("확인 대기");
+    await page.screenshot({ path: testInfo.outputPath("score-test-wrong-column-1366.png"), fullPage: true });
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("columnheader", { name: /^테스트 오답/ })).toBeVisible();
+    await expect(page.getByRole("group", { name: "마지막 열 표시" }).getByRole("button", { name: "테스트 오답", exact: true })).toHaveAttribute("aria-pressed", "true");
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    const tableScroller = page.locator(".ds-table-wrap--domain-scroll").filter({ has: page.locator(".ds-scores-table") });
+    await tableScroller.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
+    await expect(page.getByRole("columnheader", { name: /^테스트 오답/ })).toBeVisible();
+    await tableScroller.screenshot({ path: testInfo.outputPath("score-test-wrong-column-390.png") });
+  });
+
   test("미배정 시험·과제는 셀과 상단에서 드러나고 누락 전부 배정으로 복구된다", async ({ page }, testInfo) => {
     await openScores(page, { includeHomework: true });
 

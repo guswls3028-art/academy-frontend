@@ -21,10 +21,11 @@ import {
   fetchSessionScores,
   type SessionScoreRow,
   type SessionScoresResponse,
+  type SessionScoresSummaryColumnMode,
 } from "@/shared/api/contracts/sessionScores";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { Button, EmptyState, ICON_FOR_BUTTON } from "@/shared/ui/ds";
-import { DomainListToolbar } from "@/shared/ui/domain";
+import { DomainListToolbar, getStoredTableOption, setStoredTableOption } from "@/shared/ui/domain";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
@@ -48,12 +49,18 @@ import SessionOmrUploadAction, {
 import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/api/sessionAssessmentQueries";
 import { adminResultsQueryKeys } from "@admin/domains/results/queryKeys";
 import { useTrackedTask } from "@/shared/productAnalytics";
+import useAuth from "@/auth/hooks/useAuth";
 import "./SessionScoresEntryPage.css";
 
 type SessionScoresEntryPageProps = {
   onOpenCreateExam?: () => void;
   onOpenCreateHomework?: () => void;
 };
+
+function getStoredSummaryColumnMode(storageKey: string | null): SessionScoresSummaryColumnMode {
+  if (!storageKey) return "verdict";
+  return getStoredTableOption(storageKey, "mode") === "exam_wrong" ? "exam_wrong" : "verdict";
+}
 
 function isCompletelyBlankScoreSheet(data: SessionScoresResponse | undefined): boolean {
   if (!data || data.rows.some((row) => row.progress_completed || row.progress_status === "completed")) {
@@ -94,6 +101,7 @@ export default function SessionScoresEntryPage({
   const confirm = useConfirm();
   const runTrackedTask = useTrackedTask();
   const isMobile = useIsMobile();
+  const { user } = useAuth();
   const { program } = useProgram();
   const isAnonymousBillboardMode = program?.feature_flags?.score_output_mode === "anonymous_billboard";
   const [searchInput, setSearchInput] = useState("");
@@ -110,11 +118,18 @@ export default function SessionScoresEntryPage({
   const [viewFilter, setViewFilter] = useState<"all" | "exam" | "homework">("all");
   /** 점수 표시 형식: raw(원점수만) | fraction(50/100) */
   const [scoreFormat, setScoreFormat] = useState<"raw" | "fraction">("fraction");
+  const summaryColumnStorageKey = user?.id ? `scores:summary-column:u${user.id}` : null;
+  const [summaryColumnMode, setSummaryColumnMode] = useState<SessionScoresSummaryColumnMode>(
+    () => getStoredSummaryColumnMode(summaryColumnStorageKey),
+  );
   /** 읽기 모드 표시 옵션 펼침 — 첫 사용자에게 압도감 없도록 default collapsed.
       비-default 값일 때는 자동 펼침 (학원장이 자기 설정을 즉시 인식). */
   const [viewOptionsExpanded, setViewOptionsExpanded] = useState(false);
   const hasNonDefaultViewOptions =
-    viewFilter !== "all" || scoreDisplayMode !== "total" || scoreFormat !== "fraction";
+    viewFilter !== "all"
+    || scoreDisplayMode !== "total"
+    || scoreFormat !== "fraction"
+    || summaryColumnMode !== "verdict";
   const { openSendMessageModal } = useSendMessageModal();
   const panelRef = useRef<SessionScoresPanelHandle>(null);
   const [showBulkScoreModal, setShowBulkScoreModal] = useState(false);
@@ -147,6 +162,16 @@ export default function SessionScoresEntryPage({
   const autoEditAttemptedSessionsRef = useRef(new Set<number>());
   isEditModeRef.current = isEditMode;
   const shouldLoadPrintData = showPrintPreview || showStudentReport || showClinicPreview || showBillboardPreview;
+
+  useEffect(() => {
+    setSummaryColumnMode(getStoredSummaryColumnMode(summaryColumnStorageKey));
+  }, [summaryColumnStorageKey]);
+
+  const handleSummaryColumnModeChange = useCallback((mode: SessionScoresSummaryColumnMode) => {
+    setSummaryColumnMode(mode);
+    if (!summaryColumnStorageKey) return;
+    setStoredTableOption(summaryColumnStorageKey, "mode", mode);
+  }, [summaryColumnStorageKey]);
 
   /** 강의 정보 (PDF 제목용) */
   const { data: lectureData } = useQuery({
@@ -882,6 +907,13 @@ export default function SessionScoresEntryPage({
               <button type="button" onClick={() => setScoreFormat("fraction")} className="scores-display-segment__btn" aria-pressed={scoreFormat === "fraction"}>만점 표기</button>
             </div>
           </div>
+          <div className="scores-view-filter-section">
+            <span className="scores-view-filter-label">마지막 열</span>
+            <div className="scores-display-segment" role="group" aria-label="마지막 열 표시">
+              <button type="button" onClick={() => handleSummaryColumnModeChange("verdict")} className="scores-display-segment__btn" aria-pressed={summaryColumnMode === "verdict"}>종합 판정</button>
+              <button type="button" onClick={() => handleSummaryColumnModeChange("exam_wrong")} className="scores-display-segment__btn" aria-pressed={summaryColumnMode === "exam_wrong"}>테스트 오답</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -1336,6 +1368,7 @@ export default function SessionScoresEntryPage({
           scoreDisplayMode={scoreDisplayMode}
           scoreFormat={scoreFormat}
           viewFilter={viewFilter}
+          summaryColumnMode={summaryColumnMode}
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={setSelectedEnrollmentIds}
           onOpenExamGrading={(examId, title, gradingMode, manualGradingMethod, action) => { void (async () => {

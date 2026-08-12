@@ -8,6 +8,7 @@ import {
   fetchSessionScores,
   type SessionScoreRow,
   type SessionScoreMeta,
+  type SessionScoresSummaryColumnMode,
 } from "../api/sessionScores";
 import { scoresQueryKeys } from "../api/queryKeys";
 import { fetchAttendance, updateAttendance } from "@admin/domains/lectures/api/attendance";
@@ -62,6 +63,8 @@ type Props = {
   scoreFormat?: "raw" | "fraction";
   /** 뷰 필터: 시험만/과제만/전체 */
   viewFilter?: "all" | "exam" | "homework";
+  /** 마지막 요약 열: 전체 상태 판정 | 시험 오답 여부 */
+  summaryColumnMode?: SessionScoresSummaryColumnMode;
   selectedEnrollmentIds?: number[];
   onSelectionChange?: (enrollmentIds: number[]) => void;
   onPendingChange?: () => void;
@@ -114,6 +117,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   scoreDisplayMode = "total",
   scoreFormat = "raw",
   viewFilter = "all",
+  summaryColumnMode = "verdict",
   selectedEnrollmentIds = [],
   onSelectionChange,
   onPendingChange,
@@ -497,6 +501,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           scoreDisplayMode={scoreDisplayMode}
           scoreFormat={scoreFormat}
           viewFilter={viewFilter}
+          summaryColumnMode={summaryColumnMode}
           selectedEnrollmentId={selectedEnrollmentId}
           selectedCell={selectedCell}
           onRequestMoveNext={onRequestMoveNext}

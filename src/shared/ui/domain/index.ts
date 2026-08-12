@@ -18,7 +18,7 @@ export {
 export { default as ColorPickerField } from "./ColorPickerField";
 export { TABLE_COL, STUDENTS_TABLE_COL } from "./tableColumnSpec";
 export type { TableColKey } from "./tableColumnSpec";
-export { useTableColumnPrefs } from "./useTableColumnPrefs";
+export { getStoredTableOption, setStoredTableOption, useTableColumnPrefs } from "./useTableColumnPrefs";
 export type { TableColumnDef } from "./useTableColumnPrefs";
 export { default as ResizableTh } from "./ResizableTh";
 export { default as TableColumnPicker } from "./TableColumnPicker";

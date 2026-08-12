@@ -48,6 +48,43 @@ export type SessionRowAttentionSummary = {
   failedTitles: string[];
 };
 
+export type SessionRowExamWrongSummary = {
+  kind: "wrong" | "clear" | "pending" | "none";
+  wrongTitles: string[];
+  pendingTitles: string[];
+};
+
+/** 시험 점수가 만점보다 낮은지로 오답 여부를 읽는다. 합격선과 과제는 포함하지 않는다. */
+export function getSessionRowExamWrongSummary(row: SessionScoreRow): SessionRowExamWrongSummary {
+  const exams = row.exams ?? [];
+  if (exams.length === 0) {
+    return { kind: "none", wrongTitles: [], pendingTitles: [] };
+  }
+
+  const wrongTitles: string[] = [];
+  const pendingTitles: string[] = [];
+  for (const exam of exams) {
+    const { block } = exam;
+    const score = Number(block.score);
+    const maxScore = Number(block.max_score);
+    const unavailable = block.meta?.status === "NOT_SUBMITTED"
+      || getScoreBlockOmrReviewStatus(block) === "review"
+      || block.score == null
+      || !Number.isFinite(score)
+      || !Number.isFinite(maxScore)
+      || maxScore <= 0;
+    if (unavailable) {
+      pendingTitles.push(exam.title);
+    } else if (score < maxScore) {
+      wrongTitles.push(exam.title);
+    }
+  }
+
+  if (wrongTitles.length > 0) return { kind: "wrong", wrongTitles, pendingTitles };
+  if (pendingTitles.length > 0) return { kind: "pending", wrongTitles, pendingTitles };
+  return { kind: "clear", wrongTitles, pendingTitles };
+}
+
 /** 미입력·검수 대기·실제 미달 항목을 분리한 행 요약. */
 export function getSessionRowAttentionSummary(row: SessionScoreRow): SessionRowAttentionSummary {
   const summary: SessionRowAttentionSummary = {
