@@ -177,6 +177,7 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
   test("관리자 본인 변경은 공통 API를 호출하고 성공 즉시 기존 토큰을 폐기한다", async ({ page }) => {
     let passwordBody: Record<string, unknown> | undefined;
     let legacyCount = 0;
+    await page.setViewportSize({ width: 390, height: 844 });
     await stubAccountApp(page, {
       onPasswordChange: (body) => { passwordBody = body; },
       onLegacyPasswordChange: () => { legacyCount += 1; },
@@ -184,8 +185,11 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
 
     await gotoAndSettle(page, `${BASE}/workspace/settings/profile`, { timeout: 20_000 });
     const securitySection = page.getByRole("heading", { name: "보안" }).locator("xpath=ancestor::section");
-    await securitySection.getByRole("button", { name: "변경", exact: true }).click();
-    await securitySection.getByLabel("현재 비밀번호", { exact: true }).fill("old-admin-password");
+    await securitySection.getByRole("button", { name: "변경", exact: true }).press("Enter");
+    const currentPasswordInput = securitySection.getByLabel("현재 비밀번호", { exact: true });
+    expect(await currentPasswordInput.evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThanOrEqual(240);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await currentPasswordInput.fill("old-admin-password");
     await securitySection.getByLabel("새 비밀번호", { exact: true }).fill("new-admin-password");
     await securitySection.getByLabel("새 비밀번호 확인", { exact: true }).fill("new-admin-password");
     const checklist = securitySection.getByRole("group", { name: "새 비밀번호 확인 사항" });

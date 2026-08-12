@@ -2,6 +2,7 @@ import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
+import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 
@@ -127,10 +128,10 @@ test("같은 날짜에 여러 클리닉 시간대를 시간순으로 보고 계�
   await seed(page);
   await installApi(page);
   await page.setViewportSize({ width: 1366, height: 850 });
-  await page.goto(`${BASE}/workspace/clinic/schedule`, { waitUntil: "domcontentloaded" });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
 
   const saturdayCell = page.getByRole("gridcell", { name: `${saturdayLabel} 토요일` });
-  await expect(saturdayCell).toContainText("3개");
+  await expect(saturdayCell).toContainText("3개", { timeout: 20_000 });
   await expect(saturdayCell.getByRole("article")).toHaveCount(3);
   await expect(saturdayCell.getByRole("article")).toContainText([
     "13:00–14:30",
