@@ -14,6 +14,10 @@ const viteConfig = readFileSync(
   new URL("../../vite.config.ts", import.meta.url),
   "utf8",
 );
+const lectureCreateModalCss = readFileSync(
+  new URL("../../src/app_admin/domains/lectures/components/LectureCreateModal.css", import.meta.url),
+  "utf8",
+);
 
 test("Vite 8 preserves Rolldown shared-module semantics for Ant Design", () => {
   assert.match(viteConfig, /rolldownOptions:\s*\{/);
@@ -22,6 +26,14 @@ test("Vite 8 preserves Rolldown shared-module semantics for Ant Design", () => {
   assert.doesNotMatch(viteConfig, /name:\s*"vendor-antd"/);
   assert.match(viteConfig, /name:\s*"vendor-core"[\s\S]*?priority:\s*50/);
   assert.match(viteConfig, /name:\s*"vendor-icons"[\s\S]*?priority:\s*45/);
+});
+
+test("lecture creation controls remain usable at the 390px operating breakpoint", () => {
+  assert.match(lectureCreateModalCss, /\.lecture-create-modal-form\s*\{[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;/);
+  assert.match(lectureCreateModalCss, /\.lecture-create-modal-form\s*>\s*\*\s*\{[\s\S]*?min-width:\s*0;/);
+  assert.match(lectureCreateModalCss, /@media\s*\(max-width:\s*480px\)/);
+  assert.match(lectureCreateModalCss, /\.lecture-create-field-grid\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+  assert.match(lectureCreateModalCss, /\.shared-time-range-grid\s*\{[\s\S]*?grid-template-columns:\s*32px\s+minmax\(0,\s*1fr\)\s+96px/);
 });
 
 test("closed-proxy CI boots the production bundle before merge", () => {
