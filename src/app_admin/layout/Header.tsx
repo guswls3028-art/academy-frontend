@@ -17,6 +17,7 @@ import {
   Bell as BellIcon,
   Inbox as InboxIcon,
   Check as CheckIcon,
+  Search as SearchIcon,
 } from "lucide-react";
 import { useAdminNotificationCounts, type AdminNotificationItem } from "@admin/domains/admin-notifications";
 import { useProgram } from "@/shared/program";
@@ -132,7 +133,7 @@ const STAFF_ROLE_LABEL: Record<MeStaffRole, string> = {
   ASSISTANT: "조교",
 };
 
-export default function Header() {
+export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigation: () => void }) {
   const nav = useNavigate();
   const adminLayout = useAdminLayout();
   const isMobile = adminLayout != null;
@@ -353,6 +354,22 @@ export default function Header() {
 
         {/* RIGHT: 알람 | 프로필 */}
         <div className="app-header__right">
+
+          {!isMobile && (
+            <Button
+              intent="secondary"
+              size="lg"
+              className="app-header__quickNavigationBtn"
+              onClick={onOpenQuickNavigation}
+              aria-label="빠른 이동"
+              aria-keyshortcuts="Control+K Meta+K"
+              title="빠른 이동 (Ctrl+K)"
+              leftIcon={<SearchIcon size={ICON_FOR_BUTTON.md} aria-hidden />}
+            >
+              <span>빠른 이동</span>
+              <kbd aria-hidden>Ctrl K</kbd>
+            </Button>
+          )}
 
           {workbox && (
             <ProfileDropdown

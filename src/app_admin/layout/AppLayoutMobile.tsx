@@ -8,19 +8,19 @@ import TeacherBottomBar from "./TeacherBottomBar";
 import { AsyncStatusBar } from "@/shared/ui/asyncStatus";
 import styles from "./AppLayoutMobile.module.css";
 
-export default function AppLayoutMobile() {
+export default function AppLayoutMobile({ onOpenQuickNavigation }: { onOpenQuickNavigation: () => void }) {
   const location = useLocation();
   return (
     <div data-app="admin" className={styles.root}>
       <header className={styles.header}>
-        <Header />
+        <Header onOpenQuickNavigation={onOpenQuickNavigation} />
       </header>
 
       <main className={styles.main}>
         <Outlet key={location.pathname} />
       </main>
 
-      <AdminNavDrawer />
+      <AdminNavDrawer onOpenQuickNavigation={onOpenQuickNavigation} />
       <TeacherBottomBar />
       <AsyncStatusBar />
     </div>

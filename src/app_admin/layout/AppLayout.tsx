@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-syntax -- legacy admin shell layout uses tokenized inline styles; current touch removes duplicate theme provider only. */
 // PATH: src/app_admin/layout/AppLayout.tsx
-import { lazy, Suspense, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useMemo, useState, type ReactNode } from "react";
 import { Outlet, useLocation } from "react-router";
 import { ConfigProvider, App } from "antd";
 import Sidebar from "./Sidebar";
@@ -17,6 +17,14 @@ import { ClinicHighlightProvider } from "@/shared/contexts/ClinicHighlightContex
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useFavicon } from "@/shared/hooks/useFavicon";
 import { GuideTourProvider, GuideTourOverlay } from "@/shared/ui/guide";
+import QuickNavigationDialog, {
+  type QuickNavigationItem,
+} from "@/shared/ui/navigation/QuickNavigationDialog";
+import { useQuickNavigationHotkey } from "@/shared/ui/navigation/useQuickNavigationHotkey";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import useAuth from "@/auth/hooks/useAuth";
+import { NavIcon } from "./adminNavConfig";
+import { useAvailableAdminNavigation } from "./useAvailableAdminNavigation";
 
 // useVersionChecker가 자동 리로드 처리 — 수동 새로고침 배너 제거됨
 
@@ -25,7 +33,27 @@ const AppLayoutMobile = lazy(() => import("./AppLayoutMobile"));
 function AppLayoutContent({ overlay }: { overlay?: ReactNode }) {
   const isMobile = useIsMobile();
   const location = useLocation();
+  const { user } = useAuth();
+  const navigationGroups = useAvailableAdminNavigation();
+  const [quickNavigationOpen, setQuickNavigationOpen] = useState(false);
+  const openQuickNavigation = useCallback(() => setQuickNavigationOpen(true), []);
+  useQuickNavigationHotkey(openQuickNavigation);
   useFavicon();
+
+  const quickNavigationItems = useMemo<QuickNavigationItem[]>(
+    () => navigationGroups.flatMap((group) => group.items.map((item) => ({
+      to: item.to,
+      label: item.label,
+      group: group.title ?? "메뉴",
+      keywords: item.keywords,
+      icon: <NavIcon d={item.iconPath} />,
+    }))),
+    [navigationGroups],
+  );
+  const tenantCode = getTenantCodeForApiRequest();
+  const quickNavigationStorageKey = tenantCode && user
+    ? `ui.quick-navigation.v1:admin:${tenantCode}:${user.id}`
+    : null;
 
   return (
     <>
@@ -34,7 +62,7 @@ function AppLayoutContent({ overlay }: { overlay?: ReactNode }) {
           <WorkboxProvider>
             {/* 수동 새로고침 배너 제거 — useVersionChecker가 자동 리로드 처리 */}
             <Suspense fallback={null}>
-              <AppLayoutMobile />
+              <AppLayoutMobile onOpenQuickNavigation={openQuickNavigation} />
             </Suspense>
           </WorkboxProvider>
         </AdminLayoutProvider>
@@ -74,7 +102,7 @@ function AppLayoutContent({ overlay }: { overlay?: ReactNode }) {
             isolation: "isolate",
           }}
         >
-          <Header />
+          <Header onOpenQuickNavigation={openQuickNavigation} />
         </header>
 
         <aside
@@ -117,6 +145,13 @@ function AppLayoutContent({ overlay }: { overlay?: ReactNode }) {
     </div>
     </WorkboxProvider>
       )}
+      <QuickNavigationDialog
+        open={quickNavigationOpen}
+        onClose={() => setQuickNavigationOpen(false)}
+        items={quickNavigationItems}
+        storageKey={quickNavigationStorageKey}
+        placement="admin.quick-navigation"
+      />
       {overlay}
     </>
   );
