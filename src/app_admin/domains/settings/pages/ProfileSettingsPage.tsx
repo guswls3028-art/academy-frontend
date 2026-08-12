@@ -20,6 +20,8 @@ import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { isPasswordChangeReady } from "@/shared/auth/passwordPolicy";
+import { PasswordChecklist, PasswordInput } from "@/shared/ui/password";
 
 import s from "../components/SettingsSection.module.css";
 
@@ -195,6 +197,7 @@ function PasswordChangeGroup({
   const [error, setError] = useState("");
 
   const mut = useMutation({ mutationFn: changePassword });
+  const ready = isPasswordChangeReady(oldPw, newPw, confirmPw);
 
   const handleSubmit = async () => {
     setError("");
@@ -219,23 +222,50 @@ function PasswordChangeGroup({
         <div className={s.rowEditInputs}>
           <div>
             <p className={s.fieldLabel}>현재 비밀번호</p>
-            <input type="password" className="ds-input" value={oldPw} onChange={(e) => setOldPw(e.target.value)}
-              placeholder="현재 비밀번호" aria-label="현재 비밀번호" autoComplete="current-password"
-              disabled={mut.isPending} style={{ maxWidth: 260 }} />
+            <PasswordInput
+              label="현재 비밀번호"
+              value={oldPw}
+              onValueChange={setOldPw}
+              inputClassName="ds-input"
+              placeholder="현재 비밀번호"
+              autoComplete="current-password"
+              disabled={mut.isPending}
+              wrapStyle={{ maxWidth: 260 }}
+            />
           </div>
           <div>
             <p className={s.fieldLabel}>새 비밀번호</p>
-            <input type="password" className="ds-input" value={newPw} onChange={(e) => setNewPw(e.target.value)}
-              placeholder="4자 이상" aria-label="새 비밀번호" autoComplete="new-password"
-              disabled={mut.isPending} style={{ maxWidth: 260 }} />
+            <PasswordInput
+              label="새 비밀번호"
+              value={newPw}
+              onValueChange={setNewPw}
+              inputClassName="ds-input"
+              placeholder="4자 이상"
+              autoComplete="new-password"
+              disabled={mut.isPending}
+              wrapStyle={{ maxWidth: 260 }}
+            />
           </div>
           <div>
             <p className={s.fieldLabel}>새 비밀번호 확인</p>
-            <input type="password" className="ds-input" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)}
-              placeholder="새 비밀번호 재입력" aria-label="새 비밀번호 확인" autoComplete="new-password"
-              disabled={mut.isPending} style={{ maxWidth: 260 }} />
+            <PasswordInput
+              label="새 비밀번호 확인"
+              value={confirmPw}
+              onValueChange={setConfirmPw}
+              inputClassName="ds-input"
+              placeholder="새 비밀번호 재입력"
+              autoComplete="new-password"
+              disabled={mut.isPending}
+              wrapStyle={{ maxWidth: 260 }}
+            />
           </div>
         </div>
+
+        <PasswordChecklist
+          password={newPw}
+          currentPassword={oldPw}
+          confirmation={confirmPw}
+        />
 
         {error && (
           <div style={{
@@ -250,7 +280,7 @@ function PasswordChangeGroup({
 
         <div className={s.rowEditActions}>
           <Button type="button" intent="primary" size="sm" onClick={handleSubmit}
-            disabled={mut.isPending} loading={mut.isPending}
+            disabled={mut.isPending || !ready} loading={mut.isPending}
             leftIcon={mut.isPending ? undefined : <FiCheck size={16} />}>
             {mut.isPending ? "변경 중…" : "변경"}
           </Button>

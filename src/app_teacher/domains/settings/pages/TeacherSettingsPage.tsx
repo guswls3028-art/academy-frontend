@@ -12,12 +12,16 @@ import { usePushSubscription } from "@teacher/shared/hooks/usePushSubscription";
 import { teacherSharedQueryKeys } from "@teacher/shared/api/queryKeys";
 import {
   ChevronLeft, User, Lock, Palette, Bell, Smartphone,
-  Eye, EyeOff, Check, Pencil, Save, X,
+  Check, Pencil, Save, X,
 } from "@teacher/shared/ui/Icons";
 import { THEMES } from "@/shared/theme/themes";
 import { useConfirm } from "@/shared/ui/confirm";
 import api from "@/shared/api/axios";
 import { requestBillingAuth } from "@/shared/payments/tossBilling";
+import { logout } from "@/auth/api/auth.api";
+import { extractApiError } from "@/shared/utils/extractApiError";
+import { isPasswordChangeReady } from "@/shared/auth/passwordPolicy";
+import { PasswordChecklist, PasswordInput } from "@/shared/ui/password";
 /* ─── API ─── */
 async function updateProfile(payload: { name?: string; phone?: string; username?: string }) {
   const { data } = await api.patch("/core/profile/update_me/", payload);
@@ -35,7 +39,7 @@ async function updateTenantInfo(payload: Record<string, unknown>) {
 }
 
 async function changePassword(payload: { old_password: string; new_password: string }) {
-  const { data } = await api.post("/core/profile/change-password/", payload);
+  const { data } = await api.post("/core/change-password/", payload);
   return data;
 }
 
@@ -78,8 +82,6 @@ export default function TeacherSettingsPage() {
   const [oldPw, setOldPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [newPwConfirm, setNewPwConfirm] = useState("");
-  const [showOld, setShowOld] = useState(false);
-  const [showNew, setShowNew] = useState(false);
   const [pwMsg, setPwMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
   const pwMut = useMutation({
@@ -89,13 +91,13 @@ export default function TeacherSettingsPage() {
       setOldPw("");
       setNewPw("");
       setNewPwConfirm("");
-      setPwMsg({ type: "ok", text: "비밀번호가 변경되었습니다" });
-      setTimeout(() => setPwMsg(null), 2500);
+      setPwMsg({ type: "ok", text: "비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해 주세요." });
+      logout();
     },
-    onError: () => setPwMsg({ type: "err", text: "현재 비밀번호가 일치하지 않습니다" }),
+    onError: (error) => setPwMsg({ type: "err", text: extractApiError(error, "비밀번호를 변경하지 못했습니다.") }),
   });
 
-  const pwValid = oldPw.length >= 1 && newPw.length >= 4 && newPw === newPwConfirm;
+  const pwValid = isPasswordChangeReady(oldPw, newPw, newPwConfirm);
 
   const name = user?.name || "사용자";
   const roleLabel = ROLE_LABELS[user?.tenantRole || ""] || "직원";
@@ -149,7 +151,7 @@ export default function TeacherSettingsPage() {
       {/* ── Password section ── */}
       <Section title="보안" icon={<Lock size={ICON.sm} />}>
         {!pwOpen ? (
-          <button onClick={() => setPwOpen(true)}
+          <button onClick={() => { setPwMsg(null); setPwOpen(true); }}
             className="flex items-center gap-2 w-full text-left cursor-pointer"
             style={{ padding: "10px 0", background: "none", border: "none", color: "var(--tc-text)" }}>
             <Lock size={ICON.sm} style={{ color: "var(--tc-text-muted)" }} />
@@ -158,15 +160,13 @@ export default function TeacherSettingsPage() {
           </button>
         ) : (
           <div className="flex flex-col gap-2">
-            <PwInput label="현재 비밀번호" value={oldPw} onChange={setOldPw} show={showOld} onToggle={() => setShowOld(!showOld)} />
-            <PwInput label="새 비밀번호 (4자 이상)" value={newPw} onChange={setNewPw} show={showNew} onToggle={() => setShowNew(!showNew)} />
-            <FieldInput label="새 비밀번호 확인" value={newPwConfirm} onChange={setNewPwConfirm} type="password" placeholder="다시 입력" />
-            {newPw.length > 0 && newPwConfirm.length > 0 && newPw !== newPwConfirm && (
-              <div className="text-[11px]" style={{ color: "var(--tc-danger)" }}>비밀번호가 일치하지 않습니다</div>
-            )}
+            <PwInput id="teacher-current-password" label="현재 비밀번호" value={oldPw} onChange={setOldPw} autoComplete="current-password" />
+            <PwInput id="teacher-new-password" label="새 비밀번호" value={newPw} onChange={setNewPw} placeholder="4자 이상" autoComplete="new-password" />
+            <PwInput id="teacher-confirm-password" label="새 비밀번호 확인" value={newPwConfirm} onChange={setNewPwConfirm} placeholder="다시 입력" autoComplete="new-password" />
+            <PasswordChecklist password={newPw} currentPassword={oldPw} confirmation={newPwConfirm} />
             <div className="flex gap-2 mt-1">
               <SmBtn label="변경" primary disabled={!pwValid} loading={pwMut.isPending} onClick={() => pwMut.mutate()} icon={<Check size={ICON.sm} />} />
-              <SmBtn label="취소" onClick={() => { setPwOpen(false); setOldPw(""); setNewPw(""); setNewPwConfirm(""); }} icon={<X size={ICON.sm} />} />
+              <SmBtn label="취소" onClick={() => { setPwOpen(false); setOldPw(""); setNewPw(""); setNewPwConfirm(""); setPwMsg(null); }} icon={<X size={ICON.sm} />} />
             </div>
           </div>
         )}
@@ -302,20 +302,34 @@ function FieldInput({ label, value, onChange, placeholder, type = "text" }: {
   );
 }
 
-function PwInput({ label, value, onChange, show, onToggle }: {
-  label: string; value: string; onChange: (v: string) => void; show: boolean; onToggle: () => void;
+function PwInput({ id, label, value, onChange, placeholder, autoComplete }: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  autoComplete: "current-password" | "new-password";
 }) {
   return (
     <div>
-      <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>{label}</label>
-      <div className="flex items-center gap-1" style={{ borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)" }}>
-        <input type={show ? "text" : "password"} value={value} onChange={(e) => onChange(e.target.value)}
-          className="flex-1 text-sm"
-          style={{ padding: "8px 10px", border: "none", background: "transparent", color: "var(--tc-text)", outline: "none" }} />
-        <button onClick={onToggle} type="button" className="flex p-2 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}>
-          {show ? <EyeOff size={ICON.sm} /> : <Eye size={ICON.sm} />}
-        </button>
-      </div>
+      <label htmlFor={id} className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>{label}</label>
+      <PasswordInput
+        id={id}
+        label={label}
+        value={value}
+        onValueChange={onChange}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        inputClassName="text-sm"
+        inputStyle={{
+          padding: "8px 10px",
+          borderRadius: "var(--tc-radius-sm)",
+          border: "1px solid var(--tc-border-strong)",
+          background: "var(--tc-surface-soft)",
+          color: "var(--tc-text)",
+          outline: "none",
+        }}
+      />
     </div>
   );
 }

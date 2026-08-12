@@ -17,6 +17,8 @@ import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import type { SchoolType } from "@/shared/hooks/useSchoolLevelMode";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
+import { isPasswordChangeReady } from "@/shared/auth/passwordPolicy";
+import { PasswordChecklist, PasswordInput } from "@/shared/ui/password";
 
 /** 미입력 표시 JSX — italic 회색 */
 const EMPTY_PLACEHOLDER = (
@@ -60,6 +62,7 @@ export default function ProfilePage() {
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const passwordReady = isPasswordChangeReady(password, newPassword, confirmPassword);
   /** Track which form triggered the last mutation to show errors in the correct form only */
   const [lastMutationSource, setLastMutationSource] = useState<"profile" | "username" | null>(null);
 
@@ -210,6 +213,10 @@ export default function ProfilePage() {
     if (!password.trim() || !newPassword.trim()) return;
     if (newPassword.length < 4) {
       studentToast.error("새 비밀번호는 4자 이상이어야 합니다.");
+      return;
+    }
+    if (newPassword === password) {
+      studentToast.error("새 비밀번호는 현재 비밀번호와 달라야 합니다.");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -710,45 +717,71 @@ export default function ProfilePage() {
           <button
             type="button"
             className="stu-btn stu-btn--secondary"
-            onClick={() => setShowPasswordForm(true)}
+            onClick={() => { passwordMutation.reset(); setShowPasswordForm(true); }}
           >
             비밀번호 변경하기
           </button>
         ) : (
           <form onSubmit={handlePasswordSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="현재 비밀번호"
-              className="stu-input"
-            />
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="새 비밀번호"
-              className="stu-input"
-            />
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="새 비밀번호 확인"
-              className="stu-input"
+            <div>
+              <label htmlFor="student-current-password" style={{ display: "block", marginBottom: 6, fontSize: 13, fontWeight: 700 }}>
+                현재 비밀번호
+              </label>
+              <PasswordInput
+                id="student-current-password"
+                label="현재 비밀번호"
+                value={password}
+                onValueChange={setPassword}
+                placeholder="현재 비밀번호"
+                inputClassName="stu-input"
+                autoComplete="current-password"
+              />
+            </div>
+            <div>
+              <label htmlFor="student-new-password" style={{ display: "block", marginBottom: 6, fontSize: 13, fontWeight: 700 }}>
+                새 비밀번호
+              </label>
+              <PasswordInput
+                id="student-new-password"
+                label="새 비밀번호"
+                value={newPassword}
+                onValueChange={setNewPassword}
+                placeholder="새 비밀번호"
+                inputClassName="stu-input"
+                autoComplete="new-password"
+              />
+            </div>
+            <div>
+              <label htmlFor="student-confirm-password" style={{ display: "block", marginBottom: 6, fontSize: 13, fontWeight: 700 }}>
+                새 비밀번호 확인
+              </label>
+              <PasswordInput
+                id="student-confirm-password"
+                label="새 비밀번호 확인"
+                value={confirmPassword}
+                onValueChange={setConfirmPassword}
+                placeholder="새 비밀번호 확인"
+                inputClassName="stu-input"
+                autoComplete="new-password"
+              />
+            </div>
+            <PasswordChecklist
+              password={newPassword}
+              currentPassword={password}
+              confirmation={confirmPassword}
             />
             <div style={{ display: "flex", gap: "var(--stu-space-2)" }}>
               <button
                 type="button"
                 className="stu-btn stu-btn--ghost"
-                onClick={() => { setShowPasswordForm(false); setPassword(""); setNewPassword(""); setConfirmPassword(""); }}
+                onClick={() => { passwordMutation.reset(); setShowPasswordForm(false); setPassword(""); setNewPassword(""); setConfirmPassword(""); }}
               >
                 취소
               </button>
               <button
                 type="submit"
                 className="stu-btn stu-btn--primary"
-                disabled={passwordMutation.isPending || !password.trim() || !newPassword.trim() || !confirmPassword.trim()}
+                disabled={passwordMutation.isPending || !passwordReady}
               >
                 {passwordMutation.isPending ? "변경 중…" : "비밀번호 변경"}
               </button>

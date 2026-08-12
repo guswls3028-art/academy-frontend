@@ -325,12 +325,19 @@ test.describe("직원 운영 계약", () => {
     await page.getByRole("button", { name: "비밀번호 변경", exact: true }).click();
 
     const dialog = page.getByRole("dialog", { name: "임시 비밀번호 설정" });
-    await expect(dialog.getByText("기존 로그인은 만료되며, 직원은 다음 로그인에서 비밀번호를 변경해야 합니다.")).toBeVisible();
-    await dialog.getByLabel("새 비밀번호 *").fill("staff-temporary-password");
+    await expect(dialog.getByText(/변경하면 기존 로그인은 만료됩니다/)).toBeVisible();
+    await dialog.getByRole("button", { name: "안전한 비밀번호 만들기" }).click();
+    const generatedPassword = await dialog.getByLabel("새 임시 비밀번호", { exact: true }).inputValue();
+    await expect(dialog.getByLabel("새 임시 비밀번호 확인", { exact: true })).toHaveValue(generatedPassword);
+    expect(generatedPassword).toHaveLength(12);
+    expect(generatedPassword).toMatch(/[A-Z]/);
+    expect(generatedPassword).toMatch(/[a-z]/);
+    expect(generatedPassword).toMatch(/[2-9]/);
+    expect(generatedPassword).not.toMatch(/[0O1Il]/);
     await dialog.getByRole("button", { name: "변경", exact: true }).click();
 
     await expect.poll(() => passwordBody).toEqual({
-      password: "staff-temporary-password",
+      password: generatedPassword,
     });
   });
 

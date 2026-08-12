@@ -9,7 +9,7 @@ API와 성공 후 세션 처리를 소유한다. 비밀번호 원문, 토큰, �
 | 대상 | 사용자 흐름 | 요청 | 성공 후 상태 |
 |---|---|---|---|
 | 학생·학부모 | 학생 앱 `내 정보 → 비밀번호 변경` | `POST /core/change-password/` + `old_password`, `new_password` | 기존 access·refresh 토큰 폐기 후 새 비밀번호로 재로그인 |
-| 대표·관리자·강사·직원 | 관리자 앱 `설정 → 프로필 → 보안 → 비밀번호 변경` | `POST /core/change-password/` + 동일 본문 | 기존 토큰 폐기 후 재로그인 |
+| 대표·관리자·강사·직원 | 관리자 앱 `설정 → 프로필 → 보안` 또는 강사 모바일 `설정 → 비밀번호 변경` | `POST /core/change-password/` + 동일 본문 | 기존 토큰 폐기 후 재로그인 |
 | 임시 비밀번호 사용자 | 로그인 직후 강제 변경 모달 | `POST /core/change-password/` + 동일 본문 | `must_change_password` 해제와 기존 토큰 폐기 후 재로그인 |
 | 직원 강제 초기화 | 직원관리에서 한 명 선택 → 비밀번호 변경 | `POST /staffs/{id}/change-password/` + `password` | 대상 기존 토큰 폐기, 대상은 다음 로그인에서 비밀번호 변경 필수 |
 | 학생·학부모 계정복구 | 로그인 화면 `아이디 찾기` 또는 `비밀번호 찾기` | `POST /auth/account-recovery/dispatch/` | 존재 여부를 노출하지 않는 공통 응답. 임시 비밀번호는 수신 후 로그인할 때 활성화 |
@@ -19,6 +19,24 @@ API와 성공 후 세션 처리를 소유한다. 비밀번호 원문, 토큰, �
 실패 시 개인정보만 부분 반영될 수 있으므로, 두 작업은 화면과 요청을 분리한다.
 백엔드 호환 경로가 남아 있더라도 신규 화면은 전 역할 공통 본인 변경 API만
 사용한다.
+
+## 입력 편의와 직원 초기화 유틸
+
+- 모든 본인 변경·강제 변경·단일 직원 초기화 입력은 개별 보기·숨기기 버튼,
+  Caps Lock 경고, `4자 이상`·`현재 값과 다름`·`확인 입력과 일치` 체크리스트를
+  제공한다. 조건이 충족되기 전에는 제출할 수 없다.
+- 직원 등록과 단일 직원 초기화는 Web Crypto로 12자 임시 비밀번호를 로컬에서
+  만들 수 있다. 대·소문자와 숫자를 포함하고 혼동하기 쉬운 `0`, `O`, `1`, `I`,
+  `l`은 제외한다. 생성값은 확인 입력에도 채워져 오타를 줄인다.
+- 생성한 임시 비밀번호는 사용자가 명시적으로 누를 때만 클립보드에 복사한다.
+  프론트엔드는 비밀번호를 저장하거나 별도 서버·로그·분석 도구로 전송하지
+  않는다. 운영자는 안전한 별도 채널로 대상 직원에게 전달한다.
+- 직원 프로필 저장과 비밀번호 초기화는 서로 다른 버튼과 요청으로 분리한다.
+  초기화 성공 문구는 기존 로그인 만료와 다음 로그인 시 본인 변경 필요를
+  함께 안내한다.
+- 학생·학부모 일괄 초기화는 이 유틸을 재사용하지 않는다. 기존 백엔드의 대상별
+  임시 비밀번호 자동 생성과 승인된 알림톡 발송 계약을 유지해, 여러 계정에 같은
+  비밀번호를 적용하거나 화면에 원문을 노출하지 않는다.
 
 ## 실패와 입력 처리
 
@@ -37,6 +55,7 @@ API와 성공 후 세션 처리를 소유한다. 비밀번호 원문, 토큰, �
 
 ```powershell
 pnpm exec playwright test e2e/auth/account-password-flows.mock.spec.ts e2e/auth/account-recovery-modal.spec.ts e2e/admin/staff-operations-contract.mock.spec.ts --project=chromium --reporter=list
+pnpm exec playwright test e2e/student/student-content-resilience.mock.spec.ts --project=chromium --grep "학부모 내 비밀번호"
 pnpm typecheck
 pnpm guard:legacy-api
 pnpm build
