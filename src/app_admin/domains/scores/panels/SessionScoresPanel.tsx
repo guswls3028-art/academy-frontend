@@ -8,6 +8,7 @@ import {
   fetchSessionScores,
   type SessionScoreRow,
   type SessionScoreMeta,
+  type SessionScoresExamWrongFilter,
   type SessionScoresSummaryColumnMode,
 } from "../api/sessionScores";
 import { scoresQueryKeys } from "../api/queryKeys";
@@ -21,30 +22,10 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { reorderSession } from "../api/reorderSession";
 import type { ExamHeaderAction } from "../components/ExamHeaderActionMenu";
-
-const HANGUL_SYLLABLE_START = 0xac00;
-const HANGUL_SYLLABLE_END = 0xd7a3;
-const HANGUL_INITIALS = ["ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
-
-function normalizeStudentSearch(value: string): string {
-  return value.replace(/\s+/g, "").toLowerCase();
-}
-
-function toHangulInitials(value: string): string {
-  return Array.from(value).map((char) => {
-    const code = char.charCodeAt(0);
-    if (code < HANGUL_SYLLABLE_START || code > HANGUL_SYLLABLE_END) return char;
-    return HANGUL_INITIALS[Math.floor((code - HANGUL_SYLLABLE_START) / 588)] ?? char;
-  }).join("");
-}
-
-function matchesStudentSearch(studentName: string, rawQuery: string): boolean {
-  const query = normalizeStudentSearch(rawQuery);
-  if (!query) return true;
-  const name = normalizeStudentSearch(studentName);
-  const initials = normalizeStudentSearch(toHangulInitials(studentName));
-  return name.includes(query) || initials.includes(query);
-}
+import {
+  getSessionRowExamWrongSummary,
+  matchesSessionScoreStudentSearch,
+} from "@/shared/scoring/sessionScoreRows";
 
 type Props = {
   sessionId: number;
@@ -65,6 +46,8 @@ type Props = {
   viewFilter?: "all" | "exam" | "homework";
   /** 마지막 요약 열: 전체 상태 판정 | 시험 오답 여부 */
   summaryColumnMode?: SessionScoresSummaryColumnMode;
+  /** 테스트 오답 모드의 학생 행 필터 */
+  examWrongFilter?: SessionScoresExamWrongFilter;
   selectedEnrollmentIds?: number[];
   onSelectionChange?: (enrollmentIds: number[]) => void;
   onPendingChange?: () => void;
@@ -118,6 +101,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   scoreFormat = "raw",
   viewFilter = "all",
   summaryColumnMode = "verdict",
+  examWrongFilter = "all",
   selectedEnrollmentIds = [],
   onSelectionChange,
   onPendingChange,
@@ -245,10 +229,12 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   }, [attendanceIdMap, confirm, qc, sessionId, lectureId]);
 
   const rows = useMemo(() => {
-    if (!search.trim()) return allRows;
-    const q = search.trim();
-    return allRows.filter((r) => matchesStudentSearch(r.student_name ?? "", q));
-  }, [allRows, search]);
+    const searchedRows = allRows.filter((row) => (
+      matchesSessionScoreStudentSearch(row.student_name ?? "", search)
+    ));
+    if (summaryColumnMode !== "exam_wrong" || examWrongFilter === "all") return searchedRows;
+    return searchedRows.filter((row) => getSessionRowExamWrongSummary(row).kind === examWrongFilter);
+  }, [allRows, examWrongFilter, search, summaryColumnMode]);
 
   // 드로어에 항상 최신 rows 데이터를 전달 (쿼리 갱신 시 자동 반영)
   const drawerRow = useMemo(
@@ -470,9 +456,9 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
       <EmptyState
         scope="panel"
         tone="empty"
-        title={search.trim() ? "검색 결과가 없습니다" : "아직 등록된 수강생이 없어요"}
-        description={search.trim()
-          ? "다른 검색어로 시도해 보세요."
+        title={search.trim() || examWrongFilter !== "all" ? "조건에 맞는 학생이 없습니다" : "아직 등록된 수강생이 없어요"}
+        description={search.trim() || examWrongFilter !== "all"
+          ? "이름 검색어나 테스트 오답 필터를 바꿔보세요."
           : "이 세션에 수강생을 먼저 등록해주세요. 등록 후 자동으로 성적 입력표가 만들어집니다."}
       />
     );

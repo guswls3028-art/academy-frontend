@@ -123,6 +123,37 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 35%, transparent);
 }
 
+.scores-display-segment__btn:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.scores-display-segment__btn--counted {
+  min-width: 86px;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+
+.scores-filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-border-divider) 14%, var(--color-bg-surface));
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.scores-display-segment__btn[aria-pressed="true"] .scores-filter-count {
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+}
+
 .scores-view-filter-panel {
   /* P1-1 (2026-05-13): 패널 자체를 더 컴팩트하게. 카드 보더 제거하고 inline filter strip 처럼.
      vertical stack 한 줄 절약. */
@@ -191,6 +222,22 @@
   padding-left: var(--space-1);
 }
 
+.scores-exam-wrong-tools {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid color-mix(in srgb, var(--color-border-divider) 68%, transparent);
+}
+
+.scores-exam-wrong-tools > .ds-button {
+  flex: 0 0 auto;
+  min-width: 132px;
+  white-space: nowrap;
+}
+
 .scores-selection-bar__help {
   display: inline-flex;
   min-height: 28px;
@@ -204,6 +251,32 @@
   .scores-entry-page .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table[data-summary-column="exam_wrong"] tbody td[data-col-type="attendance"] {
     position: static !important;
     box-shadow: none;
+  }
+
+  .scores-exam-wrong-tools,
+  .scores-exam-wrong-tools .scores-view-filter-section {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .scores-exam-wrong-tools .scores-view-filter-section {
+    flex-direction: column;
+  }
+
+  .scores-exam-wrong-tools .scores-display-segment {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .scores-exam-wrong-tools .scores-display-segment__btn--counted {
+    width: 100%;
+    min-width: 0;
+    min-height: 34px;
+  }
+
+  .scores-exam-wrong-tools > .ds-button {
+    width: 100%;
+    justify-content: center;
   }
 }
 

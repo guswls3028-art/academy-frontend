@@ -34,7 +34,10 @@ async function openScores(
     localStorage.setItem("refresh", `${token}-refresh`);
   }, createLocalJwt());
   await installScoreRoutes(page, routeOptions);
-  await page.goto(`${baseUrl}/workspace/lectures/9001/sessions/9002/scores`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${baseUrl}/workspace/lectures/9001/sessions/9002/scores`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
   await expect(page).toHaveURL(/\/workspace\/lectures\/9001\/sessions\/9002\/scores/);
 }
 
@@ -395,13 +398,38 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(wrongCells.nth(0)).toContainText("오답 1");
     await expect(wrongCells.nth(1)).toContainText("오답 없음");
     await expect(wrongCells.nth(2)).toContainText("확인 대기");
+
+    const wrongFilter = page.getByRole("group", { name: "테스트 오답 학생 필터" });
+    await expect(wrongFilter.getByRole("button", { name: "전체 3명" })).toHaveAttribute("aria-pressed", "true");
+    await expect(wrongFilter.getByRole("button", { name: "오답 있음 1명" })).toBeEnabled();
+    await expect(wrongFilter.getByRole("button", { name: "확인 대기 1명" })).toBeEnabled();
+    await expect(wrongFilter.getByRole("button", { name: "오답 없음 1명" })).toBeEnabled();
+
+    await wrongFilter.getByRole("button", { name: "오답 있음 1명" }).click();
+    await expect(wrongCells).toHaveCount(1);
+    await expect(page.getByText("자동저장학생1", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "현재 결과 선택" }).click();
+    await expect(page.getByText("1명 선택됨", { exact: true })).toBeVisible();
+
+    await page.getByRole("searchbox", { name: "학생 이름 검색" }).fill("학생2");
+    await expect(wrongFilter.getByRole("button", { name: "전체 1명" })).toBeVisible();
+    await expect(wrongFilter.getByRole("button", { name: "오답 있음 0명" })).toBeDisabled();
+    await expect(page.getByText("조건에 맞는 학생이 없습니다")).toBeVisible();
+    await wrongFilter.getByRole("button", { name: "오답 없음 1명" }).click();
+    await expect(page.getByText("자동저장학생2", { exact: true })).toBeVisible();
+    await page.getByRole("searchbox", { name: "학생 이름 검색" }).fill("");
     await page.screenshot({ path: testInfo.outputPath("score-test-wrong-column-1366.png"), fullPage: true });
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("columnheader", { name: /^테스트 오답/ })).toBeVisible();
     await expect(page.getByRole("group", { name: "마지막 열 표시" }).getByRole("button", { name: "테스트 오답", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("group", { name: "테스트 오답 학생 필터" }).getByRole("button", { name: "전체 3명" })).toHaveAttribute("aria-pressed", "true");
 
     await page.setViewportSize({ width: 390, height: 844 });
+    const wrongTools = page.getByLabel("테스트 오답 빠른 필터");
+    await wrongTools.scrollIntoViewIfNeeded();
+    await expect(wrongTools).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("score-test-wrong-tools-390.png") });
     const tableScroller = page.locator(".ds-table-wrap--domain-scroll").filter({ has: page.locator(".ds-scores-table") });
     await tableScroller.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
     await expect(page.getByRole("columnheader", { name: /^테스트 오답/ })).toBeVisible();

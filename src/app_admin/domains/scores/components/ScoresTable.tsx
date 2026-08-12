@@ -23,12 +23,12 @@ import { patchExamSubjectiveScoreQuick } from "../api/patchExamSubjectiveQuick";
 import { getHomeworkStatus } from "../utils/homeworkStatus";
 import {
   getScoreBlockOmrReviewStatus,
-  getSessionRowExamWrongSummary,
   getSessionRowAttentionSummary,
   getSessionScoresTableVerdict,
   isSessionRowProgressCompleted,
 } from "../utils/sessionScoreRowVerdict";
 import type { SessionScoresTableVerdictKind } from "../utils/sessionScoreRowVerdict";
+import { getSessionRowExamWrongSummary } from "@/shared/scoring/sessionScoreRows";
 import ScoreInputCell from "./ScoreInputCell";
 import ExamHeaderActionMenu, { type ExamHeaderAction } from "./ExamHeaderActionMenu";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";

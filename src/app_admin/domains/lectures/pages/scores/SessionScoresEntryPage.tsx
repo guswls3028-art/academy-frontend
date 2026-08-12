@@ -21,6 +21,7 @@ import {
   fetchSessionScores,
   type SessionScoreRow,
   type SessionScoresResponse,
+  type SessionScoresExamWrongFilter,
   type SessionScoresSummaryColumnMode,
 } from "@/shared/api/contracts/sessionScores";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
@@ -50,6 +51,10 @@ import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/api/sessionA
 import { adminResultsQueryKeys } from "@admin/domains/results/queryKeys";
 import { useTrackedTask } from "@/shared/productAnalytics";
 import useAuth from "@/auth/hooks/useAuth";
+import {
+  getSessionRowExamWrongSummary,
+  matchesSessionScoreStudentSearch,
+} from "@/shared/scoring/sessionScoreRows";
 import "./SessionScoresEntryPage.css";
 
 type SessionScoresEntryPageProps = {
@@ -122,6 +127,7 @@ export default function SessionScoresEntryPage({
   const [summaryColumnMode, setSummaryColumnMode] = useState<SessionScoresSummaryColumnMode>(
     () => getStoredSummaryColumnMode(summaryColumnStorageKey),
   );
+  const [examWrongFilter, setExamWrongFilter] = useState<SessionScoresExamWrongFilter>("all");
   /** 읽기 모드 표시 옵션 펼침 — 첫 사용자에게 압도감 없도록 default collapsed.
       비-default 값일 때는 자동 펼침 (학원장이 자기 설정을 즉시 인식). */
   const [viewOptionsExpanded, setViewOptionsExpanded] = useState(false);
@@ -167,8 +173,13 @@ export default function SessionScoresEntryPage({
     setSummaryColumnMode(getStoredSummaryColumnMode(summaryColumnStorageKey));
   }, [summaryColumnStorageKey]);
 
+  useEffect(() => {
+    setExamWrongFilter("all");
+  }, [numericSessionId]);
+
   const handleSummaryColumnModeChange = useCallback((mode: SessionScoresSummaryColumnMode) => {
     setSummaryColumnMode(mode);
+    if (mode === "verdict") setExamWrongFilter("all");
     if (!summaryColumnStorageKey) return;
     setStoredTableOption(summaryColumnStorageKey, "mode", mode);
   }, [summaryColumnStorageKey]);
@@ -435,6 +446,22 @@ export default function SessionScoresEntryPage({
     enabled: Number.isFinite(numericSessionId) && numericSessionId > 0,
   });
   const isBlankScoreSheet = useMemo(() => isCompletelyBlankScoreSheet(data), [data]);
+
+  const examWrongOverview = useMemo(() => {
+    const searchedRows = (data?.rows ?? [])
+      .filter((row) => (row.exams?.length ?? 0) > 0 || (row.homeworks?.length ?? 0) > 0)
+      .filter((row) => matchesSessionScoreStudentSearch(row.student_name ?? "", searchInput));
+    const counts = { all: searchedRows.length, wrong: 0, pending: 0, clear: 0 };
+    const visibleEnrollmentIds: number[] = [];
+    for (const row of searchedRows) {
+      const kind = getSessionRowExamWrongSummary(row).kind;
+      if (kind === "wrong" || kind === "pending" || kind === "clear") counts[kind] += 1;
+      if (examWrongFilter === "all" || kind === examWrongFilter) {
+        visibleEnrollmentIds.push(row.enrollment_id);
+      }
+    }
+    return { counts, visibleEnrollmentIds };
+  }, [data?.rows, examWrongFilter, searchInput]);
 
   const hasSubjectiveExam = useMemo(
     () => (data?.meta?.exams ?? []).some((exam) => Number(exam.subjective_max_score ?? 0) > 0),
@@ -914,6 +941,49 @@ export default function SessionScoresEntryPage({
               <button type="button" onClick={() => handleSummaryColumnModeChange("exam_wrong")} className="scores-display-segment__btn" aria-pressed={summaryColumnMode === "exam_wrong"}>테스트 오답</button>
             </div>
           </div>
+          {summaryColumnMode === "exam_wrong" && (
+            <div className="scores-exam-wrong-tools" aria-label="테스트 오답 빠른 필터">
+              <div className="scores-view-filter-section">
+                <span className="scores-view-filter-label">학생 필터</span>
+                <div className="scores-display-segment" role="group" aria-label="테스트 오답 학생 필터">
+                  {([
+                    ["all", "전체"],
+                    ["wrong", "오답 있음"],
+                    ["pending", "확인 대기"],
+                    ["clear", "오답 없음"],
+                  ] as const).map(([filter, label]) => (
+                    <button
+                      key={filter}
+                      type="button"
+                      onClick={() => setExamWrongFilter(filter)}
+                      className="scores-display-segment__btn scores-display-segment__btn--counted"
+                      aria-pressed={examWrongFilter === filter}
+                      aria-label={`${label} ${examWrongOverview.counts[filter]}명`}
+                      disabled={filter !== "all" && examWrongOverview.counts[filter] === 0}
+                    >
+                      <span>{label}</span>
+                      <span className="scores-filter-count" aria-hidden="true">
+                        {examWrongOverview.counts[filter]}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <Button
+                intent="secondary"
+                size="sm"
+                leftIcon={<Users size={ICON_FOR_BUTTON.sm} />}
+                onClick={() => {
+                  setSelectedEnrollmentIds(examWrongOverview.visibleEnrollmentIds);
+                  feedback.success(`현재 결과 ${examWrongOverview.visibleEnrollmentIds.length}명을 선택했습니다.`);
+                }}
+                disabled={isEditMode || examWrongOverview.visibleEnrollmentIds.length === 0}
+                title={isEditMode ? "점수를 저장하고 잠근 뒤 선택할 수 있습니다." : "검색과 오답 필터에 보이는 학생만 선택합니다."}
+              >
+                현재 결과 선택
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -1369,6 +1439,7 @@ export default function SessionScoresEntryPage({
           scoreFormat={scoreFormat}
           viewFilter={viewFilter}
           summaryColumnMode={summaryColumnMode}
+          examWrongFilter={examWrongFilter}
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={setSelectedEnrollmentIds}
           onOpenExamGrading={(examId, title, gradingMode, manualGradingMethod, action) => { void (async () => {
