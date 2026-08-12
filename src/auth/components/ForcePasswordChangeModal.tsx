@@ -67,6 +67,9 @@ export default function ForcePasswordChangeModal({
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="force-password-change-title"
       style={{
         position: "fixed",
         inset: 0,
@@ -111,7 +114,7 @@ export default function ForcePasswordChangeModal({
               </svg>
             </div>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary, #111)" }}>
+              <div id="force-password-change-title" style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary, #111)" }}>
                 비밀번호 변경
               </div>
               <div style={{ fontSize: 12, color: "var(--color-text-muted, #888)", marginTop: 2 }}>
@@ -128,10 +131,11 @@ export default function ForcePasswordChangeModal({
         <div style={{ padding: "16px 24px 20px" }}>
           <div className="flex flex-col gap-3">
             <div className="space-y-1">
-              <label className="text-xs font-medium" style={{ color: "var(--color-text-secondary, #666)" }}>
+              <label htmlFor="force-current-password" className="text-xs font-medium" style={{ color: "var(--color-text-secondary, #666)" }}>
                 현재/임시 비밀번호
               </label>
               <input
+                id="force-current-password"
                 type="password"
                 className={inputCls}
                 value={oldPw}
@@ -142,10 +146,11 @@ export default function ForcePasswordChangeModal({
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium" style={{ color: "var(--color-text-secondary, #666)" }}>
+              <label htmlFor="force-new-password" className="text-xs font-medium" style={{ color: "var(--color-text-secondary, #666)" }}>
                 새 비밀번호
               </label>
               <input
+                id="force-new-password"
                 type="password"
                 className={inputCls}
                 value={newPw}
@@ -155,10 +160,11 @@ export default function ForcePasswordChangeModal({
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-medium" style={{ color: "var(--color-text-secondary, #666)" }}>
+              <label htmlFor="force-confirm-password" className="text-xs font-medium" style={{ color: "var(--color-text-secondary, #666)" }}>
                 새 비밀번호 확인
               </label>
               <input
+                id="force-confirm-password"
                 type="password"
                 className={inputCls}
                 value={confirmPw}

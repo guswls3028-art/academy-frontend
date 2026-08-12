@@ -68,6 +68,7 @@ async function mockStaffApi(
   options?: {
     lockFailure?: boolean;
     onStaffPatch?: (body: Record<string, unknown>) => void;
+    onPasswordReset?: (body: Record<string, unknown>) => void;
     expenses?: Array<Record<string, unknown>>;
     onExpensePatch?: (id: number, body: Record<string, unknown>) => void;
     onExpenseDelete?: (id: number) => void;
@@ -127,6 +128,11 @@ async function mockStaffApi(
       const body = request.postDataJSON() as Record<string, unknown>;
       options?.onStaffPatch?.(body);
       return json({ ...activeStaff, ...body });
+    }
+    if (path === "/staffs/1/change-password/" && request.method() === "POST") {
+      const body = request.postDataJSON() as Record<string, unknown>;
+      options?.onPasswordReset?.(body);
+      return json({ detail: "비밀번호가 변경되었습니다." });
     }
     if (path === "/staffs/1/summary/" && request.method() === "GET") {
       return json({
@@ -304,6 +310,28 @@ test.describe("직원 운영 계약", () => {
     await expect(page.getByTestId("staff-detail-overlay")).toBeVisible();
     await page.getByTestId("staff-detail-overlay").getByRole("button", { name: "닫기" }).click();
     await expect(page).toHaveURL(/\/workspace\/staff\/attendance\?staffId=1&year=2026&month=8$/);
+  });
+
+  test("직원 임시 비밀번호 설정은 선택한 한 계정의 강제 초기화 API만 호출한다", async ({ page }) => {
+    let passwordBody: Record<string, unknown> | undefined;
+    await mockStaffApi(page, {
+      onPasswordReset: (body) => { passwordBody = body; },
+    });
+
+    await page.goto(`${BASE}/workspace/staff/home`, {
+      waitUntil: "domcontentloaded",
+    });
+    await page.getByRole("checkbox", { name: "김조교 선택" }).check();
+    await page.getByRole("button", { name: "비밀번호 변경", exact: true }).click();
+
+    const dialog = page.getByRole("dialog", { name: "임시 비밀번호 설정" });
+    await expect(dialog.getByText("기존 로그인은 만료되며, 직원은 다음 로그인에서 비밀번호를 변경해야 합니다.")).toBeVisible();
+    await dialog.getByLabel("새 비밀번호 *").fill("staff-temporary-password");
+    await dialog.getByRole("button", { name: "변경", exact: true }).click();
+
+    await expect.poll(() => passwordBody).toEqual({
+      password: "staff-temporary-password",
+    });
   });
 
   test("선결제 환급은 상태 합계·필터와 대기 건 수정·삭제를 한 흐름에서 처리한다", async ({ page }) => {
