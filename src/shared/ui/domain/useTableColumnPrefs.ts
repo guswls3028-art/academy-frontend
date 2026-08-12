@@ -5,6 +5,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
 
 const STORAGE_PREFIX = "academy-table-prefs-";
 
@@ -25,7 +26,7 @@ type StoredTablePrefs = {
 
 function loadPrefs(tableId: string): StoredTablePrefs | null {
   try {
-    const raw = localStorage.getItem(STORAGE_PREFIX + tableId);
+    const raw = getLocalItem(STORAGE_PREFIX + tableId);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (parsed && typeof parsed === "object" && Array.isArray(parsed.visible)) {
@@ -56,7 +57,7 @@ function savePrefs(
   options: Record<string, string> = {},
 ) {
   try {
-    localStorage.setItem(
+    setLocalItem(
       STORAGE_PREFIX + tableId,
       JSON.stringify({ visible, widths, known, options })
     );

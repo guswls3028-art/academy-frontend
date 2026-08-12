@@ -8,6 +8,40 @@
   gap: 10px;
 }
 
+.quickNavigationWrap {
+  padding: 0 12px 10px;
+}
+
+.quickNavigationButton {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  width: 100%;
+  min-height: 46px;
+  gap: 9px;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary, #3b82f6) 22%, var(--color-border-divider, #eee));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-brand-primary, #3b82f6) 7%, var(--color-bg-surface, white));
+  color: var(--color-text-primary, #172033);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.quickNavigationButton:focus-visible {
+  outline: 2px solid var(--color-brand-primary, #3b82f6);
+  outline-offset: 2px;
+}
+
+.quickNavigationHint {
+  justify-self: end;
+  color: var(--color-text-muted, #667085);
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .navIcon {
   display: grid;
   flex: 0 0 auto;

@@ -1,15 +1,8 @@
 // PATH: src/shared/ui/layout/Sidebar.tsx
 import { NavLink, useLocation } from "react-router";
-import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import {
-  ADMIN_NAV_GROUPS,
-  NavIcon,
-} from "./adminNavConfig";
-import { fetchStaffMe } from "@admin/domains/staff/api/staffMe.api";
-import { staffQueryKeys } from "@admin/domains/staff/queryKeys";
-import { useProgram } from "@/shared/program";
-import useAuth from "@/auth/hooks/useAuth";
+import { useEffect, useState } from "react";
+import { NavIcon } from "./adminNavConfig";
+import { useAvailableAdminNavigation } from "./useAvailableAdminNavigation";
 import styles from "./Sidebar.module.css";
 
 const SIDEBAR_STORAGE_KEY = "ui.sidebar.collapsed";
@@ -43,24 +36,7 @@ function applySidebarLayout(collapsed: boolean) {
 export default function Sidebar() {
   const loc = useLocation();
   const [collapsed, setCollapsed] = useState<boolean>(() => safeGetCollapsed());
-  const { data: staffMe } = useQuery({ queryKey: staffQueryKeys.me, queryFn: fetchStaffMe });
-  const { program } = useProgram();
-  const { user } = useAuth();
-
-  const groups = useMemo(() => {
-    const isStaffAdmin = !!staffMe?.is_payroll_manager;
-    const isTenantAdmin = user?.tenantRole === "owner" || user?.tenantRole === "admin" || !!user?.is_superuser;
-    const flags = program?.feature_flags ?? {};
-    return ADMIN_NAV_GROUPS.map((g) => ({
-      ...g,
-      items: g.items.filter((it) => {
-        if (it.requiresStaffAdmin && !isStaffAdmin) return false;
-        if (it.requiresTenantAdmin && !isTenantAdmin) return false;
-        if (it.requiresFeatureFlag && !flags[it.requiresFeatureFlag]) return false;
-        return true;
-      }),
-    })).filter((g) => g.items.length > 0);
-  }, [staffMe?.is_payroll_manager, program?.feature_flags, user?.tenantRole, user?.is_superuser]);
+  const groups = useAvailableAdminNavigation();
 
   const isActive = (to: string) =>
     loc.pathname === to || loc.pathname.startsWith(to + "/");

@@ -1,45 +1,23 @@
 /**
  * 선생앱 모바일: 좌측 드로어에 표시할 전체 메뉴. 링크 클릭 시 드로어 닫힘.
  */
-import { useMemo } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router";
-import { useQuery } from "@tanstack/react-query";
 import { Drawer } from "antd";
-import { Smartphone } from "lucide-react";
+import { Search, Smartphone } from "lucide-react";
 import { useAdminLayout } from "./useAdminLayout";
-import { ADMIN_NAV_GROUPS, NavIcon } from "./adminNavConfig";
-import { fetchStaffMe } from "@admin/domains/staff/api/staffMe.api";
-import { staffQueryKeys } from "@admin/domains/staff/queryKeys";
-import { useProgram } from "@/shared/program";
+import { NavIcon } from "./adminNavConfig";
+import { useAvailableAdminNavigation } from "./useAvailableAdminNavigation";
 import { setPreferFullWorkspace } from "@/core/router/MobileWorkspaceRedirect";
-import useAuth from "@/auth/hooks/useAuth";
 import styles from "./AdminNavDrawer.module.css";
 
-export default function AdminNavDrawer() {
+export default function AdminNavDrawer({ onOpenQuickNavigation }: { onOpenQuickNavigation: () => void }) {
   const layout = useAdminLayout();
   const loc = useLocation();
   const navigate = useNavigate();
   const open = layout?.drawerOpen ?? false;
   const onClose = layout?.closeDrawer ?? (() => {});
-  const { data: staffMe } = useQuery({ queryKey: staffQueryKeys.me, queryFn: fetchStaffMe });
-  const { program } = useProgram();
-  const { user } = useAuth();
+  const groups = useAvailableAdminNavigation();
   const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches;
-
-  const groups = useMemo(() => {
-    const isStaffAdmin = !!staffMe?.is_payroll_manager;
-    const isTenantAdmin = user?.tenantRole === "owner" || user?.tenantRole === "admin" || !!user?.is_superuser;
-    const flags = program?.feature_flags ?? {};
-    return ADMIN_NAV_GROUPS.map((g) => ({
-      ...g,
-      items: g.items.filter(
-        (it) =>
-          (!it.requiresStaffAdmin || isStaffAdmin)
-          && (!it.requiresTenantAdmin || isTenantAdmin)
-          && (!it.requiresFeatureFlag || !!flags[it.requiresFeatureFlag])
-      ),
-    })).filter((g) => g.items.length > 0);
-  }, [program?.feature_flags, staffMe?.is_payroll_manager, user?.tenantRole, user?.is_superuser]);
 
   const isActive = (to: string) =>
     to !== "" && (loc.pathname === to || loc.pathname.startsWith(to + "/"));
@@ -53,6 +31,20 @@ export default function AdminNavDrawer() {
       size={280}
       rootClassName={styles.drawer}
     >
+      <div className={styles.quickNavigationWrap}>
+        <button
+          type="button"
+          className={styles.quickNavigationButton}
+          onClick={() => {
+            onClose();
+            onOpenQuickNavigation();
+          }}
+        >
+          <Search size={18} aria-hidden />
+          <span>빠른 이동</span>
+          <span className={styles.quickNavigationHint}>메뉴 검색</span>
+        </button>
+      </div>
       <div
         className={styles.nav}
         data-analytics-placement="admin.drawer"

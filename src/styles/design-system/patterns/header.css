@@ -560,6 +560,39 @@
   border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border-divider));
 }
 
+[data-app="admin"] .app-header__quickNavigationBtn {
+  height: 40px;
+  gap: 8px;
+  padding-inline: 12px 9px;
+  border-color: color-mix(in srgb, var(--color-primary) 14%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface));
+  color: var(--color-text-primary);
+  font-weight: 700;
+}
+
+[data-app="admin"] .app-header__quickNavigationBtn:hover {
+  border-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-primary) 9%, var(--color-bg-surface));
+}
+
+[data-app="admin"] .app-header__quickNavigationBtn kbd {
+  padding: 2px 6px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 12%, var(--color-border-divider));
+  border-radius: 6px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+@media (max-width: 1180px) {
+  [data-app="admin"] .app-header__quickNavigationBtn kbd {
+    display: none;
+  }
+}
+
 [data-app="admin"] .app-header__menuBtn {
   height: 40px;
   padding-left: 14px;

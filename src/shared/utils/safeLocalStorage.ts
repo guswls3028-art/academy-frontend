@@ -1,0 +1,24 @@
+function getStorage(): Storage | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+export function getLocalItem(key: string): string | null {
+  try {
+    return getStorage()?.getItem(key) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function setLocalItem(key: string, value: string): void {
+  try {
+    getStorage()?.setItem(key, value);
+  } catch {
+    // Storage can be blocked or full; preferences must never break the UI.
+  }
+}

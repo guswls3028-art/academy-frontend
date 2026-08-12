@@ -20,15 +20,20 @@ import {
 } from "@/shared/tenant";
 import { GuideBookLauncher, getGuideBookPreset } from "@/shared/ui/guide";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
-import { Menu, Bell, BellRing } from "@teacher/shared/ui/Icons";
+import { Menu, Bell, BellRing, Search } from "@teacher/shared/ui/Icons";
 interface Props {
   onMenuClick: () => void;
+  onQuickNavigationClick: () => void;
   showMenuButton?: boolean;
 }
 
 const TEACHER_GUIDE_BOOK = getGuideBookPreset("teacher");
 
-export default function TeacherTopBar({ onMenuClick, showMenuButton = true }: Props) {
+export default function TeacherTopBar({
+  onMenuClick,
+  onQuickNavigationClick,
+  showMenuButton = true,
+}: Props) {
   const navigate = useNavigate();
   const { program } = useProgram();
   const { counts } = useTeacherPendingCounts();
@@ -88,26 +93,6 @@ export default function TeacherTopBar({ onMenuClick, showMenuButton = true }: Pr
           aria-label="선생님 홈으로 이동"
           title="선생님 홈으로 이동"
           data-testid="tc-topbar-go-dashboard"
-          style={{
-            background: "none",
-            border: "none",
-            padding: 8,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: "var(--tc-text-secondary)",
-            borderRadius: "var(--tc-radius)",
-            minWidth: "var(--tc-touch-min)",
-            minHeight: "var(--tc-touch-min)",
-            cursor: "pointer",
-          }}
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 12L12 4l9 8" />
-            <path d="M5 10v10h14V10" />
-          </svg>
-        </button>
-        <button
-          onClick={() => navigate("/workspace/mobile")}
-          aria-label="홈으로"
           className="teacher-topbar__brand"
           data-tenant-header-brand={headerBrandStyle ? "" : undefined}
           style={{
@@ -171,9 +156,30 @@ export default function TeacherTopBar({ onMenuClick, showMenuButton = true }: Pr
         </button>
       </div>
 
-      {/* Right: 작업박스 영역 — 알림 벨(향후 검색·계정 등 추가 자리).
-          학원 홈페이지 동선은 좌상단 홈 아이콘이 SSOT (2026-05-12 학원장 spec, 중복 제거). */}
+      {/* Right: 빠른 이동·가이드·알림. 홈은 좌측 브랜드 버튼 하나가 소유한다. */}
       <div style={{ display: "flex", alignItems: "center", gap: 0, flexShrink: 0 }}>
+        <button
+          type="button"
+          onClick={onQuickNavigationClick}
+          aria-label="빠른 이동"
+          aria-keyshortcuts="Control+K Meta+K"
+          title="빠른 이동"
+          style={{
+            background: "none",
+            border: "none",
+            padding: 8,
+            cursor: "pointer",
+            borderRadius: "var(--tc-radius-full)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "var(--tc-text-secondary)",
+            minWidth: "var(--tc-touch-min)",
+            minHeight: "var(--tc-touch-min)",
+          }}
+        >
+          <Search size={ICON.lg} />
+        </button>
         <GuideBookLauncher
           preset={TEACHER_GUIDE_BOOK}
           tone="teacher"

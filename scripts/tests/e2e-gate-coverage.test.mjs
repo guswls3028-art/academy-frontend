@@ -46,6 +46,10 @@ test("the current homework score contract cannot fall out of the PR gate", () =>
   assert.ok(gateSpecs.has("e2e/admin/score-entry-autosave.spec.ts"));
 });
 
+test("workspace quick navigation cannot fall out of the route-mock PR gate", () => {
+  assert.ok(gateSpecs.has("e2e/admin/workspace-quick-navigation.mock.spec.ts"));
+});
+
 test("PR read-only and route-mock gates keep separate runtime boundaries", () => {
   for (const workflowOwner of [
     ".github/workflows/e2e.yml",
