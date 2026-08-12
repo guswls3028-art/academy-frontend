@@ -23,12 +23,13 @@ import { useClinicTargets } from "../hooks/useClinicTargets";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { clinicQueryKeys } from "../queryKeys";
+import { getTenantLocalItem, setTenantLocalItem } from "@/shared/utils/safeLocalStorage";
 
 const SAVED_LOCATIONS_KEY = "academy-clinic-saved-locations";
 
 function getSavedLocations(): string[] {
   try {
-    const raw = localStorage.getItem(SAVED_LOCATIONS_KEY);
+    const raw = getTenantLocalItem(SAVED_LOCATIONS_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : [];
@@ -43,21 +44,13 @@ function saveLocationToStorage(name: string): string[] {
   const list = getSavedLocations();
   if (list.includes(trimmed)) return list;
   const next = [...list, trimmed];
-  try {
-    localStorage.setItem(SAVED_LOCATIONS_KEY, JSON.stringify(next));
-  } catch {
-    /* ignore */
-  }
+  setTenantLocalItem(SAVED_LOCATIONS_KEY, JSON.stringify(next));
   return next;
 }
 
 function removeSavedLocation(name: string): string[] {
   const list = getSavedLocations().filter((x) => x !== name);
-  try {
-    localStorage.setItem(SAVED_LOCATIONS_KEY, JSON.stringify(list));
-  } catch {
-    /* ignore */
-  }
+  setTenantLocalItem(SAVED_LOCATIONS_KEY, JSON.stringify(list));
   return list;
 }
 

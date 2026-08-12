@@ -18,6 +18,7 @@ import { fetchStaffMe } from "@admin/domains/staff/api/staffMe.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { validateRequiredFields } from "@/shared/utils/modalValidation";
+import { getTenantLocalItem, setTenantLocalItem } from "@/shared/utils/safeLocalStorage";
 import { adminLectureQueryKeys } from "../queryKeys";
 import "./LectureCreateModal.css";
 
@@ -25,7 +26,7 @@ const SAVED_SUBJECTS_KEY = "academy-lecture-saved-subjects";
 
 function getSavedList(key: string): string[] {
   try {
-    const raw = localStorage.getItem(key);
+    const raw = getTenantLocalItem(key);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed.filter((x: unknown): x is string => typeof x === "string") : [];
@@ -40,21 +41,13 @@ function saveToList(key: string, name: string): string[] {
   const list = getSavedList(key);
   if (list.includes(trimmed)) return list;
   const next = [...list, trimmed];
-  try {
-    localStorage.setItem(key, JSON.stringify(next));
-  } catch {
-    /* ignore */
-  }
+  setTenantLocalItem(key, JSON.stringify(next));
   return next;
 }
 
 function removeFromList(key: string, name: string): string[] {
   const list = getSavedList(key).filter((x) => x !== name);
-  try {
-    localStorage.setItem(key, JSON.stringify(list));
-  } catch {
-    /* ignore */
-  }
+  setTenantLocalItem(key, JSON.stringify(list));
   return list;
 }
 

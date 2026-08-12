@@ -66,6 +66,20 @@ const landingConfig = {
   template_key: "minimal_tutor",
 };
 
+async function stubLandingPublic(page: Page, config = landingConfig) {
+  await page.route("**/api/v1/core/landing/public/**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        has_landing: true,
+        template_key: "minimal_tutor",
+        config,
+      }),
+    });
+  });
+}
+
 async function stubLandingBootstrap(page: Page) {
   await page.addInitScript(() => {
     localStorage.setItem("tenant_code", "dnb");
@@ -86,17 +100,7 @@ async function stubLandingBootstrap(page: Page) {
     });
   });
 
-  await page.route("**/api/v1/core/landing/public/**", async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        has_landing: true,
-        template_key: "minimal_tutor",
-        config: landingConfig,
-      }),
-    });
-  });
+  await stubLandingPublic(page);
 
   await page.route("**/api/v1/core/landing/testimonial/public/**", async (route) => {
     await route.fulfill({
@@ -141,5 +145,44 @@ test.describe("landing route island", () => {
     await expect(page).toHaveURL(/\/landing\/about$/);
     await expect(page.getByRole("heading", { name: "테스트 아카데미 소개" })).toBeVisible();
     await expect(page.getByRole("link", { name: /적중 보고서/ }).first()).toBeVisible();
+  });
+
+  test("scopes a 24-hour notice dismissal to the exact tenant notice", async ({ page }) => {
+    const firstNotice = {
+      enabled: true,
+      title: "첫 번째 운영 공지",
+      content: "오늘 수업 일정을 확인해 주세요.",
+      link: "/landing/about",
+    };
+    await page.unroute("**/api/v1/core/landing/public/**");
+    await stubLandingPublic(page, { ...landingConfig, notice_popup: firstNotice });
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        "landing-notice-popup-skip",
+        String(Date.now() + 24 * 60 * 60 * 1000),
+      );
+    });
+
+    await page.goto(`${BASE}/landing`, { waitUntil: "load" });
+    await expect(page.getByRole("dialog", { name: "학원 공지" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: firstNotice.title })).toBeVisible();
+    await page.getByTestId("landing-notice-popup-skip").click();
+
+    const scopedKeys = await page.evaluate(() => Object.keys(localStorage));
+    expect(scopedKeys.some((key) => (
+      key.startsWith("landing-notice-popup-skip:") && key.endsWith(":dnb")
+    ))).toBe(true);
+
+    await page.reload({ waitUntil: "load" });
+    await expect(page.getByRole("dialog", { name: "학원 공지" })).toHaveCount(0);
+
+    await page.unroute("**/api/v1/core/landing/public/**");
+    await stubLandingPublic(page, {
+      ...landingConfig,
+      notice_popup: { ...firstNotice, title: "수정된 새 운영 공지" },
+    });
+    await page.reload({ waitUntil: "load" });
+
+    await expect(page.getByRole("heading", { name: "수정된 새 운영 공지" })).toBeVisible();
   });
 });
