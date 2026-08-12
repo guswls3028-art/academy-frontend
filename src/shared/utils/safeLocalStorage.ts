@@ -1,3 +1,5 @@
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
+
 function getStorage(): Storage | null {
   if (typeof window === "undefined") return null;
   try {
@@ -21,4 +23,19 @@ export function setLocalItem(key: string, value: string): void {
   } catch {
     // Storage can be blocked or full; preferences must never break the UI.
   }
+}
+
+function tenantStorageKey(key: string): string | null {
+  const tenantCode = getTenantCodeForApiRequest();
+  return tenantCode ? `${key}:${tenantCode}` : null;
+}
+
+export function getTenantLocalItem(key: string): string | null {
+  const scopedKey = tenantStorageKey(key);
+  return scopedKey ? getLocalItem(scopedKey) : null;
+}
+
+export function setTenantLocalItem(key: string, value: string): void {
+  const scopedKey = tenantStorageKey(key);
+  if (scopedKey) setLocalItem(scopedKey, value);
 }

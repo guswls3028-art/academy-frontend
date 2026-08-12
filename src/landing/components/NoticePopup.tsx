@@ -4,20 +4,35 @@
 /* eslint-disable no-restricted-syntax */
 
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
+import { getTenantLocalItem, setTenantLocalItem } from "@/shared/utils/safeLocalStorage";
 import type { NoticePopupConfig } from "../types";
 
-const SKIP_KEY = "landing-notice-popup-skip"; // localStorage key
+const SKIP_KEY_PREFIX = "landing-notice-popup-skip";
 
-function readSkipUntil(): number {
-  try {
-    const raw = window.localStorage.getItem(SKIP_KEY);
-    return raw ? Number(raw) || 0 : 0;
-  } catch { return 0; }
+function noticeFingerprint(notice: NoticePopupConfig): string {
+  const value = [notice.title, notice.content, notice.link, notice.expire_at]
+    .map((part) => part ?? "")
+    .join("\u0000");
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
 }
 
-function writeSkipUntil(ms: number) {
-  try { window.localStorage.setItem(SKIP_KEY, String(ms)); } catch { /* ignore */ }
+function skipKey(notice: NoticePopupConfig): string {
+  return `${SKIP_KEY_PREFIX}:${noticeFingerprint(notice)}`;
+}
+
+function readSkipUntil(notice: NoticePopupConfig): number {
+  const raw = getTenantLocalItem(skipKey(notice));
+  return raw ? Number(raw) || 0 : 0;
+}
+
+function writeSkipUntil(notice: NoticePopupConfig, ms: number) {
+  setTenantLocalItem(skipKey(notice), String(ms));
 }
 
 export default function NoticePopup({ notice }: { notice?: NoticePopupConfig | null }) {
@@ -25,6 +40,7 @@ export default function NoticePopup({ notice }: { notice?: NoticePopupConfig | n
   const navigate = useNavigate();
 
   useEffect(() => {
+    setOpen(false);
     if (!notice?.enabled) return;
     if (!notice.title && !notice.content) return;
     // expire_at 지나면 노출 X
@@ -33,7 +49,7 @@ export default function NoticePopup({ notice }: { notice?: NoticePopupConfig | n
       if (expired) return;
     }
     // 24h skip
-    if (Date.now() < readSkipUntil()) return;
+    if (Date.now() < readSkipUntil(notice)) return;
     setOpen(true);
   }, [notice]);
 
@@ -47,7 +63,7 @@ export default function NoticePopup({ notice }: { notice?: NoticePopupConfig | n
   if (!open || !notice) return null;
 
   const onSkip24h = () => {
-    writeSkipUntil(Date.now() + 24 * 60 * 60 * 1000);
+    writeSkipUntil(notice, Date.now() + 24 * 60 * 60 * 1000);
     setOpen(false);
   };
 
@@ -142,10 +158,13 @@ export default function NoticePopup({ notice }: { notice?: NoticePopupConfig | n
           >닫기</button>
         </div>
       </div>
-      <Link to="" style={{ display: "none" }} />
       <style>{`
         @keyframes noticeFade { from { opacity: 0 } to { opacity: 1 } }
         @keyframes noticeRise { from { transform: translateY(20px); opacity: 0.5 } to { transform: translateY(0); opacity: 1 } }
+        @media (prefers-reduced-motion: reduce) {
+          [data-testid="landing-notice-popup"],
+          [data-testid="landing-notice-popup"] [role="dialog"] { animation: none !important; }
+        }
       `}</style>
     </div>
   );
