@@ -498,6 +498,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     await expect(checklist).toContainText("확인 입력과 일치");
     await page.getByRole("button", { name: "새 비밀번호 보기" }).click();
     await expect(page.getByPlaceholder("새 비밀번호", { exact: true })).toHaveAttribute("type", "text");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
     const passwordRequest = page.waitForRequest((request) => (
       request.method() === "POST"
@@ -510,7 +511,6 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       old_password: "old-parent-password",
       new_password: "new-parent-password",
     });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
   test("영상 홈·차시·재생목록은 다중 이스케이프 HTML을 일반 텍스트로만 표시한다", async ({ page }) => {
