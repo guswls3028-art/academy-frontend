@@ -57,7 +57,7 @@ async function assertNoRenderedHtmlLeak(page: Page) {
 
 async function installStudentApi(
   page: Page,
-  options: { profileId?: () => number; examId?: number; legacyHtml?: boolean; failDataRequests?: boolean; lectureNotices?: boolean } = {},
+  options: { profileId?: () => number; examId?: number; legacyHtml?: boolean; failDataRequests?: boolean; lectureNotices?: boolean; parentReadOnly?: boolean } = {},
 ) {
   await page.addInitScript(({ token }) => {
     localStorage.setItem("access", token);
@@ -108,7 +108,7 @@ async function installStudentApi(
         name: options.legacyHtml ? escapedHtml("학생 이름", "strong") : `학생 ${profileId}`,
         displayName: options.legacyHtml ? escapedHtml("학생 이름", "span") : `학생 ${profileId}`,
         is_student: true,
-        isParentReadOnly: false,
+        isParentReadOnly: options.parentReadOnly ?? false,
       } });
       return;
     }
@@ -480,6 +480,29 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     profileId = 22;
     await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
     await expect(page.getByLabel("1개의 알림")).toBeVisible();
+  });
+
+  test("학부모 내 비밀번호는 읽기 전용 학생 프로필이 아닌 공용 계정 API로 변경한다", async ({ page }) => {
+    await installStudentApi(page, { parentReadOnly: true });
+    await page.goto(`${BASE}/student/profile`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    await expect(page.getByText("학부모 계정으로 로그인 중입니다.")).toBeVisible();
+    await page.getByRole("button", { name: "비밀번호 변경하기" }).click();
+    await page.getByPlaceholder("현재 비밀번호").fill("old-parent-password");
+    await page.getByPlaceholder("새 비밀번호", { exact: true }).fill("new-parent-password");
+    await page.getByPlaceholder("새 비밀번호 확인").fill("new-parent-password");
+
+    const passwordRequest = page.waitForRequest((request) => (
+      request.method() === "POST"
+      && new URL(request.url()).pathname.endsWith("/core/change-password/")
+    ));
+    await page.getByRole("button", { name: "비밀번호 변경", exact: true }).click();
+
+    const request = await passwordRequest;
+    expect(request.postDataJSON()).toEqual({
+      old_password: "old-parent-password",
+      new_password: "new-parent-password",
+    });
   });
 
   test("영상 홈·차시·재생목록은 다중 이스케이프 HTML을 일반 텍스트로만 표시한다", async ({ page }) => {

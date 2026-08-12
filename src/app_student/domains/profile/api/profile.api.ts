@@ -1,5 +1,6 @@
 // PATH: src/app_student/domains/profile/api/profile.ts
 import api from "@student/shared/api/student.api";
+import accountApi from "@/shared/api/axios";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 
 /** 선생앱 학생·회원가입 모달과 동일 스펙 (내정보 표시·수정) */
@@ -60,12 +61,10 @@ export async function updateMyProfilePhoto(file: File): Promise<MyProfile> {
   return normalizeMyProfile(res.data);
 }
 
-/** 이름·아이디·비밀번호·전화·성별·주소·학교정보 등 수정 (회원가입 모달 필드와 동일) */
+/** 이름·아이디·전화·성별·주소·학교정보 등 학생 프로필 수정 */
 export async function updateMyProfile(data: {
   name?: string;
   username?: string;
-  current_password?: string;
-  new_password?: string;
   phone?: string | null;
   parent_phone?: string;
   gender?: string | null;
@@ -82,4 +81,12 @@ export async function updateMyProfile(data: {
 }): Promise<MyProfile> {
   const res = await api.patch<MyProfile>("/student/me/", data);
   return normalizeMyProfile(res.data);
+}
+
+/** 학생·학부모 모두 자신의 계정 비밀번호를 변경한다. */
+export async function changeMyPassword(data: {
+  old_password: string;
+  new_password: string;
+}): Promise<void> {
+  await accountApi.post("/core/change-password/", data);
 }
