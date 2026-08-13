@@ -6,10 +6,9 @@
  * 목적:
  * - Admin 결과 리스트 Row에서 운영자가 이해 가능한 단일 상태 제공
  *
- * 🔒 절대 규칙:
- * - 프론트 계산 ❌
- * - 프론트 추측 ❌
- * - 점수/문항/attempt 직접 해석 ❌
+ * 우선 규칙:
+ * - 백엔드 result_status를 그대로 사용
+ * - 순차 배포 중 구버전 응답에만 제한된 호환 판정 적용
  *
  * 사용 신호(backend 계약):
  * - submission_status (필수로 신뢰)
@@ -23,6 +22,13 @@ import type { FrontResultStatus } from "../types/frontResultStatus";
 import type { AdminExamResultRow } from "../types/results.types";
 
 export function deriveFrontResultStatus(row: AdminExamResultRow): FrontResultStatus {
+  const backendStatus = String(row.result_status ?? "").toUpperCase();
+  if (backendStatus === "NOT_SUBMITTED") return "waiting";
+  if (backendStatus === "PROCESSING") return "processing";
+  if (backendStatus === "PARTIAL") return "partial_done";
+  if (backendStatus === "DONE") return "done";
+  if (backendStatus === "FAILED") return "failed";
+
   const raw = String(row.submission_status ?? "").toLowerCase().trim();
 
   /**
@@ -30,6 +36,10 @@ export function deriveFrontResultStatus(row: AdminExamResultRow): FrontResultSta
    * - 이 경우만 waiting (진짜 미제출/미생성 케이스)
    */
   if (!raw) {
+    if (row.meta_status === "NOT_SUBMITTED") return "waiting";
+    if (typeof row.final_score === "number" && Number.isFinite(row.final_score)) {
+      return row.is_provisional ? "partial_done" : "done";
+    }
     // 레거시: submission_id가 있으면 제출로 간주
     if (row.submission_id) return "processing";
     return "waiting";
@@ -63,7 +73,7 @@ export function deriveFrontResultStatus(row: AdminExamResultRow): FrontResultSta
   /**
    * 4) 결과는 있으나 후처리/검수 필요
    */
-  if (row.clinic_required) {
+  if (row.is_provisional) {
     return "partial_done";
   }
 

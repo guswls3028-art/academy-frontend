@@ -75,6 +75,7 @@ type InstallApiOptions = {
     students: number;
     questions: number;
   };
+  resultRows?: Array<Record<string, unknown>>;
 };
 
 async function installApi(page: Page, options: InstallApiOptions = {}) {
@@ -489,19 +490,26 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       return;
     }
     if (path === `/results/admin/exams/${EXAM_ID}/summary/`) {
+      const resultCount = options.resultRows?.length ?? (applied ? 1 : 0);
       await json({
         avg_score: applied ? 100 : 0,
         max_score: applied ? 100 : 0,
-        participant_count: applied ? 1 : 0,
+        participant_count: resultCount,
         pass_count: applied ? 1 : 0,
         fail_count: 0,
       });
       return;
     }
-    if (
-      path === `/results/admin/exams/${EXAM_ID}/results/` ||
-      path === `/results/admin/exams/${EXAM_ID}/questions/`
-    ) {
+    if (path === `/results/admin/exams/${EXAM_ID}/results/`) {
+      await json({
+        count: options.resultRows?.length ?? 0,
+        next: null,
+        previous: null,
+        results: options.resultRows ?? [],
+      });
+      return;
+    }
+    if (path === `/results/admin/exams/${EXAM_ID}/questions/`) {
       await json([]);
       return;
     }
@@ -812,6 +820,92 @@ test.describe("문항별 직접 채점", () => {
     await expect(studentRow.getByRole("button", { name: "O" })).toHaveCount(1);
     await expect(studentRow.getByRole("button", { name: "오답노트" })).toHaveCount(1);
     await expect(page.getByText("확정 전 변경사항", { exact: true })).toHaveCount(0);
+  });
+
+  test("학생별 결과가 1차 등수 점수와 최종점수를 구분하고 전체 행을 정렬·필터한다", async ({ page }, testInfo) => {
+    page.setDefaultNavigationTimeout(60_000);
+    await installApi(page, {
+      resultRows: [
+        {
+          enrollment_id: 902,
+          student_name: "이도규",
+          rank: 2,
+          ranking_score: 19,
+          final_score: 20,
+          cohort_size: 3,
+          result_status: "DONE",
+          achievement: "FAIL",
+          passed: false,
+          final_pass: false,
+          clinic_required: false,
+        },
+        {
+          enrollment_id: 901,
+          student_name: "심하윤",
+          rank: 1,
+          ranking_score: 20,
+          final_score: 19,
+          cohort_size: 3,
+          result_status: "DONE",
+          achievement: "FAIL",
+          passed: false,
+          final_pass: false,
+          clinic_required: false,
+        },
+        {
+          enrollment_id: 903,
+          student_name: "한경석",
+          rank: null,
+          ranking_score: null,
+          final_score: null,
+          cohort_size: null,
+          result_status: "NOT_SUBMITTED",
+          meta_status: "NOT_SUBMITTED",
+          achievement: "NOT_SUBMITTED",
+          passed: null,
+          final_pass: null,
+          clinic_required: false,
+        },
+      ],
+    });
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+
+    const resultRegion = page.getByRole("region", { name: "시험 학생별 결과" });
+    const resultRows = resultRegion.locator("tbody tr");
+    await expect(resultRows).toHaveCount(3);
+    await expect(resultRows.nth(0)).toContainText("심하윤");
+    await expect(resultRows.nth(0)).toContainText("최종 19");
+    await expect(resultRows.nth(0)).toContainText("완료");
+    await expect(resultRows.nth(1)).toContainText("이도규");
+    await resultRegion.screenshot({ path: testInfo.outputPath("results-desktop-1100.png") });
+
+    await resultRegion.getByRole("combobox", { name: "시험 결과 정렬" }).selectOption("final_score");
+    await expect(resultRows.nth(0)).toContainText("이도규");
+    await resultRegion.getByRole("combobox", { name: "시험 결과 상태 필터" }).selectOption("waiting");
+    await expect(resultRows).toHaveCount(1);
+    await expect(resultRows.nth(0)).toContainText("한경석");
+    await expect(resultRows.nth(0)).toContainText("미제출");
+
+    await resultRegion.getByRole("combobox", { name: "시험 결과 상태 필터" }).selectOption("all");
+    await resultRegion.getByRole("searchbox", { name: "시험 결과 학생 검색" }).fill("심하");
+    await expect(resultRows).toHaveCount(1);
+    await expect(resultRows.nth(0)).toContainText("심하윤");
+
+    await resultRegion.getByRole("searchbox", { name: "시험 결과 학생 검색" }).fill("");
+    await resultRegion.getByRole("combobox", { name: "시험 결과 정렬" }).selectOption("rank");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await expect(resultRegion).toBeVisible();
+    await resultRegion.scrollIntoViewIfNeeded();
+    await expect.poll(() => resultRegion.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    )).toBe(true);
+    await resultRegion.screenshot({ path: testInfo.outputPath("results-mobile-390.png") });
+    await page.screenshot({ path: testInfo.outputPath("results-mobile-page-390.png"), fullPage: true });
   });
 
   test.describe("운영체제·브라우저 단축키", { tag: "@manual-grading-shortcuts" }, () => {

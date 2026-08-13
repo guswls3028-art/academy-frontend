@@ -90,7 +90,7 @@ export default function ClinicSchedulePage() {
       fetchClinicSessions({
         date_from: weekFrom,
         date_to: weekTo,
-        ordering: "date,start_time",
+        ordering: "date,start_time,id",
       }),
     staleTime: 30_000,
   });

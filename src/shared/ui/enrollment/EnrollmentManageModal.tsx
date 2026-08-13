@@ -11,6 +11,7 @@ import { useConfirm } from "@/shared/ui/confirm";
 import { TABLE_COL } from "@/shared/ui/domain";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { formatPhone } from "@/shared/utils/formatPhone";
+import { compareKoreanText } from "@/shared/utils/dataOrdering";
 import "./EnrollmentManageModal.css";
 
 function TrashIcon({ className }: { className?: string }) {
@@ -78,9 +79,13 @@ export default function EnrollmentManageModal({
 }: Props) {
   const confirm = useConfirm();
   const [keyword, setKeyword] = useState("");
+  const [nameOrdering, setNameOrdering] = useState<"name" | "-name">("name");
 
   useEffect(() => {
-    if (!open) setKeyword("");
+    if (!open) {
+      setKeyword("");
+      setNameOrdering("name");
+    }
   }, [open]);
 
   const safeClose = useCallback(async () => {
@@ -100,9 +105,8 @@ export default function EnrollmentManageModal({
 
   const filtered = useMemo(() => {
     const k = keyword.trim().toLowerCase();
-    if (!k) return rows;
     const kDigits = k.replace(/\D/g, ""); // 전화번호 검색용 숫자만
-    return rows.filter((r) => {
+    const matches = !k ? [...rows] : rows.filter((r) => {
       if ((r.student_name ?? "").toLowerCase().includes(k)) return true;
       // 전화번호: 입력값의 숫자만 추출해서 raw 전화번호와 매칭
       if (kDigits && (r.parent_phone ?? "").replace(/\D/g, "").includes(kDigits)) return true;
@@ -111,10 +115,18 @@ export default function EnrollmentManageModal({
       if (r.grade != null && `${r.grade}학년`.includes(k)) return true;
       return false;
     });
-  }, [rows, keyword]);
+    return matches.sort((left, right) => {
+      const compared = compareKoreanText(left.student_name, right.student_name);
+      return (nameOrdering === "name" ? compared : -compared)
+        || left.enrollment_id - right.enrollment_id;
+    });
+  }, [rows, keyword, nameOrdering]);
 
   const selectedRows = useMemo(
-    () => rows.filter((r) => selectedIds.has(r.enrollment_id)),
+    () => rows
+      .filter((r) => selectedIds.has(r.enrollment_id))
+      .sort((left, right) => compareKoreanText(left.student_name, right.student_name)
+        || left.enrollment_id - right.enrollment_id),
     [rows, selectedIds]
   );
   const addedCount = useMemo(() => {
@@ -194,6 +206,16 @@ export default function EnrollmentManageModal({
                     disabled={!canInteract}
                     aria-label="학생 이름 검색"
                   />
+                  <select
+                    className="ds-input h-9 w-[132px] shrink-0 text-sm"
+                    value={nameOrdering}
+                    onChange={(event) => setNameOrdering(event.target.value as "name" | "-name")}
+                    disabled={!canInteract}
+                    aria-label="학생 이름 정렬"
+                  >
+                    <option value="name">이름 가나다순</option>
+                    <option value="-name">이름 역순</option>
+                  </select>
                 </div>
               </div>
               {!readOnly && filtered.length > 0 && (
