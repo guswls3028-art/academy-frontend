@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDraggableModal } from "@/shared/ui/modal/useDraggableModal";
+import { setLocalItem } from "@/shared/utils/safeLocalStorage";
 import "./confirm-dialog.css";
 
 export type ConfirmOptions = {
@@ -47,7 +48,7 @@ export default function ConfirmDialog({
     if (settledRef.current) return;
     settledRef.current = true;
     if (rememberKey && remember) {
-      try { localStorage.setItem(rememberKey, "1"); } catch { /* private mode */ }
+      setLocalItem(rememberKey, "1");
     }
     onConfirm();
   }, [onConfirm, remember, rememberKey]);

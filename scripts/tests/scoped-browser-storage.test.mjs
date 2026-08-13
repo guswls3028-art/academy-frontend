@@ -10,15 +10,47 @@ function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
 }
 
+function collectSourceFiles(directory) {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const absolutePath = path.join(directory, entry.name);
+    if (entry.isDirectory()) return collectSourceFiles(absolutePath);
+    if (!/\.(?:ts|tsx)$/.test(entry.name)) return [];
+    return [path.relative(root, absolutePath).replaceAll(path.sep, "/")];
+  });
+}
+
+const rawStorageOwners = new Set([
+  "src/shared/tenant/index.ts",
+  "src/shared/api/axios.ts",
+  "src/auth/api/auth.api.ts",
+  "src/auth/context/AuthContext.tsx",
+  "src/app_dev/shared/components/impersonationSession.ts",
+  "src/app_dev/shared/components/ImpersonationBanner.tsx",
+  "src/app_dev/shared/components/CommandPalette.tsx",
+  "src/app_dev/domains/tenants/pages/TenantDetailPage.tsx",
+]);
+
 test("tenant-user storage keys fail closed when either identity is absent", () => {
   const source = read("src/shared/utils/safeLocalStorage.ts");
   assert.match(source, /getTenantCodeForApiRequest\(\)/);
   assert.match(source, /getTenantUserLocalKey/);
+  assert.match(source, /getTenantUserLocalItem/);
+  assert.match(source, /setTenantUserLocalItem/);
+  assert.match(source, /removeTenantUserLocalItem/);
   assert.match(source, /scopedKey && normalizedUserId/);
   assert.match(source, /return scopedKey \? getLocalItem\(scopedKey\) : null/);
 });
 
-test("authored drafts and operational preferences cannot bypass scoped storage", () => {
+test("only bootstrap and authentication owners may access raw localStorage", () => {
+  const directStorageAccess = /(?:window\.)?localStorage\.(?:getItem|setItem|removeItem)\s*\(/;
+  const directOwners = collectSourceFiles(path.join(root, "src"))
+    .filter((owner) => directStorageAccess.test(read(owner)))
+    .sort();
+
+  assert.deepEqual(directOwners, [...rawStorageOwners].sort());
+});
+
+test("authored drafts and operational preferences use tenant-aware storage", () => {
   const sensitiveOwners = [
     "src/landing/pages/LandingCommunityWritePage.tsx",
     "src/app_admin/domains/storage/components/matchup/HitReportEditor.tsx",
@@ -26,12 +58,19 @@ test("authored drafts and operational preferences cannot bypass scoped storage",
     "src/app_admin/domains/storage/pages/MatchupPage.tsx",
     "src/app_student/domains/video/pages/VideoPlayerPage.tsx",
     "src/app_student/domains/video/pages/SessionDetailPage.tsx",
+    "src/app_admin/domains/scores/hooks/useScoreEditDraft.ts",
+    "src/shared/ui/assessment/useAssessmentPolicyDraft.ts",
+    "src/app_student/domains/exams/pages/ExamSubmitPage.tsx",
   ];
   const directStorageAccess = /(?:window\.)?localStorage\.(?:getItem|setItem|removeItem)\s*\(/;
 
   for (const owner of sensitiveOwners) {
     const source = read(owner);
     assert.doesNotMatch(source, directStorageAccess, `${owner} must use the scoped storage owner`);
-    assert.match(source, /safeLocalStorage|videoPlaybackStorage/, `${owner} must import the scoped storage owner`);
+    assert.match(
+      source,
+      /safeLocalStorage|videoPlaybackStorage/,
+      `${owner} must import the scoped storage owner`,
+    );
   }
 });

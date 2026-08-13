@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components -- responsive view hook and provider share one context boundary. */
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { getLocalItem, removeLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
 
 export type ForceView = "mobile" | "desktop" | null;
 
@@ -14,7 +15,7 @@ const STORAGE_KEY = "teacher-app-view";
 
 function readStored(): ForceView {
   try {
-    const v = localStorage.getItem(STORAGE_KEY);
+    const v = getLocalItem(STORAGE_KEY);
     if (v === "mobile" || v === "desktop") return v;
   } catch {
     // ignore
@@ -24,8 +25,8 @@ function readStored(): ForceView {
 
 function writeStored(v: ForceView) {
   try {
-    if (v) localStorage.setItem(STORAGE_KEY, v);
-    else localStorage.removeItem(STORAGE_KEY);
+    if (v) setLocalItem(STORAGE_KEY, v);
+    else removeLocalItem(STORAGE_KEY);
   } catch {
     // ignore
   }

@@ -3,6 +3,7 @@
  * localStorage에 영속화, data-student-dark 속성으로 CSS 제어
  */
 import { useState, useEffect, useCallback, type ReactNode } from "react";
+import { setLocalItem } from "@/shared/utils/safeLocalStorage";
 
 import {
   getInitialMode,
@@ -20,7 +21,7 @@ export function StudentThemeProvider({ children }: { children: ReactNode }) {
     setModeState(m);
     setIsDark(resolveIsDark(m));
     try {
-      localStorage.setItem(STUDENT_THEME_STORAGE_KEY, m);
+      setLocalItem(STUDENT_THEME_STORAGE_KEY, m);
     } catch {
       // ignore
     }

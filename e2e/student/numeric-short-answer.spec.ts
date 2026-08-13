@@ -85,7 +85,7 @@ test.describe("학생 수학 숫자 단답", () => {
   test.skip(!isLocalBase(BASE), "Local route-mock contract spec.");
   test.use({ serviceWorkers: "block", viewport: { width: 390, height: 844 } });
 
-  test("0~999 입력만 허용하고 제출 시 앞자리 0을 정규화한다", async ({ page }) => {
+  test("0~999 입력과 같은 계정 재조회를 보존하고 제출 시 앞자리 0을 정규화한다", async ({ page }) => {
     const submissions = await installApi(page);
     await page.goto(`${BASE}/student/exams/901/submit`, { waitUntil: "domcontentloaded" });
 
@@ -97,6 +97,12 @@ test.describe("학생 수학 숫자 단답", () => {
     await page.getByLabel("1번 답", { exact: true }).fill("2");
     await numericInput.fill("0079");
     await expect(numericInput).toHaveValue("007");
+    await expect.poll(() => page.evaluate(() => (
+      localStorage.getItem("exam-draft:901:hakwonplus:user:11")
+    ))).toContain('"1021":"007"');
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByLabel("1번 답", { exact: true })).toHaveValue("2");
+    await expect(page.getByLabel("21번 답")).toHaveValue("007");
     await page.screenshot({ path: "test-results/numeric-short-answer/student-input-390.png", fullPage: true });
     await page.getByRole("button", { name: "제출하기" }).click();
     await expect(page.getByText("답안을 제출하시겠습니까? 제출 후에는 수정할 수 없습니다.")).toBeVisible();

@@ -2,7 +2,7 @@
 
 The frontend quality workflow blocks refactor-debt regression with
 `pnpm refactor:budget`. The current ceiling is 145 same-app domain
-imports, 41 files of at least 1,000 lines, 33 fixed-time E2E waits, and 111
+imports, 41 files of at least 1,000 lines, 33 fixed-time E2E waits, and 53
 local-storage references after the scoped-persistence cutover. All
 tracked metric ceilings in `scripts/refactor-budget-baseline.json` match or
 improve on the measured tree; raising a ceiling requires a documented design

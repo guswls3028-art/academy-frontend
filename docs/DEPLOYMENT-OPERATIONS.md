@@ -75,6 +75,12 @@ script 진입점을 검사하므로 production-backed 쓰기 spec을 추가하�
 실패한다.
 `pnpm guard:test-coverage`는 새 활성 `*.mock.spec.ts`가 PR gate에서 빠지거나
 API route interception 없이 등록되면 실패한다.
+같은 guard는 `criticalInteractionSpecs`의 390px 화면이 공통
+`assertInteractiveSurface` 계약을 실행하는지, `criticalStateTransitionSpecs`의
+평가·성적·학생 답안 흐름이 PR gate에 남아 있는지도 차단한다. 공통 interaction
+계약은 문서/표면 가로 overflow, 화면 밖 컨트롤, primary action 표시와 키보드
+focus를 실제 렌더에서 검증한다. 상태 전이 묶음은 저장 후 재조회, 오류 입력 보존,
+stale 충돌, 동일 계정 복구와 유효한 0을 소유한다.
 PR workflow는 `E2E_ALLOW_PRODUCTION_WRITES=0`을 증거로 남긴다.
 
 PR workflow는 production-backed safety/login/health 네 파일을 한 job의 dependency

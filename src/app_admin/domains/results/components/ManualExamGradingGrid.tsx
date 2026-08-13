@@ -29,6 +29,7 @@ import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLecture
 import { Button, EmptyState, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { getLocalItem, removeLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
 import AnswerKeyRegisterModal from "@admin/domains/exams/components/AnswerKeyRegisterModal";
 import { initExamQuestions } from "@admin/domains/exams/api/questionInit.api";
 import { useAdminExam } from "@admin/domains/exams/hooks/useAdminExam";
@@ -103,7 +104,7 @@ function getClosestTableScale(value: number): (typeof TABLE_SCALE_STEPS)[number]
 
 function loadManualGradingTableScale(): (typeof TABLE_SCALE_STEPS)[number] | null {
   try {
-    const value = Number(window.localStorage.getItem(TABLE_SCALE_STORAGE_KEY));
+    const value = Number(getLocalItem(TABLE_SCALE_STORAGE_KEY));
     return TABLE_SCALE_STEPS.includes(value as (typeof TABLE_SCALE_STEPS)[number])
       ? (value as (typeof TABLE_SCALE_STEPS)[number])
       : null;
@@ -364,7 +365,7 @@ export default function ManualExamGradingGrid({
     if (!persist) return;
     hasSavedTableScaleRef.current = true;
     try {
-      window.localStorage.setItem(TABLE_SCALE_STORAGE_KEY, String(scale));
+      setLocalItem(TABLE_SCALE_STORAGE_KEY, String(scale));
     } catch {
       // Private browsing or a storage policy can block persistence.
     }
@@ -1440,7 +1441,7 @@ export default function ManualExamGradingGrid({
             onClick={() => {
               hasSavedTableScaleRef.current = false;
               try {
-                window.localStorage.removeItem(TABLE_SCALE_STORAGE_KEY);
+                removeLocalItem(TABLE_SCALE_STORAGE_KEY);
               } catch {
                 // Keep the fit action available even when storage is blocked.
               }
