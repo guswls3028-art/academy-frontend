@@ -356,7 +356,7 @@ export async function updateAutoSendConfigs(configs: AutoSendConfigPatch[]): Pro
     }
     if ("enabled" in c) item.enabled = c.enabled;
     if ("message_mode" in c) item.message_mode = c.message_mode;
-    if ("minutes_before" in c) item.minutes_before = c.minutes_before ?? undefined;
+    if ("minutes_before" in c) item.minutes_before = c.minutes_before ?? null;
     if ("delay_mode" in c) item.delay_mode = c.delay_mode ?? undefined;
     if ("delay_value" in c) item.delay_value = c.delay_value ?? undefined;
     if ("show_actual_time" in c) item.show_actual_time = c.show_actual_time ?? undefined;
