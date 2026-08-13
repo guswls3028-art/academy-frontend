@@ -247,7 +247,6 @@ const TEACHER_ROUTES: AuditRoute[] = [
   { path: "/workspace/mobile/settings/organization", label: "학원 설정" },
   { path: "/workspace/mobile/settings/appearance", label: "외형 설정" },
   { path: "/workspace/mobile/tools/stopwatch", label: "스톱워치" },
-  { path: "/workspace/mobile/developer", label: "패치노트" },
   { path: "/workspace/mobile/developer/bug", label: "버그 리포트" },
   { path: "/workspace/mobile/developer/feedback", label: "피드백" },
   { path: "/workspace/mobile/desktop-only", label: "PC 기능 안내" },
@@ -534,7 +533,6 @@ async function gotoRoute(page: Page, route: AuditRoute): Promise<void> {
         throw error;
       }
     }
-    await page.goto("about:blank", { waitUntil: "commit", timeout: 5_000 }).catch(() => undefined);
     await waitForNextFrame(page);
   }
   throw lastError;

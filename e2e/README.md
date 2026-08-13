@@ -50,6 +50,8 @@ PR의 `e2e.yml`은 `test:e2e:gate`만 실행한다. 전체 suite는 운영 E2E t
 사용한다. 5xx 응답, 로그인 튕김, 빈 화면, fatal text, 실제 클릭 실패는 defect 로 수집한다.
 각 라우트 진입은 예상 경로와 비어 있지 않은 DOM을 확인하고 한 번만 라우트 단위로 재시도한다. 전수 감사
 테스트 자체의 재시도는 비활성화해, 장시간 전체 순회를 처음부터 다시 돌린 뒤 일시 결함을 성공으로 숨기지 않는다.
+역할 앱 밖의 공개 페이지 링크는 해당 역할의 클릭 감사에서 제외하고, 공개 라우트 전용 감사가 소유한다. 라우트 단위
+재시도는 앱 origin을 유지해 `about:blank`에서 앱 코드가 실행되는 가짜 storage 오류를 만들지 않는다.
 
 ```sh
 pnpm exec playwright test e2e/stability/all-menu-button-click-audit.spec.ts --project=chromium --reporter=list --retries=0
