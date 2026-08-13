@@ -48,6 +48,8 @@ PR의 `e2e.yml`은 `test:e2e:gate`만 실행한다. 전체 suite는 운영 E2E t
 도움말 팝업, 핵심 빈 상태 액션을 함께 확인한다. 빠른 route 전환 중 background XHR 이 abort 되면
 브라우저가 CORS 형태의 `net::ERR_FAILED` 를 console error 로 남길 수 있으므로 전역 `strictTest` 대신 스펙 내부 guard 를
 사용한다. 5xx 응답, 로그인 튕김, 빈 화면, fatal text, 실제 클릭 실패는 defect 로 수집한다.
+각 라우트 진입은 예상 경로와 비어 있지 않은 DOM을 확인하고 한 번만 라우트 단위로 재시도한다. 전수 감사
+테스트 자체의 재시도는 비활성화해, 장시간 전체 순회를 처음부터 다시 돌린 뒤 일시 결함을 성공으로 숨기지 않는다.
 
 ```sh
 pnpm exec playwright test e2e/stability/all-menu-button-click-audit.spec.ts --project=chromium --reporter=list --retries=0
