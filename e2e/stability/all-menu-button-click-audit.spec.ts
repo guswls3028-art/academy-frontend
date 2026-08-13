@@ -477,6 +477,14 @@ async function assertUsablePage(page: Page, report: AuditReport, role: string, r
     });
     return;
   }
+  if (action === "route-open" && !isAtRoute(page, route)) {
+    report.defects.push({
+      role,
+      route: route.path,
+      action,
+      detail: `unexpected route after navigation: ${path}`,
+    });
+  }
 
   let bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   let normalized = normalizeSpaces(bodyText);
@@ -509,16 +517,25 @@ async function gotoRoute(page: Page, route: AuditRoute): Promise<void> {
     try {
       await page.goto(routeUrl(route.path), { waitUntil: "commit", timeout: 45_000 });
       await waitForSettledPage(page, 3_000);
-      return;
+      const bodyText = normalizeSpaces(
+        await page.locator("body").innerText({ timeout: 5_000 }).catch(() => ""),
+      );
+      if (isAtRoute(page, route) && bodyText.length >= 2) return;
+
+      lastError = new Error(
+        `route did not settle: expected=${route.path} actual=${currentPathSafe(page)} bodyLength=${bodyText.length}`,
+      );
+      if (attempt === 1) return;
+      console.warn(`[click-audit] retrying route navigation: ${(lastError as Error).message}`);
     } catch (error) {
       lastError = error;
       const message = String((error as Error)?.message || error);
       if (attempt === 1 || !isRetryableNavigationError(message)) {
         throw error;
       }
-      await page.goto("about:blank", { waitUntil: "commit", timeout: 5_000 }).catch(() => undefined);
-      await waitForNextFrame(page);
     }
+    await page.goto("about:blank", { waitUntil: "commit", timeout: 5_000 }).catch(() => undefined);
+    await waitForNextFrame(page);
   }
   throw lastError;
 }
@@ -905,6 +922,8 @@ async function attachReport(report: AuditReport): Promise<void> {
 }
 
 test.describe("전 메뉴/버튼 사람형 클릭 감사 - 데스크톱", () => {
+  test.describe.configure({ retries: 0 });
+
   test("관리자 + 개발자 데스크톱 메뉴/버튼", async ({ page }) => {
     test.setTimeout(5_400_000);
     const report: AuditReport = { routes: [], defects: [] };
@@ -923,6 +942,7 @@ test.describe("전 메뉴/버튼 사람형 클릭 감사 - 데스크톱", () => 
 });
 
 test.describe("전 메뉴/버튼 사람형 클릭 감사 - 모바일", () => {
+  test.describe.configure({ retries: 0 });
   test.use({ viewport: MOBILE_VIEWPORT, userAgent: MOBILE_UA });
 
   test("학생 모바일 메뉴/버튼", async ({ page }) => {
