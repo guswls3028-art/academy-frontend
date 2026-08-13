@@ -169,6 +169,7 @@ async function openExam(page: Page, state: MockState) {
     { waitUntil: "domcontentloaded", timeout: 45_000 },
   );
   await waitForRenderSettled(page, { timeout: 30_000 });
+  await expect(page.getByText("시험 운영 준비", { exact: true })).toBeVisible({ timeout: 30_000 });
 }
 
 test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 모바일에서도 정돈된 순서를 유지한다", async ({ page }, testInfo) => {
@@ -417,7 +418,7 @@ test("브라우저가 종료되어도 같은 계정·같은 서버 버전의 시
   await page.getByLabel("합격 기준").fill("79");
   await expect.poll(() => page.evaluate(() => {
     const key = Object.keys(localStorage).find((candidate) =>
-      candidate.includes("assessment-policy-draft:v1:") && candidate.endsWith(":exam:9972"));
+      candidate.startsWith("assessment-policy-draft:v1:exam:9972:"));
     if (!key) return null;
     const stored = JSON.parse(localStorage.getItem(key) ?? "null") as { form?: { passScore?: string } } | null;
     return stored?.form?.passScore ?? null;
@@ -444,13 +445,13 @@ test("브라우저가 종료되어도 같은 계정·같은 서버 버전의 시
   await expect.poll(() => state.examPatchPayloads.length).toBe(1);
   await expect.poll(() => page.evaluate(() =>
     Object.keys(localStorage).some((candidate) =>
-      candidate.includes("assessment-policy-draft:v1:") && candidate.endsWith(":exam:9972")),
+      candidate.startsWith("assessment-policy-draft:v1:exam:9972:")),
   )).toBe(false);
 
   await page.getByLabel("합격 기준").fill("78");
   await expect.poll(() => page.evaluate(() =>
     Object.keys(localStorage).some((candidate) =>
-      candidate.includes("assessment-policy-draft:v1:") && candidate.endsWith(":exam:9972")),
+      candidate.startsWith("assessment-policy-draft:v1:exam:9972:")),
   )).toBe(true);
   state.exam = { ...state.exam, pass_score: 77, updated_at: "2026-08-03T02:00:00Z" };
   await page.reload({ waitUntil: "domcontentloaded" });
@@ -460,12 +461,12 @@ test("브라우저가 종료되어도 같은 계정·같은 서버 버전의 시
   await page.getByLabel("합격 기준").fill("76");
   await expect.poll(() => page.evaluate(() =>
     Object.keys(localStorage).some((candidate) =>
-      candidate.includes("assessment-policy-draft:v1:") && candidate.endsWith(":exam:9972")),
+      candidate.startsWith("assessment-policy-draft:v1:exam:9972:")),
   )).toBe(true);
   await page.getByLabel("합격 기준").fill("77");
   await expect.poll(() => page.evaluate(() =>
     Object.keys(localStorage).some((candidate) =>
-      candidate.includes("assessment-policy-draft:v1:") && candidate.endsWith(":exam:9972")),
+      candidate.startsWith("assessment-policy-draft:v1:exam:9972:")),
   )).toBe(false);
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.getByTestId("assessment-draft-recovery")).toHaveCount(0);

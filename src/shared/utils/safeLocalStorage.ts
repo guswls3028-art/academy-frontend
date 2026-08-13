@@ -48,6 +48,11 @@ export function setTenantLocalItem(key: string, value: string): void {
   if (scopedKey) setLocalItem(scopedKey, value);
 }
 
+export function removeTenantLocalItem(key: string): void {
+  const scopedKey = tenantStorageKey(key);
+  if (scopedKey) removeLocalItem(scopedKey);
+}
+
 export function getTenantUserLocalKey(
   key: string,
   userId: string | number | null | undefined,
@@ -57,4 +62,29 @@ export function getTenantUserLocalKey(
   return scopedKey && normalizedUserId
     ? `${scopedKey}:user:${encodeURIComponent(normalizedUserId)}`
     : null;
+}
+
+export function getTenantUserLocalItem(
+  key: string,
+  userId: string | number | null | undefined,
+): string | null {
+  const scopedKey = getTenantUserLocalKey(key, userId);
+  return scopedKey ? getLocalItem(scopedKey) : null;
+}
+
+export function setTenantUserLocalItem(
+  key: string,
+  userId: string | number | null | undefined,
+  value: string,
+): void {
+  const scopedKey = getTenantUserLocalKey(key, userId);
+  if (scopedKey) setLocalItem(scopedKey, value);
+}
+
+export function removeTenantUserLocalItem(
+  key: string,
+  userId: string | number | null | undefined,
+): void {
+  const scopedKey = getTenantUserLocalKey(key, userId);
+  if (scopedKey) removeLocalItem(scopedKey);
 }

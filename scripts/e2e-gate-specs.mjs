@@ -33,8 +33,20 @@ export const routeMockSpecs = [
   "e2e/student/student-content-resilience.mock.spec.ts",
   "e2e/student/clinic-booking-ux.mock.spec.ts",
   "e2e/student/video-cdn-service-error.mock.spec.ts",
+  "e2e/student/numeric-short-answer.spec.ts",
   "e2e/teacher/comms-reply-mobile.mock.spec.ts",
   "e2e/teacher/video-thumbnail-render.mock.spec.ts",
+];
+
+export const criticalInteractionSpecs = [
+  "e2e/admin/lecture-create-responsive.mock.spec.ts",
+  "e2e/auth/account-password-flows.mock.spec.ts",
+];
+
+export const criticalStateTransitionSpecs = [
+  "e2e/admin/assessment-operations-workspace.mock.spec.ts",
+  "e2e/admin/score-entry-autosave.spec.ts",
+  "e2e/student/numeric-short-answer.spec.ts",
 ];
 
 export const e2eGateSpecs = [

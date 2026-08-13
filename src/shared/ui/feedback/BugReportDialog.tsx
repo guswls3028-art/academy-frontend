@@ -9,6 +9,7 @@ import * as Sentry from "@sentry/react";
 import { feedback } from "./feedback";
 import { sanitizeObservabilityPath } from "@/shared/lib/sentryContext";
 import { submitUserIncident } from "@/shared/lib/userIncidentReporter";
+import { getLocalItem } from "@/shared/utils/safeLocalStorage";
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -30,7 +31,7 @@ function collectContext(pathname: string) {
     screenSize: `${window.innerWidth}x${window.innerHeight}`,
     timestamp: new Date().toISOString(),
     // localStorage에서 유저 힌트 (JWT 디코딩 없이)
-    hasAccessToken: !!localStorage.getItem("access"),
+    hasAccessToken: !!getLocalItem("access"),
   };
 }
 

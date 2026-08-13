@@ -4,6 +4,8 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
+  criticalInteractionSpecs,
+  criticalStateTransitionSpecs,
   e2eGateSpecs,
   routeMockSpecs,
 } from "../e2e-gate-specs.mjs";
@@ -15,6 +17,10 @@ const e2eWorkflow = fs.readFileSync(
   path.join(root, ".github", "workflows", "e2e.yml"),
   "utf8",
 );
+
+function read(relativePath) {
+  return fs.readFileSync(path.join(root, relativePath), "utf8");
+}
 
 function collectMockSpecs(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -48,6 +54,26 @@ test("the current homework score contract cannot fall out of the PR gate", () =>
 
 test("workspace quick navigation cannot fall out of the route-mock PR gate", () => {
   assert.ok(gateSpecs.has("e2e/admin/workspace-quick-navigation.mock.spec.ts"));
+});
+
+test("critical mobile interactions share the executable surface contract", () => {
+  for (const spec of criticalInteractionSpecs) {
+    assert.ok(gateSpecs.has(spec), `${spec} must run in the PR gate`);
+    assert.match(read(spec), /assertInteractiveSurface/);
+    assert.match(read(spec), /width:\s*390/);
+  }
+});
+
+test("save, reload, stale, and valid-zero contracts cannot fall out of the PR gate", () => {
+  for (const spec of criticalStateTransitionSpecs) {
+    assert.ok(gateSpecs.has(spec), `${spec} must run in the PR gate`);
+  }
+  assert.match(read("e2e/admin/assessment-operations-workspace.mock.spec.ts"), /0점 합격 기준/);
+  assert.match(read("e2e/admin/assessment-operations-workspace.mock.spec.ts"), /동시 수정/);
+  assert.match(read("e2e/admin/assessment-operations-workspace.mock.spec.ts"), /같은 계정/);
+  assert.match(read("e2e/admin/score-entry-autosave.spec.ts"), /0점은 입력된 데이터/);
+  assert.match(read("e2e/student/numeric-short-answer.spec.ts"), /같은 계정 재조회/);
+  assert.match(read("e2e/student/numeric-short-answer.spec.ts"), /앞자리 0을 정규화/);
 });
 
 test("PR read-only and route-mock gates keep separate runtime boundaries", () => {

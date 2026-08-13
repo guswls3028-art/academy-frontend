@@ -32,6 +32,12 @@ import { ORDERED_ATTENDANCE_STATUS } from "@/shared/ui/badges/attendanceStatus";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import {
+  getLocalItem,
+  getTenantUserLocalKey,
+  removeLocalItem,
+  setLocalItem,
+} from "@/shared/utils/safeLocalStorage";
 import { useConfirm } from "@/shared/ui/confirm";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
@@ -59,10 +65,20 @@ function isAttendanceSort(value: string | null): value is AttendanceSort {
   return ATTENDANCE_SORT_VALUES.includes(value as AttendanceSort);
 }
 
-function getStoredAttendanceSort(storageKey: string | null): AttendanceSort {
+function getStoredAttendanceSort(
+  storageKey: string | null,
+  previousStorageKey: string | null,
+): AttendanceSort {
   if (!storageKey || typeof window === "undefined") return DEFAULT_ATTENDANCE_SORT;
   try {
-    const savedSort = window.localStorage.getItem(storageKey);
+    let savedSort = getLocalItem(storageKey);
+    if (!savedSort && previousStorageKey) {
+      savedSort = getLocalItem(previousStorageKey);
+      if (isAttendanceSort(savedSort)) {
+        setLocalItem(storageKey, savedSort);
+        if (getLocalItem(storageKey) === savedSort) removeLocalItem(previousStorageKey);
+      }
+    }
     return isAttendanceSort(savedSort) ? savedSort : DEFAULT_ATTENDANCE_SORT;
   } catch {
     return DEFAULT_ATTENDANCE_SORT;
@@ -94,7 +110,8 @@ export default function SessionAttendancePage({
   const qc = useQueryClient();
   const confirm = useConfirm();
   const { user } = useAuth();
-  const sortStorageKey = user?.id ? `attendance:sort:u${user.id}` : null;
+  const sortStorageKey = getTenantUserLocalKey("attendance:sort", user?.id);
+  const previousSortStorageKey = user?.id ? `attendance:sort:u${user.id}` : null;
   const { openSendMessageModal } = useSendMessageModal();
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [deleting, setDeleting] = useState(false);
@@ -107,7 +124,9 @@ export default function SessionAttendancePage({
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [sort, setSort] = useState<AttendanceSort>(() => getStoredAttendanceSort(sortStorageKey));
+  const [sort, setSort] = useState<AttendanceSort>(() => (
+    getStoredAttendanceSort(sortStorageKey, previousSortStorageKey)
+  ));
   const [page, setPage] = useState(1);
   const [statusPopoverOpen, setStatusPopoverOpen] = useState(false);
   const statusTriggerRef = useRef<HTMLButtonElement>(null);
@@ -149,8 +168,8 @@ export default function SessionAttendancePage({
   }, [sessionId]);
 
   useEffect(() => {
-    setSort(getStoredAttendanceSort(sortStorageKey));
-  }, [sortStorageKey]);
+    setSort(getStoredAttendanceSort(sortStorageKey, previousSortStorageKey));
+  }, [previousSortStorageKey, sortStorageKey]);
 
   useEffect(() => {
     if (!statusPopoverOpen) return;
@@ -633,11 +652,7 @@ export default function SessionAttendancePage({
     const nextSort: AttendanceSort = sort === colKey ? `-${colKey}` : sort === `-${colKey}` ? "" : colKey;
     setSort(nextSort);
     if (!sortStorageKey) return;
-    try {
-      window.localStorage.setItem(sortStorageKey, nextSort);
-    } catch {
-      // localStorage 접근이 막힌 환경에서는 현재 화면 정렬만 유지한다.
-    }
+    setLocalItem(sortStorageKey, nextSort);
   }
 
   return (

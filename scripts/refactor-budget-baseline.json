@@ -13,8 +13,8 @@
     "api_response_type_defs": 77,
     "direct_axios_calls": 0,
     "fetch_calls": 3,
-    "local_storage_refs": 111,
-    "session_storage_refs": 38,
+    "local_storage_refs": 53,
+    "session_storage_refs": 35,
     "explicit_any_refs": 111,
     "ts_expect_error_refs": 0
   }

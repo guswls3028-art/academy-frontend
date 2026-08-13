@@ -10,6 +10,7 @@ import {
   getTenantDefById,
 } from "@/shared/tenant";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { getLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
 import TimerCore from "../components/TimerCore";
 import StopwatchCore from "../components/StopwatchCore";
 import { fetchTimerDownloadUrl } from "../api/timer.api";
@@ -31,7 +32,7 @@ export default function StopwatchPage() {
   // 첫 방문이면 가이드 펼침, 한 번이라도 다운로드한 적 있으면 접힘 (타이머 영역 확보)
   const [helpOpen, setHelpOpen] = useState(() => {
     if (typeof window === "undefined") return true;
-    return localStorage.getItem(getPcTimerDownloadedKey()) !== "1";
+    return getLocalItem(getPcTimerDownloadedKey()) !== "1";
   });
 
   const { logoUrl, academyName } = useMemo(() => {
@@ -64,7 +65,7 @@ export default function StopwatchPage() {
       a.click();
       a.remove();
       try {
-        localStorage.setItem(getPcTimerDownloadedKey(), "1");
+        setLocalItem(getPcTimerDownloadedKey(), "1");
       } catch {
         // localStorage can be unavailable in private or embedded browser contexts.
       }

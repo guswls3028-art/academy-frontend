@@ -3,13 +3,14 @@ import { NavLink, useLocation } from "react-router";
 import { useEffect, useState } from "react";
 import { NavIcon } from "./adminNavConfig";
 import { useAvailableAdminNavigation } from "./useAvailableAdminNavigation";
+import { getLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
 import styles from "./Sidebar.module.css";
 
 const SIDEBAR_STORAGE_KEY = "ui.sidebar.collapsed";
 
 function safeGetCollapsed(): boolean {
   try {
-    const v = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    const v = getLocalItem(SIDEBAR_STORAGE_KEY);
     return v === "1";
   } catch {
     return false;
@@ -18,7 +19,7 @@ function safeGetCollapsed(): boolean {
 
 function safeSetCollapsed(v: boolean) {
   try {
-    localStorage.setItem(SIDEBAR_STORAGE_KEY, v ? "1" : "0");
+    setLocalItem(SIDEBAR_STORAGE_KEY, v ? "1" : "0");
   } catch {
     // ignore
   }

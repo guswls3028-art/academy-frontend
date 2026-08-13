@@ -21,6 +21,7 @@ import { Badge, Button, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { cx } from "@/shared/utils/cx";
 import { downloadPresignedUrl } from "@/shared/utils/safeDownload";
+import { getLocalItem, removeLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
 import useAuth from "@/auth/hooks/useAuth";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import {
@@ -195,7 +196,7 @@ function isDraft(value: unknown): value is WorksheetDraft {
 function safeStorageGet(key: string | null): string | null {
   if (!key || typeof window === "undefined") return null;
   try {
-    return localStorage.getItem(key);
+    return getLocalItem(key);
   } catch {
     return null;
   }
@@ -204,8 +205,8 @@ function safeStorageGet(key: string | null): string | null {
 function safeStorageSet(key: string | null, value: string): boolean {
   if (!key || typeof window === "undefined") return false;
   try {
-    localStorage.setItem(key, value);
-    return true;
+    setLocalItem(key, value);
+    return getLocalItem(key) === value;
   } catch {
     return false;
   }
@@ -214,7 +215,7 @@ function safeStorageSet(key: string | null, value: string): boolean {
 function safeStorageRemove(key: string | null): void {
   if (!key || typeof window === "undefined") return;
   try {
-    localStorage.removeItem(key);
+    removeLocalItem(key);
   } catch {
     // Storage can be blocked by browser policy. Server state remains authoritative.
   }

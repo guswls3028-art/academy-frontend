@@ -1,4 +1,6 @@
 // PATH: src/app_student/domains/video/playback/player/design/utils.ts
+import { getLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
+
 export function clamp(v: number, min: number, max: number) {
   const n = Number(v);
   if (!Number.isFinite(n)) return min;
@@ -51,7 +53,7 @@ export function getOrCreateDeviceId() {
   const key = "student_device_id_v1";
   let v = "";
   try {
-    v = String(localStorage.getItem(key) || "");
+    v = String(getLocalItem(key) || "");
   } catch {
     v = "";
   }
@@ -62,7 +64,7 @@ export function getOrCreateDeviceId() {
   v = `dev_${now}_${seed}`.replace(/[^a-zA-Z0-9_]/g, "").slice(0, 42);
 
   try {
-    localStorage.setItem(key, v);
+    setLocalItem(key, v);
   } catch {
     // Storage may be unavailable in private or embedded browser contexts.
   }
