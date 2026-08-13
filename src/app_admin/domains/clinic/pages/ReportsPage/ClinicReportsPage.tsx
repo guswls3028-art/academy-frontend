@@ -79,7 +79,7 @@ export default function ClinicReportsPage() {
       const rows = await fetchClinicSessions({
         date_from: range.from,
         date_to: range.to,
-        ordering: "date,start_time",
+        ordering: "date,start_time,id",
       });
       return rows.map(toReportSession);
     },

@@ -17,6 +17,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getHomeworkStatus, homeworkStatusLabel, type HomeworkStatus, type HomeworkMetaStatus } from "@/shared/scoring/homeworkStatus";
 import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
 import HomeworkQuestionLedger from "./HomeworkQuestionLedger";
+import { compareKoreanText, compareNullableNumbers } from "@/shared/utils/dataOrdering";
 
 type HomeworkResultRow = {
   enrollment_id: number;
@@ -35,6 +36,16 @@ type HomeworkResultRow = {
   lecture_color?: string | null;
   lecture_chip_label?: string | null;
   name_highlight_clinic_target?: boolean;
+};
+
+type HomeworkResultSort = "student_name" | "score_desc" | "score_asc" | "status";
+type HomeworkResultFilter = "all" | HomeworkStatus;
+
+const HOMEWORK_STATUS_ORDER: Record<HomeworkStatus, number> = {
+  NOT_SUBMITTED: 0,
+  UNSET: 1,
+  ZERO: 2,
+  SCORED: 3,
 };
 
 function KpiCard({ label, value }: { label: string; value: string }) {
@@ -62,6 +73,9 @@ function StatusBadge({ status }: { status: HomeworkStatus }) {
 
 export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: number }) {
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<number | null>(null);
+  const [studentSearch, setStudentSearch] = useState("");
+  const [resultFilter, setResultFilter] = useState<HomeworkResultFilter>("all");
+  const [resultSort, setResultSort] = useState<HomeworkResultSort>("student_name");
   const labels = useTenantLabels();
   const { data: homework, isLoading: hwLoading } = useAdminHomework(homeworkId);
   const sessionId = useMemo(() => Number(homework?.session_id) || 0, [homework?.session_id]);
@@ -128,9 +142,31 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
     };
   }, [scoresData?.rows, homeworkId]);
 
+  const visibleRows = useMemo(() => {
+    const keyword = studentSearch.trim().toLocaleLowerCase("ko-KR");
+    return rows
+      .filter((row) => !keyword || row.student_name.toLocaleLowerCase("ko-KR").includes(keyword))
+      .filter((row) => resultFilter === "all" || row.status === resultFilter)
+      .sort((left, right) => {
+        let compared = 0;
+        if (resultSort === "score_desc") {
+          compared = compareNullableNumbers(left.score, right.score, "desc");
+        } else if (resultSort === "score_asc") {
+          compared = compareNullableNumbers(left.score, right.score, "asc");
+        } else if (resultSort === "status") {
+          compared = HOMEWORK_STATUS_ORDER[left.status] - HOMEWORK_STATUS_ORDER[right.status];
+        } else {
+          compared = compareKoreanText(left.student_name, right.student_name);
+        }
+        return compared
+          || compareKoreanText(left.student_name, right.student_name)
+          || left.enrollment_id - right.enrollment_id;
+      });
+  }, [resultFilter, resultSort, rows, studentSearch]);
+
   const selectedRow = useMemo(
-    () => (selectedEnrollmentId != null ? rows.find((r) => r.enrollment_id === selectedEnrollmentId) : null),
-    [rows, selectedEnrollmentId],
+    () => (selectedEnrollmentId != null ? visibleRows.find((r) => r.enrollment_id === selectedEnrollmentId) : null),
+    [visibleRows, selectedEnrollmentId],
   );
 
   const scoresForHistogram = useMemo(
@@ -254,12 +290,52 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
           <div className="text-xs text-[var(--color-text-muted)]">학생을 선택하면 우측에 상세를 볼 수 있습니다. 점수 입력·미제출 처리·잠금은 세션 &gt; 성적 탭에서 진행하세요.</div>
         </div>
 
+        {rows.length > 0 && (
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(180px,1fr)_150px_160px]">
+            <input
+              type="search"
+              className="ds-input h-9 min-w-0 text-sm"
+              value={studentSearch}
+              onChange={(event) => setStudentSearch(event.target.value)}
+              placeholder="학생 이름 검색"
+              aria-label="과제 결과 학생 검색"
+            />
+            <select
+              className="ds-input h-9 min-w-0 text-sm"
+              value={resultFilter}
+              onChange={(event) => setResultFilter(event.target.value as HomeworkResultFilter)}
+              aria-label="과제 결과 상태 필터"
+            >
+              <option value="all">상태 전체</option>
+              <option value="NOT_SUBMITTED">미제출</option>
+              <option value="UNSET">미입력</option>
+              <option value="ZERO">0점</option>
+              <option value="SCORED">채점완료</option>
+            </select>
+            <select
+              className="ds-input h-9 min-w-0 text-sm"
+              value={resultSort}
+              onChange={(event) => setResultSort(event.target.value as HomeworkResultSort)}
+              aria-label="과제 결과 정렬"
+            >
+              <option value="student_name">이름 가나다순</option>
+              <option value="score_desc">점수 높은순</option>
+              <option value="score_asc">점수 낮은순</option>
+              <option value="status">상태순</option>
+            </select>
+          </div>
+        )}
+
         <div className="flex gap-0">
           {/* Student list table */}
           <div className="min-w-0 flex-1 overflow-hidden">
             {rows.length === 0 ? (
               <div className="rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-6 text-center text-sm text-[var(--color-text-muted)]">
                 이 과제에 연결된 대상자가 없거나 성적 데이터가 없습니다.
+              </div>
+            ) : visibleRows.length === 0 ? (
+              <div className="rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-6 text-center text-sm text-[var(--color-text-muted)]">
+                검색·필터 조건에 맞는 학생이 없습니다.
               </div>
             ) : (
               <div className="overflow-x-auto rounded-l border border-[var(--color-border-divider)]">
@@ -275,7 +351,7 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((r, idx) => {
+                    {visibleRows.map((r, idx) => {
                       const isSelected = selectedEnrollmentId === r.enrollment_id;
                       const isEven = idx % 2 === 1;
                       return (

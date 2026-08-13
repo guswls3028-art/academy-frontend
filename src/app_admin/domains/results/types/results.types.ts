@@ -99,6 +99,13 @@ export type ClinicRetakeInfo = {
   resolved_at?: string | null;
 };
 
+export type AdminExamResultStatus =
+  | "NOT_SUBMITTED"
+  | "PROCESSING"
+  | "PARTIAL"
+  | "DONE"
+  | "FAILED";
+
 export type AdminExamResultRow = {
   // ✅ 단일 진실 키
   enrollment_id: number;
@@ -109,6 +116,8 @@ export type AdminExamResultRow = {
    * - 대표 attempt가 없으면 null/undefined일 수 있음(운영 위험 케이스)
    */
   final_score?: number | null;
+  ranking_score?: number | null;
+  result_status?: AdminExamResultStatus | null;
 
   /**
    * ✅ backend 계산 결과

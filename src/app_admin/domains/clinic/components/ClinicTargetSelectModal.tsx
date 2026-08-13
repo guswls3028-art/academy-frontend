@@ -13,6 +13,7 @@ import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLecture
 import StudentsDetailOverlay from "@admin/domains/students/public/StudentsDetailOverlay";
 import type { LectureInfo } from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { formatPhone } from "@/shared/utils/formatPhone";
+import { compareKoreanText } from "@/shared/utils/dataOrdering";
 
 import { useClinicTargets } from "../hooks/useClinicTargets";
 import { fetchClinicStudentsPaginated } from "../api/clinicStudents.api";
@@ -182,6 +183,7 @@ export default function ClinicTargetSelectModal({
   const [mode, setMode] = useState<"targets" | "students">(initialMode);
   const [keyword, setKeyword] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [nameOrdering, setNameOrdering] = useState<"name" | "-name">("name");
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<number[]>(() => [...stableIds]);
   const [selectedIdToName, setSelectedIdToName] = useState<Map<number, string>>(new Map());
@@ -196,6 +198,7 @@ export default function ClinicTargetSelectModal({
     setMode(initialMode);
     setKeyword("");
     setDebouncedSearch("");
+    setNameOrdering("name");
     setPage(1);
     setSelectedIds([...stableIds]);
     setSelectedIdToName(new Map());
@@ -220,8 +223,11 @@ export default function ClinicTargetSelectModal({
     const filtered = debouncedSearch
       ? uniqueRows.filter((row) => row.name.includes(debouncedSearch))
       : uniqueRows;
-    return filtered;
-  }, [targetsQ.data, debouncedSearch]);
+    return filtered.sort((left, right) => {
+      const compared = compareKoreanText(left.name, right.name);
+      return (nameOrdering === "name" ? compared : -compared) || left.id - right.id;
+    });
+  }, [targetsQ.data, debouncedSearch, nameOrdering]);
 
   const targetTotalPages = Math.max(1, Math.ceil(allTargetRows.length / PAGE_SIZE));
   const targetPageRows = useMemo(
@@ -231,11 +237,12 @@ export default function ClinicTargetSelectModal({
 
   // ── 전체 학생 탭: 서버 페이지네이션 ──
   const studentsQ = useQuery({
-    queryKey: clinicQueryKeys.studentsPaginated(page, debouncedSearch),
+    queryKey: clinicQueryKeys.studentsPaginated(page, debouncedSearch, nameOrdering),
     queryFn: () =>
       fetchClinicStudentsPaginated({
         page,
         page_size: PAGE_SIZE,
+        ordering: nameOrdering === "name" ? "name,id" : "-name,-id",
         ...(debouncedSearch.length >= 2 ? { search: debouncedSearch } : {}),
       }),
     enabled: open && mode === "students",
@@ -407,14 +414,28 @@ export default function ClinicTargetSelectModal({
               )}
             </div>
 
-            <Input
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              placeholder={mode === "students" ? "이름 / 전화번호 / 학교명 / 학년(예: 고1, 중2)" : "대상자 내 검색"}
-              allowClear
-              className="ds-input w-full text-sm shrink-0"
-              aria-label={mode === "students" ? "학생 검색" : "대상자 검색"}
-            />
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_140px]">
+              <Input
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                placeholder={mode === "students" ? "이름 / 전화번호 / 학교명 / 학년(예: 고1, 중2)" : "대상자 내 검색"}
+                allowClear
+                className="ds-input w-full text-sm shrink-0"
+                aria-label={mode === "students" ? "학생 검색" : "대상자 검색"}
+              />
+              <select
+                className="ds-input h-9 min-w-0 text-sm"
+                value={nameOrdering}
+                onChange={(event) => {
+                  setNameOrdering(event.target.value as "name" | "-name");
+                  setPage(1);
+                }}
+                aria-label="대상자 이름 정렬"
+              >
+                <option value="name">이름 가나다순</option>
+                <option value="-name">이름 역순</option>
+              </select>
+            </div>
 
             <div className="flex flex-wrap items-center justify-between gap-2 shrink-0">
               <span className="text-[13px] text-[var(--color-text-secondary)]">

@@ -88,6 +88,7 @@ export async function fetchClinicStudentsPaginated(params: {
   page?: number;
   page_size?: number;
   search?: string;
+  ordering?: "name,id" | "-name,-id";
 }): Promise<ClinicStudentPage> {
   const res = await api.get("/students/", { params });
   const resData: unknown = res.data;

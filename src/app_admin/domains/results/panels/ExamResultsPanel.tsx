@@ -87,9 +87,13 @@ export default function ExamResultsPanel({ examId }: Props) {
   const examTitle = exam?.title ?? "시험";
 
   return (
-    <div className="flex h-[calc(100vh-260px)] gap-4">
+    <div
+      className="flex min-h-[420px] min-w-0 flex-col gap-4 lg:h-[calc(100vh-260px)] lg:flex-row"
+      role="region"
+      aria-label="시험 학생별 결과"
+    >
       {/* ================= LEFT: 학생 리스트 ================= */}
-      <div className="w-[420px] shrink-0 overflow-auto border-r">
+      <div className="w-full min-w-0 shrink-0 overflow-auto border-b pb-3 lg:w-[420px] lg:border-b-0 lg:border-r lg:pb-0">
         <AdminExamResultsTable
           rows={rows}
           onSelectEnrollment={setSelectedEnrollmentId}
@@ -98,7 +102,7 @@ export default function ExamResultsPanel({ examId }: Props) {
 
       {/* ================= RIGHT: 빈 안내 또는 드로어 오버레이 ================= */}
       {selectedEnrollmentId == null ? (
-        <div className="flex-1 flex items-center justify-center overflow-auto">
+        <div className="flex min-h-48 flex-1 items-center justify-center overflow-auto">
           <EmptyState
             scope="panel"
             tone="empty"
