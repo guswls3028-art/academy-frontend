@@ -476,7 +476,9 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
       "19:20–20:20",
     ]);
     const clinicSessionButton = clinicDateRegion.getByRole("button", {
-      name: new RegExp(`${CLINIC_TITLE} 17시`),
+      // CLINIC_TITLE starts with an E2E marker in square brackets. A plain
+      // accessible-name match avoids treating that marker as a regex class.
+      name: `${CLINIC_TITLE} 17시`,
     });
     await expect(clinicSessionButton).toBeVisible();
     await expect(clinicSessionButton.getByText("내 보강과 맞음")).toBeVisible();

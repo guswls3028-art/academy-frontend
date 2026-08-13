@@ -38,6 +38,7 @@ import {
 } from "../constants/alimtalkEnvelope";
 import { koreanDateText } from "@/shared/utils/displayText";
 import { messageQueryKeys } from "../queryKeys";
+import { buildDuplicateTemplateName } from "../utils/templateCopyName";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import "../styles/templateEditor.css";
 
@@ -283,7 +284,7 @@ export default function TemplateExplorer() {
   const handleDuplicate = (t: MessageTemplateItem) => {
     createMut.mutate({
       category: t.category,
-      name: `복사 - ${t.name}`,
+      name: buildDuplicateTemplateName(t.name),
       subject: t.subject ?? "",
       body: t.body,
     });
