@@ -12,6 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { resolveTenantCodeString } from "@/shared/tenant";
 import { getParentStudentId } from "@student/shared/api/parentStudentSelection";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
+import { getLocalItem, removeLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
 
 const STORAGE_KEY_PREFIX = "stu:seen-notifications";
 const LEGACY_STORAGE_KEY = "stu:seen-notifications";
@@ -37,7 +38,7 @@ function cleanupLegacyKey(): void {
     // 새 키 형식과 정확히 일치하지 않을 때만 제거 (storageKey()와 LEGACY가 같아질 일은 없지만 방어).
     const current = storageKey();
     if (current !== LEGACY_STORAGE_KEY) {
-      localStorage.removeItem(LEGACY_STORAGE_KEY);
+      removeLocalItem(LEGACY_STORAGE_KEY);
     }
   } catch {
     // ignore
@@ -56,7 +57,7 @@ function loadSeen(profileId?: number | null): SeenEntry[] {
   const key = storageKey(profileId);
   if (_seenCache && _seenCacheKey === key && now - _seenCacheTime < CACHE_TTL_MS) return _seenCache;
   try {
-    const raw = localStorage.getItem(key);
+    const raw = getLocalItem(key);
     if (!raw) { _seenCache = []; _seenCacheKey = key; _seenCacheTime = now; return []; }
     const entries: SeenEntry[] = JSON.parse(raw);
     const cutoff = now - MAX_AGE_MS;
@@ -75,7 +76,7 @@ function loadSeen(profileId?: number | null): SeenEntry[] {
 function saveSeen(entries: SeenEntry[], profileId?: number | null) {
   const key = storageKey(profileId);
   try {
-    localStorage.setItem(key, JSON.stringify(entries));
+    setLocalItem(key, JSON.stringify(entries));
     _seenCache = entries;
     _seenCacheKey = key;
     _seenCacheTime = Date.now();

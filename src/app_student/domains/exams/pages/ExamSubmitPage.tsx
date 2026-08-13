@@ -2,7 +2,7 @@
 /**
  * 시험 답안 입력 페이지 — 문항별 1, 2, 3, 4, 5 입력 후 제출
  */
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -17,7 +17,36 @@ import { useAuthContext } from "@/auth/context/AuthContext";
 import { resolveTenantCodeString } from "@/shared/tenant";
 import { useTrackedTask } from "@/shared/productAnalytics";
 import { studentExamQueryKeys } from "../queryKeys";
+import {
+  getLocalItem,
+  getTenantUserLocalKey,
+  removeLocalItem,
+  setLocalItem,
+} from "@/shared/utils/safeLocalStorage";
 import styles from "./ExamSubmitPage.module.css";
+
+function readAnswerDraft(
+  draftKey: string | null,
+  previousDraftKey: string | null,
+): Record<number, string> {
+  if (!draftKey) return {};
+  try {
+    let stored = getLocalItem(draftKey);
+    if (!stored && previousDraftKey) {
+      stored = getLocalItem(previousDraftKey);
+      if (stored) {
+        setLocalItem(draftKey, stored);
+        if (getLocalItem(draftKey) === stored) removeLocalItem(previousDraftKey);
+      }
+    }
+    const parsed: unknown = JSON.parse(stored ?? "null");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as Record<number, string>
+      : {};
+  } catch {
+    return {};
+  }
+}
 
 export default function ExamSubmitPage() {
   const { examId } = useParams();
@@ -42,17 +71,16 @@ export default function ExamSubmitPage() {
 
   // 학부모일 땐 draft 자체를 저장/복원하지 않음 — 자녀 draft 오염 방지.
   const draftKey = isParent
-    ? `exam_draft_PARENT_NOOP_${tenantCode}_${safeId}`
-    : `exam_draft_${tenantCode}_${user?.id ?? "anon"}_${safeId}`;
+    ? null
+    : getTenantUserLocalKey(`exam-draft:${safeId}`, user?.id);
+  const previousDraftKey = !isParent && tenantCode && user?.id
+    ? `exam_draft_${tenantCode}_${user.id}_${safeId}`
+    : null;
 
-  const [answers, setAnswers] = useState<Record<number, string>>(() => {
-    if (isParent) return {};
-    try {
-      const stored = localStorage.getItem(draftKey);
-      if (stored) return JSON.parse(stored);
-    } catch { /* ignore corrupt data */ }
-    return {};
-  });
+  const [answers, setAnswers] = useState<Record<number, string>>(
+    () => readAnswerDraft(draftKey, previousDraftKey),
+  );
+  const loadedDraftKeyRef = useRef(draftKey);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const answeredCount = questions.filter((q) => (answers[q.id] ?? "").trim() !== "").length;
@@ -67,16 +95,20 @@ export default function ExamSubmitPage() {
     (updater: (prev: Record<number, string>) => Record<number, string>) => {
       setAnswers((prev) => {
         const next = updater(prev);
-        if (!isParent) {
-          try {
-            localStorage.setItem(draftKey, JSON.stringify(next));
-          } catch { /* quota exceeded — non-critical */ }
-        }
+        if (draftKey) setLocalItem(draftKey, JSON.stringify(next));
         return next;
       });
     },
-    [draftKey, isParent],
+    [draftKey],
   );
+
+  // Auth/tenant may resolve after the protected route starts rendering. When the
+  // identity boundary changes, never carry the prior account's in-memory answers.
+  useEffect(() => {
+    if (loadedDraftKeyRef.current === draftKey) return;
+    loadedDraftKeyRef.current = draftKey;
+    setAnswers(readAnswerDraft(draftKey, previousDraftKey));
+  }, [draftKey, previousDraftKey]);
 
   // Seed answers state when questions first load
   useEffect(() => {
@@ -132,7 +164,8 @@ export default function ExamSubmitPage() {
         "exams.submit",
         () => submitStudentExamAnswers(safeId, payload),
       );
-      try { localStorage.removeItem(draftKey); } catch { /* non-critical */ }
+      if (draftKey) removeLocalItem(draftKey);
+      if (previousDraftKey) removeLocalItem(previousDraftKey);
       qc.invalidateQueries({ queryKey: studentExamQueryKeys.root });
       qc.invalidateQueries({ queryKey: studentExamQueryKeys.gradesRoot });
       qc.invalidateQueries({ queryKey: studentExamQueryKeys.dashboard });

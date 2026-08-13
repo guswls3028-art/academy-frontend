@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
 import { gotoAndSettle } from "../helpers/wait";
+import { assertInteractiveSurface } from "../helpers/assertInteractiveSurface";
 
 const BASE = (process.env.E2E_BASE_URL || "http://127.0.0.1:5174").replace(/\/+$/, "");
 
@@ -186,6 +187,11 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
     await gotoAndSettle(page, `${BASE}/workspace/settings/profile`, { timeout: 20_000 });
     const securitySection = page.getByRole("heading", { name: "보안" }).locator("xpath=ancestor::section");
     await securitySection.getByRole("button", { name: "변경", exact: true }).press("Enter");
+    await assertInteractiveSurface(
+      page,
+      securitySection,
+      securitySection.getByRole("button", { name: "변경", exact: true }),
+    );
     const currentPasswordInput = securitySection.getByLabel("현재 비밀번호", { exact: true });
     expect(await currentPasswordInput.evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThanOrEqual(240);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -290,6 +296,11 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
     await page.getByRole("button", { name: "담당 강사 직원 수정" }).click();
 
     const dialog = page.getByRole("dialog", { name: "직원 편집" });
+    await assertInteractiveSurface(
+      page,
+      dialog,
+      dialog.getByRole("button", { name: "수정", exact: true }),
+    );
     await expect(dialog.getByText("직원 정보 저장과 별도 작업입니다.")).toBeVisible();
     await expect(dialog.getByRole("button", { name: "수정", exact: true })).toBeEnabled();
     await expect(dialog.getByRole("button", { name: "임시 비밀번호 변경" })).toBeDisabled();

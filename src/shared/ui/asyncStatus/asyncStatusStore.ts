@@ -3,6 +3,7 @@
 // All tasks MUST have tenantScope. Display MUST filter by current tenant only.
 
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import { getLocalItem, removeLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
 
 export type AsyncTaskStatus = "pending" | "success" | "error";
 
@@ -59,7 +60,7 @@ const EXCEL_RECOVERY_TTL_MS = 60 * 60 * 1000;
 function loadRecoverableExcelTasks(): AsyncTask[] {
   if (typeof window === "undefined") return [];
   try {
-    const parsed = JSON.parse(localStorage.getItem(EXCEL_RECOVERY_STORAGE_KEY) || "[]");
+    const parsed = JSON.parse(getLocalItem(EXCEL_RECOVERY_STORAGE_KEY) || "[]");
     if (!Array.isArray(parsed)) return [];
     const now = Date.now();
     return parsed.flatMap((value): AsyncTask[] => {
@@ -134,9 +135,9 @@ function persistRecoverableExcelTasks(): void {
       return [withoutPlaintextCredentials];
     });
     if (recoverable.length > 0) {
-      localStorage.setItem(EXCEL_RECOVERY_STORAGE_KEY, JSON.stringify(recoverable));
+      setLocalItem(EXCEL_RECOVERY_STORAGE_KEY, JSON.stringify(recoverable));
     } else {
-      localStorage.removeItem(EXCEL_RECOVERY_STORAGE_KEY);
+      removeLocalItem(EXCEL_RECOVERY_STORAGE_KEY);
     }
   } catch {
     // 저장소 차단 환경에서는 현재 탭의 메모리 작업만 유지한다.
@@ -303,7 +304,7 @@ export const asyncStatusStore = {
   clearAll(): void {
     tasks = [];
     try {
-      localStorage.removeItem(EXCEL_RECOVERY_STORAGE_KEY);
+      removeLocalItem(EXCEL_RECOVERY_STORAGE_KEY);
     } catch {
       // ignore
     }

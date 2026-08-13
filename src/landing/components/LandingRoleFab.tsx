@@ -13,6 +13,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
+import { getLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
 
 type RoleAction = {
   key: string;
@@ -114,12 +115,12 @@ export default function LandingRoleFab() {
 function FabCollapsible({ actions, isOwnerLike }: { actions: RoleAction[]; isOwnerLike: boolean }) {
   const STORAGE_KEY = "landing-fab-open";
   const [open, setOpen] = useState<boolean>(() => {
-    try { return window.localStorage.getItem(STORAGE_KEY) === "1"; }
+    try { return getLocalItem(STORAGE_KEY) === "1"; }
     catch { return false; }
   });
   const persistOpen = (next: boolean) => {
     setOpen(next);
-    try { window.localStorage.setItem(STORAGE_KEY, next ? "1" : "0"); } catch { /* ignore */ }
+    try { setLocalItem(STORAGE_KEY, next ? "1" : "0"); } catch { /* ignore */ }
   };
 
   const wrapRef = useRef<HTMLDivElement | null>(null);

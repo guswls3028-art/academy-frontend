@@ -1,4 +1,5 @@
 import { createContext, useContext } from "react";
+import { getLocalItem } from "@/shared/utils/safeLocalStorage";
 
 export type ThemeMode = "light" | "dark" | "system";
 
@@ -21,7 +22,7 @@ export function getSystemPrefersDark(): boolean {
 
 export function getInitialMode(): ThemeMode {
   try {
-    const stored = localStorage.getItem(STUDENT_THEME_STORAGE_KEY);
+    const stored = getLocalItem(STUDENT_THEME_STORAGE_KEY);
     if (stored === "dark" || stored === "light" || stored === "system") return stored;
   } catch {
     // SSR or localStorage unavailable

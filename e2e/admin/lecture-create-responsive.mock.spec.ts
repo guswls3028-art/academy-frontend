@@ -2,6 +2,7 @@ import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
 import { installLocalAuthApiStubs, installTenantOneInitScript } from "../helpers/localAuthApiStubs";
+import { assertInteractiveSurface } from "../helpers/assertInteractiveSurface";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 
@@ -61,6 +62,11 @@ test.describe("강의 생성 반응형 회귀", () => {
 
     const form = page.locator(".lecture-create-modal-form");
     await expect(form).toBeVisible();
+    await assertInteractiveSurface(
+      page,
+      form,
+      page.getByRole("button", { name: "등록", exact: true }),
+    );
     const metrics = await form.evaluate((element) => {
       const formRect = element.getBoundingClientRect();
       const controls = Array.from(

@@ -7,6 +7,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import useAuth from "@/auth/hooks/useAuth";
 import type { SessionScoresPanelHandle } from "../panels/SessionScoresPanel";
 import {
   getScoreDraft,
@@ -18,6 +19,17 @@ import {
   type PendingChange,
 } from "../api/scoreDraft";
 import { blockAutoReload } from "@/shared/ui/layout/VersionChecker";
+import {
+  getLocalItem,
+  getTenantUserLocalKey,
+  removeLocalItem,
+  setLocalItem,
+} from "@/shared/utils/safeLocalStorage";
+import {
+  getSessionItem,
+  removeSessionItem,
+  setSessionItem,
+} from "@/shared/utils/safeSessionStorage";
 
 const AUTOSAVE_IDLE_MS = 900;
 const AUTOSAVE_POLL_MS = 250;
@@ -28,30 +40,22 @@ const AUTOSAVE_RETRY_MS = 5_000;
  * timestamp 는 localStorage 에 client-local 로 추적 (backend 에 시각 컬럼 없음).
  */
 const DRAFT_STALE_MS = 60 * 60 * 1000;
-const DRAFT_TS_KEY = (sessionId: number) => `scores-draft-ts:${sessionId}`;
-const LOCAL_DRAFT_KEY = (sessionId: number, clientId: string) =>
-  `scores-local-draft:${sessionId}:${clientId}`;
-
-function readLocalDraft(sessionId: number): PendingChange[] {
-  const clientId = resolvedScoreEditorRecoveryId();
+function readLocalDraft(storageKey: string | null): PendingChange[] {
+  if (!storageKey) return [];
   try {
-    const value = JSON.parse(sessionStorage.getItem(LOCAL_DRAFT_KEY(sessionId, clientId)) ?? "[]");
+    const value = JSON.parse(getSessionItem(storageKey) ?? "[]");
     return Array.isArray(value) ? value as PendingChange[] : [];
   } catch {
     return [];
   }
 }
 
-function writeLocalDraft(sessionId: number, changes: PendingChange[]): void {
-  const clientId = resolvedScoreEditorRecoveryId();
-  try {
-    if (changes.length > 0) {
-      sessionStorage.setItem(LOCAL_DRAFT_KEY(sessionId, clientId), JSON.stringify(changes));
-    } else {
-      sessionStorage.removeItem(LOCAL_DRAFT_KEY(sessionId, clientId));
-    }
-  } catch {
-    // 브라우저 저장소가 차단돼도 서버 draft 저장 경로는 계속 시도한다.
+function writeLocalDraft(storageKey: string | null, changes: PendingChange[]): void {
+  if (!storageKey) return;
+  if (changes.length > 0) {
+    setSessionItem(storageKey, JSON.stringify(changes));
+  } else {
+    removeSessionItem(storageKey);
   }
 }
 
@@ -65,6 +69,12 @@ type Options = {
 };
 
 export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecovery = isActive }: Options) {
+  const { user } = useAuth();
+  const draftTimestampKey = getTenantUserLocalKey(`scores-draft-ts:${sessionId}`, user?.id);
+  const localDraftKey = getTenantUserLocalKey(
+    `scores-local-draft:${sessionId}:${resolvedScoreEditorRecoveryId()}`,
+    user?.id,
+  );
   const [draftStatus, setDraftStatus] = useState<DraftStatus>("idle");
   const [draftError, setDraftError] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
@@ -110,8 +120,8 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
         try {
           await postScoreDraftCommit(sessionId, false);
           needsDraftCommitRef.current = false;
-          try { localStorage.removeItem(DRAFT_TS_KEY(sessionId)); } catch { /* ignore */ }
-          writeLocalDraft(sessionId, []);
+          if (draftTimestampKey) removeLocalItem(draftTimestampKey);
+          writeLocalDraft(localDraftKey, []);
           setLastSavedAt(Date.now());
           setHasPendingChanges(false);
           setDraftStatus("saved");
@@ -134,15 +144,15 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
       try {
         await putScoreDraft(sessionId, snapshot);
         needsDraftCommitRef.current = true;
-        try { localStorage.setItem(DRAFT_TS_KEY(sessionId), String(Date.now())); } catch { /* ignore */ }
+        if (draftTimestampKey) setLocalItem(draftTimestampKey, String(Date.now()));
 
         const savedCount = await panel?.flushPendingChanges?.() ?? 0;
         const remaining = panel?.getPendingSnapshot?.() ?? [];
         if (remaining.length === 0) {
           await postScoreDraftCommit(sessionId, false);
           needsDraftCommitRef.current = false;
-          try { localStorage.removeItem(DRAFT_TS_KEY(sessionId)); } catch { /* ignore */ }
-          writeLocalDraft(sessionId, []);
+          if (draftTimestampKey) removeLocalItem(draftTimestampKey);
+          writeLocalDraft(localDraftKey, []);
           const savedAt = Date.now();
           lastSaveAttemptAtRef.current = 0;
           setLastSavedAt(savedAt);
@@ -155,7 +165,7 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
         }
         return savedCount;
       } catch (e) {
-        writeLocalDraft(sessionId, panel?.getPendingSnapshot?.() ?? snapshot);
+        writeLocalDraft(localDraftKey, panel?.getPendingSnapshot?.() ?? snapshot);
         setHasPendingChanges(true);
         setDraftStatus("error");
         if (isScoreEditStaleError(e)) {
@@ -180,14 +190,14 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
     const remaining = panel?.getPendingSnapshot?.() ?? [];
     if (remaining.length > 0) return savedCount + await savePendingScores(panel);
     return savedCount;
-  }, [sessionId, panelRef]);
+  }, [draftTimestampKey, localDraftKey, panelRef, sessionId]);
 
   const requestAutosave = useCallback(() => {
     if (!isActive) return;
-    writeLocalDraft(sessionId, panelRef.current?.getPendingSnapshot?.() ?? []);
+    writeLocalDraft(localDraftKey, panelRef.current?.getPendingSnapshot?.() ?? []);
     setHasPendingChanges(true);
     setDraftStatus("dirty");
-  }, [isActive, panelRef, sessionId]);
+  }, [isActive, localDraftKey, panelRef]);
 
   // On score page enter: check for an existing recovery draft once.
   // P0-3 (2026-05-13): 1시간 넘게 방치된 draft 는 자동 commit(폐기)해서
@@ -205,14 +215,14 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
     getScoreDraft(sessionId)
       .then(async (data) => {
         if (cancelled) return;
-        const localChanges = readLocalDraft(sessionId);
+        const localChanges = readLocalDraft(localDraftKey);
         const recoveryChanges = localChanges.length > 0 ? localChanges : data.changes;
         if (!recoveryChanges?.length) {
           if (data.stale) {
             try {
               await postScoreDraftCommit(sessionId, true);
-              try { localStorage.removeItem(DRAFT_TS_KEY(sessionId)); } catch { /* ignore */ }
-              writeLocalDraft(sessionId, []);
+              if (draftTimestampKey) removeLocalItem(draftTimestampKey);
+              writeLocalDraft(localDraftKey, []);
             } catch {
               if (!cancelled) {
                 setRecoveryCheckFailed(true);
@@ -226,7 +236,7 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
         // stale 검사: localStorage 의 마지막 putScoreDraft timestamp 가 1시간 이전이면 자동 폐기.
         let lastTs = 0;
         try {
-          const raw = localStorage.getItem(DRAFT_TS_KEY(sessionId));
+          const raw = draftTimestampKey ? getLocalItem(draftTimestampKey) : null;
           lastTs = raw ? Number(raw) : 0;
         } catch { /* ignore */ }
         const isStale = lastTs > 0 && Date.now() - lastTs > DRAFT_STALE_MS;
@@ -234,8 +244,8 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
         if (isStale) {
           try {
             await postScoreDraftCommit(sessionId, true);
-            try { localStorage.removeItem(DRAFT_TS_KEY(sessionId)); } catch { /* ignore */ }
-            writeLocalDraft(sessionId, []);
+            if (draftTimestampKey) removeLocalItem(draftTimestampKey);
+            writeLocalDraft(localDraftKey, []);
             if (!cancelled) setHasDraftToRestore(false);
           } catch {
             if (!cancelled) {
@@ -268,7 +278,7 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
             setRecoveryCheckFailed(false);
             return;
           }
-          const localChanges = readLocalDraft(sessionId);
+          const localChanges = readLocalDraft(localDraftKey);
           if (localChanges.length > 0) {
             setRestoreChanges(localChanges);
             setRestoreChangeCount(localChanges.length);
@@ -286,7 +296,7 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
     return () => {
       cancelled = true;
     };
-  }, [checkForRecovery, recoveryCheckNonce, sessionId]);
+  }, [checkForRecovery, draftTimestampKey, localDraftKey, recoveryCheckNonce, sessionId]);
 
   const retryRecoveryCheck = useCallback(() => {
     setRecoveryCheckNonce((value) => value + 1);
@@ -394,8 +404,8 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
     try {
       await postScoreDraftCommit(sessionId, true);
       needsDraftCommitRef.current = false;
-      try { localStorage.removeItem(DRAFT_TS_KEY(sessionId)); } catch { /* ignore */ }
-      writeLocalDraft(sessionId, []);
+      if (draftTimestampKey) removeLocalItem(draftTimestampKey);
+      writeLocalDraft(localDraftKey, []);
       setHasDraftToRestore(false);
       setEditStaleConflict(false);
       setLeaseReleaseFailed(false);
@@ -408,7 +418,7 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
     } finally {
       setIsDiscardingDraft(false);
     }
-  }, [sessionId]);
+  }, [draftTimestampKey, localDraftKey, sessionId]);
 
   const releaseEditLease = useCallback(async (): Promise<boolean> => {
     try {
@@ -455,7 +465,7 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
       panelRef.current?.commitActiveCell?.();
       const snapshot = panelRef.current?.getPendingSnapshot?.() ?? [];
       if (snapshot.length === 0) return;
-      writeLocalDraft(sessionId, snapshot);
+      writeLocalDraft(localDraftKey, snapshot);
       // 미저장 데이터가 있으면 항상 경고 (셀 수/경과 시간 무관)
       e.preventDefault();
       // 긴급 저장 시도 (브라우저가 허용하는 범위 내에서)
@@ -470,7 +480,7 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
     return () => {
       window.removeEventListener("beforeunload", handler);
     };
-  }, [isActive, panelRef, sessionId]);
+  }, [isActive, localDraftKey, panelRef, sessionId]);
 
   return {
     draftStatus,

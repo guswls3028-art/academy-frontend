@@ -11,6 +11,7 @@ import { Navigate, Outlet, useLocation } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
 import { resolveTenantCodeString } from "@/shared/tenant";
 import { WORKSPACE_PATHS } from "./workspaceRoutes";
+import { getLocalItem, removeLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
 
 const MOBILE_QUERY = "(max-width: 1023px)";
 
@@ -48,11 +49,11 @@ function isStandaloneMode(): boolean {
 
 export function prefersFullWorkspace(): boolean {
   try {
-    if (localStorage.getItem(getPreferenceKey()) === "1") return true;
-    if (localStorage.getItem(getLegacyPreferenceKey()) !== "1") return false;
+    if (getLocalItem(getPreferenceKey()) === "1") return true;
+    if (getLocalItem(getLegacyPreferenceKey()) !== "1") return false;
 
-    localStorage.setItem(getPreferenceKey(), "1");
-    localStorage.removeItem(getLegacyPreferenceKey());
+    setLocalItem(getPreferenceKey(), "1");
+    removeLocalItem(getLegacyPreferenceKey());
     return true;
   } catch {
     return false;
@@ -80,11 +81,11 @@ export default function MobileWorkspaceRedirect() {
 export function setPreferFullWorkspace(prefer: boolean): void {
   try {
     if (prefer) {
-      localStorage.setItem(getPreferenceKey(), "1");
+      setLocalItem(getPreferenceKey(), "1");
     } else {
-      localStorage.removeItem(getPreferenceKey());
+      removeLocalItem(getPreferenceKey());
     }
-    localStorage.removeItem(getLegacyPreferenceKey());
+    removeLocalItem(getLegacyPreferenceKey());
   } catch {
     // localStorage 접근 불가 무시
   }

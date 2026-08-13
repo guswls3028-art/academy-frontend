@@ -5,6 +5,7 @@
  * - 테넌트별로 분리하여 크로스 테넌트 오염 방지
  */
 import { resolveTenantCodeString } from "@/shared/tenant";
+import { getLocalItem, removeLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
 
 const STORAGE_KEY_PREFIX = "parent_selected_student_id";
 
@@ -35,9 +36,9 @@ export function setParentStudentId(id: number | null): void {
   try {
     const key = storageKey();
     if (id != null) {
-      localStorage.setItem(key, String(id));
+      setLocalItem(key, String(id));
     } else {
-      localStorage.removeItem(key);
+      removeLocalItem(key);
     }
   } catch {
     // ignore
@@ -48,7 +49,7 @@ export function setParentStudentId(id: number | null): void {
 export function initParentStudentId(validIds: number[]): number | null {
   if (validIds.length === 0) return null;
   try {
-    const raw = localStorage.getItem(storageKey());
+    const raw = getLocalItem(storageKey());
     if (raw) {
       const id = parseInt(raw, 10);
       if (Number.isFinite(id) && validIds.includes(id)) {
@@ -61,7 +62,7 @@ export function initParentStudentId(validIds: number[]): number | null {
   }
   currentId = validIds[0];
   try {
-    localStorage.setItem(storageKey(), String(validIds[0]));
+    setLocalItem(storageKey(), String(validIds[0]));
   } catch {
     // ignore
   }

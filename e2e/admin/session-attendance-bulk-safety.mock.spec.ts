@@ -206,7 +206,7 @@ test("출석 명단은 이름 가나다순이 기본이고 계정별 정렬 선�
 
   await page.getByRole("columnheader", { name: /이름/ }).click();
   await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "미입력학생 학생 상세 열기");
-  await expect.poll(() => page.evaluate(() => localStorage.getItem("attendance:sort:u12"))).toBe("-name");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("attendance:sort:hakwonplus:user:12"))).toBe("-name");
   await expect.poll(() => state.attendanceOrderings).toContain("-name");
 
   await page.reload({ waitUntil: "domcontentloaded" });
