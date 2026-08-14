@@ -101,6 +101,15 @@ Hangul companion, E2E safety guard는 일반 PR과 동일하게 유지한다. De
 들어가면 main workflow의 secret-backed preview와 운영 승인·rollback 경계는
 그대로 적용된다.
 
+격리된 인증 시각 QA는 운영 데이터 복제가 아니라 production-shaped development
+API와 일회용 `qa-*` 테넌트를 사용한다. 프론트엔드는 검증할 정확한 revision을
+실행하고 `VITE_TENANT_CODE`를 그 일회용 테넌트로 명시한다. preview hostname에서는
+`/login/{tenantCode}` 경로를 가장 먼저 사용하고, 로그인 뒤 일반 route의 API 요청은
+명시한 `VITE_TENANT_CODE`로 이어간다. 이전 sessionStorage의 tenant 값은 preview
+fallback으로 사용하지 않는다. 데스크톱과 390px 검증이 끝나면 계정·테넌트와 임시
+proxy/tunnel을 삭제하고 backend destroy readback으로 잔여 tenant/user가 0인지
+확인한다.
+
 운영 쓰기는 두 경로만 허용한다.
 
 - `workflow_dispatch`에서 `controlled_write_canaries=true`를 명시한 수동 실행:
