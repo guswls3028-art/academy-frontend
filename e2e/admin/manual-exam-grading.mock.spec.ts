@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "../fixtures/strictTest";
+import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
 const LECTURE_ID = 501;
@@ -823,6 +824,7 @@ test.describe("문항별 직접 채점", () => {
   });
 
   test("학생별 결과가 1차 등수 점수와 최종점수를 구분하고 전체 행을 정렬·필터한다", async ({ page }, testInfo) => {
+    page.setDefaultTimeout(30_000);
     page.setDefaultNavigationTimeout(60_000);
     await installApi(page, {
       resultRows: [
@@ -838,6 +840,9 @@ test.describe("문항별 직접 채점", () => {
           passed: false,
           final_pass: false,
           clinic_required: false,
+          lecture_title: "공통수학2 정규반",
+          lecture_color: "#3b82f6",
+          lecture_chip_label: "수2",
         },
         {
           enrollment_id: 901,
@@ -851,6 +856,9 @@ test.describe("문항별 직접 채점", () => {
           passed: false,
           final_pass: false,
           clinic_required: false,
+          lecture_title: "공통수학2 정규반",
+          lecture_color: "#3b82f6",
+          lecture_chip_label: "수2",
         },
         {
           enrollment_id: 903,
@@ -865,12 +873,16 @@ test.describe("문항별 직접 채점", () => {
           passed: null,
           final_pass: null,
           clinic_required: false,
+          lecture_title: "공통수학2 정규반",
+          lecture_color: "#3b82f6",
+          lecture_chip_label: "수2",
         },
       ],
     });
-    await page.goto(
+    await gotoAndSettle(
+      page,
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
-      { waitUntil: "domcontentloaded" },
+      { timeout: 60_000 },
     );
     await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
 
@@ -902,6 +914,20 @@ test.describe("문항별 직접 채점", () => {
     await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
     await expect(resultRegion).toBeVisible();
     await resultRegion.scrollIntoViewIfNeeded();
+    const mobileResultRows = resultRegion.locator("button:visible");
+    await expect(mobileResultRows).toHaveCount(3);
+    await expect(mobileResultRows.nth(0)).toContainText("심하윤");
+    await expect(mobileResultRows.nth(0)).toContainText("수2");
+    await expect(mobileResultRows.nth(0)).toContainText("1차 20점");
+    await expect(mobileResultRows.nth(0)).toContainText("최종 19점");
+    await expect(mobileResultRows.nth(0)).toContainText("완료");
+    const firstMobileName = mobileResultRows.nth(0).locator(".student-name-chip__name");
+    await expect.poll(() => firstMobileName.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    )).toBe(true);
+    await expect.poll(() => page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    )).toBe(true);
     await expect.poll(() => resultRegion.evaluate(
       (element) => element.scrollWidth <= element.clientWidth,
     )).toBe(true);

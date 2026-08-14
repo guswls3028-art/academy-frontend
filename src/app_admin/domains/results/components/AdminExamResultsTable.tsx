@@ -22,6 +22,7 @@ import {
   achievementTone,
 } from "@/shared/scoring/achievement";
 import { compareKoreanText, compareNullableNumbers } from "@/shared/utils/dataOrdering";
+import "./AdminExamResultsTable.css";
 
 function toBadgeTone(t: ReturnType<typeof achievementTone>): BadgeTone {
   return t === "warn" ? "warning" : t;
@@ -130,10 +131,10 @@ export default function AdminExamResultsTable({
             <button
               key={r.enrollment_id}
               type="button"
-              className="grid min-h-16 w-full grid-cols-[42px_minmax(0,1fr)_52px] items-center gap-x-2 gap-y-1 border-b border-[var(--border-divider)] px-1 py-2.5 text-left last:border-b-0 hover:bg-[var(--color-bg-surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-border-focus)]"
+              className="grid min-h-16 w-full grid-cols-[44px_minmax(0,1fr)] items-center gap-x-2.5 gap-y-1.5 border-b border-[var(--border-divider)] px-2 py-2.5 text-left last:border-b-0 hover:bg-[var(--color-bg-surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-border-focus)]"
               onClick={() => onSelectEnrollment(r.enrollment_id)}
             >
-              <span className="row-span-2 text-center text-sm font-bold">
+              <span className="flex self-stretch items-center justify-center border-r border-[var(--border-divider)] pr-2 text-center text-sm font-bold tabular-nums">
                 {r.rank != null ? (
                   <>
                     {r.rank}
@@ -145,35 +146,37 @@ export default function AdminExamResultsTable({
                   <span className="text-[var(--color-text-muted)]">—</span>
                 )}
               </span>
-              <StudentNameWithLectureChip
-                name={r.student_name}
-                lectures={r.lecture_title ? [{ lectureName: r.lecture_title, color: r.lecture_color, chipLabel: r.lecture_chip_label }] : undefined}
-                profilePhotoUrl={r.profile_photo_url}
-                avatarSize={24}
-                clinicHighlight={r.name_highlight_clinic_target}
-                examNotSubmittedCount={r.exam_not_submitted_count}
-                density="compact"
-              />
-              <span className="whitespace-nowrap text-right text-sm font-semibold">
-                {typeof rankingScore === "number" ? rankingScore : "—"}
-                {hasDifferentFinalScore && (
-                  <span className="block text-[10px] font-normal text-[var(--color-text-muted)]">
-                    최종 {r.final_score}
+              <span className="flex min-w-0 flex-col gap-1.5 py-0.5">
+                <StudentNameWithLectureChip
+                  name={r.student_name}
+                  lectures={r.lecture_title ? [{ lectureName: r.lecture_title, color: r.lecture_color, chipLabel: r.lecture_chip_label }] : undefined}
+                  profilePhotoUrl={r.profile_photo_url}
+                  avatarSize={24}
+                  clinicHighlight={r.name_highlight_clinic_target}
+                  examNotSubmittedCount={r.exam_not_submitted_count}
+                  className="admin-exam-results-table__student"
+                />
+                <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
+                  <span className="whitespace-nowrap text-xs font-semibold tabular-nums text-[var(--color-text-primary)]">
+                    1차 {typeof rankingScore === "number" ? `${rankingScore}점` : "—"}
                   </span>
-                )}
-              </span>
-              <span className="col-span-2 col-start-2 flex min-w-0 flex-wrap items-center gap-1.5">
-                <FrontResultStatusBadge status={frontStatus} />
-                {r.is_provisional && (
-                  <Badge variant="solid" tone="warning" size="xs" title="채점 미확정 — 임시 점수">
-                    임시
-                  </Badge>
-                )}
-                {achievement && (
-                  <Badge variant="solid" tone={toBadgeTone(achievementTone(achievement))}>
-                    {achievementLabel(achievement, { pass: tenantLabels.pass, fail: tenantLabels.fail })}
-                  </Badge>
-                )}
+                  {hasDifferentFinalScore && (
+                    <span className="whitespace-nowrap text-[10px] tabular-nums text-[var(--color-text-muted)]">
+                      · 최종 {r.final_score}점
+                    </span>
+                  )}
+                  <FrontResultStatusBadge status={frontStatus} />
+                  {r.is_provisional && (
+                    <Badge variant="solid" tone="warning" size="xs" title="채점 미확정 — 임시 점수">
+                      임시
+                    </Badge>
+                  )}
+                  {achievement && (
+                    <Badge variant="solid" tone={toBadgeTone(achievementTone(achievement))}>
+                      {achievementLabel(achievement, { pass: tenantLabels.pass, fail: tenantLabels.fail })}
+                    </Badge>
+                  )}
+                </span>
               </span>
             </button>
           );
