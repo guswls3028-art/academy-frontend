@@ -173,7 +173,7 @@ export function getTenantCodeForHeader(): string | null {
  * API 요청 시 X-Tenant-Code 값 (SSOT)
  * - 중앙 API(api.hakwonplus.com)로 요청할 때 필수.
  * - 로컬(localhost/127.0.0.1): 경로(/login/xxx)·sessionStorage 우선 → 태넌트별 완전 격리(1 vs 9999).
- * - 프리뷰(*.pages.dev / *.trycloudflare.com): 경로 우선, sessionStorage fallback 금지 → cross-tenant 누출 차단.
+ * - 프리뷰(*.pages.dev / *.trycloudflare.com): 경로 → 명시적 VITE_TENANT_CODE, sessionStorage fallback 금지 → cross-tenant 누출 차단.
  * - 그 외: 1) hostname(도메인) 2) /login/xxx 경로 3) sessionStorage
  */
 export function getTenantCodeForApiRequest(): string | null {
@@ -209,7 +209,7 @@ export function getTenantCodeForApiRequest(): string | null {
     }
 
     if (isPreview) {
-      // 프리뷰 도메인: 경로 명시 시에만 사용, stale sessionStorage 사용 금지 (cross-tenant 보안).
+      // 프리뷰 도메인: 로그인 경로 또는 명시적 환경값만 사용하고 stale sessionStorage는 금지한다.
       const pathname = window.location.pathname || "";
       const parts = pathname.split("/").filter(Boolean);
       const loginIdx = parts.indexOf("login");
@@ -223,6 +223,8 @@ export function getTenantCodeForApiRequest(): string | null {
         }
         return fromPath;
       }
+      const fromEnv = getTenantCodeFromEnv();
+      if (fromEnv) return fromEnv;
       return null;
     }
 

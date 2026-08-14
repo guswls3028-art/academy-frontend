@@ -50,6 +50,24 @@ test("only bootstrap and authentication owners may access raw localStorage", () 
   assert.deepEqual(directOwners, [...rawStorageOwners].sort());
 });
 
+test("preview API tenant resolution uses path then explicit env without storage fallback", () => {
+  const source = read("src/shared/tenant/index.ts");
+  const previewStart = source.indexOf("if (isPreview) {");
+  const previewEnd = source.indexOf("\n    const fromHost =", previewStart);
+
+  assert.notEqual(previewStart, -1);
+  assert.notEqual(previewEnd, -1);
+
+  const previewBlock = source.slice(previewStart, previewEnd);
+  assert.match(previewBlock, /if \(fromPath\)[\s\S]*return fromPath;/);
+  assert.match(
+    previewBlock,
+    /const fromEnv = getTenantCodeFromEnv\(\);[\s\S]*if \(fromEnv\) return fromEnv;/,
+  );
+  assert.ok(previewBlock.indexOf("return fromPath") < previewBlock.indexOf("const fromEnv"));
+  assert.doesNotMatch(previewBlock, /sessionStorage\.getItem/);
+});
+
 test("authored drafts and operational preferences use tenant-aware storage", () => {
   const sensitiveOwners = [
     "src/landing/pages/LandingCommunityWritePage.tsx",
