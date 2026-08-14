@@ -78,6 +78,14 @@ relevant gates, redeploy, and verify again. During an assigned implementation,
 do not ask whether to deploy or continue unless an explicit opt-out or a
 genuine scope/authority blocker applies.
 
+When authenticated visual QA would otherwise create production test users or
+data, use the production-shaped persistent development runtime through its
+loopback SSM tunnel. Run the exact frontend checkout against that isolated API,
+create only a disposable `qa-*` tenant/account scenario, and require its
+tenant/user residue readback to be zero after cleanup. Do not copy production
+personal data, credentials, DB rows, or object storage. The owning procedure is
+`../backend/docs/operations/persistent-development-runtime.md`.
+
 Unless the user explicitly limits the task to local-only, no-deploy,
 draft/PR-only, or read-only work, an assigned implementation, change, or build
 includes its normal in-scope commit, push, PR, merge, messaging, deployment,
