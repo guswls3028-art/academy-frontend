@@ -113,7 +113,7 @@ export default function AdminExamResultsTable({
       </div>
       <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)]">
         <span>결과 {sorted.length}명</span>
-        <span>등수는 1차점수 기준</span>
+        <span>1차점수 기준 · 동점 인원 반영</span>
       </div>
       <div className="overflow-hidden border-y border-[var(--border-divider)] sm:hidden">
         {sorted.map((r) => {
