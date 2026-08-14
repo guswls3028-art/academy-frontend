@@ -198,6 +198,15 @@ const REQUIRED_TOKENS = [
   "--color-danger-soft",
 ] as const;
 
+const ERROR_TEXT_PATTERNS = [
+  String.raw`\bNot Found\b`,
+  String.raw`\bChunkLoadError\b`,
+  String.raw`\bApplication error\b`,
+  String.raw`\bSomething went wrong\b`,
+  String.raw`\bUnable to preload CSS\b`,
+  "오류가 발생했습니다",
+] as const;
+
 function routeName(route: string): string {
   return route.replace(/^\/+/, "").replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/-+$/, "") || "root";
 }
@@ -216,7 +225,7 @@ async function gotoSettled(page: Page, url: string) {
 async function auditRoute(page: Page, testInfo: TestInfo, base: string, route: string) {
   await gotoSettled(page, `${base}${route}`);
 
-  const snapshot = await page.evaluate((tokens) => {
+  const snapshot = await page.evaluate(({ tokens, errorTextPatterns }) => {
     const rootStyle = getComputedStyle(document.documentElement);
     const bodyStyle = getComputedStyle(document.body);
     const bodyFont = bodyStyle.fontFamily;
@@ -341,6 +350,14 @@ async function auditRoute(page: Page, testInfo: TestInfo, base: string, route: s
     const body = document.body;
     const overflowX = Math.max(html.scrollWidth, body.scrollWidth) - window.innerWidth;
     const bodyText = body.innerText || "";
+    const errorTextMatches = errorTextPatterns.flatMap((pattern) => {
+      const match = bodyText.match(new RegExp(pattern, "i"));
+      return match ? [match[0].trim().slice(0, 120)] : [];
+    });
+    const standalone404 = bodyText.match(/(?:^|\n)\s*404\s*(?=\n|$)/i);
+    if (standalone404 && bodyText.trim().length < 5_000) {
+      errorTextMatches.push("404");
+    }
     const escapedHtmlPattern = /<\/?(?:p|div|span|br|table|tbody|thead|tr|td|th|strong|em|h[1-6])\b|&(?:amp;)*(?:lt|gt);/i;
     const escapedHtmlAttributes = Array.from(
       document.querySelectorAll<HTMLElement>("[aria-label], [title], [alt], [placeholder]"),
@@ -360,14 +377,17 @@ async function auditRoute(page: Page, testInfo: TestInfo, base: string, route: s
       overflowX,
       viewportWidth: window.innerWidth,
       bodyTextLength: bodyText.trim().length,
-      hasErrorText: /Not Found|ChunkLoadError|Application error|Something went wrong|Unable to preload CSS|오류가 발생했습니다|404/i.test(bodyText),
+      errorTextMatches,
       hasEscapedHtml: escapedHtmlPattern.test(bodyText),
       escapedHtmlAttributes,
     };
-  }, [...REQUIRED_TOKENS]);
+  }, {
+    tokens: [...REQUIRED_TOKENS],
+    errorTextPatterns: [...ERROR_TEXT_PATTERNS],
+  });
 
   expect.soft(snapshot.bodyTextLength, `${route} rendered empty at ${snapshot.url}`).toBeGreaterThan(8);
-  expect.soft(snapshot.hasErrorText, `${route} rendered an error-like page at ${snapshot.url}`).toBe(false);
+  expect.soft(snapshot.errorTextMatches, `${route} rendered an error-like page at ${snapshot.url}`).toEqual([]);
   expect.soft(snapshot.missingTokens, `${route} missing design tokens`).toEqual([]);
   expect.soft(snapshot.badControls, `${route} controls not inheriting app font`).toEqual([]);
   expect.soft(snapshot.clippedControls, `${route} clipped controls`).toEqual([]);
