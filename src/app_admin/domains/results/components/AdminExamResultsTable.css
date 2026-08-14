@@ -1,0 +1,20 @@
+.student-name-chip.admin-exam-results-table__student {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  width: 100%;
+  column-gap: 6px;
+  overflow: visible;
+}
+
+.admin-exam-results-table__student > .student-name-chip__avatar {
+  grid-column: 1;
+}
+
+.admin-exam-results-table__student > .student-name-chip__body {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.admin-exam-results-table__student > [data-lecture-chip] {
+  grid-column: 3;
+}
