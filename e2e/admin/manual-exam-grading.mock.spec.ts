@@ -876,6 +876,7 @@ test.describe("문항별 직접 채점", () => {
 
     const resultRegion = page.getByRole("region", { name: "시험 학생별 결과" });
     const resultRows = resultRegion.locator("tbody tr");
+    await expect(resultRegion).toContainText("1차점수 기준 · 동점 인원 반영");
     await expect(resultRows).toHaveCount(3);
     await expect(resultRows.nth(0)).toContainText("심하윤");
     await expect(resultRows.nth(0)).toContainText("최종 19");

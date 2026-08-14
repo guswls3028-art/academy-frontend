@@ -152,7 +152,7 @@ export default function ResultsStatsTab() {
     const ra = typeof a.rank === "number" ? a.rank : Infinity;
     const rb = typeof b.rank === "number" ? b.rank : Infinity;
     if (ra !== rb) return ra - rb;
-    // tie-break: 점수 높은 순 (cosmetic — rank가 같으면 점수도 같은 dense_rank)
+    // tie-break: 점수 높은 순 (cosmetic — 공동 rank면 1차 점수도 같다)
     return (
       (getExamResultScore(b) ?? 0) -
       (getExamResultScore(a) ?? 0)
@@ -480,9 +480,9 @@ export default function ResultsStatsTab() {
                                   styles.rank,
                                   typeof r.rank === "number" && r.rank <= 3 && styles.rankTop,
                                 )}
-                                title="서버 계산 석차(1차 점수 기준)"
+                                title="서버 계산 석차(1차 점수 기준 · 동점 인원 반영)"
                               >
-                                {typeof r.rank === "number" ? r.rank : idx + 1}
+                                {typeof r.rank === "number" ? r.rank : "—"}
                               </span>
                               <StudentNameWithLectureChip
                                 name={r.student_name ?? r.enrollment_name ?? "이름 없음"}
