@@ -28,7 +28,7 @@ import {
   isSessionRowProgressCompleted,
 } from "../utils/sessionScoreRowVerdict";
 import type { SessionScoresTableVerdictKind } from "../utils/sessionScoreRowVerdict";
-import { getSessionRowExamWrongSummary } from "@/shared/scoring/sessionScoreRows";
+import { getSessionRowExamReviewSummary } from "@/shared/scoring/sessionScoreRows";
 import ScoreInputCell from "./ScoreInputCell";
 import ExamHeaderActionMenu, { type ExamHeaderAction } from "./ExamHeaderActionMenu";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
@@ -61,11 +61,12 @@ const CLINIC_VERDICT_BADGE_META: Record<
   pass: { label: "통과", tone: "success", title: "현재 입력·검수가 모두 완료된 항목" },
 };
 
-const EXAM_WRONG_BADGE_META = {
-  wrong: { label: "오답 있음", tone: "danger", title: "만점보다 낮은 테스트가 있습니다" },
-  clear: { label: "오답 없음", tone: "success", title: "채점된 테스트가 모두 만점입니다" },
-  pending: { label: "확인 대기", tone: "muted", title: "미응시 또는 채점 대기인 테스트가 있습니다" },
-} satisfies Record<"wrong" | "clear" | "pending", { label: string; tone: BadgeTone; title: string }>;
+const EXAM_REVIEW_BADGE_META = {
+  incomplete: { label: "미완료", tone: "danger", title: "오답 확인이 아직 완료되지 않은 테스트가 있습니다" },
+  complete: { label: "완료", tone: "success", title: "필요한 테스트 오답 확인을 모두 완료했습니다" },
+  clear: { label: "오답 없음", tone: "success", title: "채점된 테스트가 모두 만점이어서 오답 확인이 필요하지 않습니다" },
+  pending: { label: "채점 대기", tone: "muted", title: "미응시 또는 채점 대기인 테스트가 있습니다" },
+} satisfies Record<"incomplete" | "complete" | "clear" | "pending", { label: string; tone: BadgeTone; title: string }>;
 
 
 function parseScoreInput(input: string, maxScore?: number | null): number | null {
@@ -262,7 +263,7 @@ type Props = {
   scoreFormat?: "raw" | "fraction";
   /** 뷰 필터: 시험만/과제만/전체 */
   viewFilter?: "all" | "exam" | "homework";
-  /** 마지막 요약 열: 전체 상태 판정 | 시험 오답 여부 */
+  /** 마지막 요약 열: 전체 상태 판정 | 시험 오답 확인 상태 */
   summaryColumnMode?: SessionScoresSummaryColumnMode;
 
   selectedEnrollmentId: number | null;
@@ -1056,7 +1057,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               </span>
             </ResizableTh>
           ))}
-          {/* 사용자 표시 옵션에 따라 종합 판정 또는 테스트 오답만 같은 마지막 열에 표시한다. */}
+          {/* 사용자 표시 옵션에 따라 종합 판정 또는 테스트 오답 확인 현황을 같은 마지막 열에 표시한다. */}
           <ResizableTh
             columnKey="clinic_target"
             width={columnWidths.clinic_target ?? COL_CLINIC_TARGET}
@@ -1065,7 +1066,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             onWidthChange={setColumnWidth}
             rowSpan={2}
             className="text-center font-semibold text-[var(--color-text-primary)]"
-            data-col-type={summaryColumnMode === "exam_wrong" ? "exam-wrong" : "clinic"}
+            data-col-type={summaryColumnMode === "exam_wrong" ? "exam-review" : "clinic"}
             data-verdict-start=""
           >
             {summaryColumnMode === "exam_wrong" ? "테스트 오답" : "판정"}
@@ -2079,30 +2080,34 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   );
                 })}
 
-                {/* 마지막 열은 표시 옵션에 따라 종합 판정과 시험 오답 요약을 교체한다. */}
+                {/* 마지막 열은 표시 옵션에 따라 종합 판정과 시험 오답 확인 요약을 교체한다. */}
                 <td
                   className="text-center align-middle"
-                  data-col-type={summaryColumnMode === "exam_wrong" ? "exam-wrong" : "clinic"}
+                  data-col-type={summaryColumnMode === "exam_wrong" ? "exam-review" : "clinic"}
                   data-verdict-start=""
                 >
                   {summaryColumnMode === "exam_wrong" ? (() => {
-                    const summary = getSessionRowExamWrongSummary(row);
+                    const summary = getSessionRowExamReviewSummary(row);
                     if (summary.kind === "none") {
                       return <span className="text-[var(--color-text-muted)]" title="테스트 없음">-</span>;
                     }
-                    const badgeMeta = EXAM_WRONG_BADGE_META[summary.kind];
-                    const detail = summary.kind === "wrong"
+                    const badgeMeta = EXAM_REVIEW_BADGE_META[summary.kind];
+                    const detail = summary.kind === "incomplete"
                       ? [
-                          `오답 ${summary.wrongTitles.length}`,
-                          summary.pendingTitles.length > 0 ? `확인 ${summary.pendingTitles.length}` : "",
+                          `미완료 ${summary.incompleteTitles.length}`,
+                          summary.pendingTitles.length > 0 ? `채점 ${summary.pendingTitles.length}` : "",
                         ].filter(Boolean).join(" · ")
                       : summary.kind === "pending"
-                        ? `확인 ${summary.pendingTitles.length}`
-                        : "";
-                    const title = summary.kind === "wrong"
-                      ? `${badgeMeta.title}: ${summary.wrongTitles.join(", ")}`
+                        ? `채점 ${summary.pendingTitles.length}`
+                        : summary.kind === "complete"
+                          ? `완료 ${summary.completedTitles.length}`
+                          : "";
+                    const title = summary.kind === "incomplete"
+                      ? `${badgeMeta.title}: ${summary.incompleteTitles.join(", ")}`
                       : summary.kind === "pending"
                         ? `${badgeMeta.title}: ${summary.pendingTitles.join(", ")}`
+                        : summary.kind === "complete"
+                          ? `${badgeMeta.title}: ${summary.completedTitles.join(", ")}`
                         : badgeMeta.title;
                     return (
                       <div className="inline-flex flex-col items-center gap-0.5 leading-tight">

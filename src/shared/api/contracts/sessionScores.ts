@@ -2,7 +2,7 @@ import api from "@/shared/api/axios";
 import type { Achievement } from "@/shared/scoring/achievement";
 
 export type SessionScoresSummaryColumnMode = "verdict" | "exam_wrong";
-export type SessionScoresExamWrongFilter = "all" | "wrong" | "pending" | "clear";
+export type SessionScoresExamReviewFilter = "all" | "incomplete" | "pending" | "resolved";
 
 export type ScoreBlock = {
   score: number | null;

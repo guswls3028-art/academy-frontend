@@ -1,4 +1,7 @@
-import type { SessionScoreRow } from "@/shared/api/contracts/sessionScores";
+import type {
+  SessionScoreRow,
+  SessionScoresExamReviewFilter,
+} from "@/shared/api/contracts/sessionScores";
 
 const HANGUL_SYLLABLE_START = 0xac00;
 const HANGUL_SYLLABLE_END = 0xd7a3;
@@ -25,39 +28,60 @@ export function matchesSessionScoreStudentSearch(studentName: string, rawQuery: 
   return name.includes(query) || initials.includes(query);
 }
 
-export type SessionRowExamWrongSummary = {
-  kind: "wrong" | "clear" | "pending" | "none";
-  wrongTitles: string[];
+export type SessionRowExamReviewSummary = {
+  kind: "incomplete" | "complete" | "clear" | "pending" | "none";
+  incompleteTitles: string[];
+  completedTitles: string[];
   pendingTitles: string[];
+  notRequiredTitles: string[];
 };
 
-/** 시험 점수가 만점보다 낮은지로 오답 여부를 읽는다. 합격선과 과제는 포함하지 않는다. */
-export function getSessionRowExamWrongSummary(row: SessionScoreRow): SessionRowExamWrongSummary {
+/** 시험별 교사 오답 확인 저장 상태를 행 단위로 안전하게 집계한다. */
+export function getSessionRowExamReviewSummary(row: SessionScoreRow): SessionRowExamReviewSummary {
   const exams = row.exams ?? [];
   if (exams.length === 0) {
-    return { kind: "none", wrongTitles: [], pendingTitles: [] };
+    return {
+      kind: "none",
+      incompleteTitles: [],
+      completedTitles: [],
+      pendingTitles: [],
+      notRequiredTitles: [],
+    };
   }
 
-  const wrongTitles: string[] = [];
+  const incompleteTitles: string[] = [];
+  const completedTitles: string[] = [];
   const pendingTitles: string[] = [];
+  const notRequiredTitles: string[] = [];
   for (const exam of exams) {
-    const { block } = exam;
-    const score = Number(block.score);
-    const maxScore = Number(block.max_score);
-    const unavailable = block.meta?.status === "NOT_SUBMITTED"
-      || block.meta?.status === "OMR_REVIEW_REQUIRED"
-      || block.score == null
-      || !Number.isFinite(score)
-      || !Number.isFinite(maxScore)
-      || maxScore <= 0;
-    if (unavailable) {
-      pendingTitles.push(exam.title);
-    } else if (score < maxScore) {
-      wrongTitles.push(exam.title);
+    switch (exam.block.correction_status) {
+      case "PENDING":
+        incompleteTitles.push(exam.title);
+        break;
+      case "COMPLETED":
+        completedTitles.push(exam.title);
+        break;
+      case "NOT_REQUIRED":
+        notRequiredTitles.push(exam.title);
+        break;
+      default:
+        pendingTitles.push(exam.title);
     }
   }
 
-  if (wrongTitles.length > 0) return { kind: "wrong", wrongTitles, pendingTitles };
-  if (pendingTitles.length > 0) return { kind: "pending", wrongTitles, pendingTitles };
-  return { kind: "clear", wrongTitles, pendingTitles };
+  const summary = { incompleteTitles, completedTitles, pendingTitles, notRequiredTitles };
+  if (incompleteTitles.length > 0) return { kind: "incomplete", ...summary };
+  if (pendingTitles.length > 0) return { kind: "pending", ...summary };
+  if (completedTitles.length > 0) return { kind: "complete", ...summary };
+  return { kind: "clear", ...summary };
+}
+
+export function matchesSessionRowExamReviewFilter(
+  row: SessionScoreRow,
+  filter: SessionScoresExamReviewFilter,
+): boolean {
+  if (filter === "all") return true;
+  const kind = getSessionRowExamReviewSummary(row).kind;
+  if (filter === "resolved") return kind === "complete" || kind === "clear";
+  return kind === filter;
 }

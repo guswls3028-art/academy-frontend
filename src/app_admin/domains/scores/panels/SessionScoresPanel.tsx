@@ -8,7 +8,7 @@ import {
   fetchSessionScores,
   type SessionScoreRow,
   type SessionScoreMeta,
-  type SessionScoresExamWrongFilter,
+  type SessionScoresExamReviewFilter,
   type SessionScoresSummaryColumnMode,
 } from "../api/sessionScores";
 import { scoresQueryKeys } from "../api/queryKeys";
@@ -23,7 +23,7 @@ import { useConfirm } from "@/shared/ui/confirm";
 import { reorderSession } from "../api/reorderSession";
 import type { ExamHeaderAction } from "../components/ExamHeaderActionMenu";
 import {
-  getSessionRowExamWrongSummary,
+  matchesSessionRowExamReviewFilter,
   matchesSessionScoreStudentSearch,
 } from "@/shared/scoring/sessionScoreRows";
 
@@ -44,10 +44,10 @@ type Props = {
   scoreFormat?: "raw" | "fraction";
   /** 뷰 필터: 시험만/과제만/전체 */
   viewFilter?: "all" | "exam" | "homework";
-  /** 마지막 요약 열: 전체 상태 판정 | 시험 오답 여부 */
+  /** 마지막 요약 열: 전체 상태 판정 | 시험 오답 확인 상태 */
   summaryColumnMode?: SessionScoresSummaryColumnMode;
-  /** 테스트 오답 모드의 학생 행 필터 */
-  examWrongFilter?: SessionScoresExamWrongFilter;
+  /** 테스트 오답 확인 모드의 학생 행 필터 */
+  examReviewFilter?: SessionScoresExamReviewFilter;
   selectedEnrollmentIds?: number[];
   onSelectionChange?: (enrollmentIds: number[]) => void;
   onPendingChange?: () => void;
@@ -101,7 +101,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   scoreFormat = "raw",
   viewFilter = "all",
   summaryColumnMode = "verdict",
-  examWrongFilter = "all",
+  examReviewFilter = "all",
   selectedEnrollmentIds = [],
   onSelectionChange,
   onPendingChange,
@@ -232,9 +232,9 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     const searchedRows = allRows.filter((row) => (
       matchesSessionScoreStudentSearch(row.student_name ?? "", search)
     ));
-    if (summaryColumnMode !== "exam_wrong" || examWrongFilter === "all") return searchedRows;
-    return searchedRows.filter((row) => getSessionRowExamWrongSummary(row).kind === examWrongFilter);
-  }, [allRows, examWrongFilter, search, summaryColumnMode]);
+    if (summaryColumnMode !== "exam_wrong" || examReviewFilter === "all") return searchedRows;
+    return searchedRows.filter((row) => matchesSessionRowExamReviewFilter(row, examReviewFilter));
+  }, [allRows, examReviewFilter, search, summaryColumnMode]);
 
   // 드로어에 항상 최신 rows 데이터를 전달 (쿼리 갱신 시 자동 반영)
   const drawerRow = useMemo(
@@ -456,8 +456,8 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
       <EmptyState
         scope="panel"
         tone="empty"
-        title={search.trim() || examWrongFilter !== "all" ? "조건에 맞는 학생이 없습니다" : "아직 등록된 수강생이 없어요"}
-        description={search.trim() || examWrongFilter !== "all"
+        title={search.trim() || examReviewFilter !== "all" ? "조건에 맞는 학생이 없습니다" : "아직 등록된 수강생이 없어요"}
+        description={search.trim() || examReviewFilter !== "all"
           ? "이름 검색어나 테스트 오답 필터를 바꿔보세요."
           : "이 세션에 수강생을 먼저 등록해주세요. 등록 후 자동으로 성적 입력표가 만들어집니다."}
       />
