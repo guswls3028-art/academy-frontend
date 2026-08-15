@@ -367,9 +367,11 @@ table.ds-table {
 .ds-scores-table tbody tr:hover td[data-group-parity="odd"] {
   background: color-mix(in srgb, var(--color-primary) 2.4%, var(--color-bg-surface));
 }
-/* 판정+사유 — 최종 결론 영역으로 시각 분리 */
+/* 판정/오답 확인 — 최종 요약 영역으로 시각 분리 */
 .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table thead th[data-col-type="clinic"],
-.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody td[data-col-type="clinic"] {
+.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody td[data-col-type="clinic"],
+.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table thead th[data-col-type="exam-review"],
+.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody td[data-col-type="exam-review"] {
   background: color-mix(in srgb, var(--color-text-primary) 1.8%, var(--color-bg-surface));
 }
 .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table thead th[data-verdict-start],

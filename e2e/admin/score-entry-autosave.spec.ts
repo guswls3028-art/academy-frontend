@@ -4,11 +4,13 @@ import { installLocalAuthApiStubs, installTenantOneInitScript } from "../helpers
 
 type ScoreRouteOptions = {
   initialScores?: Array<number | null>;
+  initialCorrectionStatuses?: Array<"PENDING" | "COMPLETED" | "NOT_REQUIRED" | null>;
   initialDraft?: unknown[];
   includeHomework?: boolean;
   homeworkMaxScore?: number;
   initialHomeworkScores?: Array<number | null>;
   homeworkGradingMode?: "SCORE" | "COMPLETION";
+  scoreSummaryColumnDefault?: "exam_wrong";
 };
 
 function createLocalJwt() {
@@ -27,7 +29,11 @@ async function openScores(
 ): Promise<void> {
   const baseUrl = getBaseUrl("admin");
   test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(baseUrl), "성적 입력 route-mock 검증은 로컬 dev 서버 전용");
-  await installLocalAuthApiStubs(page);
+  await installLocalAuthApiStubs(page, {
+    programFeatureFlags: routeOptions.scoreSummaryColumnDefault
+      ? { score_summary_column_default: routeOptions.scoreSummaryColumnDefault }
+      : {},
+  });
   await installTenantOneInitScript(page);
   await page.addInitScript((token) => {
     localStorage.setItem("access", token);
@@ -62,6 +68,7 @@ const scorePatchHeaders: Array<Record<string, string>> = [];
 const draftPuts: Array<Record<string, unknown>> = [];
 const draftCommits: Array<Record<string, unknown>> = [];
 let currentScores: Array<number | null> = [65, 52];
+let currentCorrectionStatuses: Array<"PENDING" | "COMPLETED" | "NOT_REQUIRED" | null> = ["PENDING", "PENDING"];
 let currentDraft: unknown[] = [];
 let failNextDraftCommit = false;
 let failNextLeaseRelease = false;
@@ -81,6 +88,10 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
   draftPuts.length = 0;
   draftCommits.length = 0;
   currentScores = [...(options.initialScores ?? [65, 52])];
+  currentCorrectionStatuses = [...(
+    options.initialCorrectionStatuses
+    ?? currentScores.map((score) => (score == null ? null : score >= 100 ? "NOT_REQUIRED" : "PENDING"))
+  )];
   currentDraft = [...(options.initialDraft ?? [])];
   failNextDraftCommit = false;
   failNextLeaseRelease = false;
@@ -143,6 +154,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
                 is_locked: false,
                 objective_score: score,
                 subjective_score: score == null ? null : 0,
+                correction_status: currentCorrectionStatuses[index] ?? null,
                 meta: {},
               },
               attempt_count: score == null ? 0 : 1,
@@ -252,7 +264,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
     if (path.endsWith("/api/v1/enrollments/session-enrollments/") && method === "GET") {
       await route.fulfill({
         json: {
-          count: 2,
+          count: currentScores.length,
           results: currentScores.map((_, index) => ({
             id: 9501 + index,
             session: 9002,
@@ -379,9 +391,10 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
   });
 
-  test("마지막 열을 테스트 오답으로 바꾸면 과제를 제외한 오답 여부가 사용자별로 유지된다", async ({ page }, testInfo) => {
+  test("마지막 열을 테스트 오답으로 바꾸면 실제 오답 확인 완료 상태가 사용자별로 유지된다", async ({ page }, testInfo) => {
     await openScores(page, {
-      initialScores: [52, 100, null],
+      initialScores: [52, 80, 100, null],
+      initialCorrectionStatuses: ["PENDING", "COMPLETED", "NOT_REQUIRED", null],
       includeHomework: true,
       initialHomeworkScores: [100, 20],
     });
@@ -392,30 +405,32 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await summaryMode.getByRole("button", { name: "테스트 오답", exact: true }).click();
 
     await expect(page.getByRole("columnheader", { name: /^테스트 오답/ })).toBeVisible();
-    const wrongCells = page.locator('td[data-col-type="exam-wrong"]');
-    await expect(wrongCells).toHaveCount(3);
-    await expect(wrongCells.nth(0)).toContainText("오답 있음");
-    await expect(wrongCells.nth(0)).toContainText("오답 1");
-    await expect(wrongCells.nth(1)).toContainText("오답 없음");
-    await expect(wrongCells.nth(2)).toContainText("확인 대기");
+    const reviewCells = page.locator('td[data-col-type="exam-review"]');
+    await expect(reviewCells).toHaveCount(4);
+    await expect(reviewCells.nth(0)).toContainText("미완료");
+    await expect(reviewCells.nth(0)).toContainText("미완료 1");
+    await expect(reviewCells.nth(1)).toContainText("완료");
+    await expect(reviewCells.nth(1)).toContainText("완료 1");
+    await expect(reviewCells.nth(2)).toContainText("오답 없음");
+    await expect(reviewCells.nth(3)).toContainText("채점 대기");
 
-    const wrongFilter = page.getByRole("group", { name: "테스트 오답 학생 필터" });
-    await expect(wrongFilter.getByRole("button", { name: "전체 3명" })).toHaveAttribute("aria-pressed", "true");
-    await expect(wrongFilter.getByRole("button", { name: "오답 있음 1명" })).toBeEnabled();
-    await expect(wrongFilter.getByRole("button", { name: "확인 대기 1명" })).toBeEnabled();
-    await expect(wrongFilter.getByRole("button", { name: "오답 없음 1명" })).toBeEnabled();
+    const reviewFilter = page.getByRole("group", { name: "테스트 오답 확인 학생 필터" });
+    await expect(reviewFilter.getByRole("button", { name: "전체 4명" })).toHaveAttribute("aria-pressed", "true");
+    await expect(reviewFilter.getByRole("button", { name: "미완료 1명" })).toBeEnabled();
+    await expect(reviewFilter.getByRole("button", { name: "채점 대기 1명" })).toBeEnabled();
+    await expect(reviewFilter.getByRole("button", { name: "처리됨 2명" })).toBeEnabled();
 
-    await wrongFilter.getByRole("button", { name: "오답 있음 1명" }).click();
-    await expect(wrongCells).toHaveCount(1);
+    await reviewFilter.getByRole("button", { name: "미완료 1명" }).click();
+    await expect(reviewCells).toHaveCount(1);
     await expect(page.getByText("자동저장학생1", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "현재 결과 선택" }).click();
     await expect(page.getByText("1명 선택됨", { exact: true })).toBeVisible();
 
     await page.getByRole("searchbox", { name: "학생 이름 검색" }).fill("학생2");
-    await expect(wrongFilter.getByRole("button", { name: "전체 1명" })).toBeVisible();
-    await expect(wrongFilter.getByRole("button", { name: "오답 있음 0명" })).toBeDisabled();
+    await expect(reviewFilter.getByRole("button", { name: "전체 1명" })).toBeVisible();
+    await expect(reviewFilter.getByRole("button", { name: "미완료 0명" })).toBeDisabled();
     await expect(page.getByText("조건에 맞는 학생이 없습니다")).toBeVisible();
-    await wrongFilter.getByRole("button", { name: "오답 없음 1명" }).click();
+    await reviewFilter.getByRole("button", { name: "처리됨 1명" }).click();
     await expect(page.getByText("자동저장학생2", { exact: true })).toBeVisible();
     await page.getByRole("searchbox", { name: "학생 이름 검색" }).fill("");
     await page.screenshot({ path: testInfo.outputPath("score-test-wrong-column-1366.png"), fullPage: true });
@@ -423,7 +438,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("columnheader", { name: /^테스트 오답/ })).toBeVisible();
     await expect(page.getByRole("group", { name: "마지막 열 표시" }).getByRole("button", { name: "테스트 오답", exact: true })).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByRole("group", { name: "테스트 오답 학생 필터" }).getByRole("button", { name: "전체 3명" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("group", { name: "테스트 오답 확인 학생 필터" }).getByRole("button", { name: "전체 4명" })).toHaveAttribute("aria-pressed", "true");
 
     await page.setViewportSize({ width: 390, height: 844 });
     const wrongTools = page.getByLabel("테스트 오답 빠른 필터");
@@ -434,6 +449,24 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await tableScroller.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
     await expect(page.getByRole("columnheader", { name: /^테스트 오답/ })).toBeVisible();
     await tableScroller.screenshot({ path: testInfo.outputPath("score-test-wrong-column-390.png") });
+  });
+
+  test("Ymath 테넌트 기본값은 오답 확인이고 명시적 직원 설정은 유지된다", async ({ page }) => {
+    await openScores(page, {
+      initialScores: [52],
+      initialCorrectionStatuses: ["PENDING"],
+      scoreSummaryColumnDefault: "exam_wrong",
+    });
+
+    await expect(page.getByRole("columnheader", { name: /^테스트 오답/ })).toBeVisible();
+    await page.getByRole("button", { name: /표시 옵션/ }).click();
+    const summaryMode = page.getByRole("group", { name: "마지막 열 표시" });
+    await expect(summaryMode.getByRole("button", { name: "테스트 오답", exact: true })).toHaveAttribute("aria-pressed", "true");
+
+    await summaryMode.getByRole("button", { name: "종합 판정", exact: true }).click();
+    await expect(page.getByRole("columnheader", { name: /^판정/ })).toBeVisible();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("columnheader", { name: /^판정/ })).toBeVisible();
   });
 
   test("미배정 시험·과제는 셀과 상단에서 드러나고 누락 전부 배정으로 복구된다", async ({ page }, testInfo) => {

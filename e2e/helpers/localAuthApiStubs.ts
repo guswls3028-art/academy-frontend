@@ -7,7 +7,11 @@ function createLocalJwt() {
   return `${encode({ alg: "none", typ: "JWT" })}.${encode({ exp: now + 3600, tenant_code: "hakwonplus", user_id: 12 })}.sig`;
 }
 
-export async function installLocalAuthApiStubs(page: Page) {
+type LocalAuthApiStubOptions = {
+  programFeatureFlags?: Record<string, boolean | string | number>;
+};
+
+export async function installLocalAuthApiStubs(page: Page, options: LocalAuthApiStubOptions = {}) {
   const baseUrl = getBaseUrl("admin");
   if (!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(baseUrl)) return;
 
@@ -47,7 +51,7 @@ export async function installLocalAuthApiStubs(page: Page) {
           login_title: "학원플러스",
           login_subtitle: "학원 관리 시스템",
         },
-        feature_flags: {},
+        feature_flags: options.programFeatureFlags ?? {},
         is_active: true,
       },
     });
