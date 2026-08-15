@@ -107,6 +107,16 @@ report the technical blocker without asking the user to repeat the same
 authorization. The shared execution contract is
 `../backend/docs/operations/github-governance.md`.
 
+When the user says `모든권한`, `모든권한 있음`, `모든권한o`, or an equivalent
+phrase, treat it as standing authorization for all otherwise-authorized,
+in-scope actions until the user explicitly narrows or revokes it. Continue the
+earliest unfinished assigned task before ancillary follow-up, and do not ask
+again merely to reconfirm implementation, publication, release continuation,
+optimization, monitoring, verification, or cleanup. This vocabulary does not
+override a higher-priority safety or platform policy that explicitly requires
+an action-time confirmation, nor does it resolve an unknown destructive target
+or supply authorization that the external platform has not recorded.
+
 For concurrent Codex work, keep canonical `C:\academy\frontend` and
 `C:\academy\backend` on clean `main`. Create a uniquely owned worktree from
 current `origin/main` with
