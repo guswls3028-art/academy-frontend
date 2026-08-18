@@ -27,7 +27,7 @@ const rawStorageOwners = new Set([
   "src/app_dev/shared/components/impersonationSession.ts",
   "src/app_dev/shared/components/ImpersonationBanner.tsx",
   "src/app_dev/shared/components/CommandPalette.tsx",
-  "src/app_dev/domains/tenants/pages/TenantDetailPage.tsx",
+  "src/app_dev/domains/tenants/pages/TenantOwnersTab.tsx",
 ]);
 
 test("tenant-user storage keys fail closed when either identity is absent", () => {
