@@ -3,7 +3,11 @@ import { resolve } from "node:path";
 
 import { expect, test } from "./fixtures/strictTest";
 import { onRequestGet } from "../functions/[[path]].ts";
-import { getTenantCodeFromHostname } from "../src/shared/tenant";
+import {
+  getTenantCodeFromHostname,
+  getTenantDefByHostname,
+  getTenantHeaderCssVars,
+} from "../src/shared/tenant";
 
 function manifestRequest(host: string, pathname: string) {
   return onRequestGet({
@@ -58,6 +62,58 @@ test("known tenant teacher and student manifests use only that tenant's icons", 
   expect(studentManifest.name).toBe("박철 과학 학생");
   expect(studentManifest.start_url).toBe("/student");
   expect(JSON.stringify(studentManifest)).not.toContain("hakwonplus");
+});
+
+test("godmin host resolves its registry, PWA metadata, and committed icons", async () => {
+  const teacher = await manifestRequest("godmin.kr", "/teacher-manifest.json");
+  const student = await manifestRequest("www.godmin.kr", "/student-manifest.json");
+  const teacherManifest = await teacher.json() as {
+    name: string;
+    short_name: string;
+    theme_color: string;
+    background_color: string;
+    icons: Array<{ src: string; sizes: string }>;
+  };
+  const studentManifest = await student.json() as {
+    name: string;
+    icons: Array<{ src: string; sizes: string }>;
+  };
+
+  expect(getTenantCodeFromHostname("godmin.kr")).toEqual({
+    ok: true,
+    code: "godmin",
+    source: "hostname",
+  });
+  const godmin = getTenantDefByHostname("www.godmin.kr");
+  expect(godmin?.branding.headerLogoUrl).toBe("/tenants/godmin/icon.png");
+  expect(getTenantHeaderCssVars(godmin?.branding)).toEqual({
+    "--tenant-header-surface": "#e4f7ef",
+    "--tenant-header-surface-soft": "#d2f0e2",
+    "--tenant-header-foreground": "#24483d",
+    "--tenant-header-accent": "#147a62",
+  });
+  expect(teacherManifest.name).toBe("신과함께 모바일 업무");
+  expect(teacherManifest.short_name).toBe("신과함께");
+  expect(teacherManifest.theme_color).toBe("#147a62");
+  expect(teacherManifest.background_color).toBe("#e4f7ef");
+  expect(teacherManifest.icons).toEqual([
+    expect.objectContaining({ src: "/tenants/godmin/pwa-192.png", sizes: "192x192" }),
+    expect.objectContaining({ src: "/tenants/godmin/pwa-512.png", sizes: "512x512" }),
+  ]);
+  expect(studentManifest.name).toBe("신과함께 학생");
+  expect(JSON.stringify(studentManifest)).not.toContain("hakwonplus");
+  for (const filename of [
+    "logo.png",
+    "icon.png",
+    "favicon.png",
+    "og-image.png",
+    "apple-touch-icon.png",
+    "pwa-192.png",
+    "pwa-512.png",
+  ]) {
+    expect(readFileSync(resolve(process.cwd(), "public", "tenants", "godmin", filename)).length)
+      .toBeGreaterThan(0);
+  }
 });
 
 test("custom tenant manifest consumes uploaded branding without HakwonPlus fallback", async () => {

@@ -228,6 +228,8 @@ const TENANT_SEO: Record<string, TenantSeo> = {
   "www.dnbacademy.co.kr": { domain: "dnbacademy.co.kr", loginPath: "/login/dnb",      naver: "63724ceef8ef97b665e728a3f1e601788af8e2d3" },
   "movementhui.com":    { domain: "movementhui.com",    loginPath: "/login/movementhui" },
   "www.movementhui.com": { domain: "movementhui.com",   loginPath: "/login/movementhui" },
+  "godmin.kr":          { domain: "godmin.kr",          loginPath: "/login/godmin" },
+  "www.godmin.kr":      { domain: "godmin.kr",          loginPath: "/login/godmin" },
 };
 
 /** 네이버 Search Advisor HTML 파일 인증용 매핑 (도메인 → 인증 파일명) */
@@ -324,6 +326,8 @@ const FALLBACK_META: Record<string, TenantMeta> = {
   "www.dnbacademy.co.kr": { title: "DnB 보습학원", description: "DnB 보습학원 – 보습 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/dnb/favicon.png", image: "/tenants/dnb/og-image.png", imageWidth: 800, imageHeight: 420 },
   "movementhui.com":    { title: "이동휘원소 과학연구소", description: "이동휘원소 과학연구소 학습 플랫폼 – 학생·학부모·선생님 로그인", favicon: "/tenants/movementhui/favicon.png", image: "/tenants/movementhui/og-image.png", imageWidth: 500, imageHeight: 500 },
   "www.movementhui.com": { title: "이동휘원소 과학연구소", description: "이동휘원소 과학연구소 학습 플랫폼 – 학생·학부모·선생님 로그인", favicon: "/tenants/movementhui/favicon.png", image: "/tenants/movementhui/og-image.png", imageWidth: 500, imageHeight: 500 },
+  "godmin.kr":          { title: "신과함께", description: "신과함께 학습 플랫폼 – 학생·학부모·선생님 로그인", favicon: "/tenants/godmin/favicon.png", image: "/tenants/godmin/og-image.png", imageWidth: 1200, imageHeight: 630 },
+  "www.godmin.kr":      { title: "신과함께", description: "신과함께 학습 플랫폼 – 학생·학부모·선생님 로그인", favicon: "/tenants/godmin/favicon.png", image: "/tenants/godmin/og-image.png", imageWidth: 1200, imageHeight: 630 },
 };
 
 const FALLBACK_TEACHER_PWA: Record<string, TenantPwaMeta> = {
@@ -341,6 +345,8 @@ const FALLBACK_TEACHER_PWA: Record<string, TenantPwaMeta> = {
   "www.dnbacademy.co.kr": { title: "DnB 보습학원", icon: "/tenants/dnb/pwa-192.png", icon512: "/tenants/dnb/pwa-512.png" },
   "movementhui.com":    { title: "이동휘원소", icon: "/tenants/movementhui/pwa-192.png", icon512: "/tenants/movementhui/pwa-512.png", themeColor: "#1a253b", backgroundColor: "#1a253b" },
   "www.movementhui.com": { title: "이동휘원소", icon: "/tenants/movementhui/pwa-192.png", icon512: "/tenants/movementhui/pwa-512.png", themeColor: "#1a253b", backgroundColor: "#1a253b" },
+  "godmin.kr":          { title: "신과함께", icon: "/tenants/godmin/pwa-192.png", icon512: "/tenants/godmin/pwa-512.png", themeColor: "#147a62", backgroundColor: "#e4f7ef" },
+  "www.godmin.kr":      { title: "신과함께", icon: "/tenants/godmin/pwa-192.png", icon512: "/tenants/godmin/pwa-512.png", themeColor: "#147a62", backgroundColor: "#e4f7ef" },
 };
 
 function iconContentType(icon: string): string {

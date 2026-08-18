@@ -129,3 +129,28 @@ git diff --check
 
 운영 배포는 `.github/workflows/quality-gate.yml`을 통과해야 한다. 배포 후 실제
 테넌트 계정으로 역할별 상단바와 tenant isolation을 다시 확인한다.
+
+## 7. 활성 브랜드 — godmin
+
+`godmin.kr` / `www.godmin.kr`은 ID `11`, code `godmin`, 표시명 `신과함께`로
+등록한다.
+
+- 원본은 투명 PNG 워드마크이며 `public/tenants/godmin/logo.png`가 로그인 큰
+  브랜드 면을 소유한다.
+- 헤더는 원본 첫 글자 `m`을 정사각형으로 파생한 `icon.png`를 사용한다. Program의
+  넓은 `logo_url`보다 이 파일을 우선하기 위해 레지스트리에 헤더 팔레트를 함께
+  등록한다.
+- 팔레트는 차콜 `#383838`, 코어 민트 `#35c7a0`, 딥 민트 `#147a62`, 옅은
+  민트 `#e4f7ef`이다. 로그인은
+  워드마크 윤곽을 닮은 두 개의 원형 궤도만 대표 장면으로 쓰고, 학생앱·성적표도
+  같은 차콜/민트 대비를 사용한다. 넓은 면은 옅은 민트로 낮추고, 코어 민트는
+  초점·현재 위치·동작 피드백에 한정해 글자 대비를 보존한다.
+- OG는 1200×630, PWA는 192×192·512×512, Apple touch icon은 180×180 PNG로
+  파생한다. 제목·manifest·sitemap은 `functions/[[path]].ts`에서 두 호스트를 모두
+  fail-closed 레지스트리에 포함한다.
+- 네이버 Search Advisor 인증값은 발급 전까지 만들지 않는다.
+
+focused 검증은 `e2e/pwa-branding-contract.spec.ts`에서 hostname→code, 교사·학생
+manifest, theme/background 색, 정적 에셋 존재를 함께 확인한다. 로그인은 1366px와
+390×844에서 DOM·가로 overflow·폼/푸터 겹침을 확인하고, 내부 헤더는 관리자·선생·
+학생·학부모의 라이트·다크 조합을 따른다.
