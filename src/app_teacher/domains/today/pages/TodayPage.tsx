@@ -18,7 +18,7 @@ import SessionCard from "../components/SessionCard";
 import styles from "./TodayPage.module.css";
 
   const notificationLinkStyle: CSSProperties = {
-    minHeight: 36,
+    minHeight: "var(--tc-touch-min)",
     display: "inline-flex",
     alignItems: "center",
     gap: 4,
@@ -78,9 +78,11 @@ export default function TodayPage() {
     return "선생님";
   })();
   const userName = user?.name?.trim();
-  const greetingName = userName ? `${userName}님` : honorific;
+  const greetingName = userName ? (userName.endsWith("님") ? userName : `${userName}님`) : honorific;
   const pendingTotal = pendingCounts?.total ?? 0;
   const pendingQnaCount = pendingCounts?.qnaPending ?? 0;
+  const todayWorkTotal = pendingTotal + attendanceGap;
+  const hasTodayWork = todayWorkTotal > 0;
   const primaryWork = useMemo(() => {
     if (pendingQnaCount > 0) {
       return {
@@ -147,8 +149,8 @@ export default function TodayPage() {
       <section className={styles.hero}>
         <div className={styles.heroMeta}>
           <span>{dateStr}</span>
-          <Badge tone={pendingTotal > 0 ? "danger" : "success"} pill size="xs">
-            {pendingTotal > 0 ? `처리 ${pendingTotal}건` : "정리됨"}
+          <Badge tone={hasTodayWork ? "danger" : "success"} pill size="xs">
+            {hasTodayWork ? `오늘 업무 ${todayWorkTotal}건` : "정리됨"}
           </Badge>
         </div>
         <div className={styles.heroBody}>
@@ -174,11 +176,11 @@ export default function TodayPage() {
 
       <div className={styles.kpiGrid}>
         <KpiCard
-          label="처리할 일"
-          value={pendingTotal}
-          sub={pendingTotal > 0 ? "건" : "없음"}
-          color={pendingTotal > 0 ? "var(--tc-danger)" : "var(--tc-success)"}
-          onClick={() => navigate("/workspace/mobile/notifications")}
+          label="오늘 업무"
+          value={todayWorkTotal}
+          sub={hasTodayWork ? "건" : "없음"}
+          color={hasTodayWork ? "var(--tc-danger)" : "var(--tc-success)"}
+          onClick={() => navigate(primaryWork.route)}
         />
         <KpiCard
           label="오늘 수업"
@@ -232,18 +234,18 @@ export default function TodayPage() {
           <SectionTitle
             right={
               <div className="flex items-center gap-2">
-                {pendingItems.length > 0 ? (
-                  <Badge tone="danger" pill>{pendingTotal}건</Badge>
+                {hasTodayWork ? (
+                  <Badge tone="danger" pill>{todayWorkTotal}건</Badge>
                 ) : (
                   <Badge tone="success" pill size="xs">비어있음</Badge>
                 )}
                 <button
                   onClick={() => navigate("/workspace/mobile/notifications")}
-                  aria-label="알림 전체 보기"
+                  aria-label="알림 센터 보기"
                   className="text-[12px] cursor-pointer"
                   style={notificationLinkStyle}
                 >
-                  전체
+                  알림 센터
                   <ChevronRight size={ICON.xs} style={{ color: "var(--tc-text-muted)" }} />
                 </button>
               </div>
@@ -251,17 +253,25 @@ export default function TodayPage() {
           >
             처리 대기함
           </SectionTitle>
-          {pendingItems.length > 0 ? (
+          {hasTodayWork ? (
             <Card className={styles.pendingCard}>
               {pendingItems.map((item, idx) => (
                 <PendingRow
                   key={item.type}
                   label={item.label}
                   count={item.count}
-                  isLast={idx === pendingItems.length - 1}
+                  isLast={attendanceGap === 0 && idx === pendingItems.length - 1}
                   onClick={() => navigate(TEACHER_PENDING_ROUTES[item.type])}
                 />
               ))}
+              {attendanceGap > 0 && (
+                <PendingRow
+                  label="출결 미입력"
+                  count={attendanceGap}
+                  isLast
+                  onClick={() => navigate("/workspace/mobile/classes")}
+                />
+              )}
             </Card>
           ) : (
             <Card className={styles.emptyWorkCard}>
@@ -270,7 +280,7 @@ export default function TodayPage() {
               </span>
               <div>
                 <div className={styles.emptyWorkTitle}>처리 대기함이 비었습니다</div>
-                <div className={styles.emptyWorkText}>새 질문, 제출, 알림이 생기면 이곳에서 바로 이어갑니다.</div>
+                <div className={styles.emptyWorkText}>새 질문, 제출, 출결 업무가 생기면 이곳에서 바로 이어갑니다.</div>
               </div>
             </Card>
           )}
@@ -394,7 +404,7 @@ function PendingRow({
     <button
       onClick={onClick}
       aria-label={`${label} ${count}건 처리하기`}
-      className="flex justify-between items-center w-full text-left cursor-pointer"
+      className={`${styles.pendingRow} flex justify-between items-center w-full text-left cursor-pointer`}
       style={{
         padding: "var(--tc-space-3) var(--tc-space-4)",
         background: "none",

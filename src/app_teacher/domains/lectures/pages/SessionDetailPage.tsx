@@ -37,6 +37,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   LATE: { label: "지각", color: "var(--tc-warn)" },
   EARLY_LEAVE: { label: "조퇴", color: "var(--tc-warn)" },
   ABSENT: { label: "결석", color: "var(--tc-danger)" },
+  UNSET: { label: "미입력", color: "var(--tc-text-muted)" },
   RUNAWAY: { label: "출튀", color: "var(--tc-danger)" },
   MATERIAL: { label: "자료", color: "var(--tc-text-muted)" },
   INACTIVE: { label: "부재", color: "var(--tc-text-muted)" },

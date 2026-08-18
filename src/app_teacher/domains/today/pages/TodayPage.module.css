@@ -79,6 +79,20 @@
   border-radius: var(--tc-radius);
   cursor: pointer;
   text-align: left;
+  transition:
+    transform var(--tc-motion-fast),
+    border-color var(--tc-motion-fast),
+    box-shadow var(--tc-motion-fast);
+}
+
+.primaryWorkButton:hover,
+.primaryWorkButton:focus-visible {
+  box-shadow: var(--tc-shadow-sm);
+  transform: translateY(-1px);
+}
+
+.primaryWorkButton:active {
+  transform: translateY(0);
 }
 
 .primaryWorkButton_danger {
@@ -155,6 +169,16 @@
   padding: 0;
 }
 
+.pendingRow {
+  min-height: var(--tc-touch-min);
+  transition: background var(--tc-motion-fast);
+}
+
+.pendingRow:hover,
+.pendingRow:focus-visible {
+  background: var(--tc-surface-soft) !important;
+}
+
 .emptyWorkCard {
   align-items: center;
   gap: var(--tc-space-3);
@@ -191,7 +215,7 @@
 }
 
 .emptyActionButton {
-  min-height: 34px;
+  min-height: var(--tc-touch-min);
   padding: 0 14px;
   border: 0;
   border-radius: var(--tc-radius);
@@ -200,6 +224,19 @@
   cursor: pointer;
   font-size: 13px;
   font-weight: 800;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primaryWorkButton,
+  .pendingRow {
+    transition: none;
+  }
+
+  .primaryWorkButton:hover,
+  .primaryWorkButton:focus-visible,
+  .primaryWorkButton:active {
+    transform: none;
+  }
 }
 
 @media (min-width: 1024px) {

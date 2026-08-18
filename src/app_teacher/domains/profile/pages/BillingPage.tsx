@@ -60,12 +60,8 @@ async function fetchSubscription(): Promise<SubscriptionInfo> {
 }
 
 async function fetchCards(): Promise<BillingCard[]> {
-  try {
-    const res = await api.get("/billing/cards/");
-    return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
-  } catch {
-    return [];
-  }
+  const res = await api.get("/billing/cards/");
+  return Array.isArray(res.data?.results) ? res.data.results : Array.isArray(res.data) ? res.data : [];
 }
 
 const BILLING_MODE_LABELS: Record<string, string> = {
@@ -83,10 +79,16 @@ export default function BillingPage() {
     retry: 1,
   });
 
-  const { data: cards } = useQuery({
+  const {
+    data: cards,
+    isLoading: cardsLoading,
+    isError: cardsError,
+    refetch: refetchCards,
+  } = useQuery({
     queryKey: teacherProfileQueryKeys.billingCards,
     queryFn: fetchCards,
     staleTime: 60_000,
+    retry: 1,
   });
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
@@ -205,7 +207,25 @@ export default function BillingPage() {
       {/* Cards */}
       <Card>
         <div className="text-sm font-bold mb-2" style={{ color: "var(--tc-text)" }}>등록된 카드</div>
-        {cards && cards.length > 0 ? (
+        {cardsLoading ? (
+          <div role="status" className="text-[12px] text-center py-3"
+            style={{ color: "var(--tc-text-muted)", background: "var(--tc-surface-soft)", borderRadius: "var(--tc-radius-sm)" }}>
+            카드 정보를 불러오는 중입니다.
+          </div>
+        ) : cardsError ? (
+          <div role="alert" className="flex flex-col items-center gap-2 text-[12px] text-center py-3"
+            style={{ color: "var(--tc-danger)", background: "var(--tc-danger-bg)", borderRadius: "var(--tc-radius-sm)" }}>
+            <span>카드 정보를 불러오지 못했습니다.</span>
+            <button
+              type="button"
+              onClick={() => void refetchCards()}
+              className="cursor-pointer"
+              style={{ minHeight: "var(--tc-touch-min)", padding: "0 14px", border: "1px solid var(--tc-danger)", borderRadius: "var(--tc-radius)", background: "var(--tc-surface)", color: "var(--tc-danger)", fontWeight: 700 }}
+            >
+              다시 시도
+            </button>
+          </div>
+        ) : cards && cards.length > 0 ? (
           <div className="flex flex-col gap-1.5">
             {cards.map((c) => (
               <div key={c.id} className="flex items-center justify-between"

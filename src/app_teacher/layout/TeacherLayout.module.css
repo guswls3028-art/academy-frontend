@@ -62,6 +62,16 @@
 }
 
 @media (max-width: 1023px) {
+  .content :global(button),
+  .content :global([role="button"]) {
+    min-block-size: var(--tc-touch-min) !important;
+    touch-action: manipulation;
+  }
+
+  .content :global(button[aria-label]) {
+    min-inline-size: var(--tc-touch-min) !important;
+  }
+
   .asyncStatus :global(.async-status-bar) {
     right: var(--tc-space-3);
     bottom: calc(var(--tc-tabbar-h) + var(--tc-safe-bottom) + var(--tc-space-3));
