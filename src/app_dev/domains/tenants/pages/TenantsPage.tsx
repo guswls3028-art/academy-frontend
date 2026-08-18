@@ -8,7 +8,7 @@ import styles from "./TenantsPage.module.css";
 
 export default function TenantsPage() {
   const navigate = useNavigate();
-  const { data: tenants, isLoading } = useTenantList();
+  const { data: tenants, isLoading, isError, refetch } = useTenantList();
   const createTenant = useCreateTenant();
   const updateTenant = useUpdateTenant();
   const registerOwner = useRegisterOwner();
@@ -40,8 +40,13 @@ export default function TenantsPage() {
   }, [tenants, search]);
 
   async function handleCreate() {
+    if (createTenant.isPending || registerOwner.isPending) return;
     if (!newCode.trim() || !newName.trim()) {
       toast("코드와 이름을 입력해주세요.", "error");
+      return;
+    }
+    if (withOwner && (!ownerUser.trim() || !ownerPw)) {
+      toast("Owner 아이디와 임시 비밀번호를 모두 입력해주세요.", "error");
       return;
     }
     try {
@@ -62,6 +67,8 @@ export default function TenantsPage() {
           toast(`${newName} 생성 완료. Owner(${ownerUser}) 등록됨.`);
         } catch {
           toast("테넌트 생성됨. Owner 등록 실패.", "error");
+          navigate(`/dev/tenants/${tenant.id}`);
+          return;
         }
       } else {
         toast(`${newName} 생성 완료.`);
@@ -102,12 +109,15 @@ export default function TenantsPage() {
         <div className={styles.toolbar}>
           <div className={`${s.pageHeader} ${styles.compactPageHeader}`}>
             <h1 className={s.pageTitle}>테넌트</h1>
-            <p className={s.pageSub}>{tenants?.length ?? 0}개 테넌트 관리</p>
+            <p className={s.pageSub}>
+              {isLoading ? "불러오는 중" : isError ? "목록 조회 실패" : `${tenants?.length ?? 0}개 테넌트 관리`}
+            </p>
           </div>
           <button
             type="button"
             className={`${s.btn} ${s.btnPrimary}`}
             onClick={() => setShowCreate(!showCreate)}
+            disabled={isError}
           >
             + 새 테넌트
           </button>
@@ -161,8 +171,8 @@ export default function TenantsPage() {
               </div>
               <div className={s.modalFooter}>
                 <button type="button" className={`${s.btn} ${s.btnSecondary}`} onClick={resetCreateForm}>취소</button>
-                <button type="button" className={`${s.btn} ${s.btnPrimary}`} onClick={handleCreate} disabled={createTenant.isPending}>
-                  {createTenant.isPending ? "생성 중..." : "생성"}
+                <button type="button" className={`${s.btn} ${s.btnPrimary}`} onClick={handleCreate} disabled={createTenant.isPending || registerOwner.isPending}>
+                  {createTenant.isPending ? "테넌트 생성 중..." : registerOwner.isPending ? "Owner 등록 중..." : "생성"}
                 </button>
               </div>
             </div>
@@ -190,6 +200,13 @@ export default function TenantsPage() {
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className={`${s.skeleton} ${styles.skeletonRow}`} />
               ))}
+            </div>
+          ) : isError ? (
+            <div className={s.empty} role="alert">
+              <div className={s.emptyText}>테넌트 목록을 불러오지 못했습니다. 중복 생성을 막기 위해 생성 기능을 잠시 비활성화했습니다.</div>
+              <button type="button" className={`${s.btn} ${s.btnSecondary}`} onClick={() => void refetch()}>
+                다시 시도
+              </button>
             </div>
           ) : filtered.length === 0 ? (
             <div className={s.empty}>

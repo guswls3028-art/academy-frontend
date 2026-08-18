@@ -1,18 +1,18 @@
 import { useState, useCallback, useEffect } from "react";
-import { Link, useParams, useNavigate } from "react-router";
+import { Link, useParams } from "react-router";
 import {
-  useTenantDetail, useTenantOwners, useUpdateTenant, useRegisterOwner, useUpdateOwner, useRemoveOwner,
-  useTenantUsage, useTenantActivity, useImpersonate,
+  useTenantDetail, useUpdateTenant,
+  useTenantUsage, useTenantActivity,
   useTenantStorage, useRefreshTenantStorage,
 } from "@dev/domains/tenants/hooks/useTenants";
 import { useTenantBranding, useUploadLogo, usePatchBranding } from "@dev/domains/tenants/hooks/useBranding";
 import { getTenantBranding as getStaticBranding, getTenantIdFromCode } from "@/shared/tenant/config";
 import { resolveBillingAmounts } from "@/shared/product/billingAmounts";
 import type { TenantDetailDto, TenantActivityEntry } from "@dev/domains/tenants/api/tenants.api";
-import { abortImpersonation, beginImpersonation } from "@dev/shared/components/impersonationSession";
 import { useDevToast } from "@dev/shared/components/useDevToast";
 import s from "@dev/layout/DevLayout.module.css";
 import styles from "./TenantDetailPage.module.css";
+import { TenantOwnersTab } from "./TenantOwnersTab";
 
 type TabId = "overview" | "usage" | "activity" | "branding" | "domains" | "owners";
 
@@ -30,7 +30,7 @@ export default function TenantDetailPage() {
   const id = tenantId ? parseInt(tenantId, 10) : NaN;
   const [tab, setTab] = useState<TabId>("overview");
 
-  const { data: tenant, isLoading } = useTenantDetail(Number.isNaN(id) ? null : id);
+  const { data: tenant, isLoading, isError, refetch } = useTenantDetail(Number.isNaN(id) ? null : id);
 
   if (isLoading) {
     return (
@@ -45,6 +45,28 @@ export default function TenantDetailPage() {
         <div className={s.content}>
           <div className={`${s.skeleton} ${styles.skeletonTitle}`} />
           <div className={`${s.skeleton} ${styles.skeletonTall}`} />
+        </div>
+      </>
+    );
+  }
+
+  if (isError) {
+    return (
+      <>
+        <header className={s.header}>
+          <div className={s.headerLeft}>
+            <Link to="/dev/tenants" className={styles.breadcrumbLink}>테넌트</Link>
+            <span className={s.breadcrumbSep}>/</span>
+            <span className={s.breadcrumbCurrent}>조회 실패</span>
+          </div>
+        </header>
+        <div className={s.content}>
+          <div className={s.empty} role="alert">
+            <div className={s.emptyText}>테넌트 정보를 불러오지 못했습니다.</div>
+            <button type="button" className={`${s.btn} ${s.btnSecondary}`} onClick={() => void refetch()}>
+              다시 시도
+            </button>
+          </div>
         </div>
       </>
     );
@@ -115,7 +137,7 @@ export default function TenantDetailPage() {
         {tab === "activity" && <ActivityTab tenantId={id} />}
         {tab === "branding" && <BrandingTab tenantId={id} tenantCode={tenant.code} />}
         {tab === "domains" && <DomainsTab tenant={tenant} />}
-        {tab === "owners" && <OwnersTab tenantId={id} tenantName={tenant.name} />}
+        {tab === "owners" && <TenantOwnersTab tenantId={id} tenantName={tenant.name} />}
       </div>
     </>
   );
@@ -475,204 +497,6 @@ function DomainsTab({ tenant }: { tenant: TenantDetailDto }) {
 }
 
 /* ===== 소유자 탭 ===== */
-function OwnersTab({ tenantId, tenantName }: { tenantId: number; tenantName: string }) {
-  const navigate = useNavigate();
-  const { data: owners, isLoading } = useTenantOwners(tenantId);
-  const registerOwner = useRegisterOwner();
-  const impersonate = useImpersonate();
-  const updateOwner = useUpdateOwner();
-  const removeOwner = useRemoveOwner();
-  const { toast } = useDevToast();
-
-  const [editId, setEditId] = useState<number | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editPhone, setEditPhone] = useState("");
-  const [showAdd, setShowAdd] = useState(false);
-  const [newUser, setNewUser] = useState("");
-  const [newPw, setNewPw] = useState("");
-  const [newName, setNewName] = useState("");
-  const [newPhone, setNewPhone] = useState("");
-
-  async function handleAdd() {
-    if (!newUser.trim() || !newPw) { toast("아이디와 비밀번호를 입력하세요.", "error"); return; }
-    try {
-      await registerOwner.mutateAsync({
-        tenantId,
-        username: newUser.trim(),
-        password: newPw,
-        name: newName.trim() || undefined,
-        phone: newPhone.trim() || undefined,
-      });
-      toast(`${newUser} 등록 완료`);
-      setShowAdd(false); setNewUser(""); setNewPw(""); setNewName(""); setNewPhone("");
-    } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } } };
-      toast(err.response?.data?.detail || "등록 실패", "error");
-    }
-  }
-
-  async function handleSaveEdit(userId: number) {
-    try {
-      await updateOwner.mutateAsync({ tenantId, userId, name: editName || undefined, phone: editPhone || undefined });
-      toast("수정 완료");
-      setEditId(null);
-    } catch {
-      toast("수정 실패", "error");
-    }
-  }
-
-  async function handleRemove(userId: number, username: string) {
-    if (!confirm(`${username}을(를) ${tenantName}에서 제거할까요?`)) return;
-    try {
-      await removeOwner.mutateAsync({ tenantId, userId });
-      toast("제거 완료");
-    } catch {
-      toast("제거 실패", "error");
-    }
-  }
-
-  if (isLoading) {
-    return <div className={`${s.skeleton} ${styles.skeletonShort}`} />;
-  }
-
-  return (
-    <>
-      <div className={`${s.card} ${styles.cardSpacing}`}>
-        <div className={s.cardHeader}>
-          <h3 className={s.cardTitle}>소유자 ({owners?.length ?? 0})</h3>
-          <button type="button" className={`${s.btn} ${s.btnPrimary} ${s.btnSm}`} onClick={() => setShowAdd(!showAdd)}>
-            + 소유자 추가
-          </button>
-        </div>
-
-        {showAdd && (
-          <div className={styles.ownerCreatePanel}>
-            <div className={styles.ownerFormGrid}>
-              <div>
-                <label className={s.inputLabel}>아이디 *</label>
-                <input className={s.input} value={newUser} onChange={(e) => setNewUser(e.target.value)} placeholder="admin97" />
-              </div>
-              <div>
-                <label className={s.inputLabel}>비밀번호 *</label>
-                <input className={s.input} type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} />
-              </div>
-              <div>
-                <label className={s.inputLabel}>이름</label>
-                <input className={s.input} value={newName} onChange={(e) => setNewName(e.target.value)} />
-              </div>
-              <div>
-                <label className={s.inputLabel}>전화번호</label>
-                <input className={s.input} value={newPhone} onChange={(e) => setNewPhone(e.target.value)} />
-              </div>
-            </div>
-            <div className={styles.ownerFormActions}>
-              <button type="button" className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`} onClick={() => setShowAdd(false)}>취소</button>
-              <button type="button" className={`${s.btn} ${s.btnPrimary} ${s.btnSm}`} onClick={handleAdd} disabled={registerOwner.isPending}>
-                {registerOwner.isPending ? "생성 중..." : "생성"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {!owners?.length ? (
-          <div className={s.empty}>
-            <div className={s.emptyText}>등록된 소유자가 없습니다.</div>
-          </div>
-        ) : (
-          <table className={s.table}>
-            <thead>
-              <tr>
-                <th>아이디</th>
-                <th>이름</th>
-                <th>전화번호</th>
-                <th>역할</th>
-                <th className={styles.tableActionsHeader}>동작</th>
-              </tr>
-            </thead>
-            <tbody>
-              {owners.map((o) => (
-                <tr key={o.userId}>
-                  {editId === o.userId ? (
-                    <>
-                      <td className={styles.strongCell}>{o.username}</td>
-                      <td><input className={`${s.input} ${styles.compactInput}`} value={editName} onChange={(e) => setEditName(e.target.value)} /></td>
-                      <td><input className={`${s.input} ${styles.compactInput}`} value={editPhone} onChange={(e) => setEditPhone(e.target.value)} /></td>
-                      <td><span className={`${s.badge} ${s.badgeActive}`}>소유자</span></td>
-                      <td>
-                        <div className={styles.tableActions}>
-                          <button type="button" className={`${s.btn} ${s.btnPrimary} ${s.btnSm}`} onClick={() => handleSaveEdit(o.userId)}>저장</button>
-                          <button type="button" className={`${s.btn} ${s.btnGhost} ${s.btnSm}`} onClick={() => setEditId(null)}>취소</button>
-                        </div>
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td className={styles.strongCell}>{o.username}</td>
-                      <td>{o.name || "—"}</td>
-                      <td className={styles.mutedCell}>{o.phone || "—"}</td>
-                      <td><span className={`${s.badge} ${s.badgeActive}`}>소유자</span></td>
-                      <td>
-                        <div className={styles.tableActions}>
-                          <button
-                            type="button"
-                            className={`${s.btn} ${s.btnPrimary} ${s.btnSm}`}
-                            disabled={impersonate.isPending}
-                            onClick={async () => {
-                              const ok = window.confirm(
-                                `[임퍼소네이션]\n${tenantName}의 ${o.username}으로 로그인합니다.\n` +
-                                `현재 dev 토큰은 보존되며, 상단 배너에서 언제든 복귀할 수 있습니다.`,
-                              );
-                              if (!ok) return;
-                              try {
-                                beginImpersonation(`${tenantName} / ${o.username}`);
-                                const r = await impersonate.mutateAsync({ tenantId, userId: o.userId });
-                                localStorage.setItem("access", r.access);
-                                localStorage.setItem("refresh", r.refresh);
-                                navigate("/workspace", { replace: true });
-                                window.location.reload();
-                              } catch (e: unknown) {
-                                abortImpersonation();
-                                const err = e as { response?: { data?: { detail?: string } } };
-                                window.alert("임퍼소네이션 실패: " + (err.response?.data?.detail || String(e)));
-                              }
-                            }}
-                            title="이 사용자로 로그인 (감사 로그 기록)"
-                          >
-                            로그인
-                          </button>
-                          <button
-                            type="button"
-                            className={`${s.btn} ${s.btnGhost} ${s.btnSm}`}
-                            onClick={() => { setEditId(o.userId); setEditName(o.name || ""); setEditPhone(o.phone ?? ""); }}
-                          >
-                            수정
-                          </button>
-                          <button
-                            type="button"
-                            className={`${s.btn} ${s.btnDanger} ${s.btnSm}`}
-                            onClick={() => handleRemove(o.userId, o.username)}
-                            disabled={removeOwner.isPending}
-                          >
-                            제거
-                          </button>
-                        </div>
-                      </td>
-                    </>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      <div className={styles.ownerNotice}>
-        이 계정은 <strong>{tenantName}</strong> 전용입니다. 다른 테넌트에서는 로그인할 수 없습니다.
-      </div>
-    </>
-  );
-}
-
 /* ===== 사용량 탭 ===== */
 function UsageTab({ tenantId }: { tenantId: number }) {
   const { data, isLoading } = useTenantUsage(tenantId);

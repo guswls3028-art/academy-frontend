@@ -79,7 +79,7 @@ export function useUpdateTenant() {
 export function useRegisterOwner() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ tenantId, ...payload }: { tenantId: number; username: string; password?: string; name?: string; phone?: string }) =>
+    mutationFn: ({ tenantId, ...payload }: { tenantId: number; username: string; password?: string; name?: string; phone?: string; promoteExisting?: boolean }) =>
       registerTenantOwner(tenantId, payload),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: KEYS.owners(vars.tenantId) });
