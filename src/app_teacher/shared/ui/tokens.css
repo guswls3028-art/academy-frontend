@@ -102,7 +102,7 @@
     --tc-bg: color-mix(in srgb, var(--color-bg-surface, #f8fafc) 86%, #eef2f7);
     --tc-header-h: 60px;
     --tc-tabbar-h: 0px;
-    --tc-page-max-w: 1180px;
+    --tc-page-max-w: 1320px;
     --tc-space-3: 14px;
     --tc-space-4: 18px;
     --tc-space-5: 22px;

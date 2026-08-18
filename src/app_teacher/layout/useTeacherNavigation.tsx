@@ -46,6 +46,7 @@ export function useTeacherNavigation() {
   const { user } = useAuth();
   const { counts } = useTeacherPendingCounts();
   const feesEnabled = useFeesEnabled();
+  const isOwner = user?.tenantRole === "owner";
   const isOwnerOrAdmin = user?.tenantRole === "owner" || user?.tenantRole === "admin";
   const recentSubmissions = counts?.recentSubmissions;
   const totalNotifications = counts?.total;
@@ -98,7 +99,7 @@ export function useTeacherNavigation() {
           ...(isOwnerOrAdmin ? [{ label: "직원 관리", path: "/workspace/mobile/staff", icon: <Users size={ICON.md} />, keywords: ["강사", "조교", "계정"] }] : []),
           { label: "근태 / 지출", path: "/workspace/mobile/my-records", icon: <Clock size={ICON.md} />, keywords: ["출퇴근", "비용"] },
           { label: "프로필", path: "/workspace/mobile/profile", icon: <User size={ICON.md} />, keywords: ["내 정보", "비밀번호"] },
-          ...(isOwnerOrAdmin ? [{ label: "결제 / 구독", path: "/workspace/mobile/billing", icon: <Award size={ICON.md} />, keywords: ["요금", "플랜"] }] : []),
+          ...(isOwner ? [{ label: "결제 / 구독", path: "/workspace/mobile/billing", icon: <Award size={ICON.md} />, keywords: ["요금", "플랜"] }] : []),
           ...(isOwnerOrAdmin ? [{ label: "학원 정보", path: "/workspace/mobile/settings/organization", icon: <Settings size={ICON.md} />, keywords: ["학원 설정", "사업자"] }] : []),
           { label: "테마", path: "/workspace/mobile/settings/appearance", icon: <Settings size={ICON.md} />, keywords: ["화면", "색상", "모양"] },
           { label: "설정", path: "/workspace/mobile/settings", icon: <Settings size={ICON.md} />, keywords: ["환경", "계정"] },
@@ -117,7 +118,7 @@ export function useTeacherNavigation() {
         ],
       },
     ],
-    [feesEnabled, isOwnerOrAdmin, recentSubmissions, totalNotifications],
+    [feesEnabled, isOwner, isOwnerOrAdmin, recentSubmissions, totalNotifications],
   );
 
   return { groups, isOwnerOrAdmin };

@@ -158,7 +158,7 @@ export default function TeacherRouter() {
           <Route path="staff" element={<RoleGuard allow={["owner", "admin"]}><StaffManagePage /></RoleGuard>} />
           <Route path="staff/:staffId" element={<RoleGuard allow={["owner", "admin"]}><StaffDetailPage /></RoleGuard>} />
           <Route path="my-records" element={<MyRecordsPage />} />
-          <Route path="billing" element={<RoleGuard allow={["owner", "admin"]}><BillingPage /></RoleGuard>} />
+          <Route path="billing" element={<RoleGuard allow={["owner"]}><BillingPage /></RoleGuard>} />
           <Route path="desktop-only" element={<DesktopOnlyPage />} />
 
           {/* 수납 (Phase 4) */}

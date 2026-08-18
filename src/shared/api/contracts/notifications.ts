@@ -53,6 +53,10 @@ export type AdminNotificationSource = OperationalNotificationSource;
 export type AdminNotificationCountsResult = OperationalNotificationCountsResult;
 export type AdminNotificationItem = OperationalNotificationItem;
 
+type OperationalNotificationOptions = {
+  includeConsult?: boolean;
+};
+
 type ListEnvelope<T> = {
   count?: number;
   results?: T[];
@@ -202,7 +206,9 @@ async function fetchConsultUnread(): Promise<number | null> {
 
 export async function fetchOperationalNotificationCounts(
   loadArrivalOverview: () => Promise<ArrivalOverview> = fetchArrivalOverview,
+  options: OperationalNotificationOptions = {},
 ): Promise<OperationalNotificationCountsResult> {
+  const includeConsult = options.includeConsult ?? true;
   const [
     clinicPendingRes,
     qnaCount,
@@ -221,7 +227,7 @@ export async function fetchOperationalNotificationCounts(
     fetchRegistrationRequestsPendingCount(),
     fetchRecentSubmissionsCount(),
     fetchDashboardVideoFailedCount(),
-    fetchConsultUnread(),
+    includeConsult ? fetchConsultUnread() : Promise.resolve(0),
     fetchReportsPending(),
     fetchCommunityUnread(),
     loadArrivalOverview().catch(() => null),
@@ -234,7 +240,7 @@ export async function fetchOperationalNotificationCounts(
   if (registrationRequestsRes === null) failures.push("registration_requests");
   if (recentSubmissionsRes === null) failures.push("submissions");
   if (videoFailedRes === null) failures.push("video_failed");
-  if (consultRes === null) failures.push("consult");
+  if (includeConsult && consultRes === null) failures.push("consult");
   if (reportsRes === null) failures.push("reports");
   if (communityRes === null) failures.push("community");
   if (arrivalRes === null) failures.push("arrivals_soon");
@@ -269,7 +275,8 @@ export async function fetchOperationalNotificationCounts(
     arrivalsOverdue +
     arrivalsTimeUnset;
 
-  if (failures.length === 10) {
+  const requestedSourceCount = includeConsult ? 10 : 9;
+  if (failures.length === requestedSourceCount) {
     return { counts: createEmptyOperationalNotificationCounts(), failures };
   }
 

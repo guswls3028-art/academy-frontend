@@ -1,5 +1,5 @@
 // PATH: src/app_teacher/shared/ui/RoleGuard.tsx
-// 원장/관리자 전용 페이지 보호
+// 선생님 업무 화면의 역할별 페이지 보호
 import type { ReactNode } from "react";
 import useAuth from "@/auth/hooks/useAuth";
 import { EmptyState } from "@/shared/ui/ds";
