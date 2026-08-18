@@ -31,6 +31,7 @@ export type TenantOwnerDto = {
   username: string;
   name: string;
   phone?: string;
+  isActive?: boolean;
   role: string;
 };
 
@@ -77,9 +78,14 @@ export async function registerTenantOwner(
     password?: string;
     name?: string;
     phone?: string;
+    promoteExisting?: boolean;
   }
 ): Promise<TenantOwnerDto> {
-  const res = await api.post<TenantOwnerDto>(`/core/tenants/${tenantId}/owner/`, payload);
+  const { promoteExisting, ...fields } = payload;
+  const res = await api.post<TenantOwnerDto>(`/core/tenants/${tenantId}/owner/`, {
+    ...fields,
+    ...(promoteExisting === undefined ? {} : { promote_existing: promoteExisting }),
+  });
   return res.data;
 }
 
