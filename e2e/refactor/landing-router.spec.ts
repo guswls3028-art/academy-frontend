@@ -147,6 +147,110 @@ test.describe("landing route island", () => {
     await expect(page.getByTestId("landing-hero-primary-cta")).toBeVisible();
   });
 
+  test("recovers the public home from one transient landing API failure", async ({ page }) => {
+    let attempts = 0;
+    await page.unroute("**/api/v1/core/landing/public/**");
+    await page.route("**/api/v1/core/landing/public/**", async (route) => {
+      attempts += 1;
+      if (attempts === 1) {
+        await route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({ detail: "temporarily unavailable" }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          has_landing: true,
+          template_key: "minimal_tutor",
+          config: landingConfig,
+        }),
+      });
+    });
+
+    await page.goto(`${BASE}/landing`, { waitUntil: "domcontentloaded" });
+
+    await expect(page).toHaveURL(/\/landing$/);
+    await expect(page.getByRole("heading", { name: "구조 리팩토링 검증" })).toBeVisible();
+    expect(attempts).toBe(2);
+  });
+
+  test("keeps a repeated landing API failure distinct from an unpublished home", async ({ page }, testInfo) => {
+    let attempts = 0;
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.unroute("**/api/v1/core/landing/public/**");
+    await page.route("**/api/v1/core/landing/public/**", async (route) => {
+      attempts += 1;
+      if (attempts <= 3) {
+        await route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({ detail: "temporarily unavailable" }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          has_landing: true,
+          template_key: "minimal_tutor",
+          config: landingConfig,
+        }),
+      });
+    });
+
+    await page.goto(`${BASE}/landing`, { waitUntil: "domcontentloaded" });
+
+    await expect(page).toHaveURL(/\/landing$/);
+    await expect(page.getByRole("heading", { name: "홈페이지 연결이 잠시 원활하지 않습니다" })).toBeVisible();
+    const retryButton = page.getByRole("button", { name: "다시 불러오기" });
+    const compactMetrics = await page.evaluate(() => ({
+      overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+      viewportWidth: window.innerWidth,
+    }));
+    expect(compactMetrics).toEqual({ overflow: 0, viewportWidth: 390 });
+    const retryButtonBox = await retryButton.boundingBox();
+    expect(retryButtonBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+    const screenshotPath = testInfo.outputPath("landing-connection-error-390.png");
+    await page.screenshot({ path: screenshotPath, fullPage: true });
+    await testInfo.attach("landing-connection-error-390.png", { path: screenshotPath, contentType: "image/png" });
+
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await expect(page.getByRole("heading", { name: "홈페이지 연결이 잠시 원활하지 않습니다" })).toBeVisible();
+    const desktopOverflow = await page.evaluate(
+      () => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+    );
+    expect(desktopOverflow).toBe(0);
+    const desktopScreenshotPath = testInfo.outputPath("landing-connection-error-1366.png");
+    await page.screenshot({ path: desktopScreenshotPath, fullPage: true });
+    await testInfo.attach("landing-connection-error-1366.png", { path: desktopScreenshotPath, contentType: "image/png" });
+
+    await retryButton.click();
+    await expect(page.getByRole("heading", { name: "구조 리팩토링 검증" })).toBeVisible();
+    await expect(page).toHaveURL(/\/landing$/);
+    expect(attempts).toBe(4);
+  });
+
+  test("still sends an intentionally unpublished home to login", async ({ page }) => {
+    await page.unroute("**/api/v1/core/landing/public/**");
+    await page.route("**/api/v1/core/landing/public/**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ has_landing: false, config: null }),
+      });
+    });
+
+    await page.goto(`${BASE}/landing`, { waitUntil: "domcontentloaded" });
+
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByRole("button", { name: "로그인" })).toBeVisible();
+  });
+
   test("renders a nested landing page without falling through to root auth redirects", async ({ page }) => {
     await page.goto(`${BASE}/landing/about`, { waitUntil: "load" });
     await waitForRenderSettled(page);

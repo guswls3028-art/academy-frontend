@@ -3,6 +3,7 @@ import { test, expect } from "../fixtures/strictTest";
 import { getBaseUrl, loginViaUI } from "../helpers/auth";
 
 const TENANT_LANDING_BASE = process.env.TCHUL_BASE_URL || "https://tchul.com";
+const DEVELOPER_BASE = process.env.E2E_DEV_BASE_URL || "https://dev.hakwonplus.com";
 
 const ADMIN_ROUTES = [
   "/workspace/dashboard",
@@ -29,7 +30,6 @@ const ADMIN_ROUTES = [
   "/workspace/results/submissions",
   "/workspace/videos",
   "/workspace/videos/tree",
-  "/workspace/counsel",
   "/workspace/message/templates",
   "/workspace/message/auto-send",
   "/workspace/message/log",
@@ -132,7 +132,6 @@ const TEACHER_ROUTES = [
   "/workspace/mobile/tools",
   "/workspace/mobile/tools/problem-solver",
   "/workspace/mobile/tools/stopwatch",
-  "/workspace/mobile/developer",
   "/workspace/mobile/developer/bug",
   "/workspace/mobile/developer/feedback",
 ] as const;
@@ -167,13 +166,13 @@ const TENANT_LANDING_ROUTES = [
   "/landing/community/notice",
   "/landing/community/qna",
   "/landing/community/materials",
-  "/landing/community/counsel",
   "/landing/board",
   "/landing/reviews",
   "/landing/scores",
   "/landing/about",
   "/landing/guide",
   "/landing/matchup-board",
+  "/landing/analysis",
 ] as const;
 
 const DEV_ROUTES = [
@@ -368,6 +367,8 @@ async function auditRoute(page: Page, testInfo: TestInfo, base: string, route: s
 
     return {
       url: location.href,
+      origin: location.origin,
+      pathname: location.pathname.replace(/\/+$/, "") || "/",
       title: document.title,
       bodyFont,
       badControls,
@@ -386,6 +387,10 @@ async function auditRoute(page: Page, testInfo: TestInfo, base: string, route: s
     errorTextPatterns: [...ERROR_TEXT_PATTERNS],
   });
 
+  const expectedUrl = new URL(route, base);
+  const expectedPathname = expectedUrl.pathname.replace(/\/+$/, "") || "/";
+  expect.soft(snapshot.origin, `${route} changed origin while rendering`).toBe(expectedUrl.origin);
+  expect.soft(snapshot.pathname, `${route} redirected to ${snapshot.url}`).toBe(expectedPathname);
   expect.soft(snapshot.bodyTextLength, `${route} rendered empty at ${snapshot.url}`).toBeGreaterThan(8);
   expect.soft(snapshot.errorTextMatches, `${route} rendered an error-like page at ${snapshot.url}`).toEqual([]);
   expect.soft(snapshot.missingTokens, `${route} missing design tokens`).toEqual([]);
@@ -426,6 +431,10 @@ test.describe("design-system route visual audit", () => {
     test.setTimeout(12 * 60_000);
     await page.setViewportSize({ width: 390, height: 844 });
     const base = getBaseUrl("admin").replace(/\/+$/, "");
+    const tenantCode = process.env.E2E_TENANT_CODE || "hakwonplus";
+    await page.addInitScript((code) => {
+      localStorage.setItem(`workspace:preferFull:${code}`, "1");
+    }, tenantCode);
     await loginViaUI(page, "admin", { landingPath: "/workspace/dashboard" });
 
     for (const route of ADMIN_ROUTES) {
@@ -499,11 +508,10 @@ test.describe("design-system route visual audit", () => {
   test("developer route surface is visually stable", async ({ page }, testInfo) => {
     test.setTimeout(7 * 60_000);
     await page.setViewportSize({ width: 1440, height: 1000 });
-    const base = getBaseUrl("admin").replace(/\/+$/, "");
     await loginViaUI(page, "admin", { landingPath: "/dev/dashboard" });
 
     for (const route of DEV_ROUTES) {
-      await auditRoute(page, testInfo, base, route);
+      await auditRoute(page, testInfo, DEVELOPER_BASE, route);
     }
   });
 });
