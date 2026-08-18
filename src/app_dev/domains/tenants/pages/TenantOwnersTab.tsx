@@ -36,7 +36,6 @@ function tenantOwnerErrorMessage(error: unknown): string {
   };
   return (detail && messages[detail]) || detail || "등록 실패";
 }
-
 export function TenantOwnersTab({ tenantId, tenantName }: { tenantId: number; tenantName: string }) {
   const navigate = useNavigate();
   const { data: owners, isLoading, isError, refetch } = useTenantOwners(tenantId);
@@ -296,4 +295,3 @@ export function TenantOwnersTab({ tenantId, tenantName }: { tenantId: number; te
     </>
   );
 }
-
