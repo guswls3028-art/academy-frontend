@@ -93,7 +93,10 @@ tenant를 확정할 수 없는 preview에서는 숨김 값을 저장하거나 �
 3. `src/auth/themes/<code>.css`에서 로그인 장면을 구성한다.
 4. 학생앱 전용 색이 필요하면
    `src/app_student/shared/ui/theme/tenants/<code>.css`를 추가한다.
-5. OG·PWA·성적표 등 백엔드 커스텀 도메인 매뉴얼의 나머지 경계를 반영한다.
+5. `index.html`의 초기 메타데이터 레지스트리와 OG·PWA·성적표 등 백엔드
+   커스텀 도메인 매뉴얼의 나머지 경계를 반영한다. Pages 함수가 응답 HTML을
+   올바르게 바꿔도 초기 스크립트에 호스트가 없으면 브라우저가 fallback 값으로
+   다시 덮으므로 두 레지스트리를 함께 검증한다.
 6. 역할·테마·폭 검증을 통과한 뒤 정식 품질 게이트로 배포한다.
 
 ## 6. 검증표
@@ -147,7 +150,8 @@ git diff --check
   초점·현재 위치·동작 피드백에 한정해 글자 대비를 보존한다.
 - OG는 1200×630, PWA는 192×192·512×512, Apple touch icon은 180×180 PNG로
   파생한다. 제목·manifest·sitemap은 `functions/[[path]].ts`에서 두 호스트를 모두
-  fail-closed 레지스트리에 포함한다.
+  fail-closed 레지스트리에 포함하고, `index.html` 초기 메타데이터 레지스트리에도
+  같은 제목·설명·아이콘·민트 테마색을 등록해 런타임 fallback 덮어쓰기를 막는다.
 - 네이버 Search Advisor 인증값은 발급 전까지 만들지 않는다.
 
 focused 검증은 `e2e/pwa-branding-contract.spec.ts`에서 hostname→code, 교사·학생
