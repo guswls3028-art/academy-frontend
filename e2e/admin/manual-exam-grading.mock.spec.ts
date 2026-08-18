@@ -949,10 +949,14 @@ test.describe("문항별 직접 채점", () => {
         }, { platform: shortcut.platform });
         const apiState = await installApi(page);
 
-        await page.goto(
+        await gotoAndSettle(
+          page,
           `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
-          { waitUntil: "domcontentloaded" },
+          { timeout: 60_000 },
         );
+        await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible({
+          timeout: 60_000,
+        });
         await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
         await expect(page.getByRole("heading", { name: "정오 직접입력", exact: true })).toBeVisible();
 
