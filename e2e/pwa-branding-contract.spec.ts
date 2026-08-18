@@ -87,15 +87,15 @@ test("godmin host resolves its registry, PWA metadata, and committed icons", asy
   const godmin = getTenantDefByHostname("www.godmin.kr");
   expect(godmin?.branding.headerLogoUrl).toBe("/tenants/godmin/icon.png");
   expect(getTenantHeaderCssVars(godmin?.branding)).toEqual({
-    "--tenant-header-surface": "#f3f7f0",
-    "--tenant-header-surface-soft": "#dce8d7",
-    "--tenant-header-foreground": "#303330",
-    "--tenant-header-accent": "#6a825f",
+    "--tenant-header-surface": "#e4f7ef",
+    "--tenant-header-surface-soft": "#d2f0e2",
+    "--tenant-header-foreground": "#24483d",
+    "--tenant-header-accent": "#147a62",
   });
   expect(teacherManifest.name).toBe("신과함께 모바일 업무");
   expect(teacherManifest.short_name).toBe("신과함께");
-  expect(teacherManifest.theme_color).toBe("#383838");
-  expect(teacherManifest.background_color).toBe("#f3f7f0");
+  expect(teacherManifest.theme_color).toBe("#147a62");
+  expect(teacherManifest.background_color).toBe("#e4f7ef");
   expect(teacherManifest.icons).toEqual([
     expect.objectContaining({ src: "/tenants/godmin/pwa-192.png", sizes: "192x192" }),
     expect.objectContaining({ src: "/tenants/godmin/pwa-512.png", sizes: "512x512" }),

@@ -1,31 +1,30 @@
-/* 신과함께 — 흑연 워드마크 + 세이지 궤도 */
+/* 신과함께 — 흑연 워드마크 + 민트 궤도 */
 [data-app="auth"][data-tenant="godmin"] {
   --godmin-charcoal: #383838;
-  --godmin-ink: #252825;
-  --godmin-sage: #8aa37f;
-  --godmin-sage-deep: #61785a;
-  --godmin-sage-line: #b0d0a0;
-  --godmin-mist: #f3f7f0;
-  --godmin-paper: #fcfdfb;
+  --godmin-ink: #203832;
+  --godmin-mint: #35c7a0;
+  --godmin-mint-deep: #147a62;
+  --godmin-mist: #e4f7ef;
+  --godmin-paper: #fbfefc;
 
-  --auth-accent: var(--godmin-sage-deep);
+  --auth-accent: var(--godmin-mint-deep);
   --auth-bg: var(--godmin-mist);
   --auth-surface: var(--godmin-paper);
   --auth-border: rgba(56, 56, 56, 0.13);
-  --auth-border-hover: rgba(97, 120, 90, 0.48);
+  --auth-border-hover: rgba(20, 122, 98, 0.48);
   --auth-text: var(--godmin-ink);
-  --auth-text-muted: #697066;
-  --auth-focus: rgba(106, 130, 95, 0.2);
+  --auth-text-muted: #60746c;
+  --auth-focus: rgba(53, 199, 160, 0.24);
   --auth-error: #b33b3b;
-  --auth-gradient: linear-gradient(135deg, #303330 0%, #53624f 100%);
+  --auth-gradient: linear-gradient(135deg, #24483d 0%, var(--godmin-mint-deep) 72%, var(--godmin-mint) 100%);
 
   position: relative;
   isolation: isolate;
   overflow: hidden;
   background:
-    radial-gradient(circle at 14% 18%, rgba(176, 208, 160, 0.25), transparent 30rem),
+    radial-gradient(circle at 14% 18%, rgba(53, 199, 160, 0.18), transparent 30rem),
     radial-gradient(circle at 88% 82%, rgba(56, 56, 56, 0.07), transparent 32rem),
-    linear-gradient(145deg, #eef4eb 0%, #f8faf7 52%, #e8efe5 100%);
+    linear-gradient(145deg, #dcf4ea 0%, #f9fcfa 52%, #e9f7ed 100%);
 }
 
 [data-app="auth"][data-tenant="godmin"] [data-auth-part="ambient"] {
@@ -40,7 +39,7 @@
   position: absolute;
   width: 34rem;
   height: 34rem;
-  border: 1px solid rgba(106, 130, 95, 0.18);
+  border: 1px solid rgba(53, 199, 160, 0.22);
   border-radius: 50%;
 }
 
@@ -63,7 +62,7 @@
   height: 0.75rem;
   background: var(--godmin-charcoal);
   border: 0;
-  box-shadow: -67vw 55vh 0 -2px rgba(106, 130, 95, 0.58);
+  box-shadow: -67vw 55vh 0 -2px rgba(20, 122, 98, 0.58);
 }
 
 [data-app="auth"][data-tenant="godmin"] [data-auth-part="card"] {
@@ -78,11 +77,11 @@
   padding: 0;
   overflow: hidden;
   text-align: left;
-  background: rgba(252, 253, 251, 0.94);
+  background: rgba(251, 254, 252, 0.94);
   border: 1px solid rgba(56, 56, 56, 0.1);
   border-radius: 26px;
   box-shadow:
-    0 34px 84px rgba(43, 50, 40, 0.15),
+    0 34px 84px rgba(25, 70, 57, 0.15),
     0 0 0 1px rgba(255, 255, 255, 0.7) inset;
   backdrop-filter: blur(16px);
 }
@@ -91,8 +90,8 @@
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(circle at 38% 48%, rgba(176, 208, 160, 0.26), transparent 16rem),
-    linear-gradient(155deg, #edf4e9 0%, #f8faf7 58%, #e4ede0 100%);
+    radial-gradient(circle at 38% 48%, rgba(53, 199, 160, 0.22), transparent 16rem),
+    linear-gradient(155deg, #d8f4e8 0%, #f8fcfa 58%, #e3f6e9 100%);
   border-right: 1px solid rgba(56, 56, 56, 0.08);
 }
 
@@ -100,7 +99,7 @@
 [data-app="auth"][data-tenant="godmin"] [data-auth-part="brand-stage"]::after {
   content: "";
   position: absolute;
-  border: 1px solid rgba(106, 130, 95, 0.2);
+  border: 1px solid rgba(53, 199, 160, 0.24);
   border-radius: 50%;
   pointer-events: none;
 }
@@ -154,7 +153,7 @@
   flex-direction: column;
   justify-content: center;
   padding: 4rem 3.25rem;
-  background: linear-gradient(180deg, rgba(253, 254, 252, 0.98), rgba(247, 250, 245, 0.99));
+  background: linear-gradient(180deg, rgba(253, 255, 254, 0.98), rgba(247, 252, 249, 0.99));
 }
 
 [data-app="auth"][data-tenant="godmin"] [data-auth-part="login-intro"] {
@@ -183,16 +182,16 @@
 }
 
 [data-app="auth"][data-tenant="godmin"] input[class*="input"]::placeholder {
-  color: #8a9087;
+  color: #7c9189;
 }
 
 [data-app="auth"][data-tenant="godmin"] input[class*="input"]:hover {
-  border-color: rgba(97, 120, 90, 0.48);
+  border-color: rgba(20, 122, 98, 0.48);
 }
 
 [data-app="auth"][data-tenant="godmin"] input[class*="input"]:focus {
   background: #ffffff;
-  border-color: var(--godmin-sage-deep);
+  border-color: var(--godmin-mint-deep);
   box-shadow: 0 0 0 3px var(--auth-focus);
 }
 
@@ -213,28 +212,28 @@
 }
 
 [data-app="auth"][data-tenant="godmin"] button[class*="passwordToggle"] {
-  color: #747b71;
+  color: #667c74;
 }
 
 [data-app="auth"][data-tenant="godmin"] button[class*="passwordToggle"]:hover {
-  color: var(--godmin-sage-deep);
-  background: rgba(106, 130, 95, 0.09);
+  color: var(--godmin-mint-deep);
+  background: rgba(53, 199, 160, 0.10);
 }
 
 [data-app="auth"][data-tenant="godmin"] button[class*="link"],
 [data-app="auth"][data-tenant="godmin"] a[class*="link"] {
-  color: #596256;
+  color: #4d685f;
 }
 
 [data-app="auth"][data-tenant="godmin"] button[class*="link"]:hover,
 [data-app="auth"][data-tenant="godmin"] a[class*="link"]:hover {
-  color: var(--godmin-sage-deep);
-  background: rgba(106, 130, 95, 0.09);
+  color: var(--godmin-mint-deep);
+  background: rgba(53, 199, 160, 0.10);
 }
 
 [data-app="auth"][data-tenant="godmin"] footer[class*="legalFooter"],
 [data-app="auth"][data-tenant="godmin"] footer[class*="legalFooter"] a {
-  color: #747c71;
+  color: #687e76;
 }
 
 @media (max-width: 840px) {

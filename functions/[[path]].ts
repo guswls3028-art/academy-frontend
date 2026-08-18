@@ -345,8 +345,8 @@ const FALLBACK_TEACHER_PWA: Record<string, TenantPwaMeta> = {
   "www.dnbacademy.co.kr": { title: "DnB 보습학원", icon: "/tenants/dnb/pwa-192.png", icon512: "/tenants/dnb/pwa-512.png" },
   "movementhui.com":    { title: "이동휘원소", icon: "/tenants/movementhui/pwa-192.png", icon512: "/tenants/movementhui/pwa-512.png", themeColor: "#1a253b", backgroundColor: "#1a253b" },
   "www.movementhui.com": { title: "이동휘원소", icon: "/tenants/movementhui/pwa-192.png", icon512: "/tenants/movementhui/pwa-512.png", themeColor: "#1a253b", backgroundColor: "#1a253b" },
-  "godmin.kr":          { title: "신과함께", icon: "/tenants/godmin/pwa-192.png", icon512: "/tenants/godmin/pwa-512.png", themeColor: "#383838", backgroundColor: "#f3f7f0" },
-  "www.godmin.kr":      { title: "신과함께", icon: "/tenants/godmin/pwa-192.png", icon512: "/tenants/godmin/pwa-512.png", themeColor: "#383838", backgroundColor: "#f3f7f0" },
+  "godmin.kr":          { title: "신과함께", icon: "/tenants/godmin/pwa-192.png", icon512: "/tenants/godmin/pwa-512.png", themeColor: "#147a62", backgroundColor: "#e4f7ef" },
+  "www.godmin.kr":      { title: "신과함께", icon: "/tenants/godmin/pwa-192.png", icon512: "/tenants/godmin/pwa-512.png", themeColor: "#147a62", backgroundColor: "#e4f7ef" },
 };
 
 function iconContentType(icon: string): string {
