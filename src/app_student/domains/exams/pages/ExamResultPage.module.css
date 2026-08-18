@@ -72,6 +72,56 @@
   font-size: 12px;
 }
 
+.correctionCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stu-space-2);
+  padding: var(--stu-space-4) var(--stu-space-5);
+  background: var(--stu-surface-soft);
+  border: 1px solid var(--stu-border);
+  border-left: 4px solid var(--stu-primary);
+  border-radius: var(--stu-radius);
+  animation: correction-card-enter 180ms ease-out both;
+}
+
+.correctionCard[data-status="pending"] {
+  border-left-color: var(--stu-danger);
+}
+
+.correctionCard[data-status="completed"],
+.correctionCard[data-status="not_required"] {
+  border-left-color: var(--stu-success);
+}
+
+.correctionHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--stu-space-3);
+  color: var(--stu-text);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.correctionCard p {
+  margin: 0;
+  color: var(--stu-text-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+@keyframes correction-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .sectionTitle {
   margin-bottom: var(--stu-space-4);
   font-size: 14px;
@@ -447,5 +497,11 @@
   .wrongNumberBlock {
     flex-direction: column;
     gap: var(--stu-space-2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .correctionCard {
+    animation: none;
   }
 }

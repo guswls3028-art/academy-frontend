@@ -489,6 +489,15 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
     await expect(pendingCard).toContainText("오답 미완료");
     await expect(completedCard).toContainText("합격");
     await expect(completedCard).toContainText("7, 9번");
+    const correctionFilter = page.getByRole("group", { name: "테스트 오답 확인 필터" });
+    await expect(correctionFilter.getByRole("button", { name: "전체 4" })).toHaveAttribute("aria-pressed", "true");
+    await correctionFilter.getByRole("button", { name: "확인 필요 2" }).click();
+    await expect(completedCard).toHaveCount(0);
+    await expect(pendingCard).toBeVisible();
+    await correctionFilter.getByRole("button", { name: "처리됨 1" }).click();
+    await expect(completedCard).toBeVisible();
+    await expect(pendingCard).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
     await page.screenshot({ path: "test-results/student-correction-status/student-grade-cards-390.png", fullPage: true });
   });
 

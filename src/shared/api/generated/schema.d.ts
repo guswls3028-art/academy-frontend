@@ -3703,8 +3703,8 @@ export interface paths {
         put?: never;
         /**
          * @description POST /exams/pdf-extract/
-         *     - PDF 파일 업로드 → R2 저장 → question_segmentation AI job 제출
-         *     - Returns: { job_id, status: "submitted" }
+         *     - 안전한 원본은 형식 그대로 R2와 시험 자산에 보존
+         *     - 지원 형식은 question_segmentation job 제출, 나머지는 직접 검수 상태로 저장
          */
         post: operations["exams_pdf_extract_create"];
         delete?: never;
@@ -11150,6 +11150,8 @@ export interface components {
             /** Format: double */
             cohort_avg?: number | null;
             cohort_size?: number | null;
+            correction_session_id?: number | null;
+            correction_status?: (components["schemas"]["CorrectionStatusEnum"] | components["schemas"]["NullEnum"]) | null;
             enrollment_id: number;
             /** Format: double */
             exam_max_score: number | null;
@@ -11173,8 +11175,11 @@ export interface components {
             percentile?: number | null;
             profile_photo_url?: string | null;
             rank?: number | null;
+            /** Format: double */
+            ranking_score?: number | null;
             /** @default false */
             remediated: boolean;
+            result_status: components["schemas"]["ResultStatusEnum"];
             student_name: string;
             submission_id: number | null;
             submission_status: string | null;
@@ -11661,6 +11666,13 @@ export interface components {
             tenant: number;
             title: string;
         };
+        /**
+         * @description * `PENDING` - PENDING
+         *     * `COMPLETED` - COMPLETED
+         *     * `NOT_REQUIRED` - NOT_REQUIRED
+         * @enum {string}
+         */
+        CorrectionStatusEnum: "PENDING" | "COMPLETED" | "NOT_REQUIRED";
         /**
          * @description * `0` - 월
          *     * `1` - 화
@@ -13105,21 +13117,6 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["InvoiceList"][];
-        };
-        PaginatedLectureList: {
-            /** @example 123 */
-            count: number;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=4
-             */
-            next?: string | null;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=2
-             */
-            previous?: string | null;
-            results: components["schemas"]["Lecture"][];
         };
         PaginatedLectureProgressList: {
             /** @example 123 */
@@ -15267,6 +15264,15 @@ export interface components {
          * @enum {string}
          */
         ResolutionTypeEnum: "EXAM_PASS" | "HOMEWORK_PASS" | "MANUAL_OVERRIDE" | "WAIVED" | "CARRIED_OVER" | "SOURCE_REMOVED" | "BOOKING_LEGACY";
+        /**
+         * @description * `NOT_SUBMITTED` - NOT_SUBMITTED
+         *     * `PROCESSING` - PROCESSING
+         *     * `PARTIAL` - PARTIAL
+         *     * `DONE` - DONE
+         *     * `FAILED` - FAILED
+         * @enum {string}
+         */
+        ResultStatusEnum: "NOT_SUBMITTED" | "PROCESSING" | "PARTIAL" | "DONE" | "FAILED";
         RiskLog: {
             /** Format: date-time */
             readonly created_at: string;
@@ -16917,6 +16923,8 @@ export interface operations {
             query?: {
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
             };
             header?: never;
             path?: never;
@@ -16997,6 +17005,8 @@ export interface operations {
             query?: {
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
             };
             header?: never;
             path?: never;
@@ -17318,6 +17328,8 @@ export interface operations {
             query?: {
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
             };
             header?: never;
             path?: never;
@@ -17435,6 +17447,8 @@ export interface operations {
                 ordering?: string;
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
                 /** @description 검색어. */
                 search?: string;
             };
@@ -17708,6 +17722,8 @@ export interface operations {
                 ordering?: string;
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
                 /** @description 검색어. */
                 search?: string;
             };
@@ -17980,6 +17996,8 @@ export interface operations {
                 ordering?: string;
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
                 /** @description 검색어. */
                 search?: string;
             };
@@ -18126,6 +18144,8 @@ export interface operations {
                 ordering?: string;
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
                 /** @description 검색어. */
                 search?: string;
             };
@@ -18270,6 +18290,8 @@ export interface operations {
             query?: {
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
             };
             header?: never;
             path?: never;
@@ -18696,6 +18718,8 @@ export interface operations {
             query?: {
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
             };
             header?: never;
             path?: never;
@@ -18842,6 +18866,8 @@ export interface operations {
             query?: {
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
             };
             header?: never;
             path?: never;
@@ -20221,6 +20247,8 @@ export interface operations {
             query?: {
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
             };
             header?: never;
             path?: never;
@@ -20400,6 +20428,8 @@ export interface operations {
             query?: {
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
             };
             header?: never;
             path?: never;
@@ -20922,6 +20952,8 @@ export interface operations {
             query?: {
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
                 /** @description 검색어. */
                 search?: string;
             };
@@ -21304,6 +21336,8 @@ export interface operations {
             query?: {
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
             };
             header?: never;
             path?: never;
@@ -21910,6 +21944,8 @@ export interface operations {
             query?: {
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
             };
             header?: never;
             path?: never;
@@ -22074,6 +22110,8 @@ export interface operations {
             query?: {
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
             };
             header?: never;
             path?: never;
@@ -22255,6 +22293,8 @@ export interface operations {
             query?: {
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
             };
             header?: never;
             path?: never;
@@ -22441,6 +22481,8 @@ export interface operations {
             query?: {
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
             };
             header?: never;
             path?: never;
@@ -23285,6 +23327,8 @@ export interface operations {
             query?: {
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
             };
             header?: never;
             path?: never;
@@ -23433,6 +23477,8 @@ export interface operations {
                 ordering?: string;
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
                 /** @description 검색어. */
                 search?: string;
             };
@@ -23604,6 +23650,8 @@ export interface operations {
                 ordering?: string;
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
             };
             header?: never;
             path?: never;
@@ -24480,6 +24528,8 @@ export interface operations {
             query?: {
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
             };
             header?: never;
             path?: never;
@@ -25360,8 +25410,6 @@ export interface operations {
     lectures_lectures_list: {
         parameters: {
             query?: {
-                /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
-                page?: number;
                 /** @description 검색어. */
                 search?: string;
             };
@@ -25376,7 +25424,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PaginatedLectureList"];
+                    "application/json": components["schemas"]["Lecture"][];
                 };
             };
         };
@@ -25546,6 +25594,8 @@ export interface operations {
             query?: {
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
             };
             header?: never;
             path?: never;
@@ -25713,6 +25763,8 @@ export interface operations {
             query?: {
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
                 /** @description 검색어. */
                 search?: string;
             };
@@ -26198,6 +26250,8 @@ export interface operations {
             query?: {
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
             };
             header?: never;
             path?: never;
@@ -26370,6 +26424,8 @@ export interface operations {
                 enrollment?: number;
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
                 /** @description 검색어. */
                 search?: string;
                 video?: number;
@@ -26457,6 +26513,8 @@ export interface operations {
                 enrollment?: number;
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
                 video?: number;
             };
             header?: never;
@@ -26605,6 +26663,8 @@ export interface operations {
                 folder?: number;
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
                 /** @description 검색어. */
                 search?: string;
                 session?: number;
@@ -27804,6 +27864,8 @@ export interface operations {
                 ordering?: string;
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
                 reason?: string;
                 resolution_type?: string;
                 /** @description 검색어. */
@@ -28127,6 +28189,8 @@ export interface operations {
                 ordering?: string;
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
                 risk_level?: string;
                 /** @description 검색어. */
                 search?: string;
@@ -28279,6 +28343,8 @@ export interface operations {
                 ordering?: string;
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
                 /** @description 검색어. */
                 search?: string;
             };
@@ -28430,6 +28496,8 @@ export interface operations {
                 ordering?: string;
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
                 risk_level?: string;
                 rule?: string;
                 /** @description 검색어. */
@@ -28586,6 +28654,8 @@ export interface operations {
                 ordering?: string;
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
                 /** @description 검색어. */
                 search?: string;
                 session?: number;
@@ -28773,6 +28843,8 @@ export interface operations {
                 ordering?: string;
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
                 /** @description 검색어. */
                 search?: string;
             };
@@ -29681,6 +29753,8 @@ export interface operations {
             query?: {
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
             };
             header?: never;
             path?: never;
@@ -32769,6 +32843,8 @@ export interface operations {
             query?: {
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
             };
             header?: never;
             path?: never;
@@ -32911,6 +32987,8 @@ export interface operations {
             query?: {
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
             };
             header?: never;
             path?: never;
@@ -33541,6 +33619,8 @@ export interface operations {
             query?: {
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
             };
             header?: never;
             path?: never;

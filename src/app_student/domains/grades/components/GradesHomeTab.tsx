@@ -11,6 +11,7 @@ import styles from "./GradesHomeTab.module.css";
 
 type SubTab = "exams" | "homework";
 type SortMode = "lecture" | "recent";
+type ExamReviewFilter = "all" | "pending" | "resolved";
 type HomeworkSortMode = "session_desc" | "session_asc" | "recent";
 type HomeworkStatusFilter = "all" | "todo" | "done";
 type HomeworkSessionScope = "all" | "REGULAR" | "SUPPLEMENT";
@@ -116,20 +117,36 @@ type Props = {
 export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
   const [subTab, setSubTab] = useState<SubTab>("exams");
   const [examSort, setExamSort] = useState<SortMode>("lecture");
+  const [examReview, setExamReview] = useState<ExamReviewFilter>("all");
   const [homeworkSort, setHomeworkSort] = useState<HomeworkSortMode>("session_desc");
   const [homeworkStatus, setHomeworkStatus] = useState<HomeworkStatusFilter>("all");
   const [homeworkSessionScope, setHomeworkSessionScope] = useState<HomeworkSessionScope>("all");
 
+  const examReviewCounts = useMemo(() => ({
+    pending: exams.filter((exam) => exam.correction_status === "PENDING").length,
+    resolved: exams.filter((exam) => (
+      exam.correction_status === "COMPLETED"
+      || exam.correction_status === "NOT_REQUIRED"
+    )).length,
+  }), [exams]);
+  const visibleExams = useMemo(() => exams.filter((exam) => {
+    if (examReview === "pending") return exam.correction_status === "PENDING";
+    if (examReview === "resolved") {
+      return exam.correction_status === "COMPLETED"
+        || exam.correction_status === "NOT_REQUIRED";
+    }
+    return true;
+  }), [examReview, exams]);
   const sortedExams = useMemo(() => {
-    if (examSort !== "recent") return exams;
-    return [...exams].sort((a, b) => {
+    if (examSort !== "recent") return visibleExams;
+    return [...visibleExams].sort((a, b) => {
       const ta = a.submitted_at ? Date.parse(a.submitted_at) : 0;
       const tb = b.submitted_at ? Date.parse(b.submitted_at) : 0;
       return tb - ta; // 최신순
     });
-  }, [exams, examSort]);
+  }, [examSort, visibleExams]);
 
-  const examGroups = useMemo(() => groupExams(exams), [exams]);
+  const examGroups = useMemo(() => groupExams(visibleExams), [visibleExams]);
   const visibleHomeworks = useMemo(() => {
     const filtered = homeworks.filter((homework) => {
       if (homeworkSessionScope !== "all" && homework.session_type !== homeworkSessionScope) return false;
@@ -158,12 +175,26 @@ export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
             <EmptyState title="시험 결과가 아직 없습니다." description="시험 응시 후 채점이 완료되면 여기에 표시됩니다." />
           ) : (
             <>
-              {/* 정렬 옵션 — 강좌별(기본) / 최근순 */}
-              <div className={styles.sortBar}>
-                <SortChip active={examSort === "lecture"} onClick={() => setExamSort("lecture")} label="강좌별" />
-                <SortChip active={examSort === "recent"} onClick={() => setExamSort("recent")} label="최근순" />
-              </div>
-              {examSort === "lecture" ? (
+              <section className={styles.examControls} aria-label="시험 성적 표시 기준">
+                <div className={styles.controlRow}>
+                  <span className={styles.controlLabel}>오답</span>
+                  <div className={styles.filterChips} role="group" aria-label="테스트 오답 확인 필터">
+                    <SortChip active={examReview === "all"} onClick={() => setExamReview("all")} label={`전체 ${exams.length}`} />
+                    <SortChip active={examReview === "pending"} onClick={() => setExamReview("pending")} label={`확인 필요 ${examReviewCounts.pending}`} />
+                    <SortChip active={examReview === "resolved"} onClick={() => setExamReview("resolved")} label={`처리됨 ${examReviewCounts.resolved}`} />
+                  </div>
+                </div>
+                <div className={styles.sortBar} role="group" aria-label="시험 정렬">
+                  <SortChip active={examSort === "lecture"} onClick={() => setExamSort("lecture")} label="강좌별" />
+                  <SortChip active={examSort === "recent"} onClick={() => setExamSort("recent")} label="최근순" />
+                  <span className={styles.visibleCount} aria-live="polite">
+                    {visibleExams.length}/{exams.length}건 표시
+                  </span>
+                </div>
+              </section>
+              {visibleExams.length === 0 ? (
+                <EmptyState title="조건에 맞는 시험이 없습니다." description="오답 확인 필터를 바꿔 다시 확인해 보세요." />
+              ) : examSort === "lecture" ? (
                 <div data-guide="grades-list" className={styles.gradeList}>
                   {examGroups.map((group) => (
                     <LectureExamGroup key={group.key} group={group} labels={labels} />

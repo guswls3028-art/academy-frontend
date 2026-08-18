@@ -32,6 +32,8 @@ export type TeacherExamResultRow = {
   submitted_at?: string | null;
   meta_status?: string | null;
   is_provisional?: boolean | null;
+  correction_session_id?: number | null;
+  correction_status?: "PENDING" | "COMPLETED" | "NOT_REQUIRED" | null;
 };
 
 /** 세션에 연결된 시험 목록 (backend 필터: session_id) */
