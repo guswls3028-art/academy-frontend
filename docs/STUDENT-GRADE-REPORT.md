@@ -24,6 +24,8 @@
 
 - **성적 보드 → 시험 성적** 카드의 오답 정보 옆에 `오답 완료` 또는
   `오답 미완료` 배지를 표시한다.
+- 시험 성적 상단의 `전체·확인 필요·처리됨` 필터로 후속 확인이 남은 시험만 모아보고,
+  시험 상세에서도 동일한 `테스트 오답` 상태와 다음 행동 안내를 확인한다.
 - 이 배지는 점수나 오답 개수로 프론트엔드가 추측하지 않고, 교사가 차시 성적표에서
   저장한 백엔드 `correction_status`를 그대로 사용한다.
 - 만점이라 별도 확인이 필요 없거나 시험의 차시를 안전하게 하나로 확정할 수 없으면
@@ -90,6 +92,8 @@ YMath의 초기 구성은 `score_trend`, `score_comparison`, `lecture_average`�
 - 설정 계약: `src/shared/api/contracts/studentGradeReportLayout.ts`
 - 구성 편집기: `src/shared/ui/assessment/StudentGradeReportLayoutEditor.tsx`
 - 학생 목록 상태: `src/app_student/domains/grades/components/LectureExamGroup.tsx`
+- 학생 목록 필터: `src/app_student/domains/grades/components/GradesHomeTab.tsx`
+- 학생 시험 상세 상태: `src/app_student/domains/exams/pages/ExamResultPage.tsx`
 - 성장 그래프 조립: `src/app_student/domains/grades/components/GradesStatsTab.tsx`
 - 회귀 검증:
   - `e2e/teacher/student-grade-report-layout.spec.ts`

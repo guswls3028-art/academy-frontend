@@ -47,6 +47,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--tc-space-2);
   padding: 10px var(--tc-space-1);
   border-bottom: 1px solid var(--tc-border);
 }
@@ -64,11 +65,30 @@
 .scoreGroup {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: var(--tc-space-2);
 }
 
 .scoreText {
   font-weight: 700;
+}
+
+.correctionLink {
+  min-height: 32px;
+  padding: 4px 9px;
+  color: var(--tc-primary);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  background: var(--tc-primary-bg);
+  border: 1px solid var(--tc-primary);
+  border-radius: 999px;
+}
+
+.correctionLink:focus-visible {
+  outline: 2px solid var(--tc-primary);
+  outline-offset: 2px;
 }
 
 @media (min-width: 1024px) {

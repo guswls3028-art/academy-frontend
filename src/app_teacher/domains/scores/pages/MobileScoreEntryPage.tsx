@@ -1,9 +1,9 @@
 // PATH: src/app_teacher/domains/scores/pages/MobileScoreEntryPage.tsx
 // 성적 입력 — 모바일 최적화. 숫자 키패드 + 자동 다음 포커스 + 만점/평균 KPI + 즉시 검증
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { Badge, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { cx } from "@/shared/utils/cx";
@@ -20,6 +20,13 @@ import {
   type SessionEnrollmentRow as SessionEnrollment,
 } from "@/shared/api/contracts/sessionEnrollments";
 import {
+  fetchSessionScores,
+  patchAssessmentCorrection,
+  type ScoreBlock,
+  type SessionScoresResponse,
+} from "@/shared/api/contracts/sessionScores";
+import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
+import {
   getExamResultEnrollmentId,
   getExamResultMaxScore,
   getExamResultScore,
@@ -29,6 +36,14 @@ import { teacherScoresQueryKeys } from "../queryKeys";
 import styles from "./MobileScoreEntryPage.module.css";
 
 type Tone = "success" | "warning" | "danger" | "muted";
+type ReviewFilter = "all" | "pending" | "resolved" | "waiting";
+type CorrectionStatus = ScoreBlock["correction_status"];
+
+function correctionBucket(status: CorrectionStatus): ReviewFilter {
+  if (status === "PENDING") return "pending";
+  if (status === "COMPLETED" || status === "NOT_REQUIRED") return "resolved";
+  return "waiting";
+}
 
 function scoreTone(value: number | null, maxScore: number): Tone | undefined {
   if (value == null) return undefined;
@@ -47,6 +62,7 @@ function rateTone(value: number | null): Tone | undefined {
 export default function MobileScoreEntryPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const sid = Number(sessionId);
 
   const { data: exams, isLoading: examsLoading } = useQuery({
@@ -62,7 +78,12 @@ export default function MobileScoreEntryPage() {
   });
 
   const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
-  const activeExamId = selectedExamId ?? exams?.[0]?.id ?? null;
+  const requestedExamId = Number(searchParams.get("exam"));
+  const routedExamId = Number.isFinite(requestedExamId)
+    && exams?.some((exam) => exam.id === requestedExamId)
+    ? requestedExamId
+    : null;
+  const activeExamId = selectedExamId ?? routedExamId ?? exams?.[0]?.id ?? null;
   const activeExam = exams?.find((e) => e.id === activeExamId);
 
   return (
@@ -165,10 +186,15 @@ function ScoreEntryList({
   rosterLoading: boolean;
 }) {
   const qc = useQueryClient();
-  const { data: rawResults, isLoading } = useQuery({
+  const { data: rawResults, isLoading: resultsLoading } = useQuery({
     queryKey: teacherScoresQueryKeys.examResults(examId),
     queryFn: () => fetchExamResults(examId),
     enabled: Number.isFinite(examId),
+  });
+  const { data: scoreSheet, isLoading: scoreSheetLoading } = useQuery({
+    queryKey: scoresQueryKeys.sessionScores(sessionId),
+    queryFn: () => fetchSessionScores(sessionId),
+    enabled: Number.isFinite(sessionId),
   });
 
   // result row + enrollment 매핑 — 점수 매겨진 학생은 result, 아닌 학생은 enrollment 기반 가상 row
@@ -210,14 +236,28 @@ function ScoreEntryList({
     }
     return ids;
   }, [enrollments, rawResults]);
+  const correctionByEnrollment = useMemo(() => {
+    const map = new Map<number, ScoreBlock>();
+    for (const row of scoreSheet?.rows ?? []) {
+      const entry = row.exams.find((exam) => exam.exam_id === examId);
+      if (entry) map.set(row.enrollment_id, entry.block);
+    }
+    return map;
+  }, [examId, scoreSheet?.rows]);
 
   // row 식별자 = enrollment_id (admin endpoint schema SSOT)
   const inputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const pendingSubmitKeys = useRef<Set<string>>(new Set());
   const [localScores, setLocalScores] = useState<Map<number, string>>(() => loadDraft(examId));
+  const [studentSearch, setStudentSearch] = useState("");
+  const [reviewFilter, setReviewFilter] = useState<ReviewFilter>("all");
   // 저장 직후 행에 1.2초 색상 펄스 — 토스트 외 즉시 시각 표식
   const [justSaved, setJustSaved] = useState<Set<number>>(new Set());
   useEffect(() => { setLocalScores(loadDraft(examId)); }, [examId]);
+  useEffect(() => {
+    setStudentSearch("");
+    setReviewFilter("all");
+  }, [examId]);
   useEffect(() => {
     if (!results?.length) return;
     const firstEnrollmentId = getExamResultEnrollmentId(results[0]);
@@ -285,6 +325,7 @@ function ScoreEntryList({
         });
       }, 1200);
       invalidateTeacherExamResultQueries(qc, examId);
+      void qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
       const student = results?.find((r) => getExamResultEnrollmentId(r) === variables.enrollmentId);
       const name = student?.student_name ?? "";
       feedback.success(name ? `${name} 점수가 저장되었습니다.` : "점수가 저장되었습니다.");
@@ -296,6 +337,60 @@ function ScoreEntryList({
     onSettled: (_data, _error, variables) => {
       if (!variables) return;
       pendingSubmitKeys.current.delete(`${variables.enrollmentId}:${variables.score}`);
+    },
+  });
+
+  const setCachedCorrection = useCallback((
+    enrollmentId: number,
+    patch: Pick<ScoreBlock, "correction_status" | "correction_completed_at" | "correction_note">,
+  ) => {
+    qc.setQueryData<SessionScoresResponse>(
+      scoresQueryKeys.sessionScores(sessionId),
+      (previous) => previous ? {
+        ...previous,
+        rows: previous.rows.map((row) => row.enrollment_id !== enrollmentId ? row : {
+          ...row,
+          exams: row.exams.map((exam) => exam.exam_id !== examId ? exam : {
+            ...exam,
+            block: { ...exam.block, ...patch },
+          }),
+        }),
+      } : previous,
+    );
+  }, [examId, qc, sessionId]);
+
+  const reviewMut = useMutation({
+    mutationFn: ({ enrollmentId, completed }: { enrollmentId: number; completed: boolean }) => (
+      patchAssessmentCorrection(sessionId, {
+        enrollment_id: enrollmentId,
+        source_type: "exam",
+        source_id: examId,
+        completed,
+      })
+    ),
+    onMutate: async ({ enrollmentId, completed }) => {
+      const queryKey = scoresQueryKeys.sessionScores(sessionId);
+      await qc.cancelQueries({ queryKey });
+      const previous = qc.getQueryData<SessionScoresResponse>(queryKey);
+      setCachedCorrection(enrollmentId, {
+        correction_status: completed ? "COMPLETED" : "PENDING",
+        correction_completed_at: completed ? new Date().toISOString() : null,
+        correction_note: correctionByEnrollment.get(enrollmentId)?.correction_note ?? "",
+      });
+      return { previous };
+    },
+    onSuccess: (data, variables) => {
+      setCachedCorrection(variables.enrollmentId, data);
+      const student = results.find((row) => getExamResultEnrollmentId(row) === variables.enrollmentId);
+      feedback.success(`${student?.student_name ?? "학생"} 오답 상태를 ${variables.completed ? "완료" : "미완료"}로 저장했습니다.`);
+    },
+    onError: (error, _variables, context?: { previous?: SessionScoresResponse }) => {
+      qc.setQueryData(scoresQueryKeys.sessionScores(sessionId), context?.previous);
+      feedback.error(extractApiError(error, "오답 상태를 저장하지 못했습니다."));
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
+      void qc.invalidateQueries({ queryKey: teacherScoresQueryKeys.examResults(examId) });
     },
   });
 
@@ -360,9 +455,33 @@ function ScoreEntryList({
     const passRate = entered > 0 && examPassScore != null ? Math.round((passed / entered) * 100) : null;
     return { entered, total, avg, passRate };
   }, [results, localScores, examPassScore]);
+  const reviewCounts = useMemo(() => {
+    const counts = { all: results.length, pending: 0, resolved: 0, waiting: 0 };
+    for (const row of results) {
+      const enrollmentId = getExamResultEnrollmentId(row);
+      if (enrollmentId == null) continue;
+      counts[correctionBucket(correctionByEnrollment.get(enrollmentId)?.correction_status)] += 1;
+    }
+    return counts;
+  }, [correctionByEnrollment, results]);
+  const visibleResults = useMemo(() => {
+    const query = studentSearch.trim().toLocaleLowerCase("ko-KR");
+    return results.filter((row) => {
+      const enrollmentId = getExamResultEnrollmentId(row);
+      if (enrollmentId == null) return false;
+      const matchesName = !query
+        || (row.student_name ?? "").toLocaleLowerCase("ko-KR").includes(query);
+      const bucket = correctionBucket(correctionByEnrollment.get(enrollmentId)?.correction_status);
+      return matchesName && (reviewFilter === "all" || bucket === reviewFilter);
+    });
+  }, [correctionByEnrollment, results, reviewFilter, studentSearch]);
+  const reviewTotal = reviewCounts.pending + reviewCounts.resolved;
+  const reviewPercent = reviewTotal > 0
+    ? Math.round((reviewCounts.resolved / reviewTotal) * 100)
+    : 0;
 
   // 첫 진입 skeleton — 시험 칩만 보이고 행이 비는 시각 공백 해소
-  if (isLoading || rosterLoading) return <ScoreEntrySkeleton />;
+  if (resultsLoading || rosterLoading || scoreSheetLoading) return <ScoreEntrySkeleton />;
   if (!results?.length)
     return (
       <EmptyState
@@ -403,7 +522,48 @@ function ScoreEntryList({
         );
       })()}
 
-      {results.map((r) => {
+      <section className={styles.reviewOverview} aria-label="테스트 오답 확인 현황">
+        <div className={styles.reviewHeader}>
+          <div>
+            <strong>테스트 오답</strong>
+            <span>{reviewTotal > 0 ? `${reviewCounts.resolved}/${reviewTotal} 처리` : "채점 후 상태가 표시됩니다"}</span>
+          </div>
+          {reviewTotal > 0 && <b>{reviewPercent}%</b>}
+        </div>
+        {reviewTotal > 0 && (
+          <progress
+            className={styles.reviewProgress}
+            aria-label="테스트 오답 처리율"
+            max={100}
+            value={reviewPercent}
+          />
+        )}
+        <input
+          type="search"
+          value={studentSearch}
+          onChange={(event) => setStudentSearch(event.target.value)}
+          className={styles.studentSearch}
+          placeholder="학생 이름 검색"
+          aria-label="학생 이름 검색"
+        />
+        <div className={styles.reviewFilters} role="group" aria-label="테스트 오답 확인 학생 필터">
+          <ReviewFilterButton active={reviewFilter === "all"} onClick={() => setReviewFilter("all")} label={`전체 ${reviewCounts.all}`} />
+          <ReviewFilterButton active={reviewFilter === "pending"} onClick={() => setReviewFilter("pending")} label={`확인 필요 ${reviewCounts.pending}`} />
+          <ReviewFilterButton active={reviewFilter === "resolved"} onClick={() => setReviewFilter("resolved")} label={`처리됨 ${reviewCounts.resolved}`} />
+          <ReviewFilterButton active={reviewFilter === "waiting"} onClick={() => setReviewFilter("waiting")} label={`채점 대기 ${reviewCounts.waiting}`} />
+        </div>
+      </section>
+
+      {visibleResults.length === 0 && (
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title="조건에 맞는 학생이 없습니다"
+          description="이름이나 오답 상태 필터를 바꿔 다시 확인해 보세요."
+        />
+      )}
+
+      {visibleResults.map((r) => {
         const enrollmentId = getExamResultEnrollmentId(r);
         if (enrollmentId == null) return null;
         const existing = getExamResultScore(r);
@@ -413,58 +573,76 @@ function ScoreEntryList({
         const draftVal = localScores.get(enrollmentId);
         const draftNum = draftVal != null && draftVal !== "" ? Number(draftVal) : NaN;
         const isInvalid = !isNaN(draftNum) && (draftNum < 0 || draftNum > maxScore);
+        const correctionStatus = correctionByEnrollment.get(enrollmentId)?.correction_status;
+        const draftDirty = localScores.has(enrollmentId);
+        const reviewSaving = reviewMut.isPending
+          && reviewMut.variables?.enrollmentId === enrollmentId;
 
         const saved = justSaved.has(enrollmentId);
         return (
           <div
             key={enrollmentId}
             className={cx(
-              "flex items-center gap-3 rounded-lg",
               styles.scoreRow,
               saved && styles.scoreRowSaved,
             )}
           >
-            <span
-              className={cx("ds-text-name font-semibold flex-1 min-w-0 truncate", styles.title)}
-            >
-              {name}
-            </span>
-            <AchievementBadge passed={r.final_pass ?? r.passed} achievement={r.achievement} />
-            <div className="flex items-center gap-1 shrink-0">
-              <input
-                ref={(el) => {
-                  if (el) inputRefs.current.set(enrollmentId, el);
-                }}
-                type="text"
-                inputMode="decimal"
-                pattern="[0-9]*[.]?[0-9]*"
-                value={display}
-                placeholder="-"
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setLocalScores((p) => {
-                    const next = new Map(p).set(enrollmentId, v);
-                    saveDraft(examId, next);
-                    return next;
-                  });
-                }}
-                onBlur={() => handleSubmit(enrollmentId, maxScore)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleSubmit(enrollmentId, maxScore);
-                    focusNext(enrollmentId);
-                  }
-                }}
-                className={cx(
-                  "text-center text-lg font-bold outline-none",
-                  styles.scoreInput,
-                  isInvalid && styles.scoreInputInvalid,
-                )}
-              />
-              <span className={cx("text-[13px]", styles.mutedText)}>
-                / {maxScore}
+            <div className={styles.scoreRowMain}>
+              <span
+                className={cx("ds-text-name font-semibold flex-1 min-w-0 truncate", styles.title)}
+              >
+                {name}
               </span>
+              <AchievementBadge passed={r.final_pass ?? r.passed} achievement={r.achievement} />
+              <div className="flex items-center gap-1 shrink-0">
+                <input
+                  ref={(el) => {
+                    if (el) inputRefs.current.set(enrollmentId, el);
+                  }}
+                  type="text"
+                  inputMode="decimal"
+                  pattern="[0-9]*[.]?[0-9]*"
+                  value={display}
+                  placeholder="-"
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setLocalScores((p) => {
+                      const next = new Map(p).set(enrollmentId, v);
+                      saveDraft(examId, next);
+                      return next;
+                    });
+                  }}
+                  onBlur={() => handleSubmit(enrollmentId, maxScore)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleSubmit(enrollmentId, maxScore);
+                      focusNext(enrollmentId);
+                    }
+                  }}
+                  className={cx(
+                    "text-center text-lg font-bold outline-none",
+                    styles.scoreInput,
+                    isInvalid && styles.scoreInputInvalid,
+                  )}
+                />
+                <span className={cx("text-[13px]", styles.mutedText)}>
+                  / {maxScore}
+                </span>
+              </div>
+            </div>
+            <div className={styles.reviewRow}>
+              <span>{draftDirty ? "점수를 먼저 저장하면 오답 상태를 바꿀 수 있습니다." : "테스트 오답"}</span>
+              <ReviewStatusControl
+                status={correctionStatus}
+                disabled={draftDirty || reviewSaving}
+                saving={reviewSaving}
+                studentName={name}
+                onToggle={() => reviewMut.mutate({
+                  enrollmentId,
+                  completed: correctionStatus !== "COMPLETED",
+                })}
+              />
             </div>
           </div>
         );
@@ -519,6 +697,64 @@ function KpiTile({ label, value, tone }: { label: string; value: string; tone?: 
         {label}
       </span>
     </div>
+  );
+}
+
+function ReviewFilterButton({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      className={styles.reviewFilter}
+      data-active={active}
+      aria-pressed={active}
+      onClick={onClick}
+    >
+      {label}
+    </button>
+  );
+}
+
+function ReviewStatusControl({
+  status,
+  disabled,
+  saving,
+  studentName,
+  onToggle,
+}: {
+  status: CorrectionStatus;
+  disabled: boolean;
+  saving: boolean;
+  studentName: string;
+  onToggle: () => void;
+}) {
+  if (status === "NOT_REQUIRED") {
+    return <Badge size="sm" tone="success">오답 없음</Badge>;
+  }
+  if (status == null) {
+    return <Badge size="sm" tone="neutral">채점 대기</Badge>;
+  }
+
+  const completed = status === "COMPLETED";
+  return (
+    <button
+      type="button"
+      className={styles.reviewToggle}
+      data-completed={completed}
+      aria-pressed={completed}
+      aria-label={`${studentName} 오답 ${completed ? "완료" : "미완료"}; 눌러서 ${completed ? "미완료" : "완료"}로 변경`}
+      disabled={disabled}
+      onClick={onToggle}
+    >
+      {saving ? "저장 중" : completed ? "오답 완료" : "오답 미완료"}
+    </button>
   );
 }
 

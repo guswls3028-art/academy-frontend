@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Link, useParams } from "react-router";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
+import { Badge } from "@/shared/ui/ds";
 import { useMyExamResult } from "@student/domains/exams/hooks/useMyExamResult";
 import { useMyExamResultItems } from "@student/domains/exams/hooks/useMyExamResultItems";
 import type { ExamResultAnalysis, MyExamResultItem } from "@student/domains/exams/api/results";
@@ -142,6 +143,10 @@ export default function ExamResultPage() {
           )}
         </div>
 
+        {r.correction_status && (
+          <CorrectionStatusCard status={r.correction_status} />
+        )}
+
         {hasQuestionAnalysis && (
           <AnalysisOverviewCard
             analysis={analysis}
@@ -214,6 +219,44 @@ export default function ExamResultPage() {
         )}
       </div>
     </StudentPageShell>
+  );
+}
+
+function CorrectionStatusCard({
+  status,
+}: {
+  status: "PENDING" | "COMPLETED" | "NOT_REQUIRED";
+}) {
+  const content = status === "COMPLETED"
+    ? {
+        label: "오답 완료",
+        tone: "success" as const,
+        description: "선생님이 이 시험의 오답 확인을 완료했어요.",
+      }
+    : status === "PENDING"
+      ? {
+          label: "오답 미완료",
+          tone: "danger" as const,
+          description: "확인할 오답이 남아 있어요. 수업 안내에 따라 오답을 정리해 주세요.",
+        }
+      : {
+          label: "오답 없음",
+          tone: "success" as const,
+          description: "모든 문항을 맞혀 별도의 오답 확인이 필요하지 않아요.",
+        };
+
+  return (
+    <section
+      className={styles.correctionCard}
+      data-status={status.toLowerCase()}
+      aria-label="테스트 오답 확인 상태"
+    >
+      <div className={styles.correctionHeading}>
+        <span>테스트 오답</span>
+        <Badge size="sm" tone={content.tone}>{content.label}</Badge>
+      </div>
+      <p>{content.description}</p>
+    </section>
   );
 }
 

@@ -42,6 +42,7 @@ type PublishedExamResult = {
   cohort_size?: number | null;
   cohort_avg?: number | null;
   analysis?: ExamResultAnalysis;
+  correction_status?: "PENDING" | "COMPLETED" | "NOT_REQUIRED" | null;
 };
 
 type UnpublishedExamResult = {

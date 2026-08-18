@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { Badge, EmptyState } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { SectionTitle, TabBar } from "@teacher/shared/ui/Card";
@@ -140,6 +140,13 @@ export default function ResultsPage() {
                         const enrollmentId = getExamResultEnrollmentId(result);
                         const score = getExamResultScore(result);
                         const max = getExamResultMaxScore(result);
+                        const correction = result.correction_status === "PENDING"
+                          ? { label: "오답 미완료", tone: "warning" as const }
+                          : result.correction_status === "COMPLETED"
+                            ? { label: "오답 완료", tone: "success" as const }
+                            : result.correction_status === "NOT_REQUIRED"
+                              ? { label: "오답 없음", tone: "neutral" as const }
+                              : null;
                         return (
                           <div key={enrollmentId ?? result.id ?? `result-${index}`} className={styles.resultRow}>
                             <StudentNameWithLectureChip
@@ -161,6 +168,21 @@ export default function ResultsPage() {
                                 {score != null ? `${score}/${max}` : "-"}
                               </span>
                               <AchievementBadge passed={result.final_pass ?? result.passed} achievement={result.achievement} />
+                              {correction && (
+                                <Badge size="xs" tone={correction.tone}>{correction.label}</Badge>
+                              )}
+                              {result.correction_session_id != null
+                                && result.correction_status !== "NOT_REQUIRED"
+                                && selectedExam != null && (
+                                <button
+                                  type="button"
+                                  className={styles.correctionLink}
+                                  onClick={() => navigate(`/workspace/mobile/scores/${result.correction_session_id}?exam=${selectedExam}`)}
+                                  aria-label={`${result.student_name ?? "학생"} 오답 상태 수정`}
+                                >
+                                  수정
+                                </button>
+                              )}
                             </div>
                           </div>
                         );
