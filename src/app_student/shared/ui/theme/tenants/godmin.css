@@ -1,0 +1,146 @@
+/* 신과함께 학생앱 — 차콜 #383838 + 세이지 #8AA37F */
+[data-student-theme="godmin"] {
+  --stu-bg: #f3f7f0;
+  --stu-surface: #ffffff;
+  --stu-surface-soft: #e9f0e6;
+  --stu-surface-0: #f3f7f0;
+  --stu-surface-1: #ffffff;
+  --stu-surface-2: #e9f0e6;
+  --stu-border: rgba(56, 56, 56, 0.10);
+  --stu-border-hover: rgba(97, 120, 90, 0.30);
+
+  --stu-bg-pattern:
+    radial-gradient(circle at 1px 1px, rgba(56, 56, 56, 0.025) 1px, transparent 0),
+    linear-gradient(to bottom, transparent, rgba(176, 208, 160, 0.025));
+  --stu-bg-pattern-size: 26px 26px, 100% 100%;
+
+  --stu-text: #252825;
+  --stu-text-muted: #687066;
+  --stu-text-subtle: #92998f;
+
+  --stu-primary: #383838;
+  --stu-primary-hover: #282b28;
+  --stu-primary-contrast: #ffffff;
+  --stu-glow-primary: 0 0 20px rgba(56, 56, 56, 0.18);
+  --stu-gradient: linear-gradient(135deg, #303330 0%, #53624f 68%, #8aa37f 100%);
+  --stu-focus: rgba(106, 130, 95, 0.42);
+
+  --stu-success: #4f7554;
+  --stu-success-bg: rgba(79, 117, 84, 0.10);
+  --stu-success-border: rgba(79, 117, 84, 0.28);
+  --stu-success-text: #3d6042;
+  --stu-warn: #9a7d35;
+  --stu-warn-bg: rgba(154, 125, 53, 0.12);
+  --stu-warn-border: rgba(154, 125, 53, 0.30);
+  --stu-warn-text: #72591f;
+  --stu-danger: #bd4040;
+  --stu-danger-hover: #a33131;
+  --stu-danger-bg: rgba(189, 64, 64, 0.10);
+  --stu-danger-border: rgba(189, 64, 64, 0.28);
+  --stu-danger-text: #a33131;
+
+  --stu-header-bg: rgba(243, 247, 240, 0.94);
+  --stu-tabbar-bg: rgba(243, 247, 240, 0.96);
+  --stu-tint-primary: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1));
+  --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface-1));
+}
+
+[data-app="student"][data-student-dark="true"][data-student-theme="godmin"] {
+  --stu-primary: #b0d0a0;
+  --stu-primary-hover: #c2ddb5;
+  --stu-primary-contrast: #252825;
+  --stu-gradient: linear-gradient(135deg, #b0d0a0 0%, #8aa37f 52%, #5f6c5b 100%);
+}
+
+[data-student-theme="godmin"] :focus-visible {
+  outline: 3px solid var(--stu-focus);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+[data-student-theme="godmin"] .stu-tabbar .stu-tabbar__link[aria-current="page"] {
+  position: relative;
+  color: var(--stu-primary);
+  font-weight: 800;
+}
+
+[data-student-theme="godmin"] .stu-tabbar .stu-tabbar__link[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 26px;
+  height: 3px;
+  transform: translateX(-50%);
+  background: #8aa37f;
+  border-radius: 999px;
+}
+
+[data-student-theme="godmin"] .stu-btn--primary {
+  background: var(--stu-gradient);
+  box-shadow: 0 3px 10px rgba(56, 56, 56, 0.18);
+}
+
+[data-student-theme="godmin"] .stu-btn--primary:hover {
+  filter: brightness(1.06);
+  background: var(--stu-gradient);
+  box-shadow: 0 5px 18px rgba(56, 56, 56, 0.24);
+}
+
+[data-student-theme="godmin"] .stu-icon,
+[data-student-theme="godmin"] .stu-icon path,
+[data-student-theme="godmin"] .stu-icon circle,
+[data-student-theme="godmin"] .stu-icon polygon,
+[data-student-theme="godmin"] .stu-icon rect {
+  stroke: url(#stu-gradient-godmin);
+}
+
+[data-student-theme="godmin"] .stu-icon path[fill="currentColor"],
+[data-student-theme="godmin"] .stu-icon circle[fill="currentColor"],
+[data-student-theme="godmin"] .stu-icon polygon[fill="currentColor"] {
+  fill: url(#stu-gradient-godmin);
+}
+
+[data-app="student"][data-student-theme="godmin"] {
+  background-image:
+    radial-gradient(ellipse 76% 40% at 50% -12%, rgba(176, 208, 160, 0.24) 0%, transparent 62%),
+    linear-gradient(145deg, rgba(56, 56, 56, 0.025) 0%, rgba(138, 163, 127, 0.025) 100%),
+    var(--stu-bg-pattern) !important;
+  background-size: 100% 100%, 100% 100%, var(--stu-bg-pattern-size) !important;
+  background-color: var(--stu-bg) !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+}
+
+[data-app="student"][data-student-theme="godmin"] header,
+[data-app="student"][data-student-theme="godmin"] .stu-tabbar {
+  background-image: linear-gradient(120deg, rgba(56, 56, 56, 0.035), rgba(176, 208, 160, 0.05)) !important;
+}
+
+[data-app="student"][data-student-theme="godmin"] .stu-panel,
+[data-app="student"][data-student-theme="godmin"] .stu-section,
+[data-app="student"][data-student-theme="godmin"] .stu-card {
+  background-color: var(--stu-surface-1);
+  background-image: linear-gradient(145deg, rgba(56, 56, 56, 0.02), rgba(176, 208, 160, 0.025));
+}
+
+[data-app="student"][data-student-theme="godmin"] .stu-action-tile {
+  background-color: var(--stu-surface-1) !important;
+  background-image: linear-gradient(145deg, rgba(56, 56, 56, 0.08), rgba(176, 208, 160, 0.10)) !important;
+}
+
+[data-app="student"][data-student-theme="godmin"] .stu-action-tile__icon {
+  background-color: var(--stu-tint-primary) !important;
+  background-image: linear-gradient(145deg, rgba(56, 56, 56, 0.08), rgba(176, 208, 160, 0.12)) !important;
+}
+
+[data-student-theme="godmin"] [data-page="qna"] .stu-emptystate__icon {
+  background: linear-gradient(145deg, rgba(56, 56, 56, 0.08), rgba(176, 208, 160, 0.14)) !important;
+  border-color: rgba(97, 120, 90, 0.20) !important;
+}
+
+[data-student-theme="godmin"] [data-page="qna"] .stu-emptystate__icon-svg,
+[data-student-theme="godmin"] [data-page="qna"] .stu-section--nested > div:first-child {
+  color: var(--stu-primary);
+  stroke: var(--stu-primary);
+}

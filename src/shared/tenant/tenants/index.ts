@@ -11,6 +11,7 @@ import { ymath } from "./ymath";
 import { sswe } from "./sswe";
 import { dnb } from "./dnb";
 import { movementhui } from "./movementhui";
+import { godmin } from "./godmin";
 import { local } from "./local";
 
 export type { TenantId, TenantBranding, TenantDef };
@@ -23,6 +24,7 @@ export const TENANTS: readonly TenantDef[] = [
   sswe,
   dnb,
   movementhui,
+  godmin,
   local,
 ] as const;
 

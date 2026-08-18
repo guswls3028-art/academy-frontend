@@ -26,10 +26,11 @@ import "@/auth/themes/ymath.css";
 import "@/auth/themes/sswe.css";
 import "@/auth/themes/dnb.css";
 import "@/auth/themes/movementhui.css";
+import "@/auth/themes/godmin.css";
 import "@/auth/themes/clean-decorations.css";
 import styles from "./LoginPage.module.css";
 
-const BRANDED_LOGIN_SCENES = new Set(["hakwonplus", "movementhui"]);
+const BRANDED_LOGIN_SCENES = new Set(["hakwonplus", "movementhui", "godmin"]);
 
 /**
  * 테넌트 코드 결정 우선순위: hostname > URL param > storage/env > program

@@ -1,0 +1,292 @@
+/* 신과함께 — 흑연 워드마크 + 세이지 궤도 */
+[data-app="auth"][data-tenant="godmin"] {
+  --godmin-charcoal: #383838;
+  --godmin-ink: #252825;
+  --godmin-sage: #8aa37f;
+  --godmin-sage-deep: #61785a;
+  --godmin-sage-line: #b0d0a0;
+  --godmin-mist: #f3f7f0;
+  --godmin-paper: #fcfdfb;
+
+  --auth-accent: var(--godmin-sage-deep);
+  --auth-bg: var(--godmin-mist);
+  --auth-surface: var(--godmin-paper);
+  --auth-border: rgba(56, 56, 56, 0.13);
+  --auth-border-hover: rgba(97, 120, 90, 0.48);
+  --auth-text: var(--godmin-ink);
+  --auth-text-muted: #697066;
+  --auth-focus: rgba(106, 130, 95, 0.2);
+  --auth-error: #b33b3b;
+  --auth-gradient: linear-gradient(135deg, #303330 0%, #53624f 100%);
+
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 14% 18%, rgba(176, 208, 160, 0.25), transparent 30rem),
+    radial-gradient(circle at 88% 82%, rgba(56, 56, 56, 0.07), transparent 32rem),
+    linear-gradient(145deg, #eef4eb 0%, #f8faf7 52%, #e8efe5 100%);
+}
+
+[data-app="auth"][data-tenant="godmin"] [data-auth-part="ambient"] {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  display: block;
+  pointer-events: none;
+}
+
+[data-app="auth"][data-tenant="godmin"] [data-auth-part="ambient"] span {
+  position: absolute;
+  width: 34rem;
+  height: 34rem;
+  border: 1px solid rgba(106, 130, 95, 0.18);
+  border-radius: 50%;
+}
+
+[data-app="auth"][data-tenant="godmin"] [data-auth-part="ambient"] span:nth-child(1) {
+  top: -17rem;
+  left: -10rem;
+}
+
+[data-app="auth"][data-tenant="godmin"] [data-auth-part="ambient"] span:nth-child(2) {
+  right: -11rem;
+  bottom: -19rem;
+  width: 42rem;
+  height: 42rem;
+}
+
+[data-app="auth"][data-tenant="godmin"] [data-auth-part="ambient"] span:nth-child(3) {
+  top: 17%;
+  right: 12%;
+  width: 0.75rem;
+  height: 0.75rem;
+  background: var(--godmin-charcoal);
+  border: 0;
+  box-shadow: -67vw 55vh 0 -2px rgba(106, 130, 95, 0.58);
+}
+
+[data-app="auth"][data-tenant="godmin"] [data-auth-part="card"] {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(22rem, 0.88fr);
+  width: min(66rem, 100%);
+  max-width: none;
+  min-height: min(40rem, calc(100dvh - 7rem));
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  text-align: left;
+  background: rgba(252, 253, 251, 0.94);
+  border: 1px solid rgba(56, 56, 56, 0.1);
+  border-radius: 26px;
+  box-shadow:
+    0 34px 84px rgba(43, 50, 40, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.7) inset;
+  backdrop-filter: blur(16px);
+}
+
+[data-app="auth"][data-tenant="godmin"] [data-auth-part="brand-stage"] {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 38% 48%, rgba(176, 208, 160, 0.26), transparent 16rem),
+    linear-gradient(155deg, #edf4e9 0%, #f8faf7 58%, #e4ede0 100%);
+  border-right: 1px solid rgba(56, 56, 56, 0.08);
+}
+
+[data-app="auth"][data-tenant="godmin"] [data-auth-part="brand-stage"]::before,
+[data-app="auth"][data-tenant="godmin"] [data-auth-part="brand-stage"]::after {
+  content: "";
+  position: absolute;
+  border: 1px solid rgba(106, 130, 95, 0.2);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+[data-app="auth"][data-tenant="godmin"] [data-auth-part="brand-stage"]::before {
+  width: 29rem;
+  height: 29rem;
+  left: -7rem;
+  top: -5rem;
+}
+
+[data-app="auth"][data-tenant="godmin"] [data-auth-part="brand-stage"]::after {
+  width: 25rem;
+  height: 25rem;
+  right: -7rem;
+  bottom: -7rem;
+}
+
+[data-app="auth"][data-tenant="godmin"] [data-auth-part="brand-artwork"] {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+}
+
+[data-app="auth"][data-tenant="godmin"] img[class*="logo"] {
+  width: min(100%, 34rem);
+  max-width: none;
+  height: auto;
+  max-height: 72%;
+  margin: 0;
+  object-fit: contain;
+  border-radius: 0;
+  filter: drop-shadow(0 16px 24px rgba(56, 56, 56, 0.08));
+}
+
+[data-app="auth"][data-tenant="godmin"] div[class*="typography"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+[data-app="auth"][data-tenant="godmin"] [data-auth-part="login-panel"] {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4rem 3.25rem;
+  background: linear-gradient(180deg, rgba(253, 254, 252, 0.98), rgba(247, 250, 245, 0.99));
+}
+
+[data-app="auth"][data-tenant="godmin"] [data-auth-part="login-intro"] {
+  margin-bottom: 2.15rem;
+}
+
+[data-app="auth"][data-tenant="godmin"] [data-auth-part="login-intro"] h2 {
+  color: var(--godmin-ink);
+  font-size: 1.85rem;
+  font-weight: 850;
+  letter-spacing: -0.045em;
+}
+
+[data-app="auth"][data-tenant="godmin"] [data-auth-part="login-intro"] p {
+  margin-top: 0.55rem;
+  color: var(--auth-text-muted);
+  font-size: 0.86rem;
+}
+
+[data-app="auth"][data-tenant="godmin"] input[class*="input"] {
+  box-sizing: border-box;
+  color: var(--godmin-ink);
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(56, 56, 56, 0.14);
+  border-radius: 10px;
+}
+
+[data-app="auth"][data-tenant="godmin"] input[class*="input"]::placeholder {
+  color: #8a9087;
+}
+
+[data-app="auth"][data-tenant="godmin"] input[class*="input"]:hover {
+  border-color: rgba(97, 120, 90, 0.48);
+}
+
+[data-app="auth"][data-tenant="godmin"] input[class*="input"]:focus {
+  background: #ffffff;
+  border-color: var(--godmin-sage-deep);
+  box-shadow: 0 0 0 3px var(--auth-focus);
+}
+
+[data-app="auth"][data-tenant="godmin"] button[class*="btnPrimary"] {
+  color: #ffffff;
+  background: var(--auth-gradient);
+  border: 0;
+  border-radius: 10px;
+  font-weight: 850;
+  box-shadow: 0 10px 24px rgba(56, 56, 56, 0.13);
+  transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+}
+
+[data-app="auth"][data-tenant="godmin"] button[class*="btnPrimary"]:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+  box-shadow: 0 13px 28px rgba(56, 56, 56, 0.18);
+}
+
+[data-app="auth"][data-tenant="godmin"] button[class*="passwordToggle"] {
+  color: #747b71;
+}
+
+[data-app="auth"][data-tenant="godmin"] button[class*="passwordToggle"]:hover {
+  color: var(--godmin-sage-deep);
+  background: rgba(106, 130, 95, 0.09);
+}
+
+[data-app="auth"][data-tenant="godmin"] button[class*="link"],
+[data-app="auth"][data-tenant="godmin"] a[class*="link"] {
+  color: #596256;
+}
+
+[data-app="auth"][data-tenant="godmin"] button[class*="link"]:hover,
+[data-app="auth"][data-tenant="godmin"] a[class*="link"]:hover {
+  color: var(--godmin-sage-deep);
+  background: rgba(106, 130, 95, 0.09);
+}
+
+[data-app="auth"][data-tenant="godmin"] footer[class*="legalFooter"],
+[data-app="auth"][data-tenant="godmin"] footer[class*="legalFooter"] a {
+  color: #747c71;
+}
+
+@media (max-width: 840px) {
+  [data-app="auth"][data-tenant="godmin"] {
+    align-items: flex-start;
+    padding: 1.25rem 1rem 4rem;
+    overflow: auto;
+  }
+
+  [data-app="auth"][data-tenant="godmin"] [data-auth-part="card"] {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    border-radius: 22px;
+  }
+
+  [data-app="auth"][data-tenant="godmin"] [data-auth-part="brand-stage"] {
+    min-height: 16rem;
+    border-right: 0;
+    border-bottom: 1px solid rgba(56, 56, 56, 0.08);
+  }
+
+  [data-app="auth"][data-tenant="godmin"] [data-auth-part="login-panel"] {
+    padding: 2.8rem 2rem 2.4rem;
+  }
+}
+
+@media (max-width: 480px) {
+  [data-app="auth"][data-tenant="godmin"] {
+    padding: 0 0 3rem;
+  }
+
+  [data-app="auth"][data-tenant="godmin"] [data-auth-part="card"] {
+    width: 100%;
+    border-width: 0 0 1px;
+    border-radius: 0;
+  }
+
+  [data-app="auth"][data-tenant="godmin"] [data-auth-part="brand-stage"] {
+    min-height: 13rem;
+  }
+
+  [data-app="auth"][data-tenant="godmin"] [data-auth-part="brand-artwork"] {
+    padding: 2rem 1.5rem;
+  }
+
+  [data-app="auth"][data-tenant="godmin"] [data-auth-part="login-panel"] {
+    padding: 2.4rem 1.25rem 2rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-app="auth"][data-tenant="godmin"] button[class*="btnPrimary"] {
+    transition: none;
+  }
+}

@@ -31,6 +31,7 @@ const TENANT_PALETTES: Record<string, ReportPalette> = {
   sswe: { primary: "#002357", accent: "#f18e2c", tint: "#fff2e4" },
   dnb: { primary: "#612e8d", accent: "#f3eb40", tint: "#fbfae3" },
   movementhui: { primary: "#1a253b", accent: "#ffdb5a", tint: "#fffdf2" },
+  godmin: { primary: "#383838", accent: "#8aa37f", tint: "#f3f7f0" },
   "9999": DEFAULT_PALETTE,
 };
 
