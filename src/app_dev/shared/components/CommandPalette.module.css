@@ -1,80 +1,113 @@
 .overlay {
-  background: rgba(15, 23, 42, 0.55);
-  display: flex;
-  inset: 0;
-  justify-content: center;
-  padding-top: 12vh;
   position: fixed;
+  inset: 0;
   z-index: 200;
+  display: flex;
+  justify-content: center;
+  padding: 10vh 20px 20px;
+  background: rgba(11, 18, 32, 0.58);
+  backdrop-filter: blur(6px);
 }
 
 .panel {
-  background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  width: min(680px, 100%);
+  max-height: min(680px, 76vh);
   display: flex;
   flex-direction: column;
-  max-height: 70vh;
+  align-self: flex-start;
   overflow: hidden;
-  width: min(640px, 92vw);
+  border: 1px solid #cfd9e7;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 28px 80px rgba(11, 18, 32, 0.3);
 }
 
 .searchRow {
-  align-items: center;
-  border-bottom: 1px solid #e2e8f0;
+  min-height: 64px;
+  padding: 11px 16px;
   display: flex;
-  gap: 10px;
-  padding: 12px 16px;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid #dbe3ee;
+  background: #fbfcfe;
 }
 
 .searchIcon {
-  color: #94a3b8;
+  color: #2563eb;
   flex-shrink: 0;
 }
 
 .searchInput {
-  border: 0;
+  min-width: 0;
   flex: 1;
-  font-size: 14px;
+  border: 0;
   outline: none;
-  padding: 4px 0;
+  background: transparent;
+  color: #0b1220;
+  font-family: var(--app-font-sans, sans-serif);
+  font-size: 15px;
+}
+
+.searchInput::placeholder {
+  color: #8290a3;
 }
 
 .shortcut {
-  color: #94a3b8;
-  font-size: 11px;
+  padding: 3px 7px;
+  border: 1px solid #dbe3ee;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #718096;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 10px;
+  box-shadow: 0 1px 1px rgba(11, 18, 32, 0.05);
 }
 
 .results {
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .stateMessage {
-  color: #94a3b8;
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  color: #718096;
   font-size: 13px;
-  padding: 24px;
+  text-align: center;
 }
 
 .stateMessageError {
-  color: #ef4444;
+  color: #b91c1c;
 }
 
 .resultItem {
-  border-bottom: 1px solid #f1f5f9;
+  min-height: 58px;
+  padding: 11px 16px;
+  border-bottom: 1px solid #edf1f6;
+  color: #3e4c61;
   cursor: pointer;
   font-size: 13px;
-  padding: 10px 16px;
+  transition: background 140ms ease, box-shadow 140ms ease;
 }
 
+.resultItem:last-child {
+  border-bottom: 0;
+}
+
+.resultItem:hover,
 .resultItem[data-active="true"] {
-  background: #eff6ff;
+  background: #edf4ff;
+  box-shadow: inset 3px 0 #2563eb;
 }
 
 .resultLine {
-  align-items: center;
   display: flex;
+  align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .resultLineWrap {
@@ -82,55 +115,105 @@
 }
 
 .resultTitle {
-  font-weight: 600;
+  color: #0b1220;
+  font-weight: 700;
 }
 
 .resultSecondary {
-  color: #475569;
+  color: #3e4c61;
 }
 
 .resultMuted {
-  color: #94a3b8;
-  font-size: 12px;
+  color: #718096;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 10px;
 }
 
 .impersonateButton {
-  background: #3b82f6;
-  border: 0;
-  border-radius: 6px;
-  color: #ffffff;
-  cursor: pointer;
-  font-size: 11px;
-  font-weight: 600;
+  min-height: 28px;
   margin-left: auto;
-  padding: 2px 8px;
+  padding: 4px 9px;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  background: #edf4ff;
+  color: #1d4ed8;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.impersonateButton:hover {
+  border-color: #93c5fd;
+  background: #dbeafe;
 }
 
 .pill {
-  border-radius: 4px;
   display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: "SFMono-Regular", Consolas, monospace;
   font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0;
-  padding: 1px 6px;
+  font-weight: 750;
+  letter-spacing: 0.025em;
 }
 
 .pill[data-tone="tenant"] {
-  background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
+  background: #edf4ff;
+  color: #2563eb;
 }
 
 .pill[data-tone="user"] {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
+  background: #ecfdf8;
+  color: #0f766e;
 }
 
 .pill[data-tone="role"] {
-  background: rgba(71, 85, 105, 0.1);
-  color: #475569;
+  background: #f1f4f8;
+  color: #3e4c61;
 }
 
 .pill[data-tone="inactive"] {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.searchInput:focus-visible,
+.impersonateButton:focus-visible,
+.resultItem:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: -2px;
+}
+
+@media (max-width: 640px) {
+  .overlay {
+    align-items: flex-end;
+    padding: 60px 0 0;
+  }
+
+  .panel {
+    width: 100%;
+    max-height: calc(100dvh - 60px);
+    align-self: flex-end;
+    border-width: 1px 0 0;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .searchRow {
+    min-height: 62px;
+  }
+
+  .shortcut {
+    display: none;
+  }
+
+  .resultItem {
+    min-height: 62px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .resultItem,
+  .impersonateButton {
+    transition: none;
+  }
 }

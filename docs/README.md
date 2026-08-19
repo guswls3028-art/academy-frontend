@@ -23,6 +23,7 @@
 | [REAL-USE-E2E-INVENTORY.md](REAL-USE-E2E-INVENTORY.md) | 기존 E2E 자산을 실사용 운영 리뷰 관점으로 분류한 인벤토리 |
 | [DEPLOYMENT-OPERATIONS.md](DEPLOYMENT-OPERATIONS.md) | Cloudflare preview/production/rollback, scoped token, PR 무쓰기 E2E, Actions 공급망 계약 |
 | [DEV-INBOX-GUIDE.md](DEV-INBOX-GUIDE.md) | 학원 직원 문의 제출·답변 확인과 플랫폼 문의 처리 가이드 |
+| [DEVELOPER-CONSOLE.md](DEVELOPER-CONSOLE.md) | 개발자 콘솔 정보 구조, 운영 상태 레저, 반응형 메뉴, 조회 실패·쓰기 안전 계약 |
 | [TENANT-BRANDING.md](TENANT-BRANDING.md) | 신규 테넌트 로그인·역할별 공용 헤더 브랜딩 계약과 검증표 |
 | [DEV-TENANT-OPERATIONS.md](DEV-TENANT-OPERATIONS.md) | 개발자 콘솔 테넌트·소유자 생성, 기존 계정 승격, 실패 안전 UI 계약 |
 | [TCHUL-PUBLIC-SITE.md](TCHUL-PUBLIC-SITE.md) | tchul 공식 홈페이지의 정보 구조, 매치업 PDF 게시·공유, 반응형·실패 처리 계약 |

@@ -112,6 +112,7 @@ export default function TenantDetailPage() {
 
       <div className={s.content}>
         <div className={s.pageHeader}>
+          <p className={s.pageEyebrow}>TENANT CONTROL · {tenant.code.toUpperCase()}</p>
           <h1 className={s.pageTitle}>{tenant.name}</h1>
           <p className={s.pageSub}>
             <span className={s.code}>{tenant.code}</span>

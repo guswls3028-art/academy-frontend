@@ -14,6 +14,53 @@
   font-weight: 600;
 }
 
+.liveBoundary {
+  min-width: 190px;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  justify-content: end;
+  gap: 2px 7px;
+  color: var(--dev-danger);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+}
+
+.liveBoundary > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--dev-danger);
+  box-shadow: 0 0 0 3px var(--dev-danger-subtle);
+}
+
+.liveBoundary small {
+  grid-column: 1 / -1;
+  color: var(--dev-text-muted);
+  font-family: var(--app-font-sans, sans-serif);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.readError {
+  min-height: 72px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #fecaca;
+  border-radius: var(--dev-radius);
+  background: var(--dev-danger-subtle);
+  color: #991b1b;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
 .summaryGrid {
   display: grid;
   gap: 12px;
@@ -607,6 +654,15 @@
 }
 
 @media (max-width: 768px) {
+  .liveBoundary {
+    justify-content: start;
+  }
+
+  .readError {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .summaryGrid {
     gap: 8px;
     grid-template-columns: repeat(2, minmax(0, 1fr));

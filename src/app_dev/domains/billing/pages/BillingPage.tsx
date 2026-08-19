@@ -104,9 +104,23 @@ export default function BillingPage() {
   const [bankTransferPage, setBankTransferPage] = useState(1);
 
   // Queries
-  const { data: tenants, isLoading: tenantsLoading } = useBillingTenants();
-  const { data: dashboard } = useBillingDashboard();
-  const { data: invoicesData, isLoading: invoicesLoading } = useBillingInvoices(
+  const {
+    data: tenants,
+    isLoading: tenantsLoading,
+    isError: tenantsError,
+    refetch: refetchTenants,
+  } = useBillingTenants();
+  const {
+    data: dashboard,
+    isError: dashboardError,
+    refetch: refetchDashboard,
+  } = useBillingDashboard();
+  const {
+    data: invoicesData,
+    isLoading: invoicesLoading,
+    isError: invoicesError,
+    refetch: refetchInvoices,
+  } = useBillingInvoices(
     invoiceStatus ? { status: invoiceStatus } : undefined,
   );
   const {
@@ -268,6 +282,26 @@ export default function BillingPage() {
       </header>
 
       <div className={s.content}>
+        <section className={s.pageIntro}>
+          <div>
+            <p className={s.pageEyebrow}>REVENUE OPERATIONS</p>
+            <h1 className={s.pageTitle}>결제 관리</h1>
+            <p className={s.pageSub}>구독 만료, 인보이스, 입금 신고를 실제 반영 전후 맥락과 함께 관리합니다.</p>
+          </div>
+          <div className={b.liveBoundary}>
+            <span aria-hidden />
+            LIVE DATA
+            <small>변경 즉시 운영에 반영</small>
+          </div>
+        </section>
+
+        {dashboardError && (
+          <div className={b.readError} role="alert">
+            <span>결제 요약을 불러오지 못해 합계 수치를 표시하지 않습니다.</span>
+            <button type="button" className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`} onClick={() => void refetchDashboard()}>다시 시도</button>
+          </div>
+        )}
+
         {/* ── Dashboard Summary ── */}
         {dashboard && (
           <div className={b.summaryGrid}>
@@ -322,6 +356,11 @@ export default function BillingPage() {
             <div className={`${s.card} ${b.desktopTableCard}`}>
               {tenantsLoading ? (
                 <div className={`${s.skeleton} ${b.loadingSkeleton}`} />
+              ) : tenantsError ? (
+                <div className={b.readError} role="alert">
+                  <span>구독 목록을 불러오지 못해 기간 연장 기능을 잠갔습니다.</span>
+                  <button type="button" className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`} onClick={() => void refetchTenants()}>다시 시도</button>
+                </div>
               ) : (
                 <div className={b.tableScroller}>
                   <table className={s.table}>
@@ -399,8 +438,14 @@ export default function BillingPage() {
                 <div className={`${s.skeleton} ${b.loadingSkeleton}`} />
               </div>
             )}
+            {tenantsError && (
+              <div className={`${b.mobileTenantList} ${b.readError}`} role="alert">
+                <span>구독 목록을 불러오지 못해 기간 연장 기능을 잠갔습니다.</span>
+                <button type="button" className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`} onClick={() => void refetchTenants()}>다시 시도</button>
+              </div>
+            )}
 
-            {!tenantsLoading && (
+            {!tenantsLoading && !tenantsError && (
               <div className={b.mobileTenantList}>
                 {filtered.map((t) => (
                   <article key={t.tenant_id} className={b.mobileTenantCard}>
@@ -464,6 +509,11 @@ export default function BillingPage() {
             <div className={s.card}>
               {invoicesLoading ? (
                 <div className={`${s.skeleton} ${b.loadingSkeleton}`} />
+              ) : invoicesError ? (
+                <div className={b.readError} role="alert">
+                  <span>인보이스를 불러오지 못해 입금 확인 기능을 잠갔습니다.</span>
+                  <button type="button" className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`} onClick={() => void refetchInvoices()}>다시 시도</button>
+                </div>
               ) : (
                 <div className={b.tableScroller}>
                   <table className={s.table}>
