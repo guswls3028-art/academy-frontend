@@ -4,6 +4,7 @@ import {
   useImpersonate,
   useRegisterOwner,
   useRemoveOwner,
+  useResetOwnerPassword,
   useTenantOwners,
   useUpdateOwner,
 } from "@dev/domains/tenants/hooks/useTenants";
@@ -32,6 +33,7 @@ function tenantOwnerErrorMessage(error: unknown): string {
     owner_identifier_ambiguous: "같은 아이디의 계정이 여러 개입니다. 계정 중복을 먼저 정리해주세요.",
     owner_password_required: "신규 계정을 만들려면 임시 비밀번호가 필요합니다.",
     owner_registration_invalid: "아이디·이름·전화번호의 길이와 형식을 확인해주세요.",
+    owner_password_reset_invalid: "임시 비밀번호는 4~128자로 입력해주세요.",
     owner_user_inactive: "비활성 계정은 소유자로 승격할 수 없습니다. 계정을 먼저 활성화해주세요.",
   };
   return (detail && messages[detail]) || detail || "등록 실패";
@@ -42,17 +44,22 @@ export function TenantOwnersTab({ tenantId, tenantName }: { tenantId: number; te
   const registerOwner = useRegisterOwner();
   const impersonate = useImpersonate();
   const updateOwner = useUpdateOwner();
+  const resetOwnerPassword = useResetOwnerPassword();
   const removeOwner = useRemoveOwner();
   const { toast } = useDevToast();
 
   const [editId, setEditId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
+  const [resetId, setResetId] = useState<number | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetPasswordConfirm, setResetPasswordConfirm] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [newUser, setNewUser] = useState("");
   const [newPw, setNewPw] = useState("");
   const [newName, setNewName] = useState("");
   const [newPhone, setNewPhone] = useState("");
+  const resetOwner = owners?.find((owner) => owner.userId === resetId) ?? null;
 
   function resetAddForm() {
     setShowAdd(false);
@@ -122,6 +129,35 @@ export function TenantOwnersTab({ tenantId, tenantName }: { tenantId: number; te
       toast("제거 완료");
     } catch {
       toast("제거 실패", "error");
+    }
+  }
+
+  function closePasswordReset() {
+    setResetId(null);
+    setResetPassword("");
+    setResetPasswordConfirm("");
+  }
+
+  async function handlePasswordReset() {
+    if (!resetOwner) return;
+    if (resetPassword.length < 4 || resetPassword.length > 128) {
+      toast("임시 비밀번호는 4~128자로 입력해주세요.", "error");
+      return;
+    }
+    if (resetPassword !== resetPasswordConfirm) {
+      toast("임시 비밀번호 확인이 일치하지 않습니다.", "error");
+      return;
+    }
+    try {
+      await resetOwnerPassword.mutateAsync({
+        tenantId,
+        userId: resetOwner.userId,
+        password: resetPassword,
+      });
+      toast("임시 비밀번호를 설정했습니다. 대상자는 첫 로그인에서 새 비밀번호로 변경해야 합니다.");
+      closePasswordReset();
+    } catch (error: unknown) {
+      toast(tenantOwnerErrorMessage(error), "error");
     }
   }
 
@@ -272,6 +308,19 @@ export function TenantOwnersTab({ tenantId, tenantName }: { tenantId: number; te
                           </button>
                           <button
                             type="button"
+                            className={`${s.btn} ${s.btnGhost} ${s.btnSm}`}
+                            onClick={() => {
+                              setResetId(o.userId);
+                              setResetPassword("");
+                              setResetPasswordConfirm("");
+                            }}
+                            disabled={o.isActive === false || resetOwnerPassword.isPending}
+                            title={o.isActive === false ? "비활성 계정은 비밀번호를 초기화할 수 없습니다." : "기존 세션을 종료하고 임시 비밀번호 설정"}
+                          >
+                            비밀번호 초기화
+                          </button>
+                          <button
+                            type="button"
                             className={`${s.btn} ${s.btnDanger} ${s.btnSm}`}
                             onClick={() => handleRemove(o.userId, o.username)}
                             disabled={removeOwner.isPending}
@@ -286,6 +335,53 @@ export function TenantOwnersTab({ tenantId, tenantName }: { tenantId: number; te
               ))}
             </tbody>
           </table>
+        )}
+
+        {resetOwner && (
+          <section className={styles.ownerPasswordPanel} aria-labelledby="owner-password-reset-title">
+            <div>
+              <h4 id="owner-password-reset-title" className={styles.ownerPasswordTitle}>
+                {resetOwner.name || resetOwner.username} 임시 비밀번호 설정
+              </h4>
+              <p className={styles.ownerFormHint}>
+                저장하면 기존 로그인은 종료되고, 대상자는 다음 로그인에서 본인 비밀번호로 변경해야 합니다.
+              </p>
+            </div>
+            <div className={styles.ownerPasswordFormGrid}>
+              <div>
+                <label className={s.inputLabel} htmlFor="owner-reset-password">임시 비밀번호</label>
+                <input
+                  id="owner-reset-password"
+                  className={s.input}
+                  type="password"
+                  autoComplete="new-password"
+                  maxLength={128}
+                  value={resetPassword}
+                  onChange={(event) => setResetPassword(event.target.value)}
+                />
+              </div>
+              <div>
+                <label className={s.inputLabel} htmlFor="owner-reset-password-confirm">임시 비밀번호 확인</label>
+                <input
+                  id="owner-reset-password-confirm"
+                  className={s.input}
+                  type="password"
+                  autoComplete="new-password"
+                  maxLength={128}
+                  value={resetPasswordConfirm}
+                  onChange={(event) => setResetPasswordConfirm(event.target.value)}
+                />
+              </div>
+            </div>
+            <div className={styles.ownerFormActions}>
+              <button type="button" className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`} onClick={closePasswordReset} disabled={resetOwnerPassword.isPending}>
+                취소
+              </button>
+              <button type="button" className={`${s.btn} ${s.btnDanger} ${s.btnSm}`} onClick={handlePasswordReset} disabled={resetOwnerPassword.isPending || !resetPassword || !resetPasswordConfirm}>
+                {resetOwnerPassword.isPending ? "설정 중..." : "임시 비밀번호 설정"}
+              </button>
+            </div>
+          </section>
         )}
       </div>
 

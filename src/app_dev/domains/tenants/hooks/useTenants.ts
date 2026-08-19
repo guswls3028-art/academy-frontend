@@ -7,6 +7,7 @@ import {
   getTenantOwners,
   registerTenantOwner,
   updateTenantOwner,
+  resetTenantOwnerPassword,
   removeTenantOwner,
   getTenantUsage,
   getTenantActivity,
@@ -94,6 +95,17 @@ export function useUpdateOwner() {
       updateTenantOwner(tenantId, userId, payload),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: KEYS.owners(vars.tenantId) });
+    },
+  });
+}
+
+export function useResetOwnerPassword() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ tenantId, userId, password }: { tenantId: number; userId: number; password: string }) =>
+      resetTenantOwnerPassword(tenantId, userId, password),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.activity(vars.tenantId) });
     },
   });
 }

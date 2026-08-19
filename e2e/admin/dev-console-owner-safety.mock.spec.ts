@@ -214,4 +214,59 @@ test.describe("개발자 콘솔 소유자 실패 안전", () => {
     }));
     expect(bodyWidth.scrollWidth).toBeLessThanOrEqual(bodyWidth.clientWidth);
   });
+
+  test("활성 소유자의 임시 비밀번호만 전용 요청으로 초기화한다", async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await stubDevTenant(page);
+    let resetBody: Record<string, unknown> | null = null;
+    await page.route("**/api/v1/core/tenants/11/owners/", (route) => route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([{
+        tenantId: 11,
+        tenantCode: "godmin",
+        userId: 77,
+        username: "existing-owner",
+        name: "Existing Owner",
+        phone: "01000000000",
+        role: "owner",
+        isActive: true,
+      }]),
+    }));
+    await page.route("**/api/v1/core/tenants/11/owners/77/password/", async (route) => {
+      resetBody = route.request().postDataJSON() as Record<string, unknown>;
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          detail: "owner_password_reset",
+          userId: 77,
+          mustChangePassword: true,
+        }),
+      });
+    });
+
+    await gotoAndSettle(page, `${BASE}/dev/tenants/11`);
+    await page.getByRole("button", { name: "소유자", exact: true }).click();
+    await page.getByRole("button", { name: "비밀번호 초기화" }).click();
+
+    await page.getByLabel("임시 비밀번호", { exact: true }).fill("temporary-owner-password");
+    await page.getByLabel("임시 비밀번호 확인", { exact: true }).fill("temporary-owner-password");
+    const mobileScreenshot = testInfo.outputPath("owner-password-reset-mobile-390.png");
+    await page.screenshot({ path: mobileScreenshot, fullPage: true });
+    await testInfo.attach("owner-password-reset-mobile-390", {
+      path: mobileScreenshot,
+      contentType: "image/png",
+    });
+    const bodyWidth = await page.locator("body").evaluate((body) => ({
+      clientWidth: body.clientWidth,
+      scrollWidth: body.scrollWidth,
+    }));
+    expect(bodyWidth.scrollWidth).toBeLessThanOrEqual(bodyWidth.clientWidth);
+    await page.getByRole("button", { name: "임시 비밀번호 설정" }).click();
+
+    expect(resetBody).toEqual({ password: "temporary-owner-password" });
+    await expect(page.getByText("Existing Owner 임시 비밀번호 설정")).toHaveCount(0);
+    await expect(page.getByRole("alert")).toContainText("첫 로그인에서 새 비밀번호로 변경");
+  });
 });
