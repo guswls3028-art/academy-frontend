@@ -1,12 +1,9 @@
-/* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
-// PATH: src/app_teacher/domains/profile/pages/MyRecordsPage.tsx
-// 내 근태 + 지출 관리 — 등록/편집/삭제
-import { useEffect, useState } from "react";
+/* eslint-disable no-restricted-syntax */
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState , ICON } from "@/shared/ui/ds";
-import { ChevronLeft, Plus, Pencil, Trash2 } from "@teacher/shared/ui/Icons";
-import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { EmptyState, ICON } from "@/shared/ui/ds";
+import { ChevronLeft, Pencil, Plus, Trash2 } from "@teacher/shared/ui/Icons";
 import { Card, TabBar } from "@teacher/shared/ui/Card";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import api from "@/shared/api/axios";
@@ -14,242 +11,385 @@ import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { todayLocalISO } from "@/shared/utils/localDate";
+import {
+  fetchMyWorkRecords,
+  fetchMyWorkSummary,
+  fetchStaffMe,
+  type WorkRecord,
+} from "@/features/staff-clock/api";
+import { staffClockQueryKeys } from "@/features/staff-clock/queryKeys";
 import { teacherProfileQueryKeys } from "../queryKeys";
 
 type Tab = "attendance" | "expense";
+type Expense = {
+  id: number;
+  date: string;
+  title: string;
+  amount: number;
+  memo?: string | null;
+};
 
-/* ─── API ─── */
-const today = new Date();
-const thisMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+const now = new Date();
+const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-async function fetchAttendance(month: string) {
-  const res = await api.get("/core/profile/attendance/", { params: { month } });
-  return Array.isArray(res.data) ? res.data : [];
+function monthBounds(month: string) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const lastDay = new Date(year, monthNumber, 0).getDate();
+  return {
+    from: `${month}-01`,
+    to: `${month}-${String(lastDay).padStart(2, "0")}`,
+  };
 }
-async function createAttendance(payload: any) { return (await api.post("/core/profile/attendance/", payload)).data; }
-async function updateAttendance(id: number, payload: any) { return (await api.patch(`/core/profile/attendance/${id}/`, payload)).data; }
-async function deleteAttendance(id: number) { await api.delete(`/core/profile/attendance/${id}/`); }
 
-async function fetchExpenses(month: string) {
-  const res = await api.get("/core/profile/expenses/", { params: { month } });
-  return Array.isArray(res.data) ? res.data : [];
+async function fetchExpenses(month: string): Promise<Expense[]> {
+  const { data } = await api.get("/core/profile/expenses/", { params: { month } });
+  return Array.isArray(data) ? data as Expense[] : [];
 }
-async function createExpense(payload: any) { return (await api.post("/core/profile/expenses/", payload)).data; }
-async function updateExpense(id: number, payload: any) { return (await api.patch(`/core/profile/expenses/${id}/`, payload)).data; }
-async function deleteExpense(id: number) { await api.delete(`/core/profile/expenses/${id}/`); }
+
+async function createExpense(payload: Omit<Expense, "id">) {
+  return (await api.post("/core/profile/expenses/", payload)).data as Expense;
+}
+
+async function updateExpense(id: number, payload: Omit<Expense, "id">) {
+  return (await api.patch(`/core/profile/expenses/${id}/`, payload)).data as Expense;
+}
+
+async function deleteExpense(id: number) {
+  await api.delete(`/core/profile/expenses/${id}/`);
+}
 
 export default function MyRecordsPage() {
   const navigate = useNavigate();
-  const qc = useQueryClient();
+  const queryClient = useQueryClient();
   const confirm = useConfirm();
   const [tab, setTab] = useState<Tab>("attendance");
   const [month, setMonth] = useState(thisMonth);
   const [formOpen, setFormOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<any>(null);
-
-  const { data: attendance } = useQuery({
-    queryKey: teacherProfileQueryKeys.attendance(month),
-    queryFn: () => fetchAttendance(month),
-    enabled: tab === "attendance",
+  const [editTarget, setEditTarget] = useState<Expense | null>(null);
+  const range = useMemo(() => monthBounds(month), [month]);
+  const staffMeQ = useQuery({
+    queryKey: staffClockQueryKeys.me,
+    queryFn: fetchStaffMe,
+    staleTime: 30_000,
   });
-  const { data: expenses } = useQuery({
+  const staffId = staffMeQ.data?.staff_id;
+  const recordsQ = useQuery({
+    queryKey: staffId != null
+      ? staffClockQueryKeys.personalRecords(staffId, range.from, range.to)
+      : ["my-work-records", "unavailable", range.from, range.to],
+    queryFn: () => fetchMyWorkRecords(staffId!, range.from, range.to),
+    enabled: tab === "attendance" && staffId != null,
+  });
+  const summaryQ = useQuery({
+    queryKey: staffId != null
+      ? staffClockQueryKeys.personalSummary(staffId, range.from, range.to)
+      : ["my-work-summary", "unavailable", range.from, range.to],
+    queryFn: () => fetchMyWorkSummary(staffId!, range.from, range.to),
+    enabled: tab === "attendance" && staffId != null,
+  });
+  const expensesQ = useQuery({
     queryKey: teacherProfileQueryKeys.expenses(month),
     queryFn: () => fetchExpenses(month),
     enabled: tab === "expense",
   });
-
-  const deleteAttMut = useMutation({
-    mutationFn: deleteAttendance,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: teacherProfileQueryKeys.attendance(month) }); teacherToast.info("근태 기록이 삭제되었습니다."); },
-    onError: (e) => teacherToast.error(extractApiError(e, "근태 기록을 삭제하지 못했습니다.")),
-  });
-  const deleteExpMut = useMutation({
+  const deleteExpenseMutation = useMutation({
     mutationFn: deleteExpense,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: teacherProfileQueryKeys.expenses(month) }); teacherToast.info("지출 기록이 삭제되었습니다."); },
-    onError: (e) => teacherToast.error(extractApiError(e, "지출 기록을 삭제하지 못했습니다.")),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: teacherProfileQueryKeys.expenses(month) });
+      teacherToast.info("지출 기록이 삭제되었습니다.");
+    },
+    onError: (error) => teacherToast.error(extractApiError(error, "지출 기록을 삭제하지 못했습니다.")),
   });
+
+  const openExpenseForm = (expense?: Expense) => {
+    setEditTarget(expense ?? null);
+    setFormOpen(true);
+  };
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2 py-0.5">
-        <button onClick={() => navigate(-1)} className="flex p-1 cursor-pointer"
-          style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}>
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="flex p-1 cursor-pointer"
+          style={{ background: "none", border: "none", color: "var(--tc-text-secondary)" }}
+          aria-label="뒤로"
+        >
           <ChevronLeft size={ICON.lg} />
         </button>
-        <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>근태 / 지출</h1>
-        <button onClick={() => { setEditTarget(null); setFormOpen(true); }}
-          className="flex items-center gap-1 text-xs font-bold cursor-pointer"
-          style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
-          <Plus size={ICON.xs} /> 등록
-        </button>
+        <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>
+          근무 기록 / 지출
+        </h1>
+        {tab === "expense" && (
+          <button
+            type="button"
+            onClick={() => openExpenseForm()}
+            className="flex items-center gap-1 text-xs font-bold cursor-pointer"
+            style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}
+          >
+            <Plus size={ICON.xs} /> 등록
+          </button>
+        )}
       </div>
 
-      {/* Month selector */}
-      <input type="month" value={month} onChange={(e) => setMonth(e.target.value)}
+      <input
+        type="month"
+        value={month}
+        onChange={(event) => setMonth(event.target.value)}
         className="text-sm self-center"
-        style={{ padding: "6px 12px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text)" }} />
+        style={{ padding: "6px 12px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text)" }}
+        aria-label="조회 월"
+      />
 
-      <TabBar tabs={[{ key: "attendance" as Tab, label: "근태" }, { key: "expense" as Tab, label: "지출" }]} value={tab} onChange={setTab} />
+      <TabBar
+        tabs={[
+          { key: "attendance" as Tab, label: "근무 기록" },
+          { key: "expense" as Tab, label: "지출" },
+        ]}
+        value={tab}
+        onChange={setTab}
+      />
 
       {tab === "attendance" ? (
-        attendance?.length ? (
-          <div className="flex flex-col gap-1.5">
-            {attendance.map((a: any) => (
-              <Card key={a.id} style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-medium" style={{ color: "var(--tc-text)" }}>{a.date} · {a.work_type}</div>
-                    <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>{a.start_time?.slice(0,5)} ~ {a.end_time?.slice(0,5)} ({a.duration_hours}h) {a.memo ? `· ${a.memo}` : ""}</div>
+        <AttendanceContent
+          records={recordsQ.data ?? []}
+          loading={staffMeQ.isLoading || recordsQ.isLoading || summaryQ.isLoading}
+          error={staffMeQ.isError || recordsQ.isError || summaryQ.isError}
+          hasStaffProfile={staffId != null}
+          totalHours={Number(summaryQ.data?.work_hours ?? 0)}
+          totalAmount={Number(summaryQ.data?.work_amount ?? 0)}
+          onRetry={() => {
+            void staffMeQ.refetch();
+            void recordsQ.refetch();
+            void summaryQ.refetch();
+          }}
+        />
+      ) : expensesQ.isLoading ? (
+        <EmptyState scope="panel" tone="loading" title="지출 기록을 불러오는 중" />
+      ) : expensesQ.isError ? (
+        <EmptyState
+          scope="panel"
+          tone="error"
+          title="지출 기록을 불러오지 못했습니다"
+          actions={<button type="button" onClick={() => void expensesQ.refetch()}>다시 시도</button>}
+        />
+      ) : expensesQ.data?.length ? (
+        <div className="flex flex-col gap-1.5">
+          {expensesQ.data.map((expense) => (
+            <Card key={expense.id} style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium" style={{ color: "var(--tc-text)" }}>
+                    {expense.date} · {expense.title}
                   </div>
-                  <div className="flex gap-1">
-                    <button onClick={() => { setEditTarget(a); setFormOpen(true); }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}><Pencil size={ICON.md} /></button>
-                    <button onClick={async () => {
-                        const ok = await confirm({ title: "근태 삭제", message: "이 근태 기록을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
-                        if (ok) deleteAttMut.mutate(a.id);
-                      }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}><Trash2 size={ICON.md} /></button>
+                  <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+                    {expense.amount.toLocaleString()}원 {expense.memo ? `· ${expense.memo}` : ""}
                   </div>
                 </div>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            scope="panel"
-            tone="empty"
-            title="근태 기록이 없습니다"
-            description="이번 달 근무 내역을 등록하면 월별 근태 확인에 반영됩니다."
-            actions={
-              <EmptyActionButton onClick={() => { setEditTarget(null); setFormOpen(true); }}>
-                근태 등록
-              </EmptyActionButton>
-            }
-          />
-        )
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => openExpenseForm(expense)}
+                    className="flex p-1 cursor-pointer"
+                    style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}
+                    aria-label={`${expense.title} 지출 수정`}
+                  >
+                    <Pencil size={ICON.md} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const confirmed = await confirm({
+                        title: "지출 삭제",
+                        message: "이 지출 기록을 삭제하시겠습니까?",
+                        confirmText: "삭제",
+                        danger: true,
+                      });
+                      if (confirmed) deleteExpenseMutation.mutate(expense.id);
+                    }}
+                    className="flex p-1 cursor-pointer"
+                    style={{ background: "none", border: "none", color: "var(--tc-danger)" }}
+                    aria-label={`${expense.title} 지출 삭제`}
+                  >
+                    <Trash2 size={ICON.md} />
+                  </button>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
       ) : (
-        expenses?.length ? (
-          <div className="flex flex-col gap-1.5">
-            {expenses.map((e: any) => (
-              <Card key={e.id} style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-medium" style={{ color: "var(--tc-text)" }}>{e.date} · {e.title}</div>
-                    <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>{e.amount?.toLocaleString()}원 {e.memo ? `· ${e.memo}` : ""}</div>
-                  </div>
-                  <div className="flex gap-1">
-                    <button onClick={() => { setEditTarget(e); setFormOpen(true); }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-text-muted)" }}><Pencil size={ICON.md} /></button>
-                    <button onClick={async () => {
-                        const ok = await confirm({ title: "지출 삭제", message: "이 지출 기록을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
-                        if (ok) deleteExpMut.mutate(e.id);
-                      }} className="flex p-1 cursor-pointer" style={{ background: "none", border: "none", color: "var(--tc-danger)" }}><Trash2 size={ICON.md} /></button>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            scope="panel"
-            tone="empty"
-            title="지출 기록이 없습니다"
-            description="업무 지출을 등록하면 월별 비용 확인에 반영됩니다."
-            actions={
-              <EmptyActionButton onClick={() => { setEditTarget(null); setFormOpen(true); }}>
-                지출 등록
-              </EmptyActionButton>
-            }
-          />
-        )
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title="지출 기록이 없습니다"
+          description="업무 지출을 등록하면 월별 비용 확인에 반영됩니다."
+          actions={<button type="button" onClick={() => openExpenseForm()}>지출 등록</button>}
+        />
       )}
 
-      {/* Form sheet */}
-      <RecordFormSheet open={formOpen} onClose={() => { setFormOpen(false); setEditTarget(null); }}
-        tab={tab} month={month} editData={editTarget} />
+      <ExpenseFormSheet
+        open={formOpen}
+        onClose={() => {
+          setFormOpen(false);
+          setEditTarget(null);
+        }}
+        month={month}
+        editData={editTarget}
+      />
     </div>
   );
 }
 
-function RecordFormSheet({ open, onClose, tab, month, editData }: {
-  open: boolean; onClose: () => void; tab: Tab; month: string; editData?: any;
+function AttendanceContent({
+  records,
+  loading,
+  error,
+  hasStaffProfile,
+  totalHours,
+  totalAmount,
+  onRetry,
+}: {
+  records: WorkRecord[];
+  loading: boolean;
+  error: boolean;
+  hasStaffProfile: boolean;
+  totalHours: number;
+  totalAmount: number;
+  onRetry: () => void;
 }) {
-  const qc = useQueryClient();
-  const isEdit = !!editData;
+  if (loading) return <EmptyState scope="panel" tone="loading" title="근무 기록을 불러오는 중" />;
+  if (error) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="error"
+        title="근무 기록을 불러오지 못했습니다"
+        actions={<button type="button" onClick={onRetry}>다시 시도</button>}
+      />
+    );
+  }
+  if (!hasStaffProfile) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="empty"
+        title="연결된 직원 정보가 없습니다"
+        description="관리자에게 직원 계정 연결을 요청해 주세요."
+      />
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2.5">
+      <Card style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>총 근무시간</div>
+            <div className="text-lg font-bold tabular-nums" style={{ color: "var(--tc-text)" }}>{totalHours}시간</div>
+          </div>
+          <div>
+            <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>총 근무액 (공제 전)</div>
+            <div className="text-lg font-bold tabular-nums" style={{ color: "var(--tc-primary)" }}>{totalAmount.toLocaleString()}원</div>
+          </div>
+        </div>
+      </Card>
+      {records.length === 0 ? (
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title="근무 기록이 없습니다"
+          description="로그인 후 근무 유형을 선택해 출근하면 자동으로 기록됩니다."
+        />
+      ) : (
+        records.map((record) => (
+          <Card key={record.id} style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>
+                  {record.date} · {record.work_type_name}
+                </div>
+                <div className="mt-0.5 text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+                  {record.start_time.slice(0, 5)} ~ {record.end_time?.slice(0, 5) ?? "근무 중"}
+                  {record.end_time ? ` · ${record.work_hours ?? 0}시간` : " · 진행 중"}
+                  {(record.break_minutes ?? 0) > 0 ? ` · 휴게 ${record.break_minutes}분` : ""}
+                </div>
+                <div className="mt-1 text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+                  적용 시급 {record.resolved_hourly_wage?.toLocaleString() ?? "-"}원
+                </div>
+              </div>
+              <div className="shrink-0 text-right text-sm font-bold tabular-nums" style={{ color: "var(--tc-text)" }}>
+                {record.end_time ? `${(record.amount ?? 0).toLocaleString()}원` : "계산 전"}
+              </div>
+            </div>
+          </Card>
+        ))
+      )}
+    </div>
+  );
+}
+
+function ExpenseFormSheet({
+  open,
+  onClose,
+  month,
+  editData,
+}: {
+  open: boolean;
+  onClose: () => void;
+  month: string;
+  editData: Expense | null;
+}) {
+  const queryClient = useQueryClient();
+  const isEdit = editData != null;
   const [date, setDate] = useState(editData?.date || todayLocalISO());
-  const [startTime, setStartTime] = useState(editData?.start_time?.slice(0, 5) || "09:00");
-  const [endTime, setEndTime] = useState(editData?.end_time?.slice(0, 5) || "18:00");
-  const [workType, setWorkType] = useState(editData?.work_type || "수업");
   const [title, setTitle] = useState(editData?.title || "");
-  const [amount, setAmount] = useState(String(editData?.amount || ""));
+  const [amount, setAmount] = useState(editData?.amount ? String(editData.amount) : "");
   const [memo, setMemo] = useState(editData?.memo || "");
 
   useEffect(() => {
     if (!open) return;
     setDate(editData?.date || todayLocalISO());
-    setStartTime(editData?.start_time?.slice(0, 5) || "09:00");
-    setEndTime(editData?.end_time?.slice(0, 5) || "18:00");
-    setWorkType(editData?.work_type || "수업");
     setTitle(editData?.title || "");
-    setAmount(editData?.amount != null && Number(editData.amount) > 0 ? String(editData.amount) : "");
+    setAmount(editData?.amount ? String(editData.amount) : "");
     setMemo(editData?.memo || "");
-  }, [open, editData, tab]);
+  }, [editData, open]);
 
+  const parsedAmount = Number(amount);
+  const canSubmit = Boolean(date && title.trim() && Number.isFinite(parsedAmount) && parsedAmount > 0);
   const mutation = useMutation({
     mutationFn: () => {
-      if (tab === "attendance") {
-        const payload = { date, start_time: startTime, end_time: endTime, work_type: workType, memo: memo || undefined };
-        return isEdit ? updateAttendance(editData.id, payload) : createAttendance(payload);
-      } else {
-        const payload = { date, title: title.trim(), amount: Number(amount), memo: memo || undefined };
-        return isEdit ? updateExpense(editData.id, payload) : createExpense(payload);
-      }
+      const payload = {
+        date,
+        title: title.trim(),
+        amount: parsedAmount,
+        memo: memo.trim() || null,
+      };
+      return isEdit ? updateExpense(editData.id, payload) : createExpense(payload);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: tab === "attendance" ? teacherProfileQueryKeys.attendance(month) : teacherProfileQueryKeys.expenses(month) });
-      teacherToast.success(`${label} 기록이 ${isEdit ? "수정" : "등록"}되었습니다.`);
+      queryClient.invalidateQueries({ queryKey: teacherProfileQueryKeys.expenses(month) });
+      teacherToast.success(`지출 기록이 ${isEdit ? "수정" : "등록"}되었습니다.`);
       onClose();
     },
-    onError: (e) => teacherToast.error(extractApiError(e, `${label} ${isEdit ? "수정" : "등록"}에 실패했습니다.`)),
+    onError: (error) => teacherToast.error(extractApiError(error, `지출 ${isEdit ? "수정" : "등록"}에 실패했습니다.`)),
   });
 
-  const label = tab === "attendance" ? "근태" : "지출";
-  const parsedAmount = Number(amount);
-  const canSubmitExpense =
-    tab !== "expense" || (!!title.trim() && Number.isFinite(parsedAmount) && parsedAmount > 0);
-
-  function handleSubmit() {
-    if (!date) {
-      teacherToast.error("날짜를 입력해주세요.");
-      return;
-    }
-    if (tab === "expense" && !canSubmitExpense) {
-      teacherToast.error("지출 항목과 1원 이상의 금액을 입력해주세요.");
-      return;
-    }
-    mutation.mutate();
-  }
-
   return (
-    <BottomSheet open={open} onClose={onClose} title={`${label} ${isEdit ? "편집" : "등록"}`}>
+    <BottomSheet open={open} onClose={onClose} title={`지출 ${isEdit ? "편집" : "등록"}`}>
       <div className="flex flex-col gap-2.5" style={{ padding: "var(--tc-space-3) 0" }}>
-        <Fld label="날짜" value={date} onChange={setDate} type="date" />
-        {tab === "attendance" ? (
-          <>
-            <div className="flex gap-2">
-              <Fld label="시작" value={startTime} onChange={setStartTime} type="time" />
-              <Fld label="종료" value={endTime} onChange={setEndTime} type="time" />
-            </div>
-            <Fld label="근무 유형" value={workType} onChange={setWorkType} placeholder="수업, 행정, 상담 등" />
-          </>
-        ) : (
-          <>
-            <Fld label="항목" value={title} onChange={setTitle} placeholder="지출 항목" />
-            <Fld label="금액 (원)" value={amount} onChange={setAmount} type="number" placeholder="0" />
-          </>
-        )}
-        <Fld label="메모" value={memo} onChange={setMemo} placeholder="메모 (선택)" />
-
-        <button onClick={handleSubmit} disabled={mutation.isPending || !canSubmitExpense}
+        <Field label="날짜" value={date} onChange={setDate} type="date" />
+        <Field label="항목" value={title} onChange={setTitle} placeholder="지출 항목" />
+        <Field label="금액 (원)" value={amount} onChange={setAmount} type="number" placeholder="0" />
+        <Field label="메모" value={memo} onChange={setMemo} placeholder="메모 (선택)" />
+        <button
+          type="button"
+          onClick={() => mutation.mutate()}
+          disabled={mutation.isPending || !canSubmit}
           className="w-full text-sm font-bold cursor-pointer mt-1"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}>
+          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}
+        >
           {mutation.isPending ? "저장 중..." : isEdit ? "수정" : "등록"}
         </button>
       </div>
@@ -257,15 +397,32 @@ function RecordFormSheet({ open, onClose, tab, month, editData }: {
   );
 }
 
-function Fld({ label, value, onChange, placeholder, type = "text" }: {
-  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  type?: string;
 }) {
   return (
     <div className="flex-1">
-      <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>{label}</label>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-        className="w-full text-sm"
-        style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
+      <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>
+        {label}
+        <input
+          type={type}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          className="w-full text-sm mt-1"
+          style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }}
+        />
+      </label>
     </div>
   );
 }

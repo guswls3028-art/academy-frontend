@@ -7,7 +7,6 @@ import AttendanceHeader from "../components/AttendanceHeader";
 import AttendanceSummaryCard from "../components/AttendanceSummaryCard";
 import AttendanceChartCard from "../components/AttendanceChartCard";
 import AttendanceTable from "../components/AttendanceTable";
-import AttendanceFormModal from "../components/AttendanceFormModal";
 
 import { useAttendanceDomain } from "../hooks/useAttendanceDomain";
 
@@ -32,7 +31,6 @@ export default function ProfileAttendancePage() {
           range={range}
           resetRangeToMonth={resetRangeToMonth}
           rowsForExcel={domain.allRows}
-          onCreate={domain.openCreate}
         />
 
         <Section>
@@ -43,40 +41,38 @@ export default function ProfileAttendancePage() {
         </Section>
 
         <Section>
-          {!domain.isLoading && domain.rows.length === 0 && (
+          {domain.isError && (
             <EmptyState
-              title="근태 기록 없음"
-              description="선택한 기간에 근태 기록이 없습니다."
+              tone="error"
+              title="근무 기록을 불러오지 못했습니다"
+              description="연결 상태를 확인한 뒤 다시 시도해 주세요."
               actions={
-                <Button
-                  intent="primary"
-                  size="md"
-                  onClick={domain.openCreate}
-                  className="mt-4"
-                >
-                  + 근태 등록
+                <Button intent="secondary" size="sm" onClick={() => void domain.refetch()}>
+                  다시 시도
                 </Button>
               }
             />
           )}
 
-          {domain.rows.length > 0 && (
-            <AttendanceTable
-              rows={domain.rows}
-              onEdit={domain.openEdit}
-              onDelete={domain.remove}
+          {!domain.isError && !domain.isLoading && !domain.hasStaffProfile && (
+            <EmptyState
+              title="연결된 직원 정보가 없습니다"
+              description="관리자에게 직원 계정 연결을 요청해 주세요."
             />
+          )}
+
+          {!domain.isError && !domain.isLoading && domain.hasStaffProfile && domain.rows.length === 0 && (
+            <EmptyState
+              title="근무 기록 없음"
+              description="로그인 후 근무 유형을 선택해 출근하면 이곳에 기록됩니다."
+            />
+          )}
+
+          {domain.rows.length > 0 && (
+            <AttendanceTable rows={domain.rows} />
           )}
         </Section>
       </div>
-
-      <AttendanceFormModal
-        open={domain.open}
-        initial={domain.editing}
-        submitting={domain.submitting}
-        onClose={domain.close}
-        onSubmit={domain.submit}
-      />
     </>
   );
 }

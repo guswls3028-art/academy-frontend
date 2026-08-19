@@ -31,6 +31,7 @@ import { Button, Badge, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { fetchMe, displayUsername, meToStaffRole, type MeStaffRole } from "@admin/domains/profile/api/profile.api";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { HeaderCenterStaffClock } from "@admin/domains/staff/components/HeaderCenterStaffClock";
+import CompactStaffClockButton from "@/features/staff-clock/CompactStaffClockButton";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import {
   resolveTenantCode,
@@ -354,6 +355,8 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
 
         {/* RIGHT: 알람 | 프로필 */}
         <div className="app-header__right">
+
+          {isMobile && <CompactStaffClockButton />}
 
           {!isMobile && (
             <Button

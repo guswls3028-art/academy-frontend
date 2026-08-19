@@ -12,16 +12,11 @@ export default function AttendanceSummaryCard({
 
   return (
     <Panel variant="primary">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Item label="총 근무 시간" value={`${summary.total_hours}`} unit="시간" />
         <Item
-          label="총 급여"
+          label="총 근무액 (공제 전)"
           value={summary.total_amount.toLocaleString()}
-          unit="원"
-        />
-        <Item
-          label="세후 수령액"
-          value={summary.total_after_tax.toLocaleString()}
           unit="원"
           tone="primary"
         />

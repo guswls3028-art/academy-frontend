@@ -13,6 +13,7 @@ export const routeMockSpecs = [
   "e2e/auth/account-password-flows.mock.spec.ts",
   "e2e/auth/account-recovery-modal.spec.ts",
   "e2e/auth/first-login-guide.mock.spec.ts",
+  "e2e/auth/staff-clock-in-choice.mock.spec.ts",
   "e2e/admin/arrival-operations.mock.spec.ts",
   "e2e/admin/billing-bank-transfer-only.mock.spec.ts",
   "e2e/admin/assessment-operations-workspace.mock.spec.ts",
@@ -46,6 +47,7 @@ export const routeMockSpecs = [
 export const criticalInteractionSpecs = [
   "e2e/admin/lecture-create-responsive.mock.spec.ts",
   "e2e/auth/account-password-flows.mock.spec.ts",
+  "e2e/auth/staff-clock-in-choice.mock.spec.ts",
 ];
 
 export const criticalStateTransitionSpecs = [

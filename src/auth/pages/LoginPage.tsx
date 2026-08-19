@@ -29,6 +29,7 @@ import "@/auth/themes/movementhui.css";
 import "@/auth/themes/godmin.css";
 import "@/auth/themes/clean-decorations.css";
 import styles from "./LoginPage.module.css";
+import { markStaffClockInChoicePending } from "@/features/staff-clock/promptSession";
 
 const BRANDED_LOGIN_SCENES = new Set(["hakwonplus", "movementhui", "godmin"]);
 
@@ -133,6 +134,7 @@ export default function LoginPage() {
     setError("");
     try {
       await login(username, password);
+      markStaffClockInChoicePending();
       await refreshMe();
       const returnPath = consumeReturnPath();
       navigate(returnPath || "/", { replace: true });

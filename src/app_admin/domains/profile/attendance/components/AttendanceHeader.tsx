@@ -2,19 +2,17 @@
 import { Button, Panel } from "@/shared/ui/ds";
 import { Attendance } from "../../api/profile.api";
 import { downloadAttendanceExcel } from "../../excel/attendanceExcel";
-import { FiPlus, FiDownload } from "react-icons/fi";
+import { FiDownload } from "react-icons/fi";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
 export default function AttendanceHeader({
   range,
   resetRangeToMonth,
   rowsForExcel,
-  onCreate,
 }: {
   range: { from: string; to: string };
   resetRangeToMonth: (m?: string) => void;
   rowsForExcel: Attendance[];
-  onCreate: () => void;
 }) {
   const monthValue =
     range.from?.slice(0, 7) || (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; })();
@@ -55,16 +53,6 @@ export default function AttendanceHeader({
             leftIcon={<FiDownload size={14} />}
           >
             Excel
-          </Button>
-
-          <Button
-            type="button"
-            intent="primary"
-            size="sm"
-            onClick={onCreate}
-            leftIcon={<FiPlus size={14} />}
-          >
-            근태 등록
           </Button>
         </div>
       </div>
