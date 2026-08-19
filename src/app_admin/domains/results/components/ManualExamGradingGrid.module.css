@@ -376,6 +376,11 @@
   font-size: 11px;
 }
 
+.scoreSummaryText {
+  display: grid;
+  gap: 3px;
+}
+
 .scoreSummaryError {
   border-color: #fecaca;
   background: #fef2f2;

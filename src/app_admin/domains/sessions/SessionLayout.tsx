@@ -44,6 +44,11 @@ export default function SessionLayout() {
       { key: "scores", label: "성적", path: `${base}/scores` },
       { key: "exams", label: "시험", path: `${base}/exams` },
       { key: "assignments", label: "과제", path: `${base}/assignments` },
+      {
+        key: "notice",
+        label: "공지·게시판",
+        path: `/workspace/community/notice?scope=session&lectureId=${lectureId}&sessionId=${sessionId}`,
+      },
       { key: "videos", label: "영상", path: `${base}/videos` },
     ];
     // P7: CLINIC 세션에서는 정규 클리닉 탭 불필요 (순환 방지)
@@ -51,7 +56,7 @@ export default function SessionLayout() {
       items.push({ key: "clinic", label: "정규 클리닉", path: `${base}/clinic` });
     }
     return items;
-  }, [base, sectionMode, session?.section_type]);
+  }, [base, lectureId, sectionMode, session?.section_type, sessionId]);
 
   if (!lectureId || !sessionId) {
     return (

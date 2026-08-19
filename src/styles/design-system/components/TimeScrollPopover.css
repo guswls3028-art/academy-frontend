@@ -8,6 +8,8 @@
   border-radius: var(--radius-xl);
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.06);
   font-family: inherit;
+  display: grid;
+  gap: var(--space-3);
 }
 
 .time-picker--floating {
@@ -140,6 +142,109 @@
 .time-picker__item:focus-visible {
   outline: 2px solid var(--color-brand-primary, var(--color-primary));
   outline-offset: -2px;
+}
+
+.time-picker__manual {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 18%, var(--color-border-divider));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 5%, var(--color-bg-surface));
+}
+
+.time-picker__manual-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.time-picker__manual-copy strong {
+  color: var(--color-text-primary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.time-picker__manual-copy span {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.time-picker__manual-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.time-picker__manual-controls input {
+  width: 96px;
+  min-height: 36px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.time-picker__manual-controls input:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 55%, transparent);
+  outline-offset: 1px;
+}
+
+.time-picker__manual-controls button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-brand-primary, var(--color-primary));
+  border-radius: var(--radius-md);
+  background: var(--color-brand-primary, var(--color-primary));
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+
+.time-picker__manual-controls button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.time-picker__manual-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.time-picker__manual-error {
+  grid-column: 1 / -1;
+  color: var(--color-error);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+@media (max-width: 420px) {
+  .time-picker__manual {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .time-picker__manual-controls input {
+    flex: 1;
+    width: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .time-picker__manual-controls button {
+    transition: none;
+  }
 }
 
 /* body 포털 시 배경 불투명 강제 (차시 모달·클리닉 동일) */

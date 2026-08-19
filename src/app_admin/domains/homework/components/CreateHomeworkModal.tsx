@@ -9,7 +9,7 @@
 /* eslint-disable no-restricted-syntax */
 // R-11 legacy baseline: existing inline styles stay frozen; new styles use className/DS tokens.
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import api from "@/shared/api/axios";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Badge, Button } from "@/shared/ui/ds";
@@ -61,6 +61,49 @@ function makeRow(): BulkRow {
     cutline: "80",
     dueDate: getDefaultDueDate(),
   };
+}
+
+function ImeSafeTitleInput({
+  value,
+  onCommit,
+  index,
+}: {
+  value: string;
+  onCommit: (value: string) => void;
+  index: number;
+}) {
+  const [draft, setDraft] = useState(value);
+  const composingRef = useRef(false);
+
+  useEffect(() => {
+    if (!composingRef.current) setDraft(value);
+  }, [value]);
+
+  return (
+    <input
+      className="ds-input w-full"
+      style={{ minHeight: 44, fontSize: 15, padding: "10px 12px", fontWeight: 650, letterSpacing: 0 }}
+      value={draft}
+      onCompositionStart={() => {
+        composingRef.current = true;
+      }}
+      onCompositionEnd={(event) => {
+        composingRef.current = false;
+        const next = event.currentTarget.value;
+        setDraft(next);
+        onCommit(next);
+      }}
+      onChange={(event) => {
+        const next = event.target.value;
+        setDraft(next);
+        if (!composingRef.current) onCommit(next);
+      }}
+      onBlur={() => onCommit(draft)}
+      placeholder={`예: ${index + 1}주차 전자기유도`}
+      autoFocus={index === 0}
+      aria-label={`과제 ${index + 1} 제목`}
+    />
+  );
 }
 
 export default function CreateHomeworkModal({
@@ -525,6 +568,10 @@ export default function CreateHomeworkModal({
           {/* ── Stage: new (bulk form) ── */}
           {stage === "new" && (
             <div className="modal-form-group">
+              <div className="mb-3 grid gap-1 rounded-lg border border-[color-mix(in_srgb,var(--color-brand-primary)_22%,var(--color-border-divider))] bg-[color-mix(in_srgb,var(--color-brand-primary)_6%,var(--color-bg-surface))] px-3 py-2.5">
+                <strong className="text-sm text-[var(--color-text-primary)]">1. 과제 제목부터 입력하세요</strong>
+                <span className="text-xs text-[var(--color-text-muted)]">제목을 입력하면 아래 과제 만들기 버튼이 활성화됩니다.</span>
+              </div>
               {/* 점수형 과제의 커트라인 모드 — 값은 과제 행별로 입력 */}
               <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-3 py-2.5">
                 <span className="text-sm font-semibold text-[var(--color-text-primary)] shrink-0">
@@ -575,36 +622,6 @@ export default function CreateHomeworkModal({
                       <span className="text-xs font-bold text-[var(--color-text-muted)]">
                         {idx + 1}번
                       </span>
-                      <div
-                        className="inline-flex overflow-hidden rounded-md border border-[var(--color-border-divider)]"
-                        role="group"
-                        aria-label={`과제 ${idx + 1} 채점 방식`}
-                      >
-                        <button
-                          type="button"
-                          className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
-                            row.gradingMode === "SCORE"
-                              ? "bg-[var(--color-brand-primary)] text-white"
-                              : "bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)]"
-                          }`}
-                          aria-pressed={row.gradingMode === "SCORE"}
-                          onClick={() => updateRow(row.key, "gradingMode", "SCORE")}
-                        >
-                          숫자 채점
-                        </button>
-                        <button
-                          type="button"
-                          className={`border-l border-[var(--color-border-divider)] px-3 py-1.5 text-xs font-semibold transition-colors ${
-                            row.gradingMode === "COMPLETION"
-                              ? "bg-[var(--color-brand-primary)] text-white"
-                              : "bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)]"
-                          }`}
-                          aria-pressed={row.gradingMode === "COMPLETION"}
-                          onClick={() => updateRow(row.key, "gradingMode", "COMPLETION")}
-                        >
-                          완료 체크
-                        </button>
-                      </div>
                       <div className="inline-flex items-center gap-1">
                         <button
                           type="button"
@@ -638,24 +655,49 @@ export default function CreateHomeworkModal({
                         </button>
                       </div>
                     </div>
-                    <div className={`grid gap-3 ${
-                      row.gradingMode === "SCORE"
-                        ? "sm:grid-cols-[minmax(0,1fr)_96px_110px_150px]"
-                        : "sm:grid-cols-[minmax(0,1fr)_minmax(180px,0.7fr)_150px]"
-                    }`}>
-                      {row.gradingMode === "SCORE" ? <>
-                      <label className="grid gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
-                        제목
-                        <input
-                          className="ds-input w-full"
-                          style={{ minHeight: 42, fontSize: 14, padding: "10px 12px", fontWeight: 500, letterSpacing: 0 }}
-                          value={row.title}
-                          onChange={(e) => updateRow(row.key, "title", e.target.value)}
-                          placeholder={`${idx + 1}주차 과제`}
-                          autoFocus={idx === 0}
-                          aria-label={`과제 ${idx + 1} 제목`}
-                        />
-                      </label>
+                    <label className="mb-3 grid gap-1.5 text-xs font-semibold text-[var(--color-text-primary)]">
+                      <span>과제 제목 <strong className="text-[var(--color-error)]">필수</strong></span>
+                      <ImeSafeTitleInput
+                        value={row.title}
+                        onCommit={(next) => updateRow(row.key, "title", next)}
+                        index={idx}
+                      />
+                    </label>
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-[var(--color-text-muted)]">채점 방식</span>
+                      <div
+                        className="inline-flex overflow-hidden rounded-md border border-[var(--color-border-divider)]"
+                        role="group"
+                        aria-label={`과제 ${idx + 1} 채점 방식`}
+                      >
+                        <button
+                          type="button"
+                          className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
+                            row.gradingMode === "SCORE"
+                              ? "bg-[var(--color-brand-primary)] text-white"
+                              : "bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)]"
+                          }`}
+                          aria-pressed={row.gradingMode === "SCORE"}
+                          onClick={() => updateRow(row.key, "gradingMode", "SCORE")}
+                        >
+                          숫자 채점
+                        </button>
+                        <button
+                          type="button"
+                          className={`border-l border-[var(--color-border-divider)] px-3 py-1.5 text-xs font-semibold transition-colors ${
+                            row.gradingMode === "COMPLETION"
+                              ? "bg-[var(--color-brand-primary)] text-white"
+                              : "bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)]"
+                          }`}
+                          aria-pressed={row.gradingMode === "COMPLETION"}
+                          onClick={() => updateRow(row.key, "gradingMode", "COMPLETION")}
+                        >
+                          완료 체크
+                        </button>
+                      </div>
+                    </div>
+                    {row.gradingMode === "SCORE" ? (
+                      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_150px]">
                       <label className="grid gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
                         커트라인 ({cutlineMode === "PERCENT" ? "%" : "점"})
                         <input
@@ -668,12 +710,6 @@ export default function CreateHomeworkModal({
                           aria-label={`과제 ${idx + 1} 커트라인`}
                         />
                       </label>
-                      </> : (
-                        <div className="grid content-center gap-1 rounded-lg bg-[var(--color-bg-surface-soft)] px-3 py-2 text-xs text-[var(--color-text-secondary)]">
-                          <strong className="text-[var(--color-text-primary)]">완료 / 미완료</strong>
-                          <span>문제 수 없이 두 상태로만 검사합니다.</span>
-                        </div>
-                      )}
                       <label className="grid gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
                         만점
                         <input
@@ -695,7 +731,25 @@ export default function CreateHomeworkModal({
                           aria-label={`과제 ${idx + 1} 제출기한`}
                         />
                       </label>
-                    </div>
+                      </div>
+                    ) : (
+                      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_150px]">
+                        <div className="grid content-center gap-1 rounded-lg bg-[var(--color-bg-surface-soft)] px-3 py-2 text-xs text-[var(--color-text-secondary)]">
+                          <strong className="text-[var(--color-text-primary)]">완료 / 미완료</strong>
+                          <span>점수나 만점 없이 두 상태로만 검사합니다.</span>
+                        </div>
+                        <label className="grid gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
+                          제출기한
+                          <input
+                            type="date"
+                            className="ds-input w-full"
+                            value={row.dueDate}
+                            onChange={(e) => updateRow(row.key, "dueDate", e.target.value)}
+                            aria-label={`과제 ${idx + 1} 제출기한`}
+                          />
+                        </label>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -808,6 +862,15 @@ export default function CreateHomeworkModal({
       </ModalBody>
 
       <ModalFooter
+        left={
+          stage === "new" ? (
+            <span className="text-xs font-semibold text-[var(--color-text-muted)]" aria-live="polite">
+              {rows.some((row) => row.title.trim())
+                ? `제목이 입력된 과제 ${rows.filter((row) => row.title.trim()).length}개를 만들 수 있어요.`
+                : "과제 제목을 입력하면 만들기가 활성화됩니다."}
+            </span>
+          ) : undefined
+        }
         right={
           <>
             <Button intent="secondary" size="xl" onClick={onClose} disabled={submitting}>

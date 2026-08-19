@@ -8,6 +8,8 @@ export type ResolutionType =
   | "HOMEWORK_PASS"
   | "MANUAL_OVERRIDE"
   | "WAIVED"
+  | "CARRIED_OVER"
+  | "SOURCE_REMOVED"
   | "BOOKING_LEGACY"
   | null;
 
@@ -30,6 +32,7 @@ export type ClinicTarget = {
   cutline_score?: number;
   homework_score?: number;
   homework_cutline?: number;
+  meta_status?: "NOT_SUBMITTED" | null;
   clinic_link_id?: number;
   cycle_no?: number;
   resolution_type?: ResolutionType;
@@ -67,7 +70,12 @@ export type RetakeResponse = {
   clinic_link_id: number;
 };
 
-export async function fetchClinicTargets(params?: { section_id?: number }) {
+export type ClinicTargetParams = {
+  section_id?: number;
+  include_resolved?: boolean;
+};
+
+export async function fetchClinicTargets(params?: ClinicTargetParams) {
   const res = await api.get("/results/admin/clinic-targets/", { params });
   return listFromApiResponse<ClinicTarget>(res.data);
 }

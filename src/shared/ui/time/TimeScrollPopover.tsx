@@ -10,6 +10,12 @@ const ROW_HEIGHT = 48;
 const VISIBLE_ROWS = 5;
 const VISIBLE_HEIGHT = ROW_HEIGHT * VISIBLE_ROWS;
 
+function isValidTime(value: string): boolean {
+  if (!/^\d{2}:\d{2}$/.test(value)) return false;
+  const [hour, minute] = value.split(":").map(Number);
+  return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59;
+}
+
 /** 24h 30분 단위 48슬롯 (00:00~23:30) */
 const ALL_SLOTS = (() => {
   const out: string[] = [];
@@ -82,6 +88,7 @@ export function TimeScrollPopover({
 
   const initialIdx = slotIndex(value);
   const [selectedIdx, setSelectedIdx] = useState(initialIdx);
+  const [manualTime, setManualTime] = useState(isValidTime(value) ? value : "00:00");
 
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
@@ -119,6 +126,7 @@ export function TimeScrollPopover({
     const idx = slotIndex(value);
     lastIdxRef.current = idx;
     setSelectedIdx(idx);
+    if (isValidTime(value)) setManualTime(value);
   }, [value]);
 
   useEffect(() => {
@@ -244,17 +252,22 @@ export function TimeScrollPopover({
   );
 
   const isPM = isAfternoon(selectedIdx);
+  const applyManualTime = useCallback(() => {
+    if (!isValidTime(manualTime)) return;
+    onSelectRef.current(manualTime);
+    onCloseRef.current();
+  }, [manualTime]);
 
   // anchorEl을 ref-shape으로 래핑 — hook이 RefObject 형태를 요구
   const anchorRef = useRef<HTMLElement | null>(anchorEl);
   anchorRef.current = anchorEl;
-  const anchorWidth = Math.max(anchorEl.getBoundingClientRect().width, 260);
+  const anchorWidth = Math.max(anchorEl.getBoundingClientRect().width, 292);
 
   const pos = useFloatingPosition(anchorRef, popoverRef, true, {
     placement: "bottom",
     gap: 8,
     margin: 8,
-    estimateHeight: 272, // 24padding + 240body + 8 (이전 검증으로 안정 추정)
+    estimateHeight: 348,
     estimateWidth: anchorWidth,
   });
 
@@ -271,7 +284,7 @@ export function TimeScrollPopover({
     <div
       ref={popoverRef}
       className="time-picker time-picker--portaled time-picker--floating"
-      role="listbox"
+      role="dialog"
       aria-label="시간 선택"
     >
       <div className="time-picker__body">
@@ -319,6 +332,33 @@ export function TimeScrollPopover({
             )}
           </div>
         </div>
+      </div>
+      <div className="time-picker__manual">
+        <div className="time-picker__manual-copy">
+          <strong>분 단위 직접 입력</strong>
+          <span>예: 오후 7:20 → 19:20</span>
+        </div>
+        <div className="time-picker__manual-controls">
+          <input
+            type="time"
+            step={60}
+            value={manualTime}
+            aria-label="분 단위 직접 입력"
+            aria-invalid={!isValidTime(manualTime)}
+            onChange={(event) => setManualTime(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") applyManualTime();
+            }}
+          />
+          <button type="button" onClick={applyManualTime} disabled={!isValidTime(manualTime)}>
+            적용
+          </button>
+        </div>
+        {!isValidTime(manualTime) && (
+          <span className="time-picker__manual-error" role="alert">
+            00:00부터 23:59 사이의 시간을 입력해 주세요.
+          </span>
+        )}
       </div>
     </div>
   );

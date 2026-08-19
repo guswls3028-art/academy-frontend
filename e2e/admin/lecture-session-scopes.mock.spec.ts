@@ -352,6 +352,7 @@ test("기존 전체 보기를 기본으로 유지하고 분리 보기에서 보�
 
   await supplementCard.click();
   await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${SUPPLEMENT_SESSION_ID}/attendance`));
+  await expect(page.getByRole("tab", { name: "공지·게시판", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "보강 설정" }).click();
   await page.getByRole("button", { name: "수정", exact: true }).click();
   await page.getByLabel("보강 이름").fill("일요일 취약 단원 클리닉");
@@ -373,13 +374,19 @@ test("기존 전체 보기를 기본으로 유지하고 분리 보기에서 보�
   await page.getByRole("button", { name: "전체 보기", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/attendance`));
   await expect(page.getByRole("button", { name: /일요일 취약 단원 클리닉/ })).toBeVisible();
+
+  await page.getByRole("tab", { name: "공지·게시판", exact: true }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/workspace/community/notice\\?scope=session&lectureId=${LECTURE_ID}&sessionId=${REGULAR_SESSION_ID}`),
+  );
 });
 
-test("보강 범위의 추가 버튼은 보강 유형과 이름 입력을 바로 연다", async ({ page }) => {
+test("보강 범위의 추가 버튼은 보강 유형과 이름 입력을 바로 연다", async ({ page }, testInfo) => {
   const state: MockState = {
     supplementTitle: "토요일 심화 클리닉",
     patchTitles: [],
   };
+  await page.setViewportSize({ width: 390, height: 640 });
   await openLecture(page, state);
 
   await page.getByRole("button", { name: "정규·보강 나눠 보기", exact: true }).click();
@@ -388,6 +395,20 @@ test("보강 범위의 추가 버튼은 보강 유형과 이름 입력을 바로
 
   await expect(page.getByLabel("보강 이름")).toHaveValue("보강");
   await expect(page.getByRole("button", { name: /보강 차시 · 날짜·시간 직접 선택/ })).toHaveAttribute("aria-pressed", "true");
+  const startTime = page.getByRole("button", { name: "시작 시간 선택", exact: true });
+  await startTime.click();
+  const timeDialog = page.getByRole("dialog", { name: "시간 선택", exact: true });
+  await expect(timeDialog.getByLabel("분 단위 직접 입력")).toBeVisible();
+  await expect.poll(async () => {
+    const box = await timeDialog.boundingBox();
+    return box
+      ? box.x >= 0 && box.y >= 0 && box.x + box.width <= 390 && box.y + box.height <= 640
+      : false;
+  }).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("exact-minute-time-390x640.png") });
+  await timeDialog.getByLabel("분 단위 직접 입력").fill("19:20");
+  await timeDialog.getByRole("button", { name: "적용", exact: true }).click();
+  await expect(startTime).toContainText("오후 7:20");
 });
 
 test("한 회차에서 만드는 여러 과제는 커트라인을 행마다 따로 저장한다", async ({ page }, testInfo) => {
@@ -405,7 +426,12 @@ test("한 회차에서 만드는 여러 과제는 커트라인을 행마다 따�
 
   await page.getByRole("button", { name: "과제 추가", exact: true }).first().click();
   await page.getByText("처음부터 만들기", { exact: true }).click();
+  await expect(page.getByText("1. 과제 제목부터 입력하세요", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "과제 만들기", exact: true })).toBeDisabled();
+  await expect(page.getByText("제목을 입력하면 아래 과제 만들기 버튼이 활성화됩니다.", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "점 (점수)", exact: true }).click();
+  await page.getByLabel("과제 1 제목").fill("전자기유도");
+  await expect(page.getByLabel("과제 1 제목")).toHaveValue("전자기유도");
   await page.getByLabel("과제 1 제목").fill("연산 복습");
   await page.getByLabel("과제 1 만점").fill("20");
   await page.getByLabel("과제 1 커트라인").fill("15");
@@ -457,7 +483,23 @@ test("같은 차시에서도 과제마다 숫자 채점과 완료 체크를 선�
   await page.getByRole("group", { name: "과제 2 채점 방식" })
     .getByRole("button", { name: "완료 체크" })
     .click();
-  await expect(page.getByText("문제 수 없이 두 상태로만 검사합니다.")).toBeVisible();
+  await expect(page.getByText("점수나 만점 없이 두 상태로만 검사합니다.")).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 480 });
+  const modalScrollBody = page.locator(".admin-modal__inner").filter({ hasText: "처음부터 만들기" }).locator(".modal-scroll-body");
+  await expect.poll(() => modalScrollBody.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      overflowY: style.overflowY,
+      canScroll: element.scrollHeight > element.clientHeight,
+    };
+  })).toEqual({ overflowY: "auto", canScroll: true });
+  await page.getByRole("button", { name: "2개 과제 만들기", exact: true }).scrollIntoViewIfNeeded();
+  await expect(page.getByRole("button", { name: "2개 과제 만들기", exact: true })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(() => page.locator(".modal-footer__side").evaluate((element) => element.clientWidth)).toBeGreaterThan(240);
+  await expect.poll(() => page.getByRole("button", { name: "2개 과제 만들기", exact: true }).evaluate(
+    (element) => element.scrollWidth <= element.clientWidth,
+  )).toBe(true);
   await page.screenshot({
     path: testInfo.outputPath("homework-grading-modes-390.png"),
     fullPage: true,

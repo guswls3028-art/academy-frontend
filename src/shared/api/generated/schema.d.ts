@@ -7545,6 +7545,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/results/admin/clinic-targets/waive-missing/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Record an explicit exam absence as a source-specific clinic waiver. */
+        post: operations["results_admin_clinic_targets_waive_missing_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/results/admin/exams/{exam_id}/enrollments/{enrollment_id}/": {
         parameters: {
             query?: never;
@@ -11404,7 +11421,7 @@ export interface components {
              *     * `SOURCE_REMOVED` - 원본 삭제
              *     * `BOOKING_LEGACY` - 레거시(예약 기반)
              */
-            resolution_type?: (components["schemas"]["ResolutionTypeEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
+            resolution_type?: (components["schemas"]["ClinicLinkResolutionTypeEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
             /** Format: date-time */
             resolved_at?: string | null;
             session: number;
@@ -11437,11 +11454,22 @@ export interface components {
              *     * `SOURCE_REMOVED` - 원본 삭제
              *     * `BOOKING_LEGACY` - 레거시(예약 기반)
              */
-            resolution_type?: (components["schemas"]["ResolutionTypeEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
+            resolution_type?: (components["schemas"]["ClinicLinkResolutionTypeEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
             /** Format: date-time */
             resolved_at?: string | null;
             session: number;
         };
+        /**
+         * @description * `EXAM_PASS` - 시험 통과
+         *     * `HOMEWORK_PASS` - 과제 통과
+         *     * `MANUAL_OVERRIDE` - 관리자 수동 해소
+         *     * `WAIVED` - 면제
+         *     * `CARRIED_OVER` - 다음 차수로 이월
+         *     * `SOURCE_REMOVED` - 원본 삭제
+         *     * `BOOKING_LEGACY` - 레거시(예약 기반)
+         * @enum {string}
+         */
+        ClinicLinkResolutionTypeEnum: "EXAM_PASS" | "HOMEWORK_PASS" | "MANUAL_OVERRIDE" | "WAIVED" | "CARRIED_OVER" | "SOURCE_REMOVED" | "BOOKING_LEGACY";
         /**
          * @description * `exam` - Exam
          *     * `homework` - Homework
@@ -13720,7 +13748,7 @@ export interface components {
              *     * `SOURCE_REMOVED` - 원본 삭제
              *     * `BOOKING_LEGACY` - 레거시(예약 기반)
              */
-            resolution_type?: (components["schemas"]["ResolutionTypeEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
+            resolution_type?: (components["schemas"]["ClinicLinkResolutionTypeEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
             /** Format: date-time */
             resolved_at?: string | null;
             session?: number;
@@ -15331,17 +15359,6 @@ export interface components {
          */
         RegistrationRequestListStatusEnum: "pending" | "approved" | "rejected";
         /**
-         * @description * `EXAM_PASS` - 시험 통과
-         *     * `HOMEWORK_PASS` - 과제 통과
-         *     * `MANUAL_OVERRIDE` - 관리자 수동 해소
-         *     * `WAIVED` - 면제
-         *     * `CARRIED_OVER` - 다음 차수로 이월
-         *     * `SOURCE_REMOVED` - 원본 삭제
-         *     * `BOOKING_LEGACY` - 레거시(예약 기반)
-         * @enum {string}
-         */
-        ResolutionTypeEnum: "EXAM_PASS" | "HOMEWORK_PASS" | "MANUAL_OVERRIDE" | "WAIVED" | "CARRIED_OVER" | "SOURCE_REMOVED" | "BOOKING_LEGACY";
-        /**
          * @description * `NOT_SUBMITTED` - NOT_SUBMITTED
          *     * `PROCESSING` - PROCESSING
          *     * `PARTIAL` - PARTIAL
@@ -16860,6 +16877,21 @@ export interface components {
          * @enum {string}
          */
         VisibilityEnum: "ENROLLED" | "PUBLIC";
+        WaiveMissingExamRequest: {
+            enrollment_id: number;
+            exam_id: number;
+            memo: string;
+            session_id: number;
+        };
+        WaiveMissingExamResponse: {
+            clinic_link_id: number;
+            resolution_type: components["schemas"]["WaiveMissingExamResponseResolutionTypeEnum"];
+        };
+        /**
+         * @description * `WAIVED` - WAIVED
+         * @enum {string}
+         */
+        WaiveMissingExamResponseResolutionTypeEnum: "WAIVED";
         WorkMonthLock: {
             /** Format: date-time */
             readonly created_at: string;
@@ -29268,6 +29300,67 @@ export interface operations {
         responses: {
             /** @description No response body */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    results_admin_clinic_targets_waive_missing_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WaiveMissingExamRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["WaiveMissingExamRequest"];
+                "multipart/form-data": components["schemas"]["WaiveMissingExamRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaiveMissingExamResponse"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaiveMissingExamResponse"];
+                };
+            };
+            /** @description Invalid request fields */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tenant or role denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Explicit missing exam target not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Target already resolved or update conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

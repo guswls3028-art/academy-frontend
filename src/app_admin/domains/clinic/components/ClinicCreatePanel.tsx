@@ -907,7 +907,7 @@ export default function ClinicCreatePanel({
   /* ══════════ asModal layout — clean flat form ══════════ */
   if (asModal) {
     return (
-      <div className="clinic-create">
+      <div className="clinic-create clinic-create--modal">
         <div className="clinic-create__form">
           {formFields}
         </div>

@@ -182,6 +182,14 @@
   flex-direction: column;
   max-height: calc(100vh - 48px); /* viewport 상하 24px 여유 */
   min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* 표준 Header/Body/Footer 모달은 본문만 스크롤해 제목과 주요 동작을 고정한다. */
+.admin-modal__inner:has(> .modal-body) {
+  overflow: hidden;
 }
 
 /* ========== 본문 ========== */
@@ -191,7 +199,8 @@
   /* flex child: 남은 공간 채우되, 필요시 축소 가능 → Footer 접근 보장 */
   flex: 1 1 auto;
   min-height: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   /* 내부 자식(scroll-body 등)이 flex 기반으로 body 높이에 맞춰 스크롤하도록 */
   display: flex;
   flex-direction: column;
@@ -201,6 +210,10 @@
 .modal-body:has(.ds-split-layout) {
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+.modal-body:has(> .modal-scroll-body) {
+  overflow: hidden;
 }
 .modal-body > .ds-split-layout {
   flex: 1 1 auto;
@@ -320,6 +333,38 @@
 .modal-footer__actions {
   display: flex;
   gap: 8px;
+  flex-shrink: 0;
+}
+
+.modal-footer__side {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+@media (max-width: 640px) {
+  .modal-footer {
+    align-items: stretch;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .modal-footer__actions {
+    width: 100%;
+  }
+
+  .modal-footer__actions > * {
+    min-width: 0;
+    flex: 1 1 0;
+  }
+
+  .modal-footer__actions:has(> :nth-child(2):last-child) > :first-child {
+    flex: 0 1 34%;
+  }
+
+  .modal-footer__actions:has(> :nth-child(2):last-child) > :last-child {
+    flex: 1 1 66%;
+  }
 }
 
 /* ========== 스크롤 본문 · 옵션 행 ========== */
