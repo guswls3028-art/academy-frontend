@@ -53,12 +53,26 @@ export async function downloadExamResultTemplate(
   examId: number,
   examTitle: string,
 ): Promise<void> {
+  return downloadExamWorkbook(
+    `/results/admin/exams/${examId}/result-import/template/`,
+    `${safeExamTitle(examTitle)}_문항별_채점결과.xlsx`,
+  );
+}
+
+export async function downloadExamWrongNoteExport(
+  examId: number,
+  examTitle: string,
+): Promise<void> {
+  return downloadExamWorkbook(
+    `/results/admin/exams/${examId}/wrong-note-export/`,
+    `${safeExamTitle(examTitle)}_학생별_오답.xlsx`,
+  );
+}
+
+async function downloadExamWorkbook(path: string, filename: string): Promise<void> {
   let response;
   try {
-    response = await api.get<Blob>(
-      `/results/admin/exams/${examId}/result-import/template/`,
-      { responseType: "blob", timeout: 60_000 },
-    );
+    response = await api.get<Blob>(path, { responseType: "blob", timeout: 60_000 });
   } catch (error) {
     const data = (error as { response?: { data?: unknown } })?.response?.data;
     if (data instanceof Blob) {
@@ -73,10 +87,13 @@ export async function downloadExamResultTemplate(
     }
     throw error;
   }
-  const safeTitle = String(examTitle || "시험")
+  downloadBlob(response.data, filename);
+}
+
+function safeExamTitle(examTitle: string): string {
+  return String(examTitle || "시험")
     .replace(/[\\/:*?"<>|]/g, "_")
-    .trim();
-  downloadBlob(response.data, `${safeTitle}_문항별_채점결과.xlsx`);
+    .trim() || "시험";
 }
 
 export async function previewExamResultImport(
