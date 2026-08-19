@@ -357,11 +357,11 @@ export default function StudentCreateModal({
     const invalidStudentPhoneNames = parsedExcel.rows
       .filter((row) => row.usesIdentifier || !/^010\d{8}$/.test(row.studentPhone))
       .map((row) => row.name || "(이름 없음)");
-    if (!isStudentInitialPasswordReady(excelPasswordSettings, invalidStudentPhoneNames.length)) {
+    if (!isStudentInitialPasswordReady(excelPasswordSettings, invalidStudentPhoneNames.length, true)) {
       feedback.error(
         excelPasswordSettings.mode === "fixed"
           ? "공통 초기 비밀번호를 4자 이상 입력해 주세요."
-          : "학생 전화번호가 없는 학생을 엑셀에서 수정해 주세요.",
+          : "초기 비밀번호 방식을 확인해 주세요.",
       );
       return;
     }
@@ -420,6 +420,7 @@ export default function StudentCreateModal({
   const excelPasswordReady = isStudentInitialPasswordReady(
     excelPasswordSettings,
     invalidExcelStudentPhoneNames.length,
+    true,
   );
 
   return (
@@ -716,6 +717,7 @@ export default function StudentCreateModal({
               onChange={setExcelPasswordSettings}
               disabled={busy}
               invalidStudentPhoneNames={invalidExcelStudentPhoneNames}
+              allowPartialRows
             />
             <Button
               intent="secondary"
@@ -742,6 +744,7 @@ export default function StudentCreateModal({
           <div className={`modal-hint ${styles.excelHint}`}>
             학생 아이디는 자동 부여됩니다.<br />
             학부모 아이디는 학부모 전화번호이며, 신규 학생 초기 비밀번호는 위에서 선택한 방식으로 설정됩니다. 기존 학부모 계정은 비밀번호가 변경되지 않습니다.<br />
+            오류가 있는 행은 제외하고 정상 행만 등록하며, 완료 후 작업박스에서 실패 행과 사유를 확인할 수 있습니다.<br />
             업로드 후에는 우상단 작업박스에서 완료 상태를 확인하세요. 처리 완료 전에는 목록에 바로 보이지 않을 수 있습니다.
           </div>
         </div>

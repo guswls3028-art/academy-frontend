@@ -476,11 +476,11 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
     const invalidStudentPhoneNames = parsed.rows
       .filter((row) => row.usesIdentifier || !/^010\d{8}$/.test(row.studentPhone))
       .map((row) => row.name || "(이름 없음)");
-    if (!isStudentInitialPasswordReady(passwordSettings, invalidStudentPhoneNames.length)) {
+    if (!isStudentInitialPasswordReady(passwordSettings, invalidStudentPhoneNames.length, true)) {
       teacherToast.error(
         passwordSettings.mode === "fixed"
           ? "공통 초기 비밀번호를 4자 이상 입력해 주세요."
-          : "학생 전화번호가 없는 학생을 엑셀에서 수정해 주세요.",
+          : "초기 비밀번호 방식을 확인해 주세요.",
       );
       return;
     }
@@ -508,7 +508,7 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
     parsed != null
     && !parsing
     && !submitting
-    && isStudentInitialPasswordReady(passwordSettings, invalidStudentPhoneNames.length);
+    && isStudentInitialPasswordReady(passwordSettings, invalidStudentPhoneNames.length, true);
 
   return (
     <BottomSheet open={open} onClose={handleClose} title="엑셀 가져오기">
@@ -537,6 +537,7 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
           onChange={setPasswordSettings}
           disabled={submitting || parsing}
           invalidStudentPhoneNames={invalidStudentPhoneNames}
+          allowPartialRows
         />
 
         {parsing ? (
@@ -551,7 +552,7 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
         ) : null}
 
         <div className="text-[11px] leading-5" style={{ color: "var(--tc-text-muted)" }}>
-          업로드 후에는 작업박스에서 완료 상태를 확인하세요. 처리 완료 전에는 목록에 바로 보이지 않을 수 있습니다.
+          오류가 있는 행은 제외하고 정상 행만 등록합니다. 작업박스에서 실패 행과 사유를 확인할 수 있습니다.
         </div>
 
         <div className="flex items-center justify-between"

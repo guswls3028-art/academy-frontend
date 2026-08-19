@@ -90,7 +90,7 @@ async function impersonateYmathOwner(page: Page): Promise<void> {
   }, impersonation.body);
 }
 
-test("학생 엑셀 등록에서 초기 비밀번호 방식을 선택하고 번호 누락을 차단한다", async ({ page }) => {
+test("학생 엑셀 등록에서 번호가 빠진 행만 제외하고 업로드를 허용한다", async ({ page }) => {
   await loginViaUI(page, "admin");
 
   const studentMenu = page.getByText("학생", { exact: true }).first();
@@ -118,10 +118,10 @@ test("학생 엑셀 등록에서 초기 비밀번호 방식을 선택하고 번�
 
   const phoneMode = dialog.getByRole("radio", { name: "학생 휴대폰 번호 뒤 4자리" });
   await expect(phoneMode).toBeChecked();
-  await expect(dialog.getByRole("alert")).toContainText("학생 전화번호가 없거나 올바르지 않은 학생이 1명");
+  await expect(dialog.getByRole("status")).toContainText("해당 행은 등록하지 않고, 나머지 정상 행만 등록합니다");
 
   const registerButton = dialog.getByRole("button", { name: "등록", exact: true });
-  await expect(registerButton).toBeDisabled();
+  await expect(registerButton).toBeEnabled();
 
   await dialog.getByRole("radio", { name: "공통 비밀번호 직접 입력" }).check();
   const fixedPassword = dialog.getByLabel("공통 초기 비밀번호");
@@ -165,7 +165,7 @@ test("Ymath 고객 제보 회귀: 소유자 화면에서 Excel 양식과 파일 
     mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     buffer: workbookBuffer,
   });
-  await expect(dialog.getByRole("alert")).toContainText("학생 전화번호가 없거나 올바르지 않은 학생이 1명");
+  await expect(dialog.getByRole("status")).toContainText("학생 전화번호가 없거나 올바르지 않은 학생이 1명");
   await expect(pageErrors, pageErrors.join("\n")).toEqual([]);
 });
 

@@ -13,8 +13,11 @@ export const DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS: StudentInitialPasswordSe
 export function isStudentInitialPasswordReady(
   settings: StudentInitialPasswordSettings,
   invalidStudentPhoneCount = 0,
+  allowPartialRows = false,
 ): boolean {
-  if (settings.mode === "phone_last4") return invalidStudentPhoneCount === 0;
+  if (settings.mode === "phone_last4") {
+    return allowPartialRows || invalidStudentPhoneCount === 0;
+  }
   if (settings.mode === "fixed") return settings.fixedPassword.trim().length >= 4;
   return true;
 }
