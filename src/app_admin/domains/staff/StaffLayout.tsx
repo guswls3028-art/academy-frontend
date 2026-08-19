@@ -5,7 +5,7 @@ import { Outlet, useLocation, Navigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { DomainLayout } from "@/shared/ui/layout";
 import { StaffWorkspace } from "./components/StaffWorkspace";
-import { fetchStaffMe } from "./api/staffMe.api";
+import { fetchStaffMe } from "@/shared/staff/api";
 import { staffQueryKeys } from "./queryKeys";
 import { Button, EmptyState } from "@/shared/ui/ds";
 

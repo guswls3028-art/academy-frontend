@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useExpenses } from "../../hooks/useExpenses";
 import { fetchWorkMonthLocks, isLockedFromLocks } from "../../api/workMonthLocks.api";
-import { fetchStaffMe } from "../../api/staffMe.api";
+import { fetchStaffMe } from "@/shared/staff/api";
 import { staffQueryKeys } from "../../queryKeys";
 
 import ActionButton from "../../components/ActionButton";

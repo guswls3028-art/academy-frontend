@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { useWorkMonthLock } from "../../hooks/useWorkMonthLock";
 import { useQuery } from "@tanstack/react-query";
-import { fetchStaffMe } from "../../api/staffMe.api";
+import { fetchStaffMe } from "@/shared/staff/api";
 import { WorkMonthContext, type WorkMonthContextValue } from "./workMonthHooks";
 import { staffQueryKeys } from "../../queryKeys";
 import { useStaffs } from "../../hooks/useStaffs";

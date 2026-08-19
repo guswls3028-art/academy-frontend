@@ -11,7 +11,7 @@ export default function CompactStaffClockButton() {
   const [open, setOpen] = useState(false);
   const clock = useStaffClock();
 
-  if (!clock.isAssistant) return null;
+  if (!clock.canUseClock) return null;
 
   const statusLabel = clock.isOnBreak
     ? "휴식 중"

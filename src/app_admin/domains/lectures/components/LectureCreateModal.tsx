@@ -14,7 +14,8 @@ import LectureChip from "@/shared/ui/chips/LectureChip";
 import { normalizeLectureChipText } from "@/shared/ui/chips/lectureChipText";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { fetchLecture, fetchLectureInstructorOptions, updateLecture } from "@admin/domains/lectures/api/sessions";
-import { fetchStaffMe } from "@admin/domains/staff/api/staffMe.api";
+import { fetchStaffMe } from "@/shared/staff/api";
+import { staffWorkQueryKeys } from "@/shared/staff/queryKeys";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { validateRequiredFields } from "@/shared/utils/modalValidation";
@@ -103,7 +104,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
   });
 
   const { data: staffMe } = useQuery({
-    queryKey: adminLectureQueryKeys.staffMe,
+    queryKey: staffWorkQueryKeys.identity,
     queryFn: fetchStaffMe,
     enabled: isOpen,
   });

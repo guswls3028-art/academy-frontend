@@ -3,38 +3,19 @@
 // 헤더 중앙: 근무 중인 직원(직급 아바타 + 이름) + 총근무 시간 + 출근(초록)/휴식(노랑)/퇴근(빨강)
 
 import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchStaffMe } from "../api/staffMe.api";
+import type { CurrentlyWorkingItem } from "@/features/staff-clock/api";
 import {
-  fetchWorkCurrent,
-  startWork,
-  endWork,
-  startBreak,
-  endBreak,
-  fetchCurrentlyWorkingStaff,
-} from "../api/workRecords.api";
-import type { WorkCurrentStatus, CurrentlyWorkingItem } from "../api/workRecords.api";
+  useCurrentlyWorkingStaff,
+  useStaffClock,
+} from "@/features/staff-clock/useStaffClock";
+import {
+  workElapsedLabel,
+  workElapsedSeconds,
+} from "@/features/staff-clock/time";
 import { Dropdown } from "antd";
 import { Button } from "@/shared/ui/ds";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import type { StaffRoleType } from "@/shared/ui/avatars";
-import { staffQueryKeys } from "../queryKeys";
-
-function formatElapsed(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
-
-/** date(YYYY-MM-DD) + time(HH:MM:SS) → 로컬 기준 출근 시각(ms) */
-function parseStartedAt(dateStr: string, timeStr: string): number {
-  const date = dateStr.trim();
-  const time = String(timeStr).trim().split(".")[0];
-  const iso = time.length <= 5 ? `${date}T${time}:00` : `${date}T${time}`;
-  return new Date(iso).getTime();
-}
 
 /** 직급 순서: 높은 순 좌측 배치 (대표 → 강사 → 조교) */
 const ROLE_ORDER: Record<string, number> = { owner: 0, OWNER: 0, TEACHER: 1, ASSISTANT: 2 };
@@ -50,25 +31,14 @@ function WorkingStaffDropdownContent({ item }: { item: CurrentlyWorkingItem }) {
       setElapsedSeconds(0);
       return;
     }
-    const startedAt = parseStartedAt(item.date, item.started_at);
-    const breakSeconds = item.break_total_seconds ?? ((item.break_minutes ?? 0) * 60);
-    if (item.break_started_at) {
-      const breakStartedAt = new Date(item.break_started_at).getTime();
-      const frozen = Math.max(0, Math.floor((breakStartedAt - startedAt) / 1000) - breakSeconds);
-      setElapsedSeconds(frozen);
-      return;
-    }
-    const tick = () => {
-      const now = Date.now();
-      const raw = Math.floor((now - startedAt) / 1000);
-      setElapsedSeconds(Math.max(0, raw - breakSeconds));
-    };
+    const tick = () => setElapsedSeconds(workElapsedSeconds(item));
     tick();
+    if (item.break_started_at) return;
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [item.date, item.started_at, item.break_minutes, item.break_total_seconds, item.break_started_at]);
+  }, [item]);
 
-  const timeLabel = item.date && item.started_at ? formatElapsed(elapsedSeconds) : "—";
+  const timeLabel = item.date && item.started_at ? workElapsedLabel(elapsedSeconds) : "—";
 
   return (
     <div className="app-header__workingStaffDropdown">
@@ -119,116 +89,12 @@ function WorkingAvatar({ item }: { item: CurrentlyWorkingItem }) {
 }
 
 export function HeaderCenterStaffClock() {
-  const queryClient = useQueryClient();
-  const { data: staffMe } = useQuery({ queryKey: staffQueryKeys.me, queryFn: fetchStaffMe });
-  const staffId = staffMe?.staff_id;
-  const assignedWorkTypes = staffMe?.assigned_work_types ?? [];
-
-  const { data: workingList = [] } = useQuery({
-    queryKey: staffQueryKeys.currentlyWorking,
-    queryFn: fetchCurrentlyWorkingStaff,
-    refetchInterval: 30_000,
-  });
-
-  const { data: current, isLoading: currentLoading } = useQuery({
-    queryKey: staffQueryKeys.currentWork(staffId),
-    queryFn: () => fetchWorkCurrent(staffId!),
-    enabled: !!staffId,
-    refetchInterval: 30_000,
-  });
-
-  const invalidateCurrentWork = () => {
-    queryClient.invalidateQueries({ queryKey: staffQueryKeys.currentWork(staffId) });
-    queryClient.invalidateQueries({ queryKey: staffQueryKeys.currentlyWorking });
-  };
-
-  const invalidateWorkTotals = () => {
-    queryClient.invalidateQueries({ queryKey: staffQueryKeys.summary });
-    if (staffId != null) queryClient.invalidateQueries({ queryKey: staffQueryKeys.summaryForStaff(staffId) });
-    queryClient.invalidateQueries({ queryKey: staffQueryKeys.workRecords });
-  };
-
-  const startMutation = useMutation({
-    mutationFn: (workTypeId: number) => startWork(staffId!, workTypeId),
-    onSuccess: () => {
-      invalidateCurrentWork();
-      invalidateWorkTotals();
-    },
-  });
-
-  const endMutation = useMutation({
-    mutationFn: (recordId: number) => endWork(recordId),
-    onSuccess: () => {
-      invalidateCurrentWork();
-      invalidateWorkTotals();
-    },
-  });
-
-  const startBreakMutation = useMutation({
-    mutationFn: (recordId: number) => startBreak(recordId),
-    onSuccess: () => {
-      invalidateCurrentWork();
-    },
-  });
-
-  const endBreakMutation = useMutation({
-    mutationFn: (recordId: number) => endBreak(recordId),
-    onSuccess: () => {
-      invalidateCurrentWork();
-    },
-  });
-
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  /** 휴식 클릭 직후 서버 응답 전까지 표시할 일시정지 시간(초). 있으면 시계를 이 값으로 고정. */
-  const [optimisticPausedElapsed, setOptimisticPausedElapsed] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (!current || current.status === "OFF" || !("date" in current) || !("started_at" in current)) {
-      setElapsedSeconds(0);
-      setOptimisticPausedElapsed(null);
-      return;
-    }
-    if (current.status === "WORKING") {
-      setOptimisticPausedElapsed(null);
-    }
-    const startedAt = parseStartedAt(current.date, current.started_at);
-    const breakSeconds = current.break_total_seconds ?? ((current.break_minutes ?? 0) * 60);
-
-    if (current.status === "BREAK" && "break_started_at" in current && current.break_started_at) {
-      const breakStartedAt = new Date(current.break_started_at).getTime();
-      const frozen = Math.max(0, Math.floor((breakStartedAt - startedAt) / 1000) - breakSeconds);
-      setElapsedSeconds(frozen);
-      setOptimisticPausedElapsed(null);
-      return;
-    }
-
-    if (optimisticPausedElapsed !== null) {
-      return;
-    }
-
-    const tick = () => {
-      const now = Date.now();
-      const raw = Math.floor((now - startedAt) / 1000);
-      setElapsedSeconds(Math.max(0, raw - breakSeconds));
-    };
-    tick();
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [current, optimisticPausedElapsed]);
-
-  const isWorking = current?.status === "WORKING" || current?.status === "BREAK";
-  const isOnBreak = (current as WorkCurrentStatus)?.status === "BREAK";
-  const workRecordId = current && "work_record_id" in current ? current.work_record_id : null;
-  const isStarting = startMutation.isPending;
-  const isEnding = endMutation.isPending;
-  const isBreakStarting = startBreakMutation.isPending;
-  const isBreakEnding = endBreakMutation.isPending;
-
-  const timeLabel = currentLoading
+  const clock = useStaffClock();
+  const { data: workingList = [] } = useCurrentlyWorkingStaff();
+  const staffMe = clock.staffMeQ.data;
+  const timeLabel = clock.currentQ.isLoading
     ? "확인 중..."
-    : isWorking
-      ? formatElapsed(optimisticPausedElapsed ?? elapsedSeconds)
-      : "0:00";
+    : clock.timeLabel;
 
   const sortedWorkingList = [...workingList].sort(
     (a, b) => (ROLE_ORDER[a.role ?? ""] ?? 99) - (ROLE_ORDER[b.role ?? ""] ?? 99)
@@ -260,77 +126,78 @@ export function HeaderCenterStaffClock() {
           </span>
         </div>
       )}
-      {!staffMe?.is_owner && staffId != null && assignedWorkTypes.length > 0 && (
+      {clock.canUseClock && clock.assignedWorkTypes.length > 0 && (
         <>
           <span className="app-header__centerClockDivider" />
           <div className="app-header__centerClockActions">
-            {isWorking ? (
+            {clock.isWorking ? (
               <>
-                {isOnBreak ? (
+                {clock.isOnBreak ? (
                   <Button
                     type="button"
                     size="sm"
-                    disabled={isBreakEnding}
-                    onClick={() => workRecordId != null && endBreakMutation.mutate(workRecordId)}
+                    disabled={clock.isBreakEnding}
+                    onClick={() => void clock.endBreak().catch(() => undefined)}
                     className="app-header__clockBtn app-header__clockBtn--resume"
                   >
-                    {isBreakEnding ? "..." : "근무"}
+                    {clock.isBreakEnding ? "..." : "근무"}
                   </Button>
                 ) : (
                   <Button
                     type="button"
                     size="sm"
-                    disabled={isBreakStarting}
-                    onClick={() => {
-                      if (workRecordId == null) return;
-                      setOptimisticPausedElapsed(elapsedSeconds);
-                      startBreakMutation.mutate(workRecordId);
-                    }}
+                    disabled={clock.isBreakStarting}
+                    onClick={() => void clock.startBreak().catch(() => undefined)}
                     className="app-header__clockBtn app-header__clockBtn--break"
                   >
-                    {isBreakStarting ? "..." : "휴식"}
+                    {clock.isBreakStarting ? "..." : "휴식"}
                   </Button>
                 )}
                 <Button
                   type="button"
                   size="sm"
-                  disabled={isEnding}
-                  onClick={() => workRecordId != null && endMutation.mutate(workRecordId)}
+                  disabled={clock.isEnding}
+                  onClick={() => void clock.endWork().catch(() => undefined)}
                   className="app-header__clockBtn app-header__clockBtn--end"
                 >
-                  {isEnding ? "..." : "퇴근"}
+                  {clock.isEnding ? "..." : "퇴근"}
                 </Button>
               </>
             ) : (
-              assignedWorkTypes.length === 1 ? (
+              clock.assignedWorkTypes.length === 1 ? (
                 <Button
                   type="button"
                   size="sm"
-                  disabled={isStarting}
-                  onClick={() => startMutation.mutate(assignedWorkTypes[0].id)}
+                  disabled={clock.isStarting}
+                  onClick={() => void clock.startWork(clock.assignedWorkTypes[0]).catch(() => undefined)}
                   className="app-header__clockBtn app-header__clockBtn--start"
-                  title={assignedWorkTypes[0].name}
+                  title={clock.assignedWorkTypes[0].name}
                 >
-                  {isStarting ? "..." : "출근"}
+                  {clock.isStarting ? "..." : "출근"}
                 </Button>
               ) : (
                 <Dropdown
                   trigger={["click"]}
                   menu={{
-                    items: assignedWorkTypes.map((workType) => ({
+                    items: clock.assignedWorkTypes.map((workType) => ({
                       key: String(workType.id),
                       label: `${workType.name} · ${workType.hourly_wage.toLocaleString()}원`,
                     })),
-                    onClick: ({ key }) => startMutation.mutate(Number(key)),
+                    onClick: ({ key }) => {
+                      const selected = clock.assignedWorkTypes.find(
+                        (workType) => workType.id === Number(key),
+                      );
+                      if (selected) void clock.startWork(selected).catch(() => undefined);
+                    },
                   }}
                 >
                   <Button
                     type="button"
                     size="sm"
-                    disabled={isStarting}
+                    disabled={clock.isStarting}
                     className="app-header__clockBtn app-header__clockBtn--start"
                   >
-                    {isStarting ? "..." : "출근 유형 선택"}
+                    {clock.isStarting ? "..." : "출근 유형 선택"}
                   </Button>
                 </Dropdown>
               )

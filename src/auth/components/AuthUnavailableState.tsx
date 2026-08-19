@@ -1,7 +1,7 @@
 import { useState } from "react";
 import styles from "./AuthUnavailableState.module.css";
 
-export default function AuthUnavailableState({ retry }: { retry: () => Promise<void> }) {
+export default function AuthUnavailableState({ retry }: { retry: () => Promise<unknown> }) {
   const [retrying, setRetrying] = useState(false);
 
   const onRetry = async () => {

@@ -73,7 +73,7 @@ type AuthState = {
   user: User | null;
   isLoading: boolean;
   authUnavailable: boolean;
-  refreshMe: () => Promise<void>;
+  refreshMe: () => Promise<User | null>;
   markFirstLoginGuideCompleted: () => void;
   clearAuth: () => void;
 };
@@ -130,7 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!access) {
       setUser(null);
       setAuthUnavailable(false);
-      return;
+      return null;
     }
 
     try {
@@ -139,6 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(u);
       setAuthUnavailable(false);
       if (u) setSentryUser(u);
+      return u;
     } catch (err: unknown) {
       if (shouldClearAuthForStatus(getResponseStatus(err))) {
         clearAuth();

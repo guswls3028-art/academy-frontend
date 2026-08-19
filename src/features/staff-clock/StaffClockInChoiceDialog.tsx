@@ -43,12 +43,12 @@ export default function StaffClockInChoiceDialog() {
   }, [clock.isWorking, pendingPrompt]);
 
   useEffect(() => {
-    if (pendingPrompt && clock.isAuthenticated && !clock.isAssistant) {
+    if (pendingPrompt && clock.isAuthenticated && !clock.shouldPromptForClockIn) {
       clearStaffClockInChoicePending();
     }
-  }, [clock.isAssistant, clock.isAuthenticated, pendingPrompt]);
+  }, [clock.isAuthenticated, clock.shouldPromptForClockIn, pendingPrompt]);
 
-  if (!pendingPrompt || !isWorkspace || !clock.isAssistant || clock.isWorking) {
+  if (!pendingPrompt || !isWorkspace || !clock.shouldPromptForClockIn || clock.isWorking) {
     return null;
   }
 

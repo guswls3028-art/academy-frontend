@@ -6,6 +6,7 @@ import { extractApiError } from "@/shared/utils/extractApiError";
 import {
   endBreak,
   endWork,
+  fetchCurrentlyWorkingStaff,
   fetchStaffMe,
   fetchWorkCurrent,
   startBreak,
@@ -14,24 +15,7 @@ import {
   type WorkCurrentStatus,
 } from "./api";
 import { staffClockQueryKeys } from "./queryKeys";
-
-function parseStartedAt(date: string, time: string): number {
-  const normalizedTime = String(time).trim().split(".")[0];
-  const iso = normalizedTime.length <= 5
-    ? `${date}T${normalizedTime}:00`
-    : `${date}T${normalizedTime}`;
-  return new Date(iso).getTime();
-}
-
-export function workElapsedLabel(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const remainingSeconds = seconds % 60;
-  if (hours > 0) {
-    return `${hours}:${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
-  }
-  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
-}
+import { workElapsedLabel, workElapsedSeconds } from "./time";
 
 function useElapsedSeconds(current: WorkCurrentStatus | undefined) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -41,21 +25,9 @@ function useElapsedSeconds(current: WorkCurrentStatus | undefined) {
       setElapsedSeconds(0);
       return;
     }
-    const startedAt = parseStartedAt(current.date, current.started_at);
-    const breakSeconds = current.break_total_seconds ?? ((current.break_minutes ?? 0) * 60);
-    if (current.status === "BREAK" && current.break_started_at) {
-      const breakStartedAt = new Date(current.break_started_at).getTime();
-      setElapsedSeconds(
-        Math.max(0, Math.floor((breakStartedAt - startedAt) / 1000) - breakSeconds),
-      );
-      return;
-    }
-    const tick = () => {
-      setElapsedSeconds(
-        Math.max(0, Math.floor((Date.now() - startedAt) / 1000) - breakSeconds),
-      );
-    };
+    const tick = () => setElapsedSeconds(workElapsedSeconds(current));
     tick();
+    if (current.status === "BREAK") return;
     const timer = window.setInterval(tick, 1000);
     return () => window.clearInterval(timer);
   }, [current]);
@@ -63,22 +35,35 @@ function useElapsedSeconds(current: WorkCurrentStatus | undefined) {
   return elapsedSeconds;
 }
 
+export function useCurrentlyWorkingStaff() {
+  return useQuery({
+    queryKey: staffClockQueryKeys.currentlyWorking,
+    queryFn: fetchCurrentlyWorkingStaff,
+    refetchInterval: 30_000,
+  });
+}
+
 export function useStaffClock() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const isAssistant = user?.tenantRole === "staff";
+  const shouldPromptForClockIn = user?.tenantRole === "staff";
+  const canResolveStaffIdentity = user?.tenantRole === "owner"
+    || user?.tenantRole === "admin"
+    || user?.tenantRole === "teacher"
+    || shouldPromptForClockIn;
   const staffMeQ = useQuery({
     queryKey: staffClockQueryKeys.me,
     queryFn: fetchStaffMe,
-    enabled: isAssistant,
+    enabled: canResolveStaffIdentity,
     staleTime: 30_000,
   });
   const staffId = staffMeQ.data?.staff_id;
   const assignedWorkTypes = staffMeQ.data?.assigned_work_types ?? [];
+  const canUseClock = staffId != null && !staffMeQ.data?.is_owner;
   const currentQ = useQuery({
     queryKey: staffClockQueryKeys.current(staffId),
     queryFn: () => fetchWorkCurrent(staffId!),
-    enabled: isAssistant && staffId != null,
+    enabled: canUseClock,
     refetchInterval: 30_000,
   });
   const elapsedSeconds = useElapsedSeconds(currentQ.data);
@@ -159,7 +144,8 @@ export function useStaffClock() {
 
   return {
     isAuthenticated: Boolean(user),
-    isAssistant,
+    shouldPromptForClockIn,
+    canUseClock,
     staffMeQ,
     currentQ,
     staffId,

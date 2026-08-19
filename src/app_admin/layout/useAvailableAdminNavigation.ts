@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchStaffMe } from "@admin/domains/staff/api/staffMe.api";
+import { fetchStaffMe } from "@/shared/staff/api";
 import { staffQueryKeys } from "@admin/domains/staff/queryKeys";
 import useAuth from "@/auth/hooks/useAuth";
 import { useProgram } from "@/shared/program";
