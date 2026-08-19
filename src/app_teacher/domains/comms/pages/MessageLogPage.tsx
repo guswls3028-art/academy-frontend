@@ -90,7 +90,11 @@ export default function MessageLogPage() {
 }
 
 function LogCard({ item, isPrivileged }: { item: MessageLogItem; isPrivileged: boolean }) {
-  const modeLabel = item.message_mode === "alimtalk" ? "알림톡" : "SMS";
+  const modeLabel = item.message_mode === "alimtalk"
+    ? "알림톡"
+    : item.message_mode === "sms"
+      ? "문자 발송 차단(레거시)"
+      : "알 수 없는 발송 방식";
   const sentDate = new Date(item.sent_at);
 
   return (

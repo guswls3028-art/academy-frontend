@@ -255,7 +255,7 @@ export default function EditStudentModal({
             />
             <div className="modal-phone-row">
               <span className="modal-phone-label">학부모 전화번호 (필수)</span>
-              <span className="modal-phone-desc">문자·연락 수신용입니다.</span>
+              <span className="modal-phone-desc">알림톡·연락 수신용입니다.</span>
               <PhoneInput010Blocks
                 value={form.parentPhone ?? ""}
                 onChange={(v) => handlePhoneChange("parentPhone", v)}
