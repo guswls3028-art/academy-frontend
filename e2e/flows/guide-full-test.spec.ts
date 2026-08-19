@@ -81,7 +81,7 @@ test.describe.serial("가이드 기반 전체 테스트", () => {
       expect(typeof permanent.body.deleted).toBe("number");
     }
 
-    // 학생 등록 (API — 알림톡 실제 발송)
+    // 학생 명부 등록 (API — 이 단계에서는 계정 안내 알림톡을 발송하지 않음)
     const resp = await apiCall(T, "POST", "/students/", {
       name: TEST_RECIPIENT.studentName,
       phone: TEST_RECIPIENT.studentPhone,

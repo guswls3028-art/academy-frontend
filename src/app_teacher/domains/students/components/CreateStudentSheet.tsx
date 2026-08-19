@@ -103,9 +103,9 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
           }}>
           <MessageSquare size={ICON.xs} style={{ color: "var(--tc-primary)" }} />
           <div>
-            <div className="text-[13px] font-semibold" style={{ color: "var(--tc-text)" }}>가입 안내 알림톡 자동 발송</div>
+            <div className="text-[13px] font-semibold" style={{ color: "var(--tc-text)" }}>첫 수강 확정 시 계정 안내 발송</div>
             <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
-              학생·학부모 로그인 정보 안내는 계정 보호를 위해 자동 발송됩니다.
+              학생 명부 등록만으로는 발송되지 않으며, 실제 강의의 수강생으로 처음 확정될 때 학생·학부모에게 알림톡이 발송됩니다.
             </div>
           </div>
         </div>

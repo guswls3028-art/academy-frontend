@@ -490,8 +490,8 @@ export interface AutoSendConfigItem {
 }
 
 export const AUTO_SEND_TRIGGER_LABELS: Record<string, string> = {
-  registration_approved_student: "가입 안내(학생)",
-  registration_approved_parent: "가입 안내(학부모)",
+  registration_approved_student: "첫 수강 계정 안내(학생)",
+  registration_approved_parent: "첫 수강 계정 안내(학부모)",
   withdrawal_complete: "퇴원 처리 완료",
   lecture_session_reminder: "수업 시작 N분 전",
   check_in_complete: "입실 완료",

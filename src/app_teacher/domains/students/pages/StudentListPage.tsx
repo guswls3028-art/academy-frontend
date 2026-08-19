@@ -328,7 +328,7 @@ export default function StudentListPage() {
           scope="panel"
           tone="empty"
           title={search ? `"${search}" 결과 없음` : "학생이 없습니다"}
-          description={search ? "검색어를 줄이거나 필터를 초기화해 보세요." : "첫 학생을 등록하면 알림톡, 상담, 수강 이력이 한 화면으로 이어집니다."}
+          description={search ? "검색어를 줄이거나 필터를 초기화해 보세요." : "첫 학생을 등록하면 상담과 수강 이력을 한 화면에서 관리할 수 있습니다."}
           actions={
             search || hasFilter ? (
               <EmptyActionButton variant="secondary" onClick={() => { setSearch(""); setFilters({}); }}>
@@ -565,9 +565,9 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
           <div className="flex items-center gap-2">
             <MessageSquare size={ICON.xs} style={{ color: "var(--tc-primary)" }} />
             <div>
-              <div className="text-[13px] font-semibold" style={{ color: "var(--tc-text)" }}>가입 안내 알림톡 자동 발송</div>
+              <div className="text-[13px] font-semibold" style={{ color: "var(--tc-text)" }}>첫 수강 확정 시 계정 안내 발송</div>
               <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
-                학생·학부모 로그인 정보 안내는 계정 보호를 위해 자동 발송됩니다.
+                학생 명부 등록만으로는 발송되지 않으며, 실제 강의의 수강생으로 처음 확정될 때 학생·학부모에게 알림톡이 발송됩니다.
               </div>
             </div>
           </div>
