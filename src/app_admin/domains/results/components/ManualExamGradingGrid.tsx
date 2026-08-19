@@ -58,6 +58,7 @@ import {
   type ManualGradingShortcutSettings,
 } from "../utils/manualGradingShortcuts";
 import styles from "./ManualExamGradingGrid.module.css";
+import weightStyles from "./ManualExamGradingWeights.module.css";
 import overviewStyles from "./ManualExamGradingOverview.module.css";
 
 type Props = {
@@ -138,6 +139,14 @@ type ManualGradeHistoryEntry =
       questionId: number;
       before: string;
       after: string;
+    }
+  | {
+      kind: "question-scores";
+      changes: Array<{
+        questionId: number;
+        before: string;
+        after: string;
+      }>;
     };
 
 export default function ManualExamGradingGrid({
@@ -147,6 +156,7 @@ export default function ManualExamGradingGrid({
   showUnavailableState = false,
 }: Props) {
   const queryClient = useQueryClient();
+  const workspaceRef = useRef<HTMLElement>(null);
   const tableWrapRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
   const naturalTableSizeRef = useRef<{ width: number; height: number } | null>(null);
@@ -179,6 +189,9 @@ export default function ManualExamGradingGrid({
   const [shortcutDraft, setShortcutDraft] = useState(shortcuts);
   const [shortcutSettingsOpen, setShortcutSettingsOpen] = useState(false);
   const [shortcutError, setShortcutError] = useState<string | null>(null);
+  const [weightEditorOpen, setWeightEditorOpen] = useState(false);
+  const [weightListDraft, setWeightListDraft] = useState("");
+  const [weightListError, setWeightListError] = useState<string | null>(null);
   const primaryShortcutModifier = getPrimaryShortcutModifierLabel();
   const isOverviewMode = tableScale <= TABLE_OVERVIEW_MAX_SCALE;
 
@@ -470,13 +483,15 @@ export default function ManualExamGradingGrid({
     entry: ManualGradeHistoryEntry,
     direction: "undo" | "redo",
   ) => {
-    if (entry.kind === "question-score") {
-      const key = String(entry.questionId);
-      const nextValue = direction === "undo" ? entry.before : entry.after;
-      const nextScores = {
-        ...questionScoreDraftRef.current,
-        [key]: nextValue,
-      };
+    if (entry.kind === "question-score" || entry.kind === "question-scores") {
+      const changes = entry.kind === "question-score"
+        ? [entry]
+        : entry.changes;
+      const nextScores = { ...questionScoreDraftRef.current };
+      for (const change of changes) {
+        nextScores[String(change.questionId)] =
+          direction === "undo" ? change.before : change.after;
+      }
       questionScoreDraftRef.current = nextScores;
       setQuestionScoreDraft(nextScores);
     } else if (entry.kind === "attendance") {
@@ -927,6 +942,68 @@ export default function ManualExamGradingGrid({
     previewMutation.reset();
   };
 
+  const openWeightEditor = () => {
+    const editableQuestions = visibleQuestions.filter((question) => question.editable);
+    setWeightListDraft(
+      editableQuestions
+        .map((question) => questionScoreDraftRef.current[String(question.question_id)] ?? formatScoreInput(question.max_score))
+        .join(", "),
+    );
+    setWeightListError(null);
+    setWeightEditorOpen(true);
+  };
+
+  const applyWeightList = () => {
+    if (!data) return;
+    const editableQuestions = visibleQuestions.filter((question) => question.editable);
+    const tokens = weightListDraft
+      .split(/[\s,]+/)
+      .map((token) => token.trim())
+      .filter(Boolean);
+    if (tokens.length !== editableQuestions.length) {
+      setWeightListError(
+        `수정 가능한 ${editableQuestions.length}문항의 배점을 순서대로 모두 입력해 주세요. 현재 ${tokens.length}개입니다.`,
+      );
+      return;
+    }
+    const values = tokens.map(Number);
+    if (values.some((value) => !Number.isFinite(value) || value < 0)) {
+      setWeightListError("배점은 0 이상의 숫자만 입력할 수 있습니다.");
+      return;
+    }
+
+    const nextScores = { ...questionScoreDraftRef.current };
+    const changes = editableQuestions.flatMap((question, index) => {
+      const key = String(question.question_id);
+      const before = nextScores[key] ?? formatScoreInput(question.max_score);
+      const after = formatScoreInput(values[index]);
+      nextScores[key] = after;
+      return before === after
+        ? []
+        : [{ questionId: question.question_id, before, after }];
+    });
+    const nextState = buildQuestionScoreState(data, nextScores);
+    if (nextState.error) {
+      setWeightListError(nextState.error);
+      return;
+    }
+    if (changes.length === 0) {
+      setWeightEditorOpen(false);
+      return;
+    }
+    pushHistory({ kind: "question-scores", changes });
+    questionScoreDraftRef.current = nextScores;
+    setQuestionScoreDraft(nextScores);
+    setDirty(true);
+    previewMutation.reset();
+    setWeightEditorOpen(false);
+    setWeightListError(null);
+    feedback.success(`${changes.length}개 문항의 배점을 한 번에 반영했습니다.`);
+    window.requestAnimationFrame(() => {
+      workspaceRef.current?.focus({ preventScroll: true });
+    });
+  };
+
   const fillEmptyCorrectnessWithCorrect = () => {
     const changes: ManualGradeCellChange[] = [];
     for (const row of draftRowsRef.current) {
@@ -1129,6 +1206,7 @@ export default function ManualExamGradingGrid({
 
   return (
     <section
+      ref={workspaceRef}
       className={styles.card}
       aria-labelledby="manual-grading-title"
       aria-keyshortcuts="Control+V Meta+V Control+Z Meta+Z Control+Shift+Z Meta+Shift+Z Control+Y Meta+Y Control+S Meta+S"
@@ -1324,18 +1402,75 @@ export default function ManualExamGradingGrid({
           className={`${styles.scoreSummary} ${
             questionScoreState.error ? styles.scoreSummaryError : ""
           }`}
-          role={questionScoreState.error ? "alert" : "status"}
         >
-          <span>
-            배점 합계{" "}
-            <strong>{formatScore(questionScoreState.configuredTotal)}점</strong>
-            {" / "}시험 만점 {formatScore(questionScoreState.examMaxScore)}점
-          </span>
-          {questionScoreState.error ? (
-            <span>{questionScoreState.error}</span>
-          ) : (
-            <span>문항 제목 아래 배점을 직접 수정할 수 있습니다.</span>
-          )}
+          <div
+            className={styles.scoreSummaryText}
+            role={questionScoreState.error ? "alert" : "status"}
+          >
+            <span>
+              배점 합계{" "}
+              <strong>{formatScore(questionScoreState.configuredTotal)}점</strong>
+              {" / "}시험 만점 {formatScore(questionScoreState.examMaxScore)}점
+            </span>
+            {questionScoreState.error ? (
+              <span>{questionScoreState.error}</span>
+            ) : (
+              <span>표에서 개별 수정하거나, 문항 순서대로 한 번에 입력할 수 있습니다.</span>
+            )}
+          </div>
+          <Button
+            type="button"
+            intent="secondary"
+            size="sm"
+            leftIcon={<ListChecks size={ICON_FOR_BUTTON.sm} />}
+            onClick={weightEditorOpen ? () => setWeightEditorOpen(false) : openWeightEditor}
+            aria-expanded={weightEditorOpen}
+          >
+            배점 빠른 입력
+          </Button>
+        </div>
+      )}
+
+      {hasEditableQuestions && weightEditorOpen && (
+        <div className={weightStyles.weightEditor} role="group" aria-labelledby={`weight-editor-title-${examId}`}>
+          <div className={weightStyles.weightEditorHeading}>
+            <div>
+              <strong id={`weight-editor-title-${examId}`}>문항 순서대로 배점 입력</strong>
+              <span>쉼표·띄어쓰기·줄바꿈으로 구분합니다. 예: 3, 3, 4, 5</span>
+            </div>
+            <span>{visibleQuestions.filter((question) => question.editable).length}문항</span>
+          </div>
+          <textarea
+            aria-label="문항 배점 빠른 입력"
+            value={weightListDraft}
+            onChange={(event) => {
+              setWeightListDraft(event.target.value);
+              setWeightListError(null);
+            }}
+            onKeyDown={(event) => {
+              if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+                event.preventDefault();
+                applyWeightList();
+              }
+            }}
+            rows={3}
+            spellCheck={false}
+            aria-invalid={Boolean(weightListError)}
+            aria-describedby={weightListError ? `weight-editor-error-${examId}` : undefined}
+          />
+          <div className={weightStyles.weightEditorFooter}>
+            <span className={weightListError ? weightStyles.weightEditorError : undefined} id={weightListError ? `weight-editor-error-${examId}` : undefined}>
+              {weightListError ?? `${primaryShortcutModifier}+Enter로 적용 · 합계는 시험 만점과 같아야 합니다.`}
+            </span>
+            <div>
+              <Button type="button" intent="ghost" size="sm" onClick={() => setWeightEditorOpen(false)}>
+                취소
+              </Button>
+              <Button type="button" intent="primary" size="sm" onClick={applyWeightList}>
+                배점 적용
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 

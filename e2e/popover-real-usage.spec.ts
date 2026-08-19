@@ -123,10 +123,10 @@ for (const vp of [
       await timePop.waitFor({ state: "visible", timeout: 3000 });
       await ensureInViewport(page, timePop, `시작 시간 popover @${vp.label}`);
       await shoot(page, `${vp.width}-2-lecture-start-time`);
-      // 임의 시각 클릭 (12:00 → 14:00 의도)
-      // 그냥 +1시간 quick button 두 번으로 종료시간 채우기
-      // 우선 시간 popover에서 슬롯 하나 선택
-      await timePop.locator(".time-picker__item").nth(40).click();
+      const exactStart = timePop.getByLabel("분 단위 직접 입력");
+      await expect(exactStart).toBeVisible();
+      await exactStart.fill("19:20");
+      await timePop.getByRole("button", { name: "적용", exact: true }).click();
       await expect(timePop).toBeHidden({ timeout: 3000 });
 
       // ── 종료 시간 trigger
@@ -135,7 +135,8 @@ for (const vp of [
       await timePop.waitFor({ state: "visible", timeout: 3000 });
       await ensureInViewport(page, timePop, `종료 시간 popover @${vp.label}`);
       await shoot(page, `${vp.width}-3-lecture-end-time`);
-      await timePop.locator(".time-picker__item").nth(42).click();
+      await timePop.getByLabel("분 단위 직접 입력").fill("22:00");
+      await timePop.getByRole("button", { name: "적용", exact: true }).click();
       await expect(timePop).toBeHidden({ timeout: 3000 });
 
       // ── 필수 필드 채우기

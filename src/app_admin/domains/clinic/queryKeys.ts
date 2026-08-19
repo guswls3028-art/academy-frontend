@@ -3,6 +3,8 @@ export const clinicQueryKeys = {
   participantsList: (params: object) => ["clinic-participants", params] as const,
   targets: ["clinic-targets"] as const,
   targetsBySection: (sectionId: number | null) => ["clinic-targets", sectionId] as const,
+  targetsFiltered: (params?: { section_id?: number; include_resolved?: boolean }) =>
+    ["clinic-targets", params?.section_id ?? null, params?.include_resolved === true] as const,
   settings: ["clinic-settings"] as const,
   sessionsTree: ["clinic-sessions-tree"] as const,
   sessionsTreeByMonth: (year: number, month: number) => ["clinic-sessions-tree", year, month] as const,

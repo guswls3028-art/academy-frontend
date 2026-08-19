@@ -740,9 +740,20 @@ test.describe("문항별 직접 채점", () => {
     await expect(excelImport).toContainText("기존 엑셀 양식의 숫자 0도 오답노트로 읽습니다.");
     await expect(excelImport).not.toContainText("Ymath");
 
-    await page.getByRole("spinbutton", { name: "1번 배점", exact: true }).fill("30");
-    await page.getByRole("spinbutton", { name: "2번 배점", exact: true }).fill("70");
+    await page.getByRole("button", { name: "배점 빠른 입력", exact: true }).click();
+    const weightList = page.getByRole("textbox", { name: "문항 배점 빠른 입력" });
+    await weightList.fill("30");
+    await page.getByRole("button", { name: "배점 적용", exact: true }).click();
+    await expect(page.getByText(/수정 가능한 2문항.*현재 1개/)).toBeVisible();
+    await weightList.fill("30, 70");
+    await page.getByRole("button", { name: "배점 적용", exact: true }).click();
     await expect(page.getByText("배점 합계 100점 / 시험 만점 100점", { exact: true })).toBeVisible();
+    await expect(page.getByRole("spinbutton", { name: "1번 배점", exact: true })).toHaveValue("30");
+    await expect(page.getByRole("spinbutton", { name: "2번 배점", exact: true })).toHaveValue("70");
+    await page.keyboard.press("Control+z");
+    await expect(page.getByRole("spinbutton", { name: "1번 배점", exact: true })).toHaveValue("40");
+    await page.keyboard.press("Control+y");
+    await expect(page.getByRole("spinbutton", { name: "1번 배점", exact: true })).toHaveValue("30");
 
     const studentRow = page.getByRole("row").filter({ hasText: "김학생" });
     const cells = studentRow.getByRole("button", { name: "미입력" });

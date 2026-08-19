@@ -9,7 +9,7 @@
  * - Tab/Enter로 빠른 이동
  */
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 import {
@@ -26,6 +26,7 @@ import {
   Search,
   ArrowRight,
   XCircle,
+  ShieldCheck,
 } from "lucide-react";
 
 import { useClinicTargets } from "../../hooks/useClinicTargets";
@@ -36,6 +37,7 @@ import { patchClinicParticipantStatus } from "../../api/clinicParticipants.api";
 import {
   resolveClinicLink,
   waiveClinicLink,
+  waiveMissingExamTarget,
   carryOverClinicLink,
   submitClinicRetake,
 } from "../../api/clinicLinks.api";
@@ -45,6 +47,10 @@ import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink"
 import ClinicSectionFilter from "../../components/ClinicSectionFilter";
 import { hhmmText } from "@/shared/ui/time/timeFormat";
 import { clinicQueryKeys } from "../../queryKeys";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
+import { Button } from "@/shared/ui/ds";
+import RetakeTableRow from "./RetakeTableRow";
+import { formatNextAttempt, formatScoreDisplay } from "./remediationFormatters";
 
 /* ── Types ── */
 
@@ -63,7 +69,7 @@ type ReasonFilter = "all" | "score" | "confidence" | "missing";
 const REASON_LABEL: Record<string, string> = {
   score: "불합격",
   confidence: "신뢰도 낮음",
-  missing: "미응시",
+  missing: "미응시·미제출",
 };
 
 const REASON_COLOR: Record<string, string> = {
@@ -71,11 +77,6 @@ const REASON_COLOR: Record<string, string> = {
   confidence: "var(--color-info, #3b82f6)",
   missing: "var(--color-warning, #f59e0b)",
 };
-
-function formatNextAttempt(latestIndex?: number): string {
-  const next = (latestIndex ?? 1) + 1;
-  return `${next}차`;
-}
 
 function reasonBorderStyle(reason: string | null | undefined): CSSProperties {
   return { borderColor: REASON_COLOR[reason ?? "score"] };
@@ -91,11 +92,11 @@ function indicatorStyle(reason: string | null | undefined, isResolved: boolean):
   };
 }
 
-function formatScoreDisplay(item: ClinicTarget): string {
-  const score = item.exam_score;
-  const cutline = item.cutline_score;
-  if (score == null) return "-";
-  return `${score}/${cutline ?? "-"}`;
+function formatReasonLabel(item: ClinicTarget): string {
+  if (item.reason === "missing") {
+    return item.source_type === "homework" ? "미제출" : "미응시";
+  }
+  return REASON_LABEL[item.reason ?? "score"];
 }
 
 function requestScheduleText(row: ClinicParticipant): string {
@@ -250,15 +251,20 @@ export default function ClinicBookingsPage() {
 function RemediationWorkspace() {
   const qc = useQueryClient();
   const [sectionFilter, setSectionFilter] = useState<number | null>(null);
+  const [showResolved, setShowResolved] = useState(false);
   const { data: targets = [], isLoading } = useClinicTargets(
-    sectionFilter ? { section_id: sectionFilter } : undefined,
+    {
+      section_id: sectionFilter ?? undefined,
+      include_resolved: showResolved,
+    },
   );
 
   const [viewMode, setViewMode] = useState<ViewMode>("items");
   const [search, setSearch] = useState("");
   const [reasonFilter, setReasonFilter] = useState<ReasonFilter>("all");
-  const [showResolved, setShowResolved] = useState(false);
   const [expandedStudents, setExpandedStudents] = useState<Set<string>>(new Set());
+  const [waiveTarget, setWaiveTarget] = useState<ClinicTarget | null>(null);
+  const [waiveMemo, setWaiveMemo] = useState("");
 
   /* ── Mutations ── */
   const invalidateAll = () => {
@@ -273,8 +279,24 @@ function RemediationWorkspace() {
   });
 
   const waiveMutation = useMutation({
-    mutationFn: (id: number) => waiveClinicLink(id),
-    onSuccess: () => { invalidateAll(); feedback.success("면제 처리되었습니다."); },
+    mutationFn: async ({ target, memo }: { target: ClinicTarget; memo: string }) => {
+      if (target.clinic_link_id) return waiveClinicLink(target.clinic_link_id, memo);
+      if (!target.session_id || !target.enrollment_id || !target.exam_id) {
+        throw new Error("면제 대상 식별자가 없습니다.");
+      }
+      return waiveMissingExamTarget({
+        session_id: target.session_id,
+        enrollment_id: target.enrollment_id,
+        exam_id: target.exam_id,
+        memo,
+      });
+    },
+    onSuccess: () => {
+      invalidateAll();
+      setWaiveTarget(null);
+      setWaiveMemo("");
+      feedback.success("클리닉 면제 처리와 사유 기록을 완료했습니다.");
+    },
     onError: () => feedback.error("면제 처리에 실패했습니다."),
   });
 
@@ -350,12 +372,16 @@ function RemediationWorkspace() {
   /* ── KPI ── */
   const kpi = useMemo(() => {
     const openItems = targets.filter((t) => !t.resolved_at);
-    const scoreItems = openItems.filter((t) => t.reason === "score");
+    const examItems = openItems.filter((t) => t.source_type === "exam" && t.reason === "score");
+    const homeworkItems = openItems.filter((t) => t.source_type === "homework" && t.reason === "score");
+    const missingItems = openItems.filter((t) => t.reason === "missing");
     const uniqueStudents = new Set(openItems.map(targetStudentKey));
     return {
       totalStudents: uniqueStudents.size,
       totalItems: openItems.length,
-      scoreItems: scoreItems.length,
+      examItems: examItems.length,
+      homeworkItems: homeworkItems.length,
+      missingItems: missingItems.length,
     };
   }, [targets]);
 
@@ -388,15 +414,22 @@ function RemediationWorkspace() {
           <div className="clinic-hub__kpi clinic-hub__kpi--danger">
             <AlertTriangle size={16} />
             <div>
-              <span className="clinic-hub__kpi-value">{kpi.totalItems}</span>
-              <span className="clinic-hub__kpi-label">진행중 항목</span>
+              <span className="clinic-hub__kpi-value">{kpi.examItems}</span>
+              <span className="clinic-hub__kpi-label">시험 불합격</span>
             </div>
           </div>
           <div className="clinic-hub__kpi">
-            <FileQuestion size={16} />
+            <BookOpen size={16} />
             <div>
-              <span className="clinic-hub__kpi-value">{kpi.scoreItems}</span>
-              <span className="clinic-hub__kpi-label">시험 불합격</span>
+              <span className="clinic-hub__kpi-value">{kpi.homeworkItems}</span>
+              <span className="clinic-hub__kpi-label">과제 미통과</span>
+            </div>
+          </div>
+          <div className="clinic-hub__kpi clinic-hub__kpi--warning">
+            <Clock size={16} />
+            <div>
+              <span className="clinic-hub__kpi-value">{kpi.missingItems}</span>
+              <span className="clinic-hub__kpi-label">미응시·미제출</span>
             </div>
           </div>
         </div>
@@ -510,7 +543,7 @@ function RemediationWorkspace() {
                       })
                     }
                     onResolve={() => item.clinic_link_id && resolveMutation.mutate(item.clinic_link_id)}
-                    onWaive={() => item.clinic_link_id && waiveMutation.mutate(item.clinic_link_id)}
+                    onWaive={() => { setWaiveTarget(item); setWaiveMemo(""); }}
                     onCarryOver={() => item.clinic_link_id && carryOverMutation.mutate(item.clinic_link_id)}
                     disabled={isMutating}
                   />
@@ -587,7 +620,7 @@ function RemediationWorkspace() {
                             })
                           }
                           onResolve={() => item.clinic_link_id && resolveMutation.mutate(item.clinic_link_id)}
-                          onWaive={() => item.clinic_link_id && waiveMutation.mutate(item.clinic_link_id)}
+                          onWaive={() => { setWaiveTarget(item); setWaiveMemo(""); }}
                           onCarryOver={() => item.clinic_link_id && carryOverMutation.mutate(item.clinic_link_id)}
                                 disabled={isMutating}
                         />
@@ -600,174 +633,71 @@ function RemediationWorkspace() {
           </div>
         )}
       </div>
-    </section>
-  );
-}
 
-/* ══════════════════════════════════════════ */
-/* RetakeTableRow — 항목별 뷰의 테이블 행 (인라인 점수 입력) */
-/* ══════════════════════════════════════════ */
-
-function RetakeTableRow({
-  item,
-  onRetake,
-  onResolve,
-  onWaive,
-  onCarryOver,
-  disabled,
-}: {
-  item: ClinicTarget;
-  onRetake: (score: number, maxScore?: number) => void;
-  onResolve: () => void;
-  onWaive: () => void;
-  onCarryOver: () => void;
-  disabled: boolean;
-}) {
-  const [scoreInput, setScoreInput] = useState("");
-  const [showMore, setShowMore] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const isResolved = !!item.resolved_at;
-  const typeLabel = item.source_type === "homework" ? "과제" : "시험";
-  const maxScore = item.max_score ?? 100;
-
-  function handleSubmit() {
-    const val = parseFloat(scoreInput);
-    if (isNaN(val) || val < 0) {
-      feedback.error("올바른 점수를 입력해주세요.");
-      return;
-    }
-    if (maxScore != null && val > maxScore) {
-      feedback.error(`최대 점수(${maxScore})를 초과할 수 없습니다.`);
-      return;
-    }
-    onRetake(val, item.source_type === "homework" ? maxScore : undefined);
-    setScoreInput("");
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleSubmit();
-    }
-  }
-
-  return (
-    <tr className={isResolved ? "clinic-hub__row--resolved" : ""}>
-      <td className="clinic-hub__cell-name">
-        <StudentDetailLink studentId={item.student_id} studentName={item.student_name}>
-          <StudentNameWithLectureChip
-            name={item.student_name}
-            lectures={item.lecture_title ? [{ lectureName: item.lecture_title, color: item.lecture_color, chipLabel: item.lecture_chip_label }] : undefined}
-            clinicHighlight={item.name_highlight_clinic_target}
-            profilePhotoUrl={item.profile_photo_url}
-            avatarSize={20}
-          />
-        </StudentDetailLink>
-      </td>
-      <td className="clinic-hub__cell-session">{item.session_title || "-"}</td>
-      <td className="clinic-hub__cell-source">
-        <span title={item.source_title || "-"}>
-          {item.source_title || "-"}
-        </span>
-      </td>
-      <td>
-        <span
-          className="clinic-hub__type-badge"
-          data-type={item.source_type}
-        >
-          {typeLabel}
-        </span>
-      </td>
-      <td className="clinic-hub__cell-score">
-        {formatScoreDisplay(item)}
-      </td>
-      <td className="clinic-hub__cell-score">
-        {item.cutline_score ?? "-"}
-      </td>
-      <td className="clinic-hub__cell-cycle">
-        {formatNextAttempt(item.latest_attempt_index)}
-      </td>
-      <td className="clinic-hub__cell-input">
-        {!isResolved && item.clinic_link_id ? (
-          <div className="clinic-hub__score-input-group">
-            <input
-              ref={inputRef}
-              type="number"
-              value={scoreInput}
-              onChange={(e) => setScoreInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="점수"
-              className="clinic-hub__score-input"
-              min={0}
-              max={maxScore ?? undefined}
-              step="any"
-              disabled={disabled}
-            />
-            <button
-              type="button"
-              className="clinic-hub__score-submit"
-              onClick={handleSubmit}
-              disabled={disabled || !scoreInput.trim()}
-              title="저장"
-            >
-              <ArrowRight size={13} />
-            </button>
-          </div>
-        ) : isResolved ? (
-          <span className="clinic-hub__resolved-inline">
-            {item.resolution_type === "EXAM_PASS"
-              ? "시험 통과"
-              : item.resolution_type === "HOMEWORK_PASS"
-                ? "과제 통과"
-                : item.resolution_type === "MANUAL_OVERRIDE"
-                  ? "수동 통과"
-                  : item.resolution_type === "WAIVED"
-                    ? "면제"
-                    : "통과 완료"}
-          </span>
-        ) : (
-          <span className="clinic-hub__cell-muted">-</span>
-        )}
-      </td>
-      <td className="clinic-hub__cell-actions">
-        {!isResolved && item.clinic_link_id ? (
-          <div className="clinic-hub__inline-actions">
-            <button
-              type="button"
-              className="clinic-hub__action-sm clinic-hub__action-sm--resolve"
-              onClick={onResolve}
-              disabled={disabled}
-              title="수동 통과"
-            >
-              <CheckCircle2 size={13} />
-            </button>
-            <div className="clinic-hub__action-more-wrap">
-              <button
-                type="button"
-                className="clinic-hub__action-more"
-                onClick={() => setShowMore(!showMore)}
-                title="더보기"
-              >
-                <MoreHorizontal size={13} />
-              </button>
-              {showMore && (
-                <div className="clinic-hub__action-dropdown">
-                  <button type="button" onClick={() => { onWaive(); setShowMore(false); }} disabled={disabled}>
-                    면제
-                  </button>
-                  <button type="button" onClick={() => { onCarryOver(); setShowMore(false); }} disabled={disabled}>
-                    다음 차수 이월
-                  </button>
-                </div>
-              )}
+      <AdminModal
+        open={waiveTarget != null}
+        onClose={() => {
+          if (!waiveMutation.isPending) {
+            setWaiveTarget(null);
+            setWaiveMemo("");
+          }
+        }}
+        type="confirm"
+        width={480}
+        noMinimize
+        closeDisabled={waiveMutation.isPending}
+      >
+        <ModalHeader
+          type="confirm"
+          title="클리닉 면제 처리"
+          description="점수 합격과 구분해 면제로 기록하며, 해결 완료 내역에서 다시 확인할 수 있습니다."
+        />
+        <ModalBody>
+          <div className="clinic-hub__waive-form">
+            <div className="clinic-hub__waive-target">
+              <ShieldCheck size={18} aria-hidden />
+              <div>
+                <strong>{waiveTarget?.student_name}</strong>
+                <span>{waiveTarget?.source_title || waiveTarget?.session_title} · {waiveTarget?.source_type === "homework" ? "과제" : "시험"} {waiveTarget?.reason === "missing" ? "미응시·미제출" : "클리닉 대상"}</span>
+              </div>
             </div>
+            <label className="clinic-hub__waive-field">
+              <span>면제 사유 <em>필수</em></span>
+              <textarea
+                value={waiveMemo}
+                onChange={(event) => setWaiveMemo(event.target.value)}
+                maxLength={500}
+                rows={4}
+                autoFocus
+                placeholder="예: 이전 수업 결석으로 이번 재시험·클리닉 면제"
+              />
+              <small>{waiveMemo.trim().length}/500 · 최소 2자</small>
+            </label>
           </div>
-        ) : (
-          <span className="clinic-hub__cell-muted">-</span>
-        )}
-      </td>
-    </tr>
+        </ModalBody>
+        <ModalFooter
+          right={(
+            <>
+              <Button
+                intent="secondary"
+                onClick={() => { setWaiveTarget(null); setWaiveMemo(""); }}
+                disabled={waiveMutation.isPending}
+              >
+                취소
+              </Button>
+              <Button
+                intent="danger"
+                onClick={() => waiveTarget && waiveMutation.mutate({ target: waiveTarget, memo: waiveMemo.trim() })}
+                disabled={waiveMemo.trim().length < 2}
+                loading={waiveMutation.isPending}
+              >
+                사유 남기고 면제
+              </Button>
+            </>
+          )}
+        />
+      </AdminModal>
+    </section>
   );
 }
 
@@ -794,6 +724,7 @@ function RemediationItemRow({
   const [scoreInput, setScoreInput] = useState("");
 
   const isResolved = !!item.resolved_at;
+  const isMissing = item.reason === "missing";
   const maxScore = item.max_score ?? 100;
 
   function handleSubmit() {
@@ -848,7 +779,7 @@ function RemediationItemRow({
             className="clinic-hub__item-reason"
             style={reasonColorStyle(item.reason)}
           >
-            {REASON_LABEL[item.reason ?? "score"]}
+            {formatReasonLabel(item)}
           </span>
 
           {isResolved && (
@@ -862,9 +793,15 @@ function RemediationItemRow({
         {/* Score detail + inline input */}
         <div className="clinic-hub__item-bottom">
           {/* Original score */}
-          {item.exam_score != null ? (
+          {isMissing ? (
+            <span className="clinic-hub__item-score clinic-hub__item-score--missing">
+              {item.source_type === "homework"
+                ? "미제출 · 재제출 점수 입력 또는 면제 처리"
+                : "미응시 · 응시 기록 입력 또는 결석 사유 면제"}
+            </span>
+          ) : item.exam_score != null || item.homework_score != null ? (
             <span className="clinic-hub__item-score">
-              1차: {item.exam_score}/{item.cutline_score ?? "-"}점
+              1차: {formatScoreDisplay(item)}점
             </span>
           ) : null}
 
@@ -884,7 +821,7 @@ function RemediationItemRow({
           )}
 
           {/* Inline score input */}
-          {!isResolved && item.clinic_link_id && (
+          {!isResolved && item.clinic_link_id && !(isMissing && item.source_type === "exam") && (
             <div className="clinic-hub__item-retake">
               <span className="clinic-hub__retake-label">
                 {formatNextAttempt(item.latest_attempt_index)} 점수:
@@ -919,7 +856,18 @@ function RemediationItemRow({
 
       {/* Right: actions */}
       <div className="clinic-hub__item-actions">
-        {!isResolved && item.clinic_link_id && (
+        {!isResolved && isMissing ? (
+          <button
+            type="button"
+            className="clinic-hub__action-btn clinic-hub__action-btn--waive"
+            onClick={onWaive}
+            disabled={disabled}
+            title="결석 등 사유를 기록하고 클리닉 면제"
+          >
+            <ShieldCheck size={14} />
+            면제
+          </button>
+        ) : !isResolved && item.clinic_link_id && (
           <>
             <button
               type="button"

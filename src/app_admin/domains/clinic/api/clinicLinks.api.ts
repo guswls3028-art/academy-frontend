@@ -3,7 +3,11 @@
  * ClinicLink (remediation case) CRUD & resolution actions
  */
 import api from "@/shared/api/axios";
+import type { components } from "@/shared/api/generated/schema";
 import type { ResolutionType, RetakeResponse } from "./clinicTargets";
+
+type WaiveMissingExamRequest = components["schemas"]["WaiveMissingExamRequest"];
+type WaiveMissingExamResponse = components["schemas"]["WaiveMissingExamResponse"];
 
 export type ClinicLink = {
   id: number;
@@ -49,6 +53,11 @@ export async function resolveClinicLink(id: number, memo?: string) {
 export async function waiveClinicLink(id: number, memo?: string) {
   const res = await api.post(`/progress/clinic-links/${id}/waive/`, { memo });
   return res.data as ClinicLink;
+}
+
+export async function waiveMissingExamTarget(payload: WaiveMissingExamRequest) {
+  const res = await api.post("/results/admin/clinic-targets/waive-missing/", payload);
+  return res.data as WaiveMissingExamResponse;
 }
 
 /**

@@ -94,6 +94,28 @@
   flex-direction: column;
   min-height: 0;
 }
+.clinic-create--modal {
+  flex: 1 1 auto;
+  max-height: min(760px, calc(100vh - 48px));
+  min-height: 0;
+  overflow: hidden;
+}
+.clinic-create--modal .clinic-create__form {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-5);
+  scrollbar-gutter: stable;
+}
+.clinic-create--modal .clinic-create__footer {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+  border-radius: 0;
+  box-shadow: 0 -10px 24px color-mix(in srgb, var(--color-modal-bg, var(--color-bg-surface)) 92%, transparent);
+}
 .clinic-create__form {
   display: flex;
   flex-direction: column;
@@ -127,6 +149,20 @@
   padding-top: var(--space-4);
   margin-top: var(--space-5);
   border-top: 1px solid var(--color-border-divider);
+}
+
+@media (max-width: 640px) {
+  .clinic-create--modal {
+    max-height: calc(100dvh - 48px);
+  }
+
+  .clinic-create--modal .clinic-create__form {
+    padding: var(--space-4);
+  }
+
+  .clinic-create--modal .clinic-create__footer {
+    padding: var(--space-3) var(--space-4);
+  }
 }
 
 /* 장소 — input + text buttons row */

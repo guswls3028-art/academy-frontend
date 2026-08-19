@@ -1,0 +1,90 @@
+.weightEditor {
+  display: grid;
+  gap: 10px;
+  padding: 13px 14px;
+  border: 1px solid color-mix(in srgb, #0f766e 28%, #e2e8f0);
+  border-radius: 10px;
+  background: linear-gradient(135deg, color-mix(in srgb, #0f766e 6%, #fff), #fff 58%);
+}
+
+.weightEditorHeading,
+.weightEditorFooter,
+.weightEditorFooter > div {
+  display: flex;
+  align-items: center;
+}
+
+.weightEditorHeading,
+.weightEditorFooter {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.weightEditorHeading > div {
+  display: grid;
+  gap: 2px;
+}
+
+.weightEditorHeading strong {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.weightEditorHeading span,
+.weightEditorFooter > span {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.weightEditorHeading > span {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #ccfbf1;
+  color: #0f766e;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.weightEditor textarea {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  padding: 10px 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #0f172a;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.55;
+}
+
+.weightEditor textarea:focus-visible {
+  border-color: var(--color-brand-primary, #2563eb);
+  outline: 3px solid color-mix(in srgb, var(--color-brand-primary, #2563eb) 14%, transparent);
+}
+
+.weightEditorFooter > div {
+  gap: 6px;
+}
+
+.weightEditorError {
+  color: #b91c1c !important;
+  font-weight: 700;
+}
+
+@media (max-width: 720px) {
+  .weightEditorHeading,
+  .weightEditorFooter {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .weightEditorFooter > div {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
