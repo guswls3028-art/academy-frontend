@@ -23,7 +23,7 @@ import {
   fetchWorkMonthLocks,
   isLockedFromLocks,
 } from "../../api/workMonthLocks.api";
-import { fetchStaffMe } from "../../api/staffMe.api";
+import { fetchStaffMe } from "@/shared/staff/api";
 import { useDeleteStaff } from "../../hooks/useDeleteStaff";
 import { staffQueryKeys } from "../../queryKeys";
 

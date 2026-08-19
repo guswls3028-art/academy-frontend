@@ -5,8 +5,6 @@
 
 export * from "./staff.api";
 export * from "./staff.detail.api";
-export * from "./staffMe.api";
-
 export * from "./workRecords.api";
 export * from "./expenses.api";
 export * from "./workMonthLocks.api";

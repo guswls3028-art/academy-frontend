@@ -23,7 +23,11 @@ type ClockMock = {
   endCount: number;
 };
 
-async function installClockApp(page: Page, returnPath: string): Promise<ClockMock> {
+async function installClockApp(
+  page: Page,
+  returnPath: string,
+  tenantRole: "staff" | "admin" = "staff",
+): Promise<ClockMock> {
   const calls: ClockMock = { startBodies: [], endCount: 0 };
   let current: "OFF" | "WORKING" = "OFF";
   let activeWorkType = 41;
@@ -86,7 +90,7 @@ async function installClockApp(page: Page, returnPath: string): Promise<ClockMoc
         phone: "01012345678",
         is_staff: true,
         is_superuser: false,
-        tenantRole: "staff",
+        tenantRole,
         must_change_password: false,
         first_login_guide_required: false,
         linkedStudents: null,
@@ -236,6 +240,7 @@ test.describe("조교 로그인 출근 선택", () => {
     await expect(page.getByText("총 근무액 (공제 전)")).toBeVisible();
     await expect(page.getByText("52,000원").first()).toBeVisible();
     await expect(page.getByText(/세후 수령액|3\.3%/)).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "출근 유형 선택" })).toBeVisible();
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("dialog", { name: "오늘 어떤 방식으로 시작할까요?" })).toHaveCount(0);
@@ -278,5 +283,20 @@ test.describe("조교 로그인 출근 선택", () => {
     await expect(page.getByText("67,000원").first()).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: "test-results/staff-clock-mobile-390.png", fullPage: false });
+  });
+
+  test("조교가 아닌 로그인은 근무 선택 세션을 만들지 않는다", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 900 });
+    const calls = await installClockApp(page, "/workspace/dashboard", "admin");
+
+    await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+    await page.getByTestId("login-username").fill("admin77");
+    await page.getByTestId("login-password").fill("password");
+    await page.getByTestId("login-submit").click();
+
+    await expect(page.getByRole("dialog", { name: "오늘 어떤 방식으로 시작할까요?" })).toHaveCount(0);
+    await expect(page).toHaveURL(/\/workspace\/dashboard/);
+    expect(calls.startBodies).toHaveLength(0);
+    expect(await page.evaluate(() => sessionStorage.getItem("staff.clock-in-choice.pending.v1"))).toBeNull();
   });
 });

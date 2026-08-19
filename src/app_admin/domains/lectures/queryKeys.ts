@@ -4,8 +4,6 @@ export const adminLectureQueryKeys = {
   lectures: ["lectures"] as const,
   lecture: (lectureId: number | null | undefined) => ["lecture", lectureId] as const,
   lectureInstructorOptions: ["lecture-instructor-options"] as const,
-  staffMe: ["staff-me"] as const,
-
   lectureSessions: ["lecture-sessions"] as const,
   lectureSessionsForLecture: (lectureId: number | null | undefined) => ["lecture-sessions", lectureId] as const,
   sessionsForLecture: (lectureId: number | null | undefined) => ["sessions", lectureId] as const,

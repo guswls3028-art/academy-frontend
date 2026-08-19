@@ -1,22 +1,7 @@
 import api from "@/shared/api/axios";
 import type { components } from "@/shared/api/generated/schema";
-
-export type AssignedWorkType = {
-  id: number;
-  name: string;
-  hourly_wage: number;
-};
-
-export type StaffMe = {
-  is_authenticated: boolean;
-  is_superuser: boolean;
-  is_staff: boolean;
-  is_payroll_manager: boolean;
-  is_owner?: boolean;
-  staff_id?: number;
-  default_work_type_id?: number;
-  assigned_work_types?: AssignedWorkType[];
-};
+export { fetchStaffMe } from "@/shared/staff/api";
+export type { AssignedWorkType, StaffMe } from "@/shared/staff/api";
 
 export type WorkRecord = components["schemas"]["StaffWorkRecord"];
 
@@ -39,11 +24,6 @@ export type WorkCurrentStatus =
 export type WorkSummary = components["schemas"]["StaffWorkSummary"];
 type WorkStartRequest = components["schemas"]["StaffWorkStartRequestRequest"];
 type PaginatedWorkRecords = components["schemas"]["PaginatedStaffWorkRecordList"];
-
-export async function fetchStaffMe(): Promise<StaffMe> {
-  const { data } = await api.get<StaffMe>("/staffs/me/");
-  return data;
-}
 
 export async function fetchWorkCurrent(staffId: number): Promise<WorkCurrentStatus> {
   const { data } = await api.get<WorkCurrentStatus>(
@@ -77,6 +57,26 @@ export async function startBreak(workRecordId: number): Promise<void> {
 
 export async function endBreak(workRecordId: number): Promise<void> {
   await api.post(`/staffs/work-records/${workRecordId}/end_break/`);
+}
+
+export type CurrentlyWorkingItem = {
+  staff_id: number;
+  staff_name: string;
+  role?: "owner" | "OWNER" | "TEACHER" | "ASSISTANT";
+  date?: string;
+  started_at?: string;
+  work_type?: number;
+  work_type_name?: string;
+  break_minutes?: number;
+  break_total_seconds?: number;
+  break_started_at?: string;
+};
+
+export async function fetchCurrentlyWorkingStaff(): Promise<CurrentlyWorkingItem[]> {
+  const { data } = await api.get<CurrentlyWorkingItem[]>(
+    "/staffs/currently-working/",
+  );
+  return Array.isArray(data) ? data : [];
 }
 
 export async function fetchMyWorkRecords(

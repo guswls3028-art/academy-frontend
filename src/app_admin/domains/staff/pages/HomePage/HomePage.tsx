@@ -10,7 +10,7 @@ import WorkTypeCreateModal from "./WorkTypeCreateModal";
 import AddWorkTypeBulkModal from "./AddWorkTypeBulkModal";
 import StaffPasswordModal from "../../components/StaffPasswordModal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchStaffMe } from "../../api/staffMe.api";
+import { fetchStaffMe } from "@/shared/staff/api";
 import { patchStaffDetail } from "../../api/staff.detail.api";
 import { exportPayrollSnapshotExcel } from "../../api/payrollSnapshots.api";
 import { downloadStaffExcel } from "../../excel/staffExcel";
