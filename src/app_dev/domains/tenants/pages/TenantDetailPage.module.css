@@ -138,6 +138,30 @@
   justify-content: flex-end;
 }
 
+.ownerPasswordPanel {
+  display: grid;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--dev-border-light);
+  background: var(--dev-danger-subtle);
+}
+
+.ownerPasswordTitle {
+  margin: 0 0 6px;
+  color: var(--dev-text-primary);
+  font-size: 14px;
+}
+
+.ownerPasswordPanel .ownerFormHint {
+  margin: 0;
+}
+
+.ownerPasswordFormGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
 .badgeStack {
   align-items: flex-start;
   display: flex;
@@ -322,6 +346,10 @@
   }
 
   .ownerFormGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .ownerPasswordFormGrid {
     grid-template-columns: 1fr;
   }
 }

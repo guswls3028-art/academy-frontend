@@ -102,6 +102,20 @@ export async function updateTenantOwner(
   return res.data;
 }
 
+/** POST reset an active owner's temporary password */
+export async function resetTenantOwnerPassword(
+  tenantId: number,
+  userId: number,
+  password: string,
+): Promise<{ detail: string; userId: number; mustChangePassword: boolean }> {
+  const res = await api.post<{
+    detail: string;
+    userId: number;
+    mustChangePassword: boolean;
+  }>(`/core/tenants/${tenantId}/owners/${userId}/password/`, { password });
+  return res.data;
+}
+
 /** DELETE remove owner from tenant (membership deactivated) */
 export async function removeTenantOwner(
   tenantId: number,
