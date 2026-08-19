@@ -92,11 +92,28 @@ function pollExcelJob(
         onSuccess?.();
         // 엑셀 등록 결과 상세 표시
         const result = res.data?.result as Record<string, unknown> | undefined;
+        const created = Number(result?.created ?? 0);
+        const dupCount = Array.isArray(result?.duplicates) ? result.duplicates.length : 0;
+        const restoredCount = Array.isArray(result?.restored) ? result.restored.length : 0;
+        const failedRows = Array.isArray(result?.failed)
+          ? result.failed.flatMap((item) => {
+              if (item == null || typeof item !== "object" || Array.isArray(item)) return [];
+              const row = item as Record<string, unknown>;
+              if (typeof row.error !== "string") return [];
+              return [{
+                row: typeof row.row === "number" ? row.row : null,
+                name: typeof row.name === "string" ? row.name : "(이름 없음)",
+                error: row.error,
+              }];
+            })
+          : [];
+        const failedDetail = failedRows.length > 0
+          ? `등록 제외: ${failedRows.slice(0, 3).map((failure) =>
+              `${failure.row != null ? `${failure.row}행 ` : ""}${failure.name} — ${failure.error}`
+            ).join(" / ")}${failedRows.length > 3 ? ` 외 ${failedRows.length - 3}건` : ""}`
+          : undefined;
         if (result) {
-          const created = Number(result.created ?? 0);
-          const dupCount = Array.isArray(result.duplicates) ? result.duplicates.length : 0;
-          const restoredCount = Array.isArray(result.restored) ? result.restored.length : 0;
-          const failedCount = Array.isArray(result.failed) ? result.failed.length : 0;
+          const failedCount = failedRows.length;
           const parts: string[] = [];
           if (created > 0) parts.push(`신규 등록 ${created}명`);
           if (dupCount > 0) parts.push(`이미 등록된 학생 ${dupCount}명`);
@@ -111,7 +128,7 @@ function pollExcelJob(
             const msgs: string[] = [];
             if (dupCount > 0) msgs.push(`이미 등록된 학생 ${dupCount}명`);
             if (failedCount > 0) msgs.push(`실패 ${failedCount}명`);
-            feedback.error(`학생 등록 결과: ${msgs.join(", ")}`);
+            feedback.warning(`학생 등록 결과: ${msgs.join(", ")}. 정상 행 처리는 완료되었습니다.`);
           }
           const credentials = Array.isArray(result.credentials)
             ? result.credentials.flatMap((item) => {
@@ -148,7 +165,12 @@ function pollExcelJob(
             }
           }
         }
-        asyncStatusStore.completeTask(taskId, "success");
+        const hasHandledRow = created + dupCount + restoredCount > 0;
+        asyncStatusStore.completeTask(
+          taskId,
+          failedRows.length > 0 && !hasHandledRow ? "error" : "success",
+          failedDetail,
+        );
       }
     })
     .catch(() => {

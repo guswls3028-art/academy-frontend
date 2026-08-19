@@ -10,6 +10,7 @@ interface Props {
   onChange: (next: StudentInitialPasswordSettings) => void;
   disabled?: boolean;
   invalidStudentPhoneNames?: string[];
+  allowPartialRows?: boolean;
 }
 
 const OPTIONS: Array<{
@@ -39,6 +40,7 @@ export default function InitialPasswordMethodSelector({
   onChange,
   disabled = false,
   invalidStudentPhoneNames = [],
+  allowPartialRows = false,
 }: Props) {
   const fieldId = useId();
   const radioName = `student-initial-password-mode-${fieldId}`;
@@ -88,10 +90,12 @@ export default function InitialPasswordMethodSelector({
       ) : null}
 
       {value.mode === "phone_last4" && invalidCount > 0 ? (
-        <div className={styles.phoneError} role="alert">
+        <div className={styles.phoneError} role={allowPartialRows ? "status" : "alert"}>
           학생 전화번호가 없거나 올바르지 않은 학생이 {invalidCount}명 있습니다
           {invalidPreview ? `: ${invalidPreview}` : ""}.
-          엑셀에서 010으로 시작하는 11자리 학생 전화번호를 입력해 주세요.
+          {allowPartialRows
+            ? " 해당 행은 등록하지 않고, 나머지 정상 행만 등록합니다."
+            : " 엑셀에서 010으로 시작하는 11자리 학생 전화번호를 입력해 주세요."}
         </div>
       ) : null}
     </fieldset>
