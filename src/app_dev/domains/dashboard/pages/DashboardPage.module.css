@@ -1,0 +1,939 @@
+.dashboard {
+  max-width: 1540px;
+}
+
+.hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 22px;
+}
+
+.heroCopy {
+  min-width: 0;
+}
+
+.eyebrow,
+.sectionHeader p {
+  margin: 0 0 6px;
+  color: var(--dev-primary);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.09em;
+}
+
+.heroControls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.refreshMeta {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  column-gap: 8px;
+  text-align: right;
+}
+
+.refreshMeta span,
+.refreshMeta small {
+  color: var(--dev-text-muted);
+  font-size: 10px;
+}
+
+.refreshMeta small {
+  grid-column: 1 / -1;
+}
+
+.refreshMeta strong {
+  color: var(--dev-text-secondary);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.refreshButton svg {
+  flex-shrink: 0;
+}
+
+.spinning {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.headerStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--dev-border);
+  color: var(--dev-text-secondary);
+}
+
+.headerStatus > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dev-success);
+  box-shadow: 0 0 0 3px var(--dev-success-subtle);
+}
+
+.headerStatus[data-tone="watch"] > span {
+  background: var(--dev-warning);
+  box-shadow: 0 0 0 3px var(--dev-warning-subtle);
+}
+
+.errorPanel {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border: 1px solid #fecaca;
+  border-radius: var(--dev-radius-lg);
+  background: var(--dev-danger-subtle);
+  color: var(--dev-danger);
+}
+
+.errorPanel > div {
+  display: grid;
+  gap: 2px;
+}
+
+.errorPanel strong {
+  font-size: 13px;
+}
+
+.errorPanel span {
+  color: #991b1b;
+  font-size: 12px;
+}
+
+.commandBrief {
+  min-height: 108px;
+  display: grid;
+  grid-template-columns: auto minmax(280px, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 18px;
+  padding: 18px 20px;
+  border: 1px solid #cce5df;
+  border-left: 3px solid var(--dev-success);
+  border-radius: var(--dev-radius-lg);
+  background: #f7fcfa;
+}
+
+.commandBrief[data-tone="watch"] {
+  border-color: #fde4b4;
+  border-left-color: var(--dev-warning);
+  background: #fffdf7;
+}
+
+.commandIcon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--dev-success-subtle);
+  color: var(--dev-success);
+}
+
+.commandIcon svg {
+  width: 21px;
+}
+
+.commandBrief[data-tone="watch"] .commandIcon {
+  background: var(--dev-warning-subtle);
+  color: var(--dev-warning);
+}
+
+.commandCopy {
+  display: grid;
+  gap: 3px;
+}
+
+.commandCopy > span {
+  color: var(--dev-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.commandCopy strong {
+  color: var(--dev-text);
+  font-size: 17px;
+  letter-spacing: -0.02em;
+}
+
+.commandCopy small {
+  color: var(--dev-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.commandFacts {
+  display: flex;
+  gap: 8px;
+}
+
+.commandFacts span {
+  min-width: 92px;
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border-left: 1px solid var(--dev-border);
+  color: var(--dev-text-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.commandFacts b {
+  color: var(--dev-text);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 14px;
+}
+
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metricCard {
+  min-width: 0;
+  min-height: 124px;
+  padding: 17px 18px;
+  border: 1px solid var(--dev-border);
+  border-top: 2px solid #a9b8ca;
+  border-radius: var(--dev-radius-lg) var(--dev-radius-lg) 0 0;
+  background: var(--dev-surface);
+  box-shadow: var(--dev-shadow-sm);
+}
+
+.metricCard[data-tone="good"] {
+  border-top-color: var(--dev-success);
+}
+
+.metricTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--dev-text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.metricTop svg {
+  color: var(--dev-text-muted);
+}
+
+.metricCard > strong {
+  display: block;
+  margin-top: 17px;
+  overflow: hidden;
+  color: var(--dev-text);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: clamp(21px, 2.1vw, 30px);
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metricCard > small {
+  display: block;
+  margin-top: 4px;
+  color: var(--dev-text-muted);
+  font-size: 10px;
+}
+
+.metricSkeleton {
+  width: 62%;
+  height: 29px;
+  margin-top: 17px;
+}
+
+.signalStrip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin-bottom: 18px;
+  border: 1px solid var(--dev-border);
+  border-top: 0;
+  border-radius: 0 0 var(--dev-radius-lg) var(--dev-radius-lg);
+  background: var(--dev-surface);
+  box-shadow: var(--dev-shadow-sm);
+  overflow: hidden;
+}
+
+.signalItem {
+  min-width: 0;
+  min-height: 54px;
+  padding: 10px 13px;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 7px;
+  border-right: 1px solid var(--dev-border-light);
+  color: var(--dev-text-secondary);
+  text-decoration: none;
+  transition: background 150ms ease;
+}
+
+.signalItem:last-child {
+  border-right: 0;
+}
+
+.signalItem:hover {
+  background: var(--dev-primary-subtle);
+}
+
+.signalItem span {
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signalItem strong {
+  color: var(--dev-text);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+}
+
+.signalItem[data-tone="watch"] strong,
+.signalItem[data-tone="watch"] svg {
+  color: var(--dev-warning);
+}
+
+.signalItem[data-tone="danger"] strong,
+.signalItem[data-tone="danger"] svg {
+  color: var(--dev-danger);
+}
+
+.signalItem[data-tone="good"] strong,
+.signalItem[data-tone="good"] svg {
+  color: var(--dev-success);
+}
+
+.signalSkeleton {
+  width: 18px;
+  height: 14px;
+}
+
+.primaryGrid,
+.secondaryGrid {
+  display: grid;
+  gap: 16px;
+}
+
+.primaryGrid {
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  margin-bottom: 16px;
+}
+
+.secondaryGrid {
+  grid-template-columns: minmax(0, 1.5fr) minmax(310px, 0.7fr);
+}
+
+.sectionHeader {
+  min-height: 63px;
+  padding: 14px 17px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid var(--dev-border-light);
+}
+
+.sectionHeader h2 {
+  margin: 0;
+  color: var(--dev-text);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.sectionHeader > span {
+  color: var(--dev-text-muted);
+  font-size: 11px;
+}
+
+.sectionHeader > span b {
+  color: var(--dev-text);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 14px;
+}
+
+.sectionHeader > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--dev-text-secondary);
+  font-size: 11px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.sectionHeader > a:hover {
+  color: var(--dev-primary);
+}
+
+.actionList {
+  padding: 4px 0;
+}
+
+.actionRow {
+  min-height: 64px;
+  padding: 9px 16px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 11px;
+  border-bottom: 1px solid var(--dev-border-light);
+  color: var(--dev-text-secondary);
+  text-decoration: none;
+  transition: background 150ms ease;
+}
+
+.actionRow:last-child {
+  border-bottom: 0;
+}
+
+.actionRow:hover {
+  background: var(--dev-bg);
+}
+
+.actionIcon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--dev-border-light);
+  color: var(--dev-text-muted);
+}
+
+.actionRow[data-tone="danger"] .actionIcon {
+  background: var(--dev-danger-subtle);
+  color: var(--dev-danger);
+}
+
+.actionRow[data-tone="watch"] .actionIcon {
+  background: var(--dev-warning-subtle);
+  color: var(--dev-warning);
+}
+
+.actionRow[data-tone="good"] .actionIcon {
+  background: var(--dev-success-subtle);
+  color: var(--dev-success);
+}
+
+.actionCopy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.actionCopy strong {
+  color: var(--dev-text);
+  font-size: 12px;
+}
+
+.actionCopy span {
+  overflow: hidden;
+  color: var(--dev-text-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actionRow > b {
+  color: var(--dev-text);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+}
+
+.queueSkeletons,
+.activitySkeletons {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+}
+
+.queueSkeleton {
+  height: 49px;
+}
+
+.chartBody {
+  padding: 15px 17px 12px;
+}
+
+.chartBody svg {
+  width: 100%;
+  height: 165px;
+  overflow: visible;
+}
+
+.chartBaseline {
+  stroke: var(--dev-border);
+  stroke-width: 1;
+}
+
+.chartArea {
+  fill: rgba(37, 99, 235, 0.075);
+}
+
+.chartLine {
+  fill: none;
+  stroke: var(--dev-primary);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.chartPoint {
+  fill: var(--dev-surface);
+  stroke: var(--dev-primary);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.chartAxis {
+  display: flex;
+  justify-content: space-between;
+  color: var(--dev-text-muted);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 9px;
+}
+
+.chartSkeleton {
+  height: 165px;
+}
+
+.activityList {
+  padding: 3px 0;
+}
+
+.activityRow {
+  min-height: 50px;
+  padding: 8px 16px;
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr) 86px 38px;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--dev-border-light);
+}
+
+.activityRow:last-child {
+  border-bottom: 0;
+}
+
+.activityRow time,
+.activityRow > span {
+  color: var(--dev-text-muted);
+  font-size: 10px;
+}
+
+.activityRow > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.activityRow code {
+  overflow: hidden;
+  color: var(--dev-text-secondary);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activityRow > div span {
+  overflow: hidden;
+  color: var(--dev-text-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activityRow > b {
+  justify-self: end;
+  padding: 3px 5px;
+  border-radius: 4px;
+  background: var(--dev-success-subtle);
+  color: var(--dev-success);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 9px;
+}
+
+.activityRow > b[data-result="failed"] {
+  background: var(--dev-danger-subtle);
+  color: var(--dev-danger);
+}
+
+.activitySkeleton {
+  height: 38px;
+}
+
+.emptyState {
+  min-height: 210px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 24px;
+  color: var(--dev-success);
+  text-align: center;
+}
+
+.emptyState strong {
+  color: var(--dev-text);
+  font-size: 13px;
+}
+
+.emptyState span {
+  color: var(--dev-text-muted);
+  font-size: 11px;
+}
+
+.sideStack {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+
+.postureBadge {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--dev-success-subtle);
+  color: var(--dev-success) !important;
+  font-weight: 700;
+}
+
+.postureBadge[data-tone="watch"] {
+  background: var(--dev-warning-subtle);
+  color: var(--dev-warning) !important;
+}
+
+.postureBody {
+  min-height: 104px;
+  padding: 15px 17px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.postureRing {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  flex-shrink: 0;
+  border: 4px solid #cce5df;
+  border-radius: 50%;
+  color: var(--dev-success);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 16px;
+  font-weight: 750;
+}
+
+.postureRing[data-tone="watch"] {
+  border-color: #fde4b4;
+  color: var(--dev-warning);
+}
+
+.postureRing span {
+  font-family: var(--app-font-sans, sans-serif);
+  font-size: 8px;
+  font-weight: 650;
+}
+
+.postureBody > div:last-child {
+  display: grid;
+  gap: 4px;
+}
+
+.postureBody strong {
+  color: var(--dev-text);
+  font-size: 12px;
+}
+
+.postureBody span {
+  color: var(--dev-text-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.quickGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 7px;
+}
+
+.quickGrid a {
+  min-width: 0;
+  min-height: 62px;
+  padding: 9px 10px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  color: var(--dev-text-secondary);
+  text-decoration: none;
+}
+
+.quickGrid a:hover {
+  background: var(--dev-bg);
+  color: var(--dev-primary);
+}
+
+.quickGrid a > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.quickGrid strong {
+  color: var(--dev-text);
+  font-size: 11px;
+}
+
+.quickGrid small {
+  overflow: hidden;
+  color: var(--dev-text-muted);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 1180px) {
+  .commandBrief {
+    grid-template-columns: auto 1fr;
+  }
+
+  .commandFacts {
+    grid-column: 1 / -1;
+    padding-top: 12px;
+    border-top: 1px solid var(--dev-border-light);
+  }
+
+  .commandFacts span {
+    min-width: 0;
+    flex: 1;
+    border-left: 0;
+    padding: 0;
+  }
+
+  .metricGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .signalStrip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border-top: 1px solid var(--dev-border);
+    border-radius: var(--dev-radius-lg);
+    margin-top: 12px;
+  }
+
+  .signalItem:nth-child(3) {
+    border-right: 0;
+  }
+
+  .signalItem:nth-child(n + 4) {
+    border-top: 1px solid var(--dev-border-light);
+  }
+
+  .primaryGrid,
+  .secondaryGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .sideStack {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .hero {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .heroControls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .refreshMeta {
+    text-align: left;
+  }
+
+  .errorPanel {
+    grid-template-columns: auto 1fr;
+  }
+
+  .errorPanel button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .commandBrief {
+    min-height: 0;
+    grid-template-columns: auto 1fr;
+    padding: 16px;
+  }
+
+  .commandIcon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .commandCopy strong {
+    font-size: 15px;
+  }
+
+  .commandFacts {
+    gap: 0;
+  }
+
+  .commandFacts span {
+    padding: 0 8px;
+  }
+
+  .commandFacts span:first-child {
+    padding-left: 0;
+  }
+
+  .metricGrid {
+    gap: 8px;
+  }
+
+  .metricCard {
+    min-height: 112px;
+    padding: 14px;
+  }
+
+  .metricCard > strong {
+    margin-top: 14px;
+    font-size: clamp(19px, 6vw, 24px);
+  }
+
+  .signalStrip {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .signalItem:nth-child(3) {
+    border-right: 1px solid var(--dev-border-light);
+  }
+
+  .signalItem:nth-child(even) {
+    border-right: 0;
+  }
+
+  .signalItem:nth-child(n + 3) {
+    border-top: 1px solid var(--dev-border-light);
+  }
+
+  .primaryGrid,
+  .secondaryGrid {
+    gap: 12px;
+  }
+
+  .sideStack {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .sectionHeader {
+    min-height: 58px;
+    padding: 12px 14px;
+  }
+
+  .sectionHeader > a {
+    font-size: 0;
+  }
+
+  .sectionHeader > a svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .actionRow {
+    min-height: 68px;
+    padding: 10px 13px;
+  }
+
+  .actionCopy span {
+    white-space: normal;
+  }
+
+  .chartBody svg,
+  .chartSkeleton {
+    height: 140px;
+  }
+
+  .activityRow {
+    grid-template-columns: 52px minmax(0, 1fr) 34px;
+    padding: 9px 13px;
+  }
+
+  .activityRow > code {
+    display: none;
+  }
+
+  .quickGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 420px) {
+  .commandFacts span {
+    font-size: 9px;
+  }
+
+  .metricTop span {
+    font-size: 11px;
+  }
+
+  .signalItem {
+    padding: 10px;
+  }
+
+  .signalItem span {
+    font-size: 10px;
+  }
+
+  .actionRow {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .actionRow > b {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinning {
+    animation: none;
+  }
+
+  .signalItem,
+  .actionRow,
+  .quickGrid a {
+    transition: none;
+  }
+}

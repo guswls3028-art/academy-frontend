@@ -26,8 +26,9 @@ export default function AutomationPage() {
 
       <div className={s.content}>
         <div className={s.pageHeader}>
-          <h1 className={s.pageTitle}>자동화</h1>
-          <p className={s.pageSub}>감사 로그 조회 + 크론 수동 트리거</p>
+          <p className={s.pageEyebrow}>SYSTEM OPERATIONS</p>
+          <h1 className={s.pageTitle}>자동화와 감사</h1>
+          <p className={s.pageSub}>누가 무엇을 바꿨는지 추적하고, 허용된 운영 작업만 안전하게 실행합니다.</p>
         </div>
 
         <div className={s.tabs}>
@@ -58,7 +59,7 @@ export default function AutomationPage() {
 function AuditTab() {
   const [filters, setFilters] = useState<AuditFilters>({ limit: 200 });
   const [draft, setDraft] = useState<AuditFilters>({ limit: 200 });
-  const { data, isLoading, refetch } = useAuditLog(filters);
+  const { data, isLoading, isError, refetch } = useAuditLog(filters);
 
   return (
     <>
@@ -112,6 +113,11 @@ function AuditTab() {
         {isLoading ? (
           <div className={s.cardBody}>
             <div className={`${s.skeleton} ${page.skeletonTall}`} />
+          </div>
+        ) : isError ? (
+          <div className={s.empty} role="alert">
+            <div className={s.emptyText}>감사 로그를 불러오지 못했습니다. 기록이 없는 것으로 간주하지 않습니다.</div>
+            <button type="button" className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`} onClick={() => void refetch()}>다시 시도</button>
           </div>
         ) : !data || data.results.length === 0 ? (
           <div className={s.empty}><div className={s.emptyText}>매칭된 감사 로그 없음</div></div>
@@ -174,7 +180,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 /* ===== 크론 ===== */
 function CronTab() {
-  const { data, isLoading, refetch } = useCronList();
+  const { data, isLoading, isError, refetch } = useCronList();
   const trigger = useTriggerCron();
   const { toast } = useDevToast();
   const [argsDraft, setArgsDraft] = useState<Record<string, string>>({});
@@ -198,7 +204,13 @@ function CronTab() {
   }
 
   if (isLoading) return <div className={`${s.skeleton} ${page.skeletonTall}`} />;
-  if (!data) return <div className={s.empty}><div className={s.emptyText}>크론 정보 없음</div></div>;
+  if (isError) return (
+    <div className={s.empty} role="alert">
+      <div className={s.emptyText}>허용된 운영 작업을 불러오지 못해 실행 기능을 잠갔습니다.</div>
+      <button type="button" className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`} onClick={() => void refetch()}>다시 시도</button>
+    </div>
+  );
+  if (!data) return <div className={s.empty}><div className={s.emptyText}>등록된 운영 작업이 없습니다.</div></div>;
 
   return (
     <div className={page.cronGrid}>

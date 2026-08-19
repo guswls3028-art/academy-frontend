@@ -108,9 +108,10 @@ export default function TenantsPage() {
       <div className={s.content}>
         <div className={styles.toolbar}>
           <div className={`${s.pageHeader} ${styles.compactPageHeader}`}>
-            <h1 className={s.pageTitle}>테넌트</h1>
+            <p className={s.pageEyebrow}>TENANT OPERATIONS</p>
+            <h1 className={s.pageTitle}>테넌트 관리</h1>
             <p className={s.pageSub}>
-              {isLoading ? "불러오는 중" : isError ? "목록 조회 실패" : `${tenants?.length ?? 0}개 테넌트 관리`}
+              {isLoading ? "테넌트 경계를 확인하고 있습니다." : isError ? "목록 조회 실패 — 생성과 변경을 잠갔습니다." : `${tenants?.length ?? 0}개 테넌트의 계정·도메인·사용량을 관리합니다.`}
             </p>
           </div>
           <button

@@ -1,6 +1,23 @@
-import { useState } from "react";
-import { Outlet, Link, Navigate, useLocation, useNavigate } from "react-router";
-import { Search } from "lucide-react";
+import { useState, type ComponentType } from "react";
+import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router";
+import {
+  Activity,
+  BarChart3,
+  Building2,
+  ChevronRight,
+  Command,
+  CreditCard,
+  ExternalLink,
+  Inbox,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  MoreHorizontal,
+  Search,
+  ShieldCheck,
+  Workflow,
+  X,
+} from "lucide-react";
 import { logout } from "@/auth/api/auth.api";
 import { useProgram } from "@/shared/program";
 import {
@@ -12,14 +29,41 @@ import { useCommandPaletteHotkey } from "@dev/shared/components/useCommandPalett
 import { useDevPwa } from "@dev/shared/hooks/useDevPwa";
 import s from "./DevLayout.module.css";
 
-const NAV_ITEMS = [
-  { to: "/dev/dashboard", label: "대시보드", icon: IconDashboard },
-  { to: "/dev/tenants", label: "테넌트", icon: IconTenants },
-  { to: "/dev/billing", label: "결제", icon: IconBilling },
-  { to: "/dev/inbox", label: "문의함", icon: IconInbox },
-  { to: "/dev/product-analytics", label: "기능 신호", icon: IconSignals },
-  { to: "/dev/automation", label: "자동화", icon: IconAutomation },
+type NavItem = {
+  to: string;
+  label: string;
+  description: string;
+  icon: ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
+};
+
+const NAV_SECTIONS: Array<{ label: string; items: NavItem[] }> = [
+  {
+    label: "개요",
+    items: [
+      { to: "/dev/dashboard", label: "운영 대시보드", description: "핵심 상태와 우선 조치", icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: "핵심 운영",
+    items: [
+      { to: "/dev/tenants", label: "테넌트", description: "계정·도메인·사용량", icon: Building2 },
+      { to: "/dev/billing", label: "결제", description: "구독·인보이스·입금", icon: CreditCard },
+      { to: "/dev/inbox", label: "문의 운영함", description: "도입·버그·개선 의견", icon: Inbox },
+    ],
+  },
+  {
+    label: "분석과 시스템",
+    items: [
+      { to: "/dev/product-analytics", label: "기능 사용 신호", description: "방문·참여·완료", icon: BarChart3 },
+      { to: "/dev/automation", label: "자동화", description: "감사 로그·크론", icon: Workflow },
+    ],
+  },
 ];
+
+const NAV_ITEMS = NAV_SECTIONS.flatMap((section) => section.items);
+const MOBILE_PRIMARY = NAV_ITEMS.filter((item) =>
+  ["/dev/dashboard", "/dev/tenants", "/dev/inbox"].includes(item.to),
+);
 
 export default function DevLayout() {
   const location = useLocation();
@@ -29,7 +73,9 @@ export default function DevLayout() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   useCommandPaletteHotkey(setPaletteOpen);
   useDevPwa();
-  const operationsConsoleHref = isDeveloperConsoleHost()
+
+  const productionConsole = isDeveloperConsoleHost();
+  const operationsConsoleHref = productionConsole
     ? `${PRIMARY_APP_ORIGIN}/workspace`
     : "/workspace";
 
@@ -42,16 +88,28 @@ export default function DevLayout() {
       return <Navigate to="/workspace" replace />;
     }
   }
+
   const isActive = (path: string) =>
-    location.pathname === path || location.pathname.startsWith(path + "/");
+    location.pathname === path || location.pathname.startsWith(`${path}/`);
+  const currentItem = NAV_ITEMS.find((item) => isActive(item.to)) ?? NAV_ITEMS[0];
+  const secondaryRouteActive = NAV_ITEMS.some(
+    (item) => !MOBILE_PRIMARY.includes(item) && isActive(item.to),
+  );
+
+  function handleLogout() {
+    logout();
+    navigate("/login");
+  }
 
   return (
     <div className={s.shell}>
-      {/* ── Desktop Sidebar ── */}
-      <aside className={s.sidebar}>
+      <aside className={s.sidebar} aria-label="개발자 콘솔 주 메뉴">
         <div className={s.sidebarBrand}>
-          <div className={s.brandIcon}>A</div>
-          <span className={s.brandName}>Academy</span>
+          <div className={s.brandMark} aria-hidden>H+</div>
+          <div className={s.brandCopy}>
+            <strong>Academy Control</strong>
+            <span>Platform operations</span>
+          </div>
           <span className={s.brandTag}>DEV</span>
         </div>
 
@@ -61,203 +119,160 @@ export default function DevLayout() {
           className={s.paletteButton}
           title="글로벌 검색 (Cmd/Ctrl+K)"
         >
-          <Search size={14} strokeWidth={1.8} />
+          <Search size={16} strokeWidth={1.8} />
           <span className={s.paletteLabel}>테넌트·사용자 검색</span>
-          <kbd className={s.paletteShortcut}>⌘K</kbd>
+          <kbd className={s.paletteShortcut}><Command size={10} /> K</kbd>
         </button>
 
         <nav className={s.sidebarNav}>
-          <div className={s.navSection}>
-            <div className={s.navSectionLabel}>메뉴</div>
-            {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={`${s.navItem} ${isActive(item.to) ? s.navItemActive : ""}`}
-              >
-                <item.icon className={s.navIcon} />
-                {item.label}
-              </Link>
-            ))}
-          </div>
+          {NAV_SECTIONS.map((section) => (
+            <div className={s.navSection} key={section.label}>
+              <div className={s.navSectionLabel}>{section.label}</div>
+              {section.items.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={`${s.navItem} ${isActive(item.to) ? s.navItemActive : ""}`}
+                  aria-current={isActive(item.to) ? "page" : undefined}
+                >
+                  <item.icon className={s.navIcon} strokeWidth={1.8} />
+                  <span className={s.navCopy}>
+                    <strong>{item.label}</strong>
+                    <small>{item.description}</small>
+                  </span>
+                  {isActive(item.to) && <ChevronRight className={s.navChevron} aria-hidden />}
+                </Link>
+              ))}
+            </div>
+          ))}
         </nav>
 
         <div className={s.sidebarFooter}>
-          <a href={operationsConsoleHref} className={s.navItem}>
-            <IconExternal className={s.navIcon} />
-            운영 콘솔
+          <a href={operationsConsoleHref} className={s.utilityLink}>
+            <ExternalLink size={16} strokeWidth={1.8} />
+            운영 콘솔 열기
           </a>
-          <button
-            type="button"
-            className={s.navItem}
-            onClick={() => { logout(); navigate("/login"); }}
-          >
-            <IconLogout className={s.navIcon} />
+          <button type="button" className={s.utilityLink} onClick={handleLogout}>
+            <LogOut size={16} strokeWidth={1.8} />
             로그아웃
           </button>
         </div>
       </aside>
 
-      {/* ── Mobile Top Bar ── */}
       <header className={s.mobileTopBar}>
         <div className={s.mobileTopLeft}>
-          <div className={`${s.brandIcon} ${s.mobileBrandIcon}`}>A</div>
-          <span className={s.mobileBrandName}>Academy <span className={s.brandTag}>DEV</span></span>
+          <div className={s.brandMark} aria-hidden>H+</div>
+          <div className={s.mobileTitle}>
+            <strong>{currentItem.label}</strong>
+            <span>Academy Control</span>
+          </div>
         </div>
-        <button
-          type="button"
-          className={s.mobileMenuBtn}
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          aria-label="메뉴"
-        >
-          {mobileMenuOpen ? <IconClose /> : <IconMenu />}
-        </button>
+        <div className={s.mobileTopActions}>
+          <button
+            type="button"
+            className={s.mobileIconButton}
+            onClick={() => setPaletteOpen(true)}
+            aria-label="테넌트·사용자 검색"
+          >
+            <Search size={19} />
+          </button>
+          <button
+            type="button"
+            className={s.mobileIconButton}
+            onClick={() => setMobileMenuOpen((open) => !open)}
+            aria-label={mobileMenuOpen ? "전체 메뉴 닫기" : "전체 메뉴 열기"}
+            aria-expanded={mobileMenuOpen}
+          >
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
       </header>
 
-      {/* ── Mobile Dropdown Menu ── */}
       {mobileMenuOpen && (
         <div className={s.mobileMenuOverlay} onClick={() => setMobileMenuOpen(false)}>
-          <nav className={s.mobileMenu} onClick={(e) => e.stopPropagation()}>
-            <a href={operationsConsoleHref} className={s.mobileMenuItem} onClick={() => setMobileMenuOpen(false)}>
-              <IconExternal className={s.navIcon} />
-              운영 콘솔
-            </a>
-            <button
-              type="button"
-              className={s.mobileMenuItem}
-              onClick={() => { logout(); navigate("/login"); }}
-            >
-              <IconLogout className={s.navIcon} />
-              로그아웃
-            </button>
+          <nav className={s.mobileMenu} onClick={(event) => event.stopPropagation()} aria-label="전체 개발자 메뉴">
+            <div className={s.mobileMenuHeader}>
+              <span>전체 메뉴</span>
+              <small>플랫폼 운영 도구</small>
+            </div>
+            {NAV_ITEMS.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={s.mobileMenuItem}
+                data-active={isActive(item.to) ? "true" : undefined}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <item.icon className={s.navIcon} strokeWidth={1.8} />
+                <span>
+                  <strong>{item.label}</strong>
+                  <small>{item.description}</small>
+                </span>
+                <ChevronRight size={16} aria-hidden />
+              </Link>
+            ))}
+            <div className={s.mobileUtilityLinks}>
+              <a href={operationsConsoleHref} className={s.mobileMenuItem}>
+                <ExternalLink className={s.navIcon} />
+                <span><strong>운영 콘솔</strong><small>업무 화면으로 이동</small></span>
+              </a>
+              <button type="button" className={s.mobileMenuItem} onClick={handleLogout}>
+                <LogOut className={s.navIcon} />
+                <span><strong>로그아웃</strong><small>현재 세션 종료</small></span>
+              </button>
+            </div>
           </nav>
         </div>
       )}
 
-      {/* ── Main Content ── */}
       <div className={s.main}>
+        <section className={s.statusLedger} aria-label="운영 환경 상태">
+          <div className={s.ledgerItem} data-tone={productionConsole ? "live" : "local"}>
+            <Activity size={13} aria-hidden />
+            <span>{productionConsole ? "PRODUCTION" : "LOCAL PREVIEW"}</span>
+          </div>
+          <div className={s.ledgerItem}>
+            <ShieldCheck size={13} aria-hidden />
+            <span>플랫폼 관리자</span>
+          </div>
+          <div className={s.ledgerItem}>
+            <span className={s.ledgerLabel}>인증 테넌트</span>
+            <code>{program?.tenantCode || "확인 중"}</code>
+          </div>
+          <div className={s.ledgerContext}>
+            <span>{currentItem.label}</span>
+            <small>{currentItem.description}</small>
+          </div>
+        </section>
         <Outlet />
       </div>
 
-      {/* ── Mobile Bottom Tab Bar ── */}
-      <nav className={s.mobileTabBar}>
-        {NAV_ITEMS.map((item) => (
+      <nav className={s.mobileTabBar} aria-label="핵심 개발자 메뉴">
+        {MOBILE_PRIMARY.map((item) => (
           <Link
             key={item.to}
             to={item.to}
             className={`${s.mobileTab} ${isActive(item.to) ? s.mobileTabActive : ""}`}
+            aria-current={isActive(item.to) ? "page" : undefined}
             onClick={() => setMobileMenuOpen(false)}
           >
-            <item.icon className={s.mobileTabIcon} />
-            <span className={s.mobileTabLabel}>{item.label}</span>
+            <item.icon className={s.mobileTabIcon} strokeWidth={1.8} />
+            <span className={s.mobileTabLabel}>{item.to === "/dev/inbox" ? "문의함" : item.label.replace("운영 ", "")}</span>
           </Link>
         ))}
+        <button
+          type="button"
+          className={`${s.mobileTab} ${secondaryRouteActive || mobileMenuOpen ? s.mobileTabActive : ""}`}
+          onClick={() => setMobileMenuOpen((open) => !open)}
+          aria-label="전체 메뉴"
+          aria-expanded={mobileMenuOpen}
+        >
+          <MoreHorizontal className={s.mobileTabIcon} />
+          <span className={s.mobileTabLabel}>전체</span>
+        </button>
       </nav>
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
-  );
-}
-
-/* ===== Inline SVG Icons ===== */
-
-function IconDashboard({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="1" y="1" width="7" height="7" rx="1.5" />
-      <rect x="10" y="1" width="7" height="4" rx="1.5" />
-      <rect x="1" y="10" width="7" height="4" rx="1.5" />
-      <rect x="10" y="7" width="7" height="7" rx="1.5" />
-    </svg>
-  );
-}
-
-function IconTenants({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 16V5l6-3.5L15 5v11" />
-      <path d="M1 16h16" />
-      <rect x="6" y="8" width="6" height="4" rx="0.5" />
-      <path d="M9 12v4" />
-    </svg>
-  );
-}
-
-function IconExternal({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M13 10v4.5a1.5 1.5 0 01-1.5 1.5h-8A1.5 1.5 0 012 14.5v-8A1.5 1.5 0 013.5 5H8" />
-      <path d="M11 2h5v5" />
-      <path d="M7 11L16 2" />
-    </svg>
-  );
-}
-
-function IconLogout({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 16H3.5A1.5 1.5 0 012 14.5v-11A1.5 1.5 0 013.5 2H6" />
-      <path d="M12 13l4-4-4-4" />
-      <path d="M16 9H7" />
-    </svg>
-  );
-}
-
-function IconMenu() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-      <path d="M3 6h14M3 10h14M3 14h14" />
-    </svg>
-  );
-}
-
-function IconClose() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-      <path d="M5 5l10 10M15 5L5 15" />
-    </svg>
-  );
-}
-
-function IconBilling({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="4" width="14" height="10" rx="1.5" />
-      <path d="M2 8h14" />
-      <path d="M5 12h3" />
-      <path d="M11 12h2" />
-    </svg>
-  );
-}
-
-function IconInbox({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2 10l3-7h8l3 7" />
-      <path d="M2 10v4.5A1.5 1.5 0 003.5 16h11a1.5 1.5 0 001.5-1.5V10h-4l-1 2H7l-1-2H2z" />
-    </svg>
-  );
-}
-
-function IconAutomation({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="9" cy="9" r="6.5" />
-      <path d="M9 4.5v4.5l3 2" />
-    </svg>
-  );
-}
-
-function IconSignals({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-      <path d="M2 14.5h14" />
-      <path d="M4 12V8.5" />
-      <path d="M9 12V4" />
-      <path d="M14 12V6.5" />
-      <circle cx="4" cy="7" r="1" fill="currentColor" stroke="none" />
-      <circle cx="9" cy="2.5" r="1" fill="currentColor" stroke="none" />
-      <circle cx="14" cy="5" r="1" fill="currentColor" stroke="none" />
-    </svg>
   );
 }

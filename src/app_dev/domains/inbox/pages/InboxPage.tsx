@@ -149,9 +149,9 @@ export default function InboxPage() {
     <>
       <header className={layout.header}>
         <div className={layout.headerLeft}>
-          <Link to="/dev/dashboard" className={styles.breadcrumbLink}>Dashboard</Link>
+          <Link to="/dev/dashboard" className={styles.breadcrumbLink}>대시보드</Link>
           <span className={styles.breadcrumbSeparator}>/</span>
-          <span className={styles.breadcrumbCurrent}>문의함</span>
+          <span className={styles.breadcrumbCurrent}>문의 운영함</span>
         </div>
         <div className={layout.headerRight}>
           <span
