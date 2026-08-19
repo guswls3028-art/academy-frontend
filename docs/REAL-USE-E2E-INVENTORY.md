@@ -81,7 +81,7 @@
 
 | 영역 | spec | 현재 가치 | 보강 필요 |
 |------|------|-----------|-----------|
-| 공개 회원가입 승인 | `e2e/flows/signup-approval-roundtrip.spec.ts` | 공개 가입 UI, 관리자 승인 UI, 학생 로그인, cleanup, 통제번호 Alimtalk provider/log 확인까지 하나의 라운드트립으로 검증 | 실발송 run은 `E2E_ALLOW_SIGNUP_APPROVAL_REAL_SEND=1` + `01031217466` 전용. 매 실행 전 통제번호 duplicate pre-flight 필요 |
+| 공개 회원가입 승인·첫 수강 | `e2e/flows/signup-approval-roundtrip.spec.ts` | 공개 가입 UI, 관리자 승인 UI, 승인 직후 무발송, disposable 강의 첫 수강 확정, 학생 로그인, cleanup, 통제번호 Alimtalk provider/log 확인까지 하나의 라운드트립으로 검증 | 실발송 run은 `E2E_ALLOW_SIGNUP_APPROVAL_REAL_SEND=1` + `01031217466` 전용. 매 실행 전 통제번호 duplicate pre-flight 필요 |
 | 계정복구/교사 비번변경 | `e2e/auth/account-recovery-realuse.spec.ts` | 공용 비밀번호 찾기 UI -> 통제번호 실발송 -> account notification log -> 기존 비번 유지 -> staff reset/restore/delete cleanup | production run은 `E2E_ALLOW_ACCOUNT_RECOVERY_REAL_SEND=1` + `E2E_ACCOUNT_RECOVERY_CONTROLLED_PHONE=01031217466` 필요. staff reset 응답은 실제 변경 성공 뒤에도 발송 여부만 알리는 보안상 공통 문구이며, 비밀번호 변경은 후속 JWT 발급으로 판정. temp-login activation은 수신값 env 제공 시 추가 검증 |
 | 학생 Excel·Ymath 제보 회귀 | `e2e/admin/student-excel-password-options.spec.ts` | canonical `/workspace/students` 진입, 내려받은 실제 양식에 안전 행을 추가한 파일 파싱, 전화번호 누락 경고, 세 가지 초기 비밀번호 방식과 등록 차단/활성화 검증. 통제 실행에서는 Ymath owner 대리 로그인으로 동일 양식과 기존 차시 시험의 운영·채점 결과·출결 화면도 검사 | 학생/성적/알림을 만들지 않는 운영 안전 spec. Ymath 검증은 `E2E_ENABLE_YMATH_EXCEL_REGRESSION=1`에서만 실행하며 `impersonation.start` 감사 로그를 남긴다. worker 등록·계정 안내·cleanup은 통제번호를 사용하는 별도 canary 증거가 필요 |
 | 차시/성적/시험/과제 진입 | `e2e/admin/session-assessment-realuse.spec.ts` | 강의 목록->강의->차시->성적/시험/과제 탭을 실제 클릭으로 확인 | 실제 생성/저장/학생 반영 없음 |

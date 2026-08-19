@@ -178,7 +178,9 @@ jobs:
         run: pnpm install --frozen-lockfile --shamefully-hoist
 
       - name: Install Playwright
-        run: npx playwright install chromium --with-deps
+        # ubuntu-latest already carries the Chromium system dependencies. Keep
+        # this PR gate independent from the hosted runner's flaky APT mirror.
+        run: pnpm exec playwright install chromium
 
       - name: Guard production E2E safety boundaries
         run: pnpm guard:e2e-safety

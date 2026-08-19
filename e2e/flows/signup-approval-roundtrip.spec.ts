@@ -1,8 +1,8 @@
 /**
- * Public signup -> staff approval -> student login real-use canary.
+ * Public signup -> staff approval -> first enrollment -> student login canary.
  *
  * Production safety:
- * - signup approval can enqueue account Alimtalk messages;
+ * - approval alone is silent; first confirmed enrollment can enqueue account Alimtalk;
  * - when the API target is production, this spec refuses to run unless the
  *   controlled recipient is explicitly set to 01031217466.
  */
@@ -40,6 +40,7 @@ type CreatedState = {
   previousAutoApprove?: boolean;
   shouldRestoreAutoApprove?: boolean;
   previousAutoSend?: AutoSendSnapshot[];
+  lectureId?: number;
 };
 
 const created: CreatedState = {};
@@ -340,11 +341,56 @@ async function loginAsApprovedStudent(page: Page): Promise<void> {
   await expect(page.getByText(STUDENT_NAME).first()).toBeVisible({ timeout: 15_000 });
 }
 
+async function confirmFirstEnrollment(
+  request: APIRequestContext,
+  access: string,
+): Promise<void> {
+  if (!created.studentId) throw new Error("approved student id is missing");
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const lecture = await apiFetch<{ id?: number }>(
+    request,
+    "POST",
+    "/lectures/lectures/",
+    access,
+    {
+      title: `[E2E-${TS}] 가입 첫 수강 검증`,
+      name: "가입 첫 수강 검증",
+      subject: "수학",
+      description: "가입 승인 후 첫 수강 계정 안내 canary",
+      start_date: today,
+      lecture_time: "수 19:00 ~ 21:00",
+      color: "#2563eb",
+      chip_label: "검증",
+      is_active: true,
+    },
+  );
+  expect(lecture.status, `lecture create -> ${lecture.status} ${JSON.stringify(lecture.body)}`).toBe(201);
+  created.lectureId = Number(lecture.body.id);
+
+  const enrollment = await apiFetch<Array<{ id?: number }>>(
+    request,
+    "POST",
+    "/enrollments/bulk_create/",
+    access,
+    { lecture: created.lectureId, students: [created.studentId] },
+  );
+  expect(
+    enrollment.status,
+    `first enrollment -> ${enrollment.status} ${JSON.stringify(enrollment.body)}`,
+  ).toBe(201);
+  expect(enrollment.body).toHaveLength(1);
+}
+
 async function waitForApprovalLogs(page: Page): Promise<void> {
   if (!created.studentId || process.env.E2E_SIGNUP_EXPECT_ALIMTALK !== "1") return;
 
   const studentTarget = `student:${created.studentId}`;
-  const parentTarget = `parent:${created.studentId}:${phoneForRun("parent")}`;
+  const parentTarget = `parent:${created.studentId}`;
   const deadline = Date.now() + (isProductionApi() ? 300_000 : 120_000);
   let lastStatus = "";
   let recentRegistrationLogs: unknown[] = [];
@@ -425,6 +471,19 @@ async function cleanup(request: APIRequestContext): Promise<void> {
     const rejected = await apiFetch(request, "POST", `/students/registration_requests/${created.requestId}/reject/`, access);
     expect([200, 400, 404], `cleanup registration request -> ${rejected.status} ${JSON.stringify(rejected.body)}`).toContain(rejected.status);
   }
+  if (created.lectureId) {
+    const lecture = await apiFetch(
+      request,
+      "DELETE",
+      `/lectures/lectures/${created.lectureId}/`,
+      access,
+    );
+    expect(
+      [200, 204, 404],
+      `cleanup lecture -> ${lecture.status} ${JSON.stringify(lecture.body)}`,
+    ).toContain(lecture.status);
+    created.lectureId = undefined;
+  }
 }
 
 test.describe.serial("[E2E] 회원가입 승인 라운드트립", () => {
@@ -485,6 +544,7 @@ test.describe.serial("[E2E] 회원가입 승인 라운드트립", () => {
     const adminPage = await adminContext.newPage();
     try {
       await approveFromAdminUi(adminPage);
+      await confirmFirstEnrollment(request, adminTokens.access);
       await waitForApprovalLogs(adminPage);
     } finally {
       await adminContext.close();
