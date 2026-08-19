@@ -69,7 +69,7 @@ export default function DashboardPage() {
           <div className={s.heroControls}>
             <div className={s.refreshMeta} aria-live="polite">
               <span>마지막 동기화</span>
-              <strong>{dataUpdatedAt ? formatTime(dataUpdatedAt) : "확인 중"}</strong>
+              <strong>{dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString("ko-KR") : "확인 중"}</strong>
               <small>60초 자동 갱신</small>
             </div>
             <button
@@ -383,10 +383,6 @@ function buildThirtyDaySeries(series: Array<{ date: string; count: number }>) {
     days.push({ date: key, count: series.find((row) => row.date === key)?.count ?? 0 });
   }
   return days;
-}
-
-function formatTime(timestamp: number): string {
-  return new Intl.DateTimeFormat("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(timestamp);
 }
 
 function shortDate(date: string | undefined): string {
