@@ -134,8 +134,9 @@ spec에서 재사용하지 않는다. 생성·수정·삭제를 검증하는 spe
 
 ## 계정 안내 알림톡 안전 가드
 
-학생 생성/비밀번호 변경의 계정 안내 알림톡은 제품 정책상 필수 발송이다. E2E에서 `send_welcome_message=false`나
-`skip_notify=true`로 발송을 끄는 방식은 더 이상 유효하지 않다.
+학생 명부 생성 자체는 계정 안내 알림톡을 발송하지 않는다. 신규 학생의 첫 수강 확정과 비밀번호 변경의
+계정 안내 알림톡은 제품 정책상 필수 발송이다. E2E에서 `send_welcome_message=false`나 `skip_notify=true`로
+첫 수강 또는 비밀번호 변경 알림을 끄는 방식은 더 이상 유효하지 않다.
 
 `pnpm guard:e2e-safety`는 production mutation guard와 strict fixture import guard를 함께 실행한다. 활성 spec은
 `@playwright/test`에서 직접 runtime `test`를 가져오지 않고 `fixtures/strictTest.ts`를 사용해야 한다. 의도적으로

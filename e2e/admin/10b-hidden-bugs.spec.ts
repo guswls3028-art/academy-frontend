@@ -26,13 +26,23 @@ test.describe("알림톡 숨은 모순", () => {
 
   test("가입 자동발송은 승인 전용 양식과 발송 가능 상태를 일관되게 표시한다", async ({ page }) => {
     await gotoAndSettle(page, `${BASE}/workspace/message/auto-send`);
-    const signupCard = page.locator("[data-card-state]").filter({ hasText: "가입 안내(학생)" }).first();
+    const signupCard = page.locator("[data-card-state]").filter({ hasText: "첫 수강 계정 안내(학생)" }).first();
     await expect(signupCard).toBeVisible();
     const text = await signupCard.innerText();
     if (text.includes("사용 가능")) {
       expect(text).toContain("승인된 전용 알림톡");
       expect(text).not.toContain("아직 자동 발송하지 않음");
     }
+  });
+
+  test("학생 명부 등록 화면은 첫 수강 전 알림톡이 발송되지 않음을 안내한다", async ({ page }) => {
+    await gotoAndSettle(page, `${BASE}/workspace/students`);
+    await page.getByRole("button", { name: "학생 추가" }).first().click();
+
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByText("첫 수강 확정 시 계정 안내 발송", { exact: true })).toBeVisible();
+    await expect(dialog).toContainText("학생 명부 등록만으로는 발송되지 않으며");
+    await expect(dialog).not.toContainText("가입 안내 알림톡 자동 발송");
   });
 
   test("설정 API 변경 UI와 공급사 템플릿 생성 UI가 다시 생기지 않는다", async ({ page }) => {
