@@ -6,7 +6,8 @@
  */
 
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Download } from "lucide-react";
 import api from "@/shared/api/axios";
 import type { AdminExamSummary } from "@admin/domains/results/types/results.types";
 import type { AdminExamResultRow } from "@admin/domains/results/types/results.types";
@@ -16,7 +17,10 @@ import ExamResultsPanel from "@admin/domains/results/panels/ExamResultsPanel";
 import OmrReviewEntry from "@admin/domains/results/components/omr-review/OmrReviewEntry";
 import ExamResultExcelImport from "@admin/domains/results/components/ExamResultExcelImport";
 import ManualExamGradingGrid from "@admin/domains/results/components/ManualExamGradingGrid";
-import { Button, EmptyState } from "@/shared/ui/ds";
+import { Button, EmptyState, ICON_FOR_BUTTON } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
+import { downloadExamWrongNoteExport } from "@admin/domains/results/public/examResultExcel";
 import { adminExamsQueryKeys } from "../queryKeys";
 import styles from "./ExamResultsViewerPanel.module.css";
 
@@ -125,6 +129,14 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
   );
   const passScore = exam?.pass_score ?? 0;
 
+  const wrongNoteExportMutation = useMutation({
+    mutationFn: () => downloadExamWrongNoteExport(examId, exam?.title ?? "시험"),
+    onSuccess: () => feedback.success("학생별 오답 엑셀을 내려받았습니다."),
+    onError: (error) => feedback.error(
+      extractApiError(error, "학생별 오답 엑셀을 내려받지 못했습니다."),
+    ),
+  });
+
   const isLoading = summaryQ.isLoading || resultsQ.isLoading;
   const isError = summaryQ.isError || resultsQ.isError;
   const hasData = (summary && summary.participant_count > 0) || results.length > 0;
@@ -218,7 +230,20 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
           <Button type="button" intent="secondary" size="sm" disabled>
             문항별 통계 (엑셀)
           </Button>
-          <Button type="button" intent="secondary" size="sm" disabled>
+          <Button
+            type="button"
+            intent="secondary"
+            size="sm"
+            leftIcon={<Download size={ICON_FOR_BUTTON.sm} />}
+            loading={wrongNoteExportMutation.isPending}
+            disabled={!hasData}
+            title={
+              hasData
+                ? "현재 사이트에 저장된 오답과 복습 지정 문항을 학생별로 내려받습니다."
+                : "채점 결과가 저장되면 내려받을 수 있습니다."
+            }
+            onClick={() => wrongNoteExportMutation.mutate()}
+          >
             학생별 틀린 문항 (엑셀)
           </Button>
           <Button type="button" intent="secondary" size="sm" disabled>

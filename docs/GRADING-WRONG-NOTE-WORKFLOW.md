@@ -212,6 +212,20 @@ stale version, 편집 lease 충돌, 문항·배점 오류는 서버가 전체 �
 - 문제 페이지는 원본 길이에 맞춰 풀이 공간을 확보하고, 세로로 긴 해설은
   흰 여백과 저밀도 행 경계에서 여러 페이지로 나눠 읽을 수 있는 크기를 지킨다.
 
+## 학생별 오답 엑셀 내보내기
+
+- 시험 상세의 **채점·결과 → 통계**에서 **학생별 틀린 문항 (엑셀)**을 누르면
+  현재 사이트에 저장된 오답과 정답·복습 지정 문항을 한 파일로 내려받는다.
+- 파일은 학생별 한 행이며 학교·강의·총점, 오답 문항과 문항별 점수·학생 답안,
+  복습 지정 문항, 사이트 최종 저장 시각을 포함한다.
+- 채점 결과가 아직 없으면 버튼을 비활성화하고 이유를 설명한다. 결과는 있지만
+  현재 오답/복습 지정 기록이 없거나 요청이 실패하면 서버 메시지를 오류 피드백으로
+  표시하며 빈 파일을 성공처럼 내려받지 않는다.
+- 이 파일은 조회용이다. 결과를 수정하거나 다시 반영하는 동선은 기존 정오표와
+  **엑셀로 채점 결과 넣기**가 소유한다.
+- 다운로드 중에는 같은 버튼을 진행 상태로 바꾸고, 성공·실패를 명시적으로 알린다.
+  버튼 묶음은 390px에서 줄바꿈되어 가로 넘침 없이 눌릴 수 있어야 한다.
+
 ### 학생별 통합 제작
 
 - 학생 상세의 **오답노트** 탭은 학생의 모든 수강 강의를 강의별로 묶고, 각 시험과
@@ -231,6 +245,7 @@ stale version, 편집 lease 충돌, 문항·배점 오류는 서버가 전체 �
 
 ```powershell
 pnpm exec playwright test e2e/admin/manual-exam-grading.mock.spec.ts --reporter=list
+pnpm exec playwright test e2e/admin/exam-wrong-note-export.mock.spec.ts --reporter=list
 pnpm exec playwright test e2e/flows/exam-pdf-upload.spec.ts --reporter=list
 pnpm exec playwright test e2e/admin/student-unified-wrong-note.mock.spec.ts --reporter=list
 pnpm test:e2e:manual-grading-shortcuts
