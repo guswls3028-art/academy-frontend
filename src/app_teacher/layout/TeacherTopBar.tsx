@@ -21,6 +21,7 @@ import {
 import { GuideBookLauncher, getGuideBookPreset } from "@/shared/ui/guide";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { Menu, Bell, BellRing, Search } from "@teacher/shared/ui/Icons";
+import CompactStaffClockButton from "@/features/staff-clock/CompactStaffClockButton";
 interface Props {
   onMenuClick: () => void;
   onQuickNavigationClick: () => void;
@@ -158,6 +159,7 @@ export default function TeacherTopBar({
 
       {/* Right: 빠른 이동·가이드·알림. 홈은 좌측 브랜드 버튼 하나가 소유한다. */}
       <div style={{ display: "flex", alignItems: "center", gap: 0, flexShrink: 0 }}>
+        <CompactStaffClockButton />
         <button
           type="button"
           onClick={onQuickNavigationClick}

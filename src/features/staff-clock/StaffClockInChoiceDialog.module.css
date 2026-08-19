@@ -1,0 +1,211 @@
+.modal :global(.ant-modal-content) {
+  overflow: hidden;
+}
+
+.clockStage {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 20%, var(--color-border-divider));
+  border-radius: 16px;
+  background:
+    linear-gradient(120deg, color-mix(in srgb, var(--color-brand-primary) 11%, var(--color-bg-surface)) 0%, var(--color-bg-surface) 72%);
+}
+
+.clockIcon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--color-brand-primary);
+  color: var(--color-text-inverse, #fff);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--color-brand-primary) 24%, transparent);
+}
+
+.clockIcon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.clockValue {
+  color: var(--color-text-primary);
+  font-size: 26px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.clockStatus {
+  margin-top: 5px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.choiceList {
+  display: grid;
+  gap: 10px;
+}
+
+.workChoice {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 72px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 14px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.workChoice:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-border-divider));
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
+  transform: translateY(-1px);
+}
+
+.workChoice:focus-visible,
+.noClockChoice:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-border-focus) 42%, transparent);
+  outline-offset: 2px;
+}
+
+.workChoice:disabled,
+.noClockChoice:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.choiceIcon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface-hover));
+  color: var(--color-brand-primary);
+}
+
+.choiceIcon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.choiceCopy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.choiceCopy strong {
+  overflow: hidden;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.choiceCopy span {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.choiceAction {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-success) 13%, var(--color-bg-surface));
+  color: var(--color-success);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.unassigned {
+  padding: 14px;
+  border: 1px dashed var(--color-border-divider);
+  border-radius: 12px;
+  background: var(--color-bg-surface-hover);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.noClockChoice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  margin-top: 14px;
+  padding: 13px 14px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-bg-surface-hover) 72%, var(--color-bg-surface));
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.noClockChoice > span:first-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.noClockChoice strong {
+  color: var(--color-text-primary);
+  font-size: 14px;
+}
+
+.noClockChoice small {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.noClockChoice > span:last-child {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (max-width: 520px) {
+  .clockStage {
+    margin-bottom: 14px;
+    padding: 14px;
+  }
+
+  .workChoice {
+    grid-template-columns: 38px minmax(0, 1fr);
+    min-height: 78px;
+    padding: 11px 12px;
+  }
+
+  .choiceIcon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .choiceAction {
+    grid-column: 2;
+    width: max-content;
+    margin-top: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workChoice {
+    transition: none;
+  }
+}

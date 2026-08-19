@@ -26,9 +26,9 @@ function getMonthBounds(month: string): DateRange {
   return { from: first, to: last };
 }
 
-/** 내 계정은 설정 탭으로 이동. 프로필은 근태·지출만 */
+/** 내 계정은 설정 탭으로 이동. 프로필은 정본 근무 기록·개인 지출만 */
 const PROFILE_TABS = [
-  { key: "attendance", label: "근태", path: "/workspace/profile/attendance" },
+  { key: "attendance", label: "근무 기록", path: "/workspace/profile/attendance" },
   { key: "expense", label: "지출", path: "/workspace/profile/expense" },
 ];
 
@@ -63,7 +63,7 @@ export default function ProfileLayout() {
   return (
     <DomainLayout
       title="프로필"
-      description="근태 기록 · 지출 내역 (내 계정은 설정 탭에서)"
+      description="출퇴근 근무 기록 · 지출 내역 (내 계정은 설정 탭에서)"
       tabs={PROFILE_TABS}
     >
       <div className="max-w-[1200px] mx-auto">

@@ -2773,6 +2773,7 @@ export interface paths {
          * @description POST /api/v1/core/tenants/<tenant_id>/owner/
          *     dev_app 전용 — owner role만. 테넌트에 owner 등록.
          *     User가 없으면 생성 가능 (username, password 필수; name, phone 선택).
+         *     기존 User 승격은 promote_existing=true 재확인이 필요하며 자격 증명은 변경하지 않음.
          */
         post: operations["core_tenants_owner_create"];
         delete?: never;
@@ -2827,6 +2828,27 @@ export interface paths {
          *       - 해당 테넌트에서 owner 제거 (TenantMembership is_active=False)
          */
         patch: operations["core_tenants_owners_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/core/tenants/{tenant_id}/owners/{user_id}/password/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description POST /api/v1/core/tenants/<tenant_id>/owners/<user_id>/password/
+         *       - 플랫폼 운영자가 활성 owner의 임시 비밀번호를 재설정
+         *       - 기존 세션 무효화 및 다음 로그인 비밀번호 변경 강제
+         */
+        post: operations["core_tenants_owners_password_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/core/tenants/create/": {
@@ -7837,6 +7859,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/results/admin/exams/{exam_id}/wrong-note-export/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["results_admin_exams_wrong_note_export_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/results/admin/facts/": {
         parameters: {
             query?: never;
@@ -8418,6 +8456,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/staffs/{id}/work-records/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description 본인 또는 급여 관리자가 조회하는 기간별 정본 근무 기록. */
+        get: operations["staffs_personal_work_records_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/staffs/{id}/work-records/current/": {
         parameters: {
             query?: never;
@@ -8458,7 +8513,7 @@ export interface paths {
             cookie?: never;
         };
         /** @description 현재 근무 중인 직원 목록 (end_time 이 null 인 WorkRecord 가 있는 직원). 직급(role) + 근무 시작 시각·휴식 정보(드롭다운용). */
-        get: operations["staffs_currently_working_retrieve"];
+        get: operations["staffs_currently_working_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -9357,7 +9412,7 @@ export interface paths {
          *     1. 삭제된 학생 체크 (전화번호 또는 이름+학부모전화)
          *     2. 입력값 검증 (StudentCreateSerializer)
          *     3. create_student_account SSOT로 Parent/User/Student/Membership 생성
-         *     4. (옵션) 가입 성공 메시지 일괄 발송
+         *     4. 계정 안내는 첫 실제 수강 확정 시 발송
          */
         post: operations["students_create"];
         delete?: never;
@@ -11673,6 +11728,28 @@ export interface components {
          * @enum {string}
          */
         CorrectionStatusEnum: "PENDING" | "COMPLETED" | "NOT_REQUIRED";
+        CurrentlyWorkingStaff: {
+            break_minutes?: number;
+            /** Format: date-time */
+            break_started_at?: string;
+            break_total_seconds?: number;
+            /** Format: date */
+            date?: string;
+            role: components["schemas"]["CurrentlyWorkingStaffRoleEnum"];
+            staff_id: number;
+            staff_name: string;
+            /** Format: time */
+            started_at?: string;
+            work_type?: number;
+            work_type_name?: string;
+        };
+        /**
+         * @description * `owner` - owner
+         *     * `TEACHER` - TEACHER
+         *     * `ASSISTANT` - ASSISTANT
+         * @enum {string}
+         */
+        CurrentlyWorkingStaffRoleEnum: "owner" | "TEACHER" | "ASSISTANT";
         /**
          * @description * `0` - 월
          *     * `1` - 화
@@ -14341,7 +14418,7 @@ export interface components {
             pay_type?: components["schemas"]["PayTypeEnum"];
             /** @description 정규화된 전화번호 (하이픈 제거, 예: 01012345678) */
             phone?: string;
-            role?: components["schemas"]["RoleEnum"];
+            role?: components["schemas"]["StaffWriteRoleEnum"];
             username?: string;
         };
         PatchedStudentCustomFieldDefinitionRequest: {
@@ -15308,12 +15385,6 @@ export interface components {
          */
         RiskLogRuleEnum: "CONSECUTIVE_INCOMPLETE" | "CONSECUTIVE_LOW_SCORE" | "OTHER";
         /**
-         * @description * `TEACHER` - 강사
-         *     * `ASSISTANT` - 조교
-         * @enum {string}
-         */
-        RoleEnum: "TEACHER" | "ASSISTANT";
-        /**
          * @description * `ELEMENTARY` - 초등
          *     * `MIDDLE` - 중등
          *     * `HIGH` - 고등
@@ -15792,6 +15863,28 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
         };
+        StaffWorkCurrentStatus: {
+            break_minutes?: number;
+            /** Format: date-time */
+            break_started_at?: string;
+            break_total_seconds?: number;
+            /** Format: date */
+            date?: string;
+            hourly_wage?: number | null;
+            /** Format: time */
+            started_at?: string;
+            status: components["schemas"]["StaffWorkCurrentStatusStatusEnum"];
+            work_record_id?: number;
+            work_type?: number;
+            work_type_name?: string;
+        };
+        /**
+         * @description * `OFF` - OFF
+         *     * `WORKING` - WORKING
+         *     * `BREAK` - BREAK
+         * @enum {string}
+         */
+        StaffWorkCurrentStatusStatusEnum: "OFF" | "WORKING" | "BREAK";
         StaffWorkRecord: {
             /**
              * Format: int64
@@ -15856,6 +15949,17 @@ export interface components {
             /** Format: decimal */
             work_hours?: string | null;
             work_type: number;
+        };
+        StaffWorkStartRequestRequest: {
+            work_type: number;
+        };
+        StaffWorkSummary: {
+            expense_amount: number;
+            staff_id: number;
+            total_amount: number;
+            work_amount: number;
+            /** Format: double */
+            work_hours: number;
         };
         StaffWorkType: {
             /** Format: date-time */
@@ -15922,9 +16026,15 @@ export interface components {
             pay_type?: components["schemas"]["PayTypeEnum"];
             /** @description 정규화된 전화번호 (하이픈 제거, 예: 01012345678) */
             phone?: string;
-            role: components["schemas"]["RoleEnum"];
+            role: components["schemas"]["StaffWriteRoleEnum"];
             username?: string;
         };
+        /**
+         * @description * `TEACHER` - 강사
+         *     * `ASSISTANT` - 조교
+         * @enum {string}
+         */
+        StaffWriteRoleEnum: "TEACHER" | "ASSISTANT";
         /**
          * @description * `ACTIVE` - 활성
          *     * `INACTIVE` - 비활성
@@ -16722,6 +16832,14 @@ export interface components {
         TenantAwareTokenObtainPairRequest: {
             password: string;
             username: string;
+        };
+        TenantOwnerPasswordResetRequest: {
+            password: string;
+        };
+        TenantOwnerPasswordResetResponse: {
+            detail: string;
+            mustChangePassword: boolean;
+            userId: number;
         };
         TokenRefresh: {
             readonly access: string;
@@ -20926,6 +21044,34 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    core_tenants_owners_password_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: number;
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TenantOwnerPasswordResetRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["TenantOwnerPasswordResetRequest"];
+                "multipart/form-data": components["schemas"]["TenantOwnerPasswordResetRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantOwnerPasswordResetResponse"];
+                };
             };
         };
     };
@@ -29458,6 +29604,27 @@ export interface operations {
             };
         };
     };
+    results_admin_exams_wrong_note_export_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exam_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                };
+            };
+        };
+    };
     results_admin_facts_retrieve: {
         parameters: {
             query?: never;
@@ -30075,12 +30242,15 @@ export interface operations {
     staffs_list: {
         parameters: {
             query?: {
+                is_active?: boolean;
+                is_manager?: boolean;
                 /** @description 결과 정렬 시 사용할 필드. */
                 ordering?: string;
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
                 page?: number;
                 /** @description 페이지당 반환할 결과 수. */
                 page_size?: number;
+                pay_type?: string;
                 /** @description 검색어. */
                 search?: string;
             };
@@ -30130,7 +30300,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: string;
+                /** @description staff을 식별하는 고유한 정수 값. */
+                id: number;
             };
             cookie?: never;
         };
@@ -30151,7 +30322,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: string;
+                /** @description staff을 식별하는 고유한 정수 값. */
+                id: number;
             };
             cookie?: never;
         };
@@ -30178,7 +30350,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: string;
+                /** @description staff을 식별하는 고유한 정수 값. */
+                id: number;
             };
             cookie?: never;
         };
@@ -30198,7 +30371,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: string;
+                /** @description staff을 식별하는 고유한 정수 값. */
+                id: number;
             };
             cookie?: never;
         };
@@ -30225,7 +30399,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: string;
+                /** @description staff을 식별하는 고유한 정수 값. */
+                id: number;
             };
             cookie?: never;
         };
@@ -30249,10 +30424,14 @@ export interface operations {
     };
     staffs_summary_retrieve: {
         parameters: {
-            query?: never;
+            query: {
+                date_from: string;
+                date_to: string;
+            };
             header?: never;
             path: {
-                id: string;
+                /** @description staff을 식별하는 고유한 정수 값. */
+                id: number;
             };
             cookie?: never;
         };
@@ -30263,7 +30442,36 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StaffWrite"];
+                    "application/json": components["schemas"]["StaffWorkSummary"];
+                };
+            };
+        };
+    };
+    staffs_personal_work_records_list: {
+        parameters: {
+            query: {
+                date_from: string;
+                date_to: string;
+                /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
+                page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                /** @description staff을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedStaffWorkRecordList"];
                 };
             };
         };
@@ -30273,7 +30481,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: string;
+                /** @description staff을 식별하는 고유한 정수 값. */
+                id: number;
             };
             cookie?: never;
         };
@@ -30284,7 +30493,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StaffWrite"];
+                    "application/json": components["schemas"]["StaffWorkCurrentStatus"];
                 };
             };
         };
@@ -30294,29 +30503,30 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: string;
+                /** @description staff을 식별하는 고유한 정수 값. */
+                id: number;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StaffWriteRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["StaffWriteRequest"];
-                "multipart/form-data": components["schemas"]["StaffWriteRequest"];
+                "application/json": components["schemas"]["StaffWorkStartRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StaffWorkStartRequestRequest"];
+                "multipart/form-data": components["schemas"]["StaffWorkStartRequestRequest"];
             };
         };
         responses: {
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StaffWrite"];
+                    "application/json": components["schemas"]["StaffWorkRecord"];
                 };
             };
         };
     };
-    staffs_currently_working_retrieve: {
+    staffs_currently_working_list: {
         parameters: {
             query?: never;
             header?: never;
@@ -30330,7 +30540,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StaffWrite"];
+                    "application/json": components["schemas"]["CurrentlyWorkingStaff"][];
                 };
             };
         };

@@ -67,11 +67,13 @@ export type Attendance = {
   user?: number;
   date: string;
   start_time: string; // "HH:MM:SS"
-  end_time: string; // "HH:MM:SS"
+  end_time: string | null; // "HH:MM:SS"
   work_type: string;
   memo?: string | null;
   duration_hours: number;
   amount: number;
+  hourly_rate?: number | null;
+  break_minutes?: number;
   created_at?: string;
   updated_at?: string;
 };
@@ -79,48 +81,8 @@ export type Attendance = {
 export type AttendanceSummary = {
   total_hours: number;
   total_amount: number;
-  total_after_tax: number;
+  total_after_tax?: number;
 };
-
-export type AttendanceMutationPayload = {
-  date: string;
-  start_time: string; // "HH:MM"
-  end_time: string; // "HH:MM"
-  work_type: string;
-  memo?: string;
-};
-
-export async function fetchMyAttendance(month?: string) {
-  const { data } = await api.get<Attendance[]>("/core/profile/attendance/", {
-    params: month ? { month } : {},
-  });
-  return data;
-}
-
-export async function fetchAttendanceSummary(month?: string) {
-  const { data } = await api.get<AttendanceSummary>(
-    "/core/profile/attendance/summary/",
-    { params: month ? { month } : {} }
-  );
-  return data;
-}
-
-export async function createAttendance(payload: AttendanceMutationPayload) {
-  const { data } = await api.post<Attendance>("/core/profile/attendance/", payload);
-  return data;
-}
-
-export async function updateAttendance(
-  id: number,
-  payload: Partial<AttendanceMutationPayload>
-) {
-  const { data } = await api.patch<Attendance>(`/core/profile/attendance/${id}/`, payload);
-  return data;
-}
-
-export async function deleteAttendance(id: number) {
-  await api.delete(`/core/profile/attendance/${id}/`);
-}
 
 /* =====================
  * Expense

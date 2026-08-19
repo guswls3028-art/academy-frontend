@@ -1,157 +1,73 @@
-// PATH: src/app_admin/domains/profile/attendance/hooks/useAttendanceDomain.ts
-import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
-  type Attendance,
-  type AttendanceMutationPayload,
-  type AttendanceSummary,
-  createAttendance,
-  deleteAttendance,
-  fetchAttendanceSummary,
-  fetchMyAttendance,
-  updateAttendance,
-} from "../../api/profile.api";
-import { adminProfileQueryKeys } from "../../queryKeys";
+  fetchMyWorkRecords,
+  fetchMyWorkSummary,
+  fetchStaffMe,
+} from "@/features/staff-clock/api";
+import { staffClockQueryKeys } from "@/features/staff-clock/queryKeys";
+import type { Attendance, AttendanceSummary } from "../../api/profile.api";
 
-/** 백엔드가 배열 or {results: []} 형태로 와도 방어 */
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object";
-}
-
-function normalizeRows(data: unknown): Attendance[] {
-  if (Array.isArray(data)) return data as Attendance[];
-  if (isRecord(data)) {
-    const rows = data.results;
-    return Array.isArray(rows) ? rows as Attendance[] : [];
-  }
-  return [];
-}
-
-function inRange(date: string, from: string, to: string) {
-  if (!from || !to) return true;
-  return date >= from && date <= to;
-}
-
-export function useAttendanceDomain(month: string, range: { from: string; to: string }) {
-  const qc = useQueryClient();
-
+export function useAttendanceDomain(
+  _month: string,
+  range: { from: string; to: string },
+) {
+  const staffMeQ = useQuery({
+    queryKey: staffClockQueryKeys.me,
+    queryFn: fetchStaffMe,
+    staleTime: 30_000,
+  });
+  const staffId = staffMeQ.data?.staff_id;
   const listQ = useQuery({
-    queryKey: adminProfileQueryKeys.myAttendance(month),
-    queryFn: () => fetchMyAttendance(month),
+    queryKey: staffId != null
+      ? staffClockQueryKeys.personalRecords(staffId, range.from, range.to)
+      : ["my-work-records", "unavailable", range.from, range.to],
+    queryFn: () => fetchMyWorkRecords(staffId!, range.from, range.to),
+    enabled: staffId != null && Boolean(range.from && range.to),
   });
-
   const summaryQ = useQuery({
-    queryKey: adminProfileQueryKeys.myAttendanceSummary(month),
-    queryFn: () => fetchAttendanceSummary(month),
+    queryKey: staffId != null
+      ? staffClockQueryKeys.personalSummary(staffId, range.from, range.to)
+      : ["my-work-summary", "unavailable", range.from, range.to],
+    queryFn: () => fetchMyWorkSummary(staffId!, range.from, range.to),
+    enabled: staffId != null && Boolean(range.from && range.to),
   });
 
-  const invalidateAttendance = () =>
-    Promise.all([
-      qc.invalidateQueries({ queryKey: adminProfileQueryKeys.myAttendance(month) }),
-      qc.invalidateQueries({ queryKey: adminProfileQueryKeys.myAttendanceSummary(month) }),
-    ]);
+  const rows = useMemo<Attendance[]>(
+    () => (listQ.data ?? []).map((record) => ({
+      id: record.id,
+      date: record.date,
+      start_time: record.start_time,
+      end_time: record.end_time ?? null,
+      work_type: record.work_type_name,
+      memo: record.memo,
+      duration_hours: Number(record.work_hours ?? 0),
+      amount: Number(record.amount ?? 0),
+      hourly_rate: record.resolved_hourly_wage,
+      break_minutes: record.break_minutes,
+    })),
+    [listQ.data],
+  );
 
-  const createMut = useMutation({
-    mutationFn: createAttendance,
-    onSuccess: invalidateAttendance,
-  });
-
-  const updateMut = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<AttendanceMutationPayload> }) =>
-      updateAttendance(id, data),
-    onSuccess: invalidateAttendance,
-  });
-
-  const deleteMut = useMutation({
-    mutationFn: (id: number) => deleteAttendance(id),
-    onSuccess: invalidateAttendance,
-  });
-
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Attendance | null>(null);
-
-  const allRows = useMemo(() => normalizeRows(listQ.data), [listQ.data]);
-
-  /** ✅ 기간 필터 적용된 rows */
-  const rows = useMemo(() => {
-    const from = range?.from || "";
-    const to = range?.to || "";
-    return allRows.filter((r) => inRange(r.date, from, to));
-  }, [allRows, range?.from, range?.to]);
-
-  /** ✅ “기간 요약”은 프론트에서 계산 */
-  const rangeSummary = useMemo<AttendanceSummary | null>(() => {
-    if (!rows.length) return { total_hours: 0, total_amount: 0, total_after_tax: 0 };
-
-    const total_hours = rows.reduce((s, r) => s + (Number(r.duration_hours) || 0), 0);
-    const total_amount = rows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
-
-    // ✅ 세후는 서버(month summary)의 비율을 적용해서 추정 (원본 API 손상 없음)
-    const monthSum = summaryQ.data;
-    let total_after_tax = 0;
-    if (monthSum && monthSum.total_amount > 0) {
-      const ratio = monthSum.total_after_tax / monthSum.total_amount;
-      total_after_tax = Math.round(total_amount * ratio);
-    } else {
-      total_after_tax = total_amount;
-    }
-
-    return { total_hours, total_amount, total_after_tax };
-  }, [rows, summaryQ.data]);
-
-  const openCreate = () => {
-    setEditing(null);
-    setOpen(true);
-  };
-
-  const openEdit = (row: Attendance) => {
-    setEditing(row);
-    setOpen(true);
-  };
-
-  const close = () => {
-    setOpen(false);
-    setEditing(null);
-  };
-
-  const submit = async (form: AttendanceMutationPayload) => {
-    const payload: AttendanceMutationPayload = {
-      date: form.date,
-      start_time: form.start_time,
-      end_time: form.end_time,
-      work_type: form.work_type.trim() || "근무",
-      memo: form.memo?.trim() || undefined,
-    };
-
-    if (editing) {
-      await updateMut.mutateAsync({ id: editing.id, data: payload });
-    } else {
-      await createMut.mutateAsync(payload);
-    }
-    close();
-  };
-
-  const remove = async (row: Attendance) => {
-    if (!confirm("해당 근태 기록을 삭제하시겠습니까?")) return;
-    await deleteMut.mutateAsync(row.id);
-  };
+  const rangeSummary = useMemo<AttendanceSummary>(
+    () => ({
+      total_hours: Number(summaryQ.data?.work_hours ?? 0),
+      total_amount: Number(summaryQ.data?.work_amount ?? 0),
+    }),
+    [summaryQ.data],
+  );
 
   return {
-    // ✅ 기존 유지 + 확장
-    rows,                 // 기간 필터 적용
-    allRows,              // 월 전체(엑셀/참고용)
-    summary: summaryQ.data,     // 월 요약(서버)
-    rangeSummary,               // 기간 요약(프론트)
-    isLoading: listQ.isLoading,
-
-    open,
-    editing,
-    submitting: createMut.isPending || updateMut.isPending,
-
-    openCreate,
-    openEdit,
-    close,
-    submit,
-    remove,
+    rows,
+    allRows: rows,
+    rangeSummary,
+    isLoading: staffMeQ.isLoading || listQ.isLoading || summaryQ.isLoading,
+    isError: staffMeQ.isError || listQ.isError || summaryQ.isError,
+    refetch: () => Promise.all([
+      staffMeQ.refetch(),
+      listQ.refetch(),
+      summaryQ.refetch(),
+    ]),
+    hasStaffProfile: staffId != null,
   };
 }
