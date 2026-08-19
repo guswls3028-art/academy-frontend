@@ -21,10 +21,6 @@ import {
   updateRegistrationRequestSettings,
   type ClientRegistrationRequest,
 } from "../api/students.api";
-import {
-  fetchAutoSendConfigs,
-  updateAutoSendConfigs,
-} from "@admin/domains/messages/api/messages.api";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -295,55 +291,6 @@ export default function StudentsRequestsPage() {
     },
   });
 
-  /* ── 승인 시 자동발송 on/off ── */
-  const autoSendQ = useQuery({
-    queryKey: adminStudentsQueryKeys.messagingAutoSend,
-    queryFn: fetchAutoSendConfigs,
-    staleTime: 60_000,
-  });
-
-  const studentMsgEnabled = useMemo(
-    () =>
-      autoSendQ.data?.find(
-        (c) => c.trigger === "registration_approved_student"
-      )?.enabled ?? false,
-    [autoSendQ.data]
-  );
-  const parentMsgEnabled = useMemo(
-    () =>
-      autoSendQ.data?.find(
-        (c) => c.trigger === "registration_approved_parent"
-      )?.enabled ?? false,
-    [autoSendQ.data]
-  );
-
-  const toggleAutoSendM = useMutation({
-    mutationFn: ({
-      trigger,
-      enabled,
-    }: {
-      trigger: string;
-      enabled: boolean;
-    }) => {
-      const existing = autoSendQ.data?.find((c) => c.trigger === trigger);
-      return updateAutoSendConfigs([
-        {
-          trigger,
-          enabled,
-          template: existing?.template ?? null,
-          message_mode: existing?.message_mode ?? "alimtalk",
-          minutes_before: existing?.minutes_before ?? null,
-        },
-      ]);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.messagingAutoSend });
-    },
-    onError: () => {
-      feedback.error("알림 설정 변경에 실패했습니다.");
-    },
-  });
-
   const autoApproved = !!settingsQ.data?.auto_approve;
   const selectedList = useMemo(
     () => pendingList.filter((r) => selectedIds.has(r.id)),
@@ -394,6 +341,8 @@ export default function StudentsRequestsPage() {
           <h2 className={panelStyles.headerTitle}>가입 신청</h2>
           <p className={panelStyles.headerDesc}>
             학생이 로그인 페이지에서 회원가입을 요청하면 여기에 표시됩니다.
+            <br />
+            계정 안내 알림톡은 승인 시점이 아니라 첫 수강 확정 후 발송됩니다.
           </p>
         </div>
         <div className="students-requests__body">
@@ -424,6 +373,8 @@ export default function StudentsRequestsPage() {
               </div>
               <p className={panelStyles.headerDesc}>
                 학생이 로그인 페이지에서 회원가입을 요청하면 여기에 표시됩니다.
+                <br />
+                계정 안내 알림톡은 승인 시점이 아니라 첫 수강 확정 후 발송됩니다.
               </p>
             </div>
             <div className="students-requests__toggles">
@@ -435,38 +386,6 @@ export default function StudentsRequestsPage() {
                   checked={autoApproved}
                   onChange={(checked) => updateAutoApproveM.mutate(checked)}
                   disabled={updateAutoApproveM.isPending}
-                  size="small"
-                />
-              </label>
-              <label className="students-requests__auto-approve">
-                <span className="students-requests__auto-approve-label">
-                  학생 알림
-                </span>
-                <Switch
-                  checked={studentMsgEnabled}
-                  onChange={(checked) =>
-                    toggleAutoSendM.mutate({
-                      trigger: "registration_approved_student",
-                      enabled: checked,
-                    })
-                  }
-                  disabled={toggleAutoSendM.isPending}
-                  size="small"
-                />
-              </label>
-              <label className="students-requests__auto-approve">
-                <span className="students-requests__auto-approve-label">
-                  학부모 알림
-                </span>
-                <Switch
-                  checked={parentMsgEnabled}
-                  onChange={(checked) =>
-                    toggleAutoSendM.mutate({
-                      trigger: "registration_approved_parent",
-                      enabled: checked,
-                    })
-                  }
-                  disabled={toggleAutoSendM.isPending}
                   size="small"
                 />
               </label>
