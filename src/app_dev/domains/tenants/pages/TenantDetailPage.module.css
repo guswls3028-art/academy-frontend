@@ -219,6 +219,11 @@
   color: var(--dev-warning);
 }
 
+.dangerBadge {
+  background: var(--dev-danger-subtle);
+  color: var(--dev-danger);
+}
+
 .noBilling {
   color: var(--dev-text-muted);
 }
