@@ -48,7 +48,7 @@ import ClinicSectionFilter from "../../components/ClinicSectionFilter";
 import { hhmmText } from "@/shared/ui/time/timeFormat";
 import { clinicQueryKeys } from "../../queryKeys";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
-import { Button } from "@/shared/ui/ds";
+import { Button, EmptyState } from "@/shared/ui/ds";
 import RetakeTableRow from "./RetakeTableRow";
 import { formatNextAttempt, formatScoreDisplay } from "./remediationFormatters";
 
@@ -167,7 +167,12 @@ export default function ClinicBookingsPage() {
             {approvalsOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
           </span>
           <span className="clinic-bookings__pending-title">예약 승인 대기</span>
-          {pendingRows.length > 0 ? (
+          {pendingParticipants.listQ.isError ? (
+            <span className="clinic-bookings__pending-done">
+              <AlertTriangle size={14} />
+              확인 실패
+            </span>
+          ) : pendingRows.length > 0 ? (
             <span className="clinic-bookings__pending-badge">{pendingRows.length}</span>
           ) : (
             <span className="clinic-bookings__pending-done">
@@ -181,6 +186,22 @@ export default function ClinicBookingsPage() {
           <div className="clinic-bookings__pending-body">
             {pendingParticipants.listQ.isLoading ? (
               <div className="clinic-bookings__targets-empty">예약 신청을 불러오는 중...</div>
+            ) : pendingParticipants.listQ.isError ? (
+              <EmptyState
+                scope="panel"
+                tone="error"
+                title="예약 신청을 불러오지 못했습니다"
+                description="빈 목록으로 판단하지 않았습니다. 연결을 확인한 뒤 다시 시도해 주세요."
+                actions={(
+                  <Button
+                    intent="secondary"
+                    size="sm"
+                    onClick={() => void pendingParticipants.listQ.refetch()}
+                  >
+                    다시 시도
+                  </Button>
+                )}
+              />
             ) : pendingRows.length === 0 ? (
               <div className="clinic-bookings__targets-empty">
                 <p className="clinic-bookings__targets-empty-title">승인 대기 예약이 없습니다.</p>
@@ -252,12 +273,11 @@ function RemediationWorkspace() {
   const qc = useQueryClient();
   const [sectionFilter, setSectionFilter] = useState<number | null>(null);
   const [showResolved, setShowResolved] = useState(false);
-  const { data: targets = [], isLoading } = useClinicTargets(
-    {
-      section_id: sectionFilter ?? undefined,
-      include_resolved: showResolved,
-    },
-  );
+  const targetsQuery = useClinicTargets({
+    section_id: sectionFilter ?? undefined,
+    include_resolved: showResolved,
+  });
+  const { data: targets = [], isLoading, isError } = targetsQuery;
 
   const [viewMode, setViewMode] = useState<ViewMode>("items");
   const [search, setSearch] = useState("");
@@ -407,28 +427,28 @@ function RemediationWorkspace() {
           <div className="clinic-hub__kpi clinic-hub__kpi--primary">
             <Users size={16} />
             <div>
-              <span className="clinic-hub__kpi-value">{kpi.totalStudents}</span>
+              <span className="clinic-hub__kpi-value">{isError ? "—" : kpi.totalStudents}</span>
               <span className="clinic-hub__kpi-label">진행중 학생</span>
             </div>
           </div>
           <div className="clinic-hub__kpi clinic-hub__kpi--danger">
             <AlertTriangle size={16} />
             <div>
-              <span className="clinic-hub__kpi-value">{kpi.examItems}</span>
+              <span className="clinic-hub__kpi-value">{isError ? "—" : kpi.examItems}</span>
               <span className="clinic-hub__kpi-label">시험 불합격</span>
             </div>
           </div>
           <div className="clinic-hub__kpi">
             <BookOpen size={16} />
             <div>
-              <span className="clinic-hub__kpi-value">{kpi.homeworkItems}</span>
+              <span className="clinic-hub__kpi-value">{isError ? "—" : kpi.homeworkItems}</span>
               <span className="clinic-hub__kpi-label">과제 미통과</span>
             </div>
           </div>
           <div className="clinic-hub__kpi clinic-hub__kpi--warning">
             <Clock size={16} />
             <div>
-              <span className="clinic-hub__kpi-value">{kpi.missingItems}</span>
+              <span className="clinic-hub__kpi-value">{isError ? "—" : kpi.missingItems}</span>
               <span className="clinic-hub__kpi-label">미응시·미제출</span>
             </div>
           </div>
@@ -498,6 +518,22 @@ function RemediationWorkspace() {
             <div className="clinic-hub__skeleton" />
             <div className="clinic-hub__skeleton" />
           </div>
+        ) : isError ? (
+          <EmptyState
+            scope="panel"
+            tone="error"
+            title="클리닉 대상자를 불러오지 못했습니다"
+            description="대상자가 없는 것으로 판단하지 않았습니다. 연결을 확인한 뒤 다시 시도해 주세요."
+            actions={(
+              <Button
+                intent="secondary"
+                size="sm"
+                onClick={() => void targetsQuery.refetch()}
+              >
+                다시 시도
+              </Button>
+            )}
+          />
         ) : filtered.length === 0 ? (
           <div className="clinic-hub__empty">
             <CheckCircle2 size={48} className="clinic-hub__empty-icon" />

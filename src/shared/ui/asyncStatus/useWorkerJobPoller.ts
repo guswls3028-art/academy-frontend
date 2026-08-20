@@ -475,15 +475,22 @@ export function useWorkerJobPoller(
   const currentTenant = getTenantCodeForApiRequest() ?? "";
   const pendingIdsKey = pending.map((p) => p.id).join(",");
   const pollStartedAtRef = useRef<number | null>(null);
+  const pollCohortKeyRef = useRef("");
 
   useEffect(() => {
     if (pending.length === 0) {
       pollStartedAtRef.current = null;
+      pollCohortKeyRef.current = "";
       if (intervalRef.current) {
         clearTimeout(intervalRef.current);
         intervalRef.current = null;
       }
       return;
+    }
+
+    if (pollCohortKeyRef.current !== pendingIdsKey) {
+      pollCohortKeyRef.current = pendingIdsKey;
+      pollStartedAtRef.current = Date.now();
     }
 
     const getIntervalMs = () => {
@@ -532,19 +539,16 @@ export function useWorkerJobPoller(
       });
     };
 
-    let intervalMs = getIntervalMs();
-    if (intervalMs <= 0) return;
-
     const schedule = () => {
-      intervalMs = getIntervalMs();
+      if (intervalRef.current != null) return;
+      const intervalMs = getIntervalMs();
       if (intervalMs <= 0) return;
       intervalRef.current = window.setTimeout(() => {
+        intervalRef.current = null;
         tick();
         schedule();
       }, intervalMs);
     };
-    tick();
-    schedule();
 
     const onVisibility = () => {
       if (typeof document === "undefined") return;
@@ -558,6 +562,11 @@ export function useWorkerJobPoller(
     };
     if (typeof document !== "undefined") {
       document.addEventListener("visibilitychange", onVisibility);
+    }
+
+    if (typeof document === "undefined" || document.visibilityState !== "hidden") {
+      tick();
+      schedule();
     }
 
     return () => {
