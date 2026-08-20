@@ -38,6 +38,28 @@ function tenantOwnerErrorMessage(error: unknown): string {
   };
   return (detail && messages[detail]) || detail || "등록 실패";
 }
+
+function OwnerHandoffBadge({
+  isActive,
+  hasUsablePassword,
+  mustChangePassword,
+}: {
+  isActive?: boolean;
+  hasUsablePassword: boolean;
+  mustChangePassword: boolean;
+}) {
+  if (isActive === false) {
+    return <span className={`${s.badge} ${s.badgeInactive}`}>계정 비활성</span>;
+  }
+  if (!hasUsablePassword) {
+    return <span className={`${s.badge} ${styles.dangerBadge}`}>비밀번호 설정 필요</span>;
+  }
+  if (mustChangePassword) {
+    return <span className={`${s.badge} ${styles.warningBadge}`}>최초 로그인 대기</span>;
+  }
+  return <span className={`${s.badge} ${s.badgeActive}`}>인계 완료</span>;
+}
+
 export function TenantOwnersTab({ tenantId, tenantName }: { tenantId: number; tenantName: string }) {
   const navigate = useNavigate();
   const { data: owners, isLoading, isError, refetch } = useTenantOwners(tenantId);
@@ -249,7 +271,7 @@ export function TenantOwnersTab({ tenantId, tenantName }: { tenantId: number; te
                       <td data-label="역할">
                         <div className={styles.badgeStack}>
                           <span className={`${s.badge} ${s.badgeActive}`}>소유자</span>
-                          {o.isActive === false && <span className={`${s.badge} ${s.badgeInactive}`}>계정 비활성</span>}
+                          <OwnerHandoffBadge {...o} />
                         </div>
                       </td>
                       <td data-label="동작">
@@ -267,7 +289,7 @@ export function TenantOwnersTab({ tenantId, tenantName }: { tenantId: number; te
                       <td data-label="역할">
                         <div className={styles.badgeStack}>
                           <span className={`${s.badge} ${s.badgeActive}`}>소유자</span>
-                          {o.isActive === false && <span className={`${s.badge} ${s.badgeInactive}`}>계정 비활성</span>}
+                          <OwnerHandoffBadge {...o} />
                         </div>
                       </td>
                       <td data-label="동작">

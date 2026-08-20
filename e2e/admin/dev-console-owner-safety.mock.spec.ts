@@ -135,6 +135,8 @@ test.describe("개발자 콘솔 소유자 실패 안전", () => {
         name: "Existing Teacher",
         phone: "01000000000",
         role: "owner",
+        hasUsablePassword: true,
+        mustChangePassword: false,
       }] : []),
     }));
     await page.route("**/api/v1/core/tenants/11/owner/", async (route) => {
@@ -160,6 +162,8 @@ test.describe("개발자 콘솔 소유자 실패 안전", () => {
           userId: 77,
           username: "existing-teacher",
           name: "Existing Teacher",
+          hasUsablePassword: true,
+          mustChangePassword: false,
           role: "owner",
         }),
       });
@@ -231,6 +235,8 @@ test.describe("개발자 콘솔 소유자 실패 안전", () => {
         phone: "01000000000",
         role: "owner",
         isActive: true,
+        hasUsablePassword: true,
+        mustChangePassword: true,
       }]),
     }));
     await page.route("**/api/v1/core/tenants/11/owners/77/password/", async (route) => {
@@ -248,6 +254,7 @@ test.describe("개발자 콘솔 소유자 실패 안전", () => {
 
     await gotoAndSettle(page, `${BASE}/dev/tenants/11`);
     await page.getByRole("button", { name: "소유자", exact: true }).click();
+    await expect(page.getByText("최초 로그인 대기", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "비밀번호 초기화" }).click();
 
     await page.getByLabel("임시 비밀번호", { exact: true }).fill("temporary-owner-password");
@@ -268,5 +275,39 @@ test.describe("개발자 콘솔 소유자 실패 안전", () => {
     expect(resetBody).toEqual({ password: "temporary-owner-password" });
     await expect(page.getByText("Existing Owner 임시 비밀번호 설정")).toHaveCount(0);
     await expect(page.getByRole("alert")).toContainText("첫 로그인에서 새 비밀번호로 변경");
+  });
+
+  test("소유자 인계 완료와 비밀번호 설정 필요 상태를 구분한다", async ({ page }) => {
+    await stubDevTenant(page);
+    await page.route("**/api/v1/core/tenants/11/owners/", (route) => route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([
+        {
+          userId: 77,
+          username: "ready-owner",
+          name: "Ready Owner",
+          role: "owner",
+          isActive: true,
+          hasUsablePassword: true,
+          mustChangePassword: false,
+        },
+        {
+          userId: 78,
+          username: "blocked-owner",
+          name: "Blocked Owner",
+          role: "owner",
+          isActive: true,
+          hasUsablePassword: false,
+          mustChangePassword: true,
+        },
+      ]),
+    }));
+
+    await gotoAndSettle(page, `${BASE}/dev/tenants/11`);
+    await page.getByRole("button", { name: "소유자", exact: true }).click();
+
+    await expect(page.getByText("인계 완료", { exact: true })).toBeVisible();
+    await expect(page.getByText("비밀번호 설정 필요", { exact: true })).toBeVisible();
   });
 });

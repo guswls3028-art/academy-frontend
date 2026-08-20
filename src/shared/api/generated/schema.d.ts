@@ -661,7 +661,7 @@ export interface paths {
         put?: never;
         /**
          * @description POST /clinic/participants/{id}/complete/
-         *     자율학습 완료 처리 — 이력 기록 + 문자 트리거
+         *     자율학습 완료 처리 — 이력 기록 + 알림톡 트리거
          *
          *     상태 전이: PENDING/BOOKED → ATTENDED (complete 전용 전이)
          *     이미 ATTENDED/NO_SHOW/CANCELLED/REJECTED인 경우 상태는 변경하지 않고
@@ -2793,7 +2793,7 @@ export interface paths {
          * @description GET /api/v1/core/tenants/<tenant_id>/owners/
          *     dev_app 전용 — owner role만. 해당 테넌트의 Owner 목록 조회.
          */
-        get: operations["core_tenants_owners_retrieve"];
+        get: operations["core_tenants_owners_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7457,7 +7457,7 @@ export interface paths {
         put?: never;
         /**
          * @description POST /clinic/participants/{id}/complete/
-         *     자율학습 완료 처리 — 이력 기록 + 문자 트리거
+         *     자율학습 완료 처리 — 이력 기록 + 알림톡 트리거
          *
          *     상태 전이: PENDING/BOOKED → ATTENDED (complete 전용 전이)
          *     이미 ATTENDED/NO_SHOW/CANCELLED/REJECTED인 경우 상태는 변경하지 않고
@@ -16850,6 +16850,16 @@ export interface components {
             password: string;
             username: string;
         };
+        TenantOwnerListItem: {
+            hasUsablePassword: boolean;
+            isActive: boolean;
+            mustChangePassword: boolean;
+            name: string;
+            phone: string;
+            role: string;
+            userId: number;
+            username: string;
+        };
         TenantOwnerPasswordResetRequest: {
             password: string;
         };
@@ -21017,7 +21027,7 @@ export interface operations {
             };
         };
     };
-    core_tenants_owners_retrieve: {
+    core_tenants_owners_list: {
         parameters: {
             query?: never;
             header?: never;
@@ -21028,12 +21038,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No response body */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["TenantOwnerListItem"][];
+                };
             };
         };
     };

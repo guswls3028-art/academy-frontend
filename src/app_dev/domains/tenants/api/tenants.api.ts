@@ -32,6 +32,8 @@ export type TenantOwnerDto = {
   name: string;
   phone?: string;
   isActive?: boolean;
+  hasUsablePassword: boolean;
+  mustChangePassword: boolean;
   role: string;
 };
 
