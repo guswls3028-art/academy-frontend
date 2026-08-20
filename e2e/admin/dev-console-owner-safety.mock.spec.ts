@@ -99,7 +99,9 @@ test.describe("개발자 콘솔 소유자 실패 안전", () => {
     });
 
     await gotoAndSettle(page, `${BASE}/dev/tenants/11`);
-    await page.getByRole("button", { name: "소유자", exact: true }).click();
+    const ownersTab = page.getByRole("button", { name: "소유자", exact: true });
+    await expect(ownersTab).toBeVisible({ timeout: 60_000 });
+    await ownersTab.click();
 
     const failure = page.getByRole("alert");
     await expect(failure).toContainText("소유자 조회 실패");
@@ -135,8 +137,10 @@ test.describe("개발자 콘솔 소유자 실패 안전", () => {
         name: "Existing Teacher",
         phone: "01000000000",
         role: "owner",
+        isActive: true,
         hasUsablePassword: true,
         mustChangePassword: false,
+        handoffStatus: "complete",
       }] : []),
     }));
     await page.route("**/api/v1/core/tenants/11/owner/", async (route) => {
@@ -164,6 +168,7 @@ test.describe("개발자 콘솔 소유자 실패 안전", () => {
           name: "Existing Teacher",
           hasUsablePassword: true,
           mustChangePassword: false,
+          handoffStatus: "complete",
           role: "owner",
         }),
       });
@@ -223,6 +228,7 @@ test.describe("개발자 콘솔 소유자 실패 안전", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await stubDevTenant(page);
     let resetBody: Record<string, unknown> | null = null;
+    let ownerReadCount = 0;
     await page.route("**/api/v1/core/tenants/11/owners/", (route) => route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -237,8 +243,9 @@ test.describe("개발자 콘솔 소유자 실패 안전", () => {
         isActive: true,
         hasUsablePassword: true,
         mustChangePassword: true,
+        handoffStatus: "first_login_pending",
       }]),
-    }));
+    }).then(() => { ownerReadCount += 1; }));
     await page.route("**/api/v1/core/tenants/11/owners/77/password/", async (route) => {
       resetBody = route.request().postDataJSON() as Record<string, unknown>;
       return route.fulfill({
@@ -254,8 +261,14 @@ test.describe("개발자 콘솔 소유자 실패 안전", () => {
 
     await gotoAndSettle(page, `${BASE}/dev/tenants/11`);
     await page.getByRole("button", { name: "소유자", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "인계 대기 1명" })).toBeVisible();
+    await expect(page.getByLabel("인계 1/2단계 완료")).toBeVisible();
+    await expect(page.getByRole("link", { name: "대표자 로그인 열기 ↗" })).toHaveAttribute(
+      "href",
+      "https://godmin.kr/login",
+    );
     await expect(page.getByText("최초 로그인 대기", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "비밀번호 초기화" }).click();
+    await page.getByRole("button", { name: "비밀번호 재설정" }).click();
 
     await page.getByLabel("임시 비밀번호", { exact: true }).fill("temporary-owner-password");
     await page.getByLabel("임시 비밀번호 확인", { exact: true }).fill("temporary-owner-password");
@@ -275,14 +288,25 @@ test.describe("개발자 콘솔 소유자 실패 안전", () => {
     expect(resetBody).toEqual({ password: "temporary-owner-password" });
     await expect(page.getByText("Existing Owner 임시 비밀번호 설정")).toHaveCount(0);
     await expect(page.getByRole("alert")).toContainText("첫 로그인에서 새 비밀번호로 변경");
+    expect(ownerReadCount).toBeGreaterThanOrEqual(2);
   });
 
-  test("소유자 인계 완료와 비밀번호 설정 필요 상태를 구분한다", async ({ page }) => {
+  test("소유자 인계 완료와 비밀번호 설정 필요 상태를 구분한다", async ({ page }, testInfo) => {
     await stubDevTenant(page);
     await page.route("**/api/v1/core/tenants/11/owners/", (route) => route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify([
+        {
+          userId: 76,
+          username: "waiting-owner",
+          name: "Waiting Owner",
+          role: "owner",
+          isActive: true,
+          hasUsablePassword: true,
+          mustChangePassword: true,
+          handoffStatus: "first_login_pending",
+        },
         {
           userId: 77,
           username: "ready-owner",
@@ -291,6 +315,7 @@ test.describe("개발자 콘솔 소유자 실패 안전", () => {
           isActive: true,
           hasUsablePassword: true,
           mustChangePassword: false,
+          handoffStatus: "complete",
         },
         {
           userId: 78,
@@ -300,6 +325,7 @@ test.describe("개발자 콘솔 소유자 실패 안전", () => {
           isActive: true,
           hasUsablePassword: false,
           mustChangePassword: true,
+          handoffStatus: "password_setup_required",
         },
       ]),
     }));
@@ -309,5 +335,17 @@ test.describe("개발자 콘솔 소유자 실패 안전", () => {
 
     await expect(page.getByText("인계 완료", { exact: true })).toBeVisible();
     await expect(page.getByText("비밀번호 설정 필요", { exact: true })).toBeVisible();
+    await expect(page.getByText("최초 로그인 대기", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "인계 대기 2명" })).toBeVisible();
+    await expect(page.getByText(/Blocked Owner: 임시 비밀번호를 설정해야/)).toBeVisible();
+    await expect(page.getByLabel("인계 0/2단계 완료")).toBeVisible();
+    const desktopScreenshot = testInfo.outputPath("owner-handoff-checkpoint-desktop.png");
+    await page.screenshot({ path: desktopScreenshot, fullPage: true });
+    await testInfo.attach("owner-handoff-checkpoint-desktop", {
+      path: desktopScreenshot,
+      contentType: "image/png",
+    });
+    await page.getByRole("button", { name: "임시 비밀번호 설정" }).click();
+    await expect(page.getByRole("heading", { name: "Blocked Owner 임시 비밀번호 설정" })).toBeVisible();
   });
 });

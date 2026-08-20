@@ -13,6 +13,10 @@ import {
   beginImpersonation,
 } from "@dev/shared/components/impersonationSession";
 import { useDevToast } from "@dev/shared/components/useDevToast";
+import type {
+  TenantOwnerDto,
+  TenantOwnerHandoffStatus,
+} from "@dev/domains/tenants/api/tenants.api";
 import s from "@dev/layout/DevLayout.module.css";
 import styles from "./TenantDetailPage.module.css";
 
@@ -39,30 +43,156 @@ function tenantOwnerErrorMessage(error: unknown): string {
   return (detail && messages[detail]) || detail || "등록 실패";
 }
 
-function OwnerHandoffBadge({
-  isActive,
-  hasUsablePassword,
-  mustChangePassword,
-}: {
-  isActive?: boolean;
-  hasUsablePassword: boolean;
-  mustChangePassword: boolean;
-}) {
-  if (isActive === false) {
-    return <span className={`${s.badge} ${s.badgeInactive}`}>계정 비활성</span>;
-  }
-  if (!hasUsablePassword) {
-    return <span className={`${s.badge} ${styles.dangerBadge}`}>비밀번호 설정 필요</span>;
-  }
-  if (mustChangePassword) {
-    return <span className={`${s.badge} ${styles.warningBadge}`}>최초 로그인 대기</span>;
-  }
-  return <span className={`${s.badge} ${s.badgeActive}`}>인계 완료</span>;
+function ownerHandoffStatus(owner: TenantOwnerDto): TenantOwnerHandoffStatus {
+  if (owner.handoffStatus) return owner.handoffStatus;
+  if (owner.isActive === false) return "account_inactive";
+  if (!owner.hasUsablePassword) return "password_setup_required";
+  if (owner.mustChangePassword) return "first_login_pending";
+  return "complete";
 }
 
-export function TenantOwnersTab({ tenantId, tenantName }: { tenantId: number; tenantName: string }) {
+const OWNER_HANDOFF_COPY: Record<TenantOwnerHandoffStatus, {
+  label: string;
+  detail: string;
+  stage: 0 | 1 | 2;
+  badgeClass: string;
+}> = {
+  account_inactive: {
+    label: "계정 비활성",
+    detail: "사용자 계정을 활성화한 뒤 인계를 다시 확인하세요.",
+    stage: 0,
+    badgeClass: s.badgeInactive,
+  },
+  password_setup_required: {
+    label: "비밀번호 설정 필요",
+    detail: "임시 비밀번호를 설정해야 대표자가 처음 로그인할 수 있습니다.",
+    stage: 0,
+    badgeClass: styles.dangerBadge,
+  },
+  first_login_pending: {
+    label: "최초 로그인 대기",
+    detail: "대표자가 로그인해 본인 비밀번호로 변경하면 완료됩니다.",
+    stage: 1,
+    badgeClass: styles.warningBadge,
+  },
+  complete: {
+    label: "인계 완료",
+    detail: "대표자의 최초 비밀번호 변경이 완료되었습니다.",
+    stage: 2,
+    badgeClass: s.badgeActive,
+  },
+};
+
+const OWNER_HANDOFF_PRIORITY: Record<TenantOwnerHandoffStatus, number> = {
+  account_inactive: 0,
+  password_setup_required: 1,
+  first_login_pending: 2,
+  complete: 3,
+};
+
+function OwnerHandoffBadge({ owner }: { owner: TenantOwnerDto }) {
+  const copy = OWNER_HANDOFF_COPY[ownerHandoffStatus(owner)];
+  return <span className={`${s.badge} ${copy.badgeClass}`}>{copy.label}</span>;
+}
+
+function OwnerHandoffOverview({
+  owners,
+  primaryDomain,
+  isRefreshing,
+  onRefresh,
+  onPasswordSetup,
+}: {
+  owners: TenantOwnerDto[];
+  primaryDomain: string | null;
+  isRefreshing: boolean;
+  onRefresh: () => void;
+  onPasswordSetup: (owner: TenantOwnerDto) => void;
+}) {
+  if (!owners.length) return null;
+
+  const completeCount = owners.filter((owner) => ownerHandoffStatus(owner) === "complete").length;
+  const pendingOwner = [...owners]
+    .filter((owner) => ownerHandoffStatus(owner) !== "complete")
+    .sort((left, right) => (
+      OWNER_HANDOFF_PRIORITY[ownerHandoffStatus(left)]
+      - OWNER_HANDOFF_PRIORITY[ownerHandoffStatus(right)]
+    ))[0] ?? null;
+  const status = pendingOwner ? ownerHandoffStatus(pendingOwner) : "complete";
+  const copy = OWNER_HANDOFF_COPY[status];
+  const ownerLabel = pendingOwner?.name || pendingOwner?.username || "대표자";
+  const loginUrl = primaryDomain ? `https://${primaryDomain}/login` : null;
+
+  return (
+    <section
+      className={`${styles.handoffOverview} ${status === "complete" ? styles.handoffOverviewComplete : ""}`}
+      aria-labelledby="owner-handoff-title"
+    >
+      <div className={styles.handoffSummary}>
+        <p className={styles.handoffEyebrow}>OWNER HANDOFF</p>
+        <h4 id="owner-handoff-title" className={styles.handoffTitle}>
+          {pendingOwner ? `인계 대기 ${owners.length - completeCount}명` : "모든 소유자 인계 완료"}
+        </h4>
+        <p className={styles.handoffDescription}>
+          {pendingOwner ? `${ownerLabel}: ${copy.detail}` : `${completeCount}명 모두 최초 비밀번호 변경을 마쳤습니다.`}
+        </p>
+      </div>
+
+      <div className={styles.handoffProgress} aria-label={`인계 ${copy.stage}/2단계 완료`}>
+        <span className={`${styles.handoffStep} ${copy.stage >= 1 ? styles.handoffStepDone : ""}`}>
+          <span className={styles.handoffStepMark}>1</span>
+          계정 준비
+        </span>
+        <span className={`${styles.handoffConnector} ${copy.stage >= 2 ? styles.handoffConnectorDone : ""}`} />
+        <span className={`${styles.handoffStep} ${copy.stage >= 2 ? styles.handoffStepDone : ""}`}>
+          <span className={styles.handoffStepMark}>2</span>
+          본인 비밀번호 변경
+        </span>
+      </div>
+
+      <div className={styles.handoffActions}>
+        {pendingOwner && status === "password_setup_required" && (
+          <button
+            type="button"
+            className={`${s.btn} ${s.btnPrimary} ${s.btnSm}`}
+            onClick={() => onPasswordSetup(pendingOwner)}
+          >
+            임시 비밀번호 설정
+          </button>
+        )}
+        {pendingOwner && status === "first_login_pending" && loginUrl && (
+          <a
+            href={loginUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${s.btn} ${s.btnPrimary} ${s.btnSm}`}
+          >
+            대표자 로그인 열기 ↗
+          </a>
+        )}
+        <button
+          type="button"
+          className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`}
+          onClick={onRefresh}
+          disabled={isRefreshing}
+        >
+          {isRefreshing ? "확인 중..." : "상태 새로고침"}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+export function TenantOwnersTab({
+  tenantId,
+  tenantName,
+  primaryDomain,
+}: {
+  tenantId: number;
+  tenantName: string;
+  primaryDomain: string | null;
+}) {
   const navigate = useNavigate();
-  const { data: owners, isLoading, isError, refetch } = useTenantOwners(tenantId);
+  const { data: owners, isLoading, isError, isFetching, refetch } = useTenantOwners(tenantId);
   const registerOwner = useRegisterOwner();
   const impersonate = useImpersonate();
   const updateOwner = useUpdateOwner();
@@ -245,6 +375,18 @@ export function TenantOwnersTab({ tenantId, tenantName }: { tenantId: number; te
           </div>
         )}
 
+        <OwnerHandoffOverview
+          owners={owners ?? []}
+          primaryDomain={primaryDomain}
+          isRefreshing={isFetching}
+          onRefresh={() => void refetch()}
+          onPasswordSetup={(owner) => {
+            setResetId(owner.userId);
+            setResetPassword("");
+            setResetPasswordConfirm("");
+          }}
+        />
+
         {!owners?.length ? (
           <div className={s.empty}>
             <div className={s.emptyText}>등록된 소유자가 없습니다.</div>
@@ -271,7 +413,7 @@ export function TenantOwnersTab({ tenantId, tenantName }: { tenantId: number; te
                       <td data-label="역할">
                         <div className={styles.badgeStack}>
                           <span className={`${s.badge} ${s.badgeActive}`}>소유자</span>
-                          <OwnerHandoffBadge {...o} />
+                          <OwnerHandoffBadge owner={o} />
                         </div>
                       </td>
                       <td data-label="동작">
@@ -289,7 +431,10 @@ export function TenantOwnersTab({ tenantId, tenantName }: { tenantId: number; te
                       <td data-label="역할">
                         <div className={styles.badgeStack}>
                           <span className={`${s.badge} ${s.badgeActive}`}>소유자</span>
-                          <OwnerHandoffBadge {...o} />
+                          <OwnerHandoffBadge owner={o} />
+                          <span className={styles.handoffRowDetail}>
+                            {OWNER_HANDOFF_COPY[ownerHandoffStatus(o)].detail}
+                          </span>
                         </div>
                       </td>
                       <td data-label="동작">
@@ -317,9 +462,9 @@ export function TenantOwnersTab({ tenantId, tenantName }: { tenantId: number; te
                                 window.alert("임퍼소네이션 실패: " + (err.response?.data?.detail || String(e)));
                               }
                             }}
-                            title="이 사용자로 로그인 (감사 로그 기록)"
+                            title="운영 확인을 위해 이 사용자로 로그인 (감사 로그 기록)"
                           >
-                            로그인
+                            운영 로그인
                           </button>
                           <button
                             type="button"
@@ -339,7 +484,7 @@ export function TenantOwnersTab({ tenantId, tenantName }: { tenantId: number; te
                             disabled={o.isActive === false || resetOwnerPassword.isPending}
                             title={o.isActive === false ? "비활성 계정은 비밀번호를 초기화할 수 없습니다." : "기존 세션을 종료하고 임시 비밀번호 설정"}
                           >
-                            비밀번호 초기화
+                            비밀번호 재설정
                           </button>
                           <button
                             type="button"

@@ -12369,6 +12369,14 @@ export interface components {
          * @enum {string}
          */
         GenderEnum: "M" | "F";
+        /**
+         * @description * `account_inactive` - account_inactive
+         *     * `password_setup_required` - password_setup_required
+         *     * `first_login_pending` - first_login_pending
+         *     * `complete` - complete
+         * @enum {string}
+         */
+        HandoffStatusEnum: "account_inactive" | "password_setup_required" | "first_login_pending" | "complete";
         Homework: {
             /** Format: date-time */
             readonly created_at: string;
@@ -16851,6 +16859,7 @@ export interface components {
             username: string;
         };
         TenantOwnerListItem: {
+            handoffStatus: components["schemas"]["HandoffStatusEnum"];
             hasUsablePassword: boolean;
             isActive: boolean;
             mustChangePassword: boolean;

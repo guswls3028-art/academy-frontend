@@ -162,6 +162,111 @@
   gap: 10px;
 }
 
+.handoffOverview {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.1fr) minmax(280px, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+  margin: 14px 20px 16px;
+  padding: 16px;
+  border: 1px solid var(--dev-warning);
+  border-radius: var(--dev-radius);
+  background: var(--dev-warning-subtle);
+}
+
+.handoffOverviewComplete {
+  border-color: var(--dev-success);
+  background: var(--dev-success-subtle);
+}
+
+.handoffSummary {
+  min-width: 0;
+}
+
+.handoffEyebrow {
+  margin: 0 0 4px;
+  color: var(--dev-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.handoffTitle {
+  margin: 0;
+  color: var(--dev-text-primary);
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.handoffDescription {
+  margin: 5px 0 0;
+  color: var(--dev-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.handoffProgress {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.handoffStep {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--dev-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.handoffStepMark {
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 1px solid var(--dev-border);
+  border-radius: 999px;
+  background: var(--dev-surface);
+  font-size: 10px;
+}
+
+.handoffStepDone {
+  color: var(--dev-success);
+}
+
+.handoffStepDone .handoffStepMark {
+  border-color: var(--dev-success);
+  background: var(--dev-success);
+  color: #fff;
+}
+
+.handoffConnector {
+  width: clamp(18px, 3vw, 42px);
+  height: 1px;
+  margin: 0 8px;
+  background: var(--dev-border);
+}
+
+.handoffConnectorDone {
+  background: var(--dev-success);
+}
+
+.handoffActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.handoffRowDetail {
+  max-width: 230px;
+  color: var(--dev-text-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
 .badgeStack {
   align-items: flex-start;
   display: flex;
@@ -357,9 +462,34 @@
   .ownerPasswordFormGrid {
     grid-template-columns: 1fr;
   }
+
+  .handoffOverview {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .handoffActions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 640px) {
+  .handoffOverview {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin: 12px 14px 14px;
+    padding: 14px;
+  }
+
+  .handoffActions {
+    grid-column: auto;
+  }
+
+  .handoffActions > * {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
   .ownerTable,
   .ownerTable tbody,
   .ownerTable tr,
