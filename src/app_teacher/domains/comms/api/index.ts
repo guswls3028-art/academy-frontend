@@ -246,7 +246,6 @@ export async function fetchMessageLog(page = 1, pageSize = 20): Promise<{ result
 
 /* ─── Messaging Info & Templates ─── */
 export interface MessagingInfo {
-  sms_allowed: boolean;
   messaging_provider: "solapi";
   channel_source?: "common_owner" | "system_default";
   resolved_pf_id?: string;
