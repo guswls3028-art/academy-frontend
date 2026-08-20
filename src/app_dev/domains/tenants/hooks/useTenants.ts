@@ -104,8 +104,11 @@ export function useResetOwnerPassword() {
   return useMutation({
     mutationFn: ({ tenantId, userId, password }: { tenantId: number; userId: number; password: string }) =>
       resetTenantOwnerPassword(tenantId, userId, password),
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: KEYS.activity(vars.tenantId) });
+    onSuccess: async (_data, vars) => {
+      await Promise.all([
+        qc.refetchQueries({ queryKey: KEYS.owners(vars.tenantId), type: "active" }),
+        qc.invalidateQueries({ queryKey: KEYS.activity(vars.tenantId) }),
+      ]);
     },
   });
 }

@@ -138,7 +138,13 @@ export default function TenantDetailPage() {
         {tab === "activity" && <ActivityTab tenantId={id} />}
         {tab === "branding" && <BrandingTab tenantId={id} tenantCode={tenant.code} />}
         {tab === "domains" && <DomainsTab tenant={tenant} />}
-        {tab === "owners" && <TenantOwnersTab tenantId={id} tenantName={tenant.name} />}
+        {tab === "owners" && (
+          <TenantOwnersTab
+            tenantId={id}
+            tenantName={tenant.name}
+            primaryDomain={tenant.primaryDomain}
+          />
+        )}
       </div>
     </>
   );

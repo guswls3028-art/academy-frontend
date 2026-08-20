@@ -24,6 +24,12 @@ export type CreateTenantDto = {
   domain?: string;
 };
 
+export type TenantOwnerHandoffStatus =
+  | "account_inactive"
+  | "password_setup_required"
+  | "first_login_pending"
+  | "complete";
+
 export type TenantOwnerDto = {
   tenantId?: number;
   tenantCode?: string;
@@ -34,6 +40,8 @@ export type TenantOwnerDto = {
   isActive?: boolean;
   hasUsablePassword: boolean;
   mustChangePassword: boolean;
+  /** Optional during the rolling backend/frontend compatibility window. */
+  handoffStatus?: TenantOwnerHandoffStatus;
   role: string;
 };
 
