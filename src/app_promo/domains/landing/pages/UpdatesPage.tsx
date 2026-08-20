@@ -31,6 +31,18 @@ const KIND_META: Record<
 
 const PUBLIC_UPDATES: PublicUpdate[] = [
   {
+    id: "2026-08-21-tenant-onboarding",
+    date: "2026-08-21",
+    title: "새 학원 등록 절차 안정화",
+    summary:
+      "도메인과 이용기간을 먼저 확인한 뒤 대표 계정을 등록하도록 순서를 정리해, 준비가 덜 된 계정이나 일부 정보만 남는 상황을 막았습니다.",
+    highlights: [
+      { kind: "improve", text: "도메인·브랜딩·이용기간 확인 후 대표 계정을 등록하는 단계별 안내" },
+      { kind: "fix", text: "학원 정보만 생성되고 대표 계정 등록이 실패해 일부 상태가 남던 흐름 제거" },
+      { kind: "fix", text: "대표 계정 임시 비밀번호 길이와 생성 결과를 저장 전에 다시 확인" },
+    ],
+  },
+  {
     id: "2026-07-30",
     date: "2026-07-30",
     title: "처음 시작하는 계정 안내",

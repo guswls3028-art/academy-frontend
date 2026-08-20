@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router";
 import { Search } from "lucide-react";
-import { useTenantList, useCreateTenant, useUpdateTenant, useRegisterOwner } from "@dev/domains/tenants/hooks/useTenants";
+import { useTenantList, useCreateTenant, useUpdateTenant } from "@dev/domains/tenants/hooks/useTenants";
 import { useDevToast } from "@dev/shared/components/useDevToast";
 import s from "@dev/layout/DevLayout.module.css";
 import styles from "./TenantsPage.module.css";
@@ -11,7 +11,6 @@ export default function TenantsPage() {
   const { data: tenants, isLoading, isError, refetch } = useTenantList();
   const createTenant = useCreateTenant();
   const updateTenant = useUpdateTenant();
-  const registerOwner = useRegisterOwner();
   const { toast } = useDevToast();
 
   const [search, setSearch] = useState("");
@@ -21,11 +20,6 @@ export default function TenantsPage() {
   const [newCode, setNewCode] = useState("");
   const [newName, setNewName] = useState("");
   const [newDomain, setNewDomain] = useState("");
-  const [withOwner, setWithOwner] = useState(false);
-  const [ownerUser, setOwnerUser] = useState("");
-  const [ownerPw, setOwnerPw] = useState("");
-  const [ownerName, setOwnerName] = useState("");
-  const [ownerPhone, setOwnerPhone] = useState("");
 
   const filtered = useMemo(() => {
     if (!tenants) return [];
@@ -40,13 +34,9 @@ export default function TenantsPage() {
   }, [tenants, search]);
 
   async function handleCreate() {
-    if (createTenant.isPending || registerOwner.isPending) return;
+    if (createTenant.isPending) return;
     if (!newCode.trim() || !newName.trim()) {
       toast("코드와 이름을 입력해주세요.", "error");
-      return;
-    }
-    if (withOwner && (!ownerUser.trim() || !ownerPw)) {
-      toast("Owner 아이디와 임시 비밀번호를 모두 입력해주세요.", "error");
       return;
     }
     try {
@@ -55,35 +45,27 @@ export default function TenantsPage() {
         name: newName.trim(),
         domain: newDomain.trim() || undefined,
       });
-      if (withOwner && ownerUser.trim() && ownerPw) {
-        try {
-          await registerOwner.mutateAsync({
-            tenantId: tenant.id,
-            username: ownerUser.trim(),
-            password: ownerPw,
-            name: ownerName.trim() || undefined,
-            phone: ownerPhone.trim() || undefined,
-          });
-          toast(`${newName} 생성 완료. Owner(${ownerUser}) 등록됨.`);
-        } catch {
-          toast("테넌트 생성됨. Owner 등록 실패.", "error");
-          navigate(`/dev/tenants/${tenant.id}`);
-          return;
-        }
-      } else {
-        toast(`${newName} 생성 완료.`);
-      }
+      toast(`${tenant.name} 기본 레코드 생성 완료. 운영 준비 후 소유자를 등록하세요.`);
       resetCreateForm();
+      navigate(`/dev/tenants/${tenant.id}`);
     } catch (e: unknown) {
       const err = e as { response?: { data?: { detail?: string } } };
-      toast("생성 실패: " + (err.response?.data?.detail || String(e)), "error");
+      const detail = err.response?.data?.detail;
+      const messages: Record<string, string> = {
+        code_invalid: "코드는 소문자 영문·숫자·하이픈만 사용할 수 있습니다.",
+        name_invalid: "이름은 1~255자로 입력해주세요.",
+        domain_invalid: "도메인은 포트 외 경로 없이 호스트만 입력해주세요.",
+        tenant_code_conflict: "이미 사용 중인 테넌트 코드입니다.",
+        tenant_domain_conflict: "이미 다른 테넌트가 사용 중인 도메인입니다.",
+        tenant_provisioning_conflict: "동시 생성 충돌이 발생했습니다. 목록을 확인한 뒤 다시 시도해주세요.",
+      };
+      toast((detail && messages[detail]) || detail || "테넌트 생성에 실패했습니다.", "error");
     }
   }
 
   function resetCreateForm() {
     setShowCreate(false);
     setNewCode(""); setNewName(""); setNewDomain("");
-    setWithOwner(false); setOwnerUser(""); setOwnerPw(""); setOwnerName(""); setOwnerPhone("");
   }
 
   async function handleToggleActive(id: number, currentlyActive: boolean) {
@@ -126,54 +108,43 @@ export default function TenantsPage() {
 
         {/* 생성 모달 */}
         {showCreate && (
-          <div className={s.overlay} onClick={resetCreateForm}>
-            <div className={s.modal} onClick={(e) => e.stopPropagation()}>
+          <div
+            className={s.overlay}
+            onClick={() => { if (!createTenant.isPending) resetCreateForm(); }}
+          >
+            <div
+              className={s.modal}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="tenant-create-title"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className={s.modalHeader}>
-                <h2 className={s.modalTitle}>새 테넌트</h2>
-                <p className={s.modalSub}>새 테넌트를 생성합니다.</p>
+                <h2 id="tenant-create-title" className={s.modalTitle}>개발·QA 테넌트 기본 생성</h2>
+                <p className={s.modalSub}>운영 온보딩 완료가 아닌 최소 기본 레코드만 생성합니다.</p>
               </div>
               <div className={`${s.modalBody} ${styles.modalFields}`}>
-                <div>
-                  <label className={s.inputLabel}>코드 *</label>
-                  <input className={s.input} value={newCode} onChange={(e) => setNewCode(e.target.value)} placeholder="tchul" />
+                <div className={styles.onboardingNotice} role="note">
+                  <strong>운영 신규 테넌트는 이 폼으로 만들지 않습니다.</strong>
+                  <span>코드·브랜딩 배포와 도메인·구독 감사를 먼저 마친 뒤, 테넌트 상세에서 소유자를 별도로 등록하세요.</span>
                 </div>
                 <div>
-                  <label className={s.inputLabel}>이름 *</label>
-                  <input className={s.input} value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="천안학원" />
+                  <label className={s.inputLabel} htmlFor="tenant-create-code">코드 *</label>
+                  <input id="tenant-create-code" className={s.input} value={newCode} onChange={(e) => setNewCode(e.target.value)} placeholder="qa-academy" disabled={createTenant.isPending} />
                 </div>
                 <div>
-                  <label className={s.inputLabel}>도메인</label>
-                  <input className={s.input} value={newDomain} onChange={(e) => setNewDomain(e.target.value)} placeholder="tchul.com" />
+                  <label className={s.inputLabel} htmlFor="tenant-create-name">이름 *</label>
+                  <input id="tenant-create-name" className={s.input} value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="QA 학원" disabled={createTenant.isPending} />
                 </div>
-                <label className={styles.ownerToggle}>
-                  <input type="checkbox" checked={withOwner} onChange={(e) => setWithOwner(e.target.checked)} />
-                  <span className={styles.ownerToggleText}>Owner 계정 함께 생성</span>
-                </label>
-                {withOwner && (
-                  <div className={styles.ownerGrid}>
-                    <div>
-                      <label className={s.inputLabel}>아이디 *</label>
-                      <input className={s.input} value={ownerUser} onChange={(e) => setOwnerUser(e.target.value)} />
-                    </div>
-                    <div>
-                      <label className={s.inputLabel}>비밀번호 *</label>
-                      <input className={s.input} type="password" value={ownerPw} onChange={(e) => setOwnerPw(e.target.value)} />
-                    </div>
-                    <div>
-                      <label className={s.inputLabel}>이름</label>
-                      <input className={s.input} value={ownerName} onChange={(e) => setOwnerName(e.target.value)} />
-                    </div>
-                    <div>
-                      <label className={s.inputLabel}>전화번호</label>
-                      <input className={s.input} value={ownerPhone} onChange={(e) => setOwnerPhone(e.target.value)} />
-                    </div>
-                  </div>
-                )}
+                <div>
+                  <label className={s.inputLabel} htmlFor="tenant-create-domain">도메인</label>
+                  <input id="tenant-create-domain" className={s.input} value={newDomain} onChange={(e) => setNewDomain(e.target.value)} placeholder="qa.example.com" disabled={createTenant.isPending} />
+                </div>
               </div>
               <div className={s.modalFooter}>
-                <button type="button" className={`${s.btn} ${s.btnSecondary}`} onClick={resetCreateForm}>취소</button>
-                <button type="button" className={`${s.btn} ${s.btnPrimary}`} onClick={handleCreate} disabled={createTenant.isPending || registerOwner.isPending}>
-                  {createTenant.isPending ? "테넌트 생성 중..." : registerOwner.isPending ? "Owner 등록 중..." : "생성"}
+                <button type="button" className={`${s.btn} ${s.btnSecondary}`} onClick={resetCreateForm} disabled={createTenant.isPending}>취소</button>
+                <button type="button" className={`${s.btn} ${s.btnPrimary}`} onClick={handleCreate} disabled={createTenant.isPending}>
+                  {createTenant.isPending ? "기본 레코드 생성 중..." : "기본 레코드 생성"}
                 </button>
               </div>
             </div>

@@ -78,6 +78,102 @@ test.use({ serviceWorkers: "block" });
 test.skip(!isLocalBase(BASE), "Local route-mock spec. Set E2E_BASE_URL to localhost to run.");
 
 test.describe("개발자 콘솔 소유자 실패 안전", () => {
+  test("기본 테넌트 생성과 소유자 등록을 분리해 부분 성공을 만들지 않는다", async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await stubDevTenant(page);
+    let createBody: Record<string, unknown> | null = null;
+    let ownerWriteCount = 0;
+    let releaseCreate: (() => void) | undefined;
+
+    await page.route("**/api/v1/core/tenants/", (route) => route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: "[]",
+    }));
+    await page.route("**/api/v1/core/tenants/create/", async (route) => {
+      createBody = route.request().postDataJSON() as Record<string, unknown>;
+      await new Promise<void>((resolve) => { releaseCreate = resolve; });
+      return route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: 101,
+          code: "qa-academy",
+          name: "QA 학원",
+          isActive: true,
+          primaryDomain: "qa.example.com",
+          domains: ["qa-academy", "qa.example.com"],
+        }),
+      });
+    });
+    await page.route("**/api/v1/core/tenants/101/", (route) => route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: 101,
+        code: "qa-academy",
+        name: "QA 학원",
+        isActive: true,
+        primaryDomain: "qa.example.com",
+        domains: [
+          { host: "qa-academy", isPrimary: false },
+          { host: "qa.example.com", isPrimary: true },
+        ],
+        hasProgram: true,
+        featureFlags: {},
+      }),
+    }));
+    await page.route("**/api/v1/core/tenants/*/owner/", (route) => {
+      ownerWriteCount += 1;
+      return route.fulfill({ status: 500, body: "unexpected owner write" });
+    });
+
+    await gotoAndSettle(page, `${BASE}/dev/tenants`);
+    await page.getByRole("button", { name: "+ 새 테넌트" }).click();
+
+    const dialog = page.getByRole("dialog", { name: "개발·QA 테넌트 기본 생성" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText("운영 신규 테넌트는 이 폼으로 만들지 않습니다.");
+    await expect(dialog.getByText("Owner 계정 함께 생성")).toHaveCount(0);
+    await dialog.getByLabel("코드 *").fill("qa-academy");
+    await dialog.getByLabel("이름 *").fill("QA 학원");
+    await dialog.getByLabel("도메인").fill("qa.example.com");
+    const formScreenshot = testInfo.outputPath("tenant-create-form-mobile-390.png");
+    await page.screenshot({ path: formScreenshot, fullPage: true });
+    await testInfo.attach("tenant-create-form-mobile-390", {
+      path: formScreenshot,
+      contentType: "image/png",
+    });
+
+    const submit = dialog.getByRole("button", { name: "기본 레코드 생성" });
+    await submit.click();
+    await expect(dialog.getByRole("button", { name: "기본 레코드 생성 중..." })).toBeDisabled();
+    await expect(dialog.getByRole("button", { name: "취소" })).toBeDisabled();
+    await dialog.evaluate((element) => element.parentElement?.click());
+    await expect(dialog).toBeVisible();
+
+    releaseCreate?.();
+    await page.waitForURL("**/dev/tenants/101");
+    expect(createBody).toEqual({
+      code: "qa-academy",
+      name: "QA 학원",
+      domain: "qa.example.com",
+    });
+    expect(ownerWriteCount).toBe(0);
+
+    const bodyWidth = await page.locator("body").evaluate((body) => ({
+      clientWidth: body.clientWidth,
+      scrollWidth: body.scrollWidth,
+    }));
+    expect(bodyWidth.scrollWidth).toBeLessThanOrEqual(bodyWidth.clientWidth);
+    const screenshot = testInfo.outputPath("tenant-create-order-mobile-390.png");
+    await page.screenshot({ path: screenshot, fullPage: true });
+    await testInfo.attach("tenant-create-order-mobile-390", {
+      path: screenshot,
+      contentType: "image/png",
+    });
+  });
+
   test("소유자 조회 실패를 0명으로 오인하지 않고 재시도 전 추가를 잠근다", async ({ page }, testInfo) => {
     await stubDevTenant(page);
     let ownerReadCount = 0;
