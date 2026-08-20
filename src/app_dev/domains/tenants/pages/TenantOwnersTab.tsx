@@ -224,6 +224,10 @@ export function TenantOwnersTab({
   async function handleAdd() {
     const username = newUser.trim();
     if (!username) { toast("아이디를 입력하세요.", "error"); return; }
+    if (newPw && (newPw.length < 4 || newPw.length > 128)) {
+      toast("신규 계정 임시 비밀번호는 4~128자로 입력해주세요.", "error");
+      return;
+    }
     try {
       await registerOwner.mutateAsync({
         tenantId,
@@ -352,7 +356,7 @@ export function TenantOwnersTab({
               </div>
               <div>
                 <label className={s.inputLabel}>신규 계정 임시 비밀번호</label>
-                <input className={s.input} type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} />
+                <input className={s.input} type="password" minLength={4} maxLength={128} value={newPw} onChange={(e) => setNewPw(e.target.value)} />
               </div>
               <div>
                 <label className={s.inputLabel}>이름</label>
@@ -364,7 +368,7 @@ export function TenantOwnersTab({
               </div>
             </div>
             <p className={styles.ownerFormHint}>
-              신규 계정이면 임시 비밀번호가 필수입니다. 기존 계정이면 아이디만 확인한 뒤 별도 승격 확인을 거치며, 기존 비밀번호와 프로필은 변경하지 않습니다.
+              신규 계정이면 4~128자의 임시 비밀번호가 필수입니다. 기존 계정이면 아이디만 확인한 뒤 별도 승격 확인을 거치며, 기존 비밀번호와 프로필은 변경하지 않습니다.
             </p>
             <div className={styles.ownerFormActions}>
               <button type="button" className={`${s.btn} ${s.btnSecondary} ${s.btnSm}`} onClick={resetAddForm}>취소</button>
