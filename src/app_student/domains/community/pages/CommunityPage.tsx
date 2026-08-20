@@ -347,12 +347,18 @@ function QnaTab({
 }) {
   const [filter, setFilter] = useState<QnaFilter>("all");
 
-  const { data: profile } = useQuery({
+  const profileQ = useQuery({
     queryKey: studentCommunityQueryKeys.me,
     queryFn: fetchMyProfile,
   });
+  const profile = profileQ.data;
 
-  const { data: questions = [], isLoading } = useQuery({
+  const {
+    data: questions = [],
+    isLoading,
+    isError,
+    refetch: refetchQuestions,
+  } = useQuery({
     queryKey: studentCommunityQueryKeys.qnaQuestions,
     queryFn: () => fetchMyQuestions(profile!.id),
     enabled: profile?.id != null,
@@ -361,6 +367,19 @@ function QnaTab({
   const pending = useMemo(() => questions.filter((q) => !isAnswered(q)), [questions]);
   const resolved = useMemo(() => questions.filter(isAnswered), [questions]);
   const filtered = filter === "pending" ? pending : filter === "resolved" ? resolved : questions;
+
+  if (profileQ.isError || isError) {
+    return (
+      <EmptyState
+        title="질문 내역을 불러오지 못했습니다"
+        description="계정 권한과 기존 질문을 확인한 뒤 새 질문을 작성할 수 있습니다."
+        onRetry={() => {
+          void profileQ.refetch();
+          void refetchQuestions();
+        }}
+      />
+    );
+  }
 
   return (
     <div className="community-stack">
@@ -405,7 +424,7 @@ function QnaTab({
 
 // ─── QnA Detail ───
 function QnaDetail({ id, cached, onBack }: { id: number; cached?: PostEntity; onBack: () => void }) {
-  const { data: fetched, isLoading } = useQuery({
+  const { data: fetched, isLoading, isError, refetch } = useQuery({
     queryKey: studentCommunityQueryKeys.qnaQuestion(id),
     queryFn: () => fetchQuestionDetail(id),
     initialData: cached,
@@ -414,6 +433,13 @@ function QnaDetail({ id, cached, onBack }: { id: number; cached?: PostEntity; on
 
   if (isLoading && !question) {
     return <StudentPageShell title="질문 상세" onBack={onBack}><Loading /></StudentPageShell>;
+  }
+  if (isError && !question) {
+    return (
+      <StudentPageShell title="질문 상세" onBack={onBack}>
+        <EmptyState title="질문을 불러오지 못했습니다" onRetry={() => void refetch()} />
+      </StudentPageShell>
+    );
   }
   if (!question) {
     return (
@@ -429,7 +455,7 @@ function QnaDetail({ id, cached, onBack }: { id: number; cached?: PostEntity; on
 function QnaDetailContent({ question, onBack }: { question: PostEntity; onBack: () => void }) {
   const answered = isAnswered(question);
   const markSeen = useMarkNotificationsSeen();
-  const { data: replies = [], isLoading } = useQuery<Answer[]>({
+  const { data: replies = [], isLoading, isError, refetch } = useQuery<Answer[]>({
     queryKey: studentCommunityQueryKeys.qnaReplies(question.id),
     queryFn: () => fetchReplies(question.id),
     enabled: answered,
@@ -465,6 +491,12 @@ function QnaDetailContent({ question, onBack }: { question: PostEntity; onBack: 
               </div>
               {isLoading ? (
                 <Loading />
+              ) : isError ? (
+                <EmptyState
+                  compact
+                  title="답변을 불러오지 못했습니다"
+                  onRetry={() => void refetch()}
+                />
               ) : replies.length > 0 ? (
                 <div className="community-answer-list">
                   {replies.map((r) => (
@@ -518,8 +550,10 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
     } catch { /* quota exceeded */ }
   }, [title, content, categoryLabel]);
 
-  const { data: profile } = useQuery({ queryKey: studentCommunityQueryKeys.me, queryFn: fetchMyProfile });
-  const { data: videoMe } = useQuery({ queryKey: studentCommunityQueryKeys.videoMe, queryFn: fetchVideoMe, staleTime: 60_000 });
+  const profileQ = useQuery({ queryKey: studentCommunityQueryKeys.me, queryFn: fetchMyProfile });
+  const profile = profileQ.data;
+  const videoMeQ = useQuery({ queryKey: studentCommunityQueryKeys.videoMe, queryFn: fetchVideoMe, staleTime: 60_000 });
+  const videoMe = videoMeQ.data;
   const lectureOptions = useMemo(() => (videoMe?.lectures ?? []).map((l) => l.title), [videoMe]);
   const hasLectureOptions = lectureOptions.length > 0;
 
@@ -572,6 +606,22 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
   const contentText = richHtmlToPlainText(content);
   const canSubmit = title.trim().length > 0 && contentText.length > 0 && profile?.id != null;
 
+  if (profileQ.isLoading) {
+    return <StudentPageShell title="질문 보내기" onBack={onBack}><Loading /></StudentPageShell>;
+  }
+
+  if (profileQ.isError) {
+    return (
+      <StudentPageShell title="질문 보내기" onBack={onBack}>
+        <EmptyState
+          title="계정 권한을 확인하지 못했습니다"
+          description="작성 권한을 확인한 뒤 질문을 보낼 수 있습니다."
+          onRetry={() => void profileQ.refetch()}
+        />
+      </StudentPageShell>
+    );
+  }
+
   if (profile?.isParentReadOnly) {
     return (
       <StudentPageShell title="질문 보내기" onBack={onBack}>
@@ -613,9 +663,14 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
                 {lectureOptions.map((t) => <option key={t} value={t}>{t}</option>)}
               </>
             ) : (
-              <option value="">수강 중인 강의 없음</option>
+              <option value="">{videoMeQ.isError ? "강의 목록 불러오기 실패" : "수강 중인 강의 없음"}</option>
             )}
           </select>
+          {videoMeQ.isError && (
+            <button type="button" className="stu-btn stu-btn--ghost" onClick={() => void videoMeQ.refetch()}>
+              강의 목록 다시 시도
+            </button>
+          )}
         </label>
         <div className="community-field community-field--grow">
           <span className="community-label">
@@ -722,12 +777,18 @@ function CounselTab({
 }) {
   const [filter, setFilter] = useState<QnaFilter>("all");
 
-  const { data: profile } = useQuery({
+  const profileQ = useQuery({
     queryKey: studentCommunityQueryKeys.me,
     queryFn: fetchMyProfile,
   });
+  const profile = profileQ.data;
 
-  const { data: requests = [], isLoading } = useQuery({
+  const {
+    data: requests = [],
+    isLoading,
+    isError,
+    refetch: refetchRequests,
+  } = useQuery({
     queryKey: studentCommunityQueryKeys.counselRequests,
     queryFn: () => fetchMyCounselRequests(profile!.id),
     enabled: profile?.id != null,
@@ -736,6 +797,19 @@ function CounselTab({
   const pending = useMemo(() => requests.filter((q) => !isAnswered(q)), [requests]);
   const resolved = useMemo(() => requests.filter(isAnswered), [requests]);
   const filtered = filter === "pending" ? pending : filter === "resolved" ? resolved : requests;
+
+  if (profileQ.isError || isError) {
+    return (
+      <EmptyState
+        title="상담 내역을 불러오지 못했습니다"
+        description="계정 권한과 기존 신청을 확인한 뒤 새 상담을 신청할 수 있습니다."
+        onRetry={() => {
+          void profileQ.refetch();
+          void refetchRequests();
+        }}
+      />
+    );
+  }
 
   return (
     <div className="community-stack">
@@ -780,7 +854,7 @@ function CounselTab({
 
 // ─── Counsel Detail ───
 function CounselDetail({ id, cached, onBack }: { id: number; cached?: PostEntity; onBack: () => void }) {
-  const { data: fetched, isLoading } = useQuery({
+  const { data: fetched, isLoading, isError, refetch } = useQuery({
     queryKey: studentCommunityQueryKeys.counselRequest(id),
     queryFn: () => fetchPostDetail(id),
     initialData: cached,
@@ -789,6 +863,13 @@ function CounselDetail({ id, cached, onBack }: { id: number; cached?: PostEntity
 
   if (isLoading && !request) {
     return <StudentPageShell title="상담 신청 상세" onBack={onBack}><Loading /></StudentPageShell>;
+  }
+  if (isError && !request) {
+    return (
+      <StudentPageShell title="상담 신청 상세" onBack={onBack}>
+        <EmptyState title="상담 신청을 불러오지 못했습니다" onRetry={() => void refetch()} />
+      </StudentPageShell>
+    );
   }
   if (!request) {
     return (
@@ -804,7 +885,7 @@ function CounselDetail({ id, cached, onBack }: { id: number; cached?: PostEntity
 function CounselDetailContent({ request, onBack }: { request: PostEntity; onBack: () => void }) {
   const answered = isAnswered(request);
   const markSeen = useMarkNotificationsSeen();
-  const { data: replies = [], isLoading } = useQuery<Answer[]>({
+  const { data: replies = [], isLoading, isError, refetch } = useQuery<Answer[]>({
     queryKey: studentCommunityQueryKeys.counselReplies(request.id),
     queryFn: () => fetchReplies(request.id),
     enabled: answered,
@@ -840,6 +921,12 @@ function CounselDetailContent({ request, onBack }: { request: PostEntity; onBack
               </div>
               {isLoading ? (
                 <Loading />
+              ) : isError ? (
+                <EmptyState
+                  compact
+                  title="답변을 불러오지 못했습니다"
+                  onRetry={() => void refetch()}
+                />
               ) : replies.length > 0 ? (
                 <div className="community-answer-list">
                   {replies.map((r) => (
@@ -877,7 +964,8 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
   const [files, setFiles] = useState<File[]>([]);
   const [categoryLabel, setCategoryLabel] = useState("");
 
-  const { data: profile } = useQuery({ queryKey: studentCommunityQueryKeys.me, queryFn: fetchMyProfile });
+  const profileQ = useQuery({ queryKey: studentCommunityQueryKeys.me, queryFn: fetchMyProfile });
+  const profile = profileQ.data;
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -918,6 +1006,22 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
 
   const counselContentText = richHtmlToPlainText(content);
   const canSubmit = title.trim().length > 0 && counselContentText.length > 0 && profile?.id != null;
+
+  if (profileQ.isLoading) {
+    return <StudentPageShell title="상담 신청" onBack={onBack}><Loading /></StudentPageShell>;
+  }
+
+  if (profileQ.isError) {
+    return (
+      <StudentPageShell title="상담 신청" onBack={onBack}>
+        <EmptyState
+          title="계정 권한을 확인하지 못했습니다"
+          description="작성 권한을 확인한 뒤 상담을 신청할 수 있습니다."
+          onRetry={() => void profileQ.refetch()}
+        />
+      </StudentPageShell>
+    );
+  }
 
   if (profile?.isParentReadOnly) {
     return (

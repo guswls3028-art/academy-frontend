@@ -3,7 +3,8 @@
 import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
-import { CloseButton } from "@/shared/ui/ds";
+import { Button, CloseButton, EmptyState } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 import PermissionHeader from "../../video-permission/components/PermissionHeader";
 import PermissionTable from "../../video-permission/components/PermissionTable";
@@ -66,7 +67,7 @@ export default function PermissionModal({
 
   /* ================= query ================= */
 
-  const { data, isFetching } = useQuery<PermissionStatsData>({
+  const { data, isFetching, isLoading, isError, refetch } = useQuery<PermissionStatsData>({
     queryKey: adminVideoQueryKeys.permissionStats(videoId),
     queryFn: async () => {
       const res = await api.get(`/media/videos/${videoId}/stats/`);
@@ -134,6 +135,7 @@ export default function PermissionModal({
       setSelected([]);
       await qc.invalidateQueries({ queryKey: adminVideoQueryKeys.permissionStats(videoId) });
     },
+    onError: () => feedback.error("영상 권한 변경에 실패했습니다."),
   });
 
   if (!open) return null;
@@ -172,7 +174,17 @@ export default function PermissionModal({
         {/* BODY */}
         <div className="permission-modal-body">
           <div className="permission-modal-surface">
-            {tab === "permission" ? (
+            {isLoading ? (
+              <EmptyState scope="modal" tone="loading" title="권한 정보를 불러오는 중…" />
+            ) : isError ? (
+              <EmptyState
+                scope="modal"
+                tone="error"
+                title="영상 권한 정보를 불러오지 못했습니다"
+                description="불완전한 학생 목록에서는 권한을 변경할 수 없습니다."
+                actions={<Button intent="secondary" onClick={() => void refetch()}>다시 시도</Button>}
+              />
+            ) : tab === "permission" ? (
               <div className="h-full flex gap-4 min-h-0">
                 {/* LEFT */}
                 <div className="permission-left">

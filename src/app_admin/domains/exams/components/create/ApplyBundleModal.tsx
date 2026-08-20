@@ -9,7 +9,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Package } from "lucide-react";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
-import { Button } from "@/shared/ui/ds";
+import { Button, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { fetchBundles, applyBundle } from "../../api/templateBundles";
@@ -28,7 +28,7 @@ export default function ApplyBundleModal({ open, onClose, sessionId, onApplied }
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: bundles = [], isLoading } = useQuery({
+  const { data: bundles = [], isLoading, isError, refetch } = useQuery({
     queryKey: adminExamsQueryKeys.templateBundles,
     queryFn: fetchBundles,
     enabled: open,
@@ -42,7 +42,7 @@ export default function ApplyBundleModal({ open, onClose, sessionId, onApplied }
   }, [open]);
 
   const handleApply = async () => {
-    if (!selectedId || !sessionId) return;
+    if (!selectedId || !sessionId || isError) return;
 
     setError(null);
     setSubmitting(true);
@@ -86,7 +86,18 @@ export default function ApplyBundleModal({ open, onClose, sessionId, onApplied }
             <div className="text-sm text-[var(--color-text-muted)] py-4 text-center">불러오는 중…</div>
           )}
 
-          {!isLoading && bundles.length === 0 && (
+          {isError && (
+            <EmptyState
+              mode="embedded"
+              scope="modal"
+              tone="error"
+              title="시험·과제 묶음을 불러오지 못했습니다"
+              description="빈 목록으로 오인해 새 묶음을 만들지 않도록 기존 목록을 다시 확인해 주세요."
+              actions={<Button intent="secondary" size="sm" onClick={() => void refetch()}>다시 시도</Button>}
+            />
+          )}
+
+          {!isLoading && !isError && bundles.length === 0 && (
             <div className="flex flex-col items-center gap-2 py-8 text-[var(--color-text-muted)]">
               <Package size={28} />
               <div className="text-sm font-semibold">등록된 묶음이 없습니다</div>
@@ -94,7 +105,7 @@ export default function ApplyBundleModal({ open, onClose, sessionId, onApplied }
             </div>
           )}
 
-          {!isLoading && bundles.length > 0 && (
+          {!isLoading && !isError && bundles.length > 0 && (
             <div className="modal-form-group">
               <label className="modal-section-label">묶음 선택</label>
               <div className={`grid gap-2 ${styles.bundleList}`}>
@@ -153,7 +164,7 @@ export default function ApplyBundleModal({ open, onClose, sessionId, onApplied }
               intent="primary"
               size="xl"
               onClick={handleApply}
-              disabled={submitting || !selectedId || bundles.length === 0}
+              disabled={submitting || isLoading || isError || !selectedId || bundles.length === 0}
             >
               {submitting ? "적용 중…" : "묶음 적용"}
             </Button>

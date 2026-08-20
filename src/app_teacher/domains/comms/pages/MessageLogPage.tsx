@@ -43,10 +43,12 @@ export default function MessageLogPage() {
   const role = (user?.tenantRole ?? "").toLowerCase();
   const isPrivileged = role === "owner" || role === "admin";
 
-  const { data, isLoading } = useQuery({
+  const logQ = useQuery({
     queryKey: teacherCommsQueryKeys.messageLog,
     queryFn: () => fetchMessageLog(1, 50),
   });
+  const data = logQ.data;
+  const isLoading = logQ.isLoading;
 
   const items = data?.results ?? [];
 
@@ -66,6 +68,8 @@ export default function MessageLogPage() {
 
       {isLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+      ) : logQ.isError ? (
+        <EmptyState scope="panel" tone="error" title="발송 내역을 불러오지 못했습니다" description="발송 내역이 없는 것으로 표시하지 않았습니다." actions={<EmptyActionButton onClick={() => void logQ.refetch()}>다시 시도</EmptyActionButton>} />
       ) : items.length === 0 ? (
         <EmptyState
           scope="panel"

@@ -8,7 +8,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { FileText } from "lucide-react";
-import { EmptyState } from "@/shared/ui/ds";
+import { Button, EmptyState } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import {
   fetchTemplatesWithUsage,
@@ -33,7 +33,7 @@ function formatDate(s: string | null | undefined): string {
 export default function TemplateManagementPanel() {
   const navigate = useNavigate();
 
-  const { data: templates = [], isLoading } = useQuery({
+  const { data: templates = [], isLoading, isError, refetch } = useQuery({
     queryKey: adminExamsQueryKeys.templatesWithUsage,
     queryFn: fetchTemplatesWithUsage,
   });
@@ -44,6 +44,19 @@ export default function TemplateManagementPanel() {
         {[1, 2, 3].map((i) => (
           <div key={i} className={styles.skeleton} />
         ))}
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className={styles.emptyWrap}>
+        <EmptyState
+          scope="panel"
+          tone="error"
+          title="템플릿을 불러오지 못했습니다"
+          actions={<Button intent="secondary" size="sm" onClick={() => void refetch()}>다시 시도</Button>}
+        />
       </div>
     );
   }

@@ -28,10 +28,12 @@ export default function ClinicReportsPage() {
 
   const { from, to, lastDay } = monthRange(year, month);
 
-  const { data: sessions, isLoading } = useQuery({
+  const sessionsQ = useQuery({
     queryKey: teacherClinicQueryKeys.report(year, month),
     queryFn: () => fetchClinicSessions({ date_from: from, date_to: to }),
   });
+  const sessions = sessionsQ.data;
+  const isLoading = sessionsQ.isLoading;
 
   // Group sessions by date
   const byDate = useMemo(() => {
@@ -79,7 +81,10 @@ export default function ClinicReportsPage() {
         <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>클리닉 보고서</h1>
       </div>
 
+      {sessionsQ.isError && <EmptyState scope="panel" tone="error" title="클리닉 보고서를 불러오지 못했습니다" description="빈 달력으로 표시하지 않고 조회를 중단했습니다." actions={<button type="button" onClick={() => void sessionsQ.refetch()}>다시 시도</button>} />}
+
       {/* Month nav */}
+      {!sessionsQ.isError && <>
       <Card style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
         <div className="flex items-center justify-between">
           <button onClick={prevMonth} className="flex p-1.5 cursor-pointer"
@@ -179,6 +184,7 @@ export default function ClinicReportsPage() {
       )}
 
       {isLoading && !sessions && <EmptyState scope="panel" tone="loading" title="불러오는 중…" />}
+      </>}
     </div>
   );
 }

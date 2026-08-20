@@ -34,7 +34,7 @@ export default function StudentInventoryManage({
     return () => clearTimeout(t);
   }, [search]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: storageQueryKeys.storageStudentSearch(debouncedSearch),
     queryFn: () => fetchStudents(debouncedSearch, {}, "", 1, false),
   });
@@ -64,6 +64,8 @@ export default function StudentInventoryManage({
         <div className={styles.studentList}>
           {isLoading ? (
             <div className={styles.placeholder}>불러오는 중...</div>
+          ) : isError ? (
+            <div className={styles.placeholder} role="alert">학생 목록 조회 실패 <button type="button" onClick={() => void refetch()}>다시 시도</button></div>
           ) : students.length === 0 ? (
             <div className={styles.placeholder}>
               {debouncedSearch ? "검색 결과 없음" : "등록된 학생 없음"}

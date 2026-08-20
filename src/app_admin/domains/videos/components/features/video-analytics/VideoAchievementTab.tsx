@@ -163,7 +163,7 @@ export default function VideoAchievementTab({
 }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>("status");
 
-  const { data, isFetching } = useQuery<AchievementData>({
+  const { data, isFetching, isLoading, isError, refetch } = useQuery<AchievementData>({
     queryKey: adminVideoQueryKeys.achievement(videoId),
     queryFn: async () => {
       const res = await api.get(`/media/videos/${videoId}/achievement/`);
@@ -228,6 +228,9 @@ export default function VideoAchievementTab({
   const avgProgress = summary?.avg_progress ?? 0;
   const completedRate = summary?.completed_rate ?? 0;
   const incompleteCount = summary?.incomplete_count ?? 0;
+
+  if (isLoading) return <div className="video-analytics-empty">성취도를 불러오는 중…</div>;
+  if (isError) return <div className="video-analytics-empty" role="alert">성취도를 불러오지 못했습니다. <button type="button" onClick={() => void refetch()}>다시 시도</button></div>;
 
   return (
     <div className="flex h-full flex-col gap-4">

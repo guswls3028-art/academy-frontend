@@ -23,10 +23,17 @@ type ClockMock = {
   endCount: number;
 };
 
+type ClockFailureOptions = {
+  staffMe?: boolean;
+  currentlyWorking?: boolean;
+  showWorkingStaff?: boolean;
+};
+
 async function installClockApp(
   page: Page,
   returnPath: string,
   tenantRole: "staff" | "admin" = "staff",
+  failures: ClockFailureOptions = {},
 ): Promise<ClockMock> {
   const calls: ClockMock = { startBodies: [], endCount: 0 };
   let current: "OFF" | "WORKING" = "OFF";
@@ -97,6 +104,7 @@ async function installClockApp(
       });
     }
     if (pathname === "/staffs/me/") {
+      if (failures.staffMe) return json({ detail: "staff identity unavailable" }, 503);
       return json({
         is_authenticated: true,
         is_superuser: false,
@@ -203,7 +211,21 @@ async function installClockApp(
         total_amount: 52000 + extraAmount,
       });
     }
-    if (pathname === "/staffs/currently-working/") return json([]);
+    if (pathname === "/staffs/currently-working/") {
+      if (failures.currentlyWorking) return json({ detail: "working list unavailable" }, 503);
+      if (failures.showWorkingStaff) {
+        return json([{
+          staff_id: 88,
+          staff_name: "박강사",
+          role: "TEACHER",
+          date: "2026-08-20",
+          started_at: "00:05:00",
+          break_started_at: null,
+          break_total_seconds: 0,
+        }]);
+      }
+      return json([]);
+    }
     if (pathname === "/core/profile/expenses/") return json([]);
     if (pathname === "/landing/has-published/") return json({ has_published: false });
     return json({ count: 0, next: null, previous: null, results: [] });
@@ -298,5 +320,48 @@ test.describe("조교 로그인 출근 선택", () => {
     await expect(page).toHaveURL(/\/workspace\/dashboard/);
     expect(calls.startBodies).toHaveLength(0);
     expect(await page.evaluate(() => sessionStorage.getItem("staff.clock-in-choice.pending.v1"))).toBeNull();
+  });
+
+  test("근무 현황 API 실패를 빈 명단으로 숨기지 않고 다시 시도를 제공한다", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await installClockApp(page, "/workspace/dashboard", "admin", { currentlyWorking: true });
+
+    await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+    await page.getByTestId("login-username").fill("admin77");
+    await page.getByTestId("login-password").fill("password");
+    await page.getByTestId("login-submit").click();
+
+    await expect(page.getByRole("button", { name: "근무 현황 오류 · 다시 시도" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "문제가 발생했습니다" })).toHaveCount(0);
+  });
+
+  test("모바일에서 직원 식별 실패를 숨기지 않고 복구 화면을 연다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await installClockApp(page, "/workspace/dashboard", "admin", { staffMe: true });
+
+    await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+    await page.getByTestId("login-username").fill("admin77");
+    await page.getByTestId("login-password").fill("password");
+    await page.getByTestId("login-submit").click();
+
+    const clockButton = page.getByRole("button", { name: "근무 상태를 불러오지 못함, 자세히 보기" });
+    await expect(clockButton).toBeVisible();
+    await clockButton.click();
+    await expect(page.getByRole("dialog", { name: "근무 상태" }).getByText("근무 상태를 불러오지 못했습니다")).toBeVisible();
+  });
+
+  test("근무자 아바타는 키보드 Enter로 상세를 연다", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await installClockApp(page, "/workspace/dashboard", "admin", { showWorkingStaff: true });
+
+    await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+    await page.getByTestId("login-username").fill("admin77");
+    await page.getByTestId("login-password").fill("password");
+    await page.getByTestId("login-submit").click();
+
+    const avatar = page.getByRole("button", { name: "박강사 근무 정보 보기" });
+    await avatar.focus();
+    await avatar.press("Enter");
+    await expect(page.getByText("근무시간", { exact: true })).toBeVisible();
   });
 });

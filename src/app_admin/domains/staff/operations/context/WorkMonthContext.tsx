@@ -39,6 +39,8 @@ export function WorkMonthProvider({
   const payType = staffsQ.data?.staffs.find(
     (staff) => staff.id === staffId,
   )?.pay_type;
+  const dependencyPending = lockCheckPending || meQ.isLoading || staffsQ.isLoading;
+  const dependencyFailed = lockCheckFailed || meQ.isError || staffsQ.isError;
 
   const range = useMemo(() => monthRange(year, month), [year, month]);
 
@@ -49,11 +51,13 @@ export function WorkMonthProvider({
       month,
       range,
       locked,
-      lockCheckPending,
-      lockCheckFailed,
-      writeBlocked: locked || lockCheckPending || lockCheckFailed,
+      lockCheckPending: dependencyPending,
+      lockCheckFailed: dependencyFailed,
+      writeBlocked: locked || dependencyPending || dependencyFailed,
       retryLockCheck: () => {
         void locksQ.refetch();
+        void meQ.refetch();
+        void staffsQ.refetch();
       },
       canManage,
       payType,
@@ -65,9 +69,11 @@ export function WorkMonthProvider({
       month,
       range,
       locked,
-      lockCheckPending,
-      lockCheckFailed,
+      dependencyPending,
+      dependencyFailed,
       locksQ,
+      meQ,
+      staffsQ,
       canManage,
       payType,
       lockM,

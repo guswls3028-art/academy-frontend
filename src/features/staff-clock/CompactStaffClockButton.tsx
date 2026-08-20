@@ -11,7 +11,8 @@ export default function CompactStaffClockButton() {
   const [open, setOpen] = useState(false);
   const clock = useStaffClock();
 
-  if (!clock.canUseClock) return null;
+  const hasRecoverableIdentityState = clock.staffMeQ.isLoading || clock.staffMeQ.isError;
+  if (!clock.canUseClock && !hasRecoverableIdentityState) return null;
 
   const statusLabel = clock.isOnBreak
     ? "휴식 중"
@@ -21,7 +22,9 @@ export default function CompactStaffClockButton() {
   const currentType = clock.current?.status !== "OFF"
     ? clock.current?.work_type_name
     : null;
-  const triggerLabel = clock.currentQ.isLoading || clock.staffMeQ.isLoading
+  const triggerLabel = clock.staffMeQ.isError || clock.currentQ.isError
+    ? "근무 상태를 불러오지 못함, 자세히 보기"
+    : clock.currentQ.isLoading || clock.staffMeQ.isLoading
     ? "근무 상태 확인 중"
     : clock.isWorking
       ? `${currentType ?? "근무"} ${statusLabel}, ${clock.timeLabel}`
@@ -66,7 +69,7 @@ export default function CompactStaffClockButton() {
         onClose={() => setOpen(false)}
         width={460}
         noMinimize
-        closeDisabled={clock.isStarting || clock.isEnding || clock.isBreakStarting || clock.isBreakEnding}
+        closeDisabled={clock.isMutating}
       >
         <ModalHeader
           title="근무 상태"
@@ -113,7 +116,7 @@ export default function CompactStaffClockButton() {
                   <Button
                     intent="primary"
                     size="md"
-                    disabled={clock.isBreakEnding}
+                    disabled={clock.isMutating}
                     leftIcon={<Play size={16} aria-hidden />}
                     onClick={() => void clock.endBreak()}
                   >
@@ -123,7 +126,7 @@ export default function CompactStaffClockButton() {
                   <Button
                     intent="secondary"
                     size="md"
-                    disabled={clock.isBreakStarting}
+                    disabled={clock.isMutating}
                     leftIcon={<Coffee size={16} aria-hidden />}
                     onClick={() => void clock.startBreak()}
                   >
@@ -133,7 +136,7 @@ export default function CompactStaffClockButton() {
                 <Button
                   intent="danger"
                   size="md"
-                  disabled={clock.isEnding}
+                  disabled={clock.isMutating}
                   leftIcon={<LogOut size={16} aria-hidden />}
                   onClick={() => void finishWork()}
                 >
@@ -154,7 +157,7 @@ export default function CompactStaffClockButton() {
                     key={workType.id}
                     type="button"
                     className={styles.typeButton}
-                    disabled={clock.isStarting}
+                    disabled={clock.isMutating}
                     onClick={() => void startSelectedWork(workType)}
                     aria-label={`${workType.name} 근무 시작`}
                   >

@@ -29,7 +29,7 @@ type Props = {
 export default function OmrReviewEntry({ examId, examTitle }: Props) {
   const [open, setOpen] = useState(false);
 
-  const { data: rows = [] } = useQuery({
+  const { data: rows = [], isError, refetch } = useQuery({
     queryKey: adminResultsQueryKeys.omrReviewList(examId),
     queryFn: () => listOmrReviewRows(examId),
     enabled: Number.isFinite(examId),
@@ -75,6 +75,20 @@ export default function OmrReviewEntry({ examId, examTitle }: Props) {
       total: rows.length,
     };
   }, [rows]);
+
+  if (isError) {
+    return (
+      <div className="omr-entry omr-entry--pending" role="alert">
+        <div className="omr-entry__info">
+          <div className="omr-entry__title">OMR 검토 현황을 불러오지 못했습니다</div>
+          <div className="omr-entry__detail">검토 대기 답안이 없는 것으로 간주하지 않았습니다.</div>
+        </div>
+        <button type="button" className="omr-entry__cta" onClick={() => void refetch()}>
+          다시 시도
+        </button>
+      </div>
+    );
+  }
 
   // 제출 자체가 없으면 노출 안 함
   if (badge.total === 0) return null;

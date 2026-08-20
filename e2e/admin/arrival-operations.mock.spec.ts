@@ -319,3 +319,17 @@ test("7일 일정이 없으면 대시보드를 압축하고 기존 입력 화면
   await board.getByRole("button", { name: "강의에서 보강 입력" }).click();
   await expect(page).toHaveURL(/\/workspace\/lectures(?:\?.*)?$/);
 });
+
+test("잘못된 등원 응답을 빈 일정으로 숨기지 않고 재시도한다", async ({ page }) => {
+  const state = createState();
+  await seed(page);
+  await installApi(page, state, { items: null });
+  await page.goto(`${BASE}/workspace/dashboard`, { waitUntil: "domcontentloaded" });
+
+  const errorBoard = page.getByRole("region", { name: "등원 예정 오류" });
+  await expect(errorBoard).toContainText("등원 예정 현황을 불러오지 못했습니다.");
+  await expect(page.getByRole("heading", { name: "예정된 보강·클리닉 등원이 없습니다." })).toHaveCount(0);
+  const beforeRetry = state.arrivalOverviewRequests;
+  await errorBoard.getByRole("button", { name: "다시 불러오기" }).click();
+  await expect.poll(() => state.arrivalOverviewRequests).toBeGreaterThan(beforeRetry);
+});

@@ -83,10 +83,12 @@ export default function MyStorageExplorer() {
   const [renamingId, setRenamingId] = useState<{ type: "folder" | "file"; id: string } | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
-  const { data, isLoading } = useQuery({
+  const inventoryQ = useQuery({
     queryKey: storageQueryKeys.storageInventory(SCOPE),
     queryFn: () => fetchInventoryList(SCOPE),
   });
+  const data = inventoryQ.data;
+  const isLoading = inventoryQ.isLoading;
   const folders = useMemo(() => data?.folders ?? [], [data?.folders]);
   const files = useMemo(() => data?.files ?? [], [data?.files]);
   const subFolders = folders.filter((f) => f.parentId === currentFolderId);
@@ -619,6 +621,7 @@ export default function MyStorageExplorer() {
             intent="primary"
             size="sm"
             onClick={() => setAddChoiceOpen(true)}
+            disabled={inventoryQ.isError || isLoading}
             leftIcon={<FilePlus size={16} />}
           >
             추가
@@ -666,6 +669,11 @@ export default function MyStorageExplorer() {
           )}
           {isLoading ? (
             <div className={panelStyles.placeholder}>로딩 중...</div>
+          ) : inventoryQ.isError ? (
+            <div className={panelStyles.placeholder} role="alert">
+              저장소를 불러오지 못했습니다. 빈 저장소에서 변경하지 않도록 작업을 잠갔습니다.
+              <Button intent="secondary" size="sm" onClick={() => void inventoryQ.refetch()}>다시 시도</Button>
+            </div>
           ) : (
             <div
               className={styles.grid}
@@ -811,7 +819,7 @@ export default function MyStorageExplorer() {
         </div>
       </div>
 
-      {addChoiceOpen && (
+      {addChoiceOpen && !inventoryQ.isError && (
         <div className={styles.addPopupBackdrop} onClick={() => setAddChoiceOpen(false)}>
           <div className={styles.addPopup} onClick={(e) => e.stopPropagation()}>
             <div className={styles.addPopupHeader}>

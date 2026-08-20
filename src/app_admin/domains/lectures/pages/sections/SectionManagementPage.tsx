@@ -13,7 +13,6 @@ import { useParams, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, BookOpen, Stethoscope, ArrowLeft, Wand2, UserPlus, AlertTriangle } from "lucide-react";
 import api from "@/shared/api/axios";
-
 import {
   fetchSections,
   createSection,
@@ -31,6 +30,7 @@ import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { adminLectureQueryKeys } from "../../queryKeys";
+import SectionManagementErrorState from "./SectionManagementErrorState";
 import styles from "./SectionManagementPage.module.css";
 
 const DAY_OPTIONS = [
@@ -93,6 +93,7 @@ function errorMessage(error: unknown, fallback: string): string {
 export default function SectionManagementPage() {
   const { lectureId } = useParams<{ lectureId: string }>();
   const lecId = Number(lectureId);
+  const validLectureId = Number.isInteger(lecId) && lecId > 0;
   const qc = useQueryClient();
   const navigate = useNavigate();
   const confirm = useConfirm();
@@ -102,29 +103,36 @@ export default function SectionManagementPage() {
   const [formOpen, setFormOpen] = useState<null | { editId: number | null; form: SectionForm }>(null);
 
   // ===== Data =====
-  const { data: lecture } = useQuery({
+  const lectureQ = useQuery({
     queryKey: adminLectureQueryKeys.lecture(lecId),
     queryFn: async () => (await api.get(`/lectures/lectures/${lecId}/`)).data,
-    enabled: Number.isFinite(lecId),
+    enabled: validLectureId,
   });
+  const lecture = lectureQ.data;
 
-  const { data: sections = [], isLoading: sectionsLoading } = useQuery<Section[]>({
+  const sectionsQ = useQuery<Section[]>({
     queryKey: adminLectureQueryKeys.lectureSections(lecId),
     queryFn: () => fetchSections(lecId),
-    enabled: Number.isFinite(lecId),
+    enabled: validLectureId,
   });
+  const sections = useMemo(() => sectionsQ.data ?? [], [sectionsQ.data]);
+  const sectionsLoading = sectionsQ.isLoading;
 
-  const { data: assignments = [], isLoading: assignLoading } = useQuery<SectionAssignment[]>({
+  const assignmentsQ = useQuery<SectionAssignment[]>({
     queryKey: adminLectureQueryKeys.sectionAssignments(lecId),
     queryFn: () => fetchSectionAssignments(lecId),
-    enabled: Number.isFinite(lecId),
+    enabled: validLectureId,
   });
+  const assignments = useMemo(() => assignmentsQ.data ?? [], [assignmentsQ.data]);
+  const assignLoading = assignmentsQ.isLoading;
 
-  const { data: enrollments = [], isLoading: enrollLoading } = useQuery<EnrollmentLite[]>({
+  const enrollmentsQ = useQuery<EnrollmentLite[]>({
     queryKey: adminLectureQueryKeys.lectureEnrollments(lecId),
     queryFn: () => fetchLectureEnrollments(lecId) as Promise<EnrollmentLite[]>,
-    enabled: Number.isFinite(lecId),
+    enabled: validLectureId,
   });
+  const enrollments = useMemo(() => enrollmentsQ.data ?? [], [enrollmentsQ.data]);
+  const enrollLoading = enrollmentsQ.isLoading;
 
   // ===== Mutations =====
   const invalidate = useCallback(() => {
@@ -264,11 +272,26 @@ export default function SectionManagementPage() {
     );
   }
 
-  if (!Number.isFinite(lecId)) {
+  if (!validLectureId) {
     return <div className={`p-4 text-sm ${styles.invalidLecture}`}>강의 정보를 찾을 수 없습니다.</div>;
   }
 
   const isLoading = sectionsLoading || assignLoading || enrollLoading;
+  const hasDataError = lectureQ.isError
+    || sectionsQ.isError
+    || assignmentsQ.isError
+    || enrollmentsQ.isError;
+
+  if (hasDataError) {
+    return (
+      <SectionManagementErrorState onRetry={() => {
+        void lectureQ.refetch();
+        void sectionsQ.refetch();
+        void assignmentsQ.refetch();
+        void enrollmentsQ.refetch();
+      }} />
+    );
+  }
 
   // ===== Form handlers =====
   const openCreate = (type: "CLASS" | "CLINIC") => {

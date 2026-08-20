@@ -88,12 +88,22 @@ export default function VideoTreeView() {
     setSearchParams({}, { replace: true });
   }, [setSearchParams]);
 
-  const { data: lectures = [], isLoading: lecturesLoading } = useQuery({
+  const {
+    data: lectures = [],
+    isLoading: lecturesLoading,
+    isError: lecturesError,
+    refetch: refetchLectures,
+  } = useQuery({
     queryKey: adminVideoQueryKeys.lectures,
     queryFn: () => fetchLectures({ is_active: undefined }),
   });
 
-  const { data: allSessions = [], isLoading: sessionsLoading } = useQuery({
+  const {
+    data: allSessions = [],
+    isLoading: sessionsLoading,
+    isError: sessionsError,
+    refetch: refetchSessions,
+  } = useQuery({
     queryKey: adminVideoQueryKeys.lectureSessionsAll,
     queryFn: fetchAllSessions,
     staleTime: 60_000,
@@ -117,6 +127,7 @@ export default function VideoTreeView() {
     data: publicSession,
     isLoading: publicSessionLoading,
     isError: publicSessionError,
+    refetch: refetchPublicSession,
   } = useQuery({
     queryKey: adminVideoQueryKeys.publicSession,
     queryFn: fetchPublicSession,
@@ -135,7 +146,12 @@ export default function VideoTreeView() {
     }
   }, [lecturesWithSessions, selectedFolderId]);
 
-  const { data: publicFolders = [], isLoading: publicFoldersLoading } = useQuery({
+  const {
+    data: publicFolders = [],
+    isLoading: publicFoldersLoading,
+    isError: publicFoldersError,
+    refetch: refetchPublicFolders,
+  } = useQuery({
     queryKey: adminVideoQueryKeys.foldersForSession(publicSession?.session_id),
     queryFn: () => fetchVideoFolders(publicSession!.session_id),
     enabled: !!publicSession?.session_id,
@@ -150,13 +166,23 @@ export default function VideoTreeView() {
   }, [selectedFolderId]);
   const isPublicSelection = selectedFolderId === "public" || selectedPublicFolderId != null;
 
-  const { data: sessionVideos = [], isLoading: sessionVideosLoading } = useQuery({
+  const {
+    data: sessionVideos = [],
+    isLoading: sessionVideosLoading,
+    isError: sessionVideosError,
+    refetch: refetchSessionVideos,
+  } = useQuery({
     queryKey: adminVideoQueryKeys.sessionVideosScoped(selectedFolderId),
     queryFn: () => fetchSessionVideos(selectedFolderId as number),
     enabled: typeof selectedFolderId === "number" && selectedFolderId > 0,
   });
 
-  const { data: publicVideos = [], isLoading: publicVideosLoading } = useQuery({
+  const {
+    data: publicVideos = [],
+    isLoading: publicVideosLoading,
+    isError: publicVideosError,
+    refetch: refetchPublicVideos,
+  } = useQuery({
     queryKey: adminVideoQueryKeys.sessionVideosInFolder(publicSession?.session_id, selectedPublicFolderId),
     queryFn: () => {
       if (selectedPublicFolderId) {
@@ -186,8 +212,12 @@ export default function VideoTreeView() {
     isPublicSelection
       ? publicSessionLoading || publicVideosLoading || publicFoldersLoading
       : sessionVideosLoading;
+  const videosError = isPublicSelection
+    ? publicSessionError || publicFoldersError || publicVideosError
+    : sessionVideosError;
 
   const isLoading = lecturesLoading || sessionsLoading;
+  const treeError = lecturesError || sessionsError;
 
   const selectedSession = useMemo(() => {
     if (typeof selectedFolderId !== "number") return null;
@@ -366,6 +396,21 @@ export default function VideoTreeView() {
           <div className={`${panelStyles.gridWrap} ${isPublicSelection ? styles.gridWrapPublic : ""}`}>
             {isLoading ? (
               <div className={panelStyles.placeholder}>불러오는 중…</div>
+            ) : treeError ? (
+              <div className={`${panelStyles.placeholder} ${styles.errorPlaceholder}`}>
+                <p className={panelStyles.placeholderTitle}>강의·차시 목록을 불러오지 못했습니다</p>
+                <p className={panelStyles.placeholderDesc}>영상 폴더를 안전하게 선택할 수 없어 목록을 표시하지 않았습니다.</p>
+                <Button
+                  intent="secondary"
+                  size="sm"
+                  onClick={() => {
+                    void refetchLectures();
+                    void refetchSessions();
+                  }}
+                >
+                  다시 시도
+                </Button>
+              </div>
             ) : selectedFolderId === null ? (
               <div className={panelStyles.placeholder}>
                 <div className={panelStyles.placeholderIcon}>
@@ -376,12 +421,27 @@ export default function VideoTreeView() {
                   왼쪽 목록에서 전체공개영상 또는 강의·차시를 선택하면 영상을 확인할 수 있습니다.
                 </p>
               </div>
-            ) : isPublicSelection && publicSessionError ? (
+            ) : videosError ? (
               <div className={`${panelStyles.placeholder} ${styles.errorPlaceholder}`}>
-                <p className={panelStyles.placeholderTitle}>전체공개영상 영역을 불러오지 못했습니다</p>
+                <p className={panelStyles.placeholderTitle}>영상 목록을 불러오지 못했습니다</p>
                 <p className={panelStyles.placeholderDesc}>
-                  같은 도메인(예: tchul.com)으로 로그인했는지, 관리자·스태프 권한이 있는지 확인하세요.
+                  빈 폴더로 오인해 다시 업로드하지 않도록 목록을 복구한 뒤 작업해 주세요.
                 </p>
+                <Button
+                  intent="secondary"
+                  size="sm"
+                  onClick={() => {
+                    if (isPublicSelection) {
+                      void refetchPublicSession();
+                      void refetchPublicFolders();
+                      void refetchPublicVideos();
+                    } else {
+                      void refetchSessionVideos();
+                    }
+                  }}
+                >
+                  다시 시도
+                </Button>
               </div>
             ) : videosLoading ? (
               <div className={panelStyles.placeholder}>

@@ -24,11 +24,13 @@ function progressWidthStyle(value: number): CSSProperties {
 }
 
 export default function VideoStatsTab() {
-  const { data: stats, isLoading } = useQuery({
+  const statsQ = useQuery({
     queryKey: studentVideoQueryKeys.stats,
     queryFn: fetchVideoStats,
     staleTime: 60 * 1000,
   });
+  const stats = statsQ.data;
+  const isLoading = statsQ.isLoading;
 
   if (isLoading) {
     return (
@@ -37,6 +39,10 @@ export default function VideoStatsTab() {
         <div className="stu-skel stu-skel--xl" />
       </div>
     );
+  }
+
+  if (statsQ.isError) {
+    return <EmptyState title="영상 통계를 불러오지 못했습니다" description="시청 기록이 없는 것으로 계산하지 않았습니다." onRetry={() => void statsQ.refetch()} />;
   }
 
   if (!stats || stats.total_videos === 0) {

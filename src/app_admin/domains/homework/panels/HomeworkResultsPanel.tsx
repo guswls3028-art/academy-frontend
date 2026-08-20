@@ -77,14 +77,16 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
   const [resultFilter, setResultFilter] = useState<HomeworkResultFilter>("all");
   const [resultSort, setResultSort] = useState<HomeworkResultSort>("student_name");
   const labels = useTenantLabels();
-  const { data: homework, isLoading: hwLoading } = useAdminHomework(homeworkId);
+  const homeworkQ = useAdminHomework(homeworkId);
+  const { data: homework, isLoading: hwLoading } = homeworkQ;
   const sessionId = useMemo(() => Number(homework?.session_id) || 0, [homework?.session_id]);
 
-  const { data: scoresData, isLoading: scoresLoading } = useQuery({
+  const scoresQ = useQuery({
     queryKey: scoresQueryKeys.sessionScores(sessionId),
     queryFn: () => fetchSessionScores(sessionId),
     enabled: Number.isFinite(sessionId) && sessionId > 0,
   });
+  const { data: scoresData, isLoading: scoresLoading } = scoresQ;
 
   const { rows, summary } = useMemo(() => {
     if (!scoresData?.rows || !homeworkId) return { rows: [] as HomeworkResultRow[], summary: { assigned: 0, notSubmitted: 0, graded: 0, passCount: 0, failCount: 0, clinic: 0 } };
@@ -199,12 +201,20 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
     return <EmptyState scope="panel" tone="loading" title="과제 정보 불러오는 중…" />;
   }
 
+  if (homeworkQ.isError) {
+    return <EmptyState scope="panel" tone="error" title="과제를 불러오지 못했습니다." actions={<button type="button" className="ds-button" onClick={() => void homeworkQ.refetch()}>다시 시도</button>} />;
+  }
+
   if (!homework) {
     return <EmptyState scope="panel" tone="error" title="과제를 불러오지 못했습니다." />;
   }
 
   if (scoresLoading) {
     return <EmptyState scope="panel" tone="loading" title="성적 불러오는 중…" />;
+  }
+
+  if (scoresQ.isError) {
+    return <EmptyState scope="panel" tone="error" title="과제 성적을 불러오지 못했습니다." description="일부 학생을 누락한 채 통계를 계산하지 않았습니다." actions={<button type="button" className="ds-button" onClick={() => void scoresQ.refetch()}>다시 시도</button>} />;
   }
 
   const cutlineMode = homework.effective_cutline_mode;

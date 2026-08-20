@@ -69,30 +69,29 @@ function WorkingAvatar({ item }: { item: CurrentlyWorkingItem }) {
         </div>
       )}
     >
-      <span
-        role="button"
-        tabIndex={0}
+      <button
+        type="button"
         className="app-header__centerClockAvatarCard app-header__centerClockAvatarCard--online app-header__centerClockAvatarCard--clickable"
         title={item.staff_name}
         aria-label={`${item.staff_name} 근무 정보 보기`}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") e.preventDefault();
-        }}
       >
         <span className="app-header__centerClockAvatarIcon">
           <StaffRoleAvatar role={roleForAvatar} size={12} className="text-[var(--color-primary)]" />
         </span>
         <span className="app-header__centerClockAvatarName">{item.staff_name}</span>
-      </span>
+      </button>
     </Dropdown>
   );
 }
 
 export function HeaderCenterStaffClock() {
   const clock = useStaffClock();
-  const { data: workingList = [] } = useCurrentlyWorkingStaff();
+  const workingQ = useCurrentlyWorkingStaff();
+  const workingList = workingQ.data ?? [];
   const staffMe = clock.staffMeQ.data;
-  const timeLabel = clock.currentQ.isLoading
+  const timeLabel = clock.currentQ.isError
+    ? "확인 실패"
+    : clock.currentQ.isLoading
     ? "확인 중..."
     : clock.timeLabel;
 
@@ -100,12 +99,25 @@ export function HeaderCenterStaffClock() {
     (a, b) => (ROLE_ORDER[a.role ?? ""] ?? 99) - (ROLE_ORDER[b.role ?? ""] ?? 99)
   );
 
-  const hasVisibleClockContent = sortedWorkingList.length > 0 || !staffMe?.is_owner;
+  const showOwnClock = clock.staffMeQ.isLoading
+    || clock.staffMeQ.isError
+    || staffMe?.is_owner === false;
+  const hasVisibleClockContent = sortedWorkingList.length > 0
+    || workingQ.isError
+    || showOwnClock;
   if (!hasVisibleClockContent) return null;
 
   return (
     <div className="app-header__centerClock">
-      {sortedWorkingList.length > 0 && (
+      {workingQ.isError ? (
+        <button
+          type="button"
+          className="app-header__centerClockRetry"
+          onClick={() => void workingQ.refetch()}
+        >
+          근무 현황 오류 · 다시 시도
+        </button>
+      ) : sortedWorkingList.length > 0 && (
         <>
           <div className="app-header__centerClockAvatars" aria-label="근무 중인 직원">
             {sortedWorkingList.map((s) => (
@@ -118,12 +130,30 @@ export function HeaderCenterStaffClock() {
       {/* WORK TIME 표기 + 본인 출퇴근 컨트롤은 owner 에게 잡음.
           "본인 시급 정산"이 필요 없는 학원장이 매번 노출되는 것을 hide (시각 검수 M-1).
           owner 도 본인 staff record가 있으면 staff/근태 페이지에서 등록 가능. */}
-      {!staffMe?.is_owner && (
+      {showOwnClock && (
         <div className="app-header__centerClockTime">
           <span className="app-header__centerClockLabel">WORK TIME</span>
-          <span className="app-header__centerClockValue" aria-live="polite">
-            {timeLabel}
-          </span>
+          {clock.staffMeQ.isError ? (
+            <button
+              type="button"
+              className="app-header__centerClockRetry"
+              onClick={() => void clock.staffMeQ.refetch()}
+            >
+              내 근무 정보 오류 · 다시 시도
+            </button>
+          ) : clock.currentQ.isError ? (
+            <button
+              type="button"
+              className="app-header__centerClockRetry"
+              onClick={() => void clock.currentQ.refetch()}
+            >
+              근무 상태 오류 · 다시 시도
+            </button>
+          ) : (
+            <span className="app-header__centerClockValue" aria-live="polite">
+              {clock.staffMeQ.isLoading ? "확인 중..." : timeLabel}
+            </span>
+          )}
         </div>
       )}
       {clock.canUseClock && clock.assignedWorkTypes.length > 0 && (
@@ -136,7 +166,7 @@ export function HeaderCenterStaffClock() {
                   <Button
                     type="button"
                     size="sm"
-                    disabled={clock.isBreakEnding}
+                    disabled={clock.isMutating}
                     onClick={() => void clock.endBreak().catch(() => undefined)}
                     className="app-header__clockBtn app-header__clockBtn--resume"
                   >
@@ -146,7 +176,7 @@ export function HeaderCenterStaffClock() {
                   <Button
                     type="button"
                     size="sm"
-                    disabled={clock.isBreakStarting}
+                    disabled={clock.isMutating}
                     onClick={() => void clock.startBreak().catch(() => undefined)}
                     className="app-header__clockBtn app-header__clockBtn--break"
                   >
@@ -156,7 +186,7 @@ export function HeaderCenterStaffClock() {
                 <Button
                   type="button"
                   size="sm"
-                  disabled={clock.isEnding}
+                  disabled={clock.isMutating}
                   onClick={() => void clock.endWork().catch(() => undefined)}
                   className="app-header__clockBtn app-header__clockBtn--end"
                 >
@@ -168,7 +198,7 @@ export function HeaderCenterStaffClock() {
                 <Button
                   type="button"
                   size="sm"
-                  disabled={clock.isStarting}
+                  disabled={clock.isMutating}
                   onClick={() => void clock.startWork(clock.assignedWorkTypes[0]).catch(() => undefined)}
                   className="app-header__clockBtn app-header__clockBtn--start"
                   title={clock.assignedWorkTypes[0].name}
@@ -194,7 +224,7 @@ export function HeaderCenterStaffClock() {
                   <Button
                     type="button"
                     size="sm"
-                    disabled={clock.isStarting}
+                    disabled={clock.isMutating}
                     className="app-header__clockBtn app-header__clockBtn--start"
                   >
                     {clock.isStarting ? "..." : "출근 유형 선택"}

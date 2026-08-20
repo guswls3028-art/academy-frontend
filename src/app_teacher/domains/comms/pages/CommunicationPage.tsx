@@ -75,22 +75,26 @@ export default function CommunicationPage() {
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 
-  const { data: posts, isLoading: postsLoading } = useQuery({
+  const postsQ = useQuery({
     queryKey: teacherCommsQueryKeys.postsList(tab, searchQuery),
     queryFn: () => fetchPosts(postType, 50, searchQuery || undefined),
     enabled: isPostTab,
     refetchInterval: tab === "qna" || tab === "counsel" ? 15_000 : false,
   });
+  const posts = postsQ.data;
+  const postsLoading = postsQ.isLoading;
   const visiblePosts = (posts ?? []).filter((p) => {
     if (tab !== "counsel") return true;
     return p.category_label !== "teacher_internal_memo" && p.author_role !== "staff";
   });
 
-  const { data: reqData, isLoading: reqLoading } = useQuery({
+  const requestsQ = useQuery({
     queryKey: teacherCommsQueryKeys.registrationRequests,
     queryFn: () => fetchRegistrationRequests("pending"),
     enabled: tab === "requests",
   });
+  const reqData = requestsQ.data;
+  const reqLoading = requestsQ.isLoading;
 
   const tabs: { key: Tab; label: string; badge?: number }[] = [
     { key: "notices", label: "공지사항" },
@@ -211,6 +215,8 @@ export default function CommunicationPage() {
         {tab === "requests" ? (
           reqLoading ? (
             <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+          ) : requestsQ.isError ? (
+            <EmptyState scope="panel" tone="error" title="등록요청을 불러오지 못했습니다" actions={<EmptyActionButton onClick={() => void requestsQ.refetch()}>다시 시도</EmptyActionButton>} />
           ) : reqData && reqData.results.length > 0 ? (
             <RegistrationRequestList requests={reqData.results} />
           ) : (
@@ -223,6 +229,8 @@ export default function CommunicationPage() {
           )
         ) : postsLoading ? (
           <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+        ) : postsQ.isError ? (
+          <EmptyState scope="panel" tone="error" title="게시글을 불러오지 못했습니다" description="빈 게시판으로 표시하지 않고 조회를 중단했습니다." actions={<EmptyActionButton onClick={() => void postsQ.refetch()}>다시 시도</EmptyActionButton>} />
         ) : visiblePosts.length > 0 ? (
           <div className={styles.postList}>
             {visiblePosts.map((p) => (

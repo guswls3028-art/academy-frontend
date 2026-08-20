@@ -218,11 +218,22 @@ function QuickAction({
 export default function DashboardPage() {
   const { user } = useAuthContext();
   const feesEnabled = useFeesEnabled();
-  const { data: dashboard, isLoading: dashLoading, isError: dashError } = useStudentDashboard();
-  const { data: sessions, isLoading: sessionsLoading, isError: sessionsError } = useMySessions();
-  const { data: grades } = useMyGradesSummary();
-  const { data: examsResp } = useStudentExams({ include_upcoming: true });
-  const { data: notificationCounts, isLoading: countsLoading } = useNotificationCounts();
+  const dashboardQ = useStudentDashboard();
+  const sessionsQ = useMySessions();
+  const gradesQ = useMyGradesSummary();
+  const examsQ = useStudentExams({ include_upcoming: true });
+  const notificationCountsQ = useNotificationCounts();
+  const dashboard = dashboardQ.data;
+  const dashLoading = dashboardQ.isLoading;
+  const dashError = dashboardQ.isError;
+  const sessions = sessionsQ.data;
+  const sessionsLoading = sessionsQ.isLoading;
+  const sessionsError = sessionsQ.isError;
+  const grades = gradesQ.data;
+  const examsResp = examsQ.data;
+  const notificationCounts = notificationCountsQ.data;
+  const countsLoading = notificationCountsQ.isLoading;
+  const todoDataError = dashError || gradesQ.isError || examsQ.isError || notificationCountsQ.isError;
   const isParent = user?.tenantRole === "parent";
 
   const today = ymdToday();
@@ -322,6 +333,15 @@ export default function DashboardPage() {
 
   const hasUrgentNotice = (dashboard?.notices ?? []).some((n) => n.is_urgent === true);
   const hasNotices = (dashboard?.notices?.length ?? 0) > 0;
+  const partialFailureBanner = todoDataError || sessionsError ? (
+    <div className={styles.heroDone} role="alert">
+      <div>
+        <div className={styles.heroDoneTitle}>일부 정보를 확인하지 못했어요</div>
+        <div className={styles.heroDoneText}>할 일이나 일정이 0건이라고 확정하지 않았습니다.</div>
+      </div>
+      <button type="button" onClick={() => window.location.reload()}>다시 시도</button>
+    </div>
+  ) : null;
 
   if (isParent) {
     const selectedStudentId = getParentStudentId();
@@ -332,6 +352,8 @@ export default function DashboardPage() {
       ?? "자녀";
 
     return (
+      <>
+        {partialFailureBanner}
       <ParentDashboardView
         childName={childName}
         todaySessions={todaySessions}
@@ -351,11 +373,13 @@ export default function DashboardPage() {
         tenantInfo={dashboard?.tenant_info ?? null}
         feesEnabled={feesEnabled}
       />
+      </>
     );
   }
 
   return (
     <div className={styles.page}>
+      {partialFailureBanner}
       {hasUrgentNotice && (
         <UrgentNotice notices={(dashboard?.notices ?? []).filter((n) => n.is_urgent)} />
       )}
@@ -365,15 +389,17 @@ export default function DashboardPage() {
           <div>
             <div className={styles.heroEyebrow}>오늘 할 일</div>
             <h2 className={styles.heroTitle}>
-              {todoCount > 0 ? "오늘 확인할 일이 있어요" : "오늘은 급한 일이 없어요"}
+              {todoDataError ? "일부 할 일을 확인하지 못했어요" : todoCount > 0 ? "오늘 확인할 일이 있어요" : "오늘은 급한 일이 없어요"}
             </h2>
             <p className={styles.heroDescription}>
-              {todoCount > 0
+              {todoDataError
+                ? "시험, 답변, 클리닉 조회를 다시 시도해 정확한 할 일을 확인해 주세요."
+                : todoCount > 0
                 ? "시험, 답변, 클리닉처럼 지금 확인하면 좋은 항목만 모았어요."
                 : "수업과 영상 학습 흐름만 차근차근 이어가면 됩니다."}
             </p>
           </div>
-          <div className={styles.heroPill}>{todoCount > 0 ? `${todoCount}건` : "정리됨"}</div>
+          <div className={styles.heroPill}>{todoDataError ? "확인 필요" : todoCount > 0 ? `${todoCount}건` : "정리됨"}</div>
         </div>
 
         {nextSession && (
@@ -460,6 +486,13 @@ export default function DashboardPage() {
                 />
               );
             })()}
+          </div>
+        ) : todoDataError ? (
+          <div className={styles.heroDone} role="alert">
+            <div>
+              <div className={styles.heroDoneTitle}>할 일 조회를 완료하지 못했어요</div>
+              <div className={styles.heroDoneText}>빈 상태로 단정하지 않고 다시 조회를 기다립니다.</div>
+            </div>
           </div>
         ) : (
           <div className={styles.heroDone}>

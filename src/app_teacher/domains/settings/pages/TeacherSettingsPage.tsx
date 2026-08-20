@@ -368,10 +368,11 @@ function OrgSection() {
   const [orgPhone, setOrgPhone] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
 
-  const { data: info } = useQuery({
+  const infoQ = useQuery({
     queryKey: teacherSharedQueryKeys.tenantInfo,
     queryFn: fetchTenantInfo,
   });
+  const info = infoQ.data;
 
   const saveMut = useMutation({
     mutationFn: () => updateTenantInfo({ name: orgName, phone: orgPhone }),
@@ -386,7 +387,14 @@ function OrgSection() {
 
   return (
     <Section title="학원 정보" icon={<User size={ICON.sm} />}>
-      {!editing ? (
+      {infoQ.isLoading ? (
+        <div className="text-[12px]" style={{ color: "var(--tc-text-muted)" }}>학원 정보를 불러오는 중…</div>
+      ) : infoQ.isError ? (
+        <div role="alert" className="flex flex-col gap-2 text-[12px]" style={{ color: "var(--tc-danger)" }}>
+          <span>학원 정보를 불러오지 못해 편집을 잠갔습니다.</span>
+          <SmBtn label="다시 시도" onClick={() => void infoQ.refetch()} />
+        </div>
+      ) : !editing ? (
         <div>
           <div className="text-sm" style={{ color: "var(--tc-text)" }}>{info?.name || "미설정"}</div>
           <div className="text-[12px]" style={{ color: "var(--tc-text-muted)" }}>{info?.phone || "전화번호 미등록"}</div>
@@ -417,15 +425,17 @@ function BillingSection() {
   const [msg, setMsg] = useState<string | null>(null);
   const confirm = useConfirm();
 
-  const { data: cards } = useQuery({
+  const cardsQ = useQuery({
     queryKey: teacherSharedQueryKeys.billingCards,
     queryFn: async () => { const res = await api.get("/billing/cards/"); return Array.isArray(res.data) ? res.data : []; },
   });
+  const cards = cardsQ.data;
 
-  const { data: subscription } = useQuery({
+  const subscriptionQ = useQuery({
     queryKey: teacherSharedQueryKeys.subscription,
     queryFn: async () => { const res = await api.get("/core/subscription/"); return res.data; },
   });
+  const subscription = subscriptionQ.data;
 
   const deleteCardMut = useMutation({
     mutationFn: async (id: number) => { await api.delete(`/billing/cards/${id}/`); },
@@ -437,6 +447,10 @@ function BillingSection() {
   });
 
   const registerCard = async () => {
+    if (cardsQ.isError || subscriptionQ.isError) {
+      setMsg("결제 정보를 다시 불러온 뒤 시도해 주세요.");
+      return;
+    }
     try {
       const res = await api.post("/billing/card/register/prepare/");
       await requestBillingAuth(res.data);
@@ -447,6 +461,17 @@ function BillingSection() {
 
   return (
     <Section title="결제 / 구독" icon={<Lock size={ICON.sm} />}>
+      {(cardsQ.isLoading || subscriptionQ.isLoading) && (
+        <div className="text-[12px]" style={{ color: "var(--tc-text-muted)" }}>결제 정보를 불러오는 중…</div>
+      )}
+      {(cardsQ.isError || subscriptionQ.isError) && (
+        <div role="alert" className="flex flex-col gap-2 text-[12px]" style={{ color: "var(--tc-danger)" }}>
+          <span>결제 정보를 불러오지 못해 카드 변경을 잠갔습니다.</span>
+          <SmBtn label="다시 시도" onClick={() => { void cardsQ.refetch(); void subscriptionQ.refetch(); }} />
+        </div>
+      )}
+      {!cardsQ.isLoading && !subscriptionQ.isLoading && !cardsQ.isError && !subscriptionQ.isError && (
+        <>
       {/* Subscription info */}
       {subscription && (
         <div className="mb-3">
@@ -492,6 +517,8 @@ function BillingSection() {
         style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-primary)", background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
         카드 등록
       </button>
+        </>
+      )}
 
       {msg && <div className="text-[12px] mt-1" style={{ color: "var(--tc-success)" }}>{msg}</div>}
     </Section>

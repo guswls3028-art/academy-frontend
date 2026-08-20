@@ -30,7 +30,7 @@ const tabs: StudentTabItem[] = [
 ];
 
 export default function StudentTabBar() {
-  const { data: counts, isLoading } = useNotificationCounts();
+  const { data: counts, isLoading, isError } = useNotificationCounts();
 
   return (
     <nav
@@ -51,6 +51,7 @@ export default function StudentTabBar() {
               <span className={styles.iconSlot} aria-hidden="true">
                 <Icon className={styles.icon} />
                 {badgeCount > 0 && <NotificationBadge count={badgeCount} />}
+                {badgeKey && isError && <span className={styles.badgeError}>!</span>}
               </span>
               <span className={styles.label}>{label}</span>
             </NavLink>

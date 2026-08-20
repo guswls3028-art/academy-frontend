@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { Users } from "lucide-react";
 import api from "@/shared/api/axios";
 import { DomainLayout } from "@/shared/ui/layout";
-import { Button } from "@/shared/ui/ds";
+import { Button, EmptyState } from "@/shared/ui/ds";
 import SessionBlock from "@admin/domains/sessions/components/SessionBlock";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { adminLectureQueryKeys } from "./queryKeys";
@@ -21,11 +21,13 @@ export default function LectureLayout() {
   const lectureIdNum = Number(lectureId);
   const hasValidLectureId = Number.isFinite(lectureIdNum);
 
-  const { data: lecture, isLoading } = useQuery({
+  const lectureQ = useQuery({
     queryKey: adminLectureQueryKeys.lecture(hasValidLectureId ? lectureIdNum : null),
     queryFn: async () => (await api.get(`/lectures/lectures/${lectureIdNum}/`)).data,
     enabled: hasValidLectureId,
   });
+  const lecture = lectureQ.data;
+  const isLoading = lectureQ.isLoading;
 
   const title = isLoading ? "강의 불러오는 중…" : safeStr(lecture?.title) || "강의";
   const desc = isLoading
@@ -65,6 +67,27 @@ export default function LectureLayout() {
         <div className="p-4 text-sm text-[var(--color-error)]">
           잘못된 강의 ID
         </div>
+      </DomainLayout>
+    );
+  }
+
+  if (lectureQ.isError) {
+    return (
+      <DomainLayout title="강의" description="강의 정보를 불러오지 못했습니다" breadcrumbs={breadcrumbs}>
+        <EmptyState
+          scope="panel"
+          tone="error"
+          title="강의 정보를 불러오지 못했습니다"
+          actions={<Button intent="secondary" onClick={() => void lectureQ.refetch()}>다시 시도</Button>}
+        />
+      </DomainLayout>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <DomainLayout title={title} description={desc} breadcrumbs={breadcrumbs}>
+        <EmptyState scope="panel" tone="loading" title="강의를 불러오는 중…" />
       </DomainLayout>
     );
   }

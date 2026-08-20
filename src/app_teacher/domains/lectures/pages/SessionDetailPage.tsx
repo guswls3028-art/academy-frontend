@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-syntax, @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
 // PATH: src/app_teacher/domains/lectures/pages/SessionDetailPage.tsx
 // 차시 상세 — 탭 구조: 학생 + 출석 + 성적 + 시험 + 과제 + 영상 (+ 클리닉 if section_mode)
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
@@ -48,55 +48,65 @@ export default function SessionDetailPage() {
   const { sessionId, lectureId } = useParams<{ sessionId: string; lectureId: string }>();
   const navigate = useNavigate();
   const sid = Number(sessionId);
+  const validSessionId = Number.isInteger(sid) && sid > 0;
   const { sectionMode } = useSectionMode();
   const [tab, setTab] = useState<Tab>("students");
 
-  const { data: session, isLoading } = useQuery({
+  const sessionQ = useQuery({
     queryKey: teacherLectureQueryKeys.sessionDetail(sid),
     queryFn: () => fetchSession(sid),
-    enabled: Number.isFinite(sid),
+    enabled: validSessionId,
   });
+  const session = sessionQ.data;
 
-  const { data: attendances } = useQuery({
+  const attendanceQ = useQuery({
     queryKey: teacherLectureQueryKeys.sessionAttendance(sid),
     queryFn: () => fetchSessionAttendance(sid),
-    enabled: Number.isFinite(sid),
+    enabled: validSessionId,
   });
 
   // 차시 학생 탭은 SessionEnrollment 기준 list + attendance 매핑 — 출석 row 미생성 학생도 노출
-  const { data: sessionEnrollments } = useQuery({
+  const enrollmentsQ = useQuery({
     queryKey: teacherLectureQueryKeys.sessionEnrollments(sid),
     queryFn: () => fetchSessionEnrollments(sid),
-    enabled: Number.isFinite(sid),
+    enabled: validSessionId,
   });
 
-  const { data: exams } = useQuery({
+  const examsQ = useQuery({
     queryKey: teacherLectureQueryKeys.sessionExamsDetail(sid),
     queryFn: () => fetchSessionExams(sid),
-    enabled: Number.isFinite(sid) && (tab === "scores" || tab === "exams"),
+    enabled: validSessionId && (tab === "scores" || tab === "exams"),
   });
 
-  const { data: homeworks } = useQuery({
+  const homeworksQ = useQuery({
     queryKey: teacherLectureQueryKeys.sessionHomeworks(sid),
     queryFn: () => fetchHomeworks({ session_id: sid }),
-    enabled: Number.isFinite(sid) && tab === "homeworks",
+    enabled: validSessionId && tab === "homeworks",
   });
 
-  const { data: videos } = useQuery({
+  const videosQ = useQuery({
     queryKey: teacherLectureQueryKeys.sessionVideos(sid),
     queryFn: () => fetchVideos({ session: sid }),
-    enabled: Number.isFinite(sid) && tab === "videos",
+    enabled: validSessionId && tab === "videos",
   });
 
   // 차시 클리닉 탭 = ClinicLink (학생×차시 매핑) SSOT.
   // (이전: ClinicSession = 날짜의 클리닉 스케줄 — 차시 내 누가 클리닉 대상인지 못 봄)
-  const { data: clinicLinks } = useQuery({
+  const clinicLinksQ = useQuery({
     queryKey: teacherLectureQueryKeys.sessionClinicLinks(sid),
     queryFn: () => fetchSessionClinicLinks(sid),
-    enabled: Number.isFinite(sid) && tab === "clinic" && sectionMode,
+    enabled: validSessionId && tab === "clinic" && sectionMode,
   });
 
-  if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
+  if (sessionQ.isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
+  if (!validSessionId || sessionQ.isError || !session) {
+    return (
+      <QueryFailure
+        title={validSessionId ? "차시를 불러오지 못했습니다" : "잘못된 차시 주소입니다"}
+        onRetry={validSessionId ? () => void sessionQ.refetch() : undefined}
+      />
+    );
+  }
 
   const title = session ? formatSessionLabel(session) : "";
   const sessionLectureInfo: LectureInfo | undefined = session
@@ -165,7 +175,7 @@ export default function SessionDetailPage() {
       >
         {([
           // 학생 카운트는 SessionEnrollment(차시 수강생 전체) 기준. attendance는 출석 상태가 매겨진 row만이라 학생 수와 다름.
-          { key: "students" as Tab, label: `학생${sessionEnrollments?.length != null ? ` ${sessionEnrollments.length}` : ""}` },
+          { key: "students" as Tab, label: `학생${enrollmentsQ.data?.length != null ? ` ${enrollmentsQ.data.length}` : ""}` },
           { key: "attendance" as Tab, label: "출석" },
           { key: "scores" as Tab, label: "성적" },
           { key: "exams" as Tab, label: "시험" },
@@ -195,29 +205,55 @@ export default function SessionDetailPage() {
 
       {/* Tab content */}
       {tab === "students" && (
-        <StudentsTab
-          enrollments={sessionEnrollments ?? []}
-          attendances={attendances ?? []}
-          lectureInfo={sessionLectureInfo}
-          navigate={navigate}
-          lecturePath={lecturePath}
-        />
+        <QueryBoundary
+          loading={enrollmentsQ.isLoading || attendanceQ.isLoading}
+          failed={enrollmentsQ.isError || attendanceQ.isError}
+          onRetry={() => { void enrollmentsQ.refetch(); void attendanceQ.refetch(); }}
+        >
+          <StudentsTab
+            enrollments={enrollmentsQ.data ?? []}
+            attendances={attendanceQ.data ?? []}
+            lectureInfo={sessionLectureInfo}
+            navigate={navigate}
+            lecturePath={lecturePath}
+          />
+        </QueryBoundary>
       )}
-      {tab === "attendance" && <AttendanceTab attendances={attendances ?? []} lectureInfo={sessionLectureInfo} navigate={navigate} sessionId={sid} />}
-      {tab === "scores" && <ScoresTab exams={exams ?? []} sessionId={sid} lectureInfo={sessionLectureInfo} navigate={navigate} lecturePath={lecturePath} />}
-      {tab === "exams" && <ExamsTab exams={exams ?? []} navigate={navigate} lecturePath={lecturePath} />}
-      {tab === "homeworks" && <HomeworksTab homeworks={homeworks ?? []} navigate={navigate} lecturePath={lecturePath} />}
-      {tab === "videos" && <VideosTab videos={videos ?? []} navigate={navigate} />}
+      {tab === "attendance" && <QueryBoundary loading={attendanceQ.isLoading} failed={attendanceQ.isError} onRetry={() => void attendanceQ.refetch()}><AttendanceTab attendances={attendanceQ.data ?? []} lectureInfo={sessionLectureInfo} navigate={navigate} sessionId={sid} /></QueryBoundary>}
+      {tab === "scores" && <QueryBoundary loading={examsQ.isLoading} failed={examsQ.isError} onRetry={() => void examsQ.refetch()}><ScoresTab exams={examsQ.data ?? []} sessionId={sid} lectureInfo={sessionLectureInfo} navigate={navigate} lecturePath={lecturePath} /></QueryBoundary>}
+      {tab === "exams" && <QueryBoundary loading={examsQ.isLoading} failed={examsQ.isError} onRetry={() => void examsQ.refetch()}><ExamsTab exams={examsQ.data ?? []} navigate={navigate} lecturePath={lecturePath} /></QueryBoundary>}
+      {tab === "homeworks" && <QueryBoundary loading={homeworksQ.isLoading} failed={homeworksQ.isError} onRetry={() => void homeworksQ.refetch()}><HomeworksTab homeworks={homeworksQ.data ?? []} navigate={navigate} lecturePath={lecturePath} /></QueryBoundary>}
+      {tab === "videos" && <QueryBoundary loading={videosQ.isLoading} failed={videosQ.isError} onRetry={() => void videosQ.refetch()}><VideosTab videos={videosQ.data ?? []} navigate={navigate} /></QueryBoundary>}
       {tab === "clinic" && (
-        <ClinicTab
-          links={clinicLinks ?? []}
-          enabled={!!sectionMode}
-          lectureInfo={sessionLectureInfo}
-          navigate={navigate}
-        />
+        <QueryBoundary loading={clinicLinksQ.isLoading} failed={clinicLinksQ.isError} onRetry={() => void clinicLinksQ.refetch()}>
+          <ClinicTab
+            links={clinicLinksQ.data ?? []}
+            enabled={!!sectionMode}
+            lectureInfo={sessionLectureInfo}
+            navigate={navigate}
+          />
+        </QueryBoundary>
       )}
     </div>
   );
+}
+
+function QueryFailure({ title, onRetry }: { title: string; onRetry?: () => void }) {
+  return (
+    <EmptyState
+      scope="panel"
+      tone="error"
+      title={title}
+      description="빈 목록으로 처리하지 않고 기존 데이터를 보호했습니다. 연결을 확인한 뒤 다시 시도해 주세요."
+      actions={onRetry ? <EmptyActionButton onClick={onRetry}>다시 시도</EmptyActionButton> : undefined}
+    />
+  );
+}
+
+function QueryBoundary({ loading, failed, onRetry, children }: { loading: boolean; failed: boolean; onRetry: () => void; children: ReactNode }) {
+  if (loading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
+  if (failed) return <QueryFailure title="차시 데이터를 불러오지 못했습니다" onRetry={onRetry} />;
+  return children;
 }
 
 /* === Exams tab === */
@@ -615,11 +651,12 @@ function ScoresTab({
 }: { exams: any[]; sessionId: number; lectureInfo?: LectureInfo; navigate: any; lecturePath: string }) {
   const [selectedExam, setSelectedExam] = useState<number | null>(null);
 
-  const { data: results } = useQuery({
+  const resultsQ = useQuery({
     queryKey: teacherLectureQueryKeys.examResultsSession(selectedExam),
     queryFn: () => fetchExamResults(selectedExam!),
     enabled: selectedExam != null,
   });
+  const results = resultsQ.data;
 
   if (!exams.length) {
     return (
@@ -662,6 +699,10 @@ function ScoresTab({
         <div className="text-sm text-center py-4" style={{ color: "var(--tc-text-muted)" }}>
           시험을 선택하세요
         </div>
+      ) : resultsQ.isLoading ? (
+        <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+      ) : resultsQ.isError ? (
+        <QueryFailure title="시험 결과를 불러오지 못했습니다" onRetry={() => void resultsQ.refetch()} />
       ) : results ? (
         results.length > 0 ? (
           <>
@@ -729,9 +770,7 @@ function ScoresTab({
             }
           />
         )
-      ) : (
-        <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
-      )}
+      ) : null}
     </div>
   );
 }

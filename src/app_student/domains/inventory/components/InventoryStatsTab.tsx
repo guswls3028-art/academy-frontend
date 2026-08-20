@@ -44,11 +44,12 @@ function clampPercent(percent: number): number {
 }
 
 export default function InventoryStatsTab({ files, folders }: Props) {
-  const { data: quota } = useQuery({
+  const quotaQ = useQuery({
     queryKey: studentQueryKeys.storageQuota,
     queryFn: fetchStorageQuota,
     staleTime: 60 * 1000,
   });
+  const quota = quotaQ.data;
 
   const totalBytes = useMemo(() => files.reduce((s, f) => s + (f.sizeBytes || 0), 0), [files]);
 
@@ -84,13 +85,23 @@ export default function InventoryStatsTab({ files, folders }: Props) {
   return (
     <div className={styles.stack}>
       {/* 용량 요약 */}
+      {quotaQ.isError && (
+        <div className={styles.quotaError} role="alert">
+          <span>저장소 한도와 사용률을 불러오지 못했습니다.</span>
+          <button type="button" onClick={() => void quotaQ.refetch()}>다시 시도</button>
+        </div>
+      )}
       <div className={styles.summaryRow}>
-        <ProgressRing
-          percent={usagePercent}
-          size={88}
-          color={usageColor}
-          sublabel="사용률"
-        />
+        {quotaQ.isError ? (
+          <div className={styles.quotaUnavailable} aria-label="사용률 확인 실패">사용률 —</div>
+        ) : (
+          <ProgressRing
+            percent={usagePercent}
+            size={88}
+            color={usageColor}
+            sublabel={quotaQ.isLoading ? "확인 중" : "사용률"}
+          />
+        )}
         <div className={styles.summaryStats}>
           <StatGrid>
             <StatCard label="파일 수" value={`${files.length}개`} />

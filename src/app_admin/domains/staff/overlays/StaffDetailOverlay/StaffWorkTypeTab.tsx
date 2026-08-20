@@ -2,6 +2,7 @@
 // 시급태그 — 학생 태그 디자인 카피 (뱃지 + 추가/제거)
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { CSSProperties } from "react";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import {
   fetchStaffWorkTypes,
   fetchWorkTypes,
@@ -83,6 +84,7 @@ export default function StaffWorkTypeTab({ staffId }: { staffId: number }) {
       qc.invalidateQueries({ queryKey: staffQueryKeys.staffDetail(staffId) });
       qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
     },
+    onError: () => feedback.error("근무유형 추가에 실패했습니다."),
   });
 
   const deleteM = useMutation({
@@ -92,6 +94,7 @@ export default function StaffWorkTypeTab({ staffId }: { staffId: number }) {
       qc.invalidateQueries({ queryKey: staffQueryKeys.staffDetail(staffId) });
       qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
     },
+    onError: () => feedback.error("근무유형 제거에 실패했습니다."),
   });
 
   const staffTypes = staffTypesQ.data ?? [];
@@ -99,6 +102,18 @@ export default function StaffWorkTypeTab({ staffId }: { staffId: number }) {
   const availableToAdd = workTypes.filter(
     (wt) => !staffTypes.some((st) => st.work_type.id === wt.id)
   );
+
+  if (staffTypesQ.isLoading || workTypesQ.isLoading) {
+    return <div className="text-sm text-[var(--color-text-muted)]">근무유형을 불러오는 중…</div>;
+  }
+  if (staffTypesQ.isError || workTypesQ.isError) {
+    return (
+      <div role="alert" className="rounded-xl border border-[var(--color-error)] px-4 py-3 text-sm text-[var(--color-error)]">
+        <div className="font-semibold">근무유형을 불러오지 못해 변경을 잠갔습니다.</div>
+        <button type="button" className="mt-2 underline" onClick={() => { void staffTypesQ.refetch(); void workTypesQ.refetch(); }}>다시 시도</button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 max-w-[640px]">

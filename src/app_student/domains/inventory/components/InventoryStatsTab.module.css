@@ -14,6 +14,42 @@
   flex: 1;
 }
 
+.quotaError {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--stu-space-3);
+  padding: var(--stu-space-4);
+  border: 1px solid color-mix(in srgb, var(--stu-danger) 35%, transparent);
+  border-radius: var(--stu-radius);
+  color: var(--stu-danger);
+  background: color-mix(in srgb, var(--stu-danger) 7%, var(--stu-surface));
+  font-size: 13px;
+}
+
+.quotaError button {
+  flex: 0 0 auto;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.quotaUnavailable {
+  display: grid;
+  place-items: center;
+  width: 88px;
+  min-width: 88px;
+  height: 88px;
+  border: 1px dashed var(--stu-danger);
+  border-radius: 50%;
+  color: var(--stu-danger);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .quotaLabels {
   display: flex;
   justify-content: space-between;

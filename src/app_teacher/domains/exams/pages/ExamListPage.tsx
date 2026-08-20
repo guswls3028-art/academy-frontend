@@ -55,11 +55,12 @@ function sortByCreated<T extends SortableItem>(items: readonly T[] | undefined):
 
 function ExamTab() {
   const navigate = useNavigate();
-  const { data: exams, isLoading } = useQuery({
+  const examsQ = useQuery({
     queryKey: teacherExamsQueryKeys.exams,
     queryFn: () => fetchExams({ exam_type: "regular" }),
     staleTime: 60_000,
   });
+  const exams = examsQ.data;
 
   const sorted = useMemo(() => {
     return sortByCreated((exams ?? []) as Array<{
@@ -72,7 +73,8 @@ function ExamTab() {
     }>);
   }, [exams]);
 
-  if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
+  if (examsQ.isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
+  if (examsQ.isError) return <QueryFailure title="시험 목록을 불러오지 못했습니다" onRetry={() => void examsQ.refetch()} />;
   if (!sorted.length)
     return (
       <EmptyState
@@ -119,11 +121,12 @@ function ExamTab() {
 
 function HomeworkTab() {
   const navigate = useNavigate();
-  const { data: hws, isLoading } = useQuery({
+  const homeworksQ = useQuery({
     queryKey: teacherExamsQueryKeys.homeworks,
     queryFn: () => fetchHomeworks({ homework_type: "regular" }),
     staleTime: 60_000,
   });
+  const hws = homeworksQ.data;
 
   const sorted = useMemo(() => {
     return sortByCreated((hws ?? []) as Array<{
@@ -134,7 +137,8 @@ function HomeworkTab() {
     }>);
   }, [hws]);
 
-  if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
+  if (homeworksQ.isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
+  if (homeworksQ.isError) return <QueryFailure title="과제 목록을 불러오지 못했습니다" onRetry={() => void homeworksQ.refetch()} />;
   if (!sorted.length)
     return (
       <EmptyState
@@ -175,6 +179,10 @@ function HomeworkTab() {
       })}
     </div>
   );
+}
+
+function QueryFailure({ title, onRetry }: { title: string; onRetry: () => void }) {
+  return <EmptyState scope="panel" tone="error" title={title} description="빈 목록으로 표시하지 않고 조회를 중단했습니다." actions={<EmptyActionButton onClick={onRetry}>다시 시도</EmptyActionButton>} />;
 }
 
 function ExamTypeBadge({ type }: { type?: string }) {

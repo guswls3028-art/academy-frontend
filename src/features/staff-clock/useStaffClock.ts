@@ -141,6 +141,10 @@ export function useStaffClock() {
   const isWorking = current?.status === "WORKING" || current?.status === "BREAK";
   const isOnBreak = current?.status === "BREAK";
   const recordId = current && current.status !== "OFF" ? current.work_record_id : null;
+  const isMutating = startMutation.isPending
+    || endMutation.isPending
+    || startBreakMutation.isPending
+    || endBreakMutation.isPending;
 
   return {
     isAuthenticated: Boolean(user),
@@ -164,5 +168,6 @@ export function useStaffClock() {
     isEnding: endMutation.isPending,
     isBreakStarting: startBreakMutation.isPending,
     isBreakEnding: endBreakMutation.isPending,
+    isMutating,
   };
 }

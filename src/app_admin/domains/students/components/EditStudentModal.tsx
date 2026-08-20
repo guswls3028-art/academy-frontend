@@ -167,7 +167,10 @@ export default function EditStudentModal({
   }
 
   async function handleSubmit() {
-    if (busy) return;
+    if (busy || customFieldsQuery.isLoading || customFieldsQuery.isError) {
+      if (customFieldsQuery.isError) feedback.error("사용자 정의 필드를 다시 불러온 뒤 저장해 주세요.");
+      return;
+    }
 
     const err = validate();
     if (err) {
@@ -221,7 +224,7 @@ export default function EditStudentModal({
   }
 
   return (
-    <AdminModal open={open} onClose={onClose} type="action" width={MODAL_WIDTH.md} onEnterConfirm={!busy ? handleSubmit : undefined}>
+    <AdminModal open={open} onClose={onClose} type="action" width={MODAL_WIDTH.md} onEnterConfirm={!busy && customFieldsQuery.isSuccess ? handleSubmit : undefined}>
       <ModalHeader
         type="action"
         title="학생 수정"
@@ -387,15 +390,24 @@ export default function EditStudentModal({
             />
           </div>
 
-          <StudentCustomFieldsForm
-            definitions={customFieldDefinitions}
-            values={form.customFields}
-            onChange={(key, value) => setForm((previous) => ({
-              ...previous,
-              customFields: { ...previous.customFields, [key]: value },
-            }))}
-            disabled={busy}
-          />
+          {customFieldsQuery.isLoading ? (
+            <div className="modal-hint modal-hint--block">사용자 정의 필드를 불러오는 중입니다.</div>
+          ) : customFieldsQuery.isError ? (
+            <div role="alert" className="grid gap-2">
+              <div className="modal-hint modal-hint--block">사용자 정의 필드를 확인하지 못해 저장을 잠갔습니다.</div>
+              <Button intent="secondary" size="sm" onClick={() => void customFieldsQuery.refetch()}>다시 시도</Button>
+            </div>
+          ) : (
+            <StudentCustomFieldsForm
+              definitions={customFieldDefinitions}
+              values={form.customFields}
+              onChange={(key, value) => setForm((previous) => ({
+                ...previous,
+                customFields: { ...previous.customFields, [key]: value },
+              }))}
+              disabled={busy}
+            />
+          )}
 
           <div className="modal-form-row modal-form-row--1-auto">
             <span className={`modal-hint modal-hint--block ${styles.managementHint}`}>
@@ -421,7 +433,7 @@ export default function EditStudentModal({
             <Button intent="secondary" onClick={onClose} disabled={busy}>
               취소
             </Button>
-            <Button intent="primary" onClick={handleSubmit} disabled={busy}>
+            <Button intent="primary" onClick={handleSubmit} disabled={busy || !customFieldsQuery.isSuccess}>
               {busy ? "저장 중…" : "저장"}
             </Button>
           </>

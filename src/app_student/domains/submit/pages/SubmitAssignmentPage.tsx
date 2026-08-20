@@ -40,7 +40,9 @@ export default function SubmitAssignmentPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: grades, isLoading: gradesLoading } = useMyGradesSummary({ enabled: !isParent });
+  const gradesQ = useMyGradesSummary({ enabled: !isParent });
+  const grades = gradesQ.data;
+  const gradesLoading = gradesQ.isLoading;
 
   // 미합격 과제·시험 필터
   const unfinishedHomeworks = useMemo(
@@ -64,6 +66,7 @@ export default function SubmitAssignmentPage() {
 
   const uploadMut = useMutation({
     mutationFn: async () => {
+      if (gradesQ.isError) throw new Error("제출 대상을 다시 불러온 뒤 제출해 주세요.");
       if (!selected) throw new Error("제출 대상을 선택해 주세요.");
       if (!selectedFile) throw new Error("파일을 선택해 주세요.");
       if (selectedFile.size > MAX_SIZE_MB * 1024 * 1024) {
@@ -127,7 +130,7 @@ export default function SubmitAssignmentPage() {
     setSelectedFile(file);
   };
 
-  const canSubmit = !!selected && !!selectedFile && !uploadMut.isPending;
+  const canSubmit = !!selected && !!selectedFile && !uploadMut.isPending && !gradesQ.isError;
 
   if (isParent) {
     return (
@@ -177,13 +180,21 @@ export default function SubmitAssignmentPage() {
             <div className={`stu-muted ${styles.loadingText}`}>불러오는 중…</div>
           )}
 
-          {!gradesLoading && unfinishedHomeworks.length === 0 && unfinishedExams.length === 0 && (
+          {gradesQ.isError && (
+            <EmptyState
+              title="제출 대상을 불러오지 못했습니다."
+              description="미완료 과제·시험이 없는 것으로 표시하지 않았습니다."
+              onRetry={() => void gradesQ.refetch()}
+            />
+          )}
+
+          {!gradesLoading && !gradesQ.isError && unfinishedHomeworks.length === 0 && unfinishedExams.length === 0 && (
             <div className={styles.emptyTarget}>
               제출할 미완료 과제·시험이 없습니다.
             </div>
           )}
 
-          <div className={styles.targetList}>
+          {!gradesQ.isError && <div className={styles.targetList}>
             {/* 미완료 과제 */}
             {unfinishedHomeworks.map((h: MyHomeworkGradeSummary) => {
               const isSelected = selected?.type === "homework" && selected.id === h.homework_id;
@@ -238,7 +249,7 @@ export default function SubmitAssignmentPage() {
                 </Link>
               );
             })}
-          </div>
+          </div>}
         </div>
 
         {/* STEP 2: 파일 선택 */}

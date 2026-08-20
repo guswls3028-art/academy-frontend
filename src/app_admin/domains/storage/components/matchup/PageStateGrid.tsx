@@ -253,6 +253,20 @@ export default function PageStateGrid({ document: doc, onRequestDetail, onClose 
 
   const isLoading = pagesQuery.isLoading || statesQuery.isLoading;
 
+  if (pagesQuery.isError || statesQuery.isError) {
+    return (
+      <div data-testid="matchup-page-state-grid" style={/* eslint-disable-line no-restricted-syntax */ { padding: "var(--space-5)", display: "grid", gap: "var(--space-3)", justifyItems: "center" }}>
+        <AlertCircle size={ICON.lg} />
+        <strong>페이지와 저장 상태를 불러오지 못했습니다.</strong>
+        <span>빈 페이지로 작업하지 않도록 변경과 재분석을 잠갔습니다.</span>
+        <div style={/* eslint-disable-line no-restricted-syntax */ { display: "flex", gap: "var(--space-2)" }}>
+          <Button intent="secondary" onClick={() => { void pagesQuery.refetch(); void statesQuery.refetch(); }}>다시 시도</Button>
+          {onClose && <Button intent="ghost" onClick={onClose}>닫기</Button>}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div data-testid="matchup-page-state-grid" style={/* eslint-disable-line no-restricted-syntax */ {
       display: "flex", flexDirection: "column", gap: "var(--space-3)",

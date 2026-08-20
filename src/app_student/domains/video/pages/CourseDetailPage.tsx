@@ -34,6 +34,8 @@ function SessionBox({
   isPublic,
   videosData,
   isLoading,
+  isError,
+  onRetry,
   courseTitle,
 }: {
   sessionId: number;
@@ -43,6 +45,8 @@ function SessionBox({
   isPublic?: boolean;
   videosData?: StudentSessionVideosResponse;
   isLoading?: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
   courseTitle?: string;
 }) {
   const sessionData = useMemo(() => {
@@ -71,6 +75,14 @@ function SessionBox({
 
   if (isLoading) {
     return <div className="stu-skel video-card-skeleton" aria-label={`${sessionTitle} 불러오는 중`} />;
+  }
+
+  if (isError) {
+    return (
+      <div className="video-card video-card--disabled" role="alert">
+        <div className="video-card__content">영상 목록을 불러오지 못했습니다. <button type="button" onClick={onRetry}>다시 시도</button></div>
+      </div>
+    );
   }
 
   if (!sessionData || sessionData.playableCount === 0) {
@@ -171,10 +183,13 @@ export default function CourseDetailPage() {
     pathname.includes("/video/courses/public");
   const lectureIdNum = isPublic ? null : (lectureId ? parseInt(lectureId, 10) : null);
 
-  const { data: videoMe, isLoading, refetch } = useQuery({
+  const videoMeQ = useQuery({
     queryKey: studentVideoQueryKeys.me,
     queryFn: fetchVideoMe,
   });
+  const videoMe = videoMeQ.data;
+  const isLoading = videoMeQ.isLoading;
+  const refetch = videoMeQ.refetch;
 
   const lecture = useMemo(() => {
     if (!videoMe?.lectures || !lectureIdNum) return null;
@@ -232,6 +247,16 @@ export default function CourseDetailPage() {
         <div className="video-page-content video-detail-skel">
           <div className="stu-skel video-detail-skel__hero" />
           <div className="stu-skel video-detail-skel__body" />
+        </div>
+      </StudentPageShell>
+    );
+  }
+
+  if (videoMeQ.isError) {
+    return (
+      <StudentPageShell title="" noSectionFrame>
+        <div className="video-page-content">
+          <EmptyState title="수업 영상을 불러오지 못했습니다" description="차시가 없는 것으로 표시하지 않았습니다." onRetry={() => void refetch()} />
         </div>
       </StudentPageShell>
     );
@@ -335,6 +360,8 @@ export default function CourseDetailPage() {
                     isPublic={isPublic}
                     videosData={sessionVideoQueries[idx]?.data}
                     isLoading={sessionVideoQueries[idx]?.isLoading}
+                    isError={sessionVideoQueries[idx]?.isError}
+                    onRetry={() => void sessionVideoQueries[idx]?.refetch()}
                     courseTitle={isPublic ? "공개 강의실" : lecture?.title ?? "학습 강의"}
                   />
                 );

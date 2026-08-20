@@ -230,10 +230,17 @@ export default function ClinicHomePage() {
   });
 
   const approveAll = () => {
+    if (pendingQ.listQ.isError) {
+      feedback.error("승인 대기 목록을 다시 불러온 뒤 처리해 주세요.");
+      return;
+    }
     bulkApproveMutation.mutate(pendingList.map((p) => p.id));
   };
 
   const todayLabel = dayjs(today).format("M월 D일 dddd");
+  const todayLoading = todayQ.listQ.isLoading || sessionTreeQ.isLoading;
+  const todayError = todayQ.listQ.isError || sessionTreeQ.isError;
+  const bookingCoverageError = targetsQ.isError || weekQ.listQ.isError;
 
   return (
     <div className="clinic-page clinic-home clinic-home--workspace">
@@ -273,6 +280,12 @@ export default function ClinicHomePage() {
 
         </div>
       )}
+      {pendingQ.listQ.isError && (
+        <div className="clinic-home__action-bar" role="alert">
+          <span>예약 승인 대기 목록을 불러오지 못했습니다.</span>
+          <button type="button" onClick={() => void pendingQ.listQ.refetch()}>다시 시도</button>
+        </div>
+      )}
 
       {/* ── 2) 오늘 일정 타임라인 ── */}
       <div className="clinic-home__section">
@@ -280,10 +293,15 @@ export default function ClinicHomePage() {
           <div>
             <h2 className="clinic-home__title">오늘 클리닉</h2>
             <p className="clinic-home__meta">
-              {todayLabel} · 일정 {sessions.length}개
+              {todayLabel} · 일정 {todayError ? "—" : `${sessions.length}개`}
             </p>
           </div>
-          {!settingsQ.isLoading && (
+          {settingsQ.isError ? (
+            <div className="clinic-home__booking-policy" role="alert">
+              <span className="clinic-home__body-text clinic-home__body-text--error">자동 승인 설정 확인 실패</span>
+              <button type="button" onClick={() => void settingsQ.refetch()}>다시 시도</button>
+            </div>
+          ) : !settingsQ.isLoading && (
             <div className="clinic-home__booking-policy">
               <label className="clinic-home__auto-approve-compact">
                 <input
@@ -298,28 +316,30 @@ export default function ClinicHomePage() {
                   <small>학생 신청을 바로 확정</small>
                 </span>
               </label>
-              {settingsQ.isError && (
-                <span className="clinic-home__body-text clinic-home__body-text--error">
-                  설정 불러오기 실패
-                </span>
-              )}
             </div>
           )}
         </div>
 
         <div className="clinic-home__body">
           {/* 오늘 출석 요약 한 줄 */}
-          {!todayQ.listQ.isLoading && sessions.length > 0 && (
+          {!todayLoading && !todayError && sessions.length > 0 && (
             <p className="clinic-home__today-summary">
               오늘 전체 {todaySummary.total}명 중 출석 {todaySummary.attended}명
             </p>
           )}
 
-          {todayQ.listQ.isLoading && (
+          {todayLoading && (
             <p className="clinic-home__body-text clinic-home__body-text--muted">불러오는 중…</p>
           )}
 
-          {!todayQ.listQ.isLoading && sessions.length === 0 && (
+          {todayError && (
+            <div className="clinic-home__empty-sessions" role="alert">
+              <p className="clinic-home__body-text clinic-home__body-text--error">오늘 일정 또는 참가자를 불러오지 못했습니다.</p>
+              <button type="button" className="clinic-home__empty-sessions-cta" onClick={() => { void todayQ.listQ.refetch(); void sessionTreeQ.refetch(); }}>다시 시도</button>
+            </div>
+          )}
+
+          {!todayLoading && !todayError && sessions.length === 0 && (
             <div className="clinic-home__empty-sessions">
               <p className="clinic-home__empty-sessions-text">
                 오늘 예정된 클리닉이 없습니다.
@@ -335,7 +355,7 @@ export default function ClinicHomePage() {
             </div>
           )}
 
-          {!todayQ.listQ.isLoading && sessions.length > 0 && (
+          {!todayLoading && !todayError && sessions.length > 0 && (
             <ul className="clinic-home__timeline">
               {sessions.map((s) => {
                 const isPast = s.end ? s.end <= currentTime : s.time < currentTime;
@@ -399,7 +419,13 @@ export default function ClinicHomePage() {
       </div>
 
       {/* ── 3) 미예약 배너 — 대상자 있고 미예약자 있을 때만 표시 ── */}
-      {!targetsQ.isLoading && (targetsQ.data ?? []).length > 0 && requiredCount > 0 && (
+      {bookingCoverageError && (
+        <div className="clinic-home__unbooked-banner" role="alert">
+          <span className="clinic-home__unbooked-banner-text">이번 주 미예약 대상을 확인하지 못했습니다.</span>
+          <button type="button" onClick={() => { void targetsQ.refetch(); void weekQ.listQ.refetch(); }}>다시 시도</button>
+        </div>
+      )}
+      {!bookingCoverageError && !targetsQ.isLoading && !weekQ.listQ.isLoading && (targetsQ.data ?? []).length > 0 && requiredCount > 0 && (
         <button
           type="button"
           className="clinic-home__unbooked-banner"

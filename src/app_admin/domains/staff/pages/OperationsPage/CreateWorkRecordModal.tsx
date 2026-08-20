@@ -63,6 +63,10 @@ export default function CreateWorkRecordModal({ open, onClose }: Props) {
   if (writeBlocked) return null;
 
   const handleSubmit = () => {
+    if (workTypesQ.isError || workTypesQ.isLoading) {
+      feedback.error("근무유형을 다시 불러온 뒤 시도해 주세요.");
+      return;
+    }
     if (!form.work_type || !form.start_time || !form.end_time) {
       feedback.warning("필수 항목을 입력하세요.");
       return;
@@ -122,6 +126,11 @@ export default function CreateWorkRecordModal({ open, onClose }: Props) {
       />
 
       <ModalBody>
+        {workTypesQ.isError && (
+          <div role="alert" className="mb-3 rounded border border-[var(--color-error)] p-3 text-sm text-[var(--color-error)]">
+            근무유형을 불러오지 못했습니다. <button type="button" className="underline" onClick={() => void workTypesQ.refetch()}>다시 시도</button>
+          </div>
+        )}
         <div className="grid gap-3">
           <Field label="날짜">
             <DatePicker
@@ -144,6 +153,7 @@ export default function CreateWorkRecordModal({ open, onClose }: Props) {
                     : undefined,
                 }))
               }
+              disabled={workTypesQ.isLoading || workTypesQ.isError || createM.isPending}
             >
               <option value="">선택</option>
               {staffWorkTypes.map((st) => (
@@ -218,6 +228,7 @@ export default function CreateWorkRecordModal({ open, onClose }: Props) {
             <ActionButton
               action="create"
               loading={createM.isPending}
+              disabled={workTypesQ.isLoading || workTypesQ.isError}
               onClick={handleSubmit}
             >
               추가

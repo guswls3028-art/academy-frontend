@@ -75,41 +75,54 @@ export default function SessionClinicTab({
 }) {
   const navigate = useNavigate();
   const { sectionMode } = useSectionMode();
+  const validSessionId = Number.isInteger(sessionId) && sessionId > 0;
+  const validLectureId = Number.isInteger(lectureId) && lectureId > 0;
 
-  const { data: currentSession, isLoading: sessionLoading } = useQuery({
+  const sessionQ = useQuery({
     queryKey: adminSessionQueryKeys.sessionDetail(sessionId),
     queryFn: async () => {
       const { default: api } = await import("@/shared/api/axios");
       return (await api.get(`/lectures/sessions/${sessionId}/`)).data as LectureSession;
     },
-    enabled: Number.isFinite(sessionId),
+    enabled: validSessionId,
   });
+  const currentSession = sessionQ.data;
+  const sessionLoading = sessionQ.isLoading;
 
-  const { data: allSections = [], isLoading: sectionsLoading, isError: sectionsError } = useQuery<Section[]>({
+  const sectionsQ = useQuery<Section[]>({
     queryKey: adminSessionQueryKeys.lectureSections(lectureId),
     queryFn: () => fetchSections(lectureId),
-    enabled: Number.isFinite(lectureId),
+    enabled: validLectureId,
   });
+  const allSections = useMemo(() => sectionsQ.data ?? [], [sectionsQ.data]);
+  const sectionsLoading = sectionsQ.isLoading;
 
-  const { data: assignments = [], isLoading: assignmentsLoading } = useQuery<SectionAssignment[]>({
+  const assignmentsQ = useQuery<SectionAssignment[]>({
     queryKey: adminSessionQueryKeys.sectionAssignments(lectureId),
     queryFn: () => fetchSectionAssignments(lectureId),
-    enabled: Number.isFinite(lectureId),
+    enabled: validLectureId,
   });
+  const assignments = useMemo(() => assignmentsQ.data ?? [], [assignmentsQ.data]);
+  const assignmentsLoading = assignmentsQ.isLoading;
 
-  const { data: sessionEnrollments = [], isLoading: enrollmentsLoading } = useQuery<SessionEnrollmentRow[]>({
+  const enrollmentsQ = useQuery<SessionEnrollmentRow[]>({
     queryKey: adminSessionQueryKeys.sessionEnrollments(sessionId),
     queryFn: () => fetchSessionEnrollments(sessionId),
-    enabled: Number.isFinite(sessionId),
+    enabled: validSessionId,
   });
+  const sessionEnrollments = useMemo(() => enrollmentsQ.data ?? [], [enrollmentsQ.data]);
+  const enrollmentsLoading = enrollmentsQ.isLoading;
 
-  const { data: allSessions = [] } = useQuery<LectureSession[]>({
+  const allSessionsQ = useQuery<LectureSession[]>({
     queryKey: adminSessionQueryKeys.lectureSessions(lectureId),
     queryFn: () => fetchSessions(lectureId),
-    enabled: Number.isFinite(lectureId),
+    enabled: validLectureId,
   });
+  const allSessions = useMemo(() => allSessionsQ.data ?? [], [allSessionsQ.data]);
 
-  const { data: allTargets = [], isLoading: targetsLoading } = useClinicTargets();
+  const targetsQ = useClinicTargets();
+  const allTargets = useMemo(() => targetsQ.data ?? [], [targetsQ.data]);
+  const targetsLoading = targetsQ.isLoading;
 
   const isLoading = sessionLoading || sectionsLoading || assignmentsLoading || enrollmentsLoading;
 
@@ -214,8 +227,32 @@ export default function SessionClinicTab({
 
   // ── 로딩 / 에러 / 빈 상태 ──
 
-  if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중..." />;
-  if (sectionsError) return <EmptyState scope="panel" tone="error" title="데이터를 불러올 수 없습니다" description="새로고침해 주세요." />;
+  if (!validSessionId || !validLectureId) {
+    return <EmptyState scope="panel" tone="error" title="올바르지 않은 차시 주소입니다" />;
+  }
+  if (isLoading || allSessionsQ.isLoading || targetsLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중..." />;
+  if (sessionQ.isError || sectionsQ.isError || assignmentsQ.isError || enrollmentsQ.isError || allSessionsQ.isError || targetsQ.isError) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="error"
+        title="클리닉 편성 정보를 불러올 수 없습니다"
+        description="학생·반·클리닉 대상 중 일부를 빈 값으로 표시하지 않도록 전체 정보를 다시 확인합니다."
+        actions={
+          <Button intent="secondary" size="sm" onClick={() => {
+            void sessionQ.refetch();
+            void sectionsQ.refetch();
+            void assignmentsQ.refetch();
+            void enrollmentsQ.refetch();
+            void allSessionsQ.refetch();
+            void targetsQ.refetch();
+          }}>
+            다시 시도
+          </Button>
+        }
+      />
+    );
+  }
   if (clinicSections.length === 0) return <EmptyState scope="panel" tone="empty" title="클리닉 반이 설정되지 않았습니다" description="강의 상세 > 반 편성 관리에서 클리닉 반을 추가하세요." />;
   if (enrolledStudents.length === 0) return <EmptyState scope="panel" tone="empty" title="이 차시에 등록된 수강생이 없습니다" />;
 
