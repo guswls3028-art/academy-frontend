@@ -44,7 +44,31 @@ export type ArrivalOverview = {
 
 export const arrivalOverviewQueryKey = ["operations", "arrival-overview"] as const;
 
+function isArrivalOverview(value: unknown): value is ArrivalOverview {
+  if (value == null || typeof value !== "object") return false;
+  const candidate = value as Partial<ArrivalOverview>;
+  const summary = candidate.summary;
+  return (
+    typeof candidate.generated_at === "string"
+    && typeof candidate.today === "string"
+    && typeof candidate.tomorrow === "string"
+    && typeof candidate.range_end === "string"
+    && typeof candidate.range_days === "number"
+    && Number.isFinite(candidate.range_days)
+    && typeof candidate.soon_window_minutes === "number"
+    && Number.isFinite(candidate.soon_window_minutes)
+    && summary != null
+    && typeof summary === "object"
+    && [summary.soon, summary.today, summary.tomorrow, summary.upcoming, summary.time_unset, summary.overdue]
+      .every((count) => typeof count === "number" && Number.isFinite(count))
+    && Array.isArray(candidate.items)
+  );
+}
+
 export async function fetchArrivalOverview(): Promise<ArrivalOverview> {
-  const response = await api.get<ArrivalOverview>("/lectures/attendance/arrival-overview/");
+  const response = await api.get<unknown>("/lectures/attendance/arrival-overview/");
+  if (!isArrivalOverview(response.data)) {
+    throw new Error("Invalid arrival overview response");
+  }
   return response.data;
 }

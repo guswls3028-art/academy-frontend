@@ -6,7 +6,7 @@ import { Trash2, FolderOpen, Save } from "lucide-react";
 
 import api from "@/shared/api/axios";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
-import { Badge, Button } from "@/shared/ui/ds";
+import { Badge, Button, EmptyState } from "@/shared/ui/ds";
 import { DatePicker } from "@/shared/ui/date";
 import { TimeRangeInput } from "@/shared/ui/time";
 import { ColorPickerField, getDefaultColorForPicker } from "@/shared/ui/domain";
@@ -97,11 +97,12 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
 
   const modalTitle = useMemo(() => (isEditMode ? "강의 수정" : "강의 추가"), [isEditMode]);
 
-  const { data: instructorOptions = [] } = useQuery({
+  const instructorQ = useQuery({
     queryKey: adminLectureQueryKeys.lectureInstructorOptions,
     queryFn: fetchLectureInstructorOptions,
     enabled: isOpen,
   });
+  const instructorOptions = useMemo(() => instructorQ.data ?? [], [instructorQ.data]);
 
   const { data: staffMe } = useQuery({
     queryKey: staffWorkQueryKeys.identity,
@@ -110,11 +111,14 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
   });
   const isPayrollManager = !!staffMe?.is_payroll_manager;
 
-  const { data: existingLecture, isLoading: isLoadingLecture } = useQuery({
+  const existingLectureQ = useQuery({
     queryKey: adminLectureQueryKeys.lecture(lectureId),
     queryFn: () => fetchLecture(lectureId!),
     enabled: isOpen && isEditMode && lectureId != null,
   });
+  const existingLecture = existingLectureQ.data;
+  const isLoadingLecture = existingLectureQ.isLoading;
+  const requiredDataError = instructorQ.isError || existingLectureQ.isError;
 
   useEffect(() => {
     if (!isOpen || !isEditMode || !existingLecture) return;
@@ -420,7 +424,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
   );
 
   return (
-    <AdminModal open={true} onClose={onClose} type="action" width={480} onEnterConfirm={!isPending ? submit : undefined}>
+    <AdminModal open={true} onClose={onClose} type="action" width={480} onEnterConfirm={!isPending && !requiredDataError ? submit : undefined}>
       <ModalHeader type="action" title={modalTitle} />
 
       <ModalBody>
@@ -430,7 +434,23 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
           </div>
         )}
 
-        {isEditMode && isLoadingLecture ? (
+        {requiredDataError ? (
+          <EmptyState
+            mode="embedded"
+            scope="modal"
+            tone="error"
+            title={isEditMode ? "강의 정보를 불러오지 못했습니다" : "담당 강사 목록을 불러오지 못했습니다"}
+            description={isEditMode ? "빈 폼으로 기존 강의를 덮어쓰지 않도록 수정을 중단했습니다." : "담당 강사를 확인한 뒤 강의를 만들 수 있습니다."}
+            actions={
+              <Button intent="secondary" size="sm" onClick={() => {
+                void instructorQ.refetch();
+                if (isEditMode) void existingLectureQ.refetch();
+              }}>
+                다시 시도
+              </Button>
+            }
+          />
+        ) : instructorQ.isLoading || (isEditMode && isLoadingLecture) ? (
           <div className="flex items-center justify-center py-12 text-[var(--color-text-muted)] font-medium">
             불러오는 중…
           </div>
@@ -633,7 +653,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
             <Button intent="secondary" onClick={onClose} disabled={isPending}>
               취소
             </Button>
-            <Button intent="primary" onClick={submit} disabled={isPending || (isEditMode && isLoadingLecture)}>
+            <Button intent="primary" onClick={submit} disabled={requiredDataError || instructorQ.isLoading || isPending || (isEditMode && isLoadingLecture)}>
               {isPending ? (isEditMode ? "수정 중…" : "등록 중…") : isEditMode ? "수정" : "등록"}
             </Button>
           </>

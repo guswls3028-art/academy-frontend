@@ -18,7 +18,9 @@ import { useMyGradesSummary } from "@student/domains/grades/hooks/useMyGradesSum
 import styles from "./ExamStatsTab.module.css";
 
 export default function ExamStatsTab() {
-  const { data, isLoading } = useMyGradesSummary();
+  const gradesQ = useMyGradesSummary();
+  const data = gradesQ.data;
+  const isLoading = gradesQ.isLoading;
   const sourceExams = data?.exams;
   const exams = useMemo(() => sourceExams ?? [], [sourceExams]);
 
@@ -67,6 +69,16 @@ export default function ExamStatsTab() {
         <div className={`stu-skel ${styles.loadingSummary}`} />
         <div className={`stu-skel ${styles.loadingChart}`} />
       </div>
+    );
+  }
+
+  if (gradesQ.isError) {
+    return (
+      <EmptyState
+        title="시험 통계를 불러오지 못했습니다."
+        description="시험이 없는 것으로 표시하지 않았습니다."
+        onRetry={() => void gradesQ.refetch()}
+      />
     );
   }
 

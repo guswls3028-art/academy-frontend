@@ -26,6 +26,10 @@ export default function WorkMonthLockHistory({
     return <div className="text-sm text-[var(--text-muted)]">불러오는 중...</div>;
   }
 
+  if (listQ.isError) {
+    return <div role="alert" className="text-sm text-[var(--color-error)]">마감 내역을 불러오지 못했습니다. <button type="button" className="underline" onClick={() => void listQ.refetch()}>다시 시도</button></div>;
+  }
+
   if (rows.length === 0) {
     return (
       <div className="staff-section-card__empty">

@@ -225,18 +225,20 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
     sessionType?: SessionScope;
   } | null>(null);
   const { sectionMode, clinicMode } = useSectionMode();
+  const validLectureId = Number.isInteger(lectureId) && lectureId > 0;
 
   const { data: rawSessions = [], isLoading, isError, refetch } = useQuery({
     queryKey: adminSessionQueryKeys.lectureSessions(lectureId),
     queryFn: () => fetchSessions(lectureId),
-    enabled: Number.isFinite(lectureId),
+    enabled: validLectureId,
   });
 
-  const { data: sections = [] } = useQuery<SectionType[]>({
+  const sectionsQ = useQuery<SectionType[]>({
     queryKey: adminSessionQueryKeys.lectureSections(lectureId),
     queryFn: () => fetchSections(lectureId),
-    enabled: Number.isFinite(lectureId) && sectionMode,
+    enabled: validLectureId && sectionMode,
   });
+  const sections = useMemo(() => sectionsQ.data ?? [], [sectionsQ.data]);
 
   const orderedSessions = useMemo(
     () => sortSessionsByDisplayOrder(rawSessions),
@@ -352,10 +354,15 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
           role={viewMode === "SCOPED" ? "tabpanel" : undefined}
           className={styles.sectionModeStack}
         >
-          {isLoading ? (
+          {isLoading || sectionsQ.isLoading ? (
             <span className={styles.loadingText}>불러오는 중…</span>
-          ) : isError ? (
-            <SessionLoadError onRetry={() => void refetch()} />
+          ) : isError || sectionsQ.isError || !validLectureId ? (
+            <SessionLoadError onRetry={() => {
+              if (validLectureId) {
+                void refetch();
+                void sectionsQ.refetch();
+              }
+            }} />
           ) : !hasAnySections ? (
             <EmptySectionNotice
               onGoToSections={() => navigate(`/workspace/lectures/${lectureId}/sections`)}

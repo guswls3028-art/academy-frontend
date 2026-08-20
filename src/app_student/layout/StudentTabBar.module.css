@@ -56,6 +56,23 @@
   height: 22px;
 }
 
+.badgeError {
+  position: absolute;
+  top: -5px;
+  right: -8px;
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border: 2px solid var(--stu-tabbar-bg);
+  border-radius: 999px;
+  color: #fff;
+  background: var(--stu-danger);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+}
+
 .label {
   font-size: 10px;
   font-weight: 600;

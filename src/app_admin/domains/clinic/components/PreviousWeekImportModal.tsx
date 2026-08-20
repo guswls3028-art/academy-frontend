@@ -73,6 +73,8 @@ export default function PreviousWeekImportModal({ open, onClose, currentDate }: 
     queryFn: () => fetchClinicSessionTree({ year: currentWeekYM.year, month: currentWeekYM.month }),
     enabled: open,
   });
+  const dependencyLoading = sessionsQ.isLoading || currentWeekSessionsQ.isLoading;
+  const dependencyError = sessionsQ.isError || currentWeekSessionsQ.isError;
 
   // 이번 주 기존 세션의 날짜+시간+장소 키 세트 (중복 감지용)
   const currentWeekKeys = useMemo(() => {
@@ -149,7 +151,11 @@ export default function PreviousWeekImportModal({ open, onClose, currentDate }: 
   };
 
   const handleImport = async () => {
-    if (selectedIds.size === 0) return;
+    if (selectedIds.size === 0 || dependencyLoading) return;
+    if (dependencyError) {
+      feedback.error("클리닉 목록을 다시 불러온 뒤 복사해 주세요.");
+      return;
+    }
     setCreating(true);
 
     try {
@@ -214,8 +220,22 @@ export default function PreviousWeekImportModal({ open, onClose, currentDate }: 
         </div>
 
         <div className="clinic-import__body">
-          {sessionsQ.isLoading ? (
+          {dependencyLoading ? (
             <div className="clinic-import__loading">불러오는 중...</div>
+          ) : dependencyError ? (
+            <div className="clinic-import__empty" role="alert">
+              이전 주 또는 이번 주 클리닉을 불러오지 못했습니다.
+              <Button
+                intent="secondary"
+                size="sm"
+                onClick={() => {
+                  void sessionsQ.refetch();
+                  void currentWeekSessionsQ.refetch();
+                }}
+              >
+                다시 시도
+              </Button>
+            </div>
           ) : prevWeekSessions.length === 0 ? (
             <div className="clinic-import__empty">이전 주에 클리닉이 없습니다.</div>
           ) : (
@@ -308,7 +328,7 @@ export default function PreviousWeekImportModal({ open, onClose, currentDate }: 
             intent="primary"
             size="md"
             onClick={handleImport}
-            disabled={selectedIds.size === 0 || creating}
+            disabled={selectedIds.size === 0 || creating || dependencyLoading || dependencyError}
             loading={creating}
           >
             {selectedIds.size > 0 ? `${selectedIds.size}건 불러오기` : "선택하세요"}

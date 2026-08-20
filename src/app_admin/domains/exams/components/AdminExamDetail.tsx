@@ -20,7 +20,7 @@ type Props = {
 };
 
 export default function AdminExamDetail({ examId, mode = "design", sessionId }: Props) {
-  const { data: exam, isLoading } = useAdminExam(examId);
+  const { data: exam, isLoading, isError, refetch } = useAdminExam(examId);
   const { confirmDiscard } = useAssessmentEditGuard();
   const [tab, setTab] = useState<"setup" | "assets" | "submissions" | "results">(
     "setup"
@@ -31,6 +31,7 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
   }, [examId]);
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="시험 정보 불러오는 중…" />;
+  if (isError) return <EmptyState scope="panel" tone="error" title="시험을 불러오지 못했습니다." description="이전 값으로 수정하지 않도록 시험 작업을 잠갔습니다." actions={<button type="button" onClick={() => void refetch()}>다시 시도</button>} />;
   if (!exam) return <EmptyState scope="panel" tone="error" title="시험을 불러오지 못했습니다." />;
 
   return (

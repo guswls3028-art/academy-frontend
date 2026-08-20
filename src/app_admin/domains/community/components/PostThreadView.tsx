@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/shared/ui/ds";
+import { Button, EmptyState } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
@@ -67,41 +67,77 @@ export default function PostThreadView({
   emptyText,
   placeholder,
 }: PostThreadViewProps) {
+  const repliesQ = useQuery<Answer[]>({
+    queryKey: adminCommunityQueryKeys.postReplies(postId),
+    queryFn: () => fetchPostReplies(postId),
+  });
+
   return (
     <>
-      <ThreadList postId={postId} mode={mode} emptyText={emptyText} invalidateKeys={invalidateKeys} />
-      <ThreadComposer
+      <ThreadList
+        replies={repliesQ.data ?? []}
+        isLoading={repliesQ.isLoading}
+        isError={repliesQ.isError}
+        refetch={repliesQ.refetch}
         postId={postId}
         mode={mode}
-        allowReply={allowReply}
+        emptyText={emptyText}
         invalidateKeys={invalidateKeys}
-        placeholder={placeholder}
       />
+      {!repliesQ.isError && (
+        <ThreadComposer
+          postId={postId}
+          mode={mode}
+          allowReply={allowReply}
+          invalidateKeys={invalidateKeys}
+          placeholder={placeholder}
+        />
+      )}
     </>
   );
 }
 
 function ThreadList({
+  replies,
+  isLoading,
+  isError,
+  refetch,
   postId,
   mode,
   emptyText,
   invalidateKeys,
 }: {
+  replies: Answer[];
+  isLoading: boolean;
+  isError: boolean;
+  refetch: () => Promise<unknown>;
   postId: number;
   mode: ThreadMode;
   emptyText?: string;
   invalidateKeys: readonly unknown[][];
 }) {
-  const { data: replies = [], isLoading } = useQuery<Answer[]>({
-    queryKey: adminCommunityQueryKeys.postReplies(postId),
-    queryFn: () => fetchPostReplies(postId),
-  });
-
   if (isLoading) {
     return (
       <div className="cms-detail__comment-thread">
         <p className="qna-inbox__empty-desc">{mode === "answer" ? "답변 불러오는 중…" : "댓글 불러오는 중…"}</p>
       </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <EmptyState
+        mode="embedded"
+        scope="panel"
+        tone="error"
+        title={mode === "answer" ? "답변을 불러오지 못했습니다" : "댓글을 불러오지 못했습니다"}
+        description="기존 내용을 확인한 뒤 다시 작성할 수 있도록 목록을 먼저 복구해 주세요."
+        actions={
+          <Button intent="secondary" size="sm" onClick={() => void refetch()}>
+            다시 시도
+          </Button>
+        }
+      />
     );
   }
 

@@ -359,21 +359,36 @@ export default function SessionEnrollModal({
 
   // ── Queries ────────────────────────────────────────────────────────────────
   /** 출결(attendance) 기준 이미 등록된 학생 ID 전체 — 수강생 등록 모달에서 목록/등록 제외용. 엑셀 일괄업로드 멱등은 별도. */
-  const { data: attendanceEnrolledIds = [] } = useQuery({
+  const {
+    data: attendanceEnrolledIds = [],
+    isPending: attendanceIdsPending,
+    isError: attendanceIdsError,
+    refetch: refetchAttendanceIds,
+  } = useQuery({
     queryKey: adminLectureQueryKeys.attendanceEnrolledIds(sessionId),
     queryFn: () => fetchAttendanceEnrolledStudentIds(sessionId),
     enabled: isOpen && Number.isFinite(sessionId),
     staleTime: 10_000, // 10초 — 모달 내 탭 전환 시 불필요한 refetch 방지
   });
 
-  const { data: sessionEnrollments = [] } = useQuery({
+  const {
+    data: sessionEnrollments = [],
+    isPending: sessionEnrollmentsPending,
+    isError: sessionEnrollmentsError,
+    refetch: refetchSessionEnrollments,
+  } = useQuery({
     queryKey: adminLectureQueryKeys.sessionEnrollments(sessionId),
     queryFn: () => fetchSessionEnrollments(sessionId),
     enabled: isOpen && Number.isFinite(sessionId),
     staleTime: 10_000,
   });
 
-  const { data: sessions = [] } = useQuery({
+  const {
+    data: sessions = [],
+    isPending: sessionsPending,
+    isError: sessionsError,
+    refetch: refetchSessions,
+  } = useQuery({
     queryKey: adminLectureQueryKeys.lectureSessionsForLecture(lectureId),
     queryFn: () => fetchSessions(lectureId),
     enabled: isOpen && Number.isFinite(lectureId),
@@ -411,7 +426,12 @@ export default function SessionEnrollModal({
     return base;
   }, [schoolType, grade]);
 
-  const { data: studentsData, isLoading: loadingStudents } = useQuery({
+  const {
+    data: studentsData,
+    isLoading: loadingStudents,
+    isError: studentsError,
+    refetch: refetchStudents,
+  } = useQuery({
     queryKey: adminLectureQueryKeys.sessionEnrollModalStudentsList(search, apiFilters, sort, page),
     queryFn: () => fetchStudents(search, apiFilters, sort, page),
     enabled: isOpen,
@@ -422,6 +442,14 @@ export default function SessionEnrollModal({
   const students = useMemo(() => studentsData?.data ?? [], [studentsData?.data]);
   const totalCount = studentsData?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const prerequisiteLoading = attendanceIdsPending
+    || sessionEnrollmentsPending
+    || sessionsPending
+    || loadingStudents;
+  const prerequisiteError = attendanceIdsError
+    || sessionEnrollmentsError
+    || sessionsError
+    || studentsError;
 
   const studentsToShow = useMemo(
     () => students.filter((s) => !alreadyEnrolledStudentIds.has(s.id)),
@@ -778,7 +806,7 @@ export default function SessionEnrollModal({
   ]);
 
   const handleAddSelected = useCallback(async () => {
-    if (idsToAdd.length === 0 || addByStudentMutation.isPending) return;
+    if (prerequisiteError || idsToAdd.length === 0 || addByStudentMutation.isPending) return;
     const shouldAdd = await confirm({
       title: "차시 수강생으로 등록할까요?",
       message: `선택한 ${idsToAdd.length}명을 이 차시에 등록합니다.\n\n• 출결은 '미입력'으로 시작합니다.\n• 기존 학생의 출결 상태는 바뀌지 않습니다.\n• 등원 후 현장·영상·결석 등 실제 상태를 기록해 주세요.`,
@@ -790,7 +818,7 @@ export default function SessionEnrollModal({
       studentIds: idsToAdd,
       statusByStudentId: excelStatusByStudentId,
     });
-  }, [addByStudentMutation, confirm, excelStatusByStudentId, idsToAdd]);
+  }, [addByStudentMutation, confirm, excelStatusByStudentId, idsToAdd, prerequisiteError]);
 
   // ── Keyboard shortcut ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -852,11 +880,34 @@ export default function SessionEnrollModal({
         />
 
         <ModalBody>
+          {prerequisiteError && (
+            <EmptyState
+              scope="modal"
+              tone="error"
+              title="등록에 필요한 명단을 불러오지 못했습니다"
+              description="기존 출결·수강 정보를 확인하기 전에는 중복 등록을 막기 위해 저장할 수 없습니다."
+              actions={
+                <Button
+                  intent="secondary"
+                  size="sm"
+                  onClick={() => {
+                    void refetchAttendanceIds();
+                    void refetchSessionEnrollments();
+                    void refetchSessions();
+                    void refetchStudents();
+                  }}
+                >
+                  다시 시도
+                </Button>
+              }
+            />
+          )}
           <div
             className="grid gap-4 min-h-0 overflow-hidden ds-split-layout"
             style={{
               gridTemplateColumns: "1fr 220px",
               minHeight: 380,
+              display: prerequisiteError ? "none" : undefined,
             }}
           >
             {/* 좌측: 헤더 + 필터바 + 테이블 */}
@@ -1006,7 +1057,7 @@ export default function SessionEnrollModal({
                       className="modal-inner-table flex-1 min-h-0"
                       style={{ overflowY: "auto" }}
                     >
-                      {loadingStudents ? (
+                      {prerequisiteLoading ? (
                         <EmptyState
                           mode="embedded"
                           scope="panel"
@@ -1494,7 +1545,7 @@ export default function SessionEnrollModal({
                 intent="primary"
                 className="text-[13px]"
                 onClick={() => { void handleAddSelected(); }}
-                disabled={addByStudentMutation.isPending || copyFromPrevLoading || idsToAdd.length === 0}
+                disabled={prerequisiteError || prerequisiteLoading || addByStudentMutation.isPending || copyFromPrevLoading || idsToAdd.length === 0}
                 title={copyFromPrevLoading ? "직전 차시 불러오기 진행 중…" : idsToAdd.length === 0 ? "왼쪽 테이블에서 학생을 선택하세요" : undefined}
               >
                 {addByStudentMutation.isPending

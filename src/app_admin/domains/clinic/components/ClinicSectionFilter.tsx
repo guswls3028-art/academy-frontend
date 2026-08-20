@@ -14,14 +14,24 @@ type Props = {
 export default function ClinicSectionFilter({ value, onChange }: Props) {
   const { sectionMode } = useSectionMode();
 
-  const { data: sections = [] } = useQuery<Section[]>({
+  const { data: sections = [], isError } = useQuery<Section[]>({
     queryKey: clinicQueryKeys.allSections,
     queryFn: () => fetchAllSections(),
     enabled: sectionMode,
     staleTime: 60_000,
   });
 
-  if (!sectionMode || sections.length === 0) return null;
+  if (!sectionMode) return null;
+
+  if (isError) {
+    return (
+      <select className="clinic-section-filter" disabled aria-label="반 필터 불러오기 실패">
+        <option>반 목록 불러오기 실패</option>
+      </select>
+    );
+  }
+
+  if (sections.length === 0) return null;
 
   // 반 label 기준으로 정렬 (CLASS + CLINIC 모두 표시)
   const sorted = [...sections]

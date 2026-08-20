@@ -12,6 +12,7 @@ import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { fetchMyInventory } from "../api/inventory.api";
 import InventoryHomeTab from "../components/InventoryHomeTab";
 import InventoryStatsTab from "../components/InventoryStatsTab";
+import { Button, EmptyState } from "@/shared/ui/ds";
 
 const TABS = [
   { key: "home", label: "자료함" },
@@ -21,21 +22,24 @@ const TABS = [
 export default function MyInventoryPage() {
   const [tab, setTab] = useState("home");
 
-  const { data: profile, isLoading: profileLoading } = useQuery({
+  const profileQ = useQuery({
     queryKey: studentQueryKeys.me,
     queryFn: fetchMyProfile,
   });
+  const profile = profileQ.data;
 
   const ps = profile?.ps_number || "";
   const queryKey = studentQueryKeys.inventory(ps);
 
-  const { data: inventory, isLoading: invLoading } = useQuery({
+  const inventoryQ = useQuery({
     queryKey,
     queryFn: () => fetchMyInventory(ps),
     enabled: !!ps,
   });
+  const inventory = inventoryQ.data;
 
-  const isLoading = profileLoading || invLoading;
+  const isLoading = profileQ.isLoading || inventoryQ.isLoading;
+  const isError = profileQ.isError || inventoryQ.isError || (!profileQ.isLoading && !profileQ.isError && !ps);
   const isParentReadOnly = !!profile?.isParentReadOnly;
   const folders = inventory?.folders ?? [];
   const files = inventory?.files ?? [];
@@ -63,7 +67,17 @@ export default function MyInventoryPage() {
         </div>
       )}
 
-      {!isLoading && tab === "home" && (
+      {!isLoading && isError && (
+        <EmptyState
+          scope="panel"
+          tone="error"
+          title="자료함을 불러오지 못했습니다"
+          description="빈 자료함으로 표시하지 않고 업로드·삭제 작업을 잠갔습니다."
+          actions={<Button intent="secondary" onClick={() => { void profileQ.refetch(); if (ps) void inventoryQ.refetch(); }}>다시 시도</Button>}
+        />
+      )}
+
+      {!isLoading && !isError && tab === "home" && (
         <InventoryHomeTab
           ps={ps}
           folders={folders}
@@ -73,7 +87,7 @@ export default function MyInventoryPage() {
         />
       )}
 
-      {!isLoading && tab === "stats" && (
+      {!isLoading && !isError && tab === "stats" && (
         <InventoryStatsTab files={files} folders={folders} />
       )}
     </DomainTabShell>

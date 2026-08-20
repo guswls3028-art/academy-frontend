@@ -68,7 +68,12 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
   const [reorderOpen, setReorderOpen] = useState(false);
   const asyncTasks = useAsyncStatus();
 
-  const { data: rawVideos = [], isLoading } = useSessionVideos(sessionId);
+  const {
+    data: rawVideos = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useSessionVideos(sessionId);
   const videos = useMemo(
     () =>
       [...rawVideos].sort((a: MediaVideo, b: MediaVideo) => {
@@ -351,9 +356,9 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
   return (
     <div className="flex flex-col gap-4">
       <DomainListToolbar
-        totalLabel={isLoading ? "…" : `총 ${videos.length}개`}
+        totalLabel={isLoading ? "…" : isError ? "불러오기 실패" : `총 ${videos.length}개`}
         searchSlot={null}
-        primaryAction={
+        primaryAction={isError ? null : (
           <div className={styles.toolbarActions}>
             {videos.length > 1 && (
               <Button intent="ghost" onClick={() => setReorderOpen(true)}>
@@ -364,7 +369,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
               영상 추가
             </Button>
           </div>
-        }
+        )}
       />
 
       <div
@@ -381,6 +386,15 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
               />
             ))}
           </div>
+        ) : isError ? (
+          <EmptyState
+            mode="embedded"
+            scope="panel"
+            tone="error"
+            title="영상 목록을 불러오지 못했습니다"
+            description="기존 영상을 빈 목록으로 오인해 중복 업로드하지 않도록 목록을 먼저 복구해 주세요."
+            actions={<Button intent="secondary" size="sm" onClick={() => void refetch()}>다시 시도</Button>}
+          />
         ) : videos.length === 0 ? (
           <EmptyState mode="embedded" scope="panel" title="등록된 영상이 없습니다." />
         ) : (

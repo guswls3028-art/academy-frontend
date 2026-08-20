@@ -25,12 +25,14 @@ export default function VideoHomePage() {
     import("hls.js").catch(() => {});
   }, []);
 
-  const { data: videoMe, isLoading } = useQuery({
+  const videoMeQ = useQuery({
     queryKey: studentVideoQueryKeys.me,
     queryFn: fetchVideoMe,
     staleTime: 60 * 1000,
     placeholderData: keepPreviousData,
   });
+  const videoMe = videoMeQ.data;
+  const isLoading = videoMeQ.isLoading;
 
   return (
     <div className="video-page-content">
@@ -49,14 +51,21 @@ export default function VideoHomePage() {
           </div>
         )}
 
-        {!isLoading && tab === "home" && (
+        {videoMeQ.isError && (
+          <div className="stu-emptystate" role="alert">
+            <strong>영상 목록을 불러오지 못했습니다.</strong>
+            <button type="button" onClick={() => void videoMeQ.refetch()}>다시 시도</button>
+          </div>
+        )}
+
+        {!isLoading && !videoMeQ.isError && tab === "home" && (
           <VideoHomeTab
             lectures={videoMe?.lectures ?? []}
             publicData={videoMe?.public ?? null}
           />
         )}
 
-        {tab === "stats" && <VideoStatsTab />}
+        {!videoMeQ.isError && tab === "stats" && <VideoStatsTab />}
       </DomainTabShell>
     </div>
   );

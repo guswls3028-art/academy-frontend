@@ -33,7 +33,7 @@ export default function TagAddModal({
   const [selectedTagId, setSelectedTagId] = useState<number | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const tenantCode = resolveTenantCodeString();
-  const { data: tags = [], isLoading } = useQuery({
+  const { data: tags = [], isLoading, isError, refetch } = useQuery({
     queryKey: adminStudentsQueryKeys.tagsForTenant(tenantCode),
     queryFn: getTags,
     enabled: open,
@@ -45,6 +45,10 @@ export default function TagAddModal({
   }, [open]);
 
   const handleSubmit = async () => {
+    if (isError) {
+      feedback.error("태그 목록을 다시 불러온 뒤 시도해 주세요.");
+      return;
+    }
     if (!selectedTagId || studentIds.length === 0) {
       feedback.info("태그를 선택해 주세요.");
       return;
@@ -93,7 +97,7 @@ export default function TagAddModal({
                 className="ds-input w-full"
                 value={selectedTagId ?? ""}
                 onChange={(e) => setSelectedTagId(e.target.value ? Number(e.target.value) : null)}
-                disabled={isLoading}
+                disabled={isLoading || isError || adding}
               >
                 <option value="">태그 선택…</option>
                 {tags.map((t) => (
@@ -102,11 +106,20 @@ export default function TagAddModal({
                   </option>
                 ))}
               </select>
+              {isError && (
+                <div className="mt-2 flex items-center justify-between gap-2 text-sm text-[var(--color-error)]" role="alert">
+                  <span>태그 목록을 불러오지 못했습니다.</span>
+                  <Button type="button" intent="secondary" size="sm" onClick={() => void refetch()}>
+                    다시 시도
+                  </Button>
+                </div>
+              )}
             </div>
             <button
               type="button"
               className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-brand-primary)] hover:text-[var(--color-brand-primary-hover)] transition-colors"
               onClick={() => setShowCreate(true)}
+              disabled={isLoading || isError || adding}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
@@ -126,7 +139,7 @@ export default function TagAddModal({
                 intent="primary"
                 size="md"
                 onClick={handleSubmit}
-                disabled={adding || !selectedTagId || studentIds.length === 0}
+                 disabled={adding || isLoading || isError || !selectedTagId || studentIds.length === 0}
                 loading={adding}
               >
                 {adding ? "추가 중…" : "태그 추가"}

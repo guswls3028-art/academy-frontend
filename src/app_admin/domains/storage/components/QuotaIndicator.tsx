@@ -19,18 +19,27 @@ function formatBytes(bytes: number): string {
 }
 
 export default function QuotaIndicator({ className }: QuotaIndicatorProps) {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: storageQueryKeys.storageQuota,
     queryFn: fetchStorageQuota,
     staleTime: 60 * 1000,
   });
 
-  if (isLoading || !data) {
+  if (isLoading) {
     return (
       <div className={[styles.root, className].filter(Boolean).join(" ")}>
         <span className={styles.label}>사용량</span>
         <span className={styles.value}>—</span>
       </div>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <button type="button" className={[styles.root, className].filter(Boolean).join(" ")} onClick={() => void refetch()} title="저장소 사용량 다시 조회">
+        <span className={styles.label}>사용량 조회 실패</span>
+        <span className={styles.value}>다시 시도</span>
+      </button>
     );
   }
 

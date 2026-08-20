@@ -37,22 +37,25 @@ export default function ResultsPage() {
   const [selectedLecture, setSelectedLecture] = useState<number | null>(null);
   const [selectedExam, setSelectedExam] = useState<number | null>(null);
 
-  const { data: lectures } = useQuery({
+  const lecturesQ = useQuery({
     queryKey: teacherResultsQueryKeys.activeLectures,
     queryFn: () => fetchLectures(true),
   });
+  const lectures = lecturesQ.data;
 
-  const { data: exams } = useQuery({
+  const examsQ = useQuery({
     queryKey: teacherResultsQueryKeys.examsForLecture(selectedLecture),
     queryFn: async (): Promise<TeacherExamOption[]> => fetchExams({ lecture_id: selectedLecture! }),
     enabled: selectedLecture != null && tab === "list",
   });
+  const exams = examsQ.data;
 
-  const { data: results } = useQuery({
+  const resultsQ = useQuery({
     queryKey: teacherResultsQueryKeys.detail(selectedExam),
     queryFn: async (): Promise<TeacherExamResultRow[]> => fetchExamResults(selectedExam!),
     enabled: selectedExam != null && tab === "list",
   });
+  const results = resultsQ.data;
   const selectedLectureObj = (lectures ?? []).find((lecture) => lecture.id === selectedLecture);
 
   return (
@@ -74,6 +77,10 @@ export default function ResultsPage() {
 
       {tab === "list" && (
         <>
+          {lecturesQ.isLoading && <EmptyState scope="panel" tone="loading" title="강의를 불러오는 중…" />}
+          {lecturesQ.isError && <QueryFailure title="강의 목록을 불러오지 못했습니다" onRetry={() => void lecturesQ.refetch()} />}
+          {!lecturesQ.isLoading && !lecturesQ.isError && (
+            <>
           <div className={styles.selectorScroller}>
             {(lectures ?? []).map((lecture) => {
               const isSelected = selectedLecture === lecture.id;
@@ -114,8 +121,12 @@ export default function ResultsPage() {
             />
           )}
 
-          {selectedLecture != null && exams && (
-            exams.length > 0 ? (
+          {selectedLecture != null && (
+            examsQ.isLoading ? (
+              <EmptyState scope="panel" tone="loading" title="시험을 불러오는 중…" />
+            ) : examsQ.isError ? (
+              <QueryFailure title="시험 목록을 불러오지 못했습니다" onRetry={() => void examsQ.refetch()} />
+            ) : exams && exams.length > 0 ? (
               <>
                 <div className={styles.selectorScroller}>
                   {exams.map((exam) => {
@@ -133,8 +144,12 @@ export default function ResultsPage() {
                   })}
                 </div>
 
-                {selectedExam != null && results && (
-                  results.length > 0 ? (
+                {selectedExam != null && (
+                  resultsQ.isLoading ? (
+                    <EmptyState scope="panel" tone="loading" title="성적을 불러오는 중…" />
+                  ) : resultsQ.isError ? (
+                    <QueryFailure title="학생별 성적을 불러오지 못했습니다" onRetry={() => void resultsQ.refetch()} />
+                  ) : results && results.length > 0 ? (
                     <div className={styles.resultList}>
                       {results.map((result, index) => {
                         const enrollmentId = getExamResultEnrollmentId(result);
@@ -226,8 +241,22 @@ export default function ResultsPage() {
               />
             )
           )}
+            </>
+          )}
         </>
       )}
     </div>
+  );
+}
+
+function QueryFailure({ title, onRetry }: { title: string; onRetry: () => void }) {
+  return (
+    <EmptyState
+      scope="panel"
+      tone="error"
+      title={title}
+      description="빈 상태로 표시하지 않고 조회를 중단했습니다. 연결을 확인한 뒤 다시 시도해 주세요."
+      actions={<EmptyActionButton onClick={onRetry}>다시 시도</EmptyActionButton>}
+    />
   );
 }

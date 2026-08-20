@@ -26,7 +26,7 @@ interface Props {
 }
 
 export default function VideoEngagementBar({ videoId, fallbackViewCount }: Props) {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: adminVideoQueryKeys.engagement(videoId),
     queryFn: () => fetchVideoEngagement(videoId),
     enabled: !!videoId,
@@ -34,16 +34,16 @@ export default function VideoEngagementBar({ videoId, fallbackViewCount }: Props
     staleTime: 30_000,
   });
 
-  const viewCount = data?.view_count ?? fallbackViewCount ?? 0;
-  const likeCount = data?.like_count ?? 0;
-  const commentCount = data?.comment_count ?? 0;
+  const viewCount = isError ? fallbackViewCount : data?.view_count ?? fallbackViewCount ?? 0;
+  const likeCount = isError ? null : data?.like_count ?? 0;
+  const commentCount = isError ? null : data?.comment_count ?? 0;
 
   return (
     <div className={styles.bar}>
       {/* View Count */}
       <StatPill
         icon={<Eye size={18} aria-hidden />}
-        value={formatCount(viewCount)}
+        value={viewCount == null ? "—" : formatCount(viewCount)}
         label="조회"
         loading={isLoading}
       />
@@ -53,7 +53,7 @@ export default function VideoEngagementBar({ videoId, fallbackViewCount }: Props
       {/* Like Count */}
       <StatPill
         icon={<Heart size={18} aria-hidden />}
-        value={formatCount(likeCount)}
+        value={likeCount == null ? "—" : formatCount(likeCount)}
         label="좋아요"
         loading={isLoading}
         tone="danger"
@@ -64,7 +64,7 @@ export default function VideoEngagementBar({ videoId, fallbackViewCount }: Props
       {/* Comment Count */}
       <StatPill
         icon={<MessageCircle size={18} aria-hidden />}
-        value={formatCount(commentCount)}
+        value={commentCount == null ? "—" : formatCount(commentCount)}
         label="댓글"
         loading={isLoading}
         tone="primary"

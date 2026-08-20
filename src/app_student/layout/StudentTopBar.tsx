@@ -104,11 +104,12 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
   const { user } = useAuthContext();
   const { isDark, toggleMode } = useStudentTheme();
   const branding = getStudentTenantBranding(tenantCode);
-  const { data: profile } = useQuery({
+  const profileQ = useQuery({
     queryKey: studentQueryKeys.me,
     queryFn: fetchMyProfile,
     staleTime: 30_000,
   });
+  const profile = profileQ.data;
 
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -354,6 +355,7 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
             type="button"
             className="stu-topbar__profileBtn"
             aria-label="프로필 메뉴"
+            title={profileQ.isError ? "프로필 조회 실패 - 메뉴에서 다시 확인해 주세요" : undefined}
             onClick={() => setProfileOpen((v) => !v)}
           >
             {profile ? (
@@ -404,15 +406,11 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
 
 // 알림 종 (#65 P2) — community unread 카운트. 30초마다 자동 갱신.
 function NotificationBell({ onClick }: { onClick: () => void }) {
-  const { data } = useQuery({
+  const { data, isError } = useQuery({
     queryKey: studentQueryKeys.communityUnread,
     queryFn: async (): Promise<number> => {
-      try {
-        const res = await api.get<{ count?: number }>("/community/notifications/unread-count/");
-        return Math.max(0, Number(res?.data?.count) || 0);
-      } catch {
-        return 0;
-      }
+      const res = await api.get<{ count?: number }>("/community/notifications/unread-count/");
+      return Math.max(0, Number(res?.data?.count) || 0);
     },
     staleTime: 20_000,
     refetchInterval: 30_000,
@@ -423,7 +421,8 @@ function NotificationBell({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      aria-label={count > 0 ? `알림 ${count > 99 ? "99건 이상" : `${count}건`}` : "알림"}
+      aria-label={isError ? "알림 개수 확인 실패" : count > 0 ? `알림 ${count > 99 ? "99건 이상" : `${count}건`}` : "알림"}
+      title={isError ? "알림 개수를 확인하지 못했습니다. 알림 센터를 열어 확인해 주세요." : undefined}
       data-testid="stu-topbar-notif-bell"
       className={`stu-topbar__iconBtn${count > 0 ? "" : " stu-topbar__iconBtn--muted"}`}
     >
@@ -432,6 +431,7 @@ function NotificationBell({ onClick }: { onClick: () => void }) {
         <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
       </svg>
       <NotificationBadge count={count} />
+      {isError && <span aria-hidden="true" className="stu-topbar__notifBadge">!</span>}
     </button>
   );
 }

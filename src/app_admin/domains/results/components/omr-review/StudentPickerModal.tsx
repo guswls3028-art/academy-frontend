@@ -72,7 +72,7 @@ export default function StudentPickerModal({
   const fetcher = fetchCandidates ?? (examId != null ? (q: string) => fetchExamCandidates(examId, q) : null);
   const queryKeyId = fetchCandidates ? "custom" : String(examId ?? "");
 
-  const { data: rows = [], isFetching } = useQuery({
+  const { data: rows = [], isFetching, isError, refetch } = useQuery({
     queryKey: adminResultsQueryKeys.omrCandidates(queryKeyId, debouncedQ),
     queryFn: () => fetcher ? fetcher(debouncedQ) : Promise.resolve([] as CandidateRow[]),
     enabled: open && !!fetcher,
@@ -149,7 +149,14 @@ export default function StudentPickerModal({
         </div>
 
         <div className="spm-list">
-          {rows.length === 0 ? (
+          {isError ? (
+            <div className="spm-empty">
+              학생 목록을 불러오지 못했습니다.
+              <button type="button" className="spm-close" onClick={() => void refetch()} aria-label="학생 목록 다시 시도">
+                다시 시도
+              </button>
+            </div>
+          ) : rows.length === 0 ? (
             <div className="spm-empty">
               {isFetching
                 ? "검색 중…"

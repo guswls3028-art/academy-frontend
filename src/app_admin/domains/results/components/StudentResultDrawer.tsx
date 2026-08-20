@@ -26,7 +26,7 @@ import { patchExamItemScore } from "@admin/domains/scores/api/patchItemScore";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import WrongNotePanel from "./WrongNotePanel";
-import { Badge, type BadgeTone } from "@/shared/ui/ds";
+import { Badge, Button, type BadgeTone } from "@/shared/ui/ds";
 import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { adminResultsQueryKeys } from "../queryKeys";
@@ -117,19 +117,21 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
     document.getElementById(`srd-tab-${nextTab}`)?.focus();
   };
 
-  const { data: detail, isLoading: detailLoading, error: detailError } = useQuery({
+  const detailQ = useQuery({
     queryKey: adminResultsQueryKeys.adminExamDetail(examId, enrollmentId),
     queryFn: () => fetchAdminExamResultDetail(examId, enrollmentId),
     enabled: Number.isFinite(examId) && Number.isFinite(enrollmentId),
   });
+  const { data: detail, isLoading: detailLoading, error: detailError } = detailQ;
 
-  const { data: attemptData } = useQuery({
+  const attemptQ = useQuery({
     queryKey: adminResultsQueryKeys.attemptHistoryExam(examId, enrollmentId),
     queryFn: () => fetchAttemptHistory({ enrollment_id: enrollmentId, exam_id: examId }),
     enabled: Number.isFinite(examId) && Number.isFinite(enrollmentId),
   });
+  const attemptData = attemptQ.data;
 
-  const { data: examQuestions = [] } = useQuery({
+  const questionsQ = useQuery({
     queryKey: adminResultsQueryKeys.examQuestions(examId),
     queryFn: async () => {
       const res = await (await import("@/shared/api/axios")).default.get(`/exams/${examId}/questions/`);
@@ -137,6 +139,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
     },
     enabled: Number.isFinite(examId),
   });
+  const examQuestions = questionsQ.data ?? [];
 
   const attempts = attemptData?.attempts ?? [];
   const maxAttempt = attempts.length > 0 ? Math.max(...attempts.map((a) => a.attempt_index)) : 1;
@@ -157,6 +160,10 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
       .sort((a, b) => a.number - b.number);
   }, [detail?.questions]);
   const questionSource = detailQuestions.length > 0 ? detailQuestions : examQuestions;
+  const questionDependencyLoading = !detailLoading && detailQuestions.length === 0 && questionsQ.isLoading;
+  const questionDependencyError = detailQuestions.length === 0 && questionsQ.isError;
+  const answerLoading = detailLoading || questionDependencyLoading;
+  const answerError = Boolean(detailError) || questionDependencyError;
 
   const mergedItems: ExamResultItem[] = useMemo(() => {
     const itemMap = new Map(items1st.map((it) => [it.question_id, it]));
@@ -239,11 +246,11 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
   // 상태 B: 최초 로드 시 데이터 없으면 바로 편집 모드 진입
   const initialAutoEdit = useRef(false);
   useEffect(() => {
-    if (!readOnly && !detailLoading && !detailError && hasQuestions && !hasData && !initialAutoEdit.current) {
+    if (!readOnly && !answerLoading && !answerError && hasQuestions && !hasData && !initialAutoEdit.current) {
       initialAutoEdit.current = true;
       setIsEditMode(true);
     }
-  }, [readOnly, detailLoading, detailError, hasQuestions, hasData]);
+  }, [readOnly, answerLoading, answerError, hasQuestions, hasData]);
 
   // 정오답 로컬 판정
   const isItemCorrect = useCallback((it: ExamResultItem) => {
@@ -378,6 +385,12 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
           )}
 
           {/* ── 시도 차수 탭 (2차 이상 있을 때만) ── */}
+          {attemptQ.isError && (
+            <div className="srd-modal__error" role="alert">
+              <span>재시험 이력을 불러오지 못했습니다.</span>{" "}
+              <Button intent="secondary" size="sm" onClick={() => void attemptQ.refetch()}>다시 시도</Button>
+            </div>
+          )}
           {maxAttempt >= 2 && (
             <div className="srd-modal__attempt-tabs">
               {Array.from({ length: maxAttempt }, (_, i) => i + 1).map((n) => {
@@ -471,10 +484,18 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
           >
             {selectedAttempt === 1 && mainTab === "answer" && (
               <>
-                {detailLoading && <div className="srd-modal__loading">불러오는 중…</div>}
-                {detailError && <div className="srd-modal__error">조회 실패</div>}
+                {answerLoading && <div className="srd-modal__loading">불러오는 중…</div>}
+                {answerError && (
+                  <div className="srd-modal__error" role="alert">
+                    <span>답안과 문항 정보를 불러오지 못했습니다.</span>{" "}
+                    <Button intent="secondary" size="sm" onClick={() => {
+                      void detailQ.refetch();
+                      void questionsQ.refetch();
+                    }}>다시 시도</Button>
+                  </div>
+                )}
 
-                {!detailLoading && !detailError && !isEditMode && (
+                {!answerLoading && !answerError && !isEditMode && (
                   hasData ? (
                     /* ── 상태 A: 읽기 모드 — 즉시 문항 리스트 ── */
                     <ReadModeContent
@@ -503,7 +524,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                   )
                 )}
 
-                {!detailLoading && !detailError && isEditMode && (
+                {!answerLoading && !answerError && isEditMode && (
                     <EditModeContent
                       sessionId={scoreSessionId}
                       examId={examId}

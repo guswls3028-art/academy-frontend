@@ -17,7 +17,7 @@ import {
   fetchPostAuthorContext,
   type Question,
 } from "../api/community.api";
-import { Button } from "@/shared/ui/ds";
+import { Button, EmptyState } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import PostReadView from "../components/PostReadView";
@@ -61,7 +61,12 @@ export default function QnaInboxPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
 
-  const { data: questions = [], isLoading } = useQuery<Question[]>({
+  const {
+    data: questions = [],
+    isLoading,
+    isError,
+    refetch: refetchQuestions,
+  } = useQuery<Question[]>({
     queryKey: adminCommunityQueryKeys.questionsAll,
     queryFn: () => fetchCommunityQuestions(allScopeParams),
   });
@@ -167,6 +172,18 @@ export default function QnaInboxPage() {
         <div className="qna-inbox__list-body">
           {isLoading ? (
             <CommunityEmptyState variant="loading" postType="qna" />
+          ) : isError ? (
+            <EmptyState
+              mode="embedded"
+              scope="panel"
+              tone="error"
+              title="질문 목록을 불러오지 못했습니다"
+              actions={
+                <Button intent="secondary" size="sm" onClick={() => void refetchQuestions()}>
+                  다시 시도
+                </Button>
+              }
+            />
           ) : filtered.length === 0 ? (
             <CommunityEmptyState
               variant={searchQuery.trim() || filter !== "all" ? "no-results" : "no-posts"}
@@ -270,7 +287,12 @@ function ThreadView({
   const qc = useQueryClient();
   const confirm = useConfirm();
   const composerRef = useRef<HTMLDivElement>(null);
-  const { data: post, isLoading } = useQuery({
+  const {
+    data: post,
+    isLoading,
+    isError,
+    refetch: refetchPost,
+  } = useQuery({
     queryKey: adminCommunityQueryKeys.post(postId),
     queryFn: () => fetchPost(postId),
     enabled: postId != null,
@@ -323,10 +345,34 @@ function ThreadView({
 
   if (postId == null) return null;
 
-  if (isLoading || !post) {
+  if (isLoading) {
     return (
       <div className="qna-inbox__empty">
-        <p className="qna-inbox__empty-title">{isLoading ? "불러오는 중…" : "질문을 찾을 수 없습니다."}</p>
+        <p className="qna-inbox__empty-title">불러오는 중…</p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <EmptyState
+        mode="embedded"
+        scope="panel"
+        tone="error"
+        title="질문을 불러오지 못했습니다"
+        actions={
+          <Button intent="secondary" size="sm" onClick={() => void refetchPost()}>
+            다시 시도
+          </Button>
+        }
+      />
+    );
+  }
+
+  if (!post) {
+    return (
+      <div className="qna-inbox__empty">
+        <p className="qna-inbox__empty-title">질문을 찾을 수 없습니다.</p>
       </div>
     );
   }

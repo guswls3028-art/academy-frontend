@@ -124,21 +124,25 @@ export default function BoardAdminPage() {
     }
   }, [selectedIds, bulkSubmitting, clearSelection, confirm, qc]);
 
-  const { data: scopeNodes = [] } = useQuery<ScopeNodeMinimal[]>({
+  const scopeNodesQ = useQuery<ScopeNodeMinimal[]>({
     queryKey: adminCommunityQueryKeys.scopeNodes,
     queryFn: fetchScopeNodes,
   });
+  const scopeNodes = useMemo(() => scopeNodesQ.data ?? [], [scopeNodesQ.data]);
 
-  const { data: lectures = [] } = useQuery<Lecture[]>({
+  const lecturesQ = useQuery<Lecture[]>({
     queryKey: adminCommunityQueryKeys.lecturesList,
     queryFn: () => fetchLectures({ is_active: true }),
   });
+  const lectures = lecturesQ.data ?? [];
 
-  const { data: sessionsOfLecture = [], isLoading: sessionsLoading } = useQuery<Session[]>({
+  const sessionsQ = useQuery<Session[]>({
     queryKey: adminCommunityQueryKeys.lectureSessions(expandedLectureId),
     queryFn: () => fetchSessions(expandedLectureId!),
     enabled: expandedLectureId != null && Number.isFinite(expandedLectureId),
   });
+  const sessionsOfLecture = sessionsQ.data ?? [];
+  const sessionsLoading = sessionsQ.isLoading;
 
   // 트리 노드별 게시판 개수 — 백엔드 단일 집계
   const { counts: treeCounts } = useTreeCounts("board");
@@ -258,6 +262,24 @@ export default function BoardAdminPage() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [filtered, selectedId, setSelectedId]);
+
+  if (scopeNodesQ.isError || lecturesQ.isError || sessionsQ.isError) {
+    return (
+      <CommunityEmptyState
+        variant="error"
+        postType="board"
+        title="게시 범위를 불러오지 못했습니다"
+        description="잘못된 강의·차시에 글을 게시하지 않도록 범위를 복구한 뒤 작성할 수 있습니다."
+        action={
+          <Button intent="secondary" size="sm" onClick={() => {
+            void scopeNodesQ.refetch();
+            void lecturesQ.refetch();
+            if (expandedLectureId != null) void sessionsQ.refetch();
+          }}>다시 시도</Button>
+        }
+      />
+    );
+  }
 
   return (
     <div className="notice-tree" style={{ minHeight: "calc(100vh - 180px)" }}>

@@ -77,12 +77,13 @@ export default function SessionExamAction({ examIds, sessionId }: SessionExamAct
   );
 
   // 차시별 시험 목록을 student API로 한 번에 가져와 요약 계산
-  const { data } = useQuery({
+  const examsQ = useQuery({
     queryKey: studentQueryKeys.examsList(examQueryParams),
     queryFn: () => fetchStudentExams({ session_id: sessionId! }),
     enabled: !!sessionId && hasIds,
     staleTime: 60 * 1000,
   });
+  const data = examsQ.data;
 
   const summary: Summary | null = useMemo(() => {
     if (!data?.items?.length) return null;
@@ -103,6 +104,7 @@ export default function SessionExamAction({ examIds, sessionId }: SessionExamAct
 
   return (
     <div className={styles.stack}>
+      {examsQ.isError && <StatusChip label="시험 상태 확인 실패" tone="danger" />}
       {summary && (
         <div className={styles.statusRow}>
           {summary.urgent > 0 && (

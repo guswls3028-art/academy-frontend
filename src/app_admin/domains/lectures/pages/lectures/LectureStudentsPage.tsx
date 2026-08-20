@@ -79,6 +79,7 @@ export default function LectureStudentsPage() {
   const qc = useQueryClient();
   const { lectureId } = useParams<{ lectureId: string }>();
   const lectureIdNum = Number(lectureId);
+  const validLectureId = Number.isInteger(lectureIdNum) && lectureIdNum > 0;
 
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -95,17 +96,21 @@ export default function LectureStudentsPage() {
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  const { data: matrix, isLoading } = useQuery({
+  const matrixQ = useQuery({
     queryKey: adminLectureQueryKeys.attendanceMatrix(lectureIdNum),
     queryFn: () => fetchAttendanceMatrix(lectureIdNum),
-    enabled: Number.isFinite(lectureIdNum),
+    enabled: validLectureId,
   });
+  const matrix = matrixQ.data;
 
-  const { data: lecture } = useQuery({
+  const lectureQ = useQuery({
     queryKey: adminLectureQueryKeys.lecture(lectureIdNum),
     queryFn: async () => (await api.get(`/lectures/lectures/${lectureIdNum}/`)).data,
-    enabled: Number.isFinite(lectureIdNum),
+    enabled: validLectureId,
   });
+  const lecture = lectureQ.data;
+  const isLoading = matrixQ.isLoading || lectureQ.isLoading;
+  const isError = matrixQ.isError || lectureQ.isError;
 
   const rawStudents = matrix?.students ?? [];
   const sessions = matrix?.sessions ?? [];
@@ -218,14 +223,14 @@ export default function LectureStudentsPage() {
           선택 해제
         </Button>
         <span className="text-[var(--color-border-divider)]">|</span>
-      <Button intent="secondary" size="sm" onClick={() => downloadAttendanceExcel(lectureIdNum)}>
+      <Button intent="secondary" size="sm" onClick={() => downloadAttendanceExcel(lectureIdNum)} disabled={isLoading || isError}>
         엑셀 다운로드
       </Button>
       </div>
     </div>
   );
 
-  if (!Number.isFinite(lectureIdNum)) {
+  if (!validLectureId) {
     return (
       <div className="p-2 text-sm" style={{ color: "var(--color-error)" }}>
         강의 정보를 찾을 수 없습니다.
@@ -276,7 +281,7 @@ export default function LectureStudentsPage() {
             </div>
           }
           primaryAction={
-            <Button intent="primary" onClick={() => setShowLectureEnroll(true)}>
+            <Button intent="primary" onClick={() => setShowLectureEnroll(true)} disabled={isLoading || isError}>
               수강생 등록
             </Button>
           }
@@ -286,6 +291,14 @@ export default function LectureStudentsPage() {
         <div>
           {isLoading ? (
             <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+          ) : isError ? (
+            <EmptyState
+              scope="panel"
+              tone="error"
+              title="수강생과 출결 정보를 불러오지 못했습니다"
+              description="불완전한 명단에서 등록·다운로드하지 않도록 작업을 잠갔습니다."
+              actions={<Button intent="secondary" onClick={() => { void matrixQ.refetch(); void lectureQ.refetch(); }}>다시 시도</Button>}
+            />
           ) : !sortedFiltered.length ? (
             <EmptyState
               scope="panel"

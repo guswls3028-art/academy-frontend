@@ -34,13 +34,19 @@ async function fetchSummary(examId: number): Promise<AdminExamSummary | null> {
 async function fetchResults(examId: number): Promise<AdminExamResultRow[]> {
   const res = await api.get(`/results/admin/exams/${examId}/results/`);
   const raw = res.data?.results ?? res.data;
-  return Array.isArray(raw) ? raw : [];
+  if (!Array.isArray(raw)) {
+    throw new Error("시험 결과 응답 형식이 올바르지 않습니다.");
+  }
+  return raw;
 }
 
 async function fetchQuestionStats(examId: number): Promise<QuestionStat[]> {
   const res = await api.get(`/results/admin/exams/${examId}/questions/`);
   const raw = res.data?.results ?? res.data;
-  return Array.isArray(raw) ? raw : raw ?? [];
+  if (!Array.isArray(raw)) {
+    throw new Error("문항 통계 응답 형식이 올바르지 않습니다.");
+  }
+  return raw;
 }
 
 const BUCKETS = [
@@ -151,7 +157,21 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
   if (isError) {
     return (
       <section className="space-y-6 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-5">
-        <EmptyState scope="panel" tone="error" title="채점 결과를 불러오지 못했습니다." />
+        <EmptyState
+          scope="panel"
+          tone="error"
+          title="채점 결과를 불러오지 못했습니다."
+          actions={(
+            <Button
+              type="button"
+              intent="secondary"
+              size="sm"
+              onClick={() => void Promise.all([summaryQ.refetch(), resultsQ.refetch()])}
+            >
+              다시 시도
+            </Button>
+          )}
+        />
       </section>
     );
   }
@@ -254,7 +274,25 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
           </Button>
         </div>
 
-        {questionStats.length === 0 ? (
+        {statsQ.isLoading ? (
+          <EmptyState scope="panel" tone="loading" title="문항별 통계를 불러오는 중…" />
+        ) : statsQ.isError ? (
+          <EmptyState
+            scope="panel"
+            tone="error"
+            title="문항별 통계를 불러오지 못했습니다."
+            actions={(
+              <Button
+                type="button"
+                intent="secondary"
+                size="sm"
+                onClick={() => void statsQ.refetch()}
+              >
+                다시 시도
+              </Button>
+            )}
+          />
+        ) : questionStats.length === 0 ? (
           <div className="rounded border border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-6 text-center text-sm text-[var(--color-text-muted)]">
             문항별 통계 데이터가 없습니다. 채점이 완료된 후 표시됩니다.
           </div>

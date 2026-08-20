@@ -139,7 +139,8 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
   const adminLayout = useAdminLayout();
   const isMobile = adminLayout != null;
   const { program } = useProgram();
-  const { data: me } = useQuery({ queryKey: accountQueryKeys.me, queryFn: fetchMe });
+  const meQ = useQuery({ queryKey: accountQueryKeys.me, queryFn: fetchMe });
+  const me = meQ.data;
   const { clearAuth } = useAuth();
 
   const [openNotice, setOpenNotice] = useState(false);
@@ -246,6 +247,12 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
 
   const profileDropdownContent = (
     <div className="ds-header-dropdown app-header__profileDropdown" role="menu">
+      {meQ.isError && (
+        <div className="alarm-panel__empty alarm-panel__empty--warning" role="alert">
+          프로필 정보를 불러오지 못했습니다.
+          <button type="button" onClick={() => void meQ.refetch()}>다시 시도</button>
+        </div>
+      )}
       {me && (
         <>
           <div className="app-header__profileDropdownUserCard">
@@ -570,7 +577,7 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
                 )
               }
             >
-              {me?.name || me?.username ? (me.name || displayUsername(me.username) || "사용자") : "프로필"}
+              {meQ.isLoading ? "확인 중…" : meQ.isError ? "프로필 오류" : me?.name || me?.username ? (me.name || displayUsername(me.username) || "사용자") : "프로필"}
             </Button>
           </ProfileDropdown>
         </div>

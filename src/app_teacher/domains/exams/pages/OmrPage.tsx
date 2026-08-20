@@ -45,6 +45,7 @@ export default function OmrPage() {
   const { examId } = useParams<{ examId: string }>();
   const navigate = useNavigate();
   const eid = Number(examId);
+  const validExamId = Number.isInteger(eid) && eid > 0;
   const qc = useQueryClient();
 
   const [mcCount, setMcCount] = useState(20);
@@ -57,30 +58,33 @@ export default function OmrPage() {
   /** 무한 폴링 차단: enrollment_id별 시작 시각 (ms). 5분 후 강제 해제. */
   const pendingStartedAtRef = useRef<Map<number, number>>(new Map());
 
-  const { data: exam } = useQuery({
+  const examQ = useQuery({
     queryKey: teacherExamsQueryKeys.exam(eid),
     queryFn: async () => normalizeExam(await fetchExam(eid)),
-    enabled: Number.isFinite(eid),
+    enabled: validExamId,
   });
+  const exam = examQ.data;
   const sessionIds = useMemo(
     () => (exam?.session_ids ?? []).filter((id): id is number => Number.isFinite(id)),
     [exam?.session_ids],
   );
 
-  const { data: defaults, isLoading } = useQuery({
+  const defaultsQ = useQuery({
     queryKey: teacherExamsQueryKeys.omrDefaults(eid),
     queryFn: () => fetchOMRDefaults(eid),
-    enabled: Number.isFinite(eid),
+    enabled: validExamId,
   });
+  const defaults = defaultsQ.data;
 
-  const { data: results } = useQuery({
+  const resultsQ = useQuery({
     queryKey: teacherExamsQueryKeys.examResults(eid),
     queryFn: () => fetchExamResultRows(eid),
-    enabled: Number.isFinite(eid),
+    enabled: validExamId,
     // 채점 대기 중이면 5초 폴링 — 결과 자동 갱신
     refetchInterval: pendingScoring.size > 0 ? 5000 : false,
   });
-  const { data: rosterRows = [] } = useQuery({
+  const results = resultsQ.data;
+  const rosterQ = useQuery({
     queryKey: teacherExamsQueryKeys.omrEnrollments(eid, sessionIds),
     queryFn: async () => {
       const responses = await Promise.all(
@@ -95,8 +99,9 @@ export default function OmrPage() {
       }
       return Array.from(rowsByEnrollment.values());
     },
-    enabled: Number.isFinite(eid) && sessionIds.length > 0,
+    enabled: validExamId && sessionIds.length > 0,
   });
+  const rosterRows = useMemo(() => rosterQ.data ?? [], [rosterQ.data]);
   const rawResultRows = useMemo(() => (results ?? []) as TeacherExamResultRow[], [results]);
   const resultRows = useMemo(() => {
     const selectedRows = rosterRows.filter((row) => row.is_selected);
@@ -186,7 +191,41 @@ export default function OmrPage() {
     onError: () => teacherToast.error("다운로드에 실패했습니다."),
   });
 
-  if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
+  if (!validExamId) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="error"
+        title="올바르지 않은 시험 주소입니다"
+        actions={<EmptyActionButton variant="secondary" onClick={() => navigate(-1)}>시험으로 돌아가기</EmptyActionButton>}
+      />
+    );
+  }
+
+  if (examQ.isLoading || defaultsQ.isLoading) {
+    return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
+  }
+
+  if (examQ.isError || defaultsQ.isError) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="error"
+        title="OMR 시험 정보를 불러오지 못했습니다"
+        actions={
+          <EmptyActionButton
+            variant="secondary"
+            onClick={() => {
+              void examQ.refetch();
+              void defaultsQ.refetch();
+            }}
+          >
+            다시 시도
+          </EmptyActionButton>
+        }
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -264,7 +303,27 @@ export default function OmrPage() {
         <p className={`${styles.description} text-[11px] mb-3`}>
           학생별로 작성된 OMR을 카메라로 찍거나 갤러리에서 선택하여 업로드하면 자동 채점됩니다. 업로드 후 화면이 자동 갱신됩니다.
         </p>
-        {resultRows.length > 0 ? (
+        {resultsQ.isLoading || (sessionIds.length > 0 && rosterQ.isLoading) ? (
+          <EmptyState scope="panel" tone="loading" title="응시 학생을 불러오는 중…" />
+        ) : resultsQ.isError || rosterQ.isError ? (
+          <EmptyState
+            scope="panel"
+            tone="error"
+            title="응시 학생과 채점 결과를 불러오지 못했습니다"
+            description="기존 제출을 빈 목록으로 오인하지 않도록 복구 전에는 스캔 업로드를 할 수 없습니다."
+            actions={
+              <EmptyActionButton
+                variant="secondary"
+                onClick={() => {
+                  void resultsQ.refetch();
+                  if (sessionIds.length > 0) void rosterQ.refetch();
+                }}
+              >
+                다시 시도
+              </EmptyActionButton>
+            }
+          />
+        ) : resultRows.length > 0 ? (
           <div className="flex flex-col gap-1.5">
             {resultRows.map((r) => {
               const enrollmentId = getEnrollmentId(r);

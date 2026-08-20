@@ -35,11 +35,13 @@ export default function TodayPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const { data: sessions, isLoading } = useQuery({
+  const sessionsQ = useQuery({
     queryKey: teacherTodayQueryKeys.sessions(today),
     queryFn: () => fetchTodaySessions(today),
     staleTime: 60_000,
   });
+  const sessions = sessionsQ.data;
+  const isLoading = sessionsQ.isLoading;
 
   const { items: pendingItems, counts: pendingCounts } = useTeacherPendingCounts();
 
@@ -143,6 +145,20 @@ export default function TodayPage() {
       tone: "success" as const,
     };
   }, [attendanceGap, nextSession, nextSessionLabel, pendingItems, pendingQnaCount]);
+
+  if (sessionsQ.isError) {
+    return (
+      <div className={styles.page}>
+        <EmptyState
+          scope="panel"
+          tone="error"
+          title="오늘 수업을 불러오지 못했습니다"
+          description="수업·출결 건수를 0으로 계산하지 않고 업무 요약을 중단했습니다."
+          actions={<button type="button" onClick={() => void sessionsQ.refetch()} className={styles.emptyActionButton}>다시 시도</button>}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={styles.page}>

@@ -21,19 +21,22 @@ export default function ExamTemplatesPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("exam");
 
-  const { data: examTemplates, isLoading: examLoading } = useQuery({
+  const examTemplatesQ = useQuery({
     queryKey: teacherExamsQueryKeys.examTemplatesUsage,
     queryFn: fetchTemplatesWithUsage,
     enabled: tab === "exam",
   });
+  const examTemplates = examTemplatesQ.data;
 
-  const { data: hwTemplates, isLoading: hwLoading } = useQuery({
+  const hwTemplatesQ = useQuery({
     queryKey: teacherExamsQueryKeys.homeworkTemplatesUsage,
     queryFn: fetchHomeworkTemplatesWithUsage,
     enabled: tab === "homework",
   });
+  const hwTemplates = hwTemplatesQ.data;
 
-  const loading = tab === "exam" ? examLoading : hwLoading;
+  const activeQuery = tab === "exam" ? examTemplatesQ : hwTemplatesQ;
+  const loading = activeQuery.isLoading;
   const items = tab === "exam" ? examTemplates : hwTemplates;
 
   return (
@@ -64,7 +67,15 @@ export default function ExamTemplatesPage() {
         onChange={setTab}
       />
 
-      {loading ? <EmptyState scope="panel" tone="loading" title="불러오는 중…" /> :
+      {loading ? <EmptyState scope="panel" tone="loading" title="불러오는 중…" /> : activeQuery.isError ? (
+        <EmptyState
+          scope="panel"
+          tone="error"
+          title="템플릿을 불러오지 못했습니다"
+          description="빈 목록으로 표시하지 않고 조회를 중단했습니다."
+          actions={<EmptyActionButton onClick={() => void activeQuery.refetch()}>다시 시도</EmptyActionButton>}
+        />
+      ) :
         items && items.length > 0 ? (
           <div className={styles.templateList}>
             {items.map((template) => (

@@ -88,17 +88,22 @@ export default function SessionCreateModal({
   const [timeMode, setTimeMode] = useState<TimeMode>("default");
   const [timeInput, setTimeInput] = useState("");
 
-  const { data: lecture } = useQuery({
+  const lectureQ = useQuery({
     queryKey: adminLectureQueryKeys.lecture(lectureId),
     queryFn: async () => (await api.get(`/lectures/lectures/${lectureId}/`)).data,
     enabled: Number.isFinite(lectureId),
   });
+  const lecture = lectureQ.data;
 
-  const { data: sessionsData } = useQuery({
+  const sessionsQ = useQuery({
     queryKey: adminLectureQueryKeys.sessionsForLecture(lectureId),
     queryFn: async () => (await api.get(`/lectures/sessions/?lecture=${lectureId}`)).data,
     enabled: Number.isFinite(lectureId),
   });
+  const sessionsData = sessionsQ.data;
+  const dependencyLoading = lectureQ.isLoading || sessionsQ.isLoading;
+  const dependencyError = lectureQ.isError || sessionsQ.isError;
+  const formLocked = busy || dependencyLoading || dependencyError;
 
   const sessionsList = useMemo(() => {
     const raw = sessionsData;
@@ -207,7 +212,10 @@ export default function SessionCreateModal({
   }
 
   async function handleSubmit() {
-    if (busy) return;
+    if (formLocked) {
+      if (dependencyError) feedback.warning("강의와 기존 차시를 다시 불러온 뒤 추가해 주세요.");
+      return;
+    }
     const err = validate();
     if (err) { feedback.warning(err); return; }
 
@@ -251,13 +259,30 @@ export default function SessionCreateModal({
   const showDefaultTimeOption = sessionType === "regular";
 
   return (
-    <AdminModal open={true} onClose={onClose} type="action" width={620} onEnterConfirm={!busy ? handleSubmit : undefined}>
+    <AdminModal open={true} onClose={onClose} type="action" width={620} onEnterConfirm={!formLocked ? handleSubmit : undefined}>
       <ModalHeader
         type="action"
         title={sectionLabel ? `${sectionLabel} 차시 추가` : "차시 추가"}
       />
 
       <ModalBody>
+        {dependencyLoading ? (
+          <div className="modal-hint modal-hint--block">강의와 기존 차시를 불러오는 중입니다.</div>
+        ) : dependencyError ? (
+          <div role="alert" className="grid gap-3">
+            <div className="modal-hint modal-hint--block">기존 차시를 확인하지 못해 중복 생성을 막았습니다.</div>
+            <Button
+              intent="secondary"
+              size="sm"
+              onClick={() => {
+                void lectureQ.refetch();
+                void sessionsQ.refetch();
+              }}
+            >
+              다시 시도
+            </Button>
+          </div>
+        ) : (
         <div className="modal-scroll-body grid gap-6 w-full max-w-full box-border">
           {/* 차시 유형: 2차시 / 보강 (전역 SessionBlockView SSOT) */}
           <div>
@@ -393,6 +418,7 @@ export default function SessionCreateModal({
             </>
           )}
         </div>
+        )}
       </ModalBody>
 
       <ModalFooter
@@ -401,7 +427,7 @@ export default function SessionCreateModal({
             <Button intent="secondary" onClick={onClose} disabled={busy}>
               취소
             </Button>
-            <Button intent="primary" onClick={handleSubmit} disabled={busy}>
+            <Button intent="primary" onClick={handleSubmit} disabled={formLocked}>
               {busy ? "저장 중…" : "저장"}
             </Button>
           </>

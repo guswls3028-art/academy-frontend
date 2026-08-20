@@ -31,20 +31,24 @@ export default function HomeworkDetailPage() {
   const navigate = useNavigate();
   const hid = Number(homeworkId);
 
-  const { data: hw, isLoading: loadingHw } = useQuery({
+  const homeworkQ = useQuery({
     queryKey: teacherExamsQueryKeys.homework(hid),
     queryFn: async () => normalizeHomework(await fetchHomework(hid)),
     enabled: Number.isFinite(hid),
   });
+  const hw = homeworkQ.data;
 
-  const { data: submissions, isLoading: loadingSub } = useQuery({
+  const submissionsQ = useQuery({
     queryKey: teacherExamsQueryKeys.homeworkSubmissions(hid),
     queryFn: async () => normalizeHomeworkSubmissions(await fetchHomeworkSubmissions(hid)),
     enabled: Number.isFinite(hid),
   });
+  const submissions = submissionsQ.data;
 
-  if (loadingHw || loadingSub)
+  if (homeworkQ.isLoading || submissionsQ.isLoading)
     return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
+  if (homeworkQ.isError || submissionsQ.isError)
+    return <EmptyState scope="panel" tone="error" title="과제 상세를 불러오지 못했습니다" description="제출 현황을 빈 목록으로 표시하지 않았습니다." actions={<EmptyActionButton onClick={() => { void homeworkQ.refetch(); void submissionsQ.refetch(); }}>다시 시도</EmptyActionButton>} />;
   if (!hw)
     return <EmptyState scope="panel" tone="error" title="과제를 찾을 수 없습니다" />;
 

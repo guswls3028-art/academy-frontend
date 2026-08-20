@@ -19,6 +19,7 @@ import {
 } from "@/shared/api/contracts/sessions";
 import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { adminResultsQueryKeys } from "../queryKeys";
+import { Button } from "@/shared/ui/ds";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "./ResultsExplorer.module.css";
 
@@ -28,12 +29,22 @@ export default function ResultsTreeView() {
   const navigate = useNavigate();
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
 
-  const { data: lectures = [], isLoading: lecturesLoading } = useQuery({
+  const {
+    data: lectures = [],
+    isLoading: lecturesLoading,
+    isError: lecturesError,
+    refetch: refetchLectures,
+  } = useQuery({
     queryKey: adminResultsQueryKeys.lectures,
     queryFn: () => fetchLectures({ is_active: undefined }),
   });
 
-  const { data: allSessions = [], isLoading: sessionsLoading } = useQuery({
+  const {
+    data: allSessions = [],
+    isLoading: sessionsLoading,
+    isError: sessionsError,
+    refetch: refetchSessions,
+  } = useQuery({
     queryKey: adminResultsQueryKeys.lectureSessionsAll,
     queryFn: fetchAllSessions,
     staleTime: 60_000,
@@ -132,6 +143,17 @@ export default function ResultsTreeView() {
           {isLoading ? (
             <div className={panelStyles.placeholder}>
               <p className={panelStyles.placeholderTitle}>불러오는 중…</p>
+            </div>
+          ) : lecturesError || sessionsError ? (
+            <div className={panelStyles.placeholder}>
+              <p className={panelStyles.placeholderTitle}>강의·차시 목록을 불러오지 못했습니다</p>
+              <p className={panelStyles.placeholderDesc}>성적이 없는 것으로 오인하지 않도록 목록을 복구해 주세요.</p>
+              <Button intent="secondary" size="sm" onClick={() => {
+                void refetchLectures();
+                void refetchSessions();
+              }}>
+                다시 시도
+              </Button>
             </div>
           ) : !selectedSessionId ? (
             <div className={panelStyles.placeholder}>

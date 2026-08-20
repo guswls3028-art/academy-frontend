@@ -5,7 +5,7 @@ import { lazy, Suspense, useState, useCallback, useEffect, useMemo, useRef } fro
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useNavigate, useLocation } from "react-router";
 import { Sparkles, AlertTriangle, RefreshCw, Eye, BookOpen, Crop, ClipboardList, FolderTree, FolderInput, Plus, Layers, ShieldCheck } from "lucide-react";
-import { Button, ICON } from "@/shared/ui/ds";
+import { Button, EmptyState, ICON } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import useAuth from "@/auth/hooks/useAuth";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -259,7 +259,12 @@ export default function MatchupPage() {
   // 학원장이 다른 페이지 갔다 다시 돌아오는 시간(보통 5초~수분) 안에는 마지막 데이터를
   // 그대로 보여주고 background refetch 만 수행 → "왼쪽에서 문서 선택해 주세요" 빈 상태가
   // 짧게 깜빡이던 결함 fix. 문서 status 변경은 useMatchupPolling 이 별도로 처리.
-  const { data: documents = [], isLoading: docsLoading } = useQuery({
+  const {
+    data: documents = [],
+    isLoading: docsLoading,
+    isError: docsError,
+    refetch: refetchDocuments,
+  } = useQuery({
     queryKey: storageQueryKeys.matchupDocuments,
     queryFn: fetchMatchupDocuments,
     staleTime: 60_000,
@@ -477,7 +482,12 @@ export default function MatchupPage() {
       });
   }, [hitReportId, selectedProblemId, pinsByExamPid, pendingPinIds]);
 
-  const { data: rawProblems = [], isLoading: problemsLoading } = useQuery({
+  const {
+    data: rawProblems = [],
+    isLoading: problemsLoading,
+    isError: problemsError,
+    refetch: refetchProblems,
+  } = useQuery({
     queryKey: storageQueryKeys.matchupProblems(selectedDocId),
     queryFn: () => fetchMatchupProblems(selectedDocId!),
     // status==='processing'에서도 활성화 — 백엔드가 세그멘테이션 직후 skeleton row를
@@ -1180,6 +1190,18 @@ export default function MatchupPage() {
   }, [selectedProblemId]);
 
   // ── 빈 상태 ──
+  if (docsError) {
+    return (
+      <EmptyState
+        scope="page"
+        tone="error"
+        title="매치업 문서 목록을 불러오지 못했습니다"
+        description="기존 자료를 빈 저장소로 오인해 중복 업로드하지 않도록 목록을 먼저 복구해 주세요."
+        actions={<Button intent="secondary" onClick={() => void refetchDocuments()}>다시 시도</Button>}
+      />
+    );
+  }
+
   if (!docsLoading && documents.length === 0) {
     return (
       <>
@@ -2011,6 +2033,16 @@ export default function MatchupPage() {
                     }}>
                       추출된 문제
                     </h4>
+                    {problemsError ? (
+                      <EmptyState
+                        mode="embedded"
+                        scope="panel"
+                        tone="error"
+                        title="추출된 문제를 불러오지 못했습니다"
+                        description="문제가 없는 것으로 오인해 다시 분석하지 않도록 기존 결과를 먼저 복구해 주세요."
+                        actions={<Button intent="secondary" size="sm" onClick={() => void refetchProblems()}>다시 시도</Button>}
+                      />
+                    ) : (
                     <ProblemGrid
                       problems={problems}
                       loading={problemsLoading}
@@ -2040,6 +2072,7 @@ export default function MatchupPage() {
                       onOpenManualCrop={selectedDoc ? () => setCropDocId(selectedDoc.id) : undefined}
                       onRetry={selectedDoc ? () => handleRetry(selectedDoc.id) : undefined}
                     />
+                    )}
                   </div>
 
                   <div style={/* eslint-disable-line no-restricted-syntax */ {

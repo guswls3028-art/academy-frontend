@@ -70,21 +70,25 @@ export default function NoticeAdminPage() {
   const [showCreate, setShowCreate] = useState(false);
   const qc = useQueryClient();
 
-  const { data: scopeNodes = [] } = useQuery<ScopeNodeMinimal[]>({
+  const scopeNodesQ = useQuery<ScopeNodeMinimal[]>({
     queryKey: adminCommunityQueryKeys.scopeNodes,
     queryFn: () => fetchScopeNodes(),
   });
+  const scopeNodes = useMemo(() => scopeNodesQ.data ?? [], [scopeNodesQ.data]);
 
-  const { data: lectures = [] } = useQuery<Lecture[]>({
+  const lecturesQ = useQuery<Lecture[]>({
     queryKey: adminCommunityQueryKeys.lecturesList,
     queryFn: () => fetchLectures({ is_active: true }),
   });
+  const lectures = lecturesQ.data ?? [];
 
-  const { data: sessionsOfLecture = [], isLoading: sessionsLoading } = useQuery<Session[]>({
+  const sessionsQ = useQuery<Session[]>({
     queryKey: adminCommunityQueryKeys.lectureSessions(expandedLectureId),
     queryFn: () => fetchSessions(expandedLectureId!),
     enabled: expandedLectureId != null && Number.isFinite(expandedLectureId),
   });
+  const sessionsOfLecture = sessionsQ.data ?? [];
+  const sessionsLoading = sessionsQ.isLoading;
 
   // 트리 노드별 공지 개수 — 백엔드 단일 집계 (이전: 2000건 풀 페치)
   const { counts: noticeCounts } = useTreeCounts("notice");
@@ -149,6 +153,24 @@ export default function NoticeAdminPage() {
     scope === "all" ||
     (scope === "lecture" && effectiveLectureId != null) ||
     (scope === "session" && sessionId != null);
+
+  if (scopeNodesQ.isError || lecturesQ.isError || sessionsQ.isError) {
+    return (
+      <CommunityEmptyState
+        variant="error"
+        postType="notice"
+        title="공지 범위를 불러오지 못했습니다"
+        description="잘못된 강의·차시에 공지하지 않도록 범위를 복구한 뒤 작성할 수 있습니다."
+        action={
+          <Button intent="secondary" size="sm" onClick={() => {
+            void scopeNodesQ.refetch();
+            void lecturesQ.refetch();
+            if (expandedLectureId != null) void sessionsQ.refetch();
+          }}>다시 시도</Button>
+        }
+      />
+    );
+  }
 
   return (
     <div className="notice-tree notice-tree--viewport">

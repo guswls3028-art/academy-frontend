@@ -70,41 +70,47 @@ export default function ResultsStatsTab() {
   const [selectedExam, setSelectedExam] = useState<number | null>(null);
 
   /* ─── Data fetching ─── */
-  const { data: lectures } = useQuery({
+  const lecturesQ = useQuery({
     queryKey: teacherResultsQueryKeys.statsLectures,
     queryFn: () => fetchLectures(true),
   });
+  const lectures = lecturesQ.data;
 
-  const { data: exams } = useQuery({
+  const examsQ = useQuery({
     queryKey: teacherResultsQueryKeys.statsExams(selectedLecture),
     queryFn: () => fetchExams({ lecture_id: selectedLecture! }),
     enabled: selectedLecture != null,
   });
+  const exams = examsQ.data;
 
-  const { data: summary, isLoading: summaryLoading } = useQuery({
+  const summaryQ = useQuery({
     queryKey: teacherResultsQueryKeys.examSummary(selectedExam),
     queryFn: () => fetchExamSummary(selectedExam!),
     enabled: selectedExam != null,
   });
+  const summary = summaryQ.data;
 
-  const { data: questionStats } = useQuery({
+  const questionStatsQ = useQuery({
     queryKey: teacherResultsQueryKeys.questionStats(selectedExam),
     queryFn: () => fetchQuestionStats(selectedExam!),
     enabled: selectedExam != null,
   });
+  const questionStats = questionStatsQ.data;
 
-  const { data: results } = useQuery({
+  const resultsQ = useQuery({
     queryKey: teacherResultsQueryKeys.statsExamResults(selectedExam),
     queryFn: () => fetchExamResults(selectedExam!),
     enabled: selectedExam != null,
   });
+  const results = resultsQ.data;
 
   /* ─── 과제 데이터 ─── */
-  const { data: hwScores } = useQuery({
+  const hwScoresQ = useQuery({
     queryKey: teacherResultsQueryKeys.homeworkScores(selectedLecture),
     queryFn: () => fetchHomeworkScores(selectedLecture!),
     enabled: selectedLecture != null,
   });
+  const hwScores = hwScoresQ.data;
 
   /* ─── Derived ─── */
   const lectureList = (lectures ?? []) as LectureOption[];
@@ -181,8 +187,12 @@ export default function ResultsStatsTab() {
 
   return (
     <div className="flex flex-col gap-3">
+      {lecturesQ.isLoading && <EmptyState scope="panel" tone="loading" title="강의를 불러오는 중…" />}
+      {lecturesQ.isError && (
+        <QueryFailure title="강의 목록을 불러오지 못했습니다" onRetry={() => void lecturesQ.refetch()} />
+      )}
       {/* ── 강의 선택 ── */}
-      <div className={cx("flex gap-2 overflow-x-auto pb-1", styles.scrollTabs)}>
+      {!lecturesQ.isLoading && !lecturesQ.isError && <div className={cx("flex gap-2 overflow-x-auto pb-1", styles.scrollTabs)}>
         {lectureList.map((l) => (
           <button
             key={l.id}
@@ -204,9 +214,9 @@ export default function ResultsStatsTab() {
             {l.title}
           </button>
         ))}
-      </div>
+      </div>}
 
-      {selectedLecture == null && (
+      {selectedLecture == null && !lecturesQ.isLoading && !lecturesQ.isError && (
         <EmptyState
           scope="panel"
           tone="empty"
@@ -221,7 +231,13 @@ export default function ResultsStatsTab() {
       )}
 
       {/* ── 시험 선택 ── */}
-      {selectedLecture != null && exams && (
+      {selectedLecture != null && (examsQ.isLoading || hwScoresQ.isLoading) && (
+        <EmptyState scope="panel" tone="loading" title="강의 통계를 불러오는 중…" />
+      )}
+      {selectedLecture != null && (examsQ.isError || hwScoresQ.isError) && (
+        <QueryFailure title="강의 통계를 불러오지 못했습니다" onRetry={() => { void examsQ.refetch(); void hwScoresQ.refetch(); }} />
+      )}
+      {selectedLecture != null && !examsQ.isLoading && !examsQ.isError && !hwScoresQ.isLoading && !hwScoresQ.isError && exams && (
         exams.length > 0 ? (
           <>
             <div className={cx("flex gap-2 overflow-x-auto pb-1", styles.scrollTabs)}>
@@ -250,7 +266,7 @@ export default function ResultsStatsTab() {
 
             {/* ── 통계 본문 ── */}
             {selectedExam != null && (
-              summaryLoading ? (
+              summaryQ.isLoading || questionStatsQ.isLoading || resultsQ.isLoading ? (
                 <div className="flex flex-col gap-3">
                   {[1, 2, 3].map((i) => (
                     <div
@@ -259,6 +275,8 @@ export default function ResultsStatsTab() {
                     />
                   ))}
                 </div>
+              ) : summaryQ.isError || questionStatsQ.isError || resultsQ.isError ? (
+                <QueryFailure title="시험 통계를 불러오지 못했습니다" onRetry={() => { void summaryQ.refetch(); void questionStatsQ.refetch(); void resultsQ.refetch(); }} />
               ) : !summary ? (
                 <EmptyState
                   scope="panel"
@@ -535,7 +553,7 @@ export default function ResultsStatsTab() {
       )}
 
       {/* ── 과제 현황 (강의 선택 시 항상 표시) ── */}
-      {selectedLecture != null && hwStats && (
+      {selectedLecture != null && !hwScoresQ.isError && hwStats && (
         <Card>
           <SectionTitle>과제 현황</SectionTitle>
           <div className="grid grid-cols-3 gap-2 mt-2">
@@ -612,5 +630,17 @@ export default function ResultsStatsTab() {
         </Card>
       )}
     </div>
+  );
+}
+
+function QueryFailure({ title, onRetry }: { title: string; onRetry: () => void }) {
+  return (
+    <EmptyState
+      scope="panel"
+      tone="error"
+      title={title}
+      description="일부 결과를 빈 데이터로 계산하지 않고 표시를 중단했습니다. 다시 조회해 주세요."
+      actions={<EmptyActionButton onClick={onRetry}>다시 시도</EmptyActionButton>}
+    />
   );
 }

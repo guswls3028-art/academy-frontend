@@ -176,7 +176,12 @@ export default function OmrReviewWorkspace({
   }, [editDirty, onClose, confirm]);
 
   // 리스트
-  const { data: rows = [], isLoading: listLoading } = useQuery({
+  const {
+    data: rows = [],
+    isLoading: listLoading,
+    isError: listError,
+    refetch: refetchList,
+  } = useQuery({
     queryKey: adminResultsQueryKeys.omrReviewList(examId),
     queryFn: () => listOmrReviewRows(examId),
     enabled: open && Number.isFinite(examId),
@@ -184,7 +189,12 @@ export default function OmrReviewWorkspace({
   });
 
   // 상세
-  const { data: detail, isLoading: detailLoading } = useQuery({
+  const {
+    data: detail,
+    isLoading: detailLoading,
+    isError: detailError,
+    refetch: refetchDetail,
+  } = useQuery({
     queryKey: adminResultsQueryKeys.omrReviewDetail(selectedId),
     queryFn: () => fetchOmrReviewDetail(selectedId!),
     enabled: open && selectedId != null,
@@ -363,6 +373,12 @@ export default function OmrReviewWorkspace({
           <div className="orw-list-pane">
             {listLoading ? (
               <div className="orw-loading">불러오는 중…</div>
+            ) : listError ? (
+              <div className="orw-list-empty orw-list-empty--first">
+                <strong>OMR 답안 목록을 불러오지 못했습니다.</strong>
+                <span>기존 답안을 빈 목록으로 처리하지 않았습니다.</span>
+                <Button intent="secondary" size="sm" onClick={() => void refetchList()}>다시 시도</Button>
+              </div>
             ) : visibleRows.length === 0 ? (
               rows.length === 0 && filter === "all" && search.trim() === "" ? (
                 <div className="orw-list-empty orw-list-empty--first">
@@ -405,6 +421,12 @@ export default function OmrReviewWorkspace({
           </div>
 
           {/* ── CENTER: 스캔 이미지 ── */}
+          {detailError ? (
+            <div className="orw-loading">
+              답안 상세를 불러오지 못했습니다.
+              <Button intent="secondary" size="sm" onClick={() => void refetchDetail()}>다시 시도</Button>
+            </div>
+          ) : (
           <ScanPane
             detail={detail}
             detailLoading={detailLoading}
@@ -423,8 +445,12 @@ export default function OmrReviewWorkspace({
               }
             }}
           />
+          )}
 
           {/* ── RIGHT: 답안 편집 ── */}
+          {detailError ? (
+            <div className="orw-loading">상세 정보를 복구한 뒤 수정할 수 있습니다.</div>
+          ) : (
           <EditPane
             key={selectedId ?? "empty"}
             examId={examId}
@@ -473,6 +499,7 @@ export default function OmrReviewWorkspace({
             }}
             onNavigate={navigate}
           />
+          )}
         </div>
       </div>
     </>,

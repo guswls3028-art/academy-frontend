@@ -30,19 +30,22 @@ export default function ExamDetailPage() {
   const { examId } = useParams<{ examId: string }>();
   const navigate = useNavigate();
   const eid = Number(examId);
+  const validExamId = Number.isInteger(eid) && eid > 0;
   const [manageOpen, setManageOpen] = useState(false);
 
-  const { data: exam, isLoading: loadingExam } = useQuery({
+  const examQ = useQuery({
     queryKey: teacherExamsQueryKeys.exam(eid),
     queryFn: async () => normalizeExam(await fetchExam(eid)),
-    enabled: Number.isFinite(eid),
+    enabled: validExamId,
   });
+  const exam = examQ.data;
 
-  const { data: results, isLoading: loadingResults } = useQuery({
+  const resultsQ = useQuery({
     queryKey: teacherExamsQueryKeys.examResults(eid),
     queryFn: async () => normalizeResultRows(await fetchExamResults(eid)),
-    enabled: Number.isFinite(eid),
+    enabled: validExamId,
   });
+  const results = resultsQ.data;
 
   const sessionIds = useMemo(
     () => (exam?.session_ids ?? []).filter((id): id is number => Number.isFinite(id)),
@@ -51,7 +54,7 @@ export default function ExamDetailPage() {
 
   // enrollment fallback — admin endpoint 는 result row 있는 학생만 반환.
   // 멀티 세션 시험은 각 차시의 "시험 선택 enrollment"만 합쳐야 과잉 노출이 없다.
-  const { data: examEnrollmentRows } = useQuery({
+  const enrollmentRowsQ = useQuery({
     queryKey: teacherExamsQueryKeys.examEnrollmentRows(eid, sessionIds),
     queryFn: async () => {
       const responses = await Promise.all(
@@ -69,12 +72,29 @@ export default function ExamDetailPage() {
       }
       return Array.from(rowsByEnrollment.values());
     },
-    enabled: Number.isFinite(eid) && sessionIds.length > 0,
+    enabled: validExamId && sessionIds.length > 0,
   });
+  const examEnrollmentRows = enrollmentRowsQ.data;
 
-  if (loadingExam || loadingResults)
+  if (examQ.isLoading || resultsQ.isLoading || enrollmentRowsQ.isLoading)
     return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
-  if (!exam) return <EmptyState scope="panel" tone="error" title="시험을 찾을 수 없습니다" />;
+  if (!validExamId || examQ.isError || resultsQ.isError || enrollmentRowsQ.isError || !exam) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="error"
+        title={validExamId ? "시험 상세를 불러오지 못했습니다" : "잘못된 시험 주소입니다"}
+        description="학생 목록 일부를 누락한 채 표시하지 않고 조회를 중단했습니다."
+        actions={validExamId ? (
+          <EmptyActionButton onClick={() => {
+            void examQ.refetch();
+            void resultsQ.refetch();
+            if (sessionIds.length > 0) void enrollmentRowsQ.refetch();
+          }}>다시 시도</EmptyActionButton>
+        ) : undefined}
+      />
+    );
+  }
 
   // result row(점수 매겨진 행) + enrollment fallback(미응시 학생) merge.
   // 우선순위: result(server) 있으면 result, 없으면 enrollment 기반 가상 행.
