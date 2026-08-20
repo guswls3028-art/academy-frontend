@@ -10,8 +10,6 @@ const PREFIX = "/messaging";
 // ----------------------------------------
 
 export interface TenantMessagingInfo {
-  /** 문자 실발송은 정책상 비활성화되어 있으며 API 응답 기준만 사용 */
-  sms_allowed?: boolean;
   /** 알림톡 채널 출처: 공용 owner 채널 */
   channel_source?: "common_owner" | "system_default";
   /** 실제 발송에 사용되는 공용 PFID */
