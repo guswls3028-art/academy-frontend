@@ -15,7 +15,7 @@ function responseStatus(error: unknown): number | undefined {
 function retryUnlessClientError(failureCount: number, error: unknown): boolean {
   const status = responseStatus(error);
   if (status != null && status >= 400 && status < 500) return false;
-  return failureCount < 2;
+  return failureCount < 1;
 }
 
 export function useStudentExams(params?: { session_id?: number; include_upcoming?: boolean }) {

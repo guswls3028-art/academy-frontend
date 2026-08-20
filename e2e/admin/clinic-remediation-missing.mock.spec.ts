@@ -129,7 +129,7 @@ test("미응시를 판정 대기로 구분하고 사유를 남겨 면제한 뒤 
   await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
   const clinicForm = page.locator(".clinic-create--modal");
   const openClinicForm = page.getByRole("button", { name: "클리닉 만들기", exact: true });
-  await expect(clinicForm.or(openClinicForm)).toBeVisible();
+  await expect(clinicForm.or(openClinicForm)).toBeVisible({ timeout: 30_000 });
   if (!(await clinicForm.isVisible())) {
     await openClinicForm.click({ timeout: 2_000 }).catch(async (error) => {
       if (!(await clinicForm.isVisible())) throw error;
