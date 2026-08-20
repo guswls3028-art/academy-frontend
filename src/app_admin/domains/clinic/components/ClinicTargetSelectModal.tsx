@@ -276,6 +276,14 @@ export default function ClinicTargetSelectModal({
   const isLoading =
     (mode === "targets" && targetsQ.isLoading) ||
     (mode === "students" && studentsQ.isLoading);
+  const isError =
+    (mode === "targets" && targetsQ.isError) ||
+    (mode === "students" && studentsQ.isError);
+
+  const retryCurrentList = () => {
+    if (mode === "targets") void targetsQ.refetch();
+    else void studentsQ.refetch();
+  };
 
   const allChecked = rows.length > 0 && rows.every((r) => selectedIds.includes(r.id));
 
@@ -359,6 +367,7 @@ export default function ClinicTargetSelectModal({
   }, [selectedIds, selectedIdToName]);
 
   const handleConfirm = () => {
+    if (isError || selectedIds.length === 0) return;
     if (mode === "targets") {
       onConfirm(enrollmentSelection(selectedIds));
     } else {
@@ -448,7 +457,7 @@ export default function ClinicTargetSelectModal({
                     intent="secondary"
                     size="sm"
                     onClick={selectAllTargets}
-                    disabled={isLoading || allTargetRows.length === 0}
+                    disabled={isLoading || isError || allTargetRows.length === 0}
                   >
                     대상자 {allTargetRows.length}명 모두 선택
                   </Button>
@@ -458,7 +467,7 @@ export default function ClinicTargetSelectModal({
                   intent="secondary"
                   size="sm"
                   onClick={toggleAll}
-                  disabled={isLoading || rows.length === 0}
+                  disabled={isLoading || isError || rows.length === 0}
                 >
                   현재 페이지 전체 선택
                 </Button>
@@ -492,6 +501,19 @@ export default function ClinicTargetSelectModal({
                     tone="loading"
                     title="불러오는 중…"
                   />
+                ) : isError ? (
+                  <EmptyState
+                    mode="embedded"
+                    scope="panel"
+                    tone="error"
+                    title="대상자 명단을 불러오지 못했습니다"
+                    description="빈 명단으로 판단하지 않았습니다. 연결을 확인한 뒤 다시 시도해 주세요."
+                    actions={(
+                      <Button type="button" intent="secondary" size="sm" onClick={retryCurrentList}>
+                        다시 시도
+                      </Button>
+                    )}
+                  />
                 ) : (
                   <table
                     className="clinic-target-select-modal__table w-full border-collapse"
@@ -514,7 +536,7 @@ export default function ClinicTargetSelectModal({
                           <input
                             type="checkbox"
                             checked={allChecked}
-                            disabled={isLoading || rows.length === 0}
+                            disabled={isLoading || isError || rows.length === 0}
                             onChange={toggleAll}
                             aria-label="현재 페이지 전체 선택"
                           />
@@ -686,6 +708,7 @@ export default function ClinicTargetSelectModal({
               className="text-[13px]"
               onClick={handleConfirm}
               title={selectedIds.length === 0 ? "대상을 선택하거나 취소하세요." : undefined}
+              disabled={isLoading || isError || selectedIds.length === 0}
             >
               선택 확정 ({selectedIds.length}명)
             </Button>

@@ -57,3 +57,26 @@
   outline: 2px solid var(--color-border-focus);
   outline-offset: 2px;
 }
+
+@media (max-width: 760px) {
+  .clinic-target-select-modal__layout {
+    grid-template-columns: 1fr;
+    align-content: start;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .clinic-target-select-modal__layout > :first-child {
+    min-height: 400px;
+  }
+
+  .clinic-target-select-modal__table-panel {
+    min-height: 160px;
+  }
+
+  .clinic-target-select-modal__selected-panel {
+    width: 100% !important;
+    min-height: 160px;
+    max-height: 220px;
+  }
+}

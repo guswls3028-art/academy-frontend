@@ -349,6 +349,12 @@ export default function ClinicCreatePanel({
   });
 
   const submit = async () => {
+    const lookupFailed =
+      (showSectionPicker && clinicSectionsQ.isError) ||
+      (showFilters && lecturesQ.isError);
+    if (lookupFailed) {
+      return message.warning("반 또는 강의 목록을 다시 불러온 뒤 저장해 주세요.");
+    }
     const { start, end } = parseTimeRange(timeRange);
     if (!start || !end)
       return message.warning("시작/종료 시간을 선택해주세요.");
@@ -619,7 +625,14 @@ export default function ClinicCreatePanel({
             className="clinic-create__select-full"
             size="small"
           />
-          {clinicSectionOptions.length === 0 && !clinicSectionsQ.isLoading && (
+          {clinicSectionsQ.isError ? (
+            <div className="clinic-create__section-empty-hint">
+              반 목록을 불러오지 못했습니다.{" "}
+              <button type="button" onClick={() => void clinicSectionsQ.refetch()}>
+                다시 시도
+              </button>
+            </div>
+          ) : clinicSectionOptions.length === 0 && !clinicSectionsQ.isLoading && (
             <div className="clinic-create__section-empty-hint">
               클리닉반이 아직 없습니다. 강의 상세 → 반 편성에서 먼저 생성하세요.
             </div>
@@ -815,6 +828,14 @@ export default function ClinicCreatePanel({
                 allowClear
                 size="small"
               />
+              {lecturesQ.isError && (
+                <div className="clinic-create__section-empty-hint" role="alert">
+                  <span>강의 목록을 불러오지 못했습니다.</span>{" "}
+                  <button type="button" onClick={() => void lecturesQ.refetch()}>
+                    다시 시도
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* 필터 초기화 */}
@@ -881,7 +902,11 @@ export default function ClinicCreatePanel({
       loading={createSessionM.isPending}
       onClick={submit}
       className="w-full"
-      disabled={isPastDate}
+      disabled={
+        isPastDate ||
+        (showSectionPicker && clinicSectionsQ.isError) ||
+        (showFilters && lecturesQ.isError)
+      }
     >
       {isPastDate
         ? "지난 날짜입니다"

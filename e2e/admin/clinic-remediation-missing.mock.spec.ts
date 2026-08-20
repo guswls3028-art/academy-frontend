@@ -32,6 +32,8 @@ test("미응시를 판정 대기로 구분하고 사유를 남겨 면제한 뒤 
   await seed(page);
   const waiverPayloads: Array<Record<string, unknown>> = [];
   let waived = false;
+  let failLectures = true;
+  let failStudents = true;
 
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
@@ -85,6 +87,12 @@ test("미응시를 판정 대기로 구분하고 사유를 남겨 면제한 뒤 
       }]);
     }
     if (path === "/clinic/participants/" && method === "GET") return json({ count: 0, results: [] });
+    if (path === "/lectures/lectures/" && method === "GET") {
+      return failLectures ? json({ detail: "temporary" }, 503) : json([]);
+    }
+    if (path === "/students/" && method === "GET") {
+      return failStudents ? json({ detail: "temporary" }, 503) : json({ count: 0, results: [] });
+    }
     if (path === "/lectures/sections/" || path === "/staffs/currently-working/") return json([]);
     if (path.startsWith("/community/") || path.startsWith("/student/notifications/")) return json({ count: 0, results: [] });
     return json({ count: 0, results: [] });
@@ -119,8 +127,14 @@ test("미응시를 판정 대기로 구분하고 사유를 남겨 면제한 뒤 
 
   await page.setViewportSize({ width: 390, height: 640 });
   await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
-  await page.getByRole("button", { name: "클리닉 만들기", exact: true }).click();
   const clinicForm = page.locator(".clinic-create--modal");
+  const openClinicForm = page.getByRole("button", { name: "클리닉 만들기", exact: true });
+  await expect(clinicForm.or(openClinicForm)).toBeVisible({ timeout: 30_000 });
+  if (!(await clinicForm.isVisible())) {
+    await openClinicForm.click({ timeout: 2_000 }).catch(async (error) => {
+      if (!(await clinicForm.isVisible())) throw error;
+    });
+  }
   await expect(clinicForm).toBeVisible();
   await expect.poll(() => clinicForm.locator(".clinic-create__form").evaluate((element) => ({
     overflowY: getComputedStyle(element).overflowY,
@@ -133,4 +147,153 @@ test("미응시를 판정 대기로 구분하고 사유를 남겨 면제한 뒤 
     return box ? box.y + box.height <= 640 : false;
   }).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("clinic-create-scroll-390x640.png") });
+
+  await clinicForm.getByRole("button", { name: /대상 조건/ }).click();
+  await expect(clinicForm.getByText("강의 목록을 불러오지 못했습니다.", { exact: true })).toBeVisible();
+  await expect(clinicCreateButton).toBeDisabled();
+  failLectures = false;
+  await clinicForm.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(clinicForm.getByText("강의 목록을 불러오지 못했습니다.", { exact: true })).toHaveCount(0);
+  await expect(clinicCreateButton).toBeEnabled();
+
+  await clinicForm.getByRole("button", { name: "대상자 추가", exact: true }).click();
+  const targetDialog = page.getByRole("dialog", { name: "대상자 선택" });
+  await targetDialog.getByRole("button", { name: "전체 학생", exact: true }).click();
+  await expect(targetDialog.getByText("대상자 명단을 불러오지 못했습니다", { exact: true })).toBeVisible();
+  await expect(targetDialog.getByRole("button", { name: /^선택 확정/ })).toBeDisabled();
+  failStudents = false;
+  await targetDialog.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(targetDialog.getByText("표시할 대상이 없습니다.", { exact: true })).toBeVisible();
+});
+
+test("클리닉 조회 실패를 빈 목록으로 숨기지 않고 재시도한다", async ({ page }) => {
+  await seed(page);
+  let failTargets = true;
+  let failParticipants = true;
+
+  await page.route("**/api/v1/**", async (route: Route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
+    const method = request.method();
+    const json = (body: unknown, status = 200) => route.fulfill({
+      status,
+      contentType: "application/json",
+      body: JSON.stringify(body),
+    });
+
+    if (method === "OPTIONS") return route.fulfill({ status: 204 });
+    if (path === "/core/program/") {
+      return json({ tenantCode: "hakwonplus", display_name: "학원플러스", ui_config: {}, feature_flags: {}, is_active: true });
+    }
+    if (path === "/core/me/") {
+      return json({ id: 12, username: "admin", name: "관리자", is_staff: true, is_superuser: true, tenantRole: "admin", must_change_password: false });
+    }
+    if (path === "/results/admin/clinic-targets/" && method === "GET") {
+      return failTargets ? json({ detail: "temporary" }, 503) : json([]);
+    }
+    if (path === "/clinic/participants/" && method === "GET") {
+      return failParticipants ? json({ detail: "temporary" }, 503) : json({ count: 0, results: [] });
+    }
+    if (path === "/lectures/sections/" || path === "/staffs/currently-working/") return json([]);
+    if (path.startsWith("/community/") || path.startsWith("/student/notifications/")) return json({ count: 0, results: [] });
+    return json({ count: 0, results: [] });
+  });
+
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/bookings?focus=pending`, { timeout: 45_000 });
+
+  const approvals = page.locator(".clinic-bookings__pending");
+  const remediation = page.locator(".clinic-bookings-page__remediation");
+  await expect(
+    approvals.getByText("예약 신청을 불러오지 못했습니다", { exact: true }),
+  ).toBeVisible({ timeout: 30_000 });
+  await expect(
+    remediation.getByText("클리닉 대상자를 불러오지 못했습니다", { exact: true }),
+  ).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("모든 학생이 시험/과제를 통과했습니다.")).toHaveCount(0);
+
+  failParticipants = false;
+  await approvals.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(approvals.getByText("승인 대기 예약이 없습니다.", { exact: true })).toBeVisible();
+
+  failTargets = false;
+  await remediation.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(remediation.getByText("진행중 항목이 없습니다", { exact: true })).toBeVisible();
+});
+
+test("백그라운드에서 생긴 작업을 탭 복귀 시 즉시 다시 폴링한다", async ({ page }) => {
+  await seed(page);
+  await page.addInitScript(() => {
+    let visibility: DocumentVisibilityState = "hidden";
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => visibility,
+    });
+    Object.defineProperty(window, "__setWorkerPollVisibility", {
+      configurable: true,
+      value: (next: DocumentVisibilityState) => {
+        visibility = next;
+        document.dispatchEvent(new Event("visibilitychange"));
+      },
+    });
+  });
+  let progressRequests = 0;
+
+  await page.route("**/api/v1/**", async (route: Route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
+    const method = request.method();
+    const json = (body: unknown, status = 200) => route.fulfill({
+      status,
+      contentType: "application/json",
+      body: JSON.stringify(body),
+    });
+
+    if (method === "OPTIONS") return route.fulfill({ status: 204 });
+    if (path === "/core/program/") {
+      return json({ tenantCode: "hakwonplus", display_name: "학원플러스", ui_config: {}, feature_flags: {}, is_active: true });
+    }
+    if (path === "/core/me/") {
+      return json({ id: 12, username: "admin", name: "관리자", is_staff: true, is_superuser: true, tenantRole: "admin", must_change_password: false });
+    }
+    if (path === "/jobs/hidden-excel/progress/") {
+      progressRequests += 1;
+      return json({
+        job_id: "hidden-excel",
+        job_type: "excel_parsing",
+        status: "DONE",
+        result: { created: 1, duplicates: [], restored: [], failed: [] },
+      });
+    }
+    if (path === "/results/admin/clinic-targets/") return json([]);
+    if (path === "/clinic/participants/") return json({ count: 0, results: [] });
+    if (path === "/lectures/sections/" || path === "/staffs/currently-working/") return json([]);
+    if (path.startsWith("/community/") || path.startsWith("/student/notifications/")) return json({ count: 0, results: [] });
+    return json({ count: 0, results: [] });
+  });
+
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/bookings`, { timeout: 45_000 });
+  await page.evaluate(async () => {
+    const { asyncStatusStore } = await import("/src/shared/ui/asyncStatus/asyncStatusStore.ts");
+    asyncStatusStore.addWorkerJob(
+      "숨겨진 탭 학생 등록",
+      "hidden-excel",
+      "excel_parsing",
+    );
+  });
+
+  await expect(
+    page.waitForRequest(
+      (request) => request.url().includes("/jobs/hidden-excel/progress/"),
+      { timeout: 300 },
+    ),
+  ).rejects.toThrow();
+  expect(progressRequests).toBe(0);
+  await page.evaluate(() => {
+    (window as typeof window & {
+      __setWorkerPollVisibility: (next: DocumentVisibilityState) => void;
+    }).__setWorkerPollVisibility("visible");
+  });
+
+  await expect.poll(() => progressRequests).toBeGreaterThan(0);
+  await expect(page.getByText("학생 일괄 등록 — 신규 등록 1명", { exact: true })).toBeVisible();
 });
