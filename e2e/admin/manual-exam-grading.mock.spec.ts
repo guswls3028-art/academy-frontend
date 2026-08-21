@@ -316,6 +316,10 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         exam_id: EXAM_ID,
         status: "review_required",
         source_filename: "ymath-teacher.hwp",
+        paired_source_status: "partial",
+        source_issues: ["answer_coverage_incomplete"],
+        answer_source_requested: true,
+        explanation_source_requested: true,
         items: [{
           id: 3001,
           position: 1,
@@ -333,6 +337,10 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
           source_attachment_image_url: `data:image/svg+xml,${sourceAttachmentSvg}`,
           source_attachment_requires_review: true,
           has_teacher_explanation: true,
+          answer: "4",
+          answer_source_image_url: `data:image/svg+xml,${sourceAttachmentSvg}`,
+          answer_missing: false,
+          explanation_missing: false,
         }],
       });
       return;
@@ -593,15 +601,16 @@ test.describe("문항별 직접 채점", () => {
 
     const dialog = page.getByRole("dialog").filter({ hasText: "시험 자료 올리기" });
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByText("문제+해설 한 파일", { exact: true })).toBeVisible();
-    await expect(dialog.getByText("문제 파일만", { exact: true })).toBeVisible();
-    await expect(dialog.getByText("문제·해설 두 파일", { exact: true })).toBeVisible();
-    await dialog.getByRole("button", { name: "문제지와 해설지가 따로 있어요" }).click();
+    await expect(dialog.getByText("한 파일", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("문제지 + 정답지", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("문제·정답·해설", { exact: true })).toBeVisible();
+    await dialog.getByRole("button", { name: "정답지·해설지가 따로 있어요" }).click();
     await expect(dialog.getByText("문제 파일", { exact: true })).toBeVisible();
-    await expect(dialog.getByText("선생님 해설 파일", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("정답지 파일 (선택)", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("선생님 해설지 파일 (선택)", { exact: true })).toBeVisible();
 
     const fileInputs = dialog.locator('input[type="file"]');
-    await expect(fileInputs).toHaveCount(2);
+    await expect(fileInputs).toHaveCount(3);
     expect(await fileInputs.nth(0).getAttribute("accept")).toBeNull();
     expect(await fileInputs.nth(1).getAttribute("accept")).toBeNull();
     await fileInputs.nth(0).setInputFiles({
@@ -610,13 +619,18 @@ test.describe("문항별 직접 채점", () => {
       buffer: Buffer.from("DOCX problem fixture"),
     });
     await fileInputs.nth(1).setInputFiles({
+      name: "teacher-answers.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("PDF answer fixture"),
+    });
+    await fileInputs.nth(2).setInputFiles({
       name: "teacher-explanations.pptx",
       mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
       buffer: Buffer.from("PPTX explanation fixture"),
     });
 
-    await expect(dialog.getByText(/두 원본의 형식과 관계없이/)).toBeVisible();
-    await expect(dialog.getByRole("button", { name: "업로드 및 문항 분석" })).toBeEnabled();
+    await expect(dialog.getByText(/인식하지 못한 번호도 실패로 숨기지 않고/)).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "원본 보존 및 번호 인식" })).toBeEnabled();
   });
 
   test("템플릿 OMR 원본도 PDF 변환 없이 선택한다", async ({ page }) => {
@@ -653,20 +667,25 @@ test.describe("문항별 직접 채점", () => {
 
     const dialog = page.getByRole("dialog").filter({ hasText: "시험 자료 올리기" });
     await expect(dialog).toBeVisible();
-    await dialog.getByRole("button", { name: "문제지와 해설지가 따로 있어요" }).click();
+    await dialog.getByRole("button", { name: "정답지·해설지가 따로 있어요" }).click();
     const fileInputs = dialog.locator('input[type="file"]');
-    await expect(fileInputs).toHaveCount(2);
+    await expect(fileInputs).toHaveCount(3);
     await fileInputs.nth(0).setInputFiles({
       name: "student-problems.docx",
       mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       buffer: Buffer.from("DOCX problem fixture"),
     });
     await fileInputs.nth(1).setInputFiles({
+      name: "teacher-answers.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("PDF answer fixture"),
+    });
+    await fileInputs.nth(2).setInputFiles({
       name: "teacher-explanations.pptx",
       mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
       buffer: Buffer.from("PPTX explanation fixture"),
     });
-    await expect(dialog.getByRole("button", { name: "업로드 및 문항 분석" })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "원본 보존 및 번호 인식" })).toBeVisible();
 
     const dialogBox = await dialog.boundingBox();
     expect(dialogBox).not.toBeNull();
@@ -708,7 +727,9 @@ test.describe("문항별 직접 채점", () => {
     await expect(page.getByAltText("3번 번호 확정 원문 해설")).toBeVisible();
     const explanationChoice = page.getByRole("group", { name: "3번 해설 원본 선택" });
     await expect(explanationChoice.getByRole("button", { name: /본문·수식/ })).toHaveAttribute("data-active", "");
-    const reviewRegion = page.getByRole("region", { name: "문항·해설 맞춤 확인" });
+    const reviewRegion = page.getByRole("region", { name: "문항·정답·해설 맞춤 확인" });
+    await expect(page.getByRole("textbox", { name: "3번 정답" })).toHaveValue("4");
+    await expect(page.getByText("부분 인식 · 확정 전 보완 필요", { exact: true })).toBeVisible();
     await reviewRegion.screenshot({ path: "test-results/hwp-explanation-review/default-1100.png" });
     await explanationChoice.getByRole("button", { name: /삽입 그림/ }).click();
     await expect(page.getByAltText("3번 삽입 그림")).toBeVisible();

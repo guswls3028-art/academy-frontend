@@ -42,11 +42,13 @@
 }
 
 .separateFiles {
+  display: grid;
+  gap: 10px;
   margin-top: 10px;
 }
 
 .pairGuide {
-  margin: 14px 0;
+  margin: 4px 0;
   padding: 12px 14px;
   border-left: 3px solid var(--color-brand-primary);
   border-radius: 0 10px 10px 0;
@@ -55,6 +57,19 @@
   font-size: 12px;
   line-height: 1.55;
 }
+
+.partialResult {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--color-warning) 35%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--color-warning) 9%, #fff);
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+}
+
+.partialResult strong { color: var(--color-text-primary); }
+.partialResult p { margin: 2px 0 0; }
 
 .pairGuide strong {
   display: block;

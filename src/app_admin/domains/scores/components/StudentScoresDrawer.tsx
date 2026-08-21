@@ -503,7 +503,7 @@ function ExamResultCard({
   const percent = pctNum(exam.block.score, maxScore);
 
   return (
-    <li className="student-scores-drawer__exam-card" data-passed={exam.block.passed === true ? "true" : exam.block.passed === false ? "false" : undefined}>
+    <li className="student-scores-drawer__exam-card" data-passed={exam.block.teacher_resolved === true || exam.block.final_pass === true || exam.block.passed === true ? "true" : exam.block.passed === false ? "false" : undefined}>
       <div className="student-scores-drawer__exam-header" onClick={onToggle} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }} role="button" tabIndex={0}>
         <div className="student-scores-drawer__exam-title-row">
           <span className="student-scores-drawer__exam-title">{exam.title}</span>
@@ -724,7 +724,7 @@ function HomeworkResultCard({
   const percent = pctNum(hw.block.score, hwMaxScore);
 
   return (
-    <li className="student-scores-drawer__hw-card" data-passed={hw.block.passed === true ? "true" : hw.block.passed === false ? "false" : undefined}>
+    <li className="student-scores-drawer__hw-card" data-passed={(hw.block.teacher_resolved ?? hw.block.passed) === true ? "true" : hw.block.passed === false ? "false" : undefined}>
       <div className="student-scores-drawer__hw-header" onClick={onToggle} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }} role="button" tabIndex={0}>
         <div className="student-scores-drawer__hw-title-row">
           <span className="student-scores-drawer__hw-title">{hw.title}</span>
@@ -1247,14 +1247,14 @@ function CorrectionStatusBadge({
   if (block.correction_status === "PENDING") {
     return (
       <Badge tone="warning" size="xs">
-        {sourceType === "homework" ? "검사 미완료" : "오답 확인 필요"}
+        {sourceType === "homework" ? "교사 미완료" : "보완 필요"}
       </Badge>
     );
   }
   if (block.correction_status === "COMPLETED") {
     return (
       <Badge tone="success" size="xs">
-        {sourceType === "homework" ? "검사 완료" : "오답 완료"}
+        {sourceType === "homework" ? "교사 완료" : "교사 통과"}
       </Badge>
     );
   }
@@ -1288,7 +1288,7 @@ function CorrectionStatusControl({
   const persistedNote = block.correction_note ?? "";
   const status = block.correction_status ?? null;
   const isHomework = sourceType === "homework";
-  const title = isHomework ? "과제 검사" : "오답 확인";
+  const title = isHomework ? "교사 완료 판정" : "교사 최종 판정";
   const noteId = `assessment-note-${sourceType}-${sourceId}`;
 
   useEffect(() => {
@@ -1313,6 +1313,7 @@ function CorrectionStatusControl({
         source_id: sourceId,
         completed,
         note: nextNote,
+        expected_updated_at: block.correction_updated_at ?? null,
       });
     },
     onSuccess: (data, variables) => {
@@ -1353,8 +1354,8 @@ function CorrectionStatusControl({
       feedback.success(variables.action === "note"
         ? "비고를 저장했습니다."
         : variables.completed
-          ? `${title}를 완료했습니다.`
-          : `${title}를 미완료로 표시했습니다.`);
+          ? `${title}을 확정했습니다. 원점수는 그대로 유지됩니다.`
+          : `${title}을 해제해 Clinic 대상을 다시 계산합니다.`);
     },
     onError: (error) => {
       feedback.error(getApiErrorMessage(
@@ -1367,6 +1368,7 @@ function CorrectionStatusControl({
   const unavailable = !isHomework && (status == null || status === "NOT_REQUIRED");
   const hasManualStatus = status === "PENDING" || status === "COMPLETED";
   const noteDirty = note !== persistedNote;
+  const completionReasonReady = note.trim().length >= 2;
   const commonDisabled = disabled || sessionId == null || mutation.isPending;
   const disabledReason = disabled
     ? "저장하지 않은 점수가 있습니다. 점수를 먼저 저장해 주세요."
@@ -1379,19 +1381,19 @@ function CorrectionStatusControl({
           : undefined;
   const description = isHomework
     ? status === "COMPLETED"
-      ? "현장 검사를 마친 상태입니다. 점수·제출 여부와 별도로 유지됩니다."
+      ? "교사가 협의 후 완료로 확정했습니다. 원점수와 제출 기록은 그대로 유지됩니다."
       : status === "PENDING"
         ? "남은 범위를 비고에 적어 두면 다음 검사 때 바로 이어볼 수 있습니다."
         : status === "NOT_REQUIRED"
-          ? "점수상 완료된 과제도 현장 검사 결과를 직접 바꿀 수 있습니다."
-          : "사이트 제출 여부와 무관하게 현장 검사 결과를 직접 기록할 수 있습니다."
+          ? "점수상 완료된 과제도 교사 판정과 사유를 별도로 남길 수 있습니다."
+          : "사이트 제출 여부와 무관하게 교사 완료 판정을 기록할 수 있습니다."
     : status === "COMPLETED"
-      ? "해설지 배부 전 오답 확인을 마친 상태입니다."
+      ? "현장에서 오답 해결을 확인해 원점수 변경 없이 최종 통과 처리했습니다."
       : status === "PENDING"
-        ? "확인이 끝날 때까지 학생 이름에 음영으로 표시됩니다."
+        ? "통과 전까지 재시험·Clinic 보완 대상으로 유지됩니다."
         : status === "NOT_REQUIRED"
           ? "만점이라 확인할 오답이 없습니다."
-          : "점수를 입력하면 완료 여부를 기록할 수 있습니다.";
+          : "점수를 입력한 뒤 사유와 함께 교사 통과 여부를 기록할 수 있습니다.";
 
   return (
     <div
@@ -1429,7 +1431,7 @@ function CorrectionStatusControl({
             && mutation.variables.completed === false
           }
         >
-          미완료
+          {isHomework ? "미완료" : "보완 필요"}
         </Button>
         <Button
           size="sm"
@@ -1441,19 +1443,19 @@ function CorrectionStatusControl({
             nextNote: note,
             action: "status",
           })}
-          disabled={commonDisabled || unavailable}
+          disabled={commonDisabled || unavailable || !completionReasonReady}
           loading={
             mutation.isPending
             && mutation.variables?.action === "status"
             && mutation.variables.completed === true
           }
         >
-          완료
+          {isHomework ? "완료 확정" : "통과 확정"}
         </Button>
       </div>
       <div className="ssd-correction-control__note">
         <label htmlFor={noteId}>
-          비고 <span>선택 · 500자 이내</span>
+          판정 사유 <span>통과·완료 시 필수 · 500자 이내</span>
         </label>
         <textarea
           id={noteId}
@@ -1461,7 +1463,7 @@ function CorrectionStatusControl({
           value={note}
           rows={2}
           maxLength={500}
-          placeholder="미완료 범위나 확인 내용을 간단히 적어주세요."
+          placeholder={isHomework ? "협의·검사 완료 근거를 적어주세요." : "현장에서 해결한 오답과 확인 근거를 적어주세요."}
           onChange={(event) => setNote(event.target.value)}
           disabled={commonDisabled || unavailable}
         />
@@ -1492,6 +1494,11 @@ function CorrectionStatusControl({
             완료 또는 미완료를 선택하면 비고도 함께 저장됩니다.
           </span>
         )}
+        {!completionReasonReady && (
+          <span className="ssd-correction-control__note-hint" role="status">
+            통과 또는 완료 확정 전 판정 사유를 2자 이상 입력해 주세요.
+          </span>
+        )}
       </div>
     </div>
   );
@@ -1504,8 +1511,8 @@ function PassBadge({ block }: { block: ScoreBlock }) {
   const achievement = deriveAchievement({
     achievement: block.achievement ?? null,
     is_pass: block.passed ?? null,
-    remediated: block.remediated ?? null,
-    final_pass: block.final_pass ?? null,
+    remediated: block.teacher_resolved === true ? true : block.remediated ?? null,
+    final_pass: block.teacher_resolved === true ? true : block.final_pass ?? null,
   });
 
   if (!achievement) {

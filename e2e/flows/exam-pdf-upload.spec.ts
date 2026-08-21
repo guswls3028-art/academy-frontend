@@ -271,19 +271,20 @@ test.describe.serial("Exam PDF upload flow", () => {
       console.log("  ExamPdfUploadModal opened successfully");
 
       // Every safe source format is selectable; automatic processing remains capability-based.
-      await expect(modal.getByText("문제+해설 한 파일")).toBeVisible({ timeout: 3000 });
-      await expect(modal.getByText("문제 파일만")).toBeVisible({ timeout: 3000 });
-      await expect(modal.getByText("문제·해설 두 파일")).toBeVisible({ timeout: 3000 });
+      await expect(modal.getByText("한 파일", { exact: true })).toBeVisible({ timeout: 3000 });
+      await expect(modal.getByText("문제지 + 정답지", { exact: true })).toBeVisible({ timeout: 3000 });
+      await expect(modal.getByText("문제·정답·해설", { exact: true })).toBeVisible({ timeout: 3000 });
       await expect(modal.getByText("시험 자료", { exact: true })).toBeVisible();
       let fileInputs = modal.locator('input[type="file"]');
       await expect(fileInputs).toHaveCount(1);
       expect(await fileInputs.first().getAttribute("accept")).toBeNull();
 
-      await modal.getByRole("button", { name: "문제지와 해설지가 따로 있어요" }).click();
+      await modal.getByRole("button", { name: "정답지·해설지가 따로 있어요" }).click();
       await expect(modal.getByText("문제 파일", { exact: true })).toBeVisible();
-      await expect(modal.getByText("선생님 해설 파일", { exact: true })).toBeVisible();
+      await expect(modal.getByText("정답지 파일 (선택)", { exact: true })).toBeVisible();
+      await expect(modal.getByText("선생님 해설지 파일 (선택)", { exact: true })).toBeVisible();
       fileInputs = modal.locator('input[type="file"]');
-      await expect(fileInputs).toHaveCount(2);
+      await expect(fileInputs).toHaveCount(3);
       expect(await fileInputs.nth(1).getAttribute("accept")).toBeNull();
 
       await fileInputs.nth(0).setInputFiles({
@@ -292,12 +293,17 @@ test.describe.serial("Exam PDF upload flow", () => {
         buffer: Buffer.from("DOCX problem fixture"),
       });
       await fileInputs.nth(1).setInputFiles({
+        name: "teacher-answers.pdf",
+        mimeType: "application/pdf",
+        buffer: Buffer.from("PDF answer fixture"),
+      });
+      await fileInputs.nth(2).setInputFiles({
         name: "teacher-explanations.pptx",
         mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         buffer: Buffer.from("PPTX explanation fixture"),
       });
-      await expect(modal.getByText(/두 원본의 형식과 관계없이/)).toBeVisible();
-      await expect(modal.getByRole("button", { name: "업로드 및 문항 분석" })).toBeEnabled();
+      await expect(modal.getByText(/인식하지 못한 번호도 실패로 숨기지 않고/)).toBeVisible();
+      await expect(modal.getByRole("button", { name: "원본 보존 및 번호 인식" })).toBeEnabled();
       console.log("  Multi-format source selection visible");
 
       // Take screenshot of modal
@@ -348,8 +354,8 @@ test.describe.serial("Exam PDF upload flow", () => {
 
     // Verify progress display: upload, matching, done, or failed.
     const uploadingText = modal.getByText("시험 자료 업로드 중…").first();
-    const processingText = modal.getByText("문항·해설 맞춤 처리 중…").first();
-    const doneText = modal.getByText("문항 분할 완료").first();
+    const processingText = modal.getByText("문항·정답·해설 맞춤 처리 중…").first();
+    const doneText = modal.getByText("자료 인식 완료 · 검수 필요").first();
     const failedText = modal.getByText("처리 실패").first();
 
     // Wait for either progress or result
