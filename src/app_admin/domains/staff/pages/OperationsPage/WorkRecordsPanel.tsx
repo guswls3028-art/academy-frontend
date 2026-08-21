@@ -2,13 +2,14 @@
 // 월 전체 근무기록 — 섹션 카드 스타일 (staff-area), 전역 DS Button 사용
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { cx } from "@/shared/utils/cx";
 import { useConfirm } from "@/shared/ui/confirm";
 import { LockBadge } from "../../components/StatusBadge";
 import { useWorkMonth } from "../../operations/context/workMonthHooks";
 import { useWorkRecords } from "../../hooks/useWorkRecords";
+import type { WorkRecord } from "../../api/workRecords.api";
 import CreateWorkRecordModal from "./CreateWorkRecordModal";
 import "../../styles/staff-area.css";
 
@@ -29,6 +30,7 @@ export default function WorkRecordsPanel() {
   });
 
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<WorkRecord | null>(null);
 
   if (listQ.isLoading) {
     return (
@@ -121,6 +123,7 @@ export default function WorkRecordsPanel() {
             {rows.map((r) => (
               <div
                 key={r.id}
+                data-testid={`staff-work-record-${r.id}`}
                 className="rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] px-4 py-3"
               >
                 <div className="flex items-start justify-between gap-4">
@@ -146,6 +149,29 @@ export default function WorkRecordsPanel() {
                         {r.amount != null ? `${r.amount.toLocaleString()}원` : "-"}
                       </div>
                     </div>
+
+                    <Button
+                      intent="secondary"
+                      size="sm"
+                      leftIcon={<Pencil size={14} />}
+                      disabled={writeBlocked}
+                      title={
+                        locked
+                          ? "마감된 월입니다."
+                          : lockCheckPending
+                            ? "마감 상태를 확인하는 중입니다."
+                            : lockCheckFailed
+                              ? "마감 상태를 확인하지 못했습니다."
+                              : undefined
+                      }
+                      onClick={() => {
+                        if (writeBlocked) return;
+                        setEditing(r);
+                        setOpen(true);
+                      }}
+                    >
+                      수정
+                    </Button>
 
                     <Button
                       intent="danger"
@@ -184,7 +210,16 @@ export default function WorkRecordsPanel() {
           </div>
         )}
 
-        {!writeBlocked && <CreateWorkRecordModal open={open} onClose={() => setOpen(false)} />}
+        {!writeBlocked && (
+          <CreateWorkRecordModal
+            open={open}
+            initial={editing}
+            onClose={() => {
+              setOpen(false);
+              setEditing(null);
+            }}
+          />
+        )}
       </div>
     </section>
   );
