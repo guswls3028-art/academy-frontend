@@ -44,7 +44,7 @@ import {
   uncompleteClinicParticipant,
 } from "../../api/clinicParticipants.api";
 import type { ClinicTarget } from "../../api/clinicTargets";
-import { formatCutlineDisplay } from "../BookingsPage/remediationFormatters";
+import { getCutlineLabel } from "../BookingsPage/remediationFormatters";
 import { useClinicTargets } from "../../hooks/useClinicTargets";
 import {
   resolveClinicLink,
@@ -112,7 +112,7 @@ function formatScoreDetail(target: ClinicTarget): string {
   ) {
     if (target.homework_score != null && target.homework_cutline != null) {
       parts.push(
-        `과제 ${target.homework_score}점 / 기준 ${formatCutlineDisplay(target)}`,
+        `과제 ${target.homework_score}점 / 기준 ${getCutlineLabel(target)}`,
       );
     } else {
       parts.push("과제 미통과");
@@ -1701,7 +1701,7 @@ export default function ClinicConsoleWorkspace({
                               <div className="clinic-ops__drawer-score-row">
                                 <span>통과 기준</span>
                                 <span className="clinic-ops__drawer-score-val">
-                                  {formatCutlineDisplay(t)}
+                                  {getCutlineLabel(t)}
                                 </span>
                               </div>
                               <div className="clinic-ops__drawer-score-bar-wrap">

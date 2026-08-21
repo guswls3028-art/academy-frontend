@@ -6,12 +6,12 @@ export function formatNextAttempt(latestIndex?: number): string {
 }
 
 export function formatScoreDisplay(item: ClinicTarget): string {
-  const score = formatScoreValueDisplay(item);
+  const score = getScoreValueLabel(item);
   if (score === "-" || item.reason === "missing") return score;
-  return `${score} / 기준 ${formatCutlineDisplay(item)}`;
+  return `${score} / 기준 ${getCutlineLabel(item)}`;
 }
 
-export function formatScoreValueDisplay(item: ClinicTarget): string {
+export function getScoreValueLabel(item: ClinicTarget): string {
   if (item.reason === "missing") {
     return item.source_type === "homework" ? "미제출" : "미응시";
   }
@@ -20,7 +20,7 @@ export function formatScoreValueDisplay(item: ClinicTarget): string {
   return `${score}점`;
 }
 
-export function formatCutlineDisplay(item: ClinicTarget): string {
+export function getCutlineLabel(item: ClinicTarget): string {
   if (
     item.source_type === "homework" &&
     item.homework_cutline_mode === "PERCENT" &&
