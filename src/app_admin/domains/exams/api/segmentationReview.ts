@@ -12,6 +12,7 @@ export type SegmentationReviewItem = {
   crop_adjustable: boolean;
   problem_image_url: string;
   explanation_text: string;
+  explanation_text_requires_review: boolean;
   explanation_image_url: string;
   source_render_mode: string;
   source_attachment_image_url: string;
@@ -89,6 +90,7 @@ export async function approveSegmentationReview(
     problem_crop_ratio?: number;
     explanation_variant?: "reconstructed" | "source_attachment";
     answer?: string;
+    include_explanation_text?: boolean;
   }>,
 ) {
   const response = await api.post(

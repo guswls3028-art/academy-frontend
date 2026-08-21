@@ -267,15 +267,19 @@ export default function DashboardPage() {
   /* ─── 오늘 할 일 항목 빌드 ─── */
   const failedExams = useMemo(
     () => (grades?.exams ?? []).filter((e) => (
-      e.achievement === "FAIL"
-      || e.achievement === "NOT_SUBMITTED"
-      || (e.achievement == null && e.is_pass === false)
+      e.lecture_active !== false
+      && (
+        e.achievement === "FAIL"
+        || e.achievement === "NOT_SUBMITTED"
+        || (e.achievement == null && e.is_pass === false)
+      )
     )),
     [grades?.exams],
   );
   const failedHomeworks = useMemo(
     () => (grades?.homeworks ?? []).filter((h) => (
-      h.teacher_resolved !== true
+      h.lecture_active !== false
+      && h.teacher_resolved !== true
       && (
         h.achievement === "FAIL"
         || h.achievement === "NOT_SUBMITTED"

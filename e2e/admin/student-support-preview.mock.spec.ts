@@ -60,7 +60,8 @@ async function installApp(page: Page): Promise<MockEvidence> {
         is_staff: false,
         is_superuser: false,
         tenantRole: "student",
-        must_change_password: false,
+        must_change_password: true,
+        first_login_guide_required: true,
       } : {
         id: 12,
         username: "admin",

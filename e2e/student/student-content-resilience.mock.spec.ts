@@ -184,6 +184,14 @@ async function installStudentApi(
             date: "2026-08-03",
           }],
         }],
+        archived_lectures: [{
+          id: 72,
+          title: "2026 겨울 종강반",
+          video_count: 6,
+          completed_count: 4,
+          watch_duration: 5400,
+          play_count: 9,
+        }],
       } });
       return;
     }
@@ -532,6 +540,24 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
 
     await page.setViewportSize({ width: 390, height: 844 });
     await assertNoRenderedHtmlLeak(page);
+  });
+
+  test("종료 강의는 현재 강의 뒤 접힌 읽기 전용 시청 기록으로 표시한다", async ({ page }) => {
+    await installStudentApi(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${BASE}/student/video`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    const ended = page.getByTestId("ended-lecture-history");
+    await expect(page.getByText("고등 수학", { exact: true })).toBeVisible();
+    await expect(ended).toContainText("종료된 강의");
+    await expect(page.getByText("2026 겨울 종강반", { exact: true })).not.toBeVisible();
+    await ended.locator("summary").click();
+    await expect(page.getByText("2026 겨울 종강반", { exact: true })).toBeVisible();
+    await expect(ended).toContainText("4/6");
+    await expect(ended).toContainText("9회");
+    await expect(ended).toContainText("1시간 30분 시청");
+    await expect(ended.locator("a")).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
   test("강의 탭에서 공지를 발견하고 선택한 강의 범위로 바로 연다", async ({ page }, testInfo) => {

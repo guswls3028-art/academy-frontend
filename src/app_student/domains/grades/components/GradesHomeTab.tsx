@@ -138,16 +138,25 @@ export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
     }
     return true;
   }), [examReview, exams]);
+  const currentExams = useMemo(
+    () => visibleExams.filter((exam) => exam.lecture_active !== false),
+    [visibleExams],
+  );
+  const endedExams = useMemo(
+    () => visibleExams.filter((exam) => exam.lecture_active === false),
+    [visibleExams],
+  );
   const sortedExams = useMemo(() => {
-    if (examSort !== "recent") return visibleExams;
-    return [...visibleExams].sort((a, b) => {
+    if (examSort !== "recent") return currentExams;
+    return [...currentExams].sort((a, b) => {
       const ta = a.submitted_at ? Date.parse(a.submitted_at) : 0;
       const tb = b.submitted_at ? Date.parse(b.submitted_at) : 0;
       return tb - ta; // 최신순
     });
-  }, [examSort, visibleExams]);
+  }, [currentExams, examSort]);
 
-  const examGroups = useMemo(() => groupExams(visibleExams), [visibleExams]);
+  const examGroups = useMemo(() => groupExams(currentExams), [currentExams]);
+  const endedExamGroups = useMemo(() => groupExams(endedExams), [endedExams]);
   const visibleHomeworks = useMemo(() => {
     const filtered = homeworks.filter((homework) => {
       if (homeworkSessionScope !== "all" && homework.session_type !== homeworkSessionScope) return false;
@@ -157,7 +166,16 @@ export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
     });
     return sortHomeworks(filtered, homeworkSort);
   }, [homeworkSessionScope, homeworkSort, homeworkStatus, homeworks]);
-  const hwGroups = useMemo(() => groupHomeworks(visibleHomeworks), [visibleHomeworks]);
+  const currentHomeworks = useMemo(
+    () => visibleHomeworks.filter((homework) => homework.lecture_active !== false),
+    [visibleHomeworks],
+  );
+  const endedHomeworks = useMemo(
+    () => visibleHomeworks.filter((homework) => homework.lecture_active === false),
+    [visibleHomeworks],
+  );
+  const currentHwGroups = useMemo(() => groupHomeworks(currentHomeworks), [currentHomeworks]);
+  const endedHwGroups = useMemo(() => groupHomeworks(endedHomeworks), [endedHomeworks]);
   const homeworkDoneCount = useMemo(() => homeworks.filter(isHomeworkDone).length, [homeworks]);
 
   return (
@@ -195,20 +213,26 @@ export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
               </section>
               {visibleExams.length === 0 ? (
                 <EmptyState title="조건에 맞는 시험이 없습니다." description="오답 확인 필터를 바꿔 다시 확인해 보세요." />
-              ) : examSort === "lecture" ? (
-                <div data-guide="grades-list" className={styles.gradeList}>
-                  {examGroups.map((group) => (
-                    <LectureExamGroup key={group.key} group={group} labels={labels} />
-                  ))}
-                </div>
               ) : (
-                <div data-guide="grades-list" className={styles.gradeList}>
-                  <LectureExamGroup
-                    key="__recent__"
-                    group={{ key: "__recent__", label: "최근 응시 순", exams: sortedExams, avgPct: null }}
-                    labels={labels}
-                  />
-                </div>
+                <>
+                  {currentExams.length > 0 && (
+                    examSort === "lecture" ? (
+                      <div data-guide="grades-list" className={styles.gradeList}>
+                        {examGroups.map((group) => <LectureExamGroup key={group.key} group={group} labels={labels} />)}
+                      </div>
+                    ) : (
+                      <div data-guide="grades-list" className={styles.gradeList}>
+                        <LectureExamGroup key="__recent__" group={{ key: "__recent__", label: "최근 응시 순", exams: sortedExams, avgPct: null }} labels={labels} />
+                      </div>
+                    )
+                  )}
+                  {endedExams.length > 0 && (
+                    <details className={styles.endedHistory}>
+                      <summary><span><strong>종료된 강의 성적</strong><small>과거 기록만 확인할 수 있어요</small></span><b>{endedExams.length}</b></summary>
+                      <div className={styles.gradeList}>{endedExamGroups.map((group) => <LectureExamGroup key={group.key} group={group} labels={labels} />)}</div>
+                    </details>
+                  )}
+                </>
               )}
             </>
           )}
@@ -263,11 +287,19 @@ export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
               {visibleHomeworks.length === 0 ? (
                 <EmptyState title="조건에 맞는 과제가 없습니다." description="상태나 수업 필터를 바꿔 다시 확인해 보세요." />
               ) : (
-                <div className={styles.gradeList}>
-                  {hwGroups.map((group) => (
+                <>
+                {currentHomeworks.length > 0 && <div className={styles.gradeList}>
+                  {currentHwGroups.map((group) => (
                     <LectureHwGroup key={group.key} group={group} />
                   ))}
-                </div>
+                </div>}
+                {endedHomeworks.length > 0 && (
+                  <details className={styles.endedHistory}>
+                    <summary><span><strong>종료된 강의 과제</strong><small>과거 기록만 확인할 수 있어요</small></span><b>{endedHomeworks.length}</b></summary>
+                    <div className={styles.gradeList}>{endedHwGroups.map((group) => <LectureHwGroup key={group.key} group={group} />)}</div>
+                  </details>
+                )}
+                </>
               )}
             </>
           )}

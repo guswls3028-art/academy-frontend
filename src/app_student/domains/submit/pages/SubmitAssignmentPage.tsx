@@ -60,6 +60,7 @@ export default function SubmitAssignmentPage() {
   const unfinishedHomeworks = useMemo(
     () => (grades?.homeworks ?? []).filter((h) => (
       (requestedSessionId == null || Number(h.session_id) === requestedSessionId)
+      && h.lecture_active !== false
       && h.teacher_resolved !== true
       && (
         h.passed === false
@@ -72,6 +73,7 @@ export default function SubmitAssignmentPage() {
   const unfinishedExams = useMemo(
     () => (grades?.exams ?? []).filter((e) => (
       (requestedSessionId == null || Number(e.session_id) === requestedSessionId)
+      && e.lecture_active !== false
       && e.achievement !== "REMEDIATED"
       && (
         e.is_pass === false
@@ -170,6 +172,9 @@ export default function SubmitAssignmentPage() {
     };
     const targetChanged = selected?.id !== next.id || selected?.enrollmentId !== next.enrollmentId;
     setSelected(next);
+    void studentApi.post("/students/me/activity/homework-open/", {
+      homework_id: homework.homework_id,
+    }).catch(() => undefined);
     setError(null);
     uploadMut.reset();
     if (targetChanged) {

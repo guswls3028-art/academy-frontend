@@ -8,6 +8,7 @@ import ForcePasswordChangeModal from "@/auth/components/ForcePasswordChangeModal
 import { logout } from "@/auth/api/auth.api";
 import FirstLoginGuideModal from "@/auth/components/FirstLoginGuideModal";
 import AuthUnavailableState from "@/auth/components/AuthUnavailableState";
+import { getStudentSupportAccessToken } from "@/shared/auth/supportPreviewSession";
 
 export type Role =
   | "owner"
@@ -86,6 +87,7 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
   }
 
   const role: Role | undefined = user.tenantRole ?? undefined;
+  const isStudentSupportSession = Boolean(getStudentSupportAccessToken());
 
   if (!role) {
     return loginRedirect;
@@ -114,11 +116,11 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
     return loginRedirect;
   }
 
-  if (user.must_change_password) {
+  if (user.must_change_password && !isStudentSupportSession) {
     return <ForcePasswordChangeModal onSuccess={logout} />;
   }
 
-  if (user.first_login_guide_required) {
+  if (user.first_login_guide_required && !isStudentSupportSession) {
     return (
       <>
         <Outlet />

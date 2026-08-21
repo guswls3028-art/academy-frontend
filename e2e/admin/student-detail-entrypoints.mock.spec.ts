@@ -205,6 +205,15 @@ test("출결 상태 액션은 유지하고 학생 행은 학생 상세를 연다
   await expect(overlay.getByRole("heading", {
     name: "테스트학생",
   })).toBeVisible();
+  await expect(overlay.getByRole("button", { name: "학생 화면 보기" })).toBeVisible();
+  await expect(overlay.getByRole("button", { name: "계정정보 알림톡" })).toBeVisible();
+
+  await overlay.getByRole("button", { name: "계정정보 알림톡" }).click();
+  await expect(page.getByRole("heading", { name: "계정정보 알림톡 다시 보내기" })).toBeVisible();
+  await expect(page.getByText("현재 비밀번호는 조회할 수 없어 새 임시 비밀번호를 발급한 뒤 학생·학부모에게 알림톡으로 안내합니다.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("radio", { name: "둘 다" })).toBeChecked();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("heading", { name: "계정정보 알림톡 다시 보내기" })).toHaveCount(0);
   await expect(overlay.getByRole("button", {
     name: "현재 활성, 비활성으로 변경",
   })).toBeVisible();
