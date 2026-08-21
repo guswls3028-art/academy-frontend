@@ -40,6 +40,7 @@ export type MyExamGradeSummary = {
   accuracy_rate?: number | null;
   wrong_question_numbers?: number[];
   correction_status?: "PENDING" | "COMPLETED" | "NOT_REQUIRED" | null;
+  lecture_active?: boolean;
 };
 
 export type MyHomeworkGradeSummary = {
@@ -64,6 +65,7 @@ export type MyHomeworkGradeSummary = {
   lecture_color?: string | null;
   lecture_chip_label?: string | null;
   recorded_at?: string | null;
+  lecture_active?: boolean;
 };
 
 export type MyGradesSummary = {

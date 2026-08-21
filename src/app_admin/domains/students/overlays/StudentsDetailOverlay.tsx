@@ -48,6 +48,7 @@ import { formatPhone, formatStudentPhoneDisplay, formatOmrCode, formatGenderDisp
 import { adminStudentsQueryKeys } from "../queryKeys";
 import StudentWrongNoteBuilder from "@admin/domains/results/public/StudentWrongNoteBuilder";
 import StudentHomeworkTab from "./StudentHomeworkTab";
+import PasswordResetModal, { type PwResetTarget } from "../components/PasswordResetModal";
 import styles from "./StudentsDetailOverlay.module.css";
 import StudentActivityPanel from "@/shared/studentSupport/StudentActivityPanel";
 import { openStudentSupportPreview } from "@/shared/studentSupport/studentSupport.api";
@@ -139,6 +140,9 @@ export default function StudentsDetailOverlay({
   const [tagCreateOpen, setTagCreateOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [supportOpening, setSupportOpening] = useState(false);
+  const [accountNoticeOpen, setAccountNoticeOpen] = useState(false);
+  const [passwordResetTarget, setPasswordResetTarget] = useState<PwResetTarget>("both");
+  const [passwordResetting, setPasswordResetting] = useState(false);
   // 학생 전환 시 탭 초기화
   useEffect(() => { setTab("enroll"); }, [id]);
 
@@ -357,6 +361,17 @@ export default function StudentsDetailOverlay({
                   >
                     <MonitorSmartphone size={ICON.sm} aria-hidden />
                     {supportOpening ? "여는 중…" : "학생 화면 보기"}
+                  </Button>
+                  <Button
+                    type="button"
+                    intent="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setPasswordResetTarget("both");
+                      setAccountNoticeOpen(true);
+                    }}
+                  >
+                    계정정보 알림톡
                   </Button>
                   <Button type="button" intent="secondary" size="sm" onClick={() => setEditOpen(true)}>
                     정보 수정
@@ -654,6 +669,21 @@ export default function StudentsDetailOverlay({
           />
         </Suspense>
       )}
+
+      <PasswordResetModal
+        open={accountNoticeOpen}
+        onClose={() => setAccountNoticeOpen(false)}
+        selectedStudents={[student]}
+        target={passwordResetTarget}
+        onTargetChange={setPasswordResetTarget}
+        onSuccess={() => {
+          setAccountNoticeOpen(false);
+          void qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.studentAccountNotifications(id) });
+        }}
+        resetting={passwordResetting}
+        setResetting={setPasswordResetting}
+        purpose="account_notice"
+      />
     </>
   );
 }
@@ -848,7 +878,9 @@ function StudentStatTabs({
   const clinicAttended = (clinicData ?? []).filter((participant) => participant.status === "ATTENDED" || participant.status === "attended").length;
   const questionCount = (questionsData ?? []).length;
 
-  const activeEnrollments = (enrollments ?? []).filter((enrollment) => (enrollment.status ?? "ACTIVE") === "ACTIVE").length;
+  const activeEnrollments = (enrollments ?? []).filter((enrollment) => (
+    (enrollment.status ?? "ACTIVE") === "ACTIVE" && enrollment.lectureActive
+  )).length;
 
   const tabs: { key: StatTabKey; label: string; value: string; sub?: string; tone?: string }[] = [
     {
@@ -961,7 +993,7 @@ function EnrollmentsTab({ studentId, studentName, enrollments, onNavigate }: { s
 
   // Phase #11/#12 — 학생 단위 matrix UI 진입 (수강중 강의만 대상).
   const activeLectures = enrollments
-    .filter((enrollment) => (enrollment.status ?? "ACTIVE") === "ACTIVE" && enrollment.lectureId)
+    .filter((enrollment) => (enrollment.status ?? "ACTIVE") === "ACTIVE" && enrollment.lectureActive && enrollment.lectureId)
     .map((enrollment) => ({ id: enrollment.lectureId as number, title: enrollment.lectureName || `강의 ${enrollment.lectureId}` }));
 
   return (
@@ -997,10 +1029,10 @@ function EnrollmentsTab({ studentId, studentName, enrollments, onNavigate }: { s
         </div>
       )}
       <div className={styles.tabList}>
-      {enrollments.map((enrollment) => {
+      {[...enrollments].sort((a, b) => Number(b.lectureActive) - Number(a.lectureActive)).map((enrollment) => {
         const { id, status: rawStatus, lectureId, lectureName, lectureColor, lectureChipLabel, enrolledAt } = enrollment;
         const status = rawStatus ?? "ACTIVE";
-        const isActive = status === "ACTIVE";
+        const isActive = status === "ACTIVE" && enrollment.lectureActive;
         const canNav = !!lectureId;
         return (
           <div
@@ -1020,7 +1052,7 @@ function EnrollmentsTab({ studentId, studentName, enrollments, onNavigate }: { s
               )}
             </div>
             <Badge variant="solid" size="sm" tone={(statusTone[status] || "muted") as BadgeTone}>
-              {statusLabel[status] || status}
+              {enrollment.lectureActive ? (statusLabel[status] || status) : "강의 종료"}
             </Badge>
             {canNav && <ChevronIcon />}
           </div>

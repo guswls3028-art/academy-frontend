@@ -62,6 +62,7 @@ export default function VideoHomePage() {
           <VideoHomeTab
             lectures={videoMe?.lectures ?? []}
             publicData={videoMe?.public ?? null}
+            archivedLectures={videoMe?.archived_lectures ?? []}
           />
         )}
 

@@ -8,14 +8,21 @@ import { IconChevronRight, IconNotice, IconVideo } from "@student/shared/ui/icon
 import { fetchStudentNotices } from "@student/shared/api/notices.api";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import CourseCard from "./CourseCard";
-import type { StudentVideoMeLecture, StudentVideoMePublic } from "../api/video.api";
+import type { StudentVideoArchivedLecture, StudentVideoMeLecture, StudentVideoMePublic } from "../api/video.api";
 
 type Props = {
   lectures: StudentVideoMeLecture[];
   publicData: StudentVideoMePublic;
+  archivedLectures: StudentVideoArchivedLecture[];
 };
 
-export default function VideoHomeTab({ lectures, publicData }: Props) {
+function formatWatchDuration(seconds: number) {
+  const minutes = Math.floor(Math.max(seconds, 0) / 60);
+  if (minutes < 60) return `${minutes}분 시청`;
+  return `${Math.floor(minutes / 60)}시간 ${minutes % 60}분 시청`;
+}
+
+export default function VideoHomeTab({ lectures, publicData, archivedLectures }: Props) {
   const hasLectures = lectures.length > 0;
   const hasPublic = (publicData?.video_count ?? 0) > 0;
   const { data: notices, isLoading: noticesLoading, isError: noticesError } = useQuery({
@@ -45,7 +52,7 @@ export default function VideoHomeTab({ lectures, publicData }: Props) {
         ? `${firstLectureScope?.lecture_title ?? "수강 강의"} · ${firstLectureNotice.title}`
         : "새 공지가 올라오면 이곳에서 바로 찾을 수 있어요.";
 
-  if (!hasLectures && !hasPublic) {
+  if (!hasLectures && !hasPublic && archivedLectures.length === 0) {
     return (
       <EmptyState
         title="등록된 영상이 없습니다"
@@ -112,6 +119,26 @@ export default function VideoHomeTab({ lectures, publicData }: Props) {
           );
         })}
       </div>
+      {archivedLectures.length > 0 && (
+        <details className="video-archive" data-testid="ended-lecture-history">
+          <summary>
+            <span><strong>종료된 강의</strong><small>성적과 시청 기록만 볼 수 있어요</small></span>
+            <b>{archivedLectures.length}</b>
+          </summary>
+          <div className="video-archive__list">
+            {archivedLectures.map((lecture) => (
+              <article key={lecture.id}>
+                <div><strong>{lecture.title}</strong><span>영상은 강의 종료로 재생할 수 없습니다.</span></div>
+                <dl>
+                  <div><dt>시청 완료</dt><dd>{lecture.completed_count}/{lecture.video_count}</dd></div>
+                  <div><dt>재생</dt><dd>{lecture.play_count}회</dd></div>
+                  <div><dt>시청 분량</dt><dd>{formatWatchDuration(lecture.watch_duration)}</dd></div>
+                </dl>
+              </article>
+            ))}
+          </div>
+        </details>
+      )}
     </div>
   );
 }
