@@ -40,6 +40,36 @@
   table-layout: fixed;
 }
 
+.enrollment-manage-modal__name-button {
+  display: flex;
+  min-height: 24px;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  appearance: none;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0 2px;
+  text-align: left;
+}
+
+.enrollment-manage-modal__name-button:hover:not(:disabled) {
+  background: var(--color-bg-surface-soft);
+}
+
+.enrollment-manage-modal__name-button:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+
+.enrollment-manage-modal__name-button:disabled {
+  cursor: default;
+}
+
 .enrollment-manage-modal__header-row {
   background: var(--color-bg-surface);
 }

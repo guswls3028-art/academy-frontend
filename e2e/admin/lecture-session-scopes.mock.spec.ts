@@ -679,7 +679,7 @@ test("과제 대상자 편집은 기존·추가·제외·최종 인원을 보여
     }],
     homeworkAssignmentIds: [501, 502],
     homeworkAssignmentPuts: [],
-    homeworkAssignmentDelayMs: 250,
+    homeworkAssignmentDelayMs: 1_000,
   };
   await page.setViewportSize({ width: 1100, height: 800 });
   await openLecture(page, state);
@@ -688,7 +688,10 @@ test("과제 대상자 편집은 기존·추가·제외·최종 인원을 보여
     { waitUntil: "domcontentloaded" },
   );
 
-  await expect(page.getByRole("button", { name: /대상 학생: 2명 등록/ })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /대상 학생: 2명 등록/ }),
+  ).toBeVisible({ timeout: 30_000 });
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "대상자 관리", exact: true }).click();
 
   const dialog = page.getByRole("dialog").filter({ hasText: "과제 대상 학생 관리" });
@@ -698,9 +701,23 @@ test("과제 대상자 편집은 기존·추가·제외·최종 인원을 보여
   await expect(dialog.getByText("기존").locator("..")).toContainText("2명");
   await expect(dialog.getByText("저장 후").locator("..")).toContainText("2명");
 
-  await dialog.getByLabel("박지후 선택").check();
+  await dialog.getByRole("button", { name: "박지후 이름으로 선택", exact: true }).click();
+  await expect(
+    dialog.getByRole("checkbox", { name: "박지후 선택", exact: true }),
+  ).toBeChecked();
   await expect(dialog.getByText("추가").locator("..")).toContainText("+1");
   await expect(dialog.getByText("저장 후").locator("..")).toContainText("3명");
+  const selectedNameButton = dialog.getByRole("button", {
+    name: "박지후 이름으로 선택 해제",
+    exact: true,
+  });
+  await selectedNameButton.focus();
+  await expect(selectedNameButton).toBeFocused();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth + 1,
+    ),
+  ).toBe(true);
   await dialog.getByRole("button", { name: "3명으로 저장", exact: true }).click();
 
   await expect.poll(() => state.homeworkAssignmentPuts?.length).toBe(1);

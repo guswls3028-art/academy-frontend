@@ -837,7 +837,7 @@ function RemediationItemRow({
             </span>
           ) : item.exam_score != null || item.homework_score != null ? (
             <span className="clinic-hub__item-score">
-              1차: {formatScoreDisplay(item)}점
+              1차: {formatScoreDisplay(item)}
             </span>
           ) : null}
 

@@ -29,11 +29,14 @@ export type ClinicTarget = {
   clinic_reason?: ClinicReason;
   reason?: "score" | "confidence" | "missing";
   exam_score?: number | null;
-  cutline_score?: number;
-  homework_score?: number;
-  homework_cutline?: number;
+  cutline_score?: number | null;
+  homework_score?: number | null;
+  homework_cutline?: number | null;
+  homework_cutline_mode?: "PERCENT" | "COUNT";
+  homework_cutline_value?: number;
+  homework_round_unit_percent?: number;
   meta_status?: "NOT_SUBMITTED" | null;
-  clinic_link_id?: number;
+  clinic_link_id?: number | null;
   cycle_no?: number;
   resolution_type?: ResolutionType;
   resolved_at?: string | null;
@@ -56,7 +59,7 @@ export type ClinicTarget = {
   max_score?: number | null;
   latest_attempt_index?: number;
   attempt_history?: AttemptHistoryEntry[];
-  created_at: string;
+  created_at: string | null;
 };
 
 export type RetakeResponse = {
