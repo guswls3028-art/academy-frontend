@@ -29,8 +29,11 @@ import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import api from "@/shared/api/axios";
 import { listFromApiResponse } from "@/shared/api/response";
+import { MonitorSmartphone } from "lucide-react";
+import StudentActivityPanel from "@/shared/studentSupport/StudentActivityPanel";
+import { openStudentSupportPreview } from "@/shared/studentSupport/studentSupport.api";
 
-type Tab = "enrollments" | "exams" | "homework" | "clinic" | "questions";
+type Tab = "enrollments" | "exams" | "homework" | "clinic" | "questions" | "activity";
 
 type ClinicParticipantRow = {
   id: number | string;
@@ -60,6 +63,7 @@ export default function StudentDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [tagSheetOpen, setTagSheetOpen] = useState(false);
   const [pwResetOpen, setPwResetOpen] = useState(false);
+  const [supportOpening, setSupportOpening] = useState(false);
 
   const { data: student, isLoading } = useQuery({
     queryKey: teacherStudentsQueryKeys.student(sid),
@@ -153,11 +157,31 @@ export default function StudentDetailPage() {
               </div>
             )}
           </div>
-          <button onClick={() => setEditOpen(true)}
-            className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer shrink-0"
-            style={{ padding: "5px 10px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
-            <Pencil size={ICON.xs} /> 편집
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              disabled={supportOpening}
+              onClick={async () => {
+                setSupportOpening(true);
+                try {
+                  await openStudentSupportPreview(sid);
+                } catch (error) {
+                  teacherToast.error(extractApiError(error, "학생 화면을 열지 못했습니다."));
+                } finally {
+                  setSupportOpening(false);
+                }
+              }}
+              className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
+              style={{ padding: "5px 9px", borderRadius: "var(--tc-radius)", border: "1px solid color-mix(in srgb, var(--tc-primary) 24%, transparent)", background: "var(--tc-primary)", color: "white" }}
+            >
+              <MonitorSmartphone size={ICON.xs} /> {supportOpening ? "여는 중…" : "학생 화면"}
+            </button>
+            <button onClick={() => setEditOpen(true)}
+              className="flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
+              style={{ padding: "5px 9px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary-bg)", color: "var(--tc-primary)" }}>
+              <Pencil size={ICON.xs} /> 편집
+            </button>
+          </div>
         </div>
 
         {/* Tags — with management */}
@@ -199,7 +223,7 @@ export default function StudentDetailPage() {
         })}
       </Card>
 
-      <AccountNotificationCard items={accountNotifications ?? []} />
+      <AccountNotificationCard items={accountNotifications ?? []} onSend={() => setPwResetOpen(true)} />
 
       {/* Memo — editable */}
       <MemoSection studentId={sid} initialMemo={student.memo ?? ""} />
@@ -228,6 +252,7 @@ export default function StudentDetailPage() {
           { key: "homework" as Tab, label: "과제" },
           { key: "clinic" as Tab, label: "클리닉" },
           { key: "questions" as Tab, label: "질문" },
+          { key: "activity" as Tab, label: "활동" },
         ]}
         value={tab}
         onChange={setTab}
@@ -254,6 +279,7 @@ export default function StudentDetailPage() {
       )}
       {tab === "clinic" && <ClinicList items={clinicData ?? []} />}
       {tab === "questions" && <QuestionList items={questionsData ?? []} />}
+      {tab === "activity" && <StudentActivityPanel studentId={sid} />}
 
       {/* Edit Student BottomSheet */}
       <EditStudentSheet
@@ -526,14 +552,22 @@ function isAccountNotificationSent(item: StudentAccountNotificationLog): boolean
   return item.success === true || ["sent", "success", "delivered", "completed"].includes(status);
 }
 
-function AccountNotificationCard({ items }: { items: StudentAccountNotificationLog[] }) {
+function AccountNotificationCard({ items, onSend }: { items: StudentAccountNotificationLog[]; onSend: () => void }) {
   return (
     <Card>
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-bold flex items-center gap-1.5" style={{ color: "var(--tc-text)" }}>
           <MessageSquare size={ICON.sm} /> 계정 알림톡
         </h3>
-        <span className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>최근 5건</span>
+        <button
+          type="button"
+          onClick={onSend}
+          className="text-[11px] font-bold"
+          style={{ border: 0, background: "transparent", color: "var(--tc-primary)", cursor: "pointer" }}
+          title="학생·학부모 비밀번호를 새로 설정하고 계정정보 알림톡을 보냅니다"
+        >
+          계정정보 다시 보내기
+        </button>
       </div>
       {items.length === 0 ? (
         <p className="text-sm m-0" style={{ color: "var(--tc-text-muted)" }}>

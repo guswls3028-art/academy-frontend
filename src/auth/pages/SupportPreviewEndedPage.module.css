@@ -1,0 +1,72 @@
+.root {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #f5f8fc;
+}
+
+.card {
+  width: min(100%, 380px);
+  padding: 28px 24px;
+  border: 1px solid #dbe5f2;
+  border-radius: 18px;
+  background: #fff;
+  text-align: center;
+  box-shadow: 0 18px 48px rgb(23 32 51 / 10%);
+  animation: card-in 180ms ease-out both;
+}
+
+.accent {
+  width: 42px;
+  height: 5px;
+  margin: 0 auto 22px;
+  border-radius: 999px;
+  background: #0f766e;
+}
+
+.title {
+  margin: 0;
+  color: #172033;
+  font-size: 20px;
+}
+
+.description {
+  margin: 10px 0 20px;
+  color: #687386;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.closeButton {
+  min-height: 42px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 10px;
+  background: #0f766e;
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.closeButton:hover {
+  background: #115e59;
+}
+
+.closeButton:focus-visible {
+  outline: 3px solid rgb(15 118 110 / 24%);
+  outline-offset: 3px;
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    animation: none;
+  }
+}

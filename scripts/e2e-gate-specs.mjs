@@ -33,6 +33,7 @@ export const routeMockSpecs = [
   "e2e/admin/stopwatch-visual-runtime.mock.spec.ts",
   "e2e/admin/student-custom-columns.mock.spec.ts",
   "e2e/admin/student-detail-entrypoints.mock.spec.ts",
+  "e2e/admin/student-support-preview.mock.spec.ts",
   "e2e/admin/student-unified-wrong-note.mock.spec.ts",
   "e2e/admin/wrong-note-generation-contract.mock.spec.ts",
   "e2e/shared/product-analytics-contract.mock.spec.ts",
@@ -51,6 +52,7 @@ export const criticalInteractionSpecs = [
   "e2e/admin/lecture-create-responsive.mock.spec.ts",
   "e2e/auth/account-password-flows.mock.spec.ts",
   "e2e/auth/staff-clock-in-choice.mock.spec.ts",
+  "e2e/admin/student-support-preview.mock.spec.ts",
 ];
 
 export const criticalStateTransitionSpecs = [

@@ -1,6 +1,10 @@
 // PATH: src/app_admin/domains/auth/api/auth.ts
 import api, { clearTokens, isApiError, resetSessionEnding } from "@/shared/api/axios";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import {
+  closeStudentSupportWindow,
+  isStudentSupportWindow,
+} from "@/shared/auth/supportPreviewSession";
 
 export type LoginResponse = {
   access: string;
@@ -93,6 +97,10 @@ export const login = async (username: string, password: string) => {
 };
 
 export const logout = () => {
+  if (isStudentSupportWindow()) {
+    closeStudentSupportWindow();
+    return;
+  }
   clearTokens();
   window.location.href = "/";
 };

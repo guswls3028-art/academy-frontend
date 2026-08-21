@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import api, { clearTokens, isSessionEnding, saveReturnPath } from "@/shared/api/axios";
+import api, { clearTokens, getAccessToken, isSessionEnding, saveReturnPath } from "@/shared/api/axios";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { setParentStudentId } from "@student/shared/api/parentStudentSelection";
 import { setSentryUser, clearSentryUser } from "@/shared/lib/sentryContext";
@@ -18,6 +18,7 @@ import {
   removeSessionItem,
 } from "@/shared/utils/safeSessionStorage";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
+import { isStudentSupportWindow } from "@/shared/auth/supportPreviewSession";
 
 export type TenantRole =
   | "owner"
@@ -79,14 +80,6 @@ type AuthState = {
 };
 
 const AuthContext = createContext<AuthState | null>(null);
-
-function getAccessToken(): string | null {
-  try {
-    return localStorage.getItem("access");
-  } catch {
-    return null;
-  }
-}
 
 function getResponseStatus(error: unknown): number | undefined {
   if (!error || typeof error !== "object" || !("response" in error)) {
@@ -189,6 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // 다른 탭/창에서 로그아웃·401로 clearAuth() 시 이 탭도 로그인 상태 해제 → ProtectedRoute가 로그인으로 보냄
   useEffect(() => {
+    if (isStudentSupportWindow()) return;
     const onStorage = (e: StorageEvent) => {
       if (e.key === "access" || e.key === "refresh") {
         if (e.newValue == null) {

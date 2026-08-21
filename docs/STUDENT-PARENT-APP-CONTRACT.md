@@ -60,6 +60,37 @@
 `docs/domain/student-core.md`, `docs/domain/parent-account.md`가 소유한다.
 프론트엔드는 그 계약을 완화하거나 기본 자녀를 추정하지 않는다.
 
+## 교직원 학생 화면 대리보기와 활동 증거
+
+관리자 학생 상세와 선생님 모바일 학생 상세의 **학생 화면 보기**는 430px 폭의
+별도 팝업에서 실제 `/student/*` 앱을 연다. 팝업은 학생 이름과
+`교직원 대리보기` 리본을 항상 표시하고, 종료 버튼과 15분 만료 경계를 제공한다.
+대리보기 중 화면 탐색과 조작은 학생 앱의 기존 API·권한·오류 상태를 그대로
+사용한다.
+
+보안 경계는 다음과 같다.
+
+- 버튼 클릭과 동시에 빈 팝업을 먼저 만들어 브라우저 팝업 차단을 피하고, 서버가
+  15분 access-only 세션을 발급한 뒤 앱으로 이동한다.
+- 토큰은 URL, 쿼리, history, 일반 `localStorage`에 넣지 않는다. 최초 전달에는
+  팝업 전용 `window.name`을 사용하고 앱 bootstrap 즉시 지운 뒤 그 팝업의
+  `sessionStorage`에만 둔다.
+- refresh token을 만들거나 교직원 창의 로그인 저장소를 읽지 않는다. 팝업 종료,
+  만료, 401에서는 전용 세션만 지우고 교직원 원래 세션은 유지한다.
+- 대리보기는 학생 로그인 기록을 만들지 않는다. 학생 앱 화면 증거는
+  `actor_mode=support`로 별도 기록하며 기본 활동 목록에서 제외한다.
+
+교직원 학생 상세의 **활동** 탭은 실제 학생 로그인과 허용된 학생 화면의 서버
+수신 기록을 최신순으로 보여 준다. 7일·30일·90일, 로그인·과제·영상·시험·결과
+등의 분류를 선택할 수 있다. `교직원 대리보기 포함`을 켠 경우에만 지원 세션
+활동도 함께 표시한다. 화면 열람 기록은 제출 완료나 영상 완주의 증거가 아니므로
+각 도메인의 정본 상태와 함께 확인한다.
+
+계정정보 재전송은 저장되어 있지 않은 현재 비밀번호를 노출하지 않는다. 선생님
+모바일 학생 상세의 버튼은 기존 학생/학부모 비밀번호 재설정 시트를 열고, 대상
+계정의 임시 비밀번호를 만든 뒤 승인된 알림톡 경로로 발송한다. 신규 계정의 최초
+안내 시점은 backend `docs/ssot/messaging-policy.md`를 따른다.
+
 ## 강의 공지 발견 계약
 
 - 학생·학부모의 `/student/video` 강의 탭은 수강 강의 카드 앞에 **강의 공지**
@@ -126,6 +157,7 @@
 
 ```powershell
 pnpm typecheck
+pnpm exec playwright test e2e/admin/student-support-preview.mock.spec.ts --project=chromium
 pnpm exec playwright test e2e/student/student-content-resilience.mock.spec.ts --project=chromium
 pnpm exec playwright test e2e/student/student-score-trend.spec.ts --project=chromium
 pnpm exec playwright test e2e/visual/design-system-route-audit.spec.ts --grep "student (mobile|desktop) route surface" --project=chromium

@@ -16,7 +16,7 @@ import {
 } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
-import { FolderOpen } from "lucide-react";
+import { FolderOpen, MonitorSmartphone } from "lucide-react";
 import api from "@/shared/api/axios";
 
 import {
@@ -49,6 +49,8 @@ import { adminStudentsQueryKeys } from "../queryKeys";
 import StudentWrongNoteBuilder from "@admin/domains/results/public/StudentWrongNoteBuilder";
 import StudentHomeworkTab from "./StudentHomeworkTab";
 import styles from "./StudentsDetailOverlay.module.css";
+import StudentActivityPanel from "@/shared/studentSupport/StudentActivityPanel";
+import { openStudentSupportPreview } from "@/shared/studentSupport/studentSupport.api";
 
 const StudentFormModal = lazy(() => import("../components/EditStudentModal"));
 const TagCreateModal = lazy(() => import("../components/TagCreateModal"));
@@ -56,7 +58,7 @@ const DeleteConfirmModal = lazy(() => import("../components/DeleteConfirmModal")
 const StudentEnrollmentMatrixDrawer = lazy(() => import("../components/StudentEnrollmentMatrixDrawer"));
 const StudentStorageExplorer = lazy(() => import("@admin/domains/storage/components/StudentStorageExplorer"));
 
-type StatTabKey = "enroll" | "score" | "homework" | "wrong-note" | "clinic" | "question";
+type StatTabKey = "enroll" | "score" | "homework" | "wrong-note" | "clinic" | "question" | "activity";
 type ExamSessionScope = "all" | "REGULAR" | "SUPPLEMENT";
 
 const EXAM_SESSION_SCOPE_OPTIONS: Array<{
@@ -136,6 +138,7 @@ export default function StudentsDetailOverlay({
   const [editOpen, setEditOpen] = useState(false);
   const [tagCreateOpen, setTagCreateOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [supportOpening, setSupportOpening] = useState(false);
   // 학생 전환 시 탭 초기화
   useEffect(() => { setTab("enroll"); }, [id]);
 
@@ -336,6 +339,25 @@ export default function StudentsDetailOverlay({
                     </button>
                   </div>
                   <span className={styles.actionDivider} aria-hidden />
+                  <Button
+                    type="button"
+                    intent="primary"
+                    size="sm"
+                    disabled={supportOpening}
+                    onClick={async () => {
+                      setSupportOpening(true);
+                      try {
+                        await openStudentSupportPreview(id);
+                      } catch (error) {
+                        feedback.error(error instanceof Error ? error.message : "학생 화면을 열지 못했습니다.");
+                      } finally {
+                        setSupportOpening(false);
+                      }
+                    }}
+                  >
+                    <MonitorSmartphone size={ICON.sm} aria-hidden />
+                    {supportOpening ? "여는 중…" : "학생 화면 보기"}
+                  </Button>
                   <Button type="button" intent="secondary" size="sm" onClick={() => setEditOpen(true)}>
                     정보 수정
                   </Button>
@@ -538,6 +560,7 @@ export default function StudentsDetailOverlay({
                   {tab === "wrong-note" && <StudentWrongNoteBuilder studentId={id} />}
                   {tab === "clinic" && <ClinicTab data={clinicData ?? []} onNavigate={(path) => { closeOverride?.(); navigate(path); }} />}
                   {tab === "question" && <QuestionTab data={questionsData ?? []} onNavigate={(path) => { closeOverride?.(); navigate(path); }} />}
+                  {tab === "activity" && <StudentActivityPanel studentId={id} />}
                 </div>
               </div>
             </div>
@@ -873,6 +896,12 @@ function StudentStatTabs({
       key: "question",
       label: "질문",
       value: `${questionCount}건`,
+    },
+    {
+      key: "activity",
+      label: "활동",
+      value: "감사",
+      sub: "로그인 · 열람",
     },
   ];
 
