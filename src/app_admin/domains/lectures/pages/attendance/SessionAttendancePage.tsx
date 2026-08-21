@@ -20,6 +20,7 @@ import {
   downloadAttendanceExcel,
   bulkSetPresent,
   bulkUndoPresent,
+  type AttendanceListItem,
 } from "@admin/domains/lectures/api/attendance";
 import api from "@/shared/api/axios";
 import { EmptyState, Button } from "@/shared/ui/ds";
@@ -28,7 +29,7 @@ import type { TableColumnDef } from "@/shared/ui/domain";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
 import AttendanceStatusBadge, { type AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge";
-import { ORDERED_ATTENDANCE_STATUS } from "@/shared/ui/badges/attendanceStatus";
+import { ATTENDANCE_STATUS_META, ORDERED_ATTENDANCE_STATUS } from "@/shared/ui/badges/attendanceStatus";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -46,6 +47,7 @@ import { DEFAULT_GRADES_PRESET_ID } from "@/shared/messaging/gradeTemplatePreset
 import { fetchSessionScores } from "@/shared/api/contracts/sessionScores";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import useAuth from "@/auth/hooks/useAuth";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { adminLectureQueryKeys } from "../../queryKeys";
 import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPreviewModal";
 import { arrivalOverviewQueryKey } from "@/shared/api/contracts/arrivalOverview";
@@ -109,6 +111,7 @@ export default function SessionAttendancePage({
   const navigate = useNavigate();
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const isCompactAttendance = useIsMobile();
   const { user } = useAuth();
   const sortStorageKey = getTenantUserLocalKey("attendance:sort", user?.id);
   const previousSortStorageKey = user?.id ? `attendance:sort:u${user.id}` : null;
@@ -116,6 +119,7 @@ export default function SessionAttendancePage({
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [bulkPresentBusy, setBulkPresentBusy] = useState(false);
+  const [pendingStatusIds, setPendingStatusIds] = useState<Set<number>>(() => new Set());
   const [bulkPresentUndo, setBulkPresentUndo] = useState<{
     token: string;
     updated: number;
@@ -236,6 +240,49 @@ export default function SessionAttendancePage({
     onError: () => { feedback.error("출석 상태 변경에 실패했습니다. 다시 시도해 주세요."); },
   });
 
+  async function handleStatusChange(att: AttendanceListItem, code: AttendanceStatus) {
+    const active = toAttendanceStatus(att.status) === code;
+    if (active) {
+      setOpenStatusRowAttId(null);
+      statusRowTriggerRef.current = null;
+      return;
+    }
+    if (pendingStatusIds.has(att.id)) return;
+    if (code === "SECESSION") {
+      const secOk = await confirm({
+        title: "확인",
+        message: `"${att.name ?? "학생"}" 학생을 퇴원 처리하시겠습니까?\n\n• 수강등록이 비활성화됩니다\n• 시험/과제 응시 대상에서 제외됩니다\n• 기존 데이터(성적·출결)는 보관됩니다`,
+        danger: true,
+        confirmText: "확인",
+      });
+      if (!secOk) return;
+    }
+
+    setPendingStatusIds((current) => new Set(current).add(att.id));
+    try {
+      await updateStatus.mutateAsync({
+        id: att.id,
+        status: code,
+        confirm_secession: code === "SECESSION" ? true : undefined,
+      });
+      if (code === "SECESSION") {
+        qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureId) });
+        qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sessionEnrollments(sessionId) });
+        feedback.success(`${att.name ?? "학생"} 학생이 퇴원 처리되었습니다.`);
+      }
+      setOpenStatusRowAttId(null);
+      statusRowTriggerRef.current = null;
+    } catch {
+      // useMutation onError owns the user-facing failure message.
+    } finally {
+      setPendingStatusIds((current) => {
+        const next = new Set(current);
+        next.delete(att.id);
+        return next;
+      });
+    }
+  }
+
   // 강의 전체 차시 출결 매트릭스 — 차시 내부 출결탭에서는 불필요 (강의 수강생 페이지에서만 표시)
 
   const sorted = pageData;
@@ -249,14 +296,16 @@ export default function SessionAttendancePage({
     () => [
       { key: "checkbox", label: "선택", defaultWidth: col.checkbox, minWidth: 28, maxWidth: 28 },
       { key: "name", label: "이름", defaultWidth: col.name, minWidth: 80, maxWidth: 400 },
-      { key: "status", label: "상태", defaultWidth: col.statusBadge, minWidth: 60, maxWidth: 140 },
+      isCompactAttendance
+        ? { key: "status", label: "상태", defaultWidth: col.statusBadge, minWidth: 60, maxWidth: 140 }
+        : { key: "status", label: "출결 상태", defaultWidth: 540, minWidth: 520, maxWidth: 660 },
       ...(isSupplementSession
         ? [{ key: "arrival_plan", label: "등원 예정", defaultWidth: 220, minWidth: 170, maxWidth: 360 }]
         : []),
       { key: "parent_phone", label: "학부모 전화번호", defaultWidth: col.parentPhone, minWidth: 90, maxWidth: 200 },
       { key: "phone", label: "학생 전화번호", defaultWidth: col.studentPhone, minWidth: 90, maxWidth: 200 },
     ],
-    [isSupplementSession]
+    [isCompactAttendance, isSupplementSession]
   );
   const { columnWidths, setColumnWidth } = useTableColumnPrefs("session-attendance", attendanceColumnDefs);
   const fixedColsWidth = useMemo(
@@ -658,7 +707,7 @@ export default function SessionAttendancePage({
   return (
     <div className="flex flex-col gap-4 relative">
       {/* 출결 상태 선택 팝오버: 테이블 외부, 가로 나열, 상태필터와 동일 스타일 */}
-      {openStatusRowAttId != null && statusRowPopoverAnchor != null && (() => {
+      {isCompactAttendance && openStatusRowAttId != null && statusRowPopoverAnchor != null && (() => {
         const att = sorted.find((a) => a.id === openStatusRowAttId);
         if (!att) return null;
         return createPortal(
@@ -677,7 +726,7 @@ export default function SessionAttendancePage({
             onClick={(e) => e.stopPropagation()}
           >
             {STATUS_LIST.map((code) => {
-              const active = att.status === code;
+              const active = toAttendanceStatus(att.status) === code;
               return (
                 <button
                   key={code}
@@ -687,36 +736,9 @@ export default function SessionAttendancePage({
                     opacity: active ? 1 : 0.85,
                     boxShadow: active ? "0 0 0 2px var(--color-primary)" : undefined,
                   }}
-                  onClick={async () => {
-                    if (active) {
-                      setOpenStatusRowAttId(null);
-                                      statusRowTriggerRef.current = null;
-                      return;
-                    }
-                    if (code === "SECESSION") {
-                      const secOk = await confirm({
-                        title: "확인",
-                        message: `"${att.name}" 학생을 퇴원 처리하시겠습니까?\n\n• 수강등록이 비활성화됩니다\n• 시험/과제 응시 대상에서 제외됩니다\n• 기존 데이터(성적·출결)는 보관됩니다`,
-                        danger: true,
-                        confirmText: "확인",
-                      });
-                      if (!secOk) return;
-                    }
-                    updateStatus.mutate(
-                      { id: att.id, status: code, confirm_secession: code === "SECESSION" ? true : undefined },
-                      code === "SECESSION"
-                        ? {
-                            onSuccess: () => {
-                              qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureId) });
-                              qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sessionEnrollments(sessionId) });
-                              feedback.success(`${att.name} 학생이 퇴원 처리되었습니다.`);
-                            },
-                          }
-                        : undefined,
-                    );
-                    setOpenStatusRowAttId(null);
-                                  statusRowTriggerRef.current = null;
-                  }}
+                  aria-pressed={active}
+                  disabled={pendingStatusIds.has(att.id)}
+                  onClick={() => void handleStatusChange(att, code)}
                 >
                   <AttendanceStatusBadge status={code} variant="2ch" />
                 </button>
@@ -816,8 +838,8 @@ export default function SessionAttendancePage({
                   <ResizableTh columnKey="name" width={columnWidths.name ?? col.name} minWidth={80} maxWidth={400} onWidthChange={setColumnWidth} scope="col" onClick={() => toggleSort("name")} className="cursor-pointer select-none" aria-sort={sort === "name" ? "ascending" : sort === "-name" ? "descending" : "none"}>
                     <span className="inline-flex items-center gap-1">이름 <span aria-hidden style={{ fontSize: 10, opacity: sort === "name" || sort === "-name" ? 1 : 0.3, color: "var(--color-primary)" }}>{sort === "name" ? "▲" : sort === "-name" ? "▼" : "⇅"}</span></span>
                   </ResizableTh>
-                  <ResizableTh columnKey="status" width={columnWidths.status ?? col.statusBadge} minWidth={60} maxWidth={140} onWidthChange={setColumnWidth} scope="col" onClick={() => toggleSort("status")} className="cursor-pointer select-none text-center" aria-sort={sort === "status" ? "ascending" : sort === "-status" ? "descending" : "none"}>
-                    <span className="inline-flex items-center gap-1">상태 <span aria-hidden style={{ fontSize: 10, opacity: sort === "status" || sort === "-status" ? 1 : 0.3, color: "var(--color-primary)" }}>{sort === "status" ? "▲" : sort === "-status" ? "▼" : "⇅"}</span></span>
+                  <ResizableTh columnKey="status" width={columnWidths.status ?? col.statusBadge} minWidth={isCompactAttendance ? 60 : 520} maxWidth={isCompactAttendance ? 140 : 660} onWidthChange={setColumnWidth} scope="col" onClick={() => toggleSort("status")} className="cursor-pointer select-none text-center" aria-sort={sort === "status" ? "ascending" : sort === "-status" ? "descending" : "none"}>
+                    <span className="inline-flex items-center gap-1">{isCompactAttendance ? "상태" : "출결 상태 · 한 번 눌러 저장"} <span aria-hidden style={{ fontSize: 10, opacity: sort === "status" || sort === "-status" ? 1 : 0.3, color: "var(--color-primary)" }}>{sort === "status" ? "▲" : sort === "-status" ? "▼" : "⇅"}</span></span>
                   </ResizableTh>
                   {isSupplementSession && (
                     <ResizableTh
@@ -886,25 +908,55 @@ export default function SessionAttendancePage({
                       </StudentDetailLink>
                     </td>
                     <td className="text-center align-middle" style={{ width: columnWidths.status ?? col.statusBadge }}>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (openStatusRowAttId === att.id) {
-                            setOpenStatusRowAttId(null);
-                                                  statusRowTriggerRef.current = null;
-                            return;
-                          }
-                          // trigger ref를 먼저 세팅한 뒤 open → hook의 useLayoutEffect가 ref를 읽어 위치 계산
-                          statusRowTriggerRef.current = e.currentTarget as HTMLElement;
-                          setOpenStatusRowAttId(att.id);
-                        }}
-                        className="cursor-pointer rounded border-0 p-0 bg-transparent inline-flex align-middle focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)] focus-visible:ring-offset-1"
-                        aria-label={`${att.name ?? ""} 출결 상태 변경`}
-                        aria-expanded={openStatusRowAttId === att.id}
-                      >
-                        <AttendanceStatusBadge status={toAttendanceStatus(att.status)} variant="2ch" selected />
-                      </button>
+                      {isCompactAttendance ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (openStatusRowAttId === att.id) {
+                              setOpenStatusRowAttId(null);
+                              statusRowTriggerRef.current = null;
+                              return;
+                            }
+                            // trigger ref를 먼저 세팅한 뒤 open → hook의 useLayoutEffect가 ref를 읽어 위치 계산
+                            statusRowTriggerRef.current = e.currentTarget as HTMLElement;
+                            setOpenStatusRowAttId(att.id);
+                          }}
+                          className="attendance-status-compact-trigger cursor-pointer rounded border-0 p-0 bg-transparent inline-flex align-middle focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)] focus-visible:ring-offset-1"
+                          aria-label={`${att.name ?? ""} 출결 상태 변경`}
+                          aria-expanded={openStatusRowAttId === att.id}
+                        >
+                          <AttendanceStatusBadge status={toAttendanceStatus(att.status)} variant="2ch" selected />
+                        </button>
+                      ) : (
+                        <div
+                          className="attendance-status-inline"
+                          role="group"
+                          aria-label={`${att.name ?? ""} 출결 빠른 선택`}
+                          aria-busy={pendingStatusIds.has(att.id)}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          {STATUS_LIST.map((code) => {
+                            const active = toAttendanceStatus(att.status) === code;
+                            const label = ATTENDANCE_STATUS_META[code].label;
+                            return (
+                              <button
+                                key={code}
+                                type="button"
+                                className="attendance-status-inline__option"
+                                data-active={active ? "true" : "false"}
+                                aria-pressed={active}
+                                aria-label={`${att.name ?? "학생"} ${label} 상태로 변경`}
+                                title={active ? `현재 ${label}` : `${label} 상태로 변경`}
+                                disabled={pendingStatusIds.has(att.id)}
+                                onClick={() => void handleStatusChange(att, code)}
+                              >
+                                <AttendanceStatusBadge status={code} variant="2ch" selected={active} />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </td>
                     {isSupplementSession && (
                       <td

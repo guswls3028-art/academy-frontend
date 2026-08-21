@@ -911,9 +911,10 @@ export default function SessionScoresEntryPage({
           >
             {isEditMode ? (
               <ul>
-                <li><strong>Enter</strong>: 입력 확정 후 다음 학생으로 이동</li>
-                <li><strong>/ + Enter</strong>: 미응시·미제출 처리</li>
-                <li><strong>Tab / Esc</strong>: 다음 칸 이동 / 입력 취소</li>
+                <li><strong>Enter</strong>: 입력 확정 후 아래 학생으로 이동</li>
+                <li><strong>Tab / Shift+Tab</strong>: 입력 확정 후 오른쪽 / 왼쪽 칸으로 이동</li>
+                <li><strong>/ + Enter 또는 Tab</strong>: 미응시·미제출 처리 후 계속 이동</li>
+                <li><strong>Esc</strong>: 입력 취소</li>
                 <li>입력은 자동 저장되며 <strong>Ctrl+S / Ctrl+Z</strong>도 사용할 수 있습니다.</li>
               </ul>
             ) : (

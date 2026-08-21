@@ -18,6 +18,8 @@ function localJwt(): string {
 
 type MockState = {
   attendanceOrderings: string[];
+  attendanceStatuses: Record<number, string>;
+  attendanceStatusUpdates: Array<{ id: number; status: string }>;
   bulkCreatePayloads: number[][];
   bulkSetCalls: number;
   bulkUndoTokens: string[];
@@ -84,8 +86,8 @@ async function installApi(page: Page, state: MockState) {
       const ordering = url.searchParams.get("ordering") || "name";
       state.attendanceOrderings.push(ordering);
       const rows = [
-        { id: 501, status: "UNSET", name: "미입력학생", student_id: 1001, parent_phone: "01011112222", student_phone: "01033334444" },
-        { id: 502, status: "ABSENT", name: "결석학생", student_id: 1002, parent_phone: "01055556666", student_phone: "01077778888" },
+        { id: 501, status: state.attendanceStatuses[501] ?? "UNSET", name: "미입력학생", student_id: 1001, parent_phone: "01011112222", student_phone: "01033334444" },
+        { id: 502, status: state.attendanceStatuses[502] ?? "ABSENT", name: "결석학생", student_id: 1002, parent_phone: "01055556666", student_phone: "01077778888" },
       ];
       if (ordering === "name") rows.reverse();
       return json({
@@ -93,6 +95,16 @@ async function installApi(page: Page, state: MockState) {
         page_size: Number(url.searchParams.get("page_size")) || 50,
         results: rows,
       });
+    }
+    const attendanceDetailMatch = path.match(/^\/lectures\/attendance\/(\d+)\/$/);
+    if (attendanceDetailMatch && method === "PATCH") {
+      const id = Number(attendanceDetailMatch[1]);
+      const payload = request.postDataJSON() as { status?: string };
+      if (payload.status) {
+        state.attendanceStatuses[id] = payload.status;
+        state.attendanceStatusUpdates.push({ id, status: payload.status });
+      }
+      return json({ id, status: state.attendanceStatuses[id] });
     }
     if (path === "/lectures/attendance/bulk_create/" && method === "POST") {
       const payload = request.postDataJSON() as { students: number[] };
@@ -186,6 +198,8 @@ async function openAttendance(page: Page, state: MockState) {
 function createState(overrides: Partial<MockState> = {}): MockState {
   return {
     attendanceOrderings: [],
+    attendanceStatuses: { 501: "UNSET", 502: "ABSENT" },
+    attendanceStatusUpdates: [],
     bulkCreatePayloads: [],
     bulkSetCalls: 0,
     bulkUndoTokens: [],
@@ -213,6 +227,33 @@ test("출석 명단은 이름 가나다순이 기본이고 계정별 정렬 선�
   await expect(page.getByRole("button", { name: "수강생 등록" }).first()).toBeVisible();
   await expect(page.getByRole("columnheader", { name: /이름/ })).toHaveAttribute("aria-sort", "descending");
   await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "미입력학생 학생 상세 열기");
+});
+
+test("데스크톱은 모든 출결 상태를 한 줄에서 저장하고 모바일은 압축 선택기를 유지한다", async ({ page }, testInfo) => {
+  const state = createState();
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await openAttendance(page, state);
+
+  const quickRail = page.getByRole("group", { name: "결석학생 출결 빠른 선택" });
+  await expect(quickRail).toBeVisible();
+  await expect(quickRail.getByRole("button")).toHaveCount(11);
+  await expect(quickRail.getByRole("button", { name: "결석학생 결석 상태로 변경" })).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(async () => (await quickRail.boundingBox())?.width ?? 0).toBeGreaterThan(500);
+
+  await quickRail.getByRole("button", { name: "결석학생 지각 상태로 변경" }).click();
+  await expect.poll(() => state.attendanceStatusUpdates).toEqual([{ id: 502, status: "LATE" }]);
+  await expect(quickRail.getByRole("button", { name: "결석학생 지각 상태로 변경" })).toHaveAttribute("aria-pressed", "true");
+  await page.screenshot({ path: testInfo.outputPath("attendance-inline-status-1366.png"), fullPage: true });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("group", { name: "결석학생 출결 빠른 선택" })).toHaveCount(0);
+  const compactTrigger = page.getByRole("button", { name: "결석학생 출결 상태 변경" });
+  await expect(compactTrigger).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await compactTrigger.click();
+  await expect(page.locator(".attendance-popover").getByRole("button")).toHaveCount(11);
+  await page.screenshot({ path: testInfo.outputPath("attendance-compact-status-390.png"), fullPage: true });
 });
 
 test("차시 수강생은 선택 목록에서 undo/redo와 최종 확인 후 미입력으로 등록한다", async ({ page }) => {

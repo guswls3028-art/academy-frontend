@@ -20,6 +20,7 @@ import {
 } from "@/shared/product/sessions/sessionOrdering";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import { Tabs } from "@/shared/ui/ds";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { adminSessionQueryKeys } from "../queryKeys";
@@ -71,6 +72,7 @@ function SessionGearMenu({
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(session.title ?? "");
   const [editDate, setEditDate] = useState(session.date ?? "");
+  const [editOrder, setEditOrder] = useState(String(session.regular_order ?? session.order ?? 1));
   const [busy, setBusy] = useState(false);
   const gearRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -81,7 +83,7 @@ function SessionGearMenu({
     placement: "bottom",
     gap: 4,
     margin: 8,
-    estimateHeight: editing ? 220 : 180,
+    estimateHeight: editing ? 320 : 180,
     estimateWidth: 200,
     alignRight: true,
   });
@@ -108,7 +110,7 @@ function SessionGearMenu({
     setBusy(true);
     try {
       await deleteSession(session.id);
-      feedback.success(`${supplement ? "보강" : "차시"}이 삭제되었습니다.`);
+      feedback.success(supplement ? "보강이 삭제되었습니다." : "차시가 삭제되었습니다.");
       setOpen(false);
       onDone("deleted");
     } catch {
@@ -123,19 +125,24 @@ function SessionGearMenu({
       feedback.warning("보강 이름을 입력하세요.");
       return;
     }
-    if (!editTitle.trim() && !editDate.trim()) return;
+    const nextRegularOrder = Number(editOrder);
+    if (!supplement && (!Number.isInteger(nextRegularOrder) || nextRegularOrder < 1)) {
+      feedback.warning("차시 번호는 1 이상의 정수로 입력하세요.");
+      return;
+    }
     setBusy(true);
     try {
-      const payload: Record<string, string> = {};
+      const payload: Parameters<typeof updateSession>[1] = {};
       if (editTitle.trim()) payload.title = editTitle.trim();
       if (editDate.trim()) payload.date = editDate.trim();
+      if (!supplement) payload.regular_order = nextRegularOrder;
       await updateSession(session.id, payload);
-      feedback.success(`${supplement ? "보강" : "차시"}이 수정되었습니다.`);
+      feedback.success(supplement ? "보강이 수정되었습니다." : "차시가 수정되었습니다.");
       setOpen(false);
       setEditing(false);
       onDone("updated");
-    } catch {
-      feedback.error("차시 수정에 실패했습니다.");
+    } catch (error) {
+      feedback.error(extractApiError(error, "차시 수정에 실패했습니다."));
     } finally {
       setBusy(false);
     }
@@ -151,7 +158,18 @@ function SessionGearMenu({
           style={{ left: anchor.left, top: anchor.top }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button type="button" className="w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-bg-surface-hover)]" onClick={() => setEditing(true)}>수정</button>
+          <button
+            type="button"
+            className="w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-bg-surface-hover)]"
+            onClick={() => {
+              setEditTitle(session.title ?? "");
+              setEditDate(session.date ?? "");
+              setEditOrder(String(session.regular_order ?? session.order ?? 1));
+              setEditing(true);
+            }}
+          >
+            수정
+          </button>
           {sections && sections.length > 0 && (
             <>
               <div className={styles.dropdownDivider} />
@@ -178,17 +196,39 @@ function SessionGearMenu({
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex flex-col gap-2">
+            {!supplement && (
+              <>
+                <label htmlFor={`session-order-${session.id}`} className="text-xs font-medium text-[var(--color-text-muted)]">
+                  차시 번호
+                </label>
+                <input
+                  id={`session-order-${session.id}`}
+                  type="number"
+                  min={1}
+                  step={1}
+                  inputMode="numeric"
+                  className="ds-input text-sm"
+                  value={editOrder}
+                  onChange={(e) => setEditOrder(e.target.value)}
+                  aria-describedby={`session-order-help-${session.id}`}
+                  autoFocus
+                />
+                <span id={`session-order-help-${session.id}`} className="text-[11px] leading-4 text-[var(--color-text-muted)]">
+                  저장하면 카드와 차시 제목이 {editOrder || "N"}차시로 표시됩니다.
+                </span>
+              </>
+            )}
             <label htmlFor={`session-title-${session.id}`} className="text-xs font-medium text-[var(--color-text-muted)]">
-              {supplement ? "보강 이름" : "제목"}
+              {supplement ? "보강 이름" : "차시 설명 (선택)"}
             </label>
             <input
               id={`session-title-${session.id}`}
               className="ds-input text-sm"
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
-              placeholder={supplement ? "예: 토요일 심화 클리닉" : "차시 제목"}
+              placeholder={supplement ? "예: 토요일 심화 클리닉" : "예: 함수 개념 정리"}
               maxLength={255}
-              autoFocus
+              autoFocus={supplement}
             />
             <label className="text-xs font-medium text-[var(--color-text-muted)]">날짜</label>
             <input type="date" className="ds-input text-sm" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
