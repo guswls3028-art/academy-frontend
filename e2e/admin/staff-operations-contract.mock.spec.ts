@@ -195,6 +195,9 @@ async function mockStaffApi(
     if (path === "/staffs/work-types/" && request.method() === "GET") {
       return json({ count: 0, next: null, previous: null, results: [] });
     }
+    if (path === "/staffs/staff-work-types/" && request.method() === "GET") {
+      return json({ count: 0, next: null, previous: null, results: [] });
+    }
     if (path === "/staffs/payroll-snapshots/" && request.method() === "GET") {
       return json({ count: 0, next: null, previous: null, results: [] });
     }
