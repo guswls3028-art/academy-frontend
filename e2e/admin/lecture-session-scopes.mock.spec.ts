@@ -29,6 +29,8 @@ type MockState = {
   regularIncluded?: boolean;
   supplementIncluded?: boolean;
   createdHomeworkPayloads?: Array<Record<string, unknown>>;
+  createdExamPayloads?: Array<Record<string, unknown>>;
+  examCreateDelayMs?: number;
   homeworkPatchPayloads?: Array<Record<string, unknown>>;
   homeworkAssignmentIds?: number[];
   homeworkAssignmentPuts?: number[][];
@@ -210,6 +212,18 @@ async function installApi(page: Page, state: MockState) {
         created_at: "2026-08-02T00:00:00Z",
         updated_at: "2026-08-02T00:00:00Z",
       });
+    }
+    if (path === "/exams/" && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      state.createdExamPayloads ??= [];
+      state.createdExamPayloads.push(payload);
+      if ((state.examCreateDelayMs ?? 0) > 0) {
+        await new Promise((resolve) => setTimeout(resolve, state.examCreateDelayMs));
+      }
+      return json({
+        id: 9970 + state.createdExamPayloads.length,
+        ...payload,
+      }, 201);
     }
     if (path === "/homeworks/" && method === "GET") {
       const rows = (state.createdHomeworkPayloads ?? []).map((payload, index) => ({
@@ -460,6 +474,48 @@ test("한 회차에서 만드는 여러 과제는 커트라인을 행마다 따�
       cutline_value: 24,
     }),
   ]);
+});
+
+test("시험 빠른 생성은 잘못된 점수를 기본값으로 바꾸지 않고 처리 중 이탈을 잠근다", async ({ page }) => {
+  const state: MockState = {
+    supplementTitle: "토요일 심화 클리닉",
+    patchTitles: [],
+    createdExamPayloads: [],
+    examCreateDelayMs: 1_000,
+  };
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openLecture(page, state);
+  await page.goto(
+    `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/exams`,
+    { waitUntil: "domcontentloaded" },
+  );
+
+  await page.getByRole("button", { name: "시험 추가", exact: true }).first().click();
+  await page.getByText("빠르게 여러 개 만들기", { exact: true }).click();
+  await page.getByLabel("시험 1 제목").fill("함수 단원평가");
+  await page.getByLabel("시험 1 만점").fill("");
+  await page.getByRole("button", { name: "1개 시험 만들기", exact: true }).click();
+  await expect(page.getByText(/만점은 0보다 큰 숫자/)).toBeVisible();
+  expect(state.createdExamPayloads).toHaveLength(0);
+
+  await page.getByLabel("시험 1 만점").fill("50");
+  await page.getByLabel("시험 1 커트라인").fill("60");
+  await page.getByRole("button", { name: "1개 시험 만들기", exact: true }).click();
+  await expect(page.getByText(/커트라인은 만점을 초과/)).toBeVisible();
+  expect(state.createdExamPayloads).toHaveLength(0);
+
+  await page.getByLabel("시험 1 커트라인").fill("30");
+  await page.getByRole("button", { name: "1개 시험 만들기", exact: true }).click();
+  await expect(page.getByRole("button", { name: "뒤로" })).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await expect(page.getByText("처음부터 만들기", { exact: true })).toBeVisible();
+  await expect.poll(() => state.createdExamPayloads?.length).toBe(1);
+  await expect(page.getByText("처음부터 만들기", { exact: true })).toHaveCount(0);
+  expect(state.createdExamPayloads?.[0]).toMatchObject({
+    title: "함수 단원평가",
+    max_score: 50,
+    pass_score: 30,
+  });
 });
 
 test("같은 차시에서도 과제마다 숫자 채점과 완료 체크를 선택한다", async ({ page }, testInfo) => {

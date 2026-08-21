@@ -1,6 +1,6 @@
 .clinic-tab__kpi-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: var(--space-3, 12px);
 }
 
@@ -12,7 +12,11 @@
 
 @media (max-width: 639px) {
   .clinic-tab__kpi-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .clinic-tab__kpi:last-child {
+    grid-column: 1 / -1;
   }
 }
 
@@ -157,6 +161,16 @@
   white-space: nowrap;
 }
 
+.clinic-tab__pending-badge {
+  padding: 1px 8px;
+  border-radius: var(--radius-full, 999px);
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+  color: var(--color-warning, #d97706);
+  font-size: var(--text-xs, 11px);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .clinic-tab__section-meta {
   display: flex;
   align-items: center;
@@ -235,6 +249,10 @@
   background: var(--color-error, #ef4444);
 }
 
+.clinic-tab__dot--pending {
+  background: var(--color-warning, #d97706);
+}
+
 .clinic-tab__name {
   flex: 1;
   min-width: 0;
@@ -286,6 +304,11 @@
 .clinic-tab__badge--both {
   background: color-mix(in srgb, var(--color-error) 8%, transparent);
   color: var(--color-error, #ef4444);
+}
+
+.clinic-tab__badge--pending {
+  background: color-mix(in srgb, var(--color-warning) 8%, transparent);
+  color: var(--color-warning, #d97706);
 }
 
 .clinic-tab__badge--ok {

@@ -1,0 +1,186 @@
+import type { Page, Route } from "@playwright/test";
+
+import { expect, test } from "../fixtures/strictTest";
+import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
+
+const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
+const LECTURE_ID = 7721;
+const SESSION_ID = 7722;
+const CLINIC_SECTION_ID = 7723;
+
+function fakeJwt(): string {
+  const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
+  return `${encode({ alg: "none" })}.${encode({
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    tenant_code: "hakwonplus",
+    user_id: 12,
+  })}.sig`;
+}
+
+async function installApi(page: Page) {
+  test.skip(
+    !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE),
+    "차시 클리닉 route-mock 검증은 로컬 dev 서버 전용",
+  );
+  const token = fakeJwt();
+  await installTenantOneInitScript(page);
+  await page.addInitScript((jwt) => {
+    localStorage.setItem("access", jwt);
+    localStorage.setItem("refresh", `${jwt}-refresh`);
+  }, token);
+
+  await page.route("**/api/v1/**", async (route: Route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
+    const json = (body: unknown, status = 200) => route.fulfill({ status, json: body });
+    if (request.method() === "OPTIONS") return route.fulfill({ status: 204 });
+    if (path === "/token/refresh/") return json({ access: token, refresh: `${token}-refresh` });
+    if (path === "/core/program/") {
+      return json({
+        tenantCode: "hakwonplus",
+        display_name: "학원플러스",
+        is_active: true,
+        feature_flags: { section_mode: true, clinic_mode: "regular" },
+      });
+    }
+    if (path === "/core/me/") {
+      return json({
+        id: 12,
+        username: "admin",
+        name: "관리자",
+        is_staff: true,
+        is_superuser: true,
+        tenantRole: "admin",
+      });
+    }
+    if (path === `/lectures/sessions/${SESSION_ID}/`) {
+      return json({
+        id: SESSION_ID,
+        lecture: LECTURE_ID,
+        order: 3,
+        regular_order: 3,
+        title: "3차시",
+        session_type: "REGULAR",
+        date: "2026-08-21",
+        section: null,
+      });
+    }
+    if (path === "/lectures/sessions/") {
+      return json([{
+        id: 7730,
+        lecture: LECTURE_ID,
+        order: 3,
+        regular_order: 3,
+        title: "클리닉 A반 3차시",
+        session_type: "REGULAR",
+        date: "2026-08-22",
+        section: CLINIC_SECTION_ID,
+      }]);
+    }
+    if (path === "/lectures/sections/") {
+      return json([{
+        id: CLINIC_SECTION_ID,
+        tenant: 1,
+        lecture: LECTURE_ID,
+        label: "A",
+        section_type: "CLINIC",
+        section_type_display: "클리닉",
+        day_of_week: 5,
+        day_of_week_display: "토",
+        start_time: "16:00:00",
+        end_time: "17:30:00",
+        location: "2층 학습실",
+        max_capacity: 12,
+        is_active: true,
+        assignment_count: 3,
+        created_at: "2026-08-01T00:00:00Z",
+        updated_at: "2026-08-01T00:00:00Z",
+      }]);
+    }
+    if (path === "/lectures/section-assignments/") {
+      return json([1001, 1002, 1003].map((enrollment, index) => ({
+        id: 7800 + index,
+        tenant: 1,
+        enrollment,
+        class_section: 7700,
+        clinic_section: CLINIC_SECTION_ID,
+        source: "MANUAL",
+        source_display: "수동",
+        student_name: ["실제대상 학생", "미응시 학생", "정상 학생"][index],
+        student_id: 7900 + index,
+        lecture_id: LECTURE_ID,
+        class_section_label: "A",
+        clinic_section_label: "A",
+        created_at: "2026-08-01T00:00:00Z",
+        updated_at: "2026-08-01T00:00:00Z",
+      })));
+    }
+    if (path === "/enrollments/session-enrollments/") {
+      return json([1001, 1002, 1003].map((enrollment, index) => ({
+        id: 8000 + index,
+        session: SESSION_ID,
+        enrollment,
+        student_id: 7900 + index,
+        student_name: ["실제대상 학생", "미응시 학생", "정상 학생"][index],
+      })));
+    }
+    if (path === "/results/admin/clinic-targets/") {
+      return json([
+        {
+          enrollment_id: 1001,
+          student_id: 7900,
+          student_name: "실제대상 학생",
+          session_title: "3차시",
+          session_id: SESSION_ID,
+          lecture_id: LECTURE_ID,
+          clinic_reason: "exam",
+          reason: "score",
+          source_type: "exam",
+          source_id: 8101,
+          clinic_link_id: 8201,
+          exam_score: 55,
+          cutline_score: 70,
+          created_at: "2026-08-21T10:00:00Z",
+        },
+        {
+          enrollment_id: 1002,
+          student_id: 7901,
+          student_name: "미응시 학생",
+          session_title: "3차시",
+          session_id: SESSION_ID,
+          lecture_id: LECTURE_ID,
+          clinic_reason: "exam",
+          reason: "missing",
+          source_type: "exam",
+          source_id: 8101,
+          created_at: "2026-08-21T10:00:00Z",
+        },
+      ]);
+    }
+    return json({ count: 0, results: [] });
+  });
+}
+
+test("미응시 검토 대기와 실제 클리닉 대상을 분리해 표시한다", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installApi(page);
+  await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/clinic`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+
+  const targetKpi = page.locator(".clinic-tab__kpi").filter({ hasText: "클리닉 대상" });
+  const pendingKpi = page.locator(".clinic-tab__kpi").filter({ hasText: "미응시 확인" });
+  await expect(targetKpi).toContainText("1");
+  await expect(pendingKpi).toContainText("1");
+
+  const actualRow = page.locator(".clinic-tab__row").filter({ hasText: "실제대상 학생" });
+  const pendingRow = page.locator(".clinic-tab__row").filter({ hasText: "미응시 학생" });
+  const normalRow = page.locator(".clinic-tab__row").filter({ hasText: "정상 학생" });
+  await expect(actualRow).toContainText("시험 미통과");
+  await expect(pendingRow).toContainText("미응시 확인 필요");
+  await expect(pendingRow).not.toContainText("시험 미통과");
+  await expect(normalRow).toContainText("정상");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+});

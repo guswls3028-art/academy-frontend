@@ -198,6 +198,7 @@ export default function CreateRegularExamModal({
     setError(null);
     setSubmitting(true);
     let createdExamId = 0;
+    let enrollResult: { enrolled: number; error?: string } | null = null;
     try {
       const response = await api.post("/exams/", {
         title,
@@ -215,7 +216,7 @@ export default function CreateRegularExamModal({
       createdExamId = Number(response.data?.id);
       if (!createdExamId) throw new Error("생성 후 ID를 받지 못했습니다.");
 
-      const enrollResult = await autoEnroll(createdExamId);
+      enrollResult = await autoEnroll(createdExamId);
       const form = new FormData();
       form.append("file", sourceFile);
       form.append("exam_id", String(createdExamId));
@@ -226,9 +227,12 @@ export default function CreateRegularExamModal({
 
       onCreated(createdExamId);
       if (["conversion_required", "source_saved"].includes(uploadResponse.data?.status)) {
+        const enrollmentMessage = enrollResult.error
+          ? " 응시 대상 자동 등록은 실패했으므로 시험 상세에서 확인해 주세요."
+          : ` 수강생 ${enrollResult.enrolled}명을 응시 대상으로 등록했습니다.`;
         feedback.warning(
-          uploadResponse.data?.message
-          || "시험과 원본을 저장했습니다. 시험 상세에서 문항과 해설을 직접 등록해 검수할 수 있습니다.",
+          `${uploadResponse.data?.message
+          || "시험과 원본을 저장했습니다. 시험 상세에서 문항과 해설을 직접 등록해 검수할 수 있습니다."}${enrollmentMessage}`,
         );
       } else {
         const enrollmentMessage = enrollResult.error
@@ -248,8 +252,11 @@ export default function CreateRegularExamModal({
       )?.response?.data?.detail;
       if (createdExamId) {
         onCreated(createdExamId);
+        const enrollmentMessage = enrollResult?.error
+          ? " 응시 대상 자동 등록도 실패했으므로 시험 상세에서 직접 등록해 주세요."
+          : "";
         feedback.warning(
-          `시험은 만들었지만 원본 처리에 실패했습니다. 시험 설정에서 다시 올려 주세요.${detail ? ` (${detail})` : ""}`,
+          `시험은 만들었지만 원본 처리에 실패했습니다. 시험 설정에서 다시 올려 주세요.${enrollmentMessage}${detail ? ` (${detail})` : ""}`,
         );
         onClose();
       } else {
@@ -275,10 +282,24 @@ export default function CreateRegularExamModal({
     const invalidScoreRow = validRows.find((row) => {
       const ms = Number(row.maxScore);
       const ps = Number(row.passScore);
-      return Number.isFinite(ms) && Number.isFinite(ps) && ms > 0 && ps > ms;
+      return (
+        !Number.isFinite(ms)
+        || ms <= 0
+        || !Number.isFinite(ps)
+        || ps < 0
+        || ps > ms
+      );
     });
     if (invalidScoreRow) {
-      setError(`'${invalidScoreRow.title.trim()}'의 합격 점수는 만점을 초과할 수 없습니다.`);
+      const ms = Number(invalidScoreRow.maxScore);
+      const ps = Number(invalidScoreRow.passScore);
+      if (!Number.isFinite(ms) || ms <= 0) {
+        setError(`'${invalidScoreRow.title.trim()}'의 만점은 0보다 큰 숫자로 입력하세요.`);
+      } else if (!Number.isFinite(ps) || ps < 0) {
+        setError(`'${invalidScoreRow.title.trim()}'의 커트라인은 0점 이상 숫자로 입력하세요.`);
+      } else {
+        setError(`'${invalidScoreRow.title.trim()}'의 커트라인은 만점을 초과할 수 없습니다.`);
+      }
       return;
     }
 
@@ -299,8 +320,8 @@ export default function CreateRegularExamModal({
           description: "",
           exam_type: "regular",
           session_id: sessionId,
-          max_score: Number.isFinite(ms) && ms > 0 ? ms : 100,
-          pass_score: Number.isFinite(ps) && ps >= 0 ? ps : 0,
+          max_score: ms,
+          pass_score: ps,
           answer_visibility: "hidden",
         });
         const newExamId = Number(res.data?.id);
@@ -515,9 +536,9 @@ export default function CreateRegularExamModal({
           type="button"
           onClick={() => {
             setError(null);
-            setSubmitting(false);
             setStage("choose");
           }}
+          disabled={submitting}
           className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
           aria-label="뒤로"
         >
@@ -533,6 +554,7 @@ export default function CreateRegularExamModal({
       onClose={onClose}
       type="action"
       width={stage === "copy" ? MODAL_WIDTH.wide : stage === "choose" ? MODAL_WIDTH.form : MODAL_WIDTH.default}
+      closeDisabled={submitting}
       onEnterConfirm={
         stage === "guided" && guidedTitle.trim() && sourceFile && !submitting
           ? handleGuidedSubmit

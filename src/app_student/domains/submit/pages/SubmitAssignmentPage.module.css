@@ -43,6 +43,44 @@
   height: 14px;
 }
 
+.scopeNotice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--stu-space-3);
+  padding: var(--stu-space-3);
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 20%, var(--stu-border));
+  border-radius: var(--stu-radius-md);
+  background:
+    linear-gradient(120deg, color-mix(in srgb, var(--stu-primary) 9%, transparent), transparent 72%),
+    var(--stu-surface-1);
+}
+
+.scopeNotice div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.scopeNotice strong {
+  color: var(--stu-text);
+  font-size: 14px;
+}
+
+.scopeNotice span {
+  color: var(--stu-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.scopeLink {
+  flex-shrink: 0;
+  color: var(--stu-primary);
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
 .stepLabel {
   display: inline-flex;
   align-items: center;
@@ -105,6 +143,12 @@
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.6) inset,
     0 0 0 2px color-mix(in srgb, var(--stu-primary) 10%, transparent);
+}
+
+.targetItem:disabled,
+.targetItem[aria-disabled="true"] {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 .targetIcon {
@@ -212,6 +256,7 @@
 
 @media (max-width: 640px) {
   .successMessage,
+  .scopeNotice,
   .submitRow,
   .selectedFile {
     align-items: stretch;

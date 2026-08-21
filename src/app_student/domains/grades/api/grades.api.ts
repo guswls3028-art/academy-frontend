@@ -18,6 +18,7 @@ export type Achievement = "PASS" | "REMEDIATED" | "FAIL" | "NOT_SUBMITTED";
 export type MyExamGradeSummary = {
   exam_id: number;
   enrollment_id: number;
+  session_id?: number | null;
   title: string;
   total_score: number | null;  // null = 미응시
   max_score: number;
