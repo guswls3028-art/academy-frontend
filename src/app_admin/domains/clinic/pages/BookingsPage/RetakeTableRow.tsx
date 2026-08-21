@@ -5,7 +5,11 @@ import type { ClinicTarget } from "../../api/clinicTargets";
 import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { formatNextAttempt, formatScoreDisplay } from "./remediationFormatters";
+import {
+  formatNextAttempt,
+  getCutlineLabel,
+  getScoreValueLabel,
+} from "./remediationFormatters";
 
 type Props = {
   item: ClinicTarget;
@@ -74,8 +78,8 @@ export default function RetakeTableRow({
       <td>
         <span className="clinic-hub__type-badge" data-type={item.source_type}>{typeLabel}</span>
       </td>
-      <td className="clinic-hub__cell-score">{formatScoreDisplay(item)}</td>
-      <td className="clinic-hub__cell-score">{item.cutline_score ?? "-"}</td>
+      <td className="clinic-hub__cell-score">{getScoreValueLabel(item)}</td>
+      <td className="clinic-hub__cell-score">{getCutlineLabel(item)}</td>
       <td className="clinic-hub__cell-cycle">
         {isMissing ? "판정 대기" : formatNextAttempt(item.latest_attempt_index)}
       </td>

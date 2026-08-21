@@ -44,6 +44,7 @@ import {
   uncompleteClinicParticipant,
 } from "../../api/clinicParticipants.api";
 import type { ClinicTarget } from "../../api/clinicTargets";
+import { getCutlineLabel } from "../BookingsPage/remediationFormatters";
 import { useClinicTargets } from "../../hooks/useClinicTargets";
 import {
   resolveClinicLink,
@@ -92,11 +93,11 @@ function formatReasonLabel(reason: string | undefined): string {
 function formatScoreDetail(target: ClinicTarget): string {
   const parts: string[] = [];
 
-  if (
-    target.clinic_reason === "exam" ||
-    target.clinic_reason === "both" ||
-    target.reason === "score"
-  ) {
+  const isExamSource = target.source_type === "exam" || (
+    target.source_type == null &&
+    (target.clinic_reason === "exam" || target.clinic_reason === "both")
+  );
+  if (isExamSource) {
     if (target.exam_score != null && target.cutline_score != null) {
       parts.push(`시험 ${target.exam_score}/${target.cutline_score}점`);
     } else {
@@ -104,9 +105,15 @@ function formatScoreDetail(target: ClinicTarget): string {
     }
   }
 
-  if (target.clinic_reason === "homework" || target.clinic_reason === "both") {
+  if (
+    target.source_type === "homework" ||
+    target.clinic_reason === "homework" ||
+    target.clinic_reason === "both"
+  ) {
     if (target.homework_score != null && target.homework_cutline != null) {
-      parts.push(`과제 ${target.homework_score}/${target.homework_cutline}점`);
+      parts.push(
+        `과제 ${target.homework_score}점 / 기준 ${getCutlineLabel(target)}`,
+      );
     } else {
       parts.push("과제 미통과");
     }
@@ -1646,9 +1653,10 @@ export default function ClinicConsoleWorkspace({
                         )}
 
                         {/* Exam score */}
-                        {(t.clinic_reason === "exam" ||
-                          t.clinic_reason === "both" ||
-                          t.reason === "score") &&
+                        {(t.source_type === "exam" ||
+                          (t.source_type == null &&
+                            (t.clinic_reason === "exam" ||
+                              t.clinic_reason === "both"))) &&
                           t.exam_score != null &&
                           t.cutline_score != null && (
                             <div className="clinic-ops__drawer-score">
@@ -1693,7 +1701,7 @@ export default function ClinicConsoleWorkspace({
                               <div className="clinic-ops__drawer-score-row">
                                 <span>통과 기준</span>
                                 <span className="clinic-ops__drawer-score-val">
-                                  {t.homework_cutline}점
+                                  {getCutlineLabel(t)}
                                 </span>
                               </div>
                               <div className="clinic-ops__drawer-score-bar-wrap">

@@ -166,6 +166,75 @@ test("미응시를 판정 대기로 구분하고 사유를 남겨 면제한 뒤 
   await expect(targetDialog.getByText("표시할 대상이 없습니다.", { exact: true })).toBeVisible();
 });
 
+test("과제 클리닉 대상은 개별 퍼센트 기준을 과제 점수로 한 번만 표시한다", async ({ page }) => {
+  await seed(page);
+
+  await page.route("**/api/v1/**", async (route: Route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
+    const method = request.method();
+    const json = (body: unknown, status = 200) => route.fulfill({
+      status,
+      contentType: "application/json",
+      body: JSON.stringify(body),
+    });
+
+    if (method === "OPTIONS") return route.fulfill({ status: 204 });
+    if (path === "/core/program/") {
+      return json({ tenantCode: "hakwonplus", display_name: "학원플러스", ui_config: {}, feature_flags: {}, is_active: true });
+    }
+    if (path === "/core/me/") {
+      return json({ id: 12, username: "admin", name: "관리자", is_staff: true, is_superuser: true, tenantRole: "admin", must_change_password: false });
+    }
+    if (path === "/results/admin/clinic-targets/" && method === "GET") {
+      return json([{
+        enrollment_id: 902,
+        student_id: 302,
+        student_name: "과제 학생",
+        session_title: "8월 3주차",
+        reason: "score",
+        clinic_reason: "homework",
+        exam_score: null,
+        cutline_score: null,
+        homework_score: 10,
+        homework_cutline: 14,
+        homework_cutline_mode: "PERCENT",
+        homework_cutline_value: 70,
+        homework_round_unit_percent: 5,
+        clinic_link_id: 882,
+        session_id: 702,
+        lecture_id: 502,
+        exam_id: null,
+        source_type: "homework",
+        source_id: 802,
+        source_title: "연산 복습",
+        lecture_title: "중2 수학",
+        max_score: 20,
+        latest_attempt_index: 1,
+        attempt_history: [{ attempt_index: 1, score: 10, max_score: 20, passed: false, at: "2026-08-20T10:00:00+09:00" }],
+        created_at: "2026-08-20T10:00:00+09:00",
+      }]);
+    }
+    if (path === "/clinic/participants/" && method === "GET") return json({ count: 0, results: [] });
+    if (path === "/lectures/sections/" || path === "/staffs/currently-working/") return json([]);
+    if (path.startsWith("/community/") || path.startsWith("/student/notifications/")) return json({ count: 0, results: [] });
+    return json({ count: 0, results: [] });
+  });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/bookings`, { timeout: 45_000 });
+
+  await expect(page.getByText("연산 복습", { exact: true })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "10점", exact: true })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "70%", exact: true })).toBeVisible();
+  await expect(page.getByText(/시험 10/)).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth + 1,
+    ),
+  ).toBe(true);
+});
+
 test("클리닉 조회 실패를 빈 목록으로 숨기지 않고 재시도한다", async ({ page }) => {
   await seed(page);
   let failTargets = true;

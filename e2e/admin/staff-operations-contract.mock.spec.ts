@@ -101,6 +101,15 @@ async function mockStaffApi(
     if (path === "/staffs/currently-working/" && request.method() === "GET") {
       return json([]);
     }
+    if (path === "/lectures/attendance/arrival-overview/" && request.method() === "GET") {
+      return json({
+        today: "2026-08-21",
+        range_end: "2026-08-27",
+        range_days: 7,
+        summary: { soon: 0, today: 0, tomorrow: 0, upcoming: 0, time_unset: 0, overdue: 0 },
+        items: [],
+      });
+    }
     if (path === "/staffs/" && request.method() === "GET") {
       return json({
         count: 2,
@@ -184,6 +193,9 @@ async function mockStaffApi(
       return route.fulfill({ status: 204, body: "" });
     }
     if (path === "/staffs/work-types/" && request.method() === "GET") {
+      return json({ count: 0, next: null, previous: null, results: [] });
+    }
+    if (path === "/staffs/staff-work-types/" && request.method() === "GET") {
       return json({ count: 0, next: null, previous: null, results: [] });
     }
     if (path === "/staffs/payroll-snapshots/" && request.method() === "GET") {
@@ -321,7 +333,10 @@ test.describe("직원 운영 계약", () => {
     await page.goto(`${BASE}/workspace/staff/home`, {
       waitUntil: "domcontentloaded",
     });
-    await page.getByRole("checkbox", { name: "김조교 선택" }).check();
+    const staffCheckbox = page.getByRole("checkbox", { name: "김조교 선택" });
+    await expect(staffCheckbox).toBeVisible({ timeout: 20_000 });
+    await staffCheckbox.check();
+    await expect(staffCheckbox).toBeChecked();
     await page.getByRole("button", { name: "비밀번호 변경", exact: true }).click();
 
     const dialog = page.getByRole("dialog", { name: "임시 비밀번호 설정" });
