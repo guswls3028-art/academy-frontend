@@ -9,18 +9,13 @@ import { fetchStudentNotices } from "@student/shared/api/notices.api";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import CourseCard from "./CourseCard";
 import type { StudentVideoArchivedLecture, StudentVideoMeLecture, StudentVideoMePublic } from "../api/video.api";
+import { formatDuration } from "../utils/format";
 
 type Props = {
   lectures: StudentVideoMeLecture[];
   publicData: StudentVideoMePublic;
   archivedLectures: StudentVideoArchivedLecture[];
 };
-
-function formatWatchDuration(seconds: number) {
-  const minutes = Math.floor(Math.max(seconds, 0) / 60);
-  if (minutes < 60) return `${minutes}분 시청`;
-  return `${Math.floor(minutes / 60)}시간 ${minutes % 60}분 시청`;
-}
 
 export default function VideoHomeTab({ lectures, publicData, archivedLectures }: Props) {
   const hasLectures = lectures.length > 0;
@@ -132,7 +127,7 @@ export default function VideoHomeTab({ lectures, publicData, archivedLectures }:
                 <dl>
                   <div><dt>시청 완료</dt><dd>{lecture.completed_count}/{lecture.video_count}</dd></div>
                   <div><dt>재생</dt><dd>{lecture.play_count}회</dd></div>
-                  <div><dt>시청 분량</dt><dd>{formatWatchDuration(lecture.watch_duration)}</dd></div>
+                  <div><dt>시청 분량</dt><dd>{formatDuration(lecture.watch_duration)} 시청</dd></div>
                 </dl>
               </article>
             ))}
