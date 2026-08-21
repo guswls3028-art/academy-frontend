@@ -1,8 +1,9 @@
 // PATH: src/app_admin/domains/sessions/api/deleteSessionHomework.ts
 /**
- * ✅ Session Homework Delete (TEST MODE)
- * - 즉시 삭제 (안전장치 없음)
- * - homeworks list 단일진실은 /homeworks/?session_id= 기준
+ * Session-scoped homework removal.
+ * - Backend archives the homework from active session workflows.
+ * - Existing submission and score history remains preserved.
+ * - Homework list SSOT is /homeworks/?session_id=.
  */
 
 import api from "@/shared/api/axios";

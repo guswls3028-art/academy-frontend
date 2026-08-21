@@ -60,6 +60,7 @@ interface EnrolledStudent {
   studentId?: number;
   studentName: string;
   clinicTarget: ClinicTarget | null;
+  missingExamPending: boolean;
 }
 
 type KPITone = "default" | "success" | "warning" | "error" | "muted";
@@ -156,6 +157,9 @@ export default function SessionClinicTab({
     const map = new Map<number, ClinicTarget>();
     for (const t of allTargets) {
       if (t.session_id === sessionId) {
+        if (t.reason === "missing" && t.source_type === "exam" && t.clinic_link_id == null) {
+          continue;
+        }
         const existing = map.get(t.enrollment_id);
         if (existing) {
           if (existing.clinic_reason !== t.clinic_reason) {
@@ -169,21 +173,36 @@ export default function SessionClinicTab({
     return map;
   }, [allTargets, sessionId]);
 
+  const pendingMissingExamIds = useMemo(() => new Set(
+    allTargets
+      .filter((target) => (
+        target.session_id === sessionId
+        && target.reason === "missing"
+        && target.source_type === "exam"
+        && target.clinic_link_id == null
+      ))
+      .map((target) => target.enrollment_id),
+  ), [allTargets, sessionId]);
+
   const enrolledStudents: EnrolledStudent[] = useMemo(
     () => sessionEnrollments.map((se) => ({
       enrollmentId: se.enrollment,
       studentId: se.student_id,
       studentName: se.student_name,
       clinicTarget: targetsLoading ? null : (sessionTargetMap.get(se.enrollment) ?? null),
+      missingExamPending: !targetsLoading && pendingMissingExamIds.has(se.enrollment),
     })),
-    [sessionEnrollments, sessionTargetMap, targetsLoading],
+    [pendingMissingExamIds, sessionEnrollments, sessionTargetMap, targetsLoading],
   );
 
   const sortStudents = (arr: EnrolledStudent[]) =>
     [...arr].sort((a, b) => {
       const at = a.clinicTarget ? 0 : 1;
       const bt = b.clinicTarget ? 0 : 1;
-      return at !== bt ? at - bt : a.studentName.localeCompare(b.studentName);
+      if (at !== bt) return at - bt;
+      const ap = a.missingExamPending ? 0 : 1;
+      const bp = b.missingExamPending ? 0 : 1;
+      return ap !== bp ? ap - bp : a.studentName.localeCompare(b.studentName);
     });
 
   const sectionGroups: ClinicSectionGroup[] = useMemo(
@@ -210,7 +229,8 @@ export default function SessionClinicTab({
       return cs != null && clinicSections.some((sec) => sec.id === cs);
     }).length;
     const targets = enrolledStudents.filter((s) => s.clinicTarget != null).length;
-    return { total, assigned, unassigned: total - assigned, targets };
+    const pending = enrolledStudents.filter((s) => s.missingExamPending).length;
+    return { total, assigned, unassigned: total - assigned, targets, pending };
   }, [enrolledStudents, enrollClinicMap, clinicSections]);
 
   // 반 편성 모드가 꺼져 있으면 접근 차단 (hooks 뒤에 배치)
@@ -264,6 +284,7 @@ export default function SessionClinicTab({
           <KPICard icon={<UserCheck size={16} />} label="클리닉반 배정" value={stats.assigned} tone="success" />
           <KPICard icon={<UserMinus size={16} />} label="미배정" value={stats.unassigned} tone={stats.unassigned > 0 ? "warning" : "muted"} />
           <KPICard icon={<Stethoscope size={16} />} label="클리닉 대상" value={stats.targets} tone={stats.targets > 0 ? "error" : "muted"} hint={targetsLoading ? "확인 중..." : undefined} />
+          <KPICard icon={<AlertCircle size={16} />} label="미응시 확인" value={stats.pending} tone={stats.pending > 0 ? "warning" : "muted"} hint="면제 또는 후속 처리가 필요합니다" />
         </div>
 
         {/* 섹션별 그룹 */}
@@ -318,6 +339,7 @@ function SectionCard({ group, lectureId, navigate }: {
 }) {
   const { section, clinicSession, students } = group;
   const targetCount = students.filter((s) => s.clinicTarget != null).length;
+  const pendingCount = students.filter((s) => s.missingExamPending).length;
 
   return (
     <div className="clinic-tab__section">
@@ -327,6 +349,7 @@ function SectionCard({ group, lectureId, navigate }: {
           <div className="clinic-tab__section-title">
             <span className="clinic-tab__section-name">클리닉 {section.label}반</span>
             {targetCount > 0 && <span className="clinic-tab__target-badge">대상 {targetCount}명</span>}
+            {pendingCount > 0 && <span className="clinic-tab__pending-badge">미응시 확인 {pendingCount}명</span>}
           </div>
           <div className="clinic-tab__section-meta">
             <span className="clinic-tab__meta-item">
@@ -367,13 +390,15 @@ function SectionCard({ group, lectureId, navigate }: {
 function StudentRow({ student }: { student: EnrolledStudent }) {
   const t = student.clinicTarget;
   const isTarget = t != null;
+  const isPending = student.missingExamPending;
   const reason = t?.clinic_reason ?? "";
 
-  const dotClass = `clinic-tab__dot ${isTarget ? `clinic-tab__dot--${reason === "homework" ? "hw" : reason || "exam"}` : "clinic-tab__dot--ok"}`;
+  const dotClass = `clinic-tab__dot ${isTarget ? `clinic-tab__dot--${reason === "homework" ? "hw" : reason || "exam"}` : isPending ? "clinic-tab__dot--pending" : "clinic-tab__dot--ok"}`;
 
-  const badgeClass = isTarget
-    ? `clinic-tab__badge ${reason === "homework" ? "clinic-tab__badge--hw" : reason === "both" ? "clinic-tab__badge--both" : "clinic-tab__badge--exam"}`
-    : "clinic-tab__badge clinic-tab__badge--ok";
+  const targetBadgeClass = `clinic-tab__badge ${reason === "homework" ? "clinic-tab__badge--hw" : reason === "both" ? "clinic-tab__badge--both" : "clinic-tab__badge--exam"}`;
+  const targetLabel = t?.reason === "missing"
+    ? t.source_type === "homework" ? "과제 미제출" : "시험 미응시"
+    : REASON_LABEL[reason] ?? reason;
 
   return (
     <div className="clinic-tab__row">
@@ -396,9 +421,15 @@ function StudentRow({ student }: { student: EnrolledStudent }) {
             <span className="clinic-tab__score-cut"> / {t.cutline_score}</span>
           </span>
         )}
-        <span className={badgeClass}>
-          {isTarget ? (REASON_LABEL[reason] ?? reason) : "정상"}
-        </span>
+        {isTarget && (
+          <span className={targetBadgeClass}>{targetLabel}</span>
+        )}
+        {isPending && (
+          <span className="clinic-tab__badge clinic-tab__badge--pending">미응시 확인 필요</span>
+        )}
+        {!isTarget && !isPending && (
+          <span className="clinic-tab__badge clinic-tab__badge--ok">정상</span>
+        )}
       </div>
     </div>
   );

@@ -463,6 +463,7 @@ export default function CreateHomeworkModal({
         <button
           type="button"
           onClick={() => { setError(null); setStage("choose"); }}
+          disabled={submitting}
           className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
           aria-label="뒤로"
         >
@@ -478,6 +479,7 @@ export default function CreateHomeworkModal({
       onClose={onClose}
       type="action"
       width={stage === "copy" ? MODAL_WIDTH.wide : stage === "choose" ? MODAL_WIDTH.form : MODAL_WIDTH.default}
+      closeDisabled={submitting}
       onEnterConfirm={
         stage === "new"
           ? (!bulkDisabled ? handleBulkSubmit : undefined)

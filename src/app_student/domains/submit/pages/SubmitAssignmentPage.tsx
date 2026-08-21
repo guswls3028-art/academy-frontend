@@ -9,7 +9,7 @@
  */
 import { useState, useRef, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
 import { useMyGradesSummary } from "@student/domains/grades/hooks/useMyGradesSummary";
@@ -26,11 +26,22 @@ import styles from "./SubmitAssignmentPage.module.css";
 const ACCEPT = "image/*,video/*";
 const MAX_SIZE_MB = 100;
 
+function positiveId(value: string | null): number | null {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function isSupportedSubmissionFile(file: File): boolean {
+  if (file.type.startsWith("image/") || file.type.startsWith("video/")) return true;
+  return /\.(?:avif|gif|heic|heif|jpe?g|png|webp|m4v|mov|mp4|webm)$/i.test(file.name);
+}
+
 type SelectedTarget =
   { type: "homework"; id: number; title: string; enrollmentId: number };
 
 export default function SubmitAssignmentPage() {
   const qc = useQueryClient();
+  const [searchParams] = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuthContext();
   const runTrackedTask = useTrackedTask();
@@ -43,25 +54,32 @@ export default function SubmitAssignmentPage() {
   const gradesQ = useMyGradesSummary({ enabled: !isParent });
   const grades = gradesQ.data;
   const gradesLoading = gradesQ.isLoading;
+  const requestedSessionId = positiveId(searchParams.get("sessionId"));
 
   // 미합격 과제·시험 필터
   const unfinishedHomeworks = useMemo(
     () => (grades?.homeworks ?? []).filter((h) => (
-      h.passed === false
-      || h.achievement === "FAIL"
-      || h.achievement === "NOT_SUBMITTED"
+      (requestedSessionId == null || Number(h.session_id) === requestedSessionId)
+      && (
+        h.passed === false
+        || h.achievement === "FAIL"
+        || h.achievement === "NOT_SUBMITTED"
+      )
     )),
-    [grades?.homeworks],
+    [grades?.homeworks, requestedSessionId],
   );
   const unfinishedExams = useMemo(
     () => (grades?.exams ?? []).filter((e) => (
-      e.is_pass === false
-      || e.achievement === "FAIL"
-      || e.achievement === "NOT_SUBMITTED"
-      || e.meta_status === "NOT_SUBMITTED"
-      || e.total_score == null
+      (requestedSessionId == null || Number(e.session_id) === requestedSessionId)
+      && (
+        e.is_pass === false
+        || e.achievement === "FAIL"
+        || e.achievement === "NOT_SUBMITTED"
+        || e.meta_status === "NOT_SUBMITTED"
+        || e.total_score == null
+      )
     )),
-    [grades?.exams],
+    [grades?.exams, requestedSessionId],
   );
 
   const uploadMut = useMutation({
@@ -93,6 +111,7 @@ export default function SubmitAssignmentPage() {
       return res.data;
     },
     onSuccess: () => {
+      setSelected(null);
       setSelectedFile(null);
       setError(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -121,16 +140,41 @@ export default function SubmitAssignmentPage() {
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     setError(null);
+    uploadMut.reset();
     if (!file) { setSelectedFile(null); return; }
+    if (!isSupportedSubmissionFile(file)) {
+      setError("사진 또는 동영상 파일만 제출할 수 있습니다.");
+      setSelectedFile(null);
+      e.target.value = "";
+      return;
+    }
     if (file.size > MAX_SIZE_MB * 1024 * 1024) {
       setError(`파일 크기는 ${MAX_SIZE_MB}MB 이하여야 합니다.`);
       setSelectedFile(null);
+      e.target.value = "";
       return;
     }
     setSelectedFile(file);
   };
 
   const canSubmit = !!selected && !!selectedFile && !uploadMut.isPending && !gradesQ.isError;
+
+  const selectHomework = (homework: MyHomeworkGradeSummary) => {
+    const next = {
+      type: "homework" as const,
+      id: homework.homework_id,
+      title: homework.title,
+      enrollmentId: homework.enrollment_id,
+    };
+    const targetChanged = selected?.id !== next.id || selected?.enrollmentId !== next.enrollmentId;
+    setSelected(next);
+    setError(null);
+    uploadMut.reset();
+    if (targetChanged) {
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   if (isParent) {
     return (
@@ -158,6 +202,17 @@ export default function SubmitAssignmentPage() {
         {(uploadMut.isError || error) && (
           <div role="alert" className={styles.errorMessage}>
             {error || (uploadMut.error instanceof Error ? uploadMut.error.message : "제출에 실패했습니다.")}
+          </div>
+        )}
+        {requestedSessionId != null && (
+          <div className={styles.scopeNotice} role="status">
+            <div>
+              <strong>현재 차시의 제출 항목만 표시합니다</strong>
+              <span>다른 수업의 파일을 잘못 제출하지 않도록 범위를 고정했습니다.</span>
+            </div>
+            <Link to="/student/submit/assignment" className={styles.scopeLink}>
+              전체 미완료 보기
+            </Link>
           </div>
         )}
         {uploadMut.isSuccess && (
@@ -190,7 +245,9 @@ export default function SubmitAssignmentPage() {
 
           {!gradesLoading && !gradesQ.isError && unfinishedHomeworks.length === 0 && unfinishedExams.length === 0 && (
             <div className={styles.emptyTarget}>
-              제출할 미완료 과제·시험이 없습니다.
+              {requestedSessionId == null
+                ? "제출할 미완료 과제·시험이 없습니다."
+                : "이 차시에 제출할 미완료 과제·시험이 없습니다."}
             </div>
           )}
 
@@ -202,7 +259,8 @@ export default function SubmitAssignmentPage() {
                 <button
                   key={`hw-${h.homework_id}`}
                   type="button"
-                  onClick={() => setSelected({ type: "homework", id: h.homework_id, title: h.title, enrollmentId: h.enrollment_id })}
+                  onClick={() => selectHomework(h)}
+                  disabled={uploadMut.isPending}
                   className={styles.targetItem}
                   data-selected={isSelected}
                 >
@@ -231,6 +289,11 @@ export default function SubmitAssignmentPage() {
                   key={`ex-${e.exam_id}`}
                   to={`/student/exams/${e.exam_id}/submit`}
                   className={styles.targetItem}
+                  aria-disabled={uploadMut.isPending}
+                  tabIndex={uploadMut.isPending ? -1 : undefined}
+                  onClick={(event) => {
+                    if (uploadMut.isPending) event.preventDefault();
+                  }}
                 >
                   <span className={styles.targetIcon}>
                     <IconExam className={styles.targetIconSvg} />
@@ -271,6 +334,7 @@ export default function SubmitAssignmentPage() {
               type="button"
               className={`stu-btn stu-btn--secondary ${styles.fileButton}`}
               onClick={() => fileInputRef.current?.click()}
+              disabled={uploadMut.isPending}
             >
               파일 선택 (동영상·사진, 최대 {MAX_SIZE_MB}MB)
             </button>
@@ -288,7 +352,13 @@ export default function SubmitAssignmentPage() {
                 <button
                   type="button"
                   className="stu-btn stu-btn--ghost stu-btn--sm"
-                  onClick={() => { setSelectedFile(null); setError(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                  onClick={() => {
+                    setSelectedFile(null);
+                    setError(null);
+                    uploadMut.reset();
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                  }}
+                  disabled={uploadMut.isPending}
                 >
                   삭제
                 </button>
