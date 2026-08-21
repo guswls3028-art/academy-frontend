@@ -746,7 +746,7 @@ test("반별 레인에서도 전체 보기와 정규·보강 분리 보기가 �
 
 test("보기 필터와 보강 이름은 1366·1100·390px에서 접근 가능하다", async ({ page }) => {
   const state: MockState = {
-    supplementTitle: "토요일 심화 클리닉",
+    supplementTitle: "보강 (17:00~19:00)",
     patchTitles: [],
   };
 
@@ -757,7 +757,7 @@ test("보기 필터와 보강 이름은 1366·1100·390px에서 접근 가능하
   ]) {
     await page.setViewportSize(viewport);
     await openLecture(page, state);
-    const supplementCard = page.getByRole("button", { name: /토요일 심화 클리닉/ });
+    const supplementCard = page.getByRole("button", { name: /보강 \(17:00~19:00\)/ });
     await expect(supplementCard).toBeVisible();
     if (viewport.width === 390) {
       const clippedText = await supplementCard.evaluate((element) => (
@@ -768,7 +768,7 @@ test("보기 필터와 보강 이름은 1366·1100·390px에서 접근 가능하
     }
     await page.getByRole("button", { name: "정규·보강 나눠 보기", exact: true }).click();
     await page.getByRole("tab", { name: /^보강/ }).click();
-    await expect(page.getByRole("button", { name: /토요일 심화 클리닉/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /보강 \(17:00~19:00\)/ })).toBeVisible();
   }
 });
 
