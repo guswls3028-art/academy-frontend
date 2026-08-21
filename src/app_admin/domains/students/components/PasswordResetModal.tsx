@@ -22,6 +22,7 @@ type PasswordResetModalProps = {
   onSuccess: () => void;
   resetting: boolean;
   setResetting: (v: boolean) => void;
+  purpose?: "bulk_reset" | "account_notice";
 };
 
 function normalizePhone(v: string | null | undefined): string {
@@ -59,6 +60,7 @@ export default function PasswordResetModal({
   onSuccess,
   resetting,
   setResetting,
+  purpose = "bulk_reset",
 }: PasswordResetModalProps) {
   const [tempPassword, setTempPassword] = useState("");
 
@@ -141,8 +143,10 @@ export default function PasswordResetModal({
   return (
     <AdminModal open={open} onClose={onClose} width={MODAL_WIDTH.sm}>
       <ModalHeader
-        title="비밀번호 일괄 변경"
-        description={`선택한 ${selectedStudents.length}명의 비밀번호를 변경합니다.`}
+        title={purpose === "account_notice" ? "계정정보 알림톡 다시 보내기" : "비밀번호 일괄 변경"}
+        description={purpose === "account_notice"
+          ? "현재 비밀번호는 조회할 수 없어 새 임시 비밀번호를 발급한 뒤 학생·학부모에게 알림톡으로 안내합니다."
+          : `선택한 ${selectedStudents.length}명의 비밀번호를 변경합니다.`}
       />
       <ModalBody>
         <div className="space-y-4">
@@ -211,7 +215,7 @@ export default function PasswordResetModal({
               disabled={resetting || selectedStudents.length === 0}
               loading={resetting}
             >
-              {resetting ? "변경 중…" : "비밀번호 변경"}
+              {resetting ? "발송 준비 중…" : purpose === "account_notice" ? "계정정보 발송" : "비밀번호 변경"}
             </Button>
           </>
         }

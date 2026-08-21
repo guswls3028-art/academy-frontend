@@ -17,6 +17,7 @@ type ExplanationVariant = "reconstructed" | "source_attachment";
 type DraftItem = SegmentationReviewItem & {
   numberInput: string;
   explanationVariant: ExplanationVariant;
+  includeExplanationText: boolean;
 };
 
 function ProblemCropPreview({
@@ -105,6 +106,7 @@ export default function ExamSegmentationReview({
         ...item,
         numberInput: String(item.number),
         explanationVariant: "reconstructed",
+        includeExplanationText: !item.explanation_text_requires_review,
       })),
     );
   }, [review.data]);
@@ -136,6 +138,7 @@ export default function ExamSegmentationReview({
             ? item.problem_crop_ratio
             : undefined,
           explanation_variant: item.explanationVariant,
+          include_explanation_text: item.includeExplanationText,
         })),
       ),
     onSuccess: async (result) => {
@@ -182,7 +185,7 @@ export default function ExamSegmentationReview({
           <h3 id="segmentation-review-title">문항·해설 맞춤 확인</h3>
           <p>
             왼쪽 문제와 오른쪽 선생님 해설이 같은 번호인지 확인해 주세요.
-            원본 해설의 내용은 바꾸지 않습니다.
+            시스템이 새 풀이를 쓰는 것이 아니라 업로드 원본을 자동 인식해 연결하며, 원본 해설의 내용은 바꾸지 않습니다.
           </p>
         </div>
         <div className={styles.counts} aria-label="검수 현황">
@@ -296,7 +299,19 @@ export default function ExamSegmentationReview({
                   loading="lazy"
                 />
               ) : item.explanation_text ? (
-                <p>{item.explanation_text}</p>
+                <div className={styles.ocrText}>
+                  <Badge tone="warning" size="sm">원본 자동 인식 · 검수 필요</Badge>
+                  <p>{item.explanation_text}</p>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={item.includeExplanationText}
+                      disabled={!item.included || approve.isPending}
+                      onChange={(event) => update(item.id, { includeExplanationText: event.target.checked })}
+                    />
+                    이 텍스트가 원본과 같을 때만 해설로 저장
+                  </label>
+                </div>
               ) : (
                 <div className={styles.missing}>연결된 해설 없음</div>
               )}

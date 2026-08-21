@@ -141,3 +141,11 @@
     text-align: right;
   }
 }
+.endedHistory { margin-top: 16px; overflow: hidden; border: 1px solid var(--stu-border-subtle); border-radius: 16px; background: var(--stu-surface); }
+.endedHistory > summary { display: flex; min-height: 60px; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 15px; cursor: pointer; list-style: none; }
+.endedHistory > summary::-webkit-details-marker { display: none; }
+.endedHistory > summary > span { display: grid; gap: 3px; }
+.endedHistory > summary strong { color: var(--stu-text); font-size: 13px; }
+.endedHistory > summary small { color: var(--stu-text-muted); font-size: 10px; }
+.endedHistory > summary b { padding: 4px 8px; border-radius: 999px; background: var(--stu-surface-soft); color: var(--stu-text-muted); font-size: 11px; }
+.endedHistory > div { padding: 0 12px 12px; }

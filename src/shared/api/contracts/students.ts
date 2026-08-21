@@ -18,6 +18,7 @@ export interface ClientEnrollmentLite {
   lectureName: string | null;
   lectureColor: string | null;
   lectureChipLabel: string | null;
+  lectureActive: boolean;
   status: "ACTIVE" | "INACTIVE" | "PENDING" | null;
   enrolledAt: string | null;
 }
@@ -333,6 +334,7 @@ export function mapStudent(raw: unknown): ClientStudent {
         lectureName: nullableStr(enrollment.lecture_name),
         lectureColor: nullableStr(enrollment.lecture_color) ?? "#3b82f6",
         lectureChipLabel: nullableStr(enrollment.lecture_chip_label),
+        lectureActive: enrollment.lecture_active !== false,
         status: normalizeEnrollmentStatus(enrollment.status),
         enrolledAt: nullableStr(enrollment.enrolled_at),
       };

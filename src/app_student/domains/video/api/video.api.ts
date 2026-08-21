@@ -28,9 +28,19 @@ export type StudentVideoMePublic = {
   thumbnail_url?: string | null;
 } | null;
 
+export type StudentVideoArchivedLecture = {
+  id: number;
+  title: string;
+  video_count: number;
+  completed_count: number;
+  watch_duration: number;
+  play_count: number;
+};
+
 export type StudentVideoMeResponse = {
   public: StudentVideoMePublic;
   lectures: StudentVideoMeLecture[];
+  archived_lectures: StudentVideoArchivedLecture[];
 };
 
 function normalizeStudentVideoSession(session: StudentVideoMeSession): StudentVideoMeSession {
@@ -57,6 +67,12 @@ export async function fetchVideoMe(): Promise<StudentVideoMeResponse> {
     public: d?.public ?? null,
     lectures: Array.isArray(d?.lectures)
       ? d.lectures.map(normalizeStudentVideoLecture)
+      : [],
+    archived_lectures: Array.isArray(d?.archived_lectures)
+      ? d.archived_lectures.map((lecture) => ({
+          ...lecture,
+          title: richHtmlToPlainText(lecture.title),
+        }))
       : [],
   };
 }

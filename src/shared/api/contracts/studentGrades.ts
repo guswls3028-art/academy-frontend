@@ -29,6 +29,7 @@ export type StudentExamGrade = {
   submitted_at?: string | null;
   recorded_at?: string | null;
   archived?: boolean;
+  lecture_active?: boolean;
 };
 
 export type StudentHomeworkGrade = {
@@ -55,6 +56,7 @@ export type StudentHomeworkGrade = {
   lecture_title?: string | null;
   lecture_color?: string | null;
   lecture_chip_label?: string | null;
+  lecture_active?: boolean;
 };
 
 export type StudentExamTrendPoint = {
@@ -97,6 +99,7 @@ export type StudentScoreLectureOption = {
   title: string;
   color: string | null;
   chip_label: string | null;
+  is_active?: boolean;
 };
 
 export type StudentGradesResponse = {

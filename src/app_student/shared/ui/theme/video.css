@@ -156,6 +156,24 @@
   gap: var(--stu-space-4);
 }
 
+.video-archive { overflow: hidden; border: 1px solid var(--stu-border-subtle); border-radius: 18px; background: var(--stu-surface, #fff); }
+.video-archive > summary { display: flex; min-height: 66px; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 17px; cursor: pointer; list-style: none; }
+.video-archive > summary::-webkit-details-marker { display: none; }
+.video-archive > summary > span { display: grid; gap: 3px; }
+.video-archive > summary strong { color: var(--stu-text); font-size: 14px; }
+.video-archive > summary small { color: var(--stu-text-muted); font-size: 11px; font-weight: 500; }
+.video-archive > summary b { min-width: 28px; padding: 4px 8px; border-radius: 999px; background: var(--stu-surface-soft); color: var(--stu-text-muted); font-size: 12px; text-align: center; }
+.video-archive__list { display: grid; padding: 0 14px 14px; }
+.video-archive__list article { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 14px 3px; border-top: 1px solid var(--stu-border-subtle); }
+.video-archive__list article > div { display: grid; gap: 5px; min-width: 0; }
+.video-archive__list article strong { overflow: hidden; color: var(--stu-text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.video-archive__list article span { color: var(--stu-text-muted); font-size: 10px; }
+.video-archive__list dl { display: flex; gap: 13px; margin: 0; }
+.video-archive__list dl > div { display: grid; gap: 3px; text-align: right; }
+.video-archive__list dt { color: var(--stu-text-muted); font-size: 9px; }
+.video-archive__list dd { margin: 0; color: var(--stu-text-muted); font-size: 11px; font-weight: 700; }
+@media (max-width: 430px) { .video-archive__list article { grid-template-columns: minmax(0, 1fr); } .video-archive__list dl { justify-content: flex-start; } .video-archive__list dl > div { text-align: left; } }
+
 .video-lecture-notice {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
