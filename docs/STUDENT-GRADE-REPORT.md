@@ -31,6 +31,14 @@
 - 만점이라 별도 확인이 필요 없거나 시험의 차시를 안전하게 하나로 확정할 수 없으면
   완료/미완료 배지를 표시하지 않는다.
 - 교사가 완료한 뒤 실제 점수나 답안이 바뀌면 서버가 다시 미완료로 판정한다.
+- 시험 원점수가 합격 기준보다 낮아도 교사가 현장 해결을 확인한 최종 상태는 원점수를
+  그대로 표시하면서 `보강/교사 통과` 완료로 읽고 재시험 필요·미통과 통계에서 제외한다.
+- 과제는 점수·제출 여부와 독립적인 `teacher_resolved`를 읽는다. 점수 없는 미제출
+  과제도 교사가 완료한 경우 원래 `–/만점` 표기를 유지하면서 초록색 **교사 확인 완료**
+  배지를 표시하고, `확인 필요`/재제출 대상/미통과 대시보드에서는 제외한다. 교사가
+  해제하면 현재 점수·제출 상태가 다시 보인다.
+- 교사 사유·완료 시각은 학생·학부모에게 노출하지 않는다. 학부모는 선택한 자녀의
+  같은 `/student/grades/` 응답을 사용하므로 다른 자녀 상태를 추정하거나 합치지 않는다.
 - **추이 분석**은 `report_layout.sections`의 순서와 `visible` 값을 따른다. 응답이 없거나
   오래된 형식이면 기존과 같은 전체 표시 기본값을 사용한다.
 - 시험 설정에서 학생 성적이 비공개인 시험은 카드·추이·분석에 포함하지 않는다. 시험
@@ -92,12 +100,15 @@ YMath의 초기 구성은 `score_trend`, `score_comparison`, `lecture_average`�
 - 설정 계약: `src/shared/api/contracts/studentGradeReportLayout.ts`
 - 구성 편집기: `src/shared/ui/assessment/StudentGradeReportLayoutEditor.tsx`
 - 학생 목록 상태: `src/app_student/domains/grades/components/LectureExamGroup.tsx`
+- 학생 과제 상태: `src/app_student/domains/grades/components/LectureHwGroup.tsx`
+- 제출 대상 제외: `src/app_student/domains/submit/pages/SubmitAssignmentPage.tsx`
 - 학생 목록 필터: `src/app_student/domains/grades/components/GradesHomeTab.tsx`
 - 학생 시험 상세 상태: `src/app_student/domains/exams/pages/ExamResultPage.tsx`
 - 성장 그래프 조립: `src/app_student/domains/grades/components/GradesStatsTab.tsx`
 - 회귀 검증:
   - `e2e/teacher/student-grade-report-layout.spec.ts`
   - `e2e/student/student-score-trend.spec.ts`
+  - `e2e/student/assignment-session-scope.mock.spec.ts`
 
 두 E2E는 390px에서 저장 payload, 미리보기 순서, 숨김 반영, 학생 카드 상태,
 학부모 자녀 전환, 분석 장애 독립성과 가로 overflow 부재를 확인한다.

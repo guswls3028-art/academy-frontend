@@ -266,11 +266,22 @@ export default function DashboardPage() {
 
   /* ─── 오늘 할 일 항목 빌드 ─── */
   const failedExams = useMemo(
-    () => (grades?.exams ?? []).filter((e) => e.is_pass === false),
+    () => (grades?.exams ?? []).filter((e) => (
+      e.achievement === "FAIL"
+      || e.achievement === "NOT_SUBMITTED"
+      || (e.achievement == null && e.is_pass === false)
+    )),
     [grades?.exams],
   );
   const failedHomeworks = useMemo(
-    () => (grades?.homeworks ?? []).filter((h) => h.passed === false),
+    () => (grades?.homeworks ?? []).filter((h) => (
+      h.teacher_resolved !== true
+      && (
+        h.achievement === "FAIL"
+        || h.achievement === "NOT_SUBMITTED"
+        || (h.achievement == null && h.passed === false)
+      )
+    )),
     [grades?.homeworks],
   );
 
@@ -890,12 +901,21 @@ function LearningStatusCard({
 
   /* 과제 통과율 */
   const hwCount = grades?.homeworks?.length ?? 0;
-  const passedHw = grades?.homeworks?.filter((h) => h.passed === true).length ?? 0;
+  const passedHw = grades?.homeworks?.filter((h) => (
+    h.teacher_resolved === true
+    || h.achievement === "PASS"
+    || h.achievement === "REMEDIATED"
+    || h.passed === true
+  )).length ?? 0;
   const hwRate = hwCount > 0 ? Math.round((passedHw / hwCount) * 100) : null;
 
   /* 시험 합격률 (점수 평균 대신 합격/총합 비율) */
   const examTotal = grades?.exams?.filter((e) => e.is_pass != null).length ?? 0;
-  const examPassed = grades?.exams?.filter((e) => e.is_pass === true).length ?? 0;
+  const examPassed = grades?.exams?.filter((e) => (
+    e.achievement === "PASS"
+    || e.achievement === "REMEDIATED"
+    || (e.achievement == null && e.is_pass === true)
+  )).length ?? 0;
   const examRate = examTotal > 0 ? Math.round((examPassed / examTotal) * 100) : null;
 
   const hasData = recentSessionCount > 0 || hwCount > 0 || examTotal > 0;

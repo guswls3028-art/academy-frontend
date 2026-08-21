@@ -75,7 +75,8 @@ function groupHomeworks(homeworks: MyHomeworkGradeSummary[]): HwGroup[] {
 }
 
 function isHomeworkDone(homework: MyHomeworkGradeSummary): boolean {
-  return homework.achievement === "PASS"
+  return homework.teacher_resolved === true
+    || homework.achievement === "PASS"
     || homework.achievement === "REMEDIATED"
     || homework.passed === true;
 }

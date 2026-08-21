@@ -60,6 +60,7 @@ export default function SubmitAssignmentPage() {
   const unfinishedHomeworks = useMemo(
     () => (grades?.homeworks ?? []).filter((h) => (
       (requestedSessionId == null || Number(h.session_id) === requestedSessionId)
+      && h.teacher_resolved !== true
       && (
         h.passed === false
         || h.achievement === "FAIL"
@@ -71,6 +72,7 @@ export default function SubmitAssignmentPage() {
   const unfinishedExams = useMemo(
     () => (grades?.exams ?? []).filter((e) => (
       (requestedSessionId == null || Number(e.session_id) === requestedSessionId)
+      && e.achievement !== "REMEDIATED"
       && (
         e.is_pass === false
         || e.achievement === "FAIL"

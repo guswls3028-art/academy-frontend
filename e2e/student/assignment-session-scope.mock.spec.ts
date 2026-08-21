@@ -127,6 +127,20 @@ async function installApi(page: Page) {
             session_title: "4차시",
             lecture_title: "고1 수학",
           },
+          {
+            homework_id: 504,
+            enrollment_id: 401,
+            session_id: SESSION_ID,
+            title: "수업 중 교사 확인 과제",
+            score: null,
+            max_score: 100,
+            passed: false,
+            achievement: "REMEDIATED",
+            teacher_resolved: true,
+            grading_mode: "SCORE",
+            session_title: "3차시",
+            lecture_title: "고1 수학",
+          },
         ],
         exam_trend: [],
         exam_summary: {
@@ -168,6 +182,7 @@ test("차시 제출 링크는 다른 차시를 숨기고 대상 전환·성공 �
   await expect(page.getByText("현재 차시 단원평가", { exact: true })).toBeVisible();
   await expect(page.getByText("다른 차시 과제", { exact: true })).toHaveCount(0);
   await expect(page.getByText("다른 차시 단원평가", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("수업 중 교사 확인 과제", { exact: true })).toHaveCount(0);
 
   await page.getByText("현재 차시 필수 과제", { exact: true }).click();
   const fileInput = page.locator('input[type="file"]');
@@ -203,5 +218,25 @@ test("차시 제출 링크는 다른 차시를 숨기고 대상 전환·성공 �
   expect(api.getSubmissionCount()).toBe(1);
   await page.getByText("현재 차시 추가 과제", { exact: true }).click();
   await expect(page.locator('[class*="successMessage"]')).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+});
+
+test("교사 완료 과제는 원점수 없이도 완료로 표시되고 재제출 대상에서 제외된다", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installApi(page);
+  await page.goto(`${BASE}/student/grades`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+
+  await page.getByRole("button", { name: /과제 현황/ }).click();
+  const card = page.locator('[class*="homeworkCard"]').filter({
+    hasText: "수업 중 교사 확인 과제",
+  });
+  await expect(card).toBeVisible();
+  await expect(card).toContainText("–/100");
+  await expect(card).toContainText("교사 확인 완료");
+  await expect(page.getByRole("button", { name: /완료/ })).toContainText("1");
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 });

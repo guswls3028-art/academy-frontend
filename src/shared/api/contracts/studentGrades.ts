@@ -11,6 +11,8 @@ export type StudentExamGrade = {
   max_score: number | null;
   is_pass?: boolean | null;
   achievement?: StudentAchievement | null;
+  /** 원점수·제출 여부와 독립적인 교사 완료 확인. */
+  teacher_resolved?: boolean;
   meta_status?: string | null;
   remediated?: boolean | null;
   final_pass?: boolean | null;
@@ -44,6 +46,8 @@ export type StudentHomeworkGrade = {
   score_updated_at?: string | null;
   meta_status?: string | null;
   achievement?: StudentAchievement | null;
+  /** 원점수·제출 여부와 독립적인 교사 완료 확인. */
+  teacher_resolved?: boolean;
   retake_count?: number | null;
   display_order?: number;
   session_id?: number | null;

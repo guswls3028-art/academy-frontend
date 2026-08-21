@@ -24,6 +24,8 @@ export type MyExamGradeSummary = {
   max_score: number;
   is_pass: boolean | null;  // null = 합격 기준 미설정 또는 미응시
   achievement?: Achievement | null;
+  /** 원점수·제출 여부와 독립적으로 교사가 현장 확인을 완료한 상태. */
+  teacher_resolved?: boolean;
   meta_status?: string | null;  // "NOT_SUBMITTED" = 미응시
   retake_count?: number;
   session_title: string | null;
@@ -51,6 +53,8 @@ export type MyHomeworkGradeSummary = {
   passed: boolean | null;
   meta_status?: string | null;
   achievement?: Achievement | null;
+  /** 원점수·제출 여부와 독립적으로 교사가 현장 확인을 완료한 상태. */
+  teacher_resolved?: boolean;
   retake_count?: number;
   grading_mode?: "SCORE" | "COMPLETION";
   display_order?: number;
