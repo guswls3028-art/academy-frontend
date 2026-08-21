@@ -31,6 +31,11 @@
 일반화된 새로고침 안내만 남긴다. route-critical CSS는 외부 Google Fonts 같은
 CSP 차단 의존성을 두지 않는다.
 
+운영 build에서는 `ErrorBoundary`가 이 복구를 직접 소유한다. 개발자용
+`DevErrorBoundary`는 `import.meta.env.DEV`에서만 감싸며, 운영 오류를 먼저 잡아
+일반 reload 화면으로 바꾸면 안 된다. 그래야 배포 직후 stale shell의 chunk 오류가
+cache-bust 재요청과 최신 자산 전파 확인 경로까지 도달한다.
+
 Cloudflare Git production auto-deploy는 direct-upload workflow와 경쟁하면 안
 된다. workflow는 project source 설정과 reserved production branch 부재를
 readback하며, drift이면 upload 전에 실패한다.

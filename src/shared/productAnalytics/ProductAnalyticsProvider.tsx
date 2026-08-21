@@ -3,6 +3,7 @@ import { useLocation } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
 import { useProgram } from "@/shared/program";
 import { trackProductUsage } from "./client";
+import { recordStudentScreenView } from "@/shared/studentSupport/studentSupport.api";
 import { ProductAnalyticsContext } from "./context";
 import { resolveProductRoute } from "./routeRegistry";
 import type { ProductRoute } from "./types";
@@ -67,6 +68,11 @@ export default function ProductAnalyticsProvider({
     && program?.feature_flags?.product_usage_analytics_enabled === true,
   );
   const [viewId, setViewId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user?.tenantRole !== "student" || route?.surface !== "student") return;
+    void recordStudentScreenView(location.pathname);
+  }, [location.pathname, route?.surface, user?.tenantRole]);
 
   useEffect(() => {
     if (!enabled || !route) {

@@ -15,6 +15,11 @@ import {
   removeSessionItem,
   setSessionItem,
 } from "@/shared/utils/safeSessionStorage";
+import {
+  endStudentSupportSession,
+  getStudentSupportAccessToken,
+  isStudentSupportWindow,
+} from "@/shared/auth/supportPreviewSession";
 
 type RetryConfig = AxiosRequestConfig & {
   _retry?: boolean;
@@ -30,7 +35,8 @@ type HeaderSeed = AxiosHeaders | Record<string, AxiosHeaderValue> | string | und
 
 const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "").trim();
 
-function getAccessToken(): string | null {
+export function getAccessToken(): string | null {
+  if (isStudentSupportWindow()) return getStudentSupportAccessToken();
   try {
     const t = localStorage.getItem("access");
     return t ? t : null;
@@ -40,6 +46,7 @@ function getAccessToken(): string | null {
 }
 
 function getRefreshToken(): string | null {
+  if (isStudentSupportWindow()) return null;
   try {
     const t = localStorage.getItem("refresh");
     return t ? t : null;
@@ -58,6 +65,14 @@ function setAccessToken(token: string) {
 
 /** 토큰 정리 SSOT — 모든 로그아웃/세션만료 경로에서 이 함수를 사용 */
 export function clearTokens() {
+  if (isStudentSupportWindow()) {
+    endStudentSupportSession();
+    removeSessionItem("session_expired");
+    removeSessionItem("session_return_path");
+    removeSessionItem("product_analytics_session_id");
+    window.dispatchEvent(new Event("product-analytics-session-reset"));
+    return;
+  }
   try {
     localStorage.removeItem("access");
     localStorage.removeItem("refresh");
@@ -82,6 +97,7 @@ export function clearTokens() {
 
 /** 세션 만료 시 현재 경로를 저장하여 재로그인 후 복귀할 수 있게 한다 */
 export function saveReturnPath() {
+  if (isStudentSupportWindow()) return;
   try {
     const path = window.location.pathname + window.location.search + window.location.hash;
     // /login 자체이거나 빈 경로는 저장하지 않음
@@ -505,7 +521,13 @@ api.interceptors.response.use(
       flushRefreshQueue(newAccess);
 
       if (!newAccess) {
+        const supportWindow = isStudentSupportWindow();
         clearTokens();
+        if (supportWindow) {
+          window.location.href = "/support-preview-ended";
+          completeAsyncError();
+          throw err;
+        }
         // 세션 만료: 즉시 로그인 페이지로 이동 (중복 방지)
         if (!isSessionEnding) {
           markSessionEnding();

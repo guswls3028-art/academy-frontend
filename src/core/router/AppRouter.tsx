@@ -25,6 +25,7 @@ import useAuth from "@/auth/hooks/useAuth";
 import { useProgram } from "@/shared/program";
 import { resolveTenantCode } from "@/shared/tenant";
 import AuthUnavailableState from "@/auth/components/AuthUnavailableState";
+import SupportPreviewEndedPage from "@/auth/pages/SupportPreviewEndedPage";
 import {
   resolveDeveloperConsoleDestination,
   resolveRootDestination,
@@ -164,6 +165,7 @@ export default function AppRouter() {
       <Route path="/login/*" element={<AuthRouter />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/support-preview-ended" element={<SupportPreviewEndedPage />} />
       <Route element={<PromoGuard />}>
         <Route
           path="/promo/*"

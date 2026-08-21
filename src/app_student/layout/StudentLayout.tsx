@@ -29,6 +29,11 @@ import { useFavicon } from "@/shared/hooks/useFavicon";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { GuideTourProvider, GuideTourOverlay } from "@/shared/ui/guide";
 import { useStudentPwa } from "@student/shared/hooks/useStudentPwa";
+import {
+  closeStudentSupportWindow,
+  getStudentSupportSessionInfo,
+  isStudentSupportWindow,
+} from "@/shared/auth/supportPreviewSession";
 
 /** 2번(박철과학) 전용 테마 */
 const TCHUL_THEME_TENANTS = ["tchul"];
@@ -79,6 +84,7 @@ function StudentLayoutInner() {
   const useHakwonplusTheme = tenantCode != null && HAKWONPLUS_THEME_TENANTS.includes(String(tenantCode));
   const useCommonTheme = tenantCode != null && COMMON_THEME_TENANTS.includes(String(tenantCode));
   const { user } = useAuthContext();
+  const supportInfo = isStudentSupportWindow() ? getStudentSupportSessionInfo() : null;
   const queryClient = useQueryClient();
 
   const [parentSelectionReady, setParentSelectionReady] = useState(false);
@@ -192,6 +198,15 @@ function StudentLayoutInner() {
         </svg>
       )}
       <header className="student-layout__header">
+        {supportInfo && (
+          <div className="student-layout__support-banner" role="status">
+            <div>
+              <strong>교직원 대리보기</strong>
+              <span>{supportInfo.studentName} 학생 화면 · 학생 로그인 기록과 분리됨</span>
+            </div>
+            <button type="button" onClick={closeStudentSupportWindow}>보기 종료</button>
+          </div>
+        )}
         {parentSelectionReady && (
           <>
             <StudentTopBar tenantCode={tenantCode} onMenuClick={openDrawer} />
