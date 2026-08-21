@@ -233,6 +233,7 @@
 
 .supplementCard :global(.session-block__title) {
   display: -webkit-box;
+  flex-shrink: 0;
   max-width: 100%;
   overflow: hidden;
   font-size: 14px;
@@ -241,6 +242,10 @@
   word-break: keep-all;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+.supplementCard :global(.session-block__desc) {
+  flex-shrink: 0;
 }
 
 .loadingText {
@@ -489,5 +494,6 @@
 
   .supplementCard {
     width: 148px;
+    padding-block: 6px;
   }
 }

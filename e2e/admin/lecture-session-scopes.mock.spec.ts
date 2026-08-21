@@ -757,7 +757,15 @@ test("보기 필터와 보강 이름은 1366·1100·390px에서 접근 가능하
   ]) {
     await page.setViewportSize(viewport);
     await openLecture(page, state);
-    await expect(page.getByRole("button", { name: /토요일 심화 클리닉/ })).toBeVisible();
+    const supplementCard = page.getByRole("button", { name: /토요일 심화 클리닉/ });
+    await expect(supplementCard).toBeVisible();
+    if (viewport.width === 390) {
+      const clippedText = await supplementCard.evaluate((element) => (
+        Array.from(element.querySelectorAll(".session-block__title, .session-block__desc"))
+          .some((child) => child.scrollHeight > child.clientHeight)
+      ));
+      expect(clippedText).toBe(false);
+    }
     await page.getByRole("button", { name: "정규·보강 나눠 보기", exact: true }).click();
     await page.getByRole("tab", { name: /^보강/ }).click();
     await expect(page.getByRole("button", { name: /토요일 심화 클리닉/ })).toBeVisible();
