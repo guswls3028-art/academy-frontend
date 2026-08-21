@@ -29,7 +29,7 @@ import type { TableColumnDef } from "@/shared/ui/domain";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
 import AttendanceStatusBadge, { type AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge";
-import { ATTENDANCE_STATUS_META, ORDERED_ATTENDANCE_STATUS } from "@/shared/ui/badges/attendanceStatus";
+import { ORDERED_ATTENDANCE_STATUS } from "@/shared/ui/badges/attendanceStatus";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -53,6 +53,7 @@ import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPrev
 import { arrivalOverviewQueryKey } from "@/shared/api/contracts/arrivalOverview";
 import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
 import ArrivalPlanCell, { type ArrivalPlanPayload } from "./ArrivalPlanCell";
+import AttendanceStatusInlineRail from "./AttendanceStatusInlineRail";
 import "./attendance-ui.css";
 
 const STATUS_LIST = ORDERED_ATTENDANCE_STATUS;
@@ -929,33 +930,12 @@ export default function SessionAttendancePage({
                           <AttendanceStatusBadge status={toAttendanceStatus(att.status)} variant="2ch" selected />
                         </button>
                       ) : (
-                        <div
-                          className="attendance-status-inline"
-                          role="group"
-                          aria-label={`${att.name ?? ""} 출결 빠른 선택`}
-                          aria-busy={pendingStatusIds.has(att.id)}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          {STATUS_LIST.map((code) => {
-                            const active = toAttendanceStatus(att.status) === code;
-                            const label = ATTENDANCE_STATUS_META[code].label;
-                            return (
-                              <button
-                                key={code}
-                                type="button"
-                                className="attendance-status-inline__option"
-                                data-active={active ? "true" : "false"}
-                                aria-pressed={active}
-                                aria-label={`${att.name ?? "학생"} ${label} 상태로 변경`}
-                                title={active ? `현재 ${label}` : `${label} 상태로 변경`}
-                                disabled={pendingStatusIds.has(att.id)}
-                                onClick={() => void handleStatusChange(att, code)}
-                              >
-                                <AttendanceStatusBadge status={code} variant="2ch" selected={active} />
-                              </button>
-                            );
-                          })}
-                        </div>
+                        <AttendanceStatusInlineRail
+                          studentName={att.name ?? "학생"}
+                          value={toAttendanceStatus(att.status)}
+                          pending={pendingStatusIds.has(att.id)}
+                          onChange={(code) => void handleStatusChange(att, code)}
+                        />
                       )}
                     </td>
                     {isSupplementSession && (
