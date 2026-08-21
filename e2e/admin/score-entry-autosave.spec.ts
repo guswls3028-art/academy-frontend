@@ -9,6 +9,7 @@ type ScoreRouteOptions = {
   includeHomework?: boolean;
   homeworkMaxScore?: number;
   initialHomeworkScores?: Array<number | null>;
+  homeworkAssignedRows?: boolean[];
   homeworkGradingMode?: "SCORE" | "COMPLETION";
   scoreSummaryColumnDefault?: "exam_wrong";
 };
@@ -100,7 +101,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
   includeHomework = options.includeHomework ?? false;
   homeworkMaxScore = options.homeworkMaxScore ?? 100;
   homeworkGradingMode = options.homeworkGradingMode ?? "SCORE";
-  homeworkAssignedRows = [false, true];
+  homeworkAssignedRows = [...(options.homeworkAssignedRows ?? [false, true])];
   currentHomeworkScores = [...(options.initialHomeworkScores ?? [null, 45])];
 
   await page.route("**/api/v1/**", async (route) => {
@@ -511,6 +512,36 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       homework_id: 9151,
       score: 42,
       max_score: 43,
+    });
+  });
+
+  test("과제 미제출은 슬래시 뒤 Tab으로 확정하고 오른쪽 다음 셀로 이어간다", async ({ page }) => {
+    await openScores(page, {
+      includeHomework: true,
+      homeworkMaxScore: 43,
+      initialHomeworkScores: [null, 41],
+      homeworkAssignedRows: [true, true],
+    });
+    await ensureScoreEditing(page);
+
+    const firstHomeworkCell = page.getByRole("textbox", { name: "자동저장학생1 · 단원 복습 점수 입력" });
+    const secondExamCell = page.getByRole("textbox", { name: "자동저장학생2 · 주간 확인 점수 입력" });
+    await firstHomeworkCell.scrollIntoViewIfNeeded();
+    await firstHomeworkCell.click();
+    await page.keyboard.type("/");
+    await firstHomeworkCell.press("Tab");
+
+    await expect(firstHomeworkCell).toHaveText("미제출");
+    await expect(secondExamCell).toBeFocused();
+    await page.keyboard.press("Control+s");
+    await expect.poll(() => homeworkPatches.at(-1)?.meta_status, { timeout: 10_000 }).toBe("NOT_SUBMITTED");
+    expect(homeworkPatches.at(-1)).toMatchObject({
+      session_id: 9002,
+      enrollment_id: 9201,
+      homework_id: 9151,
+      score: null,
+      max_score: 43,
+      meta_status: "NOT_SUBMITTED",
     });
   });
 

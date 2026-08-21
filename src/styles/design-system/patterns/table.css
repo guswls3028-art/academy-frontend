@@ -708,6 +708,7 @@ table.ds-table {
 /* 편집 모드 점수 셀(contenteditable) — 리스트 마커·가상 요소 제거(동그라미/고정 0 방지) */
 .ds-scores-table .ds-scores-cell-editable {
   list-style: none;
+  min-height: 1.25rem;
 }
 .ds-scores-table .ds-scores-cell-editable::before,
 .ds-scores-table .ds-scores-cell-editable::after {

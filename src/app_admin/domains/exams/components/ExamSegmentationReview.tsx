@@ -16,8 +16,20 @@ import styles from "./ExamSegmentationReview.module.css";
 type ExplanationVariant = "reconstructed" | "source_attachment";
 type DraftItem = SegmentationReviewItem & {
   numberInput: string;
+  answerInput: string;
   explanationVariant: ExplanationVariant;
   includeExplanationText: boolean;
+};
+
+const SOURCE_ISSUE_LABELS: Record<string, string> = {
+  answer_coverage_incomplete: "일부 문항의 정답을 인식하지 못했습니다.",
+  explanation_coverage_incomplete: "일부 문항의 해설을 인식하지 못했습니다.",
+  answer_source_processing_failed: "정답지 처리에 실패해 원본 검수가 필요합니다.",
+  explanation_source_processing_failed: "해설지 처리에 실패해 원본 검수가 필요합니다.",
+  answer_source_preserved_manual_review: "정답지 원본은 보존했으며 직접 입력이 필요합니다.",
+  explanation_source_preserved_manual_review: "해설지 원본은 보존했으며 직접 확인이 필요합니다.",
+  answer_entries_not_recognized: "정답지에서 번호별 정답을 찾지 못했습니다.",
+  explanation_entries_not_recognized: "해설지에서 번호별 해설을 찾지 못했습니다.",
 };
 
 function ProblemCropPreview({
@@ -105,6 +117,7 @@ export default function ExamSegmentationReview({
       review.data.items.map((item) => ({
         ...item,
         numberInput: String(item.number),
+        answerInput: item.answer ?? "",
         explanationVariant: "reconstructed",
         includeExplanationText: !item.explanation_text_requires_review,
       })),
@@ -117,8 +130,10 @@ export default function ExamSegmentationReview({
     (number) => !Number.isInteger(number) || number < 1 || number > 999,
   );
   const hasDuplicateNumber = new Set(parsedNumbers).size !== parsedNumbers.length;
+  const hasInvalidAnswer = selected.some((item) => item.answerInput.length > 500);
   const canApprove =
-    selected.length > 0 && !hasInvalidNumber && !hasDuplicateNumber;
+    selected.length > 0 && !hasInvalidNumber && !hasDuplicateNumber && !hasInvalidAnswer;
+  const answerCount = selected.filter((item) => item.answerInput.trim().length > 0).length;
   const teacherExplanationCount = selected.filter(
     (item) => item.has_teacher_explanation,
   ).length;
@@ -138,6 +153,7 @@ export default function ExamSegmentationReview({
             ? item.problem_crop_ratio
             : undefined,
           explanation_variant: item.explanationVariant,
+          answer: item.answerInput.trim(),
           include_explanation_text: item.includeExplanationText,
         })),
       ),
@@ -182,14 +198,17 @@ export default function ExamSegmentationReview({
       <header className={styles.reviewHeader}>
         <div>
           <span className={styles.eyebrow}>확정 전 마지막 확인</span>
-          <h3 id="segmentation-review-title">문항·해설 맞춤 확인</h3>
+          <h3 id="segmentation-review-title">문항·정답·해설 맞춤 확인</h3>
           <p>
-            왼쪽 문제와 오른쪽 선생님 해설이 같은 번호인지 확인해 주세요.
-            시스템이 새 풀이를 쓰는 것이 아니라 업로드 원본을 자동 인식해 연결하며, 원본 해설의 내용은 바꾸지 않습니다.
+            문제, 정답, 선생님 해설이 같은 번호인지 확인해 주세요.
+            시스템은 새 풀이를 쓰지 않고 업로드 원본을 자동 인식해 연결합니다.
+            원문을 바꾸지 않은 제안 상태이므로 확정 전에 번호와 내용을 확인해 주세요.
           </p>
         </div>
         <div className={styles.counts} aria-label="검수 현황">
           <strong>{selected.length}</strong><span>수록</span>
+          <i aria-hidden />
+          <strong>{answerCount}</strong><span>정답</span>
           <i aria-hidden />
           <strong>{teacherExplanationCount}</strong><span>원본 해설</span>
         </div>
@@ -202,6 +221,20 @@ export default function ExamSegmentationReview({
         )}
         <span>{review.data.source_filename || "업로드 시험지"}</span>
       </div>
+
+      {review.data.paired_source_status === "partial" && (
+        <div className={styles.partialNotice} role="alert">
+          <div>
+            <strong>부분 인식 · 확정 전 보완 필요</strong>
+            <p>인식하지 못한 값은 비워 두었습니다. 원본을 보고 직접 입력하거나 자료를 보완해 다시 인식하세요.</p>
+          </div>
+          <ul>
+            {review.data.source_issues.map((issue) => (
+              <li key={issue}>{SOURCE_ISSUE_LABELS[issue] ?? issue}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className={styles.list}>
         {items.map((item) => (
@@ -222,6 +255,30 @@ export default function ExamSegmentationReview({
                   aria-label={`${item.position}번째 후보 문항 번호`}
                   onChange={(event) => update(item.id, { numberInput: event.target.value })}
                 />
+              </label>
+              <label className={styles.answerField}>
+                <span>
+                  정답
+                  {item.answer_missing && <em>미인식</em>}
+                </span>
+                <input
+                  type="text"
+                  value={item.answerInput}
+                  maxLength={500}
+                  disabled={!item.included || approve.isPending}
+                  aria-label={`${item.numberInput}번 정답`}
+                  placeholder="직접 입력"
+                  onChange={(event) => update(item.id, { answerInput: event.target.value })}
+                />
+                {item.answer_source_image_url && (
+                  <a
+                    href={item.answer_source_image_url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    정답지 원본 보기
+                  </a>
+                )}
               </label>
               <button
                 type="button"
@@ -267,6 +324,7 @@ export default function ExamSegmentationReview({
                   ? "삽입 그림 원본"
                   : "번호 확정 원문 해설"}
                 {item.has_teacher_explanation && <Badge tone="success" size="sm">보존됨</Badge>}
+                {item.explanation_missing && <Badge tone="warning" size="sm">미인식</Badge>}
               </figcaption>
               {item.source_attachment_image_url && (
                 <div className={styles.explanationVariant} role="group" aria-label={`${item.numberInput}번 해설 원본 선택`}>
@@ -328,11 +386,13 @@ export default function ExamSegmentationReview({
       </div>
 
       <footer className={styles.reviewFooter}>
-        <div role={hasInvalidNumber || hasDuplicateNumber ? "alert" : undefined}>
+        <div role={hasInvalidNumber || hasDuplicateNumber || hasInvalidAnswer ? "alert" : undefined}>
           {hasInvalidNumber
             ? "문항 번호는 1~999 사이의 정수로 입력해 주세요."
             : hasDuplicateNumber
               ? "수록할 문항 번호가 중복되었습니다."
+              : hasInvalidAnswer
+                ? "정답은 문항당 500자 이내로 입력해 주세요."
               : `${selected.length}개 문항을 확정하면 채점과 오답노트에 바로 연결됩니다.`}
         </div>
         <Button

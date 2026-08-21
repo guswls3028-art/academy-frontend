@@ -342,7 +342,7 @@ function ScoreEntryList({
 
   const setCachedCorrection = useCallback((
     enrollmentId: number,
-    patch: Pick<ScoreBlock, "correction_status" | "correction_completed_at" | "correction_note">,
+    patch: Pick<ScoreBlock, "correction_status" | "correction_completed_at" | "correction_note" | "correction_updated_at" | "teacher_resolved">,
   ) => {
     qc.setQueryData<SessionScoresResponse>(
       scoresQueryKeys.sessionScores(sessionId),
@@ -366,6 +366,8 @@ function ScoreEntryList({
         source_type: "exam",
         source_id: examId,
         completed,
+        note: correctionByEnrollment.get(enrollmentId)?.correction_note || "현장 오답 해결 확인",
+        expected_updated_at: correctionByEnrollment.get(enrollmentId)?.correction_updated_at ?? null,
       })
     ),
     onMutate: async ({ enrollmentId, completed }) => {
@@ -376,13 +378,15 @@ function ScoreEntryList({
         correction_status: completed ? "COMPLETED" : "PENDING",
         correction_completed_at: completed ? new Date().toISOString() : null,
         correction_note: correctionByEnrollment.get(enrollmentId)?.correction_note ?? "",
+        correction_updated_at: correctionByEnrollment.get(enrollmentId)?.correction_updated_at ?? null,
+        teacher_resolved: completed,
       });
       return { previous };
     },
     onSuccess: (data, variables) => {
       setCachedCorrection(variables.enrollmentId, data);
       const student = results.find((row) => getExamResultEnrollmentId(row) === variables.enrollmentId);
-      feedback.success(`${student?.student_name ?? "학생"} 오답 상태를 ${variables.completed ? "완료" : "미완료"}로 저장했습니다.`);
+      feedback.success(`${student?.student_name ?? "학생"}을 ${variables.completed ? "원점수 유지·교사 통과" : "보완 필요"}로 저장했습니다.`);
     },
     onError: (error, _variables, context?: { previous?: SessionScoresResponse }) => {
       qc.setQueryData(scoresQueryKeys.sessionScores(sessionId), context?.previous);
@@ -525,7 +529,7 @@ function ScoreEntryList({
       <section className={styles.reviewOverview} aria-label="테스트 오답 확인 현황">
         <div className={styles.reviewHeader}>
           <div>
-            <strong>테스트 오답</strong>
+            <strong>교사 최종 판정</strong>
             <span>{reviewTotal > 0 ? `${reviewCounts.resolved}/${reviewTotal} 처리` : "채점 후 상태가 표시됩니다"}</span>
           </div>
           {reviewTotal > 0 && <b>{reviewPercent}%</b>}
@@ -632,7 +636,7 @@ function ScoreEntryList({
               </div>
             </div>
             <div className={styles.reviewRow}>
-              <span>{draftDirty ? "점수를 먼저 저장하면 오답 상태를 바꿀 수 있습니다." : "테스트 오답"}</span>
+              <span>{draftDirty ? "점수를 먼저 저장하면 최종 판정을 바꿀 수 있습니다." : "원점수 유지 판정"}</span>
               <ReviewStatusControl
                 status={correctionStatus}
                 disabled={draftDirty || reviewSaving}
@@ -736,7 +740,7 @@ function ReviewStatusControl({
   onToggle: () => void;
 }) {
   if (status === "NOT_REQUIRED") {
-    return <Badge size="sm" tone="success">오답 없음</Badge>;
+    return <Badge size="sm" tone="success">보완 불필요</Badge>;
   }
   if (status == null) {
     return <Badge size="sm" tone="neutral">채점 대기</Badge>;
@@ -749,11 +753,11 @@ function ReviewStatusControl({
       className={styles.reviewToggle}
       data-completed={completed}
       aria-pressed={completed}
-      aria-label={`${studentName} 오답 ${completed ? "완료" : "미완료"}; 눌러서 ${completed ? "미완료" : "완료"}로 변경`}
+      aria-label={`${studentName} 교사 판정 ${completed ? "통과" : "보완 필요"}; 눌러서 ${completed ? "보완 필요" : "통과"}로 변경`}
       disabled={disabled}
       onClick={onToggle}
     >
-      {saving ? "저장 중" : completed ? "오답 완료" : "오답 미완료"}
+      {saving ? "저장 중" : completed ? "교사 통과" : "보완 필요"}
     </button>
   );
 }

@@ -1772,7 +1772,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           onSelectCell(row, "homework", hw.homework_id);
                         }}
                       >
-                        <span className="inline-flex items-center gap-2 flex-wrap">
+                        <span className="inline-flex w-full items-center gap-2 flex-wrap">
                           {hw.grading_mode === "COMPLETION" ? (
                             canEditScore ? (
                               <select
@@ -1956,6 +1956,17 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 }
                                 if (e.key === "Tab") {
                                   e.preventDefault(); e.stopPropagation();
+                                  if (raw === "/" || raw === "미제출") {
+                                    if (el) el.innerText = "미제출";
+                                    const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
+                                    stagePendingChange(
+                                      cellKey,
+                                      { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" },
+                                      isNotSubmitted
+                                        ? { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" }
+                                        : { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: block?.score ?? null },
+                                    );
+                                  }
                                   if (e.shiftKey) onRequestMovePrev?.();
                                   else onRequestMoveNext?.();
                                   return;

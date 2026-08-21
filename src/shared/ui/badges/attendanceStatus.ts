@@ -27,7 +27,7 @@ export const ORDERED_ATTENDANCE_STATUS: AttendanceStatus[] = [
 ];
 
 /** 출결 상태별 두글자 라벨·한글자(앞글자)·톤 — 색상은 ds-status-badge[data-tone] SSOT */
-export const ATTENDANCE_STATUS_META: Record<
+export const ATTENDANCE_META: Record<
   AttendanceStatus,
   { label: string; short: string; tone: string }
 > = {
@@ -47,13 +47,13 @@ export const ATTENDANCE_STATUS_META: Record<
 /** 한글자 출결 뱃지용 — 매트릭스 테이블 셀 등 */
 export function getAttendanceShortLabel(status: string | null | undefined): string {
   if (!status) return "－";
-  const meta = ATTENDANCE_STATUS_META[status as AttendanceStatus];
+  const meta = ATTENDANCE_META[status as AttendanceStatus];
   return meta?.short ?? "－";
 }
 
 /** data-tone 값 반환 — ds-status-badge 시스템과 통합 */
 export function getAttendanceTone(status: string | null | undefined): string | null {
   if (!status) return null;
-  const meta = ATTENDANCE_STATUS_META[status as AttendanceStatus];
+  const meta = ATTENDANCE_META[status as AttendanceStatus];
   return meta?.tone ?? null;
 }

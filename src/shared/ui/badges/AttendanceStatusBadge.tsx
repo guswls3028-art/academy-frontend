@@ -1,7 +1,7 @@
 // PATH: src/shared/ui/badges/AttendanceStatusBadge.tsx
 // 한글자(short) = 두글자(label) 첫글자/약자로 통일, 역할별 순서·색상
 
-import { ATTENDANCE_STATUS_META, type AttendanceStatus } from "./attendanceStatus";
+import { ATTENDANCE_META, type AttendanceStatus } from "./attendanceStatus";
 import Badge, { type BadgeTone } from "../ds/components/Badge";
 
 export type { AttendanceStatus } from "./attendanceStatus";
@@ -18,7 +18,7 @@ export default function AttendanceStatusBadge({
   /** 테이블 등에서 현재 선택된 출석형태로 강조 표시 */
   selected?: boolean;
 }) {
-  const meta = ATTENDANCE_STATUS_META[status];
+  const meta = ATTENDANCE_META[status];
   if (!meta) return null;
 
   const text = variant === "1ch" ? meta.short : meta.label;

@@ -21,6 +21,8 @@ function localJwt(): string {
 }
 
 type MockState = {
+  regularOrder?: number;
+  regularPatchPayloads?: Array<Record<string, unknown>>;
   supplementTitle: string;
   patchTitles: string[];
   sessionListFailures?: number;
@@ -45,7 +47,7 @@ function sessionRows(state: MockState, lectureId = LECTURE_ID) {
       title: "1차시",
       display_label: "1차시",
       order: 1,
-      regular_order: 1,
+      regular_order: state.regularOrder ?? 1,
       session_type: "REGULAR",
       date: "2026-08-03",
       section: null,
@@ -57,9 +59,9 @@ function sessionRows(state: MockState, lectureId = LECTURE_ID) {
       id: REGULAR_SESSION_ID,
       lecture: LECTURE_ID,
       title: "1차시 (14:00~16:00)",
-      display_label: "1차시",
+      display_label: `${state.regularOrder ?? 1}차시`,
       order: 1,
-      regular_order: 1,
+      regular_order: state.regularOrder ?? 1,
       session_type: "REGULAR",
       date: "2026-08-01",
       section: state.sectionMode ? SECTION_ID : null,
@@ -135,6 +137,15 @@ async function installApi(page: Page, state: MockState) {
       }
       const lectureId = Number(url.searchParams.get("lecture") || LECTURE_ID);
       return json(sessionRows(state, lectureId));
+    }
+    if (path === `/lectures/sessions/${REGULAR_SESSION_ID}/` && method === "PATCH") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      state.regularPatchPayloads ??= [];
+      state.regularPatchPayloads.push(payload);
+      if (typeof payload.regular_order === "number") {
+        state.regularOrder = payload.regular_order;
+      }
+      return json(sessionRows(state)[0]);
     }
     if (path === `/lectures/sessions/${REGULAR_SESSION_ID}/`) {
       return json(sessionRows(state)[0]);
@@ -393,6 +404,33 @@ test("기존 전체 보기를 기본으로 유지하고 분리 보기에서 보�
   await expect(page).toHaveURL(
     new RegExp(`/workspace/community/notice\\?scope=session&lectureId=${LECTURE_ID}&sessionId=${REGULAR_SESSION_ID}`),
   );
+});
+
+test("정규 차시 번호를 수정하면 정확한 조사와 새 번호를 즉시 표시하고 재조회 후 유지한다", async ({ page }) => {
+  const state: MockState = {
+    regularOrder: 1,
+    regularPatchPayloads: [],
+    supplementTitle: "토요일 심화 클리닉",
+    patchTitles: [],
+  };
+  await openLecture(page, state);
+
+  await page.getByRole("button", { name: "차시 설정" }).click();
+  await page.getByRole("button", { name: "수정", exact: true }).click();
+  const orderInput = page.getByLabel("차시 번호");
+  await expect(orderInput).toHaveValue("1");
+  await orderInput.fill("5");
+  await page.getByRole("button", { name: "저장", exact: true }).click();
+
+  await expect.poll(() => state.regularPatchPayloads).toEqual([
+    expect.objectContaining({ regular_order: 5 }),
+  ]);
+  await expect(page.getByText("차시가 수정되었습니다.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /5차시/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /1차시/ })).toHaveCount(0);
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("button", { name: /5차시/ })).toBeVisible();
 });
 
 test("보강 범위의 추가 버튼은 보강 유형과 이름 입력을 바로 연다", async ({ page }, testInfo) => {

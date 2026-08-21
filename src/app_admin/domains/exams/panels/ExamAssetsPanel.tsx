@@ -20,12 +20,12 @@ export default function ExamAssetsPanel({ examId }: { examId: number }) {
 
   const isTemplate = exam.exam_type === "template";
   const canUploadRegularSource =
-    !isTemplate && ["none", "failed", "conversion_required"].includes(exam.segmentation_status);
+    !isTemplate && ["none", "failed", "conversion_required", "review_required"].includes(exam.segmentation_status);
   const status = exam.segmentation_status;
   const statusCopy = status === "processing"
     ? "문항을 분리하고 있습니다. 완료되면 이 화면에 반영됩니다."
     : status === "review_required"
-      ? "자동 분리된 문제와 선생님 원본 해설의 번호를 확인하고 확정해 주세요."
+      ? "자동 분리된 문제·정답·선생님 원본 해설을 확인하세요. 빠진 자료는 원본을 보완해 다시 인식할 수 있습니다."
     : status === "ready"
       ? `${exam.source_filename || "원본 시험지"}의 문항 분리가 완료되었습니다.`
       : status === "conversion_required"
@@ -74,7 +74,11 @@ export default function ExamAssetsPanel({ examId }: { examId: number }) {
           </div>
           {(isTemplate || canUploadRegularSource) && (
             <Button type="button" intent="secondary" size="sm" onClick={() => setPdfModalOpen(true)}>
-              {status === "none" ? "시험 자료 업로드" : "자료 다시 올리기"}
+              {status === "none"
+                ? "시험 자료 업로드"
+                : status === "review_required"
+                  ? "정답·해설 보완 인식"
+                  : "자료 다시 올리기"}
             </Button>
           )}
         </div>

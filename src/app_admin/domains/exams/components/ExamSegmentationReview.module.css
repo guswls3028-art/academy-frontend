@@ -1,6 +1,8 @@
 .review {
   container: segmentation-review / inline-size;
   display: grid;
+  min-width: 0;
+  overflow: clip;
   gap: 18px;
   padding: 22px;
   border: 1px solid color-mix(in srgb, var(--color-brand-primary) 25%, var(--color-border-divider));
@@ -9,22 +11,32 @@
 }
 
 .reviewHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.reviewHeader > div { min-width: 0; }
 .eyebrow { display: block; margin-bottom: 5px; color: var(--color-brand-primary); font-size: 12px; font-weight: 800; letter-spacing: .08em; }
 .reviewHeader h3 { margin: 0; color: var(--color-text-primary); font-size: 22px; line-height: 1.25; }
 .reviewHeader p { max-width: 680px; margin: 8px 0 0; color: var(--color-text-secondary); font-size: 14px; line-height: 1.6; }
-.counts { display: grid; grid-template-columns: auto auto 1px auto auto; align-items: baseline; gap: 7px; min-width: max-content; padding: 12px 15px; border-radius: 14px; background: #172033; color: #fff; }
+.counts { display: flex; flex-wrap: wrap; align-items: baseline; gap: 7px; min-width: 0; max-width: 100%; padding: 12px 15px; border-radius: 14px; background: #172033; color: #fff; }
 .counts strong { font-size: 20px; }
 .counts span { color: #d8deea; font-size: 12px; }
 .counts i { width: 1px; height: 18px; margin: 0 4px; background: #566178; }
 .sourceLine { display: flex; align-items: center; gap: 9px; min-width: 0; color: var(--color-text-secondary); font-size: 13px; }
 .sourceLine > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.partialNotice { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, .8fr); min-width: 0; gap: 14px; padding: 14px 16px; border: 1px solid #f4c66d; border-radius: 13px; background: #fff8e8; color: #724b0b; overflow-wrap: anywhere; }
+.partialNotice strong { color: #553607; font-size: 13px; }
+.partialNotice p { margin: 4px 0 0; font-size: 12px; line-height: 1.55; }
+.partialNotice ul { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.65; }
 .list { display: grid; gap: 12px; }
-.card { display: grid; grid-template-columns: 112px minmax(0, .85fr) minmax(0, 1.15fr); min-height: 250px; overflow: hidden; border: 1px solid var(--color-border-divider); border-radius: 15px; background: #fff; box-shadow: 0 8px 24px rgba(23, 32, 51, .06); transition: opacity .18s ease, border-color .18s ease; }
+.card { display: grid; grid-template-columns: 152px minmax(0, .85fr) minmax(0, 1.15fr); min-width: 0; min-height: 250px; overflow: hidden; border: 1px solid var(--color-border-divider); border-radius: 15px; background: #fff; box-shadow: 0 8px 24px rgba(23, 32, 51, .06); transition: opacity .18s ease, border-color .18s ease; }
 .excluded { opacity: .5; border-style: dashed; }
 .cardRail { display: flex; flex-direction: column; justify-content: space-between; gap: 16px; padding: 17px 14px; border-right: 1px solid var(--color-border-divider); background: #f4f7fb; }
 .cardRail label { display: grid; gap: 7px; color: var(--color-text-secondary); font-size: 11px; font-weight: 700; }
 .cardRail label > span { white-space: nowrap; }
 .cardRail input { width: 100%; height: 44px; border: 1px solid var(--color-border-default); border-radius: 10px; background: #fff; color: #172033; font-size: 21px; font-weight: 800; text-align: center; }
+.cardRail .answerField { gap: 6px; }
+.answerField span { display: flex; align-items: center; justify-content: space-between; gap: 5px; }
+.answerField em { padding: 2px 5px; border-radius: 999px; background: #fff0cf; color: #8a5300; font-size: 9px; font-style: normal; }
+.cardRail .answerField input { height: 38px; padding: 0 8px; font-size: 14px; font-weight: 750; }
+.answerField a { color: var(--color-brand-primary); font-size: 10px; text-align: center; text-decoration: underline; text-underline-offset: 2px; }
 .cardRail button { height: 38px; border: 1px solid #cbd5e1; border-radius: 999px; background: #fff; color: #475569; font-size: 12px; font-weight: 800; }
 .cardRail button[aria-pressed="true"] { border-color: #4f46e5; background: #eef2ff; color: #4338ca; }
 .proofPane { display: grid; grid-template-rows: auto 1fr; min-width: 0; margin: 0; padding: 15px; }
@@ -53,22 +65,25 @@
 .explanationGuidance { display: block; margin-top: 9px; color: var(--color-text-muted); font-size: 10px; line-height: 1.45; }
 .explanationGuidance[data-warning] { color: #9a5b08; }
 .missing { display: grid; place-items: center; min-height: 160px; border: 1px dashed #cbd5e1; border-radius: 9px; color: var(--color-text-muted); font-size: 12px; }
-.reviewFooter { position: sticky; bottom: 8px; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border: 1px solid var(--color-border-divider); border-radius: 14px; background: rgba(255, 255, 255, .96); box-shadow: 0 12px 28px rgba(23, 32, 51, .12); backdrop-filter: blur(10px); }
+.reviewFooter { position: sticky; bottom: 8px; z-index: 2; display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border: 1px solid var(--color-border-divider); border-radius: 14px; background: rgba(255, 255, 255, .96); box-shadow: 0 12px 28px rgba(23, 32, 51, .12); backdrop-filter: blur(10px); }
 .reviewFooter div { color: var(--color-text-secondary); font-size: 13px; }
 
 @container segmentation-review (max-width: 640px) {
   .reviewHeader { display: grid; }
-  .counts { justify-self: stretch; justify-content: center; }
+  .counts { width: 100%; justify-self: stretch; justify-content: center; }
   .card { grid-template-columns: minmax(0, 1fr); }
-  .cardRail { align-items: end; flex-direction: row; border-right: 0; border-bottom: 1px solid var(--color-border-divider); }
+  .cardRail { display: grid; grid-template-columns: minmax(100px, .7fr) minmax(130px, 1fr) auto; align-items: end; border-right: 0; border-bottom: 1px solid var(--color-border-divider); }
   .cardRail label { grid-template-columns: auto 76px; align-items: center; }
+  .cardRail .answerField { grid-template-columns: minmax(0, 1fr); }
   .cardRail button { min-width: 72px; }
   .proofPane + .proofPane { border-top: 1px solid var(--color-border-divider); border-left: 0; }
   .reviewFooter { align-items: stretch; flex-direction: column; }
+  .reviewFooter button { width: 100%; }
+  .partialNotice { grid-template-columns: minmax(0, 1fr); }
 }
 
 @container segmentation-review (max-width: 320px) {
-  .cardRail { align-items: stretch; flex-direction: column; }
+  .cardRail { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
   .cardRail label { grid-template-columns: max-content 76px; align-items: center; justify-content: space-between; }
   .cardRail button { align-self: end; }
   .explanationVariant { grid-template-columns: minmax(0, 1fr); }

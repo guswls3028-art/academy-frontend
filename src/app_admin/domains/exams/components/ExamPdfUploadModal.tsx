@@ -22,8 +22,8 @@ type Props = {
 const STATUS_LABELS: Record<PdfExtractStatus, string> = {
   idle: "",
   uploading: "시험 자료 업로드 중…",
-  processing: "문항·해설 맞춤 처리 중…",
-  done: "문항 분할 완료",
+  processing: "문항·정답·해설 맞춤 처리 중…",
+  done: "자료 인식 완료 · 검수 필요",
   conversion_required: "원본 저장 완료 · 직접 검수 필요",
   failed: "처리 실패",
 };
@@ -31,12 +31,14 @@ const STATUS_LABELS: Record<PdfExtractStatus, string> = {
 export default function ExamPdfUploadModal({ open, onClose, examId, sourceKind = "exam" }: Props) {
   const { status, error, progress, result, upload, reset } = usePdfQuestionExtract(examId);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [answerFile, setAnswerFile] = useState<File | null>(null);
   const [explanationFile, setExplanationFile] = useState<File | null>(null);
   const [showSeparateFiles, setShowSeparateFiles] = useState(false);
 
   useEffect(() => {
     if (!open) {
       setSelectedFile(null);
+      setAnswerFile(null);
       setExplanationFile(null);
       setShowSeparateFiles(false);
       reset();
@@ -50,7 +52,7 @@ export default function ExamPdfUploadModal({ open, onClose, examId, sourceKind =
 
   const handleUpload = () => {
     if (!selectedFile) return;
-    upload(selectedFile, explanationFile);
+    upload(selectedFile, answerFile, explanationFile);
   };
 
   const isUploading = status === "uploading";
@@ -75,23 +77,23 @@ export default function ExamPdfUploadModal({ open, onClose, examId, sourceKind =
       <ModalHeader
         type="action"
         title={`${sourceLabel} 자료 올리기`}
-        description="한 파일이어도, 문제지와 해설지가 따로여도 자료 구성을 확인해 번호별로 맞춥니다."
+        description="문제지·정답지·해설지 원본을 역할별로 보존하고 문항 번호로 맞춥니다."
       />
 
       <ModalBody>
         <div className={`modal-scroll-body modal-scroll-body--compact ${styles.body}`}>
           <div className={styles.sourceModes} aria-label="지원하는 자료 구성">
             <div>
-              <strong>문제+해설 한 파일</strong>
+              <strong>한 파일</strong>
               <span>모든 안전한 원본 형식</span>
             </div>
             <div>
-              <strong>문제 파일만</strong>
-              <span>모든 안전한 원본 형식</span>
+              <strong>문제지 + 정답지</strong>
+              <span>번호별 정답 인식·검수</span>
             </div>
             <div>
-              <strong>문제·해설 두 파일</strong>
-              <span>두 원본의 형식과 관계없이 각각 보관</span>
+              <strong>문제·정답·해설</strong>
+              <span>세 원본을 역할별로 각각 보관</span>
             </div>
           </div>
 
@@ -114,24 +116,35 @@ export default function ExamPdfUploadModal({ open, onClose, examId, sourceKind =
             aria-expanded={showSeparateFiles}
             onClick={() => {
               setShowSeparateFiles((current) => {
-                if (current) setExplanationFile(null);
+                if (current) {
+                  setAnswerFile(null);
+                  setExplanationFile(null);
+                }
                 return !current;
               });
             }}
             disabled={isBusy}
           >
-            {showSeparateFiles ? "한 파일로 올리기" : "문제지와 해설지가 따로 있어요"}
+            {showSeparateFiles ? "한 파일로 올리기" : "정답지·해설지가 따로 있어요"}
           </Button>
 
           {showSeparateFiles && (
             <div className={styles.separateFiles}>
               <div className={styles.pairGuide}>
-                <strong>두 파일은 문항 번호로 연결합니다</strong>
-                <p>문제와 해설 원본을 형식 그대로 올려 주세요. 지원 조합은 번호로 자동 연결하고, 나머지는 원본을 보관해 직접 검수할 수 있습니다.</p>
+                <strong>파일 역할을 먼저 정하고 문항 번호로 연결합니다</strong>
+                <p>정답과 해설은 선택입니다. 인식하지 못한 번호도 실패로 숨기지 않고 원본과 함께 검수 화면에 표시합니다.</p>
               </div>
               <FileUploadZone
-                titleLabel="선생님 해설 파일"
-                hintText="모든 안전한 해설 원본 형식 · 실행·스크립트 제외 · 50MB 이하"
+                titleLabel="정답지 파일 (선택)"
+                hintText="PDF·이미지는 자동 인식 · 그 밖의 안전한 원본도 보존 · 50MB 이하"
+                selectedFile={answerFile}
+                onFilesSelect={(files) => setAnswerFile(files[0] ?? null)}
+                onClearFile={() => setAnswerFile(null)}
+                disabled={isBusy}
+              />
+              <FileUploadZone
+                titleLabel="선생님 해설지 파일 (선택)"
+                hintText="PDF·이미지·HWP·HWPX 자동 인식 · 원문·수식·손글씨 원본 보존 · 50MB 이하"
                 selectedFile={explanationFile}
                 onFilesSelect={(files) => setExplanationFile(files[0] ?? null)}
                 onClearFile={() => setExplanationFile(null)}
@@ -206,6 +219,9 @@ export default function ExamPdfUploadModal({ open, onClose, examId, sourceKind =
               {isDone && result && (
                 <div className="mt-2 text-xs text-[var(--color-text-muted)] space-y-0.5">
                   <p>인식된 문항 수: <strong className="text-[var(--color-text-primary)]">{result.totalQuestions}개</strong></p>
+                  {answerFile && (
+                    <p>인식된 정답: <strong className="text-[var(--color-text-primary)]">{result.answerCount}개</strong></p>
+                  )}
                   {result.explanationCount > 0 && (
                     <p>인식된 해설: <strong className="text-[var(--color-text-primary)]">{result.explanationCount}개</strong></p>
                   )}
@@ -213,8 +229,19 @@ export default function ExamPdfUploadModal({ open, onClose, examId, sourceKind =
                     <p>페이지 수: {result.pageCount}페이지</p>
                   )}
                   <p className="mt-1 text-[var(--color-text-tertiary)]">
-                    {sourceLabel} 자료에서 문제와 원본 해설의 번호를 확인한 뒤 확정해 주세요.
+                    {sourceLabel} 자료에서 문제·정답·원본 해설의 번호를 확인한 뒤 확정해 주세요.
                   </p>
+                  {result.pairedSourceStatus === "partial" && (
+                    <div className={styles.partialResult} role="alert">
+                      <strong>일부 항목은 직접 확인이 필요합니다.</strong>
+                      {result.missingAnswerNumbers.length > 0 && (
+                        <p>정답 미인식: {result.missingAnswerNumbers.join(", ")}번</p>
+                      )}
+                      {result.missingExplanationNumbers.length > 0 && (
+                        <p>해설 미인식: {result.missingExplanationNumbers.join(", ")}번</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -241,7 +268,7 @@ export default function ExamPdfUploadModal({ open, onClose, examId, sourceKind =
                 </Button>
                 {selectedFile && status === "idle" && (
                   <Button intent="primary" onClick={handleUpload}>
-                    업로드 및 문항 분석
+                    원본 보존 및 번호 인식
                   </Button>
                 )}
                 {isBusy && (

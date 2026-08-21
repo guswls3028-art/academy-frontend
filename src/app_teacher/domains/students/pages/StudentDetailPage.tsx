@@ -434,7 +434,9 @@ function HomeworkList({
             </div>
             <div className="flex flex-col items-end shrink-0">
               <span className="text-sm font-bold" style={{ color: "var(--tc-text)" }}>{r.score ?? "-"}/{r.max_score ?? 100}</span>
-              <AchievementBadge passed={r.passed} achievement={r.achievement} />
+              {r.teacher_resolved
+                ? <Badge tone="success">교사 완료</Badge>
+                : <AchievementBadge passed={r.passed} achievement={r.achievement} />}
             </div>
           </div>
         </Card>

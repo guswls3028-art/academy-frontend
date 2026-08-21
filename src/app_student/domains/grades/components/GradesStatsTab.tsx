@@ -80,8 +80,13 @@ export default function GradesStatsTab({
 
   const hwStats = useMemo(() => {
     if (homeworks.length === 0) return null;
-    const graded = homeworks.filter((h) => h.score != null);
-    const passed = graded.filter((h) => h.passed).length;
+    const graded = homeworks.filter((h) => h.score != null || h.teacher_resolved === true);
+    const passed = graded.filter((h) => (
+      h.teacher_resolved === true
+      || h.achievement === "PASS"
+      || h.achievement === "REMEDIATED"
+      || h.passed === true
+    )).length;
     const withMax = graded.filter((h) => h.max_score != null && h.max_score > 0);
     const avgPct = withMax.length > 0
       ? Math.round(withMax.reduce((s, h) => s + (h.score! / h.max_score!) * 100, 0) / withMax.length)

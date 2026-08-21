@@ -61,6 +61,7 @@ export default function SubmitAssignmentPage() {
     () => (grades?.homeworks ?? []).filter((h) => (
       (requestedSessionId == null || Number(h.session_id) === requestedSessionId)
       && h.lecture_active !== false
+      && h.teacher_resolved !== true
       && (
         h.passed === false
         || h.achievement === "FAIL"
@@ -73,6 +74,7 @@ export default function SubmitAssignmentPage() {
     () => (grades?.exams ?? []).filter((e) => (
       (requestedSessionId == null || Number(e.session_id) === requestedSessionId)
       && e.lecture_active !== false
+      && e.achievement !== "REMEDIATED"
       && (
         e.is_pass === false
         || e.achievement === "FAIL"

@@ -20,6 +20,8 @@ export type ScoreBlock = {
   correction_status?: "PENDING" | "COMPLETED" | "NOT_REQUIRED" | null;
   correction_completed_at?: string | null;
   correction_note?: string;
+  correction_updated_at?: string | null;
+  teacher_resolved?: boolean;
   meta?: {
     status?: string | null;
     manual_review_required?: boolean;
@@ -136,6 +138,7 @@ export async function patchAssessmentCorrection(
     source_id: number;
     completed: boolean;
     note?: string;
+    expected_updated_at?: string | null;
   },
 ) {
   const res = await api.patch(
@@ -144,6 +147,10 @@ export async function patchAssessmentCorrection(
   );
   return res.data as Pick<
     ScoreBlock,
-    "correction_status" | "correction_completed_at" | "correction_note"
+    | "correction_status"
+    | "correction_completed_at"
+    | "correction_note"
+    | "correction_updated_at"
+    | "teacher_resolved"
   >;
 }
