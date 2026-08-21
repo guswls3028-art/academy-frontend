@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge, EmptyState } from "@/shared/ui/ds";
 import {
   fetchStudentActivities,
+  studentSupportQueryKeys,
   type StudentActivityCategory,
 } from "./studentSupport.api";
 import styles from "./StudentActivityPanel.module.css";
@@ -30,7 +31,7 @@ export default function StudentActivityPanel({ studentId }: { studentId: number 
   const [category, setCategory] = useState<StudentActivityCategory | "">("");
   const [includeSupport, setIncludeSupport] = useState(false);
   const query = useQuery({
-    queryKey: ["student-activities", studentId, days, category, includeSupport],
+    queryKey: studentSupportQueryKeys.activities(studentId, days, category, includeSupport),
     queryFn: () => fetchStudentActivities(studentId, { days, category, includeSupport }),
     enabled: studentId > 0,
   });

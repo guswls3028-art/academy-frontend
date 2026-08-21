@@ -25,7 +25,7 @@ export type StudentActivityItem = {
   screen_id: string;
 };
 
-export type StudentActivitiesResponse = {
+export type StudentActivityFeed = {
   student: { id: number; name: string };
   results: StudentActivityItem[];
   count: number;
@@ -33,11 +33,20 @@ export type StudentActivitiesResponse = {
   include_support: boolean;
 };
 
-type StudentSupportSessionResponse = {
+type StudentSupportSession = {
   access: string;
   expires_at: string;
   session_id: string;
   student: { id: number; name: string };
+};
+
+export const studentSupportQueryKeys = {
+  activities: (
+    studentId: number,
+    days: 7 | 30 | 90,
+    category: StudentActivityCategory | "",
+    includeSupport: boolean,
+  ) => ["student-activities", studentId, days, category, includeSupport] as const,
 };
 
 let lastScreenRecord = { key: "", at: 0 };
@@ -111,7 +120,7 @@ export async function openStudentSupportPreview(studentId: number): Promise<void
   }
 
   try {
-    const response = await api.post<StudentSupportSessionResponse>(
+    const response = await api.post<StudentSupportSession>(
       `/students/${studentId}/support-session/`,
       {},
     );
@@ -138,8 +147,8 @@ export async function fetchStudentActivities(
     category?: StudentActivityCategory | "";
     includeSupport: boolean;
   },
-): Promise<StudentActivitiesResponse> {
-  const response = await api.get<StudentActivitiesResponse>(
+): Promise<StudentActivityFeed> {
+  const response = await api.get<StudentActivityFeed>(
     `/students/${studentId}/activities/`,
     {
       params: {
