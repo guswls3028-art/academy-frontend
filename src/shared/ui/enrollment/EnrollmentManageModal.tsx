@@ -361,14 +361,23 @@ export default function EnrollmentManageModal({
                                   />
                                 )}
                               </td>
-                              <td className="modal-inner-table__name py-1.5 px-3 text-[var(--color-text-primary)] truncate font-medium cursor-pointer hover:bg-[var(--color-bg-surface-soft)] leading-6">
-                                <StudentNameWithLectureChip
-                                  name={r.student_name || "(이름 없음)"}
-                                  profilePhotoUrl={r.profile_photo_url ?? undefined}
-                                  avatarSize={20}
-                                  lectures={r.lectures ?? undefined}
-                                  chipSize={14}
-                                />
+                              <td className="modal-inner-table__name py-1.5 px-3 text-[var(--color-text-primary)] truncate font-medium leading-6">
+                                <button
+                                  type="button"
+                                  className="enrollment-manage-modal__name-button"
+                                  disabled={!canInteract || readOnly}
+                                  aria-label={`${r.student_name || "이름 없음"} 이름으로 ${checked ? "선택 해제" : "선택"}`}
+                                  aria-pressed={checked}
+                                  onClick={() => onToggle?.(r.enrollment_id)}
+                                >
+                                  <StudentNameWithLectureChip
+                                    name={r.student_name || "(이름 없음)"}
+                                    profilePhotoUrl={r.profile_photo_url ?? undefined}
+                                    avatarSize={20}
+                                    lectures={r.lectures ?? undefined}
+                                    chipSize={14}
+                                  />
+                                </button>
                               </td>
                               <td className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate leading-6">
                                 {formatPhone(r.parent_phone)}
