@@ -111,7 +111,6 @@ export interface ClientAccountNotificationLog {
 }
 
 type AccountGuidanceRequest = components["schemas"]["StudentAccountGuidanceRequestSchemaRequest"];
-type AccountGuidanceResponse = components["schemas"]["StudentAccountGuidanceResponseSchema"];
 export type AccountGuidanceTarget = AccountGuidanceRequest["target"];
 
 export interface StudentTag {
@@ -455,8 +454,8 @@ export async function fetchStudentAccountNotifications(
 export async function sendStudentAccountGuidance(
   studentId: number,
   target: AccountGuidanceTarget,
-): Promise<AccountGuidanceResponse> {
-  const res = await api.post<AccountGuidanceResponse>(
+): Promise<components["schemas"]["StudentAccountGuidanceResponseSchema"]> {
+  const res = await api.post<components["schemas"]["StudentAccountGuidanceResponseSchema"]>(
     `/students/${studentId}/account-notifications/`,
     { target },
   );
