@@ -14,8 +14,10 @@ async function forceChangePassword(payload: { old_password: string; new_password
 
 export default function ForcePasswordChangeModal({
   onSuccess,
+  onDismiss,
 }: {
   onSuccess: () => void;
+  onDismiss: () => void;
 }) {
   const mut = useMutation({ mutationFn: forceChangePassword });
 
@@ -57,6 +59,11 @@ export default function ForcePasswordChangeModal({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape" && !mut.isPending) {
+      e.preventDefault();
+      onDismiss();
+      return;
+    }
     if (e.key === "Enter" && ready && !mut.isPending) {
       e.preventDefault();
       submit();
@@ -114,13 +121,13 @@ export default function ForcePasswordChangeModal({
             </div>
             <div>
               <div id="force-password-change-title" style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary, #111)" }}>
-                비밀번호 변경
+                비밀번호 변경 권장
               </div>
               <div style={{ fontSize: 12, color: "var(--color-text-muted, #888)", marginTop: 2 }}>
-                받은 임시 비밀번호를 새 비밀번호로 바꿔 주세요
+                공용 초기 비밀번호는 다른 사람이 추측할 수 있어요
               </div>
               <div style={{ fontSize: 12, color: "var(--color-text-muted, #888)", marginTop: 3 }}>
-                변경 후 로그인 화면이 보이면 새 비밀번호로 다시 로그인하세요
+                지금 바꾸는 것을 권장하며, 나중에 변경해도 계속 이용할 수 있습니다
               </div>
             </div>
           </div>
@@ -198,9 +205,20 @@ export default function ForcePasswordChangeModal({
             padding: "12px 24px",
             borderTop: "1px solid var(--color-border-divider, #e5e7eb)",
             display: "flex",
+            flexWrap: "wrap",
+            gap: 8,
             justifyContent: "flex-end",
           }}
         >
+          <Button
+            type="button"
+            intent="secondary"
+            size="md"
+            onClick={onDismiss}
+            disabled={mut.isPending}
+          >
+            위험을 이해했고 나중에
+          </Button>
           <Button
             type="button"
             intent="primary"
@@ -209,7 +227,7 @@ export default function ForcePasswordChangeModal({
             disabled={mut.isPending || !ready}
             loading={mut.isPending}
           >
-            {mut.isPending ? "변경 중…" : "비밀번호 변경"}
+            {mut.isPending ? "변경 중…" : "지금 변경"}
           </Button>
         </div>
       </div>

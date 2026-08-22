@@ -462,7 +462,26 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
     }))).toEqual({ access: null, refresh: null });
   });
 
-  test("임시 비밀번호 첫 로그인도 공통 API 뒤 재로그인 상태로 전환한다", async ({ page }) => {
+  test("임시 비밀번호 첫 로그인은 변경을 권장하되 나중에를 선택하면 계속 이용한다", async ({ page }) => {
+    await stubAccountApp(page, { mustChangePassword: true });
+
+    await gotoAndSettle(page, `${BASE}/workspace/dashboard`, { timeout: 20_000 });
+    const dialog = page.getByRole("dialog", { name: "비밀번호 변경 권장" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText("다른 사람이 추측할 수 있어요");
+    await dialog.getByRole("button", { name: "위험을 이해했고 나중에" }).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(page).toHaveURL(`${BASE}/workspace/dashboard`);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+    await page.reload();
+    const reopenedDialog = page.getByRole("dialog", { name: "비밀번호 변경 권장" });
+    await expect(reopenedDialog).toBeVisible();
+    await reopenedDialog.press("Escape");
+    await expect(reopenedDialog).not.toBeVisible();
+  });
+
+  test("권장 화면에서 비밀번호를 바꾸면 공통 API 뒤 재로그인한다", async ({ page }) => {
     let passwordBody: Record<string, unknown> | undefined;
     await stubAccountApp(page, {
       mustChangePassword: true,
@@ -470,7 +489,7 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
     });
 
     await gotoAndSettle(page, `${BASE}/workspace/dashboard`, { timeout: 20_000 });
-    const dialog = page.getByRole("dialog", { name: "비밀번호 변경" });
+    const dialog = page.getByRole("dialog", { name: "비밀번호 변경 권장" });
     await expect(dialog).toBeVisible();
     await dialog.getByLabel("현재/임시 비밀번호", { exact: true }).fill("temporary-password");
     await dialog.getByLabel("새 비밀번호", { exact: true }).fill("permanent-password");
@@ -478,7 +497,7 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
     await expect(dialog.getByRole("group", { name: "새 비밀번호 확인 사항" })).toContainText("확인 입력과 일치");
     await dialog.getByRole("button", { name: "현재/임시 비밀번호 보기" }).click();
     await expect(dialog.getByLabel("현재/임시 비밀번호", { exact: true })).toHaveAttribute("type", "text");
-    await dialog.getByRole("button", { name: "비밀번호 변경", exact: true }).click();
+    await dialog.getByRole("button", { name: "지금 변경", exact: true }).click();
 
     await expect.poll(() => passwordBody).toEqual({
       old_password: "temporary-password",

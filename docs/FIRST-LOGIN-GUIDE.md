@@ -27,8 +27,9 @@
 `ProtectedRoute`가 다음 순서로 처리한다.
 
 1. 인증, 테넌트, 역할 접근을 검증한다.
-2. 기존 `must_change_password=true`이면 보안상 필수 비밀번호 변경 화면만 표시한다.
-3. 필수 변경 대상이 아니고 `first_login_guide_required=true`이면 허용 화면과 함께
+2. `must_change_password=true`이면 허용 화면 위에 변경 권장 화면을 표시한다.
+   사용자는 위험 고지를 확인하고 나중에 변경해 계속 이용할 수 있다.
+3. 변경 권장 화면을 닫았거나 대상이 아니고 `first_login_guide_required=true`이면 허용 화면과 함께
    권유형 계정 안내를 표시한다.
 4. 완료 상태이면 원래 화면만 표시한다.
 

@@ -31,6 +31,7 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
   } = useAuth();
   const { program, isLoading: programLoading, error: programError, refetch: refetchProgram } = useProgram();
   const [retrying, setRetrying] = useState(false);
+  const [passwordRecommendationDismissed, setPasswordRecommendationDismissed] = useState(false);
 
   if (programLoading || isLoading) {
     return (
@@ -116,14 +117,21 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
     return loginRedirect;
   }
 
-  if (user.must_change_password && !isStudentSupportSession) {
-    return <ForcePasswordChangeModal onSuccess={logout} />;
-  }
+  const showPasswordRecommendation = Boolean(
+    user.must_change_password
+      && !isStudentSupportSession
+      && !passwordRecommendationDismissed,
+  );
 
-  if (user.first_login_guide_required && !isStudentSupportSession) {
-    return (
-      <>
-        <Outlet />
+  return (
+    <>
+      <Outlet />
+      {showPasswordRecommendation ? (
+        <ForcePasswordChangeModal
+          onSuccess={logout}
+          onDismiss={() => setPasswordRecommendationDismissed(true)}
+        />
+      ) : user.first_login_guide_required && !isStudentSupportSession ? (
         <FirstLoginGuideModal
           username={user.username}
           role={role}
@@ -131,9 +139,7 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
           primaryColor={program.ui_config.primary_color}
           onCompleted={markFirstLoginGuideCompleted}
         />
-      </>
-    );
-  }
-
-  return <Outlet />;
+      ) : null}
+    </>
+  );
 }
