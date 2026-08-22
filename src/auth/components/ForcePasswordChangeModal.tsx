@@ -1,5 +1,5 @@
 /* eslint-disable no-restricted-syntax */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/shared/ui/ds";
 import api from "@/shared/api/axios";
@@ -20,12 +20,29 @@ export default function ForcePasswordChangeModal({
   onDismiss: () => void;
 }) {
   const mut = useMutation({ mutationFn: forceChangePassword });
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   const [oldPw, setOldPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
   const [msg, setMsg] = useState("");
   const ready = isPasswordChangeReady(oldPw, newPw, confirmPw);
+
+  useEffect(() => {
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const frame = window.requestAnimationFrame(() => {
+      dialogRef.current
+        ?.querySelector<HTMLInputElement>("#force-current-password")
+        ?.focus();
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus?.();
+    };
+  }, []);
 
   const submit = async () => {
     setMsg("");
@@ -64,6 +81,25 @@ export default function ForcePasswordChangeModal({
       onDismiss();
       return;
     }
+    if (e.key === "Tab") {
+      const focusable = Array.from(
+        dialogRef.current?.querySelectorAll<HTMLElement>(
+          'input:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      );
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (first && last) {
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+      return;
+    }
     if (e.key === "Enter" && ready && !mut.isPending) {
       e.preventDefault();
       submit();
@@ -87,6 +123,8 @@ export default function ForcePasswordChangeModal({
       }}
     >
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         onKeyDown={handleKeyDown}
         style={{
           width: 380,

@@ -254,6 +254,9 @@ export interface MessagingInfo {
   delivery_policy?: "common_alimtalk_only";
   messaging_disabled?: boolean;
   messaging_disabled_reason?: string;
+  tenant_messaging_enabled?: boolean;
+  messaging_ops_hold?: boolean;
+  can_manage_messaging?: boolean;
 }
 
 export async function fetchMessagingInfo(): Promise<MessagingInfo> {
