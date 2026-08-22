@@ -79,7 +79,16 @@ type PasscardSettingsState = {
   payloads: Array<Record<string, unknown>>;
 };
 
-async function installApi(page: Page, passcardState?: PasscardSettingsState) {
+type OperationsState = {
+  participants: Array<Record<string, unknown>>;
+  targets: Array<Record<string, unknown>>;
+};
+
+async function installApi(
+  page: Page,
+  passcardState?: PasscardSettingsState,
+  operationsState?: OperationsState,
+) {
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
@@ -130,11 +139,20 @@ async function installApi(page: Page, passcardState?: PasscardSettingsState) {
       });
     }
     if (path === "/clinic/sessions/" && method === "GET") return json(sessions);
+    if (path === "/clinic/sessions/tree/" && method === "GET") return json(sessions);
     if (path === "/clinic/participants/" && method === "GET") {
-      return json({ count: 0, results: [] });
+      return json({
+        count: operationsState?.participants.length ?? 0,
+        results: operationsState?.participants ?? [],
+      });
+    }
+    if (path === "/results/admin/clinic-targets/") {
+      return json(operationsState?.targets ?? []);
+    }
+    if (path === "/messaging/auto-send/") {
+      return json([]);
     }
     if (
-      path === "/results/admin/clinic-targets/" ||
       path === "/lectures/sections/" ||
       path === "/lectures/lectures/"
     ) {
@@ -173,6 +191,83 @@ test("같은 날짜에 여러 클리닉 시간대를 시간순으로 보고 계�
   const dialog = page.getByRole("dialog").filter({ hasText: "클리닉 만들기" });
   await expect(dialog.getByRole("heading", { name: "클리닉 만들기" })).toBeVisible();
   await expect(dialog).toContainText("현재 3개 시간대가 있습니다.");
+});
+
+test("한 학생이 여러 특강을 수강하면 클리닉 할 일을 모두 표시한다", async ({ page }) => {
+  const studentId = 501;
+  const state: OperationsState = {
+    participants: [{
+      id: 801,
+      session: 701,
+      student: studentId,
+      student_name: "김다과목",
+      enrollment_id: 1001,
+      session_date: saturday,
+      session_title: "토요일 1시 클리닉",
+      session_start_time: "13:00:00",
+      session_end_time: "14:30:00",
+      session_location: "1층 세미나실",
+      status: "booked",
+      lecture_title: "화학특강",
+      lecture_chip_label: "화특",
+    }],
+    targets: [
+      {
+        enrollment_id: 1001,
+        student_id: studentId,
+        student_name: "김다과목",
+        session_title: "화학특강 4차시",
+        reason: "score",
+        clinic_reason: "exam",
+        exam_score: 35,
+        cutline_score: 60,
+        clinic_link_id: 9001,
+        source_type: "exam",
+        max_score: 100,
+        created_at: "2026-08-22T04:00:00Z",
+      },
+      {
+        enrollment_id: 1002,
+        student_id: studentId,
+        student_name: "김다과목",
+        session_title: "통과특강 2차시",
+        reason: "score",
+        clinic_reason: "homework",
+        exam_score: null,
+        cutline_score: null,
+        homework_score: 2,
+        homework_cutline: 4,
+        clinic_link_id: 9002,
+        source_type: "homework",
+        max_score: 5,
+        created_at: "2026-08-22T04:05:00Z",
+      },
+    ],
+  };
+
+  await seed(page);
+  await installApi(page, undefined, state);
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await gotoAndSettle(
+    page,
+    `${BASE}/workspace/clinic/operations?date=${saturday}&session=701`,
+    { timeout: 45_000 },
+  );
+
+  const studentCard = page.locator(".clinic-ops__card").filter({ hasText: "김다과목" });
+  await expect(studentCard).toBeVisible({ timeout: 20_000 });
+  await expect(studentCard.locator(".clinic-ops__reason-tag")).toHaveCount(2);
+  await expect(studentCard).toContainText("화학특강 4차시");
+  await expect(studentCard).toContainText("통과특강 2차시");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await studentCard.scrollIntoViewIfNeeded();
+  await expect(studentCard.locator(".clinic-ops__reason-tag")).toHaveCount(2);
+  await expect(studentCard).toContainText("화학특강 4차시");
+  await expect(studentCard).toContainText("통과특강 2차시");
+  expect(
+    await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth),
+  ).toBe(true);
 });
 
 test("관리자가 패스카드 3색을 확인하고 학생 화면에 적용한다", async ({ page }) => {
