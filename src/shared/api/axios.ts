@@ -146,24 +146,6 @@ function endExpiredSession() {
   window.location.href = "/login";
 }
 
-/**
- * Enterprise Refresh Concurrency Control
- * - multiple requests may fail with 401 simultaneously
- * - refresh only once, queue others, then replay
- */
-let isRefreshing = false;
-let refreshQueue: Array<(token: string | null) => void> = [];
-
-function enqueueRefresh(cb: (token: string | null) => void) {
-  refreshQueue.push(cb);
-}
-
-function flushRefreshQueue(token: string | null) {
-  const q = [...refreshQueue];
-  refreshQueue = [];
-  q.forEach((cb) => cb(token));
-}
-
 function shouldSkipAuth(url?: string, config?: ApiRequestConfig) {
   const u = String(url || "");
   if (config?.skipAuth === true) return true;
@@ -202,13 +184,7 @@ function hasRequestHeader(config: AxiosRequestConfig, key: string): boolean {
   return AxiosHeaders.from(config.headers as HeaderSeed).has(key);
 }
 
-/**
- * Refresh token (raw axios instance without interceptors to avoid loops)
- */
-async function refreshAccessToken(): Promise<string | null> {
-  const refresh = getRefreshToken();
-  if (!refresh) return null;
-
+async function requestRefreshedAccess(refresh: string): Promise<string | null> {
   try {
     const headers: Record<string, string> = {};
     const tenantCode = getTenantCodeForApiRequest();
@@ -221,18 +197,74 @@ async function refreshAccessToken(): Promise<string | null> {
     );
 
     const newAccess = String(res.data?.access || "").trim();
-    if (!newAccess) return null;
+    if (!newAccess) {
+      const currentRefresh = getRefreshToken();
+      const currentAccess = getAccessToken();
+      return currentRefresh !== refresh && currentAccess && !isTokenExpiredOrSoon(currentAccess)
+        ? currentAccess
+        : null;
+    }
 
-    setAccessToken(newAccess);
-    // Refresh token rotation: 서버가 새 refresh token을 발급하면 저장
+    // Publish the rotated refresh first. A Web-Lock-less loser can then detect
+    // the new generation before it decides that the shared session expired.
     const newRefresh = String(res.data?.refresh || "").trim();
     if (newRefresh) {
       try { localStorage.setItem("refresh", newRefresh); } catch { /* ignore */ }
     }
+    setAccessToken(newAccess);
     return newAccess;
   } catch {
-    return null;
+    // Browsers without Web Locks can still race across tabs. If another tab
+    // already rotated the shared token while this request was in flight, reuse
+    // that valid result instead of expiring the newly authenticated session.
+    const currentRefresh = getRefreshToken();
+    const currentAccess = getAccessToken();
+    return currentRefresh !== refresh && currentAccess && !isTokenExpiredOrSoon(currentAccess)
+      ? currentAccess
+      : null;
   }
+}
+
+/**
+ * Refresh token single-flight boundary.
+ *
+ * The module promise joins proactive and reactive refreshes in one tab. The
+ * Web Lock serializes the same rotation across tabs; a waiter reuses the token
+ * another tab already rotated instead of submitting the now-blacklisted old
+ * refresh token and clearing the valid replacement.
+ */
+const REFRESH_LOCK_NAME = "academy-auth-refresh";
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (refreshPromise) return refreshPromise;
+
+  const initialRefresh = getRefreshToken();
+  if (!initialRefresh) return null;
+
+  const refreshUnderLock = async (): Promise<string | null> => {
+    const currentRefresh = getRefreshToken();
+    if (!currentRefresh) return null;
+
+    if (currentRefresh !== initialRefresh) {
+      const rotatedAccess = getAccessToken();
+      if (rotatedAccess && !isTokenExpiredOrSoon(rotatedAccess)) {
+        return rotatedAccess;
+      }
+    }
+
+    return requestRefreshedAccess(currentRefresh);
+  };
+
+  const lockManager = typeof navigator !== "undefined" ? navigator.locks : undefined;
+  const pending: Promise<string | null> = lockManager
+    ? lockManager.request(REFRESH_LOCK_NAME, refreshUnderLock).then((result) => result)
+    : refreshUnderLock();
+
+  refreshPromise = pending.catch(() => null).finally(() => {
+    refreshPromise = null;
+  });
+  return refreshPromise;
 }
 
 /**
@@ -259,20 +291,12 @@ function isTokenExpiredOrSoon(token: string): boolean {
  * access 토큰이 곧 만료되면 request interceptor 단계에서 미리 refresh 하여
  * 401 응답 자체를 방지한다 (브라우저 콘솔 401 로그 제거).
  */
-let proactiveRefreshPromise: Promise<string | null> | null = null;
-
 async function ensureFreshToken(): Promise<string | null> {
   const access = getAccessToken();
   if (!access) return null;
   if (!isTokenExpiredOrSoon(access)) return access;
 
-  // 이미 리프레시 진행 중이면 대기
-  if (proactiveRefreshPromise) return proactiveRefreshPromise;
-
-  proactiveRefreshPromise = refreshAccessToken().finally(() => {
-    proactiveRefreshPromise = null;
-  });
-  return proactiveRefreshPromise;
+  return refreshAccessToken();
 }
 
 export function isApiError(e: unknown): e is AxiosError {
@@ -517,25 +541,7 @@ api.interceptors.response.use(
     if (status === 401 && !original._retry && !shouldSkipAuth(original.url, original)) {
       original._retry = true;
 
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          enqueueRefresh((token) => {
-            if (!token) {
-              clearTokens();
-              reject(err);
-              return;
-            }
-            setRequestHeader(original, "Authorization", `Bearer ${token}`);
-            resolve(api.request(original));
-          });
-        });
-      }
-
-      isRefreshing = true;
       const newAccess = await refreshAccessToken();
-      isRefreshing = false;
-
-      flushRefreshQueue(newAccess);
 
       if (!newAccess) {
         endExpiredSession();

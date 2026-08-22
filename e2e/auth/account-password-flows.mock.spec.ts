@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { BrowserContext, Page } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
 import { gotoAndSettle } from "../helpers/wait";
 import { assertInteractiveSurface } from "../helpers/assertInteractiveSurface";
@@ -10,11 +10,101 @@ function isLocalBase(url: string): boolean {
   return hostname === "127.0.0.1" || hostname === "localhost";
 }
 
-function createE2eJwt(): string {
+function createE2eJwt(expiresInSeconds = 86400): string {
   const payload = Buffer.from(
-    JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 86400 }),
+    JSON.stringify({ exp: Math.floor(Date.now() / 1000) + expiresInSeconds }),
   ).toString("base64url");
   return `e30.${payload}.e2e`;
+}
+
+async function stubConcurrentRefresh(
+  context: BrowserContext,
+  {
+    disableWebLocks = false,
+    failSecondRefresh = false,
+  }: {
+    disableWebLocks?: boolean;
+    failSecondRefresh?: boolean;
+  } = {},
+) {
+  const expiredAccess = createE2eJwt(-60);
+  const rotatedAccess = createE2eJwt();
+  let refreshCount = 0;
+  let meCount = 0;
+
+  await context.addInitScript(({ token, disableLocks }) => {
+    if (location.protocol !== "http:" && location.protocol !== "https:") return;
+    if (disableLocks) {
+      Object.defineProperty(navigator, "locks", { configurable: true, value: undefined });
+    }
+    if (!localStorage.getItem("access")) {
+      localStorage.setItem("access", token);
+      localStorage.setItem("refresh", "shared-stale-refresh");
+      localStorage.setItem("tenant_code", "hakwonplus");
+    }
+    sessionStorage.setItem("tenantCode", "hakwonplus");
+  }, { token: expiredAccess, disableLocks: disableWebLocks });
+
+  await context.route("**/api/v1/**", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+  });
+  await context.route("**/api/v1/core/program/**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        tenantCode: "hakwonplus",
+        display_name: "학원플러스",
+        ui_config: {},
+        feature_flags: {},
+        is_active: true,
+      }),
+    });
+  });
+  await context.route("**/api/v1/token/refresh/", async (route) => {
+    refreshCount += 1;
+    const requestNumber = refreshCount;
+    if (failSecondRefresh && requestNumber === 1) {
+      const deadline = Date.now() + 5_000;
+      while (refreshCount < 2 && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, requestNumber === 1 ? 200 : 400));
+    if (failSecondRefresh && requestNumber > 1) {
+      await route.fulfill({ status: 401, contentType: "application/json", body: "{}" });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ access: rotatedAccess, refresh: "shared-rotated-refresh" }),
+    });
+  });
+  await context.route("**/api/v1/core/me/", async (route) => {
+    meCount += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: 12,
+        username: "t1_admin97",
+        name: "관리자",
+        phone: "01012345678",
+        is_staff: true,
+        is_superuser: false,
+        tenantRole: "admin",
+        linkedStudents: null,
+        must_change_password: false,
+        first_login_guide_required: false,
+      }),
+    });
+  });
+
+  return {
+    rotatedAccess,
+    counts: () => ({ refresh: refreshCount, me: meCount }),
+  };
 }
 
 async function stubAccountApp(
@@ -151,6 +241,57 @@ test.use({ serviceWorkers: "block" });
 test.skip(!isLocalBase(BASE), "Local route-mock spec. Set E2E_BASE_URL to localhost to run.");
 
 test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
+  test("만료 시점에 열린 두 탭은 회전 refresh를 한 번만 사용한다", async ({ page, context }) => {
+    const refresh = await stubConcurrentRefresh(context);
+
+    const secondPage = await context.newPage();
+    try {
+      await Promise.all([
+        gotoAndSettle(page, `${BASE}/workspace/dashboard`, { timeout: 20_000 }),
+        gotoAndSettle(secondPage, `${BASE}/workspace/dashboard`, { timeout: 20_000 }),
+      ]);
+
+      await expect.poll(() => refresh.counts().refresh, { timeout: 60_000 }).toBe(1);
+      await expect.poll(() => refresh.counts().me, { timeout: 60_000 }).toBeGreaterThanOrEqual(2);
+      await expect.poll(() => page.evaluate(() => ({
+        access: localStorage.getItem("access"),
+        refresh: localStorage.getItem("refresh"),
+      }))).toEqual({
+        access: refresh.rotatedAccess,
+        refresh: "shared-rotated-refresh",
+      });
+    } finally {
+      await secondPage.close();
+    }
+  });
+
+  test("Web Lock 미지원 탭의 늦은 refresh 실패가 회전 토큰을 지우지 않는다", async ({ page, context }) => {
+    const refresh = await stubConcurrentRefresh(context, {
+      disableWebLocks: true,
+      failSecondRefresh: true,
+    });
+
+    const secondPage = await context.newPage();
+    try {
+      await Promise.all([
+        gotoAndSettle(page, `${BASE}/workspace/dashboard`, { timeout: 20_000 }),
+        gotoAndSettle(secondPage, `${BASE}/workspace/dashboard`, { timeout: 20_000 }),
+      ]);
+
+      await expect.poll(() => refresh.counts().refresh, { timeout: 60_000 }).toBe(2);
+      await expect.poll(() => refresh.counts().me, { timeout: 60_000 }).toBeGreaterThanOrEqual(2);
+      await expect.poll(() => page.evaluate(() => ({
+        access: localStorage.getItem("access"),
+        refresh: localStorage.getItem("refresh"),
+      }))).toEqual({
+        access: refresh.rotatedAccess,
+        refresh: "shared-rotated-refresh",
+      });
+    } finally {
+      await secondPage.close();
+    }
+  });
+
   test("refresh 성공 뒤 재요청도 401이면 토큰을 폐기하고 로그인으로 복귀한다", async ({ page }) => {
     const access = createE2eJwt();
     let refreshCount = 0;
