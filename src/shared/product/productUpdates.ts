@@ -18,6 +18,22 @@ export const PRODUCT_UPDATE_CADENCE = {
 
 export const PRODUCT_UPDATES: ProductUpdate[] = [
   {
+    id: "2026-08-22-alimtalk-operations",
+    date: "2026-08-22",
+    title: "알림톡 공지와 자동발송 운영 안정화",
+    summary:
+      "학원 전체 알림톡 상태를 직접 확인하고 제어하며, 저장해 둔 문구로 결과 없이 운영 공지를 보내는 흐름을 더 빠르고 분명하게 정리했습니다.",
+    audience: ["원장", "관리자", "선생님", "조교"],
+    availability: "전체 제공",
+    highlights: [
+      { kind: "new", text: "대표·관리자가 직접 켜고 끄는 알림톡 전체 사용 상태" },
+      { kind: "new", text: "홈페이지 주소·영상·일정·출결을 결과 없이 보내는 수업·운영 공지" },
+      { kind: "improve", text: "어느 화면에서 저장했든 내 알림톡 문구를 다른 공지 유형에서도 다시 사용" },
+      { kind: "fix", text: "임시 비밀번호 변경창과 조교 출근창이 겹쳐 입력이 뒤 화면으로 가던 문제 수정" },
+      { kind: "fix", text: "학생 명부의 반 정렬과 공급자 한도·잔액 거절 상태 처리 안정화" },
+    ],
+  },
+  {
     id: "2026-08-22-classroom-operations",
     date: "2026-08-22",
     title: "수업 운영이 한눈에 보이는 결과 화면",

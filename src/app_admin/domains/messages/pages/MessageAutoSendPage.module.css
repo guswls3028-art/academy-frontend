@@ -326,6 +326,72 @@
   color: var(--color-status-success, #16a34a);
 }
 
+.serviceControl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--color-status-warning, #d97706) 28%, var(--color-border-divider));
+  border-radius: var(--radius-lg, 12px);
+  background: color-mix(in srgb, var(--color-status-warning, #d97706) 6%, var(--color-bg-surface));
+}
+
+.serviceControl[data-enabled="true"] {
+  border-color: color-mix(in srgb, var(--color-status-success, #16a34a) 28%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-status-success, #16a34a) 6%, var(--color-bg-surface));
+}
+
+.serviceControl[data-hold="true"] {
+  border-color: color-mix(in srgb, var(--color-status-danger, #dc2626) 28%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-status-danger, #dc2626) 6%, var(--color-bg-surface));
+}
+
+.serviceControlIcon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--color-bg-surface);
+  color: var(--color-status-warning, #d97706);
+  box-shadow: inset 0 0 0 1px var(--color-border-divider);
+}
+
+.serviceControl[data-enabled="true"] .serviceControlIcon {
+  color: var(--color-status-success, #16a34a);
+}
+
+.serviceControl[data-hold="true"] .serviceControlIcon {
+  color: var(--color-status-danger, #dc2626);
+}
+
+.serviceControlCopy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.serviceControlCopy strong {
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
+.serviceControlCopy small {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.serviceControlRole {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .summaryStrip {
   display: flex;
   flex-wrap: wrap;
@@ -499,6 +565,14 @@
 }
 
 @media (max-width: 639px) {
+  .serviceControl {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .serviceControlRole {
+    display: none;
+  }
+
   .triggerTitle {
     white-space: normal;
   }

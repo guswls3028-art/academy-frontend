@@ -22,6 +22,11 @@ export interface TenantMessagingInfo {
   delivery_policy?: "common_alimtalk_only";
   messaging_disabled?: boolean;
   messaging_disabled_reason?: string;
+  /** 학원 대표/관리자가 직접 제어하는 전체 알림톡 사용 상태 */
+  tenant_messaging_enabled?: boolean;
+  /** 장애 확산 방지용 별도 운영 hold. 고객 설정과 구분한다. */
+  messaging_ops_hold?: boolean;
+  can_manage_messaging?: boolean;
 }
 
 export interface NotificationLogItem {
@@ -90,6 +95,15 @@ export interface ScheduledNotificationResponse {
 /** 테넌트 메시징 정보 (잔액, PFID, 활성화, 단가) */
 export async function fetchMessagingInfo(): Promise<TenantMessagingInfo> {
   const res = await api.get<TenantMessagingInfo>(`${PREFIX}/info/`);
+  return res.data;
+}
+
+export async function updateTenantMessagingActivation(
+  enabled: boolean,
+): Promise<TenantMessagingInfo> {
+  const res = await api.patch<TenantMessagingInfo>(`${PREFIX}/info/`, {
+    tenant_messaging_enabled: enabled,
+  });
   return res.data;
 }
 

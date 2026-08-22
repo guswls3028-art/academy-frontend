@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FiZap, FiEdit3 } from "react-icons/fi";
-import { Eye } from "lucide-react";
+import { Eye, Power } from "lucide-react";
 import { Switch } from "antd";
 import {
   fetchAutoSendConfigs,
@@ -19,7 +19,10 @@ import {
   type MessageTemplateItem,
   type MessageTemplatePayload,
 } from "../api/messages.api";
-import { useMessagingInfo } from "../hooks/useMessagingInfo";
+import {
+  useMessagingInfo,
+  useTenantMessagingActivation,
+} from "../hooks/useMessagingInfo";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import AutoSendSectionTree, {
@@ -387,8 +390,17 @@ export default function MessageAutoSendPage() {
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplateItem | null>(null);
   const [editingTrigger, setEditingTrigger] = useState<string | null>(null);
   const [creatingForTrigger, setCreatingForTrigger] = useState<string | null>(null);
-  const { data: messagingInfo } = useMessagingInfo();
-  const operationalDisabled = Boolean(messagingInfo?.messaging_disabled);
+  const {
+    data: messagingInfo,
+    isLoading: messagingInfoLoading,
+    isError: messagingInfoError,
+  } = useMessagingInfo();
+  const activationMut = useTenantMessagingActivation();
+  const messagingInfoUnavailable = messagingInfoLoading || messagingInfoError || !messagingInfo;
+  const operationalDisabled = messagingInfoUnavailable || Boolean(messagingInfo.messaging_disabled);
+  const tenantMessagingEnabled = messagingInfo?.tenant_messaging_enabled === true;
+  const messagingOpsHold = Boolean(messagingInfo?.messaging_ops_hold);
+  const canManageMessaging = Boolean(messagingInfo?.can_manage_messaging);
 
   const { data: configs = EMPTY_CONFIGS, isLoading, isError: configsError, refetch: refetchConfigs } = useQuery({
     queryKey: messageQueryKeys.autoSend,
@@ -631,6 +643,48 @@ export default function MessageAutoSendPage() {
               {operationalDisabled ? "운영 중지" : getMasterToggleLabel(globalSummary)}
             </span>
           </div>
+        </div>
+        <div
+          className={styles.serviceControl}
+          data-enabled={tenantMessagingEnabled && !messagingOpsHold}
+          data-hold={messagingOpsHold || undefined}
+        >
+          <span className={styles.serviceControlIcon} aria-hidden>
+            <Power size={18} />
+          </span>
+          <span className={styles.serviceControlCopy}>
+            <strong>알림톡 전체 사용</strong>
+            <small>
+              {messagingInfoLoading
+                ? "알림톡 운영 상태를 확인하고 있습니다."
+                : messagingInfoError || !messagingInfo
+                  ? "운영 상태를 불러오지 못했습니다. 새로고침 후 다시 확인해 주세요."
+                  : messagingOpsHold
+                ? "긴급 장애 확산 방지용 운영 보호가 적용되어 있습니다. 고객 설정과 별개로 표시됩니다."
+                : tenantMessagingEnabled
+                  ? "수동 발송과 켜 둔 자동발송이 정상 동작합니다."
+                  : "현재 모든 알림톡이 멈춰 있습니다. 대표 또는 관리자가 바로 다시 켤 수 있습니다."}
+            </small>
+          </span>
+          {!canManageMessaging && (
+            <span className={styles.serviceControlRole}>대표·관리자만 변경</span>
+          )}
+          <Switch
+            checked={tenantMessagingEnabled}
+            loading={messagingInfoLoading || activationMut.isPending}
+            disabled={messagingInfoUnavailable || !canManageMessaging || messagingOpsHold || activationMut.isPending}
+            aria-label="알림톡 전체 사용"
+            onChange={(checked) => {
+              activationMut.mutate(checked, {
+                onSuccess: () => feedback.success(
+                  checked
+                    ? "알림톡 전체 사용을 켰습니다."
+                    : "알림톡 전체 사용을 껐습니다.",
+                ),
+                onError: () => feedback.error("알림톡 전체 사용 설정을 저장하지 못했습니다."),
+              });
+            }}
+          />
         </div>
         <AlimtalkEnvelopeGuide variant="full" />
       </div>

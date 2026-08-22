@@ -23,6 +23,7 @@ export const routeMockSpecs = [
   "e2e/admin/lecture-session-scopes.mock.spec.ts",
   "e2e/admin/lecture-create-responsive.mock.spec.ts",
   "e2e/admin/manual-exam-grading.mock.spec.ts",
+  "e2e/admin/messaging-operations-control.mock.spec.ts",
   "e2e/admin/exam-wrong-note-export.mock.spec.ts",
   "e2e/admin/problem-review-report.mock.spec.ts",
   "e2e/admin/matchup-showcase-publish.mock.spec.ts",
@@ -58,6 +59,7 @@ export const criticalInteractionSpecs = [
 
 export const criticalStateTransitionSpecs = [
   "e2e/admin/assessment-operations-workspace.mock.spec.ts",
+  "e2e/admin/messaging-operations-control.mock.spec.ts",
   "e2e/admin/score-entry-autosave.spec.ts",
   "e2e/student/numeric-short-answer.spec.ts",
   "e2e/teacher/messaging-settings-clear-timing.mock.spec.ts",

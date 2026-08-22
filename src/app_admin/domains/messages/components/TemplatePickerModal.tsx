@@ -7,7 +7,7 @@
 //   좌: 카테고리 필터 + 검색 + 양식 카드 리스트 (직접 작성 / 내 양식 / 시스템 기본)
 //   우: 선택한 양식의 본문 미리보기 + 액션 버튼
 //
-// 기본 카테고리 필터 = blockCategory 일치 양식만. "전체 보기" 토글로 모든 카테고리 노출.
+// 저장한 내 문구는 모든 수동 발송 유형에서 재사용하고, 시스템 문구만 blockCategory로 제한.
 //
 // 부모 책임: templates 목록 fetch + handlers (set default/duplicate/delete) 제공.
 // 자식 책임: 필터·검색·미리보기·픽킹 UX만.
@@ -30,6 +30,11 @@ import {
   renderAlimtalkFullPreview,
 } from "./AlimtalkTemplateInfoPanel";
 import { hideInternalAlimtalkMemoToken } from "../constants/alimtalkEnvelope";
+import {
+  isSystemMessageTemplate,
+  isTemplateVisibleInPicker,
+  savedTemplatePickerPriority,
+} from "../utils/templatePicker";
 
 export type TemplatePickerModalProps = {
   open: boolean;
@@ -52,7 +57,7 @@ export type TemplatePickerModalProps = {
 };
 
 function isSystemTpl(t: MessageTemplateItem): boolean {
-  return t.is_system || t.name.startsWith("[HakwonPlus]") || t.name.startsWith("[학원플러스]");
+  return isSystemMessageTemplate(t);
 }
 
 export default function TemplatePickerModal({
@@ -113,15 +118,7 @@ export default function TemplatePickerModal({
   // backend가 발송 모달 카테고리와 1:1 매칭되는 카테고리만 보내주는 게 정상이지만
   // 안전망 — 클라이언트도 한 번 더 필터.
   const categoryMatches = (t: MessageTemplateItem): boolean => {
-    if (showAllCategories) return true;
-    if (t.category === "signup") return false;
-    if (blockCategory === "default" || blockCategory === "student") {
-      // 학생 일반 발송 — default 양식 + (편의상) 시스템 기본 양식은 보임.
-      // MessageTemplateCategory enum 에는 "student" 가 없음 (backend 카테고리는 12종, frontend
-      // blockCategory 만 추가로 "student" 보유) — t.category 비교에서는 "default" 만.
-      return t.category === "default" || isSystemTpl(t);
-    }
-    return t.category === blockCategory;
+    return isTemplateVisibleInPicker(t, blockCategory, showAllCategories);
   };
 
   // ─── 필터링 + 그룹화 ───
@@ -146,6 +143,10 @@ export default function TemplatePickerModal({
       if (isSystemTpl(t)) sys.push(t);
       else my.push(t);
     }
+    my.sort((a, b) => {
+      return savedTemplatePickerPriority(a, blockCategory)
+        - savedTemplatePickerPriority(b, blockCategory);
+    });
     return { presets, my, sys };
   }, [defaultPresets, templates, search, blockCategory, showAllCategories]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -298,7 +299,7 @@ export default function TemplatePickerModal({
             <Badge tone="primary" size="sm">{blockLabel}</Badge>
           </div>
         }
-        description="보낼 알림톡 문구를 선택하세요. 기본 제공 문구도 바로 수정해서 보낼 수 있습니다."
+        description="저장한 내 문구는 어느 공지 유형에서도 다시 쓸 수 있습니다. 발송 유형에 맞는 승인 알림톡 봉투는 별도로 유지됩니다."
       />
 
       <ModalBody>

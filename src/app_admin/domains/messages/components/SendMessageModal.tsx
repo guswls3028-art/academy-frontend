@@ -121,7 +121,7 @@ type ConfirmPreviewRecipient = {
 };
 const EMPTY_ID_LIST: number[] = [];
 const EDITABLE_ENVELOPE_OPTIONS: Array<{ category: TemplateCategory; label: string; hint: string }> = [
-  { category: "attendance", label: "출석 안내", hint: "수업·일정" },
+  { category: "attendance", label: "수업·운영 공지", hint: "주소·영상·일정·출결" },
   { category: "grades", label: "성적표", hint: "시험·과제 결과" },
   { category: "clinic", label: "클리닉", hint: "보강·상담" },
   { category: "exam", label: "시험/과제", hint: "안내·리마인드" },

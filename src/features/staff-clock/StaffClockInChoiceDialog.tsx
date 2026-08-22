@@ -18,6 +18,7 @@ import {
 } from "./promptSession";
 import { useStaffClock } from "./useStaffClock";
 import styles from "./StaffClockInChoiceDialog.module.css";
+import useAuth from "@/auth/hooks/useAuth";
 
 function WorkTypeIcon({ name }: { name: string }) {
   if (name.includes("클리닉")) return <Stethoscope aria-hidden />;
@@ -28,6 +29,7 @@ function WorkTypeIcon({ name }: { name: string }) {
 
 export default function StaffClockInChoiceDialog() {
   const location = useLocation();
+  const { user } = useAuth();
   const pendingPrompt = useSyncExternalStore(
     subscribeStaffClockInChoice,
     hasPendingStaffClockInChoice,
@@ -35,6 +37,9 @@ export default function StaffClockInChoiceDialog() {
   );
   const clock = useStaffClock();
   const isWorkspace = location.pathname.startsWith("/workspace");
+  const accountSetupBlocking = Boolean(
+    user?.must_change_password || user?.first_login_guide_required,
+  );
 
   useEffect(() => {
     if (pendingPrompt && clock.isWorking) {
@@ -48,7 +53,13 @@ export default function StaffClockInChoiceDialog() {
     }
   }, [clock.isAuthenticated, clock.shouldPromptForClockIn, pendingPrompt]);
 
-  if (!pendingPrompt || !isWorkspace || !clock.shouldPromptForClockIn || clock.isWorking) {
+  if (
+    !pendingPrompt
+    || !isWorkspace
+    || accountSetupBlocking
+    || !clock.shouldPromptForClockIn
+    || clock.isWorking
+  ) {
     return null;
   }
 

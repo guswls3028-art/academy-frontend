@@ -27,6 +27,7 @@ type ClockFailureOptions = {
   staffMe?: boolean;
   currentlyWorking?: boolean;
   showWorkingStaff?: boolean;
+  mustChangePassword?: boolean;
 };
 
 async function installClockApp(
@@ -98,7 +99,7 @@ async function installClockApp(
         is_staff: true,
         is_superuser: false,
         tenantRole,
-        must_change_password: false,
+        must_change_password: Boolean(failures.mustChangePassword),
         first_login_guide_required: false,
         linkedStudents: null,
       });
@@ -238,6 +239,29 @@ test.use({ serviceWorkers: "block" });
 test.skip(!isLocalBase(BASE), "Local route-mock spec. Set E2E_BASE_URL to localhost to run.");
 
 test.describe("조교 로그인 출근 선택", () => {
+  test("임시 비밀번호 변경이 먼저 열리고 입력 포커스를 출근창이 가로채지 않는다", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await installClockApp(
+      page,
+      "/workspace/profile/attendance",
+      "staff",
+      { mustChangePassword: true },
+    );
+
+    await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+    await page.getByTestId("login-username").fill("assistant77");
+    await page.getByTestId("login-password").fill("password");
+    await page.getByTestId("login-submit").click();
+
+    const passwordDialog = page.getByRole("dialog", { name: "비밀번호 변경" });
+    await expect(passwordDialog).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "오늘 어떤 방식으로 시작할까요?" })).toHaveCount(0);
+    const currentPassword = passwordDialog.locator("#force-current-password");
+    await expect(currentPassword).toBeFocused();
+    await currentPassword.fill("temporary-password");
+    await expect(currentPassword).toHaveValue("temporary-password");
+  });
+
   test("비근무 로그인은 출근 API를 호출하지 않고 새로고침에도 반복되지 않는다", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 900 });
     const calls = await installClockApp(page, "/workspace/profile/attendance");

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchMessagingInfo,
   testCredentials,
+  updateTenantMessagingActivation,
 } from "../api/messages.api";
 import { messageQueryKeys } from "../queryKeys";
 
@@ -14,6 +15,16 @@ export function useMessagingInfo() {
     staleTime: 60 * 1000,
   });
   return q;
+}
+
+export function useTenantMessagingActivation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: updateTenantMessagingActivation,
+    onSuccess: (data) => {
+      qc.setQueryData(messageQueryKeys.info, data);
+    },
+  });
 }
 
 /** 공급자 연동 테스트 */
