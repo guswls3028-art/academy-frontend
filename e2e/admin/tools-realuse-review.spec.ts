@@ -1,16 +1,14 @@
 /**
- * 도구 4탭 실사용 리뷰 P0/P1 검증 (2026-04-27)
+ * 도구 실사용 리뷰 P0/P1 검증 (2026-04-27)
  * — Tenant 1 (hakwonplus) 운영 환경
  *
  * 검증 대상:
  *   P0-1/P0-2: PPT/PDF 업로드 silent reject 해결 — toast 노출
- *   P0-3/P0-4: 클리닉 iframe ↔ React 동기화 — 직접 편집으로 다운로드 버튼 활성화
  *   P1-1: OMR mc 한도 silent clamp 안내
  *   P1-2: OMR 입력 변경 후 자동 갱신
  *   P1-4: 타이머 모드 전환 시 confirm
- *   P1-5: 클리닉 파싱 실패 가이드
  *
- *   골든 패스: OMR PDF 다운로드 (%PDF-), 타이머 ZIP endpoint, 클리닉 PDF 다운로드.
+ *   골든 패스: OMR PDF 다운로드 (%PDF-), 타이머 ZIP endpoint.
  */
 import { test, expect } from "../fixtures/strictTest";
 import { loginViaUI } from "../helpers/auth";
@@ -40,7 +38,7 @@ function isOmrPreviewFor(
   }
 }
 
-test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
+test.describe("Tools 실사용 리뷰 P0/P1", () => {
   test.setTimeout(120_000);
 
   test.beforeEach(async ({ page }) => {
@@ -238,58 +236,6 @@ test.describe("Tools 4탭 실사용 리뷰 P0/P1", () => {
 
     await expect(page).toHaveURL(/\/workspace\/tools\/omr$/);
     await expect(page.getByRole("region", { name: "OMR 답안지 설정" })).toBeVisible();
-  });
-
-  // ── Clinic ──────────────────────────────────────────
-
-  test("CLN-1. 잘못된 paste → 가이드 toast (P1-5)", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/workspace/tools/clinic`);
-
-    const ta = page.locator("#clinic-paste-ta");
-    await ta.fill("이건 형식 안 맞는 무작위 텍스트입니다");
-    await page.getByRole("button", { name: /^생성$/ }).click();
-
-    const warn = page.getByText(/데이터를 인식하지 못했습니다|카테고리 형식/i).first();
-    await expect(warn).toBeVisible({ timeout: 5_000 });
-  });
-
-  test("CLN-2. 카테고리 paste → 미리보기 + 다운로드 버튼 활성화 (P0-3/P0-4)", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/workspace/tools/clinic`);
-
-    const ta = page.locator("#clinic-paste-ta");
-    await ta.fill("시험+과제: [E2E-tools] 홍길동, 김철수\n시험: [E2E-tools] 이영희\n과제: [E2E-tools] 박민수");
-    await page.getByRole("button", { name: /^생성$/ }).click();
-
-    // 파싱 성공 toast
-    await expect(page.getByText(/클리닉 대상자 4명 파싱 완료/i)).toBeVisible({ timeout: 5_000 });
-
-    // 다운로드 버튼 enabled
-    const dlBtn = page.getByRole("button", { name: /PDF 다운로드/ });
-    await expect(dlBtn).toBeEnabled({ timeout: 5_000 });
-
-    // iframe 안 이름 노출
-    const iframe = page.frameLocator("#cprev");
-    await expect(iframe.getByText("홍길동").first()).toBeVisible({ timeout: 5_000 });
-  });
-
-  test("CLN-3. PDF 다운로드 → %PDF- 매직", async ({ page }) => {
-    await gotoAndSettle(page, `${BASE}/workspace/tools/clinic`);
-
-    const ta = page.locator("#clinic-paste-ta");
-    await ta.fill("시험+과제: [E2E-tools] 홍길동\n시험: [E2E-tools] 이영희");
-    await page.getByRole("button", { name: /^생성$/ }).click();
-    await expect(page.getByRole("button", { name: /PDF 다운로드/ })).toBeEnabled({ timeout: 5_000 });
-
-    const downloadPromise = page.waitForEvent("download", { timeout: 30_000 });
-    await page.getByRole("button", { name: /PDF 다운로드/ }).click();
-    const dl = await downloadPromise;
-
-    const path = await dl.path();
-    if (path) {
-      const fs = await import("node:fs/promises");
-      const head = await fs.readFile(path).then((b) => b.subarray(0, 5).toString("ascii"));
-      expect(head).toBe("%PDF-");
-    }
   });
 
   // ── Timer ──────────────────────────────────────────

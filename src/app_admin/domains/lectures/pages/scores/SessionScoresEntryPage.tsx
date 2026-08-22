@@ -217,7 +217,12 @@ export default function SessionScoresEntryPage({
     enabled: shouldLoadPrintData && Number.isFinite(numericSessionId),
   });
   /** 출결 (PDF 출결 열 + 클리닉 현황용) */
-  const { data: attendanceForPdf } = useQuery({
+  const {
+    data: attendanceForPdf,
+    isPending: attendanceForPdfPending,
+    isError: attendanceForPdfError,
+    refetch: refetchAttendanceForPdf,
+  } = useQuery({
     queryKey: adminLectureQueryKeys.attendanceForPdf(numericSessionId),
     queryFn: () => fetchAttendance(numericSessionId, { page_size: 500 }),
     enabled: shouldLoadPrintData && Number.isFinite(numericSessionId),
@@ -1770,6 +1775,8 @@ export default function SessionScoresEntryPage({
             sessionTitle={sessionTitle}
             lectureTitle={lectureTitle}
             attendanceMap={attendanceMapForPdf}
+            attendanceState={attendanceForPdfError ? "error" : attendanceForPdfPending ? "loading" : "ready"}
+            onRetryAttendance={() => { void refetchAttendanceForPdf(); }}
           />
         </Suspense>
       )}

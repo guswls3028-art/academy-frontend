@@ -29,7 +29,7 @@ test("ordinary component TypeErrors are not hidden by chunk recovery", () => {
     "Cannot read properties of undefined (reading 'map')",
   );
 
-  assert.equal(isChunkLoadError(error, "\n    at Lazy\n    at ClinicPrintoutPage"), false);
+  assert.equal(isChunkLoadError(error, "\n    at Lazy\n    at OrdinaryPage"), false);
 });
 
 test("known dynamic import failures remain recoverable", () => {

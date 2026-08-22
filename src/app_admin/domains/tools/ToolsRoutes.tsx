@@ -9,7 +9,6 @@ import styles from "./ToolsRoutes.module.css";
 const ToolsLayout = lazy(() => import("./ToolsLayout"));
 const PptGeneratorPage = lazy(() => import("./ppt/pages/PptGeneratorPage"));
 const OmrGeneratorPage = lazy(() => import("./omr/pages/OmrGeneratorPage"));
-const ClinicPrintoutPage = lazy(() => import("./clinic/pages/ClinicPrintoutPage"));
 const StopwatchPage = lazy(() => import("./stopwatch/pages/StopwatchPage"));
 const ProblemStudioPage = lazy(() => import("./problem-studio/pages/ProblemStudioPage"));
 const ProblemReviewPage = lazy(() => import("./problem-review/pages/ProblemReviewPage"));
@@ -30,10 +29,10 @@ export default function ToolsRoutes() {
           <Route index element={<Navigate to="ppt" replace />} />
           <Route path="ppt" element={<Suspense fallback={<Fallback />}><PptGeneratorPage /></Suspense>} />
           <Route path="omr" element={<Suspense fallback={<Fallback />}><OmrGeneratorPage /></Suspense>} />
-          <Route path="clinic" element={<Suspense fallback={<Fallback />}><ClinicPrintoutPage /></Suspense>} />
           <Route path="stopwatch" element={<Suspense fallback={<Fallback />}><StopwatchPage /></Suspense>} />
           <Route path="problem-studio" element={<Suspense fallback={<Fallback />}><ProblemStudioPage /></Suspense>} />
           <Route path="problem-review" element={<Suspense fallback={<Fallback />}><ProblemReviewPage /></Suspense>} />
+          <Route path="*" element={<Navigate to="ppt" replace />} />
         </Route>
       </Routes>
     </Suspense>

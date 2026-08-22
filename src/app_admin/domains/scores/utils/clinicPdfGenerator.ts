@@ -601,10 +601,12 @@ export async function htmlToPdfDownload(html: string, filename: string) {
 }
 
 function filterPresent(rows: SessionScoreRow[], attendanceMap?: Record<number, string>) {
-  if (!attendanceMap || Object.keys(attendanceMap).length === 0) return rows;
+  // 출결을 아직 못 불러온 상태에서 전체 수강생으로 대체하면 영상/결석 학생까지
+  // 인쇄되는 안전하지 않은 명단이 된다. 출결이 없으면 비워 두고 호출자가 재시도한다.
+  if (!attendanceMap || Object.keys(attendanceMap).length === 0) return [];
   return rows.filter((r) => {
     const s = (attendanceMap[r.enrollment_id] ?? "").toUpperCase();
-    return s === "PRESENT" || s === "ONLINE" || s === "SUPPLEMENT" || s === "LATE";
+    return s === "PRESENT" || s === "SUPPLEMENT" || s === "LATE";
   });
 }
 
@@ -678,22 +680,42 @@ function analyze(rows: SessionScoreRow[], meta: SessionScoreMeta, attendanceMap?
       continue;
     }
 
-    const examFailed = allExams.some((e) => isUnresolvedClinicBlock(e.block));
-    const hwFailed = allHws.some((h) => isUnresolvedClinicBlock(h.block));
+    // 클리닉 대상 판별은 서버의 미해소 ClinicLink가 SSOT다. 점수 블록만 다시
+    // 해석하면 미제출 대상이 빠지거나, 링크가 해소된 학생이 다시 포함될 수 있다.
+    if (row.clinic_required !== true) {
+      const hasAnyDoneSignal = allExams.some((e) => hasCompletedScoreSignal(e.block))
+        || allHws.some((h) => hasCompletedScoreSignal(h.block));
+      if (hasAnyDoneSignal) passed.push(row.student_name);
+      continue;
+    }
+
+    const linkedExams = allExams.filter((entry) => entry.clinic_link_id != null);
+    const linkedHomeworks = allHws.filter((entry) => entry.clinic_link_id != null);
+    const hasSourceLinks = linkedExams.length > 0 || linkedHomeworks.length > 0;
+    let examFailed = linkedExams.length > 0;
+    let hwFailed = linkedHomeworks.length > 0;
+
+    // source metadata가 없던 레거시 자동 링크만 점수 블록으로 보조 분류한다.
+    if (!hasSourceLinks) {
+      examFailed = allExams.some((entry) => isUnresolvedClinicBlock(entry.block));
+      hwFailed = allHws.some((entry) => isUnresolvedClinicBlock(entry.block));
+      if (!examFailed && !hwFailed) {
+        // 서버가 현재 대상이라고 확정했으므로 원인 미상 링크도 명단에서 숨기지 않는다.
+        examFailed = true;
+        hwFailed = true;
+      }
+    }
 
     if (!examFailed && !hwFailed) {
-      // 미입력/기준미설정만 있고 완료 신호가 없으면 통과로 카운트하지 않음
-      const hasAnyDoneSignal = allExams.some((e) => hasCompletedScoreSignal(e.block)) || allHws.some((h) => hasCompletedScoreSignal(h.block));
-      if (hasAnyDoneSignal) {
-        passed.push(row.student_name);
-      }
       continue;
     }
 
     let almostPassed = false;
     if (examFailed) {
-      const failedExams = (row.exams ?? []).filter((e) => isUnresolvedClinicBlock(e.block));
-      almostPassed = failedExams.every((e) => {
+      const failedExams = hasSourceLinks
+        ? linkedExams
+        : allExams.filter((entry) => isUnresolvedClinicBlock(entry.block));
+      almostPassed = failedExams.length > 0 && failedExams.every((e) => {
         const ps = passScoreMap.get(e.exam_id) ?? 70;
         const score = e.block.score;
         return score != null && score >= ps - 10 && score < ps;

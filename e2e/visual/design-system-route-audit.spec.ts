@@ -53,7 +53,6 @@ const ADMIN_ROUTES = [
   "/workspace/landing-public/inbox",
   "/workspace/tools/ppt",
   "/workspace/tools/omr",
-  "/workspace/tools/clinic",
   "/workspace/tools/stopwatch",
   "/workspace/tools/problem-studio",
   "/workspace/developer/bug",

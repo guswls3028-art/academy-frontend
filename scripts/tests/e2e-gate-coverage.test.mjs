@@ -52,6 +52,10 @@ test("the current homework score contract cannot fall out of the PR gate", () =>
   assert.ok(gateSpecs.has("e2e/admin/score-entry-autosave.spec.ts"));
 });
 
+test("the official clinic PDF contract cannot fall out of the PR gate", () => {
+  assert.ok(gateSpecs.has("e2e/clinic-pdf-download.spec.ts"));
+});
+
 test("workspace quick navigation cannot fall out of the route-mock PR gate", () => {
   assert.ok(gateSpecs.has("e2e/admin/workspace-quick-navigation.mock.spec.ts"));
 });
