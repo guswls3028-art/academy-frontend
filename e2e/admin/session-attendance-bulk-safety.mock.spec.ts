@@ -229,6 +229,25 @@ test("출석 명단은 이름 가나다순이 기본이고 계정별 정렬 선�
   await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "미입력학생 학생 상세 열기");
 });
 
+test("이전 상태순 설정은 이름순으로 복구하고 출결 저장 뒤에도 학생 행을 고정한다", async ({ page }) => {
+  const state = createState();
+  await page.addInitScript(() => {
+    localStorage.setItem("attendance:sort:hakwonplus:user:12", "status");
+  });
+  await openAttendance(page, state);
+
+  const studentLinks = page.locator('tbody a[aria-label$=" 학생 상세 열기"]');
+  await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "결석학생 학생 상세 열기");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("attendance:sort:hakwonplus:user:12"))).toBe("name");
+  await expect(page.getByRole("columnheader", { name: /출결 상태/ })).not.toHaveAttribute("aria-sort");
+
+  const quickRail = page.getByRole("group", { name: "결석학생 출결 빠른 선택" });
+  await quickRail.getByRole("button", { name: "결석학생 지각 상태로 변경" }).click();
+  await expect.poll(() => state.attendanceStatusUpdates).toEqual([{ id: 502, status: "LATE" }]);
+  await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "결석학생 학생 상세 열기");
+  await expect.poll(() => state.attendanceOrderings.at(-1)).toBe("name");
+});
+
 test("데스크톱은 모든 출결 상태를 한 줄에서 저장하고 모바일은 압축 선택기를 유지한다", async ({ page }, testInfo) => {
   const state = createState();
   await page.setViewportSize({ width: 1366, height: 850 });
@@ -238,6 +257,14 @@ test("데스크톱은 모든 출결 상태를 한 줄에서 저장하고 모바�
   await expect(quickRail).toBeVisible();
   await expect(quickRail.getByRole("button")).toHaveCount(11);
   await expect(quickRail.getByRole("button", { name: "결석학생 결석 상태로 변경" })).toHaveAttribute("aria-pressed", "true");
+  const inactivePresent = quickRail.getByRole("button", { name: "결석학생 현장 상태로 변경" });
+  const inactiveOnline = quickRail.getByRole("button", { name: "결석학생 영상 상태로 변경" });
+  const inactiveBackgrounds = await Promise.all([inactivePresent, inactiveOnline].map((button) => (
+    button.locator(".ds-status-badge").evaluate((node) => getComputedStyle(node).backgroundColor)
+  )));
+  expect(inactiveBackgrounds[0]).toBe(inactiveBackgrounds[1]);
+  await expect(quickRail.getByRole("button", { name: "결석학생 부재 상태로 변경" })).toHaveAttribute("data-critical", "true");
+  await expect(quickRail.getByRole("button", { name: "결석학생 퇴원 상태로 변경" })).toHaveAttribute("data-critical", "true");
   await expect.poll(async () => (await quickRail.boundingBox())?.width ?? 0).toBeGreaterThan(500);
 
   await quickRail.getByRole("button", { name: "결석학생 지각 상태로 변경" }).click();

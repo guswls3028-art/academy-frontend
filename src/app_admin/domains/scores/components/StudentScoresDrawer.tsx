@@ -46,6 +46,7 @@ import { scoresQueryKeys } from "../api/queryKeys";
 import CloseButton from "@/shared/ui/ds/CloseButton";
 import { Badge, Button, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
 import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
 import {
   AlertTriangle,
@@ -293,24 +294,30 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
           </div>
           <div className="student-scores-drawer__header-info">
             <h2 id="student-scores-drawer-title" className="student-scores-drawer__header-name">
-              <StudentNameWithLectureChip
-                name={row.student_name ?? ""}
-                lectures={
-                  (row as any).lecture_title
-                    ? [{ lectureName: (row as any).lecture_title, color: (row as any).lecture_color, chipLabel: (row as any).lecture_chip_label }]
-                    : undefined
-                }
-                chipSize={20}
-                clinicHighlight={
-                  row.name_highlight_followup_required
-                  ?? row.name_highlight_clinic_target
-                  ?? false
-                }
-                examNotSubmittedCount={row.exam_not_submitted_count}
-              />
+              <StudentDetailLink
+                studentId={row.student_id}
+                studentName={row.student_name ?? ""}
+                className="student-scores-drawer__student-link"
+              >
+                <StudentNameWithLectureChip
+                  name={row.student_name ?? ""}
+                  lectures={
+                    (row as any).lecture_title
+                      ? [{ lectureName: (row as any).lecture_title, color: (row as any).lecture_color, chipLabel: (row as any).lecture_chip_label }]
+                      : undefined
+                  }
+                  chipSize={20}
+                  clinicHighlight={
+                    row.name_highlight_followup_required
+                    ?? row.name_highlight_clinic_target
+                    ?? false
+                  }
+                  examNotSubmittedCount={row.exam_not_submitted_count}
+                />
+              </StudentDetailLink>
             </h2>
             <span className="student-scores-drawer__header-meta">
-              차시 성적 상세 <span aria-hidden>·</span> <kbd>Esc</kbd> 닫기
+              이름을 누르면 학생 정보 <span aria-hidden>·</span> <kbd>Esc</kbd> 닫기
             </span>
           </div>
           {/* 학원장 임근혁 요청 — 성적 발송 버튼 드로어 상단(헤더)에 prominent.

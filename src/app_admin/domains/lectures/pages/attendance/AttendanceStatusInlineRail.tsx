@@ -30,12 +30,15 @@ export default function AttendanceStatusInlineRail({
       {ORDERED_ATTENDANCE_STATUS.map((code) => {
         const active = value === code;
         const label = ATTENDANCE_META[code].label;
+        const critical = code === "INACTIVE" || code === "SECESSION";
         return (
           <button
             key={code}
             type="button"
             className="attendance-status-inline__option"
             data-active={active ? "true" : "false"}
+            data-critical={critical ? "true" : undefined}
+            data-status-code={code.toLowerCase()}
             aria-pressed={active}
             aria-label={`${studentName} ${label} 상태로 변경`}
             title={active ? `현재 ${label}` : `${label} 상태로 변경`}
