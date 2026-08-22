@@ -52,6 +52,12 @@ API와 성공 후 세션 처리를 소유한다. 비밀번호 원문, 토큰, �
 
 ## 실패와 입력 처리
 
+- 로그인 ID와 비밀번호 입력은 iPhone Safari의 자동 대문자·자동수정·맞춤법
+  변형을 끈다. 사용자가 입력한 대소문자와 기호를 그대로 `/token/`에 보내며,
+  모바일에서도 역할별 홈으로 이동하기 전에 `/core/me/` 성공을 확인한다.
+- access·refresh 토큰은 둘 다 저장되어야 로그인에 성공한 것으로 본다. 두 번째
+  저장을 포함한 브라우저 저장소 오류가 발생하면 두 키를 모두 제거하고,
+  아이디·비밀번호 오류와 구분되는 Safari 개인정보 보호 설정 안내를 표시한다.
 - 현재 비밀번호, 4자 이상의 새 비밀번호, 새 비밀번호 확인을 모두 검사한다.
 - 현재 비밀번호와 같은 값, 확인값 불일치, 중복 제출은 요청 전에 차단한다.
 - 서버의 현재 비밀번호 불일치와 알림톡 전송 실패 문구를 화면에 표시한다.
@@ -89,12 +95,37 @@ refresh 후 재요청 401의 단일 세션 종료와 복귀 경로 보존을 검
 
 ```powershell
 pnpm exec playwright test e2e/auth/account-password-flows.mock.spec.ts e2e/auth/account-recovery-modal.spec.ts e2e/admin/staff-operations-contract.mock.spec.ts --project=chromium --reporter=list
+pnpm exec playwright test e2e/auth/iphone-safari-login.mock.spec.ts --config=playwright.cross-browser.config.ts --project=chromium --project=webkit --reporter=list
 pnpm exec playwright test e2e/student/student-content-resilience.mock.spec.ts --project=chromium --grep "학부모 내 비밀번호"
 pnpm exec playwright test e2e/admin/student-detail-entrypoints.mock.spec.ts --project=chromium --reporter=list
 pnpm typecheck
 pnpm guard:legacy-api
 pnpm build
 ```
+
+### persistent-development iPhone 로그인 UAT
+
+backend의 `setup_ymath_realuse_scenario --login-uat` 마지막 JSON에서
+`login_manifest`를 별도 artifact로 저장한다. artifact에는 합성 role·username·역할
+landing만 있고 비밀번호나 토큰은 없어야 한다. exact frontend checkout을 SSM
+loopback API에 연결한 뒤 같은 일회성 비밀번호를 환경 변수로만 전달한다.
+
+```powershell
+$env:VITE_DEV_PROXY_TARGET = "http://127.0.0.1:18000"
+$env:E2E_BASE_URL = "http://127.0.0.1:5173"
+$env:E2E_API_URL = "http://127.0.0.1:18000"
+$env:E2E_LOGIN_UAT_MANIFEST = "C:\academy\_artifacts\iphone-safari-login\manifest.json"
+$env:YMATH_REALUSE_SCENARIO_PASSWORD = "<ephemeral-secret>"
+pnpm test:e2e:iphone-safari-uat
+```
+
+runner는 두 URL이 loopback이고 tenant가 `qa-ymath-realuse-*`, 계정이
+student·parent·staff 각 10명일 때만 Chromium·WebKit 390px에서 30계정 전부의
+로그인 → `/core/me/` 역할 landing → UI 로그아웃과 access·refresh 제거를 확인한다.
+실제 실행은 backend/frontend PR 병합과 persistent-development 후보 배포 뒤에만
+허용한다. 실행 orchestration은 성공·실패 모두 같은 backend tenant를
+`--destroy`하고 `remaining.tenants=0`, `remaining.users=0`을 읽기 전에는 성공으로
+기록하지 않는다. 운영 hostname·운영 API·실사용 계정에는 실행하지 않는다.
 
 학생·학부모 권한 경계는 [STUDENT-PARENT-APP-CONTRACT.md](STUDENT-PARENT-APP-CONTRACT.md),
 공용 계정복구의 서버 상태 전이는

@@ -1,0 +1,111 @@
+import fs from "node:fs";
+
+import { expect, test, type Page } from "../fixtures/strictTest";
+import { gotoAndSettle } from "../helpers/wait";
+
+type LoginRole = "student" | "parent" | "staff";
+
+type LoginAccount = {
+  role: LoginRole;
+  username: string;
+  landing_path: string;
+};
+
+type LoginManifest = {
+  schema_version: number;
+  tenant_code: string;
+  account_count: number;
+  accounts: LoginAccount[];
+};
+
+const BASE = (process.env.E2E_BASE_URL || "").replace(/\/+$/, "");
+const API = (process.env.E2E_API_URL || "").replace(/\/+$/, "");
+const MANIFEST_PATH = (process.env.E2E_LOGIN_UAT_MANIFEST || "").trim();
+const PASSWORD = (process.env.YMATH_REALUSE_SCENARIO_PASSWORD || "").trim();
+const CONFIGURED = Boolean(BASE && API && MANIFEST_PATH && PASSWORD);
+
+function isLoopbackUrl(value: string): boolean {
+  try {
+    const hostname = new URL(value).hostname.toLowerCase();
+    return hostname === "127.0.0.1" || hostname === "localhost";
+  } catch {
+    return false;
+  }
+}
+
+function loadManifest(): LoginManifest {
+  const parsed = JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8")) as {
+    login_manifest?: LoginManifest;
+  } & Partial<LoginManifest>;
+  return parsed.login_manifest ?? parsed as LoginManifest;
+}
+
+function validateManifest(manifest: LoginManifest): void {
+  expect(isLoopbackUrl(BASE), "frontend UAT origin must be loopback-only").toBe(true);
+  expect(isLoopbackUrl(API), "persistent-development API must be loopback-only").toBe(true);
+  expect(manifest.schema_version).toBe(1);
+  expect(manifest.tenant_code).toMatch(/^qa-ymath-realuse-/);
+  expect(manifest.account_count).toBe(30);
+  expect(manifest.accounts).toHaveLength(30);
+  expect(new Set(manifest.accounts.map((account) => account.username)).size).toBe(30);
+  for (const role of ["student", "parent", "staff"] as const) {
+    expect(manifest.accounts.filter((account) => account.role === role)).toHaveLength(10);
+  }
+  for (const account of manifest.accounts) {
+    expect(Object.keys(account).sort()).toEqual(["landing_path", "role", "username"]);
+    expect(account.landing_path).toBe(account.role === "staff" ? "/workspace/mobile" : "/student");
+  }
+}
+
+async function dismissFirstLoginGuide(page: Page): Promise<void> {
+  const guide = page.getByRole("dialog", { name: "계정 안내" });
+  if (await guide.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await guide.getByRole("button", { name: "확인", exact: true }).click();
+    await expect(guide).not.toBeVisible();
+  }
+}
+
+async function logoutAndVerify(page: Page, role: LoginRole): Promise<void> {
+  if (role === "staff") {
+    await page.getByRole("button", { name: "프로필 메뉴" }).click();
+    await page.getByRole("menuitem", { name: "로그아웃", exact: true }).click();
+  } else {
+    await page.getByRole("button", { name: "메뉴 열기" }).click();
+    const drawer = page.getByRole("dialog", { name: "메뉴" });
+    await drawer.getByRole("button", { name: "로그아웃" }).click();
+    await page.locator(".stu-logout-dialog__confirm").click();
+  }
+
+  await expect.poll(() => page.evaluate(() => ({
+    access: localStorage.getItem("access"),
+    refresh: localStorage.getItem("refresh"),
+  }))).toEqual({ access: null, refresh: null });
+}
+
+test.use({ serviceWorkers: "block" });
+test.setTimeout(900_000);
+test.skip(
+  !CONFIGURED,
+  "Set loopback E2E_BASE_URL/E2E_API_URL, E2E_LOGIN_UAT_MANIFEST, and YMATH_REALUSE_SCENARIO_PASSWORD.",
+);
+
+test.describe("persistent-development iPhone Safari login UAT", () => {
+  test.describe.configure({ retries: 0 });
+
+  test("30 synthetic accounts reach their role landing and log out", async ({ page }) => {
+    const manifest = loadManifest();
+    validateManifest(manifest);
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    for (const account of manifest.accounts) {
+      await gotoAndSettle(page, `${BASE}/login/${manifest.tenant_code}`, { timeout: 45_000 });
+      await page.getByTestId("login-username").fill(account.username);
+      await page.getByTestId("login-password").fill(PASSWORD);
+      await page.getByTestId("login-submit").click();
+
+      await expect(page).toHaveURL(new RegExp(`${account.landing_path}(?:/|$)`), { timeout: 45_000 });
+      await dismissFirstLoginGuide(page);
+      await logoutAndVerify(page, account.role);
+    }
+  });
+});
