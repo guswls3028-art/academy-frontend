@@ -18,6 +18,7 @@ export const routeMockSpecs = [
   "e2e/admin/billing-bank-transfer-only.mock.spec.ts",
   "e2e/admin/assessment-operations-workspace.mock.spec.ts",
   "e2e/admin/clinic-weekly-multisession.mock.spec.ts",
+  "e2e/admin/clinic-attendance-reminder.mock.spec.ts",
   "e2e/admin/clinic-remediation-missing.mock.spec.ts",
   "e2e/admin/session-clinic-pending.mock.spec.ts",
   "e2e/admin/lecture-session-scopes.mock.spec.ts",

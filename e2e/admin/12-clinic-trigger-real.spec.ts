@@ -1,5 +1,5 @@
 /**
- * 클리닉 실전 트리거 — 오늘 세션에서 출석/결석/완료 클릭 → 알림톡 발송 검증
+ * 클리닉 실전 트리거 — 오늘 세션에서 참석/재촉/완료 클릭 → 알림톡 발송 검증
  *
  * 데이터 보장:
  *  - 기존 운영 학생·세션은 절대 재사용하지 않음
@@ -57,7 +57,7 @@ test.describe("클리닉 실전 트리거 — 프론트 클릭", () => {
     }
   });
 
-  test("오늘 세션에서 출석/결석/완료 클릭 + 발송 확인", async ({ page }) => {
+  test("오늘 세션에서 참석/재촉/완료 클릭 + 발송 확인", async ({ page }) => {
     // ── 0. 로그인 ──
     await loginViaUI(page, "admin");
 
@@ -94,30 +94,32 @@ test.describe("클리닉 실전 트리거 — 프론트 클릭", () => {
     await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
     await snap(page, "01-session-selected");
 
-    // ── 4. 워크스페이스 렌더 + 출석/결석 버튼 중 하나는 반드시 존재 ──
-    const attendBtns = page.locator("button").filter({ hasText: /^출석$|^참석$/ });
+    // ── 4. 워크스페이스 렌더 + 참석/재촉 버튼 중 하나는 반드시 존재 ──
+    const attendBtns = page.locator("button").filter({ hasText: /^참석하기$|^참석으로 수정$/ });
 
     await expect(
-      page.locator("button").filter({ hasText: /^(출석|참석|결석|불참)$/ }).first(),
-      "워크스페이스에 출석/결석 버튼이 보여야 함 (참가자 로드 실패 가능)",
+      page.locator("button").filter({ hasText: /^(참석하기|참석으로 수정|재촉하기)$/ }).first(),
+      "워크스페이스에 참석/재촉 버튼이 보여야 함 (참가자 로드 실패 가능)",
     ).toBeVisible({ timeout: 15000 });
 
-    // ── 5. 트리거 1: 첫 참가자 출석 ──
+    // ── 5. 트리거 1: 첫 참가자 참석 ──
     const firstAttend = attendBtns.first();
     if (await firstAttend.isVisible({ timeout: 2000 }).catch(() => false)) {
       await firstAttend.click();
+      const confirmAttend = page.getByRole("button", { name: "참석 확정 및 알림 발송" }).first();
+      await expect(confirmAttend).toBeVisible({ timeout: 5000 });
+      await confirmAttend.click();
       await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
       await snap(page, "02-attend-clicked");
       await dismissOverlays(page);
     }
 
-    // ── 6. 트리거 2: 다른 참가자 결석 (남은 버튼 중 첫번째) ──
-    // 첫 학생이 출석 처리되면 해당 행은 buttons 가 바뀔 수 있음. 남은 결석 버튼 대상.
-    const currentAbsent = page.locator("button").filter({ hasText: /^결석$|^불참$/ });
-    if ((await currentAbsent.count()) > 0) {
-      await currentAbsent.first().click();
+    // ── 6. 트리거 2: 다른 승인 참가자 재촉 ──
+    const currentReminder = page.locator("button").filter({ hasText: /^재촉하기$/ });
+    if ((await currentReminder.count()) > 0) {
+      await currentReminder.first().click();
       await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
-      await snap(page, "03-absent-clicked");
+      await snap(page, "03-reminder-clicked");
       await dismissOverlays(page);
     }
 
@@ -166,7 +168,7 @@ test.describe("클리닉 실전 트리거 — 프론트 클릭", () => {
 
     expect(
       recentLogs.length,
-      "통제 fixture 출석/결석/완료 트리거 중 최소 1건은 2분 내 발송 로그에 반영되어야 함",
+      "통제 fixture 참석/재촉/완료 트리거 중 최소 1건은 2분 내 발송 로그에 반영되어야 함",
     ).toBeGreaterThan(0);
 
     const earliest = recentLogs[recentLogs.length - 1];

@@ -26,6 +26,8 @@ export type TeacherClinicParticipant = {
   student_name?: string | null;
   enrollment_name?: string | null;
   status?: TeacherClinicParticipantStatus | null;
+  completed_at?: string | null;
+  /** Legacy response compatibility. Current API completion SSOT is completed_at. */
   is_completed?: boolean | null;
   profile_photo_url?: string | null;
   lecture_title?: string | null;
@@ -50,13 +52,18 @@ export async function fetchClinicParticipants(sessionId: number): Promise<Teache
   return listFromApiResponse<TeacherClinicParticipant>(res.data);
 }
 
-/** 참가자 상태 변경 (출석/결석) */
+/** 참가자 상태 변경 (참석 또는 기존 상태 정정) */
 export async function patchParticipantStatus(
   participantId: number,
   payload: { status: TeacherClinicParticipantStatus; memo?: string },
 ): Promise<TeacherClinicParticipant> {
   const res = await api.patch(`/clinic/participants/${participantId}/set_status/`, payload);
   return res.data;
+}
+
+/** 승인된 참가자 한 명에게 클리닉 재촉 알림톡 발송 */
+export async function remindParticipant(participantId: number): Promise<void> {
+  await api.post(`/clinic/participants/${participantId}/remind/`);
 }
 
 /** 참가자 완료 처리 */

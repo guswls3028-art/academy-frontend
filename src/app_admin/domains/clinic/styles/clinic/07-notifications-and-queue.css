@@ -186,7 +186,7 @@
   text-align: center;
 }
 
-/* ── 출석/결석 확정 바 (상단 고정) ── */
+/* ── 참석 확정 바 (상단 고정) ── */
 .clinic-ops__confirm-bar {
   display: flex;
   align-items: center;
@@ -322,14 +322,6 @@
 .clinic-ops__att-btn--send-attend:hover:not(:disabled) {
   background: color-mix(in srgb, var(--color-success) 22%, var(--color-bg-surface));
 }
-.clinic-ops__att-btn--send-noshow {
-  background: color-mix(in srgb, var(--color-error) 12%, var(--color-bg-surface));
-  color: var(--scale-Error700);
-}
-.clinic-ops__att-btn--send-noshow:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-error) 22%, var(--color-bg-surface));
-}
-
 /* 드로어 알림 발송 버튼 */
 .clinic-ops__drawer-status-btn--send {
   flex: 1;
@@ -352,13 +344,6 @@
 }
 .clinic-ops__drawer-status-btn--send-attend:hover:not(:disabled) {
   background: var(--scale-Success700);
-}
-.clinic-ops__drawer-status-btn--send-noshow {
-  background: var(--color-error);
-  color: #fff;
-}
-.clinic-ops__drawer-status-btn--send-noshow:hover:not(:disabled) {
-  background: var(--scale-Error700);
 }
 .clinic-ops__drawer-status-btn--send:disabled {
   opacity: 0.6;
@@ -635,13 +620,14 @@
   background: color-mix(in srgb, var(--color-success) 22%, var(--color-bg-surface));
 }
 
-.clinic-ops__att-btn--noshow.clinic-ops__att-btn--active {
-  background: color-mix(in srgb, var(--color-error) 14%, var(--color-bg-surface));
-  color: var(--scale-Error700);
+.clinic-ops__att-btn--remind {
+  color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface));
 }
 
-.clinic-ops__att-btn--noshow.clinic-ops__att-btn--active:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-error) 22%, var(--color-bg-surface));
+.clinic-ops__att-btn--remind:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-brand-primary) 16%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
 }
 
 .clinic-ops__att-btn--approve {
@@ -886,6 +872,7 @@
     flex: 1 1 50%;
     justify-content: center;
     padding: 8px 10px;
+    min-height: 44px;
   }
 
   .clinic-ops__att-btn--send {

@@ -76,6 +76,20 @@ export async function patchClinicParticipantStatus(
   return res.data as ClinicParticipant;
 }
 
+export type ClinicParticipantReminderResult = {
+  ok: true;
+  status: "ok";
+  sent: number;
+  skipped: number;
+};
+
+export async function remindClinicParticipant(id: number) {
+  const res = await api.post<ClinicParticipantReminderResult>(
+    `/clinic/participants/${id}/remind/`,
+  );
+  return res.data;
+}
+
 export async function completeClinicParticipant(id: number) {
   const res = await api.post(`/clinic/participants/${id}/complete/`);
   return res.data as ClinicParticipant;
