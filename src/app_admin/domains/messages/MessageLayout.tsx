@@ -1,9 +1,10 @@
 // PATH: src/app_admin/domains/messages/MessageLayout.tsx
 // 메시지 — DomainLayout 탭 SSOT
 
-import { Outlet, Link } from "react-router";
+import { Outlet, Link, useNavigate } from "react-router";
 import { DomainLayout } from "@/shared/ui/layout";
 import type { DomainTab } from "@/shared/ui/domain";
+import { Button } from "@/shared/ui/ds";
 import { useMessagingInfo } from "@admin/domains/messages/hooks/useMessagingInfo";
 import styles from "./MessageLayout.module.css";
 
@@ -15,6 +16,7 @@ const MESSAGE_TABS: DomainTab[] = [
 ];
 
 export default function MessageLayout() {
+  const navigate = useNavigate();
   const { data: info } = useMessagingInfo();
   const alimtalkAvailable = Boolean(info?.alimtalk_available);
 
@@ -23,6 +25,14 @@ export default function MessageLayout() {
       title="메시지"
       description="알림톡 문구 · 자동발송 · 발송 내역 · 설정"
       tabs={MESSAGE_TABS}
+      headerActions={
+        <Button
+          intent="primary"
+          onClick={() => navigate("/workspace/students?compose=alimtalk")}
+        >
+          알림톡 보내기
+        </Button>
+      }
     >
       {!alimtalkAvailable && info && (
         <div className={styles.alimtalkNotice}>
