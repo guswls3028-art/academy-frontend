@@ -16,6 +16,15 @@ import {
   setSessionItem,
 } from "@/shared/utils/safeSessionStorage";
 import {
+  AuthTokenStorageError,
+  clearAuthTokenEnvelope,
+  notifyAuthTokenStorageError,
+  publishRefreshedTokenEnvelope,
+  readAuthTokenEnvelope,
+  readAuthTokenEnvelopeSafely,
+  withAuthSessionLock,
+} from "@/shared/auth/tokenSession";
+import {
   endStudentSupportSession,
   getStudentSupportAccessToken,
   isStudentSupportWindow,
@@ -25,7 +34,7 @@ type RetryConfig = AxiosRequestConfig & {
   _retry?: boolean;
   _asyncId?: string;
   _transientRetryCount?: number;
-  _authRefresh?: string | null;
+  _authGeneration?: string | null;
 };
 
 /** AllowAny 엔드포인트(예: /core/program/) 호출 시 만료 토큰 401 방지 */
@@ -34,9 +43,10 @@ export type ApiRequestConfig = AxiosRequestConfig & { skipAuth?: boolean };
 type RefreshResponse = { access: string; refresh?: string };
 type AuthAccessResult = {
   access: string;
-  refresh: string | null;
-  submittedRefresh: string | null;
-  reusedGeneration: boolean;
+  refresh: string;
+  generation: string;
+  sessionChanged: boolean;
+  reusedRotation: boolean;
 };
 type HeaderSeed = AxiosHeaders | Record<string, AxiosHeaderValue> | string | undefined;
 
@@ -44,55 +54,11 @@ const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "").trim();
 
 export function getAccessToken(): string | null {
   if (isStudentSupportWindow()) return getStudentSupportAccessToken();
-  try {
-    const t = localStorage.getItem("access");
-    return t ? t : null;
-  } catch {
-    return null;
-  }
-}
-
-function getRefreshToken(): string | null {
-  if (isStudentSupportWindow()) return null;
-  try {
-    const t = localStorage.getItem("refresh");
-    return t ? t : null;
-  } catch {
-    return null;
-  }
-}
-
-function restoreTokenPair(access: string | null, refresh: string | null): void {
-  try {
-    if (refresh === null) localStorage.removeItem("refresh");
-    else localStorage.setItem("refresh", refresh);
-    if (access === null) localStorage.removeItem("access");
-    else localStorage.setItem("access", access);
-  } catch {
-    try { localStorage.removeItem("access"); } catch { /* ignore */ }
-    try { localStorage.removeItem("refresh"); } catch { /* ignore */ }
-  }
-}
-
-function publishRefreshedTokenPair(
-  submittedRefresh: string,
-  access: string,
-  rotatedRefresh: string | null,
-): boolean {
-  const previousAccess = getAccessToken();
-  if (getRefreshToken() !== submittedRefresh) return false;
-  try {
-    localStorage.setItem("refresh", rotatedRefresh || submittedRefresh);
-    localStorage.setItem("access", access);
-    return true;
-  } catch {
-    restoreTokenPair(previousAccess, submittedRefresh);
-    return false;
-  }
+  return readAuthTokenEnvelopeSafely()?.access ?? null;
 }
 
 /** 토큰 정리 SSOT — 모든 로그아웃/세션만료 경로에서 이 함수를 사용 */
-export function clearTokens() {
+export function clearTokens(expectedGeneration?: string | null) {
   if (isStudentSupportWindow()) {
     endStudentSupportSession();
     removeSessionItem("session_expired");
@@ -102,8 +68,12 @@ export function clearTokens() {
     return;
   }
   try {
-    localStorage.removeItem("access");
-    localStorage.removeItem("refresh");
+    clearAuthTokenEnvelope(expectedGeneration);
+  } catch (error) {
+    if (error instanceof AuthTokenStorageError) notifyAuthTokenStorageError(error);
+    throw error;
+  }
+  try {
     localStorage.removeItem("parent_selected_student_id");
     localStorage.removeItem("hakwonplus:excel-job-recovery:v1");
     // tenant-scoped parent selection keys cleanup
@@ -119,7 +89,8 @@ export function clearTokens() {
     removeSessionItem("product_analytics_session_id");
     window.dispatchEvent(new Event("product-analytics-session-reset"));
   } catch {
-    // ignore
+    // Non-auth preference/session cleanup remains best effort. The token
+    // generation removal above is the fail-closed logout boundary.
   }
 }
 
@@ -157,10 +128,10 @@ export function resetSessionEnding() {
   isSessionEnding = false;
 }
 
-function endExpiredSession() {
+function endExpiredSession(expectedGeneration?: string | null) {
   const supportWindow = isStudentSupportWindow();
   if (!supportWindow && isSessionEnding) return;
-  clearTokens();
+  clearTokens(expectedGeneration);
   if (supportWindow) {
     window.location.href = "/support-preview-ended";
     return;
@@ -212,22 +183,25 @@ function hasRequestHeader(config: AxiosRequestConfig, key: string): boolean {
   return AxiosHeaders.from(config.headers as HeaderSeed).has(key);
 }
 
-function currentGenerationResult(submittedRefresh: string): AuthAccessResult | null {
-  const currentRefresh = getRefreshToken();
-  const currentAccess = getAccessToken();
-  return currentRefresh !== submittedRefresh
-    && currentAccess
-    && !isTokenExpiredOrSoon(currentAccess)
-    ? {
-        access: currentAccess,
-        refresh: currentRefresh,
-        submittedRefresh,
-        reusedGeneration: true,
-      }
-    : null;
+function currentSessionResult(
+  submittedGeneration: string,
+  submittedRefresh: string,
+): AuthAccessResult | null {
+  const current = readAuthTokenEnvelope();
+  if (!current || isTokenExpiredOrSoon(current.access)) return null;
+  if (current.generation !== submittedGeneration) {
+    return { ...current, sessionChanged: true, reusedRotation: false };
+  }
+  if (current.refresh !== submittedRefresh) {
+    return { ...current, sessionChanged: false, reusedRotation: true };
+  }
+  return null;
 }
 
-async function requestRefreshedAccess(refresh: string): Promise<AuthAccessResult | null> {
+async function requestRefreshedAccess(
+  generation: string,
+  refresh: string,
+): Promise<AuthAccessResult | null> {
   try {
     const headers: Record<string, string> = {};
     const tenantCode = getTenantCodeForApiRequest();
@@ -241,25 +215,28 @@ async function requestRefreshedAccess(refresh: string): Promise<AuthAccessResult
 
     const newAccess = String(res.data?.access || "").trim();
     if (!newAccess) {
-      return currentGenerationResult(refresh);
+      return currentSessionResult(generation, refresh);
     }
 
     const newRefresh = String(res.data?.refresh || "").trim();
-    if (getRefreshToken() !== refresh) {
-      return currentGenerationResult(refresh);
-    }
-    if (!publishRefreshedTokenPair(refresh, newAccess, newRefresh || null)) return null;
+    const published = publishRefreshedTokenEnvelope(
+      generation,
+      refresh,
+      newAccess,
+      newRefresh || refresh,
+    );
+    if (!published) return currentSessionResult(generation, refresh);
     return {
-      access: newAccess,
-      refresh: getRefreshToken(),
-      submittedRefresh: refresh,
-      reusedGeneration: false,
+      ...published,
+      sessionChanged: false,
+      reusedRotation: false,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthTokenStorageError) throw error;
     // Browsers without Web Locks can still race across tabs. If another tab
     // already rotated the shared token while this request was in flight, reuse
     // that valid result instead of expiring the newly authenticated session.
-    return currentGenerationResult(refresh);
+    return currentSessionResult(generation, refresh);
   }
 }
 
@@ -271,35 +248,30 @@ async function requestRefreshedAccess(refresh: string): Promise<AuthAccessResult
  * another tab already rotated instead of submitting the now-blacklisted old
  * refresh token and clearing the valid replacement.
  */
-const REFRESH_LOCK_NAME = "academy-auth-refresh";
-let refreshPromise: Promise<AuthAccessResult | null> | null = null;
+let refreshPromise: { generation: string; pending: Promise<AuthAccessResult | null> } | null = null;
 
 async function refreshAccessToken(): Promise<AuthAccessResult | null> {
-  if (refreshPromise) return refreshPromise;
-
-  const initialRefresh = getRefreshToken();
-  if (!initialRefresh) return null;
+  const initial = readAuthTokenEnvelope();
+  if (!initial) return null;
+  if (refreshPromise?.generation === initial.generation) return refreshPromise.pending;
 
   const refreshUnderLock = async (): Promise<AuthAccessResult | null> => {
-    const currentRefresh = getRefreshToken();
-    if (!currentRefresh) return null;
-
-    if (currentRefresh !== initialRefresh) {
-      return currentGenerationResult(initialRefresh);
+    const current = readAuthTokenEnvelope();
+    if (!current) return null;
+    if (
+      current.generation !== initial.generation
+      || current.refresh !== initial.refresh
+    ) {
+      return currentSessionResult(initial.generation, initial.refresh);
     }
-
-    return requestRefreshedAccess(currentRefresh);
+    return requestRefreshedAccess(current.generation, current.refresh);
   };
 
-  const lockManager = typeof navigator !== "undefined" ? navigator.locks : undefined;
-  const pending: Promise<AuthAccessResult | null> = lockManager
-    ? lockManager.request(REFRESH_LOCK_NAME, refreshUnderLock).then((result) => result)
-    : refreshUnderLock();
-
-  refreshPromise = pending.catch(() => null).finally(() => {
-    refreshPromise = null;
+  const pending = withAuthSessionLock(refreshUnderLock).finally(() => {
+    if (refreshPromise?.pending === pending) refreshPromise = null;
   });
-  return refreshPromise;
+  refreshPromise = { generation: initial.generation, pending };
+  return pending;
 }
 
 /**
@@ -327,15 +299,13 @@ function isTokenExpiredOrSoon(token: string): boolean {
  * 401 응답 자체를 방지한다 (브라우저 콘솔 401 로그 제거).
  */
 async function ensureFreshToken(): Promise<AuthAccessResult | null> {
-  const access = getAccessToken();
-  if (!access) return null;
-  const refresh = getRefreshToken();
-  if (!isTokenExpiredOrSoon(access)) {
+  const current = readAuthTokenEnvelope();
+  if (!current) return null;
+  if (!isTokenExpiredOrSoon(current.access)) {
     return {
-      access,
-      refresh,
-      submittedRefresh: refresh,
-      reusedGeneration: false,
+      ...current,
+      sessionChanged: false,
+      reusedRotation: false,
     };
   }
 
@@ -394,20 +364,28 @@ api.interceptors.request.use(async (config) => {
   // Attach Authorization if access exists (JWT)
   // skipAuth: true → 로그인 전 /core/program/ 등 AllowAny 엔드포인트용 (만료 토큰 시 401 방지)
   if (!shouldSkipAuth(cfg.url, cfg)) {
-    const currentRefresh = getRefreshToken();
-    if (retryCfg._authRefresh !== undefined && retryCfg._authRefresh !== currentRefresh) {
-      throw new axios.CanceledError("Authentication session changed.");
-    }
-    if (retryCfg._authRefresh === undefined) retryCfg._authRefresh = currentRefresh;
+    try {
+      const current = readAuthTokenEnvelope();
+      const currentGeneration = current?.generation ?? null;
+      if (
+        retryCfg._authGeneration !== undefined
+        && retryCfg._authGeneration !== currentGeneration
+      ) {
+        throw new axios.CanceledError("Authentication session changed.");
+      }
+      if (retryCfg._authGeneration === undefined) {
+        retryCfg._authGeneration = currentGeneration;
+      }
 
-    // 선제적 토큰 리프레시: 만료 임박 시 요청 전에 갱신하여 401 방지
-    const auth = await ensureFreshToken();
-    if (auth && (auth.reusedGeneration || auth.refresh !== getRefreshToken())) {
-      throw new axios.CanceledError("Authentication session changed.");
-    }
-    if (auth) {
-      retryCfg._authRefresh = auth.refresh;
-      setRequestHeader(cfg, "Authorization", `Bearer ${auth.access}`);
+      // 선제적 토큰 리프레시: 만료 임박 시 요청 전에 갱신하여 401 방지
+      const auth = await ensureFreshToken();
+      if (auth?.sessionChanged || (auth && auth.generation !== retryCfg._authGeneration)) {
+        throw new axios.CanceledError("Authentication session changed.");
+      }
+      if (auth) setRequestHeader(cfg, "Authorization", `Bearer ${auth.access}`);
+    } catch (error) {
+      if (error instanceof AuthTokenStorageError) notifyAuthTokenStorageError(error);
+      throw error;
     }
   }
 
@@ -534,7 +512,15 @@ async function retryTransientApiRequest(config: RetryConfig, err: AxiosError): P
  */
 api.interceptors.response.use(
   (res: AxiosResponse) => {
-    const id = (res.config as RetryConfig)._asyncId;
+    const responseConfig = res.config as RetryConfig;
+    const id = responseConfig._asyncId;
+    if (responseConfig._authGeneration !== undefined) {
+      const currentGeneration = readAuthTokenEnvelopeSafely()?.generation ?? null;
+      if (responseConfig._authGeneration !== currentGeneration) {
+        if (id) asyncStatusStore.completeTask(id, "error", "Authentication session changed.");
+        throw new axios.CanceledError("Authentication session changed.");
+      }
+    }
     if (id) asyncStatusStore.completeTask(id, "success");
     return res;
   },
@@ -547,6 +533,19 @@ api.interceptors.response.use(
     const original = err.config as RetryConfig | undefined;
 
     if (!original) throw err;
+
+    // Reject every stale response class before retry/status handling. A delayed
+    // 403/404/network/timeout from account A must never reach account B's
+    // AuthContext or query consumers.
+    if (original._authGeneration !== undefined) {
+      const currentGeneration = readAuthTokenEnvelopeSafely()?.generation ?? null;
+      if (original._authGeneration !== currentGeneration) {
+        if (asyncId) {
+          asyncStatusStore.completeTask(asyncId, "error", "Authentication session changed.");
+        }
+        throw new axios.CanceledError("Authentication session changed.");
+      }
+    }
 
     if (shouldRetryTransientApiError(err, original)) {
       return retryTransientApiRequest(original, err);
@@ -592,28 +591,43 @@ api.interceptors.response.use(
 
     // 401만 refresh 시도 (위에서 네트워크 에러는 이미 분리됨)
     if (status === 401 && !original._retry && !shouldSkipAuth(original.url, original)) {
-      if (original._authRefresh !== undefined && original._authRefresh !== getRefreshToken()) {
+      const currentGeneration = readAuthTokenEnvelopeSafely()?.generation ?? null;
+      if (
+        original._authGeneration !== undefined
+        && original._authGeneration !== currentGeneration
+      ) {
         completeAsyncError();
         throw err;
       }
       original._retry = true;
 
-      const refreshed = await refreshAccessToken();
+      let refreshed: AuthAccessResult | null;
+      try {
+        refreshed = await refreshAccessToken();
+      } catch (error) {
+        if (error instanceof AuthTokenStorageError) {
+          notifyAuthTokenStorageError(error);
+          completeAsyncError();
+        }
+        throw error;
+      }
 
       if (!refreshed) {
-        if (original._authRefresh === undefined || original._authRefresh === getRefreshToken()) {
-          endExpiredSession();
+        if (
+          original._authGeneration === undefined
+          || original._authGeneration === readAuthTokenEnvelopeSafely()?.generation
+        ) {
+          endExpiredSession(original._authGeneration);
         }
         completeAsyncError();
         throw err;
       }
 
-      if (refreshed.reusedGeneration || refreshed.submittedRefresh !== original._authRefresh) {
+      if (refreshed.sessionChanged || refreshed.generation !== original._authGeneration) {
         completeAsyncError();
         throw err;
       }
 
-      original._authRefresh = refreshed.refresh;
       setRequestHeader(original, "Authorization", `Bearer ${refreshed.access}`);
       return api.request(original);
     }
@@ -622,8 +636,11 @@ api.interceptors.response.use(
     // rejected (for example, stale authorization during a rolling deploy).
     // Never leave that unusable token in storage and trap the SPA in 401 loops.
     if (status === 401 && original._retry && !shouldSkipAuth(original.url, original)) {
-      if (original._authRefresh === undefined || original._authRefresh === getRefreshToken()) {
-        endExpiredSession();
+      if (
+        original._authGeneration === undefined
+        || original._authGeneration === readAuthTokenEnvelopeSafely()?.generation
+      ) {
+        endExpiredSession(original._authGeneration);
       }
       completeAsyncError();
       throw err;

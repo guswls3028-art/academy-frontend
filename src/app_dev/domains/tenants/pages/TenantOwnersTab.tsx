@@ -10,6 +10,7 @@ import {
 } from "@dev/domains/tenants/hooks/useTenants";
 import {
   abortImpersonation,
+  activateImpersonation,
   beginImpersonation,
 } from "@dev/shared/components/impersonationSession";
 import { useDevToast } from "@dev/shared/components/useDevToast";
@@ -456,8 +457,7 @@ export function TenantOwnersTab({
                               try {
                                 beginImpersonation(`${tenantName} / ${o.username}`);
                                 const r = await impersonate.mutateAsync({ tenantId, userId: o.userId });
-                                localStorage.setItem("access", r.access);
-                                localStorage.setItem("refresh", r.refresh);
+                                await activateImpersonation(r.access, r.refresh);
                                 navigate("/workspace", { replace: true });
                                 window.location.reload();
                               } catch (e: unknown) {

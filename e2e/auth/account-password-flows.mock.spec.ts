@@ -4,6 +4,17 @@ import { gotoAndSettle } from "../helpers/wait";
 import { assertInteractiveSurface } from "../helpers/assertInteractiveSurface";
 
 const BASE = (process.env.E2E_BASE_URL || "http://127.0.0.1:5174").replace(/\/+$/, "");
+const AUTH_ACTIVE_GENERATION_KEY = "academy:auth-active-generation:v1";
+const AUTH_GENERATION_PREFIX = "academy:auth-tokens:v1:";
+
+async function readAuthEnvelope(page: Page) {
+  return page.evaluate(({ pointerKey, generationPrefix }) => {
+    const storage = window["localStorage"];
+    const generation = storage.getItem(pointerKey);
+    const raw = generation ? storage.getItem(`${generationPrefix}${generation}`) : null;
+    return raw ? JSON.parse(raw) as { access: string; refresh: string; generation: string } : null;
+  }, { pointerKey: AUTH_ACTIVE_GENERATION_KEY, generationPrefix: AUTH_GENERATION_PREFIX });
+}
 
 function isLocalBase(url: string): boolean {
   const hostname = new URL(url).hostname;
@@ -32,18 +43,29 @@ async function stubConcurrentRefresh(
   let refreshCount = 0;
   let meCount = 0;
 
-  await context.addInitScript(({ token, disableLocks }) => {
+  await context.addInitScript(({ token, disableLocks, pointerKey, generationPrefix }) => {
     if (location.protocol !== "http:" && location.protocol !== "https:") return;
     if (disableLocks) {
       Object.defineProperty(navigator, "locks", { configurable: true, value: undefined });
     }
-    if (!localStorage.getItem("access")) {
-      localStorage.setItem("access", token);
-      localStorage.setItem("refresh", "shared-stale-refresh");
-      localStorage.setItem("tenant_code", "hakwonplus");
+    const storage = window["localStorage"];
+    if (!storage.getItem(pointerKey)) {
+      const generation = "same-account-generation";
+      storage.setItem(`${generationPrefix}${generation}`, JSON.stringify({
+        access: token,
+        refresh: "shared-stale-refresh",
+        generation,
+      }));
+      storage.setItem(pointerKey, generation);
+      storage.setItem("tenant_code", "hakwonplus");
     }
     sessionStorage.setItem("tenantCode", "hakwonplus");
-  }, { token: expiredAccess, disableLocks: disableWebLocks });
+  }, {
+    token: expiredAccess,
+    disableLocks: disableWebLocks,
+    pointerKey: AUTH_ACTIVE_GENERATION_KEY,
+    generationPrefix: AUTH_GENERATION_PREFIX,
+  });
 
   await context.route("**/api/v1/**", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
@@ -126,15 +148,27 @@ async function stubAccountApp(
   } = {},
 ) {
   const access = createE2eJwt();
-  await page.addInitScript(({ token }) => {
+  await page.addInitScript(({ token, pointerKey, generationPrefix }) => {
     if (sessionStorage.getItem("account_auth_seeded") !== "1") {
-      localStorage.setItem("access", token);
-      localStorage.setItem("refresh", "mock-account-refresh");
-      localStorage.setItem("tenant_code", "hakwonplus");
+      const storage = window["localStorage"];
+      if (!storage.getItem(pointerKey)) {
+        const generation = "account-app-generation";
+        storage.setItem(`${generationPrefix}${generation}`, JSON.stringify({
+          access: token,
+          refresh: "mock-account-refresh",
+          generation,
+        }));
+        storage.setItem(pointerKey, generation);
+      }
+      storage.setItem("tenant_code", "hakwonplus");
       sessionStorage.setItem("tenantCode", "hakwonplus");
       sessionStorage.setItem("account_auth_seeded", "1");
     }
-  }, { token: access });
+  }, {
+    token: access,
+    pointerKey: AUTH_ACTIVE_GENERATION_KEY,
+    generationPrefix: AUTH_GENERATION_PREFIX,
+  });
 
   await page.route("**/api/v1/**", async (route) => {
     await route.fulfill({
@@ -253,12 +287,10 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
 
       await expect.poll(() => refresh.counts().refresh, { timeout: 60_000 }).toBe(1);
       await expect.poll(() => refresh.counts().me, { timeout: 60_000 }).toBeGreaterThanOrEqual(2);
-      await expect.poll(() => page.evaluate(() => ({
-        access: localStorage.getItem("access"),
-        refresh: localStorage.getItem("refresh"),
-      }))).toEqual({
+      await expect.poll(() => readAuthEnvelope(page)).toMatchObject({
         access: refresh.rotatedAccess,
         refresh: "shared-rotated-refresh",
+        generation: "same-account-generation",
       });
     } finally {
       await secondPage.close();
@@ -280,30 +312,38 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
 
       await expect.poll(() => refresh.counts().refresh, { timeout: 60_000 }).toBe(2);
       await expect.poll(() => refresh.counts().me, { timeout: 60_000 }).toBeGreaterThanOrEqual(2);
-      await expect.poll(() => page.evaluate(() => ({
-        access: localStorage.getItem("access"),
-        refresh: localStorage.getItem("refresh"),
-      }))).toEqual({
+      await expect.poll(() => readAuthEnvelope(page)).toMatchObject({
         access: refresh.rotatedAccess,
         refresh: "shared-rotated-refresh",
+        generation: "same-account-generation",
       });
     } finally {
       await secondPage.close();
     }
   });
 
-  test("refresh 성공 뒤 재요청도 401이면 토큰을 폐기하고 로그인으로 복귀한다", async ({ page }) => {
+  test("refresh 성공 뒤 재요청도 401이면 두 page가 active envelope 제거를 반영한다", async ({ page, context }) => {
     const access = createE2eJwt();
     let refreshCount = 0;
     let meCount = 0;
-    await page.addInitScript(({ token }) => {
+    await page.addInitScript(({ token, pointerKey, generationPrefix }) => {
       if (sessionStorage.getItem("stale_refresh_seeded") === "1") return;
-      localStorage.setItem("access", token);
-      localStorage.setItem("refresh", "stale-refresh-token");
-      localStorage.setItem("tenant_code", "hakwonplus");
+      const storage = window["localStorage"];
+      const generation = "stale-refresh-generation";
+      storage.setItem(`${generationPrefix}${generation}`, JSON.stringify({
+        access: token,
+        refresh: "stale-refresh-token",
+        generation,
+      }));
+      storage.setItem(pointerKey, generation);
+      storage.setItem("tenant_code", "hakwonplus");
       sessionStorage.setItem("tenantCode", "hakwonplus");
       sessionStorage.setItem("stale_refresh_seeded", "1");
-    }, { token: access });
+    }, {
+      token: access,
+      pointerKey: AUTH_ACTIVE_GENERATION_KEY,
+      generationPrefix: AUTH_GENERATION_PREFIX,
+    });
 
     await page.route("**/api/v1/**", async (route) => {
       await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
@@ -338,23 +378,36 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
       });
     });
 
+    await page.goto(`${BASE}/robots.txt`);
+    const sibling = await context.newPage();
+    await stubAccountApp(sibling);
+    await gotoAndSettle(sibling, `${BASE}/workspace/dashboard`, { timeout: 20_000 });
+    await expect(sibling).toHaveURL(/\/workspace\/dashboard(?:\/|$)/);
+
     await gotoAndSettle(page, `${BASE}/workspace/dashboard`, { timeout: 20_000 });
     await page.waitForURL(`${BASE}/login`, { timeout: 20_000, waitUntil: "domcontentloaded" });
     await expect(page.getByText("세션이 만료되었습니다. 다시 로그인해 주세요.")).toBeVisible();
+    await expect(sibling).toHaveURL(/\/login(?:\/|$)/);
 
     expect(refreshCount).toBe(1);
     expect(meCount).toBeGreaterThanOrEqual(2);
-    expect(await page.evaluate(() => ({
-      access: localStorage.getItem("access"),
-      refresh: localStorage.getItem("refresh"),
+    expect(await page.evaluate(({ pointerKey, generationPrefix }) => {
+      const storage = window["localStorage"];
+      const generation = storage.getItem(pointerKey);
+      return {
+      envelope: generation ? storage.getItem(`${generationPrefix}${generation}`) : null,
       expired: sessionStorage.getItem("session_expired"),
       returnPath: sessionStorage.getItem("session_return_path"),
-    }))).toEqual({
-      access: null,
-      refresh: null,
+      };
+    }, {
+      pointerKey: AUTH_ACTIVE_GENERATION_KEY,
+      generationPrefix: AUTH_GENERATION_PREFIX,
+    })).toEqual({
+      envelope: null,
       expired: "1",
       returnPath: "/workspace/dashboard",
     });
+    await sibling.close();
   });
 
   test("관리자 내 정보 수정은 개인정보만 저장하고 비밀번호 입력을 섞지 않는다", async ({ page }) => {
@@ -381,7 +434,7 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
     expect(passwordChangeCount).toBe(0);
   });
 
-  test("관리자 본인 변경은 공통 API를 호출하고 성공 즉시 기존 토큰을 폐기한다", async ({ page }) => {
+  test("관리자 본인 변경은 공통 API 뒤 두 page의 기존 토큰과 user/cache를 폐기한다", async ({ page, context }) => {
     let passwordBody: Record<string, unknown> | undefined;
     let legacyCount = 0;
     await page.setViewportSize({ width: 390, height: 844 });
@@ -391,6 +444,10 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
     });
 
     await gotoAndSettle(page, `${BASE}/workspace/settings/profile`, { timeout: 20_000 });
+    const sibling = await context.newPage();
+    await stubAccountApp(sibling);
+    await gotoAndSettle(sibling, `${BASE}/workspace/dashboard`, { timeout: 20_000 });
+    await expect(sibling).toHaveURL(/\/workspace\/dashboard(?:\/|$)/);
     const securitySection = page.getByRole("heading", { name: "보안" }).locator("xpath=ancestor::section");
     await securitySection.getByRole("button", { name: "변경", exact: true }).press("Enter");
     await assertInteractiveSurface(
@@ -420,10 +477,9 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
     });
     expect(legacyCount).toBe(0);
     await page.waitForURL(`${BASE}/`, { waitUntil: "domcontentloaded" });
-    expect(await page.evaluate(() => ({
-      access: localStorage.getItem("access"),
-      refresh: localStorage.getItem("refresh"),
-    }))).toEqual({ access: null, refresh: null });
+    expect(await readAuthEnvelope(page)).toBeNull();
+    await expect(sibling).toHaveURL(/\/login(?:\/|$)/);
+    await sibling.close();
   });
 
   test("강사 모바일 설정도 공통 API와 확인 체크리스트를 사용한 뒤 재로그인한다", async ({ page }) => {
@@ -456,10 +512,7 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
     });
     expect(legacyCount).toBe(0);
     await page.waitForURL(`${BASE}/`, { waitUntil: "domcontentloaded" });
-    expect(await page.evaluate(() => ({
-      access: localStorage.getItem("access"),
-      refresh: localStorage.getItem("refresh"),
-    }))).toEqual({ access: null, refresh: null });
+    expect(await readAuthEnvelope(page)).toBeNull();
   });
 
   test("임시 비밀번호 첫 로그인은 변경을 권장하되 나중에를 선택하면 계속 이용한다", async ({ page }) => {
@@ -508,10 +561,7 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
       new_password: "permanent-password",
     });
     await page.waitForURL(`${BASE}/`, { waitUntil: "domcontentloaded" });
-    expect(await page.evaluate(() => ({
-      access: localStorage.getItem("access"),
-      refresh: localStorage.getItem("refresh"),
-    }))).toEqual({ access: null, refresh: null });
+    expect(await readAuthEnvelope(page)).toBeNull();
   });
 
   test("직원 역할은 과거 변경 권장 상태가 남아 있어도 업무 화면을 바로 사용한다", async ({ page }) => {

@@ -1,38 +1,38 @@
-export const ORIG_LABEL = "dev_orig_label";
+import {
+  backupAuthSessionForImpersonation,
+  discardImpersonationAuthBackup,
+  getImpersonationAuthLabel,
+  hasImpersonationAuthBackup,
+  publishLoginTokenEnvelope,
+  restoreImpersonationAuthSession,
+} from "@/shared/auth/tokenSession";
 
-const ORIG_ACCESS = "dev_orig_access";
-const ORIG_REFRESH = "dev_orig_refresh";
-
-/** 임퍼소네이션 시작 직전에 호출. 현재 dev 토큰을 보존한다. */
+/** 임퍼소네이션 시작 직전에 호출. 현재 dev generation envelope를 보존한다. */
 export function beginImpersonation(label: string): void {
-  const access = localStorage.getItem("access");
-  const refresh = localStorage.getItem("refresh");
-  if (access) localStorage.setItem(ORIG_ACCESS, access);
-  if (refresh) localStorage.setItem(ORIG_REFRESH, refresh);
-  if (label) localStorage.setItem(ORIG_LABEL, label);
+  backupAuthSessionForImpersonation(label);
+}
+
+/** 서버가 발급한 임퍼소네이션 pair를 새 account generation으로 활성화한다. */
+export async function activateImpersonation(access: string, refresh: string): Promise<void> {
+  await publishLoginTokenEnvelope(access, refresh);
 }
 
 /** 임퍼소네이션이 실제로 시작되지 않았을 때(에러) 보존본 폐기. */
 export function abortImpersonation(): void {
-  localStorage.removeItem(ORIG_ACCESS);
-  localStorage.removeItem(ORIG_REFRESH);
-  localStorage.removeItem(ORIG_LABEL);
+  discardImpersonationAuthBackup();
 }
 
-/** 복귀: 보존된 dev 토큰으로 복원하고 /dev/dashboard 로 이동. */
-export function endImpersonation(): void {
-  const access = localStorage.getItem(ORIG_ACCESS);
-  const refresh = localStorage.getItem(ORIG_REFRESH);
-  if (access && refresh) {
-    localStorage.setItem("access", access);
-    localStorage.setItem("refresh", refresh);
+/** 복귀: 보존된 dev generation envelope를 복원하고 dev 화면으로 이동한다. */
+export async function endImpersonation(): Promise<void> {
+  if (await restoreImpersonationAuthSession()) {
+    window.location.assign("/dev/dashboard");
   }
-  localStorage.removeItem(ORIG_ACCESS);
-  localStorage.removeItem(ORIG_REFRESH);
-  localStorage.removeItem(ORIG_LABEL);
-  window.location.assign("/dev/dashboard");
 }
 
 export function isImpersonating(): boolean {
-  return Boolean(localStorage.getItem(ORIG_ACCESS) && localStorage.getItem(ORIG_REFRESH));
+  return hasImpersonationAuthBackup();
+}
+
+export function getImpersonationLabel(): string {
+  return getImpersonationAuthLabel();
 }

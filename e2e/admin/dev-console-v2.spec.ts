@@ -156,6 +156,10 @@ test.describe("/dev 운영 콘솔 V2", () => {
 
     // confirm 다이얼로그 자동 승인
     page.once("dialog", (d) => d.accept());
+    const originalGeneration = await page.evaluate(() => (
+      localStorage.getItem("academy:auth-active-generation:v1")
+    ));
+    expect(originalGeneration).toBeTruthy();
 
     // 임퍼소네이션 트리거. 페이지 reload 발생하므로 navigation 대기.
     await Promise.all([
@@ -167,8 +171,10 @@ test.describe("/dev 운영 콘솔 V2", () => {
     const banner = page.getByText(/임퍼소네이션 중/);
     await expect(banner).toBeVisible({ timeout: 10_000 });
 
-    // localStorage에 dev 토큰 백업이 보존됐는지
-    const hasBackup = await page.evaluate(() => Boolean(localStorage.getItem("dev_orig_access")));
+    // 공용 generation envelope backup에 dev token pair가 보존됐는지
+    const hasBackup = await page.evaluate(() => Boolean(
+      localStorage.getItem("academy:auth-impersonation-backup:v1"),
+    ));
     expect(hasBackup).toBe(true);
 
     // dev로 복귀 클릭 — assign + 페이지 갱신
@@ -180,8 +186,13 @@ test.describe("/dev 운영 콘솔 V2", () => {
     ]);
 
     // 백업 키가 정리됐는지
-    const stillHasBackup = await page.evaluate(() => Boolean(localStorage.getItem("dev_orig_access")));
-    expect(stillHasBackup).toBe(false);
+    const restoredState = await page.evaluate(() => ({
+      hasBackup: Boolean(localStorage.getItem("academy:auth-impersonation-backup:v1")),
+      generation: localStorage.getItem("academy:auth-active-generation:v1"),
+    }));
+    expect(restoredState.hasBackup).toBe(false);
+    expect(restoredState.generation).toBeTruthy();
+    expect(restoredState.generation).not.toBe(originalGeneration);
 
     // 대시보드 복귀 확인
     await expect(page.getByRole("heading", { name: "운영 대시보드" })).toBeVisible({ timeout: 10_000 });

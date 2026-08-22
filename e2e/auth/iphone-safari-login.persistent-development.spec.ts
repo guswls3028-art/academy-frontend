@@ -75,10 +75,25 @@ async function logoutAndVerify(page: Page, role: LoginRole): Promise<void> {
     await page.locator(".stu-logout-dialog__confirm").click();
   }
 
-  await expect.poll(() => page.evaluate(() => ({
-    access: localStorage.getItem("access"),
-    refresh: localStorage.getItem("refresh"),
-  }))).toEqual({ access: null, refresh: null });
+  await expect(page).toHaveURL(`${BASE}/`, { timeout: 45_000 });
+  await expect.poll(() => page.evaluate(() => {
+    const pointer = localStorage.getItem("academy:auth-active-generation:v1");
+    return {
+      pointer,
+      activeEnvelope: pointer
+        ? localStorage.getItem(`academy:auth-tokens:v1:${pointer}`)
+        : null,
+      legacyAccess: localStorage.getItem("access"),
+      legacyRefresh: localStorage.getItem("refresh"),
+    };
+  })).toMatchObject({
+    activeEnvelope: null,
+    legacyAccess: null,
+    legacyRefresh: null,
+  });
+  expect(await page.evaluate(() => (
+    localStorage.getItem("academy:auth-active-generation:v1")
+  ))).toBeTruthy();
 }
 
 test.use({ serviceWorkers: "block" });
