@@ -116,6 +116,8 @@ export type AdminExamResultRow = {
    * - 대표 attempt가 없으면 null/undefined일 수 있음(운영 위험 케이스)
    */
   final_score?: number | null;
+  exam_score?: number | null;
+  exam_max_score?: number | null;
   ranking_score?: number | null;
   result_status?: AdminExamResultStatus | null;
 

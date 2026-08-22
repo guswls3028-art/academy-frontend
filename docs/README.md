@@ -14,6 +14,7 @@
 | [STUDENT-PARENT-APP-CONTRACT.md](STUDENT-PARENT-APP-CONTRACT.md) | 학생·학부모 앱의 표시 경계, 모바일 레이아웃, 권한·자녀 선택·알림 읽음 계약 |
 | [STUDENT-GRADE-REPORT.md](STUDENT-GRADE-REPORT.md) | 학원별 성장 그래프 섹션 표시·순서 편집과 학생 시험 카드의 오답 완료/미완료 표시 계약 |
 | [GRADING-WRONG-NOTE-WORKFLOW.md](GRADING-WRONG-NOTE-WORKFLOW.md) | Codex 빠른 복구 순서, 시험명 작업 메뉴, 정오표 입력·반응형 계약, 증상별 확인 위치와 현재 오답노트 경계 |
+| [EXAM-INSIGHTS-REPORT.md](EXAM-INSIGHTS-REPORT.md) | 수업 방향·컷 검토·취약 문항 브리핑, 만점 정규화 분포와 전문 분석 Excel 계약 |
 | [ASSESSMENT-OPERATIONS-WORKSPACE.md](ASSESSMENT-OPERATIONS-WORKSPACE.md) | 시험·과제 운영 준비 점검선, 충돌·초안 복구가 있는 통합 정책 편집, 공용 대상자 변경 요약과 반응형 계약 |
 | [HOMEWORK-SCORING.md](HOMEWORK-SCORING.md) | 과제별 만점·합격 기준, 성적표 분모·저장 계약 |
 | [ATTENDANCE-ROSTER-SAFETY.md](ATTENDANCE-ROSTER-SAFETY.md) | 차시 수강생 일괄배정의 미입력 시작, 선택 검토·실행취소, 전체 현장 출석의 원자적 되돌리기 계약 |

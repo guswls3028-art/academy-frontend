@@ -1,26 +1,547 @@
-.histogramBar {
+.workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.statePanel,
+.studentResultsSection {
+  border: 1px solid var(--border-divider);
+  border-radius: 12px;
+  padding: 20px;
+  background: var(--bg-surface);
+}
+
+.analysisShell {
+  overflow: hidden;
+  border: 1px solid var(--border-divider);
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 6%, transparent), transparent 42%),
+    var(--bg-surface);
+  box-shadow: 0 16px 44px rgb(15 23 42 / 6%);
+}
+
+.analysisHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 26px 28px 22px;
+  border-bottom: 1px solid var(--border-divider);
+}
+
+.headingCopy {
+  min-width: 0;
+}
+
+.eyebrow,
+.panelHeading span,
+.sectionHeading > span {
+  color: var(--color-primary);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.headingCopy h2,
+.sectionHeading h2 {
+  margin: 5px 0 0;
+  color: var(--color-text-primary);
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.035em;
+}
+
+.headingCopy p,
+.sectionHeading p {
+  margin: 7px 0 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.reportActions {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.decisionGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 22px 28px 12px;
+}
+
+.decisionCard {
+  position: relative;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 142px;
+  overflow: hidden;
+  border: 1px solid var(--border-divider);
+  border-radius: 12px;
+  padding: 17px;
+  background: var(--color-bg-surface-soft);
+}
+
+.decisionCard::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: var(--color-text-muted);
+  content: "";
+}
+
+.decisionCard[data-tone="positive"]::after { background: var(--color-success); }
+.decisionCard[data-tone="attention"]::after { background: var(--color-status-warning); }
+.decisionCard[data-tone="critical"]::after { background: var(--color-status-error); }
+.decisionCard[data-tone="neutral"]::after { background: var(--color-primary); }
+
+.decisionIcon {
+  display: flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+.decisionCard span {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.decisionCard h3 {
+  margin: 4px 0 0;
+  color: var(--color-text-primary);
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1.3;
+  letter-spacing: -0.025em;
+  word-break: keep-all;
+}
+
+.decisionCard p {
+  margin: 7px 0 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.policyNote {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 28px;
+  border-radius: 8px;
+  padding: 9px 11px;
+  color: var(--color-text-muted);
+  background: color-mix(in srgb, var(--color-info) 8%, transparent);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.metricStrip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  margin: 18px 28px 0;
+  border: 1px solid var(--border-divider);
+  border-radius: 11px;
+  background: var(--border-divider);
+}
+
+.metric {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 14px 15px;
+  background: var(--bg-surface);
+}
+
+.metric span {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.metric strong {
+  margin-top: 3px;
+  color: var(--color-text-primary);
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+}
+
+.metric small {
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evidenceGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 14px;
+  padding: 18px 28px 28px;
+}
+
+.evidencePanel {
+  min-width: 0;
+  border: 1px solid var(--border-divider);
+  border-radius: 12px;
+  padding: 18px;
+  background: var(--bg-surface);
+}
+
+.panelHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.panelHeading h3 {
+  margin: 3px 0 0;
+  color: var(--color-text-primary);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.panelHeading small,
+.markerLegend {
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+
+.markerLegend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.markerLegend span {
+  border: 1px solid var(--border-divider);
+  border-radius: 999px;
+  padding: 3px 7px;
+  color: var(--color-text-muted);
+  background: var(--color-bg-surface-soft);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.histogram {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  height: 218px;
+  margin-top: 18px;
+}
+
+.histogramColumn {
+  display: grid;
+  grid-template-rows: 18px minmax(80px, 1fr) auto auto;
+  min-width: 0;
+  gap: 4px;
+  text-align: center;
+}
+
+.barCount {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.barTrack {
   display: block;
   width: 100%;
-  height: 80px;
-  min-height: 80px;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 7px 7px 3px 3px;
 }
 
-.histogramBarFill {
+.barGrid {
+  fill: var(--color-bg-surface-soft);
+  stroke: var(--border-divider);
+  stroke-width: 0.5;
+}
+
+.barFill {
   fill: var(--color-primary);
+  transition: y 420ms cubic-bezier(0.2, 0.8, 0.2, 1), height 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.accuracy {
-  font-weight: 600;
+.barTrack {
+  background:
+    repeating-linear-gradient(to top, transparent 0, transparent 24%, var(--border-divider) 25%),
+    var(--color-bg-surface-soft);
 }
 
-.accuracyHigh {
-  color: var(--color-success);
-}
-
-.accuracyMid {
+.histogramColumn strong {
   color: var(--color-text-secondary);
+  font-size: 10px;
 }
 
-.accuracyLow {
-  color: var(--color-status-warning);
+.histogramColumn small {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.priorityList {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.priorityList li {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  border-radius: 9px;
+  padding: 8px;
+  background: var(--color-bg-surface-soft);
+}
+
+.questionNumber {
+  display: flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-divider);
+  border-radius: 9px;
+  color: var(--color-text-primary);
+  background: var(--bg-surface);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.questionBody {
+  min-width: 0;
+}
+
+.questionTopline {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--color-text-primary);
+  font-size: 11px;
+}
+
+.questionTopline strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.questionTopline span {
+  flex-shrink: 0;
+  color: var(--color-text-primary);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.accuracyTrack {
+  display: block;
+  width: 100%;
+  height: 4px;
+  margin-top: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+.accuracyTrackBase {
+  fill: var(--border-divider);
+}
+
+.accuracyTrackFill { fill: var(--color-primary); }
+.priorityList li[data-tone="critical"] .accuracyTrackFill { fill: var(--color-status-error); }
+.priorityList li[data-tone="attention"] .accuracyTrackFill { fill: var(--color-status-warning); }
+.priorityList li[data-tone="positive"] .accuracyTrackFill { fill: var(--color-success); }
+
+.questionBody small {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-text-muted);
+  font-size: 9px;
+}
+
+.questionDetails {
+  margin: 0 28px 28px;
+  border: 1px solid var(--border-divider);
+  border-radius: 10px;
+  background: var(--bg-surface);
+}
+
+.questionDetails summary {
+  padding: 12px 14px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.tableScroller {
+  overflow-x: auto;
+  border-top: 1px solid var(--border-divider);
+}
+
+.tableScroller table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.tableScroller th,
+.tableScroller td {
+  border-bottom: 1px solid var(--border-divider);
+  padding: 10px 12px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.tableScroller th:first-child,
+.tableScroller td:first-child,
+.tableScroller th:last-child,
+.tableScroller td:last-child {
+  text-align: left;
+}
+
+.tableScroller th {
+  color: var(--color-text-muted);
+  background: var(--color-bg-surface-soft);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.tableScroller td span {
+  font-weight: 900;
+}
+
+.tableScroller td span[data-tone="critical"] { color: var(--color-status-error); }
+.tableScroller td span[data-tone="attention"] { color: var(--color-status-warning); }
+.tableScroller td span[data-tone="positive"] { color: var(--color-success); }
+
+.sectionHeading {
+  margin-bottom: 18px;
+}
+
+@media (max-width: 1100px) {
+  .decisionGrid,
+  .evidenceGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .decisionCard {
+    min-height: 0;
+  }
+
+  .metricStrip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .analysisHeader {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 20px 16px 16px;
+  }
+
+  .reportActions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .reportActions > * {
+    width: 100%;
+  }
+
+  .decisionGrid,
+  .evidenceGrid {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .policyNote,
+  .metricStrip,
+  .questionDetails {
+    margin-right: 16px;
+    margin-left: 16px;
+  }
+
+  .metricStrip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metric:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .histogram {
+    gap: 5px;
+  }
+
+  .histogramColumn small {
+    display: none;
+  }
+}
+
+@media (max-width: 430px) {
+  .headingCopy h2,
+  .sectionHeading h2 {
+    font-size: 19px;
+  }
+
+  .decisionCard {
+    grid-template-columns: 34px minmax(0, 1fr);
+    padding: 14px;
+  }
+
+  .decisionIcon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .metric strong {
+    font-size: 16px;
+  }
+
+  .evidencePanel {
+    padding: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .barFill {
+    transition: none;
+  }
 }

@@ -1,1 +1,4 @@
-export { downloadExamWrongNoteExport } from "../api/examResultExcel";
+export {
+  downloadExamAnalysisExport,
+  downloadExamWrongNoteExport,
+} from "../api/examResultExcel";

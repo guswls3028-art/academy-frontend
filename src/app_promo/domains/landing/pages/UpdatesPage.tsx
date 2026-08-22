@@ -3,106 +3,28 @@ import {
   ArrowRight,
   CalendarDays,
   CheckCircle2,
+  Clock3,
   Radio,
   Sparkles,
   Wrench,
 } from "lucide-react";
 import { Badge, ICON } from "@/shared/ui/ds";
+import {
+  LATEST_PRODUCT_UPDATE,
+  PRODUCT_UPDATE_CADENCE,
+  PRODUCT_UPDATES,
+  type ProductUpdateKind,
+} from "@/shared/product/productUpdates";
 import styles from "./UpdatesPage.module.css";
 
-type UpdateKind = "new" | "improve" | "fix";
-
-type PublicUpdate = {
-  id: string;
-  date: string;
-  title: string;
-  summary: string;
-  highlights: Array<{ kind: UpdateKind; text: string }>;
-};
-
 const KIND_META: Record<
-  UpdateKind,
+  ProductUpdateKind,
   { label: string; tone: "success" | "info" | "neutral"; icon: typeof Sparkles }
 > = {
   new: { label: "새 기능", tone: "success", icon: Sparkles },
   improve: { label: "개선", tone: "info", icon: CheckCircle2 },
   fix: { label: "수정", tone: "neutral", icon: Wrench },
 };
-
-const PUBLIC_UPDATES: PublicUpdate[] = [
-  {
-    id: "2026-08-21-tenant-onboarding",
-    date: "2026-08-21",
-    title: "새 학원 등록 절차 안정화",
-    summary:
-      "도메인과 이용기간을 먼저 확인한 뒤 대표 계정을 등록하도록 순서를 정리해, 준비가 덜 된 계정이나 일부 정보만 남는 상황을 막았습니다.",
-    highlights: [
-      { kind: "improve", text: "도메인·브랜딩·이용기간 확인 후 대표 계정을 등록하는 단계별 안내" },
-      { kind: "fix", text: "학원 정보만 생성되고 대표 계정 등록이 실패해 일부 상태가 남던 흐름 제거" },
-      { kind: "fix", text: "대표 계정 임시 비밀번호 길이와 생성 결과를 저장 전에 다시 확인" },
-    ],
-  },
-  {
-    id: "2026-07-30",
-    date: "2026-07-30",
-    title: "처음 시작하는 계정 안내",
-    summary:
-      "새로 만든 계정이 로그인 직후 자신의 역할과 다음 이동 경로를 확인하고, 필요한 설정으로 바로 갈 수 있습니다.",
-    highlights: [
-      { kind: "new", text: "원장·관리자·선생님·직원·학생·학부모 역할별 첫 화면 안내" },
-      { kind: "new", text: "내 역할에 맞는 설정과 업무 화면으로 바로 이동하는 버튼" },
-      { kind: "improve", text: "안내 저장에 실패하면 완료 처리하지 않고 다시 시도할 수 있는 안전한 오류 상태" },
-    ],
-  },
-  {
-    id: "2026-07-29-teacher-tools",
-    date: "2026-07-29",
-    title: "선생님 도구함 Beta",
-    summary:
-      "수업 준비 중 막히는 문제를 입력하면 풀이와 설명 초안을 받아보고, 기존 도구와 함께 한곳에서 찾을 수 있습니다.",
-    highlights: [
-      { kind: "new", text: "선생님 업무 화면의 도구함과 문제 풀이·해설 Beta" },
-      { kind: "improve", text: "입력 중 상태, 결과 없음, 재시도와 오류 안내를 같은 흐름으로 정리" },
-      { kind: "fix", text: "테넌트와 권한 경계를 벗어난 요청은 결과를 만들지 않도록 차단" },
-    ],
-  },
-  {
-    id: "2026-07-29-grading",
-    date: "2026-07-29",
-    title: "시험 생성과 혼합 채점",
-    summary:
-      "선택형과 답변형이 섞인 시험을 만들고, OMR 결과를 보존하면서 필요한 문항만 직접 채점할 수 있습니다.",
-    highlights: [
-      { kind: "new", text: "선택형·답변형·혼합형 시험 생성과 문항별 직접 채점" },
-      { kind: "new", text: "정오 입력, 부분점수, 결시와 오답노트 지정까지 한 표에서 확인" },
-      { kind: "improve", text: "미리보기 후 전체 확정하며 다른 화면의 수정과 충돌하면 저장하지 않음" },
-    ],
-  },
-  {
-    id: "2026-07-29-score-operations",
-    date: "2026-07-29",
-    title: "성적 확인과 보정 기록",
-    summary:
-      "성적 입력 이후의 변경 이유와 추이를 더 분명하게 확인하고, 학생별 결과를 안정적으로 이어서 관리합니다.",
-    highlights: [
-      { kind: "new", text: "학생별 보정 메모와 점수 변화 추이 확인" },
-      { kind: "improve", text: "성적 보고서와 화면의 합격·미달 판단 기준 통일" },
-      { kind: "fix", text: "문항 표시 번호와 실제 저장 번호가 어긋나는 사례 수정" },
-    ],
-  },
-  {
-    id: "2026-07-27",
-    date: "2026-07-27",
-    title: "운영 문의함",
-    summary:
-      "버그 제보와 개선 의견을 비공개로 보내고, 답변과 처리 상태를 한곳에서 다시 확인할 수 있습니다.",
-    highlights: [
-      { kind: "new", text: "보낸 문의와 학원플러스 답변을 한 흐름에서 확인" },
-      { kind: "new", text: "버그 제보·개선 의견에 이미지와 파일 첨부" },
-      { kind: "improve", text: "문의별 처리 상태와 답변 대기 여부를 더 분명하게 표시" },
-    ],
-  },
-];
 
 function formatDate(date: string) {
   return new Intl.DateTimeFormat("ko-KR", {
@@ -142,12 +64,16 @@ export default function UpdatesPage() {
           </div>
 
           <aside className={styles.latestSignal} aria-label="가장 최근 업데이트">
-            <span>Latest</span>
-            <time dateTime={PUBLIC_UPDATES[0].date}>
-              {formatDate(PUBLIC_UPDATES[0].date)}
+            <span>Latest release</span>
+            <time dateTime={LATEST_PRODUCT_UPDATE.date}>
+              {formatDate(LATEST_PRODUCT_UPDATE.date)}
             </time>
-            <strong>{PUBLIC_UPDATES[0].title}</strong>
-            <p>{PUBLIC_UPDATES[0].summary}</p>
+            <strong>{LATEST_PRODUCT_UPDATE.title}</strong>
+            <p>{LATEST_PRODUCT_UPDATE.summary}</p>
+            <div className={styles.latestScope}>
+              <span>{LATEST_PRODUCT_UPDATE.availability}</span>
+              <span>{LATEST_PRODUCT_UPDATE.audience.join(" · ")}</span>
+            </div>
           </aside>
         </div>
       </section>
@@ -165,8 +91,18 @@ export default function UpdatesPage() {
             </p>
           </header>
 
+          <aside className={styles.cadenceBand} aria-label="업데이트 발행 일정">
+            <div className={styles.cadenceIcon} aria-hidden>
+              <Clock3 size={ICON.md} />
+            </div>
+            <div>
+              <strong>{PRODUCT_UPDATE_CADENCE.dayLabel} {PRODUCT_UPDATE_CADENCE.timeLabel}</strong>
+              <span>{PRODUCT_UPDATE_CADENCE.note} 긴급한 사용성 개선은 정기 발행일 전에도 안내합니다.</span>
+            </div>
+          </aside>
+
           <ol className={styles.timeline}>
-            {PUBLIC_UPDATES.map((update, index) => (
+            {PRODUCT_UPDATES.map((update, index) => (
               <li
                 className={styles.release}
                 id={index === 0 ? "latest-update" : update.id}
@@ -178,6 +114,7 @@ export default function UpdatesPage() {
                 <article className={styles.releaseCard}>
                   <div className={styles.releaseMeta}>
                     {index === 0 && <Badge tone="info">최신</Badge>}
+                    <span className={styles.availability}>{update.availability}</span>
                     <time dateTime={update.date}>
                       <CalendarDays size={ICON.xs} aria-hidden="true" />
                       {formatDate(update.date)}
@@ -185,6 +122,10 @@ export default function UpdatesPage() {
                   </div>
                   <h3>{update.title}</h3>
                   <p>{update.summary}</p>
+                  <div className={styles.audience} aria-label={`대상 ${update.audience.join(", ")}`}>
+                    <span>대상</span>
+                    {update.audience.map((audience) => <strong key={audience}>{audience}</strong>)}
+                  </div>
                   <ul>
                     {update.highlights.map((highlight) => {
                       const meta = KIND_META[highlight.kind];

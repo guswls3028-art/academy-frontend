@@ -7563,6 +7563,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/results/admin/exams/{exam_id}/analysis-export/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["results_admin_exams_analysis_export_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/results/admin/exams/{exam_id}/enrollments/{enrollment_id}/": {
         parameters: {
             query?: never;
@@ -9654,6 +9670,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/students/{student_id}/support-sessions/{session_id}/end/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description End an issued support session when its popup closes. */
+        post: operations["students_support_session_end_by_staff"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/students/bulk_create_from_excel/": {
         parameters: {
             query?: never;
@@ -9930,6 +9963,23 @@ export interface paths {
         put?: never;
         /** @description Record an exact homework open after validating current student access. */
         post: operations["students_homework_open_activity_record"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/students/me/support-session/end/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description End the current support token immediately from the student popup. */
+        post: operations["students_support_session_end_current"];
         delete?: never;
         options?: never;
         head?: never;
@@ -16229,19 +16279,25 @@ export interface components {
         StudentActivityFeedSchema: {
             count: number;
             days: components["schemas"]["DaysEnum"];
+            has_more: boolean;
             include_support: boolean;
+            query: string;
             results: components["schemas"]["StudentActivityItemSchema"][];
             student: components["schemas"]["StudentSupportSummarySchema"];
+            total_count: number;
         };
         StudentActivityItemSchema: {
+            actor_label: string;
             actor_mode: components["schemas"]["ActorModeEnum"];
             category: components["schemas"]["StudentActivityItemSchemaCategoryEnum"];
             device_class: components["schemas"]["DeviceClassEnum"];
+            evidence_id: string;
             id: number;
             label: string;
             /** Format: date-time */
             occurred_at: string;
             screen_id: string;
+            target_label: string;
         };
         /**
          * @description * `login` - login
@@ -16770,6 +16826,9 @@ export interface components {
             readonly phone: string | null;
             readonly school_type: string | null;
         };
+        StudentSupportSessionEndedSchema: {
+            ended: boolean;
+        };
         StudentSupportSessionSchema: {
             access: string;
             /** Format: date-time */
@@ -17032,6 +17091,15 @@ export interface components {
             password: string;
             username: string;
         };
+        /** @description Reject refresh tokens whose account or tenant authorization is stale. */
+        TenantAwareTokenRefresh: {
+            readonly access: string;
+            refresh: string;
+        };
+        /** @description Reject refresh tokens whose account or tenant authorization is stale. */
+        TenantAwareTokenRefreshRequest: {
+            refresh: string;
+        };
         TenantOwnerListItem: {
             handoffStatus: components["schemas"]["HandoffStatusEnum"];
             hasUsablePassword: boolean;
@@ -17050,13 +17118,6 @@ export interface components {
             detail: string;
             mustChangePassword: boolean;
             userId: number;
-        };
-        TokenRefresh: {
-            readonly access: string;
-            refresh: string;
-        };
-        TokenRefreshRequest: {
-            refresh: string;
         };
         /**
          * @description * `exam` - exam
@@ -29562,6 +29623,27 @@ export interface operations {
             };
         };
     };
+    results_admin_exams_analysis_export_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exam_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                };
+            };
+        };
+    };
     results_admin_exams_enrollments_retrieve: {
         parameters: {
             query?: never;
@@ -32564,6 +32646,7 @@ export interface operations {
                 days?: 7 | 30 | 90;
                 include_support?: boolean;
                 limit?: number;
+                q?: string;
             };
             header?: never;
             path: {
@@ -32640,6 +32723,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudentSupportSessionSchema"];
+                };
+            };
+        };
+    };
+    students_support_session_end_by_staff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+                student_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentSupportSessionEndedSchema"];
                 };
             };
         };
@@ -33088,6 +33193,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudentActivityAcceptedSchema"];
+                };
+            };
+        };
+    };
+    students_support_session_end_current: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentSupportSessionEndedSchema"];
                 };
             };
         };
@@ -34434,9 +34558,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["TokenRefreshRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["TokenRefreshRequest"];
-                "multipart/form-data": components["schemas"]["TokenRefreshRequest"];
+                "application/json": components["schemas"]["TenantAwareTokenRefreshRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["TenantAwareTokenRefreshRequest"];
+                "multipart/form-data": components["schemas"]["TenantAwareTokenRefreshRequest"];
             };
         };
         responses: {
@@ -34445,7 +34569,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TokenRefresh"];
+                    "application/json": components["schemas"]["TenantAwareTokenRefresh"];
                 };
             };
         };
