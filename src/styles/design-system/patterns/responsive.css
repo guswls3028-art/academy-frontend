@@ -328,6 +328,19 @@
 
 /* P1: antd 모달 — 폰에서 풀스크린 */
 @media (max-width: 639px) {
+  /* AntD centered 모달은 ::before 인라인 블록으로 수직 중앙을 맞춘다.
+     풀폭 모바일 모달과 합산 폭이 viewport를 넘으면 모달이 다음 줄(화면 아래)로
+     밀리므로, 폰에서는 wrapper가 직접 상단 정렬을 소유한다. */
+  [data-app="admin"] .ant-modal-wrap.ant-modal-centered {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  [data-app="admin"] .ant-modal-wrap.ant-modal-centered::before {
+    display: none;
+  }
+
   [data-app="admin"] .ant-modal {
     top: 0 !important;
     padding: 0 !important;
