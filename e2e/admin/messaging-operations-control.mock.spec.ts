@@ -170,4 +170,23 @@ test.describe("알림톡 전체 사용 운영 제어", () => {
     expect(overflow).toBeLessThanOrEqual(1);
     await page.screenshot({ path: "test-results/messaging-activation-mobile-390.png", fullPage: false });
   });
+
+  test("390px 알림톡 미리보기 모달은 첫 화면 안에서 바로 열린다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await installMessagingApp(page, true);
+    await openMessaging(page);
+
+    const previewButton = page.getByRole("button", { name: "미리보기" }).first();
+    await expect(previewButton).toBeVisible({ timeout: 60_000 });
+    await previewButton.click();
+
+    const dialog = page.getByRole("dialog").last();
+    await expect(dialog).toBeVisible();
+    const box = await dialog.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.y).toBeGreaterThanOrEqual(-1);
+    expect(box!.y).toBeLessThanOrEqual(1);
+    expect(box!.y + box!.height).toBeLessThanOrEqual(845);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+  });
 });
