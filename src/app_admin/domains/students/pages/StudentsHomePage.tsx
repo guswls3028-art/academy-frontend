@@ -45,6 +45,10 @@ export default function StudentsHomePage() {
   const { openSendMessageModal } = useSendMessageModal();
 
   const isDeletedTab = location.pathname.includes("/deleted");
+  const isAlimtalkComposeEntry = useMemo(
+    () => new URLSearchParams(location.search).get("compose") === "alimtalk",
+    [location.search],
+  );
 
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -216,7 +220,7 @@ export default function StudentsHomePage() {
               태그 추가
             </Button>
             <Button
-              intent="secondary"
+              intent="primary"
               size="sm"
               disabled={selectedCount === 0}
               onClick={() => {
@@ -230,7 +234,7 @@ export default function StudentsHomePage() {
                 });
               }}
             >
-              메시지 발송
+              알림톡 보내기
             </Button>
             <Button intent="secondary" size="sm" onClick={() => setShowPasswordResetModal(true)} disabled={selectedCount === 0}>
               비밀번호 변경
@@ -372,6 +376,23 @@ export default function StudentsHomePage() {
   return (
     <>
       <div className="flex flex-col gap-4">
+        {isAlimtalkComposeEntry && !isDeletedTab && (
+          <section className={styles.alimtalkComposeGuide} aria-label="알림톡 발송 안내">
+            <div className={styles.alimtalkComposeGuideText}>
+              <strong>알림톡을 보낼 학생을 선택하세요.</strong>
+              <span>
+                선택 후 아래의 ‘알림톡 보내기’를 누르면 저장한 문구를 불러와 학생 또는 학부모에게 보낼 수 있습니다.
+              </span>
+            </div>
+            <Button
+              intent="ghost"
+              size="sm"
+              onClick={() => navigate(location.pathname, { replace: true })}
+            >
+              안내 닫기
+            </Button>
+          </section>
+        )}
         <DomainListToolbar
           totalLabel={
             isLoading ? (
