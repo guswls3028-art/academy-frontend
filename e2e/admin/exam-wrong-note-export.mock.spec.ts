@@ -9,9 +9,16 @@ function json(route: Route, body: unknown, status = 200) {
   return route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
 }
 
-async function installApi(page: Page, options: { hasResults: boolean }) {
+async function installApi(page: Page, options: {
+  hasResults: boolean;
+  passScore?: number;
+  resultStatus?: "NOT_SUBMITTED" | "PROCESSING" | "PARTIAL" | "DONE" | "FAILED";
+  remediated?: boolean;
+}) {
   let exportCalls = 0;
   let analysisExportCalls = 0;
+  const passScore = options.passScore ?? 60;
+  const resultStatus = options.resultStatus ?? "DONE";
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
@@ -28,7 +35,7 @@ async function installApi(page: Page, options: { hasResults: boolean }) {
         grading_mode: "choice",
         manual_grading_method: "correctness",
         max_score: 100,
-        pass_score: 60,
+        pass_score: passScore,
       });
       return;
     }
@@ -52,8 +59,11 @@ async function installApi(page: Page, options: { hasResults: boolean }) {
         final_score: 60,
         exam_max_score: 100,
         ranking_score: 60,
-        result_status: "DONE",
-        passed: true,
+        result_status: resultStatus,
+        passed: passScore > 0 ? true : null,
+        remediated: options.remediated ?? false,
+        final_pass: options.remediated || (passScore > 0 ? true : null),
+        achievement: options.remediated ? "REMEDIATED" : passScore > 0 ? "PASS" : null,
         rank: 1,
         cohort_size: 1,
         lecture_title: "공통수학2 정규반",
@@ -193,4 +203,35 @@ test("저장된 채점 결과가 없으면 오답 엑셀 버튼과 이유를 함
   await expect(button).toBeDisabled();
   await expect(button).toHaveAttribute("title", "채점 결과가 저장되면 내려받을 수 있습니다.");
   await expect(page.getByRole("button", { name: "수업 분석 리포트 (엑셀)" })).toBeDisabled();
+});
+
+test("합격 기준 미설정 결과를 합격으로 오인하지 않는다", async ({ page }) => {
+  await installApi(page, { hasResults: true, passScore: 0 });
+  await gotoAndSettle(page, `${BASE}/e2e-exam-results-export-harness.html`, {
+    timeout: 60_000,
+  });
+
+  await expect(page.getByText("합격 기준 설정 필요", { exact: true })).toBeVisible();
+  await expect(page.getByText("기준 미설정", { exact: true })).toBeVisible();
+  await expect(page.getByText("컷 미설정", { exact: true })).toBeVisible();
+  await expect(page.getByText(/합격 1 · 미달 0/)).toHaveCount(0);
+});
+
+test("채점 중 결과를 확정 통계와 다운로드에서 제외한다", async ({ page }) => {
+  await installApi(page, { hasResults: true, resultStatus: "PROCESSING" });
+  await gotoAndSettle(page, `${BASE}/e2e-exam-results-export-harness.html`, {
+    timeout: 60_000,
+  });
+
+  await expect(page.getByText("아직 분석할 확정 채점 결과가 없습니다", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "수업 분석 리포트 (엑셀)" })).toBeDisabled();
+});
+
+test("수동 통과 학생을 보충 완료로 별도 집계한다", async ({ page }) => {
+  await installApi(page, { hasResults: true, remediated: true });
+  await gotoAndSettle(page, `${BASE}/e2e-exam-results-export-harness.html`, {
+    timeout: 60_000,
+  });
+
+  await expect(page.getByText(/보충 완료 1/)).toBeVisible();
 });

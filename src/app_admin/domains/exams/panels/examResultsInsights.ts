@@ -14,9 +14,11 @@ export type ExamResultsInsightModel = {
   stdRate: number;
   topTenAverage: number;
   highest: number;
+  hasPassCriterion: boolean;
   passCount: number;
   failCount: number;
   passRate: number;
+  remediatedCount: number;
   direction: { title: string; detail: string; tone: InsightTone };
   cutReview: { title: string; detail: string; tone: InsightTone };
   nextAction: { title: string; detail: string; tone: InsightTone };
@@ -38,10 +40,10 @@ export type ExamResultsInsightModel = {
 
 const DISTRIBUTION_BANDS = [
   { lower: 0, upper: 20, label: "0–20%" },
-  { lower: 20, upper: 40, label: "21–40%" },
-  { lower: 40, upper: 60, label: "41–60%" },
-  { lower: 60, upper: 80, label: "61–80%" },
-  { lower: 80, upper: 100, label: "81–100%" },
+  { lower: 20, upper: 40, label: ">20–40%" },
+  { lower: 40, upper: 60, label: ">40–60%" },
+  { lower: 60, upper: 80, label: ">60–80%" },
+  { lower: 80, upper: 100, label: ">80–100%" },
 ] as const;
 
 function mean(values: number[]): number {
@@ -96,14 +98,24 @@ export function buildExamResultsInsightModel({
   passScore: number;
 }): ExamResultsInsightModel {
   const safeMaxScore = Number.isFinite(maxScore) && maxScore > 0 ? maxScore : 100;
-  const scores = results
-    .filter((row) => row.result_status !== "NOT_SUBMITTED")
-    .map((row) => row.final_score)
-    .filter((score): score is number => typeof score === "number" && Number.isFinite(score));
+  const scoredRows = results.flatMap((row) => {
+    if (row.result_status != null && row.result_status !== "DONE") return [];
+    const score = typeof row.ranking_score === "number"
+      ? row.ranking_score
+      : row.final_score;
+    return typeof score === "number" && Number.isFinite(score)
+      ? [{ row, score }]
+      : [];
+  });
+  const scores = scoredRows.map(({ score }) => score);
   const scoreRates = scores.map((score) => Math.min(100, Math.max(0, (score / safeMaxScore) * 100)));
-  const passCount = scores.filter((score) => score >= passScore).length;
-  const failCount = Math.max(scores.length - passCount, 0);
-  const passRate = scores.length > 0 ? passCount / scores.length : 0;
+  const hasPassCriterion = Number.isFinite(passScore) && passScore > 0;
+  const passCount = hasPassCriterion
+    ? scoredRows.filter(({ row, score }) => row.passed === true || (row.passed == null && score >= passScore)).length
+    : 0;
+  const failCount = hasPassCriterion ? Math.max(scores.length - passCount, 0) : 0;
+  const passRate = hasPassCriterion && scores.length > 0 ? passCount / scores.length : 0;
+  const remediatedCount = scoredRows.filter(({ row }) => row.remediated === true).length;
   const stdRate = populationStdDev(scoreRates);
 
   const priorityQuestions = [...questionStats]
@@ -127,7 +139,7 @@ export function buildExamResultsInsightModel({
       detail: "응시 인원이 5명 미만입니다. 개인 결과를 함께 보고 수업 방향을 확정하세요.",
       tone: "neutral",
     };
-  } else if (passRate < 0.4 || criticalQuestions.length >= 2) {
+  } else if ((hasPassCriterion && passRate < 0.4) || criticalQuestions.length >= 2) {
     direction = {
       title: "전체 재설명 우선",
       detail: "미달 비율 또는 최저 정답률 문항이 높아 공통 개념부터 다시 설명하는 편이 안전합니다.",
@@ -155,7 +167,13 @@ export function buildExamResultsInsightModel({
 
   const failRate = scores.length > 0 ? 1 - passRate : 0;
   let cutReview: ExamResultsInsightModel["cutReview"];
-  if (scores.length < 5) {
+  if (!hasPassCriterion) {
+    cutReview = {
+      title: "합격 기준 설정 필요",
+      detail: "합격 컷이 설정되지 않아 합격·미달 인원을 계산하지 않았습니다. 시험 설정에서 기준 점수를 먼저 확인하세요.",
+      tone: "attention",
+    };
+  } else if (scores.length < 5) {
     cutReview = {
       title: "컷 판단 보류",
       detail: `현재 ${passScore}점 기준을 유지하고 표본이 쌓인 뒤 검토하세요.`,
@@ -203,7 +221,7 @@ export function buildExamResultsInsightModel({
     )).length;
     return {
       label: band.label,
-      rawRange: `${(safeMaxScore * band.lower / 100).toFixed(0)}–${(safeMaxScore * band.upper / 100).toFixed(0)}점`,
+      rawRange: `${band.lower === 0 ? "" : ">"}${(safeMaxScore * band.lower / 100).toFixed(0)}–${(safeMaxScore * band.upper / 100).toFixed(0)}점`,
       count,
       ratio: scores.length > 0 ? count / scores.length : 0,
     };
@@ -218,9 +236,11 @@ export function buildExamResultsInsightModel({
     stdRate,
     topTenAverage: topTenAverage(scores),
     highest: scores.length > 0 ? Math.max(...scores) : 0,
+    hasPassCriterion,
     passCount,
     failCount,
     passRate,
+    remediatedCount,
     direction,
     cutReview,
     nextAction,
