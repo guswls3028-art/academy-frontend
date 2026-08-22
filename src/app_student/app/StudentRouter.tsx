@@ -34,6 +34,7 @@ const CommunityPage = lazy(() => import("@student/domains/community/pages/Commun
 const NoticesPage = lazy(() => import("@student/domains/notices/pages/NoticesPage"));
 const NoticeDetailPage = lazy(() => import("@student/domains/notices/pages/NoticeDetailPage"));
 const NotificationsPage = lazy(() => import("@student/domains/notifications/pages/NotificationsPage"));
+const ClinicIDCardPage = lazy(() => import("@student/domains/clinic-idcard/pages/ClinicIDCardPage"));
 const ClinicPage = lazy(() => import("@student/domains/clinic/pages/ClinicPage"));
 const AttendancePage = lazy(() => import("@student/domains/attendance/pages/AttendancePage"));
 const StudentFeesPage = lazy(() => import("@student/domains/fees/pages/StudentFeesPage"));
@@ -104,7 +105,7 @@ export default function StudentRouter() {
         <Route path="notices" element={<NoticesPage />} />
         <Route path="notices/:id" element={<NoticeDetailPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
-        <Route path="idcard" element={<Navigate to="/student/clinic" replace />} />
+        <Route path="idcard" element={<ClinicIDCardPage />} />
         <Route path="clinic" element={<ClinicPage />} />
         <Route path="attendance" element={<AttendancePage />} />
         <Route path="fees" element={<StudentFeesGate />} />

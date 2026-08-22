@@ -6,6 +6,8 @@ import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 
+test.use({ serviceWorkers: "block" });
+
 function localJwt(): string {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
   return `${encode({ alg: "none" })}.${encode({
@@ -73,7 +75,11 @@ async function seed(page: Page) {
   }, localJwt());
 }
 
-async function installApi(page: Page) {
+type PasscardSettingsState = {
+  payloads: Array<Record<string, unknown>>;
+};
+
+async function installApi(page: Page, passcardState?: PasscardSettingsState) {
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
@@ -106,6 +112,23 @@ async function installApi(page: Page) {
       });
     }
     if (path === "/staffs/currently-working/") return json([]);
+    if (path === "/clinic/settings/" && method === "GET") {
+      return json({
+        colors: ["#ef4444", "#3b82f6", "#22c55e"],
+        saved_colors: ["#ef4444", "#3b82f6", "#22c55e"],
+        use_daily_random: false,
+        auto_approve_booking: true,
+      });
+    }
+    if (path === "/clinic/settings/" && method === "PATCH") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      passcardState?.payloads.push(payload);
+      return json({
+        ...payload,
+        saved_colors: payload.colors,
+        auto_approve_booking: true,
+      });
+    }
     if (path === "/clinic/sessions/" && method === "GET") return json(sessions);
     if (path === "/clinic/participants/" && method === "GET") {
       return json({ count: 0, results: [] });
@@ -150,4 +173,42 @@ test("같은 날짜에 여러 클리닉 시간대를 시간순으로 보고 계�
   const dialog = page.getByRole("dialog").filter({ hasText: "클리닉 만들기" });
   await expect(dialog.getByRole("heading", { name: "클리닉 만들기" })).toBeVisible();
   await expect(dialog).toContainText("현재 3개 시간대가 있습니다.");
+});
+
+test("관리자가 패스카드 3색을 확인하고 학생 화면에 적용한다", async ({ page }) => {
+  const state: PasscardSettingsState = { payloads: [] };
+  await seed(page);
+  await installApi(page, state);
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/settings`, { timeout: 45_000 });
+
+  await expect(page.getByRole("heading", { name: "클리닉 패스카드" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "학생 합격 화면" })).toBeVisible();
+  await expect(page.getByLabel("패스카드 색상 1")).toHaveValue("#ef4444");
+  await page.getByLabel("패스카드 색상 1").fill("#112233");
+  await page.getByRole("button", { name: "학생 화면에 적용" }).click();
+
+  await expect.poll(() => state.payloads).toEqual([{
+    colors: ["#112233", "#3b82f6", "#22c55e"],
+    use_daily_random: false,
+  }]);
+  await page.screenshot({ path: "test-results/admin-clinic-passcard-1366.png", fullPage: true });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole("heading", { name: "클리닉 패스카드" })).toBeVisible();
+  expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await page.screenshot({ path: "test-results/admin-clinic-passcard-390.png", fullPage: true });
+});
+
+test("선생님 모바일 메뉴에서 패스카드 색상 리모컨을 연다", async ({ page }) => {
+  await seed(page);
+  await installApi(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoAndSettle(page, `${BASE}/workspace/mobile/clinic/remote`, { timeout: 45_000 });
+
+  await expect(page.getByRole("heading", { name: "패스카드 색상" })).toBeVisible();
+  await expect(page.getByText("합격", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "색상 1 변경" })).toBeVisible();
+  expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await page.screenshot({ path: "test-results/teacher-clinic-passcard-390.png", fullPage: true });
 });

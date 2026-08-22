@@ -47,6 +47,7 @@ const VideoListPage = lazy(() => import("@teacher/domains/videos/pages/VideoList
 const VideoDetailPage = lazy(() => import("@teacher/domains/videos/pages/VideoDetailPage"));
 const ClinicPage = lazy(() => import("@teacher/domains/clinic/pages/ClinicPage"));
 const ClinicReportsPage = lazy(() => import("@teacher/domains/clinic/pages/ClinicReportsPage"));
+const ClinicRemoteControlPage = lazy(() => import("@teacher/domains/clinic/pages/ClinicRemoteControlPage"));
 const CounselingPage = lazy(() => import("@teacher/domains/counseling/pages/CounselingPage"));
 const ResultsPage = lazy(() => import("@teacher/domains/results/pages/ResultsPage"));
 const SubmissionsInboxPage = lazy(() => import("@teacher/domains/results/pages/SubmissionsInboxPage"));
@@ -141,7 +142,7 @@ export default function TeacherRouter() {
           {/* 클리닉 (Phase 3, section_mode) */}
           <Route path="clinic" element={<ClinicPage />} />
           <Route path="clinic/reports" element={<ClinicReportsPage />} />
-          <Route path="clinic/remote" element={<Navigate to="/workspace/mobile/clinic" replace />} />
+          <Route path="clinic/remote" element={<ClinicRemoteControlPage />} />
 
           {/* 상담 메모 (Phase 3) */}
           <Route path="counseling" element={<CounselingPage />} />

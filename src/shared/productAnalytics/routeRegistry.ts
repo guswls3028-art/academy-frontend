@@ -90,6 +90,7 @@ const ROUTES: CompiledRoute[] = [
   route("/student/qna", "community.manage", "student.community.qna", "student"),
   route("/student/notices/*", "community.manage", "student.notices.workspace", "student"),
   route("/student/notifications", "messaging.manage", "student.notifications.home", "student"),
+  route("/student/idcard", "clinic.manage", "student.clinic.idcard", "student"),
   route("/student/clinic", "clinic.manage", "student.clinic.home", "student"),
   route("/student/attendance", "attendance.manage", "student.attendance.home", "student"),
   route("/student/fees", "fees.manage", "student.fees.home", "student"),

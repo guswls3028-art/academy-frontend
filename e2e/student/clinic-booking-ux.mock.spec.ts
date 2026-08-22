@@ -126,7 +126,7 @@ async function seed(page: Page) {
   }, fakeJwt());
 }
 
-async function installApi(page: Page, state: MockState) {
+async function installApi(page: Page, state: MockState, idcardResult: "SUCCESS" | "FAIL" = "FAIL") {
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
@@ -191,8 +191,13 @@ async function installApi(page: Page, state: MockState) {
     }
     if (path === "/clinic/idcard/" && method === "GET") {
       return json({
-        current_result: "FAIL",
-        current_targets: [{
+        student_name: "김학생",
+        profile_photo_url: null,
+        background_colors: ["#ef4444", "#3b82f6", "#22c55e"],
+        server_date: "2026-08-22",
+        server_datetime: "2026-08-22T09:30:00+09:00",
+        current_result: idcardResult,
+        current_targets: idcardResult === "FAIL" ? [{
           clinic_link_id: 81,
           enrollment_id: 31,
           lecture_id: 41,
@@ -203,6 +208,24 @@ async function installApi(page: Page, state: MockState) {
           session_order: 7,
           session_title: "함수의 그래프",
           source_type: "exam",
+        }] : [],
+        histories: [{
+          enrollment_id: 31,
+          lecture_id: 41,
+          lecture_title: "대수 정규반",
+          lecture_color: "#2563eb",
+          lecture_chip_label: "대수",
+          session_id: 61,
+          session_order: 7,
+          session_title: "함수의 그래프",
+          passed: idcardResult === "SUCCESS",
+          clinic_required: idcardResult === "FAIL",
+        }],
+        lectures: [{
+          id: 41,
+          title: "대수 정규반",
+          color: "#2563eb",
+          chip_label: "대수",
         }],
       });
     }
@@ -317,13 +340,40 @@ test.describe("학생 클리닉 예약 UX", () => {
     await expect(page.getByText("예약 신청이 취소되었습니다.")).toBeVisible();
   });
 
-  test("제거된 학생 패스카드 주소는 클리닉 홈으로 이동한다", async ({ page }) => {
+  test("학생 패스카드가 실시간 클리닉 판정과 예약 진입점을 보여준다", async ({ page }) => {
     const state = createState();
     await seed(page);
     await installApi(page, state);
     await page.goto(`${BASE}/student/idcard`, { waitUntil: "domcontentloaded" });
 
-    await expect(page).toHaveURL(/\/student\/clinic$/);
-    await expect(page.getByRole("heading", { name: "열린 일정" })).toBeVisible();
+    await expect(page).toHaveURL(/\/student\/idcard$/);
+    await expect(page.getByTestId("clinic-passcard")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "클리닉 예약 대상자" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "클리닉 일정 예약하기" })).toHaveAttribute("href", "/student/clinic");
+    await expect(page.getByText("LIVE", { exact: false })).toBeVisible();
+    const passcard = page.getByTestId("clinic-passcard");
+    expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await page.screenshot({ path: "test-results/student-clinic-passcard-390.png", fullPage: true });
+
+    await page.setViewportSize({ width: 1100, height: 800 });
+    await expect(passcard).toBeVisible();
+    expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await page.screenshot({ path: "test-results/student-clinic-passcard-1100.png", fullPage: true });
+  });
+
+  test("합격 패스카드는 학원에서 지정한 3색과 합격 판정을 보여준다", async ({ page }) => {
+    const state = createState();
+    await seed(page);
+    await installApi(page, state, "SUCCESS");
+    await page.goto(`${BASE}/student/idcard`, { waitUntil: "domcontentloaded" });
+
+    const passcard = page.getByTestId("clinic-passcard");
+    await expect(page.getByRole("heading", { name: "합격" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "클리닉 일정 예약하기" })).toHaveCount(0);
+    const backgroundImage = await passcard.evaluate((element) => getComputedStyle(element).backgroundImage);
+    expect(backgroundImage).toContain("239, 68, 68");
+    expect(backgroundImage).toContain("59, 130, 246");
+    expect(backgroundImage).toContain("34, 197, 94");
+    await page.screenshot({ path: "test-results/student-clinic-passcard-pass-390.png", fullPage: true });
   });
 });
