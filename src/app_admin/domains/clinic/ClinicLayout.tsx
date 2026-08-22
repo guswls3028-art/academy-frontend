@@ -11,6 +11,7 @@ const CLINIC_TABS = [
   { key: "schedule", label: "일정·배정", path: "/workspace/clinic/schedule" },
   { key: "operations", label: "출석·진행", path: "/workspace/clinic/operations" },
   { key: "bookings", label: "미통과", path: "/workspace/clinic/bookings" },
+  { key: "settings", label: "패스카드", path: "/workspace/clinic/settings" },
   { key: "msg-settings", label: "알림 설정", path: "/workspace/clinic/msg-settings" },
 ];
 
