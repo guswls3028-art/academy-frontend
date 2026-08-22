@@ -2861,8 +2861,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * @description POST /api/v1/core/tenants/
-         *     플랫폼 관리 테넌트(OWNER_TENANT_ID) 전용 — owner role만. 새 테넌트 생성.
+         * @description POST /api/v1/core/tenants/create/
+         *     플랫폼 관리 테넌트(OWNER_TENANT_ID) 전용 — 개발·QA 기본 테넌트 생성.
+         *     운영 신규 테넌트는 명시적 ID와 전체 설정을 받는 provision_tenant를 사용한다.
          */
         post: operations["core_tenants_create_create"];
         delete?: never;
@@ -8026,7 +8027,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** @description 점수 합불을 바꾸지 않고 시험/과제별 오답 확인 상태만 저장한다. */
+        /** @description 원점수/제출을 바꾸지 않고 교사의 시험 통과·과제 완료 판정을 저장한다. */
         patch: operations["results_admin_sessions_score_correction_partial_update"];
         trace?: never;
     };
@@ -9571,8 +9572,26 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description GET: 학생 상세용 최근 계정 알림톡 발송 상태. */
-        get: operations["students_account_notifications_retrieve"];
+        /** @description Student-detail account Alimtalk history and username guidance. */
+        get: operations["students_account_notifications_list"];
+        put?: never;
+        /** @description Send username guidance without changing the current password. */
+        post: operations["students_account_guidance_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/students/{student_id}/activities/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Tenant-scoped student activity timeline for staff support. */
+        get: operations["students_activity_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -9612,6 +9631,23 @@ export interface paths {
          *     body: {target_type: "exam"|"homework"|"session", target_id, action: "add"|"remove", lecture_id}
          */
         post: operations["students_enrollment_matrix_toggle_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/students/{student_id}/support-session/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Issue a short-lived, access-only student token for staff support. */
+        post: operations["students_support_session_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -9864,6 +9900,40 @@ export interface paths {
          *     - 다른 학원 / 다른 학생 접근 불가
          */
         patch: operations["students_me_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/students/me/activity/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Record a successful student-app screen open with server receipt time. */
+        post: operations["students_activity_record"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/students/me/activity/homework-open/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Record an exact homework open after validating current student access. */
+        post: operations["students_homework_open_activity_record"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/students/password_find/request/": {
@@ -11215,6 +11285,12 @@ export interface components {
          * @enum {string}
          */
         AccessModeEnum: "FREE_REVIEW" | "PROCTORED_CLASS" | "BLOCKED";
+        /**
+         * @description * `student` - student
+         *     * `support` - support
+         * @enum {string}
+         */
+        ActorModeEnum: "student" | "support";
         AdminExamResultRow: {
             achievement?: string | null;
             clinic_required: boolean;
@@ -11390,7 +11466,7 @@ export interface components {
          *     * `other` - 기타
          * @enum {string}
          */
-        CategoryEnum: "free" | "tip" | "story" | "question" | "other";
+        CategoryEccEnum: "free" | "tip" | "story" | "question" | "other";
         ClinicLink: {
             approved?: boolean;
             /** Format: date-time */
@@ -11789,6 +11865,20 @@ export interface components {
          * @enum {integer}
          */
         DayOfWeekEnum: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+        /**
+         * @description * `7` - 7
+         *     * `30` - 30
+         *     * `90` - 90
+         * @enum {integer}
+         */
+        DaysEnum: 7 | 30 | 90;
+        /**
+         * @description * `mobile` - mobile
+         *     * `tablet` - tablet
+         *     * `desktop` - desktop
+         * @enum {string}
+         */
+        DeviceClassEnum: "mobile" | "tablet" | "desktop";
         Enrollment: {
             /** Format: date-time */
             readonly created_at: string;
@@ -14203,7 +14293,7 @@ export interface components {
             video_required_rate?: number;
         };
         PatchedPublicBoardPostWriteRequest: {
-            category?: components["schemas"]["CategoryEnum"];
+            category?: components["schemas"]["CategoryEccEnum"];
             content?: string;
             cover_image_url?: string;
             /** @description 익명 표시(작성자 본인은 자기 글로 인식 가능, 타인에게는 필명 노출) */
@@ -14933,7 +15023,7 @@ export interface components {
         PublicBoardPostDetail: {
             /** @description 작성 당시 역할(student/parent/teacher/owner/admin) */
             author_role?: string;
-            category?: components["schemas"]["CategoryEnum"];
+            category?: components["schemas"]["CategoryEccEnum"];
             content: string;
             cover_image_url?: string;
             /** Format: date-time */
@@ -14966,7 +15056,7 @@ export interface components {
         PublicBoardPostList: {
             /** @description 작성 당시 역할(student/parent/teacher/owner/admin) */
             author_role?: string;
-            category?: components["schemas"]["CategoryEnum"];
+            category?: components["schemas"]["CategoryEccEnum"];
             cover_image_url?: string;
             /** Format: date-time */
             readonly created_at: string;
@@ -14995,7 +15085,7 @@ export interface components {
         PublicBoardPostListRequest: {
             /** @description 작성 당시 역할(student/parent/teacher/owner/admin) */
             author_role?: string;
-            category?: components["schemas"]["CategoryEnum"];
+            category?: components["schemas"]["CategoryEccEnum"];
             cover_image_url?: string;
             /** @description 비로그인 외부 학부모 노출 여부(학원장 toggle) */
             external_visible?: boolean;
@@ -15014,7 +15104,7 @@ export interface components {
             view_count?: number;
         };
         PublicBoardPostWrite: {
-            category?: components["schemas"]["CategoryEnum"];
+            category?: components["schemas"]["CategoryEccEnum"];
             content: string;
             cover_image_url?: string;
             /** @description 익명 표시(작성자 본인은 자기 글로 인식 가능, 타인에게는 필명 노출) */
@@ -15024,7 +15114,7 @@ export interface components {
             title: string;
         };
         PublicBoardPostWriteRequest: {
-            category?: components["schemas"]["CategoryEnum"];
+            category?: components["schemas"]["CategoryEccEnum"];
             content: string;
             cover_image_url?: string;
             /** @description 익명 표시(작성자 본인은 자기 글로 인식 가능, 타인에게는 필명 노출) */
@@ -16111,6 +16201,68 @@ export interface components {
          * @enum {string}
          */
         StatusEc9Enum: "published" | "hidden" | "deleted";
+        StudentAccountGuidanceRequestSchemaRequest: {
+            target: components["schemas"]["TargetEnum"];
+        };
+        StudentAccountGuidanceResponseSchema: {
+            message: string;
+        };
+        StudentAccountNotificationItemSchema: {
+            failure_reason: string;
+            id: number;
+            notification_type: string;
+            provider_message_id: string;
+            recipient_summary: string;
+            /** Format: date-time */
+            sent_at: string | null;
+            status: string;
+            success: boolean;
+            target_id: string;
+            target_name: string;
+        };
+        StudentAccountNotificationListSchema: {
+            results: components["schemas"]["StudentAccountNotificationItemSchema"][];
+        };
+        StudentActivityAcceptedSchema: {
+            accepted: boolean;
+        };
+        StudentActivityFeedSchema: {
+            count: number;
+            days: components["schemas"]["DaysEnum"];
+            include_support: boolean;
+            results: components["schemas"]["StudentActivityItemSchema"][];
+            student: components["schemas"]["StudentSupportSummarySchema"];
+        };
+        StudentActivityItemSchema: {
+            actor_mode: components["schemas"]["ActorModeEnum"];
+            category: components["schemas"]["StudentActivityItemSchemaCategoryEnum"];
+            device_class: components["schemas"]["DeviceClassEnum"];
+            id: number;
+            label: string;
+            /** Format: date-time */
+            occurred_at: string;
+            screen_id: string;
+        };
+        /**
+         * @description * `login` - login
+         *     * `home` - home
+         *     * `homework` - homework
+         *     * `video` - video
+         *     * `exam` - exam
+         *     * `result` - result
+         *     * `attendance` - attendance
+         *     * `clinic` - clinic
+         *     * `notice` - notice
+         *     * `profile` - profile
+         *     * `fee` - fee
+         *     * `guide` - guide
+         * @enum {string}
+         */
+        StudentActivityItemSchemaCategoryEnum: "login" | "home" | "homework" | "video" | "exam" | "result" | "attendance" | "clinic" | "notice" | "profile" | "fee" | "guide";
+        StudentActivityRecordSchemaRequest: {
+            device_class: components["schemas"]["DeviceClassEnum"];
+            screen_id: string;
+        };
         StudentCreate: {
             /** @description 주소 (선택) */
             address?: string | null;
@@ -16342,6 +16494,7 @@ export interface components {
             readonly enrolled_at: string;
             readonly id: number;
             lecture: number;
+            readonly lecture_active: boolean;
             /** @default  */
             readonly lecture_chip_label: string;
             /** @default #3b82f6 */
@@ -16410,6 +16563,9 @@ export interface components {
             fee_template: number;
             is_active?: boolean;
             student: number;
+        };
+        StudentHomeworkOpenSchemaRequest: {
+            homework_id: number;
         };
         StudentInvoiceDetail: {
             /**
@@ -16614,6 +16770,18 @@ export interface components {
             readonly phone: string | null;
             readonly school_type: string | null;
         };
+        StudentSupportSessionSchema: {
+            access: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** Format: uuid */
+            session_id: string;
+            student: components["schemas"]["StudentSupportSummarySchema"];
+        };
+        StudentSupportSummarySchema: {
+            id: number;
+            name: string;
+        };
         StudentTag: {
             color?: string;
             readonly id: number;
@@ -16759,6 +16927,12 @@ export interface components {
          * @enum {string}
          */
         SupportKindEnum: "bug" | "feedback";
+        /**
+         * @description * `student` - student
+         *     * `parent` - parent
+         * @enum {string}
+         */
+        TargetEnum: "student" | "parent";
         /**
          * @description * `1` - 1학년
          *     * `2` - 2학년
@@ -32314,9 +32488,11 @@ export interface operations {
             };
         };
     };
-    students_account_notifications_retrieve: {
+    students_account_notifications_list: {
         parameters: {
-            query?: never;
+            query?: {
+                limit?: number;
+            };
             header?: never;
             path: {
                 student_id: number;
@@ -32325,12 +32501,85 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No response body */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["StudentAccountNotificationListSchema"];
+                };
+            };
+        };
+    };
+    students_account_guidance_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                student_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudentAccountGuidanceRequestSchemaRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StudentAccountGuidanceRequestSchemaRequest"];
+                "multipart/form-data": components["schemas"]["StudentAccountGuidanceRequestSchemaRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentAccountGuidanceResponseSchema"];
+                };
+            };
+        };
+    };
+    students_activity_list: {
+        parameters: {
+            query?: {
+                /**
+                 * @description * `login` - login
+                 *     * `home` - home
+                 *     * `homework` - homework
+                 *     * `video` - video
+                 *     * `exam` - exam
+                 *     * `result` - result
+                 *     * `attendance` - attendance
+                 *     * `clinic` - clinic
+                 *     * `notice` - notice
+                 *     * `profile` - profile
+                 *     * `fee` - fee
+                 *     * `guide` - guide
+                 */
+                category?: "login" | "home" | "homework" | "video" | "exam" | "result" | "attendance" | "clinic" | "notice" | "profile" | "fee" | "guide";
+                /**
+                 * @description * `7` - 7
+                 *     * `30` - 30
+                 *     * `90` - 90
+                 */
+                days?: 7 | 30 | 90;
+                include_support?: boolean;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                student_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentActivityFeedSchema"];
+                };
             };
         };
     };
@@ -32371,6 +32620,27 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    students_support_session_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                student_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentSupportSessionSchema"];
+                };
             };
         };
     };
@@ -32768,6 +33038,56 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudentDetail"];
+                };
+            };
+        };
+    };
+    students_activity_record: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudentActivityRecordSchemaRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StudentActivityRecordSchemaRequest"];
+                "multipart/form-data": components["schemas"]["StudentActivityRecordSchemaRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentActivityAcceptedSchema"];
+                };
+            };
+        };
+    };
+    students_homework_open_activity_record: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudentHomeworkOpenSchemaRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StudentHomeworkOpenSchemaRequest"];
+                "multipart/form-data": components["schemas"]["StudentHomeworkOpenSchemaRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentActivityAcceptedSchema"];
                 };
             };
         };

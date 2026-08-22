@@ -6,6 +6,8 @@ import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 
+test.use({ serviceWorkers: "block" });
+
 function localJwt(): string {
   const encode = (value: unknown) =>
     Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -16,7 +18,10 @@ function localJwt(): string {
   })}.sig`;
 }
 
-async function installApi(page: Page) {
+async function installApi(
+  page: Page,
+  onAccountGuidance?: (target: "student" | "parent") => void,
+) {
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
     const requestUrl = new URL(request.url());
@@ -105,10 +110,21 @@ async function installApi(page: Page) {
       return json({
         id: 1001,
         name: "테스트학생",
+        ps_number: "S1001",
+        phone: "01033334444",
+        parent_phone: "01011112222",
         is_managed: true,
         tags: [],
         enrollments: [],
       });
+    }
+    if (path === "/students/1001/account-notifications/") {
+      if (request.method() === "POST") {
+        const payload = request.postDataJSON() as { target: "student" | "parent" };
+        onAccountGuidance?.(payload.target);
+        return json({ message: "아이디 안내 알림톡을 발송했습니다. 비밀번호는 변경되지 않았습니다." });
+      }
+      return json({ results: [] });
     }
     if (path === "/students/1002/") {
       return json({
@@ -176,7 +192,8 @@ test("출결 상태 액션은 유지하고 학생 행은 학생 상세를 연다
     localStorage.setItem("access", jwt);
     localStorage.setItem("refresh", `${jwt}-refresh`);
   }, localJwt());
-  await installApi(page);
+  const guidanceTargets: string[] = [];
+  await installApi(page, (target) => guidanceTargets.push(target));
 
   await gotoAndSettle(
     page,
@@ -206,14 +223,16 @@ test("출결 상태 액션은 유지하고 학생 행은 학생 상세를 연다
     name: "테스트학생",
   })).toBeVisible();
   await expect(overlay.getByRole("button", { name: "학생 화면 보기" })).toBeVisible();
-  await expect(overlay.getByRole("button", { name: "계정정보 알림톡" })).toBeVisible();
+  await expect(overlay.getByRole("button", { name: "아이디 안내 알림톡" })).toBeVisible();
+  await expect(overlay.getByRole("button", { name: "비밀번호 초기화" })).toBeVisible();
 
-  await overlay.getByRole("button", { name: "계정정보 알림톡" }).click();
-  await expect(page.getByRole("heading", { name: "계정정보 알림톡 다시 보내기" })).toBeVisible();
-  await expect(page.getByText("현재 비밀번호는 조회할 수 없어 새 임시 비밀번호를 발급한 뒤 학생·학부모에게 알림톡으로 안내합니다.", { exact: true })).toBeVisible();
+  await overlay.getByRole("button", { name: "아이디 안내 알림톡" }).click();
+  await expect(page.getByRole("heading", { name: "아이디 안내 알림톡" })).toBeVisible();
+  await expect(page.getByText("등록된 번호로 로그인 아이디를 안내합니다. 현재 비밀번호와 로그인 상태는 변경되지 않습니다.", { exact: true })).toBeVisible();
   await expect(page.getByRole("radio", { name: "둘 다" })).toBeChecked();
-  await page.keyboard.press("Escape");
-  await expect(page.getByRole("heading", { name: "계정정보 알림톡 다시 보내기" })).toHaveCount(0);
+  await page.getByRole("button", { name: "아이디 안내 보내기" }).click();
+  await expect.poll(() => guidanceTargets).toEqual(["student", "parent"]);
+  await expect(page.getByRole("heading", { name: "아이디 안내 알림톡" })).toHaveCount(0);
   await expect(overlay.getByRole("button", {
     name: "현재 활성, 비활성으로 변경",
   })).toBeVisible();
@@ -224,6 +243,17 @@ test("출결 상태 액션은 유지하고 학생 행은 학생 상세를 연다
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(overlay.getByRole("button", { name: "정보 수정" })).toBeVisible();
   await expect(overlay.getByRole("tab", { name: "클리닉" })).toBeVisible();
+  await overlay.getByRole("button", { name: "아이디 안내 알림톡" }).click();
+  const guidanceDialog = page.getByRole("dialog").filter({ hasText: "아이디 안내 알림톡" }).last();
+  await expect(guidanceDialog).toBeVisible();
+  await expect.poll(() => guidanceDialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  if (process.env.CAPTURE_STUDENT_DETAIL === "1") {
+    await page.screenshot({
+      path: "../_artifacts/student-account-guidance-admin-mobile.png",
+      fullPage: true,
+    });
+  }
+  await page.keyboard.press("Escape");
 
   if (process.env.CAPTURE_STUDENT_DETAIL === "1") {
     await page.screenshot({
@@ -235,6 +265,48 @@ test("출결 상태 액션은 유지하고 학생 행은 학생 상세를 연다
   await overlay.getByRole("button", { name: "닫기" }).click();
   await expect(page).toHaveURL(/\/workspace\/lectures\/441\/sessions\/428\/attendance$/);
   await expect(studentLink).toBeVisible();
+});
+
+test("교사용 모바일 학생 상세는 아이디 안내와 비밀번호 초기화를 분리한다", async ({ page }) => {
+  await installTenantOneInitScript(page);
+  await page.addInitScript((jwt) => {
+    localStorage.setItem("access", jwt);
+    localStorage.setItem("refresh", `${jwt}-refresh`);
+  }, localJwt());
+  const guidanceTargets: string[] = [];
+  await installApi(page, (target) => guidanceTargets.push(target));
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await gotoAndSettle(page, `${BASE}/workspace/mobile/students/1001`, {
+    timeout: 45_000,
+  });
+
+  await expect(page.getByRole("heading", { name: "학생 상세" })).toBeVisible();
+  await expect(page.getByText("아이디 안내는 현재 비밀번호와 로그인 상태를 변경하지 않습니다.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "아이디 안내", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "비밀번호 초기화", exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "아이디 안내", exact: true }).click();
+  const guidanceSheet = page.getByRole("dialog").filter({ hasText: "아이디 안내 알림톡" }).last();
+  await expect(guidanceSheet).toBeVisible();
+  await expect(guidanceSheet.getByText("비밀번호는 바뀌지 않습니다.", { exact: false })).toBeVisible();
+  await guidanceSheet.getByRole("button", { name: "둘 다", exact: true }).click();
+  await expect.poll(() => guidanceSheet.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  if (process.env.CAPTURE_STUDENT_DETAIL === "1") {
+    await page.screenshot({
+      path: "../_artifacts/student-account-guidance-teacher-mobile.png",
+      fullPage: true,
+    });
+  }
+  await guidanceSheet.getByRole("button", { name: "학생·학부모 아이디 안내 보내기" }).click();
+  await expect.poll(() => guidanceTargets).toEqual(["student", "parent"]);
+  await expect(guidanceSheet).toHaveCount(0);
+
+  await page.getByRole("button", { name: "비밀번호 초기화", exact: true }).click();
+  const resetSheet = page.getByRole("dialog").filter({ hasText: "비밀번호 초기화" }).last();
+  await expect(resetSheet).toBeVisible();
+  await expect(resetSheet.getByText("학생의 비밀번호를 변경합니다.", { exact: false })).toBeVisible();
+  await page.keyboard.press("Escape");
 });
 
 test("학생 상세의 클리닉 이력은 해당 날짜와 세션의 출석 화면을 연다", async ({ page }) => {

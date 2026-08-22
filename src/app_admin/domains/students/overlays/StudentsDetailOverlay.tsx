@@ -48,6 +48,7 @@ import { formatPhone, formatStudentPhoneDisplay, formatOmrCode, formatGenderDisp
 import { adminStudentsQueryKeys } from "../queryKeys";
 import StudentWrongNoteBuilder from "@admin/domains/results/public/StudentWrongNoteBuilder";
 import StudentHomeworkTab from "./StudentHomeworkTab";
+import AccountGuidanceModal from "../components/AccountGuidanceModal";
 import PasswordResetModal, { type PwResetTarget } from "../components/PasswordResetModal";
 import styles from "./StudentsDetailOverlay.module.css";
 import StudentActivityPanel from "@/shared/studentSupport/StudentActivityPanel";
@@ -141,7 +142,8 @@ export default function StudentsDetailOverlay({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [supportOpening, setSupportOpening] = useState(false);
   const [accountNoticeOpen, setAccountNoticeOpen] = useState(false);
-  const [passwordResetTarget, setPasswordResetTarget] = useState<PwResetTarget>("both");
+  const [passwordResetOpen, setPasswordResetOpen] = useState(false);
+  const [passwordResetTarget, setPasswordResetTarget] = useState<PwResetTarget>("student");
   const [passwordResetting, setPasswordResetting] = useState(false);
   // 학생 전환 시 탭 초기화
   useEffect(() => { setTab("enroll"); }, [id]);
@@ -366,12 +368,20 @@ export default function StudentsDetailOverlay({
                     type="button"
                     intent="secondary"
                     size="sm"
+                    onClick={() => setAccountNoticeOpen(true)}
+                  >
+                    아이디 안내 알림톡
+                  </Button>
+                  <Button
+                    type="button"
+                    intent="secondary"
+                    size="sm"
                     onClick={() => {
-                      setPasswordResetTarget("both");
-                      setAccountNoticeOpen(true);
+                      setPasswordResetTarget("student");
+                      setPasswordResetOpen(true);
                     }}
                   >
-                    계정정보 알림톡
+                    비밀번호 초기화
                   </Button>
                   <Button type="button" intent="secondary" size="sm" onClick={() => setEditOpen(true)}>
                     정보 수정
@@ -670,19 +680,26 @@ export default function StudentsDetailOverlay({
         </Suspense>
       )}
 
-      <PasswordResetModal
+      <AccountGuidanceModal
         open={accountNoticeOpen}
         onClose={() => setAccountNoticeOpen(false)}
+        student={student}
+        onSuccess={() => {
+          void qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.studentAccountNotifications(id) });
+        }}
+      />
+      <PasswordResetModal
+        open={passwordResetOpen}
+        onClose={() => setPasswordResetOpen(false)}
         selectedStudents={[student]}
         target={passwordResetTarget}
         onTargetChange={setPasswordResetTarget}
         onSuccess={() => {
-          setAccountNoticeOpen(false);
+          setPasswordResetOpen(false);
           void qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.studentAccountNotifications(id) });
         }}
         resetting={passwordResetting}
         setResetting={setPasswordResetting}
-        purpose="account_notice"
       />
     </>
   );
