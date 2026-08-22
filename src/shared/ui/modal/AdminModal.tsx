@@ -199,6 +199,7 @@ export default function AdminModal({
         }
         keyboard={false}
         styles={modalStyles}
+        wrapClassName="admin-modal-wrap"
         className={baseClass}
         modalRender={(modal) => (
           <div

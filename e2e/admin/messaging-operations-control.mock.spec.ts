@@ -124,6 +124,65 @@ async function installMessagingApp(page: Page, initialEnabled: boolean) {
     }
     if (pathname === "/messaging/auto-send/") return json(configs);
     if (pathname === "/messaging/templates/") return json([template]);
+    if (pathname === "/students/") {
+      return json({
+        count: 1,
+        page_size: 50,
+        results: [{
+          id: 910001,
+          name: "모바일 확인 학생",
+          phone: "01011112222",
+          parent_phone: "01033334444",
+          ps_number: "E2E-910001",
+          omr_code: "910001",
+          is_managed: true,
+          school_type: "HIGH",
+          high_school: "테스트고",
+          high_school_class: "1",
+          grade: 1,
+          tags: [],
+          enrollments: [],
+          created_at: "2026-08-22T07:00:00Z",
+        }],
+      });
+    }
+    if (pathname === "/messaging/send/preflight/") {
+      const body = request.postDataJSON() as { send_to?: "student" | "parent" };
+      return json({
+        ok: true,
+        can_send: true,
+        mode: "now",
+        send_to: body.send_to || "parent",
+        recipient: {
+          selected: 1,
+          resolved: 1,
+          valid_phone: 1,
+          skipped_no_phone: 0,
+          duplicate_phone: 0,
+          unique_phone: 1,
+          invalid_or_deleted: 0,
+          limit: 500,
+        },
+        template: {
+          ok: true,
+          source: "unified",
+          name: "출석 안내 기본형",
+          solapi_template_id: "E2E_TEMPLATE",
+          solapi_status: "APPROVED",
+          detail: "",
+          uses_unified_template: true,
+          template_type: "attendance",
+        },
+        preview_recipients: [],
+        limits: {
+          hourly_limit: 500,
+          sent_last_hour: 0,
+          remaining_this_hour: 500,
+        },
+        blockers: [],
+        warnings: [],
+      });
+    }
     if (pathname === "/messaging/operations/status/") {
       return json({ risks: [] });
     }
@@ -188,5 +247,33 @@ test.describe("알림톡 전체 사용 운영 제어", () => {
     expect(box!.y).toBeLessThanOrEqual(1);
     expect(box!.y + box!.height).toBeLessThanOrEqual(845);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+  });
+
+  test("390px 학생 알림톡 발송 모달은 포털에서도 첫 화면 안에서 바로 열린다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await installMessagingApp(page, true);
+    await page.goto(`${BASE}/workspace/students/home`, {
+      waitUntil: "commit",
+      timeout: 60_000,
+    });
+
+    const studentCheckbox = page.getByRole("checkbox", { name: "모바일 확인 학생 선택" });
+    await expect(studentCheckbox).toBeVisible({ timeout: 60_000 });
+    await studentCheckbox.check();
+    await page.getByRole("button", { name: "메시지 발송", exact: true }).click();
+
+    const dialog = page.locator(".send-message-modal");
+    await expect(dialog).toBeVisible();
+    await expect(page.locator(".admin-modal-wrap")).toHaveCount(1);
+    await expect.poll(async () => (await dialog.boundingBox())?.y ?? Number.POSITIVE_INFINITY)
+      .toBeLessThanOrEqual(1);
+    const box = await dialog.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.y).toBeGreaterThanOrEqual(-1);
+    expect(box!.y).toBeLessThanOrEqual(1);
+    expect(box!.y + box!.height).toBeLessThanOrEqual(845);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
+    ).toBeLessThanOrEqual(1);
   });
 });
