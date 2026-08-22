@@ -128,9 +128,17 @@ export type StudentVideoPlayback = {
     allow_seek?: boolean;
     monitoring_enabled?: boolean;
     seek?: {
-      mode?: "free" | "blocked" | "bounded_forward";
-      forward_limit?: "max_watched" | null;
+      mode?: "free" | "blocked" | "bounded_forward" | "budgeted_forward";
+      forward_limit?: "max_watched" | "budget" | null;
       grace_seconds?: number;
+      enabled?: boolean;
+      step_seconds?: number;
+      ratio_percent?: number;
+      max_seconds?: number;
+      limit_seconds?: number;
+      used_seconds?: number;
+      remaining_seconds?: number;
+      unavailable_reason?: "" | "duration_unavailable" | "limit_reached";
     };
     playback_rate?: {
       max?: number;
@@ -203,6 +211,30 @@ export async function fetchStudentVideoPlayback(
       ? richHtmlToPlainText(playback.detail)
       : playback.detail,
   };
+}
+
+export type VideoForwardSkipBudget = {
+  enabled: boolean;
+  step_seconds: number;
+  ratio_percent: number;
+  max_seconds: number;
+  limit_seconds: number;
+  used_seconds: number;
+  remaining_seconds: number;
+  unavailable_reason: "" | "duration_unavailable" | "limit_reached";
+  granted_seconds: number;
+};
+
+export async function requestVideoForwardSkip(
+  videoId: number,
+  enrollmentId: number | null,
+): Promise<VideoForwardSkipBudget> {
+  if (!enrollmentId) throw new Error("수강 정보를 확인할 수 없습니다.");
+  const res = await api.post<VideoForwardSkipBudget>(
+    `/student/video/videos/${videoId}/forward-skip/`,
+    { enrollment_id: enrollmentId },
+  );
+  return res.data;
 }
 
 /**

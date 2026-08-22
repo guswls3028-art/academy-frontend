@@ -37,6 +37,7 @@ type MockState = {
   homeworkAssignmentIds?: number[];
   homeworkAssignmentPuts?: number[][];
   homeworkAssignmentDelayMs?: number;
+  createdVideoPayloads?: Array<Record<string, unknown>>;
 };
 
 function sessionRows(state: MockState, lectureId = LECTURE_ID) {
@@ -304,6 +305,19 @@ async function installApi(page: Page, state: MockState) {
     if (path === "/lectures/attendance/") return json({ count: 0, results: [] });
     if (path === "/results/admin/clinic-targets/") return json([]);
     if (path === "/staffs/currently-working/") return json([]);
+    if (path === "/media/videos/youtube/" && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      state.createdVideoPayloads ??= [];
+      state.createdVideoPayloads.push(payload);
+      return json({
+        video: {
+          id: 9981,
+          ...payload,
+          source_type: "youtube",
+          status: "READY",
+        },
+      }, 201);
+    }
     return json({ count: 0, results: [] });
   });
 }
@@ -404,6 +418,85 @@ test("기존 전체 보기를 기본으로 유지하고 분리 보기에서 보�
   await expect(page).toHaveURL(
     new RegExp(`/workspace/community/notice\\?scope=session&lectureId=${LECTURE_ID}&sessionId=${REGULAR_SESSION_ID}`),
   );
+});
+
+test("영상 추가 정책은 허용·금지를 표시하고 라벨 전체 클릭으로 전환된다", async ({ page }, testInfo) => {
+  const state: MockState = {
+    supplementTitle: "토요일 심화 클리닉",
+    patchTitles: [],
+  };
+  await page.setViewportSize({ width: 390, height: 844 });
+  test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "영상 정책 route-mock 검증은 로컬 dev 서버 전용");
+  await installTenantOneInitScript(page);
+  await page.addInitScript((jwt) => {
+    localStorage.setItem("access", jwt);
+    localStorage.setItem("refresh", `${jwt}-refresh`);
+  }, localJwt());
+  await installApi(page, state);
+  await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}`, {
+    waitUntil: "domcontentloaded",
+    timeout: 60_000,
+  });
+  await expect(page.getByRole("group", { name: "수업 보기 방식" }))
+    .toBeVisible({ timeout: 60_000 });
+  await page.goto(
+    `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/videos`,
+    { waitUntil: "domcontentloaded", timeout: 60_000 },
+  );
+
+  const addVideo = page.getByRole("button", { name: "영상 추가", exact: true }).first();
+  await expect(addVideo).toBeVisible({ timeout: 60_000 });
+  await addVideo.click();
+  const dialog = page.getByRole("dialog").filter({ hasText: "영상 추가" });
+  await expect(dialog).toBeVisible();
+
+  const watermarkAllow = dialog.getByRole("switch", { name: "워터마크 허용" });
+  const skipDeny = dialog.getByRole("switch", { name: "건너뛰기 금지" });
+  await expect(watermarkAllow).toHaveAttribute("aria-checked", "true");
+  await expect(watermarkAllow).toContainText("허용");
+  await expect(skipDeny).toHaveAttribute("aria-checked", "false");
+  await expect(skipDeny).toContainText("금지");
+
+  await watermarkAllow.getByText("워터마크", { exact: true }).click();
+  const watermarkDeny = dialog.getByRole("switch", { name: "워터마크 금지" });
+  await expect(watermarkDeny).toHaveAttribute("aria-checked", "false");
+  await expect(watermarkDeny).toContainText("금지");
+
+  await skipDeny.getByText("건너뛰기", { exact: true }).click();
+  const skipAllow = dialog.getByRole("switch", { name: "건너뛰기 허용" });
+  await expect(skipAllow).toHaveAttribute("aria-checked", "true");
+  await expect(skipAllow).toContainText("허용");
+
+  await skipAllow.focus();
+  await skipAllow.press("Space");
+  const skipDenyByKeyboard = dialog.getByRole("switch", { name: "건너뛰기 금지" });
+  await expect(skipDenyByKeyboard).toHaveAttribute("aria-checked", "false");
+  await skipDenyByKeyboard.press("Enter");
+  await expect(dialog.getByRole("switch", { name: "건너뛰기 허용" }))
+    .toHaveAttribute("aria-checked", "true");
+
+  const policyRowMetrics = await dialog.locator(".video-upload-modal__policy-row").evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }));
+  expect(policyRowMetrics.scrollWidth, JSON.stringify(policyRowMetrics))
+    .toBeLessThanOrEqual(policyRowMetrics.clientWidth + 1);
+  await page.screenshot({ path: testInfo.outputPath("video-policy-390.png"), fullPage: true });
+
+  await dialog.getByRole("tab", { name: "YouTube 링크" }).click();
+  await dialog.getByPlaceholder(/제목/).fill("정책 저장 확인 영상");
+  await dialog.getByPlaceholder("https://youtu.be/...").fill("https://youtu.be/dQw4w9WgXcQ");
+  await dialog.getByRole("button", { name: "링크 추가" }).click();
+
+  await expect.poll(() => state.createdVideoPayloads?.length ?? 0).toBe(1);
+  expect(state.createdVideoPayloads?.[0]).toMatchObject({
+    session: REGULAR_SESSION_ID,
+    title: "정책 저장 확인 영상",
+    show_watermark: false,
+    allow_skip: true,
+    max_speed: 1,
+  });
+  await expect(dialog).toBeHidden();
 });
 
 test("정규 차시 번호를 수정하면 정확한 조사와 새 번호를 즉시 표시하고 재조회 후 유지한다", async ({ page }) => {

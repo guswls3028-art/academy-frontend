@@ -242,6 +242,10 @@ export class StudentYoutubeController {
     return null;
   }
 
+  getMaxWatched(): number {
+    return Math.max(0, this.maxWatchedRef);
+  }
+
   play() {
     if (this.disposed || !this.player) return;
     try {
@@ -267,6 +271,7 @@ export class StudentYoutubeController {
     const allowSeek = !!this.policy.allow_seek && this.policy.seek?.mode !== "blocked";
     const seekMode = this.policy.seek?.mode || "free";
     const boundedForward = seekMode === "bounded_forward";
+    const budgetedForward = seekMode === "budgeted_forward";
     const grace = Math.max(0, Number(this.policy.seek?.grace_seconds ?? 3));
 
     if (!allowSeek || seekMode === "blocked") {
@@ -277,12 +282,17 @@ export class StudentYoutubeController {
       return;
     }
 
-    if (boundedForward && target > this.maxWatchedRef + grace) {
+    if ((boundedForward || budgetedForward) && target > this.maxWatchedRef + grace) {
       const allowed = Math.min(duration, this.maxWatchedRef + grace);
       this.player.seekTo(allowed, true);
-      this.showToast("아직 시청하지 않은 구간으로 이동할 수 없습니다.", "warn");
+      this.showToast(
+        budgetedForward
+          ? "앞으로는 10초 건너뛰기 버튼으로 이동해 주세요."
+          : "아직 시청하지 않은 구간으로 이동할 수 없습니다.",
+        "warn",
+      );
       this.queueEvent("SEEK_ATTEMPT", {
-        mode: "bounded_forward",
+        mode: seekMode,
         target,
         max_watched: this.maxWatchedRef,
         grace,
@@ -290,6 +300,18 @@ export class StudentYoutubeController {
       return;
     }
 
+    try {
+      this.player.seekTo(target, true);
+      this.setState({ current: target });
+    } catch {
+      ignoreBestEffortError();
+    }
+  }
+
+  seekApprovedForward(t: number) {
+    if (this.disposed || !this.player) return;
+    const target = clamp(t, 0, Math.max(0, this.safeDuration()));
+    this.maxWatchedRef = Math.max(this.maxWatchedRef, target);
     try {
       this.player.seekTo(target, true);
       this.setState({ current: target });
@@ -387,13 +409,15 @@ export class StudentYoutubeController {
     try {
       const api = await loadYouTubeIframeApi();
       if (this.disposed || !this.mount) return;
+      const restrictedSeeking =
+        this.policy.monitoring_enabled === true || this.policy.seek?.mode === "budgeted_forward";
       this.player = new api.Player(this.mount, {
         videoId,
         width: "100%",
         height: "100%",
         playerVars: {
-          controls: 1,
-          disablekb: 0,
+          controls: restrictedSeeking ? 0 : 1,
+          disablekb: restrictedSeeking ? 1 : 0,
           enablejsapi: 1,
           fs: 1,
           playsinline: 1,
