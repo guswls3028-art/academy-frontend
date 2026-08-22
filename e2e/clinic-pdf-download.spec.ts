@@ -264,6 +264,12 @@ test.describe("성적표 공식 클리닉 대상 PDF", () => {
       expect(pdf.subarray(0, 5).toString("utf8")).toBe("%PDF-");
       expect(pdf.length).toBeGreaterThan(20_000);
     }
+
+    await page.goto(`${getBaseUrl("admin")}/workspace/tools/clinic`, {
+      waitUntil: "domcontentloaded",
+      timeout: 30_000,
+    });
+    await expect(page).toHaveURL(`${getBaseUrl("admin")}/workspace/tools/ppt`);
   });
 
   test("출결 조회 실패 시 명단 추정을 중단하고 재시도한다", async ({ page }) => {

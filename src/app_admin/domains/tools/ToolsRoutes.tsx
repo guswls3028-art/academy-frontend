@@ -32,7 +32,7 @@ export default function ToolsRoutes() {
           <Route path="stopwatch" element={<Suspense fallback={<Fallback />}><StopwatchPage /></Suspense>} />
           <Route path="problem-studio" element={<Suspense fallback={<Fallback />}><ProblemStudioPage /></Suspense>} />
           <Route path="problem-review" element={<Suspense fallback={<Fallback />}><ProblemReviewPage /></Suspense>} />
-          <Route path="*" element={<Navigate to="ppt" replace />} />
+          <Route path="*" element={<Navigate to="/workspace/tools/ppt" replace />} />
         </Route>
       </Routes>
     </Suspense>
