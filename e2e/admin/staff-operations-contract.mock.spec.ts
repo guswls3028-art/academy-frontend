@@ -365,7 +365,7 @@ test.describe("직원 운영 계약", () => {
     await expect(page).toHaveURL(/\/workspace\/staff\/attendance\?staffId=1&year=2026&month=8$/);
   });
 
-  test("직원 임시 비밀번호 설정은 선택한 한 계정의 강제 초기화 API만 호출한다", async ({ page }) => {
+  test("직원 비밀번호 설정은 선택한 한 계정의 재설정 API만 호출한다", async ({ page }) => {
     let passwordBody: Record<string, unknown> | undefined;
     await mockStaffApi(page, {
       onPasswordReset: (body) => { passwordBody = body; },
@@ -380,11 +380,12 @@ test.describe("직원 운영 계약", () => {
     await expect(staffCheckbox).toBeChecked();
     await page.getByRole("button", { name: "비밀번호 변경", exact: true }).click();
 
-    const dialog = page.getByRole("dialog", { name: "임시 비밀번호 설정" });
+    const dialog = page.getByRole("dialog", { name: "비밀번호 설정" });
     await expect(dialog.getByText(/변경하면 기존 로그인은 만료됩니다/)).toBeVisible();
+    await expect(dialog.getByText(/즉시 로그인에 계속 사용할 수 있습니다/)).toBeVisible();
     await dialog.getByRole("button", { name: "안전한 비밀번호 만들기" }).click();
-    const generatedPassword = await dialog.getByLabel("새 임시 비밀번호", { exact: true }).inputValue();
-    await expect(dialog.getByLabel("새 임시 비밀번호 확인", { exact: true })).toHaveValue(generatedPassword);
+    const generatedPassword = await dialog.getByLabel("새 비밀번호", { exact: true }).inputValue();
+    await expect(dialog.getByLabel("새 비밀번호 확인", { exact: true })).toHaveValue(generatedPassword);
     expect(generatedPassword).toHaveLength(12);
     expect(generatedPassword).toMatch(/[A-Z]/);
     expect(generatedPassword).toMatch(/[a-z]/);

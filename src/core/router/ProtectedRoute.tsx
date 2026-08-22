@@ -20,6 +20,7 @@ export type Role =
 
 const ADMIN_ROLES: Role[] = ["owner", "admin", "teacher", "staff"];
 const STUDENT_ROLES: Role[] = ["student", "parent"];
+const PASSWORD_RECOMMENDATION_ROLES: Role[] = ["owner", "student", "parent"];
 
 export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; tenantOnly?: string[] }) {
   const {
@@ -119,6 +120,7 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
 
   const showPasswordRecommendation = Boolean(
     user.must_change_password
+      && PASSWORD_RECOMMENDATION_ROLES.includes(role)
       && !isStudentSupportSession
       && !passwordRecommendationDismissed,
   );

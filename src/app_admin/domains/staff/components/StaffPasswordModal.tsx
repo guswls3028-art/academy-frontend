@@ -37,7 +37,7 @@ export default function StaffPasswordModal({ open, onClose, staffList }: Props) 
       const generated = generateTemporaryPassword();
       setPassword(generated);
       setConfirmation(generated);
-      feedback.success("안전한 임시 비밀번호를 만들었습니다.");
+      feedback.success("안전한 비밀번호를 만들었습니다.");
     } catch (e: unknown) {
       feedback.error(extractApiError(e, "비밀번호를 자동으로 만들 수 없습니다."));
     }
@@ -47,7 +47,7 @@ export default function StaffPasswordModal({ open, onClose, staffList }: Props) 
     if (!password) return;
     try {
       await navigator.clipboard.writeText(password);
-      feedback.success("임시 비밀번호를 복사했습니다. 안전한 방법으로 전달해 주세요.");
+      feedback.success("비밀번호를 복사했습니다. 안전한 방법으로 전달해 주세요.");
     } catch {
       feedback.error("복사하지 못했습니다. 비밀번호 보기 후 직접 복사해 주세요.");
     }
@@ -64,7 +64,7 @@ export default function StaffPasswordModal({ open, onClose, staffList }: Props) 
       return;
     }
     if (pw !== confirmation.trim()) {
-      feedback.warning("새 임시 비밀번호가 일치하지 않습니다.");
+      feedback.warning("새 비밀번호가 일치하지 않습니다.");
       return;
     }
 
@@ -76,7 +76,7 @@ export default function StaffPasswordModal({ open, onClose, staffList }: Props) 
     setBusy(true);
     try {
       await changeStaffPassword(staff.id, pw);
-      feedback.success(`${staff.name}의 임시 비밀번호가 설정되었습니다.`);
+      feedback.success(`${staff.name}의 비밀번호가 설정되었습니다.`);
       setPassword("");
       setConfirmation("");
       onClose();
@@ -93,7 +93,7 @@ export default function StaffPasswordModal({ open, onClose, staffList }: Props) 
     <AdminModal open onClose={onClose} type="action" closeDisabled={busy} onEnterConfirm={!busy ? handleSubmit : undefined}>
       <ModalHeader
         type="action"
-        title="임시 비밀번호 설정"
+        title="비밀번호 설정"
         description={`${names}의 비밀번호를 재설정합니다.`}
       />
       <ModalBody>
@@ -102,7 +102,7 @@ export default function StaffPasswordModal({ open, onClose, staffList }: Props) 
             <label htmlFor="staff-password" className={styles.label}>새 비밀번호 *</label>
             <PasswordInput
               id="staff-password"
-              label="새 임시 비밀번호"
+              label="새 비밀번호"
               inputClassName="ds-input"
               value={password}
               onValueChange={setPassword}
@@ -113,10 +113,10 @@ export default function StaffPasswordModal({ open, onClose, staffList }: Props) 
             />
           </div>
           <div className={styles.field}>
-            <label htmlFor="staff-password-confirmation" className={styles.label}>새 임시 비밀번호 확인 *</label>
+            <label htmlFor="staff-password-confirmation" className={styles.label}>새 비밀번호 확인 *</label>
             <PasswordInput
               id="staff-password-confirmation"
-              label="새 임시 비밀번호 확인"
+              label="새 비밀번호 확인"
               inputClassName="ds-input"
               value={confirmation}
               onValueChange={setConfirmation}
@@ -135,8 +135,8 @@ export default function StaffPasswordModal({ open, onClose, staffList }: Props) 
           </div>
           <PasswordChecklist password={password} confirmation={confirmation} />
           <div className={styles.notice}>
-            변경하면 기존 로그인은 만료됩니다. 직원에게 임시 비밀번호를 안전하게 전달하면,
-            다음 로그인에서 본인 비밀번호로 다시 변경합니다.
+            변경하면 기존 로그인은 만료됩니다. 설정한 비밀번호는 직원이 즉시 로그인에
+            계속 사용할 수 있습니다.
           </div>
         </div>
       </ModalBody>

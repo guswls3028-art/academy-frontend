@@ -118,7 +118,7 @@ async function stubAccountApp(
     onStaffPasswordReset,
   }: {
     mustChangePassword?: boolean;
-    tenantRole?: "admin" | "teacher";
+    tenantRole?: "owner" | "admin" | "teacher" | "staff";
     onProfileUpdate?: (body: Record<string, unknown>) => void;
     onPasswordChange?: (body: Record<string, unknown>) => void;
     onLegacyPasswordChange?: () => void;
@@ -463,7 +463,7 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
   });
 
   test("임시 비밀번호 첫 로그인은 변경을 권장하되 나중에를 선택하면 계속 이용한다", async ({ page }) => {
-    await stubAccountApp(page, { mustChangePassword: true });
+    await stubAccountApp(page, { mustChangePassword: true, tenantRole: "owner" });
 
     await gotoAndSettle(page, `${BASE}/workspace/dashboard`, { timeout: 20_000 });
     const dialog = page.getByRole("dialog", { name: "비밀번호 변경 권장" });
@@ -485,6 +485,7 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
     let passwordBody: Record<string, unknown> | undefined;
     await stubAccountApp(page, {
       mustChangePassword: true,
+      tenantRole: "owner",
       onPasswordChange: (body) => { passwordBody = body; },
     });
 
@@ -510,7 +511,15 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
     }))).toEqual({ access: null, refresh: null });
   });
 
-  test("390px 직원 편집은 정보 저장과 단일 계정 임시 비밀번호 재설정을 분리한다", async ({ page }) => {
+  test("직원 역할은 과거 변경 권장 상태가 남아 있어도 업무 화면을 바로 사용한다", async ({ page }) => {
+    await stubAccountApp(page, { mustChangePassword: true, tenantRole: "admin" });
+
+    await gotoAndSettle(page, `${BASE}/workspace/dashboard`, { timeout: 20_000 });
+    await expect(page.getByRole("dialog", { name: "비밀번호 변경 권장" })).toHaveCount(0);
+    await expect(page).toHaveURL(`${BASE}/workspace/dashboard`);
+  });
+
+  test("390px 직원 편집은 정보 저장과 단일 계정 비밀번호 재설정을 분리한다", async ({ page }) => {
     let resetBody: Record<string, unknown> | undefined;
     await page.setViewportSize({ width: 390, height: 844 });
     await stubAccountApp(page, {
@@ -528,13 +537,13 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
     );
     await expect(dialog.getByText("직원 정보 저장과 별도 작업입니다.")).toBeVisible();
     await expect(dialog.getByRole("button", { name: "수정", exact: true })).toBeEnabled();
-    await expect(dialog.getByRole("button", { name: "임시 비밀번호 변경" })).toBeDisabled();
+    await expect(dialog.getByRole("button", { name: "비밀번호 변경" })).toBeDisabled();
 
     await dialog.getByRole("button", { name: "안전한 비밀번호 만들기" }).click();
-    const generatedPassword = await dialog.getByLabel("새 임시 비밀번호", { exact: true }).inputValue();
-    await expect(dialog.getByLabel("임시 비밀번호 확인", { exact: true })).toHaveValue(generatedPassword);
+    const generatedPassword = await dialog.getByLabel("새 비밀번호", { exact: true }).inputValue();
+    await expect(dialog.getByLabel("비밀번호 확인", { exact: true })).toHaveValue(generatedPassword);
     await expect(dialog.getByRole("group", { name: "새 비밀번호 확인 사항" })).toContainText("확인 입력과 일치");
-    await dialog.getByRole("button", { name: "임시 비밀번호 변경" }).click();
+    await dialog.getByRole("button", { name: "비밀번호 변경" }).click();
 
     await expect.poll(() => resetBody).toEqual({ password: generatedPassword });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
