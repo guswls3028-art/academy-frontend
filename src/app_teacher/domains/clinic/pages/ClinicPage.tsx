@@ -16,6 +16,7 @@ import {
   fetchClinicSessions,
   fetchClinicParticipants,
   patchParticipantStatus,
+  remindParticipant,
   completeParticipant,
   createClinicSession,
   deleteClinicSession,
@@ -227,7 +228,7 @@ function ParticipantList({ sessionId }: { sessionId: number }) {
   const qc = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
 
-  const { data: participants, isLoading } = useQuery({
+  const { data: participants, isLoading, isError, refetch } = useQuery({
     queryKey: teacherClinicQueryKeys.participants(sessionId),
     queryFn: () => fetchClinicParticipants(sessionId),
   });
@@ -261,7 +262,23 @@ function ParticipantList({ sessionId }: { sessionId: number }) {
     onError: (e) => teacherToast.error(extractApiError(e, "완료 처리에 실패했습니다.")),
   });
 
+  const remindMut = useMutation({
+    mutationFn: ({ id }: { id: number; name: string }) => remindParticipant(id),
+    onSuccess: (_data, variables) => {
+      teacherToast.success(`${variables.name} 학생에게 재촉 알림톡을 요청했습니다.`);
+    },
+    onError: (e) => teacherToast.error(extractApiError(e, "재촉 알림톡을 보내지 못했습니다.")),
+  });
+
   if (isLoading) return <div className="px-4 pb-4 text-sm" style={{ color: "var(--tc-text-muted)" }}>불러오는 중…</div>;
+  if (isError) {
+    return (
+      <div className="px-4 pb-4 flex items-center justify-between gap-3">
+        <span className="text-sm" style={{ color: "var(--tc-danger)" }}>참가자 명단을 불러오지 못했습니다.</span>
+        <SmallBtn label="다시 시도" color="var(--tc-primary)" onClick={() => void refetch()} />
+      </div>
+    );
+  }
 
   const empty = !participants?.length;
 
@@ -285,6 +302,7 @@ function ParticipantList({ sessionId }: { sessionId: number }) {
         {participants.map((p) => {
           const name = p.student_name ?? p.enrollment_name ?? "이름 없음";
           const st = p.status ?? "booked";
+          const isCompleted = Boolean(p.completed_at ?? p.is_completed);
           return (
             <div
               key={p.id}
@@ -308,25 +326,28 @@ function ParticipantList({ sessionId }: { sessionId: number }) {
                 <StatusBadge status={st} />
               </div>
               <div className="flex gap-1">
-                {st === "booked" && (
+                {(st === "booked" || st === "no_show") && (
                   <SmallBtn
-                    label="출석"
+                    label={st === "no_show" ? "참석으로 수정" : "참석하기"}
                     color="var(--tc-success)"
                     onClick={() => statusMut.mutate({ id: p.id, status: "attended" })}
+                    disabled={statusMut.isPending}
                   />
                 )}
-                {st === "attended" && !p.is_completed && (
+                {st === "booked" && (
+                  <SmallBtn
+                    label={remindMut.isPending && remindMut.variables?.id === p.id ? "보내는 중…" : "재촉하기"}
+                    color="var(--tc-primary)"
+                    onClick={() => remindMut.mutate({ id: p.id, name })}
+                    disabled={remindMut.isPending}
+                  />
+                )}
+                {st === "attended" && !isCompleted && (
                   <SmallBtn
                     label="완료"
                     color="var(--tc-primary)"
                     onClick={() => completeMut.mutate(p.id)}
-                  />
-                )}
-                {st !== "no_show" && st !== "attended" && st !== "cancelled" && (
-                  <SmallBtn
-                    label="결석"
-                    color="var(--tc-danger)"
-                    onClick={() => statusMut.mutate({ id: p.id, status: "no_show" })}
+                    disabled={completeMut.isPending}
                   />
                 )}
               </div>
@@ -345,15 +366,27 @@ function ParticipantList({ sessionId }: { sessionId: number }) {
   );
 }
 
-function SmallBtn({ label, color, onClick }: { label: string; color: string; onClick: () => void }) {
+function SmallBtn({
+  label,
+  color,
+  onClick,
+  disabled = false,
+}: {
+  label: string;
+  color: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
   return (
     <button
       onClick={onClick}
-      className="text-[11px] font-semibold px-2 py-1 rounded cursor-pointer"
+      disabled={disabled}
+      className="text-[11px] font-semibold px-2 py-1 rounded cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
       style={{
         color,
         background: `color-mix(in srgb, ${color} 10%, transparent)`,
         border: "none",
+        minHeight: 44,
       }}
     >
       {label}
@@ -362,9 +395,10 @@ function SmallBtn({ label, color, onClick }: { label: string; color: string; onC
 }
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  pending: { label: "승인 대기", color: "var(--tc-warning, #9a6700)" },
   booked: { label: "예약", color: "var(--tc-info)" },
   attended: { label: "출석", color: "var(--tc-success)" },
-  no_show: { label: "결석", color: "var(--tc-danger)" },
+  no_show: { label: "이전 불참 기록", color: "var(--tc-danger)" },
   cancelled: { label: "취소", color: "var(--tc-text-muted)" },
   rejected: { label: "거절", color: "var(--tc-text-muted)" },
 };

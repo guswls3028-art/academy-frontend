@@ -517,6 +517,15 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
     await page.getByRole("tab", { name: /내 일정/ }).click();
     await expect(page.getByText("예약 확정").first()).toBeVisible({ timeout: 15_000 });
 
+    const attended = await expectApi<any>(
+      request,
+      "PATCH",
+      `/clinic/participants/${created.participantId}/set_status/`,
+      adminTokens.access,
+      { status: "attended", memo: "E2E 참석" },
+    );
+    expect(attended.status).toBe("attended");
+
     const completed = await expectApi<any>(
       request,
       "POST",

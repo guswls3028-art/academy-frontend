@@ -39,6 +39,7 @@ import type { ClinicSessionTreeNode } from "../../api/clinicSessions.api";
 import type { ClinicParticipant } from "../../api/clinicParticipants.api";
 import {
   patchClinicParticipantStatus,
+  remindClinicParticipant,
   createClinicParticipant,
   completeClinicParticipant,
   uncompleteClinicParticipant,
@@ -54,6 +55,7 @@ import {
 } from "../../api/clinicLinks.api";
 import { fetchAdminExam, updateAdminExam } from "@admin/domains/exams/api/adminExam";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import { useAutoSendConfig } from "@admin/domains/messages/hooks/useAutoSendConfig";
 import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPreviewModal";
 import ClinicTargetSelectModal from "../../components/ClinicTargetSelectModal";
@@ -130,7 +132,7 @@ function getStatusLabel(status: string): string {
   if (status === "pending") return "승인 대기";
   if (status === "booked") return "미확인";
   if (status === "attended") return "출석";
-  if (status === "no_show") return "불참";
+  if (status === "no_show") return "이전 불참 기록";
   if (status === "cancelled") return "취소";
   if (status === "rejected") return "거절";
   return "미확인";
@@ -201,8 +203,9 @@ export default function ClinicConsoleWorkspace({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   // Per-participant pending tracking for rapid processing
   const [mutatingIds, setMutatingIds] = useState<Set<number>>(new Set());
-  // 출석/불참 체크 상태 (API 호출 전 로컬 상태)
-  const [pendingStatuses, setPendingStatuses] = useState<Map<number, "attended" | "no_show">>(new Map());
+  // 참석 체크 상태 (API 호출 전 로컬 상태)
+  const [pendingStatuses, setPendingStatuses] = useState<Map<number, "attended">>(new Map());
+  const [remindingIds, setRemindingIds] = useState<Set<number>>(new Set());
 
   // Inline retake score input: clinic_link_id → score string
   const [retakeScores, setRetakeScores] = useState<Map<number, string>>(new Map());
@@ -218,9 +221,8 @@ export default function ClinicConsoleWorkspace({
   const [previewTrigger, setPreviewTrigger] = useState<string | null>(null);
   const [changeNoticeOpen, setChangeNoticeOpen] = useState(false);
 
-  // 발송 완료 팝업
+  // 참석 처리 결과 팝업
   const [sendResult, setSendResult] = useState<{
-    type: "attended" | "no_show";
     students: { name: string; id: number }[];
     messageBody: string;
   } | null>(null);
@@ -234,6 +236,7 @@ export default function ClinicConsoleWorkspace({
     prevSessionIdRef.current = sessionId;
     setPendingStatuses(new Map());
     setMutatingIds(new Set());
+    setRemindingIds(new Set());
     setCompletingIds(new Set());
     setRetakingIds(new Set());
     setRetakeScores(new Map());
@@ -260,7 +263,7 @@ export default function ClinicConsoleWorkspace({
     return () => document.removeEventListener("keydown", handler);
   }, [previewTrigger]);
 
-  // 발송 완료 팝업: Enter/ESC로 닫기 (capture phase로 등록하여 drawer ESC보다 먼저 처리)
+  // 참석 처리 결과 팝업: Enter/ESC로 닫기 (capture phase로 등록하여 drawer ESC보다 먼저 처리)
   useEffect(() => {
     if (!sendResult) return;
     const handler = (e: KeyboardEvent) => {
@@ -342,7 +345,9 @@ export default function ClinicConsoleWorkspace({
   const progress = useMemo(() => {
     const attended = participants.filter((p) => p.status === "attended").length;
     const noShow = participants.filter((p) => p.status === "no_show").length;
-    const completed = participants.filter((p) => !!p.completed_at).length;
+    const completed = participants.filter(
+      (p) => p.status === "attended" && !!p.completed_at,
+    ).length;
     const approvalPending = participants.filter((p) => isApprovalPending(p.status)).length;
     const pending = participants.filter((p) => isAttendancePending(p.status)).length;
     const total = attended + noShow + pending;
@@ -357,7 +362,7 @@ export default function ClinicConsoleWorkspace({
     [participants]
   );
 
-  /* ── filtered list — 미확인 우선, 불참 다음, 출석 마지막 ── */
+  /* ── filtered list — 미확인 우선, 기존 불참 기록 다음, 출석 마지막 ── */
   const filteredParticipants = useMemo(() => {
     let list: ClinicParticipant[];
     if (statusFilter === "all") list = [...participants];
@@ -400,29 +405,30 @@ export default function ClinicConsoleWorkspace({
 
   if (!session) return null;
 
-  /* ── per-participant status toggle (로컬 체크만, API 호출 X) ── */
-  function handleToggleStatus(
-    p: ClinicParticipant,
-    target: "attended" | "no_show"
-  ) {
-    if (!isAttendancePending(p.status) && p.status !== target) {
-      feedback.info("승인된 예약만 출석/불참 처리할 수 있습니다.");
+  /* ── per-participant attendance toggle (로컬 체크만, API 호출 X) ── */
+  function handleToggleAttendance(p: ClinicParticipant) {
+    if (!isAttendancePending(p.status) && p.status !== "no_show") {
+      feedback.info(
+        p.status === "attended"
+          ? "이미 참석 처리된 학생입니다."
+          : "승인된 예약만 참석 처리할 수 있습니다.",
+      );
       return;
     }
     setPendingStatuses((prev) => {
       const next = new Map(prev);
       const current = next.get(p.id);
-      if (current === target) {
+      if (current === "attended") {
         // 같은 상태 다시 클릭 → 체크 해제
         next.delete(p.id);
       } else {
-        next.set(p.id, target);
+        next.set(p.id, "attended");
       }
       return next;
     });
   }
 
-  /* ── 개별 출석/결석 알림 발송 (체크 확정 + API 호출) ── */
+  /* ── 개별 참석 알림 발송 (체크 확정 + API 호출) ── */
   function handleConfirmStatus(p: ClinicParticipant) {
     const pending = pendingStatuses.get(p.id);
     if (!pending || mutatingIds.has(p.id)) return;
@@ -430,7 +436,7 @@ export default function ClinicConsoleWorkspace({
     // 이미 같은 상태면 API 호출 불필요 — 체크 해제하고 안내
     if (p.status === pending) {
       setPendingStatuses((prev) => { const n = new Map(prev); n.delete(p.id); return n; });
-      feedback.info(`${p.student_name}은(는) 이미 ${pending === "attended" ? "출석" : "결석"} 상태입니다.`);
+      feedback.info(`${p.student_name}은(는) 이미 참석 상태입니다.`);
       return;
     }
 
@@ -443,12 +449,11 @@ export default function ClinicConsoleWorkspace({
           next.delete(p.id);
           return next;
         });
-        // 발송 완료 팝업 — 알림톡 본문 조회
-        const trigger = pending === "attended" ? "clinic_check_in" : "clinic_absent";
+        // 참석 처리 결과 팝업 — 알림톡 본문 조회
+        const trigger = "clinic_check_in";
         const cfg = autoSendConfigs.find((c) => c.trigger === trigger);
         setSendResultPreviewOpen(false);
         setSendResult({
-          type: pending,
           students: [{ name: p.student_name, id: p.student }],
           messageBody: cfg?.template_body || "",
         });
@@ -459,6 +464,30 @@ export default function ClinicConsoleWorkspace({
       })
       .finally(() => {
         setMutatingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(p.id);
+          return next;
+        });
+      });
+  }
+
+  function handleRemind(p: ClinicParticipant) {
+    if (p.status !== "booked") {
+      feedback.info("참석 전인 승인 예약만 재촉할 수 있습니다.");
+      return;
+    }
+    if (remindingIds.has(p.id)) return;
+
+    setRemindingIds((prev) => new Set(prev).add(p.id));
+    remindClinicParticipant(p.id)
+      .then(() => {
+        feedback.success(`${p.student_name} 학생에게 재촉 알림톡을 요청했습니다.`);
+      })
+      .catch((error) => {
+        feedback.error(extractApiError(error, "재촉 알림톡을 보내지 못했습니다."));
+      })
+      .finally(() => {
+        setRemindingIds((prev) => {
           const next = new Set(prev);
           next.delete(p.id);
           return next;
@@ -490,7 +519,7 @@ export default function ClinicConsoleWorkspace({
       });
   }
 
-  /* ── 일괄 출석/결석 알림 발송 ── */
+  /* ── 일괄 참석 알림 발송 ── */
   async function handleBulkConfirmStatuses() {
     const entries = Array.from(pendingStatuses.entries());
     if (entries.length === 0) return;
@@ -543,25 +572,14 @@ export default function ClinicConsoleWorkspace({
     if (failed > 0) {
       feedback.error(`${succeeded}명 처리 완료, ${failed}명 실패`);
     } else {
-      // 발송 완료 팝업 — 일괄 발송
-      // 출석/결석 혼합이면 출석 기준으로 표시
-      const attendedStudents = entries
-        .filter(([, st]) => st === "attended")
-        .map(([id]) => participants.find((pp) => pp.id === id))
-        .filter(Boolean) as ClinicParticipant[];
-      const noShowStudents = entries
-        .filter(([, st]) => st === "no_show")
-        .map(([id]) => participants.find((pp) => pp.id === id))
-        .filter(Boolean) as ClinicParticipant[];
-      const primaryType: "attended" | "no_show" = attendedStudents.length >= noShowStudents.length ? "attended" : "no_show";
+      // 참석 처리 결과 팝업 — 일괄 참석 발송
       const allStudents = entries
         .map(([id]) => participants.find((pp) => pp.id === id))
         .filter(Boolean) as ClinicParticipant[];
-      const trigger = primaryType === "attended" ? "clinic_check_in" : "clinic_absent";
+      const trigger = "clinic_check_in";
       const cfg = autoSendConfigs.find((c) => c.trigger === trigger);
       setSendResultPreviewOpen(false);
       setSendResult({
-        type: primaryType,
         students: allStudents.map((s) => ({ name: s.student_name, id: s.student })),
         messageBody: cfg?.template_body || "",
       });
@@ -678,7 +696,7 @@ export default function ClinicConsoleWorkspace({
     { key: "requests", label: "승인 대기" },
     { key: "pending", label: "미확인" },
     { key: "attended", label: "출석" },
-    { key: "no_show", label: "불참" },
+    { key: "no_show", label: "불참 기록" },
   ];
 
   return (
@@ -836,7 +854,7 @@ export default function ClinicConsoleWorkspace({
               {progress.noShow > 0 && (
                 <div className="clinic-ops__kpi clinic-ops__kpi--noshow">
                   <span className="clinic-ops__kpi-value">{progress.noShow}</span>
-                  <span className="clinic-ops__kpi-label">불참</span>
+                  <span className="clinic-ops__kpi-label">불참 기록</span>
                 </div>
               )}
               <div className="clinic-ops__kpi clinic-ops__kpi--completed">
@@ -900,7 +918,6 @@ export default function ClinicConsoleWorkspace({
           const CLINIC_TRIGGERS = [
             { key: "clinic_reservation_created", label: "예약 완료", desc: "클리닉 예약이 완료되면 학부모에게 예약 안내를 발송합니다." },
             { key: "clinic_check_in", label: "참석", desc: "출석 버튼을 누르면 학부모에게 입실 알림을 발송합니다." },
-            { key: "clinic_absent", label: "결석", desc: "불참 버튼을 누르면 학부모에게 결석 알림을 발송합니다." },
             { key: "clinic_self_study_completed", label: "클리닉 완료", desc: "완료 버튼을 누르면 학부모에게 하원 안내를 발송합니다." },
             { key: "clinic_cancelled", label: "취소", desc: "클리닉 예약 취소 시 학부모에게 취소 안내를 발송합니다." },
             { key: "clinic_reservation_changed", label: "예약 변경", desc: "클리닉 예약이 변경되면 학부모에게 변경 내용을 안내합니다." },
@@ -1025,10 +1042,9 @@ export default function ClinicConsoleWorkspace({
         )}
       </div>
 
-      {/* ═══ B-2. 출석/결석 알림 발송 바 — 참가자가 있으면 상시 표시 ═══ */}
+      {/* ═══ B-2. 참석 알림 발송 바 — 참가자가 있으면 상시 표시 ═══ */}
       {participants.length > 0 && (() => {
         const pendingAttend = Array.from(pendingStatuses.entries()).filter(([, s]) => s === "attended");
-        const pendingNoShow = Array.from(pendingStatuses.entries()).filter(([, s]) => s === "no_show");
         const isSending = Array.from(pendingStatuses.keys()).some((id) => mutatingIds.has(id));
         const hasPendingChanges = pendingStatuses.size > 0;
         return (
@@ -1042,7 +1058,7 @@ export default function ClinicConsoleWorkspace({
               )}
               {progress.noShow > 0 && (
                 <span className="clinic-ops__confirm-bar-badge clinic-ops__confirm-bar-badge--noshow">
-                  결석 {progress.noShow}명
+                  불참 기록 {progress.noShow}명
                 </span>
               )}
               {progress.pending > 0 && (
@@ -1066,11 +1082,6 @@ export default function ClinicConsoleWorkspace({
                   {pendingAttend.length > 0 && (
                     <span className="clinic-ops__confirm-bar-badge clinic-ops__confirm-bar-badge--attend clinic-ops__confirm-bar-badge--delta">
                       +출석 {pendingAttend.length}명
-                    </span>
-                  )}
-                  {pendingNoShow.length > 0 && (
-                    <span className="clinic-ops__confirm-bar-badge clinic-ops__confirm-bar-badge--noshow clinic-ops__confirm-bar-badge--delta">
-                      +결석 {pendingNoShow.length}명
                     </span>
                   )}
                   <span className="clinic-ops__confirm-bar-hint">체크를 취소하려면 버튼을 다시 누르세요</span>
@@ -1124,7 +1135,7 @@ export default function ClinicConsoleWorkspace({
             {statusFilter === "requests" && "승인 대기 신청이 없습니다."}
             {statusFilter === "pending" && "미확인 학생이 없습니다."}
             {statusFilter === "attended" && "출석 처리된 학생이 없습니다."}
-            {statusFilter === "no_show" && "불참 처리된 학생이 없습니다."}
+            {statusFilter === "no_show" && "이전 불참 기록이 없습니다."}
           </p>
         </div>
       ) : (
@@ -1139,6 +1150,7 @@ export default function ClinicConsoleWorkspace({
             const isNoShow = effectiveStatus === "no_show";
             const hasPending = pendingStatus != null;
             const isMutating = mutatingIds.has(p.id);
+            const isReminding = remindingIds.has(p.id);
 
             return (
               <div
@@ -1204,7 +1216,7 @@ export default function ClinicConsoleWorkspace({
                       >
                         {hasPending ? (
                         <span className="clinic-ops__status-badge-pending-indicator">
-                          {pendingStatus === "attended" ? "출석 예정" : "결석 예정"}
+                          참석 예정
                         </span>
                       ) : getStatusLabel(p.status)}
                       </span>
@@ -1241,38 +1253,36 @@ export default function ClinicConsoleWorkspace({
                             className={`clinic-ops__att-btn clinic-ops__att-btn--attend ${
                               isAttended ? "clinic-ops__att-btn--active" : ""
                             }`}
-                            onClick={() => handleToggleStatus(p, "attended")}
-                            disabled={isMutating}
-                            aria-label="출석"
+                            onClick={() => handleToggleAttendance(p)}
+                            disabled={isMutating || isAttended}
+                            aria-label={isNoShow ? "기존 불참 기록을 참석으로 수정" : "참석하기"}
                           >
                             <CheckCircle size={14} aria-hidden />
-                            출석
+                            {isNoShow ? "참석으로 수정" : isAttended ? "참석 완료" : "참석하기"}
                           </button>
-                          <button
-                            type="button"
-                            className={`clinic-ops__att-btn clinic-ops__att-btn--noshow ${
-                              isNoShow ? "clinic-ops__att-btn--active" : ""
-                            }`}
-                            onClick={() => handleToggleStatus(p, "no_show")}
-                            disabled={isMutating}
-                            aria-label="불참"
-                          >
-                            <XCircle size={14} aria-hidden />
-                            불참
-                          </button>
+                          {p.status === "booked" && !hasPending && (
+                            <button
+                              type="button"
+                              className="clinic-ops__att-btn clinic-ops__att-btn--remind"
+                              onClick={() => handleRemind(p)}
+                              disabled={isMutating || isReminding}
+                              aria-label={`${p.student_name} 학생 재촉하기`}
+                            >
+                              <BellRing size={14} aria-hidden />
+                              {isReminding ? "보내는 중…" : "재촉하기"}
+                            </button>
+                          )}
                           {/* 개별 알림 발송 버튼 — 체크 시 활성화 */}
                           {hasPending && (
                             <button
                               type="button"
-                              className={`clinic-ops__att-btn clinic-ops__att-btn--send ${
-                                pendingStatus === "attended" ? "clinic-ops__att-btn--send-attend" : "clinic-ops__att-btn--send-noshow"
-                              }`}
+                              className="clinic-ops__att-btn clinic-ops__att-btn--send clinic-ops__att-btn--send-attend"
                               onClick={() => handleConfirmStatus(p)}
                               disabled={isMutating}
-                              aria-label={pendingStatus === "attended" ? "출석 알림 발송" : "결석 알림 발송"}
+                              aria-label="참석 확정 및 알림 발송"
                             >
                               <Send size={16} aria-hidden />
-                              {isMutating ? "발송중…" : pendingStatus === "attended" ? "출석 알림" : "결석 알림"}
+                              {isMutating ? "처리 중…" : "참석 확정"}
                             </button>
                           )}
                         </>
@@ -1328,14 +1338,9 @@ export default function ClinicConsoleWorkspace({
                   {(() => {
                     const isSelfStudy = targets.length === 0;
                     const unresolvedTargets = targets.filter((t) => !t.resolved_at && t.clinic_link_id);
-                    const isCompleted = !!p.completed_at;
-                    // 승인 대기/결석/취소/거절 상태에서는 완료 버튼 숨김.
-                    if (
-                      p.status === "pending" ||
-                      p.status === "no_show" ||
-                      p.status === "cancelled" ||
-                      p.status === "rejected"
-                    ) return null;
+                    const isCompleted = p.status === "attended" && !!p.completed_at;
+                    // 참석과 완료는 별도 상태다. 참석 처리 전에는 완료 입력을 노출하지 않는다.
+                    if (p.status !== "attended") return null;
 
                     if (isSelfStudy) {
                       // 자율학습: 완료 토글 버튼
@@ -1461,6 +1466,7 @@ export default function ClinicConsoleWorkspace({
               const dpPending = dpIsApprovalRequest ? undefined : pendingStatuses.get(dp.id);
               const dpEffective = dpPending ?? dp.status;
               const dpIsMutating = mutatingIds.has(dp.id);
+              const dpIsReminding = remindingIds.has(dp.id);
               return (
                 <div className="clinic-ops__drawer-status-section">
                   <div className="clinic-ops__drawer-status-current">
@@ -1479,7 +1485,7 @@ export default function ClinicConsoleWorkspace({
                       }`}
                     >
                       {dpPending
-                        ? dpPending === "attended" ? "출석 예정" : "결석 예정"
+                        ? "참석 예정"
                         : getStatusLabel(dp.status)}
                     </span>
                   </div>
@@ -1512,34 +1518,32 @@ export default function ClinicConsoleWorkspace({
                           className={`clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--attend ${
                             dpEffective === "attended" ? "clinic-ops__drawer-status-btn--active" : ""
                           }`}
-                          disabled={dpIsMutating}
-                          onClick={() => handleToggleStatus(dp, "attended")}
+                          disabled={dpIsMutating || dp.status === "attended"}
+                          onClick={() => handleToggleAttendance(dp)}
                         >
                           <CheckCircle size={16} aria-hidden />
-                          출석
+                          {dp.status === "no_show" ? "참석으로 수정" : dp.status === "attended" ? "참석 완료" : "참석하기"}
                         </button>
-                        <button
-                          type="button"
-                          className={`clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--noshow ${
-                            dpEffective === "no_show" ? "clinic-ops__drawer-status-btn--active" : ""
-                          }`}
-                          disabled={dpIsMutating}
-                          onClick={() => handleToggleStatus(dp, "no_show")}
-                        >
-                          <XCircle size={16} aria-hidden />
-                          불참
-                        </button>
+                        {dp.status === "booked" && !dpPending && (
+                          <button
+                            type="button"
+                            className="clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--remind"
+                            disabled={dpIsMutating || dpIsReminding}
+                            onClick={() => handleRemind(dp)}
+                          >
+                            <BellRing size={16} aria-hidden />
+                            {dpIsReminding ? "보내는 중…" : "재촉하기"}
+                          </button>
+                        )}
                         {dpPending && (
                           <button
                             type="button"
-                            className={`clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--send ${
-                              dpPending === "attended" ? "clinic-ops__drawer-status-btn--send-attend" : "clinic-ops__drawer-status-btn--send-noshow"
-                            }`}
+                            className="clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--send clinic-ops__drawer-status-btn--send-attend"
                             disabled={dpIsMutating}
                             onClick={() => handleConfirmStatus(dp)}
                           >
                             <Send size={15} aria-hidden />
-                            {dpIsMutating ? "발송 중…" : dpPending === "attended" ? "출석 알림 발송" : "결석 알림 발송"}
+                            {dpIsMutating ? "처리 중…" : "참석 확정·알림"}
                           </button>
                         )}
                       </>
@@ -1583,7 +1587,7 @@ export default function ClinicConsoleWorkspace({
                 {drawerTargets.length === 0 ? (
                   <div className="clinic-ops__drawer-self-study">
                     <p className="clinic-ops__drawer-empty">자율 학습 참여</p>
-                    {drawerParticipant.completed_at ? (
+                    {drawerParticipant.status === "attended" && drawerParticipant.completed_at ? (
                       <div className="clinic-ops__drawer-completed">
                         <CircleCheckBig size={14} aria-hidden />
                         <span>완료 ({dayjs(drawerParticipant.completed_at).format("M/D HH:mm")})</span>
@@ -1598,7 +1602,9 @@ export default function ClinicConsoleWorkspace({
                         </button>
                       </div>
                     ) : drawerParticipant.status === "pending" ? (
-                      <p className="clinic-ops__drawer-empty">예약 승인 후 완료 처리할 수 있습니다.</p>
+                      <p className="clinic-ops__drawer-empty">예약 승인과 참석 처리 후 완료할 수 있습니다.</p>
+                    ) : drawerParticipant.status === "booked" ? (
+                      <p className="clinic-ops__drawer-empty">참석 처리 후 완료할 수 있습니다.</p>
                     ) : drawerParticipant.status === "no_show" || drawerParticipant.status === "cancelled" || drawerParticipant.status === "rejected" ? (
                       <p className="clinic-ops__drawer-empty">현재 상태에서는 완료 처리할 수 없습니다.</p>
                     ) : (
@@ -1853,7 +1859,7 @@ export default function ClinicConsoleWorkspace({
         </>
       )}
 
-      {/* ═══ 발송 완료 팝업 ═══ */}
+      {/* ═══ 참석 처리 결과 팝업 ═══ */}
       {sendResult && createPortal(
         <div
           className="clinic-send-result__overlay"
@@ -1867,9 +1873,9 @@ export default function ClinicConsoleWorkspace({
               </div>
               <div className="clinic-send-result__header-text">
                 <h3 className="clinic-send-result__title">
-                  {sendResult.type === "attended" ? "출석 알림" : "결석 알림"} 발송 완료
+                  참석 처리 완료
                 </h3>
-                <span className="clinic-send-result__mode-badge">알림톡</span>
+                <span className="clinic-send-result__mode-badge">알림톡 요청됨</span>
               </div>
               <button
                 type="button"

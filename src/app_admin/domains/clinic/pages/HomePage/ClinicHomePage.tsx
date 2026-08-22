@@ -244,7 +244,7 @@ export default function ClinicHomePage() {
 
   return (
     <div className="clinic-page clinic-home clinic-home--workspace">
-      {/* ── 1) 액션바: 승인 대기 + 불참 — 할 일이 없으면 완전 숨김 ── */}
+      {/* ── 1) 액션바: 승인 대기 + 기존 불참 기록 — 할 일이 없으면 완전 숨김 ── */}
       {hasActionableItems && (
         <div className="clinic-home__action-bar">
           <div className="clinic-home__action-bar-left">
@@ -273,7 +273,7 @@ export default function ClinicHomePage() {
 
             {noShowCount > 0 && (
               <span className="clinic-home__action-bar-badge clinic-home__action-bar-badge--alert">
-                불참 {noShowCount}명
+                불참 기록 {noShowCount}명
               </span>
             )}
           </div>
@@ -391,13 +391,13 @@ export default function ClinicHomePage() {
                             <span className="clinic-home__timeline-card-alert"> · 승인 대기 {s.approvalPending}</span>
                           )}
                           {s.noShow > 0 && (
-                            <span className="clinic-home__timeline-card-alert"> · 불참 {s.noShow}</span>
+                            <span className="clinic-home__timeline-card-alert"> · 불참 기록 {s.noShow}</span>
                           )}
                         </span>
 
                         {isPast && (s.attended > 0 || s.noShow > 0) && (
                           <span className="clinic-home__timeline-card-progress">
-                            출석 {s.attended} · 불참 {s.noShow}
+                            출석 {s.attended} · 불참 기록 {s.noShow}
                           </span>
                         )}
                       </div>

@@ -58,15 +58,31 @@
 - 상태 전환 모션은 짧은 색·그림자·이동 피드백만 사용하고
   `prefers-reduced-motion`에서는 제거한다.
 
+## 클리닉 당일 운영
+
+클리닉 참가자 명단은 승인된 `booked` 예약에 **참석하기**와 **재촉하기**를
+우선 행동으로 제공한다. 불참 입력은 노출하지 않는다. 기존 `no_show` 기록은
+삭제하지 않고 `이전 불참 기록`으로 구분하며 **참석으로 수정**할 수 있다. 참석
+정정은 서버의 `no_show → attended` 전이를 사용하고 이전의 모순된 완료 시각을
+함께 지운다. 클리닉 완료는 참석 처리 뒤에만 가능하며 완료 취소와 출석 취소를
+분리한다.
+
+재촉하기는 `POST /clinic/participants/{id}/remind/`로 선택한 승인 학생 한 명에게만
+`clinic_reminder` 공용 알림톡 발송을 요청한다. 중복 클릭을 잠그고, 비활성 설정·누락된
+승인 템플릿·유효하지 않은 학생 전화번호 등 서버 실패를 성공 토스트로 바꾸지
+않는다. 참가자 조회 실패도 빈 명단으로 표시하지 않고 다시 시도를 제공한다.
+
 ## 검증
 
 집중 회귀는 역할별 메뉴와 직접 URL 차단, 일반 직원의 학원장 상담 API 미호출,
 출결 미입력 합계의 상단·KPI·대기함 일치, 카드 로딩·빈 목록·오류·재시도,
-`UNSET` 한글 표시, 데스크톱 빠른 선택의 저장·현재 상태 피드백, 390px 압축
-선택기의 터치 영역과 가로 넘침을 확인한다.
+`UNSET` 한글 표시, 데스크톱 빠른 선택의 저장·현재 상태 피드백, 클리닉 참석
+복구·단일 학생 재촉·불참 입력 부재, 390px 압축 선택기의 터치 영역과 가로
+넘침을 확인한다.
 
 ```powershell
 pnpm exec playwright test e2e/teacher/teacher-business-workflow.mock.spec.ts --project=chromium --reporter=list
+pnpm exec playwright test e2e/admin/clinic-attendance-reminder.mock.spec.ts --project=chromium --reporter=list
 pnpm typecheck
 pnpm lint
 pnpm build
