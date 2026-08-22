@@ -22,10 +22,11 @@ const SUPPORT_ACCESS = jwt(99);
 type MockEvidence = {
   activityQueries: string[];
   screenRecords: Array<{ authorization: string; body: Record<string, unknown> }>;
+  supportEnds: Array<{ path: string; authorization: string }>;
 };
 
 async function installApp(page: Page): Promise<MockEvidence> {
-  const evidence: MockEvidence = { activityQueries: [], screenRecords: [] };
+  const evidence: MockEvidence = { activityQueries: [], screenRecords: [], supportEnds: [] };
   await installTenantOneInitScript(page);
   await page.addInitScript((access) => {
     localStorage.setItem("access", access);
@@ -85,8 +86,8 @@ async function installApp(page: Page): Promise<MockEvidence> {
     if (path === "/students/1001/support-session/" && request.method() === "POST") {
       return json({
         access: SUPPORT_ACCESS,
-        expires_at: "2026-08-22T01:30:00+09:00",
-        session_id: "support-session-1",
+        expires_at: new Date(Date.now() + 15 * 60_000).toISOString(),
+        session_id: "11111111-1111-4111-8111-111111111111",
         student: { id: 1001, name: "지원학생" },
       });
     }
@@ -100,6 +101,9 @@ async function installApp(page: Page): Promise<MockEvidence> {
         actor_mode: "student",
         device_class: "mobile",
         screen_id: "",
+        actor_label: "학생 본인",
+        target_label: "",
+        evidence_id: "ACT-1",
       }];
       if (url.searchParams.get("include_support") === "1") {
         results.push({
@@ -110,15 +114,34 @@ async function installApp(page: Page): Promise<MockEvidence> {
           actor_mode: "support",
           device_class: "mobile",
           screen_id: "student.video.player",
+          actor_label: "김선생",
+          target_label: "중간고사 해설 영상",
+          evidence_id: "ACT-2",
         });
       }
       return json({
         student: { id: 1001, name: "지원학생" },
         results,
         count: results.length,
+        total_count: results.length,
+        has_more: false,
         days: Number(url.searchParams.get("days") || 30),
         include_support: url.searchParams.get("include_support") === "1",
+        query: url.searchParams.get("q") || "",
       });
+    }
+    if (
+      request.method() === "POST"
+      && (
+        path === "/students/me/support-session/end/"
+        || /^\/students\/1001\/support-sessions\/[0-9a-f-]+\/end\/$/.test(path)
+      )
+    ) {
+      evidence.supportEnds.push({
+        path,
+        authorization: request.headers().authorization || "",
+      });
+      return json({ ended: true });
     }
     if (path === "/students/me/activity/" && request.method() === "POST") {
       evidence.screenRecords.push({
@@ -175,18 +198,37 @@ test("학생 활동은 대리보기를 기본 제외하고 팝업 토큰은 교�
 
   await activityPanel.getByRole("checkbox", { name: "교직원 대리보기 포함" }).check();
   await expect(activityPanel.getByText("영상 재생 화면 열기", { exact: true })).toBeVisible();
+  await activityPanel.getByLabel("기록 검색").fill("중간고사");
+  await activityPanel.getByRole("button", { name: "검색", exact: true }).click();
+  await expect.poll(() => evidence.activityQueries.some((query) => query.includes("q=%EC%A4%91%EA%B0%84%EA%B3%A0%EC%82%AC"))).toBe(true);
+  await activityPanel.getByText("영상 재생 화면 열기", { exact: true }).click();
+  await expect(activityPanel.getByText("중간고사 해설 영상", { exact: true })).toBeVisible();
+  await expect(activityPanel.getByText("ACT-2", { exact: true })).toBeVisible();
   expect(evidence.activityQueries.some((query) => query.includes("include_support=0"))).toBe(true);
   expect(evidence.activityQueries.some((query) => query.includes("include_support=1"))).toBe(true);
   if (process.env.CAPTURE_STUDENT_SUPPORT === "1") {
-    await page.screenshot({ path: "test-results/student-support-activity-mobile.png", fullPage: true });
+    await activityPanel.screenshot({ path: "test-results/student-support-activity-mobile.png" });
   }
+
+  await page.setViewportSize({ width: 1366, height: 900 });
+  const desktopOverlay = page.getByTestId("student-detail-overlay");
+  await desktopOverlay.getByRole("tab", { name: "활동 감사 로그인 · 열람" }).click();
+  await expect(desktopOverlay.getByRole("region", { name: "학생 활동 감사" })).toBeVisible();
+  await expect.poll(
+    () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
+  ).toBeLessThanOrEqual(1);
+  if (process.env.CAPTURE_STUDENT_SUPPORT === "1") {
+    await page.screenshot({ path: "test-results/student-support-activity-desktop.png", fullPage: false });
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
 
   const popupPromise = page.waitForEvent("popup");
   await overlay.getByRole("button", { name: "학생 화면 보기" }).click();
   const popup = await popupPromise;
   await popup.waitForURL(/\/student\/dashboard\?supportPreview=1$/, { timeout: 30_000 });
   await expect(popup.getByText("교직원 대리보기", { exact: true })).toBeVisible({ timeout: 30_000 });
-  await expect(popup.getByText(/지원학생 학생 화면/)).toBeVisible();
+  await expect(popup.getByText(/지원학생 화면/)).toBeVisible();
+  await expect(popup.getByText(/\d{2}:\d{2} 남음/)).toBeVisible();
 
   const storage = await popup.evaluate(() => ({
     windowName: window.name,
@@ -210,6 +252,11 @@ test("학생 활동은 대리보기를 기본 제외하고 팝업 토큰은 교�
   const closed = popup.waitForEvent("close");
   await popup.getByRole("button", { name: "보기 종료" }).click();
   await closed;
+  await expect.poll(() => evidence.supportEnds.length).toBeGreaterThan(0);
+  expect(evidence.supportEnds.some((item) => (
+    item.path === "/students/me/support-session/end/"
+    && item.authorization === `Bearer ${SUPPORT_ACCESS}`
+  ))).toBe(true);
   await expect(overlay).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem("access"))).toBe(ADMIN_ACCESS);
 });

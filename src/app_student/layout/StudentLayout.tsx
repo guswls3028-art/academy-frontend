@@ -31,9 +31,11 @@ import { GuideTourProvider, GuideTourOverlay } from "@/shared/ui/guide";
 import { useStudentPwa } from "@student/shared/hooks/useStudentPwa";
 import {
   closeStudentSupportWindow,
+  endStudentSupportSession,
   getStudentSupportSessionInfo,
   isStudentSupportWindow,
 } from "@/shared/auth/supportPreviewSession";
+import { endCurrentStudentSupportPreview } from "@/shared/studentSupport/studentSupport.api";
 
 /** 2번(박철과학) 전용 테마 */
 const TCHUL_THEME_TENANTS = ["tchul"];
@@ -85,6 +87,8 @@ function StudentLayoutInner() {
   const useCommonTheme = tenantCode != null && COMMON_THEME_TENANTS.includes(String(tenantCode));
   const { user } = useAuthContext();
   const supportInfo = isStudentSupportWindow() ? getStudentSupportSessionInfo() : null;
+  const [supportRemainingSeconds, setSupportRemainingSeconds] = useState<number | null>(null);
+  const [supportClosing, setSupportClosing] = useState(false);
   const queryClient = useQueryClient();
 
   const [parentSelectionReady, setParentSelectionReady] = useState(false);
@@ -118,6 +122,39 @@ function StudentLayoutInner() {
     if (previousId !== nextId) clearStudentScopedQueries();
     setParentSelectionReady(true);
   }, [clearStudentScopedQueries, user?.tenantRole, user?.linkedStudents]);
+
+  useEffect(() => {
+    if (!supportInfo?.expiresAt) {
+      setSupportRemainingSeconds(null);
+      return undefined;
+    }
+    const updateRemaining = () => {
+      const remaining = Math.max(
+        0,
+        Math.ceil((new Date(supportInfo.expiresAt).getTime() - Date.now()) / 1_000),
+      );
+      setSupportRemainingSeconds(remaining);
+      if (remaining === 0) {
+        endStudentSupportSession();
+        window.location.replace("/support-preview-ended?reason=expired");
+      }
+    };
+    updateRemaining();
+    const timer = window.setInterval(updateRemaining, 1_000);
+    return () => window.clearInterval(timer);
+  }, [supportInfo?.expiresAt]);
+
+  const handleSupportEnd = useCallback(async () => {
+    if (supportClosing) return;
+    setSupportClosing(true);
+    try {
+      await endCurrentStudentSupportPreview();
+    } catch {
+      // Closing locally is still safe because the server token expires within 15 minutes.
+    } finally {
+      closeStudentSupportWindow();
+    }
+  }, [supportClosing]);
 
   // 모바일 체감 속도: 첫 화면 로드 후 자주 가는 탭 청크 미리 로드 (영상·일정·시험)
   useEffect(() => {
@@ -199,12 +236,19 @@ function StudentLayoutInner() {
       )}
       <header className="student-layout__header">
         {supportInfo && (
-          <div className="student-layout__support-banner" role="status">
+          <div className="student-layout__support-banner" role="region" aria-label="교직원 학생 화면 대리보기">
             <div>
               <strong>교직원 대리보기</strong>
-              <span>{supportInfo.studentName} 학생 화면 · 학생 로그인 기록과 분리됨</span>
+              <span>
+                {supportInfo.studentName} 화면 · 로그인 기록과 분리
+                {supportRemainingSeconds != null
+                  ? ` · ${String(Math.floor(supportRemainingSeconds / 60)).padStart(2, "0")}:${String(supportRemainingSeconds % 60).padStart(2, "0")} 남음`
+                  : ""}
+              </span>
             </div>
-            <button type="button" onClick={closeStudentSupportWindow}>보기 종료</button>
+            <button type="button" disabled={supportClosing} onClick={() => void handleSupportEnd()}>
+              {supportClosing ? "종료 중…" : "보기 종료"}
+            </button>
           </div>
         )}
         {parentSelectionReady && (

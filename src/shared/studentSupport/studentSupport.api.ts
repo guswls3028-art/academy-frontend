@@ -23,14 +23,20 @@ export type StudentActivityItem = {
   actor_mode: "student" | "support";
   device_class: "mobile" | "tablet" | "desktop";
   screen_id: string;
+  actor_label: string;
+  target_label: string;
+  evidence_id: string;
 };
 
 export type StudentActivityFeed = {
   student: { id: number; name: string };
   results: StudentActivityItem[];
   count: number;
+  total_count: number;
+  has_more: boolean;
   days: 7 | 30 | 90;
   include_support: boolean;
+  query: string;
 };
 
 type StudentSupportSession = {
@@ -46,7 +52,8 @@ export const studentSupportQueryKeys = {
     days: 7 | 30 | 90,
     category: StudentActivityCategory | "",
     includeSupport: boolean,
-  ) => ["student-activities", studentId, days, category, includeSupport] as const,
+    query: string,
+  ) => ["student-activities", studentId, days, category, includeSupport, query] as const,
 };
 
 let lastScreenRecord = { key: "", at: 0 };
@@ -119,12 +126,17 @@ export async function openStudentSupportPreview(studentId: number): Promise<void
     throw new Error("팝업이 차단되었습니다. 이 사이트의 팝업을 허용해 주세요.");
   }
 
+  let session: StudentSupportSession | null = null;
   try {
     const response = await api.post<StudentSupportSession>(
       `/students/${studentId}/support-session/`,
       {},
     );
-    const session = response.data;
+    session = response.data;
+    if (preview.closed) {
+      await revokeStudentSupportPreview(studentId, session.session_id);
+      return;
+    }
     preview.name = serializeStudentSupportWindowName({
       access: session.access,
       studentId: session.student.id,
@@ -134,10 +146,38 @@ export async function openStudentSupportPreview(studentId: number): Promise<void
     });
     preview.location.replace("/student/dashboard?supportPreview=1");
     preview.focus();
+    const watcherDeadline = new Date(session.expires_at).getTime() + 60_000;
+    const closeWatcher = window.setInterval(() => {
+      if (!preview.closed && Date.now() <= watcherDeadline) return;
+      window.clearInterval(closeWatcher);
+      if (preview.closed) {
+        void revokeStudentSupportPreview(studentId, session?.session_id || "");
+      }
+    }, 750);
   } catch (error) {
     preview.close();
+    if (session) {
+      void revokeStudentSupportPreview(studentId, session.session_id);
+    }
     throw error;
   }
+}
+
+async function revokeStudentSupportPreview(studentId: number, sessionId: string): Promise<void> {
+  if (!sessionId) return;
+  try {
+    await api.post(
+      `/students/${studentId}/support-sessions/${sessionId}/end/`,
+      {},
+      { timeout: 3_500 },
+    );
+  } catch {
+    // The access token still expires after 15 minutes if the close signal is interrupted.
+  }
+}
+
+export async function endCurrentStudentSupportPreview(): Promise<void> {
+  await api.post("/students/me/support-session/end/", {}, { timeout: 3_500 });
 }
 
 export async function fetchStudentActivities(
@@ -146,6 +186,7 @@ export async function fetchStudentActivities(
     days: 7 | 30 | 90;
     category?: StudentActivityCategory | "";
     includeSupport: boolean;
+    query?: string;
   },
 ): Promise<StudentActivityFeed> {
   const response = await api.get<StudentActivityFeed>(
@@ -155,6 +196,7 @@ export async function fetchStudentActivities(
         days: params.days,
         category: params.category || undefined,
         include_support: params.includeSupport ? 1 : 0,
+        q: params.query?.trim() || undefined,
         limit: 100,
       },
     },
