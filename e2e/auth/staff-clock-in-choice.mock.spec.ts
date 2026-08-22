@@ -239,7 +239,7 @@ test.use({ serviceWorkers: "block" });
 test.skip(!isLocalBase(BASE), "Local route-mock spec. Set E2E_BASE_URL to localhost to run.");
 
 test.describe("조교 로그인 출근 선택", () => {
-  test("임시 비밀번호 변경이 먼저 열리고 입력 포커스를 출근창이 가로채지 않는다", async ({ page }) => {
+  test("직원의 과거 비밀번호 권장 상태는 출근 선택을 막지 않는다", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 900 });
     await installClockApp(
       page,
@@ -253,13 +253,10 @@ test.describe("조교 로그인 출근 선택", () => {
     await page.getByTestId("login-password").fill("password");
     await page.getByTestId("login-submit").click();
 
-    const passwordDialog = page.getByRole("dialog", { name: "비밀번호 변경" });
-    await expect(passwordDialog).toBeVisible();
-    await expect(page.getByRole("dialog", { name: "오늘 어떤 방식으로 시작할까요?" })).toHaveCount(0);
-    const currentPassword = passwordDialog.locator("#force-current-password");
-    await expect(currentPassword).toBeFocused();
-    await currentPassword.fill("temporary-password");
-    await expect(currentPassword).toHaveValue("temporary-password");
+    await expect(page.getByRole("dialog", { name: "비밀번호 변경 권장" })).toHaveCount(0);
+    const clockDialog = page.getByRole("dialog", { name: "오늘 어떤 방식으로 시작할까요?" });
+    await expect(clockDialog).toBeVisible();
+    await expect(clockDialog.getByRole("button", { name: "클리닉 조교 근무 시작" })).toBeVisible();
   });
 
   test("비근무 로그인은 출근 API를 호출하지 않고 새로고침에도 반복되지 않는다", async ({ page }) => {

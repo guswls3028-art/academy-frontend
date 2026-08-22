@@ -37,8 +37,12 @@ export default function StaffClockInChoiceDialog() {
   );
   const clock = useStaffClock();
   const isWorkspace = location.pathname.startsWith("/workspace");
+  const passwordRecommendationBlocking = Boolean(
+    user?.must_change_password
+      && ["owner", "student", "parent"].includes(user.tenantRole ?? ""),
+  );
   const accountSetupBlocking = Boolean(
-    user?.must_change_password || user?.first_login_guide_required,
+    passwordRecommendationBlocking || user?.first_login_guide_required,
   );
 
   useEffect(() => {
