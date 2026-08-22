@@ -16,7 +16,6 @@ import {
 import api from "@/shared/api/axios";
 import type {
   AdminExamResultRow,
-  AdminExamSummary,
   QuestionStat,
 } from "@admin/domains/results/types/results.types";
 import { useAdminExam } from "../hooks/useAdminExam";
@@ -37,11 +36,6 @@ import styles from "./ExamResultsViewerPanel.module.css";
 
 type Props = { examId: number };
 
-async function fetchSummary(examId: number): Promise<AdminExamSummary> {
-  const response = await api.get(`/results/admin/exams/${examId}/summary/`);
-  return response.data as AdminExamSummary;
-}
-
 async function fetchResults(examId: number): Promise<AdminExamResultRow[]> {
   const response = await api.get(`/results/admin/exams/${examId}/results/`);
   const raw = response.data?.results ?? response.data;
@@ -58,11 +52,6 @@ async function fetchQuestionStats(examId: number): Promise<QuestionStat[]> {
 
 export default function ExamResultsViewerPanel({ examId }: Props) {
   const { data: exam } = useAdminExam(examId);
-  const summaryQ = useQuery({
-    queryKey: adminExamsQueryKeys.adminExamSummary(examId),
-    queryFn: () => fetchSummary(examId),
-    enabled: Number.isFinite(examId),
-  });
   const resultsQ = useQuery({
     queryKey: adminExamsQueryKeys.adminExamResults(examId),
     queryFn: () => fetchResults(examId),
@@ -92,7 +81,7 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
     }),
     [examMaxScore, passScore, questionStats, results],
   );
-  const hasData = insight.scoredCount > 0 || (summaryQ.data?.participant_count ?? 0) > 0;
+  const hasData = insight.scoredCount > 0;
 
   const analysisExport = useMutation({
     mutationFn: () => downloadExamAnalysisExport(examId, exam?.title ?? "시험"),
@@ -109,8 +98,8 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
     ),
   });
 
-  const isLoading = summaryQ.isLoading || resultsQ.isLoading;
-  const isError = summaryQ.isError || resultsQ.isError;
+  const isLoading = resultsQ.isLoading || statsQ.isLoading;
+  const isError = resultsQ.isError;
   if (isLoading) {
     return (
       <section className={styles.statePanel}>
@@ -130,7 +119,7 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
               type="button"
               intent="secondary"
               size="sm"
-              onClick={() => void Promise.all([summaryQ.refetch(), resultsQ.refetch()])}
+              onClick={() => void resultsQ.refetch()}
             >
               다시 시도
             </Button>
@@ -153,7 +142,7 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
           <div className={styles.headingCopy}>
             <span className={styles.eyebrow}>TEACHING BRIEF</span>
             <h2 id="exam-analysis-title">이번 수업에서 바로 결정할 것</h2>
-            <p>현재 대표 성적을 기준으로 수업 방향·보충·재시험 컷 검토 근거를 한 화면에 모았습니다.</p>
+            <p>확정 채점 결과와 석차 기준 1차 점수로 수업 방향·보충·재시험 컷 검토 근거를 모았습니다.</p>
           </div>
           <div className={styles.reportActions}>
             <Button
@@ -191,8 +180,8 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
           <EmptyState
             scope="panel"
             tone="empty"
-            title="아직 분석할 채점 결과가 없습니다"
-            description="점수를 입력하거나 OMR 채점을 마치면 수업 브리핑과 보고서가 생성됩니다."
+            title="아직 분석할 확정 채점 결과가 없습니다"
+            description="점수를 저장하고 채점을 확정하면 수업 브리핑과 보고서가 생성됩니다. 미응시·채점 중·채점 실패 결과는 통계에서 제외됩니다."
           />
         ) : (
           <>
@@ -204,7 +193,7 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
 
             <div className={styles.policyNote}>
               <Target size={ICON.sm} aria-hidden />
-              <span>분석 제안은 참고용이며 시험 컷·합격 판정·재시험 정책을 자동으로 바꾸지 않습니다.</span>
+              <span>석차 기준 1차 점수로 분석합니다. 보충 완료는 따로 표시하며 컷·재시험 정책을 자동으로 바꾸지 않습니다.</span>
             </div>
 
             <div className={styles.metricStrip} aria-label="시험 핵심 지표">
@@ -212,7 +201,13 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
               <Metric label="평균" value={`${insight.average.toFixed(1)}점`} sub={`중앙값 ${insight.median.toFixed(1)}점`} />
               <Metric label="상위 10%" value={`${insight.topTenAverage.toFixed(1)}점`} sub={`최고 ${insight.highest.toFixed(1)}점`} />
               <Metric label="표준편차" value={insight.stdDev.toFixed(1)} sub={`만점 대비 ${insight.stdRate.toFixed(1)}%`} />
-              <Metric label={`합격 컷 ${passScore}점`} value={`${Math.round(insight.passRate * 100)}%`} sub={`합격 ${insight.passCount} · 미달 ${insight.failCount}`} />
+              <Metric
+                label={insight.hasPassCriterion ? `1차 합격 컷 ${passScore}점` : "1차 합격 기준"}
+                value={insight.hasPassCriterion ? `${Math.round(insight.passRate * 100)}%` : "기준 미설정"}
+                sub={insight.hasPassCriterion
+                  ? `합격 ${insight.passCount} · 미달 ${insight.failCount} · 보충 완료 ${insight.remediatedCount}`
+                  : "시험 설정에서 기준 점수를 입력하세요"}
+              />
             </div>
 
             <div className={styles.evidenceGrid}>
@@ -224,7 +219,7 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
                   </div>
                   <div className={styles.markerLegend}>
                     <span>평균 {insight.average.toFixed(1)}</span>
-                    <span>컷 {passScore}</span>
+                    <span>{insight.hasPassCriterion ? `컷 ${passScore}` : "컷 미설정"}</span>
                   </div>
                 </div>
                 <div className={styles.histogram} role="img" aria-label="만점 대비 점수 구간별 인원">
