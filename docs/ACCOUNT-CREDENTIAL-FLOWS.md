@@ -56,13 +56,26 @@ API와 성공 후 세션 처리를 소유한다. 비밀번호 원문, 토큰, �
 - 서버의 현재 비밀번호 불일치와 알림톡 전송 실패 문구를 화면에 표시한다.
 - 알림톡 전송 실패로 서버가 변경을 롤백하면 현재 화면과 세션을 유지해 다시
   시도할 수 있게 한다.
+- 공개 아이디/비밀번호 찾기의 200 응답은 실제 계정 존재나 발송 성공을 뜻하지
+  않는 접수 응답이다. 계정 미일치·다건 일치·예약 실패도 같은 문구를 표시해
+  사용자 존재 여부를 노출하지 않는다. 네트워크 실패나 공개 계약 밖 5xx는 기존
+  오류 상태와 재시도 동작을 유지한다.
 - 성공 시 서버가 `token_version`을 올리므로 이전 토큰으로 사용자 정보를 다시
   조회하지 않고 즉시 로컬 토큰을 제거한다.
+- access 401에서 refresh가 실패하면 토큰을 한 번만 정리하고 `/login`으로 이동한다.
+  현재 pathname/query/hash는 `session_return_path`에 보관해 재로그인 성공 후
+  원래 화면으로 복귀하며, 로그인 화면은 `session_expired` 안내를 표시한다.
+- refresh가 200을 반환했더라도 재시도한 원 요청이 다시 401이면 stale 세션으로
+  간주한다. 회전된 토큰을 남기거나 요청마다 refresh를 반복하지 않고 같은 세션
+  종료 경계로 닫는다.
+- 여러 요청이 동시에 401이 되어도 최초 종료만 토큰과 세션 메타데이터를
+  변경한다. 후속 실패와 `AuthContext.clearAuth()`는 이미 저장한 만료 표시와
+  복귀 경로를 지우지 않는다.
 
 ## 검증
 
-화면의 버튼 존재만 확인하지 않고 실제 method·path·body와 성공 후 토큰 제거를
-검증한다.
+화면의 버튼 존재만 확인하지 않고 실제 method·path·body, 성공 후 토큰 제거,
+refresh 후 재요청 401의 단일 세션 종료와 복귀 경로 보존을 검증한다.
 
 ```powershell
 pnpm exec playwright test e2e/auth/account-password-flows.mock.spec.ts e2e/auth/account-recovery-modal.spec.ts e2e/admin/staff-operations-contract.mock.spec.ts --project=chromium --reporter=list

@@ -6,6 +6,10 @@ import { login } from "@/auth/api/auth.api";
 import type { AccountRecoveryMode } from "@/auth/api/recovery.api";
 import useAuth from "@/auth/hooks/useAuth";
 import { consumeReturnPath } from "@/shared/api/axios";
+import {
+  getSessionItem,
+  removeSessionItem,
+} from "@/shared/utils/safeSessionStorage";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { useProgram } from "@/shared/program";
 import {
@@ -79,6 +83,7 @@ export default function LoginPage() {
   const [hasLanding, setHasLanding] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [capsOn, setCapsOn] = useState(false);
+  const [sessionExpired] = useState(() => getSessionItem("session_expired") === "1");
   const usernameRef = useRef<HTMLInputElement>(null);
 
   const navigate = useNavigate();
@@ -143,6 +148,7 @@ export default function LoginPage() {
       } else {
         clearStaffClockInChoicePending();
       }
+      removeSessionItem("session_expired");
       const returnPath = consumeReturnPath();
       navigate(returnPath || "/", { replace: true });
     } catch (e) {
@@ -227,6 +233,11 @@ export default function LoginPage() {
             {capsOn && (
               <div className={styles.capsHint} role="status">
                 ⚠ Caps Lock이 켜져 있습니다.
+              </div>
+            )}
+            {sessionExpired && (
+              <div className={styles.error} role="status">
+                세션이 만료되었습니다. 다시 로그인해 주세요.
               </div>
             )}
             {error && <div className={styles.error} role="alert">{error}</div>}
