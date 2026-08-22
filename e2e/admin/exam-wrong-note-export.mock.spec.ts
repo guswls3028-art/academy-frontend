@@ -163,10 +163,23 @@ test("수업 브리핑을 한눈에 확인하고 전문 분석 리포트를 내�
     page.getByLabel("보충 우선 문항").getByText("공통 개념 재설명", { exact: true }),
   ).toBeVisible();
 
-  const desktopScreenshot = testInfo.outputPath("exam-teaching-brief-1440.png");
-  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const passSummary = page.getByText("합격 1 · 미달 0 · 보충 완료 0", { exact: true });
+  await expect(passSummary).toBeVisible();
+  const passSummaryLayout = await passSummary.evaluate((element) => {
+    const style = window.getComputedStyle(element);
+    return {
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+      whiteSpace: style.whiteSpace,
+    };
+  });
+  expect(passSummaryLayout.whiteSpace).toBe("normal");
+  expect(passSummaryLayout.scrollWidth).toBeLessThanOrEqual(passSummaryLayout.clientWidth + 1);
+
+  const desktopScreenshot = testInfo.outputPath("exam-teaching-brief-1280.png");
   await page.screenshot({ path: desktopScreenshot, fullPage: true });
-  await testInfo.attach("exam-teaching-brief-1440", {
+  await testInfo.attach("exam-teaching-brief-1280", {
     path: desktopScreenshot,
     contentType: "image/png",
   });
