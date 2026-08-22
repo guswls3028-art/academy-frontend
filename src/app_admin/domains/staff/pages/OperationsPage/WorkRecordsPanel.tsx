@@ -126,8 +126,11 @@ export default function WorkRecordsPanel() {
                 data-testid={`staff-work-record-${r.id}`}
                 className="rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] px-4 py-3"
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                  <div
+                    data-testid="staff-work-record-summary"
+                    className="min-w-0"
+                  >
                     <div className="staff-body font-semibold">
                       {r.date} · {r.work_type_name}
                     </div>
@@ -142,8 +145,11 @@ export default function WorkRecordsPanel() {
                     )}
                   </div>
 
-                  <div className="shrink-0 flex items-center gap-3">
-                    <div className="text-right">
+                  <div
+                    data-testid="staff-work-record-actions"
+                    className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0 sm:justify-end sm:gap-3"
+                  >
+                    <div className="mr-auto text-left sm:mr-0 sm:text-right">
                       <div className="staff-helper">금액</div>
                       <div className="staff-body font-semibold tabular-nums">
                         {r.amount != null ? `${r.amount.toLocaleString()}원` : "-"}

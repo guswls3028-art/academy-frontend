@@ -212,8 +212,11 @@ export default function ExpensesPanel() {
                   data-expense-status={r.status}
                   className="rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] px-4 py-3"
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0 space-y-2">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                    <div
+                      data-testid="staff-expense-summary"
+                      className="min-w-0 space-y-2"
+                    >
                       <div className="staff-body font-semibold">
                         {r.date} · {r.title}
                       </div>
@@ -230,7 +233,7 @@ export default function ExpensesPanel() {
                         <div className="staff-helper">메모: {r.memo}</div>
                       )}
                     </div>
-                    <div className="shrink-0 text-right">
+                    <div className="text-left sm:shrink-0 sm:text-right">
                       <div className="staff-helper">금액</div>
                       <div className="staff-body font-semibold tabular-nums">
                         {r.amount.toLocaleString()}원
