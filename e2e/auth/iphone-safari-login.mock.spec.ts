@@ -5,16 +5,17 @@ const BASE = (process.env.E2E_BASE_URL || "http://127.0.0.1:5173").replace(/\/+$
 
 type LoginRole = "student" | "parent" | "staff";
 
-function createE2eJwt(): string {
+function createE2eJwt(generation = "default"): string {
   const payload = Buffer.from(
-    JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 86400 }),
+    JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 86400, generation }),
   ).toString("base64url");
   return `e30.${payload}.e2e`;
 }
 
 async function stubLoginFlow(page: Page, role: LoginRole) {
   const requests: Array<{ username?: string; password?: string; tenant_code?: string }> = [];
-  const access = createE2eJwt();
+  const access = createE2eJwt(`${role}-login`);
+  const refresh = `mock-${role}-refresh`;
 
   await page.route("**/api/v1/**", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
@@ -44,7 +45,7 @@ async function stubLoginFlow(page: Page, role: LoginRole) {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ access, refresh: "mock-iphone-refresh" }),
+      body: JSON.stringify({ access, refresh }),
     });
   });
   await page.route("**/api/v1/core/me/", async (route) => {
@@ -65,7 +66,7 @@ async function stubLoginFlow(page: Page, role: LoginRole) {
     });
   });
 
-  return { requests };
+  return { requests, access, refresh };
 }
 
 async function openLogin(page: Page) {
@@ -92,7 +93,7 @@ for (const role of ["student", "parent", "staff"] as const) {
 
     await username.fill("student.id-20");
     await password.fill("Case-Sensitive-Pw");
-    await page.getByTestId("login-submit").click();
+    await page.getByTestId("login-submit").click({ timeout: 30_000 });
 
     await expect.poll(() => state.requests.length).toBe(1);
     expect(state.requests[0]).toEqual({
@@ -100,36 +101,174 @@ for (const role of ["student", "parent", "staff"] as const) {
       password: "Case-Sensitive-Pw",
       tenant_code: "godmin",
     });
-    await expect.poll(() => page.evaluate(() => localStorage.getItem("access"))).toBeTruthy();
+    await expect.poll(() => page.evaluate(() => ({
+      access: localStorage.getItem("access"),
+      refresh: localStorage.getItem("refresh"),
+    }))).toEqual({ access: state.access, refresh: state.refresh });
     await expect(page).toHaveURL(role === "staff" ? /\/workspace\/mobile(?:\/|$)/ : /\/student(?:\/|$)/);
   });
 }
 
-test("토큰 저장이 중간에 실패하면 반쪽 토큰을 지우고 비밀번호 오류와 구분한다", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await stubLoginFlow(page, "student");
-  await openLogin(page);
+test("첫 번째와 두 번째 토큰 저장 실패 모두 기존 세션을 복원하고 명시 안내한다", async ({ context }) => {
+  for (const failedKey of ["access", "refresh"] as const) {
+    const page = await context.newPage();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await stubLoginFlow(page, "student");
+    await openLogin(page);
+    await page.evaluate(() => {
+      localStorage.setItem("access", "previous-access");
+      localStorage.setItem("refresh", "previous-refresh");
+    });
 
-  await page.evaluate(() => {
-    const originalSetItem = Storage.prototype.setItem;
-    Storage.prototype.setItem = function setItem(key: string, value: string) {
-      if (this === localStorage && key === "refresh") {
-        throw new DOMException("blocked", "QuotaExceededError");
-      }
-      return originalSetItem.call(this, key, value);
-    };
+    await page.evaluate((keyToFail) => {
+      const originalSetItem = Storage.prototype.setItem;
+      let failed = false;
+      Storage.prototype.setItem = function setItem(key: string, value: string) {
+        if (this === localStorage && key === keyToFail && !failed) {
+          failed = true;
+          throw new DOMException("blocked", "QuotaExceededError");
+        }
+        return originalSetItem.call(this, key, value);
+      };
+    }, failedKey);
+
+    await page.getByTestId("login-username").fill("student.id-20");
+    await page.getByTestId("login-password").fill("Case-Sensitive-Pw");
+    await page.getByTestId("login-submit").click({ timeout: 30_000 });
+
+    await expect(page.getByRole("alert")).toHaveText(
+      "이 브라우저에 로그인 정보를 저장하지 못했습니다. Safari의 개인정보 보호 설정을 확인한 뒤 다시 시도해 주세요.",
+    );
+    await expect.poll(() => page.evaluate(() => ({
+      access: localStorage.getItem("access"),
+      refresh: localStorage.getItem("refresh"),
+    }))).toEqual({ access: "previous-access", refresh: "previous-refresh" });
+    await expect(page).toHaveURL(/\/login\/godmin$/);
+    await page.close();
+  }
+});
+
+type LockMode = "supported" | "unsupported";
+
+async function installNavigatorLocksMode(page: Page, mode: LockMode): Promise<void> {
+  await page.addInitScript((selectedMode) => {
+    const value = selectedMode === "supported"
+      ? { request: async (_name: string, callback: () => unknown) => callback() }
+      : undefined;
+    Object.defineProperty(navigator, "locks", { configurable: true, value });
+  }, mode);
+}
+
+async function loginAsAccountB(page: Page) {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const state = await stubLoginFlow(page, "staff");
+  await openLogin(page);
+  await page.getByTestId("login-username").fill("staff.account-b");
+  await page.getByTestId("login-password").fill("Account-B-Pw");
+  await page.getByTestId("login-submit").click({ timeout: 30_000 });
+  await expect(page).toHaveURL(/\/workspace\/mobile(?:\/|$)/);
+  return state;
+}
+
+for (const lockMode of ["supported", "unsupported"] as const) {
+  test(`지연된 A refresh는 B 로그인을 덮지 않는다 (${lockMode})`, async ({ page, context }) => {
+    await installNavigatorLocksMode(page, lockMode);
+    await page.route("**/api/v1/**", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+    });
+
+    let releaseRefresh!: () => void;
+    const refreshRelease = new Promise<void>((resolve) => { releaseRefresh = resolve; });
+    let markRefreshRequested!: () => void;
+    const refreshRequested = new Promise<void>((resolve) => { markRefreshRequested = resolve; });
+    const staleRotatedAccess = createE2eJwt(`stale-a-${lockMode}`);
+    await page.route("**/api/v1/token/refresh/", async (route) => {
+      expect(route.request().postDataJSON()).toEqual({ refresh: "refresh-a" });
+      markRefreshRequested();
+      await refreshRelease;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ access: staleRotatedAccess, refresh: "rotated-refresh-a" }),
+      });
+    });
+
+    const raceAuthorizations: string[] = [];
+    await page.route("**/api/v1/race/", async (route) => {
+      raceAuthorizations.push(route.request().headers().authorization || "");
+      await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+    });
+    await page.goto(`${BASE}/robots.txt`);
+    await page.evaluate(() => {
+      const payload = btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) - 60 }));
+      localStorage.setItem("access", `e30.${payload}.expired`);
+      localStorage.setItem("refresh", "refresh-a");
+    });
+
+    const requestResult = page.evaluate(async () => {
+      const { default: api } = await new Function(
+        "return import('/src/shared/api/axios.ts')",
+      )() as { default: { get: (url: string) => Promise<unknown> } };
+      return api.get("/race/").then(() => "ok", () => "failed");
+    });
+    await refreshRequested;
+
+    const accountBPage = await context.newPage();
+    const accountB = await loginAsAccountB(accountBPage);
+    releaseRefresh();
+
+    await expect(requestResult).resolves.toBe("failed");
+    await expect.poll(() => accountBPage.evaluate(() => ({
+      access: localStorage.getItem("access"),
+      refresh: localStorage.getItem("refresh"),
+    }))).toEqual({ access: accountB.access, refresh: accountB.refresh });
+    expect(raceAuthorizations).toEqual([]);
   });
 
-  await page.getByTestId("login-username").fill("student.id-20");
-  await page.getByTestId("login-password").fill("Case-Sensitive-Pw");
-  await page.getByTestId("login-submit").click();
+  test(`A 요청의 지연된 401은 B 세션을 지우지 않는다 (${lockMode})`, async ({ page, context }) => {
+    await installNavigatorLocksMode(page, lockMode);
+    await page.route("**/api/v1/**", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+    });
+    let releaseUnauthorized!: () => void;
+    const unauthorizedRelease = new Promise<void>((resolve) => { releaseUnauthorized = resolve; });
+    let markRaceRequested!: () => void;
+    const raceRequested = new Promise<void>((resolve) => { markRaceRequested = resolve; });
+    let refreshCalls = 0;
+    await page.route("**/api/v1/token/refresh/", async (route) => {
+      refreshCalls += 1;
+      await route.fulfill({ status: 500, contentType: "application/json", body: "{}" });
+    });
+    await page.route("**/api/v1/race-401/", async (route) => {
+      markRaceRequested();
+      await unauthorizedRelease;
+      await route.fulfill({ status: 401, contentType: "application/json", body: "{}" });
+    });
+    await page.goto(`${BASE}/robots.txt`);
+    const accessA = createE2eJwt(`account-a-${lockMode}`);
+    await page.evaluate(({ access }) => {
+      localStorage.setItem("access", access);
+      localStorage.setItem("refresh", "refresh-a");
+    }, { access: accessA });
 
-  await expect(page.getByRole("alert")).toHaveText(
-    "이 브라우저에 로그인 정보를 저장하지 못했습니다. Safari의 개인정보 보호 설정을 확인한 뒤 다시 시도해 주세요.",
-  );
-  await expect.poll(() => page.evaluate(() => ({
-    access: localStorage.getItem("access"),
-    refresh: localStorage.getItem("refresh"),
-  }))).toEqual({ access: null, refresh: null });
-  await expect(page).toHaveURL(/\/login\/godmin$/);
-});
+    const requestResult = page.evaluate(async () => {
+      const { default: api } = await new Function(
+        "return import('/src/shared/api/axios.ts')",
+      )() as { default: { get: (url: string) => Promise<unknown> } };
+      return api.get("/race-401/").then(() => "ok", () => "failed");
+    });
+    await raceRequested;
+
+    const accountBPage = await context.newPage();
+    const accountB = await loginAsAccountB(accountBPage);
+    releaseUnauthorized();
+
+    await expect(requestResult).resolves.toBe("failed");
+    expect(refreshCalls).toBe(0);
+    await expect.poll(() => accountBPage.evaluate(() => ({
+      access: localStorage.getItem("access"),
+      refresh: localStorage.getItem("refresh"),
+      expired: sessionStorage.getItem("session_expired"),
+    }))).toEqual({ access: accountB.access, refresh: accountB.refresh, expired: null });
+  });
+}
