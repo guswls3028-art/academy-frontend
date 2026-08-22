@@ -13,16 +13,18 @@ type PasscardStyle = CSSProperties & {
   "--passcard-color-3"?: string;
 };
 
-function formatDate(date: Date): string {
-  const weekdays = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
-  return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 ${weekdays[date.getDay()]}`;
-}
-
-function formatTime(date: Date): string {
-  const hour = date.getHours();
-  const period = hour < 12 ? "오전" : "오후";
-  return `${period} ${hour % 12 || 12}:${String(date.getMinutes()).padStart(2, "0")}:${String(date.getSeconds()).padStart(2, "0")}`;
-}
+const LIVE_DATE = new Intl.DateTimeFormat("ko-KR", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+  weekday: "long",
+});
+const LIVE_TIME = new Intl.DateTimeFormat("ko-KR", {
+  hour: "numeric",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: true,
+});
 
 function useServerClock(serverDatetime?: string) {
   const offset = useMemo(() => {
@@ -90,8 +92,8 @@ export default function ClinicIDCardPage() {
       <header className="clinic-idcard__header">
         <span className="clinic-idcard__live"><i aria-hidden /> LIVE</span>
         <div className="clinic-idcard__clock">
-          <span>{formatDate(now)}</span>
-          <strong aria-label={`현재 시각 ${formatTime(now)}`}>{formatTime(now)}</strong>
+          <span>{LIVE_DATE.format(now)}</span>
+          <strong aria-label={`현재 시각 ${LIVE_TIME.format(now)}`}>{LIVE_TIME.format(now)}</strong>
         </div>
       </header>
 
