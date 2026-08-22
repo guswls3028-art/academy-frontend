@@ -26,14 +26,16 @@ import {
 import { StudentYoutubeController } from "./headless/StudentYoutubeController";
 import { useDoubleTapSeek } from "./gesture/useDoubleTapSeek";
 import SeekOverlay from "./gesture/SeekOverlay";
+import {
+  ForwardSkipBudgetStatus,
+  PlaybackPolicyHints,
+} from "./ForwardSkipPolicyUi";
+import { forwardSkipErrorMessage, type ForwardSkipBudgetState } from "./forwardSkipPolicy";
 
 import type { AccessMode } from "@/shared/api/contracts/videos";
 import { resolveTenantCodeString } from "@/shared/tenant";
 import { isYouTubeSource } from "@/shared/media/video/youtube";
-import {
-  requestVideoForwardSkip,
-  type VideoForwardSkipBudget,
-} from "../../api/video.api";
+import { requestVideoForwardSkip } from "../../api/video.api";
 
 export type VideoMetaLite = {
   id: number;
@@ -92,15 +94,6 @@ type Policy = {
   watermark?: { enabled?: boolean };
   source?: { type?: string; provider?: string; youtube_video_id?: string | null };
 };
-
-type ForwardSkipBudgetState = Omit<VideoForwardSkipBudget, "granted_seconds" | "ratio_percent" | "max_seconds">;
-
-function forwardSkipErrorMessage(error: unknown): string {
-  const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
-  if (typeof detail === "string" && detail.trim()) return detail;
-  if (error instanceof Error && error.message.trim()) return error.message;
-  return "건너뛰기를 승인하지 못했습니다. 잠시 후 다시 시도해 주세요.";
-}
 
 function normalizePolicy(p: Partial<Policy> | null | undefined): Policy {
   const policy: Policy = { ...(p || {}) };
@@ -875,26 +868,7 @@ export default function StudentVideoPlayer({
                   </div>
 
                   {budgetedForward && (
-                    <div className="svpSkipBudget" role="status" aria-live="polite">
-                      <div className="svpSkipBudgetCopy">
-                        <span className="svpSkipBudgetLabel">쉬는 시간 건너뛰기</span>
-                        <span className="svpSkipBudgetValue">
-                          {skipPending
-                            ? "승인 중…"
-                            : skipBudget.unavailable_reason === "duration_unavailable"
-                              ? "영상 길이 확인 필요"
-                              : skipBudget.remaining_seconds > 0
-                                ? `10초씩 · ${formatClock(skipBudget.remaining_seconds)} 남음`
-                                : "사용 가능한 시간을 모두 썼어요"}
-                        </span>
-                      </div>
-                      <progress
-                        className="svpSkipBudgetTrack"
-                        max={Math.max(1, skipBudget.limit_seconds)}
-                        value={skipBudget.remaining_seconds}
-                        aria-hidden="true"
-                      />
-                    </div>
+                    <ForwardSkipBudgetStatus pending={skipPending} budget={skipBudget} />
                   )}
 
                   <div className="svpControlRow">
@@ -939,20 +913,13 @@ export default function StudentVideoPlayer({
                     </div>
                   </div>
 
-                  {(!allowSeek || speedLocked || budgetedForward) && (
-                    <div className="svpPolicyHint">
-                      {(!allowSeek || seekMode === "blocked") && (
-                        <span className="svpPolicyHintItem">• 탐색이 제한됩니다{boundedForward ? " (시청한 구간만 이동 가능)" : ""}</span>
-                      )}
-                      {allowSeek && seekMode !== "blocked" && boundedForward && (
-                        <span className="svpPolicyHintItem">• 앞으로 탐색이 제한됩니다</span>
-                      )}
-                      {budgetedForward && (
-                        <span className="svpPolicyHintItem">• 앞으로는 10초씩, 영상별 허용 시간 안에서 이동할 수 있습니다</span>
-                      )}
-                      {speedLocked && <span className="svpPolicyHintItem">• 배속 변경이 제한됩니다</span>}
-                    </div>
-                  )}
+                  <PlaybackPolicyHints
+                    allowSeek={allowSeek}
+                    seekMode={seekMode}
+                    boundedForward={boundedForward}
+                    budgetedForward={budgetedForward}
+                    speedLocked={speedLocked}
+                  />
                 </div>
               )}
             </div>
