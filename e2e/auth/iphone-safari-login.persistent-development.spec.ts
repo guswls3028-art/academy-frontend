@@ -22,7 +22,6 @@ const BASE = (process.env.E2E_BASE_URL || "").replace(/\/+$/, "");
 const API = (process.env.E2E_API_URL || "").replace(/\/+$/, "");
 const MANIFEST_PATH = (process.env.E2E_LOGIN_UAT_MANIFEST || "").trim();
 const PASSWORD = (process.env.YMATH_REALUSE_SCENARIO_PASSWORD || "").trim();
-const CONFIGURED = Boolean(BASE && API && MANIFEST_PATH && PASSWORD);
 
 function isLoopbackUrl(value: string): boolean {
   try {
@@ -83,11 +82,21 @@ async function logoutAndVerify(page: Page, role: LoginRole): Promise<void> {
 }
 
 test.use({ serviceWorkers: "block" });
+test.use({ screenshot: "off", trace: "off", video: "off" });
 test.setTimeout(900_000);
-test.skip(
-  !CONFIGURED,
-  "Set loopback E2E_BASE_URL/E2E_API_URL, E2E_LOGIN_UAT_MANIFEST, and YMATH_REALUSE_SCENARIO_PASSWORD.",
-);
+
+const missing = [
+  ["E2E_BASE_URL", BASE],
+  ["E2E_API_URL", API],
+  ["E2E_LOGIN_UAT_MANIFEST", MANIFEST_PATH],
+  ["YMATH_REALUSE_SCENARIO_PASSWORD", PASSWORD],
+].filter(([, value]) => !value).map(([name]) => name);
+if (missing.length) {
+  throw new Error(`Missing required iPhone login UAT environment: ${missing.join(", ")}`);
+}
+if (process.env.E2E_ALLOW_PRODUCTION_WRITES !== "0") {
+  throw new Error("iPhone login UAT requires E2E_ALLOW_PRODUCTION_WRITES=0.");
+}
 
 test.describe("persistent-development iPhone Safari login UAT", () => {
   test.describe.configure({ retries: 0 });

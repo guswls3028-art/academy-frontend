@@ -59,12 +59,37 @@ function removePersistedLoginTokens(): void {
   }
 }
 
+type PersistedLoginTokens = { access: string | null; refresh: string | null };
+
+function readPersistedLoginTokens(): PersistedLoginTokens {
+  try {
+    return {
+      access: localStorage.getItem("access"),
+      refresh: localStorage.getItem("refresh"),
+    };
+  } catch {
+    throw new Error(LOGIN_STORAGE_ERROR_MESSAGE);
+  }
+}
+
+function restorePersistedLoginTokens(previous: PersistedLoginTokens): void {
+  try {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === null) localStorage.removeItem(key);
+      else localStorage.setItem(key, value);
+    }
+  } catch {
+    removePersistedLoginTokens();
+  }
+}
+
 function persistLoginTokens(access: string, refresh: string): void {
+  const previous = readPersistedLoginTokens();
   try {
     localStorage.setItem("access", access);
     localStorage.setItem("refresh", refresh);
   } catch {
-    removePersistedLoginTokens();
+    restorePersistedLoginTokens(previous);
     throw new Error(LOGIN_STORAGE_ERROR_MESSAGE);
   }
 }
