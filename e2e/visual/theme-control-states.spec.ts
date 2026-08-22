@@ -140,6 +140,9 @@ async function mountAuditSurface(page: Page) {
       <div data-app="auth" data-tenant="movementhui" hidden>
         <div data-auth-part="ambient" data-testid="movementhui-ambient"><span></span><span></span><span></span></div>
       </div>
+      <div data-app="auth" data-tenant="godmin" hidden>
+        <div data-auth-part="ambient" data-testid="godmin-ambient"><span></span><span></span><span></span></div>
+      </div>
     `;
     document.body.append(audit);
   });
@@ -233,9 +236,12 @@ test("12개 테마에서 공용 버튼과 탭의 상태가 명확히 구분된�
       .map((element) => getComputedStyle(element).display),
     movementhui: Array.from(document.querySelectorAll("[data-testid='movementhui-ambient'] > span"))
       .map((element) => getComputedStyle(element).display),
+    godmin: Array.from(document.querySelectorAll("[data-testid='godmin-ambient'] > span"))
+      .map((element) => getComputedStyle(element).display),
   }));
   expect(ambientDisplays.hakwonplus).toEqual(["none", "none", "none"]);
   expect(ambientDisplays.movementhui[2]).toBe("none");
+  expect(ambientDisplays.godmin).toEqual(["block", "block", "none"]);
 
   await testInfo.attach("theme-control-contrast.json", {
     body: JSON.stringify(results, null, 2),
