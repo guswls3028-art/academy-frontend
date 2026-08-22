@@ -18,6 +18,7 @@ import {
   Inbox as InboxIcon,
   Check as CheckIcon,
   Search as SearchIcon,
+  Sparkles,
 } from "lucide-react";
 import { useAdminNotificationCounts, type AdminNotificationItem } from "@admin/domains/admin-notifications";
 import { useProgram } from "@/shared/program";
@@ -45,6 +46,7 @@ import CommonLogoIcon from "@/auth/assets/CommonLogoIcon";
 import { useTheme } from "@/shared/contexts/ThemeContext";
 import { getThemeMeta } from "@/shared/theme/themes";
 import { GuideBookLauncher, getGuideBookPreset } from "@/shared/ui/guide";
+import { useProductUpdateAwareness } from "@/shared/product/useProductUpdateAwareness";
 
 const NoticeOverlay = lazy(() => import("@admin/domains/notice/overlays/NoticeOverlay"));
 const ADMIN_GUIDE_BOOK = getGuideBookPreset("admin");
@@ -141,7 +143,7 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
   const { program } = useProgram();
   const meQ = useQuery({ queryKey: accountQueryKeys.me, queryFn: fetchMe });
   const me = meQ.data;
-  const { clearAuth } = useAuth();
+  const { clearAuth, user } = useAuth();
 
   const [openNotice, setOpenNotice] = useState(false);
   const [alarmDropdownOpen, setAlarmDropdownOpen] = useState(false);
@@ -167,12 +169,20 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
     isFetching: adminNotificationsFetching,
     refetch: refetchAdminNotifications,
   } = useAdminNotificationCounts();
-  const unreadCount = adminCounts.total;
+  const productUpdate = useProductUpdateAwareness(user?.id);
+  const unreadCount = adminCounts.total + (productUpdate.isUnread ? 1 : 0);
   const hasNotificationFailures = adminNotificationFailures.length > 0;
 
   const openNoticeAndCloseAlarm = () => {
     setAlarmDropdownOpen(false);
     setOpenNotice(true);
+  };
+
+  const openLatestProductUpdate = () => {
+    productUpdate.markRead();
+    setAlarmDropdownOpen(false);
+    const nextWindow = window.open(productUpdate.href, "_blank", "noopener,noreferrer");
+    if (nextWindow) nextWindow.opener = null;
   };
 
 
@@ -476,12 +486,30 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
                   </span>
                 </div>
                 <div className="alarm-panel__list">
+                  <button
+                    type="button"
+                    className="alarm-panel__product-update"
+                    data-unread={productUpdate.isUnread || undefined}
+                    onClick={openLatestProductUpdate}
+                  >
+                    <span className="alarm-panel__product-update-icon" aria-hidden>
+                      <Sparkles size={ICON.sm} />
+                    </span>
+                    <span className="alarm-panel__product-update-copy">
+                      <span>
+                        {productUpdate.isUnread ? "새 업데이트" : "최신 업데이트"}
+                        <small>{productUpdate.latest.date}</small>
+                      </span>
+                      <strong>{productUpdate.latest.title}</strong>
+                      <small>클릭해서 달라진 기능과 사용 범위를 확인하세요.</small>
+                    </span>
+                  </button>
                   {hasNotificationFailures && adminNotificationItems.length === 0 ? (
                     <div className="alarm-panel__empty alarm-panel__empty--warning">
                       일부 알림을 불러오지 못했습니다. 다시 불러오기를 눌러주세요.
                     </div>
                   ) : adminNotificationItems.length === 0 ? (
-                    <div className="alarm-panel__empty">알림이 없습니다</div>
+                    <div className="alarm-panel__empty">처리할 업무 알림이 없습니다</div>
                   ) : (
                     adminNotificationItems.map((item) => (
                       <div

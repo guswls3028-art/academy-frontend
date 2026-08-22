@@ -1,84 +1,59 @@
 /**
- * 채점·결과 탭 — 시험정책 영역과 동일한 섹션 디자인
- * - 채점결과: 실제 데이터 기반 요약 통계, 점수 분포, 커트라인
- * - 통계: 문항별 정답률 테이블, 엑셀 내보내기
- * - 학생별 결과: 기존 ExamResultsPanel (목록 + 상세)
+ * 채점·결과 탭 — 수업 중간 의사결정을 위한 시험 분석 워크스페이스.
+ * 제안은 현재 대표 결과에서 계산하며 시험 컷이나 재시험 정책을 자동 변경하지 않는다.
  */
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Download } from "lucide-react";
+import {
+  BookOpenCheck,
+  Download,
+  FileSpreadsheet,
+  Gauge,
+  ListChecks,
+  Target,
+} from "lucide-react";
 import api from "@/shared/api/axios";
-import type { AdminExamSummary } from "@admin/domains/results/types/results.types";
-import type { AdminExamResultRow } from "@admin/domains/results/types/results.types";
-import type { QuestionStat } from "@admin/domains/results/types/results.types";
+import type {
+  AdminExamResultRow,
+  AdminExamSummary,
+  QuestionStat,
+} from "@admin/domains/results/types/results.types";
 import { useAdminExam } from "../hooks/useAdminExam";
 import ExamResultsPanel from "@admin/domains/results/panels/ExamResultsPanel";
 import OmrReviewEntry from "@admin/domains/results/components/omr-review/OmrReviewEntry";
 import ExamResultExcelImport from "@admin/domains/results/components/ExamResultExcelImport";
 import ManualExamGradingGrid from "@admin/domains/results/components/ManualExamGradingGrid";
-import { Button, EmptyState, ICON_FOR_BUTTON } from "@/shared/ui/ds";
+import { Button, EmptyState, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
-import { downloadExamWrongNoteExport } from "@admin/domains/results/public/examResultExcel";
+import {
+  downloadExamAnalysisExport,
+  downloadExamWrongNoteExport,
+} from "@admin/domains/results/public/examResultExcel";
 import { adminExamsQueryKeys } from "../queryKeys";
+import { buildExamResultsInsightModel } from "./examResultsInsights";
 import styles from "./ExamResultsViewerPanel.module.css";
 
 type Props = { examId: number };
 
-async function fetchSummary(examId: number): Promise<AdminExamSummary | null> {
-  const res = await api.get(`/results/admin/exams/${examId}/summary/`);
-  return res.data as AdminExamSummary;
+async function fetchSummary(examId: number): Promise<AdminExamSummary> {
+  const response = await api.get(`/results/admin/exams/${examId}/summary/`);
+  return response.data as AdminExamSummary;
 }
 
 async function fetchResults(examId: number): Promise<AdminExamResultRow[]> {
-  const res = await api.get(`/results/admin/exams/${examId}/results/`);
-  const raw = res.data?.results ?? res.data;
-  if (!Array.isArray(raw)) {
-    throw new Error("시험 결과 응답 형식이 올바르지 않습니다.");
-  }
+  const response = await api.get(`/results/admin/exams/${examId}/results/`);
+  const raw = response.data?.results ?? response.data;
+  if (!Array.isArray(raw)) throw new Error("시험 결과 응답 형식이 올바르지 않습니다.");
   return raw;
 }
 
 async function fetchQuestionStats(examId: number): Promise<QuestionStat[]> {
-  const res = await api.get(`/results/admin/exams/${examId}/questions/`);
-  const raw = res.data?.results ?? res.data;
-  if (!Array.isArray(raw)) {
-    throw new Error("문항 통계 응답 형식이 올바르지 않습니다.");
-  }
+  const response = await api.get(`/results/admin/exams/${examId}/questions/`);
+  const raw = response.data?.results ?? response.data;
+  if (!Array.isArray(raw)) throw new Error("문항 통계 응답 형식이 올바르지 않습니다.");
   return raw;
-}
-
-const BUCKETS = [
-  { label: "0-20", min: 0, max: 20 },
-  { label: "21-40", min: 21, max: 40 },
-  { label: "41-60", min: 41, max: 60 },
-  { label: "61-80", min: 61, max: 80 },
-  { label: "81-100", min: 81, max: 100 },
-];
-
-function computeStdDev(scores: number[]): number {
-  if (scores.length === 0) return 0;
-  const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
-  const sqDiffs = scores.map((s) => (s - mean) ** 2);
-  return Math.sqrt(sqDiffs.reduce((a, b) => a + b, 0) / scores.length);
-}
-
-function computeTop10Avg(scores: number[]): number {
-  if (scores.length === 0) return 0;
-  const sorted = [...scores].sort((a, b) => b - a);
-  const topCount = Math.max(1, Math.ceil(scores.length * 0.1));
-  const top = sorted.slice(0, topCount);
-  return top.reduce((a, b) => a + b, 0) / top.length;
-}
-
-function computeMedian(scores: number[]): number {
-  if (scores.length === 0) return 0;
-  const sorted = [...scores].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 !== 0
-    ? sorted[mid]
-    : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
 export default function ExamResultsViewerPanel({ examId }: Props) {
@@ -99,43 +74,34 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
     enabled: Number.isFinite(examId),
   });
 
-  const summary = summaryQ.data ?? null;
-  const results = useMemo<AdminExamResultRow[]>(
-    () => resultsQ.data ?? [],
-    [resultsQ.data]
+  const results = useMemo(() => resultsQ.data ?? [], [resultsQ.data]);
+  const questionStats = useMemo(() => statsQ.data ?? [], [statsQ.data]);
+  const resultMaxScore = results.find((row) => typeof row.exam_max_score === "number")?.exam_max_score;
+  const examMaxScore = typeof exam?.max_score === "number" && exam.max_score > 0
+    ? exam.max_score
+    : typeof resultMaxScore === "number" && resultMaxScore > 0
+      ? resultMaxScore
+      : 100;
+  const passScore = typeof exam?.pass_score === "number" ? exam.pass_score : 0;
+  const insight = useMemo(
+    () => buildExamResultsInsightModel({
+      results,
+      questionStats,
+      maxScore: examMaxScore,
+      passScore,
+    }),
+    [examMaxScore, passScore, questionStats, results],
   );
-  const questionStats = useMemo<QuestionStat[]>(
-    () => statsQ.data ?? [],
-    [statsQ.data]
-  );
+  const hasData = insight.scoredCount > 0 || (summaryQ.data?.participant_count ?? 0) > 0;
 
-  const scores = useMemo(
-    () =>
-      results
-        .map((r) => r.final_score)
-        .filter((s): s is number => typeof s === "number" && Number.isFinite(s)),
-    [results]
-  );
-  const stdDev = useMemo(() => computeStdDev(scores), [scores]);
-  const top10Avg = useMemo(() => computeTop10Avg(scores), [scores]);
-  const median = useMemo(() => computeMedian(scores), [scores]);
-  const histogram = useMemo(() => {
-    return BUCKETS.map((b) => ({
-      ...b,
-      count: scores.filter((s) => s >= b.min && s <= b.max).length,
-    }));
-  }, [scores]);
-  const maxHist = useMemo(
-    () => Math.max(1, ...histogram.map((h) => h.count)),
-    [histogram]
-  );
-  const sortedQuestionStats = useMemo(
-    () => [...questionStats].sort((a, b) => a.question_number - b.question_number),
-    [questionStats]
-  );
-  const passScore = exam?.pass_score ?? 0;
-
-  const wrongNoteExportMutation = useMutation({
+  const analysisExport = useMutation({
+    mutationFn: () => downloadExamAnalysisExport(examId, exam?.title ?? "시험"),
+    onSuccess: () => feedback.success("수업 분석 리포트를 내려받았습니다."),
+    onError: (error) => feedback.error(
+      extractApiError(error, "수업 분석 리포트를 내려받지 못했습니다."),
+    ),
+  });
+  const wrongNoteExport = useMutation({
     mutationFn: () => downloadExamWrongNoteExport(examId, exam?.title ?? "시험"),
     onSuccess: () => feedback.success("학생별 오답 엑셀을 내려받았습니다."),
     onError: (error) => feedback.error(
@@ -145,18 +111,16 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
 
   const isLoading = summaryQ.isLoading || resultsQ.isLoading;
   const isError = summaryQ.isError || resultsQ.isError;
-  const hasData = (summary && summary.participant_count > 0) || results.length > 0;
-
   if (isLoading) {
     return (
-      <section className="space-y-6 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-5">
+      <section className={styles.statePanel}>
         <EmptyState scope="panel" tone="loading" title="채점 결과를 불러오는 중…" />
       </section>
     );
   }
   if (isError) {
     return (
-      <section className="space-y-6 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-5">
+      <section className={styles.statePanel}>
         <EmptyState
           scope="panel"
           tone="error"
@@ -177,162 +141,196 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
   }
 
   return (
-    <div className="space-y-6">
-      {/* ========== 시험 채점 방식에 맞는 주 동선 ========== */}
+    <div className={styles.workspace}>
       {exam?.grading_mode !== "written" && (
         <OmrReviewEntry examId={examId} examTitle={exam?.title ?? "시험"} />
       )}
-
-      {exam?.grading_mode !== "choice" && (
-        <ManualExamGradingGrid examId={examId} />
-      )}
-
+      {exam?.grading_mode !== "choice" && <ManualExamGradingGrid examId={examId} />}
       <ExamResultExcelImport examId={examId} examTitle={exam?.title ?? "시험"} />
 
-      {/* ========== 채점결과 섹션 (시험정책과 동일 디자인) ========== */}
-      <section className="space-y-6 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-5">
-        <div>
-          <div className="text-lg font-semibold">채점결과</div>
-          <div className="text-xs text-muted">
-            실제 채점 데이터 기준 요약 통계입니다.
+      <section className={styles.analysisShell} aria-labelledby="exam-analysis-title">
+        <header className={styles.analysisHeader}>
+          <div className={styles.headingCopy}>
+            <span className={styles.eyebrow}>TEACHING BRIEF</span>
+            <h2 id="exam-analysis-title">이번 수업에서 바로 결정할 것</h2>
+            <p>현재 대표 성적을 기준으로 수업 방향·보충·재시험 컷 검토 근거를 한 화면에 모았습니다.</p>
           </div>
-        </div>
+          <div className={styles.reportActions}>
+            <Button
+              type="button"
+              intent="primary"
+              size="sm"
+              leftIcon={<FileSpreadsheet size={ICON_FOR_BUTTON.sm} />}
+              loading={analysisExport.isPending}
+              disabled={!hasData}
+              title={hasData
+                ? "브리핑·분포·문항 우선순위·등수·답안을 한 파일로 내려받습니다."
+                : "채점 결과가 저장되면 내려받을 수 있습니다."}
+              onClick={() => analysisExport.mutate()}
+            >
+              수업 분석 리포트 (엑셀)
+            </Button>
+            <Button
+              type="button"
+              intent="secondary"
+              size="sm"
+              leftIcon={<Download size={ICON_FOR_BUTTON.sm} />}
+              loading={wrongNoteExport.isPending}
+              disabled={!hasData}
+              title={hasData
+                ? "현재 오답과 복습 지정 문항을 학생별로 내려받습니다."
+                : "채점 결과가 저장되면 내려받을 수 있습니다."}
+              onClick={() => wrongNoteExport.mutate()}
+            >
+              학생별 틀린 문항 (엑셀)
+            </Button>
+          </div>
+        </header>
 
         {!hasData ? (
-          <div className="rounded border border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-6 text-center text-sm text-[var(--color-text-muted)]">
-            아직 제출·채점된 결과가 없습니다.
-          </div>
+          <EmptyState
+            scope="panel"
+            tone="empty"
+            title="아직 분석할 채점 결과가 없습니다"
+            description="점수를 입력하거나 OMR 채점을 마치면 수업 브리핑과 보고서가 생성됩니다."
+          />
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
-              <KpiCard label="평균" value={`${(summary?.avg_score ?? 0).toFixed(1)}점`} />
-              <KpiCard label="상위 10% 평균" value={`${top10Avg.toFixed(1)}점`} />
-              <KpiCard label="최고점" value={`${summary?.max_score ?? 0}점`} />
-              <KpiCard label="중앙값" value={`${median.toFixed(1)}점`} />
-              <KpiCard label="표준편차" value={stdDev.toFixed(1)} />
-              <KpiCard label="응시자 수" value={`${summary?.participant_count ?? 0}명`} />
+            <div className={styles.decisionGrid}>
+              <DecisionCard icon={<BookOpenCheck size={ICON.lg} />} label="수업 방향" {...insight.direction} />
+              <DecisionCard icon={<Gauge size={ICON.lg} />} label="컷 검토" {...insight.cutReview} />
+              <DecisionCard icon={<ListChecks size={ICON.lg} />} label="바로 할 일" {...insight.nextAction} />
             </div>
 
-            {passScore > 0 && (
-              <div className="text-xs text-muted">
-                커트라인: <strong className="text-[var(--color-text-primary)]">{passScore}점</strong>
-                {summary != null && (
-                  <> (합격 {summary.pass_count}명 / 불합격 {summary.fail_count}명)</>
-                )}
-              </div>
-            )}
+            <div className={styles.policyNote}>
+              <Target size={ICON.sm} aria-hidden />
+              <span>분석 제안은 참고용이며 시험 컷·합격 판정·재시험 정책을 자동으로 바꾸지 않습니다.</span>
+            </div>
 
-            {/* 점수 분포 히스토그램 */}
-            {scores.length > 0 && (
-              <div className="space-y-2">
-                <div className="text-sm font-semibold text-[var(--color-text-primary)]">점수 분포</div>
-                <div className="flex items-end gap-1 rounded border border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] p-3">
-                  {histogram.map((h) => (
-                    <HistogramBar key={h.label} label={h.label} count={h.count} max={maxHist} />
+            <div className={styles.metricStrip} aria-label="시험 핵심 지표">
+              <Metric label="응시" value={`${insight.scoredCount}명`} sub={insight.unscoredCount > 0 ? `미응시·미채점 ${insight.unscoredCount}명` : "전원 집계"} />
+              <Metric label="평균" value={`${insight.average.toFixed(1)}점`} sub={`중앙값 ${insight.median.toFixed(1)}점`} />
+              <Metric label="상위 10%" value={`${insight.topTenAverage.toFixed(1)}점`} sub={`최고 ${insight.highest.toFixed(1)}점`} />
+              <Metric label="표준편차" value={insight.stdDev.toFixed(1)} sub={`만점 대비 ${insight.stdRate.toFixed(1)}%`} />
+              <Metric label={`합격 컷 ${passScore}점`} value={`${Math.round(insight.passRate * 100)}%`} sub={`합격 ${insight.passCount} · 미달 ${insight.failCount}`} />
+            </div>
+
+            <div className={styles.evidenceGrid}>
+              <section className={styles.evidencePanel} aria-labelledby="distribution-title">
+                <div className={styles.panelHeading}>
+                  <div>
+                    <span>Score distribution</span>
+                    <h3 id="distribution-title">점수 분포</h3>
+                  </div>
+                  <div className={styles.markerLegend}>
+                    <span>평균 {insight.average.toFixed(1)}</span>
+                    <span>컷 {passScore}</span>
+                  </div>
+                </div>
+                <div className={styles.histogram} role="img" aria-label="만점 대비 점수 구간별 인원">
+                  {insight.distribution.map((band) => (
+                    <div className={styles.histogramColumn} key={band.label} title={`${band.label} · ${band.count}명`}>
+                      <span className={styles.barCount}>{band.count}</span>
+                      <svg className={styles.barTrack} viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+                        <rect className={styles.barGrid} x="0" y="0" width="100" height="100" rx="5" />
+                        <rect
+                          className={styles.barFill}
+                          x="0"
+                          y={100 - Math.max(band.count > 0 ? 12 : 3, band.ratio * 100)}
+                          width="100"
+                          height={Math.max(band.count > 0 ? 12 : 3, band.ratio * 100)}
+                          rx="4"
+                        />
+                      </svg>
+                      <strong>{band.label}</strong>
+                      <small>{band.rawRange}</small>
+                    </div>
                   ))}
                 </div>
-              </div>
+              </section>
+
+              <section className={styles.evidencePanel} aria-labelledby="priority-title">
+                <div className={styles.panelHeading}>
+                  <div>
+                    <span>Question priority</span>
+                    <h3 id="priority-title">보충 우선 문항</h3>
+                  </div>
+                  <small>정답률 낮은 순</small>
+                </div>
+                {statsQ.isLoading ? (
+                  <EmptyState scope="panel" tone="loading" title="문항 통계를 불러오는 중…" />
+                ) : statsQ.isError ? (
+                  <EmptyState
+                    scope="panel"
+                    tone="error"
+                    title="문항 통계를 불러오지 못했습니다."
+                    actions={<Button type="button" intent="secondary" size="sm" onClick={() => void statsQ.refetch()}>다시 시도</Button>}
+                  />
+                ) : insight.priorityQuestions.length === 0 ? (
+                  <EmptyState scope="panel" tone="empty" title="문항별 채점 데이터가 없습니다" />
+                ) : (
+                  <ol className={styles.priorityList}>
+                    {insight.priorityQuestions.slice(0, 5).map((question) => (
+                      <li key={question.question_id} data-tone={question.tone}>
+                        <span className={styles.questionNumber}>{question.question_number}</span>
+                        <div className={styles.questionBody}>
+                          <div className={styles.questionTopline}>
+                            <strong>{question.action}</strong>
+                            <span>{question.accuracyPercent.toFixed(1)}%</span>
+                          </div>
+                          <svg className={styles.accuracyTrack} viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden>
+                            <rect className={styles.accuracyTrackBase} x="0" y="0" width="100" height="4" rx="2" />
+                            <rect className={styles.accuracyTrackFill} x="0" y="0" width={question.accuracyPercent} height="4" rx="2" />
+                          </svg>
+                          <small>{question.correct}/{question.attempts}명 정답 · {question.priority}</small>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </section>
+            </div>
+
+            {insight.priorityQuestions.length > 0 && (
+              <details className={styles.questionDetails}>
+                <summary>전체 문항 통계 보기</summary>
+                <div className={styles.tableScroller}>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>문항</th>
+                        <th>정답률</th>
+                        <th>정답 수</th>
+                        <th>응시 수</th>
+                        <th>권장 행동</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...insight.priorityQuestions]
+                        .sort((left, right) => left.question_number - right.question_number)
+                        .map((question) => (
+                          <tr key={question.question_id}>
+                            <td>{question.question_number}번</td>
+                            <td><span data-tone={question.tone}>{question.accuracyPercent.toFixed(1)}%</span></td>
+                            <td>{question.correct}</td>
+                            <td>{question.attempts}</td>
+                            <td>{question.action}</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
             )}
           </>
         )}
       </section>
 
-      {/* ========== 통계 (문항별 정답률) 섹션 ========== */}
-      <section className="space-y-6 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-5">
-        <div>
-          <div className="text-lg font-semibold">통계</div>
-          <div className="text-xs text-muted">
-            각 문항별 정답률을 실제 채점 데이터 기준으로 제공합니다.
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" intent="secondary" size="sm" disabled>
-            문항별 통계 (엑셀)
-          </Button>
-          <Button
-            type="button"
-            intent="secondary"
-            size="sm"
-            leftIcon={<Download size={ICON_FOR_BUTTON.sm} />}
-            loading={wrongNoteExportMutation.isPending}
-            disabled={!hasData}
-            title={
-              hasData
-                ? "현재 사이트에 저장된 오답과 복습 지정 문항을 학생별로 내려받습니다."
-                : "채점 결과가 저장되면 내려받을 수 있습니다."
-            }
-            onClick={() => wrongNoteExportMutation.mutate()}
-          >
-            학생별 틀린 문항 (엑셀)
-          </Button>
-          <Button type="button" intent="secondary" size="sm" disabled>
-            학생별 등수 통계 (엑셀)
-          </Button>
-          <Button type="button" intent="secondary" size="sm" disabled>
-            학생별 답안 (엑셀)
-          </Button>
-        </div>
-
-        {statsQ.isLoading ? (
-          <EmptyState scope="panel" tone="loading" title="문항별 통계를 불러오는 중…" />
-        ) : statsQ.isError ? (
-          <EmptyState
-            scope="panel"
-            tone="error"
-            title="문항별 통계를 불러오지 못했습니다."
-            actions={(
-              <Button
-                type="button"
-                intent="secondary"
-                size="sm"
-                onClick={() => void statsQ.refetch()}
-              >
-                다시 시도
-              </Button>
-            )}
-          />
-        ) : questionStats.length === 0 ? (
-          <div className="rounded border border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-6 text-center text-sm text-[var(--color-text-muted)]">
-            문항별 통계 데이터가 없습니다. 채점이 완료된 후 표시됩니다.
-          </div>
-        ) : (
-          <div className="overflow-x-auto rounded border border-[var(--border-divider)]">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)]">
-                  <th className="px-3 py-2 text-left font-semibold">문항</th>
-                  <th className="px-3 py-2 text-right font-semibold">정답률</th>
-                  <th className="px-3 py-2 text-right font-semibold">정답 수</th>
-                  <th className="px-3 py-2 text-right font-semibold">응시 수</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedQuestionStats.map((q) => (
-                  <tr key={q.question_id} className="border-b border-[var(--border-divider)]">
-                    <td className="px-3 py-2 font-medium">{q.question_number}번</td>
-                    <td className="px-3 py-2 text-right">
-                      <span className={getAccuracyClassName(q.accuracy)}>
-                        {(q.accuracy * 100).toFixed(1)}%
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-right">{q.correct}</td>
-                    <td className="px-3 py-2 text-right">{q.attempts}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      {/* ========== 학생별 결과 (기존 패널) ========== */}
-      <section className="space-y-6 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-5">
-        <div>
-          <div className="text-lg font-semibold">학생별 결과</div>
-          <div className="text-xs text-muted">
-            학생을 선택하면 상세 채점 결과를 볼 수 있습니다.
-          </div>
+      <section className={styles.studentResultsSection}>
+        <div className={styles.sectionHeading}>
+          <span>Student evidence</span>
+          <h2>학생별 결과</h2>
+          <p>학생을 선택하면 상세 채점 결과와 오답 확인 상태를 볼 수 있습니다.</p>
         </div>
         <ExamResultsPanel examId={examId} />
       </section>
@@ -340,41 +338,37 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
   );
 }
 
-function HistogramBar({ label, count, max }: { label: string; count: number; max: number }) {
-  const height = count > 0 ? Math.max(4, Math.round((count / max) * 80)) : 4;
-  const y = 80 - height;
-
+function DecisionCard({
+  icon,
+  label,
+  title,
+  detail,
+  tone,
+}: {
+  icon: ReactNode;
+  label: string;
+  title: string;
+  detail: string;
+  tone: "positive" | "attention" | "critical" | "neutral";
+}) {
   return (
-    <div
-      className="flex flex-1 flex-col items-center gap-1"
-      title={`${label}: ${count}명`}
-    >
-      <svg className={styles.histogramBar} viewBox="0 0 16 80" preserveAspectRatio="none" aria-hidden="true">
-        <rect className={styles.histogramBarFill} x="2" y={y} width="12" height={height} rx="2" />
-      </svg>
-      <span className="text-[10px] text-[var(--color-text-muted)]">{label}</span>
-      <span className="text-xs font-medium">{count}</span>
-    </div>
+    <article className={styles.decisionCard} data-tone={tone}>
+      <div className={styles.decisionIcon} aria-hidden>{icon}</div>
+      <div>
+        <span>{label}</span>
+        <h3>{title}</h3>
+        <p>{detail}</p>
+      </div>
+    </article>
   );
 }
 
-function getAccuracyClassName(accuracy: number): string {
-  if (accuracy >= 0.8) {
-    return `${styles.accuracy} ${styles.accuracyHigh}`;
-  }
-  if (accuracy >= 0.5) {
-    return `${styles.accuracy} ${styles.accuracyMid}`;
-  }
-  return `${styles.accuracy} ${styles.accuracyLow}`;
-}
-
-function KpiCard({ label, value }: { label: string; value: string }) {
+function Metric({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
-    <div className="rounded border border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] px-3 py-3">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-        {label}
-      </div>
-      <div className="mt-1 text-base font-bold text-[var(--color-text-primary)]">{value}</div>
+    <div className={styles.metric}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{sub}</small>
     </div>
   );
 }

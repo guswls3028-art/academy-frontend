@@ -69,6 +69,16 @@ export async function downloadExamWrongNoteExport(
   );
 }
 
+export async function downloadExamAnalysisExport(
+  examId: number,
+  examTitle: string,
+): Promise<void> {
+  return downloadExamWorkbook(
+    `/results/admin/exams/${examId}/analysis-export/`,
+    `${safeExamTitle(examTitle)}_수업분석_리포트.xlsx`,
+  );
+}
+
 async function downloadExamWorkbook(path: string, filename: string): Promise<void> {
   let response;
   try {

@@ -158,6 +158,22 @@
   word-break: keep-all;
 }
 
+.latestScope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 20px;
+}
+
+.latestScope span {
+  border: 1px solid rgb(118 229 247 / 25%);
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: rgb(225 241 245 / 76%);
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .releaseSection {
   color: #0b2532;
   background: #eaf4f7;
@@ -207,6 +223,47 @@
   margin: 0;
   padding: 42px 0 0;
   list-style: none;
+}
+
+.cadenceBand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 28px;
+  border: 1px solid #bed8dd;
+  border-radius: 12px;
+  padding: 16px 18px;
+  background: rgb(255 255 255 / 62%);
+}
+
+.cadenceIcon {
+  display: flex;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  color: #0d7f94;
+  background: #d8eef2;
+}
+
+.cadenceBand > div:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cadenceBand strong {
+  color: #123440;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.cadenceBand span {
+  color: #58727d;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .release {
@@ -283,6 +340,14 @@
   font-weight: 750;
 }
 
+.availability {
+  border-left: 1px solid #c7dade;
+  padding-left: 8px;
+  color: #4a6975;
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .releaseCard h3 {
   margin: 20px 0 0;
   color: #071b2a;
@@ -298,6 +363,31 @@
   font-size: 15px;
   line-height: 1.72;
   word-break: keep-all;
+}
+
+.audience {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.audience > span {
+  margin-right: 2px;
+  color: #68818c;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.audience strong {
+  border: 1px solid #d5e4e7;
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: #31535f;
+  background: #f5fafb;
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .releaseCard ul {
@@ -431,6 +521,10 @@
 
   .contactBand {
     padding: 26px 22px;
+  }
+
+  .cadenceBand {
+    align-items: flex-start;
   }
 
   .contactBand > a {

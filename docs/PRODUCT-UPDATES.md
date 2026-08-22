@@ -11,6 +11,11 @@
   공개 페이지를 연다. 기존 `/workspace/developer`와
   `/workspace/mobile/developer` 패치노트 진입점은 공개 페이지로 이동하고,
   버그 제보와 피드백 경로는 그대로 유지한다.
+- 인증된 관리자 헤더 알림과 선생님 알림 센터에는 최신 제품 업데이트 카드가
+  함께 보인다. 새 항목은 같은 브라우저 안에서도 학원·사용자별로 분리된 읽음
+  표시가 생기며 클릭하면 공개 페이지의 `#latest-update`를 새 탭으로 열어 진행 중
+  업무를 보존한다. 제품 업데이트는
+  운영 처리가 필요한 도메인 알림과 데이터 소스를 섞지 않는다.
 - 모바일 업무 drawer는 현재 업무 그룹만 펼치는 accordion을 사용하며,
   `업데이트 소식`은 새 탭으로 열어 진행 중인 업무 상태를 보존한다.
 - 최신 항목 CTA는 같은 페이지의 최신 업데이트로 이동한다.
@@ -27,10 +32,25 @@
 후보는 공개 완료 기능처럼 쓰지 않는다. 단계적 제공 기능은 제목이나 설명에
 Beta 또는 제공 범위를 표시한다.
 
-업데이트 데이터의 소유 위치는
-`src/app_promo/domains/landing/pages/UpdatesPage.tsx`다. 기존 내부
+업데이트 데이터의 단일 소유 위치는
+`src/shared/product/productUpdates.ts`다. 공개 페이지와 인증 화면의 최신
+카드는 같은 첫 항목을 읽는다. 기존 내부
 `src/shared/product/patchNotesData.ts`는 과거 운영 메모와 기술 상세를 포함해
 공개 페이지의 데이터 원본으로 사용하지 않는다.
+
+## 발행 운영
+
+정기 발행 시각은 **매주 화요일 오전 9시(Asia/Seoul)**다. 직전 발행 이후
+production에 실제 반영된 사용자 체감 변경만 감사해 항목을 추가한다. 배포되지 않은
+후보, 내부 리팩터링만 있는 변경, 확인되지 않은 홍보 문구는 올리지 않는다. 변경이
+없으면 빈 패치노트를 발행하지 않는다. 긴급한 사용성 개선은 화요일 전에도 별도
+항목으로 발행할 수 있다.
+
+각 항목은 안정적인 `id`, 날짜, 제목, 사용자 언어 요약, 대상 역할, 제공 범위와
+`new|improve|fix` 하이라이트를 가진다. 새 항목은 배열 첫 위치에 추가하고
+`LATEST_PRODUCT_UPDATE`가 별도 복사 없이 같은 항목을 가리키게 한다. 발행 변경은
+일반 frontend 품질 게이트·PR·production 배포와 `/promo/updates` readback을 통과한
+뒤 완료로 본다.
 
 ## 라우팅과 검색 노출
 
@@ -47,6 +67,8 @@ Beta 또는 제공 범위를 표시한다.
 pnpm typecheck
 pnpm exec eslint `
   src/app_promo/domains/landing/pages/UpdatesPage.tsx `
+  src/shared/product/productUpdates.ts `
+  src/shared/product/useProductUpdateAwareness.ts `
   src/app_promo/app/PromoRouter.tsx
 pnpm exec playwright test e2e/refactor/promo-router.spec.ts
 pnpm build

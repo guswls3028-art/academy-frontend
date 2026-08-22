@@ -22,6 +22,8 @@ import { GuideBookLauncher, getGuideBookPreset } from "@/shared/ui/guide";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { Menu, Bell, BellRing, Search } from "@teacher/shared/ui/Icons";
 import CompactStaffClockButton from "@/features/staff-clock/CompactStaffClockButton";
+import { useProductUpdateAwareness } from "@/shared/product/useProductUpdateAwareness";
+import useAuth from "@/auth/hooks/useAuth";
 interface Props {
   onMenuClick: () => void;
   onQuickNavigationClick: () => void;
@@ -37,7 +39,9 @@ export default function TeacherTopBar({
 }: Props) {
   const navigate = useNavigate();
   const { program } = useProgram();
+  const { user } = useAuth();
   const { counts } = useTeacherPendingCounts();
+  const productUpdate = useProductUpdateAwareness(user?.id);
   const tenantName = program?.display_name?.trim() || "";
   const tenantResult = resolveTenantCode();
   const tenantId = tenantResult.ok ? getTenantIdFromCode(tenantResult.code) : null;
@@ -48,7 +52,7 @@ export default function TeacherTopBar({
   const logoUrl = headerBrandStyle
     ? (tenantHeaderLogoUrl || programLogoUrl)
     : (programLogoUrl || tenantHeaderLogoUrl);
-  const badge = counts?.total ?? 0;
+  const badge = (counts?.total ?? 0) + (productUpdate.isUnread ? 1 : 0);
 
   return (
     <div

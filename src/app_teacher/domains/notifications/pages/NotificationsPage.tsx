@@ -6,6 +6,7 @@
 /* eslint-disable no-restricted-syntax */
 import { useNavigate } from "react-router";
 import type { ReactNode } from "react";
+import { ExternalLink, Sparkles } from "lucide-react";
 import {
   useTeacherPendingCounts,
   type TeacherPendingItem,
@@ -23,6 +24,8 @@ import {
   Video,
 } from "@teacher/shared/ui/Icons";
 import { TEACHER_PENDING_ROUTES } from "../routes";
+import { useProductUpdateAwareness } from "@/shared/product/useProductUpdateAwareness";
+import useAuth from "@/auth/hooks/useAuth";
 
 type ItemType = TeacherPendingItem["type"];
 
@@ -60,12 +63,20 @@ const DEST_LABEL: Record<ItemType, string> = {
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { items, counts, isLoading } = useTeacherPendingCounts();
-  const total = counts?.total ?? 0;
+  const productUpdate = useProductUpdateAwareness(user?.id);
+  const total = (counts?.total ?? 0) + (productUpdate.isUnread ? 1 : 0);
 
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);
     else navigate("/workspace/mobile", { replace: true });
+  };
+
+  const openLatestProductUpdate = () => {
+    productUpdate.markRead();
+    const nextWindow = window.open(productUpdate.href, "_blank", "noopener,noreferrer");
+    if (nextWindow) nextWindow.opener = null;
   };
 
   return (
@@ -95,6 +106,47 @@ export default function NotificationsPage() {
           </Badge>
         )}
       </div>
+
+      <button
+        type="button"
+        onClick={openLatestProductUpdate}
+        className="w-full text-left cursor-pointer rounded-xl"
+        style={{
+          padding: "var(--tc-space-4)",
+          color: "var(--tc-text)",
+          background: "color-mix(in srgb, var(--tc-primary) 8%, var(--tc-surface))",
+          border: `1px solid ${productUpdate.isUnread ? "var(--tc-primary)" : "var(--tc-border-subtle)"}`,
+          boxShadow: productUpdate.isUnread ? "0 10px 30px color-mix(in srgb, var(--tc-primary) 10%, transparent)" : "none",
+        }}
+      >
+        <div className="flex items-start gap-3">
+          <span
+            className="flex items-center justify-center shrink-0 rounded-lg"
+            style={{
+              width: 38,
+              height: 38,
+              color: "var(--tc-primary)",
+              background: "color-mix(in srgb, var(--tc-primary) 14%, transparent)",
+            }}
+            aria-hidden
+          >
+            <Sparkles size={ICON.sm} />
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="flex items-center gap-2 text-[11px] font-bold" style={{ color: "var(--tc-primary)" }}>
+              {productUpdate.isUnread ? "새 제품 업데이트" : "최신 제품 업데이트"}
+              <span style={{ color: "var(--tc-text-muted)" }}>{productUpdate.latest.date}</span>
+            </span>
+            <strong className="block text-sm mt-1" style={{ color: "var(--tc-text)" }}>
+              {productUpdate.latest.title}
+            </strong>
+            <span className="block text-xs mt-1" style={{ color: "var(--tc-text-muted)", lineHeight: 1.5 }}>
+              달라진 기능과 사용할 수 있는 범위를 확인하세요.
+            </span>
+          </span>
+          <ExternalLink size={ICON.xs} style={{ color: "var(--tc-text-muted)", marginTop: 2 }} aria-hidden />
+        </div>
+      </button>
 
       {/* SSOT 안내: 같은 데이터를 Today에서도 빠르게 확인 가능 */}
       {!isLoading && items.length > 0 && (
@@ -156,7 +208,7 @@ export default function NotificationsPage() {
         <EmptyState
           scope="panel"
           tone="empty"
-          title="새로운 알림이 없습니다"
+          title="처리할 업무 알림이 없습니다"
           description="답변 대기, 제출 확인, 등록 요청이 생기면 이곳에서 한 번에 처리합니다."
           actions={
             <EmptyActionButton variant="secondary" onClick={() => navigate("/workspace/mobile")}>

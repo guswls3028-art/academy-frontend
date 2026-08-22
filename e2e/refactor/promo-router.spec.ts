@@ -280,6 +280,37 @@ test.describe("promo route navigation", () => {
     await expect(page.getByRole("form", { name: "로그인 폼" })).toBeVisible();
   });
 
+  test("publishes the latest product update with cadence and audience scope", async ({ page }, testInfo) => {
+    await gotoAndAssert(page, "/promo/updates");
+
+    await expect(page.getByRole("heading", { name: "수업 운영이 한눈에 보이는 결과 화면" }).first()).toBeVisible();
+    await expect(page.getByText("매주 화요일 오전 9시", { exact: true })).toBeVisible();
+    await expect(page.getByText("수업 분석 Excel", { exact: false })).toBeVisible();
+    await expect(page.getByText("클리닉 패스카드", { exact: false })).toBeVisible();
+    await expect(page.getByText("전체 제공", { exact: true }).first()).toBeVisible();
+
+    const desktopScreenshot = testInfo.outputPath("product-updates-1440.png");
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.screenshot({ path: desktopScreenshot, fullPage: true });
+    await testInfo.attach("product-updates-1440", {
+      path: desktopScreenshot,
+      contentType: "image/png",
+    });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.locator("#latest-update").scrollIntoViewIfNeeded();
+    const latestBox = await page.locator("#latest-update").boundingBox();
+    expect(latestBox).not.toBeNull();
+    expect(latestBox!.x).toBeGreaterThanOrEqual(0);
+    expect(latestBox!.x + latestBox!.width).toBeLessThanOrEqual(390);
+    const mobileScreenshot = testInfo.outputPath("product-updates-390.png");
+    await page.screenshot({ path: mobileScreenshot, fullPage: true });
+    await testInfo.attach("product-updates-390", {
+      path: mobileScreenshot,
+      contentType: "image/png",
+    });
+  });
+
   test("keeps landing sample previews inert inside the promo route", async ({ page }) => {
     await gotoAndAssert(page, "/promo/landing-samples");
 
