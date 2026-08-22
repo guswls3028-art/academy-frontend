@@ -126,6 +126,42 @@ button:active .attendance-status-badge--selected {
   opacity: 1;
 }
 
+/* 대량 입력에서는 현재 선택만 의미색을 쓴다. 나머지는 회색으로 눌러 오입력을 줄인다. */
+.attendance-status-inline__option[data-active="false"] .ds-status-badge {
+  background: color-mix(in srgb, var(--color-border-divider) 26%, var(--color-bg-surface));
+  color: var(--color-text-muted);
+}
+
+/* 부재·퇴원은 운영상 놓치면 안 되는 상태라, 미선택이어도 얇은 경고 윤곽을 남긴다. */
+.attendance-status-inline__option[data-critical="true"][data-active="false"] {
+  opacity: 0.88;
+}
+
+.attendance-status-inline__option[data-status-code="inactive"][data-active="false"] {
+  border-color: color-mix(in srgb, var(--color-brand-complement) 38%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-brand-complement) 4%, transparent);
+}
+
+.attendance-status-inline__option[data-status-code="secession"][data-active="false"] {
+  border-color: color-mix(in srgb, var(--color-danger) 42%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-danger) 4%, transparent);
+}
+
+/* 모바일 학생별 선택기도 데스크톱과 같은 색 규칙을 쓴다. 상태 필터 팝오버는 제외한다. */
+.attendance-popover--status-picker .attendance-popover-item[data-active="false"] .ds-status-badge {
+  background: color-mix(in srgb, var(--color-border-divider) 26%, var(--color-bg-surface));
+  color: var(--color-text-muted);
+}
+
+.attendance-popover--status-picker .attendance-popover-item[data-critical="true"][data-active="false"] {
+  opacity: 0.94 !important;
+  border: 1px solid color-mix(in srgb, var(--color-brand-complement) 38%, var(--color-border-divider));
+}
+
+.attendance-popover--status-picker .attendance-popover-item[data-status-code="secession"][data-active="false"] {
+  border-color: color-mix(in srgb, var(--color-danger) 42%, var(--color-border-divider));
+}
+
 .attendance-status-inline__option:focus-visible {
   outline: 2px solid var(--color-border-focus);
   outline-offset: 1px;

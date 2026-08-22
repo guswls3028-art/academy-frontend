@@ -83,6 +83,37 @@
   text-overflow: ellipsis;
 }
 
+a.student-scores-drawer__student-link {
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px 2px 0;
+  border-radius: 7px;
+  transition: color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+
+a.student-scores-drawer__student-link::after {
+  content: "학생 정보";
+  flex: 0 0 auto;
+  padding: 2px 5px;
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 22%, var(--color-border-divider));
+  border-radius: 999px;
+  color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 5%, var(--color-bg-surface));
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+a.student-scores-drawer__student-link:hover {
+  color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, transparent);
+  text-decoration: none;
+}
+
+a.student-scores-drawer__student-link:focus-visible {
+  text-decoration: none;
+}
+
 .student-scores-drawer__header-meta {
   display: inline-flex;
   align-items: center;
@@ -110,6 +141,12 @@
 .student-scores-drawer__header-action {
   flex-shrink: 0;
   box-shadow: 0 4px 12px color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  a.student-scores-drawer__student-link {
+    transition: none;
+  }
 }
 
 /* ── Body (scrollable) ── */

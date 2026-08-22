@@ -110,6 +110,19 @@ async function installApi(
       });
       return;
     }
+    if (pathname.endsWith("/students/7101/")) {
+      await fulfill({
+        id: 7101,
+        name: "윤지용 학생",
+        ps_number: "S7101",
+        phone: "01033334444",
+        parent_phone: "01011112222",
+        is_managed: true,
+        tags: [],
+        enrollments: [],
+      });
+      return;
+    }
     if (pathname.endsWith("/lectures/attendance/")) {
       await fulfill({
         count: 1,
@@ -310,11 +323,34 @@ async function openHomeworkInspection(page: Page) {
   await drawer.locator(".student-scores-drawer__hw-card")
     .getByText("서술형 워크북 12~15번", { exact: true })
     .click();
-  await expect(drawer.getByRole("group", { name: "과제 검사 상태" })).toBeVisible();
+  await expect(drawer.getByRole("group", { name: "교사 완료 판정 상태" })).toBeVisible();
   return drawer;
 }
 
 test.describe("시험·과제 수동 검사 상태", () => {
+  test("성적 패널의 학생 이름은 같은 화면 위 학생 상세로 연결된다", async ({ page }, testInfo) => {
+    await installApi(page);
+    const baseUrl = getBaseUrl("admin");
+    const scoresUrl = `${baseUrl}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`;
+    await page.goto(scoresUrl, { waitUntil: "load", timeout: 45_000 });
+
+    await page.locator('tbody tr[role="button"]').first().locator('[data-col-type="name"]').click();
+    const drawer = page.locator(".student-scores-drawer");
+    const studentLink = drawer.getByRole("link", { name: "윤지용 학생 학생 상세 열기" });
+    await expect(studentLink).toBeVisible();
+    await drawer.screenshot({ path: testInfo.outputPath("score-drawer-student-link-1366.png") });
+    await studentLink.click();
+
+    await expect(page).toHaveURL(/\/workspace\/students\/7101$/);
+    const overlay = page.getByTestId("student-detail-overlay");
+    await expect(overlay).toBeVisible();
+    await expect(overlay.getByRole("heading", { name: "윤지용 학생" })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("score-to-student-overlay-1366.png"), fullPage: false });
+    await overlay.getByRole("button", { name: "닫기" }).click();
+    await expect(page).toHaveURL(/\/sessions\/991102\/scores$/);
+    await expect(drawer).toBeVisible();
+  });
+
   test("점수 없는 과제도 완료/미완료와 비고를 저장하고 다시 불러온다", async ({ page }, testInfo) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width: 1366, height: 900 });
@@ -331,11 +367,11 @@ test.describe("시험·과제 수동 검사 상태", () => {
     await expect(drawer.getByText("미달 항목", { exact: true })).toBeVisible();
     await expect(drawer.getByText("함수 단원평가", { exact: true }).first()).toBeVisible();
     await expect(drawer.getByText("점수 미입력", { exact: true })).toBeVisible();
-    const note = drawer.getByRole("textbox", { name: "과제 검사 비고" });
+    const note = drawer.getByRole("textbox", { name: "교사 완료 판정 비고" });
     await expect(note).toBeEnabled();
     await note.fill("연습문제 12~15번 미완료");
     await drawer.getByRole("button", { name: "미완료", exact: true }).click();
-    await expect(drawer.getByText("검사 미완료", { exact: true }).first()).toBeVisible();
+    await expect(drawer.getByText("교사 미완료", { exact: true }).first()).toBeVisible();
     await expect(note).toHaveValue("연습문제 12~15번 미완료");
     expect(api.correctionRequests.at(-1)).toMatchObject({
       source_type: "homework",
@@ -356,7 +392,7 @@ test.describe("시험·과제 수동 검사 상태", () => {
       .filter({ hasText: "방정식 단원평가" })
       .getByText("방정식 단원평가", { exact: true })
       .click();
-    const examNote = drawer.getByRole("textbox", { name: "오답 확인 비고" });
+    const examNote = drawer.getByRole("textbox", { name: "교사 최종 판정 비고" });
     await expect(examNote).toHaveValue("서술형 3번 풀이 확인");
     await examNote.fill("서술형 3번 풀이와 단위를 다시 확인");
     await drawer.locator(".student-scores-drawer__exam-card")
@@ -370,10 +406,10 @@ test.describe("시험·과제 수동 검사 상태", () => {
 
     await page.reload({ waitUntil: "load" });
     drawer = await openHomeworkInspection(page);
-    await expect(drawer.getByRole("textbox", { name: "과제 검사 비고" }))
+    await expect(drawer.getByRole("textbox", { name: "교사 완료 판정 비고" }))
       .toHaveValue("12~13번 완료, 14~15번 남음");
-    await drawer.getByRole("button", { name: "완료", exact: true }).click();
-    await expect(drawer.getByText("검사 완료", { exact: true }).first()).toBeVisible();
+    await drawer.getByRole("button", { name: "완료 확정", exact: true }).click();
+    await expect(drawer.getByText("교사 완료", { exact: true }).first()).toBeVisible();
     await expect(drawer.getByText("1/1 완료", { exact: false })).toBeVisible();
     await expect(drawer.getByText("미입력", { exact: true })).toHaveCount(0);
     expect(api.correctionRequests.at(-1)).toMatchObject({
@@ -400,8 +436,8 @@ test.describe("시험·과제 수동 검사 상태", () => {
 
     const drawer = await openHomeworkInspection(page);
     await expect(drawer.getByRole("button", { name: "미완료", exact: true })).toBeVisible();
-    await expect(drawer.getByRole("button", { name: "완료", exact: true })).toBeVisible();
-    await expect(drawer.getByRole("textbox", { name: "과제 검사 비고" })).toBeVisible();
+    await expect(drawer.getByRole("button", { name: "완료 확정", exact: true })).toBeVisible();
+    await expect(drawer.getByRole("textbox", { name: "교사 완료 판정 비고" })).toBeVisible();
     expect(await drawer.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
 
     await page.screenshot({
@@ -424,11 +460,11 @@ test.describe("시험·과제 수동 검사 상태", () => {
     const examCard = drawer.locator(".student-scores-drawer__exam-card")
       .filter({ hasText: "방정식 단원평가" });
     await examCard.getByText("방정식 단원평가", { exact: true }).click();
-    await examCard.getByRole("button", { name: "완료", exact: true }).click();
+    await examCard.getByRole("button", { name: "통과 확정", exact: true }).click();
 
-    await expect(examCard.getByText("오답 완료", { exact: true }).first()).toBeVisible();
+    await expect(examCard.getByText("교사 통과", { exact: true }).first()).toBeVisible();
     await expect.poll(api.getScoreRefreshFailures).toBeGreaterThan(0);
-    await expect(examCard.getByText("오답 완료", { exact: true }).first()).toBeVisible();
+    await expect(examCard.getByText("교사 통과", { exact: true }).first()).toBeVisible();
     expect(api.correctionRequests.at(-1)).toMatchObject({
       source_type: "exam",
       completed: true,
@@ -450,7 +486,7 @@ test.describe("시험·과제 수동 검사 상태", () => {
     await drawer.getByRole("button", { name: "미완료", exact: true }).click();
     await expect(page.getByText("점수가 입력된 항목만 상태를 바꿀 수 있습니다.", { exact: true }))
       .toBeVisible();
-    await expect(drawer.getByText("검사 미완료", { exact: true })).toHaveCount(0);
+    await expect(drawer.getByText("교사 미완료", { exact: true })).toHaveCount(0);
 
     await page.keyboard.press("Escape");
     await expect(drawer).toBeHidden();

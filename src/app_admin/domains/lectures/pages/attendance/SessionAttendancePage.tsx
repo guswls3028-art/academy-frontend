@@ -59,10 +59,10 @@ import "./attendance-ui.css";
 const STATUS_LIST = ORDERED_ATTENDANCE_STATUS;
 const PAGE_SIZE = 50;
 const DEFAULT_ATTENDANCE_SORT = "name";
-const ATTENDANCE_SORT_VALUES = ["", "name", "-name", "status", "-status", "parent_phone", "-parent_phone", "phone", "-phone"] as const;
+const ATTENDANCE_SORT_VALUES = ["name", "-name", "parent_phone", "-parent_phone", "phone", "-phone"] as const;
 
 type AttendanceSort = typeof ATTENDANCE_SORT_VALUES[number];
-type AttendanceSortColumn = "name" | "status" | "parent_phone" | "phone";
+type AttendanceSortColumn = "name" | "parent_phone" | "phone";
 
 function isAttendanceSort(value: string | null): value is AttendanceSort {
   return ATTENDANCE_SORT_VALUES.includes(value as AttendanceSort);
@@ -82,7 +82,9 @@ function getStoredAttendanceSort(
         if (getLocalItem(storageKey) === savedSort) removeLocalItem(previousStorageKey);
       }
     }
-    return isAttendanceSort(savedSort) ? savedSort : DEFAULT_ATTENDANCE_SORT;
+    const resolvedSort = isAttendanceSort(savedSort) ? savedSort : DEFAULT_ATTENDANCE_SORT;
+    if (savedSort !== resolvedSort) setLocalItem(storageKey, resolvedSort);
+    return resolvedSort;
   } catch {
     return DEFAULT_ATTENDANCE_SORT;
   }
@@ -208,7 +210,7 @@ export default function SessionAttendancePage({
         page_size: PAGE_SIZE,
         search: search.trim() || undefined,
         status: statusFilter || undefined,
-        ordering: sort || "id",
+        ordering: sort,
       }),
     enabled: Number.isFinite(sessionId),
   });
@@ -699,7 +701,12 @@ export default function SessionAttendancePage({
 
   /** 정렬 토글 핸들러 */
   function toggleSort(colKey: AttendanceSortColumn) {
-    const nextSort: AttendanceSort = sort === colKey ? `-${colKey}` : sort === `-${colKey}` ? "" : colKey;
+    const descending = `-${colKey}` as AttendanceSort;
+    const nextSort: AttendanceSort = sort === colKey
+      ? descending
+      : sort === descending
+        ? DEFAULT_ATTENDANCE_SORT
+        : colKey;
     setSort(nextSort);
     if (!sortStorageKey) return;
     setLocalItem(sortStorageKey, nextSort);
@@ -714,7 +721,7 @@ export default function SessionAttendancePage({
         return createPortal(
           <div
             ref={statusRowPopoverRef}
-            className="attendance-popover fixed flex items-center gap-2 rounded-lg border p-2 shadow-lg z-[9999]"
+            className="attendance-popover attendance-popover--status-picker fixed flex items-center gap-2 rounded-lg border p-2 shadow-lg z-[9999]"
             style={{
               left: statusRowPopoverAnchor.left,
               top: statusRowPopoverAnchor.top,
@@ -733,6 +740,9 @@ export default function SessionAttendancePage({
                   key={code}
                   type="button"
                   className="attendance-popover-item cursor-pointer rounded border-0 p-0.5 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)] focus-visible:ring-offset-1"
+                  data-active={active ? "true" : "false"}
+                  data-critical={code === "INACTIVE" || code === "SECESSION" ? "true" : undefined}
+                  data-status-code={code.toLowerCase()}
                   style={{
                     opacity: active ? 1 : 0.85,
                     boxShadow: active ? "0 0 0 2px var(--color-primary)" : undefined,
@@ -741,7 +751,7 @@ export default function SessionAttendancePage({
                   disabled={pendingStatusIds.has(att.id)}
                   onClick={() => void handleStatusChange(att, code)}
                 >
-                  <AttendanceStatusBadge status={code} variant="2ch" />
+                  <AttendanceStatusBadge status={code} variant="2ch" selected={active} />
                 </button>
               );
             })}
@@ -839,8 +849,11 @@ export default function SessionAttendancePage({
                   <ResizableTh columnKey="name" width={columnWidths.name ?? col.name} minWidth={80} maxWidth={400} onWidthChange={setColumnWidth} scope="col" onClick={() => toggleSort("name")} className="cursor-pointer select-none" aria-sort={sort === "name" ? "ascending" : sort === "-name" ? "descending" : "none"}>
                     <span className="inline-flex items-center gap-1">이름 <span aria-hidden style={{ fontSize: 10, opacity: sort === "name" || sort === "-name" ? 1 : 0.3, color: "var(--color-primary)" }}>{sort === "name" ? "▲" : sort === "-name" ? "▼" : "⇅"}</span></span>
                   </ResizableTh>
-                  <ResizableTh columnKey="status" width={columnWidths.status ?? col.statusBadge} minWidth={isCompactAttendance ? 60 : 520} maxWidth={isCompactAttendance ? 140 : 660} onWidthChange={setColumnWidth} scope="col" onClick={() => toggleSort("status")} className="cursor-pointer select-none text-center" aria-sort={sort === "status" ? "ascending" : sort === "-status" ? "descending" : "none"}>
-                    <span className="inline-flex items-center gap-1">{isCompactAttendance ? "상태" : "출결 상태 · 한 번 눌러 저장"} <span aria-hidden style={{ fontSize: 10, opacity: sort === "status" || sort === "-status" ? 1 : 0.3, color: "var(--color-primary)" }}>{sort === "status" ? "▲" : sort === "-status" ? "▼" : "⇅"}</span></span>
+                  <ResizableTh columnKey="status" width={columnWidths.status ?? col.statusBadge} minWidth={isCompactAttendance ? 60 : 520} maxWidth={isCompactAttendance ? 140 : 660} onWidthChange={setColumnWidth} scope="col" className="text-center">
+                    <span className="inline-flex items-center gap-1" title="출결을 바꿔도 학생 명단 순서는 유지됩니다.">
+                      {!isCompactAttendance && <ShieldCheck size={12} aria-hidden />}
+                      {isCompactAttendance ? "상태" : "출결 상태 · 선택해도 명단 순서 유지"}
+                    </span>
                   </ResizableTh>
                   {isSupplementSession && (
                     <ResizableTh
