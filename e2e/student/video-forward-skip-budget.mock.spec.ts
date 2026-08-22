@@ -28,7 +28,7 @@ test.describe("student proctored video forward-skip budget", () => {
     serviceWorkers: "block",
   });
 
-  test("10초 승인만 이동하고 서버 잔여량을 반영해 소진 시 잠근다", async ({ page }) => {
+  test("10초 승인만 이동하고 서버 잔여량을 반영해 소진 시 잠근다", async ({ page }, testInfo) => {
     const video = {
       id: 901,
       session_id: 71,
@@ -147,6 +147,7 @@ test.describe("student proctored video forward-skip budget", () => {
     );
 
     await expect(page.getByText("10초씩 · 0:20 남음")).toBeVisible({ timeout: 60_000 });
+    await page.screenshot({ path: testInfo.outputPath("video-forward-skip-390.png"), fullPage: true });
     const forward = page.getByRole("button", { name: /10초 앞으로 건너뛰기/ });
     await forward.click();
     await expect(page.getByText("10초씩 · 0:10 남음")).toBeVisible();
@@ -160,6 +161,7 @@ test.describe("student proctored video forward-skip budget", () => {
 
     await page.setViewportSize({ width: 1440, height: 900 });
     await expect(page.getByText("사용 가능한 시간을 모두 썼어요")).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("video-forward-skip-1440.png"), fullPage: true });
     const desktopHasOverflow = await page.evaluate(
       () => document.documentElement.scrollWidth > window.innerWidth + 1,
     );

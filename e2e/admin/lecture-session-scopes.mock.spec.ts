@@ -38,6 +38,7 @@ type MockState = {
   homeworkAssignmentIds?: number[];
   homeworkAssignmentPuts?: number[][];
   homeworkAssignmentDelayMs?: number;
+  createdVideoPayloads?: Array<Record<string, unknown>>;
 };
 
 function sessionRows(state: MockState, lectureId = LECTURE_ID) {
@@ -311,6 +312,19 @@ async function installApi(page: Page, state: MockState) {
     if (path === "/lectures/attendance/") return json({ count: 0, results: [] });
     if (path === "/results/admin/clinic-targets/") return json([]);
     if (path === "/staffs/currently-working/") return json([]);
+    if (path === "/media/videos/youtube/" && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      state.createdVideoPayloads ??= [];
+      state.createdVideoPayloads.push(payload);
+      return json({
+        video: {
+          id: 9981,
+          ...payload,
+          source_type: "youtube",
+          status: "READY",
+        },
+      }, 201);
+    }
     return json({ count: 0, results: [] });
   });
 }
@@ -462,6 +476,14 @@ test("영상 추가 정책은 허용·금지를 표시하고 라벨 전체 클�
   await expect(skipAllow).toHaveAttribute("aria-checked", "true");
   await expect(skipAllow).toContainText("허용");
 
+  await skipAllow.focus();
+  await skipAllow.press("Space");
+  const skipDenyByKeyboard = dialog.getByRole("switch", { name: "건너뛰기 금지" });
+  await expect(skipDenyByKeyboard).toHaveAttribute("aria-checked", "false");
+  await skipDenyByKeyboard.press("Enter");
+  await expect(dialog.getByRole("switch", { name: "건너뛰기 허용" }))
+    .toHaveAttribute("aria-checked", "true");
+
   const policyRowMetrics = await dialog.locator(".video-upload-modal__policy-row").evaluate((element) => ({
     clientWidth: element.clientWidth,
     scrollWidth: element.scrollWidth,
@@ -469,6 +491,21 @@ test("영상 추가 정책은 허용·금지를 표시하고 라벨 전체 클�
   expect(policyRowMetrics.scrollWidth, JSON.stringify(policyRowMetrics))
     .toBeLessThanOrEqual(policyRowMetrics.clientWidth + 1);
   await page.screenshot({ path: testInfo.outputPath("video-policy-390.png"), fullPage: true });
+
+  await dialog.getByRole("tab", { name: "YouTube 링크" }).click();
+  await dialog.getByPlaceholder(/제목/).fill("정책 저장 확인 영상");
+  await dialog.getByPlaceholder("https://youtu.be/...").fill("https://youtu.be/dQw4w9WgXcQ");
+  await dialog.getByRole("button", { name: "링크 추가" }).click();
+
+  await expect.poll(() => state.createdVideoPayloads?.length ?? 0).toBe(1);
+  expect(state.createdVideoPayloads?.[0]).toMatchObject({
+    session: REGULAR_SESSION_ID,
+    title: "정책 저장 확인 영상",
+    show_watermark: false,
+    allow_skip: true,
+    max_speed: 1,
+  });
+  await expect(dialog).toBeHidden();
 });
 
 test("정규 차시 번호를 수정하면 정확한 조사와 새 번호를 즉시 표시하고 재조회 후 유지한다", async ({ page }) => {
