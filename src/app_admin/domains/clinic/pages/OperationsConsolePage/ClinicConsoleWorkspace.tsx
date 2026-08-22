@@ -289,6 +289,23 @@ export default function ClinicConsoleWorkspace({
     return map;
   }, [clinicTargets]);
 
+  // A clinic booking owns one enrollment, but the work queue belongs to the
+  // student. Keep every unresolved target from the student's active courses.
+  const targetsByStudent = useMemo(() => {
+    const map = new Map<number, ClinicTarget[]>();
+    if (!clinicTargets) return map;
+    for (const target of clinicTargets) {
+      if (target.student_id == null) continue;
+      const existing = map.get(target.student_id);
+      if (existing) {
+        existing.push(target);
+      } else {
+        map.set(target.student_id, [target]);
+      }
+    }
+    return map;
+  }, [clinicTargets]);
+
   const invalidateAll = useCallback(() => {
     qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
     qc.invalidateQueries({ queryKey: clinicQueryKeys.sessionsTree });
@@ -628,9 +645,10 @@ export default function ClinicConsoleWorkspace({
   }
 
   function getTargetsForParticipant(p: ClinicParticipant): ClinicTarget[] {
-    let targets = p.enrollment_id
-      ? targetsByEnrollment.get(p.enrollment_id) ?? []
-      : [];
+    let targets = targetsByStudent.get(p.student) ?? [];
+    if (targets.length === 0 && p.enrollment_id) {
+      targets = targetsByEnrollment.get(p.enrollment_id) ?? [];
+    }
     if (targets.length === 0 && p.clinic_reason) {
       targets = [
         {
