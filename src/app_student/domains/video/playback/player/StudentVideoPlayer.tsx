@@ -30,6 +30,10 @@ import SeekOverlay from "./gesture/SeekOverlay";
 import type { AccessMode } from "@/shared/api/contracts/videos";
 import { resolveTenantCodeString } from "@/shared/tenant";
 import { isYouTubeSource } from "@/shared/media/video/youtube";
+import {
+  requestVideoForwardSkip,
+  type VideoForwardSkipBudget,
+} from "../../api/video.api";
 
 export type VideoMetaLite = {
   id: number;
@@ -74,11 +78,29 @@ type Policy = {
   access_mode?: AccessMode;
   monitoring_enabled?: boolean;
   allow_seek?: boolean;
-  seek?: { mode?: string; grace_seconds?: number };
+  seek?: {
+    mode?: string;
+    grace_seconds?: number;
+    enabled?: boolean;
+    step_seconds?: number;
+    limit_seconds?: number;
+    used_seconds?: number;
+    remaining_seconds?: number;
+    unavailable_reason?: "" | "duration_unavailable" | "limit_reached";
+  };
   playback_rate?: { max?: number; ui_control?: boolean };
   watermark?: { enabled?: boolean };
   source?: { type?: string; provider?: string; youtube_video_id?: string | null };
 };
+
+type ForwardSkipBudgetState = Omit<VideoForwardSkipBudget, "granted_seconds" | "ratio_percent" | "max_seconds">;
+
+function forwardSkipErrorMessage(error: unknown): string {
+  const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+  if (typeof detail === "string" && detail.trim()) return detail;
+  if (error instanceof Error && error.message.trim()) return error.message;
+  return "건너뛰기를 승인하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+}
 
 function normalizePolicy(p: Partial<Policy> | null | undefined): Policy {
   const policy: Policy = { ...(p || {}) };
@@ -141,12 +163,14 @@ export default function StudentVideoPlayer({
   const allowSeek = !!policy.allow_seek && policy.seek?.mode !== "blocked";
   const seekMode = policy.seek?.mode || "free";
   const boundedForward = seekMode === "bounded_forward";
+  const budgetedForward = seekMode === "budgeted_forward";
   const speedUi = policy.playback_rate?.ui_control !== false;
   const maxRate = Math.max(1, safeParseFloat(policy.playback_rate?.max, 1) || 1);
   const speedLocked = !speedUi || maxRate <= 1.0001;
   const watermarkEnabled = !!policy.watermark?.enabled;
   const monitoringEnabled = policy.monitoring_enabled ?? false;
   const isYoutube = isYouTubeSource(video.source_type || bootstrap.source_type || policy.source?.type);
+  const usesCustomControls = !isYoutube || monitoringEnabled || budgetedForward;
 
   const videoElRef = useRef<HTMLVideoElement | null>(null);
   const youtubeMountRef = useRef<HTMLDivElement | null>(null);
@@ -157,6 +181,24 @@ export default function StudentVideoPlayer({
   const [theater, setTheater] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const policySkipBudget = useMemo<ForwardSkipBudgetState>(() => ({
+    enabled: policy.seek?.enabled === true,
+    step_seconds: Math.max(1, Number(policy.seek?.step_seconds || 10)),
+    limit_seconds: Math.max(0, Number(policy.seek?.limit_seconds || 0)),
+    used_seconds: Math.max(0, Number(policy.seek?.used_seconds || 0)),
+    remaining_seconds: Math.max(0, Number(policy.seek?.remaining_seconds || 0)),
+    unavailable_reason: policy.seek?.unavailable_reason || "",
+  }), [
+    policy.seek?.enabled,
+    policy.seek?.limit_seconds,
+    policy.seek?.remaining_seconds,
+    policy.seek?.step_seconds,
+    policy.seek?.unavailable_reason,
+    policy.seek?.used_seconds,
+  ]);
+  const [skipBudget, setSkipBudget] = useState<ForwardSkipBudgetState>(policySkipBudget);
+  const [skipPending, setSkipPending] = useState(false);
+  const skipPendingRef = useRef(false);
   const fullscreenFallbackRef = useRef(false);
 
   const gestureLayerRef = useRef<HTMLDivElement | null>(null);
@@ -172,6 +214,10 @@ export default function StudentVideoPlayer({
   useEffect(() => {
     currentRef.current = current;
   }, [current]);
+
+  useEffect(() => {
+    setSkipBudget(policySkipBudget);
+  }, [policySkipBudget]);
 
 
   useEffect(() => {
@@ -348,9 +394,65 @@ export default function StudentVideoPlayer({
   const skip = useCallback((delta: number) => {
     const ctrl = controllerRef.current;
     if (!ctrl) return;
+    if (delta > 0 && budgetedForward) {
+      const target = Number(currentRef.current || 0) + skipBudget.step_seconds;
+      const graceSeconds = Math.max(0, Number(policy.seek?.grace_seconds || 0));
+      if (target <= ctrl.getMaxWatched() + graceSeconds) {
+        ctrl.seek(target);
+        return;
+      }
+      if (skipPendingRef.current) return;
+      if (skipBudget.remaining_seconds <= 0) {
+        const message = skipBudget.unavailable_reason === "duration_unavailable"
+          ? "영상 길이를 확인할 수 없어 앞으로 건너뛰기를 사용할 수 없습니다."
+          : "이 영상에서 사용할 수 있는 건너뛰기 시간을 모두 사용했습니다.";
+        ctrl.showToast(message, "warn");
+        return;
+      }
+      skipPendingRef.current = true;
+      setSkipPending(true);
+      void requestVideoForwardSkip(video.id, enrollmentId)
+        .then((result) => {
+          const grantedSeconds = result.granted_seconds;
+          const nextBudget: ForwardSkipBudgetState = {
+            enabled: result.enabled,
+            step_seconds: result.step_seconds,
+            limit_seconds: result.limit_seconds,
+            used_seconds: result.used_seconds,
+            remaining_seconds: result.remaining_seconds,
+            unavailable_reason: result.unavailable_reason,
+          };
+          setSkipBudget(nextBudget);
+          if (grantedSeconds <= 0) {
+            ctrl.showToast("이 영상에서 사용할 수 있는 건너뛰기 시간을 모두 사용했습니다.", "warn");
+            return;
+          }
+          ctrl.seekApprovedForward(Number(currentRef.current || 0) + grantedSeconds);
+          ctrl.showToast(
+            `${grantedSeconds}초 건너뛰었습니다. ${formatClock(nextBudget.remaining_seconds)} 남았습니다.`,
+            "info",
+          );
+        })
+        .catch((error: unknown) => {
+          ctrl.showToast(forwardSkipErrorMessage(error), "warn");
+        })
+        .finally(() => {
+          skipPendingRef.current = false;
+          setSkipPending(false);
+        });
+      return;
+    }
     const t = Number(currentRef.current || 0) + Number(delta || 0);
     ctrl.seek(t);
-  }, []);
+  }, [
+    budgetedForward,
+    enrollmentId,
+    policy.seek?.grace_seconds,
+    skipBudget.remaining_seconds,
+    skipBudget.step_seconds,
+    skipBudget.unavailable_reason,
+    video.id,
+  ]);
 
   const getRect = useCallback(() => gestureLayerRef.current?.getBoundingClientRect() ?? null, []);
   const onSingleTap = useCallback(
@@ -607,12 +709,13 @@ export default function StudentVideoPlayer({
       pills.push({ text: monitoringEnabled ? "복습" : "복습 모드 (모니터링 없음)", tone: "neutral" });
     }
     if (!allowSeek || seekMode === "blocked") pills.push({ text: "탐색 제한", tone: "warn" });
+    else if (budgetedForward) pills.push({ text: "10초 건너뛰기", tone: "neutral" });
     else if (boundedForward) pills.push({ text: "앞으로 탐색 제한", tone: "warn" });
     if (speedLocked) pills.push({ text: "배속 제한", tone: "warn" });
     if (watermarkEnabled) pills.push({ text: "워터마크", tone: "neutral" });
     if (isYoutube) pills.push({ text: "YouTube", tone: "neutral" });
     return pills;
-  }, [policy.access_mode, monitoringEnabled, allowSeek, boundedForward, seekMode, speedLocked, watermarkEnabled, isYoutube]);
+  }, [policy.access_mode, monitoringEnabled, allowSeek, boundedForward, budgetedForward, seekMode, speedLocked, watermarkEnabled, isYoutube]);
 
   const deviceId = useMemo(() => getOrCreateDeviceId(), []);
 
@@ -699,7 +802,7 @@ export default function StudentVideoPlayer({
                   poster={video.thumbnail_url || undefined}
                 />
               )}
-              {!isYoutube && (
+              {usesCustomControls && (
                 <div
                   ref={gestureLayerRef}
                   className="svpGestureLayer"
@@ -720,7 +823,7 @@ export default function StudentVideoPlayer({
                 </div>
               )}
 
-              {ready && !playing && !reconnecting && !isYoutube && (
+              {ready && !playing && !reconnecting && usesCustomControls && (
                 <button className="svpBigPlay" type="button" onClick={togglePlay} onDoubleClick={(e) => e.stopPropagation()}>
                   <span className="svpBigPlayIcon">▶</span>
                   <span className="svpBigPlayText">재생</span>
@@ -752,7 +855,7 @@ export default function StudentVideoPlayer({
                 </div>
               )}
 
-              {!isYoutube && (
+              {usesCustomControls && (
                 <div className="svpControls">
                   <div className="svpProgressRow">
                     <RangeSlider
@@ -762,6 +865,7 @@ export default function StudentVideoPlayer({
                       step={0.1}
                       onChange={(v) => onScrub(v)}
                       ariaLabel="진행 바"
+                      disabled={budgetedForward}
                     />
                     <div className="svpTime">
                       <span className="svpTimeCur">{formatClock(current)}</span>
@@ -770,11 +874,41 @@ export default function StudentVideoPlayer({
                     </div>
                   </div>
 
+                  {budgetedForward && (
+                    <div className="svpSkipBudget" role="status" aria-live="polite">
+                      <div className="svpSkipBudgetCopy">
+                        <span className="svpSkipBudgetLabel">쉬는 시간 건너뛰기</span>
+                        <span className="svpSkipBudgetValue">
+                          {skipPending
+                            ? "승인 중…"
+                            : skipBudget.unavailable_reason === "duration_unavailable"
+                              ? "영상 길이 확인 필요"
+                              : skipBudget.remaining_seconds > 0
+                                ? `10초씩 · ${formatClock(skipBudget.remaining_seconds)} 남음`
+                                : "사용 가능한 시간을 모두 썼어요"}
+                        </span>
+                      </div>
+                      <progress
+                        className="svpSkipBudgetTrack"
+                        max={Math.max(1, skipBudget.limit_seconds)}
+                        value={skipBudget.remaining_seconds}
+                        aria-hidden="true"
+                      />
+                    </div>
+                  )}
+
                   <div className="svpControlRow">
                     <div className="svpLeftControls">
                       <IconButton icon={playing ? "pause" : "play"} label={playing ? "일시정지" : "재생"} onClick={togglePlay} />
                       <IconButton icon="replay10" label="-10초" onClick={() => skip(-10)} />
-                      <IconButton icon="forward10" label="+10초" onClick={() => skip(10)} />
+                      <IconButton
+                        icon="forward10"
+                        label={budgetedForward
+                          ? `10초 앞으로 건너뛰기 (${formatClock(skipBudget.remaining_seconds)} 남음)`
+                          : "+10초"}
+                        onClick={() => skip(10)}
+                        disabled={budgetedForward && (skipPending || skipBudget.remaining_seconds <= 0)}
+                      />
                       <div className="svpVolume">
                         <IconButton icon={muted || volume <= 0.0001 ? "mute" : "volume"} label="음소거" onClick={toggleMute} />
                         <div className="svpVolumeSlider">
@@ -783,11 +917,13 @@ export default function StudentVideoPlayer({
                       </div>
                     </div>
                     <div className="svpRightControls">
-                      <QualityButton
-                        current={currentQuality}
-                        qualities={qualities}
-                        onSelect={(idx) => controllerRef.current?.setQuality(idx)}
-                      />
+                      {!isYoutube && (
+                        <QualityButton
+                          current={currentQuality}
+                          qualities={qualities}
+                          onSelect={(idx) => controllerRef.current?.setQuality(idx)}
+                        />
+                      )}
                       <SpeedButton
                         rate={rate}
                         speeds={rateMenu}
@@ -803,13 +939,16 @@ export default function StudentVideoPlayer({
                     </div>
                   </div>
 
-                  {(!allowSeek || speedLocked) && (
+                  {(!allowSeek || speedLocked || budgetedForward) && (
                     <div className="svpPolicyHint">
                       {(!allowSeek || seekMode === "blocked") && (
                         <span className="svpPolicyHintItem">• 탐색이 제한됩니다{boundedForward ? " (시청한 구간만 이동 가능)" : ""}</span>
                       )}
                       {allowSeek && seekMode !== "blocked" && boundedForward && (
                         <span className="svpPolicyHintItem">• 앞으로 탐색이 제한됩니다</span>
+                      )}
+                      {budgetedForward && (
+                        <span className="svpPolicyHintItem">• 앞으로는 10초씩, 영상별 허용 시간 안에서 이동할 수 있습니다</span>
                       )}
                       {speedLocked && <span className="svpPolicyHintItem">• 배속 변경이 제한됩니다</span>}
                     </div>
@@ -847,7 +986,13 @@ export default function StudentVideoPlayer({
             <div className="svpSideBullets">
               <div className="svpSideBullet">
                 <span className="svpSideDot" />
-                <span className="svpSideTxt">{allowSeek ? (boundedForward ? "본 구간까지만 이동 가능" : "자유롭게 이동 가능") : "구간 이동 제한"}</span>
+                <span className="svpSideTxt">
+                  {budgetedForward
+                    ? `10초씩 앞으로 · ${formatClock(skipBudget.remaining_seconds)} 남음`
+                    : allowSeek
+                      ? (boundedForward ? "본 구간까지만 이동 가능" : "자유롭게 이동 가능")
+                      : "구간 이동 제한"}
+                </span>
               </div>
               <div className="svpSideBullet">
                 <span className="svpSideDot" />
