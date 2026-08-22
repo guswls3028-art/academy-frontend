@@ -13,6 +13,8 @@ export type LoginResponse = {
 
 const LOGIN_TRANSIENT_RETRIES = 2;
 const LOGIN_TRANSIENT_BASE_DELAY_MS = 350;
+const LOGIN_STORAGE_ERROR_MESSAGE =
+  "이 브라우저에 로그인 정보를 저장하지 못했습니다. Safari의 개인정보 보호 설정을 확인한 뒤 다시 시도해 주세요.";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -45,6 +47,51 @@ async function postLoginWithTransientRetry(body: Record<string, string>) {
     }
   }
   throw lastError;
+}
+
+function removePersistedLoginTokens(): void {
+  for (const key of ["access", "refresh"]) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // Storage itself may be blocked. Keep cleanup best-effort and fail closed below.
+    }
+  }
+}
+
+type PersistedLoginTokens = { access: string | null; refresh: string | null };
+
+function readPersistedLoginTokens(): PersistedLoginTokens {
+  try {
+    return {
+      access: localStorage.getItem("access"),
+      refresh: localStorage.getItem("refresh"),
+    };
+  } catch {
+    throw new Error(LOGIN_STORAGE_ERROR_MESSAGE);
+  }
+}
+
+function restorePersistedLoginTokens(previous: PersistedLoginTokens): void {
+  try {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === null) localStorage.removeItem(key);
+      else localStorage.setItem(key, value);
+    }
+  } catch {
+    removePersistedLoginTokens();
+  }
+}
+
+function persistLoginTokens(access: string, refresh: string): void {
+  const previous = readPersistedLoginTokens();
+  try {
+    localStorage.setItem("access", access);
+    localStorage.setItem("refresh", refresh);
+  } catch {
+    restorePersistedLoginTokens(previous);
+    throw new Error(LOGIN_STORAGE_ERROR_MESSAGE);
+  }
 }
 
 export const login = async (username: string, password: string) => {
@@ -89,8 +136,7 @@ export const login = async (username: string, password: string) => {
     throw new Error("Invalid token response");
   }
 
-  localStorage.setItem("access", access);
-  localStorage.setItem("refresh", refresh);
+  persistLoginTokens(access, refresh);
   resetSessionEnding(); // 재로그인 시 세션 종료 플래그 초기화
 
   return res.data;

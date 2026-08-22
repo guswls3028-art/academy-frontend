@@ -202,6 +202,9 @@ export default function LoginPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               data-testid="login-username"
             />
             <label htmlFor="login-password" className={styles.srOnly}>비밀번호</label>
@@ -218,6 +221,9 @@ export default function LoginPage() {
                 onKeyUp={(e) => setCapsOn(e.getModifierState && e.getModifierState("CapsLock"))}
                 onBlur={() => setCapsOn(false)}
                 autoComplete="current-password"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 data-testid="login-password"
               />
               <button

@@ -12,6 +12,11 @@ const chromium = {
   deviceScaleFactor: 1,
 };
 
+const webkit = {
+  ...devices["Desktop Safari"],
+  viewport: { width: 390, height: 844 },
+};
+
 function matchSpec(spec: string): string {
   return `**/${spec.replace(/^e2e\//, "")}`;
 }
@@ -38,6 +43,12 @@ export default defineConfig({
       testMatch: routeMockSpecs.map(matchSpec),
       dependencies: [`pr-readonly-${productionReadOnlySpecs.length}`],
       use: chromium,
+    },
+    {
+      name: "pr-iphone-webkit",
+      testMatch: [matchSpec("e2e/auth/iphone-safari-login.mock.spec.ts")],
+      dependencies: [],
+      use: webkit,
     },
   ],
 });

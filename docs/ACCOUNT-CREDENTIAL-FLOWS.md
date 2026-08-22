@@ -52,6 +52,13 @@ API와 성공 후 세션 처리를 소유한다. 비밀번호 원문, 토큰, �
 
 ## 실패와 입력 처리
 
+- 로그인 ID와 비밀번호 입력은 iPhone Safari의 자동 대문자·자동수정·맞춤법
+  변형을 끈다. 사용자가 입력한 대소문자와 기호를 그대로 `/token/`에 보내며,
+  모바일에서도 역할별 홈으로 이동하기 전에 `/core/me/` 성공을 확인한다.
+- access·refresh 토큰은 둘 다 저장되어야 로그인에 성공한 것으로 본다. 첫 번째나
+  두 번째 저장에서 브라우저 저장소 오류가 발생하면 직전 토큰 쌍을 원상 복원하고,
+  직전 세션이 없었을 때만 두 키를 모두 제거한다. 이 실패는
+  아이디·비밀번호 오류와 구분되는 Safari 개인정보 보호 설정 안내를 표시한다.
 - 현재 비밀번호, 4자 이상의 새 비밀번호, 새 비밀번호 확인을 모두 검사한다.
 - 현재 비밀번호와 같은 값, 확인값 불일치, 중복 제출은 요청 전에 차단한다.
 - 서버의 현재 비밀번호 불일치와 알림톡 전송 실패 문구를 화면에 표시한다.
@@ -76,7 +83,12 @@ API와 성공 후 세션 처리를 소유한다. 비밀번호 원문, 토큰, �
   같은 origin의 여러 탭은 Web Lock으로 refresh token 회전을 직렬화하고, 먼저
   회전한 탭의 새 access/refresh를 재사용한다. 오래된 refresh의 중복 제출 실패가
   다른 탭의 정상 회전 토큰을 지우면 안 된다. Web Lock 미지원 브라우저에서도
-  실패한 요청 중 저장 토큰이 이미 바뀌었다면 새 access token을 재사용한다.
+  저장 토큰이 이미 바뀌었다면 새 토큰 쌍은 보존하되, 오래된 세대에서 시작한 요청을
+  새 세션의 access token으로 전송하지 않고 취소한다.
+- 인증 요청은 제출 당시 refresh 세대를 기록한다. A 계정의 지연된 refresh 응답이나
+  401이 도착하기 전에 B 계정 로그인이 저장됐다면 A 응답은 B의 access·refresh를
+  덮거나 세션 만료 처리로 지울 수 없다. 회전 토큰도 제출 refresh가 현재 refresh와
+  정확히 같을 때만 한 쌍으로 게시하며, 저장 실패 시 이전 쌍으로 롤백한다.
 - `must_change_password=true`는 owner·student·parent의 권장 UI 상태일 뿐이다.
   프론트는 허용된 원래 화면을 먼저 렌더링하고 모달에
   `위험을 이해했고 나중에` 선택을 제공한다. 직원 역할에는 이 모달을 표시하지
@@ -89,12 +101,44 @@ refresh 후 재요청 401의 단일 세션 종료와 복귀 경로 보존을 검
 
 ```powershell
 pnpm exec playwright test e2e/auth/account-password-flows.mock.spec.ts e2e/auth/account-recovery-modal.spec.ts e2e/admin/staff-operations-contract.mock.spec.ts --project=chromium --reporter=list
+pnpm exec playwright test e2e/auth/iphone-safari-login.mock.spec.ts --config=playwright.pr-gate.config.ts --project=pr-route-mocks --project=pr-iphone-webkit --no-deps --reporter=list
 pnpm exec playwright test e2e/student/student-content-resilience.mock.spec.ts --project=chromium --grep "학부모 내 비밀번호"
 pnpm exec playwright test e2e/admin/student-detail-entrypoints.mock.spec.ts --project=chromium --reporter=list
 pnpm typecheck
 pnpm guard:legacy-api
 pnpm build
 ```
+
+### persistent-development iPhone 로그인 UAT
+
+backend의 `setup_ymath_realuse_scenario --login-uat` 마지막 JSON에서
+`login_manifest`를 별도 artifact로 저장한다. artifact에는 합성 role·username·역할
+landing만 있고 비밀번호나 토큰은 없어야 한다. exact frontend checkout을 SSM
+loopback API에 연결한 뒤 같은 일회성 비밀번호를 환경 변수로만 전달한다.
+
+```powershell
+$env:E2E_BASE_URL = "http://127.0.0.1:5174"
+$env:E2E_API_URL = "http://127.0.0.1:18000"
+$env:E2E_LOGIN_UAT_MANIFEST = "C:\academy\_artifacts\iphone-safari-login\manifest.json"
+$env:E2E_LOGIN_UAT_FRONTEND_SHA = (git rev-parse HEAD)
+$env:E2E_LOGIN_UAT_BACKEND_ROOT = "C:\academy\backend"
+$env:E2E_ALLOW_PRODUCTION_WRITES = "0"
+$env:YMATH_REALUSE_SCENARIO_PASSWORD = "<ephemeral-secret>"
+pnpm test:e2e:iphone-safari-uat
+```
+
+runner는 두 URL이 loopback이고 tenant가 `qa-ymath-realuse-*`, 계정이
+student·parent·staff 각 10명일 때만 Chromium·WebKit 390px에서 30계정 전부의
+로그인 → `/core/me/` 역할 landing → UI 로그아웃과 access·refresh 제거를 확인한다.
+검수 대상 exact SHA의 깨끗한 checkout만 허용하고, API URL과 Vite proxy를 동일하게
+고정하며 `reuseExistingServer=false`인 전용 5174 서버를 소유한다. trace·video·screenshot은
+항상 끄고 임시 결과와 표준출력에 일회성 비밀번호가 섞였는지도 검사한다. 필수 환경이
+하나라도 없으면 skip이 아니라 nonzero로 종료한다.
+실제 실행은 backend/frontend PR 병합과 persistent-development 후보 배포 뒤에만
+허용한다. 실행 orchestration은 성공·실패 모두 같은 backend tenant를
+전용 `destroy-ymath-login-uat-development.ps1`로 `--destroy`하고
+`remaining.tenants=0`, `remaining.users=0`을 읽기 전에는 성공으로 기록하지 않는다.
+운영 hostname·운영 API·실사용 계정에는 실행하지 않는다.
 
 학생·학부모 권한 경계는 [STUDENT-PARENT-APP-CONTRACT.md](STUDENT-PARENT-APP-CONTRACT.md),
 공용 계정복구의 서버 상태 전이는
