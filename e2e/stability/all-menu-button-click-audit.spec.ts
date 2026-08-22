@@ -169,7 +169,6 @@ const ADMIN_ROUTES: AuditRoute[] = [
   { path: "/workspace/landing-public/inbox", label: "공개 랜딩 문의" },
   { path: "/workspace/tools/ppt", label: "PPT 도구" },
   { path: "/workspace/tools/omr", label: "OMR 도구" },
-  { path: "/workspace/tools/clinic", label: "클리닉 출력 도구" },
   { path: "/workspace/tools/stopwatch", label: "스톱워치" },
   { path: "/workspace/tools/problem-studio", label: "문항 스튜디오" },
   { path: "/workspace/guide", label: "관리자 가이드" },

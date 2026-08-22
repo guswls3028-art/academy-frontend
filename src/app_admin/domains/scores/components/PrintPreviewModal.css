@@ -64,3 +64,36 @@
 .print-preview-modal__iframe--billboard {
   height: 297mm;
 }
+
+@media (max-width: 640px) {
+  .clinic-print-preview-modal__header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .clinic-print-preview-modal__actions {
+    justify-content: flex-end;
+    width: 100%;
+  }
+
+  .clinic-print-preview-modal__actions button {
+    white-space: nowrap;
+  }
+
+  .print-preview-modal__paper--a3-portrait {
+    margin-right: -215.325mm;
+    margin-bottom: -304.5mm;
+    transform: scale(0.275);
+    transform-origin: top left;
+  }
+}
+
+@media (max-width: 375px) {
+  .print-preview-modal__paper--a3-portrait {
+    margin-right: -221.265mm;
+    margin-bottom: -312.9mm;
+    transform: scale(0.255);
+  }
+}

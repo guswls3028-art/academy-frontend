@@ -72,10 +72,6 @@ test.describe("DNB 클리닉/커뮤니티/메시징 검증", () => {
     await visitAndAssertNo5xx(page, "/workspace/clinic/msg-settings", "dnb-clinic-msg-settings");
   });
 
-  test("7. 도구 > 클리닉 출력 렌더링", async ({ page }) => {
-    await visitAndAssertNo5xx(page, "/workspace/tools/clinic", "dnb-tools-clinic");
-  });
-
   // ===== COMMUNITY =====
 
   test("8. 게시판 렌더링", async ({ page }) => {
