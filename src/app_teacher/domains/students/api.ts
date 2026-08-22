@@ -6,6 +6,7 @@ import {
   applyDisplayNames,
   fetchStudentCustomFields as fetchCanonicalStudentCustomFields,
   mapStudent,
+  sendStudentAccountGuidance,
   uploadStudentBulkFromExcel,
 } from "@/shared/api/contracts/students";
 import type {
@@ -47,6 +48,8 @@ export type SendPasswordResetParams = {
   parent_phone?: string;
   temp_password?: string;
 };
+
+export { sendStudentAccountGuidance };
 
 /** 학생 목록 (페이지네이션) */
 export async function fetchStudents(params?: {

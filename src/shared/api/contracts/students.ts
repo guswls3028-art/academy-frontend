@@ -1,5 +1,6 @@
 // PATH: src/shared/api/contracts/students.ts
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
+import type { components } from "@/shared/api/generated/schema";
 import type { StudentInitialPasswordSettings } from "@/shared/product/students/initialPassword";
 
 /* ===============================
@@ -108,6 +109,9 @@ export interface ClientAccountNotificationLog {
   targetId: string;
   targetName: string;
 }
+
+type AccountGuidanceRequest = components["schemas"]["StudentAccountGuidanceRequestSchemaRequest"];
+export type AccountGuidanceTarget = AccountGuidanceRequest["target"];
 
 export interface StudentTag {
   id: number;
@@ -444,6 +448,18 @@ export async function fetchStudentAccountNotifications(
     params: { limit },
   });
   return asList(res.data).map(mapAccountNotificationLog);
+}
+
+/** 비밀번호를 변경하지 않고 학생/학부모 아이디 안내 알림톡 발송 */
+export async function sendStudentAccountGuidance(
+  studentId: number,
+  target: AccountGuidanceTarget,
+): Promise<components["schemas"]["StudentAccountGuidanceResponseSchema"]> {
+  const res = await api.post<components["schemas"]["StudentAccountGuidanceResponseSchema"]>(
+    `/students/${studentId}/account-notifications/`,
+    { target },
+  );
+  return res.data;
 }
 
 /* ===============================

@@ -13,7 +13,7 @@ import { Pencil, Save, X, Tag, Plus, ToggleLeft, ToggleRight, Lock, MessageSquar
 import { Card, BackButton, KpiCard, TabBar } from "@teacher/shared/ui/Card";
 import { Badge, AchievementBadge, ClinicStatusBadge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
-import { fetchStudent, fetchStudentAccountNotifications, fetchStudentCustomFields, fetchStudentGrades, updateStudent, toggleStudentActive, fetchTags, attachTag, detachTag, createTag, updateStudentMemo, deleteStudent, sendPasswordReset } from "../api";
+import { fetchStudent, fetchStudentAccountNotifications, fetchStudentCustomFields, fetchStudentGrades, updateStudent, toggleStudentActive, fetchTags, attachTag, detachTag, createTag, updateStudentMemo, deleteStudent, sendPasswordReset, sendStudentAccountGuidance } from "../api";
 import type { StudentAccountNotificationLog, TeacherStudentExamResult } from "../api";
 import type { StudentExamTrendPoint, StudentHomeworkGrade } from "@/shared/api/contracts/studentGrades";
 import { teacherStudentsQueryKeys } from "../queryKeys";
@@ -62,6 +62,7 @@ export default function StudentDetailPage() {
   // Edit states
   const [editOpen, setEditOpen] = useState(false);
   const [tagSheetOpen, setTagSheetOpen] = useState(false);
+  const [accountGuideOpen, setAccountGuideOpen] = useState(false);
   const [pwResetOpen, setPwResetOpen] = useState(false);
   const [supportOpening, setSupportOpening] = useState(false);
 
@@ -223,7 +224,11 @@ export default function StudentDetailPage() {
         })}
       </Card>
 
-      <AccountNotificationCard items={accountNotifications ?? []} onSend={() => setPwResetOpen(true)} />
+      <AccountNotificationCard
+        items={accountNotifications ?? []}
+        onGuide={() => setAccountGuideOpen(true)}
+        onReset={() => setPwResetOpen(true)}
+      />
 
       {/* Memo — editable */}
       <MemoSection studentId={sid} initialMemo={student.memo ?? ""} />
@@ -296,6 +301,7 @@ export default function StudentDetailPage() {
       <TagManagementSheet open={tagSheetOpen} onClose={() => setTagSheetOpen(false)} studentId={sid} currentTags={tags} />
 
       {/* Password Reset BottomSheet */}
+      <AccountGuidanceSheet open={accountGuideOpen} onClose={() => setAccountGuideOpen(false)} student={student} />
       <PasswordResetSheet open={pwResetOpen} onClose={() => setPwResetOpen(false)} student={student} />
     </div>
   );
@@ -554,23 +560,39 @@ function isAccountNotificationSent(item: StudentAccountNotificationLog): boolean
   return item.success === true || ["sent", "success", "delivered", "completed"].includes(status);
 }
 
-function AccountNotificationCard({ items, onSend }: { items: StudentAccountNotificationLog[]; onSend: () => void }) {
+function AccountNotificationCard({ items, onGuide, onReset }: {
+  items: StudentAccountNotificationLog[];
+  onGuide: () => void;
+  onReset: () => void;
+}) {
   return (
     <Card>
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-start justify-between gap-3 mb-2">
         <h3 className="text-sm font-bold flex items-center gap-1.5" style={{ color: "var(--tc-text)" }}>
           <MessageSquare size={ICON.sm} /> 계정 알림톡
         </h3>
-        <button
-          type="button"
-          onClick={onSend}
-          className="text-[11px] font-bold"
-          style={{ border: 0, background: "transparent", color: "var(--tc-primary)", cursor: "pointer" }}
-          title="학생·학부모 비밀번호를 새로 설정하고 계정정보 알림톡을 보냅니다"
-        >
-          계정정보 다시 보내기
-        </button>
+        <div className="flex flex-wrap justify-end gap-1.5">
+          <button
+            type="button"
+            onClick={onGuide}
+            className="text-[11px] font-bold"
+            style={{ minHeight: 30, padding: "5px 9px", borderRadius: "var(--tc-radius-sm)", border: 0, background: "var(--tc-primary)", color: "#fff", cursor: "pointer" }}
+          >
+            아이디 안내
+          </button>
+          <button
+            type="button"
+            onClick={onReset}
+            className="text-[11px] font-semibold"
+            style={{ minHeight: 30, padding: "5px 9px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text-secondary)", cursor: "pointer" }}
+          >
+            비밀번호 초기화
+          </button>
+        </div>
       </div>
+      <p className="text-[11px] mt-0 mb-2" style={{ color: "var(--tc-text-muted)" }}>
+        아이디 안내는 현재 비밀번호와 로그인 상태를 변경하지 않습니다.
+      </p>
       {items.length === 0 ? (
         <p className="text-sm m-0" style={{ color: "var(--tc-text-muted)" }}>
           최근 아이디/비밀번호 알림톡 이력이 없습니다.
@@ -605,6 +627,113 @@ function AccountNotificationCard({ items, onSend }: { items: StudentAccountNotif
         </div>
       )}
     </Card>
+  );
+}
+
+type AccountGuideTarget = "student" | "parent" | "both";
+
+function AccountGuidanceSheet({ open, onClose, student }: {
+  open: boolean;
+  onClose: () => void;
+  student: ClientStudent;
+}) {
+  const qc = useQueryClient();
+  const [target, setTarget] = useState<AccountGuideTarget>("student");
+  const [submitting, setSubmitting] = useState(false);
+
+  const name = student.name ?? student.displayName ?? "학생";
+  const studentPhone = student.studentPhone ?? "";
+  const parentPhone = student.parentPhone ?? "";
+  const hasStudentRecipient = Boolean(studentPhone || parentPhone);
+  const hasParentRecipient = Boolean(parentPhone);
+
+  useEffect(() => {
+    if (open) setTarget(hasStudentRecipient ? "student" : "parent");
+  }, [hasStudentRecipient, open]);
+
+  const handleSubmit = async () => {
+    const targets: ("student" | "parent")[] = target === "both" ? ["student", "parent"] : [target];
+    setSubmitting(true);
+    const failures: string[] = [];
+    let sent = 0;
+    try {
+      for (const current of targets) {
+        try {
+          await sendStudentAccountGuidance(student.id, current);
+          sent += 1;
+        } catch (error) {
+          failures.push(`${current === "student" ? "학생" : "학부모"}: ${extractApiError(error, "발송 실패")}`);
+        }
+      }
+      if (sent > 0) {
+        teacherToast.success(`아이디 안내 알림톡 ${sent}건을 발송했습니다.${failures.length ? ` 실패 ${failures.length}건` : ""}`);
+        qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.accountNotifications(student.id) });
+      }
+      if (failures.length) teacherToast.error(failures.join(" · "));
+      if (sent > 0 && failures.length === 0) onClose();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const options = [
+    { key: "student" as const, label: "학생", disabled: !hasStudentRecipient },
+    { key: "parent" as const, label: "학부모", disabled: !hasParentRecipient },
+    { key: "both" as const, label: "둘 다", disabled: !hasStudentRecipient || !hasParentRecipient },
+  ];
+
+  return (
+    <BottomSheet open={open} onClose={onClose} title="아이디 안내 알림톡">
+      <div className="flex flex-col gap-3" style={{ padding: "var(--tc-space-3) 0" }}>
+        <div>
+          <div className="text-sm font-bold" style={{ color: "var(--tc-text)" }}>{name}</div>
+          <p className="text-[12px] mt-1 mb-0" style={{ color: "var(--tc-text-muted)" }}>
+            등록된 번호로 로그인 아이디를 안내합니다. 비밀번호는 바뀌지 않습니다.
+          </p>
+        </div>
+
+        <div>
+          <label className="text-[11px] font-semibold block mb-1.5" style={{ color: "var(--tc-text-muted)" }}>발송 대상</label>
+          <div className="grid grid-cols-3 gap-1.5">
+            {options.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                disabled={option.disabled || submitting}
+                onClick={() => setTarget(option.key)}
+                className="text-xs font-semibold"
+                style={{
+                  minHeight: 40,
+                  borderRadius: "var(--tc-radius-sm)",
+                  border: `1px solid ${target === option.key ? "var(--tc-primary)" : "var(--tc-border-strong)"}`,
+                  background: target === option.key ? "var(--tc-primary-bg)" : "var(--tc-surface-soft)",
+                  color: option.disabled ? "var(--tc-text-muted)" : target === option.key ? "var(--tc-primary)" : "var(--tc-text-secondary)",
+                  opacity: option.disabled ? 0.5 : 1,
+                  cursor: option.disabled ? "not-allowed" : "pointer",
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-lg p-3 text-[12px]" style={{ background: "var(--tc-surface-soft)", color: "var(--tc-text-secondary)" }}>
+          <div>학생 수신: {studentPhone ? formatPhone(studentPhone) : parentPhone ? `${formatPhone(parentPhone)} (학부모 번호)` : "발송 불가"}</div>
+          <div className="mt-1">학부모 수신: {parentPhone ? formatPhone(parentPhone) : "발송 불가"}</div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={submitting || (target === "student" ? !hasStudentRecipient : target === "parent" ? !hasParentRecipient : !hasStudentRecipient || !hasParentRecipient)}
+          className="w-full text-sm font-bold"
+          style={{ minHeight: 46, borderRadius: "var(--tc-radius)", border: 0, background: "var(--tc-primary)", color: "#fff", opacity: submitting ? 0.6 : 1, cursor: submitting ? "wait" : "pointer" }}
+        >
+          {submitting ? "발송 중…" : `${target === "student" ? "학생" : target === "parent" ? "학부모" : "학생·학부모"} 아이디 안내 보내기`}
+        </button>
+      </div>
+    </BottomSheet>
   );
 }
 

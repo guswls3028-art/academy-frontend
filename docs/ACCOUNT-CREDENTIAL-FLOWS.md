@@ -13,6 +13,8 @@ API와 성공 후 세션 처리를 소유한다. 비밀번호 원문, 토큰, �
 | 임시 비밀번호 사용자 | 로그인 직후 강제 변경 모달 | `POST /core/change-password/` + 동일 본문 | `must_change_password` 해제와 기존 토큰 폐기 후 재로그인 |
 | 직원 강제 초기화 | 직원관리에서 한 명 선택 → 비밀번호 변경 | `POST /staffs/{id}/change-password/` + `password` | 대상 기존 토큰 폐기, 대상은 다음 로그인에서 비밀번호 변경 필수 |
 | 학생·학부모 계정복구 | 로그인 화면 `아이디 찾기` 또는 `비밀번호 찾기` | `POST /auth/account-recovery/dispatch/` | 존재 여부를 노출하지 않는 공통 응답. 임시 비밀번호는 수신 후 로그인할 때 활성화 |
+| 관리자·선생님 아이디 재안내 | 학생 상세에서 `아이디 안내` | `POST /students/{id}/account-notifications/` + `target: student \| parent` | 선택 계정에 알림톡만 발송. 비밀번호·세션·강제 변경 여부 유지 |
+| 관리자·선생님 비밀번호 초기화 | 학생 상세에서 `비밀번호 초기화` | 기존 staff 학생/학부모 초기화 API | 선택 계정만 초기화하고 승인된 알림톡 발송 |
 
 본인 변경은 역할별 프로필 수정 API에 비밀번호 필드를 섞지 않는다. 프로필
 이름·전화번호 저장과 비밀번호 변경을 하나의 제출에 순차 실행하면 후행 요청
@@ -39,6 +41,14 @@ API와 성공 후 세션 처리를 소유한다. 비밀번호 원문, 토큰, �
   임시 비밀번호 자동 생성과 승인된 알림톡 발송 계약을 유지해, 여러 계정에 같은
   비밀번호를 적용하거나 화면에 원문을 노출하지 않는다.
 
+## 학생 상세의 계정 안내/초기화 분리
+
+- 관리자 데스크톱 학생 상세 오버레이와 선생님 모바일 학생 상세는 `아이디 안내`와 `비밀번호 초기화`를 서로 다른 버튼과 모달/시트로 표시한다.
+- 아이디 안내는 학생, 학부모, 둘 다를 고를 수 있다. `둘 다`는 두 target 요청을 순차적으로 수행하고, 일부 실패를 성공처로 숨기지 않고 대상별로 안내한다.
+- 발송 전 실제 마스킹 수신처와 `비밀번호는 변경되지 않음`을 표시한다. 성공 후는 최근 계정 알림 이력을 재조회한다.
+- 390px에서 대상 선택, 수신처, 안전 안내, 발송 버튼이 가로 오버플로 없이 한 열로 읽혀야 한다.
+- 비밀번호 초기화 화면은 기존처럼 대상별 파괴적 변경을 명시하고, 아이디 안내 성공 문구를 재사용하지 않는다.
+
 ## 실패와 입력 처리
 
 - 현재 비밀번호, 4자 이상의 새 비밀번호, 새 비밀번호 확인을 모두 검사한다.
@@ -57,6 +67,7 @@ API와 성공 후 세션 처리를 소유한다. 비밀번호 원문, 토큰, �
 ```powershell
 pnpm exec playwright test e2e/auth/account-password-flows.mock.spec.ts e2e/auth/account-recovery-modal.spec.ts e2e/admin/staff-operations-contract.mock.spec.ts --project=chromium --reporter=list
 pnpm exec playwright test e2e/student/student-content-resilience.mock.spec.ts --project=chromium --grep "학부모 내 비밀번호"
+pnpm exec playwright test e2e/admin/student-detail-entrypoints.mock.spec.ts --project=chromium --reporter=list
 pnpm typecheck
 pnpm guard:legacy-api
 pnpm build
