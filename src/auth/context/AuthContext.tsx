@@ -100,7 +100,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
 
   const clearAuth = useCallback(() => {
-    clearTokens();
+    // The axios interceptor has already cleared tokens and stored the return
+    // path when it owns session expiry. Re-clearing here would erase both the
+    // expiry notice and the post-login return path before /login renders.
+    if (!isSessionEnding) clearTokens();
     asyncStatusStore.clearAll();
     clearSentryUser();
     setParentStudentId(null);  // in-memory 정리 (localStorage는 clearTokens가 처리)

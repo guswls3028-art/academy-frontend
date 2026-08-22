@@ -151,6 +151,71 @@ test.use({ serviceWorkers: "block" });
 test.skip(!isLocalBase(BASE), "Local route-mock spec. Set E2E_BASE_URL to localhost to run.");
 
 test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
+  test("refresh 성공 뒤 재요청도 401이면 토큰을 폐기하고 로그인으로 복귀한다", async ({ page }) => {
+    const access = createE2eJwt();
+    let refreshCount = 0;
+    let meCount = 0;
+    await page.addInitScript(({ token }) => {
+      if (sessionStorage.getItem("stale_refresh_seeded") === "1") return;
+      localStorage.setItem("access", token);
+      localStorage.setItem("refresh", "stale-refresh-token");
+      localStorage.setItem("tenant_code", "hakwonplus");
+      sessionStorage.setItem("tenantCode", "hakwonplus");
+      sessionStorage.setItem("stale_refresh_seeded", "1");
+    }, { token: access });
+
+    await page.route("**/api/v1/**", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+    });
+    await page.route("**/api/v1/core/program/**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          tenantCode: "hakwonplus",
+          display_name: "학원플러스",
+          ui_config: {},
+          feature_flags: {},
+          is_active: true,
+        }),
+      });
+    });
+    await page.route("**/api/v1/token/refresh/", async (route) => {
+      refreshCount += 1;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ access: createE2eJwt(), refresh: "rotated-but-stale" }),
+      });
+    });
+    await page.route("**/api/v1/core/me/", async (route) => {
+      meCount += 1;
+      await route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "session expired" }),
+      });
+    });
+
+    await gotoAndSettle(page, `${BASE}/workspace/dashboard`, { timeout: 20_000 });
+    await page.waitForURL(`${BASE}/login`, { timeout: 20_000, waitUntil: "domcontentloaded" });
+    await expect(page.getByText("세션이 만료되었습니다. 다시 로그인해 주세요.")).toBeVisible();
+
+    expect(refreshCount).toBe(1);
+    expect(meCount).toBeGreaterThanOrEqual(2);
+    expect(await page.evaluate(() => ({
+      access: localStorage.getItem("access"),
+      refresh: localStorage.getItem("refresh"),
+      expired: sessionStorage.getItem("session_expired"),
+      returnPath: sessionStorage.getItem("session_return_path"),
+    }))).toEqual({
+      access: null,
+      refresh: null,
+      expired: "1",
+      returnPath: "/workspace/dashboard",
+    });
+  });
+
   test("관리자 내 정보 수정은 개인정보만 저장하고 비밀번호 입력을 섞지 않는다", async ({ page }) => {
     let profileBody: Record<string, unknown> | undefined;
     let passwordChangeCount = 0;

@@ -129,6 +129,23 @@ export function resetSessionEnding() {
   isSessionEnding = false;
 }
 
+function endExpiredSession() {
+  const supportWindow = isStudentSupportWindow();
+  if (!supportWindow && isSessionEnding) return;
+  clearTokens();
+  if (supportWindow) {
+    window.location.href = "/support-preview-ended";
+    return;
+  }
+
+  markSessionEnding();
+  try {
+    setSessionItem("session_expired", "1");
+  } catch { /* ignore */ }
+  saveReturnPath();
+  window.location.href = "/login";
+}
+
 /**
  * Enterprise Refresh Concurrency Control
  * - multiple requests may fail with 401 simultaneously
@@ -521,28 +538,22 @@ api.interceptors.response.use(
       flushRefreshQueue(newAccess);
 
       if (!newAccess) {
-        const supportWindow = isStudentSupportWindow();
-        clearTokens();
-        if (supportWindow) {
-          window.location.href = "/support-preview-ended";
-          completeAsyncError();
-          throw err;
-        }
-        // 세션 만료: 즉시 로그인 페이지로 이동 (중복 방지)
-        if (!isSessionEnding) {
-          markSessionEnding();
-          try {
-            setSessionItem("session_expired", "1");
-          } catch { /* ignore */ }
-          saveReturnPath();
-          window.location.href = "/login";
-        }
+        endExpiredSession();
         completeAsyncError();
         throw err;
       }
 
       setRequestHeader(original, "Authorization", `Bearer ${newAccess}`);
       return api.request(original);
+    }
+
+    // A refresh can succeed at the token endpoint while the replay is still
+    // rejected (for example, stale authorization during a rolling deploy).
+    // Never leave that unusable token in storage and trap the SPA in 401 loops.
+    if (status === 401 && original._retry && !shouldSkipAuth(original.url, original)) {
+      endExpiredSession();
+      completeAsyncError();
+      throw err;
     }
 
     completeAsyncError();
