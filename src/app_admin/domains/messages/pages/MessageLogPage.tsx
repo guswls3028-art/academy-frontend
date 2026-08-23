@@ -209,8 +209,9 @@ function ScheduledRow({
 }
 
 function LogRow({ item, onClick }: { item: NotificationLogItem; onClick: () => void }) {
+  const state = deliveryState(item);
   return (
-    <button type="button" onClick={onClick} className={styles.logRow}>
+    <button type="button" onClick={onClick} className={styles.logRow} data-tone={state.tone}>
       <span className={styles.sentAtCell}>
         <span className={styles.mobileLabel}>로그 기록</span>
         {koreanDateTimeText(item.sent_at)}
@@ -222,7 +223,12 @@ function LogRow({ item, onClick }: { item: NotificationLogItem; onClick: () => v
       </span>
       <span className={styles.purposeCell}>
         <span className={styles.mobileLabel}>알림 종류</span>
-        <strong>{notificationLabel(item)}</strong>
+        <span className={styles.purposeLabel}>
+          <span className={styles.kakaoDot} aria-hidden>
+            <MessageCircle size={10} fill="currentColor" />
+          </span>
+          <strong>{notificationLabel(item)}</strong>
+        </span>
         {item.failure_reason && <small>{item.failure_reason}</small>}
       </span>
       <span className={styles.amountCell}>{amountLabel(item)}</span>
@@ -295,7 +301,7 @@ function LogDetailModal({
   const StateIcon = state.icon;
 
   return (
-    <AdminModal open={open} onClose={onClose} type="inspect" width={600} noMinimize className={styles.detailModal}>
+    <AdminModal open={open} onClose={onClose} type="inspect" width={820} noMinimize className={styles.detailModal}>
       <ModalHeader
         title="알림톡 발송 기록"
         description={`${koreanFullDateTimeText(detail.sent_at)} 로그 기록`}
@@ -303,64 +309,87 @@ function LogDetailModal({
       />
       <ModalBody>
         <div className={styles.modalContent}>
-          <section className={styles.deliveryHero} data-tone={state.tone}>
-            <span className={styles.deliveryHeroIcon} aria-hidden><StateIcon size={ICON.xl} /></span>
-            <div className={styles.deliveryHeroCopy}>
-              <div>
-                <StatusMark item={detail} size="md" />
+          <div className={styles.detailLayout}>
+            <section className={styles.chatPreview} aria-label="카카오 알림톡 미리보기">
+              <header className={styles.chatPreviewHeader}>
+                <span className={styles.chatPreviewIcon} aria-hidden>
+                  <MessageCircle size={18} fill="currentColor" />
+                </span>
+                <span>
+                  <strong>카카오 알림톡 미리보기</strong>
+                  <small>{detail.recipient_summary || "수신자 정보 없음"}</small>
+                </span>
                 <Badge tone="info" size="sm">알림톡</Badge>
+              </header>
+              <div className={styles.chatRoom}>
+                <span className={styles.chatDate}>{koreanFullDateTimeText(detail.sent_at)}</span>
+                <div className={styles.chatMessageRow}>
+                  <span className={styles.chatAvatar} aria-hidden>
+                    <MessageCircle size={17} fill="currentColor" />
+                  </span>
+                  <div className={styles.chatMessageColumn}>
+                    <span className={styles.chatSender}>우리 학원 알림톡</span>
+                    <div className={styles.chatBubble}>
+                      <span className={styles.chatTemplate}>알림톡 · {notificationLabel(detail)}</span>
+                      <strong>{notificationLabel(detail)}</strong>
+                      {detailQ.isLoading ? (
+                        <div className={styles.bodyLoading}>저장된 본문 기록을 확인하고 있습니다.</div>
+                      ) : detailQ.isError ? (
+                        <div className={styles.bodyError}>
+                          <span>본문 기록을 불러오지 못했습니다.</span>
+                          <Button size="sm" intent="secondary" onClick={() => void detailQ.refetch()}>다시 시도</Button>
+                        </div>
+                      ) : (
+                        <BodyPanel item={detail} />
+                      )}
+                    </div>
+                    <span className={styles.chatTime}>{koreanDateTimeText(detail.sent_at)}</span>
+                  </div>
+                </div>
               </div>
-              <strong>{state.detail}</strong>
-            </div>
-            {Number(detail.amount_deducted || 0) > 0 && (
-              <span className={styles.deliveryCost}>{amountLabel(detail)} 차감</span>
-            )}
-          </section>
-
-          <section className={styles.detailGrid} aria-label="발송 기본 정보">
-            <DetailItem label="수신자">{detail.recipient_summary || "정보 없음"}</DetailItem>
-            <DetailItem label="알림 종류">{notificationLabel(detail)}</DetailItem>
-            <DetailItem label="로그 기록">{koreanFullDateTimeText(detail.sent_at)}</DetailItem>
-            <DetailItem label="처리 시작">
-              {detail.claimed_at ? koreanFullDateTimeText(detail.claimed_at) : "기록 없음"}
-            </DetailItem>
-          </section>
-
-          <section className={styles.evidenceRow} data-confirmed={detail.provider_evidence ? "true" : "false"}>
-            <MessageCircle size={ICON.md} aria-hidden />
-            <span>
-              <strong>{detail.provider_evidence ? "공급사 접수 기록 있음" : "공급사 접수 기록 없음"}</strong>
-              <small>
-                {detail.provider_evidence
-                  ? `${detail.provider_message_id || detail.provider_message_reference || "식별 정보 보호됨"} · 접수 기록은 읽음 확인을 뜻하지 않습니다.`
-                  : "아직 공급사 접수 근거가 기록되지 않았습니다."}
-              </small>
-            </span>
-          </section>
-
-          {detail.failure_reason && (
-            <section className={styles.failurePanel}>
-              <AlertTriangle size={ICON.md} aria-hidden />
-              <span><strong>확인할 내용</strong><small>{detail.failure_reason}</small></span>
             </section>
-          )}
 
-          <section className={styles.bodySection}>
-            <div className={styles.sectionHeading}>
-              <strong>발송 내용</strong>
-              <span>저장·권한 정책을 적용한 기록입니다.</span>
-            </div>
-            {detailQ.isLoading ? (
-              <div className={styles.bodyLoading}>저장된 본문 기록을 확인하고 있습니다.</div>
-            ) : detailQ.isError ? (
-              <div className={styles.bodyError}>
-                <span>본문 기록을 불러오지 못했습니다.</span>
-                <Button size="sm" intent="secondary" onClick={() => void detailQ.refetch()}>다시 시도</Button>
-              </div>
-            ) : (
-              <BodyPanel item={detail} />
-            )}
-          </section>
+            <aside className={styles.deliveryAudit} aria-label="발송 처리 정보">
+              <section className={styles.deliveryHero} data-tone={state.tone}>
+                <span className={styles.deliveryHeroIcon} aria-hidden><StateIcon size={ICON.xl} /></span>
+                <div className={styles.deliveryHeroCopy}>
+                  <div><StatusMark item={detail} size="md" /></div>
+                  <strong>{state.detail}</strong>
+                </div>
+                {Number(detail.amount_deducted || 0) > 0 && (
+                  <span className={styles.deliveryCost}>{amountLabel(detail)} 차감</span>
+                )}
+              </section>
+
+              <section className={styles.detailGrid} aria-label="발송 기본 정보">
+                <DetailItem label="수신자">{detail.recipient_summary || "정보 없음"}</DetailItem>
+                <DetailItem label="알림 종류">{notificationLabel(detail)}</DetailItem>
+                <DetailItem label="로그 기록">{koreanFullDateTimeText(detail.sent_at)}</DetailItem>
+                <DetailItem label="처리 시작">
+                  {detail.claimed_at ? koreanFullDateTimeText(detail.claimed_at) : "기록 없음"}
+                </DetailItem>
+              </section>
+
+              <section className={styles.evidenceRow} data-confirmed={detail.provider_evidence ? "true" : "false"}>
+                <MessageCircle size={ICON.md} aria-hidden />
+                <span>
+                  <strong>{detail.provider_evidence ? "공급사 접수 기록 있음" : "공급사 접수 기록 없음"}</strong>
+                  <small>
+                    {detail.provider_evidence
+                      ? `${detail.provider_message_id || detail.provider_message_reference || "식별 정보 보호됨"} · 접수 기록은 읽음 확인을 뜻하지 않습니다.`
+                      : "아직 공급사 접수 근거가 기록되지 않았습니다."}
+                  </small>
+                </span>
+              </section>
+
+              {detail.failure_reason && (
+                <section className={styles.failurePanel}>
+                  <AlertTriangle size={ICON.md} aria-hidden />
+                  <span><strong>확인할 내용</strong><small>{detail.failure_reason}</small></span>
+                </section>
+              )}
+            </aside>
+          </div>
         </div>
       </ModalBody>
       <ModalFooter right={<Button size="md" onClick={onClose}>닫기</Button>} />
@@ -448,7 +477,7 @@ export default function MessageLogPage() {
     <div className={styles.root}>
       <header className={styles.header}>
         <div>
-          <span className={styles.eyebrow}>KAKAO ALIMTALK LEDGER</span>
+          <span className={styles.eyebrow}>카카오 알림톡 · 발송 기록</span>
           <h1 className={styles.title}>발송 내역</h1>
           <p className={styles.description}>
             알림톡 요청이 어디까지 처리됐는지 확인합니다.

@@ -80,6 +80,7 @@ async function installMessagingLogApp(page: Page) {
   const access = localJwt();
   await page.addInitScript(({ accessToken }) => {
     localStorage.setItem("tenant_code", "hakwonplus");
+    localStorage.setItem("workspace:preferFull:hakwonplus", "1");
     localStorage.setItem("access", accessToken);
     localStorage.setItem("refresh", `${accessToken}-refresh`);
     sessionStorage.setItem("tenantCode", "hakwonplus");
@@ -117,6 +118,17 @@ async function installMessagingLogApp(page: Page) {
     }
     if (pathname === "/messaging/log/") {
       return json({ count: logs.length, results: logs });
+    }
+    if (pathname === "/messaging/info/") {
+      return json({
+        channel_source: "common_owner",
+        alimtalk_available: true,
+        messaging_provider: "solapi",
+        delivery_policy: "common_alimtalk_only",
+        tenant_messaging_enabled: true,
+        messaging_ops_hold: false,
+        can_manage_messaging: true,
+      });
     }
     const detailMatch = pathname.match(/^\/messaging\/log\/(\d+)\/$/);
     if (detailMatch) {
@@ -185,6 +197,8 @@ test.describe("알림톡 발송 기록 UX", () => {
     await page.getByRole("button", { name: /최정원/ }).click();
     const dialog = page.getByRole("dialog").last();
     await expect(dialog.getByText("알림톡 발송 기록", { exact: true })).toBeVisible();
+    await expect(dialog.getByRole("region", { name: "카카오 알림톡 미리보기" })).toBeVisible();
+    await expect(dialog.getByText("우리 학원 알림톡", { exact: true })).toBeVisible();
     await expect(dialog.getByText(/보안을 위해 본문을 저장하지 않았습니다/)).toBeVisible();
     await expect(dialog.getByText(/공급사 접수 기록/)).toBeVisible();
     await expect(dialog.getByText(/group-provider-A12345/)).toBeVisible();
@@ -218,5 +232,24 @@ test.describe("알림톡 발송 기록 UX", () => {
     expect(box!.x).toBeGreaterThanOrEqual(-1);
     expect(box!.x + box!.width).toBeLessThanOrEqual(391);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+  });
+
+  test("대시보드에서 알림톡 상태와 발송 내역 진입점을 함께 보여준다", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await installMessagingLogApp(page);
+    await page.goto(`${BASE}/workspace/dashboard`, { waitUntil: "commit", timeout: 60_000 });
+
+    const card = page.getByRole("region", { name: "알림톡 발송 가능" });
+    await expect(card).toBeVisible({ timeout: 60_000 });
+    await expect(card.getByText("카카오 알림톡", { exact: true })).toBeVisible();
+    await expect(card.getByText("정상", { exact: true })).toBeVisible();
+    await expect(card.getByRole("button", { name: "발송 내역" })).toBeVisible();
+    await expect(card.getByRole("button", { name: "메시지 설정" })).toBeVisible();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(card).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+
+    await card.getByRole("button", { name: "발송 내역" }).click();
+    await expect(page).toHaveURL(/\/workspace\/message\/log$/);
   });
 });
