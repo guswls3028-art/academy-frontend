@@ -21,6 +21,50 @@ function isLocalBaseUrl(url: string) {
   return /^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(url);
 }
 
+function extractJpegImages(pdfBytes: Uint8Array): Buffer[] {
+  const images: Buffer[] = [];
+  for (let start = 0; start < pdfBytes.length - 1; start += 1) {
+    if (pdfBytes[start] !== 0xff || pdfBytes[start + 1] !== 0xd8) continue;
+    for (let end = start + 2; end < pdfBytes.length - 1; end += 1) {
+      if (pdfBytes[end] !== 0xff || pdfBytes[end + 1] !== 0xd9) continue;
+      images.push(Buffer.from(pdfBytes.subarray(start, end + 2)));
+      start = end + 1;
+      break;
+    }
+  }
+  return images;
+}
+
+async function sampleJpegPixel(
+  page: Page,
+  jpeg: Buffer,
+  xRatio: number,
+  yRatio: number,
+): Promise<[number, number, number]> {
+  return page.evaluate(async ({ dataUrl, xRatio: x, yRatio: y }) => {
+    const image = new Image();
+    image.src = dataUrl;
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("PDF raster sample canvas is unavailable");
+    context.drawImage(image, 0, 0);
+    const pixel = context.getImageData(
+      Math.floor(image.naturalWidth * x),
+      Math.floor(image.naturalHeight * y),
+      1,
+      1,
+    ).data;
+    return [pixel[0], pixel[1], pixel[2]] as [number, number, number];
+  }, {
+    dataUrl: `data:image/jpeg;base64,${jpeg.toString("base64")}`,
+    xRatio,
+    yRatio,
+  });
+}
+
 function createLocalJwt() {
   const encode = (payload: unknown) => Buffer.from(JSON.stringify(payload)).toString("base64url");
   const now = Math.floor(Date.now() / 1000);
@@ -601,16 +645,34 @@ test.describe("개인 성적표", () => {
 
     const pageFits = await frame.locator(".student-report-page").evaluateAll((pages) => pages.map((page) => {
       const footer = page.querySelector<HTMLElement>(".report-footer");
-      const sections = Array.from(page.querySelectorAll<HTMLElement>(":scope > .section"));
-      const contentBottom = sections.reduce(
-        (bottom, section) => Math.max(bottom, section.getBoundingClientRect().bottom),
+      const content = Array.from(page.querySelectorAll<HTMLElement>(":scope > :not(.report-footer)"));
+      const contentBottom = content.reduce(
+        (bottom, child) => Math.max(bottom, child.getBoundingClientRect().bottom),
         0,
       );
-      return footer ? contentBottom <= footer.getBoundingClientRect().top + 1 : false;
+      return footer
+        ? page.scrollWidth <= page.clientWidth + 1
+          && page.scrollHeight <= page.clientHeight + 1
+          && contentBottom <= footer.getBoundingClientRect().top + 1
+        : false;
     }));
     expect(pageFits).toEqual([true, true, true]);
     await expect(frame.locator('[data-page="2"] .item-table')).toHaveCount(0);
     await expect(frame.locator('[data-page="3"] .item-table tbody tr')).toHaveCount(16);
+    expect(await frame.locator('[data-page="2"] .history-table th').evaluateAll((headers) =>
+      headers.every((header) => {
+        const range = document.createRange();
+        range.selectNodeContents(header);
+        const fontSize = Number.parseFloat(getComputedStyle(header).fontSize);
+        return range.getBoundingClientRect().height <= fontSize * 1.6;
+      })
+    )).toBe(true);
+    expect(await frame.locator('[data-page="3"] .detail-grid .section-heading h2').first().evaluate((heading) => {
+      const range = document.createRange();
+      range.selectNodeContents(heading);
+      const fontSize = Number.parseFloat(getComputedStyle(heading).fontSize);
+      return range.getBoundingClientRect().height <= fontSize * 1.6;
+    })).toBe(true);
 
     const [download] = await Promise.all([
       page.waitForEvent("download", { timeout: 90_000 }),
@@ -622,6 +684,14 @@ test.describe("개인 성적표", () => {
     const pdf = await PDFDocument.load(pdfBytes);
     expect(pdf.getPageCount()).toBe(3);
     expect(pdfBytes.byteLength).toBeLessThan(3_000_000);
+    const pageImages = extractJpegImages(pdfBytes);
+    expect(pageImages).toHaveLength(3);
+    for (const pageImage of pageImages) {
+      const [red, green, blue] = await sampleJpegPixel(page, pageImage, 0.5, 0.025);
+      expect(Math.abs(red - 249)).toBeLessThanOrEqual(18);
+      expect(Math.abs(green - 115)).toBeLessThanOrEqual(18);
+      expect(Math.abs(blue - 22)).toBeLessThanOrEqual(18);
+    }
     await page.screenshot({
       path: testInfo.outputPath("individual-score-report-dense-preview.png"),
       fullPage: false,
