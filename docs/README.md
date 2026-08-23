@@ -16,6 +16,7 @@
 | [GRADING-WRONG-NOTE-WORKFLOW.md](GRADING-WRONG-NOTE-WORKFLOW.md) | Codex 빠른 복구 순서, 시험명 작업 메뉴, 정오표 입력·반응형 계약, 증상별 확인 위치와 현재 오답노트 경계 |
 | [EXAM-INSIGHTS-REPORT.md](EXAM-INSIGHTS-REPORT.md) | 수업 방향·컷 검토·취약 문항 브리핑, 만점 정규화 분포와 전문 분석 Excel 계약 |
 | [ASSESSMENT-OPERATIONS-WORKSPACE.md](ASSESSMENT-OPERATIONS-WORKSPACE.md) | 시험·과제 운영 준비 점검선, 충돌·초안 복구가 있는 통합 정책 편집, 공용 대상자 변경 요약과 반응형 계약 |
+| [OMR-GENERATOR.md](OMR-GENERATOR.md) | 관리자 OMR 답안지 설정, 정적 미리보기, PDF 다운로드와 반응형 A4 표시 계약 |
 | [HOMEWORK-SCORING.md](HOMEWORK-SCORING.md) | 과제별 만점·합격 기준, 성적표 분모·저장 계약 |
 | [ATTENDANCE-ROSTER-SAFETY.md](ATTENDANCE-ROSTER-SAFETY.md) | 차시 수강생 일괄배정의 미입력 시작, 선택 검토·실행취소, 전체 현장 출석의 원자적 되돌리기 계약 |
 | [ARRIVAL-OPERATIONS.md](ARRIVAL-OPERATIONS.md) | 보강 예정 입력과 클리닉 예약을 합친 대시보드·우상단 알림 운영 계약 |
