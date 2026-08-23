@@ -8,7 +8,7 @@
  * - 성적 발송 (메시지 모달 연계)
  */
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "react-router";
 
@@ -1292,14 +1292,18 @@ function CorrectionStatusControl({
 }) {
   const qc = useQueryClient();
   const [note, setNote] = useState(block.correction_note ?? "");
+  const [completionReasonRequested, setCompletionReasonRequested] = useState(false);
+  const noteRef = useRef<HTMLTextAreaElement>(null);
   const persistedNote = block.correction_note ?? "";
   const status = block.correction_status ?? null;
   const isHomework = sourceType === "homework";
   const title = isHomework ? "교사 완료 판정" : "교사 최종 판정";
   const noteId = `assessment-note-${sourceType}-${sourceId}`;
+  const noteHintId = `${noteId}-hint`;
 
   useEffect(() => {
     setNote(persistedNote);
+    setCompletionReasonRequested(false);
   }, [persistedNote, sourceId, sourceType]);
 
   const mutation = useMutation({
@@ -1325,6 +1329,7 @@ function CorrectionStatusControl({
     },
     onSuccess: (data, variables) => {
       setNote(data.correction_note ?? variables.nextNote);
+      setCompletionReasonRequested(false);
       if (sessionId != null) {
         const queryKey = scoresQueryKeys.sessionScores(sessionId);
         qc.setQueryData<SessionScoresResponse>(queryKey, (current) => {
@@ -1445,12 +1450,22 @@ function CorrectionStatusControl({
           intent="secondary"
           aria-pressed={status === "COMPLETED"}
           data-correction-state="completed"
-          onClick={() => mutation.mutate({
-            completed: true,
-            nextNote: note,
-            action: "status",
-          })}
-          disabled={commonDisabled || unavailable || !completionReasonReady}
+          title={!commonDisabled && !unavailable && !completionReasonReady
+            ? "눌러서 판정 사유를 입력해 주세요."
+            : disabledReason}
+          onClick={() => {
+            if (!completionReasonReady) {
+              setCompletionReasonRequested(true);
+              noteRef.current?.focus();
+              return;
+            }
+            mutation.mutate({
+              completed: true,
+              nextNote: note,
+              action: "status",
+            });
+          }}
+          disabled={commonDisabled || unavailable}
           loading={
             mutation.isPending
             && mutation.variables?.action === "status"
@@ -1464,14 +1479,32 @@ function CorrectionStatusControl({
         <label htmlFor={noteId}>
           판정 사유 <span>통과·완료 시 필수 · 500자 이내</span>
         </label>
+        {completionReasonRequested && !completionReasonReady && (
+          <span
+            id={noteHintId}
+            className="ssd-correction-control__note-hint"
+            role="alert"
+          >
+            {isHomework ? "완료 확정" : "통과 확정"} 사유를 2자 이상 입력해 주세요.
+          </span>
+        )}
         <textarea
+          ref={noteRef}
           id={noteId}
           aria-label={`${title} 비고`}
+          aria-describedby={!completionReasonReady ? noteHintId : undefined}
+          aria-invalid={completionReasonRequested && !completionReasonReady}
           value={note}
           rows={2}
           maxLength={500}
           placeholder={isHomework ? "협의·검사 완료 근거를 적어주세요." : "현장에서 해결한 오답과 확인 근거를 적어주세요."}
-          onChange={(event) => setNote(event.target.value)}
+          onChange={(event) => {
+            const nextNote = event.target.value;
+            setNote(nextNote);
+            if (nextNote.trim().length >= 2) {
+              setCompletionReasonRequested(false);
+            }
+          }}
           disabled={commonDisabled || unavailable}
         />
         <div className="ssd-correction-control__note-footer">
@@ -1501,8 +1534,8 @@ function CorrectionStatusControl({
             완료 또는 미완료를 선택하면 비고도 함께 저장됩니다.
           </span>
         )}
-        {!completionReasonReady && (
-          <span className="ssd-correction-control__note-hint" role="status">
+        {!completionReasonRequested && !completionReasonReady && (
+          <span id={noteHintId} className="ssd-correction-control__note-hint" role="status">
             통과 또는 완료 확정 전 판정 사유를 2자 이상 입력해 주세요.
           </span>
         )}

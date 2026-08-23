@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
@@ -72,6 +72,7 @@ function addResultMessage(result: Awaited<ReturnType<typeof addParticipantsToSes
 
 export default function ClinicSchedulePage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const today = dayjs().format("YYYY-MM-DD");
   const [weekAnchor, setWeekAnchor] = useState(today);
@@ -131,6 +132,23 @@ export default function ClinicSchedulePage() {
   const [importOpen, setImportOpen] = useState(false);
   const [targetSession, setTargetSession] = useState<ClinicSessionDetail | null>(null);
   const [addingParticipants, setAddingParticipants] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("create") !== "1") return;
+
+    const requestedDate = searchParams.get("date");
+    const date = requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)
+      && dayjs(requestedDate).isValid()
+      ? requestedDate
+      : today;
+    setWeekAnchor(date);
+    setCreateDate(date);
+
+    const next = new URLSearchParams(searchParams);
+    next.delete("create");
+    next.delete("date");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams, today]);
 
   const openCreate = (date: string, source?: ClinicSessionDetail) => {
     setCreateDate(date);

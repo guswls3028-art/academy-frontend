@@ -36,6 +36,11 @@ export type AttendanceListResponse = {
   pageSize: number;
 };
 
+export type AttendanceSummary = {
+  total: number;
+  counts: Record<string, number>;
+};
+
 export type AttendanceListItem = Record<string, unknown> & {
   id: number;
   status: string;
@@ -87,6 +92,47 @@ export async function fetchAttendance(
     count,
     pageSize,
   };
+}
+
+/**
+ * 차시 헤더에 표시할 출결 상태 집계.
+ *
+ * 목록 API와 같은 테넌트·차시 경계를 사용하고, 페이지 전체를 읽지 못하면
+ * 일부 숫자를 정상 집계처럼 노출하지 않고 실패한다.
+ */
+export async function fetchAttendanceSummary(
+  sessionId: number,
+): Promise<AttendanceSummary> {
+  const pageSize = 500;
+  const maxPages = 100;
+  const counts: Record<string, number> = {};
+  let page = 1;
+  let expectedTotal: number | null = null;
+  let collected = 0;
+
+  while (page <= maxPages) {
+    const result = await fetchAttendance(sessionId, { page, page_size: pageSize });
+    expectedTotal ??= result.count;
+
+    if (result.data.length === 0) break;
+
+    for (const row of result.data) {
+      const rawStatus = typeof row.status === "string" ? row.status.trim().toUpperCase() : "";
+      const status = rawStatus || "UNSET";
+      counts[status] = (counts[status] ?? 0) + 1;
+      collected += 1;
+    }
+
+    if (collected >= result.count || result.data.length < pageSize) break;
+    page += 1;
+  }
+
+  const total = expectedTotal ?? collected;
+  if (collected !== total) {
+    throw new Error(`출결 집계를 완성하지 못했습니다. (${collected}/${total})`);
+  }
+
+  return { total, counts };
 }
 
 /** 세션에 이미 출결 등록된 학생 ID 목록 전체 조회 (수강생 등록 모달에서 중복 제외용, 페이지네이션 전부 수집) */

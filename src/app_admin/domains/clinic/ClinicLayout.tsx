@@ -2,7 +2,8 @@
 // 클리닉 도메인 — Domain Header + ds-tabs + panel (프리미엄 SaaS 톤)
 
 import "./clinic.css";
-import { Outlet } from "react-router";
+import { useEffect } from "react";
+import { Outlet, useLocation } from "react-router";
 import { DomainLayout } from "@/shared/ui/layout";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 
@@ -22,6 +23,23 @@ const DESCRIPTIONS: Record<string, string> = {
 
 export default function ClinicLayout() {
   const { clinicMode } = useSectionMode();
+  const location = useLocation();
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      const activeTab = document.querySelector<HTMLElement>(
+        ".clinic-domain-layout .domain-header__tabs-wrap .ds-tab.is-active",
+      );
+      activeTab?.scrollIntoView({
+        inline: "nearest",
+        block: "nearest",
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.pathname]);
 
   return (
     <DomainLayout

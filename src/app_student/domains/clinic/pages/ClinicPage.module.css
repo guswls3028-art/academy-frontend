@@ -162,25 +162,49 @@
 .targetList {
   gap: 8px;
   padding-top: var(--stu-space-3);
+  padding-right: 4px;
   margin-top: var(--stu-space-3);
   border-top: 1px solid var(--stu-border);
+  max-height: 310px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .targetItem {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--stu-border) 84%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--stu-surface) 94%, var(--stu-primary) 6%);
+  font-size: 13px;
+}
+
+.targetItemHeader {
   display: flex;
   min-width: 0;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
 }
 
-.targetItemTitle {
+.targetItemSource {
   min-width: 0;
-  overflow: hidden;
   color: var(--stu-text);
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 14px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.targetItemMeta {
+  display: grid;
+  gap: 2px;
+  color: var(--stu-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .targetItemReason {
@@ -736,15 +760,13 @@
   }
 
   .targetSummaryHeader,
-  .targetItem {
+  .targetItemHeader {
     align-items: flex-start;
     flex-wrap: wrap;
   }
 
   .targetItemReason {
-    width: 100%;
-    padding-left: 26px;
-    margin-left: 0;
+    margin-left: auto;
   }
 
   .targetSummaryError {

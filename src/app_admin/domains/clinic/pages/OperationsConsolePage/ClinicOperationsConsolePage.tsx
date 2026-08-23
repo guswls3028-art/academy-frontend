@@ -4,12 +4,13 @@
  * SSOT: PanelWithTreeLayout (메시지 자동발송과 동일)
  */
 
-import { useMemo, useState, useEffect, type CSSProperties } from "react";
+import { useCallback, useMemo, useState, useEffect, useRef, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
-import { CalendarPlus } from "lucide-react";
+import { CalendarDays, Clock3, X } from "lucide-react";
 import { fetchClinicSessionTree, deleteClinicSession } from "../../api/clinicSessions.api";
 import type { ClinicSessionDetail } from "../../api/clinicSessions.api";
 import { useClinicParticipants } from "../../hooks/useClinicParticipants";
@@ -34,14 +35,30 @@ function todayISO() {
   return dayjs().format("YYYY-MM-DD");
 }
 
+type ConsoleScope = "onsite" | "day";
+
+function participantStudentKey(participant: ClinicParticipant): string {
+  return Number.isInteger(participant.student) && participant.student > 0
+    ? `student:${participant.student}`
+    : `participant:${participant.id}`;
+}
+
 export default function ClinicOperationsConsolePage() {
   const [sp] = useSearchParams();
   const qc = useQueryClient();
   const dateParam = sp.get("date");
+  const sessionParam = sp.get("session");
+  const initialToday = todayISO();
   const initialDate =
-    dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : todayISO();
+    dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : initialToday;
   const [selectedDate, setSelectedDate] = useState(() => initialDate);
-  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
+  const [consoleScope, setConsoleScope] = useState<ConsoleScope>(() =>
+    sp.get("scope") === "day" || !!dateParam || !!sessionParam ? "day" : "onsite"
+  );
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(() => {
+    const value = sessionParam ? Number(sessionParam) : NaN;
+    return Number.isInteger(value) && value > 0 ? value : null;
+  });
 
   const { sectionMode, clinicMode } = useSectionMode();
   const showSectionFilter = sectionMode && clinicMode === "regular";
@@ -54,6 +71,48 @@ export default function ClinicOperationsConsolePage() {
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; label: string } | null>(null);
   const [changeNoticeDraft, setChangeNoticeDraft] = useState<ClinicSessionUpdateNotice | null>(null);
+  const [selectorOpen, setSelectorOpen] = useState(false);
+  const selectorTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const selectorPanelRef = useRef<HTMLElement | null>(null);
+  const selectorHeadingRef = useRef<HTMLHeadingElement | null>(null);
+
+  const closeSelector = useCallback((restoreFocus = true) => {
+    setSelectorOpen(false);
+    if (restoreFocus) {
+      window.requestAnimationFrame(() => selectorTriggerRef.current?.focus());
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!selectorOpen) return;
+    selectorHeadingRef.current?.focus();
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeSelector();
+        return;
+      }
+      if (event.key !== "Tab" || !selectorPanelRef.current) return;
+      const focusable = Array.from(selectorPanelRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ));
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || active === selectorHeadingRef.current)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [closeSelector, selectorOpen]);
 
   // 삭제 뮤테이션
   const deleteSessionM = useMutation({
@@ -90,8 +149,12 @@ export default function ClinicOperationsConsolePage() {
 
   // URL date 쿼리와 동기화 (다른 화면에서 날짜와 함께 진입 시)
   useEffect(() => {
-    if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) setSelectedDate(dateParam);
-  }, [dateParam]);
+    if (!dateParam || !/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) return;
+    setSelectedDate(dateParam);
+    setConsoleScope("day");
+    const value = sessionParam ? Number(sessionParam) : NaN;
+    setSelectedSessionId(Number.isInteger(value) && value > 0 ? value : null);
+  }, [dateParam, sessionParam]);
 
   const ym = useMemo(() => {
     const d = dayjs(selectedDate);
@@ -142,40 +205,209 @@ export default function ClinicOperationsConsolePage() {
     );
   }, [filteredTree, selectedDate]);
 
-  const participants = useClinicParticipants({
-    session: selectedSessionId ?? undefined,
-    session_date_from: selectedDate,
-    session_date_to: selectedDate,
-  });
+  const activeSession = useMemo(
+    () => selectedSessionId == null
+      ? null
+      : sessionsForDay.find((session) => session.id === selectedSessionId) ?? null,
+    [selectedSessionId, sessionsForDay],
+  );
 
-  const rows = (participants.listQ.data ?? []) as ClinicParticipant[];
+  const queryDate = consoleScope === "onsite" ? todayISO() : selectedDate;
+  const participants = useClinicParticipants(
+    consoleScope === "onsite"
+      ? { onsite_date: queryDate }
+      : { session_date_from: queryDate, session_date_to: queryDate },
+  );
 
-  // Phase 2: 오늘 날짜일 때 세션 자동 선택 — URL session param 우선, 없으면 첫 번째
-  const sessionParam = sp.get("session");
-  useEffect(() => {
-    if (!selectedSessionId && sessionsForDay.length > 0) {
-      const targetId = sessionParam ? Number(sessionParam) : null;
-      const match = targetId ? sessionsForDay.find((s) => s.id === targetId) : null;
-      setSelectedSessionId(match?.id ?? sessionsForDay[0].id);
+  const allRows = useMemo(
+    () => (participants.listQ.data ?? []) as ClinicParticipant[],
+    [participants.listQ.data],
+  );
+  const allStudentCount = useMemo(
+    () => new Set(allRows.map(participantStudentKey)).size,
+    [allRows],
+  );
+  const rows = useMemo(
+    () => selectedSessionId == null
+      ? allRows
+      : allRows.filter((participant) => participant.session === selectedSessionId),
+    [allRows, selectedSessionId],
+  );
+
+  const timeOptions = useMemo(() => {
+    const grouped = new Map<number, { id: number; time: string; students: Set<string> }>();
+    for (const participant of allRows) {
+      const current = grouped.get(participant.session);
+      if (current) {
+        current.students.add(participantStudentKey(participant));
+      } else {
+        grouped.set(participant.session, {
+          id: participant.session,
+          time: participant.session_start_time?.slice(0, 5) || "시간 미정",
+          students: new Set([participantStudentKey(participant)]),
+        });
+      }
     }
-  }, [sessionsForDay, selectedSessionId, sessionParam]);
+    return [...grouped.values()].map((option) => ({
+      id: option.id,
+      time: option.time,
+      count: option.students.size,
+    })).sort((a, b) =>
+      a.time.localeCompare(b.time) || a.id - b.id
+    );
+  }, [allRows]);
+
+  useEffect(() => {
+    if (
+      selectedSessionId != null &&
+      !participants.listQ.isLoading &&
+      !allRows.some((participant) => participant.session === selectedSessionId)
+    ) {
+      setSelectedSessionId(null);
+    }
+  }, [allRows, participants.listQ.isLoading, selectedSessionId]);
 
   const headerDesc = "출석 확인, 실패 사유 확인, 통과 처리까지.";
 
   return (
     <div className="clinic-page">
-      <div className={panelStyles.root}>
-        <div className={panelStyles.header}>
+      <div className={`${panelStyles.root} clinic-operations-shell`}>
+        <div className={`${panelStyles.header} clinic-operations-shell__header`}>
           <h2 className={panelStyles.headerTitle}>클리닉 진행</h2>
           <p className={panelStyles.headerDesc}>{headerDesc}</p>
         </div>
 
-        <div className={panelStyles.body}>
-          <aside className={panelStyles.tree}>
-            <div className={panelStyles.treeNavHeader}>
-              <span className={panelStyles.treeNavTitle}>일정</span>
+        <div className={`${panelStyles.body} clinic-operations-shell__body`}>
+          <div className={`${panelStyles.content} clinic-operations-shell__content`}>
+            <div className={panelStyles.contentInner} style={WIDE_CONTENT_STYLE}>
+              <div className="clinic-console__live-controls">
+                <div className="clinic-console__schedule-bar">
+                  <button
+                    ref={selectorTriggerRef}
+                    type="button"
+                    className="clinic-console__schedule-trigger"
+                    aria-expanded={selectorOpen}
+                    aria-controls="clinic-console-schedule-overlay"
+                    onClick={() => setSelectorOpen(true)}
+                  >
+                    <CalendarDays size={16} aria-hidden />
+                    <span>일정</span>
+                    <strong>
+                      {consoleScope === "onsite"
+                        ? "오늘 현장"
+                        : `${dayjs(selectedDate).format("M월 D일")} ${selectedSessionId == null ? "전체" : activeSession?.start_time?.slice(0, 5) || "시간대"}`}
+                    </strong>
+                  </button>
+                  <span className="clinic-console__schedule-hint">달력과 수업은 필요할 때 열고, 학생 작업대는 그대로 유지됩니다.</span>
+                </div>
+                <div
+                  className="clinic-console__scope-rail"
+                  role="group"
+                  aria-label="클리닉 운영 범위"
+                >
+                  <button
+                    type="button"
+                    className={`clinic-console__scope-button ${consoleScope === "onsite" ? "clinic-console__scope-button--active" : ""}`}
+                    aria-pressed={consoleScope === "onsite"}
+                    onClick={() => {
+                      setConsoleScope("onsite");
+                      setSelectedDate(todayISO());
+                      setSelectedSessionId(null);
+                    }}
+                  >
+                    <span className="clinic-console__scope-live-dot" aria-hidden />
+                    현장
+                    {consoleScope === "onsite" && !participants.listQ.isLoading && !participants.listQ.isError && (
+                      <strong>{allStudentCount}명</strong>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    className={`clinic-console__scope-button ${consoleScope === "day" ? "clinic-console__scope-button--active" : ""}`}
+                    aria-pressed={consoleScope === "day"}
+                    onClick={() => {
+                      setConsoleScope("day");
+                      setSelectedDate(todayISO());
+                      setSelectedSessionId(null);
+                    }}
+                  >
+                    {selectedDate === todayISO() ? "오늘 전체" : "선택일 전체"}
+                    {consoleScope === "day" && !participants.listQ.isLoading && !participants.listQ.isError && (
+                      <strong>{allStudentCount}명</strong>
+                    )}
+                  </button>
+                </div>
+
+                {!participants.listQ.isLoading && !participants.listQ.isError && allRows.length > 0 && (
+                  <div
+                    className="clinic-console__time-rail"
+                    role="group"
+                    aria-label="시간대 필터"
+                  >
+                    <button
+                      type="button"
+                      className={`clinic-console__time-button ${selectedSessionId == null ? "clinic-console__time-button--active" : ""}`}
+                      aria-pressed={selectedSessionId == null}
+                      onClick={() => setSelectedSessionId(null)}
+                    >
+                      <Clock3 size={14} aria-hidden />
+                      전체 시간 <strong>{allStudentCount}명</strong>
+                    </button>
+                    {timeOptions.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        className={`clinic-console__time-button ${selectedSessionId === option.id ? "clinic-console__time-button--active" : ""}`}
+                        aria-pressed={selectedSessionId === option.id}
+                        onClick={() => setSelectedSessionId(option.id)}
+                      >
+                        {option.time} <strong>{option.count}명</strong>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <ClinicConsoleWorkspace
+                selectedDate={queryDate}
+                session={consoleScope === "day" ? activeSession : null}
+                participants={rows}
+                isLoading={participants.listQ.isLoading}
+                isError={participants.listQ.isError}
+                onRetry={() => participants.listQ.refetch()}
+                workspaceMode={consoleScope}
+                isAggregate={consoleScope === "onsite" || activeSession == null}
+                onEditSession={handleEditSession}
+                onDeleteSession={handleDeleteSession}
+                changeNoticeDraft={changeNoticeDraft}
+                onChangeNoticeConsumed={() => setChangeNoticeDraft(null)}
+              />
             </div>
-            <div className={panelStyles.treeScroll}>
+          </div>
+        </div>
+      </div>
+
+      {selectorOpen && createPortal(
+        <>
+          <div className="clinic-console__selector-backdrop" aria-hidden onMouseDown={() => closeSelector()} />
+          <section
+            id="clinic-console-schedule-overlay"
+            ref={selectorPanelRef}
+            className="clinic-console__selector-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="clinic-console-schedule-title"
+          >
+            <header className="clinic-console__selector-header">
+              <div>
+                <span>운영 문맥</span>
+                <h2 id="clinic-console-schedule-title" ref={selectorHeadingRef} tabIndex={-1}>날짜·수업 선택</h2>
+              </div>
+              <button type="button" onClick={() => closeSelector()} aria-label="일정 닫기">
+                <X size={18} aria-hidden />
+              </button>
+            </header>
+            <div className="clinic-console__selector-scroll">
               <ClinicConsoleSidebar
                 sessions={filteredTree}
                 selectedDay={selectedDate}
@@ -184,75 +416,57 @@ export default function ClinicOperationsConsolePage() {
                 month={ym.month}
                 onSelectDay={(date) => {
                   setSelectedDate(date);
+                  setConsoleScope("day");
                   setSelectedSessionId(null);
+                  closeSelector();
                 }}
                 onPrevMonth={() => {
                   const d = dayjs(selectedDate).subtract(1, "month");
                   setSelectedDate(d.startOf("month").format("YYYY-MM-DD"));
+                  setConsoleScope("day");
                   setSelectedSessionId(null);
                 }}
                 onNextMonth={() => {
                   const d = dayjs(selectedDate).add(1, "month");
                   setSelectedDate(d.startOf("month").format("YYYY-MM-DD"));
+                  setConsoleScope("day");
                   setSelectedSessionId(null);
                 }}
                 selectedSessionId={selectedSessionId}
-                onSelectSession={setSelectedSessionId}
-                onCreateClick={() => setCreateModalOpen(true)}
-                onImportClick={() => setImportModalOpen(true)}
-                onEditSession={handleEditSession}
-                onDeleteSession={handleDeleteSession}
+                onSelectSession={(sessionId) => {
+                  setConsoleScope("day");
+                  setSelectedSessionId(sessionId);
+                  closeSelector();
+                }}
+                onCreateClick={() => {
+                  closeSelector(false);
+                  setCreateModalOpen(true);
+                }}
+                onImportClick={() => {
+                  closeSelector(false);
+                  setImportModalOpen(true);
+                }}
+                onEditSession={(sessionId) => {
+                  closeSelector(false);
+                  void handleEditSession(sessionId);
+                }}
+                onDeleteSession={(sessionId, label) => {
+                  closeSelector(false);
+                  handleDeleteSession(sessionId, label);
+                }}
                 showSectionFilter={showSectionFilter}
                 sectionFilter={sectionFilter}
                 sectionFilterOptions={sectionOptionsAll}
-                onSectionFilterChange={(v) => {
-                  setSectionFilter(v);
+                onSectionFilterChange={(value) => {
+                  setSectionFilter(value);
                   setSelectedSessionId(null);
                 }}
               />
             </div>
-          </aside>
-
-          <div className={panelStyles.content}>
-            <div className={panelStyles.contentInner} style={WIDE_CONTENT_STYLE}>
-              {!selectedSessionId ? (
-                <div className="clinic-console__empty-workspace">
-                  {sessionsForDay.length === 0 ? (
-                    <>
-                      <p className="clinic-console__empty-text">
-                        {dayjs(selectedDate).format("M월 D일")}에는 예정된 클리닉이 없습니다.
-                      </p>
-                      <button
-                        type="button"
-                        className="clinic-console__empty-cta"
-                        onClick={() => setCreateModalOpen(true)}
-                      >
-                        <CalendarPlus size={16} aria-hidden />
-                        클리닉 만들기
-                      </button>
-                    </>
-                  ) : (
-                    <p className="clinic-console__empty-text">
-                      좌측에서 클리닉 수업을 선택하세요.
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <ClinicConsoleWorkspace
-                  selectedDate={selectedDate}
-                  session={sessionsForDay.find((s) => s.id === selectedSessionId) ?? null}
-                  participants={rows}
-                  isLoading={participants.listQ.isLoading}
-                  onEditSession={handleEditSession}
-                  onDeleteSession={handleDeleteSession}
-                  changeNoticeDraft={changeNoticeDraft}
-                  onChangeNoticeConsumed={() => setChangeNoticeDraft(null)}
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+          </section>
+        </>,
+        document.body,
+      )}
 
       {/* 생성 모달 */}
       <AdminModal
@@ -265,12 +479,14 @@ export default function ClinicOperationsConsolePage() {
           date={selectedDate}
           onDateChange={(d) => {
             setSelectedDate(d);
+            setConsoleScope("day");
             setSelectedSessionId(null);
           }}
           onCreated={(createdDate) => {
             setCreateModalOpen(false);
             if (createdDate) {
               setSelectedDate(createdDate);
+              setConsoleScope("day");
               setSelectedSessionId(null);
             }
           }}
@@ -291,6 +507,7 @@ export default function ClinicOperationsConsolePage() {
               setEditModalOpen(false);
               setChangeNoticeDraft(notice.changed ? notice : null);
               setSelectedDate(notice.date);
+              setConsoleScope("day");
               setSelectedSessionId(notice.sessionId);
               setEditSession(null);
               qc.invalidateQueries({ queryKey: clinicQueryKeys.sessionsTree });

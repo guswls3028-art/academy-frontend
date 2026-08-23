@@ -208,9 +208,43 @@ function createState(overrides: Partial<MockState> = {}): MockState {
   };
 }
 
+test("차시 헤더 집계는 탭 이동에도 남고 공지는 커뮤니티로 튕기지 않는다", async ({ page }, testInfo) => {
+  const state = createState();
+  await openAttendance(page, state);
+
+  const headerSummary = page.locator('[aria-label^="차시 출결 집계:"]');
+  await expect(headerSummary).toContainText("총2");
+
+  await page.getByRole("tab", { name: "공지·게시판" }).click();
+  await expect(page).toHaveURL(new RegExp(
+    `/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/notice\\?`,
+  ));
+  await expect(page).not.toHaveURL(/\/workspace\/community\/notice/);
+  await expect(page.locator(".notice-tree--embedded")).toBeVisible();
+  await expect(page.locator(".notice-tree__nav")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "공지사항" })).toBeVisible();
+  await expect(headerSummary).toContainText("미입력1");
+  await expect(headerSummary).toContainText("결석1");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.locator('[aria-label^="차시 출결 집계:"]')).toBeVisible();
+  await expect(page.locator(".notice-tree--embedded > .qna-inbox__list")).toBeVisible();
+  await expect(page.locator(".notice-tree--embedded > .qna-inbox__thread")).toBeHidden();
+  await expect.poll(() => page.evaluate(
+    () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+  )).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("session-notice-summary-390.png"), fullPage: true });
+});
+
 test("출석 명단은 이름 가나다순이 기본이고 계정별 정렬 선택을 새로고침 후에도 유지한다", async ({ page }) => {
   const state = createState();
   await openAttendance(page, state);
+
+  const headerSummary = page.locator('[aria-label^="차시 출결 집계:"]');
+  await expect(headerSummary).toContainText("총2");
+  await expect(headerSummary).toContainText("미입력1");
+  await expect(headerSummary).toContainText("결석1");
 
   const studentLinks = page.locator('tbody a[aria-label$=" 학생 상세 열기"]');
   await expect(studentLinks).toHaveCount(2);
@@ -266,10 +300,19 @@ test("데스크톱은 모든 출결 상태를 한 줄에서 저장하고 모바�
   await expect(quickRail.getByRole("button", { name: "결석학생 부재 상태로 변경" })).toHaveAttribute("data-critical", "true");
   await expect(quickRail.getByRole("button", { name: "결석학생 퇴원 상태로 변경" })).toHaveAttribute("data-critical", "true");
   await expect.poll(async () => (await quickRail.boundingBox())?.width ?? 0).toBeGreaterThan(500);
+  const optionWidths = await quickRail.getByRole("button").evaluateAll((buttons) =>
+    buttons.map((button) => button.getBoundingClientRect().width),
+  );
+  expect(Math.max(...optionWidths) - Math.min(...optionWidths)).toBeLessThanOrEqual(1);
+  const badgeWidths = await quickRail.locator(".ds-status-badge").evaluateAll((badges) =>
+    badges.map((badge) => badge.getBoundingClientRect().width),
+  );
+  expect(Math.max(...badgeWidths) - Math.min(...badgeWidths)).toBeLessThanOrEqual(1);
 
   await quickRail.getByRole("button", { name: "결석학생 지각 상태로 변경" }).click();
   await expect.poll(() => state.attendanceStatusUpdates).toEqual([{ id: 502, status: "LATE" }]);
   await expect(quickRail.getByRole("button", { name: "결석학생 지각 상태로 변경" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator('[aria-label^="차시 출결 집계:"]')).toContainText("지각1");
   await page.screenshot({ path: testInfo.outputPath("attendance-inline-status-1366.png"), fullPage: true });
 
   await page.setViewportSize({ width: 390, height: 844 });

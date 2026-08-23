@@ -30,6 +30,7 @@ const ROUTES: CompiledRoute[] = [
   route("/workspace/lectures/:lectureId/sessions/:sessionId/scores", "scores.manage", "admin.scores.session", "admin"),
   route("/workspace/lectures/:lectureId/sessions/:sessionId/exams", "exams.manage", "admin.exams.session", "admin"),
   route("/workspace/lectures/:lectureId/sessions/:sessionId/assignments", "assignments.manage", "admin.assignments.session", "admin"),
+  route("/workspace/lectures/:lectureId/sessions/:sessionId/notice", "community.manage", "admin.community.session", "admin"),
   route("/workspace/lectures/:lectureId/sessions/:sessionId/videos/*", "videos.manage", "admin.videos.session", "admin"),
   route("/workspace/lectures/:lectureId/sessions/:sessionId/clinic", "clinic.manage", "admin.clinic.session", "admin"),
   route("/workspace/lectures/*", "classes.manage", "admin.classes.workspace", "admin"),

@@ -35,14 +35,19 @@ import {
   BellRing,
   Send,
 } from "lucide-react";
-import type { ClinicSessionTreeNode } from "../../api/clinicSessions.api";
+import type { ClinicSessionDetail, ClinicSessionTreeNode } from "../../api/clinicSessions.api";
 import type { ClinicParticipant } from "../../api/clinicParticipants.api";
 import {
   patchClinicParticipantStatus,
   createClinicParticipant,
+  changeClinicParticipantBooking,
+  checkoutClinicParticipant,
   completeClinicParticipant,
+  remindClinicParticipant,
+  replaceClinicParticipantPlan,
   uncompleteClinicParticipant,
 } from "../../api/clinicParticipants.api";
+import { fetchClinicSessions } from "../../api/clinicSessions.api";
 import type { ClinicTarget } from "../../api/clinicTargets";
 import { getCutlineLabel } from "../BookingsPage/remediationFormatters";
 import { useClinicTargets } from "../../hooks/useClinicTargets";
@@ -67,6 +72,11 @@ import {
   canCompleteManualHomework,
   completeManualHomework,
 } from "../../api/completeManualHomework";
+import ClinicParticipantActionDialog, {
+  type ClinicParticipantAction,
+  type ClinicParticipantActionPayload,
+  type ClinicRecipient,
+} from "../../components/ClinicParticipantActionDialog";
 
 dayjs.locale("ko");
 
@@ -103,7 +113,9 @@ function formatScoreDetail(target: ClinicTarget): string {
     (target.clinic_reason === "exam" || target.clinic_reason === "both")
   );
   if (isExamSource) {
-    if (target.exam_score != null && target.cutline_score != null) {
+    if (target.reason === "missing") {
+      parts.push("시험 미응시");
+    } else if (target.exam_score != null && target.cutline_score != null) {
       parts.push(`시험 ${target.exam_score}/${target.cutline_score}점`);
     } else {
       parts.push("시험 미통과");
@@ -115,7 +127,9 @@ function formatScoreDetail(target: ClinicTarget): string {
     target.clinic_reason === "homework" ||
     target.clinic_reason === "both"
   ) {
-    if (target.homework_score != null && target.homework_cutline != null) {
+    if (target.reason === "missing") {
+      parts.push("과제 미제출");
+    } else if (target.homework_score != null && target.homework_cutline != null) {
       parts.push(
         `과제 ${target.homework_score}점 / 기준 ${getCutlineLabel(target)}`,
       );
@@ -131,11 +145,35 @@ function formatScoreDetail(target: ClinicTarget): string {
   return parts.join(" · ");
 }
 
+function getTargetReasonLabel(target: ClinicTarget): string {
+  if (isMissingHomeworkTarget(target)) return "과제 미제출";
+  if (isMissingExamTarget(target)) return "시험 미응시";
+  return formatReasonLabel(target.clinic_reason);
+}
+
+function getTargetDisplayTitle(target: ClinicTarget): string {
+  return target.source_title?.trim() || target.session_title?.trim() || getTargetReasonLabel(target);
+}
+
+function getTargetContext(target: ClinicTarget): string {
+  const context = [target.lecture_title?.trim(), target.session_title?.trim()]
+    .filter((value, index, values): value is string => !!value && values.indexOf(value) === index);
+  return context.join(" · ");
+}
+
+function isMissingHomeworkTarget(target: ClinicTarget): boolean {
+  return target.reason === "missing" && target.source_type === "homework";
+}
+
+function isMissingExamTarget(target: ClinicTarget): boolean {
+  return target.reason === "missing" && target.source_type === "exam";
+}
+
 function getStatusLabel(status: string): string {
   if (status === "pending") return "승인 대기";
-  if (status === "booked") return "미확인";
-  if (status === "attended") return "출석";
-  if (status === "no_show") return "불참";
+  if (status === "booked") return "미등원";
+  if (status === "attended") return "등원";
+  if (status === "no_show") return "결석";
   if (status === "cancelled") return "취소";
   if (status === "rejected") return "거절";
   return "미확인";
@@ -165,6 +203,51 @@ function scoreWidthStyle(score: number, cutline: number): CSSProperties {
 
 type StatusFilter = "all" | "requests" | "pending" | "attended" | "no_show";
 
+type ClinicStudentGroup = {
+  key: string;
+  participants: ClinicParticipant[];
+};
+
+function participantStudentKey(participant: ClinicParticipant): string {
+  return Number.isInteger(participant.student) && participant.student > 0
+    ? `student:${participant.student}`
+    : `participant:${participant.id}`;
+}
+
+function groupParticipantsByStudent(participants: ClinicParticipant[]): ClinicStudentGroup[] {
+  const groups = new Map<string, ClinicStudentGroup>();
+  for (const participant of participants) {
+    const key = participantStudentKey(participant);
+    const existing = groups.get(key);
+    if (existing) {
+      existing.participants.push(participant);
+    } else {
+      groups.set(key, { key, participants: [participant] });
+    }
+  }
+  return [...groups.values()];
+}
+
+function countStudents(participants: ClinicParticipant[]): number {
+  return groupParticipantsByStudent(participants).length;
+}
+
+function participantForTarget(
+  participants: ClinicParticipant[],
+  target: ClinicTarget,
+): ClinicParticipant | null {
+  const plannedOwners = participants.filter((participant) =>
+    (participant.planned_clinic_link_ids ?? []).includes(target.clinic_link_id ?? -1)
+  );
+  if (plannedOwners.length === 1) return plannedOwners[0];
+
+  const enrollmentMatches = participants.filter(
+    (participant) => participant.enrollment_id === target.enrollment_id,
+  );
+  if (enrollmentMatches.length === 1) return enrollmentMatches[0];
+  return participants.length === 1 ? participants[0] : null;
+}
+
 function isApprovalPending(status: string): boolean {
   return status === "pending";
 }
@@ -178,6 +261,10 @@ type Props = {
   session: ClinicSessionTreeNode | null;
   participants: ClinicParticipant[];
   isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
+  workspaceMode: "onsite" | "day";
+  isAggregate: boolean;
   onEditSession?: (sessionId: number) => void;
   onDeleteSession?: (sessionId: number, label: string) => void;
   changeNoticeDraft?: {
@@ -193,6 +280,10 @@ export default function ClinicConsoleWorkspace({
   session,
   participants,
   isLoading,
+  isError,
+  onRetry,
+  workspaceMode,
+  isAggregate,
   onEditSession,
   onDeleteSession,
   changeNoticeDraft,
@@ -201,11 +292,26 @@ export default function ClinicConsoleWorkspace({
   const qc = useQueryClient();
   // Drawer stores participant ID only — derive live data from participants prop
   const [drawerParticipantId, setDrawerParticipantId] = useState<number | null>(null);
+  const [drawerActiveClinicLinkId, setDrawerActiveClinicLinkId] = useState<number | null>(null);
+  const [drawerParticipantContextConfirmed, setDrawerParticipantContextConfirmed] = useState(false);
+  const drawerTriggerRef = useRef<HTMLElement | null>(null);
+  const drawerRef = useRef<HTMLDivElement | null>(null);
+  const drawerHeadingRef = useRef<HTMLHeadingElement | null>(null);
+  const planToggleRef = useRef<HTMLButtonElement | null>(null);
+  const pendingPlanFocusRef = useRef<{ participantId: number; clinicLinkId: number } | null>(null);
   const [studentOverlayId, setStudentOverlayId] = useState<number | null>(null);
   const [addStudentModalOpen, setAddStudentModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   // Per-participant pending tracking for rapid processing
   const [mutatingIds, setMutatingIds] = useState<Set<number>>(new Set());
+  const [actionDialog, setActionDialog] = useState<{
+    participant: ClinicParticipant;
+    action: ClinicParticipantAction;
+  } | null>(null);
+  const [rescheduleParticipant, setRescheduleParticipant] = useState<ClinicParticipant | null>(null);
+  const [rescheduleRecipient, setRescheduleRecipient] = useState<ClinicRecipient>("parent");
+  const [replacementSessions, setReplacementSessions] = useState<ClinicSessionDetail[]>([]);
+  const [replacementSessionId, setReplacementSessionId] = useState("");
   // 출석/불참 체크 상태 (API 호출 전 로컬 상태)
   const [pendingStatuses, setPendingStatuses] = useState<Map<number, "attended" | "no_show">>(new Map());
 
@@ -213,6 +319,7 @@ export default function ClinicConsoleWorkspace({
   const [retakeScores, setRetakeScores] = useState<Map<number, string>>(new Map());
   const [retakingIds, setRetakingIds] = useState<Set<number>>(new Set());
   const [completingIds, setCompletingIds] = useState<Set<number>>(new Set());
+  const [planningParticipantIds, setPlanningParticipantIds] = useState<Set<number>>(new Set());
   // Prevent double-click on remediation actions (resolve/waive/carryover/retake)
   const [remediatingLinkIds, setRemediatingLinkIds] = useState<Set<number>>(new Set());
   const [completeTarget, setCompleteTarget] = useState<ClinicTarget | null>(null);
@@ -239,10 +346,11 @@ export default function ClinicConsoleWorkspace({
 
   // 세션 변경 시 로컬 상태 전체 초기화 (메시지 선택 포함)
   const sessionId = session?.id;
-  const prevSessionIdRef = useRef(sessionId);
+  const workspaceContextKey = isAggregate ? `aggregate:${workspaceMode}` : `session:${sessionId ?? "none"}`;
+  const prevWorkspaceContextRef = useRef(workspaceContextKey);
   useEffect(() => {
-    if (prevSessionIdRef.current === sessionId) return;
-    prevSessionIdRef.current = sessionId;
+    if (prevWorkspaceContextRef.current === workspaceContextKey) return;
+    prevWorkspaceContextRef.current = workspaceContextKey;
     setPendingStatuses(new Map());
     setMutatingIds(new Set());
     setCompletingIds(new Set());
@@ -250,13 +358,22 @@ export default function ClinicConsoleWorkspace({
     setRetakeScores(new Map());
     setRemediatingLinkIds(new Set());
     setCompleteTarget(null);
+    setPlanningParticipantIds(new Set());
     setDrawerParticipantId(null);
+    setDrawerActiveClinicLinkId(null);
+    setDrawerParticipantContextConfirmed(false);
+    drawerTriggerRef.current = null;
     setSendResult(null);
     setSendResultPreviewOpen(false);
     setPreviewTrigger(null);
     setChangeNoticeOpen(false);
     setStatusFilter("all");
-  }, [sessionId]);
+    setActionDialog(null);
+    setRescheduleParticipant(null);
+    setReplacementSessions([]);
+    setReplacementSessionId("");
+    setAddStudentModalOpen(false);
+  }, [workspaceContextKey]);
 
   // ESC 통합 핸들러: 트리거 미리보기 닫기.
   // (발송 완료 팝업은 capture phase로 별도 등록되어 가장 먼저 처리됨)
@@ -352,14 +469,17 @@ export default function ClinicConsoleWorkspace({
 
   /* ── progress ── */
   const progress = useMemo(() => {
-    const attended = participants.filter((p) => p.status === "attended").length;
-    const noShow = participants.filter((p) => p.status === "no_show").length;
-    const completed = participants.filter((p) => !!p.completed_at).length;
-    const approvalPending = participants.filter((p) => isApprovalPending(p.status)).length;
-    const pending = participants.filter((p) => isAttendancePending(p.status)).length;
-    const total = attended + noShow + pending;
+    const attended = countStudents(participants.filter((p) => p.status === "attended"));
+    const noShow = countStudents(participants.filter((p) => p.status === "no_show"));
+    const completed = countStudents(participants.filter((p) => !!p.completed_at));
+    const approvalPending = countStudents(participants.filter((p) => isApprovalPending(p.status)));
+    const pending = countStudents(participants.filter((p) => isAttendancePending(p.status)));
+    const total = countStudents(participants.filter((p) =>
+      p.status === "attended" || p.status === "no_show" || isAttendancePending(p.status)
+    ));
     return { attended, noShow, pending, approvalPending, completed, total };
   }, [participants]);
+  const studentCount = useMemo(() => countStudents(participants), [participants]);
 
   const pendingIds = useMemo(
     () =>
@@ -381,101 +501,178 @@ export default function ClinicConsoleWorkspace({
       list = participants.filter((p) => p.status === "no_show");
     else
       list = participants.filter((p) => isAttendancePending(p.status));
+    if (workspaceMode === "onsite") {
+      list.sort((a, b) =>
+        (a.checked_in_at ?? "").localeCompare(b.checked_in_at ?? "") ||
+        a.session_start_time.localeCompare(b.session_start_time) ||
+        a.id - b.id
+      );
+      return list;
+    }
     // Sort: approval requests → attendance queue → no_show → attended.
     const ORDER: Record<string, number> = { pending: 0, booked: 1, no_show: 2, attended: 3 };
     list.sort((a, b) => (ORDER[a.status] ?? 0) - (ORDER[b.status] ?? 0));
     return list;
-  }, [participants, statusFilter]);
+  }, [participants, statusFilter, workspaceMode]);
+  const filteredParticipantGroups = useMemo(
+    () => groupParticipantsByStudent(filteredParticipants),
+    [filteredParticipants],
+  );
 
   /* ── Drawer: derive from live participants ── */
   const drawerParticipant = useMemo(
     () => (drawerParticipantId != null ? participants.find((p) => p.id === drawerParticipantId) ?? null : null),
     [drawerParticipantId, participants]
   );
+  const drawerParticipantGroup = useMemo(() => {
+    if (!drawerParticipant) return [];
+    const key = participantStudentKey(drawerParticipant);
+    return participants.filter((participant) => participantStudentKey(participant) === key);
+  }, [drawerParticipant, participants]);
+  const drawerContextRequired = drawerParticipantGroup.length > 1 && !drawerParticipantContextConfirmed;
+
+  const closeDrawer = useCallback(() => {
+    const trigger = drawerTriggerRef.current;
+    pendingPlanFocusRef.current = null;
+    setDrawerParticipantId(null);
+    setDrawerActiveClinicLinkId(null);
+    setDrawerParticipantContextConfirmed(false);
+    window.requestAnimationFrame(() => {
+      if (trigger?.isConnected) trigger.focus();
+    });
+  }, []);
+
+  const openDrawer = useCallback((
+    participantId: number,
+    clinicLinkId: number | null,
+    trigger: HTMLElement,
+    contextConfirmed = true,
+  ) => {
+    drawerTriggerRef.current = trigger;
+    setDrawerParticipantId(participantId);
+    setDrawerActiveClinicLinkId(clinicLinkId);
+    setDrawerParticipantContextConfirmed(contextConfirmed);
+  }, []);
 
   // Close drawer if participant was removed from list
   useEffect(() => {
     if (drawerParticipantId != null && !drawerParticipant) {
-      setDrawerParticipantId(null);
+      closeDrawer();
     }
-  }, [drawerParticipantId, drawerParticipant]);
+  }, [closeDrawer, drawerParticipantId, drawerParticipant]);
 
-  // Escape key to close drawer
+  // Modal keyboard contract: initial focus, Escape close, and focus trap.
   useEffect(() => {
     if (drawerParticipantId == null) return;
+    drawerHeadingRef.current?.focus();
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setDrawerParticipantId(null);
+      if (actionDialog || rescheduleParticipant) return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeDrawer();
+        return;
+      }
+      if (e.key !== "Tab" || !drawerRef.current) return;
+      const focusable = Array.from(
+        drawerRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const activeElement = document.activeElement;
+      if (
+        e.shiftKey &&
+        (activeElement === first || activeElement === drawerHeadingRef.current)
+      ) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      } else if (activeElement == null || !drawerRef.current.contains(activeElement)) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      }
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [drawerParticipantId]);
+  }, [actionDialog, closeDrawer, drawerParticipantId, rescheduleParticipant]);
 
-  if (!session) return null;
-
-  /* ── per-participant status toggle (로컬 체크만, API 호출 X) ── */
-  function handleToggleStatus(
-    p: ClinicParticipant,
-    target: "attended" | "no_show"
-  ) {
-    if (!isAttendancePending(p.status) && p.status !== target) {
-      feedback.info("승인된 예약만 출석/불참 처리할 수 있습니다.");
-      return;
-    }
-    setPendingStatuses((prev) => {
-      const next = new Map(prev);
-      const current = next.get(p.id);
-      if (current === target) {
-        // 같은 상태 다시 클릭 → 체크 해제
-        next.delete(p.id);
+  async function handleClinicAction(payload: ClinicParticipantActionPayload) {
+    if (!actionDialog || mutatingIds.has(actionDialog.participant.id)) return;
+    const { participant: p, action } = actionDialog;
+    setMutatingIds((prev) => new Set(prev).add(p.id));
+    try {
+      if (action === "arrive" || action === "late" || action === "absent") {
+        await patchClinicParticipantStatus(p.id, {
+          status: action === "absent" ? "no_show" : "attended",
+          is_late: action === "late",
+          send_to: payload.send_to,
+        });
+      } else if (action === "checkout") {
+        await checkoutClinicParticipant(p.id, { send_to: payload.send_to });
       } else {
-        next.set(p.id, target);
+        await remindClinicParticipant(p.id, {
+          mode: payload.mode ?? "once",
+          send_to: payload.send_to,
+          interval_minutes: payload.interval_minutes,
+          repeat_until: payload.repeat_until,
+        });
       }
-      return next;
-    });
+
+      setActionDialog(null);
+      invalidateAll();
+      if (action === "absent") {
+        setRescheduleParticipant(p);
+        setRescheduleRecipient(payload.send_to);
+        setReplacementSessionId("");
+        const rows = await fetchClinicSessions({
+          date_from: selectedDate,
+          date_to: dayjs(selectedDate).add(30, "day").format("YYYY-MM-DD"),
+          ordering: "date,start_time,id",
+        });
+        setReplacementSessions(rows.filter((row) => row.id !== (sessionId ?? p.session)));
+      } else {
+        const label = action === "arrive" ? "등원" : action === "late" ? "지각 등원" : action === "checkout" ? "하원" : "재촉";
+        feedback.success(`${p.student_name} ${label} 처리가 완료되었습니다.`);
+      }
+    } catch {
+      invalidateAll();
+      feedback.error("클리닉 처리에 실패했습니다. 상태와 알림 설정을 확인해 주세요.");
+    } finally {
+      setMutatingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(p.id);
+        return next;
+      });
+    }
   }
 
-  /* ── 개별 출석/결석 알림 발송 (체크 확정 + API 호출) ── */
-  function handleConfirmStatus(p: ClinicParticipant) {
-    const pending = pendingStatuses.get(p.id);
-    if (!pending || mutatingIds.has(p.id)) return;
-
-    // 이미 같은 상태면 API 호출 불필요 — 체크 해제하고 안내
-    if (p.status === pending) {
-      setPendingStatuses((prev) => { const n = new Map(prev); n.delete(p.id); return n; });
-      feedback.info(`${p.student_name}은(는) 이미 ${pending === "attended" ? "출석" : "결석"} 상태입니다.`);
-      return;
-    }
-
-    setMutatingIds((prev) => new Set(prev).add(p.id));
-    patchClinicParticipantStatus(p.id, { status: pending })
-      .then(() => {
-        invalidateAll();
-        setPendingStatuses((prev) => {
-          const next = new Map(prev);
-          next.delete(p.id);
-          return next;
-        });
-        // 발송 완료 팝업 — 알림톡 본문 조회
-        const trigger = pending === "attended" ? "clinic_check_in" : "clinic_absent";
-        const cfg = autoSendConfigs.find((c) => c.trigger === trigger);
-        setSendResultPreviewOpen(false);
-        setSendResult({
-          type: pending,
-          students: [{ name: p.student_name, id: p.student }],
-          messageBody: cfg?.template_body || "",
-        });
-      })
-      .catch(() => {
-        invalidateAll();
-        feedback.error("처리에 실패했습니다. 다시 시도해 주세요.");
-      })
-      .finally(() => {
-        setMutatingIds((prev) => {
-          const next = new Set(prev);
-          next.delete(p.id);
-          return next;
-        });
+  async function handleReschedule() {
+    if (!rescheduleParticipant || !replacementSessionId || mutatingIds.has(rescheduleParticipant.id)) return;
+    const participantId = rescheduleParticipant.id;
+    setMutatingIds((prev) => new Set(prev).add(participantId));
+    try {
+      await changeClinicParticipantBooking(participantId, {
+        new_session_id: Number(replacementSessionId),
+        memo: "결석 후 보충 일정 이동",
+        send_to: rescheduleRecipient,
       });
+      setRescheduleParticipant(null);
+      setReplacementSessionId("");
+      invalidateAll();
+      feedback.success("보충 일정을 옮겼습니다.");
+    } catch {
+      feedback.error("보충 일정 이동에 실패했습니다.");
+    } finally {
+      setMutatingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(participantId);
+        return next;
+      });
+    }
   }
 
   function handleBookingDecision(
@@ -662,7 +859,11 @@ export default function ClinicConsoleWorkspace({
     if (targets.length === 0 && p.enrollment_id) {
       targets = targetsByEnrollment.get(p.enrollment_id) ?? [];
     }
-    return targets;
+    return [...targets].sort((left, right) => {
+      const byCreated = dayjs(right.created_at).valueOf() - dayjs(left.created_at).valueOf();
+      if (Number.isFinite(byCreated) && byCreated !== 0) return byCreated;
+      return String(right.session_title ?? "").localeCompare(String(left.session_title ?? ""), "ko", { numeric: true });
+    });
   }
 
   async function handleManualHomeworkComplete(target: ClinicTarget, memo: string) {
@@ -693,9 +894,79 @@ export default function ClinicConsoleWorkspace({
   }
 
   const drawerTargets = drawerParticipant ? getTargetsForParticipant(drawerParticipant) : [];
+  const drawerUnresolvedTargets = drawerTargets.filter(
+    (target): target is ClinicTarget & { clinic_link_id: number } =>
+      !target.resolved_at && typeof target.clinic_link_id === "number",
+  );
+  const activeDrawerTarget = drawerUnresolvedTargets.find(
+    (target) => target.clinic_link_id === drawerActiveClinicLinkId,
+  ) ?? drawerUnresolvedTargets[0] ?? null;
+  const activeDrawerTargetIsPlanned = !drawerContextRequired && activeDrawerTarget != null &&
+    (drawerParticipant?.planned_clinic_link_ids ?? []).includes(activeDrawerTarget.clinic_link_id);
+
+  useEffect(() => {
+    const pending = pendingPlanFocusRef.current;
+    if (!pending || planningParticipantIds.has(pending.participantId)) return;
+    if (
+      drawerParticipant?.id !== pending.participantId ||
+      drawerActiveClinicLinkId !== pending.clinicLinkId
+    ) {
+      pendingPlanFocusRef.current = null;
+      return;
+    }
+    const toggle = planToggleRef.current;
+    if (!toggle || toggle.disabled) return;
+    pendingPlanFocusRef.current = null;
+    toggle.focus();
+  }, [drawerActiveClinicLinkId, drawerParticipant?.id, planningParticipantIds]);
+
+  async function handleToggleTodayPlan(
+    participant: ClinicParticipant,
+    clinicLinkId: number,
+  ) {
+    if (!drawerParticipantContextConfirmed || drawerParticipant?.id !== participant.id) {
+      feedback.error("처리할 클리닉 시간대를 먼저 선택해 주세요.");
+      return;
+    }
+    if (planningParticipantIds.has(participant.id)) return;
+    const validIds = new Set(
+      getTargetsForParticipant(participant)
+        .filter((target) => !target.resolved_at && typeof target.clinic_link_id === "number")
+        .map((target) => target.clinic_link_id as number),
+    );
+    const currentIds = (participant.planned_clinic_link_ids ?? []).filter((id) => validIds.has(id));
+    const nextIds = currentIds.includes(clinicLinkId)
+      ? currentIds.filter((id) => id !== clinicLinkId)
+      : [...currentIds, clinicLinkId];
+    nextIds.sort((left, right) => left - right);
+
+    pendingPlanFocusRef.current = { participantId: participant.id, clinicLinkId };
+    setPlanningParticipantIds((current) => new Set(current).add(participant.id));
+    try {
+      const updated = await replaceClinicParticipantPlan(participant.id, nextIds);
+      qc.setQueriesData<ClinicParticipant[]>(
+        { queryKey: clinicQueryKeys.participants },
+        (current) => current?.map((row) => row.id === updated.id ? updated : row),
+      );
+      await qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
+      feedback.success(nextIds.includes(clinicLinkId) ? "오늘 할 일에 추가했습니다." : "오늘 할 일에서 뺐습니다.");
+    } catch {
+      feedback.error("오늘 할 일 저장에 실패했습니다. 최신 상태를 다시 불러옵니다.");
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: clinicQueryKeys.participants }),
+        qc.invalidateQueries({ queryKey: clinicQueryKeys.targets }),
+      ]);
+    } finally {
+      setPlanningParticipantIds((current) => {
+        const next = new Set(current);
+        next.delete(participant.id);
+        return next;
+      });
+    }
+  }
 
   const filterCounts = {
-    all: participants.length,
+    all: studentCount,
     requests: progress.approvalPending,
     pending: progress.pending,
     attended: progress.attended,
@@ -705,9 +976,9 @@ export default function ClinicConsoleWorkspace({
   const filters: { key: StatusFilter; label: string }[] = [
     { key: "all", label: "전체" },
     { key: "requests", label: "승인 대기" },
-    { key: "pending", label: "미확인" },
-    { key: "attended", label: "출석" },
-    { key: "no_show", label: "불참" },
+    { key: "pending", label: "미등원" },
+    { key: "attended", label: "등원" },
+    { key: "no_show", label: "결석" },
   ];
 
   return (
@@ -740,7 +1011,12 @@ export default function ClinicConsoleWorkspace({
           <div className="clinic-ops__header-info">
             <div className="clinic-ops__header-title-row">
               <h3 className="clinic-ops__header-date">{dateLabel}</h3>
-              {session.section_label && (
+              {isAggregate && (
+                <span className="clinic-ops__header-session-name clinic-ops__header-session-name--live">
+                  {workspaceMode === "onsite" ? "현재 현장" : "전체 시간"}
+                </span>
+              )}
+              {session?.section_label && (
                 <span
                   style={SECTION_BADGE_STYLE}
                   aria-label={`${session.section_label}반`}
@@ -748,16 +1024,16 @@ export default function ClinicConsoleWorkspace({
                   {session.section_label}반
                 </span>
               )}
-              {session.title && (
+              {session?.title && (
                 <span className="clinic-ops__header-session-name">{session.title}</span>
               )}
             </div>
             <div className="clinic-ops__header-meta">
               <span className="clinic-ops__header-meta-item">
                 <Clock size={16} aria-hidden />
-                {timeLabel}
+                {isAggregate ? "여러 시간대" : timeLabel}
               </span>
-              {session.location && (
+              {session?.location && (
                 <span className="clinic-ops__header-meta-item">
                   <MapPin size={16} aria-hidden />
                   {session.location}
@@ -765,7 +1041,8 @@ export default function ClinicConsoleWorkspace({
               )}
               <span className="clinic-ops__header-meta-item clinic-ops__header-meta-item--count">
                 <Users size={16} aria-hidden />
-                예약 <strong>{participants.length}</strong>명
+                {workspaceMode === "onsite" ? "현장" : "학생"}
+                {!isLoading && !isError && <> <strong>{studentCount}</strong>명</>}
                 {progress.approvalPending > 0 && (
                   <span className="clinic-ops__header-meta-note">
                     승인 대기 {progress.approvalPending}
@@ -775,8 +1052,9 @@ export default function ClinicConsoleWorkspace({
             </div>
           </div>
 
-          <div className="clinic-ops__header-actions">
-            {selectedDate >= dayjs().format("YYYY-MM-DD") && onEditSession && session && (
+          {!isAggregate && (
+            <div className="clinic-ops__header-actions">
+              {selectedDate >= dayjs().format("YYYY-MM-DD") && onEditSession && session && (
               <button
                 type="button"
                 className="clinic-ops__action-btn clinic-ops__action-btn--ghost"
@@ -786,8 +1064,8 @@ export default function ClinicConsoleWorkspace({
                 <Pencil size={14} aria-hidden />
                 수정
               </button>
-            )}
-            {selectedDate >= dayjs().format("YYYY-MM-DD") && onDeleteSession && session && (
+              )}
+              {selectedDate >= dayjs().format("YYYY-MM-DD") && onDeleteSession && session && (
               <button
                 type="button"
                 className="clinic-ops__action-btn clinic-ops__action-btn--danger"
@@ -800,16 +1078,16 @@ export default function ClinicConsoleWorkspace({
                 <Trash2 size={14} aria-hidden />
                 삭제
               </button>
-            )}
-            <button
+              )}
+              <button
               type="button"
               className="clinic-ops__action-btn clinic-ops__action-btn--secondary"
               onClick={() => setAddStudentModalOpen(true)}
             >
               <UserPlus size={14} aria-hidden />
               학생 추가
-            </button>
-            {changeNoticeStudentIds.length > 0 && (
+              </button>
+              {changeNoticeStudentIds.length > 0 && (
               <button
                 type="button"
                 className={`clinic-ops__action-btn clinic-ops__action-btn--notice ${
@@ -821,8 +1099,8 @@ export default function ClinicConsoleWorkspace({
                 <BellRing size={14} aria-hidden />
                 {hasFreshChangeNotice ? "수정 알림 보내기" : "변경 알림"}
               </button>
-            )}
-            {!isLoading && pendingIds.length > 0 && (
+              )}
+              {!isLoading && !isError && pendingIds.length > 0 && (
               <button
                 type="button"
                 className="clinic-ops__action-btn clinic-ops__action-btn--primary"
@@ -837,8 +1115,9 @@ export default function ClinicConsoleWorkspace({
                 <CheckCheck size={14} aria-hidden />
                 전체 출석 체크 ({pendingIds.length}명)
               </button>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
 
         {hasFreshChangeNotice && (
@@ -864,7 +1143,7 @@ export default function ClinicConsoleWorkspace({
         )}
 
         {/* KPI 밴드 — 운영 현황 한 줄 요약 */}
-        {!isLoading && participants.length > 0 && (
+        {!isLoading && !isError && participants.length > 0 && (
           <div className="clinic-ops__kpi-row">
             <div className="clinic-ops__kpi-counters">
               {progress.pending > 0 && (
@@ -946,7 +1225,7 @@ export default function ClinicConsoleWorkspace({
         )}
 
         {/* ═══ 알림 트리거 상태 — ON/OFF 인디케이터 ═══ */}
-        {!isLoading && session && (() => {
+        {!isLoading && !isError && !isAggregate && session && (() => {
           const CLINIC_TRIGGERS = [
             { key: "clinic_reservation_created", label: "예약 완료", desc: "클리닉 예약이 완료되면 학부모에게 예약 안내를 발송합니다." },
             { key: "clinic_check_in", label: "참석", desc: "출석 버튼을 누르면 학부모에게 입실 알림을 발송합니다." },
@@ -1045,7 +1324,7 @@ export default function ClinicConsoleWorkspace({
         })()}
 
         {/* ═══ B. 상태 필터 칩 — 미확인 우선 강조 ═══ */}
-        {!isLoading && participants.length > 0 && (
+        {!isLoading && !isError && workspaceMode === "day" && participants.length > 0 && (
           <div className="clinic-ops__filters">
             {filters.map((f) => (
               <button
@@ -1076,7 +1355,7 @@ export default function ClinicConsoleWorkspace({
       </div>
 
       {/* ═══ B-2. 출석/결석 알림 발송 바 — 참가자가 있으면 상시 표시 ═══ */}
-      {participants.length > 0 && (() => {
+      {!isAggregate && !isError && participants.length > 0 && (() => {
         const pendingAttend = Array.from(pendingStatuses.entries()).filter(([, s]) => s === "attended");
         const pendingNoShow = Array.from(pendingStatuses.entries()).filter(([, s]) => s === "no_show");
         const isSending = Array.from(pendingStatuses.keys()).some((id) => mutatingIds.has(id));
@@ -1147,6 +1426,18 @@ export default function ClinicConsoleWorkspace({
         );
       })()}
 
+      {!isLoading && !isError && participants.length > 0 && clinicTargetsLoading && (
+        <div className="clinic-workbench__targets-state" role="status">
+          미완료 과제·시험을 불러오는 중입니다.
+        </div>
+      )}
+      {!isLoading && !isError && participants.length > 0 && clinicTargetsError && (
+        <div className="clinic-workbench__targets-state clinic-workbench__targets-state--error" role="alert">
+          <span>미완료 과제·시험을 불러오지 못했습니다. 학생에게 할 일이 없는 것으로 표시하지 않았습니다.</span>
+          <button type="button" onClick={() => void clinicTargetsQuery.refetch()}>다시 시도</button>
+        </div>
+      )}
+
       {/* ═══ C. 학생 처리 큐 ═══ */}
       {isLoading ? (
         <div className="clinic-ops__loading">
@@ -1154,21 +1445,40 @@ export default function ClinicConsoleWorkspace({
           <div className="clinic-ops__skeleton" />
           <div className="clinic-ops__skeleton" />
         </div>
-      ) : participants.length === 0 ? (
-        <div className="clinic-console__empty-session">
+      ) : isError ? (
+        <div className="clinic-console__empty-session clinic-console__empty-session--error" role="alert">
           <p className="clinic-console__empty-session-text">
-            아직 예약된 학생이 없습니다.
+            {workspaceMode === "onsite"
+              ? "현재 등원중인 학생을 불러오지 못했습니다."
+              : "클리닉 학생 목록을 불러오지 못했습니다."}
           </p>
           <button
             type="button"
             className="clinic-console__empty-cta"
-            onClick={() => setAddStudentModalOpen(true)}
+            onClick={onRetry}
           >
-            <UserPlus size={14} aria-hidden />
-            <span>학생 추가하기</span>
+            다시 시도
           </button>
         </div>
-      ) : filteredParticipants.length === 0 ? (
+      ) : participants.length === 0 ? (
+        <div className="clinic-console__empty-session">
+          <p className="clinic-console__empty-session-text">
+            {workspaceMode === "onsite"
+              ? "현재 등원중인 학생이 없습니다."
+              : "선택한 범위에 등록된 학생이 없습니다."}
+          </p>
+          {!isAggregate && session && (
+            <button
+              type="button"
+              className="clinic-console__empty-cta"
+              onClick={() => setAddStudentModalOpen(true)}
+            >
+              <UserPlus size={14} aria-hidden />
+              <span>학생 추가하기</span>
+            </button>
+          )}
+        </div>
+      ) : filteredParticipantGroups.length === 0 ? (
         <div className="clinic-ops__empty-filter">
           <p className="clinic-ops__empty-filter-text">
             {statusFilter === "requests" && "승인 대기 신청이 없습니다."}
@@ -1179,8 +1489,17 @@ export default function ClinicConsoleWorkspace({
         </div>
       ) : (
         <div className="clinic-ops__queue">
-          {filteredParticipants.map((p) => {
+          {filteredParticipantGroups.map((group) => {
+            const p = group.participants[0];
             const targets = getTargetsForParticipant(p);
+            const unresolvedTargets = targets.filter(
+              (target): target is ClinicTarget & { clinic_link_id: number } =>
+                !target.resolved_at && typeof target.clinic_link_id === "number",
+            );
+            const plannedIds = new Set(
+              group.participants.flatMap((participant) => participant.planned_clinic_link_ids ?? []),
+            );
+            const plannedCount = unresolvedTargets.filter((target) => plannedIds.has(target.clinic_link_id)).length;
             // pending 체크 상태 우선, 없으면 서버 상태
             const isApprovalRequest = isApprovalPending(p.status);
             const pendingStatus = isApprovalRequest ? undefined : pendingStatuses.get(p.id);
@@ -1192,8 +1511,8 @@ export default function ClinicConsoleWorkspace({
 
             return (
               <div
-                key={p.id}
-                className={`clinic-ops__card clinic-ops__card--clickable ${
+                key={group.key}
+                className={`clinic-ops__card clinic-ops__student-row clinic-ops__card--clickable ${
                   isAttended
                     ? "clinic-ops__card--attended"
                     : isNoShow
@@ -1202,10 +1521,29 @@ export default function ClinicConsoleWorkspace({
                     ? "clinic-ops__card--approval"
                     : "clinic-ops__card--pending"
                 }`}
-                onClick={() => setDrawerParticipantId(p.id)}
-                role="button"
+                onClick={(event) => {
+                  if ((event.target as HTMLElement).closest("button, a, input, select, textarea")) return;
+                  openDrawer(
+                    p.id,
+                    unresolvedTargets[0]?.clinic_link_id ?? null,
+                    event.currentTarget,
+                    group.participants.length === 1,
+                  );
+                }}
+                role="group"
+                aria-label={`${p.student_name} 클리닉 운영 행`}
+                data-testid="clinic-participant-row"
                 tabIndex={0}
-                onKeyDown={(e) => { if (e.key === "Enter") setDrawerParticipantId(p.id); }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && event.target === event.currentTarget) {
+                    openDrawer(
+                      p.id,
+                      unresolvedTargets[0]?.clinic_link_id ?? null,
+                      event.currentTarget,
+                      group.participants.length === 1,
+                    );
+                  }
+                }}
               >
                 {/* Status indicator bar (left) */}
                 <div
@@ -1252,15 +1590,67 @@ export default function ClinicConsoleWorkspace({
                             : "clinic-ops__status-badge--pending"
                         }`}
                       >
-                        {hasPending ? (
+                        상태 · {hasPending ? (
                         <span className="clinic-ops__status-badge-pending-indicator">
                           {pendingStatus === "attended" ? "출석 예정" : "결석 예정"}
                         </span>
-                      ) : getStatusLabel(p.status)}
+                      ) : p.checked_out_at
+                        ? "하원 완료"
+                        : p.status === "attended" && p.is_late
+                        ? "지각 등원"
+                        : getStatusLabel(p.status)}
                       </span>
+                      {isAggregate && (
+                        <div
+                          className="clinic-ops__session-context-rail"
+                          role="group"
+                          aria-label={`${p.student_name} 일정 문맥`}
+                        >
+                          {group.participants.map((participant) => {
+                            const contextLabel = `${hhmmText(participant.session_start_time, "시간 미정")} · ${participant.session_location || "장소 미정"}`;
+                            return (
+                              <button
+                                key={participant.id}
+                                type="button"
+                                className="clinic-ops__session-context"
+                                aria-label={`${contextLabel} · ${getStatusLabel(participant.status)} 문맥`}
+                                onClick={(event) => openDrawer(
+                                  participant.id,
+                                  unresolvedTargets[0]?.clinic_link_id ?? null,
+                                  event.currentTarget,
+                                  true,
+                                )}
+                              >
+                                <Clock size={12} aria-hidden />
+                                {contextLabel}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
 
-                    <div className="clinic-ops__card-actions" onClick={(e) => e.stopPropagation()}>
+                    {!isApprovalRequest && group.participants.length === 1 && (
+                      <div
+                        className={`clinic-ops__flow-rail ${p.is_late ? "clinic-ops__flow-rail--late" : ""}`}
+                        aria-label="클리닉 진행 상태"
+                      >
+                        {(["미등원", "등원", "하원"] as const).map((label, index) => {
+                          const phase = p.checked_out_at ? 2 : p.status === "attended" ? 1 : 0;
+                          return (
+                            <span
+                              key={label}
+                              className={index <= phase ? "clinic-ops__flow-step clinic-ops__flow-step--done" : "clinic-ops__flow-step"}
+                              aria-current={index === phase ? "step" : undefined}
+                            >
+                              {index === 1 && p.is_late ? "지각 등원" : label}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {group.participants.length === 1 && <div className="clinic-ops__card-actions" onClick={(e) => e.stopPropagation()}>
                       {isApprovalRequest ? (
                         <>
                           <button
@@ -1284,96 +1674,107 @@ export default function ClinicConsoleWorkspace({
                             거절
                           </button>
                         </>
-                      ) : (
+                      ) : p.status === "booked" ? (
                         <>
-                          <button
-                            type="button"
-                            className={`clinic-ops__att-btn clinic-ops__att-btn--attend ${
-                              isAttended ? "clinic-ops__att-btn--active" : ""
-                            }`}
-                            onClick={() => handleToggleStatus(p, "attended")}
-                            disabled={isMutating}
-                            aria-label="출석"
-                          >
-                            <CheckCircle size={14} aria-hidden />
-                            출석
+                          <button type="button" className="clinic-ops__att-btn clinic-ops__att-btn--attend" onClick={() => setActionDialog({ participant: p, action: "arrive" })} disabled={isMutating} aria-label="등원">
+                            <CheckCircle size={14} aria-hidden /> 등원 처리
                           </button>
-                          <button
-                            type="button"
-                            className={`clinic-ops__att-btn clinic-ops__att-btn--noshow ${
-                              isNoShow ? "clinic-ops__att-btn--active" : ""
-                            }`}
-                            onClick={() => handleToggleStatus(p, "no_show")}
-                            disabled={isMutating}
-                            aria-label="불참"
-                          >
-                            <XCircle size={14} aria-hidden />
-                            불참
+                          <button type="button" className="clinic-ops__att-btn clinic-ops__att-btn--remind" onClick={() => setActionDialog({ participant: p, action: "remind" })} disabled={isMutating} aria-label="재촉">
+                            <BellRing size={14} aria-hidden /> 재촉
                           </button>
-                          {/* 개별 알림 발송 버튼 — 체크 시 활성화 */}
-                          {hasPending && (
-                            <button
-                              type="button"
-                              className={`clinic-ops__att-btn clinic-ops__att-btn--send ${
-                                pendingStatus === "attended" ? "clinic-ops__att-btn--send-attend" : "clinic-ops__att-btn--send-noshow"
-                              }`}
-                              onClick={() => handleConfirmStatus(p)}
-                              disabled={isMutating}
-                              aria-label={pendingStatus === "attended" ? "출석 알림 발송" : "결석 알림 발송"}
-                            >
-                              <Send size={16} aria-hidden />
-                              {isMutating ? "발송중…" : pendingStatus === "attended" ? "출석 알림" : "결석 알림"}
-                            </button>
-                          )}
+                          <button type="button" className="clinic-ops__att-btn clinic-ops__att-btn--noshow" onClick={() => setActionDialog({ participant: p, action: "absent" })} disabled={isMutating} aria-label="결석">
+                            <XCircle size={14} aria-hidden /> 결석
+                          </button>
+                          <button type="button" className="clinic-ops__att-btn clinic-ops__att-btn--checkout" disabled aria-label="하원">
+                            하원 처리
+                          </button>
                         </>
-                      )}
-                    </div>
+                      ) : p.status === "no_show" ? (
+                        <>
+                          <button type="button" className="clinic-ops__att-btn clinic-ops__att-btn--attend" onClick={() => setActionDialog({ participant: p, action: "arrive" })} disabled={isMutating} aria-label="등원">
+                            <CheckCircle size={14} aria-hidden /> 등원 처리
+                          </button>
+                          <button type="button" className="clinic-ops__att-btn clinic-ops__att-btn--late" onClick={() => setActionDialog({ participant: p, action: "late" })} disabled={isMutating} aria-label="지각 등원">
+                            <Clock size={14} aria-hidden /> 지각 등원
+                          </button>
+                        </>
+                      ) : p.status === "attended" ? (
+                        <button
+                          type="button"
+                          className="clinic-ops__att-btn clinic-ops__att-btn--checkout"
+                          onClick={() => !p.checked_out_at && setActionDialog({ participant: p, action: "checkout" })}
+                          disabled={isMutating || !!p.checked_out_at}
+                          aria-label={p.checked_out_at ? "하원 완료" : "하원"}
+                        >
+                          {p.checked_out_at ? "하원 완료" : "하원 처리"}
+                        </button>
+                      ) : null}
+                    </div>}
                   </div>
 
                   {/* Row 2: Reason + cycle + resolution + detail link */}
                   <div className="clinic-ops__card-detail-row">
-                    <div className="clinic-ops__card-reasons">
+                    {!clinicTargetsLoading && !clinicTargetsError && (
+                      <span className="clinic-ops__plan-count">
+                        오늘 {plannedCount} / 미완료 {unresolvedTargets.length}
+                      </span>
+                    )}
+                    <div className="clinic-ops__card-reasons" role="list" aria-label={`${p.student_name} 미완료 항목`}>
                       {clinicTargetsLoading ? (
-                        <span className="clinic-ops__reason-tag clinic-ops__reason-tag--self">
+                        <span className="clinic-ops__reason-tag clinic-ops__reason-tag--self" role="status">
                           과제 확인 중
                         </span>
                       ) : clinicTargetsError ? (
-                        <span className="clinic-ops__reason-tag clinic-ops__reason-tag--self">
+                        <span className="clinic-ops__reason-tag clinic-ops__reason-tag--self" role="alert">
                           과제 조회 실패
                         </span>
-                      ) : targets.length > 0 ? (
-                        targets.map((t, idx) => (
-                          <span
-                            key={`${t.enrollment_id}-${t.session_title}-${idx}`}
-                            className={`clinic-ops__reason-tag ${
-                              t.resolved_at
-                                ? "clinic-ops__reason-tag--resolved"
-                                : t.clinic_reason === "homework"
+                      ) : unresolvedTargets.length > 0 ? (
+                        unresolvedTargets.map((t) => {
+                          const targetParticipant = participantForTarget(group.participants, t);
+                          return (
+                          <button
+                            type="button"
+                            key={t.clinic_link_id}
+                            className={`clinic-ops__reason-tag clinic-ops__task-chip ${
+                              t.clinic_reason === "homework"
                                 ? "clinic-ops__reason-tag--homework"
                                 : t.clinic_reason === "both"
                                 ? "clinic-ops__reason-tag--both"
                                 : "clinic-ops__reason-tag--exam"
-                            }`}
+                            } ${plannedIds.has(t.clinic_link_id) ? "clinic-ops__task-chip--planned" : ""}`}
+                            aria-pressed={plannedIds.has(t.clinic_link_id)}
+                            aria-label={`${p.student_name} ${t.clinic_reason === "homework" ? "과제" : "시험"} ${getTargetDisplayTitle(t)} ${getTargetContext(t)} ${formatScoreDetail(t)}`}
+                            onClick={(event) => openDrawer(
+                              targetParticipant?.id ?? p.id,
+                              t.clinic_link_id,
+                              event.currentTarget,
+                              targetParticipant != null,
+                            )}
                           >
-                            {t.resolved_at ? (
-                              <ShieldCheck size={14} aria-hidden />
-                            ) : t.clinic_reason === "homework" ? (
+                            {t.clinic_reason === "homework" ? (
                               <BookOpen size={14} aria-hidden />
                             ) : (
                               <FileQuestion size={14} aria-hidden />
                             )}
+                            <span className="clinic-ops__task-kind">
+                              {t.clinic_reason === "homework" ? "과제" : t.clinic_reason === "both" ? "시험·과제" : "시험"}
+                            </span>
                             {getCycleLabel(t.cycle_no) && (
                               <span className="clinic-ops__cycle-badge-inline">
                                 {getCycleLabel(t.cycle_no)}
                               </span>
                             )}
-                            {t.resolved_at
-                              ? getResolutionLabel(t.resolution_type) + " 통과"
-                              : t.source_title || t.session_title
-                              ? `${t.source_title || t.session_title} · ${formatScoreDetail(t)}`
-                              : formatScoreDetail(t)}
-                          </span>
-                        ))
+                            {t.source_title || t.session_title ? (
+                              <>
+                                <span className="clinic-ops__reason-title">{t.source_title || t.session_title}</span>
+                                <span className="clinic-ops__reason-detail">{formatScoreDetail(t)}</span>
+                              </>
+                            ) : (
+                              formatScoreDetail(t)
+                            )}
+                          </button>
+                          );
+                        })
                       ) : (
                         <span className="clinic-ops__reason-tag clinic-ops__reason-tag--self">
                           자율 학습 참여
@@ -1381,114 +1782,6 @@ export default function ClinicConsoleWorkspace({
                       )}
                     </div>
                   </div>
-
-                  {/* Row 3: Inline actions — 클리닉 완료 / 진행중 점수입력 */}
-                  {(() => {
-                    if (clinicTargetsLoading || clinicTargetsError) return null;
-                    const isSelfStudy = targets.length === 0;
-                    const unresolvedTargets = targets.filter((t) => !t.resolved_at && t.clinic_link_id);
-                    const isCompleted = !!p.completed_at;
-                    // 승인 대기/결석/취소/거절 상태에서는 완료 버튼 숨김.
-                    if (
-                      p.status === "pending" ||
-                      p.status === "no_show" ||
-                      p.status === "cancelled" ||
-                      p.status === "rejected"
-                    ) return null;
-
-                    if (isSelfStudy) {
-                      // 자율학습: 완료 토글 버튼
-                      return (
-                        <div className="clinic-ops__card-inline-actions" onClick={(e) => e.stopPropagation()}>
-                          {isCompleted ? (
-                            <button
-                              type="button"
-                              className="clinic-ops__inline-btn clinic-ops__inline-btn--completed"
-                              onClick={() => handleUncomplete(p)}
-                              disabled={completingIds.has(p.id)}
-                            >
-                              <CircleCheckBig size={14} aria-hidden />
-                              클리닉 완료
-                              <span className="clinic-ops__inline-btn-sub">
-                                {dayjs(p.completed_at).format("HH:mm")}
-                              </span>
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              className="clinic-ops__inline-btn clinic-ops__inline-btn--complete"
-                              onClick={() => handleComplete(p)}
-                              disabled={completingIds.has(p.id)}
-                            >
-                              <CircleCheckBig size={14} aria-hidden />
-                              {completingIds.has(p.id) ? "처리 중…" : "클리닉 완료"}
-                            </button>
-                          )}
-                        </div>
-                      );
-                    }
-
-                    const actionableUnresolvedTargets = unresolvedTargets.filter(
-                      (target) => !(target.reason === "missing" && target.source_type === "exam"),
-                    );
-                    if (actionableUnresolvedTargets.length > 0) {
-                      // 진행중: 인라인 점수 입력
-                      return (
-                        <div className="clinic-ops__card-inline-actions" onClick={(e) => e.stopPropagation()}>
-                          {actionableUnresolvedTargets.map((t) => (
-                            <div
-                              key={t.clinic_link_id}
-                              className="clinic-ops__inline-retake"
-                            >
-                              <span className="clinic-ops__inline-retake-label">
-                                {t.source_type === "homework" ? "과제" : "시험"} 점수
-                              </span>
-                              <input
-                                type="number"
-                                className="clinic-ops__inline-retake-input"
-                                placeholder="점수"
-                                min={0}
-                                value={retakeScores.get(t.clinic_link_id!) ?? ""}
-                                onChange={(e) => {
-                                  setRetakeScores((prev) => {
-                                    const next = new Map(prev);
-                                    next.set(t.clinic_link_id!, e.target.value);
-                                    return next;
-                                  });
-                                }}
-                                max={t.max_score ?? undefined}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") handleRetakeSubmit(t.clinic_link_id!, t.max_score);
-                                }}
-                                disabled={retakingIds.has(t.clinic_link_id!)}
-                              />
-                              <button
-                                type="button"
-                                className="clinic-ops__inline-retake-submit"
-                                onClick={() => handleRetakeSubmit(t.clinic_link_id!, t.max_score)}
-                                disabled={retakingIds.has(t.clinic_link_id!) || !(retakeScores.get(t.clinic_link_id!) ?? "").trim()}
-                              >
-                                {retakingIds.has(t.clinic_link_id!) ? "…" : "제출"}
-                              </button>
-                              {canCompleteManualHomework(t) && (
-                                <button
-                                  type="button"
-                                  className="clinic-ops__inline-btn clinic-ops__inline-btn--complete"
-                                  onClick={() => setCompleteTarget(t)}
-                                  disabled={remediatingLinkIds.has(t.clinic_link_id!)}
-                                >
-                                  <BookOpen size={14} aria-hidden />
-                                  제출 확인·완료
-                                </button>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    }
-
-                    return null;
-                  })()}
 
                   {/* Optional: memo */}
                   {p.memo && (
@@ -1506,121 +1799,124 @@ export default function ClinicConsoleWorkspace({
         <>
           <div
             className="clinic-ops__drawer-backdrop"
-            onClick={() => setDrawerParticipantId(null)}
+            onClick={closeDrawer}
             aria-hidden
           />
           <div
-            className="clinic-ops__drawer"
+            ref={drawerRef}
+            className="clinic-ops__drawer clinic-workbench"
             role="dialog"
             aria-modal="true"
-            aria-label="클리닉 상세"
+            aria-label={`${drawerParticipant.student_name} 클리닉 워크벤치`}
           >
             <div className="clinic-ops__drawer-header">
-              <h2 className="clinic-ops__drawer-title">클리닉 상세</h2>
+              <div>
+                <span className="clinic-workbench__eyebrow">
+                  {drawerContextRequired
+                    ? "처리할 시간대를 먼저 선택하세요"
+                    : `${hhmmText(drawerParticipant.session_start_time, "시간 미정")} · ${drawerParticipant.session_location || "장소 미정"}`}
+                </span>
+                <h2 ref={drawerHeadingRef} tabIndex={-1} className="clinic-ops__drawer-title">
+                  {drawerParticipant.student_name} 작업대
+                </h2>
+              </div>
               <button
                 type="button"
                 className="clinic-ops__drawer-close"
-                onClick={() => setDrawerParticipantId(null)}
+                onClick={closeDrawer}
                 aria-label="닫기"
               >
                 <X size={18} />
               </button>
             </div>
 
-            {/* Status action — 최상단에 배치하여 처리 공간화 */}
-            {(() => {
-              const dp = drawerParticipant;
-              const dpIsApprovalRequest = isApprovalPending(dp.status);
-              const dpPending = dpIsApprovalRequest ? undefined : pendingStatuses.get(dp.id);
-              const dpEffective = dpPending ?? dp.status;
-              const dpIsMutating = mutatingIds.has(dp.id);
-              return (
-                <div className="clinic-ops__drawer-status-section">
-                  <div className="clinic-ops__drawer-status-current">
-                    <span className="clinic-ops__drawer-status-label">
-                      {dpPending ? "변경 예정" : "현재 상태"}
-                    </span>
-                    <span
-                      className={`clinic-ops__status-badge clinic-ops__status-badge--lg ${
-                        dpEffective === "attended"
-                          ? "clinic-ops__status-badge--attended"
-                          : dpEffective === "no_show"
-                          ? "clinic-ops__status-badge--noshow"
-                          : dpIsApprovalRequest
-                          ? "clinic-ops__status-badge--approval"
-                          : "clinic-ops__status-badge--pending"
-                      }`}
+            {drawerParticipantGroup.length > 1 && (
+              <div className="clinic-workbench__session-switcher" role="group" aria-label="학생 클리닉 일정 선택">
+                {drawerParticipantGroup.map((participant) => {
+                  const contextLabel = `${hhmmText(participant.session_start_time, "시간 미정")} · ${participant.session_location || "장소 미정"}`;
+                  return (
+                    <button
+                      key={participant.id}
+                      type="button"
+                      className={participant.id === drawerParticipant.id ? "clinic-workbench__session-button clinic-workbench__session-button--active" : "clinic-workbench__session-button"}
+                      aria-pressed={participant.id === drawerParticipant.id}
+                      onClick={() => {
+                        setDrawerParticipantId(participant.id);
+                        setDrawerParticipantContextConfirmed(true);
+                      }}
                     >
-                      {dpPending
-                        ? dpPending === "attended" ? "출석 예정" : "결석 예정"
-                        : getStatusLabel(dp.status)}
-                    </span>
-                  </div>
-                  <div className="clinic-ops__drawer-status-actions">
-                    {dpIsApprovalRequest ? (
-                      <>
-                        <button
-                          type="button"
-                          className="clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--approve"
-                          disabled={dpIsMutating}
-                          onClick={() => handleBookingDecision(dp, "booked")}
-                        >
-                          <CheckCircle size={16} aria-hidden />
-                          예약 승인
-                        </button>
-                        <button
-                          type="button"
-                          className="clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--reject"
-                          disabled={dpIsMutating}
-                          onClick={() => handleBookingDecision(dp, "rejected")}
-                        >
-                          <XCircle size={16} aria-hidden />
-                          예약 거절
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          className={`clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--attend ${
-                            dpEffective === "attended" ? "clinic-ops__drawer-status-btn--active" : ""
-                          }`}
-                          disabled={dpIsMutating}
-                          onClick={() => handleToggleStatus(dp, "attended")}
-                        >
-                          <CheckCircle size={16} aria-hidden />
-                          출석
-                        </button>
-                        <button
-                          type="button"
-                          className={`clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--noshow ${
-                            dpEffective === "no_show" ? "clinic-ops__drawer-status-btn--active" : ""
-                          }`}
-                          disabled={dpIsMutating}
-                          onClick={() => handleToggleStatus(dp, "no_show")}
-                        >
-                          <XCircle size={16} aria-hidden />
-                          불참
-                        </button>
-                        {dpPending && (
-                          <button
-                            type="button"
-                            className={`clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--send ${
-                              dpPending === "attended" ? "clinic-ops__drawer-status-btn--send-attend" : "clinic-ops__drawer-status-btn--send-noshow"
-                            }`}
-                            disabled={dpIsMutating}
-                            onClick={() => handleConfirmStatus(dp)}
-                          >
-                            <Send size={15} aria-hidden />
-                            {dpIsMutating ? "발송 중…" : dpPending === "attended" ? "출석 알림 발송" : "결석 알림 발송"}
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </div>
+                      <span>{contextLabel}</span>
+                      <em>{participant.checked_out_at ? "하원 완료" : getStatusLabel(participant.status)}</em>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Attendance and checkout are a session rail, separate from learning work. */}
+            {drawerContextRequired ? (
+              <div className="clinic-workbench__context-required" role="status">
+                출결·하원·오늘 할 일은 위 시간대를 선택한 뒤 처리할 수 있습니다.
+              </div>
+            ) : <div className="clinic-ops__drawer-status-section clinic-workbench__lifecycle">
+              <div className="clinic-ops__drawer-status-current">
+                <span className="clinic-ops__drawer-status-label">등원 · 하원</span>
+                <span className={`clinic-ops__status-badge clinic-ops__status-badge--lg ${
+                  drawerParticipant.status === "attended"
+                    ? "clinic-ops__status-badge--attended"
+                    : drawerParticipant.status === "no_show"
+                    ? "clinic-ops__status-badge--noshow"
+                    : isApprovalPending(drawerParticipant.status)
+                    ? "clinic-ops__status-badge--approval"
+                    : "clinic-ops__status-badge--pending"
+                }`}>
+                  {drawerParticipant.checked_out_at
+                    ? "하원 완료"
+                    : drawerParticipant.status === "attended" && drawerParticipant.is_late
+                    ? "지각 등원"
+                    : getStatusLabel(drawerParticipant.status)}
+                </span>
+              </div>
+              {!isApprovalPending(drawerParticipant.status) && (
+                <div className="clinic-ops__flow-rail" aria-label="클리닉 등하원 상태">
+                  {(["미등원", "등원", "하원"] as const).map((label, index) => {
+                    const phase = drawerParticipant.checked_out_at ? 2 : drawerParticipant.status === "attended" ? 1 : 0;
+                    return (
+                      <span key={label} className={index <= phase ? "clinic-ops__flow-step clinic-ops__flow-step--done" : "clinic-ops__flow-step"} aria-current={index === phase ? "step" : undefined}>
+                        {index === 1 && drawerParticipant.is_late ? "지각 등원" : label}
+                      </span>
+                    );
+                  })}
                 </div>
-              );
-            })()}
+              )}
+              <div className="clinic-ops__drawer-status-actions">
+                {isApprovalPending(drawerParticipant.status) ? (
+                  <>
+                    <button type="button" className="clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--approve" disabled={mutatingIds.has(drawerParticipant.id)} onClick={() => handleBookingDecision(drawerParticipant, "booked")}>
+                      <CheckCircle size={16} aria-hidden /> 예약 승인
+                    </button>
+                    <button type="button" className="clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--reject" disabled={mutatingIds.has(drawerParticipant.id)} onClick={() => handleBookingDecision(drawerParticipant, "rejected")}>
+                      <XCircle size={16} aria-hidden /> 예약 거절
+                    </button>
+                  </>
+                ) : drawerParticipant.status === "booked" ? (
+                  <>
+                    <button type="button" className="clinic-ops__drawer-status-btn" disabled={mutatingIds.has(drawerParticipant.id)} onClick={() => setActionDialog({ participant: drawerParticipant, action: "arrive" })}>등원</button>
+                    <button type="button" className="clinic-ops__drawer-status-btn" disabled={mutatingIds.has(drawerParticipant.id)} onClick={() => setActionDialog({ participant: drawerParticipant, action: "remind" })}>재촉</button>
+                    <button type="button" className="clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--reject" disabled={mutatingIds.has(drawerParticipant.id)} onClick={() => setActionDialog({ participant: drawerParticipant, action: "absent" })}>결석</button>
+                  </>
+                ) : drawerParticipant.status === "no_show" ? (
+                  <>
+                    <button type="button" className="clinic-ops__drawer-status-btn" disabled={mutatingIds.has(drawerParticipant.id)} onClick={() => setActionDialog({ participant: drawerParticipant, action: "arrive" })}>등원</button>
+                    <button type="button" className="clinic-ops__drawer-status-btn" disabled={mutatingIds.has(drawerParticipant.id)} onClick={() => setActionDialog({ participant: drawerParticipant, action: "late" })}>지각 등원</button>
+                  </>
+                ) : drawerParticipant.status === "attended" ? (
+                  <button type="button" className="clinic-ops__drawer-status-btn" disabled={mutatingIds.has(drawerParticipant.id) || !!drawerParticipant.checked_out_at} onClick={() => setActionDialog({ participant: drawerParticipant, action: "checkout" })}>
+                    {drawerParticipant.checked_out_at ? "하원 완료" : "하원 처리"}
+                  </button>
+                ) : null}
+              </div>
+            </div>}
 
             <div className="clinic-ops__drawer-body">
               {/* Student info */}
@@ -1650,9 +1946,46 @@ export default function ClinicConsoleWorkspace({
                 </div>
               </div>
 
+              {!clinicTargetsLoading && !clinicTargetsError && !drawerContextRequired && (
+                <div className="clinic-workbench__plan-summary">
+                  <div>
+                    <span className="clinic-workbench__summary-label">오늘 할 범위</span>
+                    <strong>
+                      오늘 할 일 {drawerUnresolvedTargets.filter((target) => (drawerParticipant.planned_clinic_link_ids ?? []).includes(target.clinic_link_id)).length}
+                      {" / "}전체 미완료 {drawerUnresolvedTargets.length}
+                    </strong>
+                  </div>
+                  <span className="clinic-workbench__summary-help">선택은 이 클리닉 일정에만 저장됩니다.</span>
+                </div>
+              )}
+
+              {!clinicTargetsLoading && !clinicTargetsError && drawerUnresolvedTargets.length > 0 && (
+                <div className="clinic-workbench__item-switcher" role="tablist" aria-label="미완료 항목 전환">
+                  {drawerUnresolvedTargets.map((target, index) => {
+                    const planned = !drawerContextRequired && (drawerParticipant.planned_clinic_link_ids ?? []).includes(target.clinic_link_id);
+                    return (
+                      <button
+                        key={target.clinic_link_id}
+                        type="button"
+                        role="tab"
+                        aria-selected={activeDrawerTarget?.clinic_link_id === target.clinic_link_id}
+                        className={`clinic-workbench__item-tab ${activeDrawerTarget?.clinic_link_id === target.clinic_link_id ? "clinic-workbench__item-tab--active" : ""}`}
+                        onClick={() => {
+                          setDrawerActiveClinicLinkId(target.clinic_link_id);
+                        }}
+                      >
+                        <span>{index + 1}</span>
+                        {target.source_title || target.session_title || formatReasonLabel(target.clinic_reason)}
+                        {planned && <em>오늘</em>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
               {/* Clinic reasons + remediation status */}
               <div className="clinic-ops__drawer-section">
-                <h4 className="clinic-ops__drawer-section-title">대상 사유 · 통과 상태</h4>
+                <h4 className="clinic-ops__drawer-section-title">선택 항목 처리</h4>
                 {clinicTargetsLoading ? (
                   <div className="clinic-ops__target-query-state" role="status" aria-live="polite">
                     클리닉 과제 정보를 불러오는 중입니다.
@@ -1672,45 +2005,16 @@ export default function ClinicConsoleWorkspace({
                       {clinicTargetsQuery.isFetching ? "다시 불러오는 중…" : "다시 시도"}
                     </button>
                   </div>
-                ) : drawerTargets.length === 0 ? (
+                ) : drawerUnresolvedTargets.length === 0 ? (
                   <div className="clinic-ops__drawer-self-study">
                     <p className="clinic-ops__drawer-empty">자율 학습 참여</p>
-                    {drawerParticipant.completed_at ? (
-                      <div className="clinic-ops__drawer-completed">
-                        <CircleCheckBig size={14} aria-hidden />
-                        <span>완료 ({dayjs(drawerParticipant.completed_at).format("M/D HH:mm")})</span>
-                        <button
-                          type="button"
-                          className="clinic-ops__remediation-btn clinic-ops__remediation-btn--waive"
-                          onClick={() => handleUncomplete(drawerParticipant)}
-                          disabled={completingIds.has(drawerParticipant.id)}
-                        >
-                          <Undo2 size={16} aria-hidden />
-                          완료 취소
-                        </button>
-                      </div>
-                    ) : drawerParticipant.status === "pending" ? (
-                      <p className="clinic-ops__drawer-empty">예약 승인 후 완료 처리할 수 있습니다.</p>
-                    ) : drawerParticipant.status === "no_show" || drawerParticipant.status === "cancelled" || drawerParticipant.status === "rejected" ? (
-                      <p className="clinic-ops__drawer-empty">현재 상태에서는 완료 처리할 수 없습니다.</p>
-                    ) : (
-                      <button
-                        type="button"
-                        className="clinic-ops__remediation-btn clinic-ops__remediation-btn--resolve"
-                        onClick={() => handleComplete(drawerParticipant)}
-                        disabled={completingIds.has(drawerParticipant.id)}
-                      >
-                        <CircleCheckBig size={16} aria-hidden />
-                        클리닉 완료
-                      </button>
-                    )}
                   </div>
                 ) : (
                   <div className="clinic-ops__drawer-reasons">
-                    {drawerTargets.map((t, idx) => (
+                    {activeDrawerTarget && [activeDrawerTarget].map((t) => (
                       <div
-                        key={`${t.enrollment_id}-${t.session_title}-${idx}`}
-                        className="clinic-ops__drawer-reason-card"
+                        key={t.clinic_link_id}
+                        className="clinic-ops__drawer-reason-card clinic-workbench__active-panel"
                       >
                         <div className="clinic-ops__drawer-reason-header">
                           <span
@@ -1727,13 +2031,14 @@ export default function ClinicConsoleWorkspace({
                             )}
                           </span>
                           <div className="clinic-ops__drawer-reason-info">
-                            {t.session_title && (
-                              <span className="clinic-ops__drawer-reason-session">
-                                {t.session_title}
-                              </span>
+                            <strong className="clinic-workbench__target-title">
+                              {getTargetDisplayTitle(t)}
+                            </strong>
+                            {getTargetContext(t) && (
+                              <span className="clinic-ops__drawer-reason-session">{getTargetContext(t)}</span>
                             )}
                             <span className="clinic-ops__drawer-reason-type">
-                              {formatReasonLabel(t.clinic_reason)}
+                              {getTargetReasonLabel(t)}
                               {getCycleLabel(t.cycle_no) && (
                                 <span className="clinic-ops__cycle-badge">
                                   {getCycleLabel(t.cycle_no)}
@@ -1761,6 +2066,23 @@ export default function ClinicConsoleWorkspace({
                             <span className="clinic-ops__unresolved-badge">진행중</span>
                           </div>
                         )}
+
+                        <button
+                          ref={planToggleRef}
+                          type="button"
+                          className={`clinic-workbench__plan-toggle ${activeDrawerTargetIsPlanned ? "clinic-workbench__plan-toggle--selected" : ""}`}
+                          aria-pressed={activeDrawerTargetIsPlanned}
+                          aria-label={drawerContextRequired
+                            ? "시간대 선택 필요"
+                            : activeDrawerTargetIsPlanned
+                              ? "오늘 할 일에서 빼기"
+                              : "오늘 할 일에 추가"}
+                          disabled={drawerContextRequired || planningParticipantIds.has(drawerParticipant.id)}
+                          onClick={() => handleToggleTodayPlan(drawerParticipant, t.clinic_link_id!)}
+                        >
+                          <CheckCheck size={16} aria-hidden />
+                          {activeDrawerTargetIsPlanned ? "오늘 할 일로 선택됨" : "오늘은 이 항목 처리"}
+                        </button>
 
                         {/* Exam score */}
                         {(t.source_type === "exam" ||
@@ -1826,6 +2148,41 @@ export default function ClinicConsoleWorkspace({
                               </div>
                             </div>
                           )}
+
+                        {!t.resolved_at && t.clinic_link_id && !(t.reason === "missing" && t.source_type === "exam") && (
+                          <div className="clinic-workbench__score-entry">
+                            <label htmlFor={`clinic-workbench-score-${t.clinic_link_id}`}>
+                              {t.source_type === "homework" ? "과제" : "시험"} 점수
+                            </label>
+                            <input
+                              id={`clinic-workbench-score-${t.clinic_link_id}`}
+                              type="number"
+                              inputMode="decimal"
+                              min={0}
+                              max={t.max_score ?? undefined}
+                              placeholder="점수"
+                              value={retakeScores.get(t.clinic_link_id) ?? ""}
+                              onChange={(event) => {
+                                setRetakeScores((current) => {
+                                  const next = new Map(current);
+                                  next.set(t.clinic_link_id!, event.target.value);
+                                  return next;
+                                });
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") handleRetakeSubmit(t.clinic_link_id!, t.max_score);
+                              }}
+                              disabled={retakingIds.has(t.clinic_link_id)}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleRetakeSubmit(t.clinic_link_id!, t.max_score)}
+                              disabled={retakingIds.has(t.clinic_link_id) || !(retakeScores.get(t.clinic_link_id) ?? "").trim()}
+                            >
+                              {retakingIds.has(t.clinic_link_id) ? "저장 중…" : "점수 저장"}
+                            </button>
+                          </div>
+                        )}
 
                         {/* ✅ Remediation actions — 진행중 case에만 표시 */}
                         {!t.resolved_at && t.clinic_link_id && (
@@ -1953,6 +2310,34 @@ export default function ClinicConsoleWorkspace({
                 )}
               </div>
 
+              <div className="clinic-ops__drawer-section clinic-workbench__completion">
+                <h4 className="clinic-ops__drawer-section-title">세션 처리 완료</h4>
+                <p>학습 항목 해결이나 하원과 별개로, 오늘 상담·확인을 마쳤을 때만 처리합니다.</p>
+                {drawerParticipant.completed_at ? (
+                  <button
+                    type="button"
+                    className="clinic-ops__remediation-btn clinic-ops__remediation-btn--waive"
+                    onClick={() => handleUncomplete(drawerParticipant)}
+                    disabled={completingIds.has(drawerParticipant.id)}
+                  >
+                    <Undo2 size={16} aria-hidden />
+                    완료 취소 · {dayjs(drawerParticipant.completed_at).format("HH:mm")}
+                  </button>
+                ) : drawerParticipant.status === "attended" ? (
+                  <button
+                    type="button"
+                    className="clinic-ops__remediation-btn clinic-ops__remediation-btn--resolve"
+                    onClick={() => handleComplete(drawerParticipant)}
+                    disabled={completingIds.has(drawerParticipant.id)}
+                  >
+                    <CircleCheckBig size={16} aria-hidden />
+                    {completingIds.has(drawerParticipant.id) ? "처리 중…" : "세션 처리 완료"}
+                  </button>
+                ) : (
+                  <span className="clinic-ops__drawer-empty">등원 후 처리 완료할 수 있습니다.</span>
+                )}
+              </div>
+
               {/* Memo */}
               <div className="clinic-ops__drawer-section">
                 <h4 className="clinic-ops__drawer-section-title">메모</h4>
@@ -2061,6 +2446,50 @@ export default function ClinicConsoleWorkspace({
           </div>
         </div>,
         document.body
+      )}
+
+      {actionDialog && (
+        <ClinicParticipantActionDialog
+          action={actionDialog.action}
+          participantName={actionDialog.participant.student_name}
+          selectedDate={selectedDate}
+          busy={mutatingIds.has(actionDialog.participant.id)}
+          onClose={() => setActionDialog(null)}
+          onConfirm={handleClinicAction}
+        />
+      )}
+
+      {rescheduleParticipant && createPortal(
+        <div className="clinic-reschedule__backdrop" onMouseDown={(event) => event.target === event.currentTarget && setRescheduleParticipant(null)}>
+          <section className="clinic-reschedule__dialog" role="dialog" aria-modal="true" aria-label="보충 일정 정하기">
+            <header>
+              <div>
+                <span>결석 후 다음 단계</span>
+                <h2>보충 일정 정하기</h2>
+                <p><strong>{rescheduleParticipant.student_name}</strong>의 기존 결석 기록은 보존됩니다.</p>
+              </div>
+              <button type="button" onClick={() => setRescheduleParticipant(null)} aria-label="닫기"><X size={18} aria-hidden /></button>
+            </header>
+            <label className="clinic-reschedule__select">
+              이동할 일정
+              <select value={replacementSessionId} onChange={(event) => setReplacementSessionId(event.target.value)}>
+                <option value="">일정을 선택하세요</option>
+                {replacementSessions.map((row) => (
+                  <option key={row.id} value={row.id}>
+                    {dayjs(row.date).format("M/D")} {hhmmText(row.start_time, "—")} · {row.title || row.location}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="clinic-reschedule__choices">
+              <a href={`/workspace/clinic/schedule?create=1&date=${selectedDate}`}>새 클리닉 만들기</a>
+              <button type="button" onClick={handleReschedule} disabled={!replacementSessionId || mutatingIds.has(rescheduleParticipant.id)}>
+                일정 이동
+              </button>
+            </div>
+          </section>
+        </div>,
+        document.body,
       )}
 
       <NotificationPreviewModal

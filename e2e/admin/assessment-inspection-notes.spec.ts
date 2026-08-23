@@ -24,6 +24,7 @@ function createLocalJwt() {
 async function installApi(
   page: Page,
   options: {
+    emptyExamNote?: boolean;
     failCorrection?: boolean;
     failScoreRefreshAfterCorrection?: boolean;
   } = {},
@@ -44,7 +45,7 @@ async function installApi(
     note?: string;
   }> = [];
   let examStatus: "PENDING" | "COMPLETED" = "PENDING";
-  let examNote = "서술형 3번 풀이 확인";
+  let examNote = options.emptyExamNote ? "" : "서술형 3번 풀이 확인";
   let correctionSaved = false;
   let scoreRefreshFailures = 0;
 
@@ -328,6 +329,50 @@ async function openHomeworkInspection(page: Page) {
 }
 
 test.describe("시험·과제 수동 검사 상태", () => {
+  test("빈 판정 사유에서 통과 확정을 누르면 저장하지 않고 사유 입력으로 안내한다", async ({ page }, testInfo) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width: 390, height: 844 });
+    const api = await installApi(page, { emptyExamNote: true });
+    const baseUrl = getBaseUrl("admin");
+    await page.goto(
+      `${baseUrl}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "load", timeout: 45_000 },
+    );
+
+    const studentRowName = page.locator('tbody tr[role="button"]').first().locator('[data-col-type="name"]');
+    await expect(studentRowName).toBeVisible({ timeout: 45_000 });
+    await studentRowName.click();
+    const drawer = page.locator(".student-scores-drawer");
+    const examCard = drawer.locator(".student-scores-drawer__exam-card")
+      .filter({ hasText: "방정식 단원평가" });
+    await examCard.getByText("방정식 단원평가", { exact: true }).click();
+
+    const completeButton = examCard.getByRole("button", { name: "통과 확정", exact: true });
+    const note = examCard.getByRole("textbox", { name: "교사 최종 판정 비고" });
+    await expect(completeButton).toBeEnabled();
+    await completeButton.click();
+
+    await expect(note).toBeFocused();
+    await expect(note).toHaveAttribute("aria-invalid", "true");
+    await expect(examCard.getByRole("alert")).toHaveText(
+      "통과 확정 사유를 2자 이상 입력해 주세요.",
+    );
+    expect(api.correctionRequests).toHaveLength(0);
+    expect(await drawer.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    await drawer.screenshot({
+      path: testInfo.outputPath("assessment-completion-reason-390.png"),
+    });
+
+    await note.fill("완료");
+    await completeButton.click();
+    await expect(examCard.getByText("교사 통과", { exact: true }).first()).toBeVisible();
+    expect(api.correctionRequests.at(-1)).toMatchObject({
+      source_type: "exam",
+      completed: true,
+      note: "완료",
+    });
+  });
+
   test("성적 패널의 학생 이름은 같은 화면 위 학생 상세로 연결된다", async ({ page }, testInfo) => {
     await installApi(page);
     const baseUrl = getBaseUrl("admin");
@@ -339,15 +384,16 @@ test.describe("시험·과제 수동 검사 상태", () => {
     const studentLink = drawer.getByRole("link", { name: "윤지용 학생 학생 상세 열기" });
     await expect(studentLink).toBeVisible();
     await drawer.screenshot({ path: testInfo.outputPath("score-drawer-student-link-1366.png") });
+    const hostUrl = page.url();
     await studentLink.click();
 
-    await expect(page).toHaveURL(/\/workspace\/students\/7101$/);
+    await expect(page).toHaveURL(hostUrl);
     const overlay = page.getByTestId("student-detail-overlay");
     await expect(overlay).toBeVisible();
     await expect(overlay.getByRole("heading", { name: "윤지용 학생" })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("score-to-student-overlay-1366.png"), fullPage: false });
     await overlay.getByRole("button", { name: "닫기" }).click();
-    await expect(page).toHaveURL(/\/sessions\/991102\/scores$/);
+    await expect(page).toHaveURL(hostUrl);
     await expect(drawer).toBeVisible();
   });
 

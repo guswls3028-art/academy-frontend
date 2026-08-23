@@ -3,30 +3,27 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchClinicParticipants,
   patchClinicParticipantStatus,
-  ClinicParticipantStatus,
 } from "../api/clinicParticipants.api";
+import type { ClinicParticipantListParams } from "../api/clinicParticipants.api";
 import { clinicQueryKeys } from "../queryKeys";
 
 type PatchClinicParticipantPayload = Parameters<typeof patchClinicParticipantStatus>[1];
 
-export function useClinicParticipants(params: {
-  session?: number;
-  session_date_from?: string;
-  session_date_to?: string;
-  status?: ClinicParticipantStatus;
-}) {
+export function useClinicParticipants(params: ClinicParticipantListParams) {
   const qc = useQueryClient();
 
   // ✅ Home / Reports 에서 날짜 기반 조회 허용; 예약 신청 목록은 status=pending 만으로 조회 가능(날짜 무관)
   const enabled =
     !!params.session ||
+    !!params.onsite_date ||
     (!!params.session_date_from && !!params.session_date_to) ||
     params.status === "pending";
 
   const listQ = useQuery({
     queryKey: clinicQueryKeys.participantsList(params),
-    queryFn: () => fetchClinicParticipants(params),
+    queryFn: ({ signal }) => fetchClinicParticipants(params, signal),
     enabled,
+    retry: params.onsite_date ? 0 : undefined,
     // ClinicHomePage는 같은 페이지에서 weekQ/pendingQ 등 여러 인스턴스를 띄우므로,
     // 짧은 staleTime으로 30초 내 중복 fetch를 캐시 히트로 흡수. patchM 성공 시 invalidate로 즉시 갱신됨.
     staleTime: 30_000,

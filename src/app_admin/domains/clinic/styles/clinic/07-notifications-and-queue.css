@@ -502,7 +502,6 @@
 }
 
 .clinic-ops__card--attended {
-  opacity: 0.65;
   border-color: color-mix(in srgb, var(--color-success) 25%, var(--color-border-divider));
 }
 
@@ -678,6 +677,9 @@
   gap: 4px;
   min-width: 0;
   flex: 1;
+  max-height: 172px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .clinic-ops__reason-tag {
@@ -693,6 +695,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .clinic-ops__reason-tag--exam {
@@ -714,6 +718,9 @@
   color: var(--color-text-muted);
   background: var(--color-bg-surface-soft);
 }
+
+.clinic-ops__reason-title { font-weight: 800; }
+.clinic-ops__reason-detail::before { content: "·"; margin-inline: 2px 6px; opacity: .55; }
 
 .clinic-ops__card-detail-btn {
   display: inline-flex;
@@ -910,4 +917,5 @@
   .clinic-ops__inline-retake-submit {
     flex: 1 1 72px;
   }
+
 }

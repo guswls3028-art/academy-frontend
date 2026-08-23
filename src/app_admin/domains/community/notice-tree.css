@@ -17,6 +17,16 @@
   min-height: 520px;
 }
 
+/* 차시 화면에 포함될 때는 범위 트리를 제거하고 같은 공지 목록·상세를 2단으로 쓴다. */
+.notice-tree--embedded {
+  width: 100%;
+}
+
+.notice-tree--embedded > .qna-inbox__list {
+  width: clamp(340px, 34vw, 420px);
+  max-width: 44%;
+}
+
 .notice-tree__nav {
   width: clamp(270px, 22vw, 320px);
   min-width: 250px;
@@ -345,5 +355,14 @@
   .notice-tree > .qna-inbox__thread {
     width: 100%;
     min-height: min(62vh, 520px);
+  }
+
+  /* 모바일은 목록과 상세를 동시에 길게 쌓지 않고 현재 작업 면만 보여 준다. */
+  .notice-tree--embedded:not(.notice-tree--has-detail) > .qna-inbox__thread {
+    display: none;
+  }
+
+  .notice-tree--embedded.notice-tree--has-detail > .qna-inbox__list {
+    display: none;
   }
 }

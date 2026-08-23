@@ -117,6 +117,27 @@ export default function ClinicConsoleSidebar({
 
   return (
     <>
+      <div
+        className="clinic-console__mobile-date-switcher"
+        role="group"
+        aria-label="클리닉 날짜 선택"
+      >
+        <button
+          type="button"
+          onClick={() => onSelectDay(dayjs(selectedDay).subtract(1, "day").format("YYYY-MM-DD"))}
+          aria-label="이전 날짜"
+        >
+          <ChevronLeft size={17} aria-hidden />
+        </button>
+        <strong>{dayjs(selectedDay).format("M월 D일 (ddd)")}</strong>
+        <button
+          type="button"
+          onClick={() => onSelectDay(dayjs(selectedDay).add(1, "day").format("YYYY-MM-DD"))}
+          aria-label="다음 날짜"
+        >
+          <ChevronRight size={17} aria-hidden />
+        </button>
+      </div>
       <div className="clinic-scheduler-panel__nav clinic-scheduler-panel__nav--sidebar">
         <button
           type="button"
