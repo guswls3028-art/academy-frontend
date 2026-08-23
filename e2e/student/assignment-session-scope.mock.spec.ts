@@ -21,6 +21,7 @@ async function installApi(page: Page) {
   );
   const token = fakeJwt();
   let submissionCount = 0;
+  const mediaFiles: Array<Record<string, unknown>> = [];
 
   await page.addInitScript((jwt) => {
     localStorage.setItem("access", jwt);
@@ -153,13 +154,41 @@ async function installApi(page: Page) {
         lecture_options: [],
       });
     }
-    if (path.endsWith("/submissions/submissions/") && request.method() === "POST") {
+    if (/\/submissions\/submissions\/homework\/\d+\/media\/$/.test(path) && request.method() === "GET") {
+      return fulfill({
+        files: mediaFiles,
+        limits: {
+          max_files: 20,
+          max_file_size_bytes: 100 * 1024 * 1024,
+          max_total_size_bytes: 500 * 1024 * 1024,
+        },
+      });
+    }
+    if (path.endsWith("/submissions/submissions/homework/501/media/") && request.method() === "POST") {
       submissionCount += 1;
       const body = request.postData() ?? "";
-      expect(body).toContain("501");
       expect(body).toContain("401");
       await new Promise((resolve) => setTimeout(resolve, 250));
-      return fulfill({ id: 901, status: "SUBMITTED" }, 201);
+      const uploaded = {
+        id: String(900 + submissionCount),
+        legacy: false,
+        client_file_id: `client-${submissionCount}`,
+        upload_batch_id: "batch-1",
+        position: submissionCount - 1,
+        original_filename: "최종풀이.png",
+        media_kind: "image",
+        mime_type: "image/png",
+        file_size: 11,
+        status: "uploaded",
+        error_message: "",
+        upload_started_at: "2026-08-23T00:00:00Z",
+        uploaded_at: "2026-08-23T00:00:01Z",
+        failed_at: null,
+        removed_at: null,
+        created_at: "2026-08-23T00:00:00Z",
+      };
+      mediaFiles.push(uploaded);
+      return fulfill(uploaded, 201);
     }
     return fulfill({ count: 0, results: [] });
   });
@@ -195,14 +224,14 @@ test("차시 제출 링크는 다른 차시를 숨기고 대상 전환·성공 �
 
   await page.getByText("현재 차시 추가 과제", { exact: true }).click();
   await expect(page.getByText(/풀이\.jpg/)).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "제출하기" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "새 파일을 선택해 주세요" })).toBeDisabled();
 
   await fileInput.setInputFiles({
     name: "메모.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("not allowed"),
   });
-  await expect(page.getByRole("alert")).toContainText("사진 또는 동영상 파일만");
+  await expect(page.getByRole("alert")).toContainText("지원하지 않는 형식");
 
   await page.getByText("현재 차시 필수 과제", { exact: true }).click();
   await fileInput.setInputFiles({
@@ -210,11 +239,11 @@ test("차시 제출 링크는 다른 차시를 숨기고 대상 전환·성공 �
     mimeType: "image/png",
     buffer: Buffer.from("final-image"),
   });
-  await page.getByRole("button", { name: "제출하기" }).click();
+  await page.getByRole("button", { name: "파일 1개 제출하기" }).click();
   await expect(page.getByRole("button", { name: /현재 차시 추가 과제/ })).toBeDisabled();
-  await expect(page.getByText("제출이 완료되었습니다.", { exact: true })).toBeVisible();
+  await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible();
   await expect(page.getByText(/최종풀이\.png/)).toHaveCount(0);
-  await expect(page.getByText(/제출 대상:/)).toHaveCount(0);
+  await expect(page.getByText("제출 대상", { exact: true })).toHaveCount(0);
   expect(api.getSubmissionCount()).toBe(1);
   await page.getByText("현재 차시 추가 과제", { exact: true }).click();
   await expect(page.locator('[class*="successMessage"]')).toHaveCount(0);
