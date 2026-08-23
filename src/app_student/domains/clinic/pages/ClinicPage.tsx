@@ -58,6 +58,21 @@ function targetReasonLabel(target: ClinicCurrentTarget): string {
   return target.source_type === "homework" ? "과제 보강" : "시험 보강";
 }
 
+function sortTargetsNewestFirst(
+  left: ClinicCurrentTarget,
+  right: ClinicCurrentTarget,
+): number {
+  const createdDifference = String(right.created_at ?? "").localeCompare(
+    String(left.created_at ?? ""),
+  );
+  if (createdDifference !== 0) return createdDifference;
+  return right.clinic_link_id - left.clinic_link_id;
+}
+
+function displayTargetText(value: string | null | undefined, fallback: string): string {
+  return value?.trim() || fallback;
+}
+
 function dateParts(date: string) {
   const [year, month, day] = date.split("-").map(Number);
   const weekday = WEEKDAYS[new Date(year, month - 1, day).getDay()];
@@ -126,7 +141,7 @@ export default function ClinicPage() {
   });
 
   const currentTargets = useMemo(
-    () => clinicSummary?.current_targets ?? [],
+    () => [...(clinicSummary?.current_targets ?? [])].sort(sortTargetsNewestFirst),
     [clinicSummary],
   );
   const currentTargetLectureIds = useMemo(
@@ -430,27 +445,39 @@ export default function ClinicPage() {
                   </button>
                 </div>
               ) : !clinicSummaryLoading && currentTargets.length > 0 ? (
-                <div className={styles.targetList}>
-                  {currentTargets.slice(0, 3).map((target) => (
-                    <div key={target.clinic_link_id} className={styles.targetItem}>
-                      <LectureChip
-                        lectureName={target.lecture_title}
-                        color={target.lecture_color ?? undefined}
-                        chipLabel={target.lecture_chip_label}
-                      />
-                      <span className={styles.targetItemTitle}>
-                        {target.session_title || `${target.session_order}차시`}
-                      </span>
-                      <span className={styles.targetItemReason}>
-                        {targetReasonLabel(target)}
-                      </span>
+                <div className={styles.targetList} data-testid="clinic-target-list">
+                  {currentTargets.map((target) => (
+                    <div
+                      key={target.clinic_link_id}
+                      className={styles.targetItem}
+                      data-testid="clinic-target-item"
+                    >
+                      <div className={styles.targetItemHeader}>
+                        <LectureChip
+                          lectureName={target.lecture_title}
+                          color={target.lecture_color ?? undefined}
+                          chipLabel={target.lecture_chip_label}
+                        />
+                        <span className={styles.targetItemReason}>
+                          {targetReasonLabel(target)}
+                        </span>
+                      </div>
+                      <strong className={styles.targetItemSource}>
+                        {displayTargetText(target.source_title, "원본명 미입력")}
+                      </strong>
+                      <div className={styles.targetItemMeta}>
+                        <span>
+                          단원/범위 {displayTargetText(target.source_scope, "미입력")}
+                        </span>
+                        <span>
+                          차시 {displayTargetText(
+                            target.session_title,
+                            `${target.session_order}차시`,
+                          )}
+                        </span>
+                      </div>
                     </div>
                   ))}
-                  {currentTargets.length > 3 && (
-                    <p className={styles.targetMore}>
-                      보강 항목 {currentTargets.length - 3}개가 더 있어요.
-                    </p>
-                  )}
                 </div>
               ) : !clinicSummaryLoading ? (
                 <p className={styles.targetSummaryDescription}>

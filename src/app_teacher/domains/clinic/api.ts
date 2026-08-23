@@ -20,13 +20,21 @@ export type TeacherClinicParticipantStatus =
   | "rejected"
   | string;
 
+export type TeacherClinicRecipient = "student" | "parent" | "both";
+
 export type TeacherClinicParticipant = {
   id: number;
+  session?: number | null;
   student?: number | null;
   student_name?: string | null;
   enrollment_name?: string | null;
   status?: TeacherClinicParticipantStatus | null;
+  checked_in_at?: string | null;
+  checked_out_at?: string | null;
+  is_late?: boolean | null;
+  completed_at?: string | null;
   is_completed?: boolean | null;
+  planned_clinic_link_ids?: number[];
   profile_photo_url?: string | null;
   lecture_title?: string | null;
   lecture_color?: string | null;
@@ -53,15 +61,55 @@ export async function fetchClinicParticipants(sessionId: number): Promise<Teache
 /** 참가자 상태 변경 (출석/결석) */
 export async function patchParticipantStatus(
   participantId: number,
-  payload: { status: TeacherClinicParticipantStatus; memo?: string },
+  payload: {
+    status: TeacherClinicParticipantStatus;
+    memo?: string;
+    is_late?: boolean;
+    send_to?: TeacherClinicRecipient;
+  },
 ): Promise<TeacherClinicParticipant> {
   const res = await api.patch(`/clinic/participants/${participantId}/set_status/`, payload);
   return res.data;
 }
 
+export async function remindParticipant(
+  participantId: number,
+  payload: {
+    mode: "once" | "repeat";
+    send_to: TeacherClinicRecipient;
+    interval_minutes?: number;
+    repeat_until?: string;
+  },
+): Promise<void> {
+  await api.post(`/clinic/participants/${participantId}/remind/`, payload);
+}
+
+export async function checkoutParticipant(
+  participantId: number,
+  payload: { send_to: TeacherClinicRecipient },
+): Promise<TeacherClinicParticipant> {
+  const res = await api.post(`/clinic/participants/${participantId}/checkout/`, payload);
+  return res.data;
+}
+
+export async function changeParticipantBooking(
+  participantId: number,
+  payload: {
+    new_session_id: number;
+    memo?: string;
+    send_to: TeacherClinicRecipient;
+  },
+): Promise<TeacherClinicParticipant> {
+  const res = await api.post(`/clinic/participants/${participantId}/change-booking/`, payload);
+  return res.data;
+}
+
 /** 참가자 완료 처리 */
-export async function completeParticipant(participantId: number): Promise<TeacherClinicParticipant> {
-  const res = await api.post(`/clinic/participants/${participantId}/complete/`);
+export async function completeParticipant(
+  participantId: number,
+  payload: { send_to?: TeacherClinicRecipient } = {},
+): Promise<TeacherClinicParticipant> {
+  const res = await api.post(`/clinic/participants/${participantId}/complete/`, payload);
   return res.data;
 }
 
