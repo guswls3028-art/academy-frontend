@@ -2,7 +2,7 @@ import { useRef, useState, type KeyboardEvent } from "react";
 import { ArrowRight, CheckCircle2, MoreHorizontal, ShieldCheck } from "lucide-react";
 
 import type { ClinicTarget } from "../../api/clinicTargets";
-import { canCompleteManualHomework } from "../../api/completeManualHomework";
+import { canCompleteManualHomework, requiresManualHomeworkCompletion } from "../../api/completeManualHomework";
 import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -35,6 +35,7 @@ export default function RetakeTableRow({
 
   const isResolved = !!item.resolved_at;
   const isMissing = item.reason === "missing";
+  const needsManualHomeworkCompletion = requiresManualHomeworkCompletion(item);
   const typeLabel = item.source_type === "homework" ? "과제" : "시험";
   const maxScore = item.max_score ?? 100;
 
@@ -88,7 +89,7 @@ export default function RetakeTableRow({
         {!isResolved && isMissing && item.source_type === "exam" ? (
           <span className="clinic-hub__missing-guidance">응시 기록 또는 면제로 처리</span>
         ) : !isResolved && item.clinic_link_id &&
-          (!(isMissing && item.source_type === "homework") || canCompleteManualHomework(item)) ? (
+          (!needsManualHomeworkCompletion || canCompleteManualHomework(item)) ? (
           <div className="clinic-hub__score-input-group">
             <input
               ref={inputRef}
@@ -142,19 +143,19 @@ export default function RetakeTableRow({
             면제
           </button>
         ) : !isResolved && item.clinic_link_id &&
-          (!(isMissing && item.source_type === "homework") || canCompleteManualHomework(item)) ? (
+          (!needsManualHomeworkCompletion || canCompleteManualHomework(item)) ? (
           <div className="clinic-hub__inline-actions">
             <button
               type="button"
-              className={isMissing && item.source_type === "homework"
+              className={needsManualHomeworkCompletion
                 ? "clinic-hub__action-btn clinic-hub__action-btn--resolve"
                 : "clinic-hub__action-sm clinic-hub__action-sm--resolve"}
               onClick={onResolve}
               disabled={disabled}
-              title={isMissing && item.source_type === "homework" ? "사이트 밖 제출 확인 후 과제 완료" : "수동 통과"}
+              title={needsManualHomeworkCompletion ? "사이트 밖 제출 확인 후 과제 완료" : "수동 통과"}
             >
               <CheckCircle2 size={13} />
-              {isMissing && item.source_type === "homework" ? "제출 확인·완료" : null}
+              {needsManualHomeworkCompletion ? "제출 확인·완료" : null}
             </button>
             <div className="clinic-hub__action-more-wrap">
               <button

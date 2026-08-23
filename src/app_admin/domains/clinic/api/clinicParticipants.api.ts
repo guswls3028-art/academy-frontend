@@ -12,6 +12,16 @@ export type ClinicParticipantStatus =
 
 export type ClinicRecipient = "student" | "parent" | "both";
 
+export type ClinicNotificationOutcome = {
+  requested: number;
+  failed: number;
+  send_to: ClinicRecipient;
+} | null;
+
+export type ClinicParticipantMutationResult = ClinicParticipant & {
+  notification: ClinicNotificationOutcome;
+};
+
 export type ClinicParticipant = {
   id: number;
 
@@ -179,7 +189,7 @@ export async function patchClinicParticipantStatus(
   }
 ) {
   const res = await api.patch(`/clinic/participants/${id}/set_status/`, payload);
-  return res.data as ClinicParticipant;
+  return res.data as ClinicParticipantMutationResult;
 }
 
 export type ClinicParticipantReminderResult = {
@@ -211,7 +221,7 @@ export async function checkoutClinicParticipant(
   payload: { send_to: ClinicRecipient },
 ) {
   const res = await api.post(`/clinic/participants/${id}/checkout/`, payload);
-  return res.data as ClinicParticipant;
+  return res.data as ClinicParticipantMutationResult;
 }
 
 export async function replaceClinicParticipantPlan(
@@ -230,7 +240,7 @@ export async function changeClinicParticipantBooking(
   payload: { new_session_id: number; memo?: string; send_to: ClinicRecipient },
 ) {
   const res = await api.post(`/clinic/participants/${id}/change-booking/`, payload);
-  return res.data as ClinicParticipant;
+  return res.data as ClinicParticipantMutationResult;
 }
 
 export async function completeClinicParticipant(
@@ -238,7 +248,7 @@ export async function completeClinicParticipant(
   payload: { send_to?: ClinicRecipient } = {},
 ) {
   const res = await api.post(`/clinic/participants/${id}/complete/`, payload);
-  return res.data as ClinicParticipant;
+  return res.data as ClinicParticipantMutationResult;
 }
 
 export async function uncompleteClinicParticipant(id: number) {

@@ -8,18 +8,28 @@ type ManualHomeworkTarget = ClinicTarget & {
   enrollment_id: number;
   source_id: number;
   source_type: "homework";
-  reason: "missing";
+  reason: "missing" | "score";
 };
 
+export function isPositiveClinicIdentifier(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value > 0;
+}
+
+export function requiresManualHomeworkCompletion(target: ClinicTarget): boolean {
+  return target.source_type === "homework" && (
+    target.reason === "missing" ||
+    (target.reason === "score" && target.homework_score == null)
+  );
+}
+
 export function canCompleteManualHomework(target: ClinicTarget): target is ManualHomeworkTarget {
-  return Boolean(
-    target.clinic_link_id &&
-    target.session_id &&
-    target.enrollment_id &&
-    target.source_id &&
+  return (
+    isPositiveClinicIdentifier(target.clinic_link_id) &&
+    isPositiveClinicIdentifier(target.session_id) &&
+    isPositiveClinicIdentifier(target.enrollment_id) &&
+    isPositiveClinicIdentifier(target.source_id) &&
     !target.resolved_at &&
-    target.reason === "missing" &&
-    target.source_type === "homework"
+    requiresManualHomeworkCompletion(target)
   );
 }
 

@@ -106,6 +106,12 @@ type OperationsState = {
   bookingPayloads?: Array<Record<string, unknown>>;
   planPayloads?: Array<{ id: number; planned_clinic_link_ids: number[] }>;
   rejectNextPlan?: boolean;
+  waiverPayloads?: Array<Record<string, unknown>>;
+  completionPayloads?: number[];
+  statusNotifications?: Record<number, Record<string, unknown> | null>;
+  checkoutNotification?: Record<string, unknown> | null;
+  completeNotification?: Record<string, unknown> | null;
+  reminderResponses?: Array<{ body: Record<string, unknown>; status?: number }>;
 };
 
 async function installApi(
@@ -243,6 +249,20 @@ async function installApi(
       }
       return json((operationsState?.targets ?? []).filter((target) => !target.resolved_at));
     }
+    if (path === "/results/admin/clinic-targets/waive-missing/" && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      operationsState?.waiverPayloads?.push(payload);
+      if (operationsState) {
+        operationsState.targets = operationsState.targets.map((target) => (
+          target.session_id === payload.session_id &&
+          target.enrollment_id === payload.enrollment_id &&
+          target.exam_id === payload.exam_id
+            ? { ...target, resolved_at: "2026-08-24T10:00:00+09:00", resolution_type: "WAIVED" }
+            : target
+        ));
+      }
+      return json({ clinic_link_id: 9904, resolution_type: "WAIVED" }, 201);
+    }
     if (path === "/results/admin/sessions/703/score-correction/" && method === "PATCH") {
       const payload = request.postDataJSON() as Record<string, unknown>;
       operationsState?.resolutionPayloads?.push(payload);
@@ -278,7 +298,12 @@ async function installApi(
         ? `${saturday}T13:30:00+09:00`
         : null;
       participant.checked_out_at = null;
-      return json({ ...participant, notification: { requested: 1, failed: 0 } });
+      const notification = operationsState?.statusNotifications?.[id] ?? {
+        requested: 1,
+        failed: 0,
+        send_to: payload.send_to ?? "parent",
+      };
+      return json({ ...participant, notification });
     }
     const checkoutMatch = path.match(/^\/clinic\/participants\/(\d+)\/checkout\/$/);
     if (checkoutMatch && method === "POST") {
@@ -290,14 +315,39 @@ async function installApi(
         return json({ detail: "등원 후 하원할 수 있습니다." }, 400);
       }
       participant.checked_out_at = `${saturday}T15:00:00+09:00`;
-      return json({ ...participant, notification: { requested: 1, failed: 0 } });
+      return json({
+        ...participant,
+        notification: operationsState?.checkoutNotification ?? {
+          requested: 1,
+          failed: 0,
+          send_to: payload.send_to ?? "parent",
+        },
+      });
     }
     const remindMatch = path.match(/^\/clinic\/participants\/(\d+)\/remind\/$/);
     if (remindMatch && method === "POST") {
       const id = Number(remindMatch[1]);
       const payload = request.postDataJSON() as Record<string, unknown>;
       operationsState?.reminderPayloads?.push({ id, ...payload });
+      const configured = operationsState?.reminderResponses?.shift();
+      if (configured) return json(configured.body, configured.status ?? 200);
       return json({ ok: true, status: "ok", sent: 2, scheduled: 4, skipped: 0 });
+    }
+    const completeMatch = path.match(/^\/clinic\/participants\/(\d+)\/complete\/$/);
+    if (completeMatch && method === "POST") {
+      const id = Number(completeMatch[1]);
+      operationsState?.completionPayloads?.push(id);
+      const participant = operationsState?.participants.find((row) => row.id === id);
+      if (!participant) return json({ detail: "not found" }, 404);
+      participant.completed_at = `${saturday}T15:10:00+09:00`;
+      return json({
+        ...participant,
+        notification: operationsState?.completeNotification ?? {
+          requested: 1,
+          failed: 0,
+          send_to: "parent",
+        },
+      });
     }
     const bookingMatch = path.match(/^\/clinic\/participants\/(\d+)\/change-booking\/$/);
     if (bookingMatch && method === "POST") {
@@ -759,8 +809,9 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
         student_name: "김다과목",
         session_title: "화학특강 8차시",
         lecture_title: "화학특강",
-        reason: "missing",
+        reason: "score",
         clinic_reason: "homework",
+        homework_score: null,
         clinic_link_id: 9003,
         session_id: 703,
         source_type: "homework",
@@ -777,9 +828,11 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
         reason: "missing",
         meta_status: "NOT_SUBMITTED",
         clinic_reason: "exam",
-        clinic_link_id: 9004,
+        clinic_link_id: null,
+        session_id: 703,
         source_type: "exam",
         source_id: 4004,
+        exam_id: 4004,
         source_title: "8주차 산화수 확인 시험",
         created_at: "2026-08-22T04:12:00Z",
       },
@@ -790,6 +843,7 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
     bookingPayloads: [],
     planPayloads: [],
     resolutionPayloads: [],
+    waiverPayloads: [],
   };
 
   await seed(page);
@@ -889,6 +943,20 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
   await expect(examWorkbench.getByRole("spinbutton")).toHaveCount(0);
   await expect(examWorkbench.getByRole("button", { name: "면제" })).toBeVisible();
   await expect(examWorkbench.getByRole("button", { name: "다음 차수 이월" })).toHaveCount(0);
+  await examWorkbench.getByRole("button", { name: "면제" }).click();
+  const examWaiverDialog = page.getByRole("dialog", { name: "시험 미응시 면제" });
+  await examWaiverDialog.getByPlaceholder(/이전 수업 결석/).fill("결석 확인 면제");
+  await examWaiverDialog.getByRole("button", { name: "사유 남기고 면제" }).click();
+  await expect.poll(() => state.waiverPayloads).toEqual([{
+    session_id: 703,
+    enrollment_id: 1002,
+    exam_id: 4004,
+    memo: "결석 확인 면제",
+  }]);
+  await expect.poll(() => state.targetRequests ?? 0).toBeGreaterThan(1);
+  await expect.poll(() => state.participantRequests ?? 0).toBeGreaterThan(1);
+  await expect(examWorkbench.getByText("자율 학습 참여", { exact: true })).toBeVisible();
+  await expect(examWorkbench.getByRole("button", { name: "면제" })).toHaveCount(0);
   await page.keyboard.press("Escape");
 
   await expect(studentCard.getByRole("button", { name: "하원", exact: true })).toBeDisabled();
@@ -960,6 +1028,111 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
   await expect(workbench).toBeVisible();
   expect(await workbench.evaluate((element) => getComputedStyle(element).animationName)).toBe("none");
   await page.screenshot({ path: "test-results/admin-clinic-operations-workbench-390.png", fullPage: false });
+});
+
+test("클리닉 상태 저장과 알림톡 요청의 부분 실패를 성공으로 숨기지 않는다", async ({ page }) => {
+  const state: OperationsState = {
+    participants: [{
+      id: 901,
+      session: 701,
+      student: 601,
+      student_name: "하원 알림 실패",
+      enrollment_id: 1101,
+      session_date: saturday,
+      session_title: "토요일 1시 클리닉",
+      session_start_time: "13:00:00",
+      session_location: "1층 세미나실",
+      status: "attended",
+      checked_in_at: `${saturday}T13:00:00+09:00`,
+      checked_out_at: null,
+      completed_at: null,
+    }, {
+      id: 902,
+      session: 701,
+      student: 602,
+      student_name: "완료 알림 실패",
+      enrollment_id: 1102,
+      session_date: saturday,
+      session_title: "토요일 1시 클리닉",
+      session_start_time: "13:00:00",
+      session_location: "1층 세미나실",
+      status: "attended",
+      checked_in_at: `${saturday}T13:05:00+09:00`,
+      checked_out_at: null,
+      completed_at: null,
+    }, {
+      id: 903,
+      session: 701,
+      student: 603,
+      student_name: "재촉 부분 성공",
+      enrollment_id: 1103,
+      session_date: saturday,
+      session_title: "토요일 1시 클리닉",
+      session_start_time: "13:00:00",
+      session_location: "1층 세미나실",
+      status: "booked",
+      checked_in_at: null,
+      checked_out_at: null,
+      completed_at: null,
+    }],
+    targets: [],
+    statusPayloads: [],
+    checkoutPayloads: [],
+    reminderPayloads: [],
+    completionPayloads: [],
+    statusNotifications: {
+      903: { requested: 0, failed: 1, send_to: "parent" },
+    },
+    checkoutNotification: { requested: 0, failed: 1, send_to: "parent" },
+    completeNotification: { requested: 0, failed: 1, send_to: "parent" },
+    reminderResponses: [{
+      status: 503,
+      body: { status: "failed", sent: 0, scheduled: 0, skipped: 1, detail: "승인된 재촉 양식이 없습니다." },
+    }, {
+      body: { ok: true, status: "ok", sent: 1, scheduled: 0, skipped: 1 },
+    }],
+  };
+
+  await seed(page);
+  await installApi(page, undefined, state);
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await gotoAndSettle(
+    page,
+    `${BASE}/workspace/clinic/operations?date=${saturday}&session=701`,
+    { timeout: 45_000 },
+  );
+
+  const checkoutCard = page.locator(".clinic-ops__card").filter({ hasText: "하원 알림 실패" });
+  await checkoutCard.getByRole("button", { name: "하원", exact: true }).click();
+  await page.getByRole("dialog", { name: "하원 처리" }).getByLabel("학부모").check();
+  await page.keyboard.press("Enter");
+  await expect.poll(() => state.checkoutPayloads).toEqual([{ id: 901, send_to: "parent" }]);
+  await expect(page.getByText(/하원 처리 완료 상태는 저장됐지만 알림톡 요청 0건 완료, 1건 실패/)).toBeVisible();
+
+  const reminderCard = page.locator(".clinic-ops__card").filter({ hasText: "재촉 부분 성공" });
+  await reminderCard.getByRole("button", { name: "재촉", exact: true }).click();
+  const reminderDialog = page.getByRole("dialog", { name: "등원 재촉" });
+  await reminderDialog.getByRole("button", { name: "재촉 발송" }).click();
+  await expect(page.getByText("승인된 재촉 양식이 없습니다.", { exact: true })).toBeVisible();
+  await expect(reminderDialog).toBeVisible();
+  await reminderDialog.getByRole("button", { name: "재촉 발송" }).click();
+  await expect(reminderDialog).toHaveCount(0);
+  await expect(page.getByText(/재촉 알림톡 요청 1건 완료, 1건 제외/)).toBeVisible();
+
+  await page.getByRole("button", { name: "전체 출석 체크 (1명)", exact: true }).click();
+  await page.getByRole("button", { name: "알림톡 요청 (1명)", exact: true }).click();
+  await expect.poll(() => state.statusPayloads?.[0]).toMatchObject({ id: 903, status: "attended" });
+  await expect(page.getByText(/1명 상태 저장 완료, 알림톡 요청 0건 완료, 1건 실패/)).toBeVisible();
+  await expect(page.getByText(/발송 완료/)).toHaveCount(0);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const completeCard = page.locator(".clinic-ops__card").filter({ hasText: "완료 알림 실패" });
+  await completeCard.click();
+  const workbench = page.getByRole("dialog", { name: "완료 알림 실패 클리닉 워크벤치" });
+  await workbench.getByRole("button", { name: "세션 처리 완료", exact: true }).click();
+  await expect.poll(() => state.completionPayloads).toEqual([902]);
+  await expect(page.getByText(/세션 처리 완료 상태는 저장됐지만 알림톡 요청 0건 완료, 1건 실패/)).toBeVisible();
+  expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
 });
 
 test("클리닉 운영은 참가자 로딩 중 0명을 확정값처럼 표시하지 않는다", async ({ page }) => {

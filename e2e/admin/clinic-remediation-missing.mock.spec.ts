@@ -394,7 +394,7 @@ test("미제출 과제의 완료 식별자가 누락되거나 0이면 완료 버
   }
 });
 
-test("문자 등으로 제출한 미제출 과제를 사유와 함께 완료하고 재조회한다", async ({ page }) => {
+test("문자 등으로 제출한 무점수 과제를 사유와 함께 완료하고 재조회한다", async ({ page }) => {
   await seed(page);
   const resolutionPayloads: Array<Record<string, unknown>> = [];
   let resolved = false;
@@ -438,7 +438,7 @@ test("문자 등으로 제출한 미제출 과제를 사유와 함께 완료하�
         student_id: 303,
         student_name: "문자제출 학생",
         session_title: "8월 4주차",
-        reason: "missing",
+        reason: "score",
         clinic_reason: "homework",
         homework_score: null,
         homework_cutline: 8,
@@ -471,7 +471,7 @@ test("문자 등으로 제출한 미제출 과제를 사유와 함께 완료하�
   await gotoAndSettle(page, `${BASE}/workspace/clinic/bookings`, { timeout: 45_000 });
 
   await expect(page.getByText("문자제출 학생", { exact: true })).toBeVisible();
-  await expect(page.getByText("미제출", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "제출 확인·완료", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "제출 확인·완료", exact: true }).click();
 
   const dialog = page.getByRole("dialog", { name: "과제 제출 확인·완료" });
@@ -562,6 +562,8 @@ test("과제 클리닉 대상은 개별 퍼센트 기준을 과제 점수로 한
   await expect(page.getByRole("cell", { name: "10점", exact: true })).toBeVisible();
   await expect(page.getByRole("cell", { name: "70%", exact: true })).toBeVisible();
   await expect(page.getByText(/시험 10/)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "제출 확인·완료", exact: true })).toHaveCount(0);
+  await expect(page.getByTitle("수동 통과")).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth + 1,
