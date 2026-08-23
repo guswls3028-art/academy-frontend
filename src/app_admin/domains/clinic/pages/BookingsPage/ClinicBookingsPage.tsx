@@ -51,6 +51,8 @@ import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/mod
 import { Button, EmptyState } from "@/shared/ui/ds";
 import RetakeTableRow from "./RetakeTableRow";
 import { formatNextAttempt, formatScoreDisplay } from "./remediationFormatters";
+import ClinicManualHomeworkCompleteDialog from "../../components/ClinicManualHomeworkCompleteDialog";
+import { patchAssessmentCorrection } from "@/shared/api/contracts/sessionScores";
 
 /* ── Types ── */
 
@@ -285,17 +287,50 @@ function RemediationWorkspace() {
   const [expandedStudents, setExpandedStudents] = useState<Set<string>>(new Set());
   const [waiveTarget, setWaiveTarget] = useState<ClinicTarget | null>(null);
   const [waiveMemo, setWaiveMemo] = useState("");
+  const [completeTarget, setCompleteTarget] = useState<ClinicTarget | null>(null);
 
   /* ── Mutations ── */
-  const invalidateAll = () => {
-    qc.invalidateQueries({ queryKey: clinicQueryKeys.targets });
-    qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
-  };
+  const invalidateAll = () => Promise.all([
+    qc.invalidateQueries({ queryKey: clinicQueryKeys.targets }),
+    qc.invalidateQueries({ queryKey: clinicQueryKeys.participants }),
+  ]);
 
   const resolveMutation = useMutation({
-    mutationFn: (id: number) => resolveClinicLink(id),
-    onSuccess: () => { invalidateAll(); feedback.success("통과 처리되었습니다."); },
+    mutationFn: ({ id, memo }: { id: number; memo?: string }) => resolveClinicLink(id, memo),
+    onSuccess: async () => {
+      await invalidateAll();
+      feedback.success("통과 처리되었습니다.");
+    },
     onError: () => feedback.error("통과 처리에 실패했습니다."),
+  });
+
+  const homeworkCompleteMutation = useMutation({
+    mutationFn: ({ target, memo }: { target: ClinicTarget; memo: string }) => {
+      if (
+        !target.clinic_link_id ||
+        target.resolved_at ||
+        target.reason !== "missing" ||
+        target.source_type !== "homework" ||
+        !target.session_id ||
+        !target.enrollment_id ||
+        !target.source_id
+      ) {
+        throw new Error("homework_completion_target_missing");
+      }
+      return patchAssessmentCorrection(target.session_id, {
+        enrollment_id: target.enrollment_id,
+        source_type: "homework",
+        source_id: target.source_id,
+        completed: true,
+        note: memo,
+      });
+    },
+    onSuccess: async () => {
+      await invalidateAll();
+      setCompleteTarget(null);
+      feedback.success("과제 제출 확인과 완료 처리를 저장했습니다.");
+    },
+    onError: () => feedback.error("과제 완료 처리에 실패했습니다."),
   });
 
   const waiveMutation = useMutation({
@@ -342,6 +377,7 @@ function RemediationWorkspace() {
 
   const isMutating =
     resolveMutation.isPending ||
+    homeworkCompleteMutation.isPending ||
     waiveMutation.isPending ||
     carryOverMutation.isPending ||
     retakeMutation.isPending;
@@ -578,7 +614,14 @@ function RemediationWorkspace() {
                         max_score: maxScore,
                       })
                     }
-                    onResolve={() => item.clinic_link_id && resolveMutation.mutate(item.clinic_link_id)}
+                    onResolve={() => {
+                      if (!item.clinic_link_id) return;
+                      if (item.reason === "missing" && item.source_type === "homework") {
+                        setCompleteTarget(item);
+                        return;
+                      }
+                      resolveMutation.mutate({ id: item.clinic_link_id });
+                    }}
                     onWaive={() => { setWaiveTarget(item); setWaiveMemo(""); }}
                     onCarryOver={() => item.clinic_link_id && carryOverMutation.mutate(item.clinic_link_id)}
                     disabled={isMutating}
@@ -655,7 +698,14 @@ function RemediationWorkspace() {
                               max_score: maxScore,
                             })
                           }
-                          onResolve={() => item.clinic_link_id && resolveMutation.mutate(item.clinic_link_id)}
+                          onResolve={() => {
+                            if (!item.clinic_link_id) return;
+                            if (item.reason === "missing" && item.source_type === "homework") {
+                              setCompleteTarget(item);
+                              return;
+                            }
+                            resolveMutation.mutate({ id: item.clinic_link_id });
+                          }}
                           onWaive={() => { setWaiveTarget(item); setWaiveMemo(""); }}
                           onCarryOver={() => item.clinic_link_id && carryOverMutation.mutate(item.clinic_link_id)}
                                 disabled={isMutating}
@@ -733,6 +783,14 @@ function RemediationWorkspace() {
           )}
         />
       </AdminModal>
+      <ClinicManualHomeworkCompleteDialog
+        target={completeTarget}
+        pending={homeworkCompleteMutation.isPending}
+        onClose={() => setCompleteTarget(null)}
+        onConfirm={(memo) => {
+          if (completeTarget) homeworkCompleteMutation.mutate({ target: completeTarget, memo });
+        }}
+      />
     </section>
   );
 }
@@ -832,7 +890,7 @@ function RemediationItemRow({
           {isMissing ? (
             <span className="clinic-hub__item-score clinic-hub__item-score--missing">
               {item.source_type === "homework"
-                ? "미제출 · 재제출 점수 입력 또는 면제 처리"
+                ? "미제출 · 재제출 점수 입력 또는 교사 완료"
                 : "미응시 · 응시 기록 입력 또는 결석 사유 면제"}
             </span>
           ) : item.exam_score != null || item.homework_score != null ? (
@@ -892,7 +950,7 @@ function RemediationItemRow({
 
       {/* Right: actions */}
       <div className="clinic-hub__item-actions">
-        {!isResolved && isMissing ? (
+        {!isResolved && isMissing && item.source_type === "exam" ? (
           <button
             type="button"
             className="clinic-hub__action-btn clinic-hub__action-btn--waive"
@@ -910,10 +968,10 @@ function RemediationItemRow({
               className="clinic-hub__action-btn clinic-hub__action-btn--resolve"
               onClick={onResolve}
               disabled={disabled}
-              title="수동 통과"
+              title={isMissing && item.source_type === "homework" ? "사이트 밖 제출 확인 후 과제 완료" : "수동 통과"}
             >
               <CheckCircle2 size={14} />
-              통과
+              {isMissing && item.source_type === "homework" ? "제출 확인·완료" : "통과"}
             </button>
 
             <div className="clinic-hub__action-more-wrap">

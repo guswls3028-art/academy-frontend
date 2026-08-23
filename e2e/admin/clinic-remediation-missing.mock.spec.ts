@@ -260,6 +260,170 @@ test("미응시를 판정 대기로 구분하고 사유를 남겨 면제한 뒤 
   await expect(targetDialog.getByText("표시할 대상이 없습니다.", { exact: true })).toBeVisible();
 });
 
+test("유효한 클리닉 링크가 있어도 미응시 시험은 면제만 허용한다", async ({ page }) => {
+  await seed(page);
+
+  await page.route("**/api/v1/**", async (route: Route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
+    const method = request.method();
+    const json = (body: unknown, status = 200) => route.fulfill({
+      status,
+      contentType: "application/json",
+      body: JSON.stringify(body),
+    });
+
+    if (method === "OPTIONS") return route.fulfill({ status: 204 });
+    if (path === "/core/program/") {
+      return json({ tenantCode: "hakwonplus", display_name: "학원플러스", ui_config: {}, feature_flags: {}, is_active: true });
+    }
+    if (path === "/core/me/") {
+      return json({ id: 12, username: "admin", name: "관리자", is_staff: true, is_superuser: true, tenantRole: "admin", must_change_password: false });
+    }
+    if (path === "/results/admin/clinic-targets/" && method === "GET") {
+      return json([{
+        enrollment_id: 902,
+        student_id: 302,
+        student_name: "링크결시 학생",
+        session_title: "8월 3주차",
+        reason: "missing",
+        clinic_reason: "exam",
+        exam_score: null,
+        cutline_score: 60,
+        meta_status: "NOT_SUBMITTED",
+        clinic_link_id: 882,
+        resolution_type: null,
+        resolved_at: null,
+        session_id: 702,
+        lecture_id: 502,
+        exam_id: 802,
+        source_type: "exam",
+        source_id: 802,
+        source_title: "미응시 확인 시험",
+        lecture_title: "중2 수학",
+        max_score: 100,
+        latest_attempt_index: 0,
+        attempt_history: [],
+        created_at: "2026-08-22T21:00:00+09:00",
+      }]);
+    }
+    if (path === "/clinic/participants/" && method === "GET") return json({ count: 0, results: [] });
+    if (path === "/lectures/sections/" || path === "/staffs/currently-working/") return json([]);
+    if (path.startsWith("/community/") || path.startsWith("/student/notifications/")) return json({ count: 0, results: [] });
+    return json({ count: 0, results: [] });
+  });
+
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/bookings`, { timeout: 45_000 });
+
+  const row = page.getByRole("row").filter({ hasText: "미응시 확인 시험" });
+  await expect(row.getByRole("button", { name: "면제", exact: true })).toBeVisible();
+  await expect(row.getByRole("button", { name: "제출 확인·완료", exact: true })).toHaveCount(0);
+  await expect(row.getByRole("button", { name: "수동 통과", exact: true })).toHaveCount(0);
+  await expect(row.getByRole("button", { name: /^통과/ })).toHaveCount(0);
+  await expect(row.getByRole("spinbutton")).toHaveCount(0);
+});
+
+test("문자 등으로 제출한 미제출 과제를 사유와 함께 완료하고 재조회한다", async ({ page }) => {
+  await seed(page);
+  const resolutionPayloads: Array<Record<string, unknown>> = [];
+  let resolved = false;
+  let targetRequests = 0;
+
+  await page.route("**/api/v1/**", async (route: Route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const path = url.pathname.replace(/^\/api\/v1/, "");
+    const method = request.method();
+    const json = (body: unknown, status = 200) => route.fulfill({
+      status,
+      contentType: "application/json",
+      body: JSON.stringify(body),
+    });
+
+    if (method === "OPTIONS") return route.fulfill({ status: 204 });
+    if (path === "/core/program/") {
+      return json({ tenantCode: "hakwonplus", display_name: "학원플러스", ui_config: {}, feature_flags: {}, is_active: true });
+    }
+    if (path === "/core/me/") {
+      return json({ id: 12, username: "admin", name: "관리자", is_staff: true, is_superuser: true, tenantRole: "admin", must_change_password: false });
+    }
+    if (path === "/results/admin/sessions/703/score-correction/" && method === "PATCH") {
+      resolutionPayloads.push(request.postDataJSON() as Record<string, unknown>);
+      resolved = true;
+      return json({
+        correction_status: "COMPLETED",
+        correction_completed_at: "2026-08-23T16:40:00+09:00",
+        correction_note: "문자 제출 확인",
+        correction_updated_at: "2026-08-23T16:40:00+09:00",
+        teacher_resolved: true,
+      });
+    }
+    if (path === "/results/admin/clinic-targets/" && method === "GET") {
+      targetRequests += 1;
+      if (resolved && url.searchParams.get("include_resolved") !== "true") return json([]);
+      return json([{
+        enrollment_id: 903,
+        student_id: 303,
+        student_name: "문자제출 학생",
+        session_title: "8월 4주차",
+        reason: "missing",
+        clinic_reason: "homework",
+        homework_score: null,
+        homework_cutline: 8,
+        clinic_link_id: 883,
+        resolution_type: resolved ? "MANUAL_OVERRIDE" : null,
+        resolved_at: resolved ? "2026-08-23T16:40:00+09:00" : null,
+        session_id: 703,
+        lecture_id: 503,
+        exam_id: null,
+        source_type: "homework",
+        source_id: 803,
+        source_title: "연산 숙제 12쪽",
+        lecture_title: "중1 수학",
+        max_score: 10,
+        latest_attempt_index: 0,
+        attempt_history: [],
+        created_at: "2026-08-23T15:30:00+09:00",
+      }]);
+    }
+    if (path === "/clinic/participants/" && method === "GET") return json({ count: 0, results: [] });
+    if (path === "/lectures/sections/" || path === "/staffs/currently-working/") return json([]);
+    if (path.startsWith("/community/") || path.startsWith("/student/notifications/")) return json({ count: 0, results: [] });
+    return json({ count: 0, results: [] });
+  });
+
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/bookings`, { timeout: 45_000 });
+
+  await expect(page.getByText("문자제출 학생", { exact: true })).toBeVisible();
+  await expect(page.getByText("미제출", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "제출 확인·완료", exact: true }).click();
+
+  const dialog = page.getByRole("dialog", { name: "과제 제출 확인·완료" });
+  await expect(dialog).toContainText("문자·사진·종이 등 사이트 밖으로 제출한 과제");
+  const submit = dialog.getByRole("button", { name: "제출 확인하고 완료", exact: true });
+  await expect(submit).toBeDisabled();
+  await dialog.getByPlaceholder(/문자 제출/).fill("문");
+  await expect(submit).toBeDisabled();
+  await dialog.getByPlaceholder(/문자 제출/).fill("문자 제출 확인");
+  await expect(submit).toBeEnabled();
+  await submit.click();
+
+  await expect.poll(() => resolutionPayloads).toEqual([{
+    enrollment_id: 903,
+    source_type: "homework",
+    source_id: 803,
+    completed: true,
+    note: "문자 제출 확인",
+  }]);
+  await expect.poll(() => targetRequests).toBeGreaterThan(1);
+  await expect(page.getByText("진행중 항목이 없습니다", { exact: true })).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByText("진행중 항목이 없습니다", { exact: true })).toBeVisible();
+  expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+});
+
 test("과제 클리닉 대상은 개별 퍼센트 기준을 과제 점수로 한 번만 표시한다", async ({ page }) => {
   await seed(page);
 

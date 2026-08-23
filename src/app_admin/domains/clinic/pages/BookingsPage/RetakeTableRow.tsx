@@ -128,7 +128,7 @@ export default function RetakeTableRow({
         )}
       </td>
       <td className="clinic-hub__cell-actions">
-        {!isResolved && isMissing ? (
+        {!isResolved && isMissing && item.source_type === "exam" ? (
           <button
             type="button"
             className="clinic-hub__action-btn clinic-hub__action-btn--waive"
@@ -143,12 +143,15 @@ export default function RetakeTableRow({
           <div className="clinic-hub__inline-actions">
             <button
               type="button"
-              className="clinic-hub__action-sm clinic-hub__action-sm--resolve"
+              className={isMissing && item.source_type === "homework"
+                ? "clinic-hub__action-btn clinic-hub__action-btn--resolve"
+                : "clinic-hub__action-sm clinic-hub__action-sm--resolve"}
               onClick={onResolve}
               disabled={disabled}
-              title="수동 통과"
+              title={isMissing && item.source_type === "homework" ? "사이트 밖 제출 확인 후 과제 완료" : "수동 통과"}
             >
               <CheckCircle2 size={13} />
+              {isMissing && item.source_type === "homework" ? "제출 확인·완료" : null}
             </button>
             <div className="clinic-hub__action-more-wrap">
               <button
