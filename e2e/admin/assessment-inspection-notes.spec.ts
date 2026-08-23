@@ -384,15 +384,16 @@ test.describe("시험·과제 수동 검사 상태", () => {
     const studentLink = drawer.getByRole("link", { name: "윤지용 학생 학생 상세 열기" });
     await expect(studentLink).toBeVisible();
     await drawer.screenshot({ path: testInfo.outputPath("score-drawer-student-link-1366.png") });
+    const hostUrl = page.url();
     await studentLink.click();
 
-    await expect(page).toHaveURL(/\/workspace\/students\/7101$/);
+    await expect(page).toHaveURL(hostUrl);
     const overlay = page.getByTestId("student-detail-overlay");
     await expect(overlay).toBeVisible();
     await expect(overlay.getByRole("heading", { name: "윤지용 학생" })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("score-to-student-overlay-1366.png"), fullPage: false });
     await overlay.getByRole("button", { name: "닫기" }).click();
-    await expect(page).toHaveURL(/\/sessions\/991102\/scores$/);
+    await expect(page).toHaveURL(hostUrl);
     await expect(drawer).toBeVisible();
   });
 

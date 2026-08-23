@@ -31,7 +31,11 @@ async function seed(page: Page) {
 test("여러 강의를 듣는 클리닉 대상자는 학생 한 행에 아바타와 강의 딱지를 모아 표시한다", async ({ page }, testInfo) => {
   await seed(page);
   const sessionDate = new Date();
-  const date = sessionDate.toISOString().slice(0, 10);
+  const date = [
+    sessionDate.getFullYear(),
+    String(sessionDate.getMonth() + 1).padStart(2, "0"),
+    String(sessionDate.getDate()).padStart(2, "0"),
+  ].join("-");
 
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
