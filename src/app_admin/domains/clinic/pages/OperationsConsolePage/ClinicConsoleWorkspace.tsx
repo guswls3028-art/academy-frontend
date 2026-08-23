@@ -1653,7 +1653,26 @@ export default function ClinicConsoleWorkspace({
               {/* Clinic reasons + remediation status */}
               <div className="clinic-ops__drawer-section">
                 <h4 className="clinic-ops__drawer-section-title">대상 사유 · 통과 상태</h4>
-                {drawerTargets.length === 0 ? (
+                {clinicTargetsLoading ? (
+                  <div className="clinic-ops__target-query-state" role="status" aria-live="polite">
+                    클리닉 과제 정보를 불러오는 중입니다.
+                  </div>
+                ) : clinicTargetsError ? (
+                  <div
+                    className="clinic-ops__target-query-state clinic-ops__target-query-state--error"
+                    role="alert"
+                  >
+                    <span>클리닉 과제 정보를 불러오지 못했습니다.</span>
+                    <button
+                      type="button"
+                      className="clinic-ops__target-query-retry"
+                      onClick={() => clinicTargetsQuery.refetch()}
+                      disabled={clinicTargetsQuery.isFetching}
+                    >
+                      {clinicTargetsQuery.isFetching ? "다시 불러오는 중…" : "다시 시도"}
+                    </button>
+                  </div>
+                ) : drawerTargets.length === 0 ? (
                   <div className="clinic-ops__drawer-self-study">
                     <p className="clinic-ops__drawer-empty">자율 학습 참여</p>
                     {drawerParticipant.completed_at ? (

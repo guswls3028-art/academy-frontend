@@ -389,21 +389,41 @@ test("운영 화면에서 대상 조회 실패를 재시도하고 문자 제출 
     timeout: 45_000,
   });
 
+  const studentCard = page.locator(".clinic-ops__card").filter({ hasText: "현장제출 학생" });
   await expect(page.getByRole("status").filter({ hasText: "클리닉 과제 정보를 불러오는 중입니다" })).toBeVisible();
   await expect(page.getByText("자율 학습 참여", { exact: true })).toHaveCount(0);
+  await studentCard.click();
+  const drawer = page.getByRole("dialog", { name: "클리닉 상세" });
+  await expect(drawer.getByRole("status").filter({ hasText: "클리닉 과제 정보를 불러오는 중입니다" })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "클리닉 과제 정보를 불러오는 중입니다" })).toHaveCount(2);
+  await expect(drawer.getByText("자율 학습 참여", { exact: true })).toHaveCount(0);
+  await expect(drawer.getByRole("button", { name: "클리닉 완료", exact: true })).toHaveCount(0);
   releaseTargets?.();
-  const alert = page.getByRole("alert").filter({ hasText: "클리닉 과제 정보를 불러오지 못했습니다" });
-  await expect(alert).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "클리닉 과제 정보를 불러오지 못했습니다" })).toHaveCount(2);
   await expect(page.getByText("자율 학습 참여", { exact: true })).toHaveCount(0);
-  state.failTargets = false;
-  await alert.getByRole("button", { name: "다시 시도", exact: true }).click();
+  const drawerAlert = drawer.getByRole("alert").filter({ hasText: "클리닉 과제 정보를 불러오지 못했습니다" });
+  await expect(drawerAlert).toBeVisible();
+  await expect(drawer.getByText("자율 학습 참여", { exact: true })).toHaveCount(0);
+  await expect(drawer.getByRole("button", { name: "클리닉 완료", exact: true })).toHaveCount(0);
 
-  const studentCard = page.locator(".clinic-ops__card").filter({ hasText: "현장제출 학생" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole("alert").filter({ hasText: "클리닉 과제 정보를 불러오지 못했습니다" })).toBeVisible();
+  await expect(studentCard.getByText("자율 학습 참여", { exact: true })).toHaveCount(0);
+  await expect(studentCard.getByRole("button", { name: "클리닉 완료", exact: true })).toHaveCount(0);
+  expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await studentCard.click();
+  await expect(drawerAlert).toBeVisible();
+  state.failTargets = false;
+  await drawerAlert.getByRole("button", { name: "다시 시도", exact: true }).click();
+
   await expect(studentCard).toContainText("연산 숙제 12쪽");
+  await expect(drawer).toContainText("중1 수학 4차시");
   const invalidCard = page.locator(".clinic-ops__card").filter({ hasText: "식별자누락 학생" });
   await expect(invalidCard).toContainText("식별자 없는 과제");
   await expect(invalidCard.getByRole("button", { name: "제출 확인·완료", exact: true })).toHaveCount(0);
-  await studentCard.getByRole("button", { name: "제출 확인·완료", exact: true }).click();
+  await drawer.getByRole("button", { name: "제출 확인·완료", exact: true }).click();
 
   const dialog = page.getByRole("dialog", { name: "과제 제출 확인·완료" });
   const submit = dialog.getByRole("button", { name: "제출 확인하고 완료", exact: true });
@@ -425,9 +445,10 @@ test("운영 화면에서 대상 조회 실패를 재시도하고 문자 제출 
   await expect(studentCard.getByRole("button", { name: "제출 확인·완료", exact: true })).toHaveCount(0);
   await expect(studentCard).not.toContainText("과제 미통과");
   await expect(studentCard).toContainText("자율 학습 참여");
+  await expect(drawer.getByRole("button", { name: "제출 확인·완료", exact: true })).toHaveCount(0);
+  await expect(drawer).toContainText("자율 학습 참여");
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(studentCard).toBeVisible();
   await expect(studentCard).not.toContainText("과제 미통과");
   expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
 });
