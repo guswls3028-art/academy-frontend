@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Download, RefreshCw } from "lucide-react";
 
 import { Button } from "@/shared/ui/ds";
@@ -16,6 +16,7 @@ const PREVIEW_ERROR_HTML = "<html><body><p>미리보기를 불러올 수 없습�
 const MAX_MC_COUNT = 60;
 const MAX_ESSAY_COUNT = 20;
 const MAX_MC_WITH_OPTIONAL_ESSAY_AREA = 40;
+const OMR_SHEET_WIDTH_PX = (297 / 25.4) * 96;
 
 type OmrSheetBuilderLayout = "page" | "modal";
 type OmrFormat = "choice" | "mixed" | "essay";
@@ -64,6 +65,7 @@ export default function OmrSheetBuilder({
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const previewRef = useRef<HTMLElement>(null);
   const previewRequestRef = useRef(0);
   const lastMcCountRef = useRef(initialMcCount > 0 ? clampInt(initialMcCount, 1, MAX_MC_COUNT) : 20);
   const lastEssayCountRef = useRef(initialEssayCount > 0 ? clampInt(initialEssayCount, 1, MAX_ESSAY_COUNT) : 5);
@@ -98,6 +100,21 @@ export default function OmrSheetBuilder({
     return () => {
       previewRequestRef.current += 1;
     };
+  }, []);
+
+  useLayoutEffect(() => {
+    const preview = previewRef.current;
+    if (!preview) return;
+
+    const updateScale = () => {
+      const nextScale = Math.min(1, preview.clientWidth / OMR_SHEET_WIDTH_PX);
+      preview.style.setProperty("--omr-preview-scale", String(nextScale));
+    };
+    updateScale();
+
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(preview);
+    return () => observer.disconnect();
   }, []);
 
   const totalCount = mcCount + essayCount;
@@ -372,7 +389,7 @@ export default function OmrSheetBuilder({
         </div>
       </section>
 
-      <section className={styles.preview} aria-label="OMR 답안지 미리보기">
+      <section ref={previewRef} className={styles.preview} aria-label="OMR 답안지 미리보기">
         {previewHtml ? (
           <iframe
             srcDoc={previewHtml}
