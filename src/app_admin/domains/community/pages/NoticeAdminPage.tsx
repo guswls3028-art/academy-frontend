@@ -42,7 +42,11 @@ import "@admin/domains/community/board-admin.css";
 
 const SNIPPET_LEN = 72;
 
-export default function NoticeAdminPage() {
+type NoticeAdminPageProps = {
+  embedded?: boolean;
+};
+
+export default function NoticeAdminPage({ embedded = false }: NoticeAdminPageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedIdParam = searchParams.get("id");
   const selectedId = selectedIdParam && /^\d+$/.test(selectedIdParam) ? Number(selectedIdParam) : null;
@@ -173,30 +177,32 @@ export default function NoticeAdminPage() {
   }
 
   return (
-    <div className="notice-tree notice-tree--viewport">
-      <CmsTreeNav
-        title="공지"
-        allLabel="전체 보기"
-        counts={{
-          totalCount: noticeCounts.totalCount,
-          totalUnderScope: noticeCounts.totalUnderScope,
-          countByNodeId: noticeCounts.countByNodeId,
-          countByLecture: noticeCounts.countByLecture,
-        }}
-        scope={scope}
-        lectureId={lectureId}
-        sessionId={sessionId}
-        effectiveLectureId={effectiveLectureId}
-        lectures={lectures}
-        scopeNodes={scopeNodes}
-        sessionsOfLecture={sessionsOfLecture}
-        sessionsLoading={sessionsLoading}
-        expandedLectureId={expandedLectureId}
-        onExpandLecture={setExpandedLectureId}
-        onSelectAll={selectAll}
-        onSelectLecture={selectLecture}
-        onSelectSession={selectSession}
-      />
+    <div className={`notice-tree notice-tree--viewport${embedded ? " notice-tree--embedded" : ""}${selectedId != null || showCreate ? " notice-tree--has-detail" : ""}`}>
+      {!embedded && (
+        <CmsTreeNav
+          title="공지"
+          allLabel="전체 보기"
+          counts={{
+            totalCount: noticeCounts.totalCount,
+            totalUnderScope: noticeCounts.totalUnderScope,
+            countByNodeId: noticeCounts.countByNodeId,
+            countByLecture: noticeCounts.countByLecture,
+          }}
+          scope={scope}
+          lectureId={lectureId}
+          sessionId={sessionId}
+          effectiveLectureId={effectiveLectureId}
+          lectures={lectures}
+          scopeNodes={scopeNodes}
+          sessionsOfLecture={sessionsOfLecture}
+          sessionsLoading={sessionsLoading}
+          expandedLectureId={expandedLectureId}
+          onExpandLecture={setExpandedLectureId}
+          onSelectAll={selectAll}
+          onSelectLecture={selectLecture}
+          onSelectSession={selectSession}
+        />
+      )}
 
       {/* 2번 영역: 공지 목록 */}
       <aside className="qna-inbox__list">
