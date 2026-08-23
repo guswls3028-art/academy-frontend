@@ -1,5 +1,3 @@
-import type { AxiosProgressEvent } from "axios";
-
 import studentApi from "@student/shared/api/student.api";
 
 
@@ -61,16 +59,6 @@ function normalizeCollection(value: unknown): HomeworkMediaCollection {
   };
 }
 
-type UploadHomeworkMediaInput = {
-  homeworkId: number;
-  enrollmentId: number;
-  file: File;
-  clientFileId: string;
-  uploadBatchId: string;
-  position: number;
-  onProgress?: (percent: number) => void;
-};
-
 export async function fetchHomeworkMedia(
   homeworkId: number,
   enrollmentId: number,
@@ -80,35 +68,6 @@ export async function fetchHomeworkMedia(
     { params: { enrollment_id: enrollmentId } },
   );
   return normalizeCollection(response.data);
-}
-
-export async function uploadHomeworkMedia({
-  homeworkId,
-  enrollmentId,
-  file,
-  clientFileId,
-  uploadBatchId,
-  position,
-  onProgress,
-}: UploadHomeworkMediaInput): Promise<HomeworkMediaFile> {
-  const body = new FormData();
-  body.append("enrollment_id", String(enrollmentId));
-  body.append("client_file_id", clientFileId);
-  body.append("upload_batch_id", uploadBatchId);
-  body.append("position", String(position));
-  body.append("file", file);
-  const response = await studentApi.post<HomeworkMediaFile>(
-    `/submissions/submissions/homework/${homeworkId}/media/`,
-    body,
-    {
-      headers: { "Content-Type": "multipart/form-data" },
-      onUploadProgress: (event: AxiosProgressEvent) => {
-        if (!event.total || !onProgress) return;
-        onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
-      },
-    },
-  );
-  return response.data;
 }
 
 export async function removeHomeworkMedia(

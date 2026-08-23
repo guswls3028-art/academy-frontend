@@ -8,7 +8,7 @@ import EmptyState from "@student/layout/EmptyState";
 import { useMyGradesSummary } from "@student/domains/grades/hooks/useMyGradesSummary";
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "@student/domains/grades/api/grades.api";
 import type { HomeworkMediaFile } from "@student/domains/submit/api/homeworkMedia.api";
-import { fetchHomeworkMedia, removeHomeworkMedia, uploadHomeworkMedia } from "@student/domains/submit/api/homeworkMedia.api";
+import { fetchHomeworkMedia, removeHomeworkMedia } from "@student/domains/submit/api/homeworkMedia.api";
 import studentApi from "@student/shared/api/student.api";
 import { IconChevronRight, IconExam, IconClipboard, IconImage, IconVideo } from "@student/shared/ui/icons/Icons";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
@@ -152,29 +152,37 @@ export default function SubmitAssignmentPage() {
       if (!selected) throw new Error("제출 대상을 선택해 주세요.");
       const candidates = pendingFiles.filter((item) => item.status === "queued" || item.status === "failed");
       if (candidates.length === 0) throw new Error("새로 제출할 파일을 선택해 주세요.");
-      return runTrackedTask("assignments.student.submit", async () => {
-        const succeeded: string[] = [];
-        const failed: string[] = [];
-        for (const item of candidates) {
-          updatePending(item.clientFileId, { status: "uploading", progress: 0, error: null });
-          try {
-            await uploadHomeworkMedia({
-              homeworkId: selected.id,
-              enrollmentId: selected.enrollmentId,
-              file: item.file,
-              clientFileId: item.clientFileId,
-              uploadBatchId: item.uploadBatchId,
-              position: item.position,
-              onProgress: (progress) => updatePending(item.clientFileId, { progress }),
-            });
-            succeeded.push(item.clientFileId);
-          } catch (uploadError) {
-            failed.push(item.clientFileId);
-            updatePending(item.clientFileId, { status: "failed", error: apiErrorMessage(uploadError, "이 파일을 올리지 못했습니다.") });
-          }
+      const succeeded: string[] = [];
+      const failed: string[] = [];
+      for (const item of candidates) {
+        updatePending(item.clientFileId, { status: "uploading", progress: 0, error: null });
+        const body = new FormData();
+        body.append("enrollment_id", String(selected.enrollmentId));
+        body.append("client_file_id", item.clientFileId);
+        body.append("upload_batch_id", item.uploadBatchId);
+        body.append("position", String(item.position));
+        body.append("file", item.file);
+        try {
+          await runTrackedTask("assignments.student.submit", () => studentApi.post(
+            `/submissions/submissions/homework/${selected.id}/media/`,
+            body,
+            {
+              headers: { "Content-Type": "multipart/form-data" },
+              onUploadProgress: (event) => {
+                if (!event.total) return;
+                updatePending(item.clientFileId, {
+                  progress: Math.min(100, Math.round((event.loaded / event.total) * 100)),
+                });
+              },
+            },
+          ));
+          succeeded.push(item.clientFileId);
+        } catch (uploadError) {
+          failed.push(item.clientFileId);
+          updatePending(item.clientFileId, { status: "failed", error: apiErrorMessage(uploadError, "이 파일을 올리지 못했습니다.") });
         }
-        return { succeeded, failed };
-      });
+      }
+      return { succeeded, failed };
     },
     onSuccess: async ({ succeeded, failed }) => {
       setPendingFiles((current) => current.filter((item) => !succeeded.includes(item.clientFileId)));
