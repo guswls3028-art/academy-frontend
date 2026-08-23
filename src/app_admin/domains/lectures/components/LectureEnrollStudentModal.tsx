@@ -56,7 +56,7 @@ export default function LectureEnrollStudentModal({
             selected={false}
             showCheck={false}
             title="엑셀로 일괄 등록 (추천)"
-            desc="이름·전화·학교·학년이 적힌 엑셀 파일로 한 번에 등록합니다. 명단에 없는 학생은 자동 생성."
+            desc="학생 명부에 이미 등록된 학생을 이름·학부모 전화번호로 찾아 한 번에 수강 등록합니다."
             onClick={handleExcelUpload}
             ariaPressed={false}
           />
