@@ -26,10 +26,12 @@ import type { MessageTemplateItem } from "../api/messages.api";
 import type { ProvidedTemplatePreset } from "../constants/templatePresets";
 import {
   getAlimtalkTemplateLabel,
-  getAlimtalkTemplateTypeFromCategory,
   renderAlimtalkFullPreview,
 } from "./AlimtalkTemplateInfoPanel";
-import { hideInternalAlimtalkMemoToken } from "../constants/alimtalkEnvelope";
+import {
+  hideInternalAlimtalkMemoToken,
+  resolveManualAlimtalkTemplateType,
+} from "../constants/alimtalkEnvelope";
 import {
   isSystemMessageTemplate,
   isTemplateVisibleInPicker,
@@ -167,7 +169,8 @@ export default function TemplatePickerModal({
   const previewSourceBody = hideInternalAlimtalkMemoToken((previewTpl?.body ?? previewPreset?.body) || "");
   const previewSourceCategory = (previewTpl?.category ?? previewPreset?.category ?? blockCategory) as TemplateCategory;
   const previewTemplateName = previewTpl?.name ?? previewPreset?.name ?? "";
-  const previewAlimtalkType = getAlimtalkTemplateTypeFromCategory(
+  const previewAlimtalkType = resolveManualAlimtalkTemplateType(
+    blockCategory,
     previewSourceCategory,
     previewTemplateName,
     alimtalkExtraVars,
