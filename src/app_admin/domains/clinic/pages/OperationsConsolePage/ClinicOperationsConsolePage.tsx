@@ -164,18 +164,18 @@ export default function ClinicOperationsConsolePage() {
 
   return (
     <div className="clinic-page">
-      <div className={panelStyles.root}>
-        <div className={panelStyles.header}>
+      <div className={`${panelStyles.root} clinic-operations-shell`}>
+        <div className={`${panelStyles.header} clinic-operations-shell__header`}>
           <h2 className={panelStyles.headerTitle}>클리닉 진행</h2>
           <p className={panelStyles.headerDesc}>{headerDesc}</p>
         </div>
 
-        <div className={panelStyles.body}>
-          <aside className={panelStyles.tree}>
+        <div className={`${panelStyles.body} clinic-operations-shell__body`}>
+          <aside className={`${panelStyles.tree} clinic-operations-shell__selector`}>
             <div className={panelStyles.treeNavHeader}>
               <span className={panelStyles.treeNavTitle}>일정</span>
             </div>
-            <div className={panelStyles.treeScroll}>
+            <div className={`${panelStyles.treeScroll} clinic-operations-shell__selector-scroll`}>
               <ClinicConsoleSidebar
                 sessions={filteredTree}
                 selectedDay={selectedDate}
@@ -213,7 +213,7 @@ export default function ClinicOperationsConsolePage() {
             </div>
           </aside>
 
-          <div className={panelStyles.content}>
+          <div className={`${panelStyles.content} clinic-operations-shell__content`}>
             <div className={panelStyles.contentInner} style={WIDE_CONTENT_STYLE}>
               {!selectedSessionId ? (
                 <div className="clinic-console__empty-workspace">

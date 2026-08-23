@@ -87,10 +87,13 @@ type OperationsState = {
   targetRequests?: number;
   participantRequests?: number;
   resolutionPayloads?: Array<Record<string, unknown>>;
+  participantsGate?: Promise<void>;
   statusPayloads?: Array<Record<string, unknown>>;
   checkoutPayloads?: Array<Record<string, unknown>>;
   reminderPayloads?: Array<Record<string, unknown>>;
   bookingPayloads?: Array<Record<string, unknown>>;
+  planPayloads?: Array<{ id: number; planned_clinic_link_ids: number[] }>;
+  rejectNextPlan?: boolean;
 };
 
 async function installApi(
@@ -153,6 +156,7 @@ async function installApi(
       if (operationsState) {
         operationsState.participantRequests = (operationsState.participantRequests ?? 0) + 1;
       }
+      await operationsState?.participantsGate;
       return json({
         count: operationsState?.participants.length ?? 0,
         results: operationsState?.participants ?? [],
@@ -229,6 +233,20 @@ async function installApi(
       operationsState?.bookingPayloads?.push({ id, ...payload });
       return json({ id: 9901, session: payload.new_session_id, status: "booked" });
     }
+    const planMatch = path.match(/^\/clinic\/participants\/(\d+)\/planned-clinic-links\/$/);
+    if (planMatch && method === "PUT") {
+      const id = Number(planMatch[1]);
+      const payload = request.postDataJSON() as { planned_clinic_link_ids: number[] };
+      operationsState?.planPayloads?.push({ id, ...payload });
+      if (operationsState?.rejectNextPlan) {
+        operationsState.rejectNextPlan = false;
+        return json({ detail: "해결되었거나 범위를 벗어난 항목입니다." }, 400);
+      }
+      const participant = operationsState?.participants.find((row) => row.id === id);
+      if (!participant) return json({ detail: "not found" }, 404);
+      participant.planned_clinic_link_ids = [...payload.planned_clinic_link_ids].sort((a, b) => a - b);
+      return json({ ...participant });
+    }
     if (path === "/messaging/auto-send/") {
       return json([]);
     }
@@ -300,6 +318,7 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
         session_start_time: "13:00:00", session_end_time: "14:30:00",
         session_location: "1층 세미나실", status: "booked", checked_in_at: null,
         checked_out_at: null, completed_at: null, is_late: false,
+        planned_clinic_link_ids: [9002],
         lecture_title: "화학특강", lecture_chip_label: "화특",
       },
       {
@@ -361,6 +380,7 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
     checkoutPayloads: [],
     reminderPayloads: [],
     bookingPayloads: [],
+    planPayloads: [],
   };
 
   await seed(page);
@@ -374,14 +394,53 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
 
   const studentCard = page.locator(".clinic-ops__card").filter({ hasText: "김다과목" });
   await expect(studentCard).toBeVisible({ timeout: 20_000 });
-  await expect(studentCard.locator(".clinic-ops__reason-tag")).toHaveCount(2);
+  await expect(studentCard.locator(".clinic-ops__task-chip")).toHaveCount(2);
+  expect((await studentCard.boundingBox())?.height ?? Infinity).toBeLessThanOrEqual(96);
+  await expect(studentCard.getByRole("spinbutton")).toHaveCount(0);
+  await expect(studentCard).toContainText("오늘 1 / 미완료 2");
   await expect(studentCard).toContainText("화학특강 4차시");
   await expect(studentCard).toContainText("통과특강 2차시");
+  await page.screenshot({ path: "test-results/admin-clinic-operations-queue-1366.png", fullPage: false });
   const newestTarget = studentCard.getByText("통과특강 2차시", { exact: true });
   const olderTarget = studentCard.getByText("화학특강 4차시", { exact: true });
-  expect((await newestTarget.boundingBox())?.y ?? Infinity).toBeLessThan(
-    (await olderTarget.boundingBox())?.y ?? 0,
+  expect((await newestTarget.boundingBox())?.x ?? Infinity).toBeLessThan(
+    (await olderTarget.boundingBox())?.x ?? 0,
   );
+
+  const originalUrl = page.url();
+  const olderTargetButton = studentCard.getByRole("button", { name: /김다과목.*화학특강 4차시/ });
+  await olderTargetButton.click();
+  const workbench = page.getByRole("dialog", { name: "김다과목 클리닉 워크벤치" });
+  await expect(workbench).toBeVisible();
+  await expect(workbench.getByRole("heading", { name: "김다과목 작업대" })).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  expect(await workbench.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+  await expect(workbench.locator(".clinic-workbench__item-switcher")).toHaveCSS("min-height", "45px");
+  await expect(workbench.getByRole("tab", { name: /화학특강 4차시/ })).toBeVisible();
+  await expect(workbench.locator(".clinic-workbench__active-panel")).toContainText("화학특강 4차시");
+  await expect(workbench.locator(".clinic-workbench__active-panel")).not.toContainText("통과특강 2차시");
+  expect(page.url()).toBe(originalUrl);
+  await page.screenshot({ path: "test-results/admin-clinic-operations-workbench-1366.png", fullPage: false });
+
+  await workbench.getByRole("button", { name: "오늘 할 일에 추가" }).click();
+  await expect.poll(() => state.planPayloads?.[0]).toEqual({
+    id: 801,
+    planned_clinic_link_ids: [9001, 9002],
+  });
+  await expect(workbench).toContainText("오늘 할 일 2 / 전체 미완료 2");
+
+  state.rejectNextPlan = true;
+  await workbench.getByRole("button", { name: "오늘 할 일에서 빼기" }).click();
+  await expect.poll(() => state.planPayloads?.[1]).toEqual({
+    id: 801,
+    planned_clinic_link_ids: [9002],
+  });
+  await expect(workbench).toContainText("오늘 할 일 2 / 전체 미완료 2");
+  await expect(workbench.getByRole("button", { name: "오늘 할 일에서 빼기" })).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(workbench).toHaveCount(0);
+  await expect(olderTargetButton).toBeFocused();
 
   await expect(studentCard.getByRole("button", { name: "하원", exact: true })).toBeDisabled();
   await studentCard.getByRole("button", { name: "등원", exact: true }).click();
@@ -429,13 +488,66 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
   });
 
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  await expect(page.locator(".clinic-console__mobile-date-switcher")).toBeVisible();
+  await expect(page.locator(".clinic-scheduler-panel__mini-cal--sidebar")).toBeHidden();
   await studentCard.scrollIntoViewIfNeeded();
-  await expect(studentCard.locator(".clinic-ops__reason-tag")).toHaveCount(2);
+  await expect(studentCard.locator(".clinic-ops__task-chip")).toHaveCount(2);
+  await expect(studentCard).toContainText("오늘 2 / 미완료 2");
+  expect((await studentCard.boundingBox())?.height ?? Infinity).toBeLessThanOrEqual(124);
   await expect(studentCard).toContainText("화학특강 4차시");
   await expect(studentCard).toContainText("통과특강 2차시");
+  const clinicTabs = page.locator(".clinic-domain-layout .domain-header__tabs-wrap .ds-tab");
+  const tabBoxes = await clinicTabs.evaluateAll((tabs) => tabs.map((tab) => tab.getBoundingClientRect().top));
+  expect(Math.max(...tabBoxes) - Math.min(...tabBoxes)).toBeLessThan(2);
   expect(
     await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth),
   ).toBe(true);
+  await page.screenshot({ path: "test-results/admin-clinic-operations-queue-390.png", fullPage: false });
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const mobileTargetButton = studentCard.getByRole("button", { name: /김다과목.*화학특강 4차시/ });
+  await mobileTargetButton.click();
+  await expect(workbench).toBeVisible();
+  expect(await workbench.evaluate((element) => getComputedStyle(element).animationName)).toBe("none");
+  await page.screenshot({ path: "test-results/admin-clinic-operations-workbench-390.png", fullPage: false });
+});
+
+test("클리닉 운영은 참가자 로딩 중 0명을 확정값처럼 표시하지 않는다", async ({ page }) => {
+  let releaseParticipants!: () => void;
+  const participantsGate = new Promise<void>((resolve) => {
+    releaseParticipants = resolve;
+  });
+  const state: OperationsState = {
+    participantsGate,
+    participants: [{
+      id: 811,
+      session: 701,
+      student: 511,
+      student_name: "로딩 확인 학생",
+      enrollment_id: 1011,
+      session_date: saturday,
+      status: "booked",
+      checked_in_at: null,
+      checked_out_at: null,
+      completed_at: null,
+    }],
+    targets: [],
+  };
+
+  await seed(page);
+  await installApi(page, undefined, state);
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await page.goto(`${BASE}/workspace/clinic/operations?date=${saturday}&session=701`, {
+    waitUntil: "domcontentloaded",
+  });
+
+  await expect(page.locator(".clinic-ops__loading")).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".clinic-ops__filters")).toHaveCount(0);
+  await expect(page.getByText("전체 0", { exact: true })).toHaveCount(0);
+
+  releaseParticipants();
+  await expect(page.getByText("로딩 확인 학생", { exact: true })).toBeVisible({ timeout: 20_000 });
 });
 
 test("운영 화면에서 대상 조회 실패를 재시도하고 문자 제출 과제를 완료한다", async ({ page }) => {
