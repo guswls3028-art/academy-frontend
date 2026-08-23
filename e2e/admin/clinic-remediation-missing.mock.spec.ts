@@ -87,7 +87,7 @@ test("여러 강의를 듣는 클리닉 대상자는 학생 한 행에 아바타
         },
       ]);
     }
-    if (path === "/clinic/participants/" && method === "GET") return json({ count: 0, results: [] });
+    if (path === "/clinic/participants/" && method === "GET") return json({ count: 0, next: null, previous: null, results: [] });
     if (path === "/lectures/sections/" || path === "/staffs/currently-working/") return json([]);
     if (path.startsWith("/community/") || path.startsWith("/student/notifications/")) return json({ count: 0, results: [] });
     return json({ count: 0, results: [] });
@@ -180,7 +180,7 @@ test("미응시를 판정 대기로 구분하고 사유를 남겨 면제한 뒤 
         created_at: "2026-08-19T21:00:00+09:00",
       }]);
     }
-    if (path === "/clinic/participants/" && method === "GET") return json({ count: 0, results: [] });
+    if (path === "/clinic/participants/" && method === "GET") return json({ count: 0, next: null, previous: null, results: [] });
     if (path === "/lectures/lectures/" && method === "GET") {
       return failLectures ? json({ detail: "temporary" }, 503) : json([]);
     }
@@ -307,7 +307,7 @@ test("유효한 클리닉 링크가 있어도 미응시 시험은 면제만 허�
         created_at: "2026-08-22T21:00:00+09:00",
       }]);
     }
-    if (path === "/clinic/participants/" && method === "GET") return json({ count: 0, results: [] });
+    if (path === "/clinic/participants/" && method === "GET") return json({ count: 0, next: null, previous: null, results: [] });
     if (path === "/lectures/sections/" || path === "/staffs/currently-working/") return json([]);
     if (path.startsWith("/community/") || path.startsWith("/student/notifications/")) return json({ count: 0, results: [] });
     return json({ count: 0, results: [] });
@@ -375,7 +375,7 @@ test("미제출 과제의 완료 식별자가 누락되거나 0이면 완료 버
         created_at: "2026-08-23T15:30:00+09:00",
       })));
     }
-    if (path === "/clinic/participants/" && method === "GET") return json({ count: 0, results: [] });
+    if (path === "/clinic/participants/" && method === "GET") return json({ count: 0, next: null, previous: null, results: [] });
     if (path === "/lectures/sections/" || path === "/staffs/currently-working/") return json([]);
     if (path.startsWith("/community/") || path.startsWith("/student/notifications/")) return json({ count: 0, results: [] });
     return json({ count: 0, results: [] });
@@ -456,7 +456,7 @@ test("문자 등으로 제출한 미제출 과제를 사유와 함께 완료하�
     }
     if (path === "/clinic/participants/" && method === "GET") {
       participantRequests += 1;
-      return json({ count: 0, results: [] });
+      return json({ count: 0, next: null, previous: null, results: [] });
     }
     if (path === "/lectures/sections/" || path === "/staffs/currently-working/") return json([]);
     if (path.startsWith("/community/") || path.startsWith("/student/notifications/")) return json({ count: 0, results: [] });
@@ -545,7 +545,7 @@ test("과제 클리닉 대상은 개별 퍼센트 기준을 과제 점수로 한
         created_at: "2026-08-20T10:00:00+09:00",
       }]);
     }
-    if (path === "/clinic/participants/" && method === "GET") return json({ count: 0, results: [] });
+    if (path === "/clinic/participants/" && method === "GET") return json({ count: 0, next: null, previous: null, results: [] });
     if (path === "/lectures/sections/" || path === "/staffs/currently-working/") return json([]);
     if (path.startsWith("/community/") || path.startsWith("/student/notifications/")) return json({ count: 0, results: [] });
     return json({ count: 0, results: [] });
@@ -591,7 +591,7 @@ test("클리닉 조회 실패를 빈 목록으로 숨기지 않고 재시도한�
       return failTargets ? json({ detail: "temporary" }, 503) : json([]);
     }
     if (path === "/clinic/participants/" && method === "GET") {
-      return failParticipants ? json({ detail: "temporary" }, 503) : json({ count: 0, results: [] });
+      return failParticipants ? json({ detail: "temporary" }, 503) : json({ count: 0, next: null, previous: null, results: [] });
     }
     if (path === "/lectures/sections/" || path === "/staffs/currently-working/") return json([]);
     if (path.startsWith("/community/") || path.startsWith("/student/notifications/")) return json({ count: 0, results: [] });
@@ -664,7 +664,7 @@ test("백그라운드에서 생긴 작업을 탭 복귀 시 즉시 다시 폴링
       });
     }
     if (path === "/results/admin/clinic-targets/") return json([]);
-    if (path === "/clinic/participants/") return json({ count: 0, results: [] });
+    if (path === "/clinic/participants/") return json({ count: 0, next: null, previous: null, results: [] });
     if (path === "/lectures/sections/" || path === "/staffs/currently-working/") return json([]);
     if (path.startsWith("/community/") || path.startsWith("/student/notifications/")) return json({ count: 0, results: [] });
     return json({ count: 0, results: [] });
