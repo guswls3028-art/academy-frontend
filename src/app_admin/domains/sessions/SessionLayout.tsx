@@ -9,6 +9,8 @@ import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { useLectureSessionParams } from "@/shared/hooks/useLectureSessionParams";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { adminSessionQueryKeys } from "./queryKeys";
+import SessionAttendanceSummary from "./components/SessionAttendanceSummary";
+import summaryStyles from "./components/SessionAttendanceSummary.module.css";
 
 export default function SessionLayout() {
   const { lectureId, sessionId } = useLectureSessionParams();
@@ -47,7 +49,7 @@ export default function SessionLayout() {
       {
         key: "notice",
         label: "공지·게시판",
-        path: `/workspace/community/notice?scope=session&lectureId=${lectureId}&sessionId=${sessionId}`,
+        path: `${base}/notice?scope=session&lectureId=${lectureId}&sessionId=${sessionId}`,
       },
       { key: "videos", label: "영상", path: `${base}/videos` },
     ];
@@ -100,6 +102,8 @@ export default function SessionLayout() {
       breadcrumbs={breadcrumbs}
       tabs={tabs}
       density={isScoresRoute ? "compact" : "default"}
+      headerActions={<SessionAttendanceSummary sessionId={sessionId} />}
+      className={summaryStyles.sessionDomainLayout}
     >
       <Outlet />
     </DomainLayout>

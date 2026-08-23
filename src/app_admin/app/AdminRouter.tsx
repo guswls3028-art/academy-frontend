@@ -205,6 +205,7 @@ export default function AdminRouter() {
           <Route path="scores" element={renderLazyRoute(SessionDetailPage)} />
           <Route path="exams" element={renderLazyRoute(SessionDetailPage)} />
           <Route path="assignments" element={renderLazyRoute(SessionDetailPage)} />
+          <Route path="notice" element={renderLazyRoute(SessionDetailPage)} />
           <Route path="videos" element={renderLazyRoute(SessionDetailPage)} />
           <Route path="clinic" element={renderLazyRoute(SessionDetailPage)} />
           <Route path="videos/:videoId" element={renderLazyRoute(VideoDetailPage)} />
