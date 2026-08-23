@@ -39,6 +39,303 @@
 }
 
 /* ─────────────────────────────────────────────────────
+   QnA answer workbench — reference and writing stay in view
+───────────────────────────────────────────────────── */
+.qna-inbox__mobile-workbench-tabs {
+  display: none;
+}
+
+.qna-inbox__workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1.14fr) minmax(360px, 0.86fr);
+  flex: 1;
+  min-height: 0;
+  background: var(--color-bg-surface-soft);
+}
+
+.qna-inbox__reference-pane,
+.qna-inbox__answer-pane {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  background: var(--color-bg-surface);
+}
+
+.qna-inbox__reference-pane {
+  border-right: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-bg-surface-soft) 76%, var(--color-bg-surface));
+}
+
+.qna-inbox__pane-heading {
+  display: flex;
+  min-height: 56px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3, 12px);
+  padding: 10px var(--space-4, 16px);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+}
+
+.qna-inbox__pane-heading h2 {
+  margin: 1px 0 0;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+.qna-inbox__pane-heading--answer {
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface));
+}
+
+.qna-inbox__pane-eyebrow {
+  display: block;
+  color: var(--color-primary);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.qna-inbox__pane-caption {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.qna-inbox__reference-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-4, 16px);
+  overscroll-behavior: contain;
+}
+
+.qna-inbox__question-copy {
+  margin-bottom: var(--space-3, 12px);
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-bg-surface);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-text-primary) 5%, transparent);
+}
+
+.qna-inbox__attachment-empty {
+  display: grid;
+  min-height: 160px;
+  place-items: center;
+  padding: var(--space-5, 20px);
+  border: 1px dashed var(--color-border-divider);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.qna-inbox__image-viewer {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border-divider));
+  border-radius: var(--radius-lg, 12px);
+  background: var(--color-bg-surface);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-text-primary) 8%, transparent);
+}
+
+.qna-inbox__viewer-toolbar {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2, 8px);
+  padding: 6px 8px 6px 12px;
+  border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface));
+}
+
+.qna-inbox__viewer-file {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+}
+
+.qna-inbox__viewer-file strong {
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qna-inbox__viewer-file span {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+
+.qna-inbox__viewer-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 3px;
+}
+
+.qna-inbox__viewer-actions button,
+.qna-inbox__viewer-actions a {
+  display: inline-flex;
+  min-width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease, color 120ms ease;
+}
+
+.qna-inbox__viewer-actions button:hover:not(:disabled),
+.qna-inbox__viewer-actions a:hover {
+  border-color: var(--color-border-divider);
+  background: var(--color-bg-surface);
+  color: var(--color-primary);
+}
+
+.qna-inbox__viewer-actions button:focus-visible,
+.qna-inbox__viewer-actions a:focus-visible,
+.qna-inbox__image-strip button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.qna-inbox__viewer-actions button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.qna-inbox__viewer-divider {
+  width: 1px;
+  height: 18px;
+  margin: 0 2px;
+  background: var(--color-border-divider);
+}
+
+.qna-inbox__viewer-zoom {
+  width: 38px;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.qna-inbox__image-stage {
+  display: grid;
+  min-height: clamp(360px, 46vh, 620px);
+  max-height: 68vh;
+  overflow: auto;
+  place-items: center;
+  padding: clamp(18px, 3vw, 36px);
+  background-color: #20242a;
+  background-image: linear-gradient(45deg, rgba(255,255,255,0.025) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255,255,255,0.025) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.025) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.025) 75%);
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  background-size: 16px 16px;
+  overscroll-behavior: contain;
+}
+
+.qna-inbox__image-stage img {
+  display: block;
+  max-width: 100%;
+  max-height: 58vh;
+  object-fit: contain;
+  transform-origin: center;
+  transition: transform 160ms ease;
+  user-select: none;
+}
+
+.qna-inbox__image-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px;
+  border-top: 1px solid var(--color-border-divider);
+}
+
+.qna-inbox__image-strip button {
+  width: 52px;
+  height: 52px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  padding: 2px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: var(--color-bg-surface-soft);
+  cursor: pointer;
+}
+
+.qna-inbox__image-strip button.is-active {
+  border-color: var(--color-primary);
+}
+
+.qna-inbox__image-strip img {
+  width: 100%;
+  height: 100%;
+  border-radius: 5px;
+  object-fit: cover;
+}
+
+.qna-inbox__answer-pane .qna-inbox__thread-view {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.qna-inbox__answer-pane .qna-inbox__reply-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-4, 16px);
+  background: color-mix(in srgb, var(--color-primary) 2%, var(--color-bg-surface-soft));
+  overscroll-behavior: contain;
+}
+
+.qna-inbox__answer-pane .qna-inbox__reply-list:empty::before {
+  content: "질문 자료를 보면서 바로 답변을 작성해 보세요.";
+  display: grid;
+  min-height: 120px;
+  place-items: center;
+  padding: var(--space-4, 16px);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.qna-inbox__answer-pane .qna-inbox__composer {
+  padding: var(--space-3, 12px);
+  border-top-width: 1px;
+}
+
+.qna-inbox__answer-pane .qna-inbox__composer-editor .ql-editor {
+  min-height: clamp(180px, 28vh, 320px);
+  max-height: 42vh;
+}
+
+/* ─────────────────────────────────────────────────────
    Avatar
 ───────────────────────────────────────────────────── */
 .qna-inbox__avatar {
@@ -1182,4 +1479,298 @@
 .counsel-student-contact-link:hover {
   color: var(--color-primary);
   text-decoration: underline;
+}
+
+/* Connected inbox list: selection, not card chrome, carries the hierarchy. */
+.qna-inbox > .qna-inbox__list .qna-inbox__list-body {
+  gap: 0;
+  padding: 4px 8px 10px;
+  background: var(--color-bg-surface);
+}
+
+.qna-inbox > .qna-inbox__list .qna-inbox__card {
+  border: 0;
+  border-bottom: 1px solid var(--color-border-divider);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.qna-inbox > .qna-inbox__list .qna-inbox__card:hover {
+  border-color: var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-text-primary) 3%, var(--color-bg-surface));
+  box-shadow: none;
+  transform: none;
+}
+
+.qna-inbox > .qna-inbox__list .qna-inbox__card:focus-visible {
+  z-index: 1;
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.qna-inbox > .qna-inbox__list .qna-inbox__card--active {
+  border-color: var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-primary) 7%, var(--color-bg-surface));
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
+.qna-inbox > .qna-inbox__list .qna-inbox__card--active::before {
+  display: none;
+}
+
+.qna-inbox > .qna-inbox__list .qna-inbox__card--unread {
+  border-left: 0;
+}
+
+.qna-inbox > .qna-inbox__list .qna-inbox__card--unread:not(.qna-inbox__card--active) {
+  box-shadow: inset 3px 0 0 var(--color-warning);
+}
+
+@media (max-width: 1366px) {
+  .qna-inbox__list {
+    width: 320px;
+    min-width: 290px;
+  }
+
+  .qna-inbox__workbench {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 0.92fr);
+  }
+
+  .qna-inbox__thread-header {
+    padding: var(--space-3, 12px) var(--space-4, 16px);
+  }
+
+  .qna-inbox__student-panel {
+    padding: 8px var(--space-4, 16px);
+  }
+}
+
+@media (max-width: 1100px) {
+  .qna-inbox__list {
+    width: 292px;
+    min-width: 272px;
+  }
+
+  .qna-inbox__workbench {
+    grid-template-columns: minmax(0, 1fr) minmax(290px, 0.9fr);
+  }
+
+  .qna-inbox__viewer-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .qna-inbox__viewer-actions {
+    width: 100%;
+  }
+
+  .qna-inbox__viewer-actions a {
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .qna-inbox--viewport {
+    height: calc(100dvh - 148px);
+    min-height: 520px;
+  }
+
+  .qna-inbox__list {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    border-right: 0;
+  }
+
+  .qna-inbox__thread {
+    display: none;
+    width: 100%;
+  }
+
+  .qna-inbox--has-selection .qna-inbox__list {
+    display: none;
+  }
+
+  .qna-inbox--has-selection .qna-inbox__thread {
+    display: flex;
+  }
+
+  .qna-inbox__thread-header {
+    padding: 10px 12px;
+  }
+
+  .qna-inbox__thread-title-row {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .qna-inbox__thread-title {
+    margin-bottom: 5px;
+    font-size: 16px;
+  }
+
+  .qna-inbox__thread-actions {
+    justify-content: flex-end;
+  }
+
+  .qna-inbox__thread-actions .ds-button:first-child {
+    margin-right: auto;
+  }
+
+  .qna-inbox__student-panel {
+    display: none;
+  }
+
+  .qna-inbox__mobile-workbench-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px;
+    padding: 6px;
+    border-bottom: 1px solid var(--color-border-divider);
+    background: var(--color-bg-surface-soft);
+  }
+
+  .qna-inbox__mobile-workbench-tabs button {
+    display: inline-flex;
+    min-height: 38px;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .qna-inbox__mobile-workbench-tabs button.is-active {
+    border-color: var(--color-border-divider);
+    background: var(--color-bg-surface);
+    color: var(--color-primary);
+    box-shadow: 0 1px 3px color-mix(in srgb, var(--color-text-primary) 8%, transparent);
+  }
+
+  .qna-inbox__mobile-workbench-tabs button:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 1px;
+  }
+
+  .qna-inbox__mobile-workbench-tabs span {
+    display: inline-grid;
+    min-width: 18px;
+    height: 18px;
+    place-items: center;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    font-size: 10px;
+  }
+
+  .qna-inbox__workbench {
+    display: flex;
+  }
+
+  .qna-inbox__reference-pane,
+  .qna-inbox__answer-pane {
+    display: none;
+    width: 100%;
+  }
+
+  .qna-inbox__reference-pane.is-mobile-active,
+  .qna-inbox__answer-pane.is-mobile-active {
+    display: flex;
+  }
+
+  .qna-inbox__reference-pane {
+    border-right: 0;
+  }
+
+  .qna-inbox__pane-heading {
+    min-height: 48px;
+    padding: 8px 12px;
+  }
+
+  .qna-inbox__reference-scroll {
+    padding: 10px;
+  }
+
+  .qna-inbox__image-stage {
+    min-height: 360px;
+    max-height: none;
+    padding: 18px;
+  }
+
+  .qna-inbox__image-stage img {
+    max-height: 56vh;
+  }
+
+  .qna-inbox__answer-pane .qna-inbox__composer-editor .ql-editor {
+    min-height: 180px;
+    max-height: 34vh;
+  }
+
+  .qna-inbox__message-actions {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 430px) {
+  .qna-inbox__list-header {
+    padding: 12px;
+  }
+
+  .qna-inbox__filter-btn {
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 4px;
+  }
+
+  .qna-inbox__thread-actions {
+    gap: 4px;
+  }
+
+  .qna-inbox__viewer-file {
+    width: 100%;
+  }
+
+  .qna-inbox__viewer-actions {
+    justify-content: space-between;
+  }
+
+  .qna-inbox__viewer-actions a span {
+    display: none;
+  }
+
+  .qna-inbox__viewer-actions a {
+    margin-left: 0;
+  }
+
+  .qna-inbox__viewer-divider {
+    margin: 0;
+  }
+
+  .qna-inbox__answer-pane .qna-inbox__composer-footer {
+    align-items: flex-end;
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qna-inbox__image-stage img,
+  .qna-inbox__card,
+  .qna-inbox__viewer-actions button,
+  .qna-inbox__viewer-actions a {
+    transition: none;
+  }
+
+  .qna-inbox__status--pending::before,
+  .qna-matchup-results__pending-dot,
+  .community-empty__spinner {
+    animation: none;
+  }
 }

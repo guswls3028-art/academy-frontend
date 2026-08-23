@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "../fixtures/strictTest";
+import { readFile } from "node:fs/promises";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
 
@@ -344,10 +345,11 @@ const performanceConsole = {
 
 async function installApi(page: Page, options: {
   emptyAcademy?: boolean;
+  exportPagination?: boolean;
   failGrades?: boolean;
   failPerformance?: boolean;
   homeworkQuickEdit?: boolean;
-} = {}): Promise<void> {
+} = {}): Promise<string[]> {
   await page.clock.setFixedTime(new Date("2026-07-19T12:00:00+09:00"));
   const access = fakeJwt();
   await page.addInitScript(({ token }) => {
@@ -361,6 +363,7 @@ async function installApi(page: Page, options: {
   let scoreReviewResolved = false;
   let completionScore = 0;
   let numericScore = 28;
+  const performanceRequestUrls: string[] = [];
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
@@ -531,6 +534,7 @@ async function installApi(page: Page, options: {
       return;
     }
     if (path.endsWith("/results/admin/student-performance/")) {
+      performanceRequestUrls.push(request.url());
       if (options.failPerformance) {
         await route.fulfill({ status: 500, json: { detail: "성적 콘솔 조회 일시 실패" } });
         return;
@@ -617,12 +621,34 @@ async function installApi(page: Page, options: {
           },
         })),
       } : resolvedConsole;
+      const requestUrl = new URL(request.url());
+      const exportPageSize = Number(requestUrl.searchParams.get("page_size"));
+      const exportPage = Number(requestUrl.searchParams.get("page") || "1");
+      const exportConsole = options.exportPagination && exportPageSize === 100
+        ? {
+          ...scopedConsole,
+          pagination: {
+            page: exportPage,
+            page_size: 100,
+            total_count: 2,
+            total_pages: 2,
+          },
+          students: exportPage === 1
+            ? scopedConsole.students
+            : scopedConsole.students.map((row) => ({
+              ...row,
+              student_id: 102,
+              name: "추가 학생",
+              display_name: "추가 학생",
+            })),
+        }
+        : scopedConsole;
       await route.fulfill({ json: filteredOut ? {
-        ...scopedConsole,
-        summary: { ...scopedConsole.summary, student_count: 0, scored_student_count: 0 },
-        pagination: { ...scopedConsole.pagination, total_count: 0 },
+        ...exportConsole,
+        summary: { ...exportConsole.summary, student_count: 0, scored_student_count: 0 },
+        pagination: { ...exportConsole.pagination, total_count: 0 },
         students: [],
-      } : scopedConsole });
+      } : exportConsole });
       return;
     }
     if (path.includes("/results/admin/reported-scores/") && path.endsWith("/review/") && request.method() === "PATCH") {
@@ -648,6 +674,7 @@ async function installApi(page: Page, options: {
     }
     await route.fulfill({ json: { count: 0, next: null, previous: null, results: [] } });
   });
+  return performanceRequestUrls;
 }
 
 async function assertTrend(component: ReturnType<Page["getByTestId"]>): Promise<void> {
@@ -779,6 +806,55 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await expect(console).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
     await page.screenshot({ path: "test-results/student-score-trend/results-console-1100.png", fullPage: true });
+  });
+
+  test("현재 성적 조건을 유지해 페이지 전체 학생을 CSV로 내려받는다", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 900 });
+    const performanceRequestUrls = await installApi(page, { exportPagination: true });
+    await page.goto(`${BASE}/workspace/results`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+
+    const console = page.getByTestId("results-performance-console");
+    await expect(console).toBeVisible({ timeout: 60_000 });
+    await console.getByRole("button", { name: /학원 시험/ }).first().click();
+    await console.getByRole("tab", { name: /정규수업/ }).click();
+    await console.getByRole("button", { name: "30일", exact: true }).click();
+    await console.getByLabel("학생 검색").fill("윤지용");
+    await console.getByLabel("강의").selectOption("501");
+    await console.getByLabel("학년").selectOption("2");
+    await console.getByLabel("득점 구간").selectOption("80_plus");
+    await console.getByLabel("점수 변화").selectOption("up");
+    await console.getByLabel("정렬").selectOption("latest_desc");
+    await expect.poll(() => performanceRequestUrls.some((raw) => {
+      const url = new URL(raw);
+      return url.searchParams.get("days") === "30"
+        && url.searchParams.get("source") === "academy"
+        && url.searchParams.get("session_type") === "REGULAR"
+        && url.searchParams.get("lecture_id") === "501"
+        && url.searchParams.get("grade") === "2"
+        && url.searchParams.get("score_band") === "80_plus"
+        && url.searchParams.get("trend") === "up"
+        && url.searchParams.get("sort") === "latest_desc"
+        && url.searchParams.get("search") === "윤지용";
+    })).toBe(true);
+
+    const downloadPromise = page.waitForEvent("download");
+    await console.getByRole("button", { name: "성적 통계 다운로드" }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/^학생별_성적통계_\d{4}-\d{2}-\d{2}\.csv$/);
+    const downloadPath = await download.path();
+    expect(downloadPath).not.toBeNull();
+    const csv = await readFile(downloadPath!, "utf8");
+    expect(csv.startsWith("\uFEFF학생명,학년,학교,수강 강의")).toBe(true);
+    expect(csv).toContain("윤지용 학생");
+    expect(csv).toContain("추가 학생");
+    expect(csv).toContain("학원 시험,,정규수업");
+    expect(csv).toContain("30일,Ymath 중등 심화,2학년,80% 이상,직전보다 상승,윤지용,높은 최근 점수순");
+    expect(csv.trimEnd().split("\r\n")).toHaveLength(3);
+    await expect(console.getByText("현재 조건의 2명을 다운로드했습니다.")).toBeVisible();
+    expect(performanceRequestUrls.some((raw) => {
+      const url = new URL(raw);
+      return url.searchParams.get("page_size") === "100" && url.searchParams.get("page") === "2";
+    })).toBe(true);
   });
 
   test("관리자 학생 상세에서 자동 누적·강의 필터·정규화 점수를 확인한다", async ({ page }) => {

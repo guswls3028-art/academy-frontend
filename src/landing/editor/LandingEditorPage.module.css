@@ -1,0 +1,365 @@
+.sectionOrganizer {
+  --organizer-ink: var(--color-text-primary, #172033);
+  --organizer-muted: var(--color-text-secondary, #667085);
+  --organizer-rule: var(--color-border-divider, #dfe5ee);
+  --organizer-brand: var(--color-brand-primary, #2563eb);
+  --organizer-paper: var(--color-bg-surface, #fff);
+  display: grid;
+  gap: 22px;
+  color: var(--organizer-ink);
+}
+
+.organizerIntro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 4px 2px 2px;
+}
+
+.organizerIntro h3 {
+  margin: 5px 0 6px;
+  font-size: clamp(21px, 2.2vw, 28px);
+  font-weight: 850;
+  letter-spacing: -0.04em;
+  line-height: 1.18;
+}
+
+.organizerIntro p,
+.zoneHeading p {
+  margin: 0;
+  color: var(--organizer-muted);
+  font-size: 13px;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.organizerEyebrow,
+.zoneHeading > div > span {
+  color: var(--organizer-brand);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.organizerCount {
+  display: grid;
+  min-width: 118px;
+  justify-items: end;
+  padding-left: 22px;
+  border-left: 1px solid var(--organizer-rule);
+}
+
+.organizerCount strong {
+  color: var(--organizer-brand);
+  font-size: 31px;
+  font-weight: 850;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.organizerCount span {
+  margin-top: 4px;
+  color: var(--organizer-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.activeZone,
+.libraryZone {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--organizer-rule);
+  border-radius: 16px;
+  background: var(--organizer-paper);
+}
+
+.activeZone {
+  border-color: color-mix(in srgb, var(--organizer-brand) 26%, var(--organizer-rule));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--organizer-brand) 5%, var(--organizer-paper)), var(--organizer-paper) 38%);
+  box-shadow: 0 14px 34px color-mix(in srgb, var(--organizer-brand) 7%, transparent);
+}
+
+.zoneHeading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.zoneHeading h4 {
+  margin: 3px 0 0;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+.zoneHeading p {
+  max-width: 300px;
+  text-align: right;
+}
+
+.activeList {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.activeCard {
+  position: relative;
+  display: grid;
+  grid-template-columns: 58px 42px minmax(150px, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 84px;
+  padding: 11px 12px 11px 0;
+  overflow: hidden;
+  border: 1px solid var(--organizer-rule);
+  border-radius: 12px;
+  background: var(--organizer-paper);
+  transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.activeCard::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  content: "";
+  background: var(--organizer-brand);
+}
+
+.activeCard:hover {
+  border-color: color-mix(in srgb, var(--organizer-brand) 35%, var(--organizer-rule));
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--organizer-brand) 7%, transparent);
+  transform: translateY(-1px);
+}
+
+.orderNumber {
+  color: color-mix(in srgb, var(--organizer-brand) 74%, var(--organizer-ink));
+  font-size: 21px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 850;
+  letter-spacing: -0.05em;
+  text-align: center;
+}
+
+.activeIcon,
+.libraryIcon {
+  display: inline-flex;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+  color: var(--organizer-brand);
+  background: color-mix(in srgb, var(--organizer-brand) 10%, var(--organizer-paper));
+}
+
+.activeCopy,
+.libraryCopy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.activeCopy strong,
+.libraryCopy strong {
+  overflow: hidden;
+  color: var(--organizer-ink);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activeCopy span,
+.libraryCopy span {
+  overflow: hidden;
+  color: var(--organizer-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activeCopy small {
+  margin-top: 3px;
+  color: var(--organizer-brand);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.activeActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.activeActions button,
+.libraryCard button {
+  min-height: 34px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, color 140ms ease;
+}
+
+.editButton,
+.libraryEdit {
+  padding: 6px 11px;
+  border: 1px solid var(--organizer-rule);
+  color: var(--organizer-ink);
+  background: var(--organizer-paper);
+}
+
+.editButton:hover,
+.libraryEdit:hover {
+  border-color: color-mix(in srgb, var(--organizer-brand) 38%, var(--organizer-rule));
+  color: var(--organizer-brand);
+}
+
+.orderActions {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--organizer-rule);
+  border-radius: 8px;
+}
+
+.orderActions button {
+  width: 34px;
+  padding: 0;
+  border: 0;
+  border-right: 1px solid var(--organizer-rule);
+  color: var(--organizer-muted);
+  background: var(--organizer-paper);
+}
+
+.orderActions button:last-child { border-right: 0; }
+.orderActions button:hover:not(:disabled) { color: var(--organizer-brand); background: color-mix(in srgb, var(--organizer-brand) 7%, var(--organizer-paper)); }
+.orderActions button:disabled { opacity: 0.34; cursor: not-allowed; }
+
+.removeButton {
+  padding: 6px 10px;
+  border: 0;
+  color: var(--organizer-muted);
+  background: transparent;
+}
+
+.removeButton:hover { color: #b42318; background: #fff1f0; }
+
+.activeEmpty,
+.libraryEmpty {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 28px 18px;
+  border: 1px dashed color-mix(in srgb, var(--organizer-brand) 30%, var(--organizer-rule));
+  border-radius: 12px;
+  color: var(--organizer-muted);
+  background: color-mix(in srgb, var(--organizer-brand) 3%, var(--organizer-paper));
+  font-size: 12px;
+  text-align: center;
+}
+
+.activeEmpty strong { color: var(--organizer-ink); font-size: 14px; }
+
+.libraryZone {
+  background: var(--color-bg-surface-soft, #f7f9fc);
+}
+
+.libraryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.libraryCard {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 11px 10px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid var(--organizer-rule);
+  border-radius: 12px;
+  background: var(--organizer-paper);
+}
+
+.libraryIcon {
+  color: var(--organizer-muted);
+  background: var(--color-bg-surface-soft, #f4f6fa);
+}
+
+.libraryEdit,
+.addButton {
+  grid-row: 2;
+}
+
+.libraryEdit { grid-column: 1 / 2; padding: 5px 7px; }
+
+.addButton {
+  grid-column: 2;
+  padding: 6px 12px;
+  border: 1px solid color-mix(in srgb, var(--organizer-brand) 34%, var(--organizer-rule));
+  color: var(--organizer-brand);
+  background: color-mix(in srgb, var(--organizer-brand) 7%, var(--organizer-paper));
+}
+
+.addButton:hover {
+  border-color: var(--organizer-brand);
+  color: #fff;
+  background: var(--organizer-brand);
+}
+
+.activeActions button:focus-visible,
+.libraryCard button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--organizer-brand) 28%, transparent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 960px) {
+  .activeCard {
+    grid-template-columns: 52px 42px minmax(0, 1fr);
+  }
+
+  .activeActions {
+    grid-column: 2 / -1;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 640px) {
+  .organizerIntro,
+  .zoneHeading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .organizerCount {
+    width: 100%;
+    justify-items: start;
+    padding: 11px 0 0;
+    border-top: 1px solid var(--organizer-rule);
+    border-left: 0;
+  }
+
+  .zoneHeading p { max-width: none; text-align: left; }
+  .activeZone,
+  .libraryZone { padding: 14px; }
+  .libraryGrid { grid-template-columns: 1fr; }
+  .removeButton { margin-left: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .activeCard,
+  .activeActions button,
+  .libraryCard button { transition: none; }
+  .activeCard:hover { transform: none; }
+}

@@ -9,6 +9,7 @@ import {
   CircleAlert,
   ClipboardCheck,
   ChevronLeft,
+  Download,
   ExternalLink,
   FileCheck2,
   FileX2,
@@ -47,6 +48,7 @@ import {
   type StudentTrendDirection,
 } from "../api/studentPerformance";
 import { adminResultsQueryKeys } from "../queryKeys";
+import { downloadBlob } from "@/shared/utils/safeDownload";
 import styles from "./ResultsPerformanceConsole.module.css";
 
 type ScoreBandFilter = "all" | StudentScoreBand;
@@ -108,6 +110,33 @@ const SORT_OPTIONS: Array<{ value: SortKey; label: string }> = [
   { value: "change_desc", label: "상승폭 큰 순" },
   { value: "name", label: "이름순" },
 ];
+
+const SCORE_BAND_LABELS: Record<StudentScoreBand, string> = {
+  under_60: "60% 미만",
+  "60_to_79": "60–79%",
+  "80_plus": "80% 이상",
+  unscored: "점수 없음",
+};
+
+const TREND_LABELS: Record<StudentTrendDirection, string> = {
+  up: "상승",
+  down: "하락",
+  flat: "변화 없음",
+  insufficient: "비교 전",
+};
+
+function csvCell(value: string | number | null | undefined): string {
+  if (value == null) return "";
+  const raw = String(value);
+  const protectedValue = /^[=+\-@]/.test(raw) ? `'${raw}` : raw;
+  return /[",\r\n]/.test(protectedValue)
+    ? `"${protectedValue.replace(/"/g, '""')}"`
+    : protectedValue;
+}
+
+function scoreValue(value: number | null | undefined): number | "" {
+  return value == null ? "" : value;
+}
 
 function formatPct(value: number | null | undefined): string {
   if (value == null) return "—";
@@ -216,6 +245,8 @@ export default function ResultsExplorerPage() {
   const [sort, setSort] = useState<SortKey>("attention");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState("");
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
   const [voidTarget, setVoidTarget] = useState<StudentReportedScore | null>(null);
   const [voidNote, setVoidNote] = useState("");
@@ -353,6 +384,105 @@ export default function ResultsExplorerPage() {
     search !== "",
   ].filter(Boolean).length;
 
+  useEffect(() => {
+    setExportMessage("");
+  }, [grade, lectureId, period, reportedSubject, scoreBand, search, sessionType, sort, source, trend]);
+
+  async function downloadCurrentResults() {
+    if (exporting) return;
+    setExporting(true);
+    setExportMessage("");
+    try {
+      const exportFilters = {
+        ...performanceFilters,
+        page: 1,
+        pageSize: 100,
+        reviewPage: 1,
+        reviewPageSize: 1,
+      };
+      const firstPage = await fetchStudentPerformanceConsole({
+        period,
+        lectureId,
+        filters: exportFilters,
+      });
+      const students = [...firstPage.students];
+      for (let exportPage = 2; exportPage <= firstPage.pagination.total_pages; exportPage += 1) {
+        const nextPage = await fetchStudentPerformanceConsole({
+          period,
+          lectureId,
+          filters: { ...exportFilters, page: exportPage },
+        });
+        students.push(...nextPage.students);
+      }
+
+      const sourceLabel = SOURCE_OPTIONS.find((option) => option.value === source)?.label ?? source;
+      const periodLabel = PERIOD_OPTIONS.find((option) => option.value === period)?.label ?? String(period);
+      const sessionTypeLabel = source === "academy"
+        ? SESSION_TYPE_OPTIONS.find((option) => option.value === sessionType)?.label ?? sessionType
+        : "해당 없음";
+      const lectureLabel = lectureId == null
+        ? "전체 강의"
+        : firstPage.filter_options.lectures.find((lecture) => lecture.id === lectureId)?.title ?? "선택 강의";
+      const selectedGradeLabel = grade === "all" ? "전체 학년" : `${grade}학년`;
+      const selectedScoreBandLabel = SCORE_BAND_OPTIONS.find((option) => option.value === scoreBand)?.label ?? scoreBand;
+      const selectedTrendLabel = TREND_OPTIONS.find((option) => option.value === trend)?.label ?? trend;
+      const sortLabel = SORT_OPTIONS.find((option) => option.value === sort)?.label ?? sort;
+      const header = [
+        "학생명", "학년", "학교", "수강 강의", "성적 출처", "과목", "결과 범위",
+        "기록 수", "최근 점수(%)", "평균 점수(%)", "최고 점수(%)", "직전 대비(%p)",
+        "첫 회차 대비(%p)", "득점 구간", "점수 변화", "최근 시험", "최근 기록일",
+        "조회 기간", "강의 조건", "학년 조건", "득점 조건", "변화 조건", "검색어", "정렬",
+      ];
+      const rows = students.map((student) => {
+        const summary = sourceSummary(student, source, reportedSubject);
+        return [
+          student.display_name || student.name,
+          student.grade == null ? "" : `${student.grade}학년`,
+          student.school ?? "",
+          student.lectures.map((lecture) => lecture.title).join(" / "),
+          sourceLabel,
+          source === "school" || source === "mock" ? reportedSubject : "",
+          sessionTypeLabel,
+          summary.scored_count,
+          scoreValue(summary.latest_score_pct),
+          scoreValue(summary.average_score_pct),
+          scoreValue(summary.best_score_pct),
+          scoreValue(summary.change_pct_points),
+          scoreValue(summary.first_to_latest_pct_points),
+          SCORE_BAND_LABELS[summary.score_band],
+          TREND_LABELS[summary.trend_direction],
+          student.latest_exam_title ?? "",
+          student.last_recorded_at?.slice(0, 10) ?? "",
+          periodLabel,
+          lectureLabel,
+          selectedGradeLabel,
+          selectedScoreBandLabel,
+          selectedTrendLabel,
+          search,
+          sortLabel,
+        ];
+      });
+      const csv = [header, ...rows]
+        .map((row) => row.map(csvCell).join(","))
+        .join("\r\n");
+      const downloadedAt = new Date();
+      const date = [
+        downloadedAt.getFullYear(),
+        String(downloadedAt.getMonth() + 1).padStart(2, "0"),
+        String(downloadedAt.getDate()).padStart(2, "0"),
+      ].join("-");
+      downloadBlob(
+        new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }),
+        `학생별_성적통계_${date}.csv`,
+      );
+      setExportMessage(`현재 조건의 ${students.length}명을 다운로드했습니다.`);
+    } catch {
+      setExportMessage("다운로드할 성적을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   function resetFilters() {
     setLectureId(null);
     setSessionType("all");
@@ -413,15 +543,30 @@ export default function ResultsExplorerPage() {
           </div>
           <p>최근 점수만 보지 않고 1회차부터 이어진 흐름을 비교해 상담과 보강 대상을 빠르게 찾습니다.</p>
         </div>
-        <Button
-          intent="secondary"
-          size="sm"
-          leftIcon={<RefreshCw size={ICON.sm} />}
-          loading={performanceQuery.isFetching}
-          onClick={() => { void performanceQuery.refetch(); void operationsQuery.refetch(); }}
-        >
-          새로고침
-        </Button>
+        <div className={styles.headerActions}>
+          <Button
+            intent="secondary"
+            size="sm"
+            leftIcon={<Download size={ICON.sm} />}
+            loading={exporting}
+            disabled={performanceQuery.isLoading || performanceQuery.isError}
+            onClick={() => { void downloadCurrentResults(); }}
+          >
+            성적 통계 다운로드
+          </Button>
+          <Button
+            intent="secondary"
+            size="sm"
+            leftIcon={<RefreshCw size={ICON.sm} />}
+            loading={performanceQuery.isFetching}
+            onClick={() => { void performanceQuery.refetch(); void operationsQuery.refetch(); }}
+          >
+            새로고침
+          </Button>
+          <span className={styles.exportHint} aria-live="polite">
+            {exportMessage || `현재 조건 · ${performanceQuery.data?.pagination.total_count ?? 0}명 전부`}
+          </span>
+        </div>
       </section>
 
       <section className={styles.sourceRail} aria-label="성적 출처" data-guide="results-source">

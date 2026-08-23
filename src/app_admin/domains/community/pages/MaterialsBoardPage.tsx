@@ -200,7 +200,7 @@ export default function MaterialsBoardPage() {
   }
 
   return (
-    <div className="notice-tree notice-tree--viewport">
+    <div className={`notice-tree notice-tree--viewport${selectedId != null || showCreate ? " notice-tree--has-detail" : ""}`}>
       <CmsTreeNav
         title="자료실"
         allLabel="전체 보기"

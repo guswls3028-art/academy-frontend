@@ -5,6 +5,7 @@ import { Outlet, useLocation, useNavigate } from "react-router";
 import { Settings } from "lucide-react";
 import { DomainLayout } from "@/shared/ui/layout";
 import { ICON } from "@/shared/ui/ds";
+import { useOperationalNotificationCounts } from "@/shared/hooks/useOperationalNotificationCounts";
 import { CommunityScopeProvider } from "../context/CommunityScopeContext";
 import "@admin/domains/community/community.css";
 
@@ -35,11 +36,22 @@ function SettingsButton() {
 }
 
 function CommunityPageInner() {
+  const operationalNotifications = useOperationalNotificationCounts();
+  const tabs = COMMUNITY_TABS.map((tab) => (
+    tab.key === "qna" && operationalNotifications.counts.qnaPending > 0
+      ? {
+          ...tab,
+          badge: String(operationalNotifications.counts.qnaPending),
+          badgeTitle: `답변 필요 질문 ${operationalNotifications.counts.qnaPending}건`,
+        }
+      : tab
+  ));
+
   return (
     <DomainLayout
       title="커뮤니티"
       description="게시판 · 공지사항 · QnA · 상담 신청 · 자료실"
-      tabs={COMMUNITY_TABS}
+      tabs={tabs}
       headerActions={<SettingsButton />}
     >
       <Outlet />

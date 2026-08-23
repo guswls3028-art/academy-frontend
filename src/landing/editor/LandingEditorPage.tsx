@@ -29,6 +29,7 @@ import type {
 import { ALLOWED_COLORS, SECTION_META } from "../types";
 import { getTemplateComponent } from "../templates";
 import { SvgIcon } from "../templates/shared";
+import editorStyles from "./LandingEditorPage.module.css";
 
 type ViewMode = "edit" | "preview";
 type PreviewDevice = "desktop" | "tablet" | "mobile";
@@ -1285,130 +1286,132 @@ function HitReportPicker({ selectedIds, onChange }: { selectedIds: number[]; onC
   );
 }
 
-/** 모듈 모음 카드 그리드 — 네이버 블로그 꾸미기 식 시각적 토글.
- * 각 섹션이 큰 카드. 아이콘 + 라벨 + ON/OFF + "편집" 버튼.
- * 메타는 SECTION_META(SSOT)에서 직접 조회 — 별도 dict 유지 X.
- */
+/** 공개 홈페이지 흐름과 선택 가능한 모듈을 분리해 순서를 먼저 읽게 하는 편집기. */
 function SectionCardGrid({ sections, updateDraft, onEdit }: { sections: LandingSection[]; updateDraft: (fn: (p: LandingConfig) => LandingConfig) => void; onEdit: (type: string) => void }) {
   const sorted = [...sections].sort((a, b) => a.order - b.order);
-  const toggle = (type: string) => {
-    updateDraft((p) => ({
-      ...p,
-      sections: p.sections.map((s) => s.type === type ? { ...s, enabled: !s.enabled } : s),
-    }));
-  };
-  const move = (type: string, direction: -1 | 1) => {
+  const enabledSections = sorted.filter((section) => section.enabled);
+  const disabledSections = sorted.filter((section) => !section.enabled);
+
+  const setEnabled = (type: string, enabled: boolean) => {
     updateDraft((p) => {
-      const arr = [...p.sections].sort((a, b) => a.order - b.order);
-      const idx = arr.findIndex((s) => s.type === type);
+      const ordered = [...p.sections].sort((a, b) => a.order - b.order);
+      const target = ordered.find((section) => section.type === type);
+      if (!target || target.enabled === enabled) return p;
+      const active = ordered.filter((section) => section.enabled && section.type !== type);
+      const inactive = ordered.filter((section) => !section.enabled && section.type !== type);
+      const next = enabled
+        ? [...active, { ...target, enabled: true }, ...inactive]
+        : [...active, { ...target, enabled: false }, ...inactive];
+      return {
+        ...p,
+        sections: next.map((section, order) => ({ ...section, order })),
+      };
+    });
+  };
+
+  const moveActive = (type: string, direction: -1 | 1) => {
+    updateDraft((p) => {
+      const ordered = [...p.sections].sort((a, b) => a.order - b.order);
+      const active = ordered.filter((section) => section.enabled);
+      const inactive = ordered.filter((section) => !section.enabled);
+      const idx = active.findIndex((section) => section.type === type);
       if (idx < 0) return p;
       const swapIdx = idx + direction;
-      if (swapIdx < 0 || swapIdx >= arr.length) return p;
-      const next = arr.map((s, i) => {
-        if (i === idx) return { ...s, order: swapIdx };
-        if (i === swapIdx) return { ...s, order: idx };
-        return { ...s, order: i };
-      });
-      return { ...p, sections: next };
+      if (swapIdx < 0 || swapIdx >= active.length) return p;
+      [active[idx], active[swapIdx]] = [active[swapIdx], active[idx]];
+      return {
+        ...p,
+        sections: [...active, ...inactive].map((section, order) => ({ ...section, order })),
+      };
     });
   };
 
   return (
-    <div>
-      <div style={{ marginBottom: 20 }}>
-        <h3 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 4px", color: "var(--color-text-primary, #1e293b)" }}>
-          홈페이지 모듈
-        </h3>
-        <p style={{ fontSize: 13, color: "var(--color-text-secondary, #64748b)", margin: 0, lineHeight: 1.6 }}>
-          켜기/끄기 + 편집 + 순서 변경. 카드를 클릭하면 자세한 편집 창이 열립니다.
-        </p>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
-        {sorted.map((sec, i) => {
-          const meta = (SECTION_META as Record<string, { icon: string; tagline: string }>)[sec.type] || { icon: "star", tagline: "모듈" };
-          const label = sectionLabel(sec.type);
-          return (
-            <div
-              key={sec.type}
-              style={{
-                position: "relative",
-                padding: 18,
-                borderRadius: 14,
-                background: sec.enabled ? "#fff" : "#f8fafc",
-                border: `1.5px solid ${sec.enabled ? "var(--color-brand-primary, #2563EB)" : "var(--color-border-divider, #e2e8f0)"}`,
-                boxShadow: sec.enabled ? "0 2px 6px rgba(37,99,235,0.08)" : "none",
-                display: "flex", flexDirection: "column", gap: 10,
-                opacity: sec.enabled ? 1 : 0.75,
-                transition: "border-color 0.15s, box-shadow 0.15s, opacity 0.15s",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-                <div style={{
-                  width: 36, height: 36, borderRadius: 10,
-                  background: sec.enabled ? "rgba(37,99,235,0.12)" : "rgba(0,0,0,0.06)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  color: sec.enabled ? "var(--color-brand-primary, #2563EB)" : "var(--color-text-muted, #94a3b8)",
-                  flexShrink: 0,
-                }}>
-                  <SvgIcon name={meta.icon} size={18} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text-primary, #1e293b)", letterSpacing: "-0.01em" }}>
-                    {label}
+    <div className={editorStyles.sectionOrganizer} data-testid="landing-section-organizer">
+      <header className={editorStyles.organizerIntro}>
+        <div>
+          <span className={editorStyles.organizerEyebrow}>공개 홈페이지 구성</span>
+          <h3>보여줄 순서부터 정리하세요</h3>
+          <p>위에서 아래 순서로 실제 홈페이지에 표시됩니다. 필요한 모듈은 아래 라이브러리에서 추가합니다.</p>
+        </div>
+        <div className={editorStyles.organizerCount} aria-live="polite">
+          <strong>{enabledSections.length}</strong>
+          <span>개 모듈 사용 중</span>
+        </div>
+      </header>
+
+      <section className={editorStyles.activeZone} aria-labelledby="active-modules-title">
+        <div className={editorStyles.zoneHeading}>
+          <div>
+            <span>홈페이지 흐름</span>
+            <h4 id="active-modules-title">현재 보이는 모듈</h4>
+          </div>
+          <p>순서를 바꾸거나 내용을 편집할 수 있습니다.</p>
+        </div>
+        {enabledSections.length === 0 ? (
+          <div className={editorStyles.activeEmpty}>
+            <strong>아직 보이는 모듈이 없습니다</strong>
+            <span>아래 라이브러리에서 첫 모듈을 추가해 주세요.</span>
+          </div>
+        ) : (
+          <ol className={editorStyles.activeList}>
+            {enabledSections.map((section, index) => {
+              const meta = (SECTION_META as Record<string, { icon: string; tagline: string }>)[section.type] || { icon: "star", tagline: "모듈" };
+              const label = sectionLabel(section.type);
+              return (
+                <li key={section.type} className={editorStyles.activeCard} data-section-type={section.type}>
+                  <span className={editorStyles.orderNumber} aria-label={`${index + 1}번째`}>{String(index + 1).padStart(2, "0")}</span>
+                  <span className={editorStyles.activeIcon} aria-hidden><SvgIcon name={meta.icon} size={20} /></span>
+                  <div className={editorStyles.activeCopy}>
+                    <strong>{label}</strong>
+                    <span>{meta.tagline}</span>
+                    <small>공개 화면 {index + 1}번째</small>
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--color-text-muted, #94a3b8)", marginTop: 2 }}>
-                    {meta.tagline}
+                  <div className={editorStyles.activeActions}>
+                    <button type="button" className={editorStyles.editButton} onClick={() => onEdit(section.type)}>내용 편집</button>
+                    <div className={editorStyles.orderActions} aria-label={`${label} 순서 변경`}>
+                      <button type="button" onClick={() => moveActive(section.type, -1)} disabled={index === 0} aria-label={`${label} 위로 이동`}>↑</button>
+                      <button type="button" onClick={() => moveActive(section.type, 1)} disabled={index === enabledSections.length - 1} aria-label={`${label} 아래로 이동`}>↓</button>
+                    </div>
+                    <button type="button" className={editorStyles.removeButton} onClick={() => setEnabled(section.type, false)}>홈페이지에서 빼기</button>
                   </div>
-                </div>
-                {/* 토글 스위치 */}
-                <button
-                  type="button"
-                  onClick={() => toggle(sec.type)}
-                  aria-label={sec.enabled ? "끄기" : "켜기"}
-                  style={{
-                    width: 38, height: 22, borderRadius: 11, border: "none", cursor: "pointer",
-                    background: sec.enabled ? "var(--color-brand-primary, #2563EB)" : "#cbd5e1",
-                    position: "relative", flexShrink: 0,
-                    transition: "background 0.15s",
-                  }}
-                >
-                  <span style={{
-                    position: "absolute", top: 2, left: sec.enabled ? 18 : 2,
-                    width: 18, height: 18, borderRadius: "50%", background: "#fff",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
-                    transition: "left 0.15s",
-                  }} />
-                </button>
-              </div>
-              <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-                <button
-                  type="button"
-                  onClick={() => onEdit(sec.type)}
-                  style={{
-                    flex: 1,
-                    padding: "7px 10px", borderRadius: 8,
-                    border: "1px solid var(--color-border-divider, #e2e8f0)",
-                    background: "#fff", color: "var(--color-text-primary, #1e293b)",
-                    fontSize: 12, fontWeight: 600, cursor: "pointer",
-                  }}
-                >편집</button>
-                <button type="button" onClick={() => move(sec.type, -1)} disabled={i === 0} title="위로" style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid var(--color-border-divider, #e2e8f0)", background: "#fff", cursor: i === 0 ? "not-allowed" : "pointer", opacity: i === 0 ? 0.4 : 1, fontSize: 14, color: "var(--color-text-secondary, #64748b)" }}>↑</button>
-                <button type="button" onClick={() => move(sec.type, 1)} disabled={i === sorted.length - 1} title="아래로" style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid var(--color-border-divider, #e2e8f0)", background: "#fff", cursor: i === sorted.length - 1 ? "not-allowed" : "pointer", opacity: i === sorted.length - 1 ? 0.4 : 1, fontSize: 14, color: "var(--color-text-secondary, #64748b)" }}>↓</button>
-              </div>
-              <span style={{
-                position: "absolute", top: 8, right: 8,
-                fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 99,
-                background: sec.enabled ? "rgba(34,197,94,0.12)" : "rgba(0,0,0,0.05)",
-                color: sec.enabled ? "#16a34a" : "var(--color-text-muted, #94a3b8)",
-                letterSpacing: "0.04em",
-                pointerEvents: "none",
-              }}>
-                {sec.enabled ? "ON" : "OFF"}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </section>
+
+      <section className={editorStyles.libraryZone} aria-labelledby="module-library-title">
+        <div className={editorStyles.zoneHeading}>
+          <div>
+            <span>선택 가능한 구성</span>
+            <h4 id="module-library-title">모듈 라이브러리</h4>
+          </div>
+          <p>{disabledSections.length > 0 ? `${disabledSections.length}개 모듈을 추가할 수 있습니다.` : "모든 모듈을 사용하고 있습니다."}</p>
+        </div>
+        {disabledSections.length === 0 ? (
+          <div className={editorStyles.libraryEmpty}>모든 모듈이 홈페이지 흐름에 들어가 있습니다.</div>
+        ) : (
+          <div className={editorStyles.libraryGrid}>
+            {disabledSections.map((section) => {
+              const meta = (SECTION_META as Record<string, { icon: string; tagline: string }>)[section.type] || { icon: "star", tagline: "모듈" };
+              const label = sectionLabel(section.type);
+              return (
+                <article key={section.type} className={editorStyles.libraryCard} data-section-type={section.type}>
+                  <span className={editorStyles.libraryIcon} aria-hidden><SvgIcon name={meta.icon} size={19} /></span>
+                  <div className={editorStyles.libraryCopy}>
+                    <strong>{label}</strong>
+                    <span>{meta.tagline}</span>
+                  </div>
+                  <button type="button" className={editorStyles.libraryEdit} onClick={() => onEdit(section.type)}>미리 편집</button>
+                  <button type="button" className={editorStyles.addButton} onClick={() => setEnabled(section.type, true)}>홈페이지에 추가</button>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
