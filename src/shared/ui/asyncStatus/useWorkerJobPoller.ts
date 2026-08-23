@@ -92,6 +92,32 @@ function pollExcelJob(
         onSuccess?.();
         // 엑셀 등록 결과 상세 표시
         const result = res.data?.result as Record<string, unknown> | undefined;
+        const isEnrollmentImport = result != null && (
+          Object.prototype.hasOwnProperty.call(result, "enrolled_count")
+          || Object.prototype.hasOwnProperty.call(result, "not_found_students_count")
+          || Object.prototype.hasOwnProperty.call(result, "ambiguous_students_count")
+        );
+        if (isEnrollmentImport) {
+          const enrolledCount = Number(result?.enrolled_count ?? 0);
+          const notFoundCount = Number(result?.not_found_students_count ?? 0);
+          const ambiguousCount = Number(result?.ambiguous_students_count ?? 0);
+          const parts = [`등록 ${enrolledCount}명`];
+          if (notFoundCount > 0) parts.push(`명부 없음 ${notFoundCount}명`);
+          if (ambiguousCount > 0) parts.push(`명부 중복 ${ambiguousCount}명`);
+          asyncStatusStore.setTaskLabel(taskId, `엑셀 수강등록 — ${parts.join(", ")}`);
+
+          const excludedParts: string[] = [];
+          if (notFoundCount > 0) excludedParts.push(`학생 명부 없음 ${notFoundCount}명`);
+          if (ambiguousCount > 0) excludedParts.push(`동일 정보 중복 ${ambiguousCount}명`);
+          const excludedDetail = excludedParts.length > 0
+            ? `등록 제외: ${excludedParts.join(", ")}. 학생 등록 또는 명부 정리 후 다시 시도해 주세요.`
+            : undefined;
+          if (excludedDetail) {
+            feedback.warning(`수강등록 결과: ${excludedDetail}`);
+          }
+          asyncStatusStore.completeTask(taskId, "success", excludedDetail);
+          return;
+        }
         const created = Number(result?.created ?? 0);
         const dupCount = Array.isArray(result?.duplicates) ? result.duplicates.length : 0;
         const restoredCount = Array.isArray(result?.restored) ? result.restored.length : 0;

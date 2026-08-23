@@ -5,8 +5,6 @@ import {
   fetchSessionEnrollments as fetchSharedSessionEnrollments,
   type SessionEnrollmentRow,
 } from "@/shared/api/contracts/sessionEnrollments";
-import type { StudentInitialPasswordSettings } from "@/shared/product/students/initialPassword";
-
 export type LectureEnrollmentStudent = {
   id: number | null;
   name: string | null;
@@ -32,6 +30,8 @@ export type ExcelEnrollJobStatus = {
   result?: {
     enrolled_count: number;
     created_students_count?: number;
+    not_found_students_count?: number;
+    ambiguous_students_count?: number;
     session_id?: number;
     processed_by?: string;
   };
@@ -102,24 +102,19 @@ export async function bulkCreateEnrollments(
 }
 
 /**
- * 강의/차시 엑셀 수강등록 — 워커 전담. 기존·신규 동일 로직.
+ * 강의/차시 엑셀 수강등록 — 워커 전담, 기존 활성 학생만 매칭.
  * API는 파일 수신 → R2 업로드 → SQS job 등록만 하며, 파싱·등록은 워커에서 수행.
+ * 학생 계정·비밀번호 필드는 전송하지 않으며 명부에 없는 학생은 생성하지 않음.
  * sessionId 있으면 해당 차시에만 등록, 없으면 1차시 생성·등록.
  */
 export async function lectureEnrollFromExcelUpload(
   lectureId: number,
   file: File,
-  passwordSettings: StudentInitialPasswordSettings,
   options?: { sessionId?: number }
 ) {
   const form = new FormData();
   form.append("file", file);
   form.append("lecture_id", String(lectureId));
-  form.append("password_mode", passwordSettings.mode);
-  form.append(
-    "initial_password",
-    passwordSettings.mode === "fixed" ? passwordSettings.fixedPassword.trim() : "",
-  );
   if (options?.sessionId != null) {
     form.append("session_id", String(options.sessionId));
   }
