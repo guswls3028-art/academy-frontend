@@ -178,9 +178,9 @@ jobs:
         run: pnpm install --frozen-lockfile --shamefully-hoist
 
       - name: Install Playwright
-        # ubuntu-latest already carries the Chromium system dependencies. Keep
-        # this PR gate independent from the hosted runner's flaky APT mirror.
-        run: pnpm exec playwright install chromium webkit
+        # The mandatory WebKit gate needs native libraries that are not present
+        # on every ubuntu-latest image. Install the exact browser dependencies.
+        run: pnpm exec playwright install --with-deps chromium webkit
 
       - name: Guard production E2E safety boundaries
         run: pnpm guard:e2e-safety

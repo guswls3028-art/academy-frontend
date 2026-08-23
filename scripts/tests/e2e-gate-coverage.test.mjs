@@ -93,6 +93,7 @@ test("PR read-only and route-mock gates keep separate runtime boundaries", () =>
   }
   assert.match(e2eWorkflow, /name: E2E closed-proxy route mocks/);
   assert.match(e2eWorkflow, /VITE_DEV_PROXY_TARGET: http:\/\/127\.0\.0\.1:9/);
+  assert.match(e2eWorkflow, /playwright install --with-deps chromium webkit/);
   assert.match(e2eWorkflow, /run: pnpm test:e2e:gate:readonly --reporter=github,html/);
   assert.match(e2eWorkflow, /run: pnpm test:e2e:gate:mock --reporter=github,html/);
 });
