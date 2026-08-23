@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { adminLectureQueryKeys } from "@admin/domains/lectures/queryKeys";
 import { fetchAttendanceSummary } from "@/shared/api/contracts/attendance";
 import {
   ATTENDANCE_META,
   ORDERED_ATTENDANCE_STATUS,
 } from "@/shared/ui/badges/attendanceStatus";
+import { adminSessionQueryKeys } from "../queryKeys";
 
 import styles from "./SessionAttendanceSummary.module.css";
 
@@ -15,7 +15,7 @@ type Props = {
 
 export default function SessionAttendanceSummary({ sessionId }: Props) {
   const summaryQuery = useQuery({
-    queryKey: [...adminLectureQueryKeys.attendanceForSession(sessionId), "summary"],
+    queryKey: adminSessionQueryKeys.attendance(sessionId),
     queryFn: () => fetchAttendanceSummary(sessionId),
     enabled: Number.isFinite(sessionId),
     staleTime: 30_000,
