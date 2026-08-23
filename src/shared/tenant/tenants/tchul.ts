@@ -20,5 +20,6 @@ export const tchul: TenantDef = {
     ogImageUrl: "/tenants/tchul/og-image.png",
   },
   dedicatedLoginPage: true,
+  studentSelfRegistrationEnabled: false,
   hasCustomLogo: true,
 };

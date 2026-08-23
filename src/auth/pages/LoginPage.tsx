@@ -14,6 +14,7 @@ import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { useProgram } from "@/shared/program";
 import {
   getTenantCodeFromHostname,
+  getTenantDefById,
   getTenantIdFromCode,
   getTenantBranding,
   resolveTenantCode,
@@ -114,6 +115,9 @@ export default function LoginPage() {
   // 테넌트 1/9999도 /login 페이지 정상 사용 (프로모 리다이렉트 제거)
   const tenantId = tenantCode ? getTenantIdFromCode(tenantCode) : null;
   const branding = tenantId ? getTenantBranding(tenantId) : null;
+  const studentSelfRegistrationEnabled = tenantId
+    ? getTenantDefById(tenantId)?.studentSelfRegistrationEnabled !== false
+    : true;
 
   // 테넌트 도메인 접속 시 /login/code → /login 리다이렉트.
   // 같은 테넌트면 URL을 깔끔하게, 다른 테넌트면 host 기준으로 강제 정규화 (브랜딩-인증 불일치 방지).
@@ -256,9 +260,11 @@ export default function LoginPage() {
                   홈페이지
                 </Link>
               )}
-              <button type="button" className={styles.link} onClick={() => setShowSignup(true)}>
-                회원가입
-              </button>
+              {studentSelfRegistrationEnabled && (
+                <button type="button" className={styles.link} onClick={() => setShowSignup(true)}>
+                  회원가입
+                </button>
+              )}
               <button type="button" className={styles.link} onClick={() => openRecovery("username")}>
                 아이디 찾기
               </button>
@@ -270,7 +276,10 @@ export default function LoginPage() {
         </section>
       </main>
 
-      <SignupModal open={showSignup} onClose={() => setShowSignup(false)} />
+      <SignupModal
+        open={studentSelfRegistrationEnabled && showSignup}
+        onClose={() => setShowSignup(false)}
+      />
       <AccountRecoveryModal
         open={showRecovery}
         initialMode={recoveryMode}
