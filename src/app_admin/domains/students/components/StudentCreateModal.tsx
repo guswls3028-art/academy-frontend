@@ -2,7 +2,7 @@
 // 학생 등록 모달 — 초기 선택(1명만 등록 / 엑셀 업로드) 후 해당 폼 표시
 
 import { useEffect, useState } from "react";
-import { FiMessageSquare } from "react-icons/fi";
+import { FiCheckCircle, FiInfo, FiMessageSquare, FiSmartphone, FiUsers } from "react-icons/fi";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { SessionBlockView } from "@/shared/ui/session-block";
@@ -357,6 +357,15 @@ export default function StudentCreateModal({
     const invalidStudentPhoneNames = parsedExcel.rows
       .filter((row) => row.usesIdentifier || !/^010\d{8}$/.test(row.studentPhone))
       .map((row) => row.name || "(이름 없음)");
+    if (
+      excelPasswordSettings.mode === "phone_last4"
+      && invalidStudentPhoneNames.length >= parsedExcel.rows.length
+    ) {
+      feedback.error(
+        "현재 방식으로 등록할 학생이 없습니다. 공통 비밀번호 또는 학생별 랜덤 비밀번호를 선택해 주세요.",
+      );
+      return;
+    }
     if (!isStudentInitialPasswordReady(excelPasswordSettings, invalidStudentPhoneNames.length, true)) {
       feedback.error(
         excelPasswordSettings.mode === "fixed"
@@ -382,7 +391,9 @@ export default function StudentCreateModal({
         undefined,
         { expectsCredentialDownload: excelPasswordSettings.mode === "random" },
       );
-      feedback.success("백그라운드에서 진행됩니다. 완료까지 몇 분 걸릴 수 있으며 우상단 작업박스에서 확인할 수 있습니다.");
+      feedback.success(
+        "등록 요청을 받았습니다. 작업박스에서 신규·기존·확인 필요 인원을 확인해 주세요.",
+      );
       onSuccess();
       onClose();
     } catch (e: unknown) {
@@ -422,6 +433,15 @@ export default function StudentCreateModal({
     invalidExcelStudentPhoneNames.length,
     true,
   );
+  const excelRowCount = parsedExcel?.rows.length ?? 0;
+  const excelStudentPhoneCount = Math.max(
+    0,
+    excelRowCount - invalidExcelStudentPhoneNames.length,
+  );
+  const excelExcludedRowCount = excelPasswordSettings.mode === "phone_last4"
+    ? invalidExcelStudentPhoneNames.length
+    : 0;
+  const excelEligibleRowCount = Math.max(0, excelRowCount - excelExcludedRowCount);
 
   return (
     <AdminModal open={open} onClose={handleClose} type="action" width={MODAL_WIDTH.md} onEnterConfirm={enterConfirm}>
@@ -711,14 +731,16 @@ export default function StudentCreateModal({
             <WelcomeMessageNotice />
           </div>
 
-          <div className={`modal-form-row modal-form-row--1-auto ${styles.excelPasswordRow}`}>
-            <InitialPasswordMethodSelector
-              value={excelPasswordSettings}
-              onChange={setExcelPasswordSettings}
-              disabled={busy}
-              invalidStudentPhoneNames={invalidExcelStudentPhoneNames}
-              allowPartialRows
-            />
+          <section className={styles.excelSection} aria-labelledby="student-excel-file-heading">
+            <div className={styles.excelSectionHeader}>
+              <div>
+                <span className={styles.stepLabel}>1</span>
+                <span id="student-excel-file-heading" className={styles.excelSectionTitle}>
+                  학생 명단 선택
+                </span>
+              </div>
+              <span className={styles.excelSectionDescription}>이름·학부모 전화번호 필수</span>
+            </div>
             <Button
               intent="secondary"
               onClick={() => {
@@ -729,24 +751,93 @@ export default function StudentCreateModal({
             >
               엑셀 양식 다운로드
             </Button>
-          </div>
+            <ExcelUploadZone
+              onFileSelect={handleExcelFileSelect}
+              selectedFile={selectedExcelFile}
+              onClearFile={() => {
+                setSelectedExcelFile(null);
+                setParsedExcel(null);
+              }}
+              disabled={busy}
+              hintText="안전한 .xlsx 파일"
+            />
 
-          <ExcelUploadZone
-            onFileSelect={handleExcelFileSelect}
-            selectedFile={selectedExcelFile}
-            onClearFile={() => {
-              setSelectedExcelFile(null);
-              setParsedExcel(null);
-            }}
-            disabled={busy}
-          />
+            {parsedExcel ? (
+              <div
+                className={styles.fileReview}
+                role="region"
+                aria-label="엑셀 파일 확인 결과"
+                aria-live="polite"
+              >
+                <div className={styles.fileReviewHeading}>
+                  <FiCheckCircle aria-hidden />
+                  <strong>파일을 읽었습니다</strong>
+                  <span>등록 전에 아래 인원을 확인해 주세요.</span>
+                </div>
+                <div className={styles.fileMetrics}>
+                  <div className={styles.fileMetric}>
+                    <FiUsers aria-hidden />
+                    <span>읽은 학생</span>
+                    <strong>{excelRowCount}명</strong>
+                  </div>
+                  <div className={styles.fileMetric}>
+                    <FiSmartphone aria-hidden />
+                    <span>학생 전화번호 있음</span>
+                    <strong>{excelStudentPhoneCount}명</strong>
+                  </div>
+                  <div
+                    className={styles.fileMetric}
+                    data-tone={invalidExcelStudentPhoneNames.length > 0 ? "notice" : "neutral"}
+                  >
+                    <FiInfo aria-hidden />
+                    <span>없음·식별번호 사용</span>
+                    <strong>{invalidExcelStudentPhoneNames.length}명</strong>
+                  </div>
+                </div>
+                {invalidExcelStudentPhoneNames.length > 0 ? (
+                  <div
+                    className={styles.phoneCoverageNotice}
+                    data-tone={excelExcludedRowCount > 0 ? "warning" : "ready"}
+                  >
+                    {excelExcludedRowCount > 0
+                      ? `${excelExcludedRowCount}명은 현재 비밀번호 방식에서 제외됩니다. 모두 등록하려면 공통 비밀번호 또는 학생별 랜덤 비밀번호를 선택하세요.`
+                      : `${invalidExcelStudentPhoneNames.length}명도 자동 아이디를 받아 함께 등록됩니다.`}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </section>
 
-          <div className={`modal-hint ${styles.excelHint}`}>
-            학생 아이디는 자동 부여됩니다.<br />
-            학부모 아이디는 학부모 전화번호이며, 신규 학생 초기 비밀번호는 위에서 선택한 방식으로 설정됩니다. 기존 학부모 계정은 비밀번호가 변경되지 않습니다.<br />
-            오류가 있는 행은 제외하고 정상 행만 등록하며, 완료 후 작업박스에서 실패 행과 사유를 확인할 수 있습니다.<br />
-            업로드 후에는 우상단 작업박스에서 완료 상태를 확인하세요. 처리 완료 전에는 목록에 바로 보이지 않을 수 있습니다.
-          </div>
+          <section className={styles.excelSection} aria-labelledby="student-excel-password-heading">
+            <div className={styles.excelSectionHeader}>
+              <div>
+                <span className={styles.stepLabel}>2</span>
+                <span id="student-excel-password-heading" className={styles.excelSectionTitle}>
+                  신규 학생 비밀번호
+                </span>
+              </div>
+              <span className={styles.excelSectionDescription}>기존 계정의 비밀번호는 바뀌지 않음</span>
+            </div>
+            <InitialPasswordMethodSelector
+              value={excelPasswordSettings}
+              onChange={setExcelPasswordSettings}
+              disabled={busy}
+              invalidStudentPhoneNames={invalidExcelStudentPhoneNames}
+              allowPartialRows
+            />
+          </section>
+
+          <aside className={styles.identityGuide} aria-label="기존 학생 확인 규칙">
+            <div className={styles.identityGuideTitle}>
+              <FiInfo aria-hidden />
+              기존 학생을 이렇게 확인합니다
+            </div>
+            <ul>
+              <li>학생 전화번호가 있으면 같은 번호의 기존 학생을 먼저 찾습니다.</li>
+              <li>번호가 없거나 다르면 <strong>이름 전체 + 학부모 전화번호</strong>로 확인합니다.</li>
+              <li><strong>김지우a·김지우1·괄호 표기도 이름 그대로</strong>이며, 형제·자매는 학부모 번호가 같아도 됩니다.</li>
+            </ul>
+          </aside>
         </div>
         )}
       </ModalBody>
@@ -757,7 +848,11 @@ export default function StudentCreateModal({
         left={
           mode === "choice" ? null : mode === "excel" ? (
             <span className={`modal-hint ${styles.footerHint}`}>
-              {selectedExcelFile ? "초기 비밀번호 방식 확인 후 등록" : "엑셀 파일 선택 후 등록"}
+              {parsedExcel
+                ? excelExcludedRowCount > 0
+                  ? `${excelRowCount}명 확인 · 등록 ${excelEligibleRowCount}명 · 제외 ${excelExcludedRowCount}명`
+                  : `${excelRowCount}명 확인 · 전원 등록 요청 가능`
+                : "엑셀 파일을 선택하면 등록 인원을 먼저 확인합니다"}
             </span>
           ) : null
         }
@@ -772,8 +867,12 @@ export default function StudentCreateModal({
               </Button>
             )}
             {mode === "excel" && selectedExcelFile && (
-              <Button intent="primary" onClick={handleExcelRegister} disabled={busy || !excelPasswordReady}>
-                {busy ? "등록 중…" : "등록"}
+              <Button
+                intent="primary"
+                onClick={handleExcelRegister}
+                disabled={busy || !excelPasswordReady || excelEligibleRowCount === 0}
+              >
+                {busy ? "요청 중…" : `${excelEligibleRowCount}명 등록 요청`}
               </Button>
             )}
           </>

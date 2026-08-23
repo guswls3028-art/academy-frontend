@@ -117,6 +117,7 @@
 .excelStack {
   display: flex;
   flex-direction: column;
+  gap: var(--space-3);
 }
 
 .backModeWrapper {
@@ -131,15 +132,231 @@
   text-decoration: underline;
 }
 
-.excelPasswordRow {
-  align-items: end;
+.excelSection {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
 }
 
-.excelHint {
-  margin-top: var(--space-3);
-  line-height: 1.6;
+.excelSectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.excelSectionHeader > div {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.stepLabel {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-surface));
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.excelSectionTitle {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.excelSectionDescription {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.fileReview {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--color-success) 24%, var(--color-border-divider));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-success) 6%, var(--color-bg-surface));
+}
+
+.fileReviewHeading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-success);
+  font-size: 12px;
+}
+
+.fileReviewHeading span {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.fileMetrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.fileMetric {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 2px var(--space-2);
+  min-width: 0;
+  padding: 8px 9px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-bg-surface) 82%, transparent);
+  color: var(--color-text-secondary);
+}
+
+.fileMetric svg {
+  grid-row: 1 / span 2;
+  color: var(--color-success);
+}
+
+.fileMetric span {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileMetric strong {
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
+.fileMetric[data-tone="notice"] svg,
+.fileMetric[data-tone="notice"] strong {
+  color: var(--color-warning);
+}
+
+.phoneCoverageNotice {
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.phoneCoverageNotice[data-tone="warning"] {
+  background: color-mix(in srgb, var(--color-warning) 11%, var(--color-bg-surface));
+  color: color-mix(in srgb, var(--color-warning) 76%, var(--color-text-primary));
+}
+
+.phoneCoverageNotice[data-tone="ready"] {
+  background: color-mix(in srgb, var(--color-success) 8%, var(--color-bg-surface));
+  color: color-mix(in srgb, var(--color-success) 76%, var(--color-text-primary));
+}
+
+.identityGuide {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border-divider));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface));
+  color: var(--color-text-secondary);
+}
+
+.identityGuideTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: 6px;
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.identityGuideTitle svg {
+  color: var(--color-primary);
+}
+
+.identityGuide ul {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding-left: 18px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.identityGuide strong {
+  color: var(--color-text-primary);
 }
 
 .footerHint {
   margin-bottom: 0;
+}
+
+@media (max-width: 480px) {
+  .excelStack {
+    gap: var(--space-2);
+  }
+
+  .excelSection {
+    gap: var(--space-2);
+    padding: var(--space-3);
+  }
+
+  .excelSectionHeader {
+    display: grid;
+    align-items: flex-start;
+    gap: 3px;
+  }
+
+  .excelSectionDescription {
+    padding-left: 32px;
+    text-align: left;
+  }
+
+  .fileReviewHeading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .fileReviewHeading span {
+    flex-basis: 100%;
+    margin-left: 22px;
+  }
+
+  .fileMetrics {
+    grid-template-columns: 1fr;
+  }
+
+  .fileMetric {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .fileMetric svg {
+    grid-row: auto;
+  }
+
+  .fileMetric strong {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .identityGuide {
+    padding: var(--space-3);
+  }
+
+  .footerHint {
+    display: none;
+  }
 }
