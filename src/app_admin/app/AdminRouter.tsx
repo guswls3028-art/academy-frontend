@@ -137,11 +137,15 @@ function QnaReadRedirect() {
 export default function AdminRouter() {
   const location = useLocation();
   const navigate = useNavigate();
-  const backgroundLocation = (
-    location.state as { backgroundLocation?: Location } | null
-  )?.backgroundLocation;
+  const locationState = location.state as {
+    backgroundLocation?: Location;
+    modalStudentId?: number;
+  } | null;
+  const backgroundLocation = locationState?.backgroundLocation;
   const studentDetailMatch = matchPath("/workspace/students/:studentId", location.pathname);
-  const modalStudentId = Number(studentDetailMatch?.params.studentId);
+  const modalStudentId = Number(
+    locationState?.modalStudentId ?? studentDetailMatch?.params.studentId,
+  );
   const studentDetailOverlay =
     backgroundLocation && Number.isInteger(modalStudentId) && modalStudentId > 0 ? (
       <Suspense fallback={<RouteFallback />}>

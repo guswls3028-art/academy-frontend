@@ -888,8 +888,15 @@ export default function SessionAttendancePage({
                     ].filter(Boolean).join(" ")}
                     onClick={() => {
                       if (!canOpenStudent) return;
-                      navigate(`/workspace/students/${studentId}`, {
-                        state: { backgroundLocation: location },
+                      navigate({
+                        pathname: location.pathname,
+                        search: location.search,
+                        hash: location.hash,
+                      }, {
+                        state: {
+                          backgroundLocation: location,
+                          modalStudentId: studentId,
+                        },
                       });
                     }}
                   >

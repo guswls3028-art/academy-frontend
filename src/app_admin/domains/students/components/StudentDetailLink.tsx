@@ -26,8 +26,13 @@ export default function StudentDetailLink({
 
   return (
     <Link
-      to={`/workspace/students/${studentId}`}
-      state={{ backgroundLocation: location }}
+      to={{
+        pathname: location.pathname,
+        search: location.search,
+        hash: location.hash,
+      }}
+      replace={false}
+      state={{ backgroundLocation: location, modalStudentId: studentId }}
       className={[
         "inline-flex max-w-full rounded-md text-left text-inherit no-underline",
         "hover:underline focus:outline-none focus-visible:ring-2",
