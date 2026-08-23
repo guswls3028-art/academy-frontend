@@ -21,8 +21,12 @@ const activeStaff = {
   name: "김조교",
   phone: "01012345678",
   role: "ASSISTANT",
+  position: "ASSISTANT",
+  position_label: "조교",
+  account_role: "STAFF",
   is_active: true,
   is_manager: false,
+  can_manage_staff: false,
   pay_type: "HOURLY",
   staff_work_types: [
     {
@@ -48,8 +52,24 @@ const inactiveMonthlyStaff = {
   name: "이퇴사",
   phone: "01087654321",
   role: "TEACHER",
+  position: "INSTRUCTOR",
+  position_label: "강사",
+  account_role: "TEACHER",
   is_active: false,
   pay_type: "MONTHLY",
+  staff_work_types: [],
+};
+
+const adminDirectorStaff = {
+  ...activeStaff,
+  id: 3,
+  name: "박철",
+  phone: "01035023313",
+  position: "DIRECTOR",
+  position_label: "실장",
+  account_role: "ADMIN",
+  is_manager: false,
+  can_manage_staff: true,
   staff_work_types: [],
 };
 
@@ -139,17 +159,88 @@ async function mockStaffApi(
     }
     if (path === "/staffs/" && request.method() === "GET") {
       return json({
-        count: 2,
+        count: 3,
         next: null,
         previous: null,
-        results: [activeStaff, inactiveMonthlyStaff],
+        results: [activeStaff, inactiveMonthlyStaff, adminDirectorStaff],
         owner: {
           id: null,
           name: "박원장",
           phone: "01011112222",
           role: "OWNER",
+          position: "OWNER",
+          position_label: "대표",
+          account_role: "OWNER",
           is_owner: true,
+          is_manager: true,
+          can_manage_staff: true,
         },
+      });
+    }
+    if (path === "/staffs/payroll-overview/" && request.method() === "GET") {
+      return json({
+        year: 2026,
+        month: 8,
+        date_from: "2026-08-01",
+        date_to: "2026-08-31",
+        totals: {
+          staff_count: 2,
+          work_hours: 28.5,
+          work_amount: 342000,
+          approved_expense_amount: 18000,
+          pending_expense_amount: 30000,
+          total_amount: 360000,
+          needs_review_count: 1,
+          closed_count: 1,
+        },
+        rows: [
+          {
+            staff_id: 1,
+            name: "김조교",
+            position: "ASSISTANT",
+            position_label: "조교",
+            account_role: "STAFF",
+            is_active: true,
+            can_manage_staff: false,
+            pay_type: "HOURLY",
+            work_hours: 24,
+            work_amount: 288000,
+            approved_expense_amount: 12000,
+            pending_expense_amount: 30000,
+            pending_expense_count: 1,
+            total_amount: 300000,
+            open_work_record_count: 0,
+            incomplete_work_record_count: 0,
+            assigned_work_type_count: 1,
+            locked: false,
+            snapshot_exists: false,
+            settlement_status: "NEEDS_REVIEW",
+            can_close: false,
+          },
+          {
+            staff_id: 2,
+            name: "이퇴사",
+            position: "INSTRUCTOR",
+            position_label: "강사",
+            account_role: "TEACHER",
+            is_active: false,
+            can_manage_staff: false,
+            pay_type: "HOURLY",
+            work_hours: 4.5,
+            work_amount: 54000,
+            approved_expense_amount: 6000,
+            pending_expense_amount: 0,
+            pending_expense_count: 0,
+            total_amount: 60000,
+            open_work_record_count: 0,
+            incomplete_work_record_count: 0,
+            assigned_work_type_count: 0,
+            locked: true,
+            snapshot_exists: true,
+            settlement_status: "CLOSED",
+            can_close: false,
+          },
+        ],
       });
     }
     if (path === "/staffs/1/" && request.method() === "GET") {
@@ -157,6 +248,14 @@ async function mockStaffApi(
         ...activeStaff,
         user: 101,
         user_username: "assistant1",
+        user_is_staff: true,
+      });
+    }
+    if (path === "/staffs/3/" && request.method() === "GET") {
+      return json({
+        ...adminDirectorStaff,
+        user: 103,
+        user_username: "director-admin",
         user_is_staff: true,
       });
     }
@@ -177,6 +276,15 @@ async function mockStaffApi(
         work_amount: 288000,
         expense_amount: 12000,
         total_amount: 300000,
+      });
+    }
+    if (path === "/staffs/3/summary/" && request.method() === "GET") {
+      return json({
+        staff_id: 3,
+        work_hours: 0,
+        work_amount: 0,
+        expense_amount: 0,
+        total_amount: 0,
       });
     }
     if (path === "/staffs/work-month-locks/" && request.method() === "GET") {
@@ -251,6 +359,129 @@ test.describe("직원 운영 계약", () => {
     await seedAuth(page);
   });
 
+  test("급여 첫 화면에서 전 직원의 합계와 검토 항목을 바로 비교한다", async ({ page }) => {
+    await mockStaffApi(page);
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await page.goto(`${BASE}/workspace/staff/attendance?year=2026&month=8`, {
+      waitUntil: "domcontentloaded",
+    });
+
+    const overview = page.getByTestId("staff-payroll-overview");
+    await expect(overview.getByRole("heading", { name: "2026년 8월 급여판" })).toBeVisible();
+    await expect(overview.getByText("360,000원", { exact: true }).first()).toBeVisible();
+    await expect(overview.getByText("확인 필요").first()).toBeVisible();
+    const overviewTable = overview.getByRole("table");
+    await expect(overviewTable.getByText("비용 대기 1건")).toBeVisible();
+    await expect(overviewTable.getByRole("button", { name: /김조교/ })).toBeVisible();
+    await expect(overviewTable.getByRole("button", { name: /이퇴사/ })).toBeVisible();
+    await page.screenshot({
+      path: "test-results/staff-payroll-overview-1366.png",
+      fullPage: true,
+    });
+
+    await overviewTable.getByRole("button", { name: /김조교/ }).click();
+    await expect(page).toHaveURL(/staffId=1/);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${BASE}/workspace/staff/attendance?year=2026&month=8`, {
+      waitUntil: "domcontentloaded",
+    });
+    const mobileOverview = page.getByTestId("staff-payroll-overview");
+    await expect(mobileOverview).toBeVisible();
+    await expect(mobileOverview.getByText("360,000원", { exact: true }).first()).toBeVisible();
+    const mobileLayout = await page.evaluate(() => {
+      const overview = document.querySelector<HTMLElement>("[data-testid='staff-payroll-overview']");
+      return {
+        fitsViewport: document.documentElement.scrollWidth <= window.innerWidth,
+        overviewTop: overview?.getBoundingClientRect().top ?? Number.MAX_SAFE_INTEGER,
+        panelCount: document.querySelectorAll(".staff-workspace-grid > .staff-panel").length,
+      };
+    });
+    expect(mobileLayout.fitsViewport).toBe(true);
+    expect(mobileLayout.overviewTop).toBeLessThan(Number.MAX_SAFE_INTEGER);
+    expect(mobileLayout.panelCount).toBe(1);
+    await mobileOverview.evaluate((node) => { node.scrollTop = 0; });
+    await page.screenshot({
+      path: "test-results/staff-payroll-overview-390.png",
+      fullPage: false,
+    });
+  });
+
+  test("실장 직위와 관리자 계정을 분리하고 고정 권한을 오해시키지 않는다", async ({ page }) => {
+    await mockStaffApi(page);
+    await page.goto(`${BASE}/workspace/staff/home`, {
+      waitUntil: "domcontentloaded",
+    });
+
+    const directorRow = page.getByText("박철", { exact: true }).first().locator("xpath=ancestor::tr");
+    await expect(directorRow.getByText("실장", { exact: true })).toBeVisible();
+    await expect(directorRow.getByText("관리자 계정", { exact: true })).toBeVisible();
+    await expect(directorRow.getByText("ON", { exact: true })).toBeVisible();
+    await expect(directorRow.getByRole("button", { name: /권한/ })).toHaveCount(0);
+
+    await directorRow.getByText("박철", { exact: true }).click();
+    const detail = page.getByTestId("staff-detail-overlay");
+    await expect(detail.locator("dl").getByText("직위", { exact: true }).locator("..")).toContainText("실장");
+    await expect(detail.locator("dl").getByText("계정", { exact: true }).locator("..")).toContainText("관리자 계정");
+    await expect(detail.getByRole("button", { name: "퇴사 처리" })).toHaveCount(0);
+    await expect(detail.getByRole("button", { name: /권한 부여|권한 회수/ })).toHaveCount(0);
+
+    await detail.getByRole("button", { name: "정보 수정" }).click();
+    const editDialog = page.getByRole("dialog", { name: "직원 수정" });
+    await expect(editDialog.getByText("관리자 계정", { exact: true })).toBeVisible();
+    await expect(editDialog.getByText(/직원 화면에서 변경할 수 없습니다/)).toBeVisible();
+    await page.screenshot({
+      path: "test-results/staff-admin-director-edit-1366.png",
+      fullPage: false,
+    });
+  });
+
+  test("직원 추가에서 직위·계정·직원관리 권한을 분리해 선택한다", async ({ page }) => {
+    await mockStaffApi(page);
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await page.goto(`${BASE}/workspace/staff/home`, {
+      waitUntil: "domcontentloaded",
+    });
+
+    await page.getByRole("button", { name: "직원 추가", exact: true }).click();
+    const createDialog = page.getByRole("dialog", { name: "직원 추가" });
+    await expect(createDialog.getByRole("radiogroup", { name: "직위 선택" })).toBeVisible();
+    await expect(createDialog.getByRole("radio", { name: /실장/ })).toBeVisible();
+    await expect(createDialog.getByRole("radio", { name: /직원 계정/ })).toBeVisible();
+    await expect(createDialog.getByText("직원관리 권한", { exact: true })).toBeVisible();
+    await page.screenshot({
+      path: "test-results/staff-create-identity-1366.png",
+      fullPage: false,
+    });
+
+    await page.keyboard.press("Escape");
+    await expect(createDialog).toHaveCount(0);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.getByText("박철", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("실장 · 관리자 계정", { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({
+      path: "test-results/staff-home-identity-390.png",
+      fullPage: false,
+    });
+    await page.getByRole("button", { name: "직원 추가", exact: true }).click();
+    await expect(createDialog).toBeVisible();
+    const bounds = await createDialog.evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      return { left: rect.left, right: rect.right, width: rect.width };
+    });
+    expect(bounds.left).toBeGreaterThanOrEqual(0);
+    expect(bounds.right).toBeLessThanOrEqual(390);
+    await createDialog.evaluate((node) => {
+      const body = node.querySelector<HTMLElement>(".ds-modal-body");
+      if (body) body.scrollTop = 0;
+    });
+    await page.screenshot({
+      path: "test-results/staff-create-identity-390.png",
+      fullPage: false,
+    });
+  });
+
   test("퇴사·월급·정산 표시가 이력 보존형 계약을 따른다", async ({ page }) => {
     let patchBody: Record<string, unknown> | null = null;
     await mockStaffApi(page, {
@@ -301,7 +532,7 @@ test.describe("직원 운영 계약", () => {
     await expect(staffRow).toBeVisible();
     await expect(staffDetail.getByLabel("재직 상태: 재직")).toBeVisible();
     await expect(staffDetail.getByRole("button", { name: "정보 수정" })).toBeVisible();
-    await expect(staffDetail.getByRole("button", { name: "관리자 권한 없음, 권한 부여" })).toBeVisible();
+    await expect(staffDetail.getByRole("button", { name: "직원관리 권한 없음, 권한 부여" })).toBeVisible();
     const summaryTab = staffDetail.getByRole("tab", { name: "요약", exact: true });
     const workTypeTab = staffDetail.getByRole("tab", { name: "시급·근무유형", exact: true });
     await expect(summaryTab).toHaveAttribute("aria-selected", "true");

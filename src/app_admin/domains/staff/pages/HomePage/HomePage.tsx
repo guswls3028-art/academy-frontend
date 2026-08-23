@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/staff/pages/HomePage/HomePage.tsx
-// 직위순 기본 정렬: 대표(owner) → 강사(TEACHER) → 조교(ASSISTANT)
+// 직위순 기본 정렬: 실장 → 강사 → 조교 → 직원
 
 import { useLocation, useNavigate } from "react-router";
 import { useMemo, useState } from "react";
@@ -22,7 +22,12 @@ import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import styles from "./HomePage.module.css";
 
-const ROLE_ORDER: Record<string, number> = { TEACHER: 0, ASSISTANT: 1 };
+const POSITION_ORDER: Record<string, number> = {
+  DIRECTOR: 0,
+  INSTRUCTOR: 1,
+  ASSISTANT: 2,
+  STAFF: 3,
+};
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -51,6 +56,10 @@ export default function HomePage() {
         name: displayName,
         phone: meQ.data?.owner_phone ?? undefined,
         role: "OWNER" as const,
+        account_role: "OWNER" as const,
+        position: "OWNER" as const,
+        position_label: "대표" as const,
+        can_manage_staff: true as const,
         is_owner: true as const,
       };
     }
@@ -85,7 +94,10 @@ export default function HomePage() {
             (s.phone ?? "").toLowerCase().includes(needle)
         );
     return [...filtered].sort(
-      (a, b) => (ROLE_ORDER[a.role] ?? 2) - (ROLE_ORDER[b.role] ?? 2)
+      (a, b) =>
+        (POSITION_ORDER[a.position] ?? (a.role === "TEACHER" ? 1 : 2)) -
+          (POSITION_ORDER[b.position] ?? (b.role === "TEACHER" ? 1 : 2)) ||
+        (a.name ?? "").localeCompare(b.name ?? "", "ko")
     );
   }, [staffs, q]);
 

@@ -8,6 +8,12 @@ import { Badge, Button } from "@/shared/ui/ds";
 import { patchStaffDetail, type StaffDetail } from "../api/staff.detail.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import type { StaffPosition } from "../api/staff.api";
+import {
+  canEditStaffAccountRole,
+  STAFF_POSITION_OPTIONS,
+  staffAccountRoleLabel,
+} from "../utils/staffIdentity";
 import styles from "./StaffEditModal.module.css";
 
 interface Props {
@@ -28,7 +34,9 @@ export default function StaffEditModal({
     name: "",
     phone: "",
     pay_type: "HOURLY" as "HOURLY" | "MONTHLY",
+    position: "ASSISTANT" as StaffPosition,
     role: "ASSISTANT" as "TEACHER" | "ASSISTANT",
+    is_manager: false,
     is_active: true,
   });
 
@@ -38,7 +46,9 @@ export default function StaffEditModal({
       name: staff.name ?? "",
       phone: staff.phone ?? "",
       pay_type: staff.pay_type ?? "HOURLY",
+      position: staff.position ?? "ASSISTANT",
       role: staff.role === "TEACHER" ? "TEACHER" : "ASSISTANT",
+      is_manager: !!(staff.can_manage_staff ?? staff.is_manager),
       is_active: !!staff.is_active,
     });
   }, [open, staff]);
@@ -55,9 +65,13 @@ export default function StaffEditModal({
         name: form.name.trim(),
         phone: form.phone.trim() || undefined,
         pay_type: form.pay_type,
+        position: form.position,
         is_active: form.is_active,
       };
-      if (form.is_active) payload.role = form.role;
+      if (canEditStaffAccountRole(staff.account_role)) {
+        payload.is_manager = form.is_manager;
+        if (form.is_active) payload.role = form.role;
+      }
       await patchStaffDetail(staff.id, payload);
       feedback.success("저장되었습니다.");
       onSuccess();
@@ -72,11 +86,11 @@ export default function StaffEditModal({
   if (!open) return null;
 
   return (
-    <AdminModal open onClose={onClose} type="action" width={MODAL_WIDTH.default} closeDisabled={busy} onEnterConfirm={!busy ? handleSubmit : undefined}>
+    <AdminModal open onClose={onClose} type="action" width={MODAL_WIDTH.default} noMinimize closeDisabled={busy} onEnterConfirm={!busy ? handleSubmit : undefined}>
       <ModalHeader
         type="action"
         title="직원 수정"
-        description="연락처·역할·재직 상태를 실제 인사 상태와 맞춰 주세요."
+        description="직위·계정 유형·재직 상태를 실제 인사 상태와 맞춰 주세요."
       />
 
       <ModalBody>
@@ -107,6 +121,28 @@ export default function StaffEditModal({
           </div>
 
           <div className="modal-form-group">
+            <label className="modal-section-label">직위</label>
+            <div className={styles.positionGrid} role="radiogroup" aria-label="직위 선택">
+              {STAFF_POSITION_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={form.position === option.value}
+                  className={styles.positionOption}
+                  data-selected={form.position === option.value ? "true" : "false"}
+                  onClick={() => setForm((previous) => ({ ...previous, position: option.value }))}
+                  disabled={busy}
+                >
+                  <strong>{option.label}</strong>
+                  <span>{option.description}</span>
+                </button>
+              ))}
+            </div>
+            <p className="staff-helper">직위는 표시용이며 계정 유형이나 관리 권한을 자동으로 바꾸지 않습니다.</p>
+          </div>
+
+          <div className="modal-form-group">
             <label className="modal-section-label">급여 유형</label>
             <div className={`modal-form-row modal-form-row--1-auto ${styles.payTypeRow}`}>
               <button
@@ -134,28 +170,52 @@ export default function StaffEditModal({
           </div>
 
           <div className="modal-form-group">
-            <label className="modal-section-label">역할</label>
-            <div className={`modal-form-row modal-form-row--1-auto ${styles.payTypeRow}`}>
-              <button
-                type="button"
-                className={`ds-choice-btn ds-choice-btn--primary${form.role === "TEACHER" ? " is-selected" : ""}`}
-                aria-pressed={form.role === "TEACHER"}
-                onClick={() => setForm((p) => ({ ...p, role: "TEACHER" }))}
-                disabled={busy}
-              >
-                강사
-              </button>
-              <button
-                type="button"
-                className={`ds-choice-btn ds-choice-btn--primary${form.role === "ASSISTANT" ? " is-selected" : ""}`}
-                aria-pressed={form.role === "ASSISTANT"}
-                onClick={() => setForm((p) => ({ ...p, role: "ASSISTANT" }))}
-                disabled={busy}
-              >
-                조교
-              </button>
-            </div>
+            <label className="modal-section-label">계정 유형</label>
+            {canEditStaffAccountRole(staff?.account_role) ? (
+              <div className={`modal-form-row modal-form-row--1-auto ${styles.payTypeRow}`}>
+                <button
+                  type="button"
+                  className={`ds-choice-btn ds-choice-btn--primary${form.role === "ASSISTANT" ? " is-selected" : ""}`}
+                  aria-pressed={form.role === "ASSISTANT"}
+                  onClick={() => setForm((p) => ({ ...p, role: "ASSISTANT" }))}
+                  disabled={busy}
+                >
+                  직원 계정
+                </button>
+                <button
+                  type="button"
+                  className={`ds-choice-btn ds-choice-btn--primary${form.role === "TEACHER" ? " is-selected" : ""}`}
+                  aria-pressed={form.role === "TEACHER"}
+                  onClick={() => setForm((p) => ({ ...p, role: "TEACHER" }))}
+                  disabled={busy}
+                >
+                  강사 계정
+                </button>
+              </div>
+            ) : (
+              <div className={styles.readonlyAccountRole}>
+                <strong>{staffAccountRoleLabel(staff?.account_role)}</strong>
+                <span>대표·관리자 계정 유형은 직원 화면에서 변경할 수 없습니다.</span>
+              </div>
+            )}
           </div>
+
+          {canEditStaffAccountRole(staff?.account_role) && (
+            <div className="modal-form-group modal-form-group--neutral">
+              <label className={styles.managerPermission}>
+                <input
+                  type="checkbox"
+                  checked={form.is_manager}
+                  onChange={(event) => setForm((previous) => ({ ...previous, is_manager: event.target.checked }))}
+                  disabled={busy || !form.is_active}
+                />
+                <span>
+                  <strong>직원관리 권한</strong>
+                  <small>직원·시급·비용·급여를 조회하고 변경할 수 있습니다.</small>
+                </span>
+              </label>
+            </div>
+          )}
 
           <div className="modal-form-group modal-form-group--neutral">
             <label className="modal-section-label">재직 상태</label>

@@ -20,7 +20,7 @@ export function downloadStaffExcel(
     "이름",
     "전화번호",
     "상태",
-    "관리자권한",
+    "직원관리권한",
     "급여유형",
     "시급태그",
     "등록일",

@@ -10,6 +10,7 @@ export const staffQueryKeys = {
   summary: staffWorkQueryKeys.summary,
   summaryForStaff: (staffId: number) => ["staff-summary", staffId] as const,
   summaryRange: (staffId: number, from: string, to: string) => ["staff-summary", staffId, from, to] as const,
+  payrollOverview: (year: number, month: number) => ["staff-payroll-overview", year, month] as const,
   reportSummary: (staffId: number, from: string, to: string) => ["staff-report-summary", staffId, from, to] as const,
   workRecords: staffWorkQueryKeys.records,
   workRecordsList: (params: object) => ["work-records", params] as const,

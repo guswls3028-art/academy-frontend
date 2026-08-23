@@ -8,6 +8,10 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchStaffSummaryByRange } from "../api/staff.detail.api";
 import { Button, Badge } from "@/shared/ui/ds";
 import { staffQueryKeys } from "../queryKeys";
+import {
+  staffAccountRoleLabel,
+  staffPositionLabel,
+} from "../utils/staffIdentity";
 
 function ymLabel(y: number, m: number) {
   return `${y}년 ${m}월`;
@@ -77,8 +81,15 @@ export function StaffWorkspaceHeader({ staffId, year, month }: Props) {
         )}
         {staff && (
           <>
-            <Badge variant="solid" actionable tone={staff.role === "TEACHER" ? "primary" : "neutral"}>
-              {staff.role === "TEACHER" ? "강사" : "조교"}
+            <Badge
+              variant="solid"
+              actionable
+              tone={staff.position === "DIRECTOR" || staff.position === "INSTRUCTOR" ? "primary" : "neutral"}
+            >
+              {staffPositionLabel(staff.position, staff.role)}
+            </Badge>
+            <Badge variant="solid" actionable tone="neutral">
+              {staffAccountRoleLabel(staff.account_role, staff.role)}
             </Badge>
             <Badge variant="solid" actionable tone="neutral">
               {staff.pay_type === "HOURLY" ? "시급" : "월급(수동 확인)"}
