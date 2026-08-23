@@ -24,6 +24,7 @@ export const routeMockSpecs = [
   "e2e/admin/lecture-create-responsive.mock.spec.ts",
   "e2e/admin/manual-exam-grading.mock.spec.ts",
   "e2e/admin/messaging-operations-control.mock.spec.ts",
+  "e2e/admin/messaging-log-ux.mock.spec.ts",
   "e2e/admin/exam-wrong-note-export.mock.spec.ts",
   "e2e/admin/problem-review-report.mock.spec.ts",
   "e2e/admin/matchup-showcase-publish.mock.spec.ts",
