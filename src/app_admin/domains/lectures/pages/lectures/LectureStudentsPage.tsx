@@ -387,8 +387,8 @@ export default function LectureStudentsPage() {
                     {sortedFiltered.map((row) => (
                       <tr
                         key={row.student_id}
-                        onClick={() => navigate(`/workspace/students/${row.student_id}`, {
-                          state: { backgroundLocation: location },
+                        onClick={() => navigate(location, {
+                          state: { backgroundLocation: location, modalStudentId: row.student_id },
                         })}
                         tabIndex={0}
                         role="button"

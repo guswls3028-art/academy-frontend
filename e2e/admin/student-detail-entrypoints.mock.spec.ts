@@ -216,7 +216,7 @@ test("출결 상태 액션은 유지하고 학생 행은 학생 상세를 연다
   await expect(page.getByTestId("student-detail-overlay")).toHaveCount(0);
 
   await studentLink.click();
-  await expect(page).toHaveURL(/\/workspace\/students\/1001$/);
+  await expect(page).toHaveURL(/\/workspace\/lectures\/441\/sessions\/428\/attendance$/);
   const overlay = page.getByTestId("student-detail-overlay");
   await expect(overlay).toBeVisible();
   await expect(overlay.getByRole("heading", {
@@ -265,6 +265,19 @@ test("출결 상태 액션은 유지하고 학생 행은 학생 상세를 연다
   await overlay.getByRole("button", { name: "닫기" }).click();
   await expect(page).toHaveURL(/\/workspace\/lectures\/441\/sessions\/428\/attendance$/);
   await expect(studentLink).toBeVisible();
+
+  const studentRow = page.getByRole("row").filter({ has: studentLink });
+  await studentRow.locator("td").last().click();
+  await expect(page).toHaveURL(/\/workspace\/lectures\/441\/sessions\/428\/attendance$/);
+  await expect(overlay).toBeVisible();
+  await overlay.getByRole("button", { name: "닫기" }).click();
+  await expect(page).toHaveURL(/\/workspace\/lectures\/441\/sessions\/428\/attendance$/);
+
+  await studentLink.click();
+  await expect(overlay).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/workspace\/lectures\/441\/sessions\/428\/attendance$/);
+  await expect(overlay).toHaveCount(0);
 });
 
 test("교사용 모바일 학생 상세는 아이디 안내와 비밀번호 초기화를 분리한다", async ({ page }) => {
