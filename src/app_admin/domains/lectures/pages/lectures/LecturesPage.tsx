@@ -1,27 +1,28 @@
 // PATH: src/app_admin/domains/lectures/pages/lectures/LecturesPage.tsx
 // Design: docs/DESIGN_SSOT.md (강의 관리만 체크박스 없음 — 유일 예외)
 
-import { useMemo, useState, useCallback, type CSSProperties } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState, useCallback, type CSSProperties, type DragEvent, type KeyboardEvent } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
-import { Settings } from "lucide-react";
+import { ChevronDown, ChevronUp, GripVertical, Settings } from "lucide-react";
 
 import api from "@/shared/api/axios";
 import { EmptyState, Button } from "@/shared/ui/ds";
-import { DomainListToolbar, DomainTable, TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
+import { DomainListToolbar, DomainTable, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import LectureCreateModal from "../../components/LectureCreateModal";
 import LectureSettingsModal from "../../components/LectureSettingsModal";
 import { adminLectureQueryKeys } from "../../queryKeys";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 /** 강의 목록 테이블 컬럼 정의 (useTableColumnPrefs SSOT) */
 const LECTURES_TABLE_COLUMN_DEFS: TableColumnDef[] = [
-  { key: "title", label: "강의 이름", defaultWidth: TABLE_COL.title, minWidth: 100 },
-  { key: "subject", label: "과목", defaultWidth: TABLE_COL.subject, minWidth: 60 },
-  { key: "name", label: "강사", defaultWidth: TABLE_COL.medium, minWidth: 60 },
-  { key: "lecture_time", label: "강의 시간", defaultWidth: TABLE_COL.timeRange, minWidth: 80 },
-  { key: "dateRange", label: "기간", defaultWidth: TABLE_COL.dateRange, minWidth: 140 },
+  { key: "title", label: "강의 이름", defaultWidth: 180, minWidth: 120 },
+  { key: "subject", label: "과목", defaultWidth: 100, minWidth: 70 },
+  { key: "name", label: "강사", defaultWidth: 80, minWidth: 70 },
+  { key: "lecture_time", label: "강의 시간", defaultWidth: 120, minWidth: 100 },
+  { key: "dateRange", label: "기간", defaultWidth: 170, minWidth: 150 },
 ];
 
 type LecturesPageProps = {
@@ -39,11 +40,15 @@ type LectureItem = {
   color?: string | null;
   chip_label?: string | null;
   is_active?: boolean;
+  display_order: number;
 };
 
 type LectureSortKey = "title" | "subject" | "name" | "lecture_time" | "dateRange";
 
-const ACTION_COLUMN_STYLE: CSSProperties = { width: 56 };
+const REORDER_COLUMN_WIDTH = 132;
+const ACTION_COLUMN_WIDTH = 52;
+const REORDER_COLUMN_STYLE: CSSProperties = { width: REORDER_COLUMN_WIDTH };
+const ACTION_COLUMN_STYLE: CSSProperties = { width: ACTION_COLUMN_WIDTH };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value != null && typeof value === "object" && !Array.isArray(value);
@@ -62,7 +67,7 @@ function toStringOrNull(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 
-function normalizeLectureItem(value: unknown): LectureItem | null {
+function normalizeLectureItem(value: unknown, fallbackOrder: number): LectureItem | null {
   if (!isRecord(value)) return null;
   const id = toNumber(value.id);
   if (id == null) return null;
@@ -77,6 +82,7 @@ function normalizeLectureItem(value: unknown): LectureItem | null {
     color: toStringOrNull(value.color),
     chip_label: toStringOrNull(value.chip_label),
     is_active: typeof value.is_active === "boolean" ? value.is_active : undefined,
+    display_order: toNumber(value.display_order) ?? fallbackOrder,
   };
 }
 
@@ -153,14 +159,16 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
   const [showModal, setShowModal] = useState(false);
   const [q, setQ] = useState("");
   const [sort, setSort] = useState("");
-  const { columnWidths, setColumnWidth } = useTableColumnPrefs("lectures", LECTURES_TABLE_COLUMN_DEFS);
+  const [dragLectureId, setDragLectureId] = useState<number | null>(null);
+  const [dragOverLectureId, setDragOverLectureId] = useState<number | null>(null);
+  const { columnWidths, setColumnWidth } = useTableColumnPrefs("lectures-v2-order", LECTURES_TABLE_COLUMN_DEFS);
 
   const { data = [], isLoading, error, isFetching } = useQuery({
     queryKey: adminLectureQueryKeys.lectures,
     queryFn: async (): Promise<LectureItem[]> => {
       const res = await api.get("/lectures/lectures/");
       return extractLectureListPayload(res.data)
-        .map(normalizeLectureItem)
+        .map((item, index) => normalizeLectureItem(item, index + 1))
         .filter((item): item is LectureItem => item != null);
     },
   });
@@ -174,14 +182,10 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
       else active.push(lec);
     }
 
-    const toTime = (v?: string | null) => {
-      if (!v) return 0;
-      const t = new Date(v).getTime();
-      return Number.isFinite(t) ? t : 0;
-    };
-
-    active.sort((a, b) => toTime(b.start_date) - toTime(a.start_date));
-    past.sort((a, b) => toTime(b.start_date) - toTime(a.start_date));
+    const byManualOrder = (a: LectureItem, b: LectureItem) =>
+      a.display_order - b.display_order || a.id - b.id;
+    active.sort(byManualOrder);
+    past.sort(byManualOrder);
 
     return { activeLectures: active, pastLectures: past };
   }, [data]);
@@ -189,6 +193,45 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
   const [settingsLecture, setSettingsLecture] = useState<LectureItem | null>(null);
   const [editLectureId, setEditLectureId] = useState<number | null>(null);
   const qc = useQueryClient();
+
+  const reorderMutation = useMutation({
+    mutationFn: async ({ scope, orderedIds }: { scope: "ACTIVE" | "PAST"; orderedIds: number[] }) => {
+      const response = await api.post("/lectures/lectures/reorder/", {
+        scope,
+        ordered_ids: orderedIds,
+      });
+      return response.data;
+    },
+    onMutate: async ({ scope, orderedIds }) => {
+      await qc.cancelQueries({ queryKey: adminLectureQueryKeys.lectures });
+      const previous = qc.getQueryData<LectureItem[]>(adminLectureQueryKeys.lectures);
+      qc.setQueryData<LectureItem[]>(adminLectureQueryKeys.lectures, (current) => {
+        if (!current) return current;
+        const isActiveScope = scope === "ACTIVE";
+        const scoped = current
+          .filter((lecture) => (lecture.is_active !== false) === isActiveScope)
+          .sort((a, b) => a.display_order - b.display_order || a.id - b.id);
+        const positions = scoped.map((lecture) => lecture.display_order).sort((a, b) => a - b);
+        const nextPositionById = new Map(
+          orderedIds.map((lectureId, index) => [lectureId, positions[index]]),
+        );
+        return current.map((lecture) => ({
+          ...lecture,
+          display_order: nextPositionById.get(lecture.id) ?? lecture.display_order,
+        }));
+      });
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) {
+        qc.setQueryData(adminLectureQueryKeys.lectures, context.previous);
+      }
+      feedback.error("강의 순서를 저장하지 못해 이전 순서로 되돌렸습니다.");
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectures });
+    },
+  });
 
   const toTime = useCallback((v?: string | null) => {
     if (!v) return 0;
@@ -223,16 +266,63 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
       const bVal = getLectureSortValue(b, key, toTime);
       if (typeof aVal === "string" && typeof bVal === "string") {
         const cmp = aVal.localeCompare(String(bVal), "ko");
-        return asc ? cmp : -cmp;
+        if (cmp !== 0) return asc ? cmp : -cmp;
+        return a.display_order - b.display_order || a.id - b.id;
       }
       const cmp = Number(aVal) - Number(bVal);
-      return asc ? cmp : -cmp;
+      if (cmp !== 0) return asc ? cmp : -cmp;
+      return a.display_order - b.display_order || a.id - b.id;
     });
   }, [tab, activeLectures, pastLectures, q, sort, toTime]);
 
+  const manualScopeList = tab === "active" ? activeLectures : pastLectures;
+  const hasDisplayTransform = q.trim().length > 0 || sort.length > 0;
+  const canReorder = !hasDisplayTransform && !reorderMutation.isPending;
+
+  const persistMovedLecture = useCallback((lectureId: number, targetIndex: number) => {
+    if (!canReorder) return;
+    const sourceIndex = manualScopeList.findIndex((lecture) => lecture.id === lectureId);
+    if (sourceIndex < 0) return;
+    const boundedTarget = Math.max(0, Math.min(manualScopeList.length - 1, targetIndex));
+    if (sourceIndex === boundedTarget) return;
+    const next = [...manualScopeList];
+    const [moved] = next.splice(sourceIndex, 1);
+    next.splice(boundedTarget, 0, moved);
+    reorderMutation.mutate({
+      scope: tab === "active" ? "ACTIVE" : "PAST",
+      orderedIds: next.map((lecture) => lecture.id),
+    });
+  }, [canReorder, manualScopeList, reorderMutation, tab]);
+
+  const moveLectureBy = useCallback((lectureId: number, delta: -1 | 1) => {
+    const sourceIndex = manualScopeList.findIndex((lecture) => lecture.id === lectureId);
+    if (sourceIndex < 0) return;
+    persistMovedLecture(lectureId, sourceIndex + delta);
+  }, [manualScopeList, persistMovedLecture]);
+
+  const handleOrderKeyDown = useCallback((event: KeyboardEvent<HTMLButtonElement>, lectureId: number) => {
+    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+    event.preventDefault();
+    event.stopPropagation();
+    moveLectureBy(lectureId, event.key === "ArrowUp" ? -1 : 1);
+  }, [moveLectureBy]);
+
+  const handleDrop = useCallback((event: DragEvent<HTMLTableRowElement>, targetLectureId: number) => {
+    event.preventDefault();
+    const sourceId = dragLectureId ?? Number(event.dataTransfer.getData("text/plain"));
+    const targetIndex = manualScopeList.findIndex((lecture) => lecture.id === targetLectureId);
+    if (Number.isFinite(sourceId) && targetIndex >= 0) {
+      persistMovedLecture(sourceId, targetIndex);
+    }
+    setDragLectureId(null);
+    setDragOverLectureId(null);
+  }, [dragLectureId, manualScopeList, persistMovedLecture]);
+
   const tableWidth = useMemo(
     () =>
-      LECTURES_TABLE_COLUMN_DEFS.reduce((sum, c) => sum + (columnWidths[c.key] ?? c.defaultWidth), 0) + 56,
+      LECTURES_TABLE_COLUMN_DEFS.reduce((sum, c) => sum + (columnWidths[c.key] ?? c.defaultWidth), 0)
+      + REORDER_COLUMN_WIDTH
+      + ACTION_COLUMN_WIDTH,
     [columnWidths]
   );
 
@@ -265,6 +355,22 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
               강의 추가
             </Button>
           }
+          belowSlot={
+            <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-[var(--color-text-muted)]" aria-live="polite">
+              <span>
+                {reorderMutation.isPending
+                  ? "강의 순서를 저장하는 중입니다."
+                  : hasDisplayTransform
+                    ? "검색 또는 열 정렬 중에는 순서를 변경할 수 없습니다."
+                    : "손잡이를 끌거나, 위·아래 버튼 또는 방향키로 강의 순서를 바꿀 수 있습니다."}
+              </span>
+              {sort && (
+                <Button size="sm" intent="secondary" onClick={() => setSort("")}>
+                  기본 순서로 돌아가기
+                </Button>
+              )}
+            </div>
+          }
         />
 
         <div>
@@ -278,9 +384,10 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
             <div data-guide="lectures-table">
               <DomainTable
                 tableClassName="ds-table--flat ds-table--center"
-                tableStyle={{ tableLayout: "fixed", width: tableWidth }}
+                tableStyle={{ tableLayout: "fixed", width: "100%", minWidth: tableWidth }}
               >
                 <colgroup>
+                  <col style={REORDER_COLUMN_STYLE} />
                   {LECTURES_TABLE_COLUMN_DEFS.map((c) => (
                     <col key={c.key} style={columnWidthStyle(columnWidths[c.key] ?? c.defaultWidth)} />
                   ))}
@@ -288,11 +395,12 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                 </colgroup>
                 <thead>
                   <tr>
+                    <th scope="col" style={REORDER_COLUMN_STYLE}>순서</th>
                     <LectureSortableTh
                       colKey="title"
                       label="강의 이름"
                       widthKey="title"
-                      width={columnWidths.title ?? TABLE_COL.title}
+                      width={columnWidths.title ?? 180}
                       sort={sort}
                       onSort={handleSort}
                       onWidthChange={setColumnWidth}
@@ -301,7 +409,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                       colKey="subject"
                       label="과목"
                       widthKey="subject"
-                      width={columnWidths.subject ?? TABLE_COL.subject}
+                      width={columnWidths.subject ?? 100}
                       sort={sort}
                       onSort={handleSort}
                       onWidthChange={setColumnWidth}
@@ -310,7 +418,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                       colKey="name"
                       label="강사"
                       widthKey="name"
-                      width={columnWidths.name ?? TABLE_COL.medium}
+                      width={columnWidths.name ?? 80}
                       sort={sort}
                       onSort={handleSort}
                       onWidthChange={setColumnWidth}
@@ -319,7 +427,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                       colKey="lecture_time"
                       label="강의 시간"
                       widthKey="lecture_time"
-                      width={columnWidths.lecture_time ?? TABLE_COL.timeRange}
+                      width={columnWidths.lecture_time ?? 120}
                       sort={sort}
                       onSort={handleSort}
                       onWidthChange={setColumnWidth}
@@ -328,7 +436,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                       colKey="dateRange"
                       label="기간"
                       widthKey="dateRange"
-                      width={columnWidths.dateRange ?? TABLE_COL.dateRange}
+                      width={columnWidths.dateRange ?? 170}
                       sort={sort}
                       onSort={handleSort}
                       onWidthChange={setColumnWidth}
@@ -341,12 +449,76 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                     <tr
                       key={lec.id}
                       onClick={() => navigate(`/workspace/lectures/${lec.id}`)}
-                      tabIndex={0}
-                      role="button"
-                      className="cursor-pointer"
+                      onDragOver={(event) => {
+                        if (!canReorder || dragLectureId == null) return;
+                        event.preventDefault();
+                        setDragOverLectureId(lec.id);
+                      }}
+                      onDragLeave={() => setDragOverLectureId((current) => current === lec.id ? null : current)}
+                      onDrop={(event) => handleDrop(event, lec.id)}
+                      className={`cursor-pointer ${dragOverLectureId === lec.id ? "outline outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""}`}
                     >
+                      <td onClick={(event) => event.stopPropagation()} className="px-1 py-1">
+                        <div className="flex items-center justify-center gap-0.5">
+                          <button
+                            type="button"
+                            draggable={canReorder}
+                            disabled={!canReorder}
+                            aria-label={`${lec.title} 순서 이동`}
+                            title="끌어서 순서 이동 · 방향키 사용 가능"
+                            className="inline-flex h-10 w-10 cursor-grab items-center justify-center rounded text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+                            onClick={(event) => event.stopPropagation()}
+                            onKeyDown={(event) => handleOrderKeyDown(event, lec.id)}
+                            onDragStart={(event) => {
+                              setDragLectureId(lec.id);
+                              event.dataTransfer.effectAllowed = "move";
+                              event.dataTransfer.setData("text/plain", String(lec.id));
+                            }}
+                            onDragEnd={() => {
+                              setDragLectureId(null);
+                              setDragOverLectureId(null);
+                            }}
+                          >
+                            <GripVertical size={17} aria-hidden />
+                          </button>
+                          <span className="flex gap-0.5">
+                            <button
+                              type="button"
+                              disabled={!canReorder || manualScopeList[0]?.id === lec.id}
+                              aria-label={`${lec.title} 위로`}
+                              className="inline-flex h-10 w-10 items-center justify-center rounded hover:bg-[var(--color-bg-surface-hover)] disabled:opacity-25"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                moveLectureBy(lec.id, -1);
+                              }}
+                            >
+                              <ChevronUp size={13} aria-hidden />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={!canReorder || manualScopeList[manualScopeList.length - 1]?.id === lec.id}
+                              aria-label={`${lec.title} 아래로`}
+                              className="inline-flex h-10 w-10 items-center justify-center rounded hover:bg-[var(--color-bg-surface-hover)] disabled:opacity-25"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                moveLectureBy(lec.id, 1);
+                              }}
+                            >
+                              <ChevronDown size={13} aria-hidden />
+                            </button>
+                          </span>
+                        </div>
+                      </td>
                       <td className="font-semibold">
-                        <span className="inline-flex items-center gap-[10px]">
+                        <button
+                          type="button"
+                          aria-label={`${lec.title} 강의 열기`}
+                          className="inline-flex items-center gap-[10px] rounded bg-transparent text-left text-inherit focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)]"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            navigate(`/workspace/lectures/${lec.id}`);
+                          }}
+                        >
                           <LectureChip
                             lectureName={lec.title}
                             color={lec.color ?? undefined}
@@ -354,7 +526,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                             size={32}
                           />
                           {lec.title}
-                        </span>
+                        </button>
                       </td>
                       <td>{lec.subject || <span className="text-[var(--color-text-muted)]">미입력</span>}</td>
                       <td>{lec.name || <span className="text-[var(--color-text-muted)]">미배정</span>}</td>

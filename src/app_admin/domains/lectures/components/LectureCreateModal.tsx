@@ -424,7 +424,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
   );
 
   return (
-    <AdminModal open={true} onClose={onClose} type="action" width={480} onEnterConfirm={!isPending && !requiredDataError ? submit : undefined}>
+    <AdminModal open={true} onClose={onClose} type="action" width={760} className="lecture-create-modal" onEnterConfirm={!isPending && !requiredDataError ? submit : undefined}>
       <ModalHeader type="action" title={modalTitle} />
 
       <ModalBody>
@@ -487,24 +487,26 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
             </div>
           </div>
 
-          {/* 강의 이름 — 필수, 라벨 없이 placeholder로 표시 */}
-          <div className="modal-form-group">
-            <input
-              className="ds-input"
-              placeholder="강의 이름 (필수)"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              data-required="true"
-              data-invalid={hasAttemptedSubmit && !title.trim() ? "true" : "false"}
-              disabled={isPending}
-              autoFocus
-              aria-label="강의 이름 (필수)"
-            />
-          </div>
+          <div className="lecture-create-content-grid">
+            <div className="lecture-create-details-column">
+              {/* 강의 이름 — 필수, 라벨 없이 placeholder로 표시 */}
+              <div className="modal-form-group">
+                <input
+                  className="ds-input"
+                  placeholder="강의 이름 (필수)"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  data-required="true"
+                  data-invalid={hasAttemptedSubmit && !title.trim() ? "true" : "false"}
+                  disabled={isPending}
+                  autoFocus
+                  aria-label="강의 이름 (필수)"
+                />
+              </div>
 
-          {/* 담당 강사 · 과목 — 라벨 없이 placeholder로 표시 */}
-          <div className="lecture-create-field-grid">
-            <div className="modal-form-group">
+              {/* 담당 강사 · 과목 — 라벨 없이 placeholder로 표시 */}
+              <div className="lecture-create-field-grid">
+                <div className="modal-form-group">
               <Popover
                 open={instructorPopoverOpen}
                 onOpenChange={(open) => {
@@ -543,10 +545,10 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
                     <span className="text-[var(--color-text-muted)]">담당 강사 (필수)</span>
                   )}
                 </button>
-              </Popover>
-            </div>
-            <div className="modal-form-group">
-              <div className="flex gap-2 items-center min-w-0">
+                </Popover>
+              </div>
+              <div className="modal-form-group">
+                <div className="flex gap-2 items-center min-w-0">
                 <input
                   type="text"
                   className="ds-input flex-1 min-w-0"
@@ -594,54 +596,58 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
                     <FolderOpen size={16} />
                   </button>
                 </Popover>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* 설명 — 라벨 없이 placeholder로 표시 */}
-          <div className="modal-form-group modal-form-group--neutral">
-            <textarea
-              className="ds-textarea lecture-create-description w-full"
-              rows={3}
-              placeholder="설명"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={isPending}
-              aria-label="설명"
-            />
-          </div>
-
-          {/* 시작일(필수) · 종료일(선택) — 라벨 없이 placeholder로 표시 */}
-          <div className="lecture-create-date-grid">
-            <div className="modal-form-group" data-required="true" data-invalid={hasAttemptedSubmit && !startDate.trim() ? "true" : "false"}>
-              <DatePicker
-                value={startDate}
-                onChange={setStartDate}
-                placeholder="시작일 (필수)"
-                disabled={isPending}
-              />
+              {/* 설명 — 라벨 없이 placeholder로 표시 */}
+              <div className="modal-form-group modal-form-group--neutral">
+                <textarea
+                  className="ds-textarea lecture-create-description w-full"
+                  rows={4}
+                  placeholder="설명"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  disabled={isPending}
+                  aria-label="설명"
+                />
+              </div>
             </div>
-            <div className="modal-form-group modal-form-group--neutral">
-              <DatePicker
-                value={endDate}
-                onChange={setEndDate}
-                placeholder="종료일 (선택)"
-                disabled={isPending}
-              />
-            </div>
-          </div>
 
-          {/* 강의 시간 — 외부 블록 없이 TimeRangeInput만 (시작/종료 카드만 표시) */}
-          <div data-required="true" data-invalid={hasAttemptedSubmit && !lectureTime.trim() ? "true" : "false"}>
-            <TimeRangeInput
-              value={lectureTime}
-              onChange={setLectureTime}
-              disabled={isPending}
-              startPlaceholder="시작 시간"
-              endPlaceholder="종료 시간"
-              startLabel="시작"
-              endLabel="종료"
-            />
+            <div className="lecture-create-schedule-column">
+              {/* 시작일(필수) · 종료일(선택) — 라벨 없이 placeholder로 표시 */}
+              <div className="lecture-create-date-grid">
+                <div className="modal-form-group" data-required="true" data-invalid={hasAttemptedSubmit && !startDate.trim() ? "true" : "false"}>
+                  <DatePicker
+                    value={startDate}
+                    onChange={setStartDate}
+                    placeholder="시작일 (필수)"
+                    disabled={isPending}
+                  />
+                </div>
+                <div className="modal-form-group modal-form-group--neutral">
+                  <DatePicker
+                    value={endDate}
+                    onChange={setEndDate}
+                    placeholder="종료일 (선택)"
+                    disabled={isPending}
+                  />
+                </div>
+              </div>
+
+              {/* 강의 시간 — 외부 블록 없이 TimeRangeInput만 (시작/종료 카드만 표시) */}
+              <div data-required="true" data-invalid={hasAttemptedSubmit && !lectureTime.trim() ? "true" : "false"}>
+                <TimeRangeInput
+                  value={lectureTime}
+                  onChange={setLectureTime}
+                  disabled={isPending}
+                  startPlaceholder="시작 시간"
+                  endPlaceholder="종료 시간"
+                  startLabel="시작"
+                  endLabel="종료"
+                />
+              </div>
+            </div>
           </div>
         </div>
         )}

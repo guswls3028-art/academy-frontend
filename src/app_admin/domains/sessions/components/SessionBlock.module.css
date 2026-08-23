@@ -17,6 +17,7 @@
   z-index: 9999;
   min-width: 200px;
   padding: 12px;
+  transform: none;
 }
 
 .dropdownDivider {
