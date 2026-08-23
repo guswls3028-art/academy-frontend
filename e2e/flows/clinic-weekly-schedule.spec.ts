@@ -61,17 +61,21 @@ test("관리자가 주간 예약 보드에서 세션을 확인하고 빠른 액�
             student_id: 801001,
             student_name: "중복검증학생",
             session_title: "대수 진단",
-            lecture_title: "대수",
+            lecture_title: "A강의",
             lecture_color: "#2563eb",
+            lecture_chip_label: "A",
+            profile_photo_url: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
             created_at: "2026-07-28T00:00:00Z",
           },
           {
-            enrollment_id: 901001,
+            enrollment_id: 901002,
             student_id: 801001,
             student_name: "중복검증학생",
             session_title: "기하 진단",
-            lecture_title: "기하",
+            lecture_title: "B강의",
             lecture_color: "#16a34a",
+            lecture_chip_label: "B",
+            profile_photo_url: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
             created_at: "2026-07-28T00:00:00Z",
           },
         ]),
@@ -136,6 +140,11 @@ test("관리자가 주간 예약 보드에서 세션을 확인하고 빠른 액�
     expect(targetNames).toHaveLength(1);
     expect(targetNames[0]).toContain("중복검증학생");
     expect(new Set(targetNames).size).toBe(targetNames.length);
+    const targetRow = page
+      .locator(".clinic-target-select-modal__table tbody tr")
+      .filter({ hasText: "중복검증학생" });
+    await expect(targetRow.locator(".student-name-chip__avatar img")).toHaveAttribute("src", /^data:image\/gif/);
+    await expect(targetRow.locator("[data-lecture-chip]")).toHaveText(["A", "B"]);
     await page.getByRole("checkbox", { name: "중복검증학생 선택" }).check();
     await expect(page.locator(".clinic-target-select-modal__selected-count")).toHaveText("1명 선택됨");
     await page.getByRole("button", { name: "전체 학생", exact: true }).click();

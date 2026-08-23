@@ -28,6 +28,100 @@ async function seed(page: Page) {
   }, localJwt());
 }
 
+test("여러 강의를 듣는 클리닉 대상자는 학생 한 행에 아바타와 강의 딱지를 모아 표시한다", async ({ page }, testInfo) => {
+  await seed(page);
+  const sessionDate = new Date();
+  const date = sessionDate.toISOString().slice(0, 10);
+
+  await page.route("**/api/v1/**", async (route: Route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
+    const method = request.method();
+    const json = (body: unknown, status = 200) => route.fulfill({
+      status,
+      contentType: "application/json",
+      body: JSON.stringify(body),
+    });
+
+    if (method === "OPTIONS") return route.fulfill({ status: 204 });
+    if (path === "/core/program/") {
+      return json({ tenantCode: "hakwonplus", display_name: "학원플러스", ui_config: {}, feature_flags: {}, is_active: true });
+    }
+    if (path === "/core/me/") {
+      return json({ id: 12, username: "admin", name: "관리자", is_staff: true, is_superuser: true, tenantRole: "admin", must_change_password: false });
+    }
+    if (path === "/clinic/sessions/" && method === "GET") {
+      return json([{
+        id: 7001,
+        date,
+        start_time: "17:00:00",
+        duration_minutes: 60,
+        location: "클리닉실",
+        max_participants: 10,
+        title: "중복 행 회귀 검증",
+      }]);
+    }
+    if (path === "/results/admin/clinic-targets/" && method === "GET") {
+      return json([
+        {
+          enrollment_id: 9101,
+          student_id: 8101,
+          student_name: "유현진",
+          session_title: "A강의 진단",
+          lecture_title: "A강의",
+          lecture_color: "#2563eb",
+          lecture_chip_label: "A",
+          profile_photo_url: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
+          created_at: "2026-08-22T09:00:00+09:00",
+        },
+        {
+          enrollment_id: 9102,
+          student_id: 8101,
+          student_name: "유현진",
+          session_title: "B강의 진단",
+          lecture_title: "B강의",
+          lecture_color: "#16a34a",
+          lecture_chip_label: "B",
+          profile_photo_url: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
+          created_at: "2026-08-22T10:00:00+09:00",
+        },
+      ]);
+    }
+    if (path === "/clinic/participants/" && method === "GET") return json({ count: 0, results: [] });
+    if (path === "/lectures/sections/" || path === "/staffs/currently-working/") return json([]);
+    if (path.startsWith("/community/") || path.startsWith("/student/notifications/")) return json({ count: 0, results: [] });
+    return json({ count: 0, results: [] });
+  });
+
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
+  const sessionCard = page.getByRole("article").filter({ hasText: "중복 행 회귀 검증" });
+  await expect(sessionCard).toBeVisible({ timeout: 30_000 });
+  await sessionCard.getByRole("button", { name: "학생 추가", exact: true }).click();
+
+  const targetGrid = page.getByRole("grid", { name: "미통과 대상자 명단" });
+  const studentRows = targetGrid.locator("tbody tr").filter({ hasText: "유현진" });
+  await expect(studentRows).toHaveCount(1);
+  await expect(studentRows.locator(".student-name-chip__avatar img")).toHaveAttribute("src", /^data:image\/gif/);
+  await expect(studentRows.locator("[data-lecture-chip]")).toHaveText(["A", "B"]);
+  await studentRows.getByRole("checkbox", { name: "유현진 선택" }).check();
+  await expect(page.locator(".clinic-target-select-modal__selected-count")).toHaveText("1명 선택됨");
+
+  if (process.env.CAPTURE_CLINIC_TARGET === "1") {
+    await page.screenshot({ path: testInfo.outputPath("clinic-target-student-row-1366.png") });
+  }
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(sessionCard).toBeVisible({ timeout: 30_000 });
+  await sessionCard.getByRole("button", { name: "학생 추가", exact: true }).click();
+  await expect(studentRows).toHaveCount(1);
+  await expect(studentRows.locator("[data-lecture-chip]")).toHaveText(["A", "B"]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  if (process.env.CAPTURE_CLINIC_TARGET === "1") {
+    await page.screenshot({ path: testInfo.outputPath("clinic-target-student-row-390.png") });
+  }
+});
+
 test("미응시를 판정 대기로 구분하고 사유를 남겨 면제한 뒤 이력을 조회한다", async ({ page }, testInfo) => {
   await seed(page);
   const waiverPayloads: Array<Record<string, unknown>> = [];

@@ -15,6 +15,11 @@
   null 점수는 오름·내림차순 모두 유효 점수 뒤에 둔다.
 - 검색과 상태 필터를 먼저 적용한 같은 행 집합을 정렬·선택·빈 상태가 사용한다.
 - 필터 결과가 0명이면 원본 0명과 구분해 검색·필터 변경 안내를 표시한다.
+- 전체 학생·클리닉 대상처럼 작업 단위가 학생인 목록은 정렬·페이지·선택·인원
+  계산 전에 학생 ID로 한 행만 만든다. 여러 수강 행이 같은 학생을 가리키면
+  `StudentNameWithLectureChip` 한 번에 학생 설정 아바타·이름·중복 없는 강의
+  딱지를 함께 표시한다. 시험·과제·출결처럼 작업 자체가 특정 수강 ID를
+  대상으로 하는 목록은 수강 행을 유지한다.
 - 정렬·필터는 저장 데이터를 바꾸거나 현재 사용자·tenant·선택 자녀 범위를
   넓히지 않는다.
 
@@ -52,6 +57,11 @@
 | 학생·강의·차시·직원 표 | 각 화면의 표시 헤더 기본값 | 검색·상태 필터와 헤더 정렬. 학생 명부의 `반` 정렬은 반별로 묶고 같은 반은 이름순, 반 미지정은 항상 마지막 |
 | 클리닉·청구·제출 표 | 날짜·시각 또는 업무 상태순 | 도메인 필터와 안정적 ID 동률 처리 |
 
+클리닉 대상자 모달의 미통과 탭은 API의 수강별 대상 기록을 학생 ID로 묶는다.
+같은 학생의 A·B강의 대상 기록은 `학생 1행 + [A][B] + 연락처·학교 정보`로
+표시하고 선택 인원도 1명으로 계산한다. 학생 ID가 없는 구형 응답은 서로 다른
+학생을 이름만으로 합치지 않고 수강 ID 행으로 격리한다.
+
 법률 고지처럼 데이터 행이 아닌 정적 HTML 표는 검색·정렬 대상이 아니다. 입력
 미리보기 표는 원본 파일 행 순서가 검수 근거이므로 임의로 재정렬하지 않는다.
 
@@ -80,6 +90,9 @@
 - 과제 결과: `src/app_admin/domains/homework/panels/HomeworkResultsPanel.tsx`
 - 공용 대상자: `src/shared/ui/enrollment/EnrollmentManageModal.tsx`
 - 클리닉 대상자: `src/app_admin/domains/clinic/components/ClinicTargetSelectModal.tsx`
+- 학생 표시 SSOT: `src/shared/ui/chips/StudentNameWithLectureChip.tsx`
+- 클리닉 다강의 학생 회귀:
+  `e2e/admin/clinic-remediation-missing.mock.spec.ts`
 
 ```powershell
 pnpm typecheck
