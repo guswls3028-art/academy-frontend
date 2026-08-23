@@ -58,10 +58,15 @@ import { useAutoSendConfig } from "@admin/domains/messages/hooks/useAutoSendConf
 import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPreviewModal";
 import ClinicTargetSelectModal from "../../components/ClinicTargetSelectModal";
 import type { ClinicTargetSelectResult } from "../../components/ClinicTargetSelectModal";
+import ClinicManualHomeworkCompleteDialog from "../../components/ClinicManualHomeworkCompleteDialog";
 import { buildParticipantPayload } from "../../utils/buildParticipantPayload";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { hhmmText } from "@/shared/ui/time/timeFormat";
 import { clinicQueryKeys } from "../../queryKeys";
+import {
+  canCompleteManualHomework,
+  completeManualHomework,
+} from "../../api/completeManualHomework";
 
 dayjs.locale("ko");
 
@@ -210,9 +215,15 @@ export default function ClinicConsoleWorkspace({
   const [completingIds, setCompletingIds] = useState<Set<number>>(new Set());
   // Prevent double-click on remediation actions (resolve/waive/carryover/retake)
   const [remediatingLinkIds, setRemediatingLinkIds] = useState<Set<number>>(new Set());
+  const [completeTarget, setCompleteTarget] = useState<ClinicTarget | null>(null);
 
   const { configs: autoSendConfigs, toggleEnabled, isToggling } = useAutoSendConfig();
-  const { data: clinicTargets } = useClinicTargets();
+  const clinicTargetsQuery = useClinicTargets();
+  const {
+    data: clinicTargets,
+    isLoading: clinicTargetsLoading,
+    isError: clinicTargetsError,
+  } = clinicTargetsQuery;
 
   // 알림 설정 미리보기 팝업
   const [previewTrigger, setPreviewTrigger] = useState<string | null>(null);
@@ -238,6 +249,7 @@ export default function ClinicConsoleWorkspace({
     setRetakingIds(new Set());
     setRetakeScores(new Map());
     setRemediatingLinkIds(new Set());
+    setCompleteTarget(null);
     setDrawerParticipantId(null);
     setSendResult(null);
     setSendResultPreviewOpen(false);
@@ -645,22 +657,39 @@ export default function ClinicConsoleWorkspace({
   }
 
   function getTargetsForParticipant(p: ClinicParticipant): ClinicTarget[] {
+    if (clinicTargetsLoading || clinicTargetsError) return [];
     let targets = targetsByStudent.get(p.student) ?? [];
     if (targets.length === 0 && p.enrollment_id) {
       targets = targetsByEnrollment.get(p.enrollment_id) ?? [];
     }
-    if (targets.length === 0 && p.clinic_reason) {
-      targets = [
-        {
-          enrollment_id: p.enrollment_id ?? 0,
-          student_name: p.student_name,
-          session_title: "",
-          clinic_reason: p.clinic_reason,
-          created_at: "",
-        },
-      ];
-    }
     return targets;
+  }
+
+  async function handleManualHomeworkComplete(target: ClinicTarget, memo: string) {
+    const linkId = target.clinic_link_id;
+    if (!linkId) {
+      feedback.error("과제 완료에 필요한 정보가 부족합니다. 목록을 새로고침해 주세요.");
+      return;
+    }
+
+    setRemediatingLinkIds((prev) => new Set(prev).add(linkId));
+    try {
+      await completeManualHomework(target, memo);
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: clinicQueryKeys.targets }),
+        qc.invalidateQueries({ queryKey: clinicQueryKeys.participants }),
+      ]);
+      setCompleteTarget(null);
+      feedback.success("과제 제출 확인을 저장하고 목록을 다시 확인했습니다.");
+    } catch {
+      feedback.error("과제 완료 처리에 실패했습니다. 다시 시도해 주세요.");
+    } finally {
+      setRemediatingLinkIds((prev) => {
+        const next = new Set(prev);
+        next.delete(linkId);
+        return next;
+      });
+    }
   }
 
   const drawerTargets = drawerParticipant ? getTargetsForParticipant(drawerParticipant) : [];
@@ -683,6 +712,27 @@ export default function ClinicConsoleWorkspace({
 
   return (
     <>
+      {clinicTargetsLoading && (
+        <div className="clinic-ops__target-query-state" role="status" aria-live="polite">
+          클리닉 과제 정보를 불러오는 중입니다.
+        </div>
+      )}
+      {clinicTargetsError && (
+        <div
+          className="clinic-ops__target-query-state clinic-ops__target-query-state--error"
+          role="alert"
+        >
+          <span>클리닉 과제 정보를 불러오지 못했습니다.</span>
+          <button
+            type="button"
+            className="clinic-ops__target-query-retry"
+            onClick={() => clinicTargetsQuery.refetch()}
+            disabled={clinicTargetsQuery.isFetching}
+          >
+            {clinicTargetsQuery.isFetching ? "다시 불러오는 중…" : "다시 시도"}
+          </button>
+        </div>
+      )}
       {/* ═══ A. 운영 헤더 — 처리 워크스페이스 밴드 ═══ */}
       <div className="clinic-ops__header">
         {/* 핵심 식별 + 액션 */}
@@ -1283,7 +1333,15 @@ export default function ClinicConsoleWorkspace({
                   {/* Row 2: Reason + cycle + resolution + detail link */}
                   <div className="clinic-ops__card-detail-row">
                     <div className="clinic-ops__card-reasons">
-                      {targets.length > 0 ? (
+                      {clinicTargetsLoading ? (
+                        <span className="clinic-ops__reason-tag clinic-ops__reason-tag--self">
+                          과제 확인 중
+                        </span>
+                      ) : clinicTargetsError ? (
+                        <span className="clinic-ops__reason-tag clinic-ops__reason-tag--self">
+                          과제 조회 실패
+                        </span>
+                      ) : targets.length > 0 ? (
                         targets.map((t, idx) => (
                           <span
                             key={`${t.enrollment_id}-${t.session_title}-${idx}`}
@@ -1311,8 +1369,8 @@ export default function ClinicConsoleWorkspace({
                             )}
                             {t.resolved_at
                               ? getResolutionLabel(t.resolution_type) + " 통과"
-                              : t.session_title
-                              ? `${t.session_title} · ${formatScoreDetail(t)}`
+                              : t.source_title || t.session_title
+                              ? `${t.source_title || t.session_title} · ${formatScoreDetail(t)}`
                               : formatScoreDetail(t)}
                           </span>
                         ))
@@ -1326,6 +1384,7 @@ export default function ClinicConsoleWorkspace({
 
                   {/* Row 3: Inline actions — 클리닉 완료 / 진행중 점수입력 */}
                   {(() => {
+                    if (clinicTargetsLoading || clinicTargetsError) return null;
                     const isSelfStudy = targets.length === 0;
                     const unresolvedTargets = targets.filter((t) => !t.resolved_at && t.clinic_link_id);
                     const isCompleted = !!p.completed_at;
@@ -1369,11 +1428,14 @@ export default function ClinicConsoleWorkspace({
                       );
                     }
 
-                    if (unresolvedTargets.length > 0) {
+                    const actionableUnresolvedTargets = unresolvedTargets.filter(
+                      (target) => !(target.reason === "missing" && target.source_type === "exam"),
+                    );
+                    if (actionableUnresolvedTargets.length > 0) {
                       // 진행중: 인라인 점수 입력
                       return (
                         <div className="clinic-ops__card-inline-actions" onClick={(e) => e.stopPropagation()}>
-                          {unresolvedTargets.map((t) => (
+                          {actionableUnresolvedTargets.map((t) => (
                             <div
                               key={t.clinic_link_id}
                               className="clinic-ops__inline-retake"
@@ -1408,6 +1470,17 @@ export default function ClinicConsoleWorkspace({
                               >
                                 {retakingIds.has(t.clinic_link_id!) ? "…" : "제출"}
                               </button>
+                              {canCompleteManualHomework(t) && (
+                                <button
+                                  type="button"
+                                  className="clinic-ops__inline-btn clinic-ops__inline-btn--complete"
+                                  onClick={() => setCompleteTarget(t)}
+                                  disabled={remediatingLinkIds.has(t.clinic_link_id!)}
+                                >
+                                  <BookOpen size={14} aria-hidden />
+                                  제출 확인·완료
+                                </button>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -1580,7 +1653,26 @@ export default function ClinicConsoleWorkspace({
               {/* Clinic reasons + remediation status */}
               <div className="clinic-ops__drawer-section">
                 <h4 className="clinic-ops__drawer-section-title">대상 사유 · 통과 상태</h4>
-                {drawerTargets.length === 0 ? (
+                {clinicTargetsLoading ? (
+                  <div className="clinic-ops__target-query-state" role="status" aria-live="polite">
+                    클리닉 과제 정보를 불러오는 중입니다.
+                  </div>
+                ) : clinicTargetsError ? (
+                  <div
+                    className="clinic-ops__target-query-state clinic-ops__target-query-state--error"
+                    role="alert"
+                  >
+                    <span>클리닉 과제 정보를 불러오지 못했습니다.</span>
+                    <button
+                      type="button"
+                      className="clinic-ops__target-query-retry"
+                      onClick={() => clinicTargetsQuery.refetch()}
+                      disabled={clinicTargetsQuery.isFetching}
+                    >
+                      {clinicTargetsQuery.isFetching ? "다시 불러오는 중…" : "다시 시도"}
+                    </button>
+                  </div>
+                ) : drawerTargets.length === 0 ? (
                   <div className="clinic-ops__drawer-self-study">
                     <p className="clinic-ops__drawer-empty">자율 학습 참여</p>
                     {drawerParticipant.completed_at ? (
@@ -1739,7 +1831,9 @@ export default function ClinicConsoleWorkspace({
                         {!t.resolved_at && t.clinic_link_id && (
                           <div className="clinic-ops__drawer-remediation-actions">
                             {/* 재시험 허용 + 시험 페이지 이동 */}
-                            {(t.clinic_reason === "exam" || t.clinic_reason === "both") && t.exam_id && (
+                            {(t.clinic_reason === "exam" || t.clinic_reason === "both") &&
+                              t.exam_id &&
+                              !(t.reason === "missing" && t.source_type === "exam") && (
                               <button
                                 type="button"
                                 className="clinic-ops__remediation-btn clinic-ops__remediation-btn--retake"
@@ -1767,28 +1861,44 @@ export default function ClinicConsoleWorkspace({
                               </button>
                             )}
 
-                            <button
-                              type="button"
-                              className="clinic-ops__remediation-btn clinic-ops__remediation-btn--resolve"
-                              disabled={remediatingLinkIds.has(t.clinic_link_id!)}
-                              onClick={async () => {
-                                const linkId = t.clinic_link_id!;
-                                setRemediatingLinkIds((prev) => new Set(prev).add(linkId));
-                                try {
-                                  await resolveClinicLink(linkId, "수동 통과");
-                                  feedback.success("통과 처리되었습니다.");
-                                  qc.invalidateQueries({ queryKey: clinicQueryKeys.targets });
-                                  qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
-                                } catch {
-                                  feedback.error("통과 처리에 실패했습니다.");
-                                } finally {
-                                  setRemediatingLinkIds((prev) => { const next = new Set(prev); next.delete(linkId); return next; });
-                                }
-                              }}
-                            >
-                              <ShieldCheck size={16} aria-hidden />
-                              수동 통과
-                            </button>
+                            {t.reason === "missing" && t.source_type === "homework" ? (
+                              canCompleteManualHomework(t) ? (
+                                <button
+                                  type="button"
+                                  className="clinic-ops__remediation-btn clinic-ops__remediation-btn--resolve"
+                                  disabled={remediatingLinkIds.has(t.clinic_link_id)}
+                                  onClick={() => setCompleteTarget(t)}
+                                >
+                                  <BookOpen size={16} aria-hidden />
+                                  제출 확인·완료
+                                </button>
+                              ) : null
+                            ) : !(t.reason === "missing" && t.source_type === "exam") ? (
+                              <button
+                                type="button"
+                                className="clinic-ops__remediation-btn clinic-ops__remediation-btn--resolve"
+                                disabled={remediatingLinkIds.has(t.clinic_link_id!)}
+                                onClick={async () => {
+                                  const linkId = t.clinic_link_id!;
+                                  setRemediatingLinkIds((prev) => new Set(prev).add(linkId));
+                                  try {
+                                    await resolveClinicLink(linkId, "수동 통과");
+                                    feedback.success("통과 처리되었습니다.");
+                                    await Promise.all([
+                                      qc.invalidateQueries({ queryKey: clinicQueryKeys.targets }),
+                                      qc.invalidateQueries({ queryKey: clinicQueryKeys.participants }),
+                                    ]);
+                                  } catch {
+                                    feedback.error("통과 처리에 실패했습니다.");
+                                  } finally {
+                                    setRemediatingLinkIds((prev) => { const next = new Set(prev); next.delete(linkId); return next; });
+                                  }
+                                }}
+                              >
+                                <ShieldCheck size={16} aria-hidden />
+                                수동 통과
+                              </button>
+                            ) : null}
                             <button
                               type="button"
                               className="clinic-ops__remediation-btn clinic-ops__remediation-btn--waive"
@@ -1811,28 +1921,30 @@ export default function ClinicConsoleWorkspace({
                               <Ban size={16} aria-hidden />
                               면제
                             </button>
-                            <button
-                              type="button"
-                              className="clinic-ops__remediation-btn clinic-ops__remediation-btn--carryover"
-                              disabled={remediatingLinkIds.has(t.clinic_link_id!)}
-                              onClick={async () => {
-                                const linkId = t.clinic_link_id!;
-                                setRemediatingLinkIds((prev) => new Set(prev).add(linkId));
-                                try {
-                                  await carryOverClinicLink(linkId);
-                                  feedback.success("다음 차수로 이월되었습니다.");
-                                  qc.invalidateQueries({ queryKey: clinicQueryKeys.targets });
-                                  qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
-                                } catch {
-                                  feedback.error("이월 처리에 실패했습니다.");
-                                } finally {
-                                  setRemediatingLinkIds((prev) => { const next = new Set(prev); next.delete(linkId); return next; });
-                                }
-                              }}
-                            >
-                              <ArrowRightCircle size={16} aria-hidden />
-                              다음 차수 이월
-                            </button>
+                            {!(t.reason === "missing" && t.source_type === "exam") && (
+                              <button
+                                type="button"
+                                className="clinic-ops__remediation-btn clinic-ops__remediation-btn--carryover"
+                                disabled={remediatingLinkIds.has(t.clinic_link_id!)}
+                                onClick={async () => {
+                                  const linkId = t.clinic_link_id!;
+                                  setRemediatingLinkIds((prev) => new Set(prev).add(linkId));
+                                  try {
+                                    await carryOverClinicLink(linkId);
+                                    feedback.success("다음 차수로 이월되었습니다.");
+                                    qc.invalidateQueries({ queryKey: clinicQueryKeys.targets });
+                                    qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
+                                  } catch {
+                                    feedback.error("이월 처리에 실패했습니다.");
+                                  } finally {
+                                    setRemediatingLinkIds((prev) => { const next = new Set(prev); next.delete(linkId); return next; });
+                                  }
+                                }}
+                              >
+                                <ArrowRightCircle size={16} aria-hidden />
+                                다음 차수 이월
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -2041,6 +2153,17 @@ export default function ClinicConsoleWorkspace({
           } else {
             feedback.success(`${ids.length}명이 추가되었습니다.`);
           }
+        }}
+      />
+      <ClinicManualHomeworkCompleteDialog
+        target={completeTarget}
+        pending={
+          completeTarget?.clinic_link_id != null &&
+          remediatingLinkIds.has(completeTarget.clinic_link_id)
+        }
+        onClose={() => setCompleteTarget(null)}
+        onConfirm={(memo) => {
+          if (completeTarget) void handleManualHomeworkComplete(completeTarget, memo);
         }}
       />
     </>

@@ -82,6 +82,11 @@ type PasscardSettingsState = {
 type OperationsState = {
   participants: Array<Record<string, unknown>>;
   targets: Array<Record<string, unknown>>;
+  failTargets?: boolean;
+  targetGate?: Promise<void>;
+  targetRequests?: number;
+  participantRequests?: number;
+  resolutionPayloads?: Array<Record<string, unknown>>;
 };
 
 async function installApi(
@@ -141,13 +146,43 @@ async function installApi(
     if (path === "/clinic/sessions/" && method === "GET") return json(sessions);
     if (path === "/clinic/sessions/tree/" && method === "GET") return json(sessions);
     if (path === "/clinic/participants/" && method === "GET") {
+      if (operationsState) {
+        operationsState.participantRequests = (operationsState.participantRequests ?? 0) + 1;
+      }
       return json({
         count: operationsState?.participants.length ?? 0,
         results: operationsState?.participants ?? [],
       });
     }
     if (path === "/results/admin/clinic-targets/") {
-      return json(operationsState?.targets ?? []);
+      if (operationsState) {
+        operationsState.targetRequests = (operationsState.targetRequests ?? 0) + 1;
+        await operationsState.targetGate;
+        if (operationsState.failTargets) return json({ detail: "temporary" }, 503);
+      }
+      return json((operationsState?.targets ?? []).filter((target) => !target.resolved_at));
+    }
+    if (path === "/results/admin/sessions/703/score-correction/" && method === "PATCH") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      operationsState?.resolutionPayloads?.push(payload);
+      if (operationsState) {
+        operationsState.targets = operationsState.targets.map((target) => (
+          target.clinic_link_id === 9003
+            ? {
+                ...target,
+                resolved_at: "2026-08-23T16:45:00+09:00",
+                resolution_type: "MANUAL_OVERRIDE",
+              }
+            : target
+        ));
+      }
+      return json({
+        correction_status: "COMPLETED",
+        correction_completed_at: "2026-08-23T16:45:00+09:00",
+        correction_note: "현장 제출 확인",
+        correction_updated_at: "2026-08-23T16:45:00+09:00",
+        teacher_resolved: true,
+      });
     }
     if (path === "/messaging/auto-send/") {
       return json([]);
@@ -268,6 +303,154 @@ test("한 학생이 여러 특강을 수강하면 클리닉 할 일을 모두 �
   expect(
     await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth),
   ).toBe(true);
+});
+
+test("운영 화면에서 대상 조회 실패를 재시도하고 문자 제출 과제를 완료한다", async ({ page }) => {
+  const studentId = 502;
+  let releaseTargets: (() => void) | undefined;
+  const targetGate = new Promise<void>((resolve) => {
+    releaseTargets = resolve;
+  });
+  const state: OperationsState = {
+    participants: [{
+      id: 802,
+      session: 701,
+      student: studentId,
+      student_name: "현장제출 학생",
+      enrollment_id: 1003,
+      session_date: saturday,
+      session_title: "토요일 1시 클리닉",
+      session_start_time: "13:00:00",
+      session_end_time: "14:30:00",
+      session_location: "1층 세미나실",
+      status: "attended",
+      lecture_title: "중1 수학",
+      clinic_reason: "homework",
+    }, {
+      id: 803,
+      session: 701,
+      student: 503,
+      student_name: "식별자누락 학생",
+      enrollment_id: 1004,
+      session_date: saturday,
+      session_title: "토요일 1시 클리닉",
+      session_start_time: "13:00:00",
+      session_end_time: "14:30:00",
+      session_location: "1층 세미나실",
+      status: "attended",
+      lecture_title: "중1 수학",
+      clinic_reason: "homework",
+    }],
+    targets: [{
+      enrollment_id: 1003,
+      student_id: studentId,
+      student_name: "현장제출 학생",
+      session_title: "중1 수학 4차시",
+      reason: "missing",
+      clinic_reason: "homework",
+      homework_score: null,
+      homework_cutline: 8,
+      clinic_link_id: 9003,
+      session_id: 703,
+      source_type: "homework",
+      source_id: 803,
+      source_title: "연산 숙제 12쪽",
+      max_score: 10,
+      created_at: "2026-08-23T15:30:00+09:00",
+    }, {
+      enrollment_id: 1004,
+      student_id: 503,
+      student_name: "식별자누락 학생",
+      session_title: "중1 수학 4차시",
+      reason: "missing",
+      clinic_reason: "homework",
+      homework_score: null,
+      homework_cutline: 8,
+      clinic_link_id: 9004,
+      session_id: 703,
+      source_type: "homework",
+      source_id: 0,
+      source_title: "식별자 없는 과제",
+      max_score: 10,
+      created_at: "2026-08-23T15:30:00+09:00",
+    }],
+    failTargets: true,
+    targetGate,
+    targetRequests: 0,
+    participantRequests: 0,
+    resolutionPayloads: [],
+  };
+
+  await seed(page);
+  await installApi(page, undefined, state);
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await page.goto(`${BASE}/workspace/clinic/operations?date=${saturday}&session=701`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+
+  const studentCard = page.locator(".clinic-ops__card").filter({ hasText: "현장제출 학생" });
+  await expect(page.getByRole("status").filter({ hasText: "클리닉 과제 정보를 불러오는 중입니다" })).toBeVisible();
+  await expect(page.getByText("자율 학습 참여", { exact: true })).toHaveCount(0);
+  await studentCard.click();
+  const drawer = page.getByRole("dialog", { name: "클리닉 상세" });
+  await expect(drawer.getByRole("status").filter({ hasText: "클리닉 과제 정보를 불러오는 중입니다" })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "클리닉 과제 정보를 불러오는 중입니다" })).toHaveCount(2);
+  await expect(drawer.getByText("자율 학습 참여", { exact: true })).toHaveCount(0);
+  await expect(drawer.getByRole("button", { name: "클리닉 완료", exact: true })).toHaveCount(0);
+  releaseTargets?.();
+  await expect(page.getByRole("alert").filter({ hasText: "클리닉 과제 정보를 불러오지 못했습니다" })).toHaveCount(2);
+  await expect(page.getByText("자율 학습 참여", { exact: true })).toHaveCount(0);
+  const drawerAlert = drawer.getByRole("alert").filter({ hasText: "클리닉 과제 정보를 불러오지 못했습니다" });
+  await expect(drawerAlert).toBeVisible();
+  await expect(drawer.getByText("자율 학습 참여", { exact: true })).toHaveCount(0);
+  await expect(drawer.getByRole("button", { name: "클리닉 완료", exact: true })).toHaveCount(0);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole("alert").filter({ hasText: "클리닉 과제 정보를 불러오지 못했습니다" })).toBeVisible();
+  await expect(studentCard.getByText("자율 학습 참여", { exact: true })).toHaveCount(0);
+  await expect(studentCard.getByRole("button", { name: "클리닉 완료", exact: true })).toHaveCount(0);
+  expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await studentCard.click();
+  await expect(drawerAlert).toBeVisible();
+  state.failTargets = false;
+  await drawerAlert.getByRole("button", { name: "다시 시도", exact: true }).click();
+
+  await expect(studentCard).toContainText("연산 숙제 12쪽");
+  await expect(drawer).toContainText("중1 수학 4차시");
+  const invalidCard = page.locator(".clinic-ops__card").filter({ hasText: "식별자누락 학생" });
+  await expect(invalidCard).toContainText("식별자 없는 과제");
+  await expect(invalidCard.getByRole("button", { name: "제출 확인·완료", exact: true })).toHaveCount(0);
+  await drawer.getByRole("button", { name: "제출 확인·완료", exact: true }).click();
+
+  const dialog = page.getByRole("dialog", { name: "과제 제출 확인·완료" });
+  const submit = dialog.getByRole("button", { name: "제출 확인하고 완료", exact: true });
+  await dialog.getByPlaceholder(/문자 제출/).fill("현");
+  await expect(submit).toBeDisabled();
+  await dialog.getByPlaceholder(/문자 제출/).fill("현장 제출 확인");
+  await expect(submit).toBeEnabled();
+  await submit.click();
+
+  await expect.poll(() => state.resolutionPayloads).toEqual([{
+    enrollment_id: 1003,
+    source_type: "homework",
+    source_id: 803,
+    completed: true,
+    note: "현장 제출 확인",
+  }]);
+  await expect.poll(() => state.targetRequests ?? 0).toBeGreaterThan(1);
+  await expect.poll(() => state.participantRequests ?? 0).toBeGreaterThan(1);
+  await expect(studentCard.getByRole("button", { name: "제출 확인·완료", exact: true })).toHaveCount(0);
+  await expect(studentCard).not.toContainText("과제 미통과");
+  await expect(studentCard).toContainText("자율 학습 참여");
+  await expect(drawer.getByRole("button", { name: "제출 확인·완료", exact: true })).toHaveCount(0);
+  await expect(drawer).toContainText("자율 학습 참여");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(studentCard).not.toContainText("과제 미통과");
+  expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
 });
 
 test("관리자가 패스카드 3색을 확인하고 학생 화면에 적용한다", async ({ page }) => {
