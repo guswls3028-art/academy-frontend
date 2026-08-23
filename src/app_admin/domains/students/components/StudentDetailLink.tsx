@@ -26,11 +26,7 @@ export default function StudentDetailLink({
 
   return (
     <Link
-      to={{
-        pathname: location.pathname,
-        search: location.search,
-        hash: location.hash,
-      }}
+      to={location}
       replace={false}
       state={{ backgroundLocation: location, modalStudentId: studentId }}
       className={[
