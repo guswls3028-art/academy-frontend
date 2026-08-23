@@ -9,6 +9,8 @@ export type ClinicParticipantStatus =
   | "cancelled"
   | "rejected";
 
+export type ClinicRecipient = "student" | "parent" | "both";
+
 export type ClinicParticipant = {
   id: number;
 
@@ -29,6 +31,10 @@ export type ClinicParticipant = {
 
   status: ClinicParticipantStatus;
   memo?: string;
+  checked_in_at?: string | null;
+  is_late?: boolean;
+  checked_out_at?: string | null;
+  checked_out_by_name?: string | null;
 
   // 학생 SSOT 표시용
   lecture_title?: string | null;
@@ -39,6 +45,7 @@ export type ClinicParticipant = {
 
   completed_at?: string | null;
   completed_by_name?: string | null;
+  planned_clinic_link_ids?: number[];
 };
 
 export async function fetchClinicParticipants(params: {
@@ -70,14 +77,73 @@ export async function createClinicParticipant(payload: {
 
 export async function patchClinicParticipantStatus(
   id: number,
-  payload: { status: ClinicParticipantStatus; memo?: string }
+  payload: {
+    status: ClinicParticipantStatus;
+    memo?: string;
+    is_late?: boolean;
+    send_to?: ClinicRecipient;
+  }
 ) {
   const res = await api.patch(`/clinic/participants/${id}/set_status/`, payload);
   return res.data as ClinicParticipant;
 }
 
-export async function completeClinicParticipant(id: number) {
-  const res = await api.post(`/clinic/participants/${id}/complete/`);
+export type ClinicParticipantReminderResult = {
+  ok: true;
+  status: "ok";
+  sent: number;
+  scheduled?: number;
+  skipped: number;
+};
+
+export async function remindClinicParticipant(
+  id: number,
+  payload: {
+    mode: "once" | "repeat";
+    send_to: ClinicRecipient;
+    interval_minutes?: number;
+    repeat_until?: string;
+  },
+) {
+  const res = await api.post<ClinicParticipantReminderResult>(
+    `/clinic/participants/${id}/remind/`,
+    payload,
+  );
+  return res.data;
+}
+
+export async function checkoutClinicParticipant(
+  id: number,
+  payload: { send_to: ClinicRecipient },
+) {
+  const res = await api.post(`/clinic/participants/${id}/checkout/`, payload);
+  return res.data as ClinicParticipant;
+}
+
+export async function replaceClinicParticipantPlan(
+  id: number,
+  plannedClinicLinkIds: number[],
+) {
+  const res = await api.put(
+    `/clinic/participants/${id}/planned-clinic-links/`,
+    { planned_clinic_link_ids: plannedClinicLinkIds },
+  );
+  return res.data as ClinicParticipant;
+}
+
+export async function changeClinicParticipantBooking(
+  id: number,
+  payload: { new_session_id: number; memo?: string; send_to: ClinicRecipient },
+) {
+  const res = await api.post(`/clinic/participants/${id}/change-booking/`, payload);
+  return res.data as ClinicParticipant;
+}
+
+export async function completeClinicParticipant(
+  id: number,
+  payload: { send_to?: ClinicRecipient } = {},
+) {
+  const res = await api.post(`/clinic/participants/${id}/complete/`, payload);
   return res.data as ClinicParticipant;
 }
 

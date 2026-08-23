@@ -12,6 +12,9 @@ export type ClinicCurrentTarget = {
   session_order: number;
   session_title?: string;
   source_type?: "exam" | "homework" | null;
+  source_title?: string | null;
+  source_scope?: string | null;
+  created_at?: string | null;
 };
 
 export type StudentClinicSummary = {
@@ -40,6 +43,12 @@ export async function fetchStudentClinicSummary(): Promise<StudentClinicSummary>
           session_title: target.session_title == null
             ? target.session_title
             : richHtmlToPlainText(target.session_title),
+          source_title: target.source_title == null
+            ? target.source_title
+            : richHtmlToPlainText(target.source_title),
+          source_scope: target.source_scope == null
+            ? target.source_scope
+            : richHtmlToPlainText(target.source_scope),
         }))
       : [],
     current_result: data.current_result === "FAIL" ? "FAIL" : "SUCCESS",

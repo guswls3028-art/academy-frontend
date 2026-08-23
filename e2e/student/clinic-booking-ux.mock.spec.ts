@@ -197,18 +197,68 @@ async function installApi(page: Page, state: MockState, idcardResult: "SUCCESS" 
         server_date: "2026-08-22",
         server_datetime: "2026-08-22T09:30:00+09:00",
         current_result: idcardResult,
-        current_targets: idcardResult === "FAIL" ? [{
-          clinic_link_id: 81,
-          enrollment_id: 31,
-          lecture_id: 41,
-          lecture_title: "대수 정규반",
-          lecture_color: "#2563eb",
-          lecture_chip_label: "대수",
-          session_id: 61,
-          session_order: 7,
-          session_title: "함수의 그래프",
-          source_type: "exam",
-        }] : [],
+        current_targets: idcardResult === "FAIL" ? [
+          {
+            clinic_link_id: 81,
+            enrollment_id: 31,
+            lecture_id: 41,
+            lecture_title: "대수 정규반",
+            lecture_color: "#2563eb",
+            lecture_chip_label: "대수",
+            session_id: 61,
+            session_order: 4,
+            session_title: "4주차 함수",
+            source_type: "exam",
+            source_title: "4주차 확인 시험",
+            source_scope: "함수 기초",
+            created_at: "2026-08-19T09:00:00+09:00",
+          },
+          {
+            clinic_link_id: 84,
+            enrollment_id: 31,
+            lecture_id: 41,
+            lecture_title: "대수 정규반",
+            lecture_color: "#2563eb",
+            lecture_chip_label: "대수",
+            session_id: 64,
+            session_order: 7,
+            session_title: "7주차 미적분",
+            source_type: "exam",
+            source_title: "7주차 확인 시험",
+            source_scope: "미분법",
+            created_at: "2026-08-22T09:00:00+09:00",
+          },
+          {
+            clinic_link_id: 82,
+            enrollment_id: 31,
+            lecture_id: 41,
+            lecture_title: "대수 정규반",
+            lecture_color: "#2563eb",
+            lecture_chip_label: "대수",
+            session_id: 62,
+            session_order: 5,
+            session_title: "5주차 수열",
+            source_type: "homework",
+            source_title: "5주차 오답 과제",
+            source_scope: "등차수열",
+            created_at: "2026-08-20T09:00:00+09:00",
+          },
+          {
+            clinic_link_id: 83,
+            enrollment_id: 31,
+            lecture_id: 41,
+            lecture_title: "대수 정규반",
+            lecture_color: "#2563eb",
+            lecture_chip_label: "대수",
+            session_id: 63,
+            session_order: 6,
+            session_title: "6주차 극한",
+            source_type: "exam",
+            source_title: "6주차 확인 시험",
+            source_scope: "함수의 극한",
+            created_at: "2026-08-21T09:00:00+09:00",
+          },
+        ] : [],
         histories: [{
           enrollment_id: 31,
           lecture_id: 41,
@@ -286,6 +336,24 @@ test.describe("학생 클리닉 예약 UX", () => {
     const fontSize = await dateNumber.evaluate((element) => getComputedStyle(element).fontSize);
     expect(Number.parseFloat(fontSize)).toBeGreaterThanOrEqual(27);
     await page.screenshot({ path: "test-results/student-clinic-open-dates-390.png", fullPage: true });
+  });
+
+  test("보강 항목을 최근순으로 전부 표시한다", async ({ page }) => {
+    const state = createState();
+    await seed(page);
+    await installApi(page, state);
+    await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+
+    const targets = page.getByTestId("clinic-target-item");
+    await expect(targets).toHaveCount(4);
+    await expect(targets).toContainText([
+      "7주차 확인 시험",
+      "6주차 확인 시험",
+      "5주차 오답 과제",
+      "4주차 확인 시험",
+    ]);
+    await expect(targets.first()).toContainText("단원/범위 미분법");
+    expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   });
 
   test("승인 대기 예약을 다른 날짜로 원자적으로 변경한다", async ({ page }) => {

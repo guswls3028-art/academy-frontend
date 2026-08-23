@@ -87,6 +87,10 @@ type OperationsState = {
   targetRequests?: number;
   participantRequests?: number;
   resolutionPayloads?: Array<Record<string, unknown>>;
+  statusPayloads?: Array<Record<string, unknown>>;
+  checkoutPayloads?: Array<Record<string, unknown>>;
+  reminderPayloads?: Array<Record<string, unknown>>;
+  bookingPayloads?: Array<Record<string, unknown>>;
 };
 
 async function installApi(
@@ -184,6 +188,47 @@ async function installApi(
         teacher_resolved: true,
       });
     }
+    const statusMatch = path.match(/^\/clinic\/participants\/(\d+)\/set_status\/$/);
+    if (statusMatch && method === "PATCH") {
+      const id = Number(statusMatch[1]);
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      operationsState?.statusPayloads?.push({ id, ...payload });
+      const participant = operationsState?.participants.find((row) => row.id === id);
+      if (!participant) return json({ detail: "not found" }, 404);
+      participant.status = payload.status;
+      participant.is_late = Boolean(payload.is_late);
+      participant.checked_in_at = payload.status === "attended"
+        ? `${saturday}T13:30:00+09:00`
+        : null;
+      participant.checked_out_at = null;
+      return json({ ...participant, notification: { requested: 1, failed: 0 } });
+    }
+    const checkoutMatch = path.match(/^\/clinic\/participants\/(\d+)\/checkout\/$/);
+    if (checkoutMatch && method === "POST") {
+      const id = Number(checkoutMatch[1]);
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      operationsState?.checkoutPayloads?.push({ id, ...payload });
+      const participant = operationsState?.participants.find((row) => row.id === id);
+      if (!participant || participant.status !== "attended") {
+        return json({ detail: "등원 후 하원할 수 있습니다." }, 400);
+      }
+      participant.checked_out_at = `${saturday}T15:00:00+09:00`;
+      return json({ ...participant, notification: { requested: 1, failed: 0 } });
+    }
+    const remindMatch = path.match(/^\/clinic\/participants\/(\d+)\/remind\/$/);
+    if (remindMatch && method === "POST") {
+      const id = Number(remindMatch[1]);
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      operationsState?.reminderPayloads?.push({ id, ...payload });
+      return json({ ok: true, status: "ok", sent: 2, scheduled: 4, skipped: 0 });
+    }
+    const bookingMatch = path.match(/^\/clinic\/participants\/(\d+)\/change-booking\/$/);
+    if (bookingMatch && method === "POST") {
+      const id = Number(bookingMatch[1]);
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      operationsState?.bookingPayloads?.push({ id, ...payload });
+      return json({ id: 9901, session: payload.new_session_id, status: "booked" });
+    }
     if (path === "/messaging/auto-send/") {
       return json([]);
     }
@@ -228,24 +273,54 @@ test("같은 날짜에 여러 클리닉 시간대를 시간순으로 보고 계�
   await expect(dialog).toContainText("현재 3개 시간대가 있습니다.");
 });
 
-test("한 학생이 여러 특강을 수강하면 클리닉 할 일을 모두 표시한다", async ({ page }) => {
+test("결석 후 새 일정 만들기는 선택 날짜의 생성 창을 바로 연다", async ({ page }) => {
+  await seed(page);
+  await installApi(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoAndSettle(
+    page,
+    `${BASE}/workspace/clinic/schedule?create=1&date=${saturday}`,
+    { timeout: 45_000 },
+  );
+
+  const dialog = page.getByRole("dialog").filter({ hasText: "클리닉 만들기" });
+  await expect(dialog.getByRole("heading", { name: "클리닉 만들기" })).toBeVisible();
+  await expect(dialog).toContainText(`${Number(saturday.slice(5, 7))}월 ${Number(saturday.slice(8, 10))}일`);
+  await expect(page).toHaveURL(/\/workspace\/clinic\/schedule$/);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결석 후 보충을 함께 처리한다", async ({ page }) => {
   const studentId = 501;
   const state: OperationsState = {
-    participants: [{
-      id: 801,
-      session: 701,
-      student: studentId,
-      student_name: "김다과목",
-      enrollment_id: 1001,
-      session_date: saturday,
-      session_title: "토요일 1시 클리닉",
-      session_start_time: "13:00:00",
-      session_end_time: "14:30:00",
-      session_location: "1층 세미나실",
-      status: "booked",
-      lecture_title: "화학특강",
-      lecture_chip_label: "화특",
-    }],
+    participants: [
+      {
+        id: 801, session: 701, student: studentId, student_name: "김다과목",
+        enrollment_id: 1001, session_date: saturday, session_title: "토요일 1시 클리닉",
+        session_start_time: "13:00:00", session_end_time: "14:30:00",
+        session_location: "1층 세미나실", status: "booked", checked_in_at: null,
+        checked_out_at: null, completed_at: null, is_late: false,
+        lecture_title: "화학특강", lecture_chip_label: "화특",
+      },
+      {
+        id: 802, session: 701, student: 502, student_name: "지각 학생",
+        enrollment_id: 1002, session_date: saturday, session_title: "토요일 1시 클리닉",
+        session_start_time: "13:00:00", session_location: "1층 세미나실",
+        status: "no_show", checked_in_at: null, checked_out_at: null, is_late: false,
+      },
+      {
+        id: 803, session: 701, student: 503, student_name: "재촉 학생",
+        enrollment_id: 1003, session_date: saturday, session_title: "토요일 1시 클리닉",
+        session_start_time: "13:00:00", session_location: "1층 세미나실",
+        status: "booked", checked_in_at: null, checked_out_at: null, is_late: false,
+      },
+      {
+        id: 804, session: 701, student: 504, student_name: "결석 학생",
+        enrollment_id: 1004, session_date: saturday, session_title: "토요일 1시 클리닉",
+        session_start_time: "13:00:00", session_location: "1층 세미나실",
+        status: "booked", checked_in_at: null, checked_out_at: null, is_late: false,
+      },
+    ],
     targets: [
       {
         enrollment_id: 1001,
@@ -259,6 +334,8 @@ test("한 학생이 여러 특강을 수강하면 클리닉 할 일을 모두 �
         clinic_link_id: 9001,
         source_type: "exam",
         max_score: 100,
+        source_title: "6주차 확인 시험",
+        source_scope: "화학 결합",
         created_at: "2026-08-22T04:00:00Z",
       },
       {
@@ -275,9 +352,15 @@ test("한 학생이 여러 특강을 수강하면 클리닉 할 일을 모두 �
         clinic_link_id: 9002,
         source_type: "homework",
         max_score: 5,
+        source_title: "7주차 오답 과제",
+        source_scope: "산화 환원",
         created_at: "2026-08-22T04:05:00Z",
       },
     ],
+    statusPayloads: [],
+    checkoutPayloads: [],
+    reminderPayloads: [],
+    bookingPayloads: [],
   };
 
   await seed(page);
@@ -294,6 +377,56 @@ test("한 학생이 여러 특강을 수강하면 클리닉 할 일을 모두 �
   await expect(studentCard.locator(".clinic-ops__reason-tag")).toHaveCount(2);
   await expect(studentCard).toContainText("화학특강 4차시");
   await expect(studentCard).toContainText("통과특강 2차시");
+  const newestTarget = studentCard.getByText("통과특강 2차시", { exact: true });
+  const olderTarget = studentCard.getByText("화학특강 4차시", { exact: true });
+  expect((await newestTarget.boundingBox())?.y ?? Infinity).toBeLessThan(
+    (await olderTarget.boundingBox())?.y ?? 0,
+  );
+
+  await expect(studentCard.getByRole("button", { name: "하원", exact: true })).toBeDisabled();
+  await studentCard.getByRole("button", { name: "등원", exact: true }).click();
+  await page.getByRole("dialog", { name: "등원 처리" }).getByLabel("둘 다").check();
+  await page.keyboard.press("Enter");
+  await expect.poll(() => state.statusPayloads?.[0]).toEqual({
+    id: 801, status: "attended", is_late: false, send_to: "both",
+  });
+  await expect(studentCard.getByRole("button", { name: "하원", exact: true })).toBeEnabled();
+  await studentCard.getByRole("button", { name: "하원", exact: true }).click();
+  await page.getByRole("dialog", { name: "하원 처리" }).getByLabel("학부모").check();
+  await page.keyboard.press("Enter");
+  await expect.poll(() => state.checkoutPayloads?.[0]).toEqual({ id: 801, send_to: "parent" });
+  await expect(studentCard).toContainText("하원 완료");
+
+  const lateCard = page.locator(".clinic-ops__card").filter({ hasText: "지각 학생" });
+  await lateCard.getByRole("button", { name: "지각 등원", exact: true }).click();
+  await page.keyboard.press("Enter");
+  await expect.poll(() => state.statusPayloads?.[1]).toMatchObject({
+    id: 802, status: "attended", is_late: true,
+  });
+
+  const reminderCard = page.locator(".clinic-ops__card").filter({ hasText: "재촉 학생" });
+  await reminderCard.getByRole("button", { name: "재촉", exact: true }).click();
+  const reminderDialog = page.getByRole("dialog", { name: "등원 재촉" });
+  await reminderDialog.getByLabel("반복 발송").check();
+  await reminderDialog.getByLabel("반복 간격(분)").fill("60");
+  await reminderDialog.getByLabel("반복 종료").fill("21:00");
+  await page.keyboard.press("Enter");
+  await expect.poll(() => state.reminderPayloads?.[0]).toMatchObject({
+    id: 803, mode: "repeat", interval_minutes: 60,
+  });
+
+  const absentCard = page.locator(".clinic-ops__card").filter({ hasText: "결석 학생" });
+  await absentCard.getByRole("button", { name: "결석", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "결석 확인" })).toHaveCount(0);
+  await absentCard.getByRole("button", { name: "결석", exact: true }).click();
+  await page.keyboard.press("Enter");
+  const reschedule = page.getByRole("dialog", { name: "보충 일정 정하기" });
+  await reschedule.getByLabel("이동할 일정").selectOption("702");
+  await reschedule.getByRole("button", { name: "일정 이동" }).click();
+  await expect.poll(() => state.bookingPayloads?.[0]).toMatchObject({
+    id: 804, new_session_id: 702,
+  });
 
   await page.setViewportSize({ width: 390, height: 844 });
   await studentCard.scrollIntoViewIfNeeded();
