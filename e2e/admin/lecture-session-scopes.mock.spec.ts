@@ -402,7 +402,9 @@ test("기존 전체 보기를 기본으로 유지하고 분리 보기에서 보�
 
   await page.getByRole("tab", { name: "공지·게시판", exact: true }).click();
   await expect(page).toHaveURL(
-    new RegExp(`/workspace/community/notice\\?scope=session&lectureId=${LECTURE_ID}&sessionId=${REGULAR_SESSION_ID}`),
+    new RegExp(
+      `/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/notice\\?scope=session&lectureId=${LECTURE_ID}&sessionId=${REGULAR_SESSION_ID}`,
+    ),
   );
 });
 
