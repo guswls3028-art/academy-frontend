@@ -383,6 +383,12 @@ const REPORT_STYLE = `
     border-top: 0.45mm solid #172033;
     font-size: 8px;
   }
+  .history-table { table-layout: fixed; }
+  .history-table col:nth-child(1) { width: 41%; }
+  .history-table col:nth-child(2) { width: 31%; }
+  .history-table col:nth-child(3) { width: 11%; }
+  .history-table col:nth-child(4) { width: 8%; }
+  .history-table col:nth-child(5) { width: 9%; }
   .history-table th, .item-table th {
     padding: 2.2mm 2mm;
     border-bottom: 0.3mm solid var(--report-accent);
@@ -395,6 +401,16 @@ const REPORT_STYLE = `
     padding: 2.2mm 2mm;
     border-bottom: 0.22mm solid #e2e8f0;
     color: #334155;
+  }
+  .history-table th { white-space: nowrap; }
+  .history-table td {
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+    vertical-align: top;
+  }
+  .history-table td:nth-child(n + 3) {
+    white-space: nowrap;
+    vertical-align: middle;
   }
   .history-table th.num, .history-table td.num,
   .item-table th.num, .item-table td.num {
@@ -411,6 +427,12 @@ const REPORT_STYLE = `
     gap: 6mm;
   }
   .detail-grid--single { grid-template-columns: minmax(0, 1fr); }
+  .detail-grid .section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 1mm;
+  }
+  .detail-grid .section-heading span { padding-left: 4.8mm; }
   .coaching-box {
     margin-top: 5mm;
     padding: 4mm 5mm;
@@ -1045,6 +1067,7 @@ export function buildStudentScoreReportHtml(params: StudentScoreReportParams): s
       <div class="section" style="margin-top:7mm">
         <div class="section-heading"><h2>최근 시험 기록</h2><span>최신순 최대 9건</span></div>
         <table class="history-table">
+          <colgroup><col /><col /><col /><col /><col /></colgroup>
           <thead><tr><th>차시</th><th>시험</th><th class="num">점수</th><th class="num">환산</th><th>판정</th></tr></thead>
           <tbody>${buildHistoryRows(historyRows)}</tbody>
         </table>
@@ -1099,14 +1122,32 @@ async function waitForIframeDocument(doc: Document): Promise<void> {
 }
 
 function assertPageContentFits(page: HTMLElement): void {
+  if (page.scrollWidth > page.clientWidth + 1 || page.scrollHeight > page.clientHeight + 1) {
+    throw new Error("성적표 내용이 A4 범위를 넘어 PDF를 만들지 않았습니다. 평가명을 줄이거나 요약 1쪽을 이용해 주세요.");
+  }
   const footer = page.querySelector<HTMLElement>(".report-footer");
   if (!footer) return;
   const footerTop = footer.getBoundingClientRect().top;
-  const contentBottom = Array.from(page.querySelectorAll<HTMLElement>(":scope > .section"))
-    .reduce((bottom, section) => Math.max(bottom, section.getBoundingClientRect().bottom), 0);
+  const contentBottom = Array.from(page.querySelectorAll<HTMLElement>(":scope > :not(.report-footer)"))
+    .reduce((bottom, child) => Math.max(bottom, child.getBoundingClientRect().bottom), 0);
   if (contentBottom > footerTop + 1) {
     throw new Error("성적표 내용이 A4 범위를 넘어 PDF를 만들지 않았습니다. 평가명을 줄이거나 요약 1쪽을 이용해 주세요.");
   }
+}
+
+async function isolatePageForCapture(pages: HTMLElement[], targetIndex: number): Promise<void> {
+  pages.forEach((page, index) => {
+    page.style.display = index === targetIndex ? "block" : "none";
+    page.style.marginBottom = "0";
+  });
+  const captureWindow = pages[targetIndex]?.ownerDocument.defaultView;
+  await new Promise<void>((resolve) => {
+    if (!captureWindow) {
+      resolve();
+      return;
+    }
+    captureWindow.requestAnimationFrame(() => resolve());
+  });
 }
 
 export async function downloadStudentScoreReportPdf(params: StudentScoreReportParams): Promise<void> {
@@ -1185,6 +1226,7 @@ async function appendStudentScoreReportPages(
     const pdfHeight = pdf.internal.pageSize.getHeight();
 
     for (let index = 0; index < pageElements.length; index += 1) {
+      await isolatePageForCapture(pageElements, index);
       assertPageContentFits(pageElements[index]);
       const canvas = await html2canvas(pageElements[index], {
         scale: 2,
