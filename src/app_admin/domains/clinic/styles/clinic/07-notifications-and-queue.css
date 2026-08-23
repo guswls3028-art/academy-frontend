@@ -663,87 +663,6 @@
   color: var(--scale-Error700);
 }
 
-.clinic-ops__flow-rail {
-  display: grid;
-  grid-template-columns: repeat(3, auto);
-  align-items: center;
-  gap: 14px;
-  margin-inline: auto;
-  color: var(--color-text-muted);
-  font-size: 11px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.clinic-ops__flow-step {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.clinic-ops__flow-step::before {
-  content: "";
-  width: 7px;
-  height: 7px;
-  border: 2px solid var(--color-border-default);
-  border-radius: 999px;
-  background: var(--color-bg-surface);
-}
-
-.clinic-ops__flow-step:not(:last-child)::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: calc(100% + 4px);
-  width: 7px;
-  height: 1px;
-  background: var(--color-border-default);
-}
-
-.clinic-ops__flow-step--done { color: var(--color-success); }
-.clinic-ops__flow-step--done::before { border-color: var(--color-success); background: var(--color-success); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 12%, transparent); }
-.clinic-ops__flow-rail--late .clinic-ops__flow-step[aria-current="step"] { color: var(--color-warning, #d97706); }
-.clinic-ops__flow-rail--late .clinic-ops__flow-step[aria-current="step"]::before { border-color: var(--color-warning, #d97706); background: var(--color-warning, #d97706); }
-
-.clinic-ops__att-btn--remind { color: #9a6700; background: #fff8c5; }
-.clinic-ops__att-btn--late { color: #9a6700; background: #fff8c5; }
-.clinic-ops__att-btn--checkout { color: #6941c6; background: #f4f3ff; }
-.clinic-ops__att-btn--noshow { color: var(--scale-Error700); background: color-mix(in srgb, var(--color-error) 7%, var(--color-bg-surface)); }
-.clinic-ops__att-btn--attend { color: var(--scale-Success700); background: color-mix(in srgb, var(--color-success) 8%, var(--color-bg-surface)); }
-
-.clinic-reschedule__backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1810;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: color-mix(in srgb, #101522 58%, transparent);
-  backdrop-filter: blur(6px);
-}
-
-.clinic-reschedule__dialog {
-  width: min(520px, 100%);
-  padding: 24px;
-  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 18%, var(--color-border-default));
-  border-radius: 22px;
-  background: var(--color-bg-surface);
-  box-shadow: 0 26px 80px rgb(15 23 42 / 32%);
-}
-
-.clinic-reschedule__dialog header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.clinic-reschedule__dialog header span { color: var(--color-brand-primary); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
-.clinic-reschedule__dialog h2 { margin: 4px 0 6px; font-size: 22px; }
-.clinic-reschedule__dialog p { margin: 0; color: var(--color-text-secondary); font-size: 13px; }
-.clinic-reschedule__dialog header button { display: grid; width: 34px; height: 34px; place-items: center; border: 0; border-radius: 10px; background: transparent; color: var(--color-text-secondary); cursor: pointer; }
-.clinic-reschedule__select { display: grid; gap: 7px; margin-top: 22px; color: var(--color-text-secondary); font-size: 12px; font-weight: 800; }
-.clinic-reschedule__select select { min-height: 46px; border: 1px solid var(--color-border-default); border-radius: 12px; padding: 0 12px; background: var(--color-bg-surface); color: var(--color-text-primary); }
-.clinic-reschedule__choices { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; }
-.clinic-reschedule__choices a { color: var(--color-brand-primary); font-size: 13px; font-weight: 800; text-decoration: none; }
-.clinic-reschedule__choices button { min-height: 42px; padding: 0 18px; border: 0; border-radius: 12px; background: var(--color-brand-primary); color: white; font-weight: 800; cursor: pointer; }
-.clinic-reschedule__choices button:disabled { opacity: .5; cursor: not-allowed; }
-
 /* Detail row: reasons + detail button */
 .clinic-ops__card-detail-row {
   display: flex;
@@ -970,13 +889,6 @@
     flex-wrap: wrap;
   }
 
-  .clinic-ops__flow-rail {
-    width: 100%;
-    justify-content: center;
-    order: 2;
-    margin-block: 4px;
-  }
-
   .clinic-ops__att-btn {
     flex: 1 1 50%;
     justify-content: center;
@@ -1006,8 +918,4 @@
     flex: 1 1 72px;
   }
 
-  .clinic-reschedule__backdrop { align-items: end; padding: 0; }
-  .clinic-reschedule__dialog { box-sizing: border-box; border-radius: 22px 22px 0 0; padding: 20px 18px calc(20px + env(safe-area-inset-bottom)); }
-  .clinic-reschedule__choices { align-items: stretch; flex-direction: column; }
-  .clinic-reschedule__choices a, .clinic-reschedule__choices button { display: grid; width: 100%; min-height: 44px; place-items: center; box-sizing: border-box; }
 }
