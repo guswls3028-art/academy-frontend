@@ -326,12 +326,14 @@ test("유효한 클리닉 링크가 있어도 미응시 시험은 면제만 허�
 test("미제출 과제의 완료 식별자가 누락되거나 0이면 완료 버튼을 숨긴다", async ({ page }) => {
   await seed(page);
   const invalidTargets = [
-    { label: "세션 누락", session_id: undefined, enrollment_id: 911, source_id: 811 },
-    { label: "세션 0", session_id: 0, enrollment_id: 912, source_id: 812 },
-    { label: "수강 누락", session_id: 713, enrollment_id: undefined, source_id: 813 },
-    { label: "수강 0", session_id: 714, enrollment_id: 0, source_id: 814 },
-    { label: "과제 누락", session_id: 715, enrollment_id: 915, source_id: undefined },
-    { label: "과제 0", session_id: 716, enrollment_id: 916, source_id: 0 },
+    { label: "링크 누락", clinic_link_id: undefined, session_id: 711, enrollment_id: 911, source_id: 811 },
+    { label: "링크 0", clinic_link_id: 0, session_id: 712, enrollment_id: 912, source_id: 812 },
+    { label: "세션 누락", clinic_link_id: 893, session_id: undefined, enrollment_id: 913, source_id: 813 },
+    { label: "세션 0", clinic_link_id: 894, session_id: 0, enrollment_id: 914, source_id: 814 },
+    { label: "수강 누락", clinic_link_id: 895, session_id: 715, enrollment_id: undefined, source_id: 815 },
+    { label: "수강 0", clinic_link_id: 896, session_id: 716, enrollment_id: 0, source_id: 816 },
+    { label: "과제 누락", clinic_link_id: 897, session_id: 717, enrollment_id: 917, source_id: undefined },
+    { label: "과제 0", clinic_link_id: 898, session_id: 718, enrollment_id: 918, source_id: 0 },
   ];
 
   await page.route("**/api/v1/**", async (route: Route) => {
@@ -361,7 +363,7 @@ test("미제출 과제의 완료 식별자가 누락되거나 0이면 완료 버
         clinic_reason: "homework",
         homework_score: null,
         homework_cutline: 8,
-        clinic_link_id: 890 + index,
+        clinic_link_id: target.clinic_link_id,
         session_id: target.session_id,
         source_type: "homework",
         source_id: target.source_id,

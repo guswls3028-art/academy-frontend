@@ -427,7 +427,7 @@ test("운영 화면에서 대상 조회 실패를 재시도하고 문자 제출 
   await expect(studentCard).toContainText("자율 학습 참여");
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await studentCard.scrollIntoViewIfNeeded();
+  await expect(studentCard).toBeVisible();
   await expect(studentCard).not.toContainText("과제 미통과");
   expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
 });
