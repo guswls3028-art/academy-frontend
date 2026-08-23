@@ -3,6 +3,7 @@ import {
   isTemplateVisibleInPicker,
   savedTemplatePickerPriority,
 } from "../../src/app_admin/domains/messages/utils/templatePicker";
+import { resolveManualAlimtalkTemplateType } from "../../src/app_admin/domains/messages/constants/alimtalkEnvelope";
 
 const savedWebsiteNotice = {
   category: "default" as const,
@@ -31,5 +32,20 @@ test.describe("저장 알림톡 문구 재사용 계약", () => {
       ...savedWebsiteNotice,
       category: "signup",
     }, "attendance", false)).toBeFalsy();
+  });
+
+  test("성적 화면에서 클리닉 문구를 재사용해도 성적 봉투를 유지한다", () => {
+    expect(resolveManualAlimtalkTemplateType("grades", "clinic", "클리닉 안내 문구"))
+      .toBe("score");
+  });
+
+  test("현재 화면에 봉투가 없을 때만 저장 문구 카테고리를 사용한다", () => {
+    expect(resolveManualAlimtalkTemplateType("default", "clinic", "클리닉 안내 문구"))
+      .toBe("clinic_info");
+  });
+
+  test("고정 결제 문구는 다른 화면의 봉투로 바꾸지 않는다", () => {
+    expect(resolveManualAlimtalkTemplateType("attendance", "payment", "결제 안내"))
+      .toBe("notice_payment");
   });
 });

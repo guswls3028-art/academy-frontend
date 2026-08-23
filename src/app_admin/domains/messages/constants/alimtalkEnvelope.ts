@@ -165,6 +165,19 @@ export function getAlimtalkTemplateTypeFromCategory(
   return templateType ?? null;
 }
 
+export function resolveManualAlimtalkTemplateType(
+  blockCategory?: string,
+  savedTemplateCategory?: string,
+  templateName = "",
+  extraVars?: Record<string, unknown>,
+): AlimtalkTemplateType | null {
+  if (savedTemplateCategory === "payment" || savedTemplateCategory === "signup") {
+    return getAlimtalkTemplateTypeFromCategory(savedTemplateCategory, templateName, extraVars);
+  }
+  return getAlimtalkTemplateTypeFromCategory(blockCategory, templateName, extraVars)
+    ?? getAlimtalkTemplateTypeFromCategory(savedTemplateCategory, templateName, extraVars);
+}
+
 export function getAlimtalkTemplateType(trigger?: string): AlimtalkTemplateType | null {
   if (!trigger) return null;
   return TRIGGER_TO_TEMPLATE_TYPE[trigger] ?? null;

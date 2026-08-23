@@ -65,7 +65,10 @@ import {
   getAlimtalkTemplateTypeFromCategory,
   renderAlimtalkFullPreview,
 } from "./AlimtalkTemplateInfoPanel";
-import { stripInternalAlimtalkMemoToken } from "../constants/alimtalkEnvelope";
+import {
+  resolveManualAlimtalkTemplateType,
+  stripInternalAlimtalkMemoToken,
+} from "../constants/alimtalkEnvelope";
 import { lintAlimtalkTemplateQuality } from "../utils/templateQuality";
 import { useTrackedTask } from "@/shared/productAnalytics";
 import "../styles/templateEditor.css";
@@ -576,10 +579,9 @@ export default function SendMessageModal({
     : selectedTemplate
       ? renderPreviewWithActualData(selectedTemplate.subject || "", alimtalkExtraVars)
       : subject;
-  const activeTemplateCategory =
-    (selectedTemplate?.category as TemplateCategory | undefined) ?? effectiveBlockCategory;
-  const activeAlimtalkType = getAlimtalkTemplateTypeFromCategory(
-    activeTemplateCategory,
+  const activeAlimtalkType = resolveManualAlimtalkTemplateType(
+    effectiveBlockCategory,
+    selectedTemplate?.category,
     selectedTemplate?.name ?? selectedPreset?.name ?? "",
     alimtalkExtraVars,
   );
@@ -1185,9 +1187,9 @@ export default function SendMessageModal({
                 )}
               </div>
               {(() => {
-                const tplCategory = (selectedTemplate?.category as TemplateCategory | undefined) ?? effectiveBlockCategory;
-                const alimtalkType = getAlimtalkTemplateTypeFromCategory(
-                  tplCategory,
+                const alimtalkType = resolveManualAlimtalkTemplateType(
+                  effectiveBlockCategory,
+                  selectedTemplate?.category,
                   selectedTemplate?.name ?? selectedPreset?.name ?? "",
                   alimtalkExtraVars,
                 );
