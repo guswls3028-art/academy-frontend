@@ -230,14 +230,26 @@ test("학생 활동은 대리보기를 기본 제외하고 팝업 토큰은 교�
   await expect(popup.getByText(/지원학생 화면/)).toBeVisible();
   await expect(popup.getByText(/\d{2}:\d{2} 남음/)).toBeVisible();
 
-  const storage = await popup.evaluate(() => ({
-    windowName: window.name,
-    localAccess: localStorage.getItem("access"),
-    supportAccess: sessionStorage.getItem("hplus_student_support_access"),
-  }));
+  const storage = await popup.evaluate(() => {
+    const store = window.localStorage;
+    const activeGeneration = store.getItem("academy:auth-active-generation:v1");
+    const activeRaw = activeGeneration
+      ? store.getItem(`academy:auth-tokens:v1:${activeGeneration}`)
+      : null;
+    const activeEnvelope = activeRaw
+      ? JSON.parse(activeRaw) as { access?: string }
+      : null;
+    return {
+      windowName: window.name,
+      legacyAccess: store.getItem("access"),
+      activeAccess: activeEnvelope?.access ?? null,
+      supportAccess: sessionStorage.getItem("hplus_student_support_access"),
+    };
+  });
   expect(storage).toEqual({
     windowName: "",
-    localAccess: ADMIN_ACCESS,
+    legacyAccess: null,
+    activeAccess: ADMIN_ACCESS,
     supportAccess: SUPPORT_ACCESS,
   });
   await expect.poll(() => evidence.screenRecords.length).toBeGreaterThan(0);
@@ -258,5 +270,14 @@ test("학생 활동은 대리보기를 기본 제외하고 팝업 토큰은 교�
     && item.authorization === `Bearer ${SUPPORT_ACCESS}`
   ))).toBe(true);
   await expect(overlay).toBeVisible();
-  expect(await page.evaluate(() => localStorage.getItem("access"))).toBe(ADMIN_ACCESS);
+  const restoredAdminAccess = await page.evaluate(() => {
+    const store = window.localStorage;
+    const activeGeneration = store.getItem("academy:auth-active-generation:v1");
+    const activeRaw = activeGeneration
+      ? store.getItem(`academy:auth-tokens:v1:${activeGeneration}`)
+      : null;
+    if (!activeRaw) return null;
+    return (JSON.parse(activeRaw) as { access?: string }).access ?? null;
+  });
+  expect(restoredAdminAccess).toBe(ADMIN_ACCESS);
 });

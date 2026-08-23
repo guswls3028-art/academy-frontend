@@ -364,28 +364,33 @@ api.interceptors.request.use(async (config) => {
   // Attach Authorization if access exists (JWT)
   // skipAuth: true → 로그인 전 /core/program/ 등 AllowAny 엔드포인트용 (만료 토큰 시 401 방지)
   if (!shouldSkipAuth(cfg.url, cfg)) {
-    try {
-      const current = readAuthTokenEnvelope();
-      const currentGeneration = current?.generation ?? null;
-      if (
-        retryCfg._authGeneration !== undefined
-        && retryCfg._authGeneration !== currentGeneration
-      ) {
-        throw new axios.CanceledError("Authentication session changed.");
-      }
-      if (retryCfg._authGeneration === undefined) {
-        retryCfg._authGeneration = currentGeneration;
-      }
+    if (isStudentSupportWindow()) {
+      const supportAccess = getStudentSupportAccessToken();
+      if (supportAccess) setRequestHeader(cfg, "Authorization", `Bearer ${supportAccess}`);
+    } else {
+      try {
+        const current = readAuthTokenEnvelope();
+        const currentGeneration = current?.generation ?? null;
+        if (
+          retryCfg._authGeneration !== undefined
+          && retryCfg._authGeneration !== currentGeneration
+        ) {
+          throw new axios.CanceledError("Authentication session changed.");
+        }
+        if (retryCfg._authGeneration === undefined) {
+          retryCfg._authGeneration = currentGeneration;
+        }
 
-      // 선제적 토큰 리프레시: 만료 임박 시 요청 전에 갱신하여 401 방지
-      const auth = await ensureFreshToken();
-      if (auth?.sessionChanged || (auth && auth.generation !== retryCfg._authGeneration)) {
-        throw new axios.CanceledError("Authentication session changed.");
+        // 선제적 토큰 리프레시: 만료 임박 시 요청 전에 갱신하여 401 방지
+        const auth = await ensureFreshToken();
+        if (auth?.sessionChanged || (auth && auth.generation !== retryCfg._authGeneration)) {
+          throw new axios.CanceledError("Authentication session changed.");
+        }
+        if (auth) setRequestHeader(cfg, "Authorization", `Bearer ${auth.access}`);
+      } catch (error) {
+        if (error instanceof AuthTokenStorageError) notifyAuthTokenStorageError(error);
+        throw error;
       }
-      if (auth) setRequestHeader(cfg, "Authorization", `Bearer ${auth.access}`);
-    } catch (error) {
-      if (error instanceof AuthTokenStorageError) notifyAuthTokenStorageError(error);
-      throw error;
     }
   }
 
@@ -585,6 +590,14 @@ api.interceptors.response.use(
     // 네트워크 장애(오프라인/DNS/연결끊김/타임아웃)는 인증 실패가 아니므로
     // 토큰 정리 없이 그대로 throw → 호출 측이 retry/UX 처리.
     if (isNetworkError(err)) {
+      completeAsyncError();
+      throw err;
+    }
+
+    // 대리보기는 관리자 localStorage 세션과 분리된 일회성 access-only 창이다.
+    // 관리자 refresh envelope를 재사용하지 않고 전용 세션만 종료한다.
+    if (status === 401 && isStudentSupportWindow() && !shouldSkipAuth(original.url, original)) {
+      endExpiredSession();
       completeAsyncError();
       throw err;
     }
