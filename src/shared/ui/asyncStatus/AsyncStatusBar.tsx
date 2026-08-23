@@ -17,6 +17,7 @@ import { useWorkbox } from "@/shared/ui/layout/useWorkbox";
 import { Badge, ICON } from "@/shared/ui/ds";
 import { asyncStatusStore, type AsyncTask, type AsyncTaskStatus } from "./asyncStatusStore";
 import { workboxTenantMismatch } from "./workboxTelemetry";
+import StudentImportResultDialog from "./StudentImportResultDialog";
 import {
   invalidateExcelProgressCaches,
   invalidateExcelSuccessCaches,
@@ -216,6 +217,12 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
     const jobType = task.meta.jobType;
     const jobId = task.meta.jobId;
 
+    if (jobType === "excel_parsing" && task.studentImportResult) {
+      workbox?.setWorkboxOpen(false);
+      asyncStatusStore.reopenStudentImportResult(task.id);
+      return;
+    }
+
     if (jobType === "video_processing") {
       setNavigating(true);
       workbox?.setWorkboxOpen(false);
@@ -361,7 +368,9 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
               <span className="async-status-bar__item-running">진행 중</span>
             )}
           </div>
-          {task.error && <div className="async-status-bar__item-error">{task.error}</div>}
+          {task.status === "error" && task.error && (
+            <div className="async-status-bar__item-error">{task.error}</div>
+          )}
         </div>
         <div 
           className="async-status-bar__item-actions"
@@ -711,6 +720,14 @@ export default function AsyncStatusBar({
   });
 
   const errorCount = displayTasks.filter((t) => t.status === "error").length;
+  const resultTask = [...displayTasks]
+    .filter(
+      (task) =>
+        task.status !== "pending"
+        && task.studentImportResult != null
+        && !task.studentImportResult.acknowledged,
+    )
+    .sort((left, right) => right.createdAt - left.createdAt)[0];
 
   const triggerLabel =
     displayTasks.length === 0
@@ -728,32 +745,40 @@ export default function AsyncStatusBar({
   // 항상 우하단에 진행 상황 표시 (작업 없을 때도 접힌 상태로 유지)
   // 앵커 모드: 헤더 버튼으로 열리면 우상단에 패널만 표시
   return (
-    <div
-      className={`async-status-bar ${expanded ? "async-status-bar--expanded" : "async-status-bar--collapsed"} ${errorCount > 0 ? "async-status-bar--has-error" : ""} ${isAnchorMode ? "async-status-bar--anchor" : ""}`}
-      role="region"
-      aria-label="작업박스"
-    >
-      {/* 접었을 때: 작은 알림 창 (앵커 모드에서는 헤더 버튼이 트리거이므로 숨김) */}
-      {!isAnchorMode && (
-      <button
-        type="button"
-        className="async-status-bar__trigger"
-        onClick={() => setExpanded(true)}
-        aria-expanded={expanded}
+    <>
+      <div
+        className={`async-status-bar ${expanded ? "async-status-bar--expanded" : "async-status-bar--collapsed"} ${errorCount > 0 ? "async-status-bar--has-error" : ""} ${isAnchorMode ? "async-status-bar--anchor" : ""}`}
+        role="region"
+        aria-label="작업박스"
       >
-        <svg className="async-status-bar__trigger-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
-        </svg>
-        <span className="async-status-bar__trigger-count">{triggerLabel}</span>
-      </button>
-      )}
+        {/* 접었을 때: 작은 알림 창 (앵커 모드에서는 헤더 버튼이 트리거이므로 숨김) */}
+        {!isAnchorMode && (
+        <button
+          type="button"
+          className="async-status-bar__trigger"
+          onClick={() => setExpanded(true)}
+          aria-expanded={expanded}
+        >
+          <svg className="async-status-bar__trigger-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
+          </svg>
+          <span className="async-status-bar__trigger-count">{triggerLabel}</span>
+        </button>
+        )}
 
-      {/* 펼쳤을 때: 목록 패널 (앵커 모드가 아닐 때만 여기서 렌더, 앵커 모드는 Header 드롭다운에서 렌더) */}
-      {!isAnchorMode && (
-      <div className="async-status-bar__panel">
-        <WorkboxPanelContent onClose={() => setExpanded(false)} />
+        {/* 펼쳤을 때: 목록 패널 (앵커 모드가 아닐 때만 여기서 렌더, 앵커 모드는 Header 드롭다운에서 렌더) */}
+        {!isAnchorMode && (
+        <div className="async-status-bar__panel">
+          <WorkboxPanelContent onClose={() => setExpanded(false)} />
+        </div>
+        )}
       </div>
+      {resultTask?.studentImportResult && (
+        <StudentImportResultDialog
+          result={resultTask.studentImportResult}
+          onClose={() => asyncStatusStore.acknowledgeStudentImportResult(resultTask.id)}
+        />
       )}
-    </div>
+    </>
   );
 }

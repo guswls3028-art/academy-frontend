@@ -1,5 +1,5 @@
 import ExcelJS from "exceljs";
-import type { Page, Route } from "@playwright/test";
+import type { Locator, Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
 import {
@@ -8,6 +8,15 @@ import {
 } from "../helpers/localAuthApiStubs";
 
 const BASE = (process.env.E2E_BASE_URL || "http://127.0.0.1:5173").replace(/\/+$/, "");
+
+async function expectAnimationsSettled(locator: Locator): Promise<void> {
+  await expect.poll(
+    () => locator.evaluate((element) =>
+      element.getAnimations({ subtree: true }).every((animation) => animation.playState === "finished")
+    ),
+    { timeout: 3_000 },
+  ).toBe(true);
+}
 
 function localJwt(): string {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -28,7 +37,10 @@ async function studentWorkbook(allStudentPhonesMissing = false): Promise<Buffer>
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }
 
-async function installStudentPage(page: Page): Promise<void> {
+async function installStudentPage(
+  page: Page,
+  options: { importResult?: Record<string, unknown> } = {},
+): Promise<void> {
   await installLocalAuthApiStubs(page);
   await installTenantOneInitScript(page);
   const token = localJwt();
@@ -57,6 +69,17 @@ async function installStudentPage(page: Page): Promise<void> {
     if (request.method() === "OPTIONS") return route.fulfill({ status: 204, body: "" });
     if (path === "/students/" && request.method() === "GET") {
       return json({ count: 0, page_size: 50, results: [] });
+    }
+    if (path === "/students/bulk_create_from_excel/" && request.method() === "POST") {
+      return json({ job_id: "synthetic-student-import", status: "PENDING" }, 202);
+    }
+    if (path === "/jobs/synthetic-student-import/progress/") {
+      return json({
+        job_id: "synthetic-student-import",
+        job_type: "excel_parsing",
+        status: "DONE",
+        result: options.importResult ?? {},
+      });
     }
     if (path === "/students/custom-fields/") return json([]);
     if (path === "/students/tags/") return json([]);
@@ -140,5 +163,63 @@ test.describe("신규 학생 Excel 등록 확인 화면", () => {
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByText("3명은 현재 비밀번호 방식에서 제외됩니다.")).toBeVisible();
     await expect(dialog.getByRole("button", { name: "0명 등록 요청" })).toBeDisabled();
+  });
+
+  test("완료 뒤 큰 결과창에서 신규·기존·실패 행과 안전한 사유를 보여주고 새로고침 뒤 복구한다", async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await installStudentPage(page, {
+      importResult: {
+        total: 3,
+        created: 1,
+        created_rows: [{ row: 2, name: "합성신규학생", student_id: 101 }],
+        duplicates: [{ row: 3, name: "합성기존학생", student_id: 102 }],
+        restored: [],
+        failed: [{
+          row: 4,
+          name: "합성확인학생",
+          error: "이미 사용 중인 전화번호입니다.",
+          reason_code: "phone_in_use",
+        }],
+      },
+    });
+    await openExcelRegistration(page);
+
+    const uploadDialog = page.getByRole("dialog");
+    await uploadDialog.getByRole("radio", { name: "공통 비밀번호 직접 입력" }).check();
+    await uploadDialog.getByLabel("공통 초기 비밀번호").fill("0982");
+    await uploadDialog.getByRole("button", { name: "3명 등록 요청" }).click();
+
+    let resultDialog = page.getByRole("dialog", { name: "학생 등록 결과" });
+    await expect(resultDialog).toBeVisible({ timeout: 15_000 });
+    await expect(resultDialog.getByText("전체 3명")).toBeVisible();
+    const summary = resultDialog.getByLabel("등록 결과 요약");
+    await expect(summary.getByText("신규 등록", { exact: true }).locator("..")).toContainText("1명");
+    await expect(summary.getByText("이미 등록", { exact: true }).locator("..")).toContainText("1명");
+    await expect(summary.getByText("확인 필요", { exact: true }).locator("..")).toContainText("1명");
+    await expect(resultDialog.getByText("2행")).toBeVisible();
+    await expect(resultDialog.getByText("합성신규학생")).toBeVisible();
+    await expect(resultDialog.getByText("합성기존학생")).toBeVisible();
+    await expect(resultDialog.getByText("합성확인학생")).toBeVisible();
+    await expect(resultDialog.getByText("이미 사용 중인 전화번호입니다.")).toBeVisible();
+    await expectAnimationsSettled(resultDialog);
+    await page.screenshot({ path: testInfo.outputPath("student-import-result-desktop.png") });
+
+    await page.reload({ waitUntil: "commit" });
+    resultDialog = page.getByRole("dialog", { name: "학생 등록 결과" });
+    await expect(resultDialog).toBeVisible({ timeout: 15_000 });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    const overflow = await resultDialog.evaluate((element) => element.scrollWidth - element.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(1);
+    await expectAnimationsSettled(resultDialog);
+    await page.screenshot({ path: testInfo.outputPath("student-import-result-mobile-390.png") });
+
+    await resultDialog.getByRole("button", { name: "확인" }).click();
+    await page.getByRole("button", { name: "작업박스 열기" }).click();
+    await page.getByText(/학생 일괄 등록 — 신규 등록 1명, 이미 등록된 학생 1명, 실패 1명/).click();
+    await expect(page.getByRole("dialog", { name: "학생 등록 결과" })).toBeVisible();
+
+    const redPartialFailure = page.locator(".async-status-bar__item-error");
+    await expect(redPartialFailure).toHaveCount(0);
   });
 });

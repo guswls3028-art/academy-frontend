@@ -12,6 +12,38 @@ const POLL_INTERVAL_MID_MS = 15000;      // 15s up to 10 min
 const POLL_INTERVAL_SLOW_MS = 30000;     // 30s after 10 min
 const BACKOFF_AFTER_MS = 60 * 1000;      // 1 min
 const BACKOFF_MID_AFTER_MS = 10 * 60 * 1000; // 10 min
+const SAFE_STUDENT_IMPORT_REASON_CODES = new Set([
+  "invalid_row",
+  "password_policy",
+  "phone_in_use",
+  "ps_number_in_use",
+  "processing_error",
+]);
+
+function importResultRows(value: unknown): Array<{ row: number | null; name: string }> {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 500).flatMap((item) => {
+    if (item == null || typeof item !== "object" || Array.isArray(item)) return [];
+    const record = item as Record<string, unknown>;
+    if (typeof record.name !== "string") return [];
+    return [{
+      row: typeof record.row === "number" && Number.isFinite(record.row) ? record.row : null,
+      name: record.name.slice(0, 200),
+    }];
+  });
+}
+
+function safeImportFailureReason(record: Record<string, unknown>): string {
+  if (
+    typeof record.reason_code === "string"
+    && SAFE_STUDENT_IMPORT_REASON_CODES.has(record.reason_code)
+    && typeof record.error === "string"
+    && record.error.trim()
+  ) {
+    return record.error.trim().slice(0, 300);
+  }
+  return "입력값을 확인한 뒤 다시 시도해 주세요.";
+}
 
 function pollExcelJob(
   taskId: string,
@@ -93,25 +125,23 @@ function pollExcelJob(
         // 엑셀 등록 결과 상세 표시
         const result = res.data?.result as Record<string, unknown> | undefined;
         const created = Number(result?.created ?? 0);
-        const dupCount = Array.isArray(result?.duplicates) ? result.duplicates.length : 0;
-        const restoredCount = Array.isArray(result?.restored) ? result.restored.length : 0;
+        const total = Number(result?.total ?? 0);
+        const createdRows = importResultRows(result?.created_rows);
+        const duplicateRows = importResultRows(result?.duplicates);
+        const restoredRows = importResultRows(result?.restored);
+        const dupCount = duplicateRows.length;
+        const restoredCount = restoredRows.length;
         const failedRows = Array.isArray(result?.failed)
           ? result.failed.flatMap((item) => {
               if (item == null || typeof item !== "object" || Array.isArray(item)) return [];
               const row = item as Record<string, unknown>;
-              if (typeof row.error !== "string") return [];
               return [{
                 row: typeof row.row === "number" ? row.row : null,
                 name: typeof row.name === "string" ? row.name : "(이름 없음)",
-                error: row.error,
+                reason: safeImportFailureReason(row),
               }];
             })
           : [];
-        const failedDetail = failedRows.length > 0
-          ? `등록 제외: ${failedRows.slice(0, 3).map((failure) =>
-              `${failure.row != null ? `${failure.row}행 ` : ""}${failure.name} — ${failure.error}`
-            ).join(" / ")}${failedRows.length > 3 ? ` 외 ${failedRows.length - 3}건` : ""}`
-          : undefined;
         if (result) {
           const failedCount = failedRows.length;
           const parts: string[] = [];
@@ -121,6 +151,19 @@ function pollExcelJob(
           if (failedCount > 0) parts.push(`실패 ${failedCount}명`);
           const summary = parts.length > 0 ? parts.join(", ") : "완료";
           asyncStatusStore.setTaskLabel(taskId, `학생 일괄 등록 — ${summary}`);
+          const priorAcknowledged = asyncStatusStore
+            .getState()
+            .find((task) => task.id === taskId)
+            ?.studentImportResult?.acknowledged === true;
+          asyncStatusStore.setStudentImportResult(taskId, {
+            total: Number.isFinite(total) && total >= 0 ? Math.floor(total) : 0,
+            createdCount: Number.isFinite(created) && created >= 0 ? Math.floor(created) : 0,
+            createdRows,
+            duplicateRows,
+            restoredRows,
+            failedRows,
+            acknowledged: priorAcknowledged,
+          });
           if (restoredCount > 0) {
             feedback.success(`삭제 대기중인 학생 ${restoredCount}명이 모두 복원되었습니다.`);
           }
@@ -169,7 +212,9 @@ function pollExcelJob(
         asyncStatusStore.completeTask(
           taskId,
           failedRows.length > 0 && !hasHandledRow ? "error" : "success",
-          failedDetail,
+          failedRows.length > 0 && !hasHandledRow
+            ? "등록 가능한 학생이 없습니다. 결과에서 실패 사유를 확인해 주세요."
+            : undefined,
         );
       }
     })
