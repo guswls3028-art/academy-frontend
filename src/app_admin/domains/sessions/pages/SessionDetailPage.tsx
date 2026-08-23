@@ -21,6 +21,7 @@ import { useLectureParams } from "@admin/domains/lectures/hooks/useLectureParams
 import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import RouteFallback from "@/core/router/RouteFallback";
 import { AssessmentEditGuardProvider } from "@/shared/ui/assessment/AssessmentEditGuard";
+import { CommunityScopeProvider } from "@admin/domains/community/context/CommunityScopeContext";
 
 import AssessmentDeleteBar from "../components/AssessmentDeleteBar";
 import SessionAssessmentCreateModals from "../components/SessionAssessmentCreateModals";
@@ -37,12 +38,14 @@ const SessionAttendancePage = lazy(() => import("@admin/domains/lectures/pages/a
 const SessionScoresEntryPage = lazy(() => import("@admin/domains/lectures/pages/scores/SessionScoresEntryPage"));
 const SessionAssessmentWorkspace = lazy(() => import("@admin/domains/sessions/components/SessionAssessmentWorkspace"));
 const SessionClinicTab = lazy(() => import("@admin/domains/sessions/components/SessionClinicTab"));
+const NoticeAdminPage = lazy(() => import("@admin/domains/community/pages/NoticeAdminPage"));
 
 type SessionTab =
   | "attendance"
   | "scores"
   | "exams"
   | "assignments"
+  | "notice"
   | "videos"
   | "clinic";
 
@@ -85,6 +88,7 @@ export default function SessionDetailPage() {
     if (p.includes("/scores")) return "scores";
     if (p.includes("/exams")) return "exams";
     if (p.includes("/assignments")) return "assignments";
+    if (p.includes("/notice")) return "notice";
     if (p.includes("/videos")) return "videos";
     if (p.includes("/clinic")) return "clinic";
     if (p.includes("/attendance")) return "attendance";
@@ -230,6 +234,12 @@ export default function SessionDetailPage() {
                 onScores={() => navigate(`${basePath}/scores`)}
               />
             ))}
+
+          {activeTab === "notice" && (
+            <CommunityScopeProvider>
+              <NoticeAdminPage embedded />
+            </CommunityScopeProvider>
+          )}
 
           {activeTab === "videos" && (
             <SessionVideosTab sessionId={sId} />
