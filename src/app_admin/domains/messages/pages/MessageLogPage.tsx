@@ -40,6 +40,7 @@ import {
 } from "../api/messages.api";
 import { messageQueryKeys } from "../queryKeys";
 import styles from "./MessageLogPage.module.css";
+import previewStyles from "./MessageLogPreview.module.css";
 
 type StatusFilter = "all" | "sent" | "active" | "attention" | "failed";
 
@@ -309,10 +310,10 @@ function LogDetailModal({
       />
       <ModalBody>
         <div className={styles.modalContent}>
-          <div className={styles.detailLayout}>
-            <section className={styles.chatPreview} aria-label="카카오 알림톡 미리보기">
-              <header className={styles.chatPreviewHeader}>
-                <span className={styles.chatPreviewIcon} aria-hidden>
+          <div className={previewStyles.detailLayout}>
+            <section className={previewStyles.chatPreview} aria-label="카카오 알림톡 미리보기">
+              <header className={previewStyles.chatPreviewHeader}>
+                <span className={previewStyles.chatPreviewIcon} aria-hidden>
                   <MessageCircle size={18} fill="currentColor" />
                 </span>
                 <span>
@@ -321,16 +322,16 @@ function LogDetailModal({
                 </span>
                 <Badge tone="info" size="sm">알림톡</Badge>
               </header>
-              <div className={styles.chatRoom}>
-                <span className={styles.chatDate}>{koreanFullDateTimeText(detail.sent_at)}</span>
-                <div className={styles.chatMessageRow}>
-                  <span className={styles.chatAvatar} aria-hidden>
+              <div className={previewStyles.chatRoom}>
+                <span className={previewStyles.chatDate}>{koreanFullDateTimeText(detail.sent_at)}</span>
+                <div className={previewStyles.chatMessageRow}>
+                  <span className={previewStyles.chatAvatar} aria-hidden>
                     <MessageCircle size={17} fill="currentColor" />
                   </span>
-                  <div className={styles.chatMessageColumn}>
-                    <span className={styles.chatSender}>우리 학원 알림톡</span>
-                    <div className={styles.chatBubble}>
-                      <span className={styles.chatTemplate}>알림톡 · {notificationLabel(detail)}</span>
+                  <div className={previewStyles.chatMessageColumn}>
+                    <span className={previewStyles.chatSender}>우리 학원 알림톡</span>
+                    <div className={previewStyles.chatBubble}>
+                      <span className={previewStyles.chatTemplate}>알림톡 · {notificationLabel(detail)}</span>
                       <strong>{notificationLabel(detail)}</strong>
                       {detailQ.isLoading ? (
                         <div className={styles.bodyLoading}>저장된 본문 기록을 확인하고 있습니다.</div>
@@ -343,13 +344,13 @@ function LogDetailModal({
                         <BodyPanel item={detail} />
                       )}
                     </div>
-                    <span className={styles.chatTime}>{koreanDateTimeText(detail.sent_at)}</span>
+                    <span className={previewStyles.chatTime}>{koreanDateTimeText(detail.sent_at)}</span>
                   </div>
                 </div>
               </div>
             </section>
 
-            <aside className={styles.deliveryAudit} aria-label="발송 처리 정보">
+            <aside className={previewStyles.deliveryAudit} aria-label="발송 처리 정보">
               <section className={styles.deliveryHero} data-tone={state.tone}>
                 <span className={styles.deliveryHeroIcon} aria-hidden><StateIcon size={ICON.xl} /></span>
                 <div className={styles.deliveryHeroCopy}>
