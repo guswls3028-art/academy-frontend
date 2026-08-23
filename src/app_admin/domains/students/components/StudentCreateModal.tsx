@@ -759,7 +759,7 @@ export default function StudentCreateModal({
                 setParsedExcel(null);
               }}
               disabled={busy}
-              hintText="안전한 .xlsx 파일"
+              hintText="안전한 .xlsx 파일 · 최대 10MB"
             />
 
             {parsedExcel ? (

@@ -54,7 +54,7 @@ export async function readFirstWorksheetRows(file: File): Promise<unknown[][]> {
     throw new Error("보안상 .xlsx 파일만 지원합니다. 구형 .xls 또는 .csv 파일은 .xlsx로 저장한 뒤 업로드해 주세요.");
   }
   if (file.size > MAX_IMPORT_BYTES) {
-    throw new Error("엑셀 파일은 최대 20MB까지 업로드할 수 있습니다.");
+    throw new Error("엑셀 파일은 최대 10MB까지 업로드할 수 있습니다.");
   }
 
   const source = await file.arrayBuffer();

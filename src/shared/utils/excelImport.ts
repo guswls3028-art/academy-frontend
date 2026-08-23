@@ -7,7 +7,7 @@ const MAX_STRUCTURAL_XML_CHARS = 2 * 1024 * 1024;
 const MAX_APP_XML_CHARS = 512 * 1024;
 const UNSAFE_XML_DECLARATION = /<!DOCTYPE\b|<!ENTITY\b/i;
 
-export const MAX_IMPORT_BYTES = 20 * 1024 * 1024;
+export const MAX_IMPORT_BYTES = 10 * 1024 * 1024;
 
 export async function loadImportWorkbook(source: ArrayBuffer): Promise<ExcelJS.Workbook> {
   let archive: JSZip;

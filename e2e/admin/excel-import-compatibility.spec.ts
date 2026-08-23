@@ -3,7 +3,7 @@ import JSZip from "jszip";
 import { File as NodeFile } from "node:buffer";
 
 import { expect, test } from "../fixtures/strictTest";
-import { loadImportWorkbook } from "../../src/shared/utils/excelImport";
+import { loadImportWorkbook, MAX_IMPORT_BYTES } from "../../src/shared/utils/excelImport";
 import { readFirstWorksheetRows } from "../../src/shared/utils/excelWorkbook";
 
 const WORKBOOK_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml";
@@ -103,19 +103,43 @@ test("표준 OOXML XLSX는 변경 없이 읽는다", async () => {
   expect(workbook.worksheets[0]?.getCell("A2").value).toBe("합성학생");
 });
 
-test("한셀식 확장 속성 접두사와 Hancom MIME으로 저장된 XLSX를 읽는다", async () => {
+test("10MiB 이하 한셀식 확장 속성 접두사와 Hancom MIME XLSX를 읽는다", async () => {
   const source = await createHanCellShapedWorkbook();
   const rawWorkbook = new ExcelJS.Workbook();
   await expect(rawWorkbook.xlsx.load(source)).rejects.toThrow();
-  const file = new NodeFile(
+  const nodeFile = new NodeFile(
     [Buffer.from(source)],
     "synthetic-hancell.xlsx",
     { type: HANCOM_XLSX_MIME },
-  ) as unknown as File;
+  );
+  const file = {
+    name: nodeFile.name,
+    type: nodeFile.type,
+    size: MAX_IMPORT_BYTES,
+    arrayBuffer: () => nodeFile.arrayBuffer(),
+  } as File;
 
   const rows = await readFirstWorksheetRows(file);
 
   expect(rows[1]).toEqual(["합성학생", "01012345678"]);
+});
+
+test("10MiB를 넘는 XLSX는 파일 내용을 읽기 전에 거부한다", async () => {
+  let arrayBufferCalled = false;
+  const file = {
+    name: "oversized-hancell.xlsx",
+    type: HANCOM_XLSX_MIME,
+    size: MAX_IMPORT_BYTES + 1,
+    arrayBuffer: async () => {
+      arrayBufferCalled = true;
+      return createHanCellShapedWorkbook();
+    },
+  } as File;
+
+  await expect(readFirstWorksheetRows(file)).rejects.toThrow(
+    "엑셀 파일은 최대 10MB까지 업로드할 수 있습니다.",
+  );
+  expect(arrayBufferCalled).toBe(false);
 });
 
 test("손상 파일과 XLSX 위장 ZIP은 거부한다", async () => {
