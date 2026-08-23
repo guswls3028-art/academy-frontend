@@ -1,6 +1,6 @@
 // PATH: src/app_admin/domains/videos/components/features/video-detail/components/VideoStudentsSection.tsx
 
-import { FiSettings, FiBarChart2, FiClock } from "react-icons/fi";
+import { FiBarChart2, FiClock } from "react-icons/fi";
 import { KPI, Button } from "@/shared/ui/ds";
 import {
   VIDEO_COMPLETION_PERCENT,
@@ -15,8 +15,8 @@ interface Props {
   onOpenPermission: () => void;
   onOpenAchievement?: () => void;
   onOpenLog?: () => void;
-  selectedEnrollmentId?: number | null;
-  onSelectPreviewStudent?: (enrollmentId: number) => void;
+  openingStudentId?: number | null;
+  onOpenStudentView: (studentId: number) => void;
 }
 
 function percent(v: number) {
@@ -28,8 +28,8 @@ export default function VideoStudentsSection({
   onOpenPermission,
   onOpenAchievement,
   onOpenLog,
-  selectedEnrollmentId,
-  onSelectPreviewStudent,
+  openingStudentId,
+  onOpenStudentView,
 }: Props) {
   const total = students.length;
   const completed = students.filter((s) => isVideoProgressComplete(s.progress, s.completed)).length;
@@ -38,8 +38,7 @@ export default function VideoStudentsSection({
 
   return (
     <div className="space-y-5">
-      {/* 상단 KPI 3개 */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="video-watch-kpis grid grid-cols-3 gap-2 sm:gap-3" aria-label="영상 시청 요약">
         <KPI label="총 학생" value={total > 0 ? `${total}명` : "—"} />
         <KPI label="평균 진도율" value={percent(avgProgress)} />
         <KPI label={`${VIDEO_COMPLETION_PERCENT}% 완료`} value={total > 0 ? `${completed}명` : "—"} />
@@ -47,22 +46,12 @@ export default function VideoStudentsSection({
 
       <StudentWatchPanel
         students={students}
-        selectedEnrollmentId={selectedEnrollmentId ?? null}
-        onSelectPreviewStudent={onSelectPreviewStudent ?? (() => {})}
         onOpenPermission={onOpenPermission}
+        openingStudentId={openingStudentId}
+        onOpenStudentView={onOpenStudentView}
       />
 
-      {/* 하단 3버튼: 권한 설정 / 학습 성적표 / 시청 로그 */}
-      <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[var(--color-border-divider)]">
-        <Button
-          type="button"
-          intent="secondary"
-          size="sm"
-          onClick={onOpenPermission}
-          leftIcon={<FiSettings size={14} />}
-        >
-          권한 설정
-        </Button>
+      <div className="flex flex-wrap items-center gap-2 border-t border-[var(--color-border-divider)] pt-3">
         {typeof onOpenAchievement === "function" && (
           <Button
             type="button"

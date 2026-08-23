@@ -7,15 +7,15 @@ export const styles = {
   },
 
   layout: {
-    root: "grid grid-cols-1 gap-8 lg:grid-cols-[1fr_420px] items-start",
+    root: "grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-8",
     left: "flex flex-col gap-6 min-w-0",
     right: "min-w-0 lg:sticky lg:top-4",
   },
 
   section: {
     wrapper: "bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-divider)] overflow-hidden",
-    header: "px-5 py-4 text-sm font-semibold text-[var(--color-text-primary)] border-b border-[var(--color-border-divider)]",
-    body: "px-5 py-5 space-y-4",
+    header: "m-0 border-b border-[var(--color-border-divider)] px-4 py-3.5 text-sm font-semibold text-[var(--color-text-primary)] sm:px-5 sm:py-4",
+    body: "space-y-4 px-4 py-4 sm:px-5 sm:py-5",
     description: "text-xs text-[var(--color-text-muted)]",
   },
 

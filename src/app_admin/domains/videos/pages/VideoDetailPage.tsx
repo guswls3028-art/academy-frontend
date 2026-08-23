@@ -12,6 +12,8 @@ import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
+import { Button } from "@/shared/ui/ds";
+import { openStudentSupportPreview } from "@/shared/studentSupport/studentSupport.api";
 import {
   VIDEO_COMPLETION_PERCENT,
   isVideoProgressComplete,
@@ -62,7 +64,7 @@ export default function VideoDetailPage() {
 
   const [permissionOpen, setPermissionOpen] = useState(false);
   const [permissionTab, setPermissionTab] = useState<TabKey>("permission");
-  const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<number | null>(null);
+  const [supportOpeningStudentId, setSupportOpeningStudentId] = useState<number | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState("");
@@ -127,7 +129,7 @@ export default function VideoDetailPage() {
     },
   });
 
-  const { data, isLoading } = useQuery<VideoStats>({
+  const { data, isLoading, isError, refetch } = useQuery<VideoStats>({
     queryKey: adminVideoQueryKeys.statsForVideo(videoId),
     queryFn: async () => {
       const res = await api.get(`/media/videos/${videoId}/stats/`);
@@ -137,12 +139,24 @@ export default function VideoDetailPage() {
     retry: 1,
   });
 
-  if (isLoading || !data?.video) {
+  if (isLoading) {
     return (
       <div className="space-y-4 p-4 animate-pulse">
         <div className="video-detail-skeleton video-detail-skeleton--title" />
         <div className="video-detail-skeleton video-detail-skeleton--subtitle" />
         <div className="video-detail-skeleton video-detail-skeleton--player" />
+      </div>
+    );
+  }
+
+  if (isError || !data?.video) {
+    return (
+      <div className="video-detail-load-error" role="alert">
+        <strong>영상 상세를 불러오지 못했습니다</strong>
+        <span>네트워크 상태를 확인한 뒤 다시 시도해 주세요.</span>
+        <Button type="button" intent="primary" size="sm" onClick={() => void refetch()}>
+          다시 시도
+        </Button>
       </div>
     );
   }
@@ -159,6 +173,18 @@ export default function VideoDetailPage() {
   const openModal = (tab: TabKey) => {
     setPermissionTab(tab);
     setPermissionOpen(true);
+  };
+
+  const openStudentView = async (studentId: number) => {
+    if (supportOpeningStudentId != null) return;
+    setSupportOpeningStudentId(studentId);
+    try {
+      await openStudentSupportPreview(studentId);
+    } catch (error) {
+      feedback.error((error as Error)?.message || "학생 화면을 열지 못했습니다.");
+    } finally {
+      setSupportOpeningStudentId(null);
+    }
   };
 
   return (
@@ -351,18 +377,21 @@ export default function VideoDetailPage() {
 
           {/* RIGHT: Student watch status */}
           <div className={styles.layout.right}>
-            <section className={styles.section.wrapper}>
-              <div className={styles.section.header}>학생 시청 현황</div>
+            <section
+              className={styles.section.wrapper}
+              aria-labelledby="video-watch-status-heading"
+            >
+              <h2 id="video-watch-status-heading" className={styles.section.header}>
+                학생 시청 현황
+              </h2>
               <div className={styles.section.body}>
                 <VideoStudentsSection
                   students={students}
                   onOpenPermission={() => openModal("permission")}
                   onOpenAchievement={() => openModal("achievement")}
                   onOpenLog={() => openModal("log")}
-                  selectedEnrollmentId={selectedEnrollmentId}
-                  onSelectPreviewStudent={(id) => {
-                    setSelectedEnrollmentId(id);
-                  }}
+                  openingStudentId={supportOpeningStudentId}
+                  onOpenStudentView={(studentId) => void openStudentView(studentId)}
                 />
               </div>
             </section>
