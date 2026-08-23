@@ -186,3 +186,13 @@ workflow 변경은 YAML parse, 모든 `uses:`의 40자 SHA, secret 이름과 env
 binding, PR safe allowlist, production rollback 경로를 함께 검토한다. 로컬
 `pnpm test:e2e:gate`가 production API를 가리키면 인증 외 mutation이 없어야
 한다.
+
+## 6. backend와 함께 배포되는 사용자 여정
+
+backend와 frontend를 함께 바꾼 제품 작업은 두 저장소를 하나의 Git
+transaction처럼 취급하지 않는다. 각 저장소의 exact SHA와 공식 release run이
+독립적으로 성공한 뒤 backend 소유
+[`change-risk-and-release-bundle.md`](https://github.com/guswls3028-art/academy-backend/blob/main/docs/operations/change-risk-and-release-bundle.md)의
+fail-closed readback으로 pending approval, backend manifest·Dynamo lock,
+frontend 운영 `version.json`을 함께 검증한다. 검증 결과를 별도 mutable queue나
+릴리스 SSOT로 저장하지 않는다.
