@@ -125,14 +125,19 @@ function targetToRow(t: ClinicTarget): UnifiedRow {
   };
 }
 
-function targetRowsByEnrollment(targets: ClinicTarget[]): UnifiedRow[] {
-  const rows = new Map<number, UnifiedRow>();
+function targetRowsByStudent(targets: ClinicTarget[]): UnifiedRow[] {
+  const rows = new Map<string, UnifiedRow>();
 
   for (const target of targets) {
     const next = targetToRow(target);
-    const existing = rows.get(next.id);
+    // 클리닉 예약은 한 세션에 학생 1명당 한 건이다. 학생 ID가 있는 현재
+    // 응답은 수강 ID가 달라도 한 행으로 묶고, 구형 응답만 수강 ID로 격리한다.
+    const rowKey = next.studentId != null && next.studentId > 0
+      ? `student:${next.studentId}`
+      : `enrollment:${next.id}`;
+    const existing = rows.get(rowKey);
     if (!existing) {
-      rows.set(next.id, next);
+      rows.set(rowKey, next);
       continue;
     }
 
@@ -149,6 +154,7 @@ function targetRowsByEnrollment(targets: ClinicTarget[]): UnifiedRow[] {
       }
     }
     existing.clinicHighlight = existing.clinicHighlight || next.clinicHighlight;
+    existing.profilePhotoUrl = existing.profilePhotoUrl || next.profilePhotoUrl;
   }
 
   return Array.from(rows.values());
@@ -219,7 +225,7 @@ export default function ClinicTargetSelectModal({
 
   const allTargetRows: UnifiedRow[] = useMemo(() => {
     const arr = (targetsQ.data ?? []) as ClinicTarget[];
-    const uniqueRows = targetRowsByEnrollment(arr);
+    const uniqueRows = targetRowsByStudent(arr);
     const filtered = debouncedSearch
       ? uniqueRows.filter((row) => row.name.includes(debouncedSearch))
       : uniqueRows;
@@ -522,7 +528,7 @@ export default function ClinicTargetSelectModal({
                   >
                     <colgroup>
                       <col width={TABLE_COL.checkbox} />
-                      <col width={TABLE_COL.nameCompactModal} />
+                      <col width={TABLE_COL.name} />
                       <col width={TABLE_COL.phoneCompact} />
                       <col width={TABLE_COL.phoneCompact} />
                       <col width={TABLE_COL.mediumModal} />
@@ -589,6 +595,7 @@ export default function ClinicTargetSelectModal({
                                       lectures={r.lectures}
                                       chipSize={14}
                                       clinicHighlight={r.clinicHighlight}
+                                      density="compact"
                                     />
                                   </button>
                                 ) : (
@@ -599,6 +606,7 @@ export default function ClinicTargetSelectModal({
                                     lectures={r.lectures}
                                     chipSize={14}
                                     clinicHighlight={r.clinicHighlight}
+                                    density="compact"
                                   />
                                 )}
                               </td>
