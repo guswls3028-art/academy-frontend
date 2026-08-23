@@ -323,11 +323,77 @@ test("유효한 클리닉 링크가 있어도 미응시 시험은 면제만 허�
   await expect(row.getByRole("spinbutton")).toHaveCount(0);
 });
 
+test("미제출 과제의 완료 식별자가 누락되거나 0이면 완료 버튼을 숨긴다", async ({ page }) => {
+  await seed(page);
+  const invalidTargets = [
+    { label: "세션 누락", session_id: undefined, enrollment_id: 911, source_id: 811 },
+    { label: "세션 0", session_id: 0, enrollment_id: 912, source_id: 812 },
+    { label: "수강 누락", session_id: 713, enrollment_id: undefined, source_id: 813 },
+    { label: "수강 0", session_id: 714, enrollment_id: 0, source_id: 814 },
+    { label: "과제 누락", session_id: 715, enrollment_id: 915, source_id: undefined },
+    { label: "과제 0", session_id: 716, enrollment_id: 916, source_id: 0 },
+  ];
+
+  await page.route("**/api/v1/**", async (route: Route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
+    const method = request.method();
+    const json = (body: unknown, status = 200) => route.fulfill({
+      status,
+      contentType: "application/json",
+      body: JSON.stringify(body),
+    });
+
+    if (method === "OPTIONS") return route.fulfill({ status: 204 });
+    if (path === "/core/program/") {
+      return json({ tenantCode: "hakwonplus", display_name: "학원플러스", ui_config: {}, feature_flags: {}, is_active: true });
+    }
+    if (path === "/core/me/") {
+      return json({ id: 12, username: "admin", name: "관리자", is_staff: true, is_superuser: true, tenantRole: "admin", must_change_password: false });
+    }
+    if (path === "/results/admin/clinic-targets/" && method === "GET") {
+      return json(invalidTargets.map((target, index) => ({
+        enrollment_id: target.enrollment_id,
+        student_id: 320 + index,
+        student_name: `식별자 학생 ${index + 1}`,
+        session_title: "8월 식별자 점검",
+        reason: "missing",
+        clinic_reason: "homework",
+        homework_score: null,
+        homework_cutline: 8,
+        clinic_link_id: 890 + index,
+        session_id: target.session_id,
+        source_type: "homework",
+        source_id: target.source_id,
+        source_title: target.label,
+        lecture_title: "중1 수학",
+        max_score: 10,
+        latest_attempt_index: 0,
+        attempt_history: [],
+        created_at: "2026-08-23T15:30:00+09:00",
+      })));
+    }
+    if (path === "/clinic/participants/" && method === "GET") return json({ count: 0, results: [] });
+    if (path === "/lectures/sections/" || path === "/staffs/currently-working/") return json([]);
+    if (path.startsWith("/community/") || path.startsWith("/student/notifications/")) return json({ count: 0, results: [] });
+    return json({ count: 0, results: [] });
+  });
+
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/bookings`, { timeout: 45_000 });
+
+  for (const target of invalidTargets) {
+    const row = page.getByRole("row").filter({ hasText: target.label });
+    await expect(row).toBeVisible();
+    await expect(row.getByRole("button", { name: "제출 확인·완료", exact: true })).toHaveCount(0);
+  }
+});
+
 test("문자 등으로 제출한 미제출 과제를 사유와 함께 완료하고 재조회한다", async ({ page }) => {
   await seed(page);
   const resolutionPayloads: Array<Record<string, unknown>> = [];
   let resolved = false;
   let targetRequests = 0;
+  let participantRequests = 0;
 
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
@@ -386,7 +452,10 @@ test("문자 등으로 제출한 미제출 과제를 사유와 함께 완료하�
         created_at: "2026-08-23T15:30:00+09:00",
       }]);
     }
-    if (path === "/clinic/participants/" && method === "GET") return json({ count: 0, results: [] });
+    if (path === "/clinic/participants/" && method === "GET") {
+      participantRequests += 1;
+      return json({ count: 0, results: [] });
+    }
     if (path === "/lectures/sections/" || path === "/staffs/currently-working/") return json([]);
     if (path.startsWith("/community/") || path.startsWith("/student/notifications/")) return json({ count: 0, results: [] });
     return json({ count: 0, results: [] });
@@ -417,6 +486,7 @@ test("문자 등으로 제출한 미제출 과제를 사유와 함께 완료하�
     note: "문자 제출 확인",
   }]);
   await expect.poll(() => targetRequests).toBeGreaterThan(1);
+  await expect.poll(() => participantRequests).toBeGreaterThan(1);
   await expect(page.getByText("진행중 항목이 없습니다", { exact: true })).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });

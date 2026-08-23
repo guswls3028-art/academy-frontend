@@ -2,6 +2,7 @@ import { useRef, useState, type KeyboardEvent } from "react";
 import { ArrowRight, CheckCircle2, MoreHorizontal, ShieldCheck } from "lucide-react";
 
 import type { ClinicTarget } from "../../api/clinicTargets";
+import { canCompleteManualHomework } from "../../api/completeManualHomework";
 import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -86,7 +87,8 @@ export default function RetakeTableRow({
       <td className="clinic-hub__cell-input">
         {!isResolved && isMissing && item.source_type === "exam" ? (
           <span className="clinic-hub__missing-guidance">응시 기록 또는 면제로 처리</span>
-        ) : !isResolved && item.clinic_link_id ? (
+        ) : !isResolved && item.clinic_link_id &&
+          (!(isMissing && item.source_type === "homework") || canCompleteManualHomework(item)) ? (
           <div className="clinic-hub__score-input-group">
             <input
               ref={inputRef}
@@ -139,7 +141,8 @@ export default function RetakeTableRow({
             <ShieldCheck size={13} />
             면제
           </button>
-        ) : !isResolved && item.clinic_link_id ? (
+        ) : !isResolved && item.clinic_link_id &&
+          (!(isMissing && item.source_type === "homework") || canCompleteManualHomework(item)) ? (
           <div className="clinic-hub__inline-actions">
             <button
               type="button"

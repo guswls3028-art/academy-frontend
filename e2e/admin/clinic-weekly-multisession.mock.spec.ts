@@ -85,6 +85,7 @@ type OperationsState = {
   failTargets?: boolean;
   targetGate?: Promise<void>;
   targetRequests?: number;
+  participantRequests?: number;
   resolutionPayloads?: Array<Record<string, unknown>>;
 };
 
@@ -145,6 +146,9 @@ async function installApi(
     if (path === "/clinic/sessions/" && method === "GET") return json(sessions);
     if (path === "/clinic/sessions/tree/" && method === "GET") return json(sessions);
     if (path === "/clinic/participants/" && method === "GET") {
+      if (operationsState) {
+        operationsState.participantRequests = (operationsState.participantRequests ?? 0) + 1;
+      }
       return json({
         count: operationsState?.participants.length ?? 0,
         results: operationsState?.participants ?? [],
@@ -322,6 +326,20 @@ test("운영 화면에서 대상 조회 실패를 재시도하고 문자 제출 
       status: "attended",
       lecture_title: "중1 수학",
       clinic_reason: "homework",
+    }, {
+      id: 803,
+      session: 701,
+      student: 503,
+      student_name: "식별자누락 학생",
+      enrollment_id: 1004,
+      session_date: saturday,
+      session_title: "토요일 1시 클리닉",
+      session_start_time: "13:00:00",
+      session_end_time: "14:30:00",
+      session_location: "1층 세미나실",
+      status: "attended",
+      lecture_title: "중1 수학",
+      clinic_reason: "homework",
     }],
     targets: [{
       enrollment_id: 1003,
@@ -339,10 +357,27 @@ test("운영 화면에서 대상 조회 실패를 재시도하고 문자 제출 
       source_title: "연산 숙제 12쪽",
       max_score: 10,
       created_at: "2026-08-23T15:30:00+09:00",
+    }, {
+      enrollment_id: 1004,
+      student_id: 503,
+      student_name: "식별자누락 학생",
+      session_title: "중1 수학 4차시",
+      reason: "missing",
+      clinic_reason: "homework",
+      homework_score: null,
+      homework_cutline: 8,
+      clinic_link_id: 9004,
+      session_id: 703,
+      source_type: "homework",
+      source_id: 0,
+      source_title: "식별자 없는 과제",
+      max_score: 10,
+      created_at: "2026-08-23T15:30:00+09:00",
     }],
     failTargets: true,
     targetGate,
     targetRequests: 0,
+    participantRequests: 0,
     resolutionPayloads: [],
   };
 
@@ -365,6 +400,9 @@ test("운영 화면에서 대상 조회 실패를 재시도하고 문자 제출 
 
   const studentCard = page.locator(".clinic-ops__card").filter({ hasText: "현장제출 학생" });
   await expect(studentCard).toContainText("연산 숙제 12쪽");
+  const invalidCard = page.locator(".clinic-ops__card").filter({ hasText: "식별자누락 학생" });
+  await expect(invalidCard).toContainText("식별자 없는 과제");
+  await expect(invalidCard.getByRole("button", { name: "제출 확인·완료", exact: true })).toHaveCount(0);
   await studentCard.getByRole("button", { name: "제출 확인·완료", exact: true }).click();
 
   const dialog = page.getByRole("dialog", { name: "과제 제출 확인·완료" });
@@ -383,6 +421,7 @@ test("운영 화면에서 대상 조회 실패를 재시도하고 문자 제출 
     note: "현장 제출 확인",
   }]);
   await expect.poll(() => state.targetRequests ?? 0).toBeGreaterThan(1);
+  await expect.poll(() => state.participantRequests ?? 0).toBeGreaterThan(1);
   await expect(studentCard.getByRole("button", { name: "제출 확인·완료", exact: true })).toHaveCount(0);
   await expect(studentCard).not.toContainText("과제 미통과");
   await expect(studentCard).toContainText("자율 학습 참여");

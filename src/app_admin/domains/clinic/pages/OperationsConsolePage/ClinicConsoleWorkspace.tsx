@@ -63,7 +63,10 @@ import { buildParticipantPayload } from "../../utils/buildParticipantPayload";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { hhmmText } from "@/shared/ui/time/timeFormat";
 import { clinicQueryKeys } from "../../queryKeys";
-import { patchAssessmentCorrection } from "@/shared/api/contracts/sessionScores";
+import {
+  canCompleteManualHomework,
+  completeManualHomework,
+} from "../../api/completeManualHomework";
 
 dayjs.locale("ko");
 
@@ -664,28 +667,14 @@ export default function ClinicConsoleWorkspace({
 
   async function handleManualHomeworkComplete(target: ClinicTarget, memo: string) {
     const linkId = target.clinic_link_id;
-    if (
-      !linkId ||
-      target.resolved_at ||
-      target.reason !== "missing" ||
-      !target.session_id ||
-      !target.enrollment_id ||
-      !target.source_id ||
-      target.source_type !== "homework"
-    ) {
+    if (!linkId) {
       feedback.error("과제 완료에 필요한 정보가 부족합니다. 목록을 새로고침해 주세요.");
       return;
     }
 
     setRemediatingLinkIds((prev) => new Set(prev).add(linkId));
     try {
-      await patchAssessmentCorrection(target.session_id, {
-        enrollment_id: target.enrollment_id,
-        source_type: "homework",
-        source_id: target.source_id,
-        completed: true,
-        note: memo,
-      });
+      await completeManualHomework(target, memo);
       await Promise.all([
         qc.invalidateQueries({ queryKey: clinicQueryKeys.targets }),
         qc.invalidateQueries({ queryKey: clinicQueryKeys.participants }),
@@ -1481,7 +1470,7 @@ export default function ClinicConsoleWorkspace({
                               >
                                 {retakingIds.has(t.clinic_link_id!) ? "…" : "제출"}
                               </button>
-                              {t.reason === "missing" && t.source_type === "homework" && (
+                              {canCompleteManualHomework(t) && (
                                 <button
                                   type="button"
                                   className="clinic-ops__inline-btn clinic-ops__inline-btn--complete"
@@ -1854,15 +1843,17 @@ export default function ClinicConsoleWorkspace({
                             )}
 
                             {t.reason === "missing" && t.source_type === "homework" ? (
-                              <button
-                                type="button"
-                                className="clinic-ops__remediation-btn clinic-ops__remediation-btn--resolve"
-                                disabled={remediatingLinkIds.has(t.clinic_link_id!)}
-                                onClick={() => setCompleteTarget(t)}
-                              >
-                                <BookOpen size={16} aria-hidden />
-                                제출 확인·완료
-                              </button>
+                              canCompleteManualHomework(t) ? (
+                                <button
+                                  type="button"
+                                  className="clinic-ops__remediation-btn clinic-ops__remediation-btn--resolve"
+                                  disabled={remediatingLinkIds.has(t.clinic_link_id)}
+                                  onClick={() => setCompleteTarget(t)}
+                                >
+                                  <BookOpen size={16} aria-hidden />
+                                  제출 확인·완료
+                                </button>
+                              ) : null
                             ) : !(t.reason === "missing" && t.source_type === "exam") ? (
                               <button
                                 type="button"

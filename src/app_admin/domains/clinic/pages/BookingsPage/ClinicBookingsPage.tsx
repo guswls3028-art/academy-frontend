@@ -52,7 +52,7 @@ import { Button, EmptyState } from "@/shared/ui/ds";
 import RetakeTableRow from "./RetakeTableRow";
 import { formatNextAttempt, formatScoreDisplay } from "./remediationFormatters";
 import ClinicManualHomeworkCompleteDialog from "../../components/ClinicManualHomeworkCompleteDialog";
-import { patchAssessmentCorrection } from "@/shared/api/contracts/sessionScores";
+import { canCompleteManualHomework, completeManualHomework } from "../../api/completeManualHomework";
 
 /* ── Types ── */
 
@@ -305,26 +305,8 @@ function RemediationWorkspace() {
   });
 
   const homeworkCompleteMutation = useMutation({
-    mutationFn: ({ target, memo }: { target: ClinicTarget; memo: string }) => {
-      if (
-        !target.clinic_link_id ||
-        target.resolved_at ||
-        target.reason !== "missing" ||
-        target.source_type !== "homework" ||
-        !target.session_id ||
-        !target.enrollment_id ||
-        !target.source_id
-      ) {
-        throw new Error("homework_completion_target_missing");
-      }
-      return patchAssessmentCorrection(target.session_id, {
-        enrollment_id: target.enrollment_id,
-        source_type: "homework",
-        source_id: target.source_id,
-        completed: true,
-        note: memo,
-      });
-    },
+    mutationFn: ({ target, memo }: { target: ClinicTarget; memo: string }) =>
+      completeManualHomework(target, memo),
     onSuccess: async () => {
       await invalidateAll();
       setCompleteTarget(null);
@@ -617,7 +599,7 @@ function RemediationWorkspace() {
                     onResolve={() => {
                       if (!item.clinic_link_id) return;
                       if (item.reason === "missing" && item.source_type === "homework") {
-                        setCompleteTarget(item);
+                        if (canCompleteManualHomework(item)) setCompleteTarget(item);
                         return;
                       }
                       resolveMutation.mutate({ id: item.clinic_link_id });
@@ -701,7 +683,7 @@ function RemediationWorkspace() {
                           onResolve={() => {
                             if (!item.clinic_link_id) return;
                             if (item.reason === "missing" && item.source_type === "homework") {
-                              setCompleteTarget(item);
+                              if (canCompleteManualHomework(item)) setCompleteTarget(item);
                               return;
                             }
                             resolveMutation.mutate({ id: item.clinic_link_id });
@@ -961,7 +943,8 @@ function RemediationItemRow({
             <ShieldCheck size={14} />
             면제
           </button>
-        ) : !isResolved && item.clinic_link_id && (
+        ) : !isResolved && item.clinic_link_id &&
+          (!(isMissing && item.source_type === "homework") || canCompleteManualHomework(item)) && (
           <>
             <button
               type="button"
