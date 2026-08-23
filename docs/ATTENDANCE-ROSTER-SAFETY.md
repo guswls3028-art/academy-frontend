@@ -12,6 +12,8 @@
 - 수강생 선택·등록: `src/app_admin/domains/lectures/components/SessionEnrollModal.tsx`
 - 출결 목록·전체 현장·되돌리기:
   `src/app_admin/domains/lectures/pages/attendance/SessionAttendancePage.tsx`
+- 차시 전체 탭의 출결 집계:
+  `src/app_admin/domains/sessions/components/SessionAttendanceSummary.tsx`
 - API 계약: `src/shared/api/contracts/attendance.ts`
 - 백엔드 상태·복구 불변조건:
   [`state-transitions.md`](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/state-transitions.md#b19-attendance)
@@ -83,6 +85,14 @@
 
 ## UI와 접근성
 
+- 차시 헤더의 **출결 원장**은 출결·성적·시험·과제·공지·영상 탭을 이동해도
+  유지되며, 해당 차시 전체 명단을 페이지 끝까지 읽은 `총원·상태별 인원`만
+  표시한다. 일부 페이지만 읽힌 경우에는 숫자를 추정하지 않고 다시 불러오기
+  상태로 닫힌다. 출결 변경·수강생 추가 뒤에는 목록과 같은 캐시 무효화 경계를
+  사용해 자동으로 다시 집계한다.
+- 데스크톱 빠른 선택 레일은 `미입력`을 포함한 11개 상태의 버튼과 내부 색상
+  면적을 같은 크기로 맞춘다. 모바일은 한 행에 11개를 억지로 줄이지 않고 기존
+  압축 선택기를 유지한다.
 - 오른쪽 검토 레일은 시작 상태 `미입력`, 선택 인원, 실행취소/다시실행을
   한 묶음으로 보여 준다.
 - 최근 일괄 작업은 단순 토스트가 아니라 닫을 수 있는 인라인 기록으로 남긴다.
@@ -101,7 +111,8 @@ pnpm exec playwright test e2e/admin/session-attendance-bulk-safety.mock.spec.ts 
 pnpm build
 ```
 
-핵심 회귀는 기본 이름 가나다순, 계정별 정렬 저장·새로고침 복원, 선택 불러오기
+핵심 회귀는 탭 간 헤더 집계 유지와 변경 직후 재집계, 빠른 선택 버튼 동일 크기,
+기본 이름 가나다순, 계정별 정렬 저장·새로고침 복원, 선택 불러오기
 무기록, 선택 undo/redo, 일반 Enter 무반응,
 최종 확인 전 무기록, 신규 행 `미입력`, 전체 현장 성공 기록, 정확 복원,
 충돌 시 전체 거부, 1366/1100/390px overflow와 콘솔 오류 0건이다.
