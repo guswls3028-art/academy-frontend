@@ -6,6 +6,7 @@ import {
 } from "@admin/domains/submissions/api/adminHomeworkSubmissions.api";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
+import { QUERY_KEYS } from "../queryKeys";
 import styles from "../panels/HomeworkSubmissionsPanel.module.css";
 
 type Props = {
@@ -17,7 +18,7 @@ type Props = {
 
 export default function HomeworkMediaPreviewModal({ open, homeworkId, file, onClose }: Props) {
   const previewQ = useQuery({
-    queryKey: ["homework-media-preview", homeworkId, file?.id],
+    queryKey: QUERY_KEYS.HOMEWORK_MEDIA_PREVIEW(homeworkId, file?.id),
     queryFn: () => fetchHomeworkMediaPreview(homeworkId, file!.id),
     enabled: open && file != null && file.status === "uploaded" && !file.removed_at,
     staleTime: 8 * 60 * 1000,

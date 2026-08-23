@@ -15,6 +15,7 @@ import { studentToast } from "@student/shared/ui/feedback/studentToast";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { useAuthContext } from "@/auth/context/AuthContext";
 import { useTrackedTask } from "@/shared/productAnalytics";
+import { formatCompactFileSize } from "@/shared/utils/fileSize";
 import styles from "./SubmitAssignmentPage.module.css";
 
 const ACCEPT = ".jpg,.jpeg,.png,.gif,.webp,.heic,.heif,.avif,.mp4,.m4v,.mov,.webm,image/*,video/*";
@@ -52,11 +53,6 @@ function uuid(): string {
 
 function isSupportedSubmissionFile(file: File): boolean {
   return /\.(?:avif|gif|heic|heif|jpe?g|png|webp|m4v|mov|mp4|webm)$/i.test(file.name);
-}
-
-function formatMegabytes(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))}KB`;
-  return `${(bytes / 1024 / 1024).toFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1)}MB`;
 }
 
 function apiErrorMessage(error: unknown, fallback = "제출에 실패했습니다."): string {
@@ -132,7 +128,7 @@ export default function SubmitAssignmentPage() {
   );
 
   const mediaQ = useQuery({
-    queryKey: ["student-homework-media", selected?.id, selected?.enrollmentId],
+    queryKey: studentQueryKeys.homeworkMedia(selected?.id, selected?.enrollmentId),
     queryFn: () => fetchHomeworkMedia(selected!.id, selected!.enrollmentId),
     enabled: selected != null,
     retry: 1,
@@ -242,7 +238,7 @@ export default function SubmitAssignmentPage() {
       const signature = `${file.name}:${file.size}:${file.lastModified}`;
       if (localSignatures.has(signature)) { rejected.push(`${file.name}: 이미 선택됨`); continue; }
       if (!isSupportedSubmissionFile(file)) { rejected.push(`${file.name}: 지원하지 않는 형식`); continue; }
-      if (file.size <= 0 || file.size > limits.max_file_size_bytes) { rejected.push(`${file.name}: 파일당 ${formatMegabytes(limits.max_file_size_bytes)} 초과`); continue; }
+      if (file.size <= 0 || file.size > limits.max_file_size_bytes) { rejected.push(`${file.name}: 파일당 ${formatCompactFileSize(limits.max_file_size_bytes)} 초과`); continue; }
       const persistedRetry = existing.find((serverFile) => (
         serverFile.status === "failed"
         && serverFile.client_file_id != null
@@ -264,7 +260,7 @@ export default function SubmitAssignmentPage() {
         continue;
       }
       if (activeCount >= limits.max_files) { rejected.push(`${file.name}: 최대 ${limits.max_files}개 초과`); continue; }
-      if (totalSize + file.size > limits.max_total_size_bytes) { rejected.push(`${file.name}: 전체 ${formatMegabytes(limits.max_total_size_bytes)} 초과`); continue; }
+      if (totalSize + file.size > limits.max_total_size_bytes) { rejected.push(`${file.name}: 전체 ${formatCompactFileSize(limits.max_total_size_bytes)} 초과`); continue; }
       let position = 0;
       while (occupiedPositions.has(position)) position += 1;
       if (position >= limits.max_files) { rejected.push(`${file.name}: 넣을 수 있는 순서가 없음`); continue; }
@@ -345,7 +341,7 @@ export default function SubmitAssignmentPage() {
         {selected && (
           <div data-guide="submit-file" className={styles.mediaWorkspace}>
             <div className={styles.mediaHeading}>
-              <div><div className={styles.stepLabel}>2. 사진·동영상 준비</div><p>한 번에 최대 {limits.max_files}개 · 파일당 {formatMegabytes(limits.max_file_size_bytes)} · 전체 {formatMegabytes(limits.max_total_size_bytes)}</p></div>
+              <div><div className={styles.stepLabel}>2. 사진·동영상 준비</div><p>한 번에 최대 {limits.max_files}개 · 파일당 {formatCompactFileSize(limits.max_file_size_bytes)} · 전체 {formatCompactFileSize(limits.max_total_size_bytes)}</p></div>
               <span className={styles.fileCount}>{visibleServerFiles.length + pendingFiles.length}/{limits.max_files}</span>
             </div>
             <input ref={fileInputRef} type="file" accept={ACCEPT} multiple onChange={onFileChange} className={styles.hiddenInput} />
@@ -359,7 +355,7 @@ export default function SubmitAssignmentPage() {
                 <div className={styles.persistedList}>{visibleServerFiles.map((file) => (
                   <div className={styles.persistedFile} key={file.id} data-status={file.status}>
                     <span className={styles.persistedIcon}>{file.media_kind === "video" ? <IconVideo /> : <IconImage />}</span>
-                    <span className={styles.persistedInfo}><b>{file.original_filename}</b><small>{formatMegabytes(file.file_size)} · {mediaStatusLabel(file)}</small>{file.error_message && <em>{file.error_message}</em>}</span>
+                    <span className={styles.persistedInfo}><b>{file.original_filename}</b><small>{formatCompactFileSize(file.file_size)} · {mediaStatusLabel(file)}</small>{file.error_message && <em>{file.error_message}</em>}</span>
                     <button type="button" className="stu-btn stu-btn--ghost stu-btn--sm" onClick={() => removeMut.mutate(file)} disabled={uploadMut.isPending || removeMut.isPending}>빼기</button>
                   </div>
                 ))}</div>
@@ -372,7 +368,7 @@ export default function SubmitAssignmentPage() {
                 <div className={styles.pendingGrid}>{pendingFiles.map((item, index) => (
                   <article className={styles.pendingCard} key={item.clientFileId} data-status={item.status}>
                     <div className={styles.previewFrame}><LocalMediaPreview file={item.file} /><span className={styles.orderChip}>{index + 1}</span></div>
-                    <div className={styles.pendingMeta}><b title={item.file.name}>{item.file.name}</b><span>{formatMegabytes(item.file.size)}</span>{item.status === "uploading" && <progress className={styles.progressTrack} aria-label={`${item.file.name} ${item.progress}% 업로드`} max={100} value={item.progress} />}{item.status === "failed" && <em>{item.error || "이 파일을 올리지 못했습니다."}</em>}</div>
+                    <div className={styles.pendingMeta}><b title={item.file.name}>{item.file.name}</b><span>{formatCompactFileSize(item.file.size)}</span>{item.status === "uploading" && <progress className={styles.progressTrack} aria-label={`${item.file.name} ${item.progress}% 업로드`} max={100} value={item.progress} />}{item.status === "failed" && <em>{item.error || "이 파일을 올리지 못했습니다."}</em>}</div>
                     <button type="button" className="stu-btn stu-btn--ghost stu-btn--sm" onClick={() => removePending(item.clientFileId)} disabled={item.status === "uploading" || uploadMut.isPending}>선택 취소</button>
                   </article>
                 ))}</div>
