@@ -101,7 +101,7 @@ export default function DashboardPage() {
     },
     ready: {
       title: "알림톡 발송 가능",
-      description: "자동 안내와 직접 발송을 사용할 수 있습니다. 결과는 발송 내역에서 확인하세요.",
+      description: "공용 알림톡 채널과 직접 발송 봉투가 준비되어 있습니다. 자동 안내별 준비 상태는 메시지 설정에서 확인하세요.",
       badge: "정상",
       tone: "success" as const,
     },

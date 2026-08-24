@@ -243,6 +243,7 @@ test.describe("알림톡 발송 기록 UX", () => {
     await expect(card).toBeVisible({ timeout: 60_000 });
     await expect(card.getByText("카카오 알림톡", { exact: true })).toBeVisible();
     await expect(card.getByText("정상", { exact: true })).toBeVisible();
+    await expect(card.getByText(/자동 안내별 준비 상태는 메시지 설정에서 확인/)).toBeVisible();
     await expect(card.getByRole("button", { name: "발송 내역" })).toBeVisible();
     await expect(card.getByRole("button", { name: "메시지 설정" })).toBeVisible();
     await page.setViewportSize({ width: 390, height: 844 });
