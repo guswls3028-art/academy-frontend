@@ -12,7 +12,7 @@ export type OpsPreviewRow = {
   issues: Array<{ code: string; message: string; blocking: boolean }>; can_confirm: boolean;
 };
 export type AnalyzeResult = { proposal_token: string; rows: OpsPreviewRow[]; lecture_options: LectureOption[]; privacy: string };
-export type ExecutionResult = { execution_id: string; status?: string; idempotent_replay: boolean; provider_receipt_note?: string; rows?: Array<{ row_id: string; account_creation: string; profile_link: { state: string }; enrollment: { correct_active_count: number; wrong_active_removed: boolean }; attendance: { status: string } | null; video_access: Array<{ access_mode: string; monitoring: boolean }>; account_notice: { state: string; provider_evidence?: { accepted_count: number; expected_count: number } } }> };
+export type ExecutionResult = { execution_id: string; status?: string; idempotent_replay: boolean; provider_receipt_note?: string; rows?: Array<{ row_id: string; account_creation: string; profile_link: { state: string }; enrollment: { correct_active_count: number; wrong_active_removed: boolean }; attendance: { status: string } | null; video_access: Array<{ access_mode: string; monitoring: boolean }>; account_notice: { state: string; provider_evidence?: { accepted_count: number; expected_count: number } }; real_playback_canary: { state: string; reason?: string } }> };
 
 export async function analyzeTeacherOps(images: File[], message: string, previous?: string) {
   const form = new FormData();
