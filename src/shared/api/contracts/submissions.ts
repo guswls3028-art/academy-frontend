@@ -58,6 +58,10 @@ export type PendingSubmissionRow = {
   session_id: number | null;
   source: string;
   status: SubmissionStatus;
+  has_file: boolean;
+  file_name?: string | null;
+  file_type?: string | null;
+  file_size?: number | null;
   created_at: string;
   /** 백엔드 신필드 — orphan/결손 row 분기용 */
   target_resolved?: boolean;

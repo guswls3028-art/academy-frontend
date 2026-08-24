@@ -103,7 +103,8 @@ async function installSubmissionApi(page: Page, options: {
           target_resolved_reason: null,
           source: "scan",
           status: "needs_identification",
-          file_key: fileKey,
+          has_file: true,
+          file_name: fileKey.split("/").pop(),
           file_type: options.externalFile === "pdf"
             ? "application/pdf"
             : options.externalFile === "unsupported"
@@ -115,12 +116,8 @@ async function installSubmissionApi(page: Page, options: {
       ]);
       return;
     }
-    if (path === "/storage/inventory/presign/" && request.method() === "POST") {
+    if (path === "/submissions/submissions/501/preview/" && request.method() === "GET") {
       presignCalls += 1;
-      expect(request.postDataJSON()).toEqual({
-        r2_key: fileKey,
-        expires_in: 900,
-      });
       await json(route, { url: `${fileUrl}?review=${presignCalls}` });
       return;
     }

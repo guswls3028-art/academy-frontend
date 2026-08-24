@@ -24,7 +24,8 @@ export type PendingSubmissionRow = {
   discard_reason?: string | null;
   source: string;
   status: SubmissionStatus;
-  file_key?: string | null;
+  has_file: boolean;
+  file_name?: string | null;
   file_type?: string | null;
   file_size?: number | null;
   created_at: string;
@@ -34,4 +35,11 @@ export async function fetchPendingSubmissions(filter?: string): Promise<PendingS
   const params = filter ? { filter } : {};
   const res = await api.get("/submissions/submissions/pending/", { params });
   return Array.isArray(res.data) ? res.data : res.data?.results ?? [];
+}
+
+export async function fetchPendingSubmissionPreview(submissionId: number): Promise<{ url: string }> {
+  const res = await api.get<{ url: string }>(
+    `/submissions/submissions/${submissionId}/preview/`,
+  );
+  return res.data;
 }
