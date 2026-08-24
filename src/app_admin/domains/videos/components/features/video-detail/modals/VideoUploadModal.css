@@ -1,4 +1,4 @@
-/* PATH: VideoUploadModal.css — 영상 추가 모달 전용 (5슬롯 가로·엑셀존 감성·토글·컴팩트) */
+/* PATH: VideoUploadModal.css — 영상 추가 모달 전용 (다건 큐·재생 순서·토글) */
 
 .video-upload-modal__body {
   gap: var(--space-3);
@@ -73,90 +73,256 @@
   line-height: 1.6;
 }
 
-.video-upload-modal__success-icon {
-  color: var(--color-status-success, #10b981);
+.video-upload-modal__file-panel {
+  display: grid;
+  gap: var(--space-3);
 }
 
-.video-upload-modal__muted-icon {
-  color: var(--color-text-secondary);
-}
-
-/* 5개 슬롯 가로 배치 — 직사각형, 엑셀 업로드 존(modal.css .excel-upload-zone)과 동일 감성 */
-.video-upload-modal__slots-label {
-  display: block;
-  margin-bottom: var(--space-2);
-}
-
-.video-upload-modal__slots {
+.video-upload-modal__drop-zone {
+  min-height: 92px;
+  padding: var(--space-3) var(--space-4);
+  border: 1.5px dashed color-mix(in srgb, var(--color-brand-primary) 42%, var(--color-border-divider));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface));
   display: flex;
-  gap: var(--space-2);
-  align-items: stretch;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
 }
 
-.video-upload-modal__slot {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+.video-upload-modal__drop-zone:hover,
+.video-upload-modal__drop-zone:focus-visible,
+.video-upload-modal__drop-zone--active {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 9%, var(--color-bg-surface));
+  outline: none;
 }
 
-/* 슬롯 내 드래그 영역 — 전역 .excel-upload-zone 스타일 적용, 세로 비율 직사각형 */
-.video-upload-modal__zone {
-  min-height: 88px;
-  padding: var(--space-2) var(--space-2);
-  display: flex;
-  flex-direction: column;
+.video-upload-modal__drop-zone--active {
+  transform: translateY(-1px);
+}
+
+.video-upload-modal__drop-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 auto;
+  background: var(--color-brand-primary);
+  color: #fff;
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--color-brand-primary) 22%, transparent);
+}
+
+.video-upload-modal__drop-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
   flex: 1;
+}
+
+.video-upload-modal__drop-copy strong {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.video-upload-modal__drop-copy span {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.video-upload-modal__drop-action {
+  min-width: 74px;
+  padding: 7px 10px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.video-upload-modal__queue-wrap {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.video-upload-modal__queue-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.video-upload-modal__queue-heading > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.video-upload-modal__queue-heading strong {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.video-upload-modal__queue-heading span:not(.video-upload-modal__queue-count) {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.video-upload-modal__queue-count {
+  flex: 0 0 auto;
+  color: var(--color-brand-primary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.video-upload-modal__queue {
+  display: grid;
+  gap: var(--space-2);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.video-upload-modal__queue-item {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 9px 10px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  animation: video-upload-queue-enter 160ms ease-out both;
+  transition: border-color 120ms ease, opacity 120ms ease, transform 120ms ease;
+}
+
+.video-upload-modal__queue-item:focus-within {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-border-divider));
+}
+
+.video-upload-modal__queue-item--dragging {
+  opacity: 0.55;
+  transform: scale(0.99);
+}
+
+.video-upload-modal__queue-index {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+  font-size: 12px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.video-upload-modal__queue-main {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(140px, 0.65fr) minmax(200px, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.video-upload-modal__filename {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.video-upload-modal__filename svg {
+  flex: 0 0 auto;
+}
+
+.video-upload-modal__title-field,
+.video-upload-modal__title-field .ds-input {
+  width: 100%;
   min-width: 0;
 }
 
-.video-upload-modal__zone .excel-upload-zone__filled {
-  padding: var(--space-1) 0;
-}
-.video-upload-modal__zone .excel-upload-zone__filled-filename {
-  font-size: 11px;
-  word-break: break-all;
-  max-height: 2.4em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-.video-upload-modal__zone .excel-upload-zone__head {
-  margin-bottom: 2px;
-}
-.video-upload-modal__zone .excel-upload-zone__title {
-  font-size: 12px;
-}
-.video-upload-modal__zone .excel-upload-zone__drag-label {
-  font-size: 11px;
-  margin-bottom: 2px;
-}
-.video-upload-modal__zone .excel-upload-zone__upload {
-  margin-bottom: 0;
-}
-.video-upload-modal__zone .excel-upload-zone__upload-label {
+.video-upload-modal__title-field .ds-input {
+  height: 34px;
   font-size: 12px;
 }
 
-/* 슬롯 밑 제목 — "제목 - 1" ~ "제목 - 5" */
-.video-upload-modal__slot-title {
-  font-size: 11px;
-  font-weight: 600;
+.video-upload-modal__title-field .ds-input[aria-invalid="true"] {
+  border-color: var(--color-status-danger, #dc2626);
+}
+
+.video-upload-modal__queue-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.video-upload-modal__queue-actions button {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
   color: var(--color-text-muted);
-  text-align: center;
-  word-break: break-all;
-  line-height: 1.25;
-  min-height: 2.5em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  cursor: pointer;
+  transition: background 100ms ease, border-color 100ms ease, color 100ms ease;
+}
+
+.video-upload-modal__queue-actions button:hover:not(:disabled),
+.video-upload-modal__queue-actions button:focus-visible {
+  border-color: var(--color-border-divider);
+  background: var(--color-bg-surface-hover);
+  color: var(--color-text-primary);
+  outline: none;
+}
+
+.video-upload-modal__queue-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.video-upload-modal__queue-actions .video-upload-modal__grip {
+  cursor: grab;
+}
+
+.video-upload-modal__queue-actions .video-upload-modal__grip:active {
+  cursor: grabbing;
+}
+
+.video-upload-modal__queue-actions .video-upload-modal__remove:hover:not(:disabled),
+.video-upload-modal__queue-actions .video-upload-modal__remove:focus-visible {
+  color: var(--color-status-danger, #b91c1c);
+}
+
+@keyframes video-upload-queue-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* 라벨 없이 인풋만 — placeholder/영역 안 문구로 구분 */
@@ -399,7 +565,47 @@
     grid-template-columns: 1fr;
   }
 
+  .video-upload-modal__drop-zone {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .video-upload-modal__drop-copy {
+    flex-basis: calc(100% - 56px);
+  }
+
+  .video-upload-modal__drop-action {
+    width: 100%;
+  }
+
+  .video-upload-modal__queue-heading {
+    align-items: flex-start;
+  }
+
+  .video-upload-modal__queue-item {
+    grid-template-columns: 32px minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .video-upload-modal__queue-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .video-upload-modal__queue-actions {
+    grid-column: 2;
+    justify-self: end;
+  }
+
   .video-upload-modal__youtube-preview {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .video-upload-modal__drop-zone,
+  .video-upload-modal__queue-item,
+  .video-upload-modal__queue-actions button {
+    animation: none;
+    transition: none;
   }
 }
