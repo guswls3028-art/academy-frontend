@@ -1,11 +1,26 @@
 import { expect, test } from "../fixtures/strictTest";
-import type { Page, Route } from "@playwright/test";
+import ExcelJS from "exceljs";
+import type { Download, Page, Route } from "@playwright/test";
 import {
   installLocalAuthApiStubs,
   installTenantOneInitScript,
 } from "../helpers/localAuthApiStubs";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
+
+async function staffWorkbookRows(download: Download): Promise<string[][]> {
+  const path = await download.path();
+  if (!path) throw new Error("다운로드한 직원 목록의 로컬 경로를 확인할 수 없습니다.");
+
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(path);
+  const worksheet = workbook.getWorksheet("직원목록") ?? workbook.worksheets[0];
+  if (!worksheet) throw new Error("직원 목록에 워크시트가 없습니다.");
+
+  return worksheet.getSheetValues().slice(1).map((row) =>
+    (Array.isArray(row) ? row.slice(1) : []).map((value) => String(value ?? "")),
+  );
+}
 
 function localJwt(): string {
   const encode = (value: unknown) =>
@@ -419,6 +434,14 @@ test.describe("직원 운영 계약", () => {
     await expect(directorRow.getByText("ON", { exact: true })).toBeVisible();
     await expect(directorRow.getByRole("button", { name: /권한/ })).toHaveCount(0);
 
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: "직원 목록 엑셀" }).click();
+    const workbookRows = await staffWorkbookRows(await downloadPromise);
+    const headers = workbookRows[0];
+    const directorExport = workbookRows.find((row) => row[headers.indexOf("이름")] === "박철");
+    expect(directorExport?.[headers.indexOf("직위")]).toBe("실장");
+    expect(directorExport?.[headers.indexOf("직원관리권한")]).toBe("ON");
+
     await directorRow.getByText("박철", { exact: true }).click();
     const detail = page.getByTestId("staff-detail-overlay");
     await expect(detail.locator("dl").getByText("직위", { exact: true }).locator("..")).toContainText("실장");
@@ -532,7 +555,9 @@ test.describe("직원 운영 계약", () => {
     await expect(staffRow).toBeVisible();
     await expect(staffDetail.getByLabel("재직 상태: 재직")).toBeVisible();
     await expect(staffDetail.getByRole("button", { name: "정보 수정" })).toBeVisible();
-    await expect(staffDetail.getByRole("button", { name: "직원관리 권한 없음, 권한 부여" })).toBeVisible();
+    const managerToggle = staffDetail.getByRole("button", { name: "직원관리 권한 없음, 권한 부여" });
+    await expect(managerToggle).toBeVisible();
+    await expect(managerToggle).toHaveAttribute("title", "눌러서 직원관리 권한 부여");
     const summaryTab = staffDetail.getByRole("tab", { name: "요약", exact: true });
     const workTypeTab = staffDetail.getByRole("tab", { name: "시급·근무유형", exact: true });
     await expect(summaryTab).toHaveAttribute("aria-selected", "true");

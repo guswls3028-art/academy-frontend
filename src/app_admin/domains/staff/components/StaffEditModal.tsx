@@ -230,7 +230,7 @@ export default function StaffEditModal({
               {form.is_active ? "재직" : "퇴사"}
             </Badge>
             <p className="staff-helper">
-              퇴사 처리하면 로그인과 관리자 권한이 중지되며 기존 근무·비용·급여 이력은 보존됩니다.
+              퇴사 처리하면 로그인이 중지되고 직원관리 권한을 잃습니다. 기존 근무·비용·급여 이력은 보존됩니다.
             </p>
           </div>
         </div>

@@ -3,8 +3,8 @@
 
 import { downloadArrayWorksheet } from "@/shared/utils/excelWorkbook";
 import type { Staff } from "../api/staff.api";
+import { staffPositionLabel } from "../utils/staffIdentity";
 
-const ROLE_LABEL: Record<string, string> = { TEACHER: "강사", ASSISTANT: "조교" };
 const PAY_TYPE_LABEL: Record<string, string> = {
   HOURLY: "시급",
   MONTHLY: "월급(수동 확인)",
@@ -28,11 +28,11 @@ export function downloadStaffExcel(
   const data = [
     headers,
     ...rows.map((r) => [
-      ROLE_LABEL[r.role] ?? r.role,
+      staffPositionLabel(r.position, r.role),
       r.name ?? "",
       r.phone ?? "",
       r.is_active ? "재직" : "퇴사",
-      r.is_manager ? "ON" : "OFF",
+      (r.can_manage_staff ?? r.is_manager) ? "ON" : "OFF",
       PAY_TYPE_LABEL[r.pay_type] ?? r.pay_type,
       (r.staff_work_types ?? [])
         .map((swt) => swt.work_type?.name ?? "")

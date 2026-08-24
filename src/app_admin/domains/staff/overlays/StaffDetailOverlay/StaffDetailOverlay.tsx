@@ -91,7 +91,7 @@ function StaffManagerToggle({
         if (ok) mutation.mutate({ is_manager: nextManager });
       }}
       aria-label={isManager ? "직원관리 권한 있음, 권한 회수" : "직원관리 권한 없음, 권한 부여"}
-      title={isManager ? "눌러서 관리자 권한 해제" : "눌러서 관리자 권한 부여"}
+      title={isManager ? "눌러서 직원관리 권한 회수" : "눌러서 직원관리 권한 부여"}
     >
       <span className={styles.managerDot} aria-hidden />
       {mutation.isPending ? "변경 중" : isManager ? "권한 있음" : "권한 없음"}
