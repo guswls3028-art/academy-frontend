@@ -23,7 +23,8 @@
 import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, EmptyState, Tabs, Badge } from "@/shared/ui/ds";
+import { FileSearch } from "lucide-react";
+import { Button, EmptyState, Tabs, Badge, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { submissionsQueryKeys } from "@/shared/api/queryKeys/submissions";
@@ -51,6 +52,11 @@ import {
   type PendingSubmissionRow,
 } from "../api/adminPendingSubmissions";
 import DiscardReasonModal from "../components/DiscardReasonModal";
+import SubmissionPreviewModal, {
+  submissionFileKind,
+  submissionFileName,
+  submissionFileSize,
+} from "../components/SubmissionPreviewModal";
 import type { SubmissionStatus } from "../types";
 
 /* ─── Filter tabs ─── */
@@ -150,6 +156,7 @@ export default function SubmissionsInboxPage() {
   const [failedSub, setFailedSub] = useState<FailedSubFilter>("all");
 
   const [pickerRow, setPickerRow] = useState<PendingSubmissionRow | null>(null);
+  const [previewRow, setPreviewRow] = useState<PendingSubmissionRow | null>(null);
   const lastPickedEnrollmentRef = useRef<number | null>(null);
 
   // 일괄 선택 — id Set
@@ -555,6 +562,7 @@ export default function SubmissionsInboxPage() {
                   (identifyMut.isPending && pickerRow?.id === r.id)
                 }
                 onToggleSelect={() => toggleSelect(r.id)}
+                onPreview={() => setPreviewRow(r)}
                 onNavigate={() => handleNavigate(r)}
                 onIdentify={() => handleStartIdentify(r)}
                 onRetry={() => retryMut.mutate(r.id)}
@@ -564,6 +572,18 @@ export default function SubmissionsInboxPage() {
           </div>
         </div>
       )}
+
+      {/* 제출물 확인 후 학생 지정 */}
+      <SubmissionPreviewModal
+        open={!!previewRow}
+        row={previewRow}
+        onClose={() => setPreviewRow(null)}
+        onIdentify={() => {
+          const row = previewRow;
+          setPreviewRow(null);
+          if (row) handleStartIdentify(row);
+        }}
+      />
 
       {/* 학생 지정 모달 */}
       {pickerRow && pickerFetcher && (
@@ -596,6 +616,7 @@ function SubmissionRow({
   selectable,
   busy,
   onToggleSelect,
+  onPreview,
   onNavigate,
   onIdentify,
   onRetry,
@@ -606,6 +627,7 @@ function SubmissionRow({
   selectable: boolean;
   busy: boolean;
   onToggleSelect: () => void;
+  onPreview: () => void;
   onNavigate: () => void;
   onIdentify: () => void;
   onRetry: () => void;
@@ -628,6 +650,11 @@ function SubmissionRow({
   const isDone = row.status === "done";
   const isAnswersReady = row.status === "answers_ready";
   const isSuperseded = row.status === "superseded";
+  const hasFile = !!row.file_key;
+  const fileName = submissionFileName(row.file_key);
+  const fileMeta = hasFile
+    ? `${submissionFileKind(row.file_type, row.file_key)} · ${submissionFileSize(row.file_size)}`
+    : "파일 정보 없음";
 
   // exam/homework 양쪽 picker 지원 — target_id 만 있으면 inline 매칭 가능
   const canIdentifyInline = !!row.target_id;
@@ -674,17 +701,28 @@ function SubmissionRow({
         {isExam ? "시" : "과"}
       </span>
 
-      <span
-        className="text-sm truncate min-w-0 flex-[1_1_150px] max-w-full sm:max-w-[260px]"
-        // eslint-disable-next-line no-restricted-syntax
-        style={{
-          color: resolved ? "var(--color-text-primary)" : "var(--color-text-muted)",
-          fontStyle: resolved ? undefined : "italic",
-        }}
-        title={resolved ? row.target_title : orphanReason}
-      >
-        {targetTitleDisplay}
-      </span>
+      <div className="min-w-0 flex-[1_1_190px] max-w-full sm:max-w-[320px]">
+        <p
+          className="truncate text-sm"
+          // eslint-disable-next-line no-restricted-syntax
+          style={{
+            color: resolved ? "var(--color-text-primary)" : "var(--color-text-muted)",
+            fontStyle: resolved ? undefined : "italic",
+          }}
+          title={resolved ? row.target_title : orphanReason}
+        >
+          {targetTitleDisplay}
+        </p>
+        <p
+          className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-[var(--color-text-muted)]"
+          data-testid={`submission-file-meta-${row.id}`}
+          title={hasFile ? `${fileName} · ${fileMeta}` : fileMeta}
+        >
+          <FileSearch size={ICON_FOR_BUTTON.sm} className="shrink-0" aria-hidden />
+          <span className="truncate">{hasFile ? fileName : fileMeta}</span>
+          {hasFile && <span className="shrink-0">· {fileMeta}</span>}
+        </p>
+      </div>
 
       <span className="hidden flex-1 sm:block" />
 
@@ -697,7 +735,21 @@ function SubmissionRow({
       </span>
 
       <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5 flex-shrink-0">
-        {isNeedsId && resolved && canIdentifyInline && (
+        {hasFile && (
+          <Button
+            type="button"
+            intent={isNeedsId ? "primary" : "secondary"}
+            size="sm"
+            disabled={busy}
+            onClick={onPreview}
+            leftIcon={<FileSearch size={ICON_FOR_BUTTON.sm} />}
+            className="shrink-0"
+            data-testid={`submission-preview-${row.id}`}
+          >
+            제출물 확인
+          </Button>
+        )}
+        {isNeedsId && resolved && canIdentifyInline && !hasFile && (
           <Button type="button" intent="primary" size="sm" disabled={busy} onClick={onIdentify} className="shrink-0">
             학생 지정
           </Button>

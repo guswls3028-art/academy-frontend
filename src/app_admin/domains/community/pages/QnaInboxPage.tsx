@@ -15,16 +15,20 @@ import {
   fetchPost,
   deletePost,
   fetchPostAuthorContext,
+  type PostAttachment,
   type Question,
 } from "../api/community.api";
-import { Button, EmptyState } from "@/shared/ui/ds";
+import { ExternalLink, RotateCcw, RotateCw, ZoomIn, ZoomOut } from "lucide-react";
+import { Button, EmptyState, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useOperationalNotificationCounts } from "@/shared/hooks/useOperationalNotificationCounts";
+import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
+import type { OperationalNotificationCountsResult } from "@/shared/api/contracts/notifications";
 import PostReadView from "../components/PostReadView";
 import PostThreadView from "../components/PostThreadView";
 import PostHistoryTimeline from "../components/PostHistoryTimeline";
 import CommunityEmptyState from "../components/CommunityEmptyState";
-import CommunityAvatar from "../components/CommunityAvatar";
 import QnaMatchupResults from "../components/QnaMatchupResults";
 import { adminCommunityQueryKeys } from "../queryKeys";
 import {
@@ -60,6 +64,7 @@ export default function QnaInboxPage() {
   const [filter, setFilter] = useState<FilterKind>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
+  const operationalNotifications = useOperationalNotificationCounts();
 
   const {
     data: questions = [],
@@ -88,7 +93,8 @@ export default function QnaInboxPage() {
     return list;
   }, [questions, filter, searchQuery]);
 
-  const pendingCount = useMemo(() => questions.filter((q) => !q.is_answered).length, [questions]);
+  const pendingCount = operationalNotifications.counts.qnaPending;
+  const answeredCount = useMemo(() => questions.filter((q) => q.is_answered).length, [questions]);
 
   const setSelectedId = useCallback(
     (id: number | null) => {
@@ -128,7 +134,7 @@ export default function QnaInboxPage() {
   }, [filtered, selectedId, isLoading, setSelectedId]);
 
   return (
-    <div className="qna-inbox qna-inbox--viewport">
+    <div className={`qna-inbox qna-inbox--viewport${selectedId != null ? " qna-inbox--has-selection" : ""}`}>
       <aside className="qna-inbox__list" ref={listRef}>
         <div className="qna-inbox__list-header">
           <h2 className="qna-inbox__list-title">질의응답</h2>
@@ -155,7 +161,7 @@ export default function QnaInboxPage() {
               onClick={() => setFilter("resolved")}
             >
               <span>답변 완료</span>
-              <span className="qna-inbox__filter-badge">{questions.length - pendingCount}</span>
+              <span className="qna-inbox__filter-badge">{answeredCount}</span>
             </button>
           </div>
           <div className="qna-inbox__search">
@@ -287,6 +293,8 @@ function ThreadView({
   const qc = useQueryClient();
   const confirm = useConfirm();
   const composerRef = useRef<HTMLDivElement>(null);
+  const answeredOptimisticallyRef = useRef<number | null>(null);
+  const [mobilePane, setMobilePane] = useState<"reference" | "answer">("reference");
   const {
     data: post,
     isLoading,
@@ -329,6 +337,36 @@ function ThreadView({
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 15);
   }, [post?.id, post?.created_by, questions]);
+
+  useEffect(() => {
+    setMobilePane("reference");
+    answeredOptimisticallyRef.current = null;
+  }, [postId]);
+
+  const markQuestionAnswered = useCallback(() => {
+    if ((post?.replies_count ?? 0) > 0 || answeredOptimisticallyRef.current === postId) return;
+    answeredOptimisticallyRef.current = postId;
+
+    qc.setQueriesData<Question[]>({ queryKey: adminCommunityQueryKeys.questions }, (current) => (
+      current?.map((question) => (
+        question.id === postId ? { ...question, is_answered: true } : question
+      ))
+    ));
+    qc.setQueriesData<OperationalNotificationCountsResult>(
+      { queryKey: notificationQueryKeys.operationalCounts },
+      (current) => {
+        if (!current || current.counts.qnaPending <= 0) return current;
+        return {
+          ...current,
+          counts: {
+            ...current.counts,
+            qnaPending: current.counts.qnaPending - 1,
+            total: Math.max(0, current.counts.total - 1),
+          },
+        };
+      },
+    );
+  }, [post?.replies_count, postId, qc]);
 
   const deletePostMut = useMutation({
     mutationFn: () => deletePost(postId),
@@ -381,6 +419,25 @@ function ThreadView({
   const mappedLectureLabel = post.mappings?.[0]?.node_detail?.lecture_title ?? "";
   const contextLectures = toLectureChips(studentDetail?.enrollments);
   const studentLectures = contextLectures?.length ? contextLectures : lectureInfosFromTitle(mappedLectureLabel);
+  const imageAttachments = (post.attachments ?? []).filter(
+    (attachment): attachment is PostAttachment & { download_url: string } => (
+      (attachment.content_type || "").startsWith("image/") && Boolean(attachment.download_url)
+    ),
+  );
+  const matchupResults = Array.isArray(post.meta?.matchup_results)
+    ? post.meta.matchup_results as MatchupResultItem[]
+    : [];
+  const matchupPending = imageAttachments.length > 0
+    && matchupResults.length === 0
+    && Date.now() - new Date(post.created_at).getTime() < 5 * 60 * 1000;
+
+  const focusComposer = () => {
+    setMobilePane("answer");
+    window.setTimeout(() => {
+      const editor = composerRef.current?.querySelector<HTMLElement>(".ProseMirror");
+      editor?.focus();
+    }, 120);
+  };
 
   return (
     <>
@@ -429,13 +486,7 @@ function ThreadView({
               <Button
                 intent="primary"
                 size="sm"
-                onClick={() => {
-                  composerRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-                  setTimeout(() => {
-                    const editor = composerRef.current?.querySelector<HTMLElement>(".ProseMirror");
-                    editor?.focus();
-                  }, 400);
-                }}
+                onClick={focusComposer}
               >
                 답변하기
               </Button>
@@ -480,116 +531,179 @@ function ThreadView({
         )}
       </div>
 
-      <div className="qna-inbox__thread-body">
-        {/* Student question */}
-        <div className="qna-inbox__message-row">
-          <CommunityAvatar name={studentName} role="student" />
-          <div className="qna-inbox__message-bubble">
-            <div className="qna-inbox__message-meta">
-              <StudentNameWithLectureChip
-                name={studentName}
-                chipSize={16}
-                maxLectureChips={1}
-                lectures={studentLectures}
-              />
-              <span className="qna-inbox__message-badge">학생</span>
-              <span className="qna-inbox__message-date">
-                {new Date(post.created_at).toLocaleString("ko-KR", {
-                  month: "long",
-                  day: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
-            </div>
-            <div className="qna-inbox__message-body"><PostReadView html={post.content} /></div>
-
-            {/* 첨부 이미지 즉시 노출 — AI 매치업 분석 PENDING 과 무관하게 학원장이
-                바로 답변할 수 있게 한다. 2026-05-30 박철과학 학원장 신고 반영. */}
-            {(() => {
-              const images = (post.attachments ?? []).filter(
-                (a) => (a.content_type || "").startsWith("image/") && a.download_url,
-              );
-              if (images.length === 0) return null;
-              return (
-                <div className="qna-inbox__attachments">
-                  {images.map((att) => (
-                    <a
-                      key={att.id}
-                      href={att.download_url ?? "#"}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="qna-inbox__attachment-link"
-                      title={att.original_name}
-                    >
-                      <img
-                        src={att.download_url ?? ""}
-                        alt={att.original_name}
-                        className="qna-inbox__attachment-image"
-                        loading="lazy"
-                      />
-                    </a>
-                  ))}
-                </div>
-              );
-            })()}
-
-            {/* AI 매치업 결과 (선생님 전용) */}
-            {(() => {
-              const mr = post.meta?.matchup_results;
-              const hasImage = (post.attachments ?? []).some((a) => (a.content_type || "").startsWith("image/"));
-              if (Array.isArray(mr) && mr.length > 0) {
-                return <QnaMatchupResults results={mr as MatchupResultItem[]} />;
-              }
-              // 이미지 첨부가 있고 5분 이내인데 결과가 아직 없으면 진행 중 표시
-              const createdAt = post.created_at ? new Date(post.created_at).getTime() : 0;
-              const isPolling = hasImage && Date.now() - createdAt < 5 * 60 * 1000;
-              if (isPolling) {
-                return (
-                  <div className="qna-matchup-results__pending">
-                    <span className="qna-matchup-results__pending-dot" aria-hidden />
-                    AI 매치업 분석 중… (이미지 첨부 자동 탐색)
-                  </div>
-                );
-              }
-              return null;
-            })()}
-          </div>
-        </div>
-
-        <div className="qna-inbox__thread-sep">
-          <span className="qna-inbox__thread-sep-label">
-            {(post.replies_count ?? 0) > 0 ? "선생님 답변" : "아직 답변이 없습니다"}
-          </span>
-        </div>
-
-        {(post.replies_count ?? 0) === 0 && (
-          <div className="qna-inbox__answer-cta">
-            <p>아래 입력란에서 답변을 작성해 주세요.</p>
-          </div>
-        )}
-
-        <PostHistoryTimeline
-          label="이전 질문"
-          history={questionHistory.map((q) => ({
-            id: q.id,
-            title: q.title,
-            created_at: q.created_at,
-            is_answered: !!q.is_answered,
-          }))}
-          onSelect={onSelectQuestion}
-        />
+      <div className="qna-inbox__mobile-workbench-tabs" role="tablist" aria-label="질문 답변 작업 영역">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mobilePane === "reference"}
+          className={mobilePane === "reference" ? "is-active" : ""}
+          onClick={() => setMobilePane("reference")}
+        >
+          질문 자료
+          {imageAttachments.length > 0 && <span>{imageAttachments.length}</span>}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mobilePane === "answer"}
+          className={mobilePane === "answer" ? "is-active" : ""}
+          onClick={() => setMobilePane("answer")}
+        >
+          답변 작성
+        </button>
       </div>
 
-      <div ref={composerRef}>
-        <PostThreadView
-          postId={postId}
-          mode="answer"
-          allowReply={!post.created_by_deleted}
-          invalidateKeys={[["community-questions"], ["admin", "notification-counts"]]}
-          placeholder="학생에게 답변을 작성하세요…"
-        />
+      <div className="qna-inbox__workbench">
+        <section
+          className={`qna-inbox__reference-pane${mobilePane === "reference" ? " is-mobile-active" : ""}`}
+          aria-label="학생 질문 자료"
+        >
+          <div className="qna-inbox__pane-heading">
+            <div>
+              <span className="qna-inbox__pane-eyebrow">QUESTION</span>
+              <h2>질문 자료</h2>
+            </div>
+            <span className="qna-inbox__pane-caption">
+              {imageAttachments.length > 0 ? `첨부 이미지 ${imageAttachments.length}장` : "텍스트 질문"}
+            </span>
+          </div>
+          <div className="qna-inbox__reference-scroll">
+            <div className="qna-inbox__question-copy">
+              <PostReadView html={post.content} />
+            </div>
+
+            {imageAttachments.length > 0 ? (
+              <QnaAttachmentViewer attachments={imageAttachments} />
+            ) : (
+              <div className="qna-inbox__attachment-empty">
+                첨부된 문제 사진이 없습니다. 위 질문 내용을 확인해 주세요.
+              </div>
+            )}
+
+            {matchupResults.length > 0 && <QnaMatchupResults results={matchupResults} />}
+            {matchupPending && (
+              <div className="qna-matchup-results__pending">
+                <span className="qna-matchup-results__pending-dot" aria-hidden />
+                AI 매치업 분석 중… (이미지 첨부 자동 탐색)
+              </div>
+            )}
+
+            <PostHistoryTimeline
+              label="이전 질문"
+              history={questionHistory.map((question) => ({
+                id: question.id,
+                title: question.title,
+                created_at: question.created_at,
+                is_answered: !!question.is_answered,
+              }))}
+              onSelect={onSelectQuestion}
+            />
+          </div>
+        </section>
+
+        <section
+          ref={composerRef}
+          className={`qna-inbox__answer-pane${mobilePane === "answer" ? " is-mobile-active" : ""}`}
+          aria-label="선생님 답변 작성"
+        >
+          <div className="qna-inbox__pane-heading qna-inbox__pane-heading--answer">
+            <div>
+              <span className="qna-inbox__pane-eyebrow">ANSWER</span>
+              <h2>{(post.replies_count ?? 0) > 0 ? "선생님 답변" : "답변 작성"}</h2>
+            </div>
+            <span className={`qna-inbox__status ${(post.replies_count ?? 0) > 0 ? "qna-inbox__status--resolved" : "qna-inbox__status--pending"}`}>
+              {(post.replies_count ?? 0) > 0 ? "답변 완료" : "답변 필요"}
+            </span>
+          </div>
+          <PostThreadView
+            postId={postId}
+            mode="answer"
+            allowReply={!post.created_by_deleted}
+            invalidateKeys={[adminCommunityQueryKeys.questions, notificationQueryKeys.operationalCounts]}
+            placeholder="학생에게 답변을 작성하세요…"
+            onReplyCreated={markQuestionAnswered}
+          />
+        </section>
       </div>
     </>
+  );
+}
+
+function QnaAttachmentViewer({
+  attachments,
+}: {
+  attachments: Array<PostAttachment & { download_url: string }>;
+}) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [rotation, setRotation] = useState(0);
+  const [zoom, setZoom] = useState(1);
+  const active = attachments[Math.min(activeIndex, attachments.length - 1)];
+
+  useEffect(() => {
+    setActiveIndex(0);
+    setRotation(0);
+    setZoom(1);
+  }, [attachments]);
+
+  const selectAttachment = (index: number) => {
+    setActiveIndex(index);
+    setRotation(0);
+    setZoom(1);
+  };
+
+  return (
+    <div className="qna-inbox__image-viewer">
+      <div className="qna-inbox__viewer-toolbar" aria-label="문제 이미지 보기 도구">
+        <div className="qna-inbox__viewer-file">
+          <strong>{active.original_name}</strong>
+          <span>{activeIndex + 1} / {attachments.length}</span>
+        </div>
+        <div className="qna-inbox__viewer-actions">
+          <button type="button" onClick={() => setRotation((value) => value - 90)} aria-label="왼쪽으로 90도 회전" title="왼쪽 90도 회전">
+            <RotateCcw size={ICON_FOR_BUTTON.sm} aria-hidden />
+          </button>
+          <button type="button" onClick={() => setRotation((value) => value + 90)} aria-label="오른쪽으로 90도 회전" title="오른쪽 90도 회전">
+            <RotateCw size={ICON_FOR_BUTTON.sm} aria-hidden />
+          </button>
+          <span className="qna-inbox__viewer-divider" aria-hidden />
+          <button type="button" onClick={() => setZoom((value) => Math.max(0.5, value - 0.25))} disabled={zoom <= 0.5} aria-label="이미지 축소" title="축소">
+            <ZoomOut size={ICON_FOR_BUTTON.sm} aria-hidden />
+          </button>
+          <span className="qna-inbox__viewer-zoom" aria-live="polite">{Math.round(zoom * 100)}%</span>
+          <button type="button" onClick={() => setZoom((value) => Math.min(2.5, value + 0.25))} disabled={zoom >= 2.5} aria-label="이미지 확대" title="확대">
+            <ZoomIn size={ICON_FOR_BUTTON.sm} aria-hidden />
+          </button>
+          <a href={active.download_url} target="_blank" rel="noopener noreferrer" aria-label="문제 이미지 원본 열기" title="원본 열기">
+            <ExternalLink size={ICON_FOR_BUTTON.sm} aria-hidden />
+            <span>원본</span>
+          </a>
+        </div>
+      </div>
+      <div className="qna-inbox__image-stage">
+        <img
+          src={active.download_url}
+          alt={active.original_name}
+          // Rotation and zoom are continuous viewer state, so a runtime transform is required.
+          // eslint-disable-next-line no-restricted-syntax
+          style={{ transform: `rotate(${rotation}deg) scale(${zoom})` }}
+        />
+      </div>
+      {attachments.length > 1 && (
+        <div className="qna-inbox__image-strip" aria-label="첨부 이미지 선택">
+          {attachments.map((attachment, index) => (
+            <button
+              key={attachment.id}
+              type="button"
+              className={index === activeIndex ? "is-active" : ""}
+              onClick={() => selectAttachment(index)}
+              aria-label={`${index + 1}번째 이미지 ${attachment.original_name}`}
+              aria-pressed={index === activeIndex}
+            >
+              <img src={attachment.download_url} alt="" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

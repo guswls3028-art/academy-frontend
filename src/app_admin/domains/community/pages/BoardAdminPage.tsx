@@ -282,7 +282,7 @@ export default function BoardAdminPage() {
   }
 
   return (
-    <div className="notice-tree" style={{ minHeight: "calc(100vh - 180px)" }}>
+    <div className={`notice-tree${selectedId != null || showCreate ? " notice-tree--has-detail" : ""}`} style={{ minHeight: "calc(100vh - 180px)" }}>
       <CmsTreeNav
         title="게시판"
         allLabel="전체 보기"

@@ -48,11 +48,13 @@ interface PostThreadViewProps {
   /** 답변 등록 가능 여부 (예: 삭제된 학생 글) */
   allowReply?: boolean;
   /** 등록 후 추가 invalidation */
-  invalidateKeys?: readonly unknown[][];
+  invalidateKeys?: readonly (readonly unknown[])[];
   /** 답변 미존재 안내 (없으면 기본값) */
   emptyText?: string;
   /** 등록 placeholder */
   placeholder?: string;
+  /** 등록 직후 상위 화면의 미답변 수·선택 상태를 즉시 맞출 때 사용 */
+  onReplyCreated?: () => void;
 }
 
 /**
@@ -66,6 +68,7 @@ export default function PostThreadView({
   invalidateKeys = [],
   emptyText,
   placeholder,
+  onReplyCreated,
 }: PostThreadViewProps) {
   const repliesQ = useQuery<Answer[]>({
     queryKey: adminCommunityQueryKeys.postReplies(postId),
@@ -73,7 +76,7 @@ export default function PostThreadView({
   });
 
   return (
-    <>
+    <div className="qna-inbox__thread-view">
       <ThreadList
         replies={repliesQ.data ?? []}
         isLoading={repliesQ.isLoading}
@@ -91,9 +94,10 @@ export default function PostThreadView({
           allowReply={allowReply}
           invalidateKeys={invalidateKeys}
           placeholder={placeholder}
+          onReplyCreated={onReplyCreated}
         />
       )}
-    </>
+    </div>
   );
 }
 
@@ -114,7 +118,7 @@ function ThreadList({
   postId: number;
   mode: ThreadMode;
   emptyText?: string;
-  invalidateKeys: readonly unknown[][];
+  invalidateKeys: readonly (readonly unknown[])[];
 }) {
   if (isLoading) {
     return (
@@ -150,11 +154,11 @@ function ThreadList({
   }
 
   return (
-    <>
+    <div className="qna-inbox__reply-list">
       {replies.map((r) => (
         <ReplyBlock key={r.id} postId={postId} reply={r} mode={mode} invalidateKeys={invalidateKeys} />
       ))}
-    </>
+    </div>
   );
 }
 
@@ -167,7 +171,7 @@ function ReplyBlock({
   postId: number;
   reply: Answer;
   mode: ThreadMode;
-  invalidateKeys: readonly unknown[][];
+  invalidateKeys: readonly (readonly unknown[])[];
 }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
@@ -279,12 +283,14 @@ function ThreadComposer({
   allowReply,
   invalidateKeys,
   placeholder,
+  onReplyCreated,
 }: {
   postId: number;
   mode: ThreadMode;
   allowReply: boolean;
-  invalidateKeys: readonly unknown[][];
+  invalidateKeys: readonly (readonly unknown[])[];
   placeholder?: string;
+  onReplyCreated?: () => void;
 }) {
   const [content, setContent] = useState("");
   const qc = useQueryClient();
@@ -292,6 +298,7 @@ function ThreadComposer({
   const createMut = useMutation({
     mutationFn: () => createAnswer(postId, content),
     onSuccess: () => {
+      onReplyCreated?.();
       qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.postReplies(postId) });
       qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
       for (const key of invalidateKeys) qc.invalidateQueries({ queryKey: key });

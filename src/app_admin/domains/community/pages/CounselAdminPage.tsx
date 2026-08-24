@@ -114,7 +114,7 @@ export default function CounselAdminPage() {
   }, [filtered, selectedId, isLoading, setSelectedId]);
 
   return (
-    <div className="qna-inbox qna-inbox--viewport">
+    <div className={`qna-inbox qna-inbox--viewport${selectedId != null ? " qna-inbox--has-selection" : ""}`}>
       <aside className="qna-inbox__list">
         <div className="qna-inbox__list-header">
           <h2 className="qna-inbox__list-title">상담 신청</h2>
