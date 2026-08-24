@@ -76,7 +76,10 @@ import { hhmmText } from "@/shared/ui/time/timeFormat";
 import { clinicQueryKeys } from "../../queryKeys";
 import {
   canCompleteManualHomework,
+  canWaiveMissingExamWithoutLink,
+  clinicTargetKey,
   completeManualHomework,
+  isMissingExamTarget,
   isPositiveClinicIdentifier,
   requiresManualHomeworkCompletion,
 } from "../../api/completeManualHomework";
@@ -194,35 +197,6 @@ function getTargetContext(target: ClinicTarget): string {
 
 function isMissingHomeworkTarget(target: ClinicTarget): boolean {
   return target.reason === "missing" && target.source_type === "homework";
-}
-
-function isMissingExamTarget(target: ClinicTarget): boolean {
-  return target.reason === "missing" && target.source_type === "exam";
-}
-
-function clinicTargetKey(target: ClinicTarget): string {
-  if (isPositiveClinicIdentifier(target.clinic_link_id)) {
-    return `link:${target.clinic_link_id}`;
-  }
-  return [
-    "source",
-    target.session_id ?? "none",
-    target.enrollment_id ?? "none",
-    target.source_type ?? target.clinic_reason ?? "unknown",
-    target.source_id ?? target.exam_id ?? "none",
-    target.created_at ?? "none",
-  ].join(":");
-}
-
-function canWaiveMissingExamWithoutLink(target: ClinicTarget): boolean {
-  return !target.resolved_at &&
-    isMissingExamTarget(target) &&
-    target.meta_status === "NOT_SUBMITTED" &&
-    isPositiveClinicIdentifier(target.session_id) &&
-    isPositiveClinicIdentifier(target.enrollment_id) &&
-    isPositiveClinicIdentifier(target.exam_id) &&
-    isPositiveClinicIdentifier(target.source_id) &&
-    target.exam_id === target.source_id;
 }
 
 function getStatusLabel(status: string): string {
@@ -849,7 +823,10 @@ export default function ClinicConsoleWorkspace({
     });
 
     if (failed > 0) {
-      feedback.error(`${succeeded}명 처리 완료, ${failed}명 실패`);
+      const notificationFailure = notificationFailed > 0
+        ? ` · 알림톡 요청 ${notificationRequested}건 완료, ${notificationFailed}건 실패`
+        : "";
+      feedback.error(`${succeeded}명 처리 완료, ${failed}명 상태 저장 실패${notificationFailure}`);
     } else if (notificationFailed > 0) {
       feedback.warning(
         `${succeeded}명 상태 저장 완료, 알림톡 요청 ${notificationRequested}건 완료, ${notificationFailed}건 실패`,
@@ -983,14 +960,20 @@ export default function ClinicConsoleWorkspace({
     setRemediatingLinkIds((prev) => new Set(prev).add(linkId));
     try {
       await completeManualHomework(target, memo);
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: clinicQueryKeys.targets }),
-        qc.invalidateQueries({ queryKey: clinicQueryKeys.participants }),
-      ]);
+      const refreshed = await clinicTargetsQuery.refetch();
+      const targetKey = clinicTargetKey(target);
+      if (
+        refreshed.isError ||
+        !Array.isArray(refreshed.data) ||
+        refreshed.data.some((item) => !item.resolved_at && clinicTargetKey(item) === targetKey)
+      ) {
+        throw new Error("homework_completion_not_persisted");
+      }
+      await qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
       setCompleteTarget(null);
       feedback.success("과제 제출 확인을 저장하고 목록을 다시 확인했습니다.");
     } catch {
-      feedback.error("과제 완료 처리에 실패했습니다. 다시 시도해 주세요.");
+      feedback.error("완료 상태를 다시 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setRemediatingLinkIds((prev) => {
         const next = new Set(prev);

@@ -99,6 +99,7 @@ type OperationsState = {
   targetRequests?: number;
   participantRequests?: number;
   resolutionPayloads?: Array<Record<string, unknown>>;
+  persistHomeworkTargetReadbacks?: number;
   participantsGate?: Promise<void>;
   statusPayloads?: Array<Record<string, unknown>>;
   checkoutPayloads?: Array<Record<string, unknown>>;
@@ -109,6 +110,7 @@ type OperationsState = {
   waiverPayloads?: Array<Record<string, unknown>>;
   completionPayloads?: number[];
   statusNotifications?: Record<number, Record<string, unknown> | null>;
+  statusFailures?: number[];
   checkoutNotification?: Record<string, unknown> | null;
   completeNotification?: Record<string, unknown> | null;
   reminderResponses?: Array<{ body: Record<string, unknown>; status?: number }>;
@@ -267,15 +269,19 @@ async function installApi(
       const payload = request.postDataJSON() as Record<string, unknown>;
       operationsState?.resolutionPayloads?.push(payload);
       if (operationsState) {
-        operationsState.targets = operationsState.targets.map((target) => (
-          target.clinic_link_id === 9003
-            ? {
-                ...target,
-                resolved_at: "2026-08-23T16:45:00+09:00",
-                resolution_type: "MANUAL_OVERRIDE",
-              }
-            : target
-        ));
+        if ((operationsState.persistHomeworkTargetReadbacks ?? 0) > 0) {
+          operationsState.persistHomeworkTargetReadbacks = (operationsState.persistHomeworkTargetReadbacks ?? 0) - 1;
+        } else {
+          operationsState.targets = operationsState.targets.map((target) => (
+            target.clinic_link_id === 9003
+              ? {
+                  ...target,
+                  resolved_at: "2026-08-23T16:45:00+09:00",
+                  resolution_type: "MANUAL_OVERRIDE",
+                }
+              : target
+          ));
+        }
       }
       return json({
         correction_status: "COMPLETED",
@@ -290,6 +296,9 @@ async function installApi(
       const id = Number(statusMatch[1]);
       const payload = request.postDataJSON() as Record<string, unknown>;
       operationsState?.statusPayloads?.push({ id, ...payload });
+      if (operationsState?.statusFailures?.includes(id)) {
+        return json({ detail: "temporary status failure" }, 503);
+      }
       const participant = operationsState?.participants.find((row) => row.id === id);
       if (!participant) return json({ detail: "not found" }, 404);
       participant.status = payload.status;
@@ -1074,6 +1083,20 @@ test("클리닉 상태 저장과 알림톡 요청의 부분 실패를 성공으�
       checked_in_at: null,
       checked_out_at: null,
       completed_at: null,
+    }, {
+      id: 904,
+      session: 701,
+      student: 604,
+      student_name: "상태 저장 실패",
+      enrollment_id: 1104,
+      session_date: saturday,
+      session_title: "토요일 1시 클리닉",
+      session_start_time: "13:00:00",
+      session_location: "1층 세미나실",
+      status: "booked",
+      checked_in_at: null,
+      checked_out_at: null,
+      completed_at: null,
     }],
     targets: [],
     statusPayloads: [],
@@ -1083,6 +1106,7 @@ test("클리닉 상태 저장과 알림톡 요청의 부분 실패를 성공으�
     statusNotifications: {
       903: { requested: 0, failed: 1, send_to: "parent" },
     },
+    statusFailures: [904],
     checkoutNotification: { requested: 0, failed: 1, send_to: "parent" },
     completeNotification: { requested: 0, failed: 1, send_to: "parent" },
     reminderResponses: [{
@@ -1119,10 +1143,10 @@ test("클리닉 상태 저장과 알림톡 요청의 부분 실패를 성공으�
   await expect(reminderDialog).toHaveCount(0);
   await expect(page.getByText(/재촉 알림톡 요청 1건 완료, 1건 제외/)).toBeVisible();
 
-  await page.getByRole("button", { name: "전체 출석 체크 (1명)", exact: true }).click();
-  await page.getByRole("button", { name: "알림톡 요청 (1명)", exact: true }).click();
+  await page.getByRole("button", { name: "전체 출석 체크 (2명)", exact: true }).click();
+  await page.getByRole("button", { name: "알림톡 요청 (2명)", exact: true }).click();
   await expect.poll(() => state.statusPayloads?.[0]).toMatchObject({ id: 903, status: "attended" });
-  await expect(page.getByText(/1명 상태 저장 완료, 알림톡 요청 0건 완료, 1건 실패/)).toBeVisible();
+  await expect(page.getByText(/1명 처리 완료, 1명 상태 저장 실패 · 알림톡 요청 0건 완료, 1건 실패/)).toBeVisible();
   await expect(page.getByText(/발송 완료/)).toHaveCount(0);
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -1246,6 +1270,7 @@ test("운영 화면에서 대상 조회 실패를 재시도하고 문자 제출 
     targetRequests: 0,
     participantRequests: 0,
     resolutionPayloads: [],
+    persistHomeworkTargetReadbacks: 1,
   };
 
   await seed(page);
@@ -1300,13 +1325,22 @@ test("운영 화면에서 대상 조회 실패를 재시도하고 문자 제출 
   await expect(submit).toBeEnabled();
   await submit.click();
 
-  await expect.poll(() => state.resolutionPayloads).toEqual([{
+  await expect(page.getByText("완료 상태를 다시 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.", { exact: true })).toBeVisible();
+  await expect(dialog).toBeVisible();
+  await expect(drawer.getByRole("button", { name: "제출 확인·완료", exact: true })).toBeVisible();
+  await submit.click();
+
+  const expectedResolution = {
     enrollment_id: 1003,
     source_type: "homework",
     source_id: 803,
     completed: true,
     note: "현장 제출 확인",
-  }]);
+  };
+  await expect.poll(() => state.resolutionPayloads).toEqual([
+    expectedResolution,
+    expectedResolution,
+  ]);
   await expect.poll(() => state.targetRequests ?? 0).toBeGreaterThan(1);
   await expect.poll(() => state.participantRequests ?? 0).toBeGreaterThan(1);
   await expect(studentCard.getByRole("button", { name: "제출 확인·완료", exact: true })).toHaveCount(0);

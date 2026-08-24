@@ -52,7 +52,15 @@ import { Button, EmptyState } from "@/shared/ui/ds";
 import RetakeTableRow from "./RetakeTableRow";
 import { formatNextAttempt, formatScoreDisplay } from "./remediationFormatters";
 import ClinicManualHomeworkCompleteDialog from "../../components/ClinicManualHomeworkCompleteDialog";
-import { canCompleteManualHomework, completeManualHomework, requiresManualHomeworkCompletion } from "../../api/completeManualHomework";
+import {
+  canCompleteManualHomework,
+  canWaiveMissingExam,
+  clinicTargetKey,
+  completeManualHomework,
+  isPositiveClinicIdentifier,
+  requiresManualHomeworkCompletion,
+} from "../../api/completeManualHomework";
+import RemediationKpiRow from "./RemediationKpiRow";
 
 /* ── Types ── */
 
@@ -305,26 +313,39 @@ function RemediationWorkspace() {
   });
 
   const homeworkCompleteMutation = useMutation({
-    mutationFn: ({ target, memo }: { target: ClinicTarget; memo: string }) =>
-      completeManualHomework(target, memo),
+    mutationFn: async ({ target, memo }: { target: ClinicTarget; memo: string }) => {
+      await completeManualHomework(target, memo);
+      const refreshed = await targetsQuery.refetch();
+      const targetKey = clinicTargetKey(target);
+      if (
+        refreshed.isError ||
+        !Array.isArray(refreshed.data) ||
+        refreshed.data.some((item) => !item.resolved_at && clinicTargetKey(item) === targetKey)
+      ) {
+        throw new Error("homework_completion_not_persisted");
+      }
+      await qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
+    },
     onSuccess: async () => {
-      await invalidateAll();
       setCompleteTarget(null);
       feedback.success("과제 제출 확인과 완료 처리를 저장했습니다.");
     },
-    onError: () => feedback.error("과제 완료 처리에 실패했습니다."),
+    onError: () => feedback.error("완료 상태를 다시 확인하지 못했습니다. 잠시 후 다시 시도해 주세요."),
   });
 
   const waiveMutation = useMutation({
     mutationFn: async ({ target, memo }: { target: ClinicTarget; memo: string }) => {
-      if (target.clinic_link_id) return waiveClinicLink(target.clinic_link_id, memo);
-      if (!target.session_id || !target.enrollment_id || !target.exam_id) {
+      const linkId = isPositiveClinicIdentifier(target.clinic_link_id)
+        ? target.clinic_link_id
+        : null;
+      if (!canWaiveMissingExam(target)) {
         throw new Error("면제 대상 식별자가 없습니다.");
       }
+      if (linkId) return waiveClinicLink(linkId, memo);
       return waiveMissingExamTarget({
-        session_id: target.session_id,
-        enrollment_id: target.enrollment_id,
-        exam_id: target.exam_id,
+        session_id: target.session_id!,
+        enrollment_id: target.enrollment_id!,
+        exam_id: target.exam_id!,
         memo,
       });
     },
@@ -441,36 +462,14 @@ function RemediationWorkspace() {
     <section className="clinic-bookings-page__remediation">
       <div className="clinic-hub">
         {/* ── KPI Row ── */}
-        <div className="clinic-hub__kpi-row">
-          <div className="clinic-hub__kpi clinic-hub__kpi--primary">
-            <Users size={16} />
-            <div>
-              <span className="clinic-hub__kpi-value">{isError ? "—" : kpi.totalStudents}</span>
-              <span className="clinic-hub__kpi-label">진행중 학생</span>
-            </div>
-          </div>
-          <div className="clinic-hub__kpi clinic-hub__kpi--danger">
-            <AlertTriangle size={16} />
-            <div>
-              <span className="clinic-hub__kpi-value">{isError ? "—" : kpi.examItems}</span>
-              <span className="clinic-hub__kpi-label">시험 불합격</span>
-            </div>
-          </div>
-          <div className="clinic-hub__kpi">
-            <BookOpen size={16} />
-            <div>
-              <span className="clinic-hub__kpi-value">{isError ? "—" : kpi.homeworkItems}</span>
-              <span className="clinic-hub__kpi-label">과제 미통과</span>
-            </div>
-          </div>
-          <div className="clinic-hub__kpi clinic-hub__kpi--warning">
-            <Clock size={16} />
-            <div>
-              <span className="clinic-hub__kpi-value">{isError ? "—" : kpi.missingItems}</span>
-              <span className="clinic-hub__kpi-label">미응시·미제출</span>
-            </div>
-          </div>
-        </div>
+        <RemediationKpiRow
+          unavailable={isLoading || isError}
+          loading={isLoading}
+          totalStudents={kpi.totalStudents}
+          examItems={kpi.examItems}
+          homeworkItems={kpi.homeworkItems}
+          missingItems={kpi.missingItems}
+        />
 
         {/* ── Toolbar: view switch + filters ── */}
         <div className="clinic-hub__toolbar">
@@ -932,7 +931,7 @@ function RemediationItemRow({
 
       {/* Right: actions */}
       <div className="clinic-hub__item-actions">
-        {!isResolved && isMissing && item.source_type === "exam" ? (
+        {canWaiveMissingExam(item) ? (
           <button
             type="button"
             className="clinic-hub__action-btn clinic-hub__action-btn--waive"

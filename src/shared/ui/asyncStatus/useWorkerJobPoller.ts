@@ -3,7 +3,7 @@
 
 import { useEffect, useRef } from "react";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
-import { asyncStatusStore } from "./asyncStatusStore";
+import { asyncStatusStore, MAX_STORED_RESULT_ROWS } from "./asyncStatusStore";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import api from "@/shared/api/axios";
 
@@ -22,7 +22,7 @@ const SAFE_STUDENT_IMPORT_REASON_CODES = new Set([
 
 function importResultRows(value: unknown): Array<{ row: number | null; name: string }> {
   if (!Array.isArray(value)) return [];
-  return value.slice(0, 500).flatMap((item) => {
+  return value.slice(0, MAX_STORED_RESULT_ROWS).flatMap((item) => {
     if (item == null || typeof item !== "object" || Array.isArray(item)) return [];
     const record = item as Record<string, unknown>;
     if (typeof record.name !== "string") return [];
@@ -152,13 +152,19 @@ function pollExcelJob(
         }
         const created = Number(result?.created ?? 0);
         const total = Number(result?.total ?? 0);
-        const createdRows = importResultRows(result?.created_rows);
-        const duplicateRows = importResultRows(result?.duplicates);
-        const restoredRows = importResultRows(result?.restored);
-        const dupCount = duplicateRows.length;
-        const restoredCount = restoredRows.length;
-        const failedRows = Array.isArray(result?.failed)
-          ? result.failed.flatMap((item) => {
+        const rawCreatedRows = Array.isArray(result?.created_rows) ? result.created_rows : [];
+        const rawDuplicateRows = Array.isArray(result?.duplicates) ? result.duplicates : [];
+        const rawRestoredRows = Array.isArray(result?.restored) ? result.restored : [];
+        const rawFailedRows = Array.isArray(result?.failed) ? result.failed : [];
+        const createdRows = importResultRows(rawCreatedRows);
+        const duplicateRows = importResultRows(rawDuplicateRows);
+        const restoredRows = importResultRows(rawRestoredRows);
+        const duplicateCount = rawDuplicateRows.length;
+        const restoredCount = rawRestoredRows.length;
+        const failedCount = rawFailedRows.length;
+        const failedRows = rawFailedRows
+          .slice(0, MAX_STORED_RESULT_ROWS)
+          .flatMap((item) => {
               if (item == null || typeof item !== "object" || Array.isArray(item)) return [];
               const row = item as Record<string, unknown>;
               return [{
@@ -166,13 +172,11 @@ function pollExcelJob(
                 name: typeof row.name === "string" ? row.name : "(이름 없음)",
                 reason: safeImportFailureReason(row),
               }];
-            })
-          : [];
+            });
         if (result) {
-          const failedCount = failedRows.length;
           const parts: string[] = [];
           if (created > 0) parts.push(`신규 등록 ${created}명`);
-          if (dupCount > 0) parts.push(`이미 등록된 학생 ${dupCount}명`);
+          if (duplicateCount > 0) parts.push(`이미 등록된 학생 ${duplicateCount}명`);
           if (restoredCount > 0) parts.push(`복원 ${restoredCount}명`);
           if (failedCount > 0) parts.push(`실패 ${failedCount}명`);
           const summary = parts.length > 0 ? parts.join(", ") : "완료";
@@ -184,6 +188,9 @@ function pollExcelJob(
           asyncStatusStore.setStudentImportResult(taskId, {
             total: Number.isFinite(total) && total >= 0 ? Math.floor(total) : 0,
             createdCount: Number.isFinite(created) && created >= 0 ? Math.floor(created) : 0,
+            duplicateCount,
+            restoredCount,
+            failedCount,
             createdRows,
             duplicateRows,
             restoredRows,
@@ -193,9 +200,9 @@ function pollExcelJob(
           if (restoredCount > 0) {
             feedback.success(`삭제 대기중인 학생 ${restoredCount}명이 모두 복원되었습니다.`);
           }
-          if (dupCount > 0 || failedCount > 0) {
+          if (duplicateCount > 0 || failedCount > 0) {
             const msgs: string[] = [];
-            if (dupCount > 0) msgs.push(`이미 등록된 학생 ${dupCount}명`);
+            if (duplicateCount > 0) msgs.push(`이미 등록된 학생 ${duplicateCount}명`);
             if (failedCount > 0) msgs.push(`실패 ${failedCount}명`);
             feedback.warning(`학생 등록 결과: ${msgs.join(", ")}. 정상 행 처리는 완료되었습니다.`);
           }
@@ -234,11 +241,11 @@ function pollExcelJob(
             }
           }
         }
-        const hasHandledRow = created + dupCount + restoredCount > 0;
+        const hasHandledRow = created + duplicateCount + restoredCount > 0;
         asyncStatusStore.completeTask(
           taskId,
-          failedRows.length > 0 && !hasHandledRow ? "error" : "success",
-          failedRows.length > 0 && !hasHandledRow
+          failedCount > 0 && !hasHandledRow ? "error" : "success",
+          failedCount > 0 && !hasHandledRow
             ? "등록 가능한 학생이 없습니다. 결과에서 실패 사유를 확인해 주세요."
             : undefined,
         );

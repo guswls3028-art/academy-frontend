@@ -327,6 +327,77 @@ test("유효한 클리닉 링크가 있어도 미응시 시험은 면제만 허�
   await expect(row.getByRole("spinbutton")).toHaveCount(0);
 });
 
+test("링크 없는 미응시 시험의 식별자가 유효하지 않거나 서로 다르면 면제 action과 mutation이 없다", async ({ page }) => {
+  await seed(page);
+  let waiverRequests = 0;
+  const invalidTargets = [
+    { label: "세션 누락", session_id: undefined, enrollment_id: 920, exam_id: 820, source_id: 820 },
+    { label: "세션 0", session_id: 0, enrollment_id: 921, exam_id: 821, source_id: 821 },
+    { label: "수강 누락", session_id: 722, enrollment_id: undefined, exam_id: 822, source_id: 822 },
+    { label: "수강 0", session_id: 723, enrollment_id: 0, exam_id: 823, source_id: 823 },
+    { label: "시험 누락", session_id: 724, enrollment_id: 924, exam_id: undefined, source_id: 824 },
+    { label: "시험 0", session_id: 725, enrollment_id: 925, exam_id: 0, source_id: 825 },
+    { label: "원본 누락", session_id: 726, enrollment_id: 926, exam_id: 826, source_id: undefined },
+    { label: "원본 0", session_id: 727, enrollment_id: 927, exam_id: 827, source_id: 0 },
+    { label: "시험 원본 불일치", session_id: 728, enrollment_id: 928, exam_id: 828, source_id: 829 },
+  ];
+
+  await page.route("**/api/v1/**", async (route: Route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
+    const method = request.method();
+    const json = (body: unknown, status = 200) => route.fulfill({
+      status,
+      contentType: "application/json",
+      body: JSON.stringify(body),
+    });
+
+    if (method === "OPTIONS") return route.fulfill({ status: 204 });
+    if (path === "/core/program/") {
+      return json({ tenantCode: "hakwonplus", display_name: "학원플러스", ui_config: {}, feature_flags: {}, is_active: true });
+    }
+    if (path === "/core/me/") {
+      return json({ id: 12, username: "admin", name: "관리자", is_staff: true, is_superuser: true, tenantRole: "admin", must_change_password: false });
+    }
+    if (path === "/results/admin/clinic-targets/waive-missing/" && method === "POST") {
+      waiverRequests += 1;
+      return json({ clinic_link_id: 999, resolution_type: "WAIVED" }, 201);
+    }
+    if (path === "/results/admin/clinic-targets/" && method === "GET") {
+      return json(invalidTargets.map((target, index) => ({
+        ...target,
+        student_id: 330 + index,
+        student_name: `시험 식별자 학생 ${index + 1}`,
+        session_title: "8월 시험 식별자 점검",
+        reason: "missing",
+        clinic_reason: "exam",
+        meta_status: "NOT_SUBMITTED",
+        clinic_link_id: null,
+        source_type: "exam",
+        source_title: target.label,
+        lecture_title: "중2 수학",
+        max_score: 100,
+        latest_attempt_index: 0,
+        attempt_history: [],
+        created_at: "2026-08-23T15:30:00+09:00",
+      })));
+    }
+    if (path === "/clinic/participants/" && method === "GET") return json({ count: 0, next: null, previous: null, results: [] });
+    if (path === "/lectures/sections/" || path === "/staffs/currently-working/") return json([]);
+    if (path.startsWith("/community/") || path.startsWith("/student/notifications/")) return json({ count: 0, results: [] });
+    return json({ count: 0, results: [] });
+  });
+
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/bookings`, { timeout: 45_000 });
+
+  for (const target of invalidTargets) {
+    const row = page.getByRole("row").filter({ hasText: target.label });
+    await expect(row).toBeVisible();
+    await expect(row.getByRole("button", { name: "면제", exact: true })).toHaveCount(0);
+  }
+  expect(waiverRequests).toBe(0);
+});
+
 test("미제출 과제의 완료 식별자가 누락되거나 0이면 완료 버튼을 숨긴다", async ({ page }) => {
   await seed(page);
   const invalidTargets = [
@@ -398,6 +469,7 @@ test("문자 등으로 제출한 무점수 과제를 사유와 함께 완료하�
   await seed(page);
   const resolutionPayloads: Array<Record<string, unknown>> = [];
   let resolved = false;
+  let persistedReadbackFailures = 1;
   let targetRequests = 0;
   let participantRequests = 0;
 
@@ -432,7 +504,9 @@ test("문자 등으로 제출한 무점수 과제를 사유와 함께 완료하�
     }
     if (path === "/results/admin/clinic-targets/" && method === "GET") {
       targetRequests += 1;
-      if (resolved && url.searchParams.get("include_resolved") !== "true") return json([]);
+      const persisted = resolved && persistedReadbackFailures === 0;
+      if (resolved && persistedReadbackFailures > 0) persistedReadbackFailures -= 1;
+      if (persisted && url.searchParams.get("include_resolved") !== "true") return json([]);
       return json([{
         enrollment_id: 903,
         student_id: 303,
@@ -443,8 +517,8 @@ test("문자 등으로 제출한 무점수 과제를 사유와 함께 완료하�
         homework_score: null,
         homework_cutline: 8,
         clinic_link_id: 883,
-        resolution_type: resolved ? "MANUAL_OVERRIDE" : null,
-        resolved_at: resolved ? "2026-08-23T16:40:00+09:00" : null,
+        resolution_type: persisted ? "MANUAL_OVERRIDE" : null,
+        resolved_at: persisted ? "2026-08-23T16:40:00+09:00" : null,
         session_id: 703,
         lecture_id: 503,
         exam_id: null,
@@ -484,7 +558,18 @@ test("문자 등으로 제출한 무점수 과제를 사유와 함께 완료하�
   await expect(submit).toBeEnabled();
   await submit.click();
 
+  await expect(page.getByText("완료 상태를 다시 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.", { exact: true })).toBeVisible();
+  await expect(dialog).toBeVisible();
+  await expect(page.getByRole("button", { name: "제출 확인·완료", exact: true })).toBeVisible();
+  await submit.click();
+
   await expect.poll(() => resolutionPayloads).toEqual([{
+    enrollment_id: 903,
+    source_type: "homework",
+    source_id: 803,
+    completed: true,
+    note: "문자 제출 확인",
+  }, {
     enrollment_id: 903,
     source_type: "homework",
     source_id: 803,
@@ -575,6 +660,11 @@ test("클리닉 조회 실패를 빈 목록으로 숨기지 않고 재시도한�
   await seed(page);
   let failTargets = true;
   let failParticipants = true;
+  let releaseTargets!: () => void;
+  const targetsGate = new Promise<void>((resolve) => {
+    releaseTargets = resolve;
+  });
+  let targetRequests = 0;
 
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
@@ -594,6 +684,8 @@ test("클리닉 조회 실패를 빈 목록으로 숨기지 않고 재시도한�
       return json({ id: 12, username: "admin", name: "관리자", is_staff: true, is_superuser: true, tenantRole: "admin", must_change_password: false });
     }
     if (path === "/results/admin/clinic-targets/" && method === "GET") {
+      targetRequests += 1;
+      if (targetRequests === 1) await targetsGate;
       return failTargets ? json({ detail: "temporary" }, 503) : json([]);
     }
     if (path === "/clinic/participants/" && method === "GET") {
@@ -604,10 +696,16 @@ test("클리닉 조회 실패를 빈 목록으로 숨기지 않고 재시도한�
     return json({ count: 0, results: [] });
   });
 
-  await gotoAndSettle(page, `${BASE}/workspace/clinic/bookings?focus=pending`, { timeout: 45_000 });
+  await page.goto(`${BASE}/workspace/clinic/bookings?focus=pending`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
 
   const approvals = page.locator(".clinic-bookings__pending");
   const remediation = page.locator(".clinic-bookings-page__remediation");
+  await expect(remediation.locator(".clinic-hub__kpi-value")).toHaveText(["—", "—", "—", "—"]);
+  await expect(remediation.locator(".clinic-hub__kpi-value", { hasText: "0" })).toHaveCount(0);
+  releaseTargets();
   await expect(
     approvals.getByText("예약 신청을 불러오지 못했습니다", { exact: true }),
   ).toBeVisible({ timeout: 30_000 });

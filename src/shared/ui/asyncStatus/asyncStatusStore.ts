@@ -42,6 +42,9 @@ export interface StudentImportFailedRow extends StudentImportResultRow {
 export interface StudentImportResult {
   total: number;
   createdCount: number;
+  duplicateCount: number;
+  restoredCount: number;
+  failedCount: number;
   createdRows: StudentImportResultRow[];
   duplicateRows: StudentImportResultRow[];
   restoredRows: StudentImportResultRow[];
@@ -77,7 +80,7 @@ type Listener = (tasks: AsyncTask[]) => void;
 
 const EXCEL_RECOVERY_STORAGE_KEY = "hakwonplus:excel-job-recovery:v1";
 const EXCEL_RECOVERY_TTL_MS = 60 * 60 * 1000;
-const MAX_STORED_RESULT_ROWS = 500;
+export const MAX_STORED_RESULT_ROWS = 500;
 
 function boundedInteger(value: unknown): number {
   const number = Number(value);
@@ -114,13 +117,26 @@ function parseStoredFailedRows(value: unknown): StudentImportFailedRow[] {
 function parseStoredStudentImportResult(value: unknown): StudentImportResult | undefined {
   if (value == null || typeof value !== "object" || Array.isArray(value)) return undefined;
   const record = value as Record<string, unknown>;
+  const createdRows = parseStoredRows(record.createdRows);
+  const duplicateRows = parseStoredRows(record.duplicateRows);
+  const restoredRows = parseStoredRows(record.restoredRows);
+  const failedRows = parseStoredFailedRows(record.failedRows);
   return {
     total: boundedInteger(record.total),
     createdCount: boundedInteger(record.createdCount),
-    createdRows: parseStoredRows(record.createdRows),
-    duplicateRows: parseStoredRows(record.duplicateRows),
-    restoredRows: parseStoredRows(record.restoredRows),
-    failedRows: parseStoredFailedRows(record.failedRows),
+    duplicateCount: Object.prototype.hasOwnProperty.call(record, "duplicateCount")
+      ? boundedInteger(record.duplicateCount)
+      : duplicateRows.length,
+    restoredCount: Object.prototype.hasOwnProperty.call(record, "restoredCount")
+      ? boundedInteger(record.restoredCount)
+      : restoredRows.length,
+    failedCount: Object.prototype.hasOwnProperty.call(record, "failedCount")
+      ? boundedInteger(record.failedCount)
+      : failedRows.length,
+    createdRows,
+    duplicateRows,
+    restoredRows,
+    failedRows,
     acknowledged: record.acknowledged === true,
   };
 }

@@ -222,4 +222,58 @@ test.describe("신규 학생 Excel 등록 확인 화면", () => {
     const redPartialFailure = page.locator(".async-status-bar__item-error");
     await expect(redPartialFailure).toHaveCount(0);
   });
+
+  test("500명을 넘는 결과도 전체 건수와 최대 500명 표본을 분리해 보존한다", async ({ page }) => {
+    const rows = (count: number, prefix: string) => Array.from({ length: count }, (_, index) => ({
+      row: index + 2,
+      name: `${prefix}${index + 1}`,
+    }));
+    const failed = rows(603, "실패학생").map((row) => ({
+      ...row,
+      error: "입력값을 확인해 주세요.",
+      reason_code: "invalid_row",
+    }));
+    await installStudentPage(page, {
+      importResult: {
+        total: 2406,
+        created: 600,
+        created_rows: rows(600, "신규학생"),
+        duplicates: rows(601, "기존학생"),
+        restored: rows(602, "복원학생"),
+        failed,
+      },
+    });
+    await openExcelRegistration(page);
+
+    const uploadDialog = page.getByRole("dialog");
+    await uploadDialog.getByRole("radio", { name: "공통 비밀번호 직접 입력" }).check();
+    await uploadDialog.getByLabel("공통 초기 비밀번호").fill("0982");
+    await uploadDialog.getByRole("button", { name: "3명 등록 요청" }).click();
+
+    let resultDialog = page.getByRole("dialog", { name: "학생 등록 결과" });
+    await expect(resultDialog).toBeVisible({ timeout: 15_000 });
+    await expect(resultDialog.getByText("전체 2,406명", { exact: true })).toBeVisible();
+    const summary = resultDialog.getByLabel("등록 결과 요약");
+    await expect(summary.getByText("신규 등록", { exact: true }).locator("..")).toContainText("600명");
+    await expect(summary.getByText("복원", { exact: true }).locator("..")).toContainText("602명");
+    await expect(summary.getByText("이미 등록", { exact: true }).locator("..")).toContainText("601명");
+    await expect(summary.getByText("확인 필요", { exact: true }).locator("..")).toContainText("603명");
+    await expect(resultDialog.getByText("행별 목록은 유형별 최대 500명의 표본이며, 위 요약은 전체 처리 건수입니다.", { exact: true })).toBeVisible();
+    await expect(resultDialog.getByText("신규 전체 600명 중 500명 표본을 표시합니다.", { exact: true })).toBeVisible();
+    await expect(resultDialog.getByText("복원 전체 602명 중 500명 표본을 표시합니다.", { exact: true })).toBeVisible();
+    await expect(resultDialog.getByText("전체 601명 중 500명 표본을 표시합니다.", { exact: true })).toBeVisible();
+    await expect(resultDialog.getByText("전체 603명 중 500명 표본을 표시합니다.", { exact: true })).toBeVisible();
+
+    await page.reload({ waitUntil: "commit" });
+    resultDialog = page.getByRole("dialog", { name: "학생 등록 결과" });
+    await expect(resultDialog).toBeVisible({ timeout: 15_000 });
+    await expect(resultDialog.getByLabel("등록 결과 요약")).toContainText("600명");
+    await expect(resultDialog.getByLabel("등록 결과 요약")).toContainText("602명");
+    await expect(resultDialog.getByLabel("등록 결과 요약")).toContainText("601명");
+    await expect(resultDialog.getByLabel("등록 결과 요약")).toContainText("603명");
+    await resultDialog.getByRole("button", { name: "확인" }).click();
+    await page.getByRole("button", { name: "작업박스 열기" }).click();
+    await expect(page.getByText(/신규 등록 600명, 이미 등록된 학생 601명, 복원 602명, 실패 603명/)).toBeVisible();
+    await expect(page.locator(".async-status-bar__item-error")).toHaveCount(0);
+  });
 });

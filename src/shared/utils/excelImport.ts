@@ -5,6 +5,8 @@ const XLSX_WORKBOOK_CONTENT_TYPE = "application/vnd.openxmlformats-officedocumen
 const MAX_ARCHIVE_ENTRIES = 512;
 const MAX_STRUCTURAL_XML_CHARS = 2 * 1024 * 1024;
 const MAX_APP_XML_CHARS = 512 * 1024;
+const MAX_XL_XML_MEMBER_CHARS = 16 * 1024 * 1024;
+const MAX_XL_XML_TOTAL_CHARS = 32 * 1024 * 1024;
 const UNSAFE_XML_DECLARATION = /<!DOCTYPE\b|<!ENTITY\b/i;
 
 export const MAX_IMPORT_BYTES = 10 * 1024 * 1024;
@@ -60,6 +62,15 @@ async function loadValidatedWorkbookArchive(source: ArrayBuffer): Promise<JSZip>
   await readStructuralXml(workbookEntry);
   const appEntry = archive.file("docProps/app.xml");
   if (appEntry) await readStructuralXml(appEntry, MAX_APP_XML_CHARS);
+  let totalXmlChars = 0;
+  for (const [entryName, entry] of Object.entries(archive.files)) {
+    if (entry.dir || !/^xl\/.*\.xml$/i.test(entryName)) continue;
+    const xml = await readStructuralXml(entry, MAX_XL_XML_MEMBER_CHARS);
+    totalXmlChars += xml.length;
+    if (totalXmlChars > MAX_XL_XML_TOTAL_CHARS) {
+      throw new Error("workbook XML exceeds total limit");
+    }
+  }
   return archive;
 }
 
@@ -105,7 +116,7 @@ async function repairNonstandardWorkbookContentType(archive: JSZip): Promise<Arr
     /xmlns:x=["']http:\/\/schemas\.openxmlformats\.org\/spreadsheetml\/2006\/main["']/i;
   for (const [entryName, entry] of Object.entries(archive.files)) {
     if (entry.dir || !/^xl\/.*\.xml$/i.test(entryName)) continue;
-    const xml = await readStructuralXml(entry, 16 * 1024 * 1024);
+    const xml = await readStructuralXml(entry, MAX_XL_XML_MEMBER_CHARS);
     if (!spreadsheetNamespace.test(xml)) continue;
     archive.file(
       entryName,

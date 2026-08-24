@@ -2,7 +2,11 @@ import { useRef, useState, type KeyboardEvent } from "react";
 import { ArrowRight, CheckCircle2, MoreHorizontal, ShieldCheck } from "lucide-react";
 
 import type { ClinicTarget } from "../../api/clinicTargets";
-import { canCompleteManualHomework, requiresManualHomeworkCompletion } from "../../api/completeManualHomework";
+import {
+  canCompleteManualHomework,
+  canWaiveMissingExam,
+  requiresManualHomeworkCompletion,
+} from "../../api/completeManualHomework";
 import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -86,7 +90,7 @@ export default function RetakeTableRow({
         {isMissing ? "판정 대기" : formatNextAttempt(item.latest_attempt_index)}
       </td>
       <td className="clinic-hub__cell-input">
-        {!isResolved && isMissing && item.source_type === "exam" ? (
+        {canWaiveMissingExam(item) ? (
           <span className="clinic-hub__missing-guidance">응시 기록 또는 면제로 처리</span>
         ) : !isResolved && item.clinic_link_id &&
           (!needsManualHomeworkCompletion || canCompleteManualHomework(item)) ? (
@@ -131,7 +135,7 @@ export default function RetakeTableRow({
         )}
       </td>
       <td className="clinic-hub__cell-actions">
-        {!isResolved && isMissing && item.source_type === "exam" ? (
+        {canWaiveMissingExam(item) ? (
           <button
             type="button"
             className="clinic-hub__action-btn clinic-hub__action-btn--waive"

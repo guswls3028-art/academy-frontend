@@ -64,7 +64,7 @@ function FailedRow({ item }: { item: StudentImportFailedRow }) {
 }
 
 export default function StudentImportResultDialog({ result, onClose }: Props) {
-  const successfulCount = result.createdCount + result.restoredRows.length;
+  const successfulCount = result.createdCount + result.restoredCount;
   const hasCreatedCountWithoutRows = result.createdCount > result.createdRows.length;
 
   return (
@@ -95,10 +95,14 @@ export default function StudentImportResultDialog({ result, onClose }: Props) {
 
           <div className={styles.summary} aria-label="등록 결과 요약">
             <SummaryCard label="신규 등록" value={result.createdCount} tone="created" />
-            <SummaryCard label="복원" value={result.restoredRows.length} tone="neutral" />
-            <SummaryCard label="이미 등록" value={result.duplicateRows.length} tone="existing" />
-            <SummaryCard label="확인 필요" value={result.failedRows.length} tone="failed" />
+            <SummaryCard label="복원" value={result.restoredCount} tone="neutral" />
+            <SummaryCard label="이미 등록" value={result.duplicateCount} tone="existing" />
+            <SummaryCard label="확인 필요" value={result.failedCount} tone="failed" />
           </div>
+
+          <p className={styles.legacyNote}>
+            행별 목록은 유형별 최대 500명의 표본이며, 위 요약은 전체 처리 건수입니다.
+          </p>
 
           <div className={styles.ledger}>
             <section className={styles.panel} aria-labelledby="student-import-success-title">
@@ -127,7 +131,12 @@ export default function StudentImportResultDialog({ result, onClose }: Props) {
                 )}
                 {hasCreatedCountWithoutRows && (
                   <p className={styles.legacyNote}>
-                    신규 {result.createdCount.toLocaleString()}명은 등록됐지만 이전 작업이라 행별 목록은 제공되지 않습니다.
+                    신규 전체 {result.createdCount.toLocaleString()}명 중 {result.createdRows.length.toLocaleString()}명 표본을 표시합니다.
+                  </p>
+                )}
+                {result.restoredCount > result.restoredRows.length && (
+                  <p className={styles.legacyNote}>
+                    복원 전체 {result.restoredCount.toLocaleString()}명 중 {result.restoredRows.length.toLocaleString()}명 표본을 표시합니다.
                   </p>
                 )}
               </div>
@@ -142,7 +151,7 @@ export default function StudentImportResultDialog({ result, onClose }: Props) {
                   <strong id="student-import-existing-title">이미 등록된 학생</strong>
                   <small>기존 계정은 변경하지 않음</small>
                 </span>
-                <b>{result.duplicateRows.length.toLocaleString()}명</b>
+                <b>{result.duplicateCount.toLocaleString()}명</b>
               </header>
               <div className={styles.listViewport}>
                 {result.duplicateRows.length === 0 ? (
@@ -153,6 +162,11 @@ export default function StudentImportResultDialog({ result, onClose }: Props) {
                       <ResultRow key={`duplicate-${item.row}-${index}`} item={item} badge="기존" tone="existing" />
                     ))}
                   </ul>
+                )}
+                {result.duplicateCount > result.duplicateRows.length && (
+                  <p className={styles.legacyNote}>
+                    전체 {result.duplicateCount.toLocaleString()}명 중 {result.duplicateRows.length.toLocaleString()}명 표본을 표시합니다.
+                  </p>
                 )}
               </div>
             </section>
@@ -166,7 +180,7 @@ export default function StudentImportResultDialog({ result, onClose }: Props) {
                   <strong id="student-import-failed-title">확인 필요</strong>
                   <small>엑셀 행과 사유를 수정한 뒤 다시 등록</small>
                 </span>
-                <b>{result.failedRows.length.toLocaleString()}명</b>
+                <b>{result.failedCount.toLocaleString()}명</b>
               </header>
               <div className={styles.listViewport}>
                 {result.failedRows.length === 0 ? (
@@ -178,11 +192,16 @@ export default function StudentImportResultDialog({ result, onClose }: Props) {
                     ))}
                   </ul>
                 )}
+                {result.failedCount > result.failedRows.length && (
+                  <p className={styles.legacyNote}>
+                    전체 {result.failedCount.toLocaleString()}명 중 {result.failedRows.length.toLocaleString()}명 표본을 표시합니다.
+                  </p>
+                )}
               </div>
             </section>
           </div>
 
-          {result.failedRows.length > 0 && (
+          {result.failedCount > 0 && (
             <div className={styles.retryHint}>
               <RotateCcw aria-hidden size={16} />
               실패한 행만 수정해 다시 업로드해도 이미 등록된 학생 정보는 덮어쓰지 않습니다.

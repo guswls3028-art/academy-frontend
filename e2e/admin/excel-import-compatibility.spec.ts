@@ -8,6 +8,7 @@ import { readFirstWorksheetRows } from "../../src/shared/utils/excelWorkbook";
 
 const WORKBOOK_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml";
 const HANCOM_XLSX_MIME = "application/haansoftxlsx";
+const MAX_XL_XML_MEMBER_CHARS = 16 * 1024 * 1024;
 
 async function createStandardWorkbook(): Promise<ArrayBuffer> {
   const workbook = new ExcelJS.Workbook();
@@ -17,6 +18,17 @@ async function createStandardWorkbook(): Promise<ArrayBuffer> {
     ["합성학생", "01012345678"],
   ]);
   return workbook.xlsx.writeBuffer();
+}
+
+async function mutateStandardWorkbookXml(
+  entryName: string,
+  mutate: (xml: string) => string,
+): Promise<ArrayBuffer> {
+  const archive = await JSZip.loadAsync(await createStandardWorkbook());
+  const entry = archive.file(entryName);
+  const xml = entry ? await entry.async("string") : "<?xml version=\"1.0\"?><sst/>";
+  archive.file(entryName, mutate(xml));
+  return archive.generateAsync({ type: "arraybuffer", compression: "DEFLATE" });
 }
 
 async function createNonstandardWorkbook(): Promise<ArrayBuffer> {
@@ -101,6 +113,33 @@ test("비표준 통합 문서 Content-Type으로 재저장된 XLSX를 호환 처
 test("표준 OOXML XLSX는 변경 없이 읽는다", async () => {
   const workbook = await loadImportWorkbook(await createStandardWorkbook());
   expect(workbook.worksheets[0]?.getCell("A2").value).toBe("합성학생");
+});
+
+test("표준 XLSX의 worksheet와 sharedStrings에 안전하지 않은 XML 선언이 있으면 거부한다", async () => {
+  for (const entryName of ["xl/worksheets/sheet1.xml", "xl/sharedStrings.xml"]) {
+    const source = await mutateStandardWorkbookXml(
+      entryName,
+      (xml) => xml.replace(
+        /<\?xml[^>]*>/i,
+        '$&<!DOCTYPE worksheet [<!ENTITY probe SYSTEM "file:///synthetic-secret">]>',
+      ),
+    );
+    await expect(loadImportWorkbook(source)).rejects.toThrow(
+      "엑셀 파일의 내부 구조를 읽을 수 없습니다",
+    );
+  }
+});
+
+test("표준 XLSX의 worksheet와 sharedStrings 개별 XML이 한도를 넘으면 거부한다", async () => {
+  for (const entryName of ["xl/worksheets/sheet1.xml", "xl/sharedStrings.xml"]) {
+    const source = await mutateStandardWorkbookXml(
+      entryName,
+      (xml) => `${xml}${"x".repeat(MAX_XL_XML_MEMBER_CHARS + 1)}`,
+    );
+    await expect(loadImportWorkbook(source)).rejects.toThrow(
+      "엑셀 파일의 내부 구조를 읽을 수 없습니다",
+    );
+  }
 });
 
 test("10MiB 이하 한셀식 확장 속성 접두사와 Hancom MIME XLSX를 읽는다", async () => {
