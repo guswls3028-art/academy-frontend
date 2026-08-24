@@ -1,8 +1,8 @@
 // PATH: src/app_admin/domains/videos/components/features/video-detail/components/StudentWatchPanel.tsx
 
 import { useEffect, useMemo, useState } from "react";
-import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
-import { Badge, Button } from "@/shared/ui/ds";
+import { FiChevronLeft, FiChevronRight, FiSmartphone } from "react-icons/fi";
+import { Badge, Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import type { AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge";
@@ -12,7 +12,7 @@ import {
   videoProgressPercent,
 } from "@/shared/api/contracts/videos";
 import {
-  getAccessShortLabel,
+  getAccessLabel,
   getAccessTone,
 } from "@admin/domains/videos/components/features/video-permission/permission.constants";
 
@@ -29,17 +29,26 @@ export type StudentWatchRow = VideoStatsStudent & {
 interface Props {
   students: StudentWatchRow[];
   onOpenPermission: () => void;
-  selectedEnrollmentId?: number | null;
-  onSelectPreviewStudent?: (enrollmentId: number) => void;
+  openingStudentId?: number | null;
+  onOpenStudentView: (studentId: number) => void;
+}
+
+function studentMeta(school?: string | null, grade?: string | null): string {
+  const normalizedGrade = String(grade || "").trim();
+  const gradeLabel = normalizedGrade
+    ? /학년$/.test(normalizedGrade)
+      ? normalizedGrade
+      : `${normalizedGrade}학년`
+    : "";
+  return [String(school || "").trim(), gradeLabel].filter(Boolean).join(" · ");
 }
 
 export default function StudentWatchPanel({
   students,
   onOpenPermission,
-  selectedEnrollmentId,
-  onSelectPreviewStudent,
+  openingStudentId,
+  onOpenStudentView,
 }: Props) {
-  const selectable = typeof onSelectPreviewStudent === "function";
   const [page, setPage] = useState(0);
 
   const sorted = useMemo(() => {
@@ -59,101 +68,132 @@ export default function StudentWatchPanel({
 
   return (
     <div className="w-full flex flex-col gap-3">
-      {/* ACTION */}
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-[var(--color-text-muted)]">
-          {sorted.length}명
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-xs font-medium text-[var(--color-text-muted)]">
+          학생 {sorted.length}명
         </span>
         <Button type="button" intent="primary" size="sm" onClick={onOpenPermission}>
           권한 관리
         </Button>
       </div>
 
-      {/* LIST */}
-      <div className="flex flex-col gap-2">
-        {paged.map((s) => {
-          const progress = videoProgressPercent(s.progress);
-          const completed = isVideoProgressComplete(s.progress, s.completed);
-          const barWidth = progress === 0 ? 2 : Math.min(100, Math.max(0, progress));
-          const clickable = selectable && s.enrollment;
-          const selected = selectedEnrollmentId === s.enrollment;
+      {paged.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-8 text-center">
+          <p className="text-sm font-semibold text-[var(--color-text-primary)]">수강 학생이 없습니다</p>
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">강의 수강생이 등록되면 시청 현황이 여기에 표시됩니다.</p>
+        </div>
+      ) : (
+        <ul className="flex flex-col gap-2" aria-label="학생별 시청 현황">
+          {paged.map((s) => {
+            const progress = videoProgressPercent(s.progress);
+            const completed = isVideoProgressComplete(s.progress, s.completed);
+            const barWidth = progress === 0 ? 2 : Math.min(100, Math.max(0, progress));
+            const name = String(s.student_name || "이름 없음");
+            const meta = studentMeta(s.school, s.grade);
+            const studentId = Number(s.student_id);
+            const canOpenStudentView = Number.isInteger(studentId) && studentId > 0;
+            const opening = canOpenStudentView && openingStudentId === studentId;
+            const unavailableReasonId = `video-student-view-unavailable-${s.enrollment}`;
 
-          return (
-            <div
-              key={s.enrollment}
-              role={clickable ? "button" : undefined}
-              tabIndex={clickable ? 0 : -1}
-              onClick={() => {
-                if (clickable) onSelectPreviewStudent!(s.enrollment);
-              }}
-              onKeyDown={(e) => {
-                if (!clickable) return;
-                if (e.key === "Enter" || e.key === " ") onSelectPreviewStudent!(s.enrollment);
-              }}
-              className={[
-                "flex items-center gap-3",
-                "rounded-lg border px-3 py-2.5 text-sm",
-                "border-[var(--color-border-divider)] bg-[var(--color-bg-surface)]",
-                "overflow-hidden transition-all duration-150",
-                clickable && "cursor-pointer hover:bg-[var(--color-bg-surface-hover)] hover:shadow-[var(--elevation-1)]",
-                selected && "ring-2 ring-[var(--color-brand-primary)] border-[var(--color-brand-primary)]",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-            >
-              {/* NAME + 아바타 + 강의 딱지 (전역 규칙) */}
-              <div className="w-[90px] min-w-0 truncate font-medium text-[var(--color-text-primary)]">
-                <StudentNameWithLectureChip
-                  name={s.student_name ?? ""}
-                  profilePhotoUrl={s.profile_photo_url ?? undefined}
-                  avatarSize={24}
-                  lectures={
-                    s.lecture_title
-                      ? [{ lectureName: s.lecture_title, color: s.lecture_color, chipLabel: s.lecture_chip_label }]
-                      : undefined
-                  }
-                  chipSize={14}
-                  clinicHighlight={s.name_highlight_clinic_target === true}
-                />
-              </div>
-
-              {/* BADGES — 전부 1ch 사이즈로 통일 */}
-              <div className="flex items-center gap-1 shrink-0">
-                <AttendanceStatusBadge
-                  status={(s.attendance_status ?? "INACTIVE") as AttendanceStatus}
-                  variant="1ch"
-                />
-                <Badge
-                  variant="solid"
-                  tone={getAccessTone(s.access_mode, s.effective_rule)}
-                  oneChar
-                >
-                  {getAccessShortLabel(s.access_mode, s.effective_rule)}
-                </Badge>
-              </div>
-
-              {/* PROGRESS */}
-              <div className="flex-1 min-w-0 flex items-center gap-2">
-                <div className="flex-1 h-[6px] rounded-full bg-[var(--color-bg-surface-soft)] overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-[width] duration-300 ease-out"
-                    // eslint-disable-next-line no-restricted-syntax -- progress width/color is data-driven per student row.
-                    style={{
-                      width: `${barWidth}%`,
-                      background: completed
-                        ? "var(--color-success)"
-                        : "var(--color-brand-primary)",
-                    }}
+            return (
+              <li
+                key={s.enrollment}
+                className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2.5 overflow-hidden rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] px-3 py-3 text-sm transition-[border-color,box-shadow] duration-150 focus-within:border-[var(--color-brand-primary)] focus-within:shadow-[var(--elevation-1)]"
+              >
+                <div className="min-w-0 font-medium text-[var(--color-text-primary)]">
+                  <StudentNameWithLectureChip
+                    name={name}
+                    profilePhotoUrl={s.profile_photo_url ?? undefined}
+                    avatarSize={24}
+                    lectures={
+                      s.lecture_title
+                        ? [{ lectureName: s.lecture_title, color: s.lecture_color, chipLabel: s.lecture_chip_label }]
+                        : undefined
+                    }
+                    chipSize={14}
+                    clinicHighlight={s.name_highlight_clinic_target === true}
                   />
+                  {meta && (
+                    <p className="mt-1 truncate pl-8 text-xs font-normal text-[var(--color-text-muted)]">
+                      {meta}
+                    </p>
+                  )}
                 </div>
-                <div className="w-[40px] shrink-0 text-right text-xs text-[var(--color-text-muted)]">
-                  {progress}%
+
+                <Button
+                  type="button"
+                  intent="secondary"
+                  size="sm"
+                  disabled={!canOpenStudentView || opening}
+                  title={canOpenStudentView ? undefined : "학생 정보를 확인할 수 없어 화면을 열 수 없습니다."}
+                  aria-label={`${name} 학생 화면 보기`}
+                  aria-describedby={canOpenStudentView ? undefined : unavailableReasonId}
+                  aria-busy={opening}
+                  onClick={() => {
+                    if (canOpenStudentView && !opening) onOpenStudentView(studentId);
+                  }}
+                  leftIcon={<FiSmartphone size={ICON_FOR_BUTTON.sm} aria-hidden />}
+                >
+                  {opening ? "여는 중…" : "화면 보기"}
+                </Button>
+
+                {!canOpenStudentView && (
+                  <p
+                    id={unavailableReasonId}
+                    className="col-span-2 text-xs text-[var(--color-text-muted)]"
+                  >
+                    학생 정보를 확인할 수 없어 화면을 열 수 없습니다.
+                  </p>
+                )}
+
+                <div className="col-span-2 flex min-w-0 items-center gap-2.5">
+                  <div
+                    className="flex shrink-0 items-center gap-1.5"
+                    aria-label={`${name} 상태`}
+                  >
+                    <AttendanceStatusBadge
+                      status={(s.attendance_status ?? "INACTIVE") as AttendanceStatus}
+                      variant="2ch"
+                    />
+                    <Badge
+                      variant="solid"
+                      tone={getAccessTone(s.access_mode, s.effective_rule)}
+                      title="영상 시청 권한"
+                    >
+                      {getAccessLabel(s.access_mode, s.effective_rule)}
+                    </Badge>
+                  </div>
+
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <div
+                      className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--color-bg-surface-soft)]"
+                      role="progressbar"
+                      aria-label={`${name} 진도 ${progress}%`}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={progress}
+                    >
+                      <div
+                        className="h-full rounded-full transition-[width] duration-300 ease-out motion-reduce:transition-none"
+                        // eslint-disable-next-line no-restricted-syntax -- progress width/color is data-driven per student row.
+                        style={{
+                          width: `${barWidth}%`,
+                          background: completed
+                            ? "var(--color-success)"
+                            : "var(--color-brand-primary)",
+                        }}
+                      />
+                    </div>
+                    <div className="w-[36px] shrink-0 text-right text-xs tabular-nums text-[var(--color-text-muted)]">
+                      {progress}%
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
       {/* PAGINATION */}
       {totalPages > 1 && (
@@ -162,6 +202,7 @@ export default function StudentWatchPanel({
             type="button"
             disabled={safePage === 0}
             onClick={() => setPage((p) => Math.max(0, p - 1))}
+            aria-label="이전 학생 목록 페이지"
             className="inline-flex items-center justify-center w-7 h-7 rounded-md text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition"
           >
             <FiChevronLeft size={14} />
@@ -172,6 +213,8 @@ export default function StudentWatchPanel({
               key={i}
               type="button"
               onClick={() => setPage(i)}
+              aria-label={`학생 목록 ${i + 1}페이지`}
+              aria-current={i === safePage ? "page" : undefined}
               className={[
                 "inline-flex items-center justify-center w-7 h-7 rounded-md text-xs font-medium transition",
                 i === safePage
@@ -187,6 +230,7 @@ export default function StudentWatchPanel({
             type="button"
             disabled={safePage >= totalPages - 1}
             onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+            aria-label="다음 학생 목록 페이지"
             className="inline-flex items-center justify-center w-7 h-7 rounded-md text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)] disabled:opacity-30 disabled:cursor-not-allowed transition"
           >
             <FiChevronRight size={14} />

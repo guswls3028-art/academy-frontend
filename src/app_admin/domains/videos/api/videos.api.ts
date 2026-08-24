@@ -21,6 +21,7 @@ import type { AccessMode, VideoRule } from "../types/access-mode";
 
 export interface VideoStatsStudent {
   enrollment: number;
+  student_id?: number;
   student_name: string;
 
   progress: number;
