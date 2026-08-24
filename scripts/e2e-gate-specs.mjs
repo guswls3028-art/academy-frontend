@@ -13,6 +13,7 @@ export const routeMockSpecs = [
   "e2e/refactor/landing-router.spec.ts",
   "e2e/auth/account-password-flows.mock.spec.ts",
   "e2e/auth/account-recovery-modal.spec.ts",
+  "e2e/auth/signup-tenant-policy.mock.spec.ts",
   "e2e/auth/first-login-guide.mock.spec.ts",
   "e2e/auth/iphone-safari-login.mock.spec.ts",
   "e2e/auth/staff-clock-in-choice.mock.spec.ts",

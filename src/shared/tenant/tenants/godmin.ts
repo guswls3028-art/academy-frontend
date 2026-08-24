@@ -24,5 +24,6 @@ export const godmin: TenantDef = {
     ogImageUrl: "/tenants/godmin/og-image.png",
   },
   dedicatedLoginPage: false,
+  studentSelfRegistrationEnabled: false,
   hasCustomLogo: true,
 };

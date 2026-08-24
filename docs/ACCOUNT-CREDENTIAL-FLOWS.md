@@ -22,6 +22,15 @@ API와 성공 후 세션 처리를 소유한다. 비밀번호 원문, 토큰, �
 백엔드 호환 경로가 남아 있더라도 신규 화면은 전 역할 공통 본인 변경 API만
 사용한다.
 
+## 학생 셀프 회원가입 진입 정책
+
+- 테넌트 registry의 `studentSelfRegistrationEnabled=false`는 로그인 화면의
+  회원가입 버튼과 모달 진입을 숨긴다. 현재 적용 테넌트는 `godmin`, `tchul`이다.
+- 프론트엔드 숨김은 안내 경계이고, 직접 API 요청은 백엔드의 동일 테넌트 정책이
+  403으로 최종 차단한다. 별도 회원가입 route는 제공하지 않는다.
+- 정책 비활성화는 기존 아이디·비밀번호 로그인과 아이디/비밀번호 찾기 버튼 및
+  세션 처리에는 영향을 주지 않는다. 다른 테넌트는 기존 회원가입 흐름을 유지한다.
+
 ## 입력 편의와 직원 비밀번호 유틸
 
 - 모든 본인 변경·권장 변경·단일 직원 비밀번호 입력은 개별 보기·숨기기 버튼,
@@ -109,7 +118,7 @@ API와 성공 후 세션 처리를 소유한다. 비밀번호 원문, 토큰, �
 refresh 후 재요청 401의 단일 세션 종료와 복귀 경로 보존을 검증한다.
 
 ```powershell
-pnpm exec playwright test e2e/auth/account-password-flows.mock.spec.ts e2e/auth/account-recovery-modal.spec.ts e2e/admin/staff-operations-contract.mock.spec.ts --project=chromium --reporter=list
+pnpm exec playwright test e2e/auth/account-password-flows.mock.spec.ts e2e/auth/account-recovery-modal.spec.ts e2e/auth/signup-tenant-policy.mock.spec.ts e2e/admin/staff-operations-contract.mock.spec.ts --project=chromium --reporter=list
 pnpm exec playwright test e2e/auth/iphone-safari-login.mock.spec.ts --config=playwright.pr-gate.config.ts --project=pr-route-mocks --project=pr-iphone-webkit --no-deps --reporter=list
 pnpm exec playwright test e2e/student/student-content-resilience.mock.spec.ts --project=chromium --grep "학부모 내 비밀번호"
 pnpm exec playwright test e2e/admin/student-detail-entrypoints.mock.spec.ts --project=chromium --reporter=list

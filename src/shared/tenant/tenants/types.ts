@@ -43,6 +43,8 @@ export type TenantDef = {
   branding: TenantBranding;
   /** 전용 로그인 페이지 사용 여부 (예: tchul 2컬럼 브랜드 페이지) */
   dedicatedLoginPage: boolean;
+  /** false면 학생 셀프 회원가입 진입을 숨긴다. 서버 정책이 최종 차단한다. */
+  studentSelfRegistrationEnabled?: boolean;
   /** 커스텀 로고 보유 여부 — true: 전용 로고 에셋 사용, false: CommonLogoIcon SVG 사용 */
   hasCustomLogo: boolean;
 };
