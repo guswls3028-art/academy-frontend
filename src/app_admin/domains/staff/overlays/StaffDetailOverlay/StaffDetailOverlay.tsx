@@ -42,6 +42,11 @@ import StaffExpensesTab from "./StaffExpensesTab";
 import StaffPayrollHistoryTab from "./StaffPayrollHistoryTab";
 import StaffReportTab from "./StaffReportTab";
 import StaffEditModal from "../../components/StaffEditModal";
+import {
+  canEditStaffAccountRole,
+  staffAccountRoleLabel,
+  staffPositionLabel,
+} from "../../utils/staffIdentity";
 import styles from "./StaffDetailOverlay.module.css";
 
 type StaffTabKey = "summary" | "worktype" | "records" | "expenses" | "history" | "report";
@@ -59,12 +64,12 @@ function StaffManagerToggle({
     mutationFn: (payload: { is_manager: boolean }) =>
       patchStaffDetail(staffId, payload),
     onSuccess: () => {
-      feedback.success(isManager ? "관리자 권한을 해제했습니다." : "관리자 권한을 부여했습니다.");
+      feedback.success(isManager ? "직원관리 권한을 회수했습니다." : "직원관리 권한을 부여했습니다.");
       qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
       qc.invalidateQueries({ queryKey: staffQueryKeys.staffDetail(staffId) });
     },
     onError: (error: unknown) => {
-      feedback.error(extractApiError(error, "관리자 권한 변경에 실패했습니다."));
+      feedback.error(extractApiError(error, "직원관리 권한 변경에 실패했습니다."));
     },
   });
   return (
@@ -76,7 +81,7 @@ function StaffManagerToggle({
       onClick={async () => {
         const nextManager = !isManager;
         const ok = await confirm({
-          title: nextManager ? "관리자 권한 부여" : "관리자 권한 해제",
+          title: nextManager ? "직원관리 권한 부여" : "직원관리 권한 회수",
           message: nextManager
             ? "직원·시급·비용·급여 정보를 조회하고 관리할 수 있게 됩니다. 권한을 부여하시겠습니까?"
             : "직원·급여 관리 접근 권한을 해제하시겠습니까?",
@@ -85,8 +90,8 @@ function StaffManagerToggle({
         });
         if (ok) mutation.mutate({ is_manager: nextManager });
       }}
-      aria-label={isManager ? "관리자 권한 있음, 권한 해제" : "관리자 권한 없음, 권한 부여"}
-      title={isManager ? "눌러서 관리자 권한 해제" : "눌러서 관리자 권한 부여"}
+      aria-label={isManager ? "직원관리 권한 있음, 권한 회수" : "직원관리 권한 없음, 권한 부여"}
+      title={isManager ? "눌러서 직원관리 권한 회수" : "눌러서 직원관리 권한 부여"}
     >
       <span className={styles.managerDot} aria-hidden />
       {mutation.isPending ? "변경 중" : isManager ? "권한 있음" : "권한 없음"}
@@ -111,12 +116,6 @@ function staffAvatarRole(
   if (role === "OWNER") return "owner";
   if (role === "TEACHER" || role === "ASSISTANT") return role;
   return "ASSISTANT";
-}
-
-function staffRoleLabel(role: string) {
-  if (role === "OWNER") return "대표";
-  if (role === "TEACHER") return "강사";
-  return "조교";
 }
 
 type StaffDetailOverlayProps = {
@@ -299,12 +298,16 @@ export default function StaffDetailOverlay({
                   <h1 id="staff-detail-title" className="ds-overlay-header__title">{staff.name}</h1>
                   <dl className={styles.identityMeta}>
                     <div className={styles.identityMetaItem}>
-                      <dt>역할</dt>
-                      <dd>{staffRoleLabel(staff.role)}</dd>
+                      <dt>직위</dt>
+                      <dd>{staffPositionLabel(staff.position, staff.role)}</dd>
                     </div>
                     <div className={styles.identityMetaItem}>
                       <dt>계정</dt>
-                      <dd>{staff.user_username ?? "계정 없음"}</dd>
+                      <dd>{staffAccountRoleLabel(staff.account_role, staff.role)}</dd>
+                    </div>
+                    <div className={styles.identityMetaItem}>
+                      <dt>로그인</dt>
+                      <dd>{staff.user_username || "없음"}</dd>
                     </div>
                   </dl>
                 </div>
@@ -329,7 +332,7 @@ export default function StaffDetailOverlay({
                       정보 수정
                     </Button>
                   )}
-                  {canManage && staff.is_active && (
+                  {canManage && staff.is_active && canEditStaffAccountRole(staff.account_role) && (
                     <Button
                       type="button"
                       intent="ghost"
@@ -350,7 +353,7 @@ export default function StaffDetailOverlay({
                       {offboardMutation.isPending ? "처리 중…" : "퇴사 처리"}
                     </Button>
                   )}
-                  {canManage && !staff.is_active && (
+                  {canManage && !staff.is_active && canEditStaffAccountRole(staff.account_role) && (
                     <Button
                       type="button"
                       intent="ghost"
@@ -391,24 +394,20 @@ export default function StaffDetailOverlay({
                     <InfoRow label="계정" value={staff.user_username || "계정 없음"} />
                     <InfoRow label="전화번호" value={formatPhone(staff.phone)} />
                     <InfoRow label="급여유형" value={staff.pay_type === "HOURLY" ? "시급" : "월급(수동 확인)"} />
-                    <InfoRow
-                      label="역할"
-                      value={
-                        staff.role === "OWNER"
-                          ? "대표"
-                          : staff.role === "TEACHER"
-                            ? "강사"
-                            : "조교"
-                      }
-                    />
+                    <InfoRow label="직위" value={staffPositionLabel(staff.position, staff.role)} />
+                    <InfoRow label="계정 유형" value={staffAccountRoleLabel(staff.account_role, staff.role)} />
                     <div className="ds-overlay-info-row" title="강사·조교의 직원 관리(시급·급여·비용) 접근 권한입니다. 대표·관리자는 항상 접근할 수 있고, OFF여도 본인 출퇴근 등 일반 기능은 사용할 수 있습니다.">
-                      <span className="ds-overlay-info-row__label">관리자</span>
+                      <span className="ds-overlay-info-row__label">직원관리 권한</span>
                       <span className="ds-overlay-info-row__value">
-                        {canManage ? (
-                          <StaffManagerToggle staffId={staff.id} isManager={!!staff.is_manager} />
+                        {canManage && canEditStaffAccountRole(staff.account_role) ? (
+                          <StaffManagerToggle staffId={staff.id} isManager={!!(staff.can_manage_staff ?? staff.is_manager)} />
                         ) : (
-                          <Badge variant="solid" status={staff.is_manager ? "active" : "inactive"}>
-                            {staff.is_manager ? "ON" : "OFF"}
+                          <Badge
+                            variant="solid"
+                            status={(staff.can_manage_staff ?? staff.is_manager) ? "active" : "inactive"}
+                            title={staff.account_role === "ADMIN" ? "관리자 계정은 직원관리 권한이 항상 있습니다." : undefined}
+                          >
+                            {(staff.can_manage_staff ?? staff.is_manager) ? "ON" : "OFF"}
                           </Badge>
                         )}
                       </span>
@@ -444,12 +443,11 @@ export default function StaffDetailOverlay({
                       <span className="ds-overlay-info-row__label">마감상태</span>
                       <span className="ds-overlay-info-row__value">
                         <div className="flex items-center gap-2">
-                          {!lockFailed && <LockBadge state={locked ? "LOCKED" : "OPEN"} compact />}
-                          <span
-                            className={`font-semibold ds-overlay-lock-state ${locked ? "is-locked" : "is-open"}`}
-                          >
-                            {lockFailed ? "확인 실패" : locked ? "정산 고정" : "진행중"}
-                          </span>
+                          {lockFailed ? (
+                            <span className="font-semibold ds-overlay-lock-state">확인 실패</span>
+                          ) : (
+                            <LockBadge state={locked ? "LOCKED" : "OPEN"} />
+                          )}
                         </div>
                       </span>
                     </div>

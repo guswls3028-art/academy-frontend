@@ -1,6 +1,6 @@
 .form {
   display: grid;
-  gap: 12px;
+  gap: 16px;
 }
 
 .field {
@@ -12,4 +12,140 @@
   color: var(--color-text-muted);
   font-size: 12px;
   font-weight: 800;
+}
+
+.section {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-bg-surface-soft) 74%, var(--color-bg-surface));
+}
+
+.sectionHeading {
+  display: grid;
+  gap: 2px;
+}
+
+.sectionHeading strong {
+  color: var(--color-text-primary);
+  font-size: 14px;
+}
+
+.sectionHeading span {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.twoColumn,
+.accountRoleGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.positionGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.positionOption,
+.accountRoleOption {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 11px 10px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 10px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  text-align: left;
+  transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease;
+}
+
+.positionOption:hover,
+.accountRoleOption:hover {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 38%, var(--color-border-divider));
+}
+
+.positionOption[data-selected="true"],
+.accountRoleOption[data-selected="true"] {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 62%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-brand-primary) 9%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+  transform: translateY(-1px);
+}
+
+.positionOption:focus-visible,
+.accountRoleOption:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+.positionOption strong,
+.accountRoleOption strong {
+  font-size: 13px;
+}
+
+.positionOption span,
+.accountRoleOption span {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.managerPermission {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-warning) 22%, var(--color-border-divider));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-warning) 6%, var(--color-bg-surface));
+  cursor: pointer;
+}
+
+.managerPermission input {
+  width: 17px;
+  height: 17px;
+  margin-top: 1px;
+  accent-color: var(--color-brand-primary);
+}
+
+.managerPermission span {
+  display: grid;
+  gap: 2px;
+}
+
+.managerPermission strong {
+  color: var(--color-text-primary);
+  font-size: 12px;
+}
+
+.managerPermission small {
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+
+@media (max-width: 640px) {
+  .twoColumn,
+  .accountRoleGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .positionGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .positionOption,
+  .accountRoleOption {
+    transition: none;
+  }
 }

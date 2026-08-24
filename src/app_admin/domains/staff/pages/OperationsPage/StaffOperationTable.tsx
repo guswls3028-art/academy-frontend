@@ -8,12 +8,20 @@ import type { Staff } from "../../api/staff.api";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { cx } from "@/shared/utils/cx";
+import { staffPositionLabel } from "../../utils/staffIdentity";
 
 const EMPTY_STAFFS: Staff[] = [];
-const ROLE_ORDER = { TEACHER: 0, ASSISTANT: 1 } as const;
+const POSITION_ORDER = {
+  DIRECTOR: 0,
+  INSTRUCTOR: 1,
+  ASSISTANT: 2,
+  STAFF: 3,
+} as const;
 
-function byRoleThenName(a: Staff, b: Staff) {
-  const roleRank = (ROLE_ORDER[a.role] ?? 1) - (ROLE_ORDER[b.role] ?? 1);
+function byPositionThenName(a: Staff, b: Staff) {
+  const roleRank =
+    (POSITION_ORDER[a.position] ?? (a.role === "TEACHER" ? 1 : 2)) -
+    (POSITION_ORDER[b.position] ?? (b.role === "TEACHER" ? 1 : 2));
   return roleRank !== 0 ? roleRank : (a.name || "").localeCompare(b.name || "", "ko");
 }
 
@@ -53,11 +61,11 @@ export default function StaffOperationTable({
   }, [staffs, q]);
 
   const active = useMemo(
-    () => filtered.filter((s) => s.is_active).sort(byRoleThenName),
+    () => filtered.filter((s) => s.is_active).sort(byPositionThenName),
     [filtered]
   );
   const inactive = useMemo(
-    () => filtered.filter((s) => !s.is_active).sort(byRoleThenName),
+    () => filtered.filter((s) => !s.is_active).sort(byPositionThenName),
     [filtered]
   );
 
@@ -196,8 +204,9 @@ function Row({
       )}
     >
       <StaffRoleAvatar role={staff.role} size={32} className="shrink-0 text-[var(--color-text-secondary)]" />
-      <span className="staff-list-item__name flex-1 truncate text-left font-medium text-[var(--color-text-primary)]">
-        {staff.name}
+      <span className="staff-list-item__name flex-1 min-w-0 text-left">
+        <span className="block truncate font-medium text-[var(--color-text-primary)]">{staff.name}</span>
+        <span className="block truncate text-[10px] text-[var(--color-text-muted)]">{staffPositionLabel(staff.position, staff.role)}</span>
       </span>
     </button>
   );

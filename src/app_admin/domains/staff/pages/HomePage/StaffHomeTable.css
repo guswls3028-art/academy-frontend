@@ -20,3 +20,61 @@
 .staff-home-table-shell {
   width: fit-content;
 }
+
+.staff-home-name-cell {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.staff-home-mobile-meta {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .staff-home-table-shell {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .staff-home-table-shell .ds-table {
+    width: 100% !important;
+    min-width: 100% !important;
+    table-layout: fixed !important;
+  }
+
+  .staff-home-table-shell col:nth-child(1) {
+    width: 44px !important;
+  }
+
+  .staff-home-table-shell col:nth-child(4) {
+    width: auto !important;
+  }
+
+  .staff-home-table-shell col:nth-child(2),
+  .staff-home-table-shell col:nth-child(3),
+  .staff-home-table-shell col:nth-child(n + 5),
+  .staff-home-table-shell th:nth-child(2),
+  .staff-home-table-shell th:nth-child(3),
+  .staff-home-table-shell th:nth-child(n + 5),
+  .staff-home-table-shell td:nth-child(2),
+  .staff-home-table-shell td:nth-child(3),
+  .staff-home-table-shell td:nth-child(n + 5) {
+    display: none;
+  }
+
+  .staff-home-table-shell col:nth-child(2),
+  .staff-home-table-shell col:nth-child(3),
+  .staff-home-table-shell col:nth-child(n + 5) {
+    width: 0 !important;
+  }
+
+  .staff-home-mobile-meta {
+    display: grid;
+    gap: 1px;
+    color: var(--color-text-muted);
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1.35;
+  }
+}

@@ -15,6 +15,10 @@ import { staffQueryKeys } from "../../queryKeys";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
+import {
+  staffAccountRoleLabel,
+  staffPositionLabel,
+} from "../../utils/staffIdentity";
 import "./StaffHomeTable.css";
 
 /** 직원 목록 선택 시 원장 행용 sentinel id (삭제 제외) */
@@ -106,7 +110,8 @@ interface Props {
 
 const COL = {
   checkbox: TABLE_COL.checkbox,
-  role: 72,
+  position: 72,
+  account: 96,
   name: TABLE_COL.nameCompact,
   phone: TABLE_COL.phone,
   status: TABLE_COL.statusBadge,
@@ -116,11 +121,12 @@ const COL = {
 } as const;
 
 const STAFF_HOME_COLUMN_DEFS: TableColumnDef[] = [
-  { key: "role", label: "직위", defaultWidth: COL.role, minWidth: 50 },
+  { key: "position", label: "직위", defaultWidth: COL.position, minWidth: 50 },
+  { key: "account", label: "계정", defaultWidth: COL.account, minWidth: 72 },
   { key: "name", label: "이름", defaultWidth: COL.name, minWidth: 80 },
   { key: "phone", label: "전화번호", defaultWidth: COL.phone, minWidth: 90 },
   { key: "status", label: "상태", defaultWidth: COL.status, minWidth: 50 },
-  { key: "manager", label: "관리자권한", defaultWidth: COL.manager, minWidth: 60 },
+  { key: "manager", label: "직원관리", defaultWidth: COL.manager, minWidth: 60 },
   { key: "payType", label: "급여유형", defaultWidth: COL.payType, minWidth: 80 },
   { key: "workTypeTags", label: "시급태그", defaultWidth: COL.workTypeTags, minWidth: 120 },
 ];
@@ -225,6 +231,18 @@ export function StaffHomeTable({
       } else if (key === "status") {
         aVal = a.is_active ? 1 : 0;
         bVal = b.is_active ? 1 : 0;
+      } else if (key === "account") {
+        aVal = a.account_role;
+        bVal = b.account_role;
+      } else if (key === "manager") {
+        aVal = (a.can_manage_staff ?? a.is_manager) ? 1 : 0;
+        bVal = (b.can_manage_staff ?? b.is_manager) ? 1 : 0;
+      } else if (key === "payType") {
+        aVal = a.pay_type;
+        bVal = b.pay_type;
+      } else if (key === "workTypeTags") {
+        aVal = a.staff_work_types?.[0]?.work_type?.name ?? "";
+        bVal = b.staff_work_types?.[0]?.work_type?.name ?? "";
       }
       if (typeof aVal === "string" && typeof bVal === "string") {
         return asc ? aVal.localeCompare(String(bVal), "ko") : -aVal.localeCompare(String(bVal), "ko");
@@ -239,7 +257,8 @@ export function StaffHomeTable({
 
   const tableWidth =
     COL.checkbox +
-    (columnWidths.role ?? COL.role) +
+    (columnWidths.position ?? COL.position) +
+    (columnWidths.account ?? COL.account) +
     (columnWidths.name ?? COL.name) +
     (columnWidths.phone ?? COL.phone) +
     (columnWidths.status ?? COL.status) +
@@ -287,7 +306,7 @@ export function StaffHomeTable({
       setPendingManager((prev) => { const n = new Set(prev); n.delete(vars.staffId); return n; });
     },
     onError: (e: unknown, vars) => {
-      feedback.error(extractApiError(e, "관리자 권한 변경에 실패했습니다."));
+      feedback.error(extractApiError(e, "직원관리 권한 변경에 실패했습니다."));
       setPendingManager((prev) => { const n = new Set(prev); n.delete(vars.staffId); return n; });
     },
   });
@@ -343,7 +362,8 @@ export function StaffHomeTable({
         <colgroup>
           {/* eslint-disable no-restricted-syntax -- 사용자 조정 컬럼 폭은 col width로 전달해야 한다. */}
           <col style={{ width: COL.checkbox }} />
-          <col style={{ width: columnWidths.role ?? COL.role }} />
+          <col style={{ width: columnWidths.position ?? COL.position }} />
+          <col style={{ width: columnWidths.account ?? COL.account }} />
           <col style={{ width: columnWidths.name ?? COL.name }} />
           <col style={{ width: columnWidths.phone ?? COL.phone }} />
           <col style={{ width: columnWidths.status ?? COL.status }} />
@@ -368,11 +388,12 @@ export function StaffHomeTable({
                 className="cursor-pointer"
               />
             </th>
-            <StaffHomeSortableTh colKey="role" label="직위" widthKey="role" width={columnWidths.role ?? COL.role} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
+            <StaffHomeSortableTh colKey="position" label="직위" widthKey="position" width={columnWidths.position ?? COL.position} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
+            <StaffHomeSortableTh colKey="account" label="계정" widthKey="account" width={columnWidths.account ?? COL.account} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} title="강의 담당 여부와 로그인 계정의 시스템 역할입니다. 직위·직원관리 권한과 별개입니다." />
             <StaffHomeSortableTh colKey="name" label="이름" widthKey="name" width={columnWidths.name ?? COL.name} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
             <StaffHomeSortableTh colKey="phone" label="전화번호" widthKey="phone" width={columnWidths.phone ?? COL.phone} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
             <StaffHomeSortableTh colKey="status" label="상태" widthKey="status" width={columnWidths.status ?? COL.status} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
-            <StaffHomeSortableTh colKey="manager" label="관리자권한" widthKey="manager" width={columnWidths.manager ?? COL.manager} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} title="강사·조교의 직원 관리(시급·급여·비용) 접근 권한입니다. 대표·관리자는 항상 접근할 수 있고, OFF여도 본인 출퇴근 등 일반 기능은 사용할 수 있습니다." />
+            <StaffHomeSortableTh colKey="manager" label="직원관리" widthKey="manager" width={columnWidths.manager ?? COL.manager} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} title="강사·직원 계정의 직원 관리(시급·급여·비용) 접근 권한입니다. 대표·관리자는 항상 접근할 수 있고, OFF여도 본인 출퇴근 등 일반 기능은 사용할 수 있습니다." />
             <StaffHomeSortableTh colKey="payType" label="급여유형" widthKey="payType" width={columnWidths.payType ?? COL.payType} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
             <StaffHomeSortableTh colKey="workTypeTags" label="시급태그" widthKey="workTypeTags" width={columnWidths.workTypeTags ?? COL.workTypeTags} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
           </tr>
@@ -396,6 +417,9 @@ export function StaffHomeTable({
                 <Badge variant="solid" actionable tone="primary" ariaLabel="대표">
                   대표
                 </Badge>
+              </td>
+              <td className="align-middle">
+                <Badge variant="solid" tone="neutral">대표 계정</Badge>
               </td>
               <td className="align-middle">
                 <span className="inline-flex items-center gap-2 min-w-0">
@@ -451,15 +475,34 @@ export function StaffHomeTable({
                 />
               </td>
               <td className="align-middle">
-                <Badge variant="solid" actionable tone={r.role === "TEACHER" ? "primary" : "neutral"} ariaLabel={r.role === "TEACHER" ? "강사" : "조교"}>
-                  {r.role === "TEACHER" ? "강사" : "조교"}
+                <Badge
+                  variant="solid"
+                  actionable
+                  tone={r.position === "DIRECTOR" || r.position === "INSTRUCTOR" ? "primary" : "neutral"}
+                  ariaLabel={staffPositionLabel(r.position, r.role)}
+                >
+                  {staffPositionLabel(r.position, r.role)}
                 </Badge>
               </td>
               <td className="align-middle">
-                <span className="inline-flex items-center gap-2 min-w-0">
-                  <StaffRoleAvatar role={r.role} />
-                  <span className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate">
-                    {r.name}
+                <Badge variant="solid" tone="neutral">
+                  {staffAccountRoleLabel(r.account_role, r.role)}
+                </Badge>
+              </td>
+              <td className="align-middle">
+                <span className="staff-home-name-cell">
+                  <span className="inline-flex items-center gap-2 min-w-0">
+                    <StaffRoleAvatar role={r.role} />
+                    <span className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate">
+                      {r.name}
+                    </span>
+                  </span>
+                  <span className="staff-home-mobile-meta">
+                    <span>{staffPositionLabel(r.position, r.role)} · {staffAccountRoleLabel(r.account_role, r.role)}</span>
+                    <span>{r.phone || "연락처 없음"}</span>
+                    <span>
+                      {r.is_active ? "재직" : "퇴사"} · {r.pay_type === "HOURLY" ? "시급" : "월급 확인"} · 직원관리 {(r.can_manage_staff ?? r.is_manager) ? "ON" : "OFF"}
+                    </span>
                   </span>
                 </span>
               </td>
@@ -472,17 +515,17 @@ export function StaffHomeTable({
                 </Badge>
               </td>
               <td className="align-middle" onClick={(e) => e.stopPropagation()}>
-                {canManage ? (
+                {canManage && r.account_role !== "ADMIN" && r.account_role !== "OWNER" ? (
                   <Badge
                     as="button"
                     variant="solid"
                     actionable
-                    status={r.is_manager ? "active" : "inactive"}
+                    status={(r.can_manage_staff ?? r.is_manager) ? "active" : "inactive"}
                     disabled={pendingManager.has(r.id)}
                     onClick={async () => {
-                      const nextManager = !r.is_manager;
+                      const nextManager = !(r.can_manage_staff ?? r.is_manager);
                       const ok = await confirm({
-                        title: nextManager ? "관리자 권한 부여" : "관리자 권한 해제",
+                        title: nextManager ? "직원관리 권한 부여" : "직원관리 권한 회수",
                         message: nextManager
                           ? `${r.name}에게 직원·시급·비용·급여 관리 권한을 부여하시겠습니까?`
                           : `${r.name}의 직원·급여 관리 권한을 해제하시겠습니까?`,
@@ -496,13 +539,17 @@ export function StaffHomeTable({
                         });
                       }
                     }}
-                    ariaLabel={r.is_manager ? "관리자 해제" : "관리자 부여"}
+                    ariaLabel={(r.can_manage_staff ?? r.is_manager) ? "직원관리 권한 회수" : "직원관리 권한 부여"}
                   >
-                    {pendingManager.has(r.id) ? "…" : r.is_manager ? "ON" : "OFF"}
+                    {pendingManager.has(r.id) ? "…" : (r.can_manage_staff ?? r.is_manager) ? "ON" : "OFF"}
                   </Badge>
                 ) : (
-                  <Badge variant="solid" actionable status={r.is_manager ? "active" : "inactive"}>
-                    {r.is_manager ? "ON" : "OFF"}
+                  <Badge
+                    variant="solid"
+                    status={(r.can_manage_staff ?? r.is_manager) ? "active" : "inactive"}
+                    title={r.account_role === "ADMIN" ? "관리자 계정은 직원관리 권한이 항상 있습니다." : undefined}
+                  >
+                    {(r.can_manage_staff ?? r.is_manager) ? "ON" : "OFF"}
                   </Badge>
                 )}
               </td>

@@ -72,15 +72,6 @@ export default function StaffSummaryTab({ staffId }: { staffId: number }) {
 
         <div className="flex items-center gap-2">
           <LockBadge state={locked ? "LOCKED" : "OPEN"} />
-          <span
-            className={`text-sm font-semibold ${
-              locked
-                ? "text-[var(--color-danger)]"
-                : "text-[var(--color-success)]"
-            }`}
-          >
-            {locked ? "정산 고정" : "진행중"}
-          </span>
         </div>
       </div>
 

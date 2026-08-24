@@ -1,13 +1,13 @@
 // PATH: src/app_admin/domains/staff/components/StaffWorkspace.tsx
-// Staff-centered workspace: left = staff list, right = header + tabs + tab content.
+// Staff-centered workspace: overview uses full width; selected staff keeps list + detail.
 // Selected staff and month persist across tab switches via URL.
 
 import { useMemo } from "react";
 import { useSearchParams, useLocation, Outlet } from "react-router";
-import { User } from "lucide-react";
 import StaffOperationTable from "../pages/OperationsPage/StaffOperationTable";
 import { StaffWorkspaceHeader } from "./StaffWorkspaceHeader";
 import { StaffWorkspaceTabs } from "./StaffWorkspaceTabs";
+import { StaffPayrollOverview } from "./StaffPayrollOverview";
 
 function getThisMonth() {
   const d = new Date();
@@ -34,36 +34,32 @@ export function StaffWorkspace() {
   const basePath = getBasePath(location.pathname);
 
   return (
-    <div className="staff-workspace-grid" data-no-internal-header>
-      {/* LEFT: Staff list */}
-      <div className="staff-panel flex flex-col min-h-0">
-        <div className="staff-panel__header">
-          <div className="staff-page-title">직원</div>
-          <p className="staff-helper mt-1">선택한 직원의 근태·비용·급여를 조회합니다.</p>
+    <div
+      className={`staff-workspace-grid${staffId ? "" : " staff-workspace-grid--overview"}`}
+      data-no-internal-header
+    >
+      {/* 직원 선택 후에는 목록을 유지해 상세 대상을 빠르게 바꾼다. */}
+      {staffId && (
+        <div className="staff-panel flex flex-col min-h-0">
+          <div className="staff-panel__header">
+            <div className="staff-page-title">직원</div>
+            <p className="staff-helper mt-1">선택한 직원의 근태·비용·급여를 조회합니다.</p>
+          </div>
+          <div className="staff-panel__body overflow-y-auto min-h-0">
+            <StaffOperationTable
+              selectedStaffId={staffId}
+              basePath={basePath}
+              year={year}
+              month={month}
+            />
+          </div>
         </div>
-        <div className="staff-panel__body overflow-y-auto min-h-0">
-          <StaffOperationTable
-            selectedStaffId={staffId ?? undefined}
-            basePath={basePath}
-            year={year}
-            month={month}
-          />
-        </div>
-      </div>
+      )}
 
       {/* RIGHT: Workspace */}
       <div className="staff-panel min-h-[420px] flex flex-col overflow-hidden">
         {staffId == null ? (
-          <div
-            className="staff-empty flex-1 flex flex-col items-center justify-center py-16"
-            role="status"
-            aria-live="polite"
-            aria-label="직원이 선택되지 않았습니다. 좌측 목록에서 직원을 선택하세요."
-          >
-            <User className="staff-empty__icon" strokeWidth={1.5} aria-hidden />
-            <p className="staff-empty__title">직원이 선택되지 않았습니다</p>
-            <p className="staff-empty__desc">좌측 목록에서 직원을 선택하면 근태·비용·급여를 조회·관리할 수 있습니다.</p>
-          </div>
+          <StaffPayrollOverview year={year} month={month} />
         ) : (
           <>
             <StaffWorkspaceHeader staffId={staffId} year={year} month={month} />
