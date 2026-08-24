@@ -3,6 +3,7 @@ export const messageQueryKeys = {
   info: ["messaging", "info"] as const,
   log: ["messaging", "log"] as const,
   logList: (params: object) => ["messaging", "log", params] as const,
+  logDetail: (id: number) => ["messaging", "log", "detail", id] as const,
   templates: ["messaging", "templates"] as const,
   templatesByCategory: (category: string) => ["messaging", "templates", category] as const,
   customDefaultTemplate: ["messaging", "templates", "custom-default"] as const,

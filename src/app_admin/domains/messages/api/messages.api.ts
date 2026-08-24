@@ -29,13 +29,27 @@ export interface TenantMessagingInfo {
   can_manage_messaging?: boolean;
 }
 
+export type NotificationLogStatus =
+  | "processing"
+  | "sending"
+  | "sent"
+  | "retryable_failed"
+  | "failed"
+  | "ambiguous";
+
+export type NotificationBodyVisibility =
+  | "available"
+  | "sensitive_redacted"
+  | "restricted"
+  | "not_recorded";
+
 export interface NotificationLogItem {
   id: number;
   sent_at: string;
   /** 성공 여부 */
   success: boolean;
   /** worker lifecycle status: processing/sent/failed */
-  status?: "processing" | "sent" | "failed" | string;
+  status?: NotificationLogStatus | string;
   /** worker가 큐 메시지를 선점한 시각 */
   claimed_at?: string | null;
   /** 차감 금액 */
@@ -46,18 +60,28 @@ export interface NotificationLogItem {
   template_summary?: string;
   /** 실패 시 사유 */
   failure_reason?: string | null;
+  /** 원문 provider 오류 대신 서버가 분류한 안전한 실패 코드 */
+  failure_code?: string;
   /** provider가 반환한 그룹/메시지 식별자 */
   provider_message_id?: string;
+  /** 정확한 provider ID를 노출하지 않는 사용자 표시용 reference */
+  provider_message_reference?: string;
+  /** provider 접수 식별자가 기록되었는지 여부 */
+  provider_evidence?: boolean;
   /** 실제 발송된 메시지 본문 */
   message_body?: string;
+  message_body_included?: boolean;
+  body_visibility?: NotificationBodyVisibility;
   /** 발송 방식 */
   message_mode?: string;
+  notification_type?: string;
+  target_name?: string;
 }
 
 export interface NotificationLogParams {
   page?: number;
   page_size?: number;
-  status?: "success" | "failure";
+  status?: "success" | "failure" | "sent" | "active" | "attention" | "failed";
 }
 
 export interface NotificationLogResponse {
@@ -207,7 +231,7 @@ export interface SendPreflightResponse {
 export interface MessagingOperationsStatus {
   checked_at: string;
   worker: {
-    status: "ok" | "stale" | "unknown";
+    status: "ok" | "idle" | "stale" | "unknown";
     last_seen_at: string | null;
     age_seconds: number | null;
     instance: string;
@@ -223,6 +247,10 @@ export interface MessagingOperationsStatus {
     sent: number;
     failed: number;
     processing: number;
+    sending: number;
+    retryable_failed: number;
+    ambiguous: number;
+    action_required: number;
     total: number;
   };
   templates: {

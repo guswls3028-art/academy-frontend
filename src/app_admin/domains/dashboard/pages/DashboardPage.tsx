@@ -10,10 +10,10 @@ import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
-  BellRing,
   CalendarClock,
   ClipboardCheck,
   FileCheck2,
+  MessageCircle,
   MessageCircleQuestion,
 } from "lucide-react";
 import { fetchExams } from "@admin/domains/exams/api/exams.api";
@@ -23,7 +23,7 @@ import {
   fetchArrivalOverview,
   type ArrivalOverviewItem,
 } from "@/shared/api/contracts/arrivalOverview";
-import { Button } from "@/shared/ui/ds";
+import { Badge, Button } from "@/shared/ui/ds";
 import { InlineHelp } from "@/shared/ui/guide";
 import { DomainLayout } from "@/shared/ui/layout";
 import { useOperationalNotificationCounts } from "@/shared/hooks/useOperationalNotificationCounts";
@@ -84,18 +84,26 @@ export default function DashboardPage() {
     loading: {
       title: "알림톡 상태를 확인하고 있습니다",
       description: "연동 및 발송 설정을 불러오는 중입니다.",
+      badge: "확인 중",
+      tone: "info" as const,
     },
     error: {
       title: "알림톡 상태를 확인하지 못했습니다",
       description: "일시적으로 설정 상태를 불러오지 못했습니다. 메시지 설정에서 다시 확인해 주세요.",
+      badge: "불러오기 실패",
+      tone: "danger" as const,
     },
     disconnected: {
       title: "발송 준비를 확인해 주세요",
       description: "현재 발송 준비가 완료되지 않았습니다. 설정 상태를 확인해 주세요.",
+      badge: "설정 필요",
+      tone: "warning" as const,
     },
     ready: {
-      title: "알림톡 안내 준비",
-      description: "자동 발송 범위와 직접 확인할 안내를 메시지 설정에서 구분합니다.",
+      title: "알림톡 발송 가능",
+      description: "공용 알림톡 채널과 직접 발송 봉투가 준비되어 있습니다. 자동 안내별 준비 상태는 메시지 설정에서 확인하세요.",
+      badge: "정상",
+      tone: "success" as const,
     },
   }[alimtalkState];
 
@@ -196,19 +204,37 @@ export default function DashboardPage() {
               data-status={alimtalkState}
               aria-labelledby="dashboard-message-title"
             >
-              <span className={styles.messageIcon}>
-                <BellRing size={20} aria-hidden="true" />
-              </span>
-              <div>
+              <div className={styles.messageCardTop}>
+                <span className={styles.messageIcon}>
+                  <MessageCircle size={20} fill="currentColor" aria-hidden="true" />
+                </span>
+                <span className={styles.messageChannel}>
+                  <strong>카카오 알림톡</strong>
+                  <small>우리 학원 안내 채널</small>
+                </span>
+                <Badge tone={alimtalkCopy.tone} size="sm" variant="soft">
+                  {alimtalkCopy.badge}
+                </Badge>
+              </div>
+              <div className={styles.messageBubble}>
                 <span>알림톡 상태</span>
                 <h2 id="dashboard-message-title">{alimtalkCopy.title}</h2>
                 <p>{alimtalkCopy.description}</p>
+              </div>
+              <div className={styles.messageActions}>
+                <Button
+                  size="sm"
+                  intent="secondary"
+                  onClick={() => navigate("/workspace/message/log")}
+                >
+                  발송 내역
+                </Button>
                 <Button
                   size="sm"
                   intent={alimtalkState === "ready" || alimtalkState === "loading" ? "secondary" : "primary"}
                   onClick={() => navigate("/workspace/message/settings")}
                 >
-                  메시지 설정 보기
+                  메시지 설정
                 </Button>
               </div>
             </section>

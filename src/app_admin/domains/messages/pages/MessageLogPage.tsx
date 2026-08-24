@@ -1,88 +1,190 @@
 // PATH: src/app_admin/domains/messages/pages/MessageLogPage.tsx
-// 발송 내역 — 카드형 리스트 + 상세 팝업 (디자인 강화, 모든 데이터 표시)
+// 알림톡 발송 기록 — provider lifecycle와 보안 projection을 그대로 설명한다.
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronRight,
+  CircleDashed,
+  Clock3,
+  LockKeyhole,
+  MessageCircle,
+  RefreshCw,
+  ShieldCheck,
+  XCircle,
+} from "lucide-react";
+import {
+  Badge,
+  Button,
+  EmptyState,
+  ICON,
+  type BadgeTone,
+} from "@/shared/ui/ds";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
-import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
+import { feedback } from "@/shared/ui/feedback/feedback";
+import { koreanDateTimeText, koreanFullDateTimeText } from "@/shared/utils/displayText";
 import { useNotificationLog } from "../hooks/useNotificationLog";
 import {
+  AUTO_SEND_TRIGGER_LABELS,
   cancelScheduledNotification,
   fetchMessagingOperationsStatus,
+  fetchNotificationLogDetail,
   fetchScheduledNotifications,
   type MessagingOperationsStatus,
   type NotificationLogItem,
+  type NotificationLogStatus,
   type ScheduledNotificationItem,
 } from "../api/messages.api";
-import { feedback } from "@/shared/ui/feedback/feedback";
-import { koreanDateTimeText, koreanFullDateTimeText } from "@/shared/utils/displayText";
 import { messageQueryKeys } from "../queryKeys";
 import styles from "./MessageLogPage.module.css";
+import previewStyles from "./MessageLogPreview.module.css";
 
-// ── helpers ──
+type StatusFilter = "all" | "sent" | "active" | "attention" | "failed";
 
-const MESSAGE_MODE_LABELS: Record<string, string> = {
-  sms: "문자 발송 차단(레거시)",
-  alimtalk: "알림톡",
-  both: "알림톡 (레거시)",
+type DeliveryState = {
+  label: string;
+  detail: string;
+  tone: BadgeTone;
+  icon: typeof CheckCircle2;
 };
 
-type StatusFilter = "all" | "success" | "failure";
 const PAGE_SIZE = 30;
 
-const FILTER_OPTIONS: { key: StatusFilter; label: string; count?: number }[] = [
+const FILTER_OPTIONS: { key: StatusFilter; label: string }[] = [
   { key: "all", label: "전체" },
-  { key: "success", label: "성공" },
-  { key: "failure", label: "실패" },
+  { key: "sent", label: "접수 완료" },
+  { key: "active", label: "진행 중" },
+  { key: "attention", label: "확인 필요" },
+  { key: "failed", label: "실패" },
 ];
 
-function isRawTemplateCode(value?: string): boolean {
-  return Boolean(value?.trim().startsWith("KA01"));
+const DELIVERY_STATES: Record<NotificationLogStatus, DeliveryState> = {
+  processing: {
+    label: "발송 준비 중",
+    detail: "알림톡 발송 순서를 확보하고 있습니다.",
+    tone: "info",
+    icon: CircleDashed,
+  },
+  sending: {
+    label: "접수 확인 중",
+    detail: "카카오 공급사에 발송 요청을 전달하고 있습니다.",
+    tone: "info",
+    icon: Clock3,
+  },
+  sent: {
+    label: "접수 완료",
+    detail: "카카오 공급사가 발송 요청을 접수했습니다. 읽음 여부는 제공되지 않습니다.",
+    tone: "success",
+    icon: CheckCircle2,
+  },
+  retryable_failed: {
+    label: "재시도 대기",
+    detail: "공급사 호출 전에 일시적인 문제가 확인되어 자동 처리 순서를 기다립니다.",
+    tone: "warning",
+    icon: RefreshCw,
+  },
+  failed: {
+    label: "발송 실패",
+    detail: "발송이 확정적으로 완료되지 않았습니다. 아래 사유를 확인해 주세요.",
+    tone: "danger",
+    icon: XCircle,
+  },
+  ambiguous: {
+    label: "결과 확인 필요",
+    detail: "공급사 접수 여부가 불분명해 자동으로 다시 보내지 않습니다.",
+    tone: "warning",
+    icon: AlertTriangle,
+  },
+};
+
+function deliveryState(item: NotificationLogItem): DeliveryState {
+  if (item.status && item.status in DELIVERY_STATES) {
+    return DELIVERY_STATES[item.status as NotificationLogStatus];
+  }
+  return item.success ? DELIVERY_STATES.sent : DELIVERY_STATES.failed;
 }
 
-function messagePreview(item: NotificationLogItem): string {
-  const body = item.message_body?.trim();
-  if (body) return body.slice(0, 120);
-
+function notificationLabel(item: NotificationLogItem): string {
   const template = item.template_summary?.trim();
-  if (template && !isRawTemplateCode(template)) return template;
-
-  return "—";
+  if (template && !template.startsWith("KA01")) return template;
+  if (item.notification_type === "manual_send") return "직접 발송";
+  return AUTO_SEND_TRIGGER_LABELS[item.notification_type || ""] || "알림톡 안내";
 }
 
-function templateLabel(item: NotificationLogItem): string {
-  const body = item.message_body?.trim();
-  const template = item.template_summary?.trim();
-  if (!body || !template || isRawTemplateCode(template)) return "";
-  return template;
+function amountLabel(item: NotificationLogItem): string {
+  const amount = Number(item.amount_deducted || 0);
+  return amount > 0 ? `${amount.toLocaleString()}원` : "차감 없음";
 }
 
-// ── StatusBadge ──
+function formatAge(seconds: number | null) {
+  if (seconds == null) return "기록 없음";
+  if (seconds < 60) return `${seconds}초 전`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}분 전`;
+  return `${Math.floor(seconds / 3600)}시간 전`;
+}
 
-function StatusBadge({ success, size = "sm" }: { success: boolean; size?: "sm" | "md" }) {
+function StatusMark({ item, size = "sm" }: { item: NotificationLogItem; size?: "sm" | "md" }) {
+  const state = deliveryState(item);
   return (
-    <span
-      className={styles.statusBadge}
-      data-success={success}
-      data-size={size}
-    >
-      <span className={styles.statusBadgeDot} />
-      {success ? "성공" : "실패"}
-    </span>
+    <Badge tone={state.tone} size={size} variant="soft" className={styles.statusBadge}>
+      {state.label}
+    </Badge>
   );
 }
 
-// ── ModeBadge ──
+function OperationsStrip({
+  status,
+  loading,
+}: {
+  status?: MessagingOperationsStatus;
+  loading: boolean;
+}) {
+  if (loading && !status) {
+    return <div className={styles.operationsStrip}>알림톡 운영 상태를 확인하고 있습니다.</div>;
+  }
+  if (!status) {
+    return <div className={styles.operationsStrip} data-tone="warning">운영 상태를 불러오지 못했습니다.</div>;
+  }
 
-function ModeBadge({ mode }: { mode?: string }) {
-  if (!mode) return null;
-  const label = MESSAGE_MODE_LABELS[mode] ?? mode;
+  const hasRisk = status.risks.length > 0 || !["ok", "idle"].includes(status.worker.status);
   return (
-    <span className={styles.modeBadge}>
-      {label}
-    </span>
+    <section className={styles.operationsStrip} data-tone={hasRisk ? "warning" : "success"} aria-label="알림톡 운영 요약">
+      <div className={styles.operationsLead}>
+        <span className={styles.operationsIcon} aria-hidden>
+          {hasRisk ? <AlertTriangle size={ICON.sm} /> : <ShieldCheck size={ICON.sm} />}
+        </span>
+        <span>
+          <strong>{hasRisk ? "운영 확인 필요" : "알림톡 운영 정상"}</strong>
+          <small>워커 기록 {formatAge(status.worker.age_seconds)}</small>
+        </span>
+      </div>
+      <div className={styles.operationsFacts}>
+        <span><strong>{status.log_24h.sent.toLocaleString()}</strong> 최근 24시간 접수</span>
+        <span>
+          <strong>{(
+            status.log_24h.processing
+            + status.log_24h.sending
+            + status.log_24h.retryable_failed
+          ).toLocaleString()}</strong> 진행 중
+        </span>
+        <span data-warning={status.log_24h.ambiguous > 0 ? "true" : undefined}>
+          <strong>{status.log_24h.ambiguous.toLocaleString()}</strong> 확인 필요
+        </span>
+        <span data-warning={status.log_24h.failed > 0 ? "true" : undefined}>
+          <strong>{status.log_24h.failed.toLocaleString()}</strong> 실패
+        </span>
+      </div>
+      {status.risks.length > 0 && (
+        <div className={styles.operationsRisks}>
+          {status.risks.slice(0, 2).map((risk) => (
+            <span key={risk.code}>{risk.title}: {risk.detail}</span>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -97,169 +199,83 @@ function ScheduledRow({
 }) {
   return (
     <div className={styles.scheduledRow}>
-      <span className={styles.scheduledAtCell}>{koreanDateTimeText(item.send_at)}</span>
-      <span className={styles.recipientCell}>{item.recipient_summary || "—"}</span>
-      <span className={styles.previewCell}>{item.message_preview || "—"}</span>
+      <span className={styles.scheduledTime}>{koreanDateTimeText(item.send_at)}</span>
+      <span className={styles.scheduledRecipient}>{item.recipient_summary || "수신자 정보 없음"}</span>
+      <span className={styles.scheduledPreview}>{item.message_preview || "내용 미리보기 없음"}</span>
       <Button size="sm" intent="secondary" onClick={onCancel} disabled={cancelling}>
-        취소
+        예약 취소
       </Button>
     </div>
   );
 }
 
-function formatAge(seconds: number | null) {
-  if (seconds == null) return "기록 없음";
-  if (seconds < 60) return `${seconds}초 전`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}분 전`;
-  return `${Math.floor(seconds / 3600)}시간 전`;
-}
-
-function OperationsPanel({
-  status,
-  loading,
-}: {
-  status?: MessagingOperationsStatus;
-  loading: boolean;
-}) {
-  const hasRisk = Boolean(status?.risks?.length);
-  const workerStatus = status?.worker.status ?? "unknown";
+function LogRow({ item, onClick }: { item: NotificationLogItem; onClick: () => void }) {
+  const state = deliveryState(item);
   return (
-    <div className={styles.operationsPanel} data-risk={hasRisk ? "true" : "false"}>
-      <div className={styles.operationsHeader}>
-        <div>
-          <span className={styles.operationsTitle}>운영 상태</span>
-          <span className={styles.operationsHint}>워커·예약 큐·최근 실패를 함께 확인합니다.</span>
-        </div>
-        <span className={styles.operationsBadge} data-status={workerStatus}>
-          {loading ? "확인 중" : workerStatus === "ok" ? "정상" : workerStatus === "stale" ? "워커 확인" : "기록 없음"}
-        </span>
-      </div>
-      {loading && !status ? (
-        <div className={styles.operationsLoading}>운영 상태를 확인하고 있습니다.</div>
-      ) : status ? (
-        <>
-          <div className={styles.operationsGrid}>
-            <div className={styles.operationsMetric}>
-              <span>워커</span>
-              <strong>{formatAge(status.worker.age_seconds)}</strong>
-            </div>
-            <div className={styles.operationsMetric} data-warning={status.scheduled.overdue > 0 ? "true" : "false"}>
-              <span>예약 대기</span>
-              <strong>{status.scheduled.pending.toLocaleString()}건</strong>
-              {status.scheduled.overdue > 0 && <em>{status.scheduled.overdue.toLocaleString()}건 지연</em>}
-            </div>
-            <div className={styles.operationsMetric} data-warning={status.log_24h.failed > 0 ? "true" : "false"}>
-              <span>최근 24시간</span>
-              <strong>{status.log_24h.sent.toLocaleString()}성공 / {status.log_24h.failed.toLocaleString()}실패</strong>
-            </div>
-            <div className={styles.operationsMetric} data-warning={status.auto_send.enabled_without_template + status.auto_send.enabled_unapproved_template > 0 ? "true" : "false"}>
-              <span>자동발송</span>
-              <strong>{status.auto_send.enabled.toLocaleString()}개 ON</strong>
-            </div>
-          </div>
-          {status.risks.length > 0 ? (
-            <div className={styles.operationsRisks}>
-              {status.risks.slice(0, 3).map((risk) => (
-                <span key={risk.code}>{risk.title}: {risk.detail}</span>
-              ))}
-            </div>
-          ) : (
-            <div className={styles.operationsOk}>현재 감지된 운영 리스크가 없습니다.</div>
-          )}
-        </>
-      ) : (
-        <div className={styles.operationsLoading}>운영 상태를 불러오지 못했습니다.</div>
-      )}
-    </div>
-  );
-}
-
-// ── LogRow (horizontal log-style) ──
-
-function LogRow({
-  item,
-  onClick,
-}: {
-  item: NotificationLogItem;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={styles.logRow}
-    >
-      {/* 일시 */}
+    <button type="button" onClick={onClick} className={styles.logRow} data-tone={state.tone}>
       <span className={styles.sentAtCell}>
+        <span className={styles.mobileLabel}>로그 기록</span>
         {koreanDateTimeText(item.sent_at)}
       </span>
-
-      {/* 상태 */}
-      <span className={styles.statusCell}>
-        <StatusBadge success={item.success} />
-      </span>
-
-      {/* 발송방식 */}
-      <span className={styles.modeCell}>
-        <ModeBadge mode={item.message_mode} />
-      </span>
-
-      {/* 수신자 */}
+      <span className={styles.statusCell}><StatusMark item={item} /></span>
       <span className={styles.recipientCell}>
-        {item.recipient_summary || "—"}
+        <span className={styles.mobileLabel}>수신자</span>
+        {item.recipient_summary || "수신자 정보 없음"}
       </span>
-
-      {/* 내용 미리보기 */}
-      <span className={styles.previewCell}>
-        <span className={styles.previewText}>{messagePreview(item)}</span>
-        {templateLabel(item) ? (
-          <span className={styles.previewMeta}>{templateLabel(item)}</span>
-        ) : null}
-      </span>
-
-      {/* 실패 사유 (짧게) */}
-      {item.failure_reason ? (
-        <span className={styles.failureCell}>
-          {item.failure_reason}
+      <span className={styles.purposeCell}>
+        <span className={styles.mobileLabel}>알림 종류</span>
+        <span className={styles.purposeLabel}>
+          <span className={styles.kakaoDot} aria-hidden>
+            <MessageCircle size={10} fill="currentColor" />
+          </span>
+          <strong>{notificationLabel(item)}</strong>
         </span>
-      ) : null}
-
-      {/* 차감 */}
-      <span className={styles.amountCell}>
-        {item.amount_deducted && Number(item.amount_deducted) > 0
-          ? `-${Number(item.amount_deducted).toLocaleString()}원`
-          : "—"}
+        {item.failure_reason && <small>{item.failure_reason}</small>}
       </span>
-
-      {/* 화살표 */}
-      <span className={styles.arrowCell}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-          <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </span>
+      <span className={styles.amountCell}>{amountLabel(item)}</span>
+      <ChevronRight className={styles.arrowCell} size={ICON.sm} aria-hidden />
     </button>
   );
 }
 
-// ── DetailModal ──
-
-function DetailRow({
-  label,
-  children,
-  mono,
-}: {
-  label: string;
-  children: React.ReactNode;
-  mono?: boolean;
-}) {
+function DetailItem({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className={styles.detailRow}>
-      <span className={styles.detailLabel}>
-        {label}
-      </span>
-      <span className={styles.detailValue} data-mono={mono}>
-        {children}
-      </span>
+    <div className={styles.detailItem}>
+      <span>{label}</span>
+      <strong>{children}</strong>
+    </div>
+  );
+}
+
+function BodyPanel({ item }: { item: NotificationLogItem }) {
+  if (item.body_visibility === "sensitive_redacted") {
+    return (
+      <div className={styles.protectedBody}>
+        <LockKeyhole size={ICON.lg} aria-hidden />
+        <div>
+          <strong>보안 알림 본문은 남기지 않습니다</strong>
+          <p>아이디·임시 비밀번호·인증번호가 포함될 수 있어 보안을 위해 본문을 저장하지 않았습니다.</p>
+        </div>
+      </div>
+    );
+  }
+  if (item.body_visibility === "restricted") {
+    return (
+      <div className={styles.protectedBody}>
+        <LockKeyhole size={ICON.lg} aria-hidden />
+        <div>
+          <strong>본문 열람 권한이 제한되어 있습니다</strong>
+          <p>계정과 개인정보 보호를 위해 학원장·관리자 권한에서만 저장된 본문을 볼 수 있습니다.</p>
+        </div>
+      </div>
+    );
+  }
+  if (item.body_visibility === "available" && item.message_body) {
+    return <div className={styles.messageBody}>{item.message_body}</div>;
+  }
+  return (
+    <div className={styles.emptyMessageBody}>
+      이 기록에는 저장된 본문이 없습니다. 알림 종류와 처리 상태를 확인해 주세요.
     </div>
   );
 }
@@ -273,87 +289,114 @@ function LogDetailModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const detailQ = useQuery({
+    queryKey: messageQueryKeys.logDetail(item?.id ?? 0),
+    queryFn: () => fetchNotificationLogDetail(item!.id),
+    enabled: open && Boolean(item),
+    staleTime: 30 * 1000,
+  });
   if (!item) return null;
 
+  const detail = detailQ.data ?? item;
+  const state = deliveryState(detail);
+  const StateIcon = state.icon;
+
   return (
-    <AdminModal open={open} onClose={onClose} type="inspect" width={540}>
+    <AdminModal open={open} onClose={onClose} type="inspect" width={820} noMinimize className={styles.detailModal}>
       <ModalHeader
-        title="발송 상세"
-        description={koreanFullDateTimeText(item.sent_at)}
+        title="알림톡 발송 기록"
+        description={`${koreanFullDateTimeText(detail.sent_at)} 로그 기록`}
         type="inspect"
       />
       <ModalBody>
         <div className={styles.modalContent}>
-          {/* 상태 + 차감 요약 */}
-          <div className={styles.summaryBox} data-success={item.success}>
-            <StatusBadge success={item.success} size="md" />
-            {item.message_mode ? (
-              <ModeBadge mode={item.message_mode} />
-            ) : null}
-            <span className={styles.summarySpacer} />
-            <span
-              className={styles.summaryAmount}
-              data-success={item.success}
-            >
-              {item.amount_deducted && Number(item.amount_deducted) > 0
-                ? `-${Number(item.amount_deducted).toLocaleString()}원`
-                : "0원"}
-            </span>
+          <div className={previewStyles.detailLayout}>
+            <section className={previewStyles.chatPreview} aria-label="카카오 알림톡 미리보기">
+              <header className={previewStyles.chatPreviewHeader}>
+                <span className={previewStyles.chatPreviewIcon} aria-hidden>
+                  <MessageCircle size={18} fill="currentColor" />
+                </span>
+                <span>
+                  <strong>카카오 알림톡 미리보기</strong>
+                  <small>{detail.recipient_summary || "수신자 정보 없음"}</small>
+                </span>
+                <Badge tone="info" size="sm">알림톡</Badge>
+              </header>
+              <div className={previewStyles.chatRoom}>
+                <span className={previewStyles.chatDate}>{koreanFullDateTimeText(detail.sent_at)}</span>
+                <div className={previewStyles.chatMessageRow}>
+                  <span className={previewStyles.chatAvatar} aria-hidden>
+                    <MessageCircle size={17} fill="currentColor" />
+                  </span>
+                  <div className={previewStyles.chatMessageColumn}>
+                    <span className={previewStyles.chatSender}>우리 학원 알림톡</span>
+                    <div className={previewStyles.chatBubble}>
+                      <span className={previewStyles.chatTemplate}>알림톡 · {notificationLabel(detail)}</span>
+                      <strong>{notificationLabel(detail)}</strong>
+                      {detailQ.isLoading ? (
+                        <div className={styles.bodyLoading}>저장된 본문 기록을 확인하고 있습니다.</div>
+                      ) : detailQ.isError ? (
+                        <div className={styles.bodyError}>
+                          <span>본문 기록을 불러오지 못했습니다.</span>
+                          <Button size="sm" intent="secondary" onClick={() => void detailQ.refetch()}>다시 시도</Button>
+                        </div>
+                      ) : (
+                        <BodyPanel item={detail} />
+                      )}
+                    </div>
+                    <span className={previewStyles.chatTime}>{koreanDateTimeText(detail.sent_at)}</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <aside className={previewStyles.deliveryAudit} aria-label="발송 처리 정보">
+              <section className={styles.deliveryHero} data-tone={state.tone}>
+                <span className={styles.deliveryHeroIcon} aria-hidden><StateIcon size={ICON.xl} /></span>
+                <div className={styles.deliveryHeroCopy}>
+                  <div><StatusMark item={detail} size="md" /></div>
+                  <strong>{state.detail}</strong>
+                </div>
+                {Number(detail.amount_deducted || 0) > 0 && (
+                  <span className={styles.deliveryCost}>{amountLabel(detail)} 차감</span>
+                )}
+              </section>
+
+              <section className={styles.detailGrid} aria-label="발송 기본 정보">
+                <DetailItem label="수신자">{detail.recipient_summary || "정보 없음"}</DetailItem>
+                <DetailItem label="알림 종류">{notificationLabel(detail)}</DetailItem>
+                <DetailItem label="로그 기록">{koreanFullDateTimeText(detail.sent_at)}</DetailItem>
+                <DetailItem label="처리 시작">
+                  {detail.claimed_at ? koreanFullDateTimeText(detail.claimed_at) : "기록 없음"}
+                </DetailItem>
+              </section>
+
+              <section className={styles.evidenceRow} data-confirmed={detail.provider_evidence ? "true" : "false"}>
+                <MessageCircle size={ICON.md} aria-hidden />
+                <span>
+                  <strong>{detail.provider_evidence ? "공급사 접수 기록 있음" : "공급사 접수 기록 없음"}</strong>
+                  <small>
+                    {detail.provider_evidence
+                      ? `${detail.provider_message_id || detail.provider_message_reference || "식별 정보 보호됨"} · 접수 기록은 읽음 확인을 뜻하지 않습니다.`
+                      : "아직 공급사 접수 근거가 기록되지 않았습니다."}
+                  </small>
+                </span>
+              </section>
+
+              {detail.failure_reason && (
+                <section className={styles.failurePanel}>
+                  <AlertTriangle size={ICON.md} aria-hidden />
+                  <span><strong>확인할 내용</strong><small>{detail.failure_reason}</small></span>
+                </section>
+              )}
+            </aside>
           </div>
-
-          <DetailRow label="수신자">
-            {item.recipient_summary || "—"}
-          </DetailRow>
-          <DetailRow label="문구">
-            {item.template_summary || "—"}
-          </DetailRow>
-          <DetailRow label="발송 방식">
-            {item.message_mode
-              ? MESSAGE_MODE_LABELS[item.message_mode] ?? item.message_mode
-              : "—"}
-          </DetailRow>
-
-          {/* 메시지 본문 */}
-          <div className={styles.modalSection}>
-            <div className={styles.modalSectionLabel}>
-              발송 내용
-            </div>
-            {item.message_body ? (
-              <div className={styles.messageBody}>
-                {item.message_body}
-              </div>
-            ) : (
-              <div className={styles.emptyMessageBody}>
-                본문 정보가 없습니다
-              </div>
-            )}
-          </div>
-
-          {/* 실패 사유 */}
-          {item.failure_reason ? (
-            <div className={styles.modalSection}>
-              <div className={styles.modalSectionLabel} data-tone="error">
-                실패 사유
-              </div>
-              <div className={styles.failureReasonBox}>
-                {item.failure_reason}
-              </div>
-            </div>
-          ) : null}
         </div>
       </ModalBody>
-      <ModalFooter
-        right={
-          <Button size="md" onClick={onClose}>
-            닫기
-          </Button>
-        }
-      />
+      <ModalFooter right={<Button size="md" onClick={onClose}>닫기</Button>} />
     </AdminModal>
   );
 }
-
-// ── Pagination ──
 
 function PaginationBar({
   currentPage,
@@ -365,65 +408,23 @@ function PaginationBar({
   onPageChange: (page: number) => void;
 }) {
   if (totalPages <= 1) return null;
-
   const pages: (number | "...")[] = [];
-  const range = 2;
-  for (let i = 1; i <= totalPages; i++) {
-    if (
-      i === 1 ||
-      i === totalPages ||
-      (i >= currentPage - range && i <= currentPage + range)
-    ) {
-      pages.push(i);
-    } else if (pages[pages.length - 1] !== "...") {
-      pages.push("...");
-    }
+  for (let page = 1; page <= totalPages; page += 1) {
+    if (page === 1 || page === totalPages || Math.abs(page - currentPage) <= 2) pages.push(page);
+    else if (pages[pages.length - 1] !== "...") pages.push("...");
   }
-
   return (
-    <div className={styles.pagination}>
-      <button
-        type="button"
-        disabled={currentPage === 1}
-        onClick={() => onPageChange(currentPage - 1)}
-        className={styles.paginationButton}
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-          <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </button>
-      {pages.map((p, i) =>
-        p === "..." ? (
-          <span key={`dots-${i}`} className={styles.paginationDots}>
-            ...
-          </span>
-        ) : (
-          <button
-            key={p}
-            type="button"
-            onClick={() => onPageChange(p)}
-            className={styles.paginationButton}
-            data-active={p === currentPage}
-          >
-            {p}
-          </button>
-        )
-      )}
-      <button
-        type="button"
-        disabled={currentPage === totalPages}
-        onClick={() => onPageChange(currentPage + 1)}
-        className={styles.paginationButton}
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-          <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </button>
-    </div>
+    <nav className={styles.pagination} aria-label="발송 기록 페이지">
+      <button type="button" disabled={currentPage === 1} onClick={() => onPageChange(currentPage - 1)} className={styles.paginationButton} aria-label="이전 페이지">‹</button>
+      {pages.map((page, index) => page === "..." ? (
+        <span key={`dots-${index}`} className={styles.paginationDots}>…</span>
+      ) : (
+        <button key={page} type="button" onClick={() => onPageChange(page)} className={styles.paginationButton} data-active={page === currentPage} aria-current={page === currentPage ? "page" : undefined}>{page}</button>
+      ))}
+      <button type="button" disabled={currentPage === totalPages} onClick={() => onPageChange(currentPage + 1)} className={styles.paginationButton} aria-label="다음 페이지">›</button>
+    </nav>
   );
 }
-
-// ── Main Page ──
 
 export default function MessageLogPage() {
   const qc = useQueryClient();
@@ -431,7 +432,7 @@ export default function MessageLogPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedItem, setSelectedItem] = useState<NotificationLogItem | null>(null);
-  const { data, isLoading, isError } = useNotificationLog({
+  const { data, isLoading, isError, refetch } = useNotificationLog({
     page: currentPage,
     page_size: PAGE_SIZE,
     status: statusFilter === "all" ? undefined : statusFilter,
@@ -454,31 +455,13 @@ export default function MessageLogPage() {
       qc.invalidateQueries({ queryKey: messageQueryKeys.operationsStatus });
       feedback.success("예약 발송이 취소되었습니다.");
     },
-    onError: () => {
-      feedback.error("예약 발송 취소에 실패했습니다.");
-    },
+    onError: () => feedback.error("예약 발송 취소에 실패했습니다."),
   });
+
   const results = data?.results ?? [];
   const pendingScheduled = scheduledData?.results ?? [];
   const count = data?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
-
-  const filtered =
-    statusFilter === "all"
-      ? results
-      : results.filter((r) =>
-          statusFilter === "success" ? r.success : !r.success
-        );
-
-  const filteredCountLabel =
-    statusFilter !== "all" && filtered.length !== results.length
-      ? `${filtered.length}/${results.length}건 (현재 페이지)`
-      : null;
-
-  const handleFilterChange = (key: StatusFilter) => {
-    setStatusFilter(key);
-    setCurrentPage(1);
-  };
 
   const handleCancelScheduled = async (item: ScheduledNotificationItem) => {
     const ok = await confirm({
@@ -488,148 +471,86 @@ export default function MessageLogPage() {
       cancelText: "유지",
       danger: true,
     });
-    if (!ok) return;
-    cancelMut.mutate(item.id);
+    if (ok) cancelMut.mutate(item.id);
   };
 
   return (
     <div className={styles.root}>
-      {/* 헤더 */}
-      <div className={styles.header}>
+      <header className={styles.header}>
         <div>
-          <div className={styles.title}>
-            발송 내역
-          </div>
-          <div className={styles.description}>
-            알림톡 발송 내역과 성공/실패, 차감 금액을 확인할 수 있습니다.
-            {!isLoading && count > 0 ? (
-              <span className={styles.countText}>
-                총 {count.toLocaleString()}건
-                {filteredCountLabel && (
-                  <span className={styles.filteredCountText}>
-                    ({filteredCountLabel})
-                  </span>
-                )}
-              </span>
-            ) : null}
-          </div>
+          <span className={styles.eyebrow}>카카오 알림톡 · 발송 기록</span>
+          <h1 className={styles.title}>발송 내역</h1>
+          <p className={styles.description}>
+            알림톡 요청이 어디까지 처리됐는지 확인합니다.
+            {!isLoading && <span className={styles.countText}>총 {count.toLocaleString()}건</span>}
+          </p>
         </div>
-
-        {/* 필터 */}
-        {!isLoading && results.length > 0 ? (
-          <div data-guide="messages-filter" className={styles.filterGroup}>
-            {FILTER_OPTIONS.map((opt) => (
-              <button
-                key={opt.key}
-                type="button"
-                onClick={() => handleFilterChange(opt.key)}
-                className={styles.filterButton}
-                data-active={statusFilter === opt.key}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        ) : null}
-      </div>
-
-      <OperationsPanel status={operationsStatus} loading={operationsLoading} />
-
-      <div className={styles.scheduledPanel} data-empty={pendingScheduled.length === 0 ? "true" : "false"}>
-        <div className={styles.scheduledHeader}>
-          <div>
-            <span className={styles.scheduledTitle}>예약 발송</span>
-            <span className={styles.scheduledHint}>발송 전 예약은 여기서 확인·취소합니다.</span>
-          </div>
-          <span className={styles.scheduledCount}>{pendingScheduled.length.toLocaleString()}건 대기</span>
+        <div className={styles.filterGroup} aria-label="발송 상태 필터">
+          {FILTER_OPTIONS.map((option) => (
+            <button
+              key={option.key}
+              type="button"
+              onClick={() => { setStatusFilter(option.key); setCurrentPage(1); }}
+              className={styles.filterButton}
+              data-active={statusFilter === option.key}
+              aria-pressed={statusFilter === option.key}
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
-        {pendingScheduled.length > 0 ? (
+      </header>
+
+      <OperationsStrip status={operationsStatus} loading={operationsLoading} />
+
+      {pendingScheduled.length > 0 && (
+        <section className={styles.scheduledPanel} aria-label="예약 발송">
+          <div className={styles.scheduledHeader}>
+            <div><strong>예약 발송</strong><span>발송 전 예약만 표시합니다.</span></div>
+            <Badge tone="info" size="sm">{pendingScheduled.length.toLocaleString()}건 대기</Badge>
+          </div>
           <div className={styles.scheduledList}>
             {pendingScheduled.map((item) => (
-              <ScheduledRow
-                key={item.id}
-                item={item}
-                cancelling={cancelMut.isPending}
-                onCancel={() => handleCancelScheduled(item)}
-              />
+              <ScheduledRow key={item.id} item={item} cancelling={cancelMut.isPending} onCancel={() => handleCancelScheduled(item)} />
             ))}
           </div>
-        ) : (
-          <div className={styles.scheduledEmpty}>
-            현재 예약 대기 중인 알림톡이 없습니다.
-          </div>
-        )}
-      </div>
+        </section>
+      )}
 
-      {/* 콘텐츠 */}
       {isError ? (
         <EmptyState
           title="발송 내역을 불러오지 못했습니다"
-          description="잠시 후 다시 시도해 주세요."
+          description="기록이 없는 것으로 표시하지 않았습니다. 잠시 후 다시 시도해 주세요."
           tone="error"
           scope="panel"
+          actions={<Button intent="secondary" size="sm" onClick={() => void refetch()}>다시 시도</Button>}
         />
       ) : isLoading ? (
-        <div className={styles.loadingList}>
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-            <div
-              key={i}
-              className={styles.skeletonRow}
-            />
-          ))}
+        <div className={styles.loadingList} aria-label="발송 기록 불러오는 중">
+          {[1, 2, 3, 4, 5].map((item) => <div key={item} className={styles.skeletonRow} />)}
         </div>
       ) : results.length === 0 ? (
         <EmptyState
-          title="발송 내역이 없습니다"
-          description="메시지를 발송하면 이곳에 기록됩니다."
+          title={statusFilter === "all" ? "발송 내역이 없습니다" : `${FILTER_OPTIONS.find((item) => item.key === statusFilter)?.label} 기록이 없습니다`}
+          description={statusFilter === "all" ? "알림톡을 발송하면 처리 결과가 이곳에 기록됩니다." : "다른 상태 필터를 선택해 보세요."}
           tone="empty"
           scope="panel"
-        />
-      ) : filtered.length === 0 ? (
-        <EmptyState
-          title={`${statusFilter === "success" ? "성공" : "실패"} 내역이 없습니다`}
-          description="필터를 변경해 보세요."
-          tone="empty"
-          scope="panel"
-          mode="embedded"
         />
       ) : (
         <>
-          {/* 로그 테이블 */}
-          <div className={styles.logTable}>
-            {/* 헤더 */}
-            <div className={styles.logHeader}>
-              <span className={styles.sentAtCell}>일시</span>
-              <span className={styles.statusCell}>상태</span>
-              <span className={styles.modeCell}>방식</span>
-              <span className={styles.recipientCell}>수신자</span>
-              <span className={styles.previewCell}>내용</span>
-              <span className={styles.amountCell}>차감</span>
-              <span className={styles.arrowCell} />
+          <section className={styles.logTable} aria-label="알림톡 발송 기록">
+            <div className={styles.logHeader} aria-hidden>
+              <span>로그 기록</span><span>처리 상태</span><span>수신자</span><span>알림 종류</span><span>차감</span><span />
             </div>
-            {/* 행 */}
-            {filtered.map((item) => (
-              <LogRow
-                key={item.id}
-                item={item}
-                onClick={() => setSelectedItem(item)}
-              />
-            ))}
-          </div>
-          <PaginationBar
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={(p) => setCurrentPage(p)}
-          />
+            <div className={styles.logList}>
+              {results.map((item) => <LogRow key={item.id} item={item} onClick={() => setSelectedItem(item)} />)}
+            </div>
+          </section>
+          <PaginationBar currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
         </>
       )}
 
-      {/* 상세 팝업 */}
-      <LogDetailModal
-        item={selectedItem}
-        open={!!selectedItem}
-        onClose={() => setSelectedItem(null)}
-      />
+      <LogDetailModal item={selectedItem} open={Boolean(selectedItem)} onClose={() => setSelectedItem(null)} />
     </div>
   );
 }
