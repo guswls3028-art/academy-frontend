@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Badge } from "@teacher/shared/ui/Badge";
-import { AlertCircle, Camera, CheckCircle, Sparkles, X } from "@teacher/shared/ui/Icons";
+import { AlertCircle, Camera, CheckCircle, Sparkles } from "@teacher/shared/ui/Icons";
 import { ICON } from "@/shared/ui/ds";
 import { analyzeTeacherOps, confirmTeacherOps, fetchTeacherOpsExecution, type AnalyzeResult, type ExecutionResult, type OpsPreviewRow } from "../api";
 import styles from "./OpsAssistantPage.module.css";
