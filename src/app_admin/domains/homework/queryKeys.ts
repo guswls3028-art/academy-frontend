@@ -13,6 +13,9 @@ export const QUERY_KEYS = {
   HOMEWORK_SUBMISSIONS: (homeworkId: number) =>
     ["homework-submissions", homeworkId] as const,
 
+  HOMEWORK_MEDIA_PREVIEW: (homeworkId: number, fileId?: string) =>
+    ["homework-media-preview", homeworkId, fileId] as const,
+
   HOMEWORK_ASSIGNMENTS: (homeworkId: number) =>
     ["homework-assignments", homeworkId] as const,
 

@@ -10,6 +10,8 @@ export const studentQueryKeys = {
   gradesSummary: ["student", "grades", "summary"] as const,
   gradesAnalytics: ["student", "grades", "analytics"] as const,
   gradesRoot: ["student", "grades"] as const,
+  homeworkMedia: (homeworkId?: number, enrollmentId?: number) =>
+    ["student-homework-media", homeworkId, enrollmentId] as const,
   dashboard: ["student-dashboard"] as const,
   communityUnread: ["student", "community-unread"] as const,
   inventory: (ps: string) => ["student-inventory", ps] as const,

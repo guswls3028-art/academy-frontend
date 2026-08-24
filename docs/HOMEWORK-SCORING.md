@@ -115,6 +115,25 @@
 - 소유 구현은 `HomeworkAssetsPanel.tsx`, `HomeworkQuestionLedger.tsx`,
   `api/adminHomework.ts`다.
 
+## 제출관리 파일별 검수
+
+- **과제 → 제출관리**는 제출 행 건수를 평면 목록으로 보여 주지 않고 학생 제출
+  묶음 안에 ordered 사진·동영상 파일을 펼친다. 상단에서 제출 학생, 활성 전체 파일,
+  검수 가능, 업로드 오류 수를 분리해 선생님이 확인 우선순위를 바로 판단한다.
+- 각 파일은 순서, 사진/동영상 종류, 안전한 원본 표시명, 용량, `저장 중·검수 가능·
+  업로드 실패·교체됨` 상태와 서버 오류를 독립적으로 표시한다. 실패·저장 중·교체된
+  파일의 미리보기 버튼은 비활성화한다.
+- `미리보기`는 bucket key를 브라우저에 전달하거나 공용 storage inventory에 다시
+  제출하지 않는다. 파일 opaque id를 과제 media preview API에 보내고 같은 tenant·
+  교직원 권한을 통과한 짧은 서명 URL만 image/video viewer에 사용한다. 조회 실패는
+  닫기 가능한 모달 안에서 재시도하며 목록을 빈 상태로 바꾸지 않는다.
+- 학생별 카드와 파일 행은 데스크톱에서 빠르게 훑을 수 있는 밀도를 유지하고,
+  390px에서는 학생 메타와 파일 동작을 줄바꿈해 문서 가로 스크롤을 만들지 않는다.
+- 소유 구현은 `HomeworkSubmissionsPanel.tsx`, `HomeworkMediaPreviewModal.tsx`,
+  `adminHomeworkSubmissions.api.ts`다. 집중 회귀는
+  `e2e/admin/homework-media-review.mock.spec.ts`가 파일별 상태·오류·권한 미리보기와
+  데스크톱/390px 레이아웃을 검증한다.
+
 ## 소유 구현과 검증
 
 - 설정·생성: `src/app_admin/domains/homework/`
@@ -125,6 +144,7 @@
   `src/shared/api/contracts/studentGrades.ts`
 - 회귀 E2E: `e2e/admin/score-entry-autosave.spec.ts`
 - 학생 상세 회귀 E2E: `e2e/admin/student-score-trend.spec.ts`
+- 과제 제출 검수 E2E: `e2e/admin/homework-media-review.mock.spec.ts`
 
 ```powershell
 pnpm typecheck
