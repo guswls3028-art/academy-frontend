@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, FileImage, FileText } from "lucide-react";
 
 import { getPresignedUrl } from "@admin/domains/storage/api/storage.api";
 import type { PendingSubmissionRow } from "@admin/domains/submissions/api/adminPendingSubmissions";
+import { submissionsQueryKeys } from "@/shared/api/queryKeys/submissions";
 import { Badge, Button, EmptyState, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 
@@ -74,13 +76,25 @@ function previewKind(row: PendingSubmissionRow): "image" | "pdf" | "unsupported"
 
 export default function SubmissionPreviewModal({ open, row, onClose, onIdentify }: Props) {
   const fileKey = row?.file_key ?? null;
+  const [imageAssetReview, setImageAssetReview] = useState<{
+    identity: string;
+    state: "loaded" | "error";
+  } | null>(null);
+  const [assetAttempt, setAssetAttempt] = useState(0);
+  const [reviewSession, setReviewSession] = useState(0);
+  const [externalReview, setExternalReview] = useState<{
+    identity: string;
+    opened: boolean;
+    confirmed: boolean;
+  } | null>(null);
   const previewQ = useQuery({
-    queryKey: ["submission-file-preview", row?.id, fileKey],
+    queryKey: submissionsQueryKeys.filePreview(row?.id, fileKey, reviewSession),
     queryFn: () => getPresignedUrl(String(fileKey), 900),
     enabled: open && !!fileKey,
     retry: 1,
     staleTime: 10 * 60 * 1000,
   });
+  const previewUrl = previewQ.data?.url;
 
   if (!row) return null;
 
@@ -89,12 +103,49 @@ export default function SubmissionPreviewModal({ open, row, onClose, onIdentify 
   const kind = previewKind(row);
   const canIdentify =
     row.status === "needs_identification" && row.target_resolved && !!row.target_id;
-  const previewUrl = previewQ.data?.url;
+  const requiresExternalConfirmation = kind === "pdf" || kind === "unsupported";
+  const assetIdentity = `${reviewSession}:${row.id}:${fileKey ?? "none"}:${previewUrl ?? "pending"}:${assetAttempt}`;
+  const externalIdentity = `${reviewSession}:${row.id}:${fileKey ?? "none"}:${previewUrl ?? "pending"}`;
+  const imageAssetState = imageAssetReview?.identity === assetIdentity
+    ? imageAssetReview.state
+    : previewUrl
+      ? "loading"
+      : "idle";
+  const externalOpened = externalReview?.identity === externalIdentity && externalReview.opened;
+  const externalConfirmed = externalReview?.identity === externalIdentity && externalReview.confirmed;
+  const previewConfirmed = !!previewUrl && (
+    kind === "image"
+      ? imageAssetState === "loaded"
+      : externalOpened && externalConfirmed
+  );
+
+  function retryImageAsset() {
+    setAssetAttempt((current) => current + 1);
+    void previewQ.refetch();
+  }
+
+  function resetReviewSession() {
+    setImageAssetReview(null);
+    setExternalReview(null);
+    setAssetAttempt(0);
+    setReviewSession((current) => current + 1);
+  }
+
+  function closePreview() {
+    resetReviewSession();
+    onClose();
+  }
+
+  function continueToIdentify() {
+    if (!previewConfirmed) return;
+    resetReviewSession();
+    onIdentify();
+  }
 
   return (
     <AdminModal
       open={open}
-      onClose={onClose}
+      onClose={closePreview}
       type="inspect"
       width="min(1120px, calc(100vw - 24px))"
       noMinimize
@@ -139,11 +190,35 @@ export default function SubmissionPreviewModal({ open, row, onClose, onIdentify 
               />
             )}
             {previewUrl && !previewQ.isLoading && !previewQ.isError && kind === "image" && (
-              <img
-                src={previewUrl}
-                alt={`${fileName} 제출물`}
-                className="max-h-[60vh] max-w-full object-contain"
-              />
+              <>
+                <img
+                  key={assetIdentity}
+                  src={previewUrl}
+                  alt={`${fileName} 제출물`}
+                  className={`max-h-[60vh] max-w-full object-contain${imageAssetState === "error" ? " invisible" : ""}`}
+                  onLoad={() => setImageAssetReview({ identity: assetIdentity, state: "loaded" })}
+                  onError={() => setImageAssetReview({ identity: assetIdentity, state: "error" })}
+                />
+                {imageAssetState === "loading" && (
+                  <div className="absolute inset-x-4 bottom-4 rounded-lg bg-[var(--color-bg-surface)] px-3 py-2 text-center text-xs font-medium text-[var(--color-text-muted)] shadow-sm">
+                    이미지가 실제로 열리는지 확인하는 중입니다.
+                  </div>
+                )}
+                {imageAssetState === "error" && (
+                  <div
+                    role="alert"
+                    className="absolute inset-4 flex flex-col items-center justify-center gap-3 rounded-xl bg-[var(--color-bg-surface)] p-6 text-center"
+                  >
+                    <strong className="text-sm text-[var(--color-danger)]">제출 이미지를 열 수 없습니다.</strong>
+                    <span className="text-xs leading-5 text-[var(--color-text-muted)]">
+                      실제 파일이 확인되지 않아 학생 지정이 잠겼습니다. 다시 시도해 주세요.
+                    </span>
+                    <Button type="button" intent="secondary" size="sm" onClick={retryImageAsset}>
+                      이미지 다시 시도
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
             {previewUrl && !previewQ.isLoading && !previewQ.isError && kind === "pdf" && (
               <iframe
@@ -201,15 +276,47 @@ export default function SubmissionPreviewModal({ open, row, onClose, onIdentify 
             </p>
 
             {previewUrl && (
-              <Button
-                type="button"
-                intent="secondary"
-                size="sm"
-                leftIcon={<ExternalLink size={ICON_FOR_BUTTON.sm} />}
-                onClick={() => window.open(previewUrl, "_blank", "noopener,noreferrer")}
+              <a
+                href={previewUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ds-button"
+                data-intent="secondary"
+                data-size="sm"
+                data-icon-only="false"
+                data-loading="false"
+                data-disabled="false"
+                onClick={() => {
+                  if (!requiresExternalConfirmation) return;
+                  setExternalReview({ identity: externalIdentity, opened: true, confirmed: false });
+                }}
               >
-                새 창에서 원본 열기
-              </Button>
+                <span className="ds-button__left" aria-hidden>
+                  <ExternalLink size={ICON_FOR_BUTTON.sm} />
+                </span>
+                <span className="ds-button__label">새 창에서 원본 열기</span>
+              </a>
+            )}
+
+            {previewUrl && requiresExternalConfirmation && (
+              <label className="flex items-start gap-2 rounded-lg border border-[var(--color-border-divider)] p-3 text-xs leading-5 text-[var(--color-text-primary)]">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-primary)]"
+                  checked={externalConfirmed}
+                  disabled={!externalOpened}
+                  onChange={(event) => setExternalReview({
+                    identity: externalIdentity,
+                    opened: true,
+                    confirmed: event.target.checked,
+                  })}
+                />
+                <span>
+                  {externalOpened
+                    ? "새 창에서 원본 파일을 직접 확인했습니다."
+                    : "먼저 새 창에서 원본 파일을 열어 주세요."}
+                </span>
+              </label>
             )}
           </aside>
         </div>
@@ -224,15 +331,15 @@ export default function SubmissionPreviewModal({ open, row, onClose, onIdentify 
         }
         right={
           <>
-            <Button type="button" intent="ghost" onClick={onClose}>
+            <Button type="button" intent="ghost" onClick={closePreview}>
               닫기
             </Button>
             {canIdentify && (
               <Button
                 type="button"
                 intent="primary"
-                disabled={!!fileKey && (previewQ.isLoading || previewQ.isError)}
-                onClick={onIdentify}
+                disabled={!fileKey || previewQ.isLoading || previewQ.isFetching || previewQ.isError || !previewConfirmed}
+                onClick={continueToIdentify}
               >
                 확인하고 학생 지정
               </Button>

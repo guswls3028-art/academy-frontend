@@ -638,8 +638,15 @@ async function installApi(page: Page, options: {
             : scopedConsole.students.map((row) => ({
               ...row,
               student_id: 102,
-              name: "추가 학생",
-              display_name: "추가 학생",
+              name: "\t=1+1",
+              display_name: "\t=1+1",
+              source_summaries: {
+                ...row.source_summaries,
+                academy: {
+                  ...row.source_summaries.academy,
+                  change_pct_points: -5,
+                },
+              },
             })),
         }
         : scopedConsole;
@@ -846,10 +853,13 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     const csv = await readFile(downloadPath!, "utf8");
     expect(csv.startsWith("\uFEFF학생명,학년,학교,수강 강의")).toBe(true);
     expect(csv).toContain("윤지용 학생");
-    expect(csv).toContain("추가 학생");
+    const csvRows = csv.slice(1).trimEnd().split("\r\n");
+    expect(csvRows[2]).toMatch(/^'\t=1\+1,/);
+    expect(csvRows[2]).not.toMatch(/^[\t\r\n]*[=+\-@]/);
+    expect(csvRows.some((row) => row.includes(",-5,"))).toBe(true);
     expect(csv).toContain("학원 시험,,정규수업");
     expect(csv).toContain("30일,Ymath 중등 심화,2학년,80% 이상,직전보다 상승,윤지용,높은 최근 점수순");
-    expect(csv.trimEnd().split("\r\n")).toHaveLength(3);
+    expect(csvRows).toHaveLength(3);
     await expect(console.getByText("현재 조건의 2명을 다운로드했습니다.")).toBeVisible();
     expect(performanceRequestUrls.some((raw) => {
       const url = new URL(raw);

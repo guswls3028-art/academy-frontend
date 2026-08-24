@@ -127,8 +127,11 @@ const TREND_LABELS: Record<StudentTrendDirection, string> = {
 
 function csvCell(value: string | number | null | undefined): string {
   if (value == null) return "";
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? String(value) : "";
+  }
   const raw = String(value);
-  const protectedValue = /^[=+\-@]/.test(raw) ? `'${raw}` : raw;
+  const protectedValue = /^[=+\-@\t\r\n]/.test(raw) ? `'${raw}` : raw;
   return /[",\r\n]/.test(protectedValue)
     ? `"${protectedValue.replace(/"/g, '""')}"`
     : protectedValue;
