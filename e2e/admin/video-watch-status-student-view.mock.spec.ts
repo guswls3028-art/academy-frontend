@@ -118,8 +118,20 @@ async function installApp(page: Page): Promise<Evidence> {
             school: "테스트여고",
             grade: "3",
           },
+          {
+            enrollment: 2003,
+            student_id: null,
+            student_name: "식별정보없는학생",
+            progress: 0,
+            completed: false,
+            attendance_status: "INACTIVE",
+            effective_rule: "blocked",
+            access_mode: "BLOCKED",
+            school: "테스트고",
+            grade: "1",
+          },
         ],
-        total_filtered: 2,
+        total_filtered: 3,
       });
     }
     if (path === "/media/videos/596/engagement/") {
@@ -193,8 +205,12 @@ test("영상 시청 현황은 학생별 명시적 화면 보기와 반응형 운
   await expect(watchStatus.getByText("복습", { exact: true })).toBeVisible();
   await expect(watchStatus.getByRole("progressbar", { name: "테스트학생 진도 36%", exact: true })).toBeVisible();
   const studentRows = watchStatus.getByRole("listitem");
-  await expect(studentRows).toHaveCount(2);
+  await expect(studentRows).toHaveCount(3);
   await expect(studentRows.first().getByRole("button")).toHaveCount(1);
+  const unavailableRow = studentRows.filter({ hasText: "식별정보없는학생" });
+  const unavailableButton = unavailableRow.getByRole("button", { name: "식별정보없는학생 학생 화면 보기" });
+  await expect(unavailableButton).toBeDisabled();
+  await expect(unavailableRow.getByText("학생 정보를 확인할 수 없어 화면을 열 수 없습니다.", { exact: true })).toBeVisible();
 
   if (process.env.CAPTURE_VIDEO_WATCH_STATUS === "1") {
     await page.screenshot({
@@ -217,6 +233,7 @@ test("영상 시청 현황은 학생별 명시적 화면 보기와 반응형 운
   const mobileWatchStatus = page.getByRole("region", { name: "학생 시청 현황" });
   await expect(mobileWatchStatus).toBeVisible();
   await expect(mobileWatchStatus.getByRole("button", { name: "긴이름테스트학생 학생 화면 보기", exact: true })).toBeVisible();
+  await expect(mobileWatchStatus.getByText("학생 정보를 확인할 수 없어 화면을 열 수 없습니다.", { exact: true })).toBeVisible();
   await expect.poll(
     () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
   ).toBeLessThanOrEqual(1);

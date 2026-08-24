@@ -93,6 +93,7 @@ export default function StudentWatchPanel({
             const studentId = Number(s.student_id);
             const canOpenStudentView = Number.isInteger(studentId) && studentId > 0;
             const opening = canOpenStudentView && openingStudentId === studentId;
+            const unavailableReasonId = `video-student-view-unavailable-${s.enrollment}`;
 
             return (
               <li
@@ -126,6 +127,7 @@ export default function StudentWatchPanel({
                   disabled={!canOpenStudentView || opening}
                   title={canOpenStudentView ? undefined : "학생 정보를 확인할 수 없어 화면을 열 수 없습니다."}
                   aria-label={`${name} 학생 화면 보기`}
+                  aria-describedby={canOpenStudentView ? undefined : unavailableReasonId}
                   aria-busy={opening}
                   onClick={() => {
                     if (canOpenStudentView && !opening) onOpenStudentView(studentId);
@@ -134,6 +136,15 @@ export default function StudentWatchPanel({
                 >
                   {opening ? "여는 중…" : "화면 보기"}
                 </Button>
+
+                {!canOpenStudentView && (
+                  <p
+                    id={unavailableReasonId}
+                    className="col-span-2 text-xs text-[var(--color-text-muted)]"
+                  >
+                    학생 정보를 확인할 수 없어 화면을 열 수 없습니다.
+                  </p>
+                )}
 
                 <div className="col-span-2 flex min-w-0 items-center gap-2.5">
                   <div
