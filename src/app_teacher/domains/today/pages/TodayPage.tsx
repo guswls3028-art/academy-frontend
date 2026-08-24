@@ -9,7 +9,7 @@ import useAuth from "@/auth/hooks/useAuth";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { Card, KpiCard, SectionTitle } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
-import { AlertCircle, BookOpen, CheckCircle, ChevronRight, Clock, MessageSquare, Send } from "@teacher/shared/ui/Icons";
+import { AlertCircle, BookOpen, CheckCircle, ChevronRight, Clock, MessageSquare, Send, Sparkles } from "@teacher/shared/ui/Icons";
 import { TEACHER_PENDING_ROUTES } from "@teacher/domains/notifications/routes";
 import { todayLocalISO as todayISO } from "@/shared/utils/localDate";
 import { fetchTodaySessions } from "../api";
@@ -224,6 +224,13 @@ export default function TodayPage() {
         <section className={styles.workColumn}>
           <SectionTitle>바로 처리</SectionTitle>
           <div className={styles.quickGrid}>
+            <QuickAction
+              icon={<Sparkles size={ICON.md} />}
+              label="학생 업무"
+              detail="사진으로 처리 · BETA"
+              tone="primary"
+              onClick={() => navigate("/workspace/mobile/assistant")}
+            />
             <QuickAction
               icon={<MessageSquare size={ICON.md} />}
               label="답변 대기"

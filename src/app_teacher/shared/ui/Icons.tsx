@@ -96,6 +96,7 @@ export {
   Wrench,
   Zap,
   Shield,
+  Sparkles,
   ArrowUpCircle,
 
   // Misc

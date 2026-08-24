@@ -27,6 +27,7 @@ import {
   Video,
   Wrench,
   ClipboardList,
+  Sparkles,
 } from "@teacher/shared/ui/Icons";
 
 export type TeacherNavigationItem = {
@@ -35,6 +36,7 @@ export type TeacherNavigationItem = {
   href?: string;
   icon: ReactNode;
   badge?: number;
+  beta?: boolean;
   keywords?: string[];
 };
 
@@ -58,6 +60,7 @@ export function useTeacherNavigation() {
         title: "오늘 업무",
         items: [
           { label: "대시보드", path: "/workspace/mobile", icon: <Home size={ICON.md} />, keywords: ["홈", "오늘", "처리할 일"] },
+          { label: "학생 업무 도우미", path: "/workspace/mobile/assistant", icon: <Sparkles size={ICON.md} />, beta: true, keywords: ["사진", "학생 등록", "영상 권한", "챗봇"] },
           { label: "알림 센터", path: "/workspace/mobile/notifications", icon: <Bell size={ICON.md} />, badge: totalNotifications, keywords: ["알림", "대기 업무"] },
           { label: "커뮤니티", path: "/workspace/mobile/comms", icon: <MessageSquare size={ICON.md} />, badge: totalNotifications, keywords: ["질문", "Q&A", "공지"] },
           { label: "제출함", path: "/workspace/mobile/submissions", icon: <Send size={ICON.md} />, badge: recentSubmissions, keywords: ["과제", "채점", "제출"] },
