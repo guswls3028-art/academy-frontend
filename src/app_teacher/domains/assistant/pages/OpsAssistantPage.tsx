@@ -6,6 +6,7 @@ import { analyzeTeacherOps, confirmTeacherOps, fetchTeacherOpsExecution, type An
 import styles from "./OpsAssistantPage.module.css";
 
 const getError = (error: unknown) => String((error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || "요청을 처리하지 못했습니다. 입력을 확인해 주세요.");
+const inheritsPreviousIntent = (message: string) => ["이친구도", "얘도", "이학생도", "같이"].some((phrase) => message.replace(/\s+/g, "").includes(phrase));
 
 export default function OpsAssistantPage() {
   const [files, setFiles] = useState<File[]>([]); const [message, setMessage] = useState("");
@@ -18,7 +19,7 @@ export default function OpsAssistantPage() {
     return () => window.clearInterval(timer);
   }, [result]);
   const update = (id: string, patch: Partial<OpsPreviewRow>) => setRows((current) => current.map((row) => row.row_id === id ? { ...row, ...patch } : row));
-  const analyze = async () => { setBusy(true); setError(""); try { const next = await analyzeTeacherOps(files, message, previous.current || undefined); previous.current = next.proposal_token; setAnalysis(next); setRows(next.rows); } catch (e) { setError(getError(e)); } finally { setBusy(false); } };
+  const analyze = async () => { setBusy(true); setError(""); try { const next = await analyzeTeacherOps(files, message, inheritsPreviousIntent(message) ? previous.current || undefined : undefined); previous.current = next.proposal_token; setAnalysis(next); setRows(next.rows); } catch (e) { setError(getError(e)); } finally { setBusy(false); } };
   const confirm = async () => { if (!analysis) return; setBusy(true); setError(""); try { setResult(await confirmTeacherOps(analysis.proposal_token, rows)); setAnalysis(null); setRows([]); setFiles([]); setMessage(""); } catch (e) { setError(getError(e)); } finally { setBusy(false); } };
   return <div className={styles.page}>
     <header className={styles.hero}><span className={styles.heroIcon}><Sparkles size={ICON.md}/></span><div><span className={styles.title}><h1>학생 업무 도우미</h1><Badge tone="primary" pill size="xs">BETA</Badge></span><p>사진과 요청을 읽고, 기존 학생부터 확인한 안전한 실행표를 만듭니다.</p></div></header>
