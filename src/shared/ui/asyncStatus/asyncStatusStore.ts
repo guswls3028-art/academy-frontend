@@ -30,6 +30,28 @@ export interface EncodingStep {
   percent: number;
 }
 
+export interface StudentImportResultRow {
+  row: number | null;
+  name: string;
+}
+
+export interface StudentImportFailedRow extends StudentImportResultRow {
+  reason: string;
+}
+
+export interface StudentImportResult {
+  total: number;
+  createdCount: number;
+  duplicateCount: number;
+  restoredCount: number;
+  failedCount: number;
+  createdRows: StudentImportResultRow[];
+  duplicateRows: StudentImportResultRow[];
+  restoredRows: StudentImportResultRow[];
+  failedRows: StudentImportFailedRow[];
+  acknowledged: boolean;
+}
+
 export interface AsyncTask {
   id: string;
   label: string;
@@ -45,6 +67,8 @@ export interface AsyncTask {
     kind: "student_initial_passwords";
     credentials: Array<{ name: string; login_id: string; password: string }>;
   };
+  /** 신규 학생 Excel 행별 처리 결과. 학생 ID·전화번호·비밀번호는 저장하지 않는다. */
+  studentImportResult?: StudentImportResult;
   createdAt: number;
   /** 있으면 워커 작업 — 우하단 작업 알람창에만 표시, 폴링 대상 */
   meta?: AsyncTaskMeta;
@@ -56,6 +80,66 @@ type Listener = (tasks: AsyncTask[]) => void;
 
 const EXCEL_RECOVERY_STORAGE_KEY = "hakwonplus:excel-job-recovery:v1";
 const EXCEL_RECOVERY_TTL_MS = 60 * 60 * 1000;
+export const MAX_STORED_RESULT_ROWS = 500;
+
+function boundedInteger(value: unknown): number {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? Math.floor(number) : 0;
+}
+
+function parseStoredRows(value: unknown): StudentImportResultRow[] {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, MAX_STORED_RESULT_ROWS).flatMap((item) => {
+    if (item == null || typeof item !== "object" || Array.isArray(item)) return [];
+    const record = item as Record<string, unknown>;
+    if (typeof record.name !== "string") return [];
+    return [{
+      row: typeof record.row === "number" && Number.isFinite(record.row) ? record.row : null,
+      name: record.name.slice(0, 200),
+    }];
+  });
+}
+
+function parseStoredFailedRows(value: unknown): StudentImportFailedRow[] {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, MAX_STORED_RESULT_ROWS).flatMap((item) => {
+    if (item == null || typeof item !== "object" || Array.isArray(item)) return [];
+    const record = item as Record<string, unknown>;
+    if (typeof record.name !== "string" || typeof record.reason !== "string") return [];
+    return [{
+      row: typeof record.row === "number" && Number.isFinite(record.row) ? record.row : null,
+      name: record.name.slice(0, 200),
+      reason: record.reason.slice(0, 300),
+    }];
+  });
+}
+
+function parseStoredStudentImportResult(value: unknown): StudentImportResult | undefined {
+  if (value == null || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  const createdRows = parseStoredRows(record.createdRows);
+  const duplicateRows = parseStoredRows(record.duplicateRows);
+  const restoredRows = parseStoredRows(record.restoredRows);
+  const failedRows = parseStoredFailedRows(record.failedRows);
+  return {
+    total: boundedInteger(record.total),
+    createdCount: boundedInteger(record.createdCount),
+    duplicateCount: Object.prototype.hasOwnProperty.call(record, "duplicateCount")
+      ? boundedInteger(record.duplicateCount)
+      : duplicateRows.length,
+    restoredCount: Object.prototype.hasOwnProperty.call(record, "restoredCount")
+      ? boundedInteger(record.restoredCount)
+      : restoredRows.length,
+    failedCount: Object.prototype.hasOwnProperty.call(record, "failedCount")
+      ? boundedInteger(record.failedCount)
+      : failedRows.length,
+    createdRows,
+    duplicateRows,
+    restoredRows,
+    failedRows,
+    acknowledged: record.acknowledged === true,
+  };
+}
 
 function loadRecoverableExcelTasks(): AsyncTask[] {
   if (typeof window === "undefined") return [];
@@ -78,7 +162,10 @@ function loadRecoverableExcelTasks(): AsyncTask[] {
       }
       const wasCompletedCredentialTask =
         task.status === "success" && task.meta.expectsCredentialDownload === true;
-      if (task.status !== "pending" && !wasCompletedCredentialTask) return [];
+      const studentImportResult = parseStoredStudentImportResult(task.studentImportResult);
+      const wasCompletedResultTask =
+        (task.status === "success" || task.status === "error") && studentImportResult != null;
+      if (task.status !== "pending" && !wasCompletedCredentialTask && !wasCompletedResultTask) return [];
       const isExpired = wasCompletedCredentialTask
         ? (
             typeof task.meta.credentialRecoveryExpiresAt !== "number"
@@ -89,8 +176,12 @@ function loadRecoverableExcelTasks(): AsyncTask[] {
       return [{
         id: task.id,
         label: task.label,
-        status: "pending",
+        status: wasCompletedCredentialTask ? "pending" : (task.status ?? "pending"),
         progress: task.progress,
+        error: task.status === "error" && typeof task.error === "string"
+          ? task.error.slice(0, 300)
+          : undefined,
+        studentImportResult,
         createdAt: task.createdAt,
         tenantScope: task.tenantScope,
         meta: {
@@ -118,6 +209,10 @@ function persistRecoverableExcelTasks(): void {
         task.status === "success"
         && task.meta?.jobType === "excel_parsing"
         && task.meta.expectsCredentialDownload === true;
+      const isCompletedResultTask =
+        (task.status === "success" || task.status === "error")
+        && task.meta?.jobType === "excel_parsing"
+        && task.studentImportResult != null;
       const isExpired = isCompletedCredentialTask
         ? (
             typeof task.meta?.credentialRecoveryExpiresAt !== "number"
@@ -125,7 +220,7 @@ function persistRecoverableExcelTasks(): void {
           )
         : now - task.createdAt >= EXCEL_RECOVERY_TTL_MS;
       if (
-        (!isPendingExcel && !isCompletedCredentialTask)
+        (!isPendingExcel && !isCompletedCredentialTask && !isCompletedResultTask)
         || isExpired
       ) {
         return [];
@@ -267,6 +362,39 @@ export const asyncStatusStore = {
   /** 라벨만 변경 */
   setTaskLabel(id: string, label: string): void {
     tasks = tasks.map((t) => (t.id === id ? { ...t, label } : t));
+    emit();
+  },
+
+  setStudentImportResult(id: string, result: StudentImportResult): void {
+    const bounded = parseStoredStudentImportResult(result);
+    if (!bounded) return;
+    tasks = tasks.map((task) =>
+      task.id === id ? { ...task, studentImportResult: bounded } : task
+    );
+    emit();
+  },
+
+  acknowledgeStudentImportResult(id: string): void {
+    tasks = tasks.map((task) =>
+      task.id === id && task.studentImportResult
+        ? {
+            ...task,
+            studentImportResult: { ...task.studentImportResult, acknowledged: true },
+          }
+        : task
+    );
+    emit();
+  },
+
+  reopenStudentImportResult(id: string): void {
+    tasks = tasks.map((task) =>
+      task.id === id && task.studentImportResult
+        ? {
+            ...task,
+            studentImportResult: { ...task.studentImportResult, acknowledged: false },
+          }
+        : task
+    );
     emit();
   },
 

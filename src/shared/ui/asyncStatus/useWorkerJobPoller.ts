@@ -3,7 +3,7 @@
 
 import { useEffect, useRef } from "react";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
-import { asyncStatusStore } from "./asyncStatusStore";
+import { asyncStatusStore, MAX_STORED_RESULT_ROWS } from "./asyncStatusStore";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import api from "@/shared/api/axios";
 
@@ -12,6 +12,38 @@ const POLL_INTERVAL_MID_MS = 15000;      // 15s up to 10 min
 const POLL_INTERVAL_SLOW_MS = 30000;     // 30s after 10 min
 const BACKOFF_AFTER_MS = 60 * 1000;      // 1 min
 const BACKOFF_MID_AFTER_MS = 10 * 60 * 1000; // 10 min
+const SAFE_STUDENT_IMPORT_REASON_CODES = new Set([
+  "invalid_row",
+  "password_policy",
+  "phone_in_use",
+  "ps_number_in_use",
+  "processing_error",
+]);
+
+function importResultRows(value: unknown): Array<{ row: number | null; name: string }> {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, MAX_STORED_RESULT_ROWS).flatMap((item) => {
+    if (item == null || typeof item !== "object" || Array.isArray(item)) return [];
+    const record = item as Record<string, unknown>;
+    if (typeof record.name !== "string") return [];
+    return [{
+      row: typeof record.row === "number" && Number.isFinite(record.row) ? record.row : null,
+      name: record.name.slice(0, 200),
+    }];
+  });
+}
+
+function safeImportFailureReason(record: Record<string, unknown>): string {
+  if (
+    typeof record.reason_code === "string"
+    && SAFE_STUDENT_IMPORT_REASON_CODES.has(record.reason_code)
+    && typeof record.error === "string"
+    && record.error.trim()
+  ) {
+    return record.error.trim().slice(0, 300);
+  }
+  return "입력값을 확인한 뒤 다시 시도해 주세요.";
+}
 
 function pollExcelJob(
   taskId: string,
@@ -92,41 +124,85 @@ function pollExcelJob(
         onSuccess?.();
         // 엑셀 등록 결과 상세 표시
         const result = res.data?.result as Record<string, unknown> | undefined;
+        const isEnrollmentImport = result != null && (
+          Object.prototype.hasOwnProperty.call(result, "enrolled_count")
+          || Object.prototype.hasOwnProperty.call(result, "not_found_students_count")
+          || Object.prototype.hasOwnProperty.call(result, "ambiguous_students_count")
+        );
+        if (isEnrollmentImport) {
+          const enrolledCount = Number(result?.enrolled_count ?? 0);
+          const notFoundCount = Number(result?.not_found_students_count ?? 0);
+          const ambiguousCount = Number(result?.ambiguous_students_count ?? 0);
+          const parts = [`등록 ${enrolledCount}명`];
+          if (notFoundCount > 0) parts.push(`명부 없음 ${notFoundCount}명`);
+          if (ambiguousCount > 0) parts.push(`명부 중복 ${ambiguousCount}명`);
+          asyncStatusStore.setTaskLabel(taskId, `엑셀 수강등록 — ${parts.join(", ")}`);
+
+          const excludedParts: string[] = [];
+          if (notFoundCount > 0) excludedParts.push(`학생 명부 없음 ${notFoundCount}명`);
+          if (ambiguousCount > 0) excludedParts.push(`동일 정보 중복 ${ambiguousCount}명`);
+          const excludedDetail = excludedParts.length > 0
+            ? `등록 제외: ${excludedParts.join(", ")}. 학생 등록 또는 명부 정리 후 다시 시도해 주세요.`
+            : undefined;
+          if (excludedDetail) {
+            feedback.warning(`수강등록 결과: ${excludedDetail}`);
+          }
+          asyncStatusStore.completeTask(taskId, "success", excludedDetail);
+          return;
+        }
         const created = Number(result?.created ?? 0);
-        const dupCount = Array.isArray(result?.duplicates) ? result.duplicates.length : 0;
-        const restoredCount = Array.isArray(result?.restored) ? result.restored.length : 0;
-        const failedRows = Array.isArray(result?.failed)
-          ? result.failed.flatMap((item) => {
+        const total = Number(result?.total ?? 0);
+        const rawCreatedRows = Array.isArray(result?.created_rows) ? result.created_rows : [];
+        const rawDuplicateRows = Array.isArray(result?.duplicates) ? result.duplicates : [];
+        const rawRestoredRows = Array.isArray(result?.restored) ? result.restored : [];
+        const rawFailedRows = Array.isArray(result?.failed) ? result.failed : [];
+        const createdRows = importResultRows(rawCreatedRows);
+        const duplicateRows = importResultRows(rawDuplicateRows);
+        const restoredRows = importResultRows(rawRestoredRows);
+        const duplicateCount = rawDuplicateRows.length;
+        const restoredCount = rawRestoredRows.length;
+        const failedCount = rawFailedRows.length;
+        const failedRows = rawFailedRows
+          .slice(0, MAX_STORED_RESULT_ROWS)
+          .flatMap((item) => {
               if (item == null || typeof item !== "object" || Array.isArray(item)) return [];
               const row = item as Record<string, unknown>;
-              if (typeof row.error !== "string") return [];
               return [{
                 row: typeof row.row === "number" ? row.row : null,
                 name: typeof row.name === "string" ? row.name : "(이름 없음)",
-                error: row.error,
+                reason: safeImportFailureReason(row),
               }];
-            })
-          : [];
-        const failedDetail = failedRows.length > 0
-          ? `등록 제외: ${failedRows.slice(0, 3).map((failure) =>
-              `${failure.row != null ? `${failure.row}행 ` : ""}${failure.name} — ${failure.error}`
-            ).join(" / ")}${failedRows.length > 3 ? ` 외 ${failedRows.length - 3}건` : ""}`
-          : undefined;
+            });
         if (result) {
-          const failedCount = failedRows.length;
           const parts: string[] = [];
           if (created > 0) parts.push(`신규 등록 ${created}명`);
-          if (dupCount > 0) parts.push(`이미 등록된 학생 ${dupCount}명`);
+          if (duplicateCount > 0) parts.push(`이미 등록된 학생 ${duplicateCount}명`);
           if (restoredCount > 0) parts.push(`복원 ${restoredCount}명`);
           if (failedCount > 0) parts.push(`실패 ${failedCount}명`);
           const summary = parts.length > 0 ? parts.join(", ") : "완료";
           asyncStatusStore.setTaskLabel(taskId, `학생 일괄 등록 — ${summary}`);
+          const priorAcknowledged = asyncStatusStore
+            .getState()
+            .find((task) => task.id === taskId)
+            ?.studentImportResult?.acknowledged === true;
+          asyncStatusStore.setStudentImportResult(taskId, {
+            total: Number.isFinite(total) && total >= 0 ? Math.floor(total) : 0,
+            createdCount: Number.isFinite(created) && created >= 0 ? Math.floor(created) : 0,
+            duplicateCount,
+            restoredCount,
+            failedCount,
+            createdRows,
+            duplicateRows,
+            restoredRows,
+            failedRows,
+            acknowledged: priorAcknowledged,
+          });
           if (restoredCount > 0) {
             feedback.success(`삭제 대기중인 학생 ${restoredCount}명이 모두 복원되었습니다.`);
           }
-          if (dupCount > 0 || failedCount > 0) {
+          if (duplicateCount > 0 || failedCount > 0) {
             const msgs: string[] = [];
-            if (dupCount > 0) msgs.push(`이미 등록된 학생 ${dupCount}명`);
+            if (duplicateCount > 0) msgs.push(`이미 등록된 학생 ${duplicateCount}명`);
             if (failedCount > 0) msgs.push(`실패 ${failedCount}명`);
             feedback.warning(`학생 등록 결과: ${msgs.join(", ")}. 정상 행 처리는 완료되었습니다.`);
           }
@@ -165,11 +241,13 @@ function pollExcelJob(
             }
           }
         }
-        const hasHandledRow = created + dupCount + restoredCount > 0;
+        const hasHandledRow = created + duplicateCount + restoredCount > 0;
         asyncStatusStore.completeTask(
           taskId,
-          failedRows.length > 0 && !hasHandledRow ? "error" : "success",
-          failedDetail,
+          failedCount > 0 && !hasHandledRow ? "error" : "success",
+          failedCount > 0 && !hasHandledRow
+            ? "등록 가능한 학생이 없습니다. 결과에서 실패 사유를 확인해 주세요."
+            : undefined,
         );
       }
     })

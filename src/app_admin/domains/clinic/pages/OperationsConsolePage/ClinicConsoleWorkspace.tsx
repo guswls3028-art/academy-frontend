@@ -7,6 +7,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
 
@@ -36,7 +37,11 @@ import {
   Send,
 } from "lucide-react";
 import type { ClinicSessionDetail, ClinicSessionTreeNode } from "../../api/clinicSessions.api";
-import type { ClinicParticipant } from "../../api/clinicParticipants.api";
+import type {
+  ClinicNotificationOutcome,
+  ClinicParticipant,
+  ClinicParticipantReminderResult,
+} from "../../api/clinicParticipants.api";
 import {
   patchClinicParticipantStatus,
   createClinicParticipant,
@@ -54,6 +59,7 @@ import { useClinicTargets } from "../../hooks/useClinicTargets";
 import {
   resolveClinicLink,
   waiveClinicLink,
+  waiveMissingExamTarget,
   carryOverClinicLink,
   submitClinicRetake,
 } from "../../api/clinicLinks.api";
@@ -70,7 +76,12 @@ import { hhmmText } from "@/shared/ui/time/timeFormat";
 import { clinicQueryKeys } from "../../queryKeys";
 import {
   canCompleteManualHomework,
+  canWaiveMissingExamWithoutLink,
+  clinicTargetKey,
   completeManualHomework,
+  isMissingExamTarget,
+  isPositiveClinicIdentifier,
+  requiresManualHomeworkCompletion,
 } from "../../api/completeManualHomework";
 import ClinicParticipantActionDialog, {
   type ClinicParticipantAction,
@@ -91,6 +102,29 @@ const SECTION_BADGE_STYLE: CSSProperties = {
 };
 const CONFIRM_BAR_DELTA_STYLE: CSSProperties = { marginRight: 8 };
 const CUTLINE_MARKER_STYLE: CSSProperties = { left: "100%" };
+
+function clinicActionErrorMessage(error: unknown, fallback: string): string {
+  if (!isAxiosError(error)) return fallback;
+  const detail = (error.response?.data as { detail?: unknown } | undefined)?.detail;
+  return typeof detail === "string" && detail.trim() ? detail : fallback;
+}
+
+function reportClinicNotification(
+  successMessage: string,
+  notification: ClinicNotificationOutcome,
+) {
+  if (notification?.failed) {
+    feedback.warning(
+      `${successMessage} 상태는 저장됐지만 알림톡 요청 ${notification.requested}건 완료, ${notification.failed}건 실패했습니다.`,
+    );
+    return;
+  }
+  if (notification?.requested) {
+    feedback.success(`${successMessage} · 알림톡 요청 완료 (${notification.requested}건)`);
+    return;
+  }
+  feedback.success(successMessage);
+}
 
 const StudentsDetailOverlay = lazy(
   () => import("@admin/domains/students/public/StudentsDetailOverlay")
@@ -163,10 +197,6 @@ function getTargetContext(target: ClinicTarget): string {
 
 function isMissingHomeworkTarget(target: ClinicTarget): boolean {
   return target.reason === "missing" && target.source_type === "homework";
-}
-
-function isMissingExamTarget(target: ClinicTarget): boolean {
-  return target.reason === "missing" && target.source_type === "exam";
 }
 
 function getStatusLabel(status: string): string {
@@ -292,7 +322,7 @@ export default function ClinicConsoleWorkspace({
   const qc = useQueryClient();
   // Drawer stores participant ID only — derive live data from participants prop
   const [drawerParticipantId, setDrawerParticipantId] = useState<number | null>(null);
-  const [drawerActiveClinicLinkId, setDrawerActiveClinicLinkId] = useState<number | null>(null);
+  const [drawerActiveTargetKey, setDrawerActiveTargetKey] = useState<string | null>(null);
   const [drawerParticipantContextConfirmed, setDrawerParticipantContextConfirmed] = useState(false);
   const drawerTriggerRef = useRef<HTMLElement | null>(null);
   const drawerRef = useRef<HTMLDivElement | null>(null);
@@ -323,6 +353,8 @@ export default function ClinicConsoleWorkspace({
   // Prevent double-click on remediation actions (resolve/waive/carryover/retake)
   const [remediatingLinkIds, setRemediatingLinkIds] = useState<Set<number>>(new Set());
   const [completeTarget, setCompleteTarget] = useState<ClinicTarget | null>(null);
+  const [waiveTarget, setWaiveTarget] = useState<ClinicTarget | null>(null);
+  const [waivingTargetKey, setWaivingTargetKey] = useState<string | null>(null);
 
   const { configs: autoSendConfigs, toggleEnabled, isToggling } = useAutoSendConfig();
   const clinicTargetsQuery = useClinicTargets();
@@ -358,9 +390,11 @@ export default function ClinicConsoleWorkspace({
     setRetakeScores(new Map());
     setRemediatingLinkIds(new Set());
     setCompleteTarget(null);
+    setWaiveTarget(null);
+    setWaivingTargetKey(null);
     setPlanningParticipantIds(new Set());
     setDrawerParticipantId(null);
-    setDrawerActiveClinicLinkId(null);
+    setDrawerActiveTargetKey(null);
     setDrawerParticipantContextConfirmed(false);
     drawerTriggerRef.current = null;
     setSendResult(null);
@@ -435,10 +469,13 @@ export default function ClinicConsoleWorkspace({
     return map;
   }, [clinicTargets]);
 
-  const invalidateAll = useCallback(() => {
-    qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
-    qc.invalidateQueries({ queryKey: clinicQueryKeys.sessionsTree });
-    qc.invalidateQueries({ queryKey: clinicQueryKeys.notificationCounts });
+  const invalidateAll = useCallback(async () => {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.targets }),
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.participants }),
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.sessionsTree }),
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.notificationCounts }),
+    ]);
   }, [qc]);
 
   const timeLabel = hhmmText(session?.start_time, "—");
@@ -535,7 +572,7 @@ export default function ClinicConsoleWorkspace({
     const trigger = drawerTriggerRef.current;
     pendingPlanFocusRef.current = null;
     setDrawerParticipantId(null);
-    setDrawerActiveClinicLinkId(null);
+    setDrawerActiveTargetKey(null);
     setDrawerParticipantContextConfirmed(false);
     window.requestAnimationFrame(() => {
       if (trigger?.isConnected) trigger.focus();
@@ -544,13 +581,13 @@ export default function ClinicConsoleWorkspace({
 
   const openDrawer = useCallback((
     participantId: number,
-    clinicLinkId: number | null,
+    targetKey: string | null,
     trigger: HTMLElement,
     contextConfirmed = true,
   ) => {
     drawerTriggerRef.current = trigger;
     setDrawerParticipantId(participantId);
-    setDrawerActiveClinicLinkId(clinicLinkId);
+    setDrawerActiveTargetKey(targetKey);
     setDrawerParticipantContextConfirmed(contextConfirmed);
   }, []);
 
@@ -605,16 +642,20 @@ export default function ClinicConsoleWorkspace({
     const { participant: p, action } = actionDialog;
     setMutatingIds((prev) => new Set(prev).add(p.id));
     try {
+      let notification: ClinicNotificationOutcome = null;
+      let reminder: ClinicParticipantReminderResult | null = null;
       if (action === "arrive" || action === "late" || action === "absent") {
-        await patchClinicParticipantStatus(p.id, {
+        const result = await patchClinicParticipantStatus(p.id, {
           status: action === "absent" ? "no_show" : "attended",
           is_late: action === "late",
           send_to: payload.send_to,
         });
+        notification = result.notification;
       } else if (action === "checkout") {
-        await checkoutClinicParticipant(p.id, { send_to: payload.send_to });
+        const result = await checkoutClinicParticipant(p.id, { send_to: payload.send_to });
+        notification = result.notification;
       } else {
-        await remindClinicParticipant(p.id, {
+        reminder = await remindClinicParticipant(p.id, {
           mode: payload.mode ?? "once",
           send_to: payload.send_to,
           interval_minutes: payload.interval_minutes,
@@ -623,7 +664,7 @@ export default function ClinicConsoleWorkspace({
       }
 
       setActionDialog(null);
-      invalidateAll();
+      await invalidateAll();
       if (action === "absent") {
         setRescheduleParticipant(p);
         setRescheduleRecipient(payload.send_to);
@@ -634,13 +675,30 @@ export default function ClinicConsoleWorkspace({
           ordering: "date,start_time,id",
         });
         setReplacementSessions(rows.filter((row) => row.id !== (sessionId ?? p.session)));
+        reportClinicNotification(`${p.student_name} 결석 처리 완료`, notification);
+      } else if (action === "remind" && reminder) {
+        const scheduled = reminder.scheduled ?? 0;
+        if (reminder.skipped > 0) {
+          feedback.warning(
+            `${p.student_name} 재촉 알림톡 요청 ${reminder.sent + scheduled}건 완료, ${reminder.skipped}건 제외되었습니다.`,
+          );
+        } else {
+          feedback.success(
+            `${p.student_name} 재촉 알림톡 요청 완료 (${reminder.sent + scheduled}건)`,
+          );
+        }
       } else {
-        const label = action === "arrive" ? "등원" : action === "late" ? "지각 등원" : action === "checkout" ? "하원" : "재촉";
-        feedback.success(`${p.student_name} ${label} 처리가 완료되었습니다.`);
+        const label = action === "arrive" ? "등원" : action === "late" ? "지각 등원" : "하원";
+        reportClinicNotification(`${p.student_name} ${label} 처리 완료`, notification);
       }
-    } catch {
-      invalidateAll();
-      feedback.error("클리닉 처리에 실패했습니다. 상태와 알림 설정을 확인해 주세요.");
+    } catch (error) {
+      await invalidateAll();
+      feedback.error(
+        clinicActionErrorMessage(
+          error,
+          "클리닉 처리에 실패했습니다. 상태와 알림 설정을 확인해 주세요.",
+        ),
+      );
     } finally {
       setMutatingIds((prev) => {
         const next = new Set(prev);
@@ -655,17 +713,17 @@ export default function ClinicConsoleWorkspace({
     const participantId = rescheduleParticipant.id;
     setMutatingIds((prev) => new Set(prev).add(participantId));
     try {
-      await changeClinicParticipantBooking(participantId, {
+      const result = await changeClinicParticipantBooking(participantId, {
         new_session_id: Number(replacementSessionId),
         memo: "결석 후 보충 일정 이동",
         send_to: rescheduleRecipient,
       });
       setRescheduleParticipant(null);
       setReplacementSessionId("");
-      invalidateAll();
-      feedback.success("보충 일정을 옮겼습니다.");
-    } catch {
-      feedback.error("보충 일정 이동에 실패했습니다.");
+      await invalidateAll();
+      reportClinicNotification("보충 일정을 옮겼습니다.", result.notification);
+    } catch (error) {
+      feedback.error(clinicActionErrorMessage(error, "보충 일정 이동에 실패했습니다."));
     } finally {
       setMutatingIds((prev) => {
         const next = new Set(prev);
@@ -675,28 +733,34 @@ export default function ClinicConsoleWorkspace({
     }
   }
 
-  function handleBookingDecision(
+  async function handleBookingDecision(
     p: ClinicParticipant,
     target: "booked" | "rejected"
   ) {
     if (mutatingIds.has(p.id)) return;
     setMutatingIds((prev) => new Set(prev).add(p.id));
-    patchClinicParticipantStatus(p.id, { status: target })
-      .then(() => {
-        invalidateAll();
-        feedback.success(target === "booked" ? "예약을 승인했습니다." : "예약을 거절했습니다.");
-      })
-      .catch(() => {
-        invalidateAll();
-        feedback.error(target === "booked" ? "예약 승인에 실패했습니다." : "예약 거절에 실패했습니다.");
-      })
-      .finally(() => {
-        setMutatingIds((prev) => {
-          const next = new Set(prev);
-          next.delete(p.id);
-          return next;
-        });
+    try {
+      const result = await patchClinicParticipantStatus(p.id, { status: target });
+      await invalidateAll();
+      reportClinicNotification(
+        target === "booked" ? "예약을 승인했습니다." : "예약을 거절했습니다.",
+        result.notification,
+      );
+    } catch (error) {
+      await invalidateAll();
+      feedback.error(
+        clinicActionErrorMessage(
+          error,
+          target === "booked" ? "예약 승인에 실패했습니다." : "예약 거절에 실패했습니다.",
+        ),
+      );
+    } finally {
+      setMutatingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(p.id);
+        return next;
       });
+    }
   }
 
   /* ── 일괄 출석/결석 알림 발송 ── */
@@ -738,10 +802,19 @@ export default function ClinicConsoleWorkspace({
       actualEntries.map(([id, status]) => patchClinicParticipantStatus(id, { status }))
     );
 
-    const failed = results.filter((r) => r.status === "rejected").length;
-    const succeeded = results.length - failed;
+    const failed = results.filter((result) => result.status === "rejected").length;
+    const fulfilled = results.filter((result) => result.status === "fulfilled");
+    const succeeded = fulfilled.length;
+    const notificationRequested = fulfilled.reduce(
+      (sum, result) => sum + (result.value.notification?.requested ?? 0),
+      0,
+    );
+    const notificationFailed = fulfilled.reduce(
+      (sum, result) => sum + (result.value.notification?.failed ?? 0),
+      0,
+    );
 
-    invalidateAll();
+    await invalidateAll();
     setPendingStatuses(new Map());
     setMutatingIds((prev) => {
       const next = new Set(prev);
@@ -750,20 +823,29 @@ export default function ClinicConsoleWorkspace({
     });
 
     if (failed > 0) {
-      feedback.error(`${succeeded}명 처리 완료, ${failed}명 실패`);
+      const notificationFailure = notificationFailed > 0
+        ? ` · 알림톡 요청 ${notificationRequested}건 완료, ${notificationFailed}건 실패`
+        : "";
+      feedback.error(`${succeeded}명 처리 완료, ${failed}명 상태 저장 실패${notificationFailure}`);
+    } else if (notificationFailed > 0) {
+      feedback.warning(
+        `${succeeded}명 상태 저장 완료, 알림톡 요청 ${notificationRequested}건 완료, ${notificationFailed}건 실패`,
+      );
+    } else if (notificationRequested === 0) {
+      feedback.success(`${succeeded}명 상태 저장 완료`);
     } else {
-      // 발송 완료 팝업 — 일괄 발송
+      // 알림톡 요청 완료 팝업 — provider delivery가 아닌 enqueue 결과
       // 출석/결석 혼합이면 출석 기준으로 표시
-      const attendedStudents = entries
+      const attendedStudents = actualEntries
         .filter(([, st]) => st === "attended")
         .map(([id]) => participants.find((pp) => pp.id === id))
         .filter(Boolean) as ClinicParticipant[];
-      const noShowStudents = entries
+      const noShowStudents = actualEntries
         .filter(([, st]) => st === "no_show")
         .map(([id]) => participants.find((pp) => pp.id === id))
         .filter(Boolean) as ClinicParticipant[];
       const primaryType: "attended" | "no_show" = attendedStudents.length >= noShowStudents.length ? "attended" : "no_show";
-      const allStudents = entries
+      const allStudents = actualEntries
         .map(([id]) => participants.find((pp) => pp.id === id))
         .filter(Boolean) as ClinicParticipant[];
       const trigger = primaryType === "attended" ? "clinic_check_in" : "clinic_absent";
@@ -778,22 +860,22 @@ export default function ClinicConsoleWorkspace({
   }
 
   /* ── 클리닉 완료/취소 ── */
-  function handleComplete(p: ClinicParticipant) {
+  async function handleComplete(p: ClinicParticipant) {
     if (completingIds.has(p.id)) return;
     setCompletingIds((prev) => new Set(prev).add(p.id));
-    completeClinicParticipant(p.id)
-      .then(() => {
-        invalidateAll();
-        feedback.success(`${p.student_name} 클리닉 완료`);
-      })
-      .catch(() => feedback.error("완료 처리에 실패했습니다."))
-      .finally(() => {
-        setCompletingIds((prev) => {
-          const next = new Set(prev);
-          next.delete(p.id);
-          return next;
-        });
+    try {
+      const result = await completeClinicParticipant(p.id);
+      await invalidateAll();
+      reportClinicNotification(`${p.student_name} 세션 처리 완료`, result.notification);
+    } catch (error) {
+      feedback.error(clinicActionErrorMessage(error, "완료 처리에 실패했습니다."));
+    } finally {
+      setCompletingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(p.id);
+        return next;
       });
+    }
   }
 
   function handleUncomplete(p: ClinicParticipant) {
@@ -857,7 +939,9 @@ export default function ClinicConsoleWorkspace({
     if (clinicTargetsLoading || clinicTargetsError) return [];
     let targets = targetsByStudent.get(p.student) ?? [];
     if (targets.length === 0 && p.enrollment_id) {
-      targets = targetsByEnrollment.get(p.enrollment_id) ?? [];
+      targets = (targetsByEnrollment.get(p.enrollment_id) ?? []).filter(
+        (target) => target.student_id == null || target.student_id === p.student,
+      );
     }
     return [...targets].sort((left, right) => {
       const byCreated = dayjs(right.created_at).valueOf() - dayjs(left.created_at).valueOf();
@@ -876,14 +960,20 @@ export default function ClinicConsoleWorkspace({
     setRemediatingLinkIds((prev) => new Set(prev).add(linkId));
     try {
       await completeManualHomework(target, memo);
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: clinicQueryKeys.targets }),
-        qc.invalidateQueries({ queryKey: clinicQueryKeys.participants }),
-      ]);
+      const refreshed = await clinicTargetsQuery.refetch();
+      const targetKey = clinicTargetKey(target);
+      if (
+        refreshed.isError ||
+        !Array.isArray(refreshed.data) ||
+        refreshed.data.some((item) => !item.resolved_at && clinicTargetKey(item) === targetKey)
+      ) {
+        throw new Error("homework_completion_not_persisted");
+      }
+      await qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
       setCompleteTarget(null);
       feedback.success("과제 제출 확인을 저장하고 목록을 다시 확인했습니다.");
     } catch {
-      feedback.error("과제 완료 처리에 실패했습니다. 다시 시도해 주세요.");
+      feedback.error("완료 상태를 다시 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setRemediatingLinkIds((prev) => {
         const next = new Set(prev);
@@ -893,15 +983,48 @@ export default function ClinicConsoleWorkspace({
     }
   }
 
+  async function handleMissingExamWaive(target: ClinicTarget, memo: string) {
+    const targetKey = clinicTargetKey(target);
+    const linkId = isPositiveClinicIdentifier(target.clinic_link_id)
+      ? target.clinic_link_id
+      : null;
+    if (!isMissingExamTarget(target) || (!linkId && !canWaiveMissingExamWithoutLink(target))) {
+      feedback.error("시험 면제에 필요한 정보가 부족합니다. 목록을 새로고침해 주세요.");
+      return;
+    }
+
+    setWaivingTargetKey(targetKey);
+    try {
+      if (linkId) {
+        await waiveClinicLink(linkId, memo);
+      } else {
+        await waiveMissingExamTarget({
+          session_id: target.session_id!,
+          enrollment_id: target.enrollment_id,
+          exam_id: target.exam_id!,
+          memo,
+        });
+      }
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: clinicQueryKeys.targets }),
+        qc.invalidateQueries({ queryKey: clinicQueryKeys.participants }),
+      ]);
+      setWaiveTarget(null);
+      feedback.success("시험 미응시 사유와 면제 처리를 저장했습니다.");
+    } catch {
+      feedback.error("시험 면제 처리에 실패했습니다. 다시 시도해 주세요.");
+    } finally {
+      setWaivingTargetKey(null);
+    }
+  }
+
   const drawerTargets = drawerParticipant ? getTargetsForParticipant(drawerParticipant) : [];
-  const drawerUnresolvedTargets = drawerTargets.filter(
-    (target): target is ClinicTarget & { clinic_link_id: number } =>
-      !target.resolved_at && typeof target.clinic_link_id === "number",
-  );
+  const drawerUnresolvedTargets = drawerTargets.filter((target) => !target.resolved_at);
   const activeDrawerTarget = drawerUnresolvedTargets.find(
-    (target) => target.clinic_link_id === drawerActiveClinicLinkId,
+    (target) => clinicTargetKey(target) === drawerActiveTargetKey,
   ) ?? drawerUnresolvedTargets[0] ?? null;
   const activeDrawerTargetIsPlanned = !drawerContextRequired && activeDrawerTarget != null &&
+    isPositiveClinicIdentifier(activeDrawerTarget.clinic_link_id) &&
     (drawerParticipant?.planned_clinic_link_ids ?? []).includes(activeDrawerTarget.clinic_link_id);
 
   useEffect(() => {
@@ -909,7 +1032,7 @@ export default function ClinicConsoleWorkspace({
     if (!pending || planningParticipantIds.has(pending.participantId)) return;
     if (
       drawerParticipant?.id !== pending.participantId ||
-      drawerActiveClinicLinkId !== pending.clinicLinkId
+      drawerActiveTargetKey !== `link:${pending.clinicLinkId}`
     ) {
       pendingPlanFocusRef.current = null;
       return;
@@ -918,7 +1041,7 @@ export default function ClinicConsoleWorkspace({
     if (!toggle || toggle.disabled) return;
     pendingPlanFocusRef.current = null;
     toggle.focus();
-  }, [drawerActiveClinicLinkId, drawerParticipant?.id, planningParticipantIds]);
+  }, [drawerActiveTargetKey, drawerParticipant?.id, planningParticipantIds]);
 
   async function handleToggleTodayPlan(
     participant: ClinicParticipant,
@@ -931,7 +1054,7 @@ export default function ClinicConsoleWorkspace({
     if (planningParticipantIds.has(participant.id)) return;
     const validIds = new Set(
       getTargetsForParticipant(participant)
-        .filter((target) => !target.resolved_at && typeof target.clinic_link_id === "number")
+        .filter((target) => !target.resolved_at && isPositiveClinicIdentifier(target.clinic_link_id))
         .map((target) => target.clinic_link_id as number),
     );
     const currentIds = (participant.planned_clinic_link_ids ?? []).filter((id) => validIds.has(id));
@@ -1418,7 +1541,7 @@ export default function ClinicConsoleWorkspace({
                   onClick={handleBulkConfirmStatuses}
                 >
                   <Send size={14} aria-hidden />
-                  {isSending ? "발송 중…" : `알림 발송 (${pendingStatuses.size}명)`}
+                  {isSending ? "요청 중…" : `알림톡 요청 (${pendingStatuses.size}명)`}
                 </button>
               </div>
             )}
@@ -1492,14 +1615,13 @@ export default function ClinicConsoleWorkspace({
           {filteredParticipantGroups.map((group) => {
             const p = group.participants[0];
             const targets = getTargetsForParticipant(p);
-            const unresolvedTargets = targets.filter(
-              (target): target is ClinicTarget & { clinic_link_id: number } =>
-                !target.resolved_at && typeof target.clinic_link_id === "number",
-            );
+            const unresolvedTargets = targets.filter((target) => !target.resolved_at);
             const plannedIds = new Set(
               group.participants.flatMap((participant) => participant.planned_clinic_link_ids ?? []),
             );
-            const plannedCount = unresolvedTargets.filter((target) => plannedIds.has(target.clinic_link_id)).length;
+            const plannedCount = unresolvedTargets.filter((target) =>
+              isPositiveClinicIdentifier(target.clinic_link_id) && plannedIds.has(target.clinic_link_id)
+            ).length;
             // pending 체크 상태 우선, 없으면 서버 상태
             const isApprovalRequest = isApprovalPending(p.status);
             const pendingStatus = isApprovalRequest ? undefined : pendingStatuses.get(p.id);
@@ -1525,7 +1647,7 @@ export default function ClinicConsoleWorkspace({
                   if ((event.target as HTMLElement).closest("button, a, input, select, textarea")) return;
                   openDrawer(
                     p.id,
-                    unresolvedTargets[0]?.clinic_link_id ?? null,
+                    unresolvedTargets[0] ? clinicTargetKey(unresolvedTargets[0]) : null,
                     event.currentTarget,
                     group.participants.length === 1,
                   );
@@ -1538,7 +1660,7 @@ export default function ClinicConsoleWorkspace({
                   if (event.key === "Enter" && event.target === event.currentTarget) {
                     openDrawer(
                       p.id,
-                      unresolvedTargets[0]?.clinic_link_id ?? null,
+                      unresolvedTargets[0] ? clinicTargetKey(unresolvedTargets[0]) : null,
                       event.currentTarget,
                       group.participants.length === 1,
                     );
@@ -1616,7 +1738,7 @@ export default function ClinicConsoleWorkspace({
                                 aria-label={`${contextLabel} · ${getStatusLabel(participant.status)} 문맥`}
                                 onClick={(event) => openDrawer(
                                   participant.id,
-                                  unresolvedTargets[0]?.clinic_link_id ?? null,
+                                  unresolvedTargets[0] ? clinicTargetKey(unresolvedTargets[0]) : null,
                                   event.currentTarget,
                                   true,
                                 )}
@@ -1731,22 +1853,23 @@ export default function ClinicConsoleWorkspace({
                       ) : unresolvedTargets.length > 0 ? (
                         unresolvedTargets.map((t) => {
                           const targetParticipant = participantForTarget(group.participants, t);
+                          const targetIsPlanned = isPositiveClinicIdentifier(t.clinic_link_id) && plannedIds.has(t.clinic_link_id);
                           return (
                           <button
                             type="button"
-                            key={t.clinic_link_id}
+                            key={clinicTargetKey(t)}
                             className={`clinic-ops__reason-tag clinic-ops__task-chip ${
                               t.clinic_reason === "homework"
                                 ? "clinic-ops__reason-tag--homework"
                                 : t.clinic_reason === "both"
                                 ? "clinic-ops__reason-tag--both"
                                 : "clinic-ops__reason-tag--exam"
-                            } ${plannedIds.has(t.clinic_link_id) ? "clinic-ops__task-chip--planned" : ""}`}
-                            aria-pressed={plannedIds.has(t.clinic_link_id)}
+                            } ${targetIsPlanned ? "clinic-ops__task-chip--planned" : ""}`}
+                            aria-pressed={targetIsPlanned}
                             aria-label={`${p.student_name} ${t.clinic_reason === "homework" ? "과제" : "시험"} ${getTargetDisplayTitle(t)} ${getTargetContext(t)} ${formatScoreDetail(t)}`}
                             onClick={(event) => openDrawer(
                               targetParticipant?.id ?? p.id,
-                              t.clinic_link_id,
+                              clinicTargetKey(t),
                               event.currentTarget,
                               targetParticipant != null,
                             )}
@@ -1951,7 +2074,10 @@ export default function ClinicConsoleWorkspace({
                   <div>
                     <span className="clinic-workbench__summary-label">오늘 할 범위</span>
                     <strong>
-                      오늘 할 일 {drawerUnresolvedTargets.filter((target) => (drawerParticipant.planned_clinic_link_ids ?? []).includes(target.clinic_link_id)).length}
+                      오늘 할 일 {drawerUnresolvedTargets.filter((target) =>
+                        isPositiveClinicIdentifier(target.clinic_link_id) &&
+                        (drawerParticipant.planned_clinic_link_ids ?? []).includes(target.clinic_link_id)
+                      ).length}
                       {" / "}전체 미완료 {drawerUnresolvedTargets.length}
                     </strong>
                   </div>
@@ -1962,16 +2088,19 @@ export default function ClinicConsoleWorkspace({
               {!clinicTargetsLoading && !clinicTargetsError && drawerUnresolvedTargets.length > 0 && (
                 <div className="clinic-workbench__item-switcher" role="tablist" aria-label="미완료 항목 전환">
                   {drawerUnresolvedTargets.map((target, index) => {
-                    const planned = !drawerContextRequired && (drawerParticipant.planned_clinic_link_ids ?? []).includes(target.clinic_link_id);
+                    const targetKey = clinicTargetKey(target);
+                    const planned = !drawerContextRequired &&
+                      isPositiveClinicIdentifier(target.clinic_link_id) &&
+                      (drawerParticipant.planned_clinic_link_ids ?? []).includes(target.clinic_link_id);
                     return (
                       <button
-                        key={target.clinic_link_id}
+                        key={targetKey}
                         type="button"
                         role="tab"
-                        aria-selected={activeDrawerTarget?.clinic_link_id === target.clinic_link_id}
-                        className={`clinic-workbench__item-tab ${activeDrawerTarget?.clinic_link_id === target.clinic_link_id ? "clinic-workbench__item-tab--active" : ""}`}
+                        aria-selected={activeDrawerTarget != null && clinicTargetKey(activeDrawerTarget) === targetKey}
+                        className={`clinic-workbench__item-tab ${activeDrawerTarget != null && clinicTargetKey(activeDrawerTarget) === targetKey ? "clinic-workbench__item-tab--active" : ""}`}
                         onClick={() => {
-                          setDrawerActiveClinicLinkId(target.clinic_link_id);
+                          setDrawerActiveTargetKey(targetKey);
                         }}
                       >
                         <span>{index + 1}</span>
@@ -2011,9 +2140,13 @@ export default function ClinicConsoleWorkspace({
                   </div>
                 ) : (
                   <div className="clinic-ops__drawer-reasons">
-                    {activeDrawerTarget && [activeDrawerTarget].map((t) => (
+                    {activeDrawerTarget && [activeDrawerTarget].map((t) => {
+                      const clinicLinkId = isPositiveClinicIdentifier(t.clinic_link_id)
+                        ? t.clinic_link_id
+                        : null;
+                      return (
                       <div
-                        key={t.clinic_link_id}
+                        key={clinicTargetKey(t)}
                         className="clinic-ops__drawer-reason-card clinic-workbench__active-panel"
                       >
                         <div className="clinic-ops__drawer-reason-header">
@@ -2067,22 +2200,26 @@ export default function ClinicConsoleWorkspace({
                           </div>
                         )}
 
-                        <button
-                          ref={planToggleRef}
-                          type="button"
-                          className={`clinic-workbench__plan-toggle ${activeDrawerTargetIsPlanned ? "clinic-workbench__plan-toggle--selected" : ""}`}
-                          aria-pressed={activeDrawerTargetIsPlanned}
-                          aria-label={drawerContextRequired
-                            ? "시간대 선택 필요"
-                            : activeDrawerTargetIsPlanned
-                              ? "오늘 할 일에서 빼기"
-                              : "오늘 할 일에 추가"}
-                          disabled={drawerContextRequired || planningParticipantIds.has(drawerParticipant.id)}
-                          onClick={() => handleToggleTodayPlan(drawerParticipant, t.clinic_link_id!)}
-                        >
-                          <CheckCheck size={16} aria-hidden />
-                          {activeDrawerTargetIsPlanned ? "오늘 할 일로 선택됨" : "오늘은 이 항목 처리"}
-                        </button>
+                        {clinicLinkId != null ? (
+                          <button
+                            ref={planToggleRef}
+                            type="button"
+                            className={`clinic-workbench__plan-toggle ${activeDrawerTargetIsPlanned ? "clinic-workbench__plan-toggle--selected" : ""}`}
+                            aria-pressed={activeDrawerTargetIsPlanned}
+                            aria-label={drawerContextRequired
+                              ? "시간대 선택 필요"
+                              : activeDrawerTargetIsPlanned
+                                ? "오늘 할 일에서 빼기"
+                                : "오늘 할 일에 추가"}
+                            disabled={drawerContextRequired || planningParticipantIds.has(drawerParticipant.id)}
+                            onClick={() => handleToggleTodayPlan(drawerParticipant, clinicLinkId)}
+                          >
+                            <CheckCheck size={16} aria-hidden />
+                            {activeDrawerTargetIsPlanned ? "오늘 할 일로 선택됨" : "오늘은 이 항목 처리"}
+                          </button>
+                        ) : (
+                          <span className="clinic-ops__drawer-empty">면제 전에는 오늘 할 일로 지정할 수 없습니다.</span>
+                        )}
 
                         {/* Exam score */}
                         {(t.source_type === "exam" ||
@@ -2149,54 +2286,55 @@ export default function ClinicConsoleWorkspace({
                             </div>
                           )}
 
-                        {!t.resolved_at && t.clinic_link_id && !(t.reason === "missing" && t.source_type === "exam") && (
+                        {!t.resolved_at && clinicLinkId != null && !isMissingExamTarget(t) && (
                           <div className="clinic-workbench__score-entry">
-                            <label htmlFor={`clinic-workbench-score-${t.clinic_link_id}`}>
+                            <label htmlFor={`clinic-workbench-score-${clinicLinkId}`}>
                               {t.source_type === "homework" ? "과제" : "시험"} 점수
                             </label>
                             <input
-                              id={`clinic-workbench-score-${t.clinic_link_id}`}
+                              id={`clinic-workbench-score-${clinicLinkId}`}
                               type="number"
                               inputMode="decimal"
                               min={0}
                               max={t.max_score ?? undefined}
                               placeholder="점수"
-                              value={retakeScores.get(t.clinic_link_id) ?? ""}
+                              value={retakeScores.get(clinicLinkId) ?? ""}
                               onChange={(event) => {
                                 setRetakeScores((current) => {
                                   const next = new Map(current);
-                                  next.set(t.clinic_link_id!, event.target.value);
+                                  next.set(clinicLinkId, event.target.value);
                                   return next;
                                 });
                               }}
                               onKeyDown={(event) => {
-                                if (event.key === "Enter") handleRetakeSubmit(t.clinic_link_id!, t.max_score);
+                                if (event.key === "Enter") handleRetakeSubmit(clinicLinkId, t.max_score);
                               }}
-                              disabled={retakingIds.has(t.clinic_link_id)}
+                              disabled={retakingIds.has(clinicLinkId)}
                             />
                             <button
                               type="button"
-                              onClick={() => handleRetakeSubmit(t.clinic_link_id!, t.max_score)}
-                              disabled={retakingIds.has(t.clinic_link_id) || !(retakeScores.get(t.clinic_link_id) ?? "").trim()}
+                              onClick={() => handleRetakeSubmit(clinicLinkId, t.max_score)}
+                              disabled={retakingIds.has(clinicLinkId) || !(retakeScores.get(clinicLinkId) ?? "").trim()}
                             >
-                              {retakingIds.has(t.clinic_link_id) ? "저장 중…" : "점수 저장"}
+                              {retakingIds.has(clinicLinkId) ? "저장 중…" : "점수 저장"}
                             </button>
                           </div>
                         )}
 
                         {/* ✅ Remediation actions — 진행중 case에만 표시 */}
-                        {!t.resolved_at && t.clinic_link_id && (
+                        {!t.resolved_at && (clinicLinkId != null || canWaiveMissingExamWithoutLink(t)) && (
                           <div className="clinic-ops__drawer-remediation-actions">
                             {/* 재시험 허용 + 시험 페이지 이동 */}
                             {(t.clinic_reason === "exam" || t.clinic_reason === "both") &&
                               t.exam_id &&
-                              !(t.reason === "missing" && t.source_type === "exam") && (
+                              !isMissingExamTarget(t) &&
+                              clinicLinkId != null && (
                               <button
                                 type="button"
                                 className="clinic-ops__remediation-btn clinic-ops__remediation-btn--retake"
-                                disabled={remediatingLinkIds.has(t.clinic_link_id!)}
+                                disabled={remediatingLinkIds.has(clinicLinkId)}
                                 onClick={async () => {
-                                  const linkId = t.clinic_link_id!;
+                                  const linkId = clinicLinkId;
                                   setRemediatingLinkIds((prev) => new Set(prev).add(linkId));
                                   try {
                                     const latestExam = await fetchAdminExam(t.exam_id!);
@@ -2218,25 +2356,25 @@ export default function ClinicConsoleWorkspace({
                               </button>
                             )}
 
-                            {t.reason === "missing" && t.source_type === "homework" ? (
+                            {requiresManualHomeworkCompletion(t) ? (
                               canCompleteManualHomework(t) ? (
                                 <button
                                   type="button"
                                   className="clinic-ops__remediation-btn clinic-ops__remediation-btn--resolve"
-                                  disabled={remediatingLinkIds.has(t.clinic_link_id)}
+                                  disabled={clinicLinkId == null || remediatingLinkIds.has(clinicLinkId)}
                                   onClick={() => setCompleteTarget(t)}
                                 >
                                   <BookOpen size={16} aria-hidden />
                                   제출 확인·완료
                                 </button>
                               ) : null
-                            ) : !(t.reason === "missing" && t.source_type === "exam") ? (
+                            ) : !isMissingExamTarget(t) && clinicLinkId != null ? (
                               <button
                                 type="button"
                                 className="clinic-ops__remediation-btn clinic-ops__remediation-btn--resolve"
-                                disabled={remediatingLinkIds.has(t.clinic_link_id!)}
+                                disabled={remediatingLinkIds.has(clinicLinkId)}
                                 onClick={async () => {
-                                  const linkId = t.clinic_link_id!;
+                                  const linkId = clinicLinkId;
                                   setRemediatingLinkIds((prev) => new Set(prev).add(linkId));
                                   try {
                                     await resolveClinicLink(linkId, "수동 통과");
@@ -2256,35 +2394,47 @@ export default function ClinicConsoleWorkspace({
                                 수동 통과
                               </button>
                             ) : null}
-                            <button
-                              type="button"
-                              className="clinic-ops__remediation-btn clinic-ops__remediation-btn--waive"
-                              disabled={remediatingLinkIds.has(t.clinic_link_id!)}
-                              onClick={async () => {
-                                const linkId = t.clinic_link_id!;
-                                setRemediatingLinkIds((prev) => new Set(prev).add(linkId));
-                                try {
-                                  await waiveClinicLink(linkId, "면제");
-                                  feedback.success("면제 처리되었습니다.");
-                                  qc.invalidateQueries({ queryKey: clinicQueryKeys.targets });
-                                  qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
-                                } catch {
-                                  feedback.error("면제 처리에 실패했습니다.");
-                                } finally {
-                                  setRemediatingLinkIds((prev) => { const next = new Set(prev); next.delete(linkId); return next; });
-                                }
-                              }}
-                            >
-                              <Ban size={16} aria-hidden />
-                              면제
-                            </button>
-                            {!(t.reason === "missing" && t.source_type === "exam") && (
+                            {isMissingExamTarget(t) ? (
+                              <button
+                                type="button"
+                                className="clinic-ops__remediation-btn clinic-ops__remediation-btn--waive"
+                                disabled={waivingTargetKey === clinicTargetKey(t)}
+                                onClick={() => setWaiveTarget(t)}
+                              >
+                                <Ban size={16} aria-hidden />
+                                면제
+                              </button>
+                            ) : clinicLinkId != null ? (
+                              <button
+                                type="button"
+                                className="clinic-ops__remediation-btn clinic-ops__remediation-btn--waive"
+                                disabled={remediatingLinkIds.has(clinicLinkId)}
+                                onClick={async () => {
+                                  const linkId = clinicLinkId;
+                                  setRemediatingLinkIds((prev) => new Set(prev).add(linkId));
+                                  try {
+                                    await waiveClinicLink(linkId, "면제");
+                                    feedback.success("면제 처리되었습니다.");
+                                    qc.invalidateQueries({ queryKey: clinicQueryKeys.targets });
+                                    qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
+                                  } catch {
+                                    feedback.error("면제 처리에 실패했습니다.");
+                                  } finally {
+                                    setRemediatingLinkIds((prev) => { const next = new Set(prev); next.delete(linkId); return next; });
+                                  }
+                                }}
+                              >
+                                <Ban size={16} aria-hidden />
+                                면제
+                              </button>
+                            ) : null}
+                            {!isMissingExamTarget(t) && clinicLinkId != null && (
                               <button
                                 type="button"
                                 className="clinic-ops__remediation-btn clinic-ops__remediation-btn--carryover"
-                                disabled={remediatingLinkIds.has(t.clinic_link_id!)}
+                                disabled={remediatingLinkIds.has(clinicLinkId)}
                                 onClick={async () => {
-                                  const linkId = t.clinic_link_id!;
+                                  const linkId = clinicLinkId;
                                   setRemediatingLinkIds((prev) => new Set(prev).add(linkId));
                                   try {
                                     await carryOverClinicLink(linkId);
@@ -2305,7 +2455,7 @@ export default function ClinicConsoleWorkspace({
                           </div>
                         )}
                       </div>
-                    ))}
+                    );})}
                   </div>
                 )}
               </div>
@@ -2350,7 +2500,7 @@ export default function ClinicConsoleWorkspace({
         </>
       )}
 
-      {/* ═══ 발송 완료 팝업 ═══ */}
+      {/* ═══ 알림톡 요청 완료 팝업 ═══ */}
       {sendResult && createPortal(
         <div
           className="clinic-send-result__overlay"
@@ -2364,7 +2514,7 @@ export default function ClinicConsoleWorkspace({
               </div>
               <div className="clinic-send-result__header-text">
                 <h3 className="clinic-send-result__title">
-                  {sendResult.type === "attended" ? "출석 알림" : "결석 알림"} 발송 완료
+                  {sendResult.type === "attended" ? "출석 알림" : "결석 알림"} 알림톡 요청 완료
                 </h3>
                 <span className="clinic-send-result__mode-badge">알림톡</span>
               </div>
@@ -2593,6 +2743,15 @@ export default function ClinicConsoleWorkspace({
         onClose={() => setCompleteTarget(null)}
         onConfirm={(memo) => {
           if (completeTarget) void handleManualHomeworkComplete(completeTarget, memo);
+        }}
+      />
+      <ClinicManualHomeworkCompleteDialog
+        target={waiveTarget}
+        mode="exam-waive"
+        pending={waiveTarget != null && waivingTargetKey === clinicTargetKey(waiveTarget)}
+        onClose={() => setWaiveTarget(null)}
+        onConfirm={(memo) => {
+          if (waiveTarget) void handleMissingExamWaive(waiveTarget, memo);
         }}
       />
     </>

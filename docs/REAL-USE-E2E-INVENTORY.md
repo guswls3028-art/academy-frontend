@@ -113,7 +113,7 @@
 |------|---------------|------|
 | 공개 회원가입 신청->관리자 승인->학생 로그인 | `e2e/flows/signup-approval-roundtrip.spec.ts` 운영 실발송 run 통과 | Covered for controlled canary; future runs must keep duplicate pre-flight and controlled number only |
 | 관리자 학생 단건 등록->학생 로그인->cleanup | 일부 production QA 기록과 컴포넌트 변경 흔적 | Gap |
-| 강의 UI 생성->수강생 등록->정규/보강 차시 생성 | DNB/팝오버/부분 spec 존재 | Gap |
+| 강의 UI 생성->수강생 등록->정규/보강 차시 생성 | `e2e/admin/enrollment-excel-existing-only.mock.spec.ts`가 강의·차시 Excel 수강등록의 기존학생 전용 안내, 학생번호 포함 원본 파일, `session_id`, 계정 필드 미전송, DONE 부분 제외 요약, 실패 후 재시도, 1366/390px modal viewport를 검증. DNB/팝오버/부분 spec도 존재 | Partial; 실제 worker 저장 왕복은 backend 회귀와 통제 canary 증거가 별도 필요 |
 | 차시 수강생 일괄배정->미입력 시작->전체 현장->되돌리기 | `e2e/admin/session-attendance-bulk-safety.mock.spec.ts` | local route mock에서 선택 검토·undo/redo·등록 확인, 신규 미입력, 최근 일괄 작업과 원자 복구 UI, 1366/1100/390px를 검증. 운영 저장 왕복은 통제 canary 증거가 별도 필요 |
 | 차시 성적 탭->시험/과제 생성 모달 | `session-assessment-realuse` read-only | Partial |
 | 시험 생성->학생 응시->자동 채점->성적 보드 | `score-report-realuse` 강함 | Partial, UI 생성 gap |
