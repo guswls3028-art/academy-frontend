@@ -2,8 +2,10 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, FileImage, FileText } from "lucide-react";
 
-import { getPresignedUrl } from "@admin/domains/storage/api/storage.api";
-import type { PendingSubmissionRow } from "@admin/domains/submissions/api/adminPendingSubmissions";
+import {
+  fetchPendingSubmissionPreview,
+  type PendingSubmissionRow,
+} from "@admin/domains/submissions/api/adminPendingSubmissions";
 import { submissionsQueryKeys } from "@/shared/api/queryKeys/submissions";
 import { Badge, Button, EmptyState, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
@@ -66,7 +68,7 @@ export function submissionFileSize(fileSize: number | null | undefined): string 
 
 function previewKind(row: PendingSubmissionRow): "image" | "pdf" | "unsupported" {
   const normalized = row.file_type?.toLowerCase().split(";")[0]?.trim() ?? "";
-  const extension = extensionFromFileName(submissionFileName(row.file_key));
+  const extension = extensionFromFileName(submissionFileName(row.file_name));
   if (SAFE_IMAGE_TYPES.has(normalized) || ["gif", "jpg", "jpeg", "png", "webp"].includes(extension)) {
     return "image";
   }
@@ -75,7 +77,8 @@ function previewKind(row: PendingSubmissionRow): "image" | "pdf" | "unsupported"
 }
 
 export default function SubmissionPreviewModal({ open, row, onClose, onIdentify }: Props) {
-  const fileKey = row?.file_key ?? null;
+  const hasFile = row?.has_file === true;
+  const fileNameValue = row?.file_name ?? null;
   const [imageAssetReview, setImageAssetReview] = useState<{
     identity: string;
     state: "loaded" | "error";
@@ -88,9 +91,9 @@ export default function SubmissionPreviewModal({ open, row, onClose, onIdentify 
     confirmed: boolean;
   } | null>(null);
   const previewQ = useQuery({
-    queryKey: submissionsQueryKeys.filePreview(row?.id, fileKey, reviewSession),
-    queryFn: () => getPresignedUrl(String(fileKey), 900),
-    enabled: open && !!fileKey,
+    queryKey: submissionsQueryKeys.filePreview(row?.id, reviewSession),
+    queryFn: () => fetchPendingSubmissionPreview(Number(row?.id)),
+    enabled: open && hasFile && !!row?.id,
     retry: 1,
     staleTime: 10 * 60 * 1000,
   });
@@ -98,14 +101,14 @@ export default function SubmissionPreviewModal({ open, row, onClose, onIdentify 
 
   if (!row) return null;
 
-  const fileName = submissionFileName(fileKey);
-  const fileKind = submissionFileKind(row.file_type, fileKey);
+  const fileName = submissionFileName(fileNameValue);
+  const fileKind = submissionFileKind(row.file_type, fileNameValue);
   const kind = previewKind(row);
   const canIdentify =
     row.status === "needs_identification" && row.target_resolved && !!row.target_id;
   const requiresExternalConfirmation = kind === "pdf" || kind === "unsupported";
-  const assetIdentity = `${reviewSession}:${row.id}:${fileKey ?? "none"}:${previewUrl ?? "pending"}:${assetAttempt}`;
-  const externalIdentity = `${reviewSession}:${row.id}:${fileKey ?? "none"}:${previewUrl ?? "pending"}`;
+  const assetIdentity = `${reviewSession}:${row.id}:${previewUrl ?? "pending"}:${assetAttempt}`;
+  const externalIdentity = `${reviewSession}:${row.id}:${previewUrl ?? "pending"}`;
   const imageAssetState = imageAssetReview?.identity === assetIdentity
     ? imageAssetReview.state
     : previewUrl
@@ -165,7 +168,7 @@ export default function SubmissionPreviewModal({ open, row, onClose, onIdentify 
             className="relative flex min-h-[340px] items-center justify-center overflow-hidden rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-page)] lg:min-h-[520px]"
             aria-label="제출 파일 미리보기"
           >
-            {!fileKey && (
+            {!hasFile && (
               <EmptyState
                 scope="panel"
                 tone="empty"
@@ -173,10 +176,10 @@ export default function SubmissionPreviewModal({ open, row, onClose, onIdentify 
                 description="파일 정보 없이 접수된 제출입니다. 학생과 시험 정보를 다시 확인해 주세요."
               />
             )}
-            {fileKey && previewQ.isLoading && (
+            {hasFile && previewQ.isLoading && (
               <EmptyState scope="panel" tone="loading" title="제출 파일을 여는 중..." />
             )}
-            {fileKey && previewQ.isError && !previewQ.isLoading && (
+            {hasFile && previewQ.isError && !previewQ.isLoading && (
               <EmptyState
                 scope="panel"
                 tone="error"
@@ -338,7 +341,7 @@ export default function SubmissionPreviewModal({ open, row, onClose, onIdentify 
               <Button
                 type="button"
                 intent="primary"
-                disabled={!fileKey || previewQ.isLoading || previewQ.isFetching || previewQ.isError || !previewConfirmed}
+                disabled={!hasFile || previewQ.isLoading || previewQ.isFetching || previewQ.isError || !previewConfirmed}
                 onClick={continueToIdentify}
               >
                 확인하고 학생 지정

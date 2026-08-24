@@ -650,10 +650,10 @@ function SubmissionRow({
   const isDone = row.status === "done";
   const isAnswersReady = row.status === "answers_ready";
   const isSuperseded = row.status === "superseded";
-  const hasFile = !!row.file_key;
-  const fileName = submissionFileName(row.file_key);
+  const hasFile = row.has_file === true;
+  const fileName = submissionFileName(row.file_name);
   const fileMeta = hasFile
-    ? `${submissionFileKind(row.file_type, row.file_key)} · ${submissionFileSize(row.file_size)}`
+    ? `${submissionFileKind(row.file_type, row.file_name)} · ${submissionFileSize(row.file_size)}`
     : "파일 정보 없음";
 
   // exam/homework 양쪽 picker 지원 — target_id 만 있으면 inline 매칭 가능
