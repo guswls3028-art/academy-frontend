@@ -69,6 +69,7 @@ coverage
 docs/
 !docs/
 docs/*
+!docs/TEACHER-OPS-ASSISTANT.md
 !docs/README.md
 !docs/USER-GUIDE-ADMIN.md
 !docs/USER-GUIDE-STUDENT.md

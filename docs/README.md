@@ -38,6 +38,7 @@
 | [PRODUCT-UPDATES.md](PRODUCT-UPDATES.md) | 공개 업데이트 페이지의 콘텐츠 범위, CTA, 접근성·라우팅 계약 |
 | [WORKSPACE-NAVIGATION.md](WORKSPACE-NAVIGATION.md) | 관리자·선생님 권한 메뉴의 빠른 검색, 최근 사용, 키보드·390px 이동 계약 |
 | [TEACHER-WORKSPACE-OPERATIONS.md](TEACHER-WORKSPACE-OPERATIONS.md) | 선생님 오늘 업무 합계, 역할별 결제·알림 경계, 카드 실패 상태와 44px·데스크톱 화면 계약 |
+| [TEACHER-OPS-ASSISTANT.md](TEACHER-OPS-ASSISTANT.md) | 사진 기반 학생 식별·수강·ONLINE 영상 권한·초기 알림톡 검토/확정 계약 |
 
 ## 관련 위치
 
