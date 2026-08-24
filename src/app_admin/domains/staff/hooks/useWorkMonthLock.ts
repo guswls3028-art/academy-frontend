@@ -30,11 +30,16 @@ export function useWorkMonthLock(params: { staff: number; year: number; month: n
 
   const lockM = useMutation({
     mutationFn: () => lockWorkMonth({ staff: params.staff, year: params.year, month: params.month }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: staffQueryKeys.workMonthLocksForStaff(params.staff) });
-      qc.invalidateQueries({ queryKey: staffQueryKeys.workRecordsForStaff(params.staff) });
-      qc.invalidateQueries({ queryKey: staffQueryKeys.expensesForStaff(params.staff) });
-      qc.invalidateQueries({ queryKey: staffQueryKeys.payrollSnapshots });
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({
+          queryKey: staffQueryKeys.workMonthLocksForStaff(params.staff),
+          refetchType: "all",
+        }),
+        qc.invalidateQueries({ queryKey: staffQueryKeys.workRecords, refetchType: "all" }),
+        qc.invalidateQueries({ queryKey: staffQueryKeys.expenses, refetchType: "all" }),
+        qc.invalidateQueries({ queryKey: staffQueryKeys.payrollSnapshots, refetchType: "all" }),
+      ]);
       feedback.success(`${params.year}년 ${params.month}월 마감이 완료되었습니다.`);
     },
     onError: (error: unknown) => {
@@ -55,5 +60,3 @@ export function useWorkMonthLock(params: { staff: number; year: number; month: n
     lockM,
   };
 }
-
-

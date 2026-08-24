@@ -5,6 +5,7 @@ import {
   installLocalAuthApiStubs,
   installTenantOneInitScript,
 } from "../helpers/localAuthApiStubs";
+import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 
@@ -105,15 +106,19 @@ async function mockStaffApi(
     onStaffPatch?: (body: Record<string, unknown>) => void;
     onPasswordReset?: (body: Record<string, unknown>) => void;
     workRecords?: Array<Record<string, unknown>>;
+    onWorkRecordsFetch?: () => void;
     onWorkRecordPatch?: (id: number, body: Record<string, unknown>) => void;
     expenses?: Array<Record<string, unknown>>;
+    onExpensesFetch?: () => void;
     onExpensePatch?: (id: number, body: Record<string, unknown>) => void;
     onExpenseDelete?: (id: number) => void;
+    onWorkMonthLock?: (body: Record<string, unknown>) => void;
     profileExpenses?: Array<Record<string, unknown>>;
     onProfileExpenseCreate?: (body: Record<string, unknown>) => void;
     onProfileExpenseDelete?: (id: number) => void;
   },
 ) {
+  let workMonthLocked = false;
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
@@ -171,6 +176,28 @@ async function mockStaffApi(
         summary: { soon: 0, today: 0, tomorrow: 0, upcoming: 0, time_unset: 0, overdue: 0 },
         items: [],
       });
+    }
+    if (
+      (path === "/clinic/participants/" ||
+        path === "/community/admin/posts/" ||
+        path === "/students/registration_requests/" ||
+        path === "/submissions/submissions/pending/") &&
+      request.method() === "GET"
+    ) {
+      return json({ count: 0, next: null, previous: null, results: [] });
+    }
+    if (path === "/results/admin/teacher-dashboard-counts/" && request.method() === "GET") {
+      return json({ video_failed: 0 });
+    }
+    if (
+      (path === "/community/admin/reports/pending-count/" ||
+        path === "/community/notifications/unread-count/") &&
+      request.method() === "GET"
+    ) {
+      return json({ count: 0 });
+    }
+    if (path === "/results/admin/clinic-targets/" && request.method() === "GET") {
+      return json([]);
     }
     if (path === "/staffs/" && request.method() === "GET") {
       return json({
@@ -306,9 +333,39 @@ async function mockStaffApi(
       if (options?.lockFailure) {
         return json({ detail: "temporary failure" }, 503);
       }
-      return json({ count: 0, next: null, previous: null, results: [] });
+      const results = workMonthLocked
+        ? [{
+            id: 71,
+            staff: 1,
+            staff_name: "김조교",
+            year: 2026,
+            month: 8,
+            is_locked: true,
+            locked_by: 12,
+            locked_by_name: "관리자",
+            created_at: "2026-08-22T04:00:00Z",
+          }]
+        : [];
+      return json({ count: results.length, next: null, previous: null, results });
+    }
+    if (path === "/staffs/work-month-locks/" && request.method() === "POST") {
+      const body = request.postDataJSON() as Record<string, unknown>;
+      workMonthLocked = true;
+      options?.onWorkMonthLock?.(body);
+      return json({
+        id: 71,
+        staff: 1,
+        staff_name: "김조교",
+        year: 2026,
+        month: 8,
+        is_locked: true,
+        locked_by: 12,
+        locked_by_name: "관리자",
+        created_at: "2026-08-22T04:00:00Z",
+      }, 201);
     }
     if (path === "/staffs/work-records/" && request.method() === "GET") {
+      options?.onWorkRecordsFetch?.();
       const workRecords = options?.workRecords ?? [];
       return json({ count: workRecords.length, next: null, previous: null, results: workRecords });
     }
@@ -321,6 +378,7 @@ async function mockStaffApi(
       return json({ ...existing, ...body, id, updated_at: "2026-08-22T03:00:00Z" });
     }
     if (path === "/staffs/expense-records/" && request.method() === "GET") {
+      options?.onExpensesFetch?.();
       const expenses = options?.expenses ?? [];
       return json({ count: expenses.length, next: null, previous: null, results: expenses });
     }
@@ -513,8 +571,8 @@ test.describe("직원 운영 계약", () => {
       },
     });
 
-    await page.goto(`${BASE}/workspace/staff/home`, {
-      waitUntil: "domcontentloaded",
+    await gotoAndSettle(page, `${BASE}/workspace/staff/home`, {
+      timeout: 30_000,
     });
 
     await expect(page.getByText("김조교", { exact: true }).first()).toBeVisible();
@@ -619,6 +677,230 @@ test.describe("직원 운영 계약", () => {
     await expect(page.getByTestId("staff-detail-overlay")).toBeVisible();
     await page.getByTestId("staff-detail-overlay").getByRole("button", { name: "닫기" }).click();
     await expect(page).toHaveURL(/\/workspace\/staff\/attendance\?staffId=1&year=2026&month=8$/);
+  });
+
+  test("직원 상세 근무기록에서도 잘못 입력한 기록을 바로 수정한다", async ({ page }) => {
+    const workRecords = [
+      {
+        id: 42,
+        staff: 1,
+        staff_name: "김조교",
+        work_type: 21,
+        work_type_name: "채점",
+        date: "2026-08-21",
+        start_time: "14:00",
+        end_time: "18:00",
+        break_minutes: 0,
+        work_hours: 4,
+        amount: 48000,
+        memo: "출근 입력 누락 보정",
+        created_at: "2026-08-21T09:00:00Z",
+        updated_at: "2026-08-21T09:00:00Z",
+      },
+    ];
+    let patched: { id: number; body: Record<string, unknown> } | null = null;
+    await mockStaffApi(page, {
+      workRecords,
+      onWorkRecordPatch: (id, body) => { patched = { id, body }; },
+    });
+
+    await gotoAndSettle(page, `${BASE}/workspace/staff/home`, {
+      timeout: 30_000,
+    });
+    const staffName = page.getByText("김조교", { exact: true }).first();
+    await expect(staffName).toBeVisible({ timeout: 20_000 });
+    await staffName.click();
+
+    const staffDetail = page.getByTestId("staff-detail-overlay");
+    await staffDetail.getByRole("tab", { name: "근무기록", exact: true }).click();
+    const row = staffDetail.getByTestId("staff-work-record-42");
+    await expect(row).toBeVisible();
+    await expect(staffDetail.getByRole("button", { name: "추가", exact: true })).toBeVisible();
+    await row.getByRole("button", { name: "수정", exact: true }).click();
+
+    const dialog = page.getByRole("dialog", { name: "근무 기록 수정" });
+    await expect(dialog).toBeVisible();
+    await dialog.getByLabel("메모", { exact: true }).fill("퇴근 기록 보정");
+    await dialog.getByRole("button", { name: "저장", exact: true }).click();
+
+    await expect.poll(() => patched).toEqual({
+      id: 42,
+      body: {
+        work_type: 21,
+        date: "2026-08-21",
+        start_time: "14:00",
+        end_time: "18:00",
+        break_minutes: 0,
+        memo: "퇴근 기록 보정",
+      },
+    });
+    await expect(dialog).toBeHidden();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    const mobileOverlayBody = staffDetail.locator(".ds-overlay-body");
+    const mobileOverlayOverflow = await mobileOverlayBody.evaluate((node) => ({
+      clientWidth: node.clientWidth,
+      scrollWidth: node.scrollWidth,
+    }));
+    expect(mobileOverlayOverflow.scrollWidth).toBeLessThanOrEqual(
+      mobileOverlayOverflow.clientWidth,
+    );
+    const mobileRowLayout = await row.evaluate((node) => {
+      const rowRect = node.getBoundingClientRect();
+      const summary = node.querySelector<HTMLElement>(
+        '[data-testid="staff-work-record-summary"]',
+      );
+      const summaryRect = summary?.getBoundingClientRect();
+      return {
+        height: rowRect.height,
+        summaryWidth: summaryRect?.width ?? 0,
+      };
+    });
+    expect(mobileRowLayout.height).toBeLessThanOrEqual(240);
+    expect(mobileRowLayout.summaryWidth).toBeGreaterThanOrEqual(200);
+    await page.screenshot({
+      path: "test-results/staff-detail-work-records-390.png",
+      fullPage: false,
+    });
+    await row.getByRole("button", { name: "수정", exact: true }).click();
+    const mobileDialog = page.getByRole("dialog", { name: "근무 기록 수정" });
+    await expect(mobileDialog).toBeVisible();
+    const mobileBounds = await mobileDialog.evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      return { left: rect.left, right: rect.right, width: rect.width };
+    });
+    expect(mobileBounds.left).toBeGreaterThanOrEqual(0);
+    expect(mobileBounds.right).toBeLessThanOrEqual(390);
+    expect(mobileBounds.width).toBeLessThanOrEqual(390);
+    await page.screenshot({
+      path: "test-results/staff-detail-work-record-edit-390.png",
+      fullPage: false,
+    });
+  });
+
+  test("직원 상세 비용에서도 대기 환급을 본 화면과 같은 계약으로 수정한다", async ({ page }) => {
+    const expenses = [
+      {
+        id: 34,
+        staff: 1,
+        staff_name: "김조교",
+        date: "2026-08-02",
+        title: "교재 배송비",
+        amount: 12000,
+        memo: "영수증 확인",
+        status: "PENDING",
+        approved_at: null,
+        approved_by: null,
+        approved_by_name: null,
+        created_at: "2026-08-02T01:00:00Z",
+        updated_at: "2026-08-02T01:00:00Z",
+      },
+    ];
+    let patched: { id: number; body: Record<string, unknown> } | null = null;
+    await mockStaffApi(page, {
+      expenses,
+      onExpensePatch: (id, body) => { patched = { id, body }; },
+    });
+
+    await gotoAndSettle(page, `${BASE}/workspace/staff/home`, {
+      timeout: 30_000,
+    });
+    const staffName = page.getByText("김조교", { exact: true }).first();
+    await expect(staffName).toBeVisible({ timeout: 20_000 });
+    await staffName.click();
+
+    const staffDetail = page.getByTestId("staff-detail-overlay");
+    await staffDetail.getByRole("tab", { name: "비용", exact: true }).click();
+    const row = staffDetail.getByTestId("staff-expense-34");
+    await expect(row).toBeVisible();
+    await expect(staffDetail.getByRole("button", { name: "추가", exact: true })).toBeVisible();
+    await expect(staffDetail.getByRole("button", { name: /전체 1건 · 12,000원/ })).toBeVisible();
+    await row.getByRole("button", { name: "수정", exact: true }).click();
+
+    const dialog = page.getByRole("dialog", { name: "선결제 환급 수정" });
+    await expect(dialog).toBeVisible();
+    await dialog.getByLabel("금액(원) *").fill("15000");
+    await dialog.getByLabel("항목 *").focus();
+    await page.keyboard.press("Enter");
+    await expect.poll(() => patched).toEqual({
+      id: 34,
+      body: {
+        date: "2026-08-02",
+        title: "교재 배송비",
+        amount: 15000,
+        memo: "영수증 확인",
+      },
+    });
+    await expect(dialog).toBeHidden();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    const mobileLayout = await row.evaluate((node) => {
+      const rowRect = node.getBoundingClientRect();
+      const summary = node.querySelector<HTMLElement>('[data-testid="staff-expense-summary"]');
+      const summaryRect = summary?.getBoundingClientRect();
+      return {
+        height: rowRect.height,
+        summaryWidth: summaryRect?.width ?? 0,
+      };
+    });
+    expect(mobileLayout.height).toBeLessThanOrEqual(420);
+    expect(mobileLayout.summaryWidth).toBeGreaterThanOrEqual(200);
+    const mobileOverlayBody = staffDetail.locator(".ds-overlay-body");
+    const mobileOverflow = await mobileOverlayBody.evaluate((node) => ({
+      clientWidth: node.clientWidth,
+      scrollWidth: node.scrollWidth,
+    }));
+    expect(mobileOverflow.scrollWidth).toBeLessThanOrEqual(mobileOverflow.clientWidth);
+    await page.screenshot({
+      path: "test-results/staff-detail-expenses-390.png",
+      fullPage: false,
+    });
+  });
+
+  test("월 마감 뒤 필터 키를 포함한 근태·비용 목록을 즉시 갱신한다", async ({ page }) => {
+    let workRecordFetches = 0;
+    let expenseFetches = 0;
+    let lockBody: Record<string, unknown> | null = null;
+    await mockStaffApi(page, {
+      onWorkRecordsFetch: () => {
+        workRecordFetches += 1;
+      },
+      onExpensesFetch: () => {
+        expenseFetches += 1;
+      },
+      onWorkMonthLock: (body) => {
+        lockBody = body;
+      },
+    });
+
+    const query = "staffId=1&year=2026&month=8";
+    await gotoAndSettle(page, `${BASE}/workspace/staff/attendance?${query}`, {
+      timeout: 30_000,
+    });
+    await expect(page.getByRole("heading", { name: "월 전체 근무 기록" })).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect.poll(() => workRecordFetches).toBeGreaterThan(0);
+
+    await page.getByRole("tab", { name: "비용/경비 탭" }).click();
+    await expect(page.getByRole("heading", { name: "직원 선결제 환급" })).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect.poll(() => expenseFetches).toBeGreaterThan(0);
+
+    await page.getByRole("tab", { name: "월 마감 탭" }).click();
+    const monthLockButton = page.getByRole("button", { name: "월 마감", exact: true });
+    await expect(monthLockButton).toBeVisible({ timeout: 30_000 });
+    const workFetchesBeforeLock = workRecordFetches;
+    const expenseFetchesBeforeLock = expenseFetches;
+    await monthLockButton.click();
+    const confirmDialog = page.getByRole("alertdialog", { name: "2026년 8월 마감" });
+    await expect(confirmDialog).toBeVisible();
+    await confirmDialog.getByRole("button", { name: "월 마감", exact: true }).click();
+    await expect.poll(() => lockBody).toEqual({ staff: 1, year: 2026, month: 8 });
+    await expect(page.getByText("이 달은 마감되었습니다.")).toBeVisible();
+    await expect.poll(() => workRecordFetches).toBeGreaterThan(workFetchesBeforeLock);
+    await expect.poll(() => expenseFetches).toBeGreaterThan(expenseFetchesBeforeLock);
   });
 
   test("직원 비밀번호 설정은 선택한 한 계정의 재설정 API만 호출한다", async ({ page }) => {
@@ -860,8 +1142,8 @@ test.describe("직원 운영 계약", () => {
       onProfileExpenseDelete: (id) => { deletedId = id; },
     });
 
-    await page.goto(`${BASE}/workspace/profile/expense`, {
-      waitUntil: "domcontentloaded",
+    await gotoAndSettle(page, `${BASE}/workspace/profile/expense`, {
+      timeout: 30_000,
     });
     await expect(page.getByText("개인 교통비", { exact: true })).toBeVisible();
     const createTrigger = page.getByRole("button", { name: "지출 등록" });

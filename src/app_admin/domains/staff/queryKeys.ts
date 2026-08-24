@@ -14,14 +14,12 @@ export const staffQueryKeys = {
   reportSummary: (staffId: number, from: string, to: string) => ["staff-report-summary", staffId, from, to] as const,
   workRecords: staffWorkQueryKeys.records,
   workRecordsList: (params: object) => ["work-records", params] as const,
-  workRecordsForStaff: (staffId: number) => ["work-records", staffId] as const,
   workMonthLocksForStaff: (staffId: number) => ["work-month-locks", staffId] as const,
   workMonthLocksForMonth: (staffId: number, year: number, month: number) =>
     ["work-month-locks", staffId, year, month] as const,
   workMonthLockHistory: (year: number, month: number) => ["work-month-lock-history", year, month] as const,
   expenses: ["expenses"] as const,
   expensesList: (params: object) => ["expenses", params] as const,
-  expensesForStaff: (staffId: number) => ["expenses", staffId] as const,
   payrollSnapshots: ["payroll-snapshots"] as const,
   payrollSnapshotsList: (params: object) => ["payroll-snapshots", params] as const,
   payrollSnapshotMonth: (year: number, month: number, staffId?: number | null) =>
