@@ -327,7 +327,7 @@ test("유효한 클리닉 링크가 있어도 미응시 시험은 면제만 허�
   await expect(row.getByRole("spinbutton")).toHaveCount(0);
 });
 
-test("링크 없는 미응시 시험의 식별자가 유효하지 않거나 서로 다르면 면제 action과 mutation이 없다", async ({ page }) => {
+test("링크 없는 미응시 시험의 식별자가 유효하지 않거나 서로 다르면 목록·KPI·mutation에서 제외한다", async ({ page }) => {
   await seed(page);
   let waiverRequests = 0;
   const invalidTargets = [
@@ -391,10 +391,9 @@ test("링크 없는 미응시 시험의 식별자가 유효하지 않거나 서�
   await gotoAndSettle(page, `${BASE}/workspace/clinic/bookings`, { timeout: 45_000 });
 
   for (const target of invalidTargets) {
-    const row = page.getByRole("row").filter({ hasText: target.label });
-    await expect(row).toBeVisible();
-    await expect(row.getByRole("button", { name: "면제", exact: true })).toHaveCount(0);
+    await expect(page.getByText(target.label, { exact: true })).toHaveCount(0);
   }
+  await expect(page.locator(".clinic-hub__kpi-value")).toHaveText(["0", "0", "0", "0"]);
   expect(waiverRequests).toBe(0);
 });
 

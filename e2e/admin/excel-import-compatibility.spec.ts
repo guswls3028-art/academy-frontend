@@ -8,7 +8,8 @@ import { readFirstWorksheetRows } from "../../src/shared/utils/excelWorkbook";
 
 const WORKBOOK_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml";
 const HANCOM_XLSX_MIME = "application/haansoftxlsx";
-const MAX_XL_XML_MEMBER_CHARS = 16 * 1024 * 1024;
+const MAX_OOXML_XML_MEMBER_CHARS = 16 * 1024 * 1024;
+const MAX_OOXML_XML_TOTAL_CHARS = 32 * 1024 * 1024;
 
 async function createStandardWorkbook(): Promise<ArrayBuffer> {
   const workbook = new ExcelJS.Workbook();
@@ -28,6 +29,15 @@ async function mutateStandardWorkbookXml(
   const entry = archive.file(entryName);
   const xml = entry ? await entry.async("string") : "<?xml version=\"1.0\"?><sst/>";
   archive.file(entryName, mutate(xml));
+  return archive.generateAsync({ type: "arraybuffer", compression: "DEFLATE" });
+}
+
+async function createAggregateOversizedWorkbook(): Promise<ArrayBuffer> {
+  const archive = await JSZip.loadAsync(await createStandardWorkbook());
+  const memberPayload = "x".repeat(Math.floor(MAX_OOXML_XML_TOTAL_CHARS / 3) + 1);
+  for (const index of [1, 2, 3]) {
+    archive.file(`customXml/aggregate-${index}.xml`, `<root>${memberPayload}</root>`);
+  }
   return archive.generateAsync({ type: "arraybuffer", compression: "DEFLATE" });
 }
 
@@ -115,8 +125,15 @@ test("표준 OOXML XLSX는 변경 없이 읽는다", async () => {
   expect(workbook.worksheets[0]?.getCell("A2").value).toBe("합성학생");
 });
 
-test("표준 XLSX의 worksheet와 sharedStrings에 안전하지 않은 XML 선언이 있으면 거부한다", async () => {
-  for (const entryName of ["xl/worksheets/sheet1.xml", "xl/sharedStrings.xml"]) {
+test("표준 XLSX의 모든 XML·관계 항목에 안전하지 않은 선언이 있으면 거부한다", async () => {
+  for (const entryName of [
+    "[Content_Types].xml",
+    "docProps/core.xml",
+    "_rels/.rels",
+    "xl/_rels/workbook.xml.rels",
+    "xl/worksheets/sheet1.xml",
+    "xl/sharedStrings.xml",
+  ]) {
     const source = await mutateStandardWorkbookXml(
       entryName,
       (xml) => xml.replace(
@@ -134,12 +151,20 @@ test("표준 XLSX의 worksheet와 sharedStrings 개별 XML이 한도를 넘으�
   for (const entryName of ["xl/worksheets/sheet1.xml", "xl/sharedStrings.xml"]) {
     const source = await mutateStandardWorkbookXml(
       entryName,
-      (xml) => `${xml}${"x".repeat(MAX_XL_XML_MEMBER_CHARS + 1)}`,
+      (xml) => `${xml}${"x".repeat(MAX_OOXML_XML_MEMBER_CHARS + 1)}`,
     );
     await expect(loadImportWorkbook(source)).rejects.toThrow(
       "엑셀 파일의 내부 구조를 읽을 수 없습니다",
     );
   }
+});
+
+test("표준 XLSX의 XML·관계 항목 합계가 한도를 넘으면 ExcelJS 전에 거부한다", async () => {
+  const source = await createAggregateOversizedWorkbook();
+  expect(source.byteLength).toBeLessThanOrEqual(MAX_IMPORT_BYTES);
+  await expect(loadImportWorkbook(source)).rejects.toThrow(
+    "엑셀 파일의 내부 구조를 읽을 수 없습니다",
+  );
 });
 
 test("10MiB 이하 한셀식 확장 속성 접두사와 Hancom MIME XLSX를 읽는다", async () => {

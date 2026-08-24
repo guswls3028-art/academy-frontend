@@ -64,6 +64,12 @@ export function canWaiveMissingExam(target: ClinicTarget): boolean {
   );
 }
 
+export function isVisibleRemediationTarget(target: ClinicTarget): boolean {
+  return !isMissingExamTarget(target) ||
+    isPositiveClinicIdentifier(target.clinic_link_id) ||
+    canWaiveMissingExamWithoutLink(target);
+}
+
 export function canCompleteManualHomework(target: ClinicTarget): target is ManualHomeworkTarget {
   return (
     isPositiveClinicIdentifier(target.clinic_link_id) &&

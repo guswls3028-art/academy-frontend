@@ -58,6 +58,7 @@ import {
   clinicTargetKey,
   completeManualHomework,
   isPositiveClinicIdentifier,
+  isVisibleRemediationTarget,
   requiresManualHomeworkCompletion,
 } from "../../api/completeManualHomework";
 import RemediationKpiRow from "./RemediationKpiRow";
@@ -384,10 +385,10 @@ function RemediationWorkspace() {
     waiveMutation.isPending ||
     carryOverMutation.isPending ||
     retakeMutation.isPending;
-
   /* ── Filtered data ── */
+  const visibleTargets = useMemo(() => targets.filter(isVisibleRemediationTarget), [targets]);
   const filtered = useMemo(() => {
-    let list = targets;
+    let list = visibleTargets;
     if (!showResolved) {
       list = list.filter((t) => !t.resolved_at);
     }
@@ -405,7 +406,7 @@ function RemediationWorkspace() {
       list = list.filter((t) => t.reason === reasonFilter);
     }
     return list;
-  }, [targets, search, reasonFilter, showResolved]);
+  }, [visibleTargets, search, reasonFilter, showResolved]);
 
   /* ── Student groups ── */
   const studentGroups = useMemo(() => {
@@ -430,7 +431,7 @@ function RemediationWorkspace() {
 
   /* ── KPI ── */
   const kpi = useMemo(() => {
-    const openItems = targets.filter((t) => !t.resolved_at);
+    const openItems = visibleTargets.filter((t) => !t.resolved_at);
     const examItems = openItems.filter((t) => t.source_type === "exam" && t.reason === "score");
     const homeworkItems = openItems.filter((t) => t.source_type === "homework" && t.reason === "score");
     const missingItems = openItems.filter((t) => t.reason === "missing");
@@ -442,7 +443,7 @@ function RemediationWorkspace() {
       homeworkItems: homeworkItems.length,
       missingItems: missingItems.length,
     };
-  }, [targets]);
+  }, [visibleTargets]);
 
   /* ── Toggle student expand ── */
   function toggleStudent(key: string) {
