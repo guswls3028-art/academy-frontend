@@ -364,12 +364,13 @@ export default function VideoTreeView() {
           <div className={panelStyles.actions}>
             {selectedFolderId != null && videos.length > 1 && (
               <Button
-                intent="ghost"
+                intent="secondary"
                 size="sm"
                 onClick={() => setReorderOpen(true)}
                 leftIcon={<ArrowUpDown size={14} />}
+                title="학생에게 보이는 영상 재생 순서를 바꿉니다"
               >
-                순서 관리
+                재생 순서 바꾸기
               </Button>
             )}
             <Button intent="primary" size="sm" onClick={() => navigate("/workspace/lectures")}>
