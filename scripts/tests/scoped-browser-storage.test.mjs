@@ -22,11 +22,6 @@ function collectSourceFiles(directory) {
 const rawStorageOwners = new Set([
   "src/shared/tenant/index.ts",
   "src/shared/api/axios.ts",
-  "src/auth/api/auth.api.ts",
-  "src/app_dev/shared/components/impersonationSession.ts",
-  "src/app_dev/shared/components/ImpersonationBanner.tsx",
-  "src/app_dev/shared/components/CommandPalette.tsx",
-  "src/app_dev/domains/tenants/pages/TenantOwnersTab.tsx",
 ]);
 
 test("tenant-user storage keys fail closed when either identity is absent", () => {

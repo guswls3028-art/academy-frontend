@@ -19,6 +19,15 @@ import {
 } from "@/shared/utils/safeSessionStorage";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 import { isStudentSupportWindow } from "@/shared/auth/supportPreviewSession";
+import {
+  AUTH_ACTIVE_GENERATION_KEY,
+  AUTH_TOKEN_STORAGE_ERROR_EVENT,
+  AUTH_TOKEN_STORAGE_ERROR_MESSAGE,
+  authGenerationFromEnvelopeStorageKey,
+  authGenerationFromStorageValue,
+  readActiveAuthGenerationSafely,
+  readAuthTokenEnvelopeSafely,
+} from "@/shared/auth/tokenSession";
 
 export type TenantRole =
   | "owner"
@@ -183,22 +192,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, [clearAuth]);
 
-  // 다른 탭/창에서 로그아웃·401로 clearAuth() 시 이 탭도 로그인 상태 해제 → ProtectedRoute가 로그인으로 보냄
+  // 다른 탭/창의 logout, expiry 또는 account switch는 이전 계정의
+  // query/current-user를 즉시 폐기한다. same-account refresh rotation은
+  // 유효한 active envelope를 유지하므로 캐시를 불필요하게 지우지 않는다.
   useEffect(() => {
     if (isStudentSupportWindow()) return;
+    const clearCrossTabSession = () => {
+      queryClient.clear();
+      setParentStudentId(null);
+      clearSentryUser();
+      setUser(null);
+      setAuthUnavailable(false);
+    };
     const onStorage = (e: StorageEvent) => {
-      if (e.key === "access" || e.key === "refresh") {
-        if (e.newValue == null) {
-          queryClient.clear();
-          setParentStudentId(null);
-          setUser(null);
-          setAuthUnavailable(false);
-        }
+      if (e.key === AUTH_ACTIVE_GENERATION_KEY) {
+        const previousGeneration = authGenerationFromStorageValue(e.oldValue);
+        const nextGeneration = authGenerationFromStorageValue(e.newValue);
+        if (previousGeneration !== nextGeneration) clearCrossTabSession();
+        return;
       }
+
+      const eventGeneration = authGenerationFromEnvelopeStorageKey(e.key);
+      if (!eventGeneration || eventGeneration !== readActiveAuthGenerationSafely()) return;
+      const activeEnvelope = readAuthTokenEnvelopeSafely();
+      if (activeEnvelope?.generation === eventGeneration) return;
+      clearCrossTabSession();
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, [queryClient]);
+
+  useEffect(() => {
+    const onStorageError = (event: Event) => {
+      const detail = (event as CustomEvent<{ message?: string }>).detail;
+      feedback.error(detail?.message || AUTH_TOKEN_STORAGE_ERROR_MESSAGE);
+      setAuthUnavailable(true);
+    };
+    window.addEventListener(AUTH_TOKEN_STORAGE_ERROR_EVENT, onStorageError);
+    return () => window.removeEventListener(AUTH_TOKEN_STORAGE_ERROR_EVENT, onStorageError);
+  }, []);
 
   // 탭 포커스 시 인증 재검사 — 만료된 탭/다른 기기에서 열어둔 화면은 로그인으로 보냄
   useEffect(() => {

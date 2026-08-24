@@ -52,6 +52,17 @@ API와 성공 후 세션 처리를 소유한다. 비밀번호 원문, 토큰, �
 
 ## 실패와 입력 처리
 
+- 로그인 ID와 비밀번호 입력은 iPhone Safari의 자동 대문자·자동수정·맞춤법
+  변형을 끈다. 사용자가 입력한 대소문자와 기호를 그대로 `/token/`에 보내며,
+  모바일에서도 역할별 홈으로 이동하기 전에 `/core/me/` 성공을 확인한다.
+- access·refresh 토큰은 `activeGeneration` pointer와 generation별 단일 envelope로
+  관리한다. login은 새 generation envelope를 먼저 쓴 뒤 pointer를 한 번 게시하고,
+  refresh·logout·expiry는 자신이 시작한 generation만 변경하거나 제거한다. Web Lock
+  미지원 환경에서도 오래된 A 요청이 새 B generation을 덮거나 지울 수 없다.
+  pointer 게시 뒤 Safari가 검증 읽기만 막으면 pointer와 candidate envelope의
+  self-consistency를 보존한 채 publication-unknown 저장 오류를 표시한다. 저장소
+  getter/getItem/setItem/removeItem 오류는 아이디·비밀번호 오류와 구분되는 Safari
+  개인정보 보호 설정 안내로 전달하며, logout 제거 실패는 성공 redirect하지 않는다.
 - 현재 비밀번호, 4자 이상의 새 비밀번호, 새 비밀번호 확인을 모두 검사한다.
 - 현재 비밀번호와 같은 값, 확인값 불일치, 중복 제출은 요청 전에 차단한다.
 - 서버의 현재 비밀번호 불일치와 알림톡 전송 실패 문구를 화면에 표시한다.
@@ -76,7 +87,17 @@ API와 성공 후 세션 처리를 소유한다. 비밀번호 원문, 토큰, �
   같은 origin의 여러 탭은 Web Lock으로 refresh token 회전을 직렬화하고, 먼저
   회전한 탭의 새 access/refresh를 재사용한다. 오래된 refresh의 중복 제출 실패가
   다른 탭의 정상 회전 토큰을 지우면 안 된다. Web Lock 미지원 브라우저에서도
-  실패한 요청 중 저장 토큰이 이미 바뀌었다면 새 access token을 재사용한다.
+  저장 토큰이 이미 바뀌었다면 새 토큰 쌍은 보존하되, 오래된 세대에서 시작한 요청을
+  새 세션의 access token으로 전송하지 않고 취소한다.
+- 인증 요청은 제출 당시 session generation을 기록한다. A 계정의 지연된 200,
+  401, 403, 404, network/timeout이 도착하기 전에 B 계정 로그인이 게시됐다면 모든
+  응답은 consumer·query cache에 들어가기 전에 취소한다. 회전 토큰은 generation과
+  제출 refresh가 모두 현재값과 정확히 같을 때만 같은 generation envelope에 게시한다.
+  다른 탭은 active envelope 제거를 logout/password/session-expiry로 감지해 user/query를
+  즉시 폐기하되, inactive generation의 늦은 삭제와 정상 same-account rotation은 무시한다.
+- dev impersonation은 원래 token pair를 공용 backup envelope에 보존하고, 시작과 복귀
+  모두 fresh generation으로 게시한다. 복귀 뒤 impersonation 이전 generation의 지연
+  응답이나 replay는 다시 유효해지지 않는다.
 - `must_change_password=true`는 owner·student·parent의 권장 UI 상태일 뿐이다.
   프론트는 허용된 원래 화면을 먼저 렌더링하고 모달에
   `위험을 이해했고 나중에` 선택을 제공한다. 직원 역할에는 이 모달을 표시하지
@@ -89,12 +110,56 @@ refresh 후 재요청 401의 단일 세션 종료와 복귀 경로 보존을 검
 
 ```powershell
 pnpm exec playwright test e2e/auth/account-password-flows.mock.spec.ts e2e/auth/account-recovery-modal.spec.ts e2e/admin/staff-operations-contract.mock.spec.ts --project=chromium --reporter=list
+pnpm exec playwright test e2e/auth/iphone-safari-login.mock.spec.ts --config=playwright.pr-gate.config.ts --project=pr-route-mocks --project=pr-iphone-webkit --no-deps --reporter=list
 pnpm exec playwright test e2e/student/student-content-resilience.mock.spec.ts --project=chromium --grep "학부모 내 비밀번호"
 pnpm exec playwright test e2e/admin/student-detail-entrypoints.mock.spec.ts --project=chromium --reporter=list
 pnpm typecheck
 pnpm guard:legacy-api
 pnpm build
 ```
+
+### persistent-development iPhone 로그인 UAT
+
+backend의 `setup_ymath_realuse_scenario --login-uat` 마지막 JSON에서
+`login_manifest`를 별도 artifact로 저장한다. artifact에는 합성 role·username·역할
+landing만 있고 비밀번호나 토큰은 없어야 한다. exact frontend checkout을 SSM
+loopback API에 연결한 뒤 같은 일회성 비밀번호를 환경 변수로만 전달한다.
+
+```powershell
+$env:E2E_LOGIN_UAT_FRONTEND_SHA = (git rev-parse HEAD)
+$env:E2E_LOGIN_UAT_BACKEND_SHA = (git -C C:\academy\backend rev-parse HEAD)
+$env:E2E_LOGIN_UAT_BACKEND_ROOT = "C:\academy\backend"
+$env:E2E_LOGIN_UAT_API_DIGEST = "<candidate-sha256>"
+$env:E2E_LOGIN_UAT_AWS_PROFILE = "<approved-operator-profile>"
+$env:E2E_LOGIN_UAT_PASSWORD_PARAMETER = "/academy/.../development/..."
+$env:E2E_ALLOW_PRODUCTION_WRITES = "0"
+pnpm test:e2e:iphone-safari-uat
+```
+
+runner는 두 URL이 loopback이고 tenant가 `qa-ymath-realuse-*`, 계정이
+student·parent·staff 각 10명일 때만 Chromium·WebKit 390px에서 30계정 전부의
+로그인 → `/core/me/` 역할 landing → UI 로그아웃과 access·refresh 제거를 확인한다.
+검수 대상 exact SHA의 untracked 포함 깨끗한 checkout만 허용한다. runner가 exact
+persistent-development instance id·backend SHA·candidate digest와
+`apps.api.config.settings.development`, `academy_api_development`,
+`academy_api_development_app`, `academy-development-artifacts`,
+`/academy/api/development/env`, `/academy/r2/development/credentials`를 정확 일치로
+검증한다. prefix 일치는 허용하지 않으며 SSM parameter의 비밀값은 출력하지 않는다.
+`127.0.0.1:18000`이 이미 점유돼 있으면 시작 전에 실패하고, health 응답의
+listener PID가 새로 띄운 AWS SSM process tree에 속할 때만 tunnel 소유가 증명된다.
+종료 시 Windows process tree 전체를 강제 종료하고 부모 exit를 기다린 뒤 18000 포트가
+다시 bind 가능한지 읽어야 한다. API URL과 Vite
+proxy를 동일하게 고정하며 `reuseExistingServer=false`인 전용 5174 서버를 소유한다. trace·video·screenshot은
+항상 끄고 임시 결과와 표준출력에 일회성 비밀번호가 섞였는지도 검사한다. 필수 환경이
+하나라도 없으면 skip이 아니라 nonzero로 종료한다.
+실제 실행은 backend/frontend PR 병합과 persistent-development 후보 배포 뒤에만
+허용한다. tenant code는 setup 전에 runner가 고정한다. runtime preflight가 실패하면
+destructive cleanup을 실행하지 않는다. preflight 성공 뒤 setup SSM dispatch 직전에
+cleanup 의무를 활성화하고, 그 뒤 SSM timeout·manifest 누락/손상·Playwright 실패를
+포함한 모든 종료 경로에서 backend의
+`scripts/v1/destroy-ymath-login-uat-development.ps1`을 같은 instance id로 실행해
+`remaining.tenants=0`, `remaining.users=0`을 읽기 전에는 성공으로 기록하지 않는다.
+운영 hostname·운영 API·실사용 계정에는 실행하지 않는다.
 
 학생·학부모 권한 경계는 [STUDENT-PARENT-APP-CONTRACT.md](STUDENT-PARENT-APP-CONTRACT.md),
 공용 계정복구의 서버 상태 전이는

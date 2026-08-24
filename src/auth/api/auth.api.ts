@@ -5,6 +5,7 @@ import {
   closeStudentSupportWindow,
   isStudentSupportWindow,
 } from "@/shared/auth/supportPreviewSession";
+import { publishLoginTokenEnvelope } from "@/shared/auth/tokenSession";
 
 export type LoginResponse = {
   access: string;
@@ -89,8 +90,7 @@ export const login = async (username: string, password: string) => {
     throw new Error("Invalid token response");
   }
 
-  localStorage.setItem("access", access);
-  localStorage.setItem("refresh", refresh);
+  await publishLoginTokenEnvelope(access, refresh);
   resetSessionEnding(); // 재로그인 시 세션 종료 플래그 초기화
 
   return res.data;

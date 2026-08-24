@@ -1,11 +1,11 @@
 // PATH: src/app_dev/shared/components/ImpersonationBanner.tsx
 // 임퍼소네이션 중일 때 화면 상단에 떠 있는 복귀 배너.
-// dev 토큰을 localStorage["dev_orig_access"]/["dev_orig_refresh"]로 보존해두면 표시.
+// dev generation envelope 백업이 있으면 표시.
 
 import { useEffect, useState } from "react";
 import {
-  ORIG_LABEL,
   endImpersonation,
+  getImpersonationLabel,
   isImpersonating,
 } from "@dev/shared/components/impersonationSession";
 import styles from "./ImpersonationBanner.module.css";
@@ -18,7 +18,7 @@ export default function ImpersonationBanner() {
   useEffect(() => {
     const sync = () => {
       setActive(isImpersonating());
-      setLabel(localStorage.getItem(ORIG_LABEL) || "");
+      setLabel(getImpersonationLabel());
     };
     sync();
     window.addEventListener("storage", sync);
@@ -35,7 +35,7 @@ export default function ImpersonationBanner() {
   return (
     <div className={styles.banner}>
       <span>🎭 임퍼소네이션 중{label ? `: ${label}` : ""} — 작업은 감사 로그에 기록됩니다.</span>
-      <button type="button" className={styles.returnButton} onClick={endImpersonation}>
+      <button type="button" className={styles.returnButton} onClick={() => { void endImpersonation(); }}>
         dev로 복귀 ↩
       </button>
     </div>

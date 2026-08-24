@@ -6,7 +6,11 @@ import { useNavigate } from "react-router";
 import { Search } from "lucide-react";
 import api from "@/shared/api/axios";
 import { useImpersonate } from "@dev/domains/tenants/hooks/useTenants";
-import { abortImpersonation, beginImpersonation } from "@dev/shared/components/impersonationSession";
+import {
+  abortImpersonation,
+  activateImpersonation,
+  beginImpersonation,
+} from "@dev/shared/components/impersonationSession";
 import { useDevToast } from "@dev/shared/components/useDevToast";
 import styles from "./CommandPalette.module.css";
 
@@ -132,8 +136,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                   try {
                     beginImpersonation(`${u.tenant_code} / ${u.username}`);
                     const r = await impersonate.mutateAsync({ tenantId: u.tenant_id, userId: u.id });
-                    localStorage.setItem("access", r.access);
-                    localStorage.setItem("refresh", r.refresh);
+                    await activateImpersonation(r.access, r.refresh);
                     onClose();
                     navigate("/workspace", { replace: true });
                     window.location.reload();

@@ -178,9 +178,9 @@ jobs:
         run: pnpm install --frozen-lockfile --shamefully-hoist
 
       - name: Install Playwright
-        # ubuntu-latest already carries the Chromium system dependencies. Keep
-        # this PR gate independent from the hosted runner's flaky APT mirror.
-        run: pnpm exec playwright install chromium
+        # The mandatory WebKit gate needs native libraries that are not present
+        # on every ubuntu-latest image. Install the exact browser dependencies.
+        run: pnpm exec playwright install --with-deps chromium webkit
 
       - name: Guard production E2E safety boundaries
         run: pnpm guard:e2e-safety
@@ -207,6 +207,15 @@ jobs:
           E2E_ALLOW_REAL_ALIMTALK: "0"
           E2E_ALLOW_PRODUCTION_WRITES: "0"
         run: pnpm test:e2e:gate:mock --reporter=github,html
+
+      - name: Run mandatory iPhone WebKit closed-proxy gate
+        env:
+          E2E_BASE_URL: http://127.0.0.1:5174
+          E2E_LOCAL_BASE_URL: http://127.0.0.1:5174
+          E2E_STRICT: strict
+          E2E_ALLOW_REAL_ALIMTALK: "0"
+          E2E_ALLOW_PRODUCTION_WRITES: "0"
+        run: pnpm test:e2e:gate:iphone-webkit --reporter=github,list
 
       - name: Build production bundle
         run: pnpm build

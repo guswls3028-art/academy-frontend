@@ -1,11 +1,67 @@
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 
+export const AUTH_TOKEN_STORAGE_ERROR_MESSAGE =
+  "이 브라우저에 로그인 정보를 저장하지 못했습니다. Safari의 개인정보 보호 설정을 확인한 뒤 다시 시도해 주세요.";
+
+export class AuthTokenStorageError extends Error {
+  readonly code: "AUTH_TOKEN_STORAGE_FAILED" | "AUTH_TOKEN_STORAGE_PUBLICATION_UNKNOWN";
+  readonly cause?: unknown;
+
+  constructor(options?: {
+    cause?: unknown;
+    code?: "AUTH_TOKEN_STORAGE_FAILED" | "AUTH_TOKEN_STORAGE_PUBLICATION_UNKNOWN";
+  }) {
+    super(AUTH_TOKEN_STORAGE_ERROR_MESSAGE);
+    this.name = "AuthTokenStorageError";
+    this.code = options?.code ?? "AUTH_TOKEN_STORAGE_FAILED";
+    this.cause = options?.cause;
+  }
+}
+
 function getStorage(): Storage | null {
   if (typeof window === "undefined") return null;
   try {
     return window.localStorage;
   } catch {
     return null;
+  }
+}
+
+export function requireLocalStorage(): Storage {
+  try {
+    const storage = getStorage();
+    if (!storage) throw new DOMException("Storage unavailable", "SecurityError");
+    return storage;
+  } catch (cause) {
+    if (cause instanceof AuthTokenStorageError) throw cause;
+    throw new AuthTokenStorageError({ cause });
+  }
+}
+
+export function requireLocalItem(key: string): string | null {
+  try {
+    return requireLocalStorage().getItem(key);
+  } catch (cause) {
+    if (cause instanceof AuthTokenStorageError) throw cause;
+    throw new AuthTokenStorageError({ cause });
+  }
+}
+
+export function requireSetLocalItem(key: string, value: string): void {
+  try {
+    requireLocalStorage().setItem(key, value);
+  } catch (cause) {
+    if (cause instanceof AuthTokenStorageError) throw cause;
+    throw new AuthTokenStorageError({ cause });
+  }
+}
+
+export function requireRemoveLocalItem(key: string): void {
+  try {
+    requireLocalStorage().removeItem(key);
+  } catch (cause) {
+    if (cause instanceof AuthTokenStorageError) throw cause;
+    throw new AuthTokenStorageError({ cause });
   }
 }
 
