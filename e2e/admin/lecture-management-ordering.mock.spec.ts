@@ -17,6 +17,7 @@ type Lecture = {
   chip_label: string;
   is_active: boolean;
   display_order: number;
+  active_enrollment_count: number;
 };
 
 function localJwt(): string {
@@ -29,9 +30,9 @@ function localJwt(): string {
 }
 
 const initialLectures: Lecture[] = [
-  { id: 101, title: "Alpha", name: "관리자", subject: "과학", lecture_time: "09:00~10:00", start_date: "2026-08-01", end_date: "2026-09-01", color: "#3b82f6", chip_label: "A", is_active: true, display_order: 1 },
-  { id: 102, title: "Beta", name: "관리자", subject: "수학", lecture_time: "10:00~11:00", start_date: "2026-08-02", end_date: "2026-09-02", color: "#22c55e", chip_label: "B", is_active: true, display_order: 2 },
-  { id: 103, title: "Gamma", name: "관리자", subject: "영어", lecture_time: "11:00~12:00", start_date: "2026-08-03", end_date: "2026-09-03", color: "#eab308", chip_label: "G", is_active: true, display_order: 3 },
+  { id: 101, title: "Alpha", name: "관리자", subject: "과학", lecture_time: "09:00~10:00", start_date: "2026-08-01", end_date: "2026-09-01", color: "#3b82f6", chip_label: "A", is_active: true, display_order: 1, active_enrollment_count: 12 },
+  { id: 102, title: "Beta", name: "관리자", subject: "수학", lecture_time: "10:00~11:00", start_date: "2026-08-02", end_date: "2026-09-02", color: "#22c55e", chip_label: "B", is_active: true, display_order: 2, active_enrollment_count: 7 },
+  { id: 103, title: "Gamma", name: "관리자", subject: "영어", lecture_time: "11:00~12:00", start_date: "2026-08-03", end_date: "2026-09-03", color: "#eab308", chip_label: "G", is_active: true, display_order: 3, active_enrollment_count: 17 },
 ];
 
 async function seedLectureAdmin(page: Page, options?: { failFirstReorder?: boolean }) {
@@ -95,6 +96,25 @@ async function normalizedRowTitles(page: Page) {
 }
 
 test.describe("강의 관리 영구 순서와 레이아웃", () => {
+  test("목록은 작은 순서 손잡이와 강의별·전체 수강 등록 요약을 보여 준다", async ({ page }) => {
+    await seedLectureAdmin(page);
+    await page.goto(`${BASE}/workspace/lectures`, { waitUntil: "domcontentloaded" });
+
+    await expect(page.getByText("강의 3개 · 수강 등록 36명", { exact: true })).toBeVisible();
+    const alphaRow = page.getByRole("button", { name: "Alpha 강의 열기", exact: true }).locator("xpath=ancestor::tr");
+    await expect(alphaRow.getByText("12명", { exact: true })).toBeVisible();
+
+    const alphaHandle = page.getByRole("button", { name: "Alpha 순서 이동", exact: true });
+    const handleSize = await alphaHandle.evaluate((element) => element.getBoundingClientRect().width);
+    expect(handleSize).toBeLessThanOrEqual(40);
+    await expect(page.getByRole("button", { name: "Alpha 아래로", exact: true })).toBeHidden();
+    await alphaHandle.click();
+    await expect(page.getByRole("group", { name: "Alpha 순서 변경", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Alpha 아래로", exact: true })).toBeVisible();
+    await alphaHandle.press("Escape");
+    await expect(page.getByRole("button", { name: "Alpha 아래로", exact: true })).toBeHidden();
+  });
+
   test("키보드 순서 변경은 낙관 반영 후 실패 시 정확히 rollback하고 재시도한다", async ({ page }) => {
     const { reorderPayloads } = await seedLectureAdmin(page, { failFirstReorder: true });
     await page.goto(`${BASE}/workspace/lectures`, { waitUntil: "domcontentloaded" });
@@ -157,6 +177,7 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
     await seedLectureAdmin(page);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${BASE}/workspace/lectures`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Alpha 순서 이동", exact: true }).click();
     await expect(page.getByRole("button", { name: "Alpha 아래로", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "강의 추가", exact: true }).click();
 

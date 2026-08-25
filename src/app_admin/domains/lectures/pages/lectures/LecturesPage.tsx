@@ -19,6 +19,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 /** 강의 목록 테이블 컬럼 정의 (useTableColumnPrefs SSOT) */
 const LECTURES_TABLE_COLUMN_DEFS: TableColumnDef[] = [
   { key: "title", label: "강의 이름", defaultWidth: 180, minWidth: 120 },
+  { key: "active_enrollment_count", label: "수강생", defaultWidth: 92, minWidth: 80 },
   { key: "subject", label: "과목", defaultWidth: 100, minWidth: 70 },
   { key: "name", label: "강사", defaultWidth: 80, minWidth: 70 },
   { key: "lecture_time", label: "강의 시간", defaultWidth: 120, minWidth: 100 },
@@ -41,11 +42,12 @@ type LectureItem = {
   chip_label?: string | null;
   is_active?: boolean;
   display_order: number;
+  active_enrollment_count: number;
 };
 
-type LectureSortKey = "title" | "subject" | "name" | "lecture_time" | "dateRange";
+type LectureSortKey = "title" | "subject" | "name" | "lecture_time" | "dateRange" | "active_enrollment_count";
 
-const REORDER_COLUMN_WIDTH = 132;
+const REORDER_COLUMN_WIDTH = 52;
 const ACTION_COLUMN_WIDTH = 52;
 const REORDER_COLUMN_STYLE: CSSProperties = { width: REORDER_COLUMN_WIDTH };
 const ACTION_COLUMN_STYLE: CSSProperties = { width: ACTION_COLUMN_WIDTH };
@@ -83,6 +85,7 @@ function normalizeLectureItem(value: unknown, fallbackOrder: number): LectureIte
     chip_label: toStringOrNull(value.chip_label),
     is_active: typeof value.is_active === "boolean" ? value.is_active : undefined,
     display_order: toNumber(value.display_order) ?? fallbackOrder,
+    active_enrollment_count: Math.max(0, toNumber(value.active_enrollment_count) ?? 0),
   };
 }
 
@@ -97,7 +100,12 @@ function columnWidthStyle(width: number): CSSProperties {
 }
 
 function isLectureSortKey(key: string): key is LectureSortKey {
-  return key === "title" || key === "subject" || key === "name" || key === "lecture_time" || key === "dateRange";
+  return key === "title"
+    || key === "subject"
+    || key === "name"
+    || key === "lecture_time"
+    || key === "dateRange"
+    || key === "active_enrollment_count";
 }
 
 function getLectureSortValue(lecture: LectureItem, key: LectureSortKey, toTime: (value?: string | null) => number): string | number {
@@ -278,6 +286,10 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
   const manualScopeList = tab === "active" ? activeLectures : pastLectures;
   const hasDisplayTransform = q.trim().length > 0 || sort.length > 0;
   const canReorder = !hasDisplayTransform && !reorderMutation.isPending;
+  const visibleEnrollmentCount = useMemo(
+    () => list.reduce((sum, lecture) => sum + lecture.active_enrollment_count, 0),
+    [list],
+  );
 
   const persistMovedLecture = useCallback((lectureId: number, targetIndex: number) => {
     if (!canReorder) return;
@@ -339,7 +351,11 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
       <div className="flex flex-col gap-4">
         <DomainListToolbar
           totalLabel={
-            isLoading ? "…" : isFetching ? "동기화 중…" : `총 ${list.length}개`
+            isLoading
+              ? "…"
+              : isFetching
+                ? "동기화 중…"
+                : `강의 ${list.length}개 · 수강 등록 ${visibleEnrollmentCount}명`
           }
           searchSlot={
             <input
@@ -362,7 +378,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                   ? "강의 순서를 저장하는 중입니다."
                   : hasDisplayTransform
                     ? "검색 또는 열 정렬 중에는 순서를 변경할 수 없습니다."
-                    : "손잡이를 끌거나, 위·아래 버튼 또는 방향키로 강의 순서를 바꿀 수 있습니다."}
+                    : "점 손잡이를 끌거나 눌러 강의 순서를 바꿀 수 있습니다. 방향키도 사용할 수 있습니다."}
               </span>
               {sort && (
                 <Button size="sm" intent="secondary" onClick={() => setSort("")}>
@@ -401,6 +417,15 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                       label="강의 이름"
                       widthKey="title"
                       width={columnWidths.title ?? 180}
+                      sort={sort}
+                      onSort={handleSort}
+                      onWidthChange={setColumnWidth}
+                    />
+                    <LectureSortableTh
+                      colKey="active_enrollment_count"
+                      label="수강생"
+                      widthKey="active_enrollment_count"
+                      width={columnWidths.active_enrollment_count ?? 92}
                       sort={sort}
                       onSort={handleSort}
                       onWidthChange={setColumnWidth}
@@ -458,18 +483,25 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                       onDrop={(event) => handleDrop(event, lec.id)}
                       className={`cursor-pointer ${dragOverLectureId === lec.id ? "outline outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""}`}
                     >
-                      <td onClick={(event) => event.stopPropagation()} className="px-1 py-1">
-                        <div className="flex items-center justify-center gap-0.5">
+                      <td
+                        onClick={(event) => event.stopPropagation()}
+                        className="relative px-1 py-1"
+                      >
+                        <div className="group flex items-center justify-center">
                           <button
                             type="button"
                             draggable={canReorder}
                             disabled={!canReorder}
                             aria-label={`${lec.title} 순서 이동`}
-                            title="끌어서 순서 이동 · 방향키 사용 가능"
+                            title="끌기 · 누르기 · 방향키로 순서 이동"
                             className="inline-flex h-10 w-10 cursor-grab items-center justify-center rounded text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)] disabled:cursor-not-allowed disabled:opacity-40"
                             onClick={(event) => event.stopPropagation()}
-                            onKeyDown={(event) => handleOrderKeyDown(event, lec.id)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Escape") event.currentTarget.blur();
+                              handleOrderKeyDown(event, lec.id);
+                            }}
                             onDragStart={(event) => {
+                              event.currentTarget.blur();
                               setDragLectureId(lec.id);
                               event.dataTransfer.effectAllowed = "move";
                               event.dataTransfer.setData("text/plain", String(lec.id));
@@ -481,32 +513,40 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                           >
                             <GripVertical size={17} aria-hidden />
                           </button>
-                          <span className="flex gap-0.5">
+                          <div
+                            role="group"
+                            aria-label={`${lec.title} 순서 변경`}
+                            className="absolute left-1/2 top-[calc(100%_-_2px)] z-20 hidden -translate-x-1/2 items-center gap-0.5 rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-1 shadow-lg group-focus-within:flex"
+                          >
                             <button
                               type="button"
                               disabled={!canReorder || manualScopeList[0]?.id === lec.id}
                               aria-label={`${lec.title} 위로`}
-                              className="inline-flex h-10 w-10 items-center justify-center rounded hover:bg-[var(--color-bg-surface-hover)] disabled:opacity-25"
+                              title="위로"
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-md text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-surface-hover)] hover:text-[var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)] disabled:cursor-not-allowed disabled:opacity-30 motion-reduce:transition-none"
                               onClick={(event) => {
                                 event.stopPropagation();
+                                event.currentTarget.blur();
                                 moveLectureBy(lec.id, -1);
                               }}
                             >
-                              <ChevronUp size={13} aria-hidden />
+                              <ChevronUp size={16} aria-hidden />
                             </button>
                             <button
                               type="button"
                               disabled={!canReorder || manualScopeList[manualScopeList.length - 1]?.id === lec.id}
                               aria-label={`${lec.title} 아래로`}
-                              className="inline-flex h-10 w-10 items-center justify-center rounded hover:bg-[var(--color-bg-surface-hover)] disabled:opacity-25"
+                              title="아래로"
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-md text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-surface-hover)] hover:text-[var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)] disabled:cursor-not-allowed disabled:opacity-30 motion-reduce:transition-none"
                               onClick={(event) => {
                                 event.stopPropagation();
+                                event.currentTarget.blur();
                                 moveLectureBy(lec.id, 1);
                               }}
                             >
-                              <ChevronDown size={13} aria-hidden />
+                              <ChevronDown size={16} aria-hidden />
                             </button>
-                          </span>
+                          </div>
                         </div>
                       </td>
                       <td className="font-semibold">
@@ -527,6 +567,11 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                           />
                           {lec.title}
                         </button>
+                      </td>
+                      <td>
+                        <span className="inline-flex min-w-[56px] items-center justify-center rounded-full border border-[var(--color-border-divider)] bg-[var(--color-bg-elevated)] px-2 py-1 text-xs font-semibold text-[var(--color-text-primary)]">
+                          {lec.active_enrollment_count}명
+                        </span>
                       </td>
                       <td>{lec.subject || <span className="text-[var(--color-text-muted)]">미입력</span>}</td>
                       <td>{lec.name || <span className="text-[var(--color-text-muted)]">미배정</span>}</td>

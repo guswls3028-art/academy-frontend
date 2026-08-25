@@ -19,6 +19,7 @@ export interface Lecture {
   lecture_time?: string | null;
   color?: string | null;
   chip_label?: string | null;
+  active_enrollment_count?: number;
   is_active: boolean;
   is_system?: boolean;
   tenant: number;
