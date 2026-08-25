@@ -357,9 +357,13 @@ export default function StudentsTable({
         {data.map((s) => (
           <tr
             key={s.id}
-            onClick={() => onRowClick(s.id)}
+            onClick={(event) => {
+              event.currentTarget.focus();
+              onRowClick(s.id);
+            }}
             tabIndex={0}
             role="button"
+            data-student-detail-trigger={s.id}
             className={`group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40 ${selectedSet.has(s.id) ? "ds-row-selected" : ""}`}
           >
             {/* eslint-disable-next-line no-restricted-syntax */}

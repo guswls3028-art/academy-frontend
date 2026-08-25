@@ -219,6 +219,7 @@ test("출결 상태 액션은 유지하고 학생 행은 학생 상세를 연다
   await expect(page).toHaveURL(/\/workspace\/lectures\/441\/sessions\/428\/attendance$/);
   const overlay = page.getByTestId("student-detail-overlay");
   await expect(overlay).toBeVisible();
+  await expect(overlay.getByRole("button", { name: "닫기" })).toBeFocused();
   await expect(overlay.getByRole("heading", {
     name: "테스트학생",
   })).toBeVisible();
@@ -262,9 +263,11 @@ test("출결 상태 액션은 유지하고 학생 행은 학생 상세를 연다
     });
   }
 
-  await overlay.getByRole("button", { name: "닫기" }).click();
+  await page.keyboard.press("Escape");
   await expect(page).toHaveURL(/\/workspace\/lectures\/441\/sessions\/428\/attendance$/);
+  await expect(overlay).toHaveCount(0);
   await expect(studentLink).toBeVisible();
+  await expect(studentLink).toBeFocused();
 
   const studentRow = page.getByRole("row").filter({ has: studentLink });
   await studentRow.locator("td").last().click();
@@ -278,6 +281,30 @@ test("출결 상태 액션은 유지하고 학생 행은 학생 상세를 연다
   await page.goBack();
   await expect(page).toHaveURL(/\/workspace\/lectures\/441\/sessions\/428\/attendance$/);
   await expect(overlay).toHaveCount(0);
+});
+
+test("학생 목록 행에서 연 상세는 Escape 뒤 같은 학생 행으로 포커스를 돌려준다", async ({ page }) => {
+  await installTenantOneInitScript(page);
+  await page.addInitScript((jwt) => {
+    localStorage.setItem("access", jwt);
+    localStorage.setItem("refresh", `${jwt}-refresh`);
+  }, localJwt());
+  await installApi(page);
+
+  await gotoAndSettle(page, `${BASE}/workspace/students/home`, { timeout: 45_000 });
+
+  const studentRow = page.locator('tr[data-student-detail-trigger="1002"]');
+  await expect(studentRow).toBeVisible();
+  await studentRow.click();
+
+  const overlay = page.getByTestId("student-detail-overlay");
+  await expect(overlay).toBeVisible();
+  await expect(overlay.getByRole("button", { name: "닫기" })).toBeFocused();
+
+  await page.keyboard.press("Escape");
+
+  await expect(overlay).toHaveCount(0);
+  await expect(studentRow).toBeFocused();
 });
 
 test("교사용 모바일 학생 상세는 아이디 안내와 비밀번호 초기화를 분리한다", async ({ page }) => {

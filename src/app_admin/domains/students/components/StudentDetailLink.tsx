@@ -36,7 +36,11 @@ export default function StudentDetailLink({
         className ?? "",
       ].filter(Boolean).join(" ")}
       aria-label={`${studentName} 학생 상세 열기`}
-      onClick={(event) => event.stopPropagation()}
+      data-student-detail-trigger={studentId}
+      onClick={(event) => {
+        event.stopPropagation();
+        event.currentTarget.focus();
+      }}
     >
       {children}
     </Link>

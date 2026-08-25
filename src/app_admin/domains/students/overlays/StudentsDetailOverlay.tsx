@@ -121,6 +121,11 @@ export default function StudentsDetailOverlay({
   const navigate = useNavigate();
   const location = useLocation();
   const id = studentId ?? Number(routeParams.studentId);
+  const [returnFocusTarget] = useState<HTMLElement | null>(() => {
+    const activeElement = document.activeElement as HTMLElement | null;
+    if (activeElement && activeElement !== document.body) return activeElement;
+    return null;
+  });
   const onClose = useCallback(() => {
     if (closeOverride) {
       closeOverride();
@@ -147,6 +152,27 @@ export default function StudentsDetailOverlay({
   const [passwordResetting, setPasswordResetting] = useState(false);
   // 학생 전환 시 탭 초기화
   useEffect(() => { setTab("enroll"); }, [id]);
+
+  useEffect(
+    () => () => {
+      window.requestAnimationFrame(() => {
+        const studentTrigger = document.querySelector<HTMLElement>(
+          `[data-student-detail-trigger="${id}"]`,
+        );
+        if (
+          returnFocusTarget?.isConnected &&
+          returnFocusTarget.hasAttribute("data-student-detail-trigger")
+        ) {
+          returnFocusTarget.focus();
+        } else if (studentTrigger) {
+          studentTrigger.focus();
+        } else if (returnFocusTarget?.isConnected) {
+          returnFocusTarget.focus();
+        }
+      });
+    },
+    [id, returnFocusTarget],
+  );
 
   // Escape 키로 오버레이 닫기
   useEffect(() => {
@@ -716,11 +742,24 @@ function StudentDetailShell({
   layer: "workspace" | "modal";
 }) {
   const elevated = layer === "modal";
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const focusCloseButton = window.requestAnimationFrame(() => {
+      panelRef.current?.querySelector<HTMLElement>("button[aria-label='닫기']")?.focus();
+    });
+
+    return () => {
+      window.cancelAnimationFrame(focusCloseButton);
+    };
+  }, []);
+
   return (
     <>
       <div className={`ds-overlay-backdrop${elevated ? ` ${styles.modalBackdrop}` : ""}`} onClick={onClose} aria-hidden />
       <div className={`ds-overlay-wrap${elevated ? ` ${styles.modalWrap}` : ""}`}>
         <div
+          ref={panelRef}
           className="ds-overlay-panel ds-overlay-panel--student-detail"
           role="dialog"
           aria-modal="true"
