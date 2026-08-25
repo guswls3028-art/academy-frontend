@@ -2,7 +2,7 @@
 // 차시(세션) 수강생 등록 — 기존 학생 추가(전체 명단 테이블) | 신규 학생 추가(학생추가모달)
 /* eslint-disable no-restricted-syntax */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dropdown } from "antd";
@@ -246,6 +246,9 @@ export default function SessionEnrollModal({
   const [excelUploading, setExcelUploading] = useState(false);
   const [excelStatusByStudentId, setExcelStatusByStudentId] = useState<Record<number, string>>({});
   const [excelPendingFile, setExcelPendingFile] = useState<File | null>(null);
+  const [excelPendingRowCount, setExcelPendingRowCount] = useState(0);
+  const excelConfirmationInFlightRef = useRef(false);
+  const selectionConfirmationInFlightRef = useRef(false);
   const [copyFromPrevLoading, setCopyFromPrevLoading] = useState(false);
   const [copyFromLectureLoading, setCopyFromLectureLoading] = useState(false);
 
@@ -714,6 +717,7 @@ export default function SessionEnrollModal({
         return;
       }
       setExcelPendingFile(file);
+      setExcelPendingRowCount(result.rows.length);
     } catch (error) {
       feedback.error(error instanceof Error ? error.message : "엑셀 파일을 읽지 못했습니다.");
     } finally {
@@ -722,7 +726,38 @@ export default function SessionEnrollModal({
   }, [excelUploading]);
 
   const handleExcelEnrollSubmit = useCallback(async () => {
-    if (!excelPendingFile || excelUploading) return;
+    if (
+      !excelPendingFile
+      || excelUploading
+      || prerequisiteLoading
+      || prerequisiteError
+      || excelConfirmationInFlightRef.current
+    ) return;
+    const targetSession = sessions.find((session) => session.id === sessionId);
+    if (!targetSession) {
+      feedback.warning("대상 차시를 다시 불러온 뒤 등록해 주세요.");
+      return;
+    }
+    excelConfirmationInFlightRef.current = true;
+    const confirmed = await confirm({
+      title: "엑셀 수강등록 최종 확인",
+      message: "파일과 대상 차시를 확인해 주세요. 확인 후 백그라운드 등록 작업이 시작됩니다.",
+      review: {
+        eyebrow: "차시 일괄 수강등록 검토",
+        items: [
+          { label: "대상 차시", value: formatSessionBlockLabel(targetSession) },
+          { label: "파일", value: excelPendingFile.name },
+          { label: "매칭 요청", value: `${excelPendingRowCount}명`, tone: "accent" },
+          { label: "매칭 기준", value: "이름 · 학부모 연락처" },
+          { label: "초기 출결", value: "미입력" },
+        ],
+        note: "강의 수강이 없던 학생은 함께 수강 등록되며 첫 수강 계정 안내가 예약될 수 있습니다. 이 엑셀 등록은 자동 수납 항목을 만들지 않습니다.",
+      },
+      confirmText: `${excelPendingRowCount}명 등록 요청`,
+      cancelText: "다시 확인",
+    });
+    excelConfirmationInFlightRef.current = false;
+    if (!confirmed || excelUploading) return;
     setExcelUploading(true);
     try {
       const { job_id } = await lectureEnrollFromExcelUpload(lectureId, excelPendingFile, {
@@ -737,12 +772,13 @@ export default function SessionEnrollModal({
       onSuccess?.();
       onClose();
       setExcelPendingFile(null);
+      setExcelPendingRowCount(0);
     } catch (e) {
       feedback.error(e instanceof Error ? e.message : "등록 요청 중 오류가 발생했습니다.");
     } finally {
       setExcelUploading(false);
     }
-  }, [excelPendingFile, excelUploading, lectureId, sessionId, onSuccess, onClose]);
+  }, [confirm, excelPendingFile, excelPendingRowCount, excelUploading, lectureId, prerequisiteError, prerequisiteLoading, sessionId, sessions, onSuccess, onClose]);
 
   const requestClose = useCallback(async () => {
     if (addByStudentMutation.isPending || excelUploading) {
@@ -760,6 +796,7 @@ export default function SessionEnrollModal({
     }
     resetSelection();
     setExcelPendingFile(null);
+    setExcelPendingRowCount(0);
     onClose();
   }, [
     addByStudentMutation.isPending,
@@ -772,19 +809,45 @@ export default function SessionEnrollModal({
   ]);
 
   const handleAddSelected = useCallback(async () => {
-    if (prerequisiteError || idsToAdd.length === 0 || addByStudentMutation.isPending) return;
+    const targetSession = sessions.find((session) => session.id === sessionId);
+    if (
+      prerequisiteError
+      || prerequisiteLoading
+      || !targetSession
+      || idsToAdd.length === 0
+      || addByStudentMutation.isPending
+      || selectionConfirmationInFlightRef.current
+    ) return;
+    const selectedNameSummary = selectedItems
+      .filter((student) => idsToAdd.includes(student.id))
+      .slice(0, 3)
+      .map((student) => student.displayName ?? student.name)
+      .join(", ");
+    const remainingCount = Math.max(0, idsToAdd.length - 3);
+    selectionConfirmationInFlightRef.current = true;
     const shouldAdd = await confirm({
-      title: "차시 수강생으로 등록할까요?",
-      message: `선택한 ${idsToAdd.length}명을 이 차시에 등록합니다.\n\n• 출결은 '미입력'으로 시작합니다.\n• 기존 학생의 출결 상태는 바뀌지 않습니다.\n• 등원 후 현장·영상·결석 등 실제 상태를 기록해 주세요.`,
-      confirmText: `${idsToAdd.length}명 등록`,
-      danger: false,
-    });
+        title: "차시 수강생으로 등록할까요?",
+        message: "대상 학생과 등록 후 출결 상태를 확인해 주세요.",
+        review: {
+          eyebrow: "차시 수강등록 검토",
+          items: [
+            { label: "대상 차시", value: formatSessionBlockLabel(targetSession) },
+            { label: "등록 인원", value: `${idsToAdd.length}명`, tone: "accent" },
+            { label: "선택 학생", value: `${selectedNameSummary}${remainingCount > 0 ? ` 외 ${remainingCount}명` : ""}` },
+            { label: "초기 출결", value: "미입력" },
+          ],
+          note: "강의 수강 등록이 없는 학생은 함께 등록되며 자동 수납 항목이 배정될 수 있습니다. 계정 안내 알림톡은 이 화면에서 즉시 보내지 않습니다.",
+        },
+        confirmText: `${idsToAdd.length}명 등록`,
+        danger: false,
+      })
+      .finally(() => { selectionConfirmationInFlightRef.current = false; });
     if (!shouldAdd) return;
     addByStudentMutation.mutate({
       studentIds: idsToAdd,
       statusByStudentId: excelStatusByStudentId,
     });
-  }, [addByStudentMutation, confirm, excelStatusByStudentId, idsToAdd, prerequisiteError]);
+  }, [addByStudentMutation, confirm, excelStatusByStudentId, idsToAdd, prerequisiteError, prerequisiteLoading, selectedItems, sessionId, sessions]);
 
   // ── Keyboard shortcut ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -810,7 +873,7 @@ export default function SessionEnrollModal({
         else undoSelection();
         return;
       }
-      if (!isFormControl && (e.ctrlKey || e.metaKey) && e.key === "Enter" && !excelPendingFile && idsToAdd.length > 0 && !addByStudentMutation.isPending && !copyFromPrevLoading && !copyFromLectureLoading) {
+      if (!isFormControl && (e.ctrlKey || e.metaKey) && e.key === "Enter" && !excelPendingFile && idsToAdd.length > 0 && !prerequisiteError && !prerequisiteLoading && sessions.some((session) => session.id === sessionId) && !addByStudentMutation.isPending && !copyFromPrevLoading && !copyFromLectureLoading) {
         e.preventDefault();
         void handleAddSelected();
       }
@@ -826,7 +889,11 @@ export default function SessionEnrollModal({
     excelPendingFile,
     handleAddSelected,
     overlayStudentId,
+    prerequisiteError,
+    prerequisiteLoading,
     redoSelection,
+    sessionId,
+    sessions,
     requestClose,
     studentCreateOpen,
     undoSelection,
@@ -1335,9 +1402,9 @@ export default function SessionEnrollModal({
                         intent="primary"
                         size="sm"
                         onClick={handleExcelEnrollSubmit}
-                        disabled={excelUploading}
+                        disabled={excelUploading || prerequisiteLoading || Boolean(prerequisiteError) || !sessions.some((session) => session.id === sessionId)}
                       >
-                        {excelUploading ? "등록 중…" : "엑셀로 일괄 등록"}
+                        {excelUploading ? "등록 중…" : prerequisiteLoading ? "차시 확인 중…" : "엑셀로 일괄 등록"}
                       </Button>
                       <Button
                         type="button"
@@ -1345,6 +1412,7 @@ export default function SessionEnrollModal({
                         size="sm"
                         onClick={() => {
                           setExcelPendingFile(null);
+                          setExcelPendingRowCount(0);
                         }}
                         disabled={excelUploading}
                       >
@@ -1494,7 +1562,7 @@ export default function SessionEnrollModal({
                 intent="primary"
                 className="text-[13px]"
                 onClick={() => { void handleAddSelected(); }}
-                disabled={prerequisiteError || prerequisiteLoading || addByStudentMutation.isPending || copyFromPrevLoading || idsToAdd.length === 0}
+                disabled={prerequisiteError || prerequisiteLoading || !sessions.some((session) => session.id === sessionId) || addByStudentMutation.isPending || copyFromPrevLoading || idsToAdd.length === 0}
                 title={copyFromPrevLoading ? "직전 차시 불러오기 진행 중…" : idsToAdd.length === 0 ? "왼쪽 테이블에서 학생을 선택하세요" : undefined}
               >
                 {addByStudentMutation.isPending

@@ -69,6 +69,7 @@ export default function ClinicOperationsConsolePage() {
 
   // 모달 상태
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createSaving, setCreateSaving] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editSession, setEditSession] = useState<ClinicSessionDetail | null>(null);
   const [editSaving, setEditSaving] = useState(false);
@@ -482,12 +483,17 @@ export default function ClinicOperationsConsolePage() {
       {/* 생성 모달 */}
       <AdminModal
         open={createModalOpen}
-        onClose={() => setCreateModalOpen(false)}
+        onClose={() => {
+          if (createSaving) return;
+          setCreateModalOpen(false);
+        }}
+        closeDisabled={createSaving}
         width={520}
       >
         <ClinicCreatePanel
           asModal
           date={selectedDate}
+          onPendingChange={setCreateSaving}
           onDateChange={(d) => {
             setSelectedDate(d);
             setConsoleScope("day");

@@ -346,14 +346,25 @@ export default function ClinicSchedulePage() {
                                   <Clock3 size={ICON.sm} aria-hidden />
                                   {session.start_time.slice(0, 5)}–{sessionEndTime(session)}
                                 </span>
-                                <span
-                                  className={`${styles.capacity} ${
-                                    rows.length >= capacity ? styles.capacityFull : ""
-                                  }`}
-                                >
-                                  <Users size={ICON.sm} aria-hidden />
-                                  {rows.length}/{session.max_participants || 0}
-                                </span>
+                                <div className={styles.cardMetaActions}>
+                                  <span
+                                    className={`${styles.capacity} ${
+                                      rows.length >= capacity ? styles.capacityFull : ""
+                                    }`}
+                                  >
+                                    <Users size={ICON.sm} aria-hidden />
+                                    {rows.length}/{session.max_participants || 0}
+                                  </span>
+                                  <Button
+                                    intent="ghost"
+                                    size="sm"
+                                    iconOnly
+                                    aria-label={`${session.title || "클리닉"} ${session.start_time.slice(0, 5)} 일정 수정`}
+                                    title="일정 수정"
+                                    leftIcon={<Settings size={ICON_FOR_BUTTON.sm} />}
+                                    onClick={() => setEditingSession(session)}
+                                  />
+                                </div>
                               </div>
                               <h3 className={styles.sessionTitle}>
                                 {session.title || "클리닉"}
@@ -406,15 +417,6 @@ export default function ClinicSchedulePage() {
                                 >
                                   학생 추가
                                 </Button>
-                                <Button
-                                  intent="ghost"
-                                  size="sm"
-                                  iconOnly
-                                  aria-label={`${session.title || "클리닉"} ${session.start_time.slice(0, 5)} 일정 수정`}
-                                  title="일정 수정"
-                                  leftIcon={<Settings size={ICON_FOR_BUTTON.sm} />}
-                                  onClick={() => setEditingSession(session)}
-                                />
                                 <Button
                                   intent="ghost"
                                   size="sm"

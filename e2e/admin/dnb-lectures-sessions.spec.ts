@@ -173,6 +173,9 @@ test.describe.serial("DNB Lectures / Sessions / Attendance E2E", () => {
 
     const submitBtn = page.locator("button").filter({ hasText: "등록" }).first();
     await submitBtn.click();
+    const confirmation = page.getByRole("alertdialog", { name: "강의 생성 최종 확인" });
+    await expect(confirmation).toBeVisible();
+    await confirmation.getByRole("button", { name: "확인하고 만들기" }).click();
     // 등록 후 모달 닫힘 또는 목록 갱신 settle.
     await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => {});
 

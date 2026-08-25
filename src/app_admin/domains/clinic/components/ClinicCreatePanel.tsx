@@ -15,7 +15,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchClinicSessionTree, updateClinicSession } from "../api/clinicSessions.api";
 import {
   buildClinicCreateConfirmationMessage,
+  buildClinicCreateConfirmationReview,
   buildClinicEditConfirmationMessage,
+  buildClinicEditConfirmationReview,
   formatClinicScheduleSnapshot,
   type ClinicSessionUpdateNotice,
 } from "./clinicScheduleConfirmation";
@@ -36,75 +38,15 @@ import { useClinicTargets } from "../hooks/useClinicTargets";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { clinicQueryKeys } from "../queryKeys";
-function todayISO() {
-  return dayjs().format("YYYY-MM-DD");
-}
-
-function parseTimeRange(s: string): { start: string; end: string } {
-  const t = (s || "").trim();
-  const idx = t.indexOf("~");
-  if (idx >= 0) {
-    return { start: t.slice(0, idx).trim(), end: t.slice(idx + 1).trim() };
-  }
-  return { start: t, end: "" };
-}
-
-function durationMinutes(start: string, end: string): number {
-  if (!start || !end) return 0;
-  const [sh, sm] = start.split(":").map(Number);
-  const [eh, em] = end.split(":").map(Number);
-  let diff = eh * 60 + em - (sh * 60 + sm);
-  if (diff < 0) diff += 24 * 60; // 자정 넘김 (익일)
-  return diff;
-}
-
-/** API용: "HH:mm" → "HH:mm:00" (백엔드 TimeField 호환) */
-function toHHmmss(s: string): string {
-  if (!s?.trim()) return "";
-  const parts = s.trim().split(":");
-  if (parts.length >= 3) return s.trim();
-  const h = parts[0] ?? "00";
-  const m = (parts[1] ?? "00").padStart(2, "0");
-  return `${h.padStart(2, "0")}:${m}:00`;
-}
-
-const filterChipClass = (active: boolean) =>
-  active
-    ? "clinic-create__filter-chip clinic-create__filter-chip--active"
-    : "clinic-create__filter-chip";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object";
-}
-
-function stringifyValue(value: unknown): string {
-  if (typeof value === "string") return value;
-  const json = JSON.stringify(value);
-  return json ?? String(value);
-}
-
-function formatDetailItem(item: unknown): string {
-  if (isRecord(item) && typeof item.msg === "string") return item.msg;
-  return stringifyValue(item);
-}
-
-function apiErrorMessage(error: unknown, fallback: string): string {
-  if (!isRecord(error) || !isRecord(error.response)) return fallback;
-  const res = error.response.data;
-  if (!res) return fallback;
-  if (!isRecord(res)) return stringifyValue(res);
-
-  const detail = res.detail;
-  if (typeof detail === "string") return detail;
-  if (Array.isArray(detail)) return detail.map(formatDetailItem).join(", ");
-  if (isRecord(detail)) return JSON.stringify(detail);
-
-  const parts = Object.entries(res).map(([k, v]) => {
-    const valueText = Array.isArray(v) ? v.map(stringifyValue).join(", ") : stringifyValue(v);
-    return `${k}: ${valueText}`;
-  });
-  return parts.length ? parts.join(" · ") : fallback;
-}
+import {
+  apiErrorMessage,
+  durationMinutes,
+  filterChipClass,
+  parseTimeRange,
+  representativeSummary,
+  toHHmmss,
+  todayISO,
+} from "./clinicCreatePanel.utils";
 
 type Props = {
   date?: string;
@@ -162,8 +104,9 @@ export default function ClinicCreatePanel({
   const { message } = App.useApp();
   const confirm = useConfirm();
   const qc = useQueryClient();
-  const updateInFlightRef = useRef(false);
-  const [isUpdating, setIsUpdating] = useState(false);
+  const confirmationInFlightRef = useRef(false);
+  const saveInFlightRef = useRef(false);
+  const [isSaving, setIsSaving] = useState(false);
   const { data: clinicTargets } = useClinicTargets();
   const slm = useSchoolLevelMode();
   const { sectionMode, clinicMode } = useSectionMode();
@@ -273,11 +216,22 @@ export default function ClinicCreatePanel({
   const [loadPopoverOpen, setLoadPopoverOpen] = useState(false);
   const [addLocationInput, setAddLocationInput] = useState("");
 
-  // 강의 목록 (필터 열렸을 때만 로드)
+  const previousTargetLectureIds = editSession?.target_lecture_ids ?? [];
+  const needsLectureSummary = targetLectureIds.length > 0 || previousTargetLectureIds.length > 0;
+
+  // 필터 편집과 저장 전 공개 대상 검토에 사용할 강의 목록
   const lecturesQ = useQuery<Lecture[]>({
     queryKey: clinicQueryKeys.lecturesForFilter,
-    queryFn: () => fetchLectures({ is_active: true }),
-    enabled: showFilters,
+    queryFn: async () => {
+      const [activeLectures, inactiveLectures] = await Promise.all([
+        fetchLectures({ is_active: true }),
+        fetchLectures({ is_active: false }),
+      ]);
+      return Array.from(
+        new Map([...activeLectures, ...inactiveLectures].map((lecture) => [lecture.id, lecture])).values(),
+      );
+    },
+    enabled: showFilters || needsLectureSummary,
     staleTime: 60_000,
   });
 
@@ -287,6 +241,31 @@ export default function ClinicCreatePanel({
     targetSchoolType ? slm.getLabel(targetSchoolType as Parameters<typeof slm.getLabel>[0]) : null,
     targetLectureIds.length > 0 ? `강의 ${targetLectureIds.length}개` : null,
   ].filter(Boolean).join(" · ");
+  const lectureNameById = new Map((lecturesQ.data ?? []).map((lecture) => [lecture.id, lecture.title]));
+  const audienceSummary = (
+    grade: number | null | undefined,
+    schoolType: string | null | undefined,
+    lectureIds: readonly number[],
+  ) => [
+    grade != null ? `${grade}학년` : null,
+    schoolType ? slm.getLabel(schoolType as Parameters<typeof slm.getLabel>[0]) : null,
+    lectureIds.length > 0
+      ? representativeSummary(
+          lectureIds.map((lectureId) => lectureNameById.get(lectureId) ?? ""),
+          lectureIds.length,
+          "개 강의",
+        )
+      : null,
+  ].filter(Boolean).join(" · ") || "전체 학생";
+  const confirmationFilterSummary = audienceSummary(targetGrade, targetSchoolType, targetLectureIds);
+  const previousFilterSummary = editSession
+    ? audienceSummary(editSession.target_grade, editSession.target_school_type, previousTargetLectureIds)
+    : "전체 학생";
+  const selectedStudentSummary = representativeSummary(
+    selection?.selectedNames ?? [],
+    selectedCount,
+    "명",
+  );
 
   const createSessionM = useMutation({
     mutationFn: async (payload: {
@@ -308,10 +287,13 @@ export default function ClinicCreatePanel({
   });
 
   const submit = async () => {
-    if (updateInFlightRef.current) return;
+    if (confirmationInFlightRef.current || saveInFlightRef.current) return;
+    if (needsLectureSummary && lecturesQ.isLoading) {
+      return message.warning("공개 대상 강의를 확인한 뒤 저장할 수 있습니다.");
+    }
     const lookupFailed =
       (showSectionPicker && clinicSectionsQ.isError) ||
-      (showFilters && lecturesQ.isError);
+      ((showFilters || needsLectureSummary) && lecturesQ.isError);
     if (lookupFailed) {
       return message.warning("반 또는 강의 목록을 다시 불러온 뒤 저장해 주세요.");
     }
@@ -338,21 +320,27 @@ export default function ClinicCreatePanel({
       const oldEnd = dayjs(`${editSession.date}T${oldStart}`)
         .add(editSession.duration_minutes, "minute")
         .format("HH:mm");
+      confirmationInFlightRef.current = true;
       const editConfirmed = await confirm({
-        title: "클리닉 일정 수정 확인",
-        message: buildClinicEditConfirmationMessage({
-          before: `${editSession.date} · ${oldStart}–${oldEnd} · ${editSession.location}`,
-          after: `${nextDate} · ${start}–${end} · ${room.trim()}`,
-          title: title.trim(),
-          maxParticipants,
-          filterSummary,
-        }),
-        confirmText: "확인하고 수정",
-        cancelText: "다시 확인",
-      });
+          title: "클리닉 일정 수정 확인",
+          message: buildClinicEditConfirmationMessage(),
+          review: buildClinicEditConfirmationReview({
+            before: `${editSession.date} · ${oldStart}–${oldEnd} · ${editSession.location}`,
+            after: `${nextDate} · ${start}–${end} · ${room.trim()}`,
+            beforeTitle: (editSession.title ?? "").trim(),
+            afterTitle: title.trim(),
+            beforeMaxParticipants: editSession.max_participants,
+            afterMaxParticipants: maxParticipants,
+            beforeFilterSummary: previousFilterSummary,
+            afterFilterSummary: confirmationFilterSummary,
+          }),
+          confirmText: "확인하고 수정",
+          cancelText: "다시 확인",
+        })
+        .finally(() => { confirmationInFlightRef.current = false; });
       if (!editConfirmed) return;
-      updateInFlightRef.current = true;
-      setIsUpdating(true);
+      saveInFlightRef.current = true;
+      setIsSaving(true);
       onPendingChange?.(true);
       let updateNotice: ClinicSessionUpdateNotice | null = null;
       try {
@@ -381,8 +369,8 @@ export default function ClinicCreatePanel({
       } catch (e: unknown) {
         message.error(apiErrorMessage(e, "클리닉을 수정하지 못했습니다."));
       } finally {
-        updateInFlightRef.current = false;
-        setIsUpdating(false);
+        saveInFlightRef.current = false;
+        setIsSaving(false);
         onPendingChange?.(false);
       }
       if (updateNotice) onUpdated?.(updateNotice);
@@ -395,24 +383,31 @@ export default function ClinicCreatePanel({
 
     const scheduledDate = selectedDate.format("YYYY-MM-DD");
     const weekday = ["일", "월", "화", "수", "목", "금", "토"][selectedDate.day()];
+    confirmationInFlightRef.current = true;
     const confirmed = await confirm({
-      title: "클리닉 일정 최종 확인",
-      message: buildClinicCreateConfirmationMessage({
-        dateLabel: selectedDate.format("YYYY년 M월 D일"),
-        weekday,
-        title: title.trim(),
-        start,
-        end,
-        location: room.trim(),
-        maxParticipants: cap,
-        filterSummary,
-        selectedCount,
-      }),
-      confirmText: "확인하고 만들기",
-      cancelText: "다시 확인",
-    });
+        title: "클리닉 일정 최종 확인",
+        message: buildClinicCreateConfirmationMessage(),
+        review: buildClinicCreateConfirmationReview({
+          dateLabel: selectedDate.format("YYYY년 M월 D일"),
+          weekday,
+          title: title.trim(),
+          start,
+          end,
+          location: room.trim(),
+          maxParticipants: cap,
+          filterSummary: confirmationFilterSummary,
+          selectedCount,
+          selectedStudentSummary,
+        }),
+        confirmText: "확인하고 만들기",
+        cancelText: "다시 확인",
+      })
+      .finally(() => { confirmationInFlightRef.current = false; });
     if (!confirmed) return;
 
+    saveInFlightRef.current = true;
+    setIsSaving(true);
+    onPendingChange?.(true);
     try {
       const created = await createSessionM.mutateAsync({
         title: title.trim() || undefined,
@@ -465,6 +460,10 @@ export default function ClinicCreatePanel({
       onCreated?.(scheduledDate);
     } catch (e: unknown) {
       message.error(apiErrorMessage(e, "클리닉을 만들지 못했습니다."));
+    } finally {
+      saveInFlightRef.current = false;
+      setIsSaving(false);
+      onPendingChange?.(false);
     }
   };
 
@@ -823,10 +822,13 @@ export default function ClinicCreatePanel({
                 placeholder="전체 (강의 제한 없음)"
                 value={targetLectureIds}
                 onChange={(ids) => setTargetLectureIds(ids)}
-                options={(lecturesQ.data ?? []).map((l) => ({
-                  label: l.title,
-                  value: l.id,
-                }))}
+                options={(lecturesQ.data ?? [])
+                  .filter((lecture) => lecture.is_active !== false || targetLectureIds.includes(lecture.id))
+                  .map((lecture) => ({
+                    label: lecture.is_active === false ? `${lecture.title} (종료)` : lecture.title,
+                    value: lecture.id,
+                    disabled: lecture.is_active === false,
+                  }))}
                 loading={lecturesQ.isLoading}
                 className="clinic-create__select-min flex-1 min-w-0"
                 maxTagCount={2}
@@ -905,11 +907,12 @@ export default function ClinicCreatePanel({
       type="button"
       intent="primary"
       size="lg"
-      loading={createSessionM.isPending || isUpdating}
+      loading={createSessionM.isPending || isSaving}
       onClick={submit}
       className="w-full"
       disabled={
-        isUpdating ||
+        isSaving ||
+        (needsLectureSummary && lecturesQ.isLoading) ||
         isPastDate ||
         (showSectionPicker && clinicSectionsQ.isError) ||
         (showFilters && lecturesQ.isError)
@@ -932,6 +935,7 @@ export default function ClinicCreatePanel({
       onClose={() => setTargetModalOpen(false)}
       initialMode={mode}
       initialSelectedIds={selected}
+      initialSelectedNames={selection?.selectedNames}
       onConfirm={handleTargetModalConfirm}
     />
   );

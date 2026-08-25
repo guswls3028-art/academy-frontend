@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/students/components/StudentCreateModal.tsx
 // 학생 등록 모달 — 초기 선택(1명만 등록 / 엑셀 업로드) 후 해당 폼 표시
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FiCheckCircle, FiInfo, FiMessageSquare, FiSmartphone, FiUsers } from "react-icons/fi";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
@@ -26,6 +26,8 @@ import {
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import { type SchoolType, useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
+import { formatPhone } from "@/shared/utils/formatPhone";
 import InitialPasswordMethodSelector from "@/shared/product/students/InitialPasswordMethodSelector";
 import StudentCustomFieldsForm from "./StudentCustomFieldsForm";
 import {
@@ -147,6 +149,8 @@ export default function StudentCreateModal({
   customFieldDefinitions = [],
 }: Props) {
   const slm = useSchoolLevelMode();
+  const confirm = useConfirm();
+  const confirmationInFlightRef = useRef(false);
   const [mode, setMode] = useState<RegisterMode>("choice");
   const [busy, setBusy] = useState(false);
   const [excelPasswordSettings, setExcelPasswordSettings] = useState<StudentInitialPasswordSettings>(
@@ -164,6 +168,7 @@ export default function StudentCreateModal({
     if (!open) return;
     setMode("choice");
     setBusy(false);
+    confirmationInFlightRef.current = false;
     onBulkProgress?.(null);
     setExcelPasswordSettings({ ...DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS });
     setSelectedExcelFile(null);
@@ -220,13 +225,39 @@ export default function StudentCreateModal({
   }
 
   async function handleSubmit() {
-    if (busy) return;
+    if (busy || confirmationInFlightRef.current) return;
 
     const err = validate();
     if (err) {
       feedback.error(err);
       return;
     }
+
+    const schoolSummary = [
+      String(form.school || "").trim(),
+      form.grade ? `${form.grade}학년` : "",
+    ].filter(Boolean).join(" · ") || "미입력";
+    confirmationInFlightRef.current = true;
+    const confirmed = await confirm({
+      title: "학생 등록 최종 확인",
+      message: "계정과 연락처 정보가 맞는지 확인해 주세요. 비밀번호 값은 화면에 다시 표시하지 않습니다.",
+      review: {
+        eyebrow: "학생 명부 등록 검토",
+        items: [
+          { label: "학생", value: String(form.name || "").trim(), tone: "accent" },
+          { label: "로그인 ID", value: String(form.psNumber || "").trim() || "자동 부여" },
+          { label: "학부모 연락처", value: formatPhone(String(form.parentPhone || "").trim()) },
+          { label: "학생 연락처", value: String(form.studentPhone || "").trim() ? formatPhone(String(form.studentPhone).trim()) : "미입력" },
+          { label: "학교·학년", value: schoolSummary },
+          { label: "초기 비밀번호", value: "입력 완료" },
+        ],
+        note: "지금은 학생 명부와 계정만 준비합니다. 강의 수강과 계정 안내 알림톡은 아직 발생하지 않습니다.",
+      },
+      confirmText: "확인하고 등록",
+      cancelText: "다시 확인",
+    });
+    confirmationInFlightRef.current = false;
+    if (!confirmed || busy) return;
 
     setBusy(true);
     try {
@@ -307,7 +338,27 @@ export default function StudentCreateModal({
   }
 
   async function handlePermanentDeleteAndReregister() {
-    if (!deletedStudentConflict || busy) return;
+    if (!deletedStudentConflict || busy || confirmationInFlightRef.current) return;
+    confirmationInFlightRef.current = true;
+    const confirmed = await confirm({
+      title: "학생 영구삭제 후 재등록 확인",
+      message: "삭제 대기 중인 기존 기록을 영구삭제한 뒤 현재 입력값으로 새 학생을 등록합니다.",
+      review: {
+        eyebrow: "복구할 수 없는 작업 검토",
+        items: [
+          { label: "기존 학생", value: deletedStudentConflict.student.name || "이름 없음", tone: "warning" },
+          { label: "기존 ID", value: deletedStudentConflict.student.psNumber || "자동 부여 ID" },
+          { label: "학부모 연락처", value: formatPhone(deletedStudentConflict.student.parentPhone || "") || "미입력" },
+          { label: "새 학생", value: deletedStudentConflict.formData.name.trim(), tone: "accent" },
+        ],
+        note: "기존 학생은 복구할 수 없습니다. 영구삭제 뒤 새 학생 등록이 실패하면 기존 기록만 삭제된 상태가 될 수 있습니다. 가능하면 먼저 ‘복원’을 사용하세요.",
+      },
+      confirmText: "영구삭제 후 재등록",
+      cancelText: "취소",
+      danger: true,
+    });
+    confirmationInFlightRef.current = false;
+    if (!confirmed || busy) return;
     setBusy(true);
     try {
       await bulkPermanentDeleteStudents([deletedStudentConflict.student.id]);
@@ -353,7 +404,7 @@ export default function StudentCreateModal({
   }
 
   async function handleExcelRegister() {
-    if (busy || !selectedExcelFile || !parsedExcel) return;
+    if (busy || confirmationInFlightRef.current || !selectedExcelFile || !parsedExcel) return;
     const invalidStudentPhoneNames = parsedExcel.rows
       .filter((row) => row.usesIdentifier || !/^010\d{8}$/.test(row.studentPhone))
       .map((row) => row.name || "(이름 없음)");
@@ -374,6 +425,38 @@ export default function StudentCreateModal({
       );
       return;
     }
+    const excludedCount = excelPasswordSettings.mode === "phone_last4"
+      ? invalidStudentPhoneNames.length
+      : 0;
+    const eligibleCount = Math.max(0, parsedExcel.rows.length - excludedCount);
+    const passwordModeLabel = excelPasswordSettings.mode === "phone_last4"
+      ? "학생 휴대폰 뒤 4자리"
+      : excelPasswordSettings.mode === "fixed"
+        ? "공통 비밀번호"
+        : "학생별 랜덤 비밀번호";
+    confirmationInFlightRef.current = true;
+    const confirmed = await confirm({
+      title: "학생 일괄 등록 최종 확인",
+      message: "파일과 등록 인원을 확인해 주세요. 확인 후 작업박스에서 처리 결과를 볼 수 있습니다.",
+      review: {
+        eyebrow: "학생 명부 일괄 등록 검토",
+        items: [
+          { label: "파일", value: selectedExcelFile.name },
+          { label: "전체 행", value: `${parsedExcel.rows.length}명` },
+          { label: "등록 요청", value: `${eligibleCount}명`, tone: "accent" },
+          ...(excludedCount > 0
+            ? [{ label: "제외", value: `${excludedCount}명 · 학생 휴대폰 확인 필요`, tone: "warning" as const }]
+            : []),
+          { label: "초기 비밀번호", value: passwordModeLabel },
+        ],
+        note: "학생 명부 등록 요청이며 강의 수강은 만들지 않습니다. 계정 안내 알림톡은 첫 수강 확정 때 별도로 발송됩니다.",
+      },
+      confirmText: `${eligibleCount}명 등록 요청`,
+      cancelText: "다시 확인",
+    });
+    confirmationInFlightRef.current = false;
+    if (!confirmed || busy) return;
+
     setBusy(true);
     try {
       const { job_id } = await uploadStudentBulkFromExcel(

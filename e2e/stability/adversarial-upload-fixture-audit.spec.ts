@@ -275,6 +275,9 @@ test.describe.serial("[E2E] 이상행동/업로드 edge fixture 감사", () => {
     await dialog.locator("select").nth(1).selectOption("1");
     await dialog.getByPlaceholder("메모").fill(`${RUN} duplicate-click guard`);
     await dialog.getByRole("button", { name: "등록", exact: true }).dblclick();
+    const confirmation = page.getByRole("alertdialog", { name: "학생 등록 최종 확인" });
+    await expect(confirmation).toHaveCount(1);
+    await confirmation.getByRole("button", { name: "확인하고 등록" }).dblclick();
     await expect(dialog).toBeHidden({ timeout: 30_000 });
 
     let rows: StudentRow[] = [];

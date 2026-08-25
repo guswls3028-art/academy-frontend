@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { Popover } from "antd";
@@ -17,6 +17,7 @@ import { fetchLecture, fetchLectureInstructorOptions, updateLecture } from "@adm
 import { fetchStaffMe } from "@/shared/staff/api";
 import { staffWorkQueryKeys } from "@/shared/staff/queryKeys";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { validateRequiredFields } from "@/shared/utils/modalValidation";
 import { getTenantLocalItem, setTenantLocalItem } from "@/shared/utils/safeLocalStorage";
@@ -77,6 +78,8 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
   const qc = useQueryClient();
   const navigate = useNavigate();
   const isEditMode = lectureId != null;
+  const confirm = useConfirm();
+  const confirmationInFlightRef = useRef(false);
 
   const [title, setTitle] = useState("");
   const [name, setName] = useState("");
@@ -197,6 +200,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
     setAddSubjectInput("");
     setHasAttemptedSubmit(false);
     setApiError("");
+    confirmationInFlightRef.current = false;
   }, [isOpen, lectureId, usedColors]);
 
   if (!isOpen) return null;
@@ -204,7 +208,8 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
   const effectiveChipLabel = normalizeLectureChipText(chipLabel) || normalizeLectureChipText(title);
   const previewChipLabel = effectiveChipLabel || "강의";
 
-  function submit() {
+  async function submit() {
+    if (isPending || confirmationInFlightRef.current) return;
     setApiError("");
     setHasAttemptedSubmit(true);
     const err = validateRequiredFields([
@@ -219,9 +224,6 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
       return;
     }
 
-    const trimmedSubject = subject.trim();
-    if (trimmedSubject) setSavedSubjects(saveToList(SAVED_SUBJECTS_KEY, trimmedSubject));
-
     const payload: CreateLecturePayload = {
       title: title.trim(),
       name: name.trim(),
@@ -234,6 +236,31 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
       is_active: true,
     };
     if (endDate.trim()) payload.end_date = endDate.trim();
+    if (!isEditMode) {
+      confirmationInFlightRef.current = true;
+      const confirmed = await confirm({
+        title: "강의 생성 최종 확인",
+        message: "강의의 담당자와 운영 기간을 확인해 주세요.",
+        review: {
+          eyebrow: "강의 기본정보 검토",
+          items: [
+            { label: "강의", value: payload.title, tone: "accent" },
+            { label: "담당", value: payload.name },
+            { label: "과목", value: payload.subject },
+            { label: "운영 기간", value: `${payload.start_date}${payload.end_date ? `–${payload.end_date}` : "부터"}` },
+            { label: "수업 시간", value: payload.lecture_time },
+            { label: "목록 표기", value: payload.chip_label || "강의" },
+          ],
+          note: "강의 기본정보만 만듭니다. 차시와 수강생은 자동으로 등록되지 않습니다.",
+        },
+        confirmText: "확인하고 만들기",
+        cancelText: "다시 확인",
+      });
+      confirmationInFlightRef.current = false;
+      if (!confirmed || isPending) return;
+    }
+    const trimmedSubject = subject.trim();
+    if (trimmedSubject) setSavedSubjects(saveToList(SAVED_SUBJECTS_KEY, trimmedSubject));
     mutate(payload);
   }
 

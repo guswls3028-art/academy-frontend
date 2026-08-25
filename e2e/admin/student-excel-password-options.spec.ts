@@ -134,6 +134,40 @@ test("학생 엑셀 등록에서 번호가 빠진 행만 제외하고 업로드�
   await dialog.getByRole("radio", { name: "학생별 랜덤 비밀번호" }).check();
   await expect(dialog.getByText("등록 완료 후 학생별 비밀번호 목록이 자동으로 내려받아집니다.")).toBeVisible();
   await expect(registerButton).toBeEnabled();
+  await registerButton.click();
+  const confirmation = page.getByRole("alertdialog", { name: "학생 일괄 등록 최종 확인" });
+  await expect(confirmation.getByText("student-password-options.xlsx", { exact: true })).toBeVisible();
+  await expect(confirmation.getByText("1명", { exact: true })).toBeVisible();
+  await expect(confirmation.getByText("학생별 랜덤 비밀번호", { exact: true })).toBeVisible();
+  await expect(confirmation.getByRole("button", { name: "다시 확인" })).toBeFocused();
+  await confirmation.getByRole("button", { name: "다시 확인" }).click();
+  await expect(dialog).toBeVisible();
+});
+
+test("학생 단건 등록은 계정·연락처 검토 뒤에만 저장한다", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await loginViaUI(page, "admin");
+
+  await page.getByText("학생", { exact: true }).first().click();
+  await expect(page).toHaveURL(/\/workspace\/students(?:\/home)?(?:[?#].*)?$/);
+  await page.getByRole("button", { name: "학생 추가" }).first().click();
+  const dialog = page.getByRole("dialog", { name: "학생 등록" });
+  await dialog.getByText("1명만 등록", { exact: true }).click();
+  await dialog.getByPlaceholder("이름").fill("최종확인 학생");
+  await dialog.getByPlaceholder("초기 비밀번호").fill("never-show-this-value");
+  await dialog.getByLabel("학부모 전화 앞 4자리").fill("70001111");
+  await dialog.getByRole("button", { name: "등록", exact: true }).click();
+
+  const confirmation = page.getByRole("alertdialog", { name: "학생 등록 최종 확인" });
+  await expect(confirmation.getByText("최종확인 학생", { exact: true })).toBeVisible();
+  await expect(confirmation.getByText("010-7000-1111", { exact: true })).toBeVisible();
+  await expect(confirmation.getByText("입력 완료", { exact: true })).toBeVisible();
+  await expect(confirmation).not.toContainText("never-show-this-value");
+  await expect(confirmation.getByRole("button", { name: "다시 확인" })).toBeFocused();
+  const overflow = await confirmation.evaluate((element) => element.scrollWidth - element.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  await confirmation.getByRole("button", { name: "다시 확인" }).click();
+  await expect(dialog).toBeVisible();
 });
 
 test("Ymath 고객 제보 회귀: 소유자 화면에서 Excel 양식과 파일 파싱이 오류 없이 열린다", async ({ page }) => {

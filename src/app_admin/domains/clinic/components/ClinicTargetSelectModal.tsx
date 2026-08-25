@@ -82,17 +82,25 @@ import {
   studentSelection,
 } from "@/shared/types/selection";
 
-export type ClinicTargetSelectResult = EnrollmentSelection | StudentSelection;
+type ClinicTargetSelectionNames = {
+  readonly selectedNames: readonly string[];
+};
+
+export type ClinicTargetSelectResult =
+  | (EnrollmentSelection & ClinicTargetSelectionNames)
+  | (StudentSelection & ClinicTargetSelectionNames);
 
 type Props = {
   open: boolean;
   onClose: () => void;
   initialMode?: "targets" | "students";
   initialSelectedIds?: number[];
+  initialSelectedNames?: readonly string[];
   onConfirm: (result: ClinicTargetSelectResult) => void;
 };
 
 const EMPTY_IDS: number[] = [];
+const EMPTY_NAMES: readonly string[] = [];
 const PAGE_SIZE = 50;
 
 /** 학년 표시 (school_type + grade) */
@@ -182,10 +190,12 @@ export default function ClinicTargetSelectModal({
   onClose,
   initialMode = "targets",
   initialSelectedIds,
+  initialSelectedNames,
   onConfirm,
 }: Props) {
   useSchoolLevelMode(); // ensures school level context is consistent with other clinic components
   const stableIds = initialSelectedIds ?? EMPTY_IDS;
+  const stableNames = initialSelectedNames ?? EMPTY_NAMES;
   const [mode, setMode] = useState<"targets" | "students">(initialMode);
   const [keyword, setKeyword] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -207,9 +217,14 @@ export default function ClinicTargetSelectModal({
     setNameOrdering("name");
     setPage(1);
     setSelectedIds([...stableIds]);
-    setSelectedIdToName(new Map());
+    setSelectedIdToName(new Map(
+      stableIds.flatMap((selectedId, index) => {
+        const selectedName = stableNames[index]?.trim();
+        return selectedName ? [[selectedId, selectedName] as const] : [];
+      }),
+    ));
     setDetailStudentId(null);
-  }, [open, initialMode, stableIds]);
+  }, [open, initialMode, stableIds, stableNames]);
 
   // 검색 디바운스
   useEffect(() => {
@@ -374,10 +389,11 @@ export default function ClinicTargetSelectModal({
 
   const handleConfirm = () => {
     if (isError || selectedIds.length === 0) return;
+    const selectedNames = selectedRowsForDisplay.map((row) => row.name);
     if (mode === "targets") {
-      onConfirm(enrollmentSelection(selectedIds));
+      onConfirm({ ...enrollmentSelection(selectedIds), selectedNames });
     } else {
-      onConfirm(studentSelection(selectedIds));
+      onConfirm({ ...studentSelection(selectedIds), selectedNames });
     }
     onClose();
   };
