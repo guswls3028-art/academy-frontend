@@ -12,6 +12,7 @@
 import { useMemo, useRef, useEffect, Fragment, useCallback, forwardRef, useImperativeHandle } from "react";
 import type { CSSProperties } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import type { SessionScoreRow, SessionScoreMeta, SessionScoresSummaryColumnMode } from "../api/sessionScores";
 import type { PendingChange } from "../api/scoreDraft";
@@ -32,7 +33,7 @@ import { getSessionRowExamReviewSummary } from "@/shared/scoring/sessionScoreRow
 import ScoreInputCell from "./ScoreInputCell";
 import ExamHeaderActionMenu, { type ExamHeaderAction } from "./ExamHeaderActionMenu";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import { Badge, type BadgeTone } from "@/shared/ui/ds";
+import { Badge, Button, type BadgeTone } from "@/shared/ui/ds";
 import { DomainTable, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
@@ -67,6 +68,74 @@ const EXAM_REVIEW_BADGE_META = {
   clear: { label: "오답 없음", tone: "success", title: "채점된 테스트가 모두 만점이어서 오답 확인이 필요하지 않습니다" },
   pending: { label: "채점 대기", tone: "muted", title: "미응시 또는 채점 대기인 테스트가 있습니다" },
 } satisfies Record<"incomplete" | "complete" | "clear" | "pending", { label: string; tone: BadgeTone; title: string }>;
+
+type CompactColumnOrderControlsProps = {
+  type: "exam" | "homework";
+  itemId: number;
+  title: string;
+  index: number;
+  itemIds: number[];
+  onReorder?: (type: "exam" | "homework", fromId: number, toId: number) => void;
+};
+
+function CompactColumnOrderControls({
+  type,
+  itemId,
+  title,
+  index,
+  itemIds,
+  onReorder,
+}: CompactColumnOrderControlsProps) {
+  if (!onReorder || itemIds.length <= 1) return null;
+
+  const previousId = index > 0 ? itemIds[index - 1] : undefined;
+  const nextId = index < itemIds.length - 1 ? itemIds[index + 1] : undefined;
+  const previousLabel = `${title} 이전 순서로 이동`;
+  const nextLabel = `${title} 다음 순서로 이동`;
+
+  return (
+    <span
+      className="ml-1 inline-flex shrink-0 items-center gap-1 sm:hidden"
+      data-testid={`score-column-order-${type}-${itemId}`}
+      data-column-id={itemId}
+      onDragStart={(event) => event.stopPropagation()}
+      onPointerDown={(event) => event.stopPropagation()}
+    >
+      <Button
+        type="button"
+        intent="ghost"
+        size="xl"
+        iconOnly
+        leftIcon={<ChevronLeft size={18} />}
+        aria-label={previousLabel}
+        title={previousId == null ? "첫 번째 항목은 이전 순서로 이동할 수 없습니다." : previousLabel}
+        disabled={previousId == null}
+        draggable={false}
+        className="h-12 shrink-0"
+        onClick={(event) => {
+          event.stopPropagation();
+          if (previousId != null) onReorder(type, itemId, previousId);
+        }}
+      />
+      <Button
+        type="button"
+        intent="ghost"
+        size="xl"
+        iconOnly
+        leftIcon={<ChevronRight size={18} />}
+        aria-label={nextLabel}
+        title={nextId == null ? "마지막 항목은 다음 순서로 이동할 수 없습니다." : nextLabel}
+        disabled={nextId == null}
+        draggable={false}
+        className="h-12 shrink-0"
+        onClick={(event) => {
+          event.stopPropagation();
+          if (nextId != null) onReorder(type, itemId, nextId);
+        }}
+      />
+    </span>
+  );
+}
 
 
 function parseScoreInput(input: string, maxScore?: number | null): number | null {
@@ -553,6 +622,14 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     () => (viewFilter === "exam" ? [] : (meta?.homeworks ?? [])),
     [viewFilter, meta?.homeworks],
   );
+  const examOrderIds = useMemo(
+    () => examOptions.map((exam) => exam.exam_id),
+    [examOptions],
+  );
+  const homeworkOrderIds = useMemo(
+    () => homeworkOptions.map((homework) => homework.homework_id),
+    [homeworkOptions],
+  );
 
   /** 편집 모드 시 점수 셀 동기화: 포커스 아닐 때만 서버 값으로 contenteditable 텍스트 갱신 (pending 셀은 건드리지 않음) */
   useEffect(() => {
@@ -897,63 +974,73 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
             const totalCol = examColsList.find((c) => c.sub === "total");
             const groupParity = exIdx % 2 === 0 ? "even" : "odd";
             const gradingMode = resolveExamGradingMode(ex);
-            /* 2026-05-13 학원장 결정: ◀▶ 버튼 폐기 → 드래그앤드롭. grip cursor 로 affordance. */
+            /* PC는 드래그앤드롭을 유지하고, 모바일은 터치 가능한 이전/다음 제어를 함께 제공한다. */
             const headerInner = (
-              <span
-                className="scores-col-drag-handle inline-flex items-center gap-1 min-w-0 max-w-full"
-                draggable={!!onReorderColumnSwap}
-                onDragStart={(e) => {
-                  e.dataTransfer.effectAllowed = "move";
-                  e.dataTransfer.setData("text/x-academy-col", `exam:${ex.exam_id}`);
-                }}
-                onDragOver={(e) => {
-                  const payload = e.dataTransfer.types.includes("text/x-academy-col");
-                  if (payload) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; (e.currentTarget as HTMLElement).classList.add("scores-col-drag-over"); }
-                }}
-                onDragLeave={(e) => { (e.currentTarget as HTMLElement).classList.remove("scores-col-drag-over"); }}
-                onDrop={(e) => {
-                  (e.currentTarget as HTMLElement).classList.remove("scores-col-drag-over");
-                  const raw = e.dataTransfer.getData("text/x-academy-col");
-                  const [t, idStr] = (raw ?? "").split(":");
-                  if (t === "exam" && idStr) {
-                    e.preventDefault();
-                    const fromId = Number(idStr);
-                    if (Number.isFinite(fromId) && fromId !== ex.exam_id) {
-                      onReorderColumnSwap?.("exam", fromId, ex.exam_id);
+              <span className="inline-flex min-w-0 max-w-full items-center gap-1">
+                <span
+                  className="scores-col-drag-handle inline-flex items-center gap-1 min-w-0 max-w-full"
+                  draggable={!!onReorderColumnSwap}
+                  onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = "move";
+                    e.dataTransfer.setData("text/x-academy-col", `exam:${ex.exam_id}`);
+                  }}
+                  onDragOver={(e) => {
+                    const payload = e.dataTransfer.types.includes("text/x-academy-col");
+                    if (payload) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; (e.currentTarget as HTMLElement).classList.add("scores-col-drag-over"); }
+                  }}
+                  onDragLeave={(e) => { (e.currentTarget as HTMLElement).classList.remove("scores-col-drag-over"); }}
+                  onDrop={(e) => {
+                    (e.currentTarget as HTMLElement).classList.remove("scores-col-drag-over");
+                    const raw = e.dataTransfer.getData("text/x-academy-col");
+                    const [t, idStr] = (raw ?? "").split(":");
+                    if (t === "exam" && idStr) {
+                      e.preventDefault();
+                      const fromId = Number(idStr);
+                      if (Number.isFinite(fromId) && fromId !== ex.exam_id) {
+                        onReorderColumnSwap?.("exam", fromId, ex.exam_id);
+                      }
                     }
-                  }
-                }}
-                title={onReorderColumnSwap ? `${ex.title} — 끌어서 순서 변경` : ex.title}
-              >
-                <Badge variant="soft" tone="primary" size="xs" shape="square" className="scores-table-kind-badge" ariaLabel="시험">시</Badge>
-                {onOpenExamGrading ? (
-                  <ExamHeaderActionMenu
-                    examId={ex.exam_id}
-                    examTitle={ex.title}
-                    gradingMode={gradingMode}
-                    manualGradingMethod={
-                      ex.manual_grading_method === "correctness"
-                        ? "correctness"
-                        : "score"
-                    }
-                    initialMaxScore={ex.max_score}
-                    initialPassScore={ex.pass_score}
-                    sessionId={sessionId}
-                    onSelect={(action) => {
-                      onOpenExamGrading(
-                        ex.exam_id,
-                        ex.title,
-                        gradingMode,
+                  }}
+                  title={onReorderColumnSwap ? `${ex.title} — 끌어서 순서 변경` : ex.title}
+                >
+                  <Badge variant="soft" tone="primary" size="xs" shape="square" className="scores-table-kind-badge" ariaLabel="시험">시</Badge>
+                  {onOpenExamGrading ? (
+                    <ExamHeaderActionMenu
+                      examId={ex.exam_id}
+                      examTitle={ex.title}
+                      gradingMode={gradingMode}
+                      manualGradingMethod={
                         ex.manual_grading_method === "correctness"
                           ? "correctness"
-                          : "score",
-                        action,
-                      );
-                    }}
-                  />
-                ) : (
-                  <span className="scores-table-head-title whitespace-normal break-keep min-w-0 leading-tight">{ex.title}</span>
-                )}
+                          : "score"
+                      }
+                      initialMaxScore={ex.max_score}
+                      initialPassScore={ex.pass_score}
+                      sessionId={sessionId}
+                      onSelect={(action) => {
+                        onOpenExamGrading(
+                          ex.exam_id,
+                          ex.title,
+                          gradingMode,
+                          ex.manual_grading_method === "correctness"
+                            ? "correctness"
+                            : "score",
+                          action,
+                        );
+                      }}
+                    />
+                  ) : (
+                    <span className="scores-table-head-title whitespace-normal break-keep min-w-0 leading-tight">{ex.title}</span>
+                  )}
+                </span>
+                <CompactColumnOrderControls
+                  type="exam"
+                  itemId={ex.exam_id}
+                  title={ex.title}
+                  index={exIdx}
+                  itemIds={examOrderIds}
+                  onReorder={onReorderColumnSwap}
+                />
               </span>
             );
             const headerClass = "group text-center font-medium text-[var(--color-text-primary)] align-middle";
@@ -1020,40 +1107,50 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
               {...(idx === 0 ? { "data-section-start": "" } : {})}
               data-group-parity={idx % 2 === 0 ? "even" : "odd"}
             >
-              <span
-                className="scores-col-drag-handle inline-flex items-center gap-1 min-w-0 max-w-full"
-                draggable={!!onReorderColumnSwap}
-                onDragStart={(e) => {
-                  e.dataTransfer.effectAllowed = "move";
-                  e.dataTransfer.setData("text/x-academy-col", `homework:${hw.homework_id}`);
-                }}
-                onDragOver={(e) => {
-                  if (e.dataTransfer.types.includes("text/x-academy-col")) {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = "move";
-                    (e.currentTarget as HTMLElement).classList.add("scores-col-drag-over");
-                  }
-                }}
-                onDragLeave={(e) => { (e.currentTarget as HTMLElement).classList.remove("scores-col-drag-over"); }}
-                onDrop={(e) => {
-                  (e.currentTarget as HTMLElement).classList.remove("scores-col-drag-over");
-                  const raw = e.dataTransfer.getData("text/x-academy-col");
-                  const [t, idStr] = (raw ?? "").split(":");
-                  if (t === "homework" && idStr) {
-                    e.preventDefault();
-                    const fromId = Number(idStr);
-                    if (Number.isFinite(fromId) && fromId !== hw.homework_id) {
-                      onReorderColumnSwap?.("homework", fromId, hw.homework_id);
+              <span className="inline-flex min-w-0 max-w-full items-center gap-1">
+                <span
+                  className="scores-col-drag-handle inline-flex items-center gap-1 min-w-0 max-w-full"
+                  draggable={!!onReorderColumnSwap}
+                  onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = "move";
+                    e.dataTransfer.setData("text/x-academy-col", `homework:${hw.homework_id}`);
+                  }}
+                  onDragOver={(e) => {
+                    if (e.dataTransfer.types.includes("text/x-academy-col")) {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                      (e.currentTarget as HTMLElement).classList.add("scores-col-drag-over");
                     }
-                  }
-                }}
-                title={onReorderColumnSwap ? `${hw.title} — 끌어서 순서 변경` : hw.title}
-              >
-                <Badge variant="soft" tone="teal" size="xs" shape="square" className="scores-table-kind-badge" ariaLabel="과제">과</Badge>
-                <span className="scores-table-head-title whitespace-normal break-keep min-w-0 leading-tight">{hw.title}</span>
-                {hw.grading_mode === "COMPLETION" && (
-                  <Badge variant="soft" tone="success" size="xs" shape="square" ariaLabel="완료형 과제">✓</Badge>
-                )}
+                  }}
+                  onDragLeave={(e) => { (e.currentTarget as HTMLElement).classList.remove("scores-col-drag-over"); }}
+                  onDrop={(e) => {
+                    (e.currentTarget as HTMLElement).classList.remove("scores-col-drag-over");
+                    const raw = e.dataTransfer.getData("text/x-academy-col");
+                    const [t, idStr] = (raw ?? "").split(":");
+                    if (t === "homework" && idStr) {
+                      e.preventDefault();
+                      const fromId = Number(idStr);
+                      if (Number.isFinite(fromId) && fromId !== hw.homework_id) {
+                        onReorderColumnSwap?.("homework", fromId, hw.homework_id);
+                      }
+                    }
+                  }}
+                  title={onReorderColumnSwap ? `${hw.title} — 끌어서 순서 변경` : hw.title}
+                >
+                  <Badge variant="soft" tone="teal" size="xs" shape="square" className="scores-table-kind-badge" ariaLabel="과제">과</Badge>
+                  <span className="scores-table-head-title whitespace-normal break-keep min-w-0 leading-tight">{hw.title}</span>
+                  {hw.grading_mode === "COMPLETION" && (
+                    <Badge variant="soft" tone="success" size="xs" shape="square" ariaLabel="완료형 과제">✓</Badge>
+                  )}
+                </span>
+                <CompactColumnOrderControls
+                  type="homework"
+                  itemId={hw.homework_id}
+                  title={hw.title}
+                  index={idx}
+                  itemIds={homeworkOrderIds}
+                  onReorder={onReorderColumnSwap}
+                />
               </span>
             </ResizableTh>
           ))}
