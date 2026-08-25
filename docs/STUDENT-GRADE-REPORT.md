@@ -16,6 +16,14 @@
 5. **전체 표시로 되돌리기**는 초안만 전체 표시·기본 순서로 바꾸며, 저장 전에는
    학생 화면을 변경하지 않는다.
 
+학생 상세 오버레이의 **시험** 탭은 각 시험 카드에 차시 성적표의 현재 `테스트 오답`
+상태를 함께 표시한다. `오답 미완료`와 `오답 완료`는 카드의 **오답 수정**에서 화면을
+옮기지 않고 변경하며, 완료에는 2자 이상의 교사 사유가 필요하다. 저장은
+`session_id + enrollment_id + exam_id`가 exact하게 일치하는 기존 차시 판정 API만
+사용하고, 서버 저장 뒤 차시 성적을 다시 읽어 동일 상태가 확인되어야 성공으로 보인다.
+미응시·무점수·만점, 식별자 불일치, 조회 실패는 상태를 추측하지 않고 수정 동작을
+fail-closed한다. 점수와 답안은 이 빠른 판정에서 변경하지 않는다.
+
 설정은 학원 전체 공개 정책이므로 같은 테넌트의 `owner`와 `admin`만 변경한다.
 일반 교사·직원, 학생, 학부모는 설정 API에 접근할 수 없다. 한 섹션도 표시하지 않는
 초안은 저장할 수 없으며 이유를 화면에 표시한다.
@@ -107,8 +115,10 @@ YMath의 초기 구성은 `score_trend`, `score_comparison`, `lecture_average`�
 - 성장 그래프 조립: `src/app_student/domains/grades/components/GradesStatsTab.tsx`
 - 회귀 검증:
   - `e2e/teacher/student-grade-report-layout.spec.ts`
-  - `e2e/student/student-score-trend.spec.ts`
-  - `e2e/student/assignment-session-scope.mock.spec.ts`
+- `e2e/student/student-score-trend.spec.ts`
+- `e2e/student/assignment-session-scope.mock.spec.ts`
+- `e2e/admin/student-score-trend.spec.ts`: 학생 상세의 시험별 오답 상태, 2자 사유,
+  exact 차시·수강·시험 mutation, persisted readback, 390px overflow를 검증한다.
 
 두 E2E는 390px에서 저장 payload, 미리보기 순서, 숨김 반영, 학생 카드 상태,
 학부모 자녀 전환, 분석 장애 독립성과 가로 overflow 부재를 확인한다.

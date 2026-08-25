@@ -963,6 +963,9 @@
   .homeworkRecordGroup .recordActions {
     width: 100%;
     max-width: none;
+  }
+
+  .homeworkRecordGroup .recordActions {
     justify-content: flex-end;
   }
 }
