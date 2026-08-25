@@ -89,7 +89,9 @@ export default function StudentExamCorrectionCard({ exam, studentId, onNavigate 
 
   const mutation = useMutation({
     mutationFn: async ({ completed, nextNote }: { completed: boolean; nextNote: string }) => {
-      if (!hasExactIdentity || !block) throw new Error("exam_correction_identity_required");
+      if (!hasExactIdentity || !block) {
+        throw new Error("시험 판정 대상을 다시 확인해 주세요.");
+      }
       const response = await patchAssessmentCorrection(sessionId, {
         enrollment_id: exam.enrollment_id,
         source_type: "exam",
@@ -106,7 +108,7 @@ export default function StudentExamCorrectionCard({ exam, studentId, onNavigate 
       const freshBlock = exactExamBlock(fresh, exam);
       const expectedStatus = completed ? "COMPLETED" : "PENDING";
       if (!freshBlock || freshBlock.correction_status !== expectedStatus) {
-        throw new Error("exam_correction_persisted_readback_failed");
+        throw new Error("저장 결과가 최신 시험 목록에 반영되지 않았습니다. 다시 확인해 주세요.");
       }
       await qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.studentGrades(studentId) });
       return { response, freshBlock, completed };
