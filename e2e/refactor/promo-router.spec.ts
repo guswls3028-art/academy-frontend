@@ -283,11 +283,15 @@ test.describe("promo route navigation", () => {
   test("publishes the latest product update with cadence and audience scope", async ({ page }, testInfo) => {
     await gotoAndAssert(page, "/promo/updates");
 
-    await expect(page.getByRole("heading", { name: "수업 운영이 한눈에 보이는 결과 화면" }).first()).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "수업부터 지원·정산까지 이어지는 운영 업데이트" }).first(),
+    ).toBeVisible();
     await expect(page.getByText("매주 화요일 오전 9시", { exact: true })).toBeVisible();
-    await expect(page.getByText("수업 분석 Excel", { exact: false })).toBeVisible();
-    await expect(page.getByText("클리닉 패스카드", { exact: false })).toBeVisible();
-    await expect(page.getByText("전체 제공", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("클리닉 출석·진행 콘솔", { exact: false })).toBeVisible();
+    await expect(page.getByText("개인 성적표", { exact: false }).first()).toBeVisible();
+    await expect(page.getByText("선생님 업무 도우미 Beta", { exact: false })).toBeVisible();
+    await expect(page.getByText("원장·관리자", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("전체 제공 · 기능별 권한 및 Beta 표시", { exact: true }).first()).toBeVisible();
 
     const desktopScreenshot = testInfo.outputPath("product-updates-1440.png");
     await page.setViewportSize({ width: 1440, height: 1000 });
