@@ -20,6 +20,7 @@ export const routeMockSpecs = [
   "e2e/admin/arrival-operations.mock.spec.ts",
   "e2e/admin/billing-bank-transfer-only.mock.spec.ts",
   "e2e/admin/assessment-operations-workspace.mock.spec.ts",
+  "e2e/admin/board-photo-persistence.mock.spec.ts",
   "e2e/admin/community-workspace-polish.mock.spec.ts",
   "e2e/admin/clinic-weekly-multisession.mock.spec.ts",
   "e2e/admin/clinic-remediation-missing.mock.spec.ts",

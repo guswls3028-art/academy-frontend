@@ -37,6 +37,7 @@
 | [ACCOUNT-CREDENTIAL-FLOWS.md](ACCOUNT-CREDENTIAL-FLOWS.md) | 역할별 본인 비밀번호 변경, 직원 강제 초기화, 공용 계정복구의 화면→API·세션 폐기 계약 |
 | [PRODUCT-UPDATES.md](PRODUCT-UPDATES.md) | 공개 업데이트 페이지의 콘텐츠 범위, CTA, 접근성·라우팅 계약 |
 | [WORKSPACE-NAVIGATION.md](WORKSPACE-NAVIGATION.md) | 관리자·선생님 권한 메뉴의 빠른 검색, 최근 사용, 키보드·390px 이동 계약 |
+| [COMMUNITY-BOARD-ATTACHMENTS.md](COMMUNITY-BOARD-ATTACHMENTS.md) | 게시판 글 작성의 사진 선택 유지, 첨부 실패 후 중복 글 없는 재시도와 권한·반응형 계약 |
 | [TEACHER-WORKSPACE-OPERATIONS.md](TEACHER-WORKSPACE-OPERATIONS.md) | 선생님 오늘 업무 합계, 역할별 결제·알림 경계, 카드 실패 상태와 44px·데스크톱 화면 계약 |
 | [TEACHER-OPS-ASSISTANT.md](TEACHER-OPS-ASSISTANT.md) | 사진 기반 학생 식별·수강·ONLINE 영상 권한·초기 알림톡 검토/확정 계약 |
 | [MESSAGING-OPERATIONS.md](MESSAGING-OPERATIONS.md) | 알림톡 발송 기록의 상태·시각 의미, 역할별 본문·공급자 증거, 390px 운영 UX 계약 |
