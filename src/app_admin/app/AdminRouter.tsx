@@ -125,6 +125,8 @@ const VideoDomainLayout = lazy(() => import("@admin/domains/videos/pages/VideoDo
 const VideoExplorerPage = lazy(() => import("@admin/domains/videos/pages/VideoExplorerPage"));
 const VideoTreePage = lazy(() => import("@admin/domains/videos/pages/VideoTreePage"));
 const VideoIdToSessionRedirect = lazy(() => import("@admin/domains/videos/pages/VideoIdToSessionRedirect"));
+const ExamIdToSessionRedirect = lazy(() => import("@admin/domains/exams/pages/ExamIdToSessionRedirect"));
+const SessionIdToLectureRedirect = lazy(() => import("@admin/domains/sessions/pages/SessionIdToLectureRedirect"));
 
 /* ================= Lazy: Placeholder ================= */
 const CounselPage = lazy(() => import("@admin/domains/counseling/pages/CounselPage"));
@@ -214,6 +216,7 @@ export default function AdminRouter() {
           <Route path="clinic" element={renderLazyRoute(SessionDetailPage)} />
           <Route path="videos/:videoId" element={renderLazyRoute(VideoDetailPage)} />
         </Route>
+        <Route path="sessions/:sessionId/:workflow" element={renderLazyRoute(SessionIdToLectureRedirect)} />
 
         {/* ================= Materials ================= */}
         <Route path="materials/*" element={renderLazyRoute(MaterialsRoutes)} />
@@ -240,6 +243,7 @@ export default function AdminRouter() {
           <Route path="templates" element={renderLazyRoute(ExamTemplatesPage)} />
           <Route path="bundles" element={renderLazyRoute(ExamBundlesPage)} />
         </Route>
+        <Route path="exams/:examId" element={renderLazyRoute(ExamIdToSessionRedirect)} />
         <Route path="results" element={renderLazyRoute(ResultsDomainLayout)}>
           <Route index element={renderLazyRoute(ResultsExplorerPage)} />
           <Route path="tree" element={renderLazyRoute(ResultsTreePage)} />

@@ -96,3 +96,49 @@ pnpm typecheck
 pnpm lint
 pnpm build
 ```
+
+## 모바일 동적 상세·워크플로 패리티 2차분
+
+모바일 버전의 학생·강의·차시·시험·영상·커뮤니티·직원·프로필 상세에서 `PC 버전`
+메뉴를 선택하면 현재 객체를 다시 찾지 않고 같은 `/workspace` canonical 업무로
+이동한다. 모바일 페이지와 별도의 업무 상태나 API를 만들지 않으며, canonical
+라우트와 서버 API가 권한·기능 사용 가능 여부를 계속 소유한다. 직원 상세의 기존
+학원장/관리자 guard를 포함한 역할 경계는 그대로 유지한다.
+
+동적 매핑은 양의 정수 ID와 아래의 제한된 문맥만 허용한다.
+
+- 학생, 강의, 강의 안의 차시는 해당 canonical 상세로 이동한다.
+- 차시 ID만 있는 출결·성적 업무는 authoritative 차시 GET에서 양의 강의 ID와 같은
+  차시 ID가 확인된 경우에만 강의/차시 route로 이동한다.
+- 영상은 기존 영상 ID redirect를 재사용한다.
+- 커뮤니티는 허용된 탭과 양의 게시글 ID만 사용한다. 해당 탭의 authoritative 목록에
+  ID가 실제로 포함된 뒤에만 상세를 열며, 불일치하면 목록을 유지하고 잘못된 ID를
+  제거한다.
+- 프로필과 내 근무 기록은 각각 기존 계정 설정과 내 근태 화면으로 이동한다.
+
+시험은 연결 차시를 추측하지 않는다. 정확한 `sessionId` 문맥이 시험의 연결 목록과
+일치하거나 연결 차시가 하나뿐일 때만 자동 이동한다. 둘 이상이면 차시 선택 화면을
+표시하고 첫 선택지에 포커스를 둔다. `Esc`와 돌아가기 버튼은 이전 모바일 시험으로
+돌아가며, 조회 실패는 데이터 변경 없이 명시 오류와 `다시 시도`를 제공한다.
+
+모바일 복귀 문맥은 탭의 `sessionStorage`에만 두며 테넌트 코드와 인증 사용자 양의
+ID를 함께 키로 사용한다. 둘 중 하나라도 확인되지 않으면 저장하지 않는다. 값은
+허용된 상대 `/workspace/mobile/...` 패턴을 parser가 다시 조립한 결과와 저장 시각만
+보관한다. 절대 URL, protocol-relative URL, 인코딩 경로, hash, 임의 query, 0·음수 ID,
+중복 query는 거부한다. PC 메뉴의 `모바일 버전`을 누를 때 현재 계정의 값을 먼저
+읽고 즉시 한 번만 제거한다. 값이 없거나 손상·만료되었으면 `/workspace/mobile`로
+실패 닫힘한다.
+
+이 범위는 **동적 route/context 패리티 2차분**이다. canonical 화면 자체의 도메인별
+반응형 조작성 감사와 아직 열거되지 않은 동적 workflow까지 모두 완료했다는 의미는
+아니다.
+
+```powershell
+$env:E2E_BASE_URL="http://127.0.0.1:5174"
+pnpm exec playwright test e2e/teacher/dynamic-workspace-parity.mock.spec.ts --project=chromium --reporter=list
+pnpm guard:test-coverage
+pnpm verify:routes
+pnpm typecheck
+pnpm lint
+pnpm build
+```

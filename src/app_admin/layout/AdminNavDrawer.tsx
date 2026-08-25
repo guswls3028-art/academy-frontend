@@ -7,7 +7,8 @@ import { Search, Smartphone } from "lucide-react";
 import { useAdminLayout } from "./useAdminLayout";
 import { NavIcon } from "./adminNavConfig";
 import { useAvailableAdminNavigation } from "./useAvailableAdminNavigation";
-import { setPreferFullWorkspace } from "@/core/router/MobileWorkspaceRedirect";
+import useAuth from "@/auth/hooks/useAuth";
+import { consumeMobileWorkspaceReturnPath, setPreferFullWorkspace } from "@/core/router/MobileWorkspaceRedirect";
 import styles from "./AdminNavDrawer.module.css";
 
 export default function AdminNavDrawer({ onOpenQuickNavigation }: { onOpenQuickNavigation: () => void }) {
@@ -17,6 +18,7 @@ export default function AdminNavDrawer({ onOpenQuickNavigation }: { onOpenQuickN
   const open = layout?.drawerOpen ?? false;
   const onClose = layout?.closeDrawer ?? (() => {});
   const groups = useAvailableAdminNavigation();
+  const { user } = useAuth();
   const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches;
 
   const isActive = (to: string) =>
@@ -80,8 +82,9 @@ export default function AdminNavDrawer({ onOpenQuickNavigation }: { onOpenQuickN
           <button
             onClick={() => {
               onClose();
+              const returnPath = consumeMobileWorkspaceReturnPath(user?.id);
               setPreferFullWorkspace(false);
-              navigate("/workspace/mobile");
+              navigate(returnPath);
             }}
             className={styles.teacherReturnButton}
           >

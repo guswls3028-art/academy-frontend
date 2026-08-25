@@ -7,6 +7,7 @@ import { ICON } from "@/shared/ui/ds";
 import { useNavigate, useLocation } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
 import { setPreferFullWorkspace } from "@/core/router/MobileWorkspaceRedirect";
+import { resolveFullWorkspaceDestination } from "@/core/router/workspaceRoutes";
 import {
   Monitor, LogOut, AlertCircle, X, ChevronDown, ExternalLink,
 } from "@teacher/shared/ui/Icons";
@@ -31,7 +32,7 @@ export default function TeacherDrawer({
   const navigate = useNavigate();
   const location = useLocation();
   const panelRef = useRef<HTMLDivElement>(null);
-  const { clearAuth } = useAuth();
+  const { clearAuth, user } = useAuth();
   const [expandedGroup, setExpandedGroup] = useState("오늘 업무");
 
   useEffect(() => {
@@ -69,15 +70,25 @@ export default function TeacherDrawer({
     }
   }, [open, persistent]);
 
-  const handleNav = (path: string) => {
+  const mobileReturnPath = `${location.pathname}${location.search}`;
+  const contextualDesktopPath = resolveFullWorkspaceDestination(mobileReturnPath);
+
+  const handleDesktopSwitch = (path = contextualDesktopPath ?? "/workspace") => {
     onClose();
+    setPreferFullWorkspace(true, {
+      accountId: user?.id,
+      mobileReturnPath,
+    });
     navigate(path);
   };
 
-  const handleDesktopSwitch = () => {
+  const handleNav = (path: string) => {
+    if (path === "/workspace/mobile/desktop-only" && contextualDesktopPath) {
+      handleDesktopSwitch(contextualDesktopPath);
+      return;
+    }
     onClose();
-    setPreferFullWorkspace(true);
-    navigate("/workspace");
+    navigate(path);
   };
 
   const handleLogout = () => {
@@ -231,7 +242,7 @@ export default function TeacherDrawer({
           {isOwnerOrAdmin && (
             <button
               type="button"
-              onClick={handleDesktopSwitch}
+              onClick={() => handleDesktopSwitch()}
               className={`${styles.actionButton} ${styles.primaryAction}`}
             >
               <Monitor size={ICON.md} />
