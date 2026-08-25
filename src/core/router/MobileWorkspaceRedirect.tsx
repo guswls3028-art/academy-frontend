@@ -9,13 +9,67 @@
  */
 import { Navigate, Outlet, useLocation } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
-import { resolveTenantCodeString } from "@/shared/tenant";
-import { WORKSPACE_PATHS } from "./workspaceRoutes";
+import { resolveTenantCode, resolveTenantCodeString } from "@/shared/tenant";
+import { WORKSPACE_PATHS, parseMobileWorkspaceReturnPath } from "./workspaceRoutes";
 import { getLocalItem, removeLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
+import { getSessionItem, removeSessionItem, setSessionItem } from "@/shared/utils/safeSessionStorage";
 
 const MOBILE_QUERY = "(max-width: 1023px)";
 
 const WORKSPACE_ROLES = ["owner", "admin", "teacher", "staff"];
+const MOBILE_RETURN_KEY_PREFIX = "workspace:mobileReturn:v1";
+const MOBILE_RETURN_MAX_AGE_MS = 8 * 60 * 60 * 1000;
+
+type FullWorkspacePreferenceContext = {
+  accountId?: number | null;
+  mobileReturnPath?: string | null;
+};
+
+function positiveAccountId(accountId: number | null | undefined): number | null {
+  return Number.isSafeInteger(accountId) && Number(accountId) > 0 ? Number(accountId) : null;
+}
+
+function getMobileReturnKey(accountId: number | null | undefined): string | null {
+  const validAccountId = positiveAccountId(accountId);
+  const tenant = resolveTenantCode();
+  if (!validAccountId || !tenant.ok) return null;
+  return `${MOBILE_RETURN_KEY_PREFIX}:${encodeURIComponent(tenant.code)}:${validAccountId}`;
+}
+
+function rememberMobileWorkspaceReturnPath(context: FullWorkspacePreferenceContext | undefined): void {
+  const key = getMobileReturnKey(context?.accountId);
+  if (!key) return;
+  const path = context?.mobileReturnPath
+    ? parseMobileWorkspaceReturnPath(context.mobileReturnPath)
+    : null;
+  if (!path) {
+    removeSessionItem(key);
+    return;
+  }
+  setSessionItem(key, JSON.stringify({ path, savedAt: Date.now() }));
+}
+
+export function consumeMobileWorkspaceReturnPath(accountId: number | null | undefined): string {
+  const key = getMobileReturnKey(accountId);
+  if (!key) return WORKSPACE_PATHS.mobile;
+  const raw = getSessionItem(key);
+  removeSessionItem(key);
+  if (!raw) return WORKSPACE_PATHS.mobile;
+
+  try {
+    const parsed = JSON.parse(raw) as { path?: unknown; savedAt?: unknown };
+    const savedAt = typeof parsed.savedAt === "number" ? parsed.savedAt : NaN;
+    const age = Date.now() - savedAt;
+    if (!Number.isFinite(savedAt) || age < 0 || age > MOBILE_RETURN_MAX_AGE_MS) {
+      return WORKSPACE_PATHS.mobile;
+    }
+    return typeof parsed.path === "string"
+      ? parseMobileWorkspaceReturnPath(parsed.path) ?? WORKSPACE_PATHS.mobile
+      : WORKSPACE_PATHS.mobile;
+  } catch {
+    return WORKSPACE_PATHS.mobile;
+  }
+}
 
 function shouldRedirectFullWorkspaceHome(pathname: string): boolean {
   const normalized = pathname.replace(/\/+$/, "") || "/";
@@ -78,10 +132,14 @@ export default function MobileWorkspaceRedirect() {
   return <Outlet />;
 }
 
-export function setPreferFullWorkspace(prefer: boolean): void {
+export function setPreferFullWorkspace(
+  prefer: boolean,
+  context?: FullWorkspacePreferenceContext,
+): void {
   try {
     if (prefer) {
       setLocalItem(getPreferenceKey(), "1");
+      rememberMobileWorkspaceReturnPath(context);
     } else {
       removeLocalItem(getPreferenceKey());
     }

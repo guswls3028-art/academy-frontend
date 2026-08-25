@@ -8,7 +8,6 @@ import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPending
 import { Search, Plus, X } from "@teacher/shared/ui/Icons";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { fetchPosts, fetchRegistrationRequests } from "../api";
-import type { Post } from "../api";
 import { teacherCommsQueryKeys } from "../queryKeys";
 import PostListItem from "../components/PostListItem";
 import PostDetail from "../components/PostDetail";
@@ -48,7 +47,10 @@ export default function CommunicationPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = resolveTab(searchParams.get("tab"));
   const [tab, setTab] = useState<Tab>(tabFromUrl);
-  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const selectedIdParam = searchParams.get("id");
+  const selectedPostId = selectedIdParam && /^[1-9]\d*$/.test(selectedIdParam)
+    ? Number(selectedIdParam)
+    : null;
   const [createOpen, setCreateOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchInput, setSearchInput] = useState("");
@@ -62,7 +64,6 @@ export default function CommunicationPage() {
 
   useEffect(() => {
     setTab(tabFromUrl);
-    setSelectedPost(null);
     setSearchInput("");
     setSearchQuery("");
     setSearchOpen(false);
@@ -87,6 +88,19 @@ export default function CommunicationPage() {
     if (tab !== "counsel") return true;
     return p.category_label !== "teacher_internal_memo" && p.author_role !== "staff";
   });
+  const selectedPost = selectedPostId == null
+    ? null
+    : visiblePosts.find((post) => post.id === selectedPostId) ?? null;
+
+  useEffect(() => {
+    if (!isPostTab || selectedPostId == null || postsQ.isLoading || postsQ.isError) return;
+    if (visiblePosts.some((post) => post.id === selectedPostId)) return;
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.delete("id");
+      return next;
+    }, { replace: true });
+  }, [isPostTab, postsQ.isError, postsQ.isLoading, selectedPostId, setSearchParams, visiblePosts]);
 
   const requestsQ = useQuery({
     queryKey: teacherCommsQueryKeys.registrationRequests,
@@ -113,17 +127,26 @@ export default function CommunicationPage() {
     } else {
       nextParams.set("tab", t);
     }
+    nextParams.delete("id");
     setSearchParams(nextParams, { replace: false });
     setSearchInput("");
     setSearchQuery("");
     setSearchOpen(false);
-    setSelectedPost(null);
   }, [searchParams, setSearchParams]);
 
   const pendingQnaCount = counts?.qnaPending ?? 0;
 
   if (selectedPost) {
-    return <PostDetail post={selectedPost} onBack={() => setSelectedPost(null)} />;
+    return (
+      <PostDetail
+        post={selectedPost}
+        onBack={() => setSearchParams((previous) => {
+          const next = new URLSearchParams(previous);
+          next.delete("id");
+          return next;
+        }, { replace: false })}
+      />
+    );
   }
 
   return (
@@ -239,7 +262,11 @@ export default function CommunicationPage() {
                 post={p}
                 showReplyBadge={tab === "qna" || tab === "counsel"}
                 attention={tab === "qna" && (p.replies_count ?? 0) === 0}
-                onClick={() => setSelectedPost(p)}
+                onClick={() => setSearchParams((previous) => {
+                  const next = new URLSearchParams(previous);
+                  next.set("id", String(p.id));
+                  return next;
+                }, { replace: false })}
               />
             ))}
           </div>
