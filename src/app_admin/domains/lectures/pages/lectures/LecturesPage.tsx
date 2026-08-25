@@ -494,7 +494,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                             disabled={!canReorder}
                             aria-label={`${lec.title} 순서 이동`}
                             title="끌기 · 누르기 · 방향키로 순서 이동"
-                            className="inline-flex h-10 w-10 cursor-grab items-center justify-center rounded text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+                            className="inline-flex h-10 w-10 min-w-10 shrink-0 cursor-grab items-center justify-center rounded text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)] disabled:cursor-not-allowed disabled:opacity-40"
                             onClick={(event) => event.stopPropagation()}
                             onKeyDown={(event) => {
                               if (event.key === "Escape") event.currentTarget.blur();
