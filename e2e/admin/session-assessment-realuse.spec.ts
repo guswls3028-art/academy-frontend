@@ -94,9 +94,12 @@ async function openLectureFromList(page: Page, lecture: TargetLecture): Promise<
   const table = page.locator('[data-guide="lectures-table"]');
   await expect(table, "admin lecture table").toBeVisible({ timeout: 15_000 });
 
-  const lectureRow = table.locator('tbody tr[role="button"]').filter({ hasText: lecture.title }).first();
-  await expect(lectureRow, `lecture row "${lecture.title}"`).toBeVisible({ timeout: 10_000 });
-  await lectureRow.click();
+  const lectureOpenButton = table.getByRole("button", {
+    name: `${lecture.title} 강의 열기`,
+    exact: true,
+  });
+  await expect(lectureOpenButton, `lecture open button "${lecture.title}"`).toBeVisible({ timeout: 10_000 });
+  await lectureOpenButton.click();
 
   await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${lecture.id}(?:[/?#]|$)`), { timeout: 10_000 });
   await waitForRenderSettled(page, { timeout: 15_000 });

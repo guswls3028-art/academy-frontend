@@ -100,6 +100,10 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
     await page.goto(`${BASE}/workspace/lectures`, { waitUntil: "domcontentloaded" });
 
     const alphaHandle = page.getByRole("button", { name: "Alpha 순서 이동", exact: true });
+    const alphaOpenButton = page.getByRole("button", { name: "Alpha 강의 열기", exact: true });
+    await expect(alphaOpenButton).toBeVisible();
+    await alphaOpenButton.focus();
+    await expect(alphaOpenButton).toBeFocused();
     await expect(alphaHandle).toHaveAttribute("draggable", "true");
     await alphaHandle.focus();
     await alphaHandle.press("ArrowDown");
