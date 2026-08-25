@@ -13,6 +13,7 @@ import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import RichHtmlContent from "@/shared/ui/content/RichHtmlContent";
 import { richHtmlToPlainText, richHtmlToPreviewText } from "@/shared/utils/richHtml";
 import { formatCompactFileSize as formatAttachmentSize } from "@/shared/utils/fileSize";
+import useAuth from "@/auth/hooks/useAuth";
 import { useDurableDraft, type DurableDraftStatus } from "@/shared/hooks/useDurableDraft";
 import { getTenantUserLocalKey } from "@/shared/utils/safeLocalStorage";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
@@ -603,6 +604,7 @@ function CommunityDraftNotice({
 
 function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => void }) {
   const qc = useQueryClient();
+  const { user } = useAuth();
   const profileQ = useQuery({ queryKey: studentCommunityQueryKeys.me, queryFn: fetchMyProfile });
   const profile = profileQ.data;
   const [title, setTitle] = useState("");
@@ -617,7 +619,7 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
     hadAttachments: attachmentReselectRequired || files.length > 0,
   }), [attachmentReselectRequired, categoryLabel, content, files.length, title]);
   const qnaDraft = useDurableDraft({
-    storageKey: getTenantUserLocalKey("student-community-draft:qna", profile?.id),
+    storageKey: getTenantUserLocalKey("student-community-draft:qna", user?.id),
     value: qnaDraftValue,
     isEmpty: isStudentCommunityDraftEmpty,
     isValid: isStudentCommunityDraftData,
@@ -1054,6 +1056,7 @@ function CounselDetailContent({ request, onBack }: { request: PostEntity; onBack
 // ─── Counsel Form ───
 function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => void }) {
   const qc = useQueryClient();
+  const { user } = useAuth();
   const profileQ = useQuery({ queryKey: studentCommunityQueryKeys.me, queryFn: fetchMyProfile });
   const profile = profileQ.data;
   const [title, setTitle] = useState("");
@@ -1068,7 +1071,7 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
     hadAttachments: attachmentReselectRequired || files.length > 0,
   }), [attachmentReselectRequired, categoryLabel, content, files.length, title]);
   const counselDraft = useDurableDraft({
-    storageKey: getTenantUserLocalKey("student-community-draft:counsel", profile?.id),
+    storageKey: getTenantUserLocalKey("student-community-draft:counsel", user?.id),
     value: counselDraftValue,
     isEmpty: isStudentCommunityDraftEmpty,
     isValid: isStudentCommunityDraftData,

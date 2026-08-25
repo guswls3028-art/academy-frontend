@@ -4,8 +4,9 @@ import { expect, test } from "../fixtures/strictTest";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
 const IS_LOCAL_BASE = /^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE);
-const QNA_KEY = "student-community-draft:qna:hakwonplus:user:12";
-const COUNSEL_KEY = "student-community-draft:counsel:hakwonplus:user:12";
+const AUTH_USER_ID = 912;
+const QNA_KEY = `student-community-draft:qna:hakwonplus:user:${AUTH_USER_ID}`;
+const COUNSEL_KEY = `student-community-draft:counsel:hakwonplus:user:${AUTH_USER_ID}`;
 const LEGACY_QNA_KEY = "student.community.qna.draft";
 const OTHER_TENANT_KEY = "student-community-draft:qna:tchul:user:12";
 const OTHER_USER_KEY = "student-community-draft:qna:hakwonplus:user:99";
@@ -14,7 +15,7 @@ function fakeJwt(): string {
   const payload = Buffer.from(JSON.stringify({
     exp: Math.floor(Date.now() / 1000) + 60 * 60,
     tenant_code: "hakwonplus",
-    user_id: 12,
+    user_id: AUTH_USER_ID,
   })).toString("base64url");
   return `e30.${payload}.student-draft`;
 }
@@ -38,7 +39,7 @@ async function installStudentApi(page: Page, state: { failSubmit?: boolean } = {
       return json({ tenantCode: "hakwonplus", display_name: "학원플러스", is_active: true, ui_config: {}, feature_flags: {} });
     }
     if (path.endsWith("/core/me/")) {
-      return json({ id: 12, username: "student-12", name: "김하늘", is_staff: false, is_superuser: false, tenantRole: "student", linkedStudents: [] });
+      return json({ id: AUTH_USER_ID, username: "student-12", name: "김하늘", is_staff: false, is_superuser: false, tenantRole: "student", linkedStudents: [] });
     }
     if (path.endsWith("/student/me/")) {
       return json({ id: 12, username: "student-12", name: "김하늘", displayName: "김하늘", is_student: true, isParentReadOnly: false });
