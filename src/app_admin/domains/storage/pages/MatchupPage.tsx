@@ -50,6 +50,7 @@ import {
   getTenantUserLocalKey,
   setLocalItem,
 } from "@/shared/utils/safeLocalStorage";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 
 const DocumentUploadModal = lazy(() => import("../components/matchup/DocumentUploadModal"));
 const PromoteFromInventoryModal = lazy(() => import("../components/matchup/PromoteFromInventoryModal"));
@@ -79,6 +80,7 @@ function hasAsyncWorkerTask(id: string): boolean {
 }
 
 export default function MatchupPage() {
+  const isMobile = useIsMobile();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const confirm = useConfirm();
@@ -221,15 +223,20 @@ export default function MatchupPage() {
   // 쓸 때 마지막 사용자가 다른 사용자 설정을 덮어쓰던 결함 fix (B-2 2026-05-08).
   const treeWidthKey = getTenantUserLocalKey("matchup:tree-width", user?.id);
   const [treeWidth, setTreeWidth] = useState<number>(280);
+  const skipTreeWidthSyncRef = useRef(false);
   // user 가 들어온 직후, 또는 user 가 바뀐 직후 (logout/login swap) 에 그 user 의
   // 저장값을 reload. 키가 없으면(비로그인 상태) default 유지.
   useEffect(() => {
     if (!treeWidthKey) {
+      skipTreeWidthSyncRef.current = false;
       setTreeWidth(280);
       return;
     }
     const raw = getLocalItem(treeWidthKey);
     const n = raw ? Number(raw) : NaN;
+    // The sync effect runs in the same commit with the previous user's width.
+    // Skip that one write so it cannot replace the just-read scoped preference.
+    skipTreeWidthSyncRef.current = true;
     setTreeWidth(Number.isFinite(n) && n >= 220 && n <= 520 ? n : 280);
   }, [treeWidthKey]);
   const handleTreeResizeStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
@@ -251,6 +258,10 @@ export default function MatchupPage() {
   // treeWidth 변경 시 localStorage 동기화 (드래그 중 매 프레임 저장).
   useEffect(() => {
     if (!treeWidthKey) return;
+    if (skipTreeWidthSyncRef.current) {
+      skipTreeWidthSyncRef.current = false;
+      return;
+    }
     setLocalItem(treeWidthKey, String(treeWidth));
   }, [treeWidth, treeWidthKey]);
 
@@ -1261,7 +1272,9 @@ export default function MatchupPage() {
             className={css.tree}
             data-testid="matchup-doc-tree"
             style={/* eslint-disable-line no-restricted-syntax */ {
-              width: treeWidth, minWidth: treeWidth,
+              // Persisted desktop width must never override the shared mobile stack.
+              width: isMobile ? "100%" : treeWidth,
+              minWidth: isMobile ? 0 : treeWidth,
               scrollbarWidth: "none",
               msOverflowStyle: "none",
             }}

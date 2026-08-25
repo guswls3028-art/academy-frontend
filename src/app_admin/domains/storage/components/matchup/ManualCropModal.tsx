@@ -19,6 +19,7 @@ import { X, Plus, Trash2, AlertCircle, Loader2, Crop, ClipboardPaste } from "luc
 import { ICON, Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import {
   fetchDocumentPages,
   manualCropMatchupProblem,
@@ -135,6 +136,7 @@ function applyDrag(
 export default function ManualCropModal({ document: doc, onClose, initialPage }: Props) {
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const isMobile = useIsMobile();
 
   const [activePage, setActivePage] = useState(initialPage ?? 0);
   const [draft, setDraft] = useState<DraftBox | null>(null);
@@ -150,6 +152,8 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const numberInputRef = useRef<HTMLInputElement>(null);
   const pasteNumberInputRef = useRef<HTMLInputElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const dragStateRef = useRef<{
     mode: DragMode;
     startMouse: { x: number; y: number };
@@ -197,6 +201,54 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
     while (used.has(n)) n += 1;
     return n;
   }, [problems]);
+
+  const requestClose = useCallback(async () => {
+    if (saving) return;
+    if (draft || pasted) {
+      const ok = await confirm({
+        title: "작업을 닫을까요?",
+        message: "저장하지 않은 선택 영역이나 붙여넣은 이미지가 사라집니다.",
+        confirmText: "닫기",
+        cancelText: "계속 작업",
+        danger: true,
+      });
+      if (!ok) return;
+      if (pasted) URL.revokeObjectURL(pasted.previewUrl);
+    }
+    onClose();
+  }, [confirm, draft, onClose, pasted, saving]);
+
+  // Open at the close control, keep keyboard focus inside, and restore the launcher on close.
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    closeButtonRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Tab" || document.querySelector("[data-confirm-dialog]")) return;
+      const focusable = Array.from(
+        modalRef.current?.querySelectorAll<HTMLElement>(
+          "button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex='-1'])",
+        ) ?? [],
+      ).filter((element) => element.getClientRects().length > 0);
+      if (focusable.length === 0) {
+        event.preventDefault();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("keydown", onKey, true);
+      previouslyFocused?.focus();
+    };
+  }, []);
 
   // ESC: 붙여넣기 미리보기 우선 → 드래그 → 모달 닫기
   useEffect(() => {
@@ -269,11 +321,10 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
     return () => clearTimeout(t);
   }, [justSavedAt]);
 
-  // 외곽 클릭 닫기 — draft/paste/saving 중에는 차단 (작업 손실 방지)
+  // 외곽 클릭 닫기 — draft/paste는 손실 확인, saving 중에는 닫기 차단.
   const handleBackdropClick = useCallback(() => {
-    if (saving || draft || pasted) return;
-    onClose();
-  }, [saving, draft, pasted, onClose]);
+    void requestClose();
+  }, [requestClose]);
 
   // 캔버스 빈 공간 pointer down → 새 박스 그리기 시작.
   // 박스 시작 시 추천 번호 갱신 — 사용자가 입력 중이 아닐 때만 (이미 그린 박스의 번호 보존).
@@ -558,10 +609,14 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
       onClick={handleBackdropClick}
     >
       <div
+        ref={modalRef}
         data-testid="matchup-manual-crop-modal"
+        data-layout={isMobile ? "mobile-stacked" : "desktop-3-column"}
         style={{
-          background: "var(--color-bg-surface)", borderRadius: "var(--radius-xl)",
-          width: "min(1200px, 96vw)", height: "min(820px, 92vh)",
+          background: "var(--color-bg-surface)",
+          width: isMobile ? "100vw" : "min(1200px, 96vw)",
+          height: isMobile ? "100dvh" : "min(820px, 92vh)",
+          borderRadius: isMobile ? 0 : "var(--radius-xl)",
           display: "flex", flexDirection: "column",
           boxShadow: "0 12px 40px rgba(0,0,0,0.18)",
           overflow: "hidden",
@@ -570,7 +625,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
       >
         {/* Header */}
         <div style={{
-          padding: "var(--space-3) var(--space-5)",
+          padding: isMobile ? "var(--space-3)" : "var(--space-3) var(--space-5)",
           borderBottom: "1px solid var(--color-border-divider)",
           flexShrink: 0,
           display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-3)",
@@ -591,7 +646,9 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
               {problems.length}문제 등록
             </span>
             <button
-              onClick={onClose}
+              ref={closeButtonRef}
+              type="button"
+              onClick={() => { void requestClose(); }}
               disabled={saving}
               style={{
                 background: "none", border: "none",
@@ -600,6 +657,7 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
                 opacity: saving ? 0.5 : 1,
               }}
               title="닫기 (Esc)"
+              aria-label="직접 자르기 닫기"
             >
               <X size={ICON.md} />
             </button>
@@ -607,14 +665,38 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
         </div>
 
         {/* Body: [페이지 썸네일] [캔버스] [인스펙터] */}
-        <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+        <div
+          data-testid="matchup-crop-workflow"
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: isMobile ? "column" : "row",
+            minHeight: 0,
+            overflowY: isMobile ? "auto" : "hidden",
+          }}
+        >
           {/* 좌: 페이지 썸네일 */}
-          <div style={{
-            width: 110, flexShrink: 0,
-            borderRight: "1px solid var(--color-border-divider)",
-            overflowY: "auto", padding: "var(--space-2)",
+          <div data-testid="matchup-crop-page-rail" style={{
+            width: isMobile ? "100%" : 110,
+            maxHeight: isMobile ? 112 : undefined,
+            flexShrink: 0,
+            borderRight: isMobile ? "none" : "1px solid var(--color-border-divider)",
+            borderBottom: isMobile ? "1px solid var(--color-border-divider)" : "none",
+            overflowX: isMobile ? "auto" : "hidden",
+            overflowY: isMobile ? "hidden" : "auto",
+            padding: "var(--space-2)",
             background: "var(--color-bg-surface-soft)",
+            display: isMobile ? "flex" : "block",
+            gap: isMobile ? "var(--space-2)" : undefined,
           }}>
+            {isMobile && (
+              <strong style={{
+                flex: "0 0 auto", alignSelf: "center", padding: "0 var(--space-2)",
+                fontSize: 12, color: "var(--color-text-secondary)", whiteSpace: "nowrap",
+              }}>
+                1 페이지
+              </strong>
+            )}
             {pagesQuery.isLoading && (
               <div style={{ padding: "var(--space-4)", textAlign: "center" }}>
                 <Loader2 size={ICON.md} className="animate-spin" style={{ color: "var(--color-text-muted)" }} />
@@ -628,7 +710,9 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
                 data-testid="matchup-crop-page-thumb"
                 data-page={p.index}
                 style={{
-                  width: "100%", marginBottom: 6,
+                  width: isMobile ? 64 : "100%",
+                  flex: isMobile ? "0 0 64px" : undefined,
+                  marginBottom: isMobile ? 0 : 6,
                   border: activePage === p.index
                     ? "2px solid var(--color-brand-primary)"
                     : "1px solid var(--color-border-divider)",
@@ -656,7 +740,10 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
 
           {/* 중앙: 캔버스 */}
           <div style={{
-            flex: 1, minWidth: 0,
+            flex: isMobile ? "0 0 auto" : 1,
+            width: isMobile ? "100%" : undefined,
+            minWidth: 0,
+            minHeight: isMobile ? "min(68dvh, 560px)" : 0,
             display: "flex", flexDirection: "column",
             background: "var(--color-bg-surface-soft)",
           }}>
@@ -670,9 +757,9 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
               flexWrap: "wrap",
             }}>
               <strong style={{ color: "var(--color-text-primary)", fontWeight: 700 }}>
-                마우스로 드래그
+                {isMobile ? "2 영역 선택" : "마우스로 드래그"}
               </strong>
-              <span>해서 문항 영역을 선택하세요.</span>
+              <span>{isMobile ? "손가락으로 문항 영역을 드래그하세요." : "해서 문항 영역을 선택하세요."}</span>
               <span style={{
                 display: "inline-flex", alignItems: "center", gap: 5,
                 padding: "3px 10px", borderRadius: 999,
@@ -721,9 +808,14 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
               ) : pagesQuery.isError ? (
                 <div style={{
                   color: "var(--color-danger)", fontSize: 13,
-                  display: "flex", alignItems: "center", gap: 6,
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
                 }}>
-                  <AlertCircle size={ICON.md} /> 페이지 로드 실패
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <AlertCircle size={ICON.md} /> 페이지 로드 실패
+                  </span>
+                  <Button size="sm" intent="ghost" onClick={() => { void pagesQuery.refetch(); }}>
+                    페이지 다시 불러오기
+                  </Button>
                 </div>
               ) : !activePageData ? (
                 <div style={{ color: "var(--color-text-muted)", fontSize: 13 }}>
@@ -850,9 +942,10 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
           </div>
 
           {/* 우: 인스펙터 + 등록된 문제 목록 */}
-          <div style={{
-            width: 280, flexShrink: 0,
-            borderLeft: "1px solid var(--color-border-divider)",
+          <div data-testid="matchup-crop-inspector" style={{
+            width: isMobile ? "100%" : 280, flexShrink: 0,
+            borderLeft: isMobile ? "none" : "1px solid var(--color-border-divider)",
+            borderTop: isMobile ? "1px solid var(--color-border-divider)" : "none",
             display: "flex", flexDirection: "column", minHeight: 0,
           }}>
             {/* paste 미리보기 (가장 우선) */}
@@ -943,6 +1036,14 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
                 : "var(--color-bg-surface-soft)",
               flexShrink: 0,
             }}>
+              {isMobile && (
+                <div style={{
+                  fontSize: 12, fontWeight: 700, color: "var(--color-text-secondary)",
+                  marginBottom: "var(--space-2)",
+                }}>
+                  3 번호 확인 · 저장
+                </div>
+              )}
               {draft ? (
                 <>
                   <div style={{
@@ -1000,7 +1101,8 @@ export default function ManualCropModal({ document: doc, onClose, initialPage }:
                 </>
               ) : (
                 <div style={{ fontSize: 12, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-                  마우스로 드래그해서 문항 영역을 선택하거나, <strong style={{ color: "var(--color-brand-primary)" }}>Ctrl+V</strong>로 클립보드 이미지를 바로 붙여넣을 수 있습니다.
+                  {isMobile ? "위 원본에서 손가락으로 문항 영역을 선택하세요." : "마우스로 드래그해서 문항 영역을 선택하거나, "}
+                  {!isMobile && <><strong style={{ color: "var(--color-brand-primary)" }}>Ctrl+V</strong>로 클립보드 이미지를 바로 붙여넣을 수 있습니다.</>}
                 </div>
               )}
             </div>

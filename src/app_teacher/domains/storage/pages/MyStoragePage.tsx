@@ -354,11 +354,11 @@ export default function MyStoragePage() {
         </>
       )}
 
-      {/* 매치업은 PC 전용 안내 */}
+      {/* 매치업 canonical 작업 화면 진입 */}
       <SectionTitle>매치업</SectionTitle>
       <Card>
         <div className="text-[12px] leading-relaxed mb-2" style={{ color: "var(--tc-text-muted)" }}>
-          OCR 기반 문제 매치업은 큰 화면이 필요해 PC에서 진행합니다.
+          문서를 선택하고 문제 영역을 직접 잘라 번호를 확인한 뒤 저장할 수 있습니다.
         </div>
         <button
           onClick={() => { setPreferFullWorkspace(true); navigate("/workspace/storage/matchup"); }}
@@ -372,7 +372,7 @@ export default function MyStoragePage() {
             color: "var(--tc-text)",
           }}
         >
-          <Monitor size={ICON.md} /> PC에서 매치업 열기
+          <Monitor size={ICON.md} /> 매치업 작업 열기
         </button>
       </Card>
 
