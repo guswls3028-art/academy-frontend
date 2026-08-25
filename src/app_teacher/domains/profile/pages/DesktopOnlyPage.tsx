@@ -61,22 +61,22 @@ export default function DesktopOnlyPage() {
       <div className={styles.header}>
         <BackButton onClick={() => navigate(-1)} />
         <h1 className={styles.title}>
-          PC에서 처리하는 기능
+          PC 버전
         </h1>
       </div>
 
       {/* Lead */}
       <Card>
         <div className={styles.leadText}>
-          아래 기능은 캔버스·드래그 조작이 중심이라 모바일에서 불편합니다.
-          버튼을 누르면 데스크톱 모드로 전환됩니다.
+          아래 기능은 캔버스·드래그 조작이 중심이라 PC 버전이 더 편합니다.
+          버튼을 누르면 PC 버전으로 전환됩니다.
         </div>
         <button
           type="button"
           onClick={() => goDesktop()}
           className={styles.primaryButton}
         >
-          <Monitor size={ICON.sm} /> 통합 업무 화면으로 이동
+          <Monitor size={ICON.sm} /> PC 버전
         </button>
       </Card>
 

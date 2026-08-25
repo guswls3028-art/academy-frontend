@@ -235,7 +235,7 @@ export default function TeacherDrawer({
               className={`${styles.actionButton} ${styles.primaryAction}`}
             >
               <Monitor size={ICON.md} />
-              통합 업무 화면
+              PC 버전
             </button>
           )}
 

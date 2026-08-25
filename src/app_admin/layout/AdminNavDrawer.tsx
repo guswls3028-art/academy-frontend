@@ -74,7 +74,7 @@ export default function AdminNavDrawer({ onOpenQuickNavigation }: { onOpenQuickN
         ))}
       </div>
 
-      {/* 모바일에서만 표시: 모바일 업무 화면으로 돌아가기 */}
+      {/* 모바일에서만 표시: 모바일 버전으로 돌아가기 */}
       {isMobile && (
         <div className={styles.teacherReturn}>
           <button
@@ -86,7 +86,7 @@ export default function AdminNavDrawer({ onOpenQuickNavigation }: { onOpenQuickN
             className={styles.teacherReturnButton}
           >
             <Smartphone size={18} aria-hidden />
-            모바일 업무 화면으로 돌아가기
+            모바일 버전
           </button>
         </div>
       )}

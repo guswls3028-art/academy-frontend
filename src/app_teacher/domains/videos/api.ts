@@ -8,6 +8,7 @@ export type TeacherVideo = {
   title: string;
   status?: string | null;
   source_type?: string | null;
+  hls_url?: string | null;
   youtube_video_id?: string | null;
   youtube_url?: string | null;
   thumbnail_url?: string | null;
