@@ -78,14 +78,14 @@ function SessionGearMenu({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const confirm = useConfirm();
 
-  // SSOT floating position — alignRight(우측 정렬, translateX(-100%) 등가)
+  // Compact menu right-aligns; the wider edit dialog opens from the trigger toward main content.
   const anchor = useFloatingPosition(gearRef, dropdownRef, open, {
     placement: "bottom",
     gap: 4,
     margin: 8,
     estimateHeight: editing ? 320 : 180,
     estimateWidth: 200,
-    alignRight: true,
+    alignRight: !editing,
   });
 
   useEffect(() => {
@@ -96,8 +96,18 @@ function SessionGearMenu({
       setOpen(false);
       setEditing(false);
     };
+    const keyHandler = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      setEditing(false);
+      gearRef.current?.focus();
+    };
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("keydown", keyHandler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("keydown", keyHandler);
+    };
   }, [open]);
 
   const handleDelete = async () => {
@@ -153,6 +163,8 @@ function SessionGearMenu({
       {!editing && createPortal(
         <div
           ref={dropdownRef}
+          role="menu"
+          aria-label="차시 설정 메뉴"
           className={`${styles.dropdown} ${styles.dropdownList}`}
           // eslint-disable-next-line no-restricted-syntax -- floating menu position is computed from the trigger geometry.
           style={{ left: anchor.left, top: anchor.top }}
@@ -190,6 +202,8 @@ function SessionGearMenu({
       {editing && createPortal(
         <div
           ref={dropdownRef}
+          role="dialog"
+          aria-label="차시 설정 편집"
           className={`${styles.dropdown} ${styles.dropdownEdit}`}
           // eslint-disable-next-line no-restricted-syntax -- floating menu position is computed from the trigger geometry.
           style={{ left: anchor.left, top: anchor.top }}

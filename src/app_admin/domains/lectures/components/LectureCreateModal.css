@@ -1,7 +1,7 @@
 /* 강의 추가 모달 — 폼 전체 폰트 굵기, 블록 중첩 최소화 */
 .lecture-create-modal-form {
   width: 100%;
-  max-width: 400px;
+  max-width: none;
   min-width: 0;
 }
 
@@ -121,7 +121,68 @@
   resize: none;
 }
 
+.lecture-create-content-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(340px, 1.1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.lecture-create-details-column,
+.lecture-create-schedule-column {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  min-width: 0;
+}
+
+.lecture-create-details-column .lecture-create-field-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.lecture-create-schedule-column .shared-time-range-card {
+  padding: 12px;
+}
+
+.lecture-create-schedule-column .shared-time-range-grid {
+  grid-template-columns: 44px minmax(0, 1fr) 118px;
+  gap: 8px 6px;
+}
+
+.lecture-create-schedule-column .shared-time-range-trigger {
+  height: 48px;
+  font-size: 14px;
+}
+
+.lecture-create-schedule-column .shared-time-range-btn {
+  min-height: 48px;
+  padding-inline: 4px;
+  font-size: 13px;
+}
+
+/* Portaled picker stays lecture-modal-local without changing the shared picker. */
+body:has(.lecture-create-modal-form) .time-picker--portaled {
+  box-sizing: border-box;
+  max-height: calc(100dvh - 24px);
+}
+
+@media (max-width: 820px) {
+  .lecture-create-content-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lecture-create-details-column .lecture-create-field-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 480px) {
+  .lecture-create-content-grid,
+  .lecture-create-details-column,
+  .lecture-create-schedule-column {
+    gap: 12px;
+  }
+
   .lecture-create-field-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -154,5 +215,12 @@
     min-height: 44px;
     padding-inline: 2px;
     font-size: 12px;
+  }
+
+  body:has(.lecture-create-modal-form) .time-picker--portaled {
+    left: 50% !important;
+    width: min(320px, calc(100vw - 32px)) !important;
+    overflow: auto;
+    transform: translateX(-50%);
   }
 }

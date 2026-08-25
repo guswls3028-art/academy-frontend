@@ -11,6 +11,22 @@
 [backend/docs/domain/lecture-sessions.md](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/lecture-sessions.md)가
 소유한다.
 
+## 강의 목록 순서와 생성·설정
+
+- 활성/지난 강의 목록은 API의 tenant별 `display_order`, `id` 순서를 기본으로
+  사용한다. 검색어와 열 정렬이 모두 비어 있을 때만 손잡이 drag, 손잡이의
+  위·아래 방향키, 별도 위·아래 버튼으로 scope 전체 순서를 저장할 수 있다.
+- 검색 결과나 임시 열 정렬은 표시만 바꾸며 부분 목록을 서버에 저장하지 않는다.
+  이때 순서 조작을 비활성화하고 이유를 화면에 표시한다.
+- 순서 저장 중에는 중복 조작을 막는다. 저장 실패 또는 stale `409`는 mutation 전
+  query snapshot으로 정확히 되돌린 뒤 tenant 강의 목록을 다시 조회한다.
+- 강의 생성 모달은 1100px에서 세부 정보와 일정·시간을 두 열로 보여 세로
+  과밀을 줄이고, 좁은 화면에서는 한 열로 전환한다. portaled 시간 선택기는
+  1100px에서 모달, 390px에서 viewport 경계를 벗어나지 않는다.
+- 차시 설정의 작은 메뉴는 trigger 우측 정렬을 유지하지만, 편집 dialog는
+  trigger에서 main 영역 쪽으로 열어 사이드바를 침범하지 않는다. `Escape`는
+  dialog를 닫고 설정 trigger로 포커스를 돌려준다.
+
 ## 상호작용
 
 1. 강의 상세에 처음 들어오면 호환 기본값인 `전체 보기`를 선택하고 정규·보강
@@ -35,9 +51,10 @@
 11. 차시·클리닉 시간 선택기는 30분 간격 목록과 `+30분`·`+1시간` 빠른 조정을
     유지하면서 `분 단위 직접 입력`을 함께 제공한다. 따라서 `19:20~22:00`,
     `16:30~19:10`처럼 학원 운영 시각을 반올림하지 않고 저장한다.
-12. 차시 상세의 `공지·게시판` 탭은 현재 강의·차시 문맥을 쿼리에 담아 커뮤니티
-    공지로 이동한다. 조교가 기능 위치를 추측하거나 강의 문맥을 다시 찾지 않아도
-    과제·준비물 공지를 확인하고 작성할 수 있어야 한다.
+12. 차시 상세의 `공지·게시판` 탭은 현재 강의·차시 URL 안에서 같은 공지
+    조회·작성·수정·삭제 화면을 연다. 현재 강의·차시 문맥을 쿼리에 고정하고
+    범위 트리만 숨기며, 왼쪽 `커뮤니티`의 전체 콘솔과 같은 데이터·API·권한을
+    사용한다. 탭을 오가도 차시 헤더와 출결 집계가 유지되어야 한다.
 
 보기 방식은 화면 방문마다 `전체 보기`로 시작하며 서버나 브라우저 저장소에
 사용자 선택을 기록하지 않는다. 반 편성 기능을 사용하는 tenant에서도 동일한
@@ -81,10 +98,13 @@
 - 강의/차시 공용 진입 UI: `src/app_admin/domains/sessions/components/SessionBlock.tsx`
 - 생성 UI: `src/app_admin/domains/lectures/components/SessionCreateModal.tsx`
 - 브라우저 회귀: `e2e/admin/lecture-session-scopes.mock.spec.ts`
+- 강의 순서·생성 모달·차시 설정 회귀:
+  `e2e/admin/lecture-management-ordering.mock.spec.ts`
 
 ```powershell
 pnpm typecheck
 pnpm exec playwright test e2e/admin/lecture-session-scopes.mock.spec.ts --project=chromium
+pnpm exec playwright test e2e/admin/lecture-management-ordering.mock.spec.ts --project=chromium
 pnpm guard:legacy-api
 pnpm lint
 pnpm build
