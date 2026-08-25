@@ -323,7 +323,9 @@ test.describe("landing route island", () => {
 
     await expect.poll(() => page.evaluate(() => {
       const raw = localStorage.getItem("landing-community-draft:board:dnb:user:12");
-      return raw ? JSON.parse(raw).title : null;
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed.data?.title ?? parsed.title ?? null;
     })).toBe("현재 사용자 수정 초안");
     const untouched = await page.evaluate(() => ({
       legacy: JSON.parse(localStorage.getItem("landing-community-draft:board") || "null")?.title,

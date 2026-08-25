@@ -11,19 +11,15 @@
 /* eslint-disable no-restricted-syntax */
 
 import DOMPurify from "dompurify";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { LockKeyhole } from "lucide-react";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import useAuth from "@/auth/hooks/useAuth";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import {
-  getLocalItem,
-  getTenantUserLocalKey,
-  removeLocalItem,
-  setLocalItem,
-} from "@/shared/utils/safeLocalStorage";
+import { useDurableDraft } from "@/shared/hooks/useDurableDraft";
+import { getTenantUserLocalKey } from "@/shared/utils/safeLocalStorage";
 import { fetchLandingPublic } from "../api";
 import type { LandingPublicResponse } from "../types";
 import { LandingNavBar, type NavBarTokens } from "../templates/shared";
@@ -51,6 +47,35 @@ const NAV_TOKENS: NavBarTokens = {
 };
 
 const EMPTY_PREVIEW_HTML = "<p style='color:#6B7280'>미리보기할 내용이 없습니다.</p>";
+
+type LandingCommunityDraft = {
+  title: string;
+  content: string;
+  board: LandingCommunityBoard;
+  isUrgent?: boolean;
+  isPinned?: boolean;
+  hadAttachments?: boolean;
+};
+
+function isLandingCommunityDraft(value: unknown): value is LandingCommunityDraft {
+  if (!value || typeof value !== "object") return false;
+  const draft = value as Record<string, unknown>;
+  return typeof draft.title === "string"
+    && typeof draft.content === "string"
+    && typeof draft.board === "string"
+    && isLandingCommunityBoard(draft.board)
+    && (draft.isUrgent == null || typeof draft.isUrgent === "boolean")
+    && (draft.isPinned == null || typeof draft.isPinned === "boolean")
+    && (draft.hadAttachments == null || typeof draft.hadAttachments === "boolean");
+}
+
+function isLandingCommunityDraftEmpty(value: LandingCommunityDraft): boolean {
+  return !value.title.trim()
+    && !value.content.trim()
+    && !value.isUrgent
+    && !value.isPinned
+    && !value.hadAttachments;
+}
 
 function sanitizePreviewHtml(html: string): string {
   return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
@@ -89,6 +114,7 @@ export default function LandingCommunityWritePage() {
   const [err, setErr] = useState<string | null>(null);
   // 이미지 첨부 (P3) — backend는 PostAttachment multipart endpoint 완비.
   const [files, setFiles] = useState<File[]>([]);
+  const [attachmentReselectRequired, setAttachmentReselectRequired] = useState(false);
   // 사용자 작성 초안은 테넌트+계정+board 단위로만 복원한다. 소유자를 증명할 수
   // 없는 기존 전역 키는 읽거나 지우지 않아 다른 학원/계정에 노출하지 않는다.
   const draftStorageKey = getTenantUserLocalKey(
@@ -96,57 +122,58 @@ export default function LandingCommunityWritePage() {
     user?.id,
   );
   const [draftRestored, setDraftRestored] = useState(false);
+  const promptedDraftAtRef = useRef(0);
   // markdown 미리보기 (#13)
   const [showPreview, setShowPreview] = useState(false);
 
+  const draftValue = useMemo<LandingCommunityDraft>(() => ({
+    title,
+    content,
+    board: selectedBoard,
+    isUrgent,
+    isPinned,
+    hadAttachments: attachmentReselectRequired || files.length > 0,
+  }), [attachmentReselectRequired, content, files.length, isPinned, isUrgent, selectedBoard, title]);
+  const draft = useDurableDraft({
+    storageKey: draftStorageKey,
+    value: draftValue,
+    isEmpty: isLandingCommunityDraftEmpty,
+    isValid: isLandingCommunityDraft,
+    onRestore: (restored) => {
+      setTitle(restored.title);
+      setContent(restored.content);
+      setSelectedBoard(restored.board);
+      setIsUrgent(!!restored.isUrgent);
+      setIsPinned(!!restored.isPinned);
+      setAttachmentReselectRequired(!!restored.hadAttachments);
+      setDraftRestored(true);
+    },
+  });
+  const pendingDraft = draft.pendingDraft;
+  const restorePendingDraft = draft.restorePendingDraft;
+  const discardPendingDraft = draft.discardPendingDraft;
+
   useEffect(() => { fetchLandingPublic().then(setLanding).catch(() => setLanding(null)); }, []);
 
-  // mount: draft 있으면 복구 prompt
+  // 소유 범위와 TTL 검증이 끝난 draft만 복구 여부를 묻는다.
   useEffect(() => {
+    const pending = pendingDraft;
+    if (!pending || promptedDraftAtRef.current === pending.savedAt) return;
+    promptedDraftAtRef.current = pending.savedAt;
     let cancelled = false;
     (async () => {
-      try {
-        if (!draftStorageKey) return;
-        const raw = getLocalItem(draftStorageKey);
-        if (!raw) return;
-        const draft = JSON.parse(raw) as { title?: string; content?: string; board?: LandingCommunityBoard; savedAt?: number };
-        // 7일 이상된 draft는 자동 폐기
-        if (!draft.savedAt || Date.now() - draft.savedAt > 7 * 24 * 60 * 60 * 1000) {
-          removeLocalItem(draftStorageKey);
-          return;
-        }
-        const hasBody = (draft.title?.trim() || draft.content?.trim());
-        if (!hasBody) return;
-        const yes = await confirm({
-          title: "작성 중이던 글 복구",
-          message: `작성 중이던 글이 있어요. 이어 작성할까요?\n\n제목: ${(draft.title || "(없음)").slice(0, 40)}\n저장: ${new Date(draft.savedAt).toLocaleString()}`,
-          confirmText: "이어 작성",
-          cancelText: "버리기",
-        });
-        if (cancelled) return;
-        if (yes) {
-          if (draft.title) setTitle(draft.title);
-          if (draft.content) setContent(draft.content);
-          if (isLandingCommunityBoard(draft.board)) setSelectedBoard(draft.board);
-          setDraftRestored(true);
-        } else {
-          removeLocalItem(draftStorageKey);
-        }
-      } catch { /* ignore */ }
+      const yes = await confirm({
+        title: "작성 중이던 글 복구",
+        message: `작성 중이던 글이 있어요. 이어 작성할까요?\n\n제목: ${(pending.data.title || "(없음)").slice(0, 40)}\n저장: ${new Date(pending.savedAt).toLocaleString()}`,
+        confirmText: "이어 작성",
+        cancelText: "버리기",
+      });
+      if (cancelled) return;
+      if (yes) restorePendingDraft();
+      else discardPendingDraft();
     })();
     return () => { cancelled = true; };
-  }, [confirm, draftStorageKey]);
-
-  // 자동저장 — 입력 변경 후 5초 debounce. 제출 성공 시 자동 정리됨(아래 onSubmit).
-  useEffect(() => {
-    if (!draftStorageKey || (!title.trim() && !content.trim())) return;
-    const tid = window.setTimeout(() => {
-      setLocalItem(draftStorageKey, JSON.stringify({
-        title, content, board: selectedBoard, savedAt: Date.now(),
-      }));
-    }, 5000);
-    return () => window.clearTimeout(tid);
-  }, [title, content, selectedBoard, draftStorageKey]);
+  }, [confirm, discardPendingDraft, pendingDraft, restorePendingDraft]);
 
   // URL이나 draft가 현재 역할의 작성 가능 게시판과 다르면 첫 작성 가능 게시판으로 정리한다.
   useEffect(() => {
@@ -178,6 +205,13 @@ export default function LandingCommunityWritePage() {
   const textSecondary = "#9CA3AF";
   const textMuted = "#6B7280";
   const gold = "#D4A04C";
+  const draftStatusLabel = draft.status === "saving"
+    ? "이 브라우저에 초안 저장 중…"
+    : draft.status === "saved"
+      ? `이 브라우저에 초안 저장됨${draft.savedAt ? ` · ${new Date(draft.savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}`
+      : draft.status === "restored"
+        ? "이 브라우저에 저장된 초안을 복구했어요."
+        : null;
 
   // 권한 게이트
   const block: { reason: string; cta: { label: string; to: string } } | null = (() => {
@@ -227,8 +261,8 @@ export default function LandingCommunityWritePage() {
           feedback.warning("글은 등록되었지만 첨부 일부가 실패했습니다. 글 상세에서 다시 확인해 주세요.");
         }
       }
-      // 등록 성공 → draft 정리
-      if (draftStorageKey) removeLocalItem(draftStorageKey);
+      // 등록 성공 → unmount flush보다 먼저 exact draft 정리
+      draft.markSubmitted();
       navigate(`/landing/community/${selectedBoard}/posts/${created.id}`);
     } catch (e) {
       const detail = (e as { response?: { data?: { detail?: string | string[] } } })?.response?.data?.detail;
@@ -264,13 +298,36 @@ export default function LandingCommunityWritePage() {
             </div>
           ) : (
             <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {draft.errorMessage && (
+                <div role="alert" style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.25)", color: "#fca5a5", fontSize: 12.5, fontWeight: 600, lineHeight: 1.5 }}>
+                  {draft.errorMessage}
+                </div>
+              )}
+              {draft.newerDraft && (
+                <div role="alert" style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(212,160,76,0.10)", border: "1px solid rgba(212,160,76,0.25)", color: gold, fontSize: 12.5, fontWeight: 600, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                  <span>다른 탭에서 더 최신 초안이 저장되었습니다.</span>
+                  <span style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    <button type="button" onClick={draft.acceptNewerDraft} style={{ padding: "7px 10px", borderRadius: 8, border: "none", background: gold, color: "#0A0E1A", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>다른 탭 초안 불러오기</button>
+                    <button type="button" onClick={draft.keepCurrentDraft} style={{ padding: "7px 10px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: textSecondary, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>현재 내용 유지</button>
+                  </span>
+                </div>
+              )}
+              {draftStatusLabel && !draft.errorMessage && (
+                <div role="status" style={{ color: textMuted, fontSize: 12, fontWeight: 600 }}>{draftStatusLabel}</div>
+              )}
               {draftRestored && (
                 <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(212,160,76,0.10)", border: "1px solid rgba(212,160,76,0.25)", color: gold, fontSize: 12, fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
                   <span>✓ 이전에 저장된 작성 내용을 복구했어요.</span>
                   <button type="button" onClick={() => {
+                    draft.clearDraft();
                     setTitle(""); setContent(""); setSelectedBoard(initialBoard); setDraftRestored(false);
-                    if (draftStorageKey) removeLocalItem(draftStorageKey);
+                    setIsPinned(false); setIsUrgent(false); setFiles([]); setAttachmentReselectRequired(false);
                   }} style={{ background: "transparent", border: "none", color: textSecondary, fontSize: 11, cursor: "pointer", fontWeight: 500 }}>새로 작성</button>
+                </div>
+              )}
+              {attachmentReselectRequired && (
+                <div role="status" style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(212,160,76,0.08)", border: "1px solid rgba(212,160,76,0.2)", color: textSecondary, fontSize: 12, lineHeight: 1.5 }}>
+                  본문 초안은 복구했습니다. 보안상 첨부파일은 다시 선택해 주세요.
                 </div>
               )}
               {/* 게시판 선택 */}
@@ -372,6 +429,7 @@ export default function LandingCommunityWritePage() {
                   onChange={(e) => {
                     const list = Array.from(e.target.files || []).slice(0, 5);
                     setFiles(list);
+                    setAttachmentReselectRequired(false);
                   }}
                   style={{ fontSize: 13, color: textSecondary }}
                 />
