@@ -40,6 +40,7 @@ async function installApi(page: Page) {
     uploadAttempts: 0,
     attachmentPersisted: false,
     uploadKeys: [] as string[],
+    uploadFileNames: [] as string[][],
   };
 
   const attachment = {
@@ -99,7 +100,11 @@ async function installApi(page: Page) {
       const body = request.postDataBuffer()?.toString("latin1") ?? "";
       const key = body.match(/name="idempotency_key"\r\n\r\n([^\r\n]+)/)?.[1];
       if (key) state.uploadKeys.push(key);
-      if (state.uploadAttempts === 1) return json({ detail: "사진 저장소 연결이 일시적으로 실패했습니다." }, 503);
+      state.uploadFileNames.push(Array.from(body.matchAll(/filename="([^"]+)"/g), (match) => match[1]));
+      if (state.uploadAttempts === 1) {
+        state.attachmentPersisted = true;
+        return json({ detail: "사진은 저장됐지만 응답 연결이 끊겼습니다." }, 503);
+      }
       state.attachmentPersisted = true;
       return json([attachment], 201);
     }
@@ -150,7 +155,7 @@ test.describe("게시판 사진 첨부 저장", () => {
     await seed(page);
   });
 
-  test("첨부 실패 뒤 같은 게시물에 사진만 재시도하고 재조회에도 유지한다", async ({ page }) => {
+  test("첨부 성공 응답 유실 뒤 파일을 동결하고 같은 요청으로만 재시도한다", async ({ page }) => {
     const state = await installApi(page);
     await page.setViewportSize({ width: 1366, height: 900 });
     await gotoAndSettle(page, `${BASE}/workspace/community/board`, { timeout: 60_000 });
@@ -160,8 +165,16 @@ test.describe("게시판 사진 첨부 저장", () => {
     await expect(page.getByText("게시물은 저장됐지만", { exact: false })).toBeVisible();
     await expect(page.getByText(FILE_NAME, { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "첨부 다시 시도", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "+ 파일 추가", exact: true })).toBeDisabled();
+    await expect(page.locator(".cms-attach__item-remove")).toBeDisabled();
+    await expect(page.locator(".cms-form__file-input--hidden")).toBeDisabled();
+    await expect(page.getByText("같은 파일로 다시 시도", { exact: false })).toBeVisible();
+    await page.locator(".cms-attach__item-remove").click({ force: true });
+    await expect(page.getByText(FILE_NAME, { exact: true })).toBeVisible();
     expect(state.createCount).toBe(1);
     expect(state.uploadAttempts).toBe(1);
+    expect(state.uploadFileNames).toHaveLength(1);
+    expect(state.uploadFileNames[0]).toHaveLength(1);
 
     await page.getByRole("button", { name: "첨부 다시 시도", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`\\?id=${POST_ID}$`));
@@ -171,6 +184,8 @@ test.describe("게시판 사진 첨부 저장", () => {
     expect(state.uploadAttempts).toBe(2);
     expect(state.uploadKeys).toHaveLength(2);
     expect(state.uploadKeys[1]).toBe(state.uploadKeys[0]);
+    expect(state.uploadFileNames).toHaveLength(2);
+    expect(state.uploadFileNames[1]).toEqual(state.uploadFileNames[0]);
 
     await page.reload();
     await expect(page.getByText("첨부파일 (1)", { exact: true })).toBeVisible();

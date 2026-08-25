@@ -503,6 +503,7 @@ function BoardCreatePane({
     : "전체 대상";
 
   const canSubmit = title.trim().length > 0 && resolvedScope.kind !== "invalid" && !submitting;
+  const attachmentsLocked = createdPostId != null;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -581,15 +582,20 @@ function BoardCreatePane({
             <label className="community-field__label cms-form__label--no-margin">
               첨부파일 {files.length > 0 && `(${files.length}/10)`}
             </label>
-            <Button intent="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={files.length >= 10}>
+            <Button intent="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={attachmentsLocked || files.length >= 10}>
               + 파일 추가
             </Button>
             <input
               ref={(el) => { fileInputRef.current = el; }}
               type="file"
               multiple
+              disabled={attachmentsLocked}
               className="cms-form__file-input--hidden"
               onChange={(e) => {
+                if (attachmentsLocked) {
+                  e.currentTarget.value = "";
+                  return;
+                }
                 const selectedFiles = Array.from(e.currentTarget.files ?? []);
                 if (selectedFiles.length > 0) {
                   attachmentUploadKeyRef.current = null;
@@ -606,12 +612,18 @@ function BoardCreatePane({
                   <span className="cms-attach__item-name">{f.name}</span>
                   <span className="cms-attach__item-size">{formatFileSize(f.size)}</span>
                   <button type="button" className="cms-attach__item-remove" onClick={() => {
+                    if (attachmentsLocked) return;
                     attachmentUploadKeyRef.current = null;
                     setFiles((prev) => prev.filter((_, j) => j !== i));
-                  }}>&times;</button>
+                  }} disabled={attachmentsLocked} aria-label={`${f.name} 제거`}>&times;</button>
                 </div>
               ))}
             </div>
+          )}
+          {attachmentsLocked && (
+            <p className="text-xs text-[var(--color-text-muted)] mt-2">
+              게시물이 이미 저장되어 첨부파일을 변경할 수 없습니다. 같은 파일로 다시 시도해 주세요.
+            </p>
           )}
         </div>
 
