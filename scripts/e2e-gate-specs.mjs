@@ -65,6 +65,7 @@ export const routeMockSpecs = [
   "e2e/teacher/messaging-settings-clear-timing.mock.spec.ts",
   "e2e/teacher/video-thumbnail-render.mock.spec.ts",
   "e2e/teacher/video-preview-playback.mock.spec.ts",
+  "e2e/teacher/full-workspace-parity.mock.spec.ts",
   "e2e/teacher/ops-assistant-beta.mock.spec.ts",
 ];
 
