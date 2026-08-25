@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 // PATH: src/app_teacher/domains/videos/pages/VideoDetailPage.tsx
-// 영상 상세 — 시청 통계 + 댓글
+// 영상 상세 — 선생님 미리보기 + 시청 통계 + 댓글
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -10,6 +10,7 @@ import { BackButton, Card, TabBar, KpiCard } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import { fetchVideoComments, fetchVideoDetail, fetchVideoStats, renameVideo, deleteVideo, createVideoComment } from "../api";
 import VideoSettingsSheet from "../components/VideoSettingsSheet";
+import TeacherVideoPreview from "../components/TeacherVideoPreview";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -120,6 +121,8 @@ export default function VideoDetailPage() {
           )}
         </div>
       </div>
+
+      <TeacherVideoPreview video={video} />
 
       {/* Info */}
       <Card>

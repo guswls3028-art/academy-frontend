@@ -1,6 +1,6 @@
 // PATH: src/app_teacher/shared/ui/PcOnlyHint.tsx
 // PC 전용 기능 안내 — 모바일에서 미지원 도메인 진입 시 표시.
-// "통합 업무 화면 열기" 버튼으로 데스크톱 업무 라우트로 즉시 전환.
+// "PC 버전" 버튼으로 데스크톱 업무 라우트로 즉시 전환.
 import { useNavigate } from "react-router";
 import { ICON } from "@/shared/ui/ds";
 import { setPreferFullWorkspace } from "@/core/router/MobileWorkspaceRedirect";
@@ -46,7 +46,7 @@ export default function PcOnlyHint({ title, description, desktopPath, reason }: 
             <Monitor size={ICON.xl} />
           </div>
           <div className={styles.heading}>
-            PC에서 처리해주세요
+            PC 버전에서 사용해 주세요
           </div>
           {description && (
             <div className={styles.description}>
@@ -64,7 +64,7 @@ export default function PcOnlyHint({ title, description, desktopPath, reason }: 
             onClick={openDesktop}
             className={styles.desktopButton}
           >
-            <Monitor size={ICON.xs} /> 통합 업무 화면 열기
+            <Monitor size={ICON.xs} /> PC 버전
           </button>
         </div>
       </Card>
