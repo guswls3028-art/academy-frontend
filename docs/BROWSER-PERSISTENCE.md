@@ -27,6 +27,20 @@ tenant 또는 user를 확인할 수 없는 상태에서 tenant+user 키를 만�
 `src/app_student/domains/video/utils/videoPlaybackStorage.ts`가 추가로 소유하며
 tenant, 로그인 사용자, 선택 enrollment 범위를 함께 넣는다.
 
+긴 글 초안의 공통 수명주기는 `src/shared/hooks/useDurableDraft.ts`가 소유한다.
+Q&A·상담·랜딩 커뮤니티 글은 tenant+user+작성 종류가 모두 들어간 키를 사용하고,
+입력 변경을 짧게 debounce한 뒤 저장한다. `pagehide`, 숨김 전환, SPA unmount에서는
+대기 중 입력을 즉시 flush한다. 저장값은 schema version과 저장 시각을 포함하며
+7일이 지나거나 형식이 맞지 않으면 복원하지 않는다. 정상 제출은 unmount flush보다
+먼저 정확한 초안을 제거한다.
+
+브라우저 저장소가 차단되거나 가득 차면 작성과 제출은 유지하되 저장 실패를 화면에
+명시한다. 같은 계정의 다른 탭에서 더 최신 초안이 오면 자동 덮어쓰지 않고 **다른
+탭 초안 불러오기**와 **현재 내용 유지** 중 하나를 고르게 한다. `File` 객체나 파일
+bytes는 localStorage에 넣지 않는다. 첨부가 있었는지만 기록해 본문 복구 뒤 파일을
+다시 선택하도록 안내한다. 소유자를 알 수 없는 기존 전역 Q&A session key는 읽거나
+삭제하거나 새 사용자에게 이관하지 않는다.
+
 원시 `localStorage` 호출은 tenant bootstrap, 인증 토큰, 개발자 대리 로그인
 경계에만 허용한다. `scripts/tests/scoped-browser-storage.test.mjs`가 `src/` 전체를
 재귀 검사해 그 명시 목록 밖의 직접 접근을 차단하므로 새 제품 화면은 단순한
@@ -48,6 +62,7 @@ reference-count 예산 안에서 우회할 수 없다. 일반 브라우저 취�
 pnpm guard:test-coverage
 pnpm refactor:budget
 pnpm typecheck
+pnpm exec playwright test e2e/student/community-draft-autosave.mock.spec.ts --config=playwright.pr-gate.config.ts --project=pr-route-mocks
 pnpm exec playwright test e2e/refactor/landing-router.spec.ts --project=chromium
 pnpm exec playwright test e2e/admin/assessment-operations-workspace.mock.spec.ts e2e/admin/score-entry-autosave.spec.ts e2e/student/numeric-short-answer.spec.ts --config=playwright.pr-gate.config.ts --project=pr-route-mocks
 ```

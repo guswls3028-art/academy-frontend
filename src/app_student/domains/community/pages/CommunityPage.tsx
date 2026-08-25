@@ -13,6 +13,9 @@ import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import RichHtmlContent from "@/shared/ui/content/RichHtmlContent";
 import { richHtmlToPlainText, richHtmlToPreviewText } from "@/shared/utils/richHtml";
 import { formatCompactFileSize as formatAttachmentSize } from "@/shared/utils/fileSize";
+import useAuth from "@/auth/hooks/useAuth";
+import { useDurableDraft, type DurableDraftStatus } from "@/shared/hooks/useDurableDraft";
+import { getTenantUserLocalKey } from "@/shared/utils/safeLocalStorage";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
 import { fetchVideoMe } from "@student/domains/video/api/video.api";
 import { useMarkNotificationsSeen } from "@student/domains/notifications/hooks/useSeenNotifications";
@@ -527,31 +530,111 @@ function QnaDetailContent({ question, onBack }: { question: PostEntity; onBack: 
 }
 
 // ─── QnA Form ───
-const QNA_DRAFT_KEY = "student.community.qna.draft";
+type StudentCommunityDraftData = {
+  title: string;
+  content: string;
+  categoryLabel: string;
+  hadAttachments: boolean;
+};
+
+function isStudentCommunityDraftData(value: unknown): value is StudentCommunityDraftData {
+  if (!value || typeof value !== "object") return false;
+  const draft = value as Record<string, unknown>;
+  return typeof draft.title === "string"
+    && typeof draft.content === "string"
+    && typeof draft.categoryLabel === "string"
+    && typeof draft.hadAttachments === "boolean";
+}
+
+function isStudentCommunityDraftEmpty(value: StudentCommunityDraftData): boolean {
+  return !value.title.trim()
+    && !richHtmlToPlainText(value.content).trim()
+    && !value.categoryLabel.trim()
+    && !value.hadAttachments;
+}
+
+function draftStatusText(status: DurableDraftStatus, savedAt: number | null): string | null {
+  if (status === "saving") return "이 브라우저에 초안 저장 중…";
+  if (status === "saved") {
+    return `이 브라우저에 초안 저장됨${savedAt ? ` · ${new Date(savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}`;
+  }
+  if (status === "restored") return "이 브라우저에 저장된 초안을 복구했어요.";
+  return null;
+}
+
+function CommunityDraftNotice({
+  status,
+  savedAt,
+  errorMessage,
+  hasNewerDraft,
+  attachmentReselectRequired,
+  onAcceptNewer,
+  onKeepCurrent,
+}: {
+  status: DurableDraftStatus;
+  savedAt: number | null;
+  errorMessage: string | null;
+  hasNewerDraft: boolean;
+  attachmentReselectRequired: boolean;
+  onAcceptNewer: () => void;
+  onKeepCurrent: () => void;
+}) {
+  const statusText = draftStatusText(status, savedAt);
+  return (
+    <>
+      {errorMessage && <div role="alert" className="community-draft-notice community-draft-notice--error">{errorMessage}</div>}
+      {hasNewerDraft && (
+        <div role="alert" className="community-draft-notice community-draft-notice--newer">
+          <span>다른 탭에서 더 최신 초안이 저장되었습니다.</span>
+          <div className="community-draft-notice__actions">
+            <button type="button" className="stu-btn stu-btn--secondary" onClick={onAcceptNewer}>다른 탭 초안 불러오기</button>
+            <button type="button" className="stu-btn stu-btn--ghost" onClick={onKeepCurrent}>현재 내용 유지</button>
+          </div>
+        </div>
+      )}
+      {statusText && !errorMessage && <div role="status" className="community-draft-status">{statusText}</div>}
+      {attachmentReselectRequired && (
+        <div role="status" className="community-draft-notice">
+          본문 초안은 복구했습니다. 보안상 첨부파일은 다시 선택해 주세요.
+        </div>
+      )}
+    </>
+  );
+}
 
 function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => void }) {
   const qc = useQueryClient();
-  // sessionStorage draft: 탭 전환·뒤로가기로 unmount되어도 입력 보존.
-  const initialDraft = (() => {
-    try {
-      const raw = sessionStorage.getItem(QNA_DRAFT_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch { return null; }
-  })();
-  const [title, setTitle] = useState<string>(initialDraft?.title ?? "");
-  const [content, setContent] = useState<string>(initialDraft?.content ?? "");
-  const [files, setFiles] = useState<File[]>([]); // 파일 객체는 직렬화 불가 — 보존 안 함
-  const [categoryLabel, setCategoryLabel] = useState<string>(initialDraft?.categoryLabel ?? "");
-
-  // 입력 변경 시 draft 갱신
-  useEffect(() => {
-    try {
-      sessionStorage.setItem(QNA_DRAFT_KEY, JSON.stringify({ title, content, categoryLabel }));
-    } catch { /* quota exceeded */ }
-  }, [title, content, categoryLabel]);
-
+  const { user } = useAuth();
   const profileQ = useQuery({ queryKey: studentCommunityQueryKeys.me, queryFn: fetchMyProfile });
   const profile = profileQ.data;
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [files, setFiles] = useState<File[]>([]); // 파일 객체는 직렬화 불가 — 보존 안 함
+  const [categoryLabel, setCategoryLabel] = useState("");
+  const [attachmentReselectRequired, setAttachmentReselectRequired] = useState(false);
+  const qnaDraftValue = useMemo<StudentCommunityDraftData>(() => ({
+    title,
+    content,
+    categoryLabel,
+    hadAttachments: attachmentReselectRequired || files.length > 0,
+  }), [attachmentReselectRequired, categoryLabel, content, files.length, title]);
+  const qnaDraft = useDurableDraft({
+    storageKey: getTenantUserLocalKey("student-community-draft:qna", user?.id),
+    value: qnaDraftValue,
+    isEmpty: isStudentCommunityDraftEmpty,
+    isValid: isStudentCommunityDraftData,
+    onRestore: (draft) => {
+      setTitle(draft.title);
+      setContent(draft.content);
+      setCategoryLabel(draft.categoryLabel);
+      setAttachmentReselectRequired(draft.hadAttachments);
+    },
+  });
+  const qnaPendingDraft = qnaDraft.pendingDraft;
+  const restoreQnaPendingDraft = qnaDraft.restorePendingDraft;
+  useEffect(() => {
+    if (qnaPendingDraft) restoreQnaPendingDraft();
+  }, [qnaPendingDraft, restoreQnaPendingDraft]);
   const videoMeQ = useQuery({ queryKey: studentCommunityQueryKeys.videoMe, queryFn: fetchVideoMe, staleTime: 60_000 });
   const videoMe = videoMeQ.data;
   const lectureOptions = useMemo(() => (videoMe?.lectures ?? []).map((l) => l.title), [videoMe]);
@@ -586,8 +669,7 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
       qc.invalidateQueries({ queryKey: studentCommunityQueryKeys.notificationCounts });
       const { studentToast } = await import("@student/shared/ui/feedback/studentToast");
       studentToast.success("질문이 등록되었습니다.");
-      // 등록 성공 시 draft 비움
-      try { sessionStorage.removeItem(QNA_DRAFT_KEY); } catch { /* noop */ }
+      qnaDraft.markSubmitted();
       onSuccess();
     },
     onError: (err: unknown) => {
@@ -638,6 +720,15 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
       onBack={onBack}
     >
       <div className="stu-section stu-section--nested community-form-card">
+        <CommunityDraftNotice
+          status={qnaDraft.status}
+          savedAt={qnaDraft.savedAt}
+          errorMessage={qnaDraft.errorMessage}
+          hasNewerDraft={qnaDraft.newerDraft != null}
+          attachmentReselectRequired={attachmentReselectRequired}
+          onAcceptNewer={qnaDraft.acceptNewerDraft}
+          onKeepCurrent={qnaDraft.keepCurrentDraft}
+        />
         {errorMsg && (
           <div role="alert" className="community-alert">
             {errorMsg}
@@ -678,7 +769,13 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
           </span>
           <RichTextEditor value={content} onChange={setContent} placeholder="질문 내용을 적어 주세요." minHeight={200} compact />
         </div>
-        <FilePickerSection files={files} onChange={setFiles} />
+        <FilePickerSection
+          files={files}
+          onChange={(nextFiles) => {
+            setFiles(nextFiles);
+            setAttachmentReselectRequired(false);
+          }}
+        />
         <button
           type="button"
           disabled={!canSubmit || mutation.isPending}
@@ -959,13 +1056,37 @@ function CounselDetailContent({ request, onBack }: { request: PostEntity; onBack
 // ─── Counsel Form ───
 function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => void }) {
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const profileQ = useQuery({ queryKey: studentCommunityQueryKeys.me, queryFn: fetchMyProfile });
+  const profile = profileQ.data;
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [categoryLabel, setCategoryLabel] = useState("");
-
-  const profileQ = useQuery({ queryKey: studentCommunityQueryKeys.me, queryFn: fetchMyProfile });
-  const profile = profileQ.data;
+  const [attachmentReselectRequired, setAttachmentReselectRequired] = useState(false);
+  const counselDraftValue = useMemo<StudentCommunityDraftData>(() => ({
+    title,
+    content,
+    categoryLabel,
+    hadAttachments: attachmentReselectRequired || files.length > 0,
+  }), [attachmentReselectRequired, categoryLabel, content, files.length, title]);
+  const counselDraft = useDurableDraft({
+    storageKey: getTenantUserLocalKey("student-community-draft:counsel", user?.id),
+    value: counselDraftValue,
+    isEmpty: isStudentCommunityDraftEmpty,
+    isValid: isStudentCommunityDraftData,
+    onRestore: (draft) => {
+      setTitle(draft.title);
+      setContent(draft.content);
+      setCategoryLabel(draft.categoryLabel);
+      setAttachmentReselectRequired(draft.hadAttachments);
+    },
+  });
+  const counselPendingDraft = counselDraft.pendingDraft;
+  const restoreCounselPendingDraft = counselDraft.restorePendingDraft;
+  useEffect(() => {
+    if (counselPendingDraft) restoreCounselPendingDraft();
+  }, [counselPendingDraft, restoreCounselPendingDraft]);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -989,6 +1110,7 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
       qc.invalidateQueries({ queryKey: studentCommunityQueryKeys.notificationCounts });
       const { studentToast } = await import("@student/shared/ui/feedback/studentToast");
       studentToast.success("상담 요청이 등록되었습니다.");
+      counselDraft.markSubmitted();
       onSuccess();
     },
     onError: (err: unknown) => {
@@ -1039,6 +1161,15 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
       onBack={onBack}
     >
       <div className="stu-section stu-section--nested community-form-card">
+        <CommunityDraftNotice
+          status={counselDraft.status}
+          savedAt={counselDraft.savedAt}
+          errorMessage={counselDraft.errorMessage}
+          hasNewerDraft={counselDraft.newerDraft != null}
+          attachmentReselectRequired={attachmentReselectRequired}
+          onAcceptNewer={counselDraft.acceptNewerDraft}
+          onKeepCurrent={counselDraft.keepCurrentDraft}
+        />
         {errorMsg && (
           <div role="alert" className="community-alert">
             {errorMsg}
@@ -1063,7 +1194,13 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
           </span>
           <RichTextEditor value={content} onChange={setContent} placeholder="상담받고 싶은 내용을 자세히 적어 주세요." minHeight={200} compact />
         </div>
-        <FilePickerSection files={files} onChange={setFiles} />
+        <FilePickerSection
+          files={files}
+          onChange={(nextFiles) => {
+            setFiles(nextFiles);
+            setAttachmentReselectRequired(false);
+          }}
+        />
         <button
           type="button"
           disabled={!canSubmit || mutation.isPending}
