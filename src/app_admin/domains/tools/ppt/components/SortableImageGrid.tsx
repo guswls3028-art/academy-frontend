@@ -2,6 +2,8 @@
 // 드래그 앤 드롭 이미지 정렬 그리드 — 순수 HTML5 DnD (라이브러리 미사용)
 
 import { useState, useRef } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/shared/ui/ds";
 import styles from "./SortableImageGrid.module.css";
 
 type SortMode = "nameAsc" | "nameDesc" | "oldest" | "newest" | "upload" | "manual";
@@ -38,6 +40,14 @@ export default function SortableImageGrid({
   const [overIdx, setOverIdx] = useState<number | null>(null);
   const dragRef = useRef<number | null>(null);
 
+  const moveItem = (from: number, to: number) => {
+    if (disabled || from === to || to < 0 || to >= items.length) return;
+    const newItems = [...items];
+    const [moved] = newItems.splice(from, 1);
+    newItems.splice(to, 0, moved);
+    onReorder(newItems);
+  };
+
   const handleDragStart = (idx: number) => (e: React.DragEvent) => {
     if (disabled) return;
     dragRef.current = idx;
@@ -63,10 +73,7 @@ export default function SortableImageGrid({
       setOverIdx(null);
       return;
     }
-    const newItems = [...items];
-    const [moved] = newItems.splice(from, 1);
-    newItems.splice(idx, 0, moved);
-    onReorder(newItems);
+    moveItem(from, idx);
     setDragIdx(null);
     setOverIdx(null);
     dragRef.current = null;
@@ -103,8 +110,11 @@ export default function SortableImageGrid({
               <option value="manual">직접 정렬</option>
             </select>
           </label>
-          <span className={styles.hint}>
+          <span className={`${styles.hint} ${styles.desktopHint}`}>
             드래그하여 순서 변경
+          </span>
+          <span className={`${styles.hint} ${styles.mobileHint}`}>
+            이전·다음 버튼으로 순서 변경
           </span>
         </div>
       </div>
@@ -121,6 +131,8 @@ export default function SortableImageGrid({
             data-over={overIdx === idx ? "true" : "false"}
             data-dragging={dragIdx === idx ? "true" : "false"}
             data-disabled={disabled ? "true" : "false"}
+            data-filename={item.file.name}
+            data-testid="ppt-slide-item"
           >
             {/* 슬라이드 번호 */}
             <div className={styles.slideNumber}>
@@ -167,6 +179,56 @@ export default function SortableImageGrid({
             {/* 파일명 */}
             <div className={styles.filename}>
               {item.file.name}
+            </div>
+
+            <div
+              className={styles.mobileOrderControls}
+              data-testid="ppt-slide-order-controls"
+            >
+              <Button
+                type="button"
+                intent="ghost"
+                size="xl"
+                iconOnly
+                leftIcon={<ChevronLeft size={18} />}
+                aria-label={`${item.file.name} 이전 순서로 이동`}
+                title={
+                  disabled
+                    ? "PPT 생성 중에는 순서를 변경할 수 없습니다."
+                    : idx === 0
+                      ? "첫 번째 슬라이드는 이전 순서로 이동할 수 없습니다."
+                      : `${item.file.name} 이전 순서로 이동`
+                }
+                disabled={disabled || idx === 0}
+                draggable={false}
+                className={styles.mobileOrderButton}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  moveItem(idx, idx - 1);
+                }}
+              />
+              <Button
+                type="button"
+                intent="ghost"
+                size="xl"
+                iconOnly
+                leftIcon={<ChevronRight size={18} />}
+                aria-label={`${item.file.name} 다음 순서로 이동`}
+                title={
+                  disabled
+                    ? "PPT 생성 중에는 순서를 변경할 수 없습니다."
+                    : idx === items.length - 1
+                      ? "마지막 슬라이드는 다음 순서로 이동할 수 없습니다."
+                      : `${item.file.name} 다음 순서로 이동`
+                }
+                disabled={disabled || idx === items.length - 1}
+                draggable={false}
+                className={styles.mobileOrderButton}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  moveItem(idx, idx + 1);
+                }}
+              />
             </div>
           </div>
         ))}
