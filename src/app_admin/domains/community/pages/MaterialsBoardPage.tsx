@@ -2,7 +2,7 @@
 // 자료실 — 3-pane (좌측 강의/차시 트리 | 목록 | 상세·글쓰기)
 // 공지사항·게시판과 동일한 카테고리(트리) 디자인
 
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCommunityScope } from "../context/useCommunityScope";
@@ -315,7 +315,6 @@ function MatCreatePane({
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -386,11 +385,29 @@ function MatCreatePane({
             <label className="community-field__label cms-form__label--no-margin">
               첨부파일 {files.length > 0 && `(${files.length}/10)`}
             </label>
-            <Button intent="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={files.length >= 10}>
-              + 파일 추가
-            </Button>
-            <input ref={fileInputRef} type="file" multiple className="cms-form__file-input--hidden" onChange={(e) => { if (e.target.files) { setFiles((prev) => [...prev, ...Array.from(e.target.files!)].slice(0, 10)); e.target.value = ""; } }} />
+            <label
+              className="ds-button cms-attach__picker"
+              data-intent="ghost"
+              data-size="sm"
+              data-disabled={files.length >= 10 ? "true" : "false"}
+            >
+              <span className="ds-button__label">+ 파일 추가</span>
+              <input
+                type="file"
+                multiple
+                aria-label="첨부할 파일 선택"
+                className="cms-attach__picker-input"
+                disabled={files.length >= 10}
+                onChange={(e) => {
+                  if (e.target.files) {
+                    setFiles((prev) => [...prev, ...Array.from(e.target.files!)].slice(0, 10));
+                    e.target.value = "";
+                  }
+                }}
+              />
+            </label>
           </div>
+          <p className="cms-attach__hint">파일당 최대 50MB · 최대 10개</p>
           {files.length > 0 && (
             <div className="cms-attach__list">
               {files.map((f, i) => (
@@ -572,7 +589,6 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
 function MatAttachmentSection({ postId, attachments }: { postId: number; attachments: PostAttachment[] }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const uploadMut = useMutation({
     mutationFn: (files: File[]) => uploadPostAttachments(postId, files),
@@ -602,21 +618,27 @@ function MatAttachmentSection({ postId, attachments }: { postId: number; attachm
         <div className="cms-detail__section-label">
           첨부파일{attachments.length > 0 ? ` (${attachments.length}개)` : ""}
         </div>
-        <Button intent="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploadMut.isPending || attachments.length >= 10}>
-          {uploadMut.isPending ? "업로드 중…" : "+ 파일 추가"}
-        </Button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          className="cms-form__file-input--hidden"
-          onChange={(e) => {
-            if (e.target.files && e.target.files.length > 0) {
-              uploadMut.mutate(Array.from(e.target.files));
-              e.target.value = "";
-            }
-          }}
-        />
+        <label
+          className="ds-button cms-attach__picker"
+          data-intent="ghost"
+          data-size="sm"
+          data-disabled={uploadMut.isPending || attachments.length >= 10 ? "true" : "false"}
+        >
+          <span className="ds-button__label">{uploadMut.isPending ? "업로드 중…" : "+ 파일 추가"}</span>
+          <input
+            type="file"
+            multiple
+            aria-label="첨부할 파일 선택"
+            className="cms-attach__picker-input"
+            disabled={uploadMut.isPending || attachments.length >= 10}
+            onChange={(e) => {
+              if (e.target.files && e.target.files.length > 0) {
+                uploadMut.mutate(Array.from(e.target.files));
+                e.target.value = "";
+              }
+            }}
+          />
+        </label>
       </div>
       {attachments.length > 0 && (
         <div className="cms-attach__inline-list">
