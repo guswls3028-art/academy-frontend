@@ -249,6 +249,12 @@ test.describe("landing route island", () => {
 
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByRole("button", { name: "로그인" })).toBeVisible();
+
+    await page.goto(`${BASE}/landing/community/board/write`, { waitUntil: "domcontentloaded" });
+
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByRole("button", { name: "로그인" })).toBeVisible();
+    await expect(page.getByText("오류가 발생했습니다. 페이지를 새로고침해 주세요.")).toHaveCount(0);
   });
 
   test("renders a nested landing page without falling through to root auth redirects", async ({ page }) => {
