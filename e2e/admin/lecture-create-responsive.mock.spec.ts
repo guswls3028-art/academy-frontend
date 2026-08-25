@@ -15,8 +15,9 @@ function localJwt(): string {
   })}.sig`;
 }
 
-async function seedLocalAdmin(page: Page) {
+async function seedLocalAdmin(page: Page): Promise<Array<Record<string, unknown>>> {
   test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "로컬 route-mock 전용");
+  const createdLectures: Array<Record<string, unknown>> = [];
 
   await page.route("**/api/v1/**", async (route: Route) => {
     const path = new URL(route.request().url()).pathname.replace(/^\/api\/v1/, "");
@@ -27,6 +28,10 @@ async function seedLocalAdmin(page: Page) {
     });
 
     if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204 });
+    if (path === "/lectures/lectures/" && route.request().method() === "POST") {
+      createdLectures.push(route.request().postDataJSON() as Record<string, unknown>);
+      return json({ id: 901, ...createdLectures[createdLectures.length - 1] });
+    }
     if (path === "/lectures/lectures/") return json({ count: 0, results: [] });
     if (path === "/lectures/lectures/instructor-options/") {
       return json([{ name: "관리자", type: "owner" }]);
@@ -50,6 +55,7 @@ async function seedLocalAdmin(page: Page) {
     localStorage.setItem("access", jwt);
     localStorage.setItem("refresh", `${jwt}-refresh`);
   }, localJwt());
+  return createdLectures;
 }
 
 test.describe("강의 생성 반응형 회귀", () => {
@@ -97,5 +103,41 @@ test.describe("강의 생성 반응형 회귀", () => {
     expect(metrics.scrollWidth, JSON.stringify(metrics)).toBeLessThanOrEqual(metrics.clientWidth + 1);
     expect(metrics.clippedControls, JSON.stringify(metrics)).toEqual([]);
     await expect(page.getByRole("button", { name: "등록", exact: true })).toBeVisible();
+  });
+
+  test("390px 강의 생성은 일정 검토와 취소를 거친 뒤에만 저장한다", async ({ page }) => {
+    const createdLectures = await seedLocalAdmin(page);
+    await page.goto(`${BASE}/workspace/lectures`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "강의 추가", exact: true }).click();
+
+    const modal = page.getByRole("dialog", { name: "강의 추가" });
+    await modal.getByLabel("강의 이름 (필수)").fill("고2 물리 안전확인반");
+    await modal.getByLabel("과목 (필수)").fill("물리");
+    await modal.locator("button.shared-date-picker-trigger").first().click();
+    await page.locator(".shared-date-picker-dropdown--portaled .shared-date-picker-cell-today").click();
+
+    const timePopover = page.getByRole("dialog", { name: "시간 선택" });
+    await modal.getByRole("button", { name: "시작 시간 선택", exact: true }).click();
+    await timePopover.getByLabel("분 단위 직접 입력").fill("16:30");
+    await timePopover.getByRole("button", { name: "적용", exact: true }).click();
+    await modal.getByRole("button", { name: "종료 시간 선택", exact: true }).click();
+    await timePopover.getByLabel("분 단위 직접 입력").fill("17:00");
+    await timePopover.getByRole("button", { name: "적용", exact: true }).click();
+
+    await modal.getByRole("button", { name: "등록", exact: true }).click();
+    const confirmation = page.getByRole("alertdialog", { name: "강의 생성 최종 확인" });
+    await expect(confirmation.getByText("고2 물리 안전확인반", { exact: true })).toBeVisible();
+    await expect(confirmation.getByText("16:30~17:00", { exact: true })).toBeVisible();
+    await expect(confirmation.getByRole("button", { name: "다시 확인" })).toBeFocused();
+    expect(await confirmation.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+    expect(createdLectures).toHaveLength(0);
+    await confirmation.getByRole("button", { name: "다시 확인" }).click();
+    expect(createdLectures).toHaveLength(0);
+
+    await modal.getByRole("button", { name: "등록", exact: true }).click();
+    await page.getByRole("alertdialog", { name: "강의 생성 최종 확인" })
+      .getByRole("button", { name: "확인하고 만들기" })
+      .click();
+    await expect.poll(() => createdLectures.length).toBe(1);
   });
 });

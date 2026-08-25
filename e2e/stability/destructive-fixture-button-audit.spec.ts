@@ -483,6 +483,9 @@ test.describe.serial("[E2E] fixture 기반 파괴/상태변경 버튼 전수 감
     await createDialog.locator("select").nth(1).selectOption("1");
     await createDialog.getByPlaceholder("메모").fill(`${RUN} UI 생성 버튼 감사`);
     await createDialog.getByRole("button", { name: "등록", exact: true }).click();
+    await page.getByRole("alertdialog", { name: "학생 등록 최종 확인" })
+      .getByRole("button", { name: "확인하고 등록" })
+      .click();
     await expect(createDialog).toBeHidden({ timeout: 30_000 });
 
     const createdStudent = await waitForStudent(request, token, originalName);

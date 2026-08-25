@@ -15,7 +15,6 @@ const fallbackConfirm = (options: ConfirmOptions): Promise<boolean> => {
     warned = true;
     console.error(
       "[useConfirm] ConfirmProvider 외부에서 호출됨. <ConfirmProvider>로 앱을 래핑하세요.",
-      options,
     );
   }
   const msg = options.message || options.title || "계속하시겠습니까?";

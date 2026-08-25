@@ -149,6 +149,16 @@ for (const vp of [
 
       // ── 등록
       await page.getByRole("button", { name: /^등록$/ }).click();
+      let confirmation = page.getByRole("alertdialog", { name: "강의 생성 최종 확인" });
+      await expect(confirmation.getByText(lectureTitle, { exact: true })).toBeVisible();
+      await expect(confirmation.getByText("E2E검증", { exact: true })).toBeVisible();
+      await expect(confirmation.getByText(/19:20.*22:00/)).toBeVisible();
+      await expect(confirmation.getByRole("button", { name: "다시 확인" })).toBeFocused();
+      await confirmation.getByRole("button", { name: "다시 확인" }).click();
+      await expect(page.locator('input[placeholder*="강의 이름"]')).toBeVisible();
+      await page.getByRole("button", { name: /^등록$/ }).click();
+      confirmation = page.getByRole("alertdialog", { name: "강의 생성 최종 확인" });
+      await confirmation.getByRole("button", { name: "확인하고 만들기" }).click();
       // 성공 toast / 리스트로 복귀
       await page.locator('input[placeholder*="강의 이름"]').waitFor({ state: "hidden", timeout: 8000 });
 

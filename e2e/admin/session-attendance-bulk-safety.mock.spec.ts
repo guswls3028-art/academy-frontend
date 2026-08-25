@@ -26,7 +26,11 @@ type MockState = {
   failUndo: boolean;
 };
 
-async function installApi(page: Page, state: MockState) {
+type MockOptions = {
+  omitTargetSessionFromList?: boolean;
+};
+
+async function installApi(page: Page, state: MockState, options: MockOptions = {}) {
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -75,10 +79,12 @@ async function installApi(page: Page, state: MockState) {
     }
     if (path === "/lectures/sessions/") {
       return json({
-        count: 2,
+        count: options.omitTargetSessionFromList ? 1 : 2,
         results: [
           { id: 9900, lecture: LECTURE_ID, title: "안전 검증 1차시", order: 1, regular_order: 1, session_type: "REGULAR", date: "2026-07-24" },
-          { id: SESSION_ID, lecture: LECTURE_ID, title: "안전 검증 2차시", order: 2, regular_order: 2, session_type: "REGULAR", date: "2026-07-31" },
+          ...(!options.omitTargetSessionFromList
+            ? [{ id: SESSION_ID, lecture: LECTURE_ID, title: "안전 검증 2차시", order: 2, regular_order: 2, session_type: "REGULAR", date: "2026-07-31" }]
+            : []),
         ],
       });
     }
@@ -180,14 +186,14 @@ async function installApi(page: Page, state: MockState) {
   });
 }
 
-async function openAttendance(page: Page, state: MockState) {
+async function openAttendance(page: Page, state: MockState, options: MockOptions = {}) {
   test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "일괄 출결 route-mock 검증은 로컬 dev 서버 전용");
   await installTenantOneInitScript(page);
   await page.addInitScript((jwt) => {
     localStorage.setItem("access", jwt);
     localStorage.setItem("refresh", `${jwt}-refresh`);
   }, localJwt());
-  await installApi(page, state);
+  await installApi(page, state, options);
   await page.goto(
     `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/attendance`,
     { waitUntil: "domcontentloaded", timeout: 45_000 },
@@ -344,20 +350,38 @@ test("차시 수강생은 선택 목록에서 undo/redo와 최종 확인 후 미
   await page.getByRole("button", { name: "선택 다시 실행" }).click();
   await expect(page.getByText("2명 선택됨", { exact: true }).last()).toBeVisible();
 
-  await page.getByLabel("등록 후 출결 시작 상태").dispatchEvent("keydown", {
-    key: "Enter",
-    code: "Enter",
-    bubbles: true,
+  const reviewAndRegister = page.getByRole("button", { name: "2명 검토 후 등록" });
+  await expect(reviewAndRegister).toBeEnabled();
+  await page.evaluate(() => {
+    const button = Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+      .find((candidate) => candidate.textContent?.trim() === "2명 검토 후 등록");
+    if (!button) throw new Error("수강등록 검토 버튼을 찾지 못했습니다.");
+    button.click();
   });
-  await expect.poll(() => state.bulkCreatePayloads.length).toBe(0);
-
-  await page.getByRole("button", { name: "2명 검토 후 등록" }).dispatchEvent("click");
-  await expect(page.getByText("출결은 '미입력'으로 시작합니다.")).toBeVisible();
+  const confirmation = page.getByRole("alertdialog", { name: "차시 수강생으로 등록할까요?" });
+  await expect(confirmation).toHaveCount(1);
+  await expect(confirmation.getByText("김가람, 이도윤", { exact: true })).toBeVisible();
+  await expect(confirmation.getByText("미입력", { exact: true })).toBeVisible();
+  await expect(confirmation).toContainText("자동 수납 항목이 배정될 수 있습니다");
+  await expect(confirmation.getByRole("button", { name: "취소" })).toBeVisible();
   expect(state.bulkCreatePayloads).toHaveLength(0);
-  await page.getByRole("button", { name: "2명 등록", exact: true }).click();
+  await confirmation.getByRole("button", { name: "2명 등록", exact: true }).click();
 
   await expect.poll(() => state.bulkCreatePayloads).toEqual([[2001, 2002]]);
   await expect(page.getByText("차시 수강생 등록", { exact: true })).toHaveCount(0);
+});
+
+test("대상 차시를 확인할 수 없으면 단축키로도 수강등록 확인을 우회하지 못한다", async ({ page }) => {
+  const state = createState();
+  await openAttendance(page, state, { omitTargetSessionFromList: true });
+
+  await page.getByRole("button", { name: "수강생 등록" }).first().click();
+  await page.getByRole("checkbox", { name: "김가람 선택" }).check();
+  await expect(page.getByRole("button", { name: "1명 검토 후 등록" })).toBeDisabled();
+
+  await page.locator("body").press("Control+Enter");
+  await expect(page.getByRole("alertdialog", { name: "차시 수강생으로 등록할까요?" })).toHaveCount(0);
+  expect(state.bulkCreatePayloads).toHaveLength(0);
 });
 
 test("전체 현장 출석은 최근 작업 기록에서 서명 토큰으로 되돌린다", async ({ page }) => {

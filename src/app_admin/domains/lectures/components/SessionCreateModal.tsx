@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/lectures/components/SessionCreateModal.tsx
 // 차시 추가: 2차시/보강 선택 + 날짜·시간 (전역 모달 SSOT: ModalDateSection, ModalTimeSection 사용)
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -15,6 +15,7 @@ import {
 } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useConfirm } from "@/shared/ui/confirm";
 import { createSession } from "../api/sessions";
 import { adminLectureQueryKeys } from "../queryKeys";
 import { SessionBlockView } from "@/shared/ui/session-block";
@@ -71,6 +72,8 @@ export default function SessionCreateModal({
   initialSessionType,
   onClose,
 }: Props) {
+  const confirm = useConfirm();
+  const confirmationInFlightRef = useRef(false);
   const [busy, setBusy] = useState(false);
   const [sessionType, setSessionType] = useState<SessionCreateKind | null>(
     initialSessionType === "REGULAR"
@@ -212,7 +215,7 @@ export default function SessionCreateModal({
   }
 
   async function handleSubmit() {
-    if (formLocked) {
+    if (formLocked || confirmationInFlightRef.current) {
       if (dependencyError) feedback.warning("강의와 기존 차시를 다시 불러온 뒤 추가해 주세요.");
       return;
     }
@@ -226,6 +229,28 @@ export default function SessionCreateModal({
         : lectureTimeExtract || lectureTimeRaw;
     if (timeStr) title = `${title} (${timeStr})`;
     if (title.length > 255) return feedback.warning("보강 이름과 시간을 합쳐 255자 이내로 입력하세요.");
+
+    confirmationInFlightRef.current = true;
+    const confirmed = await confirm({
+      title: "차시 생성 최종 확인",
+      message: "추가할 차시의 순서와 일정을 확인해 주세요.",
+      review: {
+        eyebrow: "강의 차시 검토",
+        items: [
+          { label: "강의", value: String(lecture?.title || "강의") },
+          ...(sectionLabel ? [{ label: "반", value: sectionLabel }] : []),
+          { label: "차시", value: defaultTitle, tone: "accent" },
+          { label: "유형", value: sessionType === "regular" ? "정규 차시" : "보강" },
+          { label: "날짜", value: effectiveDate },
+          { label: "시간", value: timeStr || "강의 기본 시간" },
+        ],
+        note: "차시만 추가합니다. 수강생과 출결 상태는 자동으로 등록되지 않습니다.",
+      },
+      confirmText: "확인하고 추가",
+      cancelText: "다시 확인",
+    });
+    confirmationInFlightRef.current = false;
+    if (!confirmed || busy) return;
 
     setBusy(true);
     try {

@@ -109,6 +109,12 @@ async function openExcelRegistration(
   await expect(dialog.getByText("파일을 읽었습니다", { exact: true })).toBeVisible();
 }
 
+async function confirmStudentImport(page: Page, count = 3): Promise<void> {
+  const confirmation = page.getByRole("alertdialog", { name: "학생 일괄 등록 최종 확인" });
+  await expect(confirmation.locator(".confirm-dialog__review-list")).toContainText(`${count}명`);
+  await confirmation.getByRole("button", { name: `${count}명 등록 요청`, exact: true }).click();
+}
+
 test.use({ serviceWorkers: "block" });
 
 test.describe("신규 학생 Excel 등록 확인 화면", () => {
@@ -153,7 +159,39 @@ test.describe("신규 학생 Excel 등록 확인 화면", () => {
     await dialog.locator(".modal-scroll-body").evaluate((element) => {
       element.scrollTop = 0;
     });
+    await dialog.getByRole("button", { name: "3명 등록 요청" }).click();
+    const confirmation = page.getByRole("alertdialog", { name: "학생 일괄 등록 최종 확인" });
+    await expect(confirmation.getByText("동명이인-학생등록.xlsx", { exact: true })).toBeVisible();
+    await expect(confirmation.getByText("학생별 랜덤 비밀번호", { exact: true })).toBeVisible();
+    await expect(confirmation.getByRole("button", { name: "다시 확인" })).toBeFocused();
+    expect(await confirmation.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+    await confirmation.getByRole("button", { name: "다시 확인" }).click();
+    await expect(dialog).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("student-import-review-mobile-390.png") });
+  });
+
+  test("390px 학생 단건 등록은 비밀번호를 숨긴 검토표 뒤에만 저장한다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await installStudentPage(page);
+    await page.goto(`${BASE}/workspace/students/home`, { waitUntil: "commit" });
+    const addStudentButton = page.getByRole("button", { name: "학생 추가" }).first();
+    await expect(addStudentButton).toBeVisible({ timeout: 60_000 });
+    await addStudentButton.click();
+    const dialog = page.getByRole("dialog", { name: "학생 등록" });
+    await dialog.getByText("1명만 등록", { exact: true }).click();
+    await dialog.getByPlaceholder("이름").fill("최종확인 학생");
+    await dialog.getByPlaceholder("초기 비밀번호").fill("never-show-this-value");
+    await dialog.getByLabel("학부모 전화 앞 4자리").fill("70001111");
+    await dialog.getByRole("button", { name: "등록", exact: true }).click();
+
+    const confirmation = page.getByRole("alertdialog", { name: "학생 등록 최종 확인" });
+    await expect(confirmation.getByText("최종확인 학생", { exact: true })).toBeVisible();
+    await expect(confirmation.getByText("010-7000-1111", { exact: true })).toBeVisible();
+    await expect(confirmation).not.toContainText("never-show-this-value");
+    await expect(confirmation.getByRole("button", { name: "다시 확인" })).toBeFocused();
+    expect(await confirmation.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+    await confirmation.getByRole("button", { name: "다시 확인" }).click();
+    await expect(dialog).toBeVisible();
   });
 
   test("현재 비밀번호 방식의 등록 가능 인원이 0명이면 요청을 막는다", async ({ page }) => {
@@ -188,6 +226,7 @@ test.describe("신규 학생 Excel 등록 확인 화면", () => {
     await uploadDialog.getByRole("radio", { name: "공통 비밀번호 직접 입력" }).check();
     await uploadDialog.getByLabel("공통 초기 비밀번호").fill("0982");
     await uploadDialog.getByRole("button", { name: "3명 등록 요청" }).click();
+    await confirmStudentImport(page);
 
     let resultDialog = page.getByRole("dialog", { name: "학생 등록 결과" });
     await expect(resultDialog).toBeVisible({ timeout: 15_000 });
@@ -249,6 +288,7 @@ test.describe("신규 학생 Excel 등록 확인 화면", () => {
     await uploadDialog.getByRole("radio", { name: "공통 비밀번호 직접 입력" }).check();
     await uploadDialog.getByLabel("공통 초기 비밀번호").fill("0982");
     await uploadDialog.getByRole("button", { name: "3명 등록 요청" }).click();
+    await confirmStudentImport(page);
 
     let resultDialog = page.getByRole("dialog", { name: "학생 등록 결과" });
     await expect(resultDialog).toBeVisible({ timeout: 15_000 });

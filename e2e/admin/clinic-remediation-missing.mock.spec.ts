@@ -189,7 +189,36 @@ test("미응시를 판정 대기로 구분하고 사유를 남겨 면제한 뒤 
       return failLectures ? json({ detail: "temporary" }, 503) : json([]);
     }
     if (path === "/students/" && method === "GET") {
-      return failStudents ? json({ detail: "temporary" }, 503) : json({ count: 0, results: [] });
+      if (failStudents) return json({ detail: "temporary" }, 503);
+      const studentPage = Number(url.searchParams.get("page") ?? "1");
+      if (studentPage === 2) {
+        return json({
+          count: 51,
+          results: [{
+            id: 951,
+            name: "둘째페이지 학생",
+            parent_phone: "010-1111-0951",
+            student_phone: "010-2222-0951",
+            school: "신민고",
+            grade: 2,
+            school_type: "HIGH",
+            lectures: [],
+          }],
+        });
+      }
+      return json({
+        count: 51,
+        results: Array.from({ length: 50 }, (_, index) => ({
+          id: 900 + index,
+          name: `첫페이지 학생 ${String(index + 1).padStart(2, "0")}`,
+          parent_phone: "",
+          student_phone: "",
+          school: "신민고",
+          grade: 2,
+          school_type: "HIGH",
+          lectures: [],
+        })),
+      });
     }
     if (path === "/lectures/sections/" || path === "/staffs/currently-working/") return json([]);
     if (path.startsWith("/community/") || path.startsWith("/student/notifications/")) return json({ count: 0, results: [] });
@@ -261,7 +290,15 @@ test("미응시를 판정 대기로 구분하고 사유를 남겨 면제한 뒤 
   await expect(targetDialog.getByRole("button", { name: /^선택 확정/ })).toBeDisabled();
   failStudents = false;
   await targetDialog.getByRole("button", { name: "다시 시도", exact: true }).click();
-  await expect(targetDialog.getByText("표시할 대상이 없습니다.", { exact: true })).toBeVisible();
+  await expect(targetDialog.getByText("첫페이지 학생 01", { exact: true })).toBeVisible();
+  await targetDialog.getByRole("button", { name: "다음 페이지", exact: true }).click();
+  await targetDialog.getByRole("checkbox", { name: "둘째페이지 학생 선택", exact: true }).check();
+  await targetDialog.getByRole("button", { name: "선택 확정 (1명)", exact: true }).click();
+  await expect(targetDialog).toHaveCount(0);
+
+  await clinicForm.getByRole("button", { name: "대상자 추가", exact: true }).click();
+  await expect(targetDialog.getByText("둘째페이지 학생", { exact: true })).toBeVisible();
+  await expect(targetDialog.getByText("(이름 없음)", { exact: true })).toHaveCount(0);
 });
 
 test("유효한 클리닉 링크가 있어도 미응시 시험은 면제만 허용한다", async ({ page }) => {

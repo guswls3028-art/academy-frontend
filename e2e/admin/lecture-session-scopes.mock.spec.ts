@@ -30,6 +30,7 @@ type MockState = {
   sectionMode?: boolean;
   regularIncluded?: boolean;
   supplementIncluded?: boolean;
+  createdSessionPayloads?: Array<Record<string, unknown>>;
   createdHomeworkPayloads?: Array<Record<string, unknown>>;
   createdExamPayloads?: Array<Record<string, unknown>>;
   examCreateDelayMs?: number;
@@ -137,6 +138,12 @@ async function installApi(page: Page, state: MockState) {
       }
       const lectureId = Number(url.searchParams.get("lecture") || LECTURE_ID);
       return json(sessionRows(state, lectureId));
+    }
+    if (path === "/lectures/sessions/" && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      state.createdSessionPayloads ??= [];
+      state.createdSessionPayloads.push(payload);
+      return json({ id: 9991, ...payload }, 201);
     }
     if (path === `/lectures/sessions/${REGULAR_SESSION_ID}/` && method === "PATCH") {
       const payload = request.postDataJSON() as Record<string, unknown>;
@@ -834,6 +841,7 @@ test("정규 수업이 없는 범위는 정규 유형이 선택된 추가 모달
     supplementTitle: "토요일 심화 클리닉",
     patchTitles: [],
     regularIncluded: false,
+    createdSessionPayloads: [],
   };
   await openLecture(page, state);
 
@@ -842,6 +850,19 @@ test("정규 수업이 없는 범위는 정규 유형이 선택된 추가 모달
   await page.getByRole("button", { name: "정규 수업 추가", exact: true }).click();
 
   await expect(page.getByRole("button", { name: /정규 차시 추가/ })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "저장", exact: true }).click();
+  const confirmation = page.getByRole("alertdialog", { name: "차시 생성 최종 확인" });
+  await expect(confirmation.getByText("고1 Hyper 정규반", { exact: true })).toBeVisible();
+  await expect(confirmation.getByText("정규 차시", { exact: true })).toBeVisible();
+  await expect(confirmation.getByRole("button", { name: "다시 확인" })).toBeFocused();
+  expect(state.createdSessionPayloads).toHaveLength(0);
+  await confirmation.getByRole("button", { name: "다시 확인" }).click();
+  expect(state.createdSessionPayloads).toHaveLength(0);
+  await page.getByRole("button", { name: "저장", exact: true }).click();
+  await page.getByRole("alertdialog", { name: "차시 생성 최종 확인" })
+    .getByRole("button", { name: "확인하고 추가" })
+    .click();
+  await expect.poll(() => state.createdSessionPayloads).toHaveLength(1);
 });
 
 test("다른 강의로 SPA 이동하면 이전 강의의 분리 보기 상태를 이어받지 않는다", async ({ page }) => {

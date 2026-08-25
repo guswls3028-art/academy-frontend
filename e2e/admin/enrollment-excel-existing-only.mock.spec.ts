@@ -273,6 +273,22 @@ for (const viewport of [
     await expect(dialog.getByRole("radio")).toHaveCount(0);
     await dialog.getByRole("button", { name: "엑셀로 일괄 등록", exact: true }).click();
 
+    const confirmation = page.getByRole("alertdialog", { name: "엑셀 수강등록 최종 확인" });
+    await expect(confirmation.getByText("existing-students.xlsx", { exact: true })).toBeVisible();
+    await expect(confirmation.getByText("3명", { exact: true })).toBeVisible();
+    await expect(confirmation.getByText("미입력", { exact: true })).toBeVisible();
+    await expect(confirmation.getByRole("button", { name: "다시 확인" })).toBeFocused();
+    expect(submittedBodies).toHaveLength(0);
+    const overflow = await confirmation.evaluate((element) => element.scrollWidth - element.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(1);
+
+    await confirmation.getByRole("button", { name: "다시 확인" }).click();
+    expect(submittedBodies).toHaveLength(0);
+    await dialog.getByRole("button", { name: "엑셀로 일괄 등록", exact: true }).click();
+    await page.getByRole("alertdialog", { name: "엑셀 수강등록 최종 확인" })
+      .getByRole("button", { name: "3명 등록 요청" })
+      .click();
+
     await expect.poll(() => submittedBodies.length).toBe(1);
     expect(submittedBodies[0]).toContain('name="lecture_id"');
     expect(submittedBodies[0]).toContain('name="session_id"');
