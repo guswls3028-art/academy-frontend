@@ -227,16 +227,22 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     const mobile = await page.locator("main table").evaluate((table) => {
       const owner = table.parentElement!;
+      const grip = document.querySelector<HTMLButtonElement>('button[aria-label="Alpha 순서 이동"]')!;
+      const gripRect = grip.getBoundingClientRect();
       return {
         tableWidth: table.getBoundingClientRect().width,
         ownerWidth: owner.getBoundingClientRect().width,
         ownerScrollWidth: owner.scrollWidth,
         documentScrollWidth: document.documentElement.scrollWidth,
+        gripWidth: gripRect.width,
+        gripHeight: gripRect.height,
       };
     });
     expect(mobile.tableWidth).toBeGreaterThan(mobile.ownerWidth);
     expect(mobile.ownerScrollWidth).toBeGreaterThan(mobile.ownerWidth);
     expect(mobile.documentScrollWidth).toBeLessThanOrEqual(390);
+    expect(mobile.gripWidth).toBeGreaterThanOrEqual(40);
+    expect(mobile.gripHeight).toBeGreaterThanOrEqual(40);
   });
 
   test("차시 편집 dialog는 1100px main 영역 안에서 trigger 방향으로 열린다", async ({ page }) => {
