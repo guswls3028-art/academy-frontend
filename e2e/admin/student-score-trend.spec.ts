@@ -349,6 +349,15 @@ async function installApi(page: Page, options: {
   failGrades?: boolean;
   failPerformance?: boolean;
   homeworkQuickEdit?: boolean;
+  examCorrectionRequests?: Array<{
+    sessionId: number;
+    enrollment_id: number;
+    source_type: "exam";
+    source_id: number;
+    completed: boolean;
+    note?: string;
+    expected_updated_at?: string | null;
+  }>;
 } = {}): Promise<string[]> {
   await page.clock.setFixedTime(new Date("2026-07-19T12:00:00+09:00"));
   const access = fakeJwt();
@@ -363,6 +372,16 @@ async function installApi(page: Page, options: {
   let scoreReviewResolved = false;
   let completionScore = 0;
   let numericScore = 28;
+  const examCorrectionState = new Map<number, {
+    status: "PENDING" | "COMPLETED" | "NOT_REQUIRED" | null;
+    note: string;
+    updatedAt: string | null;
+  }>([
+    [301, { status: "PENDING", note: "공식 풀이 다시 확인", updatedAt: "2026-07-19T09:00:00+09:00" }],
+    [302, { status: "COMPLETED", note: "오답 재풀이 확인", updatedAt: "2026-07-19T09:10:00+09:00" }],
+    [303, { status: "PENDING", note: "", updatedAt: "2026-07-19T09:20:00+09:00" }],
+    [304, { status: null, note: "", updatedAt: null }],
+  ]);
   const performanceRequestUrls: string[] = [];
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -411,6 +430,92 @@ async function installApi(page: Page, options: {
     }
     if (path.endsWith("/students/")) {
       await route.fulfill({ json: { count: 1, page_size: 50, results: [student] } });
+      return;
+    }
+    const sessionScoresMatch = path.match(/\/results\/admin\/sessions\/(\d+)\/scores\/$/);
+    if (sessionScoresMatch && request.method() === "GET") {
+      const sessionId = Number(sessionScoresMatch[1]);
+      const exam = grades.exams.find((candidate) => candidate.session_id === sessionId);
+      if (!exam) {
+        await route.fulfill({ status: 404, json: { detail: "차시 성적을 찾을 수 없습니다." } });
+        return;
+      }
+      const correction = examCorrectionState.get(exam.exam_id) ?? { status: null, note: "", updatedAt: null };
+      await route.fulfill({ json: {
+        meta: {
+          lecture_id: exam.lecture_id,
+          lecture_title: exam.lecture_title,
+          session_title: exam.session_title,
+          exams: [{
+            exam_id: exam.exam_id,
+            title: exam.title,
+            pass_score: 30,
+            max_score: exam.max_score,
+            display_order: 0,
+          }],
+          homeworks: [],
+        },
+        rows: [{
+          enrollment_id: exam.enrollment_id,
+          student_id: student.id,
+          student_name: student.name,
+          exams: [{
+            exam_id: exam.exam_id,
+            title: exam.title,
+            pass_score: 30,
+            block: {
+              score: exam.total_score,
+              max_score: exam.max_score,
+              passed: exam.is_pass,
+              clinic_required: correction.status === "PENDING",
+              achievement: exam.achievement,
+              correction_status: correction.status,
+              correction_note: correction.note,
+              correction_updated_at: correction.updatedAt,
+              teacher_resolved: correction.status === "COMPLETED",
+              meta: exam.meta_status ? { status: exam.meta_status } : {},
+            },
+          }],
+          homeworks: [],
+          updated_at: correction.updatedAt ?? "2026-07-19T08:00:00+09:00",
+        }],
+      } });
+      return;
+    }
+    const scoreCorrectionMatch = path.match(/\/results\/admin\/sessions\/(\d+)\/score-correction\/$/);
+    if (scoreCorrectionMatch && request.method() === "PATCH") {
+      const sessionId = Number(scoreCorrectionMatch[1]);
+      const payload = request.postDataJSON() as {
+        enrollment_id: number;
+        source_type: "exam";
+        source_id: number;
+        completed: boolean;
+        note?: string;
+        expected_updated_at?: string | null;
+      };
+      options.examCorrectionRequests?.push({ sessionId, ...payload });
+      const current = examCorrectionState.get(payload.source_id);
+      if (!current || current.updatedAt !== (payload.expected_updated_at ?? null)) {
+        await route.fulfill({ status: 409, json: { detail: "다른 화면에서 판정이 변경되었습니다." } });
+        return;
+      }
+      if (payload.completed && String(payload.note ?? "").trim().length < 2) {
+        await route.fulfill({ status: 400, json: { detail: "판정 사유를 2자 이상 입력해 주세요." } });
+        return;
+      }
+      const updatedAt = "2026-07-19T10:00:00+09:00";
+      examCorrectionState.set(payload.source_id, {
+        status: payload.completed ? "COMPLETED" : "PENDING",
+        note: String(payload.note ?? ""),
+        updatedAt,
+      });
+      await route.fulfill({ json: {
+        correction_status: payload.completed ? "COMPLETED" : "PENDING",
+        correction_completed_at: payload.completed ? updatedAt : null,
+        correction_note: String(payload.note ?? ""),
+        correction_updated_at: updatedAt,
+        teacher_resolved: payload.completed,
+      } });
       return;
     }
     if (options.homeworkQuickEdit && path.includes("/results/admin/sessions/") && path.endsWith("/score-draft/")) {
@@ -952,6 +1057,73 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await expect(page.locator('[data-guide="students-table"]')).toBeVisible();
     await detailOverlay.getByRole("button", { name: "닫기" }).click();
     await expect(page).toHaveURL(/\/workspace\/students\/home/);
+  });
+
+  test("학생 상세 시험 목록에서 오답 상태를 확인하고 차시 이동 없이 수정한다", async ({ page }, testInfo) => {
+    const correctionRequests: NonNullable<Parameters<typeof installApi>[1]>["examCorrectionRequests"] = [];
+    await page.setViewportSize({ width: 1100, height: 820 });
+    await installApi(page, { examCorrectionRequests: correctionRequests });
+    await page.goto(`${BASE}/workspace/students/home`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: /윤지용 학생/ }).first().click();
+
+    const detailOverlay = page.getByTestId("student-detail-overlay");
+    await detailOverlay.getByRole("tab", { name: /^시험/ }).click();
+    const pendingGroup = detailOverlay
+      .getByText("Ymath 주간 테스트 1회", { exact: true })
+      .locator("xpath=ancestor::*[contains(@class,'examRecordGroup')][1]");
+    const completedGroup = detailOverlay
+      .getByText("Ymath 주간 테스트 2회", { exact: true })
+      .locator("xpath=ancestor::*[contains(@class,'examRecordGroup')][1]");
+    const notSubmittedGroup = detailOverlay
+      .getByText("Ymath 주간 테스트 미응시", { exact: true })
+      .locator("xpath=ancestor::*[contains(@class,'examRecordGroup')][1]");
+
+    await expect(pendingGroup.getByText("오답 미완료", { exact: true })).toBeVisible();
+    await expect(completedGroup.getByText("오답 완료", { exact: true })).toBeVisible();
+    await expect(notSubmittedGroup.getByText("채점 대기", { exact: true })).toBeVisible();
+    await expect(notSubmittedGroup.getByRole("button", { name: "오답 수정" })).toHaveCount(0);
+
+    const hostUrl = page.url();
+    await pendingGroup.getByRole("button", { name: "오답 수정" }).click();
+    await expect(page).toHaveURL(hostUrl);
+    const editor = detailOverlay.getByRole("region", { name: "Ymath 주간 테스트 1회 테스트 오답 수정" });
+    const reason = editor.getByRole("textbox", { name: "오답 확인 사유" });
+    await reason.fill("");
+    await editor.getByRole("button", { name: "오답 완료로 저장" }).click();
+    await expect(reason).toBeFocused();
+    await expect(reason).toHaveAttribute("aria-invalid", "true");
+    await expect(editor.getByRole("alert")).toContainText("사유를 2자 이상");
+    expect(correctionRequests).toHaveLength(0);
+
+    await reason.fill("문자 제출 확인");
+    await editor.getByRole("button", { name: "오답 완료로 저장" }).click();
+    await expect(pendingGroup.getByText("오답 완료", { exact: true })).toBeVisible();
+    await expect.poll(() => correctionRequests.length).toBe(1);
+    expect(correctionRequests[0]).toEqual({
+      sessionId: 701,
+      enrollment_id: 201,
+      source_type: "exam",
+      source_id: 301,
+      completed: true,
+      note: "문자 제출 확인",
+      expected_updated_at: "2026-07-19T09:00:00+09:00",
+    });
+    await expect(page).toHaveURL(hostUrl);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await editor.scrollIntoViewIfNeeded();
+    await expect.poll(() => detailOverlay.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    )).toBe(true);
+    await detailOverlay.screenshot({ path: testInfo.outputPath("student-exam-wrong-inline-390.png") });
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    const reloadedOverlay = page.getByTestId("student-detail-overlay");
+    await reloadedOverlay.getByRole("tab", { name: /^시험/ }).click();
+    const persistedGroup = reloadedOverlay
+      .getByText("Ymath 주간 테스트 1회", { exact: true })
+      .locator("xpath=ancestor::*[contains(@class,'examRecordGroup')][1]");
+    await expect(persistedGroup.getByText("오답 완료", { exact: true })).toBeVisible();
   });
 
   test("학생 상세에서 완료형 상태와 숫자형 점수를 차시 이동 없이 바로 수정한다", async ({ page }) => {

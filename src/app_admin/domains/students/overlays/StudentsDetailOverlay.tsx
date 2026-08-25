@@ -32,7 +32,6 @@ import {
   type ClientEnrollmentLite,
   type ClientStudentTag,
 } from "../api/students.api";
-import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import StudentScoreTrendChart from "@/shared/ui/assessment/StudentScoreTrendChart";
@@ -53,6 +52,7 @@ import PasswordResetModal, { type PwResetTarget } from "../components/PasswordRe
 import styles from "./StudentsDetailOverlay.module.css";
 import StudentActivityPanel from "@/shared/studentSupport/StudentActivityPanel";
 import { openStudentSupportPreview } from "@/shared/studentSupport/studentSupport.api";
+import StudentExamCorrectionCard from "./StudentExamCorrectionCard";
 
 const StudentFormModal = lazy(() => import("../components/EditStudentModal"));
 const TagCreateModal = lazy(() => import("../components/TagCreateModal"));
@@ -564,6 +564,7 @@ export default function StudentsDetailOverlay({
                   {tab === "enroll" && <EnrollmentsTab studentId={id} studentName={student.name || ""} enrollments={student.enrollments} onNavigate={(path) => { closeOverride?.(); navigate(path); }} />}
                   {tab === "score" && (
                     <ScoreTab
+                      studentId={id}
                       data={examGrades}
                       trend={gradesData?.exam_trend ?? []}
                       isLoading={gradesLoading}
@@ -1195,6 +1196,7 @@ function QuestionTab({ data, onNavigate }: { data: CommunityPost[]; onNavigate: 
 
 /** 시험 성적 탭 — admin/student-grades API 기반 */
 function ScoreTab({
+  studentId,
   data,
   trend,
   isLoading,
@@ -1202,6 +1204,7 @@ function ScoreTab({
   onRetry,
   onNavigate,
 }: {
+  studentId: number;
   data: StudentExamGrade[];
   trend: StudentGradesResponse["exam_trend"];
   isLoading: boolean;
@@ -1209,7 +1212,6 @@ function ScoreTab({
   onRetry: () => void;
   onNavigate: (path: string) => void;
 }) {
-  const labels = useTenantLabels();
   const [sessionScope, setSessionScope] = useState<ExamSessionScope>("all");
   const sessionScopeTabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const sessionScopePanelId = useId();
@@ -1236,9 +1238,6 @@ function ScoreTab({
     );
   }
 
-  // PASS/FAIL 라벨은 학원장 커스텀 (Phase #5). REMEDIATED("보강합격")는 자체 정책.
-  const achievementLabel: Record<string, string> = { PASS: labels.pass, FAIL: labels.fail, REMEDIATED: "보강합격", NOT_SUBMITTED: "미응시" };
-  const achievementTone: Record<string, string> = { PASS: "success", FAIL: "danger", REMEDIATED: "warning", NOT_SUBMITTED: "muted" };
   const sessionScopeCounts: Record<ExamSessionScope, number> = {
     all: data.length,
     REGULAR: data.filter((exam) => exam.session_type === "REGULAR").length,
@@ -1313,66 +1312,14 @@ function ScoreTab({
         <>
       <StudentScoreTrendChart points={visibleTrend} />
       <div className={styles.tabList}>
-      {visibleExams.map((exam, i) => {
-        const lectureId = exam.lecture_id;
-        const sessionId = exam.session_id;
-        const canNav = !!lectureId && !!sessionId;
-        const navPath = canNav ? `/workspace/lectures/${lectureId}/sessions/${sessionId}/scores` : "";
-        return (
-          <div
-            key={exam.exam_id ?? i}
-            className={styles.tabRecord}
-            data-clickable={canNav ? "" : undefined}
-            onClick={canNav ? () => onNavigate(navPath) : undefined}
-          >
-            {exam.lecture_title && (
-              <LectureChip lectureName={exam.lecture_title} color={exam.lecture_color ?? undefined} chipLabel={exam.lecture_chip_label} size={24} />
-            )}
-            <div className={styles.recordMain}>
-              <div className={styles.recordTitleRow}>
-                <span className={styles.recordTitle}>{exam.title}</span>
-                <Badge
-                  size="xs"
-                  tone={exam.session_type === "REGULAR" ? "info" : exam.session_type === "SUPPLEMENT" ? "teal" : "muted"}
-                >
-                  {exam.session_type === "REGULAR" ? "정규" : exam.session_type === "SUPPLEMENT" ? "보강" : "구분 필요"}
-                </Badge>
-              </div>
-              <div className={styles.recordMetaRow}>
-                {exam.session_title && <span>{exam.session_title}</span>}
-                {(exam.retake_count ?? 0) > 1 && <span>· 재시도 {(exam.retake_count ?? 0) - 1}회</span>}
-                {exam.submitted_at && <span>· {exam.submitted_at.slice(0, 10)}</span>}
-              </div>
-            </div>
-            <div className={styles.recordActions}>
-              {exam.total_score != null && (
-                <span className={styles.scoreValue}>
-                  {Math.round(exam.total_score)}<span className={styles.scoreMax}>/{exam.max_score ?? 100}</span>
-                </span>
-              )}
-              {exam.achievement && (
-                <Badge variant="solid" size="sm" tone={(achievementTone[exam.achievement] || "muted") as BadgeTone}>
-                  {achievementLabel[exam.achievement] || exam.achievement}
-                </Badge>
-              )}
-              {!exam.achievement && (exam.remediated === true || exam.final_pass === true) && (
-                // 구서버 폴백: achievement 미제공이지만 remediated/final_pass로 보강합격 감지
-                <Badge variant="solid" size="sm" tone={exam.remediated ? "warning" : "success"}>
-                  {exam.remediated ? "보강합격" : labels.pass}
-                </Badge>
-              )}
-              {exam.is_pass != null && !exam.achievement && exam.remediated !== true && exam.final_pass !== true && (
-                <Badge variant="solid" size="sm" tone={exam.is_pass ? "success" : "danger"}>
-                  {exam.is_pass ? "합" : "불"}
-                </Badge>
-              )}
-              {canNav && (
-                <ChevronIcon />
-              )}
-            </div>
-          </div>
-        );
-      })}
+      {visibleExams.map((exam) => (
+        <StudentExamCorrectionCard
+          key={exam.exam_id}
+          exam={exam}
+          studentId={studentId}
+          onNavigate={onNavigate}
+        />
+      ))}
       </div>
         </>
       ) : (
