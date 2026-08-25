@@ -9,7 +9,7 @@ import { createPortal } from "react-dom";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { CalendarDays, Clock3, X } from "lucide-react";
 import { fetchClinicSessionTree, deleteClinicSession } from "../../api/clinicSessions.api";
 import type { ClinicSessionDetail } from "../../api/clinicSessions.api";
@@ -19,6 +19,7 @@ import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import ClinicConsoleSidebar from "./ClinicConsoleSidebar";
 import ClinicConsoleWorkspace from "./ClinicConsoleWorkspace";
 import ClinicCreatePanel, { type ClinicSessionUpdateNotice } from "../../components/ClinicCreatePanel";
+import { readClinicChangeNoticeNavigationState } from "../../components/clinicChangeNoticeNavigation";
 import PreviousWeekImportModal from "../../components/PreviousWeekImportModal";
 import AdminModal from "@/shared/ui/modal/AdminModal";
 import { Button } from "@/shared/ui/ds";
@@ -44,6 +45,8 @@ function participantStudentKey(participant: ClinicParticipant): string {
 }
 
 export default function ClinicOperationsConsolePage() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [sp] = useSearchParams();
   const qc = useQueryClient();
   const dateParam = sp.get("date");
@@ -68,10 +71,18 @@ export default function ClinicOperationsConsolePage() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editSession, setEditSession] = useState<ClinicSessionDetail | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; label: string } | null>(null);
   const [changeNoticeDraft, setChangeNoticeDraft] = useState<ClinicSessionUpdateNotice | null>(null);
   const [selectorOpen, setSelectorOpen] = useState(false);
+
+  useEffect(() => {
+    const notice = readClinicChangeNoticeNavigationState(location.state);
+    if (!notice) return;
+    setChangeNoticeDraft(notice);
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+  }, [location.pathname, location.search, location.state, navigate]);
   const selectorTriggerRef = useRef<HTMLButtonElement | null>(null);
   const selectorPanelRef = useRef<HTMLElement | null>(null);
   const selectorHeadingRef = useRef<HTMLHeadingElement | null>(null);
@@ -496,13 +507,19 @@ export default function ClinicOperationsConsolePage() {
       {/* 수정 모달 */}
       <AdminModal
         open={editModalOpen}
-        onClose={() => { setEditModalOpen(false); setEditSession(null); }}
+        onClose={() => {
+          if (editSaving) return;
+          setEditModalOpen(false);
+          setEditSession(null);
+        }}
+        closeDisabled={editSaving}
         width={520}
       >
         {editSession && (
           <ClinicCreatePanel
             asModal
             editSession={editSession}
+            onPendingChange={setEditSaving}
             onUpdated={(notice) => {
               setEditModalOpen(false);
               setChangeNoticeDraft(notice.changed ? notice : null);

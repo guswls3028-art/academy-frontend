@@ -11,11 +11,12 @@ import {
   Copy,
   MapPin,
   RefreshCcw,
+  Settings,
   UserPlus,
   Users,
 } from "lucide-react";
 
-import { AdminModal } from "@/shared/ui/modal";
+import { AdminModal, ModalHeader } from "@/shared/ui/modal";
 import { Button, EmptyState, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
@@ -27,6 +28,7 @@ import type { ClinicTarget } from "../../api/clinicTargets";
 import { useClinicParticipants } from "../../hooks/useClinicParticipants";
 import { clinicQueryKeys } from "../../queryKeys";
 import ClinicCreatePanel from "../../components/ClinicCreatePanel";
+import { clinicChangeNoticeNavigationState } from "../../components/clinicChangeNoticeNavigation";
 import ClinicTargetSelectModal, {
   type ClinicTargetSelectResult,
 } from "../../components/ClinicTargetSelectModal";
@@ -129,6 +131,8 @@ export default function ClinicSchedulePage() {
 
   const [createDate, setCreateDate] = useState<string | null>(null);
   const [copySource, setCopySource] = useState<ClinicSessionDetail | null>(null);
+  const [editingSession, setEditingSession] = useState<ClinicSessionDetail | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [targetSession, setTargetSession] = useState<ClinicSessionDetail | null>(null);
   const [addingParticipants, setAddingParticipants] = useState(false);
@@ -158,6 +162,7 @@ export default function ClinicSchedulePage() {
   const closeCreate = () => {
     setCreateDate(null);
     setCopySource(null);
+    setEditingSession(null);
   };
 
   const refreshWeek = () => {
@@ -404,6 +409,15 @@ export default function ClinicSchedulePage() {
                                 <Button
                                   intent="ghost"
                                   size="sm"
+                                  iconOnly
+                                  aria-label={`${session.title || "클리닉"} ${session.start_time.slice(0, 5)} 일정 수정`}
+                                  title="일정 수정"
+                                  leftIcon={<Settings size={ICON_FOR_BUTTON.sm} />}
+                                  onClick={() => setEditingSession(session)}
+                                />
+                                <Button
+                                  intent="ghost"
+                                  size="sm"
                                   aria-label={`${session.title || "클리닉"} 설정 복사`}
                                   title="설정 복사"
                                   leftIcon={<Copy size={ICON_FOR_BUTTON.sm} />}
@@ -433,32 +447,57 @@ export default function ClinicSchedulePage() {
         )}
       </section>
 
-      <AdminModal open={!!createDate} onClose={closeCreate} width={520}>
-        {createDate && (
-          <div className={styles.createModal}>
-            <div className={styles.createModalHeader}>
-              <h2>{copySource ? "클리닉 설정 복사" : "클리닉 만들기"}</h2>
-              <p>
-                {copySource
+      <AdminModal
+        open={!!createDate || !!editingSession}
+        onClose={() => !editSaving && closeCreate()}
+        closeDisabled={editSaving}
+        width={520}
+      >
+        {(createDate || editingSession) && (
+          <>
+            <ModalHeader
+              title={editingSession
+                ? "클리닉 일정 수정"
+                : copySource
+                  ? "클리닉 설정 복사"
+                  : "클리닉 만들기"}
+              description={editingSession
+                ? "날짜·시간·장소·정원을 바꾼 뒤 저장하세요."
+                : copySource
                   ? "시간·장소·정원 설정을 불러왔습니다. 필요한 항목을 바꾼 뒤 새로 만드세요."
                   : `${dayjs(createDate).format("M월 D일 (ddd)")}에 새 시간대를 만듭니다.${
-                      (sessionsByDate.get(createDate)?.length ?? 0) > 0
-                        ? ` 현재 ${sessionsByDate.get(createDate)?.length ?? 0}개 시간대가 있습니다.`
+                      (sessionsByDate.get(createDate ?? "")?.length ?? 0) > 0
+                        ? ` 현재 ${sessionsByDate.get(createDate ?? "")?.length ?? 0}개 시간대가 있습니다.`
                         : ""
                     }`}
-              </p>
-            </div>
-            <ClinicCreatePanel
-              key={`${createDate}-${copySource?.id ?? "new"}`}
-              asModal
-              date={createDate}
-              copySession={copySource ?? undefined}
-              onCreated={() => {
-                closeCreate();
-                refreshWeek();
-              }}
             />
-          </div>
+            <div className={styles.createModal}>
+              <ClinicCreatePanel
+                key={editingSession
+                  ? `edit-${editingSession.id}`
+                  : `${createDate}-${copySource?.id ?? "new"}`}
+                asModal
+                date={editingSession?.date ?? createDate ?? undefined}
+                editSession={editingSession ?? undefined}
+                copySession={copySource ?? undefined}
+                onPendingChange={setEditSaving}
+                onCreated={() => {
+                  closeCreate();
+                  refreshWeek();
+                }}
+                onUpdated={(notice) => {
+                  const shouldOpenNotice = notice.changed && (editingSession?.participant_count ?? 0) > 0;
+                  closeCreate();
+                  refreshWeek();
+                  if (shouldOpenNotice) {
+                    navigate(`/workspace/clinic/operations?date=${notice.date}&session=${notice.sessionId}`, {
+                      state: clinicChangeNoticeNavigationState(notice),
+                    });
+                  }
+                }}
+              />
+            </div>
+          </>
         )}
       </AdminModal>
 

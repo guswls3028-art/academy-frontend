@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/clinic/components/ClinicCreatePanel.tsx
 // 클리닉 생성 — 대상 필터(학년/학교/강의) + 시간/장소/정원/대상자
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Input, App, Popover, Select } from "antd";
 import dayjs from "dayjs";
 import { Save, FolderOpen, Trash2, ChevronDown, ChevronUp } from "lucide-react";
@@ -9,9 +9,22 @@ import { Save, FolderOpen, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { DatePicker } from "@/shared/ui/date";
 import { TimeRangeInput } from "@/shared/ui/time";
 import { Button } from "@/shared/ui/ds";
+import { useConfirm } from "@/shared/ui/confirm";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { fetchClinicSessionTree, updateClinicSession } from "../api/clinicSessions.api";
+import {
+  buildClinicCreateConfirmationMessage,
+  buildClinicEditConfirmationMessage,
+  formatClinicScheduleSnapshot,
+  type ClinicSessionUpdateNotice,
+} from "./clinicScheduleConfirmation";
+export type { ClinicSessionUpdateNotice } from "./clinicScheduleConfirmation";
+import {
+  getSavedLocations,
+  removeSavedLocation,
+  saveLocationToStorage,
+} from "./clinicSavedLocations";
 import { fetchLectures, type Lecture } from "@/shared/api/contracts/sessions";
 import { fetchAllSections, type Section } from "@/shared/api/contracts/lectureSections";
 import ClinicTargetSelectModal, { type ClinicTargetSelectResult } from "./ClinicTargetSelectModal";
@@ -23,37 +36,6 @@ import { useClinicTargets } from "../hooks/useClinicTargets";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { clinicQueryKeys } from "../queryKeys";
-import { getTenantLocalItem, setTenantLocalItem } from "@/shared/utils/safeLocalStorage";
-
-const SAVED_LOCATIONS_KEY = "academy-clinic-saved-locations";
-
-function getSavedLocations(): string[] {
-  try {
-    const raw = getTenantLocalItem(SAVED_LOCATIONS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveLocationToStorage(name: string): string[] {
-  const trimmed = (name || "").trim();
-  if (!trimmed) return getSavedLocations();
-  const list = getSavedLocations();
-  if (list.includes(trimmed)) return list;
-  const next = [...list, trimmed];
-  setTenantLocalItem(SAVED_LOCATIONS_KEY, JSON.stringify(next));
-  return next;
-}
-
-function removeSavedLocation(name: string): string[] {
-  const list = getSavedLocations().filter((x) => x !== name);
-  setTenantLocalItem(SAVED_LOCATIONS_KEY, JSON.stringify(list));
-  return list;
-}
-
 function todayISO() {
   return dayjs().format("YYYY-MM-DD");
 }
@@ -85,34 +67,6 @@ function toHHmmss(s: string): string {
   const m = (parts[1] ?? "00").padStart(2, "0");
   return `${h.padStart(2, "0")}:${m}:00`;
 }
-
-function formatClinicScheduleSnapshot(input: {
-  date: string;
-  start_time: string;
-  duration_minutes?: number | null;
-  location?: string | null;
-}): string {
-  const start = input.start_time.slice(0, 5);
-  const base = [input.date, start, input.location?.trim()].filter(Boolean).join(" ");
-  if (!input.duration_minutes || !start) return base;
-
-  const [hour, minute] = start.split(":").map(Number);
-  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return base;
-  const end = dayjs(input.date)
-    .hour(hour)
-    .minute(minute)
-    .add(input.duration_minutes, "minute")
-    .format("HH:mm");
-  return [input.date, `${start}-${end}`, input.location?.trim()].filter(Boolean).join(" ");
-}
-
-export type ClinicSessionUpdateNotice = {
-  sessionId: number;
-  date: string;
-  oldSchedule: string;
-  newSchedule: string;
-  changed: boolean;
-};
 
 const filterChipClass = (active: boolean) =>
   active
@@ -189,6 +143,7 @@ type Props = {
     section?: number | null;
   };
   onUpdated?: (notice: ClinicSessionUpdateNotice) => void;
+  onPendingChange?: (pending: boolean) => void;
 };
 
 export default function ClinicCreatePanel({
@@ -202,9 +157,13 @@ export default function ClinicCreatePanel({
   editSession,
   copySession,
   onUpdated,
+  onPendingChange,
 }: Props) {
   const { message } = App.useApp();
+  const confirm = useConfirm();
   const qc = useQueryClient();
+  const updateInFlightRef = useRef(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const { data: clinicTargets } = useClinicTargets();
   const slm = useSchoolLevelMode();
   const { sectionMode, clinicMode } = useSectionMode();
@@ -349,6 +308,7 @@ export default function ClinicCreatePanel({
   });
 
   const submit = async () => {
+    if (updateInFlightRef.current) return;
     const lookupFailed =
       (showSectionPicker && clinicSectionsQ.isError) ||
       (showFilters && lecturesQ.isError);
@@ -374,6 +334,27 @@ export default function ClinicCreatePanel({
         location: room.trim(),
       });
       const titleChanged = (editSession.title ?? "").trim() !== title.trim();
+      const oldStart = editSession.start_time.slice(0, 5);
+      const oldEnd = dayjs(`${editSession.date}T${oldStart}`)
+        .add(editSession.duration_minutes, "minute")
+        .format("HH:mm");
+      const editConfirmed = await confirm({
+        title: "클리닉 일정 수정 확인",
+        message: buildClinicEditConfirmationMessage({
+          before: `${editSession.date} · ${oldStart}–${oldEnd} · ${editSession.location}`,
+          after: `${nextDate} · ${start}–${end} · ${room.trim()}`,
+          title: title.trim(),
+          maxParticipants,
+          filterSummary,
+        }),
+        confirmText: "확인하고 수정",
+        cancelText: "다시 확인",
+      });
+      if (!editConfirmed) return;
+      updateInFlightRef.current = true;
+      setIsUpdating(true);
+      onPendingChange?.(true);
+      let updateNotice: ClinicSessionUpdateNotice | null = null;
       try {
         await updateClinicSession(editSession.id, {
           title: title.trim() || undefined,
@@ -390,16 +371,21 @@ export default function ClinicCreatePanel({
         message.success("클리닉이 수정되었습니다.");
         qc.invalidateQueries({ queryKey: clinicQueryKeys.sessionsTree });
         qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
-        onUpdated?.({
+        updateNotice = {
           sessionId: editSession.id,
           date: nextDate,
           oldSchedule,
           newSchedule,
           changed: oldSchedule !== newSchedule || titleChanged,
-        });
+        };
       } catch (e: unknown) {
         message.error(apiErrorMessage(e, "클리닉을 수정하지 못했습니다."));
+      } finally {
+        updateInFlightRef.current = false;
+        setIsUpdating(false);
+        onPendingChange?.(false);
       }
+      if (updateNotice) onUpdated?.(updateNotice);
       return;
     }
 
@@ -407,10 +393,30 @@ export default function ClinicCreatePanel({
     const cap = Math.max(maxParticipants, uniqueSelected.length);
     if (cap < 1) return message.warning("정원을 1명 이상으로 설정하거나 학생을 선택해주세요.");
 
+    const scheduledDate = selectedDate.format("YYYY-MM-DD");
+    const weekday = ["일", "월", "화", "수", "목", "금", "토"][selectedDate.day()];
+    const confirmed = await confirm({
+      title: "클리닉 일정 최종 확인",
+      message: buildClinicCreateConfirmationMessage({
+        dateLabel: selectedDate.format("YYYY년 M월 D일"),
+        weekday,
+        title: title.trim(),
+        start,
+        end,
+        location: room.trim(),
+        maxParticipants: cap,
+        filterSummary,
+        selectedCount,
+      }),
+      confirmText: "확인하고 만들기",
+      cancelText: "다시 확인",
+    });
+    if (!confirmed) return;
+
     try {
       const created = await createSessionM.mutateAsync({
         title: title.trim() || undefined,
-        date: selectedDate.format("YYYY-MM-DD"),
+        date: scheduledDate,
         start_time: toHHmmss(start),
         duration_minutes: duration,
         location: room.trim(),
@@ -456,7 +462,7 @@ export default function ClinicCreatePanel({
         queryKey: clinicQueryKeys.sessionsTreeByMonth(y, m),
         queryFn: () => fetchClinicSessionTree({ year: y, month: m }),
       });
-      onCreated?.(selectedDate.format("YYYY-MM-DD"));
+      onCreated?.(scheduledDate);
     } catch (e: unknown) {
       message.error(apiErrorMessage(e, "클리닉을 만들지 못했습니다."));
     }
@@ -899,10 +905,11 @@ export default function ClinicCreatePanel({
       type="button"
       intent="primary"
       size="lg"
-      loading={createSessionM.isPending}
+      loading={createSessionM.isPending || isUpdating}
       onClick={submit}
       className="w-full"
       disabled={
+        isUpdating ||
         isPastDate ||
         (showSectionPicker && clinicSectionsQ.isError) ||
         (showFilters && lecturesQ.isError)
