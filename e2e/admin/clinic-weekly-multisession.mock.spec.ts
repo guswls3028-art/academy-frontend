@@ -498,8 +498,11 @@ test("클리닉 생성은 일정 요약을 최종 확인한 뒤에만 저장한�
   await sourceSession.getByRole("button", { name: "토요일 5시 클리닉 설정 복사" }).click();
 
   const createDialog = page.getByRole("dialog", { name: "클리닉 설정 복사" });
-  const parentModalContent = page.locator(".admin-modal__inner").last();
+  const parentModalHost = page.locator(".ant-modal").filter({ hasText: "클리닉 설정 복사" });
+  const parentModalContent = parentModalHost.locator(".admin-modal__inner");
   const createButton = createDialog.getByRole("button", { name: /클리닉 만들기/ });
+  await expect(createDialog).toBeVisible({ timeout: 60_000 });
+  await expect(parentModalHost).not.toHaveClass(/ant-zoom-appear/);
   await expect(createButton).toBeEnabled();
   const headerBox = await createDialog.locator(".modal-header").boundingBox();
   expect(headerBox).not.toBeNull();
@@ -527,6 +530,8 @@ test("클리닉 생성은 일정 요약을 최종 확인한 뒤에만 저장한�
   expect(backdropBox!.width).toBeGreaterThanOrEqual(1365);
   expect(backdropBox!.height).toBeGreaterThanOrEqual(849);
   await expect(page.getByRole("alertdialog", { name: "클리닉 일정 최종 확인" })).toHaveCount(1);
+  await expect(parentModalHost).toHaveAttribute("inert", "");
+  await expect(parentModalHost).toHaveAttribute("aria-hidden", "true");
   await expect(parentModalContent).toHaveAttribute("inert", "");
   await expect(parentModalContent).toHaveAttribute("aria-hidden", "true");
   expect(state.createPayloads).toHaveLength(0);
@@ -544,9 +549,11 @@ test("클리닉 생성은 일정 요약을 최종 확인한 뒤에만 저장한�
   expect(state.createPayloads).toHaveLength(0);
   await confirmation.getByRole("button", { name: "다시 확인" }).click();
   await expect(confirmation).toHaveCount(0);
-  await expect(createDialog).toBeVisible();
+  await expect(parentModalHost).not.toHaveAttribute("inert", "");
+  await expect(parentModalHost).not.toHaveAttribute("aria-hidden", "true");
   await expect(parentModalContent).not.toHaveAttribute("inert", "");
   await expect(parentModalContent).not.toHaveAttribute("aria-hidden", "true");
+  await expect(createDialog).toBeVisible({ timeout: 60_000 });
   expect(state.createPayloads).toHaveLength(0);
 
   await createButton.click();
