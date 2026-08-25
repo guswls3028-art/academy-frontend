@@ -196,7 +196,11 @@ export default function LandingCommunityWritePage() {
     );
   }
 
-  const cfg = landing.config!;
+  // 공개 홈페이지가 게시되지 않은 tenant의 직접 URL 진입도 메인 랜딩과
+  // 같은 로그인 경계로 보낸다. config를 추정해 글쓰기 shell을 합성하지 않는다.
+  if (!landing.has_landing || !landing.config) return <Navigate to="/login" replace />;
+
+  const cfg = landing.config;
   const bg = "#0A0E1A";
   const bgAlt = "#0F1525";
   const border = "rgba(255,255,255,0.08)";
