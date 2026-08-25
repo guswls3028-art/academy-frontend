@@ -172,4 +172,56 @@ test.describe("커뮤니티 QnA 작업대", () => {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(1);
   });
+
+  for (const viewport of [
+    { name: "데스크톱", width: 1366, height: 900 },
+    { name: "390px", width: 390, height: 844 },
+  ]) {
+    test(`${viewport.name} 자료 등록에서 운영 문서 파일을 네이티브 입력으로 선택한다`, async ({ page }) => {
+      let uploadContentType = "";
+      await page.route("**/api/v1/community/posts/990/attachments/", async (route) => {
+        uploadContentType = route.request().headers()["content-type"] || "";
+        await route.fulfill({
+          status: 201,
+          contentType: "application/json",
+          body: JSON.stringify([{ id: 77, original_name: "암기TEST.pdf", size_bytes: 35 }]),
+        });
+      });
+      await page.route("**/api/v1/community/posts/", async (route) => {
+        if (route.request().method() !== "POST") return route.fallback();
+        await route.fulfill({
+          status: 201,
+          contentType: "application/json",
+          body: JSON.stringify({
+            id: 990,
+            post_type: "materials",
+            title: "암기TEST",
+            content: "",
+            created_at: "2026-08-25T12:00:00Z",
+            attachments: [],
+            mappings: [],
+          }),
+        });
+      });
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await gotoAndSettle(page, `${BASE}/workspace/community/materials`, { timeout: 60_000 });
+
+      await page.getByRole("button", { name: "+ 자료 등록" }).click();
+      await page.getByPlaceholder("자료 제목을 입력하세요").fill("암기TEST");
+      const fileInput = page.getByLabel("첨부할 파일 선택");
+      await expect(fileInput).toBeAttached();
+      await fileInput.setInputFiles({
+        name: "암기TEST.pdf",
+        mimeType: "application/pdf",
+        buffer: Buffer.from("material room attachment regression"),
+      });
+
+      await expect(page.getByText("암기TEST.pdf", { exact: true })).toBeVisible();
+      await expect(page.getByText("파일당 최대 50MB · 최대 10개")).toBeVisible();
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow).toBeLessThanOrEqual(1);
+      await page.getByRole("button", { name: "등록", exact: true }).click();
+      await expect.poll(() => uploadContentType).toContain("multipart/form-data");
+    });
+  }
 });
