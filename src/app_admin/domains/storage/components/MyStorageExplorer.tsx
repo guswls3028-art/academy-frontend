@@ -5,9 +5,9 @@
 import { useMemo, useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
-import { FolderOpen, FilePlus, FolderPlus, X, Download, Trash2, Pencil, Sparkles } from "lucide-react";
+import { FolderOpen, FilePlus, FolderPlus, X, Download, Trash2, Pencil, Sparkles, MoveRight } from "lucide-react";
 import StorageFileThumbnail from "./StorageFileThumbnail";
-import { Button, CloseButton } from "@/shared/ui/ds";
+import { Button, CloseButton, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import {
@@ -42,6 +42,10 @@ import Breadcrumb from "@/shared/ui/navigation/PathBreadcrumb";
 import FolderTree from "./FolderTree";
 import UploadModal from "./UploadModal";
 import MoveDuplicateModal from "./MoveDuplicateModal";
+import InventoryMoveDialog, {
+  type InventoryMoveOutcome,
+  type InventoryMoveSource,
+} from "./InventoryMoveDialog";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "./MyStorageExplorer.module.css";
 
@@ -71,6 +75,7 @@ export default function MyStorageExplorer() {
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
   const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
   const [fileActionTarget, setFileActionTarget] = useState<InventoryFile | null>(null);
+  const [moveDialogTarget, setMoveDialogTarget] = useState<InventoryMoveSource | null>(null);
   const [movingId, setMovingId] = useState<string | null>(null);
   const [dropTargetFolderId, setDropTargetFolderId] = useState<string | null>(null);
   const [conflict, setConflict] = useState<{
@@ -168,6 +173,31 @@ export default function MyStorageExplorer() {
 
   const selectionCount = selectedFolderIds.size + selectedFileIds.size;
   const hasSelection = selectionCount > 0;
+  const selectedMoveSource = useMemo<InventoryMoveSource | null>(() => {
+    if (selectionCount !== 1) return null;
+    const selectedFolderId = selectedFolderIds.values().next().value;
+    if (selectedFolderId) {
+      const folder = folders.find((item) => item.id === selectedFolderId);
+      return folder
+        ? {
+            id: folder.id,
+            type: "folder",
+            name: folder.name,
+            parentId: folder.parentId,
+          }
+        : null;
+    }
+    const selectedFileId = selectedFileIds.values().next().value;
+    const file = files.find((item) => item.id === selectedFileId);
+    return file
+      ? {
+          id: file.id,
+          type: "file",
+          name: file.displayName,
+          parentId: file.folderId ?? null,
+        }
+      : null;
+  }, [files, folders, selectedFileIds, selectedFolderIds, selectionCount]);
 
   // 선택 토글 (Ctrl/Cmd+Click = 추가/제거, 일반 Click = 단일 선택)
   const toggleFolderSelect = useCallback((folderId: string, multi: boolean) => {
@@ -408,7 +438,7 @@ export default function MyStorageExplorer() {
       type: "file" | "folder",
       sourceId: string,
       onDuplicate?: "overwrite" | "rename"
-    ) => {
+    ): Promise<InventoryMoveOutcome> => {
       setMovingId(sourceId);
       const prev = qc.getQueryData<{ folders: InventoryFolder[]; files: InventoryFile[] }>(
         storageQueryKeys.storageInventory(SCOPE),
@@ -437,6 +467,7 @@ export default function MyStorageExplorer() {
           onDuplicate,
         });
         await qc.invalidateQueries({ queryKey: storageQueryKeys.storageInventory(SCOPE) });
+        return "moved";
       } catch (e) {
         if (prev) qc.setQueryData(storageQueryKeys.storageInventory(SCOPE), prev);
         const ce = e as MoveConflictError & Error;
@@ -447,8 +478,10 @@ export default function MyStorageExplorer() {
             targetFolderId,
             existingName: ce.existing_name || "항목",
           });
+          return "conflict";
         } else {
           feedback.error(ce?.message ?? "이동에 실패했습니다.");
+          return "error";
         }
       } finally {
         setMovingId(null);
@@ -458,13 +491,14 @@ export default function MyStorageExplorer() {
   );
 
   const resolveConflict = useCallback(
-    (choice: "overwrite" | "rename") => {
+    async (choice: "overwrite" | "rename") => {
       if (!conflict) return;
       const { targetFolderId, type, sourceId } = conflict;
       setConflict(null);
-      handleMove(targetFolderId, type, sourceId, choice);
+      const outcome = await handleMove(targetFolderId, type, sourceId, choice);
+      if (outcome === "moved") clearSelection();
     },
-    [conflict, handleMove]
+    [clearSelection, conflict, handleMove]
   );
 
   const handlePromoteToMatchup = useCallback(async (file: InventoryFile) => {
@@ -590,6 +624,19 @@ export default function MyStorageExplorer() {
               <Button type="button" intent="ghost" size="sm" onClick={clearSelection}>
                 선택 해제
               </Button>
+              {selectedMoveSource && (
+                <Button
+                  type="button"
+                  intent="secondary"
+                  size="xl"
+                  className="!min-h-12"
+                  leftIcon={<MoveRight size={ICON_FOR_BUTTON.xl} />}
+                  onClick={() => setMoveDialogTarget(selectedMoveSource)}
+                  disabled={movingId !== null}
+                >
+                  이동
+                </Button>
+              )}
               {selectedMatchupCandidates.length > 0 && (
                 <Button
                   type="button"
@@ -697,6 +744,10 @@ export default function MyStorageExplorer() {
                 <div
                   key={f.id}
                   draggable
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`폴더 ${f.name} 선택`}
+                  aria-pressed={selectedFolderIds.has(f.id)}
                   className={
                     styles.item +
                     (selectedFolderIds.has(f.id) ? " " + styles.itemSelected : "") +
@@ -706,6 +757,13 @@ export default function MyStorageExplorer() {
                   onClick={(e) => {
                     e.stopPropagation();
                     toggleFolderSelect(f.id, e.ctrlKey || e.metaKey);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.target !== e.currentTarget) return;
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleFolderSelect(f.id, e.ctrlKey || e.metaKey);
+                    }
                   }}
                   title={f.name}
                   onDoubleClick={() => { clearSelection(); setCurrentFolderId(f.id); }}
@@ -750,6 +808,10 @@ export default function MyStorageExplorer() {
                 <div
                   key={file.id}
                   draggable
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`파일 ${file.displayName} 선택`}
+                  aria-pressed={selectedFileIds.has(file.id)}
                   data-testid={file.matchup ? "storage-file-row-promoted" : "storage-file-row"}
                   data-file-id={file.id}
                   className={
@@ -765,6 +827,13 @@ export default function MyStorageExplorer() {
                     } else {
                       toggleFileSelect(file.id, false);
                       setFileActionTarget(file);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.target !== e.currentTarget) return;
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleFileSelect(file.id, e.ctrlKey || e.metaKey);
                     }
                   }}
                   title={
@@ -991,12 +1060,30 @@ export default function MyStorageExplorer() {
         />
       )}
 
+      {moveDialogTarget && (
+        <InventoryMoveDialog
+          folders={folders}
+          source={moveDialogTarget}
+          busy={movingId === moveDialogTarget.id}
+          onClose={() => setMoveDialogTarget(null)}
+          onMove={async (targetFolderId) => {
+            const outcome = await handleMove(
+              targetFolderId,
+              moveDialogTarget.type,
+              moveDialogTarget.id,
+            );
+            if (outcome === "moved") clearSelection();
+            return outcome;
+          }}
+        />
+      )}
+
       {conflict && (
         <MoveDuplicateModal
           existingName={conflict.existingName}
           itemType={conflict.type}
-          onOverwrite={() => resolveConflict("overwrite")}
-          onRename={() => resolveConflict("rename")}
+          onOverwrite={() => void resolveConflict("overwrite")}
+          onRename={() => void resolveConflict("rename")}
           onCancel={() => setConflict(null)}
         />
       )}
