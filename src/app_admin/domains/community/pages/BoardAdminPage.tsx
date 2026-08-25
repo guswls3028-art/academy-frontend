@@ -47,6 +47,7 @@ import CommunityEmptyState from "../components/CommunityEmptyState";
 import CommunityAvatar from "../components/CommunityAvatar";
 import PostThreadView from "../components/PostThreadView";
 import { stripHtml, timeAgo, formatFileSize } from "../utils/communityHelpers";
+import { createClientRequestKey } from "@/shared/api/contracts/community";
 import "@admin/domains/community/qna-inbox.css";
 import "@admin/domains/community/notice-tree.css";
 import "@admin/domains/community/board-admin.css";
@@ -237,9 +238,9 @@ export default function BoardAdminPage() {
   });
 
   useEffect(() => {
-    if (selectedId == null || showCreate || postsQ.isLoading) return;
+    if (selectedId == null || showCreate || postsQ.isFetching) return;
     if (!filtered.some((p) => p.id === selectedId)) setSelectedId(null);
-  }, [filtered, selectedId, showCreate, postsQ.isLoading, setSelectedId]);
+  }, [filtered, selectedId, showCreate, postsQ.isFetching, setSelectedId]);
 
   // j/k keyboard nav
   useEffect(() => {
@@ -444,10 +445,10 @@ export default function BoardAdminPage() {
             scopeNodes={scopeNodes}
             scopeParams={scopeParams}
             onCancel={() => setShowCreate(false)}
-            onSuccess={() => {
+            onSuccess={(postId) => {
               qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.boardPosts });
               qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.counts("board") });
-              setShowCreate(false);
+              setSelectedId(postId);
               feedback.success("게시물이 등록되었습니다.");
             }}
           />
@@ -479,14 +480,16 @@ function BoardCreatePane({
   scopeNodes: ScopeNodeMinimal[];
   scopeParams: CommunityScopeParams;
   onCancel: () => void;
-  onSuccess: () => void;
+  onSuccess: (postId: number) => void;
 }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [createdPostId, setCreatedPostId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const attachmentUploadKeyRef = useRef<string | null>(null);
 
   const resolvedScope = useMemo(
     () => resolvePostNodeIdsForCreate(scopeNodes, scopeParams),
@@ -505,22 +508,31 @@ function BoardCreatePane({
     if (!canSubmit) return;
     setSubmitting(true);
     setError(null);
+    let postId = createdPostId;
     try {
-      const post = await createPost({
-        post_type: "board",
-        title: title.trim(),
-        content,
-        node_ids: resolvedScope.nodeIds,
-      });
-      if (files.length > 0) {
-        await uploadPostAttachments(post.id, files);
+      if (postId == null) {
+        const post = await createPost({
+          post_type: "board",
+          title: title.trim(),
+          content,
+          node_ids: resolvedScope.nodeIds,
+        });
+        postId = post.id;
+        setCreatedPostId(post.id);
       }
-      onSuccess();
+      if (files.length > 0) {
+        const uploadKey = attachmentUploadKeyRef.current ?? createClientRequestKey();
+        attachmentUploadKeyRef.current = uploadKey;
+        await uploadPostAttachments(postId, files, uploadKey);
+      }
+      onSuccess(postId);
     } catch (e: unknown) {
       const msg =
         (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
         (e as Error)?.message ?? "등록에 실패했습니다.";
-      setError(msg);
+      setError(postId == null
+        ? msg
+        : `게시물은 저장됐지만 첨부파일 등록에 실패했습니다. 선택한 파일은 유지됩니다. ${msg}`);
       setSubmitting(false);
     }
   };
@@ -554,13 +566,14 @@ function BoardCreatePane({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="게시물 제목을 입력하세요"
+            readOnly={createdPostId != null}
             autoFocus
           />
         </div>
 
         <div className="cms-form__field">
           <label className="community-field__label">내용</label>
-          <RichTextEditor value={content} onChange={setContent} placeholder="내용을 입력하세요..." minHeight={250} />
+          <RichTextEditor value={content} onChange={setContent} placeholder="내용을 입력하세요..." minHeight={250} readOnly={createdPostId != null} />
         </div>
 
         <div className="cms-form__field">
@@ -577,10 +590,12 @@ function BoardCreatePane({
               multiple
               className="cms-form__file-input--hidden"
               onChange={(e) => {
-                if (e.target.files) {
-                  setFiles((prev) => [...prev, ...Array.from(e.target.files!)].slice(0, 10));
-                  e.target.value = "";
+                const selectedFiles = Array.from(e.currentTarget.files ?? []);
+                if (selectedFiles.length > 0) {
+                  attachmentUploadKeyRef.current = null;
+                  setFiles((prev) => [...prev, ...selectedFiles].slice(0, 10));
                 }
+                e.currentTarget.value = "";
               }}
             />
           </div>
@@ -590,7 +605,10 @@ function BoardCreatePane({
                 <div key={`${f.name}-${i}`} className="cms-attach__item">
                   <span className="cms-attach__item-name">{f.name}</span>
                   <span className="cms-attach__item-size">{formatFileSize(f.size)}</span>
-                  <button type="button" className="cms-attach__item-remove" onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}>&times;</button>
+                  <button type="button" className="cms-attach__item-remove" onClick={() => {
+                    attachmentUploadKeyRef.current = null;
+                    setFiles((prev) => prev.filter((_, j) => j !== i));
+                  }}>&times;</button>
                 </div>
               ))}
             </div>
@@ -602,7 +620,9 @@ function BoardCreatePane({
         <div className="cms-form__actions">
           <Button intent="secondary" size="sm" onClick={onCancel}>취소</Button>
           <Button intent="primary" size="sm" onClick={handleSubmit} disabled={!canSubmit}>
-            {submitting ? "등록 중…" : "등록"}
+            {submitting
+              ? createdPostId != null ? "첨부 재시도 중…" : "등록 중…"
+              : createdPostId != null ? "첨부 다시 시도" : "등록"}
           </Button>
         </div>
       </div>
