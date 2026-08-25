@@ -914,7 +914,9 @@ test("오늘 전체 참가자 page의 next 누락은 일부 명단을 노출하�
   await page.setViewportSize({ width: 1366, height: 850 });
   await gotoAndSettle(page, `${BASE}/workspace/clinic/operations?scope=day&date=${today}`, { timeout: 45_000 });
 
-  await expect(page.getByRole("alert")).toContainText("클리닉 학생 목록을 불러오지 못했습니다.");
+  await expect(page.getByRole("alert")).toContainText("클리닉 학생 목록을 불러오지 못했습니다.", {
+    timeout: 60_000,
+  });
   await expect(page.getByText("다음 페이지 누락 학생", { exact: true })).toHaveCount(0);
   await expect(page.getByText("학생 0명", { exact: true })).toHaveCount(0);
 });

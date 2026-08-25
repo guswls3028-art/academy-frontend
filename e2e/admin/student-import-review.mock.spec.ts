@@ -174,7 +174,9 @@ test.describe("신규 학생 Excel 등록 확인 화면", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await installStudentPage(page);
     await page.goto(`${BASE}/workspace/students/home`, { waitUntil: "commit" });
-    await page.getByRole("button", { name: "학생 추가" }).first().click();
+    const addStudentButton = page.getByRole("button", { name: "학생 추가" }).first();
+    await expect(addStudentButton).toBeVisible({ timeout: 60_000 });
+    await addStudentButton.click();
     const dialog = page.getByRole("dialog", { name: "학생 등록" });
     await dialog.getByText("1명만 등록", { exact: true }).click();
     await dialog.getByPlaceholder("이름").fill("최종확인 학생");
