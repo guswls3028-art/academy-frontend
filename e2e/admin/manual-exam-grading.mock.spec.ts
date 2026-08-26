@@ -29,7 +29,7 @@ type GradeState = "correct" | "incorrect" | "review" | null;
 
 async function chooseExamHeaderAction(
   page: Page,
-  action: "정오표 작성" | "OMR 검토" | "시험 설정",
+  action: "정오표 작성" | "문항별 점수 입력" | "OMR 검토" | "시험 설정",
 ) {
   const trigger = page.getByRole("button", {
     name: "7월 진단평가 작업 선택",
@@ -1985,7 +1985,7 @@ test.describe("문항별 직접 채점", () => {
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
       { waitUntil: "domcontentloaded" },
     );
-    await chooseExamHeaderAction(page, "정오표 작성");
+    await chooseExamHeaderAction(page, "문항별 점수 입력");
 
     const dialog = page.getByRole("dialog").filter({
       hasText: "7월 진단평가 문항별 점수 입력",

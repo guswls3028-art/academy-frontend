@@ -34,6 +34,13 @@ type MockState = {
   createdHomeworkPayloads?: Array<Record<string, unknown>>;
   createdExamPayloads?: Array<Record<string, unknown>>;
   examCreateDelayMs?: number;
+  examSessionEnrollmentRows?: Array<Record<string, unknown>>;
+  examSessionEnrollmentReads?: number;
+  examEnrollmentPuts?: number[][];
+  examEnrollmentUpdateDelayMs?: number;
+  examPdfExtractDelayMs?: number;
+  examPdfExtractRequests?: number;
+  examRequestSequence?: string[];
   homeworkPatchPayloads?: Array<Record<string, unknown>>;
   homeworkAssignmentIds?: number[];
   homeworkAssignmentPuts?: number[][];
@@ -190,7 +197,11 @@ async function installApi(page: Page, state: MockState) {
       }] : []);
     }
     if (path === "/enrollments/") return json([]);
-    if (path === "/enrollments/session-enrollments/") return json([]);
+    if (path === "/enrollments/session-enrollments/") {
+      state.examSessionEnrollmentReads = (state.examSessionEnrollmentReads ?? 0) + 1;
+      state.examRequestSequence?.push("auto-enroll-read");
+      return json(state.examSessionEnrollmentRows ?? []);
+    }
     if (path === "/lectures/attendance/matrix/") {
       const sessions = sessionRows(state);
       return json({
@@ -234,6 +245,7 @@ async function installApi(page: Page, state: MockState) {
     }
     if (path === "/exams/" && method === "POST") {
       const payload = request.postDataJSON() as Record<string, unknown>;
+      state.examRequestSequence?.push("create");
       state.createdExamPayloads ??= [];
       state.createdExamPayloads.push(payload);
       if ((state.examCreateDelayMs ?? 0) > 0) {
@@ -243,6 +255,24 @@ async function installApi(page: Page, state: MockState) {
         id: 9970 + state.createdExamPayloads.length,
         ...payload,
       }, 201);
+    }
+    if (/^\/exams\/\d+\/enrollments\/$/.test(path) && method === "PUT") {
+      const payload = request.postDataJSON() as { enrollment_ids?: number[] };
+      state.examRequestSequence?.push("auto-enroll");
+      state.examEnrollmentPuts ??= [];
+      state.examEnrollmentPuts.push(payload.enrollment_ids ?? []);
+      if ((state.examEnrollmentUpdateDelayMs ?? 0) > 0) {
+        await new Promise((resolve) => setTimeout(resolve, state.examEnrollmentUpdateDelayMs));
+      }
+      return json({ selected_count: payload.enrollment_ids?.length ?? 0 });
+    }
+    if (path === "/exams/pdf-extract/" && method === "POST") {
+      state.examRequestSequence?.push("pdf-extract");
+      state.examPdfExtractRequests = (state.examPdfExtractRequests ?? 0) + 1;
+      if ((state.examPdfExtractDelayMs ?? 0) > 0) {
+        await new Promise((resolve) => setTimeout(resolve, state.examPdfExtractDelayMs));
+      }
+      return json({ status: "queued" }, 202);
     }
     if (path === "/homeworks/" && method === "GET") {
       const rows = (state.createdHomeworkPayloads ?? []).map((payload, index) => ({
@@ -656,6 +686,170 @@ test("시험 빠른 생성은 잘못된 점수를 기본값으로 바꾸지 않�
     max_score: 50,
     pass_score: 30,
   });
+});
+
+test("원본 없이 직접 채점 시험을 만들고 문항별 점수 입력을 선택한다", async ({ page }, testInfo) => {
+  const state: MockState = {
+    supplementTitle: "토요일 심화 클리닉",
+    patchTitles: [],
+    createdExamPayloads: [],
+    examSessionEnrollmentRows: [{
+      id: 7701,
+      session: REGULAR_SESSION_ID,
+      enrollment: 501,
+      student_id: 8801,
+      student_name: "김민준",
+    }],
+    examEnrollmentPuts: [],
+    examCreateDelayMs: 500,
+    examEnrollmentUpdateDelayMs: 500,
+    examPdfExtractRequests: 0,
+    examRequestSequence: [],
+  };
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openLecture(page, state);
+  await page.goto(
+    `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/exams`,
+    { waitUntil: "domcontentloaded" },
+  );
+
+  const openCreate = page.getByRole("button", { name: "시험 추가", exact: true }).first();
+  await expect(openCreate).toBeVisible({ timeout: 30_000 });
+  await openCreate.click();
+  await page.getByText(/시험지로 만들기|시험 설정해서 만들기/, { exact: true }).click();
+  await expect.poll(() => state.examSessionEnrollmentReads).toBeGreaterThan(0);
+  await page.getByLabel("시험명").fill("중2 서답형 단원평가");
+  await page.getByRole("button", { name: /직접 채점/ }).first().click();
+  await page.getByRole("button", { name: /점수 입력/ }).click();
+
+  const dialog = page.getByRole("dialog").filter({ hasText: "시험 설정해서 만들기" });
+  await expect(dialog.getByText(/시험 상세의 시험 자료 업로드/)).toBeVisible();
+  await expect(
+    dialog.locator(".modal-footer__side").getByText(/시험 상세에서 나중에 업로드/),
+  ).toBeVisible();
+  const workflowButtons = dialog.getByRole("group", { name: "채점 흐름" }).getByRole("button");
+  const mobileButtonPositions = await workflowButtons.evaluateAll((buttons) => (
+    buttons.map((button) => {
+      const box = button.getBoundingClientRect();
+      return { x: Math.round(box.x), y: Math.round(box.y) };
+    })
+  ));
+  expect(new Set(mobileButtonPositions.map(({ x }) => x)).size).toBe(1);
+  expect(mobileButtonPositions[0].y).toBeLessThan(mobileButtonPositions[1].y);
+  expect(mobileButtonPositions[1].y).toBeLessThan(mobileButtonPositions[2].y);
+  expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  await page.screenshot({
+    path: testInfo.outputPath("no-source-configured-create-390.png"),
+    fullPage: true,
+  });
+
+  const submit = page.getByRole("button", {
+    name: /^(시험 만들고 자료 올리기|시험 만들기)$/,
+  });
+  await expect(submit).toBeEnabled();
+  state.examRequestSequence = [];
+  await submit.evaluate((element) => {
+    element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+
+  await expect.poll(() => state.examRequestSequence).toEqual(["create"]);
+  await expect(dialog.getByRole("button", { name: "뒤로" })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "취소", exact: true })).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  await expect.poll(() => state.examRequestSequence).toEqual([
+    "create",
+    "auto-enroll-read",
+    "auto-enroll",
+  ]);
+  await expect(dialog.getByRole("button", { name: "취소", exact: true })).toBeDisabled();
+
+  await expect.poll(() => state.createdExamPayloads?.length).toBe(1);
+  await expect(dialog).toHaveCount(0);
+  expect(state.createdExamPayloads?.[0]).toMatchObject({
+    title: "중2 서답형 단원평가",
+    grading_mode: "written",
+    manual_grading_method: "score",
+    choice_question_count: 0,
+  });
+  expect(state.examEnrollmentPuts).toEqual([[501]]);
+  expect(state.examPdfExtractRequests).toBe(0);
+  expect(state.examRequestSequence).toEqual([
+    "create",
+    "auto-enroll-read",
+    "auto-enroll",
+  ]);
+});
+
+test("원본을 선택하면 생성과 자동 등록 뒤 기존 업로드 순서를 유지한다", async ({ page }, testInfo) => {
+  const state: MockState = {
+    supplementTitle: "토요일 심화 클리닉",
+    patchTitles: [],
+    createdExamPayloads: [],
+    examSessionEnrollmentRows: [{
+      id: 7701,
+      session: REGULAR_SESSION_ID,
+      enrollment: 501,
+      student_name: "김민준",
+    }],
+    examEnrollmentPuts: [],
+    examCreateDelayMs: 100,
+    examEnrollmentUpdateDelayMs: 100,
+    examPdfExtractDelayMs: 500,
+    examPdfExtractRequests: 0,
+    examRequestSequence: [],
+  };
+  await openLecture(page, state);
+  await page.goto(
+    `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/exams`,
+    { waitUntil: "domcontentloaded" },
+  );
+
+  await page.getByRole("button", { name: "시험 추가", exact: true }).first().click();
+  await page.getByText("시험 설정해서 만들기", { exact: true }).click();
+  await expect.poll(() => state.examSessionEnrollmentReads).toBeGreaterThan(0);
+  await page.getByLabel("시험명").fill("중2 서답형 원본 포함");
+  await page.getByLabel("시험지 원본 (선택)").setInputFiles({
+    name: "middle-written.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("source-present-regression"),
+  });
+
+  const dialog = page.getByRole("dialog").filter({ hasText: "시험 설정해서 만들기" });
+  const desktopButtonPositions = await dialog
+    .getByRole("group", { name: "채점 흐름" })
+    .getByRole("button")
+    .evaluateAll((buttons) => buttons.map((button) => Math.round(button.getBoundingClientRect().y)));
+  expect(new Set(desktopButtonPositions).size).toBe(1);
+  await page.screenshot({
+    path: testInfo.outputPath("source-present-configured-create-desktop.png"),
+    fullPage: true,
+  });
+
+  state.examRequestSequence = [];
+  await dialog.getByRole("button", { name: "시험 만들고 자료 올리기", exact: true }).click();
+  await expect.poll(() => state.examRequestSequence).toEqual([
+    "create",
+    "auto-enroll-read",
+    "auto-enroll",
+    "pdf-extract",
+  ]);
+  await expect(dialog.getByRole("button", { name: "뒤로" })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "취소", exact: true })).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+
+  await expect(dialog).toHaveCount(0);
+  expect(state.createdExamPayloads).toHaveLength(1);
+  expect(state.examEnrollmentPuts).toEqual([[501]]);
+  expect(state.examPdfExtractRequests).toBe(1);
+  expect(state.examRequestSequence).toEqual([
+    "create",
+    "auto-enroll-read",
+    "auto-enroll",
+    "pdf-extract",
+  ]);
 });
 
 test("같은 차시에서도 과제마다 숫자 채점과 완료 체크를 선택한다", async ({ page }, testInfo) => {
