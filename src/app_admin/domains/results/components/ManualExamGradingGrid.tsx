@@ -457,7 +457,10 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
         if (!currentDraft || !pendingRecord || pendingRecord.status === "saved") {
           return cloneRow(serverRow);
         }
-        const baseline = pendingRecord.lastSentRow ?? previousServerByEnrollment.get(serverRow.enrollment_id);
+        const baseline =
+          pendingRecord.lastSentGeneration <= pendingRecord.acknowledgedGeneration
+            ? pendingRecord.lastSentRow ?? previousServerByEnrollment.get(serverRow.enrollment_id)
+            : previousServerByEnrollment.get(serverRow.enrollment_id);
         return baseline
           ? mergeManualGradeRow(serverRow, currentDraft, baseline)
           : { ...cloneRow(currentDraft), expected_version: serverRow.expected_version };

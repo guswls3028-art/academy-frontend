@@ -593,7 +593,10 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       }
       if (body.apply === true && failNextManualApply) {
         failNextManualApply = false;
-        await json({ detail: "manual grading apply failed" }, 503);
+        for (const row of body.rows ?? []) {
+          ensurePersistedRow(row.enrollment_id).expectedVersion = "version-conflict";
+        }
+        await json({ detail: "manual grading version conflict" }, 409);
         return;
       }
       if (body.apply === true) {
@@ -872,7 +875,7 @@ test.describe("문항별 직접 채점", () => {
     await expect.poll(() => apiState.manualSheetGetCount).toBeGreaterThan(1);
   });
 
-  test("apply 실패는 실패로 남고 명시적 재시도 한 번만 최신 행을 저장한다", async ({ page }) => {
+  test("비커밋 apply 충돌 뒤 재시도는 최신 정오와 갱신 version을 보존한다", async ({ page }) => {
     const apiState = await installApi(page);
 
     await page.goto(
@@ -888,10 +891,29 @@ test.describe("문항별 직접 채점", () => {
     await studentRow.getByRole("button", { name: "김학생 자동 저장 재시도" }).click();
     await expect(page.getByRole("status", { name: "정오 자동 저장 상태" })).toContainText("저장됨");
     await expect.poll(() => apiState.postedRows.length).toBe(2);
-    expect(apiState.postedRows).toEqual([
-      expect.objectContaining({ apply: true }),
-      expect.objectContaining({ apply: true }),
-    ]);
+    expect(apiState.postedRows[0]).toEqual(expect.objectContaining({
+      apply: true,
+      rows: [expect.objectContaining({
+        expected_version: null,
+        cells: expect.objectContaining({
+          [String(QUESTION_IDS[0])]: { state: "correct" },
+        }),
+      })],
+    }));
+    expect(apiState.postedRows[1]).toEqual(expect.objectContaining({
+      apply: true,
+      rows: [expect.objectContaining({
+        expected_version: "version-conflict",
+        cells: expect.objectContaining({
+          [String(QUESTION_IDS[0])]: { state: "correct" },
+        }),
+      })],
+    }));
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    const reloadedRow = page.getByRole("row").filter({ hasText: "김학생" });
+    await expect(reloadedRow.getByRole("button", { name: "O" })).toHaveCount(1);
   });
 
   test("390px SessionScores 닫기는 pending correctness 저장을 flush한 뒤 닫는다", async ({ page }) => {
