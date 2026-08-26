@@ -22,6 +22,21 @@ API와 성공 후 세션 처리를 소유한다. 비밀번호 원문, 토큰, �
 백엔드 호환 경로가 남아 있더라도 신규 화면은 전 역할 공통 본인 변경 API만
 사용한다.
 
+## 공개 로그인 화면
+
+- 로그인 화면은 테넌트 host를 기준으로 브랜드와 인증 대상을 함께 확정하며,
+  아이디·학부모 휴대폰 번호, 비밀번호, 보기/숨기기, Caps Lock 안내, 가입·복구
+  진입점을 공통으로 유지한다. 시각 테마 변경은 이 인증·테넌트 계약을 바꾸지 않는다.
+- Godmin은 흑연 워드마크와 민트 궤도를 사용하는 분할형 로그인 화면을 제공한다.
+  데스크톱은 브랜드와 입력 영역을 나란히, 840px 이하는 위아래로 배치하며 390px
+  화면에서도 입력·보조 링크·법적 링크가 겹치거나 가로로 넘치지 않아야 한다.
+- 배경 장식은 큰 궤도와 빛의 이동만 허용하고, 고립된 점 형태의 입자는 표시하지
+  않는다. 첫 진입과 포커스·호버 피드백은 짧은 opacity/transform 전환으로 제공하며
+  `prefers-reduced-motion: reduce`에서는 장식과 진입 애니메이션을 정지한다.
+- 프로그램 정보 로딩 중에는 잘못된 기본 테넌트가 잠깐 보이지 않도록 기존 빈 상태를
+  유지한다. 로그인 실패는 입력과 제출 사이에 서버 오류를 표시하고, 중복 제출은
+  진행 중 버튼 비활성화로 막는다.
+
 ## 학생 셀프 회원가입 진입 정책
 
 - 테넌트 registry의 `studentSelfRegistrationEnabled=false`는 로그인 화면의
@@ -120,6 +135,7 @@ refresh 후 재요청 401의 단일 세션 종료와 복귀 경로 보존을 검
 ```powershell
 pnpm exec playwright test e2e/auth/account-password-flows.mock.spec.ts e2e/auth/account-recovery-modal.spec.ts e2e/auth/signup-tenant-policy.mock.spec.ts e2e/admin/staff-operations-contract.mock.spec.ts --project=chromium --reporter=list
 pnpm exec playwright test e2e/auth/iphone-safari-login.mock.spec.ts --config=playwright.pr-gate.config.ts --project=pr-route-mocks --project=pr-iphone-webkit --no-deps --reporter=list
+pnpm exec playwright test e2e/auth/godmin-login-visual.mock.spec.ts --project=chromium --reporter=list
 pnpm exec playwright test e2e/student/student-content-resilience.mock.spec.ts --project=chromium --grep "학부모 내 비밀번호"
 pnpm exec playwright test e2e/admin/student-detail-entrypoints.mock.spec.ts --project=chromium --reporter=list
 pnpm typecheck
