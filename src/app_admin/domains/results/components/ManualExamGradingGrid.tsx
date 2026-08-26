@@ -1,7 +1,9 @@
 import {
+  forwardRef,
   memo,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -27,6 +29,7 @@ import {
 
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { Button, EmptyState, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
+import { useAssessmentDirtyRegistration } from "@/shared/ui/assessment/AssessmentEditGuard";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { getLocalItem, removeLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
@@ -67,6 +70,32 @@ type Props = {
   onDirtyChange?: (dirty: boolean) => void;
   showUnavailableState?: boolean;
 };
+
+export type ManualExamGradingGridHandle = {
+  flushPending: () => Promise<boolean>;
+};
+
+type CorrectnessAutosaveStatus = "pending" | "saving" | "saved" | "failed";
+
+type CorrectnessAutosaveRecord = {
+  enrollmentId: number;
+  generation: number;
+  acknowledgedGeneration: number;
+  confirmedGeneration: number;
+  status: CorrectnessAutosaveStatus;
+  error: string | null;
+  lastSavedAt: number | null;
+  lastSentGeneration: number;
+  lastSentRow: ManualGradeRow | null;
+  needsReconcile: boolean;
+};
+
+type CorrectnessAutosaveView = Pick<
+  CorrectnessAutosaveRecord,
+  "status" | "error" | "lastSavedAt"
+>;
+
+const CORRECTNESS_AUTOSAVE_DELAY_MS = 450;
 
 const STATE_ORDER: Array<ManualGradeState | null> = [
   null,
@@ -149,12 +178,12 @@ type ManualGradeHistoryEntry =
       }>;
     };
 
-export default function ManualExamGradingGrid({
+const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(function ManualExamGradingGrid({
   examId,
   onApplied,
   onDirtyChange,
   showUnavailableState = false,
-}: Props) {
+}, forwardedRef) {
   const queryClient = useQueryClient();
   const workspaceRef = useRef<HTMLElement>(null);
   const tableWrapRef = useRef<HTMLDivElement>(null);
@@ -181,7 +210,16 @@ export default function ManualExamGradingGrid({
   const undoStackRef = useRef<ManualGradeHistoryEntry[]>([]);
   const redoStackRef = useRef<ManualGradeHistoryEntry[]>([]);
   const [historyState, setHistoryState] = useState({ undo: 0, redo: 0 });
-  const [dirty, setDirty] = useState(false);
+  const [explicitDirty, setExplicitDirty] = useState(false);
+  const explicitDirtyRef = useRef(false);
+  const serverRowsRef = useRef<ManualGradeRow[]>([]);
+  const autosaveRecordsRef = useRef<Map<number, CorrectnessAutosaveRecord>>(new Map());
+  const autosaveTimerRef = useRef<number | null>(null);
+  const autosaveRunRef = useRef<Promise<boolean> | null>(null);
+  const autosaveEpochRef = useRef(0);
+  const suppressNextSheetSyncRef = useRef(false);
+  const latestAutosaveSheetRef = useRef<ManualGradeSheet | null>(null);
+  const [autosaveRows, setAutosaveRows] = useState<Record<number, CorrectnessAutosaveView>>({});
   const [answerKeyOpen, setAnswerKeyOpen] = useState(false);
   const [quickStartOpen, setQuickStartOpen] = useState(false);
   const [quickStartCount, setQuickStartCount] = useState<number | "">("");
@@ -217,8 +255,31 @@ export default function ManualExamGradingGrid({
     syncHistoryState();
   }, [syncHistoryState]);
 
+  const publishAutosaveRows = useCallback(() => {
+    setAutosaveRows(Object.fromEntries(
+      [...autosaveRecordsRef.current.entries()].map(([enrollmentId, record]) => [
+        enrollmentId,
+        {
+          status: record.status,
+          error: record.error,
+          lastSavedAt: record.lastSavedAt,
+        },
+      ]),
+    ));
+  }, []);
+
+  const markExplicitDirty = useCallback((next: boolean) => {
+    explicitDirtyRef.current = next;
+    setExplicitDirty(next);
+  }, []);
+
   useEffect(() => {
     if (!sheetQuery.data) return;
+    if (suppressNextSheetSyncRef.current) {
+      suppressNextSheetSyncRef.current = false;
+      return;
+    }
+    latestAutosaveSheetRef.current = null;
     const nextRows = cloneRows(sheetQuery.data.rows);
     const nextScores = Object.fromEntries(
       sheetQuery.data.questions.map((question) => [
@@ -226,17 +287,21 @@ export default function ManualExamGradingGrid({
         formatScoreInput(question.max_score),
       ]),
     );
+    autosaveEpochRef.current += 1;
+    if (autosaveTimerRef.current != null) {
+      window.clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    autosaveRecordsRef.current.clear();
+    setAutosaveRows({});
+    serverRowsRef.current = cloneRows(nextRows);
     draftRowsRef.current = nextRows;
     questionScoreDraftRef.current = nextScores;
     setDraftRows(nextRows);
     setQuestionScoreDraft(nextScores);
     clearHistory();
-    setDirty(false);
-  }, [clearHistory, sheetQuery.data]);
-
-  useEffect(() => {
-    onDirtyChange?.(dirty);
-  }, [dirty, onDirtyChange]);
+    markExplicitDirty(false);
+  }, [clearHistory, markExplicitDirty, sheetQuery.data]);
 
   const requestRows = useMemo(
     () => buildRequestRows(draftRows),
@@ -246,6 +311,50 @@ export default function ManualExamGradingGrid({
     () => buildQuestionScoreState(data, questionScoreDraft),
     [data, questionScoreDraft],
   );
+  const autosaveSummary = useMemo(() => {
+    const rows = Object.values(autosaveRows);
+    return {
+      pending: rows.filter((row) => row.status === "pending").length,
+      saving: rows.filter((row) => row.status === "saving").length,
+      failed: rows.filter((row) => row.status === "failed").length,
+      saved: rows.filter((row) => row.status === "saved").length,
+      lastSavedAt: rows.reduce<number | null>(
+        (latest, row) => row.lastSavedAt != null && (latest == null || row.lastSavedAt > latest)
+          ? row.lastSavedAt
+          : latest,
+        null,
+      ),
+    };
+  }, [autosaveRows]);
+  const hasAutosavePending =
+    autosaveSummary.pending > 0 ||
+    autosaveSummary.saving > 0 ||
+    autosaveSummary.failed > 0;
+  const dirty = explicitDirty || hasAutosavePending;
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
+
+  useAssessmentDirtyRegistration(`manual-grading-${examId}`, dirty);
+
+  useEffect(() => {
+    if (!dirty) return;
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
+
+  useEffect(() => () => {
+    autosaveEpochRef.current += 1;
+    if (autosaveTimerRef.current != null) {
+      window.clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+  }, []);
 
   const previewMutation = useMutation({
     mutationFn: () =>
@@ -268,7 +377,7 @@ export default function ManualExamGradingGrid({
     onSuccess: async (result) => {
       feedback.success(`${result.matched_count}명의 성적을 확정했습니다.`);
       previewMutation.reset();
-      setDirty(false);
+      markExplicitDirty(false);
       onApplied?.();
       await Promise.all([
         sheetQuery.refetch(),
@@ -289,6 +398,249 @@ export default function ManualExamGradingGrid({
     onError: (error) =>
       feedback.error(extractApiError(error, "성적을 확정하지 못했습니다.")),
   });
+
+  const runAutosaveQueue = useCallback(async (): Promise<boolean> => {
+    if (autosaveRunRef.current) return autosaveRunRef.current;
+    const runExamId = examId;
+    const runEpoch = autosaveEpochRef.current;
+    const notifyAutosaveApplied = () => {
+      onApplied?.();
+      void Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: adminExamsQueryKeys.adminExamResults(runExamId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: adminExamsQueryKeys.adminExamSummary(runExamId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: adminExamsQueryKeys.examQuestionStats(runExamId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: adminResultsQueryKeys.adminExamResults(runExamId),
+        }),
+      ]);
+    };
+
+    const refreshAfterAttempt = async (record: CorrectnessAutosaveRecord) => {
+      const previousServerRows = serverRowsRef.current;
+      const refreshedSheet = await fetchManualGradeSheet(runExamId);
+      if (autosaveEpochRef.current !== runEpoch) return false;
+      latestAutosaveSheetRef.current = refreshedSheet;
+      const refreshedServerRows = cloneRows(refreshedSheet.rows);
+      const refreshedServerRow = refreshedServerRows.find(
+        (row) => row.enrollment_id === record.enrollmentId,
+      );
+      if (!refreshedServerRow) {
+        throw new Error("저장된 학생 행을 다시 불러오지 못했습니다.");
+      }
+
+      if (
+        record.needsReconcile &&
+        record.lastSentRow &&
+        sameCorrectnessRowValues(refreshedServerRow, record.lastSentRow)
+      ) {
+        record.acknowledgedGeneration = Math.max(
+          record.acknowledgedGeneration,
+          record.lastSentGeneration,
+        );
+      }
+
+      const previousServerByEnrollment = new Map(
+        previousServerRows.map((row) => [row.enrollment_id, row]),
+      );
+      const currentDraftByEnrollment = new Map(
+        draftRowsRef.current.map((row) => [row.enrollment_id, row]),
+      );
+      const nextDraftRows = refreshedServerRows.map((serverRow) => {
+        const currentDraft = currentDraftByEnrollment.get(serverRow.enrollment_id);
+        const pendingRecord = autosaveRecordsRef.current.get(serverRow.enrollment_id);
+        if (!currentDraft || !pendingRecord || pendingRecord.status === "saved") {
+          return cloneRow(serverRow);
+        }
+        const baseline =
+          pendingRecord.lastSentGeneration <= pendingRecord.acknowledgedGeneration
+            ? pendingRecord.lastSentRow ?? previousServerByEnrollment.get(serverRow.enrollment_id)
+            : previousServerByEnrollment.get(serverRow.enrollment_id);
+        return baseline
+          ? mergeManualGradeRow(serverRow, currentDraft, baseline)
+          : { ...cloneRow(currentDraft), expected_version: serverRow.expected_version };
+      });
+      serverRowsRef.current = refreshedServerRows;
+      draftRowsRef.current = nextDraftRows;
+      setDraftRows(nextDraftRows);
+
+      record.confirmedGeneration = record.acknowledgedGeneration;
+      record.needsReconcile = false;
+      record.error = null;
+      if (record.generation > record.confirmedGeneration) {
+        record.status = "pending";
+      } else {
+        record.status = "saved";
+        record.lastSavedAt = Date.now();
+      }
+      publishAutosaveRows();
+      return record.status === "saved";
+    };
+
+    const run = (async () => {
+      while (autosaveEpochRef.current === runEpoch) {
+        const record = [...autosaveRecordsRef.current.values()].find(
+          (candidate) => candidate.status === "pending",
+        );
+        if (!record) break;
+
+        record.status = "saving";
+        record.error = null;
+        publishAutosaveRows();
+
+        if (record.needsReconcile) {
+          try {
+            const saved = await refreshAfterAttempt(record);
+            if (saved) notifyAutosaveApplied();
+          } catch (error) {
+            record.status = "failed";
+            record.error = extractApiError(error, "저장 결과를 다시 확인하지 못했습니다.");
+            publishAutosaveRows();
+          }
+          continue;
+        }
+
+        const draftRow = draftRowsRef.current.find(
+          (row) => row.enrollment_id === record.enrollmentId,
+        );
+        if (!draftRow) {
+          record.status = "failed";
+          record.error = "저장할 학생 행을 찾지 못했습니다.";
+          publishAutosaveRows();
+          continue;
+        }
+
+        const sentGeneration = record.generation;
+        const sentRow = cloneRow(draftRow);
+        record.lastSentGeneration = sentGeneration;
+        record.lastSentRow = sentRow;
+        try {
+          await applyManualGrades(runExamId, buildRequestRows([sentRow]));
+          if (autosaveEpochRef.current !== runEpoch) return false;
+          record.acknowledgedGeneration = Math.max(
+            record.acknowledgedGeneration,
+            sentGeneration,
+          );
+          record.needsReconcile = true;
+          const saved = await refreshAfterAttempt(record);
+          if (saved) notifyAutosaveApplied();
+        } catch (error) {
+          record.needsReconcile = true;
+          record.status = "failed";
+          record.error = extractApiError(error, "정오와 점수를 저장하지 못했습니다.");
+          publishAutosaveRows();
+        }
+      }
+
+      const unresolved = [...autosaveRecordsRef.current.values()].some(
+        (record) => record.status !== "saved",
+      );
+      if (!unresolved && !explicitDirtyRef.current) {
+        clearHistory();
+        const latestSheet = latestAutosaveSheetRef.current;
+        if (latestSheet) {
+          suppressNextSheetSyncRef.current = true;
+          queryClient.setQueryData(
+            adminResultsQueryKeys.manualGradeSheet(runExamId),
+            latestSheet,
+          );
+        }
+      }
+      return !unresolved && !explicitDirtyRef.current;
+    })();
+
+    autosaveRunRef.current = run;
+    try {
+      return await run;
+    } finally {
+      if (autosaveRunRef.current === run) autosaveRunRef.current = null;
+    }
+  }, [clearHistory, examId, onApplied, publishAutosaveRows, queryClient]);
+
+  const scheduleAutosave = useCallback(() => {
+    if (autosaveTimerRef.current != null) {
+      window.clearTimeout(autosaveTimerRef.current);
+    }
+    autosaveTimerRef.current = window.setTimeout(() => {
+      autosaveTimerRef.current = null;
+      void runAutosaveQueue();
+    }, CORRECTNESS_AUTOSAVE_DELAY_MS);
+  }, [runAutosaveQueue]);
+
+  const markRowsForSave = useCallback((enrollmentIds: Iterable<number>) => {
+    if (data?.manual_grading_method !== "correctness") {
+      markExplicitDirty(true);
+      return;
+    }
+    let shouldSchedule = false;
+    for (const enrollmentId of new Set(enrollmentIds)) {
+      const current = autosaveRecordsRef.current.get(enrollmentId);
+      const record = current ?? {
+        enrollmentId,
+        generation: 0,
+        acknowledgedGeneration: 0,
+        confirmedGeneration: 0,
+        status: "pending" as const,
+        error: null,
+        lastSavedAt: null,
+        lastSentGeneration: 0,
+        lastSentRow: null,
+        needsReconcile: false,
+      };
+      record.generation += 1;
+      if (record.status !== "saving" && record.status !== "failed") {
+        record.status = "pending";
+        record.error = null;
+        shouldSchedule = true;
+      }
+      autosaveRecordsRef.current.set(enrollmentId, record);
+    }
+    publishAutosaveRows();
+    if (shouldSchedule) scheduleAutosave();
+  }, [data?.manual_grading_method, markExplicitDirty, publishAutosaveRows, scheduleAutosave]);
+
+  const retryAutosave = useCallback((enrollmentId?: number) => {
+    let hasRetry = false;
+    for (const record of autosaveRecordsRef.current.values()) {
+      if (record.status !== "failed") continue;
+      if (enrollmentId != null && record.enrollmentId !== enrollmentId) continue;
+      record.status = "pending";
+      record.error = null;
+      hasRetry = true;
+    }
+    if (!hasRetry) return;
+    publishAutosaveRows();
+    if (autosaveTimerRef.current != null) {
+      window.clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    void runAutosaveQueue();
+  }, [publishAutosaveRows, runAutosaveQueue]);
+
+  const flushPending = useCallback(async () => {
+    if (data?.manual_grading_method !== "correctness") {
+      return !explicitDirtyRef.current;
+    }
+    if (autosaveTimerRef.current != null) {
+      window.clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    if ([...autosaveRecordsRef.current.values()].some((record) => record.status === "failed")) {
+      return false;
+    }
+    await runAutosaveQueue();
+    return (
+      !explicitDirtyRef.current &&
+      [...autosaveRecordsRef.current.values()].every((record) => record.status === "saved")
+    );
+  }, [data?.manual_grading_method, runAutosaveQueue]);
+
+  useImperativeHandle(forwardedRef, () => ({ flushPending }), [flushPending]);
 
   const quickStartMutation = useMutation({
     mutationFn: async () => {
@@ -371,6 +723,19 @@ export default function ManualExamGradingGrid({
     previewMutation.isPending ||
     applyMutation.isPending ||
     quickStartMutation.isPending;
+  const autosaveStatusText = autosaveSummary.failed > 0
+    ? `${autosaveSummary.failed}명 저장 실패`
+    : autosaveSummary.saving > 0
+      ? `${autosaveSummary.saving}명 저장 중`
+      : autosaveSummary.pending > 0
+        ? `${autosaveSummary.pending}명 저장 대기`
+        : autosaveSummary.lastSavedAt != null
+          ? `저장됨 ${new Date(autosaveSummary.lastSavedAt).toLocaleTimeString("ko-KR", {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            })}`
+          : "정오 변경 즉시 자동 저장";
 
   const applyTableScale = useCallback((nextScale: number, persist = true) => {
     const scale = getClosestTableScale(nextScale);
@@ -537,9 +902,15 @@ export default function ManualExamGradingGrid({
     applyHistoryEntry(entry, "undo");
     redoStackRef.current.push(entry);
     syncHistoryState();
-    setDirty(undoStackRef.current.length > 0);
+    if (data?.manual_grading_method !== "correctness") {
+      markExplicitDirty(undoStackRef.current.length > 0);
+    } else if (entry.kind === "question-score" || entry.kind === "question-scores") {
+      markExplicitDirty(Boolean(buildQuestionScoreState(data, questionScoreDraftRef.current).changes));
+    } else {
+      markRowsForSave(entry.changes.map((change) => change.enrollmentId));
+    }
     return true;
-  }, [applyHistoryEntry, syncHistoryState]);
+  }, [applyHistoryEntry, data, markExplicitDirty, markRowsForSave, syncHistoryState]);
 
   const redoLastChange = useCallback(() => {
     const entry = redoStackRef.current.pop();
@@ -547,9 +918,13 @@ export default function ManualExamGradingGrid({
     applyHistoryEntry(entry, "redo");
     undoStackRef.current.push(entry);
     syncHistoryState();
-    setDirty(true);
+    if (entry.kind === "question-score" || entry.kind === "question-scores") {
+      markExplicitDirty(true);
+    } else {
+      markRowsForSave(entry.changes.map((change) => change.enrollmentId));
+    }
     return true;
-  }, [applyHistoryEntry, syncHistoryState]);
+  }, [applyHistoryEntry, markExplicitDirty, markRowsForSave, syncHistoryState]);
 
   const focusCell = useCallback((
     current: HTMLElement,
@@ -875,7 +1250,7 @@ export default function ManualExamGradingGrid({
     );
     draftRowsRef.current = nextRows;
     setDraftRows(nextRows);
-    setDirty(true);
+    markRowsForSave([enrollmentId]);
     previewMutation.reset();
   };
 
@@ -899,7 +1274,7 @@ export default function ManualExamGradingGrid({
     );
     draftRowsRef.current = nextRows;
     setDraftRows(nextRows);
-    setDirty(true);
+    markRowsForSave([enrollmentId]);
     previewMutation.reset();
   };
 
@@ -918,7 +1293,7 @@ export default function ManualExamGradingGrid({
     );
     draftRowsRef.current = nextRows;
     setDraftRows(nextRows);
-    setDirty(true);
+    markRowsForSave(changes.map((change) => change.enrollmentId));
     previewMutation.reset();
   };
 
@@ -938,7 +1313,7 @@ export default function ManualExamGradingGrid({
     };
     questionScoreDraftRef.current = nextScores;
     setQuestionScoreDraft(nextScores);
-    setDirty(true);
+    markExplicitDirty(true);
     previewMutation.reset();
   };
 
@@ -994,7 +1369,7 @@ export default function ManualExamGradingGrid({
     pushHistory({ kind: "question-scores", changes });
     questionScoreDraftRef.current = nextScores;
     setQuestionScoreDraft(nextScores);
-    setDirty(true);
+    markExplicitDirty(true);
     previewMutation.reset();
     setWeightEditorOpen(false);
     setWeightListError(null);
@@ -1050,7 +1425,7 @@ export default function ManualExamGradingGrid({
     });
     draftRowsRef.current = nextRows;
     setDraftRows(nextRows);
-    setDirty(true);
+    markRowsForSave(changes.map((change) => change.enrollmentId));
     previewMutation.reset();
     feedback.success(
       `${changes.length}개 미입력 칸을 정답으로 채웠습니다. 기존 O/X/오답노트는 유지됩니다.`,
@@ -1131,7 +1506,7 @@ export default function ManualExamGradingGrid({
     });
     draftRowsRef.current = nextRows;
     setDraftRows(nextRows);
-    setDirty(true);
+    markRowsForSave(changes.map((change) => change.enrollmentId));
     previewMutation.reset();
     feedback.success(`${changes.length}칸을 붙여넣었습니다.`);
 
@@ -1153,7 +1528,20 @@ export default function ManualExamGradingGrid({
   };
 
   const reset = () => {
-    const nextRows = cloneRows(data.rows);
+    if (
+      autosaveRunRef.current != null ||
+      [...autosaveRecordsRef.current.values()].some((record) => record.status === "failed")
+    ) {
+      feedback.error("저장 중이거나 실패한 학생이 있습니다. 저장을 마친 뒤 초기화해 주세요.");
+      return;
+    }
+    if (autosaveTimerRef.current != null) {
+      window.clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    autosaveRecordsRef.current.clear();
+    publishAutosaveRows();
+    const nextRows = cloneRows(serverRowsRef.current.length > 0 ? serverRowsRef.current : data.rows);
     const nextScores = Object.fromEntries(
       data.questions.map((question) => [
         String(question.question_id),
@@ -1165,7 +1553,7 @@ export default function ManualExamGradingGrid({
     setDraftRows(nextRows);
     setQuestionScoreDraft(nextScores);
     clearHistory();
-    setDirty(false);
+    markExplicitDirty(false);
     previewMutation.reset();
   };
 
@@ -1189,6 +1577,12 @@ export default function ManualExamGradingGrid({
         return;
       }
       event.currentTarget.focus({ preventScroll: true });
+      if (data.manual_grading_method === "correctness" && !explicitDirty) {
+        void flushPending().then((saved) => {
+          if (!saved) feedback.error("저장 실패 행을 재시도한 뒤 다시 저장해 주세요.");
+        });
+        return;
+      }
       if (!preview || hasErrors) previewMutation.mutate();
       else applyMutation.mutate();
       return;
@@ -1235,7 +1629,7 @@ export default function ManualExamGradingGrid({
                 : data.grading_mode === "mixed"
                   ? "OMR 문항은 잠그고 직접 채점 문항만 입력해 함께 확정합니다."
                   : data.manual_grading_method === "correctness"
-                    ? "정오를 입력한 뒤 한 번에 확인하고 성적을 확정합니다."
+                    ? "정오를 바꾸면 학생별 점수와 상태를 함께 자동 저장합니다."
                     : "문항별 점수를 입력한 뒤 한 번에 확인하고 성적을 확정합니다."}
             </p>
             <div className={styles.workspaceStats} aria-label="채점표 구성">
@@ -1254,7 +1648,19 @@ export default function ManualExamGradingGrid({
           </div>
         </div>
         <div className={styles.headerActions}>
-          {dirty && <span className={styles.unsaved}>확정 전 변경사항</span>}
+          {data.manual_grading_method === "correctness" && (
+            <span
+              className={`${styles.autosaveStatus} ${
+                autosaveSummary.failed > 0 ? styles.autosaveStatusFailed : ""
+              }`}
+              role="status"
+              aria-label="정오 자동 저장 상태"
+              aria-live="polite"
+            >
+              {autosaveStatusText}
+            </span>
+          )}
+          {explicitDirty && <span className={styles.unsaved}>확정 전 변경사항</span>}
           {hasEditableQuestions && (
             <Button
               type="button"
@@ -1266,7 +1672,9 @@ export default function ManualExamGradingGrid({
                 draftRows.length === 0
               }
               onClick={setAllAbsent}
-              title="전원을 결시로 표시한 뒤 제출한 학생만 응시로 바꿔 입력할 수 있습니다. 확정 전에는 서버에 저장되지 않습니다."
+              title={data.manual_grading_method === "correctness"
+                ? "전원을 결시로 표시하면 학생별로 자동 저장됩니다."
+                : "전원을 결시로 표시한 뒤 제출한 학생만 응시로 바꿔 입력할 수 있습니다. 확정 전에는 서버에 저장되지 않습니다."}
             >
               전원 결시로 설정
             </Button>
@@ -1298,7 +1706,12 @@ export default function ManualExamGradingGrid({
             intent="ghost"
             size="sm"
             leftIcon={<RefreshCw size={ICON_FOR_BUTTON.sm} />}
-            disabled={!dirty || busy}
+            disabled={
+              !dirty ||
+              busy ||
+              autosaveSummary.saving > 0 ||
+              autosaveSummary.failed > 0
+            }
             onClick={reset}
           >
             전체 초기화
@@ -1367,7 +1780,7 @@ export default function ManualExamGradingGrid({
               <span><kbd>Enter</kbd> 아래 칸</span>
               <span><kbd>{primaryShortcutModifier}+V</kbd> 엑셀 붙여넣기</span>
               <span><kbd>{primaryShortcutModifier}+Z</kbd> 실행 취소</span>
-              <span><kbd>{primaryShortcutModifier}+S</kbd> 확인·확정</span>
+              <span><kbd>{primaryShortcutModifier}+S</kbd> 지금 저장</span>
             </div>
           </div>
         </div>
@@ -1670,12 +2083,14 @@ export default function ManualExamGradingGrid({
                 manualGradingMethod={data.manual_grading_method}
                 hasEditableQuestions={hasEditableQuestions}
                 busy={busy || isOverviewMode}
+                saveState={autosaveRows[row.enrollment_id]}
                 shortcuts={shortcuts}
                 onSetAttendance={setAttendance}
                 onUpdateCell={updateCell}
                 onMoveFocus={focusCell}
                 onShowShortcuts={openShortcutSettings}
                 onPasteCorrectnessMatrix={pasteCorrectnessMatrix}
+                onRetryAutosave={retryAutosave}
               />
             ))}
           </tbody>
@@ -1719,15 +2134,39 @@ export default function ManualExamGradingGrid({
       {hasEditableQuestions && (
         <footer className={styles.footer}>
           <span>
-            확인 단계에서는 통계가 바뀌지 않습니다. 성적 확정 시에만 한 번에 반영됩니다.
+            {data.manual_grading_method === "correctness" && !explicitDirty
+              ? "정오 변경은 학생별 점수·상태와 함께 한 번의 저장으로 반영됩니다."
+              : "확인 단계에서는 통계가 바뀌지 않습니다. 성적 확정 시에만 한 번에 반영됩니다."}
           </span>
-          {!preview || hasErrors ? (
+          {data.manual_grading_method === "correctness" && !explicitDirty ? (
+            autosaveSummary.failed > 0 ? (
+              <Button
+                type="button"
+                intent="secondary"
+                leftIcon={<RefreshCw size={ICON_FOR_BUTTON.sm} />}
+                onClick={() => retryAutosave()}
+              >
+                실패 {autosaveSummary.failed}명 다시 저장
+              </Button>
+            ) : hasAutosavePending ? (
+              <Button
+                type="button"
+                intent="secondary"
+                loading={autosaveSummary.saving > 0}
+                onClick={() => void flushPending()}
+              >
+                지금 저장
+              </Button>
+            ) : (
+              <span className={styles.autosaveFooterSaved}>{autosaveStatusText}</span>
+            )
+          ) : !preview || hasErrors ? (
             <Button
               type="button"
               intent="primary"
               onClick={() => previewMutation.mutate()}
               loading={previewMutation.isPending}
-              disabled={!dirty || busy || Boolean(questionScoreState.error)}
+              disabled={!explicitDirty || busy || hasAutosavePending || Boolean(questionScoreState.error)}
             >
               입력 내용 확인
             </Button>
@@ -1753,7 +2192,9 @@ export default function ManualExamGradingGrid({
       />
     </section>
   );
-}
+});
+
+export default ManualExamGradingGrid;
 
 type ManualGradingTableRowProps = {
   row: ManualGradeRow;
@@ -1763,6 +2204,7 @@ type ManualGradingTableRowProps = {
   manualGradingMethod: ManualGradeSheet["manual_grading_method"];
   hasEditableQuestions: boolean;
   busy: boolean;
+  saveState?: CorrectnessAutosaveView;
   shortcuts: ManualGradingShortcutSettings;
   onSetAttendance: (enrollmentId: number, absent: boolean) => void;
   onUpdateCell: (
@@ -1780,6 +2222,7 @@ type ManualGradingTableRowProps = {
     rowIndex: number,
     columnIndex: number,
   ) => void;
+  onRetryAutosave: (enrollmentId?: number) => void;
 };
 
 const ManualGradingTableRow = memo(function ManualGradingTableRow({
@@ -1790,12 +2233,14 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
   manualGradingMethod,
   hasEditableQuestions,
   busy,
+  saveState,
   shortcuts,
   onSetAttendance,
   onUpdateCell,
   onMoveFocus,
   onShowShortcuts,
   onPasteCorrectnessMatrix,
+  onRetryAutosave,
 }: ManualGradingTableRowProps) {
   return (
     <tr>
@@ -1813,6 +2258,27 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
             maxLectureChips={1}
             examNotSubmittedCount={row.exam_not_submitted_count}
           />
+          {saveState && (
+            <span
+              className={`${styles.rowSaveState} ${
+                saveState.status === "failed" ? styles.rowSaveStateFailed : ""
+              }`}
+            >
+              {saveState.status === "pending" && "저장 대기"}
+              {saveState.status === "saving" && "저장 중"}
+              {saveState.status === "saved" && "저장됨"}
+              {saveState.status === "failed" && (
+                <button
+                  type="button"
+                  onClick={() => onRetryAutosave(row.enrollment_id)}
+                  aria-label={`${row.student_name} 자동 저장 재시도`}
+                  title={saveState.error ?? undefined}
+                >
+                  저장 실패 · 재시도
+                </button>
+              )}
+            </span>
+          )}
         </div>
         <span className={overviewStyles.overviewStudentName}>{row.student_name}</span>
       </td>
@@ -1917,6 +2383,7 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
   previous.manualGradingMethod === next.manualGradingMethod &&
   previous.hasEditableQuestions === next.hasEditableQuestions &&
   previous.busy === next.busy &&
+  previous.saveState === next.saveState &&
   previous.shortcuts === next.shortcuts);
 
 function ReadOnlyGradeCell({
@@ -2182,13 +2649,47 @@ function buildRequestRows(rows: ManualGradeRow[]): ManualGradeRequestRow[] {
 }
 
 function cloneRows(rows: ManualGradeRow[]): ManualGradeRow[] {
-  return rows.map((row) => ({
+  return rows.map(cloneRow);
+}
+
+function cloneRow(row: ManualGradeRow): ManualGradeRow {
+  return {
     ...row,
     lectures: row.lectures.map((lecture) => ({ ...lecture })),
     cells: Object.fromEntries(
       Object.entries(row.cells).map(([key, cell]) => [key, { ...cell }]),
     ),
-  }));
+  };
+}
+
+function mergeManualGradeRow(
+  serverRow: ManualGradeRow,
+  currentDraft: ManualGradeRow,
+  baseline: ManualGradeRow,
+): ManualGradeRow {
+  const next = cloneRow(serverRow);
+  if (currentDraft.is_not_submitted !== baseline.is_not_submitted) {
+    next.is_not_submitted = currentDraft.is_not_submitted;
+  }
+  for (const [questionId, currentCell] of Object.entries(currentDraft.cells)) {
+    const baselineCell = baseline.cells[questionId];
+    if (!baselineCell || !sameManualGradeCell(currentCell, baselineCell)) {
+      next.cells[questionId] = { ...currentCell };
+    }
+  }
+  return next;
+}
+
+function sameCorrectnessRowValues(
+  left: ManualGradeRow,
+  right: ManualGradeRow,
+): boolean {
+  if (left.is_not_submitted !== right.is_not_submitted) return false;
+  for (const [questionId, rightCell] of Object.entries(right.cells)) {
+    if (!rightCell.editable || rightCell.entry_method !== "correctness") continue;
+    if (left.cells[questionId]?.state !== rightCell.state) return false;
+  }
+  return true;
 }
 
 function sameManualGradeCell(

@@ -93,6 +93,10 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
   let previewRequestCount = 0;
   let manualEditPostCount = 0;
   let failNextPreview = false;
+  let failNextManualApply = false;
+  let failManualSheetGetAfterPostCount: number | null = null;
+  let nextManualApplyDelayMs = 0;
+  const manualSheetGetEvents: Array<{ applied: boolean; failureArmed: boolean }> = [];
   let gradingMode = options.gradingMode ?? "written";
   let manualGradingMethod =
     options.manualGradingMethod ?? "correctness";
@@ -104,35 +108,62 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     editable && gradingMode !== "choice",
   ] as const;
 
+  type PersistedCell = {
+    editable: boolean;
+    entry_method: "correctness" | "score" | "omr";
+    state: GradeState;
+    score: number | null;
+    include_in_wrong_note: boolean;
+  };
+  type PersistedRow = {
+    expectedVersion: string | null;
+    isNotSubmitted: boolean;
+    cells: Record<string, PersistedCell>;
+  };
+  const persistedRows = new Map<number, PersistedRow>();
+  const ensurePersistedRow = (
+    enrollmentId: number,
+    studentIndex = 0,
+    questionCount = options.sheetSize?.questions ?? QUESTION_IDS.length,
+  ): PersistedRow => {
+    const current = persistedRows.get(enrollmentId);
+    if (current) return current;
+    const cells = Object.fromEntries(
+      Array.from({ length: questionCount }, (_, questionIndex) => {
+        const questionId = QUESTION_IDS[0] + questionIndex;
+        const state = studentIndex === 0 && questionIndex < initialStates.length
+          ? initialStates[questionIndex]
+          : null;
+        const maxScore = options.sheetSize ? 100 / questionCount : questionIndex === 0 ? 40 : 60;
+        const isEditable = options.sheetSize
+          ? editable && gradingMode !== "choice"
+          : questionEditable()[questionIndex] ?? (editable && gradingMode !== "choice");
+        return [String(questionId), {
+          editable: isEditable,
+          entry_method: isEditable ? manualGradingMethod : "omr",
+          state,
+          score: manualGradingMethod === "score"
+            ? questionIndex === 0 ? 10 : 20
+            : state === "correct" ? maxScore : 0,
+          include_in_wrong_note: state === "review",
+        } satisfies PersistedCell];
+      }),
+    );
+    const created = {
+      expectedVersion: null,
+      isNotSubmitted: false,
+      cells,
+    };
+    persistedRows.set(enrollmentId, created);
+    return created;
+  };
+
   await page.addInitScript(({ token }) => {
     localStorage.setItem("access", token);
     localStorage.setItem("refresh", "manual-grading-refresh");
     localStorage.setItem("tenant_code", "hakwonplus");
     sessionStorage.setItem("tenantCode", "hakwonplus");
   }, { token: fakeJwt() });
-
-  const cells = (): Record<string, {
-    editable: boolean;
-    entry_method: "correctness" | "score" | "omr";
-    state: GradeState;
-    score: number | null;
-    include_in_wrong_note: boolean;
-  }> => ({
-    [String(QUESTION_IDS[0])]: {
-      editable: questionEditable()[0],
-      entry_method: questionEditable()[0] ? manualGradingMethod : "omr",
-      state: applied ? "correct" : initialStates[0],
-      score: applied ? 40 : manualGradingMethod === "score" ? 10 : initialStates[0] === "correct" ? 40 : 0,
-      include_in_wrong_note: false,
-    },
-    [String(QUESTION_IDS[1])]: {
-      editable: questionEditable()[1],
-      entry_method: questionEditable()[1] ? manualGradingMethod : "omr",
-      state: applied ? "review" : initialStates[1],
-      score: applied ? 60 : manualGradingMethod === "score" ? 20 : initialStates[1] === "correct" ? 60 : 0,
-      include_in_wrong_note: applied,
-    },
-  });
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -434,6 +465,14 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     }
     if (path === `/results/admin/exams/${EXAM_ID}/manual-grading/`) {
       if (method === "GET") {
+        const failureArmed =
+          failManualSheetGetAfterPostCount != null &&
+          postedRows.length > failManualSheetGetAfterPostCount;
+        manualSheetGetEvents.push({ applied, failureArmed });
+        if (failureArmed) {
+          await json({ detail: "manual grading sheet refresh failed" }, 503);
+          return;
+        }
         manualSheetGetCount += 1;
         await json({
           exam_id: EXAM_ID,
@@ -486,8 +525,15 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
             },
           ],
           rows: options.sheetSize
-            ? Array.from({ length: options.sheetSize.students }, (_, studentIndex) => ({
-                enrollment_id: ENROLLMENT_ID + studentIndex,
+            ? Array.from({ length: options.sheetSize.students }, (_, studentIndex) => {
+              const enrollmentId = ENROLLMENT_ID + studentIndex;
+              const persisted = ensurePersistedRow(
+                enrollmentId,
+                studentIndex,
+                options.sheetSize!.questions,
+              );
+              return ({
+                enrollment_id: enrollmentId,
                 student_name:
                   studentIndex === 0
                     ? "김학생"
@@ -499,29 +545,15 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
                   color: "#2563eb",
                   chip_label: "수2",
                 }],
-                expected_version: null,
-                is_not_submitted: false,
+                expected_version: persisted.expectedVersion,
+                is_not_submitted: persisted.isNotSubmitted,
                 exam_not_submitted_count: 0,
-                cells: Object.fromEntries(
-                  Array.from({ length: options.sheetSize!.questions }, (_, questionIndex) => {
-                    const questionId = QUESTION_IDS[0] + questionIndex;
-                    return [
-                      String(questionId),
-                      {
-                        editable: editable && gradingMode !== "choice",
-                        entry_method:
-                          editable && gradingMode !== "choice"
-                            ? manualGradingMethod
-                            : "omr",
-                        state: null,
-                        score: null,
-                        include_in_wrong_note: false,
-                      },
-                    ];
-                  }),
-                ),
-              }))
-            : [{
+                cells: persisted.cells,
+              });
+            })
+            : (() => {
+              const persisted = ensurePersistedRow(ENROLLMENT_ID);
+              return [{
             enrollment_id: ENROLLMENT_ID,
             student_name: "김학생",
             school: "테스트고",
@@ -531,21 +563,67 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
               color: "#2563eb",
               chip_label: "수2",
             }],
-            expected_version: applied ? "2026-07-30T10:00:00+09:00" : null,
-            is_not_submitted: false,
+            expected_version: persisted.expectedVersion,
+            is_not_submitted: persisted.isNotSubmitted,
             exam_not_submitted_count: 0,
-            cells: cells(),
-          }],
+            cells: persisted.cells,
+          }];
+            })(),
         });
         return;
       }
 
       const body = request.postDataJSON() as {
         apply?: boolean;
-        rows?: Array<{ cells?: Record<string, { state?: string }> }>;
+        rows?: Array<{
+          enrollment_id: number;
+          attendance?: "present" | "absent";
+          cells?: Record<string, {
+            state?: GradeState;
+            score?: number;
+            include_in_wrong_note?: boolean;
+          }>;
+        }>;
       };
       postedRows.push(body);
-      if (body.apply === true) applied = true;
+      if (body.apply === true && nextManualApplyDelayMs > 0) {
+        const delay = nextManualApplyDelayMs;
+        nextManualApplyDelayMs = 0;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+      if (body.apply === true && failNextManualApply) {
+        failNextManualApply = false;
+        for (const row of body.rows ?? []) {
+          ensurePersistedRow(row.enrollment_id).expectedVersion = "version-conflict";
+        }
+        await json({ detail: "manual grading version conflict" }, 409);
+        return;
+      }
+      if (body.apply === true) {
+        applied = true;
+        for (const row of body.rows ?? []) {
+          const persisted = ensurePersistedRow(row.enrollment_id);
+          persisted.isNotSubmitted = row.attendance === "absent";
+          for (const [questionId, patch] of Object.entries(row.cells ?? {})) {
+            const cell = persisted.cells[questionId];
+            if (!cell) continue;
+            if ("state" in patch) {
+              cell.state = patch.state ?? null;
+              const questionIndex = Number(questionId) - QUESTION_IDS[0];
+              const maxScore = options.sheetSize
+                ? 100 / options.sheetSize.questions
+                : questionIndex === 0 ? 40 : 60;
+              cell.score = patch.state === "correct" ? maxScore : 0;
+              cell.include_in_wrong_note = patch.state === "review";
+            }
+            if (typeof patch.score === "number") cell.score = patch.score;
+            if (typeof patch.include_in_wrong_note === "boolean") {
+              cell.include_in_wrong_note = patch.include_in_wrong_note;
+            }
+          }
+          persisted.expectedVersion = `version-${postedRows.length}`;
+        }
+      }
       await json({
         ok: true,
         applied: body.apply === true,
@@ -662,8 +740,21 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       return manualEditPostCount;
     },
     manualEditGetIds,
+    manualSheetGetEvents,
     failNextPreview() {
       failNextPreview = true;
+    },
+    failNextManualApply() {
+      failNextManualApply = true;
+    },
+    failNextManualSheetGet() {
+      failManualSheetGetAfterPostCount = postedRows.length;
+    },
+    resumeManualSheetGet() {
+      failManualSheetGetAfterPostCount = null;
+    },
+    delayNextManualApply(delayMs = 700) {
+      nextManualApplyDelayMs = delayMs;
     },
     examPatches,
     postedRows,
@@ -676,6 +767,173 @@ test.describe("문항별 직접 채점", () => {
   test.use({
     viewport: { width: 1100, height: 900 },
     serviceWorkers: "block",
+  });
+
+  test("정오 변경 한 번을 행별 atomic autosave로 확정하고 재조회한다", async ({ page }) => {
+    const apiState = await installApi(page);
+
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible();
+    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+
+    const studentRow = page.getByRole("row").filter({ hasText: "김학생" });
+    const cells = studentRow.locator("[data-manual-grade-cell]");
+    await expect(cells).toHaveCount(2);
+    await cells.nth(0).press("o");
+    await cells.nth(1).press("x");
+
+    await expect(page.getByRole("status", { name: "정오 자동 저장 상태" })).toContainText("저장됨");
+    await expect.poll(() => apiState.postedRows.length).toBe(1);
+    expect(apiState.postedRows[0]).toEqual(expect.objectContaining({
+      apply: true,
+      rows: [expect.objectContaining({
+        enrollment_id: ENROLLMENT_ID,
+        expected_version: null,
+        attendance: "present",
+        cells: {
+          [String(QUESTION_IDS[0])]: { state: "correct" },
+          [String(QUESTION_IDS[1])]: { state: "incorrect" },
+        },
+      })],
+    }));
+    expect(apiState.postedRows[0]).not.toHaveProperty("question_scores");
+    await expect.poll(() => apiState.manualSheetGetCount).toBeGreaterThan(1);
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible();
+    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    const reloadedRow = page.getByRole("row").filter({ hasText: "김학생" });
+    await expect(reloadedRow.getByRole("button", { name: "O" })).toHaveCount(1);
+    await expect(reloadedRow.getByRole("button", { name: "X" })).toHaveCount(1);
+  });
+
+  test("저장 중 새 generation을 보존하고 최신 version으로 직렬 저장한다", async ({ page }) => {
+    const apiState = await installApi(page);
+    apiState.delayNextManualApply();
+
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    const studentRow = page.getByRole("row").filter({ hasText: "김학생" });
+    const cells = studentRow.locator("[data-manual-grade-cell]");
+
+    await cells.nth(0).press("o");
+    await expect(page.getByRole("status", { name: "정오 자동 저장 상태" })).toContainText("저장 중");
+    await cells.nth(1).press("x");
+    await expect.poll(() => page.evaluate(() => {
+      const event = new Event("beforeunload", { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    })).toBe(true);
+
+    await expect(page.getByRole("status", { name: "정오 자동 저장 상태" })).toContainText("저장됨");
+    await expect.poll(() => apiState.postedRows.length).toBe(2);
+    expect(apiState.postedRows[0]).toEqual(expect.objectContaining({
+      apply: true,
+      rows: [expect.objectContaining({ expected_version: null })],
+    }));
+    expect(apiState.postedRows[1]).toEqual(expect.objectContaining({
+      apply: true,
+      rows: [expect.objectContaining({
+        expected_version: "version-1",
+        cells: {
+          [String(QUESTION_IDS[0])]: { state: "correct" },
+          [String(QUESTION_IDS[1])]: { state: "incorrect" },
+        },
+      })],
+    }));
+  });
+
+  test("commit 뒤 sheet 확인 실패는 POST를 재생하지 않고 조회만 재시도한다", async ({ page }) => {
+    const apiState = await installApi(page);
+
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    apiState.failNextManualSheetGet();
+    const studentRow = page.getByRole("row").filter({ hasText: "김학생" });
+    await studentRow.locator("[data-manual-grade-cell]").first().press("o");
+
+    await expect.poll(() => apiState.manualSheetGetEvents.length).toBeGreaterThan(1);
+    expect(apiState.manualSheetGetEvents).toContainEqual({ applied: true, failureArmed: true });
+    await expect(page.getByRole("status", { name: "정오 자동 저장 상태" })).toContainText("저장 실패");
+    await page.getByRole("tab", { name: "운영", exact: true }).click();
+    await expect(page.getByText("저장하지 않은 설정이 있습니다", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "계속 편집", exact: true }).click();
+    apiState.resumeManualSheetGet();
+    await studentRow.getByRole("button", { name: "김학생 자동 저장 재시도" }).click();
+
+    await expect(page.getByRole("status", { name: "정오 자동 저장 상태" })).toContainText("저장됨");
+    await expect.poll(() => apiState.postedRows.length).toBe(1);
+    await expect.poll(() => apiState.manualSheetGetCount).toBeGreaterThan(1);
+  });
+
+  test("비커밋 apply 충돌 뒤 재시도는 최신 정오와 갱신 version을 보존한다", async ({ page }) => {
+    const apiState = await installApi(page);
+
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    apiState.failNextManualApply();
+    const studentRow = page.getByRole("row").filter({ hasText: "김학생" });
+    await studentRow.locator("[data-manual-grade-cell]").first().press("o");
+
+    await expect(page.getByRole("status", { name: "정오 자동 저장 상태" })).toContainText("저장 실패");
+    await studentRow.getByRole("button", { name: "김학생 자동 저장 재시도" }).click();
+    await expect(page.getByRole("status", { name: "정오 자동 저장 상태" })).toContainText("저장됨");
+    await expect.poll(() => apiState.postedRows.length).toBe(2);
+    expect(apiState.postedRows[0]).toEqual(expect.objectContaining({
+      apply: true,
+      rows: [expect.objectContaining({
+        expected_version: null,
+        cells: expect.objectContaining({
+          [String(QUESTION_IDS[0])]: { state: "correct" },
+        }),
+      })],
+    }));
+    expect(apiState.postedRows[1]).toEqual(expect.objectContaining({
+      apply: true,
+      rows: [expect.objectContaining({
+        expected_version: "version-conflict",
+        cells: expect.objectContaining({
+          [String(QUESTION_IDS[0])]: { state: "correct" },
+        }),
+      })],
+    }));
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    const reloadedRow = page.getByRole("row").filter({ hasText: "김학생" });
+    await expect(reloadedRow.getByRole("button", { name: "O" })).toHaveCount(1);
+  });
+
+  test("390px SessionScores 닫기는 pending correctness 저장을 flush한 뒤 닫는다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const apiState = await installApi(page);
+    apiState.delayNextManualApply();
+
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await chooseExamHeaderAction(page, "정오표 작성");
+    const dialog = page.getByRole("dialog").filter({
+      hasText: "7월 진단평가 정오 직접입력",
+    });
+    await dialog.locator("[data-manual-grade-cell]").first().press("o");
+    await dialog.getByRole("button", { name: "닫기", exact: true }).last().click();
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toHaveCount(0);
+    await expect.poll(() => apiState.postedRows.length).toBe(1);
   });
 
   test("문제지와 해설을 형식 제한 없이 각각 선택한다", async ({ page }) => {
@@ -834,7 +1092,7 @@ test.describe("문항별 직접 채점", () => {
     await reviewRegion.screenshot({ path: "test-results/hwp-explanation-review/source-attachment-390.png" });
   });
 
-  test("O·X·오답노트 키 입력을 미리 확인한 뒤 확정하고 재조회한다", async ({ page }) => {
+  test("O·X는 자동 저장하고 배점 변경은 미리 확인한 뒤 명시적으로 확정한다", async ({ page }) => {
     const apiState = await installApi(page);
 
     await page.goto(
@@ -900,13 +1158,17 @@ test.describe("문항별 직접 채점", () => {
     await expect(studentRow.getByRole("button", { name: "O" })).toHaveCount(1);
     await expect(studentRow.getByRole("button", { name: "오답노트" })).toHaveCount(1);
 
+    await expect(page.getByRole("status", { name: "정오 자동 저장 상태" })).toContainText("저장됨");
+    const autosaveRequestCount = apiState.postedRows.length;
+    expect(autosaveRequestCount).toBeGreaterThan(0);
+
     await page.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
     await expect(page.getByText("1명 · 결시 0명 · 성적 계산 완료", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
 
     await expect.poll(() => apiState.applied).toBe(true);
-    await expect.poll(() => apiState.postedRows.length).toBe(2);
-    expect(apiState.postedRows).toEqual([
+    await expect.poll(() => apiState.postedRows.length).toBe(autosaveRequestCount + 2);
+    expect(apiState.postedRows.slice(-2)).toEqual([
       expect.objectContaining({
         apply: false,
         question_scores: {
@@ -1061,7 +1323,7 @@ test.describe("문항별 직접 채점", () => {
       { platform: "Win32", modifier: "Control", label: "Ctrl" },
       { platform: "MacIntel", modifier: "Meta", label: "⌘" },
     ] as const) {
-      test(`${shortcut.label} 단축키로 실행 취소·다시 실행·확정을 처리한다`, async ({ page }) => {
+      test(`${shortcut.label} 단축키로 실행 취소·다시 실행·즉시 저장을 처리한다`, async ({ page }) => {
         await page.addInitScript(({ platform }) => {
           Object.defineProperty(navigator, "platform", {
             configurable: true,
@@ -1084,7 +1346,7 @@ test.describe("문항별 직접 채점", () => {
         const hints = page.getByLabel("정오표 입력 도움말");
         await expect(hints.getByText(`${shortcut.label}+V 엑셀 붙여넣기`, { exact: true })).toBeVisible();
         await expect(hints.getByText(`${shortcut.label}+Z 실행 취소`, { exact: true })).toBeVisible();
-        await expect(hints.getByText(`${shortcut.label}+S 확인·확정`, { exact: true })).toBeVisible();
+        await expect(hints.getByText(`${shortcut.label}+S 지금 저장`, { exact: true })).toBeVisible();
 
         const studentRow = page.getByRole("row").filter({ hasText: "김학생" });
         const firstCell = studentRow.locator('[data-row-index="0"][data-column-index="0"]');
@@ -1102,12 +1364,10 @@ test.describe("문항별 직접 채점", () => {
           });
         });
         await page.keyboard.press(`${shortcut.modifier}+s`);
-        await expect(page.getByText("1명 · 결시 0명 · 성적 계산 완료", { exact: true })).toBeVisible();
+        await expect(page.getByRole("status", { name: "정오 자동 저장 상태" })).toContainText("저장됨");
         await expect.poll(() => page.locator("html").getAttribute("data-save-shortcut-prevented")).toBe("true");
-
-        await page.keyboard.press(`${shortcut.modifier}+s`);
         await expect.poll(() => apiState.applied).toBe(true);
-        await expect.poll(() => apiState.postedRows.length).toBe(2);
+        await expect.poll(() => apiState.postedRows.length).toBe(1);
       });
     }
   });
@@ -1719,7 +1979,7 @@ test.describe("문항별 직접 채점", () => {
   });
 
   test("점수형 문항도 셀 전체에서 편집하고 방향키로 이동한다", async ({ page }) => {
-    await installApi(page, { manualGradingMethod: "score" });
+    const apiState = await installApi(page, { manualGradingMethod: "score" });
 
     await page.goto(
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
@@ -1739,6 +1999,14 @@ test.describe("문항별 직접 채점", () => {
     await expect(cells.nth(1)).toBeFocused();
     await page.keyboard.press("Shift+Tab");
     await expect(cells.first()).toBeFocused();
+    await dialog.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
+    await expect(dialog.getByText("1명 · 결시 0명 · 성적 계산 완료", { exact: true })).toBeVisible();
+    await dialog.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
+    await expect.poll(() => apiState.postedRows.length).toBe(2);
+    expect(apiState.postedRows).toEqual([
+      expect.objectContaining({ apply: false }),
+      expect.objectContaining({ apply: true }),
+    ]);
   });
 
   test("성적표 시험명에서 열고 단축키를 바꾸면 자동 이동과 함께 저장된다", async ({ page }, testInfo) => {

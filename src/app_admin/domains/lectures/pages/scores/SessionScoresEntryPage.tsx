@@ -64,6 +64,10 @@ type SessionScoresEntryPageProps = {
   onOpenCreateHomework?: () => void;
 };
 
+type ManualGradingFlushHandle = {
+  flushPending: () => Promise<boolean>;
+};
+
 function getStoredSummaryColumnMode(
   storageKey: string | null,
   legacyStorageKey: string | null,
@@ -176,6 +180,7 @@ export default function SessionScoresEntryPage({
   } | null>(null);
   const [omrUploadExam, setOmrUploadExam] = useState<SessionOmrUploadTarget | null>(null);
   const [manualGradingDirty, setManualGradingDirty] = useState(false);
+  const manualGradingRef = useRef<ManualGradingFlushHandle>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const recoveryRestoreButtonRef = useRef<HTMLButtonElement>(null);
   const recoveryDialogRef = useRef<HTMLDivElement>(null);
@@ -265,7 +270,17 @@ export default function SessionScoresEntryPage({
     void qc.invalidateQueries({ queryKey: adminResultsQueryKeys.manualGradeSheet(examId) });
   };
   const closeManualGrading = async () => {
-    if (manualGradingDirty) {
+    if (gradingExam?.manualGradingMethod === "correctness") {
+      const flushed = await manualGradingRef.current?.flushPending();
+      if (flushed === false) {
+        feedback.error("정오 자동 저장 또는 배점 확정을 마친 뒤 닫아 주세요.");
+        return;
+      }
+      if (manualGradingDirty && flushed !== true) {
+        feedback.error("정오 저장 상태를 확인하는 중입니다. 잠시 뒤 다시 닫아 주세요.");
+        return;
+      }
+    } else if (manualGradingDirty) {
       const shouldClose = await confirm({
         title: "채점표를 닫을까요?",
         message: "아직 성적을 확정하지 않은 변경사항이 있습니다. 닫으면 이 화면에서 입력한 내용이 사라집니다.",
@@ -1678,12 +1693,12 @@ export default function SessionScoresEntryPage({
                 fallback={<EmptyState scope="panel" tone="loading" title="직접 채점표를 여는 중…" />}
               >
                 <ManualExamGradingGrid
+                  ref={manualGradingRef}
                   key={gradingExam.examId}
                   examId={gradingExam.examId}
                   showUnavailableState
                   onDirtyChange={setManualGradingDirty}
                   onApplied={() => {
-                    setManualGradingDirty(false);
                     invalidateScores();
                   }}
                 />
@@ -1693,7 +1708,11 @@ export default function SessionScoresEntryPage({
           <ModalFooter
             left={(
               <span className="text-xs text-[var(--color-text-muted)]">
-                {manualGradingDirty ? "확정하지 않은 변경사항이 있습니다." : "현재 저장된 성적 기준"}
+                {manualGradingDirty
+                  ? gradingExam.manualGradingMethod === "correctness"
+                    ? "학생별 정오 저장을 마치는 중입니다."
+                    : "확정하지 않은 변경사항이 있습니다."
+                  : "현재 저장된 성적 기준"}
               </span>
             )}
             right={(
