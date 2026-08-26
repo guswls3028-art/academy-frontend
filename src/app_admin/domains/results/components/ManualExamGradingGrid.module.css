@@ -222,6 +222,63 @@
   font-weight: 800;
 }
 
+.autosaveStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border: 1px solid #bbf7d0;
+  border-radius: 999px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.autosaveStatus::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentcolor;
+  content: "";
+}
+
+.autosaveStatusFailed {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.rowSaveState {
+  display: block;
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.rowSaveStateFailed {
+  color: #b91c1c;
+}
+
+.rowSaveState button {
+  min-height: 22px;
+  padding: 2px 5px;
+  border: 1px solid #fecaca;
+  border-radius: 5px;
+  background: #fff;
+  color: #b91c1c;
+  font: inherit;
+  cursor: pointer;
+}
+
+.rowSaveState button:focus-visible {
+  outline: 2px solid var(--color-brand-primary, #2563eb);
+  outline-offset: 1px;
+}
+
 .workspaceStats {
   display: flex;
   flex-wrap: wrap;
@@ -852,6 +909,12 @@
   color: var(--color-text-muted, #64748b);
   font-size: 12px;
   line-height: 1.5;
+}
+
+.footer .autosaveFooterSaved {
+  color: #166534;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 @media (max-width: 720px) {
