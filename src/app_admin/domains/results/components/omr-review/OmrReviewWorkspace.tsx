@@ -24,7 +24,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Upload } from "lucide-react";
+import { RotateCcw, RotateCw, Upload } from "lucide-react";
 
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { Badge, Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
@@ -136,6 +136,7 @@ function shallowEqualAnswers(a: Record<number, string>, b: Record<number, string
 type Props = {
   examId: number;
   examTitle: string;
+  initialSubmissionId?: number;
   open: boolean;
   onClose: () => void;
   onOpenUpload?: () => void;
@@ -144,6 +145,7 @@ type Props = {
 export default function OmrReviewWorkspace({
   examId,
   examTitle,
+  initialSubmissionId,
   open,
   onClose,
   onOpenUpload,
@@ -231,9 +233,16 @@ export default function OmrReviewWorkspace({
     setSelectedId((prev) => {
       if (visibleRows.length === 0) return prev === null ? prev : null;
       if (prev != null && visibleRows.some((r) => r.id === prev)) return prev;
+      if (
+        prev == null &&
+        initialSubmissionId != null &&
+        visibleRows.some((r) => r.id === initialSubmissionId)
+      ) {
+        return initialSubmissionId;
+      }
       return visibleRows[0].id;
     });
-  }, [open, visibleRows]);
+  }, [initialSubmissionId, open, visibleRows]);
 
   // open이 false로 닫히면 selection 초기화
   useEffect(() => {
@@ -538,12 +547,62 @@ function ScanPane({
   const [imgLoading, setImgLoading] = useState(false);
   const [imgErrored, setImgErrored] = useState(false);
   const [naturalSize, setNaturalSize] = useState<{ width: number; height: number } | null>(null);
+  const [rotation, setRotation] = useState<0 | 90 | 180 | 270>(0);
+  const [bodySize, setBodySize] = useState({ width: 0, height: 0 });
+  const bodyRef = useRef<HTMLDivElement>(null);
 
-  // submission 바뀌면 에러 플래그 리셋
+  // submission 바뀌면 표시 전용 상태를 초기화한다. 회전값은 저장/API로 전달하지 않는다.
   useEffect(() => {
     setImgErrored(false);
-  }, [detail?.scan_image_url]);
+    setNaturalSize(null);
+    setRotation(0);
+  }, [detail?.submission_id]);
+
+  useEffect(() => {
+    const body = bodyRef.current;
+    if (!body) return;
+
+    const readSize = () => {
+      setBodySize({
+        width: Math.max(0, body.clientWidth - 32),
+        height: Math.max(0, body.clientHeight - 32),
+      });
+    };
+    readSize();
+    const observer = new ResizeObserver(readSize);
+    observer.observe(body);
+    return () => observer.disconnect();
+  }, []);
+
   const imageSize = detail?.scan_image_size ?? naturalSize;
+  const displaySize = useMemo(() => {
+    if (!imageSize || bodySize.width <= 0 || bodySize.height <= 0) return null;
+
+    const quarterTurn = rotation === 90 || rotation === 270;
+    let width: number;
+    let height: number;
+    if (fitMode) {
+      const maxImageWidth = quarterTurn ? bodySize.height : bodySize.width;
+      const maxImageHeight = quarterTurn ? bodySize.width : bodySize.height;
+      const scale = Math.min(
+        1,
+        maxImageWidth / imageSize.width,
+        maxImageHeight / imageSize.height,
+      );
+      width = imageSize.width * scale;
+      height = imageSize.height * scale;
+    } else {
+      width = bodySize.width * zoom;
+      height = width * (imageSize.height / imageSize.width);
+    }
+
+    return {
+      frameWidth: quarterTurn ? height : width,
+      frameHeight: quarterTurn ? width : height,
+      imageWidth: width,
+      imageHeight: height,
+    };
+  }, [bodySize.height, bodySize.width, fitMode, imageSize, rotation, zoom]);
   const hasBBoxData =
     !!detail?.answers?.some(
       (a) => !!(a.omr?.rect || (a.omr?.bubble_rects && a.omr.bubble_rects.length > 0)),
@@ -582,6 +641,30 @@ function ScanPane({
             className={`orw-scan-pane__zoom-btn ${fitMode ? "orw-scan-pane__zoom-btn--active" : ""}`}
             onClick={() => { setFitMode(true); setZoom(() => 1); }}
           >맞춤</button>
+          <span className="orw-scan-pane__control-divider" aria-hidden="true" />
+          <button
+            type="button"
+            className="orw-scan-pane__zoom-btn"
+            disabled={!detail?.scan_image_url}
+            onClick={() => setRotation((value) => ((value + 270) % 360) as 0 | 90 | 180 | 270)}
+            aria-label="왼쪽으로 90도 회전"
+            title="왼쪽으로 90도 회전"
+          >
+            <RotateCcw size={14} aria-hidden="true" />
+          </button>
+          <span className="orw-scan-pane__rotation-readout" aria-live="polite">
+            방향 {rotation}°
+          </span>
+          <button
+            type="button"
+            className="orw-scan-pane__zoom-btn"
+            disabled={!detail?.scan_image_url}
+            onClick={() => setRotation((value) => ((value + 90) % 360) as 0 | 90 | 180 | 270)}
+            aria-label="오른쪽으로 90도 회전"
+            title="오른쪽으로 90도 회전"
+          >
+            <RotateCw size={14} aria-hidden="true" />
+          </button>
           {detail?.scan_image_url && (
             <a
               href={detail.scan_image_url}
@@ -604,7 +687,10 @@ function ScanPane({
           )}
         </div>
       </div>
-      <div className={`orw-scan-pane__body ${fitMode ? "orw-scan-pane__body--fit" : ""}`}>
+      <div
+        ref={bodyRef}
+        className={`orw-scan-pane__body ${fitMode ? "orw-scan-pane__body--fit" : ""}`}
+      >
         {detailLoading ? (
           <div className="orw-loading">불러오는 중…</div>
         ) : !detail ? (
@@ -623,39 +709,55 @@ function ScanPane({
               <div className="orw-scan-pane__overlay-loading">스캔 이미지 불러오는 중…</div>
             )}
             <div
-              className={`orw-scan-pane__img-wrap ${fitMode ? "orw-scan-pane__img-wrap--fit" : ""}`}
-              style={fitMode ? undefined : { width: `${Math.round(100 * zoom)}%` }}
+              className={`orw-scan-pane__stage ${displaySize ? "orw-scan-pane__stage--measured" : ""}`}
+              style={displaySize ? {
+                width: `${displaySize.frameWidth}px`,
+                height: `${displaySize.frameHeight}px`,
+              } : undefined}
             >
-              <img
-                key={detail.scan_image_url}
-                className={`orw-scan-pane__img ${fitMode ? "orw-scan-pane__img--fit" : ""}`}
-                src={detail.scan_image_url}
-                alt="OMR 스캔 원본"
-                onLoadStart={() => setImgLoading(true)}
-                onLoad={(e) => {
-                  setImgLoading(false);
-                  const el = e.currentTarget;
-                  if (el.naturalWidth && el.naturalHeight) {
-                    setNaturalSize({ width: el.naturalWidth, height: el.naturalHeight });
-                  }
+              <div
+                className={`orw-scan-pane__img-wrap ${fitMode ? "orw-scan-pane__img-wrap--fit" : ""} ${displaySize ? "orw-scan-pane__img-wrap--measured" : ""}`}
+                data-display-rotation={rotation}
+                style={displaySize ? {
+                  width: `${displaySize.imageWidth}px`,
+                  height: `${displaySize.imageHeight}px`,
+                  transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+                } : {
+                  transform: `rotate(${rotation}deg)`,
+                  ...(fitMode ? {} : { width: `${Math.round(100 * zoom)}%` }),
                 }}
-                onError={() => {
-                  setImgLoading(false);
-                  // 한 번만 자동 재조회 (presigned URL 만료 대응). 무한 루프 방지 위해 imgErrored 플래그.
-                  if (!imgErrored) {
-                    setImgErrored(true);
-                    onImageLoadError?.();
-                  }
-                }}
-              />
-              {hasBBoxData && imageSize && (
-                <BBoxOverlay
-                  answers={detail.answers}
-                  focusedQid={focusedQid}
-                  imageSize={imageSize}
-                  onPickQuestion={onPickQuestion}
+              >
+                <img
+                  key={detail.scan_image_url}
+                  className={`orw-scan-pane__img ${fitMode ? "orw-scan-pane__img--fit" : ""}`}
+                  src={detail.scan_image_url}
+                  alt="OMR 스캔 원본"
+                  onLoadStart={() => setImgLoading(true)}
+                  onLoad={(e) => {
+                    setImgLoading(false);
+                    const el = e.currentTarget;
+                    if (el.naturalWidth && el.naturalHeight) {
+                      setNaturalSize({ width: el.naturalWidth, height: el.naturalHeight });
+                    }
+                  }}
+                  onError={() => {
+                    setImgLoading(false);
+                    // 한 번만 자동 재조회 (presigned URL 만료 대응). 무한 루프 방지 위해 imgErrored 플래그.
+                    if (!imgErrored) {
+                      setImgErrored(true);
+                      onImageLoadError?.();
+                    }
+                  }}
                 />
-              )}
+                {hasBBoxData && imageSize && (
+                  <BBoxOverlay
+                    answers={detail.answers}
+                    focusedQid={focusedQid}
+                    imageSize={imageSize}
+                    onPickQuestion={onPickQuestion}
+                  />
+                )}
+              </div>
             </div>
             {showLegacyOverlayHint && (
               <div className="orw-scan-pane__hint">
