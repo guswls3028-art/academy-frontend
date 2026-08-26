@@ -79,6 +79,51 @@ async function installMocks(
         messaging_disabled_reason: state.available ? "" : "운영 중지 상태입니다.",
       });
     }
+    if (path === "/messaging/send/preflight/" && request.method() === "POST") {
+      const body = request.postDataJSON() as { send_to?: "student" | "parent" };
+      const sendTo = body.send_to ?? "parent";
+      return json(route, {
+        ok: true,
+        can_send: true,
+        mode: "now",
+        send_to: sendTo,
+        recipient: {
+          selected: 1,
+          resolved: 1,
+          valid_phone: 1,
+          skipped_no_phone: 0,
+          duplicate_phone: 0,
+          unique_phone: 1,
+          invalid_or_deleted: 0,
+          limit: 500,
+        },
+        template: {
+          ok: true,
+          source: "unified",
+          name: "출석 안내 기본형",
+          solapi_template_id: "E2E_TEMPLATE",
+          solapi_status: "APPROVED",
+          detail: "",
+          uses_unified_template: true,
+          template_type: "attendance",
+        },
+        preview_recipients: [{
+          student_id: 41,
+          student_name: "김알림",
+          phone: sendTo === "student" ? "010****2222" : "010****4444",
+          excluded: false,
+          exclude_reason: "",
+          full_message_body: "학원플러스입니다. 김알림 학생의 안내 사항입니다.",
+        }],
+        limits: {
+          hourly_limit: 500,
+          sent_last_hour: 0,
+          remaining_this_hour: 500,
+        },
+        blockers: [],
+        warnings: [],
+      });
+    }
     if (path === "/students/" && request.method() === "GET") {
       return json(route, {
         count: 1,
@@ -133,8 +178,13 @@ test("메시지 화면에서 학생 선택과 알림톡 발송창까지 정확�
   await page.getByRole("checkbox", { name: "김알림 선택" }).check();
   await page.getByRole("button", { name: "알림톡 보내기", exact: true }).click();
   await expect(page.getByRole("dialog").filter({ hasText: "알림톡 발송" })).toBeVisible();
+  await expect.poll(() => state.requests.filter(
+    ({ method, path }) => method === "POST" && path === "/messaging/send/preflight/",
+  ).length).toBeGreaterThan(0);
   await expectNoHorizontalOverflow(page);
-  expect(state.requests.filter(({ method }) => method !== "GET")).toEqual([]);
+  expect(state.requests.filter(
+    ({ method, path }) => method !== "GET" && path !== "/messaging/send/preflight/",
+  )).toEqual([]);
 });
 
 test("알림톡 운영 중지 상태는 발송 진입을 비활성화하고 설정 안내만 제공한다", async ({ page }) => {
