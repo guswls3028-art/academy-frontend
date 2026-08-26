@@ -650,6 +650,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clinic/participants/{id}/checkout/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Record departure independently from self-study completion. */
+        post: operations["clinic_participants_checkout_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clinic/participants/{id}/complete/": {
         parameters: {
             query?: never;
@@ -663,11 +680,47 @@ export interface paths {
          * @description POST /clinic/participants/{id}/complete/
          *     자율학습 완료 처리 — 이력 기록 + 알림톡 트리거
          *
-         *     상태 전이: PENDING/BOOKED → ATTENDED (complete 전용 전이)
-         *     이미 ATTENDED/NO_SHOW/CANCELLED/REJECTED인 경우 상태는 변경하지 않고
-         *     completed_at만 기록한다.
+         *     ATTENDED 상태에서만 completed_at을 기록한다.
+         *     참석 처리 전 상태에서는 완료 처리할 수 없으며, 완료 취소도 참석 상태를 유지한다.
          */
         post: operations["clinic_participants_complete_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clinic/participants/{id}/planned-clinic-links/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Replace the staff-authored, session-scoped set of today's ClinicLinks. */
+        put: operations["clinic_participants_planned_clinic_links_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clinic/participants/{id}/remind/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description POST /clinic/participants/{id}/remind/
+         *     승인된 단일 예약 학생에게 클리닉 재촉 알림톡을 발송한다.
+         */
+        post: operations["clinic_participants_remind_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2954,8 +3007,9 @@ export interface paths {
          * @description 강의 엑셀 수강등록 — 워커 전담.
          *     API는 파일 수신 → R2 엑셀 버킷 업로드 → SQS EXCEL_PARSING job 등록만 수행하며,
          *     파싱·등록 로직은 워커에서만 실행됩니다 (구조적으로 API에서 동기 처리 불가).
-         *     POST: multipart/form-data — file (엑셀), lecture_id, password_mode,
-         *     initial_password(fixed 방식일 때)
+         *     POST: multipart/form-data — file (엑셀), lecture_id, session_id(선택)
+         *     학생 명부에 이미 등록된 학생만 학생번호 exact 우선, 학생번호가 없으면
+         *     exact 이름·정규화 학부모 전화번호로 매칭합니다.
          *     응답: { "job_id": str } → 클라이언트는 excel_job_status 로 폴링.
          */
         post: operations["enrollments_lecture_enroll_from_excel_create"];
@@ -5600,6 +5654,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/lectures/lectures/reorder/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Persist one active/past lecture scope as an exact tenant-local order. */
+        post: operations["lectures_lectures_reorder_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/lectures/section-assignments/": {
         parameters: {
             query?: never;
@@ -6715,14 +6786,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description GET: 공용 알림톡 발송 상태. 테넌트별 공급자 설정은 읽기 전용이다. */
+        /** @description 공용 알림톡 상태와 학원별 전체 사용 설정. */
         get: operations["messaging_info_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** @description 공용 알림톡 상태와 학원별 전체 사용 설정. */
+        patch: operations["messaging_info_partial_update"];
         trace?: never;
     };
     "/api/v1/messaging/log/": {
@@ -7447,6 +7519,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/results/admin/clinic-bookings/{id}/checkout/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Record departure independently from self-study completion. */
+        post: operations["results_admin_clinic_bookings_checkout_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/results/admin/clinic-bookings/{id}/complete/": {
         parameters: {
             query?: never;
@@ -7460,11 +7549,47 @@ export interface paths {
          * @description POST /clinic/participants/{id}/complete/
          *     자율학습 완료 처리 — 이력 기록 + 알림톡 트리거
          *
-         *     상태 전이: PENDING/BOOKED → ATTENDED (complete 전용 전이)
-         *     이미 ATTENDED/NO_SHOW/CANCELLED/REJECTED인 경우 상태는 변경하지 않고
-         *     completed_at만 기록한다.
+         *     ATTENDED 상태에서만 completed_at을 기록한다.
+         *     참석 처리 전 상태에서는 완료 처리할 수 없으며, 완료 취소도 참석 상태를 유지한다.
          */
         post: operations["results_admin_clinic_bookings_complete_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/results/admin/clinic-bookings/{id}/planned-clinic-links/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Replace the staff-authored, session-scoped set of today's ClinicLinks. */
+        put: operations["results_admin_clinic_bookings_planned_clinic_links_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/results/admin/clinic-bookings/{id}/remind/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description POST /clinic/participants/{id}/remind/
+         *     승인된 단일 예약 학생에게 클리닉 재촉 알림톡을 발송한다.
+         */
+        post: operations["results_admin_clinic_bookings_remind_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -8604,6 +8729,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/staffs/payroll-overview/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description 전 직원 월 정산 현황. 금액·블로커·마감 상태를 한 번에 반환한다. */
+        get: operations["staffs_payroll_overview_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/staffs/payroll-snapshots/": {
         parameters: {
             query?: never;
@@ -9355,6 +9497,23 @@ export interface paths {
          *     POST /student/video/videos/{video_id}/comments/  — 댓글 작성
          */
         post: operations["student_video_videos_comments_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/student/video/videos/{video_id}/forward-skip/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Grant one server-counted forward skip step for a limited student watch. */
+        post: operations["student_video_videos_forward_skip_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -10130,6 +10289,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/students/registration_requests/{id}/resolve_deleted/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description 선생님이 선택한 동일인 삭제 계정을 복구한 뒤 가입 승인. */
+        post: operations["students_registration_requests_resolve_deleted_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/students/registration_requests/bulk_approve/": {
         parameters: {
             query?: never;
@@ -10408,6 +10584,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/submissions/submissions/{submission_id}/preview/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Issue a short AI-bucket preview URL for one tenant-owned submission. */
+        get: operations["submissions_submissions_preview_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/submissions/submissions/admin/omr-upload/": {
         parameters: {
             query?: never;
@@ -10592,6 +10785,54 @@ export interface paths {
          *     - clinic_pending: 대기 중 클리닉 예약
          */
         get: operations["teacher_app_notifications_summary_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teacher-app/ops-assistant/analyze/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["teacher_app_ops_assistant_analyze_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teacher-app/ops-assistant/confirm/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["teacher_app_ops_assistant_confirm_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teacher-app/ops-assistant/executions/{execution_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["teacher_app_ops_assistant_executions_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -11336,6 +11577,14 @@ export interface components {
          */
         AccessModeEnum: "FREE_REVIEW" | "PROCTORED_CLASS" | "BLOCKED";
         /**
+         * @description * `ACTIVE` - ACTIVE
+         *     * `INACTIVE` - INACTIVE
+         *     * `DELETED` - DELETED
+         *     * `UNLINKED` - UNLINKED
+         * @enum {string}
+         */
+        AccountStateEnum: "ACTIVE" | "INACTIVE" | "DELETED" | "UNLINKED";
+        /**
          * @description * `student` - student
          *     * `support` - support
          * @enum {string}
@@ -11596,6 +11845,9 @@ export interface components {
          * @enum {string}
          */
         ClinicLinkResolutionTypeEnum: "EXAM_PASS" | "HOMEWORK_PASS" | "MANUAL_OVERRIDE" | "WAIVED" | "CARRIED_OVER" | "SOURCE_REMOVED" | "BOOKING_LEGACY";
+        ClinicPlanReplaceRequest: {
+            planned_clinic_link_ids: number[];
+        };
         /**
          * @description * `exam` - Exam
          *     * `homework` - Homework
@@ -11603,6 +11855,25 @@ export interface components {
          * @enum {string}
          */
         ClinicReasonEnum: "exam" | "homework" | "both";
+        ClinicRecipientActionRequest: {
+            send_to: components["schemas"]["SendToEnum"];
+        };
+        ClinicReminderRequestRequest: {
+            interval_minutes?: number;
+            /** @default once */
+            mode: components["schemas"]["ModeEnum"];
+            /** Format: date-time */
+            repeat_until?: string;
+            send_to: components["schemas"]["SendToEnum"];
+        };
+        ClinicReminderResponse: {
+            detail?: string;
+            ok?: boolean;
+            scheduled?: number;
+            sent?: number;
+            skipped?: number;
+            status?: string;
+        };
         ClinicSession: {
             readonly available_slots: string;
             readonly booked_count: string;
@@ -11660,6 +11931,13 @@ export interface components {
         ClinicSessionParticipant: {
             /** Format: date-time */
             checked_in_at?: string | null;
+            /**
+             * Format: date-time
+             * @description 클리닉 하원 처리 시각
+             */
+            checked_out_at?: string | null;
+            checked_out_by?: number | null;
+            readonly checked_out_by_name: string;
             clinic_reason?: (components["schemas"]["ClinicReasonEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
             /**
              * Format: date-time
@@ -11679,6 +11957,7 @@ export interface components {
             memo?: string | null;
             readonly name_highlight_clinic_target: string;
             participant_role?: components["schemas"]["ParticipantRoleEnum"];
+            readonly planned_clinic_link_ids: number[];
             readonly profile_photo_url: string;
             /** Format: date */
             requested_date?: string | null;
@@ -11747,6 +12026,12 @@ export interface components {
         ClinicSessionParticipantRequest: {
             /** Format: date-time */
             checked_in_at?: string | null;
+            /**
+             * Format: date-time
+             * @description 클리닉 하원 처리 시각
+             */
+            checked_out_at?: string | null;
+            checked_out_by?: number | null;
             clinic_reason?: (components["schemas"]["ClinicReasonEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
             /**
              * Format: date-time
@@ -11922,6 +12207,23 @@ export interface components {
          * @enum {integer}
          */
         DaysEnum: 7 | 30 | 90;
+        DeletedRegistrationCandidate: {
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            deleted_at: string;
+            enrollment_count: number;
+            student_id: number;
+        };
+        DeletedRegistrationConflict: {
+            candidates: components["schemas"]["DeletedRegistrationCandidate"][];
+            /** @default deleted_student_conflict */
+            code: string;
+            detail: string;
+        };
+        DeletedRegistrationResolveRequest: {
+            student_id: number;
+        };
         /**
          * @description * `mobile` - mobile
          *     * `tablet` - tablet
@@ -11941,6 +12243,21 @@ export interface components {
             readonly tenant: number;
             /** Format: date-time */
             readonly updated_at: string;
+        };
+        EnrollmentExcelUploadAccepted: {
+            readonly job_id: string;
+            readonly status: components["schemas"]["EnrollmentExcelUploadAcceptedStatusEnum"];
+        };
+        /**
+         * @description * `PENDING` - PENDING
+         * @enum {string}
+         */
+        EnrollmentExcelUploadAcceptedStatusEnum: "PENDING";
+        EnrollmentExcelUploadRequestRequest: {
+            /** Format: binary */
+            file: string;
+            lecture_id: number;
+            session_id?: number;
         };
         EnrollmentRequest: {
             lecture: number;
@@ -12861,6 +13178,7 @@ export interface components {
          */
         ItemTypeEnum: "exam" | "homework";
         Lecture: {
+            readonly active_enrollment_count: number;
             /** @description 강의딱지 2글자 (미입력 시 제목 앞 2자 사용) */
             chip_label?: string;
             /** @description 아이콘/라벨 색상 */
@@ -12868,6 +13186,8 @@ export interface components {
             /** Format: date-time */
             readonly created_at: string;
             description?: string;
+            /** @description 학원 내 강의 목록의 영구 수동 순서 */
+            readonly display_order: number | null;
             /** Format: date */
             end_date?: string | null;
             readonly id: number;
@@ -13093,6 +13413,44 @@ export interface components {
          * @enum {string}
          */
         ManualGradingMethodEnum: "correctness" | "score";
+        /** @description GET/PATCH 응답: 테넌트 메시징 정보 */
+        MessagingInfo: {
+            readonly alimtalk_available: boolean;
+            readonly can_manage_messaging: boolean;
+            readonly channel_source: string;
+            readonly delivery_policy: string;
+            readonly has_own_credentials: boolean;
+            kakao_pfid?: string;
+            readonly messaging_disabled: boolean;
+            readonly messaging_disabled_reason: string;
+            readonly messaging_ops_hold: boolean;
+            /**
+             * @description 레거시 공급자 기록. 제품 실발송에는 사용하지 않음
+             *
+             *     * `solapi` - 솔라피(Solapi)
+             *     * `ppurio` - 뿌리오(Ppurio)
+             */
+            messaging_provider?: components["schemas"]["MessagingProviderEnum"];
+            messaging_sender?: string;
+            readonly own_ppurio_account: string;
+            readonly own_ppurio_api_key: string;
+            readonly own_solapi_api_key: string;
+            readonly own_solapi_api_secret: string;
+            readonly resolved_pf_id: string;
+            readonly tenant_messaging_enabled: boolean;
+        };
+        /**
+         * @description * `solapi` - 솔라피(Solapi)
+         *     * `ppurio` - 뿌리오(Ppurio)
+         * @enum {string}
+         */
+        MessagingProviderEnum: "solapi" | "ppurio";
+        /**
+         * @description * `once` - once
+         *     * `repeat` - repeat
+         * @enum {string}
+         */
+        ModeEnum: "once" | "repeat";
         /** @enum {unknown} */
         NullEnum: null;
         /**
@@ -13904,6 +14262,12 @@ export interface components {
         PatchedClinicSessionParticipantRequest: {
             /** Format: date-time */
             checked_in_at?: string | null;
+            /**
+             * Format: date-time
+             * @description 클리닉 하원 처리 시각
+             */
+            checked_out_at?: string | null;
+            checked_out_by?: number | null;
             clinic_reason?: (components["schemas"]["ClinicReasonEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
             /**
              * Format: date-time
@@ -14249,6 +14613,10 @@ export interface components {
             session_type: components["schemas"]["SessionTypeEnum"];
             title?: string;
         };
+        /** @description 학원 대표/관리자가 직접 제어하는 알림톡 전체 사용 설정. */
+        PatchedMessagingActivationRequest: {
+            tenant_messaging_enabled?: boolean;
+        };
         PatchedPostEntityRequest: {
             /** @description 작성자 역할 (staff/student) */
             author_role?: string;
@@ -14455,6 +14823,11 @@ export interface components {
         PatchedSealedVideoProgressRequest: {
             completed?: boolean;
             enrollment?: number;
+            /**
+             * Format: int64
+             * @description 온라인 수업 대체 모드에서 서버가 승인한 앞으로 건너뛰기 누적 초
+             */
+            forward_skip_seconds_used?: number;
             /** Format: int64 */
             last_position?: number;
             /** Format: double */
@@ -14594,6 +14967,15 @@ export interface components {
             pay_type?: components["schemas"]["PayTypeEnum"];
             /** @description 정규화된 전화번호 (하이픈 제거, 예: 01012345678) */
             phone?: string;
+            /**
+             * @description 조직에서 사용하는 표시 직위. 계정 역할·관리 권한과 별개입니다.
+             *
+             *     * `DIRECTOR` - 실장
+             *     * `INSTRUCTOR` - 강사
+             *     * `ASSISTANT` - 조교
+             *     * `STAFF` - 직원
+             */
+            position?: components["schemas"]["PositionEnum"];
             role?: components["schemas"]["StaffWriteRoleEnum"];
             username?: string;
         };
@@ -14763,6 +15145,18 @@ export interface components {
          * @enum {string}
          */
         PayTypeEnum: "HOURLY" | "MONTHLY";
+        PendingSubmissionPreviewResponse: {
+            /** Format: uri */
+            url: string;
+        };
+        /**
+         * @description * `DIRECTOR` - 실장
+         *     * `INSTRUCTOR` - 강사
+         *     * `ASSISTANT` - 조교
+         *     * `STAFF` - 직원
+         * @enum {string}
+         */
+        PositionEnum: "DIRECTOR" | "INSTRUCTOR" | "ASSISTANT" | "STAFF";
         PostAttachment: {
             readonly content_type: string;
             /** Format: date-time */
@@ -15437,6 +15831,7 @@ export interface components {
             /** @default  */
             origin_middle_school: string | null;
             parent_phone: string;
+            password_confirmation: string;
             /** @default  */
             phone: string | null;
             /** @default HIGH */
@@ -15734,6 +16129,11 @@ export interface components {
         SealedVideoProgress: {
             completed?: boolean;
             enrollment: number;
+            /**
+             * Format: int64
+             * @description 온라인 수업 대체 모드에서 서버가 승인한 앞으로 건너뛰기 누적 초
+             */
+            forward_skip_seconds_used?: number;
             readonly id: number;
             /** Format: int64 */
             last_position?: number;
@@ -15748,6 +16148,11 @@ export interface components {
         SealedVideoProgressRequest: {
             completed?: boolean;
             enrollment: number;
+            /**
+             * Format: int64
+             * @description 온라인 수업 대체 모드에서 서버가 승인한 앞으로 건너뛰기 누적 초
+             */
+            forward_skip_seconds_used?: number;
             /** Format: int64 */
             last_position?: number;
             /** Format: double */
@@ -15844,6 +16249,13 @@ export interface components {
          * @enum {string}
          */
         SegmentationStatusEnum: "none" | "processing" | "review_required" | "ready" | "failed" | "conversion_required";
+        /**
+         * @description * `student` - student
+         *     * `parent` - parent
+         *     * `both` - both
+         * @enum {string}
+         */
+        SendToEnum: "student" | "parent" | "both";
         SessionEnrollment: {
             /** Format: date-time */
             readonly created_at: string;
@@ -15957,6 +16369,8 @@ export interface components {
          */
         SourceTypeEnum: "s3" | "youtube";
         StaffDetail: {
+            readonly account_role: string;
+            readonly can_manage_staff: boolean;
             /** Format: date-time */
             readonly created_at: string;
             readonly id: number;
@@ -15966,6 +16380,16 @@ export interface components {
             pay_type?: components["schemas"]["PayTypeEnum"];
             /** @description 정규화된 전화번호 (하이픈 제거, 예: 01012345678) */
             phone?: string;
+            /**
+             * @description 조직에서 사용하는 표시 직위. 계정 역할·관리 권한과 별개입니다.
+             *
+             *     * `DIRECTOR` - 실장
+             *     * `INSTRUCTOR` - 강사
+             *     * `ASSISTANT` - 조교
+             *     * `STAFF` - 직원
+             */
+            position?: components["schemas"]["PositionEnum"];
+            readonly position_label: string;
             readonly profile_photo_url: string;
             readonly role: string;
             readonly staff_work_types: components["schemas"]["StaffWorkType"][];
@@ -16013,6 +16437,8 @@ export interface components {
          */
         StaffExpenseRecordStatusEnum: "PENDING" | "APPROVED" | "REJECTED";
         StaffList: {
+            readonly account_role: string;
+            readonly can_manage_staff: boolean;
             /** Format: date-time */
             readonly created_at: string;
             readonly id: number;
@@ -16022,6 +16448,16 @@ export interface components {
             pay_type?: components["schemas"]["PayTypeEnum"];
             /** @description 정규화된 전화번호 (하이픈 제거, 예: 01012345678) */
             phone?: string;
+            /**
+             * @description 조직에서 사용하는 표시 직위. 계정 역할·관리 권한과 별개입니다.
+             *
+             *     * `DIRECTOR` - 실장
+             *     * `INSTRUCTOR` - 강사
+             *     * `ASSISTANT` - 조교
+             *     * `STAFF` - 직원
+             */
+            position?: components["schemas"]["PositionEnum"];
+            readonly position_label: string;
             readonly profile_photo_url: string;
             readonly role: string;
             readonly staff_work_types: components["schemas"]["StaffWorkType"][];
@@ -16181,6 +16617,15 @@ export interface components {
             pay_type?: components["schemas"]["PayTypeEnum"];
             /** @description 정규화된 전화번호 (하이픈 제거, 예: 01012345678) */
             phone?: string;
+            /**
+             * @description 조직에서 사용하는 표시 직위. 계정 역할·관리 권한과 별개입니다.
+             *
+             *     * `DIRECTOR` - 실장
+             *     * `INSTRUCTOR` - 강사
+             *     * `ASSISTANT` - 조교
+             *     * `STAFF` - 직원
+             */
+            position?: components["schemas"]["PositionEnum"];
             readonly user: number | null;
         };
         StaffWriteRequest: {
@@ -16191,6 +16636,15 @@ export interface components {
             pay_type?: components["schemas"]["PayTypeEnum"];
             /** @description 정규화된 전화번호 (하이픈 제거, 예: 01012345678) */
             phone?: string;
+            /**
+             * @description 조직에서 사용하는 표시 직위. 계정 역할·관리 권한과 별개입니다.
+             *
+             *     * `DIRECTOR` - 실장
+             *     * `INSTRUCTOR` - 강사
+             *     * `ASSISTANT` - 조교
+             *     * `STAFF` - 직원
+             */
+            position?: components["schemas"]["PositionEnum"];
             role: components["schemas"]["StaffWriteRoleEnum"];
             username?: string;
         };
@@ -16456,6 +16910,7 @@ export interface components {
             position?: number;
         };
         StudentDetail: {
+            readonly account_state: components["schemas"]["AccountStateEnum"];
             /** @description 주소 (선택) */
             address?: string | null;
             /** Format: date-time */
@@ -16763,6 +17218,7 @@ export interface components {
             memo?: string;
         };
         StudentList: {
+            readonly account_state: components["schemas"]["AccountStateEnum"];
             /** @description 주소 (선택) */
             address?: string | null;
             /** Format: date-time */
@@ -16911,6 +17367,21 @@ export interface components {
             /** @description True면 학생 전화 없음, 식별자(010+8자리)로 가입. 표시 시 '식별자 XXXX-XXXX' */
             uses_identifier?: boolean;
         };
+        StudentVideoForwardSkipRequestRequest: {
+            enrollment?: number;
+            enrollment_id?: number;
+        };
+        StudentVideoForwardSkipResponse: {
+            enabled: boolean;
+            granted_seconds: number;
+            limit_seconds: number;
+            max_seconds: number;
+            ratio_percent: number;
+            remaining_seconds: number;
+            step_seconds: number;
+            unavailable_reason: string;
+            used_seconds: number;
+        };
         Submission: {
             /** Format: date-time */
             readonly created_at: string;
@@ -17030,6 +17501,30 @@ export interface components {
             readonly tenant: number;
             /** Format: date-time */
             readonly updated_at: string;
+        };
+        TeacherOpsAnalyzeRequest: {
+            images: string[];
+            message: string;
+            previous_proposal_token?: string;
+        };
+        TeacherOpsConfirmRequest: {
+            proposal_token: string;
+            rows: components["schemas"]["TeacherOpsConfirmRowRequest"][];
+        };
+        TeacherOpsConfirmRowRequest: {
+            /** @default true */
+            enabled: boolean;
+            grade?: string;
+            name: string;
+            parent_phone?: string;
+            remove_enrollment_id?: number | null;
+            row_id: string;
+            school?: string;
+            /** @default HIGH */
+            school_type: components["schemas"]["SchoolTypeEnum"];
+            selected_lecture_id?: number | null;
+            session_order?: number | null;
+            student_phone?: string;
         };
         TeacherRequest: {
             email?: (string) | null;
@@ -17847,6 +18342,8 @@ export interface operations {
     clinic_participants_list: {
         parameters: {
             query?: {
+                /** @description 현장 운영 날짜(YYYY-MM-DD). 현재 tenant에서 session.date가 같은 attended + checked_in_at 존재 + checked_out_at 미존재 참가자만 checked_in_at, session.start_time, id 오름차순으로 pagination 전에 정렬합니다. is_late, completed_at, ClinicLink와 today-plan은 포함 판정에 영향을 주지 않습니다. */
+                onsite_date?: string;
                 /** @description 결과 정렬 시 사용할 필드. */
                 ordering?: string;
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
@@ -18019,6 +18516,43 @@ export interface operations {
             };
         };
     };
+    clinic_participants_checkout_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClinicRecipientActionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ClinicRecipientActionRequest"];
+                "multipart/form-data": components["schemas"]["ClinicRecipientActionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClinicSessionParticipant"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     clinic_participants_complete_create: {
         parameters: {
             query?: never;
@@ -18042,6 +18576,94 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClinicSessionParticipant"];
+                };
+            };
+        };
+    };
+    clinic_participants_planned_clinic_links_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClinicPlanReplaceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ClinicPlanReplaceRequest"];
+                "multipart/form-data": components["schemas"]["ClinicPlanReplaceRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClinicSessionParticipant"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    clinic_participants_remind_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClinicReminderRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ClinicReminderRequestRequest"];
+                "multipart/form-data": components["schemas"]["ClinicReminderRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClinicReminderResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClinicReminderResponse"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClinicReminderResponse"];
+                };
+            };
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClinicReminderResponse"];
                 };
             };
         };
@@ -21581,18 +22203,16 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["EnrollmentRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["EnrollmentRequest"];
-                "multipart/form-data": components["schemas"]["EnrollmentRequest"];
+                "multipart/form-data": components["schemas"]["EnrollmentExcelUploadRequestRequest"];
             };
         };
         responses: {
-            200: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Enrollment"];
+                    "application/json": components["schemas"]["EnrollmentExcelUploadAccepted"];
                 };
             };
         };
@@ -26022,6 +26642,31 @@ export interface operations {
             };
         };
     };
+    lectures_lectures_reorder_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LectureRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LectureRequest"];
+                "multipart/form-data": components["schemas"]["LectureRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Lecture"];
+                };
+            };
+        };
+    };
     lectures_section_assignments_list: {
         parameters: {
             query?: {
@@ -27900,12 +28545,38 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No response body */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["MessagingInfo"];
+                };
+            };
+        };
+    };
+    messaging_info_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedMessagingActivationRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedMessagingActivationRequest"];
+                "multipart/form-data": components["schemas"]["PatchedMessagingActivationRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessagingInfo"];
+                };
             };
         };
     };
@@ -29272,6 +29943,8 @@ export interface operations {
     results_admin_clinic_bookings_list: {
         parameters: {
             query?: {
+                /** @description 현장 운영 날짜(YYYY-MM-DD). 현재 tenant에서 session.date가 같은 attended + checked_in_at 존재 + checked_out_at 미존재 참가자만 checked_in_at, session.start_time, id 오름차순으로 pagination 전에 정렬합니다. is_late, completed_at, ClinicLink와 today-plan은 포함 판정에 영향을 주지 않습니다. */
+                onsite_date?: string;
                 /** @description 결과 정렬 시 사용할 필드. */
                 ordering?: string;
                 /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
@@ -29444,6 +30117,43 @@ export interface operations {
             };
         };
     };
+    results_admin_clinic_bookings_checkout_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClinicRecipientActionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ClinicRecipientActionRequest"];
+                "multipart/form-data": components["schemas"]["ClinicRecipientActionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClinicSessionParticipant"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     results_admin_clinic_bookings_complete_create: {
         parameters: {
             query?: never;
@@ -29467,6 +30177,94 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClinicSessionParticipant"];
+                };
+            };
+        };
+    };
+    results_admin_clinic_bookings_planned_clinic_links_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClinicPlanReplaceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ClinicPlanReplaceRequest"];
+                "multipart/form-data": components["schemas"]["ClinicPlanReplaceRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClinicSessionParticipant"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    results_admin_clinic_bookings_remind_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClinicReminderRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ClinicReminderRequestRequest"];
+                "multipart/form-data": components["schemas"]["ClinicReminderRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClinicReminderResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClinicReminderResponse"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClinicReminderResponse"];
+                };
+            };
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClinicReminderResponse"];
                 };
             };
         };
@@ -31079,6 +31877,25 @@ export interface operations {
             };
         };
     };
+    staffs_payroll_overview_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffWrite"];
+                };
+            };
+        };
+    };
     staffs_payroll_snapshots_list: {
         parameters: {
             query?: {
@@ -32308,6 +33125,33 @@ export interface operations {
             };
         };
     };
+    student_video_videos_forward_skip_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                video_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["StudentVideoForwardSkipRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StudentVideoForwardSkipRequestRequest"];
+                "multipart/form-data": components["schemas"]["StudentVideoForwardSkipRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentVideoForwardSkipResponse"];
+                };
+            };
+        };
+    };
     student_video_videos_like_create: {
         parameters: {
             query?: never;
@@ -33419,24 +34263,26 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: string;
+                id: number;
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RegistrationRequestListRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["RegistrationRequestListRequest"];
-                "multipart/form-data": components["schemas"]["RegistrationRequestListRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RegistrationRequestList"];
+                    "application/json": components["schemas"]["StudentDetail"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletedRegistrationConflict"];
                 };
             };
         };
@@ -33464,6 +34310,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RegistrationRequestList"];
+                };
+            };
+        };
+    };
+    students_registration_requests_resolve_deleted_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeletedRegistrationResolveRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["DeletedRegistrationResolveRequest"];
+                "multipart/form-data": components["schemas"]["DeletedRegistrationResolveRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentDetail"];
                 };
             };
         };
@@ -34031,6 +34904,27 @@ export interface operations {
             };
         };
     };
+    submissions_submissions_preview_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingSubmissionPreviewResponse"];
+                };
+            };
+        };
+    };
     submissions_submissions_admin_omr_upload_create: {
         parameters: {
             query?: never;
@@ -34234,6 +35128,82 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    teacher_app_ops_assistant_analyze_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/x-www-form-urlencoded": components["schemas"]["TeacherOpsAnalyzeRequest"];
+                "multipart/form-data": components["schemas"]["TeacherOpsAnalyzeRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    teacher_app_ops_assistant_confirm_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeacherOpsConfirmRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["TeacherOpsConfirmRequest"];
+                "multipart/form-data": components["schemas"]["TeacherOpsConfirmRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    teacher_app_ops_assistant_executions_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                execution_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
             };
         };
     };
