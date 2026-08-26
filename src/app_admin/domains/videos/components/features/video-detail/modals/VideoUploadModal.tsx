@@ -580,30 +580,40 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
           {/* 재생 정책 */}
           <div className="modal-form-group modal-form-group--neutral video-upload-modal__row">
             <div className="video-upload-modal__policy-row">
-              <label className="video-upload-modal__policy-item">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showWatermark}
+                aria-label={`워터마크 ${showWatermark ? "허용" : "금지"}`}
+                onClick={() => setShowWatermark((v) => !v)}
+                className="video-upload-modal__policy-item video-upload-modal__policy-toggle"
+              >
                 <span className="video-upload-modal__policy-label">워터마크</span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={showWatermark}
-                  onClick={() => setShowWatermark((v) => !v)}
-                  className="video-upload-modal__toggle"
+                <span
+                  className="video-upload-modal__policy-state"
+                  data-on={showWatermark}
+                  aria-hidden
                 >
-                  <span className="video-upload-modal__toggle-thumb" data-on={showWatermark} />
-                </button>
-              </label>
-              <label className="video-upload-modal__policy-item">
+                  {showWatermark ? "허용" : "금지"}
+                </span>
+              </button>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={allowSkip}
+                aria-label={`건너뛰기 ${allowSkip ? "허용" : "금지"}`}
+                onClick={() => setAllowSkip((v) => !v)}
+                className="video-upload-modal__policy-item video-upload-modal__policy-toggle"
+              >
                 <span className="video-upload-modal__policy-label">건너뛰기</span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={allowSkip}
-                  onClick={() => setAllowSkip((v) => !v)}
-                  className="video-upload-modal__toggle"
+                <span
+                  className="video-upload-modal__policy-state"
+                  data-on={allowSkip}
+                  aria-hidden
                 >
-                  <span className="video-upload-modal__toggle-thumb" data-on={allowSkip} />
-                </button>
-              </label>
+                  {allowSkip ? "허용" : "금지"}
+                </span>
+              </button>
               <div className="video-upload-modal__policy-item video-upload-modal__speed-wrap">
                 <span className="video-upload-modal__policy-label">배속</span>
                 <div className="video-upload-modal__speed-stepper" role="group" aria-label="최대 배속">

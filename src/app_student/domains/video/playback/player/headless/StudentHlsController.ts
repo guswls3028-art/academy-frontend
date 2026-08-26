@@ -25,7 +25,15 @@ export interface Policy {
   access_mode?: string;
   monitoring_enabled?: boolean;
   allow_seek?: boolean;
-  seek?: { mode?: string; grace_seconds?: number };
+  seek?: {
+    mode?: string;
+    grace_seconds?: number;
+    step_seconds?: number;
+    limit_seconds?: number;
+    used_seconds?: number;
+    remaining_seconds?: number;
+    unavailable_reason?: string;
+  };
   playback_rate?: { max?: number; ui_control?: boolean };
   watermark?: { enabled?: boolean };
 }
@@ -219,6 +227,10 @@ export class StudentHlsController {
     return this.el;
   }
 
+  getMaxWatched(): number {
+    return Math.max(0, this.maxWatchedRef);
+  }
+
   play() {
     if (this.disposed || !this.el) return;
     try {
@@ -246,6 +258,22 @@ export class StudentHlsController {
     } catch {
       ignoreBestEffortError();
     }
+  }
+
+  seekApprovedForward(t: number) {
+    if (this.disposed || !this.el) return;
+    const duration = Number(this.el.duration) || 0;
+    const target = clamp(t, 0, Math.max(0, duration));
+    this.seekGuardRef.initialSeekActive = true;
+    this.maxWatchedRef = Math.max(this.maxWatchedRef, target);
+    this.lastTimeRef = target;
+    try {
+      this.el.currentTime = target;
+      this.setState({ current: target });
+    } catch {
+      ignoreBestEffortError();
+    }
+    setTimeout(() => { this.seekGuardRef.initialSeekActive = false; }, 200);
   }
 
   setRate(r: number) {
@@ -696,6 +724,7 @@ export class StudentHlsController {
     const seekMode = this.policy.seek?.mode || "free";
     const grace = Math.max(0, Number(this.policy.seek?.grace_seconds ?? 3));
     const boundedForward = seekMode === "bounded_forward";
+    const budgetedForward = seekMode === "budgeted_forward";
     const maxRate = Math.max(1, Number(this.policy.playback_rate?.max) || 1);
     const speedLocked = this.policy.playback_rate?.ui_control === false || maxRate <= 1.0001;
 
@@ -767,13 +796,13 @@ export class StudentHlsController {
     const onSeeking = () => {
       if (this.disposed) return;
       if (this.seekGuardRef.initialSeekActive) return; // 이어보기 초기 seek 시 가드 우회
-      if (allowSeek && !boundedForward) return;
+      if (allowSeek && !boundedForward && !budgetedForward) return;
 
       const now = Date.now();
       const guard = this.seekGuardRef;
       const target = Number(el.currentTime || 0);
       const maxWatched = this.maxWatchedRef;
-      const allowedMax = boundedForward ? maxWatched + grace : maxWatched;
+      const allowedMax = (boundedForward || budgetedForward) ? maxWatched + grace : maxWatched;
       const isForwardBeyond = target > allowedMax + 0.001;
 
       if (!allowSeek || seekMode === "blocked") {
@@ -792,7 +821,7 @@ export class StudentHlsController {
         return;
       }
 
-      if (boundedForward && isForwardBeyond) {
+      if ((boundedForward || budgetedForward) && isForwardBeyond) {
         guard.blocking = true;
         try {
           el.currentTime = allowedMax;
@@ -802,9 +831,16 @@ export class StudentHlsController {
         guard.blocking = false;
         if (now - guard.lastWarnAt > 900) {
           guard.lastWarnAt = now;
-          this.setState({ toast: { text: "아직 시청하지 않은 구간으로 이동할 수 없습니다.", kind: "warn" } });
+          this.setState({
+            toast: {
+              text: budgetedForward
+                ? "앞으로는 10초 건너뛰기 버튼으로 이동해 주세요."
+                : "아직 시청하지 않은 구간으로 이동할 수 없습니다.",
+              kind: "warn",
+            },
+          });
         }
-        this.queueEvent("SEEK_ATTEMPT", { mode: "bounded_forward", target, max_watched: maxWatched, grace });
+        this.queueEvent("SEEK_ATTEMPT", { mode: seekMode, target, max_watched: maxWatched, grace });
       }
     };
 

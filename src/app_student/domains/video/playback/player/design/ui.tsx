@@ -27,6 +27,7 @@ export function IconButton({
   onClick,
   onPointerDown,
   className,
+  disabled = false,
 }: {
   icon:
     | "play"
@@ -43,6 +44,7 @@ export function IconButton({
   /** 모바일에서 전체화면 등 사용자 제스처 직후 API 호출용. 키보드/구형 브라우저 click도 fallback 처리 */
   onPointerDown?: () => void;
   className?: string;
+  disabled?: boolean;
 }) {
   const pointerHandledRef = useRef(false);
 
@@ -90,6 +92,7 @@ export function IconButton({
       onPointerDown={onPointerDown ? handlePointerDown : undefined}
       aria-label={label}
       title={label}
+      disabled={disabled}
     >
       {svgMap[icon] || <span className="svpBtnIcon">{icon}</span>}
     </button>
@@ -103,6 +106,7 @@ export function RangeSlider({
   step,
   onChange,
   ariaLabel,
+  disabled = false,
 }: {
   value: number;
   min: number;
@@ -110,6 +114,7 @@ export function RangeSlider({
   step?: number;
   onChange: (v: number) => void;
   ariaLabel?: string;
+  disabled?: boolean;
 }) {
   const v = Number(value || 0);
   const mn = Number(min || 0);
@@ -126,6 +131,7 @@ export function RangeSlider({
       step={st}
       onChange={(e) => onChange(Number(e.target.value))}
       aria-label={ariaLabel || "range"}
+      disabled={disabled}
     />
   );
 }
