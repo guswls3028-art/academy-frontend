@@ -80,6 +80,10 @@ export default function ExamHeaderActionMenu({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const canOpenManualGrading = gradingMode !== "choice";
   const canOpenOmr = gradingMode !== "written";
+  const manualActionTitle =
+    canOpenManualGrading && manualGradingMethod === "score"
+      ? "문항별 점수 입력"
+      : "정오표 작성";
 
   const selectAction = (action: ExamHeaderAction) => {
     setMenuOpen(false);
@@ -99,7 +103,7 @@ export default function ExamHeaderActionMenu({
         <strong>{GRADING_MODE_LABEL[gradingMode]}</strong>
       </div>
       <MenuAction
-        title="정오표 작성"
+        title={manualActionTitle}
         description={
           canOpenManualGrading
             ? manualGradingMethod === "correctness"

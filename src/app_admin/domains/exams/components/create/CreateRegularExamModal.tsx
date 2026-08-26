@@ -8,7 +8,7 @@
 /* eslint-disable no-restricted-syntax */
 // R-11 legacy baseline: existing inline styles stay frozen; new styles use className/DS tokens.
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import api from "@/shared/api/axios";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Badge, Button } from "@/shared/ui/ds";
@@ -64,6 +64,7 @@ export default function CreateRegularExamModal({
     useState<ManualGradingMethod>("correctness");
   const [choiceQuestionCount, setChoiceQuestionCount] = useState("");
   const [sourceFile, setSourceFile] = useState<File | null>(null);
+  const guidedSubmitLockRef = useRef(false);
 
   // import stage — multi-select
   const [templates, setTemplates] = useState<TemplateWithUsage[]>([]);
@@ -87,6 +88,7 @@ export default function CreateRegularExamModal({
     setManualGradingMethod("correctness");
     setChoiceQuestionCount("");
     setSourceFile(null);
+    guidedSubmitLockRef.current = false;
     setTemplates([]);
     setTemplatesLoading(false);
     setSelectedTemplateIds(new Set());
@@ -163,6 +165,7 @@ export default function CreateRegularExamModal({
     });
 
   const handleGuidedSubmit = async () => {
+    if (guidedSubmitLockRef.current) return;
     if (!sessionId) {
       setError("세션 정보가 없습니다.");
       return;
@@ -173,10 +176,6 @@ export default function CreateRegularExamModal({
     const mixedChoiceCount = Number(choiceQuestionCount);
     if (!title) {
       setError("시험명을 입력하세요.");
-      return;
-    }
-    if (!sourceFile) {
-      setError("학생에게 배부하는 시험지 원본 파일을 선택하세요.");
       return;
     }
     if (!Number.isFinite(maxScore) || maxScore <= 0) {
@@ -196,6 +195,7 @@ export default function CreateRegularExamModal({
     }
 
     setError(null);
+    guidedSubmitLockRef.current = true;
     setSubmitting(true);
     let createdExamId = 0;
     let enrollResult: { enrolled: number; error?: string } | null = null;
@@ -217,6 +217,20 @@ export default function CreateRegularExamModal({
       if (!createdExamId) throw new Error("생성 후 ID를 받지 못했습니다.");
 
       enrollResult = await autoEnroll(createdExamId);
+      if (!sourceFile) {
+        onCreated(createdExamId);
+        if (enrollResult.error) {
+          feedback.warning(
+            "시험을 만들었습니다. 원본은 시험 상세의 시험 자료 업로드에서 나중에 추가할 수 있습니다. 응시 대상은 시험 상세에서 확인해 주세요.",
+          );
+        } else {
+          feedback.success(
+            `시험을 만들었습니다 · 수강생 ${enrollResult.enrolled}명 등록 · 원본은 나중에 추가할 수 있습니다`,
+          );
+        }
+        onClose();
+        return;
+      }
       const form = new FormData();
       form.append("file", sourceFile);
       form.append("exam_id", String(createdExamId));
@@ -263,6 +277,7 @@ export default function CreateRegularExamModal({
         setError(detail || "시험을 만들지 못했습니다.");
       }
     } finally {
+      guidedSubmitLockRef.current = false;
       setSubmitting(false);
     }
   };
@@ -521,7 +536,7 @@ export default function CreateRegularExamModal({
 
   const stageLabels: Record<Stage, string> = {
     choose: "시험 만들기",
-    guided: "시험지로 만들기",
+    guided: "시험 설정해서 만들기",
     new: "처음부터 만들기",
     import: "이전 시험 가져오기",
     copy: "다른 차시에서 복사",
@@ -556,7 +571,7 @@ export default function CreateRegularExamModal({
       width={stage === "copy" ? MODAL_WIDTH.wide : stage === "choose" ? MODAL_WIDTH.form : MODAL_WIDTH.default}
       closeDisabled={submitting}
       onEnterConfirm={
-        stage === "guided" && guidedTitle.trim() && sourceFile && !submitting
+        stage === "guided" && guidedTitle.trim() && !submitting
           ? handleGuidedSubmit
           : stage === "new" && bulkHasAnyTitle && !submitting
           ? handleBulkSubmit
@@ -572,7 +587,7 @@ export default function CreateRegularExamModal({
           stage === "choose"
             ? "이 차시에 시험을 추가합니다. 수강생은 자동으로 등록돼요."
             : stage === "guided"
-            ? "원본 시험지와 채점 방식을 함께 등록합니다."
+            ? "채점 방식을 먼저 정하고, 원본은 지금 또는 나중에 추가합니다."
             : stage === "new"
             ? "한 번에 여러 개도 만들 수 있어요."
             : stage === "copy"
@@ -618,8 +633,8 @@ export default function CreateRegularExamModal({
                   selected={false}
                   showCheck
                   className="session-block--card-sm"
-                  title="시험지로 만들기"
-                  desc="원본 자동 분리 · 채점 방식 설정"
+                  title="시험 설정해서 만들기"
+                  desc="채점 방식 설정 · 원본은 선택"
                   onClick={() => {
                     setError(null);
                     setStage("guided");
@@ -710,7 +725,7 @@ export default function CreateRegularExamModal({
 
               <fieldset className="grid gap-2">
                 <legend className="text-sm font-semibold">채점 흐름</legend>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                   {([
                     ["choice", "OMR 자동채점", "학생 답안을 인식하고 오류는 OMR 검토에서 보정"],
                     ["written", "직접 채점", "수기 채점한 정오 또는 점수를 학생별 입력"],
@@ -788,7 +803,7 @@ export default function CreateRegularExamModal({
               )}
 
               <label className="grid gap-1.5 text-sm font-semibold">
-                시험지 원본
+                시험지 원본 (선택)
                 <input
                   type="file"
                   className="ds-input"
@@ -800,11 +815,12 @@ export default function CreateRegularExamModal({
               </label>
 
               <div className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] p-3 text-xs leading-relaxed text-[var(--color-text-muted)]">
-                <strong className="text-[var(--color-text-primary)]">자동 분리 안내</strong>
+                <strong className="text-[var(--color-text-primary)]">원본은 나중에 추가해도 됩니다</strong>
                 <br />
-                PDF·이미지·HWP/HWPX는 자동 문항 분리를 시도합니다. 그 밖의 형식도 원본을
-                그대로 보관하며, 자동 분리가 어려우면 시험 상세에서 직접 등록해 검수할 수
-                있습니다. PDF 재업로드는 필수가 아닙니다.
+                지금 원본이 없어도 시험을 먼저 만들 수 있습니다. 만든 뒤 시험 상세의
+                <strong className="text-[var(--color-text-primary)]"> 시험 자료 업로드</strong>에서
+                추가하세요. 지금 올리면 PDF·이미지·HWP/HWPX는 자동 문항 분리를 시도하고,
+                그 밖의 형식도 원본을 그대로 보관합니다.
               </div>
             </div>
           )}
@@ -1029,6 +1045,13 @@ export default function CreateRegularExamModal({
       </ModalBody>
 
       <ModalFooter
+        left={
+          stage === "guided" && !sourceFile ? (
+            <span className="block text-xs text-[var(--color-text-muted)]">
+              원본은 시험 상세에서 나중에 업로드할 수 있어요.
+            </span>
+          ) : undefined
+        }
         right={
           <>
             <Button intent="secondary" size="xl" onClick={onClose} disabled={submitting}>
@@ -1039,9 +1062,11 @@ export default function CreateRegularExamModal({
                 intent="primary"
                 size="xl"
                 onClick={handleGuidedSubmit}
-                disabled={submitting || !guidedTitle.trim() || !sourceFile}
+                disabled={submitting || !guidedTitle.trim()}
               >
-                {submitting ? "시험 자료 처리 중…" : "시험 만들고 자료 올리기"}
+                {submitting
+                  ? sourceFile ? "시험 자료 처리 중…" : "시험 만드는 중…"
+                  : sourceFile ? "시험 만들고 자료 올리기" : "시험 만들기"}
               </Button>
             )}
             {stage === "new" && (() => {
