@@ -10,7 +10,7 @@ async function openFirstStudentMessageModal(page: import("@playwright/test").Pag
   const checkbox = page.locator("tbody input[type=checkbox]").first();
   await expect(checkbox).toBeVisible();
   await checkbox.check();
-  await page.getByRole("button", { name: /메시지 발송/ }).click();
+  await page.getByRole("button", { name: /알림톡 보내기/ }).click();
   const modal = page.locator(".send-message-modal");
   await expect(modal).toBeVisible();
   return modal;

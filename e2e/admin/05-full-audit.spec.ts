@@ -197,9 +197,8 @@ test.describe("메시징 미완 항목 완전 검증", () => {
     }
     await check.click();
 
-    const sendBtn = page.locator("button").filter({ hasText: /메시지/ }).first();
+    const sendBtn = page.getByRole("button", { name: "알림톡 보내기", exact: true });
     await sendBtn.click();
-    await expect(page.locator("text=메시지 발송").first()).toBeVisible({ timeout: 5_000 });
     await expect(page.locator(".send-modal__title").filter({ hasText: /알림톡 발송/ })).toBeVisible({ timeout: 5_000 });
 
     // 양식 선택 → 직접 작성
