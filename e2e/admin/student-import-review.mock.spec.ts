@@ -255,7 +255,21 @@ test.describe("신규 학생 Excel 등록 확인 화면", () => {
 
     await resultDialog.getByRole("button", { name: "확인" }).click();
     await page.getByRole("button", { name: "작업박스 열기" }).click();
-    await page.getByText(/학생 일괄 등록 — 신규 등록 1명, 이미 등록된 학생 1명, 실패 1명/).click();
+    const workboxTask = page.locator(".async-status-bar__item").filter({
+      hasText: "학생 일괄 등록 — 신규 등록 1명, 이미 등록된 학생 1명, 실패 1명",
+    });
+    const workboxOverlay = page.locator(".app-header__profileDropdownOverlay").filter({
+      has: workboxTask,
+    });
+    await expect(workboxOverlay).toBeVisible();
+    const workboxBounds = await workboxOverlay.boundingBox();
+    expect(workboxBounds).not.toBeNull();
+    expect(workboxBounds!.x).toBeGreaterThanOrEqual(11);
+    expect(workboxBounds!.x).toBeLessThanOrEqual(13);
+    expect(workboxBounds!.x + workboxBounds!.width).toBeLessThanOrEqual(379);
+    expect(await workboxOverlay.evaluate((element) => element.scrollWidth - element.clientWidth))
+      .toBeLessThanOrEqual(1);
+    await workboxTask.click();
     await expect(page.getByRole("dialog", { name: "학생 등록 결과" })).toBeVisible();
 
     const redPartialFailure = page.locator(".async-status-bar__item-error");

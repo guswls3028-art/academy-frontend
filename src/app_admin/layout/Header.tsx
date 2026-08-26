@@ -58,12 +58,14 @@ function ProfileDropdown({
   onClose,
   content,
   children,
+  overlayClassName,
 }: {
   open: boolean;
   onToggle: () => void;
   onClose: () => void;
   content: React.ReactNode;
   children: React.ReactNode;
+  overlayClassName?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -101,7 +103,7 @@ function ProfileDropdown({
       </div>
       {open && (
         <div
-          className="app-header__profileDropdownOverlay"
+          className={`app-header__profileDropdownOverlay${overlayClassName ? ` ${overlayClassName}` : ""}`}
           role="menu"
         >
           {content}
@@ -396,6 +398,7 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
               open={workbox.workboxOpen}
               onToggle={() => handleWorkboxOpenChange(!workbox.workboxOpen)}
               onClose={() => handleWorkboxOpenChange(false)}
+              overlayClassName="app-header__profileDropdownOverlay--workbox"
               content={
                 <div className="ds-header-dropdown app-header__alarmDropdown alarm-panel--workbox-style">
                   <WorkboxPanelContent onClose={() => workbox.setWorkboxOpen(false)} />

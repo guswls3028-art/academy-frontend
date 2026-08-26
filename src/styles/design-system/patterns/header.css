@@ -200,6 +200,21 @@
   z-index: 1050;
 }
 
+@media (max-width: 480px) {
+  [data-app="admin"] .app-header__profileDropdownOverlay--workbox {
+    position: fixed;
+    top: calc(var(--panel-header) + 4px);
+    right: 12px;
+    left: 12px;
+  }
+
+  .app-header__profileDropdownOverlay--workbox .app-header__alarmDropdown {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+}
+
 [data-app="admin"] .app-header__crumbs {
   display: flex;
   align-items: center;
