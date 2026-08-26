@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/students/pages/StudentsRequestsPage.tsx
 // 선생용: 가입 신청 — 패널형 카드 UI (PanelWithTreeLayout SSOT 준수, 학생 도메인 정합)
 
-import { useState, useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Checkbox, Switch } from "antd";
@@ -10,7 +10,7 @@ import {
   FiUserX,
   FiChevronRight,
 } from "react-icons/fi";
-import { UserPlus } from "lucide-react";
+import { History, UserPlus } from "lucide-react";
 import {
   fetchRegistrationRequests,
   approveRegistrationRequest,
@@ -19,9 +19,13 @@ import {
   bulkRejectRegistrationRequests,
   fetchRegistrationRequestSettings,
   updateRegistrationRequestSettings,
+  deletedRegistrationConflictFromError,
+  resolveDeletedRegistrationRequest,
   type ClientRegistrationRequest,
+  type DeletedRegistrationCandidate,
 } from "../api/students.api";
 import { Button, EmptyState } from "@/shared/ui/ds";
+import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import AdminModal from "@/shared/ui/modal/AdminModal";
@@ -172,6 +176,74 @@ function RequestDetailModal({
   );
 }
 
+function DeletedAccountRecoveryModal({
+  request,
+  candidates,
+  selectedId,
+  open,
+  resolving,
+  onSelect,
+  onClose,
+  onConfirm,
+}: {
+  request: ClientRegistrationRequest | null;
+  candidates: DeletedRegistrationCandidate[];
+  selectedId: number | null;
+  open: boolean;
+  resolving: boolean;
+  onSelect: (studentId: number) => void;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  if (!request) return null;
+  return (
+    <AdminModal open={open} onClose={onClose} closeDisabled={resolving} type="action" width={520} onEnterConfirm={selectedId ? onConfirm : undefined}>
+      <ModalHeader
+        type="action"
+        title="과거 계정을 선택해 주세요"
+        description={`${request.name} 학생과 같은 정보의 삭제 이력이 있습니다.`}
+      />
+      <ModalBody>
+        <p className="students-request-recovery__guide">
+          복구할 계정을 직접 선택하면 수강 이력을 보존하고, 이번 가입 신청의
+          아이디와 비밀번호를 적용합니다. 선택하지 않은 삭제 이력은 그대로 둡니다.
+        </p>
+        <div className="students-request-recovery__list" role="radiogroup" aria-label="복구할 과거 계정">
+          {candidates.map((candidate) => {
+            const selected = selectedId === candidate.studentId;
+            return (
+              <button
+                key={candidate.studentId}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                className={`students-request-recovery__option ${selected ? "students-request-recovery__option--selected" : ""}`}
+                disabled={resolving}
+                onClick={() => onSelect(candidate.studentId)}
+              >
+                <span className="students-request-recovery__icon" aria-hidden><History size={18} /></span>
+                <span className="students-request-recovery__option-copy">
+                  <strong>{formatDate(candidate.createdAt)} 등록 계정</strong>
+                  <span>수강 이력 {candidate.enrollmentCount}건 · {formatDate(candidate.deletedAt)} 삭제</span>
+                </span>
+                <span className="students-request-recovery__radio" aria-hidden />
+              </button>
+            );
+          })}
+        </div>
+      </ModalBody>
+      <ModalFooter
+        left={<Button intent="secondary" size="md" onClick={onClose} disabled={resolving}>취소</Button>}
+        right={
+          <Button intent="primary" size="md" onClick={onConfirm} disabled={!selectedId || resolving}>
+            {resolving ? "복구 중…" : "이 계정 복구·승인"}
+          </Button>
+        }
+      />
+    </AdminModal>
+  );
+}
+
 /* ── 메인 페이지 ── */
 
 export default function StudentsRequestsPage() {
@@ -181,6 +253,10 @@ export default function StudentsRequestsPage() {
   const [detailRequest, setDetailRequest] =
     useState<ClientRegistrationRequest | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [recoveryRequest, setRecoveryRequest] = useState<ClientRegistrationRequest | null>(null);
+  const [recoveryCandidates, setRecoveryCandidates] = useState<DeletedRegistrationCandidate[]>([]);
+  const [selectedRecoveryId, setSelectedRecoveryId] = useState<number | null>(null);
+  const recoverySubmissionRef = useRef(false);
 
   const { data, isLoading } = useQuery({
     queryKey: adminStudentsQueryKeys.registrationRequests,
@@ -196,25 +272,59 @@ export default function StudentsRequestsPage() {
   const list = data?.data ?? [];
   const pendingList = list.filter((r) => r.status === "pending");
 
+  const finishApproval = (id: number, message: string) => {
+    qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.registrationRequests });
+    qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.students });
+    qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.adminNotificationCounts });
+    setDetailOpen(false);
+    setDetailRequest(null);
+    setRecoveryRequest(null);
+    setRecoveryCandidates([]);
+    setSelectedRecoveryId(null);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    feedback.success(message);
+  };
+
   /* ── mutations ── */
 
   const approveMutation = useMutation({
     mutationFn: (id: number) => approveRegistrationRequest(id),
     onSuccess: (_data, id) => {
-      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.registrationRequests });
-      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.students });
-      qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.adminNotificationCounts });
-      setDetailOpen(false);
-      setDetailRequest(null);
-      setSelectedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-      feedback.success("승인되었습니다. 학생이 등록되었습니다.");
+      finishApproval(id, "승인되었습니다. 학생이 등록되었습니다.");
     },
-    onError: (e: Error) => {
-      feedback.error(e.message || "승인 처리에 실패했습니다.");
+    onError: (e: unknown, id) => {
+      const conflict = deletedRegistrationConflictFromError(e);
+      const request = pendingList.find((item) => item.id === id) ?? null;
+      if (conflict && request) {
+        setRecoveryRequest(request);
+        setRecoveryCandidates(conflict.candidates);
+        setSelectedRecoveryId(null);
+        setDetailOpen(false);
+        return;
+      }
+      const error = e as Error;
+      feedback.error(error.message || "승인 처리에 실패했습니다.");
+    },
+  });
+
+  const resolveDeletedMutation = useMutation({
+    mutationFn: ({ requestId, studentId }: { requestId: number; studentId: number }) =>
+      resolveDeletedRegistrationRequest(requestId, studentId),
+    onSuccess: (_data, variables) => {
+      finishApproval(variables.requestId, "과거 계정과 수강 이력을 복구하고 가입을 승인했습니다.");
+    },
+    onError: (e: unknown) => {
+      feedback.error(getApiErrorMessage(
+        e,
+        "과거 계정을 복구하지 못했습니다. 목록을 새로 확인해 주세요.",
+      ));
+    },
+    onSettled: () => {
+      recoverySubmissionRef.current = false;
     },
   });
 
@@ -584,6 +694,25 @@ export default function StudentsRequestsPage() {
           detailRequest != null &&
           rejectMutation.variables === detailRequest.id
         }
+      />
+      <DeletedAccountRecoveryModal
+        request={recoveryRequest}
+        candidates={recoveryCandidates}
+        selectedId={selectedRecoveryId}
+        open={recoveryRequest != null}
+        resolving={resolveDeletedMutation.isPending || recoverySubmissionRef.current}
+        onSelect={setSelectedRecoveryId}
+        onClose={() => {
+          if (resolveDeletedMutation.isPending || recoverySubmissionRef.current) return;
+          setRecoveryRequest(null);
+          setRecoveryCandidates([]);
+          setSelectedRecoveryId(null);
+        }}
+        onConfirm={() => {
+          if (!recoveryRequest || !selectedRecoveryId || recoverySubmissionRef.current) return;
+          recoverySubmissionRef.current = true;
+          resolveDeletedMutation.mutate({ requestId: recoveryRequest.id, studentId: selectedRecoveryId });
+        }}
       />
     </div>
   );

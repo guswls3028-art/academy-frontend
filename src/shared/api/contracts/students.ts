@@ -1,6 +1,6 @@
 // PATH: src/shared/api/contracts/students.ts
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
-import type { components } from "@/shared/api/generated/schema";
+import type { components, paths } from "@/shared/api/generated/schema";
 import type { StudentInitialPasswordSettings } from "@/shared/product/students/initialPassword";
 
 /* ===============================
@@ -780,6 +780,49 @@ export interface ClientRegistrationRequest {
   studentId?: number | null;
 }
 
+export interface DeletedRegistrationCandidate {
+  studentId: number;
+  createdAt: string;
+  deletedAt: string;
+  enrollmentCount: number;
+}
+
+type DeletedRegistrationResolveRequest = paths[
+  "/api/v1/students/registration_requests/{id}/resolve_deleted/"
+]["post"]["requestBody"]["content"]["application/json"];
+
+export interface DeletedRegistrationConflictPayload {
+  code: "deleted_student_conflict";
+  detail: string;
+  candidates: DeletedRegistrationCandidate[];
+}
+
+export function deletedRegistrationConflictFromError(
+  error: unknown
+): DeletedRegistrationConflictPayload | null {
+  const data = asRecord(
+    (error as { response?: { data?: unknown } } | null)?.response?.data
+  );
+  if (data.code !== "deleted_student_conflict") return null;
+  const candidates = asList(data.candidates).flatMap((raw) => {
+    const candidate = asRecord(raw);
+    const studentId = numberOrZero(candidate.student_id);
+    if (studentId <= 0) return [];
+    return [{
+      studentId,
+      createdAt: nullableStr(candidate.created_at) ?? "",
+      deletedAt: nullableStr(candidate.deleted_at) ?? "",
+      enrollmentCount: numberOrZero(candidate.enrollment_count),
+    }];
+  });
+  if (candidates.length === 0) return null;
+  return {
+    code: "deleted_student_conflict",
+    detail: nullableStr(data.detail) ?? "같은 학생으로 보이는 삭제 이력이 있습니다.",
+    candidates,
+  };
+}
+
 function normalizeRegistrationStatus(value: unknown): ClientRegistrationRequest["status"] {
   return value === "approved" || value === "rejected" ? value : "pending";
 }
@@ -838,6 +881,19 @@ export async function approveRegistrationRequest(id: number): Promise<ClientStud
   return mapStudent(res.data);
 }
 
+/** 스태프: 선택한 삭제 이력 계정을 복구한 뒤 가입 신청 승인 */
+export async function resolveDeletedRegistrationRequest(
+  requestId: number,
+  studentId: number
+): Promise<ClientStudent> {
+  const request: DeletedRegistrationResolveRequest = { student_id: studentId };
+  const res = await api.post(
+    `/students/registration_requests/${requestId}/resolve_deleted/`,
+    request
+  );
+  return mapStudent(res.data);
+}
+
 /** 스태프: 가입 신청 일괄 승인 */
 export async function bulkApproveRegistrationRequests(
   requestIds: number[]
@@ -887,6 +943,7 @@ export async function submitRegistrationRequest(form: {
   name: string;
   username?: string;
   initialPassword: string;
+  passwordConfirmation: string;
   parentPhone: string;
   phone?: string;
   schoolType?: "HIGH" | "MIDDLE" | "ELEMENTARY";
@@ -901,11 +958,13 @@ export async function submitRegistrationRequest(form: {
   address?: string;
   originMiddleSchool?: string;
 }): Promise<ClientRegistrationRequest> {
-  const payload: Record<string, unknown> = {
+  const payload: components["schemas"]["RegistrationRequestCreateRequest"] = {
     name: String(form.name ?? "").trim(),
     username: String(form.username ?? "").trim() || "",
-    initial_password: String(form.initialPassword ?? "").trim(),
+    initial_password: String(form.initialPassword ?? ""),
+    password_confirmation: String(form.passwordConfirmation ?? ""),
     parent_phone: normalizePhone(String(form.parentPhone)),
+    phone: null,
     school_type: form.schoolType ?? "HIGH",
     high_school: form.highSchool?.trim() || null,
     middle_school: form.middleSchool?.trim() || null,

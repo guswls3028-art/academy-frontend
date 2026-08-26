@@ -19,6 +19,7 @@ const INITIAL_FORM = {
   name: "",
   username: "",
   initialPassword: "",
+  passwordConfirmation: "",
   parentPhone: "",
   phone: "",
   schoolType: "HIGH" as SchoolType,
@@ -49,10 +50,12 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [checkingPhone, setCheckingPhone] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const submissionRef = useRef(false);
   const nameRef = useRef<HTMLInputElement>(null);
   const genderRef = useRef<HTMLDivElement>(null);
   const usernameRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
+  const passwordConfirmationRef = useRef<HTMLInputElement>(null);
   const phoneRef = useRef<HTMLDivElement>(null);
   const parentPhoneRef = useRef<HTMLDivElement>(null);
   const elementarySchoolRef = useRef<HTMLInputElement>(null);
@@ -76,7 +79,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
   }
 
   const handleClose = useCallback(() => {
-    if (!pending) {
+    if (!pending && !submissionRef.current) {
       onClose();
       setError("");
       setSuccess(false);
@@ -94,6 +97,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
       setUsernameCheck(null);
       setPhoneCheck(null);
       setShowGuide(false);
+      submissionRef.current = false;
     }
   }, [open, slm.defaultSchoolType]);
 
@@ -139,13 +143,16 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (pending) return;
+    if (pending || submissionRef.current) return;
     setError("");
 
     if (!form.name.trim()) { focusInvalid("이름을 입력해 주세요.", nameRef); return; }
     if (!form.username.trim()) { focusInvalid("아이디를 입력해 주세요.", usernameRef); return; }
     if (!form.initialPassword.trim() || form.initialPassword.length < 4) {
       focusInvalid("초기 비밀번호를 4자 이상 입력해 주세요.", passwordRef); return;
+    }
+    if (form.passwordConfirmation !== form.initialPassword) {
+      focusInvalid("비밀번호가 일치하지 않습니다.", passwordConfirmationRef); return;
     }
     const parentPhone = form.parentPhone.replace(/\D/g, "");
     if (parentPhone.length !== 11 || !parentPhone.startsWith("010")) {
@@ -173,12 +180,14 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
     }
     if (!form.address.trim()) { focusInvalid("주소를 입력해 주세요.", addressRef); return; }
 
+    submissionRef.current = true;
     setPending(true);
     try {
       await submitRegistrationRequest({
         name: form.name.trim(),
         username: form.username.trim() || undefined,
         initialPassword: form.initialPassword,
+        passwordConfirmation: form.passwordConfirmation,
         parentPhone: parentPhone,
         phone,
         schoolType: form.schoolType,
@@ -240,6 +249,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
       }
       setError(msg);
     } finally {
+      submissionRef.current = false;
       setPending(false);
     }
   }
@@ -293,13 +303,16 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
             <p className={styles.signupDuplicateDescription}>
               아이디와 임시 비밀번호를 알림톡으로 받으시겠습니까?
             </p>
+            <p className={styles.signupDuplicateDescription}>
+              카카오톡을 사용할 수 없으면 선생님에게 ‘학생 상세 → 비밀번호 초기화’를 요청해 주세요.
+            </p>
             {credentialsSent ? (
               <p className={styles.signupStatusSuccessSpaced}>
                 알림톡이 발송되었습니다. 확인 후 로그인해 주세요.
               </p>
             ) : (
               <>
-                {error && <div className={`${styles.error} ${styles.signupDuplicateError}`}>{error}</div>}
+                {error && <div role="alert" className={`${styles.error} ${styles.signupDuplicateError}`}>{error}</div>}
                 <button
                   type="button"
                   className={`${styles.signupBtnSubmit} ${styles.signupFullWidthAction} ${styles.signupDuplicateSendButton}`}
@@ -427,8 +440,43 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
                   value={form.initialPassword}
                   onChange={(e) => setForm((f) => ({ ...f, initialPassword: e.target.value }))}
                   aria-required
+                  autoComplete="new-password"
                 />
                 <span className={`${styles.signupInputLabel} ${styles.signupHelperText}`}>숫자 또는 영문 사용 가능</span>
+              </div>
+              <div className={styles.signupInputRow}>
+                <label htmlFor="signup-pw-confirm" className={styles.signupInputLabel}>
+                  비밀번호 확인 <span className={styles.signupRequired}>*</span>
+                </label>
+                <input
+                  id="signup-pw-confirm"
+                  ref={passwordConfirmationRef}
+                  className={styles.signupInput}
+                  type="password"
+                  placeholder="비밀번호를 한 번 더 입력"
+                  value={form.passwordConfirmation}
+                  onChange={(e) => setForm((f) => ({ ...f, passwordConfirmation: e.target.value }))}
+                  aria-required
+                  aria-invalid={Boolean(form.passwordConfirmation) && form.passwordConfirmation !== form.initialPassword}
+                  aria-describedby="signup-pw-confirm-status"
+                  autoComplete="new-password"
+                />
+                {form.passwordConfirmation && (
+                  <span
+                    id="signup-pw-confirm-status"
+                    role="status"
+                    aria-live="polite"
+                    className={`${styles.signupValidationStatus} ${
+                      form.passwordConfirmation === form.initialPassword
+                        ? styles.signupValidationAvailable
+                        : styles.signupValidationBlocked
+                    }`}
+                  >
+                    {form.passwordConfirmation === form.initialPassword
+                      ? "비밀번호가 일치합니다."
+                      : "비밀번호가 일치하지 않습니다."}
+                  </span>
+                )}
               </div>
             </section>
 
@@ -597,7 +645,7 @@ export default function SignupModal({ open, onClose }: SignupModalProps) {
               <br />
               만 14세 미만 학생은 보호자(학부모)의 동의가 필요하며, 학원을 통해 등록해 주세요.
             </p>
-            {error && <div className={styles.error}>{error}</div>}
+            {error && <div role="alert" className={styles.error}>{error}</div>}
             <div className={styles.signupActions}>
               <button type="button" className={styles.signupBtnCancel} onClick={handleClose}>취소</button>
               <button type="submit" className={styles.signupBtnSubmit} disabled={pending}>
