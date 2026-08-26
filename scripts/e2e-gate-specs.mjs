@@ -51,6 +51,7 @@ export const routeMockSpecs = [
   "e2e/admin/student-custom-columns.mock.spec.ts",
   "e2e/admin/student-import-review.mock.spec.ts",
   "e2e/admin/student-detail-entrypoints.mock.spec.ts",
+  "e2e/admin/messaging-direct-alimtalk.mock.spec.ts",
   "e2e/admin/student-support-preview.mock.spec.ts",
   "e2e/admin/submissions-inbox-preview.mock.spec.ts",
   "e2e/admin/video-batch-upload-queue.mock.spec.ts",

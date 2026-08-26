@@ -260,7 +260,7 @@ test.describe("알림톡 전체 사용 운영 제어", () => {
     const studentCheckbox = page.getByRole("checkbox", { name: "모바일 확인 학생 선택" });
     await expect(studentCheckbox).toBeVisible({ timeout: 60_000 });
     await studentCheckbox.check();
-    await page.getByRole("button", { name: "메시지 발송", exact: true }).click();
+    await page.getByRole("button", { name: "알림톡 보내기", exact: true }).click();
 
     const dialog = page.locator(".send-message-modal");
     await expect(dialog).toBeVisible();

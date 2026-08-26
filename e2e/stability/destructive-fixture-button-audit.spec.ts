@@ -628,7 +628,7 @@ test.describe.serial("[E2E] fixture 기반 파괴/상태변경 버튼 전수 감
 
     await loginViaUI(page, "admin", { landingPath: "/workspace/students/home" });
     await selectStudentInUi(page, name);
-    await page.getByRole("button", { name: "메시지 발송", exact: true }).click();
+    await page.getByRole("button", { name: "알림톡 보내기", exact: true }).click();
     const dialog = await latestDialog(page, "알림톡 발송");
 
     await setRecipientTarget(dialog, "학생", false);

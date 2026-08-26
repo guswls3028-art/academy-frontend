@@ -116,7 +116,7 @@ test("알림톡 발송 직전 카카오 디자인과 학생별 문구를 확인�
   await expect(page.getByText("김민준", { exact: true })).toBeVisible();
   await expect(page.getByText("박서연", { exact: true })).toBeVisible();
   await page.getByLabel("전체 선택").check();
-  await page.getByRole("button", { name: "메시지 발송" }).click();
+  await page.getByRole("button", { name: "알림톡 보내기" }).click();
 
   const sendButton = page.locator(".send-modal__send-btn");
   await expect(sendButton).toBeEnabled();

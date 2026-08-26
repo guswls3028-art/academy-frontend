@@ -323,7 +323,7 @@ test.describe.serial("[E2E] 통제번호 실제 알림톡 발송 검증", () => 
 
     await loginViaUI(page, "admin", { landingPath: "/workspace/students/home" });
     await selectStudentInUi(page, STUDENT_NAME);
-    await page.getByRole("button", { name: "메시지 발송", exact: true }).click();
+    await page.getByRole("button", { name: "알림톡 보내기", exact: true }).click();
 
     const dialog = await latestDialog(page, "알림톡 발송");
     await setRecipientTarget(dialog, "학생", false);
