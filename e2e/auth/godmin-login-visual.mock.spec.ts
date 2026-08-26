@@ -90,7 +90,9 @@ test("Godmin 390px 로그인은 한 열로 쌓이고 가로로 넘치지 않는�
   expect(layout.panelTop).toBeGreaterThanOrEqual(layout.brandBottom - 1);
   expect(layout.horizontalOverflow).toBe(false);
   await expect(page.getByRole("button", { name: "로그인" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "회원가입" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "회원가입" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "아이디 찾기" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "비밀번호 찾기" })).toBeVisible();
 
   await testInfo.attach("godmin-login-mobile-390.png", {
     body: await page.screenshot({ fullPage: true }),
