@@ -234,6 +234,13 @@
   margin-top: 2px;
 }
 
+.async-status-bar__item-status-message {
+  margin-top: 2px;
+  color: var(--color-text-muted, #6b7280);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .async-status-bar__item-actions {
   flex-shrink: 0;
   display: flex;

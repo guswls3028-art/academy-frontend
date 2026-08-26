@@ -62,6 +62,8 @@ export interface AsyncTask {
   remainingSeconds?: number | null;
   /** 영상 인코딩 시 구간별 표시 (2/7 인코딩 45% 등) */
   encodingStep?: EncodingStep | null;
+  /** 진행률 저장소 장애 시 durable 상태 확인이 계속되고 있음을 표시한다. */
+  statusMessage?: string;
   error?: string;
   download?: {
     kind: "student_initial_passwords";
@@ -334,7 +336,7 @@ export const asyncStatusStore = {
   /** 완료 처리 (성공/실패) */
   completeTask(id: string, status: "success" | "error", error?: string): void {
     tasks = tasks.map((t) =>
-      t.id === id ? { ...t, status, progress: 100, error } : t
+      t.id === id ? { ...t, status, progress: 100, statusMessage: undefined, error } : t
     );
     emit();
   },
@@ -356,6 +358,12 @@ export const asyncStatusStore = {
           }
         : t
     );
+    emit();
+  },
+
+  /** pending 작업의 제한적 복구 조회 상태를 표시한다. */
+  setTaskStatusMessage(id: string, statusMessage?: string): void {
+    tasks = tasks.map((t) => (t.id === id ? { ...t, statusMessage } : t));
     emit();
   },
 
@@ -450,6 +458,7 @@ export const asyncStatusStore = {
       progress: undefined,
       remainingSeconds: undefined,
       encodingStep: undefined,
+      statusMessage: undefined,
       meta: { jobId, jobType },
       tenantScope: t.tenantScope ?? this._getTenantScope(),
     };
@@ -461,7 +470,9 @@ export const asyncStatusStore = {
   /** 재처리: 해당 항목을 다시 pending으로 (API 재호출은 호출측에서 수행) */
   retryTask(id: string): void {
     tasks = tasks.map((t) =>
-      t.id === id ? { ...t, status: "pending" as const, progress: 0, error: undefined } : t
+      t.id === id
+        ? { ...t, status: "pending" as const, progress: 0, statusMessage: undefined, error: undefined }
+        : t
     );
     emit();
   },

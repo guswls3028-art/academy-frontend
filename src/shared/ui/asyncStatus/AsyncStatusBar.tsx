@@ -368,6 +368,11 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
               <span className="async-status-bar__item-running">진행 중</span>
             )}
           </div>
+          {task.statusMessage && (
+            <div className="async-status-bar__item-status-message" role="status">
+              {task.statusMessage}
+            </div>
+          )}
           {task.status === "error" && task.error && (
             <div className="async-status-bar__item-error">{task.error}</div>
           )}

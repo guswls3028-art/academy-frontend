@@ -204,8 +204,11 @@ export async function fetchInProgressVideos(): Promise<Video[]> {
   return all;
 }
 
-export async function fetchVideoDetail(videoId: number): Promise<VideoDetail> {
-  const res = await api.get(`/media/videos/${videoId}/`);
+export async function fetchVideoDetail(
+  videoId: number,
+  signal?: AbortSignal,
+): Promise<VideoDetail> {
+  const res = await api.get(`/media/videos/${videoId}/`, { signal });
   const data = res.data;
   if (!data || !data.id) {
     throw new Error(`Video ${videoId} not found`);
