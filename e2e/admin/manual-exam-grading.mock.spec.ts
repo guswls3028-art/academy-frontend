@@ -6,6 +6,8 @@ const LECTURE_ID = 501;
 const SESSION_ID = 701;
 const EXAM_ID = 801;
 const ENROLLMENT_ID = 901;
+const DONE_SUBMISSION_ID = 1801;
+const NOID_SUBMISSION_ID = 1802;
 const QUESTION_IDS = [1001, 1002] as const;
 
 function isLocalBase(value: string): boolean {
@@ -77,6 +79,7 @@ type InstallApiOptions = {
     questions: number;
   };
   resultRows?: Array<Record<string, unknown>>;
+  submissionRows?: Array<Record<string, unknown>>;
 };
 
 async function installApi(page: Page, options: InstallApiOptions = {}) {
@@ -85,6 +88,11 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
   let manualSheetGetCount = 0;
   const postedRows: unknown[] = [];
   const examPatches: unknown[] = [];
+  const manualEditGetIds: number[] = [];
+  let inventoryPresignCount = 0;
+  let previewRequestCount = 0;
+  let manualEditPostCount = 0;
+  let failNextPreview = false;
   let gradingMode = options.gradingMode ?? "written";
   let manualGradingMethod =
     options.manualGradingMethod ?? "correctness";
@@ -292,6 +300,74 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         file_type: "application/octet-stream",
         file_size: 20,
       } : []);
+      return;
+    }
+    if (path === `/submissions/submissions/exams/${EXAM_ID}/` && method === "GET") {
+      await json(options.submissionRows ?? []);
+      return;
+    }
+    if (path === "/storage/inventory/presign/" && method === "POST") {
+      inventoryPresignCount += 1;
+      await json({ detail: "submission 파일은 inventory presign 대상이 아닙니다." }, 404);
+      return;
+    }
+    const previewMatch = path.match(/^\/submissions\/submissions\/(\d+)\/preview\/$/);
+    if (previewMatch && method === "GET") {
+      previewRequestCount += 1;
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      if (failNextPreview) {
+        failNextPreview = false;
+        await json({ detail: "preview unavailable" }, 404);
+        return;
+      }
+      await json({ url: `${BASE}/favicon.svg?submission=${previewMatch[1]}` });
+      return;
+    }
+    const manualEditMatch = path.match(/^\/submissions\/submissions\/(\d+)\/manual-edit\/$/);
+    if (manualEditMatch) {
+      const submissionId = Number(manualEditMatch[1]);
+      if (method === "POST") {
+        manualEditPostCount += 1;
+        await json({ submission_id: submissionId, status: "done", score: 100 });
+        return;
+      }
+      manualEditGetIds.push(submissionId);
+      const needsIdentification = submissionId === NOID_SUBMISSION_ID;
+      const scanSvg = encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="white"/><text x="40" y="70" font-size="38">OMR scan</text><circle cx="220" cy="240" r="24" fill="#1d4ed8"/></svg>',
+      );
+      await json({
+        submission_id: submissionId,
+        submission_status: needsIdentification ? "needs_identification" : "done",
+        enrollment_id: needsIdentification ? null : ENROLLMENT_ID,
+        target_type: "exam",
+        target_id: EXAM_ID,
+        identifier: null,
+        answers: [{
+          question_id: QUESTION_IDS[0],
+          question_no: 1,
+          answer: "2",
+          omr: {
+            marking: "blank",
+            confidence: 0,
+            status: "review",
+            rect: { x: 150, y: 180, w: 180, h: 120 },
+            bubble_rects: [{ label: "2", x: 196, y: 216, w: 48, h: 48 }],
+          },
+        }],
+        scan_image_url: `data:image/svg+xml,${scanSvg}`,
+        original_scan_image_url: `data:image/svg+xml,${scanSvg}`,
+        scan_image_is_aligned: true,
+        scan_image_size: { width: 800, height: 600 },
+        meta: {
+          identifier_status: needsIdentification ? "missing" : "matched",
+          manual_review: {
+            required: needsIdentification,
+            reasons: needsIdentification ? ["ANSWER_SCORE_AMBIGUOUS"] : [],
+          },
+        },
+        duplicate_siblings: [],
+      });
       return;
     }
     if (path === `/exams/${EXAM_ID}/questions/init/` && method === "POST") {
@@ -575,6 +651,19 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     },
     get manualSheetGetCount() {
       return manualSheetGetCount;
+    },
+    get inventoryPresignCount() {
+      return inventoryPresignCount;
+    },
+    get previewRequestCount() {
+      return previewRequestCount;
+    },
+    get manualEditPostCount() {
+      return manualEditPostCount;
+    },
+    manualEditGetIds,
+    failNextPreview() {
+      failNextPreview = true;
     },
     examPatches,
     postedRows,
@@ -1120,6 +1209,146 @@ test.describe("문항별 직접 채점", () => {
     await expect(omrDialog).toBeVisible();
     await expect(page.getByRole("heading", { name: "OMR 자동채점 결과" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "입력 내용 확인", exact: true })).toHaveCount(0);
+  });
+
+  test("제출 목록은 안전한 미리보기와 식별 대상 직접 검토·표시 회전을 제공한다", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    const apiState = await installApi(page, {
+      gradingMode: "choice",
+      editable: false,
+      submissionRows: [
+        {
+          id: DONE_SUBMISSION_ID,
+          enrollment_id: ENROLLMENT_ID,
+          student_name: "완료 학생",
+          status: "done",
+          source: "omr_scan",
+          score: 85,
+          file_key: "tenants/hakwonplus/submissions/done.png",
+          file_type: "image/png",
+          file_size: 2048,
+          lecture_title: "공통수학2 정규반",
+          lecture_color: "#2563eb",
+          lecture_chip_label: "수2",
+          created_at: "2026-08-26T16:59:00+09:00",
+          has_file: true,
+          manual_review_required: false,
+          manual_review_reasons: [],
+          identifier_status: "matched",
+        },
+        {
+          id: NOID_SUBMISSION_ID,
+          enrollment_id: 0,
+          student_name: "",
+          status: "needs_identification",
+          source: "omr_scan",
+          score: null,
+          file_key: "tenants/hakwonplus/submissions/noid.png",
+          file_type: "image/png",
+          file_size: 2048,
+          lecture_title: "공통수학2 정규반",
+          lecture_color: "#2563eb",
+          lecture_chip_label: "수2",
+          created_at: "2026-08-26T16:59:00+09:00",
+          has_file: true,
+          manual_review_required: true,
+          manual_review_reasons: ["ANSWER_SCORE_AMBIGUOUS"],
+          identifier_status: "missing",
+        },
+      ],
+    });
+
+    await gotoAndSettle(
+      page,
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
+    );
+    await page.getByRole("tab", { name: "제출관리", exact: true }).click();
+
+    const viewButton = page.getByRole("button", { name: "보기", exact: true });
+    await expect(viewButton).toBeVisible();
+    const popupPromise = page.waitForEvent("popup");
+    await viewButton.evaluate((button) => {
+      button.click();
+      button.click();
+    });
+    const popup = await popupPromise;
+    await expect.poll(() => apiState.previewRequestCount).toBe(1);
+    expect(apiState.inventoryPresignCount).toBe(0);
+    expect(page.context().pages()).toHaveLength(2);
+    await popup.close();
+
+    apiState.failNextPreview();
+    const failedPopupPromise = page.waitForEvent("popup");
+    await viewButton.evaluate((button) => {
+      button.click();
+      button.click();
+    });
+    const failedPopup = await failedPopupPromise;
+    await expect.poll(() => apiState.previewRequestCount).toBe(2);
+    await expect.poll(() => failedPopup.isClosed()).toBe(true);
+    await expect(page.getByRole("status").filter({ hasText: "파일을 열 수 없습니다." })).toHaveCount(1);
+
+    await page.getByRole("button", { name: "식별하기", exact: true }).click();
+    const omrDialog = page.getByRole("dialog", { name: "OMR 검토" });
+    await expect(omrDialog).toBeVisible();
+    await expect.poll(() => apiState.manualEditGetIds[0]).toBe(NOID_SUBMISSION_ID);
+    await expect(omrDialog.locator(".orw-list-row--active")).toContainText("미식별 학생");
+
+    const transformedStage = omrDialog.locator(".orw-scan-pane__img-wrap");
+    await expect(transformedStage.getByAltText("OMR 스캔 원본")).toBeVisible();
+    await expect(transformedStage.locator(".orw-bbox-overlay")).toBeVisible();
+    await expect(transformedStage).toHaveCSS("transition-duration", "0s");
+    expect(await transformedStage.evaluate((stage) => {
+      const image = stage.querySelector("img");
+      const overlay = stage.querySelector(".orw-bbox-overlay");
+      return image?.parentElement === stage && overlay?.parentElement === stage;
+    })).toBe(true);
+
+    const scanFrame = omrDialog.locator(".orw-scan-pane__stage");
+    const scanBody = omrDialog.locator(".orw-scan-pane__body");
+    await expect(transformedStage).toHaveAttribute("data-display-rotation", "0");
+    await omrDialog.getByRole("button", { name: "확대" }).click();
+    await omrDialog.getByRole("button", { name: "확대" }).click();
+    const zeroFrame = await scanFrame.boundingBox();
+    expect(zeroFrame).not.toBeNull();
+
+    await omrDialog.getByRole("button", { name: "오른쪽으로 90도 회전" }).click();
+    await expect(transformedStage).toHaveAttribute("data-display-rotation", "90");
+    await expect(transformedStage).toHaveCSS("transform", /matrix/);
+    const ninetyFrame = await scanFrame.boundingBox();
+    expect(ninetyFrame).not.toBeNull();
+    expect(Math.abs((ninetyFrame?.width ?? 0) - (zeroFrame?.height ?? 0))).toBeLessThanOrEqual(1);
+    expect(Math.abs((ninetyFrame?.height ?? 0) - (zeroFrame?.width ?? 0))).toBeLessThanOrEqual(1);
+    const ninetyScroll = await scanBody.evaluate((body) => {
+      const stage = body.querySelector<HTMLElement>(".orw-scan-pane__stage");
+      const style = getComputedStyle(body);
+      return {
+        scrollWidth: body.scrollWidth,
+        scrollHeight: body.scrollHeight,
+        requiredWidth: (stage?.offsetWidth ?? 0) + parseFloat(style.paddingLeft) + parseFloat(style.paddingRight),
+        requiredHeight: (stage?.offsetHeight ?? 0) + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom),
+      };
+    });
+    expect(ninetyScroll.scrollWidth + 1).toBeGreaterThanOrEqual(ninetyScroll.requiredWidth);
+    expect(ninetyScroll.scrollHeight + 1).toBeGreaterThanOrEqual(ninetyScroll.requiredHeight);
+
+    await omrDialog.getByRole("button", { name: "왼쪽으로 90도 회전" }).click();
+    await expect(transformedStage).toHaveAttribute("data-display-rotation", "0");
+    await omrDialog.getByRole("button", { name: "왼쪽으로 90도 회전" }).click();
+    await expect(transformedStage).toHaveAttribute("data-display-rotation", "270");
+    const twoSeventyFrame = await scanFrame.boundingBox();
+    expect(twoSeventyFrame).not.toBeNull();
+    expect(Math.abs((twoSeventyFrame?.width ?? 0) - (zeroFrame?.height ?? 0))).toBeLessThanOrEqual(1);
+    expect(Math.abs((twoSeventyFrame?.height ?? 0) - (zeroFrame?.width ?? 0))).toBeLessThanOrEqual(1);
+    await omrDialog.getByRole("button", { name: "오른쪽으로 90도 회전" }).click();
+    await expect(transformedStage).toHaveAttribute("data-display-rotation", "0");
+    await omrDialog.getByRole("button", { name: "오른쪽으로 90도 회전" }).click();
+    await omrDialog.locator(".orw-list-row").filter({ hasText: "완료 학생" }).click();
+    await expect.poll(() => apiState.manualEditGetIds).toContain(DONE_SUBMISSION_ID);
+    await expect(transformedStage).toHaveAttribute("data-display-rotation", "0");
+
+    expect(apiState.manualEditPostCount).toBe(0);
+    expect(apiState.inventoryPresignCount).toBe(0);
   });
 
   test("시험명 메뉴에서 시험 설정을 열고 현재 값을 확인한다", async ({ page }) => {

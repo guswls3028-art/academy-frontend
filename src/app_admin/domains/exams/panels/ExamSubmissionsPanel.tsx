@@ -5,10 +5,11 @@
  * - 학생별 제출 목록: 아바타 + 이름 + 강의칩 + 시+시험명 + 상태 + 파일 보기
  */
 
+import { lazy, Suspense, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
-import { fetchExamSubmissions } from "@admin/domains/submissions/api/adminSubmissions.api";
 import { useAdminExam } from "../hooks/useAdminExam";
+import type { ExamSubmissionRow } from "@/shared/api/contracts/submissions";
 import {
   SUBMISSION_STATUS_LABEL,
   SUBMISSION_STATUS_TONE,
@@ -23,13 +24,41 @@ import { useLectureSessionParams } from "@/shared/hooks/useLectureSessionParams"
 import { adminExamsQueryKeys } from "../queryKeys";
 import styles from "./ExamSubmissionsPanel.module.css";
 
+const OmrReviewWorkspace = lazy(
+  () => import("@admin/domains/results/components/omr-review/OmrReviewWorkspace"),
+);
+
 type Props = {
   examId: number;
   sessionId?: number | null;
 };
 
+type ExamSubmissionDisplayRow = ExamSubmissionRow & {
+  profile_photo_url?: string | null;
+  source?: string;
+  file_key?: string | null;
+  file_type?: string | null;
+  file_size?: number | null;
+  lecture_title?: string | null;
+  lecture_color?: string | null;
+  lecture_chip_label?: string | null;
+  name_highlight_clinic_target?: boolean;
+};
+
+async function fetchExamSubmissionRows(examId: number): Promise<ExamSubmissionDisplayRow[]> {
+  const response = await api.get(`/submissions/submissions/exams/${examId}/`);
+  const data = response.data;
+  if (Array.isArray(data)) return data as ExamSubmissionDisplayRow[];
+  if (Array.isArray(data?.results)) return data.results as ExamSubmissionDisplayRow[];
+  return [];
+}
+
 export default function ExamSubmissionsPanel({ examId, sessionId: sessionIdProp }: Props) {
   const navigate = useNavigate();
+  const previewRequestIdRef = useRef<number | null>(null);
+  const [previewingSubmissionId, setPreviewingSubmissionId] = useState<number | null>(null);
+  const [previewErrorSubmissionId, setPreviewErrorSubmissionId] = useState<number | null>(null);
+  const [reviewSubmissionId, setReviewSubmissionId] = useState<number | null>(null);
   const { lectureId, sessionId: sessionIdFromPath } = useLectureSessionParams();
   const examQ = useAdminExam(examId);
   const examTitle = examQ.data?.title ?? "";
@@ -39,17 +68,39 @@ export default function ExamSubmissionsPanel({ examId, sessionId: sessionIdProp 
 
   const q = useQuery({
     queryKey: adminExamsQueryKeys.examSubmissions(examId),
-    queryFn: () => fetchExamSubmissions(examId),
+    queryFn: () => fetchExamSubmissionRows(examId),
     refetchInterval: 5000,
   });
 
-  const handleViewFile = async (fileKey: string) => {
+  const handleViewFile = async (submissionId: number) => {
+    if (previewRequestIdRef.current != null) return;
+
+    previewRequestIdRef.current = submissionId;
+    setPreviewingSubmissionId(submissionId);
+    setPreviewErrorSubmissionId(null);
+    const previewWindow = window.open("about:blank", "_blank");
+    if (!previewWindow) {
+      setPreviewErrorSubmissionId(submissionId);
+      previewRequestIdRef.current = null;
+      setPreviewingSubmissionId(null);
+      return;
+    }
+
+    previewWindow.opener = null;
+
     try {
-      const res = await api.post("/storage/inventory/presign/", { r2_key: fileKey });
-      const url = res.data?.url;
-      if (url) window.open(url, "_blank", "noopener");
+      const res = await api.get<{ url?: string }>(
+        `/submissions/submissions/${submissionId}/preview/`,
+      );
+      const url = String(res.data?.url || "").trim();
+      if (!url) throw new Error("Submission preview URL missing");
+      previewWindow.location.replace(url);
     } catch {
-      feedback.error("파일을 열 수 없습니다.");
+      previewWindow.close();
+      setPreviewErrorSubmissionId(submissionId);
+    } finally {
+      previewRequestIdRef.current = null;
+      setPreviewingSubmissionId(null);
     }
   };
 
@@ -110,7 +161,8 @@ export default function ExamSubmissionsPanel({ examId, sessionId: sessionIdProp 
             {rows.map((r) => {
               const tone = SUBMISSION_STATUS_TONE[r.status];
               const statusLabel = SUBMISSION_STATUS_LABEL[r.status];
-              const fileKey = r.file_key ?? "";
+              const hasFile = Boolean(r.file_key);
+              const needsIdentification = r.status === "needs_identification";
               return (
                 <div
                   key={r.id}
@@ -159,17 +211,37 @@ export default function ExamSubmissionsPanel({ examId, sessionId: sessionIdProp 
                     {formatSubmissionDate(r.created_at)}
                   </span>
 
-                  {/* 파일 보기 버튼 */}
-                  {fileKey && (
+                  {/* 식별 필요 답안은 파일 새 창 대신 해당 검토 화면으로 바로 연결 */}
+                  {needsIdentification ? (
                     <Button
                       type="button"
-                      intent="ghost"
+                      intent="secondary"
                       size="sm"
-                      onClick={() => handleViewFile(fileKey)}
+                      onClick={() => setReviewSubmissionId(r.id)}
                     >
-                      보기
+                      식별하기
                     </Button>
-                  )}
+                  ) : hasFile ? (
+                    <div className="flex flex-shrink-0 items-center gap-2">
+                      {previewErrorSubmissionId === r.id && (
+                        <span
+                          role="status"
+                          className="text-xs font-medium text-[var(--color-danger,#dc2626)]"
+                        >
+                          파일을 열 수 없습니다.
+                        </span>
+                      )}
+                      <Button
+                        type="button"
+                        intent="ghost"
+                        size="sm"
+                        disabled={previewingSubmissionId != null}
+                        onClick={() => void handleViewFile(r.id)}
+                      >
+                        {previewingSubmissionId === r.id ? "여는 중…" : "보기"}
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
               );
             })}
@@ -183,6 +255,21 @@ export default function ExamSubmissionsPanel({ examId, sessionId: sessionIdProp 
           실패 · 지연은 정상 흐름입니다. 처리 중 오류가 발생해도 재업로드 · 재처리가 언제든 가능합니다.
         </p>
       </section>
+
+      {reviewSubmissionId != null && (
+        <Suspense fallback={null}>
+          <OmrReviewWorkspace
+            examId={examId}
+            examTitle={examTitle}
+            initialSubmissionId={reviewSubmissionId}
+            open
+            onClose={() => {
+              setReviewSubmissionId(null);
+              void q.refetch();
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }
