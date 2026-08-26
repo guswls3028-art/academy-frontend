@@ -11577,6 +11577,14 @@ export interface components {
          */
         AccessModeEnum: "FREE_REVIEW" | "PROCTORED_CLASS" | "BLOCKED";
         /**
+         * @description * `ACTIVE` - ACTIVE
+         *     * `INACTIVE` - INACTIVE
+         *     * `DELETED` - DELETED
+         *     * `UNLINKED` - UNLINKED
+         * @enum {string}
+         */
+        AccountStateEnum: "ACTIVE" | "INACTIVE" | "DELETED" | "UNLINKED";
+        /**
          * @description * `student` - student
          *     * `support` - support
          * @enum {string}
@@ -16902,6 +16910,7 @@ export interface components {
             position?: number;
         };
         StudentDetail: {
+            readonly account_state: components["schemas"]["AccountStateEnum"];
             /** @description 주소 (선택) */
             address?: string | null;
             /** Format: date-time */
@@ -17209,6 +17218,7 @@ export interface components {
             memo?: string;
         };
         StudentList: {
+            readonly account_state: components["schemas"]["AccountStateEnum"];
             /** @description 주소 (선택) */
             address?: string | null;
             /** Format: date-time */

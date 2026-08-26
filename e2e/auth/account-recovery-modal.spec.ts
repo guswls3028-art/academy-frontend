@@ -604,6 +604,81 @@ test("삭제 가입 이력은 선생님이 하나를 선택하고 중복 제출 
   await expect(page.getByText("대기 중인 가입 신청이 없습니다")).toBeVisible();
 });
 
+test("구 backend의 일반 가입 승인 409는 복구 요청 없이 fail-closed다", async ({ page }) => {
+  await seedLocalStaffSession(page);
+  let approveCount = 0;
+  let resolveCount = 0;
+
+  await page.route("**/api/v1/**", async (route) => {
+    const url = new URL(route.request().url());
+    const path = url.pathname;
+    const method = route.request().method();
+    const json = (body: unknown, status = 200) => route.fulfill({
+      status,
+      contentType: "application/json",
+      body: JSON.stringify(body),
+    });
+    if (method === "OPTIONS") return route.fulfill({ status: 204 });
+    if (path.endsWith("/core/program/") && method === "GET") {
+      return json({
+        tenantCode: "hakwonplus",
+        isPlatformAdmin: true,
+        display_name: "학원플러스",
+        feature_flags: {},
+        is_active: true,
+      });
+    }
+    if (path.endsWith("/core/me/") && method === "GET") {
+      return json({
+        id: 12,
+        username: "admin",
+        name: "관리자",
+        is_staff: true,
+        is_superuser: true,
+        tenantRole: "admin",
+        must_change_password: false,
+      });
+    }
+    if (path.endsWith("/students/registration_requests/settings/") && method === "GET") {
+      return json({ auto_approve: false });
+    }
+    if (path.endsWith("/students/registration_requests/") && method === "GET") {
+      return json({
+        count: 1,
+        results: [{
+          id: 322,
+          status: "pending",
+          name: "복구학생",
+          parent_phone: "01000000000",
+          phone: "01000000001",
+          school_type: "HIGH",
+          high_school: "테스트고",
+          grade: 1,
+          created_at: "2026-08-26T14:18:51Z",
+        }],
+      });
+    }
+    if (path.endsWith("/students/registration_requests/322/approve/") && method === "POST") {
+      approveCount += 1;
+      return json({ detail: "삭제된 학생 정보를 먼저 확인해 주세요." }, 409);
+    }
+    if (path.endsWith("/students/registration_requests/322/resolve_deleted/") && method === "POST") {
+      resolveCount += 1;
+      return json({}, 500);
+    }
+    return json({ count: 0, results: [] });
+  });
+
+  await gotoAndSettle(page, `${BASE}/workspace/students/requests`, { timeout: 30_000 });
+  await page.getByRole("button", { name: "승인", exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "승인", exact: true }).click();
+
+  await expect.poll(() => approveCount).toBe(1);
+  await expect(page.getByRole("dialog", { name: "과거 계정을 선택해 주세요" })).toHaveCount(0);
+  await expect(page.getByText("승인되었습니다. 학생이 등록되었습니다.", { exact: true })).toHaveCount(0);
+  expect(resolveCount).toBe(0);
+});
+
 test("삭제 가입 복구의 active·cross-tenant·stale·retry 409는 데스크톱에서 fail-closed다", async ({ page }) => {
   await seedLocalStaffSession(page);
   const rejectionDetails = [
