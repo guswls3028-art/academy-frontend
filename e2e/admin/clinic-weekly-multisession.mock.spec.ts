@@ -90,6 +90,7 @@ type ScheduleState = {
   createPayloads: Array<Record<string, unknown>>;
   updatePayloads: Array<{ id: number; payload: Record<string, unknown> }>;
   sessions?: Array<(typeof sessions)[number]>;
+  failSessionRead?: boolean;
   createGate?: Promise<void>;
   updateGate?: Promise<void>;
 };
@@ -183,7 +184,10 @@ async function installApi(
         auto_approve_booking: true,
       });
     }
-    if (path === "/clinic/sessions/" && method === "GET") return json(sessionRows);
+    if (path === "/clinic/sessions/" && method === "GET") {
+      if (scheduleState?.failSessionRead) return json({ detail: "temporary failure" }, 503);
+      return json(sessionRows);
+    }
     if (path === "/clinic/sessions/" && method === "POST") {
       const payload = request.postDataJSON() as Record<string, unknown>;
       scheduleState?.createPayloads.push(payload);
@@ -465,6 +469,68 @@ test("같은 날짜에 여러 클리닉 시간대를 시간순으로 보고 계�
   const dialog = page.getByRole("dialog").filter({ hasText: "클리닉 만들기" });
   await expect(dialog.getByRole("heading", { name: "클리닉 만들기" })).toBeVisible();
   await expect(dialog).toContainText("현재 3개 시간대가 있습니다.");
+});
+
+test("주간 날짜 탐색에서 원하는 날짜의 일정 열로 바로 이동한다", async ({ page }) => {
+  await seed(page);
+  await installApi(page);
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
+
+  const navigator = page.getByRole("navigation", { name: "주간 날짜 선택" });
+  await expect(navigator.getByRole("button")).toHaveCount(7);
+  const saturdayButton = navigator.getByRole("button", {
+    name: new RegExp(`${saturdayLabel} 토요일, 클리닉 3개, 예약 0명`),
+  });
+  await expect(saturdayButton).toContainText("3개");
+  await saturdayButton.click();
+  await expect(saturdayButton).toHaveAttribute("aria-pressed", "true");
+
+  const desktopViewport = page.locator("[data-clinic-board-viewport]");
+  const saturdayCell = page.getByRole("gridcell", { name: `${saturdayLabel} 토요일` });
+  await expect.poll(async () => {
+    const [viewportBox, dayBox] = await Promise.all([
+      desktopViewport.boundingBox(),
+      saturdayCell.boundingBox(),
+    ]);
+    if (!viewportBox || !dayBox) return false;
+    return dayBox.x >= viewportBox.x - 1 && dayBox.x < viewportBox.x + viewportBox.width;
+  }).toBe(true);
+  await page.screenshot({ path: "test-results/admin-clinic-calendar-forwardfix-1366.png", fullPage: false });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
+  const mobileNavigator = page.getByRole("navigation", { name: "주간 날짜 선택" });
+  const mobileSaturdayButton = mobileNavigator.getByRole("button", {
+    name: new RegExp(`${saturdayLabel} 토요일, 클리닉 3개, 예약 0명`),
+  });
+  await mobileSaturdayButton.click();
+  await expect(mobileSaturdayButton).toHaveAttribute("aria-pressed", "true");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(await page.locator("[data-clinic-board-viewport]").evaluate(
+    (element) => element.scrollWidth > element.clientWidth,
+  )).toBe(true);
+  await page.screenshot({ path: "test-results/admin-clinic-calendar-forwardfix-390.png", fullPage: false });
+});
+
+test("주간 날짜 탐색은 일정 조회 실패를 0개로 확정 표시하지 않는다", async ({ page }) => {
+  const state: ScheduleState = {
+    createPayloads: [],
+    updatePayloads: [],
+    failSessionRead: true,
+  };
+  await seed(page);
+  await installApi(page, undefined, undefined, state);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
+
+  const navigator = page.getByRole("navigation", { name: "주간 날짜 선택" });
+  await expect(navigator.getByRole("button", { name: /일정 확인 실패/ })).toHaveCount(7, {
+    timeout: 20_000,
+  });
+  await expect(navigator.getByText("확인 실패", { exact: true })).toHaveCount(7);
+  await expect(navigator.getByText("0개", { exact: true })).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 test("결석 후 새 일정 만들기는 선택 날짜의 생성 창을 바로 연다", async ({ page }) => {

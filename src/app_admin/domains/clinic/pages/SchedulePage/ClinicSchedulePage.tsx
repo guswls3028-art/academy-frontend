@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -86,6 +86,9 @@ export default function ClinicSchedulePage() {
     () => Array.from({ length: 7 }, (_, index) => weekStart.add(index, "day")),
     [weekStart]
   );
+  const [selectedDate, setSelectedDate] = useState(today);
+  const boardViewportRef = useRef<HTMLDivElement | null>(null);
+  const dayRefs = useRef(new Map<string, HTMLElement>());
 
   const sessionsQ = useQuery({
     queryKey: clinicQueryKeys.sessionsMonthRange(weekFrom, weekTo),
@@ -200,6 +203,30 @@ export default function ClinicSchedulePage() {
     ? `${weekStart.format("YYYY년 M월 D일")} – ${weekEnd.format("D일")}`
     : `${weekStart.format("YYYY년 M월 D일")} – ${weekEnd.format("M월 D일")}`;
 
+  useEffect(() => {
+    if (loading) return;
+    const targetDate = selectedDate >= weekFrom && selectedDate <= weekTo
+      ? selectedDate
+      : (today >= weekFrom && today <= weekTo ? today : weekFrom);
+    if (targetDate !== selectedDate) setSelectedDate(targetDate);
+
+    const frame = window.requestAnimationFrame(() => {
+      const viewport = boardViewportRef.current;
+      const day = dayRefs.current.get(targetDate);
+      if (!viewport || !day) return;
+      const viewportBox = viewport.getBoundingClientRect();
+      const dayBox = day.getBoundingClientRect();
+      const fullyVisible = dayBox.left >= viewportBox.left && dayBox.right <= viewportBox.right;
+      if (fullyVisible) return;
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      viewport.scrollTo({
+        left: Math.min(day.offsetLeft, viewport.scrollWidth - viewport.clientWidth),
+        behavior: reducedMotion ? "auto" : "smooth",
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [loading, selectedDate, today, weekFrom, weekTo]);
+
   return (
     <div className={`clinic-page ${styles.page}`}>
       <section className={styles.shell} aria-labelledby="clinic-schedule-title">
@@ -273,6 +300,48 @@ export default function ClinicSchedulePage() {
           </div>
         </div>
 
+        <nav className={styles.dateNavigator} aria-label="주간 날짜 선택">
+          {days.map((date, index) => {
+            const dateISO = date.format("YYYY-MM-DD");
+            const daySessions = sessionsByDate.get(dateISO) ?? [];
+            const dayParticipants = activeParticipants(
+              daySessions.flatMap((session) => participantsBySession.get(session.id) ?? [])
+            );
+            const isToday = dateISO === today;
+            const isSelected = dateISO === selectedDate;
+            const loadLabel = loading
+              ? "일정 불러오는 중"
+              : sessionsQ.isError || participantsQ.listQ.isError
+                ? "일정 확인 실패"
+                : `클리닉 ${daySessions.length}개, 예약 ${dayParticipants.length}명`;
+
+            return (
+              <button
+                key={dateISO}
+                type="button"
+                className={`${styles.dateNavButton} ${isSelected ? styles.dateNavButtonSelected : ""}`}
+                aria-label={`${date.format("M월 D일")} ${DAY_LABELS[index]}요일, ${loadLabel}`}
+                aria-current={isToday ? "date" : undefined}
+                aria-pressed={isSelected}
+                onClick={() => setSelectedDate(dateISO)}
+              >
+                <span className={styles.dateNavWeekday}>
+                  {DAY_LABELS[index]}
+                  {isToday && <span className={styles.dateNavToday} aria-hidden>오늘</span>}
+                </span>
+                <strong className={styles.dateNavDate}>{date.format("D")}</strong>
+                <span className={styles.dateNavLoad}>
+                  {loading
+                    ? "—"
+                    : sessionsQ.isError || participantsQ.listQ.isError
+                      ? "확인 실패"
+                      : `${daySessions.length}개`}
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+
         {loading ? (
           <div className={styles.loading}>예약 일정을 불러오는 중입니다.</div>
         ) : sessionsQ.isError || participantsQ.listQ.isError ? (
@@ -281,7 +350,11 @@ export default function ClinicSchedulePage() {
             <Button intent="secondary" size="sm" onClick={refreshWeek}>다시 불러오기</Button>
           </div>
         ) : (
-          <div className={styles.boardViewport}>
+          <div
+            ref={boardViewportRef}
+            className={styles.boardViewport}
+            data-clinic-board-viewport
+          >
             <div className={styles.board} role="grid" aria-label={`${rangeLabel} 클리닉 예약 일정`}>
               {days.map((date, index) => {
                 const dateISO = date.format("YYYY-MM-DD");
@@ -298,6 +371,10 @@ export default function ClinicSchedulePage() {
                 return (
                   <section
                     key={dateISO}
+                    ref={(element) => {
+                      if (element) dayRefs.current.set(dateISO, element);
+                      else dayRefs.current.delete(dateISO);
+                    }}
                     className={`${styles.day} ${isToday ? styles.today : ""}`}
                     role="gridcell"
                     aria-label={`${date.format("M월 D일")} ${DAY_LABELS[index]}요일`}
