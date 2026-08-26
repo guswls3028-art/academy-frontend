@@ -6,12 +6,145 @@ import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { asyncStatusStore, MAX_STORED_RESULT_ROWS } from "./asyncStatusStore";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import api from "@/shared/api/axios";
+import { fetchVideoDetail, type VideoStatus } from "@/shared/api/contracts/videos";
 
 const POLL_INTERVAL_INITIAL_MS = 5000;   // 5s for first 1 min
 const POLL_INTERVAL_MID_MS = 15000;      // 15s up to 10 min
 const POLL_INTERVAL_SLOW_MS = 30000;     // 30s after 10 min
 const BACKOFF_AFTER_MS = 60 * 1000;      // 1 min
 const BACKOFF_MID_AFTER_MS = 10 * 60 * 1000; // 10 min
+const VIDEO_DETAIL_FALLBACK_AFTER_FAILURES = 3;
+const VIDEO_DETAIL_FALLBACK_COOLDOWN_MS = 30 * 1000;
+
+type VideoRecoveryState = {
+  cohortGeneration: number;
+  consecutiveFailures: number;
+  detailRequestInFlight: boolean;
+  detailRequestGeneration: number;
+  detailRequestController?: AbortController;
+  lastDetailCheckAt: number;
+};
+
+type VideoPollCohort = {
+  generation: number;
+  signal: AbortSignal;
+  isCurrent: () => boolean;
+};
+
+function isCurrentTenantVideoTask(taskId: string, tenantScope: string): boolean {
+  if ((getTenantCodeForApiRequest() ?? "") !== tenantScope) return false;
+  return asyncStatusStore.getState().some(
+    (task) =>
+      task.id === taskId
+      && task.status === "pending"
+      && task.meta?.jobType === "video_processing"
+      && (task.tenantScope ?? "") === tenantScope,
+  );
+}
+
+function nonTerminalVideoStatusMessage(status: VideoStatus): string {
+  if (status === "PENDING") return "영상 상세 상태를 확인했습니다. 업로드 대기 중입니다.";
+  if (status === "UPLOADED") return "영상 상세 상태를 확인했습니다. 인코딩 대기 중입니다.";
+  return "영상 상세 상태를 확인했습니다. 인코딩 처리 중입니다.";
+}
+
+async function recoverVideoStatusFromDetail(
+  taskId: string,
+  videoId: string,
+  tenantScope: string,
+  recoveryStates: Map<string, VideoRecoveryState>,
+  cohort: VideoPollCohort,
+  onSuccess?: () => void,
+): Promise<void> {
+  if (!cohort.isCurrent() || !isCurrentTenantVideoTask(taskId, tenantScope)) return;
+
+  const recoveryKey = `${tenantScope}:${taskId}`;
+  const previousRecovery = recoveryStates.get(recoveryKey);
+  if (previousRecovery && previousRecovery.cohortGeneration !== cohort.generation) {
+    previousRecovery.detailRequestController?.abort();
+    recoveryStates.delete(recoveryKey);
+  }
+  const recovery = recoveryStates.get(recoveryKey) ?? {
+    cohortGeneration: cohort.generation,
+    consecutiveFailures: 0,
+    detailRequestInFlight: false,
+    detailRequestGeneration: 0,
+    lastDetailCheckAt: 0,
+  };
+  recovery.consecutiveFailures += 1;
+  recoveryStates.set(recoveryKey, recovery);
+
+  const now = Date.now();
+  if (
+    recovery.consecutiveFailures < VIDEO_DETAIL_FALLBACK_AFTER_FAILURES
+    || recovery.detailRequestInFlight
+    || now - recovery.lastDetailCheckAt < VIDEO_DETAIL_FALLBACK_COOLDOWN_MS
+    || !cohort.isCurrent()
+    || !isCurrentTenantVideoTask(taskId, tenantScope)
+  ) {
+    return;
+  }
+
+  recovery.detailRequestInFlight = true;
+  recovery.detailRequestGeneration += 1;
+  recovery.lastDetailCheckAt = now;
+  const detailRequestGeneration = recovery.detailRequestGeneration;
+  const detailRequestController = new AbortController();
+  recovery.detailRequestController = detailRequestController;
+  const abortDetailRequest = () => detailRequestController.abort();
+  cohort.signal.addEventListener("abort", abortDetailRequest, { once: true });
+
+  const isCurrentDetailRequest = () =>
+    cohort.isCurrent()
+    && !detailRequestController.signal.aborted
+    && isCurrentTenantVideoTask(taskId, tenantScope)
+    && recoveryStates.get(recoveryKey) === recovery
+    && recovery.cohortGeneration === cohort.generation
+    && recovery.detailRequestGeneration === detailRequestGeneration
+    && recovery.detailRequestController === detailRequestController;
+
+  asyncStatusStore.setTaskStatusMessage(
+    taskId,
+    "실시간 진행률 연결이 불안정해 영상 상세 상태를 다시 확인하고 있습니다.",
+  );
+
+  try {
+    const video = await fetchVideoDetail(Number(videoId), detailRequestController.signal);
+    if (!isCurrentDetailRequest()) return;
+
+    if (video.status === "READY") {
+      onSuccess?.();
+      asyncStatusStore.completeTask(taskId, "success");
+      recoveryStates.delete(recoveryKey);
+      return;
+    }
+    if (video.status === "FAILED") {
+      asyncStatusStore.completeTask(
+        taskId,
+        "error",
+        video.error_reason?.trim() || "영상 처리 실패",
+      );
+      recoveryStates.delete(recoveryKey);
+      return;
+    }
+
+    asyncStatusStore.setTaskStatusMessage(taskId, nonTerminalVideoStatusMessage(video.status));
+  } catch {
+    if (isCurrentDetailRequest()) {
+      asyncStatusStore.setTaskStatusMessage(
+        taskId,
+        "영상 처리 상태를 다시 확인 중입니다. 연결이 복구되면 자동으로 반영됩니다.",
+      );
+    }
+  } finally {
+    cohort.signal.removeEventListener("abort", abortDetailRequest);
+    if (isCurrentDetailRequest()) {
+      recovery.consecutiveFailures = 0;
+      recovery.detailRequestInFlight = false;
+      recovery.detailRequestController = undefined;
+    }
+  }
+}
 const SAFE_STUDENT_IMPORT_REASON_CODES = new Set([
   "invalid_row",
   "password_policy",
@@ -446,7 +579,14 @@ function pollMatchupDocumentWatch(taskId: string, documentId: string, onSuccess?
     });
 }
 
-function pollVideoJob(taskId: string, videoId: string, onSuccess?: () => void) {
+function pollVideoJob(
+  taskId: string,
+  videoId: string,
+  tenantScope: string,
+  recoveryStates: Map<string, VideoRecoveryState>,
+  cohort: VideoPollCohort,
+  onSuccess?: () => void,
+) {
   // ✅ Redis-only 엔드포인트 사용 (DB 부하 0)
   api
     .get<{
@@ -462,15 +602,33 @@ function pollVideoJob(taskId: string, videoId: string, onSuccess?: () => void) {
       duration?: number | null;
       error_reason?: string | null;
       message?: string; // UNKNOWN 상태 시
-    }>(`/media/videos/${videoId}/progress/`)
+    }>(`/media/videos/${videoId}/progress/`, { signal: cohort.signal })
     .then((res) => {
+      if (!cohort.isCurrent() || !isCurrentTenantVideoTask(taskId, tenantScope)) return;
       const status = res.data?.status;
       
       // ✅ UNKNOWN 상태 처리 (Redis TTL 만료 등)
       if (status === "UNKNOWN") {
-        // 다음 폴링에서 재시도 (폴링 계속 진행)
+        void recoverVideoStatusFromDetail(
+          taskId,
+          videoId,
+          tenantScope,
+          recoveryStates,
+          cohort,
+          onSuccess,
+        );
         return;
       }
+
+      const recoveryKey = `${tenantScope}:${taskId}`;
+      const recovery = recoveryStates.get(recoveryKey);
+      if (recovery?.cohortGeneration === cohort.generation) {
+        recovery.detailRequestController?.abort();
+        if (recoveryStates.get(recoveryKey) === recovery) {
+          recoveryStates.delete(recoveryKey);
+        }
+      }
+      asyncStatusStore.setTaskStatusMessage(taskId, undefined);
       
       const encodingProgress = res.data?.encoding_progress;
       const remainingSeconds = res.data?.encoding_remaining_seconds ?? null;
@@ -521,7 +679,15 @@ function pollVideoJob(taskId: string, videoId: string, onSuccess?: () => void) {
       }
     })
     .catch(() => {
-      // 네트워크 오류 시 재시도는 다음 폴링에서
+      if (!cohort.isCurrent() || !isCurrentTenantVideoTask(taskId, tenantScope)) return;
+      void recoverVideoStatusFromDetail(
+        taskId,
+        videoId,
+        tenantScope,
+        recoveryStates,
+        cohort,
+        onSuccess,
+      );
     });
 }
 
@@ -554,8 +720,39 @@ export function useWorkerJobPoller(
   const pendingIdsKey = pending.map((p) => p.id).join(",");
   const pollStartedAtRef = useRef<number | null>(null);
   const pollCohortKeyRef = useRef("");
+  const pollGenerationRef = useRef(0);
+  const videoRecoveryStatesRef = useRef(new Map<string, VideoRecoveryState>());
 
   useEffect(() => {
+    const generation = pollGenerationRef.current + 1;
+    pollGenerationRef.current = generation;
+    const cohortController = new AbortController();
+    const cohort: VideoPollCohort = {
+      generation,
+      signal: cohortController.signal,
+      isCurrent: () =>
+        pollGenerationRef.current === generation && !cohortController.signal.aborted,
+    };
+    const videoRecoveryStates = videoRecoveryStatesRef.current;
+
+    const activeVideoRecoveryKeys = new Set(
+      asyncStatusStore
+        .getState()
+        .filter(
+          (task) =>
+            task.status === "pending"
+            && task.meta?.jobType === "video_processing"
+            && (task.tenantScope ?? "") === currentTenant,
+        )
+        .map((task) => `${currentTenant}:${task.id}`),
+    );
+    for (const [recoveryKey, recovery] of videoRecoveryStates) {
+      if (!activeVideoRecoveryKeys.has(recoveryKey)) {
+        recovery.detailRequestController?.abort();
+        videoRecoveryStates.delete(recoveryKey);
+      }
+    }
+
     if (pending.length === 0) {
       pollStartedAtRef.current = null;
       pollCohortKeyRef.current = "";
@@ -582,6 +779,7 @@ export function useWorkerJobPoller(
     };
 
     const tick = () => {
+      if (!cohort.isCurrent()) return;
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
       const all = asyncStatusStore.getState();
       const forCurrentTenant = all.filter(
@@ -600,7 +798,14 @@ export function useWorkerJobPoller(
         if (t.meta!.jobType === "excel_parsing") {
           pollExcelJob(t.id, excelCb, excelProgressCb);
         } else if (t.meta!.jobType === "video_processing") {
-          pollVideoJob(t.id, t.meta!.jobId, videoCb);
+          pollVideoJob(
+            t.id,
+            t.meta!.jobId,
+            currentTenant,
+            videoRecoveryStates,
+            cohort,
+            videoCb,
+          );
         } else if (t.meta!.jobType === "ppt_generation") {
           pollPptJob(t.id, pptCb);
         } else if (t.meta!.jobType === "matchup_analysis") {
@@ -618,17 +823,20 @@ export function useWorkerJobPoller(
     };
 
     const schedule = () => {
+      if (!cohort.isCurrent()) return;
       if (intervalRef.current != null) return;
       const intervalMs = getIntervalMs();
       if (intervalMs <= 0) return;
       intervalRef.current = window.setTimeout(() => {
         intervalRef.current = null;
+        if (!cohort.isCurrent()) return;
         tick();
         schedule();
       }, intervalMs);
     };
 
     const onVisibility = () => {
+      if (!cohort.isCurrent()) return;
       if (typeof document === "undefined") return;
       if (document.visibilityState === "hidden" && intervalRef.current) {
         clearTimeout(intervalRef.current);
@@ -648,6 +856,19 @@ export function useWorkerJobPoller(
     }
 
     return () => {
+      cohortController.abort();
+      if (pollGenerationRef.current === generation) {
+        pollGenerationRef.current += 1;
+      }
+      for (const [recoveryKey, recovery] of videoRecoveryStates) {
+        if (recovery.cohortGeneration !== generation) continue;
+        recovery.detailRequestController?.abort();
+        videoRecoveryStates.delete(recoveryKey);
+        const taskId = recoveryKey.slice(currentTenant.length + 1);
+        if (isCurrentTenantVideoTask(taskId, currentTenant)) {
+          asyncStatusStore.setTaskStatusMessage(taskId, undefined);
+        }
+      }
       if (typeof document !== "undefined") {
         document.removeEventListener("visibilitychange", onVisibility);
       }
