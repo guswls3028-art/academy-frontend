@@ -76,8 +76,102 @@
   color: var(--color-text-primary);
 }
 
+.dateNavigator {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: var(--color-surface-primary);
+}
+
+.dateNavButton {
+  display: grid;
+  min-width: 0;
+  min-height: 68px;
+  grid-template-areas:
+    "weekday load"
+    "date load";
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0 var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-secondary);
+  color: var(--color-text-secondary);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.dateNavButton:hover {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 45%, var(--color-border-default));
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-surface-primary));
+  transform: translateY(-1px);
+}
+
+.dateNavButton:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+
+.dateNavButtonSelected {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 65%, var(--color-border-default));
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-surface-primary));
+  box-shadow: inset 0 3px 0 var(--color-brand-primary), var(--elevation-1);
+  color: var(--color-text-primary);
+}
+
+.dateNavWeekday {
+  display: flex;
+  grid-area: weekday;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.dateNavToday {
+  overflow: hidden;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--color-brand-primary);
+  color: var(--color-text-inverse);
+  font-size: 9px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dateNavDate {
+  grid-area: date;
+  align-self: end;
+  color: var(--color-text-primary);
+  font-size: 22px;
+  font-weight: 850;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.dateNavLoad {
+  grid-area: load;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.dateNavButtonSelected .dateNavLoad {
+  color: var(--color-brand-primary);
+}
+
 .boardViewport {
   overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
   scrollbar-gutter: stable;
 }
 
@@ -92,6 +186,8 @@
   min-width: 0;
   border-right: 1px solid var(--color-border-divider);
   background: var(--color-surface-primary);
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;
 }
 
 .day:last-child {
@@ -377,10 +473,52 @@
   .summary {
     justify-content: flex-end;
   }
+
+  .dateNavigator {
+    gap: 4px;
+    padding: var(--space-2);
+  }
+
+  .dateNavButton {
+    min-height: 62px;
+    grid-template-areas:
+      "weekday"
+      "date"
+      "load";
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 2px;
+    padding: 6px 2px;
+    text-align: center;
+  }
+
+  .dateNavWeekday {
+    gap: 2px;
+  }
+
+  .dateNavToday {
+    width: 5px;
+    height: 5px;
+    padding: 0;
+    color: transparent;
+  }
+
+  .dateNavDate {
+    font-size: 18px;
+  }
+
+  .dateNavLoad {
+    font-size: 9px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .dateNavButton,
   .dayAddButton {
     transition: none;
+  }
+
+  .dateNavButton:hover {
+    transform: none;
   }
 }
