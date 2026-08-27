@@ -41,7 +41,14 @@ export type ClinicParticipant = {
   session_location: string;
 
   status: ClinicParticipantStatus;
+  preferred_start_time?: string | null;
+  preferred_end_time?: string | null;
+  /** 학생·학부모 작성 출처가 확인된 요청사항 */
+  student_request_memo?: string;
+  /** 작성 출처가 불명확한 레거시 운영 메모. 학생에게 노출하지 않음 */
   memo?: string;
+  /** 교직원에게만 반환되는 내부 인수인계 메모 */
+  staff_memo?: string;
   checked_in_at?: string | null;
   is_late?: boolean;
   checked_out_at?: string | null;
@@ -190,6 +197,13 @@ export async function patchClinicParticipantStatus(
 ) {
   const res = await api.patch(`/clinic/participants/${id}/set_status/`, payload);
   return res.data as ClinicParticipantMutationResult;
+}
+
+export async function patchClinicParticipantStaffMemo(id: number, staffMemo: string) {
+  const res = await api.patch(`/clinic/participants/${id}/staff-memo/`, {
+    staff_memo: staffMemo,
+  });
+  return res.data as ClinicParticipant;
 }
 
 export type ClinicParticipantReminderResult = {

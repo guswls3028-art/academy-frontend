@@ -18,7 +18,9 @@ type ClinicParticipantRaw = {
   session_start_time: string;
   session_location: string | null;
   status: ClinicBookingStatus | "approved" | "attended" | "no_show";
-  memo?: string;
+  student_request_memo?: string;
+  preferred_start_time?: string | null;
+  preferred_end_time?: string | null;
   created_at: string;
   updated_at?: string;
   status_changed_at?: string;
@@ -41,6 +43,7 @@ export type ClinicSession = {
   max_participants?: number;
   /** 백엔드가 내려주면 사용, 없으면 booked_count >= max_participants로 계산 */
   is_full?: boolean;
+  allow_time_preference?: boolean;
   target_lecture_names?: Array<{
     id: number;
     title: string;
@@ -60,7 +63,9 @@ export type ClinicBookingRequest = {
   session_start_time: string;
   session_location: string | null; // ✅ 세션이 없으면 null
   status: ClinicBookingStatus;
-  memo?: string;
+  student_request_memo?: string;
+  preferred_start_time?: string | null;
+  preferred_end_time?: string | null;
   created_at: string;
   updated_at?: string;
   status_changed_at?: string;
@@ -100,7 +105,9 @@ function normalizeClinicBookingRequest(request: ClinicBookingRequest): ClinicBoo
     session_location: request.session_location == null
       ? request.session_location
       : richHtmlToPlainText(request.session_location),
-    memo: request.memo == null ? request.memo : richHtmlToPlainText(request.memo),
+    student_request_memo: request.student_request_memo == null
+      ? request.student_request_memo
+      : richHtmlToPlainText(request.student_request_memo),
   };
 }
 
@@ -169,7 +176,9 @@ export async function fetchMyClinicBookingRequests(): Promise<ClinicBookingReque
       session_start_time: raw.session_start_time,
       session_location: raw.session_location ?? null, // ✅ 세션이 없으면 null
       status,
-      memo: raw.memo,
+      student_request_memo: raw.student_request_memo,
+      preferred_start_time: raw.preferred_start_time,
+      preferred_end_time: raw.preferred_end_time,
       created_at: raw.created_at,
       updated_at: raw.updated_at,
       status_changed_at: raw.status_changed_at,
@@ -185,7 +194,9 @@ export async function fetchMyClinicBookingRequests(): Promise<ClinicBookingReque
  */
 export async function createClinicBookingRequest(data: {
   session: number;
-  memo?: string;
+  student_request_memo?: string;
+  preferred_start_time?: string;
+  preferred_end_time?: string;
 }): Promise<ClinicBookingRequest> {
   if (!data.session) {
     throw new Error("등록 가능한 클리닉 시간을 선택해주세요.");
@@ -194,7 +205,9 @@ export async function createClinicBookingRequest(data: {
     source: "student_request",
     status: "pending",
     session: data.session,
-    memo: data.memo ?? undefined,
+    student_request_memo: data.student_request_memo ?? undefined,
+    preferred_start_time: data.preferred_start_time ?? undefined,
+    preferred_end_time: data.preferred_end_time ?? undefined,
   });
 
   const status = normalizeBookingStatus(res.data.status) ?? "pending";
@@ -206,7 +219,9 @@ export async function createClinicBookingRequest(data: {
     session_start_time: res.data.session_start_time,
     session_location: res.data.session_location || null,
     status,
-    memo: res.data.memo,
+    student_request_memo: res.data.student_request_memo,
+    preferred_start_time: res.data.preferred_start_time,
+    preferred_end_time: res.data.preferred_end_time,
     created_at: res.data.created_at,
   });
 }
@@ -231,13 +246,17 @@ export async function cancelClinicBookingRequest(id: number): Promise<void> {
 export async function changeClinicBooking(
   oldParticipantId: number,
   newSessionId: number,
-  memo?: string
+  studentRequestMemo?: string,
+  preferredStartTime?: string,
+  preferredEndTime?: string,
 ): Promise<ClinicBookingRequest> {
   const res = await api.post<ClinicParticipantRaw>(
     `/clinic/participants/${oldParticipantId}/change-booking/`,
     {
       new_session_id: newSessionId,
-      memo: memo ?? undefined,
+      student_request_memo: studentRequestMemo ?? undefined,
+      preferred_start_time: preferredStartTime ?? undefined,
+      preferred_end_time: preferredEndTime ?? undefined,
     }
   );
 
@@ -250,7 +269,9 @@ export async function changeClinicBooking(
     session_start_time: res.data.session_start_time,
     session_location: res.data.session_location || null,
     status,
-    memo: res.data.memo,
+    student_request_memo: res.data.student_request_memo,
+    preferred_start_time: res.data.preferred_start_time,
+    preferred_end_time: res.data.preferred_end_time,
     created_at: res.data.created_at,
   });
 }

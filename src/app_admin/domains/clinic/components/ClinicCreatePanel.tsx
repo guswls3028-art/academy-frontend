@@ -70,6 +70,7 @@ type Props = {
     target_school_type?: string | null;
     target_lecture_ids?: number[];
     section?: number | null;
+    allow_time_preference?: boolean;
   };
   /** Copy mode: pre-fill settings from an existing session while creating a new session */
   copySession?: {
@@ -83,6 +84,7 @@ type Props = {
     target_school_type?: string | null;
     target_lecture_ids?: number[];
     section?: number | null;
+    allow_time_preference?: boolean;
   };
   onUpdated?: (notice: ClinicSessionUpdateNotice) => void;
   onPendingChange?: (pending: boolean) => void;
@@ -211,6 +213,7 @@ export default function ClinicCreatePanel({
   const [room, setRoom] = useState(sourceSession?.location ?? "");
   const [memo, setMemo] = useState("");
   const [maxParticipants, setMaxParticipants] = useState<number>(sourceSession?.max_participants ?? 10);
+  const [allowTimePreference, setAllowTimePreference] = useState(sourceSession?.allow_time_preference ?? false);
 
   const [savedLocations, setSavedLocations] = useState<string[]>(() => getSavedLocations());
   const [loadPopoverOpen, setLoadPopoverOpen] = useState(false);
@@ -280,6 +283,7 @@ export default function ClinicCreatePanel({
       target_lecture_ids?: number[];
       memo?: string;
       section?: number | null;
+      allow_time_preference?: boolean;
     }) => {
       const res = await api.post("/clinic/sessions/", payload);
       return res.data as { id: number };
@@ -333,6 +337,8 @@ export default function ClinicCreatePanel({
             afterMaxParticipants: maxParticipants,
             beforeFilterSummary: previousFilterSummary,
             afterFilterSummary: confirmationFilterSummary,
+            beforeAllowTimePreference: editSession.allow_time_preference ?? false,
+            afterAllowTimePreference: allowTimePreference,
           }),
           confirmText: "확인하고 수정",
           cancelText: "다시 확인",
@@ -354,6 +360,7 @@ export default function ClinicCreatePanel({
           target_grade: targetGrade,
           target_school_type: targetSchoolType,
           target_lecture_ids: targetLectureIds.length > 0 ? targetLectureIds : [],
+          allow_time_preference: allowTimePreference,
           ...(showSectionPicker ? { section: selectedSectionId } : {}),
         });
         message.success("클리닉이 수정되었습니다.");
@@ -398,6 +405,7 @@ export default function ClinicCreatePanel({
           filterSummary: confirmationFilterSummary,
           selectedCount,
           selectedStudentSummary,
+          allowTimePreference,
         }),
         confirmText: "확인하고 만들기",
         cancelText: "다시 확인",
@@ -420,6 +428,7 @@ export default function ClinicCreatePanel({
         target_school_type: targetSchoolType,
         target_lecture_ids: targetLectureIds.length > 0 ? targetLectureIds : [],
         memo: memo.trim() || undefined,
+        allow_time_preference: allowTimePreference,
         ...(showSectionPicker ? { section: selectedSectionId } : {}),
       });
 
@@ -658,8 +667,11 @@ export default function ClinicCreatePanel({
             endPlaceholder="종료"
           />
         </div>
+        <label className="clinic-create__time-preference">
+          <input type="checkbox" checked={allowTimePreference} onChange={(event) => setAllowTimePreference(event.target.checked)} />
+          <span><strong>학생 희망 시간 받기</strong><small>학생이 이 일정 안에서 원하는 시작·종료 시간을 요청할 수 있습니다. 최종 시간은 교직원이 배정합니다.</small></span>
+        </label>
       </div>
-
       {/* 제목 + 정원 (한 행) */}
       <div className="clinic-create__row">
         <div className="clinic-create__field clinic-create__field--grow">

@@ -120,6 +120,7 @@ type OperationsState = {
   persistHomeworkTargetReadbacks?: number;
   participantsGate?: Promise<void>;
   statusPayloads?: Array<Record<string, unknown>>;
+  staffMemoPayloads?: Array<Record<string, unknown>>;
   checkoutPayloads?: Array<Record<string, unknown>>;
   reminderPayloads?: Array<Record<string, unknown>>;
   bookingPayloads?: Array<Record<string, unknown>>;
@@ -355,6 +356,16 @@ async function installApi(
         send_to: payload.send_to ?? "parent",
       };
       return json({ ...participant, notification });
+    }
+    const staffMemoMatch = path.match(/^\/clinic\/participants\/(\d+)\/staff-memo\/$/);
+    if (staffMemoMatch && method === "PATCH") {
+      const id = Number(staffMemoMatch[1]);
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      operationsState?.staffMemoPayloads?.push({ id, ...payload });
+      const participant = operationsState?.participants.find((row) => row.id === id);
+      if (!participant) return json({ detail: "not found" }, 404);
+      participant.staff_memo = payload.staff_memo;
+      return json({ ...participant });
     }
     const checkoutMatch = path.match(/^\/clinic\/participants\/(\d+)\/checkout\/$/);
     if (checkoutMatch && method === "POST") {
@@ -679,6 +690,7 @@ test("클리닉 생성은 일정 요약을 최종 확인한 뒤에만 저장한�
   const parentModalContent = parentModalHost.locator(".admin-modal__inner");
   const createButton = createDialog.getByRole("button", { name: /클리닉 만들기/ });
   await expect(createDialog).toBeVisible({ timeout: 60_000 });
+  await createDialog.getByLabel("학생 희망 시간 받기").check();
   await expect(parentModalHost).not.toHaveClass(/ant-zoom-appear/);
   await expect(createButton).toBeEnabled();
   const headerBox = await createDialog.locator(".modal-header").boundingBox();
@@ -699,6 +711,7 @@ test("클리닉 생성은 일정 요약을 최종 확인한 뒤에만 저장한�
   await expect(confirmation).toContainText("2층 보강실");
   await expect(confirmation.getByText("12명", { exact: true })).toBeVisible();
   await expect(confirmation.getByText("고2 물리 심화, 고2 화학 심화", { exact: true })).toBeVisible();
+  await expect(confirmation.getByText("학생 요청 받음", { exact: true })).toBeVisible();
   await expect(confirmation.getByRole("button", { name: "다시 확인" })).toBeVisible();
   const backdropBox = await page.locator("[data-confirm-dialog]").boundingBox();
   expect(backdropBox).not.toBeNull();
@@ -747,6 +760,7 @@ test("클리닉 생성은 일정 요약을 최종 확인한 뒤에만 저장한�
     duration_minutes: 90,
     location: "2층 보강실",
     max_participants: 12,
+    allow_time_preference: true,
   });
   releaseCreate();
   await expect(createDialog).toHaveCount(0);
@@ -856,6 +870,37 @@ test("예약자가 있는 일정 수정은 운영 화면의 수정 알림으로 
   await noticePreviewButton.click();
   await expect(page.getByRole("dialog", { name: "클리닉 변경 알림" })).toBeVisible();
   expect(state.updatePayloads).toHaveLength(1);
+});
+
+test("승인 대기 목록은 학생 희망 시간과 요청사항을 함께 보여준다", async ({ page }) => {
+  const state: OperationsState = {
+    participants: [{
+      id: 780,
+      session: 702,
+      student: 480,
+      student_name: "희망시간 학생",
+      session_date: saturday,
+      session_title: "토요일 5시 클리닉",
+      session_start_time: "17:00:00",
+      session_location: "2층 보강실",
+      status: "pending",
+      preferred_start_time: "19:00:00",
+      preferred_end_time: "21:00:00",
+      student_request_memo: "7시에 국어 학원이 있어요.",
+    }],
+    targets: [],
+  };
+
+  await seed(page);
+  await installApi(page, undefined, state);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/bookings?focus=pending`, { timeout: 45_000 });
+
+  const pending = page.getByRole("region", { name: "예약 승인 대기" });
+  await expect(pending).toContainText("희망시간 학생");
+  await expect(pending).toContainText("희망 19:00–21:00");
+  await expect(pending).toContainText("7시에 국어 학원이 있어요.");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 test("현장 콘솔은 16·17·18시 등원 학생을 한 화면에서 시간대 이동 없이 처리한다", async ({ page }) => {
@@ -1175,6 +1220,8 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
         session_start_time: "13:00:00", session_end_time: "14:30:00",
         session_location: "1층 세미나실", status: "booked", checked_in_at: null,
         checked_out_at: null, completed_at: null, is_late: false,
+        preferred_start_time: "13:30:00", preferred_end_time: "14:00:00",
+        student_request_memo: "14시 전에 끝내주세요.", staff_memo: "영상 시청 확인 필요",
         planned_clinic_link_ids: [9002],
         lecture_title: "화학특강", lecture_chip_label: "화특",
       },
@@ -1267,6 +1314,7 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
       },
     ],
     statusPayloads: [],
+    staffMemoPayloads: [],
     checkoutPayloads: [],
     reminderPayloads: [],
     bookingPayloads: [],
@@ -1321,6 +1369,16 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
   await expect(workbench.getByRole("tab", { name: /6주차 확인 시험/ })).toBeVisible();
   await expect(workbench.locator(".clinic-workbench__active-panel")).toContainText("6주차 확인 시험");
   await expect(workbench.locator(".clinic-workbench__active-panel")).not.toContainText("7주차 오답 과제");
+  await expect(workbench).toContainText("희망 13:30–14:00 · 14시 전에 끝내주세요.");
+  const staffMemo = workbench.getByLabel("교직원 인수인계 메모");
+  await expect(staffMemo).toHaveValue("영상 시청 확인 필요");
+  await staffMemo.fill("영상 시청 후 오답 확인");
+  await workbench.getByRole("button", { name: "인수인계 메모 저장" }).click();
+  await expect.poll(() => state.staffMemoPayloads).toEqual([{
+    id: 801,
+    staff_memo: "영상 시청 후 오답 확인",
+  }]);
+  expect(state.participants[0].student_request_memo).toBe("14시 전에 끝내주세요.");
   expect(page.url()).toBe(originalUrl);
   await page.screenshot({ path: "test-results/admin-clinic-operations-workbench-1366.png", fullPage: false });
 
@@ -1455,6 +1513,7 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
   const mobileTargetButton = studentCard.getByRole("button", { name: /김다과목.*6주차 확인 시험/ });
   await mobileTargetButton.click();
   await expect(workbench).toBeVisible();
+  await expect(workbench).toContainText("희망 13:30–14:00 · 14시 전에 끝내주세요.");
   expect(await workbench.evaluate((element) => getComputedStyle(element).animationName)).toBe("none");
   await page.screenshot({ path: "test-results/admin-clinic-operations-workbench-390.png", fullPage: false });
 });

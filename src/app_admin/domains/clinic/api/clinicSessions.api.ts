@@ -26,6 +26,8 @@ export type ClinicSessionTreeNode = {
   section_label?: string | null;
   /** section 타입 ("CLASS" | "CLINIC") — 필터/표시용 */
   section_type?: "CLASS" | "CLINIC" | null;
+  /** 학생이 예약 신청 시 희망 시작/종료 시간을 남길 수 있는지 */
+  allow_time_preference?: boolean;
 };
 
 function normalizeDate(s: string): string {
@@ -110,6 +112,7 @@ export async function fetchClinicSessionTree(params: {
       section: toNullableNumber(row.section),
       section_label: row.section_label == null ? null : toStringValue(row.section_label),
       section_type: toSectionType(row.section_type),
+      allow_time_preference: row.allow_time_preference === true,
     }));
 }
 
@@ -147,6 +150,7 @@ export async function updateClinicSession(
     target_school_type?: string | null;
     target_lecture_ids?: number[];
     section?: number | null;
+    allow_time_preference?: boolean;
   }
 ): Promise<void> {
   await api.patch(`/clinic/sessions/${sessionId}/`, payload);
@@ -182,6 +186,7 @@ export async function fetchClinicSessions(params: {
       section: toNullableNumber(row.section),
       section_label: row.section_label == null ? null : toStringValue(row.section_label),
       section_type: toSectionType(row.section_type),
+      allow_time_preference: row.allow_time_preference === true,
     }));
 }
 
@@ -203,4 +208,5 @@ export type ClinicSessionDetail = {
   section?: number | null;
   section_label?: string | null;
   section_type?: "CLASS" | "CLINIC" | null;
+  allow_time_preference?: boolean;
 };

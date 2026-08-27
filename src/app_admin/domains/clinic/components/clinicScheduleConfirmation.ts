@@ -40,6 +40,7 @@ type CreateSummary = {
   location: string;
   selectedCount: number;
   selectedStudentSummary: string;
+  allowTimePreference: boolean;
 };
 
 export function buildClinicCreateConfirmationMessage() {
@@ -56,6 +57,7 @@ export function buildClinicCreateConfirmationReview(summary: CreateSummary): Con
       { label: "장소", value: summary.location },
       { label: "정원", value: `${summary.maxParticipants}명` },
       { label: "공개 대상", value: summary.filterSummary || "전체 학생" },
+      { label: "희망 시간", value: summary.allowTimePreference ? "학생 요청 받음" : "받지 않음" },
       {
         label: "즉시 배정",
         value: summary.selectedCount > 0
@@ -76,6 +78,8 @@ type EditSummary = {
   afterMaxParticipants: number;
   beforeFilterSummary: string;
   afterFilterSummary: string;
+  beforeAllowTimePreference: boolean;
+  afterAllowTimePreference: boolean;
 };
 
 export function buildClinicEditConfirmationMessage() {
@@ -91,6 +95,10 @@ export function buildClinicEditConfirmationReview(summary: EditSummary): Confirm
       { label: "이름", value: `${summary.beforeTitle || "클리닉"} → ${summary.afterTitle || "클리닉"}` },
       { label: "정원", value: `${summary.beforeMaxParticipants}명 → ${summary.afterMaxParticipants}명` },
       { label: "공개 대상", value: `${summary.beforeFilterSummary || "전체 학생"} → ${summary.afterFilterSummary || "전체 학생"}` },
+      {
+        label: "희망 시간",
+        value: `${summary.beforeAllowTimePreference ? "받음" : "받지 않음"} → ${summary.afterAllowTimePreference ? "받음" : "받지 않음"}`,
+      },
     ],
     note: "예약 학생이 있으면 변경 후 운영 화면에서 알림 내용을 한 번 더 검토할 수 있습니다.",
   };

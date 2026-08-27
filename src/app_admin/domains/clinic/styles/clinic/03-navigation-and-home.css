@@ -646,10 +646,30 @@ details[open] > .clinic-tree__summary {
 
 .clinic-bookings__pending-item-info {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
+  flex-wrap: wrap;
   gap: var(--space-2);
   min-width: 0;
   flex: 1;
+}
+
+.clinic-bookings__pending-request {
+  display: flex;
+  flex-basis: 100%;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+.clinic-bookings__pending-request strong {
+  flex-shrink: 0;
+  color: var(--color-brand-primary);
+}
+.clinic-bookings__pending-request span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .clinic-bookings__pending-item-name {

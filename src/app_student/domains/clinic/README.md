@@ -14,9 +14,13 @@
    추천 여부와 무관하게 13시·17시·19시처럼 시작 시간순을 유지합니다.
 3. 대상 강의와 맞는 세션은 **내 보강과 맞음**으로 안내하되, 최종 예약
    가능 여부와 수강 연결은 백엔드가 결정합니다.
-4. 학생이 세션을 고르고 신청하면 학원 설정에 따라 `pending` 또는
+4. 세션에서 `allow_time_preference`를 허용한 경우에만 학생이 세션 범위 안의
+   희망 시작·종료 시간을 함께 요청할 수 있습니다. 이는 실제 세션 시간을 바꾸는
+   예약 확정값이 아니며, 출처가 분명한 학생·학부모 요청
+   `student_request_memo`와 함께 교직원이 검토합니다.
+5. 학생이 세션을 고르고 신청하면 학원 설정에 따라 `pending` 또는
    `booked`가 됩니다.
-5. **내 일정**에서 `pending` 예약은 다른 날짜·시간으로 원자적으로
+6. **내 일정**에서 `pending` 예약은 다른 날짜·시간으로 원자적으로
    변경하거나 취소할 수 있습니다. `booked` 변경·취소는 학원에 요청합니다.
 
 ## 상태와 API 소유권
@@ -29,6 +33,11 @@
 - 신청: `POST /clinic/participants/`
 - 일정 변경: `POST /clinic/participants/{id}/change-booking/`
 - 취소: `PATCH /clinic/participants/{id}/set_status/`
+- 희망 시간: 신청·변경 payload의 `preferred_start_time` + `preferred_end_time`
+- 학생·학부모 요청: 신청·변경 payload와 응답의 `student_request_memo`만 사용합니다.
+  작성 주체가 불명확한 기존 `memo`는 학생 화면에서 읽거나 표시하지 않습니다.
+- 교직원 내부 메모: `PATCH /clinic/participants/{id}/staff-memo/`이며 학생 응답에는
+  `staff_memo`를 포함하지 않습니다.
 - 예약·출석은 일정 상태이며 `ClinicLink`를 해소하지 않습니다. 시험·과제
   통과 또는 관리자 수동 처리만 미통과 대상을 해소합니다.
 - 학생·학부모 요청은 현재 선택된 학생과 테넌트로 실패 폐쇄됩니다.

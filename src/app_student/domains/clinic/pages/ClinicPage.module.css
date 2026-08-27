@@ -468,6 +468,18 @@
   margin-top: 8px;
 }
 
+.preferenceBadge {
+  align-self: flex-start;
+  margin-top: 7px;
+  padding: 3px 7px;
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 22%, var(--stu-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface));
+  color: var(--stu-primary);
+  font-size: 10px;
+  font-weight: 800;
+}
+
 .sessionAside {
   display: flex;
   flex: 0 0 auto;
@@ -528,6 +540,80 @@
 }
 
 .selectionPanel > p span {
+  color: var(--stu-text-muted);
+  font-size: 12px;
+}
+
+.preferenceFieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 11px 12px 12px;
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 18%, var(--stu-border));
+  border-radius: 10px;
+  background: var(--stu-surface);
+}
+
+.preferenceFieldset legend {
+  padding: 0 4px;
+  color: var(--stu-text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.preferenceFieldset legend small {
+  color: var(--stu-text-muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.preferenceFieldset > p {
+  margin: 0 0 9px;
+  color: var(--stu-text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.preferenceInputs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: 8px;
+}
+
+.preferenceInputs > label {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.preferenceInputs label > span {
+  color: var(--stu-text-muted);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.preferenceInputs input {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 8px 9px;
+  border: 1px solid var(--stu-border);
+  border-radius: 9px;
+  background: var(--stu-surface);
+  color: var(--stu-text);
+  font: inherit;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.preferenceInputs input:focus-visible {
+  border-color: var(--stu-primary);
+  outline: 2px solid color-mix(in srgb, var(--stu-primary) 24%, transparent);
+  outline-offset: 1px;
+}
+
+.preferenceInputs > span {
+  padding-bottom: 11px;
   color: var(--stu-text-muted);
   font-size: 12px;
 }
@@ -671,6 +757,18 @@
 .bookingInfo > span:not(.pendingStatus):not(.approvedStatus) {
   color: var(--stu-text-muted);
   font-size: 12px;
+}
+
+.bookingInfo > .bookingPreference {
+  color: var(--stu-primary);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.bookingInfo > .bookingRequestNote {
+  overflow-wrap: anywhere;
+  color: var(--stu-text);
+  line-height: 1.4;
 }
 
 .pendingStatus,
