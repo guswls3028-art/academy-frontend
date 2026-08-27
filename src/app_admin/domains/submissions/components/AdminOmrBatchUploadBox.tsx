@@ -1,20 +1,29 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AxiosError } from "axios";
 import { CheckCircle2, Trash2, UploadCloud } from "lucide-react";
-import api from "@/shared/api/axios";
+import {
+  fetchOmrUploadBatchApi,
+  initializeOmrUploadBatchApi,
+  uploadOmrBatchApi,
+} from "@/shared/api/contracts/submissions";
 import { Badge, Button, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
+import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import FileUploadZone from "@/shared/ui/upload/FileUploadZone";
 import { getRejectionMessage } from "@admin/domains/submissions/contracts/aiJobContract";
 import "./AdminOmrBatchUploadBox.css";
 
 type Props = {
   examId: number;
+  sessionId?: number | null;
+  resumeBatchId?: string | null;
   onUploaded?: () => void;
 };
 
 type UploadItem = {
   file: File;
-  status: "ready" | "uploading" | "done" | "fail";
+  ordinal?: number;
+  status: "ready" | "uploading" | "received" | "fail";
   message?: string;
 };
 
@@ -40,15 +49,32 @@ function humanizeBytes(bytes: number) {
 function statusLabel(status: UploadItem["status"]): string {
   if (status === "ready") return "대기";
   if (status === "uploading") return "등록 중";
-  if (status === "done") return "완료";
+  if (status === "received") return "접수됨";
   return "실패";
 }
 
 function statusTone(status: UploadItem["status"]): "neutral" | "info" | "success" | "danger" {
   if (status === "uploading") return "info";
-  if (status === "done") return "success";
+  if (status === "received") return "success";
   if (status === "fail") return "danger";
   return "neutral";
+}
+
+function isValidOrdinal(value: number, totalCount: number): boolean {
+  return Number.isInteger(value) && value > 0 && value <= totalCount;
+}
+
+function hasExactOrdinals(items: UploadItem[], expectedOrdinals: number[]): boolean {
+  const selectedOrdinals = items.map((item) => item.ordinal);
+  if (
+    selectedOrdinals.length !== expectedOrdinals.length
+    || selectedOrdinals.some((ordinal) => ordinal === undefined || !Number.isInteger(ordinal))
+  ) {
+    return false;
+  }
+  const selected = new Set(selectedOrdinals);
+  return selected.size === selectedOrdinals.length
+    && expectedOrdinals.every((ordinal) => selected.has(ordinal));
 }
 
 /**
@@ -56,28 +82,123 @@ function statusTone(status: UploadItem["status"]): "neutral" | "info" | "success
  * - OMR 다건 업로드, FileUploadZone(드래그 or 클릭) SSOT 디자인 사용
  * - 서버: POST /submissions/submissions/exams/{examId}/omr/batch/
  */
-export default function AdminOmrBatchUploadBox({ examId, onUploaded }: Props) {
+export default function AdminOmrBatchUploadBox({
+  examId,
+  sessionId,
+  resumeBatchId,
+  onUploaded,
+}: Props) {
   const [items, setItems] = useState<UploadItem[]>([]);
   const [busy, setBusy] = useState(false);
+  const [loadingResume, setLoadingResume] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [batchId, setBatchId] = useState<string | null>(null);
+  const [resumeOrdinals, setResumeOrdinals] = useState<number[]>([]);
+  const [validatedResumeBatchId, setValidatedResumeBatchId] = useState<string | null>(null);
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+  const isCurrentSession = useCallback((tenant: string, generation: number) => (
+    mountedRef.current
+    && asyncStatusStore.getSessionGeneration() === generation
+    && (getTenantCodeForApiRequest() ?? "") === tenant
+  ), []);
+  const resumeUploadBlocked = Boolean(
+    resumeBatchId && validatedResumeBatchId !== resumeBatchId,
+  );
 
   const readyCount = useMemo(() => items.filter((x) => x.status === "ready").length, [items]);
-  const doneCount = useMemo(() => items.filter((x) => x.status === "done").length, [items]);
+  const receivedCount = useMemo(
+    () => items.filter((x) => x.status === "received").length,
+    [items],
+  );
   const failCount = useMemo(() => items.filter((x) => x.status === "fail").length, [items]);
 
+  useEffect(() => {
+    if (!resumeBatchId) {
+      setValidatedResumeBatchId(null);
+      return;
+    }
+    let cancelled = false;
+    const tenant = getTenantCodeForApiRequest() ?? "";
+    const generation = asyncStatusStore.getSessionGeneration();
+    const isActive = () => !cancelled && isCurrentSession(tenant, generation);
+    setLoadingResume(true);
+    setValidatedResumeBatchId(null);
+    setBatchId(null);
+    setResumeOrdinals([]);
+    setItems([]);
+    fetchOmrUploadBatchApi(resumeBatchId)
+      .then((batch) => {
+        if (!isActive()) return;
+        const rawRetryOrdinals = [
+          ...batch.pending_admission_ordinals,
+          ...batch.admission_failed_ordinals,
+        ];
+        const fileRetryOrdinals = [...rawRetryOrdinals].sort((left, right) => left - right);
+        const validOrdinals = Number.isInteger(batch.total_count)
+          && batch.total_count > 0
+          && rawRetryOrdinals.length === new Set(rawRetryOrdinals).size
+          && rawRetryOrdinals.every((ordinal) => isValidOrdinal(ordinal, batch.total_count));
+        if (
+          batch.id !== resumeBatchId
+          || batch.exam_id !== examId
+          || batch.session_id !== sessionId
+          || !validOrdinals
+          || fileRetryOrdinals.length === 0
+        ) {
+          setNotice("다시 선택할 파일이 없거나 시험 정보가 일치하지 않습니다.");
+          return;
+        }
+        setBatchId(batch.id);
+        setResumeOrdinals(fileRetryOrdinals);
+        setValidatedResumeBatchId(resumeBatchId);
+        setNotice(`${fileRetryOrdinals.length}개 미접수 파일을 순서대로 다시 선택해 주세요.`);
+        asyncStatusStore.upsertOmrBatch(batch);
+      })
+      .catch(() => {
+        if (isActive()) setNotice("OMR 등록 작업을 불러오지 못했습니다.");
+      })
+      .finally(() => {
+        if (isActive()) setLoadingResume(false);
+      });
+    return () => { cancelled = true; };
+  }, [examId, isCurrentSession, resumeBatchId, sessionId]);
+
   const onPickFiles = (files: File[]) => {
-    if (!files.length) return;
+    if (!files.length || resumeUploadBlocked) return;
     setNotice(null);
-    const remaining = Math.max(0, MAX_FILES - items.length);
+    const selectionLimit = resumeOrdinals.length > 0 ? resumeOrdinals.length : MAX_FILES;
+    const usedOrdinals = new Set(items.map((item) => item.ordinal));
+    const vacantResumeOrdinals = resumeOrdinals.filter((ordinal) => !usedOrdinals.has(ordinal));
+    const remaining = resumeOrdinals.length > 0
+      ? vacantResumeOrdinals.length
+      : Math.max(0, selectionLimit - items.length);
     if (remaining === 0) {
-      setNotice(`한 번에 최대 ${MAX_FILES}개 파일까지 업로드할 수 있습니다.`);
+      setNotice(
+        resumeOrdinals.length > 0
+          ? `${resumeOrdinals.length}개 미접수 파일만 다시 선택할 수 있습니다.`
+          : `한 번에 최대 ${MAX_FILES}개 파일까지 업로드할 수 있습니다.`,
+      );
       return;
     }
     const accepted = files.slice(0, remaining);
     if (accepted.length < files.length) {
-      setNotice(`한 번에 최대 ${MAX_FILES}개 파일까지 업로드할 수 있습니다.`);
+      setNotice(
+        resumeOrdinals.length > 0
+          ? `${resumeOrdinals.length}개 미접수 파일만 다시 선택할 수 있습니다.`
+          : `한 번에 최대 ${MAX_FILES}개 파일까지 업로드할 수 있습니다.`,
+      );
     }
-    const next: UploadItem[] = accepted.map((f) => ({ file: f, status: "ready" as const }));
+    const next: UploadItem[] = accepted.map((file, index) => ({
+      file,
+      ordinal: resumeOrdinals.length > 0 ? vacantResumeOrdinals[index] : undefined,
+      status: "ready" as const,
+    }));
     setItems((prev) => [...prev, ...next]);
   };
 
@@ -85,6 +206,7 @@ export default function AdminOmrBatchUploadBox({ examId, onUploaded }: Props) {
     if (busy) return;
     setItems([]);
     setNotice(null);
+    if (resumeOrdinals.length === 0) setBatchId(null);
   };
 
   const removeOne = (idx: number) => {
@@ -98,84 +220,147 @@ export default function AdminOmrBatchUploadBox({ examId, onUploaded }: Props) {
       setNotice("시험 정보를 찾을 수 없습니다.");
       return;
     }
+    if (resumeUploadBlocked) {
+      setNotice("OMR 등록 작업을 확인하지 못해 파일을 접수할 수 없습니다.");
+      return;
+    }
     if (items.length === 0) {
       setNotice("파일을 먼저 선택해주세요.");
       return;
     }
 
-    setBusy(true);
-    setNotice(null);
-    let successCount = 0;
-
-    for (let i = 0; i < items.length; i++) {
-      const it = items[i];
-      if (it.status !== "ready") continue;
-
-      setItems((prev) =>
-        prev.map((x, idx) => (idx === i ? { ...x, status: "uploading", message: undefined } : x))
-      );
-
-      try {
-        const fd = new FormData();
-        fd.append("files", it.file);
-
-        await api.post(`/submissions/submissions/exams/${examId}/omr/batch/`, fd, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-
-        setItems((prev) =>
-          prev.map((x, idx) => (idx === i ? { ...x, status: "done", message: "등록됨" } : x))
-        );
-        successCount++;
-      } catch (e: unknown) {
-        const err = e as AxiosError<UploadErrorPayload>;
-        const status = err.response?.status;
-        const data = err.response?.data;
-        const detail = data?.detail;
-        const rejectionCode = data?.rejection_code;
-
-        if (status === 404) {
-          setItems((prev) =>
-            prev.map((x, idx) =>
-              idx === i ? { ...x, status: "fail", message: "시험 정보 확인 필요" } : x
-            )
-          );
-          setNotice(
-            "시험 정보를 찾지 못했습니다. 새로고침 후 다시 시도해 주세요."
-          );
-          break;
-        }
-
-        const message = rejectionCode
-          ? getRejectionMessage(rejectionCode)
-          : String(detail || "업로드 실패");
-        setItems((prev) =>
-          prev.map((x, idx) =>
-            idx === i ? { ...x, status: "fail", message } : x
-          )
-        );
-      }
+    if (resumeOrdinals.length > 0 && items.length !== resumeOrdinals.length) {
+      setNotice(`${resumeOrdinals.length}개 미접수 파일을 모두 다시 선택해 주세요.`);
+      return;
     }
 
-    setBusy(false);
-    if (successCount > 0) {
-      setNotice("등록을 시작했습니다. 잠시 후 성적표에 반영됩니다.");
-      onUploaded?.();
+    let activeBatchId = batchId;
+    let uploadItems = items.filter((item) => item.status === "ready" || item.status === "fail");
+    if (
+      activeBatchId
+      && (
+        resumeOrdinals.length === 0
+        || !hasExactOrdinals(uploadItems, resumeOrdinals)
+      )
+    ) {
+      setNotice("미접수 파일 순서를 확인할 수 없습니다. 작업을 다시 불러와 주세요.");
+      return;
+    }
+    const tenant = getTenantCodeForApiRequest() ?? "";
+    const generation = asyncStatusStore.getSessionGeneration();
+    const isActive = () => isCurrentSession(tenant, generation);
+    setBusy(true);
+    setNotice(null);
+    try {
+      if (!activeBatchId) {
+        const initialized = await initializeOmrUploadBatchApi({
+          examId,
+          totalCount: uploadItems.length,
+          sessionId,
+        });
+        if (!isActive()) return;
+        activeBatchId = initialized.id;
+        setBatchId(initialized.id);
+        asyncStatusStore.upsertOmrBatch(initialized);
+        uploadItems = uploadItems.map((item, index) => ({ ...item, ordinal: index + 1 }));
+        setItems(uploadItems.map((item) => ({ ...item, status: "uploading", message: undefined })));
+      } else {
+        setItems((previous) => previous.map((item) =>
+          uploadItems.includes(item)
+            ? { ...item, status: "uploading", message: undefined }
+            : item
+        ));
+      }
+
+      const result = await uploadOmrBatchApi({
+        examId,
+        files: uploadItems.map((item) => item.file),
+        batchId: activeBatchId,
+        itemOrdinals: uploadItems.map((item) => Number(item.ordinal)),
+      });
+      if (!isActive()) return;
+      asyncStatusStore.upsertOmrBatch(result);
+      const failed = new Set(result.admission_failed_ordinals);
+      setItems((previous) => failed.size > 0
+        ? []
+        : previous.map((item) => ({
+            ...item,
+            status: "received",
+            message: "접수됨 · AI 처리 대기",
+          })));
+      setResumeOrdinals(result.admission_failed_ordinals);
+      if (result.admission_failed_ordinals.length === 0) setBatchId(null);
+      setNotice(
+        result.admission_failed_ordinals.length > 0
+          ? `${result.created_count}건 접수, ${result.admission_failed_ordinals.length}건은 다시 선택이 필요합니다.`
+          : `${result.created_count}건을 접수했습니다. AI 처리 상태는 작업박스에서 계속 확인할 수 있습니다.`,
+      );
+      if (result.created_count > 0) onUploaded?.();
+    } catch (e: unknown) {
+      if (!isActive()) return;
+      const err = e as AxiosError<UploadErrorPayload>;
+      const detail = err.response?.data?.detail;
+      const rejectionCode = err.response?.data?.rejection_code;
+      const message = rejectionCode
+        ? getRejectionMessage(rejectionCode)
+        : String(detail || "접수 응답을 확인하지 못했습니다.");
+      if (activeBatchId) {
+        try {
+          const recovered = await fetchOmrUploadBatchApi(activeBatchId);
+          if (!isActive()) return;
+          asyncStatusStore.upsertOmrBatch(recovered);
+          const fileRetryOrdinals = [
+            ...new Set([
+              ...recovered.pending_admission_ordinals,
+              ...recovered.admission_failed_ordinals,
+            ]),
+          ].sort((left, right) => left - right);
+          const requiresFile = new Set(fileRetryOrdinals);
+          setItems((previous) => requiresFile.size > 0
+            ? []
+            : previous.map((item) => ({
+                ...item,
+                status: "received",
+                message: "서버에서 접수 상태 확인됨",
+              })));
+          setResumeOrdinals(fileRetryOrdinals);
+          if (fileRetryOrdinals.length === 0) setBatchId(null);
+          setNotice("응답이 중단되어 서버의 접수 결과를 복구했습니다. 미접수 항목만 다시 선택해 주세요.");
+        } catch {
+          if (!isActive()) return;
+          setItems((previous) => previous.map((item) =>
+            item.status === "uploading"
+              ? { ...item, status: "fail", message: "작업박스에서 상태 확인 필요" }
+              : item
+          ));
+          setNotice(`${message} 작업박스에서 현재 상태를 확인해 주세요.`);
+        }
+      } else {
+        setItems((previous) => previous.map((item) =>
+          item.status === "uploading" ? { ...item, status: "fail", message } : item
+        ));
+        setNotice(message);
+      }
+    } finally {
+      if (isActive()) setBusy(false);
     }
   };
 
   return (
     <div className="admin-omr-upload">
-      <div className="admin-omr-upload__zone">
+      <fieldset
+        className="admin-omr-upload__zone"
+        disabled={busy || loadingResume || resumeUploadBlocked}
+      >
         <FileUploadZone
           titleLabel="스캔 파일 선택"
           multiple
           accept="image/*,application/pdf"
           hintText="사진 또는 1페이지 PDF · 여러 장 선택 가능"
-          disabled={busy}
+          disabled={busy || loadingResume || resumeUploadBlocked}
           onFilesSelect={onPickFiles}
         />
-      </div>
+      </fieldset>
 
       {notice && (
         <div className="admin-omr-upload__notice">
@@ -188,11 +373,11 @@ export default function AdminOmrBatchUploadBox({ examId, onUploaded }: Props) {
           type="button"
           intent={items.length === 0 ? "secondary" : "primary"}
           size="lg"
-          disabled={busy || items.length === 0}
+          disabled={busy || loadingResume || resumeUploadBlocked || readyCount + failCount === 0}
           onClick={() => void upload()}
           leftIcon={<UploadCloud size={ICON_FOR_BUTTON.lg} />}
         >
-          {busy ? "등록 중..." : "등록 시작"}
+          {busy ? "접수 중..." : resumeOrdinals.length > 0 ? "미접수 파일 다시 접수" : "등록 시작"}
         </Button>
         <Button
           type="button"
@@ -206,7 +391,7 @@ export default function AdminOmrBatchUploadBox({ examId, onUploaded }: Props) {
         </Button>
         <div className="admin-omr-upload__summary" aria-live="polite">
           <Badge variant="soft" tone="neutral">대기 {readyCount}</Badge>
-          <Badge variant="soft" tone="success">완료 {doneCount}</Badge>
+          <Badge variant="soft" tone="success">접수됨 {receivedCount}</Badge>
           <Badge variant="soft" tone={failCount > 0 ? "danger" : "neutral"}>실패 {failCount}</Badge>
         </div>
       </div>
@@ -216,7 +401,7 @@ export default function AdminOmrBatchUploadBox({ examId, onUploaded }: Props) {
           {items.map((it, idx) => (
             <li key={`${it.file.name}-${idx}`} className="admin-omr-upload__file">
               <div className="admin-omr-upload__file-main">
-                {it.status === "done" ? (
+                {it.status === "received" ? (
                   <CheckCircle2 size={ICON.sm} className="admin-omr-upload__file-icon admin-omr-upload__file-icon--done" />
                 ) : (
                   <UploadCloud size={ICON.sm} className="admin-omr-upload__file-icon" />

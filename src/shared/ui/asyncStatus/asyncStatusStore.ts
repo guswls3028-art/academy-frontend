@@ -3,6 +3,7 @@
 // All tasks MUST have tenantScope. Display MUST filter by current tenant only.
 
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import type { OmrUploadBatchSummary } from "@/shared/api/contracts/submissions";
 import { getLocalItem, removeLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
 
 export type AsyncTaskStatus = "pending" | "success" | "error";
@@ -71,6 +72,8 @@ export interface AsyncTask {
   };
   /** 신규 학생 Excel 행별 처리 결과. 학생 ID·전화번호·비밀번호는 저장하지 않는다. */
   studentImportResult?: StudentImportResult;
+  /** 서버 정본 OMR batch 진행률. 파일명·학생정보·R2 key는 포함하지 않는다. */
+  omrBatch?: OmrUploadBatchSummary;
   createdAt: number;
   /** 있으면 워커 작업 — 우하단 작업 알람창에만 표시, 폴링 대상 */
   meta?: AsyncTaskMeta;
@@ -199,6 +202,7 @@ function loadRecoverableExcelTasks(): AsyncTask[] {
 
 let tasks: AsyncTask[] = loadRecoverableExcelTasks();
 const listeners = new Set<Listener>();
+let sessionGeneration = 0;
 
 function persistRecoverableExcelTasks(): void {
   if (typeof window === "undefined") return;
@@ -263,6 +267,10 @@ function defaultLabel(method: string, url?: string): string {
 }
 
 export const asyncStatusStore = {
+  getSessionGeneration(): number {
+    return sessionGeneration;
+  },
+
   getState(): AsyncTask[] {
     return [...tasks];
   },
@@ -331,6 +339,48 @@ export const asyncStatusStore = {
     ];
     emit();
     return jobId;
+  },
+
+  /** 서버의 tenant-scoped OMR batch 정본을 작업박스에 반영한다. */
+  upsertOmrBatch(
+    batch: OmrUploadBatchSummary,
+    options?: { awaitCompletionClaim?: boolean },
+  ): string {
+    const taskId = `omr-batch:${batch.id}`;
+    const scope = this._getTenantScope() ?? "";
+    const finishedCount =
+      batch.counts.completed
+      + batch.counts.needs_identification
+      + batch.counts.failed
+      + batch.counts.superseded;
+    const progress = batch.total_count > 0
+      ? Math.round((finishedCount / batch.total_count) * 100)
+      : 0;
+    const terminalStatus: AsyncTaskStatus = batch.counts.failed > 0 ? "error" : "success";
+    const existing = tasks.find((task) => task.id === taskId);
+    const status = batch.terminal && !options?.awaitCompletionClaim
+      ? terminalStatus
+      : "pending";
+    tasks = [
+      ...tasks.filter((task) => task.id !== taskId),
+      {
+        id: taskId,
+        label: `OMR ${batch.total_count}장`,
+        status,
+        progress,
+        error: status === "error" ? "일부 항목을 다시 확인해 주세요." : undefined,
+        omrBatch: batch,
+        createdAt: existing?.createdAt ?? (Date.parse(batch.created_at) || Date.now()),
+        tenantScope: scope,
+        meta: {
+          jobId: batch.id,
+          jobType: "omr_batch",
+          sourceId: batch.exam_id,
+        },
+      },
+    ];
+    emit();
+    return taskId;
   },
 
   /** 완료 처리 (성공/실패) */
@@ -438,6 +488,7 @@ export const asyncStatusStore = {
 
   /** 로그아웃/계정 전환 시 평문 다운로드 데이터와 복구 메타데이터를 모두 제거 */
   clearAll(): void {
+    sessionGeneration += 1;
     tasks = [];
     try {
       removeLocalItem(EXCEL_RECOVERY_STORAGE_KEY);

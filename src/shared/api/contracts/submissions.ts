@@ -25,6 +25,44 @@ export type SubmissionSource =
 export type SubmissionTargetType = "exam" | "homework";
 export type SubmissionJsonRecord = Record<string, unknown>;
 
+export type OmrUploadBatchCounts = {
+  pending_admission: number;
+  received: number;
+  processing: number;
+  completed: number;
+  needs_identification: number;
+  failed: number;
+  superseded: number;
+};
+
+export type OmrUploadBatchSummary = {
+  id: string;
+  exam_id: number;
+  session_id: number | null;
+  lecture_id: number | null;
+  total_count: number;
+  counts: OmrUploadBatchCounts;
+  pending_admission_ordinals: number[];
+  failed_ordinals: number[];
+  admission_failed_ordinals: number[];
+  terminal: boolean;
+  overall_status: "receiving" | "processing" | "completed" | "needs_identification" | "failed";
+  completion_notice_claimed: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type OmrUploadBatchUploadResult = OmrUploadBatchSummary & {
+  created_count: number;
+  submission_ids: number[];
+};
+
+export type OmrUploadBatchRetryResult = OmrUploadBatchSummary & {
+  retried_ordinals: number[];
+  requires_file_ordinals: number[];
+  skipped_ordinals: number[];
+};
+
 /**
  * Backend Submission model contract.
  */
@@ -262,7 +300,10 @@ export async function uploadOmrBatchApi(input: {
   examId: number;
   files: File[];
   sheetId?: number | string | null;
-}): Promise<unknown> {
+  sessionId?: number | null;
+  batchId?: string;
+  itemOrdinals?: number[];
+}): Promise<OmrUploadBatchUploadResult> {
   const examId = Number(input.examId);
   if (!Number.isFinite(examId) || examId <= 0) throw new Error("유효하지 않은 examId");
 
@@ -271,6 +312,16 @@ export async function uploadOmrBatchApi(input: {
 
   const fd = new FormData();
   for (const f of files) fd.append("files", f);
+  if (input.batchId) fd.append("batch_id", input.batchId);
+  if (input.itemOrdinals) {
+    if (input.itemOrdinals.length !== files.length) {
+      throw new Error("files and itemOrdinals must have the same length");
+    }
+    for (const ordinal of input.itemOrdinals) fd.append("item_ordinals", String(ordinal));
+  }
+  if (input.sessionId != null && Number.isFinite(Number(input.sessionId))) {
+    fd.append("session_id", String(input.sessionId));
+  }
   if (input.sheetId != null && String(input.sheetId).length > 0) {
     fd.append("sheet_id", String(input.sheetId));
   }
@@ -279,5 +330,57 @@ export async function uploadOmrBatchApi(input: {
     headers: { "Content-Type": "multipart/form-data" },
   });
 
-  return res.data;
+  return res.data as OmrUploadBatchUploadResult;
+}
+
+export async function initializeOmrUploadBatchApi(input: {
+  examId: number;
+  totalCount: number;
+  sessionId?: number | null;
+}): Promise<OmrUploadBatchSummary> {
+  const examId = Number(input.examId);
+  const totalCount = Number(input.totalCount);
+  if (!Number.isFinite(examId) || examId <= 0) throw new Error("유효하지 않은 examId");
+  if (!Number.isInteger(totalCount) || totalCount < 1 || totalCount > 100) {
+    throw new Error("totalCount must be between 1 and 100");
+  }
+  const res = await api.post(
+    `/submissions/submissions/exams/${examId}/omr/batches/`,
+    {
+      total_count: totalCount,
+      ...(input.sessionId != null ? { session_id: Number(input.sessionId) } : {}),
+    },
+  );
+  return res.data as OmrUploadBatchSummary;
+}
+
+export async function listOmrUploadBatchesApi(): Promise<OmrUploadBatchSummary[]> {
+  const res = await api.get("/submissions/submissions/omr/batches/");
+  return Array.isArray(res.data) ? res.data as OmrUploadBatchSummary[] : [];
+}
+
+export async function fetchOmrUploadBatchApi(batchId: string): Promise<OmrUploadBatchSummary> {
+  const res = await api.get(`/submissions/submissions/omr/batches/${batchId}/`);
+  return res.data as OmrUploadBatchSummary;
+}
+
+export async function retryOmrUploadBatchApi(
+  batchId: string,
+  itemOrdinals: number[],
+): Promise<OmrUploadBatchRetryResult> {
+  const res = await api.post(`/submissions/submissions/omr/batches/${batchId}/retry/`, {
+    item_ordinals: itemOrdinals,
+  });
+  return res.data as OmrUploadBatchRetryResult;
+}
+
+export async function claimOmrUploadBatchCompletionApi(batchId: string): Promise<{
+  notify: boolean;
+  batch: OmrUploadBatchSummary;
+}> {
+  const res = await api.post(
+    `/submissions/submissions/omr/batches/${batchId}/claim-completion/`,
+    {},
+  );
+  return res.data as { notify: boolean; batch: OmrUploadBatchSummary };
 }

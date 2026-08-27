@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router";
 import { ChevronDown, Upload } from "lucide-react";
 
 import AdminOmrBatchUploadBox from "@admin/domains/submissions/components/AdminOmrBatchUploadBox";
@@ -6,6 +7,7 @@ import type { SessionScoreMeta } from "@/shared/api/contracts/sessionScores";
 import { Badge, Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
+import { useLectureSessionParams } from "@/shared/hooks/useLectureSessionParams";
 
 type ExamOption = SessionScoreMeta["exams"][number];
 
@@ -23,15 +25,18 @@ type Props = {
 
 type SessionOmrUploadModalProps = {
   target: SessionOmrUploadTarget | null;
+  resumeBatchId?: string | null;
   onClose: () => void;
   onRefresh: () => void;
 };
 
 export function SessionOmrUploadModal({
   target,
+  resumeBatchId,
   onClose,
   onRefresh,
 }: SessionOmrUploadModalProps) {
+  const { sessionId } = useLectureSessionParams();
   if (target == null) return null;
 
   const closeUpload = () => {
@@ -49,7 +54,12 @@ export function SessionOmrUploadModal({
       />
       <ModalBody>
         <div className="scores-omr-modal__body">
-          <AdminOmrBatchUploadBox examId={target.examId} onUploaded={onRefresh} />
+          <AdminOmrBatchUploadBox
+            examId={target.examId}
+            sessionId={sessionId}
+            resumeBatchId={resumeBatchId}
+            onUploaded={onRefresh}
+          />
         </div>
       </ModalBody>
       <ModalFooter
@@ -70,9 +80,24 @@ export default function SessionOmrUploadAction({
   disabled = false,
 }: Props) {
   const [selectedExam, setSelectedExam] = useState<SessionOmrUploadTarget | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [showPicker, setShowPicker] = useState(false);
   const [isPreparing, setIsPreparing] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
+  const retryTarget = useMemo(() => {
+    const examId = Number(searchParams.get("omrRetryExamId"));
+    const exam = exams.find((candidate) => candidate.exam_id === examId);
+    return exam ? { examId: exam.exam_id, title: exam.title } : null;
+  }, [exams, searchParams]);
+  const retryBatchId = retryTarget ? searchParams.get("omrRetryBatchId") : null;
+
+  const clearOmrQuery = (keys: string[]) => {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      keys.forEach((key) => next.delete(key));
+      return next;
+    }, { replace: true });
+  };
 
   useEffect(() => {
     if (!disabled) return;
@@ -159,8 +184,12 @@ export default function SessionOmrUploadAction({
       </div>
 
       <SessionOmrUploadModal
-        target={selectedExam}
-        onClose={() => setSelectedExam(null)}
+        target={selectedExam ?? retryTarget}
+        resumeBatchId={selectedExam ? null : retryBatchId}
+        onClose={() => {
+          setSelectedExam(null);
+          if (retryTarget) clearOmrQuery(["omrRetryBatchId", "omrRetryExamId"]);
+        }}
         onRefresh={onRefresh}
       />
     </>
