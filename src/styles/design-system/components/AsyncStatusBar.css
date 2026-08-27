@@ -580,16 +580,6 @@
 }
 
 @media (max-width: 480px) {
-  .async-status-bar--anchor {
-    right: 12px;
-    left: 12px;
-  }
-
-  .async-status-bar--anchor .async-status-bar__panel {
-    width: auto;
-    max-width: none;
-  }
-
   .async-status-bar__item-row {
     gap: 8px;
   }

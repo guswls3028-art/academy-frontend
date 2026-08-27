@@ -502,6 +502,14 @@ test.describe("OMR durable batch progress", () => {
     await page.goto(`${BASE}/workspace/dashboard`, { waitUntil: "domcontentloaded" });
     const task = await openWorkbox(page);
 
+    const anchoredStatusBar = page.locator(".async-status-bar--anchor");
+    await expect(
+      anchoredStatusBar.locator(".async-status-bar__trigger, .async-status-bar__panel"),
+    ).toHaveCount(0);
+    await expect(
+      page.locator(".async-status-bar__item").filter({ hasText: "OMR 22장" }),
+    ).toHaveCount(1);
+
     await expect(task.getByRole("button", { name: "OMR 검토" })).toBeVisible();
     expect(await task.evaluate((element) => element.scrollWidth - element.clientWidth))
       .toBeLessThanOrEqual(1);

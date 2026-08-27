@@ -15,7 +15,6 @@ import {
 import { fetchSession } from "@/shared/api/contracts/sessions";
 import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
-import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useAsyncStatus } from "./useAsyncStatus";
 import { useWorkerJobPoller } from "./useWorkerJobPoller";
 import { useWorkbox } from "@/shared/ui/layout/useWorkbox";
@@ -800,12 +799,10 @@ export default function AsyncStatusBar({
   const workbox = useWorkbox();
   const currentTenantKey = getTenantCodeForApiRequest() ?? "";
   const isAnchorMode = workbox != null;
-  const isMobile = useIsMobile();
-  const useLocalControls = !isAnchorMode || isMobile;
 
   const [expandedLocal, setExpandedLocal] = useState(false);
-  const expanded = useLocalControls ? expandedLocal : workbox.workboxOpen;
-  const setExpanded = useLocalControls ? setExpandedLocal : workbox.setWorkboxOpen;
+  const expanded = isAnchorMode ? workbox.workboxOpen : expandedLocal;
+  const setExpanded = isAnchorMode ? workbox.setWorkboxOpen : setExpandedLocal;
 
   const prevPendingCountRef = useRef(0);
 
@@ -905,7 +902,7 @@ export default function AsyncStatusBar({
         aria-label="작업박스"
       >
         {/* 접었을 때: 작은 알림 창 (앵커 모드에서는 헤더 버튼이 트리거이므로 숨김) */}
-        {useLocalControls && (
+        {!isAnchorMode && (
         <button
           type="button"
           className="async-status-bar__trigger"
@@ -920,7 +917,7 @@ export default function AsyncStatusBar({
         )}
 
         {/* 펼쳤을 때: 목록 패널 (앵커 모드가 아닐 때만 여기서 렌더, 앵커 모드는 Header 드롭다운에서 렌더) */}
-        {useLocalControls && (
+        {!isAnchorMode && (
         <div className="async-status-bar__panel">
           <WorkboxPanelContent onClose={() => setExpanded(false)} />
         </div>
