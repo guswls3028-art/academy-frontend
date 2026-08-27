@@ -339,6 +339,7 @@ export default function VideoPlayerPage() {
   const [policyRebootstrapPending, setPolicyRebootstrapPending] = useState(false);
   const policyTransitionRef = useRef<string | null>(null);
   const policyTransitionGenerationRef = useRef(0);
+  const manualRetryRef = useRef<{ scopeKey: string; generation: number } | null>(null);
   const policyTransitionScopeKey = `${videoId ?? "none"}:${effectiveEnrollmentId ?? "none"}`;
   const policyTransitionScopeRef = useRef(policyTransitionScopeKey);
   if (policyTransitionScopeRef.current !== policyTransitionScopeKey) {
@@ -374,20 +375,7 @@ export default function VideoPlayerPage() {
       );
     }
   }, [currentAccessQuery.error]);
-  useEffect(() => {
-    const access = currentAccessQuery.data;
-    const currentPlayback = playbackData;
-    if (!access || !currentPlayback || !boot) return;
-
-    const bootstrapMode = boot.access_mode;
-    const bootstrapVersion = Number(currentPlayback.policy_version);
-    const matchesCurrentPolicy = bootstrapMode === access.access_mode
-      && bootstrapVersion === access.policy_version;
-    if (matchesCurrentPolicy) {
-      policyTransitionRef.current = null;
-      return;
-    }
-
+  const startPolicyRebootstrap = useCallback((access: StudentVideoAccessCheck) => {
     const transitionKey = `${policyTransitionScopeKey}:${access.access_mode}:${access.policy_version}`;
     if (policyTransitionRef.current === transitionKey) return;
     policyTransitionRef.current = transitionKey;
@@ -414,31 +402,60 @@ export default function VideoPlayerPage() {
       if (!isCurrentTransition()) return;
       setPolicyRebootstrapPending(false);
     });
-  }, [boot, currentAccessQuery.data, playbackData, policyTransitionScopeKey, refetchPlayback]);
+  }, [policyTransitionScopeKey, refetchPlayback]);
+  useEffect(() => {
+    const access = currentAccessQuery.data;
+    const currentPlayback = playbackData;
+    if (!access || !currentPlayback || !boot) return;
+
+    const activeRetry = manualRetryRef.current;
+    if (
+      activeRetry?.scopeKey === policyTransitionScopeKey
+      && activeRetry.generation === policyTransitionGenerationRef.current
+    ) return;
+
+    const bootstrapMode = boot.access_mode;
+    const bootstrapVersion = Number(currentPlayback.policy_version);
+    const matchesCurrentPolicy = bootstrapMode === access.access_mode
+      && bootstrapVersion === access.policy_version;
+    if (matchesCurrentPolicy) {
+      policyTransitionRef.current = null;
+      return;
+    }
+
+    startPolicyRebootstrap(access);
+  }, [boot, currentAccessQuery.data, playbackData, policyTransitionScopeKey, startPolicyRebootstrap]);
   const retryPlayback = useCallback(async () => {
     policyTransitionRef.current = null;
     const retryScopeKey = policyTransitionScopeKey;
     const retryGeneration = policyTransitionGenerationRef.current + 1;
     policyTransitionGenerationRef.current = retryGeneration;
+    const retryAttempt = { scopeKey: retryScopeKey, generation: retryGeneration };
+    manualRetryRef.current = retryAttempt;
     const isCurrentRetry = () => (
       policyTransitionScopeRef.current === retryScopeKey
       && policyTransitionGenerationRef.current === retryGeneration
     );
-    const [playbackResult, accessResult] = await Promise.all([
-      playbackQuery.refetch(),
-      currentAccessQuery.refetch(),
-    ]);
-    if (!isCurrentRetry()) return;
-    if (
-      playbackResult.error
-      || accessResult.error
-      || !playbackMatchesAccess(playbackResult.data, accessResult.data)
-    ) {
-      setFatalError(POLICY_CHANGED_MESSAGE);
-      return;
+    try {
+      const [playbackResult, accessResult] = await Promise.all([
+        playbackQuery.refetch(),
+        currentAccessQuery.refetch(),
+      ]);
+      if (!isCurrentRetry()) return;
+      if (playbackResult.error || accessResult.error) {
+        setFatalError(POLICY_CHANGED_MESSAGE);
+        return;
+      }
+      if (!playbackMatchesAccess(playbackResult.data, accessResult.data)) {
+        setFatalError(POLICY_CHANGED_MESSAGE);
+        if (accessResult.data) startPolicyRebootstrap(accessResult.data);
+        return;
+      }
+      setFatalError(null);
+    } finally {
+      if (manualRetryRef.current === retryAttempt) manualRetryRef.current = null;
     }
-    setFatalError(null);
-  }, [currentAccessQuery, playbackQuery, policyTransitionScopeKey]);
+  }, [currentAccessQuery, playbackQuery, policyTransitionScopeKey, startPolicyRebootstrap]);
 
   /* ─── 자동 다음 재생 ─── */
   const [autoPlayCountdown, setAutoPlayCountdown] = useState<number | null>(null);
