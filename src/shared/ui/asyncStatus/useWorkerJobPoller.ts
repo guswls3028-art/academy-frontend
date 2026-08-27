@@ -6,6 +6,10 @@ import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { asyncStatusStore, MAX_STORED_RESULT_ROWS } from "./asyncStatusStore";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import api from "@/shared/api/axios";
+import {
+  claimOmrUploadBatchCompletionApi,
+  fetchOmrUploadBatchApi,
+} from "@/shared/api/contracts/submissions";
 import { fetchVideoDetail, type VideoStatus } from "@/shared/api/contracts/videos";
 
 const POLL_INTERVAL_INITIAL_MS = 5000;   // 5s for first 1 min
@@ -15,6 +19,7 @@ const BACKOFF_AFTER_MS = 60 * 1000;      // 1 min
 const BACKOFF_MID_AFTER_MS = 10 * 60 * 1000; // 10 min
 const VIDEO_DETAIL_FALLBACK_AFTER_FAILURES = 3;
 const VIDEO_DETAIL_FALLBACK_COOLDOWN_MS = 30 * 1000;
+const omrPollsInFlight = new Map<string, Promise<void>>();
 
 type VideoRecoveryState = {
   cohortGeneration: number;
@@ -30,6 +35,70 @@ type VideoPollCohort = {
   signal: AbortSignal;
   isCurrent: () => boolean;
 };
+
+function isCurrentTenantOmrTask(taskId: string, tenantScope: string): boolean {
+  if ((getTenantCodeForApiRequest() ?? "") !== tenantScope) return false;
+  return asyncStatusStore.getState().some(
+    (task) =>
+      task.id === taskId
+      && task.status === "pending"
+      && task.meta?.jobType === "omr_batch"
+      && (task.tenantScope ?? "") === tenantScope,
+  );
+}
+
+function pollOmrBatch(taskId: string, batchId: string, tenantScope: string): void {
+  const key = `${tenantScope}:${batchId}`;
+  if (omrPollsInFlight.has(key) || !isCurrentTenantOmrTask(taskId, tenantScope)) return;
+
+  const request = (async () => {
+    try {
+      const summary = await fetchOmrUploadBatchApi(batchId);
+      if (!isCurrentTenantOmrTask(taskId, tenantScope)) return;
+
+      if (!summary.terminal) {
+        asyncStatusStore.upsertOmrBatch(summary);
+        return;
+      }
+
+      if (summary.completion_notice_claimed) {
+        asyncStatusStore.upsertOmrBatch(summary);
+        return;
+      }
+
+      try {
+        const claim = await claimOmrUploadBatchCompletionApi(batchId);
+        if ((getTenantCodeForApiRequest() ?? "") !== tenantScope) return;
+        asyncStatusStore.upsertOmrBatch(claim.batch);
+        if (claim.notify) {
+          if (claim.batch.counts.failed > 0) {
+            feedback.warning("OMR 처리가 끝났습니다. 실패 항목을 확인해 주세요.");
+          } else if (claim.batch.counts.needs_identification > 0) {
+            feedback.warning("OMR 처리가 끝났습니다. 식별이 필요한 답안지가 있습니다.");
+          } else {
+            feedback.success("OMR 처리가 모두 끝났습니다.");
+          }
+        }
+      } catch {
+        if (!isCurrentTenantOmrTask(taskId, tenantScope)) return;
+        asyncStatusStore.upsertOmrBatch(summary, { awaitCompletionClaim: true });
+        asyncStatusStore.setTaskStatusMessage(
+          taskId,
+          "처리는 끝났으며 완료 알림 상태를 다시 확인하고 있습니다.",
+        );
+      }
+    } catch {
+      if (!isCurrentTenantOmrTask(taskId, tenantScope)) return;
+      asyncStatusStore.setTaskStatusMessage(
+        taskId,
+        "OMR 진행 상태를 다시 확인하고 있습니다.",
+      );
+    }
+  })().finally(() => {
+    if (omrPollsInFlight.get(key) === request) omrPollsInFlight.delete(key);
+  });
+  omrPollsInFlight.set(key, request);
+}
 
 function isCurrentTenantVideoTask(taskId: string, tenantScope: string): boolean {
   if ((getTenantCodeForApiRequest() ?? "") !== tenantScope) return false;
@@ -816,6 +885,8 @@ export function useWorkerJobPoller(
           pollMatchupDocumentWatch(t.id, t.meta!.jobId, matchupCb);
         } else if (t.meta!.jobType === "messaging") {
           // 메시지 발송은 동기 API 완료로만 완료 처리, 폴링 없음
+        } else if (t.meta!.jobType === "omr_batch") {
+          pollOmrBatch(t.id, t.meta!.jobId, currentTenant);
         } else {
           pollExcelJob(t.id, excelCb, excelProgressCb);
         }

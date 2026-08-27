@@ -8,9 +8,14 @@ import api from "@/shared/api/axios";
 import { Download, RefreshCw } from "lucide-react";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchInProgressVideos, getRetryErrorMessage, fetchVideoDetail } from "@/shared/api/contracts/videos";
+import {
+  listOmrUploadBatchesApi,
+  retryOmrUploadBatchApi,
+} from "@/shared/api/contracts/submissions";
 import { fetchSession } from "@/shared/api/contracts/sessions";
 import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useAsyncStatus } from "./useAsyncStatus";
 import { useWorkerJobPoller } from "./useWorkerJobPoller";
 import { useWorkbox } from "@/shared/ui/layout/useWorkbox";
@@ -81,6 +86,7 @@ const JOB_TYPE_ICONS: Record<string, React.ComponentType<{ className?: string; s
   video_processing: IconVideo,
   omr: IconOmr,
   omr_scan: IconOmr,
+  omr_batch: IconOmr,
   ppt_generation: IconPpt,
 };
 
@@ -178,11 +184,28 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
   const queryClient = useQueryClient();
   const TypeIcon = task.meta?.jobType ? JOB_TYPE_ICONS[task.meta.jobType] : null;
   const remainingLabel = getRemainingLabel(task, now);
+  const omrRequiresFile =
+    task.meta?.jobType === "omr_batch"
+    && (
+      (task.omrBatch?.pending_admission_ordinals.length ?? 0)
+      + (task.omrBatch?.admission_failed_ordinals.length ?? 0)
+    ) > 0;
   const canRetry =
-    task.meta?.jobType === "video_processing" &&
-    task.meta?.jobId &&
-    task.status === "error";
-  const canCancel = task.status === "pending" && task.meta?.jobId;
+    task.meta?.jobId
+    && (
+      (task.meta.jobType === "video_processing" && task.status === "error")
+      || (
+        task.meta.jobType === "omr_batch"
+        && (
+          omrRequiresFile
+          || (task.status === "error" && (task.omrBatch?.failed_ordinals.length ?? 0) > 0)
+        )
+      )
+    );
+  const canCancel =
+    task.status === "pending"
+    && task.meta?.jobId
+    && task.meta.jobType !== "omr_batch";
   const canDownloadStudentPasswords =
     task.status === "success"
     && task.download?.kind === "student_initial_passwords"
@@ -239,6 +262,16 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
           navigate("/workspace/videos");
         })
         .finally(() => setNavigating(false));
+      return;
+    }
+    if (jobType === "omr_batch" && task.omrBatch) {
+      const { exam_id: examId } = task.omrBatch;
+      if (examId) {
+        workbox?.setWorkboxOpen(false);
+        navigate(`/workspace/mobile/exams/${examId}/omr`);
+      } else {
+        feedback.info("시험의 OMR 검토 화면을 열 수 없습니다.");
+      }
       return;
     }
     workbox?.setWorkboxOpen(false);
@@ -302,8 +335,48 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
 
   const handleRetry = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (task.meta?.jobType !== "video_processing" || !task.meta?.jobId || retrying) return;
+    if (!task.meta?.jobId || retrying) return;
     setRetrying(true);
+    if (task.meta.jobType === "omr_batch" && task.omrBatch) {
+      try {
+        const retryOrdinals = [
+          ...new Set([
+            ...task.omrBatch.failed_ordinals,
+            ...task.omrBatch.pending_admission_ordinals,
+            ...task.omrBatch.admission_failed_ordinals,
+          ]),
+        ];
+        const result = await retryOmrUploadBatchApi(
+          task.meta.jobId,
+          retryOrdinals,
+        );
+        asyncStatusStore.upsertOmrBatch(result);
+        if (result.requires_file_ordinals.length > 0) {
+          const { lecture_id: lectureId, session_id: sessionId, exam_id: examId } = result;
+          feedback.info(`${result.requires_file_ordinals.length}개 파일을 다시 선택해 주세요.`);
+          if (lectureId && sessionId && examId) {
+            workbox?.setWorkboxOpen(false);
+            navigate(
+              `/workspace/lectures/${lectureId}/sessions/${sessionId}/scores?omrRetryBatchId=${result.id}&omrRetryExamId=${examId}`,
+            );
+          }
+        } else if (result.retried_ordinals.length > 0) {
+          feedback.success(`${result.retried_ordinals.length}개 항목의 재처리를 시작했습니다.`);
+        }
+      } catch (error: unknown) {
+        const message =
+          (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+          || "OMR 재처리 요청에 실패했습니다.";
+        feedback.error(message);
+      } finally {
+        setRetrying(false);
+      }
+      return;
+    }
+    if (task.meta.jobType !== "video_processing") {
+      setRetrying(false);
+      return;
+    }
     const videoId = Number(task.meta.jobId);
     try {
       logRetryAttempt(videoId);
@@ -376,6 +449,32 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
           {task.status === "error" && task.error && (
             <div className="async-status-bar__item-error">{task.error}</div>
           )}
+          {task.omrBatch && (
+            <div className="async-status-bar__omr-counts" aria-label="OMR 처리 현황">
+              {task.omrBatch.counts.pending_admission > 0 && (
+                <span>접수 대기 {task.omrBatch.counts.pending_admission}</span>
+              )}
+              {task.omrBatch.counts.received > 0 && (
+                <span>접수 완료 {task.omrBatch.counts.received}</span>
+              )}
+              {task.omrBatch.counts.processing > 0 && (
+                <span>처리 중 {task.omrBatch.counts.processing}</span>
+              )}
+              {task.omrBatch.counts.completed > 0 && (
+                <span>완료 {task.omrBatch.counts.completed}</span>
+              )}
+              {task.omrBatch.counts.needs_identification > 0 && (
+                <span className="async-status-bar__omr-count--attention">
+                  식별 필요 {task.omrBatch.counts.needs_identification}
+                </span>
+              )}
+              {task.omrBatch.counts.failed > 0 && (
+                <span className="async-status-bar__omr-count--failed">
+                  실패 {task.omrBatch.counts.failed}
+                </span>
+              )}
+            </div>
+          )}
         </div>
         <div 
           className="async-status-bar__item-actions"
@@ -423,6 +522,20 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
             >
               <Download size={ICON.sm} />
               <span>비밀번호 목록</span>
+            </button>
+          )}
+          {task.meta?.jobType === "omr_batch" && task.omrBatch?.exam_id && (
+            <button
+              type="button"
+              className="async-status-bar__item-btn async-status-bar__item-btn--review"
+              onClick={(event) => {
+                event.stopPropagation();
+                workbox?.setWorkboxOpen(false);
+                navigate(`/workspace/mobile/exams/${task.omrBatch!.exam_id}/omr`);
+              }}
+              aria-label="OMR 검토"
+            >
+              OMR 검토
             </button>
           )}
           {/* ✅ 실패(error) 작업: 재시도 + 목록에서 제거 */}
@@ -556,11 +669,23 @@ export function WorkboxPanelContent({ onClose }: { onClose: () => void }) {
     return () => clearInterval(id);
   }, [pendingCount]);
 
-  const doHydrate = useCallback(() => {
+  const [hydrateError, setHydrateError] = useState(false);
+  const [hydrating, setHydrating] = useState(true);
+  const doHydrate = useCallback(async () => {
     const tenant = getTenantCodeForApiRequest() ?? "";
-    if (tenant === "9999") return Promise.resolve();
-    return fetchInProgressVideos()
-      .then((videos) => {
+    if (tenant === "9999") {
+      setHydrating(false);
+      return;
+    }
+    setHydrating(true);
+    setHydrateError(false);
+    try {
+      const [videosResult, omrResult] = await Promise.allSettled([
+        fetchInProgressVideos(),
+        listOmrUploadBatchesApi(),
+      ]);
+      if (videosResult.status === "fulfilled") {
+        const videos = videosResult.value;
         const existing = new Set(
           asyncStatusStore
             .getState()
@@ -576,8 +701,20 @@ export function WorkboxPanelContent({ onClose }: { onClose: () => void }) {
           if (existing.has(id)) return;
           asyncStatusStore.addWorkerJob(v.title || `영상 ${id}`, id, "video_processing");
         });
-      })
-      .catch(() => {});
+      }
+      if (omrResult.status === "fulfilled") {
+        omrResult.value.forEach((batch) => {
+          asyncStatusStore.upsertOmrBatch(batch, {
+            awaitCompletionClaim: batch.terminal && !batch.completion_notice_claimed,
+          });
+        });
+      }
+      if (videosResult.status === "rejected" || omrResult.status === "rejected") {
+        setHydrateError(true);
+      }
+    } finally {
+      setHydrating(false);
+    }
   }, []);
 
   const hydratedRef = useRef(false);
@@ -634,7 +771,16 @@ export function WorkboxPanelContent({ onClose }: { onClose: () => void }) {
         </div>
       </div>
       <div className="async-status-bar__list">
-        {displayTasks.length === 0 ? (
+        {hydrateError && (
+          <div className="async-status-bar__hydrate-error" role="alert">
+            일부 작업 상태를 불러오지 못했습니다. 새로고침해 주세요.
+          </div>
+        )}
+        {hydrating && displayTasks.length === 0 ? (
+          <div className="async-status-bar__hydrate-loading" role="status">
+            작업 상태를 불러오는 중입니다.
+          </div>
+        ) : displayTasks.length === 0 ? (
           <div className="async-status-bar__empty">작업박스가 비어 있습니다</div>
         ) : (
           displayTasks.map((task) => <TaskItem key={task.id} task={task} now={now} />)
@@ -654,10 +800,12 @@ export default function AsyncStatusBar({
   const workbox = useWorkbox();
   const currentTenantKey = getTenantCodeForApiRequest() ?? "";
   const isAnchorMode = workbox != null;
+  const isMobile = useIsMobile();
+  const useLocalControls = !isAnchorMode || isMobile;
 
   const [expandedLocal, setExpandedLocal] = useState(false);
-  const expanded = isAnchorMode ? workbox.workboxOpen : expandedLocal;
-  const setExpanded = isAnchorMode ? workbox.setWorkboxOpen : setExpandedLocal;
+  const expanded = useLocalControls ? expandedLocal : workbox.workboxOpen;
+  const setExpanded = useLocalControls ? setExpandedLocal : workbox.setWorkboxOpen;
 
   const prevPendingCountRef = useRef(0);
 
@@ -757,7 +905,7 @@ export default function AsyncStatusBar({
         aria-label="작업박스"
       >
         {/* 접었을 때: 작은 알림 창 (앵커 모드에서는 헤더 버튼이 트리거이므로 숨김) */}
-        {!isAnchorMode && (
+        {useLocalControls && (
         <button
           type="button"
           className="async-status-bar__trigger"
@@ -772,7 +920,7 @@ export default function AsyncStatusBar({
         )}
 
         {/* 펼쳤을 때: 목록 패널 (앵커 모드가 아닐 때만 여기서 렌더, 앵커 모드는 Header 드롭다운에서 렌더) */}
-        {!isAnchorMode && (
+        {useLocalControls && (
         <div className="async-status-bar__panel">
           <WorkboxPanelContent onClose={() => setExpanded(false)} />
         </div>

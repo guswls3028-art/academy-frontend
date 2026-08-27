@@ -241,6 +241,34 @@
   line-height: 1.4;
 }
 
+.async-status-bar__omr-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.async-status-bar__omr-counts span {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--color-bg-surface, #fff);
+  border: 1px solid var(--color-border-divider, #e5e7eb);
+  color: var(--color-text-secondary, #4b5563);
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.async-status-bar__omr-counts .async-status-bar__omr-count--attention {
+  color: var(--color-status-warning, #b45309);
+  border-color: color-mix(in srgb, var(--color-status-warning, #f59e0b) 45%, transparent);
+}
+
+.async-status-bar__omr-counts .async-status-bar__omr-count--failed {
+  color: var(--color-status-error, #dc2626);
+  border-color: color-mix(in srgb, var(--color-status-error, #ef4444) 40%, transparent);
+}
+
 .async-status-bar__item-actions {
   flex-shrink: 0;
   display: flex;
@@ -305,6 +333,21 @@
 }
 
 .async-status-bar__item-btn--retry:hover:not(:disabled) {
+  color: var(--color-primary, #2563eb);
+  background: color-mix(in srgb, var(--color-primary, #2563eb) 12%, transparent);
+}
+
+.async-status-bar__item-btn--review {
+  width: auto;
+  min-width: 58px;
+  padding: 0 8px;
+  color: var(--color-primary, #2563eb);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.async-status-bar__item-btn--review:hover {
   color: var(--color-primary, #2563eb);
   background: color-mix(in srgb, var(--color-primary, #2563eb) 12%, transparent);
 }
@@ -517,6 +560,45 @@
   text-align: center;
   color: var(--color-text-muted);
   font-size: 13px;
+}
+
+.async-status-bar__hydrate-error {
+  margin: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-status-error, #ef4444) 8%, transparent);
+  color: var(--color-status-error, #dc2626);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.async-status-bar__hydrate-loading {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+@media (max-width: 480px) {
+  .async-status-bar--anchor {
+    right: 12px;
+    left: 12px;
+  }
+
+  .async-status-bar--anchor .async-status-bar__panel {
+    width: auto;
+    max-width: none;
+  }
+
+  .async-status-bar__item-row {
+    gap: 8px;
+  }
+
+  .async-status-bar__item-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 98px;
+  }
 }
 
 /* ========== VideoThumbnail 인코딩 오버레이 (썸네일 영역 내 프리미엄 진행 표시) ========== */

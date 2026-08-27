@@ -24,6 +24,8 @@
   color: var(--color-text-primary);
   font-size: 13px;
   font-weight: 650;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
   padding: var(--space-3);
 }
 
@@ -134,5 +136,9 @@
   .admin-omr-upload__file-state {
     align-items: flex-start;
     gap: var(--space-1);
+  }
+
+  .admin-omr-upload__file-list {
+    max-height: min(320px, 42vh);
   }
 }
