@@ -126,9 +126,9 @@ export default function StudentFilterModal({
               value={managedValue(local.is_managed)}
               onChange={(e) => update("is_managed", e.target.value)}
             >
-              <option value="">상태 전체</option>
-              <option value="true">활성</option>
-              <option value="false">비활성</option>
+              <option value="">관리 대상 전체</option>
+              <option value="true">관리 중</option>
+              <option value="false">관리 제외</option>
             </select>
           </div>
           <div className="modal-form-row modal-form-row--3">
