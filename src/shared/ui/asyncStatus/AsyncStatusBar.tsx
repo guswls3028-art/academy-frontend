@@ -710,6 +710,7 @@ export function WorkboxPanelContent({ onClose }: { onClose: () => void }) {
       }
       if (videosResult.status === "rejected" || omrResult.status === "rejected") {
         setHydrateError(true);
+        throw new Error("Failed to hydrate one or more workbox sources");
       }
     } finally {
       setHydrating(false);
@@ -720,7 +721,7 @@ export function WorkboxPanelContent({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     if (hydratedRef.current) return;
     hydratedRef.current = true;
-    doHydrate();
+    void doHydrate().catch(() => undefined);
   }, [doHydrate]);
 
   const [refreshing, setRefreshing] = useState(false);
@@ -729,6 +730,7 @@ export function WorkboxPanelContent({ onClose }: { onClose: () => void }) {
     setRefreshing(true);
     doHydrate()
       .then(() => feedback.success("작업박스를 새로고침했습니다."))
+      .catch(() => undefined)
       .finally(() => setRefreshing(false));
   }, [doHydrate, refreshing]);
 

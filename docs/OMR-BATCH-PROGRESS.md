@@ -57,6 +57,8 @@ CTA를 제공한다. 다른 시험이나 차시로 fallback하지 않는다.
   실패 안내만 표시한다.
 - 목록 조회 중에는 loading, 일부 조회 실패에는 error+수동 새로고침, 정상 빈 목록에는
   empty를 서로 다르게 표시한다. error/unavailable 응답을 정상 empty와 함께 표시하지 않는다.
+- 수동 새로고침은 영상·OMR hydration이 모두 성공했을 때만 성공 안내를 표시한다. 하나라도
+  실패하면 기존 error 안내를 유지하고 성공으로 오표시하지 않는다.
 
 ## 반응형과 검증
 
@@ -66,7 +68,7 @@ CTA를 제공한다. 다른 시험이나 차시로 fallback하지 않는다.
 - `e2e/admin/omr-batch-progress.mock.spec.ts`는 read-only GET, terminal claim 1회,
   22개 단일 multipart, 응답 중단 후 정확한 ordinal 재선택, reload 복구,
   삭제/재추가와 비우기/재선택 ordinal, query detail fail-closed, logout 중 지연 claim,
-  loading/error/empty, 390px overflow를 고정한다.
+  loading/error/empty와 수동 새로고침 partial failure, 390px overflow를 고정한다.
 - 서버의 1/22/100 총수, 100건 중 부분 실패, 중복 없는 retry, tenant/creator scope와
   PostgreSQL completion-claim race는
   `apps/domains/submissions/tests/test_exam_omr_batch_upload_pdf_guard.py`가 검증한다.

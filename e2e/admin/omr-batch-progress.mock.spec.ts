@@ -136,7 +136,7 @@ async function installDashboardApi(
   let detailGets = 0;
   let completionClaims = 0;
   let completionClaimResponses = 0;
-  let listFailureReleased = false;
+  let listFailureForced = options.holdListFailure ?? false;
   let hideBatches = false;
   let initializedUploads = false;
   let initializePosts = 0;
@@ -192,7 +192,7 @@ async function installDashboardApi(
       listGets += 1;
       if (
         listGets <= (options.failListCalls ?? 0)
-        || (options.holdListFailure && !listFailureReleased)
+        || listFailureForced
       ) {
         if (options.listDelayMs) {
           await new Promise((resolve) => setTimeout(resolve, options.listDelayMs));
@@ -330,7 +330,8 @@ async function installDashboardApi(
   return {
     counts: () => ({ listGets, detailGets, completionClaims, completionClaimResponses }),
     finish: () => { terminal = true; },
-    releaseListFailure: () => { listFailureReleased = true; },
+    releaseListFailure: () => { listFailureForced = false; },
+    setListFailure: (shouldFail: boolean) => { listFailureForced = shouldFail; },
     hideBatches: () => { hideBatches = true; },
     releaseCompletionClaim: () => { releaseCompletionClaim?.(); },
     uploadState: () => ({ initializePosts, uploadPosts, uploadBodies: [...uploadBodies] }),
@@ -456,6 +457,50 @@ test.describe("OMR durable batch progress", () => {
     await panel.getByRole("button", { name: "새로고침" }).click();
     await expect(panel.getByText("작업박스가 비어 있습니다")).toBeVisible();
     await expect(panel.getByRole("alert")).toHaveCount(0);
+  });
+
+  test("수동 새로고침 실패를 성공으로 알리지 않고 다음 성공만 표시한다", async ({ page }) => {
+    const api = await installDashboardApi(page, {
+      empty: true,
+      listDelayMs: 500,
+    });
+    await page.goto(`${BASE}/workspace/dashboard`, { waitUntil: "domcontentloaded" });
+
+    const panel = await openWorkboxPanel(page);
+    const refresh = panel.getByRole("button", { name: "새로고침" });
+    const successToast = page.getByText("작업박스를 새로고침했습니다.");
+    await expect(panel.getByText("작업박스가 비어 있습니다")).toBeVisible();
+    await expect(successToast).toHaveCount(0);
+
+    api.setListFailure(true);
+    await refresh.click();
+    await expect(refresh).toBeDisabled();
+    await expect(refresh).toBeEnabled();
+    await expect(panel.getByRole("alert")).toContainText("불러오지 못했습니다");
+    const successShownDuringFailure = await page.evaluate((text) => new Promise<boolean>((resolve) => {
+      const hasText = () => document.body.textContent?.includes(text) ?? false;
+      if (hasText()) {
+        resolve(true);
+        return;
+      }
+      const observer = new MutationObserver(() => {
+        if (!hasText()) return;
+        observer.disconnect();
+        resolve(true);
+      });
+      observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+      window.setTimeout(() => {
+        observer.disconnect();
+        resolve(false);
+      }, 1_000);
+    }), "작업박스를 새로고침했습니다.");
+    expect(successShownDuringFailure).toBe(false);
+
+    api.setListFailure(false);
+    await refresh.click();
+    await expect(panel.getByText("작업박스가 비어 있습니다")).toBeVisible();
+    await expect(panel.getByRole("alert")).toHaveCount(0);
+    await expect(successToast).toBeVisible();
   });
 
   test("처리 실패와 접수 실패 ordinal만 재시도 계약으로 전달한다", async ({ page }) => {
