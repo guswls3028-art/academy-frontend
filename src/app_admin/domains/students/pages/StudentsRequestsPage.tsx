@@ -20,6 +20,7 @@ import {
   fetchRegistrationRequestSettings,
   updateRegistrationRequestSettings,
   deletedRegistrationConflictFromError,
+  isSelfRegistrationDisabledError,
   resolveDeletedRegistrationRequest,
   type ClientRegistrationRequest,
   type DeletedRegistrationCandidate,
@@ -258,7 +259,7 @@ export default function StudentsRequestsPage() {
   const [selectedRecoveryId, setSelectedRecoveryId] = useState<number | null>(null);
   const recoverySubmissionRef = useRef(false);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: adminStudentsQueryKeys.registrationRequests,
     queryFn: () =>
       fetchRegistrationRequests({ status: "pending", page: 1, page_size: 100 }),
@@ -460,6 +461,27 @@ export default function StudentsRequestsPage() {
             {[1, 2, 3].map((i) => (
               <div key={i} className={panelStyles.skeletonCard} />
             ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError && isSelfRegistrationDisabledError(error)) {
+    return (
+      <div className={panelStyles.root}>
+        <div className={panelStyles.header}>
+          <h2 className={panelStyles.headerTitle}>가입 신청</h2>
+          <p className={panelStyles.headerDesc}>
+            이 학원은 학생 자가 가입을 사용하지 않습니다.
+          </p>
+        </div>
+        <div className="students-requests__body">
+          <div className={panelStyles.contentInner}>
+            <EmptyState
+              title="학생 자가 가입을 사용하지 않습니다"
+              description="정책 변경 전에 접수된 요청은 기록으로 보존되며 승인하거나 거절할 수 없습니다. 학생은 직접 등록해 주세요."
+            />
           </div>
         </div>
       </div>

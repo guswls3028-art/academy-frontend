@@ -936,6 +936,17 @@ export async function bulkRejectRegistrationRequests(
 
 export type RegistrationRequestSettings = { auto_approve: boolean };
 
+export function isSelfRegistrationDisabledError(error: unknown): boolean {
+  return (
+    error != null &&
+    typeof error === "object" &&
+    "response" in error &&
+    (error as { response?: { status?: number; data?: { code?: string } } }).response?.status === 403 &&
+    (error as { response?: { status?: number; data?: { code?: string } } }).response?.data?.code ===
+      "self_registration_disabled"
+  );
+}
+
 /** 스태프: 가입 신청 설정 조회 (자동 승인 여부) */
 export async function fetchRegistrationRequestSettings(): Promise<RegistrationRequestSettings> {
   const res = await api.get("/students/registration_requests/settings/");

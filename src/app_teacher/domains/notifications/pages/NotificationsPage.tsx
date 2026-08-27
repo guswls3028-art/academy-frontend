@@ -49,7 +49,7 @@ const DEST_LABEL: Record<ItemType, string> = {
   qna: "소통에서 답변",
   counsel: "소통에서 답변",
   clinic: "클리닉에서 처리",
-  registration_requests: "학생에서 승인",
+  registration_requests: "소통에서 승인",
   submissions: "제출함에서 처리",
   video_failed: "영상에서 재시도",
   consult: "관리실에서 응대",
@@ -64,9 +64,10 @@ const DEST_LABEL: Record<ItemType, string> = {
 export default function NotificationsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { items, counts, isLoading } = useTeacherPendingCounts();
+  const { items, counts, failures, isLoading, isError, refetch } = useTeacherPendingCounts();
   const productUpdate = useProductUpdateAwareness(user?.id);
   const total = (counts?.total ?? 0) + (productUpdate.isUnread ? 1 : 0);
+  const hasFailures = isError || failures.length > 0;
 
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);
@@ -155,8 +156,34 @@ export default function NotificationsPage() {
         </div>
       )}
 
+      {!isLoading && hasFailures && items.length > 0 && (
+        <div
+          role="alert"
+          className="rounded-xl text-xs"
+          style={{
+            padding: "var(--tc-space-3) var(--tc-space-4)",
+            color: "var(--tc-danger)",
+            background: "var(--tc-danger-bg)",
+            border: "1px solid color-mix(in srgb, var(--tc-danger) 28%, transparent)",
+          }}
+        >
+          일부 업무 알림을 불러오지 못했습니다. 표시된 항목만 확인되었으며 0건으로 계산하지 않습니다.
+          <button type="button" onClick={() => void refetch()} className="ml-2 font-bold underline">
+            다시 시도
+          </button>
+        </div>
+      )}
+
       {isLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+      ) : hasFailures && items.length === 0 ? (
+        <EmptyState
+          scope="panel"
+          tone="error"
+          title="일부 업무 알림을 불러오지 못했습니다"
+          description="조회 실패를 처리할 업무 0건으로 표시하지 않습니다. 다시 확인해 주세요."
+          actions={<EmptyActionButton onClick={() => void refetch()}>다시 시도</EmptyActionButton>}
+        />
       ) : items.length > 0 ? (
         <div className="flex flex-col gap-2">
           {items.map((item) => (

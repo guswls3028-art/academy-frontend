@@ -3,6 +3,7 @@ import {
   fetchArrivalOverview,
   type ArrivalOverview,
 } from "@/shared/api/contracts/arrivalOverview";
+import { isSelfRegistrationDisabledError } from "@/shared/api/contracts/students";
 
 export type OperationalNotificationCounts = {
   qnaPending: number;
@@ -148,7 +149,8 @@ async function fetchRegistrationRequestsPendingCount(): Promise<number | null> {
       params: { status: "pending", page: 1, page_size: 1 },
     });
     return countFromListEnvelope(res.data);
-  } catch {
+  } catch (error) {
+    if (isSelfRegistrationDisabledError(error)) return 0;
     return null;
   }
 }

@@ -43,7 +43,13 @@ export default function TodayPage() {
   const sessions = sessionsQ.data;
   const isLoading = sessionsQ.isLoading;
 
-  const { items: pendingItems, counts: pendingCounts } = useTeacherPendingCounts();
+  const {
+    items: pendingItems,
+    counts: pendingCounts,
+    failures: pendingFailures,
+    isLoading: pendingIsLoading,
+    isError: pendingIsError,
+  } = useTeacherPendingCounts();
 
   const dateStr = new Date().toLocaleDateString("ko-KR", {
     month: "long",
@@ -81,11 +87,36 @@ export default function TodayPage() {
   })();
   const userName = user?.name?.trim();
   const greetingName = userName ? (userName.endsWith("님") ? userName : `${userName}님`) : honorific;
-  const pendingTotal = pendingCounts?.total ?? 0;
+  const pendingUnavailable = pendingIsError || pendingFailures.length > 0;
+  const pendingTotal = pendingIsLoading || pendingUnavailable ? null : pendingCounts?.total ?? 0;
   const pendingQnaCount = pendingCounts?.qnaPending ?? 0;
-  const todayWorkTotal = pendingTotal + attendanceGap;
-  const hasTodayWork = todayWorkTotal > 0;
+  const todayWorkTotal = (pendingTotal ?? 0) + attendanceGap;
+  const hasTodayWork = pendingTotal == null || todayWorkTotal > 0;
   const primaryWork = useMemo(() => {
+    if (pendingIsLoading) {
+      return {
+        icon: <Clock size={ICON.md} />,
+        eyebrow: "확인 중",
+        title: "업무 알림을 확인하고 있습니다",
+        description: "조회가 끝나기 전에는 처리할 일을 0건으로 표시하지 않습니다.",
+        action: "알림 센터 보기",
+        route: "/workspace/mobile/notifications",
+        tone: "primary" as const,
+      };
+    }
+
+    if (pendingUnavailable) {
+      return {
+        icon: <AlertCircle size={ICON.md} />,
+        eyebrow: "확인 필요",
+        title: "업무 알림을 모두 불러오지 못했습니다",
+        description: "일부 조회가 실패해 0건으로 계산하지 않았습니다. 알림 센터에서 다시 확인해 주세요.",
+        action: "알림 센터 보기",
+        route: "/workspace/mobile/notifications",
+        tone: "danger" as const,
+      };
+    }
+
     if (pendingQnaCount > 0) {
       return {
         icon: <MessageSquare size={ICON.md} />,
@@ -144,7 +175,7 @@ export default function TodayPage() {
       route: "/workspace/mobile/classes",
       tone: "success" as const,
     };
-  }, [attendanceGap, nextSession, nextSessionLabel, pendingItems, pendingQnaCount]);
+  }, [attendanceGap, nextSession, nextSessionLabel, pendingIsLoading, pendingItems, pendingQnaCount, pendingUnavailable]);
 
   if (sessionsQ.isError) {
     return (
@@ -166,7 +197,13 @@ export default function TodayPage() {
         <div className={styles.heroMeta}>
           <span>{dateStr}</span>
           <Badge tone={hasTodayWork ? "danger" : "success"} pill size="xs">
-            {hasTodayWork ? `오늘 업무 ${todayWorkTotal}건` : "정리됨"}
+            {pendingIsLoading
+              ? "업무 집계 중"
+              : pendingUnavailable
+                ? "업무 확인 필요"
+                : hasTodayWork
+                  ? `오늘 업무 ${todayWorkTotal}건`
+                  : "정리됨"}
           </Badge>
         </div>
         <div className={styles.heroBody}>
@@ -193,8 +230,8 @@ export default function TodayPage() {
       <div className={styles.kpiGrid}>
         <KpiCard
           label="오늘 업무"
-          value={todayWorkTotal}
-          sub={hasTodayWork ? "건" : "없음"}
+          value={pendingTotal == null ? "—" : todayWorkTotal}
+          sub={pendingIsLoading ? "집계 중" : pendingUnavailable ? "확인 필요" : hasTodayWork ? "건" : "없음"}
           color={hasTodayWork ? "var(--tc-danger)" : "var(--tc-success)"}
           onClick={() => navigate(primaryWork.route)}
         />
