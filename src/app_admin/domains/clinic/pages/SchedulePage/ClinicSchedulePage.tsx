@@ -40,6 +40,7 @@ dayjs.locale("ko");
 
 const ACTIVE_STATUSES = new Set(["pending", "booked", "attended", "no_show"]);
 const DAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
+const MONTH_DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
 function mondayOfWeek(value: string) {
   const date = dayjs(value).startOf("day");
@@ -87,8 +88,22 @@ export default function ClinicSchedulePage() {
     [weekStart]
   );
   const [selectedDate, setSelectedDate] = useState(today);
+  const [monthAnchor, setMonthAnchor] = useState(today);
+  const monthStart = useMemo(() => dayjs(monthAnchor).startOf("month"), [monthAnchor]);
+  const monthGridStart = useMemo(
+    () => monthStart.subtract(monthStart.day(), "day"),
+    [monthStart]
+  );
+  const monthDays = useMemo(
+    () => Array.from({ length: 42 }, (_, index) => monthGridStart.add(index, "day")),
+    [monthGridStart]
+  );
+  const monthFrom = monthGridStart.format("YYYY-MM-DD");
+  const monthTo = monthGridStart.add(41, "day").format("YYYY-MM-DD");
   const boardViewportRef = useRef<HTMLDivElement | null>(null);
   const dayRefs = useRef(new Map<string, HTMLElement>());
+  const dateNavRefs = useRef(new Map<string, HTMLButtonElement>());
+  const pendingCalendarFocusRef = useRef<string | null>(null);
 
   const sessionsQ = useQuery({
     queryKey: clinicQueryKeys.sessionsMonthRange(weekFrom, weekTo),
@@ -104,6 +119,16 @@ export default function ClinicSchedulePage() {
     session_date_from: weekFrom,
     session_date_to: weekTo,
   });
+  const monthSessionsQ = useQuery({
+    queryKey: clinicQueryKeys.sessionsMonthRange(monthFrom, monthTo),
+    queryFn: () =>
+      fetchClinicSessions({
+        date_from: monthFrom,
+        date_to: monthTo,
+        ordering: "date,start_time,id",
+      }),
+    staleTime: 30_000,
+  });
   const sessionsByDate = useMemo(() => {
     const grouped = new Map<string, ClinicSessionDetail[]>();
     for (const session of sessionsQ.data ?? []) {
@@ -116,6 +141,15 @@ export default function ClinicSchedulePage() {
     }
     return grouped;
   }, [sessionsQ.data]);
+  const monthSessionsByDate = useMemo(() => {
+    const grouped = new Map<string, ClinicSessionDetail[]>();
+    for (const session of monthSessionsQ.data ?? []) {
+      const list = grouped.get(session.date) ?? [];
+      list.push(session);
+      grouped.set(session.date, list);
+    }
+    return grouped;
+  }, [monthSessionsQ.data]);
 
   const participantsBySession = useMemo(() => {
     const grouped = new Map<number, ClinicParticipant[]>();
@@ -149,6 +183,8 @@ export default function ClinicSchedulePage() {
       ? requestedDate
       : today;
     setWeekAnchor(date);
+    setMonthAnchor(date);
+    setSelectedDate(date);
     setCreateDate(date);
 
     const next = new URLSearchParams(searchParams);
@@ -171,6 +207,13 @@ export default function ClinicSchedulePage() {
   const refreshWeek = () => {
     queryClient.invalidateQueries({ queryKey: clinicQueryKeys.sessionsMonth });
     queryClient.invalidateQueries({ queryKey: clinicQueryKeys.participants });
+  };
+
+  const selectCalendarDate = (dateISO: string) => {
+    pendingCalendarFocusRef.current = dateISO;
+    setMonthAnchor(dateISO);
+    setWeekAnchor(dateISO);
+    setSelectedDate(dateISO);
   };
 
   const handleAddParticipants = async (selection: ClinicTargetSelectResult) => {
@@ -199,6 +242,10 @@ export default function ClinicSchedulePage() {
 
   const loading = sessionsQ.isLoading || participantsQ.listQ.isLoading;
   const isCurrentWeek = weekFrom === mondayOfWeek(today).format("YYYY-MM-DD");
+  const isCurrentMonth = dayjs(today).isSame(monthStart, "month");
+  const monthHasSessions = (monthSessionsQ.data ?? []).some((session) =>
+    dayjs(session.date).isSame(monthStart, "month")
+  );
   const rangeLabel = weekStart.month() === weekEnd.month()
     ? `${weekStart.format("YYYY년 M월 D일")} – ${weekEnd.format("D일")}`
     : `${weekStart.format("YYYY년 M월 D일")} – ${weekEnd.format("M월 D일")}`;
@@ -213,6 +260,11 @@ export default function ClinicSchedulePage() {
     const frame = window.requestAnimationFrame(() => {
       const viewport = boardViewportRef.current;
       const day = dayRefs.current.get(targetDate);
+      const dateNavButton = dateNavRefs.current.get(targetDate);
+      if (pendingCalendarFocusRef.current === targetDate && dateNavButton) {
+        pendingCalendarFocusRef.current = null;
+        dateNavButton.focus({ preventScroll: true });
+      }
       if (!viewport || !day) return;
       const viewportBox = viewport.getBoundingClientRect();
       const dayBox = day.getBoundingClientRect();
@@ -266,13 +318,20 @@ export default function ClinicSchedulePage() {
               iconOnly
               aria-label="이전 주"
               leftIcon={<ChevronLeft size={ICON_FOR_BUTTON.sm} />}
-              onClick={() => setWeekAnchor(weekStart.subtract(7, "day").format("YYYY-MM-DD"))}
+              onClick={() => {
+                const previousWeek = weekStart.subtract(7, "day").format("YYYY-MM-DD");
+                setWeekAnchor(previousWeek);
+                setMonthAnchor(previousWeek);
+              }}
             />
             <Button
               intent="secondary"
               size="sm"
               disabled={isCurrentWeek}
-              onClick={() => setWeekAnchor(today)}
+              onClick={() => {
+                setWeekAnchor(today);
+                setMonthAnchor(today);
+              }}
             >
               이번 주
             </Button>
@@ -282,7 +341,11 @@ export default function ClinicSchedulePage() {
               iconOnly
               aria-label="다음 주"
               leftIcon={<ChevronRight size={ICON_FOR_BUTTON.sm} />}
-              onClick={() => setWeekAnchor(weekStart.add(7, "day").format("YYYY-MM-DD"))}
+              onClick={() => {
+                const nextWeek = weekStart.add(7, "day").format("YYYY-MM-DD");
+                setWeekAnchor(nextWeek);
+                setMonthAnchor(nextWeek);
+              }}
             />
             <strong className={styles.range}>{rangeLabel}</strong>
           </div>
@@ -299,6 +362,117 @@ export default function ClinicSchedulePage() {
             />
           </div>
         </div>
+
+        <section className={styles.monthOverview} aria-label="월간 날짜 탐색">
+          <div className={styles.monthOverviewHeader}>
+            <div>
+              <span className={styles.monthKicker}>월간 보기</span>
+              <strong className={styles.monthTitle}>{monthStart.format("YYYY년 M월")}</strong>
+            </div>
+            <div className={styles.monthControls} aria-label="월간 이동">
+              <Button
+                intent="ghost"
+                size="sm"
+                iconOnly
+                aria-label="이전 달"
+                leftIcon={<ChevronLeft size={ICON_FOR_BUTTON.sm} />}
+                onClick={() => setMonthAnchor(monthStart.subtract(1, "month").format("YYYY-MM-DD"))}
+              />
+              <Button
+                intent="secondary"
+                size="sm"
+                disabled={isCurrentMonth}
+                onClick={() => setMonthAnchor(today)}
+              >
+                이번 달
+              </Button>
+              <Button
+                intent="ghost"
+                size="sm"
+                iconOnly
+                aria-label="다음 달"
+                leftIcon={<ChevronRight size={ICON_FOR_BUTTON.sm} />}
+                onClick={() => setMonthAnchor(monthStart.add(1, "month").format("YYYY-MM-DD"))}
+              />
+            </div>
+          </div>
+
+          <div className={styles.monthStatus} aria-live="polite">
+            {monthSessionsQ.isLoading ? (
+              <span>월간 일정을 불러오는 중입니다.</span>
+            ) : monthSessionsQ.isError ? (
+              <>
+                <span>월간 일정을 확인하지 못했습니다.</span>
+                <Button
+                  intent="ghost"
+                  size="sm"
+                  aria-label="월간 일정 다시 불러오기"
+                  onClick={() => monthSessionsQ.refetch()}
+                >
+                  다시 불러오기
+                </Button>
+              </>
+            ) : monthHasSessions ? (
+              <span>날짜를 선택하면 해당 주의 일정으로 이동합니다.</span>
+            ) : (
+              <span>이번 달에 열린 시간대가 없습니다.</span>
+            )}
+          </div>
+
+          <div
+            className={styles.monthCalendar}
+            role="grid"
+            aria-label={`${monthStart.format("YYYY년 M월")} 클리닉 월간 달력`}
+          >
+            <div className={styles.monthWeekdays} role="row">
+              {MONTH_DAY_LABELS.map((label) => (
+                <span key={label} role="columnheader">{label}</span>
+              ))}
+            </div>
+            {Array.from({ length: 6 }, (_, weekIndex) => (
+              <div key={weekIndex} className={styles.monthWeek} role="row">
+                {monthDays.slice(weekIndex * 7, weekIndex * 7 + 7).map((date) => {
+                  const dateISO = date.format("YYYY-MM-DD");
+                  const sessionCount = monthSessionsByDate.get(dateISO)?.length ?? 0;
+                  const isSelected = dateISO === selectedDate;
+                  const isToday = dateISO === today;
+                  const isOutsideMonth = !date.isSame(monthStart, "month");
+                  const loadLabel = monthSessionsQ.isLoading
+                    ? "일정 불러오는 중"
+                    : monthSessionsQ.isError
+                      ? "일정 확인 실패"
+                      : `클리닉 ${sessionCount}개`;
+
+                  return (
+                    <button
+                      key={dateISO}
+                      type="button"
+                      role="gridcell"
+                      className={`${styles.monthDay} ${
+                        isSelected ? styles.monthDaySelected : ""
+                      } ${isToday ? styles.monthDayToday : ""} ${
+                        isOutsideMonth ? styles.monthDayOutside : ""
+                      }`}
+                      aria-label={`${date.format("M월 D일")} ${MONTH_DAY_LABELS[date.day()]}요일, ${loadLabel}`}
+                      aria-current={isToday ? "date" : undefined}
+                      aria-selected={isSelected}
+                      onClick={() => selectCalendarDate(dateISO)}
+                    >
+                      <span className={styles.monthDayNumber}>{date.format("D")}</span>
+                      <span className={styles.monthDayCount}>
+                        {monthSessionsQ.isLoading
+                          ? "—"
+                          : monthSessionsQ.isError
+                            ? "확인 실패"
+                            : `${sessionCount}개`}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </section>
 
         <nav className={styles.dateNavigator} aria-label="주간 날짜 선택">
           {days.map((date, index) => {
@@ -318,12 +492,19 @@ export default function ClinicSchedulePage() {
             return (
               <button
                 key={dateISO}
+                ref={(element) => {
+                  if (element) dateNavRefs.current.set(dateISO, element);
+                  else dateNavRefs.current.delete(dateISO);
+                }}
                 type="button"
                 className={`${styles.dateNavButton} ${isSelected ? styles.dateNavButtonSelected : ""}`}
                 aria-label={`${date.format("M월 D일")} ${DAY_LABELS[index]}요일, ${loadLabel}`}
                 aria-current={isToday ? "date" : undefined}
                 aria-pressed={isSelected}
-                onClick={() => setSelectedDate(dateISO)}
+                onClick={() => {
+                  setSelectedDate(dateISO);
+                  setMonthAnchor(dateISO);
+                }}
               >
                 <span className={styles.dateNavWeekday}>
                   {DAY_LABELS[index]}
