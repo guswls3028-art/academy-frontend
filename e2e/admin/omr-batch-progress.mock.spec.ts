@@ -124,6 +124,7 @@ async function installDashboardApi(
     resumeOrdinals?: number[];
     detailExamId?: number;
     failDetail?: boolean;
+    holdRetryResponse?: boolean;
     holdCompletionClaim?: boolean;
   } = {},
 ) {
@@ -148,6 +149,11 @@ async function installDashboardApi(
   const uploadBodies: string[] = [];
   let partialUpload = false;
   const retryBodies: number[][] = [];
+  let retryResponses = 0;
+  let releaseRetryResponse: (() => void) | null = null;
+  const retryResponseGate = new Promise<void>((resolve) => {
+    releaseRetryResponse = resolve;
+  });
   let releaseCompletionClaim: (() => void) | null = null;
   const completionClaimGate = new Promise<void>((resolve) => {
     releaseCompletionClaim = resolve;
@@ -253,12 +259,14 @@ async function installDashboardApi(
     ) {
       const payload = request.postDataJSON() as { item_ordinals?: number[] };
       retryBodies.push(payload.item_ordinals ?? []);
+      if (options.holdRetryResponse) await retryResponseGate;
       await safeJson(route, {
         ...batchSummary({ terminal: true, claimed, admissionFailure: true }),
         retried_ordinals: [22],
         requires_file_ordinals: [21],
         skipped_ordinals: [],
       });
+      retryResponses += 1;
       return;
     }
     if (
@@ -358,6 +366,7 @@ async function installDashboardApi(
     setListFailure: (shouldFail: boolean) => { listFailureForced = shouldFail; },
     hideBatches: () => { hideBatches = true; },
     releaseCompletionClaim: () => { releaseCompletionClaim?.(); },
+    releaseRetryResponse: () => { releaseRetryResponse?.(); },
     releaseUploadResponse: () => { releaseUploadResponse?.(); },
     uploadState: () => ({
       initializePosts,
@@ -366,6 +375,7 @@ async function installDashboardApi(
       uploadBodies: [...uploadBodies],
     }),
     retryBodies: () => [...retryBodies],
+    retryResponses: () => retryResponses,
   };
 }
 
@@ -783,6 +793,33 @@ test.describe("OMR durable batch progress", () => {
     ).toHaveCount(0);
     expect(api.counts().detailGets).toBe(detailGetsBeforeRelease);
     await expect(page.getByText("OMR 처리가 끝났습니다.", { exact: false })).toHaveCount(0);
+  });
+
+  test("지연된 retry 응답은 logout 뒤 새 계정 작업을 복원하지 않는다", async ({ page }) => {
+    const api = await installDashboardApi(page, {
+      admissionFailure: true,
+      holdRetryResponse: true,
+    });
+    api.finish();
+    await page.goto(`${BASE}/workspace/dashboard`, { waitUntil: "domcontentloaded" });
+    const task = await openWorkbox(page);
+    await task.getByRole("button", { name: "재처리 요청" }).click();
+    await expect.poll(() => api.retryBodies().length).toBe(1);
+    expect(api.retryResponses()).toBe(0);
+
+    await clearAndSwitchSessionInPlace(page, { userId: 96, tenantCode: "hakwonplus" });
+    api.hideBatches();
+    const detailGetsBeforeRelease = api.counts().detailGets;
+
+    api.releaseRetryResponse();
+    await expect.poll(() => api.retryResponses()).toBe(1);
+    await settleBrowserFrames(page);
+    expect(await emittedOmrTaskAfterSessionSwitch(page)).toBe(false);
+    await expect(
+      page.locator(".async-status-bar__item").filter({ hasText: "OMR 22장" }),
+    ).toHaveCount(0);
+    expect(api.counts().detailGets).toBe(detailGetsBeforeRelease);
+    await expect(page.getByText("개 항목의 재처리를 시작했습니다.", { exact: false })).toHaveCount(0);
   });
 
   test("완료 claim 대기 중 logout clear는 이전 작업과 toast를 복원하지 않는다", async ({ page }) => {

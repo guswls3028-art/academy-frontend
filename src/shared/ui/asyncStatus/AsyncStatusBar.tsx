@@ -337,6 +337,15 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
     if (!task.meta?.jobId || retrying) return;
     setRetrying(true);
     if (task.meta.jobType === "omr_batch" && task.omrBatch) {
+      const tenant = task.tenantScope ?? (getTenantCodeForApiRequest() ?? "");
+      const generation = asyncStatusStore.getSessionGeneration();
+      const isCurrentRetry = () => (
+        asyncStatusStore.getSessionGeneration() === generation
+        && (getTenantCodeForApiRequest() ?? "") === tenant
+        && asyncStatusStore.getState().some(
+          (candidate) => candidate.id === task.id && (candidate.tenantScope ?? "") === tenant,
+        )
+      );
       try {
         const retryOrdinals = [
           ...new Set([
@@ -349,6 +358,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
           task.meta.jobId,
           retryOrdinals,
         );
+        if (!isCurrentRetry()) return;
         asyncStatusStore.upsertOmrBatch(result);
         if (result.requires_file_ordinals.length > 0) {
           const { lecture_id: lectureId, session_id: sessionId, exam_id: examId } = result;
@@ -363,12 +373,13 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
           feedback.success(`${result.retried_ordinals.length}개 항목의 재처리를 시작했습니다.`);
         }
       } catch (error: unknown) {
+        if (!isCurrentRetry()) return;
         const message =
           (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
           || "OMR 재처리 요청에 실패했습니다.";
         feedback.error(message);
       } finally {
-        setRetrying(false);
+        if (isCurrentRetry()) setRetrying(false);
       }
       return;
     }

@@ -23,7 +23,7 @@
   POST를 호출하고, 서버가 `notify=true`를 준 경우에만 완료 피드백을 한 번 표시한다.
   동시 탭과 reload의 후속 claim은 `false`다.
 - logout/계정 전환으로 작업박스가 비워지면 이전 session generation의 지연 list hydration,
-  batch 초기화·업로드, poll·claim 응답은 같은 tenant여도 폐기한다. 각 비동기 흐름은 시작
+  batch 초기화·업로드·재처리, poll·claim 응답은 같은 tenant여도 폐기한다. 각 비동기 흐름은 시작
   tenant와 generation을 고정하고, 응답 시점에 둘 중 하나가 달라졌거나 화면이 unmount됐으면
   store·안내를 갱신하지 않는다. 이전 사용자의 batch나 완료 toast를 다시 만들지 않는다.
 
@@ -69,7 +69,7 @@ CTA를 제공한다. 다른 시험이나 차시로 fallback하지 않는다.
   상태 칩과 OMR 검토/재시도 CTA가 가로로 잘리지 않아야 한다.
 - `e2e/admin/omr-batch-progress.mock.spec.ts`는 read-only GET, terminal claim 1회,
   22개 단일 multipart, 응답 중단 후 정확한 ordinal 재선택, reload 복구,
-  삭제/재추가와 비우기/재선택 ordinal, query detail fail-closed, logout 중 지연 list/upload/claim,
+  삭제/재추가와 비우기/재선택 ordinal, query detail fail-closed, logout 중 지연 list/upload/retry/claim,
   loading/error/empty와 수동 새로고침 partial failure, 390px overflow를 고정한다.
 - 서버의 1/22/100 총수, 100건 중 부분 실패, 중복 없는 retry, tenant/creator scope와
   PostgreSQL completion-claim race는
