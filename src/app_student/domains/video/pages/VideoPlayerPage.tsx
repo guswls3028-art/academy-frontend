@@ -11,6 +11,7 @@ import {
   updateVideoProgress,
   toggleVideoLike,
   type StudentSessionVideosResponse,
+  type StudentVideoAccessCheck,
   type StudentVideoPlayback,
 } from "../api/video.api";
 import { Link } from "react-router";
@@ -49,6 +50,22 @@ function playlistProgressStyle(progress: number): CSSProperties {
 function useQueryParams() {
   const { search } = useLocation();
   return useMemo(() => new URLSearchParams(search), [search]);
+}
+
+const POLICY_CHANGED_MESSAGE = "재생 정책이 변경되었습니다. 새 권한을 확인한 뒤 다시 시도해 주세요.";
+
+function playbackMatchesAccess(
+  playback: StudentVideoPlayback | undefined,
+  access: StudentVideoAccessCheck | undefined,
+): boolean {
+  if (!playback || !access) return false;
+  const playbackMode = playback.policy?.access_mode ?? "FREE_REVIEW";
+  const playbackMonitoring = playback.policy?.monitoring_enabled ?? false;
+  return playbackMode === access.access_mode
+    && Number(playback.policy_version) === access.policy_version
+    && Boolean(playback.playback_token)
+    && playbackMonitoring === access.monitoring_enabled
+    && (!access.monitoring_enabled || Boolean(playback.playback_session_id));
 }
 
 /* ─── 좋아요 버튼 ─── */
@@ -385,27 +402,14 @@ export default function VideoPlayerPage() {
     void refetchPlayback().then((result) => {
       if (!isCurrentTransition()) return;
       const refreshed = result.data;
-      const refreshedMode = refreshed?.policy?.access_mode ?? "FREE_REVIEW";
-      const refreshedVersion = Number(refreshed?.policy_version);
-      const hasCurrentToken = Boolean(refreshed?.playback_token);
-      const hasRequiredMonitoring = !access.monitoring_enabled || Boolean(
-        refreshed?.policy?.monitoring_enabled
-        && refreshed?.playback_session_id,
-      );
-      if (
-        result.error
-        || refreshedMode !== access.access_mode
-        || refreshedVersion !== access.policy_version
-        || !hasCurrentToken
-        || !hasRequiredMonitoring
-      ) {
-        setFatalError("재생 정책이 변경되었습니다. 새 권한을 확인한 뒤 다시 시도해 주세요.");
+      if (result.error || !playbackMatchesAccess(refreshed, access)) {
+        setFatalError(POLICY_CHANGED_MESSAGE);
         return;
       }
       setFatalError(null);
     }).catch(() => {
       if (!isCurrentTransition()) return;
-      setFatalError("재생 정책이 변경되었습니다. 새 권한을 확인한 뒤 다시 시도해 주세요.");
+      setFatalError(POLICY_CHANGED_MESSAGE);
     }).finally(() => {
       if (!isCurrentTransition()) return;
       setPolicyRebootstrapPending(false);
@@ -424,13 +428,16 @@ export default function VideoPlayerPage() {
       playbackQuery.refetch(),
       currentAccessQuery.refetch(),
     ]);
+    if (!isCurrentRetry()) return;
     if (
-      isCurrentRetry()
-      && !playbackResult.error
-      && !accessResult.error
+      playbackResult.error
+      || accessResult.error
+      || !playbackMatchesAccess(playbackResult.data, accessResult.data)
     ) {
-      setFatalError(null);
+      setFatalError(POLICY_CHANGED_MESSAGE);
+      return;
     }
+    setFatalError(null);
   }, [currentAccessQuery, playbackQuery, policyTransitionScopeKey]);
 
   /* ─── 자동 다음 재생 ─── */

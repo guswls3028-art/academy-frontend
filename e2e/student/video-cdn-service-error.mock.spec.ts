@@ -1,4 +1,5 @@
 import { expect, test } from "../fixtures/strictTest";
+import type { Page } from "@playwright/test";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 
@@ -18,6 +19,40 @@ function fakeJwt(): string {
     user_id: 1772,
   })).toString("base64url");
   return `e30.${payload}.sig`;
+}
+
+async function cycleDocumentVisibility(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const originalVisibilityState = Object.getOwnPropertyDescriptor(document, "visibilityState");
+    const originalHidden = Object.getOwnPropertyDescriptor(document, "hidden");
+    const setVisibility = (visibilityState: "hidden" | "visible") => {
+      Object.defineProperty(document, "visibilityState", {
+        configurable: true,
+        get: () => visibilityState,
+      });
+      Object.defineProperty(document, "hidden", {
+        configurable: true,
+        get: () => visibilityState === "hidden",
+      });
+      document.dispatchEvent(new Event("visibilitychange", { bubbles: true }));
+    };
+
+    try {
+      setVisibility("hidden");
+      setVisibility("visible");
+    } finally {
+      if (originalVisibilityState) {
+        Object.defineProperty(document, "visibilityState", originalVisibilityState);
+      } else {
+        Reflect.deleteProperty(document, "visibilityState");
+      }
+      if (originalHidden) {
+        Object.defineProperty(document, "hidden", originalHidden);
+      } else {
+        Reflect.deleteProperty(document, "hidden");
+      }
+    }
+  });
 }
 
 test.describe("student video CDN service errors", () => {
@@ -245,20 +280,30 @@ test.describe("student video CDN service errors", () => {
     await initialAccessResponse.finished();
     await expect(page.getByRole("heading", { name: "종료 전 열어 둔 무료복습 영상" })).toBeVisible();
     await expect.poll(() => accessChecks).toBe(1);
-    await page.evaluate(() => new Promise<void>((resolve) => queueMicrotask(resolve)));
+    const activeVisibilityCheck = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname.endsWith("/student/video/videos/562/playback/")
+        && url.searchParams.get("access_check") === "1"
+        && response.status() === 200;
+    }, { timeout: 30_000 });
+    await cycleDocumentVisibility(page);
+    const activeVisibilityResponse = await activeVisibilityCheck;
+    await activeVisibilityResponse.finished();
+    await expect.poll(() => accessChecks).toBe(2);
+    await page.evaluate(() => new Promise<void>((resolve) => window.setTimeout(resolve, 10)));
     const pauseTime = await page.evaluate(() => Date.now() + 1_000);
     await page.clock.pauseAt(pauseTime);
 
     denyAccess = true;
     await page.clock.runFor(30_000);
-    await expect.poll(() => accessChecks).toBe(2);
+    await expect.poll(() => accessChecks).toBe(3);
     await expect(page.getByRole("heading", { name: "재생을 시작할 수 없어요" })).toBeVisible();
     await expect(page.getByText("종료된 강의의 영상은 시청할 수 없습니다.")).toBeVisible();
     await expect(page.getByText("종료 전 열어 둔 무료복습 영상")).toHaveCount(0);
 
     const deniedAccessChecks = accessChecks;
     await page.clock.runFor(60_000);
-    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await cycleDocumentVisibility(page);
     await page.clock.runFor(1_000);
     expect(accessChecks).toBe(deniedAccessChecks);
 
@@ -267,7 +312,7 @@ test.describe("student video CDN service errors", () => {
       window.dispatchEvent(new PopStateEvent("popstate", { state: window.history.state }));
     });
     await page.clock.runFor(60_000);
-    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await cycleDocumentVisibility(page);
     await page.clock.runFor(1_000);
     expect(accessChecks).toBe(deniedAccessChecks);
   });
@@ -551,7 +596,7 @@ test.describe("student video access races on desktop", () => {
 
     releaseARefetch();
     await expect.poll(() => aRefetchResponses).toBe(1);
-    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await cycleDocumentVisibility(page);
     await page.waitForLoadState("networkidle");
 
     await expect(page.getByText("B 강의가 종료되어 시청할 수 없습니다.")).toBeVisible();
@@ -737,5 +782,203 @@ test.describe("student video access races on desktop", () => {
     await expect(page.getByText("영상 서비스에서 재생 파일을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.")).toBeVisible();
     await expect(page.getByText("수동 재시도 중 권한 종료 영상 B")).toHaveCount(0);
     expect({ bPlaybackRequests, bAccessChecks, bCdnRequests }).toEqual(deniedRequestCounts);
+  });
+
+  test("같은 영상 재시도의 교차 정책 응답은 오래된 CDN을 열지 않는다", async ({ page }) => {
+    let playbackRequests = 0;
+    let accessChecks = 0;
+    let staleCdnRequests = 0;
+    let releaseStalePlayback!: () => void;
+    let releaseProctoredAccess!: () => void;
+    let releaseCurrentPlayback!: () => void;
+    const stalePlaybackGate = new Promise<void>((resolve) => {
+      releaseStalePlayback = resolve;
+    });
+    const proctoredAccessGate = new Promise<void>((resolve) => {
+      releaseProctoredAccess = resolve;
+    });
+    const currentPlaybackGate = new Promise<void>((resolve) => {
+      releaseCurrentPlayback = resolve;
+    });
+    const video = {
+      id: 562,
+      session_id: 394,
+      enrollment_id: 1304,
+      title: "교차 정책 재시도 영상",
+      status: "READY",
+      source_type: "youtube",
+      youtube_video_id: "VnqgmOJaMGc",
+      duration: 600,
+      progress: 0,
+      completed: false,
+      last_position: 0,
+      allow_skip: true,
+      max_speed: 1,
+      show_watermark: false,
+      access_mode: "FREE_REVIEW",
+    };
+    const initialPlayback = {
+      video,
+      play_url: "https://www.youtube-nocookie.com/embed/VnqgmOJaMGc",
+      playback_token: "initial-free-v1-token",
+      playback_session_id: null,
+      playback_expires_at: Math.floor(Date.now() / 1000) + 600,
+      policy_version: 1,
+      policy: {
+        access_mode: "FREE_REVIEW",
+        monitoring_enabled: false,
+        allow_seek: true,
+        playback_rate: { max: 1, ui_control: true },
+        source: { type: "youtube", provider: "youtube", youtube_video_id: "VnqgmOJaMGc" },
+      },
+    };
+    const stalePlayback = {
+      ...initialPlayback,
+      video: {
+        ...video,
+        source_type: "s3",
+        youtube_video_id: "",
+      },
+      play_url: "https://cdn.hakwonplus.com/e2e/crossed-policy-stale/master.m3u8?sig=stale",
+      playback_token: "stale-free-v1-token",
+      policy: {
+        ...initialPlayback.policy,
+        source: { type: "hls", provider: "uploaded", youtube_video_id: "" },
+      },
+    };
+    const currentPlayback = {
+      ...initialPlayback,
+      playback_token: "current-proctored-v2-token",
+      playback_session_id: "current-proctored-session-v2",
+      policy_version: 2,
+      policy: {
+        ...initialPlayback.policy,
+        access_mode: "PROCTORED_CLASS",
+        monitoring_enabled: true,
+      },
+    };
+
+    await page.addInitScript(({ token }) => {
+      localStorage.setItem("access", token);
+      localStorage.setItem("refresh", token);
+      localStorage.setItem("tenant_code", "limglish");
+      sessionStorage.setItem("tenantCode", "limglish");
+    }, { token: fakeJwt() });
+
+    await page.route("https://cdn.hakwonplus.com/e2e/crossed-policy-stale/**", async (route) => {
+      staleCdnRequests += 1;
+      await route.fulfill({
+        status: 200,
+        headers: { "access-control-allow-origin": "*" },
+        contentType: "application/vnd.apple.mpegurl",
+        body: "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:10\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-ENDLIST\n",
+      });
+    });
+
+    await page.route("**/api/v1/**", async (route) => {
+      const url = new URL(route.request().url());
+      const path = url.pathname.replace(/^\/api\/v1/, "");
+      const json = (body: unknown, status = 200) => route.fulfill({ json: body, status });
+
+      if (path === "/core/program/") {
+        return json({
+          tenantCode: "limglish",
+          display_name: "임근혁 영어",
+          ui_config: {},
+          feature_flags: {},
+          is_active: true,
+        });
+      }
+      if (path === "/core/me/") {
+        return json({
+          id: 1772,
+          username: "student",
+          name: "학생",
+          is_staff: false,
+          is_superuser: false,
+          tenantRole: "student",
+          linkedStudentId: 1,
+          linkedStudentName: "학생",
+          must_change_password: false,
+        });
+      }
+      if (path === "/student/video/videos/562/playback/") {
+        if (url.searchParams.get("access_check") === "1") {
+          accessChecks += 1;
+          if (accessChecks === 1) {
+            return json({ detail: "재생 권한을 다시 확인해 주세요." }, 403);
+          }
+          await proctoredAccessGate;
+          return json({
+            ok: true,
+            access_mode: "PROCTORED_CLASS",
+            monitoring_enabled: true,
+            policy_version: 2,
+          });
+        }
+        playbackRequests += 1;
+        if (playbackRequests === 1) return json(initialPlayback);
+        if (playbackRequests === 2) {
+          await stalePlaybackGate;
+          return json(stalePlayback);
+        }
+        await currentPlaybackGate;
+        return json(currentPlayback);
+      }
+      if (path === "/student/video/sessions/394/videos/") {
+        return json({ items: [video] });
+      }
+      if (path === "/student/video/videos/562/comments/") {
+        return json({ count: 0, results: [] });
+      }
+      return json({});
+    });
+
+    await page.goto(
+      `${BASE}/student/video/play?video=562&enrollment=1304&session=394`,
+      { waitUntil: "domcontentloaded", timeout: 30_000 },
+    );
+    await expect(page.getByText("재생 권한을 다시 확인해 주세요.")).toBeVisible();
+
+    const stalePlaybackResponse = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname.endsWith("/student/video/videos/562/playback/")
+        && url.searchParams.get("access_check") !== "1"
+        && response.status() === 200;
+    });
+    const proctoredAccessResponse = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname.endsWith("/student/video/videos/562/playback/")
+        && url.searchParams.get("access_check") === "1"
+        && response.status() === 200;
+    });
+    await page.getByRole("button", { name: "다시 시도" }).click();
+    await expect.poll(() => ({ playbackRequests, accessChecks })).toEqual({
+      playbackRequests: 2,
+      accessChecks: 2,
+    });
+
+    releaseStalePlayback();
+    await stalePlaybackResponse;
+    await expect(page.getByText("재생 권한을 다시 확인해 주세요.")).toBeVisible();
+    expect(staleCdnRequests).toBe(0);
+
+    releaseProctoredAccess();
+    await proctoredAccessResponse;
+    await expect.poll(() => playbackRequests).toBe(3);
+    await page.evaluate(() => new Promise<void>((resolve) => window.setTimeout(resolve, 500)));
+    expect(staleCdnRequests).toBe(0);
+    await expect(page.getByText("교차 정책 재시도 영상")).toHaveCount(0);
+
+    const currentPlaybackResponse = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname.endsWith("/student/video/videos/562/playback/")
+        && url.searchParams.get("access_check") !== "1"
+        && response.status() === 200;
+    });
+    releaseCurrentPlayback();
+    await currentPlaybackResponse;
+    await expect(page.getByRole("heading", { name: "교차 정책 재시도 영상" })).toBeVisible();
+    expect(staleCdnRequests).toBe(0);
   });
 });
