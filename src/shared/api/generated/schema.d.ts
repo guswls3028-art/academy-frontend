@@ -10700,12 +10700,23 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * @description multipart/form-data:
-         *       - files: File[]  (반복)
-         *       - (optional) sheet_id: number  (payload로 전달)
-         */
         post: operations["submissions_submissions_exams_omr_batch_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/submissions/submissions/exams/{exam_id}/omr/batches/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["submissions_submissions_exams_omr_batches_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -10738,6 +10749,70 @@ export interface paths {
         get: operations["submissions_submissions_homework_candidates_retrieve"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/submissions/submissions/omr/batches/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["submissions_submissions_omr_batches_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/submissions/submissions/omr/batches/{batch_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["submissions_submissions_omr_batches_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/submissions/submissions/omr/batches/{batch_id}/claim-completion/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["submissions_submissions_omr_batches_claim_completion_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/submissions/submissions/omr/batches/{batch_id}/retry/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["submissions_submissions_omr_batches_retry_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -13453,6 +13528,85 @@ export interface components {
         ModeEnum: "once" | "repeat";
         /** @enum {unknown} */
         NullEnum: null;
+        OmrUploadBatchCompletionClaimResponse: {
+            batch: components["schemas"]["OmrUploadBatchSummary"];
+            notify: boolean;
+        };
+        OmrUploadBatchInitializeRequestRequest: {
+            session_id?: number | null;
+            total_count: number;
+        };
+        OmrUploadBatchRetryRequestRequest: {
+            item_ordinals: number[];
+        };
+        OmrUploadBatchRetryResult: {
+            admission_failed_ordinals: number[];
+            completion_notice_claimed: boolean;
+            counts: {
+                [key: string]: number;
+            };
+            /** Format: date-time */
+            created_at: string;
+            exam_id: number;
+            failed_ordinals: number[];
+            /** Format: uuid */
+            id: string;
+            lecture_id: number | null;
+            overall_status: string;
+            pending_admission_ordinals: number[];
+            requires_file_ordinals: number[];
+            retried_ordinals: number[];
+            session_id: number | null;
+            skipped_ordinals: number[];
+            terminal: boolean;
+            total_count: number;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        OmrUploadBatchSummary: {
+            admission_failed_ordinals: number[];
+            completion_notice_claimed: boolean;
+            counts: {
+                [key: string]: number;
+            };
+            /** Format: date-time */
+            created_at: string;
+            exam_id: number;
+            failed_ordinals: number[];
+            /** Format: uuid */
+            id: string;
+            lecture_id: number | null;
+            overall_status: string;
+            pending_admission_ordinals: number[];
+            session_id: number | null;
+            terminal: boolean;
+            total_count: number;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        OmrUploadBatchUploadResult: {
+            admission_failed_ordinals: number[];
+            completion_notice_claimed: boolean;
+            counts: {
+                [key: string]: number;
+            };
+            /** Format: date-time */
+            created_at: string;
+            created_count: number;
+            exam_id: number;
+            failed_ordinals: number[];
+            /** Format: uuid */
+            id: string;
+            lecture_id: number | null;
+            overall_status: string;
+            pending_admission_ordinals: number[];
+            session_id: number | null;
+            submission_ids: number[];
+            terminal: boolean;
+            total_count: number;
+            /** Format: date-time */
+            updated_at: string;
+        };
         /**
          * @description * `pdf` - pdf
          *     * `pptx` - pptx
@@ -35044,14 +35198,76 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                    files?: string[];
+                    session_id?: number;
+                    sheet_id?: number;
+                } | {
+                    /** Format: binary */
+                    file?: string;
+                    files: string[];
+                    session_id?: number;
+                    sheet_id?: number;
+                } | {
+                    /** Format: uuid */
+                    batch_id: string;
+                    /** Format: binary */
+                    file: string;
+                    files?: string[];
+                    item_ordinals: number[];
+                    session_id?: number;
+                    sheet_id?: number;
+                } | {
+                    /** Format: uuid */
+                    batch_id: string;
+                    /** Format: binary */
+                    file?: string;
+                    files: string[];
+                    item_ordinals: number[];
+                    session_id?: number;
+                    sheet_id?: number;
+                };
+            };
+        };
         responses: {
-            /** @description No response body */
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["OmrUploadBatchUploadResult"];
+                };
+            };
+        };
+    };
+    submissions_submissions_exams_omr_batches_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exam_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OmrUploadBatchInitializeRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["OmrUploadBatchInitializeRequestRequest"];
+                "multipart/form-data": components["schemas"]["OmrUploadBatchInitializeRequestRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OmrUploadBatchSummary"];
+                };
             };
         };
     };
@@ -35092,6 +35308,94 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    submissions_submissions_omr_batches_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OmrUploadBatchSummary"][];
+                };
+            };
+        };
+    };
+    submissions_submissions_omr_batches_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OmrUploadBatchSummary"];
+                };
+            };
+        };
+    };
+    submissions_submissions_omr_batches_claim_completion_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OmrUploadBatchCompletionClaimResponse"];
+                };
+            };
+        };
+    };
+    submissions_submissions_omr_batches_retry_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OmrUploadBatchRetryRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["OmrUploadBatchRetryRequestRequest"];
+                "multipart/form-data": components["schemas"]["OmrUploadBatchRetryRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OmrUploadBatchRetryResult"];
+                };
             };
         };
     };
