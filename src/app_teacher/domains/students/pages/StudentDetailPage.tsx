@@ -17,12 +17,13 @@ import { fetchStudent, fetchStudentAccountNotifications, fetchStudentCustomField
 import type { StudentAccountNotificationLog, TeacherStudentExamResult } from "../api";
 import type { StudentExamTrendPoint, StudentHomeworkGrade } from "@/shared/api/contracts/studentGrades";
 import { teacherStudentsQueryKeys } from "../queryKeys";
-import type {
-  ClientEnrollmentLite,
-  ClientStudent,
-  ClientStudentCustomFieldDefinition,
-  ClientStudentTag,
-  StudentCustomFieldValues,
+import {
+  studentAccountStateLabel,
+  type ClientEnrollmentLite,
+  type ClientStudent,
+  type ClientStudentCustomFieldDefinition,
+  type ClientStudentTag,
+  type StudentCustomFieldValues,
 } from "@/shared/api/contracts/students";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -211,6 +212,7 @@ export default function StudentDetailPage() {
         {studentPhone && <InfoRow label="학생 전화" value={formatPhone(studentPhone)} href={`tel:${studentPhone}`} />}
         {student.gender && <InfoRow label="성별" value={student.gender === "M" ? "남" : student.gender === "F" ? "여" : student.gender} />}
         {student.registeredAt && <InfoRow label="등록일" value={new Date(student.registeredAt).toLocaleDateString("ko-KR")} />}
+        <InfoRow label="계정 상태" value={studentAccountStateLabel(student.accountState)} />
         {student.school && <InfoRow label="학교" value={student.school} />}
         {student.grade != null && <InfoRow label="학년" value={`${student.grade}학년`} />}
         {student.schoolClass && <InfoRow label="반" value={student.schoolClass} />}
@@ -863,7 +865,7 @@ function EditStudentSheet({
       qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.student(studentId) });
       qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.students });
       qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.teacherStudents });
-      teacherToast.success(isActive ? "학생이 비활성화되었습니다." : "학생이 활성화되었습니다.");
+      teacherToast.success(isActive ? "관리 대상에서 제외했습니다." : "관리 대상으로 포함했습니다.");
     },
     onError: (e) => teacherToast.error(extractApiError(e, "상태를 변경하지 못했습니다.")),
   });
@@ -922,16 +924,18 @@ function EditStudentSheet({
         {/* Status toggle */}
         <div className="flex items-center justify-between py-2" style={{ borderTop: "1px solid var(--tc-border-subtle)" }}>
           <div>
-            <span className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>학생 상태</span>
+            <span className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>관리 대상</span>
             <span className="text-[11px] ml-2" style={{ color: isActive ? "var(--tc-success)" : "var(--tc-text-muted)" }}>
-              {isActive ? "활성" : "비활성"}
+              {isActive ? "관리 중" : "관리 제외"}
             </span>
           </div>
           <button onClick={async () => {
               const ok = await confirm({
-                title: isActive ? "학생 비활성화" : "학생 활성화",
-                message: isActive ? "이 학생을 비활성화하시겠습니까? 로그인이 차단됩니다." : "이 학생을 다시 활성화하시겠습니까?",
-                confirmText: isActive ? "비활성화" : "활성화",
+                title: isActive ? "관리 대상에서 제외" : "관리 대상으로 포함",
+                message: isActive
+                  ? "관리 대상에서 제외하시겠습니까? 로그인 권한과 수강 상태는 변경되지 않습니다."
+                  : "관리 대상으로 다시 포함하시겠습니까? 로그인 권한과 수강 상태는 변경되지 않습니다.",
+                confirmText: isActive ? "관리 제외" : "관리 포함",
                 danger: isActive,
               });
               if (ok) toggleMut.mutate();
@@ -939,7 +943,7 @@ function EditStudentSheet({
             className="flex items-center gap-1 text-xs font-semibold cursor-pointer"
             style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: isActive ? "var(--tc-success-bg)" : "var(--tc-danger-bg)", color: isActive ? "var(--tc-success)" : "var(--tc-danger)" }}>
             {isActive ? <ToggleRight size={ICON.xs} /> : <ToggleLeft size={ICON.xs} />}
-            {isActive ? "활성" : "비활성"}
+            {isActive ? "관리 중" : "관리 제외"}
           </button>
         </div>
 
@@ -958,7 +962,7 @@ function EditStudentSheet({
 
         {/* Delete */}
         <button onClick={async () => {
-            const ok = await confirm({ title: "학생 삭제", message: "이 학생을 삭제하시겠습니까? 30일 이내 복구할 수 있습니다.", confirmText: "삭제", danger: true });
+            const ok = await confirm({ title: "학생 삭제", message: "30일 동안 계정 로그인을 정지합니다. 수강·학습 데이터와 삭제 전 수강 상태는 보존되며 기간 내 복구할 수 있습니다.", confirmText: "삭제", danger: true });
             if (ok) onDelete();
           }}
           className="w-full text-sm font-semibold cursor-pointer"

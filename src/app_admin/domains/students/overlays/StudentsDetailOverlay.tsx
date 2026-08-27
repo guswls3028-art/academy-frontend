@@ -27,6 +27,7 @@ import {
   attachStudentTag,
   detachStudentTag,
   createMemo,
+  studentAccountStateLabel,
   toggleStudentActive,
   type ClientAccountNotificationLog,
   type ClientEnrollmentLite,
@@ -350,24 +351,28 @@ export default function StudentsDetailOverlay({
                       <dt>시험코드</dt>
                       <dd>{formatOmrCode(student.omrCode)}</dd>
                     </div>
+                    <div className={styles.identityMetaItem}>
+                      <dt>계정</dt>
+                      <dd>{studentAccountStateLabel(student.accountState)}</dd>
+                    </div>
                   </dl>
                 </div>
               </div>
               <div className="ds-overlay-header__right">
                 <div className={`ds-overlay-header__actions ${styles.headerActions}`}>
                   <div className={styles.statusControl}>
-                    <span className={styles.statusLabel}>학생 상태</span>
+                    <span className={styles.statusLabel}>관리 대상</span>
                     <button
                     type="button"
                     className={styles.statusToggle}
                     data-active={student.active ? "true" : "false"}
                     onClick={() => toggleActive.mutate(!student.active)}
                     disabled={toggleActive.isPending}
-                    aria-label={student.active ? "현재 활성, 비활성으로 변경" : "현재 비활성, 활성으로 변경"}
-                    title={student.active ? "눌러서 비활성으로 변경" : "눌러서 활성으로 변경"}
+                    aria-label={student.active ? "현재 관리 중, 관리 대상에서 제외" : "현재 관리 제외, 관리 대상으로 포함"}
+                    title={student.active ? "관리 대상에서 제외" : "관리 대상으로 포함"}
                   >
                       <span className={styles.statusDot} aria-hidden />
-                      {toggleActive.isPending ? "변경 중" : student.active ? "활성" : "비활성"}
+                      {toggleActive.isPending ? "변경 중" : student.active ? "관리 중" : "관리 제외"}
                     </button>
                   </div>
                   <span className={styles.actionDivider} aria-hidden />

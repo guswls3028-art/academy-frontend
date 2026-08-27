@@ -54,7 +54,7 @@ export function getStudentsTableColumnsDef(
       minWidth: 80,
     },
     { key: "tags", label: "태그", defaultWidth: TABLE_COL.tag, minWidth: 60 },
-    ...(isDeletedTab ? [] : [{ key: "active", label: "상태", defaultWidth: TABLE_COL.status, minWidth: 60 }]),
+    ...(isDeletedTab ? [] : [{ key: "active", label: "관리 대상", defaultWidth: TABLE_COL.status, minWidth: 72 }]),
     ...customFieldDefinitions
       .filter((definition) => definition.active)
       .map((definition) => ({
@@ -279,13 +279,13 @@ export default function StudentsTable({
               e.stopPropagation();
               onToggleActive(s.id, !s.active);
             }}
-            ariaLabel={s.active ? "비활성으로 변경" : "활성으로 변경"}
+            ariaLabel={s.active ? "관리 대상에서 제외" : "관리 대상으로 포함"}
           >
-            {togglingId === s.id ? "…" : s.active ? "활성" : "비활성"}
+            {togglingId === s.id ? "…" : s.active ? "관리 중" : "관리 제외"}
           </Badge>
         ) : (
           <Badge variant="solid" status={s.active ? "active" : "inactive"}>
-            {s.active ? "활성" : "비활성"}
+            {s.active ? "관리 중" : "관리 제외"}
           </Badge>
         );
       default:

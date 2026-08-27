@@ -24,6 +24,15 @@ export interface ClientEnrollmentLite {
   enrolledAt: string | null;
 }
 
+export type StudentAccountState = components["schemas"]["AccountStateEnum"];
+
+export function studentAccountStateLabel(state: StudentAccountState): string {
+  if (state === "ACTIVE") return "로그인 가능";
+  if (state === "DELETED") return "삭제 정지";
+  if (state === "UNLINKED") return "계정 미연결";
+  return "로그인 정지";
+}
+
 export type StudentCustomFieldType = "text" | "number" | "date" | "select";
 export type StudentCustomFieldValue = string | number | null;
 export type StudentCustomFieldValues = Record<string, StudentCustomFieldValue>;
@@ -75,7 +84,9 @@ export interface ClientStudent {
   gender: string | null;
 
   registeredAt: string | null;
+  /** 관리 대상 여부. 계정·삭제·수강 활성 상태와는 별개다. */
   active: boolean;
+  accountState: StudentAccountState;
   memo?: string | null;
   address?: string | null;
   /** 테넌트별 맞춤 학생 컬럼. 키는 라벨 변경과 무관한 영구 식별자다. */
@@ -258,6 +269,12 @@ function normalizeEnrollmentStatus(value: unknown): ClientEnrollmentLite["status
     : null;
 }
 
+function normalizeStudentAccountState(value: unknown): StudentAccountState {
+  return value === "ACTIVE" || value === "DELETED" || value === "UNLINKED"
+    ? value
+    : "INACTIVE";
+}
+
 function mapTag(item: unknown): StudentTag {
   const record = asRecord(item);
   return {
@@ -322,6 +339,7 @@ export function mapStudent(raw: unknown): ClientStudent {
 
     registeredAt: nullableStr(item.created_at),
     active: item.is_managed === true,
+    accountState: normalizeStudentAccountState(item.account_state),
     memo: nullableStr(item.memo),
     address: nullableStr(item.address),
     customFields: mapCustomFieldValues(item.custom_fields),

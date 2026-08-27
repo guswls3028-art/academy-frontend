@@ -411,7 +411,7 @@ export default function EditStudentModal({
 
           <div className="modal-form-row modal-form-row--1-auto">
             <span className={`modal-hint modal-hint--block ${styles.managementHint}`}>
-              상세에서 태그/메모/상태를 관리할 수 있습니다.
+              상세에서 태그·메모·관리 대상을 설정할 수 있습니다.
             </span>
             <Badge
               as="button"
@@ -421,7 +421,7 @@ export default function EditStudentModal({
               onClick={() => setForm((p) => ({ ...p, active: !p.active }))}
               disabled={busy}
             >
-              {form.active ? "활성" : "비활성"}
+              {form.active ? "관리 중" : "관리 제외"}
             </Badge>
           </div>
         </div>

@@ -252,7 +252,7 @@ export default function StudentListPage() {
             <div className="flex gap-1.5 flex-wrap">
               {filters.grade && <Badge tone="primary" pill>{filters.grade}학년</Badge>}
               {filters.gender && <Badge tone="primary" pill>{filters.gender === "M" ? "남" : "여"}</Badge>}
-              {filters.status && <Badge tone="primary" pill>{filters.status === "active" ? "활성" : "비활성"}</Badge>}
+              {filters.status && <Badge tone="primary" pill>{filters.status === "active" ? "관리 중" : "관리 제외"}</Badge>}
               <button onClick={() => setFilters({})} className="text-[11px] cursor-pointer" style={{ color: "var(--tc-danger)", background: "none", border: "none" }}>초기화</button>
             </div>
           )}
@@ -364,7 +364,7 @@ export default function StudentListPage() {
             <BulkBtn icon={<Lock size={ICON.xs} />} label="비번초기화" onClick={() => setBulkAction("password")} />
             <BulkBtn icon={<Trash2 size={ICON.xs} />} label="삭제" tone="danger"
               onClick={async () => {
-                const ok = await confirm({ title: `학생 ${selectedCount}명 삭제`, message: "30일 이내 복구할 수 있습니다. 삭제하시겠습니까?", confirmText: "삭제", danger: true });
+                const ok = await confirm({ title: `학생 ${selectedCount}명 삭제`, message: "30일 동안 계정 로그인을 정지합니다. 수강·학습 데이터와 삭제 전 수강 상태는 보존됩니다.", confirmText: "삭제", danger: true });
                 if (ok) deleteMut.mutate(Array.from(selectedIds));
               }} />
           </div>
@@ -376,7 +376,7 @@ export default function StudentListPage() {
         <div className="flex flex-col gap-4 p-4">
           <FilterGroup label="학년" options={[{ v: "", l: "전체" }, { v: "1", l: "1학년" }, { v: "2", l: "2학년" }, { v: "3", l: "3학년" }, { v: "4", l: "4학년" }, { v: "5", l: "5학년" }, { v: "6", l: "6학년" }]} value={filters.grade ?? ""} onChange={(v) => setFilters((f) => ({ ...f, grade: v || undefined }))} />
           <FilterGroup label="성별" options={[{ v: "", l: "전체" }, { v: "M", l: "남" }, { v: "F", l: "여" }]} value={filters.gender ?? ""} onChange={(v) => setFilters((f) => ({ ...f, gender: v || undefined }))} />
-          <FilterGroup label="상태" options={[{ v: "", l: "전체" }, { v: "active", l: "활성" }, { v: "inactive", l: "비활성" }]} value={filters.status ?? ""} onChange={(v) => setFilters((f) => ({ ...f, status: v || undefined }))} />
+          <FilterGroup label="관리 대상" options={[{ v: "", l: "전체" }, { v: "active", l: "관리 중" }, { v: "inactive", l: "관리 제외" }]} value={filters.status ?? ""} onChange={(v) => setFilters((f) => ({ ...f, status: v || undefined }))} />
           <div className="flex gap-2">
             <button onClick={() => setFilters({})} className="flex-1 text-sm font-semibold py-2.5 rounded-lg cursor-pointer" style={{ background: "var(--tc-surface-soft)", color: "var(--tc-text-secondary)", border: "1px solid var(--tc-border)" }}>
               초기화

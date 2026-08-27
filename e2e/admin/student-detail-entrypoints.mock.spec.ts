@@ -114,6 +114,7 @@ async function installApi(
         phone: "01033334444",
         parent_phone: "01011112222",
         is_managed: true,
+        account_state: "ACTIVE",
         tags: [],
         enrollments: [],
       });
@@ -234,8 +235,9 @@ test("출결 상태 액션은 유지하고 학생 행은 학생 상세를 연다
   await page.getByRole("button", { name: "아이디 안내 보내기" }).click();
   await expect.poll(() => guidanceTargets).toEqual(["student", "parent"]);
   await expect(page.getByRole("heading", { name: "아이디 안내 알림톡" })).toHaveCount(0);
+  await expect(overlay.getByText("로그인 가능", { exact: true })).toBeVisible();
   await expect(overlay.getByRole("button", {
-    name: "현재 활성, 비활성으로 변경",
+    name: "현재 관리 중, 관리 대상에서 제외",
   })).toBeVisible();
   await expect(overlay.getByRole("tab", { name: "수강" })).toHaveAttribute("aria-selected", "true");
   await overlay.getByRole("tab", { name: "시험 0건", exact: true }).click();

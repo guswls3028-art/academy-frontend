@@ -247,13 +247,16 @@ export default function StudentsHomePage() {
               disabled={selectedCount === 0 || deleting}
               onClick={async () => {
                 if (visibleSelectedIds.length === 0) return;
-                const parts = visibleSelectedStudents.map(
-                  (s) => `${s.displayName ?? s.name}(${Array.isArray(s.enrollments) ? s.enrollments.length : 0}개 강의 수강 중)`
-                );
+                const parts = visibleSelectedStudents.map((s) => {
+                  const activeEnrollmentCount = Array.isArray(s.enrollments)
+                    ? s.enrollments.filter((enrollment) => enrollment.status === "ACTIVE").length
+                    : 0;
+                  return `${s.displayName ?? s.name}(현재 ${activeEnrollmentCount}개 강의 수강 중)`;
+                });
                 const msg =
                   parts.length > 0
-                    ? `${parts.join(", ")}\n\n위 ${visibleSelectedIds.length}명을 삭제하시겠습니까? 30일간 보관 후 자동 삭제됩니다.`
-                    : `선택한 ${visibleSelectedIds.length}명을 삭제하시겠습니까? 30일간 보관 후 자동 삭제됩니다.`;
+                    ? `${parts.join(", ")}\n\n위 ${visibleSelectedIds.length}명의 로그인을 30일간 정지하시겠습니까? 수강·학습 데이터와 삭제 전 수강 상태는 보존됩니다.`
+                    : `선택한 ${visibleSelectedIds.length}명의 로그인을 30일간 정지하시겠습니까? 수강·학습 데이터와 삭제 전 수강 상태는 보존됩니다.`;
                 if (!(await confirm({ title: "학생 삭제", message: msg, confirmText: "삭제", danger: true }))) return;
                 setDeleting(true);
                 try {
@@ -282,7 +285,7 @@ export default function StudentsHomePage() {
               disabled={selectedCount === 0 || deleting}
               onClick={async () => {
                 if (visibleSelectedIds.length === 0) return;
-                if (!(await confirm({ title: "학생 복원", message: `선택한 ${visibleSelectedIds.length}명을 복원하시겠습니까?`, confirmText: "복원" }))) return;
+                if (!(await confirm({ title: "학생 복원", message: `선택한 ${visibleSelectedIds.length}명의 계정과 삭제 전 수강 상태를 복원하시겠습니까? 그 사이 종료된 강의는 비활성으로 유지됩니다.`, confirmText: "복원" }))) return;
                 setDeleting(true);
                 try {
                   const { restored, skipped = [] } = await bulkRestoreStudents(visibleSelectedIds);

@@ -41,7 +41,7 @@ export default function DeleteConfirmModal({
       <ModalHeader
         type="confirm"
         title={title}
-        description="삭제된 학생은 30일간 보관 후 자동 삭제됩니다."
+        description="30일간 계정 로그인을 정지한 뒤 자동 영구 삭제합니다."
       />
 
       <ModalBody>
@@ -50,7 +50,7 @@ export default function DeleteConfirmModal({
         </div>
 
         <div className={styles.deleteWarning}>
-          삭제된 학생은 '삭제된 학생' 탭에서 30일 이내 복구할 수 있습니다.
+          수강·출결·성적·영상 진도 데이터와 삭제 전 수강 상태는 그대로 보존됩니다. 복원 시 진행 중인 강의만 삭제 전 상태로 돌아가며, 그 사이 종료된 강의는 비활성으로 유지됩니다.
         </div>
       </ModalBody>
 
