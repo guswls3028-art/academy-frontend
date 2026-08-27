@@ -534,8 +534,35 @@ type StudentCommunityDraftData = {
   title: string;
   content: string;
   categoryLabel: string;
-  hadAttachments: boolean;
+  hadAttachments?: boolean;
+  attachments?: DraftAttachmentMeta[];
 };
+
+type DraftAttachmentMeta = {
+  name: string;
+  size: number;
+  type: string;
+};
+
+function isDraftAttachmentMeta(value: unknown): value is DraftAttachmentMeta {
+  if (!value || typeof value !== "object") return false;
+  const attachment = value as Record<string, unknown>;
+  return typeof attachment.name === "string"
+    && attachment.name.length <= 120
+    && typeof attachment.size === "number"
+    && Number.isFinite(attachment.size)
+    && attachment.size >= 0
+    && typeof attachment.type === "string"
+    && attachment.type.length <= 100;
+}
+
+function toDraftAttachmentMeta(files: File[]): DraftAttachmentMeta[] {
+  return files.slice(0, 5).map((file) => ({
+    name: file.name.trim().slice(0, 120),
+    size: Math.max(0, Math.round(file.size)),
+    type: file.type.trim().slice(0, 100),
+  }));
+}
 
 function isStudentCommunityDraftData(value: unknown): value is StudentCommunityDraftData {
   if (!value || typeof value !== "object") return false;
@@ -543,14 +570,20 @@ function isStudentCommunityDraftData(value: unknown): value is StudentCommunityD
   return typeof draft.title === "string"
     && typeof draft.content === "string"
     && typeof draft.categoryLabel === "string"
-    && typeof draft.hadAttachments === "boolean";
+    && (draft.hadAttachments == null || typeof draft.hadAttachments === "boolean")
+    && (draft.attachments == null || (
+      Array.isArray(draft.attachments)
+      && draft.attachments.length <= 5
+      && draft.attachments.every(isDraftAttachmentMeta)
+    ));
 }
 
 function isStudentCommunityDraftEmpty(value: StudentCommunityDraftData): boolean {
   return !value.title.trim()
     && !richHtmlToPlainText(value.content).trim()
     && !value.categoryLabel.trim()
-    && !value.hadAttachments;
+    && !value.hadAttachments
+    && !(value.attachments?.length);
 }
 
 function draftStatusText(status: DurableDraftStatus, savedAt: number | null): string | null {
@@ -568,6 +601,8 @@ function CommunityDraftNotice({
   errorMessage,
   hasNewerDraft,
   attachmentReselectRequired,
+  attachmentMeta,
+  onRetry,
   onAcceptNewer,
   onKeepCurrent,
 }: {
@@ -576,13 +611,22 @@ function CommunityDraftNotice({
   errorMessage: string | null;
   hasNewerDraft: boolean;
   attachmentReselectRequired: boolean;
+  attachmentMeta: DraftAttachmentMeta[];
+  onRetry: () => void;
   onAcceptNewer: () => void;
   onKeepCurrent: () => void;
 }) {
   const statusText = draftStatusText(status, savedAt);
   return (
     <>
-      {errorMessage && <div role="alert" className="community-draft-notice community-draft-notice--error">{errorMessage}</div>}
+      {errorMessage && (
+        <div role="alert" className="community-draft-notice community-draft-notice--error">
+          <span>{errorMessage}</span>
+          <div className="community-draft-notice__actions">
+            <button type="button" className="stu-btn stu-btn--secondary" onClick={onRetry}>다시 저장</button>
+          </div>
+        </div>
+      )}
       {hasNewerDraft && (
         <div role="alert" className="community-draft-notice community-draft-notice--newer">
           <span>다른 탭에서 더 최신 초안이 저장되었습니다.</span>
@@ -595,7 +639,9 @@ function CommunityDraftNotice({
       {statusText && !errorMessage && <div role="status" className="community-draft-status">{statusText}</div>}
       {attachmentReselectRequired && (
         <div role="status" className="community-draft-notice">
-          본문 초안은 복구했습니다. 보안상 첨부파일은 다시 선택해 주세요.
+          본문 초안은 복구했습니다.
+          {attachmentMeta.length > 0 && ` 이전 첨부: ${attachmentMeta.map((attachment) => attachment.name).join(", ")}.`}
+          {" "}보안상 첨부파일은 다시 선택해 주세요.
         </div>
       )}
     </>
@@ -612,12 +658,18 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
   const [files, setFiles] = useState<File[]>([]); // 파일 객체는 직렬화 불가 — 보존 안 함
   const [categoryLabel, setCategoryLabel] = useState("");
   const [attachmentReselectRequired, setAttachmentReselectRequired] = useState(false);
+  const [restoredAttachmentMeta, setRestoredAttachmentMeta] = useState<DraftAttachmentMeta[]>([]);
+  const attachmentMeta = useMemo(
+    () => (files.length > 0 ? toDraftAttachmentMeta(files) : restoredAttachmentMeta),
+    [files, restoredAttachmentMeta],
+  );
   const qnaDraftValue = useMemo<StudentCommunityDraftData>(() => ({
     title,
     content,
     categoryLabel,
-    hadAttachments: attachmentReselectRequired || files.length > 0,
-  }), [attachmentReselectRequired, categoryLabel, content, files.length, title]);
+    hadAttachments: attachmentMeta.length > 0 || attachmentReselectRequired,
+    attachments: attachmentMeta,
+  }), [attachmentMeta, attachmentReselectRequired, categoryLabel, content, title]);
   const qnaDraft = useDurableDraft({
     storageKey: getTenantUserLocalKey("student-community-draft:qna", user?.id),
     value: qnaDraftValue,
@@ -627,7 +679,9 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
       setTitle(draft.title);
       setContent(draft.content);
       setCategoryLabel(draft.categoryLabel);
-      setAttachmentReselectRequired(draft.hadAttachments);
+      setFiles([]);
+      setRestoredAttachmentMeta(draft.attachments ?? []);
+      setAttachmentReselectRequired(Boolean(draft.hadAttachments || draft.attachments?.length));
     },
   });
   const qnaPendingDraft = qnaDraft.pendingDraft;
@@ -726,6 +780,8 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
           errorMessage={qnaDraft.errorMessage}
           hasNewerDraft={qnaDraft.newerDraft != null}
           attachmentReselectRequired={attachmentReselectRequired}
+          attachmentMeta={restoredAttachmentMeta}
+          onRetry={qnaDraft.retrySave}
           onAcceptNewer={qnaDraft.acceptNewerDraft}
           onKeepCurrent={qnaDraft.keepCurrentDraft}
         />
@@ -773,6 +829,7 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
           files={files}
           onChange={(nextFiles) => {
             setFiles(nextFiles);
+            setRestoredAttachmentMeta([]);
             setAttachmentReselectRequired(false);
           }}
         />
@@ -1064,12 +1121,18 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
   const [files, setFiles] = useState<File[]>([]);
   const [categoryLabel, setCategoryLabel] = useState("");
   const [attachmentReselectRequired, setAttachmentReselectRequired] = useState(false);
+  const [restoredAttachmentMeta, setRestoredAttachmentMeta] = useState<DraftAttachmentMeta[]>([]);
+  const attachmentMeta = useMemo(
+    () => (files.length > 0 ? toDraftAttachmentMeta(files) : restoredAttachmentMeta),
+    [files, restoredAttachmentMeta],
+  );
   const counselDraftValue = useMemo<StudentCommunityDraftData>(() => ({
     title,
     content,
     categoryLabel,
-    hadAttachments: attachmentReselectRequired || files.length > 0,
-  }), [attachmentReselectRequired, categoryLabel, content, files.length, title]);
+    hadAttachments: attachmentMeta.length > 0 || attachmentReselectRequired,
+    attachments: attachmentMeta,
+  }), [attachmentMeta, attachmentReselectRequired, categoryLabel, content, title]);
   const counselDraft = useDurableDraft({
     storageKey: getTenantUserLocalKey("student-community-draft:counsel", user?.id),
     value: counselDraftValue,
@@ -1079,7 +1142,9 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
       setTitle(draft.title);
       setContent(draft.content);
       setCategoryLabel(draft.categoryLabel);
-      setAttachmentReselectRequired(draft.hadAttachments);
+      setFiles([]);
+      setRestoredAttachmentMeta(draft.attachments ?? []);
+      setAttachmentReselectRequired(Boolean(draft.hadAttachments || draft.attachments?.length));
     },
   });
   const counselPendingDraft = counselDraft.pendingDraft;
@@ -1167,6 +1232,8 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
           errorMessage={counselDraft.errorMessage}
           hasNewerDraft={counselDraft.newerDraft != null}
           attachmentReselectRequired={attachmentReselectRequired}
+          attachmentMeta={restoredAttachmentMeta}
+          onRetry={counselDraft.retrySave}
           onAcceptNewer={counselDraft.acceptNewerDraft}
           onKeepCurrent={counselDraft.keepCurrentDraft}
         />
@@ -1198,6 +1265,7 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
           files={files}
           onChange={(nextFiles) => {
             setFiles(nextFiles);
+            setRestoredAttachmentMeta([]);
             setAttachmentReselectRequired(false);
           }}
         />

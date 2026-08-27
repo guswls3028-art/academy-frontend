@@ -55,7 +55,34 @@ type LandingCommunityDraft = {
   isUrgent?: boolean;
   isPinned?: boolean;
   hadAttachments?: boolean;
+  attachments?: LandingDraftAttachmentMeta[];
 };
+
+type LandingDraftAttachmentMeta = {
+  name: string;
+  size: number;
+  type: string;
+};
+
+function isLandingDraftAttachmentMeta(value: unknown): value is LandingDraftAttachmentMeta {
+  if (!value || typeof value !== "object") return false;
+  const attachment = value as Record<string, unknown>;
+  return typeof attachment.name === "string"
+    && attachment.name.length <= 120
+    && typeof attachment.size === "number"
+    && Number.isFinite(attachment.size)
+    && attachment.size >= 0
+    && typeof attachment.type === "string"
+    && attachment.type.length <= 100;
+}
+
+function toLandingDraftAttachmentMeta(files: File[]): LandingDraftAttachmentMeta[] {
+  return files.slice(0, 5).map((file) => ({
+    name: file.name.trim().slice(0, 120),
+    size: Math.max(0, Math.round(file.size)),
+    type: file.type.trim().slice(0, 100),
+  }));
+}
 
 function isLandingCommunityDraft(value: unknown): value is LandingCommunityDraft {
   if (!value || typeof value !== "object") return false;
@@ -66,7 +93,12 @@ function isLandingCommunityDraft(value: unknown): value is LandingCommunityDraft
     && isLandingCommunityBoard(draft.board)
     && (draft.isUrgent == null || typeof draft.isUrgent === "boolean")
     && (draft.isPinned == null || typeof draft.isPinned === "boolean")
-    && (draft.hadAttachments == null || typeof draft.hadAttachments === "boolean");
+    && (draft.hadAttachments == null || typeof draft.hadAttachments === "boolean")
+    && (draft.attachments == null || (
+      Array.isArray(draft.attachments)
+      && draft.attachments.length <= 5
+      && draft.attachments.every(isLandingDraftAttachmentMeta)
+    ));
 }
 
 function isLandingCommunityDraftEmpty(value: LandingCommunityDraft): boolean {
@@ -74,7 +106,8 @@ function isLandingCommunityDraftEmpty(value: LandingCommunityDraft): boolean {
     && !value.content.trim()
     && !value.isUrgent
     && !value.isPinned
-    && !value.hadAttachments;
+    && !value.hadAttachments
+    && !(value.attachments?.length);
 }
 
 function sanitizePreviewHtml(html: string): string {
@@ -115,6 +148,7 @@ export default function LandingCommunityWritePage() {
   // 이미지 첨부 (P3) — backend는 PostAttachment multipart endpoint 완비.
   const [files, setFiles] = useState<File[]>([]);
   const [attachmentReselectRequired, setAttachmentReselectRequired] = useState(false);
+  const [restoredAttachmentMeta, setRestoredAttachmentMeta] = useState<LandingDraftAttachmentMeta[]>([]);
   // 사용자 작성 초안은 테넌트+계정+board 단위로만 복원한다. 소유자를 증명할 수
   // 없는 기존 전역 키는 읽거나 지우지 않아 다른 학원/계정에 노출하지 않는다.
   const draftStorageKey = getTenantUserLocalKey(
@@ -126,14 +160,19 @@ export default function LandingCommunityWritePage() {
   // markdown 미리보기 (#13)
   const [showPreview, setShowPreview] = useState(false);
 
+  const attachmentMeta = useMemo(
+    () => (files.length > 0 ? toLandingDraftAttachmentMeta(files) : restoredAttachmentMeta),
+    [files, restoredAttachmentMeta],
+  );
   const draftValue = useMemo<LandingCommunityDraft>(() => ({
     title,
     content,
     board: selectedBoard,
     isUrgent,
     isPinned,
-    hadAttachments: attachmentReselectRequired || files.length > 0,
-  }), [attachmentReselectRequired, content, files.length, isPinned, isUrgent, selectedBoard, title]);
+    hadAttachments: attachmentMeta.length > 0 || attachmentReselectRequired,
+    attachments: attachmentMeta,
+  }), [attachmentMeta, attachmentReselectRequired, content, isPinned, isUrgent, selectedBoard, title]);
   const draft = useDurableDraft({
     storageKey: draftStorageKey,
     value: draftValue,
@@ -145,7 +184,9 @@ export default function LandingCommunityWritePage() {
       setSelectedBoard(restored.board);
       setIsUrgent(!!restored.isUrgent);
       setIsPinned(!!restored.isPinned);
-      setAttachmentReselectRequired(!!restored.hadAttachments);
+      setFiles([]);
+      setRestoredAttachmentMeta(restored.attachments ?? []);
+      setAttachmentReselectRequired(Boolean(restored.hadAttachments || restored.attachments?.length));
       setDraftRestored(true);
     },
   });
@@ -303,8 +344,9 @@ export default function LandingCommunityWritePage() {
           ) : (
             <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {draft.errorMessage && (
-                <div role="alert" style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.25)", color: "#fca5a5", fontSize: 12.5, fontWeight: 600, lineHeight: 1.5 }}>
-                  {draft.errorMessage}
+                <div role="alert" style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.25)", color: "#fca5a5", fontSize: 12.5, fontWeight: 600, lineHeight: 1.5, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                  <span>{draft.errorMessage}</span>
+                  <button type="button" onClick={draft.retrySave} style={{ padding: "7px 10px", borderRadius: 8, border: "none", background: gold, color: "#0A0E1A", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>다시 저장</button>
                 </div>
               )}
               {draft.newerDraft && (
@@ -325,13 +367,15 @@ export default function LandingCommunityWritePage() {
                   <button type="button" onClick={() => {
                     draft.clearDraft();
                     setTitle(""); setContent(""); setSelectedBoard(initialBoard); setDraftRestored(false);
-                    setIsPinned(false); setIsUrgent(false); setFiles([]); setAttachmentReselectRequired(false);
+                    setIsPinned(false); setIsUrgent(false); setFiles([]); setRestoredAttachmentMeta([]); setAttachmentReselectRequired(false);
                   }} style={{ background: "transparent", border: "none", color: textSecondary, fontSize: 11, cursor: "pointer", fontWeight: 500 }}>새로 작성</button>
                 </div>
               )}
               {attachmentReselectRequired && (
                 <div role="status" style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(212,160,76,0.08)", border: "1px solid rgba(212,160,76,0.2)", color: textSecondary, fontSize: 12, lineHeight: 1.5 }}>
-                  본문 초안은 복구했습니다. 보안상 첨부파일은 다시 선택해 주세요.
+                  본문 초안은 복구했습니다.
+                  {restoredAttachmentMeta.length > 0 && ` 이전 첨부: ${restoredAttachmentMeta.map((attachment) => attachment.name).join(", ")}.`}
+                  {" "}보안상 첨부파일은 다시 선택해 주세요.
                 </div>
               )}
               {/* 게시판 선택 */}
@@ -433,6 +477,7 @@ export default function LandingCommunityWritePage() {
                   onChange={(e) => {
                     const list = Array.from(e.target.files || []).slice(0, 5);
                     setFiles(list);
+                    setRestoredAttachmentMeta([]);
                     setAttachmentReselectRequired(false);
                   }}
                   style={{ fontSize: 13, color: textSecondary }}
