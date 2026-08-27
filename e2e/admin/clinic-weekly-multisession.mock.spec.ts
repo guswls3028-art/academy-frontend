@@ -30,6 +30,13 @@ function currentDate(): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+function dateInMonth(monthOffset: number, day: number): string {
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  date.setMonth(date.getMonth() + monthOffset, day);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 const saturday = currentWeekDate(5);
 const today = currentDate();
 const saturdayLabel = `${Number(saturday.slice(5, 7))}월 ${Number(saturday.slice(8, 10))}일`;
@@ -91,6 +98,7 @@ type ScheduleState = {
   updatePayloads: Array<{ id: number; payload: Record<string, unknown> }>;
   sessions?: Array<(typeof sessions)[number]>;
   failSessionRead?: boolean;
+  sessionReadGate?: Promise<void>;
   createGate?: Promise<void>;
   updateGate?: Promise<void>;
 };
@@ -185,6 +193,7 @@ async function installApi(
       });
     }
     if (path === "/clinic/sessions/" && method === "GET") {
+      await scheduleState?.sessionReadGate;
       if (scheduleState?.failSessionRead) return json({ detail: "temporary failure" }, 503);
       return json(sessionRows);
     }
@@ -436,7 +445,7 @@ test("같은 날짜에 여러 클리닉 시간대를 시간순으로 보고 계�
   await page.setViewportSize({ width: 1366, height: 850 });
   await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
 
-  const saturdayCell = page.getByRole("gridcell", { name: `${saturdayLabel} 토요일` });
+  const saturdayCell = page.getByRole("gridcell", { name: `${saturdayLabel} 토요일`, exact: true });
   await expect(saturdayCell).toContainText("3개", { timeout: 20_000 });
   await expect(saturdayCell.getByRole("article")).toHaveCount(3);
   await expect(saturdayCell.getByRole("article")).toContainText([
@@ -487,7 +496,7 @@ test("주간 날짜 탐색에서 원하는 날짜의 일정 열로 바로 이동
   await expect(saturdayButton).toHaveAttribute("aria-pressed", "true");
 
   const desktopViewport = page.locator("[data-clinic-board-viewport]");
-  const saturdayCell = page.getByRole("gridcell", { name: `${saturdayLabel} 토요일` });
+  const saturdayCell = page.getByRole("gridcell", { name: `${saturdayLabel} 토요일`, exact: true });
   await expect.poll(async () => {
     const [viewportBox, dayBox] = await Promise.all([
       desktopViewport.boundingBox(),
@@ -511,6 +520,108 @@ test("주간 날짜 탐색에서 원하는 날짜의 일정 열로 바로 이동
     (element) => element.scrollWidth > element.clientWidth,
   )).toBe(true);
   await page.screenshot({ path: "test-results/admin-clinic-calendar-forwardfix-390.png", fullPage: false });
+});
+
+test("월간 달력에서 날짜를 찾은 뒤 기존 주간 레일과 일정 카드로 이어진다", async ({ page }) => {
+  const nextMonthDate = dateInMonth(1, 15);
+  const nextMonthDateValue = new Date(`${nextMonthDate}T12:00:00`);
+  const nextMonthLabel = `${nextMonthDateValue.getMonth() + 1}월 ${nextMonthDateValue.getDate()}일`;
+  const weekday = ["일", "월", "화", "수", "목", "금", "토"][nextMonthDateValue.getDay()];
+  const state: ScheduleState = {
+    createPayloads: [],
+    updatePayloads: [],
+    sessions: [
+      ...sessions,
+      {
+        ...sessions[0],
+        id: 704,
+        title: "다음 달 선택 클리닉",
+        date: nextMonthDate,
+        start_time: "15:00:00",
+      },
+    ],
+  };
+  const clinicMutations: string[] = [];
+  page.on("request", (request) => {
+    if (!request.url().includes("/api/v1/clinic/")) return;
+    if (["GET", "OPTIONS"].includes(request.method())) return;
+    clinicMutations.push(`${request.method()} ${new URL(request.url()).pathname}`);
+  });
+
+  await seed(page);
+  await installApi(page, undefined, undefined, state);
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
+
+  const overview = page.getByRole("region", { name: "월간 날짜 탐색" });
+  const calendar = overview.getByRole("grid", { name: /클리닉 월간 달력/ });
+  await expect(calendar.getByRole("columnheader")).toHaveText(["일", "월", "화", "수", "목", "금", "토"]);
+  await expect(calendar.getByRole("gridcell")).toHaveCount(42);
+  await overview.getByRole("button", { name: "다음 달" }).click();
+  const monthDate = calendar.getByRole("gridcell", {
+    name: new RegExp(`${nextMonthLabel} ${weekday}요일, 클리닉 1개`),
+  });
+  await monthDate.focus();
+  await monthDate.press("Enter");
+  await expect(monthDate).toHaveAttribute("aria-selected", "true");
+
+  const navigator = page.getByRole("navigation", { name: "주간 날짜 선택" });
+  const weekDate = navigator.getByRole("button", {
+    name: new RegExp(`${nextMonthLabel} ${weekday}요일, 클리닉 1개, 예약 0명`),
+  });
+  await expect(weekDate).toHaveAttribute("aria-pressed", "true");
+  await expect(weekDate).toBeFocused();
+  const selectedCell = page.getByRole("gridcell", {
+    name: `${nextMonthLabel} ${weekday}요일`,
+    exact: true,
+  });
+  await expect(selectedCell.getByRole("article")).toContainText("다음 달 선택 클리닉");
+  await expect(selectedCell.getByRole("button", { name: "학생 추가", exact: true })).toBeVisible();
+  expect(clinicMutations).toEqual([]);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(await page.locator("[data-clinic-board-viewport]").evaluate(
+    (element) => element.scrollWidth > element.clientWidth,
+  )).toBe(true);
+  await expect(calendar.getByRole("gridcell")).toHaveCount(42);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  expect(await calendar.getByRole("gridcell").first()
+    .evaluate((element) => getComputedStyle(element).transitionDuration)).toBe("0s");
+  expect(clinicMutations).toEqual([]);
+});
+
+test("월간 달력은 조회 중·실패를 0개로 단정하지 않고 성공한 빈 달만 0개로 표시한다", async ({ page }) => {
+  let releaseSessionRead = () => {};
+  const sessionReadGate = new Promise<void>((resolve) => { releaseSessionRead = resolve; });
+  const state: ScheduleState = {
+    createPayloads: [],
+    updatePayloads: [],
+    sessions: [],
+    sessionReadGate,
+  };
+  await seed(page);
+  await installApi(page, undefined, undefined, state);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${BASE}/workspace/clinic/schedule`, { waitUntil: "domcontentloaded" });
+
+  const overview = page.getByRole("region", { name: "월간 날짜 탐색" });
+  await expect(overview.getByText("월간 일정을 불러오는 중입니다.")).toBeVisible({ timeout: 20_000 });
+  await expect(overview.getByText("0개", { exact: true })).toHaveCount(0);
+
+  releaseSessionRead();
+  await expect(overview.getByText("이번 달에 열린 시간대가 없습니다.")).toBeVisible();
+  await expect(overview.getByText("0개", { exact: true }).first()).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  state.failSessionRead = true;
+  await page.getByRole("button", { name: "일정 새로고침" }).click();
+  await expect(overview.getByText("월간 일정을 확인하지 못했습니다.")).toBeVisible();
+  await expect(overview.getByText("0개", { exact: true })).toHaveCount(0);
+
+  state.failSessionRead = false;
+  await overview.getByRole("button", { name: "월간 일정 다시 불러오기" }).click();
+  await expect(overview.getByText("이번 달에 열린 시간대가 없습니다.")).toBeVisible();
 });
 
 test("주간 날짜 탐색은 일정 조회 실패를 0개로 확정 표시하지 않는다", async ({ page }) => {
@@ -559,7 +670,7 @@ test("클리닉 생성은 일정 요약을 최종 확인한 뒤에만 저장한�
   await page.setViewportSize({ width: 1366, height: 850 });
   await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
 
-  const saturdayCell = page.getByRole("gridcell", { name: `${saturdayLabel} 토요일` });
+  const saturdayCell = page.getByRole("gridcell", { name: `${saturdayLabel} 토요일`, exact: true });
   const sourceSession = saturdayCell.getByRole("article").filter({ hasText: "토요일 5시 클리닉" });
   await sourceSession.getByRole("button", { name: "토요일 5시 클리닉 설정 복사" }).click();
 
@@ -651,7 +762,7 @@ test("빈 클리닉도 일정 카드에서 수정하고 최종 확인한 뒤에�
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
 
-  const saturdayCell = page.getByRole("gridcell", { name: `${saturdayLabel} 토요일` });
+  const saturdayCell = page.getByRole("gridcell", { name: `${saturdayLabel} 토요일`, exact: true });
   await saturdayCell.getByRole("button", { name: "토요일 5시 클리닉 17:00 일정 수정" }).click();
 
   const editDialog = page.getByRole("dialog", { name: "클리닉 일정 수정" });
@@ -727,7 +838,7 @@ test("예약자가 있는 일정 수정은 운영 화면의 수정 알림으로 
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
 
-  const saturdayCell = page.getByRole("gridcell", { name: `${saturdayLabel} 토요일` });
+  const saturdayCell = page.getByRole("gridcell", { name: `${saturdayLabel} 토요일`, exact: true });
   await saturdayCell.getByRole("button", { name: "토요일 5시 클리닉 17:00 일정 수정" }).click();
   const editDialog = page.getByRole("dialog", { name: "클리닉 일정 수정" });
   await editDialog.getByRole("button", { name: "−1시간" }).click();
