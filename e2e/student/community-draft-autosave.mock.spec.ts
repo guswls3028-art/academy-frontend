@@ -253,6 +253,9 @@ test.describe("학생 커뮤니티 durable draft", () => {
     await page.locator(".ProseMirror").fill("저장 시점 검증");
     await flushPageDraft(page);
     await page.evaluate((key) => window.localStorage.removeItem(key), QNA_KEY);
+    const clockStart = new Date("2026-08-28T00:00:00.000Z");
+    await page.clock.install({ time: clockStart });
+    await page.clock.pauseAt(clockStart.getTime() + 1_000);
     const setTitleImmediately = async (nextTitle: string) => {
       await title.evaluate((element, nextValue) => {
         const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
@@ -262,23 +265,20 @@ test.describe("학생 커뮤니티 durable draft", () => {
     };
     await setTitleImmediately("800ms 저장 초안");
 
-    await page.evaluate(() => new Promise<void>((resolve) => window.setTimeout(resolve, 500)));
+    await expect(page.getByRole("status")).toContainText("초안 저장 중");
+    await page.clock.runFor(799);
     expect(await readDraft(page, QNA_KEY)).toBeNull();
-    await page.evaluate(() => new Promise<void>((resolve) => window.setTimeout(resolve, 400)));
+    await page.clock.runFor(1);
     expect(await readDraftTitle(page)).toBe("800ms 저장 초안");
 
-    await title.evaluate(async (element) => {
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-      for (let index = 0; index < 8; index += 1) {
-        setter?.call(element, `계속 입력 ${index}`);
-        element.dispatchEvent(new Event("input", { bubbles: true }));
-        if (index < 7) {
-          await new Promise<void>((resolve) => window.setTimeout(resolve, 650));
-        }
-      }
-    });
+    for (let index = 0; index < 8; index += 1) {
+      await setTitleImmediately(`계속 입력 ${index}`);
+      if (index < 7) await page.clock.runFor(650);
+    }
     expect(await readDraftTitle(page)).toBe("800ms 저장 초안");
-    await page.evaluate(() => new Promise<void>((resolve) => window.setTimeout(resolve, 500)));
+    await page.clock.runFor(449);
+    expect(await readDraftTitle(page)).toBe("800ms 저장 초안");
+    await page.clock.runFor(1);
     expect(await readDraftTitle(page)).toBe("계속 입력 7");
   });
 
