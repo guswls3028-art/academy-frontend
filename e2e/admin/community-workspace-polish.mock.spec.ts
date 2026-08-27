@@ -173,6 +173,31 @@ test.describe("커뮤니티 QnA 작업대", () => {
     expect(overflow).toBeLessThanOrEqual(1);
   });
 
+  test("큰 이미지를 넣은 공지 작성 폼 안에서 등록 버튼까지 스크롤할 수 있다", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await gotoAndSettle(page, `${BASE}/workspace/community/notice`, { timeout: 60_000 });
+
+    await page.getByRole("button", { name: "+ 추가" }).click();
+    await page.getByPlaceholder("공지 제목을 입력하세요").fill("29번 정답 정오");
+    await page.locator('.cms-form__body input[type="file"][accept="image/*"]').setInputFiles({
+      name: "29번-정답-정오.svg",
+      mimeType: "image/svg+xml",
+      buffer: Buffer.from(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="720" height="1600"><rect width="720" height="1600" fill="#fff"/><text x="40" y="100" font-size="48">29번 정답 정오</text></svg>',
+      ),
+    });
+
+    const formBody = page.locator(".qna-inbox__thread > .cms-form__body");
+    const submit = page.getByRole("button", { name: "등록", exact: true });
+    await expect(formBody.locator(".ProseMirror img")).toBeVisible();
+    await expect.poll(() => formBody.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeGreaterThan(0);
+
+    await formBody.evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+    await expect(submit).toBeInViewport();
+  });
+
   for (const viewport of [
     { name: "데스크톱", width: 1366, height: 900 },
     { name: "390px", width: 390, height: 844 },

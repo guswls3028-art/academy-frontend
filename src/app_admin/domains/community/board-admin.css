@@ -479,6 +479,13 @@
   padding: var(--space-5, 20px);
 }
 
+.cms-form__body--scrollable {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .cms-form__field {
   margin-bottom: var(--space-5, 20px);
 }

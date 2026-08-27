@@ -679,7 +679,7 @@ function NoticeCreatePane({
         </div>
       </header>
 
-      <div className="cms-form__body">
+      <div className="cms-form__body cms-form__body--scrollable">
         <div className="cms-form__field">
           <label className="community-field__label community-field__label--required">제목</label>
           <input className="ds-input cms-form__input--full" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="공지 제목을 입력하세요" autoFocus />
