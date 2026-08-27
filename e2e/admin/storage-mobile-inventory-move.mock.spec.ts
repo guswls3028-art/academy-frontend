@@ -291,6 +291,7 @@ test.describe("저장소 모바일 파일·폴더 이동", () => {
   });
 
   test("390px admin: 성공 뒤 재조회 실패는 캐시 선택과 트리 변경을 다시 잠근다", async ({ page }) => {
+    await page.clock.install({ time: new Date("2026-08-28T00:00:00Z") });
     const harness = await installStorageMocks(page, { role: "admin" });
     await page.goto(`${BASE}/workspace/storage/files`, { waitUntil: "domcontentloaded", timeout: 45_000 });
 
@@ -305,7 +306,7 @@ test.describe("저장소 모바일 파일·폴더 이동", () => {
     const readsBeforeFailure = harness.inventoryReads.length;
     await page.evaluate(() => window.dispatchEvent(new Event("offline")));
     harness.setInventoryAvailable(false);
-    await page.waitForTimeout(10_100);
+    await page.clock.fastForward(10_100);
     await page.evaluate(() => {
       window.dispatchEvent(new Event("online"));
     });
