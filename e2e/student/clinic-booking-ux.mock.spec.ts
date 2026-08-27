@@ -42,6 +42,11 @@ type MockState = {
   changePayloads: Array<Record<string, unknown>>;
 };
 
+type IdcardMockControl = {
+  delayMs?: number;
+  fail?: boolean;
+};
+
 const bookedDate = dateAfter(2);
 const openDate = dateAfter(5);
 const sessions = [
@@ -126,7 +131,12 @@ async function seed(page: Page) {
   }, fakeJwt());
 }
 
-async function installApi(page: Page, state: MockState, idcardResult: "SUCCESS" | "FAIL" = "FAIL") {
+async function installApi(
+  page: Page,
+  state: MockState,
+  idcardResult: "SUCCESS" | "FAIL" = "FAIL",
+  idcardControl?: IdcardMockControl,
+) {
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
@@ -190,6 +200,10 @@ async function installApi(page: Page, state: MockState, idcardResult: "SUCCESS" 
       return json({ status: "cancelled" });
     }
     if (path === "/clinic/idcard/" && method === "GET") {
+      if (idcardControl?.delayMs) {
+        await new Promise((resolve) => setTimeout(resolve, idcardControl.delayMs));
+      }
+      if (idcardControl?.fail) return json({ detail: "temporary unavailable" }, 503);
       return json({
         student_name: "김학생",
         profile_photo_url: null,
@@ -306,6 +320,82 @@ test.describe("학생 클리닉 예약 UX", () => {
   test.use({
     viewport: { width: 390, height: 844 },
     serviceWorkers: "block",
+  });
+
+  test("모바일 홈에서 클리닉 패스카드로 바로 진입한다", async ({ page }) => {
+    const state = createState();
+    const idcardControl: IdcardMockControl = { delayMs: 1_500 };
+    const unexpectedMutations: string[] = [];
+    page.on("request", (request) => {
+      const signature = `${request.method()} ${new URL(request.url()).pathname}`;
+      const isReadNavigationTelemetry = signature === "POST /api/v1/students/me/activity/";
+      if (!["GET", "OPTIONS"].includes(request.method()) && !isReadNavigationTelemetry) {
+        unexpectedMutations.push(signature);
+      }
+    });
+    await seed(page);
+    await installApi(page, state, "FAIL", idcardControl);
+    await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+
+    const appArea = page.locator("[data-guide='dash-apps']");
+    const passcardLink = appArea.getByRole("link", { name: "클리닉 패스카드", exact: true });
+    const shortcuts = appArea.getByRole("link");
+    await expect(shortcuts).toHaveCount(8);
+    await expect(passcardLink).toHaveAttribute("href", "/student/idcard");
+    await expect(appArea.getByRole("link", { name: "내 정보", exact: true })).toHaveCount(0);
+    for (let index = 0; index < 8; index += 1) {
+      const box = await shortcuts.nth(index).boundingBox();
+      expect(box, `shortcut ${index + 1} should have a measurable touch target`).not.toBeNull();
+      expect(box!.width).toBeGreaterThanOrEqual(44);
+      expect(box!.height).toBeGreaterThanOrEqual(44);
+    }
+    expect(await appArea.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+
+    await passcardLink.focus();
+    await expect(passcardLink).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(/\/student\/idcard$/);
+    await expect(page.getByRole("status")).toContainText("패스카드를 불러오는 중");
+    await expect(page.getByTestId("clinic-passcard")).toBeVisible();
+
+    await page.goBack();
+    await expect(page).toHaveURL(/\/student\/dashboard$/);
+    await page.setViewportSize({ width: 1100, height: 800 });
+    await page.getByRole("button", { name: "메뉴 열기" }).click();
+    const drawer = page.getByRole("dialog", { name: "메뉴" });
+    await expect(drawer.getByRole("link", { name: "클리닉 패스카드", exact: true }))
+      .toHaveAttribute("href", "/student/idcard");
+    await expect(drawer.getByRole("link", { name: "프로필", exact: true }))
+      .toHaveAttribute("href", "/student/profile");
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "프로필 메뉴" }).click();
+    await page.getByRole("button", { name: "내 정보", exact: true }).click();
+    await expect(page).toHaveURL(/\/student\/profile$/);
+    expect(unexpectedMutations).toEqual([]);
+  });
+
+  test("패스카드 직접 URL은 오류를 실패 폐쇄하고 다시 시도한다", async ({ page }) => {
+    const state = createState();
+    const idcardControl: IdcardMockControl = { fail: true };
+    await seed(page);
+    await installApi(page, state, "FAIL", idcardControl);
+    await page.goto(`${BASE}/student/idcard`, { waitUntil: "domcontentloaded" });
+
+    const error = page.getByRole("alert");
+    await expect(error).toContainText("패스카드를 불러오지 못했습니다.");
+    idcardControl.fail = false;
+    await error.getByRole("button", { name: "다시 시도" }).click();
+    await expect(page.getByTestId("clinic-passcard")).toBeVisible();
+  });
+
+  test("인증 없는 패스카드 직접 URL은 로그인으로 되돌린다", async ({ page }) => {
+    const state = createState();
+    test.skip(!isLocalBase(BASE), "학생 클리닉 route-mock 검증은 로컬 dev 서버 전용");
+    await installApi(page, state);
+    await page.goto(`${BASE}/student/idcard`, { waitUntil: "domcontentloaded" });
+
+    await expect(page).toHaveURL(/\/login(?:\?|$)/);
   });
 
   test("실제 개설 날짜와 수업 정보를 날짜표 중심으로 보여준다", async ({ page }) => {
