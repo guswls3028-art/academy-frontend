@@ -354,3 +354,167 @@ test.describe("student video CDN service errors", () => {
     expect(playbackRequests).toBe(2);
   });
 });
+
+test.describe("student video access races on desktop", () => {
+  test.skip(!isLocalBase(BASE), "Local route-mock spec. Set E2E_BASE_URL to localhost to run.");
+
+  test.use({
+    viewport: { width: 1366, height: 768 },
+    serviceWorkers: "block",
+  });
+
+  test("지연된 A 정책 응답은 B의 403 종료 상태를 해제하지 않는다", async ({ page }) => {
+    let aPlaybackRequests = 0;
+    let aRefetchRequests = 0;
+    let bPlaybackRequests = 0;
+    let bAccessChecks = 0;
+    let aPolicyDriftReleased = false;
+    let releaseADrift!: () => void;
+    let releaseARefetch!: () => void;
+    const aDriftGate = new Promise<void>((resolve) => {
+      releaseADrift = resolve;
+    });
+    const aRefetchGate = new Promise<void>((resolve) => {
+      releaseARefetch = resolve;
+    });
+    const videoA = {
+      id: 562,
+      session_id: 394,
+      enrollment_id: 1304,
+      title: "지연 응답 영상 A",
+      status: "READY",
+      source_type: "youtube",
+      youtube_video_id: "VnqgmOJaMGc",
+      duration: 600,
+      progress: 0,
+      completed: false,
+      last_position: 0,
+      allow_skip: true,
+      max_speed: 1,
+      show_watermark: true,
+      access_mode: "FREE_REVIEW",
+    };
+    const videoB = {
+      ...videoA,
+      id: 563,
+      title: "권한 종료 영상 B",
+    };
+    const playback = (
+      video: typeof videoA,
+      mode: "FREE_REVIEW" | "PROCTORED_CLASS",
+      policyVersion: number,
+    ) => ({
+      video: { ...video, access_mode: mode },
+      play_url: "https://www.youtube-nocookie.com/embed/VnqgmOJaMGc",
+      playback_token: `${video.id}-${mode}-token`,
+      playback_session_id: mode === "PROCTORED_CLASS" ? `${video.id}-session` : null,
+      playback_expires_at: Math.floor(Date.now() / 1000) + 600,
+      policy_version: policyVersion,
+      policy: {
+        access_mode: mode,
+        monitoring_enabled: mode === "PROCTORED_CLASS",
+        allow_seek: true,
+        playback_rate: { max: 1, ui_control: true },
+        source: { type: "youtube", provider: "youtube", youtube_video_id: "VnqgmOJaMGc" },
+      },
+    });
+
+    await page.addInitScript(({ token }) => {
+      localStorage.setItem("access", token);
+      localStorage.setItem("refresh", token);
+      localStorage.setItem("tenant_code", "limglish");
+      sessionStorage.setItem("tenantCode", "limglish");
+    }, { token: fakeJwt() });
+
+    await page.route("**/api/v1/**", async (route) => {
+      const url = new URL(route.request().url());
+      const path = url.pathname.replace(/^\/api\/v1/, "");
+      const json = (body: unknown, status = 200) => route.fulfill({ json: body, status });
+
+      if (path === "/core/program/") {
+        return json({
+          tenantCode: "limglish",
+          display_name: "임근혁 영어",
+          ui_config: {},
+          feature_flags: {},
+          is_active: true,
+        });
+      }
+      if (path === "/core/me/") {
+        return json({
+          id: 1772,
+          username: "student",
+          name: "학생",
+          is_staff: false,
+          is_superuser: false,
+          tenantRole: "student",
+          linkedStudentId: 1,
+          linkedStudentName: "학생",
+          must_change_password: false,
+        });
+      }
+      if (path === "/student/video/videos/562/playback/") {
+        if (url.searchParams.get("access_check") === "1") {
+          await aDriftGate;
+          return json({
+            ok: true,
+            access_mode: "PROCTORED_CLASS",
+            monitoring_enabled: true,
+            policy_version: 2,
+          });
+        }
+        aPlaybackRequests += 1;
+        if (aPolicyDriftReleased) {
+          aRefetchRequests += 1;
+          await aRefetchGate;
+          return json(playback(videoA, "PROCTORED_CLASS", 2));
+        }
+        return json(playback(videoA, "FREE_REVIEW", 1));
+      }
+      if (path === "/student/video/videos/563/playback/") {
+        if (url.searchParams.get("access_check") === "1") {
+          bAccessChecks += 1;
+          return json({ detail: "B 강의가 종료되어 시청할 수 없습니다." }, 403);
+        }
+        bPlaybackRequests += 1;
+        return json(playback(videoB, "FREE_REVIEW", 1));
+      }
+      if (path === "/student/video/sessions/394/videos/") {
+        return json({ items: [videoA, videoB] });
+      }
+      if (/\/student\/video\/videos\/\d+\/comments\/$/.test(path)) {
+        return json({ count: 0, results: [] });
+      }
+      return json({});
+    });
+
+    await page.goto(
+      `${BASE}/student/video/play?video=562&enrollment=1304&session=394`,
+      { waitUntil: "domcontentloaded", timeout: 30_000 },
+    );
+    await expect(page.getByRole("heading", { name: "지연 응답 영상 A" })).toBeVisible();
+    expect(aPlaybackRequests).toBeGreaterThanOrEqual(1);
+
+    aPolicyDriftReleased = true;
+    releaseADrift();
+    await expect.poll(() => aRefetchRequests, { timeout: 30_000 }).toBe(1);
+    await page.evaluate(() => {
+      window.history.pushState({}, "", "/student/video/play?video=563&enrollment=1304&session=394");
+      window.dispatchEvent(new PopStateEvent("popstate", { state: window.history.state }));
+    });
+
+    await expect(page.getByRole("heading", { name: "재생을 시작할 수 없어요" })).toBeVisible();
+    await expect(page.getByText("B 강의가 종료되어 시청할 수 없습니다.")).toBeVisible();
+    await expect(page.getByText("권한 종료 영상 B")).toHaveCount(0);
+    const deniedRequestCounts = { bPlaybackRequests, bAccessChecks };
+
+    releaseARefetch();
+    await page.waitForTimeout(500);
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await page.waitForTimeout(500);
+
+    await expect(page.getByText("B 강의가 종료되어 시청할 수 없습니다.")).toBeVisible();
+    await expect(page.getByText("권한 종료 영상 B")).toHaveCount(0);
+    expect({ bPlaybackRequests, bAccessChecks }).toEqual(deniedRequestCounts);
+  });
+});
