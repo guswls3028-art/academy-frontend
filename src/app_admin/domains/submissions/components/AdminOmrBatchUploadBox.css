@@ -6,6 +6,10 @@
 
 .admin-omr-upload__zone {
   border-radius: var(--radius-lg);
+  border: 0;
+  margin: 0;
+  min-inline-size: 0;
+  padding: 0;
 }
 
 .admin-omr-upload__zone .excel-upload-zone__drag-label,

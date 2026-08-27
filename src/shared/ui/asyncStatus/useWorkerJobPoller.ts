@@ -36,8 +36,13 @@ type VideoPollCohort = {
   isCurrent: () => boolean;
 };
 
-function isCurrentTenantOmrTask(taskId: string, tenantScope: string): boolean {
+function isCurrentTenantOmrTask(
+  taskId: string,
+  tenantScope: string,
+  sessionGeneration: number,
+): boolean {
   if ((getTenantCodeForApiRequest() ?? "") !== tenantScope) return false;
+  if (asyncStatusStore.getSessionGeneration() !== sessionGeneration) return false;
   return asyncStatusStore.getState().some(
     (task) =>
       task.id === taskId
@@ -48,13 +53,17 @@ function isCurrentTenantOmrTask(taskId: string, tenantScope: string): boolean {
 }
 
 function pollOmrBatch(taskId: string, batchId: string, tenantScope: string): void {
+  const sessionGeneration = asyncStatusStore.getSessionGeneration();
   const key = `${tenantScope}:${batchId}`;
-  if (omrPollsInFlight.has(key) || !isCurrentTenantOmrTask(taskId, tenantScope)) return;
+  if (
+    omrPollsInFlight.has(key)
+    || !isCurrentTenantOmrTask(taskId, tenantScope, sessionGeneration)
+  ) return;
 
   const request = (async () => {
     try {
       const summary = await fetchOmrUploadBatchApi(batchId);
-      if (!isCurrentTenantOmrTask(taskId, tenantScope)) return;
+      if (!isCurrentTenantOmrTask(taskId, tenantScope, sessionGeneration)) return;
 
       if (!summary.terminal) {
         asyncStatusStore.upsertOmrBatch(summary);
@@ -68,7 +77,7 @@ function pollOmrBatch(taskId: string, batchId: string, tenantScope: string): voi
 
       try {
         const claim = await claimOmrUploadBatchCompletionApi(batchId);
-        if ((getTenantCodeForApiRequest() ?? "") !== tenantScope) return;
+        if (!isCurrentTenantOmrTask(taskId, tenantScope, sessionGeneration)) return;
         asyncStatusStore.upsertOmrBatch(claim.batch);
         if (claim.notify) {
           if (claim.batch.counts.failed > 0) {
@@ -80,7 +89,7 @@ function pollOmrBatch(taskId: string, batchId: string, tenantScope: string): voi
           }
         }
       } catch {
-        if (!isCurrentTenantOmrTask(taskId, tenantScope)) return;
+        if (!isCurrentTenantOmrTask(taskId, tenantScope, sessionGeneration)) return;
         asyncStatusStore.upsertOmrBatch(summary, { awaitCompletionClaim: true });
         asyncStatusStore.setTaskStatusMessage(
           taskId,
@@ -88,7 +97,7 @@ function pollOmrBatch(taskId: string, batchId: string, tenantScope: string): voi
         );
       }
     } catch {
-      if (!isCurrentTenantOmrTask(taskId, tenantScope)) return;
+      if (!isCurrentTenantOmrTask(taskId, tenantScope, sessionGeneration)) return;
       asyncStatusStore.setTaskStatusMessage(
         taskId,
         "OMR 진행 상태를 다시 확인하고 있습니다.",

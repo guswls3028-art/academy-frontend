@@ -59,6 +59,23 @@ function statusTone(status: UploadItem["status"]): "neutral" | "info" | "success
   return "neutral";
 }
 
+function isValidOrdinal(value: number, totalCount: number): boolean {
+  return Number.isInteger(value) && value > 0 && value <= totalCount;
+}
+
+function hasExactOrdinals(items: UploadItem[], expectedOrdinals: number[]): boolean {
+  const selectedOrdinals = items.map((item) => item.ordinal);
+  if (
+    selectedOrdinals.length !== expectedOrdinals.length
+    || selectedOrdinals.some((ordinal) => ordinal === undefined || !Number.isInteger(ordinal))
+  ) {
+    return false;
+  }
+  const selected = new Set(selectedOrdinals);
+  return selected.size === selectedOrdinals.length
+    && expectedOrdinals.every((ordinal) => selected.has(ordinal));
+}
+
 /**
  * AdminOmrBatchUploadBox
  * - OMR 다건 업로드, FileUploadZone(드래그 or 클릭) SSOT 디자인 사용
@@ -74,8 +91,12 @@ export default function AdminOmrBatchUploadBox({
   const [busy, setBusy] = useState(false);
   const [loadingResume, setLoadingResume] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [batchId, setBatchId] = useState<string | null>(resumeBatchId ?? null);
+  const [batchId, setBatchId] = useState<string | null>(null);
   const [resumeOrdinals, setResumeOrdinals] = useState<number[]>([]);
+  const [validatedResumeBatchId, setValidatedResumeBatchId] = useState<string | null>(null);
+  const resumeUploadBlocked = Boolean(
+    resumeBatchId && validatedResumeBatchId !== resumeBatchId,
+  );
 
   const readyCount = useMemo(() => items.filter((x) => x.status === "ready").length, [items]);
   const receivedCount = useMemo(
@@ -85,24 +106,41 @@ export default function AdminOmrBatchUploadBox({
   const failCount = useMemo(() => items.filter((x) => x.status === "fail").length, [items]);
 
   useEffect(() => {
-    if (!resumeBatchId) return;
+    if (!resumeBatchId) {
+      setValidatedResumeBatchId(null);
+      return;
+    }
     let cancelled = false;
     setLoadingResume(true);
+    setValidatedResumeBatchId(null);
+    setBatchId(null);
+    setResumeOrdinals([]);
+    setItems([]);
     fetchOmrUploadBatchApi(resumeBatchId)
       .then((batch) => {
         if (cancelled) return;
-        const fileRetryOrdinals = [
-          ...new Set([
-            ...batch.pending_admission_ordinals,
-            ...batch.admission_failed_ordinals,
-          ]),
-        ].sort((left, right) => left - right);
-        if (batch.exam_id !== examId || fileRetryOrdinals.length === 0) {
+        const rawRetryOrdinals = [
+          ...batch.pending_admission_ordinals,
+          ...batch.admission_failed_ordinals,
+        ];
+        const fileRetryOrdinals = [...rawRetryOrdinals].sort((left, right) => left - right);
+        const validOrdinals = Number.isInteger(batch.total_count)
+          && batch.total_count > 0
+          && rawRetryOrdinals.length === new Set(rawRetryOrdinals).size
+          && rawRetryOrdinals.every((ordinal) => isValidOrdinal(ordinal, batch.total_count));
+        if (
+          batch.id !== resumeBatchId
+          || batch.exam_id !== examId
+          || batch.session_id !== sessionId
+          || !validOrdinals
+          || fileRetryOrdinals.length === 0
+        ) {
           setNotice("다시 선택할 파일이 없거나 시험 정보가 일치하지 않습니다.");
           return;
         }
         setBatchId(batch.id);
         setResumeOrdinals(fileRetryOrdinals);
+        setValidatedResumeBatchId(resumeBatchId);
         setNotice(`${fileRetryOrdinals.length}개 미접수 파일을 순서대로 다시 선택해 주세요.`);
         asyncStatusStore.upsertOmrBatch(batch);
       })
@@ -113,13 +151,17 @@ export default function AdminOmrBatchUploadBox({
         if (!cancelled) setLoadingResume(false);
       });
     return () => { cancelled = true; };
-  }, [examId, resumeBatchId]);
+  }, [examId, resumeBatchId, sessionId]);
 
   const onPickFiles = (files: File[]) => {
-    if (!files.length) return;
+    if (!files.length || resumeUploadBlocked) return;
     setNotice(null);
     const selectionLimit = resumeOrdinals.length > 0 ? resumeOrdinals.length : MAX_FILES;
-    const remaining = Math.max(0, selectionLimit - items.length);
+    const usedOrdinals = new Set(items.map((item) => item.ordinal));
+    const vacantResumeOrdinals = resumeOrdinals.filter((ordinal) => !usedOrdinals.has(ordinal));
+    const remaining = resumeOrdinals.length > 0
+      ? vacantResumeOrdinals.length
+      : Math.max(0, selectionLimit - items.length);
     if (remaining === 0) {
       setNotice(
         resumeOrdinals.length > 0
@@ -138,7 +180,7 @@ export default function AdminOmrBatchUploadBox({
     }
     const next: UploadItem[] = accepted.map((file, index) => ({
       file,
-      ordinal: resumeOrdinals.length > 0 ? resumeOrdinals[items.length + index] : undefined,
+      ordinal: resumeOrdinals.length > 0 ? vacantResumeOrdinals[index] : undefined,
       status: "ready" as const,
     }));
     setItems((prev) => [...prev, ...next]);
@@ -148,6 +190,7 @@ export default function AdminOmrBatchUploadBox({
     if (busy) return;
     setItems([]);
     setNotice(null);
+    if (resumeOrdinals.length === 0) setBatchId(null);
   };
 
   const removeOne = (idx: number) => {
@@ -161,6 +204,10 @@ export default function AdminOmrBatchUploadBox({
       setNotice("시험 정보를 찾을 수 없습니다.");
       return;
     }
+    if (resumeUploadBlocked) {
+      setNotice("OMR 등록 작업을 확인하지 못해 파일을 접수할 수 없습니다.");
+      return;
+    }
     if (items.length === 0) {
       setNotice("파일을 먼저 선택해주세요.");
       return;
@@ -171,10 +218,20 @@ export default function AdminOmrBatchUploadBox({
       return;
     }
 
-    setBusy(true);
-    setNotice(null);
     let activeBatchId = batchId;
     let uploadItems = items.filter((item) => item.status === "ready" || item.status === "fail");
+    if (
+      activeBatchId
+      && (
+        resumeOrdinals.length === 0
+        || !hasExactOrdinals(uploadItems, resumeOrdinals)
+      )
+    ) {
+      setNotice("미접수 파일 순서를 확인할 수 없습니다. 작업을 다시 불러와 주세요.");
+      return;
+    }
+    setBusy(true);
+    setNotice(null);
     try {
       if (!activeBatchId) {
         const initialized = await initializeOmrUploadBatchApi({
@@ -211,6 +268,7 @@ export default function AdminOmrBatchUploadBox({
             message: "접수됨 · AI 처리 대기",
           })));
       setResumeOrdinals(result.admission_failed_ordinals);
+      if (result.admission_failed_ordinals.length === 0) setBatchId(null);
       setNotice(
         result.admission_failed_ordinals.length > 0
           ? `${result.created_count}건 접수, ${result.admission_failed_ordinals.length}건은 다시 선택이 필요합니다.`
@@ -243,6 +301,7 @@ export default function AdminOmrBatchUploadBox({
                 message: "서버에서 접수 상태 확인됨",
               })));
           setResumeOrdinals(fileRetryOrdinals);
+          if (fileRetryOrdinals.length === 0) setBatchId(null);
           setNotice("응답이 중단되어 서버의 접수 결과를 복구했습니다. 미접수 항목만 다시 선택해 주세요.");
         } catch {
           setItems((previous) => previous.map((item) =>
@@ -265,16 +324,19 @@ export default function AdminOmrBatchUploadBox({
 
   return (
     <div className="admin-omr-upload">
-      <div className="admin-omr-upload__zone">
+      <fieldset
+        className="admin-omr-upload__zone"
+        disabled={busy || loadingResume || resumeUploadBlocked}
+      >
         <FileUploadZone
           titleLabel="스캔 파일 선택"
           multiple
           accept="image/*,application/pdf"
           hintText="사진 또는 1페이지 PDF · 여러 장 선택 가능"
-          disabled={busy || loadingResume}
+          disabled={busy || loadingResume || resumeUploadBlocked}
           onFilesSelect={onPickFiles}
         />
-      </div>
+      </fieldset>
 
       {notice && (
         <div className="admin-omr-upload__notice">
@@ -287,7 +349,7 @@ export default function AdminOmrBatchUploadBox({
           type="button"
           intent={items.length === 0 ? "secondary" : "primary"}
           size="lg"
-          disabled={busy || loadingResume || items.length === 0}
+          disabled={busy || loadingResume || resumeUploadBlocked || readyCount + failCount === 0}
           onClick={() => void upload()}
           leftIcon={<UploadCloud size={ICON_FOR_BUTTON.lg} />}
         >

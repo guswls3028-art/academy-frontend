@@ -779,7 +779,7 @@ export function WorkboxPanelContent({ onClose }: { onClose: () => void }) {
           <div className="async-status-bar__hydrate-loading" role="status">
             작업 상태를 불러오는 중입니다.
           </div>
-        ) : displayTasks.length === 0 ? (
+        ) : !hydrateError && displayTasks.length === 0 ? (
           <div className="async-status-bar__empty">작업박스가 비어 있습니다</div>
         ) : (
           displayTasks.map((task) => <TaskItem key={task.id} task={task} now={now} />)

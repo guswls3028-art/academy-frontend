@@ -12,12 +12,12 @@ const LECTURE_ID = 501;
 const SESSION_ID = 701;
 const EXAM_ID = 801;
 
-function localJwt(): string {
+function localJwt(userId = 12): string {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
   return `${encode({ alg: "none" })}.${encode({
     exp: Math.floor(Date.now() / 1000) + 60 * 60,
     tenant_code: "hakwonplus",
-    user_id: 12,
+    user_id: userId,
   })}.sig`;
 }
 
@@ -119,19 +119,35 @@ async function installDashboardApi(
     uploadFlow?: boolean;
     failFirstUploadAfterPartialAdmission?: boolean;
     admissionFailure?: boolean;
+    resumeOrdinals?: number[];
+    detailExamId?: number;
+    failDetail?: boolean;
+    holdCompletionClaim?: boolean;
   } = {},
 ) {
+  const scoresFlow = options.uploadFlow
+    || options.admissionFailure
+    || options.resumeOrdinals !== undefined
+    || options.detailExamId !== undefined
+    || options.failDetail;
   let terminal = false;
   let claimed = false;
   let listGets = 0;
   let detailGets = 0;
   let completionClaims = 0;
+  let completionClaimResponses = 0;
   let listFailureReleased = false;
+  let hideBatches = false;
   let initializedUploads = false;
+  let initializePosts = 0;
   let uploadPosts = 0;
   const uploadBodies: string[] = [];
   let partialUpload = false;
   const retryBodies: number[][] = [];
+  let releaseCompletionClaim: (() => void) | null = null;
+  const completionClaimGate = new Promise<void>((resolve) => {
+    releaseCompletionClaim = resolve;
+  });
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -146,28 +162,29 @@ async function installDashboardApi(
       && request.method() === "POST"
     ) {
       initializedUploads = true;
+      initializePosts += 1;
       await safeJson(route, admissionSummary("pending"), 201);
       return;
     }
     if (
-      options.uploadFlow
+      (options.uploadFlow || options.resumeOrdinals !== undefined)
       && path === `/submissions/submissions/exams/${EXAM_ID}/omr/batch/`
       && request.method() === "POST"
     ) {
       uploadPosts += 1;
-      uploadBodies.push(request.postDataBuffer()?.toString("latin1") ?? "");
+      const uploadBody = request.postDataBuffer()?.toString("latin1") ?? "";
+      uploadBodies.push(uploadBody);
       if (options.failFirstUploadAfterPartialAdmission && uploadPosts === 1) {
         partialUpload = true;
         await safeJson(route, { detail: "synthetic admission response timeout" }, 504);
         return;
       }
       partialUpload = false;
+      const createdCount = uploadBody.match(/name="files"/g)?.length ?? 0;
       await safeJson(route, {
         ...admissionSummary("received"),
-        created_count: uploadPosts === 1 ? 22 : 1,
-        submission_ids: uploadPosts === 1
-          ? Array.from({ length: 22 }, (_, index) => 2001 + index)
-          : [2022],
+        created_count: createdCount,
+        submission_ids: Array.from({ length: createdCount }, (_, index) => 2001 + index),
       }, 201);
       return;
     }
@@ -186,7 +203,7 @@ async function installDashboardApi(
       const batch = options.uploadFlow && initializedUploads
         ? admissionSummary(uploadPosts > 0 ? "received" : "pending")
         : batchSummary({ terminal, claimed, admissionFailure: options.admissionFailure });
-      await safeJson(route, options.empty ? [] : [batch]);
+      await safeJson(route, options.empty || hideBatches ? [] : [batch]);
       return;
     }
     if (
@@ -194,11 +211,22 @@ async function installDashboardApi(
       && request.method() === "GET"
     ) {
       detailGets += 1;
-      const batch = options.uploadFlow
-        ? partialUpload
-          ? partialAdmissionSummary()
-          : admissionSummary(uploadPosts > 0 ? "received" : "pending")
-        : batchSummary({ terminal, claimed, admissionFailure: options.admissionFailure });
+      if (options.failDetail) {
+        await safeJson(route, { detail: "synthetic detail failure" }, 503);
+        return;
+      }
+      const batch = options.resumeOrdinals !== undefined
+        ? {
+            ...batchSummary({ terminal, claimed }),
+            exam_id: options.detailExamId ?? EXAM_ID,
+            pending_admission_ordinals: options.resumeOrdinals,
+            admission_failed_ordinals: [],
+          }
+        : options.uploadFlow
+          ? partialUpload
+            ? partialAdmissionSummary()
+            : admissionSummary(uploadPosts > 0 ? "received" : "pending")
+          : batchSummary({ terminal, claimed, admissionFailure: options.admissionFailure });
       await safeJson(route, batch);
       return;
     }
@@ -221,6 +249,7 @@ async function installDashboardApi(
       && request.method() === "POST"
     ) {
       completionClaims += 1;
+      if (options.holdCompletionClaim) await completionClaimGate;
       const notify = !claimed;
       claimed = true;
       await safeJson(route, {
@@ -231,13 +260,14 @@ async function installDashboardApi(
           admissionFailure: options.admissionFailure,
         }),
       });
+      completionClaimResponses += 1;
       return;
     }
     if (path === "/media/videos/" && request.method() === "GET") {
       await safeJson(route, { count: 0, results: [] });
       return;
     }
-    if ((options.uploadFlow || options.admissionFailure) && path === `/lectures/lectures/${LECTURE_ID}/`) {
+    if (scoresFlow && path === `/lectures/lectures/${LECTURE_ID}/`) {
       await safeJson(route, {
         id: LECTURE_ID,
         title: "공통수학2 정규반",
@@ -249,7 +279,7 @@ async function installDashboardApi(
       });
       return;
     }
-    if ((options.uploadFlow || options.admissionFailure) && path === `/lectures/sessions/${SESSION_ID}/`) {
+    if (scoresFlow && path === `/lectures/sessions/${SESSION_ID}/`) {
       await safeJson(route, {
         id: SESSION_ID,
         lecture: LECTURE_ID,
@@ -264,7 +294,7 @@ async function installDashboardApi(
       });
       return;
     }
-    if ((options.uploadFlow || options.admissionFailure) && path === `/results/admin/sessions/${SESSION_ID}/scores/`) {
+    if (scoresFlow && path === `/results/admin/sessions/${SESSION_ID}/scores/`) {
       await safeJson(route, {
         meta: {
           session_title: "1차시",
@@ -298,12 +328,20 @@ async function installDashboardApi(
   }, localJwt());
 
   return {
-    counts: () => ({ listGets, detailGets, completionClaims }),
+    counts: () => ({ listGets, detailGets, completionClaims, completionClaimResponses }),
     finish: () => { terminal = true; },
     releaseListFailure: () => { listFailureReleased = true; },
-    uploadState: () => ({ uploadPosts, uploadBodies: [...uploadBodies] }),
+    hideBatches: () => { hideBatches = true; },
+    releaseCompletionClaim: () => { releaseCompletionClaim?.(); },
+    uploadState: () => ({ initializePosts, uploadPosts, uploadBodies: [...uploadBodies] }),
     retryBodies: () => [...retryBodies],
   };
+}
+
+function multipartFieldValues(body: string, field: string): string[] {
+  const escaped = field.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return [...body.matchAll(new RegExp(`name="${escaped}"\\r\\n\\r\\n([^\\r\\n]+)`, "g"))]
+    .map((match) => match[1]);
 }
 
 async function openWorkboxPanel(page: Page) {
@@ -338,6 +376,16 @@ async function openOmrUpload(page: Page) {
   const trigger = page.getByRole("button", { name: "OMR 스캔 등록" });
   await expect(trigger).toBeVisible({ timeout: 30_000 });
   await trigger.click();
+}
+
+async function openResumeOmrUpload(page: Page) {
+  await page.goto(
+    `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores?omrRetryBatchId=${BATCH_ID}&omrRetryExamId=${EXAM_ID}`,
+    { waitUntil: "domcontentloaded" },
+  );
+  const dialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
+  await expect(dialog).toBeVisible({ timeout: 30_000 });
+  return dialog;
 }
 
 test.describe("OMR durable batch progress", () => {
@@ -402,6 +450,7 @@ test.describe("OMR durable batch progress", () => {
     const panel = await openWorkboxPanel(page);
     await expect(panel.getByRole("status")).toContainText("불러오는 중");
     await expect(panel.getByRole("alert")).toContainText("불러오지 못했습니다");
+    await expect(panel.getByText("작업박스가 비어 있습니다")).toHaveCount(0);
 
     api.releaseListFailure();
     await panel.getByRole("button", { name: "새로고침" }).click();
@@ -494,6 +543,130 @@ test.describe("OMR durable batch progress", () => {
     expect(uploadBodies[1].match(/name="item_ordinals"/g)).toHaveLength(1);
     expect(uploadBodies[1]).toContain("22");
     expect(uploadBodies[1]).not.toContain("partial-1.jpg");
+  });
+
+  test("재선택 파일을 삭제 후 추가해도 서버 ordinal 슬롯은 중복되지 않는다", async ({ page }) => {
+    const api = await installDashboardApi(page, { resumeOrdinals: [21, 22] });
+    const dialog = await openResumeOmrUpload(page);
+    const input = dialog.locator('input[type="file"]');
+    await expect(input).toBeEnabled();
+    await input.setInputFiles([
+      { name: "resume-21.jpg", mimeType: "image/jpeg", buffer: Buffer.from("resume-21") },
+      { name: "resume-22.jpg", mimeType: "image/jpeg", buffer: Buffer.from("resume-22") },
+    ]);
+    await dialog.locator(".admin-omr-upload__file").filter({ hasText: "resume-21.jpg" })
+      .getByRole("button", { name: "삭제" }).click();
+    await input.setInputFiles({
+      name: "resume-21-reselected.jpg",
+      mimeType: "image/jpeg",
+      buffer: Buffer.from("resume-21-reselected"),
+    });
+    await dialog.getByRole("button", { name: "미접수 파일 다시 접수" }).click();
+
+    await expect.poll(() => api.uploadState().uploadPosts).toBe(1);
+    const ordinals = multipartFieldValues(api.uploadState().uploadBodies[0], "item_ordinals");
+    expect(ordinals).toEqual(["22", "21"]);
+    expect(new Set(ordinals).size).toBe(ordinals.length);
+    expect(ordinals.every((value) => Number.isFinite(Number(value)))).toBe(true);
+  });
+
+  test("완료한 일반 선택을 비운 뒤 새 선택은 새 batch와 유효 ordinal로 시작한다", async ({ page }) => {
+    const api = await installDashboardApi(page, { uploadFlow: true });
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await openOmrUpload(page);
+    const dialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
+    const input = dialog.locator('input[type="file"]');
+    await input.setInputFiles({
+      name: "first-batch.jpg",
+      mimeType: "image/jpeg",
+      buffer: Buffer.from("first-batch"),
+    });
+    await dialog.getByRole("button", { name: "등록 시작" }).click();
+    await expect(dialog.getByText("1건을 접수했습니다", { exact: false })).toBeVisible();
+    await dialog.getByRole("button", { name: "비우기" }).click();
+    await input.setInputFiles({
+      name: "second-batch.jpg",
+      mimeType: "image/jpeg",
+      buffer: Buffer.from("second-batch"),
+    });
+    await dialog.getByRole("button", { name: "등록 시작" }).click();
+
+    await expect.poll(() => api.uploadState().uploadPosts).toBe(2);
+    const uploadState = api.uploadState();
+    expect(uploadState.initializePosts).toBe(2);
+    expect(multipartFieldValues(uploadState.uploadBodies[1], "item_ordinals")).toEqual(["1"]);
+    expect(uploadState.uploadBodies[1]).not.toContain("NaN");
+  });
+
+  for (const scenario of [
+    { name: "detail GET 실패", options: { failDetail: true } },
+    { name: "시험 불일치", options: { resumeOrdinals: [21], detailExamId: EXAM_ID + 1 } },
+    { name: "재선택 ordinal 없음", options: { resumeOrdinals: [] } },
+  ] as const) {
+    test(`query batch가 ${scenario.name}이면 업로드를 fail-closed한다`, async ({ page }) => {
+      await installDashboardApi(page, scenario.options);
+      const dialog = await openResumeOmrUpload(page);
+      await expect(dialog.locator('input[type="file"]')).toBeDisabled();
+      await expect(dialog.getByRole("button", { name: "등록 시작" })).toBeDisabled();
+    });
+  }
+
+  test("완료 claim 대기 중 logout clear는 이전 작업과 toast를 복원하지 않는다", async ({ page }) => {
+    const api = await installDashboardApi(page, { holdCompletionClaim: true });
+    api.finish();
+    await page.goto(`${BASE}/workspace/dashboard`, { waitUntil: "domcontentloaded" });
+    await openWorkbox(page);
+    await expect.poll(() => api.counts().completionClaims).toBe(1);
+    const authGeneration = await page.evaluate(() => (
+      localStorage.getItem("academy:auth-active-generation:v1")
+    ));
+    expect(authGeneration).toBeTruthy();
+
+    const profileButton = page.locator(".app-header button")
+      .filter({ hasText: /admin|사용자|원장|선생|관리자/i }).last();
+    await profileButton.click();
+    await page.getByRole("menuitem", { name: "로그아웃", exact: true }).click();
+    await expect(page).toHaveURL(/\/login(?:\/hakwonplus)?/, { timeout: 15_000 });
+    await page.evaluate(({ generation, jwt }) => {
+      if (!generation) return;
+      sessionStorage.setItem("tenantCode", "hakwonplus");
+      localStorage.setItem(
+        `academy:auth-tokens:v1:${generation}`,
+        JSON.stringify({ access: jwt, refresh: `${jwt}-refresh`, generation }),
+      );
+    }, { generation: authGeneration, jwt: localJwt(99) });
+
+    api.hideBatches();
+    api.releaseCompletionClaim();
+    await expect.poll(() => api.counts().completionClaimResponses).toBe(1);
+
+    await page.route("**/api/v1/core/me/", async (route) => {
+      await safeJson(route, {
+        id: 99,
+        username: "t1_admin99",
+        name: "새 관리자",
+        is_staff: true,
+        is_superuser: true,
+        tenantRole: "admin",
+        must_change_password: false,
+      });
+    });
+    const meResponse = page.waitForResponse((response) => (
+      new URL(response.url()).pathname.endsWith("/api/v1/core/me/")
+      && response.request().method() === "GET"
+    ));
+    await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+    await meResponse;
+    await page.evaluate(() => {
+      history.pushState({}, "", "/workspace/dashboard");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    const panel = await openWorkboxPanel(page);
+    await expect(panel.locator(".async-status-bar__item").filter({ hasText: "OMR 22장" })).toHaveCount(0);
+    await expect(page.getByText("OMR 처리가 끝났습니다. 실패 항목을 확인해 주세요.")).toHaveCount(0);
   });
 
   test("390px 작업박스에서 상태와 CTA가 가로로 잘리지 않는다", async ({ page }) => {

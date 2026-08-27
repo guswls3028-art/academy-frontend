@@ -22,6 +22,8 @@
 - list/detail poll은 완전 read-only다. terminal을 처음 관찰한 탭만 별도 completion claim
   POST를 호출하고, 서버가 `notify=true`를 준 경우에만 완료 피드백을 한 번 표시한다.
   동시 탭과 reload의 후속 claim은 `false`다.
+- logout/계정 전환으로 작업박스가 비워지면 이전 session generation의 지연 poll·claim
+  응답은 같은 tenant여도 폐기한다. 이전 사용자의 batch나 완료 toast를 다시 만들지 않는다.
 
 ## 표시 상태
 
@@ -44,12 +46,17 @@ CTA를 제공한다. 다른 시험이나 차시로 fallback하지 않는다.
 - multipart 응답이 끊기면 batch detail을 다시 읽어 서버가 이미 받은 ordinal과
   `pending_admission_ordinals`/`admission_failed_ordinals`를 재구성한다.
 - 성공 ordinal은 다시 보내지 않는다. 원본 파일이 없는 ordinal만 순서대로 명시 재선택한다.
+- query의 batch id는 신뢰하지 않는다. detail이 현재 exam/session과 일치하고, 재선택
+  ordinal이 총수 범위 안의 유한·유일한 non-empty 집합으로 검증되기 전에는 파일 선택과
+  접수 버튼을 모두 잠근다. 삭제 후 재추가는 비어 있는 exact ordinal 슬롯을 재사용한다.
+- 일반 접수 성공 목록을 `비우기`로 지운 뒤 새 파일을 선택하면 새 batch를 만들고 ordinal
+  1부터 다시 시작한다. 이전 batch id나 `undefined`/`NaN` ordinal을 재사용하지 않는다.
 - 파일이 남아 있는 worker 실패는 기존 retry action으로 재처리하고, 파일이 필요한 실패는
   같은 업로드 모달로 이동한다.
 - batch/detail/retry가 다른 tenant·직원·시험과 일치하지 않으면 UI는 자동 추정하지 않고
   실패 안내만 표시한다.
 - 목록 조회 중에는 loading, 일부 조회 실패에는 error+수동 새로고침, 정상 빈 목록에는
-  empty를 서로 다르게 표시한다.
+  empty를 서로 다르게 표시한다. error/unavailable 응답을 정상 empty와 함께 표시하지 않는다.
 
 ## 반응형과 검증
 
@@ -58,6 +65,7 @@ CTA를 제공한다. 다른 시험이나 차시로 fallback하지 않는다.
   상태 칩과 OMR 검토/재시도 CTA가 가로로 잘리지 않아야 한다.
 - `e2e/admin/omr-batch-progress.mock.spec.ts`는 read-only GET, terminal claim 1회,
   22개 단일 multipart, 응답 중단 후 정확한 ordinal 재선택, reload 복구,
+  삭제/재추가와 비우기/재선택 ordinal, query detail fail-closed, logout 중 지연 claim,
   loading/error/empty, 390px overflow를 고정한다.
 - 서버의 1/22/100 총수, 100건 중 부분 실패, 중복 없는 retry, tenant/creator scope와
   PostgreSQL completion-claim race는

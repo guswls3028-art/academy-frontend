@@ -202,6 +202,7 @@ function loadRecoverableExcelTasks(): AsyncTask[] {
 
 let tasks: AsyncTask[] = loadRecoverableExcelTasks();
 const listeners = new Set<Listener>();
+let sessionGeneration = 0;
 
 function persistRecoverableExcelTasks(): void {
   if (typeof window === "undefined") return;
@@ -266,6 +267,10 @@ function defaultLabel(method: string, url?: string): string {
 }
 
 export const asyncStatusStore = {
+  getSessionGeneration(): number {
+    return sessionGeneration;
+  },
+
   getState(): AsyncTask[] {
     return [...tasks];
   },
@@ -483,6 +488,7 @@ export const asyncStatusStore = {
 
   /** 로그아웃/계정 전환 시 평문 다운로드 데이터와 복구 메타데이터를 모두 제거 */
   clearAll(): void {
+    sessionGeneration += 1;
     tasks = [];
     try {
       removeLocalItem(EXCEL_RECOVERY_STORAGE_KEY);
