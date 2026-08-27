@@ -2,7 +2,7 @@
 // 내 저장소(선생님) — 좌측 폴더 트리, 상단 브레드크럼, 우측 아이콘 그리드 (파일 탐색기형)
 // 다중선택: Ctrl/Cmd+Click, 일괄삭제 지원
 
-import { useMemo, useState, useCallback, useEffect } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { FolderOpen, FilePlus, FolderPlus, X, Download, Trash2, Pencil, Sparkles, MoveRight } from "lucide-react";
@@ -95,6 +95,9 @@ export default function MyStorageExplorer() {
   const data = inventoryQ.data;
   const isLoading = inventoryQ.isLoading;
   const inventoryReady = inventoryQ.isSuccess && !inventoryQ.isError;
+  const inventoryFence = `${inventoryQ.dataUpdatedAt}:${inventoryQ.errorUpdatedAt}:${inventoryQ.fetchStatus}`;
+  const inventoryGuardRef = useRef({ ready: inventoryReady, fence: inventoryFence });
+  inventoryGuardRef.current = { ready: inventoryReady, fence: inventoryFence };
   const folders = useMemo(() => data?.folders ?? [], [data?.folders]);
   const files = useMemo(() => data?.files ?? [], [data?.files]);
   const subFolders = folders.filter((f) => f.parentId === currentFolderId);
@@ -303,6 +306,7 @@ export default function MyStorageExplorer() {
       lines.push("");
       lines.push("이 작업은 되돌릴 수 없습니다.");
 
+      const confirmedInventoryFence = inventoryGuardRef.current.fence;
       const ok = await confirm({
         title: "하위 포함 폴더 영구 삭제",
         message: lines.join("\n"),
@@ -310,7 +314,8 @@ export default function MyStorageExplorer() {
         cancelText: "취소",
         danger: true,
       });
-      if (!ok) return;
+      const currentInventory = inventoryGuardRef.current;
+      if (!ok || !currentInventory.ready || currentInventory.fence !== confirmedInventoryFence) return;
 
       setIsDeleting(true);
       try {
@@ -385,18 +390,26 @@ export default function MyStorageExplorer() {
     lines.push("");
     lines.push("이 작업은 되돌릴 수 없습니다.");
 
+    const confirmedInventoryFence = inventoryGuardRef.current.fence;
     const ok = await confirm({
       title: recursiveNeeded ? "하위 포함 영구 삭제" : "선택 항목 삭제",
       message: lines.join("\n"),
       confirmText: recursiveNeeded ? "전부 삭제" : "삭제",
       danger: true,
     });
-    if (!ok) return;
+    const currentInventory = inventoryGuardRef.current;
+    if (!ok || !currentInventory.ready || currentInventory.fence !== confirmedInventoryFence) return;
 
     setIsDeleting(true);
     let errorCount = 0;
     let totalMatchup = 0;
+    let inventoryBecameStale = false;
     for (const id of selectedFolderIds) {
+      const inventoryAtMutation = inventoryGuardRef.current;
+      if (!inventoryAtMutation.ready || inventoryAtMutation.fence !== confirmedInventoryFence) {
+        inventoryBecameStale = true;
+        break;
+      }
       try {
         const res = await deleteFolder(SCOPE, id, undefined, { recursive: recursiveNeeded });
         if (res && "deleted" in res) {
@@ -407,17 +420,28 @@ export default function MyStorageExplorer() {
         feedback.error((e as Error).message);
       }
     }
-    for (const id of selectedFileIds) {
-      try {
-        await deleteFile(SCOPE, id);
-      } catch (e) {
-        errorCount++;
-        feedback.error((e as Error).message);
+    if (!inventoryBecameStale) {
+      for (const id of selectedFileIds) {
+        const inventoryAtMutation = inventoryGuardRef.current;
+        if (!inventoryAtMutation.ready || inventoryAtMutation.fence !== confirmedInventoryFence) {
+          inventoryBecameStale = true;
+          break;
+        }
+        try {
+          await deleteFile(SCOPE, id);
+        } catch (e) {
+          errorCount++;
+          feedback.error((e as Error).message);
+        }
       }
     }
     qc.invalidateQueries({ queryKey: storageQueryKeys.storageInventory(SCOPE) });
     if (totalMatchup > 0 || selectedMatchupFiles.length > 0) {
       qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
+    }
+    if (inventoryBecameStale) {
+      setIsDeleting(false);
+      return;
     }
     clearSelection();
     setIsDeleting(false);
@@ -561,18 +585,26 @@ export default function MyStorageExplorer() {
   const handleBulkPromote = useCallback(async () => {
     const candidates = selectedMatchupCandidates;
     if (candidates.length === 0) return;
+    const confirmedInventoryFence = inventoryGuardRef.current.fence;
     const ok = await confirm({
       title: "선택 파일을 매치업으로 등록",
       message: `${candidates.length}개 PDF/PNG/JPG를 매치업 자료로 등록하고 AI 분석을 시작합니다.`,
       confirmText: "등록",
     });
-    if (!ok) return;
+    const currentInventory = inventoryGuardRef.current;
+    if (!ok || !currentInventory.ready || currentInventory.fence !== confirmedInventoryFence) return;
 
     setBulkPromoting(true);
     let succeeded = 0;
     let alreadyPromoted = 0;
     let failed = 0;
+    let inventoryBecameStale = false;
     for (const f of candidates) {
+      const inventoryAtMutation = inventoryGuardRef.current;
+      if (!inventoryAtMutation.ready || inventoryAtMutation.fence !== confirmedInventoryFence) {
+        inventoryBecameStale = true;
+        break;
+      }
       try {
         const doc = await promoteInventoryToMatchup({ inventoryFileId: f.id, title: f.displayName });
         if (doc.ai_job_id) {
@@ -601,6 +633,7 @@ export default function MyStorageExplorer() {
     setBulkPromoting(false);
     qc.invalidateQueries({ queryKey: storageQueryKeys.storageInventory(SCOPE) });
     qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
+    if (inventoryBecameStale) return;
 
     const parts: string[] = [];
     if (succeeded > 0) parts.push(`${succeeded}개 등록`);
@@ -1014,13 +1047,15 @@ export default function MyStorageExplorer() {
                   const matchupWarning = target.matchup
                     ? "\n\n⚠ 이 파일은 매치업 자료로 등록되어 있습니다. 삭제하면 매치업 분석 결과(추출 문제·유사 검색)도 함께 사라집니다."
                     : "";
+                  const confirmedInventoryFence = inventoryGuardRef.current.fence;
                   const ok = await confirm({
                     title: "파일 삭제",
                     message: `정말 삭제하시겠습니까?${matchupWarning}`,
                     confirmText: "삭제",
                     danger: true,
                   });
-                  if (!ok) return;
+                  const currentInventory = inventoryGuardRef.current;
+                  if (!ok || !currentInventory.ready || currentInventory.fence !== confirmedInventoryFence) return;
                   try {
                     await deleteFile(SCOPE, target.id);
                     qc.invalidateQueries({ queryKey: storageQueryKeys.storageInventory(SCOPE) });

@@ -199,6 +199,29 @@ async function installStorageMocks(
       }
       return json(route, scope === "student" ? studentInventory : adminInventory);
     }
+    if (path === "/matchup/documents/" && method === "GET") {
+      return json(route, [{
+        id: 11,
+        title: "중등 기출",
+        category: "중등",
+        subject: "수학",
+        grade_level: "중3",
+        original_name: "middle.pdf",
+        size_bytes: 1_024,
+        content_type: "application/pdf",
+        status: "done",
+        ai_job_id: "",
+        problem_count: 0,
+        error_message: "",
+        meta: { upload_intent: "test" },
+        inventory_file_id: 900,
+        created_at: "2026-08-26T00:00:00Z",
+        updated_at: "2026-08-26T00:00:00Z",
+      }]);
+    }
+    if (path === "/matchup/problems/" && method === "GET") {
+      return json(route, []);
+    }
     if (path === "/storage/inventory/move/" && method === "POST") {
       const body = request.postDataJSON() as MoveBody;
       moveRequests.push(body);
@@ -236,6 +259,27 @@ async function expectNoDocumentOverflow(page: Page) {
     body: document.body.scrollWidth - document.body.clientWidth,
     document: document.documentElement.scrollWidth - document.documentElement.clientWidth,
   }))).toEqual({ body: 0, document: 0 });
+}
+
+async function failInventoryBehindOpenConfirm(
+  page: Page,
+  harness: StorageHarness,
+  failureText: string,
+  confirmText = "삭제",
+) {
+  const readsBeforeFailure = harness.inventoryReads.length;
+  await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+  harness.setInventoryAvailable(false);
+  await page.clock.fastForward(10_100);
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect.poll(() => harness.inventoryReads.length).toBeGreaterThan(readsBeforeFailure);
+  await expect(page.getByRole("alert").filter({ hasText: failureText })).toBeVisible();
+
+  const dialog = page.getByRole("alertdialog");
+  await dialog.getByRole("button", { name: confirmText, exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.clock.runFor(100);
+  expect(harness.unexpectedMutations).toEqual([]);
 }
 
 async function openMoveDialog(page: Page, sourceName: string) {
@@ -324,6 +368,109 @@ test.describe("저장소 모바일 파일·폴더 이동", () => {
     await expect(source).toBeVisible();
     await expect(source).toHaveAttribute("aria-pressed", "false");
     await expect(page.getByRole("button", { name: "삭제", exact: true })).toHaveCount(0);
+    expect(harness.unexpectedMutations).toEqual([]);
+  });
+
+  test("390px admin: 열린 삭제 확인은 재조회 실패 뒤 캐시 ID mutation을 실행하지 않는다", async ({ page }) => {
+    await page.clock.install({ time: new Date("2026-08-28T00:00:00Z") });
+    const harness = await installStorageMocks(page, { role: "owner" });
+    await page.goto(`${BASE}/workspace/storage/files`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    const source = page.getByRole("button", { name: "파일 관리자 모바일 파일.pdf 선택" });
+    await expect(source).toBeVisible({ timeout: 60_000 });
+    await source.press("Space");
+    await page.getByRole("button", { name: "삭제", exact: true }).click();
+    await expect(page.getByRole("alertdialog", { name: "선택 항목 삭제" })).toBeVisible();
+
+    await failInventoryBehindOpenConfirm(page, harness, "저장소를 불러오지 못했습니다");
+  });
+
+  test("390px admin: 열린 하위 폴더 삭제 확인도 재조회 실패 뒤 mutation 0을 유지한다", async ({ page }) => {
+    await page.clock.install({ time: new Date("2026-08-28T00:00:00Z") });
+    const harness = await installStorageMocks(page, { role: "owner" });
+    await page.goto(`${BASE}/workspace/storage/files`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    const recursiveDelete = page.locator('button[aria-label="하위 포함 삭제"]').first();
+    await expect(recursiveDelete).toHaveCount(1, { timeout: 60_000 });
+    await recursiveDelete.dispatchEvent("click");
+    await expect(page.getByRole("alertdialog", { name: "하위 포함 폴더 영구 삭제" })).toBeVisible();
+
+    await failInventoryBehindOpenConfirm(page, harness, "저장소를 불러오지 못했습니다", "전부 삭제");
+  });
+
+  test("390px admin: 열린 일괄 matchup 확인도 재조회 실패 뒤 mutation 0을 유지한다", async ({ page }) => {
+    await page.clock.install({ time: new Date("2026-08-28T00:00:00Z") });
+    const harness = await installStorageMocks(page, { role: "owner" });
+    await page.goto(`${BASE}/workspace/storage/files`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    const source = page.getByRole("button", { name: "파일 관리자 모바일 파일.pdf 선택" });
+    await expect(source).toBeVisible({ timeout: 60_000 });
+    await source.press("Space");
+    await page.locator('[data-testid="storage-bulk-promote-matchup"]').click();
+    await expect(page.getByRole("alertdialog", { name: "선택 파일을 매치업으로 등록" })).toBeVisible();
+
+    await failInventoryBehindOpenConfirm(page, harness, "저장소를 불러오지 못했습니다", "등록");
+  });
+
+  test("390px student storage: 열린 삭제 확인도 재조회 실패 뒤 mutation 0을 유지한다", async ({ page }) => {
+    await page.clock.install({ time: new Date("2026-08-28T00:00:00Z") });
+    const harness = await installStorageMocks(page, { role: "owner" });
+    await page.goto(`${BASE}/workspace/storage/students/PS-001`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    const source = page.getByRole("button", { name: "파일 학생 모바일 파일.pdf 선택" });
+    await expect(source).toBeVisible({ timeout: 60_000 });
+    await source.press("Space");
+    await page.getByRole("button", { name: "삭제", exact: true }).click();
+    await expect(page.getByRole("alertdialog", { name: "선택 항목 삭제" })).toBeVisible();
+
+    await failInventoryBehindOpenConfirm(page, harness, "학생 저장소를 불러오지 못했습니다");
+  });
+
+  test("390px teacher storage: 열린 파일 삭제 확인은 재조회 실패 뒤 mutation 0을 유지한다", async ({ page }) => {
+    await page.clock.install({ time: new Date("2026-08-28T00:00:00Z") });
+    const harness = await installStorageMocks(page, { role: "owner" });
+    await page.goto(`${BASE}/workspace/mobile/storage`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    const deleteButton = page.getByRole("button", { name: "관리자 모바일 파일.pdf 삭제" });
+    await expect(deleteButton).toBeVisible({ timeout: 60_000 });
+    await deleteButton.click();
+    await expect(page.getByRole("alertdialog", { name: "파일 삭제" })).toBeVisible();
+
+    await failInventoryBehindOpenConfirm(page, harness, "자료 저장소를 불러오지 못했습니다");
+  });
+
+  test("390px teacher student inventory: 열린 파일 삭제 확인도 재조회 실패 뒤 mutation 0을 유지한다", async ({ page }) => {
+    await page.clock.install({ time: new Date("2026-08-28T00:00:00Z") });
+    const harness = await installStorageMocks(page, { role: "owner" });
+    await page.goto(`${BASE}/workspace/mobile/storage/inventory`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    await page.getByRole("button", { name: /학생 사용자/ }).click();
+
+    const deleteButton = page.getByRole("button", { name: "학생 모바일 파일.pdf 삭제" });
+    await expect(deleteButton).toBeVisible({ timeout: 60_000 });
+    await deleteButton.click();
+    await expect(page.getByRole("alertdialog", { name: "파일 삭제" })).toBeVisible();
+
+    await failInventoryBehindOpenConfirm(page, harness, "학생 자료를 불러오지 못했습니다");
+  });
+
+  test("390px matchup: 저장소 조회 실패를 alert로 알리고 재시도 성공 전 mutation 0을 유지한다", async ({ page }) => {
+    const harness = await installStorageMocks(page, {
+      role: "owner",
+      inventoryInitiallyAvailable: false,
+    });
+    await page.goto(`${BASE}/workspace/storage/matchup`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    await page.locator('[data-testid="matchup-category-menu-trigger"]').first().dispatchEvent("click");
+    await page.getByRole("menuitem", { name: "저장소에서 가져오기" }).dispatchEvent("click");
+    const modal = page.locator('[data-testid="matchup-promote-modal"]');
+    const failure = modal.getByRole("alert");
+    await expect(failure).toContainText("저장소를 불러오지 못했습니다", { timeout: 60_000 });
+    await expect(modal.locator('[data-testid="matchup-promote-submit"]')).toBeDisabled();
+    expect(harness.unexpectedMutations).toEqual([]);
+
+    harness.setInventoryAvailable(true);
+    await failure.getByRole("button", { name: "다시 시도" }).click();
+    await expect(modal.locator('[data-testid="matchup-promote-row"]')).toHaveCount(1);
     expect(harness.unexpectedMutations).toEqual([]);
   });
 

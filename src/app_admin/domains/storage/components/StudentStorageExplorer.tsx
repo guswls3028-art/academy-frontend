@@ -2,7 +2,7 @@
 // 학생 인벤토리 — 동일한 파일 탐색기 UI, scope=student
 // 다중선택: Ctrl/Cmd+Click, 일괄삭제, 이름수정 지원
 
-import { useMemo, useState, useCallback, useEffect } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FolderOpen, FileText, Image, FilePlus, FolderPlus, X, Download, Trash2, Pencil, MoveRight } from "lucide-react";
 import { Button, CloseButton, ICON_FOR_BUTTON } from "@/shared/ui/ds";
@@ -87,6 +87,9 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
   const data = inventoryQ.data;
   const isLoading = inventoryQ.isLoading;
   const inventoryReady = inventoryQ.isSuccess && !inventoryQ.isError;
+  const inventoryFence = `${studentPs}:${inventoryQ.dataUpdatedAt}:${inventoryQ.errorUpdatedAt}:${inventoryQ.fetchStatus}`;
+  const inventoryGuardRef = useRef({ ready: inventoryReady, fence: inventoryFence });
+  inventoryGuardRef.current = { ready: inventoryReady, fence: inventoryFence };
 
   const folders = useMemo(() => data?.folders ?? [], [data?.folders]);
   const files = useMemo(() => data?.files ?? [], [data?.files]);
@@ -208,23 +211,42 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
     const parts: string[] = [];
     if (folderCount > 0) parts.push(`폴더 ${folderCount}개`);
     if (fileCount > 0) parts.push(`파일 ${fileCount}개`);
+    const confirmedInventoryFence = inventoryGuardRef.current.fence;
     const ok = await confirm({
       title: "선택 항목 삭제",
       message: `${parts.join(", ")}를 삭제하시겠습니까?`,
       confirmText: "삭제",
       danger: true,
     });
-    if (!ok) return;
+    const currentInventory = inventoryGuardRef.current;
+    if (!ok || !currentInventory.ready || currentInventory.fence !== confirmedInventoryFence) return;
 
     setIsDeleting(true);
     let errorCount = 0;
+    let inventoryBecameStale = false;
     for (const id of selectedFolderIds) {
+      const inventoryAtMutation = inventoryGuardRef.current;
+      if (!inventoryAtMutation.ready || inventoryAtMutation.fence !== confirmedInventoryFence) {
+        inventoryBecameStale = true;
+        break;
+      }
       try { await deleteFolder(SCOPE, id, studentPs); } catch (e) { errorCount++; feedback.error((e as Error).message); }
     }
-    for (const id of selectedFileIds) {
-      try { await deleteFile(SCOPE, id, studentPs); } catch (e) { errorCount++; feedback.error((e as Error).message); }
+    if (!inventoryBecameStale) {
+      for (const id of selectedFileIds) {
+        const inventoryAtMutation = inventoryGuardRef.current;
+        if (!inventoryAtMutation.ready || inventoryAtMutation.fence !== confirmedInventoryFence) {
+          inventoryBecameStale = true;
+          break;
+        }
+        try { await deleteFile(SCOPE, id, studentPs); } catch (e) { errorCount++; feedback.error((e as Error).message); }
+      }
     }
     qc.invalidateQueries({ queryKey: QK });
+    if (inventoryBecameStale) {
+      setIsDeleting(false);
+      return;
+    }
     clearSelection();
     setIsDeleting(false);
     if (errorCount === 0) feedback.success(`${parts.join(", ")} 삭제 완료`);
@@ -491,8 +513,10 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
               </button>
               <button type="button" className={styles.fileActionBtnDanger} onClick={async () => {
                 const id = fileActionTarget.id; setFileActionTarget(null);
+                const confirmedInventoryFence = inventoryGuardRef.current.fence;
                 const ok = await confirm({ title: "파일 삭제", message: "정말 삭제하시겠습니까?", confirmText: "삭제", danger: true });
-                if (!ok) return;
+                const currentInventory = inventoryGuardRef.current;
+                if (!ok || !currentInventory.ready || currentInventory.fence !== confirmedInventoryFence) return;
                 try { await deleteFile(SCOPE, id, studentPs); qc.invalidateQueries({ queryKey: QK }); } catch (e) { feedback.error((e as Error).message); }
               }}>
                 <Trash2 size={18} className={styles.dangerIcon} />삭제하기

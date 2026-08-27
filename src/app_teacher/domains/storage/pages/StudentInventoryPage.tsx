@@ -46,6 +46,9 @@ export default function StudentInventoryPage() {
   });
   const { data: inventory, isLoading: invLoading, isError: invError } = inventoryQ;
   const inventoryReady = !!selected && inventoryQ.isSuccess && !invError;
+  const inventoryFence = `${selected?.ps ?? ""}:${inventoryQ.dataUpdatedAt}:${inventoryQ.errorUpdatedAt}:${inventoryQ.fetchStatus}`;
+  const inventoryGuardRef = useRef({ ready: inventoryReady, fence: inventoryFence });
+  inventoryGuardRef.current = { ready: inventoryReady, fence: inventoryFence };
 
   useEffect(() => {
     if (!invError) return;
@@ -243,8 +246,10 @@ export default function StudentInventoryPage() {
                     <button
                       type="button"
                       onClick={async () => {
+                        const confirmedInventoryFence = inventoryGuardRef.current.fence;
                         const ok = await confirm({ title: "파일 삭제", message: `'${f.displayName || f.name}' 파일을 삭제합니다. 계속할까요?`, confirmText: "삭제", danger: true });
-                        if (ok) deleteMut.mutate(f);
+                        const currentInventory = inventoryGuardRef.current;
+                        if (ok && currentInventory.ready && currentInventory.fence === confirmedInventoryFence) deleteMut.mutate(f);
                       }}
                       aria-label={`${f.displayName || f.name} 삭제`}
                       title={`${f.displayName || f.name} 삭제`}
