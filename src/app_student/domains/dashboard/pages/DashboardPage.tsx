@@ -233,7 +233,9 @@ export default function DashboardPage() {
   const examsResp = examsQ.data;
   const notificationCounts = notificationCountsQ.data;
   const countsLoading = notificationCountsQ.isLoading;
-  const todoDataError = dashError || gradesQ.isError || examsQ.isError || notificationCountsQ.isError;
+  const countsError = notificationCountsQ.isError;
+  const todoDataError = dashError || gradesQ.isError || examsQ.isError || countsError;
+  const todoDataPending = countsLoading && !countsError;
   const isParent = user?.tenantRole === "parent";
 
   const today = ymdToday();
@@ -299,7 +301,7 @@ export default function DashboardPage() {
   }, [examsResp]);
 
   const clinicUpcoming = dashboard?.badges?.clinic_upcoming === true;
-  const replyCount = (notificationCounts?.qna ?? 0) + (notificationCounts?.counsel ?? 0);
+  const replyCount = countsError ? 0 : (notificationCounts?.qna ?? 0) + (notificationCounts?.counsel ?? 0);
 
   const todoCount =
     upcomingExams.length +
@@ -380,6 +382,7 @@ export default function DashboardPage() {
         replyCount={replyCount}
         notificationCounts={notificationCounts}
         countsLoading={countsLoading}
+        countsError={countsError}
         grades={grades ?? null}
         sessions={sessions ?? null}
         notices={dashboard?.notices ?? []}
@@ -404,17 +407,27 @@ export default function DashboardPage() {
           <div>
             <div className={styles.heroEyebrow}>오늘 할 일</div>
             <h2 className={styles.heroTitle}>
-              {todoDataError ? "일부 할 일을 확인하지 못했어요" : todoCount > 0 ? "오늘 확인할 일이 있어요" : "오늘은 급한 일이 없어요"}
+              {todoDataError
+                ? "일부 할 일을 확인하지 못했어요"
+                : todoDataPending
+                  ? "할 일을 확인하고 있어요"
+                  : todoCount > 0
+                    ? "오늘 확인할 일이 있어요"
+                    : "오늘은 급한 일이 없어요"}
             </h2>
             <p className={styles.heroDescription}>
               {todoDataError
                 ? "시험, 답변, 클리닉 조회를 다시 시도해 정확한 할 일을 확인해 주세요."
+                : todoDataPending
+                ? "새 답변과 클리닉, 성적 알림을 확인하는 중입니다."
                 : todoCount > 0
                 ? "시험, 답변, 클리닉처럼 지금 확인하면 좋은 항목만 모았어요."
                 : "수업과 영상 학습 흐름만 차근차근 이어가면 됩니다."}
             </p>
           </div>
-          <div className={styles.heroPill}>{todoDataError ? "확인 필요" : todoCount > 0 ? `${todoCount}건` : "정리됨"}</div>
+          <div className={styles.heroPill}>
+            {todoDataError ? "확인 필요" : todoDataPending ? "확인 중" : todoCount > 0 ? `${todoCount}건` : "정리됨"}
+          </div>
         </div>
 
         {nextSession && (
@@ -509,6 +522,13 @@ export default function DashboardPage() {
               <div className={styles.heroDoneText}>빈 상태로 단정하지 않고 다시 조회를 기다립니다.</div>
             </div>
           </div>
+        ) : todoDataPending ? (
+          <div className={styles.heroDone} role="status">
+            <div>
+              <div className={styles.heroDoneTitle}>알림을 확인하고 있어요</div>
+              <div className={styles.heroDoneText}>조회가 끝난 뒤 오늘 할 일을 정확히 보여 드립니다.</div>
+            </div>
+          </div>
         ) : (
           <div className={styles.heroDone}>
             <div className={styles.heroDoneIcon}>
@@ -542,22 +562,22 @@ export default function DashboardPage() {
             state={{ tab: replyCount > 0 && (notificationCounts?.counsel ?? 0) > (notificationCounts?.qna ?? 0) ? "counsel" : "qna" }}
             icon={<IconBell />}
             label="답변 보기"
-            detail="답변 확인"
-            badge={!countsLoading ? replyCount : undefined}
+            detail={countsLoading ? "확인 중" : countsError ? "확인 실패" : "답변 확인"}
+            badge={!countsLoading && !countsError ? replyCount : undefined}
           />
           <QuickAction
             to="/student/clinic"
             icon={<IconClinic />}
             label="클리닉"
-            detail="예약·일정"
-            badge={!countsLoading ? notificationCounts?.clinic : undefined}
+            detail={countsLoading ? "알림 확인 중" : countsError ? "알림 확인 실패" : "예약·일정"}
+            badge={!countsLoading && !countsError ? notificationCounts?.clinic : undefined}
           />
           <QuickAction
             to="/student/grades"
             icon={<IconGrade />}
             label="성적"
-            detail="결과 보기"
-            badge={!countsLoading ? notificationCounts?.grade : undefined}
+            detail={countsLoading ? "알림 확인 중" : countsError ? "알림 확인 실패" : "결과 보기"}
+            badge={!countsLoading && !countsError ? notificationCounts?.grade : undefined}
           />
         </div>
       </section>
@@ -605,14 +625,14 @@ export default function DashboardPage() {
         <div className={styles.shortcutGrid}>
           <AppIcon to="/student/grades" label="성적"
             icon={<IconGrade />}
-            badge={!countsLoading ? notificationCounts?.grade : undefined} />
+            badge={!countsLoading && !countsError ? notificationCounts?.grade : undefined} />
           <AppIcon to="/student/exams" label="시험"
             icon={<IconExam />} />
           <AppIcon to="/student/submit/assignment" label="과제"
             icon={<IconClipboard />} />
           <AppIcon to="/student/clinic" label="클리닉"
             icon={<IconClinic />}
-            badge={!countsLoading ? notificationCounts?.clinic : undefined} />
+            badge={!countsLoading && !countsError ? notificationCounts?.clinic : undefined} />
           <AppIcon to="/student/attendance" label="출결"
             icon={<IconCheck />} />
           <AppIcon to="/student/notices" label="공지"
@@ -649,6 +669,7 @@ type ParentDashboardViewProps = {
   replyCount: number;
   notificationCounts: NotificationCounts | undefined;
   countsLoading: boolean;
+  countsError: boolean;
   grades: MyGradesSummary | null;
   sessions: StudentSession[] | null;
   notices: Array<{ id: number; title: string; created_at: string | null; is_urgent?: boolean }>;
@@ -669,6 +690,7 @@ function ParentDashboardView({
   replyCount,
   notificationCounts,
   countsLoading,
+  countsError,
   grades,
   sessions,
   notices,
@@ -706,15 +728,16 @@ function ParentDashboardView({
             </p>
           </div>
           <div className={styles.heroPill}>
-            {attentionCount > 0 ? `${attentionCount}건` : "안정"}
+            {countsError ? "확인 필요" : countsLoading ? "확인 중" : attentionCount > 0 ? `${attentionCount}건` : "안정"}
           </div>
         </div>
 
         <div className={styles.parentSummaryGrid}>
           <ParentMetric
             label="선생님 답변"
-            value={replyCount}
-            unit="건"
+            value={countsLoading || countsError ? null : replyCount}
+            unit={countsLoading || countsError ? "" : "건"}
+            placeholder={countsError ? "확인 필요" : countsLoading ? "확인 중" : undefined}
             tone={replyCount > 0 ? "primary" : "neutral"}
           />
           <ParentMetric
@@ -740,16 +763,16 @@ function ParentDashboardView({
             state={{ tab: answerTab }}
             icon={<IconBell />}
             label="답변"
-            detail="질문·상담 확인"
-            badge={!countsLoading ? replyCount : undefined}
+            detail={countsLoading ? "확인 중" : countsError ? "확인 실패" : "질문·상담 확인"}
+            badge={!countsLoading && !countsError ? replyCount : undefined}
             primary={replyCount > 0}
           />
           <QuickAction
             to="/student/grades"
             icon={<IconGrade />}
             label="성적"
-            detail="시험·과제"
-            badge={!countsLoading ? notificationCounts?.grade : undefined}
+            detail={countsLoading ? "알림 확인 중" : countsError ? "알림 확인 실패" : "시험·과제"}
+            badge={!countsLoading && !countsError ? notificationCounts?.grade : undefined}
           />
           <QuickAction
             to="/student/attendance"
@@ -767,8 +790,8 @@ function ParentDashboardView({
             to="/student/clinic"
             icon={<IconClinic />}
             label="클리닉"
-            detail="예약·보충"
-            badge={!countsLoading ? notificationCounts?.clinic : undefined}
+            detail={countsLoading ? "알림 확인 중" : countsError ? "알림 확인 실패" : "예약·보충"}
+            badge={!countsLoading && !countsError ? notificationCounts?.clinic : undefined}
           />
           <QuickAction
             to={feesEnabled ? "/student/fees" : "/student/notices"}
@@ -827,7 +850,14 @@ function ParentDashboardView({
               detail="보충 일정과 상태를 확인해 주세요"
             />
           )}
-          {attentionCount === 0 && (
+          {attentionCount === 0 && (countsLoading || countsError) ? (
+            <div className={styles.parentAllClear} role={countsError ? "alert" : "status"}>
+              <div>
+                <div className={styles.heroDoneTitle}>{countsError ? "답변 알림을 확인하지 못했어요" : "답변 알림을 확인하고 있어요"}</div>
+                <div className={styles.heroDoneText}>{countsError ? "빈 상태로 단정하지 않고 재시도를 기다립니다." : "조회가 끝나면 정확한 확인 항목을 보여 드립니다."}</div>
+              </div>
+            </div>
+          ) : attentionCount === 0 ? (
             <div className={styles.parentAllClear}>
               <div className={styles.heroDoneIcon}>
                 <IconCheck />
@@ -837,7 +867,7 @@ function ParentDashboardView({
                 <div className={styles.heroDoneText}>일정과 공지만 가볍게 확인하면 됩니다.</div>
               </div>
             </div>
-          )}
+          ) : null}
         </div>
       </section>
 
@@ -863,18 +893,20 @@ function ParentMetric({
   label,
   value,
   unit,
+  placeholder,
   tone,
 }: {
   label: string;
-  value: number;
+  value: number | null;
   unit: string;
+  placeholder?: string;
   tone: "primary" | "warn" | "neutral";
 }) {
   return (
     <div className={styles.parentMetric} data-tone={tone}>
       <div className={styles.parentMetricValue}>
-        {value}
-        <span>{unit}</span>
+        {value == null ? placeholder : value}
+        {value != null && <span>{unit}</span>}
       </div>
       <div className={styles.parentMetricLabel}>{label}</div>
     </div>

@@ -28,62 +28,45 @@ export async function fetchNotificationCounts(
   options?: FetchNotificationCountsOptions
 ): Promise<NotificationCounts> {
   const sevenDaysAgo = Date.now() - SEVEN_DAYS_MS;
+  const hasProfile = options?.profileId != null;
+  const qnaPromise = hasProfile ? fetchMyQuestions(options!.profileId!, 50) : Promise.resolve([]);
+  const counselPromise = hasProfile ? fetchMyCounselRequests(options!.profileId!, 50) : Promise.resolve([]);
 
-  try {
-    const hasProfile = options?.profileId != null;
-    const qnaPromise = hasProfile ? fetchMyQuestions(options!.profileId!, 50) : Promise.resolve([]);
-    const counselPromise = hasProfile ? fetchMyCounselRequests(options!.profileId!, 50) : Promise.resolve([]);
+  const [clinicBookings, questions, counselRequests, gradesSummary] = await Promise.all([
+    fetchMyClinicBookingRequests(),
+    qnaPromise,
+    counselPromise,
+    fetchMyGradesSummary(),
+  ]);
 
-    const [clinicResult, qnaResult, counselResult, gradesResult] = await Promise.allSettled([
-      fetchMyClinicBookingRequests(),
-      qnaPromise,
-      counselPromise,
-      fetchMyGradesSummary(),
-    ]);
+  const clinic = clinicBookings.filter((b) => {
+    if (b.status !== "booked") return false;
+    const t = b.status_changed_at ?? b.updated_at ?? b.created_at;
+    if (new Date(t).getTime() <= sevenDaysAgo) return false;
+    return !isNotificationSeen("clinic", b.id, options?.profileId);
+  }).length;
 
-    let clinic = 0;
-    if (clinicResult.status === "fulfilled") {
-      clinic = clinicResult.value.filter((b) => {
-        if (b.status !== "booked") return false;
-        const t = b.status_changed_at ?? b.updated_at ?? b.created_at;
-        if (new Date(t).getTime() <= sevenDaysAgo) return false;
-        return !isNotificationSeen("clinic", b.id, options?.profileId);
-      }).length;
-    }
+  const qna = questions.filter((p) => {
+    if ((p.replies_count || 0) === 0) return false;
+    const t = p.updated_at ?? p.created_at;
+    if (new Date(t).getTime() <= sevenDaysAgo) return false;
+    return !isNotificationSeen("qna", p.id, options?.profileId);
+  }).length;
 
-    let qna = 0;
-    if (qnaResult.status === "fulfilled") {
-      qna = qnaResult.value.filter((p) => {
-        if ((p.replies_count || 0) === 0) return false;
-        const t = p.updated_at ?? p.created_at;
-        if (new Date(t).getTime() <= sevenDaysAgo) return false;
-        return !isNotificationSeen("qna", p.id, options?.profileId);
-      }).length;
-    }
+  const counsel = counselRequests.filter((p) => {
+    if ((p.replies_count || 0) === 0) return false;
+    const t = p.updated_at ?? p.created_at;
+    if (new Date(t).getTime() <= sevenDaysAgo) return false;
+    return !isNotificationSeen("counsel", p.id, options?.profileId);
+  }).length;
 
-    let counsel = 0;
-    if (counselResult.status === "fulfilled") {
-      counsel = counselResult.value.filter((p) => {
-        if ((p.replies_count || 0) === 0) return false;
-        const t = p.updated_at ?? p.created_at;
-        if (new Date(t).getTime() <= sevenDaysAgo) return false;
-        return !isNotificationSeen("counsel", p.id, options?.profileId);
-      }).length;
-    }
+  const grade = (gradesSummary.exams || []).filter((e) => {
+    if (!e.submitted_at) return false;
+    if (e.meta_status === "NOT_SUBMITTED") return false;
+    if (new Date(e.submitted_at).getTime() <= sevenDaysAgo) return false;
+    return !isNotificationSeen("grade", e.exam_id, options?.profileId);
+  }).length;
 
-    let grade = 0;
-    if (gradesResult.status === "fulfilled") {
-      grade = (gradesResult.value.exams || []).filter((e) => {
-        if (!e.submitted_at) return false;
-        if (e.meta_status === "NOT_SUBMITTED") return false;
-        if (new Date(e.submitted_at).getTime() <= sevenDaysAgo) return false;
-        return !isNotificationSeen("grade", e.exam_id, options?.profileId);
-      }).length;
-    }
-
-    const total = clinic + qna + counsel + grade;
-    return { clinic, qna, counsel, video: 0, grade, total };
-  } catch {
-    return { clinic: 0, qna: 0, counsel: 0, video: 0, grade: 0, total: 0 };
-  }
+  const total = clinic + qna + counsel + grade;
+  return { clinic, qna, counsel, video: 0, grade, total };
 }

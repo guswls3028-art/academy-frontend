@@ -36,7 +36,7 @@ workflow는 exact tenant code와 `ENABLE <code>`/`DISABLE <code>` 확인
 문구를 요구하고, GitHub secret의 플랫폼 계정으로 정식 tenant API를
 호출한 뒤 응답 flag를 readback한다. 토큰과 비밀번호는 출력하지 않는다.
 
-현재 registry는 22개 안정 feature ID와 68개 인증 route template을
+현재 registry는 22개 안정 feature ID와 69개 인증 route template을
 검증한다. 실행 SSOT는 다음 두 파일이다.
 
 - `src/shared/productAnalytics/featureRegistry.ts`
@@ -172,6 +172,9 @@ route-mocked Chromium 계약은 다음을 증명한다.
 - 플래그 OFF: flush 시간 이후 analytics request와 session ID가 모두 0
 - 플래그 ON: canonical 익명 `screen_view` batch 발생
 - payload에 raw user·tenant identity가 없음
+- 선생님 `/workspace/mobile/assistant`는 `students.directory` /
+  `teacher.students.assistant` / `teacher`로 등록되어 실제 진입과 같은
+  익명 `screen_view`를 보낸다.
 
 `guard:test-coverage`가 registry·대표 task Promise 경계 계약을 PR의
 API/E2E safety gate에서 항상 실행한다.

@@ -1,7 +1,7 @@
 /**
  * 알림 카운트 훅
  * - refetchInterval 60초로 완화 (모바일 배터리·네트워크 부담 감소)
- * - queryClient에서 캐시된 프로필 사용하여 프로필 API 중복 호출 방지
+ * - 캐시된 프로필은 재사용하되, cache miss 조회 실패는 알림 쿼리 자체의 retry/error로 종료
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
@@ -15,17 +15,13 @@ export function useNotificationCounts() {
     queryFn: async () => {
       let profile = queryClient.getQueryData<{ id: number }>(studentQueryKeys.me);
       if (profile?.id == null) {
-        try {
-          profile = await queryClient.ensureQueryData({
-            queryKey: studentQueryKeys.me,
-            queryFn: fetchMyProfile,
-            staleTime: 60_000,
-          });
-        } catch {
-          profile = undefined;
-        }
+        profile = await fetchMyProfile();
+        queryClient.setQueryData(studentQueryKeys.me, profile);
       }
-      return fetchNotificationCounts({ profileId: profile?.id ?? null });
+      if (profile?.id == null) {
+        throw new Error("Student profile id is required for notification counts.");
+      }
+      return fetchNotificationCounts({ profileId: profile.id });
     },
     refetchInterval: 60000, // 60초마다 갱신 (기존 30초에서 완화)
     refetchOnWindowFocus: false,

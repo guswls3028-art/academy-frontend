@@ -40,17 +40,28 @@ export default function StudentTabBar() {
     >
       <div className={styles.inner}>
         {tabs.map(({ to, label, Icon, badgeKey }) => {
-          const badgeCount = !isLoading && badgeKey && counts ? counts[badgeKey] : 0;
+          const badgeCount = !isLoading && !isError && badgeKey && counts ? counts[badgeKey] : 0;
+          const accessibleLabel = badgeKey
+            ? isLoading
+              ? "알림 수 확인 중"
+              : isError
+                ? "알림 수 확인 실패"
+                : badgeCount > 0
+                  ? `알림, ${badgeCount}개`
+                  : "알림"
+            : undefined;
 
           return (
             <NavLink
               key={to}
               to={to}
+              aria-label={accessibleLabel}
               className={({ isActive }) => cx("stu-tabbar__link", styles.link, isActive && styles.linkActive)}
             >
               <span className={styles.iconSlot} aria-hidden="true">
                 <Icon className={styles.icon} />
                 {badgeCount > 0 && <NotificationBadge count={badgeCount} />}
+                {badgeKey && isLoading && <span className={styles.badgeLoading} />}
                 {badgeKey && isError && <span className={styles.badgeError}>!</span>}
               </span>
               <span className={styles.label}>{label}</span>

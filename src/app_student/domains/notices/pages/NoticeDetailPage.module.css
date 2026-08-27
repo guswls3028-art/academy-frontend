@@ -105,6 +105,31 @@
   background: var(--stu-surface-soft);
 }
 
+.imageError {
+  display: grid;
+  gap: var(--stu-space-2);
+  min-height: 120px;
+  padding: var(--stu-space-4);
+  place-items: center;
+  color: var(--stu-danger);
+  text-align: center;
+  background: color-mix(in srgb, var(--stu-danger) 7%, var(--stu-surface-soft));
+}
+
+.imageErrorName {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--stu-text);
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.imageRetry {
+  margin-top: var(--stu-space-1);
+}
+
 .attachmentTitle {
   color: var(--stu-text-muted);
   font-size: 13px;
