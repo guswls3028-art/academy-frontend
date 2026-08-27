@@ -479,6 +479,13 @@
   padding: var(--space-5, 20px);
 }
 
+.cms-form__body--scrollable {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .cms-form__field {
   margin-bottom: var(--space-5, 20px);
 }
@@ -926,6 +933,11 @@
 }
 
 @media (max-width: 640px) {
+  .cms-form__body--scrollable {
+    overflow-y: visible;
+    overscroll-behavior: auto;
+  }
+
   .notice-tree:not(.notice-tree--has-detail) > .qna-inbox__thread {
     display: none;
   }
