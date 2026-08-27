@@ -66,7 +66,7 @@ export default function NotificationsPage() {
   const { user } = useAuth();
   const { items, counts, failures, isLoading, isError, refetch } = useTeacherPendingCounts();
   const productUpdate = useProductUpdateAwareness(user?.id);
-  const total = (counts?.total ?? 0) + (productUpdate.isUnread ? 1 : 0);
+  const knownTotal = (counts?.total ?? 0) + (productUpdate.isUnread ? 1 : 0);
   const hasFailures = isError || failures.length > 0;
 
   const handleBack = () => {
@@ -101,11 +101,19 @@ export default function NotificationsPage() {
         <h1 className="text-lg font-bold flex-1" style={{ color: "var(--tc-text)" }}>
           알림 센터
         </h1>
-        {total > 0 && (
-          <Badge tone="danger" pill>
-            총 {total}건
+        {isLoading ? (
+          <Badge tone="primary" pill>
+            집계 중
           </Badge>
-        )}
+        ) : hasFailures ? (
+          <Badge tone="warning" pill>
+            {knownTotal > 0 ? `일부 ${knownTotal}건 확인` : "합계 확인 불가"}
+          </Badge>
+        ) : knownTotal > 0 ? (
+          <Badge tone="danger" pill>
+            총 {knownTotal}건
+          </Badge>
+        ) : null}
       </div>
 
       <button

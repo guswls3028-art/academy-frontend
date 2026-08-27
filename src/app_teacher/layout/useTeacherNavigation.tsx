@@ -36,6 +36,7 @@ export type TeacherNavigationItem = {
   href?: string;
   icon: ReactNode;
   badge?: number;
+  badgeLabel?: string;
   beta?: boolean;
   keywords?: string[];
 };
@@ -47,12 +48,16 @@ export type TeacherNavigationGroup = {
 
 export function useTeacherNavigation() {
   const { user } = useAuth();
-  const { counts } = useTeacherPendingCounts();
+  const { counts, failures, isLoading, isError } = useTeacherPendingCounts();
   const feesEnabled = useFeesEnabled();
   const isOwner = user?.tenantRole === "owner";
   const isOwnerOrAdmin = user?.tenantRole === "owner" || user?.tenantRole === "admin";
-  const recentSubmissions = counts?.recentSubmissions;
-  const totalNotifications = counts?.total;
+  const pendingCountsIncomplete = isError || failures.length > 0;
+  const totalNotifications = isLoading || pendingCountsIncomplete ? undefined : counts?.total;
+  const totalNotificationsLabel = isLoading ? "집계 중" : pendingCountsIncomplete ? "일부" : undefined;
+  const submissionsIncomplete = isError || failures.includes("submissions");
+  const recentSubmissions = isLoading || submissionsIncomplete ? undefined : counts?.recentSubmissions;
+  const recentSubmissionsLabel = isLoading ? "집계 중" : submissionsIncomplete ? "확인 필요" : undefined;
 
   const groups = useMemo<TeacherNavigationGroup[]>(
     () => [
@@ -61,9 +66,9 @@ export function useTeacherNavigation() {
         items: [
           { label: "대시보드", path: "/workspace/mobile", icon: <Home size={ICON.md} />, keywords: ["홈", "오늘", "처리할 일"] },
           { label: "학생 업무 도우미", path: "/workspace/mobile/assistant", icon: <Sparkles size={ICON.md} />, beta: true, keywords: ["사진", "학생 등록", "영상 권한", "챗봇"] },
-          { label: "알림 센터", path: "/workspace/mobile/notifications", icon: <Bell size={ICON.md} />, badge: totalNotifications, keywords: ["알림", "대기 업무"] },
-          { label: "커뮤니티", path: "/workspace/mobile/comms", icon: <MessageSquare size={ICON.md} />, badge: totalNotifications, keywords: ["질문", "Q&A", "공지"] },
-          { label: "제출함", path: "/workspace/mobile/submissions", icon: <Send size={ICON.md} />, badge: recentSubmissions, keywords: ["과제", "채점", "제출"] },
+          { label: "알림 센터", path: "/workspace/mobile/notifications", icon: <Bell size={ICON.md} />, badge: totalNotifications, badgeLabel: totalNotificationsLabel, keywords: ["알림", "대기 업무"] },
+          { label: "커뮤니티", path: "/workspace/mobile/comms", icon: <MessageSquare size={ICON.md} />, badge: totalNotifications, badgeLabel: totalNotificationsLabel, keywords: ["질문", "Q&A", "공지"] },
+          { label: "제출함", path: "/workspace/mobile/submissions", icon: <Send size={ICON.md} />, badge: recentSubmissions, badgeLabel: recentSubmissionsLabel, keywords: ["과제", "채점", "제출"] },
         ],
       },
       {
@@ -123,7 +128,7 @@ export function useTeacherNavigation() {
         ],
       },
     ],
-    [feesEnabled, isOwner, isOwnerOrAdmin, recentSubmissions, totalNotifications],
+    [feesEnabled, isOwner, isOwnerOrAdmin, recentSubmissions, recentSubmissionsLabel, totalNotifications, totalNotificationsLabel],
   );
 
   return { groups, isOwnerOrAdmin };

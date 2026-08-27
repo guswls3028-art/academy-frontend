@@ -92,6 +92,7 @@ export default function TodayPage() {
   const pendingTotal = pendingIsLoading || pendingUnavailable ? null : pendingCounts?.total ?? 0;
   const pendingQnaCount = pendingCounts?.qnaPending ?? 0;
   const todayWorkTotal = pendingTotal == null ? null : pendingTotal + attendanceGap;
+  const hasKnownTodayWork = pendingItems.length > 0 || attendanceGap > 0;
   const hasTodayWork = todayWorkTotal != null && todayWorkTotal > 0;
   const primaryWork = useMemo(() => {
     if (pendingIsLoading) {
@@ -106,24 +107,14 @@ export default function TodayPage() {
       };
     }
 
-    if (pendingUnavailable) {
-      return {
-        icon: <AlertCircle size={ICON.md} />,
-        eyebrow: "확인 필요",
-        title: "업무 알림을 모두 불러오지 못했습니다",
-        description: "일부 조회가 실패해 0건으로 계산하지 않았습니다. 알림 센터에서 다시 확인해 주세요.",
-        action: "알림 센터 보기",
-        route: "/workspace/mobile/notifications",
-        tone: "danger" as const,
-      };
-    }
-
     if (pendingQnaCount > 0) {
       return {
         icon: <MessageSquare size={ICON.md} />,
-        eyebrow: "가장 먼저",
+        eyebrow: pendingUnavailable ? "확인된 업무" : "가장 먼저",
         title: `답변 대기 질문 ${pendingQnaCount}건`,
-        description: "학생 질문은 지연될수록 체감 품질이 바로 떨어집니다.",
+        description: pendingUnavailable
+          ? "확인된 질문은 먼저 처리할 수 있습니다. 일부 업무 집계는 다시 확인해 주세요."
+          : "학생 질문은 지연될수록 체감 품질이 바로 떨어집니다.",
         action: "Q&A 처리",
         route: "/workspace/mobile/comms?tab=qna",
         tone: "danger" as const,
@@ -134,12 +125,26 @@ export default function TodayPage() {
     if (firstPending) {
       return {
         icon: <AlertCircle size={ICON.md} />,
-        eyebrow: "처리 필요",
+        eyebrow: pendingUnavailable ? "확인된 업무" : "처리 필요",
         title: `${firstPending.label} ${firstPending.count}건`,
-        description: "알림 센터에서 같은 항목을 이어서 처리할 수 있습니다.",
+        description: pendingUnavailable
+          ? "확인된 항목은 먼저 처리할 수 있습니다. 일부 업무 집계는 다시 확인해 주세요."
+          : "알림 센터에서 같은 항목을 이어서 처리할 수 있습니다.",
         action: "처리하러 가기",
         route: TEACHER_PENDING_ROUTES[firstPending.type],
         tone: "warning" as const,
+      };
+    }
+
+    if (pendingUnavailable) {
+      return {
+        icon: <AlertCircle size={ICON.md} />,
+        eyebrow: "확인 필요",
+        title: "업무 알림을 모두 불러오지 못했습니다",
+        description: "일부 조회가 실패해 0건으로 계산하지 않았습니다. 알림 센터에서 다시 확인해 주세요.",
+        action: "알림 센터 보기",
+        route: "/workspace/mobile/notifications",
+        tone: "danger" as const,
       };
     }
 
@@ -201,7 +206,7 @@ export default function TodayPage() {
             {pendingIsLoading
               ? "업무 집계 중"
               : pendingUnavailable
-                ? "업무 확인 필요"
+                ? "업무 일부 확인"
                 : hasTodayWork
                   ? `오늘 업무 ${todayWorkTotal ?? 0}건`
                   : "정리됨"}
@@ -232,7 +237,7 @@ export default function TodayPage() {
         <KpiCard
           label="오늘 업무"
           value={todayWorkTotal ?? "—"}
-          sub={pendingIsLoading ? "집계 중" : pendingUnavailable ? "확인 필요" : hasTodayWork ? "건" : "없음"}
+          sub={pendingIsLoading ? "집계 중" : pendingUnavailable ? "일부 확인" : hasTodayWork ? "건" : "없음"}
           color={pendingIsLoading || pendingUnavailable || hasTodayWork ? "var(--tc-danger)" : "var(--tc-success)"}
           onClick={() => navigate(primaryWork.route)}
         />
@@ -272,7 +277,7 @@ export default function TodayPage() {
             <QuickAction
               icon={<MessageSquare size={ICON.md} />}
               label="답변 대기"
-              detail={pendingQnaCount > 0 ? `${pendingQnaCount}건` : "QnA"}
+              detail={pendingFailures.includes("qna") || pendingIsError ? "확인 필요" : pendingQnaCount > 0 ? `${pendingQnaCount}건` : "QnA"}
               tone={pendingQnaCount > 0 ? "danger" : "primary"}
               onClick={() => navigate("/workspace/mobile/comms?tab=qna")}
             />
@@ -298,7 +303,7 @@ export default function TodayPage() {
                 {pendingIsLoading ? (
                   <Badge tone="primary" pill size="xs">집계 중</Badge>
                 ) : pendingUnavailable ? (
-                  <Badge tone="danger" pill size="xs">확인 필요</Badge>
+                  <Badge tone="danger" pill size="xs">일부 확인</Badge>
                 ) : hasTodayWork ? (
                   <Badge tone="danger" pill>{todayWorkTotal ?? 0}건</Badge>
                 ) : (
@@ -321,17 +326,40 @@ export default function TodayPage() {
           {pendingIsLoading ? (
             <EmptyState scope="panel" tone="loading" title="처리 대기함을 확인하고 있습니다" />
           ) : pendingUnavailable ? (
-            <EmptyState
-              scope="panel"
-              tone="error"
-              title="처리 대기함을 모두 불러오지 못했습니다"
-              description="조회에 실패한 업무를 0건으로 표시하지 않습니다. 다시 확인해 주세요."
-              actions={
-                <button type="button" onClick={() => void refetchPending()} className={styles.emptyActionButton}>
-                  다시 시도
-                </button>
-              }
-            />
+            <>
+              <EmptyState
+                scope="panel"
+                tone="error"
+                title="일부 업무를 불러오지 못했습니다"
+                description="확인된 업무는 아래에 유지했습니다. 전체 합계는 다시 조회한 뒤 확정합니다."
+                actions={
+                  <button type="button" onClick={() => void refetchPending()} className={styles.emptyActionButton}>
+                    다시 시도
+                  </button>
+                }
+              />
+              {hasKnownTodayWork && (
+                <Card className={styles.pendingCard}>
+                  {pendingItems.map((item, idx) => (
+                    <PendingRow
+                      key={item.type}
+                      label={item.label}
+                      count={item.count}
+                      isLast={attendanceGap === 0 && idx === pendingItems.length - 1}
+                      onClick={() => navigate(TEACHER_PENDING_ROUTES[item.type])}
+                    />
+                  ))}
+                  {attendanceGap > 0 && (
+                    <PendingRow
+                      label="출결 미입력"
+                      count={attendanceGap}
+                      isLast
+                      onClick={() => navigate("/workspace/mobile/classes")}
+                    />
+                  )}
+                </Card>
+              )}
+            </>
           ) : hasTodayWork ? (
             <Card className={styles.pendingCard}>
               {pendingItems.map((item, idx) => (

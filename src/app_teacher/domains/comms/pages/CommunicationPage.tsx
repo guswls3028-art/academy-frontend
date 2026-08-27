@@ -57,7 +57,7 @@ export default function CommunicationPage() {
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { counts } = useTeacherPendingCounts();
+  const { counts, failures, isLoading: pendingIsLoading, isError: pendingIsError } = useTeacherPendingCounts();
 
   const postType = POST_TYPE_MAP[tab];
   const isPostTab = tab !== "requests";
@@ -113,11 +113,19 @@ export default function CommunicationPage() {
   const selfRegistrationDisabled =
     requestsQ.isError && isSelfRegistrationDisabledError(requestsQ.error);
 
-  const tabs: { key: Tab; label: string; badge?: number }[] = [
+  const pendingBadge = (
+    source: "qna" | "counsel" | "registration_requests",
+    value: number | undefined,
+  ): number | "!" | "…" | undefined => {
+    if (pendingIsLoading) return "…";
+    if (pendingIsError || failures.includes(source)) return "!";
+    return value && value > 0 ? value : undefined;
+  };
+  const tabs: { key: Tab; label: string; badge?: number | "!" | "…" }[] = [
     { key: "notices", label: "공지사항" },
-    { key: "qna", label: "Q&A", badge: counts?.qnaPending },
-    { key: "counsel", label: "상담", badge: counts?.counselPending },
-    { key: "requests", label: "가입신청", badge: counts?.registrationRequestsPending },
+    { key: "qna", label: "Q&A", badge: pendingBadge("qna", counts?.qnaPending) },
+    { key: "counsel", label: "상담", badge: pendingBadge("counsel", counts?.counselPending) },
+    { key: "requests", label: "가입신청", badge: pendingBadge("registration_requests", counts?.registrationRequestsPending) },
     { key: "board", label: "게시판" },
     { key: "materials", label: "자료" },
   ];
@@ -189,8 +197,11 @@ export default function CommunicationPage() {
               type="button"
             >
               {t.label}
-              {!!t.badge && t.badge > 0 && (
-                <span className={styles.badge}>
+              {t.badge != null && t.badge !== 0 && (
+                <span
+                  className={styles.badge}
+                  aria-label={`${t.label} ${t.badge === "!" ? "일부 확인 필요" : t.badge === "…" ? "집계 중" : `${t.badge}건`}`}
+                >
                   {t.badge}
                 </span>
               )}

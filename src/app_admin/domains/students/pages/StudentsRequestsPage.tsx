@@ -538,17 +538,36 @@ export default function StudentsRequestsPage() {
               </p>
             </div>
             <div className="students-requests__toggles">
-              <label className="students-requests__auto-approve">
-                <span className="students-requests__auto-approve-label">
-                  자동 승인
+              {settingsQ.isLoading ? (
+                <span className="students-requests__auto-approve-label" role="status">
+                  자동 승인 설정 확인 중
                 </span>
-                <Switch
-                  checked={autoApproved}
-                  onChange={(checked) => updateAutoApproveM.mutate(checked)}
-                  disabled={updateAutoApproveM.isPending}
-                  size="small"
-                />
-              </label>
+              ) : settingsQ.isError ? (
+                <div className="flex items-center gap-2" role="alert">
+                  <span className="students-requests__auto-approve-label">
+                    자동 승인 설정을 불러오지 못했습니다
+                  </span>
+                  <Button
+                    intent="secondary"
+                    size="sm"
+                    onClick={() => void settingsQ.refetch()}
+                  >
+                    설정 다시 시도
+                  </Button>
+                </div>
+              ) : (
+                <label className="students-requests__auto-approve">
+                  <span className="students-requests__auto-approve-label">
+                    자동 승인
+                  </span>
+                  <Switch
+                    checked={autoApproved}
+                    onChange={(checked) => updateAutoApproveM.mutate(checked)}
+                    disabled={updateAutoApproveM.isPending}
+                    size="small"
+                  />
+                </label>
+              )}
             </div>
           </div>
         </div>

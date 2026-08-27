@@ -10,10 +10,19 @@ const POST_ID = 990001;
 
 async function installRegistrationPolicyMocks(
   page: Page,
-  options: { registrationStatus: 200 | 403 | 503 },
+  options: {
+    registrationStatus: 200 | 403 | 503;
+    settingsStatus?: 200 | 403 | 503;
+    holdSettings?: boolean;
+    qnaPending?: number;
+  },
 ) {
   const mutationRequests: string[] = [];
   let registrationStatus = options.registrationStatus;
+  let settingsStatus = options.settingsStatus ?? 200;
+  let holdSettings = options.holdSettings ?? false;
+  let releaseSettingsWaiter: (() => void) | undefined;
+  const qnaPending = options.qnaPending ?? 0;
   const registration = {
     id: 991001,
     name: "과거 가입 요청",
@@ -66,6 +75,17 @@ async function installRegistrationPolicyMocks(
         tenantRole: "admin",
       });
     }
+    if (path === "/students/registration_requests/settings/") {
+      if (holdSettings) {
+        await new Promise<void>((resolve) => {
+          releaseSettingsWaiter = resolve;
+        });
+      }
+      if (settingsStatus !== 200) {
+        return json({ detail: "temporary settings failure" }, settingsStatus);
+      }
+      return json({ auto_approve: true });
+    }
     if (path === "/students/registration_requests/") {
       if (registrationStatus === 403) {
         return json({
@@ -80,7 +100,17 @@ async function installRegistrationPolicyMocks(
     }
     if (path === "/lectures/sessions/") return json({ count: 0, results: [] });
     if (path === "/clinic/participants/") return json({ count: 0, results: [] });
-    if (path === "/community/admin/posts/") return json({ count: 0, results: [] });
+    if (path === "/community/admin/posts/") {
+      const rows = url.searchParams.get("post_type") === "qna"
+        ? Array.from({ length: qnaPending }, (_, index) => ({
+            id: 880_000 + index,
+            replies_count: 0,
+            author_role: "student",
+            category_label: "question",
+          }))
+        : [];
+      return json({ count: rows.length, results: rows });
+    }
     if (path === "/submissions/submissions/pending/") return json([]);
     if (path === "/results/admin/teacher-dashboard-counts/") return json({ video_failed: 0 });
     if (path === "/core/landing/admin/consult/") return json({ summary: { unread: 0 } });
@@ -113,6 +143,14 @@ async function installRegistrationPolicyMocks(
     mutationRequests,
     setRegistrationStatus(status: 200 | 403 | 503) {
       registrationStatus = status;
+    },
+    setSettingsStatus(status: 200 | 403 | 503) {
+      settingsStatus = status;
+    },
+    releaseSettings() {
+      holdSettings = false;
+      releaseSettingsWaiter?.();
+      releaseSettingsWaiter = undefined;
     },
   };
 }
@@ -302,24 +340,60 @@ test.describe("선생님 가입 정책과 대기 업무 경계", () => {
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
+  test("가입 신청 설정은 조회 성공 전 변경할 수 없고 재시도 뒤에만 열린다", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 900 });
+    const policy = await installRegistrationPolicyMocks(page, {
+      registrationStatus: 200,
+      settingsStatus: 503,
+      holdSettings: true,
+    });
+
+    await page.goto(`${BASE}/workspace/students/requests`, { waitUntil: "load", timeout: 20_000 });
+    await expect(page.getByText("과거 가입 요청", { exact: true })).toBeVisible();
+    await expect(page.getByText("자동 승인 설정 확인 중", { exact: true })).toBeVisible();
+    await expect(page.getByRole("switch")).toHaveCount(0);
+    expect(policy.mutationRequests).toEqual([]);
+
+    policy.releaseSettings();
+    await expect(page.getByText("자동 승인 설정을 불러오지 못했습니다", { exact: true })).toBeVisible();
+    await expect(page.getByRole("switch")).toHaveCount(0);
+    expect(policy.mutationRequests).toEqual([]);
+
+    policy.setSettingsStatus(200);
+    await page.getByRole("button", { name: "설정 다시 시도", exact: true }).click();
+    await expect(page.getByRole("switch")).toBeChecked();
+    expect(policy.mutationRequests).toEqual([]);
+  });
+
   test("대기 업무 일부 조회 실패를 0건이나 정리됨으로 합성하지 않는다", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    const policy = await installRegistrationPolicyMocks(page, { registrationStatus: 503 });
+    const policy = await installRegistrationPolicyMocks(page, {
+      registrationStatus: 503,
+      qnaPending: 2,
+    });
 
     await page.goto(`${BASE}/workspace/mobile`, { waitUntil: "load", timeout: 20_000 });
-    await expect(page.getByText("업무 알림을 모두 불러오지 못했습니다", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "답변 대기 질문 2건" })).toBeVisible();
+    await expect(page.getByText("답변 대기 질문", { exact: true })).toBeVisible();
+    await expect(page.getByText("일부 업무를 불러오지 못했습니다", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "알림 일부 확인 필요", exact: true })).toBeVisible();
+    await expect(page.getByLabel("커뮤니티 알림 일부 확인 필요", { exact: true })).toBeVisible();
     await expect(page.getByText("정리됨", { exact: true })).toHaveCount(0);
     await expect(page.getByText("0건", { exact: true })).toHaveCount(0);
     await expect(page.getByText("처리 대기함이 비었습니다", { exact: true })).toHaveCount(0);
-    await expect(page.getByText("처리 대기함을 모두 불러오지 못했습니다", { exact: true })).toBeVisible();
+    await expect(page.getByText("오늘 업무 2건", { exact: true })).toHaveCount(0);
 
     policy.setRegistrationStatus(200);
     await page.getByRole("button", { name: "다시 시도", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "가입 신청 학생 1건" })).toBeVisible();
+    await expect(page.getByText("오늘 업무 3건", { exact: true })).toBeVisible();
+    await expect(page.getByText("가입 신청 학생", { exact: true })).toBeVisible();
 
     policy.setRegistrationStatus(503);
     await page.goto(`${BASE}/workspace/mobile/notifications`, { waitUntil: "load", timeout: 20_000 });
-    await expect(page.getByText("일부 업무 알림을 불러오지 못했습니다", { exact: true })).toBeVisible();
+    await expect(page.getByRole("alert")).toContainText("일부 업무 알림을 불러오지 못했습니다");
+    await expect(page.getByText("답변 대기 질문", { exact: true })).toBeVisible();
+    await expect(page.getByText(/^일부 .*건 확인$/)).toBeVisible();
+    await expect(page.getByText(/^총 .*건$/)).toHaveCount(0);
     await expect(page.getByText("처리할 업무 알림이 없습니다", { exact: true })).toHaveCount(0);
 
     await page.goto(`${BASE}/workspace/students/requests`, { waitUntil: "load", timeout: 20_000 });
