@@ -319,7 +319,11 @@ export default function VideoPlayerPage() {
   }, [videoId]);
 
   const [fatalError, setFatalError] = useState<string | null>(null);
+  const [policyRebootstrapPending, setPolicyRebootstrapPending] = useState(false);
+  const policyTransitionRef = useRef<string | null>(null);
   const onFatal = useCallback((reason: string) => setFatalError(reason), []);
+  const playbackData = playbackQuery.data;
+  const refetchPlayback = playbackQuery.refetch;
   const currentAccessQuery = useQuery({
     queryKey: studentVideoQueryKeys.currentAccess(videoId, effectiveEnrollmentId),
     queryFn: () => checkStudentVideoAccess(videoId!, effectiveEnrollmentId),
@@ -341,7 +345,53 @@ export default function VideoPlayerPage() {
       );
     }
   }, [currentAccessQuery.error]);
+  useEffect(() => {
+    const access = currentAccessQuery.data;
+    const currentPlayback = playbackData;
+    if (!access || !currentPlayback || !boot) return;
+
+    const bootstrapMode = boot.access_mode;
+    const bootstrapVersion = Number(currentPlayback.policy_version);
+    const matchesCurrentPolicy = bootstrapMode === access.access_mode
+      && bootstrapVersion === access.policy_version;
+    if (matchesCurrentPolicy) {
+      policyTransitionRef.current = null;
+      return;
+    }
+
+    const transitionKey = `${access.access_mode}:${access.policy_version}`;
+    if (policyTransitionRef.current === transitionKey) return;
+    policyTransitionRef.current = transitionKey;
+    setPolicyRebootstrapPending(true);
+
+    void refetchPlayback().then((result) => {
+      const refreshed = result.data;
+      const refreshedMode = refreshed?.policy?.access_mode ?? "FREE_REVIEW";
+      const refreshedVersion = Number(refreshed?.policy_version);
+      const hasCurrentToken = Boolean(refreshed?.playback_token);
+      const hasRequiredMonitoring = !access.monitoring_enabled || Boolean(
+        refreshed?.policy?.monitoring_enabled
+        && refreshed?.playback_session_id,
+      );
+      if (
+        result.error
+        || refreshedMode !== access.access_mode
+        || refreshedVersion !== access.policy_version
+        || !hasCurrentToken
+        || !hasRequiredMonitoring
+      ) {
+        setFatalError("재생 정책이 변경되었습니다. 새 권한을 확인한 뒤 다시 시도해 주세요.");
+        return;
+      }
+      setFatalError(null);
+    }).catch(() => {
+      setFatalError("재생 정책이 변경되었습니다. 새 권한을 확인한 뒤 다시 시도해 주세요.");
+    }).finally(() => {
+      setPolicyRebootstrapPending(false);
+    });
+  }, [boot, currentAccessQuery.data, playbackData, refetchPlayback]);
   const retryPlayback = useCallback(async () => {
+    policyTransitionRef.current = null;
     const [playbackResult, accessResult] = await Promise.all([
       playbackQuery.refetch(),
       currentAccessQuery.refetch(),
@@ -388,6 +438,8 @@ export default function VideoPlayerPage() {
   // Reset state when the video or selected enrollment changes.
   useEffect(() => {
     setFatalError(null);
+    setPolicyRebootstrapPending(false);
+    policyTransitionRef.current = null;
     // 자동재생 카운트다운 초기화 — 다른 영상으로 수동 이동 시 이전 타이머 방지
     setAutoPlayCountdown(null);
     if (autoPlayTimerRef.current) {
@@ -421,7 +473,7 @@ export default function VideoPlayerPage() {
 
   return (
     <div className="vpp-root">
-      {loading ? (
+      {loading || policyRebootstrapPending ? (
         <div className="vpp-loading">
           <div className="vpp-loading-player">
             <div className="stu-skel stu-skel--media" />

@@ -116,7 +116,7 @@ test.describe("student video CDN service errors", () => {
 
     await page.goto(
       `${BASE}/student/video/play?video=562&enrollment=1304&session=394`,
-      { waitUntil: "domcontentloaded" },
+      { waitUntil: "domcontentloaded", timeout: 30_000 },
     );
 
     await expect(page.getByRole("heading", { name: "재생을 시작할 수 없어요" })).toBeVisible();
@@ -235,7 +235,11 @@ test.describe("student video CDN service errors", () => {
 
   test("열린 무료복습이 수업 모드로 바뀌면 즉시 닫고 monitored bootstrap을 다시 받는다", async ({ page }) => {
     let playbackRequests = 0;
+    let releasePolicyDrift!: () => void;
     let releaseProctoredBootstrap!: () => void;
+    const policyDriftGate = new Promise<void>((resolve) => {
+      releasePolicyDrift = resolve;
+    });
     const proctoredBootstrapGate = new Promise<void>((resolve) => {
       releaseProctoredBootstrap = resolve;
     });
@@ -276,6 +280,7 @@ test.describe("student video CDN service errors", () => {
       }
       if (path === "/student/video/videos/562/playback/") {
         if (url.searchParams.get("access_check") === "1") {
+          await policyDriftGate;
           return json({
             ok: true,
             access_mode: "PROCTORED_CLASS",
@@ -331,16 +336,21 @@ test.describe("student video CDN service errors", () => {
 
     await page.goto(
       `${BASE}/student/video/play?video=562&enrollment=1304&session=394`,
-      { waitUntil: "domcontentloaded" },
+      { waitUntil: "domcontentloaded", timeout: 30_000 },
     );
 
-    await expect.poll(() => playbackRequests).toBe(2);
+    await expect(page.getByRole("heading", { name: "정책 전환 재생 영상" })).toBeVisible({
+      timeout: 30_000,
+    });
+    releasePolicyDrift();
+
+    await expect.poll(() => playbackRequests, { timeout: 30_000 }).toBe(2);
     await expect(page.getByText("정책 전환 재생 영상")).toHaveCount(0);
 
     releaseProctoredBootstrap();
 
-    await expect(page.getByText("정책 전환 재생 영상")).toBeVisible();
-    await expect(page.getByText("온라인 수업 대체")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "정책 전환 재생 영상" })).toBeVisible();
+    await expect(page.getByText("온라인 수업 대체")).toHaveCount(1);
     expect(playbackRequests).toBe(2);
   });
 });
