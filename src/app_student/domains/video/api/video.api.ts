@@ -123,6 +123,7 @@ export type StudentVideoPlayback = {
   playback_token?: string | null;
   playback_session_id?: string | null;
   playback_expires_at?: number | null;
+  policy_version: number;
   detail?: string;
   policy: {
     allow_seek?: boolean;
@@ -212,6 +213,39 @@ export async function fetchStudentVideoPlayback(
       : playback.detail,
   };
 }
+
+export async function checkStudentVideoAccess(
+  videoId: number,
+  enrollmentId?: number | null,
+): Promise<StudentVideoAccessCheck> {
+  if (Number.isNaN(Number(videoId)) || videoId < 1) {
+    throw new Error("유효한 영상이 아닙니다.");
+  }
+  const res = await api.get<StudentVideoAccessCheck>(`/student/video/videos/${videoId}/playback/`, {
+    params: {
+      access_check: "1",
+      ...(enrollmentId ? { enrollment: String(enrollmentId) } : {}),
+    },
+  });
+  const data = res.data;
+  if (
+    data?.ok !== true
+    || !["FREE_REVIEW", "PROCTORED_CLASS"].includes(data.access_mode)
+    || typeof data.monitoring_enabled !== "boolean"
+    || !Number.isInteger(data.policy_version)
+    || data.policy_version < 1
+  ) {
+    throw new Error("재생 권한 확인 응답이 올바르지 않습니다.");
+  }
+  return data;
+}
+
+export type StudentVideoAccessCheck = {
+  ok: true;
+  access_mode: "FREE_REVIEW" | "PROCTORED_CLASS";
+  monitoring_enabled: boolean;
+  policy_version: number;
+};
 
 export type VideoForwardSkipBudget = {
   enabled: boolean;
