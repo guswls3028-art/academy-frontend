@@ -182,6 +182,13 @@ test.describe("student video CDN service errors", () => {
       localStorage.setItem("refresh", token);
       localStorage.setItem("tenant_code", "limglish");
       sessionStorage.setItem("tenantCode", "limglish");
+      class StableYoutubePlayer {
+        destroy() {}
+      }
+      Object.defineProperty(window, "YT", {
+        configurable: true,
+        value: { Player: StableYoutubePlayer },
+      });
     }, { token: fakeJwt() });
 
     await page.route("**/api/v1/**", async (route) => {
@@ -294,8 +301,17 @@ test.describe("student video CDN service errors", () => {
     const pauseTime = await page.evaluate(() => Date.now() + 1_000);
     await page.clock.pauseAt(pauseTime);
 
+    const intervalDenialCheck = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname.endsWith("/student/video/videos/562/playback/")
+        && url.searchParams.get("access_check") === "1"
+        && response.status() === 403;
+    }, { timeout: 30_000 });
     denyAccess = true;
     await page.clock.runFor(30_000);
+    const intervalDenialResponse = await intervalDenialCheck;
+    await intervalDenialResponse.finished();
+    await page.clock.runFor(1);
     await expect.poll(() => accessChecks).toBe(3);
     await expect(page.getByRole("heading", { name: "재생을 시작할 수 없어요" })).toBeVisible();
     await expect(page.getByText("종료된 강의의 영상은 시청할 수 없습니다.")).toBeVisible();
