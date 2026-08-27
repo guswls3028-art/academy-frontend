@@ -216,6 +216,62 @@ test.describe("개발자 콘솔 소유자 실패 안전", () => {
     expect(ownerReadCount).toBeGreaterThanOrEqual(3);
   });
 
+  test("브랜딩 조회 실패 중 편집·업로드·저장을 숨기고 성공 재조회 뒤에만 연다", async ({ page }) => {
+    await stubDevTenant(page);
+    let brandingAvailable = false;
+    let brandingReadCount = 0;
+    const brandingWrites: string[] = [];
+    await page.route("**/api/v1/core/tenant-branding/11/**", async (route) => {
+      const request = route.request();
+      brandingReadCount += request.method() === "GET" ? 1 : 0;
+      if (request.method() !== "GET") {
+        brandingWrites.push(request.method());
+        return route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({ detail: "unexpected_branding_write" }),
+        });
+      }
+      if (!brandingAvailable) {
+        return route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({ detail: "temporary_branding_failure" }),
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          tenantId: 11,
+          displayName: "신과함께 학원",
+          windowTitle: "신과함께",
+          loginTitle: "신과함께 로그인",
+          loginSubtitle: "안전한 학습 공간",
+        }),
+      });
+    });
+
+    await gotoAndSettle(page, `${BASE}/dev/tenants/11`);
+    const brandingTab = page.getByRole("button", { name: "브랜딩", exact: true });
+    await expect(brandingTab).toBeVisible({ timeout: 60_000 });
+    await brandingTab.click();
+
+    const failure = page.getByRole("alert");
+    await expect(failure).toContainText("브랜딩 정보를 불러오지 못했습니다");
+    await expect(page.locator('input[type="file"]')).toHaveCount(0);
+    await expect(page.getByPlaceholder("헤더에 표시될 이름")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "저장", exact: true })).toHaveCount(0);
+    expect(brandingWrites).toEqual([]);
+
+    brandingAvailable = true;
+    await failure.getByRole("button", { name: "다시 시도" }).click();
+    await expect(page.getByPlaceholder("헤더에 표시될 이름")).toHaveValue("신과함께 학원");
+    await expect(page.locator('input[type="file"]')).toHaveCount(1);
+    expect(brandingReadCount).toBeGreaterThan(1);
+    expect(brandingWrites).toEqual([]);
+  });
+
   test("기존 계정 승격 재요청은 자격 증명과 프로필을 보내지 않는다", async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await stubDevTenant(page);

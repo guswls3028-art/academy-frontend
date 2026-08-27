@@ -1,5 +1,5 @@
-// PATH: src/dev_app/api/branding.ts
-// Tenant branding: logo/image upload (R2) and ui_config. Backend API TBD.
+// PATH: src/app_dev/domains/tenants/api/branding.api.ts
+// Tenant branding: logo/image upload (R2) and ui_config.
 
 import api from "@/shared/api/axios";
 
@@ -12,18 +12,14 @@ export type TenantBrandingDto = {
   displayName?: string;
 };
 
-/** GET tenant branding (from Program.ui_config or Tenant). Backend TBD. */
+/** GET tenant branding (from Program.ui_config or Tenant). */
 export async function getTenantBranding(
   tenantId: number
 ): Promise<TenantBrandingDto | null> {
-  try {
-    const res = await api.get<TenantBrandingDto>(
-      `/core/tenant-branding/${tenantId}/`
-    );
-    return res.data ?? null;
-  } catch {
-    return null;
-  }
+  const res = await api.get<TenantBrandingDto>(
+    `/core/tenant-branding/${tenantId}/`
+  );
+  return res.data ?? null;
 }
 
 /** POST upload logo image for tenant. Backend uploads to R2, returns logoUrl. */
@@ -43,7 +39,7 @@ export async function uploadTenantLogo(
   return res.data;
 }
 
-/** PATCH tenant branding (loginTitle, logoUrl, etc.). Backend TBD. */
+/** PATCH tenant branding (loginTitle, logoUrl, etc.). */
 export async function patchTenantBranding(
   tenantId: number,
   payload: Partial<TenantBrandingDto>
