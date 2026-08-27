@@ -43,10 +43,17 @@ function subscriptionFixture() {
 
 async function installApi(
   page: Page,
-  options: { role: TenantRole; cardsStatus?: number },
+  options: {
+    role: TenantRole;
+    cardsStatus?: number;
+    consultStatuses?: number[];
+    consultFailure?: boolean;
+    consultPatchStatus?: number;
+  },
 ) {
   let cardRequests = 0;
   let consultRequests = 0;
+  let consultFailing = options.consultFailure === true;
 
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
@@ -139,9 +146,30 @@ async function installApi(
       }
       return json([]);
     }
-    if (path === "/core/landing/admin/consult/") {
+    if (path === "/core/landing/admin/consult/" && request.method() === "GET") {
       consultRequests += 1;
-      return json({ summary: { unread: 0 } });
+      if (consultFailing) return json({ detail: "temporary consult failure" }, 503);
+      const status = options.consultStatuses?.shift() ?? 200;
+      if (status !== 200) return json({ detail: "temporary consult failure" }, status);
+      return json({
+        summary: { total: 1, unread: 1 },
+        items: [{
+          id: 41,
+          name: "상담 보호자",
+          phone: "010-0000-0000",
+          interest: "중등 수학",
+          message: "상담 요청",
+          source: "landing",
+          read_at: null,
+          admin_memo: "",
+          created_at: "2026-08-27T00:00:00Z",
+        }],
+      });
+    }
+    if (path === "/core/landing/admin/consult/41/" && request.method() === "PATCH") {
+      const status = options.consultPatchStatus ?? 200;
+      if (status !== 200) return json({ detail: "상태 저장 실패" }, status);
+      return json({ ok: true });
     }
     if (path === "/lectures/attendance/arrival-overview/") {
       return json({
@@ -164,6 +192,7 @@ async function installApi(
   return {
     cardRequests: () => cardRequests,
     consultRequests: () => consultRequests,
+    recoverConsult: () => { consultFailing = false; },
   };
 }
 
@@ -255,4 +284,46 @@ test("넓은 데스크톱에서는 선생님 업무 캔버스를 충분히 사�
   const contentBox = await page.locator("main > div").boundingBox();
   expect(contentBox?.width ?? 0).toBeGreaterThanOrEqual(1280);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test("상담 수신함은 초기 오류를 빈 목록이나 영구 로딩으로 숨기지 않고 재시도한다", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installAuth(page);
+  const apiState = await installApi(page, { role: "owner", consultFailure: true });
+
+  await gotoAndSettle(page, `${BASE}/workspace/settings/consult`);
+  await expect.poll(apiState.consultRequests).toBeGreaterThan(0);
+  await expect(page.getByRole("alert")).toContainText("temporary consult failure");
+  await expect(page.getByText("불러오는 중…", { exact: true })).toHaveCount(0);
+  apiState.recoverConsult();
+  const retryButton = page.getByRole("button", { name: "다시 시도" });
+  expect((await retryButton.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(43.5);
+  await retryButton.click();
+  await expect(page.getByText("상담 보호자", { exact: true })).toBeVisible();
+  const actionButtons = page.locator("main button:visible");
+  for (let index = 0; index < await actionButtons.count(); index += 1) {
+    expect((await actionButtons.nth(index).boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(43.5);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(apiState.consultRequests()).toBeGreaterThanOrEqual(2);
+});
+
+test("상담 수신함 직접 URL은 owner/admin 밖에서 API 호출 전에 차단한다", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installAuth(page);
+  const apiState = await installApi(page, { role: "teacher" });
+
+  await gotoAndSettle(page, `${BASE}/workspace/settings/consult`);
+  await expect(page.getByText("접근 권한이 없습니다", { exact: true })).toBeVisible();
+  expect(apiState.consultRequests()).toBe(0);
+});
+
+test("상담 수신함 mutation 오류를 사용자에게 알리고 항목을 유지한다", async ({ page }) => {
+  await installAuth(page);
+  await installApi(page, { role: "owner", consultPatchStatus: 503 });
+
+  await gotoAndSettle(page, `${BASE}/workspace/settings/consult`);
+  await page.getByRole("button", { name: "읽음으로 표시" }).click();
+  await expect(page.getByRole("alert")).toContainText("상태 저장 실패");
+  await expect(page.getByText("상담 보호자", { exact: true })).toBeVisible();
 });
