@@ -213,6 +213,22 @@ export async function fetchStudentVideoPlayback(
   };
 }
 
+export async function checkStudentVideoAccess(
+  videoId: number,
+  enrollmentId?: number | null,
+): Promise<true> {
+  if (Number.isNaN(Number(videoId)) || videoId < 1) {
+    throw new Error("유효한 영상이 아닙니다.");
+  }
+  await api.get(`/student/video/videos/${videoId}/playback/`, {
+    params: {
+      access_check: "1",
+      ...(enrollmentId ? { enrollment: String(enrollmentId) } : {}),
+    },
+  });
+  return true;
+}
+
 export type VideoForwardSkipBudget = {
   enabled: boolean;
   step_seconds: number;

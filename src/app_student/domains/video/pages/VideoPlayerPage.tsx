@@ -5,6 +5,7 @@ import { useLocation, useNavigate, useParams } from "react-router";
 
 import EmptyState from "../../../layout/EmptyState";
 import {
+  checkStudentVideoAccess,
   fetchStudentVideoPlayback,
   fetchStudentSessionVideos,
   updateVideoProgress,
@@ -140,7 +141,8 @@ export default function VideoPlayerPage() {
     queryKey: studentVideoQueryKeys.playback(videoId, enrollmentId),
     queryFn: () => fetchStudentVideoPlayback(videoId!, enrollmentId ?? undefined),
     enabled: !!videoId,
-    staleTime: 60_000,
+    staleTime: 0,
+    refetchOnMount: "always",
     retry: 1,
   });
 
@@ -205,8 +207,8 @@ export default function VideoPlayerPage() {
       return { video: null, boot: null, loadError: "재생 URL을 가져올 수 없습니다." };
     }
 
-    // PROCTORED_CLASS면 백엔드가 진짜 token + session_id를 발급해 옴.
-    // FREE_REVIEW면 모니터링 불필요 → placeholder token으로 진행(서버 진도 검증 없음).
+    // All modes use a backend current-access token. PROCTORED_CLASS alone has
+    // a monitoring session id; the placeholder remains for rolling compatibility.
     const realToken = playbackData.playback_token;
     const realSessionId = playbackData.playback_session_id;
     const realExpiresAt = playbackData.playback_expires_at;
@@ -318,10 +320,34 @@ export default function VideoPlayerPage() {
 
   const [fatalError, setFatalError] = useState<string | null>(null);
   const onFatal = useCallback((reason: string) => setFatalError(reason), []);
+  const currentAccessQuery = useQuery({
+    queryKey: ["student-video-current-access", videoId, effectiveEnrollmentId],
+    queryFn: () => checkStudentVideoAccess(videoId!, effectiveEnrollmentId),
+    enabled: !!videoId && !!playbackQuery.data && !fatalError,
+    retry: false,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: "always",
+  });
+  useEffect(() => {
+    const response = (currentAccessQuery.error as {
+      response?: { status?: number; data?: { detail?: unknown } };
+    } | null)?.response;
+    if (response?.status === 403) {
+      const detail = response.data?.detail;
+      setFatalError(
+        typeof detail === "string" && detail.trim()
+          ? detail
+          : "현재 이 영상을 시청할 권한이 없습니다.",
+      );
+    }
+  }, [currentAccessQuery.error]);
   const retryPlayback = useCallback(async () => {
-    const result = await playbackQuery.refetch();
-    if (!result.error) setFatalError(null);
-  }, [playbackQuery]);
+    const [playbackResult, accessResult] = await Promise.all([
+      playbackQuery.refetch(),
+      currentAccessQuery.refetch(),
+    ]);
+    if (!playbackResult.error && !accessResult.error) setFatalError(null);
+  }, [currentAccessQuery, playbackQuery]);
 
   /* ─── 자동 다음 재생 ─── */
   const [autoPlayCountdown, setAutoPlayCountdown] = useState<number | null>(null);
@@ -359,7 +385,7 @@ export default function VideoPlayerPage() {
     [playbackStorageScope, videoId]
   );
 
-  // Reset state when videoId changes
+  // Reset state when the video or selected enrollment changes.
   useEffect(() => {
     setFatalError(null);
     // 자동재생 카운트다운 초기화 — 다른 영상으로 수동 이동 시 이전 타이머 방지
@@ -368,7 +394,7 @@ export default function VideoPlayerPage() {
       clearInterval(autoPlayTimerRef.current);
       autoPlayTimerRef.current = null;
     }
-  }, [videoId]);
+  }, [effectiveEnrollmentId, videoId]);
 
   useEffect(() => {
     return () => {
