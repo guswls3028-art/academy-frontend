@@ -58,6 +58,9 @@ reference-count 예산 안에서 우회할 수 없다. 일반 브라우저 취�
 이전의 이미 scope된 key에서 새 공통 key로 옮긴다. 새 key의 readback이 성공한
 뒤에만 이전 key를 지운다. 과거 성적 timestamp/session 초안처럼 user scope가
 없던 값은 다른 계정에 귀속하지 않고 복구 대상에서 제외한다.
+교사 모바일 성적 입력의 미저장 점수도 `tenant+user+exam` 범위의 session key만
+복구한다. 과거 `score_entry_draft_<exam>` 전역 key는 읽거나 지우지 않으며, 학원이나
+계정 범위를 확인할 수 없으면 초안을 읽거나 쓰지 않는다.
 
 저장소가 비활성, 가득 참, 손상된 경우에도 API 조회·입력·제출은 계속 동작한다.
 만료되거나 파싱할 수 없는 보조값은 무시한다. 확인 생략이나 자동 실행 선호를 읽지

@@ -158,6 +158,29 @@ test.describe("교사 모바일 테스트 오답 상태", () => {
     await page.screenshot({ path: "test-results/teacher-correction-status/mobile-score-entry-390.png", fullPage: true });
   });
 
+  test("미저장 점수는 tenant·account 범위에서만 복구하고 legacy key를 가져오지 않는다", async ({ page }) => {
+    await installTeacherApi(page);
+    await page.addInitScript(({ examId }) => {
+      sessionStorage.setItem(`score_entry_draft_${examId}`, JSON.stringify({ 101: "99" }));
+      sessionStorage.setItem(
+        `academy:score-entry-draft:v2:ymath:1:${examId}`,
+        JSON.stringify({ 101: "77" }),
+      );
+    }, { examId: EXAM_ID });
+
+    await page.goto(`${BASE}/workspace/mobile/scores/${SESSION_ID}?exam=${EXAM_ID}`, { waitUntil: "domcontentloaded" });
+    const scoreInput = page.locator("input[inputmode=decimal]").first();
+    await expect(scoreInput).toHaveValue("77");
+
+    await scoreInput.fill("88");
+    const stored = await page.evaluate(({ examId }) => ({
+      scoped: sessionStorage.getItem(`academy:score-entry-draft:v2:ymath:1:${examId}`),
+      legacy: sessionStorage.getItem(`score_entry_draft_${examId}`),
+    }), { examId: EXAM_ID });
+    expect(JSON.parse(stored.scoped || "{}")["101"]).toBe("88");
+    expect(JSON.parse(stored.legacy || "{}")["101"]).toBe("99");
+  });
+
   test("성적 조회에서 상태를 보고 정확한 차시 수정 화면으로 이동한다", async ({ page }) => {
     await installTeacherApi(page);
     await page.goto(`${BASE}/workspace/mobile/results`, { waitUntil: "domcontentloaded" });

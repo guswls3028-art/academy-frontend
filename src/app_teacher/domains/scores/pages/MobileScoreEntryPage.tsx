@@ -33,6 +33,8 @@ import {
   invalidateTeacherExamResultQueries,
 } from "@teacher/domains/results/examResultContract";
 import { teacherScoresQueryKeys } from "../queryKeys";
+import useAuth from "@/auth/hooks/useAuth";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import styles from "./MobileScoreEntryPage.module.css";
 
 type Tone = "success" | "warning" | "danger" | "muted";
@@ -60,6 +62,7 @@ function rateTone(value: number | null): Tone | undefined {
 }
 
 export default function MobileScoreEntryPage() {
+  const { user } = useAuth();
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -85,6 +88,10 @@ export default function MobileScoreEntryPage() {
     : null;
   const activeExamId = selectedExamId ?? routedExamId ?? exams?.[0]?.id ?? null;
   const activeExam = exams?.find((e) => e.id === activeExamId);
+  const tenantCode = getTenantCodeForApiRequest();
+  const draftScope = tenantCode && user?.id
+    ? `${tenantCode}:${user.id}`
+    : null;
 
   return (
     <div className="flex flex-col gap-3">
@@ -125,6 +132,7 @@ export default function MobileScoreEntryPage() {
               examPassScore={activeExam?.pass_score ?? null}
               enrollments={enrollments ?? []}
               rosterLoading={enrollmentsLoading}
+              draftScope={draftScope}
             />
           )}
         </>
@@ -146,11 +154,13 @@ export default function MobileScoreEntryPage() {
 }
 
 /** sessionStorage 보호: refetch/invalidate 후에도 미저장 입력값 유지. 탭 닫으면 제거. */
-const draftKeyForExam = (examId: number) => `score_entry_draft_${examId}`;
+const draftKeyForExam = (scope: string, examId: number) =>
+  `academy:score-entry-draft:v2:${scope}:${examId}`;
 
-function loadDraft(examId: number): Map<number, string> {
+function loadDraft(scope: string | null, examId: number): Map<number, string> {
+  if (!scope) return new Map();
   try {
-    const raw = sessionStorage.getItem(draftKeyForExam(examId));
+    const raw = sessionStorage.getItem(draftKeyForExam(scope, examId));
     if (!raw) return new Map();
     const obj = JSON.parse(raw) as Record<string, string>;
     return new Map(Object.entries(obj).map(([k, v]) => [Number(k), v]));
@@ -158,15 +168,16 @@ function loadDraft(examId: number): Map<number, string> {
     return new Map();
   }
 }
-function saveDraft(examId: number, m: Map<number, string>) {
+function saveDraft(scope: string | null, examId: number, m: Map<number, string>) {
+  if (!scope) return;
   try {
     if (m.size === 0) {
-      sessionStorage.removeItem(draftKeyForExam(examId));
+      sessionStorage.removeItem(draftKeyForExam(scope, examId));
       return;
     }
     const obj: Record<string, string> = {};
     m.forEach((v, k) => { obj[String(k)] = v; });
-    sessionStorage.setItem(draftKeyForExam(examId), JSON.stringify(obj));
+    sessionStorage.setItem(draftKeyForExam(scope, examId), JSON.stringify(obj));
   } catch { /* quota exceeded — non-critical */ }
 }
 
@@ -177,6 +188,7 @@ function ScoreEntryList({
   examPassScore,
   enrollments,
   rosterLoading,
+  draftScope,
 }: {
   sessionId: number;
   examId: number;
@@ -184,6 +196,7 @@ function ScoreEntryList({
   examPassScore: number | null;
   enrollments: SessionEnrollment[];
   rosterLoading: boolean;
+  draftScope: string | null;
 }) {
   const qc = useQueryClient();
   const { data: rawResults, isLoading: resultsLoading } = useQuery({
@@ -248,12 +261,12 @@ function ScoreEntryList({
   // row 식별자 = enrollment_id (admin endpoint schema SSOT)
   const inputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
   const pendingSubmitKeys = useRef<Set<string>>(new Set());
-  const [localScores, setLocalScores] = useState<Map<number, string>>(() => loadDraft(examId));
+  const [localScores, setLocalScores] = useState<Map<number, string>>(() => loadDraft(draftScope, examId));
   const [studentSearch, setStudentSearch] = useState("");
   const [reviewFilter, setReviewFilter] = useState<ReviewFilter>("all");
   // 저장 직후 행에 1.2초 색상 펄스 — 토스트 외 즉시 시각 표식
   const [justSaved, setJustSaved] = useState<Set<number>>(new Set());
-  useEffect(() => { setLocalScores(loadDraft(examId)); }, [examId]);
+  useEffect(() => { setLocalScores(loadDraft(draftScope, examId)); }, [draftScope, examId]);
   useEffect(() => {
     setStudentSearch("");
     setReviewFilter("all");
@@ -313,7 +326,7 @@ function ScoreEntryList({
       setLocalScores((prev) => {
         const next = new Map(prev);
         next.delete(variables.enrollmentId);
-        saveDraft(examId, next);
+        saveDraft(draftScope, examId, next);
         return next;
       });
       setJustSaved((prev) => new Set(prev).add(variables.enrollmentId));
@@ -612,7 +625,7 @@ function ScoreEntryList({
                     const v = e.target.value;
                     setLocalScores((p) => {
                       const next = new Map(p).set(enrollmentId, v);
-                      saveDraft(examId, next);
+                      saveDraft(draftScope, examId, next);
                       return next;
                     });
                   }}
