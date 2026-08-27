@@ -8,7 +8,7 @@
  *   3) 오늘 수업
  *   4) 학습 현황 (활동성 우선, 시험 평균은 완화 컬러)
  *   5) 공지 (긴급 1건+ 또는 신규 있을 때만 강조, 비어 있으면 1행 라인 링크)
- *   6) 앱 아이콘 (탭바 중복 제거 + 출석 포함, 6개)
+ *   6) 앱 아이콘 (탭바 중복 제거 + 퇴실용 패스카드, 8개)
  *   7) 학원문의 (1행 압축, 분점 다수일 때만 펼침)
  *
  * 부분 실패: 한쪽 쿼리만 실패해도 가능한 섹션 노출.
@@ -28,7 +28,7 @@ import { useStudentExams } from "@student/domains/exams/hooks/useStudentExams";
 import { getParentStudentId } from "@student/shared/api/parentStudentSelection";
 import {
   IconCalendar, IconGrade, IconExam, IconNotice,
-  IconClipboard, IconClinic, IconFolder, IconChevronRight, IconCheck, IconUser, IconBell, IconBoard,
+  IconClipboard, IconClinic, IconFolder, IconChevronRight, IconCheck, IconBell, IconBoard,
 } from "@student/shared/ui/icons/Icons";
 import { formatYmd } from "@student/shared/utils/date";
 import { useNotificationCounts } from "@student/domains/notifications/hooks/useNotificationCounts";
@@ -619,8 +619,8 @@ export default function DashboardPage() {
             icon={<IconNotice />} />
           <AppIcon to="/student/inventory" label="보관함"
             icon={<IconFolder />} />
-          <AppIcon to="/student/profile" label="내 정보"
-            icon={<IconUser />} />
+          <AppIcon to="/student/idcard" label="클리닉 패스카드"
+            icon={<IconClinic />} />
         </div>
       </section>
 

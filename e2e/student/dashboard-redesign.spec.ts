@@ -31,7 +31,7 @@ test.describe("학생 대시보드 개편", () => {
     await expect(page.getByText("나의 학습 현황", { exact: true })).toBeVisible();
 
     /* 앱 아이콘 라벨 8종 */
-    for (const label of ["성적", "시험", "과제", "클리닉", "출결", "공지", "보관함", "내 정보"]) {
+    for (const label of ["성적", "시험", "과제", "클리닉", "출결", "공지", "보관함", "클리닉 패스카드"]) {
       await expect(page.getByText(label, { exact: true }).first()).toBeVisible();
     }
 

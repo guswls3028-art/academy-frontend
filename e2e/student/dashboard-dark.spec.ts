@@ -31,7 +31,7 @@ test.describe("학생 대시보드 다크 모드", () => {
     /* 핵심 섹션 가시성 — 다크 모드에서도 텍스트 보여야 함 */
     await expect(page.getByText("오늘 할 일", { exact: true })).toBeVisible({ timeout: 8_000 });
     await expect(page.getByText("나의 학습 현황", { exact: true })).toBeVisible();
-    for (const label of ["성적", "시험", "과제", "클리닉", "출결", "공지", "보관함", "내 정보"]) {
+    for (const label of ["성적", "시험", "과제", "클리닉", "출결", "공지", "보관함", "클리닉 패스카드"]) {
       await expect(page.getByText(label, { exact: true }).first()).toBeVisible();
     }
 
