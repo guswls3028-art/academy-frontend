@@ -20,6 +20,7 @@ import {
   fetchRegistrationRequestSettings,
   updateRegistrationRequestSettings,
   deletedRegistrationConflictFromError,
+  isSelfRegistrationDisabledError,
   resolveDeletedRegistrationRequest,
   type ClientRegistrationRequest,
   type DeletedRegistrationCandidate,
@@ -258,7 +259,7 @@ export default function StudentsRequestsPage() {
   const [selectedRecoveryId, setSelectedRecoveryId] = useState<number | null>(null);
   const recoverySubmissionRef = useRef(false);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: adminStudentsQueryKeys.registrationRequests,
     queryFn: () =>
       fetchRegistrationRequests({ status: "pending", page: 1, page_size: 100 }),
@@ -267,6 +268,7 @@ export default function StudentsRequestsPage() {
   const settingsQ = useQuery({
     queryKey: adminStudentsQueryKeys.registrationRequestSettings,
     queryFn: fetchRegistrationRequestSettings,
+    enabled: !isLoading && !isError,
   });
 
   const list = data?.data ?? [];
@@ -466,6 +468,54 @@ export default function StudentsRequestsPage() {
     );
   }
 
+  if (isError && isSelfRegistrationDisabledError(error)) {
+    return (
+      <div className={panelStyles.root}>
+        <div className={panelStyles.header}>
+          <h2 className={panelStyles.headerTitle}>가입 신청</h2>
+          <p className={panelStyles.headerDesc}>
+            이 학원은 학생 자가 가입을 사용하지 않습니다.
+          </p>
+        </div>
+        <div className="students-requests__body">
+          <div className={panelStyles.contentInner}>
+            <EmptyState
+              title="학생 자가 가입을 사용하지 않습니다"
+              description="정책 변경 전에 접수된 요청은 기록으로 보존되며 승인하거나 거절할 수 없습니다. 학생은 직접 등록해 주세요."
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className={panelStyles.root}>
+        <div className={panelStyles.header}>
+          <h2 className={panelStyles.headerTitle}>가입 신청</h2>
+          <p className={panelStyles.headerDesc}>
+            가입 신청 목록을 확인한 뒤에만 설정과 처리 기능을 사용할 수 있습니다.
+          </p>
+        </div>
+        <div className="students-requests__body">
+          <div className={panelStyles.contentInner}>
+            <EmptyState
+              tone="error"
+              title="가입 신청을 불러오지 못했습니다"
+              description="조회 실패를 신청 0건으로 표시하지 않습니다. 다시 시도해 주세요."
+              actions={
+                <Button intent="secondary" size="sm" onClick={() => void refetch()}>
+                  다시 시도
+                </Button>
+              }
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div data-app="admin">
       <div className={panelStyles.root}>
@@ -488,17 +538,36 @@ export default function StudentsRequestsPage() {
               </p>
             </div>
             <div className="students-requests__toggles">
-              <label className="students-requests__auto-approve">
-                <span className="students-requests__auto-approve-label">
-                  자동 승인
+              {settingsQ.isLoading ? (
+                <span className="students-requests__auto-approve-label" role="status">
+                  자동 승인 설정 확인 중
                 </span>
-                <Switch
-                  checked={autoApproved}
-                  onChange={(checked) => updateAutoApproveM.mutate(checked)}
-                  disabled={updateAutoApproveM.isPending}
-                  size="small"
-                />
-              </label>
+              ) : settingsQ.isError ? (
+                <div className="flex items-center gap-2" role="alert">
+                  <span className="students-requests__auto-approve-label">
+                    자동 승인 설정을 불러오지 못했습니다
+                  </span>
+                  <Button
+                    intent="secondary"
+                    size="sm"
+                    onClick={() => void settingsQ.refetch()}
+                  >
+                    설정 다시 시도
+                  </Button>
+                </div>
+              ) : (
+                <label className="students-requests__auto-approve">
+                  <span className="students-requests__auto-approve-label">
+                    자동 승인
+                  </span>
+                  <Switch
+                    checked={autoApproved}
+                    onChange={(checked) => updateAutoApproveM.mutate(checked)}
+                    disabled={updateAutoApproveM.isPending}
+                    size="small"
+                  />
+                </label>
+              )}
             </div>
           </div>
         </div>

@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
+import { isSelfRegistrationDisabledError } from "@/shared/api/contracts/students";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { Search, Plus, X } from "@teacher/shared/ui/Icons";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
@@ -56,7 +57,7 @@ export default function CommunicationPage() {
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { counts } = useTeacherPendingCounts();
+  const { counts, failures, isLoading: pendingIsLoading, isError: pendingIsError } = useTeacherPendingCounts();
 
   const postType = POST_TYPE_MAP[tab];
   const isPostTab = tab !== "requests";
@@ -109,12 +110,22 @@ export default function CommunicationPage() {
   });
   const reqData = requestsQ.data;
   const reqLoading = requestsQ.isLoading;
+  const selfRegistrationDisabled =
+    requestsQ.isError && isSelfRegistrationDisabledError(requestsQ.error);
 
-  const tabs: { key: Tab; label: string; badge?: number }[] = [
+  const pendingBadge = (
+    source: "qna" | "counsel" | "registration_requests",
+    value: number | undefined,
+  ): number | "!" | "…" | undefined => {
+    if (pendingIsLoading) return "…";
+    if (pendingIsError || failures.includes(source)) return "!";
+    return value && value > 0 ? value : undefined;
+  };
+  const tabs: { key: Tab; label: string; badge?: number | "!" | "…" }[] = [
     { key: "notices", label: "공지사항" },
-    { key: "qna", label: "Q&A", badge: counts?.qnaPending },
-    { key: "counsel", label: "상담", badge: counts?.counselPending },
-    { key: "requests", label: "가입신청", badge: counts?.registrationRequestsPending },
+    { key: "qna", label: "Q&A", badge: pendingBadge("qna", counts?.qnaPending) },
+    { key: "counsel", label: "상담", badge: pendingBadge("counsel", counts?.counselPending) },
+    { key: "requests", label: "가입신청", badge: pendingBadge("registration_requests", counts?.registrationRequestsPending) },
     { key: "board", label: "게시판" },
     { key: "materials", label: "자료" },
   ];
@@ -186,8 +197,11 @@ export default function CommunicationPage() {
               type="button"
             >
               {t.label}
-              {!!t.badge && t.badge > 0 && (
-                <span className={styles.badge}>
+              {t.badge != null && t.badge !== 0 && (
+                <span
+                  className={styles.badge}
+                  aria-label={`${t.label} ${t.badge === "!" ? "일부 확인 필요" : t.badge === "…" ? "집계 중" : `${t.badge}건`}`}
+                >
                   {t.badge}
                 </span>
               )}
@@ -238,6 +252,13 @@ export default function CommunicationPage() {
         {tab === "requests" ? (
           reqLoading ? (
             <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+          ) : selfRegistrationDisabled ? (
+            <EmptyState
+              scope="panel"
+              tone="empty"
+              title="학생 자가 가입을 사용하지 않습니다"
+              description="정책 변경 전에 접수된 요청은 기록으로 보존되며, 현재 화면에서는 승인하거나 거절할 수 없습니다. 학생은 직접 등록해 주세요."
+            />
           ) : requestsQ.isError ? (
             <EmptyState scope="panel" tone="error" title="등록요청을 불러오지 못했습니다" actions={<EmptyActionButton onClick={() => void requestsQ.refetch()}>다시 시도</EmptyActionButton>} />
           ) : reqData && reqData.results.length > 0 ? (

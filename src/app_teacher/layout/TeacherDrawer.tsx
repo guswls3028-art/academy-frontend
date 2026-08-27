@@ -187,6 +187,11 @@ export default function TeacherDrawer({
                         </span>
                         <span className={styles.itemLabel}>{item.label}</span>
                         {item.beta && <span className={styles.badge}>BETA</span>}
+                        {item.badgeLabel && (
+                          <span className={styles.badge} aria-label={`${item.label} ${item.badgeLabel}`}>
+                            {item.badgeLabel}
+                          </span>
+                        )}
                         {item.badge != null && item.badge > 0 && (
                           <span className={styles.badge}>
                             {item.badge > 99 ? "99+" : item.badge}

@@ -26,8 +26,16 @@ const TABS: TeacherTab[] = [
 ];
 
 export default function TeacherTabBar() {
-  const { counts } = useTeacherPendingCounts();
+  const { counts, failures, isLoading, isError } = useTeacherPendingCounts();
   const badge = counts?.total ?? 0;
+  const badgeIncomplete = isError || failures.length > 0;
+  const hasBadge = isLoading || badgeIncomplete || badge > 0;
+  const badgeLabel = isLoading ? "…" : badgeIncomplete ? "!" : badge > 99 ? "99+" : String(badge);
+  const badgeAriaLabel = isLoading
+    ? "커뮤니티 알림 집계 중"
+    : badgeIncomplete
+      ? "커뮤니티 알림 일부 확인 필요"
+      : `커뮤니티 알림 ${badge}건`;
 
   return (
     <nav
@@ -47,9 +55,9 @@ export default function TeacherTabBar() {
           >
             <span className={styles.iconWrap}>
               {t.icon}
-              {t.hasBadge && badge > 0 && (
-                <span className={styles.badge}>
-                  {badge > 99 ? "99+" : badge}
+              {t.hasBadge && hasBadge && (
+                <span className={styles.badge} aria-label={badgeAriaLabel}>
+                  {badgeLabel}
                 </span>
               )}
             </span>

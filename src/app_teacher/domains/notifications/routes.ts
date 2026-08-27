@@ -7,7 +7,7 @@ export const TEACHER_PENDING_ROUTES: Record<TeacherPendingItem["type"], string> 
   qna: "/workspace/mobile/comms?tab=qna",
   counsel: "/workspace/mobile/comms?tab=counsel",
   clinic: "/workspace/mobile/clinic",
-  registration_requests: "/workspace/mobile/students",
+  registration_requests: "/workspace/mobile/comms?tab=requests",
   submissions: "/workspace/mobile/submissions",
   video_failed: "/workspace/mobile/videos?status=failed",
   consult: "/workspace/settings/consult",  // 선생앱에서 클릭 시 PC 어드민 콘솔로 (모바일 앱 페이지는 다음 turn)

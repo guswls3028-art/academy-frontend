@@ -40,7 +40,7 @@ export default function TeacherTopBar({
   const navigate = useNavigate();
   const { program } = useProgram();
   const { user } = useAuth();
-  const { counts } = useTeacherPendingCounts();
+  const { counts, failures, isLoading, isError } = useTeacherPendingCounts();
   const productUpdate = useProductUpdateAwareness(user?.id);
   const tenantName = program?.display_name?.trim() || "";
   const tenantResult = resolveTenantCode();
@@ -52,7 +52,17 @@ export default function TeacherTopBar({
   const logoUrl = headerBrandStyle
     ? (tenantHeaderLogoUrl || programLogoUrl)
     : (programLogoUrl || tenantHeaderLogoUrl);
-  const badge = (counts?.total ?? 0) + (productUpdate.isUnread ? 1 : 0);
+  const knownBadge = (counts?.total ?? 0) + (productUpdate.isUnread ? 1 : 0);
+  const badgeIncomplete = isError || failures.length > 0;
+  const badgeLabel = isLoading ? "…" : badgeIncomplete ? "!" : knownBadge > 99 ? "99+" : String(knownBadge);
+  const hasBadge = isLoading || badgeIncomplete || knownBadge > 0;
+  const notificationAriaLabel = isLoading
+    ? "알림 집계 중"
+    : badgeIncomplete
+      ? "알림 일부 확인 필요"
+      : knownBadge > 0
+        ? `알림 ${knownBadge > 99 ? "99건 이상" : `${knownBadge}건`}`
+        : "알림";
 
   return (
     <div
@@ -196,7 +206,7 @@ export default function TeacherTopBar({
         />
         <button
           onClick={() => navigate("/workspace/mobile/notifications")}
-          aria-label={badge > 0 ? `알림 ${badge > 99 ? "99건 이상" : `${badge}건`}` : "알림"}
+          aria-label={notificationAriaLabel}
           style={{
             background: "none",
             border: "none",
@@ -206,14 +216,14 @@ export default function TeacherTopBar({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            color: badge > 0 ? "var(--tc-text)" : "var(--tc-text-secondary)",
+            color: hasBadge ? "var(--tc-text)" : "var(--tc-text-secondary)",
             position: "relative",
             minWidth: "var(--tc-touch-min)",
             minHeight: "var(--tc-touch-min)",
           }}
         >
-          {badge > 0 ? <BellRing size={ICON.lg} /> : <Bell size={ICON.lg} />}
-          {badge > 0 && (
+          {hasBadge ? <BellRing size={ICON.lg} /> : <Bell size={ICON.lg} />}
+          {hasBadge && (
             <span
               style={{
                 position: "absolute",
@@ -231,7 +241,7 @@ export default function TeacherTopBar({
                 color: "#fff",
               }}
             >
-              {badge > 99 ? "99+" : badge}
+              {badgeLabel}
             </span>
           )}
         </button>
