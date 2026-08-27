@@ -5890,6 +5890,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/media/inactive-video-entitlements/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Exact staff-authorized video access staged for inactive enrollment use. */
+        get: operations["media_inactive_video_entitlements_list"];
+        put?: never;
+        /** @description Grant exact inactive-enrollment access to Academy-hosted revocable media. YouTube sources fail closed with code video_source_unsupported. */
+        post: operations["media_inactive_video_entitlements_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/media/inactive-video-entitlements/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Exact staff-authorized video access staged for inactive enrollment use. */
+        get: operations["media_inactive_video_entitlements_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/media/inactive-video-entitlements/{id}/revoke/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Exact staff-authorized video access staged for inactive enrollment use. */
+        post: operations["media_inactive_video_entitlements_revoke_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/media/internal/videos/{video_id}/processing-complete/": {
         parameters: {
             query?: never;
@@ -11645,13 +11697,6 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
-         * @description * `FREE_REVIEW` - 복습
-         *     * `PROCTORED_CLASS` - 온라인 수업 대체
-         *     * `BLOCKED` - 제한
-         * @enum {string}
-         */
-        AccessModeEnum: "FREE_REVIEW" | "PROCTORED_CLASS" | "BLOCKED";
-        /**
          * @description * `ACTIVE` - ACTIVE
          *     * `INACTIVE` - INACTIVE
          *     * `DELETED` - DELETED
@@ -12306,6 +12351,13 @@ export interface components {
          * @enum {string}
          */
         DeviceClassEnum: "mobile" | "tablet" | "desktop";
+        /**
+         * @description * `free` - free
+         *     * `once` - once
+         *     * `blocked` - blocked
+         * @enum {string}
+         */
+        EffectiveRuleEnum: "free" | "once" | "blocked";
         Enrollment: {
             /** Format: date-time */
             readonly created_at: string;
@@ -13096,6 +13148,64 @@ export interface components {
          * @enum {string}
          */
         HomeworkTypeEnum: "template" | "regular";
+        InactiveVideoEntitlement: {
+            readonly access_mode: components["schemas"]["InactiveVideoEntitlementAccessMode"];
+            readonly enrollment_id: number;
+            /** Format: date-time */
+            readonly expires_at: string | null;
+            /** Format: date-time */
+            readonly granted_at: string;
+            readonly granted_by_id: number | null;
+            readonly granted_by_reference: string;
+            readonly id: number;
+            readonly reason: string;
+            readonly revoke_reason: string;
+            /** Format: date-time */
+            readonly revoked_at: string | null;
+            readonly revoked_by_id: number | null;
+            readonly revoked_by_reference: string;
+            readonly source: components["schemas"]["InactiveVideoEntitlementSource"];
+            readonly source_reference: string;
+            readonly state: string;
+            readonly student_id: number;
+            readonly tenant_id: number;
+            readonly video_id: number;
+        };
+        /**
+         * @description * `FREE_REVIEW` - 복습
+         *     * `PROCTORED_CLASS` - 온라인 수업 대체
+         * @enum {string}
+         */
+        InactiveVideoEntitlementAccessMode: "FREE_REVIEW" | "PROCTORED_CLASS";
+        InactiveVideoEntitlementError: {
+            /** @description Stable machine code. YouTube grant/runtime failures use video_source_unsupported. */
+            code: string;
+            detail: string;
+        };
+        InactiveVideoEntitlementGrantRequest: {
+            access_mode: components["schemas"]["StudentVideoEffectiveAccessMode"];
+            enrollment_id: number;
+            /** Format: date-time */
+            expires_at?: string | null;
+            reason: string;
+            source: components["schemas"]["InactiveVideoEntitlementSource"];
+            source_reference: string;
+            student_id: number;
+            video_id: number;
+        };
+        InactiveVideoEntitlementMutation: {
+            changed: boolean;
+            created: boolean;
+            entitlement: components["schemas"]["InactiveVideoEntitlement"];
+        };
+        InactiveVideoEntitlementRevokeRequest: {
+            reason: string;
+        };
+        /**
+         * @description * `STAFF_AUTHORIZATION` - 교직원 명시 승인
+         * @enum {string}
+         */
+        InactiveVideoEntitlementSource: "STAFF_AUTHORIZATION";
         InvoiceDetail: {
             /**
              * Format: int64
@@ -13867,6 +13977,21 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["HomeworkScore"][];
+        };
+        PaginatedInactiveVideoEntitlementList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["InactiveVideoEntitlement"][];
         };
         PaginatedInvoiceListList: {
             /** @example 123 */
@@ -14950,7 +15075,7 @@ export interface components {
              *     * `PROCTORED_CLASS` - 온라인 수업 대체
              *     * `BLOCKED` - 제한
              */
-            access_mode?: components["schemas"]["AccessModeEnum"];
+            access_mode?: components["schemas"]["SealedVideoAccessAccessModeEnum"];
             allow_skip_override?: boolean | null;
             block_seek?: boolean;
             block_speed_control?: boolean;
@@ -16194,7 +16319,7 @@ export interface components {
              *     * `PROCTORED_CLASS` - 온라인 수업 대체
              *     * `BLOCKED` - 제한
              */
-            access_mode?: components["schemas"]["AccessModeEnum"];
+            access_mode?: components["schemas"]["SealedVideoAccessAccessModeEnum"];
             allow_skip_override?: boolean | null;
             block_seek?: boolean;
             block_speed_control?: boolean;
@@ -16220,6 +16345,13 @@ export interface components {
             readonly student_name: string;
             video: number;
         };
+        /**
+         * @description * `FREE_REVIEW` - 복습
+         *     * `PROCTORED_CLASS` - 온라인 수업 대체
+         *     * `BLOCKED` - 제한
+         * @enum {string}
+         */
+        SealedVideoAccessAccessModeEnum: "FREE_REVIEW" | "PROCTORED_CLASS" | "BLOCKED";
         /** @description API uses access_mode (SSOT). DB table kept as video_videopermission. */
         SealedVideoAccessRequest: {
             /**
@@ -16229,7 +16361,7 @@ export interface components {
              *     * `PROCTORED_CLASS` - 온라인 수업 대체
              *     * `BLOCKED` - 제한
              */
-            access_mode?: components["schemas"]["AccessModeEnum"];
+            access_mode?: components["schemas"]["SealedVideoAccessAccessModeEnum"];
             allow_skip_override?: boolean | null;
             block_seek?: boolean;
             block_speed_control?: boolean;
@@ -17521,6 +17653,18 @@ export interface components {
             /** @description True면 학생 전화 없음, 식별자(010+8자리)로 가입. 표시 시 '식별자 XXXX-XXXX' */
             uses_identifier?: boolean;
         };
+        StudentVideoAccessCheck: {
+            access_mode: components["schemas"]["StudentVideoEffectiveAccessMode"];
+            monitoring_enabled: boolean;
+            ok: boolean;
+            policy_version: number;
+        };
+        /**
+         * @description * `FREE_REVIEW` - FREE_REVIEW
+         *     * `PROCTORED_CLASS` - PROCTORED_CLASS
+         * @enum {string}
+         */
+        StudentVideoEffectiveAccessMode: "FREE_REVIEW" | "PROCTORED_CLASS";
         StudentVideoForwardSkipRequestRequest: {
             enrollment?: number;
             enrollment_id?: number;
@@ -17536,6 +17680,72 @@ export interface components {
             unavailable_reason: string;
             used_seconds: number;
         };
+        StudentVideoListItem: {
+            access_mode?: (components["schemas"]["StudentVideoListItemAccessModeEnum"] | components["schemas"]["NullEnum"]) | null;
+            allow_skip: boolean;
+            /** @default 0 */
+            comment_count: number;
+            /** @default false */
+            completed: boolean;
+            /** Format: date-time */
+            created_at?: string | null;
+            duration?: number | null;
+            effective_rule?: (components["schemas"]["EffectiveRuleEnum"] | components["schemas"]["NullEnum"]) | null;
+            enrollment_id?: number | null;
+            id: number;
+            /** @default false */
+            is_liked: boolean;
+            /** @default 0 */
+            last_position: number;
+            /** @default 0 */
+            like_count: number;
+            /** Format: double */
+            max_speed: number;
+            /** @default 0 */
+            order: number;
+            /**
+             * Format: double
+             * @default 0
+             */
+            progress: number;
+            session_id: number | null;
+            show_watermark: boolean;
+            /** @default s3 */
+            source_type: string;
+            status: string;
+            thumbnail_url?: string | null;
+            title: string;
+            /** Format: date-time */
+            updated_at?: string | null;
+            /** @default 0 */
+            view_count: number;
+            /** @default  */
+            youtube_url: string;
+            /** @default  */
+            youtube_video_id: string;
+        };
+        /**
+         * @description * `FREE_REVIEW` - FREE_REVIEW
+         *     * `PROCTORED_CLASS` - PROCTORED_CLASS
+         *     * `BLOCKED` - BLOCKED
+         * @enum {string}
+         */
+        StudentVideoListItemAccessModeEnum: "FREE_REVIEW" | "PROCTORED_CLASS" | "BLOCKED";
+        /** @description 학생 플레이어가 신뢰하는 단일 진실 payload */
+        StudentVideoPlayback: {
+            hls_url?: string | null;
+            mp4_url?: string | null;
+            play_url?: string | null;
+            playback_expires_at?: number | null;
+            playback_session_id?: string | null;
+            playback_token?: string | null;
+            policy: {
+                [key: string]: unknown;
+            };
+            policy_version: number;
+            video: components["schemas"]["StudentVideoListItem"];
+        };
+        StudentVideoPlaybackOrAccessCheck: components["schemas"]["StudentVideoPlayback"] | components["schemas"]["StudentVideoAccessCheck"];
         Submission: {
             /** Format: date-time */
             readonly created_at: string;
@@ -27321,6 +27531,215 @@ export interface operations {
             };
         };
     };
+    media_inactive_video_entitlements_list: {
+        parameters: {
+            query?: {
+                /** @description Filter by one exact enrollment id. */
+                enrollment_id?: number;
+                /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
+                page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
+                /** @description Filter by one exact student id. */
+                student_id?: number;
+                /** @description Filter by one exact video id. */
+                video_id?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedInactiveVideoEntitlementList"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InactiveVideoEntitlementError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InactiveVideoEntitlementError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InactiveVideoEntitlementError"];
+                };
+            };
+        };
+    };
+    media_inactive_video_entitlements_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InactiveVideoEntitlementGrantRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["InactiveVideoEntitlementGrantRequest"];
+                "multipart/form-data": components["schemas"]["InactiveVideoEntitlementGrantRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InactiveVideoEntitlementMutation"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InactiveVideoEntitlementMutation"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InactiveVideoEntitlementError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InactiveVideoEntitlementError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InactiveVideoEntitlementError"];
+                };
+            };
+        };
+    };
+    media_inactive_video_entitlements_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description inactive video entitlement을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InactiveVideoEntitlement"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InactiveVideoEntitlementError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InactiveVideoEntitlementError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InactiveVideoEntitlementError"];
+                };
+            };
+        };
+    };
+    media_inactive_video_entitlements_revoke_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description inactive video entitlement을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InactiveVideoEntitlementRevokeRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["InactiveVideoEntitlementRevokeRequest"];
+                "multipart/form-data": components["schemas"]["InactiveVideoEntitlementRevokeRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InactiveVideoEntitlementMutation"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InactiveVideoEntitlementError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InactiveVideoEntitlementError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InactiveVideoEntitlementError"];
+                };
+            };
+        };
+    };
     media_internal_videos_processing_complete_create: {
         parameters: {
             query?: never;
@@ -33328,7 +33747,10 @@ export interface operations {
     };
     student_video_videos_playback_retrieve: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Revalidate exact tenant, enrollment, video, and policy access without issuing playback media or recording activity. */
+                access_check?: boolean;
+            };
             header?: never;
             path: {
                 video_id: number;
@@ -33337,12 +33759,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No response body */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["StudentVideoPlaybackOrAccessCheck"];
+                };
             };
         };
     };
