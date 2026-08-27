@@ -933,6 +933,11 @@
 }
 
 @media (max-width: 640px) {
+  .cms-form__body--scrollable {
+    overflow-y: visible;
+    overscroll-behavior: auto;
+  }
+
   .notice-tree:not(.notice-tree--has-detail) > .qna-inbox__thread {
     display: none;
   }

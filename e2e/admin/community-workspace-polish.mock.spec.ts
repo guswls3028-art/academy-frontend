@@ -198,6 +198,83 @@ test.describe("커뮤니티 QnA 작업대", () => {
     await expect(submit).toBeInViewport();
   });
 
+  test("390px에서 큰 이미지 위로 스크롤해 공지를 한 번만 등록한다", async ({ page }) => {
+    const noticeImageSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="720" height="1600"><rect width="720" height="1600" fill="#fff"/><text x="40" y="100" font-size="48">29번 정답 정오</text></svg>';
+    const createBodies: unknown[] = [];
+    let releaseCreate: (() => void) | undefined;
+    const createGate = new Promise<void>((resolve) => {
+      releaseCreate = resolve;
+    });
+    await page.route("**/api/v1/community/posts/", async (route) => {
+      if (route.request().method() !== "POST") return route.fallback();
+      createBodies.push(route.request().postDataJSON());
+      await createGate;
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: 991,
+          post_type: "notice",
+          title: "29번 정답 정오",
+          content: "",
+          attachments: [],
+          mappings: [],
+        }),
+      });
+    });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await gotoAndSettle(page, `${BASE}/workspace/community/notice`, { timeout: 60_000 });
+
+    await page.getByRole("button", { name: "+ 추가" }).click();
+    await page.getByPlaceholder("공지 제목을 입력하세요").fill("29번 정답 정오");
+    await page.locator('.cms-form__body input[type="file"][accept="image/*"]').setInputFiles({
+      name: "29번-정답-정오.svg",
+      mimeType: "image/svg+xml",
+      buffer: Buffer.from(noticeImageSvg),
+    });
+
+    const formBody = page.locator(".qna-inbox__thread > .cms-form__body");
+    const submit = page.getByRole("button", { name: "등록", exact: true });
+    await expect(formBody.locator(".ProseMirror img")).toBeVisible();
+    const initialOuterScrollTop = await formBody.evaluate((element) => {
+      let current = element.parentElement;
+      while (current) {
+        const overflowY = getComputedStyle(current).overflowY;
+        if (/(auto|scroll)/.test(overflowY) && current.scrollHeight > current.clientHeight) {
+          current.dataset.noticeScrollOwner = "true";
+          return current.scrollTop;
+        }
+        current = current.parentElement;
+      }
+      throw new Error("공지 작성 화면의 바깥 세로 스크롤 영역을 찾지 못했습니다.");
+    });
+    const outerScroller = page.locator('[data-notice-scroll-owner="true"]');
+
+    await formBody.hover();
+    await page.mouse.wheel(0, 800);
+    await expect.poll(() => outerScroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(initialOuterScrollTop);
+    await expect(submit).toBeInViewport();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow).toBeLessThanOrEqual(1);
+
+    await submit.click();
+    const pendingSubmit = page.getByRole("button", { name: "등록 중…" });
+    await expect(pendingSubmit).toBeDisabled();
+    await pendingSubmit.click({ force: true });
+    await expect.poll(() => createBodies).toHaveLength(1);
+    expect(createBodies[0]).toEqual({
+      post_type: "notice",
+      title: "29번 정답 정오",
+      content: `<img src="data:image/svg+xml;base64,${Buffer.from(noticeImageSvg).toString("base64")}"><p></p>`,
+      node_ids: [],
+    });
+
+    releaseCreate?.();
+    await expect(page.getByText("공지가 등록되었습니다.")).toBeVisible();
+    await expect.poll(() => createBodies).toHaveLength(1);
+  });
+
   for (const viewport of [
     { name: "데스크톱", width: 1366, height: 900 },
     { name: "390px", width: 390, height: 844 },
