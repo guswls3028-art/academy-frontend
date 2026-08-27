@@ -50,6 +50,7 @@ import {
   completeClinicParticipant,
   remindClinicParticipant,
   replaceClinicParticipantPlan,
+  patchClinicParticipantStaffMemo,
   uncompleteClinicParticipant,
 } from "../../api/clinicParticipants.api";
 import { fetchClinicSessions } from "../../api/clinicSessions.api";
@@ -209,6 +210,11 @@ function getStatusLabel(status: string): string {
   return "미확인";
 }
 
+function preferredTimeText(participant: ClinicParticipant): string | null {
+  if (!participant.preferred_start_time || !participant.preferred_end_time) return null;
+  return `${hhmmText(participant.preferred_start_time, "-")}–${hhmmText(participant.preferred_end_time, "-")}`;
+}
+
 function getResolutionLabel(type: string | null | undefined): string {
   if (type === "EXAM_PASS") return "시험 통과";
   if (type === "HOMEWORK_PASS") return "과제 통과";
@@ -324,6 +330,8 @@ export default function ClinicConsoleWorkspace({
   const [drawerParticipantId, setDrawerParticipantId] = useState<number | null>(null);
   const [drawerActiveTargetKey, setDrawerActiveTargetKey] = useState<string | null>(null);
   const [drawerParticipantContextConfirmed, setDrawerParticipantContextConfirmed] = useState(false);
+  const [staffMemoDraft, setStaffMemoDraft] = useState("");
+  const [staffMemoSaving, setStaffMemoSaving] = useState(false);
   const drawerTriggerRef = useRef<HTMLElement | null>(null);
   const drawerRef = useRef<HTMLDivElement | null>(null);
   const drawerHeadingRef = useRef<HTMLHeadingElement | null>(null);
@@ -567,6 +575,24 @@ export default function ClinicConsoleWorkspace({
     return participants.filter((participant) => participantStudentKey(participant) === key);
   }, [drawerParticipant, participants]);
   const drawerContextRequired = drawerParticipantGroup.length > 1 && !drawerParticipantContextConfirmed;
+
+  useEffect(() => {
+    setStaffMemoDraft(drawerParticipant?.staff_memo ?? "");
+  }, [drawerParticipant?.id, drawerParticipant?.staff_memo]);
+
+  async function saveStaffMemo() {
+    if (!drawerParticipant || staffMemoSaving) return;
+    setStaffMemoSaving(true);
+    try {
+      await patchClinicParticipantStaffMemo(drawerParticipant.id, staffMemoDraft.trim());
+      await qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
+      feedback.success("교직원 인수인계 메모를 저장했습니다.");
+    } catch {
+      feedback.error("교직원 인수인계 메모를 저장하지 못했습니다.");
+    } finally {
+      setStaffMemoSaving(false);
+    }
+  }
 
   const closeDrawer = useCallback(() => {
     const trigger = drawerTriggerRef.current;
@@ -1906,9 +1932,11 @@ export default function ClinicConsoleWorkspace({
                     </div>
                   </div>
 
-                  {/* Optional: memo */}
-                  {p.memo && (
-                    <div className="clinic-ops__card-memo">메모: {p.memo}</div>
+                  {/* Optional: student/parent request */}
+                  {(preferredTimeText(p) || p.memo) && (
+                    <div className="clinic-ops__card-memo">
+                      학생 요청: {[preferredTimeText(p) ? `희망 ${preferredTimeText(p)}` : null, p.memo].filter(Boolean).join(" · ")}
+                    </div>
                   )}
                 </div>
               </div>
@@ -2488,12 +2516,35 @@ export default function ClinicConsoleWorkspace({
                 )}
               </div>
 
-              {/* Memo */}
+              {/* Requests and internal handoff */}
               <div className="clinic-ops__drawer-section">
-                <h4 className="clinic-ops__drawer-section-title">메모</h4>
+                <h4 className="clinic-ops__drawer-section-title">학생·학부모 요청</h4>
                 <p className="clinic-ops__drawer-memo-text">
-                  {drawerParticipant.memo || "메모 없음"}
+                  {[preferredTimeText(drawerParticipant) ? `희망 ${preferredTimeText(drawerParticipant)}` : null, drawerParticipant.memo]
+                    .filter(Boolean)
+                    .join(" · ") || "요청 없음"}
                 </p>
+              </div>
+              <div className="clinic-ops__drawer-section">
+                <h4 className="clinic-ops__drawer-section-title">교직원 인수인계</h4>
+                <label className="clinic-ops__staff-memo">
+                  <span className="sr-only">교직원 인수인계 메모</span>
+                  <textarea
+                    value={staffMemoDraft}
+                    onChange={(event) => setStaffMemoDraft(event.target.value)}
+                    rows={3}
+                    maxLength={2000}
+                    placeholder="예: 오늘 영상 시청 여부를 꼭 확인해주세요."
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="clinic-ops__staff-memo-save"
+                  onClick={() => void saveStaffMemo()}
+                  disabled={staffMemoSaving || staffMemoDraft.trim() === (drawerParticipant.staff_memo ?? "").trim()}
+                >
+                  {staffMemoSaving ? "저장 중…" : "인수인계 메모 저장"}
+                </button>
               </div>
             </div>
           </div>

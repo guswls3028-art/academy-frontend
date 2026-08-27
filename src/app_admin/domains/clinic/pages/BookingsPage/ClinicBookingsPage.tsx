@@ -117,6 +117,11 @@ function requestScheduleText(row: ClinicParticipant): string {
   return `${title}${row.session_date} ${time}${location}`;
 }
 
+function preferredTimeText(row: ClinicParticipant): string | null {
+  if (!row.preferred_start_time || !row.preferred_end_time) return null;
+  return `${hhmmText(row.preferred_start_time, "-")}–${hhmmText(row.preferred_end_time, "-")}`;
+}
+
 function targetStudentKey(target: ClinicTarget): string {
   return target.student_id
     ? `student:${target.student_id}`
@@ -245,6 +250,12 @@ export default function ClinicBookingsPage() {
                           <Clock size={13} aria-hidden />
                           {requestScheduleText(row)}
                         </span>
+                        {(preferredTimeText(row) || row.memo) && (
+                          <span className="clinic-bookings__pending-request">
+                            {preferredTimeText(row) && <strong>희망 {preferredTimeText(row)}</strong>}
+                            {row.memo && <span>{row.memo}</span>}
+                          </span>
+                        )}
                       </div>
                       <div className="clinic-bookings__pending-actions">
                         <button

@@ -84,6 +84,7 @@ const sessions = [
     participant_count: 6,
     booked_count: 6,
     max_participants: 10,
+    allow_time_preference: true,
     target_lecture_names: [{ id: 41, title: "대수 정규반", color: "#2563eb", chip_label: "대수" }],
   },
   {
@@ -186,6 +187,8 @@ async function installApi(
         session_location: "1층 세미나실",
         status: "pending",
         memo: payload.memo,
+        preferred_start_time: payload.preferred_start_time,
+        preferred_end_time: payload.preferred_end_time,
         created_at: new Date().toISOString(),
       };
       state.bookings = [...state.bookings, booking];
@@ -474,6 +477,8 @@ test.describe("학생 클리닉 예약 UX", () => {
 
     const openDateRegion = page.getByRole("region", { name: koreanDateLabel(openDate) });
     await openDateRegion.getByRole("button", { name: /토요일 5시 클리닉/ }).click();
+    await page.getByLabel("희망 시작 시간").fill("17:30");
+    await page.getByLabel("희망 종료 시간").fill("18:00");
     await page.getByLabel("학원에 전할 내용 (선택)").fill("개념서 지참");
     await page.getByRole("button", { name: "이 일정 예약하기" }).click();
 
@@ -481,6 +486,8 @@ test.describe("학생 클리닉 예약 UX", () => {
       {
         session: 202,
         memo: "개념서 지참",
+        preferred_end_time: "18:00",
+        preferred_start_time: "17:30",
         source: "student_request",
         status: "pending",
       },
@@ -489,6 +496,8 @@ test.describe("학생 클리닉 예약 UX", () => {
 
     await page.getByRole("tab", { name: "내 일정 2" }).click();
     const bookingCard = page.locator("article").filter({ hasText: "토요일 5시 클리닉" });
+    await expect(bookingCard).toContainText("희망 17:30–18:00");
+    await expect(bookingCard).toContainText("개념서 지참");
     await bookingCard.getByRole("button", { name: "예약 취소" }).click();
     await page.getByRole("alertdialog", { name: "예약 취소" })
       .getByRole("button", { name: "예약 취소" })

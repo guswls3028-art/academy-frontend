@@ -90,6 +90,25 @@ function sortBookings(left: ClinicBookingRequest, right: ClinicBookingRequest) {
   );
 }
 
+function hasValidPreferredRange(
+  session: ClinicSession,
+  preferredStart: string,
+  preferredEnd: string,
+): boolean {
+  const sessionStart = session.start_time.slice(0, 5);
+  const sessionEnd = session.end_time?.slice(0, 5);
+  return !!sessionEnd && (
+    sessionStart <= preferredStart &&
+    preferredStart < preferredEnd &&
+    preferredEnd <= sessionEnd
+  );
+}
+
+function preferredRangeText(request: ClinicBookingRequest): string | null {
+  if (!request.preferred_start_time || !request.preferred_end_time) return null;
+  return `희망 ${formatTime(request.preferred_start_time)}–${formatTime(request.preferred_end_time)}`;
+}
+
 export default function ClinicPage() {
   const queryClient = useQueryClient();
   const confirm = useConfirm();
@@ -98,6 +117,8 @@ export default function ClinicPage() {
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
   const [changingBookingId, setChangingBookingId] = useState<number | null>(null);
   const [memo, setMemo] = useState("");
+  const [preferredStart, setPreferredStart] = useState("");
+  const [preferredEnd, setPreferredEnd] = useState("");
   const [visibleDateCount, setVisibleDateCount] = useState(VISIBLE_DATE_STEP);
 
   const {
@@ -227,7 +248,12 @@ export default function ClinicPage() {
   }, [changingBooking?.session, myRequests, selectedSession, selectedSessionId]);
 
   const bookingMutation = useMutation({
-    mutationFn: (data: { session: number; memo?: string }) =>
+    mutationFn: (data: {
+      session: number;
+      memo?: string;
+      preferred_start_time?: string;
+      preferred_end_time?: string;
+    }) =>
       runTrackedTask("clinic.booking.create", () => createClinicBookingRequest(data)),
     onSuccess: (data, variables) => {
       const session = sessions.find((item) => item.id === variables.session);
@@ -237,6 +263,8 @@ export default function ClinicPage() {
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.summary });
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.notificationCounts });
       setMemo("");
+      setPreferredStart("");
+      setPreferredEnd("");
       const message = data.status === "booked"
         ? "예약이 확정되었습니다."
         : "예약 신청이 접수되었습니다.";
@@ -270,10 +298,22 @@ export default function ClinicPage() {
   });
 
   const changeMutation = useMutation({
-    mutationFn: (data: { oldId: number; newSessionId: number; memo?: string }) =>
+    mutationFn: (data: {
+      oldId: number;
+      newSessionId: number;
+      memo?: string;
+      preferredStartTime?: string;
+      preferredEndTime?: string;
+    }) =>
       runTrackedTask(
         "clinic.booking.change",
-        () => changeClinicBooking(data.oldId, data.newSessionId, data.memo),
+        () => changeClinicBooking(
+          data.oldId,
+          data.newSessionId,
+          data.memo,
+          data.preferredStartTime,
+          data.preferredEndTime,
+        ),
       ),
     onSuccess: (data, variables) => {
       const session = sessions.find((item) => item.id === variables.newSessionId);
@@ -284,6 +324,8 @@ export default function ClinicPage() {
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.notificationCounts });
       setChangingBookingId(null);
       setMemo("");
+      setPreferredStart("");
+      setPreferredEnd("");
       const message = data.status === "booked"
         ? "일정 변경이 확정되었습니다."
         : "일정 변경 신청이 접수되었습니다.";
@@ -309,9 +351,20 @@ export default function ClinicPage() {
       studentToast.info("예약할 클리닉 일정을 선택해 주세요.");
       return;
     }
+    if (selectedSession?.allow_time_preference && (preferredStart || preferredEnd) && (
+      !selectedSession ||
+      !preferredStart ||
+      !preferredEnd ||
+      !hasValidPreferredRange(selectedSession, preferredStart, preferredEnd)
+    )) {
+      studentToast.info("희망 시작과 종료를 운영 시간 안에서 확인해 주세요.");
+      return;
+    }
     bookingMutation.mutate({
       session: selectedSessionId,
       memo: memo.trim() || undefined,
+      preferred_start_time: selectedSession?.allow_time_preference ? preferredStart || undefined : undefined,
+      preferred_end_time: selectedSession?.allow_time_preference ? preferredEnd || undefined : undefined,
     });
   };
 
@@ -329,10 +382,21 @@ export default function ClinicPage() {
       studentToast.info("현재 예약과 다른 일정을 선택해 주세요.");
       return;
     }
+    if (selectedSession?.allow_time_preference && (preferredStart || preferredEnd) && (
+      !selectedSession ||
+      !preferredStart ||
+      !preferredEnd ||
+      !hasValidPreferredRange(selectedSession, preferredStart, preferredEnd)
+    )) {
+      studentToast.info("희망 시작과 종료를 운영 시간 안에서 확인해 주세요.");
+      return;
+    }
     changeMutation.mutate({
       oldId: changingBooking.id,
       newSessionId: selectedSessionId,
       memo: memo.trim() || undefined,
+      preferredStartTime: selectedSession?.allow_time_preference ? preferredStart || undefined : undefined,
+      preferredEndTime: selectedSession?.allow_time_preference ? preferredEnd || undefined : undefined,
     });
   };
 
@@ -340,6 +404,8 @@ export default function ClinicPage() {
     setChangingBookingId(request.id);
     setSelectedSessionId(null);
     setMemo(request.memo ?? "");
+    setPreferredStart("");
+    setPreferredEnd("");
     setActiveTab("book");
   };
 
@@ -504,6 +570,8 @@ export default function ClinicPage() {
                   onClick={() => {
                     setChangingBookingId(null);
                     setMemo("");
+                    setPreferredStart("");
+                    setPreferredEnd("");
                   }}
                 >
                   변경 취소
@@ -579,7 +647,11 @@ export default function ClinicPage() {
                                   className={styles.sessionSelectButton}
                                   disabled={disabled}
                                   aria-pressed={selected}
-                                  onClick={() => setSelectedSessionId(session.id)}
+                                  onClick={() => {
+                                    setSelectedSessionId(session.id);
+                                    setPreferredStart("");
+                                    setPreferredEnd("");
+                                  }}
                                 >
                                   <div className={styles.sessionPrimary}>
                                     <span className={styles.sessionTime}>
@@ -603,6 +675,11 @@ export default function ClinicPage() {
                                             chipLabel={lecture.chip_label}
                                           />
                                         ))}
+                                      </span>
+                                    )}
+                                    {session.allow_time_preference && (
+                                      <span className={styles.preferenceBadge}>
+                                        희망 시간 입력 가능
                                       </span>
                                     )}
                                   </div>
@@ -632,6 +709,43 @@ export default function ClinicPage() {
                                       <strong>{parts.month}월 {parts.day}일 {parts.weekday}요일</strong>
                                       <span>{formatTime(session.start_time)} · {session.location || "장소 추후 안내"}</span>
                                     </p>
+                                    {session.allow_time_preference && (
+                                      <fieldset className={styles.preferenceFieldset}>
+                                        <legend>
+                                          희망 이용 시간 <small>(선택)</small>
+                                        </legend>
+                                        <p>
+                                          운영 시간 안에서 원하는 구간을 남겨 주세요. 학원 확인 후 최종 배정됩니다.
+                                        </p>
+                                        <div className={styles.preferenceInputs}>
+                                          <label>
+                                            <span>시작</span>
+                                            <input
+                                              type="time"
+                                              aria-label="희망 시작 시간"
+                                              min={session.start_time.slice(0, 5)}
+                                              max={session.end_time?.slice(0, 5)}
+                                              step={300}
+                                              value={preferredStart}
+                                              onChange={(event) => setPreferredStart(event.target.value)}
+                                            />
+                                          </label>
+                                          <span aria-hidden>–</span>
+                                          <label>
+                                            <span>종료</span>
+                                            <input
+                                              type="time"
+                                              aria-label="희망 종료 시간"
+                                              min={session.start_time.slice(0, 5)}
+                                              max={session.end_time?.slice(0, 5)}
+                                              step={300}
+                                              value={preferredEnd}
+                                              onChange={(event) => setPreferredEnd(event.target.value)}
+                                            />
+                                          </label>
+                                        </div>
+                                      </fieldset>
+                                    )}
                                     <label className={styles.memoField}>
                                       <span>학원에 전할 내용 <small>(선택)</small></span>
                                       <textarea
@@ -712,6 +826,14 @@ export default function ClinicPage() {
                         <div className={styles.bookingInfo}>
                           <strong>{request.session_title || "클리닉 수업"}</strong>
                           <span>{formatTime(request.session_start_time)} · {request.session_location || "장소 추후 안내"}</span>
+                          {preferredRangeText(request) && (
+                            <span className={styles.bookingPreference}>
+                              {preferredRangeText(request)}
+                            </span>
+                          )}
+                          {request.memo && (
+                            <span className={styles.bookingRequestNote}>요청 · {request.memo}</span>
+                          )}
                           <span className={styles.pendingStatus}>승인 대기</span>
                         </div>
                         <div className={styles.bookingActions}>
@@ -759,6 +881,14 @@ export default function ClinicPage() {
                         <div className={styles.bookingInfo}>
                           <strong>{request.session_title || "클리닉 수업"}</strong>
                           <span>{formatTime(request.session_start_time)} · {request.session_location || "장소 추후 안내"}</span>
+                          {preferredRangeText(request) && (
+                            <span className={styles.bookingPreference}>
+                              {preferredRangeText(request)}
+                            </span>
+                          )}
+                          {request.memo && (
+                            <span className={styles.bookingRequestNote}>요청 · {request.memo}</span>
+                          )}
                           <span className={styles.approvedStatus}>예약 확정</span>
                         </div>
                         <p className={styles.approvedHelp}>변경이 필요하면 학원으로 연락해 주세요.</p>
