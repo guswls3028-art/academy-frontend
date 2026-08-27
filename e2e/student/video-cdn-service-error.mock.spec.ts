@@ -232,4 +232,115 @@ test.describe("student video CDN service errors", () => {
     await expect(page.getByText("종료된 강의의 영상은 시청할 수 없습니다.")).toBeVisible();
     await expect(page.getByText("종료 전 열어 둔 무료복습 영상")).toHaveCount(0);
   });
+
+  test("열린 무료복습이 수업 모드로 바뀌면 즉시 닫고 monitored bootstrap을 다시 받는다", async ({ page }) => {
+    let playbackRequests = 0;
+    let releaseProctoredBootstrap!: () => void;
+    const proctoredBootstrapGate = new Promise<void>((resolve) => {
+      releaseProctoredBootstrap = resolve;
+    });
+
+    await page.addInitScript(({ token }) => {
+      localStorage.setItem("access", token);
+      localStorage.setItem("refresh", token);
+      localStorage.setItem("tenant_code", "limglish");
+      sessionStorage.setItem("tenantCode", "limglish");
+    }, { token: fakeJwt() });
+
+    await page.route("**/api/v1/**", async (route) => {
+      const url = new URL(route.request().url());
+      const path = url.pathname.replace(/^\/api\/v1/, "");
+      const json = (body: unknown, status = 200) => route.fulfill({ json: body, status });
+
+      if (path === "/core/program/") {
+        return json({
+          tenantCode: "limglish",
+          display_name: "임근혁 영어",
+          ui_config: {},
+          feature_flags: {},
+          is_active: true,
+        });
+      }
+      if (path === "/core/me/") {
+        return json({
+          id: 1772,
+          username: "student",
+          name: "학생",
+          is_staff: false,
+          is_superuser: false,
+          tenantRole: "student",
+          linkedStudentId: 1,
+          linkedStudentName: "학생",
+          must_change_password: false,
+        });
+      }
+      if (path === "/student/video/videos/562/playback/") {
+        if (url.searchParams.get("access_check") === "1") {
+          return json({
+            ok: true,
+            access_mode: "PROCTORED_CLASS",
+            monitoring_enabled: true,
+            policy_version: 2,
+          });
+        }
+
+        playbackRequests += 1;
+        const proctored = playbackRequests > 1;
+        if (proctored) await proctoredBootstrapGate;
+        return json({
+          video: {
+            id: 562,
+            session_id: 394,
+            enrollment_id: 1304,
+            title: "정책 전환 재생 영상",
+            status: "READY",
+            source_type: "youtube",
+            youtube_video_id: "VnqgmOJaMGc",
+            duration: 600,
+            progress: 30,
+            completed: false,
+            last_position: 180,
+            allow_skip: true,
+            max_speed: 1,
+            show_watermark: true,
+            access_mode: proctored ? "PROCTORED_CLASS" : "FREE_REVIEW",
+          },
+          play_url: "https://www.youtube-nocookie.com/embed/VnqgmOJaMGc",
+          playback_token: proctored ? "proctored-token" : "free-review-token",
+          playback_session_id: proctored ? "proctored-session" : null,
+          playback_expires_at: Math.floor(Date.now() / 1000) + 600,
+          policy_version: proctored ? 2 : 1,
+          policy: {
+            access_mode: proctored ? "PROCTORED_CLASS" : "FREE_REVIEW",
+            monitoring_enabled: proctored,
+            allow_seek: true,
+            playback_rate: { max: 1, ui_control: true },
+            watermark: { enabled: true, mode: "overlay", fields: ["user_id"] },
+            source: { type: "youtube", provider: "youtube", youtube_video_id: "VnqgmOJaMGc" },
+          },
+        });
+      }
+      if (path === "/student/video/sessions/394/videos/") {
+        return json({ items: [] });
+      }
+      if (path === "/student/video/videos/562/comments/") {
+        return json({ count: 0, results: [] });
+      }
+      return json({});
+    });
+
+    await page.goto(
+      `${BASE}/student/video/play?video=562&enrollment=1304&session=394`,
+      { waitUntil: "domcontentloaded" },
+    );
+
+    await expect.poll(() => playbackRequests).toBe(2);
+    await expect(page.getByText("정책 전환 재생 영상")).toHaveCount(0);
+
+    releaseProctoredBootstrap();
+
+    await expect(page.getByText("정책 전환 재생 영상")).toBeVisible();
+    await expect(page.getByText("온라인 수업 대체")).toBeVisible();
+    expect(playbackRequests).toBe(2);
+  });
 });
