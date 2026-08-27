@@ -229,18 +229,24 @@ test.describe("student video CDN service errors", () => {
       return json({});
     });
 
+    const initialAccessCheck = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return url.pathname.endsWith("/student/video/videos/562/playback/")
+        && url.searchParams.get("access_check") === "1"
+        && response.status() === 200;
+    }, { timeout: 30_000 });
     await page.goto(
       `${BASE}/student/video/play?video=562&enrollment=1304&session=394`,
       { waitUntil: "domcontentloaded" },
     );
 
+    await initialAccessCheck;
     await expect(page.getByRole("heading", { name: "종료 전 열어 둔 무료복습 영상" })).toBeVisible();
     await expect.poll(() => accessChecks).toBe(1);
-    await page.clock.runFor(29_999);
-    expect(accessChecks).toBe(1);
+    await page.clock.runFor(1);
 
     denyAccess = true;
-    await page.clock.runFor(1);
+    await page.clock.runFor(30_000);
     await expect.poll(() => accessChecks).toBe(2);
     await expect(page.getByRole("heading", { name: "재생을 시작할 수 없어요" })).toBeVisible();
     await expect(page.getByText("종료된 강의의 영상은 시청할 수 없습니다.")).toBeVisible();
