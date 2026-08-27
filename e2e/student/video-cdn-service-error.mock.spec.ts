@@ -220,7 +220,7 @@ test.describe("student video CDN service errors", () => {
       return url.pathname.endsWith("/student/video/videos/562/playback/")
         && url.searchParams.get("access_check") === "1"
         && response.status() === 403;
-    });
+    }, { timeout: 30_000 });
 
     await page.goto(
       `${BASE}/student/video/play?video=562&enrollment=1304&session=394`,

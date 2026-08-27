@@ -321,7 +321,7 @@ export default function VideoPlayerPage() {
   const [fatalError, setFatalError] = useState<string | null>(null);
   const onFatal = useCallback((reason: string) => setFatalError(reason), []);
   const currentAccessQuery = useQuery({
-    queryKey: ["student-video-current-access", videoId, effectiveEnrollmentId],
+    queryKey: studentVideoQueryKeys.currentAccess(videoId, effectiveEnrollmentId),
     queryFn: () => checkStudentVideoAccess(videoId!, effectiveEnrollmentId),
     enabled: !!videoId && !!playbackQuery.data && !fatalError,
     retry: false,
