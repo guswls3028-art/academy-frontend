@@ -886,7 +886,7 @@ test("승인 대기 목록은 학생 희망 시간과 요청사항을 함께 보
       status: "pending",
       preferred_start_time: "19:00:00",
       preferred_end_time: "21:00:00",
-      memo: "7시에 국어 학원이 있어요.",
+      student_request_memo: "7시에 국어 학원이 있어요.",
     }],
     targets: [],
   };
@@ -1221,7 +1221,7 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
         session_location: "1층 세미나실", status: "booked", checked_in_at: null,
         checked_out_at: null, completed_at: null, is_late: false,
         preferred_start_time: "13:30:00", preferred_end_time: "14:00:00",
-        memo: "14시 전에 끝내주세요.", staff_memo: "영상 시청 확인 필요",
+        student_request_memo: "14시 전에 끝내주세요.", staff_memo: "영상 시청 확인 필요",
         planned_clinic_link_ids: [9002],
         lecture_title: "화학특강", lecture_chip_label: "화특",
       },
@@ -1378,7 +1378,7 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
     id: 801,
     staff_memo: "영상 시청 후 오답 확인",
   }]);
-  expect(state.participants[0].memo).toBe("14시 전에 끝내주세요.");
+  expect(state.participants[0].student_request_memo).toBe("14시 전에 끝내주세요.");
   expect(page.url()).toBe(originalUrl);
   await page.screenshot({ path: "test-results/admin-clinic-operations-workbench-1366.png", fullPage: false });
 

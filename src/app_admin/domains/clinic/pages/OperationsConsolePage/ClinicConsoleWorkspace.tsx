@@ -1933,9 +1933,9 @@ export default function ClinicConsoleWorkspace({
                   </div>
 
                   {/* Optional: student/parent request */}
-                  {(preferredTimeText(p) || p.memo) && (
+                  {(preferredTimeText(p) || p.student_request_memo) && (
                     <div className="clinic-ops__card-memo">
-                      학생 요청: {[preferredTimeText(p) ? `희망 ${preferredTimeText(p)}` : null, p.memo].filter(Boolean).join(" · ")}
+                      학생 요청: {[preferredTimeText(p) ? `희망 ${preferredTimeText(p)}` : null, p.student_request_memo].filter(Boolean).join(" · ")}
                     </div>
                   )}
                 </div>
@@ -2520,7 +2520,7 @@ export default function ClinicConsoleWorkspace({
               <div className="clinic-ops__drawer-section">
                 <h4 className="clinic-ops__drawer-section-title">학생·학부모 요청</h4>
                 <p className="clinic-ops__drawer-memo-text">
-                  {[preferredTimeText(drawerParticipant) ? `희망 ${preferredTimeText(drawerParticipant)}` : null, drawerParticipant.memo]
+                  {[preferredTimeText(drawerParticipant) ? `희망 ${preferredTimeText(drawerParticipant)}` : null, drawerParticipant.student_request_memo]
                     .filter(Boolean)
                     .join(" · ") || "요청 없음"}
                 </p>

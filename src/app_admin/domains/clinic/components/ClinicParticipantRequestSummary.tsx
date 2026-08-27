@@ -11,12 +11,12 @@ export default function ClinicParticipantRequestSummary({ participant }: Props) 
       ? `${hhmmText(participant.preferred_start_time, "-")}–${hhmmText(participant.preferred_end_time, "-")}`
       : null;
 
-  if (!preferredTime && !participant.memo) return null;
+  if (!preferredTime && !participant.student_request_memo) return null;
 
   return (
     <span className="clinic-bookings__pending-request">
       {preferredTime && <strong>희망 {preferredTime}</strong>}
-      {participant.memo && <span>{participant.memo}</span>}
+      {participant.student_request_memo && <span>{participant.student_request_memo}</span>}
     </span>
   );
 }

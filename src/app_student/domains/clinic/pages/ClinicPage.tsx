@@ -250,7 +250,7 @@ export default function ClinicPage() {
   const bookingMutation = useMutation({
     mutationFn: (data: {
       session: number;
-      memo?: string;
+      student_request_memo?: string;
       preferred_start_time?: string;
       preferred_end_time?: string;
     }) =>
@@ -301,7 +301,7 @@ export default function ClinicPage() {
     mutationFn: (data: {
       oldId: number;
       newSessionId: number;
-      memo?: string;
+      studentRequestMemo?: string;
       preferredStartTime?: string;
       preferredEndTime?: string;
     }) =>
@@ -310,7 +310,7 @@ export default function ClinicPage() {
         () => changeClinicBooking(
           data.oldId,
           data.newSessionId,
-          data.memo,
+          data.studentRequestMemo,
           data.preferredStartTime,
           data.preferredEndTime,
         ),
@@ -362,7 +362,7 @@ export default function ClinicPage() {
     }
     bookingMutation.mutate({
       session: selectedSessionId,
-      memo: memo.trim() || undefined,
+      student_request_memo: memo.trim() || undefined,
       preferred_start_time: selectedSession?.allow_time_preference ? preferredStart || undefined : undefined,
       preferred_end_time: selectedSession?.allow_time_preference ? preferredEnd || undefined : undefined,
     });
@@ -394,7 +394,7 @@ export default function ClinicPage() {
     changeMutation.mutate({
       oldId: changingBooking.id,
       newSessionId: selectedSessionId,
-      memo: memo.trim() || undefined,
+      studentRequestMemo: memo.trim() || undefined,
       preferredStartTime: selectedSession?.allow_time_preference ? preferredStart || undefined : undefined,
       preferredEndTime: selectedSession?.allow_time_preference ? preferredEnd || undefined : undefined,
     });
@@ -403,7 +403,7 @@ export default function ClinicPage() {
   const startChangingBooking = (request: ClinicBookingRequest) => {
     setChangingBookingId(request.id);
     setSelectedSessionId(null);
-    setMemo(request.memo ?? "");
+    setMemo(request.student_request_memo ?? "");
     setPreferredStart("");
     setPreferredEnd("");
     setActiveTab("book");
@@ -831,8 +831,8 @@ export default function ClinicPage() {
                               {preferredRangeText(request)}
                             </span>
                           )}
-                          {request.memo && (
-                            <span className={styles.bookingRequestNote}>요청 · {request.memo}</span>
+                          {request.student_request_memo && (
+                            <span className={styles.bookingRequestNote}>요청 · {request.student_request_memo}</span>
                           )}
                           <span className={styles.pendingStatus}>승인 대기</span>
                         </div>
@@ -886,8 +886,8 @@ export default function ClinicPage() {
                               {preferredRangeText(request)}
                             </span>
                           )}
-                          {request.memo && (
-                            <span className={styles.bookingRequestNote}>요청 · {request.memo}</span>
+                          {request.student_request_memo && (
+                            <span className={styles.bookingRequestNote}>요청 · {request.student_request_memo}</span>
                           )}
                           <span className={styles.approvedStatus}>예약 확정</span>
                         </div>

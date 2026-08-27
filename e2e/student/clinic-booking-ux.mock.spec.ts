@@ -112,7 +112,7 @@ function createState(): MockState {
         session_start_time: "15:00:00",
         session_location: "2층 보강실",
         status: "pending",
-        memo: "오답노트 지참",
+        student_request_memo: "오답노트 지참",
         created_at: new Date().toISOString(),
       },
     ],
@@ -186,7 +186,7 @@ async function installApi(
         session_start_time: "17:00:00",
         session_location: "1층 세미나실",
         status: "pending",
-        memo: payload.memo,
+        student_request_memo: payload.student_request_memo,
         preferred_start_time: payload.preferred_start_time,
         preferred_end_time: payload.preferred_end_time,
         created_at: new Date().toISOString(),
@@ -307,7 +307,7 @@ async function installApi(
         session_start_time: "17:00:00",
         session_location: "1층 세미나실",
         status: "pending",
-        memo: payload.memo,
+        student_request_memo: payload.student_request_memo,
         created_at: new Date().toISOString(),
       }];
       return json(state.bookings[0]);
@@ -464,9 +464,26 @@ test.describe("학생 클리닉 예약 UX", () => {
     await page.getByRole("button", { name: "이 일정으로 변경하기" }).click();
 
     await expect.poll(() => state.changePayloads).toEqual([
-      { new_session_id: 202, memo: "오답노트 지참" },
+      { new_session_id: 202, student_request_memo: "오답노트 지참" },
     ]);
     await expect(page.getByText("일정 변경 신청이 접수되었습니다.")).toBeVisible();
+  });
+
+  test("레거시 교직원 메모를 학생 요청으로 노출하지 않는다", async ({ page }) => {
+    const state = createState();
+    state.bookings[0] = {
+      ...state.bookings[0],
+      memo: "교직원 내부 확인 메모",
+      student_request_memo: "오답노트 지참",
+    };
+    await seed(page);
+    await installApi(page, state);
+    await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+
+    await page.getByRole("tab", { name: "내 일정 1" }).click();
+    const bookingCard = page.locator("article").filter({ hasText: "대수 오답 클리닉" });
+    await expect(bookingCard).not.toContainText("교직원 내부 확인 메모");
+    await expect(bookingCard).toContainText("오답노트 지참");
   });
 
   test("열린 일정에 예약을 신청하고 내 일정에서 취소한다", async ({ page }) => {
@@ -485,7 +502,7 @@ test.describe("학생 클리닉 예약 UX", () => {
     await expect.poll(() => state.bookingPayloads).toEqual([
       {
         session: 202,
-        memo: "개념서 지참",
+        student_request_memo: "개념서 지참",
         preferred_end_time: "18:00",
         preferred_start_time: "17:30",
         source: "student_request",
