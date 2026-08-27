@@ -140,7 +140,8 @@ test.describe("student video CDN service errors", () => {
     let accessChecks = 0;
     let denyAccess = false;
 
-    await page.clock.install();
+    const clockStart = new Date("2026-08-27T00:00:00.000Z");
+    await page.clock.install({ time: clockStart });
     await page.addInitScript(({ token }) => {
       localStorage.setItem("access", token);
       localStorage.setItem("refresh", token);
@@ -240,10 +241,13 @@ test.describe("student video CDN service errors", () => {
       { waitUntil: "domcontentloaded" },
     );
 
-    await initialAccessCheck;
+    const initialAccessResponse = await initialAccessCheck;
+    await initialAccessResponse.finished();
     await expect(page.getByRole("heading", { name: "종료 전 열어 둔 무료복습 영상" })).toBeVisible();
     await expect.poll(() => accessChecks).toBe(1);
-    await page.clock.runFor(1);
+    await page.evaluate(() => new Promise<void>((resolve) => queueMicrotask(resolve)));
+    const pauseTime = await page.evaluate(() => Date.now() + 1_000);
+    await page.clock.pauseAt(pauseTime);
 
     denyAccess = true;
     await page.clock.runFor(30_000);
