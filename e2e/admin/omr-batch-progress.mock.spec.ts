@@ -12,11 +12,11 @@ const LECTURE_ID = 501;
 const SESSION_ID = 701;
 const EXAM_ID = 801;
 
-function localJwt(userId = 12): string {
+function localJwt(userId = 12, tenantCode = "hakwonplus"): string {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
   return `${encode({ alg: "none" })}.${encode({
     exp: Math.floor(Date.now() / 1000) + 60 * 60,
-    tenant_code: "hakwonplus",
+    tenant_code: tenantCode,
     user_id: userId,
   })}.sig`;
 }
@@ -115,8 +115,10 @@ async function installDashboardApi(
     empty?: boolean;
     failListCalls?: number;
     holdListFailure?: boolean;
+    holdListResponse?: boolean;
     listDelayMs?: number;
     uploadFlow?: boolean;
+    holdUploadResponse?: boolean;
     failFirstUploadAfterPartialAdmission?: boolean;
     admissionFailure?: boolean;
     resumeOrdinals?: number[];
@@ -133,6 +135,7 @@ async function installDashboardApi(
   let terminal = false;
   let claimed = false;
   let listGets = 0;
+  let listResponses = 0;
   let detailGets = 0;
   let completionClaims = 0;
   let completionClaimResponses = 0;
@@ -141,12 +144,21 @@ async function installDashboardApi(
   let initializedUploads = false;
   let initializePosts = 0;
   let uploadPosts = 0;
+  let uploadResponses = 0;
   const uploadBodies: string[] = [];
   let partialUpload = false;
   const retryBodies: number[][] = [];
   let releaseCompletionClaim: (() => void) | null = null;
   const completionClaimGate = new Promise<void>((resolve) => {
     releaseCompletionClaim = resolve;
+  });
+  let releaseListResponse: (() => void) | null = null;
+  const listResponseGate = new Promise<void>((resolve) => {
+    releaseListResponse = resolve;
+  });
+  let releaseUploadResponse: (() => void) | null = null;
+  const uploadResponseGate = new Promise<void>((resolve) => {
+    releaseUploadResponse = resolve;
   });
 
   await page.route("**/api/v1/**", async (route) => {
@@ -181,11 +193,13 @@ async function installDashboardApi(
       }
       partialUpload = false;
       const createdCount = uploadBody.match(/name="files"/g)?.length ?? 0;
+      if (options.holdUploadResponse && uploadPosts === 1) await uploadResponseGate;
       await safeJson(route, {
         ...admissionSummary("received"),
         created_count: createdCount,
         submission_ids: Array.from({ length: createdCount }, (_, index) => 2001 + index),
       }, 201);
+      uploadResponses += 1;
       return;
     }
     if (path === "/submissions/submissions/omr/batches/" && request.method() === "GET") {
@@ -203,7 +217,10 @@ async function installDashboardApi(
       const batch = options.uploadFlow && initializedUploads
         ? admissionSummary(uploadPosts > 0 ? "received" : "pending")
         : batchSummary({ terminal, claimed, admissionFailure: options.admissionFailure });
-      await safeJson(route, options.empty || hideBatches ? [] : [batch]);
+      const response = options.empty || hideBatches ? [] : [batch];
+      if (options.holdListResponse && listGets === 1) await listResponseGate;
+      await safeJson(route, response);
+      listResponses += 1;
       return;
     }
     if (
@@ -328,13 +345,26 @@ async function installDashboardApi(
   }, localJwt());
 
   return {
-    counts: () => ({ listGets, detailGets, completionClaims, completionClaimResponses }),
+    counts: () => ({
+      listGets,
+      listResponses,
+      detailGets,
+      completionClaims,
+      completionClaimResponses,
+    }),
     finish: () => { terminal = true; },
     releaseListFailure: () => { listFailureForced = false; },
+    releaseListResponse: () => { releaseListResponse?.(); },
     setListFailure: (shouldFail: boolean) => { listFailureForced = shouldFail; },
     hideBatches: () => { hideBatches = true; },
     releaseCompletionClaim: () => { releaseCompletionClaim?.(); },
-    uploadState: () => ({ initializePosts, uploadPosts, uploadBodies: [...uploadBodies] }),
+    releaseUploadResponse: () => { releaseUploadResponse?.(); },
+    uploadState: () => ({
+      initializePosts,
+      uploadPosts,
+      uploadResponses,
+      uploadBodies: [...uploadBodies],
+    }),
     retryBodies: () => [...retryBodies],
   };
 }
@@ -387,6 +417,45 @@ async function openResumeOmrUpload(page: Page) {
   const dialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
   await expect(dialog).toBeVisible({ timeout: 30_000 });
   return dialog;
+}
+
+async function clearAndSwitchSessionInPlace(
+  page: Page,
+  options: { userId: number; tenantCode: string },
+) {
+  await page.evaluate(async ({ jwt, tenantCode }) => {
+    const storeModule = await import("/src/shared/ui/asyncStatus/asyncStatusStore.ts");
+    const trackedWindow = window as typeof window & {
+      __omrSessionTaskEmissions?: string[][];
+    };
+    trackedWindow.__omrSessionTaskEmissions = [];
+    storeModule.asyncStatusStore.subscribe((tasks) => {
+      trackedWindow.__omrSessionTaskEmissions?.push(tasks.map((task) => task.id));
+    });
+    storeModule.asyncStatusStore.clearAll();
+    sessionStorage.setItem("tenantCode", tenantCode);
+    localStorage.setItem("access", jwt);
+    localStorage.setItem("refresh", `${jwt}-refresh`);
+  }, {
+    jwt: localJwt(options.userId, options.tenantCode),
+    tenantCode: options.tenantCode,
+  });
+}
+
+async function settleBrowserFrames(page: Page) {
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  }));
+}
+
+async function emittedOmrTaskAfterSessionSwitch(page: Page): Promise<boolean> {
+  return page.evaluate(() => {
+    const trackedWindow = window as typeof window & {
+      __omrSessionTaskEmissions?: string[][];
+    };
+    return (trackedWindow.__omrSessionTaskEmissions ?? [])
+      .some((ids) => ids.some((id) => id.startsWith("omr-batch:")));
+  });
 }
 
 test.describe("OMR durable batch progress", () => {
@@ -658,6 +727,63 @@ test.describe("OMR durable batch progress", () => {
       await expect(dialog.getByRole("button", { name: "등록 시작" })).toBeDisabled();
     });
   }
+
+  test("지연된 목록 hydration은 logout 뒤 다른 tenant 작업을 복원하지 않는다", async ({ page }) => {
+    const api = await installDashboardApi(page, { holdListResponse: true });
+    await page.goto(`${BASE}/workspace/dashboard`, { waitUntil: "domcontentloaded" });
+    const panel = await openWorkboxPanel(page);
+    await expect.poll(() => api.counts().listGets).toBe(1);
+
+    await clearAndSwitchSessionInPlace(page, { userId: 98, tenantCode: "tenant-two" });
+    const detailGetsBeforeRelease = api.counts().detailGets;
+
+    api.releaseListResponse();
+    await expect.poll(() => api.counts().listResponses).toBe(1);
+    await settleBrowserFrames(page);
+    expect(await emittedOmrTaskAfterSessionSwitch(page)).toBe(false);
+    await expect(
+      panel.locator(".async-status-bar__item").filter({ hasText: "OMR 22장" }),
+    ).toHaveCount(0);
+    expect(api.counts().detailGets).toBe(detailGetsBeforeRelease);
+    await expect(page.getByText("OMR 처리가 끝났습니다.", { exact: false })).toHaveCount(0);
+  });
+
+  test("지연된 upload 응답은 logout 뒤 새 계정 작업을 복원하지 않는다", async ({ page }) => {
+    const api = await installDashboardApi(page, {
+      uploadFlow: true,
+      holdUploadResponse: true,
+    });
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await openOmrUpload(page);
+    const dialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
+    await dialog.locator('input[type="file"]').setInputFiles({
+      name: "held-upload.jpg",
+      mimeType: "image/jpeg",
+      buffer: Buffer.from("held-upload"),
+    });
+    await dialog.getByRole("button", { name: "등록 시작" }).click();
+    await expect.poll(() => api.uploadState().uploadPosts).toBe(1);
+    expect(api.uploadState().uploadResponses).toBe(0);
+
+    await clearAndSwitchSessionInPlace(page, { userId: 97, tenantCode: "hakwonplus" });
+    api.hideBatches();
+    const detailGetsBeforeRelease = api.counts().detailGets;
+
+    api.releaseUploadResponse();
+    await expect.poll(() => api.uploadState().uploadResponses).toBe(1);
+    await settleBrowserFrames(page);
+    expect(await emittedOmrTaskAfterSessionSwitch(page)).toBe(false);
+    await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+    const panel = await openWorkboxPanel(page);
+    await expect(
+      panel.locator(".async-status-bar__item").filter({ hasText: "OMR 22장" }),
+    ).toHaveCount(0);
+    expect(api.counts().detailGets).toBe(detailGetsBeforeRelease);
+    await expect(page.getByText("OMR 처리가 끝났습니다.", { exact: false })).toHaveCount(0);
+  });
 
   test("완료 claim 대기 중 logout clear는 이전 작업과 toast를 복원하지 않는다", async ({ page }) => {
     const api = await installDashboardApi(page, { holdCompletionClaim: true });

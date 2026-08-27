@@ -670,11 +670,24 @@ export function WorkboxPanelContent({ onClose }: { onClose: () => void }) {
 
   const [hydrateError, setHydrateError] = useState(false);
   const [hydrating, setHydrating] = useState(true);
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+  const isCurrentSession = useCallback((tenant: string, generation: number) => (
+    mountedRef.current
+    && asyncStatusStore.getSessionGeneration() === generation
+    && (getTenantCodeForApiRequest() ?? "") === tenant
+  ), []);
   const doHydrate = useCallback(async () => {
     const tenant = getTenantCodeForApiRequest() ?? "";
+    const generation = asyncStatusStore.getSessionGeneration();
     if (tenant === "9999") {
       setHydrating(false);
-      return;
+      return true;
     }
     setHydrating(true);
     setHydrateError(false);
@@ -683,6 +696,7 @@ export function WorkboxPanelContent({ onClose }: { onClose: () => void }) {
         fetchInProgressVideos(),
         listOmrUploadBatchesApi(),
       ]);
+      if (!isCurrentSession(tenant, generation)) return false;
       if (videosResult.status === "fulfilled") {
         const videos = videosResult.value;
         const existing = new Set(
@@ -712,10 +726,11 @@ export function WorkboxPanelContent({ onClose }: { onClose: () => void }) {
         setHydrateError(true);
         throw new Error("Failed to hydrate one or more workbox sources");
       }
+      return true;
     } finally {
-      setHydrating(false);
+      if (isCurrentSession(tenant, generation)) setHydrating(false);
     }
-  }, []);
+  }, [isCurrentSession]);
 
   const hydratedRef = useRef(false);
   useEffect(() => {
@@ -727,12 +742,20 @@ export function WorkboxPanelContent({ onClose }: { onClose: () => void }) {
   const [refreshing, setRefreshing] = useState(false);
   const handleRefresh = useCallback(() => {
     if (refreshing) return;
+    const tenant = getTenantCodeForApiRequest() ?? "";
+    const generation = asyncStatusStore.getSessionGeneration();
     setRefreshing(true);
     doHydrate()
-      .then(() => feedback.success("작업박스를 새로고침했습니다."))
+      .then((hydrated) => {
+        if (hydrated && isCurrentSession(tenant, generation)) {
+          feedback.success("작업박스를 새로고침했습니다.");
+        }
+      })
       .catch(() => undefined)
-      .finally(() => setRefreshing(false));
-  }, [doHydrate, refreshing]);
+      .finally(() => {
+        if (isCurrentSession(tenant, generation)) setRefreshing(false);
+      });
+  }, [doHydrate, isCurrentSession, refreshing]);
 
   return (
     <>

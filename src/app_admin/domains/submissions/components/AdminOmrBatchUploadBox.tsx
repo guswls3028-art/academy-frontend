@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AxiosError } from "axios";
 import { CheckCircle2, Trash2, UploadCloud } from "lucide-react";
 import {
@@ -8,6 +8,7 @@ import {
 } from "@/shared/api/contracts/submissions";
 import { Badge, Button, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import FileUploadZone from "@/shared/ui/upload/FileUploadZone";
 import { getRejectionMessage } from "@admin/domains/submissions/contracts/aiJobContract";
 import "./AdminOmrBatchUploadBox.css";
@@ -94,6 +95,18 @@ export default function AdminOmrBatchUploadBox({
   const [batchId, setBatchId] = useState<string | null>(null);
   const [resumeOrdinals, setResumeOrdinals] = useState<number[]>([]);
   const [validatedResumeBatchId, setValidatedResumeBatchId] = useState<string | null>(null);
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+  const isCurrentSession = useCallback((tenant: string, generation: number) => (
+    mountedRef.current
+    && asyncStatusStore.getSessionGeneration() === generation
+    && (getTenantCodeForApiRequest() ?? "") === tenant
+  ), []);
   const resumeUploadBlocked = Boolean(
     resumeBatchId && validatedResumeBatchId !== resumeBatchId,
   );
@@ -111,6 +124,9 @@ export default function AdminOmrBatchUploadBox({
       return;
     }
     let cancelled = false;
+    const tenant = getTenantCodeForApiRequest() ?? "";
+    const generation = asyncStatusStore.getSessionGeneration();
+    const isActive = () => !cancelled && isCurrentSession(tenant, generation);
     setLoadingResume(true);
     setValidatedResumeBatchId(null);
     setBatchId(null);
@@ -118,7 +134,7 @@ export default function AdminOmrBatchUploadBox({
     setItems([]);
     fetchOmrUploadBatchApi(resumeBatchId)
       .then((batch) => {
-        if (cancelled) return;
+        if (!isActive()) return;
         const rawRetryOrdinals = [
           ...batch.pending_admission_ordinals,
           ...batch.admission_failed_ordinals,
@@ -145,13 +161,13 @@ export default function AdminOmrBatchUploadBox({
         asyncStatusStore.upsertOmrBatch(batch);
       })
       .catch(() => {
-        if (!cancelled) setNotice("OMR 등록 작업을 불러오지 못했습니다.");
+        if (isActive()) setNotice("OMR 등록 작업을 불러오지 못했습니다.");
       })
       .finally(() => {
-        if (!cancelled) setLoadingResume(false);
+        if (isActive()) setLoadingResume(false);
       });
     return () => { cancelled = true; };
-  }, [examId, resumeBatchId, sessionId]);
+  }, [examId, isCurrentSession, resumeBatchId, sessionId]);
 
   const onPickFiles = (files: File[]) => {
     if (!files.length || resumeUploadBlocked) return;
@@ -230,6 +246,9 @@ export default function AdminOmrBatchUploadBox({
       setNotice("미접수 파일 순서를 확인할 수 없습니다. 작업을 다시 불러와 주세요.");
       return;
     }
+    const tenant = getTenantCodeForApiRequest() ?? "";
+    const generation = asyncStatusStore.getSessionGeneration();
+    const isActive = () => isCurrentSession(tenant, generation);
     setBusy(true);
     setNotice(null);
     try {
@@ -239,6 +258,7 @@ export default function AdminOmrBatchUploadBox({
           totalCount: uploadItems.length,
           sessionId,
         });
+        if (!isActive()) return;
         activeBatchId = initialized.id;
         setBatchId(initialized.id);
         asyncStatusStore.upsertOmrBatch(initialized);
@@ -258,6 +278,7 @@ export default function AdminOmrBatchUploadBox({
         batchId: activeBatchId,
         itemOrdinals: uploadItems.map((item) => Number(item.ordinal)),
       });
+      if (!isActive()) return;
       asyncStatusStore.upsertOmrBatch(result);
       const failed = new Set(result.admission_failed_ordinals);
       setItems((previous) => failed.size > 0
@@ -276,6 +297,7 @@ export default function AdminOmrBatchUploadBox({
       );
       if (result.created_count > 0) onUploaded?.();
     } catch (e: unknown) {
+      if (!isActive()) return;
       const err = e as AxiosError<UploadErrorPayload>;
       const detail = err.response?.data?.detail;
       const rejectionCode = err.response?.data?.rejection_code;
@@ -285,6 +307,7 @@ export default function AdminOmrBatchUploadBox({
       if (activeBatchId) {
         try {
           const recovered = await fetchOmrUploadBatchApi(activeBatchId);
+          if (!isActive()) return;
           asyncStatusStore.upsertOmrBatch(recovered);
           const fileRetryOrdinals = [
             ...new Set([
@@ -304,6 +327,7 @@ export default function AdminOmrBatchUploadBox({
           if (fileRetryOrdinals.length === 0) setBatchId(null);
           setNotice("응답이 중단되어 서버의 접수 결과를 복구했습니다. 미접수 항목만 다시 선택해 주세요.");
         } catch {
+          if (!isActive()) return;
           setItems((previous) => previous.map((item) =>
             item.status === "uploading"
               ? { ...item, status: "fail", message: "작업박스에서 상태 확인 필요" }
@@ -318,7 +342,7 @@ export default function AdminOmrBatchUploadBox({
         setNotice(message);
       }
     } finally {
-      setBusy(false);
+      if (isActive()) setBusy(false);
     }
   };
 
