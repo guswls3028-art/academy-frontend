@@ -413,12 +413,25 @@ export default function VideoPlayerPage() {
   }, [boot, currentAccessQuery.data, playbackData, policyTransitionScopeKey, refetchPlayback]);
   const retryPlayback = useCallback(async () => {
     policyTransitionRef.current = null;
+    const retryScopeKey = policyTransitionScopeKey;
+    const retryGeneration = policyTransitionGenerationRef.current + 1;
+    policyTransitionGenerationRef.current = retryGeneration;
+    const isCurrentRetry = () => (
+      policyTransitionScopeRef.current === retryScopeKey
+      && policyTransitionGenerationRef.current === retryGeneration
+    );
     const [playbackResult, accessResult] = await Promise.all([
       playbackQuery.refetch(),
       currentAccessQuery.refetch(),
     ]);
-    if (!playbackResult.error && !accessResult.error) setFatalError(null);
-  }, [currentAccessQuery, playbackQuery]);
+    if (
+      isCurrentRetry()
+      && !playbackResult.error
+      && !accessResult.error
+    ) {
+      setFatalError(null);
+    }
+  }, [currentAccessQuery, playbackQuery, policyTransitionScopeKey]);
 
   /* ─── 자동 다음 재생 ─── */
   const [autoPlayCountdown, setAutoPlayCountdown] = useState<number | null>(null);
