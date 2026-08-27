@@ -368,6 +368,10 @@ export default function VideoPlayerPage() {
     } | null)?.response;
     if (response?.status === 403) {
       const detail = response.data?.detail;
+      policyTransitionGenerationRef.current += 1;
+      policyTransitionRef.current = null;
+      manualRetryRef.current = null;
+      setPolicyRebootstrapPending(false);
       setFatalError(
         typeof detail === "string" && detail.trim()
           ? detail
