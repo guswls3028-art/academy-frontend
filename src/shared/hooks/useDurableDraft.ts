@@ -6,8 +6,9 @@ import {
   requireSetLocalItem,
 } from "@/shared/utils/safeLocalStorage";
 
-const DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const DEFAULT_DEBOUNCE_MS = 1_200;
+const DEFAULT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const DEFAULT_DEBOUNCE_MS = 800;
+const DEFAULT_MAX_WAIT_MS = 5_000;
 const DRAFT_VERSION = 1;
 
 export type DurableDraftStatus = "idle" | "saving" | "saved" | "restored" | "error";
@@ -24,6 +25,7 @@ type UseDurableDraftOptions<T> = {
   isValid: (value: unknown) => value is T;
   onRestore: (value: T) => void;
   debounceMs?: number;
+  maxWaitMs?: number;
   ttlMs?: number;
 };
 
@@ -40,6 +42,7 @@ type DurableDraftResult<T> = {
   clearDraft: () => void;
   markSubmitted: () => void;
   flush: () => void;
+  retrySave: () => void;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -55,15 +58,10 @@ function readStoredDraft<T>(
   if (!isRecord(parsed)) return null;
 
   const savedAt = Number(parsed.savedAt);
-  let data: unknown = parsed.data;
-  if (parsed.version !== DRAFT_VERSION || !("data" in parsed)) {
-    data = Object.fromEntries(
-      Object.entries(parsed).filter(([key]) => key !== "savedAt" && key !== "version"),
-    );
-  }
+  if (parsed.version !== DRAFT_VERSION || !("data" in parsed)) return null;
 
   if (!Number.isFinite(savedAt) || savedAt <= 0 || Date.now() - savedAt > ttlMs) return null;
-  return isValid(data) ? { data, savedAt } : null;
+  return isValid(parsed.data) ? { data: parsed.data, savedAt } : null;
 }
 
 export function useDurableDraft<T>({
@@ -73,6 +71,7 @@ export function useDurableDraft<T>({
   isValid,
   onRestore,
   debounceMs = DEFAULT_DEBOUNCE_MS,
+  maxWaitMs = DEFAULT_MAX_WAIT_MS,
   ttlMs = DEFAULT_TTL_MS,
 }: UseDurableDraftOptions<T>): DurableDraftResult<T> {
   const [status, setStatus] = useState<DurableDraftStatus>("idle");
@@ -88,11 +87,13 @@ export function useDurableDraft<T>({
   const isValidRef = useRef(isValid);
   const onRestoreRef = useRef(onRestore);
   const ttlRef = useRef(ttlMs);
-  const timerRef = useRef<number | null>(null);
+  const debounceTimerRef = useRef<number | null>(null);
+  const maxWaitTimerRef = useRef<number | null>(null);
   const readyRef = useRef(false);
   const lastSeenSavedAtRef = useRef(0);
   const hydratingRef = useRef(false);
   const suppressFlushRef = useRef(false);
+  const conflictRef = useRef(false);
 
   storageKeyRef.current = storageKey;
   valueRef.current = value;
@@ -102,14 +103,26 @@ export function useDurableDraft<T>({
   ttlRef.current = ttlMs;
   readyRef.current = ready;
 
-  const failStorage = useCallback(() => {
-    setStatus("error");
-    setErrorMessage("초안을 저장하지 못했습니다. 입력 내용은 유지되지만 이 브라우저를 닫으면 사라질 수 있습니다.");
+  const clearTimers = useCallback(() => {
+    if (debounceTimerRef.current != null) {
+      window.clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    if (maxWaitTimerRef.current != null) {
+      window.clearTimeout(maxWaitTimerRef.current);
+      maxWaitTimerRef.current = null;
+    }
   }, []);
 
-  const writeValue = useCallback((nextValue: T) => {
+  const failStorage = useCallback(() => {
+    setStatus("error");
+    setErrorMessage("초안을 저장하지 못했습니다. 입력은 유지됩니다. 저장소를 확인한 뒤 다시 저장해 주세요.");
+  }, []);
+
+  const writeValue = useCallback((nextValue: T, force = false) => {
     const key = storageKeyRef.current;
-    if (!key || !readyRef.current) return;
+    if (!key || !readyRef.current || (conflictRef.current && !force)) return;
+    clearTimers();
     try {
       if (isEmptyRef.current(nextValue)) {
         requireRemoveLocalItem(key);
@@ -120,11 +133,13 @@ export function useDurableDraft<T>({
         return;
       }
       const nextSavedAt = Date.now();
-      requireSetLocalItem(key, JSON.stringify({
+      const serialized = JSON.stringify({
         version: DRAFT_VERSION,
         savedAt: nextSavedAt,
         data: nextValue,
-      }));
+      });
+      requireSetLocalItem(key, serialized);
+      if (requireLocalItem(key) !== serialized) throw new Error("Draft storage readback failed");
       lastSeenSavedAtRef.current = nextSavedAt;
       setSavedAt(nextSavedAt);
       setStatus("saved");
@@ -132,15 +147,12 @@ export function useDurableDraft<T>({
     } catch {
       failStorage();
     }
-  }, [failStorage]);
+  }, [clearTimers, failStorage]);
 
   const flush = useCallback(() => {
-    if (timerRef.current != null) {
-      window.clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    if (!suppressFlushRef.current) writeValue(valueRef.current);
-  }, [writeValue]);
+    clearTimers();
+    if (!suppressFlushRef.current && !conflictRef.current) writeValue(valueRef.current);
+  }, [clearTimers, writeValue]);
 
   useEffect(() => {
     storageKeyRef.current = storageKey;
@@ -154,6 +166,8 @@ export function useDurableDraft<T>({
     lastSeenSavedAtRef.current = 0;
     hydratingRef.current = false;
     suppressFlushRef.current = false;
+    conflictRef.current = false;
+    clearTimers();
 
     if (!storageKey) {
       setReady(true);
@@ -183,11 +197,12 @@ export function useDurableDraft<T>({
       readyRef.current = true;
       failStorage();
     }
-  }, [failStorage, storageKey]);
+  }, [clearTimers, failStorage, storageKey]);
 
   const restoreDraft = useCallback((stored: StoredDraft<T> | null) => {
     if (!stored) return;
     hydratingRef.current = true;
+    conflictRef.current = false;
     lastSeenSavedAtRef.current = stored.savedAt;
     onRestoreRef.current(stored.data);
     setSavedAt(stored.savedAt);
@@ -204,6 +219,7 @@ export function useDurableDraft<T>({
 
   const discardPendingDraft = useCallback(() => {
     const key = storageKeyRef.current;
+    clearTimers();
     try {
       if (key) requireRemoveLocalItem(key);
       lastSeenSavedAtRef.current = 0;
@@ -213,41 +229,55 @@ export function useDurableDraft<T>({
       setErrorMessage(null);
       setReady(true);
       readyRef.current = true;
+      conflictRef.current = false;
     } catch {
       setPendingDraft(null);
       setReady(true);
       readyRef.current = true;
       failStorage();
     }
-  }, [failStorage]);
+  }, [clearTimers, failStorage]);
 
   const acceptNewerDraft = useCallback(() => {
+    conflictRef.current = false;
     restoreDraft(newerDraft);
     setNewerDraft(null);
   }, [newerDraft, restoreDraft]);
 
   const keepCurrentDraft = useCallback(() => {
+    conflictRef.current = false;
     setNewerDraft(null);
-    writeValue(valueRef.current);
+    writeValue(valueRef.current, true);
   }, [writeValue]);
 
   const clearDraft = useCallback(() => {
     const key = storageKeyRef.current;
+    clearTimers();
+    conflictRef.current = false;
     try {
       if (key) requireRemoveLocalItem(key);
       lastSeenSavedAtRef.current = 0;
       setSavedAt(null);
+      setPendingDraft(null);
+      setNewerDraft(null);
       setStatus("idle");
       setErrorMessage(null);
     } catch {
       failStorage();
     }
-  }, [failStorage]);
+  }, [clearTimers, failStorage]);
 
   const markSubmitted = useCallback(() => {
     suppressFlushRef.current = true;
     clearDraft();
   }, [clearDraft]);
+
+  const retrySave = useCallback(() => {
+    if (conflictRef.current) return;
+    setStatus("saving");
+    setErrorMessage(null);
+    writeValue(valueRef.current, true);
+  }, [writeValue]);
 
   const serializedValue = JSON.stringify(value);
   useEffect(() => {
@@ -257,24 +287,32 @@ export function useDurableDraft<T>({
       return;
     }
     suppressFlushRef.current = false;
-    if (timerRef.current != null) window.clearTimeout(timerRef.current);
+    if (conflictRef.current) return;
+    if (debounceTimerRef.current != null) window.clearTimeout(debounceTimerRef.current);
     if (isEmptyRef.current(valueRef.current) && lastSeenSavedAtRef.current === 0) {
+      clearTimers();
       setStatus("idle");
       return;
     }
     setStatus("saving");
     setErrorMessage(null);
-    timerRef.current = window.setTimeout(() => {
-      timerRef.current = null;
+    debounceTimerRef.current = window.setTimeout(() => {
+      debounceTimerRef.current = null;
       writeValue(valueRef.current);
     }, debounceMs);
+    if (maxWaitTimerRef.current == null) {
+      maxWaitTimerRef.current = window.setTimeout(() => {
+        maxWaitTimerRef.current = null;
+        writeValue(valueRef.current);
+      }, maxWaitMs);
+    }
     return () => {
-      if (timerRef.current != null) {
-        window.clearTimeout(timerRef.current);
-        timerRef.current = null;
+      if (debounceTimerRef.current != null) {
+        window.clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
       }
     };
-  }, [debounceMs, ready, serializedValue, storageKey, writeValue]);
+  }, [clearTimers, debounceMs, maxWaitMs, ready, serializedValue, storageKey, writeValue]);
 
   useEffect(() => {
     const onPageHide = () => flush();
@@ -296,12 +334,16 @@ export function useDurableDraft<T>({
       if (event.key !== storageKey || !event.newValue) return;
       try {
         const incoming = readStoredDraft(event.newValue, isValidRef.current, ttlRef.current);
-        if (!incoming || incoming.savedAt <= lastSeenSavedAtRef.current) return;
+        if (!incoming || incoming.savedAt < lastSeenSavedAtRef.current) return;
         if (JSON.stringify(incoming.data) === JSON.stringify(valueRef.current)) {
           lastSeenSavedAtRef.current = incoming.savedAt;
           setSavedAt(incoming.savedAt);
+          setStatus("saved");
+          setErrorMessage(null);
           return;
         }
+        clearTimers();
+        conflictRef.current = true;
         setNewerDraft(incoming);
       } catch {
         // 다른 탭의 손상된 값은 현재 입력을 덮어쓰지 않는다.
@@ -309,7 +351,7 @@ export function useDurableDraft<T>({
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
-  }, [storageKey]);
+  }, [clearTimers, storageKey]);
 
   return {
     status,
@@ -324,5 +366,6 @@ export function useDurableDraft<T>({
     clearDraft,
     markSubmitted,
     flush,
+    retrySave,
   };
 }

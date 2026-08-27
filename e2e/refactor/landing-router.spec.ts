@@ -133,6 +133,30 @@ async function stubLandingBootstrap(page: Page) {
   });
 }
 
+async function authenticateLandingUser(page: Page, userId = 12) {
+  const token = localJwt(userId);
+  await page.addInitScript(({ access }) => {
+    localStorage.setItem("access", access);
+    localStorage.setItem("refresh", `${access}-refresh`);
+  }, { access: token });
+  await page.route("**/api/v1/core/me/**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: userId,
+        username: `dnb-teacher-${userId}`,
+        name: "담당 강사",
+        is_staff: true,
+        is_superuser: false,
+        tenantRole: "teacher",
+        must_change_password: false,
+        first_login_guide_required: false,
+      }),
+    });
+  });
+}
+
 test.describe("landing route island", () => {
   test.beforeEach(async ({ page }) => {
     await stubLandingBootstrap(page);
@@ -267,11 +291,10 @@ test.describe("landing route island", () => {
   });
 
   test("restores a community draft only for the exact tenant and user", async ({ page }) => {
-    const token = localJwt(12);
-    await page.addInitScript(({ access }) => {
-      const savedAt = Date.now();
-      localStorage.setItem("access", access);
-      localStorage.setItem("refresh", `${access}-refresh`);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await authenticateLandingUser(page);
+    await page.addInitScript(() => {
+      const savedAt = Date.now() - (29 * 24 * 60 * 60 * 1000);
       localStorage.setItem("landing-community-draft:board", JSON.stringify({
         title: "소유자를 알 수 없는 기존 초안",
         content: "현재 사용자에게 자동 복원하면 안 됩니다.",
@@ -290,28 +313,18 @@ test.describe("landing route island", () => {
         board: "board",
         savedAt,
       }));
-      localStorage.setItem("landing-community-draft:board:dnb:user:12", JSON.stringify({
-        title: "현재 사용자 초안",
-        content: "이 내용만 안전하게 복원합니다.",
-        board: "board",
-        savedAt,
-      }));
-    }, { access: token });
-    await page.route("**/api/v1/core/me/**", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          id: 12,
-          username: "dnb-teacher",
-          name: "담당 강사",
-          is_staff: true,
-          is_superuser: false,
-          tenantRole: "teacher",
-          must_change_password: false,
-          first_login_guide_required: false,
-        }),
-      });
+      if (!localStorage.getItem("landing-community-draft:board:dnb:user:12")) {
+        localStorage.setItem("landing-community-draft:board:dnb:user:12", JSON.stringify({
+          version: 1,
+          savedAt,
+          data: {
+            title: "현재 사용자 초안",
+            content: "이 내용만 안전하게 복원합니다.",
+            board: "board",
+            attachments: [],
+          },
+        }));
+      }
     });
 
     await page.goto(`${BASE}/landing/community/board/write`, { waitUntil: "load" });
@@ -326,13 +339,28 @@ test.describe("landing route island", () => {
     await expect(title).toHaveValue("현재 사용자 초안");
     await expect(content).toHaveValue("이 내용만 안전하게 복원합니다.");
     await title.fill("현재 사용자 수정 초안");
+    await page.getByTestId("landing-community-write-files").setInputFiles({
+      name: "landing-question.png",
+      mimeType: "image/png",
+      buffer: Buffer.from("landing-bytes"),
+    });
+    await page.evaluate(() => window.dispatchEvent(new Event("pagehide")));
 
     await expect.poll(() => page.evaluate(() => {
       const raw = localStorage.getItem("landing-community-draft:board:dnb:user:12");
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      return parsed.data?.title ?? parsed.title ?? null;
-    })).toBe("현재 사용자 수정 초안");
+      return raw ? JSON.parse(raw) : null;
+    })).toMatchObject({
+      version: 1,
+      data: {
+        title: "현재 사용자 수정 초안",
+        attachments: [{ name: "landing-question.png", size: 13, type: "image/png" }],
+      },
+    });
+    const stored = await page.evaluate(() => JSON.parse(
+      localStorage.getItem("landing-community-draft:board:dnb:user:12") || "null",
+    ));
+    expect(JSON.stringify(stored)).not.toContain("landing-bytes");
+    expect(JSON.stringify(stored)).not.toContain(".sig");
     const untouched = await page.evaluate(() => ({
       legacy: JSON.parse(localStorage.getItem("landing-community-draft:board") || "null")?.title,
       otherTenant: JSON.parse(localStorage.getItem("landing-community-draft:board:other:user:12") || "null")?.title,
@@ -343,6 +371,59 @@ test.describe("landing route island", () => {
       otherTenant: "다른 학원 초안",
       otherUser: "다른 사용자 초안",
     });
+    await page.reload({ waitUntil: "load" });
+    await expect(page.getByText("작성 중이던 글이 있어요. 이어 작성할까요?", { exact: false })).toBeVisible();
+    await page.getByRole("button", { name: "이어 작성", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: "landing-question.png" })).toContainText("첨부파일은 다시 선택해 주세요");
+    expect(await page.evaluate(
+      () => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+    )).toBeLessThanOrEqual(1);
+  });
+
+  test("does not import a versionless value from the exact scoped draft key", async ({ page }) => {
+    await authenticateLandingUser(page);
+    await page.addInitScript(() => {
+      localStorage.setItem("landing-community-draft:board:dnb:user:12", JSON.stringify({
+        title: "version 없는 현재 key 초안",
+        content: "복원하거나 이관하지 않습니다.",
+        board: "board",
+        savedAt: Date.now(),
+      }));
+    });
+
+    await page.goto(`${BASE}/landing/community/board/write`, { waitUntil: "load" });
+    await expect(page.getByText("작성 중이던 글이 있어요. 이어 작성할까요?", { exact: false })).toHaveCount(0);
+    await expect(page.getByTestId("landing-community-write-title")).toHaveValue("");
+    await expect.poll(() => page.evaluate(
+      () => localStorage.getItem("landing-community-draft:board:dnb:user:12"),
+    )).toBeNull();
+  });
+
+  test("shows a retry action when landing draft storage recovers", async ({ page }) => {
+    await authenticateLandingUser(page);
+    await page.addInitScript(() => {
+      const original = Storage.prototype.setItem;
+      Storage.prototype.setItem = function setItem(key: string, value: string) {
+        const state = window as typeof window & { __failLandingDraftStorage?: boolean };
+        if (key.startsWith("landing-community-draft:") && state.__failLandingDraftStorage !== false) {
+          throw new DOMException("quota", "QuotaExceededError");
+        }
+        return original.call(this, key, value);
+      };
+    });
+
+    await page.goto(`${BASE}/landing/community/board/write`, { waitUntil: "load" });
+    await page.getByTestId("landing-community-write-title").fill("랜딩 저장 재시도");
+    await page.getByTestId("landing-community-write-content").fill("저장소가 복구되면 다시 저장합니다.");
+    await expect(page.getByRole("alert")).toContainText("초안을 저장하지 못했습니다");
+    await page.evaluate(() => {
+      (window as typeof window & { __failLandingDraftStorage?: boolean }).__failLandingDraftStorage = false;
+    });
+    await page.getByRole("button", { name: "다시 저장", exact: true }).click();
+    await expect.poll(() => page.evaluate(() => {
+      const raw = localStorage.getItem("landing-community-draft:board:dnb:user:12");
+      return raw ? JSON.parse(raw).data?.title : null;
+    })).toBe("랜딩 저장 재시도");
   });
 
   test("scopes a 24-hour notice dismissal to the exact tenant notice", async ({ page }) => {
