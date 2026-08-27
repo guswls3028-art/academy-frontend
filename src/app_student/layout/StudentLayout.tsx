@@ -47,7 +47,7 @@ const SSWE_THEME_TENANTS = ["sswe"];
 const DNB_THEME_TENANTS = ["dnb"];
 /** 10번(이동휘원소) 전용 테마 — 딥 네이비+오비트 옐로 */
 const MOVEMENTHUI_THEME_TENANTS = ["movementhui"];
-/** 11번(신과함께) 전용 테마 — 차콜+민트 */
+/** 11번(신과함께) 전용 테마 — 화이트+클린 블루 */
 const GODMIN_THEME_TENANTS = ["godmin"];
 /** limglish 전용 테마 */
 const LIMGLISH_THEME_TENANTS = ["limglish"];
@@ -215,11 +215,6 @@ function StudentLayoutInner() {
               <stop offset="0%" stopColor="#1a253b" />
               <stop offset="68%" stopColor="#263653" />
               <stop offset="100%" stopColor="#e7bd2f" />
-            </linearGradient>
-            <linearGradient id="stu-gradient-godmin" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#24483d" />
-              <stop offset="64%" stopColor="#147a62" />
-              <stop offset="100%" stopColor="#35c7a0" />
             </linearGradient>
             <linearGradient id="stu-gradient-hakwonplus" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#1e3a8a" />

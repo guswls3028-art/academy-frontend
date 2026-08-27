@@ -139,6 +139,80 @@ test("godmin host resolves its registry, PWA metadata, and committed icons", asy
   }
 });
 
+test("godmin student and parent light theme uses white surfaces with clean blue accents", async ({ page }) => {
+  await page.setContent(`
+    <div data-app="student" data-student-theme="godmin">
+      <header>
+        <a data-tenant-header-brand style="
+          --tenant-header-surface: #e4f7ef;
+          --tenant-header-surface-soft: #d2f0e2;
+          --tenant-header-foreground: #24483d;
+          --tenant-header-accent: #147a62;
+        ">신과함께</a>
+      </header>
+      <main class="stu-panel">학생·학부모 홈</main>
+      <nav class="stu-tabbar"></nav>
+    </div>
+  `);
+  await page.addStyleTag({
+    path: resolve(
+      process.cwd(),
+      "src/app_student/shared/ui/theme/tenants/godmin.css",
+    ),
+  });
+
+  const theme = await page.locator('[data-app="student"]').evaluate((root) => {
+    const style = getComputedStyle(root);
+    const header = getComputedStyle(root.querySelector("header")!);
+    const panel = getComputedStyle(root.querySelector("main")!);
+    const tabbar = getComputedStyle(root.querySelector("nav")!);
+    const brand = getComputedStyle(root.querySelector("[data-tenant-header-brand]")!);
+    return {
+      background: style.getPropertyValue("--stu-bg").trim(),
+      surface: style.getPropertyValue("--stu-surface").trim(),
+      text: style.getPropertyValue("--stu-text").trim(),
+      primary: style.getPropertyValue("--stu-primary").trim(),
+      rootBackgroundImage: style.backgroundImage,
+      headerBackgroundImage: header.backgroundImage,
+      panelBackgroundImage: panel.backgroundImage,
+      tabbarBackgroundImage: tabbar.backgroundImage,
+      brandSurface: brand.getPropertyValue("--tenant-header-surface").trim(),
+      brandAccent: brand.getPropertyValue("--tenant-header-accent").trim(),
+    };
+  });
+
+  expect(theme).toEqual({
+    background: "#eef2f7",
+    surface: "#ffffff",
+    text: "#162233",
+    primary: "#2f6fe4",
+    rootBackgroundImage: "none",
+    headerBackgroundImage: "none",
+    panelBackgroundImage: "none",
+    tabbarBackgroundImage: "none",
+    brandSurface: "#ffffff",
+    brandAccent: "#2f6fe4",
+  });
+
+  const darkTheme = await page.locator('[data-app="student"]').evaluate((root) => {
+    root.setAttribute("data-student-dark", "true");
+    const style = getComputedStyle(root);
+    const brand = getComputedStyle(root.querySelector("[data-tenant-header-brand]")!);
+    return {
+      primary: style.getPropertyValue("--stu-primary").trim(),
+      contrast: style.getPropertyValue("--stu-primary-contrast").trim(),
+      brandSurface: brand.getPropertyValue("--tenant-header-surface").trim(),
+      brandAccent: brand.getPropertyValue("--tenant-header-accent").trim(),
+    };
+  });
+  expect(darkTheme).toEqual({
+    primary: "#6ea1f4",
+    contrast: "#ffffff",
+    brandSurface: "#121827",
+    brandAccent: "#6ea1f4",
+  });
+});
+
 test("custom tenant manifest consumes uploaded branding without HakwonPlus fallback", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => new Response(JSON.stringify({
