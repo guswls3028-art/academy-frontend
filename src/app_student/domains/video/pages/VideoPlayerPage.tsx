@@ -321,9 +321,21 @@ export default function VideoPlayerPage() {
   const [fatalError, setFatalError] = useState<string | null>(null);
   const [policyRebootstrapPending, setPolicyRebootstrapPending] = useState(false);
   const policyTransitionRef = useRef<string | null>(null);
+  const policyTransitionGenerationRef = useRef(0);
+  const policyTransitionScopeKey = `${videoId ?? "none"}:${effectiveEnrollmentId ?? "none"}`;
+  const policyTransitionScopeRef = useRef(policyTransitionScopeKey);
+  if (policyTransitionScopeRef.current !== policyTransitionScopeKey) {
+    policyTransitionScopeRef.current = policyTransitionScopeKey;
+    policyTransitionGenerationRef.current += 1;
+  }
   const onFatal = useCallback((reason: string) => setFatalError(reason), []);
   const playbackData = playbackQuery.data;
   const refetchPlayback = playbackQuery.refetch;
+  useEffect(() => {
+    setFatalError(null);
+    setPolicyRebootstrapPending(false);
+    policyTransitionRef.current = null;
+  }, [policyTransitionScopeKey]);
   const currentAccessQuery = useQuery({
     queryKey: studentVideoQueryKeys.currentAccess(videoId, effectiveEnrollmentId),
     queryFn: () => checkStudentVideoAccess(videoId!, effectiveEnrollmentId),
@@ -359,12 +371,19 @@ export default function VideoPlayerPage() {
       return;
     }
 
-    const transitionKey = `${access.access_mode}:${access.policy_version}`;
+    const transitionKey = `${policyTransitionScopeKey}:${access.access_mode}:${access.policy_version}`;
     if (policyTransitionRef.current === transitionKey) return;
     policyTransitionRef.current = transitionKey;
+    const transitionGeneration = policyTransitionGenerationRef.current + 1;
+    policyTransitionGenerationRef.current = transitionGeneration;
+    const isCurrentTransition = () => (
+      policyTransitionScopeRef.current === policyTransitionScopeKey
+      && policyTransitionGenerationRef.current === transitionGeneration
+    );
     setPolicyRebootstrapPending(true);
 
     void refetchPlayback().then((result) => {
+      if (!isCurrentTransition()) return;
       const refreshed = result.data;
       const refreshedMode = refreshed?.policy?.access_mode ?? "FREE_REVIEW";
       const refreshedVersion = Number(refreshed?.policy_version);
@@ -385,11 +404,13 @@ export default function VideoPlayerPage() {
       }
       setFatalError(null);
     }).catch(() => {
+      if (!isCurrentTransition()) return;
       setFatalError("재생 정책이 변경되었습니다. 새 권한을 확인한 뒤 다시 시도해 주세요.");
     }).finally(() => {
+      if (!isCurrentTransition()) return;
       setPolicyRebootstrapPending(false);
     });
-  }, [boot, currentAccessQuery.data, playbackData, refetchPlayback]);
+  }, [boot, currentAccessQuery.data, playbackData, policyTransitionScopeKey, refetchPlayback]);
   const retryPlayback = useCallback(async () => {
     policyTransitionRef.current = null;
     const [playbackResult, accessResult] = await Promise.all([
@@ -437,9 +458,6 @@ export default function VideoPlayerPage() {
 
   // Reset state when the video or selected enrollment changes.
   useEffect(() => {
-    setFatalError(null);
-    setPolicyRebootstrapPending(false);
-    policyTransitionRef.current = null;
     // 자동재생 카운트다운 초기화 — 다른 영상으로 수동 이동 시 이전 타이머 방지
     setAutoPlayCountdown(null);
     if (autoPlayTimerRef.current) {

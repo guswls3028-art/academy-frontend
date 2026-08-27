@@ -366,6 +366,7 @@ test.describe("student video access races on desktop", () => {
   test("지연된 A 정책 응답은 B의 403 종료 상태를 해제하지 않는다", async ({ page }) => {
     let aPlaybackRequests = 0;
     let aRefetchRequests = 0;
+    let aRefetchResponses = 0;
     let bPlaybackRequests = 0;
     let bAccessChecks = 0;
     let aPolicyDriftReleased = false;
@@ -467,6 +468,7 @@ test.describe("student video access races on desktop", () => {
         if (aPolicyDriftReleased) {
           aRefetchRequests += 1;
           await aRefetchGate;
+          aRefetchResponses += 1;
           return json(playback(videoA, "PROCTORED_CLASS", 2));
         }
         return json(playback(videoA, "FREE_REVIEW", 1));
@@ -509,9 +511,9 @@ test.describe("student video access races on desktop", () => {
     const deniedRequestCounts = { bPlaybackRequests, bAccessChecks };
 
     releaseARefetch();
-    await page.waitForTimeout(500);
+    await expect.poll(() => aRefetchResponses).toBe(1);
     await page.evaluate(() => window.dispatchEvent(new Event("focus")));
-    await page.waitForTimeout(500);
+    await page.waitForLoadState("networkidle");
 
     await expect(page.getByText("B 강의가 종료되어 시청할 수 없습니다.")).toBeVisible();
     await expect(page.getByText("권한 종료 영상 B")).toHaveCount(0);
