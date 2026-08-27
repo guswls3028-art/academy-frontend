@@ -8,7 +8,6 @@
  * - 학생별 뷰: 학생 단위로 묶어서 보기
  * - Tab/Enter로 빠른 이동
  */
-
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
@@ -32,8 +31,8 @@ import {
 import { useClinicTargets } from "../../hooks/useClinicTargets";
 import { useClinicParticipants } from "../../hooks/useClinicParticipants";
 import type { ClinicTarget } from "../../api/clinicTargets";
-import type { ClinicParticipant } from "../../api/clinicParticipants.api";
-import { patchClinicParticipantStatus } from "../../api/clinicParticipants.api";
+import { patchClinicParticipantStatus, type ClinicParticipant } from "../../api/clinicParticipants.api";
+import ClinicParticipantRequestSummary from "../../components/ClinicParticipantRequestSummary";
 import {
   resolveClinicLink,
   waiveClinicLink,
@@ -115,11 +114,6 @@ function requestScheduleText(row: ClinicParticipant): string {
   const title = row.session_title ? `${row.session_title} · ` : "";
   const location = row.session_location ? ` · ${row.session_location}` : "";
   return `${title}${row.session_date} ${time}${location}`;
-}
-
-function preferredTimeText(row: ClinicParticipant): string | null {
-  if (!row.preferred_start_time || !row.preferred_end_time) return null;
-  return `${hhmmText(row.preferred_start_time, "-")}–${hhmmText(row.preferred_end_time, "-")}`;
 }
 
 function targetStudentKey(target: ClinicTarget): string {
@@ -250,12 +244,7 @@ export default function ClinicBookingsPage() {
                           <Clock size={13} aria-hidden />
                           {requestScheduleText(row)}
                         </span>
-                        {(preferredTimeText(row) || row.memo) && (
-                          <span className="clinic-bookings__pending-request">
-                            {preferredTimeText(row) && <strong>희망 {preferredTimeText(row)}</strong>}
-                            {row.memo && <span>{row.memo}</span>}
-                          </span>
-                        )}
+                        <ClinicParticipantRequestSummary participant={row} />
                       </div>
                       <div className="clinic-bookings__pending-actions">
                         <button

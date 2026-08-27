@@ -213,9 +213,7 @@ export default function ClinicCreatePanel({
   const [room, setRoom] = useState(sourceSession?.location ?? "");
   const [memo, setMemo] = useState("");
   const [maxParticipants, setMaxParticipants] = useState<number>(sourceSession?.max_participants ?? 10);
-  const [allowTimePreference, setAllowTimePreference] = useState(
-    sourceSession?.allow_time_preference ?? false,
-  );
+  const [allowTimePreference, setAllowTimePreference] = useState(sourceSession?.allow_time_preference ?? false);
 
   const [savedLocations, setSavedLocations] = useState<string[]>(() => getSavedLocations());
   const [loadPopoverOpen, setLoadPopoverOpen] = useState(false);
@@ -670,18 +668,10 @@ export default function ClinicCreatePanel({
           />
         </div>
         <label className="clinic-create__time-preference">
-          <input
-            type="checkbox"
-            checked={allowTimePreference}
-            onChange={(event) => setAllowTimePreference(event.target.checked)}
-          />
-          <span>
-            <strong>학생 희망 시간 받기</strong>
-            <small>학생이 이 일정 안에서 원하는 시작·종료 시간을 요청할 수 있습니다. 최종 시간은 교직원이 배정합니다.</small>
-          </span>
+          <input type="checkbox" checked={allowTimePreference} onChange={(event) => setAllowTimePreference(event.target.checked)} />
+          <span><strong>학생 희망 시간 받기</strong><small>학생이 이 일정 안에서 원하는 시작·종료 시간을 요청할 수 있습니다. 최종 시간은 교직원이 배정합니다.</small></span>
         </label>
       </div>
-
       {/* 제목 + 정원 (한 행) */}
       <div className="clinic-create__row">
         <div className="clinic-create__field clinic-create__field--grow">
