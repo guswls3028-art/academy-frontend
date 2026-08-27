@@ -97,7 +97,7 @@ export default function PromoteFromInventoryModal({
     total: number;
   } | null>(null);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: storageQueryKeys.storageInventory("admin"),
     queryFn: () => fetchInventoryList("admin"),
   });
@@ -329,7 +329,10 @@ export default function PromoteFromInventoryModal({
             )}
             {!isLoading && error && (
               <div className="matchup-promote-empty matchup-promote-empty--danger">
-                저장소를 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.
+                저장소를 불러오지 못했습니다.
+                <Button intent="secondary" size="sm" onClick={() => void refetch()}>
+                  다시 시도
+                </Button>
               </div>
             )}
             {!isLoading && !error && visibleFiles.length === 0 && (
@@ -405,7 +408,7 @@ export default function PromoteFromInventoryModal({
                 type="checkbox"
                 checked={useFolderAsCategory}
                 onChange={(e) => setUseFolderAsCategory(e.target.checked)}
-                disabled={submitting}
+                disabled={submitting || !!error}
                 data-testid="matchup-promote-use-folder"
               />
               <span className="matchup-promote-policy-title">
@@ -427,7 +430,7 @@ export default function PromoteFromInventoryModal({
                 onChange={(e) => setCategory(e.target.value)}
                 placeholder="예: 중대부고"
                 list="matchup-promote-category-suggestions"
-                disabled={submitting}
+                disabled={submitting || !!error}
                 data-testid="matchup-promote-category-input"
                 className="matchup-promote-category-input"
               />
@@ -459,7 +462,7 @@ export default function PromoteFromInventoryModal({
           <Button
             size="sm"
             onClick={handleSubmit}
-            disabled={selected.size === 0 || submitting}
+            disabled={selected.size === 0 || submitting || !!error}
             data-testid="matchup-promote-submit"
           >
             {submitting

@@ -2,7 +2,7 @@
 // 내 저장소(선생님) — 좌측 폴더 트리, 상단 브레드크럼, 우측 아이콘 그리드 (파일 탐색기형)
 // 다중선택: Ctrl/Cmd+Click, 일괄삭제 지원
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { FolderOpen, FilePlus, FolderPlus, X, Download, Trash2, Pencil, Sparkles, MoveRight } from "lucide-react";
@@ -94,6 +94,7 @@ export default function MyStorageExplorer() {
   });
   const data = inventoryQ.data;
   const isLoading = inventoryQ.isLoading;
+  const inventoryReady = inventoryQ.isSuccess && !inventoryQ.isError;
   const folders = useMemo(() => data?.folders ?? [], [data?.folders]);
   const files = useMemo(() => data?.files ?? [], [data?.files]);
   const subFolders = folders.filter((f) => f.parentId === currentFolderId);
@@ -232,6 +233,19 @@ export default function MyStorageExplorer() {
     setSelectedFolderIds(new Set());
     setSelectedFileIds(new Set());
   }, []);
+
+  useEffect(() => {
+    if (!inventoryQ.isError) return;
+    clearSelection();
+    setAddChoiceOpen(false);
+    setNewFolderOpen(false);
+    setUploadModalOpen(false);
+    setFileActionTarget(null);
+    setMoveDialogTarget(null);
+    setDropTargetFolderId(null);
+    setConflict(null);
+    setRenamingId(null);
+  }, [clearSelection, inventoryQ.isError]);
 
   // 전체 선택
   const handleSelectAll = useCallback(() => {
@@ -616,7 +630,7 @@ export default function MyStorageExplorer() {
       <div className={panelStyles.toolbar}>
         <Breadcrumb path={breadcrumbPath} onSelect={setCurrentFolderId} />
         <div className={panelStyles.actions}>
-          {hasSelection && (
+          {inventoryReady && hasSelection && (
             <>
               <span className={styles.selectionCount}>
                 {selectionCount}개 선택
@@ -658,7 +672,7 @@ export default function MyStorageExplorer() {
               </Button>
             </>
           )}
-          {!hasSelection && (subFolders.length + subFiles.length > 0) && (
+          {inventoryReady && !hasSelection && (subFolders.length + subFiles.length > 0) && (
             <Button type="button" intent="ghost" size="sm" onClick={handleSelectAll}>
               전체 선택
             </Button>
@@ -668,7 +682,7 @@ export default function MyStorageExplorer() {
             intent="primary"
             size="sm"
             onClick={() => setAddChoiceOpen(true)}
-            disabled={inventoryQ.isError || isLoading}
+            disabled={!inventoryReady}
             leftIcon={<FilePlus size={16} />}
           >
             추가
@@ -689,7 +703,7 @@ export default function MyStorageExplorer() {
               folders={allFoldersForTree}
               currentFolderId={currentFolderId}
               onSelect={setCurrentFolderId}
-              onDelete={handleDeleteFolderRecursive}
+              onDelete={inventoryReady ? handleDeleteFolderRecursive : undefined}
             />
           </div>
         </aside>
@@ -888,7 +902,7 @@ export default function MyStorageExplorer() {
         </div>
       </div>
 
-      {addChoiceOpen && !inventoryQ.isError && (
+      {addChoiceOpen && inventoryReady && (
         <div className={styles.addPopupBackdrop} onClick={() => setAddChoiceOpen(false)}>
           <div className={styles.addPopup} onClick={(e) => e.stopPropagation()}>
             <div className={styles.addPopupHeader}>
@@ -929,7 +943,7 @@ export default function MyStorageExplorer() {
         </div>
       )}
 
-      {fileActionTarget && !selectedFileIds.has(fileActionTarget.id) && (
+      {inventoryReady && fileActionTarget && !selectedFileIds.has(fileActionTarget.id) && (
         <div className={styles.addPopupBackdrop} onClick={() => setFileActionTarget(null)}>
           <div className={styles.addPopup} onClick={(e) => e.stopPropagation()}>
             <div className={styles.addPopupHeader}>
@@ -1024,7 +1038,7 @@ export default function MyStorageExplorer() {
         </div>
       )}
 
-      {newFolderOpen && (
+      {newFolderOpen && inventoryReady && (
         <div className={styles.modalBackdrop} onClick={() => setNewFolderOpen(false)}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
@@ -1053,14 +1067,14 @@ export default function MyStorageExplorer() {
         </div>
       )}
 
-      {uploadModalOpen && (
+      {uploadModalOpen && inventoryReady && (
         <UploadModal
           onClose={() => setUploadModalOpen(false)}
           onUpload={handleUpload}
         />
       )}
 
-      {moveDialogTarget && (
+      {moveDialogTarget && inventoryReady && (
         <InventoryMoveDialog
           folders={folders}
           source={moveDialogTarget}
@@ -1078,7 +1092,7 @@ export default function MyStorageExplorer() {
         />
       )}
 
-      {conflict && (
+      {conflict && inventoryReady && (
         <MoveDuplicateModal
           existingName={conflict.existingName}
           itemType={conflict.type}

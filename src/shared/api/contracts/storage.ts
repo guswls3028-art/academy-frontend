@@ -112,12 +112,8 @@ export async function fetchInventoryList(
 ): Promise<InventoryListResponse> {
   const params: Record<string, string> = { scope };
   if (studentPs) params.student_ps = studentPs;
-  try {
-    const { data } = await api.get<InventoryListResponse>("/storage/inventory/", { params });
-    return data;
-  } catch {
-    return { folders: [], files: [] };
-  }
+  const { data } = await api.get<InventoryListResponse>("/storage/inventory/", { params });
+  return data;
 }
 
 export async function createFolder(

@@ -1,6 +1,6 @@
 // PATH: src/app_teacher/domains/storage/pages/StudentInventoryPage.tsx
 // 학생 인벤토리 — 학생 선택 → 그 학생의 자료 조회/업로드/삭제
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
@@ -39,11 +39,18 @@ export default function StudentInventoryPage() {
 
   const students = studentsData?.data ?? [];
 
-  const { data: inventory, isLoading: invLoading } = useQuery({
+  const inventoryQ = useQuery({
     queryKey: teacherStorageQueryKeys.studentInventory(selected?.ps),
     queryFn: () => fetchInventoryList("student", selected!.ps),
     enabled: !!selected?.ps,
   });
+  const { data: inventory, isLoading: invLoading, isError: invError } = inventoryQ;
+  const inventoryReady = !!selected && inventoryQ.isSuccess && !invError;
+
+  useEffect(() => {
+    if (!invError) return;
+    setUploadMeta(null);
+  }, [invError]);
 
   const files = useMemo(() => inventory?.files ?? [], [inventory]);
 
@@ -91,7 +98,7 @@ export default function StudentInventoryPage() {
         <h1 className={`${styles.title} text-[17px] font-bold flex-1 truncate`}>
           {selected ? `${selected.name} 자료` : "학생 인벤토리"}
         </h1>
-        {selected && (
+        {selected && inventoryReady && (
           <>
             <button
               type="button"
@@ -182,7 +189,22 @@ export default function StudentInventoryPage() {
       {selected && (
         <>
           {invLoading && <EmptyState scope="panel" tone="loading" title="불러오는 중…" />}
-          {!invLoading && files.length === 0 && (
+          {!invLoading && invError && (
+            <div role="alert">
+              <EmptyState
+                scope="panel"
+                tone="error"
+                title="학생 자료를 불러오지 못했습니다"
+                description="빈 자료함으로 표시하지 않고 업로드·삭제를 잠갔습니다."
+                actions={
+                  <EmptyActionButton variant="secondary" onClick={() => void inventoryQ.refetch()}>
+                    다시 시도
+                  </EmptyActionButton>
+                }
+              />
+            </div>
+          )}
+          {inventoryReady && files.length === 0 && (
             <EmptyState
               scope="panel"
               tone="empty"
@@ -195,7 +217,7 @@ export default function StudentInventoryPage() {
               }
             />
           )}
-          {files.length > 0 && (
+          {inventoryReady && files.length > 0 && (
             <>
               <SectionTitle>파일 ({files.length})</SectionTitle>
               <div className="flex flex-col gap-1.5">
@@ -239,7 +261,7 @@ export default function StudentInventoryPage() {
       )}
 
       {/* Upload meta sheet */}
-      <BottomSheet open={uploadMeta != null} onClose={() => setUploadMeta(null)} title="업로드 정보">
+      <BottomSheet open={inventoryReady && uploadMeta != null} onClose={() => setUploadMeta(null)} title="업로드 정보">
         {uploadMeta && (
           <div className="flex flex-col gap-2 pb-3">
             <div>
