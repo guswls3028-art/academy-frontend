@@ -13,6 +13,7 @@ async function installRegistrationPolicyMocks(
   options: { registrationStatus: 200 | 403 | 503 },
 ) {
   const mutationRequests: string[] = [];
+  let registrationStatus = options.registrationStatus;
   const registration = {
     id: 991001,
     name: "과거 가입 요청",
@@ -47,7 +48,7 @@ async function installRegistrationPolicyMocks(
     if (request.method() === "OPTIONS") return route.fulfill({ status: 204 });
     if (path === "/core/program/") {
       return json({
-        tenantCode: options.registrationStatus === 403 ? "godmin" : "hakwonplus",
+        tenantCode: registrationStatus === 403 ? "godmin" : "hakwonplus",
         display_name: "테스트 학원",
         ui_config: {},
         feature_flags: {},
@@ -66,13 +67,13 @@ async function installRegistrationPolicyMocks(
       });
     }
     if (path === "/students/registration_requests/") {
-      if (options.registrationStatus === 403) {
+      if (registrationStatus === 403) {
         return json({
           code: "self_registration_disabled",
           detail: "이 학원은 운영정책상 학생 회원가입을 사용하지 않습니다.",
         }, 403);
       }
-      if (options.registrationStatus === 503) {
+      if (registrationStatus === 503) {
         return json({ detail: "temporary failure" }, 503);
       }
       return json({ count: 1, results: [registration] });
@@ -106,9 +107,14 @@ async function installRegistrationPolicyMocks(
     localStorage.setItem("tenant_code", tenantCode);
     sessionStorage.setItem("tenantCode", tenantCode);
     localStorage.setItem("teacher:preferAdmin", "0");
-  }, options.registrationStatus === 403 ? "godmin" : "hakwonplus");
+  }, registrationStatus === 403 ? "godmin" : "hakwonplus");
 
-  return mutationRequests;
+  return {
+    mutationRequests,
+    setRegistrationStatus(status: 200 | 403 | 503) {
+      registrationStatus = status;
+    },
+  };
 }
 
 test.describe("선생님 소통 모바일 답변 시트", () => {
@@ -264,7 +270,7 @@ test.describe("선생님 가입 정책과 대기 업무 경계", () => {
 
   test("자가 가입 비활성 요청은 업무로 광고하지 않고 기록 안내만 보여준다", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    const mutations = await installRegistrationPolicyMocks(page, { registrationStatus: 403 });
+    const { mutationRequests } = await installRegistrationPolicyMocks(page, { registrationStatus: 403 });
 
     await page.goto(`${BASE}/workspace/mobile`, { waitUntil: "load", timeout: 20_000 });
     await expect(page.getByText("가입 신청 학생", { exact: true })).toHaveCount(0);
@@ -276,7 +282,7 @@ test.describe("선생님 가입 정책과 대기 업무 경계", () => {
     await expect(page.getByText(/정책 변경 전에 접수된 요청은 기록으로 보존/)).toBeVisible();
     await expect(page.getByRole("button", { name: "승인", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "거절", exact: true })).toHaveCount(0);
-    expect(mutations).toEqual([]);
+    expect(mutationRequests).toEqual([]);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
@@ -298,14 +304,33 @@ test.describe("선생님 가입 정책과 대기 업무 경계", () => {
 
   test("대기 업무 일부 조회 실패를 0건이나 정리됨으로 합성하지 않는다", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await installRegistrationPolicyMocks(page, { registrationStatus: 503 });
+    const policy = await installRegistrationPolicyMocks(page, { registrationStatus: 503 });
 
     await page.goto(`${BASE}/workspace/mobile`, { waitUntil: "load", timeout: 20_000 });
     await expect(page.getByText("업무 알림을 모두 불러오지 못했습니다", { exact: true })).toBeVisible();
     await expect(page.getByText("정리됨", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("0건", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("처리 대기함이 비었습니다", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("처리 대기함을 모두 불러오지 못했습니다", { exact: true })).toBeVisible();
 
+    policy.setRegistrationStatus(200);
+    await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "가입 신청 학생 1건" })).toBeVisible();
+
+    policy.setRegistrationStatus(503);
     await page.goto(`${BASE}/workspace/mobile/notifications`, { waitUntil: "load", timeout: 20_000 });
     await expect(page.getByText("일부 업무 알림을 불러오지 못했습니다", { exact: true })).toBeVisible();
     await expect(page.getByText("처리할 업무 알림이 없습니다", { exact: true })).toHaveCount(0);
+
+    await page.goto(`${BASE}/workspace/students/requests`, { waitUntil: "load", timeout: 20_000 });
+    await expect(page.getByText("가입 신청을 불러오지 못했습니다", { exact: true })).toBeVisible();
+    await expect(page.getByText("대기 중인 가입 신청이 없습니다", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("자동 승인", { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "선택 승인", exact: true })).toHaveCount(0);
+
+    policy.setRegistrationStatus(200);
+    await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+    await expect(page.getByText("과거 가입 요청", { exact: true })).toBeVisible();
+    await expect(page.getByText("자동 승인", { exact: true })).toBeVisible();
   });
 });

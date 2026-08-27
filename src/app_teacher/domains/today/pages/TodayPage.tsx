@@ -49,6 +49,7 @@ export default function TodayPage() {
     failures: pendingFailures,
     isLoading: pendingIsLoading,
     isError: pendingIsError,
+    refetch: refetchPending,
   } = useTeacherPendingCounts();
 
   const dateStr = new Date().toLocaleDateString("ko-KR", {
@@ -90,8 +91,8 @@ export default function TodayPage() {
   const pendingUnavailable = pendingIsError || pendingFailures.length > 0;
   const pendingTotal = pendingIsLoading || pendingUnavailable ? null : pendingCounts?.total ?? 0;
   const pendingQnaCount = pendingCounts?.qnaPending ?? 0;
-  const todayWorkTotal = (pendingTotal ?? 0) + attendanceGap;
-  const hasTodayWork = pendingTotal == null || todayWorkTotal > 0;
+  const todayWorkTotal = pendingTotal == null ? null : pendingTotal + attendanceGap;
+  const hasTodayWork = todayWorkTotal != null && todayWorkTotal > 0;
   const primaryWork = useMemo(() => {
     if (pendingIsLoading) {
       return {
@@ -196,13 +197,13 @@ export default function TodayPage() {
       <section className={styles.hero}>
         <div className={styles.heroMeta}>
           <span>{dateStr}</span>
-          <Badge tone={hasTodayWork ? "danger" : "success"} pill size="xs">
+          <Badge tone={pendingIsLoading || pendingUnavailable || hasTodayWork ? "danger" : "success"} pill size="xs">
             {pendingIsLoading
               ? "업무 집계 중"
               : pendingUnavailable
                 ? "업무 확인 필요"
                 : hasTodayWork
-                  ? `오늘 업무 ${todayWorkTotal}건`
+                  ? `오늘 업무 ${todayWorkTotal ?? 0}건`
                   : "정리됨"}
           </Badge>
         </div>
@@ -230,9 +231,9 @@ export default function TodayPage() {
       <div className={styles.kpiGrid}>
         <KpiCard
           label="오늘 업무"
-          value={pendingTotal == null ? "—" : todayWorkTotal}
+          value={todayWorkTotal ?? "—"}
           sub={pendingIsLoading ? "집계 중" : pendingUnavailable ? "확인 필요" : hasTodayWork ? "건" : "없음"}
-          color={hasTodayWork ? "var(--tc-danger)" : "var(--tc-success)"}
+          color={pendingIsLoading || pendingUnavailable || hasTodayWork ? "var(--tc-danger)" : "var(--tc-success)"}
           onClick={() => navigate(primaryWork.route)}
         />
         <KpiCard
@@ -294,8 +295,12 @@ export default function TodayPage() {
           <SectionTitle
             right={
               <div className="flex items-center gap-2">
-                {hasTodayWork ? (
-                  <Badge tone="danger" pill>{todayWorkTotal}건</Badge>
+                {pendingIsLoading ? (
+                  <Badge tone="primary" pill size="xs">집계 중</Badge>
+                ) : pendingUnavailable ? (
+                  <Badge tone="danger" pill size="xs">확인 필요</Badge>
+                ) : hasTodayWork ? (
+                  <Badge tone="danger" pill>{todayWorkTotal ?? 0}건</Badge>
                 ) : (
                   <Badge tone="success" pill size="xs">비어있음</Badge>
                 )}
@@ -313,7 +318,21 @@ export default function TodayPage() {
           >
             처리 대기함
           </SectionTitle>
-          {hasTodayWork ? (
+          {pendingIsLoading ? (
+            <EmptyState scope="panel" tone="loading" title="처리 대기함을 확인하고 있습니다" />
+          ) : pendingUnavailable ? (
+            <EmptyState
+              scope="panel"
+              tone="error"
+              title="처리 대기함을 모두 불러오지 못했습니다"
+              description="조회에 실패한 업무를 0건으로 표시하지 않습니다. 다시 확인해 주세요."
+              actions={
+                <button type="button" onClick={() => void refetchPending()} className={styles.emptyActionButton}>
+                  다시 시도
+                </button>
+              }
+            />
+          ) : hasTodayWork ? (
             <Card className={styles.pendingCard}>
               {pendingItems.map((item, idx) => (
                 <PendingRow

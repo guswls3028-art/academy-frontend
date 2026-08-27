@@ -259,7 +259,7 @@ export default function StudentsRequestsPage() {
   const [selectedRecoveryId, setSelectedRecoveryId] = useState<number | null>(null);
   const recoverySubmissionRef = useRef(false);
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: adminStudentsQueryKeys.registrationRequests,
     queryFn: () =>
       fetchRegistrationRequests({ status: "pending", page: 1, page_size: 100 }),
@@ -268,6 +268,7 @@ export default function StudentsRequestsPage() {
   const settingsQ = useQuery({
     queryKey: adminStudentsQueryKeys.registrationRequestSettings,
     queryFn: fetchRegistrationRequestSettings,
+    enabled: !isLoading && !isError,
   });
 
   const list = data?.data ?? [];
@@ -481,6 +482,33 @@ export default function StudentsRequestsPage() {
             <EmptyState
               title="학생 자가 가입을 사용하지 않습니다"
               description="정책 변경 전에 접수된 요청은 기록으로 보존되며 승인하거나 거절할 수 없습니다. 학생은 직접 등록해 주세요."
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className={panelStyles.root}>
+        <div className={panelStyles.header}>
+          <h2 className={panelStyles.headerTitle}>가입 신청</h2>
+          <p className={panelStyles.headerDesc}>
+            가입 신청 목록을 확인한 뒤에만 설정과 처리 기능을 사용할 수 있습니다.
+          </p>
+        </div>
+        <div className="students-requests__body">
+          <div className={panelStyles.contentInner}>
+            <EmptyState
+              tone="error"
+              title="가입 신청을 불러오지 못했습니다"
+              description="조회 실패를 신청 0건으로 표시하지 않습니다. 다시 시도해 주세요."
+              actions={
+                <Button intent="secondary" size="sm" onClick={() => void refetch()}>
+                  다시 시도
+                </Button>
+              }
             />
           </div>
         </div>
