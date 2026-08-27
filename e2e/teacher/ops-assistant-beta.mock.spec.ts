@@ -9,6 +9,7 @@ test.use({ serviceWorkers: "block" });
 
 test("선생님이 사진 실행표를 390px에서 확인하고 ONLINE 영상 권한을 확정한다", async ({ page }) => {
   const analyzeBodies: string[] = [];
+  const analyticsEvents: Array<Record<string, unknown>> = [];
   let analyzeCount = 0;
   await page.setViewportSize({ width: 390, height: 844 });
   await installTenantOneInitScript(page);
@@ -16,8 +17,13 @@ test("선생님이 사진 실행표를 390px에서 확인하고 ONLINE 영상 �
   await page.route("**/api/v1/**", async (route) => {
     const url = new URL(route.request().url()); const path = url.pathname.replace(/^\/api\/v1/, "");
     const json = (body: unknown) => route.fulfill({ json: body });
-    if (path === "/core/program/") return json({ tenantCode: "hakwonplus", display_name: "테스트 학원", feature_flags: {}, is_active: true });
+    if (path === "/core/program/") return json({ tenantCode: "hakwonplus", display_name: "테스트 학원", feature_flags: { product_usage_analytics_enabled: true }, is_active: true });
     if (path === "/core/me/") return json({ id: 7, username: "teacher", name: "담당교사", is_staff: true, tenantRole: "teacher", must_change_password: false });
+    if (path === "/core/product-analytics/events/batch/" && route.request().method() === "POST") {
+      const body = route.request().postDataJSON() as { events?: Array<Record<string, unknown>> };
+      analyticsEvents.push(...(body.events ?? []));
+      return route.fulfill({ status: 202, json: { accepted: body.events?.length ?? 0 } });
+    }
     if (path === "/teacher-app/ops-assistant/analyze/") {
       analyzeBodies.push(route.request().postData() || "");
       analyzeCount += 1;
@@ -29,6 +35,18 @@ test("선생님이 사진 실행표를 390px에서 확인하고 ONLINE 영상 �
   });
   await page.goto(`${BASE}/workspace/mobile/assistant`, { waitUntil: "domcontentloaded", timeout: 30_000 });
   await expect(page.getByRole("heading", { name: "학생 업무 도우미" })).toBeVisible();
+  await expect.poll(() => analyticsEvents.find((event) => event.event_type === "screen_view"), { timeout: 8_000 }).toMatchObject({
+    event_type: "screen_view",
+    feature_id: "students.directory",
+    screen_id: "teacher.students.assistant",
+    surface: "teacher",
+    route_template: "/workspace/mobile/assistant",
+    synthetic: false,
+  });
+  const screenView = analyticsEvents.find((event) => event.event_type === "screen_view");
+  expect(screenView).not.toHaveProperty("user_id");
+  expect(screenView).not.toHaveProperty("username");
+  expect(screenView).not.toHaveProperty("tenant_id");
   await page.locator('input[type="file"]').setInputFiles({ name: "student.png", mimeType: "image/png", buffer: Buffer.from("synthetic-image") });
   await page.getByPlaceholder(/숙명에 등록/).fill("신규 여부 먼저 확인하고 영상 열어줘");
   await page.getByRole("button", { name: "실행표 만들기" }).click();

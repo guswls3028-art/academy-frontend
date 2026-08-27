@@ -57,14 +57,38 @@ async function assertNoRenderedHtmlLeak(page: Page) {
 
 async function installStudentApi(
   page: Page,
-  options: { profileId?: () => number; examId?: number; legacyHtml?: boolean; failDataRequests?: boolean; lectureNotices?: boolean; parentReadOnly?: boolean } = {},
+  options: {
+    profileId?: () => number;
+    examId?: number;
+    legacyHtml?: boolean;
+    failDataRequests?: boolean;
+    lectureNotices?: boolean;
+    parentReadOnly?: boolean;
+    imageNotice?: boolean;
+    imageDeliveryFailure?: boolean;
+    notificationClinic?: "retry-success" | "failure";
+    failProfile?: boolean;
+  } = {},
 ) {
+  let firstImageAttempts = 0;
+  let firstImageAvailable = false;
+  let rejectFirstImageRequest: (() => void) | undefined;
+  const firstImageFailureGate = new Promise<void>((resolve) => {
+    rejectFirstImageRequest = resolve;
+  });
+  let notificationClinicAttempts = 0;
   await page.addInitScript(({ token }) => {
     localStorage.setItem("access", token);
     localStorage.setItem("refresh", "student-content-refresh");
     localStorage.setItem("tenant_code", "hakwonplus");
     sessionStorage.setItem("tenantCode", "hakwonplus");
   }, { token: fakeJwt() });
+
+  if (options.imageDeliveryFailure) {
+    await page.route("**/mock/broken-image-701.png", async (route) => {
+      await route.fulfill({ status: 403, body: "" });
+    });
+  }
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -102,6 +126,10 @@ async function installStudentApi(
       return;
     }
     if (path.endsWith("/student/me/")) {
+      if (options.failProfile) {
+        await route.fulfill({ status: 503, json: { detail: "profile failure" } });
+        return;
+      }
       await route.fulfill({ json: {
         id: profileId,
         username: `student-${profileId}`,
@@ -110,6 +138,18 @@ async function installStudentApi(
         is_student: true,
         isParentReadOnly: options.parentReadOnly ?? false,
       } });
+      return;
+    }
+    if (path.endsWith("/clinic/participants/") && options.notificationClinic) {
+      notificationClinicAttempts += 1;
+      if (options.notificationClinic === "failure" || notificationClinicAttempts === 1) {
+        if (options.notificationClinic === "retry-success") {
+          await new Promise((resolve) => setTimeout(resolve, 600));
+        }
+        await route.fulfill({ status: 503, json: { detail: "notification failure" } });
+        return;
+      }
+      await route.fulfill({ json: [] });
       return;
     }
     if (path.endsWith("/student/dashboard/")) {
@@ -301,7 +341,7 @@ async function installStudentApi(
       return;
     }
     if (path.endsWith("/community/posts/77/")) {
-      await route.fulfill({ json: {
+      await route.fulfill({ json: options.imageNotice ? imageNotice() : {
         id: 77,
         title: "긴 안내문",
         content: "&amp;amp;lt;p style=&amp;amp;quot;width: 960px; margin-left: 240px; font-size: 44px&amp;amp;quot;&amp;amp;gt;학생과 학부모님께 드리는 안내입니다.&amp;amp;lt;/p&amp;amp;gt;&amp;amp;lt;table style=&amp;amp;quot;width: 900px&amp;amp;quot;&amp;amp;gt;&amp;amp;lt;tbody&amp;amp;gt;&amp;amp;lt;tr&amp;amp;gt;&amp;amp;lt;td&amp;amp;gt;아주긴주소https://example.com/abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789&amp;amp;lt;/td&amp;amp;gt;&amp;amp;lt;td&amp;amp;gt;두 번째 칸도 화면 안에서 읽혀야 합니다.&amp;amp;lt;/td&amp;amp;gt;&amp;amp;lt;/tr&amp;amp;gt;&amp;amp;lt;/tbody&amp;amp;gt;&amp;amp;lt;/table&amp;amp;gt;",
@@ -313,6 +353,24 @@ async function installStudentApi(
         mappings: [],
         attachments: [],
       } });
+      return;
+    }
+    if (path.endsWith("/community/posts/77/attachments/701/download/") && options.imageNotice) {
+      firstImageAttempts += 1;
+      if (!firstImageAvailable) {
+        if (options.imageDeliveryFailure) {
+          await route.fulfill({ json: { url: `${BASE}/mock/broken-image-701.png`, original_name: "첫 번째 이미지.png" } });
+        } else {
+          await firstImageFailureGate;
+          await route.fulfill({ status: 503, json: { detail: "temporary presign failure" } });
+        }
+      } else {
+        await route.fulfill({ json: { url: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==", original_name: "첫 번째 이미지.png" } });
+      }
+      return;
+    }
+    if (path.endsWith("/community/posts/77/attachments/702/download/") && options.imageNotice) {
+      await route.fulfill({ json: { url: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==", original_name: "두 번째 이미지.png" } });
       return;
     }
     if (path.endsWith("/student/grades/")) {
@@ -375,6 +433,10 @@ async function installStudentApi(
       return;
     }
     if (path.endsWith("/community/posts/notices/") || path.endsWith("/community/posts/board/") || path.endsWith("/community/posts/materials/")) {
+      if (options.imageNotice && path.endsWith("/community/posts/notices/")) {
+        await route.fulfill({ json: [imageNotice()] });
+        return;
+      }
       const lectureNoticeRows = options.lectureNotices && path.endsWith("/community/posts/notices/") ? [{
         id: 91,
         post_type: "notice",
@@ -449,6 +511,32 @@ async function installStudentApi(
     }
     await route.fulfill({ json: { count: 0, next: null, previous: null, results: [] } });
   });
+  return {
+    firstImageAttempts: () => firstImageAttempts,
+    allowFirstImage: () => { firstImageAvailable = true; },
+    rejectFirstImage: () => rejectFirstImageRequest?.(),
+    notificationClinicAttempts: () => notificationClinicAttempts,
+  };
+}
+
+function imageNotice() {
+  return {
+    id: 77,
+    title: "이미지 공지",
+    content: "<p>첨부 이미지를 확인해 주세요.</p>",
+    post_type: "notice",
+    created_by: 1,
+    created_by_display: "담당 선생님",
+    created_at: "2026-08-27T09:00:00+09:00",
+    updated_at: "2026-08-27T09:00:00+09:00",
+    is_pinned: false,
+    is_urgent: false,
+    mappings: [],
+    attachments: [
+      { id: 701, original_name: "첫 번째 이미지.png", content_type: "image/png", size_bytes: 1200 },
+      { id: 702, original_name: "두 번째 이미지.png", content_type: "image/png", size_bytes: 1300 },
+    ],
+  };
 }
 
 test.describe("학생·학부모 콘텐츠 안정성", () => {
@@ -558,6 +646,101 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     await expect(ended).toContainText("1시간 30분 시청");
     await expect(ended.locator("a")).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
+  test("공지 상세는 이미지 presign 실패를 파일별 오류와 재시도로 복구한다", async ({ page }) => {
+    const scenario = await installStudentApi(page, { imageNotice: true });
+    await page.goto(`${BASE}/student/notices/77`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+
+    await expect(page.getByText("이미지 로딩 중…").first()).toBeVisible();
+    scenario.rejectFirstImage();
+    await expect(page.getByRole("alert", { name: "첫 번째 이미지.png 미리보기 오류" })).toBeVisible();
+    await expect(page.getByRole("img", { name: "두 번째 이미지.png" })).toBeVisible();
+    const attemptsBeforeRetry = scenario.firstImageAttempts();
+    scenario.allowFirstImage();
+    await page.getByRole("button", { name: "첫 번째 이미지.png 다시 시도" }).click();
+    await expect(page.getByRole("img", { name: "첫 번째 이미지.png" })).toBeVisible();
+    expect(scenario.firstImageAttempts()).toBeGreaterThan(attemptsBeforeRetry);
+  });
+
+  test("커뮤니티 공지 상세도 이미지 presign 실패를 파일별로 재시도한다", async ({ page }) => {
+    const scenario = await installStudentApi(page, { imageNotice: true });
+    await page.goto(`${BASE}/student/community`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+
+    const noticeRow = page.getByText("이미지 공지", { exact: true });
+    await expect(noticeRow).toBeVisible({ timeout: 30_000 });
+    await noticeRow.click();
+    await expect(page.getByText("이미지 로딩 중…").first()).toBeVisible();
+    scenario.rejectFirstImage();
+    await expect(page.getByRole("alert", { name: "첫 번째 이미지.png 미리보기 오류" })).toBeVisible();
+    await expect(page.getByRole("img", { name: "두 번째 이미지.png" })).toBeVisible();
+    const attemptsBeforeRetry = scenario.firstImageAttempts();
+    scenario.allowFirstImage();
+    await page.getByRole("button", { name: "첫 번째 이미지.png 다시 시도" }).click();
+    await expect(page.getByRole("img", { name: "첫 번째 이미지.png" })).toBeVisible();
+    expect(scenario.firstImageAttempts()).toBeGreaterThan(attemptsBeforeRetry);
+  });
+
+  test("공지 상세는 presign 성공 뒤 이미지 응답 실패도 파일별로 재시도한다", async ({ page }) => {
+    const scenario = await installStudentApi(page, { imageNotice: true, imageDeliveryFailure: true });
+    await page.goto(`${BASE}/student/notices/77`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+
+    await expect(page.getByRole("alert", { name: "첫 번째 이미지.png 미리보기 오류" })).toBeVisible();
+    await expect(page.getByRole("img", { name: "두 번째 이미지.png" })).toBeVisible();
+    const attemptsBeforeRetry = scenario.firstImageAttempts();
+    scenario.allowFirstImage();
+    await page.getByRole("button", { name: "첫 번째 이미지.png 다시 시도" }).click();
+    await expect(page.getByRole("img", { name: "첫 번째 이미지.png" })).toBeVisible();
+    await expect(page.getByRole("img", { name: "두 번째 이미지.png" })).toBeVisible();
+    expect(scenario.firstImageAttempts()).toBeGreaterThan(attemptsBeforeRetry);
+  });
+
+  test("커뮤니티 공지 상세도 presign 성공 뒤 이미지 응답 실패를 파일별로 재시도한다", async ({ page }) => {
+    const scenario = await installStudentApi(page, { imageNotice: true, imageDeliveryFailure: true });
+    await page.goto(`${BASE}/student/community`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+
+    const noticeRow = page.getByText("이미지 공지", { exact: true });
+    await expect(noticeRow).toBeVisible({ timeout: 30_000 });
+    await noticeRow.click();
+    await expect(page.getByRole("alert", { name: "첫 번째 이미지.png 미리보기 오류" })).toBeVisible();
+    await expect(page.getByRole("img", { name: "두 번째 이미지.png" })).toBeVisible();
+    const attemptsBeforeRetry = scenario.firstImageAttempts();
+    scenario.allowFirstImage();
+    await page.getByRole("button", { name: "첫 번째 이미지.png 다시 시도" }).click();
+    await expect(page.getByRole("img", { name: "첫 번째 이미지.png" })).toBeVisible();
+    await expect(page.getByRole("img", { name: "두 번째 이미지.png" })).toBeVisible();
+    expect(scenario.firstImageAttempts()).toBeGreaterThan(attemptsBeforeRetry);
+  });
+
+  test("알림 집계 재시도 중에는 0건으로 단정하지 않고 성공 뒤에만 빈 상태를 확정한다", async ({ page }) => {
+    const scenario = await installStudentApi(page, { notificationClinic: "retry-success" });
+    await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    await expect(page.getByRole("link", { name: "알림 수 확인 중" })).toBeVisible();
+    await expect(page.getByText("할 일을 확인하고 있어요", { exact: true })).toBeVisible();
+    await expect.poll(() => scenario.notificationClinicAttempts(), { timeout: 10_000 }).toBe(2);
+    await expect(page.getByRole("link", { name: "알림", exact: true })).toBeVisible();
+    await expect(page.getByText("오늘은 급한 일이 없어요", { exact: true }).first()).toBeVisible();
+  });
+
+  test("알림 하위 조회 실패는 탭과 대시보드에서 오류로 남고 0건 문구를 숨긴다", async ({ page }) => {
+    await installStudentApi(page, { notificationClinic: "failure" });
+    await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    await expect(page.getByRole("link", { name: "알림 수 확인 중" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "알림 수 확인 실패" }), { timeout: 12_000 }).toBeVisible();
+    await expect(page.getByText("일부 할 일을 확인하지 못했어요", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("오늘은 급한 일이 없어요", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("정리됨", { exact: true })).toHaveCount(0);
+  });
+
+  test("학생 프로필 조회 실패도 답변 알림 0건으로 축소하지 않는다", async ({ page }) => {
+    await installStudentApi(page, { failProfile: true });
+    await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    await expect(page.getByRole("link", { name: "알림 수 확인 실패" }), { timeout: 15_000 }).toBeVisible();
+    await expect(page.getByText("일부 할 일을 확인하지 못했어요", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("오늘은 급한 일이 없어요", { exact: true })).toHaveCount(0);
   });
 
   test("강의 탭에서 공지를 발견하고 선택한 강의 범위로 바로 연다", async ({ page }, testInfo) => {

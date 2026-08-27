@@ -1361,11 +1361,21 @@ function MaterialsDetail({ id, onBack }: { id: number; onBack: () => void }) {
 // ═══════════════════════════════════════════
 // Attachments — display + download
 // ═══════════════════════════════════════════
+type AttachmentImageState =
+  | { status: "loading" }
+  | { status: "loaded"; url: string }
+  | { status: "error" };
+
 function AttachmentList({ postId, attachments }: { postId: number; attachments?: PostAttachment[] }) {
   const isImage = (ct: string) => ct.startsWith("image/");
 
   // 이미지 URL 캐시 — 병렬 fetch (이전: 직렬 for…of, N round-trip)
-  const [imgUrls, setImgUrls] = useState<Record<number, string>>({});
+  const [imageStates, setImageStates] = useState<Record<number, AttachmentImageState>>({});
+  const imgUrls = useMemo(() => Object.fromEntries(
+    Object.entries(imageStates)
+      .filter((entry): entry is [string, { status: "loaded"; url: string }] => entry[1].status === "loaded")
+      .map(([id, state]) => [Number(id), state.url]),
+  ), [imageStates]);
   // lightbox: 전체화면 이미지 뷰어
   const [lightboxId, setLightboxId] = useState<number | null>(null);
   useEffect(() => {
@@ -1387,19 +1397,19 @@ function AttachmentList({ postId, attachments }: { postId: number; attachments?:
     const images = attachments.filter((a) => isImage(a.content_type));
     if (images.length === 0) return;
     let cancelled = false;
-    (async () => {
-      const settled = await Promise.allSettled(
-        images.map((img) =>
-          getAttachmentDownloadUrl(postId, img.id).then((res) => ({ id: img.id, url: res.url }))
-        )
-      );
-      if (cancelled) return;
-      const urls: Record<number, string> = {};
-      for (const r of settled) {
-        if (r.status === "fulfilled") urls[r.value.id] = r.value.url;
+    setImageStates(Object.fromEntries(images.map((img) => [img.id, { status: "loading" }])));
+    void Promise.all(images.map(async (img) => {
+      try {
+        const { url } = await getAttachmentDownloadUrl(postId, img.id);
+        if (!cancelled) {
+          setImageStates((current) => ({ ...current, [img.id]: { status: "loaded", url } }));
+        }
+      } catch {
+        if (!cancelled) {
+          setImageStates((current) => ({ ...current, [img.id]: { status: "error" } }));
+        }
       }
-      setImgUrls(urls);
-    })();
+    }));
     return () => { cancelled = true; };
   }, [attachments, postId]);
 
@@ -1416,24 +1426,59 @@ function AttachmentList({ postId, attachments }: { postId: number; attachments?:
     }
   };
 
+  const retryImage = async (att: PostAttachment) => {
+    setImageStates((current) => ({ ...current, [att.id]: { status: "loading" } }));
+    try {
+      const { url } = await getAttachmentDownloadUrl(postId, att.id);
+      setImageStates((current) => ({ ...current, [att.id]: { status: "loaded", url } }));
+    } catch {
+      setImageStates((current) => ({ ...current, [att.id]: { status: "error" } }));
+    }
+  };
+
   return (
     <div className="community-attachments">
       {/* 이미지 미리보기 — 클릭 시 lightbox */}
-      {attachments.filter((a) => isImage(a.content_type)).map((att) => (
-        <button
-          key={`img-${att.id}`}
-          type="button"
-          onClick={() => imgUrls[att.id] && setLightboxId(att.id)}
-          className={`community-image-preview${imgUrls[att.id] ? " community-image-preview--loaded" : ""}`}
-          aria-label={`${att.original_name} 크게 보기`}
-        >
-          {imgUrls[att.id] ? (
-            <img src={imgUrls[att.id]} alt={att.original_name} className="community-image" />
-          ) : (
-            <div className="community-image-placeholder">이미지 로딩 중…</div>
-          )}
-        </button>
-      ))}
+      {attachments.filter((a) => isImage(a.content_type)).map((att) => {
+        const state = imageStates[att.id] ?? { status: "loading" as const };
+        return (
+          <div key={`img-${att.id}`} className="community-image-frame">
+            {state.status === "loaded" ? (
+              <button
+                type="button"
+                onClick={() => setLightboxId(att.id)}
+                className="community-image-preview community-image-preview--loaded"
+                aria-label={`${att.original_name} 크게 보기`}
+              >
+                <img
+                  src={state.url}
+                  alt={att.original_name}
+                  className="community-image"
+                  onError={() => setImageStates((current) => ({
+                    ...current,
+                    [att.id]: { status: "error" },
+                  }))}
+                />
+              </button>
+            ) : state.status === "error" ? (
+              <div className="community-image-error" role="alert" aria-label={`${att.original_name} 미리보기 오류`}>
+                <div className="community-image-error__name">{att.original_name}</div>
+                <div>이미지 미리보기를 불러오지 못했습니다.</div>
+                <button
+                  type="button"
+                  className="stu-btn stu-btn--secondary stu-btn--sm"
+                  aria-label={`${att.original_name} 다시 시도`}
+                  onClick={() => void retryImage(att)}
+                >
+                  다시 시도
+                </button>
+              </div>
+            ) : (
+              <div className="community-image-placeholder" role="status">이미지 로딩 중…</div>
+            )}
+          </div>
+        );
+      })}
 
       {/* Lightbox 모달 */}
       {lightboxId != null && imgUrls[lightboxId] && (

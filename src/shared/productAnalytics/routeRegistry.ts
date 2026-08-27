@@ -57,6 +57,7 @@ const ROUTES: CompiledRoute[] = [
   route("/workspace/mobile/attendance/:sessionId", "attendance.manage", "teacher.attendance.session", "teacher"),
   route("/workspace/mobile/scores/:sessionId", "scores.manage", "teacher.scores.session", "teacher"),
   route("/workspace/mobile/students/*", "students.directory", "teacher.students.workspace", "teacher"),
+  route("/workspace/mobile/assistant", "students.directory", "teacher.students.assistant", "teacher"),
   route("/workspace/mobile/comms", "messaging.manage", "teacher.messaging.home", "teacher"),
   route("/workspace/mobile/message-log", "messaging.manage", "teacher.messaging.log", "teacher"),
   route("/workspace/mobile/message-templates", "messaging.manage", "teacher.messaging.templates", "teacher"),

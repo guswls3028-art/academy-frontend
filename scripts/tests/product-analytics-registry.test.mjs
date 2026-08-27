@@ -16,6 +16,18 @@ test("product analytics registry verifier passes", () => {
   assert.match(result.stdout, /product analytics registry OK/);
 });
 
+test("teacher ops assistant has an exact analytics route contract", () => {
+  const source = readFileSync(
+    "src/shared/productAnalytics/routeRegistry.ts",
+    "utf8",
+  );
+
+  assert.match(
+    source,
+    /route\("\/workspace\/mobile\/assistant", "students\.directory", "teacher\.students\.assistant", "teacher"\)/,
+  );
+});
+
 test("tenant rollout workflow is exact-target, API-owned, and secret-safe", () => {
   const source = readFileSync(
     ".github/workflows/product-analytics-rollout.yml",

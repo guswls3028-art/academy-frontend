@@ -18,6 +18,11 @@ function isImageAttachment(att: PostAttachment): boolean {
   return att.content_type.startsWith("image/");
 }
 
+type ImagePreviewState =
+  | { status: "loading" }
+  | { status: "loaded"; url: string }
+  | { status: "error" };
+
 export default function NoticeDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -107,25 +112,38 @@ export default function NoticeDetailPage() {
 }
 
 function NoticeAttachments({ postId, attachments }: { postId: number; attachments: PostAttachment[] }) {
-  const [imgUrls, setImgUrls] = useState<Record<number, string>>({});
+  const [imageStates, setImageStates] = useState<Record<number, ImagePreviewState>>({});
   const imageAttachments = useMemo(() => attachments.filter(isImageAttachment), [attachments]);
   const fileAttachments = useMemo(() => attachments.filter((att) => !isImageAttachment(att)), [attachments]);
 
   useEffect(() => {
     if (imageAttachments.length === 0) return;
     let cancelled = false;
-    (async () => {
-      const urls: Record<number, string> = {};
-      for (const img of imageAttachments) {
-        try {
-          const { url } = await getAttachmentDownloadUrl(postId, img.id);
-          if (!cancelled) urls[img.id] = url;
-        } catch { /* skip */ }
+    setImageStates(Object.fromEntries(imageAttachments.map((img) => [img.id, { status: "loading" }])));
+    void Promise.all(imageAttachments.map(async (img) => {
+      try {
+        const { url } = await getAttachmentDownloadUrl(postId, img.id);
+        if (!cancelled) {
+          setImageStates((current) => ({ ...current, [img.id]: { status: "loaded", url } }));
+        }
+      } catch {
+        if (!cancelled) {
+          setImageStates((current) => ({ ...current, [img.id]: { status: "error" } }));
+        }
       }
-      if (!cancelled) setImgUrls(urls);
-    })();
+    }));
     return () => { cancelled = true; };
   }, [imageAttachments, postId]);
+
+  const retryImage = async (img: PostAttachment) => {
+    setImageStates((current) => ({ ...current, [img.id]: { status: "loading" } }));
+    try {
+      const { url } = await getAttachmentDownloadUrl(postId, img.id);
+      setImageStates((current) => ({ ...current, [img.id]: { status: "loaded", url } }));
+    } catch {
+      setImageStates((current) => ({ ...current, [img.id]: { status: "error" } }));
+    }
+  };
 
   const handleDownload = async (att: PostAttachment) => {
     try {
@@ -140,15 +158,39 @@ function NoticeAttachments({ postId, attachments }: { postId: number; attachment
 
   return (
     <div className={styles.attachments}>
-      {imageAttachments.map((att) => (
-        <div key={`img-${att.id}`} className={styles.imageFrame}>
-          {imgUrls[att.id] ? (
-            <img src={imgUrls[att.id]} alt={att.original_name} className={styles.imagePreview} />
-          ) : (
-            <div className={styles.imagePlaceholder}>이미지 로딩 중…</div>
-          )}
-        </div>
-      ))}
+      {imageAttachments.map((att) => {
+        const state = imageStates[att.id] ?? { status: "loading" as const };
+        return (
+          <div key={`img-${att.id}`} className={styles.imageFrame}>
+            {state.status === "loaded" ? (
+              <img
+                src={state.url}
+                alt={att.original_name}
+                className={styles.imagePreview}
+                onError={() => setImageStates((current) => ({
+                  ...current,
+                  [att.id]: { status: "error" },
+                }))}
+              />
+            ) : state.status === "error" ? (
+              <div className={styles.imageError} role="alert" aria-label={`${att.original_name} 미리보기 오류`}>
+                <div className={styles.imageErrorName}>{att.original_name}</div>
+                <div>이미지 미리보기를 불러오지 못했습니다.</div>
+                <button
+                  type="button"
+                  className={`stu-btn stu-btn--secondary stu-btn--sm ${styles.imageRetry}`}
+                  aria-label={`${att.original_name} 다시 시도`}
+                  onClick={() => void retryImage(att)}
+                >
+                  다시 시도
+                </button>
+              </div>
+            ) : (
+              <div className={styles.imagePlaceholder} role="status">이미지 로딩 중…</div>
+            )}
+          </div>
+        );
+      })}
       {fileAttachments.length > 0 && (
         <div className={styles.attachmentTitle}>
           첨부파일 ({fileAttachments.length})
