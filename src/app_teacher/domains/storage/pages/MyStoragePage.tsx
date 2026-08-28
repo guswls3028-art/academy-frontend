@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/storage/pages/MyStoragePage.tsx
 // 내 자료 — admin scope 인벤토리 조회/업로드/다운로드/삭제 (R-11 baseline 동결)
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
@@ -25,7 +25,7 @@ import {
   type InventoryFolder,
 } from "../api";
 import { useConfirm } from "@/shared/ui/confirm";
-import { teacherStorageQueryKeys } from "../queryKeys";
+import { readTeacherInventoryQueryGuard, teacherStorageQueryKeys } from "../queryKeys";
 import { formatStorageBytes as formatBytes } from "../storageFormat";
 
 export default function MyStoragePage() {
@@ -40,10 +40,22 @@ export default function MyStoragePage() {
   const [folderName, setFolderName] = useState("");
   const [uploadMeta, setUploadMeta] = useState<{ file: File; displayName: string; description: string } | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const inventoryQ = useQuery({
     queryKey: teacherStorageQueryKeys.adminInventory,
     queryFn: () => fetchInventoryList("admin"),
   });
+  const { data, isLoading, isError } = inventoryQ;
+  const inventoryReady = inventoryQ.isSuccess && !isError && inventoryQ.fetchStatus === "idle";
+  const readInventoryGuard = useCallback(
+    () => readTeacherInventoryQueryGuard(qc, teacherStorageQueryKeys.adminInventory),
+    [qc],
+  );
+
+  useEffect(() => {
+    if (!isError) return;
+    setCreateFolderOpen(false);
+    setUploadMeta(null);
+  }, [isError]);
 
   const { data: quota } = useQuery({
     queryKey: teacherStorageQueryKeys.quota,
@@ -140,6 +152,7 @@ export default function MyStoragePage() {
         </h1>
         <button
           onClick={() => setCreateFolderOpen(true)}
+          disabled={!inventoryReady}
           className="text-[12px] font-semibold cursor-pointer flex items-center gap-1"
           style={{
             padding: "8px 10px",
@@ -154,6 +167,7 @@ export default function MyStoragePage() {
         </button>
         <button
           onClick={() => fileInputRef.current?.click()}
+          disabled={!inventoryReady}
           className="text-[12px] font-bold cursor-pointer flex items-center gap-1"
           style={{
             padding: "8px 12px",
@@ -169,6 +183,7 @@ export default function MyStoragePage() {
         <input
           ref={fileInputRef}
           type="file"
+          disabled={!inventoryReady}
           style={{ display: "none" }}
           onChange={(e) => {
             const file = e.target.files?.[0];
@@ -252,7 +267,23 @@ export default function MyStoragePage() {
 
       {isLoading && <EmptyState scope="panel" tone="loading" title="불러오는 중…" />}
 
-      {!isLoading && items.folders.length === 0 && items.files.length === 0 && (
+      {!isLoading && isError && (
+        <div role="alert">
+          <EmptyState
+            scope="panel"
+            tone="error"
+            title="자료 저장소를 불러오지 못했습니다"
+            description="빈 저장소로 표시하지 않고 폴더 생성·업로드·삭제를 잠갔습니다."
+            actions={
+              <EmptyActionButton variant="secondary" onClick={() => void inventoryQ.refetch()}>
+                다시 시도
+              </EmptyActionButton>
+            }
+          />
+        </div>
+      )}
+
+      {inventoryReady && items.folders.length === 0 && items.files.length === 0 && (
         <EmptyState
           scope="panel"
           tone="empty"
@@ -266,7 +297,7 @@ export default function MyStoragePage() {
         />
       )}
 
-      {items.folders.length > 0 && (
+      {inventoryReady && items.folders.length > 0 && (
         <>
           <SectionTitle>폴더 ({items.folders.length})</SectionTitle>
           <div className="flex flex-col gap-1.5">
@@ -290,8 +321,10 @@ export default function MyStoragePage() {
                 </button>
                 <button
                   onClick={async () => {
+                    const confirmedInventory = readInventoryGuard();
                     const ok = await confirm({ title: "폴더 삭제", message: `'${f.name}' 폴더와 안의 파일을 함께 삭제합니다. 계속할까요?`, confirmText: "삭제", danger: true });
-                    if (ok) deleteFolderMut.mutate(f);
+                    const currentInventory = readInventoryGuard();
+                    if (ok && confirmedInventory.ready && currentInventory.ready && currentInventory.fence === confirmedInventory.fence) deleteFolderMut.mutate(f);
                   }}
                   aria-label={`${f.name} 폴더 삭제`}
                   title={`${f.name} 폴더 삭제`}
@@ -307,7 +340,7 @@ export default function MyStoragePage() {
         </>
       )}
 
-      {items.files.length > 0 && (
+      {inventoryReady && items.files.length > 0 && (
         <>
           <SectionTitle>파일 ({items.files.length})</SectionTitle>
           <div className="flex flex-col gap-1.5">
@@ -338,8 +371,10 @@ export default function MyStoragePage() {
                 </button>
                 <button
                   onClick={async () => {
+                    const confirmedInventory = readInventoryGuard();
                     const ok = await confirm({ title: "파일 삭제", message: `'${f.displayName || f.name}' 파일을 삭제합니다. 계속할까요?`, confirmText: "삭제", danger: true });
-                    if (ok) deleteFileMut.mutate(f);
+                    const currentInventory = readInventoryGuard();
+                    if (ok && confirmedInventory.ready && currentInventory.ready && currentInventory.fence === confirmedInventory.fence) deleteFileMut.mutate(f);
                   }}
                   aria-label={`${f.displayName || f.name} 삭제`}
                   title={`${f.displayName || f.name} 삭제`}
@@ -377,7 +412,7 @@ export default function MyStoragePage() {
       </Card>
 
       {/* Upload meta sheet */}
-      <BottomSheet open={uploadMeta != null} onClose={() => setUploadMeta(null)} title="업로드 정보">
+      <BottomSheet open={inventoryReady && uploadMeta != null} onClose={() => setUploadMeta(null)} title="업로드 정보">
         {uploadMeta && (
           <div className="flex flex-col gap-2 pb-3">
             <Field label="표시 이름">
@@ -421,7 +456,7 @@ export default function MyStoragePage() {
       </BottomSheet>
 
       {/* Create folder sheet */}
-      <BottomSheet open={createFolderOpen} onClose={() => setCreateFolderOpen(false)} title="새 폴더">
+      <BottomSheet open={inventoryReady && createFolderOpen} onClose={() => setCreateFolderOpen(false)} title="새 폴더">
         <div className="flex flex-col gap-2 pb-3">
           <Field label="폴더 이름">
             <input

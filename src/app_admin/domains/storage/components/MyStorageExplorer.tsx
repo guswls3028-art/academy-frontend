@@ -2,7 +2,7 @@
 // 내 저장소(선생님) — 좌측 폴더 트리, 상단 브레드크럼, 우측 아이콘 그리드 (파일 탐색기형)
 // 다중선택: Ctrl/Cmd+Click, 일괄삭제 지원
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { FolderOpen, FilePlus, FolderPlus, X, Download, Trash2, Pencil, Sparkles, MoveRight } from "lucide-react";
@@ -66,6 +66,13 @@ export default function MyStorageExplorer() {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const navigate = useNavigate();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const moveDialogFenceRef = useRef<string | null>(null);
+  const pendingMoveTargetRef = useRef<{
+    type: "file" | "folder";
+    sourceId: string;
+    targetFolderId: string | null;
+  } | null>(null);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [addChoiceOpen, setAddChoiceOpen] = useState(false);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
@@ -76,6 +83,7 @@ export default function MyStorageExplorer() {
   const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
   const [fileActionTarget, setFileActionTarget] = useState<InventoryFile | null>(null);
   const [moveDialogTarget, setMoveDialogTarget] = useState<InventoryMoveSource | null>(null);
+  const [moveDialogNotice, setMoveDialogNotice] = useState("");
   const [movingId, setMovingId] = useState<string | null>(null);
   const [dropTargetFolderId, setDropTargetFolderId] = useState<string | null>(null);
   const [conflict, setConflict] = useState<{
@@ -83,6 +91,7 @@ export default function MyStorageExplorer() {
     sourceId: string;
     targetFolderId: string | null;
     existingName: string;
+    inventoryFence: string;
   } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [renamingId, setRenamingId] = useState<{ type: "folder" | "file"; id: string } | null>(null);
@@ -92,8 +101,19 @@ export default function MyStorageExplorer() {
     queryKey: storageQueryKeys.storageInventory(SCOPE),
     queryFn: () => fetchInventoryList(SCOPE),
   });
+  const readInventoryGuard = useCallback(() => {
+    const state = qc.getQueryState(storageQueryKeys.storageInventory(SCOPE));
+    return {
+      ready: state?.status === "success" && state.error == null && state.fetchStatus === "idle",
+      fence: `${state?.dataUpdateCount ?? 0}:${state?.errorUpdateCount ?? 0}:${state?.status ?? "pending"}:${state?.fetchStatus ?? "idle"}`,
+    };
+  }, [qc]);
   const data = inventoryQ.data;
   const isLoading = inventoryQ.isLoading;
+  const inventoryReady = inventoryQ.isSuccess && !inventoryQ.isError && inventoryQ.fetchStatus === "idle";
+  const inventoryFence = readInventoryGuard().fence;
+  const inventoryGuardRef = useRef({ ready: inventoryReady, fence: inventoryFence });
+  inventoryGuardRef.current = { ready: inventoryReady, fence: inventoryFence };
   const folders = useMemo(() => data?.folders ?? [], [data?.folders]);
   const files = useMemo(() => data?.files ?? [], [data?.files]);
   const subFolders = folders.filter((f) => f.parentId === currentFolderId);
@@ -198,6 +218,42 @@ export default function MyStorageExplorer() {
         }
       : null;
   }, [files, folders, selectedFileIds, selectedFolderIds, selectionCount]);
+  const getCurrentMoveSource = useCallback((source: InventoryMoveSource): InventoryMoveSource | null => {
+    if (source.type === "file") {
+      const file = files.find((item) => item.id === source.id);
+      return file ? {
+        id: file.id,
+        type: "file",
+        name: file.displayName,
+        parentId: file.folderId ?? null,
+      } : null;
+    }
+    const folder = folders.find((item) => item.id === source.id);
+    return folder ? {
+      id: folder.id,
+      type: "folder",
+      name: folder.name,
+      parentId: folder.parentId,
+    } : null;
+  }, [files, folders]);
+  const isCurrentMoveSource = useCallback((source: InventoryMoveSource) => {
+    const current = getCurrentMoveSource(source);
+    return !!current && current.name === source.name && current.parentId === source.parentId;
+  }, [getCurrentMoveSource]);
+  const isAcceptedMoveSource = useCallback((source: InventoryMoveSource) => {
+    if (isCurrentMoveSource(source)) return true;
+    const current = getCurrentMoveSource(source);
+    const pendingTarget = pendingMoveTargetRef.current;
+    return !!current
+      && !!pendingTarget
+      && current.type === pendingTarget.type
+      && current.id === pendingTarget.sourceId
+      && current.name === source.name
+      && current.parentId === pendingTarget.targetFolderId;
+  }, [getCurrentMoveSource, isCurrentMoveSource]);
+  const moveDialogSourceValid = !moveDialogTarget
+    || moveDialogFenceRef.current === inventoryFence
+    || isAcceptedMoveSource(moveDialogTarget);
 
   // 선택 토글 (Ctrl/Cmd+Click = 추가/제거, 일반 Click = 단일 선택)
   const toggleFolderSelect = useCallback((folderId: string, multi: boolean) => {
@@ -232,6 +288,55 @@ export default function MyStorageExplorer() {
     setSelectedFolderIds(new Set());
     setSelectedFileIds(new Set());
   }, []);
+
+  const openMoveDialog = useCallback((source: InventoryMoveSource) => {
+    moveDialogFenceRef.current = readInventoryGuard().fence;
+    pendingMoveTargetRef.current = null;
+    setMoveDialogNotice("");
+    setMoveDialogTarget(source);
+  }, [readInventoryGuard]);
+
+  const closeMoveDialog = useCallback(() => {
+    moveDialogFenceRef.current = null;
+    pendingMoveTargetRef.current = null;
+    setMoveDialogTarget(null);
+  }, []);
+
+  useEffect(() => {
+    if (!moveDialogTarget || !inventoryReady || moveDialogFenceRef.current === inventoryFence) return;
+    const currentSource = getCurrentMoveSource(moveDialogTarget);
+    if (isAcceptedMoveSource(moveDialogTarget)) {
+      moveDialogFenceRef.current = inventoryFence;
+      return;
+    }
+    if (!currentSource) clearSelection();
+    moveDialogFenceRef.current = null;
+    pendingMoveTargetRef.current = null;
+    setConflict(null);
+    setMoveDialogTarget(null);
+    setMoveDialogNotice("저장소가 변경되어 이동 창을 닫았습니다. 항목을 다시 확인해 주세요.");
+  }, [clearSelection, getCurrentMoveSource, inventoryFence, inventoryReady, isAcceptedMoveSource, moveDialogTarget]);
+
+  useEffect(() => {
+    if (!moveDialogNotice || moveDialogTarget || !inventoryReady) return;
+    const focusTarget = rootRef.current?.querySelector<HTMLButtonElement>(
+      '[data-testid="storage-selection-move"], [data-testid="storage-add"]',
+    );
+    focusTarget?.focus();
+  }, [inventoryReady, moveDialogNotice, moveDialogTarget]);
+
+  useEffect(() => {
+    if (!inventoryQ.isError) return;
+    clearSelection();
+    setAddChoiceOpen(false);
+    setNewFolderOpen(false);
+    setUploadModalOpen(false);
+    setFileActionTarget(null);
+    closeMoveDialog();
+    setDropTargetFolderId(null);
+    setConflict(null);
+    setRenamingId(null);
+  }, [clearSelection, closeMoveDialog, inventoryQ.isError]);
 
   // 전체 선택
   const handleSelectAll = useCallback(() => {
@@ -289,6 +394,7 @@ export default function MyStorageExplorer() {
       lines.push("");
       lines.push("이 작업은 되돌릴 수 없습니다.");
 
+      const confirmedInventoryFence = inventoryGuardRef.current.fence;
       const ok = await confirm({
         title: "하위 포함 폴더 영구 삭제",
         message: lines.join("\n"),
@@ -296,7 +402,8 @@ export default function MyStorageExplorer() {
         cancelText: "취소",
         danger: true,
       });
-      if (!ok) return;
+      const currentInventory = inventoryGuardRef.current;
+      if (!ok || !currentInventory.ready || currentInventory.fence !== confirmedInventoryFence) return;
 
       setIsDeleting(true);
       try {
@@ -371,18 +478,26 @@ export default function MyStorageExplorer() {
     lines.push("");
     lines.push("이 작업은 되돌릴 수 없습니다.");
 
+    const confirmedInventoryFence = inventoryGuardRef.current.fence;
     const ok = await confirm({
       title: recursiveNeeded ? "하위 포함 영구 삭제" : "선택 항목 삭제",
       message: lines.join("\n"),
       confirmText: recursiveNeeded ? "전부 삭제" : "삭제",
       danger: true,
     });
-    if (!ok) return;
+    const currentInventory = inventoryGuardRef.current;
+    if (!ok || !currentInventory.ready || currentInventory.fence !== confirmedInventoryFence) return;
 
     setIsDeleting(true);
     let errorCount = 0;
     let totalMatchup = 0;
+    let inventoryBecameStale = false;
     for (const id of selectedFolderIds) {
+      const inventoryAtMutation = inventoryGuardRef.current;
+      if (!inventoryAtMutation.ready || inventoryAtMutation.fence !== confirmedInventoryFence) {
+        inventoryBecameStale = true;
+        break;
+      }
       try {
         const res = await deleteFolder(SCOPE, id, undefined, { recursive: recursiveNeeded });
         if (res && "deleted" in res) {
@@ -393,17 +508,28 @@ export default function MyStorageExplorer() {
         feedback.error((e as Error).message);
       }
     }
-    for (const id of selectedFileIds) {
-      try {
-        await deleteFile(SCOPE, id);
-      } catch (e) {
-        errorCount++;
-        feedback.error((e as Error).message);
+    if (!inventoryBecameStale) {
+      for (const id of selectedFileIds) {
+        const inventoryAtMutation = inventoryGuardRef.current;
+        if (!inventoryAtMutation.ready || inventoryAtMutation.fence !== confirmedInventoryFence) {
+          inventoryBecameStale = true;
+          break;
+        }
+        try {
+          await deleteFile(SCOPE, id);
+        } catch (e) {
+          errorCount++;
+          feedback.error((e as Error).message);
+        }
       }
     }
     qc.invalidateQueries({ queryKey: storageQueryKeys.storageInventory(SCOPE) });
     if (totalMatchup > 0 || selectedMatchupFiles.length > 0) {
       qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
+    }
+    if (inventoryBecameStale) {
+      setIsDeleting(false);
+      return;
     }
     clearSelection();
     setIsDeleting(false);
@@ -439,6 +565,7 @@ export default function MyStorageExplorer() {
       sourceId: string,
       onDuplicate?: "overwrite" | "rename"
     ): Promise<InventoryMoveOutcome> => {
+      if (!readInventoryGuard().ready) return "error";
       setMovingId(sourceId);
       const prev = qc.getQueryData<{ folders: InventoryFolder[]; files: InventoryFile[] }>(
         storageQueryKeys.storageInventory(SCOPE),
@@ -458,6 +585,9 @@ export default function MyStorageExplorer() {
         }
       };
       applyOptimistic();
+      const optimisticInventory = readInventoryGuard();
+      moveDialogFenceRef.current = optimisticInventory.fence;
+      pendingMoveTargetRef.current = { type, sourceId, targetFolderId };
       try {
         await moveInventoryItem({
           scope: SCOPE,
@@ -469,14 +599,22 @@ export default function MyStorageExplorer() {
         await qc.invalidateQueries({ queryKey: storageQueryKeys.storageInventory(SCOPE) });
         return "moved";
       } catch (e) {
+        const currentInventory = readInventoryGuard();
+        if (!currentInventory.ready || currentInventory.fence !== optimisticInventory.fence) {
+          closeMoveDialog();
+          setConflict(null);
+          return "error";
+        }
         if (prev) qc.setQueryData(storageQueryKeys.storageInventory(SCOPE), prev);
         const ce = e as MoveConflictError & Error;
         if (ce.status === 409 && ce.code === "duplicate") {
+          const restoredInventory = readInventoryGuard();
           setConflict({
             type,
             sourceId,
             targetFolderId,
             existingName: ce.existing_name || "항목",
+            inventoryFence: restoredInventory.fence,
           });
           return "conflict";
         } else {
@@ -487,18 +625,20 @@ export default function MyStorageExplorer() {
         setMovingId(null);
       }
     },
-    [qc]
+    [closeMoveDialog, qc, readInventoryGuard]
   );
 
   const resolveConflict = useCallback(
     async (choice: "overwrite" | "rename") => {
       if (!conflict) return;
-      const { targetFolderId, type, sourceId } = conflict;
+      const { targetFolderId, type, sourceId, inventoryFence: conflictInventoryFence } = conflict;
       setConflict(null);
+      const currentInventory = readInventoryGuard();
+      if (!currentInventory.ready || currentInventory.fence !== conflictInventoryFence) return;
       const outcome = await handleMove(targetFolderId, type, sourceId, choice);
       if (outcome === "moved") clearSelection();
     },
-    [clearSelection, conflict, handleMove]
+    [clearSelection, conflict, handleMove, readInventoryGuard]
   );
 
   const handlePromoteToMatchup = useCallback(async (file: InventoryFile) => {
@@ -547,18 +687,26 @@ export default function MyStorageExplorer() {
   const handleBulkPromote = useCallback(async () => {
     const candidates = selectedMatchupCandidates;
     if (candidates.length === 0) return;
+    const confirmedInventoryFence = inventoryGuardRef.current.fence;
     const ok = await confirm({
       title: "선택 파일을 매치업으로 등록",
       message: `${candidates.length}개 PDF/PNG/JPG를 매치업 자료로 등록하고 AI 분석을 시작합니다.`,
       confirmText: "등록",
     });
-    if (!ok) return;
+    const currentInventory = inventoryGuardRef.current;
+    if (!ok || !currentInventory.ready || currentInventory.fence !== confirmedInventoryFence) return;
 
     setBulkPromoting(true);
     let succeeded = 0;
     let alreadyPromoted = 0;
     let failed = 0;
+    let inventoryBecameStale = false;
     for (const f of candidates) {
+      const inventoryAtMutation = inventoryGuardRef.current;
+      if (!inventoryAtMutation.ready || inventoryAtMutation.fence !== confirmedInventoryFence) {
+        inventoryBecameStale = true;
+        break;
+      }
       try {
         const doc = await promoteInventoryToMatchup({ inventoryFileId: f.id, title: f.displayName });
         if (doc.ai_job_id) {
@@ -587,6 +735,7 @@ export default function MyStorageExplorer() {
     setBulkPromoting(false);
     qc.invalidateQueries({ queryKey: storageQueryKeys.storageInventory(SCOPE) });
     qc.invalidateQueries({ queryKey: storageQueryKeys.matchupDocuments });
+    if (inventoryBecameStale) return;
 
     const parts: string[] = [];
     if (succeeded > 0) parts.push(`${succeeded}개 등록`);
@@ -612,11 +761,16 @@ export default function MyStorageExplorer() {
   };
 
   return (
-    <div className={panelStyles.root}>
+    <div ref={rootRef} className={panelStyles.root}>
+      {moveDialogNotice && (
+        <span role="status" aria-live="polite" className="sr-only">
+          {moveDialogNotice}
+        </span>
+      )}
       <div className={panelStyles.toolbar}>
         <Breadcrumb path={breadcrumbPath} onSelect={setCurrentFolderId} />
         <div className={panelStyles.actions}>
-          {hasSelection && (
+          {inventoryReady && hasSelection && (
             <>
               <span className={styles.selectionCount}>
                 {selectionCount}개 선택
@@ -631,8 +785,9 @@ export default function MyStorageExplorer() {
                   size="xl"
                   className="!min-h-12"
                   leftIcon={<MoveRight size={ICON_FOR_BUTTON.xl} />}
-                  onClick={() => setMoveDialogTarget(selectedMoveSource)}
+                  onClick={() => openMoveDialog(selectedMoveSource)}
                   disabled={movingId !== null}
+                  data-testid="storage-selection-move"
                 >
                   이동
                 </Button>
@@ -658,7 +813,7 @@ export default function MyStorageExplorer() {
               </Button>
             </>
           )}
-          {!hasSelection && (subFolders.length + subFiles.length > 0) && (
+          {inventoryReady && !hasSelection && (subFolders.length + subFiles.length > 0) && (
             <Button type="button" intent="ghost" size="sm" onClick={handleSelectAll}>
               전체 선택
             </Button>
@@ -668,7 +823,8 @@ export default function MyStorageExplorer() {
             intent="primary"
             size="sm"
             onClick={() => setAddChoiceOpen(true)}
-            disabled={inventoryQ.isError || isLoading}
+            disabled={!inventoryReady}
+            data-testid="storage-add"
             leftIcon={<FilePlus size={16} />}
           >
             추가
@@ -689,7 +845,7 @@ export default function MyStorageExplorer() {
               folders={allFoldersForTree}
               currentFolderId={currentFolderId}
               onSelect={setCurrentFolderId}
-              onDelete={handleDeleteFolderRecursive}
+              onDelete={inventoryReady ? handleDeleteFolderRecursive : undefined}
             />
           </div>
         </aside>
@@ -888,7 +1044,7 @@ export default function MyStorageExplorer() {
         </div>
       </div>
 
-      {addChoiceOpen && !inventoryQ.isError && (
+      {addChoiceOpen && inventoryReady && (
         <div className={styles.addPopupBackdrop} onClick={() => setAddChoiceOpen(false)}>
           <div className={styles.addPopup} onClick={(e) => e.stopPropagation()}>
             <div className={styles.addPopupHeader}>
@@ -929,7 +1085,7 @@ export default function MyStorageExplorer() {
         </div>
       )}
 
-      {fileActionTarget && !selectedFileIds.has(fileActionTarget.id) && (
+      {inventoryReady && fileActionTarget && !selectedFileIds.has(fileActionTarget.id) && (
         <div className={styles.addPopupBackdrop} onClick={() => setFileActionTarget(null)}>
           <div className={styles.addPopup} onClick={(e) => e.stopPropagation()}>
             <div className={styles.addPopupHeader}>
@@ -1000,13 +1156,15 @@ export default function MyStorageExplorer() {
                   const matchupWarning = target.matchup
                     ? "\n\n⚠ 이 파일은 매치업 자료로 등록되어 있습니다. 삭제하면 매치업 분석 결과(추출 문제·유사 검색)도 함께 사라집니다."
                     : "";
+                  const confirmedInventoryFence = inventoryGuardRef.current.fence;
                   const ok = await confirm({
                     title: "파일 삭제",
                     message: `정말 삭제하시겠습니까?${matchupWarning}`,
                     confirmText: "삭제",
                     danger: true,
                   });
-                  if (!ok) return;
+                  const currentInventory = inventoryGuardRef.current;
+                  if (!ok || !currentInventory.ready || currentInventory.fence !== confirmedInventoryFence) return;
                   try {
                     await deleteFile(SCOPE, target.id);
                     qc.invalidateQueries({ queryKey: storageQueryKeys.storageInventory(SCOPE) });
@@ -1024,7 +1182,7 @@ export default function MyStorageExplorer() {
         </div>
       )}
 
-      {newFolderOpen && (
+      {newFolderOpen && inventoryReady && (
         <div className={styles.modalBackdrop} onClick={() => setNewFolderOpen(false)}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
@@ -1053,20 +1211,24 @@ export default function MyStorageExplorer() {
         </div>
       )}
 
-      {uploadModalOpen && (
+      {uploadModalOpen && inventoryReady && (
         <UploadModal
           onClose={() => setUploadModalOpen(false)}
           onUpload={handleUpload}
         />
       )}
 
-      {moveDialogTarget && (
+      {moveDialogTarget && inventoryReady && moveDialogSourceValid && (
         <InventoryMoveDialog
           folders={folders}
           source={moveDialogTarget}
           busy={movingId === moveDialogTarget.id}
-          onClose={() => setMoveDialogTarget(null)}
+          onClose={closeMoveDialog}
           onMove={async (targetFolderId) => {
+            if (!readInventoryGuard().ready || !isCurrentMoveSource(moveDialogTarget)) {
+              closeMoveDialog();
+              return "error";
+            }
             const outcome = await handleMove(
               targetFolderId,
               moveDialogTarget.type,
@@ -1078,7 +1240,7 @@ export default function MyStorageExplorer() {
         />
       )}
 
-      {conflict && (
+      {conflict && inventoryReady && (
         <MoveDuplicateModal
           existingName={conflict.existingName}
           itemType={conflict.type}

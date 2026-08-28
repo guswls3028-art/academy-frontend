@@ -310,7 +310,7 @@ function OverviewTab({ tenant }: { tenant: TenantDetailDto }) {
 
 /* ===== 브랜딩 탭 ===== */
 function BrandingTab({ tenantId, tenantCode }: { tenantId: number; tenantCode: string }) {
-  const { data: branding, isLoading } = useTenantBranding(tenantId);
+  const { data: branding, isLoading, isError, refetch } = useTenantBranding(tenantId);
   const uploadLogo = useUploadLogo();
   const patchBranding = usePatchBranding();
   const { toast } = useDevToast();
@@ -325,9 +325,17 @@ function BrandingTab({ tenantId, tenantCode }: { tenantId: number; tenantCode: s
   const [initialized, setInitialized] = useState(false);
   const [initial, setInitial] = useState({ displayName: "", windowTitle: "", loginTitle: "", loginSubtitle: "" });
 
-  // branding 로드 직후 1회 초기화 (테넌트가 바뀌면 다시 초기화)
   useEffect(() => {
-    if (isLoading) return;
+    setInitialized(false);
+  }, [tenantId]);
+
+  useEffect(() => {
+    if (isError) setInitialized(false);
+  }, [isError]);
+
+  // 최초 성공 조회 직후 1회 초기화. 재조회 실패 중에는 편집값을 만들지 않는다.
+  useEffect(() => {
+    if (isLoading || isError || initialized) return;
     if (branding === undefined) return;
     const d = branding?.displayName ?? "";
     const w = branding?.windowTitle ?? "";
@@ -339,9 +347,7 @@ function BrandingTab({ tenantId, tenantCode }: { tenantId: number; tenantCode: s
     setLoginSubtitle(ls);
     setInitial({ displayName: d, windowTitle: w, loginTitle: lt, loginSubtitle: ls });
     setInitialized(true);
-    // tenantId 단위로만 재초기화. branding 객체가 mutation 후 바뀔 땐 onSuccess의 setInitial이 처리함.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId, isLoading]);
+  }, [branding, fallback?.loginSubtitle, fallback?.loginTitle, initialized, isError, isLoading]);
 
   const dirty = initialized && (
     displayName !== initial.displayName ||
@@ -381,6 +387,17 @@ function BrandingTab({ tenantId, tenantCode }: { tenantId: number; tenantCode: s
 
   if (isLoading) {
     return <div className={`${s.skeleton} ${styles.skeletonPanel}`} />;
+  }
+
+  if (isError) {
+    return (
+      <div className={s.empty} role="alert">
+        <div className={s.emptyText}>브랜딩 정보를 불러오지 못했습니다.</div>
+        <button type="button" className={`${s.btn} ${s.btnSecondary}`} onClick={() => void refetch()}>
+          다시 시도
+        </button>
+      </div>
+    );
   }
 
   return (

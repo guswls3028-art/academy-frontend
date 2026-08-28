@@ -1,4 +1,6 @@
 import { expect, test, type Page, type Route } from "../fixtures/strictTest";
+import { QueryClient } from "@tanstack/react-query";
+import { readTeacherInventoryQueryGuard, teacherStorageQueryKeys } from "../../src/app_teacher/domains/storage/queryKeys";
 
 const BASE = (process.env.E2E_BASE_URL || "http://127.0.0.1:5174").replace(/\/+$/, "");
 
@@ -33,6 +35,12 @@ type StorageHarness = {
   moveRequests: MoveBody[];
   unexpectedMutations: string[];
   inventoryReads: Array<{ scope: string | null; studentPs: string | null }>;
+  setInventoryAvailable: (available: boolean) => void;
+  removeInventoryItem: (scope: "admin" | "student", type: "file" | "folder", id: string) => void;
+  renameInventoryItem: (scope: "admin" | "student", type: "file" | "folder", id: string, name: string) => void;
+  holdNextInventoryRead: () => void;
+  releaseHeldInventoryRead: () => void;
+  releaseHeldMove: () => void;
 };
 
 function isLocalBase(url: string): boolean {
@@ -102,6 +110,9 @@ async function installStorageMocks(
     role?: WorkspaceRole;
     moveReplies?: MoveReply[];
     includeTarget?: boolean;
+    inventoryInitiallyAvailable?: boolean;
+    holdFirstMoveConflict?: boolean;
+    holdFirstMoveReply?: boolean;
   } = {},
 ): Promise<StorageHarness> {
   const role = options.role ?? "owner";
@@ -111,6 +122,17 @@ async function installStorageMocks(
   const moveRequests: MoveBody[] = [];
   const unexpectedMutations: string[] = [];
   const inventoryReads: Array<{ scope: string | null; studentPs: string | null }> = [];
+  let inventoryAvailable = options.inventoryInitiallyAvailable ?? true;
+  let holdNextInventoryRead = false;
+  let releaseHeldInventoryRead: (() => void) | null = null;
+  const heldInventoryRead = new Promise<void>((resolve) => {
+    releaseHeldInventoryRead = resolve;
+  });
+  let holdNextMoveReply = options.holdFirstMoveConflict === true || options.holdFirstMoveReply === true;
+  let releaseHeldMove: (() => void) | null = null;
+  const heldMove = new Promise<void>((resolve) => {
+    releaseHeldMove = resolve;
+  });
 
   await page.addInitScript((token) => {
     localStorage.setItem("access", token);
@@ -153,6 +175,16 @@ async function installStorageMocks(
         must_change_password: false,
       });
     }
+    if (path === "/student/me/") {
+      return json(route, {
+        id: 901,
+        username: "storage-student",
+        name: "학생 사용자",
+        ps_number: "PS-001",
+        is_student: true,
+        isParentReadOnly: role === "parent",
+      });
+    }
     if (path === "/staffs/me/") {
       return json(route, {
         is_authenticated: true,
@@ -181,12 +213,46 @@ async function installStorageMocks(
       const scope = url.searchParams.get("scope");
       const studentPs = url.searchParams.get("student_ps");
       inventoryReads.push({ scope, studentPs });
+      if (holdNextInventoryRead) {
+        holdNextInventoryRead = false;
+        await heldInventoryRead;
+      }
+      if (!inventoryAvailable) {
+        return json(route, { detail: "temporary_inventory_failure" }, 503);
+      }
       return json(route, scope === "student" ? studentInventory : adminInventory);
+    }
+    if (path === "/matchup/documents/" && method === "GET") {
+      return json(route, [{
+        id: 11,
+        title: "중등 기출",
+        category: "중등",
+        subject: "수학",
+        grade_level: "중3",
+        original_name: "middle.pdf",
+        size_bytes: 1_024,
+        content_type: "application/pdf",
+        status: "done",
+        ai_job_id: "",
+        problem_count: 0,
+        error_message: "",
+        meta: { upload_intent: "test" },
+        inventory_file_id: 900,
+        created_at: "2026-08-26T00:00:00Z",
+        updated_at: "2026-08-26T00:00:00Z",
+      }]);
+    }
+    if (path === "/matchup/problems/" && method === "GET") {
+      return json(route, []);
     }
     if (path === "/storage/inventory/move/" && method === "POST") {
       const body = request.postDataJSON() as MoveBody;
       moveRequests.push(body);
       const reply = moveReplies.shift() ?? "success";
+      if (reply !== "success" && holdNextMoveReply) {
+        holdNextMoveReply = false;
+        await heldMove;
+      }
       if (reply === "conflict") {
         return json(route, {
           code: "duplicate",
@@ -200,6 +266,23 @@ async function installStorageMocks(
       applyMove(body.scope === "student" ? studentInventory : adminInventory, body);
       return json(route, { ok: true });
     }
+    if (path === "/storage/inventory/upload/" && method === "POST") {
+      const uploaded = {
+        id: "901",
+        name: "refreshed-file.pdf",
+        displayName: "새로고침 파일.pdf",
+        description: "",
+        icon: "file",
+        folderId: null,
+        sizeBytes: 32,
+        r2Key: "e2e/refreshed-file.pdf",
+        contentType: "application/pdf",
+        createdAt: "2026-08-28T00:00:00Z",
+      };
+      adminInventory.files.push(uploaded);
+      studentInventory.files.push(uploaded);
+      return json(route, uploaded);
+    }
     if (!["GET", "HEAD"].includes(method)) {
       unexpectedMutations.push(`${method} ${path}`);
       return json(route, { detail: "unexpected mutation" }, 500);
@@ -207,7 +290,32 @@ async function installStorageMocks(
     return json(route, { count: 0, results: [] });
   });
 
-  return { moveRequests, unexpectedMutations, inventoryReads };
+  return {
+    moveRequests,
+    unexpectedMutations,
+    inventoryReads,
+    setInventoryAvailable: (available) => { inventoryAvailable = available; },
+    removeInventoryItem: (scope, type, id) => {
+      const inventory = scope === "student" ? studentInventory : adminInventory;
+      if (type === "file") inventory.files = inventory.files.filter((file) => file.id !== id);
+      else inventory.folders = inventory.folders.filter((folder) => folder.id !== id);
+    },
+    renameInventoryItem: (scope, type, id, name) => {
+      const inventory = scope === "student" ? studentInventory : adminInventory;
+      if (type === "file") {
+        inventory.files = inventory.files.map((file) => (
+          file.id === id ? { ...file, displayName: name } : file
+        ));
+      } else {
+        inventory.folders = inventory.folders.map((folder) => (
+          folder.id === id ? { ...folder, name } : folder
+        ));
+      }
+    },
+    holdNextInventoryRead: () => { holdNextInventoryRead = true; },
+    releaseHeldInventoryRead: () => releaseHeldInventoryRead?.(),
+    releaseHeldMove: () => releaseHeldMove?.(),
+  };
 }
 
 async function expectNoDocumentOverflow(page: Page) {
@@ -215,6 +323,36 @@ async function expectNoDocumentOverflow(page: Page) {
     body: document.body.scrollWidth - document.body.clientWidth,
     document: document.documentElement.scrollWidth - document.documentElement.clientWidth,
   }))).toEqual({ body: 0, document: 0 });
+}
+
+async function failInventoryBehindOpenConfirm(
+  page: Page,
+  harness: StorageHarness,
+  failureText: string,
+  confirmText = "삭제",
+) {
+  const readsBeforeFailure = harness.inventoryReads.length;
+  await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+  harness.setInventoryAvailable(false);
+  await page.clock.fastForward(10_100);
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect.poll(() => harness.inventoryReads.length).toBeGreaterThan(readsBeforeFailure);
+  await expect(page.getByRole("alert").filter({ hasText: failureText })).toBeVisible();
+
+  const dialog = page.getByRole("alertdialog");
+  await dialog.getByRole("button", { name: confirmText, exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.clock.runFor(100);
+  expect(harness.unexpectedMutations).toEqual([]);
+}
+
+async function startHeldBackgroundInventoryRead(page: Page, harness: StorageHarness) {
+  const readsBeforeRefresh = harness.inventoryReads.length;
+  await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+  await page.clock.fastForward(10_100);
+  harness.holdNextInventoryRead();
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect.poll(() => harness.inventoryReads.length).toBeGreaterThan(readsBeforeRefresh);
 }
 
 async function openMoveDialog(page: Page, sourceName: string) {
@@ -241,11 +379,412 @@ async function openMoveDialog(page: Page, sourceName: string) {
 test.skip(!isLocalBase(BASE), "저장소 모바일 이동 route-mock은 로컬 dev 서버 전용");
 
 test.describe("저장소 모바일 파일·폴더 이동", () => {
+  test("teacher storage generation fence는 같은 timestamp의 성공 재조회를 구분한다", () => {
+    const queryClient = new QueryClient();
+    const fixedTime = Date.parse("2026-08-28T00:00:00Z");
+    queryClient.setQueryData(teacherStorageQueryKeys.adminInventory, { files: [] }, { updatedAt: fixedTime });
+    const first = readTeacherInventoryQueryGuard(queryClient, teacherStorageQueryKeys.adminInventory);
+    queryClient.setQueryData(teacherStorageQueryKeys.adminInventory, { files: [{ id: "new" }] }, { updatedAt: fixedTime });
+    const second = readTeacherInventoryQueryGuard(queryClient, teacherStorageQueryKeys.adminInventory);
+
+    expect(queryClient.getQueryState(teacherStorageQueryKeys.adminInventory)?.dataUpdatedAt).toBe(fixedTime);
+    expect(second.fence).not.toBe(first.fence);
+  });
+
   test.use({
     viewport: { width: 390, height: 844 },
     hasTouch: true,
     isMobile: true,
     serviceWorkers: "block",
+  });
+
+  test("390px admin: 목록 실패를 빈 저장소로 바꾸지 않고 성공 재조회 전 변경을 잠근다", async ({ page }) => {
+    const harness = await installStorageMocks(page, {
+      role: "admin",
+      inventoryInitiallyAvailable: false,
+    });
+    await page.goto(`${BASE}/workspace/storage/files`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    const failure = page.getByRole("alert");
+    await expect(failure).toContainText("저장소를 불러오지 못했습니다", { timeout: 60_000 });
+    await expect(page.getByRole("button", { name: "추가", exact: true })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "파일 관리자 모바일 파일.pdf 선택" })).toHaveCount(0);
+    expect(harness.unexpectedMutations).toEqual([]);
+
+    harness.setInventoryAvailable(true);
+    await failure.getByRole("button", { name: "다시 시도" }).click();
+    await expect(page.getByRole("button", { name: "파일 관리자 모바일 파일.pdf 선택" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "추가", exact: true })).toBeEnabled();
+    expect(harness.inventoryReads.length).toBeGreaterThan(1);
+    expect(harness.unexpectedMutations).toEqual([]);
+  });
+
+  test("390px admin: 성공 뒤 재조회 실패는 캐시 선택과 트리 변경을 다시 잠근다", async ({ page }) => {
+    await page.clock.install({ time: new Date("2026-08-28T00:00:00Z") });
+    const harness = await installStorageMocks(page, { role: "admin" });
+    await page.goto(`${BASE}/workspace/storage/files`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    const source = page.getByRole("button", { name: "파일 관리자 모바일 파일.pdf 선택" });
+    await expect(source).toBeVisible({ timeout: 60_000 });
+    await source.focus();
+    await source.press("Space");
+    await expect(page.getByRole("button", { name: "삭제", exact: true })).toBeVisible();
+    const recursiveDeleteButtons = page.locator('button[aria-label="하위 포함 삭제"]');
+    await expect(recursiveDeleteButtons).toHaveCount(3);
+
+    const readsBeforeFailure = harness.inventoryReads.length;
+    await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+    harness.setInventoryAvailable(false);
+    await page.clock.fastForward(10_100);
+    await page.evaluate(() => {
+      window.dispatchEvent(new Event("online"));
+    });
+    await expect.poll(() => harness.inventoryReads.length).toBeGreaterThan(readsBeforeFailure);
+
+    const failure = page.getByRole("alert");
+    await expect(failure).toContainText("저장소를 불러오지 못했습니다");
+    await expect(page.getByRole("button", { name: "삭제", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "이동", exact: true })).toHaveCount(0);
+    await expect(recursiveDeleteButtons).toHaveCount(0);
+    expect(harness.unexpectedMutations).toEqual([]);
+
+    harness.setInventoryAvailable(true);
+    await failure.getByRole("button", { name: "다시 시도" }).click();
+    await expect(source).toBeVisible();
+    await expect(source).toHaveAttribute("aria-pressed", "false");
+    await expect(page.getByRole("button", { name: "삭제", exact: true })).toHaveCount(0);
+    expect(harness.unexpectedMutations).toEqual([]);
+  });
+
+  for (const surface of [
+    {
+      name: "admin",
+      role: "admin" as const,
+      route: "/workspace/storage/files",
+      sourceName: "파일 관리자 모바일 파일.pdf 선택",
+      scope: "admin" as const,
+    },
+    {
+      name: "student storage",
+      role: "teacher" as const,
+      route: "/workspace/storage/students/PS-001",
+      sourceName: "파일 학생 모바일 파일.pdf 선택",
+      scope: "student" as const,
+    },
+  ]) {
+    test(`390px ${surface.name}: background GET 보류 중 이동 대화상자를 잠그고 source 변경 성공은 즉시 닫는다`, async ({ page }) => {
+      await page.clock.install({ time: new Date("2026-08-28T00:00:00Z") });
+      const harness = await installStorageMocks(page, { role: surface.role });
+      await page.goto(`${BASE}${surface.route}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+      const { moveButton, dialog } = await openMoveDialog(page, surface.sourceName);
+      await dialog.getByLabel("이동할 폴더").selectOption("201");
+      await startHeldBackgroundInventoryRead(page, harness);
+      await expect(dialog).toHaveCount(0);
+      expect(harness.moveRequests).toEqual([]);
+
+      harness.renameInventoryItem(surface.scope, "file", "301", "갱신된 모바일 파일.pdf");
+      harness.releaseHeldInventoryRead();
+      await expect(page.getByRole("status")).toContainText("저장소가 변경되어 이동 창을 닫았습니다");
+      await expect(dialog).toHaveCount(0);
+      await expect(moveButton).toBeFocused();
+      expect(harness.moveRequests).toEqual([]);
+      expect(harness.unexpectedMutations).toEqual([]);
+    });
+  }
+
+  for (const surface of [
+    {
+      name: "admin",
+      role: "owner" as const,
+      route: "/workspace/storage/files",
+      sourceName: "파일 관리자 모바일 파일.pdf 선택",
+      confirmName: "선택 항목 삭제",
+    },
+    {
+      name: "student storage",
+      role: "owner" as const,
+      route: "/workspace/storage/students/PS-001",
+      sourceName: "파일 학생 모바일 파일.pdf 선택",
+      confirmName: "선택 항목 삭제",
+    },
+    {
+      name: "teacher storage",
+      role: "owner" as const,
+      route: "/workspace/mobile/storage",
+      deleteName: "관리자 모바일 파일.pdf 삭제",
+      confirmName: "파일 삭제",
+    },
+    {
+      name: "teacher student inventory",
+      role: "owner" as const,
+      route: "/workspace/mobile/storage/inventory",
+      deleteName: "학생 모바일 파일.pdf 삭제",
+      confirmName: "파일 삭제",
+      selectStudent: true,
+    },
+  ]) {
+    test(`390px ${surface.name}: 열린 삭제 확인은 background GET 보류 중 mutation 0이다`, async ({ page }) => {
+      await page.clock.install({ time: new Date("2026-08-28T00:00:00Z") });
+      const harness = await installStorageMocks(page, { role: surface.role });
+      await page.goto(`${BASE}${surface.route}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+      if (surface.selectStudent) {
+        await page.getByRole("button", { name: /학생 사용자/ }).click();
+      }
+
+      if (surface.sourceName) {
+        const source = page.getByRole("button", { name: surface.sourceName });
+        await expect(source).toBeVisible({ timeout: 60_000 });
+        await source.press("Space");
+        await page.getByRole("button", { name: "삭제", exact: true }).click();
+      } else {
+        const deleteButton = page.getByRole("button", { name: surface.deleteName! });
+        await expect(deleteButton).toBeVisible({ timeout: 60_000 });
+        await deleteButton.click();
+      }
+      const confirmDialog = page.getByRole("alertdialog", { name: surface.confirmName });
+      await expect(confirmDialog).toBeVisible();
+
+      await startHeldBackgroundInventoryRead(page, harness);
+      if (surface.name === "teacher storage") {
+        await expect(page.getByRole("button", { name: "폴더", exact: true })).toBeDisabled();
+        await expect(page.getByRole("button", { name: "업로드", exact: true })).toBeDisabled();
+      }
+      if (surface.name === "teacher student inventory") {
+        await expect(page.getByRole("button", { name: "업로드", exact: true })).toHaveCount(0);
+        await expect(page.getByRole("button", { name: "학생 모바일 파일.pdf 삭제" })).toHaveCount(0);
+      }
+      await confirmDialog.getByRole("button", { name: "삭제", exact: true }).click();
+      await page.clock.runFor(100);
+      expect(harness.unexpectedMutations.filter((request) => request.startsWith("DELETE "))).toEqual([]);
+      harness.releaseHeldInventoryRead();
+    });
+  }
+
+  test("390px admin: 열린 삭제 확인은 재조회 실패 뒤 캐시 ID mutation을 실행하지 않는다", async ({ page }) => {
+    await page.clock.install({ time: new Date("2026-08-28T00:00:00Z") });
+    const harness = await installStorageMocks(page, { role: "owner" });
+    await page.goto(`${BASE}/workspace/storage/files`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    const source = page.getByRole("button", { name: "파일 관리자 모바일 파일.pdf 선택" });
+    await expect(source).toBeVisible({ timeout: 60_000 });
+    await source.press("Space");
+    await page.getByRole("button", { name: "삭제", exact: true }).click();
+    await expect(page.getByRole("alertdialog", { name: "선택 항목 삭제" })).toBeVisible();
+
+    await failInventoryBehindOpenConfirm(page, harness, "저장소를 불러오지 못했습니다");
+  });
+
+  test("390px admin: 열린 하위 폴더 삭제 확인도 재조회 실패 뒤 mutation 0을 유지한다", async ({ page }) => {
+    await page.clock.install({ time: new Date("2026-08-28T00:00:00Z") });
+    const harness = await installStorageMocks(page, { role: "owner" });
+    await page.goto(`${BASE}/workspace/storage/files`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    const recursiveDelete = page.locator('button[aria-label="하위 포함 삭제"]').first();
+    await expect(recursiveDelete).toHaveCount(1, { timeout: 60_000 });
+    await recursiveDelete.dispatchEvent("click");
+    await expect(page.getByRole("alertdialog", { name: "하위 포함 폴더 영구 삭제" })).toBeVisible();
+
+    await failInventoryBehindOpenConfirm(page, harness, "저장소를 불러오지 못했습니다", "전부 삭제");
+  });
+
+  test("390px admin: 열린 일괄 matchup 확인도 재조회 실패 뒤 mutation 0을 유지한다", async ({ page }) => {
+    await page.clock.install({ time: new Date("2026-08-28T00:00:00Z") });
+    const harness = await installStorageMocks(page, { role: "owner" });
+    await page.goto(`${BASE}/workspace/storage/files`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    const source = page.getByRole("button", { name: "파일 관리자 모바일 파일.pdf 선택" });
+    await expect(source).toBeVisible({ timeout: 60_000 });
+    await source.press("Space");
+    await page.locator('[data-testid="storage-bulk-promote-matchup"]').click();
+    await expect(page.getByRole("alertdialog", { name: "선택 파일을 매치업으로 등록" })).toBeVisible();
+
+    await failInventoryBehindOpenConfirm(page, harness, "저장소를 불러오지 못했습니다", "등록");
+  });
+
+  test("390px student storage: 열린 삭제 확인도 재조회 실패 뒤 mutation 0을 유지한다", async ({ page }) => {
+    await page.clock.install({ time: new Date("2026-08-28T00:00:00Z") });
+    const harness = await installStorageMocks(page, { role: "owner" });
+    await page.goto(`${BASE}/workspace/storage/students/PS-001`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    const source = page.getByRole("button", { name: "파일 학생 모바일 파일.pdf 선택" });
+    await expect(source).toBeVisible({ timeout: 60_000 });
+    await source.press("Space");
+    await page.getByRole("button", { name: "삭제", exact: true }).click();
+    await expect(page.getByRole("alertdialog", { name: "선택 항목 삭제" })).toBeVisible();
+
+    await failInventoryBehindOpenConfirm(page, harness, "학생 저장소를 불러오지 못했습니다");
+  });
+
+  test("390px teacher storage: 열린 파일 삭제 확인은 재조회 실패 뒤 mutation 0을 유지한다", async ({ page }) => {
+    await page.clock.install({ time: new Date("2026-08-28T00:00:00Z") });
+    const harness = await installStorageMocks(page, { role: "owner" });
+    await page.goto(`${BASE}/workspace/mobile/storage`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    const deleteButton = page.getByRole("button", { name: "관리자 모바일 파일.pdf 삭제" });
+    await expect(deleteButton).toBeVisible({ timeout: 60_000 });
+    await deleteButton.click();
+    await expect(page.getByRole("alertdialog", { name: "파일 삭제" })).toBeVisible();
+
+    await failInventoryBehindOpenConfirm(page, harness, "자료 저장소를 불러오지 못했습니다");
+  });
+
+  test("390px teacher storage: 열린 파일 삭제 확인은 성공 재조회 세대 뒤 mutation 0을 유지한다", async ({ page }) => {
+    await page.clock.install({ time: new Date("2026-08-28T00:00:00Z") });
+    const harness = await installStorageMocks(page, { role: "owner" });
+    await page.goto(`${BASE}/workspace/mobile/storage`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    const deleteButton = page.getByRole("button", { name: "관리자 모바일 파일.pdf 삭제" });
+    await expect(deleteButton).toBeVisible({ timeout: 60_000 });
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "refreshed-file.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("refreshed"),
+    });
+    await deleteButton.dispatchEvent("click");
+    const confirmDialog = page.getByRole("alertdialog", { name: "파일 삭제" });
+    await expect(confirmDialog).toBeVisible();
+
+    const readsBeforeRefresh = harness.inventoryReads.length;
+    await page.getByRole("dialog", { name: "업로드 정보" }).getByRole("button", { name: "업로드", exact: true }).dispatchEvent("click");
+    await expect.poll(() => harness.inventoryReads.length).toBeGreaterThan(readsBeforeRefresh);
+    await expect(page.getByText("새로고침 파일.pdf", { exact: true })).toBeAttached();
+    await page.clock.runFor(100);
+    await new Promise<void>((resolve) => setTimeout(resolve, 300));
+    await confirmDialog.getByRole("button", { name: "삭제", exact: true }).click();
+    await page.clock.runFor(100);
+    await new Promise<void>((resolve) => setTimeout(resolve, 200));
+    expect(harness.unexpectedMutations.filter((request) => request.startsWith("DELETE "))).toEqual([]);
+  });
+
+  test("390px teacher student inventory: 열린 파일 삭제 확인도 재조회 실패 뒤 mutation 0을 유지한다", async ({ page }) => {
+    await page.clock.install({ time: new Date("2026-08-28T00:00:00Z") });
+    const harness = await installStorageMocks(page, { role: "owner" });
+    await page.goto(`${BASE}/workspace/mobile/storage/inventory`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    await page.getByRole("button", { name: /학생 사용자/ }).click();
+
+    const deleteButton = page.getByRole("button", { name: "학생 모바일 파일.pdf 삭제" });
+    await expect(deleteButton).toBeVisible({ timeout: 60_000 });
+    await deleteButton.click();
+    await expect(page.getByRole("alertdialog", { name: "파일 삭제" })).toBeVisible();
+
+    await failInventoryBehindOpenConfirm(page, harness, "학생 자료를 불러오지 못했습니다");
+  });
+
+  test("390px teacher student inventory: 열린 파일 삭제 확인은 성공 재조회 세대 뒤 mutation 0을 유지한다", async ({ page }) => {
+    await page.clock.install({ time: new Date("2026-08-28T00:00:00Z") });
+    const harness = await installStorageMocks(page, { role: "owner" });
+    await page.goto(`${BASE}/workspace/mobile/storage/inventory`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    await page.getByRole("button", { name: /학생 사용자/ }).click();
+
+    const deleteButton = page.getByRole("button", { name: "학생 모바일 파일.pdf 삭제" });
+    await expect(deleteButton).toBeVisible({ timeout: 60_000 });
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "refreshed-file.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("refreshed"),
+    });
+    await deleteButton.dispatchEvent("click");
+    const confirmDialog = page.getByRole("alertdialog", { name: "파일 삭제" });
+    await expect(confirmDialog).toBeVisible();
+
+    const readsBeforeRefresh = harness.inventoryReads.length;
+    await page.getByRole("dialog", { name: "업로드 정보" }).getByRole("button", { name: "업로드", exact: true }).dispatchEvent("click");
+    await expect.poll(() => harness.inventoryReads.length).toBeGreaterThan(readsBeforeRefresh);
+    await expect(page.getByText("새로고침 파일.pdf", { exact: true })).toBeAttached();
+    await page.clock.runFor(100);
+    await new Promise<void>((resolve) => setTimeout(resolve, 300));
+    await confirmDialog.getByRole("button", { name: "삭제", exact: true }).click();
+    await page.clock.runFor(100);
+    await new Promise<void>((resolve) => setTimeout(resolve, 200));
+    expect(harness.unexpectedMutations.filter((request) => request.startsWith("DELETE "))).toEqual([]);
+  });
+
+  test("390px matchup: 저장소 조회 실패를 alert로 알리고 재시도 성공 전 mutation 0을 유지한다", async ({ page }) => {
+    const harness = await installStorageMocks(page, {
+      role: "owner",
+      inventoryInitiallyAvailable: false,
+    });
+    await page.goto(`${BASE}/workspace/storage/matchup`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    await page.locator('[data-testid="matchup-category-menu-trigger"]').first().dispatchEvent("click");
+    await page.getByRole("menuitem", { name: "저장소에서 가져오기" }).dispatchEvent("click");
+    const modal = page.locator('[data-testid="matchup-promote-modal"]');
+    const failure = modal.getByRole("alert");
+    await expect(failure).toContainText("저장소를 불러오지 못했습니다", { timeout: 60_000 });
+    await expect(modal.locator('[data-testid="matchup-promote-submit"]')).toBeDisabled();
+    expect(harness.unexpectedMutations).toEqual([]);
+
+    const retryButton = failure.getByRole("button", { name: "다시 시도" });
+    expect((await retryButton.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(43.5);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+    harness.setInventoryAvailable(true);
+    await retryButton.click();
+    await expect(modal.locator('[data-testid="matchup-promote-row"]')).toHaveCount(1);
+    expect(harness.unexpectedMutations).toEqual([]);
+  });
+
+  test("390px teacher: 내 자료 조회 실패 중 폴더·업로드를 잠그고 재시도한다", async ({ page }) => {
+    const harness = await installStorageMocks(page, {
+      role: "teacher",
+      inventoryInitiallyAvailable: false,
+    });
+    await page.goto(`${BASE}/workspace/mobile/storage`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    const failure = page.getByRole("alert");
+    await expect(failure).toContainText("자료 저장소를 불러오지 못했습니다", { timeout: 60_000 });
+    await expect(page.getByRole("button", { name: "폴더", exact: true })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "업로드", exact: true })).toBeDisabled();
+    expect(harness.unexpectedMutations).toEqual([]);
+
+    harness.setInventoryAvailable(true);
+    await failure.getByRole("button", { name: "다시 시도" }).click();
+    await expect(page.getByText("관리자 모바일 파일.pdf", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "폴더", exact: true })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "업로드", exact: true })).toBeEnabled();
+    expect(harness.unexpectedMutations).toEqual([]);
+  });
+
+  test("390px teacher: 학생 자료 조회 실패 중 업로드를 숨기고 같은 학생 범위로 재시도한다", async ({ page }) => {
+    const harness = await installStorageMocks(page, {
+      role: "teacher",
+      inventoryInitiallyAvailable: false,
+    });
+    await page.goto(`${BASE}/workspace/mobile/storage/inventory`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    await page.getByRole("button", { name: /학생 사용자/ }).click();
+
+    const failure = page.getByRole("alert");
+    await expect(failure).toContainText("학생 자료를 불러오지 못했습니다", { timeout: 60_000 });
+    await expect(page.getByRole("button", { name: "업로드", exact: true })).toHaveCount(0);
+    expect(harness.unexpectedMutations).toEqual([]);
+
+    harness.setInventoryAvailable(true);
+    await failure.getByRole("button", { name: "다시 시도" }).click();
+    await expect(page.getByText("학생 모바일 파일.pdf", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "업로드", exact: true })).toBeVisible();
+    expect(harness.inventoryReads).toContainEqual({ scope: "student", studentPs: "PS-001" });
+    expect(harness.unexpectedMutations).toEqual([]);
+  });
+
+  test("390px student: 자료함 조회 실패를 빈 상태로 표시하지 않고 재시도 전 변경을 잠근다", async ({ page }) => {
+    const harness = await installStorageMocks(page, {
+      role: "student",
+      inventoryInitiallyAvailable: false,
+    });
+    await page.goto(`${BASE}/student/inventory`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+    const failure = page.getByRole("alert");
+    await expect(failure).toContainText("자료함을 불러오지 못했습니다", { timeout: 60_000 });
+    await expect(page.getByRole("button", { name: "새 폴더", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "파일 업로드", exact: true })).toHaveCount(0);
+    expect(harness.unexpectedMutations).toEqual([]);
+
+    harness.setInventoryAvailable(true);
+    await failure.getByRole("button", { name: "다시 시도" }).click();
+    await expect(page.getByText("학생 모바일 파일.pdf", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "새 폴더", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "파일 업로드", exact: true })).toBeVisible();
+    expect(harness.unexpectedMutations).toEqual([]);
   });
 
   test("390px owner: 키보드 선택, Escape 포커스 복원, 파일 이동 payload를 보존한다", async ({ page }) => {
@@ -361,6 +900,104 @@ test.describe("저장소 모바일 파일·폴더 이동", () => {
     ]);
     expect(harness.unexpectedMutations).toEqual([]);
   });
+
+  for (const surface of [
+    {
+      name: "admin",
+      role: "admin" as const,
+      route: "/workspace/storage/files",
+      sourceName: "파일 관리자 모바일 파일.pdf 선택",
+      failureText: "저장소를 불러오지 못했습니다",
+    },
+    {
+      name: "student storage",
+      role: "teacher" as const,
+      route: "/workspace/storage/students/PS-001",
+      sourceName: "파일 학생 모바일 파일.pdf 선택",
+      failureText: "학생 저장소를 불러오지 못했습니다",
+    },
+  ]) {
+    test(`390px ${surface.name}: 보류된 이동 409는 더 최신 조회 503을 지우거나 stale 충돌 mutation을 열지 않는다`, async ({ page }) => {
+      await page.clock.install({ time: new Date("2026-08-28T00:00:00Z") });
+      const harness = await installStorageMocks(page, {
+        role: surface.role,
+        moveReplies: ["conflict"],
+        holdFirstMoveConflict: true,
+      });
+      await page.goto(`${BASE}${surface.route}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+      const { dialog } = await openMoveDialog(page, surface.sourceName);
+      await dialog.getByLabel("이동할 폴더").selectOption("201");
+      await dialog.getByRole("button", { name: "이동", exact: true }).click();
+      await expect.poll(() => harness.moveRequests).toHaveLength(1);
+
+      const readsBeforeFailure = harness.inventoryReads.length;
+      await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+      harness.setInventoryAvailable(false);
+      await page.clock.fastForward(10_100);
+      await page.evaluate(() => window.dispatchEvent(new Event("online")));
+      await expect.poll(() => harness.inventoryReads.length).toBeGreaterThan(readsBeforeFailure);
+      const readFailure = page.getByRole("alert").filter({ hasText: surface.failureText });
+      await expect(readFailure).toBeVisible();
+
+      harness.releaseHeldMove();
+      await expect(readFailure).toBeVisible();
+      await expect(page.getByText("이름 충돌", { exact: true })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "덮어쓰기", exact: true })).toHaveCount(0);
+      expect(harness.moveRequests).toHaveLength(1);
+      expect(harness.unexpectedMutations).toEqual([]);
+    });
+  }
+
+  for (const surface of [
+    {
+      name: "admin",
+      role: "admin" as const,
+      route: "/workspace/storage/files",
+      sourceName: "파일 관리자 모바일 파일.pdf 선택",
+      scope: "admin" as const,
+      reply: "conflict" as const,
+    },
+    {
+      name: "student storage",
+      role: "teacher" as const,
+      route: "/workspace/storage/students/PS-001",
+      sourceName: "파일 학생 모바일 파일.pdf 선택",
+      scope: "student" as const,
+      reply: "error" as const,
+    },
+  ]) {
+    test(`390px ${surface.name}: 성공 재조회로 source가 사라지면 보류된 이동 실패 뒤 stale 대화상자 재시도 mutation 0이다`, async ({ page }) => {
+      await page.clock.install({ time: new Date("2026-08-28T00:00:00Z") });
+      const harness = await installStorageMocks(page, {
+        role: surface.role,
+        moveReplies: [surface.reply],
+        holdFirstMoveReply: true,
+      });
+      await page.goto(`${BASE}${surface.route}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+      const { dialog } = await openMoveDialog(page, surface.sourceName);
+      await dialog.getByLabel("이동할 폴더").selectOption("201");
+      await dialog.getByRole("button", { name: "이동", exact: true }).click();
+      await expect.poll(() => harness.moveRequests).toHaveLength(1);
+
+      const readsBeforeRefresh = harness.inventoryReads.length;
+      await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+      harness.removeInventoryItem(surface.scope, "file", "301");
+      await page.clock.fastForward(10_100);
+      await page.evaluate(() => window.dispatchEvent(new Event("online")));
+      await expect.poll(() => harness.inventoryReads.length).toBeGreaterThan(readsBeforeRefresh);
+
+      await expect(dialog).toHaveCount(0);
+      await expect(page.getByRole("status")).toContainText("저장소가 변경되어 이동 창을 닫았습니다");
+
+      harness.releaseHeldMove();
+      await page.clock.runFor(100);
+      expect(harness.moveRequests).toHaveLength(1);
+      await expect(dialog).toHaveCount(0);
+      expect(harness.unexpectedMutations).toEqual([]);
+    });
+  }
 
   test("390px admin: 5xx는 원래 위치를 복구하고 같은 대화상자에서 재시도한다", async ({ page }) => {
     const harness = await installStorageMocks(page, { role: "admin", moveReplies: ["error", "success"] });

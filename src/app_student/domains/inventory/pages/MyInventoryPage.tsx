@@ -68,13 +68,15 @@ export default function MyInventoryPage() {
       )}
 
       {!isLoading && isError && (
-        <EmptyState
-          scope="panel"
-          tone="error"
-          title="자료함을 불러오지 못했습니다"
-          description="빈 자료함으로 표시하지 않고 업로드·삭제 작업을 잠갔습니다."
-          actions={<Button intent="secondary" onClick={() => { void profileQ.refetch(); if (ps) void inventoryQ.refetch(); }}>다시 시도</Button>}
-        />
+        <div role="alert">
+          <EmptyState
+            scope="panel"
+            tone="error"
+            title="자료함을 불러오지 못했습니다"
+            description="빈 자료함으로 표시하지 않고 업로드·삭제 작업을 잠갔습니다."
+            actions={<Button intent="secondary" onClick={() => { void profileQ.refetch(); if (ps) void inventoryQ.refetch(); }}>다시 시도</Button>}
+          />
+        </div>
       )}
 
       {!isLoading && !isError && tab === "home" && (
