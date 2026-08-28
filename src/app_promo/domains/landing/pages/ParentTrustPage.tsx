@@ -119,7 +119,7 @@ export default function ParentTrustPage() {
             </p>
             <div className={styles.heroActions}>
               <Link to="/promo/demo" className={styles.primaryCta}>
-                내 자료로 데모 요청
+                내 학원 화면 요청
                 <MousePointer2 size={18} />
               </Link>
               <Link to="/promo/features" className={styles.ghostCta}>

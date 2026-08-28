@@ -83,7 +83,7 @@ export const PROMO_PLANS: PromoPlanDef[] = [
       "강사·스태프 권한 관리",
       "저장공간 200GB와 초기 설정 안내",
     ],
-    cta: "내 자료로 데모 요청",
+    cta: "내 학원 화면 요청",
     ctaLink: "/promo/demo",
   },
 ];

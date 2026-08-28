@@ -30,49 +30,26 @@ test.describe("promo business readiness", () => {
     });
 
     await expect(
-      page.getByRole("heading", { name: "학원의 수업과 운영을 한 흐름으로 관리합니다." }),
+      page.getByRole("heading", { name: "출결·성적·복습·학부모 안내까지, 학원의 모든 흐름을 하나로." }),
     ).toBeVisible();
-    await expect(page.getByRole("link", { name: "내 학원 기준으로 확인" }).first()).toBeVisible();
-    await expect(page.getByRole("heading", { name: "프로그램의 중심은 매일 반복되는 학원 관리입니다" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "실제 화면으로 확인" }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "출결부터 성적, 복습, 학부모 안내까지 한 화면에서" })).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "자동 처리 범위와 선생님 확인 절차를 함께 안내합니다" }),
+      page.getByRole("heading", { name: "반복 업무는 줄이고, 선생님의 확인은 더 분명하게" }),
     ).toBeVisible();
-    await expect(page.getByText("학생별 미리보기 후 직접 발송", { exact: true })).toBeVisible();
-
-    const categoryTabs = page.getByRole("tablist", { name: "학원플러스 핵심 기능" });
-    const autoplayToggle = page.getByRole("button", { name: "자동 전환 멈춤" });
-    await expect(autoplayToggle).toHaveAttribute("aria-pressed", "false");
-    await autoplayToggle.click();
-    await expect(page.getByRole("button", { name: "자동 전환 켜기" })).toHaveAttribute("aria-pressed", "true");
-    const pausedTabId = await categoryTabs.locator('[role="tab"][aria-selected="true"]').getAttribute("id");
-    expect(pausedTabId).toBeTruthy();
-    await page.getByRole("link", { name: "내 학원 기준으로 확인" }).first().focus();
-    // eslint-disable-next-line no-restricted-syntax -- prove pause persists across the 5.6s autoplay boundary
-    await page.waitForTimeout(5_800);
-    await expect(categoryTabs.locator(`#${pausedTabId}`)).toHaveAttribute("aria-selected", "true");
-    await expect(categoryTabs.getByRole("tab", { name: /알림톡 안내/ })).toBeVisible();
-    await expect(categoryTabs.getByRole("tab", { name: /PPT · 매치업/ })).toBeVisible();
-    await expect(categoryTabs.getByRole("tab", { name: /학원 홈페이지/ })).toBeVisible();
-
-    await categoryTabs.getByRole("tab", { name: /영상 수업/ }).focus();
-    await page.keyboard.press("End");
-    await expect(categoryTabs.getByRole("tab", { name: /학원 홈페이지/ })).toBeFocused();
-    await expect(categoryTabs.getByRole("tab", { name: /학원 홈페이지/ })).toHaveAttribute("aria-selected", "true");
-
-    await categoryTabs.getByRole("tab", { name: /학원 홈페이지/ }).click();
-    await expect(page.getByRole("tabpanel").getByRole("heading", { name: "우리 학원에 맞는 홈페이지를 함께 운영합니다" })).toBeVisible();
-    await expect(page.getByRole("tabpanel").getByRole("link", { name: "홈페이지 형식 보기" })).toBeVisible();
-
-    await categoryTabs.getByRole("tab", { name: /PPT · 매치업/ }).click();
-    const toolsPanel = page.getByRole("tabpanel");
+    const realProductShowcase = page.getByTestId("promo-real-product-showcase");
+    await expect(realProductShowcase).toContainText("실제 제품 화면");
+    await expect(realProductShowcase).toContainText("격리 개발환경 · 합성 데이터");
     await expect(
-      toolsPanel.getByRole("heading", { name: "학교 시험지와 학원 자료를 비교하고 칠판용 PPT를 만듭니다" }),
+      realProductShowcase.getByRole("button", { name: /합성 학생 출결 상태/ }),
     ).toBeVisible();
-    await expect(toolsPanel.getByText(/학교 시험지와 우리 학원 사전 자료를 문항별로 비교/)).toBeVisible();
-    await expect(toolsPanel.getByText("매치업", { exact: true }).first()).toBeVisible();
-    await expect(toolsPanel.getByText("칠판용 PPT 제작", { exact: true }).first()).toBeVisible();
-
-    await expect(page).toHaveTitle("학원플러스 | 학원의 수업과 운영을 한 흐름으로");
+    await expect(
+      realProductShowcase.getByRole("button", { name: /오늘 수업과 다음 일정/ }),
+    ).toBeVisible();
+    await expect(
+      page.locator('header nav[aria-label="프로모션 메뉴"] a'),
+    ).toHaveText(["기능", "활용 사례", "요금", "가이드", "업데이트", "문의"]);
+    await expect(page).toHaveTitle("학원플러스 | 학원의 모든 흐름을 하나로");
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", `${BASE}/promo`);
 
     const productImages = page.locator('img[src^="/promo/"]');
@@ -160,7 +137,7 @@ test.describe("promo business readiness", () => {
     await page.goto(`${BASE}/promo?utm_source=kakao&utm_medium=message&utm_campaign=teacher-ppt`, {
       waitUntil: "load",
     });
-    await page.getByRole("link", { name: "내 학원 기준으로 확인" }).first().click();
+    await page.getByRole("link", { name: "내 학원 화면 요청" }).first().click();
     await expect(page).toHaveURL(/\/promo\/demo$/);
     await expect(page.getByRole("link", { name: "전화 문의하기" }).first()).toContainText("010-3121-7466");
     await expect(page.getByText(/상담 후 사용할 기능과 시작일을 확인하고 계정을 설정/)).toBeVisible();

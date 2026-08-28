@@ -24,7 +24,7 @@ export default function CtaSection({
         <h2 id="promo-cta-title">{title}</h2>
         <p>{subtitle}</p>
         <div className={styles.actions}>
-          <Link to="/promo/demo">내 자료로 데모 요청</Link>
+          <Link to="/promo/demo">내 학원 화면 요청</Link>
           <Link to={secondaryPath}>{secondaryLabel}</Link>
         </div>
         <p className={styles.phoneNote}>

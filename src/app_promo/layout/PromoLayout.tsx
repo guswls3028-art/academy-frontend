@@ -2,16 +2,15 @@
 import { Link, Outlet, useLocation } from "react-router";
 import { useEffect, useRef, useState } from "react";
 import {
+  BookOpenCheck,
   ClipboardList,
   CreditCard,
-  Home,
   LogIn,
   Menu,
   MessageCircle,
   MousePointer2,
   PanelLeftOpen,
   PhoneCall,
-  PlayCircle,
   Radio,
   ShieldCheck,
   Sparkles,
@@ -25,17 +24,17 @@ import { applyPromoMeta } from "../domains/landing/promoMeta";
 import styles from "./PromoLayout.module.css";
 
 const NAV_ITEMS = [
-  { label: "홈", path: "/promo", icon: Home, note: "처음 보는 분을 위한 안내" },
-  { label: "상담 자료", path: "/promo/parent-trust", icon: ShieldCheck, note: "기록으로 설명하기" },
   { label: "기능", path: "/promo/features", icon: ClipboardList, note: "운영·영상·알림톡·홈페이지" },
-  { label: "업데이트", path: "/promo/updates", icon: Radio, note: "새 기능과 운영 개선" },
-  { label: "영상", path: "/promo/video-platform", icon: PlayCircle, note: "학생앱 복습 영상" },
+  { label: "활용 사례", path: "/promo/parent-trust", icon: ShieldCheck, note: "기록으로 설명하는 학부모 상담" },
   { label: "요금", path: "/promo/pricing", icon: CreditCard, note: "월 요금과 별도 비용" },
+  { label: "가이드", path: "/promo/faq", icon: BookOpenCheck, note: "도입 전 자주 묻는 질문" },
+  { label: "업데이트", path: "/promo/updates", icon: Radio, note: "새 기능과 운영 개선" },
   { label: "문의", path: "/promo/contact", icon: MessageCircle, note: "사용 상담" },
 ];
 
 const ACTIVE_ALIASES: Record<string, string[]> = {
-  "/promo/features": ["/promo/ai-grading", "/promo/matchup-ppt"],
+  "/promo/features": ["/promo/ai-grading", "/promo/matchup-ppt", "/promo/video-platform"],
+  "/promo/parent-trust": ["/promo/landing-samples"],
   "/promo/contact": ["/promo/demo"],
 };
 
@@ -141,7 +140,7 @@ function Header() {
             </span>
             <span className={styles.brandText}>
               <strong>학원플러스</strong>
-              <small>학원 관리</small>
+              <small>학원 운영 플랫폼</small>
             </span>
           </Link>
 
@@ -174,7 +173,7 @@ function Header() {
             </Link>
             <Link to="/promo/demo" className={styles.demoLink}>
               <MousePointer2 size={ICON.sm} />
-              내 자료로 데모
+              실제 화면 보기
             </Link>
           </div>
         </div>
@@ -217,7 +216,7 @@ function Header() {
             </span>
             <span className={styles.brandText}>
               <strong>학원플러스</strong>
-              <small>학원 관리</small>
+              <small>학원 운영 플랫폼</small>
             </span>
           </Link>
           <button ref={closeButtonRef} type="button" onClick={() => setMobileOpen(false)} aria-label="메뉴 닫기">
@@ -248,11 +247,11 @@ function Header() {
           <div className={styles.sidebarCta}>
             <span>
               <Sparkles size={ICON.sm} />
-              내 수업 기준으로 확인
+              실제 화면으로 확인
             </span>
-            <p>현재 수업과 관리 방식을 기준으로 필요한 화면만 보여드립니다.</p>
+            <p>현재 운영 방식을 기준으로 관리자 PC와 학생 모바일 화면을 맞춰 보여드립니다.</p>
             <Link to="/promo/demo">
-              내 자료로 데모 요청
+              내 학원 화면 요청
               <PanelLeftOpen size={ICON.sm} />
             </Link>
             <PhoneInquiryLink>
@@ -333,10 +332,10 @@ function Footer() {
             </span>
             <span className={styles.brandText}>
               <strong>학원플러스</strong>
-              <small>학원 관리</small>
+              <small>학원 운영 플랫폼</small>
             </span>
           </Link>
-          <p>수업과 학생 관리, 학부모 안내와 학원 홈페이지를 한곳에서 이어갑니다.</p>
+          <p>출결부터 성적·복습·학부모 안내까지, 학원의 모든 흐름을 하나로 이어갑니다.</p>
           <PhoneInquiryLink className={styles.footerPhone}>
             전화 상담 {CONSULT_PHONE_DISPLAY}
           </PhoneInquiryLink>
