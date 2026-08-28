@@ -291,6 +291,9 @@ async function auditRoute(page: Page, testInfo: TestInfo, base: string, route: s
       );
 
     const sharesVisualScope = (first: HTMLElement, second: HTMLElement) => {
+      const firstOverlapIntent = first.closest("[data-visual-overlap-intent]");
+      const secondOverlapIntent = second.closest("[data-visual-overlap-intent]");
+      if (firstOverlapIntent && firstOverlapIntent === secondOverlapIntent) return false;
       const firstScope = controlScope(first);
       const secondScope = controlScope(second);
       if (firstScope || secondScope) return firstScope === secondScope;
