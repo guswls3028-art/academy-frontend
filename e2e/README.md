@@ -1,212 +1,107 @@
-# E2E Test Suite
+# E2E 테스트
 
-Playwright 기반 멀티-테넌트 E2E. 운영 서버(`hakwonplus.com` 등) 대상.
+Playwright 테스트의 실행 진입점과 안전 경계다. 배포·권한 정책은
+`docs/DEPLOYMENT-OPERATIONS.md`, 반복 실행할 suite 목록은
+`e2e/suites.mjs`가 소유한다.
 
-## 구조
+## 디렉터리
 
 ```
 e2e/
-  admin/      관리자 영역 (로그인/대시보드/강의/메시징/매치업/DNB)
-  audit/      운영 감사 — CRUD 회귀 (날짜 박힌 일회성은 _local 로 이동)
-  auth/       인증 (아이디/비밀번호 찾기 모달 등)
-  dnb/        DNB 테넌트 운영 검증
-  flows/      도메인 왕복 — notice/qna/clinic/exam/guide/real-scenario
-  shared/     테넌트 격리/브랜딩/엣지 케이스 공통
-  smoke/      스모크 (login/billing/fees/operational)
-  stability/  파괴 테스트 + 엣지 검증
-  student/    학생 앱
-  teacher/    선생님 앱 (모바일/데스크탑 반응형)
-
-  helpers/    auth · api · data · wait · test-fixtures · strictBrowser
-  fixtures/   strictTest (zero-defect guard)
-
-  _local/     CI 제외 — 로컬 개발/디버그/스크린샷용 (playwright.config.ts testIgnore)
+├── admin/       관리자 화면과 운영 도구
+├── auth/        로그인·계정 복구·첫 사용
+├── dnb/         DNB tenant 전용 검증
+├── flows/       역할을 넘는 사용자 왕복
+├── fixtures/    strictTest와 파일 fixture
+├── helpers/     인증·API·대기·브라우저 공통 계약
+├── refactor/    라우팅/구조 회귀
+├── shared/      tenant·브랜딩·공통 안전성
+├── smoke/       최소 상태/배포 smoke
+├── stability/   메뉴 전수와 명시적 파괴 fixture 감사
+├── student/     학생·학부모 앱
+├── teacher/     선생님 앱
+├── visual/      유지되는 route-surface 시각 감사
+└── suites.mjs   PR·release·통제 쓰기 suite 단일 목록
 ```
 
-## 실행
+실행 결과는 `test-results/`, HTML은 `playwright-report/`에 생성하며 Git에
+커밋하지 않는다. 날짜가 박힌 진단 spec이나 실행 결과 보고서는 live tree에
+보관하지 않고 Actions artifact와 Git 이력에서 조회한다.
 
-```sh
-pnpm test:e2e          # 활성 spec 전체 (개수는 `pnpm exec playwright test --list`가 SSOT)
-pnpm test:e2e:gate     # PR 게이트 (핵심 왕복·tenant header·학생 맞춤 컬럼)
-pnpm test:e2e:headed   # headed 모드
-pnpm test:e2e:ui       # UI 모드 (대화형)
-pnpm test:e2e:local    # _local/ 만
+## 공식 명령
+
+| 명령 | 범위 | 네트워크/쓰기 경계 |
+|------|------|--------------------|
+| `pnpm test:e2e:gate` | PR 전체 gate | 운영 read-only 4개는 직렬, route mock은 폐쇄 proxy에서 병렬 |
+| `pnpm test:e2e:gate:readonly` | 운영 login/smoke allowlist | 한 계정·한 worker dependency chain |
+| `pnpm test:e2e:gate:mock` | 모든 활성 `*.mock.spec.ts` | `127.0.0.1:9` proxy, 실제 API 요청 금지 |
+| `pnpm test:e2e:release` | 수동 유지보수 release suite | read-only/mock만, `playwright.release.config.ts` |
+| `pnpm test:e2e:controlled-writes` | 통제 쓰기 canary | 명시적 workflow opt-in, 재시도 0 |
+| `pnpm test:e2e:bundle-smoke` | 빌드 산출물 부팅 | 로컬 preview, strict browser |
+| `pnpm test:e2e:visual-audit` | 9개 운영 route surface | read-only, 한 job·한 browser 설치·직렬 실행 |
+
+`pnpm test:e2e`는 연구/진단 spec까지 포함한 전체 디렉터리를 실행하므로 릴리스
+합격 기준으로 사용하지 않는다. 기능 변경은 가장 가까운 focused spec을 먼저
+실행하고 위 공식 gate로 닫는다.
+
+## 로컬 실행
+
+검증할 checkout에서 고유 포트로 Vite를 시작하고 같은 URL을 명시한다. 이미 떠
+있는 5173 서버를 재사용하면 다른 revision을 검증할 수 있다.
+
+```powershell
+pnpm dev --host 127.0.0.1 --port 5174 --strictPort
+$env:E2E_BASE_URL = "http://127.0.0.1:5174"
+$env:E2E_LOCAL_BASE_URL = "http://127.0.0.1:5174"
+pnpm exec playwright test e2e/admin/example.mock.spec.ts --project=chromium --workers=1 --retries=0
 ```
 
-PR의 `e2e.yml`은 `test:e2e:gate`만 실행한다. 전체 suite는 운영 E2E tenant의
-상태를 공유하므로 shard 병렬화하지 않으며, 명시적 `workflow_dispatch`에서만
-단일 worker로 실행한다. 새 핵심 사용자 흐름은 해당 focused spec을 PR 게이트에
-추가한다. 여러 실제 tenant 자격증명이 필요한 격리 spec은 필요한 secret이 있는
-수동 전체 suite에서 실행하고, PR에서는 기능 focused spec의 tenant header와
-백엔드 tenant 격리 계약을 필수 증거로 사용한다.
+운영 API를 쓰지 않는 route mock은
+`$env:VITE_DEV_PROXY_TARGET = "http://127.0.0.1:9"`로 fail-closed 한다.
+`.env.e2e.example`을 복사해 로컬 자격증명을 넣되 파일은 커밋하지 않는다.
 
-### 전 메뉴/버튼 사람형 클릭 감사
+## 안전 계약
 
-`stability/all-menu-button-click-audit.spec.ts` 가 운영/로컬 프론트에서 관리자+개발자 데스크톱, 학생 모바일,
-선생님 모바일의 메뉴와 visible 클릭 후보를 순회하는 SSOT다. 선생앱 데스크탑 사이드바/하단 탭바 분기는
-`teacher/desktop-layout.spec.ts`가 별도로 검증한다. 이 스펙은 데스크탑 고정 사이드바, 모바일 드로어, 오늘 업무형 대시보드,
-도움말 팝업, 핵심 빈 상태 액션을 함께 확인한다. 빠른 route 전환 중 background XHR 이 abort 되면
-브라우저가 CORS 형태의 `net::ERR_FAILED` 를 console error 로 남길 수 있으므로 전역 `strictTest` 대신 스펙 내부 guard 를
-사용한다. 5xx 응답, 로그인 튕김, 빈 화면, fatal text, 실제 클릭 실패는 defect 로 수집한다.
-각 라우트 진입은 예상 경로와 비어 있지 않은 DOM을 확인하고 한 번만 라우트 단위로 재시도한다. 전수 감사
-테스트 자체의 재시도는 비활성화해, 장시간 전체 순회를 처음부터 다시 돌린 뒤 일시 결함을 성공으로 숨기지 않는다.
-역할 앱 밖의 공개 페이지 링크는 해당 역할의 클릭 감사에서 제외하고, 공개 라우트 전용 감사가 소유한다. 라우트 단위
-재시도는 앱 origin을 유지해 `about:blank`에서 앱 코드가 실행되는 가짜 storage 오류를 만들지 않는다.
+- 활성 spec은 `e2e/fixtures/strictTest.ts`에서 `test`와 `expect`를 가져온다.
+  예외는 `E2E_STRICT_IMPORT_EXCEPTION` marker가 있는 좁은 allowlist만 허용한다.
+- PR에서는 `E2E_ALLOW_PRODUCTION_WRITES=0`과
+  `E2E_ALLOW_REAL_ALIMTALK=0`을 유지한다.
+- 실제 알림톡·계정복구·가입승인·OMR·과제·클리닉 canary는
+  `controlled_write_canaries=true`인 수동 workflow에서만 실행한다.
+- 통제 쓰기는 `playwright.controlled-write.config.ts`가 재시도 0을 강제한다.
+  생성 row/object는 exact run token으로 정리하고 backend residue 0 readback까지
+  완료한다.
+- 운영 login fixture는 조회 전용이다. 생성·수정·삭제 spec은 소유 fixture를
+  만들고 성공/실패 모두 정리한다.
+- shared tenant와 운영 계정을 사용하는 묶음은 worker 1과 직렬 실행을 유지한다.
+  route mock만 격리가 증명되어 최대 4 worker를 사용한다.
 
-```sh
+`pnpm guard:e2e-safety`는 suite 중복·누락 파일·route interception·쓰기
+분리·자격증명 흔적·strict import를 검사한다. 새 `*.mock.spec.ts`는
+`e2e/suites.mjs`의 `routeMockSpecs`에 등록하지 않으면
+`pnpm guard:test-coverage`가 실패한다.
+
+## 반복 감사
+
+전 메뉴 감사는 아래 한 spec이 관리자/개발자 desktop, 학생 390px, 선생님 390px
+scope를 차례로 실행한다. workflow는 의존성 설치·Chromium 설치·Vite 기동을 한
+번만 수행하며 테스트 재시도를 사용하지 않는다.
+
+```powershell
 pnpm exec playwright test e2e/stability/all-menu-button-click-audit.spec.ts --project=chromium --reporter=list --retries=0
-
-# 특정 라우트만 재검증
-E2E_CLICK_AUDIT_ROUTE_FILTER=/student/guide pnpm exec playwright test e2e/stability/all-menu-button-click-audit.spec.ts --project=chromium --reporter=list --retries=0
-
-# 로컬 프론트가 운영 API를 proxy 하는 경우
-E2E_BASE_URL=http://127.0.0.1:5174 pnpm exec playwright test e2e/stability/all-menu-button-click-audit.spec.ts --project=chromium --reporter=list --retries=0
 ```
 
-실사용 데이터 보호를 위해 저장/삭제/발송/결제/업로드/승인/로그아웃 등 mutation 또는 외부 부작용 버튼은
-감사 리포트에 skip reason 으로 기록하고 클릭하지 않는다. 안전한 조회/필터/탭/메뉴/상세/닫기/취소 계열은 실제 클릭한다.
+주간 시각 감사도 `e2e/visual/design-system-route-audit.spec.ts` 한 번으로 9개
+surface를 직렬 실행한다. 실패 증거는 하나의 artifact에 route별 screenshot,
+trace, HTML report로 남는다.
 
-### 컨텍스트 도움말 감사
+## 새 테스트를 추가할 때
 
-`flows/contextual-inline-help.spec.ts` 는 페이지/섹션 사용법 문구가 화면에 긴 설명으로 상시 노출되지 않고,
-제목 근처 `?` 도움말 버튼으로 열리는지 확인한다. 대표 관리자/학생 화면을 Tenant 1 데이터로 열고,
-`InlineHelp` dialog 접근성 이름과 본문을 함께 검증한다.
-
-```sh
-pnpm exec playwright test e2e/flows/contextual-inline-help.spec.ts --project=chromium --reporter=list --retries=0
-```
-
-### Fixture 기반 파괴/상태변경 버튼 감사
-
-`stability/destructive-fixture-button-audit.spec.ts` 는 전 메뉴 클릭 감사에서 의도적으로 제외한 저장/삭제/발송/업로드/승인/로그아웃 계열을
-`[E2E-DEST-*]` fixture 데이터로 실제 클릭한다. 학생 생성·수정·비밀번호 변경·활성/비활성·삭제/복원/영구삭제, 가입신청 승인/거절,
-학생 알림톡 예약 발송 후 즉시 취소, 자료실 첨부 업로드/삭제, 결제 카드 영역의 fixture 부재 guard를 검증한다.
-
-```sh
-pnpm exec playwright test e2e/stability/destructive-fixture-button-audit.spec.ts --project=chromium --reporter=list --retries=0
-```
-
-운영 발송 안전장치: 즉시 발송은 하지 않고 예약 발송을 즉시 취소한다. 가입승인 알림은 자동발송 설정이 켜져 있어도 통제 번호
-`01031217466` 한 곳만 수신자가 되도록 생성한다. 결제 카드는 fixture 생성 경로가 없으면 실제 카드 삭제/등록/결제를 클릭하지 않는다.
-
-### 결제 제외 잔여 리스크 감사
-
-`stability/controlled-real-alimtalk-send.spec.ts` 는 통제 번호 `01031217466` fixture 학생 1명에게 실제 즉시 알림톡을 1건 발송하고,
-발송 로그의 `sent` 상태와 provider message id를 확인한다. 기본 전체 suite에서는 skip되며
-`E2E_ALLOW_REAL_ALIMTALK=1`을 명시한 전용 수동 canary에서만 실행된다. 운영 수신번호는 환경변수로 바꿀 수 없다.
-
-`stability/adversarial-upload-fixture-audit.spec.ts` 는 빠른 중복 클릭, 세션 만료 중 저장, 한글/공백 파일명 및 1MB급 PDF 첨부 업로드/삭제를
-`[E2E-ADV-*]` fixture로 검증한다.
-
-```sh
-E2E_ALLOW_REAL_ALIMTALK=1 pnpm exec playwright test e2e/stability/controlled-real-alimtalk-send.spec.ts --project=chromium --reporter=list --retries=0
-pnpm exec playwright test e2e/stability/adversarial-upload-fixture-audit.spec.ts --project=chromium --reporter=list --retries=0
-```
-
-브라우저/모바일 매트릭스는 기본 CI 게이트를 늘리지 않기 위해 별도 config로 실행한다.
-
-```sh
-pnpm exec playwright test e2e/stability/adversarial-upload-fixture-audit.spec.ts --config=playwright.matrix.config.ts --reporter=list --retries=0
-```
-
-## 환경 변수 (`.env.e2e`)
-
-`.env.e2e.example`를 기준으로 로컬/CI secret을 채운다. 공용 `helpers/auth.ts`를 쓰는 정식 spec은
-자격증명 fallback을 두지 않고 필수 env가 없으면 실패한다.
-
-| 변수 | 기본값 | 용도 |
-|------|--------|------|
-| `E2E_BASE_URL` | hakwonplus.com | 프론트 |
-| `E2E_API_URL` | api.hakwonplus.com | 백엔드 |
-| `E2E_ADMIN_USER` / `E2E_ADMIN_PASS` | secrets | Tenant 1 admin |
-| `E2E_STUDENT_USER` / `E2E_STUDENT_PASS` | secrets | Tenant 1 고정 운영 카나리 학생 |
-| `TCHUL_/DNB_/LIMGLISH_*` | secrets | 멀티 테넌트 |
-| `E2E_LECTURE_ID` / `E2E_SESSION_ID` | 113 / 153 | 메시징 발송용 강의/차시 |
-| `E2E_LECTURE_ID_ALT` / `E2E_SESSION_ID_ALT` | 96 / 158 | 성적 검증용 |
-| `E2E_TEST_*` | 0317테스트학생 시리즈 | TEST_RECIPIENT (test-fixtures.ts) |
-| `E2E_STRICT` | `report` (.env.e2e) / `strict` (quality-gate) | strictTest 모드 |
-| `E2E_REAL_ALIMTALK_CONTROLLED_PHONE` | `01031217466` | 실발송 canary 표시용. 운영 계정 안내 가드는 항상 `01031217466`만 허용 |
-| `E2E_ALLOW_REAL_ALIMTALK` | `0` | `1`일 때만 통제번호 1건 실발송 canary 허용 |
-
-`E2E_STUDENT_*`는 운영 로그인 확인 전용 고정 fixture다. 이 계정을 삭제·개명하거나 파괴적
-spec에서 재사용하지 않는다. 생성·수정·삭제를 검증하는 spec은 `[E2E-{timestamp}]` 태그가 있는
-일회성 학생을 별도로 만들고 종료 시 정리한다.
-
-## 계정 안내 알림톡 안전 가드
-
-학생 명부 생성 자체는 계정 안내 알림톡을 발송하지 않는다. 신규 학생의 첫 수강 확정과 비밀번호 변경의
-계정 안내 알림톡은 제품 정책상 필수 발송이다. E2E에서 `send_welcome_message=false`나 `skip_notify=true`로
-첫 수강 또는 비밀번호 변경 알림을 끄는 방식은 더 이상 유효하지 않다.
-
-`pnpm guard:e2e-safety`는 production mutation guard와 strict fixture import guard를 함께 실행한다. 활성 spec은
-`@playwright/test`에서 직접 runtime `test`를 가져오지 않고 `fixtures/strictTest.ts`를 사용해야 한다. 의도적으로
-엄격 브라우저 검사를 적용할 수 없는 spec은 `E2E_STRICT_IMPORT_EXCEPTION` marker가 있는 명시적 allowlist만 허용한다.
-
-`fixtures/strictTest.ts`와 `helpers/api.ts`는 운영 API(`api.hakwonplus.com`) 대상의 학생 생성, 학생 계정 수정,
-비밀번호 변경 요청을 검사한다. 통제 번호 `01031217466` 외의 `parent_phone`/`phone`/`student_phone`으로 계정 안내가
-나갈 수 있으면 spec을 즉시 실패시킨다. 운영 fixture를 새로 만들 때는 통제 번호를 쓰거나 로컬/preview API에서 실행한다.
-
-## strictTest 모드
-
-`.fixtures/strictTest.ts` 가 모든 페이지에 console.error/pageerror 리스너 부착.
-
-| `E2E_STRICT` | 동작 |
-|--------------|------|
-| `strict` (또는 미설정/`1`) | defect 발견 시 spec fail |
-| `report` (또는 `warn`)    | 로컬 진단 전용: defect 을 `console.warn` + test annotation, fail 없음 |
-| `off` (또는 `0`)          | 리스너 미부착 |
-
-`DEFAULT_IGNORE` (`helpers/strictBrowser.ts`): chrome-extension, ResizeObserver, `Failed to load resource`, React DevTools, cf-nel.
-
-### 새 strict baseline 만들기
-
-새로운 대규모 spec 묶음을 진단할 때만 로컬에서 **report → strict** 순서로 확인한다. CI는 항상 strict다.
-
-1. 첫 PR/run 에서 `E2E_STRICT=report` (현재 기본값) 로 정상 통과 확인.
-2. `playwright-report/` artifact 의 각 spec annotation `strict-browser-defect` 수집:
-   ```sh
-   pnpm exec playwright show-report
-   ```
-3. annotation 의 console.error/pageerror 메시지를 spec 별로 분류:
-   - 의도적 음성 시나리오 (404/네트워크 차단) → 해당 spec의 좁은 ignore 또는 명시적 exception marker 검토
-   - 진짜 버그 → 코드 수정
-   - 환경 노이즈 (favicon/sentry/analytics) → `attachStrictBrowserGuards` 의 `extraIgnore` 추가
-4. 모든 spec 이 깨끗해지면 `E2E_STRICT=strict` 로 재실행한다.
-5. `e2e.yml`과 `quality-gate.yml`은 모두 `E2E_STRICT=strict`다. PR workflow는 checkout frontend를
-   localhost에서 실행하고 API만 E2E backend로 proxy하므로 배포 전 코드가 실제 검증 대상이다.
-
-### 현재 알려진 baseline 후보
-
-정적 분석 (해당 spec 들이 의도적으로 4xx 트리거) 으로 식별된 위험:
-- `shared/02-failure-edge-cases.spec.ts` — 404 다수 → DEFAULT_IGNORE 의 `Failed to load resource` 로 해소됨
-- `shared/03-tenant-isolation.spec.ts` — 403/404 cross-tenant → 동일
-- `shared/04-complaint-prevention.spec.ts` — 404 → 동일
-- `auth/account-recovery-modal.spec.ts` — 계정복구 성공 경로는 mock 응답으로 strict 유지
-- `stability/final-edge-verify.spec.ts` — baseTest 우회 (이미 적용)
-
-## 토큰 만료
-
-`helpers/api.ts` 의 `apiCall` 이 401 응답 시 `localStorage.refresh` 로 자동 갱신 후 1회 재시도.
-긴 폴링 spec (matchup OCR 5분, clinic trigger 등) 에서 access 만료로 인한 silent 401 방지.
-
-## TEST_RECIPIENT SSOT
-
-`helpers/test-fixtures.ts` 의 `TEST_RECIPIENT` 가 **0317테스트학생 / 학생폰 / 학부모폰 / 비밀번호** 를 단일 export.
-
-prod 데이터 변경 시 `.env.e2e` 의 `E2E_TEST_*` 로 override (코드 수정 불필요).
-
-## 12번 (clinic-trigger) 격리 setup
-
-`helpers/data.ts::ensureClinicSessionForTrigger`는 기존 학생·세션을 재사용하지 않고 `[E2E-*]` 통제번호 학생,
-오늘 세션, 참가자를 모두 생성한 뒤 `afterAll`에서 정리한다. 운영 API에서는 상태 변경과 중복 provider 발송을 막기 위해
-spec 전체가 skip되며, 격리된 비운영 API에서만 트리거 회귀를 실행한다. 운영 provider 경로는 위 1건 canary가 담당한다.
-
-`flows/password-reset-roundtrip.spec.ts`처럼 계정 안내를 여러 번 발생시키는 flow와 cleanup 소유권이 불완전한
-`flows/real-scenario.spec.ts`도 운영 API에서는 강제로 skip된다. 이들은 격리 API에서만 실행하며, routine main 배포는
-provider 비용/수신 노이즈가 없는 왕복 계약 테스트만 사용한다.
-
-## 알려진 미해결
-
-- **`page.waitForTimeout(N)` 잔존 호출** — 현재 수치는 `rg -n "page\\.waitForTimeout\\(" e2e` 로 재측정한다. `helpers/wait.ts` 의 `gotoAndSettle` / `clickAndExpect` / `waitForCondition` 으로 점진 마이그레이션. 04 의 `navTo` 는 적용됨.
-- **04-messaging-audit silent-pass 다수** — 핵심 진입점 (체크박스/발송 모달) + 실발송 검증은 hard expect 적용. 카테고리 순회 등 의도적 optional path 는 그대로.
-- **prod 학생/강의 데이터 의존** — TEST_RECIPIENT/FIXTURES 로 SSOT 화 했지만 일부 spec (matchup-real-user-review 등 _local/) 은 아직 hardcode.
+1. 제품 경계에 맞는 디렉터리에 행동 중심 이름으로 추가한다.
+2. mock spec은 모든 API 요청을 browser context에서 가로채고 실제 API fallback을
+   허용하지 않는다.
+3. 저장은 payload와 reload 후 상태를 함께 검증하고, 390px 대상은 overflow와
+   핵심 action 표시를 검증한다.
+4. PR/release/통제 쓰기 중 정확히 필요한 suite에만 등록한다.
+5. 일회성 재현 spec은 결함을 닫은 뒤 유지되는 회귀 계약으로 일반화하거나
+   삭제한다. 날짜성 파일, screenshot dump, 실행 보고서를 남기지 않는다.

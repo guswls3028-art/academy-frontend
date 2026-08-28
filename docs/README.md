@@ -14,7 +14,6 @@
 | [STUDENT-PARENT-APP-CONTRACT.md](STUDENT-PARENT-APP-CONTRACT.md) | 학생·학부모 앱의 표시 경계, 모바일 레이아웃, 권한·자녀 선택·알림 읽음 계약 |
 | [STUDENT-GRADE-REPORT.md](STUDENT-GRADE-REPORT.md) | 학원별 성장 그래프 섹션 표시·순서 편집과 학생 시험 카드의 오답 완료/미완료 표시 계약 |
 | [GRADING-WRONG-NOTE-WORKFLOW.md](GRADING-WRONG-NOTE-WORKFLOW.md) | Codex 빠른 복구 순서, 시험명 작업 메뉴, 정오표 입력·반응형 계약, 증상별 확인 위치와 현재 오답노트 경계 |
-| [EXAM-INSIGHTS-REPORT.md](EXAM-INSIGHTS-REPORT.md) | 수업 방향·컷 검토·취약 문항 브리핑, 만점 정규화 분포와 전문 분석 Excel 계약 |
 | [ASSESSMENT-OPERATIONS-WORKSPACE.md](ASSESSMENT-OPERATIONS-WORKSPACE.md) | 시험·과제 운영 준비 점검선, 충돌·초안 복구가 있는 통합 정책 편집, 공용 대상자 변경 요약과 반응형 계약 |
 | [OMR-GENERATOR.md](OMR-GENERATOR.md) | 관리자 OMR 답안지 설정, 정적 미리보기, PDF 다운로드와 반응형 A4 표시 계약 |
 | [OMR-BATCH-PROGRESS.md](OMR-BATCH-PROGRESS.md) | OMR 1~100장 단일 접수, 서버 정본 진행 복구, 실패 ordinal 재선택과 완료 알림 계약 |
@@ -97,16 +96,26 @@ pnpm exec playwright test --config playwright.theme.config.ts --project=chromium
 
 ```
 scripts/
-├── ensure-spa-mode.js             ← SPA 모드 보장 (빌드)
-├── lint-id-safety.cjs             ← ID 안전성 린트
-├── verify-student-routes.mjs      ← 학생 라우트 검증
+├── guard-*.mjs                    ← API·E2E·배포 정책 차단 게이트
+├── verify-*.mjs                   ← 역할별 route와 registry 검증
+├── generate-api-types.mjs         ← backend OpenAPI 고정본 타입 생성
+├── refactor-boundary-snapshot.mjs ← 도메인/대형 파일 부채 예산
 ├── assets/                        ← 이미지/아이콘 처리 도구
-└── dev/                           ← 로컬 개발 유틸
+├── dev/                           ← 로컬 개발 유틸
+└── tests/                         ← 위 스크립트와 workflow 계약 테스트
+
+e2e/
+└── suites.mjs                     ← PR·release·통제 쓰기 Playwright 목록
 ```
+
+공식 명령은 `package.json`, CI 실행 순서는 `.github/workflows/`, 상세 E2E 작성법은
+[`e2e/README.md`](../e2e/README.md)가 소유한다. 일회성 변환·진단 스크립트는
+완료 후 live tree에 남기지 않는다.
 
 ## 정리 기준
 
 - 일회성 E2E 스펙은 검증 완료 후 삭제 (git history 조회 가능)
 - 제품/사용자/운영 문서는 이 폴더에 배치
 - 코드 바로 옆에 필요한 모듈 README·refactor note는 `src/<app>/...`에 둘 수 있다. 단, 해당 모듈의 구조·API·검증 범위만 다루고 전역 규칙/운영 절차는 `frontend/docs/` 또는 repo 루트 문서로 올린다.
-- 스크린샷은 `e2e/screenshots/`에 저장, 커밋하지 않음
+- 스크린샷과 실행 보고서는 `test-results/`, `playwright-report/` 또는
+  workspace `_artifacts/`에 저장하고 커밋하지 않음

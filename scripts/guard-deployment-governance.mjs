@@ -57,6 +57,7 @@ for (const required of [
   "E2E_ALLOW_PRODUCTION_WRITES=0",
   'E2E_ALLOW_PRODUCTION_WRITES: "1"',
   "controlled_write_canaries",
+  "run: pnpm test:e2e:controlled-writes --reporter=github,html",
   "name: E2E closed-proxy route mocks",
   "VITE_DEV_PROXY_TARGET: http://127.0.0.1:9",
   "run: pnpm test:e2e:gate:readonly --reporter=github,html",
@@ -70,15 +71,19 @@ for (const required of [
 for (const required of [
   "name: Weekly Live Visual Audit",
   'cron: "0 19 * * 5"',
-  "max-parallel: 1",
+  "name: Live visual audit",
   "E2E_BASE_URL=https://hakwonplus.com",
   "E2E_ALLOW_PRODUCTION_WRITES=0",
   "e2e/visual/design-system-route-audit.spec.ts",
+  "--retries=0",
   "retention-days: 14",
 ]) {
   if (!visualAudit.includes(required)) {
     failures.push(`visual-audit.yml: missing live visual audit marker ${required}`);
   }
+}
+if (visualAudit.includes("matrix:")) {
+  failures.push("visual-audit.yml: route surfaces must reuse one serial job instead of repeated matrix setup");
 }
 if (!fs.existsSync(path.join(root, ".github", "dependabot.yml"))) {
   failures.push("frontend Dependabot configuration is missing");

@@ -4,11 +4,13 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
+  controlledWriteSpecs,
   criticalInteractionSpecs,
   criticalStateTransitionSpecs,
   e2eGateSpecs,
+  maintainedReleaseSpecs,
   routeMockSpecs,
-} from "../e2e-gate-specs.mjs";
+} from "../../e2e/suites.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const e2eRoot = path.join(root, "e2e");
@@ -17,6 +19,7 @@ const e2eWorkflow = fs.readFileSync(
   path.join(root, ".github", "workflows", "e2e.yml"),
   "utf8",
 );
+const packageJson = JSON.parse(read("package.json"));
 
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -80,11 +83,37 @@ test("save, reload, stale, and valid-zero contracts cannot fall out of the PR ga
   assert.match(read("e2e/student/numeric-short-answer.spec.ts"), /앞자리 0을 정규화/);
 });
 
+test("release and controlled-write suites have separate executable owners", () => {
+  assert.equal(
+    packageJson.scripts["test:e2e:release"],
+    "playwright test --config=playwright.release.config.ts",
+  );
+  assert.equal(
+    packageJson.scripts["test:e2e:controlled-writes"],
+    "playwright test --config=playwright.controlled-write.config.ts",
+  );
+  assert.deepEqual(
+    controlledWriteSpecs.filter((spec) => maintainedReleaseSpecs.includes(spec)),
+    [],
+  );
+  assert.match(e2eWorkflow, /run: pnpm test:e2e:controlled-writes --reporter=github,html/);
+});
+
+test("the exhaustive menu audit reuses one serial runner setup", () => {
+  assert.match(e2eWorkflow, /name: All-menu audit\n/);
+  assert.match(e2eWorkflow, /name: All-menu audit[\s\S]{0,200}timeout-minutes: 240/);
+  assert.match(e2eWorkflow, /e2e\/stability\/all-menu-button-click-audit\.spec\.ts/);
+  assert.match(e2eWorkflow, /--retries=0/);
+  assert.doesNotMatch(e2eWorkflow, /All-menu audit \(\$\{\{ matrix\.scope \}\}\)/);
+});
+
 test("PR read-only and route-mock gates keep separate runtime boundaries", () => {
   for (const workflowOwner of [
     ".github/workflows/e2e.yml",
     "playwright.pr-gate.config.ts",
-    "scripts/e2e-gate-specs.mjs",
+    "playwright.release.config.ts",
+    "playwright.controlled-write.config.ts",
+    "e2e/suites.mjs",
     "scripts/guard-e2e-safety.mjs",
     "scripts/guard-deployment-governance.mjs",
     "scripts/tests/e2e-gate-coverage.test.mjs",

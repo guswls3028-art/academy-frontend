@@ -3,10 +3,12 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import {
+  controlledWriteSpecs,
   e2eGateSpecs,
+  maintainedReleaseSpecs,
   productionReadOnlySpecs,
   routeMockSpecs,
-} from "./e2e-gate-specs.mjs";
+} from "../e2e/suites.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const reviewedProductionReadOnlySpecs = [
@@ -36,6 +38,8 @@ const packageJson = JSON.parse(
 const gateCommand = String(packageJson.scripts?.["test:e2e:gate"] ?? "");
 const readOnlyGateCommand = String(packageJson.scripts?.["test:e2e:gate:readonly"] ?? "");
 const mockGateCommand = String(packageJson.scripts?.["test:e2e:gate:mock"] ?? "");
+const releaseCommand = String(packageJson.scripts?.["test:e2e:release"] ?? "");
+const controlledWriteCommand = String(packageJson.scripts?.["test:e2e:controlled-writes"] ?? "");
 if (gateCommand !== "playwright test --config=playwright.pr-gate.config.ts") {
   failures.push("package.json: test:e2e:gate must use playwright.pr-gate.config.ts");
 }
@@ -51,8 +55,17 @@ if (
 ) {
   failures.push("package.json: test:e2e:gate:mock must run only the dependency-free route-mock project");
 }
+if (releaseCommand !== "playwright test --config=playwright.release.config.ts") {
+  failures.push("package.json: test:e2e:release must use playwright.release.config.ts");
+}
+if (
+  controlledWriteCommand
+  !== "playwright test --config=playwright.controlled-write.config.ts"
+) {
+  failures.push("package.json: test:e2e:controlled-writes must use the retry-free controlled-write config");
+}
 if (JSON.stringify(productionReadOnlySpecs) !== JSON.stringify(reviewedProductionReadOnlySpecs)) {
-  failures.push("scripts/e2e-gate-specs.mjs: production-backed PR specs must remain the reviewed serial allowlist");
+  failures.push("e2e/suites.mjs: production-backed PR specs must remain the reviewed serial allowlist");
 }
 for (const spec of routeMockSpecs) {
   const absolutePath = path.join(root, spec);
@@ -69,7 +82,26 @@ for (const spec of routeMockSpecs) {
   }
 }
 if (new Set(e2eGateSpecs).size !== e2eGateSpecs.length) {
-  failures.push("scripts/e2e-gate-specs.mjs: PR gate specs must be unique");
+  failures.push("e2e/suites.mjs: PR gate specs must be unique");
+}
+for (const [suiteName, specs] of [
+  ["maintained release", maintainedReleaseSpecs],
+  ["controlled write", controlledWriteSpecs],
+]) {
+  if (new Set(specs).size !== specs.length) {
+    failures.push(`e2e/suites.mjs: ${suiteName} specs must be unique`);
+  }
+  for (const spec of specs) {
+    if (!fs.existsSync(path.join(root, spec))) {
+      failures.push(`e2e/suites.mjs: ${suiteName} spec is missing: ${spec}`);
+    }
+  }
+}
+const releaseSpecSet = new Set(maintainedReleaseSpecs);
+for (const spec of controlledWriteSpecs) {
+  if (releaseSpecSet.has(spec)) {
+    failures.push(`e2e/suites.mjs: controlled write spec must not enter the maintained release suite: ${spec}`);
+  }
 }
 const forbiddenCredentialHashes = new Set([
   // Former production E2E credential. Keep only the irreversible digest here.

@@ -15,32 +15,9 @@ concurrency:
 
 jobs:
   route-surface:
-    name: Live visual audit (${{ matrix.scope }})
+    name: Live visual audit
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      max-parallel: 1
-      matrix:
-        include:
-          - scope: admin-desktop
-            grep: admin static route surface
-          - scope: admin-mobile
-            grep: admin compact route surface
-          - scope: student-mobile
-            grep: student mobile route surface
-          - scope: student-desktop
-            grep: student desktop route surface
-          - scope: teacher-mobile
-            grep: teacher mobile route surface
-          - scope: promo-public
-            grep: promo public route surface
-          - scope: system-public
-            grep: system public route surface
-          - scope: tenant-landing
-            grep: tenant landing route surface
-          - scope: developer-desktop
-            grep: developer route surface
+    timeout-minutes: 120
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -79,20 +56,18 @@ jobs:
           EOF
 
       - name: Audit live route surface
-        env:
-          AUDIT_GREP: ${{ matrix.grep }}
         run: >-
           pnpm exec playwright test
           e2e/visual/design-system-route-audit.spec.ts
           --project=chromium
-          --grep "$AUDIT_GREP"
           --reporter=github,html
+          --retries=0
 
       - name: Upload route screenshots and traces
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: live-visual-audit-${{ matrix.scope }}-attempt-${{ github.run_attempt }}
+          name: live-visual-audit-attempt-${{ github.run_attempt }}
           path: |
             playwright-report/
             test-results/

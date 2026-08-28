@@ -17,7 +17,6 @@ export default tseslint.config(
       'e2e/_artifacts/**',
       'e2e/_local/**',
       'e2e/screenshots/**',
-      'e2e/reports/**',
     ],
   },
   {
