@@ -261,7 +261,7 @@ function HeroProductShowcase() {
         <small>격리 개발환경 · 합성 데이터</small>
       </div>
 
-      <div className={styles.showcaseStage}>
+      <div className={styles.showcaseStage} data-visual-overlap-intent="composite-product-preview">
         <div className={styles.showcaseDesktop}>
           <PromoEvidenceImage
             src="/promo/admin-attendance-realuse-20260828.png"

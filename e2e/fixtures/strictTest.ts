@@ -6,15 +6,22 @@ import { test as base, expect } from "@playwright/test";
 import { installAccountNotificationGuard } from "../helpers/accountNotificationSafety";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 
-export const test = base.extend({
+type StrictBrowserOptions = {
+  allowRecoveredProductionCors: boolean;
+  strictBrowserAutoAssert: boolean;
+};
+
+export const test = base.extend<StrictBrowserOptions>({
+  allowRecoveredProductionCors: [false, { option: true }],
+  strictBrowserAutoAssert: [true, { option: true }],
   request: async ({ request }, continueWithFixture) => {
     await continueWithFixture(installAccountNotificationGuard(request));
   },
-  page: async ({ page }, continueWithFixture) => {
+  page: async ({ page, allowRecoveredProductionCors, strictBrowserAutoAssert }, continueWithFixture) => {
     installAccountNotificationGuard(page.request);
-    const strict = attachStrictBrowserGuards(page);
+    const strict = attachStrictBrowserGuards(page, { allowRecoveredProductionCors });
     await continueWithFixture(page);
-    strict.assertZeroDefects();
+    if (strictBrowserAutoAssert) strict.assertZeroDefects();
   },
 });
 

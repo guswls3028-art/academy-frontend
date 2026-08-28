@@ -81,7 +81,7 @@ export type StrictBrowserGuards = {
  */
 export function attachStrictBrowserGuards(
   page: Page,
-  options?: { extraIgnore?: RegExp[] }
+  options?: { extraIgnore?: RegExp[]; allowRecoveredProductionCors?: boolean }
 ): StrictBrowserGuards {
   const mode = resolveMode();
   if (mode === "off") {
@@ -91,8 +91,27 @@ export function attachStrictBrowserGuards(
   const extra = options?.extraIgnore ?? [];
   const consoleErrors: string[] = [];
   const pageErrors: string[] = [];
+  const recoverableCorsFailures: Array<{
+    url: string;
+    origin: string;
+    consoleText: string;
+    resourceFailureText: string | null;
+    recovered: boolean;
+    observedAt: number;
+  }> = [];
   let pendingOptionalCorsResourceFailures = 0;
   let lastOptionalCorsAt = 0;
+
+  if (options?.allowRecoveredProductionCors) {
+    page.on("response", (response) => {
+      const failure = [...recoverableCorsFailures]
+        .reverse()
+        .find((candidate) => !candidate.recovered && candidate.url === response.url());
+      if (!failure || response.status() !== 200) return;
+      const allowOrigin = response.headers()["access-control-allow-origin"]?.trim();
+      if (allowOrigin === failure.origin) failure.recovered = true;
+    });
+  }
 
   page.on("console", (msg) => {
     if (msg.type() !== "error") return;
@@ -100,7 +119,33 @@ export function attachStrictBrowserGuards(
     if (pendingOptionalCorsResourceFailures > 0 && Date.now() - lastOptionalCorsAt > 5_000) {
       pendingOptionalCorsResourceFailures = 0;
     }
-    if (isOptionalNotificationCors(text)) {
+    const recoveredCorsMatch = options?.allowRecoveredProductionCors
+      ? text.match(/^Access to XMLHttpRequest at '([^']+)' from origin '(https:\/\/hakwonplus\.com)' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource\.?$/i)
+      : null;
+    if (recoveredCorsMatch) {
+      const requestUrl = new URL(recoveredCorsMatch[1]!);
+      if (requestUrl.protocol === "https:" && requestUrl.hostname === "api.hakwonplus.com") {
+        recoverableCorsFailures.push({
+          url: requestUrl.href,
+          origin: recoveredCorsMatch[2]!,
+          consoleText: text,
+          resourceFailureText: null,
+          recovered: false,
+          observedAt: Date.now(),
+        });
+        return;
+      }
+    }
+    if (options?.allowRecoveredProductionCors && isFailedResourceFromBlockedCors(text)) {
+      const failure = [...recoverableCorsFailures]
+        .reverse()
+        .find((candidate) => candidate.resourceFailureText === null && Date.now() - candidate.observedAt <= 5_000);
+      if (failure) {
+        failure.resourceFailureText = text;
+        return;
+      }
+    }
+    if (!options?.allowRecoveredProductionCors && isOptionalNotificationCors(text)) {
       pendingOptionalCorsResourceFailures += 1;
       lastOptionalCorsAt = Date.now();
       return;
@@ -121,9 +166,16 @@ export function attachStrictBrowserGuards(
 
   return {
     assertZeroDefects() {
+      const unresolvedRecoveredCors = recoverableCorsFailures.filter(
+        (failure) => !failure.recovered || failure.resourceFailureText === null,
+      );
       const lines = [
         ...consoleErrors.map((c) => `console.error: ${c}`),
         ...pageErrors.map((p) => `pageerror: ${p}`),
+        ...unresolvedRecoveredCors.flatMap((failure) => [
+          `console.error: ${failure.consoleText}`,
+          ...(failure.resourceFailureText ? [`console.error: ${failure.resourceFailureText}`] : []),
+        ]),
       ];
       if (lines.length === 0) return;
 
