@@ -83,6 +83,7 @@ export default function MyStorageExplorer() {
     sourceId: string;
     targetFolderId: string | null;
     existingName: string;
+    inventoryFence: string;
   } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [renamingId, setRenamingId] = useState<{ type: "folder" | "file"; id: string } | null>(null);
@@ -92,10 +93,17 @@ export default function MyStorageExplorer() {
     queryKey: storageQueryKeys.storageInventory(SCOPE),
     queryFn: () => fetchInventoryList(SCOPE),
   });
+  const readInventoryGuard = useCallback(() => {
+    const state = qc.getQueryState(storageQueryKeys.storageInventory(SCOPE));
+    return {
+      ready: state?.status === "success" && state.error == null,
+      fence: `${state?.dataUpdateCount ?? 0}:${state?.errorUpdateCount ?? 0}:${state?.status ?? "pending"}:${state?.fetchStatus ?? "idle"}`,
+    };
+  }, [qc]);
   const data = inventoryQ.data;
   const isLoading = inventoryQ.isLoading;
   const inventoryReady = inventoryQ.isSuccess && !inventoryQ.isError;
-  const inventoryFence = `${inventoryQ.dataUpdatedAt}:${inventoryQ.errorUpdatedAt}:${inventoryQ.fetchStatus}`;
+  const inventoryFence = readInventoryGuard().fence;
   const inventoryGuardRef = useRef({ ready: inventoryReady, fence: inventoryFence });
   inventoryGuardRef.current = { ready: inventoryReady, fence: inventoryFence };
   const folders = useMemo(() => data?.folders ?? [], [data?.folders]);
@@ -477,6 +485,7 @@ export default function MyStorageExplorer() {
       sourceId: string,
       onDuplicate?: "overwrite" | "rename"
     ): Promise<InventoryMoveOutcome> => {
+      if (!readInventoryGuard().ready) return "error";
       setMovingId(sourceId);
       const prev = qc.getQueryData<{ folders: InventoryFolder[]; files: InventoryFile[] }>(
         storageQueryKeys.storageInventory(SCOPE),
@@ -496,6 +505,7 @@ export default function MyStorageExplorer() {
         }
       };
       applyOptimistic();
+      const optimisticInventory = readInventoryGuard();
       try {
         await moveInventoryItem({
           scope: SCOPE,
@@ -507,14 +517,20 @@ export default function MyStorageExplorer() {
         await qc.invalidateQueries({ queryKey: storageQueryKeys.storageInventory(SCOPE) });
         return "moved";
       } catch (e) {
+        const currentInventory = readInventoryGuard();
+        if (!currentInventory.ready || currentInventory.fence !== optimisticInventory.fence) {
+          return "error";
+        }
         if (prev) qc.setQueryData(storageQueryKeys.storageInventory(SCOPE), prev);
         const ce = e as MoveConflictError & Error;
         if (ce.status === 409 && ce.code === "duplicate") {
+          const restoredInventory = readInventoryGuard();
           setConflict({
             type,
             sourceId,
             targetFolderId,
             existingName: ce.existing_name || "항목",
+            inventoryFence: restoredInventory.fence,
           });
           return "conflict";
         } else {
@@ -525,18 +541,20 @@ export default function MyStorageExplorer() {
         setMovingId(null);
       }
     },
-    [qc]
+    [qc, readInventoryGuard]
   );
 
   const resolveConflict = useCallback(
     async (choice: "overwrite" | "rename") => {
       if (!conflict) return;
-      const { targetFolderId, type, sourceId } = conflict;
+      const { targetFolderId, type, sourceId, inventoryFence: conflictInventoryFence } = conflict;
       setConflict(null);
+      const currentInventory = readInventoryGuard();
+      if (!currentInventory.ready || currentInventory.fence !== conflictInventoryFence) return;
       const outcome = await handleMove(targetFolderId, type, sourceId, choice);
       if (outcome === "moved") clearSelection();
     },
-    [clearSelection, conflict, handleMove]
+    [clearSelection, conflict, handleMove, readInventoryGuard]
   );
 
   const handlePromoteToMatchup = useCallback(async (file: InventoryFile) => {

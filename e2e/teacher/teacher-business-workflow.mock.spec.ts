@@ -49,10 +49,12 @@ async function installApi(
     consultStatuses?: number[];
     consultFailure?: boolean;
     consultPatchStatus?: number;
+    consultFailureAfterPatch?: boolean;
   },
 ) {
   let cardRequests = 0;
   let consultRequests = 0;
+  let consultPatchRequests = 0;
   let consultFailing = options.consultFailure === true;
 
   await page.route("**/api/v1/**", async (route: Route) => {
@@ -167,8 +169,10 @@ async function installApi(
       });
     }
     if (path === "/core/landing/admin/consult/41/" && request.method() === "PATCH") {
+      consultPatchRequests += 1;
       const status = options.consultPatchStatus ?? 200;
       if (status !== 200) return json({ detail: "상태 저장 실패" }, status);
+      if (options.consultFailureAfterPatch) consultFailing = true;
       return json({ ok: true });
     }
     if (path === "/lectures/attendance/arrival-overview/") {
@@ -192,6 +196,7 @@ async function installApi(
   return {
     cardRequests: () => cardRequests,
     consultRequests: () => consultRequests,
+    consultPatchRequests: () => consultPatchRequests,
     recoverConsult: () => { consultFailing = false; },
   };
 }
@@ -326,4 +331,36 @@ test("상담 수신함 mutation 오류를 사용자에게 알리고 항목을 �
   await page.getByRole("button", { name: "읽음으로 표시" }).click();
   await expect(page.getByRole("alert")).toContainText("상태 저장 실패");
   await expect(page.getByText("상담 보호자", { exact: true })).toBeVisible();
+});
+
+test("상담 수신함은 PATCH 성공 뒤 재조회 실패 시 stale 항목과 mutation을 잠그고 재시도한다", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installAuth(page);
+  const apiState = await installApi(page, {
+    role: "owner",
+    consultFailureAfterPatch: true,
+  });
+
+  await gotoAndSettle(page, `${BASE}/workspace/settings/consult`);
+  await expect(page.getByText("상담 보호자", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "읽음으로 표시" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "+ 메모 추가" })).toBeVisible();
+
+  await page.getByRole("button", { name: "읽음으로 표시" }).click();
+  await expect.poll(apiState.consultPatchRequests).toBe(1);
+  const readFailure = page.getByRole("alert").filter({ hasText: "temporary consult failure" });
+  await expect(readFailure).toBeVisible();
+  await expect(readFailure.getByRole("button", { name: "다시 시도" })).toBeVisible();
+  await expect(page.getByText("상담 보호자", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /전체 1/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "읽음으로 표시" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "+ 메모 추가" })).toHaveCount(0);
+  expect(apiState.consultPatchRequests()).toBe(1);
+
+  apiState.recoverConsult();
+  await readFailure.getByRole("button", { name: "다시 시도" }).click();
+  await expect(page.getByText("상담 보호자", { exact: true })).toBeVisible();
+  await expect.poll(apiState.consultRequests).toBeGreaterThanOrEqual(3);
+  expect(apiState.consultPatchRequests()).toBe(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });

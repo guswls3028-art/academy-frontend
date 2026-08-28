@@ -70,6 +70,7 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
     sourceId: string;
     targetFolderId: string | null;
     existingName: string;
+    inventoryFence: string;
   } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [renamingId, setRenamingId] = useState<{ type: "folder" | "file"; id: string } | null>(null);
@@ -84,10 +85,17 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
     queryKey: QK,
     queryFn: () => fetchInventoryList(SCOPE, studentPs),
   });
+  const readInventoryGuard = useCallback(() => {
+    const state = qc.getQueryState(QK);
+    return {
+      ready: state?.status === "success" && state.error == null,
+      fence: `${studentPs}:${state?.dataUpdateCount ?? 0}:${state?.errorUpdateCount ?? 0}:${state?.status ?? "pending"}:${state?.fetchStatus ?? "idle"}`,
+    };
+  }, [qc, QK, studentPs]);
   const data = inventoryQ.data;
   const isLoading = inventoryQ.isLoading;
   const inventoryReady = inventoryQ.isSuccess && !inventoryQ.isError;
-  const inventoryFence = `${studentPs}:${inventoryQ.dataUpdatedAt}:${inventoryQ.errorUpdatedAt}:${inventoryQ.fetchStatus}`;
+  const inventoryFence = readInventoryGuard().fence;
   const inventoryGuardRef = useRef({ ready: inventoryReady, fence: inventoryFence });
   inventoryGuardRef.current = { ready: inventoryReady, fence: inventoryFence };
 
@@ -279,6 +287,7 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
       sourceId: string,
       onDuplicate?: "overwrite" | "rename"
     ): Promise<InventoryMoveOutcome> => {
+      if (!readInventoryGuard().ready) return "error";
       setMovingId(sourceId);
       const prev = qc.getQueryData<{ folders: InventoryFolder[]; files: InventoryFile[] }>(QK);
       const applyOptimistic = () => {
@@ -292,15 +301,27 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
         }
       };
       applyOptimistic();
+      const optimisticInventory = readInventoryGuard();
       try {
         await moveInventoryItem({ scope: SCOPE, type, sourceId, targetFolderId, studentPs, onDuplicate });
         await qc.invalidateQueries({ queryKey: QK });
         return "moved";
       } catch (e) {
+        const currentInventory = readInventoryGuard();
+        if (!currentInventory.ready || currentInventory.fence !== optimisticInventory.fence) {
+          return "error";
+        }
         if (prev) qc.setQueryData(QK, prev);
         const ce = e as MoveConflictError & Error;
         if (ce.status === 409 && ce.code === "duplicate") {
-          setConflict({ type, sourceId, targetFolderId, existingName: ce.existing_name || "항목" });
+          const restoredInventory = readInventoryGuard();
+          setConflict({
+            type,
+            sourceId,
+            targetFolderId,
+            existingName: ce.existing_name || "항목",
+            inventoryFence: restoredInventory.fence,
+          });
           return "conflict";
         } else {
           feedback.error(ce?.message ?? "이동에 실패했습니다.");
@@ -310,18 +331,20 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
         setMovingId(null);
       }
     },
-    [qc, studentPs, QK]
+    [qc, studentPs, QK, readInventoryGuard]
   );
 
   const resolveConflict = useCallback(
     async (choice: "overwrite" | "rename") => {
       if (!conflict) return;
-      const { targetFolderId, type, sourceId } = conflict;
+      const { targetFolderId, type, sourceId, inventoryFence: conflictInventoryFence } = conflict;
       setConflict(null);
+      const currentInventory = readInventoryGuard();
+      if (!currentInventory.ready || currentInventory.fence !== conflictInventoryFence) return;
       const outcome = await handleMove(targetFolderId, type, sourceId, choice);
       if (outcome === "moved") clearSelection();
     },
-    [clearSelection, conflict, handleMove]
+    [clearSelection, conflict, handleMove, readInventoryGuard]
   );
 
   const openFileUrl = async (r2Key: string) => {

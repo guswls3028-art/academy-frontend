@@ -39,7 +39,8 @@ function errorDetail(error: unknown, fallback: string): string {
 function LandingConsultInboxContent() {
   const [items, setItems] = useState<ConsultItem[]>([]);
   const [summary, setSummary] = useState<{ total: number; unread: number }>({ total: 0, unread: 0 });
-  const [error, setError] = useState<string | null>(null);
+  const [readError, setReadError] = useState<string | null>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasSuccessfulLoad, setHasSuccessfulLoad] = useState(false);
   const [pendingId, setPendingId] = useState<number | null>(null);
@@ -48,14 +49,18 @@ function LandingConsultInboxContent() {
 
   const load = useCallback(async () => {
     setIsLoading(true);
+    setHasSuccessfulLoad(false);
+    setReadError(null);
+    setItems([]);
+    setSummary({ total: 0, unread: 0 });
+    setEditing(null);
     try {
       const r = await api.get<ListResp>("/core/landing/admin/consult/");
       setItems(r.data.items || []);
       setSummary(r.data.summary || { total: 0, unread: 0 });
       setHasSuccessfulLoad(true);
-      setError(null);
     } catch (e) {
-      setError(errorDetail(e, "상담 요청을 불러오지 못했습니다."));
+      setReadError(errorDetail(e, "상담 요청을 불러오지 못했습니다."));
     } finally {
       setIsLoading(false);
     }
@@ -63,36 +68,40 @@ function LandingConsultInboxContent() {
 
   useEffect(() => { void load(); }, [load]);
 
+  const readReady = hasSuccessfulLoad && !isLoading && readError == null;
+
   const markRead = async (id: number) => {
-    if (pendingId != null) return;
-    setError(null);
+    if (!readReady || pendingId != null) return;
+    setMutationError(null);
     setPendingId(id);
     try {
       await api.patch(`/core/landing/admin/consult/${id}/`, { mark_read: true });
-      await load();
     } catch (e) {
-      setError(errorDetail(e, "읽음 상태를 저장하지 못했습니다."));
-    } finally {
+      setMutationError(errorDetail(e, "읽음 상태를 저장하지 못했습니다."));
       setPendingId(null);
+      return;
     }
+    await load();
+    setPendingId(null);
   };
 
   const saveMemo = async (id: number, memo: string) => {
-    if (pendingId != null) return;
-    setError(null);
+    if (!readReady || pendingId != null) return;
+    setMutationError(null);
     setPendingId(id);
     try {
       await api.patch(`/core/landing/admin/consult/${id}/`, { admin_memo: memo });
-      setEditing(null);
-      await load();
     } catch (e) {
-      setError(errorDetail(e, "메모를 저장하지 못했습니다."));
-    } finally {
+      setMutationError(errorDetail(e, "메모를 저장하지 못했습니다."));
       setPendingId(null);
+      return;
     }
+    setEditing(null);
+    await load();
+    setPendingId(null);
   };
 
-  const filtered = items.filter((it) => filter === "all" || !it.read_at);
+  const filtered = readReady ? items.filter((it) => filter === "all" || !it.read_at) : [];
 
   return (
     <div style={{ padding: "24px 28px", maxWidth: 1100, margin: "0 auto" }}>
@@ -100,7 +109,7 @@ function LandingConsultInboxContent() {
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, color: "var(--color-text-primary, #0f172a)", letterSpacing: "-0.02em" }}>
             상담 수신함
-            {summary.unread > 0 && (
+            {readReady && summary.unread > 0 && (
               <span style={{ marginLeft: 10, padding: "3px 10px", borderRadius: 99, background: "#dc2626", color: "#fff", fontSize: 12, fontWeight: 700, verticalAlign: "middle" }}>
                 새 {summary.unread}
               </span>
@@ -110,7 +119,7 @@ function LandingConsultInboxContent() {
             홈페이지에서 학부모가 보낸 상담 요청. 미확인 항목은 위에 빨간 표시.
           </p>
         </div>
-        {hasSuccessfulLoad && (
+        {readReady && (
           <div style={{ display: "flex", gap: 6, padding: 4, background: "rgba(15,23,42,0.04)", borderRadius: 10 }}>
             <FilterTab active={filter === "all"} onClick={() => setFilter("all")}>전체 {summary.total}</FilterTab>
             <FilterTab active={filter === "unread"} onClick={() => setFilter("unread")}>미확인 {summary.unread}</FilterTab>
@@ -118,20 +127,24 @@ function LandingConsultInboxContent() {
         )}
       </div>
 
-      {error && (
+      {readError && (
         <div role="alert" style={{ padding: "12px 16px", borderRadius: 10, background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", color: "#b91c1c", fontSize: 13, marginBottom: 16 }}>
-          {error}
-          {items.length === 0 && (
-            <button type="button" onClick={() => void load()} disabled={isLoading} style={{ marginLeft: 12, minHeight: 44, padding: "6px 12px", borderRadius: 7, border: "1px solid currentColor", background: "transparent", color: "inherit", fontWeight: 700, cursor: isLoading ? "wait" : "pointer" }}>
-              다시 시도
-            </button>
-          )}
+          {readError}
+          <button type="button" onClick={() => void load()} disabled={isLoading} style={{ marginLeft: 12, minHeight: 44, padding: "6px 12px", borderRadius: 7, border: "1px solid currentColor", background: "transparent", color: "inherit", fontWeight: 700, cursor: isLoading ? "wait" : "pointer" }}>
+            다시 시도
+          </button>
+        </div>
+      )}
+
+      {mutationError && (
+        <div role="alert" style={{ padding: "12px 16px", borderRadius: 10, background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", color: "#b91c1c", fontSize: 13, marginBottom: 16 }}>
+          {mutationError}
         </div>
       )}
 
       {isLoading ? (
         <p style={{ fontSize: 14, color: "var(--color-text-muted, #94a3b8)", textAlign: "center", padding: 60 }}>불러오는 중…</p>
-      ) : error && items.length === 0 ? null : filtered.length === 0 ? (
+      ) : readError ? null : filtered.length === 0 ? (
         <div style={{ padding: 60, textAlign: "center", color: "var(--color-text-muted, #94a3b8)", fontSize: 14, lineHeight: 1.7 }}>
           <p style={{ fontSize: 32, margin: "0 0 12px" }}>📭</p>
           <p style={{ fontSize: 15, fontWeight: 600, margin: "0 0 4px", color: "var(--color-text-primary, #1e293b)" }}>

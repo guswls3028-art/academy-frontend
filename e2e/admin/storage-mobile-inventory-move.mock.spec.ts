@@ -34,6 +34,7 @@ type StorageHarness = {
   unexpectedMutations: string[];
   inventoryReads: Array<{ scope: string | null; studentPs: string | null }>;
   setInventoryAvailable: (available: boolean) => void;
+  releaseHeldMove: () => void;
 };
 
 function isLocalBase(url: string): boolean {
@@ -104,6 +105,7 @@ async function installStorageMocks(
     moveReplies?: MoveReply[];
     includeTarget?: boolean;
     inventoryInitiallyAvailable?: boolean;
+    holdFirstMoveConflict?: boolean;
   } = {},
 ): Promise<StorageHarness> {
   const role = options.role ?? "owner";
@@ -114,6 +116,11 @@ async function installStorageMocks(
   const unexpectedMutations: string[] = [];
   const inventoryReads: Array<{ scope: string | null; studentPs: string | null }> = [];
   let inventoryAvailable = options.inventoryInitiallyAvailable ?? true;
+  let holdNextMoveConflict = options.holdFirstMoveConflict === true;
+  let releaseHeldMove: (() => void) | null = null;
+  const heldMove = new Promise<void>((resolve) => {
+    releaseHeldMove = resolve;
+  });
 
   await page.addInitScript((token) => {
     localStorage.setItem("access", token);
@@ -227,6 +234,10 @@ async function installStorageMocks(
       moveRequests.push(body);
       const reply = moveReplies.shift() ?? "success";
       if (reply === "conflict") {
+        if (holdNextMoveConflict) {
+          holdNextMoveConflict = false;
+          await heldMove;
+        }
         return json(route, {
           code: "duplicate",
           existing_name: "같은 이름.pdf",
@@ -251,6 +262,7 @@ async function installStorageMocks(
     unexpectedMutations,
     inventoryReads,
     setInventoryAvailable: (available) => { inventoryAvailable = available; },
+    releaseHeldMove: () => releaseHeldMove?.(),
   };
 }
 
@@ -650,6 +662,54 @@ test.describe("저장소 모바일 파일·폴더 이동", () => {
     ]);
     expect(harness.unexpectedMutations).toEqual([]);
   });
+
+  for (const surface of [
+    {
+      name: "admin",
+      role: "admin" as const,
+      route: "/workspace/storage/files",
+      sourceName: "파일 관리자 모바일 파일.pdf 선택",
+      failureText: "저장소를 불러오지 못했습니다",
+    },
+    {
+      name: "student storage",
+      role: "teacher" as const,
+      route: "/workspace/storage/students/PS-001",
+      sourceName: "파일 학생 모바일 파일.pdf 선택",
+      failureText: "학생 저장소를 불러오지 못했습니다",
+    },
+  ]) {
+    test(`390px ${surface.name}: 보류된 이동 409는 더 최신 조회 503을 지우거나 stale 충돌 mutation을 열지 않는다`, async ({ page }) => {
+      await page.clock.install({ time: new Date("2026-08-28T00:00:00Z") });
+      const harness = await installStorageMocks(page, {
+        role: surface.role,
+        moveReplies: ["conflict"],
+        holdFirstMoveConflict: true,
+      });
+      await page.goto(`${BASE}${surface.route}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+      const { dialog } = await openMoveDialog(page, surface.sourceName);
+      await dialog.getByLabel("이동할 폴더").selectOption("201");
+      await dialog.getByRole("button", { name: "이동", exact: true }).click();
+      await expect.poll(() => harness.moveRequests).toHaveLength(1);
+
+      const readsBeforeFailure = harness.inventoryReads.length;
+      await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+      harness.setInventoryAvailable(false);
+      await page.clock.fastForward(10_100);
+      await page.evaluate(() => window.dispatchEvent(new Event("online")));
+      await expect.poll(() => harness.inventoryReads.length).toBeGreaterThan(readsBeforeFailure);
+      const readFailure = page.getByRole("alert").filter({ hasText: surface.failureText });
+      await expect(readFailure).toBeVisible();
+
+      harness.releaseHeldMove();
+      await expect(readFailure).toBeVisible();
+      await expect(page.getByText("이름 충돌", { exact: true })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "덮어쓰기", exact: true })).toHaveCount(0);
+      expect(harness.moveRequests).toHaveLength(1);
+      expect(harness.unexpectedMutations).toEqual([]);
+    });
+  }
 
   test("390px admin: 5xx는 원래 위치를 복구하고 같은 대화상자에서 재시도한다", async ({ page }) => {
     const harness = await installStorageMocks(page, { role: "admin", moveReplies: ["error", "success"] });
