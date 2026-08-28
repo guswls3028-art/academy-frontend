@@ -45,7 +45,7 @@ export default function StudentInventoryPage() {
     enabled: !!selected?.ps,
   });
   const { data: inventory, isLoading: invLoading, isError: invError } = inventoryQ;
-  const inventoryReady = !!selected && inventoryQ.isSuccess && !invError;
+  const inventoryReady = !!selected && inventoryQ.isSuccess && !invError && inventoryQ.fetchStatus === "idle";
   const readInventoryGuard = useCallback(
     () => readTeacherInventoryQueryGuard(qc, teacherStorageQueryKeys.studentInventory(selected?.ps)),
     [qc, selected?.ps],

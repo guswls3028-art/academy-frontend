@@ -11,7 +11,7 @@ export const teacherStorageQueryKeys = {
 export function readTeacherInventoryQueryGuard(queryClient: QueryClient, queryKey: QueryKey) {
   const state = queryClient.getQueryState(queryKey);
   return {
-    ready: state?.status === "success" && state.error == null,
+    ready: state?.status === "success" && state.error == null && state.fetchStatus === "idle",
     fence: `${state?.dataUpdateCount ?? 0}:${state?.errorUpdateCount ?? 0}:${state?.status ?? "pending"}:${state?.fetchStatus ?? "idle"}`,
   };
 }

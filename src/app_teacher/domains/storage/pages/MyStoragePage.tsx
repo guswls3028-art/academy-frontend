@@ -45,7 +45,7 @@ export default function MyStoragePage() {
     queryFn: () => fetchInventoryList("admin"),
   });
   const { data, isLoading, isError } = inventoryQ;
-  const inventoryReady = inventoryQ.isSuccess && !isError;
+  const inventoryReady = inventoryQ.isSuccess && !isError && inventoryQ.fetchStatus === "idle";
   const readInventoryGuard = useCallback(
     () => readTeacherInventoryQueryGuard(qc, teacherStorageQueryKeys.adminInventory),
     [qc],
