@@ -395,9 +395,12 @@ async function multipartUploadAndComplete(
     }
 
     // 5. Multipart complete (R2 조립 + 인코딩 파이프라인)
+    const orderedParts = [...completedParts].sort(
+      (left, right) => left.PartNumber - right.PartNumber,
+    );
     await api.post(
       `/media/videos/${videoId}/upload/multipart/complete/`,
-      { upload_id: uploadId, parts: completedParts },
+      { upload_id: uploadId, parts: orderedParts },
       { timeout: 120_000 },
     );
 
