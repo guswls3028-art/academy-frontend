@@ -22,6 +22,12 @@ type UploadEvidence = {
   activeInitRequests: number;
   maxActiveInitRequests: number;
   completedVideoIds: number[];
+  multipartPutOrder: number[];
+  multipartPutAttempts: number;
+  multipartPutAttemptsByPart: Record<number, number>;
+  multipartCompleteParts: Array<{ ETag: string; PartNumber: number }>;
+  multipartAbortCount: number;
+  omitMultipartEtag: boolean;
 };
 
 async function installApp(page: Page): Promise<UploadEvidence> {
@@ -30,6 +36,12 @@ async function installApp(page: Page): Promise<UploadEvidence> {
     activeInitRequests: 0,
     maxActiveInitRequests: 0,
     completedVideoIds: [],
+    multipartPutOrder: [],
+    multipartPutAttempts: 0,
+    multipartPutAttemptsByPart: {},
+    multipartCompleteParts: [],
+    multipartAbortCount: 0,
+    omitMultipartEtag: false,
   };
 
   await installTenantOneInitScript(page);
@@ -40,6 +52,21 @@ async function installApp(page: Page): Promise<UploadEvidence> {
 
   await page.route("**/e2e-video-upload/**", async (route) => {
     await route.fulfill({ status: 200, body: "ok" });
+  });
+  await page.route("**/e2e-video-multipart/part/*", async (route) => {
+    const partNumber = Number(new URL(route.request().url()).pathname.split("/").pop());
+    evidence.multipartPutAttempts += 1;
+    evidence.multipartPutAttemptsByPart[partNumber] =
+      (evidence.multipartPutAttemptsByPart[partNumber] ?? 0) + 1;
+    if (partNumber === 1) await new Promise((resolve) => setTimeout(resolve, 120));
+    evidence.multipartPutOrder.push(partNumber);
+    await route.fulfill({
+      status: 200,
+      headers: evidence.omitMultipartEtag
+        ? {}
+        : { ETag: `"part-${partNumber}"`, "Access-Control-Expose-Headers": "ETag" },
+      body: "",
+    });
   });
 
   await page.route("**/api/v1/**", async (route: Route) => {
@@ -124,11 +151,50 @@ async function installApp(page: Page): Promise<UploadEvidence> {
       evidence.completedVideoIds.push(Number(completeMatch[1]));
       return json({ id: Number(completeMatch[1]) });
     }
+    if (/^\/media\/videos\/\d+\/upload\/multipart\/init\/$/.test(path)) {
+      return json({
+        upload_id: "upload-101mb",
+        video_id: 9201,
+        file_key: "tenant/e2e/101mb.mp4",
+      });
+    }
+    if (/^\/media\/videos\/\d+\/upload\/multipart\/presign\/$/.test(path)) {
+      const body = request.postDataJSON() as { part_numbers: number[] };
+      return json({
+        urls: Object.fromEntries(
+          body.part_numbers.map((partNumber) => [
+            String(partNumber),
+            `${BASE}/e2e-video-multipart/part/${partNumber}`,
+          ]),
+        ),
+      });
+    }
+    if (/^\/media\/videos\/\d+\/upload\/multipart\/complete\/$/.test(path)) {
+      const body = request.postDataJSON() as {
+        parts: Array<{ ETag: string; PartNumber: number }>;
+      };
+      evidence.multipartCompleteParts = body.parts;
+      return json({ id: 9201 });
+    }
+    if (/^\/media\/videos\/\d+\/upload\/multipart\/abort\/$/.test(path)) {
+      evidence.multipartAbortCount += 1;
+      return json({ detail: "aborted" });
+    }
     if (path === "/staffs/currently-working/") return json([]);
     return json([]);
   });
 
   return evidence;
+}
+
+async function dropLargeVideo(dialog: ReturnType<Page["getByRole"]>, name: string): Promise<void> {
+  await dialog.getByRole("button", { name: "영상 파일 추가" }).evaluate((dropZone, filename) => {
+    const dataTransfer = new DataTransfer();
+    const file = new File(["multipart-fixture"], filename, { type: "video/mp4" });
+    Object.defineProperty(file, "size", { value: 100 * 1024 * 1024 + 1 });
+    dataTransfer.items.add(file);
+    dropZone.dispatchEvent(new DragEvent("drop", { bubbles: true, dataTransfer }));
+  }, name);
 }
 
 test.use({ serviceWorkers: "block" });
@@ -189,4 +255,37 @@ test("다건 영상은 선택·드롭·개별 제목·재생 순서를 업로드
   await expect.poll(
     () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
   ).toBeLessThanOrEqual(1);
+});
+
+test("101MB 초과 영상은 완료 순서와 무관하게 파트를 정렬해 multipart 완료한다", async ({ page }) => {
+  test.setTimeout(120_000);
+  const evidence = await installApp(page);
+  await gotoAndSettle(page, `${BASE}/workspace/videos/tree`, { timeout: 45_000 });
+  await page.locator('[title="영상 추가"]').click();
+  const dialog = page.getByRole("dialog");
+  await dropLargeVideo(dialog, "101mb-multipart.mp4");
+  await dialog.getByRole("button", { name: "업로드 (1개)" }).click();
+
+  await expect.poll(() => evidence.multipartPutOrder).toEqual([2, 1]);
+  await expect.poll(() => evidence.multipartCompleteParts).toEqual([
+    { ETag: '"part-1"', PartNumber: 1 },
+    { ETag: '"part-2"', PartNumber: 2 },
+  ]);
+  expect(evidence.multipartAbortCount).toBe(0);
+});
+
+test("multipart 파트에 ETag가 없으면 세 번 재시도한 뒤 exact upload를 abort한다", async ({ page }) => {
+  test.setTimeout(120_000);
+  const evidence = await installApp(page);
+  evidence.omitMultipartEtag = true;
+  await gotoAndSettle(page, `${BASE}/workspace/videos/tree`, { timeout: 45_000 });
+  await page.locator('[title="영상 추가"]').click();
+  const dialog = page.getByRole("dialog");
+  await dropLargeVideo(dialog, "101mb-multipart-missing-etag.mp4");
+  await dialog.getByRole("button", { name: "업로드 (1개)" }).click();
+
+  await expect.poll(() => evidence.multipartAbortCount, { timeout: 30_000 }).toBe(1);
+  expect(evidence.multipartPutAttempts).toBe(8);
+  expect(evidence.multipartPutAttemptsByPart).toEqual({ 1: 4, 2: 4 });
+  expect(evidence.multipartCompleteParts).toEqual([]);
 });

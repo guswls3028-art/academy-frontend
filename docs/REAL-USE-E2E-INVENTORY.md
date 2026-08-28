@@ -120,7 +120,7 @@
 | OMR 업로드->수동 보정->결과 반영 | `e2e/admin/omr-review-realuse.spec.ts` 운영 통과 | Covered for current gate; fixture setup API-assisted; upload/review/regrade/student projection은 browser+API로 검증 |
 | 과제 생성->학생 제출->관리자 채점->학생 성적 | `e2e/student/homework-submission-realuse.spec.ts` 운영 통과 | Covered for current gate; 관리자 생성/채점은 API-assisted |
 | 클리닉 대상 판별->예약->승인/출석->해소 | `e2e/student/clinic-remediation-realuse.spec.ts` 운영 통과 | Covered for current gate |
-| 영상 업로드->인코딩 READY->학생 재생->시청률 | 렌더/공개영상 + HLS/progress API smoke | Partial, upload/READY browser chain gap |
+| 영상 업로드->인코딩 READY->학생 재생->시청률 | `e2e/admin/video-batch-upload-queue.mock.spec.ts`의 다건 큐 및 101MB+ multipart 순서·ETag 재시도·abort 회귀 + 운영 `hakwonplus.com` Origin 102MiB multipart PUT/complete/abort canary + 렌더/공개영상 + HLS/progress API smoke | Partial, 2026-08-28 운영 canary는 PUT 17/17 200·정확한 ACAO·브라우저 ETag 노출·complete 크기·객체/미완성 upload 잔여 0을 확인. 실제 제품 영상 row 생성→Batch 인코딩 READY 왕복은 별도 gap |
 | 공지/QnA/상담 왕복 | roundtrip spec 존재 | Covered, 시각검수 보강 필요 |
 | 알림톡 preview->confirm->provider/log/수신 | 여러 admin spec 존재 | Partial, 통제 발송 runbook 필요 |
 | 초심자/비의도 사용 | `e2e/student/student-domain-guardrails.spec.ts` + 계정복구 모달 edge spec | Covered for launch guardrails; broader visual/product audit remains P2 |
