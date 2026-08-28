@@ -372,7 +372,9 @@ test("미저장 시험 설정은 탭 이동 전에 확인하고 동시 수정은
 
   state.exam = { ...state.exam, pass_score: 75, updated_at: "2026-08-02T00:10:00Z" };
   await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("다른 화면에서 설정이 변경되었습니다");
+  await expect(
+    page.getByRole("alert").filter({ hasText: "다른 화면에서 설정이 변경되었습니다" }),
+  ).toBeVisible();
   expect(state.examPatchPayloads).toHaveLength(0);
 
   await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
