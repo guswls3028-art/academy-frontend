@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/storage/pages/MyStoragePage.tsx
 // 내 자료 — admin scope 인벤토리 조회/업로드/다운로드/삭제 (R-11 baseline 동결)
-import { useState, useRef, useMemo, useEffect } from "react";
+import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
@@ -25,7 +25,7 @@ import {
   type InventoryFolder,
 } from "../api";
 import { useConfirm } from "@/shared/ui/confirm";
-import { teacherStorageQueryKeys } from "../queryKeys";
+import { readTeacherInventoryQueryGuard, teacherStorageQueryKeys } from "../queryKeys";
 import { formatStorageBytes as formatBytes } from "../storageFormat";
 
 export default function MyStoragePage() {
@@ -46,9 +46,10 @@ export default function MyStoragePage() {
   });
   const { data, isLoading, isError } = inventoryQ;
   const inventoryReady = inventoryQ.isSuccess && !isError;
-  const inventoryFence = `${inventoryQ.dataUpdatedAt}:${inventoryQ.errorUpdatedAt}:${inventoryQ.fetchStatus}`;
-  const inventoryGuardRef = useRef({ ready: inventoryReady, fence: inventoryFence });
-  inventoryGuardRef.current = { ready: inventoryReady, fence: inventoryFence };
+  const readInventoryGuard = useCallback(
+    () => readTeacherInventoryQueryGuard(qc, teacherStorageQueryKeys.adminInventory),
+    [qc],
+  );
 
   useEffect(() => {
     if (!isError) return;
@@ -320,10 +321,10 @@ export default function MyStoragePage() {
                 </button>
                 <button
                   onClick={async () => {
-                    const confirmedInventoryFence = inventoryGuardRef.current.fence;
+                    const confirmedInventory = readInventoryGuard();
                     const ok = await confirm({ title: "폴더 삭제", message: `'${f.name}' 폴더와 안의 파일을 함께 삭제합니다. 계속할까요?`, confirmText: "삭제", danger: true });
-                    const currentInventory = inventoryGuardRef.current;
-                    if (ok && currentInventory.ready && currentInventory.fence === confirmedInventoryFence) deleteFolderMut.mutate(f);
+                    const currentInventory = readInventoryGuard();
+                    if (ok && confirmedInventory.ready && currentInventory.ready && currentInventory.fence === confirmedInventory.fence) deleteFolderMut.mutate(f);
                   }}
                   aria-label={`${f.name} 폴더 삭제`}
                   title={`${f.name} 폴더 삭제`}
@@ -370,10 +371,10 @@ export default function MyStoragePage() {
                 </button>
                 <button
                   onClick={async () => {
-                    const confirmedInventoryFence = inventoryGuardRef.current.fence;
+                    const confirmedInventory = readInventoryGuard();
                     const ok = await confirm({ title: "파일 삭제", message: `'${f.displayName || f.name}' 파일을 삭제합니다. 계속할까요?`, confirmText: "삭제", danger: true });
-                    const currentInventory = inventoryGuardRef.current;
-                    if (ok && currentInventory.ready && currentInventory.fence === confirmedInventoryFence) deleteFileMut.mutate(f);
+                    const currentInventory = readInventoryGuard();
+                    if (ok && confirmedInventory.ready && currentInventory.ready && currentInventory.fence === confirmedInventory.fence) deleteFileMut.mutate(f);
                   }}
                   aria-label={`${f.displayName || f.name} 삭제`}
                   title={`${f.displayName || f.name} 삭제`}

@@ -161,6 +161,14 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
         }
       : null;
   }, [files, folders, selectedFileIds, selectedFolderIds, selectionCount]);
+  const isCurrentMoveSource = useCallback((source: InventoryMoveSource) => {
+    if (source.type === "file") {
+      const file = files.find((item) => item.id === source.id);
+      return !!file && file.displayName === source.name && (file.folderId ?? null) === source.parentId;
+    }
+    const folder = folders.find((item) => item.id === source.id);
+    return !!folder && folder.name === source.name && folder.parentId === source.parentId;
+  }, [files, folders]);
 
   const toggleFolderSelect = useCallback((folderId: string, multi: boolean) => {
     if (multi) {
@@ -309,6 +317,8 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
       } catch (e) {
         const currentInventory = readInventoryGuard();
         if (!currentInventory.ready || currentInventory.fence !== optimisticInventory.fence) {
+          setMoveDialogTarget(null);
+          setConflict(null);
           return "error";
         }
         if (prev) qc.setQueryData(QK, prev);
@@ -574,6 +584,10 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
           busy={movingId === moveDialogTarget.id}
           onClose={() => setMoveDialogTarget(null)}
           onMove={async (targetFolderId) => {
+            if (!readInventoryGuard().ready || !isCurrentMoveSource(moveDialogTarget)) {
+              setMoveDialogTarget(null);
+              return "error";
+            }
             const outcome = await handleMove(
               targetFolderId,
               moveDialogTarget.type,

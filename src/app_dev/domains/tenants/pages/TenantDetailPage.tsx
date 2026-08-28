@@ -329,6 +329,10 @@ function BrandingTab({ tenantId, tenantCode }: { tenantId: number; tenantCode: s
     setInitialized(false);
   }, [tenantId]);
 
+  useEffect(() => {
+    if (isError) setInitialized(false);
+  }, [isError]);
+
   // 최초 성공 조회 직후 1회 초기화. 재조회 실패 중에는 편집값을 만들지 않는다.
   useEffect(() => {
     if (isLoading || isError || initialized) return;

@@ -330,7 +330,7 @@ export default function PromoteFromInventoryModal({
             {!isLoading && error && (
               <div role="alert" className="matchup-promote-empty matchup-promote-empty--danger">
                 저장소를 불러오지 못했습니다.
-                <Button intent="secondary" size="sm" onClick={() => void refetch()}>
+                <Button intent="secondary" size="xl" className="!min-h-12" onClick={() => void refetch()}>
                   다시 시도
                 </Button>
               </div>

@@ -272,6 +272,80 @@ test.describe("개발자 콘솔 소유자 실패 안전", () => {
     expect(brandingWrites).toEqual([]);
   });
 
+  test("브랜딩 재조회 실패 뒤 변경된 서버값으로 복구해 untouched 필드를 stale 값으로 저장하지 않는다", async ({ page }) => {
+    await page.clock.install({ time: new Date("2026-08-28T00:00:00Z") });
+    await stubDevTenant(page);
+    let readMode: "a" | "error" | "b" = "a";
+    let brandingReadCount = 0;
+    let patchBody: Record<string, unknown> | null = null;
+    await page.route("**/api/v1/core/tenant-branding/11/**", async (route) => {
+      const request = route.request();
+      if (request.method() === "POST" && request.url().includes("/upload-logo/")) {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ logoUrl: "https://example.test/logo-b.png" }),
+        });
+      }
+      if (request.method() === "PATCH") {
+        patchBody = request.postDataJSON() as Record<string, unknown>;
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ tenantId: 11, ...patchBody }),
+        });
+      }
+      if (request.method() !== "GET") return route.fallback();
+      brandingReadCount += 1;
+      if (readMode === "error") {
+        return route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({ detail: "temporary_branding_failure" }),
+        });
+      }
+      const suffix = readMode === "a" ? "A" : "B";
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          tenantId: 11,
+          displayName: `표시 ${suffix}`,
+          windowTitle: `창 ${suffix}`,
+          loginTitle: `로그인 ${suffix}`,
+          loginSubtitle: `부제 ${suffix}`,
+        }),
+      });
+    });
+
+    await gotoAndSettle(page, `${BASE}/dev/tenants/11`);
+    await page.getByRole("button", { name: "브랜딩", exact: true }).click();
+    await expect(page.getByPlaceholder("헤더에 표시될 이름")).toHaveValue("표시 A");
+
+    const readsBeforeFailure = brandingReadCount;
+    readMode = "error";
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "branding.png",
+      mimeType: "image/png",
+      buffer: Buffer.from("branding"),
+    });
+    await expect.poll(() => brandingReadCount).toBeGreaterThan(readsBeforeFailure);
+    const failure = page.getByRole("alert").filter({ hasText: "브랜딩 정보를 불러오지 못했습니다" });
+    await expect(failure).toBeVisible();
+
+    readMode = "b";
+    await failure.getByRole("button", { name: "다시 시도" }).click();
+    await page.getByPlaceholder("헤더에 표시될 이름").fill("표시 편집");
+    await page.getByRole("button", { name: "저장", exact: true }).click();
+    await expect.poll(() => patchBody).not.toBeNull();
+    expect(patchBody).toEqual({
+      displayName: "표시 편집",
+      windowTitle: "창 B",
+      loginTitle: "로그인 B",
+      loginSubtitle: "부제 B",
+    });
+  });
+
   test("기존 계정 승격 재요청은 자격 증명과 프로필을 보내지 않는다", async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await stubDevTenant(page);

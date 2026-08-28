@@ -210,6 +210,14 @@ export default function MyStorageExplorer() {
         }
       : null;
   }, [files, folders, selectedFileIds, selectedFolderIds, selectionCount]);
+  const isCurrentMoveSource = useCallback((source: InventoryMoveSource) => {
+    if (source.type === "file") {
+      const file = files.find((item) => item.id === source.id);
+      return !!file && file.displayName === source.name && (file.folderId ?? null) === source.parentId;
+    }
+    const folder = folders.find((item) => item.id === source.id);
+    return !!folder && folder.name === source.name && folder.parentId === source.parentId;
+  }, [files, folders]);
 
   // 선택 토글 (Ctrl/Cmd+Click = 추가/제거, 일반 Click = 단일 선택)
   const toggleFolderSelect = useCallback((folderId: string, multi: boolean) => {
@@ -519,6 +527,8 @@ export default function MyStorageExplorer() {
       } catch (e) {
         const currentInventory = readInventoryGuard();
         if (!currentInventory.ready || currentInventory.fence !== optimisticInventory.fence) {
+          setMoveDialogTarget(null);
+          setConflict(null);
           return "error";
         }
         if (prev) qc.setQueryData(storageQueryKeys.storageInventory(SCOPE), prev);
@@ -1134,6 +1144,10 @@ export default function MyStorageExplorer() {
           busy={movingId === moveDialogTarget.id}
           onClose={() => setMoveDialogTarget(null)}
           onMove={async (targetFolderId) => {
+            if (!readInventoryGuard().ready || !isCurrentMoveSource(moveDialogTarget)) {
+              setMoveDialogTarget(null);
+              return "error";
+            }
             const outcome = await handleMove(
               targetFolderId,
               moveDialogTarget.type,
