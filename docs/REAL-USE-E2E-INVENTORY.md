@@ -13,7 +13,7 @@ spec 목록과 과거 pass count는 보관하지 않는다. 실행 목록은
 |------|--------|------|------|
 | PR read-only | `test:e2e:gate:readonly` | safety policy, 관리자/학생 login, 최소 smoke를 운영 계정 하나로 직렬 검증 | 생성·수정·발송 |
 | PR route mock | `test:e2e:gate:mock` | 모든 활성 `*.mock.spec.ts`, tenant/API payload, 저장·reload·오류 상태, 390px 핵심 surface | 실제 API fallback |
-| 유지보수 release | `test:e2e:release` | 반복 가치가 있는 read-only/mock 사용자 흐름 | 통제 쓰기와 일회성 진단 |
+| 수동 전체 gate | `.github/workflows/e2e.yml` | 운영 read-only와 폐쇄 proxy route mock을 병렬 재사용 | 환경이 다른 spec의 혼합 실행 |
 | 통제 쓰기 | `test:e2e:controlled-writes` | 가입·복구·공지·QnA·클리닉·평가·OMR·과제 실제 왕복 | 자동 PR 실행, 재시도 |
 | 배포 후 canary | `quality-gate.yml` `e2e-roundtrip` | exact production revision에서 bounded 쓰기 후 실패 시 baseline rollback | 독립 수동 실행 |
 | 전 메뉴 감사 | `all-menu-button-click-audit.spec.ts` | 역할별 메뉴·조회·닫기·필터의 사람형 클릭, fatal/빈 화면 수집 | 저장·삭제·결제·발송 |
@@ -21,21 +21,22 @@ spec 목록과 과거 pass count는 보관하지 않는다. 실행 목록은
 
 ## 2. 실행 구조
 
-`e2e/suites.mjs`는 다음 네 집합을 한 곳에서 소유한다.
+`e2e/suites.mjs`는 다음 세 집합을 한 곳에서 소유한다.
 
 - `productionReadOnlySpecs`: 운영 자격증명을 쓰는 네 개의 직렬 PR spec
 - `routeMockSpecs`: 폐쇄 proxy에서 병렬 실행할 격리 spec
-- `maintainedReleaseSpecs`: 수동 반복 검증할 read-only/mock 묶음
 - `controlledWriteSpecs`: 명시적 opt-in과 residue cleanup이 필요한 쓰기 묶음
 
 `playwright.pr-gate.config.ts`는 운영 read-only를 dependency chain으로 만들고
 route mock만 별도 job에서 최대 4 worker로 실행한다. 운영 계정, shared tenant,
 PostgreSQL 상태를 공유하는 묶음은 병렬화하지 않는다.
 
-`playwright.release.config.ts`와
-`playwright.controlled-write.config.ts`는 긴 CLI 파일 목록을 제거하고 위
-manifest를 직접 사용한다. 통제 쓰기 config는 `retries: 0`을 강제해 첫 실패를
-재실행으로 숨기거나 같은 mutation을 반복하지 않는다.
+수동 workflow도 위 PR read-only와 route-mock gate를 서로 다른 job으로 병렬
+재사용한다. 운영 proxy가 열린 runner와 `127.0.0.1:9` 폐쇄 proxy runner를 섞지
+않으므로 mock token이나 누락 요청이 운영 인증/API 경계로 나가지 않는다.
+`playwright.controlled-write.config.ts`는 통제 쓰기 manifest를 직접 사용하고
+`retries: 0`을 강제해 첫 실패를 재실행으로 숨기거나 같은 mutation을 반복하지
+않는다.
 
 ## 3. 최적화된 감사
 

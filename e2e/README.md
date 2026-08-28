@@ -21,7 +21,7 @@ e2e/
 ├── student/     학생·학부모 앱
 ├── teacher/     선생님 앱
 ├── visual/      유지되는 route-surface 시각 감사
-└── suites.mjs   PR·release·통제 쓰기 suite 단일 목록
+└── suites.mjs   read-only·route mock·통제 쓰기 suite 단일 목록
 ```
 
 실행 결과는 `test-results/`, HTML은 `playwright-report/`에 생성하며 Git에
@@ -35,7 +35,6 @@ e2e/
 | `pnpm test:e2e:gate` | PR 전체 gate | 운영 read-only 4개는 직렬, route mock은 폐쇄 proxy에서 병렬 |
 | `pnpm test:e2e:gate:readonly` | 운영 login/smoke allowlist | 한 계정·한 worker dependency chain |
 | `pnpm test:e2e:gate:mock` | 모든 활성 `*.mock.spec.ts` | `127.0.0.1:9` proxy, 실제 API 요청 금지 |
-| `pnpm test:e2e:release` | 수동 유지보수 release suite | read-only/mock만, `playwright.release.config.ts` |
 | `pnpm test:e2e:controlled-writes` | 통제 쓰기 canary | 명시적 workflow opt-in, 재시도 0 |
 | `pnpm test:e2e:bundle-smoke` | 빌드 산출물 부팅 | 로컬 preview, strict browser |
 | `pnpm test:e2e:visual-audit` | 9개 운영 route surface | read-only, 한 job·한 browser 설치·직렬 실행 |
@@ -102,6 +101,6 @@ trace, HTML report로 남는다.
    허용하지 않는다.
 3. 저장은 payload와 reload 후 상태를 함께 검증하고, 390px 대상은 overflow와
    핵심 action 표시를 검증한다.
-4. PR/release/통제 쓰기 중 정확히 필요한 suite에만 등록한다.
+4. 운영 read-only, 폐쇄 proxy route mock, 통제 쓰기 중 정확히 필요한 suite에만 등록한다.
 5. 일회성 재현 spec은 결함을 닫은 뒤 유지되는 회귀 계약으로 일반화하거나
    삭제한다. 날짜성 파일, screenshot dump, 실행 보고서를 남기지 않는다.

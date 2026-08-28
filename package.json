@@ -54,7 +54,6 @@
     "test:e2e:gate:iphone-webkit": "playwright test --config=playwright.pr-gate.config.ts --project=pr-iphone-webkit --no-deps",
     "test:e2e:manual-grading-shortcuts": "playwright test e2e/admin/manual-exam-grading.mock.spec.ts --config=playwright.cross-browser.config.ts --grep @manual-grading-shortcuts",
     "test:e2e:iphone-safari-uat": "node scripts/run-iphone-safari-login-uat.mjs",
-    "test:e2e:release": "playwright test --config=playwright.release.config.ts",
     "test:e2e:controlled-writes": "playwright test --config=playwright.controlled-write.config.ts",
     "test:e2e:landing-routes": "playwright test e2e/refactor/landing-router.spec.ts",
     "test:e2e:visual-audit": "playwright test e2e/visual/design-system-route-audit.spec.ts --project=chromium --reporter=list",

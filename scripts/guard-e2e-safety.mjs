@@ -5,7 +5,6 @@ import { fileURLToPath } from "node:url";
 import {
   controlledWriteSpecs,
   e2eGateSpecs,
-  maintainedReleaseSpecs,
   productionReadOnlySpecs,
   routeMockSpecs,
 } from "../e2e/suites.mjs";
@@ -38,7 +37,6 @@ const packageJson = JSON.parse(
 const gateCommand = String(packageJson.scripts?.["test:e2e:gate"] ?? "");
 const readOnlyGateCommand = String(packageJson.scripts?.["test:e2e:gate:readonly"] ?? "");
 const mockGateCommand = String(packageJson.scripts?.["test:e2e:gate:mock"] ?? "");
-const releaseCommand = String(packageJson.scripts?.["test:e2e:release"] ?? "");
 const controlledWriteCommand = String(packageJson.scripts?.["test:e2e:controlled-writes"] ?? "");
 if (gateCommand !== "playwright test --config=playwright.pr-gate.config.ts") {
   failures.push("package.json: test:e2e:gate must use playwright.pr-gate.config.ts");
@@ -55,8 +53,11 @@ if (
 ) {
   failures.push("package.json: test:e2e:gate:mock must run only the dependency-free route-mock project");
 }
-if (releaseCommand !== "playwright test --config=playwright.release.config.ts") {
-  failures.push("package.json: test:e2e:release must use playwright.release.config.ts");
+if ("test:e2e:release" in (packageJson.scripts ?? {})) {
+  failures.push("package.json: mixed-environment test:e2e:release is forbidden; reuse the read-only and closed-proxy gates");
+}
+if (fs.existsSync(path.join(root, "playwright.release.config.ts"))) {
+  failures.push("playwright.release.config.ts: mixed read-only/mock release config must remain removed");
 }
 if (
   controlledWriteCommand
@@ -84,23 +85,12 @@ for (const spec of routeMockSpecs) {
 if (new Set(e2eGateSpecs).size !== e2eGateSpecs.length) {
   failures.push("e2e/suites.mjs: PR gate specs must be unique");
 }
-for (const [suiteName, specs] of [
-  ["maintained release", maintainedReleaseSpecs],
-  ["controlled write", controlledWriteSpecs],
-]) {
-  if (new Set(specs).size !== specs.length) {
-    failures.push(`e2e/suites.mjs: ${suiteName} specs must be unique`);
-  }
-  for (const spec of specs) {
-    if (!fs.existsSync(path.join(root, spec))) {
-      failures.push(`e2e/suites.mjs: ${suiteName} spec is missing: ${spec}`);
-    }
-  }
+if (new Set(controlledWriteSpecs).size !== controlledWriteSpecs.length) {
+  failures.push("e2e/suites.mjs: controlled write specs must be unique");
 }
-const releaseSpecSet = new Set(maintainedReleaseSpecs);
 for (const spec of controlledWriteSpecs) {
-  if (releaseSpecSet.has(spec)) {
-    failures.push(`e2e/suites.mjs: controlled write spec must not enter the maintained release suite: ${spec}`);
+  if (!fs.existsSync(path.join(root, spec))) {
+    failures.push(`e2e/suites.mjs: controlled write spec is missing: ${spec}`);
   }
 }
 const forbiddenCredentialHashes = new Set([

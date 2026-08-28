@@ -21,7 +21,7 @@
 | 구분 | 현재 사실 |
 |------|-----------|
 | 앱 라우트 | 통합 업무 `/workspace`, 모바일 업무 `/workspace/mobile`, 학생/학부모 `/student` |
-| E2E 실행 목록 | `e2e/suites.mjs`의 PR read-only, route mock, release, 통제 쓰기 집합 |
+| E2E 실행 목록 | `e2e/suites.mjs`의 운영 read-only, route mock, 통제 쓰기 집합 |
 | 전체 spec | 연구·수동 spec까지 포함하므로 파일 수나 `test(` 수를 릴리스 합격 기준으로 사용하지 않음 |
 | 기존 한계 | skip/annotation/early return/API-assisted 흐름은 실사용 완주 증거로 분류하지 않음 |
 | 기존 강점 | `e2e/student/score-report-realuse.spec.ts`는 강의->차시->학생->시험->학생 제출->성적 노출까지 깊게 검증 |
@@ -63,14 +63,15 @@ spec 전체의 trace, video, screenshot 저장은 비활성화한다.
 | L2 상품성 리뷰 | UI/UX, 초심자, 비의도 사용 | 출시 전/큰 화면 개편 후 | 스크린샷과 판정표, P0/P1/P2 이슈 분류 |
 | L3 운영 통합 | worker/provider/실발송/장시간 영상 | 영상, 알림톡, worker, 배포 변경 후 | provider/worker 로그와 실제 수신/재생 증거 |
 
-GitHub의 `.github/workflows/e2e.yml`을 수동 실행하면 먼저
-`pnpm test:e2e:release`의 read-only/mock 유지보수 묶음을 실행한다. 요청자가
+GitHub의 `.github/workflows/e2e.yml`을 수동 실행하면 운영 read-only job과
+실제 API가 닫힌 route-mock job을 병렬 실행한다. 요청자가
 `controlled_write_canaries=true`를 명시한 실행만 notice/QnA/clinic/password/
 session-assessment, 가입·계정복구 실발송과 OMR·과제·클리닉 fixture를 통제
 번호 및 소유 ID cleanup 경계 안에서 추가
 실행한다. 그 뒤 admin/developer desktop, student mobile, teacher mobile 전
-메뉴 감사를 한 job·한 runner 준비에서 직렬 실행한다. 유지보수 묶음, 선택한
-통제 쓰기 canary, 전 메뉴 감사 job이 모두 성공해야 해당 수동 E2E를 통과로 기록한다.
+메뉴 감사를 한 job·한 runner 준비에서 직렬 실행한다. read-only, route-mock,
+선택한 통제 쓰기 canary, 전 메뉴 감사 job이 모두 성공해야 해당 수동 E2E를
+통과로 기록한다.
 OMR·클리닉 canary의 성적 이력은 제품의 삭제 보호 계약 때문에 프런트 API
 cleanup이 시험을 archive할 수 있다. 따라서 통제 쓰기 실행 직후 backend 운영 절차의
 `cleanup_e2e_residue --tenant-id 1` dry-run/exact-token execute를 수행하고,
@@ -81,9 +82,9 @@ GitHub E2E 성공만으로 운영 정리를 완료했다고 판정하지 않는�
 활성 spec 전체는 릴리스 묶음이 아니다. 일회성 감사·진단 자산은 결함을 닫은 뒤
 일반화하거나 삭제하며, 파일 수를 제품 기능 합격 수로 보고하지 않는다.
 
-유지보수 묶음 자체도 skip·flake를 허용하지 않는다. 기본 묶음은
-읽기 전용 실제 경로와 격리 route-mock만 소유하고, 알림을 발생시키는
-password-reset을 포함한 쓰기 시나리오는 통제 옵션에서만 실행한다.
+기본 gate는 skip·flake를 허용하지 않는다. 운영 read-only와 격리 route-mock은
+서로 다른 proxy job에서 실행하고, 알림을 발생시키는 password-reset을 포함한
+쓰기 시나리오는 통제 옵션에서만 실행한다.
 
 ## 5. 공통 합격 기준
 

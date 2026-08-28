@@ -105,7 +105,7 @@ scripts/
 └── tests/                         ← 위 스크립트와 workflow 계약 테스트
 
 e2e/
-└── suites.mjs                     ← PR·release·통제 쓰기 Playwright 목록
+└── suites.mjs                     ← read-only·route mock·통제 쓰기 Playwright 목록
 ```
 
 공식 명령은 `package.json`, CI 실행 순서는 `.github/workflows/`, 상세 E2E 작성법은
