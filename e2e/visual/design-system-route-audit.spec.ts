@@ -2,6 +2,10 @@ import type { Page, TestInfo } from "@playwright/test";
 import { test, expect } from "../fixtures/strictTest";
 import { getBaseUrl, loginViaUI } from "../helpers/auth";
 
+test.use({
+  allowRecoveredProductionCors: true,
+});
+
 const TENANT_LANDING_BASE = process.env.TCHUL_BASE_URL || "https://tchul.com";
 const DEVELOPER_BASE = process.env.E2E_DEV_BASE_URL || "https://dev.hakwonplus.com";
 
