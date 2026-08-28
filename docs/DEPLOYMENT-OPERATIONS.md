@@ -73,8 +73,8 @@ backend `docs/operations/github-governance.md`와
   선생님 모바일 답변
 - 과제별 만점과 저장 payload를 검증하는 로컬 성적 입력 계약
 
-notice/QnA/clinic/password/session-assessment처럼 행을 생성·수정하는 spec은 PR
-gate와 기본 `test:e2e:release`에서 제외한다.
+notice/QnA/clinic/password/session-assessment처럼 행을 생성·수정하는 spec은 PR과
+수동 기본 gate에서 제외한다.
 `scripts/guard-e2e-safety.mjs`가 `e2e/suites.mjs`의 분류와 package script
 진입점을 검사하므로 production-backed 쓰기 spec을 추가하면 CI가 먼저 실패한다.
 `pnpm guard:test-coverage`는 새 활성 `*.mock.spec.ts`가 PR gate에서 빠지거나
@@ -91,9 +91,10 @@ PR workflow는 production-backed safety/login/health 네 파일을 한 job의 de
 chain으로 직렬 실행한다. 별도 job은 API proxy를 `http://127.0.0.1:9`로 닫고 각
 browser context에 API interception을 설치하는 route-mock 파일만 CI 최대 4 worker로
 병렬 실행한다. 두 job은 서로 기다리지 않으므로 운영 계정 직렬성은 보존하면서
-route-mock wall time을 줄인다. `e2e/suites.mjs`가 PR, 유지보수 release, 통제 쓰기
-목록을 한 곳에서 소유하며 safety guard가 production allowlist, route interception,
-중복·누락과 package script 진입점을 함께 차단한다.
+route-mock wall time을 줄인다. 수동 workflow도 두 job을 병렬 재사용하며 전 메뉴
+감사는 둘 다 성공한 뒤에만 시작한다. `e2e/suites.mjs`가 운영 read-only,
+route mock, 통제 쓰기 목록을 한 곳에서 소유하며 safety guard가 production
+allowlist, route interception, 중복·누락과 package script 진입점을 함께 차단한다.
 
 Dependabot PR은 GitHub 보안 경계상 repository/environment secret을 받지
 않는다. 따라서 해당 PR에서는 Cloudflare preview와 credential 기반 login

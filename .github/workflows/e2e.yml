@@ -20,7 +20,6 @@ on:
       - "playwright.config.ts"
       - "playwright.controlled-write.config.ts"
       - "playwright.pr-gate.config.ts"
-      - "playwright.release.config.ts"
       - "e2e/suites.mjs"
       - "scripts/guard-e2e-safety.mjs"
       - "scripts/guard-deployment-governance.mjs"
@@ -34,7 +33,7 @@ concurrency:
 
 jobs:
   e2e:
-    name: E2E read-only and maintained release suite
+    name: E2E production read-only
     runs-on: ubuntu-latest
     timeout-minutes: 120
     # Dependabot PR은 아래 closed-proxy route-mock job만 실행한다.
@@ -106,13 +105,8 @@ jobs:
           E2E_ALLOW_PRODUCTION_WRITES=0
           EOF
 
-      - name: Run PR E2E gate
-        if: github.event_name == 'pull_request'
+      - name: Run production read-only gate
         run: pnpm test:e2e:gate:readonly --reporter=github,html
-
-      - name: Run maintained release E2E suite
-        if: github.event_name == 'workflow_dispatch'
-        run: pnpm test:e2e:release --reporter=github,html
 
       - name: Run opt-in controlled production write canaries
         if: github.event_name == 'workflow_dispatch' && inputs.controlled_write_canaries
@@ -133,7 +127,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: playwright-report-maintained-release
+          name: playwright-report-production-readonly
           path: |
             playwright-report/
             test-results/
@@ -144,14 +138,14 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: frontend-server-log-maintained-release
+          name: frontend-server-log-production-readonly
           path: /tmp/academy-vite.log
           retention-days: 7
           if-no-files-found: ignore
 
   pr-route-mocks:
     name: E2E closed-proxy route mocks
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -261,8 +255,11 @@ jobs:
 
   all-menu-audit:
     name: All-menu audit
-    if: github.event_name == 'workflow_dispatch' && needs.e2e.result == 'success'
-    needs: e2e
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      && needs.e2e.result == 'success'
+      && needs.pr-route-mocks.result == 'success'
+    needs: [e2e, pr-route-mocks]
     runs-on: ubuntu-latest
     timeout-minutes: 240
 

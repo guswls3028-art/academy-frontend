@@ -8,7 +8,6 @@ import {
   criticalInteractionSpecs,
   criticalStateTransitionSpecs,
   e2eGateSpecs,
-  maintainedReleaseSpecs,
   routeMockSpecs,
 } from "../../e2e/suites.mjs";
 
@@ -83,27 +82,27 @@ test("save, reload, stale, and valid-zero contracts cannot fall out of the PR ga
   assert.match(read("e2e/student/numeric-short-answer.spec.ts"), /앞자리 0을 정규화/);
 });
 
-test("release and controlled-write suites have separate executable owners", () => {
-  assert.equal(
-    packageJson.scripts["test:e2e:release"],
-    "playwright test --config=playwright.release.config.ts",
-  );
+test("manual E2E reuses the isolated read-only and closed-proxy gates", () => {
+  assert.equal(packageJson.scripts["test:e2e:release"], undefined);
+  assert.equal(fs.existsSync(path.join(root, "playwright.release.config.ts")), false);
   assert.equal(
     packageJson.scripts["test:e2e:controlled-writes"],
     "playwright test --config=playwright.controlled-write.config.ts",
   );
-  assert.deepEqual(
-    controlledWriteSpecs.filter((spec) => maintainedReleaseSpecs.includes(spec)),
-    [],
+  assert.match(e2eWorkflow, /name: Run production read-only gate/);
+  assert.match(
+    e2eWorkflow,
+    /pr-route-mocks:[\s\S]{0,160}if: github\.event_name == 'pull_request' \|\| github\.event_name == 'workflow_dispatch'/,
   );
   assert.match(e2eWorkflow, /run: pnpm test:e2e:controlled-writes --reporter=github,html/);
 });
 
 test("the exhaustive menu audit reuses one serial runner setup", () => {
   assert.match(e2eWorkflow, /name: All-menu audit\n/);
-  assert.match(e2eWorkflow, /name: All-menu audit[\s\S]{0,200}timeout-minutes: 240/);
+  assert.match(e2eWorkflow, /name: All-menu audit[\s\S]{0,400}timeout-minutes: 240/);
   assert.match(e2eWorkflow, /e2e\/stability\/all-menu-button-click-audit\.spec\.ts/);
   assert.match(e2eWorkflow, /--retries=0/);
+  assert.match(e2eWorkflow, /needs: \[e2e, pr-route-mocks\]/);
   assert.doesNotMatch(e2eWorkflow, /All-menu audit \(\$\{\{ matrix\.scope \}\}\)/);
 });
 
@@ -111,7 +110,6 @@ test("PR read-only and route-mock gates keep separate runtime boundaries", () =>
   for (const workflowOwner of [
     ".github/workflows/e2e.yml",
     "playwright.pr-gate.config.ts",
-    "playwright.release.config.ts",
     "playwright.controlled-write.config.ts",
     "e2e/suites.mjs",
     "scripts/guard-e2e-safety.mjs",
