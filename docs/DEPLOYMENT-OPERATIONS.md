@@ -75,9 +75,8 @@ backend `docs/operations/github-governance.md`와
 
 notice/QnA/clinic/password/session-assessment처럼 행을 생성·수정하는 spec은 PR
 gate와 기본 `test:e2e:release`에서 제외한다.
-`scripts/guard-e2e-safety.mjs`가 `scripts/e2e-gate-specs.mjs`의 분류와 package
-script 진입점을 검사하므로 production-backed 쓰기 spec을 추가하면 CI가 먼저
-실패한다.
+`scripts/guard-e2e-safety.mjs`가 `e2e/suites.mjs`의 분류와 package script
+진입점을 검사하므로 production-backed 쓰기 spec을 추가하면 CI가 먼저 실패한다.
 `pnpm guard:test-coverage`는 새 활성 `*.mock.spec.ts`가 PR gate에서 빠지거나
 API route interception 없이 등록되면 실패한다.
 같은 guard는 `criticalInteractionSpecs`의 390px 화면이 공통
@@ -92,9 +91,9 @@ PR workflow는 production-backed safety/login/health 네 파일을 한 job의 de
 chain으로 직렬 실행한다. 별도 job은 API proxy를 `http://127.0.0.1:9`로 닫고 각
 browser context에 API interception을 설치하는 route-mock 파일만 CI 최대 4 worker로
 병렬 실행한다. 두 job은 서로 기다리지 않으므로 운영 계정 직렬성은 보존하면서
-route-mock wall time을 줄인다. `scripts/e2e-gate-specs.mjs`가 두 집합의 단일 목록이며
-safety guard가 production allowlist, route interception, 중복 여부와 package script
-진입점을 함께 차단한다.
+route-mock wall time을 줄인다. `e2e/suites.mjs`가 PR, 유지보수 release, 통제 쓰기
+목록을 한 곳에서 소유하며 safety guard가 production allowlist, route interception,
+중복·누락과 package script 진입점을 함께 차단한다.
 
 Dependabot PR은 GitHub 보안 경계상 repository/environment secret을 받지
 않는다. 따라서 해당 PR에서는 Cloudflare preview와 credential 기반 login
@@ -117,7 +116,9 @@ proxy/tunnel을 삭제하고 backend destroy readback으로 잔여 tenant/user�
 
 운영 쓰기는 두 경로만 허용한다.
 
-- `workflow_dispatch`에서 `controlled_write_canaries=true`를 명시한 수동 실행:
+- `workflow_dispatch`에서 `controlled_write_canaries=true`를 명시한 수동 실행.
+  `playwright.controlled-write.config.ts`는 `e2e/suites.mjs`의 통제 목록과
+  `retries=0`을 소유한다:
   `E2E_ALLOW_PRODUCTION_WRITES=1`, 통제 번호, spec별 provider opt-in, 소유
   fixture cleanup을 함께 설정한다.
 - main 배포 뒤 `e2e-roundtrip`: 배포된 revision의 자동 rollback과 연결된
@@ -176,9 +177,10 @@ pnpm test:e2e:visual-audit
 
 `.github/workflows/visual-audit.yml`은 매주 토요일 04:00 KST와 수동 dispatch에
 실제 운영 route surface를 읽기 전용으로 렌더한다. 관리자 desktop/390px,
-학생 desktop/390px, 선생님 390px, promo, system, tenant landing, developer를
-9개 scope로 나누되 공유 운영 테넌트와 단일 API 기준선을 보호하도록 완전 직렬 실행한다. 운영 쓰기 플래그는 항상 0이며
-각 route의 screenshot, trace와 HTML report를 scope별 artifact로 14일 보존한다.
+학생 desktop/390px, 선생님 390px, promo, system, tenant landing, developer의
+9개 scope를 한 job에서 완전 직렬 실행해 checkout·의존성·Chromium 설치를 한 번만
+수행한다. 운영 쓰기 플래그와 재시도는 항상 0이며 각 route의 screenshot, trace와
+HTML report를 하나의 run artifact로 14일 보존한다.
 실패는 빈 화면·오류 문구·design token/font 누락·control 잘림/겹침·가로
 overflow·escaped HTML 중 어느 route에서 발생했는지 artifact로 추적한다.
 

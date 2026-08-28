@@ -18,8 +18,10 @@ on:
       - "index.html"
       - "package.json"
       - "playwright.config.ts"
+      - "playwright.controlled-write.config.ts"
       - "playwright.pr-gate.config.ts"
-      - "scripts/e2e-gate-specs.mjs"
+      - "playwright.release.config.ts"
+      - "e2e/suites.mjs"
       - "scripts/guard-e2e-safety.mjs"
       - "scripts/guard-deployment-governance.mjs"
       - "scripts/tests/e2e-gate-coverage.test.mjs"
@@ -125,19 +127,7 @@ jobs:
           E2E_CLINIC_CONTROLLED_PHONE: "01031217466"
           E2E_ALLOW_HOMEWORK_REAL_NOTIFICATIONS: "1"
           E2E_HOMEWORK_CONTROLLED_PHONE: "01031217466"
-        run: >-
-          pnpm exec playwright test
-          e2e/flows/signup-approval-roundtrip.spec.ts
-          e2e/auth/account-recovery-realuse.spec.ts
-          e2e/flows/password-reset-roundtrip.spec.ts
-          e2e/flows/notice-roundtrip.spec.ts
-          e2e/flows/qna-roundtrip.spec.ts
-          e2e/flows/clinic-roundtrip.spec.ts
-          e2e/admin/session-assessment-realuse.spec.ts
-          e2e/admin/omr-review-realuse.spec.ts
-          e2e/student/homework-submission-realuse.spec.ts
-          e2e/student/clinic-remediation-realuse.spec.ts
-          --reporter=github,html
+        run: pnpm test:e2e:controlled-writes --reporter=github,html
 
       - name: Upload report
         if: always()
@@ -270,24 +260,11 @@ jobs:
           if-no-files-found: ignore
 
   all-menu-audit:
-    name: All-menu audit (${{ matrix.scope }})
+    name: All-menu audit
     if: github.event_name == 'workflow_dispatch' && needs.e2e.result == 'success'
     needs: e2e
     runs-on: ubuntu-latest
-    timeout-minutes: 120
-    strategy:
-      fail-fast: false
-      # These read-only audits share the production E2E tenant. Keep them
-      # sequential to avoid authentication throttling and cross-run noise.
-      max-parallel: 1
-      matrix:
-        include:
-          - scope: admin-dev-desktop
-            grep: '관리자 \+ 개발자 데스크톱 메뉴/버튼'
-          - scope: student-mobile
-            grep: "학생 모바일 메뉴/버튼"
-          - scope: teacher-mobile
-            grep: "선생님 모바일 메뉴/버튼"
+    timeout-minutes: 240
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -342,14 +319,15 @@ jobs:
         run: >-
           pnpm exec playwright test
           e2e/stability/all-menu-button-click-audit.spec.ts
-          --grep "${{ matrix.grep }}"
+          --project=chromium
           --reporter=github,html
+          --retries=0
 
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: playwright-report-${{ matrix.scope }}
+          name: playwright-report-all-menu
           path: |
             playwright-report/
             test-results/
@@ -360,7 +338,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: frontend-server-log-${{ matrix.scope }}
+          name: frontend-server-log-all-menu
           path: /tmp/academy-vite.log
           retention-days: 7
           if-no-files-found: ignore

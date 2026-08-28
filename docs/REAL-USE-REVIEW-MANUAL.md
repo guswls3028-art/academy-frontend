@@ -18,14 +18,12 @@
 
 ## 2. 현재 근거
 
-2026-07-30 재실측 기준.
-
 | 구분 | 현재 사실 |
 |------|-----------|
 | 앱 라우트 | 통합 업무 `/workspace`, 모바일 업무 `/workspace/mobile`, 학생/학부모 `/student` |
-| E2E 파일 | 안전 가드 기준 활성 spec 229개 (tracked spec 230개 중 `_local` 1개 제외) |
-| E2E 테스트 라인 | 전체 TypeScript 기준 `test(` 1,026개, `test.skip(` 124개 |
-| 기존 한계 | skip/annotation/early return/API-assisted 흐름이 많아 실사용 완주 증거로 약함 |
+| E2E 실행 목록 | `e2e/suites.mjs`의 PR read-only, route mock, release, 통제 쓰기 집합 |
+| 전체 spec | 연구·수동 spec까지 포함하므로 파일 수나 `test(` 수를 릴리스 합격 기준으로 사용하지 않음 |
+| 기존 한계 | skip/annotation/early return/API-assisted 흐름은 실사용 완주 증거로 분류하지 않음 |
 | 기존 강점 | `e2e/student/score-report-realuse.spec.ts`는 강의->차시->학생->시험->학생 제출->성적 노출까지 깊게 검증 |
 | PR gate | production-backed 로그인/read-only/route-mock exact allowlist. notice/qna/clinic/password/session-assessment 쓰기는 포함하지 않음 |
 | 배포 후 gate | 격리 Cloudflare preview 검증과 `production` 승인 후 baseline을 잡고, 배포 SHA·필수 lazy asset을 3회 연속 확인한 뒤 bounded notice/qna/clinic/session-assessment를 실행. 실패 시 baseline rollback |
@@ -71,8 +69,8 @@ GitHub의 `.github/workflows/e2e.yml`을 수동 실행하면 먼저
 session-assessment, 가입·계정복구 실발송과 OMR·과제·클리닉 fixture를 통제
 번호 및 소유 ID cleanup 경계 안에서 추가
 실행한다. 그 뒤 admin/developer desktop, student mobile, teacher mobile 전
-메뉴 감사를 역할별 독립 job으로 직렬 실행한다. 유지보수 묶음, 선택한 통제
-쓰기 canary, 세 감사 job이 모두 성공해야 해당 수동 E2E를 통과로 기록한다.
+메뉴 감사를 한 job·한 runner 준비에서 직렬 실행한다. 유지보수 묶음, 선택한
+통제 쓰기 canary, 전 메뉴 감사 job이 모두 성공해야 해당 수동 E2E를 통과로 기록한다.
 OMR·클리닉 canary의 성적 이력은 제품의 삭제 보호 계약 때문에 프런트 API
 cleanup이 시험을 archive할 수 있다. 따라서 통제 쓰기 실행 직후 backend 운영 절차의
 `cleanup_e2e_residue --tenant-id 1` dry-run/exact-token execute를 수행하고,
@@ -80,14 +78,10 @@ cleanup이 시험을 archive할 수 있다. 따라서 통제 쓰기 실행 직�
 `production_e2e_residue_absent=0`까지 확인해야 최종 완료다. 이 후속 절차 없이
 GitHub E2E 성공만으로 운영 정리를 완료했다고 판정하지 않는다.
 
-활성 spec 전체는 릴리스 묶음이 아니다. 2026-07-30 실행 `30521523046`은
-첫 shard가 120분에 도달했고 과거 일회성 감사·진단 자산에서 재시도 쌍 기준
-85개 최종 실패를 남겼다. 이 자산은 필요 시 명시 실행해 현대화하거나
-`_local`/archive로 정리하며, 파일 수를 제품 기능 합격 수로 보고하지 않는다.
+활성 spec 전체는 릴리스 묶음이 아니다. 일회성 감사·진단 자산은 결함을 닫은 뒤
+일반화하거나 삭제하며, 파일 수를 제품 기능 합격 수로 보고하지 않는다.
 
-유지보수 묶음 자체도 skip·flake를 허용하지 않는다. 첫 실행
-`30530797327`의 운영 score lease 간섭, Tchul 전용 secret 부재, 중복 텍스트
-selector, 운영 password-reset skip은 모두 실패 증거로 보존했다. 기본 묶음은
+유지보수 묶음 자체도 skip·flake를 허용하지 않는다. 기본 묶음은
 읽기 전용 실제 경로와 격리 route-mock만 소유하고, 알림을 발생시키는
 password-reset을 포함한 쓰기 시나리오는 통제 옵션에서만 실행한다.
 

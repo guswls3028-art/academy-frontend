@@ -101,3 +101,41 @@ export const e2eGateSpecs = [
   ...productionReadOnlySpecs,
   ...routeMockSpecs,
 ];
+
+export const maintainedReleaseSpecs = [
+  ...productionReadOnlySpecs,
+  "e2e/auth/account-recovery-modal.spec.ts",
+  "e2e/auth/first-login-guide.mock.spec.ts",
+  "e2e/admin/student-custom-columns.mock.spec.ts",
+  "e2e/smoke/deep-operational-smoke.spec.ts",
+  "e2e/smoke/production-canary.spec.ts",
+  "e2e/student/student-domain-guardrails.spec.ts",
+  "e2e/promo-pricing-single-plan.spec.ts",
+  "e2e/refactor/promo-router.spec.ts",
+  "e2e/refactor/landing-router.spec.ts",
+  "e2e/admin/manual-exam-grading.mock.spec.ts",
+  "e2e/admin/staff-operations-contract.mock.spec.ts",
+  "e2e/admin/score-entry-autosave.spec.ts",
+  "e2e/admin/individual-score-report.spec.ts",
+  "e2e/admin/student-score-trend.spec.ts",
+  "e2e/student/reported-score-submission.spec.ts",
+  "e2e/teacher/attendance-undo-secession-local.spec.ts",
+  "e2e/student/video-player-mobile-controls.spec.ts",
+  "e2e/student/video-cdn-service-error.mock.spec.ts",
+  "e2e/student/03-public-video-refactor.spec.ts",
+  "e2e/flows/homework-scores-inventory-data-flow.spec.ts",
+  "e2e/flows/video-session-data-flow.spec.ts",
+];
+
+export const controlledWriteSpecs = [
+  "e2e/flows/signup-approval-roundtrip.spec.ts",
+  "e2e/auth/account-recovery-realuse.spec.ts",
+  "e2e/flows/password-reset-roundtrip.spec.ts",
+  "e2e/flows/notice-roundtrip.spec.ts",
+  "e2e/flows/qna-roundtrip.spec.ts",
+  "e2e/flows/clinic-roundtrip.spec.ts",
+  "e2e/admin/session-assessment-realuse.spec.ts",
+  "e2e/admin/omr-review-realuse.spec.ts",
+  "e2e/student/homework-submission-realuse.spec.ts",
+  "e2e/student/clinic-remediation-realuse.spec.ts",
+];

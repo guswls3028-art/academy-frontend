@@ -4,7 +4,7 @@ import baseConfig from "./playwright.config";
 import {
   productionReadOnlySpecs,
   routeMockSpecs,
-} from "./scripts/e2e-gate-specs.mjs";
+} from "./e2e/suites.mjs";
 
 const chromium = {
   ...devices["Desktop Chrome"],

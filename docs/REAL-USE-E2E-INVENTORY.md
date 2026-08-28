@@ -1,278 +1,105 @@
 # 실사용 E2E 인벤토리
 
-**상태:** Active
-**최초 작성:** 2026-06-05
-**목적:** `frontend/e2e`의 기존 테스트 자산을 실사용 운영 리뷰 관점으로 분류한다. 전체 spec 목록이 아니라, 반복 점검에 재사용할 수 있는 핵심 spec과 보강이 필요한 빈틈을 관리한다.
+**상태:** 현재 실행 계약
 
-## 1. 재실측 스냅샷
+이 문서는 반복해서 유지하는 실사용 검증의 목적과 소유 경계를 기록한다. 전체
+spec 목록과 과거 pass count는 보관하지 않는다. 실행 목록은
+`e2e/suites.mjs`, 배포 연결은 `.github/workflows/e2e.yml`과
+`.github/workflows/quality-gate.yml`이 정본이다.
 
-2026-07-30 기준 `frontend/e2e` 파일 재실측.
+## 1. 실행 계층
 
-| 항목 | 값 |
-|------|----|
-| 활성 spec | `guard:e2e-safety` 기준 229개 (tracked spec 230개 중 `_local` 1개 제외) |
-| 전체 TypeScript `test(` 라인 | 1,026개 |
-| `test.skip(` 라인 | 124개 |
-| `test.fixme(` 라인 | 0개 |
-| early `return;` 라인 | 약 264개 |
-| `waitForTimeout` 라인 | 약 42개 |
-| screenshot 호출 | 약 650개 |
-| API helper/request 사용 라인 | 약 484개 |
+| 계층 | 진입점 | 보장 | 제외 |
+|------|--------|------|------|
+| PR read-only | `test:e2e:gate:readonly` | safety policy, 관리자/학생 login, 최소 smoke를 운영 계정 하나로 직렬 검증 | 생성·수정·발송 |
+| PR route mock | `test:e2e:gate:mock` | 모든 활성 `*.mock.spec.ts`, tenant/API payload, 저장·reload·오류 상태, 390px 핵심 surface | 실제 API fallback |
+| 유지보수 release | `test:e2e:release` | 반복 가치가 있는 read-only/mock 사용자 흐름 | 통제 쓰기와 일회성 진단 |
+| 통제 쓰기 | `test:e2e:controlled-writes` | 가입·복구·공지·QnA·클리닉·평가·OMR·과제 실제 왕복 | 자동 PR 실행, 재시도 |
+| 배포 후 canary | `quality-gate.yml` `e2e-roundtrip` | exact production revision에서 bounded 쓰기 후 실패 시 baseline rollback | 독립 수동 실행 |
+| 전 메뉴 감사 | `all-menu-button-click-audit.spec.ts` | 역할별 메뉴·조회·닫기·필터의 사람형 클릭, fatal/빈 화면 수집 | 저장·삭제·결제·발송 |
+| 주간 시각 감사 | `design-system-route-audit.spec.ts` | 9개 desktop/390px/public surface, overflow·font·escaped HTML·fatal 상태 | 제품 데이터 mutation |
 
-해석:
+## 2. 실행 구조
 
-- 스크린샷과 페이지 순회 자산은 많다.
-- 하지만 skip/early return/API-assisted 흐름이 많아 "실사용 완주"의 증거로는 선별이 필요하다.
-- 반복 점검용 spec은 데이터를 만들고, UI로 소비하고, 상대 역할에서 반영을 확인하고, cleanup까지 닫는 형태여야 한다.
+`e2e/suites.mjs`는 다음 네 집합을 한 곳에서 소유한다.
 
-## 2. 현재 gate
+- `productionReadOnlySpecs`: 운영 자격증명을 쓰는 네 개의 직렬 PR spec
+- `routeMockSpecs`: 폐쇄 proxy에서 병렬 실행할 격리 spec
+- `maintainedReleaseSpecs`: 수동 반복 검증할 read-only/mock 묶음
+- `controlledWriteSpecs`: 명시적 opt-in과 residue cleanup이 필요한 쓰기 묶음
 
-| 위치 | 현재 역할 | 한계 |
-|------|-----------|------|
-| `package.json` `test:e2e:gate` | PR용 production safety policy, 로그인, smoke, 모든 활성 route-mock, 과제별 만점/성적 저장 계약, 390px interaction surface와 유효한 0·저장/재조회·stale·동일 계정 복구 묶음 | 운영 API를 사용하는 safety/login/health는 한 job의 직렬 dependency chain으로 유지한다. 별도 closed-proxy job은 browser-context route-mock 파일만 CI 최대 4 worker로 병렬 실행하며 두 job은 동시에 시작한다. `scripts/e2e-gate-specs.mjs`의 분류를 `guard-e2e-safety.mjs`가 강제하고 `guard:test-coverage`가 새 mock 스펙 누락, API interception 누락, critical interaction/state spec 이탈을 차단 |
-| `.github/workflows/quality-gate.yml` `e2e-roundtrip` | 승인된 main 배포 후 notice/qna/clinic/session-assessment bounded write canary | production baseline과 자동 rollback에 연결된 배포 후 전용 경로. 실제 시험/과제 생성과 학생 제출은 아님 |
-| `.github/workflows/e2e.yml` | PR safe gate. 일반 PR은 credential 기반 read-only 직렬 job과 closed-proxy route-mock 병렬 job을 함께 실행하고, Dependabot PR은 closed-proxy job만 실행한다. 수동 기본은 read-only/mock 유지보수 묶음과 역할별 메뉴 감사, 명시적 옵션만 통제 쓰기 canary | Route-mock API proxy는 모든 PR에서 localhost 폐쇄 포트로 고정해 운영 요청을 막는다. `controlled_write_canaries=true`에서만 notice/qna/clinic/password/session-assessment와 fixture 생성 spec을 추가. 운영 tenant를 공유하는 수동 전 메뉴 감사는 직렬 실행 |
+`playwright.pr-gate.config.ts`는 운영 read-only를 dependency chain으로 만들고
+route mock만 별도 job에서 최대 4 worker로 실행한다. 운영 계정, shared tenant,
+PostgreSQL 상태를 공유하는 묶음은 병렬화하지 않는다.
 
-### 2.1 릴리스 묶음과 역사성 자산의 경계
+`playwright.release.config.ts`와
+`playwright.controlled-write.config.ts`는 긴 CLI 파일 목록을 제거하고 위
+manifest를 직접 사용한다. 통제 쓰기 config는 `retries: 0`을 강제해 첫 실패를
+재실행으로 숨기거나 같은 mutation을 반복하지 않는다.
 
-2026-07-30 수동 실행 `30521523046`에서 전 메뉴 감사를 제외한 활성 spec
-전체를 두 shard로 나눈 첫 job이 120분 상한에 도달했다. 실패 산출물에는 재시도
-쌍 기준 85개의 최종 실패가 있었고, 오래된 일회성 시각 감사·진단·메시징 CRUD
-스냅샷과 현재 런타임 계약이 섞여 있었다. 따라서 활성 spec 파일 수나 과거 spec
-전체 실행을 릴리스 합격 기준으로 사용하지 않는다.
+## 3. 최적화된 감사
 
-- `pnpm test:e2e:release`는 반복 유지하는 로그인·권한·읽기 전용 성적·출결·
-  영상·공개 CTA·오류 상태·모바일 guardrail·현재 기능 route-mock을 실행한다.
-- 데이터가 필요한 차시/평가 read-only 흐름은 데이터가 없으면 skip하지 않고
-  실패한다.
-- notice/QnA/clinic/password/session-assessment, 가입/계정복구 실발송과 학생
-  fixture를 만드는 OMR·과제·클리닉은 workflow의
-  `controlled_write_canaries=true`에서만 통제 번호와 소유 ID cleanup으로 실행한다.
-- 통제 쓰기는 Playwright 재시도를 금지하고, 공유 운영 관리자 로그인은 공용
-  429 backoff helper를 사용한다. OMR·클리닉 결과 이력은 삭제 보호로 archive될 수 있으므로
-  실행 직후 backend `cleanup_e2e_residue` exact-token 정리와 production canary
-  residue 0 확인이 필수다.
-- 일회성 screenshot/진단 spec은 필요할 때 명시 실행하고, 검증 종료 후 `_local`
-  또는 archive로 옮기거나 삭제한다. 이 자산의 실패를 숨기지 않되 릴리스 묶음의
-  성공과 동일시하지 않는다.
+전 메뉴 감사는 관리자/개발자 desktop, 학생 mobile, 선생님 mobile을 한 job에서
+차례로 실행한다. 주간 시각 감사도 9개 route surface를 한 job에서 실행한다.
+각 workflow는 checkout, pnpm 설치, Chromium 설치, 안전 guard, 서버/환경 준비를
+한 번만 수행한다. 테스트 자체는 계속 직렬이며 실패 artifact에는 모든 scope의
+screenshot, trace, HTML report가 함께 남는다.
 
-첫 유지보수 묶음 실행 `30530797327`은 107개 통과, 6개 실패, 2개 재시도
-통과, 4개 skip으로 실패 판정했다. 그 결과 다음 경계를 추가로 확정했다.
+이 구조는 shared tenant 직렬성은 유지하면서 순차 matrix가 반복하던 runner 준비
+비용을 제거한다. 새로운 shard는 독립 tenant·계정·데이터와 실행 시간 증거가
+있을 때만 추가한다.
 
-- 고정 운영 차시에서 실제 편집 lease를 획득하는 `scores-tab-ux`는 읽기 전용
-  릴리스 묶음에서 제외한다. 성적 저장 계약은 격리 route-mock과 backend의
-  실제 PostgreSQL 동시성 검증으로 유지한다.
-- `landing-navbar-visual`의 인증 시나리오는 저장소에 없는 Tchul 전용 계정을
-  요구하므로 기본 묶음에서 제외하고, 로컬 격리 router 계약으로 대체한다.
-- 운영에서 학생/학부모 계정 안내를 발생시키는 password-reset은 기본 묶음에서
-  제외하고 통제 쓰기 canary로 이동한다.
-- `homework-scores-inventory-data-flow`의 성적표 제출 제목은 중복 텍스트가 아닌
-  접근 가능한 `h1` role로 판별한다.
-- 학생 성적 보드는 선택된 `시험 성적` 전환 버튼과 실제 결과 링크 또는 정상
-  빈 상태로 판별한다. 목록형 개편에서 제거된 과거 섹션 제목을 계약으로 삼지
-  않는다.
-- 과제 성적도 선택된 `과제 현황` 전환 버튼과 실제 결과 카드 또는 정상 빈
-  상태로 판별한다. 메시지 심층 smoke는 메시지 도메인의 tablist 안에서만
-  이동해 전역 사이드바의 동명 `설정`을 누르지 않는다. 반복 실제 로그인
-  시나리오는 auth helper의 제한된 `Retry-After` 대기를 수용하는 timeout을
-  사용한다.
+## 4. 핵심 사용자 흐름
 
-## 3. 재사용 우선 spec
+| 영역 | 반복 증거 |
+|------|-----------|
+| 인증·첫 사용 | 관리자/학생 login, account recovery modal, first-login guide |
+| 관리자 운영 | 수동 채점, 성적 autosave/reload, 직원 운영, 학생 맞춤 컬럼 |
+| 학생·학부모 | 성적 조회/제출, 모바일 영상 제어와 CDN 오류, 보호 route |
+| 공개·라우팅 | promo/landing router, 단일 요금 CTA, production bundle boot |
+| 역할 간 데이터 | 과제 성적/보관함, 영상 차시 흐름 |
+| 통제 쓰기 | 가입승인, 계정복구, 공지/QnA/클리닉, 차시평가, OMR, 과제 제출 |
 
-| 영역 | spec | 현재 가치 | 보강 필요 |
-|------|------|-----------|-----------|
-| 공개 회원가입 승인·첫 수강 | `e2e/flows/signup-approval-roundtrip.spec.ts` | 공개 가입 UI, 관리자 승인 UI, 승인 직후 무발송, disposable 강의 첫 수강 확정, 학생 로그인, cleanup, 통제번호 Alimtalk provider/log 확인까지 하나의 라운드트립으로 검증 | 실발송 run은 `E2E_ALLOW_SIGNUP_APPROVAL_REAL_SEND=1` + `01031217466` 전용. 매 실행 전 통제번호 duplicate pre-flight 필요 |
-| 계정복구/교사 비번변경 | `e2e/auth/account-recovery-realuse.spec.ts` | 공용 비밀번호 찾기 UI -> 통제번호 실발송 -> account notification log -> 기존 비번 유지 -> staff reset/restore/delete cleanup | production run은 `E2E_ALLOW_ACCOUNT_RECOVERY_REAL_SEND=1` + `E2E_ACCOUNT_RECOVERY_CONTROLLED_PHONE=01031217466` 필요. staff reset 응답은 실제 변경 성공 뒤에도 발송 여부만 알리는 보안상 공통 문구이며, 비밀번호 변경은 후속 JWT 발급으로 판정. temp-login activation은 수신값 env 제공 시 추가 검증 |
-| 학생 Excel·Ymath 제보 회귀 | `e2e/admin/student-excel-password-options.spec.ts` | canonical `/workspace/students` 진입, 내려받은 실제 양식에 안전 행을 추가한 파일 파싱, 전화번호 누락 경고, 세 가지 초기 비밀번호 방식과 등록 차단/활성화 검증. 통제 실행에서는 Ymath owner 대리 로그인으로 동일 양식과 기존 차시 시험의 운영·채점 결과·출결 화면도 검사 | 학생/성적/알림을 만들지 않는 운영 안전 spec. Ymath 검증은 `E2E_ENABLE_YMATH_EXCEL_REGRESSION=1`에서만 실행하며 `impersonation.start` 감사 로그를 남긴다. worker 등록·계정 안내·cleanup은 통제번호를 사용하는 별도 canary 증거가 필요 |
-| 차시/성적/시험/과제 진입 | `e2e/admin/session-assessment-realuse.spec.ts` | 강의 목록->강의->차시->성적/시험/과제 탭을 실제 클릭으로 확인 | 실제 생성/저장/학생 반영 없음 |
-| 학생 시험 결과 | `e2e/student/score-report-realuse.spec.ts` | 강의, 차시, 학생, 시험, 답안, 결과, 성적 보드를 새 데이터로 검증 | 관리자 UI 생성은 API-assisted. 학생 생성의 필수 계정안내가 두 건 발생하므로 운영 API에서는 실패 폐쇄하고 전용 메시징 경계를 가진 비운영 환경에서만 실행 |
-| OMR 업로드/검토/재채점 | `e2e/admin/omr-review-realuse.spec.ts` | 운영 API fixture와 생성 OMR PDF를 사용해 관리자 성적 탭 UI 업로드, worker answer rows, OMR 검토 저장, 학생 성적 projection까지 검증 | fixture 생성은 API-assisted. 테스트 재시도는 운영 잔여를 막기 위해 비활성화. 변경 없는 자동 입력 lease는 OMR CTA가 안전하게 해제하고, 성적 복구 draft가 보이면 사용자가 보는 `버리기` 경로로 해소한다. 결과 이력 archive는 backend exact-token cleanup으로 인계 |
-| 직접 채점 워크스페이스 | `e2e/admin/manual-exam-grading.mock.spec.ts` | 성적표 시험명에서 OMR 자동채점은 OMR 검토로, 직접 채점은 정오·점수 입력표로 분기하는 동선, 제출관리의 raw inventory presign 차단·submission 기반 안전 미리보기 중복 클릭 1회 처리·식별 필요 답안 직접 선택, 스캔 좌우 90도 회전과 제출 전환 초기화·이미지/BBox 공통 변환, 학생 후보 선택 전 저장 POST 0, 혼합형 OMR 보정 후 직접 채점표 재조회, 문항별 유형 표시, 전원 결시 초안과 한 번의 실행 취소, O/X/오답노트와 사용자 지정 키의 입력 후 자동 이동, 46명×20문항 표에서 20칸 연속 입력, 기존 `0` 및 엑셀/Ymath `O`·`.` 매트릭스 붙여넣기, Windows·Linux `Ctrl`/macOS `⌘` 실행 취소·다시 실행·확정과 브라우저 저장 동작 차단, 문항 없는 직접 채점 시험의 빠른 시작, 인라인 배점 합계, 미리보기와 확정 POST 분리, 확정 후 서버 재조회 상태, 자동 화면 맞춤·70~120% 배율 저장·단일 스크롤 영역, 활성 도메인 탭·버튼 선택/호버 대비와 1366/1100/390px 툴바 overflow를 검증 | 로컬 route-mock. 저장·tenant/role·결시 왕복과 석차 제외·선택형 직접 수정 차단·혼합형 OMR 보존·혼재 순서의 유형 판별·배점 검증은 백엔드 `apps/support/results/tests/test_manual_exam_grading.py`가 검증 |
-| 성적 탭 UX | `e2e/admin/scores-tab-ux.spec.ts`, `e2e/admin/score-entry-autosave.spec.ts`, `e2e/admin/assessment-inspection-notes.spec.ts`, `e2e/clinic-pdf-download.spec.ts` | 빈 성적표 자동 입력, 변경 없는 lease를 해제하는 OMR CTA, 기존 점수 안전 잠금→수정→저장 후 재잠금, 과제별 만점 분모와 저장 요청 계약, 셀 확정 즉시 자동 저장 PATCH, Ctrl+S, Ctrl+Z/Redo, 탭 이동 저장, 복구 draft 우선, 성적 도구 그룹, 학생 상세 Esc 닫기, 미입력·검수 대기·실제 미달 분리, 시험/과제 검사 메모 왕복과 서버 검증 사유, 저장 성공 후 재조회 실패 시 완료 상태 유지, ClinicLink 기반 공식 클리닉 PDF와 ONLINE 제외·출결 실패 폐쇄, 1366/1100/390px 확인 | 클릭 진입은 기존 Tenant 1 차시에 의존하되 점수·검사·PDF 계약은 local route mock으로 운영 데이터 미접촉 |
-| 개인 성적표 | `e2e/admin/individual-score-report.spec.ts` | 성적 도구 진입, 학생 전환·다중 선택, 같은 강의 누적 추이, 요약 1쪽/상세 2~3쪽 미리보기, 긴 한국어 기록의 열·제목 줄바꿈, A4별 독립 캡처와 PDF 머리글 색상, 단일·2명 통합 PDF의 실제 페이지 수를 local route mock으로 검증 | 교사 피드백 저장·서버 보관은 현재 범위 아님 |
-| 학생별 회차 누적 성적 | `e2e/admin/student-score-trend.spec.ts` | 관리자 성적 콘솔의 학원시험·학교내신·모의고사 출처 전환, 정규수업·보강수업 상단 범위 탭과 `N건`, 방향키·Home·End 이동, 0건 안내, 범위에 따른 요약·명단·추이·시험 기록 동시 변경, 기간·학생·강의·학년·득점·변화 필터, 학생 선택, 성적표 원본 검수·반영, 관리자·선생 학생 상세의 만점 정규화·자동 회차, 관리자 1366/1100px와 학생 상세·선생 모바일 390px 렌더 확인 | local route-mock 계약 검증. 혼합/미연결 시험의 실패 폐쇄 분류와 같은 유형의 여러 차시에서 특정 차시를 추정하지 않는 계약은 백엔드 테스트가 검증 |
-| 학생 성적표 자발 제출 | `e2e/student/reported-score-submission.spec.ts` | 학교 내신 시험 시기·과목·점수·원본 multipart 계약, 내신 등급 입력 전 5/9등급제 선택, 확인 대기 상태, 평가원 성적표의 실제 시행 월(1~12월) 보존, 390px overflow 확인 | local route-mock 계약 검증 |
-| 공지 왕복 | `e2e/flows/notice-roundtrip.spec.ts` | 관리자 작성->학생 확인 roundtrip | 시각/초심자 판정은 부족 |
-| QnA 왕복 | `e2e/flows/qna-roundtrip.spec.ts` | 학생 질문->관리자 답변->학생 확인 | 일부 API-assisted |
-| 상담 왕복 | `e2e/flows/counsel-roundtrip.spec.ts` | 상담 신청/관리자 확인 | 상담 UI 입력 체감 검증 부족 |
-| 클리닉 왕복 | `e2e/flows/clinic-roundtrip.spec.ts` | 클리닉 세션 생성 후 학생/관리자 화면 로드 | 학생 예약/승인/해소 없음 |
-| 클리닉 보강 해소 | `e2e/student/clinic-remediation-realuse.spec.ts` | 실패 성적 -> 클리닉 target -> 학생 예약 -> staff 완료 -> 재시험 통과 -> 학생 result/grades remediated projection | fixture 생성/retake submit은 API-assisted. production run은 controlled notification env와 최초 계정 안내 확인이 필요하며, 결과 이력 archive는 직후 backend exact-token cleanup 대상으로 인계 |
-| 클리닉 UI 생성 | `e2e/flows/clinic-ui-create.spec.ts` | API로 세션을 만들고 관리자/학생 화면 확인 | 파일 자체에 API-assisted 한계 명시 |
-| 영상/세션 렌더 | `e2e/flows/video-session-data-flow.spec.ts` | 관리자/학생 영상/차시 데이터 렌더 확인 | 업로드/READY browser chain은 없음. HLS 재생과 progress persistence는 backend post-deploy smoke/API canary로 별도 통과 |
-| 공개 영상 | `e2e/student/03-public-video-refactor.spec.ts` | 공개영상 분리/라벨 확인 | 실제 재생/학습 흐름 없음 |
-| 과제/성적/보관함 | `e2e/flows/homework-scores-inventory-data-flow.spec.ts`, `e2e/student/homework-submission-realuse.spec.ts` | 렌더/API shape와 과제 생성->학생 파일 제출->관리자 채점->학생 성적 반영 체인 확인 | 관리자 UI 생성은 아직 API-assisted |
-| 학생 성적표->관리자 확인->누적 반영 | `e2e/student/reported-score-submission.spec.ts`, `e2e/admin/student-score-trend.spec.ts` | 학생 입력·원본 첨부와 관리자 출처별 검수·누적 UI 계약을 각각 검증 | local route-mock 2개로 역할별 계약 확인. 운영 데이터 roundtrip은 별도 canary 대상 |
-| 운영 전체 스크린샷 | `e2e/flows/real-full-check.spec.ts` | 많은 화면 캡처와 일부 QnA roundtrip | skip/optional branch가 많고 판정표 없음 |
-| 역할별 정적 화면 시각 감사 | `.github/workflows/visual-audit.yml`, `e2e/visual/design-system-route-audit.spec.ts`, `e2e/admin/community-compact-layout.spec.ts` | 관리자 전체 정적 라우트를 1440px와 390px에서 각각 렌더하고, 학생·강사·프로모션·시스템·테넌트 랜딩·개발자 콘솔도 역할별 1366/1440px 또는 390px로 렌더한다. 390px 관리자 감사는 현재 테넌트의 `통합 업무 화면` 선호를 명시해 기본 모바일 홈 리다이렉트가 관리자 화면 검사를 대체하지 않게 하고, 개발자 화면은 정식 `dev.hakwonplus.com` origin에서 판정한다. 매주 토요일 04:00 KST 운영 URL을 9개 scope로 나눠 공유 운영 테넌트에서 완전 직렬로 읽기 전용 감사하며 scope별 screenshot/trace/report를 14일 보존한다. 각 주소는 렌더 후 origin과 pathname이 요청한 주소에 남아 있는지도 확인해 로그인·프로모션·기본 화면으로 잘못 이동한 상태를 정상 렌더로 오인하지 않는다. screenshot, 글꼴·토큰·빈 화면·오류 문구·문서 가로 overflow·버튼 잘림과 같은 시각 영역 안의 겹침을 누적 판정한다. 둘 이상의 상호작용 대상을 합성한 프로모션 실제품 미리보기처럼 제품이 의도적으로 중첩을 소유하는 표면은 `data-visual-overlap-intent`로 구체적으로 표시한 동일 영역 안에서만 중첩 검사에서 제외하고, 표시 밖의 버튼 겹침은 계속 실패한다. 장시간 운영 감사에서 Chromium이 남긴 production CORS `net::ERR_FAILED` pair는 동일 API URL의 후속 HTTP 200과 요청 origin에 정확히 일치하는 ACAO, 그리고 해당 라우트의 최종 UI 판정 성공이 모두 확인될 때만 회복하며, 후속 4xx/5xx·ACAO 불일치·실제 오류 UI는 계속 실패한다. 오류 문구 판정은 실제 오류 문장과 짧은 standalone `404` 화면만 대상으로 하고, 문항 번호·점수·자료 ID처럼 정상 본문에 포함된 `404`는 실패로 오인하지 않으며 실패 메시지에 실제 매칭 문구를 남긴다. 커뮤니티 집중 검증은 compact 목록 카드 높이와 문서 overflow뿐 아니라 1366x768 데스크톱의 3단 패널이 viewport 안에 고정되고 목록만 내부 스크롤하는지도 확인한다. | 상세 ID가 필요한 화면은 목록의 실제 대표 진입과 별도 read-only 흐름으로 보완하며, 숨겨진 사이드 메뉴·고정 하단 메뉴·서로 다른 섹션의 좌표는 겹침 쌍으로 비교하지 않고 중앙 도메인의 `/landing/*` 프로모션 redirect를 테넌트 랜딩으로 오인하지 않음 |
-| 운영 시나리오 | `e2e/flows/real-scenario.spec.ts` | 의도한 큰 흐름을 담고 있음 | API setup 중심, cleanup 없음, 실사용 gate로는 위험 |
-| 학생 이상행동 guardrail | `e2e/student/student-domain-guardrails.spec.ts` | 비로그인/가짜토큰 보호 라우트, 로그아웃 뒤로가기, 390px 모바일 overflow를 hard expect로 검증 | 상품성 시각 리뷰는 별도 manual 판정표 필요 |
+제품 기능을 추가할 때 기존 핵심 흐름과 같은 경계라면 가장 가까운 spec을
+확장한다. 별도 제품 규칙이나 fixture 수명주기가 생길 때만 새 spec을 만든다.
 
-## 4. 실사용 흐름별 커버리지
+## 5. 합격 조건
 
-| 흐름 | 현재 커버리지 | 판정 |
-|------|---------------|------|
-| 공개 회원가입 신청->관리자 승인->학생 로그인 | `e2e/flows/signup-approval-roundtrip.spec.ts` 운영 실발송 run 통과 | Covered for controlled canary; future runs must keep duplicate pre-flight and controlled number only |
-| 관리자 학생 단건 등록->학생 로그인->cleanup | 일부 production QA 기록과 컴포넌트 변경 흔적 | Gap |
-| 강의 UI 생성->수강생 등록->정규/보강 차시 생성 | `e2e/admin/enrollment-excel-existing-only.mock.spec.ts`가 강의·차시 Excel 수강등록의 기존학생 전용 안내, 학생번호 포함 원본 파일, `session_id`, 계정 필드 미전송, DONE 부분 제외 요약, 실패 후 재시도, 1366/390px modal viewport를 검증. DNB/팝오버/부분 spec도 존재 | Partial; 실제 worker 저장 왕복은 backend 회귀와 통제 canary 증거가 별도 필요 |
-| 차시 수강생 일괄배정->미입력 시작->전체 현장->되돌리기 | `e2e/admin/session-attendance-bulk-safety.mock.spec.ts` | local route mock에서 선택 검토·undo/redo·등록 확인, 신규 미입력, 최근 일괄 작업과 원자 복구 UI, 1366/1100/390px를 검증. 운영 저장 왕복은 통제 canary 증거가 별도 필요 |
-| 차시 성적 탭->시험/과제 생성 모달 | `session-assessment-realuse` read-only | Partial |
-| 시험 생성->학생 응시->자동 채점->성적 보드 | `score-report-realuse` 강함 | Partial, UI 생성 gap |
-| OMR 업로드->수동 보정->결과 반영 | `e2e/admin/omr-review-realuse.spec.ts` 운영 통과 | Covered for current gate; fixture setup API-assisted; upload/review/regrade/student projection은 browser+API로 검증 |
-| 과제 생성->학생 제출->관리자 채점->학생 성적 | `e2e/student/homework-submission-realuse.spec.ts` 운영 통과 | Covered for current gate; 관리자 생성/채점은 API-assisted |
-| 클리닉 대상 판별->예약->승인/출석->해소 | `e2e/student/clinic-remediation-realuse.spec.ts` 운영 통과 | Covered for current gate |
-| 영상 업로드->인코딩 READY->학생 재생->시청률 | `e2e/admin/video-batch-upload-queue.mock.spec.ts`의 다건 큐 및 101MB+ multipart 순서·ETag 재시도·abort 회귀 + 운영 `hakwonplus.com` Origin 102MiB multipart PUT/complete/abort canary + 렌더/공개영상 + HLS/progress API smoke | Partial, 2026-08-28 운영 canary는 PUT 17/17 200·정확한 ACAO·브라우저 ETag 노출·complete 크기·객체/미완성 upload 잔여 0을 확인. 실제 제품 영상 row 생성→Batch 인코딩 READY 왕복은 별도 gap |
-| 공지/QnA/상담 왕복 | roundtrip spec 존재 | Covered, 시각검수 보강 필요 |
-| 알림톡 preview->confirm->provider/log/수신 | 여러 admin spec 존재 | Partial, 통제 발송 runbook 필요 |
-| 초심자/비의도 사용 | `e2e/student/student-domain-guardrails.spec.ts` + 계정복구 모달 edge spec | Covered for launch guardrails; broader visual/product audit remains P2 |
-| viewport별 상품성 리뷰 | screenshot spec 산재 | Partial, 판정표 연결 필요 |
+- 모든 활성 spec은 `strictTest` 또는 명시적 좁은 예외를 사용한다.
+- mock spec은 `page.route`로 `/api/v1/` 경계를 가로채며 폐쇄 proxy에서
+  누락 요청이 즉시 실패한다.
+- 저장 흐름은 요청 payload와 reload 후 상태를 모두 검증한다.
+- 모바일 핵심 흐름은 390px에서 가로 overflow, 화면 밖 control, primary action,
+  keyboard focus를 검증한다.
+- production write는 exact controlled phone/fixture, 명시적 allow flag,
+  `retries=0`, 종료 cleanup, backend residue 0을 모두 요구한다.
+- 운영 read-only와 shared tenant 감사는 worker 1을 유지한다.
+- 배포 후 canary 실패는 성공으로 완화하지 않고 저장된 baseline으로 rollback한다.
 
-## 5. 반복 점검 spec 후보
+## 6. 유지보수와 제거 기준
 
-아래는 `REAL-USE-REVIEW-MANUAL.md`와 함께 관리한다.
+live tree에는 반복 실행 가능한 회귀 계약만 둔다.
 
-| 우선순위 | spec 후보 | 핵심 성공 조건 |
-|----------|-----------|----------------|
-| P1 | `e2e/flows/signup-approval-roundtrip.spec.ts` | 공개 가입 신청이 관리자 승인 후 학생 로그인으로 닫힘. 운영 API에서는 `E2E_ALLOW_SIGNUP_APPROVAL_REAL_SEND=1` + `E2E_SIGNUP_CONTROLLED_PHONE=01031217466` 필요 |
-| P1 | `e2e/auth/account-recovery-realuse.spec.ts` | 공용 비밀번호 찾기 실발송, 기존 비번 유지, staff reset/restore, cleanup. 운영 API에서는 `E2E_ALLOW_ACCOUNT_RECOVERY_REAL_SEND=1` + `01031217466` 필요 |
-| P1 | `e2e/realuse/lecture-session-supplement.spec.ts` | UI로 강의, 수강생, 정규 차시, 보강 차시 생성 후 교사 모바일 반영 |
-| P1 | `e2e/student/clinic-remediation-realuse.spec.ts` | 불합격 시험 결과가 클리닉 대상이 되고 예약/승인/출석 후 해소 |
-| P1 | `e2e/student/homework-submission-realuse.spec.ts` | 과제 생성, 학생 제출, 관리자 채점, 학생 성적 반영, cleanup |
-| P1 | `e2e/admin/omr-review-realuse.spec.ts` | OMR PDF 생성, 관리자 UI 업로드, worker answer rows, 검토/재채점, 학생 성적 반영, cleanup |
-| P2 | `e2e/realuse/video-playback-chain.spec.ts` | READY 영상이 학생에게 노출되고 재생/이어보기/시청률이 반영 |
-| P2 | `e2e/student/student-domain-guardrails.spec.ts` | 비로그인/가짜 토큰, 로그아웃 뒤로가기, 모바일 overflow 검증 |
-| P2 | `e2e/realuse/visual-product-audit.spec.ts` | 핵심 화면 viewport별 screenshot과 overflow/overlap DOM check |
+- 날짜성 screenshot/진단/일회성 실사용 spec은 결함을 닫은 뒤 일반화하거나
+  삭제한다.
+- 실행 결과 보고서와 screenshot dump는 Actions artifact 또는
+  `_artifacts/`에 보관하며 `e2e/reports/`를 만들지 않는다.
+- 일회성 변환·lint 완화 스크립트는 작업이 끝나면 삭제한다.
+- 삭제된 자산은 Git 이력으로 복구할 수 있다. 현재 문서에 과거 run id, 고정
+  pass count, 당시 운영 row id를 누적하지 않는다.
 
-## 6. 선별 기준
-
-실사용 리뷰 gate에 올릴 spec은 아래 조건을 만족해야 한다.
-
-- 테스트 데이터는 `[E2E-{timestamp}]`로 생성한다.
-- 가능한 경우 UI로 생성하고, API는 setup/cleanup 또는 backend 상태 검증에만 쓴다.
-- 데이터 없는 환경을 skip하면 그 시나리오는 PASS가 아니다.
-- 생성한 데이터 ID를 기록하고 cleanup한다.
-- 역할 A에서 만든 상태를 역할 B에서 확인한다.
-- `E2E_STRICT=strict`에서 console error/pageerror가 없어야 한다.
-- 시각검수 spec은 screenshot만 남기지 말고 판정 가능한 DOM metric 또는 수동 판정표를 연결한다.
-
-## 7. 기존 spec 정리 방향
-
-| 분류 | 처리 |
-|------|------|
-| 실제 chain canary | 반복 안전성이 확인된 read-only/cleanup 보장 흐름만 `test:e2e:release` 또는 통제 쓰기 canary에 명시 |
-| read-only smoke | `smoke` 또는 기존 위치 유지 |
-| 일회성 screenshot audit | 검증 종료 후 `_local` 또는 archive 후보 |
-| API-assisted setup이 명확한 spec | 파일 상단에 한계 유지, 실사용 gate에는 단독 사용 금지 |
-| cleanup 없는 prod 데이터 spec | 실사용 gate 후보에서 제외하고 cleanup 추가 전까지 수동 전용 |
-
-## 8. 권장 실행 묶음
-
-L1 실사용 canary 최소 묶음:
+## 7. 검증
 
 ```powershell
-cd C:\academy\frontend
-pnpm exec playwright test e2e/flows/signup-approval-roundtrip.spec.ts --reporter=list
-# development/preproduction API에서만 실행한다. 운영에서는 안전 guard가 skip한다.
-pnpm exec playwright test e2e/student/score-report-realuse.spec.ts --reporter=list
-pnpm exec playwright test e2e/admin/session-assessment-realuse.spec.ts --reporter=list
-pnpm exec playwright test e2e/admin/omr-review-realuse.spec.ts --reporter=list
-pnpm exec playwright test e2e/auth/account-recovery-realuse.spec.ts --reporter=list
-pnpm exec playwright test e2e/student/clinic-remediation-realuse.spec.ts --reporter=list
-pnpm exec playwright test e2e/student/student-domain-guardrails.spec.ts --reporter=list
-pnpm exec playwright test e2e/student/homework-submission-realuse.spec.ts --reporter=list
-pnpm exec playwright test e2e/flows/notice-roundtrip.spec.ts e2e/flows/qna-roundtrip.spec.ts --reporter=list
+pnpm guard:test-coverage
+pnpm guard:e2e-safety
+pnpm guard:deployment-governance
+pnpm guard:runtime-recovery
+pnpm typecheck
+pnpm build
+pnpm test:e2e:gate
 ```
 
-운영 API에서 signup approval spec을 실행할 때는 반드시 통제번호 충돌을 먼저 확인한다.
-2026-06-07 KST follow-up에서 기존 충돌 fixture는 삭제/영구삭제했고, 통제번호
-`01031217466` 실발송 canary는 통과했다. spec의 production guard는 여전히 정확한
-통제번호와 explicit allow flag 없이는 실행을 차단하는 것이 정상이다.
-
-2026-06-07 KST Phase 2 pass에서 `pnpm test:e2e:gate`는 production bundle/API 기준
-35 passed로 통과했다. 이 gate는 signup approval spec을 포함하지 않으므로, 공개 가입
-승인 실발송 증거는 위 통제번호 blocker가 해소된 뒤 별도 실행한다.
-
-2026-06-07 KST Phase 2 hardening follow-up에서 운영 API + local bundle 기준으로
-아래를 추가 검증했다.
-
-- `pnpm test:e2e:gate`: 35 passed.
-- `e2e/student/score-report-realuse.spec.ts` +
-  `e2e/admin/session-assessment-realuse.spec.ts`: 2 passed.
-- `e2e/flows/counsel-roundtrip.spec.ts`,
-  `e2e/flows/exam-data-flow.spec.ts`,
-  `e2e/flows/homework-scores-inventory-data-flow.spec.ts`,
-  `e2e/flows/video-session-data-flow.spec.ts`: 37 passed, 2 skipped.
-  - skipped 2건은 현재 운영 fixture에서 학생에게 접근 가능한 시험 문항/결과가 없어
-    제출·결과 확인을 조건부 skip한 것이다.
-  - `exam-data-flow`는 비수강/비배정 시험 상세 직접 URL 접근이 빠르게 fail-closed
-    되는지 확인한다.
-  - `exam-data-flow`는 생성한 `E2E Test Exam` template을 test cleanup과
-    `afterAll`에서 정리한다.
-- 운영 cleanup 재확인: `E2E Test Exam` 0건, `[E2E] 상담 신청` 0건.
-
-2026-06-07 KST launch-readiness follow-up에서 추가로 아래를 닫았다.
-
-- `E2E_ALLOW_SIGNUP_APPROVAL_REAL_SEND=1`,
-  `E2E_SIGNUP_CONTROLLED_PHONE=01031217466`,
-  `E2E_SIGNUP_EXPECT_ALIMTALK=1`
-  `pnpm exec playwright test e2e/flows/signup-approval-roundtrip.spec.ts --reporter=list`:
-  1 passed.
-  - Tenant 1 auto-approve setting이 켜져 있으면 spec이 manual approval로 전환하고
-    afterAll에서 원래 설정으로 복구한다.
-  - latest provider/log proof: account notification log `id=2839`,
-    `target_id=parent:1932:01031217466`.
-  - cleanup 후 통제번호 duplicate check는 `available=true`.
-- `pnpm exec playwright test e2e/student/score-report-realuse.spec.ts --reporter=list`:
-  1 passed. cleanup은 detail delete 대신 bulk delete/permanent delete를 사용한다.
-- `pnpm exec playwright test e2e/student/dashboard-redesign.spec.ts e2e/student/dashboard-dark.spec.ts e2e/mobile-narrow-viewport-20260512.spec.ts --reporter=list`:
-  14 passed.
-- 영상 HLS/progress는 backend post-deploy smoke/API canary에서 별도 통과:
-  lecture `136`, session `159`, video `284`, enrollment `1052`.
-
-2026-06-07 KST homework follow-up에서 운영 API + production bundle 기준으로
-아래를 추가 검증했다.
-
-- `pnpm exec eslint e2e/student/homework-submission-realuse.spec.ts`: passed.
-- `pnpm exec playwright test e2e/student/homework-submission-realuse.spec.ts --reporter=list`:
-  1 passed.
-  - Admin API로 강의/차시/학생/과제를 생성하고, 학생 브라우저에서 실제 PNG 파일을
-    제출한 뒤, 관리자 scoring API로 `92/100`을 기록하고 학생 성적 UI 반영을 확인했다.
-  - Backend delete guard 배포 후 이전 잔여 `session=296`, `lecture=297` 삭제가
-    각각 `204`로 성공했고, active `[E2E-...] 과제체인` 강의/차시/학생 프로브는
-    모두 0건이었다.
-
-2026-06-07 KST OMR follow-up에서 운영 API + production bundle 기준으로 아래를
-추가 검증했다.
-
-- `pnpm exec eslint e2e/admin/omr-review-realuse.spec.ts`: passed.
-- `pnpm exec playwright test e2e/admin/omr-review-realuse.spec.ts --reporter=list`:
-  1 passed.
-  - Admin API로 강의/차시/학생/시험/정답/시험 배정을 만들고, 운영 API에서 생성한
-    OMR PDF를 관리자 성적 탭 UI에 실제 업로드했다.
-  - Worker가 submission answer rows를 저장한 뒤 OMR 검토 워크스페이스에서 학생을
-    선택하고 답안을 `1,2,4,4,1`로 보정해 `60/100` 재채점을 확인했다.
-  - 학생 `/student/grades` UI가 같은 시험명을 표시했고, 결과 API의 오답 번호는
-    `[3,5]`였다.
-  - Active OMR canary 강의/차시/학생 residue는 0건이었다. 당시 비활성 archived
-    exam `399`, `400`은 결과 이력 보존 delete guard `403` 증거였지만, 현재
-    운영 계약에서는 이런 명시적 E2E 이력도 backend
-    `cleanup_e2e_residue` exact-token 정리와 postdeploy canary 0 확인이 필요하다.
-
-2026-06-07 KST student-domain launch seal에서 운영 API + production bundle 기준으로
-아래를 추가 검증했다.
-
-- `pnpm exec playwright test e2e/auth/account-recovery-realuse.spec.ts --reporter=list`:
-  1 passed.
-  - 공용 비밀번호 찾기 UI가 통제번호 `01031217466`으로 실제 알림톡을 발송했고,
-    account notification log는 `sent` 상태와 마스킹된 수신자 요약을 반환했다.
-  - 기존 비밀번호는 public recovery 직후 그대로 유효했고, staff reset은 생성한
-    E2E 학생만 변경한 뒤 원복/삭제했다.
-- `pnpm exec playwright test e2e/student/clinic-remediation-realuse.spec.ts --reporter=list`:
-  1 passed.
-  - 실패 시험 결과가 클리닉 대상이 되고, 학생 예약/내 일정/승인/완료/재시험 통과 후
-    학생 결과와 성적 화면에서 보강 합격으로 바뀌었다.
-- `pnpm exec playwright test e2e/student/student-domain-guardrails.spec.ts --reporter=list`:
-  3 passed.
-  - 비로그인/가짜 토큰 보호 라우트, 로그아웃 후 뒤로가기, 390px 모바일 overflow를
-    hard expect로 검증했다.
-
-L2 상품성 리뷰는 자동 spec만으로 닫지 않는다. `REAL-USE-REVIEW-MANUAL.md`의 시각/상품성 판정표와 `_artifacts/realuse-review/{timestamp}/summary.md`를 함께 작성한다.
+로컬 Playwright는 검증할 checkout의 고유 Vite 포트와 `E2E_BASE_URL`을
+명시한다. 운영 배포 판정은 exact `version.json` SHA, 공식 workflow 결과,
+post-deploy canary와 rollback 상태를 함께 읽는다.
