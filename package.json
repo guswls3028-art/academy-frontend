@@ -36,6 +36,7 @@
     "verify:product-analytics": "node scripts/verify-product-analytics-registry.mjs",
     "verify:tenant-availability": "node scripts/verify-tenant-availability.mjs",
     "capture:promo-student": "node scripts/capture-promo-student-app.mjs",
+    "capture:promo-realuse": "node scripts/capture-promo-realuse.mjs",
     "verify:routes": "pnpm verify:student-routes && pnpm verify:teacher-routes && pnpm verify:landing-routes && pnpm verify:admin-routes",
     "refactor:inventory": "node scripts/refactor-boundary-snapshot.mjs",
     "refactor:budget": "node scripts/refactor-boundary-snapshot.mjs --budget scripts/refactor-budget-baseline.json",

@@ -37,6 +37,7 @@
 | [STAFF-CLOCK-IN.md](STAFF-CLOCK-IN.md) | 조교 로그인 출근유형 선택, 비근무 로그인, PC·모바일 출퇴근과 정본 기간 기록 계약 |
 | [ACCOUNT-CREDENTIAL-FLOWS.md](ACCOUNT-CREDENTIAL-FLOWS.md) | 역할별 본인 비밀번호 변경, 직원 강제 초기화, 공용 계정복구의 화면→API·세션 폐기 계약 |
 | [PRODUCT-UPDATES.md](PRODUCT-UPDATES.md) | 공개 업데이트 페이지의 콘텐츠 범위, CTA, 접근성·라우팅 계약 |
+| [PROMO-EXPERIENCE.md](PROMO-EXPERIENCE.md) | 프로모션 브랜드 언어, 메뉴 구조, 실제 제품 화면 증거와 PC·390px 계약 |
 | [WORKSPACE-NAVIGATION.md](WORKSPACE-NAVIGATION.md) | 관리자·선생님 권한 메뉴의 빠른 검색, 최근 사용, 키보드·390px 이동 계약 |
 | [COMMUNITY-BOARD-ATTACHMENTS.md](COMMUNITY-BOARD-ATTACHMENTS.md) | 게시판 글 작성의 사진 선택 유지, 첨부 실패 후 중복 글 없는 재시도와 권한·반응형 계약 |
 | [TEACHER-WORKSPACE-OPERATIONS.md](TEACHER-WORKSPACE-OPERATIONS.md) | 선생님 오늘 업무 합계, 역할별 결제·알림 경계, 카드 실패 상태와 44px·데스크톱 화면 계약 |

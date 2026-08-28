@@ -64,12 +64,12 @@ test.describe("promo navigation", () => {
 
     const menuButton = page.locator('button[aria-controls="promo-mobile-sidebar"]');
     await menuButton.click();
-    const sidebarVideoLink = page.locator('#promo-mobile-sidebar a[href="/promo/video-platform"]');
-    await expect(sidebarVideoLink).toHaveCount(1);
-    await sidebarVideoLink.click();
-    await expect(page).toHaveURL(/\/promo\/video-platform$/);
+    const sidebarFeaturesLink = page.locator('#promo-mobile-sidebar a[href="/promo/features"]');
+    await expect(sidebarFeaturesLink).toHaveCount(1);
+    await sidebarFeaturesLink.click();
+    await expect(page).toHaveURL(/\/promo\/features$/);
     await expect(
-      page.getByRole("heading", { name: "학생앱에서 복습 영상을 이어 봅니다" }),
+      page.getByRole("heading", { name: "매일 쓰는 학원 관리와 주요 기능을 한곳에서 이용합니다" }),
     ).toBeVisible();
 
     await page.goto(`${BASE}/promo`, { waitUntil: "load" });
@@ -102,14 +102,14 @@ test.describe("promo navigation", () => {
 
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(teacherTrust).toBeVisible();
-    const categoryTabs = page.getByRole("tablist", { name: "학원플러스 핵심 기능" });
-    const [trustBox, categoryTabsBox] = await Promise.all([
+    const productShowcase = page.getByTestId("promo-real-product-showcase");
+    const [trustBox, productShowcaseBox] = await Promise.all([
       teacherTrust.boundingBox(),
-      categoryTabs.boundingBox(),
+      productShowcase.boundingBox(),
     ]);
     expect(trustBox).not.toBeNull();
-    expect(categoryTabsBox).not.toBeNull();
-    expect(trustBox!.y).toBeLessThan(categoryTabsBox!.y);
+    expect(productShowcaseBox).not.toBeNull();
+    expect(productShowcaseBox!.y).toBeLessThan(trustBox!.y);
     await expect.poll(async () => page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
     )).toBe(true);

@@ -5,9 +5,9 @@ export type PromoMeta = {
 
 export const PROMO_META: Record<string, PromoMeta> = {
   "/promo": {
-    title: "학원플러스 | 학원의 수업과 운영을 한 흐름으로",
+    title: "학원플러스 | 학원의 모든 흐름을 하나로",
     description:
-      "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 칠판용 PPT·매치업, 학원 홈페이지를 한곳에서 이어갑니다.",
+      "출결부터 성적·복습·학부모 안내까지 관리자 PC와 학생 모바일의 실제 제품 화면으로 확인하세요.",
   },
   "/promo/features": {
     title: "기능과 실제 화면 | 학원플러스",
@@ -55,7 +55,7 @@ export const PROMO_META: Record<string, PromoMeta> = {
       "현재 수업 방식과 필요한 기능을 알려주시면 사용할 내용과 시작 일정을 함께 정리해드립니다.",
   },
   "/promo/demo": {
-    title: "내 자료로 데모 요청 | 학원플러스",
+    title: "내 학원 화면 요청 | 학원플러스",
     description:
       "현재 수업과 관리 방식을 기준으로 영상, 알림톡, 학생 관리, 칠판용 PPT·매치업과 학원 홈페이지 화면을 확인해보세요.",
   },
