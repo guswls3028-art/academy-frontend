@@ -106,6 +106,7 @@ export default function SubmitAssignmentPage() {
   const gradesQ = useMyGradesSummary({ enabled: !isParent });
   const grades = gradesQ.data;
   const requestedSessionId = positiveId(searchParams.get("sessionId"));
+  const requestedHomeworkId = positiveId(searchParams.get("homeworkId"));
 
   const unfinishedHomeworks = useMemo(
     () => (grades?.homeworks ?? []).filter((homework) => (
@@ -289,6 +290,23 @@ export default function SubmitAssignmentPage() {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
+  useEffect(() => {
+    if (selected != null || requestedHomeworkId == null) return;
+    const requestedHomework = unfinishedHomeworks.find(
+      (homework) => homework.homework_id === requestedHomeworkId,
+    );
+    if (!requestedHomework) return;
+    setSelected({
+      type: "homework",
+      id: requestedHomework.homework_id,
+      title: requestedHomework.title,
+      enrollmentId: requestedHomework.enrollment_id,
+    });
+    void studentApi.post(
+      "/students/me/activity/homework-open/",
+      { homework_id: requestedHomework.homework_id },
+    ).catch(() => undefined);
+  }, [requestedHomeworkId, selected, unfinishedHomeworks]);
   const retryableCount = pendingFiles.filter((file) => file.status !== "uploading").length;
   const canSubmit = selected != null && retryableCount > 0 && !uploadMut.isPending && !gradesQ.isError && !mediaQ.isError;
   const submitButtonLabel = uploadMut.isPending

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AxiosError } from "axios";
+import { Link } from "react-router";
 
 import { useConfirm } from "@/shared/ui/confirm";
 import LectureChip from "@/shared/ui/chips/LectureChip";
@@ -9,6 +10,7 @@ import { useTrackedTask } from "@/shared/productAnalytics";
 import EmptyState from "@student/layout/EmptyState";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
+import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { formatYmd, todayYmd } from "@student/shared/utils/date";
 import {
   cancelClinicBookingRequest,
@@ -56,6 +58,21 @@ function sessionMatchesTargets(
 
 function targetReasonLabel(target: ClinicCurrentTarget): string {
   return target.source_type === "homework" ? "과제 보강" : "시험 보강";
+}
+
+function targetResolutionLink(target: ClinicCurrentTarget): { to: string; label: string } | null {
+  const sourceId = Number(target.source_id);
+  if (!Number.isInteger(sourceId) || sourceId <= 0) return null;
+  if (target.source_type === "homework") {
+    return {
+      to: `/student/submit/assignment?sessionId=${target.session_id}&homeworkId=${sourceId}`,
+      label: "과제 온라인 제출",
+    };
+  }
+  if (target.source_type === "exam") {
+    return { to: `/student/exams/${sourceId}`, label: "시험 확인·제출" };
+  }
+  return null;
 }
 
 function sortTargetsNewestFirst(
@@ -261,6 +278,7 @@ export default function ClinicPage() {
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.availableSessions });
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.bookings });
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.summary });
+      queryClient.invalidateQueries({ queryKey: studentQueryKeys.clinicIdcard });
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.notificationCounts });
       setMemo("");
       setPreferredStart("");
@@ -288,6 +306,7 @@ export default function ClinicPage() {
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.bookings });
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.availableSessions });
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.summary });
+      queryClient.invalidateQueries({ queryKey: studentQueryKeys.clinicIdcard });
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.notificationCounts });
       if (changingBookingId === id) setChangingBookingId(null);
       studentToast.success("예약 신청이 취소되었습니다.");
@@ -321,6 +340,7 @@ export default function ClinicPage() {
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.availableSessions });
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.bookings });
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.summary });
+      queryClient.invalidateQueries({ queryKey: studentQueryKeys.clinicIdcard });
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.notificationCounts });
       setChangingBookingId(null);
       setMemo("");
@@ -512,12 +532,14 @@ export default function ClinicPage() {
                 </div>
               ) : !clinicSummaryLoading && currentTargets.length > 0 ? (
                 <div className={styles.targetList} data-testid="clinic-target-list">
-                  {currentTargets.map((target) => (
-                    <div
-                      key={target.clinic_link_id}
-                      className={styles.targetItem}
-                      data-testid="clinic-target-item"
-                    >
+                  {currentTargets.map((target) => {
+                    const resolutionLink = targetResolutionLink(target);
+                    return (
+                      <div
+                        key={target.clinic_link_id}
+                        className={styles.targetItem}
+                        data-testid="clinic-target-item"
+                      >
                       <div className={styles.targetItemHeader}>
                         <LectureChip
                           lectureName={target.lecture_title}
@@ -542,8 +564,14 @@ export default function ClinicPage() {
                           )}
                         </span>
                       </div>
-                    </div>
-                  ))}
+                      {resolutionLink && (
+                        <Link className={styles.targetResolutionLink} to={resolutionLink.to}>
+                          {resolutionLink.label}
+                        </Link>
+                      )}
+                      </div>
+                    );
+                  })}
                 </div>
               ) : !clinicSummaryLoading ? (
                 <p className={styles.targetSummaryDescription}>

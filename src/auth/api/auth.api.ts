@@ -15,6 +15,12 @@ export type LoginResponse = {
 const LOGIN_TRANSIENT_RETRIES = 2;
 const LOGIN_TRANSIENT_BASE_DELAY_MS = 350;
 
+function normalizeLoginIdentifier(value: string): string {
+  const raw = value.normalize("NFKC").trim();
+  const compact = raw.replace(/[\s\-().]+/g, "");
+  return /^010\d{8}$/.test(compact) ? compact : raw;
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
@@ -50,7 +56,10 @@ async function postLoginWithTransientRetry(body: Record<string, string>) {
 
 export const login = async (username: string, password: string) => {
   const tenantCode = getTenantCodeForApiRequest();
-  const body: Record<string, string> = { username, password };
+  const body: Record<string, string> = {
+    username: normalizeLoginIdentifier(username),
+    password,
+  };
   if (tenantCode) body.tenant_code = tenantCode;
 
   let res;
