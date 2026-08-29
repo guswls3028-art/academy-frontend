@@ -147,6 +147,36 @@
   gap: var(--space-4, 16px);
 }
 
+.clinic-hub__intro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.clinic-hub__intro h2 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.clinic-hub__intro p {
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.clinic-hub__intro-count {
+  flex-shrink: 0;
+  color: var(--color-brand-primary);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── KPI Row ── */
 .clinic-hub__kpi-row {
   display: flex;
@@ -319,38 +349,36 @@
   animation: pulse 1.5s infinite;
 }
 
-/* ── Student Card ── */
-.clinic-hub__student-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2, 8px);
+/* ── Student Workbench ── */
+.clinic-hub__student-workbench {
+  display: grid;
+  gap: var(--space-3, 12px);
 }
 
-.clinic-hub__student-card {
+.clinic-hub__student-row {
+  display: grid;
+  grid-template-columns: minmax(210px, 270px) minmax(0, 1fr);
+  overflow: hidden;
   border: 1px solid var(--color-border-divider);
   border-radius: var(--radius-lg, 12px);
   background: var(--color-bg-surface);
-  overflow: hidden;
-  transition: border-color 0.15s;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
-.clinic-hub__student-card--expanded {
-  border-color: var(--color-brand-primary);
+.clinic-hub__student-row--active {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 62%, var(--color-border-divider));
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-brand-primary) 9%, transparent);
 }
 
-.clinic-hub__student-header {
+.clinic-hub__student-identity {
   display: flex;
-  align-items: center;
-  gap: var(--space-2, 8px);
-  width: 100%;
-  padding: 12px 16px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px;
+  border-right: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-brand-primary) 3%, var(--color-bg-surface));
 }
-
-.clinic-hub__student-expand { color: var(--color-text-muted); flex-shrink: 0; }
 
 .clinic-hub__student-name {
   font-size: 14px;
@@ -369,37 +397,152 @@
   white-space: nowrap;
 }
 
-.clinic-hub__student-reasons {
+.clinic-hub__student-tickets {
   display: flex;
-  gap: 4px;
+  align-items: stretch;
+  gap: 8px;
   flex-wrap: wrap;
-  margin-left: auto;
+  min-width: 0;
+  padding: 10px;
 }
 
-.clinic-hub__reason-chip {
+.clinic-hub__item-ticket {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 3px 10px;
+  flex: 1 1 220px;
+  min-width: 190px;
+  max-width: 330px;
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid var(--color-border-divider);
+  border-left-width: 3px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  transition: transform 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.clinic-hub__item-ticket:hover,
+.clinic-hub__item-ticket:focus-visible {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface));
+  outline: none;
+}
+
+.clinic-hub__item-ticket:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
+}
+
+.clinic-hub__item-ticket--active {
+  border-color: var(--color-brand-primary) !important;
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface));
+}
+
+.clinic-hub__item-ticket--resolved {
+  opacity: 0.62;
+}
+
+.clinic-hub__ticket-type {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  padding: 2px 8px;
-  font-size: 11px;
-  font-weight: 500;
-  border: 1px solid var(--color-border-divider);
-  border-radius: 999px;
-  color: var(--color-text-secondary);
+  gap: 4px;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.clinic-hub__item-ticket strong {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.clinic-hub__reason-chip--more {
-  background: var(--color-bg-surface-soft);
-  border-color: transparent;
+.clinic-hub__ticket-context {
+  grid-column: 1 / -1;
+  overflow: hidden;
   color: var(--color-text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* ── Items Panel (expanded) ── */
-.clinic-hub__items-panel {
+.clinic-hub__ticket-status {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.clinic-hub__ticket-status span:first-child {
+  font-weight: 700;
+}
+
+.clinic-hub__work-panel {
+  grid-column: 1 / -1;
   border-top: 1px solid var(--color-border-divider);
-  background: var(--color-bg-surface-soft);
-  padding: 4px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--color-brand-primary) 3%, var(--color-bg-surface-soft));
+  animation: clinic-work-panel-in 0.16s ease-out;
+}
+
+.clinic-hub__work-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 4px 8px;
+}
+
+.clinic-hub__work-panel-header div {
+  display: grid;
+  gap: 2px;
+}
+
+.clinic-hub__work-panel-header span {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.clinic-hub__work-panel-header strong {
+  color: var(--color-text-primary);
+  font-size: 14px;
+}
+
+.clinic-hub__work-panel-header button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.clinic-hub__work-panel-header button:hover,
+.clinic-hub__work-panel-header button:focus-visible {
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-primary);
+  outline: none;
+}
+
+@keyframes clinic-work-panel-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* ── Item Row ── */
@@ -714,6 +857,30 @@
     min-width: calc(50% - 6px);
   }
 
+  .clinic-hub__intro {
+    align-items: flex-start;
+  }
+
+  .clinic-hub__student-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .clinic-hub__student-identity {
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border-divider);
+  }
+
+  .clinic-hub__student-tickets {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .clinic-hub__item-ticket {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+
   .clinic-hub__item-row {
     align-items: flex-start;
     flex-wrap: wrap;
@@ -722,6 +889,15 @@
   .clinic-hub__item-actions {
     width: 100%;
     padding-left: 15px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clinic-hub__student-row,
+  .clinic-hub__item-ticket,
+  .clinic-hub__work-panel {
+    animation: none;
+    transition: none;
   }
 }
 

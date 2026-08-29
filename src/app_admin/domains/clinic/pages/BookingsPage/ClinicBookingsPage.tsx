@@ -4,11 +4,11 @@
  *
  * 핵심 UX:
  * - 모든 진행중 항목을 한 화면에서 보고 점수 입력으로 즉시 통과 처리
- * - 항목별 뷰: 시험/과제 재시도 점수를 인라인으로 입력
- * - 학생별 뷰: 학생 단위로 묶어서 보기
+ * - 기본 학생 작업대: 학생 한 행에 모든 미통과 항목과 같은 화면 처리 패널
+ * - 점수 일괄입력 뷰: 시험/과제 재시도 점수를 인라인으로 입력
  * - Tab/Enter로 빠른 이동
  */
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 import {
@@ -26,6 +26,7 @@ import {
   ArrowRight,
   XCircle,
   ShieldCheck,
+  X,
 } from "lucide-react";
 
 import { useClinicTargets } from "../../hooks/useClinicTargets";
@@ -108,6 +109,12 @@ function formatReasonLabel(item: ClinicTarget): string {
   }
   return REASON_LABEL[item.reason ?? "score"];
 }
+
+const RESOLUTION_LABEL: Record<string, string> = {
+  EXAM_PASS: "시험 통과", HOMEWORK_PASS: "과제 통과", MANUAL_OVERRIDE: "수동 통과",
+  WAIVED: "면제", CARRIED_OVER: "다음 차수 이월", SOURCE_REMOVED: "원본 항목 삭제",
+};
+const resolutionLabel = (item: ClinicTarget) => RESOLUTION_LABEL[item.resolution_type ?? ""] ?? "해결 완료";
 
 function requestScheduleText(row: ClinicParticipant): string {
   const time = hhmmText(row.session_start_time, "-");
@@ -282,21 +289,32 @@ export default function ClinicBookingsPage() {
 
 function RemediationWorkspace() {
   const qc = useQueryClient();
-  const [sectionFilter, setSectionFilter] = useState<number | null>(null);
-  const [showResolved, setShowResolved] = useState(false);
+  const [workspaceParams, setWorkspaceParams] = useSearchParams();
+  const sectionParam = Number(workspaceParams.get("section"));
+  const sectionFilter = Number.isInteger(sectionParam) && sectionParam > 0 ? sectionParam : null;
+  const showResolved = workspaceParams.get("resolved") === "1";
   const targetsQuery = useClinicTargets({
     section_id: sectionFilter ?? undefined,
     include_resolved: showResolved,
   });
   const { data: targets = [], isLoading, isError } = targetsQuery;
 
-  const [viewMode, setViewMode] = useState<ViewMode>("items");
-  const [search, setSearch] = useState("");
-  const [reasonFilter, setReasonFilter] = useState<ReasonFilter>("all");
-  const [expandedStudents, setExpandedStudents] = useState<Set<string>>(new Set());
+  const viewMode: ViewMode = workspaceParams.get("view") === "items" ? "items" : "students";
+  const search = workspaceParams.get("q") ?? "";
+  const reasonParam = workspaceParams.get("reason");
+  const reasonFilter: ReasonFilter = reasonParam === "score" || reasonParam === "confidence" || reasonParam === "missing" ? reasonParam : "all";
+  const selectedTargetKey = workspaceParams.get("target");
   const [waiveTarget, setWaiveTarget] = useState<ClinicTarget | null>(null);
   const [waiveMemo, setWaiveMemo] = useState("");
   const [completeTarget, setCompleteTarget] = useState<ClinicTarget | null>(null);
+  const previousSelectedTargetKeyRef = useRef<string | null>(null);
+  const setWorkspaceParam = useCallback((key: string, value: string | null, replace = true) => {
+    setWorkspaceParams((current) => {
+      const next = new URLSearchParams(current);
+      if (value) next.set(key, value); else next.delete(key);
+      return next;
+    }, { replace });
+  }, [setWorkspaceParams]);
 
   /* ── Mutations ── */
   const invalidateAll = () => Promise.all([
@@ -426,7 +444,15 @@ function RemediationWorkspace() {
         });
       }
     }
-    return Array.from(map.values()).sort((a, b) => b.openCount - a.openCount);
+    for (const group of map.values()) {
+      group.items.sort((a, b) => {
+        const resolutionOrder = Number(!!a.resolved_at) - Number(!!b.resolved_at);
+        if (resolutionOrder !== 0) return resolutionOrder;
+        return Date.parse(b.created_at ?? "") - Date.parse(a.created_at ?? "");
+      });
+    }
+    return Array.from(map.values()).sort((a, b) =>
+      b.openCount - a.openCount || a.studentName.localeCompare(b.studentName, "ko"));
   }, [filtered]);
 
   /* ── KPI ── */
@@ -445,91 +471,86 @@ function RemediationWorkspace() {
     };
   }, [visibleTargets]);
 
-  /* ── Toggle student expand ── */
-  function toggleStudent(key: string) {
-    setExpandedStudents((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }
+  const closeSelectedItem = useCallback(() => {
+    setWorkspaceParam("target", null);
+  }, [setWorkspaceParam]);
 
-  /* ══════════════════════════════════════════ */
-  /* RENDER */
-  /* ══════════════════════════════════════════ */
+  useEffect(() => {
+    if (!selectedTargetKey) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      closeSelectedItem();
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [closeSelectedItem, selectedTargetKey]);
+
+  useEffect(() => {
+    const previousTargetKey = previousSelectedTargetKeyRef.current;
+    previousSelectedTargetKeyRef.current = selectedTargetKey;
+    if (selectedTargetKey || !previousTargetKey) return;
+    window.requestAnimationFrame(() => {
+      const matchingTrigger = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-clinic-target-key]"))
+        .find((element) => element.dataset.clinicTargetKey === previousTargetKey);
+      matchingTrigger?.focus();
+    });
+  }, [selectedTargetKey]);
 
   return (
     <section className="clinic-bookings-page__remediation">
       <div className="clinic-hub">
-        {/* ── KPI Row ── */}
+        <div className="clinic-hub__intro">
+          <div>
+            <h2>학생별 미통과 작업대</h2>
+            <p>학생 한 명의 남은 시험·과제를 한 행에서 보고, 항목을 눌러 이 화면에서 처리합니다.</p>
+          </div>
+          {!isLoading && !isError && <span className="clinic-hub__intro-count">{kpi.totalStudents}명 · {kpi.totalItems}건</span>}
+        </div>
         <RemediationKpiRow
-          unavailable={isLoading || isError}
-          loading={isLoading}
-          totalStudents={kpi.totalStudents}
-          examItems={kpi.examItems}
-          homeworkItems={kpi.homeworkItems}
-          missingItems={kpi.missingItems}
+          unavailable={isLoading || isError} loading={isLoading} totalStudents={kpi.totalStudents}
+          examItems={kpi.examItems} homeworkItems={kpi.homeworkItems} missingItems={kpi.missingItems}
         />
-
-        {/* ── Toolbar: view switch + filters ── */}
         <div className="clinic-hub__toolbar">
           <div className="clinic-hub__toolbar-left">
-            <ClinicSectionFilter value={sectionFilter} onChange={setSectionFilter} />
+            <ClinicSectionFilter value={sectionFilter} onChange={(sectionId) => setWorkspaceParam("section", sectionId ? String(sectionId) : null)} />
             <div className="clinic-hub__view-toggle">
               <button
-                type="button"
-                className={`clinic-hub__view-btn ${viewMode === "items" ? "clinic-hub__view-btn--active" : ""}`}
-                onClick={() => setViewMode("items")}
+                type="button" className={`clinic-hub__view-btn ${viewMode === "students" ? "clinic-hub__view-btn--active" : ""}`}
+                onClick={() => setWorkspaceParam("view", null)} aria-pressed={viewMode === "students"}
               >
-                <List size={14} />
-                항목별
+                <Users size={14} /> 학생 작업대
               </button>
               <button
-                type="button"
-                className={`clinic-hub__view-btn ${viewMode === "students" ? "clinic-hub__view-btn--active" : ""}`}
-                onClick={() => setViewMode("students")}
+                type="button" className={`clinic-hub__view-btn ${viewMode === "items" ? "clinic-hub__view-btn--active" : ""}`}
+                onClick={() => setWorkspaceParam("view", "items")} aria-pressed={viewMode === "items"}
               >
-                <Users size={14} />
-                학생별
+                <List size={14} /> 점수 일괄입력
               </button>
             </div>
-
             <div className="clinic-hub__filter-chips">
               {(["all", "score", "confidence", "missing"] as ReasonFilter[]).map((r) => (
                 <button
-                  key={r}
-                  type="button"
+                  key={r} type="button"
                   className={`clinic-hub__filter-chip ${reasonFilter === r ? "clinic-hub__filter-chip--active" : ""}`}
-                  onClick={() => setReasonFilter(r)}
+                  onClick={() => setWorkspaceParam("reason", r === "all" ? null : r)}
                 >
                   {r === "all" ? "전체" : REASON_LABEL[r]}
                 </button>
               ))}
               <label className="clinic-hub__filter-chip clinic-hub__filter-chip--toggle">
-                <input
-                  type="checkbox"
-                  checked={showResolved}
-                  onChange={(e) => setShowResolved(e.target.checked)}
-                />
-                해결 완료 포함
+                <input type="checkbox" checked={showResolved} onChange={(e) => setWorkspaceParam("resolved", e.target.checked ? "1" : null)} /> 해결 완료 포함
               </label>
             </div>
           </div>
-
           <div className="clinic-hub__search">
             <Search size={14} />
             <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="학생, 강의, 시험명 검색"
-              className="clinic-hub__search-input"
+              type="search" value={search} onChange={(e) => setWorkspaceParam("q", e.target.value)}
+              placeholder="학생, 강의, 시험명 검색" aria-label="클리닉 대상 검색" className="clinic-hub__search-input"
             />
           </div>
         </div>
-
-        {/* ── Content ── */}
         {isLoading ? (
           <div className="clinic-hub__loading">
             <div className="clinic-hub__skeleton" />
@@ -571,31 +592,14 @@ function RemediationWorkspace() {
           <div className="ds-table-wrap">
             <table className="ds-table ds-table--flat clinic-hub__item-table">
               <thead>
-                <tr>
-                  <th>학생</th>
-                  <th>차시</th>
-                  <th>항목</th>
-                  <th>유형</th>
-                  <th>1차 점수</th>
-                  <th>기준</th>
-                  <th>재시도</th>
-                  <th>점수 입력</th>
-                  <th>액션</th>
-                </tr>
+                <tr><th>학생</th><th>차시</th><th>항목</th><th>유형</th><th>1차 점수</th><th>기준</th><th>재시도</th><th>점수 입력</th><th>액션</th></tr>
               </thead>
               <tbody>
                 {filtered.map((item, idx) => (
                   <RetakeTableRow
                     key={`${item.clinic_link_id ?? item.enrollment_id}-${idx}`}
                     item={item}
-                    onRetake={(score, maxScore) =>
-                      item.clinic_link_id &&
-                      retakeMutation.mutate({
-                        id: item.clinic_link_id,
-                        score,
-                        max_score: maxScore,
-                      })
-                    }
+                    onRetake={(score, maxScore) => item.clinic_link_id && retakeMutation.mutate({ id: item.clinic_link_id, score, max_score: maxScore })}
                     onResolve={() => {
                       if (!item.clinic_link_id) return;
                       if (requiresManualHomeworkCompletion(item)) {
@@ -613,86 +617,82 @@ function RemediationWorkspace() {
             </table>
           </div>
         ) : (
-          /* ═══ STUDENT VIEW ═══ */
-          <div className="clinic-hub__student-list">
+          /* ═══ STUDENT WORKBENCH ═══ */
+          <div className="clinic-hub__student-workbench" role="table" aria-label="학생별 미통과 작업대">
             {studentGroups.map((group) => {
-              const isExpanded = expandedStudents.has(group.key);
+              const selectedItem = group.items.find((item) => clinicTargetKey(item) === selectedTargetKey);
               return (
-                <div
-                  key={group.key}
-                  className={`clinic-hub__student-card ${isExpanded ? "clinic-hub__student-card--expanded" : ""}`}
-                >
-                  <button
-                    type="button"
-                    className="clinic-hub__student-header"
-                    onClick={() => toggleStudent(group.key)}
-                  >
-                    <span className="clinic-hub__student-expand">
-                      {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                    </span>
+                <div key={group.key} className={`clinic-hub__student-row ${selectedItem ? "clinic-hub__student-row--active" : ""}`}
+                  role="row" aria-label={`${group.studentName} 미통과 ${group.openCount}건`}>
+                  <div className="clinic-hub__student-identity" role="rowheader">
                     <span className="clinic-hub__student-name">
-                      <StudentNameWithLectureChip
-                        name={group.studentName}
-                        lectures={targetLectures(group.items)}
-                        clinicHighlight={group.items.some(i => i.name_highlight_clinic_target)}
-                        profilePhotoUrl={group.items[0]?.profile_photo_url}
-                        enrollmentId={group.items[0]?.enrollment_id}
-                        avatarSize={20}
-                      />
+                      <StudentNameWithLectureChip name={group.studentName} lectures={targetLectures(group.items)}
+                        clinicHighlight={group.items.some(i => i.name_highlight_clinic_target)} profilePhotoUrl={group.items[0]?.profile_photo_url}
+                        enrollmentId={group.items[0]?.enrollment_id} avatarSize={20} />
                     </span>
-                    <span className="clinic-hub__student-badge">
-                      진행중 {group.openCount}건
-                    </span>
-                    <div className="clinic-hub__student-reasons">
-                      {group.items.slice(0, 3).map((item, idx) => (
-                        <span
-                          key={`${item.enrollment_id}-${item.clinic_link_id}-${idx}`}
-                          className="clinic-hub__reason-chip"
-                          style={reasonBorderStyle(item.reason)}
-                        >
-                          {item.source_type === "homework" ? (
-                            <BookOpen size={11} />
-                          ) : (
-                            <FileQuestion size={11} />
-                          )}
-                          {item.source_title || item.session_title || REASON_LABEL[item.reason ?? "score"]}
-                        </span>
-                      ))}
-                      {group.items.length > 3 && (
-                        <span className="clinic-hub__reason-chip clinic-hub__reason-chip--more">
-                          +{group.items.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  </button>
+                    <span className="clinic-hub__student-badge">남은 항목 {group.openCount}건</span>
+                  </div>
 
-                  {isExpanded && (
-                    <div className="clinic-hub__items-panel">
-                      {group.items.map((item, idx) => (
-                        <RemediationItemRow
-                          key={`${item.clinic_link_id ?? item.enrollment_id}-${idx}`}
-                          item={item}
-                          onRetake={(score, maxScore) =>
-                            item.clinic_link_id &&
-                            retakeMutation.mutate({
-                              id: item.clinic_link_id,
-                              score,
-                              max_score: maxScore,
-                            })
-                          }
-                          onResolve={() => {
-                            if (!item.clinic_link_id) return;
-                            if (requiresManualHomeworkCompletion(item)) {
-                              if (canCompleteManualHomework(item)) setCompleteTarget(item);
-                              return;
-                            }
-                            resolveMutation.mutate({ id: item.clinic_link_id });
+                  <div className="clinic-hub__student-tickets" role="cell">
+                    {group.items.map((item) => {
+                      const itemKey = clinicTargetKey(item);
+                      const isSelected = itemKey === selectedTargetKey;
+                      const sourceTitle = item.source_title || item.session_title || "알 수 없는 항목";
+                      const typeLabel = item.source_type === "homework" ? "과제" : "시험";
+                      const reasonLabel = formatReasonLabel(item);
+                      const statusLabel = item.resolved_at ? resolutionLabel(item) : item.reason === "missing" ? "판정 대기" : reasonLabel;
+                      return (
+                        <button
+                          key={itemKey} type="button"
+                          className={`clinic-hub__item-ticket ${isSelected ? "clinic-hub__item-ticket--active" : ""} ${item.resolved_at ? "clinic-hub__item-ticket--resolved" : ""}`}
+                          style={reasonBorderStyle(item.reason)}
+                          aria-label={`${sourceTitle} · ${typeLabel} · ${statusLabel}${item.reason === "missing" ? ` · ${reasonLabel}` : ""} · 상세 처리`}
+                          aria-expanded={isSelected} data-clinic-target-key={itemKey}
+                          onClick={() => {
+                            if (isSelected) closeSelectedItem();
+                            else setWorkspaceParam("target", itemKey, false);
                           }}
-                          onWaive={() => { setWaiveTarget(item); setWaiveMemo(""); }}
-                          onCarryOver={() => item.clinic_link_id && carryOverMutation.mutate(item.clinic_link_id)}
-                                disabled={isMutating}
-                        />
-                      ))}
+                        >
+                          <span className="clinic-hub__ticket-type">
+                            {item.source_type === "homework" ? <BookOpen size={12} /> : <FileQuestion size={12} />} {typeLabel}
+                          </span>
+                          <strong>{sourceTitle}</strong>
+                          <span className="clinic-hub__ticket-context">{item.session_title || "차시 정보 없음"}</span>
+                          <span className="clinic-hub__ticket-status"><span style={reasonColorStyle(item.reason)}>{statusLabel}</span>
+                            <span>{item.reason === "missing" ? reasonLabel : formatScoreDisplay(item)}</span></span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {selectedItem && (
+                    <div className="clinic-hub__work-panel" role="region"
+                      aria-label={`${group.studentName} · ${selectedItem.source_title || selectedItem.session_title || "항목"} 처리`}>
+                      <div className="clinic-hub__work-panel-header">
+                        <div>
+                          <span>선택한 항목</span>
+                          <strong>{selectedItem.source_title || selectedItem.session_title || "알 수 없는 항목"}</strong>
+                        </div>
+                        <button type="button" onClick={closeSelectedItem} aria-label="처리 패널 닫기">
+                          <X size={16} />
+                        </button>
+                      </div>
+                      <RemediationItemRow
+                        item={selectedItem}
+                        onRetake={(score, maxScore) => selectedItem.clinic_link_id &&
+                          retakeMutation.mutate({ id: selectedItem.clinic_link_id, score, max_score: maxScore })}
+                        onResolve={() => {
+                          if (!selectedItem.clinic_link_id) return;
+                          if (requiresManualHomeworkCompletion(selectedItem)) {
+                            if (canCompleteManualHomework(selectedItem)) setCompleteTarget(selectedItem);
+                            return;
+                          }
+                          resolveMutation.mutate({ id: selectedItem.clinic_link_id });
+                        }}
+                        onWaive={() => { setWaiveTarget(selectedItem); setWaiveMemo(""); }}
+                        onCarryOver={() => selectedItem.clinic_link_id && carryOverMutation.mutate(selectedItem.clinic_link_id)}
+                        disabled={isMutating}
+                      />
                     </div>
                   )}
                 </div>
@@ -802,6 +802,7 @@ function RemediationItemRow({
   const isResolved = !!item.resolved_at;
   const isMissing = item.reason === "missing";
   const maxScore = item.max_score ?? 100;
+  const actionContext = item.source_title || item.session_title || "클리닉 항목";
 
   function handleSubmit() {
     const val = parseFloat(scoreInput);
@@ -914,6 +915,7 @@ function RemediationItemRow({
                   max={maxScore}
                   step="any"
                   disabled={disabled}
+                  aria-label={`${actionContext} ${formatNextAttempt(item.latest_attempt_index)} 점수`}
                 />
                 <button
                   type="button"
@@ -921,6 +923,7 @@ function RemediationItemRow({
                   onClick={handleSubmit}
                   disabled={disabled || !scoreInput.trim()}
                   title="저장"
+                  aria-label={`${actionContext} 재시험 점수 저장`}
                 >
                   <ArrowRight size={13} />
                 </button>
@@ -963,6 +966,8 @@ function RemediationItemRow({
                 className="clinic-hub__action-more"
                 onClick={() => setShowActions(!showActions)}
                 title="더보기"
+                aria-label={`${actionContext} 추가 처리`}
+                aria-expanded={showActions}
               >
                 <MoreHorizontal size={14} />
               </button>
@@ -981,15 +986,7 @@ function RemediationItemRow({
         )}
         {isResolved && (
           <span className="clinic-hub__resolved-label">
-            {item.resolution_type === "EXAM_PASS"
-              ? "시험 통과"
-              : item.resolution_type === "HOMEWORK_PASS"
-                ? "과제 통과"
-                : item.resolution_type === "MANUAL_OVERRIDE"
-                  ? "수동 통과"
-                  : item.resolution_type === "WAIVED"
-                    ? "면제"
-                    : "통과 완료"}
+            {resolutionLabel(item)}
           </span>
         )}
       </div>

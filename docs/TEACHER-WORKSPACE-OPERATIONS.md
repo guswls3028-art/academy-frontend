@@ -92,6 +92,31 @@
 
 ## 클리닉 운영 콘솔
 
+- `/workspace/clinic/bookings`의 **미통과** 기본 화면은 `학생 작업대`다. 서버가 반환한
+  tenant-scoped 대상을 stable `student_id`로 묶고 ID가 없을 때만 `enrollment_id`를
+  fallback key로 사용해 학생 한 명을 한 행에
+  표시하고, 그 학생의 시험·과제 카드를 접지 않은 채 모두 펼친다. 미해결 항목을 먼저,
+  같은 상태에서는 `created_at` 최신순으로 놓으며 학생 행은 미해결 개수 내림차순 뒤
+  이름순이다. `점수 일괄입력`은 명시적으로 전환했을 때만 기존 표를 연다.
+- 항목 카드는 원본 제목, 시험/과제 유형, 차시, 사유, 점수·기준 또는 미응시/미제출을
+  표시한다. `판정 대기`, 시험/과제/수동 통과, 면제, 다음 차수 이월, 원본 항목 삭제를
+  서로 다른 상태명으로 유지하며 link 없는 항목이나 조회 오류를 해결 완료·0건으로
+  바꾸지 않는다.
+- 카드를 누르면 URL과 학생 목록을 유지한 같은 행의 처리 패널에서 원점수와 시도 이력,
+  재시험 점수 저장, 통과, 제출 확인·완료, 면제, 다음 차수 이월을 실행한다. 항목 선택은
+  `target`, 검색·사유·차시·해결 포함·보기 상태는 각각 query parameter로 보존하므로
+  딥링크와 새로고침에서 복원되고 브라우저 뒤로가기는 선택 패널만 닫는다. 닫기나 Esc
+  뒤에는 방금 누른 카드에 포커스를 돌린다. mutation 중에는 전체 처리 동작을 잠가
+  중복 요청을 막고, 성공 뒤 대상 목록을 다시 읽으며 실패는 재시도 가능한 오류로 남긴다.
+- 390px에서는 학생 신원, 항목 카드, 처리 패널을 한 열로 재배치하고 문서 가로 넘침을
+  만들지 않는다. 키보드 포커스와 `prefers-reduced-motion`도 같은 계약을 따른다.
+- 이 화면은 아직 참가자·ClinicLink·세션의 deterministic 연계를 담은 조회 계약이 없어
+  실제 일정 시간·장소·요청·후속 메모를 이름이나 시간으로 추정해 붙이지 않는다. 이
+  문맥은 provenance가 있는 staff-only 필드와 exact participant linkage를 백엔드와
+  frontend contract에 함께 추가한 뒤에만 노출한다. 또한 tenant가 없는 대상 조회는
+  빈 목록이 아니라 403으로 실패해야 한다. 두 paired contract가 반영되기 전에는 이
+  화면을 일정·후속 조율까지 포함한 전체 remediation console 완료로 간주하지 않는다.
+
 - `/workspace/clinic/operations`의 기본 범위는 **현장**이다. 16시·17시·18시처럼
   여러 클리닉이 동시에 진행돼도 시간대별 화면을 오가지 않고 현재 등원중인 학생을
   한 처리 큐에서 본다. **오늘 전체**는 당일 예약·미등원·결석까지 확인하는 병렬
@@ -180,6 +205,7 @@ participant 시간대 선택, 전 페이지 순회와 `next` 누락·loop·중�
 
 ```powershell
 pnpm exec playwright test e2e/teacher/teacher-business-workflow.mock.spec.ts --project=chromium --reporter=list
+pnpm exec playwright test e2e/admin/clinic-remediation-missing.mock.spec.ts --project=chromium --reporter=list --retries=0
 pnpm exec playwright test e2e/admin/clinic-weekly-multisession.mock.spec.ts --project=chromium --reporter=list
 pnpm typecheck
 pnpm lint
