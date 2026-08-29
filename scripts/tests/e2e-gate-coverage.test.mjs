@@ -19,6 +19,7 @@ const e2eWorkflow = fs.readFileSync(
   "utf8",
 );
 const packageJson = JSON.parse(read("package.json"));
+const allMenuAudit = read("e2e/stability/all-menu-button-click-audit.spec.ts");
 
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -104,6 +105,15 @@ test("the exhaustive menu audit reuses one serial runner setup", () => {
   assert.match(e2eWorkflow, /--retries=0/);
   assert.match(e2eWorkflow, /needs: \[e2e, pr-route-mocks\]/);
   assert.doesNotMatch(e2eWorkflow, /All-menu audit \(\$\{\{ matrix\.scope \}\}\)/);
+});
+
+test("the exhaustive menu audit owns canonical routes and explicit dynamic redirects", () => {
+  assert.doesNotMatch(allMenuAudit, /path: "\/workspace\/counsel"/);
+  assert.doesNotMatch(allMenuAudit, /path: "\/workspace\/developer"/);
+  assert.match(
+    allMenuAudit,
+    /path: "\/student\/video\/courses\/public"[\s\S]{0,120}settlesAt: \/\^\\\/student\\\/video\\\/sessions\\\/\\d\+\$\//,
+  );
 });
 
 test("PR read-only and route-mock gates keep separate runtime boundaries", () => {

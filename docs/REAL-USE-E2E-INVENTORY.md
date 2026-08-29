@@ -46,6 +46,11 @@ PostgreSQL 상태를 공유하는 묶음은 병렬화하지 않는다.
 한 번만 수행한다. 테스트 자체는 계속 직렬이며 실패 artifact에는 모든 scope의
 screenshot, trace, HTML report가 함께 남는다.
 
+감사 목록에는 현재 canonical route만 둔다. 호환 alias와 외부 redirect는 각각
+집중 회귀와 공개 route 감사에서 검증하며 중복 순회하지 않는다. 데이터에 따라
+실제 상세 화면으로 이동하는 공개 영상 진입점처럼 의도된 동적 redirect만 spec의
+`settlesAt` 패턴으로 명시해, 정상 이동을 stale route 결함으로 오인하지 않는다.
+
 이 구조는 shared tenant 직렬성은 유지하면서 순차 matrix가 반복하던 runner 준비
 비용을 제거한다. 새로운 shard는 독립 tenant·계정·데이터와 실행 시간 증거가
 있을 때만 추가한다.
