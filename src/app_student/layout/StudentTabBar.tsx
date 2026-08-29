@@ -1,5 +1,5 @@
 /**
- * 하단 탭바 - 5개: 홈 | 영상 | 일정 | 알림 | 커뮤니티
+ * 하단 탭바 - 5개: 홈 | 영상 | 일정 | 알림 | 소식·자료
  * 유튜브 모바일형, 아이콘 + 라벨
  */
 import type { ComponentType, SVGProps } from "react";
@@ -26,7 +26,7 @@ const tabs: StudentTabItem[] = [
   { to: "/student/video", label: "영상", Icon: IconPlay },
   { to: "/student/sessions", label: "일정", Icon: IconCalendar },
   { to: "/student/notifications", label: "알림", Icon: IconBell, badgeKey: "total" },
-  { to: "/student/community", label: "커뮤니티", Icon: IconBoard },
+  { to: "/student/community?tab=notice", label: "소식·자료", Icon: IconBoard },
 ];
 
 export default function StudentTabBar() {
