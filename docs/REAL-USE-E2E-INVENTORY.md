@@ -53,6 +53,12 @@ reset 같은 외부 네트워크 흔들림은 같은 read-only 로그인 경계 
 한 번만 수행한다. 테스트 자체는 계속 직렬이며 실패 artifact에는 모든 scope의
 screenshot, trace, HTML report가 함께 남는다.
 
+전 메뉴 감사의 네트워크 결함 수집은 사용자 화면의 API 경계만 소유한다. 별도
+운영 계약과 release canary가 소유하는
+`/core/product-analytics/events/batch/` telemetry는 이 감사의 결함에 중복
+산입하지 않는다. 모바일 drawer는 route 정착 뒤 메뉴 trigger가 마운트될 때까지
+bounded wait한 다음 순회한다.
+
 감사 목록에는 현재 canonical route만 둔다. 호환 alias와 외부 redirect는 각각
 집중 회귀와 공개 route 감사에서 검증하며 중복 순회하지 않는다. 데이터에 따라
 실제 상세 화면으로 이동하는 공개 영상 진입점처럼 의도된 동적 redirect만 spec의

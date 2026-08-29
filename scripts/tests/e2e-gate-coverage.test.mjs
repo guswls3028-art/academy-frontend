@@ -116,6 +116,8 @@ test("the exhaustive menu audit owns canonical routes and explicit dynamic redir
     allMenuAudit,
     /path: "\/student\/video\/courses\/public"[\s\S]{0,120}settlesAt: \/\^\\\/student\\\/video\\\/sessions\\\/\\d\+\$\//,
   );
+  assert.match(allMenuAudit, /PRODUCT_ANALYTICS_BATCH_PATH = "\/api\/v1\/core\/product-analytics\/events\/batch\/"/);
+  assert.match(allMenuAudit, /const openError = await openDrawerMenu\(page\)/);
 });
 
 test("PR read-only and route-mock gates keep separate runtime boundaries", () => {
