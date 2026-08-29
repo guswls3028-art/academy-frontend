@@ -427,7 +427,14 @@ a.student-scores-drawer__student-link:focus-visible {
 }
 
 /* ── Exam header (clickable) ── */
+.student-scores-drawer__exam-topline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
 .student-scores-drawer__exam-header {
+  min-width: 0;
   padding: 10px 12px;
   cursor: pointer;
   user-select: none;
@@ -465,6 +472,68 @@ a.student-scores-drawer__student-link:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.student-scores-drawer__exam-quick-actions {
+  display: grid;
+  justify-items: stretch;
+  gap: 5px;
+  min-width: 124px;
+  padding: 8px 8px 8px 0;
+}
+
+.ssd-correction-quick-toggle,
+.student-scores-drawer__quick-retake {
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease, color 150ms ease, transform 120ms ease;
+}
+
+.ssd-correction-quick-toggle[data-status="pending"] {
+  border-color: color-mix(in srgb, var(--color-warning, #f59e0b) 52%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-warning, #f59e0b) 13%, var(--color-bg-surface));
+  color: var(--color-warning-text, #92400e);
+}
+
+.ssd-correction-quick-toggle[data-status="completed"] {
+  border-color: color-mix(in srgb, var(--color-success) 58%, var(--color-border-divider));
+  background: var(--color-success);
+  color: #fff;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-success) 22%, transparent);
+}
+
+.student-scores-drawer__quick-retake {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--color-brand-primary) 42%, var(--color-border-divider));
+  color: var(--color-brand-primary);
+}
+
+.ssd-correction-quick-toggle:hover:not(:disabled),
+.student-scores-drawer__quick-retake:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.ssd-correction-quick-toggle:focus-visible,
+.student-scores-drawer__quick-retake:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
+  outline-offset: 2px;
+}
+
+.ssd-correction-quick-toggle:disabled,
+.student-scores-drawer__quick-retake:disabled,
+.student-scores-drawer__quick-retake[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 /* ── 교사 수동 오답 확인 ── */

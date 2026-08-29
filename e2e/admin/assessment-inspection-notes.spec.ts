@@ -44,6 +44,7 @@ async function installApi(
     completed: boolean;
     note?: string;
   }> = [];
+  const retakeRequests: Array<{ score: number; max_score?: number; pass_score?: number }> = [];
   let examStatus: "PENDING" | "COMPLETED" = "PENDING";
   let examNote = options.emptyExamNote ? "" : "서술형 3번 풀이 확인";
   let correctionSaved = false;
@@ -200,7 +201,16 @@ async function installApi(
             },
             items: [],
             attempt_count: 1,
-            attempts: [],
+            clinic_link_id: 5101,
+            attempts: [{
+              attempt_index: 1,
+              score: 66,
+              max_score: 100,
+              pass_score: 70,
+              passed: false,
+              at: "2026-07-29T15:30:00+09:00",
+              source: "grade",
+            }],
           }, {
             exam_id: 3102,
             title: "함수 단원평가",
@@ -276,10 +286,34 @@ async function installApi(
           ? "2026-07-29T16:40:00+09:00"
           : null,
         correction_note: payload.note ?? "",
+        correction_updated_at: "2026-07-29T16:40:00+09:00",
+        teacher_resolved: payload.completed,
       });
       return;
     }
     if (pathname.endsWith("/results/admin/attempt-history/")) {
+      const examId = new URL(request.url()).searchParams.get("exam_id");
+      if (examId === "3101") {
+        await fulfill({
+          source_type: "exam",
+          source_id: 3101,
+          source_title: "방정식 단원평가",
+          pass_score: 70,
+          max_score: 100,
+          attempts: [{
+            attempt_index: 1,
+            score: 66,
+            max_score: 100,
+            pass_score: 70,
+            passed: false,
+            at: "2026-07-29T15:30:00+09:00",
+            source: "grade",
+          }],
+          clinic_link_id: 5101,
+          resolved: false,
+        });
+        return;
+      }
       await fulfill({
         source_type: "homework",
         source_id: 4101,
@@ -289,6 +323,25 @@ async function installApi(
         attempts: [],
         clinic_link_id: null,
         resolved: null,
+      });
+      return;
+    }
+    if (
+      pathname.endsWith("/progress/clinic-links/5101/submit-retake/")
+      && request.method() === "POST"
+    ) {
+      const payload = request.postDataJSON() as {
+        score: number;
+        max_score?: number;
+        pass_score?: number;
+      };
+      retakeRequests.push(payload);
+      await fulfill({
+        attempt_index: 2,
+        score: payload.score,
+        max_score: payload.max_score ?? 100,
+        pass_score: payload.pass_score ?? 70,
+        passed: payload.score >= (payload.pass_score ?? 70),
       });
       return;
     }
@@ -313,6 +366,7 @@ async function installApi(
 
   return {
     correctionRequests,
+    retakeRequests,
     getScoreRefreshFailures: () => scoreRefreshFailures,
   };
 }
@@ -329,6 +383,83 @@ async function openHomeworkInspection(page: Page) {
 }
 
 test.describe("시험·과제 수동 검사 상태", () => {
+  test("시험 카드를 펼치지 않고 오른쪽 위에서 원점수 유지 PASS를 확정한다", async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width: 390, height: 844 });
+    const api = await installApi(page);
+    const baseUrl = getBaseUrl("admin");
+    await page.goto(
+      `${baseUrl}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "load", timeout: 45_000 },
+    );
+
+    await page.locator('tbody tr[role="button"]').first().locator('[data-col-type="name"]').click();
+    const drawer = page.locator(".student-scores-drawer");
+    const examCard = drawer.locator(".student-scores-drawer__exam-card")
+      .filter({ hasText: "방정식 단원평가" });
+    await expect(examCard.getByRole("group", { name: "교사 최종 판정 상태" })).toHaveCount(0);
+    const quickPass = examCard.getByRole("button", { name: "보완 필요에서 교사 PASS로 변경" });
+    const rawScore = examCard.locator(".student-scores-drawer__exam-score");
+    await expect(rawScore).toContainText("66 / 100");
+    await expect(quickPass).toBeVisible();
+    await quickPass.click();
+
+    await expect(examCard.getByRole("button", { name: "교사 PASS에서 보완 필요로 변경" }))
+      .toBeVisible();
+    await expect(rawScore).toContainText("66 / 100");
+    expect(api.correctionRequests.at(-1)).toMatchObject({
+      source_type: "exam",
+      completed: true,
+      note: "서술형 3번 풀이 확인",
+    });
+
+    await examCard.getByRole("button", { name: "교사 PASS에서 보완 필요로 변경" }).click();
+    expect(api.correctionRequests.at(-1)).toMatchObject({
+      source_type: "exam",
+      completed: false,
+      note: "서술형 3번 풀이 확인",
+    });
+
+    await page.reload({ waitUntil: "load" });
+    await page.locator('tbody tr[role="button"]').first().locator('[data-col-type="name"]').click();
+    const reloadedCard = page.locator(".student-scores-drawer__exam-card")
+      .filter({ hasText: "방정식 단원평가" });
+    await reloadedCard.getByText("방정식 단원평가", { exact: true }).click();
+    await expect(reloadedCard.getByRole("textbox", { name: "교사 최종 판정 비고" }))
+      .toHaveValue("서술형 3번 풀이 확인");
+    expect(await drawer.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  });
+
+  test("불합격 카드의 재시험 기록 추가에서 같은 원시험 2차 점수를 바로 저장한다", async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize({ width: 1366, height: 900 });
+    const api = await installApi(page);
+    const baseUrl = getBaseUrl("admin");
+    await page.goto(
+      `${baseUrl}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "load", timeout: 45_000 },
+    );
+
+    await page.locator('tbody tr[role="button"]').first().locator('[data-col-type="name"]').click();
+    const examCard = page.locator(".student-scores-drawer__exam-card")
+      .filter({ hasText: "방정식 단원평가" });
+    const addRetake = examCard.getByRole("button", { name: "재시험 기록 추가" });
+    await expect(addRetake).toBeVisible();
+    await addRetake.click();
+
+    const newAttempt = examCard.locator(".ssd-attempt-card--new");
+    await expect(newAttempt.getByText("2차 재시험", { exact: true })).toBeVisible();
+    await newAttempt.getByPlaceholder("점수").fill("82");
+    await newAttempt.getByRole("button", { name: "저장", exact: true }).click();
+    await expect.poll(() => api.retakeRequests).toEqual([{
+      score: 82,
+      max_score: 100,
+      pass_score: 70,
+    }]);
+    await expect(examCard.getByText("1차 시험", { exact: true })).toBeVisible();
+    await expect(examCard.getByText("66", { exact: true })).toBeVisible();
+  });
+
   test("빈 판정 사유에서 통과 확정을 누르면 저장하지 않고 사유 입력으로 안내한다", async ({ page }, testInfo) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width: 390, height: 844 });
