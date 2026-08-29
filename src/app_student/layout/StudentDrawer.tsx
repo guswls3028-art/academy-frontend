@@ -64,7 +64,8 @@ const NAV: NavGroup[] = [
     items: [
       { label: "일정", to: "/student/sessions", Icon: IconCalendar },
       { label: "공지사항", to: "/student/notices", Icon: IconNotice },
-      { label: "커뮤니티", to: "/student/community", Icon: IconBoard },
+      { label: "자료실", to: "/student/community?tab=materials", Icon: IconFolder },
+      { label: "게시판", to: "/student/community?tab=board", Icon: IconBoard },
       { label: "출결 현황", to: "/student/attendance", Icon: IconClipboard },
     ],
   },

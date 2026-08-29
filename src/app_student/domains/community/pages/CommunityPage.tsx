@@ -1,8 +1,9 @@
 /**
  * PATH: src/app_student/domains/community/pages/CommunityPage.tsx
- * 학생 커뮤니티 — QnA | 게시판 | 자료실
+ * 학생 소식·자료 — 공지사항 | 게시판 | 자료실 | QnA | 상담
  */
 import { useState, useEffect, useMemo, useRef } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
@@ -76,6 +77,18 @@ function tabFromPath(pathname: string): Tab | null {
   return null;
 }
 
+function tabFromLocation(pathname: string, search: string): Tab | null {
+  const requested = new URLSearchParams(search).get("tab");
+  if (requested && TABS.some(({ key }) => key === requested)) return requested as Tab;
+  return tabFromPath(pathname);
+}
+
+function searchForTab(search: string, tab: Tab): string {
+  const params = new URLSearchParams(search);
+  params.set("tab", tab);
+  return `?${params.toString()}`;
+}
+
 // ─── Shared tab bar ───
 function SegmentedTabs<T extends string>({
   items,
@@ -86,15 +99,38 @@ function SegmentedTabs<T extends string>({
   value: T;
   onChange: (v: T) => void;
 }) {
+  const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const nextIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? items.length - 1
+        : (index + (event.key === "ArrowRight" ? 1 : -1) + items.length) % items.length;
+    const nextItem = items[nextIndex];
+    if (!nextItem) return;
+    onChange(nextItem.key);
+    buttonRefs.current[nextIndex]?.focus();
+  };
+
   return (
-    <div className="community-segmented-tabs">
-      {items.map(({ key, label, count }) => {
+    <div className="community-segmented-tabs" role="tablist" aria-label="소식·자료 메뉴">
+      {items.map(({ key, label, count }, index) => {
         const active = value === key;
         return (
           <button
             key={key}
+            ref={(node) => { buttonRefs.current[index] = node; }}
             type="button"
+            id={`community-tab-${key}`}
+            role="tab"
+            aria-controls="community-panel"
+            aria-selected={active}
+            tabIndex={active ? 0 : -1}
             onClick={() => onChange(key)}
+            onKeyDown={(event) => handleKeyDown(event, index)}
             className={`community-segmented-tabs__button${active ? " community-segmented-tabs__button--active" : ""}`}
           >
             <span>{label}</span>
@@ -191,8 +227,9 @@ function MyActivitySummary() {
 export default function CommunityPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<Tab>(() => tabFromPath(location.pathname) ?? "notice");
+  const [tab, setTab] = useState<Tab>(() => tabFromLocation(location.pathname, location.search) ?? "notice");
   const [view, setView] = useState<View>({ kind: "tabs" });
+  const activeTab = tabFromLocation(location.pathname, location.search) ?? tab;
 
   // 알림에서 질문/상담 상세 직접 진입 + dashboard "새 답변" tab prefill
   useEffect(() => {
@@ -200,27 +237,32 @@ export default function CommunityPage() {
     if (state?.openQuestionId != null) {
       setTab("qna");
       setView({ kind: "qna-detail", id: state.openQuestionId });
-      navigate(location.pathname, { replace: true, state: {} });
+      navigate({ pathname: location.pathname, search: searchForTab(location.search, "qna") }, { replace: true, state: {} });
     } else if (state?.openQnaForm) {
       setTab("qna");
       setView({ kind: "qna-form" });
-      navigate(location.pathname, { replace: true, state: {} });
+      navigate({ pathname: location.pathname, search: searchForTab(location.search, "qna") }, { replace: true, state: {} });
     } else if (state?.openCounselId != null) {
       setTab("counsel");
       setView({ kind: "counsel-detail", id: state.openCounselId });
-      navigate(location.pathname, { replace: true, state: {} });
+      navigate({ pathname: location.pathname, search: searchForTab(location.search, "counsel") }, { replace: true, state: {} });
     } else if (state?.openCounselForm) {
       setTab("counsel");
       setView({ kind: "counsel-form" });
-      navigate(location.pathname, { replace: true, state: {} });
+      navigate({ pathname: location.pathname, search: searchForTab(location.search, "counsel") }, { replace: true, state: {} });
     } else if (state?.tab) {
       setTab(state.tab);
-      navigate(location.pathname, { replace: true, state: {} });
+      navigate({ pathname: location.pathname, search: searchForTab(location.search, state.tab) }, { replace: true, state: {} });
     } else {
-      const pathTab = tabFromPath(location.pathname);
-      if (pathTab) setTab(pathTab);
+      setTab(tabFromLocation(location.pathname, location.search) ?? "notice");
     }
-  }, [location.pathname, location.state, navigate]);
+  }, [location.pathname, location.search, location.state, navigate]);
+
+  const selectTab = (nextTab: Tab) => {
+    setTab(nextTab);
+    setView({ kind: "tabs" });
+    navigate({ pathname: location.pathname, search: searchForTab(location.search, nextTab) }, { state: {} });
+  };
 
   const back = () => setView({ kind: "tabs" });
 
@@ -235,26 +277,31 @@ export default function CommunityPage() {
 
   // ─── Tab view ───
   return (
-    <StudentPageShell title="커뮤니티">
+    <StudentPageShell title="소식·자료">
       <MyActivitySummary />
-      <SegmentedTabs items={TABS} value={tab} onChange={setTab} />
-      <div className="community-tab-panel">
-        {tab === "notice" && (
+      <SegmentedTabs items={TABS} value={activeTab} onChange={selectTab} />
+      <div
+        id="community-panel"
+        className="community-tab-panel"
+        role="tabpanel"
+        aria-labelledby={`community-tab-${activeTab}`}
+      >
+        {activeTab === "notice" && (
           <NoticeTab onDetail={(id) => setView({ kind: "notice-detail", id })} />
         )}
-        {tab === "board" && (
+        {activeTab === "board" && (
           <BoardTab onDetail={(id) => setView({ kind: "board-detail", id })} />
         )}
-        {tab === "materials" && (
+        {activeTab === "materials" && (
           <MaterialsTab onDetail={(id) => setView({ kind: "materials-detail", id })} />
         )}
-        {tab === "qna" && (
+        {activeTab === "qna" && (
           <QnaTab
             onForm={() => setView({ kind: "qna-form" })}
             onDetail={(id, cached) => setView({ kind: "qna-detail", id, cached })}
           />
         )}
-        {tab === "counsel" && (
+        {activeTab === "counsel" && (
           <CounselTab
             onForm={() => setView({ kind: "counsel-form" })}
             onDetail={(id, cached) => setView({ kind: "counsel-detail", id, cached })}
