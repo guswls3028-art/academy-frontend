@@ -21,6 +21,7 @@ type MockState = {
   attendanceStatuses: Record<number, string>;
   attendanceStatusUpdates: Array<{ id: number; status: string }>;
   bulkCreatePayloads: number[][];
+  lectureEnrollmentPageSizes: string[];
   bulkSetCalls: number;
   bulkUndoTokens: string[];
   failUndo: boolean;
@@ -28,6 +29,7 @@ type MockState = {
 
 type MockOptions = {
   omitTargetSessionFromList?: boolean;
+  previousRosterWithInactive?: boolean;
 };
 
 async function installApi(page: Page, state: MockState, options: MockOptions = {}) {
@@ -139,8 +141,28 @@ async function installApi(page: Page, state: MockState, options: MockOptions = {
       }
       return json({ restored: 2, session: SESSION_ID });
     }
-    if (path === "/enrollments/session-enrollments/") return json([]);
-    if (path === "/enrollments/") return json([]);
+    if (path === "/enrollments/session-enrollments/") {
+      if (options.previousRosterWithInactive && url.searchParams.get("session") === "9900") {
+        return json([
+          { id: 8101, session: 9900, enrollment: 3001, student_id: 2001, student_name: "김가람", student_school: "한빛고", student_grade: 1 },
+          { id: 8102, session: 9900, enrollment: 3002, student_id: 2002, student_name: "이도윤", student_school: "한빛고", student_grade: 1 },
+        ]);
+      }
+      return json([]);
+    }
+    if (path === "/enrollments/") {
+      state.lectureEnrollmentPageSizes.push(url.searchParams.get("page_size") || "");
+      if (options.previousRosterWithInactive) {
+        return json({
+          count: 2,
+          results: [
+            { id: 3001, status: "ACTIVE", student: { id: 2001, name: "김가람", high_school: "한빛고", grade: 1 } },
+            { id: 3002, status: "INACTIVE", student: { id: 2002, name: "이도윤", high_school: "한빛고", grade: 1 } },
+          ],
+        });
+      }
+      return json([]);
+    }
     if (path === "/students/") {
       return json({
         count: 2,
@@ -207,6 +229,7 @@ function createState(overrides: Partial<MockState> = {}): MockState {
     attendanceStatuses: { 501: "UNSET", 502: "ABSENT" },
     attendanceStatusUpdates: [],
     bulkCreatePayloads: [],
+    lectureEnrollmentPageSizes: [],
     bulkSetCalls: 0,
     bulkUndoTokens: [],
     failUndo: false,
@@ -369,6 +392,26 @@ test("차시 수강생은 선택 목록에서 undo/redo와 최종 확인 후 미
 
   await expect.poll(() => state.bulkCreatePayloads).toEqual([[2001, 2002]]);
   await expect(page.getByText("차시 수강생 등록", { exact: true })).toHaveCount(0);
+});
+
+test("직전 차시 불러오기는 현재 활성 수강생만 등록 대상으로 가져온다", async ({ page }) => {
+  const state = createState();
+  await openAttendance(page, state, { previousRosterWithInactive: true });
+
+  await page.getByRole("button", { name: "수강생 등록" }).first().click();
+  await page.getByRole("button", { name: "직전 차시 불러오기" }).click();
+
+  await expect(page.getByText("1명 선택됨", { exact: true }).last()).toBeVisible();
+  await expect(page.getByText(/현재 비활성·대기 수강생 1명은 제외/)).toBeVisible();
+  await expect.poll(() => state.lectureEnrollmentPageSizes).toContain("500");
+
+  await page.getByRole("button", { name: "1명 검토 후 등록" }).click();
+  const confirmation = page.getByRole("alertdialog", { name: "차시 수강생으로 등록할까요?" });
+  await expect(confirmation).toContainText("김가람");
+  await expect(confirmation).not.toContainText("이도윤");
+  await confirmation.getByRole("button", { name: "1명 등록", exact: true }).click();
+
+  await expect.poll(() => state.bulkCreatePayloads).toEqual([[2001]]);
 });
 
 test("대상 차시를 확인할 수 없으면 단축키로도 수강등록 확인을 우회하지 못한다", async ({ page }) => {
