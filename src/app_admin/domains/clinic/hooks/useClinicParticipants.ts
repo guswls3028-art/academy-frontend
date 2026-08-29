@@ -27,6 +27,8 @@ export function useClinicParticipants(params: ClinicParticipantListParams) {
     // ClinicHomePage는 같은 페이지에서 weekQ/pendingQ 등 여러 인스턴스를 띄우므로,
     // 짧은 staleTime으로 30초 내 중복 fetch를 캐시 히트로 흡수. patchM 성공 시 invalidate로 즉시 갱신됨.
     staleTime: 30_000,
+    refetchInterval: enabled ? 10_000 : false,
+    refetchIntervalInBackground: false,
   });
 
   const patchM = useMutation({
@@ -34,6 +36,7 @@ export function useClinicParticipants(params: ClinicParticipantListParams) {
       patchClinicParticipantStatus(id, payload),
     onSuccess: (_data: unknown, variables: { id: number; payload: PatchClinicParticipantPayload }) => {
       qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
+      qc.invalidateQueries({ queryKey: clinicQueryKeys.sessionsTree });
       qc.invalidateQueries({ queryKey: clinicQueryKeys.notificationCounts });
       const statusLabel: Record<string, string> = { booked: "승인", attended: "출석", no_show: "결석", cancelled: "취소", rejected: "거절" };
       const label = statusLabel[variables.payload.status] ?? "변경";

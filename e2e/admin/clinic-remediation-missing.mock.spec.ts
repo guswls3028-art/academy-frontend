@@ -3,6 +3,7 @@ import type { Page, Route } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 import { gotoAndSettle } from "../helpers/wait";
+import { createClinicCountFreshnessRouteData, currentClinicCountDates, remediationWorkbenchTargets } from "./clinic-remediation-missing.fixtures";
 
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
@@ -27,6 +28,118 @@ async function seed(page: Page) {
     localStorage.setItem("refresh", `${jwt}-refresh`);
   }, localJwt());
 }
+
+test("미통과 기본 화면은 학생 한 행에 모든 항목을 펼치고 같은 화면에서 처리한다", async ({ page }, testInfo) => {
+  await seed(page);
+  let remediationMutationRequests = 0;
+
+  await page.route("**/api/v1/**", async (route: Route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
+    const method = request.method();
+    const json = (body: unknown, status = 200) => route.fulfill({
+      status,
+      contentType: "application/json",
+      body: JSON.stringify(body),
+    });
+
+    if (method === "OPTIONS") return route.fulfill({ status: 204 });
+    if (path.startsWith("/results/admin/") && method !== "GET") {
+      remediationMutationRequests += 1;
+      return json({ detail: "이 테스트에서는 변경 요청을 보내면 안 됩니다." }, 409);
+    }
+    if (path === "/core/program/") {
+      return json({ tenantCode: "hakwonplus", display_name: "학원플러스", ui_config: {}, feature_flags: {}, is_active: true });
+    }
+    if (path === "/core/me/") {
+      return json({ id: 12, username: "admin", name: "관리자", is_staff: true, is_superuser: true, tenantRole: "admin", must_change_password: false });
+    }
+    if (path === "/results/admin/clinic-targets/" && method === "GET") {
+      return json(remediationWorkbenchTargets);
+    }
+    if (path === "/clinic/participants/" && method === "GET") {
+      return json({ count: 0, next: null, previous: null, results: [] });
+    }
+    if (path === "/lectures/sections/" || path === "/staffs/currently-working/") return json([]);
+    if (path.startsWith("/community/") || path.startsWith("/student/notifications/")) return json({ count: 0, results: [] });
+    return json({ count: 0, results: [] });
+  });
+
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/bookings`, { timeout: 45_000 });
+
+  const workbenchToggle = page.getByRole("button", { name: "학생 작업대", exact: true });
+  await expect(workbenchToggle).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "점수 일괄입력", exact: true })).toHaveAttribute("aria-pressed", "false");
+
+  const workbench = page.getByRole("table", { name: "학생별 미통과 작업대" });
+  const studentRow = workbench.getByRole("row", { name: "작업대 학생 미통과 2건" });
+  await expect(studentRow).toHaveCount(1);
+  const examTicket = studentRow.getByRole("button", { name: /기체 법칙 단원평가.*상세 처리/ });
+  const homeworkTicket = studentRow.getByRole("button", { name: /평형의 이동 복습.*상세 처리/ });
+  await expect(examTicket).toBeVisible();
+  await expect(homeworkTicket).toBeVisible();
+  const tickets = studentRow.locator(".clinic-hub__item-ticket");
+  await expect(tickets).toHaveCount(2);
+  await expect(tickets.nth(0)).toContainText("평형의 이동 복습");
+  await expect(tickets.nth(1)).toContainText("기체 법칙 단원평가");
+
+  const urlBefore = page.url();
+  await homeworkTicket.click();
+  let panel = studentRow.getByRole("region", { name: "작업대 학생 · 평형의 이동 복습 처리" });
+  await expect(panel).toContainText("1차: 5점 / 기준 8점");
+  await expect(panel.getByRole("group", { name: "연결된 예약·운영 정보" })).toContainText("2026. 8. 29. 14:30–16:00");
+  await expect(panel.getByRole("group", { name: "연결된 예약·운영 정보" })).toContainText("본관 302호");
+  await expect(panel.getByRole("group", { name: "연결된 예약·운영 정보" })).toContainText("예약 확정");
+  await expect(panel).toContainText("학생 요청 학원 셔틀 뒤에 도착해요");
+  await expect(panel).toContainText("교직원 메모 도착하면 3번 좌석 안내");
+  await expect(panel).toContainText("정확한 참가 항목 연결");
+  await expect(panel).toContainText("처리 이력 1건");
+  await expect(panel).not.toContainText("노출하면 안 되는 출처 불명 메모");
+  await expect(panel.getByRole("button", { name: "통과", exact: true })).toBeVisible();
+  expect(new URL(page.url()).pathname).toBe(new URL(urlBefore).pathname);
+  expect(new URL(page.url()).searchParams.get("target")).toBe("link:881");
+  await page.screenshot({ path: testInfo.outputPath("clinic-remediation-workbench-1366.png"), fullPage: false });
+
+  await page.reload();
+  panel = studentRow.getByRole("region", { name: "작업대 학생 · 평형의 이동 복습 처리" });
+  await expect(panel).toBeVisible();
+  await page.goBack();
+  await expect(panel).toHaveCount(0);
+  await expect(homeworkTicket).toBeFocused();
+
+  await homeworkTicket.click();
+  panel = studentRow.getByRole("region", { name: "작업대 학생 · 평형의 이동 복습 처리" });
+  await expect(panel).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(panel).toHaveCount(0);
+  await expect(homeworkTicket).toBeFocused();
+  expect(new URL(page.url()).searchParams.has("target")).toBe(false);
+
+  const search = page.getByRole("searchbox", { name: "클리닉 대상 검색" });
+  await search.fill("기체");
+  let filteredTickets = workbench.getByRole("row", { name: "작업대 학생 미통과 1건" }).locator(".clinic-hub__item-ticket");
+  await expect(filteredTickets).toHaveCount(1);
+  expect(new URL(page.url()).searchParams.get("q")).toBe("기체");
+  await page.reload();
+  await expect(search).toHaveValue("기체");
+  filteredTickets = workbench.getByRole("row", { name: "작업대 학생 미통과 1건" }).locator(".clinic-hub__item-ticket");
+  await expect(filteredTickets).toHaveCount(1);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileRow = workbench.getByRole("row", { name: "작업대 학생 미통과 1건" });
+  await expect(mobileRow).toBeVisible();
+  await mobileRow.getByRole("button", { name: /기체 법칙 단원평가.*상세 처리/ }).click();
+  const mobilePanel = mobileRow.getByRole("region", { name: "작업대 학생 · 기체 법칙 단원평가 처리" });
+  await expect(mobilePanel).toBeVisible();
+  const mobilePass = mobilePanel.getByRole("button", { name: "통과", exact: true });
+  await mobilePass.scrollIntoViewIfNeeded();
+  await expect(mobilePass).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("clinic-remediation-workbench-390.png"), fullPage: true });
+  expect(remediationMutationRequests).toBe(0);
+});
 
 test("여러 강의를 듣는 클리닉 대상자는 학생 한 행에 아바타와 강의 딱지를 모아 표시한다", async ({ page }, testInfo) => {
   await seed(page);
@@ -231,6 +344,7 @@ test("미응시를 판정 대기로 구분하고 사유를 남겨 면제한 뒤 
   await expect(page.getByText("판정 대기", { exact: true })).toBeVisible();
   await expect(page.getByText("미응시", { exact: true })).toBeVisible();
   await expect(page.getByText("전자기유도 단원평가", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /전자기유도 단원평가.*상세 처리/ }).click();
   await page.getByRole("button", { name: "면제", exact: true }).click();
 
   const dialog = page.getByRole("dialog", { name: "클리닉 면제 처리" });
@@ -246,9 +360,12 @@ test("미응시를 판정 대기로 구분하고 사유를 남겨 면제한 뒤 
     exam_id: 801,
     memo: "이전 수업 결석으로 면제",
   }]);
+  await expect(dialog).toHaveCount(0);
   await expect(page.getByText("진행중 항목이 없습니다", { exact: true })).toBeVisible();
 
-  await page.getByRole("checkbox", { name: "해결 완료 포함" }).check();
+  const includeResolved = page.getByRole("checkbox", { name: "해결 완료 포함" });
+  await includeResolved.click();
+  await expect(includeResolved).toBeChecked();
   await expect(page.getByText("전자기유도 단원평가", { exact: true })).toBeVisible();
   await expect(page.getByText("면제", { exact: true })).toBeVisible();
 
@@ -356,7 +473,8 @@ test("유효한 클리닉 링크가 있어도 미응시 시험은 면제만 허�
 
   await gotoAndSettle(page, `${BASE}/workspace/clinic/bookings`, { timeout: 45_000 });
 
-  const row = page.getByRole("row").filter({ hasText: "미응시 확인 시험" });
+  const row = page.getByRole("row", { name: "링크결시 학생 미통과 1건" });
+  await row.getByRole("button", { name: /미응시 확인 시험.*상세 처리/ }).click();
   await expect(row.getByRole("button", { name: "면제", exact: true })).toBeVisible();
   await expect(row.getByRole("button", { name: "제출 확인·완료", exact: true })).toHaveCount(0);
   await expect(row.getByRole("button", { name: "수동 통과", exact: true })).toHaveCount(0);
@@ -581,6 +699,7 @@ test("문자 등으로 제출한 무점수 과제를 사유와 함께 완료하�
   await gotoAndSettle(page, `${BASE}/workspace/clinic/bookings`, { timeout: 45_000 });
 
   await expect(page.getByText("문자제출 학생", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /연산 숙제 12쪽.*상세 처리/ }).click();
   await expect(page.getByRole("button", { name: "제출 확인·완료", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "제출 확인·완료", exact: true }).click();
 
@@ -679,10 +798,10 @@ test("과제 클리닉 대상은 개별 퍼센트 기준을 과제 점수로 한
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAndSettle(page, `${BASE}/workspace/clinic/bookings`, { timeout: 45_000 });
 
-  await expect(page.getByText("연산 복습", { exact: true })).toBeVisible();
-  await expect(page.getByRole("cell", { name: "10점", exact: true })).toBeVisible();
-  await expect(page.getByRole("cell", { name: "70%", exact: true })).toBeVisible();
+  const itemTicket = page.getByRole("button", { name: /연산 복습.*상세 처리/ });
+  await expect(itemTicket).toContainText("10점 / 기준 70%");
   await expect(page.getByText(/시험 10/)).toHaveCount(0);
+  await itemTicket.click();
   await expect(page.getByRole("button", { name: "제출 확인·완료", exact: true })).toHaveCount(0);
   await expect(page.getByTitle("수동 통과")).toBeVisible();
   expect(
@@ -690,6 +809,44 @@ test("과제 클리닉 대상은 개별 퍼센트 기준을 과제 점수로 한
       () => document.documentElement.scrollWidth <= window.innerWidth + 1,
     ),
   ).toBe(true);
+});
+
+test("다른 기기에서 생긴 오늘 예약은 열린 운영 화면의 학생 수를 자동 갱신한다", async ({ page }) => {
+  await seed(page);
+  const { today, tomorrow } = currentClinicCountDates();
+  const routeData = createClinicCountFreshnessRouteData(today, tomorrow);
+
+  await page.route("**/api/v1/**", async (route: Route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const path = url.pathname.replace(/^\/api\/v1/, "");
+    const method = request.method();
+    const json = (body: unknown, status = 200) => route.fulfill({
+      status,
+      contentType: "application/json",
+      body: JSON.stringify(body),
+    });
+
+    if (method === "OPTIONS") return route.fulfill({ status: 204 });
+    return json(routeData.response(path, method, url.search));
+  });
+
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/operations?scope=day&date=${today}`, { timeout: 45_000 });
+
+  const scopeRail = page.getByRole("group", { name: "클리닉 운영 범위" });
+  await expect(scopeRail.getByRole("button", { name: "오늘 전체 1명", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("내일 예약 학생", { exact: true })).toHaveCount(0);
+
+  routeData.revealOtherDeviceBooking();
+  await expect(scopeRail.getByRole("button", { name: "오늘 전체 2명", exact: true })).toHaveAttribute("aria-pressed", "true", { timeout: 25_000 });
+  await expect(page.getByText("다른 기기 예약 학생", { exact: true })).toBeVisible();
+  await expect(page.getByText("내일 예약 학생", { exact: true })).toHaveCount(0);
+  expect(routeData.participantRequests).toBeGreaterThan(1);
+  expect(routeData.treeRequests).toBeGreaterThan(1);
+  const dayQueries = routeData.participantQueries.filter((query) => query.includes("session_date_from="));
+  expect(dayQueries.length).toBeGreaterThan(1);
+  expect(dayQueries.every((query) => query.includes(`session_date_from=${today}`) && query.includes(`session_date_to=${today}`))).toBe(true);
 });
 
 test("클리닉 조회 실패를 빈 목록으로 숨기지 않고 재시도한다", async ({ page }) => {
@@ -722,7 +879,7 @@ test("클리닉 조회 실패를 빈 목록으로 숨기지 않고 재시도한�
     if (path === "/results/admin/clinic-targets/" && method === "GET") {
       targetRequests += 1;
       if (targetRequests === 1) await targetsGate;
-      return failTargets ? json({ detail: "temporary" }, 503) : json([]);
+      return failTargets ? json({ detail: "Tenant required", code: "TENANT_REQUIRED" }, 403) : json([]);
     }
     if (path === "/clinic/participants/" && method === "GET") {
       return failParticipants ? json({ detail: "temporary" }, 503) : json({ count: 0, next: null, previous: null, results: [] });

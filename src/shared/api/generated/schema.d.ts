@@ -7754,7 +7754,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["results_admin_clinic_targets_retrieve"];
+        get: operations["results_admin_clinic_targets_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7943,7 +7943,7 @@ export interface paths {
          *
          *     ✅ 단일 진실:
          *     - ResultFact 기반 (append-only)
-         *     - 대표 attempt 교체/재시험 여부와 무관하게 항상 일관된 통계
+         *     - 대표 attempt 교체/재시험 여부와 무관하게 1차 문항 통계
          */
         get: operations["results_admin_exams_questions_retrieve"];
         put?: never;
@@ -11744,6 +11744,74 @@ export interface components {
          * @enum {string}
          */
         ActorModeEnum: "student" | "support";
+        AdminClinicTarget: {
+            attempt_history?: {
+                [key: string]: unknown;
+            }[];
+            clinic_link_id?: number | null;
+            clinic_reason?: (components["schemas"]["ClinicReasonEnum"] | components["schemas"]["NullEnum"]) | null;
+            /** Format: date-time */
+            created_at: string | null;
+            /** Format: double */
+            cutline_score: number | null;
+            /** @default 1 */
+            cycle_no: number;
+            enrollment_id: number;
+            exam_id?: number | null;
+            /** Format: double */
+            exam_score: number | null;
+            grade?: number | null;
+            /** Format: double */
+            homework_cutline?: number | null;
+            homework_cutline_mode?: (components["schemas"]["HomeworkCutlineModeEnum"] | components["schemas"]["NullEnum"]) | null;
+            /** Format: double */
+            homework_cutline_value?: number | null;
+            homework_round_unit_percent?: number | null;
+            /** Format: double */
+            homework_score?: number | null;
+            /** @default 1 */
+            latest_attempt_index: number;
+            lecture_chip_label?: string | null;
+            lecture_color?: string | null;
+            lecture_id?: number | null;
+            lecture_title?: string | null;
+            linked_bookings?: components["schemas"]["LinkedClinicBooking"][];
+            /** Format: double */
+            max_score?: number | null;
+            meta_status?: string | null;
+            /** @default false */
+            name_highlight_clinic_target: boolean;
+            /** @default  */
+            parent_phone: string;
+            profile_photo_url?: string | null;
+            reason: components["schemas"]["AdminClinicTargetReasonEnum"];
+            resolution_evidence?: unknown;
+            resolution_history?: {
+                [key: string]: unknown;
+            }[];
+            resolution_type?: string | null;
+            /** Format: date-time */
+            resolved_at?: string | null;
+            /** @default  */
+            school: string;
+            session_id?: number | null;
+            session_title: string;
+            source_id?: number | null;
+            source_scope?: string | null;
+            source_title?: string | null;
+            source_type?: string | null;
+            student_id?: number | null;
+            student_name: string;
+            /** @default  */
+            student_phone: string;
+        };
+        /**
+         * @description * `score` - score
+         *     * `confidence` - confidence
+         *     * `missing` - missing
+         * @enum {string}
+         */
+        AdminClinicTargetReasonEnum: "score" | "confidence" | "missing";
         AdminExamResultRow: {
             achievement?: string | null;
             clinic_required: boolean;
@@ -11936,7 +12004,7 @@ export interface components {
             readonly lecture_title: string;
             memo?: string | null;
             meta?: unknown;
-            reason: components["schemas"]["ReasonEnum"];
+            reason: components["schemas"]["ClinicLinkReasonEnum"];
             /** @description 해소 근거: {exam_id, attempt_id, homework_id, score, ...} */
             resolution_evidence?: unknown;
             /**
@@ -11959,6 +12027,14 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
         };
+        /**
+         * @description * `AUTO_FAILED` - 자동(차시 미통과)
+         *     * `AUTO_RISK` - 자동(위험 알림)
+         *     * `MANUAL_REQUEST` - 수동(학생/학부모 요청)
+         *     * `TEACHER_RECOMMEND` - 강사 추천
+         * @enum {string}
+         */
+        ClinicLinkReasonEnum: "AUTO_FAILED" | "AUTO_RISK" | "MANUAL_REQUEST" | "TEACHER_RECOMMEND";
         ClinicLinkRequest: {
             approved?: boolean;
             /**
@@ -11969,7 +12045,7 @@ export interface components {
             is_auto?: boolean;
             memo?: string | null;
             meta?: unknown;
-            reason: components["schemas"]["ReasonEnum"];
+            reason: components["schemas"]["ClinicLinkReasonEnum"];
             /** @description 해소 근거: {exam_id, attempt_id, homework_id, score, ...} */
             resolution_evidence?: unknown;
             /**
@@ -13070,8 +13146,8 @@ export interface components {
             readonly uses_session_cutline_default: boolean;
         };
         /**
-         * @description * `PERCENT` - 퍼센트 (%)
-         *     * `COUNT` - 점수
+         * @description * `PERCENT` - PERCENT
+         *     * `COUNT` - COUNT
          * @enum {string}
          */
         HomeworkCutlineModeEnum: "PERCENT" | "COUNT";
@@ -13623,6 +13699,34 @@ export interface components {
          * @enum {string}
          */
         LevelEnum: "COURSE" | "SESSION";
+        /**
+         * @description * `participant_plan` - participant_plan
+         * @enum {string}
+         */
+        LinkageSourceEnum: "participant_plan";
+        LinkedClinicBooking: {
+            linkage_source: components["schemas"]["LinkageSourceEnum"];
+            /** Format: date-time */
+            linked_at: string;
+            linked_by_id: number | null;
+            location: string;
+            participant_id: number;
+            participant_status: components["schemas"]["ParticipantStatusEnum"];
+            plan_item_id: number;
+            /** Format: time */
+            preferred_end_time: string | null;
+            /** Format: time */
+            preferred_start_time: string | null;
+            /** Format: date */
+            session_date: string;
+            /** Format: time */
+            session_end_time: string;
+            session_id: number;
+            /** Format: time */
+            session_start_time: string;
+            staff_memo: string;
+            student_request_memo: string;
+        };
         /**
          * @description * `GRADING` - 채점중
          *     * `PUBLISHED` - 게시됨
@@ -14533,6 +14637,16 @@ export interface components {
          * @enum {string}
          */
         ParticipantRoleEnum: "target" | "manual";
+        /**
+         * @description * `pending` - pending
+         *     * `booked` - booked
+         *     * `attended` - attended
+         *     * `no_show` - no_show
+         *     * `cancelled` - cancelled
+         *     * `rejected` - rejected
+         * @enum {string}
+         */
+        ParticipantStatusEnum: "pending" | "booked" | "attended" | "no_show" | "cancelled" | "rejected";
         PatchedAnswerKeyRequest: {
             /** @description key=ExamQuestion.id (string), value=correct answer */
             answers?: unknown;
@@ -14558,7 +14672,7 @@ export interface components {
             is_auto?: boolean;
             memo?: string | null;
             meta?: unknown;
-            reason?: components["schemas"]["ReasonEnum"];
+            reason?: components["schemas"]["ClinicLinkReasonEnum"];
             /** @description 해소 근거: {exam_id, attempt_id, homework_id, score, ...} */
             resolution_evidence?: unknown;
             /**
@@ -15952,14 +16066,6 @@ export interface components {
             /** Format: double */
             score?: number;
         };
-        /**
-         * @description * `AUTO_FAILED` - 자동(차시 미통과)
-         *     * `AUTO_RISK` - 자동(위험 알림)
-         *     * `MANUAL_REQUEST` - 수동(학생/학부모 요청)
-         *     * `TEACHER_RECOMMEND` - 강사 추천
-         * @enum {string}
-         */
-        ReasonEnum: "AUTO_FAILED" | "AUTO_RISK" | "MANUAL_REQUEST" | "TEACHER_RECOMMEND";
         /**
          * @description * `CARD` - CARD
          *     * `BANK_TRANSFER` - BANK_TRANSFER
@@ -30400,7 +30506,7 @@ export interface operations {
             };
         };
     };
-    results_admin_clinic_targets_retrieve: {
+    results_admin_clinic_targets_list: {
         parameters: {
             query?: never;
             header?: never;
@@ -30409,8 +30515,16 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No response body */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminClinicTarget"][];
+                };
+            };
+            /** @description Tenant or role denied */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

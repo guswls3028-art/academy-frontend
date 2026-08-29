@@ -92,6 +92,35 @@
 
 ## 클리닉 운영 콘솔
 
+- `/workspace/clinic/bookings`의 **미통과** 기본 화면은 `학생 작업대`다. 서버가 반환한
+  tenant-scoped 대상을 stable `student_id`로 묶고 ID가 없을 때만 `enrollment_id`를
+  fallback key로 사용해 학생 한 명을 한 행에
+  표시하고, 그 학생의 시험·과제 카드를 접지 않은 채 모두 펼친다. 미해결 항목을 먼저,
+  같은 상태에서는 `created_at` 최신순으로 놓으며 학생 행은 미해결 개수 내림차순 뒤
+  이름순이다. `점수 일괄입력`은 명시적으로 전환했을 때만 기존 표를 연다.
+- 항목 카드는 원본 제목, 시험/과제 유형, 차시, 사유, 점수·기준 또는 미응시/미제출을
+  표시한다. `판정 대기`, 시험/과제/수동 통과, 면제, 다음 차수 이월, 원본 항목 삭제를
+  서로 다른 상태명으로 유지하며 link 없는 항목이나 조회 오류를 해결 완료·0건으로
+  바꾸지 않는다.
+- 카드를 누르면 URL과 학생 목록을 유지한 같은 행의 처리 패널에서 원점수와 시도 이력,
+  재시험 점수 저장, 통과, 제출 확인·완료, 면제, 다음 차수 이월을 실행한다. 항목 선택은
+  `target`, 검색·사유·차시·해결 포함·보기 상태는 각각 query parameter로 보존하므로
+  딥링크와 새로고침에서 복원되고 브라우저 뒤로가기는 선택 패널만 닫는다. 닫기나 Esc
+  뒤에는 방금 누른 카드에 포커스를 돌린다. mutation 중에는 전체 처리 동작을 잠가
+  중복 요청을 막고, 성공 뒤 대상 목록을 다시 읽으며 실패는 재시도 가능한 오류로 남긴다.
+- 390px에서는 학생 신원, 항목 카드, 처리 패널을 한 열로 재배치하고 문서 가로 넘침을
+  만들지 않는다. 키보드 포커스와 `prefers-reduced-motion`도 같은 계약을 따른다.
+- 처리 패널의 **예약·운영 연결**은 서버가 `SessionParticipantPlanItem`으로 직접
+  연결한 `linked_bookings`만 표시한다. 이름·날짜·제목으로 참가자를 추정하지 않으며,
+  각 연결의 날짜·시작/종료·장소·참가 상태·희망 시간·학생 작성 요청·교직원 메모와
+  exact plan provenance를 함께 보여준다. 작성 출처가 불명확한 legacy participant
+  `memo`는 표시하지 않는다. ClinicLink의 현재 해소 근거와 append-only 처리 이력도
+  같은 패널에서 원시험·시도 이력과 분리해 확인한다. 연결이 없으면 “직접 연결된
+  예약 없음”으로 표시해 missing link와 empty-success를 혼동하지 않는다.
+- tenant 누락/권한 거부를 포함한 대상 조회 403은 진행중 0건이나 모두 통과로 바꾸지
+  않는다. KPI를 `—`로 유지하고 명시적 오류와 `다시 시도`를 제공하며, 성공 응답을
+  받은 뒤에만 진짜 빈 상태를 표시한다.
+
 - `/workspace/clinic/operations`의 기본 범위는 **현장**이다. 16시·17시·18시처럼
   여러 클리닉이 동시에 진행돼도 시간대별 화면을 오가지 않고 현재 등원중인 학생을
   한 처리 큐에서 본다. **오늘 전체**는 당일 예약·미등원·결석까지 확인하는 병렬
@@ -103,6 +132,13 @@
   `next` 누락 또는 pagination loop가 섞이면 일부 명단이나 0명을 표시하지 않고 전체
   조회를 실패 처리한다.
   `is_late`는 현장 포함 여부를 바꾸지 않고 `completed_at`도 하원을 대신하지 않는다.
+- 열린 예약 승인·출석 진행 화면은 화면이 보이는 동안 참가자·대상·월별 세션 트리를
+  10초 간격으로 bounded refetch한다. 백그라운드 탭에서는 주기 요청을 멈추고 로컬
+  참가 상태 변경은 참가자와 세션 트리 cache를 즉시 무효화한다. 따라서 다른 기기에서
+  생긴 학생 예약도 날짜 토글이나 수동 새로고침 없이 반영된다. **오늘 전체**는 계속
+  `session_date_from=오늘&session_date_to=오늘`, **현장**은 `onsite_date=오늘`을 보내므로
+  미래 예약은 오늘 수에 섞이지 않는다. pending/booked/cancelled/rejected/no_show는
+  서버 참가 상태 그대로 유지하며 클라이언트가 하나의 “예약” 상태로 합치지 않는다.
 - 현장/전체 시간 큐의 각 학생 행과 작업대에는 해당 참가자의 실제 세션 시간·장소를
   표시한다. 일정 수정·삭제, 학생 추가, 전체 출석, 변경 알림처럼 한 세션을 전제로 한
   동작은 통합 현장 범위에서 숨기고 단일 세션 범위에서만 허용한다.
@@ -174,12 +210,16 @@
 16시·17시·18시 현장 학생 동시 노출과 시간대 보조 필터, 동일 학생 단일행과 exact
 participant 시간대 선택, 전 페이지 순회와 `next` 누락·loop·중복·취소·권위 상태
 오류의 fail-closed 처리, 일정 오버레이 비이동·Esc 포커스 복귀,
+직접 plan 연결의 일정·상태·요청·staff memo·처리 이력과 legacy memo 비노출,
+tenant 403의 오류·재시도, 다른 기기 당일 예약의 visible-page 자동 count 갱신과
+미래 예약 배제,
 온라인·문자 제출 과제와 무점수 과제의 식별·사유·완료 후 재조회, link 없는 미응시
 시험의 exact 면제와 수동 통과 차단, 알림톡 요청 부분 실패·재촉 상세 가시성,
 대상 조회 오류의 비합성 표시, 390px 압축 선택기의 탭 줄바꿈과 문서 가로 넘침을 확인한다.
 
 ```powershell
 pnpm exec playwright test e2e/teacher/teacher-business-workflow.mock.spec.ts --project=chromium --reporter=list
+pnpm exec playwright test e2e/admin/clinic-remediation-missing.mock.spec.ts --project=chromium --reporter=list --retries=0
 pnpm exec playwright test e2e/admin/clinic-weekly-multisession.mock.spec.ts --project=chromium --reporter=list
 pnpm typecheck
 pnpm lint
