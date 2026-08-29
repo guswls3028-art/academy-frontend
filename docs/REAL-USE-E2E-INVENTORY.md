@@ -59,6 +59,11 @@ screenshot, trace, HTML report가 함께 남는다.
 산입하지 않는다. 모바일 drawer는 route 정착 뒤 메뉴 trigger가 마운트될 때까지
 bounded wait한 다음 순회한다.
 
+라우트 이동과 사람형 클릭은 각각 네트워크 정착을 한 번만 소유한다. 이어지는
+fatal·빈 화면 검사는 이미 정착된 페이지를 읽으며 같은 `networkidle` 대기를 다시
+반복하지 않는다. 실제 본문이 비어 있을 때의 조건부 복구 대기는 유지해 실패 판정
+범위는 보존하면서 정상 전체 메뉴 순회의 누적 대기만 제거한다.
+
 감사 목록에는 현재 canonical route만 둔다. 호환 alias와 외부 redirect는 각각
 집중 회귀와 공개 route 감사에서 검증하며 중복 순회하지 않는다. 데이터에 따라
 실제 상세 화면으로 이동하는 공개 영상 진입점처럼 의도된 동적 redirect만 spec의

@@ -120,6 +120,24 @@ test("the exhaustive menu audit owns canonical routes and explicit dynamic redir
   assert.match(allMenuAudit, /const openError = await openDrawerMenu\(page\)/);
 });
 
+test("the exhaustive menu audit settles once before each usability assertion", () => {
+  const assertionOwner = allMenuAudit.match(
+    /async function assertSettledUsablePage[\s\S]*?\n}\n\nasync function gotoRoute/,
+  )?.[0];
+
+  assert.ok(assertionOwner, "settled usability assertion owner must remain explicit");
+  assert.doesNotMatch(
+    assertionOwner,
+    /Promise<void> \{\n\s*await waitForSettledPage\(page\);/,
+  );
+  assert.match(assertionOwner, /if \(normalized\.length < 2\) \{\n\s*await waitForSettledPage\(page, 3_000\);/);
+  assert.match(
+    allMenuAudit,
+    /await waitForSettledPage\(page, networkIdleTimeout\);[\s\S]{0,120}return undefined;/,
+  );
+  assert.equal((allMenuAudit.match(/await assertSettledUsablePage\(/g) ?? []).length, 3);
+});
+
 test("PR read-only and route-mock gates keep separate runtime boundaries", () => {
   for (const workflowOwner of [
     ".github/workflows/e2e.yml",
