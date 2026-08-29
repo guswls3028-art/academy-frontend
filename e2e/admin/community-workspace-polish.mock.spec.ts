@@ -214,9 +214,9 @@ test.describe("커뮤니티 QnA 작업대", () => {
     await expect(formBody.locator(".ProseMirror img")).toBeVisible();
     await expect.poll(() => formBody.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeGreaterThan(0);
 
-    await formBody.evaluate((element) => {
-      element.scrollTop = element.scrollHeight;
-    });
+    const initialFormScrollTop = await formBody.evaluate((element) => element.scrollTop);
+    await submit.scrollIntoViewIfNeeded();
+    await expect.poll(() => formBody.evaluate((element) => element.scrollTop)).toBeGreaterThan(initialFormScrollTop);
     await expect(submit).toBeInViewport();
   });
 
