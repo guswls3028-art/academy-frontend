@@ -402,10 +402,10 @@ function MatCreatePane({
                 className="cms-attach__picker-input"
                 disabled={files.length >= 10}
                 onChange={(e) => {
-                  if (e.target.files) {
-                    setFiles((prev) => [...prev, ...Array.from(e.target.files!)].slice(0, 10));
-                    e.target.value = "";
-                  }
+                  const selectedFiles = Array.from(e.currentTarget.files ?? []);
+                  if (selectedFiles.length === 0) return;
+                  setFiles((prev) => [...prev, ...selectedFiles].slice(0, 10));
+                  e.currentTarget.value = "";
                 }}
               />
             </label>
