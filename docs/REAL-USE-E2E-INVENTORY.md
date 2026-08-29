@@ -57,7 +57,8 @@ screenshot, trace, HTML report가 함께 남는다.
 운영 계약과 release canary가 소유하는
 `/core/product-analytics/events/batch/` telemetry는 이 감사의 결함에 중복
 산입하지 않는다. 모바일 drawer는 route 정착 뒤 메뉴 trigger가 마운트될 때까지
-bounded wait한 다음 순회한다.
+Playwright locator의 `waitFor(state=visible)`로 최대 20초 bounded wait한 다음
+순회한다. 즉시 반환하는 visibility snapshot은 readiness 판정에 사용하지 않는다.
 
 라우트 이동과 사람형 클릭은 각각 네트워크 정착을 한 번만 소유한다. 이어지는
 fatal·빈 화면 검사는 이미 정착된 페이지를 읽으며 같은 `networkidle` 대기를 다시
@@ -72,6 +73,12 @@ fatal·빈 화면 검사는 이미 정착된 페이지를 읽으며 같은 `netw
 이 구조는 shared tenant 직렬성은 유지하면서 순차 matrix가 반복하던 runner 준비
 비용을 제거한다. 새로운 shard는 독립 tenant·계정·데이터와 실행 시간 증거가
 있을 때만 추가한다.
+
+수동 workflow의 `all_menu_scope`와 `all_menu_route_filter`는 실패 원인을 짧게
+재현하는 focused 진단 입력이다. scope는 고정된 `all/admin/student/teacher` 선택만
+허용하고 route filter는 테스트 환경값으로만 전달한다. 두 입력의 기본값은 각각
+`all`과 빈 값이며, 배포 완료 증거는 반드시 이 기본값으로 세 역할 전체를 통과한
+실행만 인정한다.
 
 ## 4. 핵심 사용자 흐름
 
