@@ -216,6 +216,26 @@
   white-space: nowrap;
 }
 
+.targetResolutionLink {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 35%, var(--stu-border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface));
+  color: var(--stu-primary);
+  font-size: 13px;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.targetResolutionLink:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--stu-primary) 34%, transparent);
+  outline-offset: 2px;
+}
+
 .changeBanner {
   display: flex;
   align-items: center;

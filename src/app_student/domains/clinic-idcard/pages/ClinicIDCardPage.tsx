@@ -68,6 +68,8 @@ export default function ClinicIDCardPage() {
 
   const { data } = query;
   const isClinicTarget = data.current_result === "FAIL";
+  const isReturnAllowed = data.passcard_state === "RETURN_ALLOWED";
+  const isPendingApproval = isClinicTarget && data.booking_status === "pending";
   const style: PasscardStyle = isClinicTarget ? {} : {
     "--passcard-color-1": data.background_colors[0],
     "--passcard-color-2": data.background_colors[1],
@@ -84,7 +86,7 @@ export default function ClinicIDCardPage() {
 
   return (
     <div
-      className={`clinic-idcard ${isClinicTarget ? "clinic-idcard--fail" : "clinic-idcard--pass"}`}
+      className={`clinic-idcard ${isClinicTarget ? "clinic-idcard--fail" : "clinic-idcard--pass"} ${isReturnAllowed ? "clinic-idcard--return-allowed" : ""}`}
       style={style}
       data-testid="clinic-passcard"
     >
@@ -114,16 +116,49 @@ export default function ClinicIDCardPage() {
         </div>
 
         <section className="clinic-idcard__verdict" aria-label="현재 클리닉 판정">
-          <span className="clinic-idcard__verdict-mark" aria-hidden>{isClinicTarget ? "!" : "✓"}</span>
+          <span className="clinic-idcard__verdict-mark" aria-hidden>{isReturnAllowed || !isClinicTarget ? "✓" : "!"}</span>
           <div>
-            <p>{isClinicTarget ? "확인이 필요해요" : "오늘 수업 완료"}</p>
-            <h1>{isClinicTarget ? "클리닉 예약 대상자" : "합격"}</h1>
-            <span>{isClinicTarget ? "필요한 보강 일정을 예약해 주세요." : "선생님께 이 화면을 보여 주세요."}</span>
+            <p>{isReturnAllowed ? (data.booking_status === "booked" ? "클리닉 예약 완료" : data.booking_status_label) : isPendingApproval ? "클리닉 대상 · 승인 대기" : isClinicTarget ? "확인이 필요해요" : "오늘 수업 완료"}</p>
+            <h1>{isReturnAllowed ? "집에 가도 됨" : isClinicTarget ? "클리닉 예약 대상자" : "합격"}</h1>
+            <span>
+              {isReturnAllowed
+                ? "예약 또는 오늘 이행이 확인되었습니다. 미해소 항목은 계속 남아 있습니다."
+                : isPendingApproval
+                  ? "예약 승인을 기다리고 있습니다. 승인 전에는 귀가할 수 없습니다."
+                : isClinicTarget
+                  ? "필요한 보강 일정을 예약해 주세요."
+                  : "선생님께 이 화면을 보여 주세요."}
+            </span>
           </div>
         </section>
 
-        {isClinicTarget && (
-          <Link to="/student/clinic" className="clinic-idcard__booking-link">클리닉 일정 예약하기</Link>
+        {(isClinicTarget || data.current_booking) && (
+          <section className="clinic-idcard__booking" aria-label="클리닉 예약 상태">
+            <div className="clinic-idcard__booking-heading">
+              <span>클리닉 예약 상태</span>
+              <strong>{data.booking_status_label}</strong>
+            </div>
+            {data.current_booking ? (
+              <div className="clinic-idcard__booking-schedule">
+                {data.current_booking.title && <strong>{data.current_booking.title}</strong>}
+                <div>
+                  {data.current_booking.date && (
+                    <time dateTime={data.current_booking.date}>{data.current_booking.date}</time>
+                  )}
+                  {data.current_booking.start_time && <span>{data.current_booking.start_time.slice(0, 5)}</span>}
+                  {data.current_booking.location && <span>{data.current_booking.location}</span>}
+                </div>
+              </div>
+            ) : (
+              <p>현재 유효한 예약이 없습니다.</p>
+            )}
+          </section>
+        )}
+
+        {(isClinicTarget || data.current_booking) && (
+          <Link to="/student/clinic" className="clinic-idcard__booking-link">
+            {data.current_booking ? "예약 일정 확인하기" : "클리닉 일정 예약하기"}
+          </Link>
         )}
 
         <section className="clinic-idcard__history" aria-labelledby="clinic-idcard-history-title">

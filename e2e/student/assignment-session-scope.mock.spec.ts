@@ -250,6 +250,48 @@ test("차시 제출 링크는 다른 차시를 숨기고 대상 전환·성공 �
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 });
 
+test("클리닉 링크는 해당 차시의 정확한 과제를 바로 선택한다", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installApi(page);
+  await page.goto(
+    `${BASE}/student/submit/assignment?sessionId=${SESSION_ID}&homeworkId=502`,
+    { waitUntil: "domcontentloaded", timeout: 45_000 },
+  );
+
+  await expect(page.getByText("제출 대상", { exact: true })).toBeVisible();
+  await expect(page.locator('[class*="submitSummary"]')).toContainText("현재 차시 추가 과제");
+  await expect(page.getByRole("button", { name: /현재 차시 추가 과제/ }))
+    .toHaveAttribute("data-selected", "true");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth))
+    .toBeLessThanOrEqual(1);
+});
+
+for (const device of [
+  { name: "iPhone", viewport: { width: 390, height: 844 }, filename: "아이폰풀이.heic", mimeType: "image/heic" },
+  { name: "Galaxy", viewport: { width: 360, height: 800 }, filename: "갤럭시풀이.jpg", mimeType: "image/jpeg" },
+] as const) {
+  test(`${device.name} 클리닉 과제 링크에서 사진 제출 파일을 선택할 수 있다`, async ({ page }) => {
+    await page.setViewportSize(device.viewport);
+    await installApi(page);
+    await page.goto(
+      `${BASE}/student/submit/assignment?sessionId=${SESSION_ID}&homeworkId=502`,
+      { waitUntil: "domcontentloaded", timeout: 45_000 },
+    );
+
+    const fileInput = page.locator('input[type="file"]');
+    await expect(fileInput).toHaveAttribute("accept", /\.heic/);
+    await expect(fileInput).toHaveAttribute("accept", /\.mov/);
+    await fileInput.setInputFiles({
+      name: device.filename,
+      mimeType: device.mimeType,
+      buffer: Buffer.from("mobile-homework-photo"),
+    });
+    await expect(page.getByText(device.filename, { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth))
+      .toBeLessThanOrEqual(1);
+  });
+}
+
 test("교사 완료 과제는 원점수 없이도 완료로 표시되고 재제출 대상에서 제외된다", async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 390, height: 844 });

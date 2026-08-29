@@ -174,6 +174,30 @@ for (const role of ["student", "parent", "staff"] as const) {
   });
 }
 
+for (const device of [
+  { name: "iPhone", viewport: { width: 390, height: 844 } },
+  { name: "Galaxy", viewport: { width: 360, height: 800 } },
+] as const) {
+  test(`${device.name} 휴대폰형 아이디는 하이픈과 전각 숫자를 정규화해 로그인한다`, async ({ page }) => {
+    await page.setViewportSize(device.viewport);
+    const state = await stubLoginFlow(page, "student");
+    await openLogin(page);
+
+    await page.getByTestId("login-username").fill(" ０１０-１２３４-５６７８ ");
+    await page.getByTestId("login-password").fill("Case-Sensitive-Pw");
+    await page.getByTestId("login-submit").click({ timeout: 30_000 });
+
+    await expect.poll(() => state.requests.length).toBe(1);
+    expect(state.requests[0]).toEqual({
+      username: "01012345678",
+      password: "Case-Sensitive-Pw",
+      tenant_code: "godmin",
+    });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth))
+      .toBeLessThanOrEqual(1);
+  });
+}
+
 test("generation envelope와 active pointer 저장 실패는 기존 세션을 보존한다", async ({ context }) => {
   for (const failedTarget of ["generation", "pointer"] as const) {
     const page = await context.newPage();

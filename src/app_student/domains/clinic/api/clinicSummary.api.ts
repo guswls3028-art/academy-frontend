@@ -12,6 +12,7 @@ export type ClinicCurrentTarget = {
   session_order: number;
   session_title?: string;
   source_type?: "exam" | "homework" | null;
+  source_id?: number | null;
   source_title?: string | null;
   source_scope?: string | null;
   created_at?: string | null;

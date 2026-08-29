@@ -47,6 +47,13 @@ type IdcardMockControl = {
   fail?: boolean;
 };
 
+const bookingStatusLabels: Record<string, string> = {
+  pending: "승인 대기",
+  booked: "예약 확정",
+  attended: "클리닉 진행 중",
+  completed: "클리닉 진행 완료",
+};
+
 const bookedDate = dateAfter(2);
 const openDate = dateAfter(5);
 const sessions = [
@@ -120,6 +127,36 @@ function createState(): MockState {
     cancelledIds: [],
     changePayloads: [],
   };
+}
+
+function validIdcardBookings(state: MockState) {
+  const today = dateAfter(0);
+  return state.bookings.flatMap((booking) => {
+    const rawStatus = String(booking.status ?? "");
+    const date = String(booking.session_date ?? "");
+    const completedAt = String(booking.completed_at ?? "");
+    const completedToday = completedAt.slice(0, 10) === today;
+    const activeReservation = ["pending", "booked"].includes(rawStatus) && date >= today;
+    const todayAttendance = rawStatus === "attended" && (date === today || completedToday);
+    if (!activeReservation && !todayAttendance) return [];
+    const status = completedToday ? "completed" : rawStatus;
+    return [{
+      participant_id: Number(booking.id),
+      session_id: Number(booking.session),
+      title: String(booking.session_title ?? ""),
+      status,
+      status_label: bookingStatusLabels[status],
+      date,
+      start_time: String(booking.session_start_time ?? ""),
+      location: String(booking.session_location ?? ""),
+    }];
+  }).sort((left, right) => {
+    const scheduleDifference = `${left.date} ${left.start_time}`.localeCompare(
+      `${right.date} ${right.start_time}`,
+    );
+    if (scheduleDifference !== 0) return scheduleDifference;
+    return left.participant_id - right.participant_id;
+  });
 }
 
 async function seed(page: Page) {
@@ -207,13 +244,30 @@ async function installApi(
         await new Promise((resolve) => setTimeout(resolve, idcardControl.delayMs));
       }
       if (idcardControl?.fail) return json({ detail: "temporary unavailable" }, 503);
+      const validBookings = validIdcardBookings(state);
+      const returnProtectingBooking = validBookings.find((booking) => (
+        ["booked", "attended", "completed"].includes(booking.status)
+      ));
+      const currentBooking = idcardResult === "FAIL" && returnProtectingBooking
+        ? returnProtectingBooking
+        : validBookings[0] ?? null;
+      const passcardState = idcardResult === "SUCCESS"
+        ? "PASSED"
+        : returnProtectingBooking ? "RETURN_ALLOWED" : "CLINIC_REQUIRED";
+      const bookingStatus = currentBooking?.status ?? (idcardResult === "FAIL" ? "required" : "none");
       return json({
         student_name: "김학생",
         profile_photo_url: null,
         background_colors: ["#ef4444", "#3b82f6", "#22c55e"],
-        server_date: "2026-08-22",
-        server_datetime: "2026-08-22T09:30:00+09:00",
+        server_date: dateAfter(0),
+        server_datetime: `${dateAfter(0)}T09:30:00+09:00`,
         current_result: idcardResult,
+        passcard_state: passcardState,
+        can_leave: passcardState !== "CLINIC_REQUIRED",
+        booking_status: bookingStatus,
+        booking_status_label: currentBooking?.status_label ?? (bookingStatus === "required" ? "예약 필요" : "예약 없음"),
+        current_booking: currentBooking,
+        valid_bookings: validBookings,
         current_targets: idcardResult === "FAIL" ? [
           {
             clinic_link_id: 81,
@@ -226,6 +280,7 @@ async function installApi(
             session_order: 4,
             session_title: "4주차 함수",
             source_type: "exam",
+            source_id: 814,
             source_title: "4주차 확인 시험",
             source_scope: "함수 기초",
             created_at: "2026-08-19T09:00:00+09:00",
@@ -241,6 +296,7 @@ async function installApi(
             session_order: 7,
             session_title: "7주차 미적분",
             source_type: "exam",
+            source_id: 817,
             source_title: "7주차 확인 시험",
             source_scope: "미분법",
             created_at: "2026-08-22T09:00:00+09:00",
@@ -256,6 +312,7 @@ async function installApi(
             session_order: 5,
             session_title: "5주차 수열",
             source_type: "homework",
+            source_id: 290,
             source_title: "5주차 오답 과제",
             source_scope: "등차수열",
             created_at: "2026-08-20T09:00:00+09:00",
@@ -271,6 +328,7 @@ async function installApi(
             session_order: 6,
             session_title: "6주차 극한",
             source_type: "exam",
+            source_id: 816,
             source_title: "6주차 확인 시험",
             source_scope: "함수의 극한",
             created_at: "2026-08-21T09:00:00+09:00",
@@ -446,6 +504,11 @@ test.describe("학생 클리닉 예약 UX", () => {
       "4주차 확인 시험",
     ]);
     await expect(targets.first()).toContainText("단원/범위 미분법");
+    await expect(targets.first().getByRole("link", { name: "시험 확인·제출" }))
+      .toHaveAttribute("href", "/student/exams/817");
+    const homeworkTarget = targets.filter({ hasText: "5주차 오답 과제" });
+    await expect(homeworkTarget.getByRole("link", { name: "과제 온라인 제출" }))
+      .toHaveAttribute("href", "/student/submit/assignment?sessionId=62&homeworkId=290");
     expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   });
 
@@ -524,7 +587,7 @@ test.describe("학생 클리닉 예약 UX", () => {
     await expect(page.getByText("예약 신청이 취소되었습니다.")).toBeVisible();
   });
 
-  test("학생 패스카드가 실시간 클리닉 판정과 예약 진입점을 보여준다", async ({ page }) => {
+  test("미해소 대상의 승인 대기 예약을 귀가 불가 상태로 표시하고 reload 후 유지한다", async ({ page }) => {
     const state = createState();
     await seed(page);
     await installApi(page, state);
@@ -533,7 +596,13 @@ test.describe("학생 클리닉 예약 UX", () => {
     await expect(page).toHaveURL(/\/student\/idcard$/);
     await expect(page.getByTestId("clinic-passcard")).toBeVisible();
     await expect(page.getByRole("heading", { name: "클리닉 예약 대상자" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "클리닉 일정 예약하기" })).toHaveAttribute("href", "/student/clinic");
+    await expect(page.getByRole("heading", { name: "집에 가도 됨" })).toHaveCount(0);
+    const bookingStatus = page.getByRole("region", { name: "클리닉 예약 상태" });
+    await expect(bookingStatus).toContainText("승인 대기");
+    await expect(bookingStatus).toContainText(bookedDate);
+    await expect(bookingStatus).toContainText("15:00");
+    await expect(bookingStatus).toContainText("2층 보강실");
+    await expect(page.getByRole("link", { name: "예약 일정 확인하기" })).toHaveAttribute("href", "/student/clinic");
     await expect(page.getByText("LIVE", { exact: false })).toBeVisible();
     const passcard = page.getByTestId("clinic-passcard");
     expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
@@ -543,6 +612,62 @@ test.describe("학생 클리닉 예약 UX", () => {
     await expect(passcard).toBeVisible();
     expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
     await page.screenshot({ path: "test-results/student-clinic-passcard-1100.png", fullPage: true });
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "클리닉 예약 대상자" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "클리닉 예약 상태" })).toContainText("승인 대기");
+  });
+
+  test("확정 예약과 당일 완료는 귀가 가능이며 전날 이행과 종료 예약은 보호하지 않는다", async ({ page }) => {
+    const state = createState();
+    state.bookings[0] = { ...state.bookings[0], status: "booked" };
+    await seed(page);
+    await installApi(page, state);
+    await page.goto(`${BASE}/student/idcard`, { waitUntil: "domcontentloaded" });
+
+    await expect(page.getByRole("heading", { name: "집에 가도 됨" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "클리닉 예약 상태" })).toContainText("예약 확정");
+
+    state.bookings = [{
+      ...state.bookings[0],
+      status: "attended",
+      session_date: dateAfter(0),
+      completed_at: `${dateAfter(0)}T18:00:00+09:00`,
+    }];
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("region", { name: "클리닉 예약 상태" })).toContainText("클리닉 진행 완료");
+
+    for (const status of ["attended", "cancelled", "rejected", "no_show"]) {
+      state.bookings = [{
+        ...state.bookings[0],
+        status,
+        session_date: dateAfter(-1),
+        completed_at: status === "attended" ? `${dateAfter(-1)}T18:00:00+09:00` : null,
+      }];
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("heading", { name: "클리닉 예약 대상자" })).toBeVisible();
+      await expect(page.getByRole("region", { name: "클리닉 예약 상태" })).toContainText("예약 필요");
+    }
+  });
+
+  test("예약 성공 직후 패스카드가 승인 대기로 갱신되고 새로고침에도 유지된다", async ({ page }) => {
+    const state = createState();
+    state.bookings = [];
+    await seed(page);
+    await installApi(page, state);
+    await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+
+    const openDateRegion = page.getByRole("region", { name: koreanDateLabel(openDate) });
+    await openDateRegion.getByRole("button", { name: /토요일 5시 클리닉/ }).click();
+    await page.getByRole("button", { name: "이 일정 예약하기" }).click();
+    await expect(page.getByRole("status")).toContainText("예약 신청이 접수되었습니다.");
+
+    await page.goto(`${BASE}/student/idcard`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "클리닉 예약 대상자" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "집에 가도 됨" })).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "클리닉 예약 상태" })).toContainText("승인 대기");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("region", { name: "클리닉 예약 상태" })).toContainText("승인 대기");
   });
 
   test("합격 패스카드는 학원에서 지정한 3색과 합격 판정을 보여준다", async ({ page }) => {
@@ -553,6 +678,7 @@ test.describe("학생 클리닉 예약 UX", () => {
 
     const passcard = page.getByTestId("clinic-passcard");
     await expect(page.getByRole("heading", { name: "합격" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "클리닉 예약 상태" })).toContainText("승인 대기");
     await expect(page.getByRole("link", { name: "클리닉 일정 예약하기" })).toHaveCount(0);
     const backgroundImage = await passcard.evaluate((element) => getComputedStyle(element).backgroundImage);
     expect(backgroundImage).toContain("239, 68, 68");
