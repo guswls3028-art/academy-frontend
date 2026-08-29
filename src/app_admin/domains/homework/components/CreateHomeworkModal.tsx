@@ -16,7 +16,7 @@ import { Badge, Button } from "@/shared/ui/ds";
 import LectureChipLabel from "@/shared/ui/chips/LectureChipLabel";
 import { SessionBlockView } from "@/shared/ui/session-block";
 import { fetchHomeworkTemplatesWithUsage, type HomeworkTemplateWithUsage } from "../api/adminHomework";
-import { fetchSessionEnrollments } from "../api/sessionEnrollments";
+import { fetchActiveSessionEnrollments } from "../api/sessionEnrollments";
 import { putHomeworkAssignments } from "../api/homeworkAssignments";
 import SessionItemBrowser, { type SelectedHomeworkItem } from "@/shared/ui/assessment/SessionItemBrowser";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -142,7 +142,7 @@ export default function CreateHomeworkModal({
     setKeyword("");
     setEnrollmentCount(null);
     if (sessionId > 0) {
-      fetchSessionEnrollments(sessionId)
+      fetchActiveSessionEnrollments(sessionId)
         .then((list) => setEnrollmentCount(list.length))
         .catch(() => setEnrollmentCount(null));
     }
@@ -174,7 +174,7 @@ export default function CreateHomeworkModal({
   /** 결과를 반환하도록 변경 — 호출 측이 N개 생성 시 단일 toast로 집계 */
   const autoEnroll = useCallback(async (homeworkId: number): Promise<{ enrolled: number; error?: string }> => {
     try {
-      const enrollments = await fetchSessionEnrollments(sessionId);
+      const enrollments = await fetchActiveSessionEnrollments(sessionId);
       const ids = enrollments.map((e) => e.enrollment);
       if (ids.length === 0) return { enrolled: 0 };
       await putHomeworkAssignments({ homeworkId, enrollment_ids: ids });

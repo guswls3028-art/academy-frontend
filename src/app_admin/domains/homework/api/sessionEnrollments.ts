@@ -1,6 +1,7 @@
 // PATH: src/app_admin/domains/homework/api/sessionEnrollments.ts
 // Compatibility facade. The canonical SessionEnrollment API lives in shared/api/contracts.
 import {
+  fetchActiveSessionEnrollments as fetchCanonicalActiveSessionEnrollments,
   fetchSessionEnrollments as fetchCanonicalSessionEnrollments,
   type SessionEnrollmentRow,
 } from "@/shared/api/contracts/sessionEnrollments";
@@ -21,5 +22,12 @@ export async function fetchSessionEnrollments(
   sessionId: number
 ): Promise<SessionEnrollment[]> {
   const rows = await fetchCanonicalSessionEnrollments(sessionId);
+  return rows.map(toHomeworkSessionEnrollment);
+}
+
+export async function fetchActiveSessionEnrollments(
+  sessionId: number
+): Promise<SessionEnrollment[]> {
+  const rows = await fetchCanonicalActiveSessionEnrollments(sessionId);
   return rows.map(toHomeworkSessionEnrollment);
 }

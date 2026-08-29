@@ -641,7 +641,7 @@ export interface paths {
          *     Atomic booking change: secure new session first, then cancel old.
          *     If new booking fails, old booking is preserved (transaction rollback).
          *
-         *     Request body: { "new_session_id": int, "memo": str (optional) }
+         *     Request body: { "new_session_id": int, "student_request_memo": str (optional) }
          */
         post: operations["clinic_participants_change_booking_create"];
         delete?: never;
@@ -747,6 +747,26 @@ export interface paths {
          *     - 선생: 모든 상태 변경 가능
          */
         patch: operations["clinic_participants_set_status_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/clinic/participants/{id}/staff-memo/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * @description ✅ 클리닉 예약 / 출석 / 미이행 / 취소 관리
+         *     - 운영 핵심 엔드포인트
+         */
+        patch: operations["clinic_participants_staff_memo_partial_update"];
         trace?: never;
     };
     "/api/v1/clinic/participants/{id}/uncomplete/": {
@@ -3967,7 +3987,7 @@ export interface paths {
         };
         get: operations["fees_invoices_list"];
         put?: never;
-        post: operations["fees_invoices_create"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -7334,7 +7354,7 @@ export interface paths {
         };
         get: operations["progress_lecture_progress_list"];
         put?: never;
-        post: operations["progress_lecture_progress_create"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -7349,12 +7369,12 @@ export interface paths {
             cookie?: never;
         };
         get: operations["progress_lecture_progress_retrieve"];
-        put: operations["progress_lecture_progress_update"];
+        put?: never;
         post?: never;
-        delete: operations["progress_lecture_progress_destroy"];
+        delete?: never;
         options?: never;
         head?: never;
-        patch: operations["progress_lecture_progress_partial_update"];
+        patch?: never;
         trace?: never;
     };
     "/api/v1/progress/policies/": {
@@ -7366,7 +7386,7 @@ export interface paths {
         };
         get: operations["progress_policies_list"];
         put?: never;
-        post: operations["progress_policies_create"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -7381,12 +7401,12 @@ export interface paths {
             cookie?: never;
         };
         get: operations["progress_policies_retrieve"];
-        put: operations["progress_policies_update"];
+        put?: never;
         post?: never;
-        delete: operations["progress_policies_destroy"];
+        delete?: never;
         options?: never;
         head?: never;
-        patch: operations["progress_policies_partial_update"];
+        patch?: never;
         trace?: never;
     };
     "/api/v1/progress/risk-logs/": {
@@ -7398,7 +7418,7 @@ export interface paths {
         };
         get: operations["progress_risk_logs_list"];
         put?: never;
-        post: operations["progress_risk_logs_create"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -7413,12 +7433,12 @@ export interface paths {
             cookie?: never;
         };
         get: operations["progress_risk_logs_retrieve"];
-        put: operations["progress_risk_logs_update"];
+        put?: never;
         post?: never;
-        delete: operations["progress_risk_logs_destroy"];
+        delete?: never;
         options?: never;
         head?: never;
-        patch: operations["progress_risk_logs_partial_update"];
+        patch?: never;
         trace?: never;
     };
     "/api/v1/progress/session-progress/": {
@@ -7430,7 +7450,7 @@ export interface paths {
         };
         get: operations["progress_session_progress_list"];
         put?: never;
-        post: operations["progress_session_progress_create"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -7445,12 +7465,12 @@ export interface paths {
             cookie?: never;
         };
         get: operations["progress_session_progress_retrieve"];
-        put: operations["progress_session_progress_update"];
+        put?: never;
         post?: never;
-        delete: operations["progress_session_progress_destroy"];
+        delete?: never;
         options?: never;
         head?: never;
-        patch: operations["progress_session_progress_partial_update"];
+        patch?: never;
         trace?: never;
     };
     "/api/v1/results/admin/analytics/": {
@@ -7562,7 +7582,7 @@ export interface paths {
          *     Atomic booking change: secure new session first, then cancel old.
          *     If new booking fails, old booking is preserved (transaction rollback).
          *
-         *     Request body: { "new_session_id": int, "memo": str (optional) }
+         *     Request body: { "new_session_id": int, "student_request_memo": str (optional) }
          */
         post: operations["results_admin_clinic_bookings_change_booking_create"];
         delete?: never;
@@ -7668,6 +7688,26 @@ export interface paths {
          *     - 선생: 모든 상태 변경 가능
          */
         patch: operations["results_admin_clinic_bookings_set_status_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/results/admin/clinic-bookings/{id}/staff-memo/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * @description ✅ 클리닉 예약 / 출석 / 미이행 / 취소 관리
+         *     - 운영 핵심 엔드포인트
+         */
+        patch: operations["results_admin_clinic_bookings_staff_memo_partial_update"];
         trace?: never;
     };
     "/api/v1/results/admin/clinic-bookings/{id}/uncomplete/": {
@@ -8364,11 +8404,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description 시험 시도(Attempt) 관리 API (관리자/교사용) */
+        /**
+         * @description 시험 시도(Attempt) 조회 API (관리자/교사용).
+         *
+         *     Attempt는 append-only이며 생성·대표 변경·채점 상태 전이는 각각의
+         *     명시적 도메인 서비스가 소유한다. Generic CRUD로 이 이력을 수정하지 않는다.
+         */
         get: operations["results_exam_attempts_list"];
         put?: never;
-        /** @description 시험 시도(Attempt) 관리 API (관리자/교사용) */
-        post: operations["results_exam_attempts_create"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -8382,17 +8426,19 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description 시험 시도(Attempt) 관리 API (관리자/교사용) */
+        /**
+         * @description 시험 시도(Attempt) 조회 API (관리자/교사용).
+         *
+         *     Attempt는 append-only이며 생성·대표 변경·채점 상태 전이는 각각의
+         *     명시적 도메인 서비스가 소유한다. Generic CRUD로 이 이력을 수정하지 않는다.
+         */
         get: operations["results_exam_attempts_retrieve"];
-        /** @description 시험 시도(Attempt) 관리 API (관리자/교사용) */
-        put: operations["results_exam_attempts_update"];
+        put?: never;
         post?: never;
-        /** @description 시험 시도(Attempt) 관리 API (관리자/교사용) */
-        delete: operations["results_exam_attempts_destroy"];
+        delete?: never;
         options?: never;
         head?: never;
-        /** @description 시험 시도(Attempt) 관리 API (관리자/교사용) */
-        patch: operations["results_exam_attempts_partial_update"];
+        patch?: never;
         trace?: never;
     };
     "/api/v1/results/me/exams/{exam_id}/": {
@@ -10287,24 +10333,12 @@ export interface paths {
          *     - list / retrieve / approve: TenantResolvedAndStaff (선생이 가입신청 목록/승인)
          */
         get: operations["students_registration_requests_retrieve"];
-        /**
-         * @description - create: AllowAny + TenantResolved (학생이 로그인 페이지에서 신청)
-         *     - list / retrieve / approve: TenantResolvedAndStaff (선생이 가입신청 목록/승인)
-         */
-        put: operations["students_registration_requests_update"];
+        put?: never;
         post?: never;
-        /**
-         * @description - create: AllowAny + TenantResolved (학생이 로그인 페이지에서 신청)
-         *     - list / retrieve / approve: TenantResolvedAndStaff (선생이 가입신청 목록/승인)
-         */
-        delete: operations["students_registration_requests_destroy"];
+        delete?: never;
         options?: never;
         head?: never;
-        /**
-         * @description - create: AllowAny + TenantResolved (학생이 로그인 페이지에서 신청)
-         *     - list / retrieve / approve: TenantResolvedAndStaff (선생이 가입신청 목록/승인)
-         */
-        patch: operations["students_registration_requests_partial_update"];
+        patch?: never;
         trace?: never;
     };
     "/api/v1/students/registration_requests/{id}/approve/": {
@@ -11995,6 +12029,8 @@ export interface components {
             status?: string;
         };
         ClinicSession: {
+            /** @description 학생이 세션 범위 안의 희망 시작·종료 시각을 요청할 수 있으면 True. */
+            allow_time_preference?: boolean;
             readonly available_slots: string;
             readonly booked_count: string;
             /** Format: date-time */
@@ -12078,6 +12114,10 @@ export interface components {
             readonly name_highlight_clinic_target: string;
             participant_role?: components["schemas"]["ParticipantRoleEnum"];
             readonly planned_clinic_link_ids: number[];
+            /** Format: time */
+            readonly preferred_end_time: string;
+            /** Format: time */
+            readonly preferred_start_time: string;
             readonly profile_photo_url: string;
             /** Format: date */
             requested_date?: string | null;
@@ -12091,6 +12131,8 @@ export interface components {
             readonly session_start_time: string;
             readonly session_title: string;
             source?: components["schemas"]["SourceD60Enum"];
+            /** @description 학생·학부모에게 노출하지 않는 교직원 인수인계 메모 */
+            staff_memo?: string;
             /** @default booked */
             status: components["schemas"]["Status40fEnum"];
             /** Format: date-time */
@@ -12099,6 +12141,7 @@ export interface components {
             readonly status_changed_by_name: string;
             student: number;
             readonly student_name: string;
+            readonly student_request_memo: string;
             tenant: number;
             /** Format: date-time */
             readonly updated_at: string;
@@ -12114,6 +12157,16 @@ export interface components {
             enrollment_id?: number | null;
             memo?: string | null;
             participant_role?: components["schemas"]["ParticipantRoleEnum"];
+            /**
+             * Format: time
+             * @description 세션 안에서 요청한 희망 종료 시각. 실제 예약 종료 시각과 별개.
+             */
+            preferred_end_time?: string | null;
+            /**
+             * Format: time
+             * @description 세션 안에서 요청한 희망 시작 시각. 실제 예약 시작 시각과 별개.
+             */
+            preferred_start_time?: string | null;
             /** Format: date */
             requested_date?: string | null;
             /** Format: time */
@@ -12122,6 +12175,8 @@ export interface components {
             source?: components["schemas"]["SourceD60Enum"];
             status?: components["schemas"]["Status40fEnum"];
             student?: number;
+            /** @description 학생·학부모가 남긴 요청사항. 작성 출처가 명확한 경우에만 저장. */
+            student_request_memo?: string;
         };
         /**
          * @description ✅ 예약 등록(생성) 전용
@@ -12134,6 +12189,16 @@ export interface components {
             enrollment_id?: number | null;
             memo?: string | null;
             participant_role?: components["schemas"]["ParticipantRoleEnum"];
+            /**
+             * Format: time
+             * @description 세션 안에서 요청한 희망 종료 시각. 실제 예약 종료 시각과 별개.
+             */
+            preferred_end_time?: string | null;
+            /**
+             * Format: time
+             * @description 세션 안에서 요청한 희망 시작 시각. 실제 예약 시작 시각과 별개.
+             */
+            preferred_start_time?: string | null;
             /** Format: date */
             requested_date?: string | null;
             /** Format: time */
@@ -12142,6 +12207,8 @@ export interface components {
             source?: components["schemas"]["SourceD60Enum"];
             status?: components["schemas"]["Status40fEnum"];
             student?: number;
+            /** @description 학생·학부모가 남긴 요청사항. 작성 출처가 명확한 경우에만 저장. */
+            student_request_memo?: string;
         };
         ClinicSessionParticipantRequest: {
             /** Format: date-time */
@@ -12169,6 +12236,8 @@ export interface components {
             requested_start_time?: string | null;
             session?: number | null;
             source?: components["schemas"]["SourceD60Enum"];
+            /** @description 학생·학부모에게 노출하지 않는 교직원 인수인계 메모 */
+            staff_memo?: string;
             /** @default booked */
             status: components["schemas"]["Status40fEnum"];
             /** Format: date-time */
@@ -12178,6 +12247,8 @@ export interface components {
             tenant: number;
         };
         ClinicSessionRequest: {
+            /** @description 학생이 세션 범위 안의 희망 시작·종료 시각을 요청할 수 있으면 True. */
+            allow_time_preference?: boolean;
             /** Format: date */
             date: string;
             /** Format: int64 */
@@ -12280,6 +12351,11 @@ export interface components {
             tenant: number;
             title: string;
         };
+        /**
+         * @description * `self_registration_disabled` - self_registration_disabled
+         * @enum {string}
+         */
+        CodeEnum: "self_registration_disabled";
         /**
          * @description * `PENDING` - PENDING
          *     * `COMPLETED` - COMPLETED
@@ -12504,28 +12580,6 @@ export interface components {
             submission_id?: number | null;
             /** Format: date-time */
             readonly updated_at: string;
-        };
-        ExamAttemptRequest: {
-            /**
-             * Format: int64
-             * @description 1부터 시작
-             */
-            attempt_index: number;
-            /** @description 클리닉 재시험 시 연결된 ClinicLink (attempt_index>=2) */
-            clinic_link?: number | null;
-            enrollment: number;
-            exam: number;
-            /** @default true */
-            is_representative: boolean;
-            is_retake?: boolean;
-            /** @description Attempt 단위 메타데이터. OMR/AI 판독 정보, total_score, pass_score, 재채점 근거 등 운영/분석용 정보 저장. */
-            meta?: unknown;
-            status?: components["schemas"]["ExamAttemptStatusEnum"];
-            /**
-             * Format: int64
-             * @description 이 attempt를 발생시킨 submission (클리닉 직접 입력 시 null)
-             */
-            submission_id?: number | null;
         };
         /**
          * @description * `pending` - Pending
@@ -12834,7 +12888,7 @@ export interface components {
              * @description 납부 일시
              */
             paid_at: string;
-            payment_method: components["schemas"]["PaymentMethodEnum"];
+            payment_method: components["schemas"]["FeePaymentPaymentMethodEnum"];
             readonly payment_method_display: string;
             /** @description 영수증 메모 / 입금자명 */
             receipt_note?: string;
@@ -12845,24 +12899,14 @@ export interface components {
             readonly student: number;
             readonly student_name: string;
         };
-        FeePaymentRequest: {
-            /**
-             * Format: int64
-             * @description 납부 금액 (원)
-             */
-            amount: number;
-            invoice: number;
-            memo?: string;
-            /**
-             * Format: date-time
-             * @description 납부 일시
-             */
-            paid_at: string;
-            payment_method: components["schemas"]["PaymentMethodEnum"];
-            /** @description 영수증 메모 / 입금자명 */
-            receipt_note?: string;
-            status?: components["schemas"]["FeePaymentStatusEnum"];
-        };
+        /**
+         * @description * `CARD` - 카드
+         *     * `BANK_TRANSFER` - 계좌이체
+         *     * `CASH` - 현금
+         *     * `OTHER` - 기타
+         * @enum {string}
+         */
+        FeePaymentPaymentMethodEnum: "CARD" | "BANK_TRANSFER" | "CASH" | "OTHER";
         /**
          * @description * `SUCCESS` - 완료
          *     * `CANCELLED` - 취소
@@ -12953,6 +12997,17 @@ export interface components {
          * @enum {string}
          */
         GenderEnum: "M" | "F";
+        GenerateInvoicesRequest: {
+            billing_month: number;
+            billing_year: number;
+            /** Format: date */
+            due_date: string;
+        };
+        GenerateInvoicesResult: {
+            created: number;
+            errors: string[];
+            skipped: number;
+        };
         /**
          * @description * `account_inactive` - account_inactive
          *     * `password_setup_required` - password_setup_required
@@ -13411,22 +13466,6 @@ export interface components {
             total_sessions?: number;
             /** Format: date-time */
             readonly updated_at: string;
-        };
-        LectureProgressRequest: {
-            /** Format: int64 */
-            completed_sessions?: number;
-            /** Format: int64 */
-            consecutive_failed_sessions?: number;
-            /** Format: int64 */
-            failed_sessions?: number;
-            last_session?: number | null;
-            /** Format: date-time */
-            last_updated?: string | null;
-            lecture: number;
-            meta?: unknown;
-            risk_level?: components["schemas"]["LectureProgressRiskLevelEnum"];
-            /** Format: int64 */
-            total_sessions?: number;
         };
         /**
          * @description * `NORMAL` - Normal
@@ -14564,6 +14603,8 @@ export interface components {
             requested_start_time?: string | null;
             session?: number | null;
             source?: components["schemas"]["SourceD60Enum"];
+            /** @description 학생·학부모에게 노출하지 않는 교직원 인수인계 메모 */
+            staff_memo?: string;
             /** @default booked */
             status: components["schemas"]["Status40fEnum"];
             /** Format: date-time */
@@ -14573,6 +14614,8 @@ export interface components {
             tenant?: number;
         };
         PatchedClinicSessionRequest: {
+            /** @description 학생이 세션 범위 안의 희망 시작·종료 시각을 요청할 수 있으면 True. */
+            allow_time_preference?: boolean;
             /** Format: date */
             date?: string;
             /** Format: int64 */
@@ -14608,6 +14651,9 @@ export interface components {
             target_school_type?: (components["schemas"]["TargetSchoolTypeEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
             title?: string;
         };
+        PatchedClinicStaffMemoRequest: {
+            staff_memo?: string;
+        };
         PatchedClinicSubmissionRequest: {
             /** Format: binary */
             file?: string | null;
@@ -14636,28 +14682,6 @@ export interface components {
         PatchedEnrollmentRequest: {
             lecture?: number;
             status?: components["schemas"]["Status2d4Enum"];
-        };
-        PatchedExamAttemptRequest: {
-            /**
-             * Format: int64
-             * @description 1부터 시작
-             */
-            attempt_index?: number;
-            /** @description 클리닉 재시험 시 연결된 ClinicLink (attempt_index>=2) */
-            clinic_link?: number | null;
-            enrollment?: number;
-            exam?: number;
-            /** @default true */
-            is_representative: boolean;
-            is_retake?: boolean;
-            /** @description Attempt 단위 메타데이터. OMR/AI 판독 정보, total_score, pass_score, 재채점 근거 등 운영/분석용 정보 저장. */
-            meta?: unknown;
-            status?: components["schemas"]["ExamAttemptStatusEnum"];
-            /**
-             * Format: int64
-             * @description 이 attempt를 발생시킨 submission (클리닉 직접 입력 시 null)
-             */
-            submission_id?: number | null;
         };
         /**
          * @description 수정 전용 serializer
@@ -14808,22 +14832,6 @@ export interface components {
             status?: string | null;
             teacher_approved?: boolean;
         };
-        PatchedLectureProgressRequest: {
-            /** Format: int64 */
-            completed_sessions?: number;
-            /** Format: int64 */
-            consecutive_failed_sessions?: number;
-            /** Format: int64 */
-            failed_sessions?: number;
-            last_session?: number | null;
-            /** Format: date-time */
-            last_updated?: string | null;
-            lecture?: number;
-            meta?: unknown;
-            risk_level?: components["schemas"]["LectureProgressRiskLevelEnum"];
-            /** Format: int64 */
-            total_sessions?: number;
-        };
         PatchedLectureRequest: {
             /** @description 강의딱지 2글자 (미입력 시 제목 앞 2자 사용) */
             chip_label?: string;
@@ -14948,47 +14956,6 @@ export interface components {
             title?: string;
             version?: number;
         };
-        PatchedProgressPolicyRequest: {
-            /**
-             * @description Session에 여러 시험이 있을 때 Result 집계 방식
-             *
-             *     * `MAX` - 최고점
-             *     * `AVG` - 평균
-             *     * `LATEST` - 최근 제출
-             */
-            exam_aggregate_strategy?: components["schemas"]["ExamAggregateStrategyEnum"];
-            /** Format: int64 */
-            exam_end_session_order?: number;
-            /** Format: double */
-            exam_pass_score?: number;
-            /**
-             * @description 합격 기준을 정책(POLICY)으로 볼지, 시험(EXAM)마다 볼지
-             *
-             *     * `POLICY` - 정책 기준
-             *     * `EXAM` - 시험 기준
-             */
-            exam_pass_source?: components["schemas"]["ExamPassSourceEnum"];
-            /** Format: int64 */
-            exam_start_session_order?: number;
-            /**
-             * Format: int64
-             * @description Homework pass cutline (%). 예: 80
-             */
-            homework_cutline_percent?: number;
-            /** Format: int64 */
-            homework_end_session_order?: number;
-            homework_pass_type?: components["schemas"]["HomeworkPassTypeEnum"];
-            /**
-             * Format: int64
-             * @description Homework percent rounding unit (%). 예: 5이면 5% 단위 반올림
-             */
-            homework_round_unit?: number;
-            /** Format: int64 */
-            homework_start_session_order?: number;
-            lecture?: number;
-            /** Format: int64 */
-            video_required_rate?: number;
-        };
         PatchedPublicBoardPostWriteRequest: {
             category?: components["schemas"]["CategoryEccEnum"];
             content?: string;
@@ -15031,40 +14998,9 @@ export interface components {
             region_meta?: unknown;
             /** Format: double */
             score?: number;
-            sheet?: number;
         };
-        /** @description 스태프용 가입 신청 목록/상세 (initial_password 제외) */
-        PatchedRegistrationRequestListRequest: {
-            /** @description 주소 (선택) */
-            address?: string | null;
-            elementary_school?: string | null;
-            gender?: string | null;
-            /** Format: int64 */
-            grade?: number | null;
-            high_school?: string | null;
-            high_school_class?: string | null;
-            major?: string | null;
-            memo?: string | null;
-            middle_school?: string | null;
-            name?: string;
-            /** @description 출신중학교 (고등학생 선택 입력) */
-            origin_middle_school?: string | null;
-            parent_phone?: string;
-            phone?: string | null;
-            school_type?: string;
-            status?: components["schemas"]["RegistrationRequestListStatusEnum"];
-            student?: number | null;
-            tenant?: number;
-            /** @description 희망 로그인 아이디 (비어 있으면 승인 시 자동 부여) */
-            username?: string;
-        };
-        PatchedRiskLogRequest: {
-            enrollment?: number;
-            meta?: unknown;
-            reason?: string | null;
-            risk_level?: components["schemas"]["RiskLogRiskLevelEnum"];
-            rule?: components["schemas"]["RiskLogRuleEnum"];
-            session?: number | null;
+        PatchedRegistrationRequestSettingsRequest: {
+            auto_approve?: boolean;
         };
         /** @description API uses access_mode (SSOT). DB table kept as video_videopermission. */
         PatchedSealedVideoAccessRequest: {
@@ -15155,28 +15091,7 @@ export interface components {
             enrollment?: number;
             session?: number;
         };
-        PatchedSessionProgressRequest: {
-            attendance_type?: components["schemas"]["AttendanceTypeEnum"];
-            /** Format: date-time */
-            calculated_at?: string | null;
-            completed?: boolean;
-            /** Format: date-time */
-            completed_at?: string | null;
-            /** Format: double */
-            exam_aggregate_score?: number | null;
-            exam_attempted?: boolean;
-            exam_meta?: unknown;
-            exam_passed?: boolean;
-            homework_passed?: boolean;
-            homework_submitted?: boolean;
-            meta?: unknown;
-            session?: number;
-            video_completed?: boolean;
-            /** Format: int64 */
-            video_progress_rate?: number;
-        };
         PatchedSheetRequest: {
-            exam?: number;
             /** Format: binary */
             file?: string | null;
             name?: string;
@@ -15394,14 +15309,6 @@ export interface components {
             phone?: string | null;
             subject?: string | null;
         };
-        /**
-         * @description * `CARD` - 카드
-         *     * `BANK_TRANSFER` - 계좌이체
-         *     * `CASH` - 현금
-         *     * `OTHER` - 기타
-         * @enum {string}
-         */
-        PaymentMethodEnum: "CARD" | "BANK_TRANSFER" | "CASH" | "OTHER";
         PayrollSnapshot: {
             readonly approved_expense_amount: number;
             /** Format: date-time */
@@ -15701,47 +15608,6 @@ export interface components {
             /** Format: int64 */
             video_required_rate?: number;
         };
-        ProgressPolicyRequest: {
-            /**
-             * @description Session에 여러 시험이 있을 때 Result 집계 방식
-             *
-             *     * `MAX` - 최고점
-             *     * `AVG` - 평균
-             *     * `LATEST` - 최근 제출
-             */
-            exam_aggregate_strategy?: components["schemas"]["ExamAggregateStrategyEnum"];
-            /** Format: int64 */
-            exam_end_session_order?: number;
-            /** Format: double */
-            exam_pass_score?: number;
-            /**
-             * @description 합격 기준을 정책(POLICY)으로 볼지, 시험(EXAM)마다 볼지
-             *
-             *     * `POLICY` - 정책 기준
-             *     * `EXAM` - 시험 기준
-             */
-            exam_pass_source?: components["schemas"]["ExamPassSourceEnum"];
-            /** Format: int64 */
-            exam_start_session_order?: number;
-            /**
-             * Format: int64
-             * @description Homework pass cutline (%). 예: 80
-             */
-            homework_cutline_percent?: number;
-            /** Format: int64 */
-            homework_end_session_order?: number;
-            homework_pass_type?: components["schemas"]["HomeworkPassTypeEnum"];
-            /**
-             * Format: int64
-             * @description Homework percent rounding unit (%). 예: 5이면 5% 단위 반올림
-             */
-            homework_round_unit?: number;
-            /** Format: int64 */
-            homework_start_session_order?: number;
-            lecture: number;
-            /** Format: int64 */
-            video_required_rate?: number;
-        };
         /** @description detail — content 포함. */
         PublicBoardPostDetail: {
             /** @description 작성 당시 역할(student/parent/teacher/owner/admin) */
@@ -16023,9 +15889,48 @@ export interface components {
             region_meta?: unknown;
             /** Format: double */
             score?: number;
+            readonly sheet: number;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        /** @description Create keeps the parent input explicit while normal updates cannot reparent. */
+        QuestionCreate: {
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly explanation_source: string | null;
+            readonly explanation_text: string;
+            readonly id: number;
+            /** Format: uri */
+            image?: string | null;
+            /** @description R2에 저장된 문항 크롭 이미지 키 */
+            readonly image_key: string;
+            readonly image_url: string | null;
+            /** Format: int64 */
+            number: number;
+            /**
+             * @description 문항별 유형. null이면 Sheet의 기존 앞-객관식/뒤-단답형 규칙을 사용
+             *
+             *     * `choice` - 객관식
+             *     * `essay` - 단답형
+             */
+            readonly question_kind: (components["schemas"]["QuestionKindEnum"] | components["schemas"]["NullEnum"]) | null;
+            region_meta?: unknown;
+            /** Format: double */
+            score?: number;
             sheet: number;
             /** Format: date-time */
             readonly updated_at: string;
+        };
+        /** @description Create keeps the parent input explicit while normal updates cannot reparent. */
+        QuestionCreateRequest: {
+            /** Format: binary */
+            image?: string | null;
+            /** Format: int64 */
+            number: number;
+            region_meta?: unknown;
+            /** Format: double */
+            score?: number;
+            sheet: number;
         };
         /**
          * @description * `choice` - 객관식
@@ -16046,7 +15951,6 @@ export interface components {
             region_meta?: unknown;
             /** Format: double */
             score?: number;
-            sheet: number;
         };
         /**
          * @description * `AUTO_FAILED` - 자동(차시 미통과)
@@ -16056,35 +15960,44 @@ export interface components {
          * @enum {string}
          */
         ReasonEnum: "AUTO_FAILED" | "AUTO_RISK" | "MANUAL_REQUEST" | "TEACHER_RECOMMEND";
-        /** @description 학생이 로그인 페이지에서 제출하는 가입 신청 (필수 필드만) */
-        RegistrationRequestCreate: {
+        /**
+         * @description * `CARD` - CARD
+         *     * `BANK_TRANSFER` - BANK_TRANSFER
+         *     * `CASH` - CASH
+         *     * `OTHER` - OTHER
+         * @enum {string}
+         */
+        RecordPaymentPaymentMethodEnum: "CARD" | "BANK_TRANSFER" | "CASH" | "OTHER";
+        RecordPaymentRequest: {
+            amount: number;
             /** @default  */
-            address: string | null;
+            idempotency_key: string;
+            invoice_id: number;
             /** @default  */
-            elementary_school: string | null;
+            memo: string;
+            /** Format: date-time */
+            paid_at?: string;
+            payment_method: components["schemas"]["RecordPaymentPaymentMethodEnum"];
             /** @default  */
-            gender: string | null;
-            grade?: number | null;
-            /** @default  */
-            high_school: string | null;
-            /** @default  */
-            high_school_class: string | null;
-            /** @default  */
-            major: string | null;
-            /** @default  */
-            memo: string | null;
-            /** @default  */
-            middle_school: string | null;
-            name: string;
-            /** @default  */
-            origin_middle_school: string | null;
-            parent_phone: string;
-            /** @default  */
-            phone: string | null;
-            /** @default HIGH */
-            school_type: components["schemas"]["SchoolTypeEnum"];
-            /** @default  */
-            username: string | null;
+            receipt_note: string;
+        };
+        RegistrationRequestAvailability: {
+            available: boolean;
+            reason?: string;
+        };
+        RegistrationRequestBulkApproveResponse: {
+            approved: number;
+            failed: components["schemas"]["RegistrationRequestBulkFailure"][];
+        };
+        RegistrationRequestBulkFailure: {
+            detail: string;
+            id: number;
+        };
+        RegistrationRequestBulkIdsRequest: {
+            ids: number[];
+        };
+        RegistrationRequestBulkRejectResponse: {
+            rejected: number;
         };
         /** @description 학생이 로그인 페이지에서 제출하는 가입 신청 (필수 필드만) */
         RegistrationRequestCreateRequest: {
@@ -16118,60 +16031,42 @@ export interface components {
             /** @default  */
             username: string | null;
         };
+        RegistrationRequestDuplicateCheckRequestRequest: {
+            phone?: string;
+            username?: string;
+        };
+        RegistrationRequestDuplicateCheckResponse: {
+            phone?: components["schemas"]["RegistrationRequestAvailability"];
+            username?: components["schemas"]["RegistrationRequestAvailability"];
+        };
         /** @description 스태프용 가입 신청 목록/상세 (initial_password 제외) */
         RegistrationRequestList: {
             /** @description 주소 (선택) */
-            address?: string | null;
+            readonly address: string | null;
             /** Format: date-time */
             readonly created_at: string;
-            elementary_school?: string | null;
-            gender?: string | null;
-            /** Format: int64 */
-            grade?: number | null;
-            high_school?: string | null;
-            high_school_class?: string | null;
+            readonly elementary_school: string | null;
+            readonly gender: string | null;
+            readonly grade: number | null;
+            readonly high_school: string | null;
+            readonly high_school_class: string | null;
             readonly id: number;
-            major?: string | null;
-            memo?: string | null;
-            middle_school?: string | null;
-            name: string;
+            readonly major: string | null;
+            readonly memo: string | null;
+            readonly middle_school: string | null;
+            readonly name: string;
             /** @description 출신중학교 (고등학생 선택 입력) */
-            origin_middle_school?: string | null;
-            parent_phone: string;
-            phone?: string | null;
-            school_type?: string;
-            status?: components["schemas"]["RegistrationRequestListStatusEnum"];
-            student?: number | null;
-            tenant: number;
+            readonly origin_middle_school: string | null;
+            readonly parent_phone: string;
+            readonly phone: string | null;
+            readonly school_type: string;
+            readonly status: components["schemas"]["RegistrationRequestListStatusEnum"];
+            readonly student: number | null;
+            readonly tenant: number;
             /** Format: date-time */
             readonly updated_at: string;
             /** @description 희망 로그인 아이디 (비어 있으면 승인 시 자동 부여) */
-            username?: string;
-        };
-        /** @description 스태프용 가입 신청 목록/상세 (initial_password 제외) */
-        RegistrationRequestListRequest: {
-            /** @description 주소 (선택) */
-            address?: string | null;
-            elementary_school?: string | null;
-            gender?: string | null;
-            /** Format: int64 */
-            grade?: number | null;
-            high_school?: string | null;
-            high_school_class?: string | null;
-            major?: string | null;
-            memo?: string | null;
-            middle_school?: string | null;
-            name: string;
-            /** @description 출신중학교 (고등학생 선택 입력) */
-            origin_middle_school?: string | null;
-            parent_phone: string;
-            phone?: string | null;
-            school_type?: string;
-            status?: components["schemas"]["RegistrationRequestListStatusEnum"];
-            student?: number | null;
-            tenant: number;
-            /** @description 희망 로그인 아이디 (비어 있으면 승인 시 자동 부여) */
-            username?: string;
+            readonly username: string;
         };
         /**
          * @description * `pending` - 대기
@@ -16180,6 +16075,18 @@ export interface components {
          * @enum {string}
          */
         RegistrationRequestListStatusEnum: "pending" | "approved" | "rejected";
+        RegistrationRequestRejectResponse: {
+            id: number;
+            status: components["schemas"]["RegistrationRequestRejectResponseStatusEnum"];
+        };
+        /**
+         * @description * `rejected` - rejected
+         * @enum {string}
+         */
+        RegistrationRequestRejectResponseStatusEnum: "rejected";
+        RegistrationRequestSettings: {
+            auto_approve: boolean;
+        };
         /**
          * @description * `NOT_SUBMITTED` - NOT_SUBMITTED
          *     * `PROCESSING` - PROCESSING
@@ -16201,14 +16108,6 @@ export interface components {
             session?: number | null;
             /** Format: date-time */
             readonly updated_at: string;
-        };
-        RiskLogRequest: {
-            enrollment: number;
-            meta?: unknown;
-            reason?: string | null;
-            risk_level: components["schemas"]["RiskLogRiskLevelEnum"];
-            rule: components["schemas"]["RiskLogRuleEnum"];
-            session?: number | null;
         };
         /**
          * @description * `WARNING` - Warning
@@ -16535,6 +16434,10 @@ export interface components {
          * @enum {string}
          */
         SegmentationStatusEnum: "none" | "processing" | "review_required" | "ready" | "failed" | "conversion_required";
+        SelfRegistrationDisabledError: {
+            code: components["schemas"]["CodeEnum"];
+            detail: string;
+        };
         /**
          * @description * `student` - student
          *     * `parent` - parent
@@ -16546,6 +16449,7 @@ export interface components {
             /** Format: date-time */
             readonly created_at: string;
             enrollment: number;
+            readonly enrollment_status: string;
             readonly id: number;
             session: number;
             readonly student_grade: number | null;
@@ -16584,26 +16488,6 @@ export interface components {
             /** Format: int64 */
             video_progress_rate?: number;
         };
-        SessionProgressRequest: {
-            attendance_type?: components["schemas"]["AttendanceTypeEnum"];
-            /** Format: date-time */
-            calculated_at?: string | null;
-            completed?: boolean;
-            /** Format: date-time */
-            completed_at?: string | null;
-            /** Format: double */
-            exam_aggregate_score?: number | null;
-            exam_attempted?: boolean;
-            exam_meta?: unknown;
-            exam_passed?: boolean;
-            homework_passed?: boolean;
-            homework_submitted?: boolean;
-            meta?: unknown;
-            session: number;
-            video_completed?: boolean;
-            /** Format: int64 */
-            video_progress_rate?: number;
-        };
         /**
          * @description * `REGULAR` - 정규
          *     * `SUPPLEMENT` - 보강
@@ -16611,6 +16495,20 @@ export interface components {
          */
         SessionTypeEnum: "REGULAR" | "SUPPLEMENT";
         Sheet: {
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly exam: number;
+            /** Format: uri */
+            file?: string | null;
+            readonly id: number;
+            name?: string;
+            /** Format: int64 */
+            total_questions?: number;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        /** @description Create keeps the owner input explicit while normal updates cannot reparent. */
+        SheetCreate: {
             /** Format: date-time */
             readonly created_at: string;
             exam: number;
@@ -16623,8 +16521,16 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
         };
-        SheetRequest: {
+        /** @description Create keeps the owner input explicit while normal updates cannot reparent. */
+        SheetCreateRequest: {
             exam: number;
+            /** Format: binary */
+            file?: string | null;
+            name?: string;
+            /** Format: int64 */
+            total_questions?: number;
+        };
+        SheetRequest: {
             /** Format: binary */
             file?: string | null;
             name?: string;
@@ -17339,6 +17245,15 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
         };
+        StudentFeeBulkAssignRequest: {
+            fee_template_id: number;
+            student_ids: number[];
+        };
+        StudentFeeBulkAssignResult: {
+            created: number;
+            skipped: number;
+            total: number;
+        };
         StudentFeeRequest: {
             /**
              * Format: int64
@@ -17457,51 +17372,6 @@ export interface components {
              * @description 청구 총액 (원)
              */
             total_amount: number;
-        };
-        StudentInvoiceListRequest: {
-            /**
-             * Format: int64
-             * @description 청구 월 (1-12)
-             */
-            billing_month: number;
-            /**
-             * Format: int64
-             * @description 청구 연도
-             */
-            billing_year: number;
-            /**
-             * Format: date
-             * @description 납부 기한
-             */
-            due_date: string;
-            /** @description 청구번호 (예: FEE-2026-04-0001) */
-            invoice_number: string;
-            memo?: string;
-            /**
-             * Format: int64
-             * @description 납부 총액 (원)
-             */
-            paid_amount?: number;
-            /**
-             * Format: date-time
-             * @description 완납 일시
-             */
-            paid_at?: string | null;
-            status?: components["schemas"]["Status8a1Enum"];
-            student: number;
-            /**
-             * Format: int64
-             * @description 청구 총액 (원)
-             */
-            total_amount: number;
-        };
-        StudentInvoiceUpdate: {
-            /**
-             * Format: date
-             * @description 납부 기한
-             */
-            due_date: string;
-            memo?: string;
         };
         StudentList: {
             readonly account_state: components["schemas"]["AccountStateEnum"];
@@ -19046,6 +18916,33 @@ export interface operations {
                 "application/json": components["schemas"]["PatchedClinicSessionParticipantRequest"];
                 "application/x-www-form-urlencoded": components["schemas"]["PatchedClinicSessionParticipantRequest"];
                 "multipart/form-data": components["schemas"]["PatchedClinicSessionParticipantRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClinicSessionParticipant"];
+                };
+            };
+        };
+    };
+    clinic_participants_staff_memo_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedClinicStaffMemoRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedClinicStaffMemoRequest"];
+                "multipart/form-data": components["schemas"]["PatchedClinicStaffMemoRequest"];
             };
         };
         responses: {
@@ -23738,9 +23635,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["QuestionRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["QuestionRequest"];
-                "multipart/form-data": components["schemas"]["QuestionRequest"];
+                "application/json": components["schemas"]["QuestionCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["QuestionCreateRequest"];
+                "multipart/form-data": components["schemas"]["QuestionCreateRequest"];
             };
         };
         responses: {
@@ -23749,7 +23646,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Question"];
+                    "application/json": components["schemas"]["QuestionCreate"];
                 };
             };
         };
@@ -23926,9 +23823,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SheetRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["SheetRequest"];
-                "multipart/form-data": components["schemas"]["SheetRequest"];
+                "application/json": components["schemas"]["SheetCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SheetCreateRequest"];
+                "multipart/form-data": components["schemas"]["SheetCreateRequest"];
             };
         };
         responses: {
@@ -23937,7 +23834,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Sheet"];
+                    "application/json": components["schemas"]["SheetCreate"];
                 };
             };
         };
@@ -23974,7 +23871,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
                 "application/json": components["schemas"]["SheetRequest"];
                 "application/x-www-form-urlencoded": components["schemas"]["SheetRequest"];
@@ -24139,31 +24036,6 @@ export interface operations {
             };
         };
     };
-    fees_invoices_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StudentInvoiceListRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["StudentInvoiceListRequest"];
-                "multipart/form-data": components["schemas"]["StudentInvoiceListRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StudentInvoiceList"];
-                };
-            };
-        };
-    };
     fees_invoices_retrieve: {
         parameters: {
             query?: never;
@@ -24227,7 +24099,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StudentInvoiceUpdate"];
+                    "application/json": components["schemas"]["StudentInvoiceDetail"];
                 };
             };
         };
@@ -24241,9 +24113,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StudentInvoiceListRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["StudentInvoiceListRequest"];
-                "multipart/form-data": components["schemas"]["StudentInvoiceListRequest"];
+                "application/json": components["schemas"]["GenerateInvoicesRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["GenerateInvoicesRequest"];
+                "multipart/form-data": components["schemas"]["GenerateInvoicesRequest"];
             };
         };
         responses: {
@@ -24252,7 +24124,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StudentInvoiceList"];
+                    "application/json": components["schemas"]["GenerateInvoicesResult"];
                 };
             };
         };
@@ -24290,9 +24162,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["FeePaymentRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["FeePaymentRequest"];
-                "multipart/form-data": components["schemas"]["FeePaymentRequest"];
+                "application/json": components["schemas"]["RecordPaymentRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["RecordPaymentRequest"];
+                "multipart/form-data": components["schemas"]["RecordPaymentRequest"];
             };
         };
         responses: {
@@ -24336,13 +24208,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["FeePaymentRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["FeePaymentRequest"];
-                "multipart/form-data": components["schemas"]["FeePaymentRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {
@@ -24507,9 +24373,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["StudentFeeRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["StudentFeeRequest"];
-                "multipart/form-data": components["schemas"]["StudentFeeRequest"];
+                "application/json": components["schemas"]["StudentFeeBulkAssignRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StudentFeeBulkAssignRequest"];
+                "multipart/form-data": components["schemas"]["StudentFeeBulkAssignRequest"];
             };
         };
         responses: {
@@ -24518,7 +24384,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StudentFee"];
+                    "application/json": components["schemas"]["StudentFeeBulkAssignResult"];
                 };
             };
         };
@@ -29888,31 +29754,6 @@ export interface operations {
             };
         };
     };
-    progress_lecture_progress_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LectureProgressRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["LectureProgressRequest"];
-                "multipart/form-data": components["schemas"]["LectureProgressRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LectureProgress"];
-                };
-            };
-        };
-    };
     progress_lecture_progress_retrieve: {
         parameters: {
             query?: never;
@@ -29924,83 +29765,6 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LectureProgress"];
-                };
-            };
-        };
-    };
-    progress_lecture_progress_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description lecture progress을 식별하는 고유한 정수 값. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LectureProgressRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["LectureProgressRequest"];
-                "multipart/form-data": components["schemas"]["LectureProgressRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LectureProgress"];
-                };
-            };
-        };
-    };
-    progress_lecture_progress_destroy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description lecture progress을 식별하는 고유한 정수 값. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No response body */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    progress_lecture_progress_partial_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description lecture progress을 식별하는 고유한 정수 값. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["PatchedLectureProgressRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedLectureProgressRequest"];
-                "multipart/form-data": components["schemas"]["PatchedLectureProgressRequest"];
-            };
-        };
         responses: {
             200: {
                 headers: {
@@ -30041,31 +29805,6 @@ export interface operations {
             };
         };
     };
-    progress_policies_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ProgressPolicyRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["ProgressPolicyRequest"];
-                "multipart/form-data": components["schemas"]["ProgressPolicyRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProgressPolicy"];
-                };
-            };
-        };
-    };
     progress_policies_retrieve: {
         parameters: {
             query?: never;
@@ -30077,83 +29816,6 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProgressPolicy"];
-                };
-            };
-        };
-    };
-    progress_policies_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description progress policy을 식별하는 고유한 정수 값. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ProgressPolicyRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["ProgressPolicyRequest"];
-                "multipart/form-data": components["schemas"]["ProgressPolicyRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProgressPolicy"];
-                };
-            };
-        };
-    };
-    progress_policies_destroy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description progress policy을 식별하는 고유한 정수 값. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No response body */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    progress_policies_partial_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description progress policy을 식별하는 고유한 정수 값. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["PatchedProgressPolicyRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedProgressPolicyRequest"];
-                "multipart/form-data": components["schemas"]["PatchedProgressPolicyRequest"];
-            };
-        };
         responses: {
             200: {
                 headers: {
@@ -30197,31 +29859,6 @@ export interface operations {
             };
         };
     };
-    progress_risk_logs_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RiskLogRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["RiskLogRequest"];
-                "multipart/form-data": components["schemas"]["RiskLogRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RiskLog"];
-                };
-            };
-        };
-    };
     progress_risk_logs_retrieve: {
         parameters: {
             query?: never;
@@ -30233,83 +29870,6 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RiskLog"];
-                };
-            };
-        };
-    };
-    progress_risk_logs_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description risk log을 식별하는 고유한 정수 값. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RiskLogRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["RiskLogRequest"];
-                "multipart/form-data": components["schemas"]["RiskLogRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RiskLog"];
-                };
-            };
-        };
-    };
-    progress_risk_logs_destroy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description risk log을 식별하는 고유한 정수 값. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No response body */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    progress_risk_logs_partial_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description risk log을 식별하는 고유한 정수 값. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["PatchedRiskLogRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedRiskLogRequest"];
-                "multipart/form-data": components["schemas"]["PatchedRiskLogRequest"];
-            };
-        };
         responses: {
             200: {
                 headers: {
@@ -30353,31 +29913,6 @@ export interface operations {
             };
         };
     };
-    progress_session_progress_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SessionProgressRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["SessionProgressRequest"];
-                "multipart/form-data": components["schemas"]["SessionProgressRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionProgress"];
-                };
-            };
-        };
-    };
     progress_session_progress_retrieve: {
         parameters: {
             query?: never;
@@ -30389,83 +29924,6 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionProgress"];
-                };
-            };
-        };
-    };
-    progress_session_progress_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description session progress을 식별하는 고유한 정수 값. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SessionProgressRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["SessionProgressRequest"];
-                "multipart/form-data": components["schemas"]["SessionProgressRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionProgress"];
-                };
-            };
-        };
-    };
-    progress_session_progress_destroy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description session progress을 식별하는 고유한 정수 값. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No response body */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    progress_session_progress_partial_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description session progress을 식별하는 고유한 정수 값. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["PatchedSessionProgressRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedSessionProgressRequest"];
-                "multipart/form-data": components["schemas"]["PatchedSessionProgressRequest"];
-            };
-        };
         responses: {
             200: {
                 headers: {
@@ -30856,6 +30314,33 @@ export interface operations {
                 "application/json": components["schemas"]["PatchedClinicSessionParticipantRequest"];
                 "application/x-www-form-urlencoded": components["schemas"]["PatchedClinicSessionParticipantRequest"];
                 "multipart/form-data": components["schemas"]["PatchedClinicSessionParticipantRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClinicSessionParticipant"];
+                };
+            };
+        };
+    };
+    results_admin_clinic_bookings_staff_memo_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedClinicStaffMemoRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedClinicStaffMemoRequest"];
+                "multipart/form-data": components["schemas"]["PatchedClinicStaffMemoRequest"];
             };
         };
         responses: {
@@ -31679,31 +31164,6 @@ export interface operations {
             };
         };
     };
-    results_exam_attempts_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ExamAttemptRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["ExamAttemptRequest"];
-                "multipart/form-data": components["schemas"]["ExamAttemptRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ExamAttempt"];
-                };
-            };
-        };
-    };
     results_exam_attempts_retrieve: {
         parameters: {
             query?: never;
@@ -31714,80 +31174,6 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ExamAttempt"];
-                };
-            };
-        };
-    };
-    results_exam_attempts_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ExamAttemptRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["ExamAttemptRequest"];
-                "multipart/form-data": components["schemas"]["ExamAttemptRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ExamAttempt"];
-                };
-            };
-        };
-    };
-    results_exam_attempts_destroy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No response body */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    results_exam_attempts_partial_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["PatchedExamAttemptRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedExamAttemptRequest"];
-                "multipart/form-data": components["schemas"]["PatchedExamAttemptRequest"];
-            };
-        };
         responses: {
             200: {
                 headers: {
@@ -34698,6 +34084,8 @@ export interface operations {
                 page?: number;
                 /** @description 페이지당 반환할 결과 수. */
                 page_size?: number;
+                /** @description 가입 신청 상태 필터. 자가 가입 비활성 학원에서 `status=pending` 조회는 감사 이력을 업무로 노출하지 않고 403을 반환합니다. */
+                status?: "approved" | "pending" | "rejected";
             };
             header?: never;
             path?: never;
@@ -34711,6 +34099,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedRegistrationRequestListList"];
+                };
+            };
+            /** @description 자가 가입 비활성 학원에서 `status=pending`으로 조회한 경우에만 반환합니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelfRegistrationDisabledError"];
                 };
             };
         };
@@ -34730,12 +34127,28 @@ export interface operations {
             };
         };
         responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentDetail"];
+                };
+            };
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RegistrationRequestCreate"];
+                    "application/json": components["schemas"]["RegistrationRequestList"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelfRegistrationDisabledError"];
                 };
             };
         };
@@ -34750,80 +34163,6 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RegistrationRequestList"];
-                };
-            };
-        };
-    };
-    students_registration_requests_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RegistrationRequestListRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["RegistrationRequestListRequest"];
-                "multipart/form-data": components["schemas"]["RegistrationRequestListRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RegistrationRequestList"];
-                };
-            };
-        };
-    };
-    students_registration_requests_destroy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No response body */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    students_registration_requests_partial_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["PatchedRegistrationRequestListRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedRegistrationRequestListRequest"];
-                "multipart/form-data": components["schemas"]["PatchedRegistrationRequestListRequest"];
-            };
-        };
         responses: {
             200: {
                 headers: {
@@ -34854,6 +34193,14 @@ export interface operations {
                     "application/json": components["schemas"]["StudentDetail"];
                 };
             };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelfRegistrationDisabledError"];
+                };
+            };
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -34873,20 +34220,22 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RegistrationRequestListRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["RegistrationRequestListRequest"];
-                "multipart/form-data": components["schemas"]["RegistrationRequestListRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RegistrationRequestList"];
+                    "application/json": components["schemas"]["RegistrationRequestRejectResponse"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelfRegistrationDisabledError"];
                 };
             };
         };
@@ -34916,6 +34265,14 @@ export interface operations {
                     "application/json": components["schemas"]["StudentDetail"];
                 };
             };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelfRegistrationDisabledError"];
+                };
+            };
         };
     };
     students_registration_requests_bulk_approve_create: {
@@ -34927,9 +34284,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RegistrationRequestListRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["RegistrationRequestListRequest"];
-                "multipart/form-data": components["schemas"]["RegistrationRequestListRequest"];
+                "application/json": components["schemas"]["RegistrationRequestBulkIdsRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["RegistrationRequestBulkIdsRequest"];
+                "multipart/form-data": components["schemas"]["RegistrationRequestBulkIdsRequest"];
             };
         };
         responses: {
@@ -34938,7 +34295,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RegistrationRequestList"];
+                    "application/json": components["schemas"]["RegistrationRequestBulkApproveResponse"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelfRegistrationDisabledError"];
                 };
             };
         };
@@ -34952,9 +34317,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RegistrationRequestListRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["RegistrationRequestListRequest"];
-                "multipart/form-data": components["schemas"]["RegistrationRequestListRequest"];
+                "application/json": components["schemas"]["RegistrationRequestBulkIdsRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["RegistrationRequestBulkIdsRequest"];
+                "multipart/form-data": components["schemas"]["RegistrationRequestBulkIdsRequest"];
             };
         };
         responses: {
@@ -34963,7 +34328,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RegistrationRequestList"];
+                    "application/json": components["schemas"]["RegistrationRequestBulkRejectResponse"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelfRegistrationDisabledError"];
                 };
             };
         };
@@ -34975,11 +34348,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
-                "application/json": components["schemas"]["RegistrationRequestListRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["RegistrationRequestListRequest"];
-                "multipart/form-data": components["schemas"]["RegistrationRequestListRequest"];
+                "application/json": components["schemas"]["RegistrationRequestDuplicateCheckRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["RegistrationRequestDuplicateCheckRequestRequest"];
+                "multipart/form-data": components["schemas"]["RegistrationRequestDuplicateCheckRequestRequest"];
             };
         };
         responses: {
@@ -34988,7 +34361,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RegistrationRequestList"];
+                    "application/json": components["schemas"]["RegistrationRequestDuplicateCheckResponse"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelfRegistrationDisabledError"];
                 };
             };
         };
@@ -35007,7 +34388,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RegistrationRequestList"];
+                    "application/json": components["schemas"]["RegistrationRequestSettings"];
                 };
             };
         };
@@ -35021,9 +34402,9 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["PatchedRegistrationRequestListRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedRegistrationRequestListRequest"];
-                "multipart/form-data": components["schemas"]["PatchedRegistrationRequestListRequest"];
+                "application/json": components["schemas"]["PatchedRegistrationRequestSettingsRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedRegistrationRequestSettingsRequest"];
+                "multipart/form-data": components["schemas"]["PatchedRegistrationRequestSettingsRequest"];
             };
         };
         responses: {
@@ -35032,7 +34413,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RegistrationRequestList"];
+                    "application/json": components["schemas"]["RegistrationRequestSettings"];
                 };
             };
         };

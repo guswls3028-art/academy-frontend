@@ -2,6 +2,7 @@
 import api from "@/shared/api/axios";
 import {
   bulkCreateSessionEnrollments as bulkCreateSharedSessionEnrollments,
+  fetchActiveSessionEnrollments as fetchSharedActiveSessionEnrollments,
   fetchSessionEnrollments as fetchSharedSessionEnrollments,
   type SessionEnrollmentRow,
 } from "@/shared/api/contracts/sessionEnrollments";
@@ -84,10 +85,24 @@ function normalizeLectureEnrollment(raw: unknown): LectureEnrollmentRow {
 }
 
 export async function fetchLectureEnrollments(lectureId: number): Promise<LectureEnrollmentRow[]> {
-  const res = await api.get("/enrollments/", {
-    params: { lecture: lectureId, page_size: 500 },
-  });
-  return unwrapList(res.data).map(normalizeLectureEnrollment);
+  const pageSize = 500;
+  const allRows: LectureEnrollmentRow[] = [];
+  let page = 1;
+
+  while (true) {
+    const res = await api.get("/enrollments/", {
+      params: { lecture: lectureId, page_size: pageSize, page },
+    });
+    const pageRows = unwrapList(res.data).map(normalizeLectureEnrollment);
+    allRows.push(...pageRows);
+
+    const response = asRecord(res.data);
+    const totalCount = asNullableNumber(response.count);
+    if (totalCount == null || allRows.length >= totalCount || pageRows.length === 0) {
+      return allRows;
+    }
+    page += 1;
+  }
 }
 
 export async function bulkCreateEnrollments(
@@ -136,6 +151,12 @@ export async function fetchSessionEnrollments(
   sessionId: number
 ): Promise<SessionEnrollmentRow[]> {
   return fetchSharedSessionEnrollments(sessionId);
+}
+
+export async function fetchActiveSessionEnrollments(
+  sessionId: number
+): Promise<SessionEnrollmentRow[]> {
+  return fetchSharedActiveSessionEnrollments(sessionId);
 }
 
 /** 차시에 수강생(Enrollment) 일괄 등록 */
