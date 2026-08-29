@@ -18,6 +18,7 @@ import { Link } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthContext } from "@/auth/context/AuthContext";
 import { removeLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
+import { recordStudentScreenView } from "@/shared/studentSupport/studentSupport.api";
 
 import StudentVideoPlayer, {
   PlaybackBootstrap,
@@ -162,6 +163,15 @@ export default function VideoPlayerPage() {
     refetchOnMount: "always",
     retry: 1,
   });
+  const activityRecordedVideoRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const resolvedEnrollmentId = playbackQuery.data?.video?.enrollment_id;
+    if (!videoId || resolvedEnrollmentId == null) return;
+    if (activityRecordedVideoRef.current === videoId) return;
+    activityRecordedVideoRef.current = videoId;
+    void recordStudentScreenView("/student/video/play");
+  }, [playbackQuery.data?.video?.enrollment_id, videoId]);
 
   // localStorage에 현재 videoId 저장 (side effect)
   useEffect(() => {
@@ -248,7 +258,12 @@ export default function VideoPlayerPage() {
   const loading = playbackQuery.isLoading;
   const urlSessionId = safeParseInt(q.get("session"));
   const sessionId = video?.session_id ?? urlSessionId ?? null;
-  const effectiveEnrollmentId = video?.enrollment_id ?? enrollmentId;
+  const isDirectAccess = Boolean(
+    video
+    && video.enrollment_id == null
+    && playbackQuery.data?.playback_token,
+  );
+  const effectiveEnrollmentId = isDirectAccess ? null : (video?.enrollment_id ?? enrollmentId);
 
   /* ─── 세션 영상 목록 (React Query, dependent) ─── */
   const sessionVideosQuery = useQuery({
@@ -300,7 +315,9 @@ export default function VideoPlayerPage() {
 
   const progressMutation = useMutation({
     mutationFn: (data: { progress?: number; completed?: boolean; last_position?: number }) => {
-      if (!videoId) throw new Error("videoId가 필요합니다.");
+      if (!videoId || !effectiveEnrollmentId || isDirectAccess) {
+        throw new Error("서버 진도를 저장할 수강 정보가 필요합니다.");
+      }
       return updateVideoProgress(videoId, data, effectiveEnrollmentId);
     },
     onSuccess: () => {
@@ -331,9 +348,10 @@ export default function VideoPlayerPage() {
   const [showComments, setShowComments] = useState(false);
   useEffect(() => {
     setShowComments(false);
+    if (isDirectAccess) return;
     const t = setTimeout(() => setShowComments(true), 2000);
     return () => clearTimeout(t);
-  }, [videoId]);
+  }, [isDirectAccess, videoId]);
 
   const [fatalError, setFatalError] = useState<string | null>(null);
   const [policyRebootstrapPending, setPolicyRebootstrapPending] = useState(false);
@@ -362,6 +380,32 @@ export default function VideoPlayerPage() {
     refetchInterval: 30_000,
     refetchOnWindowFocus: "always",
   });
+  useEffect(() => {
+    const expiresAt = playbackData?.playback_expires_at;
+    if (!isDirectAccess || !expiresAt || fatalError) return;
+    let active = true;
+    const refreshDelay = Math.max(1_000, expiresAt * 1000 - Date.now() - 45_000);
+    const timer = window.setTimeout(() => {
+      setPolicyRebootstrapPending(true);
+      void refetchPlayback().then((result) => {
+        if (!active) return;
+        const refreshedExpiry = result.data?.playback_expires_at ?? 0;
+        if (result.error || refreshedExpiry * 1000 <= Date.now()) {
+          setFatalError("개별 영상 권한을 다시 확인하지 못했습니다. 다시 시도해 주세요.");
+        }
+      }).catch(() => {
+        if (!active) return;
+        setFatalError("개별 영상 권한을 다시 확인하지 못했습니다. 다시 시도해 주세요.");
+      }).finally(() => {
+        if (!active) return;
+        setPolicyRebootstrapPending(false);
+      });
+    }, Math.min(refreshDelay, 2_147_000_000));
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [fatalError, isDirectAccess, playbackData?.playback_expires_at, refetchPlayback]);
   useEffect(() => {
     const response = (currentAccessQuery.error as {
       response?: { status?: number; data?: { detail?: unknown } };
@@ -470,12 +514,14 @@ export default function VideoPlayerPage() {
   const onLeaveProgress = useCallback(
     (data: { progress?: number; completed?: boolean; last_position?: number }) => {
       if (!videoId) return;
-      progressMutationRef.current.mutate({
-        progress: data.progress,
-        last_position: data.last_position,
-        completed: data.completed,
-      });
       storeVideoPosition(videoId, data.last_position ?? 0, playbackStorageScope);
+      if (!isDirectAccess && effectiveEnrollmentId) {
+        progressMutationRef.current.mutate({
+          progress: data.progress,
+          last_position: data.last_position,
+          completed: data.completed,
+        });
+      }
 
       // 영상 완료 시 자동 다음 재생 시작 (nextVideoRef로 최신 값 참조)
       if (data.completed && nextVideoRef.current && !autoPlayTimerRef.current) {
@@ -494,7 +540,7 @@ export default function VideoPlayerPage() {
         }, 1000);
       }
     },
-    [playbackStorageScope, videoId]
+    [effectiveEnrollmentId, isDirectAccess, playbackStorageScope, videoId]
   );
 
   // Reset state when the video or selected enrollment changes.
@@ -576,6 +622,9 @@ export default function VideoPlayerPage() {
               {video.duration != null && video.duration > 0 && (
                 <span className="vpp-meta-item">{formatClock(video.duration)}</span>
               )}
+              {isDirectAccess && (
+                <span className="vpp-meta-item">개별 영상 권한 · 이 기기에서만 이어보기</span>
+              )}
             </div>
 
             {/* 액션: 좋아요 · 목록 · 다음 */}
@@ -585,12 +634,14 @@ export default function VideoPlayerPage() {
                   <IconChevronRight className="vpp-icon-back-sm" aria-hidden="true" />
                   <span>목록으로</span>
                 </button>
-                <LikeButton
-                  videoId={videoId!}
-                  initialLiked={video.is_liked ?? false}
-                  initialCount={video.like_count ?? 0}
-                  onConfirmed={onLikeConfirmed}
-                />
+                {!isDirectAccess && (
+                  <LikeButton
+                    videoId={videoId!}
+                    initialLiked={video.is_liked ?? false}
+                    initialCount={video.like_count ?? 0}
+                    onConfirmed={onLikeConfirmed}
+                  />
+                )}
               </div>
               <div className="vpp-info-actions">
                 {hasPlaylist && (
@@ -637,7 +688,7 @@ export default function VideoPlayerPage() {
           </div>
 
           {/* ─── 댓글 섹션 (플레이어 로드 후 지연 렌더링) ─── */}
-          {videoId && showComments && <VideoCommentSection videoId={videoId} />}
+          {videoId && showComments && !isDirectAccess && <VideoCommentSection videoId={videoId} />}
 
           {/* ─── 재생목록 드로어 ─── */}
           {hasPlaylist && (

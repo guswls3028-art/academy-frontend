@@ -12,6 +12,8 @@ export const adminVideoQueryKeys = {
   stats: ["video-stats"] as const,
   statsForVideo: (videoId: number) => ["video-stats", videoId] as const,
   permissionStats: (videoId: number) => ["video", videoId, "stats"] as const,
+  directEntitlements: (videoId: number) => ["video", videoId, "direct-entitlements"] as const,
+  directStudentSearch: (search: string) => ["video-direct-student-search", search] as const,
   achievement: (videoId: number) => ["video", videoId, "achievement"] as const,
   events: (videoId: number, range: string, page: number) => ["video", videoId, "events", range, page] as const,
   eventRisks: (videoId: number, range: string) => ["video", videoId, "events-risk", range] as const,
