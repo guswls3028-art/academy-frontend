@@ -1,4 +1,4 @@
-import type { Page, Route } from "@playwright/test";
+import { devices, type Page, type Route } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
 import { installLocalAuthApiStubs } from "../helpers/localAuthApiStubs";
 import { gotoAndSettle } from "../helpers/wait";
@@ -9,6 +9,13 @@ const CORS_HEADERS = {
   "access-control-allow-origin": BASE,
   "access-control-allow-headers": "authorization,content-type,x-client,x-client-version,x-tenant-code",
   "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS",
+};
+const IPAD_PROFILE = {
+  userAgent: devices["iPad Pro 11"].userAgent,
+  viewport: devices["iPad Pro 11"].viewport,
+  deviceScaleFactor: devices["iPad Pro 11"].deviceScaleFactor,
+  isMobile: devices["iPad Pro 11"].isMobile,
+  hasTouch: devices["iPad Pro 11"].hasTouch,
 };
 const IMAGE_DATA_URL = `data:image/svg+xml;base64,${Buffer.from(
   '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200"><rect width="100%" height="100%" fill="#f8f4ea"/><text x="70" y="130" font-size="56">20. 자연선택 문제</text><path d="M120 800 Q300 350 480 800 T840 800" fill="none" stroke="#222" stroke-width="18"/></svg>',
@@ -290,6 +297,9 @@ test.describe("커뮤니티 QnA 작업대", () => {
     await expect.poll(() => createBodies).toHaveLength(1);
   });
 
+  test.describe("iPad 프로필 자료 첨부 게이트", () => {
+    test.use(IPAD_PROFILE);
+
   for (const viewport of [
     { name: "데스크톱", width: 1366, height: 900 },
     { name: "390px", width: 390, height: 844 },
@@ -433,5 +443,6 @@ test.describe("커뮤니티 QnA 작업대", () => {
     await expect(title).toHaveValue("선택 보존 자료");
     await expect(page.getByText("보존자료.pdf", { exact: true })).toBeVisible();
     expect(uploadRequests).toBe(1);
+  });
   });
 });

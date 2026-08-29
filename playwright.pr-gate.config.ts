@@ -17,10 +17,6 @@ const webkit = {
   viewport: { width: 390, height: 844 },
 };
 
-const ipadWebkit = {
-  ...devices["iPad Pro 11"],
-};
-
 function matchSpec(spec: string): string {
   return `**/${spec.replace(/^e2e\//, "")}`;
 }
@@ -53,16 +49,12 @@ export default defineConfig({
     },
     {
       name: "pr-iphone-webkit",
-      testMatch: [matchSpec("e2e/auth/iphone-safari-login.mock.spec.ts")],
+      testMatch: [
+        matchSpec("e2e/auth/iphone-safari-login.mock.spec.ts"),
+        matchSpec("e2e/admin/community-workspace-polish.mock.spec.ts"),
+      ],
       dependencies: [],
       use: webkit,
-    },
-    {
-      name: "pr-ipad-webkit",
-      testMatch: [matchSpec("e2e/admin/community-workspace-polish.mock.spec.ts")],
-      grep: /@materials-file-picker/,
-      dependencies: [],
-      use: ipadWebkit,
     },
   ],
 });
