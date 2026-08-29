@@ -22,6 +22,7 @@ type MockState = {
   attendanceStatusUpdates: Array<{ id: number; status: string }>;
   bulkCreatePayloads: number[][];
   lectureEnrollmentPageSizes: string[];
+  lectureEnrollmentPages: string[];
   bulkSetCalls: number;
   bulkUndoTokens: string[];
   failUndo: boolean;
@@ -30,6 +31,8 @@ type MockState = {
 type MockOptions = {
   omitTargetSessionFromList?: boolean;
   previousRosterWithInactive?: boolean;
+  currentLectureWithInactive?: boolean;
+  largeLectureEnrollmentRoster?: boolean;
 };
 
 async function installApi(page: Page, state: MockState, options: MockOptions = {}) {
@@ -144,15 +147,32 @@ async function installApi(page: Page, state: MockState, options: MockOptions = {
     if (path === "/enrollments/session-enrollments/") {
       if (options.previousRosterWithInactive && url.searchParams.get("session") === "9900") {
         return json([
-          { id: 8101, session: 9900, enrollment: 3001, student_id: 2001, student_name: "김가람", student_school: "한빛고", student_grade: 1 },
-          { id: 8102, session: 9900, enrollment: 3002, student_id: 2002, student_name: "이도윤", student_school: "한빛고", student_grade: 1 },
+          { id: 8101, session: 9900, enrollment: 3001, enrollment_status: "ACTIVE", student_id: 2001, student_name: "김가람", student_school: "한빛고", student_grade: 1 },
+          { id: 8102, session: 9900, enrollment: 3002, enrollment_status: "INACTIVE", student_id: 2002, student_name: "이도윤", student_school: "한빛고", student_grade: 1 },
         ]);
       }
       return json([]);
     }
     if (path === "/enrollments/") {
       state.lectureEnrollmentPageSizes.push(url.searchParams.get("page_size") || "");
-      if (options.previousRosterWithInactive) {
+      state.lectureEnrollmentPages.push(url.searchParams.get("page") || "");
+      if (options.largeLectureEnrollmentRoster) {
+        const page = Number(url.searchParams.get("page") || "1");
+        const start = page === 1 ? 1 : 501;
+        const end = page === 1 ? 500 : 501;
+        return json({
+          count: 501,
+          results: Array.from({ length: end - start + 1 }, (_, index) => {
+            const studentId = 10_000 + start + index;
+            return {
+              id: 20_000 + start + index,
+              status: "ACTIVE",
+              student: { id: studentId, name: `대형명단${start + index}`, high_school: "한빛고", grade: 1 },
+            };
+          }),
+        });
+      }
+      if (options.previousRosterWithInactive || options.currentLectureWithInactive) {
         return json({
           count: 2,
           results: [
@@ -180,7 +200,9 @@ async function installApi(page: Page, state: MockState, options: MockOptions = {
             grade: 1,
             active: true,
             tags: [],
-            enrollments: [],
+            enrollments: options.currentLectureWithInactive
+              ? [{ id: 3001, lecture: LECTURE_ID, status: "ACTIVE", lecture_name: "일괄 작업 안전반" }]
+              : [],
             custom_fields: {},
           },
           {
@@ -195,7 +217,9 @@ async function installApi(page: Page, state: MockState, options: MockOptions = {
             grade: 1,
             active: true,
             tags: [],
-            enrollments: [],
+            enrollments: options.currentLectureWithInactive
+              ? [{ id: 3002, lecture: LECTURE_ID, status: "INACTIVE", lecture_name: "일괄 작업 안전반" }]
+              : [],
             custom_fields: {},
           },
         ],
@@ -230,6 +254,7 @@ function createState(overrides: Partial<MockState> = {}): MockState {
     attendanceStatusUpdates: [],
     bulkCreatePayloads: [],
     lectureEnrollmentPageSizes: [],
+    lectureEnrollmentPages: [],
     bulkSetCalls: 0,
     bulkUndoTokens: [],
     failUndo: false,
@@ -403,7 +428,7 @@ test("직전 차시 불러오기는 현재 활성 수강생만 등록 대상으�
 
   await expect(page.getByText("1명 선택됨", { exact: true }).last()).toBeVisible();
   await expect(page.getByText(/현재 비활성·대기 수강생 1명은 제외/)).toBeVisible();
-  await expect.poll(() => state.lectureEnrollmentPageSizes).toContain("500");
+  expect(state.lectureEnrollmentPageSizes).toHaveLength(0);
 
   await page.getByRole("button", { name: "1명 검토 후 등록" }).click();
   const confirmation = page.getByRole("alertdialog", { name: "차시 수강생으로 등록할까요?" });
@@ -412,6 +437,56 @@ test("직전 차시 불러오기는 현재 활성 수강생만 등록 대상으�
   await confirmation.getByRole("button", { name: "1명 등록", exact: true }).click();
 
   await expect.poll(() => state.bulkCreatePayloads).toEqual([[2001]]);
+  await expect.poll(() => state.lectureEnrollmentPageSizes).toContain("500");
+});
+
+test("전체 학생 선택은 현재 강의의 비활성 수강 이력을 자동 제외한다", async ({ page }) => {
+  const state = createState();
+  await openAttendance(page, state, { currentLectureWithInactive: true });
+
+  await page.getByRole("button", { name: "수강생 등록" }).first().click();
+
+  await expect(page.getByRole("checkbox", { name: "김가람 선택" })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "이도윤 선택" })).toHaveCount(0);
+  await expect(page.getByText(/현재 강의의 비활성·대기 수강생 1명은 제외/)).toBeVisible();
+
+  await page.getByRole("checkbox", { name: "김가람 선택" }).check();
+  await page.getByRole("button", { name: "1명 검토 후 등록" }).click();
+  await page.getByRole("alertdialog", { name: "차시 수강생으로 등록할까요?" })
+    .getByRole("button", { name: "1명 등록", exact: true })
+    .click();
+
+  await expect.poll(() => state.bulkCreatePayloads).toEqual([[2001]]);
+});
+
+test("선택 뒤 수강 상태가 바뀌어도 최종 확인 전에 비활성 학생을 다시 제외한다", async ({ page }) => {
+  const state = createState();
+  await openAttendance(page, state, { previousRosterWithInactive: true });
+
+  await page.getByRole("button", { name: "수강생 등록" }).first().click();
+  await page.getByRole("checkbox", { name: "김가람 선택" }).check();
+  await page.getByRole("checkbox", { name: "이도윤 선택" }).check();
+  await page.getByRole("button", { name: "2명 검토 후 등록" }).click();
+
+  await expect(page.getByText(/현재 강의의 비활성·대기 수강생 1명은 제외/)).toBeVisible();
+  const confirmation = page.getByRole("alertdialog", { name: "차시 수강생으로 등록할까요?" });
+  await expect(confirmation).toContainText("등록 인원1명");
+  await expect(confirmation).toContainText("김가람");
+  await expect(confirmation).not.toContainText("이도윤");
+  await confirmation.getByRole("button", { name: "1명 등록", exact: true }).click();
+
+  await expect.poll(() => state.bulkCreatePayloads).toEqual([[2001]]);
+});
+
+test("강의 활성 수강생 500명 초과도 다음 페이지까지 모두 불러온다", async ({ page }) => {
+  const state = createState();
+  await openAttendance(page, state, { largeLectureEnrollmentRoster: true });
+
+  await page.getByRole("button", { name: "수강생 등록" }).first().click();
+  await page.getByRole("button", { name: "강의 수강생 가져오기" }).click();
+
+  await expect(page.getByText("501명 선택됨", { exact: true }).last()).toBeVisible();
+  expect(state.lectureEnrollmentPages).toEqual(["1", "2"]);
 });
 
 test("대상 차시를 확인할 수 없으면 단축키로도 수강등록 확인을 우회하지 못한다", async ({ page }) => {

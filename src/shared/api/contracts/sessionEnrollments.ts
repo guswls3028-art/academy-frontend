@@ -1,12 +1,15 @@
 // PATH: src/shared/api/contracts/sessionEnrollments.ts
 import api from "@/shared/api/axios";
 
+export type SessionEnrollmentStatus = "ACTIVE" | "INACTIVE" | "PENDING";
+
 export type SessionEnrollmentRow = {
   id: number;
   session: number;
   enrollment: number;
   student_id?: number;
   student_name: string;
+  enrollment_status: SessionEnrollmentStatus | null;
   student_school?: string | null;
   student_grade?: number | null;
   created_at?: string;
@@ -37,6 +40,12 @@ function asNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(numericValue) ? numericValue : fallback;
 }
 
+function asEnrollmentStatus(value: unknown): SessionEnrollmentStatus | null {
+  return value === "ACTIVE" || value === "INACTIVE" || value === "PENDING"
+    ? value
+    : null;
+}
+
 function unwrapList(data: unknown): unknown[] {
   if (Array.isArray(data)) return data;
   const record = asRecord(data);
@@ -54,10 +63,23 @@ function normalizeSessionEnrollment(raw: unknown): SessionEnrollmentRow {
     enrollment: asNumber(record.enrollment),
     ...(studentId != null ? { student_id: studentId } : {}),
     student_name: asString(record.student_name),
+    enrollment_status: asEnrollmentStatus(record.enrollment_status),
     student_school: asNullableString(record.student_school),
     student_grade: asNullableNumber(record.student_grade),
     created_at: asString(record.created_at),
   };
+}
+
+export function activeSessionEnrollments(
+  rows: SessionEnrollmentRow[],
+): SessionEnrollmentRow[] {
+  return rows.filter((row) => row.enrollment_status === "ACTIVE");
+}
+
+export async function fetchActiveSessionEnrollments(
+  sessionId: number,
+): Promise<SessionEnrollmentRow[]> {
+  return activeSessionEnrollments(await fetchSessionEnrollments(sessionId));
 }
 
 export async function fetchSessionEnrollments(

@@ -15,7 +15,7 @@ import { Badge, Button } from "@/shared/ui/ds";
 import LectureChipLabel from "@/shared/ui/chips/LectureChipLabel";
 import { SessionBlockView } from "@/shared/ui/session-block";
 import { fetchTemplatesWithUsage, type TemplateWithUsage } from "@admin/domains/exams/api/templatesWithUsage";
-import { fetchSessionEnrollments } from "@/shared/api/contracts/sessionEnrollments";
+import { fetchActiveSessionEnrollments } from "@/shared/api/contracts/sessionEnrollments";
 import { updateExamEnrollmentRows } from "@admin/domains/exams/api/examEnrollments";
 import SessionItemBrowser, { type SelectedExamItem } from "@/shared/ui/assessment/SessionItemBrowser";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -96,7 +96,7 @@ export default function CreateRegularExamModal({
     setEnrollmentCount(null);
     // 차시 수강생 수 preflight — 자동 등록 가능 여부를 미리 안내
     if (sessionId > 0) {
-      fetchSessionEnrollments(sessionId)
+      fetchActiveSessionEnrollments(sessionId)
         .then((list) => setEnrollmentCount(list.length))
         .catch(() => setEnrollmentCount(null));
     }
@@ -133,7 +133,7 @@ export default function CreateRegularExamModal({
    */
   const autoEnroll = useCallback(async (examId: number): Promise<{ enrolled: number; error?: string }> => {
     try {
-      const enrollments = await fetchSessionEnrollments(sessionId);
+      const enrollments = await fetchActiveSessionEnrollments(sessionId);
       const ids = enrollments.map((e) => e.enrollment);
       if (ids.length === 0) return { enrolled: 0 };
       await updateExamEnrollmentRows({ examId, sessionId, enrollment_ids: ids });

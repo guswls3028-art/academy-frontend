@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dropdown } from "antd";
 import { Redo2, Undo2 } from "lucide-react";
-import { fetchSessionEnrollments, fetchLectureEnrollments, lectureEnrollFromExcelUpload } from "../api/enrollments";
+import { fetchSessionEnrollments, fetchActiveSessionEnrollments, fetchLectureEnrollments, lectureEnrollFromExcelUpload } from "../api/enrollments";
 import type { SessionEnrollmentRow } from "../api/enrollments";
 import { fetchSessions } from "../api/sessions";
 import { bulkCreateAttendance, updateAttendance, fetchAttendanceEnrolledStudentIds } from "../api/attendance";
@@ -443,15 +443,37 @@ export default function SessionEnrollModal({
     || sessionsError
     || studentsError;
 
+  const inactiveLectureStudentIds = useMemo(
+    () => new Set(
+      students
+        .filter((student) => student.enrollments.some(
+          (enrollment) => enrollment.lectureId === lectureId && enrollment.status !== "ACTIVE",
+        ))
+        .map((student) => student.id),
+    ),
+    [lectureId, students],
+  );
+
   const studentsToShow = useMemo(
-    () => students.filter((s) => !alreadyEnrolledStudentIds.has(s.id)),
-    [students, alreadyEnrolledStudentIds]
+    () => students.filter(
+      (student) => !alreadyEnrolledStudentIds.has(student.id)
+        && !inactiveLectureStudentIds.has(student.id),
+    ),
+    [students, alreadyEnrolledStudentIds, inactiveLectureStudentIds]
   );
 
   /** 현재 페이지에서 이미 등록되어 숨겨진 학생 수 — 학원장 혼란("검색했는데 왜 안 보임?") 방지 안내용. */
   const hiddenAlreadyEnrolledInPage = useMemo(
     () => students.filter((s) => alreadyEnrolledStudentIds.has(s.id)).length,
     [students, alreadyEnrolledStudentIds]
+  );
+
+  const hiddenInactiveLectureInPage = useMemo(
+    () => students.filter(
+      (student) => !alreadyEnrolledStudentIds.has(student.id)
+        && inactiveLectureStudentIds.has(student.id),
+    ).length,
+    [students, alreadyEnrolledStudentIds, inactiveLectureStudentIds],
   );
 
   // ── selectedIds — must be before early return (hooks rule) ─────────────────
@@ -568,7 +590,7 @@ export default function SessionEnrollModal({
     try {
       const lectureList = await fetchLectureEnrollments(lectureId);
       // ACTIVE 만 시드 — 퇴원(INACTIVE)/대기(PENDING) 자동 제외
-      const active = lectureList.filter((e) => e.status === "ACTIVE" || !e.status);
+      const active = lectureList.filter((e) => e.status === "ACTIVE");
       // backend EnrollmentSerializer는 student 를 StudentShortSerializer 로 nested.
       // student.id / student.name / student.grade / student.high_school | middle_school | elementary_school
       const toAddRows = active.filter((e) => {
@@ -609,21 +631,18 @@ export default function SessionEnrollModal({
     if (!prevSession) return;
     setCopyFromPrevLoading(true);
     try {
-      const [prevList, lectureList] = await Promise.all([
+      const [prevList, activePrevList] = await Promise.all([
         fetchSessionEnrollments(prevSession.id),
-        fetchLectureEnrollments(lectureId),
+        fetchActiveSessionEnrollments(prevSession.id),
       ]);
-      const activeStudentIds = new Set(
-        lectureList
-          .filter((enrollment) => enrollment.status === "ACTIVE")
-          .map((enrollment) => enrollment.student?.id)
-          .filter((studentId): studentId is number => studentId != null),
+      const activeEnrollmentIds = new Set(
+        activePrevList.map((row) => row.enrollment),
       );
       const availableRows = prevList.filter(
         (se) => !alreadyEnrolledIds.has(se.enrollment) && se.student_id != null && !alreadyEnrolledStudentIds.has(se.student_id),
       );
       const toAddRows = availableRows.filter(
-        (se) => se.student_id != null && activeStudentIds.has(se.student_id),
+        (se) => activeEnrollmentIds.has(se.enrollment),
       );
       const inactiveCount = availableRows.length - toAddRows.length;
       const itemsToAdd: SelectedItem[] = toAddRows
@@ -660,7 +679,7 @@ export default function SessionEnrollModal({
     } finally {
       setCopyFromPrevLoading(false);
     }
-  }, [prevSession, lectureId, alreadyEnrolledIds, alreadyEnrolledStudentIds, updateSelection]);
+  }, [prevSession, alreadyEnrolledIds, alreadyEnrolledStudentIds, updateSelection]);
 
   const toggleSelect = useCallback((student: ClientStudent) => {
     const id = student.id;
@@ -839,36 +858,56 @@ export default function SessionEnrollModal({
       || addByStudentMutation.isPending
       || selectionConfirmationInFlightRef.current
     ) return;
-    const selectedNameSummary = selectedItems
-      .filter((student) => idsToAdd.includes(student.id))
-      .slice(0, 3)
-      .map((student) => student.displayName ?? student.name)
-      .join(", ");
-    const remainingCount = Math.max(0, idsToAdd.length - 3);
     selectionConfirmationInFlightRef.current = true;
-    const shouldAdd = await confirm({
+    try {
+      const currentLectureEnrollments = await fetchLectureEnrollments(lectureId);
+      const blockedStudentIds = new Set(
+        currentLectureEnrollments
+          .filter((enrollment) => enrollment.status !== "ACTIVE")
+          .map((enrollment) => enrollment.student?.id)
+          .filter((studentId): studentId is number => studentId != null),
+      );
+      const eligibleIds = idsToAdd.filter((studentId) => !blockedStudentIds.has(studentId));
+      const excludedCount = idsToAdd.length - eligibleIds.length;
+      if (excludedCount > 0) {
+        updateSelection((current) => current.filter((student) => !blockedStudentIds.has(student.id)));
+        feedback.warning(`현재 강의의 비활성·대기 수강생 ${excludedCount}명은 제외했습니다. 재등록은 강의 수강 등록에서 진행해 주세요.`);
+      }
+      if (eligibleIds.length === 0) return;
+
+      const selectedNameSummary = selectedItems
+        .filter((student) => eligibleIds.includes(student.id))
+        .slice(0, 3)
+        .map((student) => student.displayName ?? student.name)
+        .join(", ");
+      const remainingCount = Math.max(0, eligibleIds.length - 3);
+      const shouldAdd = await confirm({
         title: "차시 수강생으로 등록할까요?",
         message: "대상 학생과 등록 후 출결 상태를 확인해 주세요.",
         review: {
           eyebrow: "차시 수강등록 검토",
           items: [
             { label: "대상 차시", value: formatSessionBlockLabel(targetSession) },
-            { label: "등록 인원", value: `${idsToAdd.length}명`, tone: "accent" },
+            { label: "등록 인원", value: `${eligibleIds.length}명`, tone: "accent" },
             { label: "선택 학생", value: `${selectedNameSummary}${remainingCount > 0 ? ` 외 ${remainingCount}명` : ""}` },
             { label: "초기 출결", value: "미입력" },
           ],
           note: "강의 수강 등록이 없는 학생은 함께 등록되며 자동 수납 항목이 배정될 수 있습니다. 계정 안내 알림톡은 이 화면에서 즉시 보내지 않습니다.",
         },
-        confirmText: `${idsToAdd.length}명 등록`,
+        confirmText: `${eligibleIds.length}명 등록`,
         danger: false,
-      })
-      .finally(() => { selectionConfirmationInFlightRef.current = false; });
-    if (!shouldAdd) return;
-    addByStudentMutation.mutate({
-      studentIds: idsToAdd,
-      statusByStudentId: excelStatusByStudentId,
-    });
-  }, [addByStudentMutation, confirm, excelStatusByStudentId, idsToAdd, prerequisiteError, prerequisiteLoading, selectedItems, sessionId, sessions]);
+      });
+      if (!shouldAdd) return;
+      addByStudentMutation.mutate({
+        studentIds: eligibleIds,
+        statusByStudentId: excelStatusByStudentId,
+      });
+    } catch (error) {
+      feedback.error(error instanceof Error ? error.message : "현재 수강 상태를 확인하지 못했습니다. 다시 시도해 주세요.");
+    } finally {
+      selectionConfirmationInFlightRef.current = false;
+    }
+  }, [addByStudentMutation, confirm, excelStatusByStudentId, idsToAdd, lectureId, prerequisiteError, prerequisiteLoading, selectedItems, sessionId, sessions, updateSelection]);
 
   // ── Keyboard shortcut ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -1048,6 +1087,11 @@ export default function SessionEnrollModal({
                         {selectedItems.length > 0 && (
                           <span className="text-[13px] font-semibold text-[var(--color-brand-primary)]">
                             {selectedItems.length}명 선택됨
+                          </span>
+                        )}
+                        {hiddenInactiveLectureInPage > 0 && (
+                          <span className="text-[12px] text-[var(--color-text-muted)]">
+                            현재 강의의 비활성·대기 수강생 {hiddenInactiveLectureInPage}명은 제외했습니다. 재등록은 강의 수강 등록에서 진행해 주세요.
                           </span>
                         )}
                         {/* 빠른 불러오기 — 매주 가장 자주 누르는 액션. 좌측 상단 prominent CTA.
