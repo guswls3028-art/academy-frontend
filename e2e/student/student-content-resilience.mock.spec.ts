@@ -77,6 +77,10 @@ async function installStudentApi(
     rejectFirstImageRequest = resolve;
   });
   let notificationClinicAttempts = 0;
+  let allowNotificationClinicRetry: (() => void) | undefined;
+  const notificationClinicRetryGate = new Promise<void>((resolve) => {
+    allowNotificationClinicRetry = resolve;
+  });
   await page.addInitScript(({ token }) => {
     localStorage.setItem("access", token);
     localStorage.setItem("refresh", "student-content-refresh");
@@ -143,12 +147,10 @@ async function installStudentApi(
     if (path.endsWith("/clinic/participants/") && options.notificationClinic) {
       notificationClinicAttempts += 1;
       if (options.notificationClinic === "failure" || notificationClinicAttempts === 1) {
-        if (options.notificationClinic === "retry-success") {
-          await new Promise((resolve) => setTimeout(resolve, 600));
-        }
         await route.fulfill({ status: 503, json: { detail: "notification failure" } });
         return;
       }
+      await notificationClinicRetryGate;
       await route.fulfill({ json: [] });
       return;
     }
@@ -516,6 +518,7 @@ async function installStudentApi(
     allowFirstImage: () => { firstImageAvailable = true; },
     rejectFirstImage: () => rejectFirstImageRequest?.(),
     notificationClinicAttempts: () => notificationClinicAttempts,
+    allowNotificationClinicRetry: () => allowNotificationClinicRetry?.(),
   };
 }
 
@@ -716,9 +719,10 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     const scenario = await installStudentApi(page, { notificationClinic: "retry-success" });
     await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 45_000 });
 
+    await expect.poll(() => scenario.notificationClinicAttempts(), { timeout: 10_000 }).toBe(2);
     await expect(page.getByRole("link", { name: "알림 수 확인 중" })).toBeVisible();
     await expect(page.getByText("할 일을 확인하고 있어요", { exact: true })).toBeVisible();
-    await expect.poll(() => scenario.notificationClinicAttempts(), { timeout: 10_000 }).toBe(2);
+    scenario.allowNotificationClinicRetry();
     await expect(page.getByRole("link", { name: "알림", exact: true })).toBeVisible();
     await expect(page.getByText("오늘은 급한 일이 없어요", { exact: true }).first()).toBeVisible();
   });

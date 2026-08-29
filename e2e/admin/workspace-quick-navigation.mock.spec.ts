@@ -103,6 +103,7 @@ test.describe("업무 화면 빠른 이동", () => {
     await search.press("Enter");
     await expect(page).toHaveURL(/\/workspace\/guide(?:\/|$)/);
 
+    await expect(page.getByRole("button", { name: "빠른 이동" })).toBeVisible();
     await page.keyboard.press("Control+K");
     await expect(dialog.getByRole("heading", { name: "최근 사용" })).toBeVisible();
     await expect(dialog.getByRole("button", { name: /가이드 메인/ }).first()).toBeVisible();
