@@ -21,6 +21,31 @@ export type AttemptHistoryEntry = {
   at: string | null;
 };
 
+export type ClinicResolutionHistoryEntry = {
+  at?: string | null;
+  action?: string;
+  resolution_type?: Exclude<ResolutionType, null> | null;
+  evidence?: Record<string, unknown> | null;
+};
+
+export type ClinicLinkedBooking = {
+  plan_item_id: number;
+  participant_id: number;
+  session_id: number;
+  session_date: string;
+  session_start_time: string;
+  session_end_time: string;
+  location: string;
+  participant_status: "pending" | "booked" | "attended" | "no_show" | "cancelled" | "rejected";
+  preferred_start_time: string | null;
+  preferred_end_time: string | null;
+  student_request_memo: string;
+  staff_memo: string;
+  linked_at: string;
+  linked_by_id: number | null;
+  linkage_source: "participant_plan";
+};
+
 export type ClinicTarget = {
   enrollment_id: number;
   student_id?: number | null;
@@ -40,6 +65,9 @@ export type ClinicTarget = {
   cycle_no?: number;
   resolution_type?: ResolutionType;
   resolved_at?: string | null;
+  resolution_evidence?: Record<string, unknown> | null;
+  resolution_history?: ClinicResolutionHistoryEntry[];
+  linked_bookings?: ClinicLinkedBooking[];
   session_id?: number;
   lecture_id?: number;
   exam_id?: number | null;

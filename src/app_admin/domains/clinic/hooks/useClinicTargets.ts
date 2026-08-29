@@ -8,5 +8,7 @@ export function useClinicTargets(params?: ClinicTargetParams) {
     queryKey: clinicQueryKeys.targetsFiltered(params),
     queryFn: () => fetchClinicTargets(params),
     staleTime: 10_000,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: false,
   });
 }

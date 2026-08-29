@@ -177,6 +177,8 @@ export default function ClinicOperationsConsolePage() {
     queryKey: clinicQueryKeys.sessionsTreeByMonth(ym.year, ym.month),
     queryFn: () => fetchClinicSessionTree({ year: ym.year, month: ym.month }),
     retry: 0,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: false,
   });
 
   /** 반 필터 적용된 트리 (사이드바 표시용, 클라이언트 필터) */
