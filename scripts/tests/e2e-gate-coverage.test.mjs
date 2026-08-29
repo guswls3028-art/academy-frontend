@@ -20,6 +20,8 @@ const e2eWorkflow = fs.readFileSync(
 );
 const packageJson = JSON.parse(read("package.json"));
 const allMenuAudit = read("e2e/stability/all-menu-button-click-audit.spec.ts");
+const authHelper = read("e2e/helpers/auth.ts");
+const prGateConfig = read("playwright.pr-gate.config.ts");
 
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -114,6 +116,8 @@ test("the exhaustive menu audit owns canonical routes and explicit dynamic redir
     allMenuAudit,
     /path: "\/student\/video\/courses\/public"[\s\S]{0,120}settlesAt: \/\^\\\/student\\\/video\\\/sessions\\\/\\d\+\$\//,
   );
+  assert.match(allMenuAudit, /PRODUCT_ANALYTICS_BATCH_PATH = "\/api\/v1\/core\/product-analytics\/events\/batch\/"/);
+  assert.match(allMenuAudit, /const openError = await openDrawerMenu\(page\)/);
 });
 
 test("PR read-only and route-mock gates keep separate runtime boundaries", () => {
@@ -133,4 +137,13 @@ test("PR read-only and route-mock gates keep separate runtime boundaries", () =>
   assert.match(e2eWorkflow, /playwright install --with-deps chromium webkit/);
   assert.match(e2eWorkflow, /run: pnpm test:e2e:gate:readonly --reporter=github,html/);
   assert.match(e2eWorkflow, /run: pnpm test:e2e:gate:mock --reporter=github,html/);
+  assert.match(prGateConfig, /workers: process\.env\.CI \? 3 : 2/);
+  assert.match(prGateConfig, /retries: 0/);
+});
+
+test("production auth retries only throttle and transport failures within one bounded owner", () => {
+  assert.equal((authHelper.match(/\/api\/v1\/token\//g) ?? []).length, 1);
+  assert.match(authHelper, /LOGIN_TOKEN_MAX_ATTEMPTS = 5/);
+  assert.match(authHelper, /catch \(error\)[\s\S]{0,260}await sleep\(Math\.min\(1_000 \* \(2 \*\* attempt\), 5_000\)\)/);
+  assert.match(authHelper, /resp\.status\(\) !== 429 \|\| attempt === LOGIN_TOKEN_MAX_ATTEMPTS - 1/);
 });

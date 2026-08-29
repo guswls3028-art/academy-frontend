@@ -127,20 +127,29 @@ function resolveCred(role: TenantRole): { base: string; code: string; user: stri
 }
 
 async function requestLoginTokens(
-  page: Page,
+  request: APIRequestContext,
   role: TenantRole,
   c: { code: string; user: string; pass: string },
+  failureLabel: string,
 ): Promise<{ access: string; refresh: string }> {
   let lastFailure = "";
   for (let attempt = 0; attempt < LOGIN_TOKEN_MAX_ATTEMPTS; attempt += 1) {
-    const resp = await page.request.post(`${API_BASE}/api/v1/token/`, {
-      data: { username: c.user, password: c.pass, tenant_code: c.code },
-      headers: {
-        "Content-Type": "application/json",
-        "X-Tenant-Code": c.code,
-      },
-      timeout: 60_000,
-    });
+    let resp;
+    try {
+      resp = await request.post(`${API_BASE}/api/v1/token/`, {
+        data: { username: c.user, password: c.pass, tenant_code: c.code },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Tenant-Code": c.code,
+        },
+        timeout: 60_000,
+      });
+    } catch (error) {
+      lastFailure = `transport ${String((error as Error)?.message || error)}`;
+      if (attempt === LOGIN_TOKEN_MAX_ATTEMPTS - 1) break;
+      await sleep(Math.min(1_000 * (2 ** attempt), 5_000));
+      continue;
+    }
 
     if (resp.status() === 200) {
       return await resp.json() as { access: string; refresh: string };
@@ -154,7 +163,7 @@ async function requestLoginTokens(
     await sleep(parseThrottleWaitMs(body, resp.headers()["retry-after"] || null));
   }
 
-  throw new Error(`E2E login failed for ${role} (${c.user}@${c.code}): ${lastFailure}`);
+  throw new Error(`${failureLabel} for ${role} (${c.user}@${c.code}): ${lastFailure}`);
 }
 
 export async function loginTokenViaRequest(
@@ -162,29 +171,7 @@ export async function loginTokenViaRequest(
   role: TenantRole = "admin",
 ): Promise<{ access: string; refresh: string }> {
   const c = resolveCred(role);
-  let lastFailure = "";
-
-  for (let attempt = 0; attempt < LOGIN_TOKEN_MAX_ATTEMPTS; attempt += 1) {
-    const resp = await request.post(`${API_BASE}/api/v1/token/`, {
-      data: { username: c.user, password: c.pass, tenant_code: c.code },
-      headers: {
-        "Content-Type": "application/json",
-        "X-Tenant-Code": c.code,
-      },
-      timeout: 60_000,
-    });
-
-    if (resp.status() === 200) {
-      return await resp.json() as { access: string; refresh: string };
-    }
-
-    const body = await resp.text();
-    lastFailure = `${resp.status()} ${body}`;
-    if (resp.status() !== 429 || attempt === LOGIN_TOKEN_MAX_ATTEMPTS - 1) break;
-    await sleep(parseThrottleWaitMs(body, resp.headers()["retry-after"] || null));
-  }
-
-  throw new Error(`E2E request login failed for ${role} (${c.user}@${c.code}): ${lastFailure}`);
+  return requestLoginTokens(request, role, c, "E2E request login failed");
 }
 
 /**
@@ -200,7 +187,7 @@ export async function loginViaUI(
 ): Promise<void> {
   const c = resolveCred(role);
 
-  const tokens = await requestLoginTokens(page, role, c);
+  const tokens = await requestLoginTokens(page.request, role, c, "E2E login failed");
 
   const dashPath = options?.landingPath ?? (role === "student" ? "/student" : "/workspace");
   const base = trimTrailingSlash(c.base);

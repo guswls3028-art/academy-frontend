@@ -35,7 +35,10 @@ export default defineConfig({
   ...baseConfig,
   // Production-backed login/health specs form the dependency chain above.
   // The PR workflow runs route mocks in a separate closed-proxy job.
-  workers: process.env.CI ? 4 : 2,
+  // Leave one CI core for Vite and the runner; four browser workers caused
+  // cross-file action starvation and hid it behind retries.
+  workers: process.env.CI ? 3 : 2,
+  retries: 0,
   projects: [
     ...readOnlyProjects,
     {

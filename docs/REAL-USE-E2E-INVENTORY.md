@@ -28,8 +28,10 @@ spec 목록과 과거 pass count는 보관하지 않는다. 실행 목록은
 - `controlledWriteSpecs`: 명시적 opt-in과 residue cleanup이 필요한 쓰기 묶음
 
 `playwright.pr-gate.config.ts`는 운영 read-only를 dependency chain으로 만들고
-route mock만 별도 job에서 최대 4 worker로 실행한다. 운영 계정, shared tenant,
-PostgreSQL 상태를 공유하는 묶음은 병렬화하지 않는다.
+route mock만 별도 job에서 CI 최대 3 worker로 실행한다. 한 코어는 Vite와 runner에
+남겨 cross-file action starvation을 방지하고, `retries: 0`으로 흔들림을 성공으로
+가리지 않는다. 운영 계정, shared tenant, PostgreSQL 상태를 공유하는 묶음은
+병렬화하지 않는다.
 
 수동 workflow도 위 PR read-only와 route-mock gate를 서로 다른 job으로 병렬
 재사용한다. 운영 proxy가 열린 runner와 `127.0.0.1:9` 폐쇄 proxy runner를 섞지
@@ -38,6 +40,11 @@ PostgreSQL 상태를 공유하는 묶음은 병렬화하지 않는다.
 `retries: 0`을 강제해 첫 실패를 재실행으로 숨기거나 같은 mutation을 반복하지
 않는다.
 
+운영 로그인은 공통 `e2e/helpers/auth.ts` 한 곳에서만 수행한다. 일반 4xx/5xx는
+즉시 실패하고, 429의 서버 지정 대기와 토큰 요청의 일시적 transport 오류만 최대
+5회 안에서 재시도한다. spec 전체 재실행으로 실제 결함을 숨기지 않으면서 socket
+reset 같은 외부 네트워크 흔들림은 같은 read-only 로그인 경계 안에서 복구한다.
+
 ## 3. 최적화된 감사
 
 전 메뉴 감사는 관리자/개발자 desktop, 학생 mobile, 선생님 mobile을 한 job에서
@@ -45,6 +52,12 @@ PostgreSQL 상태를 공유하는 묶음은 병렬화하지 않는다.
 각 workflow는 checkout, pnpm 설치, Chromium 설치, 안전 guard, 서버/환경 준비를
 한 번만 수행한다. 테스트 자체는 계속 직렬이며 실패 artifact에는 모든 scope의
 screenshot, trace, HTML report가 함께 남는다.
+
+전 메뉴 감사의 네트워크 결함 수집은 사용자 화면의 API 경계만 소유한다. 별도
+운영 계약과 release canary가 소유하는
+`/core/product-analytics/events/batch/` telemetry는 이 감사의 결함에 중복
+산입하지 않는다. 모바일 drawer는 route 정착 뒤 메뉴 trigger가 마운트될 때까지
+bounded wait한 다음 순회한다.
 
 감사 목록에는 현재 canonical route만 둔다. 호환 alias와 외부 redirect는 각각
 집중 회귀와 공개 route 감사에서 검증하며 중복 순회하지 않는다. 데이터에 따라

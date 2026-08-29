@@ -89,6 +89,7 @@ const TRANSIENT_OVERLAY_SELECTOR = [
 const MAX_REPEATED_ROW_CLICKS = 3;
 const RECOVERABLE_RUNTIME_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const RECOVERABLE_RUNTIME_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
+const PRODUCT_ANALYTICS_BATCH_PATH = "/api/v1/core/product-analytics/events/batch/";
 const pendingRuntimeDefects = new WeakMap<AuditReport, Map<string, Defect>>();
 
 function runtimeDefectKey(method: string, url: string): string {
@@ -121,6 +122,14 @@ function flushPendingRuntimeDefects(report: AuditReport): void {
   if (!pending?.size) return;
   report.defects.push(...pending.values());
   pending.clear();
+}
+
+function isDedicatedTelemetryUrl(rawUrl: string): boolean {
+  try {
+    return new URL(rawUrl).pathname === PRODUCT_ANALYTICS_BATCH_PATH;
+  } catch {
+    return false;
+  }
 }
 
 const ADMIN_ROUTES: AuditRoute[] = [
@@ -381,6 +390,7 @@ async function installRuntimeGuards(page: Page, report: AuditReport, role: strin
     const status = response.status();
     const url = response.url();
     if (!isAppUrl(url)) return;
+    if (isDedicatedTelemetryUrl(url)) return;
 
     const method = response.request().method().toUpperCase();
     if (status < 500) {
@@ -405,6 +415,7 @@ async function installRuntimeGuards(page: Page, report: AuditReport, role: strin
     if (/ERR_ABORTED|NS_BINDING_ABORTED|net::ERR_FAILED|Target page|Frame was detached/i.test(errorText)) return;
     const url = request.url();
     if (!isAppUrl(url)) return;
+    if (isDedicatedTelemetryUrl(url)) return;
     const method = request.method().toUpperCase();
     const defect: Defect = {
       role,
@@ -800,6 +811,19 @@ async function auditRoutes({
   }
 }
 
+async function openDrawerMenu(page: Page): Promise<string | undefined> {
+  const menuButton = page.getByRole("button", { name: /메뉴(?:\s*열기)?/ }).first();
+  if (!(await menuButton.isVisible({ timeout: 20_000 }).catch(() => false))) {
+    return "menu button not visible after route settled";
+  }
+  try {
+    await menuButton.click({ timeout: 20_000 });
+    return undefined;
+  } catch (error) {
+    return String((error as Error)?.message || error);
+  }
+}
+
 async function auditDrawerMenu({
   page,
   report,
@@ -816,18 +840,17 @@ async function auditDrawerMenu({
   seenInternalLinks: Set<string>;
 }): Promise<void> {
   await gotoRoute(page, startRoute);
-  const menuButton = page.getByRole("button", { name: /메뉴(?:\s*열기)?/ }).first();
-  if (!(await menuButton.isVisible({ timeout: 5_000 }).catch(() => false))) {
+  const firstOpenError = await openDrawerMenu(page);
+  if (firstOpenError) {
     report.defects.push({
       role,
       route: startRoute.path,
       action: "drawer-open",
-      detail: "menu button not visible",
+      detail: firstOpenError,
     });
     return;
   }
 
-  await menuButton.click();
   await waitForSettledPage(page);
   const snapshot = await collectCandidates(page, scopeSelector);
   const result: RouteResult = {
@@ -858,7 +881,16 @@ async function auditDrawerMenu({
     }
 
     await gotoRoute(page, startRoute);
-    await page.getByRole("button", { name: "메뉴" }).first().click();
+    const openError = await openDrawerMenu(page);
+    if (openError) {
+      report.defects.push({
+        role,
+        route: `${startRoute.path} drawer`,
+        action: "drawer-open",
+        detail: openError,
+      });
+      break;
+    }
     await waitForSettledPage(page);
     const fresh = (await collectCandidates(page, scopeSelector)).find((item) => item.domIndex === candidate.domIndex);
     if (!fresh || fresh.skipReason) {
