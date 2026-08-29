@@ -49,7 +49,10 @@ export default defineConfig({
     },
     {
       name: "pr-iphone-webkit",
-      testMatch: [matchSpec("e2e/auth/iphone-safari-login.mock.spec.ts")],
+      testMatch: [
+        matchSpec("e2e/auth/iphone-safari-login.mock.spec.ts"),
+        matchSpec("e2e/admin/community-workspace-polish.mock.spec.ts"),
+      ],
       dependencies: [],
       use: webkit,
     },

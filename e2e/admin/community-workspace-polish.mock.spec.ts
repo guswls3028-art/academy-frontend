@@ -1,13 +1,22 @@
-import type { Page, Route } from "@playwright/test";
+import { devices, type Page, type Route } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
-import {
-  installLocalAuthApiStubs,
-  installTenantOneInitScript,
-} from "../helpers/localAuthApiStubs";
+import { installLocalAuthApiStubs } from "../helpers/localAuthApiStubs";
 import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const QUESTION_ID = 4332;
+const CORS_HEADERS = {
+  "access-control-allow-origin": BASE,
+  "access-control-allow-headers": "authorization,content-type,x-client,x-client-version,x-tenant-code",
+  "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS",
+};
+const IPAD_PROFILE = {
+  userAgent: devices["iPad Pro 11"].userAgent,
+  viewport: devices["iPad Pro 11"].viewport,
+  deviceScaleFactor: devices["iPad Pro 11"].deviceScaleFactor,
+  isMobile: devices["iPad Pro 11"].isMobile,
+  hasTouch: devices["iPad Pro 11"].hasTouch,
+};
 const IMAGE_DATA_URL = `data:image/svg+xml;base64,${Buffer.from(
   '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200"><rect width="100%" height="100%" fill="#f8f4ea"/><text x="70" y="130" font-size="56">20. 자연선택 문제</text><path d="M120 800 Q300 350 480 800 T840 800" fill="none" stroke="#222" stroke-width="18"/></svg>',
 ).toString("base64")}`;
@@ -26,10 +35,16 @@ async function seed(page: Page) {
     !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE),
     "커뮤니티 route-mock 검증은 로컬 서버 전용",
   );
-  await installTenantOneInitScript(page);
   await page.addInitScript((jwt) => {
-    localStorage.setItem("access", jwt);
-    localStorage.setItem("refresh", `${jwt}-refresh`);
+    if (!/^https?:$/.test(location.protocol)) return;
+    const generation = "community-materials-test";
+    localStorage.setItem("tenant_code", "hakwonplus");
+    sessionStorage.setItem("tenantCode", "hakwonplus");
+    localStorage.setItem(
+      `academy:auth-tokens:v1:${generation}`,
+      JSON.stringify({ access: jwt, refresh: `${jwt}-refresh`, generation }),
+    );
+    localStorage.setItem("academy:auth-active-generation:v1", generation);
   }, localJwt());
 }
 
@@ -77,9 +92,14 @@ async function installApi(page: Page) {
     const request = route.request();
     const url = new URL(request.url());
     const path = url.pathname.replace(/^\/api\/v1/, "");
-    const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
+    const json = (body: unknown, status = 200) => route.fulfill({
+      status,
+      headers: CORS_HEADERS,
+      contentType: "application/json",
+      body: JSON.stringify(body),
+    });
 
-    if (request.method() === "OPTIONS") return route.fulfill({ status: 204 });
+    if (request.method() === "OPTIONS") return route.fulfill({ status: 204, headers: CORS_HEADERS });
     if (path === "/staffs/me/") return json({ id: 12, is_payroll_manager: true });
     if (path === "/staffs/currently-working/") return json([]);
     if (path === "/community/admin/posts/") {
@@ -127,6 +147,8 @@ async function installApi(page: Page) {
 }
 
 test.describe("커뮤니티 QnA 작업대", () => {
+  test.use({ serviceWorkers: "block" });
+
   test.beforeEach(async ({ page }) => {
     await seed(page);
     await installApi(page);
@@ -192,9 +214,9 @@ test.describe("커뮤니티 QnA 작업대", () => {
     await expect(formBody.locator(".ProseMirror img")).toBeVisible();
     await expect.poll(() => formBody.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeGreaterThan(0);
 
-    await formBody.evaluate((element) => {
-      element.scrollTop = element.scrollHeight;
-    });
+    const initialFormScrollTop = await formBody.evaluate((element) => element.scrollTop);
+    await submit.scrollIntoViewIfNeeded();
+    await expect.poll(() => formBody.evaluate((element) => element.scrollTop)).toBeGreaterThan(initialFormScrollTop);
     await expect(submit).toBeInViewport();
   });
 
@@ -275,24 +297,39 @@ test.describe("커뮤니티 QnA 작업대", () => {
     await expect.poll(() => createBodies).toHaveLength(1);
   });
 
+  test.describe("iPad 프로필 자료 첨부 게이트", () => {
+    test.use(IPAD_PROFILE);
+
   for (const viewport of [
     { name: "데스크톱", width: 1366, height: 900 },
     { name: "390px", width: 390, height: 844 },
   ]) {
-    test(`${viewport.name} 자료 등록에서 운영 문서 파일을 네이티브 입력으로 선택한다`, async ({ page }) => {
+    test(`${viewport.name} 자료 등록에서 운영 문서 파일을 네이티브 입력으로 선택한다 @materials-file-picker`, async ({ page }) => {
       let uploadContentType = "";
+      let uploadRequests = 0;
+      let multipartFilenameCount = 0;
+      let createRequests = 0;
       await page.route("**/api/v1/community/posts/990/attachments/", async (route) => {
+        if (route.request().method() === "OPTIONS") {
+          await route.fulfill({ status: 204, headers: CORS_HEADERS });
+          return;
+        }
+        uploadRequests += 1;
         uploadContentType = route.request().headers()["content-type"] || "";
+        multipartFilenameCount = (route.request().postDataBuffer()?.toString("utf8").match(/filename="암기TEST\.pdf"/g) || []).length;
         await route.fulfill({
           status: 201,
+          headers: CORS_HEADERS,
           contentType: "application/json",
           body: JSON.stringify([{ id: 77, original_name: "암기TEST.pdf", size_bytes: 35 }]),
         });
       });
       await page.route("**/api/v1/community/posts/", async (route) => {
         if (route.request().method() !== "POST") return route.fallback();
+        createRequests += 1;
         await route.fulfill({
           status: 201,
+          headers: CORS_HEADERS,
           contentType: "application/json",
           body: JSON.stringify({
             id: 990,
@@ -312,7 +349,15 @@ test.describe("커뮤니티 QnA 작업대", () => {
       await page.getByPlaceholder("자료 제목을 입력하세요").fill("암기TEST");
       const fileInput = page.getByLabel("첨부할 파일 선택");
       await expect(fileInput).toBeAttached();
-      await fileInput.setInputFiles({
+      const fileInputId = await fileInput.getAttribute("id");
+      expect(fileInputId).toBeTruthy();
+      const picker = page.locator(`label[for="${fileInputId}"]`);
+      await expect(picker).toBeVisible();
+      const chooserPromise = page.waitForEvent("filechooser");
+      await picker.click();
+      const chooser = await chooserPromise;
+      expect(chooser.isMultiple()).toBe(true);
+      await chooser.setFiles({
         name: "암기TEST.pdf",
         mimeType: "application/pdf",
         buffer: Buffer.from("material room attachment regression"),
@@ -324,6 +369,80 @@ test.describe("커뮤니티 QnA 작업대", () => {
       expect(overflow).toBeLessThanOrEqual(1);
       await page.getByRole("button", { name: "등록", exact: true }).click();
       await expect.poll(() => uploadContentType).toContain("multipart/form-data");
+      await expect.poll(() => uploadRequests).toBe(1);
+      expect(multipartFilenameCount).toBe(1);
+      expect(createRequests).toBe(1);
+      await expect(page.getByText("자료가 등록되었습니다.")).toBeVisible();
     });
   }
+
+  test("390px 자료 첨부 선택 취소와 업로드 실패 뒤에도 작성 내용을 보존한다 @materials-file-picker", async ({ page }) => {
+    let uploadRequests = 0;
+    await page.route("**/api/v1/community/posts/992/attachments/", async (route) => {
+      if (route.request().method() === "OPTIONS") {
+        await route.fulfill({ status: 204, headers: CORS_HEADERS });
+        return;
+      }
+      uploadRequests += 1;
+      await route.fulfill({
+        status: 503,
+        headers: CORS_HEADERS,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "첨부 저장 실패" }),
+      });
+    });
+    await page.route("**/api/v1/community/posts/", async (route) => {
+      if (route.request().method() !== "POST") return route.fallback();
+      await route.fulfill({
+        status: 201,
+        headers: CORS_HEADERS,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: 992,
+          post_type: "materials",
+          title: "선택 보존 자료",
+          content: "",
+          created_at: "2026-08-29T12:49:00Z",
+          attachments: [],
+          mappings: [],
+        }),
+      });
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await gotoAndSettle(page, `${BASE}/workspace/community/materials`, { timeout: 60_000 });
+
+    await page.getByRole("button", { name: "+ 자료 등록" }).click();
+    const title = page.getByPlaceholder("자료 제목을 입력하세요");
+    await title.fill("선택 보존 자료");
+    const fileInput = page.getByLabel("첨부할 파일 선택");
+    const fileInputId = await fileInput.getAttribute("id");
+    expect(fileInputId).toBeTruthy();
+    const picker = page.locator(`label[for="${fileInputId}"]`);
+
+    let chooserPromise = page.waitForEvent("filechooser");
+    await picker.click();
+    let chooser = await chooserPromise;
+    await chooser.setFiles({
+      name: "보존자료.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("preserve material after cancel and upload failure"),
+    });
+    await expect(page.getByText("보존자료.pdf", { exact: true })).toBeVisible();
+
+    chooserPromise = page.waitForEvent("filechooser");
+    await picker.click();
+    chooser = await chooserPromise;
+    await chooser.setFiles([]);
+    await expect(page.getByText("보존자료.pdf", { exact: true })).toBeVisible();
+
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow).toBeLessThanOrEqual(1);
+    await page.getByRole("button", { name: "등록", exact: true }).click();
+    await expect.poll(() => uploadRequests).toBe(1);
+    await expect(page.getByText("첨부 저장 실패", { exact: true })).toBeVisible();
+    await expect(title).toHaveValue("선택 보존 자료");
+    await expect(page.getByText("보존자료.pdf", { exact: true })).toBeVisible();
+    expect(uploadRequests).toBe(1);
+  });
+  });
 });
