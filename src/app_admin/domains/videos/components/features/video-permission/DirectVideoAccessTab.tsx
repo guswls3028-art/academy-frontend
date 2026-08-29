@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { fetchStudents, studentAccountStateLabel, type ClientStudent } from "@admin/domains/students/api/students.api";
+import { fetchStudents, studentAccountStateLabel, type ClientStudent } from "@/shared/api/contracts/students";
 import {
   directVideoAccessErrorMessage,
   fetchDirectVideoEntitlements,
@@ -24,7 +24,7 @@ function entitlementState(entitlement: DirectVideoEntitlement) {
   return { label: "회수됨", tone: "neutral" as const };
 }
 
-function formatDate(value: string | null): string {
+function entitlementDate(value: string | null): string {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
@@ -299,7 +299,7 @@ export default function DirectVideoAccessTab({ videoId }: { videoId: number }) {
                       <Badge variant="soft" tone={state.tone}>{state.label}</Badge>
                     </div>
                     <p>{entitlement.reason}</p>
-                    <small>승인 {formatDate(entitlement.granted_at)}{entitlement.revoked_at ? ` · 회수 ${formatDate(entitlement.revoked_at)}` : ""}</small>
+                    <small>승인 {entitlementDate(entitlement.granted_at)}{entitlement.revoked_at ? ` · 회수 ${entitlementDate(entitlement.revoked_at)}` : ""}</small>
                   </div>
                   {entitlement.revoked_at == null ? (
                     <div className="direct-video-access__revoke">
