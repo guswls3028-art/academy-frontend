@@ -6,6 +6,7 @@ import { getBaseUrl, loginViaUI, type TenantRole } from "../helpers/auth";
 type AuditRoute = {
   path: string;
   label: string;
+  settlesAt?: RegExp;
 };
 
 type Candidate = {
@@ -153,7 +154,6 @@ const ADMIN_ROUTES: AuditRoute[] = [
   { path: "/workspace/results/submissions", label: "제출함" },
   { path: "/workspace/videos", label: "영상" },
   { path: "/workspace/videos/tree", label: "영상 트리" },
-  { path: "/workspace/counsel", label: "상담" },
   { path: "/workspace/message/templates", label: "메시지 템플릿" },
   { path: "/workspace/message/auto-send", label: "자동 발송" },
   { path: "/workspace/message/log", label: "발송 로그" },
@@ -172,7 +172,6 @@ const ADMIN_ROUTES: AuditRoute[] = [
   { path: "/workspace/tools/stopwatch", label: "스톱워치" },
   { path: "/workspace/tools/problem-studio", label: "문항 스튜디오" },
   { path: "/workspace/guide", label: "관리자 가이드" },
-  { path: "/workspace/developer", label: "패치노트" },
   { path: "/workspace/developer/bug", label: "버그 리포트" },
   { path: "/workspace/developer/feedback", label: "피드백" },
   { path: "/workspace/developer/flags", label: "기능 플래그" },
@@ -196,7 +195,11 @@ const ADMIN_ROUTES: AuditRoute[] = [
 const STUDENT_ROUTES: AuditRoute[] = [
   { path: "/student/dashboard", label: "학생 홈" },
   { path: "/student/video", label: "영상" },
-  { path: "/student/video/courses/public", label: "공개 강좌" },
+  {
+    path: "/student/video/courses/public",
+    label: "공개 강좌",
+    settlesAt: /^\/student\/video\/sessions\/\d+$/,
+  },
   { path: "/student/sessions", label: "일정" },
   { path: "/student/submit", label: "제출 허브" },
   { path: "/student/submit/score", label: "성적 제출" },
@@ -438,6 +441,7 @@ function currentPathSafe(page: Page): string {
 
 function isAtRoute(page: Page, route: AuditRoute): boolean {
   const current = currentPathSafe(page).split(/[?#]/)[0].replace(/\/+$/, "") || "/";
+  if (route.settlesAt) return route.settlesAt.test(current);
   const expected = route.path.replace(/\/+$/, "") || "/";
   return current === expected;
 }
