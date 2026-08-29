@@ -2,7 +2,7 @@
 // 자료실 — 3-pane (좌측 강의/차시 트리 | 목록 | 상세·글쓰기)
 // 공지사항·게시판과 동일한 카테고리(트리) 디자인
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useId } from "react";
 import { useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCommunityScope } from "../context/useCommunityScope";
@@ -317,6 +317,7 @@ function MatCreatePane({
   const [files, setFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputId = useId();
 
   const resolvedScope = useMemo(
     () => resolvePostNodeIdsForCreate(scopeNodes, scopeParams),
@@ -386,6 +387,7 @@ function MatCreatePane({
               첨부파일 {files.length > 0 && `(${files.length}/10)`}
             </label>
             <label
+              htmlFor={fileInputId}
               className="ds-button cms-attach__picker"
               data-intent="ghost"
               data-size="sm"
@@ -393,6 +395,7 @@ function MatCreatePane({
             >
               <span className="ds-button__label">+ 파일 추가</span>
               <input
+                id={fileInputId}
                 type="file"
                 multiple
                 aria-label="첨부할 파일 선택"
@@ -589,6 +592,7 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
 function MatAttachmentSection({ postId, attachments }: { postId: number; attachments: PostAttachment[] }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const fileInputId = useId();
 
   const uploadMut = useMutation({
     mutationFn: (files: File[]) => uploadPostAttachments(postId, files),
@@ -619,6 +623,7 @@ function MatAttachmentSection({ postId, attachments }: { postId: number; attachm
           첨부파일{attachments.length > 0 ? ` (${attachments.length}개)` : ""}
         </div>
         <label
+          htmlFor={fileInputId}
           className="ds-button cms-attach__picker"
           data-intent="ghost"
           data-size="sm"
@@ -626,6 +631,7 @@ function MatAttachmentSection({ postId, attachments }: { postId: number; attachm
         >
           <span className="ds-button__label">{uploadMut.isPending ? "업로드 중…" : "+ 파일 추가"}</span>
           <input
+            id={fileInputId}
             type="file"
             multiple
             aria-label="첨부할 파일 선택"
