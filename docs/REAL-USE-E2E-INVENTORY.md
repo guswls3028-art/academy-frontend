@@ -28,8 +28,10 @@ spec 목록과 과거 pass count는 보관하지 않는다. 실행 목록은
 - `controlledWriteSpecs`: 명시적 opt-in과 residue cleanup이 필요한 쓰기 묶음
 
 `playwright.pr-gate.config.ts`는 운영 read-only를 dependency chain으로 만들고
-route mock만 별도 job에서 최대 4 worker로 실행한다. 운영 계정, shared tenant,
-PostgreSQL 상태를 공유하는 묶음은 병렬화하지 않는다.
+route mock만 별도 job에서 CI 최대 3 worker로 실행한다. 한 코어는 Vite와 runner에
+남겨 cross-file action starvation을 방지하고, `retries: 0`으로 흔들림을 성공으로
+가리지 않는다. 운영 계정, shared tenant, PostgreSQL 상태를 공유하는 묶음은
+병렬화하지 않는다.
 
 수동 workflow도 위 PR read-only와 route-mock gate를 서로 다른 job으로 병렬
 재사용한다. 운영 proxy가 열린 runner와 `127.0.0.1:9` 폐쇄 proxy runner를 섞지

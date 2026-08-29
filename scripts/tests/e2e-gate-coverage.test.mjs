@@ -21,6 +21,7 @@ const e2eWorkflow = fs.readFileSync(
 const packageJson = JSON.parse(read("package.json"));
 const allMenuAudit = read("e2e/stability/all-menu-button-click-audit.spec.ts");
 const authHelper = read("e2e/helpers/auth.ts");
+const prGateConfig = read("playwright.pr-gate.config.ts");
 
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -134,6 +135,8 @@ test("PR read-only and route-mock gates keep separate runtime boundaries", () =>
   assert.match(e2eWorkflow, /playwright install --with-deps chromium webkit/);
   assert.match(e2eWorkflow, /run: pnpm test:e2e:gate:readonly --reporter=github,html/);
   assert.match(e2eWorkflow, /run: pnpm test:e2e:gate:mock --reporter=github,html/);
+  assert.match(prGateConfig, /workers: process\.env\.CI \? 3 : 2/);
+  assert.match(prGateConfig, /retries: 0/);
 });
 
 test("production auth retries only throttle and transport failures within one bounded owner", () => {
