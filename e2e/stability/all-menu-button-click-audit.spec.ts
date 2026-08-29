@@ -91,6 +91,11 @@ const RECOVERABLE_RUNTIME_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const RECOVERABLE_RUNTIME_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
 const PRODUCT_ANALYTICS_BATCH_PATH = "/api/v1/core/product-analytics/events/batch/";
 const pendingRuntimeDefects = new WeakMap<AuditReport, Map<string, Defect>>();
+const AUDIT_SCOPE = process.env.E2E_CLICK_AUDIT_SCOPE?.trim() || "all";
+
+function auditScopeIncludes(scope: "admin" | "student" | "teacher"): boolean {
+  return AUDIT_SCOPE === "all" || AUDIT_SCOPE === scope;
+}
 
 function runtimeDefectKey(method: string, url: string): string {
   return `${method.toUpperCase()} ${url}`;
@@ -812,7 +817,10 @@ async function auditRoutes({
 
 async function openDrawerMenu(page: Page): Promise<string | undefined> {
   const menuButton = page.getByRole("button", { name: /메뉴(?:\s*열기)?/ }).first();
-  if (!(await menuButton.isVisible({ timeout: 20_000 }).catch(() => false))) {
+  const menuReady = await menuButton
+    .waitFor({ state: "visible", timeout: 20_000 })
+    .then(() => true, () => false);
+  if (!menuReady) {
     return "menu button not visible after route settled";
   }
   try {
@@ -957,6 +965,7 @@ test.describe("전 메뉴/버튼 사람형 클릭 감사 - 데스크톱", () => 
   test.describe.configure({ retries: 0 });
 
   test("관리자 + 개발자 데스크톱 메뉴/버튼", async ({ page }) => {
+    test.skip(!auditScopeIncludes("admin"), `focused ${AUDIT_SCOPE} audit`);
     test.setTimeout(5_400_000);
     const report: AuditReport = { routes: [], defects: [] };
     const seenInternalLinks = new Set<string>();
@@ -978,6 +987,7 @@ test.describe("전 메뉴/버튼 사람형 클릭 감사 - 모바일", () => {
   test.use({ viewport: MOBILE_VIEWPORT, userAgent: MOBILE_UA });
 
   test("학생 모바일 메뉴/버튼", async ({ page }) => {
+    test.skip(!auditScopeIncludes("student"), `focused ${AUDIT_SCOPE} audit`);
     test.setTimeout(1_500_000);
     const report: AuditReport = { routes: [], defects: [] };
     const seenInternalLinks = new Set<string>();
@@ -1001,6 +1011,7 @@ test.describe("전 메뉴/버튼 사람형 클릭 감사 - 모바일", () => {
   });
 
   test("선생님 모바일 메뉴/버튼", async ({ page }) => {
+    test.skip(!auditScopeIncludes("teacher"), `focused ${AUDIT_SCOPE} audit`);
     test.setTimeout(2_400_000);
     const report: AuditReport = { routes: [], defects: [] };
     const seenInternalLinks = new Set<string>();

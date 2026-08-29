@@ -8,6 +8,21 @@ on:
         required: false
         default: false
         type: boolean
+      all_menu_scope:
+        description: "전 메뉴 감사 진단 범위. 완료 증거는 all만 인정"
+        required: false
+        default: all
+        type: choice
+        options:
+          - all
+          - admin
+          - student
+          - teacher
+      all_menu_route_filter:
+        description: "focused 진단용 route path/label 필터. 완료 실행은 비워 둠"
+        required: false
+        default: ""
+        type: string
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
@@ -313,6 +328,9 @@ jobs:
           EOF
 
       - name: Run exhaustive read-only menu audit
+        env:
+          E2E_CLICK_AUDIT_SCOPE: ${{ inputs.all_menu_scope || 'all' }}
+          E2E_CLICK_AUDIT_ROUTE_FILTER: ${{ inputs.all_menu_route_filter || '' }}
         run: >-
           pnpm exec playwright test
           e2e/stability/all-menu-button-click-audit.spec.ts

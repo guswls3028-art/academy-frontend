@@ -109,6 +109,15 @@ test("the exhaustive menu audit reuses one serial runner setup", () => {
   assert.doesNotMatch(e2eWorkflow, /All-menu audit \(\$\{\{ matrix\.scope \}\}\)/);
 });
 
+test("focused menu diagnostics cannot replace the default full audit", () => {
+  assert.match(e2eWorkflow, /all_menu_scope:[\s\S]{0,180}default: all[\s\S]{0,180}- teacher/);
+  assert.match(e2eWorkflow, /all_menu_route_filter:[\s\S]{0,160}default: ""/);
+  assert.match(e2eWorkflow, /E2E_CLICK_AUDIT_SCOPE: \$\{\{ inputs\.all_menu_scope \|\| 'all' \}\}/);
+  assert.match(e2eWorkflow, /E2E_CLICK_AUDIT_ROUTE_FILTER: \$\{\{ inputs\.all_menu_route_filter \|\| '' \}\}/);
+  assert.match(allMenuAudit, /AUDIT_SCOPE === "all" \|\| AUDIT_SCOPE === scope/);
+  assert.equal((allMenuAudit.match(/test\.skip\(!auditScopeIncludes\(/g) ?? []).length, 3);
+});
+
 test("the exhaustive menu audit owns canonical routes and explicit dynamic redirects", () => {
   assert.doesNotMatch(allMenuAudit, /path: "\/workspace\/counsel"/);
   assert.doesNotMatch(allMenuAudit, /path: "\/workspace\/developer"/);
@@ -118,6 +127,8 @@ test("the exhaustive menu audit owns canonical routes and explicit dynamic redir
   );
   assert.match(allMenuAudit, /PRODUCT_ANALYTICS_BATCH_PATH = "\/api\/v1\/core\/product-analytics\/events\/batch\/"/);
   assert.match(allMenuAudit, /const openError = await openDrawerMenu\(page\)/);
+  assert.match(allMenuAudit, /menuButton\s*\.waitFor\(\{ state: "visible", timeout: 20_000 \}\)/);
+  assert.doesNotMatch(allMenuAudit, /menuButton\.isVisible\(\{ timeout:/);
 });
 
 test("the exhaustive menu audit settles once before each usability assertion", () => {
