@@ -609,10 +609,23 @@ export default function SessionEnrollModal({
     if (!prevSession) return;
     setCopyFromPrevLoading(true);
     try {
-      const prevList = await fetchSessionEnrollments(prevSession.id);
-      const toAddRows = prevList.filter(
-        (se) => !alreadyEnrolledIds.has(se.enrollment) && se.student_id != null && !alreadyEnrolledStudentIds.has(se.student_id)
+      const [prevList, lectureList] = await Promise.all([
+        fetchSessionEnrollments(prevSession.id),
+        fetchLectureEnrollments(lectureId),
+      ]);
+      const activeStudentIds = new Set(
+        lectureList
+          .filter((enrollment) => enrollment.status === "ACTIVE")
+          .map((enrollment) => enrollment.student?.id)
+          .filter((studentId): studentId is number => studentId != null),
       );
+      const availableRows = prevList.filter(
+        (se) => !alreadyEnrolledIds.has(se.enrollment) && se.student_id != null && !alreadyEnrolledStudentIds.has(se.student_id),
+      );
+      const toAddRows = availableRows.filter(
+        (se) => se.student_id != null && activeStudentIds.has(se.student_id),
+      );
+      const inactiveCount = availableRows.length - toAddRows.length;
       const itemsToAdd: SelectedItem[] = toAddRows
         .filter((se) => se.student_id != null)
         .map((se) => {
@@ -625,7 +638,11 @@ export default function SessionEnrollModal({
           };
         });
       if (itemsToAdd.length === 0) {
-        feedback.info("가져올 새 수강생이 없습니다. (이미 모두 등록됨)");
+        feedback.info(
+          inactiveCount > 0
+            ? `현재 비활성·대기 수강생 ${inactiveCount}명은 제외했습니다. 가져올 활성 수강생이 없습니다.`
+            : "가져올 새 수강생이 없습니다. (이미 모두 등록됨)",
+        );
         return;
       }
       updateSelection((prev) => {
@@ -633,13 +650,17 @@ export default function SessionEnrollModal({
         itemsToAdd.forEach((item) => byId.set(item.id, item));
         return Array.from(byId.values());
       });
-      feedback.success(`직전 차시에서 ${itemsToAdd.length}명을 선택 목록에 추가했습니다. 아래에서 확인 후 'N명 검토 후 등록'으로 저장하세요.`);
+      if (inactiveCount > 0) {
+        feedback.warning(`직전 차시에서 ${itemsToAdd.length}명을 추가했고, 현재 비활성·대기 수강생 ${inactiveCount}명은 제외했습니다.`);
+      } else {
+        feedback.success(`직전 차시에서 ${itemsToAdd.length}명을 선택 목록에 추가했습니다. 아래에서 확인 후 'N명 검토 후 등록'으로 저장하세요.`);
+      }
     } catch (e) {
       feedback.error(e instanceof Error ? e.message : "가져오기 실패");
     } finally {
       setCopyFromPrevLoading(false);
     }
-  }, [prevSession, alreadyEnrolledIds, alreadyEnrolledStudentIds, updateSelection]);
+  }, [prevSession, lectureId, alreadyEnrolledIds, alreadyEnrolledStudentIds, updateSelection]);
 
   const toggleSelect = useCallback((student: ClientStudent) => {
     const id = student.id;

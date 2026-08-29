@@ -85,7 +85,7 @@ function normalizeLectureEnrollment(raw: unknown): LectureEnrollmentRow {
 
 export async function fetchLectureEnrollments(lectureId: number): Promise<LectureEnrollmentRow[]> {
   const res = await api.get("/enrollments/", {
-    params: { lecture: lectureId },
+    params: { lecture: lectureId, page_size: 500 },
   });
   return unwrapList(res.data).map(normalizeLectureEnrollment);
 }
