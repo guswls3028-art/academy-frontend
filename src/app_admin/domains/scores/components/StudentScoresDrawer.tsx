@@ -508,39 +508,74 @@ function ExamResultCard({
   const metaExam = meta?.exams?.find((e) => e.exam_id === exam.exam_id);
   const maxScore = exam.block.max_score ?? metaExam?.max_score ?? null;
   const percent = pctNum(exam.block.score, maxScore);
+  const [retakeRequested, setRetakeRequested] = useState(false);
+  const canStartRetake = exam.block.passed === false
+    && exam.clinic_link_id != null
+    && exam.block.teacher_resolved !== true
+    && exam.block.correction_status !== "COMPLETED";
 
   return (
     <li className="student-scores-drawer__exam-card" data-passed={exam.block.teacher_resolved === true || exam.block.final_pass === true || exam.block.passed === true ? "true" : exam.block.passed === false ? "false" : undefined}>
-      <div className="student-scores-drawer__exam-header" onClick={onToggle} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }} role="button" tabIndex={0}>
-        <div className="student-scores-drawer__exam-title-row">
-          <span className="student-scores-drawer__exam-title">{exam.title}</span>
-          <span className="student-scores-drawer__status-badges">
-            <CorrectionStatusBadge block={exam.block} sourceType="exam" />
-            <PassBadge block={exam.block} />
-          </span>
+      <div className="student-scores-drawer__exam-topline">
+        <div className="student-scores-drawer__exam-header" onClick={onToggle} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }} role="button" tabIndex={0}>
+          <div className="student-scores-drawer__exam-title-row">
+            <span className="student-scores-drawer__exam-title">{exam.title}</span>
+            <span className="student-scores-drawer__status-badges">
+              <PassBadge block={exam.block} />
+            </span>
+          </div>
+          <div className="student-scores-drawer__exam-score-row">
+            {exam.block.score != null ? (
+              <span className="student-scores-drawer__exam-score" data-tone={exam.block.passed === true ? "success" : exam.block.passed === false ? "danger" : undefined}>
+                {exam.block.score}
+                {maxScore != null && (
+                  <span className="student-scores-drawer__max-score"> / {maxScore}</span>
+                )}
+                {percent != null && <PercentBadge value={percent} passed={exam.block.passed} />}
+              </span>
+            ) : (
+              <span className="student-scores-drawer__no-score">미응시</span>
+            )}
+            {exam.block.objective_score != null && exam.block.subjective_score != null && (
+              <span className="student-scores-drawer__exam-breakdown">
+                (객 {exam.block.objective_score} + 주 {exam.block.subjective_score})
+              </span>
+            )}
+            <span className={`student-scores-drawer__expand-icon ${expanded ? "is-expanded" : ""}`} aria-hidden>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </span>
+          </div>
         </div>
-        <div className="student-scores-drawer__exam-score-row">
-          {exam.block.score != null ? (
-            <span className="student-scores-drawer__exam-score" data-tone={exam.block.passed === true ? "success" : exam.block.passed === false ? "danger" : undefined}>
-              {exam.block.score}
-              {maxScore != null && (
-                <span className="student-scores-drawer__max-score"> / {maxScore}</span>
-              )}
-              {percent != null && <PercentBadge value={percent} passed={exam.block.passed} />}
-            </span>
-          ) : (
-            <span className="student-scores-drawer__no-score">미응시</span>
+        <div className="student-scores-drawer__exam-quick-actions">
+          <CorrectionStatusControl
+            block={exam.block}
+            enrollmentId={enrollmentId}
+            sourceType="exam"
+            sourceId={exam.exam_id}
+            sessionId={sessionId}
+            disabled={hasUnsavedChanges}
+            compact
+          />
+          {canStartRetake && (
+            <button
+              type="button"
+              className="student-scores-drawer__quick-retake"
+              aria-disabled={hasUnsavedChanges}
+              title={hasUnsavedChanges ? "점수 초안을 먼저 저장한 뒤 재시험을 추가해 주세요." : "같은 원시험에 다음 재시험 점수를 기록합니다."}
+              onClick={() => {
+                if (hasUnsavedChanges) {
+                  feedback.info("점수 초안을 먼저 저장한 뒤 재시험을 추가해 주세요.");
+                  return;
+                }
+                setRetakeRequested(true);
+                if (!expanded) onToggle();
+              }}
+            >
+              재시험 기록 추가
+            </button>
           )}
-          {exam.block.objective_score != null && exam.block.subjective_score != null && (
-            <span className="student-scores-drawer__exam-breakdown">
-              (객 {exam.block.objective_score} + 주 {exam.block.subjective_score})
-            </span>
-          )}
-          <span className={`student-scores-drawer__expand-icon ${expanded ? "is-expanded" : ""}`} aria-hidden>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </span>
         </div>
       </div>
 
@@ -568,6 +603,8 @@ function ExamResultCard({
             sessionId={sessionId}
             isEditMode={isEditMode}
             onOpenDetail={onOpenDetail}
+            startNewAttempt={retakeRequested}
+            onStartNewAttemptHandled={() => setRetakeRequested(false)}
           />
         </>
       )}
@@ -799,6 +836,8 @@ function AttemptTimeline({
   sessionId,
   isEditMode,
   onOpenDetail,
+  startNewAttempt = false,
+  onStartNewAttemptHandled,
 }: {
   enrollmentId: number;
   sourceType: "exam" | "homework";
@@ -806,6 +845,8 @@ function AttemptTimeline({
   sessionId?: number;
   isEditMode: boolean;
   onOpenDetail?: () => void;
+  startNewAttempt?: boolean;
+  onStartNewAttemptHandled?: () => void;
 }) {
   const qc = useQueryClient();
   const labels = useTenantLabels();
@@ -959,10 +1000,6 @@ function AttemptTimeline({
   }
 
   function handleRetakeSubmit() {
-    if (!isEditMode) {
-      feedback.info("수정을 누른 뒤 재시험 점수를 추가해 주세요.");
-      return;
-    }
     if (!data?.clinic_link_id) return;
     const val = parseFloat(retakeScore);
     const maxScore = data.max_score ?? 100;
@@ -992,10 +1029,17 @@ function AttemptTimeline({
   }
 
   const nextAttemptIndex = (data?.attempts?.length ?? 0) + 1;
-  const canAddRetake = isEditMode && data?.clinic_link_id && !data?.resolved;
+  const canAddRetake = !!data?.clinic_link_id && !data?.resolved;
   const newAttemptPassScoreLabel = isExam
     ? (retakePassScore.trim() || (data?.pass_score != null ? String(data.pass_score) : ""))
     : (data?.pass_score != null ? String(data.pass_score) : "");
+
+  useEffect(() => {
+    if (!startNewAttempt || !canAddRetake || !data) return;
+    setShowNewAttempt(true);
+    setRetakePassScore(data.pass_score != null ? String(data.pass_score) : "");
+    onStartNewAttemptHandled?.();
+  }, [canAddRetake, data, onStartNewAttemptHandled, startNewAttempt]);
 
   return (
     <div className="student-scores-drawer__retry-section">
@@ -1282,6 +1326,7 @@ function CorrectionStatusControl({
   sourceId,
   sessionId,
   disabled,
+  compact = false,
 }: {
   block: ScoreBlock;
   enrollmentId: number;
@@ -1289,6 +1334,7 @@ function CorrectionStatusControl({
   sourceId: number;
   sessionId?: number;
   disabled: boolean;
+  compact?: boolean;
 }) {
   const qc = useQueryClient();
   const [note, setNote] = useState(block.correction_note ?? "");
@@ -1406,6 +1452,46 @@ function CorrectionStatusControl({
         : status === "NOT_REQUIRED"
           ? "만점이라 확인할 오답이 없습니다."
           : "점수를 입력한 뒤 사유와 함께 교사 통과 여부를 기록할 수 있습니다.";
+
+  if (compact) {
+    if (unavailable) {
+      return <CorrectionStatusBadge block={block} sourceType={sourceType} />;
+    }
+    const completed = status === "COMPLETED";
+    return (
+      <button
+        type="button"
+        className="ssd-correction-quick-toggle"
+        data-status={completed ? "completed" : "pending"}
+        aria-pressed={completed}
+        aria-label={completed
+          ? "교사 PASS에서 보완 필요로 변경"
+          : "보완 필요에서 교사 PASS로 변경"}
+        title={disabled
+          ? "점수 초안을 먼저 저장한 뒤 판정을 변경해 주세요."
+          : completed
+            ? "원점수는 유지하고 다시 보완 대상으로 전환합니다."
+            : "원점수는 유지하고 교사 PASS로 확정합니다."}
+        onClick={(event) => {
+          event.stopPropagation();
+          mutation.mutate({
+            completed: !completed,
+            nextNote: completed
+              ? persistedNote.trim().length >= 2
+                ? persistedNote
+                : "추가 보완 필요"
+              : persistedNote.trim().length >= 2
+                ? persistedNote
+                : "현장 보완 확인 완료",
+            action: "status",
+          });
+        }}
+        disabled={commonDisabled}
+      >
+        {mutation.isPending ? "저장 중…" : completed ? "PASS ✓" : "보완 필요 → PASS"}
+      </button>
+    );
+  }
 
   return (
     <div
