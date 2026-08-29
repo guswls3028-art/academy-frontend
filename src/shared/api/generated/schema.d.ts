@@ -11749,8 +11749,7 @@ export interface components {
                 [key: string]: unknown;
             }[];
             clinic_link_id?: number | null;
-            /** @description Assessment source category: exam, homework, or both. */
-            clinic_reason?: string | null;
+            clinic_reason?: (components["schemas"]["ClinicReasonEnum"] | components["schemas"]["NullEnum"]) | null;
             /** Format: date-time */
             created_at: string | null;
             /** Format: double */
