@@ -478,8 +478,7 @@ function isRetryableNavigationError(message: string): boolean {
   return /Timeout|ERR_ABORTED|ERR_CONNECTION_CLOSED|ERR_TIMED_OUT|ERR_HTTP2_PROTOCOL_ERROR|interrupted by another navigation|NS_BINDING_ABORTED/i.test(message);
 }
 
-async function assertUsablePage(page: Page, report: AuditReport, role: string, route: AuditRoute, action: string): Promise<void> {
-  await waitForSettledPage(page);
+async function assertSettledUsablePage(page: Page, report: AuditReport, role: string, route: AuditRoute, action: string): Promise<void> {
   const path = currentPathSafe(page);
   if (/\/login(?:\/|$|\?)/i.test(path)) {
     report.defects.push({
@@ -721,7 +720,7 @@ async function auditRoutes({
 }): Promise<void> {
   for (const route of routes) {
     await gotoRoute(page, route);
-    await assertUsablePage(page, report, role, route, "route-open");
+    await assertSettledUsablePage(page, report, role, route, "route-open");
 
     const snapshot = await collectCandidates(page);
     const result: RouteResult = {
@@ -800,7 +799,7 @@ async function auditRoutes({
         result.clicked += 1;
         const freshInternalKey = internalAnchorKey(fresh);
         if (freshInternalKey) seenInternalLinks.add(freshInternalKey);
-        await assertUsablePage(page, report, role, route, labelOf(fresh));
+        await assertSettledUsablePage(page, report, role, route, labelOf(fresh));
       }
     }
 
@@ -924,7 +923,7 @@ async function auditDrawerMenu({
       result.clicked += 1;
       const freshInternalKey = internalAnchorKey(fresh);
       if (freshInternalKey) seenInternalLinks.add(freshInternalKey);
-      await assertUsablePage(page, report, role, startRoute, labelOf(fresh));
+      await assertSettledUsablePage(page, report, role, startRoute, labelOf(fresh));
     }
   }
 
