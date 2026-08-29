@@ -38,6 +38,11 @@ PostgreSQL 상태를 공유하는 묶음은 병렬화하지 않는다.
 `retries: 0`을 강제해 첫 실패를 재실행으로 숨기거나 같은 mutation을 반복하지
 않는다.
 
+운영 로그인은 공통 `e2e/helpers/auth.ts` 한 곳에서만 수행한다. 일반 4xx/5xx는
+즉시 실패하고, 429의 서버 지정 대기와 토큰 요청의 일시적 transport 오류만 최대
+5회 안에서 재시도한다. spec 전체 재실행으로 실제 결함을 숨기지 않으면서 socket
+reset 같은 외부 네트워크 흔들림은 같은 read-only 로그인 경계 안에서 복구한다.
+
 ## 3. 최적화된 감사
 
 전 메뉴 감사는 관리자/개발자 desktop, 학생 mobile, 선생님 mobile을 한 job에서

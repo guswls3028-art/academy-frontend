@@ -20,6 +20,7 @@ const e2eWorkflow = fs.readFileSync(
 );
 const packageJson = JSON.parse(read("package.json"));
 const allMenuAudit = read("e2e/stability/all-menu-button-click-audit.spec.ts");
+const authHelper = read("e2e/helpers/auth.ts");
 
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -133,4 +134,11 @@ test("PR read-only and route-mock gates keep separate runtime boundaries", () =>
   assert.match(e2eWorkflow, /playwright install --with-deps chromium webkit/);
   assert.match(e2eWorkflow, /run: pnpm test:e2e:gate:readonly --reporter=github,html/);
   assert.match(e2eWorkflow, /run: pnpm test:e2e:gate:mock --reporter=github,html/);
+});
+
+test("production auth retries only throttle and transport failures within one bounded owner", () => {
+  assert.equal((authHelper.match(/\/api\/v1\/token\//g) ?? []).length, 1);
+  assert.match(authHelper, /LOGIN_TOKEN_MAX_ATTEMPTS = 5/);
+  assert.match(authHelper, /catch \(error\)[\s\S]{0,260}await sleep\(Math\.min\(1_000 \* \(2 \*\* attempt\), 5_000\)\)/);
+  assert.match(authHelper, /resp\.status\(\) !== 429 \|\| attempt === LOGIN_TOKEN_MAX_ATTEMPTS - 1/);
 });
