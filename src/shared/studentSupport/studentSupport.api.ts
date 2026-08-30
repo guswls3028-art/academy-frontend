@@ -189,6 +189,13 @@ export async function fetchStudentActivities(
     query?: string;
   },
 ): Promise<StudentActivityFeed> {
+  const auditPayload = {
+    days: params.days,
+    category: params.category || "",
+    include_support: params.includeSupport,
+    query: params.query?.trim() || "",
+  };
+  await api.post(`/students/${studentId}/activities/view/`, auditPayload);
   const response = await api.get<StudentActivityFeed>(
     `/students/${studentId}/activities/`,
     {

@@ -128,10 +128,21 @@ test.describe("student video CDN service errors", () => {
         });
       }
       if (path === "/student/video/videos/562/playback/") {
+        if (url.searchParams.get("access_check") === "1") {
+          expect(route.request().method()).toBe("GET");
+          return json({
+            ok: true,
+            access_mode: "FREE_REVIEW",
+            monitoring_enabled: false,
+            policy_version: 1,
+          });
+        }
+        expect(route.request().method()).toBe("POST");
         playbackRequests += 1;
         return json({
           video,
           play_url: "https://cdn.hakwonplus.com/e2e/master.m3u8?exp=1&sig=invalid&kid=v1&uid=1772",
+          policy_version: 1,
           policy: {
             access_mode: "FREE_REVIEW",
             monitoring_enabled: false,

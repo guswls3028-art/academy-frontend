@@ -28,6 +28,39 @@ test.describe("student proctored video forward-skip budget", () => {
     serviceWorkers: "block",
   });
 
+  test("playback bootstrap fails closed when the explicit POST endpoint is unavailable", async ({ page }) => {
+    const methods: string[] = [];
+    await page.route("**/api/v1/student/video/videos/902/playback/**", async (route) => {
+      methods.push(route.request().method());
+      if (route.request().method() === "POST") {
+        return route.fulfill({ status: 405, json: { detail: "Method not allowed" } });
+      }
+      return route.fulfill({
+        status: 200,
+        json: {
+          video: { id: 902, title: "legacy unsafe GET" },
+          play_url: "https://cdn.hakwonplus.com/legacy/master.m3u8",
+        },
+      });
+    });
+
+    await page.goto(`${BASE}/favicon.svg`);
+    const outcome = await page.evaluate(async () => {
+      const { fetchStudentVideoPlayback } = await import(
+        "/src/app_student/domains/video/api/video.api.ts"
+      );
+      try {
+        await fetchStudentVideoPlayback(902, {});
+        return "resolved";
+      } catch {
+        return "rejected";
+      }
+    });
+
+    expect(outcome).toBe("rejected");
+    expect(methods).toEqual(["POST"]);
+  });
+
   test("10초 승인만 이동하고 서버 잔여량을 반영해 소진 시 잠근다", async ({ page }, testInfo) => {
     const video = {
       id: 901,
@@ -47,6 +80,7 @@ test.describe("student proctored video forward-skip budget", () => {
     };
     let remainingSeconds = 20;
     let skipRequests = 0;
+    const playbackMethods: string[] = [];
 
     await page.addInitScript(({ token }) => {
       localStorage.setItem("access", token);
@@ -94,10 +128,22 @@ test.describe("student proctored video forward-skip budget", () => {
         });
       }
       if (path === "/student/video/videos/901/playback/") {
+        if (url.searchParams.get("access_check") === "1") {
+          expect(route.request().method()).toBe("GET");
+          return json({
+            ok: true,
+            access_mode: "PROCTORED_CLASS",
+            monitoring_enabled: true,
+            policy_version: 1,
+          });
+        }
+        playbackMethods.push(route.request().method());
+        expect(route.request().method()).toBe("POST");
         return json({
           video,
           play_url: "https://cdn.hakwonplus.com/e2e-budget/master.m3u8",
           playback_token: "student-budget-token",
+          policy_version: 1,
           policy: {
             access_mode: "PROCTORED_CLASS",
             monitoring_enabled: true,
@@ -146,6 +192,8 @@ test.describe("student proctored video forward-skip budget", () => {
       { waitUntil: "domcontentloaded", timeout: 120_000 },
     );
 
+    await expect.poll(() => playbackMethods.length).toBeGreaterThanOrEqual(1);
+    expect(new Set(playbackMethods)).toEqual(new Set(["POST"]));
     await expect(page.getByText("10초씩 · 0:20 남음")).toBeVisible({ timeout: 60_000 });
     await page.screenshot({ path: testInfo.outputPath("video-forward-skip-390.png"), fullPage: true });
     const forward = page.getByRole("button", { name: /10초 앞으로 건너뛰기/ });

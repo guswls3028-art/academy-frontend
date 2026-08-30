@@ -98,5 +98,14 @@ export async function fetchProblemReviewShowcaseDetail(id: number, opts?: { skip
     `${BASE}/${id}/`,
     publicConfig(opts?.skipAuth ?? true),
   );
-  return data;
+  try {
+    const view = await api.post<{ view_count: number }>(
+      `${BASE}/${id}/view/`,
+      undefined,
+      publicConfig(opts?.skipAuth ?? true),
+    );
+    return { ...data, view_count: view.data.view_count };
+  } catch {
+    return data;
+  }
 }

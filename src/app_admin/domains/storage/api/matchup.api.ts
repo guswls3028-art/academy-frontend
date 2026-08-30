@@ -963,8 +963,9 @@ export type HitReportPinsResponse = {
 export async function fetchHitReportDraft(
   docId: number,
 ): Promise<HitReportDraftResponse> {
-  const { data } = await api.get<HitReportDraftResponse>(
+  const { data } = await api.post<HitReportDraftResponse>(
     `/matchup/documents/${docId}/hit-report-draft/`,
+    undefined,
     { timeout: 120_000 },
   );
   return data;
@@ -987,8 +988,9 @@ export async function fetchHitReportCandidateBatch(
 export async function fetchHitReportQuickDraft(
   docId: number,
 ): Promise<HitReportDraftResponse> {
-  const { data } = await api.get<HitReportDraftResponse>(
+  const { data } = await api.post<HitReportDraftResponse>(
     `/matchup/documents/${docId}/hit-report-draft/`,
+    undefined,
     { params: { mode: "quick" }, timeout: 20_000 },
   );
   return data;

@@ -130,7 +130,16 @@ export async function fetchBoardDetail(id: number): Promise<PublicBoardPostDetai
     `/landing-public/board/${id}/`,
     { skipAuth: true } as ApiRequestConfig,
   );
-  return data;
+  try {
+    const view = await api.post<{ view_count: number }>(
+      `/landing-public/board/${id}/view/`,
+      undefined,
+      { skipAuth: true } as ApiRequestConfig,
+    );
+    return { ...data, view_count: view.data.view_count };
+  } catch {
+    return data;
+  }
 }
 
 export async function createBoardPost(payload: {
@@ -430,7 +439,16 @@ export async function fetchShowcaseDetail(id: number): Promise<PublicExamShowcas
     `/landing-public/showcase/${id}/`,
     { skipAuth: true } as ApiRequestConfig,
   );
-  return data;
+  try {
+    const view = await api.post<{ view_count: number }>(
+      `/landing-public/showcase/${id}/view/`,
+      undefined,
+      { skipAuth: true } as ApiRequestConfig,
+    );
+    return { ...data, view_count: view.data.view_count };
+  } catch {
+    return data;
+  }
 }
 
 export async function publishExamShowcase(payload: {
