@@ -48,7 +48,7 @@ export const feedback = {
   },
 
   /** 강조 CTA 토스트 — 학원장 mental model "다음 단계로 1클릭".
-   *  notification API 의 btn 슬롯 사용. 미주입 환경은 message fallback. */
+   *  notification API 의 actions 슬롯 사용. 미주입 환경은 message fallback. */
   successWithAction(opts: {
     message: string;
     description?: string;
@@ -58,7 +58,7 @@ export const feedback = {
     const noti = notificationApiRef.current;
     if (noti) {
       const key = `success-action-${Date.now()}`;
-      const btn = createElement(
+      const actions = createElement(
         "button",
         {
           type: "button",
@@ -76,11 +76,11 @@ export const feedback = {
         opts.action.label,
       );
       noti.success({
-        message: opts.message,
+        title: opts.message,
         description: opts.description,
         duration: opts.duration ?? 8,
         key,
-        btn,
+        actions,
       });
       return;
     }
