@@ -193,6 +193,47 @@ test("390px 선생님은 공용 기능만 보고 관리자·원장·급여 경�
   await expectNoHorizontalOverflow(page);
 });
 
+test("Mac 데스크톱은 구형 모바일 강제값에 갇히지 않는다", async ({ page }) => {
+  await installWorkspaceMocks(page, { role: "teacher" });
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await page.addInitScript(() => {
+    localStorage.setItem("workspace:preferFull:hakwonplus", "1");
+    localStorage.setItem("teacher-app-view", "mobile");
+    Object.defineProperty(window.navigator, "platform", {
+      configurable: true,
+      get: () => "MacIntel",
+    });
+  });
+
+  await gotoAndSettle(page, `${BASE}/workspace/dashboard`, { timeout: 20_000 });
+
+  await expect(page.getByRole("button", { name: "사이드바 토글" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "메뉴 열기" })).toHaveCount(0);
+  await expect(page.locator('aside[data-analytics-placement="admin.sidebar"]')).toBeVisible();
+});
+
+test("좁은 Mac 창의 선생님도 눈에 띄는 PC 버전 버튼으로 전환한다", async ({ page }) => {
+  await installWorkspaceMocks(page, { role: "teacher" });
+  await page.setViewportSize({ width: 980, height: 844 });
+  await page.addInitScript(() => {
+    Object.defineProperty(window.navigator, "platform", {
+      configurable: true,
+      get: () => "MacIntel",
+    });
+  });
+
+  await gotoAndSettle(page, `${BASE}/workspace/mobile`, { timeout: 20_000 });
+  await page.getByRole("button", { name: "메뉴", exact: true }).click();
+
+  const pcVersion = page.getByRole("button", { name: "PC 버전", exact: true });
+  await expect(pcVersion).toBeVisible();
+  await pcVersion.click();
+  await expect(page).toHaveURL(/\/workspace(?:\/dashboard)?$/);
+  await expect.poll(() => page.evaluate(() => (
+    localStorage.getItem("workspace:preferFull:hakwonplus")
+  ))).toBe("1");
+});
+
 test("390px 급여 관리자는 직원 운영만 추가되고 원장·수납 권한은 넓어지지 않는다", async ({ page }) => {
   await installWorkspaceMocks(page, { role: "teacher", payrollManager: true });
   await page.setViewportSize({ width: 390, height: 844 });

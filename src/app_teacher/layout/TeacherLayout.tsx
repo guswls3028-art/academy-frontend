@@ -34,7 +34,7 @@ export default function TeacherLayout() {
   const tenantCode = getTenantCodeForApiRequest();
   const isMobile = useIsMobile();
   const { user } = useAuth();
-  const { groups: navigationGroups, isOwnerOrAdmin } = useTeacherNavigation();
+  const { groups: navigationGroups } = useTeacherNavigation();
   useFavicon();
   useDocumentTitle();
   useTeacherSW();
@@ -97,7 +97,6 @@ export default function TeacherLayout() {
         onClose={closeDrawer}
         persistent={!isMobile}
         menuGroups={navigationGroups}
-        isOwnerOrAdmin={isOwnerOrAdmin}
       />
 
       <QuickNavigationDialog

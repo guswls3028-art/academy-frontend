@@ -131,5 +131,5 @@ export function useTeacherNavigation() {
     [feesEnabled, isOwner, isOwnerOrAdmin, recentSubmissions, recentSubmissionsLabel, totalNotifications, totalNotificationsLabel],
   );
 
-  return { groups, isOwnerOrAdmin };
+  return { groups };
 }

@@ -143,7 +143,7 @@ async function openContextualPcVersion(page: Page) {
   await page.getByRole("button", { name: "메뉴", exact: true }).click();
   const support = page.getByRole("button", { name: /지원/ });
   if (await support.isVisible()) await support.click();
-  await page.getByRole("button", { name: "PC 버전", exact: true }).click();
+  await page.getByRole("button", { name: "PC 버전", exact: true }).last().click();
 }
 
 async function returnToMobileVersion(page: Page) {
