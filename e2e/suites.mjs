@@ -80,6 +80,7 @@ export const routeMockSpecs = [
   "e2e/teacher/full-workspace-parity.mock.spec.ts",
   "e2e/teacher/dynamic-workspace-parity.mock.spec.ts",
   "e2e/teacher/ops-assistant-beta.mock.spec.ts",
+  "e2e/teacher/student-create-readback.mock.spec.ts",
 ];
 
 export const criticalInteractionSpecs = [

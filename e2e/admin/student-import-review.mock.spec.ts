@@ -39,7 +39,11 @@ async function studentWorkbook(allStudentPhonesMissing = false): Promise<Buffer>
 
 async function installStudentPage(
   page: Page,
-  options: { importResult?: Record<string, unknown> } = {},
+  options: {
+    importResult?: Record<string, unknown>;
+    onCreateStudent?: (payload: Record<string, unknown>) => void;
+    createStudentError?: { status: number; body: Record<string, unknown> };
+  } = {},
 ): Promise<void> {
   await installLocalAuthApiStubs(page);
   await installTenantOneInitScript(page);
@@ -69,6 +73,14 @@ async function installStudentPage(
     if (request.method() === "OPTIONS") return route.fulfill({ status: 204, body: "" });
     if (path === "/students/" && request.method() === "GET") {
       return json({ count: 0, page_size: 50, results: [] });
+    }
+    if (path === "/students/" && request.method() === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      options.onCreateStudent?.(payload);
+      if (options.createStudentError) {
+        return json(options.createStudentError.body, options.createStudentError.status);
+      }
+      return json({ id: 101, ...payload });
     }
     if (path === "/students/bulk_create_from_excel/" && request.method() === "POST") {
       return json({ job_id: "synthetic-student-import", status: "PENDING" }, 202);
@@ -191,6 +203,63 @@ test.describe("신규 학생 Excel 등록 확인 화면", () => {
     await expect(confirmation.getByRole("button", { name: "다시 확인" })).toBeFocused();
     expect(await confirmation.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
     await confirmation.getByRole("button", { name: "다시 확인" }).click();
+    await expect(dialog).toBeVisible();
+  });
+
+  test("학생 전화번호가 있으면 확인 화면과 생성 요청의 로그인 ID로 고정한다", async ({ page }) => {
+    let createPayload: Record<string, unknown> | null = null;
+    await installStudentPage(page, {
+      onCreateStudent: (payload) => {
+        createPayload = payload;
+      },
+    });
+    await page.goto(`${BASE}/workspace/students/home`, { waitUntil: "commit" });
+    await page.getByRole("button", { name: "학생 추가" }).first().click();
+
+    const dialog = page.getByRole("dialog", { name: "학생 등록" });
+    await dialog.getByText("1명만 등록", { exact: true }).click();
+    await dialog.getByPlaceholder("이름").fill("전화아이디 학생");
+    await dialog.getByPlaceholder("초기 비밀번호").fill("synthetic-password");
+    await dialog.getByLabel("학부모 전화 앞 4자리").fill("70001111");
+    await dialog.getByLabel("학생 전화 앞 4자리").fill("80001111");
+    await dialog.getByRole("button", { name: "등록", exact: true }).click();
+
+    const confirmation = page.getByRole("alertdialog", { name: "학생 등록 최종 확인" });
+    await expect(confirmation.getByText("01080001111", { exact: true })).toBeVisible();
+    await confirmation.getByRole("button", { name: "확인하고 등록" }).click();
+
+    await expect.poll(() => createPayload).not.toBeNull();
+    expect(createPayload).toMatchObject({
+      phone: "01080001111",
+      ps_number: "01080001111",
+    });
+    await expect(page.getByText("학생 계정 등록·ID 확인 완료", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "학생 화면 바로 검수" })).toBeVisible();
+  });
+
+  test("로그인 ID 충돌 오류는 등록 화면 안에 남아 즉시 확인할 수 있다", async ({ page }) => {
+    await installStudentPage(page, {
+      createStudentError: {
+        status: 400,
+        body: { ps_number: ["이미 사용 중인 아이디입니다. 다른 아이디를 입력해 주세요."] },
+      },
+    });
+    await page.goto(`${BASE}/workspace/students/home`, { waitUntil: "commit" });
+    await page.getByRole("button", { name: "학생 추가" }).first().click();
+
+    const dialog = page.getByRole("dialog", { name: "학생 등록" });
+    await dialog.getByText("1명만 등록", { exact: true }).click();
+    await dialog.getByPlaceholder("이름").fill("충돌확인 학생");
+    await dialog.getByPlaceholder("초기 비밀번호").fill("synthetic-password");
+    await dialog.getByLabel("학부모 전화 앞 4자리").fill("70001111");
+    await dialog.getByLabel("학생 전화 앞 4자리").fill("80001111");
+    await dialog.getByRole("button", { name: "등록", exact: true }).click();
+    await page.getByRole("alertdialog", { name: "학생 등록 최종 확인" })
+      .getByRole("button", { name: "확인하고 등록" }).click();
+
+    const persistentError = dialog.getByRole("alert");
+    await expect(persistentError).toContainText("등록 결과를 확인해 주세요.");
+    await expect(persistentError).toContainText("이미 사용 중인 아이디입니다.");
     await expect(dialog).toBeVisible();
   });
 

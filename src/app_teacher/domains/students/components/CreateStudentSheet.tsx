@@ -8,6 +8,8 @@ import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { MessageSquare } from "@teacher/shared/ui/Icons";
 import { ICON } from "@/shared/ui/ds";
 import { createStudent } from "@/shared/api/contracts/students";
+import type { ClientStudent } from "@/shared/api/contracts/students";
+import { openStudentSupportPreview } from "@/shared/studentSupport/studentSupport.api";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { teacherStudentsQueryKeys } from "../queryKeys";
@@ -26,6 +28,8 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
   const [school, setSchool] = useState("");
   const [grade, setGrade] = useState("");
   const [gender, setGender] = useState<"M" | "F" | "">("");
+  const [submitError, setSubmitError] = useState("");
+  const [createdStudent, setCreatedStudent] = useState<ClientStudent | null>(null);
 
   function normalizePhone(value: string): string {
     return value.replace(/\D/g, "").slice(0, 11);
@@ -70,29 +74,101 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
         active: true,
       });
     },
-    onSuccess: () => {
+    onSuccess: (student) => {
       qc.invalidateQueries({ queryKey: teacherStudentsQueryKeys.teacherStudents });
-      teacherToast.success(`${name} 학생이 등록되었습니다.`);
-      resetAndClose();
+      const expectedLoginId = normalizePhone(phone);
+      const actualLoginId = String(student.psNumber || "").trim();
+      if (expectedLoginId && actualLoginId !== expectedLoginId) {
+        setSubmitError("예상 로그인 ID와 실제 저장 ID가 다릅니다. 학생 화면을 확인한 뒤 아이디를 안내해 주세요.");
+        teacherToast.error("학생은 등록됐지만 로그인 ID 확인이 필요합니다.");
+      } else {
+        setSubmitError("");
+        teacherToast.success(`${name} 학생 등록과 로그인 ID 확인이 완료되었습니다.`);
+      }
+      setCreatedStudent(student);
     },
-    onError: (e) => teacherToast.error(extractApiError(e, "학생을 등록하지 못했습니다.")),
+    onError: (e) => {
+      const message = extractApiError(e, "학생을 등록하지 못했습니다.");
+      setSubmitError(message);
+      teacherToast.error(message);
+    },
   });
 
   const resetAndClose = () => {
     setName(""); setPassword("0000"); setPhone(""); setParentPhone("");
     setSchool(""); setGrade(""); setGender("");
+    setSubmitError(""); setCreatedStudent(null);
     onClose();
   };
 
   return (
     <BottomSheet open={open} onClose={resetAndClose} title="학생 추가">
+      {createdStudent ? (
+        <div className="flex flex-col gap-3" style={{ padding: "var(--tc-space-4) 0" }}>
+          <div
+            role={submitError ? "alert" : "status"}
+            style={{
+              padding: 14,
+              borderRadius: "var(--tc-radius)",
+              border: `1px solid ${submitError ? "var(--tc-danger)" : "var(--tc-success)"}`,
+              background: submitError ? "var(--tc-danger-bg)" : "var(--tc-success-bg)",
+            }}
+          >
+            <div className="text-sm font-bold" style={{ color: "var(--tc-text)" }}>
+              {submitError ? "등록 완료 · 계정 확인 필요" : "등록 완료 · 계정 준비됨"}
+            </div>
+            <div className="text-[12px] mt-1" style={{ color: "var(--tc-text-secondary)" }}>
+              로그인 ID: <strong>{createdStudent.psNumber || "확인되지 않음"}</strong>
+            </div>
+            {submitError && (
+              <div className="text-[12px] mt-2" style={{ color: "var(--tc-danger)" }}>{submitError}</div>
+            )}
+          </div>
+          <button
+            type="button"
+            className="w-full text-sm font-bold cursor-pointer"
+            style={{ padding: 12, borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff" }}
+            onClick={() => {
+              void openStudentSupportPreview(createdStudent.id).catch((error) => {
+                const message = error instanceof Error ? error.message : "학생 화면을 열지 못했습니다.";
+                setSubmitError(message);
+                teacherToast.error(message);
+              });
+            }}
+          >
+            학생 화면 바로 검수
+          </button>
+          <button
+            type="button"
+            className="w-full text-sm font-semibold cursor-pointer"
+            style={{ padding: 11, borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text)" }}
+            onClick={resetAndClose}
+          >
+            확인하고 닫기
+          </button>
+        </div>
+      ) : (
       <div className="flex flex-col gap-2.5" style={{ padding: "var(--tc-space-3) 0" }}>
         <Field label="이름 *" value={name} onChange={setName} placeholder="학생 이름" />
         <Field label="초기 비밀번호" value={password} onChange={setPassword} placeholder="0000" />
         <div className="flex gap-2">
-          <Field label="학생 전화" value={phone} onChange={setPhone} placeholder="010-" type="tel" />
+          <Field label="학생 전화 (로그인 ID)" value={phone} onChange={setPhone} placeholder="010-" type="tel" />
           <Field label="학부모 전화" value={parentPhone} onChange={setParentPhone} placeholder="010-" type="tel" />
         </div>
+        <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+          학생 전화를 입력하면 그 번호를 로그인 ID로 사용합니다. 비우면 ID가 자동 부여됩니다.
+        </div>
+
+        {submitError && (
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="text-[12px] font-semibold"
+            style={{ padding: "10px 12px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-danger)", background: "var(--tc-danger-bg)", color: "var(--tc-danger)" }}
+          >
+            {submitError}
+          </div>
+        )}
         <div
           className="flex items-center gap-2"
           style={{
@@ -145,6 +221,7 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
         </div>
 
       </div>
+      )}
     </BottomSheet>
   );
 }
