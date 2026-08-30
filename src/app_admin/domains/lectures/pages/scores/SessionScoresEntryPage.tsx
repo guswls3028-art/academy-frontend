@@ -30,7 +30,7 @@ import { DomainListToolbar, getStoredTableOption, setStoredTableOption } from "@
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
-import { substituteScoreVars, buildScoreVars, buildScoreDetail, buildGenericScoreTemplate } from "@/shared/scoring/scoreReport";
+import { substituteScoreVars, buildScoreVars, buildScoreDetail, buildGenericScoreTemplate, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
 import { DEFAULT_GRADES_PRESET_ID } from "@/shared/messaging/gradeTemplatePreset";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchSessionEnrollments } from "@/shared/api/contracts/sessionEnrollments";
@@ -718,6 +718,16 @@ export default function SessionScoresEntryPage({
               const rows = freshData?.rows ?? [];
               const selectedRows = rows.filter((r) => selectedEnrollmentIds.includes(r.enrollment_id));
               const meta = freshData?.meta ?? null;
+              const unenteredItemCount = selectedRows.reduce(
+                (count, row) => count + collectUnenteredScoreItems(row).length,
+                0,
+              );
+              if (unenteredItemCount > 0) {
+                feedback.error(
+                  `점수가 입력되지 않은 시험·과제가 ${unenteredItemCount}건 있습니다. 점수를 입력하거나 /로 미응시·미제출을 확정한 뒤 발송해 주세요.`,
+                );
+                return;
+              }
               const activeStudentIds = selectedRows
                 .map((row) => row.student_id)
                 .filter((id): id is number => id != null && Number.isFinite(id));
