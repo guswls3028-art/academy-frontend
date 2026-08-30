@@ -8,8 +8,13 @@ export type TeacherClinicSession = {
   title?: string | null;
   date?: string | null;
   start_time?: string | null;
+  end_time?: string | null;
+  duration_minutes?: number | null;
   location?: string | null;
   participant_count?: number | null;
+  booked_count?: number | null;
+  max_participants?: number | null;
+  is_full?: boolean | null;
 };
 
 export type TeacherClinicParticipantStatus =
@@ -147,6 +152,14 @@ export async function createClinicParticipant(payload: {
   clinic_reason?: string;
 }): Promise<TeacherClinicParticipant> {
   const res = await api.post("/clinic/participants/", payload);
+  return res.data;
+}
+
+export async function createClinicParticipantsBulk(payload: {
+  session_ids: number[];
+  student_ids: number[];
+}): Promise<{ count: number; participants: TeacherClinicParticipant[] }> {
+  const res = await api.post("/clinic/participants/bulk-create/", payload);
   return res.data;
 }
 

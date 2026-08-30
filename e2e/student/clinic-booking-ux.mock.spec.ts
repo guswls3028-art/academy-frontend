@@ -86,7 +86,7 @@ const sessions = [
     title: "토요일 5시 클리닉",
     date: openDate,
     start_time: "17:00:00",
-    end_time: "18:30:00",
+    end_time: "18:00:00",
     location: "1층 세미나실",
     participant_count: 6,
     booked_count: 6,
@@ -96,10 +96,10 @@ const sessions = [
   },
   {
     id: 203,
-    title: "토요일 7시 클리닉",
+    title: "토요일 6시 클리닉",
     date: openDate,
-    start_time: "19:00:00",
-    end_time: "20:30:00",
+    start_time: "18:00:00",
+    end_time: "19:00:00",
     location: "3층 자습실",
     participant_count: 1,
     booked_count: 1,
@@ -210,24 +210,27 @@ async function installApi(
     if (path === "/clinic/participants/" && method === "GET") {
       return json({ count: state.bookings.length, results: state.bookings });
     }
-    if (path === "/clinic/participants/" && method === "POST") {
+    if (path === "/clinic/participants/bulk-create/" && method === "POST") {
       const payload = request.postDataJSON() as Record<string, unknown>;
       state.bookingPayloads.push(payload);
-      const booking = {
-        id: 503,
-        session: payload.session,
-        session_title: "토요일 5시 클리닉",
-        session_date: openDate,
-        session_start_time: "17:00:00",
-        session_location: "1층 세미나실",
+      const selectedSessions = sessions.filter((session) => (
+        (payload.session_ids as number[]).includes(session.id)
+      ));
+      const bookings = selectedSessions.map((session, index) => ({
+        id: 503 + index,
+        session: session.id,
+        session_title: session.title,
+        session_date: session.date,
+        session_start_time: session.start_time,
+        session_location: session.location,
         status: "pending",
         student_request_memo: payload.student_request_memo,
         preferred_start_time: payload.preferred_start_time,
         preferred_end_time: payload.preferred_end_time,
         created_at: new Date().toISOString(),
-      };
-      state.bookings = [...state.bookings, booking];
-      return json(booking, 201);
+      }));
+      state.bookings = [...state.bookings, ...bookings];
+      return json({ count: bookings.length, participants: bookings }, 201);
     }
     const cancellation = path.match(/^\/clinic\/participants\/(\d+)\/set_status\/$/);
     if (cancellation && method === "PATCH") {
@@ -468,15 +471,15 @@ test.describe("학생 클리닉 예약 UX", () => {
     const openDateRegion = page.getByRole("region", { name: koreanDateLabel(openDate) });
     await expect(bookedDateRegion).toContainText("대수 오답 클리닉");
     await expect(openDateRegion).toContainText("토요일 5시 클리닉");
-    await expect(openDateRegion).toContainText("17:00–18:30");
+    await expect(openDateRegion).toContainText("17:00–18:00");
     await expect(openDateRegion).toContainText("1층 세미나실");
     await expect(openDateRegion).toContainText("내 보강과 맞음");
     await expect(openDateRegion.getByText("3개 수업", { exact: true })).toBeVisible();
     await expect(page.getByLabel("2일, 4개 시간대")).toBeVisible();
     await expect(openDateRegion.locator("button span").filter({ hasText: /^\d{2}:\d{2}–/ })).toHaveText([
       "13:00–14:30",
-      "17:00–18:30",
-      "19:00–20:30",
+      "17:00–18:00",
+      "18:00–19:00",
     ]);
     await expect(page.getByRole("button", { name: "이전 달" })).toHaveCount(0);
 
@@ -562,12 +565,10 @@ test.describe("학생 클리닉 예약 UX", () => {
 
     await expect.poll(() => state.bookingPayloads).toEqual([
       {
-        session: 202,
+        session_ids: [202],
         student_request_memo: "개념서 지참",
         preferred_end_time: "18:00",
         preferred_start_time: "17:30",
-        source: "student_request",
-        status: "pending",
       },
     ]);
     await expect(page.getByRole("status")).toContainText("예약 신청이 접수되었습니다.");
@@ -583,6 +584,48 @@ test.describe("학생 클리닉 예약 UX", () => {
 
     await expect.poll(() => state.cancelledIds).toEqual([503]);
     await expect(page.getByText("예약 신청이 취소되었습니다.")).toBeVisible();
+  });
+
+  test("같은 날의 1시간 시간대 두 개를 17시부터 19시까지 한 번에 예약한다", async ({ page }) => {
+    const state = createState();
+    await seed(page);
+    await installApi(page, state);
+    await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+
+    const openDateRegion = page.getByRole("region", { name: koreanDateLabel(openDate) });
+    await openDateRegion.getByRole("button", { name: /토요일 5시 클리닉/ }).click();
+    await openDateRegion.getByRole("button", { name: /토요일 6시 클리닉/ }).click();
+
+    const selection = page.getByRole("region", { name: "선택한 클리닉 시간" });
+    await expect(selection).toContainText("17:00–19:00");
+    await expect(selection).toContainText("2개 시간대");
+    await expect(selection).toContainText("총 2시간");
+    await selection.scrollIntoViewIfNeeded();
+    expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await page.screenshot({ path: "test-results/student-clinic-multi-slot-390.png", fullPage: true });
+
+    await page.setViewportSize({ width: 1100, height: 800 });
+    await expect(selection).toContainText("17:00–19:00");
+    await selection.scrollIntoViewIfNeeded();
+    expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await page.screenshot({ path: "test-results/student-clinic-multi-slot-1100.png", fullPage: true });
+
+    await selection.getByLabel("학원에 전할 내용 (선택)").fill("두 시간 연속 참여");
+    await selection.getByRole("button", { name: "2개 시간대 예약하기" }).click();
+
+    await expect.poll(() => state.bookingPayloads).toEqual([{
+      session_ids: [202, 203],
+      student_request_memo: "두 시간 연속 참여",
+    }]);
+    await expect(page.getByRole("status")).toContainText("2개 시간대 예약 신청이 접수되었습니다.");
+
+    await page.getByRole("tab", { name: "내 일정 3" }).click();
+    await expect(page.locator("article").filter({ hasText: "토요일 5시 클리닉" })).toBeVisible();
+    await expect(page.locator("article").filter({ hasText: "토요일 6시 클리닉" })).toBeVisible();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: "내 일정 3" }).click();
+    await expect(page.locator("article").filter({ hasText: "토요일 6시 클리닉" })).toContainText("두 시간 연속 참여");
+    expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   });
 
   test("미해소 대상의 승인 대기 예약을 귀가 불가 상태로 표시하고 reload 후 유지한다", async ({ page }) => {

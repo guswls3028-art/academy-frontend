@@ -100,3 +100,10 @@
     transform: translateY(0);
   }
 }
+
+@media (min-width: 1024px) {
+  .overlay,
+  .sheet {
+    left: var(--tc-sidebar-w);
+  }
+}

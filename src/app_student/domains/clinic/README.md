@@ -16,13 +16,18 @@
    추천 여부와 무관하게 13시·17시·19시처럼 시작 시간순을 유지합니다.
 3. 대상 강의와 맞는 세션은 **내 보강과 맞음**으로 안내하되, 최종 예약
    가능 여부와 수강 연결은 백엔드가 결정합니다.
-4. 세션에서 `allow_time_preference`를 허용한 경우에만 학생이 세션 범위 안의
+4. 같은 날짜의 시간 카드는 여러 개 선택할 수 있습니다. 17:00–18:00과
+   18:00–19:00을 고르면 선택 영역은 **17:00–19:00 · 2개 시간대 · 총 2시간**으로
+   묶어 보여 주고 한 번에 신청합니다. 날짜가 다른 카드를 선택하면 기존 선택을
+   새 날짜로 바꾸며, 각 세션의 정원과 예약 행은 독립적으로 유지됩니다.
+5. 세션에서 `allow_time_preference`를 허용한 경우에만 학생이 세션 범위 안의
    희망 시작·종료 시간을 함께 요청할 수 있습니다. 이는 실제 세션 시간을 바꾸는
    예약 확정값이 아니며, 출처가 분명한 학생·학부모 요청
-   `student_request_memo`와 함께 교직원이 검토합니다.
-5. 학생이 세션을 고르고 신청하면 학원 설정에 따라 `pending` 또는
+   `student_request_memo`와 함께 교직원이 검토합니다. 희망 시간은 시간대를
+   하나만 선택했을 때만 입력할 수 있습니다.
+6. 학생이 세션을 고르고 신청하면 학원 설정에 따라 `pending` 또는
    `booked`가 됩니다.
-6. **내 일정**에서 `pending` 예약은 다른 날짜·시간으로 원자적으로
+7. **내 일정**에서 `pending` 예약은 다른 날짜·시간으로 원자적으로
    변경하거나 취소할 수 있습니다. `booked` 변경·취소는 학원에 요청합니다.
 
 ## 상태와 API 소유권
@@ -33,7 +38,7 @@
   query도 즉시 무효화합니다.
 - 예약 가능 세션: `GET /clinic/sessions/`
 - 내 예약: `GET /clinic/participants/`
-- 신청: `POST /clinic/participants/`
+- 단일·다중 신청: `POST /clinic/participants/bulk-create/`의 `session_ids`
 - 일정 변경: `POST /clinic/participants/{id}/change-booking/`
 - 취소: `PATCH /clinic/participants/{id}/set_status/`
 - 희망 시간: 신청·변경 payload의 `preferred_start_time` + `preferred_end_time`
@@ -83,7 +88,8 @@
   날짜의 수업 수를 함께 보여 줍니다. 날짜표 오른쪽의 시간 카드들은 개설
   시간·종료 시간·장소·잔여 정원 순으로 읽을 수 있습니다.
 - 예약 입력 영역은 첫 화면에서 자동으로 펼치지 않으며, 학생이 원하는
-  시간 카드를 선택한 경우에만 해당 카드 안에 표시합니다.
+  시간 카드를 선택한 경우에만 해당 날짜의 시간 카드 아래에 표시합니다.
+  선택된 시간대는 개별 칩과 전체 이용 범위를 함께 표시합니다.
 - 390px 모바일에서 날짜표·시간·장소·상태·행동 버튼이 가로로 넘치지 않아야
   하며, 보강 항목이 많아도 페이지 가로 폭은 늘어나지 않아야 합니다. 키보드
   포커스와 `prefers-reduced-motion`을 지원합니다.
@@ -92,11 +98,13 @@
 
 ## 검증
 
-- 학생 화면·보강 항목 전체 최근순·동일 날짜 다중 시간대 정렬·날짜 가시성·다른 날짜 변경·패스카드 판정:
+- 학생 화면·보강 항목 전체 최근순·동일 날짜 다중 시간대 선택·원자 신청·새로고침 지속·다른 날짜 변경·패스카드 판정:
   `e2e/student/clinic-booking-ux.mock.spec.ts`
 - 관리자 날짜별 반복 개설·시간순 카드·생성 진입점:
   `e2e/admin/clinic-weekly-multisession.mock.spec.ts`
-- 권한·다중 수강 연결·원자적 변경:
+- 다중 시간대 API 권한·정원 전체 롤백·교직원 다중 학생 추가:
+  `backend/tests/test_clinic_multi_slot_booking_api.py`
+- 기존 권한·다중 수강 연결·원자적 변경:
   `backend/apps/domains/clinic/tests.py::StudentClinicPermissionAPITest`
 - 대상 생성부터 동일 날짜 다중 시간대 예약·출석·재시험 해소:
   `e2e/student/clinic-remediation-realuse.spec.ts`

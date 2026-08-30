@@ -425,6 +425,7 @@ function ParticipantList({
         open={addOpen}
         onClose={() => setAddOpen(false)}
         sessionId={sessionId}
+        availableSessions={availableSessions}
         alreadyParticipantStudentIds={alreadyStudentIds}
       />
       {actionDialog && (

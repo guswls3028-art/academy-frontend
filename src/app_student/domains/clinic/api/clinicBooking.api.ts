@@ -187,42 +187,45 @@ export async function fetchMyClinicBookingRequests(): Promise<ClinicBookingReque
 
 /**
  * 클리닉 예약 신청
- * POST /clinic/participants/
+ * POST /clinic/participants/bulk-create/
  *
- * ✅ 이미 생성된 클리닉(세션)만 예약 가능 — session 필수
+ * ✅ 이미 생성된 같은 날짜의 클리닉(세션)만 예약 가능 — session_ids 필수
  * 백엔드에서 student, source, status, enrollment_id 자동 설정
  */
-export async function createClinicBookingRequest(data: {
-  session: number;
+export async function createClinicBookingRequests(data: {
+  session_ids: number[];
   student_request_memo?: string;
   preferred_start_time?: string;
   preferred_end_time?: string;
-}): Promise<ClinicBookingRequest> {
-  if (!data.session) {
+}): Promise<ClinicBookingRequest[]> {
+  if (data.session_ids.length === 0) {
     throw new Error("등록 가능한 클리닉 시간을 선택해주세요.");
   }
-  const res = await api.post<ClinicParticipantRaw>("/clinic/participants/", {
-    source: "student_request",
-    status: "pending",
-    session: data.session,
+  const res = await api.post<{
+    count: number;
+    participants: ClinicParticipantRaw[];
+  }>("/clinic/participants/bulk-create/", {
+    session_ids: data.session_ids,
     student_request_memo: data.student_request_memo ?? undefined,
     preferred_start_time: data.preferred_start_time ?? undefined,
     preferred_end_time: data.preferred_end_time ?? undefined,
   });
 
-  const status = normalizeBookingStatus(res.data.status) ?? "pending";
-  return normalizeClinicBookingRequest({
-    id: res.data.id,
-    session: res.data.session,
-    session_title: res.data.session_title,
-    session_date: res.data.session_date,
-    session_start_time: res.data.session_start_time,
-    session_location: res.data.session_location || null,
-    status,
-    student_request_memo: res.data.student_request_memo,
-    preferred_start_time: res.data.preferred_start_time,
-    preferred_end_time: res.data.preferred_end_time,
-    created_at: res.data.created_at,
+  return res.data.participants.map((participant) => {
+    const status = normalizeBookingStatus(participant.status) ?? "pending";
+    return normalizeClinicBookingRequest({
+      id: participant.id,
+      session: participant.session,
+      session_title: participant.session_title,
+      session_date: participant.session_date,
+      session_start_time: participant.session_start_time,
+      session_location: participant.session_location || null,
+      status,
+      student_request_memo: participant.student_request_memo,
+      preferred_start_time: participant.preferred_start_time,
+      preferred_end_time: participant.preferred_end_time,
+      created_at: participant.created_at,
+    });
   });
 }
 
