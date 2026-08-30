@@ -859,7 +859,9 @@ function EditPane({
     reviewRow.score == null &&
     reviewRow.enrollment_id != null &&
     reviewRow.enrollment_id === detail.enrollment_id &&
-    String(reviewRow.identifier_status).toLowerCase() === "matched_fuzzy" &&
+    ["matched", "matched_fuzzy"].includes(
+      String(reviewRow.identifier_status).toLowerCase(),
+    ) &&
     detail.target_type === "exam" &&
     detail.target_id === examId &&
     hasSameIdentifierReviewReasons,
