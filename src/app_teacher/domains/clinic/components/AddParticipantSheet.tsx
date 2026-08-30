@@ -54,6 +54,9 @@ export default function AddParticipantSheet({
   const selectedSessions = sessions.filter((session) => selectedSessionIds.includes(session.id));
   const firstSelected = selectedSessions[0];
   const lastSelected = selectedSessions[selectedSessions.length - 1];
+  const selectedSessionsAllowMultiple = selectedSessions.every(
+    (session) => session.allow_multi_slot_booking === true,
+  );
   const selectedRange = firstSelected && lastSelected
     ? `${hhmm(firstSelected.start_time)}–${hhmm(lastSelected.end_time ?? lastSelected.start_time)}`
     : "시간대를 선택하세요";
@@ -121,7 +124,7 @@ export default function AddParticipantSheet({
               추가할 시간대
             </span>
             <span className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
-              같은 날짜에서 여러 개 선택
+              허용된 일정끼리 여러 개 선택
             </span>
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -132,12 +135,15 @@ export default function AddParticipantSheet({
                 session.max_participants != null
                 && (session.booked_count ?? session.participant_count ?? 0) >= session.max_participants
               );
+              const policyBlocked = !checked && (
+                session.allow_multi_slot_booking !== true || !selectedSessionsAllowMultiple
+              );
               return (
                 <button
                   key={session.id}
                   type="button"
                   aria-pressed={checked}
-                  disabled={fixed || full}
+                  disabled={fixed || full || policyBlocked}
                   onClick={() => setSelectedSessionIds((current) => (
                     current.includes(session.id)
                       ? current.filter((id) => id !== session.id)
@@ -154,6 +160,7 @@ export default function AddParticipantSheet({
                   }}
                 >
                   {hhmm(session.start_time)}–{hhmm(session.end_time ?? session.start_time)}
+                  {session.allow_multi_slot_booking === true ? " · 여러 시간대" : " · 한 타임"}
                 </button>
               );
             })}

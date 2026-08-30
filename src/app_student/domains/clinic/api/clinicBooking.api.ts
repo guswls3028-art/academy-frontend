@@ -44,6 +44,7 @@ export type ClinicSession = {
   /** 백엔드가 내려주면 사용, 없으면 booked_count >= max_participants로 계산 */
   is_full?: boolean;
   allow_time_preference?: boolean;
+  allow_multi_slot_booking?: boolean;
   target_lecture_names?: Array<{
     id: number;
     title: string;
@@ -82,6 +83,7 @@ function normalizeBookingStatus(status: ClinicParticipantRaw["status"]): ClinicB
 function normalizeClinicSession(session: ClinicSession): ClinicSession {
   return {
     ...session,
+    allow_multi_slot_booking: session.allow_multi_slot_booking === true,
     title: session.title == null ? session.title : richHtmlToPlainText(session.title),
     location: richHtmlToPlainText(session.location),
     target_lecture_names: Array.isArray(session.target_lecture_names)

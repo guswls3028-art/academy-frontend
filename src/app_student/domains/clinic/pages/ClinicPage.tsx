@@ -282,6 +282,10 @@ export default function ClinicPage() {
     selectedSessionIds.includes(session.id)
   ));
   const selectedSession = selectedSessions.length === 1 ? selectedSessions[0] : null;
+  const activeBookedSessions = orderedSessions.filter((session) => myRequests.some(
+    (request) => request.session === session.id &&
+      (request.status === "pending" || request.status === "booked"),
+  ));
 
   useEffect(() => {
     setSelectedSessionIds((current) => {
@@ -295,7 +299,14 @@ export default function ClinicPage() {
             (request.status === "pending" || request.status === "booked"),
         );
       });
-      return available.length === current.length ? current : available;
+      const policySafe = available.length > 1 && available.some((sessionId) => (
+        orderedSessions.find((session) => session.id === sessionId)?.allow_multi_slot_booking !== true
+      ))
+        ? available.slice(0, 1)
+        : available;
+      return policySafe.length === current.length && policySafe.every((id, index) => id === current[index])
+        ? current
+        : policySafe;
     });
   }, [changingBooking?.session, myRequests, orderedSessions]);
 
@@ -408,6 +419,13 @@ export default function ClinicPage() {
     if (mutationsPending) return;
     if (selectedSessionIds.length === 0) {
       studentToast.info("예약할 클리닉 일정을 선택해 주세요.");
+      return;
+    }
+    if (
+      selectedSessionIds.length > 1 &&
+      selectedSessions.some((session) => session.allow_multi_slot_booking !== true)
+    ) {
+      studentToast.info("여러 시간대 예약이 가능한 일정끼리만 함께 선택해 주세요.");
       return;
     }
     if (selectedSession?.allow_time_preference && (preferredStart || preferredEnd) && (
@@ -656,7 +674,7 @@ export default function ClinicPage() {
                   <p className={styles.openScheduleGuide}>
                     {changingBooking
                       ? "변경할 시간대 하나를 선택해 주세요."
-                      : "같은 날짜의 시간대를 여러 개 선택할 수 있어요."}
+                      : "‘여러 시간대 가능’ 일정끼리는 같은 날짜에 함께 선택할 수 있어요."}
                   </p>
                 </div>
                 <div
@@ -707,7 +725,20 @@ export default function ClinicPage() {
                                 request.session === session.id &&
                                 (request.status === "pending" || request.status === "booked"),
                             );
-                            const disabled = full || currentChangingSession || !!activeRequest;
+                            const policyBlockedBySelection = !selected && selectedSessions.length > 0 && (
+                              session.allow_multi_slot_booking !== true ||
+                              selectedSessions.some((item) => item.allow_multi_slot_booking !== true)
+                            );
+                            const policyBlockedByExisting = activeBookedSessions.some((activeSession) => (
+                              activeSession.id !== session.id &&
+                              activeSession.date === session.date &&
+                              (
+                                activeSession.allow_multi_slot_booking !== true ||
+                                session.allow_multi_slot_booking !== true
+                              )
+                            ));
+                            const disabled = full || currentChangingSession || !!activeRequest ||
+                              (!changingBooking && (policyBlockedBySelection || policyBlockedByExisting));
                             const remaining = session.max_participants == null
                               ? null
                               : Math.max(
@@ -772,6 +803,11 @@ export default function ClinicPage() {
                                         희망 시간 입력 가능
                                       </span>
                                     )}
+                                    <span className={styles.preferenceBadge}>
+                                      {session.allow_multi_slot_booking === true
+                                        ? "여러 시간대 가능"
+                                        : "한 타임만 예약"}
+                                    </span>
                                   </div>
                                   <span className={styles.sessionAside}>
                                     {recommended && !activeRequest && !currentChangingSession && (
@@ -785,6 +821,8 @@ export default function ClinicPage() {
                                       <span className={styles.bookedBadge}>현재 예약</span>
                                     ) : full ? (
                                       <span className={styles.fullBadge}>정원 마감</span>
+                                    ) : policyBlockedBySelection || policyBlockedByExisting ? (
+                                      <span className={styles.fullBadge}>한 타임만 가능</span>
                                     ) : selected ? (
                                       <span className={styles.selectedBadge}>선택됨</span>
                                     ) : remaining == null ? (

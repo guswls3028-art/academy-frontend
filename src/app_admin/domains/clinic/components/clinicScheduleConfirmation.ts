@@ -41,6 +41,7 @@ type CreateSummary = {
   selectedCount: number;
   selectedStudentSummary: string;
   allowTimePreference: boolean;
+  allowMultiSlotBooking: boolean;
 };
 
 export function buildClinicCreateConfirmationMessage() {
@@ -58,6 +59,7 @@ export function buildClinicCreateConfirmationReview(summary: CreateSummary): Con
       { label: "정원", value: `${summary.maxParticipants}명` },
       { label: "공개 대상", value: summary.filterSummary || "전체 학생" },
       { label: "희망 시간", value: summary.allowTimePreference ? "학생 요청 받음" : "받지 않음" },
+      { label: "같은 날 예약", value: summary.allowMultiSlotBooking ? "여러 시간대 허용" : "한 타임만 허용" },
       {
         label: "즉시 배정",
         value: summary.selectedCount > 0
@@ -80,6 +82,8 @@ type EditSummary = {
   afterFilterSummary: string;
   beforeAllowTimePreference: boolean;
   afterAllowTimePreference: boolean;
+  beforeAllowMultiSlotBooking: boolean;
+  afterAllowMultiSlotBooking: boolean;
 };
 
 export function buildClinicEditConfirmationMessage() {
@@ -98,6 +102,10 @@ export function buildClinicEditConfirmationReview(summary: EditSummary): Confirm
       {
         label: "희망 시간",
         value: `${summary.beforeAllowTimePreference ? "받음" : "받지 않음"} → ${summary.afterAllowTimePreference ? "받음" : "받지 않음"}`,
+      },
+      {
+        label: "같은 날 예약",
+        value: `${summary.beforeAllowMultiSlotBooking ? "여러 시간대" : "한 타임"} → ${summary.afterAllowMultiSlotBooking ? "여러 시간대" : "한 타임"}`,
       },
     ],
     note: "예약 학생이 있으면 변경 후 운영 화면에서 알림 내용을 한 번 더 검토할 수 있습니다.",

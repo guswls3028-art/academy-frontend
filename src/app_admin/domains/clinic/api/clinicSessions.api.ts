@@ -28,6 +28,8 @@ export type ClinicSessionTreeNode = {
   section_type?: "CLASS" | "CLINIC" | null;
   /** 학생이 예약 신청 시 희망 시작/종료 시간을 남길 수 있는지 */
   allow_time_preference?: boolean;
+  /** 같은 날짜의 다른 허용 세션을 함께 예약할 수 있는지 */
+  allow_multi_slot_booking: boolean;
 };
 
 function normalizeDate(s: string): string {
@@ -113,6 +115,7 @@ export async function fetchClinicSessionTree(params: {
       section_label: row.section_label == null ? null : toStringValue(row.section_label),
       section_type: toSectionType(row.section_type),
       allow_time_preference: row.allow_time_preference === true,
+      allow_multi_slot_booking: row.allow_multi_slot_booking === true,
     }));
 }
 
@@ -151,6 +154,7 @@ export async function updateClinicSession(
     target_lecture_ids?: number[];
     section?: number | null;
     allow_time_preference?: boolean;
+    allow_multi_slot_booking?: boolean;
   }
 ): Promise<void> {
   await api.patch(`/clinic/sessions/${sessionId}/`, payload);
@@ -187,6 +191,7 @@ export async function fetchClinicSessions(params: {
       section_label: row.section_label == null ? null : toStringValue(row.section_label),
       section_type: toSectionType(row.section_type),
       allow_time_preference: row.allow_time_preference === true,
+      allow_multi_slot_booking: row.allow_multi_slot_booking === true,
     }));
 }
 
@@ -209,4 +214,5 @@ export type ClinicSessionDetail = {
   section_label?: string | null;
   section_type?: "CLASS" | "CLINIC" | null;
   allow_time_preference?: boolean;
+  allow_multi_slot_booking: boolean;
 };

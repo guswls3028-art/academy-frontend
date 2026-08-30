@@ -180,6 +180,7 @@ export default function PreviousWeekImportModal({ open, onClose, currentDate }: 
             location: s.location,
             max_participants: s.max_participants ?? 20,
             target_grade: s.target_grade ?? null,
+            allow_multi_slot_booking: s.allow_multi_slot_booking === true,
           });
         })
       );

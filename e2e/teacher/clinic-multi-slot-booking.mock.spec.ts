@@ -31,6 +31,7 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
       booked_count: 0,
       max_participants: 10,
       is_full: false,
+      allow_multi_slot_booking: true,
     },
     {
       id: 702,
@@ -44,6 +45,21 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
       booked_count: 0,
       max_participants: 10,
       is_full: false,
+      allow_multi_slot_booking: true,
+    },
+    {
+      id: 703,
+      title: "오후 클리닉 C",
+      date,
+      start_time: "19:00:00",
+      end_time: "20:00:00",
+      duration_minutes: 60,
+      location: "클리닉 1실",
+      participant_count: 0,
+      booked_count: 0,
+      max_participants: 10,
+      is_full: false,
+      allow_multi_slot_booking: false,
     },
   ];
   const students = [
@@ -53,8 +69,10 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   const participants = new Map<number, Array<Record<string, unknown>>>([
     [701, []],
     [702, []],
+    [703, []],
   ]);
   const bulkPayloads: unknown[] = [];
+  const createdSessionPayloads: unknown[] = [];
 
   await page.addInitScript((token) => {
     localStorage.setItem("access", token);
@@ -95,7 +113,15 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
         must_change_password: false,
       });
     }
+    if (path === "/clinic/settings/" && request.method() === "GET") {
+      return json({ multi_slot_booking_default: false });
+    }
     if (path === "/clinic/sessions/" && request.method() === "GET") return json(sessions);
+    if (path === "/clinic/sessions/" && request.method() === "POST") {
+      const payload = request.postDataJSON();
+      createdSessionPayloads.push(payload);
+      return json({ id: 704, ...payload }, 201);
+    }
     if (path === "/students/" && request.method() === "GET") {
       return json({ count: students.length, results: students });
     }
@@ -124,8 +150,13 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
     return json({ count: 0, results: [] });
   });
 
-  await page.goto(`${BASE}/workspace/mobile/clinic`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: /오후 클리닉 A/ }).click();
+  await page.goto(`${BASE}/workspace/mobile/clinic`, {
+    waitUntil: "domcontentloaded",
+    timeout: 30_000,
+  });
+  const firstSessionButton = page.getByRole("button", { name: /오후 클리닉 A/ });
+  await expect(firstSessionButton).toBeVisible({ timeout: 30_000 });
+  await firstSessionButton.click();
   await page.getByRole("button", { name: "학생 추가" }).click();
 
   const sheet = page.getByRole("dialog", { name: "학생 추가" });
@@ -136,6 +167,7 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   expect(mobileSheetBox?.width).toBe(390);
   expect(mobileBackdropBox?.x).toBe(0);
   expect(mobileBackdropBox?.width).toBe(390);
+  await expect(sheet.getByRole("button", { name: /19:00–20:00 · 한 타임/ })).toBeDisabled();
   await sheet.getByRole("button", { name: /18:00–19:00/ }).click();
   await expect(sheet.getByRole("region", { name: "선택한 클리닉 시간" })).toContainText("17:00–19:00");
   expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
@@ -178,9 +210,26 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   }]);
   await expect(page.getByText("2명이 2개 시간대에 추가되었습니다.")).toBeVisible();
 
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: /오후 클리닉 A/ }).click();
+  await page.reload({ waitUntil: "domcontentloaded", timeout: 30_000 });
+  await expect(firstSessionButton).toBeVisible({ timeout: 30_000 });
+  await firstSessionButton.click();
   await expect(page.getByText("김학생", { exact: true })).toBeVisible();
   await expect(page.getByText("이학생", { exact: true })).toBeVisible();
   expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+
+  await page.getByRole("button", { name: "클리닉 만들기" }).click();
+  const createSheet = page.getByRole("dialog", { name: "클리닉 만들기" });
+  const multiSlotToggle = createSheet.getByRole("checkbox", { name: /같은 날 여러 시간대 예약/ });
+  await expect(multiSlotToggle).not.toBeChecked();
+  await multiSlotToggle.check();
+  await createSheet.locator('input[type="time"]').first().fill("17:00");
+  await createSheet.getByPlaceholder("예: 3층 자습실").fill("클리닉 2실");
+  await createSheet.getByRole("button", { name: "생성", exact: true }).click();
+  await expect.poll(() => createdSessionPayloads).toEqual([
+    expect.objectContaining({
+      allow_multi_slot_booking: true,
+      start_time: "17:00:00",
+      location: "클리닉 2실",
+    }),
+  ]);
 });
