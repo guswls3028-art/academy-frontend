@@ -5,11 +5,11 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/shared/ui/ds";
+import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { saveHomeworkAsTemplate } from "../../api/adminHomework";
-import { FiSave, FiChevronDown } from "react-icons/fi";
+import { FiArrowRight, FiSave, FiChevronDown } from "react-icons/fi";
 import type { HomeworkSummary } from "../../types";
 import { QUERY_KEYS } from "../../queryKeys";
 import "@/shared/ui/assessment/AssessmentDetailHeader.css";
@@ -17,9 +17,13 @@ import "@/shared/ui/assessment/AssessmentDetailHeader.css";
 type Props = {
   homework: HomeworkSummary;
   sessionId?: number | null;
+  primaryAction?: {
+    label: string;
+    onClick: () => void;
+  };
 };
 
-export default function HomeworkHeader({ homework }: Props) {
+export default function HomeworkHeader({ homework, primaryAction }: Props) {
   const qc = useQueryClient();
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [templateDropdownOpen, setTemplateDropdownOpen] = useState(false);
@@ -53,16 +57,15 @@ export default function HomeworkHeader({ homework }: Props) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [templateDropdownOpen]);
 
-  const bannerClass = "rounded-lg border-l-4 pl-3 py-2 border-l-[var(--color-success)]";
-  const bannerBg = { background: "color-mix(in srgb, var(--color-success) 12%, var(--color-bg-surface))" };
-
   return (
-    <div className={`assessment-detail-header assessment-detail-header--homework space-y-2 ${bannerClass}`} style={bannerBg}>
+    <header className="assessment-detail-header assessment-detail-header--homework">
       <div className="assessment-detail-header__top">
-        <div className="flex items-center gap-2">
-          <h2 className="assessment-detail-header__title text-lg font-semibold text-[var(--text-primary)]">
-            {homework.title}
-          </h2>
+        <div className="assessment-detail-header__copy">
+          <p className="assessment-detail-header__eyebrow">과제 운영</p>
+          <h2 className="assessment-detail-header__title">{homework.title}</h2>
+          <p className="assessment-detail-header__desc">
+            과제 설정과 제출 검수를 이어서 관리합니다. 성적 입력·판정은 세션 &gt; 성적에서 진행합니다.
+          </p>
         </div>
 
         <div className="assessment-detail-header__actions">
@@ -113,14 +116,21 @@ export default function HomeworkHeader({ homework }: Props) {
               )}
             </div>
           )}
+          {primaryAction && (
+            <Button
+              type="button"
+              intent="primary"
+              size="md"
+              onClick={primaryAction.onClick}
+              className="assessment-primary-action"
+              data-testid="assessment-primary-action"
+              rightIcon={<FiArrowRight size={ICON_FOR_BUTTON.sm} />}
+            >
+              {primaryAction.label}
+            </Button>
+          )}
         </div>
       </div>
-
-      {canSaveAsTemplate && (
-        <p className="assessment-detail-header__desc text-sm text-[var(--text-muted)]">
-          과제를 템플릿으로 저장하면 다른 강의에서 동일 과제를 불러와 사용할 수 있고, 서로 다른 강의의 통계를 합산해 볼 수 있습니다.
-        </p>
-      )}
 
       <AdminModal
         open={templateModalOpen}
@@ -155,11 +165,6 @@ export default function HomeworkHeader({ homework }: Props) {
           }
         />
       </AdminModal>
-
-      <div className="text-sm text-[var(--color-text-muted)]">
-        ※ 과제의 <b>성적 입력 · 판정</b>은 <b>세션 &gt; 성적</b> 메뉴에서
-        진행합니다.
-      </div>
-    </div>
+    </header>
   );
 }

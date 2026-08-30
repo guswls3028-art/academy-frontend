@@ -5,14 +5,23 @@ import { saveExamAsTemplate } from "../../api/adminExam";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { FiSave, FiChevronDown } from "react-icons/fi";
+import { FiArrowRight, FiSave, FiChevronDown } from "react-icons/fi";
 import { adminExamsQueryKeys } from "../../queryKeys";
 import "@/shared/ui/assessment/AssessmentDetailHeader.css";
 
 /**
  * 시험 헤더: 제목 + 템플릿 저장(regular만).
  */
-export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | null }) {
+type Props = {
+  exam: Exam;
+  sessionId?: number | null;
+  primaryAction?: {
+    label: string;
+    onClick: () => void;
+  };
+};
+
+export default function ExamHeader({ exam, primaryAction }: Props) {
   const qc = useQueryClient();
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [templateName, setTemplateName] = useState("");
@@ -55,12 +64,14 @@ export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | 
   };
 
   return (
-    <div className="assessment-detail-header assessment-detail-header--exam space-y-2 rounded-lg border-l-4 pl-3 py-2 border-l-[var(--color-brand-primary)] bg-[color-mix(in_srgb,var(--color-brand-primary)_8%,var(--color-bg-surface))]">
+    <header className="assessment-detail-header assessment-detail-header--exam">
       <div className="assessment-detail-header__top">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <h2 className="assessment-detail-header__title text-lg font-semibold">{exam.title}</h2>
-          </div>
+        <div className="assessment-detail-header__copy">
+          <p className="assessment-detail-header__eyebrow">시험 운영</p>
+          <h2 className="assessment-detail-header__title">{exam.title}</h2>
+          <p className="assessment-detail-header__desc">
+            운영 설정부터 제출 확인·채점 결과까지 한 흐름에서 관리합니다.
+          </p>
         </div>
 
         <div className="assessment-detail-header__actions">
@@ -121,14 +132,21 @@ export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | 
               )}
             </div>
           )}
+          {primaryAction && (
+            <Button
+              type="button"
+              intent="primary"
+              size="md"
+              onClick={primaryAction.onClick}
+              className="assessment-primary-action"
+              data-testid="assessment-primary-action"
+              rightIcon={<FiArrowRight size={ICON_FOR_BUTTON.sm} />}
+            >
+              {primaryAction.label}
+            </Button>
+          )}
         </div>
       </div>
-
-      {canSaveAsTemplate && (
-        <p className="assessment-detail-header__desc text-sm text-[var(--text-muted)]">
-          시험을 템플릿으로 저장하면 다른 강의에서 동일 시험을 불러와 사용할 수 있고, 서로 다른 강의의 통계를 합산해 볼 수 있습니다.
-        </p>
-      )}
 
       {/* 템플릿 저장 모달 */}
       <AdminModal
@@ -184,6 +202,6 @@ export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | 
           {exam.description}
         </div>
       )}
-    </div>
+    </header>
   );
 }

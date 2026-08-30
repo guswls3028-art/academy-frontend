@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAdminExam } from "../hooks/useAdminExam";
+import type { ExamTabKey } from "../types";
 
 import ExamTabs from "./common/ExamTabs";
 import ExamHeader from "./common/ExamHeader";
@@ -22,9 +23,7 @@ type Props = {
 export default function AdminExamDetail({ examId, mode = "design", sessionId }: Props) {
   const { data: exam, isLoading, isError, refetch } = useAdminExam(examId);
   const { confirmDiscard } = useAssessmentEditGuard();
-  const [tab, setTab] = useState<"setup" | "assets" | "submissions" | "results">(
-    "setup"
-  );
+  const [tab, setTab] = useState<ExamTabKey>("setup");
 
   useEffect(() => {
     setTab("setup");
@@ -34,9 +33,24 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
   if (isError) return <EmptyState scope="panel" tone="error" title="시험을 불러오지 못했습니다." description="이전 값으로 수정하지 않도록 시험 작업을 잠갔습니다." actions={<button type="button" onClick={() => void refetch()}>다시 시도</button>} />;
   if (!exam) return <EmptyState scope="panel" tone="error" title="시험을 불러오지 못했습니다." />;
 
+  const changeTab = (nextTab: ExamTabKey) => {
+    if (nextTab === tab) return;
+    void confirmDiscard().then((confirmed) => {
+      if (confirmed) setTab(nextTab);
+    });
+  };
+
+  const primaryAction = mode === "operate"
+    ? tab === "setup" || tab === "assets"
+      ? { label: "제출 현황 보기", onClick: () => changeTab("submissions") }
+      : tab === "submissions"
+        ? { label: "채점·결과 보기", onClick: () => changeTab("results") }
+        : { label: "운영 설정 보기", onClick: () => changeTab("setup") }
+    : undefined;
+
   return (
     <div className="space-y-6">
-      <ExamHeader exam={exam} sessionId={sessionId} />
+      <ExamHeader exam={exam} sessionId={sessionId} primaryAction={primaryAction} />
 
       {exam.segmentation_status === "processing" && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800" role="status">
@@ -77,12 +91,7 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
 
       <ExamTabs
         activeTab={tab}
-        onChange={(nextTab) => {
-          if (nextTab === tab) return;
-          void confirmDiscard().then((confirmed) => {
-            if (confirmed) setTab(nextTab);
-          });
-        }}
+        onChange={changeTab}
         hasSession={true}
         assetsReady={true}
         mode={mode}
