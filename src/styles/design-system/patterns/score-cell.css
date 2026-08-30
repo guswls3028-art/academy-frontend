@@ -1,0 +1,98 @@
+/* PATH: src/styles/design-system/patterns/score-cell.css */
+
+/* 조회 모드 점수 셀 — 분자/만점 타이포와 실제 득점 비율 레일을 한 묶음으로 읽는다. */
+.ds-scores-table .ds-score-value {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  max-width: 100%;
+  color: var(--color-text-primary);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.ds-scores-table .ds-score-value__earned {
+  font-size: 14px;
+  font-weight: 760;
+  letter-spacing: -0.015em;
+}
+
+.ds-scores-table .ds-score-value__separator {
+  margin-inline: 2px;
+  color: color-mix(in srgb, var(--color-text-muted) 72%, transparent);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.ds-scores-table .ds-score-value__max {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.ds-scores-table tbody td[data-score-progress="true"],
+.ds-scores-table tbody td[data-col-type="exam-summary"][data-score-progress="true"] {
+  --score-rail-color: var(--color-brand-primary);
+  position: relative;
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.ds-scores-table tbody td[data-score-progress="true"]::before,
+.ds-scores-table tbody td[data-col-type="exam-summary"][data-score-progress="true"]::before {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: color-mix(in srgb, var(--color-text-muted) 9%, transparent);
+  pointer-events: none;
+}
+
+.ds-scores-table tbody td[data-score-progress="true"]::after,
+.ds-scores-table tbody td[data-col-type="exam-summary"][data-score-progress="true"]::after {
+  content: "";
+  position: absolute;
+  right: auto;
+  bottom: 0;
+  left: 0;
+  width: max(6px, var(--score-progress));
+  height: 3px;
+  border-radius: 0 999px 999px 0;
+  background: var(--score-rail-color);
+  box-shadow: none;
+  pointer-events: none;
+  transform-origin: left bottom;
+  transition: width 180ms ease, transform 140ms ease;
+}
+
+.ds-scores-table tbody td[data-score-progress="true"][data-pass-status="pass"],
+.ds-scores-table tbody td[data-col-type="exam-summary"][data-score-progress="true"][data-pass-status="pass"] {
+  --score-rail-color: color-mix(in srgb, var(--color-success, #22c55e) 78%, var(--color-text-primary));
+  box-shadow: none;
+}
+
+.ds-scores-table tbody td[data-score-progress="true"][data-pass-status="fail"],
+.ds-scores-table tbody td[data-col-type="exam-summary"][data-score-progress="true"][data-pass-status="fail"] {
+  --score-rail-color: color-mix(in srgb, var(--color-danger, #dc2626) 82%, var(--color-text-primary));
+  box-shadow: none;
+}
+
+.ds-scores-table tbody td[data-score-progress="true"][data-achievement="REMEDIATED"] {
+  --score-rail-color: color-mix(in srgb, var(--color-warning, #f59e0b) 80%, var(--color-text-primary));
+  box-shadow: none;
+}
+
+.ds-scores-table tbody td[data-score-progress="true"]:hover::after,
+.ds-scores-table tbody td[data-col-type="exam-summary"][data-score-progress="true"]:hover::after {
+  transform: scaleY(1.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-scores-table tbody td[data-score-progress="true"]::after,
+  .ds-scores-table tbody td[data-col-type="exam-summary"][data-score-progress="true"]::after {
+    transition: none;
+  }
+}
