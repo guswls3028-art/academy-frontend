@@ -80,6 +80,7 @@ type InstallApiOptions = {
   };
   resultRows?: Array<Record<string, unknown>>;
   submissionRows?: Array<Record<string, unknown>>;
+  failFirstRotateRescan?: boolean;
 };
 
 async function installApi(page: Page, options: InstallApiOptions = {}) {
@@ -92,6 +93,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
   let inventoryPresignCount = 0;
   let previewRequestCount = 0;
   let manualEditPostCount = 0;
+  const rotateRescanBodies: Array<Record<string, unknown>> = [];
   let failNextPreview = false;
   let failNextManualApply = false;
   let failManualSheetGetAfterPostCount: number | null = null;
@@ -364,6 +366,18 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       }
       manualEditGetIds.push(submissionId);
       const needsIdentification = submissionId === NOID_SUBMISSION_ID;
+      const configuredRow = options.submissionRows?.find(
+        (row) => Number(row.id) === submissionId,
+      );
+      const configuredManualReviewRequired =
+        typeof configuredRow?.manual_review_required === "boolean"
+          ? configuredRow.manual_review_required
+          : needsIdentification;
+      const configuredManualReviewReasons = Array.isArray(configuredRow?.manual_review_reasons)
+        ? configuredRow.manual_review_reasons
+        : needsIdentification
+          ? ["ANSWER_SCORE_AMBIGUOUS"]
+          : [];
       const scanSvg = encodeURIComponent(
         '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="white"/><text x="40" y="70" font-size="38">OMR scan</text><circle cx="220" cy="240" r="24" fill="#1d4ed8"/></svg>',
       );
@@ -393,12 +407,28 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         meta: {
           identifier_status: needsIdentification ? "missing" : "matched",
           manual_review: {
-            required: needsIdentification,
-            reasons: needsIdentification ? ["ANSWER_SCORE_AMBIGUOUS"] : [],
+            required: configuredManualReviewRequired,
+            reasons: configuredManualReviewReasons,
           },
         },
         duplicate_siblings: [],
       });
+      return;
+    }
+    const rotateRescanMatch = path.match(/^\/submissions\/submissions\/(\d+)\/rotate-rescan\/$/);
+    if (rotateRescanMatch && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      rotateRescanBodies.push(payload);
+      if (options.failFirstRotateRescan && rotateRescanBodies.length === 1) {
+        await json({ detail: "synthetic rotate response timeout" }, 504);
+        return;
+      }
+      await json({
+        submission_id: Number(rotateRescanMatch[1]) + 10_000,
+        status: "pending",
+        rotation_degrees: payload.rotation_degrees,
+        created: true,
+      }, 201);
       return;
     }
     if (path === `/exams/${EXAM_ID}/questions/init/` && method === "POST") {
@@ -739,6 +769,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     get manualEditPostCount() {
       return manualEditPostCount;
     },
+    rotateRescanBodies,
     manualEditGetIds,
     manualSheetGetEvents,
     failNextPreview() {
@@ -1493,7 +1524,10 @@ test.describe("문항별 직접 채점", () => {
           created_at: "2026-08-26T16:59:00+09:00",
           has_file: true,
           manual_review_required: false,
-          manual_review_reasons: [],
+          manual_review_reasons: [
+            "IDENTIFIER_NO_ENROLLMENT_MATCH",
+            "IDENTIFIER_INCOMPLETE",
+          ],
           identifier_status: "matched",
         },
         {
@@ -1512,10 +1546,14 @@ test.describe("문항별 직접 채점", () => {
           created_at: "2026-08-26T16:59:00+09:00",
           has_file: true,
           manual_review_required: true,
-          manual_review_reasons: ["ANSWER_SCORE_AMBIGUOUS"],
+          manual_review_reasons: [
+            "IDENTIFIER_NO_ENROLLMENT_MATCH",
+            "ANSWER_SCORE_AMBIGUOUS",
+          ],
           identifier_status: "missing",
         },
       ],
+      failFirstRotateRescan: true,
     });
 
     await gotoAndSettle(
@@ -1553,6 +1591,15 @@ test.describe("문항별 직접 채점", () => {
     await expect(omrDialog).toBeVisible();
     await expect.poll(() => apiState.manualEditGetIds[0]).toBe(NOID_SUBMISSION_ID);
     await expect(omrDialog.locator(".orw-list-row--active")).toContainText("미식별 학생");
+    const completedRow = omrDialog.locator(".orw-list-row").filter({ hasText: "완료 학생" });
+    await expect(completedRow).toContainText("정상");
+    await expect(completedRow.locator(".orw-list-row__reasons")).toHaveCount(0);
+    await expect(omrDialog.getByText(/IDENTIFIER_|ANSWER_/)).toHaveCount(0);
+    await expect(omrDialog.getByText("학생 연결이 필요합니다.", { exact: true })).toBeVisible();
+    await expect(omrDialog.getByText("답안 표시가 겹쳐 있어 확인이 필요합니다.", { exact: true })).toBeVisible();
+    await expect(omrDialog.getByRole("button", { name: "학생 연결하기", exact: true })).toBeVisible();
+    await expect(omrDialog.getByRole("button", { name: "답안 수정하기", exact: true })).toBeVisible();
+    await expect(omrDialog.getByRole("button", { name: "수정 후 재채점", exact: true })).toBeVisible();
 
     const transformedStage = omrDialog.locator(".orw-scan-pane__img-wrap");
     await expect(transformedStage.getByAltText("OMR 스캔 원본")).toBeVisible();
@@ -1606,6 +1653,21 @@ test.describe("문항별 직접 채점", () => {
     await omrDialog.locator(".orw-list-row").filter({ hasText: "완료 학생" }).click();
     await expect.poll(() => apiState.manualEditGetIds).toContain(DONE_SUBMISSION_ID);
     await expect(transformedStage).toHaveAttribute("data-display-rotation", "0");
+
+    await omrDialog.getByRole("button", { name: "오른쪽으로 90도 회전" }).click();
+    await expect(transformedStage.locator(".orw-bbox-overlay")).toHaveCount(0);
+    await omrDialog.getByRole("button", { name: "이 방향으로 다시 읽기" }).click();
+    await page.getByRole("button", { name: "다시 읽기", exact: true }).click();
+    await expect.poll(() => apiState.rotateRescanBodies).toHaveLength(1);
+    expect(apiState.rotateRescanBodies[0]).toMatchObject({ rotation_degrees: 90 });
+    expect(apiState.rotateRescanBodies[0].client_request_id).toEqual(expect.any(String));
+    await omrDialog.getByRole("button", { name: "이 방향으로 다시 읽기" }).click();
+    await page.getByRole("button", { name: "다시 읽기", exact: true }).click();
+    await expect.poll(() => apiState.rotateRescanBodies).toHaveLength(2);
+    expect(apiState.rotateRescanBodies[1]).toMatchObject({ rotation_degrees: 90 });
+    expect(apiState.rotateRescanBodies[1].client_request_id).toBe(
+      apiState.rotateRescanBodies[0].client_request_id,
+    );
 
     expect(apiState.manualEditPostCount).toBe(0);
     expect(apiState.inventoryPresignCount).toBe(0);

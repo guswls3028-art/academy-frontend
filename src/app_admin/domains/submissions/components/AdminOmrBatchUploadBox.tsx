@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AxiosError } from "axios";
-import { CheckCircle2, Trash2, UploadCloud } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  CheckCircle2,
+  RotateCcw,
+  RotateCw,
+  Trash2,
+  UploadCloud,
+} from "lucide-react";
 import {
   fetchOmrUploadBatchApi,
   initializeOmrUploadBatchApi,
@@ -22,6 +30,7 @@ type Props = {
 
 type UploadItem = {
   file: File;
+  rotation: 0 | 90 | 180 | 270;
   ordinal?: number;
   status: "ready" | "uploading" | "received" | "fail";
   message?: string;
@@ -33,6 +42,66 @@ type UploadErrorPayload = {
 };
 
 const MAX_FILES = 100;
+
+function rotateValue(
+  current: UploadItem["rotation"],
+  delta: 90 | 270,
+): UploadItem["rotation"] {
+  return ((current + delta) % 360) as UploadItem["rotation"];
+}
+
+async function rotatedImageFile(
+  file: File,
+  rotation: UploadItem["rotation"],
+): Promise<File> {
+  if (rotation === 0 || !file.type.startsWith("image/")) return file;
+  const bitmap = await createImageBitmap(file);
+  try {
+    const quarterTurn = rotation === 90 || rotation === 270;
+    const canvas = document.createElement("canvas");
+    canvas.width = quarterTurn ? bitmap.height : bitmap.width;
+    canvas.height = quarterTurn ? bitmap.width : bitmap.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("이미지 회전 도구를 사용할 수 없습니다.");
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate((rotation * Math.PI) / 180);
+    ctx.drawImage(bitmap, -bitmap.width / 2, -bitmap.height / 2);
+    const outputType = file.type === "image/png" ? "image/png" : "image/jpeg";
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (value) => value ? resolve(value) : reject(new Error("회전 이미지 생성에 실패했습니다.")),
+        outputType,
+        outputType === "image/jpeg" ? 0.96 : undefined,
+      );
+    });
+    return new File([blob], file.name, { type: outputType, lastModified: file.lastModified });
+  } finally {
+    bitmap.close();
+  }
+}
+
+function UploadPreview({ item }: { item: UploadItem }) {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    if (!item.file.type.startsWith("image/")) {
+      setSrc(null);
+      return;
+    }
+    const next = URL.createObjectURL(item.file);
+    setSrc(next);
+    return () => URL.revokeObjectURL(next);
+  }, [item.file]);
+  if (!src) return <UploadCloud size={ICON.sm} className="admin-omr-upload__file-icon" />;
+  return (
+    <span className="admin-omr-upload__preview" aria-hidden="true">
+      <img
+        src={src}
+        alt=""
+        className={`admin-omr-upload__preview-image admin-omr-upload__preview-image--rotation-${item.rotation}`}
+      />
+    </span>
+  );
+}
 
 function humanizeBytes(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "-";
@@ -196,6 +265,7 @@ export default function AdminOmrBatchUploadBox({
     }
     const next: UploadItem[] = accepted.map((file, index) => ({
       file,
+      rotation: 0,
       ordinal: resumeOrdinals.length > 0 ? vacantResumeOrdinals[index] : undefined,
       status: "ready" as const,
     }));
@@ -212,6 +282,26 @@ export default function AdminOmrBatchUploadBox({
   const removeOne = (idx: number) => {
     if (busy) return;
     setItems((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const moveOne = (idx: number, delta: -1 | 1) => {
+    if (busy || resumeOrdinals.length > 0) return;
+    setItems((previous) => {
+      const nextIndex = idx + delta;
+      if (nextIndex < 0 || nextIndex >= previous.length) return previous;
+      const next = [...previous];
+      [next[idx], next[nextIndex]] = [next[nextIndex], next[idx]];
+      return next;
+    });
+  };
+
+  const rotateOne = (idx: number, delta: 90 | 270) => {
+    if (busy) return;
+    setItems((previous) => previous.map((item, itemIndex) => (
+      itemIndex === idx && item.file.type.startsWith("image/")
+        ? { ...item, rotation: rotateValue(item.rotation, delta) }
+        : item
+    )));
   };
 
   const upload = async () => {
@@ -252,6 +342,12 @@ export default function AdminOmrBatchUploadBox({
     setBusy(true);
     setNotice(null);
     try {
+      // Client-side rotation must succeed before reserving a durable server
+      // batch. A corrupt image then stays in the editable list instead of
+      // creating a pending batch that forces the teacher to reselect files.
+      const preparedFiles = await Promise.all(
+        uploadItems.map((item) => rotatedImageFile(item.file, item.rotation)),
+      );
       if (!activeBatchId) {
         const initialized = await initializeOmrUploadBatchApi({
           examId,
@@ -274,7 +370,7 @@ export default function AdminOmrBatchUploadBox({
 
       const result = await uploadOmrBatchApi({
         examId,
-        files: uploadItems.map((item) => item.file),
+        files: preparedFiles,
         batchId: activeBatchId,
         itemOrdinals: uploadItems.map((item) => Number(item.ordinal)),
       });
@@ -293,7 +389,9 @@ export default function AdminOmrBatchUploadBox({
       setNotice(
         result.admission_failed_ordinals.length > 0
           ? `${result.created_count}건 접수, ${result.admission_failed_ordinals.length}건은 다시 선택이 필요합니다.`
-          : `${result.created_count}건을 접수했습니다. AI 처리 상태는 작업박스에서 계속 확인할 수 있습니다.`,
+          : result.counts.duplicate > 0
+            ? `${result.created_count}건 신규 접수, 동일 파일 ${result.counts.duplicate}건은 기존 답안지를 사용합니다.`
+            : `${result.created_count}건을 접수했습니다. AI 처리 상태는 작업박스에서 계속 확인할 수 있습니다.`,
       );
       if (result.created_count > 0) onUploaded?.();
     } catch (e: unknown) {
@@ -303,7 +401,7 @@ export default function AdminOmrBatchUploadBox({
       const rejectionCode = err.response?.data?.rejection_code;
       const message = rejectionCode
         ? getRejectionMessage(rejectionCode)
-        : String(detail || "접수 응답을 확인하지 못했습니다.");
+        : String(detail || (e instanceof Error ? e.message : "") || "접수 응답을 확인하지 못했습니다.");
       if (activeBatchId) {
         try {
           const recovered = await fetchOmrUploadBatchApi(activeBatchId);
@@ -404,11 +502,14 @@ export default function AdminOmrBatchUploadBox({
                 {it.status === "received" ? (
                   <CheckCircle2 size={ICON.sm} className="admin-omr-upload__file-icon admin-omr-upload__file-icon--done" />
                 ) : (
-                  <UploadCloud size={ICON.sm} className="admin-omr-upload__file-icon" />
+                  <UploadPreview item={it} />
                 )}
                 <div className="admin-omr-upload__file-text">
                   <span className="admin-omr-upload__file-name">{it.file.name}</span>
                   <span className="admin-omr-upload__file-size">{humanizeBytes(it.file.size)}</span>
+                  {it.rotation !== 0 ? (
+                    <span className="admin-omr-upload__file-rotation">업로드 회전 {it.rotation}°</span>
+                  ) : null}
                 </div>
               </div>
               <div className="admin-omr-upload__file-state">
@@ -416,6 +517,52 @@ export default function AdminOmrBatchUploadBox({
                   {statusLabel(it.status)}
                 </Badge>
                 {it.message ? <span className="admin-omr-upload__file-message">{it.message}</span> : null}
+                <div className="admin-omr-upload__file-controls" aria-label={`${it.file.name} 조정`}>
+                  <Button
+                    type="button"
+                    intent="ghost"
+                    size="sm"
+                    disabled={busy || resumeOrdinals.length > 0 || idx === 0}
+                    onClick={() => moveOne(idx, -1)}
+                    aria-label="위로 이동"
+                    title={resumeOrdinals.length > 0 ? "재접수 순서는 변경할 수 없습니다." : "위로 이동"}
+                  >
+                    <ArrowUp size={ICON_FOR_BUTTON.sm} />
+                  </Button>
+                  <Button
+                    type="button"
+                    intent="ghost"
+                    size="sm"
+                    disabled={busy || resumeOrdinals.length > 0 || idx === items.length - 1}
+                    onClick={() => moveOne(idx, 1)}
+                    aria-label="아래로 이동"
+                    title={resumeOrdinals.length > 0 ? "재접수 순서는 변경할 수 없습니다." : "아래로 이동"}
+                  >
+                    <ArrowDown size={ICON_FOR_BUTTON.sm} />
+                  </Button>
+                  <Button
+                    type="button"
+                    intent="ghost"
+                    size="sm"
+                    disabled={busy || !it.file.type.startsWith("image/")}
+                    onClick={() => rotateOne(idx, 270)}
+                    aria-label="왼쪽 회전"
+                    title={it.file.type.startsWith("image/") ? "왼쪽 90°" : "PDF는 업로드 후 검토 화면에서 회전해 주세요."}
+                  >
+                    <RotateCcw size={ICON_FOR_BUTTON.sm} />
+                  </Button>
+                  <Button
+                    type="button"
+                    intent="ghost"
+                    size="sm"
+                    disabled={busy || !it.file.type.startsWith("image/")}
+                    onClick={() => rotateOne(idx, 90)}
+                    aria-label="오른쪽 회전"
+                    title={it.file.type.startsWith("image/") ? "오른쪽 90°" : "PDF는 업로드 후 검토 화면에서 회전해 주세요."}
+                  >
+                    <RotateCw size={ICON_FOR_BUTTON.sm} />
+                  </Button>
+                </div>
                 <Button
                   type="button"
                   intent="ghost"

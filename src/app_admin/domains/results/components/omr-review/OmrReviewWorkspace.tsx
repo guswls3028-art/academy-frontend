@@ -34,6 +34,7 @@ import {
   acceptFromDuplicatesApi,
   fetchOmrReviewDetail,
   listOmrReviewRows,
+  rotateRescanApi,
   type DuplicateSibling,
   type OmrReviewDetail,
   type OmrReviewDetailAnswer,
@@ -84,6 +85,14 @@ function categorize(row: OmrReviewRow): FilterKey {
   }
   if (row.manual_review_required) return "flag";
   return "ok";
+}
+
+function actionableReviewReasons(
+  required: boolean | undefined,
+  reasons: string[] | null | undefined,
+): string[] {
+  if (required !== true || !Array.isArray(reasons)) return [];
+  return reasons.filter((reason): reason is string => typeof reason === "string" && reason.trim() !== "");
 }
 
 function toneForCategory(c: FilterKey): "success" | "danger" | "warning" | "primary" | "neutral" {
@@ -402,6 +411,10 @@ export default function OmrReviewWorkspace({
                 const cat = categorize(r);
                 const tone = toneForCategory(cat);
                 const label = labelForCategory(cat);
+                const reasons = actionableReviewReasons(
+                  r.manual_review_required,
+                  r.manual_review_reasons,
+                );
                 return (
                   <div
                     key={r.id}
@@ -417,9 +430,9 @@ export default function OmrReviewWorkspace({
                     <div className="orw-list-row__sub">
                       <Badge tone={tone}>{label}</Badge>
                       <span className="orw-list-row__time">{formatTime(r.created_at)}</span>
-                      {r.manual_review_reasons && r.manual_review_reasons.length > 0 && (
+                      {reasons.length > 0 && (
                         <span className="orw-list-row__reasons">
-                          {r.manual_review_reasons.slice(0, 2).map(reasonLabel).join(", ")}
+                          {reasons.slice(0, 2).map(reasonLabel).join(", ")}
                         </span>
                       )}
                     </div>
@@ -447,6 +460,11 @@ export default function OmrReviewWorkspace({
             createdAt={visibleRows.find((r) => r.id === selectedId)?.created_at ?? null}
             focusedQid={focusedQid}
             onPickQuestion={setFocusedQid}
+            onRescanCreated={(submissionId) => {
+              setSelectedId(submissionId);
+              qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewList(examId) });
+              qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewDetail(submissionId) });
+            }}
             onImageLoadError={() => {
               // presigned URL 만료 등으로 이미지 실패 시 상세 재조회 → 새 URL 받기
               if (selectedId != null) {
@@ -530,6 +548,7 @@ function ScanPane({
   createdAt,
   focusedQid,
   onPickQuestion,
+  onRescanCreated,
   onImageLoadError,
 }: {
   detail: OmrReviewDetail | undefined;
@@ -542,6 +561,7 @@ function ScanPane({
   createdAt: string | null;
   focusedQid: number | null;
   onPickQuestion: (qid: number) => void;
+  onRescanCreated: (submissionId: number) => void;
   onImageLoadError?: () => void;
 }) {
   const [imgLoading, setImgLoading] = useState(false);
@@ -550,8 +570,52 @@ function ScanPane({
   const [rotation, setRotation] = useState<0 | 90 | 180 | 270>(0);
   const [bodySize, setBodySize] = useState({ width: 0, height: 0 });
   const bodyRef = useRef<HTMLDivElement>(null);
+  const rotateRequestRef = useRef<{ key: string; id: string } | null>(null);
+  const confirm = useConfirm();
 
-  // submission 바뀌면 표시 전용 상태를 초기화한다. 회전값은 저장/API로 전달하지 않는다.
+  const rotateRescan = useMutation({
+    mutationFn: async ({
+      rotationDegrees,
+      clientRequestId,
+    }: {
+      rotationDegrees: 90 | 180 | 270;
+      clientRequestId: string;
+    }) => {
+      if (!detail) throw new Error("no detail");
+      return rotateRescanApi(detail.submission_id, rotationDegrees, clientRequestId);
+    },
+    onSuccess: (result) => {
+      rotateRequestRef.current = null;
+      feedback.success("원본을 지정한 방향으로 다시 읽기 시작했습니다.");
+      onRescanCreated(result.submission_id);
+    },
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { detail?: string } }; message?: string };
+      feedback.error(err.response?.data?.detail || err.message || "회전 재판독을 시작하지 못했습니다.");
+    },
+  });
+
+  const requestRotateRescan = async () => {
+    if (!detail || rotation === 0 || rotateRescan.isPending) return;
+    const ok = await confirm({
+      title: "이 방향으로 다시 읽기",
+      message: `원본 답안지를 오른쪽 기준 ${rotation}° 회전해 새 판독 건을 만듭니다. 기존 답안지는 비교를 위해 그대로 보존됩니다.`,
+      confirmText: "다시 읽기",
+      cancelText: "취소",
+    });
+    if (!ok) return;
+    const requestKey = `${detail.submission_id}:${rotation}`;
+    const clientRequestId = rotateRequestRef.current?.key === requestKey
+      ? rotateRequestRef.current.id
+      : crypto.randomUUID();
+    rotateRequestRef.current = { key: requestKey, id: clientRequestId };
+    rotateRescan.mutate({
+      rotationDegrees: rotation,
+      clientRequestId,
+    });
+  };
+
+  // submission 바뀌면 미리보기 방향을 초기화한다.
   useEffect(() => {
     setImgErrored(false);
     setNaturalSize(null);
@@ -574,7 +638,15 @@ function ScanPane({
     return () => observer.disconnect();
   }, []);
 
-  const imageSize = detail?.scan_image_size ?? naturalSize;
+  const activeImageUrl = rotation !== 0 && detail?.original_scan_image_url
+    ? detail.original_scan_image_url
+    : detail?.scan_image_url;
+  useEffect(() => {
+    setNaturalSize(null);
+  }, [activeImageUrl]);
+  const imageSize = rotation !== 0
+    ? naturalSize
+    : detail?.scan_image_size ?? naturalSize;
   const displaySize = useMemo(() => {
     if (!imageSize || bodySize.width <= 0 || bodySize.height <= 0) return null;
 
@@ -665,6 +737,17 @@ function ScanPane({
           >
             <RotateCw size={14} aria-hidden="true" />
           </button>
+          {rotation !== 0 && (
+            <Button
+              type="button"
+              intent="primary"
+              size="sm"
+              disabled={!detail?.original_scan_image_url || rotateRescan.isPending}
+              onClick={() => void requestRotateRescan()}
+            >
+              {rotateRescan.isPending ? "다시 읽는 중…" : "이 방향으로 다시 읽기"}
+            </Button>
+          )}
           {detail?.scan_image_url && (
             <a
               href={detail.scan_image_url}
@@ -728,9 +811,9 @@ function ScanPane({
                 }}
               >
                 <img
-                  key={detail.scan_image_url}
+                  key={activeImageUrl}
                   className={`orw-scan-pane__img ${fitMode ? "orw-scan-pane__img--fit" : ""}`}
-                  src={detail.scan_image_url}
+                  src={activeImageUrl ?? ""}
                   alt="OMR 스캔 원본"
                   onLoadStart={() => setImgLoading(true)}
                   onLoad={(e) => {
@@ -749,7 +832,7 @@ function ScanPane({
                     }
                   }}
                 />
-                {hasBBoxData && imageSize && (
+                {hasBBoxData && imageSize && rotation === 0 && (
                   <BBoxOverlay
                     answers={detail.answers}
                     focusedQid={focusedQid}
@@ -1032,7 +1115,12 @@ function EditPane({
     );
   }
 
-  const reasons = detail.meta?.manual_review?.reasons ?? [];
+  const reviewRequired = detail.meta?.manual_review?.required === true;
+  const reasons = actionableReviewReasons(
+    reviewRequired,
+    detail.meta?.manual_review?.reasons,
+  );
+  const firstReviewAnswer = detail.answers.find(isFlagged) ?? detail.answers[0];
   const headerName = studentName || (identifierNeeded ? "미식별 학생" : "학생");
 
   return (
@@ -1043,15 +1131,42 @@ function EditPane({
           {detail.submission_status && (
             <span className="orw-edit-pane__status">상태 <b>{statusLabel(detail.submission_status)}</b></span>
           )}
-          {reasons.length > 0 && (
-            <span className="orw-edit-pane__warn">
-              {reasons.map(reasonLabel).join(", ")}
-            </span>
-          )}
         </div>
       </div>
 
       <div className="orw-edit-pane__body">
+        {reviewRequired && (
+          <section className="orw-review-callout" aria-label="지금 확인할 내용">
+            <div className="orw-review-callout__heading">지금 확인할 내용</div>
+            <div className="orw-review-callout__reasons">
+              {reasons.length > 0 ? reasons.map((reason, index) => (
+                <div key={`${reason}-${index}`}>{reasonLabel(reason)}</div>
+              )) : (
+                <div>판독 결과 확인이 필요합니다.</div>
+              )}
+            </div>
+            <div className="orw-review-callout__actions">
+              {identifierNeeded && (
+                <button
+                  type="button"
+                  className="orw-review-callout__action"
+                  onClick={() => setPickerOpen(true)}
+                >
+                  학생 연결하기
+                </button>
+              )}
+              {firstReviewAnswer && (
+                <button
+                  type="button"
+                  className="orw-review-callout__action"
+                  onClick={() => setFocusedQid(firstReviewAnswer.question_id)}
+                >
+                  답안 수정하기
+                </button>
+              )}
+            </div>
+          </section>
+        )}
         {siblings.length > 0 && (
           <div className="orw-duplicate-cluster">
             <div className="orw-duplicate-cluster__title">
@@ -1205,7 +1320,9 @@ function EditPane({
             ? "저장 중…"
             : dirty
               ? "저장 + 재채점"
-              : "변경 사항 없음"}
+              : reviewRequired
+                ? "수정 후 재채점"
+                : "변경 사항 없음"}
         </button>
         <button
           className="orw-discard-btn"
@@ -1244,19 +1361,28 @@ function statusLabel(s: string | undefined | null): string {
 }
 
 const REASON_LABEL: Record<string, string> = {
-  answer_blank_or_multi: "빈칸·중복마킹",
-  answer_low_confidence: "낮은 신뢰도",
-  answer_status_not_ok: "인식 불완전",
-  identifier_no_match: "학생 매칭 실패",
-  identifier_no_enrollment_match: "학생 매칭 실패",
-  identifier_missing: "식별자 미인식",
-  identifier_invalid: "식별자 형식 오류",
-  alignment_failed: "페이지 정렬 실패(재스캔 권장)",
+  answer_blank_or_multi: "빈칸 또는 중복 마킹을 확인해 주세요.",
+  answer_low_confidence: "마킹이 흐려 답안 확인이 필요합니다.",
+  answer_score_ambiguous: "답안 표시가 겹쳐 있어 확인이 필요합니다.",
+  answer_status_not_ok: "읽지 못한 답안을 확인해 주세요.",
+  answer_count_mismatch: "읽은 문항 수가 시험과 다릅니다.",
+  identifier_no_match: "학생 연결이 필요합니다.",
+  identifier_no_enrollment_match: "학생 연결이 필요합니다.",
+  identifier_incomplete: "식별번호를 확인하고 학생을 연결해 주세요.",
+  identifier_missing: "식별번호를 확인하고 학생을 연결해 주세요.",
+  identifier_invalid: "식별번호 형식을 확인하고 학생을 연결해 주세요.",
+  identifier_fuzzy_match: "비슷한 학생이 있어 연결 대상을 확인해 주세요.",
+  identifier_ambiguous_digit: "식별번호 한 자리가 불분명합니다.",
+  duplicate_enrollment: "같은 학생의 답안지가 여러 장입니다.",
+  alignment_failed: "답안지 방향을 맞추지 못했습니다. 다시 읽어 주세요.",
 };
 
 function reasonLabel(r: string): string {
-  const k = String(r || "").toLowerCase();
-  return REASON_LABEL[k] || r;
+  const raw = String(r || "").trim();
+  const k = raw.toLowerCase();
+  if (REASON_LABEL[k]) return REASON_LABEL[k];
+  if (/^[A-Z][A-Z0-9_:-]+$/.test(raw)) return "판독 결과 확인이 필요합니다.";
+  return raw || "판독 결과 확인이 필요합니다.";
 }
 
 function questionLabel(no: number | null | undefined): string {

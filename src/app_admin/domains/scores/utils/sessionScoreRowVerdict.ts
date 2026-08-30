@@ -23,7 +23,16 @@ type AttentionKind = "missing" | "review" | "failed" | null;
 
 function blockAttentionKind(block: ScoreBlock, sourceType: "exam" | "homework"): AttentionKind {
   if (getScoreBlockOmrReviewStatus(block)) return "review";
-  if (block.correction_status === "PENDING") return "review";
+  const fp = deriveFinalPass({
+    achievement: block.achievement ?? null,
+    is_pass: block.passed ?? null,
+    final_pass: block.final_pass ?? null,
+    remediated: block.remediated ?? null,
+  });
+  // 오답 보완은 점수 판정과 별개의 후속 업무다. 이미 커트라인을 넘은
+  // 학생을 행 단위에서 "검수 대기"로 낮추지 않고, 개별 시험 배지는
+  // 계속 "보완 필요"를 보여준다. 실제 OMR 판독 검토는 위에서 우선한다.
+  if (block.correction_status === "PENDING" && fp !== true) return "review";
   if (
     sourceType === "homework"
     && (block.correction_status === "COMPLETED" || block.correction_status === "NOT_REQUIRED")
@@ -32,12 +41,6 @@ function blockAttentionKind(block: ScoreBlock, sourceType: "exam" | "homework"):
   }
   if (block.score == null || block.meta?.status === "NOT_SUBMITTED") return "missing";
 
-  const fp = deriveFinalPass({
-    achievement: block.achievement ?? null,
-    is_pass: block.passed ?? null,
-    final_pass: block.final_pass ?? null,
-    remediated: block.remediated ?? null,
-  });
   if (fp === false) return "failed";
   return null;
 }
