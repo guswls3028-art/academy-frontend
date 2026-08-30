@@ -836,7 +836,7 @@ table.ds-table {
 .ds-scores-table tbody td[data-col-type="score"] {
   position: relative;
 }
-.ds-scores-table tbody td[data-col-type="score"][data-achievement]::after {
+.ds-scores-table tbody td[data-col-type="score"][data-achievement]:not([data-score-progress])::after {
   content: "";
   position: absolute;
   top: 6px;
@@ -847,16 +847,16 @@ table.ds-table {
   pointer-events: none;
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-bg-surface) 90%, transparent);
 }
-.ds-scores-table tbody td[data-col-type="score"][data-achievement="PASS"]::after {
+.ds-scores-table tbody td[data-col-type="score"][data-achievement="PASS"]:not([data-score-progress])::after {
   background: var(--color-success, #22c55e);
 }
-.ds-scores-table tbody td[data-col-type="score"][data-achievement="FAIL"]::after {
+.ds-scores-table tbody td[data-col-type="score"][data-achievement="FAIL"]:not([data-score-progress])::after {
   background: var(--color-danger, #dc2626);
 }
-.ds-scores-table tbody td[data-col-type="score"][data-achievement="REMEDIATED"]::after {
+.ds-scores-table tbody td[data-col-type="score"][data-achievement="REMEDIATED"]:not([data-score-progress])::after {
   background: var(--color-warning, #f59e0b);
 }
-.ds-scores-table tbody td[data-col-type="score"][data-achievement="NOT_SUBMITTED"]::after {
+.ds-scores-table tbody td[data-col-type="score"][data-achievement="NOT_SUBMITTED"]:not([data-score-progress])::after {
   background: var(--color-text-muted);
   opacity: 0.6;
 }

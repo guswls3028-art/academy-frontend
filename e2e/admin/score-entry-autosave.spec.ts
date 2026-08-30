@@ -321,8 +321,46 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
       return;
     }
 
+    if (path.endsWith("/api/v1/lectures/sessions/") && method === "GET") {
+      await route.fulfill({
+        json: [{ id: 9002, lecture: 9001, order: 1, title: "자동 저장 검증 차시", date: "2026-07-30" }],
+      });
+      return;
+    }
+
+    if (path.endsWith("/api/v1/lectures/attendance/arrival-overview/") && method === "GET") {
+      await route.fulfill({
+        json: {
+          generated_at: "2026-07-30T09:00:00+09:00",
+          today: "2026-07-30",
+          tomorrow: "2026-07-31",
+          range_end: "2026-08-06",
+          range_days: 7,
+          soon_window_minutes: 30,
+          summary: { soon: 0, today: 0, tomorrow: 0, upcoming: 0, time_unset: 0, overdue: 0 },
+          items: [],
+        },
+      });
+      return;
+    }
+
     if (path.endsWith("/api/v1/staffs/currently-working/") && method === "GET") {
       await route.fulfill({ json: [] });
+      return;
+    }
+
+    if (path.endsWith("/api/v1/staffs/me/") && method === "GET") {
+      await route.fulfill({
+        json: {
+          is_authenticated: true,
+          is_superuser: true,
+          is_staff: true,
+          is_payroll_manager: true,
+          is_owner: true,
+          owner_display_name: "관리자",
+          staff_id: 12,
+        },
+      });
       return;
     }
 
@@ -399,6 +437,20 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       includeHomework: true,
       initialHomeworkScores: [100, 20],
     });
+
+    const failingScoreCell = page.getByRole("cell", { name: "52/100", exact: true });
+    const passingScoreCell = page.getByRole("cell", { name: "80/100", exact: true });
+    await expect(failingScoreCell).toHaveAttribute("data-score-progress", "true");
+    await expect(failingScoreCell).toHaveAttribute("data-pass-status", "fail");
+    await expect(failingScoreCell.locator(".ds-score-value__earned")).toHaveText("52");
+    await expect(failingScoreCell.locator(".ds-score-value__max")).toHaveText("100");
+    await expect.poll(
+      () => failingScoreCell.evaluate((cell) => getComputedStyle(cell).getPropertyValue("--score-progress").trim()),
+    ).toBe("52%");
+    await expect(passingScoreCell).toHaveAttribute("data-pass-status", "pass");
+    await expect.poll(
+      () => passingScoreCell.evaluate((cell) => getComputedStyle(cell).getPropertyValue("--score-progress").trim()),
+    ).toBe("80%");
 
     await expect(page.getByRole("columnheader", { name: /^판정/ })).toBeVisible();
     await page.getByRole("button", { name: /표시 옵션/ }).click();
