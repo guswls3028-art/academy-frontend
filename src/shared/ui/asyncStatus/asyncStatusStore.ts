@@ -350,6 +350,7 @@ export const asyncStatusStore = {
     const scope = this._getTenantScope() ?? "";
     const finishedCount =
       batch.counts.completed
+      + batch.counts.duplicate
       + batch.counts.needs_identification
       + batch.counts.failed
       + batch.counts.superseded;

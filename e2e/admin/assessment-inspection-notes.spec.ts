@@ -27,6 +27,7 @@ async function installApi(
     emptyExamNote?: boolean;
     failCorrection?: boolean;
     failScoreRefreshAfterCorrection?: boolean;
+    passedPendingOnly?: boolean;
   } = {},
 ) {
   const baseUrl = getBaseUrl("admin");
@@ -145,6 +146,60 @@ async function installApi(
       if (options.failScoreRefreshAfterCorrection && correctionSaved) {
         scoreRefreshFailures += 1;
         await fulfill({ detail: "일시적인 재조회 실패" }, 503);
+        return;
+      }
+      if (options.passedPendingOnly) {
+        await fulfill({
+          meta: {
+            session_title: "4차시",
+            lecture_title: "중등 수학 심화",
+            exams: [{
+              exam_id: 3101,
+              title: "커트라인 통과 시험",
+              pass_score: 70,
+              max_score: 100,
+              display_order: 1,
+              questions: [],
+            }],
+            homeworks: [],
+          },
+          rows: [{
+            enrollment_id: 9101,
+            student_id: 7101,
+            student_name: "윤지용 학생",
+            profile_photo_url: null,
+            lecture_title: "중등 수학 심화",
+            lecture_color: "#2563eb",
+            lecture_chip_label: "수심",
+            exams: [{
+              exam_id: 3101,
+              title: "커트라인 통과 시험",
+              pass_score: 70,
+              block: {
+                score: 84,
+                max_score: 100,
+                passed: true,
+                final_pass: true,
+                achievement: "PASS",
+                clinic_required: false,
+                correction_status: "PENDING",
+                correction_completed_at: null,
+                correction_note: "오답 확인 남음",
+                meta: null,
+              },
+              items: [],
+              attempt_count: 1,
+              attempts: [],
+            }],
+            homeworks: [],
+            updated_at: "2026-07-29T16:30:00+09:00",
+            clinic_required: false,
+            progress_completed: false,
+            progress_status: "in_progress",
+            correction_pending_count: 1,
+            name_highlight_followup_required: true,
+          }],
+        });
         return;
       }
       await fulfill({
@@ -526,6 +581,22 @@ test.describe("시험·과제 수동 검사 상태", () => {
     await overlay.getByRole("button", { name: "닫기" }).click();
     await expect(page).toHaveURL(hostUrl);
     await expect(drawer).toBeVisible();
+  });
+
+  test("커트라인 통과 학생은 오답 보완 대기와 별개로 통과 판정한다", async ({ page }) => {
+    await installApi(page, { passedPendingOnly: true });
+    const baseUrl = getBaseUrl("admin");
+    await page.goto(
+      `${baseUrl}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "load", timeout: 45_000 },
+    );
+
+    const row = page.locator('tbody tr[role="button"]').first();
+    await expect(row.getByText("통과", { exact: true })).toBeVisible({ timeout: 45_000 });
+    await expect(row.getByText("검수 대기", { exact: true })).toHaveCount(0);
+    await row.locator('[data-col-type="name"]').click();
+    const drawer = page.locator(".student-scores-drawer");
+    await expect(drawer.getByText(/보완 필요/)).toBeVisible();
   });
 
   test("점수 없는 과제도 완료/미완료와 비고를 저장하고 다시 불러온다", async ({ page }, testInfo) => {
