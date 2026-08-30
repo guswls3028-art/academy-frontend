@@ -1376,6 +1376,10 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
   await expect(staffMemo).toHaveValue("영상 시청 확인 필요");
   await staffMemo.fill("영상 시청 후 오답 확인");
   await workbench.getByRole("button", { name: "인수인계 메모 저장" }).click();
+  const savedToast = page.locator(".ant-message-notice").filter({
+    hasText: "교직원 인수인계 메모를 저장했습니다.",
+  });
+  await expect(savedToast).toHaveCSS("pointer-events", "none");
   await expect.poll(() => state.staffMemoPayloads).toEqual([{
     id: 801,
     staff_memo: "영상 시청 후 오답 확인",
