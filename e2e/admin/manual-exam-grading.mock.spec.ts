@@ -1783,7 +1783,10 @@ test.describe("문항별 직접 채점", () => {
       "aria-selected",
       "true",
     );
-    await omrDialog.getByText("김태윤", { exact: true }).click();
+    await omrDialog
+      .locator(".orw-list-row__name")
+      .filter({ hasText: /^김태윤$/ })
+      .click();
     await expect(omrDialog.getByRole("tab", { name: "확인" })).toHaveAttribute(
       "aria-selected",
       "true",
