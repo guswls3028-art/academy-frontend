@@ -72,8 +72,7 @@ function apiErrorMessage(error: unknown, fallback = "제출에 실패했습니�
 function mediaStatusLabel(file: HomeworkMediaFile): string {
   if (file.status === "failed") return "업로드 실패";
   if (file.status === "uploading") return "저장 중";
-  if (file.status === "done") return "검사됨";
-  return "제출됨";
+  return "선생님 확인 대기";
 }
 
 function LocalMediaPreview({ file }: { file: File }) {
@@ -324,7 +323,7 @@ export default function SubmitAssignmentPage() {
   );
 
   return (
-    <StudentPageShell title="과제 제출" description="풀이 사진과 동영상을 한 번에 고르고, 파일별 결과를 확인하세요." descriptionMode="help" onBack={() => window.history.back()}>
+    <StudentPageShell title="과제 제출" description="풀이 사진과 동영상을 제출하면 선생님이 직접 확인합니다." descriptionMode="help" onBack={() => window.history.back()}>
       <div className={`stu-section stu-section--nested ${styles.section}`}>
         {(uploadMut.isError || error) && <div role="alert" className={styles.errorMessage}>{error || apiErrorMessage(uploadMut.error)}</div>}
         {requestedSessionId != null && (
@@ -334,7 +333,7 @@ export default function SubmitAssignmentPage() {
           </div>
         )}
         {uploadMut.isSuccess && uploadMut.data?.failed.length === 0 && (
-          <div className={styles.successMessage}><span>선택한 파일을 모두 제출했습니다.</span><Link to="/student/grades" className={styles.successLink}>성적 확인<IconChevronRight className={styles.successLinkIcon} aria-hidden="true" /></Link></div>
+          <div className={styles.successMessage}><span>선택한 파일을 모두 제출했습니다. 선생님 확인을 기다려 주세요.</span><Link to="/student/grades" className={styles.successLink}>학습 현황<IconChevronRight className={styles.successLinkIcon} aria-hidden="true" /></Link></div>
         )}
 
         <div data-guide="submit-target">

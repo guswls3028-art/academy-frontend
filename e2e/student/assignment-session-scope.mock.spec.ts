@@ -241,7 +241,7 @@ test("차시 제출 링크는 다른 차시를 숨기고 대상 전환·성공 �
   });
   await page.getByRole("button", { name: "파일 1개 제출하기" }).click();
   await expect(page.getByRole("button", { name: /현재 차시 추가 과제/ })).toBeDisabled();
-  await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible();
+  await expect(page.getByText("선택한 파일을 모두 제출했습니다. 선생님 확인을 기다려 주세요.", { exact: true })).toBeVisible();
   await expect(page.getByText(/최종풀이\.png/)).toHaveCount(0);
   await expect(page.getByText("제출 대상", { exact: true })).toHaveCount(0);
   expect(api.getSubmissionCount()).toBe(1);

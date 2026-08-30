@@ -169,7 +169,7 @@ test("390px에서 사진·동영상을 다건 선택하고 부분 실패만 재�
   await expect(page.getByRole("button", { name: "실패한 파일 1개 다시 제출" })).toBeEnabled();
 
   await page.getByRole("button", { name: "실패한 파일 1개 다시 제출" }).click();
-  await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible();
+  await expect(page.getByText("선택한 파일을 모두 제출했습니다. 선생님 확인을 기다려 주세요.", { exact: true })).toBeVisible();
   expect(state.getUploadAttempts()).toBe(3);
   expect(state.files).toHaveLength(3);
 

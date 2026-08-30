@@ -24,6 +24,9 @@ async function installApi(page: Page) {
   );
   await installTenantOneInitScript(page);
   const token = fakeJwt();
+  let teacherReviewed = false;
+  let reviewUpdatedAt: string | null = null;
+  let correctionPayload: Record<string, unknown> | null = null;
   await page.addInitScript((jwt) => {
     localStorage.setItem("access", jwt);
     localStorage.setItem("refresh", `${jwt}-refresh`);
@@ -97,6 +100,11 @@ async function installApi(page: Page) {
         lecture_color: "#2563eb",
         lecture_chip_label: "수",
         name_highlight_clinic_target: false,
+        teacher_reviewed: teacherReviewed,
+        teacher_review_source: teacherReviewed ? "manual" : null,
+        teacher_review_note: teacherReviewed ? "제출 파일 직접 확인" : "",
+        teacher_reviewed_at: teacherReviewed ? "2026-08-23T03:30:00Z" : null,
+        teacher_review_updated_at: reviewUpdatedAt,
         created_at: "2026-08-23T03:20:00Z",
         files: [
           {
@@ -147,6 +155,18 @@ async function installApi(page: Page) {
         ],
       }]);
     }
+    if (path === `/results/admin/sessions/${SESSION_ID}/score-correction/` && request.method() === "PATCH") {
+      correctionPayload = request.postDataJSON() as Record<string, unknown>;
+      teacherReviewed = correctionPayload.completed === true;
+      reviewUpdatedAt = "2026-08-23T03:30:00Z";
+      return json({
+        correction_status: teacherReviewed ? "COMPLETED" : "PENDING",
+        correction_completed_at: teacherReviewed ? "2026-08-23T03:30:00Z" : null,
+        correction_note: String(correctionPayload.note ?? ""),
+        correction_updated_at: reviewUpdatedAt,
+        teacher_resolved: teacherReviewed,
+      });
+    }
     if (path === `/submissions/submissions/homework/${HOMEWORK_ID}/media/9911/preview/`) {
       const svg = encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="#eef2ff"/><text x="400" y="300" text-anchor="middle" font-size="38">homework preview</text></svg>');
       return json({
@@ -161,6 +181,10 @@ async function installApi(page: Page) {
     if (path === "/staffs/currently-working/") return json([]);
     return json({ count: 0, results: [] });
   });
+
+  return {
+    correctionPayload: () => correctionPayload,
+  };
 }
 
 async function openSubmissionReview(page: Page) {
@@ -176,12 +200,12 @@ async function openSubmissionReview(page: Page) {
 test("선생님이 학생별 제출 묶음에서 사진·동영상·오류를 파일별로 검수하고 미리본다", async ({ page }, testInfo) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 1440, height: 980 });
-  await installApi(page);
+  const api = await installApi(page);
   await openSubmissionReview(page);
 
   await expect(page.getByText("제출 학생").locator("..")).toContainText("1");
-  await expect(page.getByText("전체 파일").locator("..")).toContainText("3");
-  await expect(page.getByText("검수 가능").first().locator("..")).toContainText("2");
+  await expect(page.getByText("확인 대기").first().locator("..")).toContainText("1");
+  await expect(page.getByText("확인 완료").first().locator("..")).toContainText("0");
   await expect(page.getByText("업로드 오류").locator("..")).toContainText("1");
   await expect(page.getByText("풀이 앞면.jpg", { exact: true })).toBeVisible();
   await expect(page.getByText("풀이 설명.mp4", { exact: true })).toBeVisible();
@@ -193,6 +217,21 @@ test("선생님이 학생별 제출 묶음에서 사진·동영상·오류를 �
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("img", { name: /과제 제출 미리보기/ })).toBeVisible();
   await dialog.getByRole("button", { name: "닫기" }).click();
+
+  const studentCard = page.locator('[class*="studentCard"]').filter({ hasText: "김하늘" });
+  await expect(studentCard.getByText("확인 대기", { exact: true })).toBeVisible();
+  await studentCard.getByRole("button", { name: "확인 완료" }).click();
+  const confirmDialog = page.getByRole("alertdialog").filter({ hasText: "김하늘 제출 확인 완료" });
+  await confirmDialog.getByRole("button", { name: "확인 완료", exact: true }).click();
+  await expect.poll(api.correctionPayload).toMatchObject({
+    enrollment_id: 9902,
+    source_type: "homework",
+    source_id: HOMEWORK_ID,
+    completed: true,
+    note: "제출 파일 직접 확인",
+    expected_updated_at: null,
+  });
+  await expect(studentCard.getByText("확인 완료", { exact: true })).toBeVisible();
 
   const failedRow = page.locator('[class*="fileRow"]').filter({ hasText: "흐린 사진.png" });
   await expect(failedRow.getByRole("button", { name: "미리보기" })).toBeDisabled();
