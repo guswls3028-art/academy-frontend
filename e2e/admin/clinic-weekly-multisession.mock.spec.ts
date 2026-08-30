@@ -1099,7 +1099,7 @@ test("현장 참가자 pagination loop는 0명으로 숨기지 않고 fail-close
   await seed(page);
   await installApi(page, undefined, state);
   await page.setViewportSize({ width: 1366, height: 850 });
-  await gotoAndSettle(page, `${BASE}/workspace/clinic/operations`, { timeout: 45_000 });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/operations?scope=onsite`, { timeout: 45_000 });
 
   await expect(page.getByRole("alert")).toContainText("현재 등원중인 학생을 불러오지 못했습니다.");
   await expect(page.getByRole("button", { name: "현장 0명", exact: true })).toHaveCount(0);
@@ -1122,7 +1122,7 @@ test("현장 참가자 중복 ID는 일부 명단을 노출하지 않고 fail-cl
   await seed(page);
   await installApi(page, undefined, state);
   await page.setViewportSize({ width: 1366, height: 850 });
-  await gotoAndSettle(page, `${BASE}/workspace/clinic/operations`, { timeout: 45_000 });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/operations?scope=onsite`, { timeout: 45_000 });
 
   await expect(page.getByRole("alert")).toContainText("현재 등원중인 학생을 불러오지 못했습니다.");
   await expect(page.getByText("중복 학생", { exact: true })).toHaveCount(0);
@@ -1170,7 +1170,7 @@ test("현장 응답의 권위 상태가 어긋나면 빈 현장으로 오인하�
   await seed(page);
   await installApi(page, undefined, state);
   await page.setViewportSize({ width: 1366, height: 850 });
-  await gotoAndSettle(page, `${BASE}/workspace/clinic/operations`, { timeout: 45_000 });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/operations?scope=onsite`, { timeout: 45_000 });
 
   await expect(page.getByRole("alert")).toContainText("현재 등원중인 학생을 불러오지 못했습니다.");
   await expect(page.getByText("체크인 누락 학생", { exact: true })).toHaveCount(0);
@@ -1202,7 +1202,7 @@ test("현장 조회 취소 뒤 오늘 전체 응답이 지연된 현장 명단�
   await seed(page);
   await installApi(page, undefined, state);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(`${BASE}/workspace/clinic/operations`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${BASE}/workspace/clinic/operations?scope=onsite`, { waitUntil: "domcontentloaded" });
   await expect(page.locator(".clinic-ops__loading")).toBeVisible({ timeout: 20_000 });
 
   await page.getByRole("button", { name: "오늘 전체", exact: true }).click();
@@ -1475,7 +1475,6 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
   await expect.poll(() => state.statusPayloads?.[1]).toMatchObject({
     id: 802, status: "attended", is_late: true,
   });
-
   const reminderCard = page.locator(".clinic-ops__card").filter({ hasText: "재촉 학생" });
   await reminderCard.getByRole("button", { name: "재촉", exact: true }).click();
   const reminderDialog = page.getByRole("dialog", { name: "등원 재촉" });
