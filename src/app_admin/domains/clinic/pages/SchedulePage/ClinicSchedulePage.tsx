@@ -5,8 +5,10 @@ import dayjs from "dayjs";
 import "dayjs/locale/ko";
 import {
   CalendarPlus,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Clock3,
   Copy,
   MapPin,
@@ -89,6 +91,7 @@ export default function ClinicSchedulePage() {
   );
   const [selectedDate, setSelectedDate] = useState(today);
   const [monthAnchor, setMonthAnchor] = useState(today);
+  const [monthOpen, setMonthOpen] = useState(false);
   const monthStart = useMemo(() => dayjs(monthAnchor).startOf("month"), [monthAnchor]);
   const monthGridStart = useMemo(
     () => monthStart.subtract(monthStart.day(), "day"),
@@ -128,6 +131,7 @@ export default function ClinicSchedulePage() {
         ordering: "date,start_time,id",
       }),
     staleTime: 30_000,
+    enabled: monthOpen,
   });
   const sessionsByDate = useMemo(() => {
     const grouped = new Map<string, ClinicSessionDetail[]>();
@@ -214,6 +218,7 @@ export default function ClinicSchedulePage() {
     setMonthAnchor(dateISO);
     setWeekAnchor(dateISO);
     setSelectedDate(dateISO);
+    setMonthOpen(false);
   };
 
   const handleAddParticipants = async (selection: ClinicTargetSelectResult) => {
@@ -363,115 +368,142 @@ export default function ClinicSchedulePage() {
           </div>
         </div>
 
-        <section className={styles.monthOverview} aria-label="월간 날짜 탐색">
-          <div className={styles.monthOverviewHeader}>
-            <div>
-              <span className={styles.monthKicker}>월간 보기</span>
-              <strong className={styles.monthTitle}>{monthStart.format("YYYY년 M월")}</strong>
-            </div>
-            <div className={styles.monthControls} aria-label="월간 이동">
-              <Button
-                intent="ghost"
-                size="sm"
-                iconOnly
-                aria-label="이전 달"
-                leftIcon={<ChevronLeft size={ICON_FOR_BUTTON.sm} />}
-                onClick={() => setMonthAnchor(monthStart.subtract(1, "month").format("YYYY-MM-DD"))}
-              />
-              <Button
-                intent="secondary"
-                size="sm"
-                disabled={isCurrentMonth}
-                onClick={() => setMonthAnchor(today)}
-              >
-                이번 달
-              </Button>
-              <Button
-                intent="ghost"
-                size="sm"
-                iconOnly
-                aria-label="다음 달"
-                leftIcon={<ChevronRight size={ICON_FOR_BUTTON.sm} />}
-                onClick={() => setMonthAnchor(monthStart.add(1, "month").format("YYYY-MM-DD"))}
-              />
-            </div>
-          </div>
-
-          <div className={styles.monthStatus} aria-live="polite">
-            {monthSessionsQ.isLoading ? (
-              <span>월간 일정을 불러오는 중입니다.</span>
-            ) : monthSessionsQ.isError ? (
-              <>
-                <span>월간 일정을 확인하지 못했습니다.</span>
-                <Button
-                  intent="ghost"
-                  size="sm"
-                  aria-label="월간 일정 다시 불러오기"
-                  onClick={() => monthSessionsQ.refetch()}
-                >
-                  다시 불러오기
-                </Button>
-              </>
-            ) : monthHasSessions ? (
-              <span>날짜를 선택하면 해당 주의 일정으로 이동합니다.</span>
-            ) : (
-              <span>이번 달에 열린 시간대가 없습니다.</span>
-            )}
-          </div>
-
-          <div
-            className={styles.monthCalendar}
-            role="grid"
-            aria-label={`${monthStart.format("YYYY년 M월")} 클리닉 월간 달력`}
+        <section
+          className={`${styles.monthOverview} ${monthOpen ? styles.monthOverviewOpen : ""}`}
+          aria-label="월간 날짜 탐색"
+        >
+          <button
+            type="button"
+            className={styles.monthDisclosure}
+            aria-expanded={monthOpen}
+            aria-controls="clinic-month-calendar"
+            onClick={() => setMonthOpen((current) => !current)}
           >
-            <div className={styles.monthWeekdays} role="row">
-              {MONTH_DAY_LABELS.map((label) => (
-                <span key={label} role="columnheader">{label}</span>
-              ))}
-            </div>
-            {Array.from({ length: 6 }, (_, weekIndex) => (
-              <div key={weekIndex} className={styles.monthWeek} role="row">
-                {monthDays.slice(weekIndex * 7, weekIndex * 7 + 7).map((date) => {
-                  const dateISO = date.format("YYYY-MM-DD");
-                  const sessionCount = monthSessionsByDate.get(dateISO)?.length ?? 0;
-                  const isSelected = dateISO === selectedDate;
-                  const isToday = dateISO === today;
-                  const isOutsideMonth = !date.isSame(monthStart, "month");
-                  const loadLabel = monthSessionsQ.isLoading
-                    ? "일정 불러오는 중"
-                    : monthSessionsQ.isError
-                      ? "일정 확인 실패"
-                      : `클리닉 ${sessionCount}개`;
+            <span className={styles.monthDisclosureCopy}>
+              <span className={styles.monthDisclosureIcon} aria-hidden>
+                <CalendarDays size={ICON.md} />
+              </span>
+              <span className={styles.monthDisclosureText}>
+                <strong>월간 보기</strong>
+                <small>{monthStart.format("YYYY년 M월")} · 날짜를 멀리 이동할 때 펼쳐보세요</small>
+              </span>
+            </span>
+            <ChevronDown
+              size={ICON.md}
+              className={`${styles.monthDisclosureChevron} ${monthOpen ? styles.monthDisclosureChevronOpen : ""}`}
+              aria-hidden
+            />
+          </button>
 
-                  return (
-                    <button
-                      key={dateISO}
-                      type="button"
-                      role="gridcell"
-                      className={`${styles.monthDay} ${
-                        isSelected ? styles.monthDaySelected : ""
-                      } ${isToday ? styles.monthDayToday : ""} ${
-                        isOutsideMonth ? styles.monthDayOutside : ""
-                      }`}
-                      aria-label={`${date.format("M월 D일")} ${MONTH_DAY_LABELS[date.day()]}요일, ${loadLabel}`}
-                      aria-current={isToday ? "date" : undefined}
-                      aria-selected={isSelected}
-                      onClick={() => selectCalendarDate(dateISO)}
-                    >
-                      <span className={styles.monthDayNumber}>{date.format("D")}</span>
-                      <span className={styles.monthDayCount}>
-                        {monthSessionsQ.isLoading
-                          ? "—"
-                          : monthSessionsQ.isError
-                            ? "확인 실패"
-                            : `${sessionCount}개`}
-                      </span>
-                    </button>
-                  );
-                })}
+          {monthOpen && (
+            <div id="clinic-month-calendar" className={styles.monthPanel}>
+              <div className={styles.monthOverviewHeader}>
+                <strong className={styles.monthTitle}>{monthStart.format("YYYY년 M월")}</strong>
+                <div className={styles.monthControls} aria-label="월간 이동">
+                  <Button
+                    intent="ghost"
+                    size="sm"
+                    iconOnly
+                    aria-label="이전 달"
+                    leftIcon={<ChevronLeft size={ICON_FOR_BUTTON.sm} />}
+                    onClick={() => setMonthAnchor(monthStart.subtract(1, "month").format("YYYY-MM-DD"))}
+                  />
+                  <Button
+                    intent="secondary"
+                    size="sm"
+                    disabled={isCurrentMonth}
+                    onClick={() => setMonthAnchor(today)}
+                  >
+                    이번 달
+                  </Button>
+                  <Button
+                    intent="ghost"
+                    size="sm"
+                    iconOnly
+                    aria-label="다음 달"
+                    leftIcon={<ChevronRight size={ICON_FOR_BUTTON.sm} />}
+                    onClick={() => setMonthAnchor(monthStart.add(1, "month").format("YYYY-MM-DD"))}
+                  />
+                </div>
               </div>
-            ))}
-          </div>
+
+              <div className={styles.monthStatus} aria-live="polite">
+                {monthSessionsQ.isLoading ? (
+                  <span>월간 일정을 불러오는 중입니다.</span>
+                ) : monthSessionsQ.isError ? (
+                  <>
+                    <span>월간 일정을 확인하지 못했습니다.</span>
+                    <Button
+                      intent="ghost"
+                      size="sm"
+                      aria-label="월간 일정 다시 불러오기"
+                      onClick={() => monthSessionsQ.refetch()}
+                    >
+                      다시 불러오기
+                    </Button>
+                  </>
+                ) : monthHasSessions ? (
+                  <span>날짜를 선택하면 해당 주의 일정으로 이동합니다.</span>
+                ) : (
+                  <span>이번 달에 열린 시간대가 없습니다.</span>
+                )}
+              </div>
+
+              <div
+                className={styles.monthCalendar}
+                role="grid"
+                aria-label={`${monthStart.format("YYYY년 M월")} 클리닉 월간 달력`}
+              >
+                <div className={styles.monthWeekdays} role="row">
+                  {MONTH_DAY_LABELS.map((label) => (
+                    <span key={label} role="columnheader">{label}</span>
+                  ))}
+                </div>
+                {Array.from({ length: 6 }, (_, weekIndex) => (
+                  <div key={weekIndex} className={styles.monthWeek} role="row">
+                    {monthDays.slice(weekIndex * 7, weekIndex * 7 + 7).map((date) => {
+                      const dateISO = date.format("YYYY-MM-DD");
+                      const sessionCount = monthSessionsByDate.get(dateISO)?.length ?? 0;
+                      const isSelected = dateISO === selectedDate;
+                      const isToday = dateISO === today;
+                      const isOutsideMonth = !date.isSame(monthStart, "month");
+                      const loadLabel = monthSessionsQ.isLoading
+                        ? "일정 불러오는 중"
+                        : monthSessionsQ.isError
+                          ? "일정 확인 실패"
+                          : `클리닉 ${sessionCount}개`;
+
+                      return (
+                        <button
+                          key={dateISO}
+                          type="button"
+                          role="gridcell"
+                          className={`${styles.monthDay} ${
+                            isSelected ? styles.monthDaySelected : ""
+                          } ${isToday ? styles.monthDayToday : ""} ${
+                            isOutsideMonth ? styles.monthDayOutside : ""
+                          }`}
+                          aria-label={`${date.format("M월 D일")} ${MONTH_DAY_LABELS[date.day()]}요일, ${loadLabel}`}
+                          aria-current={isToday ? "date" : undefined}
+                          aria-selected={isSelected}
+                          onClick={() => selectCalendarDate(dateISO)}
+                        >
+                          <span className={styles.monthDayNumber}>{date.format("D")}</span>
+                          <span className={styles.monthDayCount}>
+                            {monthSessionsQ.isLoading
+                              ? "—"
+                              : monthSessionsQ.isError
+                                ? "확인 실패"
+                                : `${sessionCount}개`}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
 
         <nav className={styles.dateNavigator} aria-label="주간 날짜 선택">
@@ -692,7 +724,7 @@ export default function ClinicSchedulePage() {
                                     navigate(`/workspace/clinic/operations?date=${session.date}&session=${session.id}`)
                                   }
                                 >
-                                  진행
+                                  명단 관리
                                 </Button>
                               </div>
                             </article>

@@ -349,6 +349,7 @@
 
 .clinic-ops__drawer-status-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
 }
 
