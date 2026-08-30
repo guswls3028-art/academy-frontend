@@ -356,7 +356,7 @@ export default function CommunityPage() {
 
   // ─── Tab view ───
   return (
-    <StudentPageShell title="커뮤니티">
+    <StudentPageShell title="소식·자료">
       {tab == null ? (
         <CommunityHub onQuestion={openQuestionForm} onSelect={selectTab} />
       ) : (
