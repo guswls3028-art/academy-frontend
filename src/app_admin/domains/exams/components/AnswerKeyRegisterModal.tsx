@@ -31,6 +31,7 @@ import {
 import ExamPdfUploadModal from "./ExamPdfUploadModal";
 import { adminExamsQueryKeys } from "../queryKeys";
 import "./AnswerKeyRegisterModal.css";
+import "./AnswerKeyRegisterModal.mobile.css";
 
 type Props = {
   open: boolean;
@@ -1551,6 +1552,7 @@ function ChoiceRow({
               value={c}
               checked={selectedChoices.has(c)}
               onChange={() => toggleChoice(c)}
+              aria-label={`${question.number}번 ${c}번 선택지`}
               className="ds-sr-only"
               disabled={!editable}
             />
@@ -1645,6 +1647,7 @@ function EssayRow({
           onKeyDown={handleKeyDown}
           placeholder={numericOnly ? "0~999" : "해설참조"}
           maxLength={numericOnly ? 3 : undefined}
+          aria-label={`${question.number}번 ${numericOnly ? "단답형" : "서술형"} 정답`}
           className="ds-input answer-key-row__input"
           disabled={!editable}
         />
