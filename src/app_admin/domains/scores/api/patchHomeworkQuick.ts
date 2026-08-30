@@ -29,7 +29,7 @@ export type HomeworkScoreCellConflict = {
   serverValue: HomeworkScoreCellValue;
 };
 
-type HomeworkQuickPatchResponse = {
+type HomeworkQuickPatchResult = {
   score: number | null;
   max_score: number | null;
   meta?: { status?: HomeworkMetaStatus | null } | null;
@@ -49,7 +49,7 @@ export async function patchHomeworkQuick(params: {
   // ✅ 확장: 미제출 저장/해제
   metaStatus?: HomeworkMetaStatus | null;
   expectedUpdatedAt: string | null;
-}): Promise<HomeworkQuickPatchResponse> {
+}): Promise<HomeworkQuickPatchResult> {
   const res = await api.patch(
     "/homework/scores/quick/",
     {
@@ -69,7 +69,7 @@ export async function patchHomeworkQuick(params: {
     },
   );
 
-  return res.data as HomeworkQuickPatchResponse;
+  return res.data as HomeworkQuickPatchResult;
 }
 
 export function getHomeworkScoreCellConflict(error: unknown): HomeworkScoreCellConflict | null {
