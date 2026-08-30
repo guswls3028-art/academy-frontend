@@ -40,7 +40,7 @@ export type ScoreActiveEditor = {
   active_cell: ScoreActiveCell;
 };
 
-export type ScoreDraftResponse = {
+export type ScoreDraftSnapshot = {
   changes: PendingChange[];
   stale?: boolean;
   active_editors: ScoreActiveEditor[];
@@ -48,11 +48,11 @@ export type ScoreDraftResponse = {
 
 export async function getScoreDraft(
   sessionId: number,
-): Promise<ScoreDraftResponse> {
+): Promise<ScoreDraftSnapshot> {
   const res = await api.get(`/results/admin/sessions/${sessionId}/score-draft/`, {
     headers: await scoreEditorRequestHeaders(),
   });
-  const data = res.data as Partial<ScoreDraftResponse>;
+  const data = res.data as Partial<ScoreDraftSnapshot>;
   return {
     changes: data.changes ?? [],
     stale: data.stale,
@@ -64,7 +64,7 @@ export async function putScoreDraft(
   sessionId: number,
   changes: PendingChange[],
   options?: { acknowledgeStale?: boolean; activeCell?: ScoreActiveCell | null },
-): Promise<ScoreDraftResponse> {
+): Promise<ScoreDraftSnapshot> {
   const res = await api.put(`/results/admin/sessions/${sessionId}/score-draft/`, {
     changes,
     acknowledge_stale: options?.acknowledgeStale ?? false,
@@ -72,7 +72,7 @@ export async function putScoreDraft(
   }, {
     headers: await scoreEditorRequestHeaders(),
   });
-  const data = res.data as Partial<ScoreDraftResponse>;
+  const data = res.data as Partial<ScoreDraftSnapshot>;
   return {
     changes: data.changes ?? [],
     stale: data.stale,

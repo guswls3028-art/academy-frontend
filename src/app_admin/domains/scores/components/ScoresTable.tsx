@@ -39,6 +39,8 @@ import type { TableColumnDef } from "@/shared/ui/domain";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
+import "./ScoreCollaborationPresence.css";
+
 /** 컬럼 기본 너비 */
 const COL_EDIT = 36;
 // 2026-05-13 4차 Visual Polish:
