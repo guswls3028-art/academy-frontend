@@ -467,6 +467,33 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     })).toBe(true);
   });
 
+  test("미입력 점수가 있으면 수업결과 알림톡 모달을 열지 않는다", async ({ page }) => {
+    await openScores(page, {
+      initialScores: [65, null],
+      nullScoresPassedFalse: true,
+    });
+
+    await page.getByRole("checkbox", { name: "자동저장학생2 선택" }).check();
+    await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
+
+    await expect(page.getByText(/점수가 입력되지 않은 시험·과제가 1건 있습니다/)).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "알림톡 발송" })).toHaveCount(0);
+  });
+
+  test("성적 알림 모달은 보호자만 선택하고 학생 수신을 잠근다", async ({ page }) => {
+    await openScores(page, { initialScores: [65, 52] });
+
+    await page.getByRole("checkbox", { name: "자동저장학생1 선택" }).check();
+    await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
+
+    const dialog = page.getByRole("dialog", { name: "알림톡 발송" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("checkbox", { name: "학부모" })).toBeChecked();
+    await expect(dialog.getByRole("checkbox", { name: "학생" })).not.toBeChecked();
+    await expect(dialog.getByRole("checkbox", { name: "학생" })).toBeDisabled();
+    await expect(dialog).toContainText("성적 알림은 보호자에게만 발송됩니다.");
+  });
+
   test("마지막 열을 테스트 오답으로 바꾸면 실제 오답 확인 완료 상태가 사용자별로 유지된다", async ({ page }, testInfo) => {
     await openScores(page, {
       initialScores: [52, 80, 100, null],

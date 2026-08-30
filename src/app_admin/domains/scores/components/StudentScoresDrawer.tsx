@@ -28,7 +28,7 @@ import { fetchAttemptHistory, type AttemptHistoryResponse } from "../api/attempt
 import { submitClinicRetake, updateClinicRetake } from "@admin/domains/clinic/api/clinicLinks.api";
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
 import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
-import { buildGenericScoreTemplate, buildScoreVars, buildScoreDetail, substituteScoreVars } from "@/shared/scoring/scoreReport";
+import { buildGenericScoreTemplate, buildScoreVars, buildScoreDetail, substituteScoreVars, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
 import {
   getSessionRowAttentionCountLabel,
   getSessionRowAttentionSummary,
@@ -209,6 +209,13 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
         feedback.error("최신 성적을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.");
         return;
       }
+    }
+    const unenteredItems = collectUnenteredScoreItems(currentRow);
+    if (unenteredItems.length > 0) {
+      feedback.error(
+        `점수가 입력되지 않은 시험·과제가 ${unenteredItems.length}건 있습니다. 점수를 입력하거나 /로 미응시·미제출을 확정한 뒤 발송해 주세요.`,
+      );
+      return;
     }
     // SSOT (2026-05-13): 1순위 backend 응답 meta — session_scores_view.py가 응답 meta에 항상 채움 (lecture_title/session_title).
     // 2/3순위는 캐시·row fallback (호환). 진짜 진리는 meta.* — 어디서 발송하든 일관됨.
