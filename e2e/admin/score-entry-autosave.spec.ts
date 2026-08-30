@@ -313,6 +313,38 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
       return;
     }
 
+    if (path.endsWith("/api/v1/results/admin/attempt-history/") && method === "GET") {
+      const requestUrl = new URL(request.url());
+      const enrollmentId = Number(requestUrl.searchParams.get("enrollment_id"));
+      const rowIndex = enrollmentId - 9201;
+      const homeworkId = requestUrl.searchParams.get("homework_id");
+      const isHomework = homeworkId != null;
+      const score = isHomework ? currentHomeworkScores[rowIndex] : currentScores[rowIndex];
+      const maxScore = isHomework ? homeworkMaxScore : 100;
+      await route.fulfill({
+        json: {
+          source_type: isHomework ? "homework" : "exam",
+          source_id: isHomework ? Number(homeworkId) : 9101,
+          source_title: isHomework ? "단원 복습" : "주간 확인",
+          pass_score: 60,
+          max_score: maxScore,
+          attempts: [{
+            attempt_index: 1,
+            score,
+            max_score: maxScore,
+            pass_score: 60,
+            passed: score == null ? null : score >= 60,
+            at: "2026-08-30T09:00:00+09:00",
+            source: "grade",
+            meta_status: null,
+          }],
+          clinic_link_id: null,
+          resolved: score == null ? null : score >= 60,
+        },
+      });
+      return;
+    }
+
     if (path.endsWith("/api/v1/enrollments/session-enrollments/") && method === "GET") {
       await route.fulfill({
         json: {
@@ -616,9 +648,10 @@ test("선택만 한 과제 셀은 원격 저장 뒤 옛 version으로 conflict�
     let pageBObservedHomeworkScore: number | null | undefined;
     pageB.on("response", async (response) => {
       if (/\/results\/admin\/sessions\/9002\/scores\/$/.test(new URL(response.url()).pathname)) {
-        const body = await response.json() as {
+        const body = await response.json().catch(() => null) as {
           rows?: Array<{ homeworks?: Array<{ block?: { score?: number | null } }> }>;
-        };
+        } | null;
+        if (!body) return;
         pageBObservedHomeworkScore = body.rows?.[0]?.homeworks?.[0]?.block?.score;
       }
     });
@@ -677,9 +710,10 @@ test("완료형 과제 셀은 focus 시 version을 고정해 원격 저장 뒤 s
     let pageBObservedHomeworkScore: number | null | undefined;
     pageB.on("response", async (response) => {
       if (/\/results\/admin\/sessions\/9002\/scores\/$/.test(new URL(response.url()).pathname)) {
-        const body = await response.json() as {
+        const body = await response.json().catch(() => null) as {
           rows?: Array<{ homeworks?: Array<{ block?: { score?: number | null } }> }>;
-        };
+        } | null;
+        if (!body) return;
         pageBObservedHomeworkScore = body.rows?.[0]?.homeworks?.[0]?.block?.score;
       }
     });
@@ -708,6 +742,71 @@ test("완료형 과제 셀은 focus 시 version을 고정해 원격 저장 뒤 s
     await pageB.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
     await expect(pageA.locator('[data-score-cell="homework:9201:9151"]')).toContainText("미입력", { timeout: 90_000 });
     await expect(pageB.locator('[data-score-cell="homework:9201:9151"]')).toContainText("미입력", { timeout: 90_000 });
+  } finally {
+    await contextA.close();
+    await contextB.close();
+  }
+});
+
+test("학생 상세 1차 과제 편집은 시작 version을 고정해 원격 저장을 덮어쓰지 않는다", async ({ browser }) => {
+  test.setTimeout(300_000);
+  const contextA = await browser.newContext({ serviceWorkers: "block" });
+  const contextB = await browser.newContext({ serviceWorkers: "block" });
+  try {
+    const pageA = await contextA.newPage();
+    const pageB = await contextB.newPage();
+    const routeOptions: ScoreRouteOptions = {
+      includeHomework: true,
+      homeworkAssignedRows: [true, true],
+      initialHomeworkScores: [10, 20],
+    };
+    await openScores(pageA, routeOptions, 90_000);
+    await ensureScoreEditing(pageA, 90_000);
+    await openScores(pageB, routeOptions, 90_000);
+    await ensureScoreEditing(pageB, 90_000);
+
+    await pageB.getByText("자동저장학생1", { exact: true }).first().click();
+    const drawer = pageB.getByRole("complementary", { name: /자동저장학생1 학생 상세/ });
+    await expect(drawer).toBeVisible();
+    await drawer.getByRole("button", { name: /^단원 복습/ }).click();
+    const attemptCard = drawer.locator(".ssd-attempt-card").filter({ hasText: "1차 과제" });
+    await attemptCard.getByTitle("점수 수정").click();
+    const drawerScoreInput = attemptCard.getByRole("spinbutton").first();
+    await expect(drawerScoreInput).toHaveValue("10");
+
+    let pageBObservedHomeworkScore: number | null | undefined;
+    pageB.on("response", async (response) => {
+      if (/\/results\/admin\/sessions\/9002\/scores\/$/.test(new URL(response.url()).pathname)) {
+        const body = await response.json().catch(() => null) as {
+          rows?: Array<{ homeworks?: Array<{ block?: { score?: number | null } }> }>;
+        } | null;
+        if (!body) return;
+        pageBObservedHomeworkScore = body.rows?.[0]?.homeworks?.[0]?.block?.score;
+      }
+    });
+
+    const pageAInput = pageA.getByRole("textbox", { name: "자동저장학생1 · 단원 복습 점수 입력" });
+    await pageAInput.fill("77");
+    await pageA.keyboard.press("Control+s");
+    await expect.poll(() => currentHomeworkScores[0]).toBe(77);
+    await expect.poll(() => pageBObservedHomeworkScore, { timeout: 10_000 }).toBe(77);
+    await expect(drawerScoreInput).toHaveValue("10");
+
+    await drawerScoreInput.fill("88");
+    await attemptCard.getByRole("button", { name: "저장", exact: true }).click();
+    const conflict = attemptCard.getByRole("alert").filter({ hasText: "최신 서버값 77" });
+    await expect(conflict).toContainText("내 입력 88");
+    await expect(drawerScoreInput).toHaveValue("88");
+    expect(currentHomeworkScores[0]).toBe(77);
+
+    await conflict.getByRole("button", { name: "내 점수 다시 적용" }).click();
+    await attemptCard.getByRole("button", { name: "저장", exact: true }).click();
+    await expect.poll(() => currentHomeworkScores[0]).toBe(88);
+
+    await pageA.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
+    await pageB.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
+    await expect(pageA.locator('[data-score-cell="homework:9201:9151"]')).toContainText("88", { timeout: 90_000 });
+    await expect(pageB.locator('[data-score-cell="homework:9201:9151"]')).toContainText("88", { timeout: 90_000 });
   } finally {
     await contextA.close();
     await contextB.close();
