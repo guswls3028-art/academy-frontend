@@ -87,6 +87,14 @@ function categorize(row: OmrReviewRow): FilterKey {
   return "ok";
 }
 
+function actionableReviewReasons(
+  required: boolean | undefined,
+  reasons: string[] | null | undefined,
+): string[] {
+  if (required !== true || !Array.isArray(reasons)) return [];
+  return reasons.filter((reason): reason is string => typeof reason === "string" && reason.trim() !== "");
+}
+
 function toneForCategory(c: FilterKey): "success" | "danger" | "warning" | "primary" | "neutral" {
   switch (c) {
     case "ok":
@@ -403,6 +411,10 @@ export default function OmrReviewWorkspace({
                 const cat = categorize(r);
                 const tone = toneForCategory(cat);
                 const label = labelForCategory(cat);
+                const reasons = actionableReviewReasons(
+                  r.manual_review_required,
+                  r.manual_review_reasons,
+                );
                 return (
                   <div
                     key={r.id}
@@ -418,9 +430,9 @@ export default function OmrReviewWorkspace({
                     <div className="orw-list-row__sub">
                       <Badge tone={tone}>{label}</Badge>
                       <span className="orw-list-row__time">{formatTime(r.created_at)}</span>
-                      {r.manual_review_reasons && r.manual_review_reasons.length > 0 && (
+                      {reasons.length > 0 && (
                         <span className="orw-list-row__reasons">
-                          {r.manual_review_reasons.slice(0, 2).map(reasonLabel).join(", ")}
+                          {reasons.slice(0, 2).map(reasonLabel).join(", ")}
                         </span>
                       )}
                     </div>
@@ -1103,7 +1115,12 @@ function EditPane({
     );
   }
 
-  const reasons = detail.meta?.manual_review?.reasons ?? [];
+  const reviewRequired = detail.meta?.manual_review?.required === true;
+  const reasons = actionableReviewReasons(
+    reviewRequired,
+    detail.meta?.manual_review?.reasons,
+  );
+  const firstReviewAnswer = detail.answers.find(isFlagged) ?? detail.answers[0];
   const headerName = studentName || (identifierNeeded ? "미식별 학생" : "학생");
 
   return (
@@ -1114,15 +1131,42 @@ function EditPane({
           {detail.submission_status && (
             <span className="orw-edit-pane__status">상태 <b>{statusLabel(detail.submission_status)}</b></span>
           )}
-          {reasons.length > 0 && (
-            <span className="orw-edit-pane__warn">
-              {reasons.map(reasonLabel).join(", ")}
-            </span>
-          )}
         </div>
       </div>
 
       <div className="orw-edit-pane__body">
+        {reviewRequired && (
+          <section className="orw-review-callout" aria-label="지금 확인할 내용">
+            <div className="orw-review-callout__heading">지금 확인할 내용</div>
+            <div className="orw-review-callout__reasons">
+              {reasons.length > 0 ? reasons.map((reason, index) => (
+                <div key={`${reason}-${index}`}>{reasonLabel(reason)}</div>
+              )) : (
+                <div>판독 결과 확인이 필요합니다.</div>
+              )}
+            </div>
+            <div className="orw-review-callout__actions">
+              {identifierNeeded && (
+                <button
+                  type="button"
+                  className="orw-review-callout__action"
+                  onClick={() => setPickerOpen(true)}
+                >
+                  학생 연결하기
+                </button>
+              )}
+              {firstReviewAnswer && (
+                <button
+                  type="button"
+                  className="orw-review-callout__action"
+                  onClick={() => setFocusedQid(firstReviewAnswer.question_id)}
+                >
+                  답안 수정하기
+                </button>
+              )}
+            </div>
+          </section>
+        )}
         {siblings.length > 0 && (
           <div className="orw-duplicate-cluster">
             <div className="orw-duplicate-cluster__title">
@@ -1276,7 +1320,9 @@ function EditPane({
             ? "저장 중…"
             : dirty
               ? "저장 + 재채점"
-              : "변경 사항 없음"}
+              : reviewRequired
+                ? "수정 후 재채점"
+                : "변경 사항 없음"}
         </button>
         <button
           className="orw-discard-btn"
@@ -1315,19 +1361,28 @@ function statusLabel(s: string | undefined | null): string {
 }
 
 const REASON_LABEL: Record<string, string> = {
-  answer_blank_or_multi: "빈칸·중복마킹",
-  answer_low_confidence: "낮은 신뢰도",
-  answer_status_not_ok: "인식 불완전",
-  identifier_no_match: "학생 매칭 실패",
-  identifier_no_enrollment_match: "학생 매칭 실패",
-  identifier_missing: "식별자 미인식",
-  identifier_invalid: "식별자 형식 오류",
-  alignment_failed: "페이지 정렬 실패(재스캔 권장)",
+  answer_blank_or_multi: "빈칸 또는 중복 마킹을 확인해 주세요.",
+  answer_low_confidence: "마킹이 흐려 답안 확인이 필요합니다.",
+  answer_score_ambiguous: "답안 표시가 겹쳐 있어 확인이 필요합니다.",
+  answer_status_not_ok: "읽지 못한 답안을 확인해 주세요.",
+  answer_count_mismatch: "읽은 문항 수가 시험과 다릅니다.",
+  identifier_no_match: "학생 연결이 필요합니다.",
+  identifier_no_enrollment_match: "학생 연결이 필요합니다.",
+  identifier_incomplete: "식별번호를 확인하고 학생을 연결해 주세요.",
+  identifier_missing: "식별번호를 확인하고 학생을 연결해 주세요.",
+  identifier_invalid: "식별번호 형식을 확인하고 학생을 연결해 주세요.",
+  identifier_fuzzy_match: "비슷한 학생이 있어 연결 대상을 확인해 주세요.",
+  identifier_ambiguous_digit: "식별번호 한 자리가 불분명합니다.",
+  duplicate_enrollment: "같은 학생의 답안지가 여러 장입니다.",
+  alignment_failed: "답안지 방향을 맞추지 못했습니다. 다시 읽어 주세요.",
 };
 
 function reasonLabel(r: string): string {
-  const k = String(r || "").toLowerCase();
-  return REASON_LABEL[k] || r;
+  const raw = String(r || "").trim();
+  const k = raw.toLowerCase();
+  if (REASON_LABEL[k]) return REASON_LABEL[k];
+  if (/^[A-Z][A-Z0-9_:-]+$/.test(raw)) return "판독 결과 확인이 필요합니다.";
+  return raw || "판독 결과 확인이 필요합니다.";
 }
 
 function questionLabel(no: number | null | undefined): string {
