@@ -241,9 +241,10 @@ function firstLine(text: string): string {
 
 /** 2026-05-13 학원장 결정 시행: 시험 단위 status 폐기 → 학생별 진행 상태가 SSOT.
  *  점수 셀 tooltip 으로 노출 (클리닉 1차/2차/3차 정합). */
-function achievementLabel(block: { passed?: boolean | null; achievement?: string | null; meta?: { status?: string | null } | null } | null | undefined): string {
+function achievementLabel(block: { score?: number | null; passed?: boolean | null; achievement?: string | null; meta?: { status?: string | null } | null } | null | undefined): string {
   if (!block) return "진행중";
   if (block.meta?.status === "NOT_SUBMITTED") return "진행중 (미응시)";
+  if (block.score == null) return "진행중";
   if (block.achievement === "REMEDIATED") return "이수 (보강)";
   if (block.achievement === "PASS" || block.passed === true) return "이수";
   if (block.achievement === "FAIL" || block.passed === false) return "판정 대기 (클리닉 대상)";
@@ -1376,6 +1377,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           const examMaxScore = block?.max_score ?? ex.max_score ?? null;
                           const isExamNotSubmitted = block?.meta?.status === "NOT_SUBMITTED";
                           const omrReviewStatus = getScoreBlockOmrReviewStatus(block);
+                          const isEmptyScore = block?.score == null && !isExamNotSubmitted && !omrReviewStatus;
                           const scoreText = omrReviewStatus === "review" ? "검토" : isExamNotSubmitted ? "미응시" : block?.score == null ? "-" : scoreFormat === "fraction" && examMaxScore != null ? `${formatScoreNumber(block.score)}/${formatScoreNumber(Number(examMaxScore))}` : formatScoreNumber(block.score);
                           const hasRetakes = (entry?.attempt_count ?? 0) >= 2;
                           const hasClinicLink = entry?.clinic_link_id != null;
@@ -1395,9 +1397,16 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               data-group-parity={groupParity}
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
                               {...(canEdit ? { "data-editable": "true" } : {})}
+                              {...(isEmptyScore ? { "data-score-empty": "true" } : {})}
                               {...(progressStyle ? { "data-score-progress": "true", style: progressStyle } : {})}
-                              {...(block?.passed != null ? { "data-pass-status": block.passed ? "pass" : "fail" } : {})}
-                              {...(block?.achievement ? { "data-achievement": block.achievement } : omrReviewStatus === "review" ? { "data-achievement": "OMR_REVIEW_REQUIRED" } : isExamNotSubmitted ? { "data-achievement": "NOT_SUBMITTED" } : {})}
+                              {...(!isExamNotSubmitted && block?.score != null && block.passed != null ? { "data-pass-status": block.passed ? "pass" : "fail" } : {})}
+                              {...(isExamNotSubmitted
+                                ? { "data-achievement": "NOT_SUBMITTED" }
+                                : omrReviewStatus === "review"
+                                  ? { "data-achievement": "OMR_REVIEW_REQUIRED" }
+                                  : block?.score != null && block.achievement
+                                    ? { "data-achievement": block.achievement }
+                                    : {})}
                               className={`min-w-0 text-center align-middle ${showAddRetake ? "ds-scores-cell--with-retake-action" : ""} ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                               title={cellTitle}
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "total"); }}
@@ -1581,6 +1590,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           const objScore = block?.objective_score ?? block?.score ?? null;
                           const objectiveMax = examObjectiveMax(ex);
                           const omrReviewStatus = getScoreBlockOmrReviewStatus(block);
+                          const isExamNotSubmitted = block?.meta?.status === "NOT_SUBMITTED";
+                          const isEmptyScore = objScore == null && !isExamNotSubmitted && !omrReviewStatus;
                           const scoreText = omrReviewStatus === "review" ? "검토" : objScore == null ? "-" : formatScoreNumber(objScore);
                           const canEdit = isEditMode && examEditObjective && !block?.is_locked && !omrReviewStatus;
                           const progressStyle = canEdit ? undefined : scoreProgressStyle(objScore, objectiveMax);
@@ -1590,8 +1601,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               data-col-type="score"
                               data-group-parity={groupParity}
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
+                              {...(isEmptyScore ? { "data-score-empty": "true" } : {})}
                               {...(progressStyle ? { "data-score-progress": "true", style: progressStyle } : {})}
-                              {...(block?.passed != null ? { "data-pass-status": block.passed ? "pass" : "fail" } : {})}
+                              {...(isExamNotSubmitted
+                                ? { "data-achievement": "NOT_SUBMITTED" }
+                                : objScore != null && block?.passed != null
+                                  ? { "data-pass-status": block.passed ? "pass" : "fail" }
+                                  : {})}
                               className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "objective"); }}
                             >
@@ -1693,6 +1709,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           const subScore = block?.subjective_score ?? null;
                           const subjectiveMax = examSubjectiveMax(ex);
                           const omrReviewStatus = getScoreBlockOmrReviewStatus(block);
+                          const isExamNotSubmitted = block?.meta?.status === "NOT_SUBMITTED";
+                          const isEmptyScore = subScore == null && !isExamNotSubmitted && !omrReviewStatus;
                           const scoreText = omrReviewStatus === "review" ? "검토" : subScore != null ? formatScoreNumber(subScore) : "-";
                           const canEdit = col.editable && subjectiveMax > 0 && !block?.is_locked && !omrReviewStatus;
                           const progressStyle = canEdit ? undefined : scoreProgressStyle(subScore, subjectiveMax);
@@ -1702,8 +1720,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               data-col-type="score"
                               data-group-parity={groupParity}
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
+                              {...(isEmptyScore ? { "data-score-empty": "true" } : {})}
                               {...(progressStyle ? { "data-score-progress": "true", style: progressStyle } : {})}
-                              {...(block?.passed != null ? { "data-pass-status": block.passed ? "pass" : "fail" } : {})}
+                              {...(isExamNotSubmitted
+                                ? { "data-achievement": "NOT_SUBMITTED" }
+                                : subScore != null && block?.passed != null
+                                  ? { "data-pass-status": block.passed ? "pass" : "fail" }
+                                  : {})}
                               className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                               title={subjectiveMax > 0 ? `서술형 수기 점수 (0 ~ ${subjectiveMax})` : "채점 대상 서술형 문항 없음"}
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "subjective"); }}
@@ -1807,6 +1830,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           const item = entry?.items?.find((i) => i.question_id === col.questionId);
                           const value = item?.score ?? null;
                           const maxScore = item?.max_score ?? q?.max_score ?? 0;
+                          const isExamNotSubmitted = block?.meta?.status === "NOT_SUBMITTED";
                           const canEdit = isEditMode && examEditSubjective && !block?.is_locked;
                           const progressStyle = canEdit ? undefined : scoreProgressStyle(value, maxScore);
                           return (
@@ -1816,6 +1840,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               data-group-parity={groupParity}
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
                               {...(canEdit ? { "data-editable": "true" } : {})}
+                              {...(value == null && !isExamNotSubmitted ? { "data-score-empty": "true" } : {})}
+                              {...(isExamNotSubmitted ? { "data-achievement": "NOT_SUBMITTED" } : {})}
                               {...(progressStyle ? { "data-score-progress": "true", style: progressStyle } : {})}
                               className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""}`}
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, col.questionId); }}
@@ -1865,10 +1891,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       hasAnyScore = true;
                       totalScore += Number(block.score);
                       totalMaxScore += block.max_score ?? ex.max_score ?? 100;
-                    }
-                    if (block?.passed != null) {
-                      if (allPassed === null) allPassed = block.passed;
-                      else if (!block.passed) allPassed = false;
+                      if (block.passed != null) {
+                        if (allPassed === null) allPassed = block.passed;
+                        else if (!block.passed) allPassed = false;
+                      }
                     }
                   }
                   const progressStyle = hasAnyScore ? scoreProgressStyle(totalScore, totalMaxScore) : undefined;
@@ -1878,6 +1904,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       data-col-type="exam-summary"
                       data-summary-start=""
                       data-summary=""
+                      {...(!hasAnyScore ? { "data-score-empty": "true" } : {})}
                       {...(progressStyle ? { "data-score-progress": "true", style: progressStyle } : {})}
                       {...(allPassed != null ? { "data-pass-status": allPassed ? "pass" : "fail" } : {})}
                     >
@@ -1905,6 +1932,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     selectedCell.homeworkId === hw.homework_id;
                   const canEditScore = isEditMode && homeworkEdit && !notEnrolledForHw;
                   const isNotSubmitted = block?.meta?.status === "NOT_SUBMITTED";
+                  const isEmptyScore = block?.score == null && !isNotSubmitted;
                   const hwParity = hwBodyIdx % 2 === 0 ? "even" : "odd";
                   const progressStyle = canEditScore || hw.grading_mode === "COMPLETION"
                     ? undefined
@@ -1932,10 +1960,11 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                         data-group-parity={hwParity}
                         {...(hwBodyIdx === 0 ? { "data-section-start": "" } : {})}
                         {...(canEditScore ? { "data-editable": "true" } : {})}
+                        {...(isEmptyScore ? { "data-score-empty": "true" } : {})}
                         {...(progressStyle ? { "data-score-progress": "true", style: progressStyle } : {})}
                         {...(isNotSubmitted
                           ? { "data-achievement": "NOT_SUBMITTED" }
-                          : block?.passed != null
+                          : block?.score != null && block.passed != null
                             ? { "data-pass-status": block.passed ? "pass" : "fail" }
                             : {})}
                         onClick={(e) => {
