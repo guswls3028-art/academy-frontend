@@ -21,9 +21,9 @@
 }
 
 .qna-inbox__list {
-  width: 380px;
-  min-width: 320px;
-  max-width: 42%;
+  width: 340px;
+  min-width: 300px;
+  max-width: 36%;
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--color-border-divider);
@@ -47,7 +47,7 @@
 
 .qna-inbox__workbench {
   display: grid;
-  grid-template-columns: minmax(0, 1.14fr) minmax(360px, 0.86fr);
+  grid-template-columns: minmax(320px, 0.82fr) minmax(520px, 1.18fr);
   flex: 1;
   min-height: 0;
   background: var(--color-bg-surface-soft);
@@ -328,6 +328,14 @@
 .qna-inbox__answer-pane .qna-inbox__composer {
   padding: var(--space-3, 12px);
   border-top-width: 1px;
+}
+
+.qna-inbox__answer-pane .qna-inbox__thread-view--empty .qna-inbox__composer {
+  order: -1;
+  padding: var(--space-4, 16px);
+  border-top: 0;
+  border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-primary) 2%, var(--color-bg-surface));
 }
 
 .qna-inbox__answer-pane .qna-inbox__composer-editor .ql-editor {
@@ -1530,12 +1538,12 @@
 
 @media (max-width: 1366px) {
   .qna-inbox__list {
-    width: 320px;
-    min-width: 290px;
+    width: 300px;
+    min-width: 280px;
   }
 
   .qna-inbox__workbench {
-    grid-template-columns: minmax(0, 1fr) minmax(320px, 0.92fr);
+    grid-template-columns: minmax(0, 0.86fr) minmax(400px, 1.14fr);
   }
 
   .qna-inbox__thread-header {
@@ -1554,7 +1562,7 @@
   }
 
   .qna-inbox__workbench {
-    grid-template-columns: minmax(0, 1fr) minmax(290px, 0.9fr);
+    grid-template-columns: minmax(0, 0.82fr) minmax(330px, 1.18fr);
   }
 
   .qna-inbox__viewer-toolbar {
