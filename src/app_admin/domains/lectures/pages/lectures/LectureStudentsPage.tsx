@@ -5,6 +5,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
+import { compareKoreanText } from "@/shared/utils/dataOrdering";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 
@@ -87,7 +88,7 @@ export default function LectureStudentsPage() {
   const [showSessionCreateModal, setShowSessionCreateModal] = useState(false);
   const [showEnrollExcelModal, setShowEnrollExcelModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [sort, setSort] = useState("");
+  const [sort, setSort] = useState("name");
   const [sessionScope, setSessionScope] = useState<AttendanceSessionScope>("REGULAR");
   const { columnWidths, setColumnWidth } = useTableColumnPrefs("lecture-students", LECTURE_STUDENTS_FIXED_COLUMNS);
 
@@ -173,15 +174,18 @@ export default function LectureStudentsPage() {
     return [...filtered].sort((a, b) => {
       const aVal = key === "name" ? (a.name ?? "") : key === "parentPhone" ? (a.parent_phone ?? "") : (a.phone ?? "");
       const bVal = key === "name" ? (b.name ?? "") : key === "parentPhone" ? (b.parent_phone ?? "") : (b.phone ?? "");
-      const cmp = String(aVal).localeCompare(String(bVal), "ko");
-      return asc ? cmp : -cmp;
+      const cmp = compareKoreanText(String(aVal), String(bVal));
+      if (cmp !== 0) return asc ? cmp : -cmp;
+      return asc
+        ? (a.student_id ?? 0) - (b.student_id ?? 0)
+        : (b.student_id ?? 0) - (a.student_id ?? 0);
     });
   }, [filtered, sort]);
 
   const handleSort = useCallback((colKey: string) => {
     setSort((prev) => {
       if (prev === colKey) return `-${colKey}`;
-      if (prev === `-${colKey}`) return "";
+      if (prev === `-${colKey}`) return "name";
       return colKey;
     });
   }, []);

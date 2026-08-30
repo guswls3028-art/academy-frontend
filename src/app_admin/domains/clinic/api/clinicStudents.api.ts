@@ -105,13 +105,13 @@ export async function fetchClinicStudentsPaginated(params: {
 // ✅ 학생 검색 (2글자 이상일 때 사용) — 페이지네이션 대응
 export async function searchClinicStudents(params: { q: string }) {
   const res = await api.get("/students/", {
-    params: { search: params.q },
+    params: { search: params.q, ordering: "name,id" },
   });
   return normalize(res.data);
 }
 
 // ✅ 전체 학생 "초기 목록" (첫 페이지) — legacy (ClinicTargetSelectModal에서는 paginated 사용)
 export async function fetchClinicStudentsDefault() {
-  const res = await api.get("/students/");
+  const res = await api.get("/students/", { params: { ordering: "name,id" } });
   return normalize(res.data);
 }
