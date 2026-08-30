@@ -5,6 +5,7 @@ import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
+const TEST_NOW = new Date("2026-08-29T12:00:00+09:00");
 
 test.use({ serviceWorkers: "block" });
 
@@ -18,7 +19,7 @@ function localJwt(): string {
 }
 
 function currentWeekDate(dayIndex: number): string {
-  const date = new Date();
+  const date = new Date(TEST_NOW);
   date.setHours(12, 0, 0, 0);
   const mondayOffset = (date.getDay() + 6) % 7;
   date.setDate(date.getDate() - mondayOffset + dayIndex);
@@ -26,12 +27,12 @@ function currentWeekDate(dayIndex: number): string {
 }
 
 function currentDate(): string {
-  const date = new Date();
+  const date = new Date(TEST_NOW);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
 function dateInMonth(monthOffset: number, day: number): string {
-  const date = new Date();
+  const date = new Date(TEST_NOW);
   date.setHours(12, 0, 0, 0);
   date.setMonth(date.getMonth() + monthOffset, day);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -82,6 +83,7 @@ async function seed(page: Page) {
     !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE),
     "관리자 클리닉 route-mock 검증은 로컬 dev 서버 전용",
   );
+  await page.clock.setFixedTime(TEST_NOW);
   await installTenantOneInitScript(page);
   await page.addInitScript((jwt) => {
     localStorage.setItem("access", jwt);
