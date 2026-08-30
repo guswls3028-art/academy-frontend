@@ -132,6 +132,9 @@ test("OMR 미리보기는 데스크톱과 모바일에서 A4 전체를 한 화�
   ];
   await page.setViewportSize(viewports[0]);
   await page.goto(`${BASE}/workspace/tools/omr`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  await expect(page.getByRole("radio", { name: "서술형만" })).toBeVisible();
+  await expect(page.getByRole("radio", { name: "단답형만" })).toHaveCount(0);
+  await expect(page.getByText("서술형 작성 공간", { exact: true })).toBeVisible();
 
   for (const viewport of viewports) {
     await page.setViewportSize(viewport);

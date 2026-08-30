@@ -70,6 +70,7 @@ export default function OmrSheetBuilder({
   const lastMcCountRef = useRef(initialMcCount > 0 ? clampInt(initialMcCount, 1, MAX_MC_COUNT) : 20);
   const lastEssayCountRef = useRef(initialEssayCount > 0 ? clampInt(initialEssayCount, 1, MAX_ESSAY_COUNT) : 5);
   const targetType = target.type;
+  const essayLabel = "서술형";
   const targetExamId = target.type === "exam" ? target.examId : undefined;
   const requestTarget = useMemo<OMRTarget>(() => (
     targetType === "exam" && targetExamId
@@ -127,12 +128,12 @@ export default function OmrSheetBuilder({
     canIncludeOptionalEssayArea && includeOptionalEssayArea
   );
   const displayedFormat = countsEditable ? format : getInitialFormat(mcCount, essayCount);
-  const formatLabel = displayedFormat === "choice" ? "객관식만" : displayedFormat === "essay" ? "단답형만" : "혼합형";
+  const formatLabel = displayedFormat === "choice" ? "객관식만" : displayedFormat === "essay" ? `${essayLabel}만` : "혼합형";
   const areaLabel = essayCount > 0
-    ? "단답형 작성칸 포함"
+    ? `${essayLabel} 작성칸 포함`
     : canIncludeOptionalEssayArea
-      ? includeOptionalEssayArea ? "단답형 작성칸 표시" : "단답형 작성칸 숨김"
-      : "단답형 작성칸 없음";
+      ? includeOptionalEssayArea ? "서술형 작성칸 표시" : "서술형 작성칸 숨김"
+      : `${essayLabel} 작성칸 없음`;
   const params = useCallback((): OMRParams => ({
     exam_title: examTitle,
     lecture_name: lectureName,
@@ -201,7 +202,7 @@ export default function OmrSheetBuilder({
 
   const setClampedEssayCount = (raw: string) => {
     const parsed = Number(raw);
-    if (parsed > MAX_ESSAY_COUNT) feedback.warning(`단답형은 최대 ${MAX_ESSAY_COUNT}문항입니다.`);
+    if (parsed > MAX_ESSAY_COUNT) feedback.warning(`서술형은 최대 ${MAX_ESSAY_COUNT}문항입니다.`);
     setEssayCount(clampInt(parsed || 1, 1, MAX_ESSAY_COUNT));
   };
 
@@ -271,7 +272,7 @@ export default function OmrSheetBuilder({
                   {([
                     ["choice", "객관식만"],
                     ["mixed", "혼합형"],
-                    ["essay", "단답형만"],
+                    ["essay", `${essayLabel}만`],
                   ] as const).map(([value, label]) => (
                     <button
                       key={value}
@@ -303,7 +304,7 @@ export default function OmrSheetBuilder({
                 )}
                 {format !== "choice" && (
                   <label className={styles.field}>
-                    <span>단답형 문항 수</span>
+                    <span>{essayLabel} 문항 수</span>
                     <input
                       type="number"
                       min={1}
@@ -320,7 +321,7 @@ export default function OmrSheetBuilder({
             <div className={styles.summary}>
               {mcCount > 0 && <span>객관식 {mcCount}문항</span>}
               {mcCount > 0 && essayCount > 0 && <span> · </span>}
-              {essayCount > 0 && <span>단답형 {essayCount}문항</span>}
+              {essayCount > 0 && <span>{essayLabel} {essayCount}문항</span>}
               {totalCount === 0 && <span>문항 없음</span>}
               <span> · 총 {totalCount}문항</span>
             </div>
@@ -331,10 +332,10 @@ export default function OmrSheetBuilder({
           <div className={styles.groupTitle}>답안 영역</div>
           <div className={styles.optionRow}>
             <div className={styles.optionCopy}>
-              <span className={styles.optionLabel}>단답형 작성 공간</span>
+              <span className={styles.optionLabel}>서술형 작성 공간</span>
               <span className={styles.optionHelp}>
                 {essayCount > 0
-                  ? `단답형 ${essayCount}문항의 작성칸이 포함됩니다.`
+                  ? `${essayLabel} ${essayCount}문항의 작성칸이 포함됩니다.`
                   : mcCount > MAX_MC_WITH_OPTIONAL_ESSAY_AREA
                     ? `객관식 ${MAX_MC_WITH_OPTIONAL_ESSAY_AREA + 1}문항부터는 객관식 영역을 넓게 사용합니다.`
                     : mcCount > 0
@@ -345,7 +346,7 @@ export default function OmrSheetBuilder({
               </span>
             </div>
             {canIncludeOptionalEssayArea ? (
-              <div className={styles.areaChoices} role="radiogroup" aria-label="단답형 작성 공간">
+              <div className={styles.areaChoices} role="radiogroup" aria-label="서술형 작성 공간">
                 <button
                   type="button"
                   role="radio"
