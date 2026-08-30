@@ -1076,6 +1076,62 @@ test("현장 콘솔은 16·17·18시 등원 학생을 한 화면에서 시간대
   await expect(page.getByRole("group", { name: "클리닉 운영 범위" }).getByRole("button", { name: "현장 2명", exact: true })).toBeVisible();
 });
 
+test("오늘 전체 복수 일정은 유일한 처리 대상을 노출하고 모호한 경우만 시간대 선택을 요구한다", async ({ page }) => {
+  const state: OperationsState = {
+    participants: [
+      {
+        id: 825, session: 704, student: 524, student_name: "유일 일정 학생",
+        enrollment_id: 1024, session_date: today, session_start_time: "16:00:00",
+        session_location: "1층", status: "cancelled", checked_in_at: null, checked_out_at: null,
+      },
+      {
+        id: 826, session: 707, student: 524, student_name: "유일 일정 학생",
+        enrollment_id: 1024, session_date: today, session_start_time: "20:00:00",
+        session_location: "2층", status: "booked", checked_in_at: null, checked_out_at: null,
+      },
+      {
+        id: 827, session: 704, student: 525, student_name: "취소 일정 학생",
+        enrollment_id: 1025, session_date: today, session_start_time: "16:00:00",
+        session_location: "1층", status: "cancelled", checked_in_at: null, checked_out_at: null,
+      },
+      {
+        id: 828, session: 705, student: 526, student_name: "복수 일정 학생",
+        enrollment_id: 1026, session_date: today, session_start_time: "17:00:00",
+        session_location: "2층", status: "booked", checked_in_at: null, checked_out_at: null,
+      },
+      {
+        id: 829, session: 706, student: 526, student_name: "복수 일정 학생",
+        enrollment_id: 1026, session_date: today, session_start_time: "18:00:00",
+        session_location: "3층", status: "booked", checked_in_at: null, checked_out_at: null,
+      },
+    ],
+    targets: [],
+  };
+
+  await seed(page);
+  await installApi(page, undefined, state);
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/operations?scope=day&date=${today}`, { timeout: 45_000 });
+
+  const uniqueRow = page.locator(".clinic-ops__card").filter({ hasText: "유일 일정 학생" });
+  await expect(uniqueRow).toBeVisible({ timeout: 45_000 });
+  await expect(uniqueRow.getByRole("button", { name: "등원", exact: true })).toBeVisible();
+  await expect(uniqueRow.getByRole("button", { name: "재촉", exact: true })).toBeVisible();
+  await expect(uniqueRow).toContainText("20:00 · 2층");
+
+  const cancelledRow = page.locator(".clinic-ops__card").filter({ hasText: "취소 일정 학생" });
+  await expect(cancelledRow).toContainText("취소된 일정이라 출결 처리할 수 없습니다.");
+  await expect(cancelledRow.getByRole("button", { name: "등원", exact: true })).toHaveCount(0);
+  await expect(cancelledRow.getByLabel("클리닉 진행 상태")).toHaveCount(0);
+
+  const ambiguousRow = page.locator(".clinic-ops__card").filter({ hasText: "복수 일정 학생" });
+  await expect(ambiguousRow).toContainText("처리할 시간대를 선택하세요.");
+  await expect(ambiguousRow.getByRole("button", { name: "등원", exact: true })).toHaveCount(0);
+  await ambiguousRow.getByRole("button", { name: /18:00.*3층.*문맥/ }).click();
+  const workbench = page.getByRole("dialog", { name: "복수 일정 학생 클리닉 워크벤치" });
+  await expect(workbench.getByRole("button", { name: "등원", exact: true })).toBeVisible();
+});
+
 test("현장 참가자 pagination loop는 0명으로 숨기지 않고 fail-closed 한다", async ({ page }) => {
   const first = {
     id: 831, session: 704, student: 531, student_name: "루프 첫 학생",
@@ -1501,8 +1557,8 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
   });
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.reload();
-  await expect(page.getByRole("button", { name: /^일정 / })).toBeVisible();
+  await page.reload({ waitUntil: "domcontentloaded", timeout: 45_000 });
+  await expect(page.getByRole("button", { name: /^일정 / })).toBeVisible({ timeout: 45_000 });
   await expect(page.locator(".clinic-scheduler-panel__mini-cal--sidebar")).toHaveCount(0);
   await studentCard.scrollIntoViewIfNeeded();
   await expect(studentCard.locator(".clinic-ops__task-chip")).toHaveCount(2);
@@ -1607,7 +1663,8 @@ test("긴 미완료 목록은 학생 행을 자르지 않고 전체 작업대로
   await page.screenshot({ path: "test-results/admin-clinic-long-queue-1920.png", fullPage: false });
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.reload();
+  await page.reload({ waitUntil: "domcontentloaded", timeout: 45_000 });
+  await expect(card).toBeVisible({ timeout: 45_000 });
   await expect(card.locator(".clinic-ops__task-chip")).toHaveCount(4);
   expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   expect(await card.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
