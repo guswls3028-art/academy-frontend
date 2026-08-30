@@ -506,6 +506,30 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     }
     return versions;
   }, [rows]);
+  const selectedHomeworkVersionRef = useRef<{
+    key: string;
+    expectedUpdatedAt: string | null;
+  } | null>(null);
+  const freezeObservedHomeworkVersion = useCallback((key: string) => {
+    if (selectedHomeworkVersionRef.current?.key === key) return;
+    selectedHomeworkVersionRef.current = {
+      key,
+      expectedUpdatedAt: homeworkVersionByCell.get(key) ?? null,
+    };
+  }, [homeworkVersionByCell]);
+  useEffect(() => {
+    if (selectedCell?.type !== "homework") {
+      selectedHomeworkVersionRef.current = null;
+      return;
+    }
+    const key = `homework:${selectedCell.enrollmentId}:${selectedCell.homeworkId}`;
+    freezeObservedHomeworkVersion(key);
+  }, [freezeObservedHomeworkVersion, selectedCell]);
+  const getObservedHomeworkVersion = useCallback((key: string) => {
+    const selectedVersion = selectedHomeworkVersionRef.current;
+    if (selectedVersion?.key === key) return selectedVersion.expectedUpdatedAt;
+    return homeworkVersionByCell.get(key) ?? null;
+  }, [homeworkVersionByCell]);
   const homeworkCollaboratorByCell = useMemo(() => {
     const collaborators = new Map<string, ScoreActiveEditor>();
     for (const editor of activeEditors) {
@@ -566,12 +590,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     const pendingValue = pendingRef.current.get(key);
     const expectedUpdatedAt = pendingValue?.type === "homework"
       ? pendingValue.expectedUpdatedAt ?? null
-      : homeworkVersionByCell.get(key) ?? null;
+      : getObservedHomeworkVersion(key);
     const versionedNext = next.type === "homework" && next.expectedUpdatedAt === undefined
       ? { ...next, expectedUpdatedAt }
       : next;
     const versionedServerValue = serverValue.type === "homework" && serverValue.expectedUpdatedAt === undefined
-      ? { ...serverValue, expectedUpdatedAt: homeworkVersionByCell.get(key) ?? null }
+      ? { ...serverValue, expectedUpdatedAt: getObservedHomeworkVersion(key) }
       : serverValue;
     const before = pendingValue ?? versionedServerValue;
     if (samePendingChange(before, versionedNext)) return;
@@ -586,7 +610,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     if (undoStackRef.current.length > 100) undoStackRef.current.shift();
     redoStackRef.current = [];
     onPendingChange?.();
-  }, [homeworkVersionByCell, onPendingChange]);
+  }, [getObservedHomeworkVersion, onPendingChange]);
 
   /** contenteditable 입력 중 유효한 값은 즉시 pending에 반영한다.
    * 한 번의 포커스 안에서 여러 글자를 입력해도 실행 취소 이력은 셀 단위 한 건으로 합친다. */
@@ -598,12 +622,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     const pendingValue = pendingRef.current.get(key);
     const expectedUpdatedAt = pendingValue?.type === "homework"
       ? pendingValue.expectedUpdatedAt ?? null
-      : homeworkVersionByCell.get(key) ?? null;
+      : getObservedHomeworkVersion(key);
     const versionedNext = next.type === "homework" && next.expectedUpdatedAt === undefined
       ? { ...next, expectedUpdatedAt }
       : next;
     const versionedServerValue = serverValue.type === "homework" && serverValue.expectedUpdatedAt === undefined
-      ? { ...serverValue, expectedUpdatedAt: homeworkVersionByCell.get(key) ?? null }
+      ? { ...serverValue, expectedUpdatedAt: getObservedHomeworkVersion(key) }
       : serverValue;
     if (pendingValue && samePendingChange(pendingValue, versionedNext)) return;
     const before = pendingValue ?? versionedServerValue;
@@ -624,7 +648,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     }
     redoStackRef.current = [];
     onPendingChange?.();
-  }, [homeworkVersionByCell, onPendingChange]);
+  }, [getObservedHomeworkVersion, onPendingChange]);
 
   /** pending 항목 전부 API 호출 후 한 번만 invalidate.
    * 저장 도중 같은 셀이 다시 바뀌면 새 값을 지우지 않는다. */
@@ -686,6 +710,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         pendingRef.current.set(key, { ...current, expectedUpdatedAt: updatedAt });
       }
       if (p.type === "homework" && updatedAt) {
+        if (selectedHomeworkVersionRef.current?.key === key) {
+          selectedHomeworkVersionRef.current = { key, expectedUpdatedAt: updatedAt };
+        }
         const updateHistoryVersion = (entry: ScoreEditHistoryEntry) => {
           if (entry.key !== key) return entry;
           return {
@@ -2139,6 +2166,11 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 disabled={Boolean(block?.is_locked)}
                                 defaultValue={block?.score == null ? "미입력" : block.score >= 1 ? "완료" : "미완료"}
                                 onClick={(event) => event.stopPropagation()}
+                                onFocus={() => {
+                                  const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
+                                  freezeObservedHomeworkVersion(cellKey);
+                                  if (!isSelected) onSelectCell(row, "homework", hw.homework_id);
+                                }}
                                 onChange={(event) => {
                                   const score = event.target.value === "완료"
                                     ? 1
@@ -2201,6 +2233,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 lastCommitInvalidRef.current = false;
                                 liveHistoryKeyRef.current = null;
                                 const key = `${row.enrollment_id}-${hw.homework_id}`;
+                                freezeObservedHomeworkVersion(`homework:${row.enrollment_id}:${hw.homework_id}`);
                                 const focusValue = firstLine(el.innerText);
                                 scoreValueOnFocusRef.current[key] = focusValue;
                                 el.dataset.focusValue = focusValue;
