@@ -1,5 +1,6 @@
 // SSOT: 페이지 탭 → 플랫탭 (ds-tabs--flat + ds-tab)
 import type { ExamTabKey } from "../../types";
+import "@/shared/ui/assessment/AssessmentWorkflowTabs.css";
 
 type Props = {
   activeTab: ExamTabKey;
@@ -27,19 +28,30 @@ export default function ExamTabs({ activeTab, onChange, mode = "design" }: Props
   const tabs = mode === "operate" ? TABS_OPERATE : TABS_DESIGN;
   const effectiveTab = mode === "operate" && activeTab === "assets" ? "setup" : activeTab;
   return (
-    <div className="ds-tabs ds-tabs--flat" role="tablist">
-      {tabs.map((t) => (
-        <button
-          key={t.key}
-          type="button"
-          role="tab"
-          aria-selected={effectiveTab === t.key}
-          onClick={() => onChange(t.key)}
-          className={`ds-tab ${effectiveTab === t.key ? "is-active" : ""}`}
-        >
-          {t.label}
-        </button>
-      ))}
-    </div>
+    <nav
+      className="assessment-workflow-tabs"
+      aria-label={mode === "operate" ? "시험 업무 흐름" : "시험 구성 단계"}
+    >
+      <span className="assessment-workflow-tabs__label">
+        {mode === "operate" ? "업무 흐름" : "구성 단계"}
+      </span>
+      <div className="domain-header__tabs-wrap assessment-workflow-tabs__control">
+        <div className="ds-tabs ds-tabs--flat" role="tablist">
+          {tabs.map((t, index) => (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={effectiveTab === t.key}
+              onClick={() => onChange(t.key)}
+              className={`ds-tab ${effectiveTab === t.key ? "is-active" : ""}`}
+            >
+              <span className="assessment-workflow-tabs__step" aria-hidden>{index + 1}</span>
+              <span>{t.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </nav>
   );
 }
