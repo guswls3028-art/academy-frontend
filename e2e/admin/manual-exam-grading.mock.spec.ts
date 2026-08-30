@@ -80,6 +80,7 @@ type InstallApiOptions = {
   };
   resultRows?: Array<Record<string, unknown>>;
   submissionRows?: Array<Record<string, unknown>>;
+  failFirstRotateRescan?: boolean;
 };
 
 async function installApi(page: Page, options: InstallApiOptions = {}) {
@@ -93,6 +94,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
   let inventoryPresignCount = 0;
   let previewRequestCount = 0;
   let manualEditPostCount = 0;
+  const rotateRescanBodies: Array<Record<string, unknown>> = [];
   let failNextPreview = false;
   let failNextManualApply = false;
   let failManualSheetGetAfterPostCount: number | null = null;
@@ -423,6 +425,22 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         },
         duplicate_siblings: [],
       });
+      return;
+    }
+    const rotateRescanMatch = path.match(/^\/submissions\/submissions\/(\d+)\/rotate-rescan\/$/);
+    if (rotateRescanMatch && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      rotateRescanBodies.push(payload);
+      if (options.failFirstRotateRescan && rotateRescanBodies.length === 1) {
+        await json({ detail: "synthetic rotate response timeout" }, 504);
+        return;
+      }
+      await json({
+        submission_id: Number(rotateRescanMatch[1]) + 10_000,
+        status: "pending",
+        rotation_degrees: payload.rotation_degrees,
+        created: true,
+      }, 201);
       return;
     }
     if (path === `/exams/${EXAM_ID}/questions/init/` && method === "POST") {
@@ -763,6 +781,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     get manualEditPostCount() {
       return manualEditPostCount;
     },
+    rotateRescanBodies,
     manualEditGetIds,
     manualEditBodies,
     manualSheetGetEvents,
@@ -1541,6 +1560,7 @@ test.describe("문항별 직접 채점", () => {
           identifier_status: "missing",
         },
       ],
+      failFirstRotateRescan: true,
     });
 
     await gotoAndSettle(
@@ -1631,6 +1651,21 @@ test.describe("문항별 직접 채점", () => {
     await omrDialog.locator(".orw-list-row").filter({ hasText: "완료 학생" }).click();
     await expect.poll(() => apiState.manualEditGetIds).toContain(DONE_SUBMISSION_ID);
     await expect(transformedStage).toHaveAttribute("data-display-rotation", "0");
+
+    await omrDialog.getByRole("button", { name: "오른쪽으로 90도 회전" }).click();
+    await expect(transformedStage.locator(".orw-bbox-overlay")).toHaveCount(0);
+    await omrDialog.getByRole("button", { name: "이 방향으로 다시 읽기" }).click();
+    await page.getByRole("button", { name: "다시 읽기", exact: true }).click();
+    await expect.poll(() => apiState.rotateRescanBodies).toHaveLength(1);
+    expect(apiState.rotateRescanBodies[0]).toMatchObject({ rotation_degrees: 90 });
+    expect(apiState.rotateRescanBodies[0].client_request_id).toEqual(expect.any(String));
+    await omrDialog.getByRole("button", { name: "이 방향으로 다시 읽기" }).click();
+    await page.getByRole("button", { name: "다시 읽기", exact: true }).click();
+    await expect.poll(() => apiState.rotateRescanBodies).toHaveLength(2);
+    expect(apiState.rotateRescanBodies[1]).toMatchObject({ rotation_degrees: 90 });
+    expect(apiState.rotateRescanBodies[1].client_request_id).toBe(
+      apiState.rotateRescanBodies[0].client_request_id,
+    );
 
     expect(apiState.manualEditPostCount).toBe(0);
     expect(apiState.inventoryPresignCount).toBe(0);
@@ -1748,7 +1783,10 @@ test.describe("문항별 직접 채점", () => {
       "aria-selected",
       "true",
     );
-    await omrDialog.getByText("김태윤", { exact: true }).click();
+    await omrDialog
+      .locator(".orw-list-row__name")
+      .filter({ hasText: /^김태윤$/ })
+      .click();
     await expect(omrDialog.getByRole("tab", { name: "확인" })).toHaveAttribute(
       "aria-selected",
       "true",

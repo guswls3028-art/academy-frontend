@@ -5910,6 +5910,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/media/direct-video-entitlements/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Exact staff-authorized access to one video without enrollment. */
+        get: operations["media_direct_video_entitlements_list"];
+        put?: never;
+        /** @description Exact staff-authorized access to one video without enrollment. */
+        post: operations["media_direct_video_entitlements_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/media/direct-video-entitlements/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Exact staff-authorized access to one video without enrollment. */
+        get: operations["media_direct_video_entitlements_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/media/direct-video-entitlements/{id}/revoke/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Exact staff-authorized access to one video without enrollment. */
+        post: operations["media_direct_video_entitlements_revoke_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/media/inactive-video-entitlements/": {
         parameters: {
             query?: never;
@@ -10670,6 +10722,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/submissions/submissions/{id}/rotate-rescan/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Re-run an immutable OMR source with an explicit cardinal rotation. */
+        post: operations["submissions_submissions_rotate_rescan_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/submissions/submissions/{submission_id}/preview/": {
         parameters: {
             query?: never;
@@ -12503,6 +12572,42 @@ export interface components {
          * @enum {string}
          */
         DeviceClassEnum: "mobile" | "tablet" | "desktop";
+        DirectVideoEntitlement: {
+            /** Format: date-time */
+            readonly granted_at: string;
+            readonly id: number;
+            readonly lecture_title: string;
+            readonly reason: string;
+            readonly revoke_reason: string;
+            /** Format: date-time */
+            readonly revoked_at: string | null;
+            readonly state: string;
+            readonly student_grade: number;
+            readonly student_id: number;
+            readonly student_name: string;
+            readonly student_school: string;
+            readonly video_id: number;
+            readonly video_title: string;
+        };
+        DirectVideoEntitlementError: {
+            code: string;
+            detail: string;
+        };
+        DirectVideoEntitlementGrantRequest: {
+            /** @default false */
+            confirmed_regrant: boolean;
+            reason: string;
+            student_id: number;
+            video_id: number;
+        };
+        DirectVideoEntitlementMutation: {
+            changed: boolean;
+            created: boolean;
+            entitlement: components["schemas"]["DirectVideoEntitlement"];
+        };
+        DirectVideoEntitlementRevokeRequest: {
+            reason: string;
+        };
         /**
          * @description * `free` - free
          *     * `once` - once
@@ -13781,6 +13886,26 @@ export interface components {
         ModeEnum: "once" | "repeat";
         /** @enum {unknown} */
         NullEnum: null;
+        OmrRotateRescanConflict: {
+            code: string;
+            detail: string;
+        };
+        OmrRotateRescanCreatedResult: {
+            created: boolean;
+            rotation_degrees: components["schemas"]["RotationDegreesEnum"];
+            status: string;
+            submission_id: number;
+        };
+        OmrRotateRescanRequestRequest: {
+            client_request_id: string;
+            rotation_degrees: components["schemas"]["RotationDegreesEnum"];
+        };
+        OmrRotateRescanResult: {
+            created: boolean;
+            rotation_degrees: components["schemas"]["RotationDegreesEnum"];
+            status: string;
+            submission_id: number;
+        };
         OmrUploadBatchCompletionClaimResponse: {
             batch: components["schemas"]["OmrUploadBatchSummary"];
             notify: boolean;
@@ -13800,6 +13925,7 @@ export interface components {
             };
             /** Format: date-time */
             created_at: string;
+            duplicate_ordinals: number[];
             exam_id: number;
             failed_ordinals: number[];
             /** Format: uuid */
@@ -13824,6 +13950,7 @@ export interface components {
             };
             /** Format: date-time */
             created_at: string;
+            duplicate_ordinals: number[];
             exam_id: number;
             failed_ordinals: number[];
             /** Format: uuid */
@@ -13846,6 +13973,7 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             created_count: number;
+            duplicate_ordinals: number[];
             exam_id: number;
             failed_ordinals: number[];
             /** Format: uuid */
@@ -13985,6 +14113,21 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["ClinicTest"][];
+        };
+        PaginatedDirectVideoEntitlementList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["DirectVideoEntitlement"][];
         };
         PaginatedEnrollmentList: {
             /** @example 123 */
@@ -16228,6 +16371,13 @@ export interface components {
          * @enum {string}
          */
         RiskLogRuleEnum: "CONSECUTIVE_INCOMPLETE" | "CONSECUTIVE_LOW_SCORE" | "OTHER";
+        /**
+         * @description * `90` - 90
+         *     * `180` - 180
+         *     * `270` - 270
+         * @enum {integer}
+         */
+        RotationDegreesEnum: 90 | 180 | 270;
         /**
          * @description * `ELEMENTARY` - 초등
          *     * `MIDDLE` - 중등
@@ -27503,6 +27653,187 @@ export interface operations {
             };
         };
     };
+    media_direct_video_entitlements_list: {
+        parameters: {
+            query: {
+                /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
+                page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
+                /** @description Return history for one exact same-tenant video. */
+                video_id: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedDirectVideoEntitlementList"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectVideoEntitlementError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectVideoEntitlementError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectVideoEntitlementError"];
+                };
+            };
+        };
+    };
+    media_direct_video_entitlements_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DirectVideoEntitlementGrantRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["DirectVideoEntitlementGrantRequest"];
+                "multipart/form-data": components["schemas"]["DirectVideoEntitlementGrantRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectVideoEntitlementMutation"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectVideoEntitlementMutation"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectVideoEntitlementError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectVideoEntitlementError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectVideoEntitlementError"];
+                };
+            };
+        };
+    };
+    media_direct_video_entitlements_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description direct video entitlement을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectVideoEntitlement"];
+                };
+            };
+        };
+    };
+    media_direct_video_entitlements_revoke_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description direct video entitlement을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DirectVideoEntitlementRevokeRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["DirectVideoEntitlementRevokeRequest"];
+                "multipart/form-data": components["schemas"]["DirectVideoEntitlementRevokeRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectVideoEntitlementMutation"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectVideoEntitlementError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectVideoEntitlementError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectVideoEntitlementError"];
+                };
+            };
+        };
+    };
     media_inactive_video_entitlements_list: {
         parameters: {
             query?: {
@@ -34972,6 +35303,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Submission"];
+                };
+            };
+        };
+    };
+    submissions_submissions_rotate_rescan_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description submission을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OmrRotateRescanRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["OmrRotateRescanRequestRequest"];
+                "multipart/form-data": components["schemas"]["OmrRotateRescanRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OmrRotateRescanResult"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OmrRotateRescanCreatedResult"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OmrRotateRescanConflict"];
                 };
             };
         };

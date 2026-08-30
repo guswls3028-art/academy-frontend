@@ -34,6 +34,7 @@ import {
   acceptFromDuplicatesApi,
   fetchOmrReviewDetail,
   listOmrReviewRows,
+  rotateRescanApi,
   type DuplicateSibling,
   type OmrReviewDetail,
   type OmrReviewDetailAnswer,
@@ -473,6 +474,11 @@ export default function OmrReviewWorkspace({
             createdAt={visibleRows.find((r) => r.id === selectedId)?.created_at ?? null}
             focusedQid={focusedQid}
             onPickQuestion={setFocusedQid}
+            onRescanCreated={(submissionId) => {
+              setSelectedId(submissionId);
+              qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewList(examId) });
+              qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewDetail(submissionId) });
+            }}
             onImageLoadError={() => {
               // presigned URL 만료 등으로 이미지 실패 시 상세 재조회 → 새 URL 받기
               if (selectedId != null) {
@@ -557,6 +563,7 @@ function ScanPane({
   createdAt,
   focusedQid,
   onPickQuestion,
+  onRescanCreated,
   onImageLoadError,
 }: {
   detail: OmrReviewDetail | undefined;
@@ -569,6 +576,7 @@ function ScanPane({
   createdAt: string | null;
   focusedQid: number | null;
   onPickQuestion: (qid: number) => void;
+  onRescanCreated: (submissionId: number) => void;
   onImageLoadError?: () => void;
 }) {
   const [imgLoading, setImgLoading] = useState(false);
@@ -577,8 +585,52 @@ function ScanPane({
   const [rotation, setRotation] = useState<0 | 90 | 180 | 270>(0);
   const [bodySize, setBodySize] = useState({ width: 0, height: 0 });
   const bodyRef = useRef<HTMLDivElement>(null);
+  const rotateRequestRef = useRef<{ key: string; id: string } | null>(null);
+  const confirm = useConfirm();
 
-  // submission 바뀌면 표시 전용 상태를 초기화한다. 회전값은 저장/API로 전달하지 않는다.
+  const rotateRescan = useMutation({
+    mutationFn: async ({
+      rotationDegrees,
+      clientRequestId,
+    }: {
+      rotationDegrees: 90 | 180 | 270;
+      clientRequestId: string;
+    }) => {
+      if (!detail) throw new Error("no detail");
+      return rotateRescanApi(detail.submission_id, rotationDegrees, clientRequestId);
+    },
+    onSuccess: (result) => {
+      rotateRequestRef.current = null;
+      feedback.success("원본을 지정한 방향으로 다시 읽기 시작했습니다.");
+      onRescanCreated(result.submission_id);
+    },
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { detail?: string } }; message?: string };
+      feedback.error(err.response?.data?.detail || err.message || "회전 재판독을 시작하지 못했습니다.");
+    },
+  });
+
+  const requestRotateRescan = async () => {
+    if (!detail || rotation === 0 || rotateRescan.isPending) return;
+    const ok = await confirm({
+      title: "이 방향으로 다시 읽기",
+      message: `원본 답안지를 오른쪽 기준 ${rotation}° 회전해 새 판독 건을 만듭니다. 기존 답안지는 비교를 위해 그대로 보존됩니다.`,
+      confirmText: "다시 읽기",
+      cancelText: "취소",
+    });
+    if (!ok) return;
+    const requestKey = `${detail.submission_id}:${rotation}`;
+    const clientRequestId = rotateRequestRef.current?.key === requestKey
+      ? rotateRequestRef.current.id
+      : crypto.randomUUID();
+    rotateRequestRef.current = { key: requestKey, id: clientRequestId };
+    rotateRescan.mutate({
+      rotationDegrees: rotation,
+      clientRequestId,
+    });
+  };
+
+  // submission 바뀌면 미리보기 방향을 초기화한다.
   useEffect(() => {
     setImgErrored(false);
     setNaturalSize(null);
@@ -601,7 +653,15 @@ function ScanPane({
     return () => observer.disconnect();
   }, []);
 
-  const imageSize = detail?.scan_image_size ?? naturalSize;
+  const activeImageUrl = rotation !== 0 && detail?.original_scan_image_url
+    ? detail.original_scan_image_url
+    : detail?.scan_image_url;
+  useEffect(() => {
+    setNaturalSize(null);
+  }, [activeImageUrl]);
+  const imageSize = rotation !== 0
+    ? naturalSize
+    : detail?.scan_image_size ?? naturalSize;
   const displaySize = useMemo(() => {
     if (!imageSize || bodySize.width <= 0 || bodySize.height <= 0) return null;
 
@@ -692,6 +752,17 @@ function ScanPane({
           >
             <RotateCw size={14} aria-hidden="true" />
           </button>
+          {rotation !== 0 && (
+            <Button
+              type="button"
+              intent="primary"
+              size="sm"
+              disabled={!detail?.original_scan_image_url || rotateRescan.isPending}
+              onClick={() => void requestRotateRescan()}
+            >
+              {rotateRescan.isPending ? "다시 읽는 중…" : "이 방향으로 다시 읽기"}
+            </Button>
+          )}
           {detail?.scan_image_url && (
             <a
               href={detail.scan_image_url}
@@ -755,9 +826,9 @@ function ScanPane({
                 }}
               >
                 <img
-                  key={detail.scan_image_url}
+                  key={activeImageUrl}
                   className={`orw-scan-pane__img ${fitMode ? "orw-scan-pane__img--fit" : ""}`}
-                  src={detail.scan_image_url}
+                  src={activeImageUrl ?? ""}
                   alt="OMR 스캔 원본"
                   onLoadStart={() => setImgLoading(true)}
                   onLoad={(e) => {
@@ -776,7 +847,7 @@ function ScanPane({
                     }
                   }}
                 />
-                {hasBBoxData && imageSize && (
+                {hasBBoxData && imageSize && rotation === 0 && (
                   <BBoxOverlay
                     answers={detail.answers}
                     focusedQid={focusedQid}
