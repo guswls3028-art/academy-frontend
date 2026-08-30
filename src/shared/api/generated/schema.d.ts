@@ -3282,6 +3282,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/exams/{exam_id}/lecture-assignments/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["exams_lecture_assignments_retrieve"];
+        put?: never;
+        post: operations["exams_lecture_assignments_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["exams_lecture_assignments_partial_update"];
+        trace?: never;
+    };
     "/api/v1/exams/{exam_id}/omr/defaults/": {
         parameters: {
             query?: never;
@@ -8117,8 +8133,7 @@ export interface paths {
          *     - Session↔Exam 매핑 단일화(utils.session_exam)
          *
          *     ⚠️ pass 기준 정의:
-         *     - 이 화면은 "시험(exam) 단위 결과"이므로
-         *       pass/fail은 Exam.pass_score 기준으로 제공한다.
+         *     - 강의별 커트라인이 있으면 해당 기준, 없으면 Exam.pass_score를 제공한다.
          *     - 세션 종합 통과(SessionProgress.exam_passed)는
          *       /admin/sessions/... summary API에서 제공하는 것이 정석.
          *
@@ -11904,10 +11919,13 @@ export interface components {
             is_provisional: boolean;
             lecture_chip_label?: string | null;
             lecture_color?: string | null;
+            lecture_id: number;
             lecture_title?: string | null;
             meta_status?: string | null;
             /** @default false */
             name_highlight_clinic_target: boolean;
+            /** Format: double */
+            pass_score: number;
             passed: boolean | null;
             /** Format: double */
             percentile?: number | null;
@@ -23091,6 +23109,66 @@ export interface operations {
         };
     };
     exams_generate_omr_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exam_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    exams_lecture_assignments_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exam_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    exams_lecture_assignments_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exam_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    exams_lecture_assignments_partial_update: {
         parameters: {
             query?: never;
             header?: never;

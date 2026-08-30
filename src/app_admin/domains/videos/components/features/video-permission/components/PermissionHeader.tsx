@@ -5,6 +5,7 @@ import { Badge, Button } from "@/shared/ui/ds";
 
 const TAB_ITEMS: { key: TabKey; label: string }[] = [
   { key: "permission", label: "권한 설정" },
+  { key: "direct", label: "수강 등록 없이 영상만" },
   { key: "achievement", label: "학습 성취도" },
   { key: "log", label: "시청 로그" },
 ];
@@ -43,7 +44,7 @@ export default function PermissionHeader({
         ))}
       </div>
 
-      {tab === "permission" && (
+      {(tab === "permission" || tab === "direct") && (
         <Badge variant="solid" tone={isFetching ? "warning" : "success"} oneChar>
           {isFetching ? "동기화" : "최신"}
         </Badge>

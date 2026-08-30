@@ -9,6 +9,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import PermissionHeader from "../../video-permission/components/PermissionHeader";
 import PermissionTable from "../../video-permission/components/PermissionTable";
 import PermissionSidePanel from "../../video-permission/components/PermissionSidePanel";
+import DirectVideoAccessTab from "../../video-permission/DirectVideoAccessTab";
 
 import VideoAchievementTab from "../../video-analytics/VideoAchievementTab";
 import VideoLogTab from "../../video-analytics/VideoLogTab";
@@ -153,7 +154,7 @@ export default function PermissionModal({
                 시청 권한 관리
               </h2>
               <p className="permission-subtitle">
-                권한 설정 · 성취도 · 시청 로그
+                수강 권한 · 개별 영상 예외 · 성취도 · 시청 로그
               </p>
             </div>
 
@@ -174,7 +175,9 @@ export default function PermissionModal({
         {/* BODY */}
         <div className="permission-modal-body">
           <div className="permission-modal-surface">
-            {isLoading ? (
+            {tab === "direct" ? (
+              <DirectVideoAccessTab videoId={videoId} />
+            ) : isLoading ? (
               <EmptyState scope="modal" tone="loading" title="권한 정보를 불러오는 중…" />
             ) : isError ? (
               <EmptyState
