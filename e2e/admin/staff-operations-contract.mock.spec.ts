@@ -906,7 +906,9 @@ test.describe("직원 운영 계약", () => {
   test("직원 비밀번호 설정은 선택한 한 계정의 재설정 API만 호출한다", async ({ page }) => {
     let passwordBody: Record<string, unknown> | undefined;
     await mockStaffApi(page, {
-      onPasswordReset: (body) => { passwordBody = body; },
+      onPasswordReset: (body) => {
+        passwordBody = body;
+      },
     });
 
     await page.goto(`${BASE}/workspace/staff/home`, {
@@ -934,6 +936,40 @@ test.describe("직원 운영 계약", () => {
     await expect.poll(() => passwordBody).toEqual({
       password: generatedPassword,
     });
+  });
+
+  test("직원 상세에서 선택 단계 없이 해당 계정 비밀번호를 변경한다", async ({ page }) => {
+    let passwordBody: Record<string, unknown> | undefined;
+    await mockStaffApi(page, {
+      onPasswordReset: (body) => {
+        passwordBody = body;
+      },
+    });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${BASE}/workspace/staff/home`, {
+      waitUntil: "domcontentloaded",
+    });
+    await page.getByRole("button", { name: "김조교 직원 상세 열기" }).click();
+
+    const detail = page.getByTestId("staff-detail-overlay");
+    const passwordButton = detail.getByRole("button", {
+      name: "비밀번호 변경",
+      exact: true,
+    });
+    await expect(passwordButton).toBeVisible();
+    await passwordButton.click();
+
+    const dialog = page.getByRole("dialog", { name: "비밀번호 설정" });
+    await dialog.getByLabel("새 비밀번호", { exact: true }).fill("StaffPass22");
+    await dialog.getByLabel("새 비밀번호 확인", { exact: true }).fill("StaffPass22");
+    await dialog.getByRole("button", { name: "변경", exact: true }).click();
+
+    await expect.poll(() => passwordBody).toEqual({ password: "StaffPass22" });
+    await expect(detail).toBeVisible();
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
   });
 
   test("선결제 환급은 상태 합계·필터와 대기 건 수정·삭제를 한 흐름에서 처리한다", async ({ page }) => {

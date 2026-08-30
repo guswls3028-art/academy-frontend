@@ -42,6 +42,7 @@ import StaffExpensesTab from "./StaffExpensesTab";
 import StaffPayrollHistoryTab from "./StaffPayrollHistoryTab";
 import StaffReportTab from "./StaffReportTab";
 import StaffEditModal from "../../components/StaffEditModal";
+import StaffPasswordModal from "../../components/StaffPasswordModal";
 import {
   canEditStaffAccountRole,
   staffAccountRoleLabel,
@@ -135,6 +136,7 @@ export default function StaffDetailOverlay({
   const sid = staffId ?? Number(routeParams.staffId);
   const [tab, setTab] = useState<StaffTabKey>("summary");
   const [editOpen, setEditOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
   const tabPanelId = useId();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
@@ -332,6 +334,20 @@ export default function StaffDetailOverlay({
                       정보 수정
                     </Button>
                   )}
+                  {canManage &&
+                    staff.is_active &&
+                    staff.user != null &&
+                    staff.account_role !== "OWNER" &&
+                    (staff.account_role !== "ADMIN" || meQ.data.is_owner) && (
+                      <Button
+                        type="button"
+                        intent="secondary"
+                        size="sm"
+                        onClick={() => setPasswordOpen(true)}
+                      >
+                        비밀번호 변경
+                      </Button>
+                    )}
                   {canManage && staff.is_active && canEditStaffAccountRole(staff.account_role) && (
                     <Button
                       type="button"
@@ -501,6 +517,15 @@ export default function StaffDetailOverlay({
               qc.invalidateQueries({ queryKey: staffQueryKeys.staffDetail(sid) });
               qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
             }}
+          />,
+          document.body
+        )}
+      {passwordOpen &&
+        createPortal(
+          <StaffPasswordModal
+            open={true}
+            staffList={[{ id: staff.id, name: staff.name }]}
+            onClose={() => setPasswordOpen(false)}
           />,
           document.body
         )}
