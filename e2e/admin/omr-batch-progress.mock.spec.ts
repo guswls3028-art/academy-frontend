@@ -1,10 +1,7 @@
 import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
-import {
-  installLocalAuthApiStubs,
-  installTenantOneInitScript,
-} from "../helpers/localAuthApiStubs";
+import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
 const BATCH_ID = "12345678-1234-4234-8234-123456789abc";
@@ -133,6 +130,8 @@ async function installDashboardApi(
     holdCompletionClaim?: boolean;
   } = {},
 ) {
+  await installTenantOneInitScript(page);
+
   const scoresFlow = options.uploadFlow
     || options.admissionFailure
     || options.resumeOrdinals !== undefined
@@ -177,6 +176,47 @@ async function installDashboardApi(
     const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
     if (request.method() === "OPTIONS") {
       await route.fulfill({ status: 204 });
+      return;
+    }
+    if (path === "/token/refresh/") {
+      await safeJson(route, {
+        access: localJwt(),
+        refresh: `${localJwt()}-refresh`,
+      });
+      return;
+    }
+    if (path === "/core/program/") {
+      await safeJson(route, {
+        tenantCode: "hakwonplus",
+        isPlatformAdmin: true,
+        display_name: "학원플러스",
+        ui_config: {
+          login_title: "학원플러스",
+          login_subtitle: "학원 관리 시스템",
+        },
+        feature_flags: {},
+        is_active: true,
+      });
+      return;
+    }
+    if (path === "/core/me/") {
+      await safeJson(route, {
+        id: 12,
+        username: "t1_admin97",
+        name: "관리자",
+        phone: null,
+        is_staff: true,
+        is_superuser: true,
+        tenantRole: "admin",
+        linkedStudentId: null,
+        linkedStudentName: null,
+        linkedStudents: null,
+        must_change_password: false,
+      });
+      return;
+    }
+    if (path === "/results/admin/clinic-targets/") {
+      await safeJson(route, []);
       return;
     }
     if (
@@ -349,8 +389,6 @@ async function installDashboardApi(
     }
     await safeJson(route, { count: 0, results: [] });
   });
-  await installLocalAuthApiStubs(page);
-  await installTenantOneInitScript(page);
   await page.addInitScript((jwt) => {
     localStorage.setItem("access", jwt);
     localStorage.setItem("refresh", `${jwt}-refresh`);
