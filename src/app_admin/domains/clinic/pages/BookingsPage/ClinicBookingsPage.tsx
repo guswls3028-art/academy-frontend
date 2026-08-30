@@ -10,7 +10,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -63,6 +63,7 @@ import {
 } from "../../api/completeManualHomework";
 import RemediationKpiRow from "./RemediationKpiRow";
 import RemediationContextPanel from "./RemediationContextPanel";
+import RemediationWorkspaceIntro from "./RemediationWorkspaceIntro";
 
 /* ── Types ── */
 
@@ -501,20 +502,8 @@ function RemediationWorkspace() {
   return (
     <section className="clinic-bookings-page__remediation">
       <div className="clinic-hub">
-        <div className="clinic-hub__intro">
-          <div>
-            <span className="clinic-hub__intro-eyebrow">전체 누적</span>
-            <h2>전체 미통과 정리</h2>
-            <p>날짜와 상관없이 아직 해결되지 않은 시험·과제입니다.</p>
-          </div>
-          <div className="clinic-hub__intro-actions">
-            {!isLoading && !isError && <span className="clinic-hub__intro-count">{kpi.totalStudents}명 · {kpi.totalItems}건</span>}
-            <Link className="clinic-hub__today-link" to="/workspace/clinic/operations?scope=day">
-              오늘 클리닉 학생 보기
-              <ArrowRight size={14} aria-hidden />
-            </Link>
-          </div>
-        </div>
+        <RemediationWorkspaceIntro totalStudents={kpi.totalStudents} totalItems={kpi.totalItems}
+          showCount={!isLoading && !isError} />
         <RemediationKpiRow
           unavailable={isLoading || isError} loading={isLoading} totalStudents={kpi.totalStudents}
           examItems={kpi.examItems} homeworkItems={kpi.homeworkItems} missingItems={kpi.missingItems}
