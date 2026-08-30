@@ -68,7 +68,8 @@ export default function ClinicIDCardPage() {
 
   const { data } = query;
   const isClinicTarget = data.current_result === "FAIL";
-  const isReturnAllowed = data.passcard_state === "RETURN_ALLOWED";
+  const isBookingConfirmed = data.passcard_state === "BOOKING_CONFIRMED";
+  const isClinicRequired = data.passcard_state === "CLINIC_REQUIRED";
   const isPendingApproval = isClinicTarget && data.booking_status === "pending";
   const style: PasscardStyle = isClinicTarget ? {} : {
     "--passcard-color-1": data.background_colors[0],
@@ -86,7 +87,7 @@ export default function ClinicIDCardPage() {
 
   return (
     <div
-      className={`clinic-idcard ${isClinicTarget ? "clinic-idcard--fail" : "clinic-idcard--pass"} ${isReturnAllowed ? "clinic-idcard--return-allowed" : ""}`}
+      className={`clinic-idcard ${isBookingConfirmed ? "clinic-idcard--booking-confirmed" : isClinicTarget ? "clinic-idcard--fail" : "clinic-idcard--pass"}`}
       style={style}
       data-testid="clinic-passcard"
     >
@@ -110,23 +111,23 @@ export default function ClinicIDCardPage() {
               color: lecture.color,
               chipLabel: lecture.chip_label,
             }))}
-            clinicHighlight={isClinicTarget}
+            clinicHighlight={isClinicRequired}
             maxLectureChips={3}
           />
         </div>
 
-        <section className="clinic-idcard__verdict" aria-label="현재 클리닉 판정">
-          <span className="clinic-idcard__verdict-mark" aria-hidden>{isReturnAllowed || !isClinicTarget ? "✓" : "!"}</span>
+        <section className="clinic-idcard__verdict" aria-label="현재 클리닉 상태">
+          <span className="clinic-idcard__verdict-mark" aria-hidden>{isBookingConfirmed || !isClinicTarget ? "✓" : "!"}</span>
           <div>
-            <p>{isReturnAllowed ? (data.booking_status === "booked" ? "클리닉 예약 완료" : data.booking_status_label) : isPendingApproval ? "클리닉 대상 · 승인 대기" : isClinicTarget ? "확인이 필요해요" : "오늘 수업 완료"}</p>
-            <h1>{isReturnAllowed ? "집에 가도 됨" : isClinicTarget ? "클리닉 예약 대상자" : "합격"}</h1>
+            <p>{isBookingConfirmed ? (data.booking_status === "booked" ? "다음 클리닉 예약됨" : data.booking_status_label) : isPendingApproval ? "클리닉 대상 · 승인 대기" : isClinicTarget ? "과락 요소 있음" : "과락 요소 없음"}</p>
+            <h1>{isBookingConfirmed ? "예약완료" : isClinicTarget ? "대상자" : "합격자"}</h1>
             <span>
-              {isReturnAllowed
-                ? "예약 또는 오늘 이행이 확인되었습니다. 미해소 항목은 계속 남아 있습니다."
+              {isBookingConfirmed
+                ? "다음 클리닉 수강완료 처리 전까지 예약완료 상태를 유지합니다."
                 : isPendingApproval
-                  ? "예약 승인을 기다리고 있습니다. 승인 전에는 귀가할 수 없습니다."
+                  ? "예약 승인을 기다리고 있습니다. 승인되면 예약완료로 바뀝니다."
                 : isClinicTarget
-                  ? "필요한 보강 일정을 예약해 주세요."
+                  ? "미해결 항목이 있습니다. 다음 클리닉 일정을 예약해 주세요."
                   : "선생님께 이 화면을 보여 주세요."}
             </span>
           </div>

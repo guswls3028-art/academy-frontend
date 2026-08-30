@@ -414,6 +414,7 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
       studentTokens.access,
     );
     expect(idcardBeforeBooking.current_result).toBe("FAIL");
+    expect(idcardBeforeBooking.passcard_state).toBe("CLINIC_REQUIRED");
     expect(idcardBeforeBooking.current_targets).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -499,23 +500,53 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
     const participant = await waitForParticipant(request, adminTokens.access);
     created.participantId = Number(participant.id);
     expect(["pending", "booked"]).toContain(participant.status);
-    expect(participant.name_highlight_clinic_target).toBe(true);
+    expect(participant.name_highlight_clinic_target).toBe(participant.status === "pending");
     expect(Number(participant.enrollment_id)).toBe(created.enrollmentId);
 
+    let confirmedParticipant = participant;
     if (participant.status === "pending") {
-      const booked = await expectApi<any>(
+      confirmedParticipant = await expectApi<any>(
         request,
         "PATCH",
         `/clinic/participants/${created.participantId}/set_status/`,
         adminTokens.access,
         { status: "booked", memo: "E2E 승인" },
       );
-      expect(booked.status).toBe("booked");
+      expect(confirmedParticipant.status).toBe("booked");
     }
+    expect(confirmedParticipant.name_highlight_clinic_target).toBe(false);
 
     await gotoAndSettle(page, `${BASE}/student/clinic`, { timeout: 20_000 });
     await page.getByRole("tab", { name: /내 일정/ }).click();
     await expect(page.getByText("예약 확정").first()).toBeVisible({ timeout: 15_000 });
+
+    const idcardAfterBooking = await expectApi<any>(
+      request,
+      "GET",
+      "/clinic/idcard/",
+      studentTokens.access,
+    );
+    expect(idcardAfterBooking.passcard_state).toBe("BOOKING_CONFIRMED");
+    expect(idcardAfterBooking.booking_status).toBe("booked");
+
+    const attended = await expectApi<any>(
+      request,
+      "PATCH",
+      `/clinic/participants/${created.participantId}/set_status/`,
+      adminTokens.access,
+      { status: "attended", memo: "E2E 등원" },
+    );
+    expect(attended.status).toBe("attended");
+    expect(attended.name_highlight_clinic_target).toBe(false);
+
+    const idcardDuringClinic = await expectApi<any>(
+      request,
+      "GET",
+      "/clinic/idcard/",
+      studentTokens.access,
+    );
+    expect(idcardDuringClinic.passcard_state).toBe("BOOKING_CONFIRMED");
+    expect(idcardDuringClinic.booking_status).toBe("attended");
 
     const completed = await expectApi<any>(
       request,
@@ -525,7 +556,17 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
     );
     expect(completed.status).toBe("attended");
     expect(completed.completed_at).toBeTruthy();
-    expect(completed.name_highlight_clinic_target).toBe(false);
+    expect(completed.name_highlight_clinic_target).toBe(true);
+
+    const idcardAfterUnresolvedCompletion = await expectApi<any>(
+      request,
+      "GET",
+      "/clinic/idcard/",
+      studentTokens.access,
+    );
+    expect(idcardAfterUnresolvedCompletion.current_result).toBe("FAIL");
+    expect(idcardAfterUnresolvedCompletion.passcard_state).toBe("CLINIC_REQUIRED");
+    expect(idcardAfterUnresolvedCompletion.booking_status).toBe("required");
 
     const retake = await expectApi<any>(
       request,
@@ -570,6 +611,15 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
 
     const unresolvedRows = await expectApi<any[]>(request, "GET", "/results/admin/clinic-targets/", adminTokens.access);
     expect(unresolvedRows.some((row) => Number(row.clinic_link_id) === created.clinicLinkId)).toBe(false);
+
+    const idcardAfterRemediation = await expectApi<any>(
+      request,
+      "GET",
+      "/clinic/idcard/",
+      studentTokens.access,
+    );
+    expect(idcardAfterRemediation.current_result).toBe("SUCCESS");
+    expect(idcardAfterRemediation.passcard_state).toBe("PASSED");
 
     await gotoAndSettle(page, `${BASE}/student/exams/${created.examId}/result`, { timeout: 25_000 });
     await expect(page.getByText("클리닉 재시험 통과")).toBeVisible({ timeout: 15_000 });
