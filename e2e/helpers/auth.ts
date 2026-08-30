@@ -21,6 +21,7 @@ const TCHUL = process.env.TCHUL_BASE_URL || "https://tchul.com";
 const _SSWE = process.env.SSWE_BASE_URL || "https://sswe.co.kr"; // 향후 sswe 테넌트 spec 추가 시 사용
 const DNB = process.env.DNB_BASE_URL || "https://dnbacademy.co.kr";
 const LIMGLISH = process.env.LIMGLISH_BASE_URL || "https://limglish.kr";
+const DEFAULT_TENANT_CODE = process.env.E2E_TENANT_CODE?.trim() || "hakwonplus";
 const LOGIN_TOKEN_MAX_ATTEMPTS = 5;
 
 function trimTrailingSlash(value: string): string {
@@ -93,8 +94,8 @@ async function recoverEmptySpaRoot(page: Page): Promise<void> {
 
 /* ── Credentials ── */
 const CREDS: Record<TenantRole, { base: string; code: string; userEnv: string; passEnv: string }> = {
-  "admin":          { base: BASE,     code: "hakwonplus", userEnv: "E2E_ADMIN_USER",      passEnv: "E2E_ADMIN_PASS" },
-  "student":        { base: BASE,     code: "hakwonplus", userEnv: "E2E_STUDENT_USER",    passEnv: "E2E_STUDENT_PASS" },
+  "admin":          { base: BASE,     code: DEFAULT_TENANT_CODE, userEnv: "E2E_ADMIN_USER",      passEnv: "E2E_ADMIN_PASS" },
+  "student":        { base: BASE,     code: DEFAULT_TENANT_CODE, userEnv: "E2E_STUDENT_USER",    passEnv: "E2E_STUDENT_PASS" },
   "tchul-admin":    { base: TCHUL,    code: "tchul",      userEnv: "TCHUL_ADMIN_USER",    passEnv: "TCHUL_ADMIN_PASS" },
   "dnb-admin":      { base: DNB,      code: "dnb",        userEnv: "DNB_ADMIN_USER",      passEnv: "DNB_ADMIN_PASS" },
   "limglish-admin": { base: LIMGLISH, code: "limglish",   userEnv: "LIMGLISH_ADMIN_USER", passEnv: "LIMGLISH_ADMIN_PASS" },

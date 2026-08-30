@@ -248,6 +248,28 @@
 }
 
 @media (max-width: 720px) {
+  .answer-key-modal-header-tabs {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .answer-key-modal-header-tabs .ds-tabs {
+    width: 100%;
+    gap: var(--space-1);
+    overflow-x: auto;
+  }
+
+  .answer-key-modal-header-tabs .ds-tab {
+    flex: 1 0 auto;
+    min-width: max-content;
+    padding-inline: var(--space-2);
+    white-space: nowrap;
+  }
+
+  .answer-key-modal-header-tabs > .ds-button {
+    align-self: flex-end;
+  }
+
   .answer-key-type-map__header {
     align-items: stretch;
     flex-direction: column;
@@ -256,8 +278,17 @@
     justify-content: flex-end;
   }
   .answer-key-two-panels {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    overflow: visible;
   }
+
+  .answer-key-panel--choice,
+  .answer-key-panel--essay {
+    flex: 0 0 auto;
+  }
+
 }
 
 .answer-key-panel--choice,
@@ -428,8 +459,9 @@
 .answer-key-row {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1) 0;
+  gap: var(--space-2);
+  min-height: 56px;
+  padding: 6px 0;
   border-bottom: 1px solid var(--color-border-divider);
   font-size: 13px;
 }
@@ -453,7 +485,7 @@
   text-align: right;
 }
 
-/* 한국식 OMR — 작고 세로로 긴 버블 (exam-omr-bubble은 modal.css SSOT). 포커스 링은 layout 영향 없이 box-shadow로 */
+/* 한국식 OMR — 시각 버블은 modal.css SSOT, 라벨은 충분한 클릭 목표를 제공 */
 .answer-key-row__bubbles {
   display: flex;
   align-items: center;
@@ -467,6 +499,11 @@
 
 .answer-key-omr-label {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  min-width: 40px;
+  height: 44px;
   cursor: pointer;
   margin: 0;
 }
@@ -589,6 +626,54 @@
 
 .answer-key-row__input {
   width: 100%;
+  height: 44px;
+  padding-inline: 14px;
+  font-size: 14px;
+}
+
+@media (max-width: 720px) {
+  .answer-key-panel--choice .answer-key-list--choice-scroll,
+  .answer-key-panel--essay .answer-key-list--essay-scroll {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+
+  .answer-key-row {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr);
+    column-gap: var(--space-2);
+    row-gap: 6px;
+    min-height: 0;
+    padding: var(--space-2) 0;
+  }
+
+  .answer-key-row__num {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    align-self: start;
+    width: 32px;
+    padding-top: 11px;
+  }
+
+  .answer-key-row__bubbles,
+  .answer-key-row__input-wrap {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+  }
+
+  .answer-key-row__bubbles {
+    max-width: 252px;
+    justify-content: space-between;
+  }
+
+  .answer-key-row__score-ctrl {
+    grid-column: 2;
+    grid-row: 2;
+    justify-content: space-between;
+    width: 100%;
+    margin-left: 0;
+  }
 }
 
 .answer-key-upload-links {

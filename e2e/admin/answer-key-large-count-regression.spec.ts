@@ -4,10 +4,11 @@ import { test, expect } from "../fixtures/strictTest";
 import { apiCall } from "../helpers/api";
 import { loginViaUI, getBaseUrl } from "../helpers/auth";
 import { FIXTURES_ALT } from "../helpers/test-fixtures";
+import { waitForRenderSettled } from "../helpers/wait";
 
 const BASE = getBaseUrl("admin");
-const LECTURE_ID = FIXTURES_ALT.lectureId;
-const SESSION_ID = FIXTURES_ALT.sessionId;
+const LECTURE_ID = Number(process.env.E2E_LECTURE_ID || FIXTURES_ALT.lectureId);
+const SESSION_ID = Number(process.env.E2E_SESSION_ID || FIXTURES_ALT.sessionId);
 
 type ExamRow = {
   id?: number;
@@ -70,7 +71,99 @@ async function getSavedAnswerKey(page: Page, examId: number): Promise<AnswerKeyR
   return saved;
 }
 
+async function loginAdmin(page: Page): Promise<void> {
+  await loginViaUI(page, "admin");
+  const firstLoginGuide = page.getByRole("dialog", { name: "계정 안내" });
+  if (await firstLoginGuide.isVisible().catch(() => false)) {
+    await firstLoginGuide.getByRole("button", { name: "계정 안내 닫기" }).click();
+    await expect(firstLoginGuide).not.toBeVisible();
+  }
+}
+
 test.describe("운영 회귀: 답안등록 대문항 안정성", () => {
+  test("선택 버블과 단답형 입력은 데스크톱·모바일에서 넉넉한 조작 영역을 유지한다", async ({ page }) => {
+    test.setTimeout(180_000);
+
+    await loginAdmin(page);
+
+    const stamp = Date.now();
+    const examTitle = `[E2E-${stamp}] 답안입력 조작영역`;
+    let examId: number | null = null;
+
+    try {
+      examId = await createExam(page, examTitle);
+
+      await page.goto(
+        `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${examId}`,
+        { waitUntil: "load", timeout: 20_000 },
+      );
+      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+
+      await expect(page.getByText(examTitle).first()).toBeVisible({ timeout: 15_000 });
+      await page.getByRole("button", { name: "문항·답안 등록" }).click();
+
+      const modal = page.locator(".admin-modal__inner").filter({ hasText: "답안 등록" }).last();
+      const choicePanel = modal.locator(".answer-key-panel--choice");
+      const essayPanel = modal.locator(".answer-key-panel--essay");
+      await expect(modal).toBeVisible({ timeout: 10_000 });
+
+      await choicePanel.locator("input.answer-key-input--count").fill("1");
+      await essayPanel.locator("input.answer-key-input--count").fill("1");
+      const initResponse = page.waitForResponse((resp) =>
+        resp.request().method() === "POST" &&
+        resp.url().includes(`/api/v1/exams/${examId}/questions/init/`) &&
+        resp.status() === 200,
+      );
+      await choicePanel.getByRole("button", { name: "적용" }).click();
+      await initResponse;
+
+      const choiceTarget = choicePanel.locator(".answer-key-omr-label").first();
+      const shortAnswerInput = essayPanel.locator("input.answer-key-row__input").first();
+      await expect(choiceTarget).toBeVisible({ timeout: 15_000 });
+      await expect(shortAnswerInput).toBeVisible({ timeout: 15_000 });
+
+      await expect.poll(async () => (await choiceTarget.boundingBox())?.width ?? 0).toBeGreaterThanOrEqual(40);
+      await expect.poll(async () => (await choiceTarget.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+      await expect.poll(async () => (await shortAnswerInput.boundingBox())?.width ?? 0).toBeGreaterThanOrEqual(220);
+      await expect.poll(async () => (await shortAnswerInput.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+
+      await page.setViewportSize({ width: 390, height: 844 });
+      await waitForRenderSettled(page);
+      if (!await modal.isVisible().catch(() => false)) {
+        await page.getByRole("button", { name: /문항·답안 (등록|확인)/ }).click();
+      }
+      await expect(modal).toBeVisible();
+      await choiceTarget.scrollIntoViewIfNeeded();
+      await expect.poll(async () => (await choiceTarget.boundingBox())?.width ?? 0).toBeGreaterThanOrEqual(40);
+      await expect.poll(async () => (await choiceTarget.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+      await shortAnswerInput.scrollIntoViewIfNeeded();
+      await expect.poll(async () => (await shortAnswerInput.boundingBox())?.width ?? 0).toBeGreaterThanOrEqual(220);
+      await expect.poll(async () => (await shortAnswerInput.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+      expect(await modal.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+
+      await choiceTarget.click();
+      await shortAnswerInput.fill("321");
+      const saveResponse = page.waitForResponse((resp) =>
+        ["POST", "PUT"].includes(resp.request().method()) &&
+        resp.url().includes("/api/v1/exams/answer-keys/") &&
+        resp.status() >= 200 &&
+        resp.status() < 300,
+      );
+      await modal.getByRole("button", { name: /^저장 \(총 / }).click();
+      await saveResponse;
+
+      const questions = await getQuestions(page, examId);
+      const saved = await getSavedAnswerKey(page, examId);
+      expect(saved.answers[String(questions[0]?.id)]).toBe("1");
+      expect(saved.answers[String(questions[1]?.id)]).toBe("321");
+    } finally {
+      if (examId) {
+        await apiCall(page, "DELETE", `/exams/${examId}/?session_id=${SESSION_ID}`).catch(() => undefined);
+        await apiCall(page, "DELETE", `/exams/${examId}/`).catch(() => undefined);
+      }
+    }
+  });
+
   test("30문항에서 10/20문항으로 바꿔도 총점 입력이 튀지 않고 이전 문항 답안이 남지 않는다", async ({ page }) => {
     test.setTimeout(180_000);
 
@@ -79,7 +172,7 @@ test.describe("운영 회귀: 답안등록 대문항 안정성", () => {
       pageErrors.push(error.message);
     });
 
-    await loginViaUI(page, "admin");
+    await loginAdmin(page);
 
     const stamp = Date.now();
     const examTitle = `[E2E-${stamp}] 답안등록 30-10-20`;
@@ -95,7 +188,7 @@ test.describe("운영 회귀: 답안등록 대문항 안정성", () => {
       await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
 
       await expect(page.getByText(examTitle).first()).toBeVisible({ timeout: 15_000 });
-      await page.getByRole("button", { name: "답안등록하기" }).click();
+      await page.getByRole("button", { name: "문항·답안 등록" }).click();
 
       const modal = page.locator(".admin-modal__inner").filter({ hasText: "답안 등록" }).last();
       await expect(modal).toBeVisible({ timeout: 10_000 });
@@ -136,7 +229,7 @@ test.describe("운영 회귀: 답안등록 대문항 안정성", () => {
         resp.status() >= 200 &&
         resp.status() < 300,
       );
-      await modal.getByRole("button", { name: /저장/ }).click();
+      await modal.getByRole("button", { name: /^저장 \(총 / }).click();
       await saveResponse;
       expect(Object.keys((await getSavedAnswerKey(page, examId)).answers)).toContain(staleQuestionId);
 
@@ -158,7 +251,7 @@ test.describe("운영 회귀: 답안등록 대문항 안정성", () => {
         resp.status() >= 200 &&
         resp.status() < 300,
       );
-      await modal.getByRole("button", { name: /저장/ }).click();
+      await modal.getByRole("button", { name: /^저장 \(총 / }).click();
       await saveResponse;
 
       const reducedQuestions = await getQuestions(page, examId);
@@ -196,7 +289,7 @@ test.describe("운영 회귀: 답안등록 대문항 안정성", () => {
       pageErrors.push(error.message);
     });
 
-    await loginViaUI(page, "admin");
+    await loginAdmin(page);
 
     const stamp = Date.now();
     const examTitle = `[E2E-${stamp}] 답안등록 61문항`;
@@ -219,7 +312,7 @@ test.describe("운영 회귀: 답안등록 대문항 안정성", () => {
       await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
 
       await expect(page.getByText(examTitle).first()).toBeVisible({ timeout: 15_000 });
-      await page.getByRole("button", { name: "답안등록하기" }).click();
+      await page.getByRole("button", { name: "문항·답안 등록" }).click();
 
       const modal = page.locator(".admin-modal__inner").filter({ hasText: "답안 등록" }).last();
       await expect(modal).toBeVisible({ timeout: 10_000 });
@@ -253,7 +346,7 @@ test.describe("운영 회귀: 답안등록 대문항 안정성", () => {
         resp.status() >= 200 &&
         resp.status() < 300,
       );
-      await modal.getByRole("button", { name: /저장/ }).click();
+      await modal.getByRole("button", { name: /^저장 \(총 / }).click();
       await saveResponse;
 
       const answerKeys = await apiCall<ListEnvelope<AnswerKeyRow>>(page, "GET", `/exams/answer-keys/?exam=${examId}`);
@@ -263,8 +356,8 @@ test.describe("운영 회귀: 답안등록 대문항 안정성", () => {
       expect(Object.keys(saved.answers).length).toBeGreaterThanOrEqual(1);
 
       await modal.getByText("OMR 답안지").click();
-      await expect(modal.getByText("객관식 60문항, 서술형 10문항까지 지원합니다.")).toBeVisible({ timeout: 10_000 });
-      await expect(modal.getByText("현재 시험은 객관식 61문항, 서술형 0문항")).toBeVisible();
+      await expect(modal.getByText("객관식 60문항, 단답형 20문항까지 지원합니다.")).toBeVisible({ timeout: 10_000 });
+      await expect(modal.getByText("현재 시험은 객관식 61문항, 단답형 0문항")).toBeVisible();
       expect(pageErrors).toEqual([]);
     } finally {
       if (examId) {
