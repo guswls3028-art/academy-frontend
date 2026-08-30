@@ -52,6 +52,19 @@ export async function fetchHomeworkSubmissions(homeworkId: number) {
   return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
 }
 
+export async function fetchHomeworkSubmissionPreview(homeworkId: number, mediaId: string) {
+  const res = await api.get(
+    `/submissions/submissions/homework/${homeworkId}/media/${encodeURIComponent(mediaId)}/preview/`,
+  );
+  return res.data as {
+    url: string;
+    media_kind: "image" | "video";
+    mime_type: string;
+    original_filename: string;
+    expires_in: number;
+  };
+}
+
 /* ─── Exam CRUD ─── */
 export async function createTemplateExam(payload: { title: string; subject?: string; description?: string }) {
   const res = await api.post("/exams/", { ...payload, exam_type: "template" });

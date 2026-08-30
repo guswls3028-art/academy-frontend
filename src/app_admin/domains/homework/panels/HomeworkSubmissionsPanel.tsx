@@ -2,7 +2,7 @@
 /** 학생별 과제 제출 묶음과 파일별 업로드·검수 상태를 보여준다. */
 
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, CheckCircle2, FileImage, LoaderCircle, Video } from "lucide-react";
 
 import {
@@ -15,7 +15,11 @@ import { formatSubmissionDate, formatSubmissionFileSize } from "@admin/domains/s
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
 import { Badge, Button, EmptyState, type BadgeTone } from "@/shared/ui/ds";
+import { useConfirm } from "@/shared/ui/confirm";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPreviewModal";
+import { patchAssessmentCorrection } from "@/shared/api/contracts/sessionScores";
+import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { QUERY_KEYS } from "../queryKeys";
 import HomeworkMediaPreviewModal from "../components/HomeworkMediaPreviewModal";
 import styles from "./HomeworkSubmissionsPanel.module.css";
@@ -45,8 +49,11 @@ function FileStateIcon({ file }: { file: HomeworkSubmissionMediaFile }) {
 }
 
 export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: number }) {
+  const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const hwQ = useAdminHomework(homeworkId);
   const homeworkTitle = hwQ.data?.title ?? "";
+  const sessionId = Number(hwQ.data?.session_id) || 0;
   const [notSubmittedNotif, setNotSubmittedNotif] = useState(false);
   const [previewFile, setPreviewFile] = useState<HomeworkSubmissionMediaFile | null>(null);
   const q = useQuery({
@@ -60,13 +67,55 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
     .filter((studentId): studentId is number => studentId != null);
   const summary = useMemo(() => {
     const activeFiles = rows.flatMap((row) => row.files).filter((file) => !file.removed_at);
+    const submittedRows = rows.filter((row) => !isNotSubmittedStatus(row.status));
+    const submittedEnrollmentIds = new Set(submittedRows.map((row) => row.enrollment_id));
+    const reviewedEnrollmentIds = new Set(
+      submittedRows.filter((row) => row.teacher_reviewed).map((row) => row.enrollment_id),
+    );
     return {
-      students: rows.filter((row) => !isNotSubmittedStatus(row.status)).length,
-      files: activeFiles.length,
-      ready: activeFiles.filter((file) => file.status === "uploaded").length,
+      students: submittedEnrollmentIds.size,
+      pending: Math.max(0, submittedEnrollmentIds.size - reviewedEnrollmentIds.size),
+      reviewed: reviewedEnrollmentIds.size,
       failed: activeFiles.filter((file) => file.status === "failed").length,
     };
   }, [rows]);
+
+  const reviewMut = useMutation({
+    mutationFn: async ({ row, completed }: { row: HomeworkSubmissionRow; completed: boolean }) => {
+      if (sessionId <= 0) throw new Error("과제 차시를 확인할 수 없습니다.");
+      return patchAssessmentCorrection(sessionId, {
+        enrollment_id: row.enrollment_id,
+        source_type: "homework",
+        source_id: homeworkId,
+        completed,
+        note: completed ? "제출 파일 직접 확인" : "추가 확인 필요",
+        expected_updated_at: row.teacher_review_updated_at,
+      });
+    },
+    onSuccess: async (_, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.HOMEWORK_SUBMISSIONS(homeworkId) }),
+        queryClient.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot }),
+      ]);
+      feedback.success(variables.completed ? "선생님 확인 완료로 기록했습니다." : "확인 완료를 취소했습니다.");
+    },
+    onError: (error: unknown) => {
+      const apiError = error as { response?: { data?: { detail?: string } }; message?: string };
+      feedback.error(apiError.response?.data?.detail || apiError.message || "확인 상태를 저장하지 못했습니다.");
+    },
+  });
+
+  const requestReviewChange = async (row: HomeworkSubmissionRow, completed: boolean) => {
+    const accepted = await confirm({
+      title: completed ? `${row.student_name} 제출 확인 완료` : `${row.student_name} 확인 취소`,
+      message: completed
+        ? "사진·동영상을 직접 확인한 것으로 기록합니다. 이후 학생은 제출 파일을 바꿀 수 없습니다."
+        : "직접 확인 기록을 취소하고 학생이 파일을 다시 바꿀 수 있게 합니다.",
+      confirmText: completed ? "확인 완료" : "확인 취소",
+      danger: !completed,
+    });
+    if (accepted) reviewMut.mutate({ row, completed });
+  };
 
   if (q.isLoading) {
     return <EmptyState scope="panel" tone="loading" title="제출 목록 불러오는 중…" />;
@@ -94,8 +143,8 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
 
       <div className={styles.summary} aria-label="제출 요약">
         <div><span>제출 학생</span><strong>{summary.students}</strong><small>명</small></div>
-        <div><span>전체 파일</span><strong>{summary.files}</strong><small>개</small></div>
-        <div data-tone="success"><span>검수 가능</span><strong>{summary.ready}</strong><CheckCircle2 aria-hidden="true" /></div>
+        <div><span>확인 대기</span><strong>{summary.pending}</strong><small>명</small></div>
+        <div data-tone="success"><span>확인 완료</span><strong>{summary.reviewed}</strong><CheckCircle2 aria-hidden="true" /></div>
         <div data-tone={summary.failed > 0 ? "danger" : "neutral"}><span>업로드 오류</span><strong>{summary.failed}</strong><AlertCircle aria-hidden="true" /></div>
       </div>
 
@@ -145,10 +194,34 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
                     clinicHighlight={row.name_highlight_clinic_target === true}
                   />
                 </StudentDetailLink>
-                <div className={styles.studentMeta}>
-                  <span>{homeworkTitle || "과제"}</span>
-                  <time dateTime={row.created_at}>{formatSubmissionDate(row.created_at)}</time>
-                  <b>{row.files.filter((file) => !file.removed_at).length}개 파일</b>
+                <div className={styles.studentActions}>
+                  <div className={styles.studentMeta}>
+                    <span>{homeworkTitle || "과제"}</span>
+                    <time dateTime={row.created_at}>{formatSubmissionDate(row.created_at)}</time>
+                    <b>{row.files.filter((file) => !file.removed_at).length}개 파일</b>
+                  </div>
+                  {row.teacher_reviewed ? (
+                    <Badge variant="solid" tone="success">
+                      {row.teacher_review_source === "score" ? "점수 입력 완료" : "확인 완료"}
+                    </Badge>
+                  ) : (
+                    <Badge variant="solid" tone="warning">확인 대기</Badge>
+                  )}
+                  {row.teacher_review_source !== "score" && !isNotSubmittedStatus(row.status) && (
+                    <Button
+                      type="button"
+                      intent={row.teacher_reviewed ? "ghost" : "primary"}
+                      size="sm"
+                      disabled={
+                        sessionId <= 0
+                        || !row.files.some((file) => file.status === "uploaded" && !file.removed_at)
+                        || (reviewMut.isPending && reviewMut.variables?.row.enrollment_id === row.enrollment_id)
+                      }
+                      onClick={() => void requestReviewChange(row, !row.teacher_reviewed)}
+                    >
+                      {row.teacher_reviewed ? "확인 취소" : "확인 완료"}
+                    </Button>
+                  )}
                 </div>
               </header>
 

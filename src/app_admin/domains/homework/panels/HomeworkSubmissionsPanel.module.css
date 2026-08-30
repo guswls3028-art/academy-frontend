@@ -143,6 +143,14 @@
   font-size: 11px;
 }
 
+.studentActions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .studentMeta span,
 .studentMeta b {
   max-width: 180px;
@@ -293,8 +301,13 @@
   }
 
   .headerActions,
-  .studentMeta {
+  .studentMeta,
+  .studentActions {
     justify-content: flex-start;
+  }
+
+  .studentActions {
+    flex-wrap: wrap;
   }
 
   .summary {
