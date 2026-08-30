@@ -852,9 +852,9 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     await contentHub.getByRole("link", { name: /자료실/ }).click();
     await expect(page).toHaveURL(/\/student\/community\?tab=materials$/);
     await expect(page.getByRole("heading", { name: "소식·자료" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "자료실" })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("button", { name: "자료실" })).toHaveAttribute("aria-pressed", "true");
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("tab", { name: "자료실" })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("button", { name: "자료실" })).toHaveAttribute("aria-pressed", "true");
 
     await page.getByRole("button", { name: "메뉴 열기" }).click();
     const drawer = page.getByRole("dialog", { name: "메뉴" });
@@ -892,16 +892,16 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     await page.setViewportSize({ width: 1366, height: 900 });
 
     await page.goto(`${BASE}/student/community?tab=board`, { waitUntil: "domcontentloaded", timeout: 45_000 });
-    const boardTab = page.getByRole("tab", { name: "게시판" });
-    await expect(boardTab).toHaveAttribute("aria-selected", "true");
+    const boardTab = page.getByRole("button", { name: "게시판" });
+    await expect(boardTab).toHaveAttribute("aria-pressed", "true");
     await boardTab.focus();
     await boardTab.press("ArrowRight");
     await expect(page).toHaveURL(/\/student\/community\?tab=materials$/);
-    await expect(page.getByRole("tab", { name: "자료실" })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("button", { name: "자료실" })).toHaveAttribute("aria-pressed", "true");
 
     await page.goBack({ waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/\/student\/community\?tab=board$/);
-    await expect(boardTab).toHaveAttribute("aria-selected", "true");
+    await expect(boardTab).toHaveAttribute("aria-pressed", "true");
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   });
 
@@ -910,7 +910,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     await page.setViewportSize({ width: 390, height: 844 });
 
     await page.goto(`${BASE}/student/community?tab=materials`, { waitUntil: "domcontentloaded", timeout: 45_000 });
-    await expect(page.getByRole("tab", { name: "자료실" })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("button", { name: "자료실" })).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator(".community-skeleton-list")).toBeVisible();
     await testInfo.attach("student-content-discovery-mobile-loading", {
       body: await page.screenshot({ fullPage: true }),

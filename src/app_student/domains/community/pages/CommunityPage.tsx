@@ -116,7 +116,7 @@ function SegmentedTabs<T extends string>({
   };
 
   return (
-    <div className="community-segmented-tabs" role="tablist" aria-label="소식·자료 메뉴">
+    <div className="community-segmented-tabs" role="group" aria-label="소식·자료 메뉴">
       {items.map(({ key, label, count }, index) => {
         const active = value === key;
         return (
@@ -125,9 +125,8 @@ function SegmentedTabs<T extends string>({
             ref={(node) => { buttonRefs.current[index] = node; }}
             type="button"
             id={`community-tab-${key}`}
-            role="tab"
             aria-controls="community-panel"
-            aria-selected={active}
+            aria-pressed={active}
             tabIndex={active ? 0 : -1}
             onClick={() => onChange(key)}
             onKeyDown={(event) => handleKeyDown(event, index)}
@@ -283,7 +282,7 @@ export default function CommunityPage() {
       <div
         id="community-panel"
         className="community-tab-panel"
-        role="tabpanel"
+        role="region"
         aria-labelledby={`community-tab-${activeTab}`}
       >
         {activeTab === "notice" && (
