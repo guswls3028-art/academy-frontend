@@ -131,6 +131,8 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     queryKey: scoresQueryKeys.sessionScores(sessionId),
     queryFn: () => fetchSessionScores(sessionId),
     enabled: Number.isFinite(sessionId) && sessionId > 0,
+    refetchInterval: isEditMode ? 1_500 : false,
+    refetchIntervalInBackground: false,
   });
 
   const allRows = useMemo<SessionScoreRow[]>(() => {

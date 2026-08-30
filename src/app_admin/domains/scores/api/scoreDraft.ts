@@ -25,6 +25,7 @@ export type PendingChange =
       homeworkId: number;
       score: number | null;
       metaStatus?: "NOT_SUBMITTED";
+      expectedUpdatedAt?: string | null;
     };
 
 export type ScoreActiveCell = {

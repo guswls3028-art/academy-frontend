@@ -9,7 +9,7 @@
  * - 디자인 토큰만 사용, DomainTable 기반
  */
 
-import { useMemo, useRef, useEffect, Fragment, useCallback, forwardRef, useImperativeHandle } from "react";
+import { useMemo, useRef, useEffect, Fragment, useCallback, forwardRef, useImperativeHandle, useState } from "react";
 import type { CSSProperties } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -17,7 +17,11 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { SessionScoreRow, SessionScoreMeta, SessionScoresSummaryColumnMode } from "../api/sessionScores";
 import type { PendingChange, ScoreActiveEditor } from "../api/scoreDraft";
 import { scoresQueryKeys } from "../api/queryKeys";
-import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
+import {
+  getHomeworkScoreCellConflict,
+  patchHomeworkQuick,
+  type HomeworkScoreCellValue,
+} from "../api/patchHomeworkQuick";
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
 import { patchExamObjectiveScoreQuick } from "../api/patchExamObjectiveQuick";
 import { patchExamSubjectiveScoreQuick } from "../api/patchExamSubjectiveQuick";
@@ -271,6 +275,21 @@ type ScoreEditHistoryEntry = {
   after: PendingChange;
 };
 
+type HomeworkPendingChange = Extract<PendingChange, { type: "homework" }>;
+
+type HomeworkCellConflict = {
+  localValue: HomeworkPendingChange;
+  serverValue: HomeworkScoreCellValue;
+};
+
+function homeworkCellValueLabel(value: {
+  score: number | null;
+  metaStatus?: "NOT_SUBMITTED" | null;
+}): string {
+  if (value.metaStatus === "NOT_SUBMITTED") return "미제출";
+  return value.score == null ? "미입력" : formatScoreNumber(value.score);
+}
+
 // PassFailText 컴포넌트 제거(2026-05-12): 합불 컬럼 자체 제거 — 점수 셀 data-pass-status 색상/border로 대체.
 // OmrUploadButton 컴포넌트 제거(2026-05-13 P0-2): 헤더 위 absolute 미니버튼 제거.
 // OMR 업로드는 툴바 첫 CTA와 시험명 클릭 후의 해당 시험 작업 화면에서 연다.
@@ -461,6 +480,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   const redoStackRef = useRef<ScoreEditHistoryEntry[]>([]);
   const lastCommitInvalidRef = useRef(false);
   const liveHistoryKeyRef = useRef<string | null>(null);
+  const [homeworkConflicts, setHomeworkConflicts] = useState<Record<string, HomeworkCellConflict>>({});
   const homeworkMaxScoreById = useMemo(
     () => new Map((meta?.homeworks ?? []).map((homework) => [homework.homework_id, homework.max_score])),
     [meta?.homeworks],
@@ -474,6 +494,18 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     ),
     [meta?.homeworks],
   );
+  const homeworkVersionByCell = useMemo(() => {
+    const versions = new Map<string, string | null>();
+    for (const row of rows) {
+      for (const homework of row.homeworks ?? []) {
+        versions.set(
+          `homework:${row.enrollment_id}:${homework.homework_id}`,
+          homework.block.updated_at ?? null,
+        );
+      }
+    }
+    return versions;
+  }, [rows]);
   const homeworkCollaboratorByCell = useMemo(() => {
     const collaborators = new Map<string, ScoreActiveEditor>();
     for (const editor of activeEditors) {
@@ -532,20 +564,29 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     serverValue: PendingChange,
   ) => {
     const pendingValue = pendingRef.current.get(key);
-    const before = pendingValue ?? serverValue;
-    if (samePendingChange(before, next)) return;
+    const expectedUpdatedAt = pendingValue?.type === "homework"
+      ? pendingValue.expectedUpdatedAt ?? null
+      : homeworkVersionByCell.get(key) ?? null;
+    const versionedNext = next.type === "homework" && next.expectedUpdatedAt === undefined
+      ? { ...next, expectedUpdatedAt }
+      : next;
+    const versionedServerValue = serverValue.type === "homework" && serverValue.expectedUpdatedAt === undefined
+      ? { ...serverValue, expectedUpdatedAt: homeworkVersionByCell.get(key) ?? null }
+      : serverValue;
+    const before = pendingValue ?? versionedServerValue;
+    if (samePendingChange(before, versionedNext)) return;
 
-    pendingRef.current.set(key, next);
+    pendingRef.current.set(key, versionedNext);
     dirtyKeysRef.current.add(key);
     undoStackRef.current.push({
       key,
       before,
-      after: next,
+      after: versionedNext,
     });
     if (undoStackRef.current.length > 100) undoStackRef.current.shift();
     redoStackRef.current = [];
     onPendingChange?.();
-  }, [onPendingChange]);
+  }, [homeworkVersionByCell, onPendingChange]);
 
   /** contenteditable 입력 중 유효한 값은 즉시 pending에 반영한다.
    * 한 번의 포커스 안에서 여러 글자를 입력해도 실행 취소 이력은 셀 단위 한 건으로 합친다. */
@@ -555,26 +596,35 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     serverValue: PendingChange,
   ) => {
     const pendingValue = pendingRef.current.get(key);
-    if (pendingValue && samePendingChange(pendingValue, next)) return;
-    const before = pendingValue ?? serverValue;
-    pendingRef.current.set(key, next);
+    const expectedUpdatedAt = pendingValue?.type === "homework"
+      ? pendingValue.expectedUpdatedAt ?? null
+      : homeworkVersionByCell.get(key) ?? null;
+    const versionedNext = next.type === "homework" && next.expectedUpdatedAt === undefined
+      ? { ...next, expectedUpdatedAt }
+      : next;
+    const versionedServerValue = serverValue.type === "homework" && serverValue.expectedUpdatedAt === undefined
+      ? { ...serverValue, expectedUpdatedAt: homeworkVersionByCell.get(key) ?? null }
+      : serverValue;
+    if (pendingValue && samePendingChange(pendingValue, versionedNext)) return;
+    const before = pendingValue ?? versionedServerValue;
+    pendingRef.current.set(key, versionedNext);
     dirtyKeysRef.current.add(key);
 
     const lastHistory = undoStackRef.current[undoStackRef.current.length - 1];
     if (liveHistoryKeyRef.current === key && lastHistory?.key === key) {
-      lastHistory.after = next;
+      lastHistory.after = versionedNext;
     } else {
       undoStackRef.current.push({
         key,
         before,
-        after: next,
+        after: versionedNext,
       });
       if (undoStackRef.current.length > 100) undoStackRef.current.shift();
       liveHistoryKeyRef.current = key;
     }
     redoStackRef.current = [];
     onPendingChange?.();
-  }, [onPendingChange]);
+  }, [homeworkVersionByCell, onPendingChange]);
 
   /** pending 항목 전부 API 호출 후 한 번만 invalidate.
    * 저장 도중 같은 셀이 다시 바뀌면 새 값을 지우지 않는다. */
@@ -582,9 +632,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     const list = Array.from(pendingRef.current.values());
     if (list.length === 0) return 0;
     const failed: PendingChange[] = [];
-    const succeeded: PendingChange[] = [];
+    const succeeded: Array<{ change: PendingChange; updatedAt?: string | null }> = [];
     for (const p of list) {
       try {
+        let updatedAt: string | null | undefined;
         if (p.type === "examTotal") {
           await patchExamTotalScoreQuick({ sessionId, examId: p.examId, enrollmentId: p.enrollmentId, score: p.score, maxScore: p.maxScore ?? 100, metaStatus: p.metaStatus ?? undefined });
         } else if (p.type === "examObjective") {
@@ -592,38 +643,97 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         } else if (p.type === "examSubjective") {
           await patchExamSubjectiveScoreQuick({ sessionId, examId: p.examId, enrollmentId: p.enrollmentId, score: p.score });
         } else {
-          await patchHomeworkQuick({
+          const result = await patchHomeworkQuick({
             sessionId,
             enrollmentId: p.enrollmentId,
             homeworkId: p.homeworkId,
             score: p.score,
             maxScore: homeworkMaxScoreById.get(p.homeworkId),
             metaStatus: p.metaStatus ?? undefined,
+            expectedUpdatedAt: p.expectedUpdatedAt ?? null,
           });
+          updatedAt = result.updated_at;
         }
-        succeeded.push(p);
-      } catch {
+        succeeded.push({ change: p, updatedAt });
+      } catch (error) {
+        if (p.type === "homework") {
+          const conflict = getHomeworkScoreCellConflict(error);
+          if (conflict) {
+            const key = pendingKeyForChange(p);
+            setHomeworkConflicts((current) => ({
+              ...current,
+              [key]: { localValue: p, serverValue: conflict.serverValue },
+            }));
+          }
+        }
         failed.push(p);
       }
     }
     await qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
-    for (const p of succeeded) {
+    for (const { change: p, updatedAt } of succeeded) {
       const key = pendingKeyForChange(p);
       const current = pendingRef.current.get(key);
       if (current && samePendingChange(current, p)) {
         pendingRef.current.delete(key);
         dirtyKeysRef.current.delete(key);
         applyChangeToDom(p);
+      } else if (
+        p.type === "homework"
+        && current?.type === "homework"
+        && updatedAt
+        && current.expectedUpdatedAt === p.expectedUpdatedAt
+      ) {
+        pendingRef.current.set(key, { ...current, expectedUpdatedAt: updatedAt });
       }
+      if (p.type === "homework" && updatedAt) {
+        const updateHistoryVersion = (entry: ScoreEditHistoryEntry) => {
+          if (entry.key !== key) return entry;
+          return {
+            ...entry,
+            before: entry.before.type === "homework"
+              ? { ...entry.before, expectedUpdatedAt: updatedAt }
+              : entry.before,
+            after: entry.after.type === "homework"
+              ? { ...entry.after, expectedUpdatedAt: updatedAt }
+              : entry.after,
+          };
+        };
+        undoStackRef.current = undoStackRef.current.map(updateHistoryVersion);
+        redoStackRef.current = redoStackRef.current.map(updateHistoryVersion);
+      }
+      setHomeworkConflicts((conflicts) => {
+        if (!(key in conflicts)) return conflicts;
+        const next = { ...conflicts };
+        delete next[key];
+        return next;
+      });
     }
     void qc.invalidateQueries({ queryKey: scoresQueryKeys.clinicTargets });
     void qc.invalidateQueries({ queryKey: scoresQueryKeys.adminExamResults });
-    const successCount = list.length - failed.length;
+    const successCount = succeeded.length;
     if (failed.length > 0) {
       throw new Error(`${failed.length}건의 점수를 저장하지 못했습니다. 입력값은 유지됩니다. 다시 저장해 주세요.`);
     }
     return successCount;
   }, [applyChangeToDom, homeworkMaxScoreById, qc, sessionId]);
+
+  const reapplyHomeworkConflict = useCallback((key: string) => {
+    const conflict = homeworkConflicts[key];
+    if (!conflict) return;
+    const next: HomeworkPendingChange = {
+      ...conflict.localValue,
+      expectedUpdatedAt: conflict.serverValue.updated_at,
+    };
+    pendingRef.current.set(key, next);
+    dirtyKeysRef.current.add(key);
+    applyChangeToDom(next);
+    setHomeworkConflicts((current) => {
+      const updated = { ...current };
+      delete updated[key];
+      return updated;
+    });
+    onPendingChange?.();
+  }, [applyChangeToDom, homeworkConflicts, onPendingChange]);
 
   /** 현재 pending 변경 목록 스냅샷 — 자동 저장/복원용 */
   const getPendingSnapshot = useCallback((): PendingChange[] => {
@@ -693,6 +803,11 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
       rows.forEach((row) => {
         const key = `${row.enrollment_id}-${hw.homework_id}`;
         if (dirtyKeysRef.current.has(`homework:${row.enrollment_id}:${hw.homework_id}`)) return;
+        if (
+          selectedCell?.type === "homework"
+          && selectedCell.enrollmentId === row.enrollment_id
+          && selectedCell.homeworkId === hw.homework_id
+        ) return;
         const el = homeworkInputRefs.current[key];
         if (!el || el === document.activeElement) return;
         const entry = row.homeworks?.find((h) => h.homework_id === hw.homework_id);
@@ -714,7 +829,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         }
       });
     });
-  }, [rows, homeworkOptions]);
+  }, [rows, homeworkOptions, selectedCell]);
 
   useEffect(() => {
     if (!rows.length) return;
@@ -1944,6 +2059,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     selectedCell.homeworkId === hw.homework_id;
                   const scoreCellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
                   const collaborator = homeworkCollaboratorByCell.get(scoreCellKey) ?? null;
+                  const cellConflict = homeworkConflicts[scoreCellKey] ?? null;
                   const canEditScore = isEditMode && homeworkEdit && !notEnrolledForHw && !collaborator;
                   const isNotSubmitted = block?.meta?.status === "NOT_SUBMITTED";
                   const isEmptyScore = block?.score == null && !isNotSubmitted;
@@ -2007,7 +2123,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   homeworkInputRefs.current[key] = el;
                                   if (el) {
                                     const pendingKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
-                                    if (!applyPendingChangeToMountedCell(pendingKey)) {
+                                    if (!applyPendingChangeToMountedCell(pendingKey) && !isSelected) {
                                       const label = block?.score == null
                                         ? "미입력"
                                         : block.score >= 1 ? "완료" : "미완료";
@@ -2064,7 +2180,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               ref={(el) => {
                                 const key = `${row.enrollment_id}-${hw.homework_id}`;
                                 homeworkInputRefs.current[key] = el;
-                                if (el && el !== document.activeElement) {
+                                if (el && el !== document.activeElement && !isSelected) {
                                   const pendingKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
                                   if (!applyPendingChangeToMountedCell(pendingKey)) {
                                     if (isNotSubmitted) el.innerText = "미제출";
@@ -2311,6 +2427,25 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                             )
                           ) : (
                             <span className="text-[var(--color-text-muted)]">-</span>
+                          )}
+                          {cellConflict && (
+                            <span className="ds-scores-cell-conflict" role="alert">
+                              <span>
+                                최신 서버값 {homeworkCellValueLabel({
+                                  score: cellConflict.serverValue.score,
+                                  metaStatus: cellConflict.serverValue.meta_status,
+                                })} · 내 입력 {homeworkCellValueLabel(cellConflict.localValue)}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  reapplyHomeworkConflict(scoreCellKey);
+                                }}
+                              >
+                                내 점수 다시 적용
+                              </button>
+                            </span>
                           )}
                         </span>
                       </td>

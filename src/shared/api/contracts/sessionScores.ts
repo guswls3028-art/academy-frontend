@@ -7,6 +7,7 @@ export type SessionScoresExamReviewFilter = "all" | "incomplete" | "pending" | "
 export type ScoreBlock = {
   score: number | null;
   max_score: number | null;
+  updated_at?: string | null;
   passed: boolean | null;
   clinic_required: boolean;
   is_locked?: boolean;

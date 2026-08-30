@@ -27,7 +27,7 @@ import { fetchAdminExamResultDetail } from "@admin/domains/results/api/adminExam
 import { fetchAttemptHistory, type AttemptHistoryResponse } from "../api/attemptHistory";
 import { submitClinicRetake, updateClinicRetake } from "@admin/domains/clinic/api/clinicLinks.api";
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
-import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
+import { getHomeworkScoreCellConflict, patchHomeworkQuick } from "../api/patchHomeworkQuick";
 import { buildGenericScoreTemplate, buildScoreVars, buildScoreDetail, substituteScoreVars, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
 import {
   getSessionRowAttentionCountLabel,
@@ -820,6 +820,7 @@ function HomeworkResultCard({
             sourceId={hw.homework_id}
             sessionId={sessionId}
             isEditMode={isEditMode}
+            homeworkUpdatedAt={hw.block.updated_at ?? null}
           />
         </>
       )}
@@ -843,6 +844,7 @@ function AttemptTimeline({
   sessionId,
   isEditMode,
   onOpenDetail,
+  homeworkUpdatedAt,
   startNewAttempt = false,
   onStartNewAttemptHandled,
 }: {
@@ -852,6 +854,7 @@ function AttemptTimeline({
   sessionId?: number;
   isEditMode: boolean;
   onOpenDetail?: () => void;
+  homeworkUpdatedAt?: string | null;
   startNewAttempt?: boolean;
   onStartNewAttemptHandled?: () => void;
 }) {
@@ -946,6 +949,7 @@ function AttemptTimeline({
           homeworkId: sourceId,
           score: params.score,
           maxScore: params.maxScore,
+          expectedUpdatedAt: homeworkUpdatedAt ?? null,
         });
       }
     },
@@ -958,7 +962,17 @@ function AttemptTimeline({
       setEditPassScore("");
       feedback.success("1차 점수가 수정되었습니다.");
     },
-    onError: () => feedback.error("점수 수정에 실패했습니다."),
+    onError: (error) => {
+      const conflict = getHomeworkScoreCellConflict(error);
+      if (conflict) {
+        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
+        feedback.warning(
+          `다른 화면이 먼저 저장했습니다. 최신 서버값 ${conflict.serverValue.score ?? "미입력"}, 내 입력 ${editScore}을 유지했습니다. 최신값 확인 후 다시 저장해 주세요.`,
+        );
+        return;
+      }
+      feedback.error("점수 수정에 실패했습니다.");
+    },
   });
 
   function handleEditSubmit(attemptIndex: number) {
