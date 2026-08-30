@@ -1,7 +1,7 @@
 import api from "@student/shared/api/student.api";
 
 export type ClinicIdcardResult = "SUCCESS" | "FAIL";
-export type ClinicPasscardState = "PASSED" | "CLINIC_REQUIRED" | "RETURN_ALLOWED";
+export type ClinicPasscardState = "PASSED" | "CLINIC_REQUIRED" | "BOOKING_CONFIRMED";
 export type ClinicBookingStatus =
   | "none"
   | "required"
@@ -80,11 +80,12 @@ export async function fetchClinicIdcard(): Promise<ClinicIdcardData> {
   if (raw.current_result !== "SUCCESS" && raw.current_result !== "FAIL") {
     throw new Error("Invalid clinic passcard result");
   }
-  const passcardState = ["PASSED", "CLINIC_REQUIRED", "RETURN_ALLOWED"].includes(
-    String(raw.passcard_state),
-  )
-    ? raw.passcard_state as ClinicPasscardState
-    : raw.current_result === "FAIL" ? "CLINIC_REQUIRED" : "PASSED";
+  const rawPasscardState = String(raw.passcard_state);
+  const passcardState = rawPasscardState === "RETURN_ALLOWED"
+    ? "BOOKING_CONFIRMED"
+    : ["PASSED", "CLINIC_REQUIRED", "BOOKING_CONFIRMED"].includes(rawPasscardState)
+      ? rawPasscardState as ClinicPasscardState
+      : raw.current_result === "FAIL" ? "CLINIC_REQUIRED" : "PASSED";
   const bookingStatus = ["none", "required", "pending", "booked", "attended", "completed"].includes(
     String(raw.booking_status),
   )
