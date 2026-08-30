@@ -1805,6 +1805,16 @@ test.describe("문항별 직접 채점", () => {
 
     await omrDialog.getByRole("tab", { name: "원본" }).click();
     await expect(omrDialog.getByRole("img", { name: "OMR 스캔 원본" })).toBeVisible();
+    await omrDialog.getByRole("button", { name: "오른쪽으로 90도 회전" }).click();
+    const rotateRescanButton = omrDialog.getByRole("button", {
+      name: "이 방향으로 다시 읽기",
+    });
+    await expect(rotateRescanButton).toBeVisible();
+    const rotateRescanBox = await rotateRescanButton.boundingBox();
+    expect(rotateRescanBox).not.toBeNull();
+    expect(rotateRescanBox!.x).toBeGreaterThanOrEqual(0);
+    expect(rotateRescanBox!.x + rotateRescanBox!.width).toBeLessThanOrEqual(390);
+    expect(apiState.rotateRescanBodies).toHaveLength(0);
   });
 
   test("답안 검토 사유는 학생 확정으로 우회하지 않는다", async ({ page }) => {

@@ -898,6 +898,16 @@
   .orw-body--mobile-list > .orw-list-pane {
     display: block;
   }
+  .orw-scan-pane__toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 10px;
+  }
+  .orw-scan-pane__controls {
+    width: 100%;
+    flex-wrap: wrap;
+  }
   .orw-edit-pane__footer {
     flex-wrap: wrap;
   }
