@@ -1642,6 +1642,8 @@ export default function ClinicConsoleWorkspace({
             const p = group.participants[0];
             const targets = getTargetsForParticipant(p);
             const unresolvedTargets = targets.filter((target) => !target.resolved_at);
+            const visibleTargets = unresolvedTargets.slice(0, 4);
+            const hiddenTargetCount = unresolvedTargets.length - visibleTargets.length;
             const plannedIds = new Set(
               group.participants.flatMap((participant) => participant.planned_clinic_link_ids ?? []),
             );
@@ -1738,7 +1740,7 @@ export default function ClinicConsoleWorkspace({
                             : "clinic-ops__status-badge--pending"
                         }`}
                       >
-                        상태 · {hasPending ? (
+                        {hasPending ? (
                         <span className="clinic-ops__status-badge-pending-indicator">
                           {pendingStatus === "attended" ? "출석 예정" : "결석 예정"}
                         </span>
@@ -1788,7 +1790,11 @@ export default function ClinicConsoleWorkspace({
                           return (
                             <span
                               key={label}
-                              className={index <= phase ? "clinic-ops__flow-step clinic-ops__flow-step--done" : "clinic-ops__flow-step"}
+                              className={index < phase
+                                ? "clinic-ops__flow-step clinic-ops__flow-step--done"
+                                : index === phase
+                                ? "clinic-ops__flow-step clinic-ops__flow-step--current"
+                                : "clinic-ops__flow-step"}
                               aria-current={index === phase ? "step" : undefined}
                             >
                               {index === 1 && p.is_late ? "지각 등원" : label}
@@ -1833,8 +1839,14 @@ export default function ClinicConsoleWorkspace({
                           <button type="button" className="clinic-ops__att-btn clinic-ops__att-btn--noshow" onClick={() => setActionDialog({ participant: p, action: "absent" })} disabled={isMutating} aria-label="결석">
                             <XCircle size={14} aria-hidden /> 결석
                           </button>
-                          <button type="button" className="clinic-ops__att-btn clinic-ops__att-btn--checkout" disabled aria-label="하원">
-                            하원 처리
+                          <button
+                            type="button"
+                            className="clinic-ops__att-btn clinic-ops__att-btn--checkout"
+                            disabled
+                            aria-label="하원"
+                            title="등원 처리 후 사용할 수 있습니다."
+                          >
+                            등원 후 하원
                           </button>
                         </>
                       ) : p.status === "no_show" ? (
@@ -1877,7 +1889,7 @@ export default function ClinicConsoleWorkspace({
                           과제 조회 실패
                         </span>
                       ) : unresolvedTargets.length > 0 ? (
-                        unresolvedTargets.map((t) => {
+                        visibleTargets.map((t) => {
                           const targetParticipant = participantForTarget(group.participants, t);
                           const targetIsPlanned = isPositiveClinicIdentifier(t.clinic_link_id) && plannedIds.has(t.clinic_link_id);
                           return (
@@ -1929,8 +1941,47 @@ export default function ClinicConsoleWorkspace({
                           자율 학습 참여
                         </span>
                       )}
+                      {hiddenTargetCount > 0 && (
+                        <button
+                          type="button"
+                          className="clinic-ops__task-overflow"
+                          aria-label={`${p.student_name} 미완료 항목 ${hiddenTargetCount}개 더 보기`}
+                          onClick={(event) => {
+                            const target = unresolvedTargets[visibleTargets.length];
+                            const targetParticipant = target ? participantForTarget(group.participants, target) : undefined;
+                            openDrawer(
+                              targetParticipant?.id ?? p.id,
+                              target ? clinicTargetKey(target) : null,
+                              event.currentTarget,
+                              targetParticipant != null,
+                            );
+                          }}
+                        >
+                          <strong>+{hiddenTargetCount}</strong>
+                          <span>전체 보기</span>
+                          <ArrowRightCircle size={15} aria-hidden />
+                        </button>
+                      )}
                     </div>
                   </div>
+
+                  <button
+                    type="button"
+                    className="clinic-ops__mobile-open"
+                    aria-label={`${p.student_name} 학생 작업대 열기`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openDrawer(
+                        p.id,
+                        unresolvedTargets[0] ? clinicTargetKey(unresolvedTargets[0]) : null,
+                        event.currentTarget,
+                        group.participants.length === 1,
+                      );
+                    }}
+                  >
+                    학생 작업대 열기
+                    <ArrowRightCircle size={16} aria-hidden />
+                  </button>
 
                   {/* Optional: student/parent request */}
                   {(preferredTimeText(p) || p.student_request_memo) && (
@@ -2132,7 +2183,7 @@ export default function ClinicConsoleWorkspace({
                         }}
                       >
                         <span>{index + 1}</span>
-                        {target.source_title || target.session_title || formatReasonLabel(target.clinic_reason)}
+                        <strong>{target.source_title || target.session_title || formatReasonLabel(target.clinic_reason)}</strong>
                         {planned && <em>오늘</em>}
                       </button>
                     );

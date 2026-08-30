@@ -6,6 +6,12 @@
  * - 아이디·식별코드 눈에 띄게 (.ds-overlay-header__id, __code)
  * ============================================================================ */
 
+/* Informational message toasts never own actions; keep controls underneath usable. */
+.ant-message,
+.ant-message .ant-message-notice {
+  pointer-events: none;
+}
+
 /* 백드롭 — 사이드바 영역 제외 (사이드바 클릭 허용) */
 .ds-overlay-backdrop {
   position: fixed;
