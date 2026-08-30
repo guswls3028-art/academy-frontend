@@ -18,6 +18,7 @@
   --sw-success: #2b8a3e;
   --sw-gold: #e67700;
   --sw-warning: #ff6b6b;
+  --sw-warning-text: #a61b1b;
   --sw-mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Consolas, "Liberation Mono", monospace;
 
   position: relative;
@@ -262,7 +263,7 @@
   justify-content: center;
   font-family: var(--sw-mono);
   font-weight: 600;
-  font-size: clamp(72px, 13vw, 160px);
+  font-size: clamp(80px, 14vw, 176px);
   letter-spacing: -2px;
   line-height: 1;
   transition: all 0.5s ease;
@@ -274,7 +275,12 @@
 }
 
 .displayWarning {
-  color: var(--sw-warning) !important;
+  color: var(--sw-warning-text) !important;
+}
+
+.displayWarning .sep,
+.displayWarning .cs {
+  color: currentColor;
 }
 
 .displayFinished {
@@ -618,6 +624,7 @@
   --sw-success: #51cf66;
   --sw-gold: #ffd43b;
   --sw-warning: #ff6b6b;
+  --sw-warning-text: #ffffff;
 
   background: var(--sw-bg);
   color: var(--sw-text);
@@ -781,7 +788,7 @@
 
 /* Warning state text color in projector */
 .projector .displayWarning {
-  color: #ff6b6b !important;
+  color: var(--sw-warning-text) !important;
 }
 
 .projector .displayFinished {

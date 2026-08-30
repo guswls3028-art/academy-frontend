@@ -67,6 +67,14 @@ async function assertDesktopTimerSurface(page: Page) {
   expect(fontFamily).not.toContain("JetBrains Mono");
   await expect(page.getByRole("button", { name: "타이머", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "스톱워치", exact: true })).toBeVisible();
+
+  await page.keyboard.press("Space");
+  await expect(page.getByText("LAST MINUTE", { exact: true })).toBeVisible();
+  await expect(display).toHaveCSS("color", "rgb(166, 27, 27)");
+  expect(Number.parseFloat(await display.evaluate((element) => getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(176);
+
+  await page.getByRole("button", { name: "Projector" }).click();
+  await expect(display).toHaveCSS("color", "rgb(255, 255, 255)");
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
 }
 
