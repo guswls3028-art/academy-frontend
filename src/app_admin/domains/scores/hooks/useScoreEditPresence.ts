@@ -28,12 +28,17 @@ export function useScoreEditPresence({
 }: Options) {
   const [activeEditors, setActiveEditors] = useState<ScoreActiveEditor[]>([]);
   const activeCellRef = useRef<ScoreActiveCell | null>(activeCell);
+  const presencePromiseRef = useRef<Promise<void> | null>(null);
   activeCellRef.current = activeCell;
 
   useEffect(() => {
     if (!isActive) return;
+    if (savePromiseRef.current != null) return;
     const snapshot = panelRef.current?.getPendingSnapshot?.() ?? [];
-    void putScoreDraft(sessionId, snapshot, { activeCell })
+    // Pending score writes own the next draft PUT so presence cannot race them
+    // and overwrite or consume the autosave result. saveNow includes activeCell.
+    if (snapshot.length > 0) return;
+    const request = putScoreDraft(sessionId, snapshot, { activeCell })
       .then((data) => setActiveEditors(data.active_editors))
       .catch((error) => {
         const locked = isScoreEditLockedError(error);
@@ -44,7 +49,11 @@ export function useScoreEditPresence({
           locked,
         );
       });
-  }, [activeCell, isActive, onPresenceError, panelRef, sessionId]);
+    presencePromiseRef.current = request;
+    void request.finally(() => {
+      if (presencePromiseRef.current === request) presencePromiseRef.current = null;
+    });
+  }, [activeCell, isActive, onPresenceError, panelRef, savePromiseRef, sessionId]);
 
   useEffect(() => {
     if (!isActive) {
@@ -66,7 +75,7 @@ export function useScoreEditPresence({
       if (savePromiseRef.current != null) return;
       const snapshot = panelRef.current?.getPendingSnapshot?.() ?? [];
       if (snapshot.length > 0) return;
-      void putScoreDraft(sessionId, [], { activeCell: activeCellRef.current })
+      const request = putScoreDraft(sessionId, [], { activeCell: activeCellRef.current })
         .then((data) => setActiveEditors(data.active_editors))
         .catch((error) => {
           onPresenceError(
@@ -74,9 +83,13 @@ export function useScoreEditPresence({
             isScoreEditLockedError(error),
           );
         });
+      presencePromiseRef.current = request;
+      void request.finally(() => {
+        if (presencePromiseRef.current === request) presencePromiseRef.current = null;
+      });
     }, 60_000);
     return () => window.clearInterval(interval);
   }, [isActive, onPresenceError, panelRef, savePromiseRef, sessionId]);
 
-  return { activeEditors, setActiveEditors, activeCellRef };
+  return { activeEditors, setActiveEditors, activeCellRef, presencePromiseRef };
 }

@@ -110,7 +110,7 @@ export function useScoreEditDraft({
     setDraftStatus("error");
     setDraftError(message);
   }, []);
-  const { activeEditors, setActiveEditors, activeCellRef } = useScoreEditPresence({
+  const { activeEditors, setActiveEditors, activeCellRef, presencePromiseRef } = useScoreEditPresence({
     sessionId,
     panelRef,
     savePromiseRef,
@@ -131,6 +131,12 @@ export function useScoreEditDraft({
         return savedCount + await savePendingScores(queuedPanel);
       }
       return savedCount;
+    }
+
+    const presenceRequest = presencePromiseRef.current;
+    if (presenceRequest) {
+      await presenceRequest;
+      if (savePromiseRef.current) return savePendingScores(preservedPanel);
     }
 
     const panel = preservedPanel ?? panelRef.current;
@@ -215,7 +221,7 @@ export function useScoreEditDraft({
     const remaining = panel?.getPendingSnapshot?.() ?? [];
     if (remaining.length > 0) return savedCount + await savePendingScores(panel);
     return savedCount;
-  }, [activeCellRef, draftTimestampKey, localDraftKey, panelRef, sessionId, setActiveEditors]);
+  }, [activeCellRef, draftTimestampKey, localDraftKey, panelRef, presencePromiseRef, sessionId, setActiveEditors]);
 
   const requestAutosave = useCallback(() => {
     if (!isActive) return;

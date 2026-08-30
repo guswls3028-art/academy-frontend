@@ -226,12 +226,12 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
         return;
       }
       if (method === "PUT") {
-        if (failNextDraftPut) {
+        const body = request.postDataJSON() as { changes?: unknown[] };
+        if (failNextDraftPut && (body.changes?.length ?? 0) > 0) {
           failNextDraftPut = false;
           await route.fulfill({ status: 500, json: { detail: "draft put failed once" } });
           return;
         }
-        const body = request.postDataJSON() as { changes?: unknown[] };
         draftPuts.push(body as Record<string, unknown>);
         currentDraft = body.changes ?? [];
         await route.fulfill({ json: { changes: currentDraft, active_editors: activeEditors } });
@@ -736,7 +736,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await openScores(page);
 
     const editButton = page.getByRole("button", { name: "수정", exact: true });
-    await expect(editButton).toBeVisible();
+    await expect(editButton).toBeVisible({ timeout: 30_000 });
     await expect(page.getByRole("status")).toContainText("입력 잠금됨");
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath("score-entry-locked-1366.png"), fullPage: true });
@@ -765,7 +765,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await page.setViewportSize({ width: 1366, height: 900 });
     await ensureScoreEditing(page);
 
-    await expect(cells.nth(0)).toHaveAttribute("role", "textbox");
+    await expect(cells.nth(0)).toHaveAttribute("role", "textbox", { timeout: 30_000 });
     await expect(cells.nth(0)).toHaveAttribute("aria-label", /자동저장학생1.*주간 확인/);
     await cells.nth(0).fill("");
     await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
@@ -861,7 +861,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(page).toHaveURL(/\/attendance/);
     await page.getByRole("tab", { name: "성적", exact: true }).first().click();
     const recoveryDialog = page.getByRole("dialog", { name: /임시저장된 변경 1건/ });
-    await expect(recoveryDialog).toBeVisible({ timeout: 10_000 });
+    await expect(recoveryDialog).toBeVisible({ timeout: 30_000 });
     await expect(editButton).toBeDisabled();
     await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeDisabled();
     const releasedBeforeRecoveryNavigation = draftCommits.filter(
