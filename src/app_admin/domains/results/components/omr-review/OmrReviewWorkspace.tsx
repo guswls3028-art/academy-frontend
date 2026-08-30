@@ -464,6 +464,7 @@ export default function OmrReviewWorkspace({
             key={selectedId ?? "empty"}
             examId={examId}
             detail={detail}
+            reviewRow={rows.find((row) => row.id === selectedId)}
             detailLoading={detailLoading}
             studentName={visibleRows.find((r) => r.id === selectedId)?.student_name ?? null}
             focusedQid={focusedQid}
@@ -781,6 +782,7 @@ function ScanPane({
 function EditPane({
   examId,
   detail,
+  reviewRow,
   detailLoading,
   studentName,
   focusedQid,
@@ -792,6 +794,7 @@ function EditPane({
 }: {
   examId: number;
   detail: OmrReviewDetail | undefined;
+  reviewRow: OmrReviewRow | undefined;
   detailLoading: boolean;
   studentName: string | null;
   focusedQid: number | null;
@@ -836,14 +839,36 @@ function EditPane({
   }, [detail]);
 
   const reviewReasons = detail?.meta?.manual_review?.reasons ?? [];
+  const rowReviewReasons = reviewRow?.manual_review_reasons ?? [];
   const hasOnlyIdentifierReviewReasons =
     reviewReasons.length > 0 &&
     reviewReasons.every((reason) => String(reason).startsWith("IDENTIFIER_"));
+  const hasSameIdentifierReviewReasons =
+    hasOnlyIdentifierReviewReasons &&
+    rowReviewReasons.length === reviewReasons.length &&
+    rowReviewReasons.every(
+      (reason) =>
+        String(reason).startsWith("IDENTIFIER_") && reviewReasons.includes(reason),
+    );
+  const isUnscoredResolvedFuzzyMatch = Boolean(
+    detail &&
+    reviewRow &&
+    reviewRow.id === detail.submission_id &&
+    String(reviewRow.status).toLowerCase() === "done" &&
+    String(detail.submission_status).toLowerCase() === "done" &&
+    reviewRow.score == null &&
+    reviewRow.enrollment_id != null &&
+    reviewRow.enrollment_id === detail.enrollment_id &&
+    String(reviewRow.identifier_status).toLowerCase() === "matched_fuzzy" &&
+    detail.target_type === "exam" &&
+    detail.target_id === examId &&
+    hasSameIdentifierReviewReasons,
+  );
   const canConfirmCurrentStudent = Boolean(
-    detail?.meta?.manual_review?.required &&
+    (detail?.meta?.manual_review?.required || isUnscoredResolvedFuzzyMatch) &&
     hasOnlyIdentifierReviewReasons &&
     !identifierNeeded &&
-    detail.enrollment_id != null,
+    detail?.enrollment_id != null,
   );
 
   const dirty = useMemo(() => {
