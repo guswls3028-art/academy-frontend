@@ -1,15 +1,10 @@
-/**
- * 선생앱(관리자) 전용: 뷰포트가 모바일 폭이면 true.
- * TeacherViewContext의 forceView가 있으면 그에 따름(모바일/PC 버전 강제 보기).
- */
+/** 선생앱(관리자) 전용: 현재 뷰포트가 모바일 폭이면 true. */
 import { useEffect, useState } from "react";
-import { useResponsiveView } from "@/shared/contexts/responsiveViewContext";
 
-/** 1024px 이하 = 모바일 레이아웃. 폰에서 '데스크톱 사이트' 켜도 ~980px라 모바일로 감. */
+/** 1023px 이하 = 모바일 레이아웃. 폰에서 '데스크톱 사이트' 켜도 ~980px라 모바일로 감. */
 const QUERY = "(max-width: 1023px)";
 
 export function useIsMobile(): boolean {
-  const view = useResponsiveView();
   const [realMobile, setRealMobile] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return window.matchMedia(QUERY).matches;
@@ -22,7 +17,5 @@ export function useIsMobile(): boolean {
     return () => mql.removeEventListener("change", handler);
   }, []);
 
-  if (view?.forceView === "mobile") return true;
-  if (view?.forceView === "desktop") return false;
   return realMobile;
 }

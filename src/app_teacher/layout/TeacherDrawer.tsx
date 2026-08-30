@@ -19,7 +19,6 @@ interface Props {
   onClose: () => void;
   persistent?: boolean;
   menuGroups: TeacherNavigationGroup[];
-  isOwnerOrAdmin: boolean;
 }
 
 export default function TeacherDrawer({
@@ -27,7 +26,6 @@ export default function TeacherDrawer({
   onClose,
   persistent = false,
   menuGroups,
-  isOwnerOrAdmin,
 }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -244,16 +242,14 @@ export default function TeacherDrawer({
         {/* Bottom actions */}
         <div className={styles.actions}>
           {/* Desktop switch */}
-          {isOwnerOrAdmin && (
-            <button
-              type="button"
-              onClick={() => handleDesktopSwitch()}
-              className={`${styles.actionButton} ${styles.primaryAction}`}
-            >
-              <Monitor size={ICON.md} />
-              PC 버전
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => handleDesktopSwitch()}
+            className={`${styles.actionButton} ${styles.primaryAction}`}
+          >
+            <Monitor size={ICON.md} />
+            PC 버전
+          </button>
 
           {/* Bug report */}
           <button
