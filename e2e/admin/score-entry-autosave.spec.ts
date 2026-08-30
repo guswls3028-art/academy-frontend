@@ -12,6 +12,8 @@ type ScoreRouteOptions = {
   homeworkAssignedRows?: boolean[];
   homeworkGradingMode?: "SCORE" | "COMPLETION";
   scoreSummaryColumnDefault?: "exam_wrong";
+  nullScoresPassedFalse?: boolean;
+  nullHomeworkScoresPassedFalse?: boolean;
 };
 
 function createLocalJwt() {
@@ -150,7 +152,10 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
               block: {
                 score,
                 max_score: 100,
-                passed: score == null ? null : score >= 60,
+                passed: score == null
+                  ? options.nullScoresPassedFalse ? false : null
+                  : score >= 60,
+                achievement: score == null && options.nullScoresPassedFalse ? "FAIL" : undefined,
                 clinic_required: score == null ? false : score < 60,
                 is_locked: false,
                 objective_score: score,
@@ -167,7 +172,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
                 score: currentHomeworkScores[index],
                 max_score: homeworkMaxScore,
                 passed: currentHomeworkScores[index] == null
-                  ? null
+                  ? options.nullHomeworkScoresPassedFalse ? false : null
                   : homeworkGradingMode === "COMPLETION"
                     ? currentHomeworkScores[index]! >= 1
                     : currentHomeworkScores[index]! >= 60,
@@ -428,6 +433,65 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole("status")).toContainText("입력 잠금됨");
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
+  });
+
+  test("값이 없는 시험·과제 셀은 실패 판정이 와도 흰색으로 남고 0점은 미달로 표시한다", async ({ page }) => {
+    await openScores(page, {
+      initialScores: [0, null],
+      nullScoresPassedFalse: true,
+      includeHomework: true,
+      homeworkAssignedRows: [true, true],
+      initialHomeworkScores: [0, null],
+      nullHomeworkScoresPassedFalse: true,
+    });
+
+    const scoredRow = page.locator("tbody tr").filter({ hasText: "자동저장학생1" });
+    const emptyRow = page.locator("tbody tr").filter({ hasText: "자동저장학생2" });
+    const scoredCells = scoredRow.locator('td[data-col-type="score"]');
+    const emptyCells = emptyRow.locator('td[data-col-type="score"]');
+
+    await expect(scoredCells).toHaveCount(2);
+    await expect(scoredCells.nth(0)).toHaveAttribute("data-pass-status", "fail");
+    await expect(scoredCells.nth(1)).toHaveAttribute("data-pass-status", "fail");
+    await expect(emptyCells).toHaveCount(2);
+    await expect(emptyCells.nth(0)).not.toHaveAttribute("data-pass-status");
+    await expect(emptyCells.nth(0)).not.toHaveAttribute("data-achievement");
+    await expect(emptyCells.nth(1)).not.toHaveAttribute("data-pass-status");
+    await expect.poll(() => emptyCells.evaluateAll((cells) => {
+      const probe = document.createElement("div");
+      probe.style.backgroundColor = "var(--color-bg-surface)";
+      document.body.appendChild(probe);
+      const surface = getComputedStyle(probe).backgroundColor;
+      probe.remove();
+      return cells.every((cell) => getComputedStyle(cell).backgroundColor === surface);
+    })).toBe(true);
+  });
+
+  test("미입력 점수가 있으면 수업결과 알림톡 모달을 열지 않는다", async ({ page }) => {
+    await openScores(page, {
+      initialScores: [65, null],
+      nullScoresPassedFalse: true,
+    });
+
+    await page.getByRole("checkbox", { name: "자동저장학생2 선택" }).check();
+    await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
+
+    await expect(page.getByText(/점수가 입력되지 않은 시험·과제가 1건 있습니다/)).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "알림톡 발송" })).toHaveCount(0);
+  });
+
+  test("성적 알림 모달은 보호자만 선택하고 학생 수신을 잠근다", async ({ page }) => {
+    await openScores(page, { initialScores: [65, 52] });
+
+    await page.getByRole("checkbox", { name: "자동저장학생1 선택" }).check();
+    await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
+
+    const dialog = page.getByRole("dialog", { name: "알림톡 발송" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("checkbox", { name: "학부모" })).toBeChecked();
+    await expect(dialog.getByRole("checkbox", { name: "학생" })).not.toBeChecked();
+    await expect(dialog.getByRole("checkbox", { name: "학생" })).toBeDisabled();
+    await expect(dialog).toContainText("성적 알림은 보호자에게만 발송됩니다.");
   });
 
   test("마지막 열을 테스트 오답으로 바꾸면 실제 오답 확인 완료 상태가 사용자별로 유지된다", async ({ page }, testInfo) => {

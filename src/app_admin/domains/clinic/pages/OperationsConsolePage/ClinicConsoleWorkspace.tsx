@@ -292,6 +292,10 @@ function isAttendancePending(status: string): boolean {
   return status === "booked";
 }
 
+function supportsClinicOperations(status: string): boolean {
+  return status === "pending" || status === "booked" || status === "no_show" || status === "attended";
+}
+
 type Props = {
   selectedDate: string;
   session: ClinicSessionTreeNode | null;
@@ -1639,7 +1643,23 @@ export default function ClinicConsoleWorkspace({
       ) : (
         <div className="clinic-ops__queue">
           {filteredParticipantGroups.map((group) => {
-            const p = group.participants[0];
+            const operableParticipants = group.participants.filter((participant) =>
+              supportsClinicOperations(participant.status)
+            );
+            const hasSingleOperableParticipant = operableParticipants.length === 1;
+            const p = operableParticipants[0] ?? group.participants[0];
+            let actionGuidance: string | null = null;
+            if (operableParticipants.length > 1) {
+              actionGuidance = "처리할 시간대를 선택하세요.";
+            } else if (operableParticipants.length === 0) {
+              if (group.participants.every((participant) => participant.status === "cancelled")) {
+                actionGuidance = "취소된 일정이라 출결 처리할 수 없습니다.";
+              } else if (group.participants.every((participant) => participant.status === "rejected")) {
+                actionGuidance = "거절된 일정이라 출결 처리할 수 없습니다.";
+              } else {
+                actionGuidance = "취소·거절된 일정이라 출결 처리할 수 없습니다.";
+              }
+            }
             const targets = getTargetsForParticipant(p);
             const unresolvedTargets = targets.filter((target) => !target.resolved_at);
             const visibleTargets = unresolvedTargets.slice(0, 4);
@@ -1677,7 +1697,7 @@ export default function ClinicConsoleWorkspace({
                     p.id,
                     unresolvedTargets[0] ? clinicTargetKey(unresolvedTargets[0]) : null,
                     event.currentTarget,
-                    group.participants.length === 1,
+                    hasSingleOperableParticipant,
                   );
                 }}
                 role="group"
@@ -1690,7 +1710,7 @@ export default function ClinicConsoleWorkspace({
                       p.id,
                       unresolvedTargets[0] ? clinicTargetKey(unresolvedTargets[0]) : null,
                       event.currentTarget,
-                      group.participants.length === 1,
+                      hasSingleOperableParticipant,
                     );
                   }
                 }}
@@ -1780,7 +1800,7 @@ export default function ClinicConsoleWorkspace({
                       )}
                     </div>
 
-                    {!isApprovalRequest && group.participants.length === 1 && (
+                    {!isApprovalRequest && hasSingleOperableParticipant && (
                       <div
                         className={`clinic-ops__flow-rail ${p.is_late ? "clinic-ops__flow-rail--late" : ""}`}
                         aria-label="클리닉 진행 상태"
@@ -1804,7 +1824,7 @@ export default function ClinicConsoleWorkspace({
                       </div>
                     )}
 
-                    {group.participants.length === 1 && <div className="clinic-ops__card-actions" onClick={(e) => e.stopPropagation()}>
+                    {hasSingleOperableParticipant && <div className="clinic-ops__card-actions" onClick={(e) => e.stopPropagation()}>
                       {isApprovalRequest ? (
                         <>
                           <button
@@ -1870,6 +1890,11 @@ export default function ClinicConsoleWorkspace({
                         </button>
                       ) : null}
                     </div>}
+                    {actionGuidance && (
+                      <p className="clinic-ops__action-guidance" role="note">
+                        {actionGuidance}
+                      </p>
+                    )}
                   </div>
 
                   {/* Row 2: Reason + cycle + resolution + detail link */}
@@ -1975,7 +2000,7 @@ export default function ClinicConsoleWorkspace({
                         p.id,
                         unresolvedTargets[0] ? clinicTargetKey(unresolvedTargets[0]) : null,
                         event.currentTarget,
-                        group.participants.length === 1,
+                        hasSingleOperableParticipant,
                       );
                     }}
                   >

@@ -86,6 +86,43 @@
   color: var(--color-success);
 }
 
+.admin-omr-upload__preview {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-subtle);
+}
+
+.admin-omr-upload__preview img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  transition: transform 160ms ease;
+}
+
+.admin-omr-upload__preview-image--rotation-90 {
+  transform: rotate(90deg);
+}
+
+.admin-omr-upload__preview-image--rotation-180 {
+  transform: rotate(180deg);
+}
+
+.admin-omr-upload__preview-image--rotation-270 {
+  transform: rotate(270deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-omr-upload__preview img {
+    transition: none;
+  }
+}
+
 .admin-omr-upload__file-text {
   display: flex;
   flex-direction: column;
@@ -104,10 +141,17 @@
 }
 
 .admin-omr-upload__file-size,
+.admin-omr-upload__file-rotation,
 .admin-omr-upload__file-message,
 .admin-omr-upload__footnote {
   color: var(--color-text-muted);
   font-size: 12px;
+}
+
+.admin-omr-upload__file-rotation {
+  color: var(--color-brand-primary);
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .admin-omr-upload__file-state {
@@ -116,6 +160,12 @@
   justify-content: flex-end;
   gap: var(--space-2);
   flex-shrink: 0;
+}
+
+.admin-omr-upload__file-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .admin-omr-upload__file-message {
@@ -135,6 +185,10 @@
   .admin-omr-upload__file-state {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .admin-omr-upload__file-controls {
+    flex-wrap: wrap;
   }
 
   .admin-omr-upload__file-state {

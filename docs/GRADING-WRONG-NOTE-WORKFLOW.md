@@ -85,6 +85,27 @@ OMR 등록·검토를 쓸 수 있고, 직접 채점 시험과 혼합 시험은 �
 혼합 시험의 OMR 문항은 정오표에 보이지만 읽기 전용이고, 직접 채점 문항만
 수정할 수 있다.
 
+### OMR 학생 확인 계약
+
+- `manual_review.required=true`, `enrollment_id`가 이미 있고 검토 사유가 모두
+  `IDENTIFIER_*`인 행은 답안 변경이 없어도 확정 가능해야 한다. 과거 처리 행처럼
+  상세 검토 플래그가 해제됐어도 목록·상세의 제출/학생/시험/식별 사유가 같고
+  식별 상태가 `matched`/`matched_fuzzy`인데 점수만 없으면 같은 명시적 확인 동선을
+  제공한다. 오른쪽 패널은
+  **학생 확인 필요**와 원본 비교 기준을 먼저 설명하고, 기본 동작을
+  **{학생명}으로 확정하고 점수 표시**로 제공한다. 답안·정렬·문항 검토 사유가
+  하나라도 섞이면 이 동작을 숨겨 학생 확인으로 답안 검토를 우회하지 않는다.
+- 확정 요청은 현재 `enrollment_id`, 화면에 보인 전체 답안, 전용 audit note를
+  `manual-edit` API에 보낸다. 성공 응답의 점수를 목록에 즉시 반영하고 검토 표시를
+  없앤 뒤 다음 검토 대상으로 이동한다.
+- `enrollment_id`가 없거나 식별 상태가 missing/no-match이면 확정 버튼을 만들지 않고
+  학생 검색·연결을 요구한다. 후보를 추정하거나 다른 tenant/시험 roster로 fallback하지
+  않는다. 목록과 상세의 현재 학생 또는 식별 사유가 다를 때도 버튼을 만들지 않는다.
+- 640px 이하에서는 **목록 / 원본 / 확인** 탭을 한 화면씩 표시한다. 목록에서 답안을
+  선택하면 확인 탭으로 이동하며, 원본 탭에서 스캔을 비교한 뒤 확인 탭의 CTA를 사용한다.
+- 수기 결과와 OMR이 이미 함께 존재할 때의 exact-match 재사용 및 불일치 차단은
+  `backend/docs/domain/omr.md`가 소유한다.
+
 주요 소유 구현:
 
 - 진입과 작업 메뉴:
@@ -93,6 +114,8 @@ OMR 등록·검토를 쓸 수 있고, 직접 채점 시험과 혼합 시험은 �
   `src/app_admin/domains/results/components/ManualExamGradingGrid.tsx`
 - API:
   `src/app_admin/domains/results/api/manualExamGrading.ts`
+- OMR 검토와 학생 확정:
+  `src/app_admin/domains/results/components/omr-review/OmrReviewWorkspace.tsx`
 - 오답노트:
   `src/app_admin/domains/results/components/WrongNotePanel.tsx`
 
@@ -291,6 +314,7 @@ pnpm build
 - score 미리보기 무기록과 명시적 확정 후 서버 재조회
 - SessionScores close flush, 시험 상세 이동 guard, desktop/390px 저장 상태
 - 혼합형 OMR 문항 잠금과 OMR 검토 후 표 재조회
+- fuzzy match의 현재 학생 확정 CTA, 현재 `enrollment_id` 요청, 점수 표시와 검토 해제
 - 1~1, 2~4, 시작~현재 회차 조회와 동일 범위 PDF/HWPX 요청, 역전 범위 차단
 - 같은 fingerprint의 서명 URL 갱신 시 다운로드 유지, 내용 fingerprint 변경 시
   기존 job 폐기, 오래된 fingerprint 생성 요청의 `409` 처리

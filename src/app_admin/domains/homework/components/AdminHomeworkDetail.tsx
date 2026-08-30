@@ -57,6 +57,21 @@ export default function AdminHomeworkDetail({
     return <EmptyState scope="panel" tone="error" title="과제 정보를 불러오지 못했습니다." />;
   }
 
+  const changeTab = (nextTab: HomeworkTabKey) => {
+    if (nextTab === activeTab) return;
+    void confirmDiscard().then((confirmed) => {
+      if (confirmed) setActiveTab(nextTab);
+    });
+  };
+
+  const primaryAction = mode === "operate"
+    ? activeTab === "setup" || activeTab === "assets"
+      ? { label: "제출 현황 보기", onClick: () => changeTab("submissions") }
+      : activeTab === "submissions"
+        ? { label: "결과 보기", onClick: () => changeTab("results") }
+        : { label: "운영 설정 보기", onClick: () => changeTab("setup") }
+    : undefined;
+
   const summary: HomeworkSummary = {
     id: data.id,
     title: data.title,
@@ -67,15 +82,14 @@ export default function AdminHomeworkDetail({
 
   return (
     <div className="space-y-6">
-      <HomeworkHeader homework={summary} sessionId={sessionIdFromRoute ?? data?.session_id} />
+      <HomeworkHeader
+        homework={summary}
+        sessionId={sessionIdFromRoute ?? data?.session_id}
+        primaryAction={primaryAction}
+      />
       <HomeworkTabs
         activeTab={activeTab}
-        onChange={(nextTab) => {
-          if (nextTab === activeTab) return;
-          void confirmDiscard().then((confirmed) => {
-            if (confirmed) setActiveTab(nextTab);
-          });
-        }}
+        onChange={changeTab}
         mode={mode}
       />
 

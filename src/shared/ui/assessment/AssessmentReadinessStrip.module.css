@@ -10,7 +10,7 @@
 
 .header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
   padding: 18px 20px 16px;
@@ -41,7 +41,7 @@
 
 .track {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--assessment-readiness-columns, 4), minmax(0, 1fr));
   margin: 0;
   padding: 0;
   border-top: 1px solid var(--color-border-divider);
@@ -60,7 +60,7 @@
 .itemButton {
   display: flex;
   width: 100%;
-  min-height: 74px;
+  min-height: 68px;
   align-items: center;
   gap: 10px;
   padding: 13px 15px;
@@ -142,7 +142,7 @@ button.itemButton:focus-visible {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .item:nth-child(3) {
+  .item:nth-child(odd) {
     border-left: 0;
   }
 

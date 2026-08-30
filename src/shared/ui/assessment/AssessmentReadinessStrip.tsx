@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { Check, CircleAlert } from "lucide-react";
 
 import { Badge, ICON } from "@/shared/ui/ds";
@@ -46,7 +47,11 @@ export default function AssessmentReadinessStrip({ title, description, items }: 
         </Badge>
       </div>
 
-      <ol className={styles.track} aria-label={`${readyCount}/${items.length} 항목 준비됨`}>
+      <ol
+        className={styles.track}
+        aria-label={`${readyCount}/${items.length} 항목 준비됨`}
+        style={{ "--assessment-readiness-columns": items.length } as CSSProperties}
+      >
         {items.map((item) => {
           const content = (
             <>

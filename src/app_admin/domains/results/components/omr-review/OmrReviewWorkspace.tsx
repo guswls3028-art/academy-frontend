@@ -34,6 +34,7 @@ import {
   acceptFromDuplicatesApi,
   fetchOmrReviewDetail,
   listOmrReviewRows,
+  rotateRescanApi,
   type DuplicateSibling,
   type OmrReviewDetail,
   type OmrReviewDetailAnswer,
@@ -56,6 +57,7 @@ import {
 import "./OmrReviewWorkspace.css";
 
 type FilterKey = "all" | "ok" | "noid" | "flag" | "failed";
+type MobilePane = "list" | "scan" | "edit";
 
 function lecturesForCandidate(row: CandidateRow) {
   return row.lecture_title
@@ -159,6 +161,7 @@ export default function OmrReviewWorkspace({
   const [fitMode, setFitMode] = useState(true); // true = 컨테이너 맞춤, false = 100%*zoom
   const [editDirty, setEditDirty] = useState(false);
   const [focusedQid, setFocusedQid] = useState<number | null>(null);
+  const [mobilePane, setMobilePane] = useState<MobilePane>("list");
 
   const confirm = useConfirm();
 
@@ -252,6 +255,7 @@ export default function OmrReviewWorkspace({
       setFilter("all");
       setEditDirty(false);
       setFocusedQid(null);
+      setMobilePane("list");
     }
   }, [open]);
 
@@ -377,7 +381,27 @@ export default function OmrReviewWorkspace({
           })}
         </div>
 
-        <div className="orw-body">
+        <div className="orw-mobile-tabs" role="tablist" aria-label="OMR 모바일 보기">
+          {([
+            ["list", "목록"],
+            ["scan", "원본"],
+            ["edit", "확인"],
+          ] as const).map(([pane, label]) => (
+            <button
+              key={pane}
+              type="button"
+              role="tab"
+              aria-selected={mobilePane === pane}
+              className="orw-mobile-tab"
+              disabled={pane !== "list" && selectedId == null}
+              onClick={() => setMobilePane(pane)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className={`orw-body orw-body--mobile-${mobilePane}`}>
           {/* ── LEFT ── */}
           <div className="orw-list-pane">
             {listLoading ? (
@@ -406,7 +430,10 @@ export default function OmrReviewWorkspace({
                   <div
                     key={r.id}
                     className={`orw-list-row ${selectedId === r.id ? "orw-list-row--active" : ""}`}
-                    onClick={() => setSelectedId(r.id)}
+                    onClick={() => {
+                      setSelectedId(r.id);
+                      setMobilePane("edit");
+                    }}
                   >
                     <div className="orw-list-row__name">
                       {r.student_name || <span className="orw-list-row__noname">미식별 학생</span>}
@@ -447,6 +474,11 @@ export default function OmrReviewWorkspace({
             createdAt={visibleRows.find((r) => r.id === selectedId)?.created_at ?? null}
             focusedQid={focusedQid}
             onPickQuestion={setFocusedQid}
+            onRescanCreated={(submissionId) => {
+              setSelectedId(submissionId);
+              qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewList(examId) });
+              qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewDetail(submissionId) });
+            }}
             onImageLoadError={() => {
               // presigned URL 만료 등으로 이미지 실패 시 상세 재조회 → 새 URL 받기
               if (selectedId != null) {
@@ -464,6 +496,7 @@ export default function OmrReviewWorkspace({
             key={selectedId ?? "empty"}
             examId={examId}
             detail={detail}
+            reviewRow={rows.find((row) => row.id === selectedId)}
             detailLoading={detailLoading}
             studentName={visibleRows.find((r) => r.id === selectedId)?.student_name ?? null}
             focusedQid={focusedQid}
@@ -530,6 +563,7 @@ function ScanPane({
   createdAt,
   focusedQid,
   onPickQuestion,
+  onRescanCreated,
   onImageLoadError,
 }: {
   detail: OmrReviewDetail | undefined;
@@ -542,6 +576,7 @@ function ScanPane({
   createdAt: string | null;
   focusedQid: number | null;
   onPickQuestion: (qid: number) => void;
+  onRescanCreated: (submissionId: number) => void;
   onImageLoadError?: () => void;
 }) {
   const [imgLoading, setImgLoading] = useState(false);
@@ -550,8 +585,52 @@ function ScanPane({
   const [rotation, setRotation] = useState<0 | 90 | 180 | 270>(0);
   const [bodySize, setBodySize] = useState({ width: 0, height: 0 });
   const bodyRef = useRef<HTMLDivElement>(null);
+  const rotateRequestRef = useRef<{ key: string; id: string } | null>(null);
+  const confirm = useConfirm();
 
-  // submission 바뀌면 표시 전용 상태를 초기화한다. 회전값은 저장/API로 전달하지 않는다.
+  const rotateRescan = useMutation({
+    mutationFn: async ({
+      rotationDegrees,
+      clientRequestId,
+    }: {
+      rotationDegrees: 90 | 180 | 270;
+      clientRequestId: string;
+    }) => {
+      if (!detail) throw new Error("no detail");
+      return rotateRescanApi(detail.submission_id, rotationDegrees, clientRequestId);
+    },
+    onSuccess: (result) => {
+      rotateRequestRef.current = null;
+      feedback.success("원본을 지정한 방향으로 다시 읽기 시작했습니다.");
+      onRescanCreated(result.submission_id);
+    },
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { detail?: string } }; message?: string };
+      feedback.error(err.response?.data?.detail || err.message || "회전 재판독을 시작하지 못했습니다.");
+    },
+  });
+
+  const requestRotateRescan = async () => {
+    if (!detail || rotation === 0 || rotateRescan.isPending) return;
+    const ok = await confirm({
+      title: "이 방향으로 다시 읽기",
+      message: `원본 답안지를 오른쪽 기준 ${rotation}° 회전해 새 판독 건을 만듭니다. 기존 답안지는 비교를 위해 그대로 보존됩니다.`,
+      confirmText: "다시 읽기",
+      cancelText: "취소",
+    });
+    if (!ok) return;
+    const requestKey = `${detail.submission_id}:${rotation}`;
+    const clientRequestId = rotateRequestRef.current?.key === requestKey
+      ? rotateRequestRef.current.id
+      : crypto.randomUUID();
+    rotateRequestRef.current = { key: requestKey, id: clientRequestId };
+    rotateRescan.mutate({
+      rotationDegrees: rotation,
+      clientRequestId,
+    });
+  };
+
+  // submission 바뀌면 미리보기 방향을 초기화한다.
   useEffect(() => {
     setImgErrored(false);
     setNaturalSize(null);
@@ -574,7 +653,15 @@ function ScanPane({
     return () => observer.disconnect();
   }, []);
 
-  const imageSize = detail?.scan_image_size ?? naturalSize;
+  const activeImageUrl = rotation !== 0 && detail?.original_scan_image_url
+    ? detail.original_scan_image_url
+    : detail?.scan_image_url;
+  useEffect(() => {
+    setNaturalSize(null);
+  }, [activeImageUrl]);
+  const imageSize = rotation !== 0
+    ? naturalSize
+    : detail?.scan_image_size ?? naturalSize;
   const displaySize = useMemo(() => {
     if (!imageSize || bodySize.width <= 0 || bodySize.height <= 0) return null;
 
@@ -665,6 +752,17 @@ function ScanPane({
           >
             <RotateCw size={14} aria-hidden="true" />
           </button>
+          {rotation !== 0 && (
+            <Button
+              type="button"
+              intent="primary"
+              size="sm"
+              disabled={!detail?.original_scan_image_url || rotateRescan.isPending}
+              onClick={() => void requestRotateRescan()}
+            >
+              {rotateRescan.isPending ? "다시 읽는 중…" : "이 방향으로 다시 읽기"}
+            </Button>
+          )}
           {detail?.scan_image_url && (
             <a
               href={detail.scan_image_url}
@@ -728,9 +826,9 @@ function ScanPane({
                 }}
               >
                 <img
-                  key={detail.scan_image_url}
+                  key={activeImageUrl}
                   className={`orw-scan-pane__img ${fitMode ? "orw-scan-pane__img--fit" : ""}`}
-                  src={detail.scan_image_url}
+                  src={activeImageUrl ?? ""}
                   alt="OMR 스캔 원본"
                   onLoadStart={() => setImgLoading(true)}
                   onLoad={(e) => {
@@ -749,7 +847,7 @@ function ScanPane({
                     }
                   }}
                 />
-                {hasBBoxData && imageSize && (
+                {hasBBoxData && imageSize && rotation === 0 && (
                   <BBoxOverlay
                     answers={detail.answers}
                     focusedQid={focusedQid}
@@ -781,6 +879,7 @@ function ScanPane({
 function EditPane({
   examId,
   detail,
+  reviewRow,
   detailLoading,
   studentName,
   focusedQid,
@@ -792,6 +891,7 @@ function EditPane({
 }: {
   examId: number;
   detail: OmrReviewDetail | undefined;
+  reviewRow: OmrReviewRow | undefined;
   detailLoading: boolean;
   studentName: string | null;
   focusedQid: number | null;
@@ -835,6 +935,41 @@ function EditPane({
     );
   }, [detail]);
 
+  const reviewReasons = detail?.meta?.manual_review?.reasons ?? [];
+  const rowReviewReasons = reviewRow?.manual_review_reasons ?? [];
+  const hasOnlyIdentifierReviewReasons =
+    reviewReasons.length > 0 &&
+    reviewReasons.every((reason) => String(reason).startsWith("IDENTIFIER_"));
+  const hasSameIdentifierReviewReasons =
+    hasOnlyIdentifierReviewReasons &&
+    rowReviewReasons.length === reviewReasons.length &&
+    rowReviewReasons.every(
+      (reason) =>
+        String(reason).startsWith("IDENTIFIER_") && reviewReasons.includes(reason),
+    );
+  const isUnscoredResolvedFuzzyMatch = Boolean(
+    detail &&
+    reviewRow &&
+    reviewRow.id === detail.submission_id &&
+    String(reviewRow.status).toLowerCase() === "done" &&
+    String(detail.submission_status).toLowerCase() === "done" &&
+    reviewRow.score == null &&
+    reviewRow.enrollment_id != null &&
+    reviewRow.enrollment_id === detail.enrollment_id &&
+    ["matched", "matched_fuzzy"].includes(
+      String(reviewRow.identifier_status).toLowerCase(),
+    ) &&
+    detail.target_type === "exam" &&
+    detail.target_id === examId &&
+    hasSameIdentifierReviewReasons,
+  );
+  const canConfirmCurrentStudent = Boolean(
+    (detail?.meta?.manual_review?.required || isUnscoredResolvedFuzzyMatch) &&
+    hasOnlyIdentifierReviewReasons &&
+    !identifierNeeded &&
+    detail?.enrollment_id != null,
+  );
+
   const dirty = useMemo(() => {
     if (!detail) return false;
     if (identifierNeeded && pickedStudent) return true;
@@ -856,11 +991,15 @@ function EditPane({
       const idPayload =
         identifierNeeded && pickedStudent
           ? { enrollment_id: pickedStudent.enrollment_id }
+          : canConfirmCurrentStudent && detail.enrollment_id != null
+            ? { enrollment_id: detail.enrollment_id }
           : null;
       return await manualEditSubmissionApi({
         submissionId: detail.submission_id,
         identifier: idPayload,
-        note: "omr_review_ui",
+        note: canConfirmCurrentStudent
+          ? "omr_review_ui_confirm_match"
+          : "omr_review_ui",
         answers: payloadAnswers,
         allowDuplicate: opts.allowDuplicate,
       });
@@ -933,7 +1072,7 @@ function EditPane({
   // mutate / navigate를 ref로 안정화 → 키보드 effect dep 최소화
   const submitRef = useRef<() => void>(() => {});
   submitRef.current = () => {
-    if (!mut.isPending && dirty) mut.mutate({});
+    if (!mut.isPending && (dirty || canConfirmCurrentStudent)) mut.mutate({});
   };
   const navigateRef = useRef<(d: 1 | -1) => void>(() => {});
   navigateRef.current = (d) => onNavigate(d);
@@ -1032,7 +1171,7 @@ function EditPane({
     );
   }
 
-  const reasons = detail.meta?.manual_review?.reasons ?? [];
+  const reasons = reviewReasons;
   const headerName = studentName || (identifierNeeded ? "미식별 학생" : "학생");
 
   return (
@@ -1052,6 +1191,18 @@ function EditPane({
       </div>
 
       <div className="orw-edit-pane__body">
+        {canConfirmCurrentStudent && (
+          <div className="orw-match-confirm" role="status">
+            <div className="orw-match-confirm__eyebrow">학생 확인 필요</div>
+            <div className="orw-match-confirm__title">
+              원본 답안지가 <b>{headerName}</b> 학생 것이 맞나요?
+            </div>
+            <div className="orw-match-confirm__desc">
+              답안 인식은 끝났습니다. 원본의 이름·식별번호와 학생이 같다면 아래 버튼으로
+              확정하세요. 답안을 바꾸지 않아도 점수가 바로 표시됩니다.
+            </div>
+          </div>
+        )}
         {siblings.length > 0 && (
           <div className="orw-duplicate-cluster">
             <div className="orw-duplicate-cluster__title">
@@ -1199,10 +1350,19 @@ function EditPane({
           className="orw-save-btn"
           type="button"
           onClick={() => mut.mutate({})}
-          disabled={mut.isPending || !dirty || discardMut.isPending || acceptMut.isPending}
+          disabled={
+            mut.isPending ||
+            (!dirty && !canConfirmCurrentStudent) ||
+            discardMut.isPending ||
+            acceptMut.isPending
+          }
         >
           {mut.isPending
-            ? "저장 중…"
+            ? canConfirmCurrentStudent
+              ? "확정 중…"
+              : "저장 중…"
+            : canConfirmCurrentStudent && !dirty
+              ? `${headerName}으로 확정하고 점수 표시`
             : dirty
               ? "저장 + 재채점"
               : "변경 사항 없음"}

@@ -11,6 +11,11 @@
 받았다는 뜻이고, 최종 완료·식별 필요·실패는 서버 batch를 다시 조회한 작업박스에서만
 판정한다.
 
+등록 전 목록에서 이미지 썸네일을 확인하고 위·아래 이동, 개별 삭제, 좌·우 90도 회전을
+할 수 있다. 회전은 CSS 미리보기만 바꾸지 않고 등록 직전에 실제 이미지 바이트로 적용한다.
+PDF는 브라우저에서 변환하지 않고 업로드 후 OMR 검토의 원본 회전 재판독을 사용한다.
+재접수 batch에서는 기존 ordinal을 지키기 위해 이동만 비활성화한다.
+
 ## 서버 정본과 브라우저 경계
 
 - 정본 API와 데이터 모델은 `backend/docs/domain/omr.md`의 대량 등록 작업 계약이 소유한다.
@@ -35,6 +40,7 @@
 |------|-----------|
 | 접수 대기 | batch ordinal은 있으나 Submission 연결 전 |
 | 접수 완료 | Submission 접수 완료, 워커 처리 시작 전 |
+| 동일 파일 | 같은 tenant·시험에 SHA-256이 같은 파일이 이미 접수되어 기존 답안지를 사용 |
 | 처리 중 | dispatch/extract/answer/grading 단계 |
 | 완료 | AI·채점 완료 |
 | 식별 필요 | 학생을 자동 확정하지 못해 OMR 검토 필요 |
@@ -48,6 +54,8 @@ CTA를 제공한다. 다른 시험이나 차시로 fallback하지 않는다.
 - multipart 응답이 끊기면 batch detail을 다시 읽어 서버가 이미 받은 ordinal과
   `pending_admission_ordinals`/`admission_failed_ordinals`를 재구성한다.
 - 성공 ordinal은 다시 보내지 않는다. 원본 파일이 없는 ordinal만 순서대로 명시 재선택한다.
+- 다른 batch에 같은 파일을 다시 선택해도 `duplicate_ordinals`로 완료되며 실패 재선택 대상이
+  되지 않는다. 같은 파일명이라도 내용이 다르면 신규 접수한다.
 - query의 batch id는 신뢰하지 않는다. detail이 현재 exam/session과 일치하고, 재선택
   ordinal이 총수 범위 안의 유한·유일한 non-empty 집합으로 검증되기 전에는 파일 선택과
   접수 버튼을 모두 잠근다. 삭제 후 재추가는 비어 있는 exact ordinal 슬롯을 재사용한다.
@@ -72,5 +80,5 @@ CTA를 제공한다. 다른 시험이나 차시로 fallback하지 않는다.
   삭제/재추가와 비우기/재선택 ordinal, query detail fail-closed, logout 중 지연 list/upload/retry/claim,
   loading/error/empty와 수동 새로고침 partial failure, 390px overflow를 고정한다.
 - 서버의 1/22/100 총수, 100건 중 부분 실패, 중복 없는 retry, tenant/creator scope와
-  PostgreSQL completion-claim race는
+  SHA-256 cross-batch 멱등성, PostgreSQL completion-claim race는
   `apps/domains/submissions/tests/test_exam_omr_batch_upload_pdf_guard.py`가 검증한다.

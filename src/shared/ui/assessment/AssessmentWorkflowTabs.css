@@ -1,0 +1,64 @@
+/* Assessment workflow navigation: the tabs mirror the operator's real sequence. */
+
+.assessment-workflow-tabs {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.assessment-workflow-tabs__label {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.assessment-workflow-tabs .assessment-workflow-tabs__control {
+  min-width: 0;
+  margin-top: 0;
+}
+
+.assessment-workflow-tabs__step {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--scale-Neutral200);
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.assessment-workflow-tabs .ds-tab.is-active .assessment-workflow-tabs__step {
+  background: var(--color-brand-primary);
+  color: var(--color-brand-primary-contrast, #fff);
+}
+
+@media (max-width: 640px) {
+  .assessment-workflow-tabs {
+    align-items: stretch;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .assessment-workflow-tabs .assessment-workflow-tabs__control {
+    width: 100%;
+  }
+
+  .assessment-workflow-tabs .ds-tabs--flat .ds-tab {
+    flex: 1 0 auto;
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assessment-workflow-tabs__step {
+    transition: none;
+  }
+}

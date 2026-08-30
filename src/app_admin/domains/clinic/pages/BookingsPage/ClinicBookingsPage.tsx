@@ -63,6 +63,7 @@ import {
 } from "../../api/completeManualHomework";
 import RemediationKpiRow from "./RemediationKpiRow";
 import RemediationContextPanel from "./RemediationContextPanel";
+import RemediationWorkspaceIntro from "./RemediationWorkspaceIntro";
 
 /* ── Types ── */
 
@@ -501,13 +502,8 @@ function RemediationWorkspace() {
   return (
     <section className="clinic-bookings-page__remediation">
       <div className="clinic-hub">
-        <div className="clinic-hub__intro">
-          <div>
-            <h2>학생별 미통과 작업대</h2>
-            <p>학생 한 명의 남은 시험·과제를 한 행에서 보고, 항목을 눌러 이 화면에서 처리합니다.</p>
-          </div>
-          {!isLoading && !isError && <span className="clinic-hub__intro-count">{kpi.totalStudents}명 · {kpi.totalItems}건</span>}
-        </div>
+        <RemediationWorkspaceIntro totalStudents={kpi.totalStudents} totalItems={kpi.totalItems}
+          showCount={!isLoading && !isError} />
         <RemediationKpiRow
           unavailable={isLoading || isError} loading={isLoading} totalStudents={kpi.totalStudents}
           examItems={kpi.examItems} homeworkItems={kpi.homeworkItems} missingItems={kpi.missingItems}
@@ -634,7 +630,11 @@ function RemediationWorkspace() {
                     <span className="clinic-hub__student-badge">남은 항목 {group.openCount}건</span>
                   </div>
 
-                  <div className="clinic-hub__student-tickets" role="cell">
+                  <div
+                    className="clinic-hub__student-tickets"
+                    role="cell"
+                    aria-label={`${group.studentName} 미통과 항목 · 가로로 이동`}
+                  >
                     {group.items.map((item) => {
                       const itemKey = clinicTargetKey(item);
                       const isSelected = itemKey === selectedTargetKey;

@@ -3282,6 +3282,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/exams/{exam_id}/lecture-assignments/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["exams_lecture_assignments_retrieve"];
+        put?: never;
+        post: operations["exams_lecture_assignments_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["exams_lecture_assignments_partial_update"];
+        trace?: never;
+    };
     "/api/v1/exams/{exam_id}/omr/defaults/": {
         parameters: {
             query?: never;
@@ -8117,8 +8133,7 @@ export interface paths {
          *     - Session↔Exam 매핑 단일화(utils.session_exam)
          *
          *     ⚠️ pass 기준 정의:
-         *     - 이 화면은 "시험(exam) 단위 결과"이므로
-         *       pass/fail은 Exam.pass_score 기준으로 제공한다.
+         *     - 강의별 커트라인이 있으면 해당 기준, 없으면 Exam.pass_score를 제공한다.
          *     - 세션 종합 통과(SessionProgress.exam_passed)는
          *       /admin/sessions/... summary API에서 제공하는 것이 정석.
          *
@@ -10722,6 +10737,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/submissions/submissions/{id}/rotate-rescan/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Re-run an immutable OMR source with an explicit cardinal rotation. */
+        post: operations["submissions_submissions_rotate_rescan_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/submissions/submissions/{submission_id}/preview/": {
         parameters: {
             query?: never;
@@ -11887,10 +11919,13 @@ export interface components {
             is_provisional: boolean;
             lecture_chip_label?: string | null;
             lecture_color?: string | null;
+            lecture_id: number;
             lecture_title?: string | null;
             meta_status?: string | null;
             /** @default false */
             name_highlight_clinic_target: boolean;
+            /** Format: double */
+            pass_score: number;
             passed: boolean | null;
             /** Format: double */
             percentile?: number | null;
@@ -13869,6 +13904,26 @@ export interface components {
         ModeEnum: "once" | "repeat";
         /** @enum {unknown} */
         NullEnum: null;
+        OmrRotateRescanConflict: {
+            code: string;
+            detail: string;
+        };
+        OmrRotateRescanCreatedResult: {
+            created: boolean;
+            rotation_degrees: components["schemas"]["RotationDegreesEnum"];
+            status: string;
+            submission_id: number;
+        };
+        OmrRotateRescanRequestRequest: {
+            client_request_id: string;
+            rotation_degrees: components["schemas"]["RotationDegreesEnum"];
+        };
+        OmrRotateRescanResult: {
+            created: boolean;
+            rotation_degrees: components["schemas"]["RotationDegreesEnum"];
+            status: string;
+            submission_id: number;
+        };
         OmrUploadBatchCompletionClaimResponse: {
             batch: components["schemas"]["OmrUploadBatchSummary"];
             notify: boolean;
@@ -13888,6 +13943,7 @@ export interface components {
             };
             /** Format: date-time */
             created_at: string;
+            duplicate_ordinals: number[];
             exam_id: number;
             failed_ordinals: number[];
             /** Format: uuid */
@@ -13912,6 +13968,7 @@ export interface components {
             };
             /** Format: date-time */
             created_at: string;
+            duplicate_ordinals: number[];
             exam_id: number;
             failed_ordinals: number[];
             /** Format: uuid */
@@ -13934,6 +13991,7 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             created_count: number;
+            duplicate_ordinals: number[];
             exam_id: number;
             failed_ordinals: number[];
             /** Format: uuid */
@@ -16331,6 +16389,13 @@ export interface components {
          * @enum {string}
          */
         RiskLogRuleEnum: "CONSECUTIVE_INCOMPLETE" | "CONSECUTIVE_LOW_SCORE" | "OTHER";
+        /**
+         * @description * `90` - 90
+         *     * `180` - 180
+         *     * `270` - 270
+         * @enum {integer}
+         */
+        RotationDegreesEnum: 90 | 180 | 270;
         /**
          * @description * `ELEMENTARY` - 초등
          *     * `MIDDLE` - 중등
@@ -23044,6 +23109,66 @@ export interface operations {
         };
     };
     exams_generate_omr_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exam_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    exams_lecture_assignments_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exam_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    exams_lecture_assignments_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exam_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    exams_lecture_assignments_partial_update: {
         parameters: {
             query?: never;
             header?: never;
@@ -35256,6 +35381,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Submission"];
+                };
+            };
+        };
+    };
+    submissions_submissions_rotate_rescan_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description submission을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OmrRotateRescanRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["OmrRotateRescanRequestRequest"];
+                "multipart/form-data": components["schemas"]["OmrRotateRescanRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OmrRotateRescanResult"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OmrRotateRescanCreatedResult"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OmrRotateRescanConflict"];
                 };
             };
         };

@@ -912,7 +912,7 @@ test("같은 차시에서도 과제마다 숫자 채점과 완료 체크를 선�
   expect(state.createdHomeworkPayloads?.[1]).not.toHaveProperty("cutline_value");
 });
 
-test("과제 운영 설정을 한곳에서 저장하고 선택 과제 카드에만 반영한다", async ({ page }) => {
+test("과제 운영 설정을 한곳에서 저장하고 선택 과제 카드에만 반영한다", async ({ page }, testInfo) => {
   const state: MockState = {
     supplementTitle: "토요일 심화 클리닉",
     patchTitles: [],
@@ -957,6 +957,20 @@ test("과제 운영 설정을 한곳에서 저장하고 선택 과제 카드에�
   });
   await expect(page.getByRole("button", { name: /연산 복습.*기준 17점/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /심화 서술형.*기준 24점/ })).toBeVisible();
+
+  const primaryAction = page.getByTestId("assessment-primary-action");
+  await expect(page.getByRole("navigation", { name: "과제 업무 흐름" })).toBeVisible();
+  await expect(primaryAction).toHaveText("제출 현황 보기");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(() => primaryAction.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)).toBe(false);
+  await page.screenshot({
+    path: testInfo.outputPath("homework-assessment-cta-390.png"),
+    fullPage: true,
+  });
+  await primaryAction.click();
+  await expect(page.getByRole("tab", { name: "제출관리", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(primaryAction).toHaveText("결과 보기");
 });
 
 test("차시 기본 기준 과제는 제목만 저장해도 상속을 유지하고 기한 없음은 준비 완료로 본다", async ({ page }) => {

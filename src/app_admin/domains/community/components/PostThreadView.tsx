@@ -74,9 +74,12 @@ export default function PostThreadView({
     queryKey: adminCommunityQueryKeys.postReplies(postId),
     queryFn: () => fetchPostReplies(postId),
   });
+  const hasNoReplies = !repliesQ.isLoading
+    && !repliesQ.isError
+    && (repliesQ.data?.length ?? 0) === 0;
 
   return (
-    <div className="qna-inbox__thread-view">
+    <div className={`qna-inbox__thread-view${hasNoReplies ? " qna-inbox__thread-view--empty" : ""}`}>
       <ThreadList
         replies={repliesQ.data ?? []}
         isLoading={repliesQ.isLoading}

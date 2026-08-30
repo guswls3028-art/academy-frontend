@@ -1,10 +1,7 @@
 import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
-import {
-  installLocalAuthApiStubs,
-  installTenantOneInitScript,
-} from "../helpers/localAuthApiStubs";
+import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
 const BATCH_ID = "12345678-1234-4234-8234-123456789abc";
@@ -50,6 +47,7 @@ function batchSummary(options: {
       ? {
           pending_admission: 0,
           received: 0,
+          duplicate: 0,
           processing: 0,
           completed: admissionFailure ? 19 : 20,
           needs_identification: 1,
@@ -59,6 +57,7 @@ function batchSummary(options: {
       : {
           pending_admission: 1,
           received: 1,
+          duplicate: 0,
           processing: 20,
           completed: 0,
           needs_identification: 0,
@@ -68,6 +67,7 @@ function batchSummary(options: {
     pending_admission_ordinals: terminal ? [] : [1],
     failed_ordinals: terminal ? [22] : [],
     admission_failed_ordinals: admissionFailure ? [21] : [],
+    duplicate_ordinals: [],
     terminal,
     overall_status: terminal ? "failed" : "receiving",
     completion_notice_claimed: options.claimed ?? false,
@@ -83,6 +83,7 @@ function admissionSummary(state: "pending" | "received") {
     counts: {
       pending_admission: pending ? 22 : 0,
       received: pending ? 0 : 22,
+      duplicate: 0,
       processing: 0,
       completed: 0,
       needs_identification: 0,
@@ -99,6 +100,7 @@ function partialAdmissionSummary() {
     counts: {
       pending_admission: 1,
       received: 21,
+      duplicate: 0,
       processing: 0,
       completed: 0,
       needs_identification: 0,
@@ -128,6 +130,8 @@ async function installDashboardApi(
     holdCompletionClaim?: boolean;
   } = {},
 ) {
+  await installTenantOneInitScript(page);
+
   const scoresFlow = options.uploadFlow
     || options.admissionFailure
     || options.resumeOrdinals !== undefined
@@ -172,6 +176,47 @@ async function installDashboardApi(
     const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
     if (request.method() === "OPTIONS") {
       await route.fulfill({ status: 204 });
+      return;
+    }
+    if (path === "/token/refresh/") {
+      await safeJson(route, {
+        access: localJwt(),
+        refresh: `${localJwt()}-refresh`,
+      });
+      return;
+    }
+    if (path === "/core/program/") {
+      await safeJson(route, {
+        tenantCode: "hakwonplus",
+        isPlatformAdmin: true,
+        display_name: "학원플러스",
+        ui_config: {
+          login_title: "학원플러스",
+          login_subtitle: "학원 관리 시스템",
+        },
+        feature_flags: {},
+        is_active: true,
+      });
+      return;
+    }
+    if (path === "/core/me/") {
+      await safeJson(route, {
+        id: 12,
+        username: "t1_admin97",
+        name: "관리자",
+        phone: null,
+        is_staff: true,
+        is_superuser: true,
+        tenantRole: "admin",
+        linkedStudentId: null,
+        linkedStudentName: null,
+        linkedStudents: null,
+        must_change_password: false,
+      });
+      return;
+    }
+    if (path === "/results/admin/clinic-targets/") {
+      await safeJson(route, []);
       return;
     }
     if (
@@ -344,8 +389,6 @@ async function installDashboardApi(
     }
     await safeJson(route, { count: 0, results: [] });
   });
-  await installLocalAuthApiStubs(page);
-  await installTenantOneInitScript(page);
   await page.addInitScript((jwt) => {
     localStorage.setItem("access", jwt);
     localStorage.setItem("refresh", `${jwt}-refresh`);
@@ -627,6 +670,40 @@ test.describe("OMR durable batch progress", () => {
     const task = await openWorkbox(page);
     await expect(task.getByText("접수 완료 22", { exact: true })).toBeVisible();
     await expect(task.getByText("완료 22", { exact: true })).toHaveCount(0);
+  });
+
+  test("등록 전 파일을 이동·회전·삭제한 순서와 이미지로 접수한다", async ({ page }) => {
+    const api = await installDashboardApi(page, { uploadFlow: true });
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await openOmrUpload(page);
+    const dialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+      "base64",
+    );
+    await dialog.locator('input[type="file"]').setInputFiles([
+      { name: "first.png", mimeType: "image/png", buffer: png },
+      { name: "second.png", mimeType: "image/png", buffer: png },
+      { name: "remove.png", mimeType: "image/png", buffer: png },
+    ]);
+
+    const first = dialog.locator(".admin-omr-upload__file").filter({ hasText: "first.png" });
+    await first.getByRole("button", { name: "아래로 이동" }).click();
+    await first.getByRole("button", { name: "오른쪽 회전" }).click();
+    await expect(first.getByText("업로드 회전 90°", { exact: true })).toBeVisible();
+    await dialog.locator(".admin-omr-upload__file").filter({ hasText: "remove.png" })
+      .getByRole("button", { name: "삭제" }).click();
+    await dialog.getByRole("button", { name: "등록 시작" }).click();
+
+    await expect.poll(() => api.uploadState().uploadPosts).toBe(1);
+    const body = api.uploadState().uploadBodies[0];
+    expect(body.match(/name="files"/g)).toHaveLength(2);
+    expect(body).not.toContain("remove.png");
+    expect(body.indexOf("second.png")).toBeLessThan(body.indexOf("first.png"));
+    expect(multipartFieldValues(body, "item_ordinals")).toEqual(["1", "2"]);
   });
 
   test("중단된 접수 응답은 서버 ordinal을 복구해 22번만 명시 재선택한다", async ({ page }) => {

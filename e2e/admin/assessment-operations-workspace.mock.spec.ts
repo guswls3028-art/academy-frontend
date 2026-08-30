@@ -218,10 +218,30 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
   });
   const gradingGroup = page.getByRole("group", { name: "시험 채점 방식" });
   await expect(gradingGroup.getByRole("button", { name: /^OMR 자동 채점/ })).toHaveAttribute("aria-pressed", "true");
+  await page.getByTestId("assessment-primary-action").scrollIntoViewIfNeeded();
   await page.screenshot({
     path: testInfo.outputPath("assessment-workspace-1366.png"),
     fullPage: true,
   });
+
+  const workflow = page.getByRole("navigation", { name: "시험 업무 흐름" });
+  const primaryAction = page.getByTestId("assessment-primary-action");
+  await expect(workflow).toBeVisible();
+  await expect(primaryAction).toHaveText("제출 현황 보기");
+  await expect.poll(() => primaryAction.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+  await page.setViewportSize({ width: 1100, height: 800 });
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth))
+    .toBe(true);
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await primaryAction.click();
+  await expect(page.getByRole("tab", { name: "제출관리", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(primaryAction).toHaveText("채점·결과 보기");
+  await primaryAction.click();
+  await expect(page.getByRole("tab", { name: "채점·결과", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(primaryAction).toHaveText("운영 설정 보기");
+  await primaryAction.click();
+  await expect(page.getByRole("tab", { name: "운영", exact: true })).toHaveAttribute("aria-selected", "true");
 
   await gradingGroup.getByRole("button", { name: /^OMR \+ 직접 채점/ }).click();
   await expect(page.getByLabel("앞쪽 선택형 문항 수")).toHaveValue("1");
@@ -264,11 +284,16 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByText("시험 운영 준비", { exact: true })).toBeVisible();
   await expect(page.getByText("시험 운영 설정", { exact: true })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "시험 업무 흐름" })).toBeVisible();
+  await expect.poll(() => page.getByTestId("assessment-primary-action").evaluate(
+    (element) => element.getBoundingClientRect().height,
+  )).toBeGreaterThanOrEqual(44);
   await page.getByTestId("student-results-visibility-control").screenshot({
     path: testInfo.outputPath("student-results-visibility-390.png"),
   });
   const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   expect(hasHorizontalOverflow).toBe(false);
+  await page.getByTestId("assessment-primary-action").scrollIntoViewIfNeeded();
   await page.screenshot({
     path: testInfo.outputPath("assessment-workspace-390.png"),
     fullPage: true,

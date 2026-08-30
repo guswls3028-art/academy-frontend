@@ -356,8 +356,8 @@ test.describe("운영 회귀: 답안등록 대문항 안정성", () => {
       expect(Object.keys(saved.answers).length).toBeGreaterThanOrEqual(1);
 
       await modal.getByText("OMR 답안지").click();
-      await expect(modal.getByText("객관식 60문항, 단답형 20문항까지 지원합니다.")).toBeVisible({ timeout: 10_000 });
-      await expect(modal.getByText("현재 시험은 객관식 61문항, 단답형 0문항")).toBeVisible();
+      await expect(modal.getByText("객관식 60문항, 서답형 20문항까지 지원합니다.")).toBeVisible({ timeout: 10_000 });
+      await expect(modal.getByText("현재 시험은 객관식 61문항, 서답형 0문항")).toBeVisible();
       expect(pageErrors).toEqual([]);
     } finally {
       if (examId) {

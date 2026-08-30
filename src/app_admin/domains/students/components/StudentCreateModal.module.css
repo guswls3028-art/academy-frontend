@@ -300,6 +300,23 @@
   color: var(--color-text-primary);
 }
 
+.submitError {
+  display: grid;
+  gap: 4px;
+  margin-bottom: var(--space-3);
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--color-error) 38%, var(--color-border-divider));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-error) 7%, var(--color-bg-surface));
+  color: var(--color-error-text, var(--color-error));
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.submitError strong {
+  color: var(--color-text-primary);
+}
+
 .footerHint {
   margin-bottom: 0;
 }

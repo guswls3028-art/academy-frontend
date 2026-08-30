@@ -955,7 +955,7 @@ export default function AnswerKeyRegisterModal({
               <div className="answer-key-type-map__header">
                 <div>
                   <strong id="answer-key-type-map-title">문항별 유형</strong>
-                  <p>전체 문항 수를 정하고, 각 번호를 눌러 객관식과 단답형을 지정하세요.</p>
+                  <p>전체 문항 수를 정하고, 각 번호를 눌러 객관식과 서술형을 지정하세요.</p>
                 </div>
                 <div className="answer-key-type-map__actions">
                   <label className="answer-key-field">
@@ -998,17 +998,17 @@ export default function AnswerKeyRegisterModal({
                           : value
                       ))}
                       disabled={!canEditStructure || initMut.isPending}
-                      aria-label={`${index + 1}번 ${kind === "choice" ? "객관식" : "단답형"}. 눌러서 변경`}
+                      aria-label={`${index + 1}번 ${kind === "choice" ? "객관식" : "서술형"}. 눌러서 변경`}
                     >
                       <span>{index + 1}</span>
-                      <small>{kind === "choice" ? "객관식" : "단답"}</small>
+                      <small>{kind === "choice" ? "객관식" : "서술형"}</small>
                     </button>
                   ))}
                 </div>
               )}
               <div className="answer-key-type-map__legend">
                 <span><i className="is-choice" />객관식 {questionTypes.filter((kind) => kind === "choice").length}</span>
-                <span><i className="is-essay" />단답형 {questionTypes.filter((kind) => kind === "essay").length}</span>
+                <span><i className="is-essay" />서술형 {questionTypes.filter((kind) => kind === "essay").length}</span>
               </div>
             </section>
             <div className="answer-key-two-panels">
@@ -1869,8 +1869,8 @@ function OmrSettingsTab({
     <div className="answer-key-omr-tab">
       {exceedsOmrLimit && (
         <div className="answer-key-omr-limit-alert" role="status">
-          OMR 답안지는 객관식 {MAX_OMR_MC_COUNT}문항, 단답형 {MAX_OMR_ESSAY_COUNT}문항까지 지원합니다.
-          현재 시험은 객관식 {choiceCount}문항, 단답형 {essayCount}문항이라 OMR 미리보기와 PDF는 지원 범위까지만 표시됩니다.
+          OMR 답안지는 객관식 {MAX_OMR_MC_COUNT}문항, 서답형 {MAX_OMR_ESSAY_COUNT}문항까지 지원합니다.
+          현재 시험은 객관식 {choiceCount}문항, 서답형 {essayCount}문항이라 OMR 미리보기와 PDF는 지원 범위까지만 표시됩니다.
         </div>
       )}
       <OmrSheetBuilder

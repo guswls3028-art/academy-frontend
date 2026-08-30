@@ -28,6 +28,7 @@ export type SubmissionJsonRecord = Record<string, unknown>;
 export type OmrUploadBatchCounts = {
   pending_admission: number;
   received: number;
+  duplicate: number;
   processing: number;
   completed: number;
   needs_identification: number;
@@ -45,6 +46,7 @@ export type OmrUploadBatchSummary = {
   pending_admission_ordinals: number[];
   failed_ordinals: number[];
   admission_failed_ordinals: number[];
+  duplicate_ordinals: number[];
   terminal: boolean;
   overall_status: "receiving" | "processing" | "completed" | "needs_identification" | "failed";
   completion_notice_claimed: boolean;
