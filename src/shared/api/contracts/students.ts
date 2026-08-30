@@ -577,7 +577,10 @@ export async function createStudent(form: StudentFormInput) {
     payload.phone = phone;
   }
 
-  const psNumber = safeStr(form?.psNumber).trim();
+  // 학생 전화번호를 입력한 단건 등록은 그 번호가 로그인 ID라는 UI 계약을
+  // 요청에도 명시한다. 서버가 충돌 시 임의 ID로 조용히 대체하지 않고
+  // 검증 오류를 반환하게 해 운영자가 등록 단계에서 바로 인지할 수 있다.
+  const psNumber = safeStr(form?.psNumber).trim() || phone;
   if (psNumber) payload.ps_number = psNumber;
 
   const res = await api.post("/students/", payload);

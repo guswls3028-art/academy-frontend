@@ -28,6 +28,7 @@ import { type SchoolType, useSchoolLevelMode } from "@/shared/hooks/useSchoolLev
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
 import { formatPhone } from "@/shared/utils/formatPhone";
+import { openStudentSupportPreview } from "@/shared/studentSupport/studentSupport.api";
 import InitialPasswordMethodSelector from "@/shared/product/students/InitialPasswordMethodSelector";
 import StudentCustomFieldsForm from "./StudentCustomFieldsForm";
 import {
@@ -98,6 +99,12 @@ function createInitialForm(defaultSchoolType: SchoolType): StudentCreateForm {
   };
 }
 
+function plannedLoginId(form: StudentCreateForm): string | null {
+  return String(form.psNumber || "").trim()
+    || String(form.studentPhone || "").trim()
+    || null;
+}
+
 /* ── 첫 수강 계정 안내 알림톡 고정 안내 ── */
 
 function WelcomeMessageNotice() {
@@ -159,6 +166,7 @@ export default function StudentCreateModal({
   const [selectedExcelFile, setSelectedExcelFile] = useState<File | null>(null);
   const [parsedExcel, setParsedExcel] = useState<ParseStudentExcelResult | null>(null);
   const [deletedStudentConflict, setDeletedStudentConflict] = useState<{ student: ClientStudent; formData: StudentCreateForm } | null>(null);
+  const [submitError, setSubmitError] = useState("");
 
   const [form, setForm] = useState<StudentCreateForm>(() =>
     createInitialForm(slm.defaultSchoolType)
@@ -173,6 +181,7 @@ export default function StudentCreateModal({
     setExcelPasswordSettings({ ...DEFAULT_STUDENT_INITIAL_PASSWORD_SETTINGS });
     setSelectedExcelFile(null);
     setParsedExcel(null);
+    setSubmitError("");
     setForm(createInitialForm(slm.defaultSchoolType));
   }, [open, onBulkProgress, slm.defaultSchoolType]);
 
@@ -229,9 +238,11 @@ export default function StudentCreateModal({
 
     const err = validate();
     if (err) {
+      setSubmitError(err);
       feedback.error(err);
       return;
     }
+    setSubmitError("");
 
     const schoolSummary = [
       String(form.school || "").trim(),
@@ -245,7 +256,7 @@ export default function StudentCreateModal({
         eyebrow: "학생 명부 등록 검토",
         items: [
           { label: "학생", value: String(form.name || "").trim(), tone: "accent" },
-          { label: "로그인 ID", value: String(form.psNumber || "").trim() || "자동 부여" },
+          { label: "로그인 ID", value: plannedLoginId(form) || "자동 부여" },
           { label: "학부모 연락처", value: formatPhone(String(form.parentPhone || "").trim()) },
           { label: "학생 연락처", value: String(form.studentPhone || "").trim() ? formatPhone(String(form.studentPhone).trim()) : "미입력" },
           { label: "학교·학년", value: schoolSummary },
@@ -265,14 +276,51 @@ export default function StudentCreateModal({
         ...form,
         noPhone: !String(form.studentPhone || "").trim() || String(form.studentPhone || "").trim().length < 11,
       });
-      const loginId = (student?.psNumber ?? form.psNumber?.trim()) || "(자동 부여됨)";
+      const expectedLoginId = plannedLoginId(form);
+      const loginId = String(student?.psNumber || "").trim();
       const parentPhone = String(form.parentPhone || "").trim();
-      feedback.success(
-        `등록 완료\n` +
-        `학생 아이디: ${loginId}\n` +
-        (parentPhone ? `학부모 아이디: ${parentPhone} (신규 계정은 전화번호 뒤 4자리)\n` : "") +
-        `학생은 입력한 초기 비밀번호로 로그인하세요. 기존 학부모 계정은 비밀번호가 변경되지 않습니다.`
-      );
+      if (expectedLoginId && loginId !== expectedLoginId) {
+        const mismatchMessage = "학생은 등록됐지만 예상 로그인 ID와 서버 저장 ID가 다릅니다. 그대로 안내하지 말고 학생 화면을 확인해 주세요.";
+        setSubmitError(mismatchMessage);
+        const inspectNow = await confirm({
+          title: "로그인 ID 불일치 — 확인 필요",
+          message: mismatchMessage,
+          review: {
+            eyebrow: "계정 생성 결과 검수",
+            items: [
+              { label: "예상 로그인 ID", value: expectedLoginId, tone: "warning" },
+              { label: "실제 저장 ID", value: loginId || "확인되지 않음", tone: "warning" },
+            ],
+            note: "이 경고는 등록 자체가 실패했다는 뜻이 아닙니다. 실제 학생 화면과 계정 연결을 확인한 뒤 아이디를 안내하세요.",
+          },
+          confirmText: "학생 화면 바로 검수",
+          cancelText: "학생 목록에서 확인",
+        });
+        onSuccess();
+        onClose();
+        if (inspectNow) {
+          void openStudentSupportPreview(student.id).catch((error) => {
+            feedback.error(error instanceof Error ? error.message : "학생 화면을 열지 못했습니다.");
+          });
+        }
+        return;
+      }
+      feedback.successWithAction({
+        message: "학생 계정 등록·ID 확인 완료",
+        description:
+          `로그인 ID: ${loginId || "자동 부여됨"}`
+          + (parentPhone ? ` · 학부모 ID: ${parentPhone}` : "")
+          + " · 학생 화면을 열어 계정 연결까지 바로 검수할 수 있습니다.",
+        action: {
+          label: "학생 화면 바로 검수",
+          onClick: () => {
+            void openStudentSupportPreview(student.id).catch((error) => {
+              feedback.error(error instanceof Error ? error.message : "학생 화면을 열지 못했습니다.");
+            });
+          },
+        },
+        duration: 12,
+      });
       onSuccess();
       onClose();
     } catch (e: unknown) {
@@ -286,7 +334,9 @@ export default function StudentCreateModal({
         return;
       }
       if (err?.response?.status === 409 && err.response.data?.code === "duplicate_student") {
-        feedback.error("이미 있는 학생입니다.");
+        const message = "이미 있는 학생입니다.";
+        setSubmitError(message);
+        feedback.error(message);
         setBusy(false);
         return;
       }
@@ -309,6 +359,7 @@ export default function StudentCreateModal({
       } else {
         msg = err instanceof Error ? err.message : "등록 요청 중 오류가 발생했습니다.";
       }
+      setSubmitError(msg);
       feedback.error(msg);
     } finally {
       setBusy(false);
@@ -622,6 +673,13 @@ export default function StudentCreateModal({
             <WelcomeMessageNotice />
           </div>
 
+          {submitError && (
+            <div className={styles.submitError} role="alert" aria-live="assertive">
+              <strong>등록 결과를 확인해 주세요.</strong>
+              <span>{submitError}</span>
+            </div>
+          )}
+
           {/* 첫 블록: 이름(우측에 성별) · 로그인 아이디 · 초기 비밀번호 · 학부모 전화 */}
           <div className="modal-form-group">
             <div className={`modal-form-row modal-form-row--1-auto ${styles.nameRow}`}>
@@ -653,7 +711,7 @@ export default function StudentCreateModal({
             </div>
             <input
               name="psNumber"
-              placeholder="로그인 아이디 (PS 번호, 선택·미입력 시 자동 부여)"
+              placeholder="로그인 아이디 (선택·비우면 학생 전화번호 사용)"
               value={form.psNumber ?? ""}
               onChange={handleChange}
               className="ds-input"
@@ -689,7 +747,7 @@ export default function StudentCreateModal({
           <div className="modal-form-group modal-form-group--neutral">
             <div className="modal-phone-row">
               <span className="modal-phone-label">학생 전화번호 (선택)</span>
-              <span className="modal-phone-desc">비우면 학부모 번호로 OMR 식별 등에 사용됩니다.</span>
+              <span className="modal-phone-desc">입력하면 학생 로그인 ID로 사용합니다. 비우면 ID를 자동 부여합니다.</span>
               <PhoneInput010Blocks
                 value={form.studentPhone ?? ""}
                 onChange={(v) => setForm((p) => ({ ...p, studentPhone: v }))}
