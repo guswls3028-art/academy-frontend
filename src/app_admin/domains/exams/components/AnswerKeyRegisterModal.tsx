@@ -31,6 +31,7 @@ import {
 import ExamPdfUploadModal from "./ExamPdfUploadModal";
 import { adminExamsQueryKeys } from "../queryKeys";
 import "./AnswerKeyRegisterModal.css";
+import "./AnswerKeyRegisterModal.mobile.css";
 
 type Props = {
   open: boolean;
