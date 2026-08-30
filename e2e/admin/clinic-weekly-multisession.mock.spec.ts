@@ -1044,8 +1044,10 @@ test("현장 콘솔은 16·17·18시 등원 학생을 한 화면에서 시간대
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
-  await expect(scopeRail.getByRole("button", { name: "현장 3명", exact: true })).toBeVisible();
-  await expect(timeRail.getByRole("button", { name: "16:00 1명", exact: true })).toBeVisible();
+  const mobileScopeRail = page.getByRole("group", { name: "클리닉 운영 범위" });
+  const mobileTimeRail = page.getByRole("group", { name: "시간대 필터" });
+  await expect(mobileScopeRail.getByRole("button", { name: "현장 3명", exact: true })).toBeVisible();
+  await expect(mobileTimeRail.getByRole("button", { name: "16:00 1명", exact: true })).toBeVisible();
   await expect(queue.locator(".clinic-ops__card")).toHaveCount(3);
   expect(
     await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth),
@@ -1071,7 +1073,7 @@ test("현장 콘솔은 16·17·18시 등원 학생을 한 화면에서 시간대
   await page.keyboard.press("Enter");
   await expect.poll(() => state.checkoutPayloads?.[1]).toEqual({ id: 821, send_to: "parent" });
   await expect(fourOClockCard).toHaveCount(0);
-  await expect(scopeRail.getByRole("button", { name: "현장 2명", exact: true })).toBeVisible();
+  await expect(page.getByRole("group", { name: "클리닉 운영 범위" }).getByRole("button", { name: "현장 2명", exact: true })).toBeVisible();
 });
 
 test("현장 참가자 pagination loop는 0명으로 숨기지 않고 fail-closed 한다", async ({ page }) => {
@@ -1345,7 +1347,8 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
     }),
   );
   expect(taskCardBoxes.every((box) => box.width >= 132 && box.height >= 40)).toBe(true);
-  expect((await studentCard.boundingBox())?.height ?? Infinity).toBeLessThanOrEqual(96);
+  expect((await studentCard.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(118);
+  expect(await studentCard.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   await expect(studentCard.getByRole("spinbutton")).toHaveCount(0);
   await expect(studentCard).toContainText("오늘 1 / 미완료 3");
   await expect(studentCard).toContainText("6주차 확인 시험");
@@ -1449,6 +1452,10 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
   await page.keyboard.press("Escape");
 
   await expect(studentCard.getByRole("button", { name: "하원", exact: true })).toBeDisabled();
+  await expect(studentCard.getByRole("button", { name: "하원", exact: true })).toHaveAttribute(
+    "title",
+    "등원 처리 후 사용할 수 있습니다.",
+  );
   await studentCard.getByRole("button", { name: "등원", exact: true }).click();
   await page.getByRole("dialog", { name: "등원 처리" }).getByLabel("둘 다").check();
   await page.keyboard.press("Enter");
@@ -1472,6 +1479,7 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
   const reminderCard = page.locator(".clinic-ops__card").filter({ hasText: "재촉 학생" });
   await reminderCard.getByRole("button", { name: "재촉", exact: true }).click();
   const reminderDialog = page.getByRole("dialog", { name: "등원 재촉" });
+  await expect(page.locator(".ant-message")).toHaveCSS("pointer-events", "none");
   await reminderDialog.getByLabel("반복 발송").check();
   await reminderDialog.getByLabel("반복 간격(분)").fill("60");
   await reminderDialog.getByLabel("반복 종료").fill("21:00");
@@ -1500,7 +1508,12 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
   await studentCard.scrollIntoViewIfNeeded();
   await expect(studentCard.locator(".clinic-ops__task-chip")).toHaveCount(2);
   await expect(studentCard).toContainText("오늘 2 / 미완료 2");
-  expect((await studentCard.boundingBox())?.height ?? Infinity).toBeLessThanOrEqual(124);
+  expect(await studentCard.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  expect(
+    await studentCard.locator(".clinic-ops__task-chip").evaluateAll((cards) =>
+      cards.every((card) => card.scrollWidth <= card.clientWidth && card.scrollHeight <= card.clientHeight),
+    ),
+  ).toBe(true);
   await expect(studentCard).toContainText("6주차 확인 시험");
   await expect(studentCard).toContainText("7주차 오답 과제");
   const clinicTabs = page.locator(".clinic-domain-layout .domain-header__tabs-wrap .ds-tab");
@@ -1518,6 +1531,92 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
   await expect(workbench).toContainText("희망 13:30–14:00 · 14시 전에 끝내주세요.");
   expect(await workbench.evaluate((element) => getComputedStyle(element).animationName)).toBe("none");
   await page.screenshot({ path: "test-results/admin-clinic-operations-workbench-390.png", fullPage: false });
+});
+
+test("긴 미완료 목록은 학생 행을 자르지 않고 전체 작업대로 이어진다", async ({ page }) => {
+  const state: OperationsState = {
+    participants: [{
+      id: 851,
+      session: 701,
+      student: 551,
+      student_name: "긴목록 학생",
+      enrollment_id: 1051,
+      session_date: saturday,
+      session_title: "토요일 1시 클리닉",
+      session_start_time: "13:00:00",
+      session_location: "1층 세미나실",
+      status: "booked",
+      checked_in_at: null,
+      checked_out_at: null,
+      planned_clinic_link_ids: [9151],
+    }],
+    targets: Array.from({ length: 6 }, (_, index) => ({
+      enrollment_id: 1051,
+      student_id: 551,
+      student_name: "긴목록 학생",
+      session_title: `화학특강 ${index + 1}차시`,
+      source_title: `${index + 1}번째 매우 긴 산화 환원과 화학 평형 확인 과제`,
+      reason: "score",
+      clinic_reason: index % 2 === 0 ? "homework" : "exam",
+      homework_score: index % 2 === 0 ? 2 : null,
+      homework_cutline: index % 2 === 0 ? 4 : null,
+      exam_score: index % 2 === 1 ? 35 : null,
+      cutline_score: index % 2 === 1 ? 60 : null,
+      clinic_link_id: 9151 + index,
+      source_type: index % 2 === 0 ? "homework" : "exam",
+      source_id: 5151 + index,
+      session_id: 701,
+      max_score: 100,
+      created_at: `2026-08-22T04:0${index}:00Z`,
+    })),
+  };
+
+  await seed(page);
+  await installApi(page, undefined, state);
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/operations?date=${saturday}&session=701`, {
+    timeout: 45_000,
+  });
+
+  const card = page.locator(".clinic-ops__card").filter({ hasText: "긴목록 학생" });
+  await expect(card.locator(".clinic-ops__task-chip")).toHaveCount(4);
+  const moreButton = card.getByRole("button", { name: "긴목록 학생 미완료 항목 2개 더 보기" });
+  await expect(moreButton).toBeVisible();
+  await card.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: "test-results/admin-clinic-long-queue-1366.png", fullPage: false });
+  expect(await card.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  expect(
+    await card.locator(".clinic-ops__task-chip").evaluateAll((cards) =>
+      cards.every((item) => item.scrollWidth <= item.clientWidth && item.scrollHeight <= item.clientHeight),
+    ),
+  ).toBe(true);
+
+  await moreButton.click();
+  const workbench = page.getByRole("dialog", { name: "긴목록 학생 클리닉 워크벤치" });
+  await expect(workbench.locator(".clinic-workbench__active-panel")).toContainText(
+    "2번째 매우 긴 산화 환원과 화학 평형 확인 과제",
+  );
+  expect(
+    await workbench.locator(".clinic-workbench__item-switcher").evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    ),
+  ).toBe(true);
+  await page.keyboard.press("Escape");
+
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await card.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: "test-results/admin-clinic-long-queue-1920.png", fullPage: false });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  await expect(card.locator(".clinic-ops__task-chip")).toHaveCount(4);
+  expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  expect(await card.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await card.scrollIntoViewIfNeeded();
+  await expect(card.getByRole("button", { name: "긴목록 학생 학생 작업대 열기" })).toBeVisible();
+  await page.screenshot({ path: "test-results/admin-clinic-long-queue-390.png", fullPage: false });
+  await card.getByRole("button", { name: "긴목록 학생 학생 작업대 열기" }).click();
+  await expect(workbench).toBeVisible();
 });
 
 test("클리닉 상태 저장과 알림톡 요청의 부분 실패를 성공으로 숨기지 않는다", async ({ page }) => {
