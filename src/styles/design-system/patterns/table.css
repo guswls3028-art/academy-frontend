@@ -911,6 +911,15 @@ table.ds-table {
   box-shadow: none;
 }
 
+/* 입력 전 공란은 미달이 아니다. 행/편집 상태와 무관하게 중립 흰색을 우선한다. */
+.ds-scores-table tbody td[data-score-empty="true"] {
+  background: var(--color-bg-surface) !important;
+  box-shadow: none;
+}
+.ds-scores-table tbody td[data-score-empty="true"][data-editable="true"]:hover {
+  background: var(--color-bg-surface-hover) !important;
+}
+
 /* ═══ 차수별 편집 셀 UI (편집모드) ═══ */
 
 .ds-cell-attempt-info {
