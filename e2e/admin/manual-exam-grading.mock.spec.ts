@@ -1653,7 +1653,7 @@ test.describe("문항별 직접 채점", () => {
         manual_review_required: false,
         detail_manual_review_required: false,
         manual_review_reasons: ["IDENTIFIER_FUZZY_MATCH"],
-        identifier_status: "matched_fuzzy",
+        identifier_status: "matched",
       }],
     });
 
