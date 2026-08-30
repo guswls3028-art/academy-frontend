@@ -965,7 +965,7 @@ test("현장 콘솔은 16·17·18시 등원 학생을 한 화면에서 시간대
   await seed(page);
   await installApi(page, undefined, state);
   await page.setViewportSize({ width: 1366, height: 850 });
-  await gotoAndSettle(page, `${BASE}/workspace/clinic/operations`, { timeout: 45_000 });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/operations?scope=onsite`, { timeout: 45_000 });
 
   const scopeRail = page.getByRole("group", { name: "클리닉 운영 범위" });
   await expect(scopeRail.getByRole("button", { name: "현장 3명", exact: true })).toHaveAttribute("aria-pressed", "true");

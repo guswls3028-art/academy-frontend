@@ -10,7 +10,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -503,10 +503,17 @@ function RemediationWorkspace() {
       <div className="clinic-hub">
         <div className="clinic-hub__intro">
           <div>
-            <h2>학생별 미통과 작업대</h2>
-            <p>학생 한 명의 남은 시험·과제를 한 행에서 보고, 항목을 눌러 이 화면에서 처리합니다.</p>
+            <span className="clinic-hub__intro-eyebrow">전체 누적</span>
+            <h2>전체 미통과 정리</h2>
+            <p>날짜와 상관없이 아직 해결되지 않은 시험·과제입니다.</p>
           </div>
-          {!isLoading && !isError && <span className="clinic-hub__intro-count">{kpi.totalStudents}명 · {kpi.totalItems}건</span>}
+          <div className="clinic-hub__intro-actions">
+            {!isLoading && !isError && <span className="clinic-hub__intro-count">{kpi.totalStudents}명 · {kpi.totalItems}건</span>}
+            <Link className="clinic-hub__today-link" to="/workspace/clinic/operations?scope=day">
+              오늘 클리닉 학생 보기
+              <ArrowRight size={14} aria-hidden />
+            </Link>
+          </div>
         </div>
         <RemediationKpiRow
           unavailable={isLoading || isError} loading={isLoading} totalStudents={kpi.totalStudents}
@@ -634,7 +641,11 @@ function RemediationWorkspace() {
                     <span className="clinic-hub__student-badge">남은 항목 {group.openCount}건</span>
                   </div>
 
-                  <div className="clinic-hub__student-tickets" role="cell">
+                  <div
+                    className="clinic-hub__student-tickets"
+                    role="cell"
+                    aria-label={`${group.studentName} 미통과 항목 · 가로로 이동`}
+                  >
                     {group.items.map((item) => {
                       const itemKey = clinicTargetKey(item);
                       const isSelected = itemKey === selectedTargetKey;

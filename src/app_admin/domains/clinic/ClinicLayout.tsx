@@ -8,10 +8,10 @@ import { DomainLayout } from "@/shared/ui/layout";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 
 const CLINIC_TABS = [
-  { key: "home", label: "오늘", path: "/workspace/clinic/home" },
+  { key: "home", label: "오늘 요약", path: "/workspace/clinic/home" },
   { key: "schedule", label: "일정·배정", path: "/workspace/clinic/schedule" },
-  { key: "operations", label: "출석·진행", path: "/workspace/clinic/operations" },
-  { key: "bookings", label: "미통과", path: "/workspace/clinic/bookings" },
+  { key: "operations", label: "오늘 출석·진행", path: "/workspace/clinic/operations" },
+  { key: "bookings", label: "전체 미통과", path: "/workspace/clinic/bookings" },
   { key: "settings", label: "패스카드", path: "/workspace/clinic/settings" },
   { key: "msg-settings", label: "알림 설정", path: "/workspace/clinic/msg-settings" },
 ];

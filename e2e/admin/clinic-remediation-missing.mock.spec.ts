@@ -29,7 +29,7 @@ async function seed(page: Page) {
   }, localJwt());
 }
 
-test("미통과 기본 화면은 학생 한 행에 모든 항목을 펼치고 같은 화면에서 처리한다", async ({ page }, testInfo) => {
+test("전체 미통과는 학생별 항목을 한 줄 레일로 유지하고 같은 화면에서 처리한다", async ({ page }, testInfo) => {
   await seed(page);
   let remediationMutationRequests = 0;
 
@@ -68,6 +68,11 @@ test("미통과 기본 화면은 학생 한 행에 모든 항목을 펼치고 �
   await page.setViewportSize({ width: 1366, height: 850 });
   await gotoAndSettle(page, `${BASE}/workspace/clinic/bookings`, { timeout: 45_000 });
 
+  await expect(page.getByRole("heading", { name: "전체 미통과 정리", exact: true })).toBeVisible();
+  await expect(page.getByText("날짜와 상관없이 아직 해결되지 않은 시험·과제입니다.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "오늘 클리닉 학생 보기", exact: true }))
+    .toHaveAttribute("href", "/workspace/clinic/operations?scope=day");
+
   const workbenchToggle = page.getByRole("button", { name: "학생 작업대", exact: true });
   await expect(workbenchToggle).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "점수 일괄입력", exact: true })).toHaveAttribute("aria-pressed", "false");
@@ -83,6 +88,10 @@ test("미통과 기본 화면은 학생 한 행에 모든 항목을 펼치고 �
   await expect(tickets).toHaveCount(2);
   await expect(tickets.nth(0)).toContainText("평형의 이동 복습");
   await expect(tickets.nth(1)).toContainText("기체 법칙 단원평가");
+  await expect.poll(() => studentRow.locator(".clinic-hub__student-tickets").evaluate((element) => ({
+    flexWrap: getComputedStyle(element).flexWrap,
+    overflowX: getComputedStyle(element).overflowX,
+  }))).toEqual({ flexWrap: "nowrap", overflowX: "auto" });
 
   const urlBefore = page.url();
   await homeworkTicket.click();
@@ -832,7 +841,7 @@ test("다른 기기에서 생긴 오늘 예약은 열린 운영 화면의 학생
   });
 
   await page.setViewportSize({ width: 1366, height: 850 });
-  await gotoAndSettle(page, `${BASE}/workspace/clinic/operations?scope=day&date=${today}`, { timeout: 45_000 });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/operations`, { timeout: 45_000 });
 
   const scopeRail = page.getByRole("group", { name: "클리닉 운영 범위" });
   await expect(scopeRail.getByRole("button", { name: "오늘 전체 1명", exact: true })).toHaveAttribute("aria-pressed", "true");
