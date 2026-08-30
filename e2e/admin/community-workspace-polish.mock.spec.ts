@@ -164,6 +164,24 @@ test.describe("커뮤니티 QnA 작업대", () => {
     await expect(page.getByTitle("답변 필요 질문 1건").first()).toBeVisible();
     await expect(page.getByRole("tab", { name: "QnA 1" })).toBeVisible();
 
+    const workbenchGeometry = await page.locator(".qna-inbox__workbench").evaluate((workbench) => {
+      const reference = workbench.querySelector<HTMLElement>(".qna-inbox__reference-pane")?.getBoundingClientRect();
+      const answer = workbench.querySelector<HTMLElement>(".qna-inbox__answer-pane")?.getBoundingClientRect();
+      const composer = workbench.querySelector<HTMLElement>(".qna-inbox__composer")?.getBoundingClientRect();
+      if (!reference || !answer || !composer) throw new Error("QnA 작업대 영역을 찾지 못했습니다.");
+      return {
+        referenceWidth: reference.width,
+        answerWidth: answer.width,
+        answerTop: answer.top,
+        answerHeight: answer.height,
+        composerTop: composer.top,
+      };
+    });
+    expect(workbenchGeometry.answerWidth).toBeGreaterThan(workbenchGeometry.referenceWidth);
+    expect(workbenchGeometry.composerTop).toBeLessThan(
+      workbenchGeometry.answerTop + workbenchGeometry.answerHeight * 0.45,
+    );
+
     const problemImage = page.locator(".qna-inbox__image-stage img");
     await page.getByRole("button", { name: "오른쪽으로 90도 회전" }).click();
     await expect(problemImage).toHaveCSS("transform", /matrix\(0, 1, -1, 0/);
