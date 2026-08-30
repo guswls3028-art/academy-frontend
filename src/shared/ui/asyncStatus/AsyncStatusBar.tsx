@@ -467,6 +467,9 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
               {task.omrBatch.counts.received > 0 && (
                 <span>접수 완료 {task.omrBatch.counts.received}</span>
               )}
+              {task.omrBatch.counts.duplicate > 0 && (
+                <span>동일 파일 {task.omrBatch.counts.duplicate}</span>
+              )}
               {task.omrBatch.counts.processing > 0 && (
                 <span>처리 중 {task.omrBatch.counts.processing}</span>
               )}

@@ -118,6 +118,28 @@ export type AcceptFromDuplicatesResult = {
   max_score: number | null;
 };
 
+export type RotateRescanResult = {
+  submission_id: number;
+  status: string;
+  rotation_degrees: 90 | 180 | 270;
+  created: boolean;
+};
+
+export async function rotateRescanApi(
+  submissionId: number,
+  rotationDegrees: 90 | 180 | 270,
+  clientRequestId: string,
+): Promise<RotateRescanResult> {
+  const res = await api.post(
+    `/submissions/submissions/${submissionId}/rotate-rescan/`,
+    {
+      rotation_degrees: rotationDegrees,
+      client_request_id: clientRequestId,
+    },
+  );
+  return res.data as RotateRescanResult;
+}
+
 /**
  * 본 submission을 같은 (시험, 학생) 후보 중 채택.
  * 백엔드가 단일 트랜잭션으로 본 sub은 DONE까지 진행 + 다른 active 형제는
