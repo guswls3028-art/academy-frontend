@@ -17,6 +17,24 @@
 [강사 AI 문제 풀이 백엔드 문서](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/teacher-problem-solver.md)가
 소유한다.
 
+## PC PPT 문제 생성기
+
+관리자·교사가 이미지 묶음 또는 PDF 시험지를 수업용 PPTX로 바꾸는 정식
+경로는 `/workspace/tools/ppt`다. 이미지 모드는 파일 순서와 슬라이드별 반전
+설정을 확인한 뒤 한 장씩 슬라이드로 만든다. `맞춤`은 이미지 전체와 여백,
+`채움`은 비율을 유지한 중앙 잘림, `늘림`은 슬라이드 크기 변형으로 미리보기와
+생성 PPTX가 같은 의미를 가져야 한다. PDF 모드는 문항 단위 자동 분할을
+요청한다. 업로드와 생성 중에는 입력·중복 제출을 잠그고 파일 다운로드, 문항
+분리, 파일 저장 진행 상태를 표시한다. 완료된 경우에만 PPTX 다운로드를
+시작한다.
+
+PDF에서 문항 영역을 확정할 수 없으면 백엔드가 페이지 단위 결과를 반환하고,
+화면은 표지·목차가 포함될 수 있음을 안내한다. 생성 실패는 선택한 원본을
+임의로 바꾸거나 다른 테넌트의 결과를 찾지 않고 현재 작업 오류로 표시한다.
+문항 번호·공통 자료·표·보기의 크롭 규칙, Tools worker와 R2 경계는
+[PPT 문제 생성기 백엔드 문서](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/ppt-question-generator.md)가
+소유한다.
+
 ## 통합 업무 문항 스튜디오
 
 관리자·교사가 원본 시험지를 정답·해설 PDF와 편집 가능한 HWPX 검수
