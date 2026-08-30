@@ -15,7 +15,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import type { SessionScoreRow, SessionScoreMeta, SessionScoresSummaryColumnMode } from "../api/sessionScores";
-import type { PendingChange } from "../api/scoreDraft";
+import type { PendingChange, ScoreActiveEditor } from "../api/scoreDraft";
 import { scoresQueryKeys } from "../api/queryKeys";
 import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
@@ -384,6 +384,7 @@ type Props = {
     | { type: "exam"; examId: number; sub: "item"; questionId: number }
     | { type: "homework"; homeworkId: number }
   )) | null;
+  activeEditors?: ScoreActiveEditor[];
   onSelectCell: (row: SessionScoreRow, type: "exam" | "homework", id: number, questionIdOrSub?: number | "total" | "objective" | "subjective") => void;
   onSelectRow: (row: SessionScoreRow) => void;
 
@@ -428,6 +429,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   summaryColumnMode = "verdict",
   selectedEnrollmentId,
   selectedCell = null,
+  activeEditors = [],
   onSelectCell,
   onSelectRow,
   onReorderColumnSwap,
@@ -470,6 +472,14 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     ),
     [meta?.homeworks],
   );
+  const homeworkCollaboratorByCell = useMemo(() => {
+    const collaborators = new Map<string, ScoreActiveEditor>();
+    for (const editor of activeEditors) {
+      const cell = editor.active_cell;
+      collaborators.set(`homework:${cell.enrollmentId}:${cell.homeworkId}`, editor);
+    }
+    return collaborators;
+  }, [activeEditors]);
 
   const applyChangeToDom = useCallback((change: PendingChange) => {
     const setCellText = (el: HTMLElement | null | undefined, value: string) => {
@@ -1930,7 +1940,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     selectedCell.enrollmentId === row.enrollment_id &&
                     selectedCell.type === "homework" &&
                     selectedCell.homeworkId === hw.homework_id;
-                  const canEditScore = isEditMode && homeworkEdit && !notEnrolledForHw;
+                  const scoreCellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
+                  const collaborator = homeworkCollaboratorByCell.get(scoreCellKey) ?? null;
+                  const canEditScore = isEditMode && homeworkEdit && !notEnrolledForHw && !collaborator;
                   const isNotSubmitted = block?.meta?.status === "NOT_SUBMITTED";
                   const isEmptyScore = block?.score == null && !isNotSubmitted;
                   const hwParity = hwBodyIdx % 2 === 0 ? "even" : "odd";
@@ -1955,8 +1967,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           </td>
                       ) : (
                       <td
-                        className={`min-w-0 text-center align-middle ${isSelected ? "ds-scores-cell-active" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
+                        className={`min-w-0 text-center align-middle ${isSelected ? "ds-scores-cell-active" : ""} ${collaborator ? "ds-scores-cell-collaborator" : ""} ${isEditMode && !collaborator ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                         data-col-type="score"
+                        data-score-cell={scoreCellKey}
+                        {...(collaborator ? { "data-collaborator-active": "true" } : {})}
                         data-group-parity={hwParity}
                         {...(hwBodyIdx === 0 ? { "data-section-start": "" } : {})}
                         {...(canEditScore ? { "data-editable": "true" } : {})}
@@ -1969,10 +1983,20 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                             : {})}
                         onClick={(e) => {
                           if (isEditMode) e.stopPropagation();
+                          if (collaborator) {
+                            feedback.info(`${collaborator.editor_name}님이 이 과제 점수를 입력 중입니다.`);
+                            return;
+                          }
                           onSelectCell(row, "homework", hw.homework_id);
                         }}
+                        title={collaborator ? `${collaborator.editor_name}님이 이 과제 점수를 입력 중입니다.` : undefined}
                       >
                         <span className="inline-flex w-full items-center gap-2 flex-wrap">
+                          {collaborator && (
+                            <span className="ds-scores-collaborator-label">
+                              {collaborator.editor_name} 입력 중
+                            </span>
+                          )}
                           {hw.grading_mode === "COMPLETION" ? (
                             canEditScore ? (
                               <select

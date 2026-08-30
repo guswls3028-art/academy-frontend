@@ -14,6 +14,12 @@ type ScoreRouteOptions = {
   scoreSummaryColumnDefault?: "exam_wrong";
   nullScoresPassedFalse?: boolean;
   nullHomeworkScoresPassedFalse?: boolean;
+  activeEditors?: Array<{
+    client_id: string;
+    editor_user_id: number;
+    editor_name: string;
+    active_cell: { type: "homework"; enrollmentId: number; homeworkId: number };
+  }>;
 };
 
 function createLocalJwt() {
@@ -82,6 +88,7 @@ let homeworkMaxScore = 100;
 let homeworkGradingMode: "SCORE" | "COMPLETION" = "SCORE";
 let homeworkAssignedRows = [false, true];
 let currentHomeworkScores: Array<number | null> = [null, 45];
+let activeEditors: NonNullable<ScoreRouteOptions["activeEditors"]> = [];
 
 async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): Promise<void> {
   scorePatches.length = 0;
@@ -105,6 +112,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
   homeworkGradingMode = options.homeworkGradingMode ?? "SCORE";
   homeworkAssignedRows = [...(options.homeworkAssignedRows ?? [false, true])];
   currentHomeworkScores = [...(options.initialHomeworkScores ?? [null, 45])];
+  activeEditors = [...(options.activeEditors ?? [])];
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -214,7 +222,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
 
     if (path.endsWith("/score-draft/")) {
       if (method === "GET") {
-        await route.fulfill({ json: { changes: currentDraft } });
+        await route.fulfill({ json: { changes: currentDraft, active_editors: activeEditors } });
         return;
       }
       if (method === "PUT") {
@@ -226,7 +234,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
         const body = request.postDataJSON() as { changes?: unknown[] };
         draftPuts.push(body as Record<string, unknown>);
         currentDraft = body.changes ?? [];
-        await route.fulfill({ json: { changes: currentDraft } });
+        await route.fulfill({ json: { changes: currentDraft, active_editors: activeEditors } });
         return;
       }
     }
@@ -372,6 +380,44 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
     await route.fallback();
   });
 }
+
+test("같은 계정의 다른 화면이 선택한 과제 셀을 표시하고 다른 셀은 입력한다", async ({ page }) => {
+  await openScores(page, {
+    includeHomework: true,
+    homeworkAssignedRows: [true, true],
+    activeEditors: [{
+      client_id: "other-screen",
+      editor_user_id: 12,
+      editor_name: "박철",
+      active_cell: { type: "homework", enrollmentId: 9201, homeworkId: 9151 },
+    }],
+  });
+  await ensureScoreEditing(page);
+
+  const occupiedCell = page.locator('[data-score-cell="homework:9201:9151"]');
+  const availableCell = page.locator('[data-score-cell="homework:9202:9151"]');
+  await expect(occupiedCell).toHaveAttribute("data-collaborator-active", "true");
+  await expect(occupiedCell).toContainText("박철 입력 중");
+  await expect(occupiedCell).not.toHaveAttribute("data-editable", "true");
+  await expect(availableCell).toHaveAttribute("data-editable", "true");
+
+  await availableCell.click();
+  await expect.poll(
+    () => draftPuts.some((put) => JSON.stringify(put.active_cell) === JSON.stringify({
+      type: "homework",
+      enrollmentId: 9202,
+      homeworkId: 9151,
+    })),
+  ).toBe(true);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(occupiedCell).toBeVisible();
+  const occupiedBox = await occupiedCell.boundingBox();
+  const labelBox = await occupiedCell.locator(".ds-scores-collaborator-label").boundingBox();
+  expect(occupiedBox).not.toBeNull();
+  expect(labelBox).not.toBeNull();
+  expect(labelBox!.x + labelBox!.width).toBeLessThanOrEqual(occupiedBox!.x + occupiedBox!.width + 1);
+});
 
 test.describe("성적 입력 잠금과 Excel 단축키", () => {
   test.setTimeout(120_000);

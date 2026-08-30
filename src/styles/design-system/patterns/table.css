@@ -738,6 +738,30 @@ table.ds-table {
   background: color-mix(in srgb, var(--color-primary) 13%, var(--color-bg-surface)) !important;
 }
 
+.ds-scores-table tbody td.ds-scores-cell-collaborator {
+  position: relative;
+  outline: 2px solid var(--color-warning) !important;
+  outline-offset: -2px;
+  background: color-mix(in srgb, var(--color-warning) 10%, var(--color-bg-surface)) !important;
+  cursor: not-allowed;
+}
+
+.ds-scores-collaborator-label {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  border-radius: var(--radius-full);
+  padding: 1px 5px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-warning) 18%, var(--color-bg-surface));
+  color: var(--color-text-primary);
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .ds-scores-table tbody tr.ds-scores-table-row--alt {
   background: color-mix(in srgb, var(--color-primary) 2.5%, var(--color-bg-surface));
 }

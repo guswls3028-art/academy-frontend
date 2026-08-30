@@ -26,6 +26,7 @@ import {
   matchesSessionRowExamReviewFilter,
   matchesSessionScoreStudentSearch,
 } from "@/shared/scoring/sessionScoreRows";
+import type { ScoreActiveCell, ScoreActiveEditor } from "../api/scoreDraft";
 
 type Props = {
   sessionId: number;
@@ -51,6 +52,8 @@ type Props = {
   selectedEnrollmentIds?: number[];
   onSelectionChange?: (enrollmentIds: number[]) => void;
   onPendingChange?: () => void;
+  activeEditors?: ScoreActiveEditor[];
+  onActiveCellChange?: (cell: ScoreActiveCell | null) => void;
   onOpenExamGrading?: (
     examId: number,
     examTitle: string,
@@ -105,6 +108,8 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   selectedEnrollmentIds = [],
   onSelectionChange,
   onPendingChange,
+  activeEditors = [],
+  onActiveCellChange,
   onOpenExamGrading,
 }, ref) {
   const confirm = useConfirm();
@@ -427,6 +432,18 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     return col ? ({ enrollmentId: selectedEnrollmentId, ...col } as FocusScoreCell) : null;
   }, [selectedEnrollmentId, selectedColIndex, editableCols, clampCol]);
 
+  useEffect(() => {
+    if (!isEditMode || selectedCell?.type !== "homework") {
+      onActiveCellChange?.(null);
+      return;
+    }
+    onActiveCellChange?.({
+      type: "homework",
+      enrollmentId: selectedCell.enrollmentId,
+      homeworkId: selectedCell.homeworkId,
+    });
+  }, [isEditMode, onActiveCellChange, selectedCell]);
+
   if (isLoading) {
     return <EmptyState scope="panel" tone="loading" title="성적 불러오는 중…" />;
   }
@@ -490,6 +507,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           summaryColumnMode={summaryColumnMode}
           selectedEnrollmentId={selectedEnrollmentId}
           selectedCell={selectedCell}
+          activeEditors={activeEditors}
           onRequestMoveNext={onRequestMoveNext}
           onRequestMovePrev={onRequestMovePrev}
           onRequestMoveDown={onRequestMoveDown}

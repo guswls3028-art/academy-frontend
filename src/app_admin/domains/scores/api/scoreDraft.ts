@@ -27,27 +27,57 @@ export type PendingChange =
       metaStatus?: "NOT_SUBMITTED";
     };
 
+export type ScoreActiveCell = {
+  type: "homework";
+  enrollmentId: number;
+  homeworkId: number;
+};
+
+export type ScoreActiveEditor = {
+  client_id: string;
+  editor_user_id: number;
+  editor_name: string;
+  active_cell: ScoreActiveCell;
+};
+
+export type ScoreDraftResponse = {
+  changes: PendingChange[];
+  stale?: boolean;
+  active_editors: ScoreActiveEditor[];
+};
+
 export async function getScoreDraft(
   sessionId: number,
-): Promise<{ changes: PendingChange[]; stale?: boolean }> {
+): Promise<ScoreDraftResponse> {
   const res = await api.get(`/results/admin/sessions/${sessionId}/score-draft/`, {
     headers: await scoreEditorRequestHeaders(),
   });
-  return res.data as { changes: PendingChange[]; stale?: boolean };
+  const data = res.data as Partial<ScoreDraftResponse>;
+  return {
+    changes: data.changes ?? [],
+    stale: data.stale,
+    active_editors: data.active_editors ?? [],
+  };
 }
 
 export async function putScoreDraft(
   sessionId: number,
   changes: PendingChange[],
-  options?: { acknowledgeStale?: boolean },
-): Promise<{ changes: PendingChange[] }> {
+  options?: { acknowledgeStale?: boolean; activeCell?: ScoreActiveCell | null },
+): Promise<ScoreDraftResponse> {
   const res = await api.put(`/results/admin/sessions/${sessionId}/score-draft/`, {
     changes,
     acknowledge_stale: options?.acknowledgeStale ?? false,
+    active_cell: options?.activeCell ?? null,
   }, {
     headers: await scoreEditorRequestHeaders(),
   });
-  return res.data as { changes: PendingChange[] };
+  const data = res.data as Partial<ScoreDraftResponse>;
+  return {
+    changes: data.changes ?? [],
+    stale: data.stale,
+    active_editors: data.active_editors ?? [],
+  };
 }
 
 export async function postScoreDraftCommit(
