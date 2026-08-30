@@ -524,6 +524,18 @@
   gap: var(--space-3);
 }
 
+.clinic-ops__action-guidance {
+  flex: 0 1 auto;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 .clinic-ops__card-identity {
   display: flex;
   align-items: center;

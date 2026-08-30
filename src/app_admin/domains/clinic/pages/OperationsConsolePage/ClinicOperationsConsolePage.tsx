@@ -56,7 +56,7 @@ export default function ClinicOperationsConsolePage() {
     dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : initialToday;
   const [selectedDate, setSelectedDate] = useState(() => initialDate);
   const [consoleScope, setConsoleScope] = useState<ConsoleScope>(() =>
-    sp.get("scope") === "day" || !!dateParam || !!sessionParam ? "day" : "onsite"
+    sp.get("scope") === "onsite" ? "onsite" : "day"
   );
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(() => {
     const value = sessionParam ? Number(sessionParam) : NaN;
@@ -281,7 +281,7 @@ export default function ClinicOperationsConsolePage() {
     }
   }, [allRows, participants.listQ.isLoading, selectedSessionId]);
 
-  const headerDesc = "출석 확인, 실패 사유 확인, 통과 처리까지.";
+  const headerDesc = "오늘 예약·배정 학생의 출석과 미통과 처리를 한 흐름에서 진행합니다.";
 
   return (
     <div className="clinic-page">
