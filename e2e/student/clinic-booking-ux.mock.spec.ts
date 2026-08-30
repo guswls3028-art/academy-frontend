@@ -92,6 +92,7 @@ const sessions = [
     booked_count: 6,
     max_participants: 10,
     allow_time_preference: true,
+    allow_multi_slot_booking: true,
     target_lecture_names: [{ id: 41, title: "대수 정규반", color: "#2563eb", chip_label: "대수" }],
   },
   {
@@ -104,6 +105,7 @@ const sessions = [
     participant_count: 1,
     booked_count: 1,
     max_participants: 8,
+    allow_multi_slot_booking: true,
     target_lecture_names: [{ id: 78, title: "미적분 정규반", color: "#ea580c", chip_label: "미적" }],
   },
 ];
