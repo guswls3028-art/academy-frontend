@@ -89,6 +89,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
   const postedRows: unknown[] = [];
   const examPatches: unknown[] = [];
   const manualEditGetIds: number[] = [];
+  const manualEditBodies: unknown[] = [];
   let inventoryPresignCount = 0;
   let previewRequestCount = 0;
   let manualEditPostCount = 0;
@@ -359,18 +360,29 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       const submissionId = Number(manualEditMatch[1]);
       if (method === "POST") {
         manualEditPostCount += 1;
+        manualEditBodies.push(request.postDataJSON());
         await json({ submission_id: submissionId, status: "done", score: 100 });
         return;
       }
       manualEditGetIds.push(submissionId);
+      const selectedRow = options.submissionRows?.find(
+        (row) => Number(row.id) === submissionId,
+      );
       const needsIdentification = submissionId === NOID_SUBMISSION_ID;
+      const manualReviewRequired = Boolean(
+        selectedRow?.manual_review_required ?? needsIdentification,
+      );
       const scanSvg = encodeURIComponent(
         '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="white"/><text x="40" y="70" font-size="38">OMR scan</text><circle cx="220" cy="240" r="24" fill="#1d4ed8"/></svg>',
       );
       await json({
         submission_id: submissionId,
-        submission_status: needsIdentification ? "needs_identification" : "done",
-        enrollment_id: needsIdentification ? null : ENROLLMENT_ID,
+        submission_status: String(
+          selectedRow?.status ?? (needsIdentification ? "needs_identification" : "done"),
+        ),
+        enrollment_id: needsIdentification
+          ? null
+          : Number(selectedRow?.enrollment_id ?? ENROLLMENT_ID),
         target_type: "exam",
         target_id: EXAM_ID,
         identifier: null,
@@ -391,10 +403,16 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         scan_image_is_aligned: true,
         scan_image_size: { width: 800, height: 600 },
         meta: {
-          identifier_status: needsIdentification ? "missing" : "matched",
+          identifier_status: String(
+            selectedRow?.identifier_status ?? (needsIdentification ? "missing" : "matched"),
+          ),
           manual_review: {
-            required: needsIdentification,
-            reasons: needsIdentification ? ["ANSWER_SCORE_AMBIGUOUS"] : [],
+            required: manualReviewRequired,
+            reasons: Array.isArray(selectedRow?.manual_review_reasons)
+              ? selectedRow.manual_review_reasons
+              : needsIdentification
+                ? ["ANSWER_SCORE_AMBIGUOUS"]
+                : [],
           },
         },
         duplicate_siblings: [],
@@ -740,6 +758,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       return manualEditPostCount;
     },
     manualEditGetIds,
+    manualEditBodies,
     manualSheetGetEvents,
     failNextPreview() {
       failNextPreview = true;
@@ -1609,6 +1628,82 @@ test.describe("문항별 직접 채점", () => {
 
     expect(apiState.manualEditPostCount).toBe(0);
     expect(apiState.inventoryPresignCount).toBe(0);
+  });
+
+  test("이미 매칭된 검토 대상은 현재 학생을 그대로 확정해 점수를 표시한다", async ({ page }) => {
+    const apiState = await installApi(page, {
+      gradingMode: "choice",
+      editable: false,
+      submissionRows: [{
+        id: DONE_SUBMISSION_ID,
+        enrollment_id: ENROLLMENT_ID,
+        student_name: "김태윤",
+        status: "done",
+        source: "omr_scan",
+        score: null,
+        file_key: "tenants/hakwonplus/submissions/fuzzy.png",
+        created_at: "2026-08-30T18:47:00+09:00",
+        has_file: true,
+        manual_review_required: true,
+        manual_review_reasons: ["IDENTIFIER_FUZZY_MATCH"],
+        identifier_status: "matched_fuzzy",
+      }],
+    });
+
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await chooseExamHeaderAction(page, "OMR 검토");
+
+    const omrDialog = page.getByRole("dialog", { name: "OMR 검토" });
+    await expect(omrDialog.getByText("학생 확인 필요", { exact: true })).toBeVisible();
+    await expect(omrDialog.getByText(/답안 인식은 끝났습니다/)).toBeVisible();
+    const confirmButton = omrDialog.getByRole("button", {
+      name: "김태윤으로 확정하고 점수 표시",
+    });
+    await expect(confirmButton).toBeEnabled();
+    await confirmButton.click();
+
+    await expect.poll(() => apiState.manualEditPostCount).toBe(1);
+    expect(apiState.manualEditBodies).toEqual([
+      expect.objectContaining({
+        identifier: { enrollment_id: ENROLLMENT_ID },
+        note: "omr_review_ui_confirm_match",
+      }),
+    ]);
+    await expect(page.getByText("저장 + 재채점 완료: 100점")).toBeVisible();
+  });
+
+  test("답안 검토 사유는 학생 확정으로 우회하지 않는다", async ({ page }) => {
+    await installApi(page, {
+      gradingMode: "choice",
+      editable: false,
+      submissionRows: [{
+        id: DONE_SUBMISSION_ID,
+        enrollment_id: ENROLLMENT_ID,
+        student_name: "김태윤",
+        status: "done",
+        source: "omr_scan",
+        score: null,
+        file_key: "tenants/hakwonplus/submissions/answer-review.png",
+        created_at: "2026-08-30T18:47:00+09:00",
+        has_file: true,
+        manual_review_required: true,
+        manual_review_reasons: ["ANSWER_SCORE_AMBIGUOUS"],
+        identifier_status: "matched",
+      }],
+    });
+
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await chooseExamHeaderAction(page, "OMR 검토");
+
+    const omrDialog = page.getByRole("dialog", { name: "OMR 검토" });
+    await expect(omrDialog.getByText("학생 확인 필요", { exact: true })).toHaveCount(0);
+    await expect(omrDialog.getByRole("button", { name: "변경 사항 없음" })).toBeDisabled();
   });
 
   test("시험명 메뉴에서 시험 설정을 열고 현재 값을 확인한다", async ({ page }) => {

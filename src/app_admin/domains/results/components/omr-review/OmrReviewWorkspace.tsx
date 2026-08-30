@@ -835,6 +835,17 @@ function EditPane({
     );
   }, [detail]);
 
+  const reviewReasons = detail?.meta?.manual_review?.reasons ?? [];
+  const hasOnlyIdentifierReviewReasons =
+    reviewReasons.length > 0 &&
+    reviewReasons.every((reason) => String(reason).startsWith("IDENTIFIER_"));
+  const canConfirmCurrentStudent = Boolean(
+    detail?.meta?.manual_review?.required &&
+    hasOnlyIdentifierReviewReasons &&
+    !identifierNeeded &&
+    detail.enrollment_id != null,
+  );
+
   const dirty = useMemo(() => {
     if (!detail) return false;
     if (identifierNeeded && pickedStudent) return true;
@@ -856,11 +867,15 @@ function EditPane({
       const idPayload =
         identifierNeeded && pickedStudent
           ? { enrollment_id: pickedStudent.enrollment_id }
+          : canConfirmCurrentStudent && detail.enrollment_id != null
+            ? { enrollment_id: detail.enrollment_id }
           : null;
       return await manualEditSubmissionApi({
         submissionId: detail.submission_id,
         identifier: idPayload,
-        note: "omr_review_ui",
+        note: canConfirmCurrentStudent
+          ? "omr_review_ui_confirm_match"
+          : "omr_review_ui",
         answers: payloadAnswers,
         allowDuplicate: opts.allowDuplicate,
       });
@@ -933,7 +948,7 @@ function EditPane({
   // mutate / navigate를 ref로 안정화 → 키보드 effect dep 최소화
   const submitRef = useRef<() => void>(() => {});
   submitRef.current = () => {
-    if (!mut.isPending && dirty) mut.mutate({});
+    if (!mut.isPending && (dirty || canConfirmCurrentStudent)) mut.mutate({});
   };
   const navigateRef = useRef<(d: 1 | -1) => void>(() => {});
   navigateRef.current = (d) => onNavigate(d);
@@ -1032,7 +1047,7 @@ function EditPane({
     );
   }
 
-  const reasons = detail.meta?.manual_review?.reasons ?? [];
+  const reasons = reviewReasons;
   const headerName = studentName || (identifierNeeded ? "미식별 학생" : "학생");
 
   return (
@@ -1052,6 +1067,18 @@ function EditPane({
       </div>
 
       <div className="orw-edit-pane__body">
+        {canConfirmCurrentStudent && (
+          <div className="orw-match-confirm" role="status">
+            <div className="orw-match-confirm__eyebrow">학생 확인 필요</div>
+            <div className="orw-match-confirm__title">
+              원본 답안지가 <b>{headerName}</b> 학생 것이 맞나요?
+            </div>
+            <div className="orw-match-confirm__desc">
+              답안 인식은 끝났습니다. 원본의 이름·식별번호와 학생이 같다면 아래 버튼으로
+              확정하세요. 답안을 바꾸지 않아도 점수가 바로 표시됩니다.
+            </div>
+          </div>
+        )}
         {siblings.length > 0 && (
           <div className="orw-duplicate-cluster">
             <div className="orw-duplicate-cluster__title">
@@ -1199,10 +1226,19 @@ function EditPane({
           className="orw-save-btn"
           type="button"
           onClick={() => mut.mutate({})}
-          disabled={mut.isPending || !dirty || discardMut.isPending || acceptMut.isPending}
+          disabled={
+            mut.isPending ||
+            (!dirty && !canConfirmCurrentStudent) ||
+            discardMut.isPending ||
+            acceptMut.isPending
+          }
         >
           {mut.isPending
-            ? "저장 중…"
+            ? canConfirmCurrentStudent
+              ? "확정 중…"
+              : "저장 중…"
+            : canConfirmCurrentStudent && !dirty
+              ? `${headerName}으로 확정하고 점수 표시`
             : dirty
               ? "저장 + 재채점"
               : "변경 사항 없음"}
