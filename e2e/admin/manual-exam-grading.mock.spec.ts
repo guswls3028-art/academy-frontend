@@ -1715,6 +1715,60 @@ test.describe("문항별 직접 채점", () => {
     await expect(omrDialog.getByRole("button", { name: "변경 사항 없음" })).toBeDisabled();
   });
 
+  test("390px에서는 목록에서 학생을 고른 뒤 확인 패널과 CTA를 화면 안에 표시한다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const apiState = await installApi(page, {
+      gradingMode: "choice",
+      editable: false,
+      submissionRows: [{
+        id: DONE_SUBMISSION_ID,
+        enrollment_id: ENROLLMENT_ID,
+        student_name: "김태윤",
+        status: "done",
+        source: "omr_scan",
+        score: null,
+        file_key: "tenants/hakwonplus/submissions/fuzzy-mobile.png",
+        created_at: "2026-08-30T18:47:00+09:00",
+        has_file: true,
+        manual_review_required: false,
+        detail_manual_review_required: false,
+        manual_review_reasons: ["IDENTIFIER_FUZZY_MATCH"],
+        identifier_status: "matched",
+      }],
+    });
+
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await chooseExamHeaderAction(page, "OMR 검토");
+
+    const omrDialog = page.getByRole("dialog", { name: "OMR 검토" });
+    await expect(omrDialog.getByRole("tab", { name: "목록" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await omrDialog.getByText("김태윤", { exact: true }).click();
+    await expect(omrDialog.getByRole("tab", { name: "확인" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    const confirmButton = omrDialog.getByRole("button", {
+      name: "김태윤으로 확정하고 점수 표시",
+    });
+    await expect(confirmButton).toBeVisible();
+    await expect(confirmButton).toBeEnabled();
+    const box = await confirmButton.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+    expect(apiState.manualEditPostCount).toBe(0);
+
+    await omrDialog.getByRole("tab", { name: "원본" }).click();
+    await expect(omrDialog.getByRole("img", { name: "OMR 스캔 원본" })).toBeVisible();
+  });
+
   test("답안 검토 사유는 학생 확정으로 우회하지 않는다", async ({ page }) => {
     await installApi(page, {
       gradingMode: "choice",

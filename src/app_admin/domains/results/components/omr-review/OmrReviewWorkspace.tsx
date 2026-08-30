@@ -56,6 +56,7 @@ import {
 import "./OmrReviewWorkspace.css";
 
 type FilterKey = "all" | "ok" | "noid" | "flag" | "failed";
+type MobilePane = "list" | "scan" | "edit";
 
 function lecturesForCandidate(row: CandidateRow) {
   return row.lecture_title
@@ -159,6 +160,7 @@ export default function OmrReviewWorkspace({
   const [fitMode, setFitMode] = useState(true); // true = 컨테이너 맞춤, false = 100%*zoom
   const [editDirty, setEditDirty] = useState(false);
   const [focusedQid, setFocusedQid] = useState<number | null>(null);
+  const [mobilePane, setMobilePane] = useState<MobilePane>("list");
 
   const confirm = useConfirm();
 
@@ -252,6 +254,7 @@ export default function OmrReviewWorkspace({
       setFilter("all");
       setEditDirty(false);
       setFocusedQid(null);
+      setMobilePane("list");
     }
   }, [open]);
 
@@ -377,7 +380,27 @@ export default function OmrReviewWorkspace({
           })}
         </div>
 
-        <div className="orw-body">
+        <div className="orw-mobile-tabs" role="tablist" aria-label="OMR 모바일 보기">
+          {([
+            ["list", "목록"],
+            ["scan", "원본"],
+            ["edit", "확인"],
+          ] as const).map(([pane, label]) => (
+            <button
+              key={pane}
+              type="button"
+              role="tab"
+              aria-selected={mobilePane === pane}
+              className="orw-mobile-tab"
+              disabled={pane !== "list" && selectedId == null}
+              onClick={() => setMobilePane(pane)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className={`orw-body orw-body--mobile-${mobilePane}`}>
           {/* ── LEFT ── */}
           <div className="orw-list-pane">
             {listLoading ? (
@@ -406,7 +429,10 @@ export default function OmrReviewWorkspace({
                   <div
                     key={r.id}
                     className={`orw-list-row ${selectedId === r.id ? "orw-list-row--active" : ""}`}
-                    onClick={() => setSelectedId(r.id)}
+                    onClick={() => {
+                      setSelectedId(r.id);
+                      setMobilePane("edit");
+                    }}
                   >
                     <div className="orw-list-row__name">
                       {r.student_name || <span className="orw-list-row__noname">미식별 학생</span>}
