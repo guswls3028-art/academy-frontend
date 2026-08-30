@@ -31,11 +31,13 @@ import { useAdminExam } from "@admin/domains/exams/hooks/useAdminExam";
 
 type Props = {
   examId: number;
+  lectureId?: number | null;
 };
 
-async function fetchAdminExamResults(examId: number) {
+async function fetchAdminExamResults(examId: number, lectureId?: number | null) {
   const res = await api.get(
-    `/results/admin/exams/${examId}/results/`
+    `/results/admin/exams/${examId}/results/`,
+    { params: lectureId == null ? undefined : { lecture_id: lectureId } },
   );
 
   return Array.isArray(res.data?.results)
@@ -45,7 +47,7 @@ async function fetchAdminExamResults(examId: number) {
     : [];
 }
 
-export default function ExamResultsPanel({ examId }: Props) {
+export default function ExamResultsPanel({ examId, lectureId = null }: Props) {
   const [searchParams] = useSearchParams();
 
   const initialEnrollmentId = Number(
@@ -62,8 +64,8 @@ export default function ExamResultsPanel({ examId }: Props) {
   const { data: exam } = useAdminExam(examId);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: adminResultsQueryKeys.adminExamResults(examId),
-    queryFn: () => fetchAdminExamResults(examId),
+    queryKey: adminResultsQueryKeys.adminExamResults(examId, lectureId),
+    queryFn: () => fetchAdminExamResults(examId, lectureId),
     enabled: Number.isFinite(examId),
   });
 

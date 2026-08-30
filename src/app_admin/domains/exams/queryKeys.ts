@@ -12,10 +12,22 @@ export const adminExamsQueryKeys = {
   examAssets: (examId: number | null | undefined) => ["exam-assets", examId] as const,
   examEnrollment: (examId: number | undefined, sessionId: number | undefined) =>
     ["exam-enrollment", examId, sessionId] as const,
+  examLectureAssignments: (examId: number | null | undefined) =>
+    ["exam-lecture-assignments", examId] as const,
+  examAssignmentLectures: () => ["exam-assignment-lectures"] as const,
+  examAssignmentSessions: (lectureId: number | null) =>
+    ["exam-assignment-sessions", lectureId] as const,
+  examEnrollmentRoot: (examId: number) => ["exam-enrollment", examId] as const,
 
   adminExamSummary: (examId: number) => ["admin-exam-summary", examId] as const,
-  adminExamResults: (examId: number) => ["admin-exam-results", examId] as const,
-  examQuestionStats: (examId: number) => ["exam-question-stats", examId] as const,
+  adminExamResultsRoot: (examId: number) => ["admin-exam-results", examId] as const,
+  adminExamDetailRoot: (examId: number) => ["admin-exam-detail", examId] as const,
+  sessionScoresRoot: () => ["session-scores"] as const,
+  clinicTargetsRoot: () => ["clinic-targets"] as const,
+  adminExamResults: (examId: number, lectureId?: number | null) =>
+    ["admin-exam-results", examId, lectureId ?? "all"] as const,
+  examQuestionStats: (examId: number, lectureId?: number | null) =>
+    ["exam-question-stats", examId, lectureId ?? "all"] as const,
   examSubmissions: (examId: number) => ["exam-submissions", examId] as const,
 
   examQuestions: (examId: number | null | undefined) => ["exam-questions", examId] as const,

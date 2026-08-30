@@ -7,6 +7,7 @@ import AssessmentReadinessStrip, {
 import ExamPolicyPanel from "./ExamPolicyPanel";
 import ExamEnrollmentPanel from "./ExamEnrollmentPanel";
 import ExamBulkActionsPanel from "./ExamBulkActionsPanel";
+import ExamLectureAssignmentsPanel from "./ExamLectureAssignmentsPanel";
 import { useAdminExam } from "../../hooks/useAdminExam";
 import { useExamEnrollmentRows } from "../../hooks/useExamEnrollments";
 import { fetchQuestionsByExam } from "../../api/question.api";
@@ -109,6 +110,10 @@ export default function ExamSetupPanel({ examId }: { examId: number }) {
         />
       )}
       <ExamPolicyPanel examId={examId} lectureId={lectureId} sessionId={sessionId} />
+      <ExamLectureAssignmentsPanel
+        examId={examId}
+        maxScore={exam?.max_score ?? 100}
+      />
       {hasSession && <ExamEnrollmentPanel examId={examId} />}
 
       <ExamBulkActionsPanel examId={examId} lectureId={lectureId} sessionId={sessionId} />

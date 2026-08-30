@@ -7,7 +7,8 @@ export const adminResultsQueryKeys = {
   lectures: ["admin-results-lectures"] as const,
   lectureSessionsAll: ["lecture-sessions-all"] as const,
 
-  adminExamResults: (examId: number | null | undefined) => ["admin-exam-results", examId] as const,
+  adminExamResults: (examId: number | null | undefined, lectureId?: number | null) =>
+    ["admin-exam-results", examId, lectureId ?? "all"] as const,
   adminExamDetail: (examId: number | null | undefined, enrollmentId?: number | null) =>
     enrollmentId == null ? ["admin-exam-detail", examId] as const : ["admin-exam-detail", examId, enrollmentId] as const,
   adminExamSummary: (examId: number | null | undefined) => ["admin-exam-summary", examId] as const,

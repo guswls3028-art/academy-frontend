@@ -3,7 +3,7 @@
  * 제안은 현재 대표 결과에서 계산하며 시험 컷이나 재시험 정책을 자동 변경하지 않는다.
  */
 
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   BookOpenCheck,
@@ -31,35 +31,46 @@ import {
   downloadExamWrongNoteExport,
 } from "@admin/domains/results/public/examResultExcel";
 import { adminExamsQueryKeys } from "../queryKeys";
+import { fetchExamLectureAssignments } from "../api/examLectureAssignments";
 import { buildExamResultsInsightModel } from "./examResultsInsights";
 import styles from "./ExamResultsViewerPanel.module.css";
 
 type Props = { examId: number };
 
-async function fetchResults(examId: number): Promise<AdminExamResultRow[]> {
-  const response = await api.get(`/results/admin/exams/${examId}/results/`);
+async function fetchResults(examId: number, lectureId: number | null): Promise<AdminExamResultRow[]> {
+  const response = await api.get(`/results/admin/exams/${examId}/results/`, {
+    params: lectureId == null ? undefined : { lecture_id: lectureId },
+  });
   const raw = response.data?.results ?? response.data;
   if (!Array.isArray(raw)) throw new Error("시험 결과 응답 형식이 올바르지 않습니다.");
   return raw;
 }
 
-async function fetchQuestionStats(examId: number): Promise<QuestionStat[]> {
-  const response = await api.get(`/results/admin/exams/${examId}/questions/`);
+async function fetchQuestionStats(examId: number, lectureId: number | null): Promise<QuestionStat[]> {
+  const response = await api.get(`/results/admin/exams/${examId}/questions/`, {
+    params: lectureId == null ? undefined : { lecture_id: lectureId },
+  });
   const raw = response.data?.results ?? response.data;
   if (!Array.isArray(raw)) throw new Error("문항 통계 응답 형식이 올바르지 않습니다.");
   return raw;
 }
 
 export default function ExamResultsViewerPanel({ examId }: Props) {
+  const [selectedLectureId, setSelectedLectureId] = useState<number | null>(null);
   const { data: exam } = useAdminExam(examId);
+  const assignmentsQ = useQuery({
+    queryKey: adminExamsQueryKeys.examLectureAssignments(examId),
+    queryFn: () => fetchExamLectureAssignments(examId),
+    enabled: Number.isFinite(examId),
+  });
   const resultsQ = useQuery({
-    queryKey: adminExamsQueryKeys.adminExamResults(examId),
-    queryFn: () => fetchResults(examId),
+    queryKey: adminExamsQueryKeys.adminExamResults(examId, selectedLectureId),
+    queryFn: () => fetchResults(examId, selectedLectureId),
     enabled: Number.isFinite(examId),
   });
   const statsQ = useQuery({
-    queryKey: adminExamsQueryKeys.examQuestionStats(examId),
-    queryFn: () => fetchQuestionStats(examId),
+    queryKey: adminExamsQueryKeys.examQuestionStats(examId, selectedLectureId),
+    queryFn: () => fetchQuestionStats(examId, selectedLectureId),
     enabled: Number.isFinite(examId),
   });
 
@@ -71,7 +82,18 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
     : typeof resultMaxScore === "number" && resultMaxScore > 0
       ? resultMaxScore
       : 100;
-  const passScore = typeof exam?.pass_score === "number" ? exam.pass_score : 0;
+  const assignments = assignmentsQ.data?.assignments ?? [];
+  const selectedAssignment = assignments.find(
+    (assignment) => assignment.lecture_id === selectedLectureId,
+  );
+  const passScore = selectedAssignment?.pass_score
+    ?? (typeof exam?.pass_score === "number" ? exam.pass_score : 0);
+  const hasMixedCutoffs = new Set(
+    assignments.map((assignment) => assignment.pass_score),
+  ).size > 1;
+  const mixedCutoffs = selectedLectureId == null && hasMixedCutoffs;
+  const scopeName = selectedAssignment?.lecture_title ?? "전체 강의";
+  const cutoffLabel = mixedCutoffs ? "강의별 기준" : `${passScore}점`;
   const insight = useMemo(
     () => buildExamResultsInsightModel({
       results,
@@ -137,6 +159,40 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
       {exam?.grading_mode !== "choice" && <ManualExamGradingGrid examId={examId} />}
       <ExamResultExcelImport examId={examId} examTitle={exam?.title ?? "시험"} />
 
+      <section className={styles.scopePanel} aria-labelledby="exam-result-scope-title">
+        <div className={styles.scopeHeading}>
+          <div>
+            <span>RESULT SCOPE</span>
+            <h2 id="exam-result-scope-title">어느 강의 성적을 볼까요?</h2>
+          </div>
+          <p><b>{scopeName}</b> · {cutoffLabel}</p>
+        </div>
+        <div className={styles.scopeRail} role="group" aria-label="성적 조회 강의 필터">
+          <button
+            type="button"
+            aria-pressed={selectedLectureId == null}
+            onClick={() => setSelectedLectureId(null)}
+          >
+            <span>전체 성적</span>
+            <strong>{assignmentsQ.data?.total_selected_count ?? results.length}명</strong>
+            <small>{hasMixedCutoffs ? "강의별 컷 적용" : `${assignments[0]?.pass_score ?? passScore}점 기준`}</small>
+          </button>
+          {assignments.map((assignment) => (
+            <button
+              key={assignment.lecture_id}
+              type="button"
+              aria-pressed={selectedLectureId === assignment.lecture_id}
+              style={{ "--scope-color": assignment.lecture_color || "var(--color-primary)" } as CSSProperties}
+              onClick={() => setSelectedLectureId(assignment.lecture_id)}
+            >
+              <span>{assignment.lecture_title}</span>
+              <strong>{assignment.selected_count}명</strong>
+              <small>귀가 기준 {assignment.pass_score}점</small>
+            </button>
+          ))}
+        </div>
+      </section>
+
       <section className={styles.analysisShell} aria-labelledby="exam-analysis-title">
         <header className={styles.analysisHeader}>
           <div className={styles.headingCopy}>
@@ -153,11 +209,11 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
               loading={analysisExport.isPending}
               disabled={!hasData}
               title={hasData
-                ? "브리핑·분포·문항 우선순위·등수·답안을 한 파일로 내려받습니다."
+                ? "화면의 강의 필터와 관계없이 전체 강의 브리핑·분포·등수·답안을 내려받습니다."
                 : "채점 결과가 저장되면 내려받을 수 있습니다."}
               onClick={() => analysisExport.mutate()}
             >
-              수업 분석 리포트 (엑셀)
+              {assignments.length > 1 ? "전체 강의 분석 리포트" : "수업 분석 리포트"} (엑셀)
             </Button>
             <Button
               type="button"
@@ -167,11 +223,11 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
               loading={wrongNoteExport.isPending}
               disabled={!hasData}
               title={hasData
-                ? "현재 오답과 복습 지정 문항을 학생별로 내려받습니다."
+                ? "화면의 강의 필터와 관계없이 전체 강의의 현재 오답과 복습 지정 문항을 내려받습니다."
                 : "채점 결과가 저장되면 내려받을 수 있습니다."}
               onClick={() => wrongNoteExport.mutate()}
             >
-              학생별 틀린 문항 (엑셀)
+              {assignments.length > 1 ? "전체 강의 틀린 문항" : "학생별 틀린 문항"} (엑셀)
             </Button>
           </div>
         </header>
@@ -202,10 +258,10 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
               <Metric label="상위 10%" value={`${insight.topTenAverage.toFixed(1)}점`} sub={`최고 ${insight.highest.toFixed(1)}점`} />
               <Metric label="표준편차" value={insight.stdDev.toFixed(1)} sub={`만점 대비 ${insight.stdRate.toFixed(1)}%`} />
               <Metric
-                label={insight.hasPassCriterion ? `1차 합격 컷 ${passScore}점` : "1차 합격 기준"}
+                label={insight.hasPassCriterion ? `1차 합격 컷 ${cutoffLabel}` : "1차 합격 기준"}
                 value={insight.hasPassCriterion ? `${Math.round(insight.passRate * 100)}%` : "기준 미설정"}
                 sub={insight.hasPassCriterion
-                  ? `합격 ${insight.passCount} · 미달 ${insight.failCount} · 보충 완료 ${insight.remediatedCount}`
+                  ? `합격 ${insight.passCount} · 미달 ${insight.failCount} · 기준 적용 ${insight.passCriterionCount}명 · 보충 완료 ${insight.remediatedCount}`
                   : "시험 설정에서 기준 점수를 입력하세요"}
               />
             </div>
@@ -219,7 +275,7 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
                   </div>
                   <div className={styles.markerLegend}>
                     <span>평균 {insight.average.toFixed(1)}</span>
-                    <span>{insight.hasPassCriterion ? `컷 ${passScore}` : "컷 미설정"}</span>
+                    <span>{insight.hasPassCriterion ? `컷 ${cutoffLabel}` : "컷 미설정"}</span>
                   </div>
                 </div>
                 <div className={styles.histogram} role="img" aria-label="만점 대비 점수 구간별 인원">
@@ -327,7 +383,11 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
           <h2>학생별 결과</h2>
           <p>학생을 선택하면 상세 채점 결과와 오답 확인 상태를 볼 수 있습니다.</p>
         </div>
-        <ExamResultsPanel examId={examId} />
+        <ExamResultsPanel
+          key={`${examId}:${selectedLectureId ?? "all"}`}
+          examId={examId}
+          lectureId={selectedLectureId}
+        />
       </section>
     </div>
   );
