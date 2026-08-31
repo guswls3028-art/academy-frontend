@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/scores/panels/SessionScoresPanel.tsx
 // 성적 테이블 — 엑셀형 키보드 이동 (Tab/화살표), 자동 저장과 실행 취소
 
-import { useEffect, useMemo, useState, useCallback, useRef, forwardRef, useImperativeHandle } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, useCallback, useRef, forwardRef, useImperativeHandle } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -15,7 +15,6 @@ import { scoresQueryKeys } from "../api/queryKeys";
 import { fetchAttendance, updateAttendance } from "@/shared/api/contracts/attendance";
 
 import ScoresTable, { type ScoresTableHandle } from "../components/ScoresTable";
-import StudentScoresDrawer from "../components/StudentScoresDrawer";
 import StudentResultDrawer from "@admin/domains/results/components/StudentResultDrawer";
 import { EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -27,6 +26,8 @@ import {
   matchesSessionScoreStudentSearch,
 } from "@/shared/scoring/sessionScoreRows";
 import type { ScoreActiveCell, ScoreActiveEditor } from "../api/scoreDraft";
+
+const StudentScoresDrawer = lazy(() => import("../components/StudentScoresDrawer"));
 
 type Props = {
   sessionId: number;
@@ -555,17 +556,19 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
 
       {/* 학생 상세 드로어 (편집 모드에서도 유지) */}
       {drawerRow && (
-        <StudentScoresDrawer
-          row={drawerRow}
-          meta={meta}
-          sessionId={sessionId}
-          isEditMode={isEditMode}
-          hasUnsavedChanges={hasUnsavedChanges}
-          onClose={() => { setDrawerEnrollmentId(null); setAnswerDetail(null); }}
-          onOpenAnswerDetail={(examId, enrollmentId, examTitle) => {
-            setAnswerDetail({ examId, enrollmentId, examTitle });
-          }}
-        />
+        <Suspense fallback={<div role="status">학생 성적 상세를 불러오는 중...</div>}>
+          <StudentScoresDrawer
+            row={drawerRow}
+            meta={meta}
+            sessionId={sessionId}
+            isEditMode={isEditMode}
+            hasUnsavedChanges={hasUnsavedChanges}
+            onClose={() => { setDrawerEnrollmentId(null); setAnswerDetail(null); }}
+            onOpenAnswerDetail={(examId, enrollmentId, examTitle) => {
+              setAnswerDetail({ examId, enrollmentId, examTitle });
+            }}
+          />
+        </Suspense>
       )}
 
       {/* 답안 상세 드로어 (StudentScoresDrawer 에서 "답안 상세 보기" 클릭) */}
