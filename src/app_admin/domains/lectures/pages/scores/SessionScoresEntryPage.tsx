@@ -17,6 +17,7 @@ import { useConfirm } from "@/shared/ui/confirm";
 
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@admin/domains/scores/public/SessionScoresPanel";
 import { useScoreEditDraft } from "@admin/domains/scores/public/useScoreEditDraft";
+import type { ScoreActiveCell } from "@admin/domains/scores/public/scoreDraft";
 import {
   fetchSessionScores,
   type SessionScoreRow,
@@ -158,6 +159,7 @@ export default function SessionScoresEntryPage({
     || summaryColumnMode !== defaultSummaryColumnMode;
   const { openSendMessageModal } = useSendMessageModal();
   const panelRef = useRef<SessionScoresPanelHandle>(null);
+  const [activeScoreCell, setActiveScoreCell] = useState<ScoreActiveCell | null>(null);
   const [showBulkScoreModal, setShowBulkScoreModal] = useState(false);
   const [bulkScoreValue, setBulkScoreValue] = useState("");
   const [bulkScoreTarget, setBulkScoreTarget] = useState<"exam" | "homework">("exam");
@@ -345,6 +347,7 @@ export default function SessionScoresEntryPage({
     panelRef,
     isActive: isEditMode && sessionIdForDraft > 0,
     checkForRecovery: sessionIdForDraft > 0,
+    activeCell: activeScoreCell,
   });
   const {
     beginEditing: beginScoreEditing,
@@ -1483,6 +1486,8 @@ export default function SessionScoresEntryPage({
           isEditMode={isEditMode}
           hasUnsavedChanges={isEditMode || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error"}
           onPendingChange={draft.requestAutosave}
+          activeEditors={draft.activeEditors}
+          onActiveCellChange={setActiveScoreCell}
           examEditTotal={examEditTotal}
           examEditObjective={false}
           examEditSubjective={examEditSubjective}

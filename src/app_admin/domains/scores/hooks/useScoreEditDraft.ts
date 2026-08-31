@@ -17,7 +17,9 @@ import {
   postScoreDraftCommit,
   resolvedScoreEditorRecoveryId,
   type PendingChange,
+  type ScoreActiveCell,
 } from "../api/scoreDraft";
+import { useScoreEditPresence } from "./useScoreEditPresence";
 import { blockAutoReload } from "@/shared/ui/layout/VersionChecker";
 import {
   getLocalItem,
@@ -66,9 +68,16 @@ type Options = {
   panelRef: React.RefObject<SessionScoresPanelHandle | null>;
   isActive: boolean;
   checkForRecovery?: boolean;
+  activeCell?: ScoreActiveCell | null;
 };
 
-export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecovery = isActive }: Options) {
+export function useScoreEditDraft({
+  sessionId,
+  panelRef,
+  isActive,
+  checkForRecovery = isActive,
+  activeCell = null,
+}: Options) {
   const { user } = useAuth();
   const draftTimestampKey = getTenantUserLocalKey(`scores-draft-ts:${sessionId}`, user?.id);
   const localDraftKey = getTenantUserLocalKey(
@@ -96,6 +105,19 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
   const savePromiseRef = useRef<Promise<number> | null>(null);
   const lastSaveAttemptAtRef = useRef(0);
   const needsDraftCommitRef = useRef(false);
+  const onPresenceError = useCallback((message: string, lockConflict: boolean) => {
+    if (lockConflict) setEditLockConflict(true);
+    setDraftStatus("error");
+    setDraftError(message);
+  }, []);
+  const { activeEditors, setActiveEditors, activeCellRef, presencePromiseRef } = useScoreEditPresence({
+    sessionId,
+    panelRef,
+    savePromiseRef,
+    isActive,
+    activeCell,
+    onPresenceError,
+  });
 
   const saveNow = useCallback(async function savePendingScores(
     preservedPanel?: SessionScoresPanelHandle | null,
@@ -109,6 +131,12 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
         return savedCount + await savePendingScores(queuedPanel);
       }
       return savedCount;
+    }
+
+    const presenceRequest = presencePromiseRef.current;
+    if (presenceRequest) {
+      await presenceRequest;
+      if (savePromiseRef.current) return savePendingScores(preservedPanel);
     }
 
     const panel = preservedPanel ?? panelRef.current;
@@ -142,7 +170,10 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
 
     const run = (async () => {
       try {
-        await putScoreDraft(sessionId, snapshot);
+        const draftResponse = await putScoreDraft(sessionId, snapshot, {
+          activeCell: activeCellRef.current,
+        });
+        setActiveEditors(draftResponse.active_editors);
         needsDraftCommitRef.current = true;
         if (draftTimestampKey) setLocalItem(draftTimestampKey, String(Date.now()));
 
@@ -190,7 +221,7 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
     const remaining = panel?.getPendingSnapshot?.() ?? [];
     if (remaining.length > 0) return savedCount + await savePendingScores(panel);
     return savedCount;
-  }, [draftTimestampKey, localDraftKey, panelRef, sessionId]);
+  }, [activeCellRef, draftTimestampKey, localDraftKey, panelRef, presencePromiseRef, sessionId, setActiveEditors]);
 
   const requestAutosave = useCallback(() => {
     if (!isActive) return;
@@ -215,6 +246,7 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
     getScoreDraft(sessionId)
       .then(async (data) => {
         if (cancelled) return;
+        setActiveEditors(data.active_editors);
         const localChanges = readLocalDraft(localDraftKey);
         const recoveryChanges = localChanges.length > 0 ? localChanges : data.changes;
         if (!recoveryChanges?.length) {
@@ -296,7 +328,7 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
     return () => {
       cancelled = true;
     };
-  }, [checkForRecovery, draftTimestampKey, localDraftKey, recoveryCheckNonce, sessionId]);
+  }, [checkForRecovery, draftTimestampKey, localDraftKey, recoveryCheckNonce, sessionId, setActiveEditors]);
 
   const retryRecoveryCheck = useCallback(() => {
     setRecoveryCheckNonce((value) => value + 1);
@@ -348,7 +380,10 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
     setIsStartingEdit(true);
     setDraftError(null);
     try {
-      await putScoreDraft(sessionId, []);
+      const data = await putScoreDraft(sessionId, [], {
+        activeCell: activeCellRef.current,
+      });
+      setActiveEditors(data.active_editors);
       setEditLockConflict(false);
       setEditStaleConflict(false);
       setLeaseReleaseFailed(false);
@@ -364,7 +399,7 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
     } finally {
       setIsStartingEdit(false);
     }
-  }, [sessionId]);
+  }, [activeCellRef, sessionId, setActiveEditors]);
 
   const restoreDraft = useCallback(async (): Promise<boolean> => {
     const panel = panelRef.current;
@@ -372,7 +407,11 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
     setIsStartingEdit(true);
     setDraftError(null);
     try {
-      await putScoreDraft(sessionId, restoreChanges, { acknowledgeStale: true });
+      const data = await putScoreDraft(sessionId, restoreChanges, {
+        acknowledgeStale: true,
+        activeCell: activeCellRef.current,
+      });
+      setActiveEditors(data.active_editors);
       setEditLockConflict(false);
       setEditStaleConflict(false);
       needsDraftCommitRef.current = restoreChanges.length > 0;
@@ -396,7 +435,7 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
     } finally {
       setIsStartingEdit(false);
     }
-  }, [restoreChanges, panelRef, sessionId]);
+  }, [activeCellRef, restoreChanges, panelRef, sessionId, setActiveEditors]);
 
   const discardDraft = useCallback(async (): Promise<boolean> => {
     setIsDiscardingDraft(true);
@@ -435,22 +474,6 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
     }
   }, [sessionId]);
 
-  // 변경이 없는 긴 편집에서도 다른 직원/탭이 동시에 수정하지 않도록 lease를 갱신한다.
-  useEffect(() => {
-    if (!isActive) return;
-    const interval = window.setInterval(() => {
-      if (savePromiseRef.current != null) return;
-      const snapshot = panelRef.current?.getPendingSnapshot?.() ?? [];
-      if (snapshot.length > 0) return;
-      void putScoreDraft(sessionId, []).catch((error) => {
-        if (isScoreEditLockedError(error)) setEditLockConflict(true);
-        setDraftStatus("error");
-        setDraftError("수정 권한 유지에 실패했습니다. 저장 후 다시 시도해 주세요.");
-      });
-    }, 60_000);
-    return () => window.clearInterval(interval);
-  }, [isActive, panelRef, sessionId]);
-
   // Pending changes block deployment auto-reload only while data is actually dirty.
   useEffect(() => {
     if (!isActive || !hasPendingChanges) return;
@@ -470,7 +493,7 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
       e.preventDefault();
       // 긴급 저장 시도 (브라우저가 허용하는 범위 내에서)
       try {
-        void putScoreDraft(sessionId, snapshot);
+        void putScoreDraft(sessionId, snapshot, { activeCell: activeCellRef.current });
       } catch {
         // 저장 실패해도 경고는 이미 표시됨
       }
@@ -480,13 +503,14 @@ export function useScoreEditDraft({ sessionId, panelRef, isActive, checkForRecov
     return () => {
       window.removeEventListener("beforeunload", handler);
     };
-  }, [isActive, localDraftKey, panelRef, sessionId]);
+  }, [activeCellRef, isActive, localDraftKey, panelRef, sessionId]);
 
   return {
     draftStatus,
     draftError,
     lastSavedAt,
     hasPendingChanges,
+    activeEditors,
     hasDraftToRestore,
     isRecoveryCheckPending,
     recoveryCheckFailed,

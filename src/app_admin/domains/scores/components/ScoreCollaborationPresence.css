@@ -1,0 +1,48 @@
+.ds-scores-table tbody td.ds-scores-cell-collaborator {
+  position: relative;
+  outline: 2px solid var(--color-warning) !important;
+  outline-offset: -2px;
+  background: color-mix(in srgb, var(--color-warning) 10%, var(--color-bg-surface)) !important;
+  cursor: not-allowed;
+}
+
+.ds-scores-collaborator-label {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  border-radius: var(--radius-full);
+  padding: 1px 5px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-warning) 18%, var(--color-bg-surface));
+  color: var(--color-text-primary);
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-scores-cell-conflict {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  border-radius: var(--radius-sm);
+  padding: 4px 5px;
+  background: color-mix(in srgb, var(--color-danger) 10%, var(--color-bg-surface));
+  color: var(--color-text-primary);
+  font-size: 10px;
+  line-height: 1.35;
+  text-align: left;
+}
+
+.ds-scores-cell-conflict button {
+  border: 1px solid color-mix(in srgb, var(--color-danger) 45%, var(--color-border-divider));
+  border-radius: var(--radius-sm);
+  padding: 2px 5px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-weight: 700;
+  cursor: pointer;
+}

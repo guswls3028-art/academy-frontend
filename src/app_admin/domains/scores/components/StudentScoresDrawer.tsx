@@ -27,7 +27,11 @@ import { fetchAdminExamResultDetail } from "@admin/domains/results/api/adminExam
 import { fetchAttemptHistory, type AttemptHistoryResponse } from "../api/attemptHistory";
 import { submitClinicRetake, updateClinicRetake } from "@admin/domains/clinic/api/clinicLinks.api";
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
-import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
+import {
+  getHomeworkScoreCellConflict,
+  patchHomeworkQuick,
+  type HomeworkScoreCellValue,
+} from "../api/patchHomeworkQuick";
 import { buildGenericScoreTemplate, buildScoreVars, buildScoreDetail, substituteScoreVars, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
 import {
   getSessionRowAttentionCountLabel,
@@ -820,6 +824,7 @@ function HomeworkResultCard({
             sourceId={hw.homework_id}
             sessionId={sessionId}
             isEditMode={isEditMode}
+            homeworkUpdatedAt={hw.block.updated_at ?? null}
           />
         </>
       )}
@@ -836,6 +841,18 @@ function parseOptionalPositiveNumber(value: string): number | null | false {
   return parsed;
 }
 
+type HomeworkFirstEditSnapshot = {
+  sourceId: number;
+  enrollmentId: number;
+  attemptIndex: 1;
+  expectedUpdatedAt: string | null;
+};
+
+function homeworkConflictValueLabel(value: HomeworkScoreCellValue): string {
+  if (value.meta_status === "NOT_SUBMITTED") return "미제출";
+  return value.score == null ? "미입력" : String(value.score);
+}
+
 function AttemptTimeline({
   enrollmentId,
   sourceType,
@@ -843,6 +860,7 @@ function AttemptTimeline({
   sessionId,
   isEditMode,
   onOpenDetail,
+  homeworkUpdatedAt,
   startNewAttempt = false,
   onStartNewAttemptHandled,
 }: {
@@ -852,6 +870,7 @@ function AttemptTimeline({
   sessionId?: number;
   isEditMode: boolean;
   onOpenDetail?: () => void;
+  homeworkUpdatedAt?: string | null;
   startNewAttempt?: boolean;
   onStartNewAttemptHandled?: () => void;
 }) {
@@ -863,6 +882,16 @@ function AttemptTimeline({
   const [editingAttempt, setEditingAttempt] = useState<number | null>(null);
   const [editScore, setEditScore] = useState("");
   const [editPassScore, setEditPassScore] = useState("");
+  const [homeworkFirstEditSnapshot, setHomeworkFirstEditSnapshot] = useState<HomeworkFirstEditSnapshot | null>(null);
+  const [homeworkFirstEditConflict, setHomeworkFirstEditConflict] = useState<HomeworkScoreCellValue | null>(null);
+
+  const resetAttemptEditing = useCallback(() => {
+    setEditingAttempt(null);
+    setEditScore("");
+    setEditPassScore("");
+    setHomeworkFirstEditSnapshot(null);
+    setHomeworkFirstEditConflict(null);
+  }, []);
 
   const isExam = sourceType === "exam";
   const retakeLabel = isExam ? "재시험" : "재시도";
@@ -914,9 +943,7 @@ function AttemptTimeline({
       qc.invalidateQueries({ queryKey: scoresQueryKeys.attemptHistory(sourceType, sourceId, enrollmentId) });
       qc.invalidateQueries({ queryKey: scoresQueryKeys.clinicTargets });
       qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
-      setEditingAttempt(null);
-      setEditScore("");
-      setEditPassScore("");
+      resetAttemptEditing();
       if (result.passed) {
         feedback.success(`${result.attempt_index}차 수정 → 합격! (${result.score}점)`);
       } else {
@@ -928,7 +955,7 @@ function AttemptTimeline({
 
   // 1차 수정 mutation (기존 성적 PATCH API — progress pipeline 트리거)
   const editFirstMutation = useMutation({
-    mutationFn: async (params: { score: number; maxScore?: number }) => {
+    mutationFn: async (params: { score: number; maxScore?: number; expectedUpdatedAt?: string | null }) => {
       if (isExam) {
         if (!sessionId) throw new Error("sessionId가 필요합니다.");
         return patchExamTotalScoreQuick({
@@ -946,6 +973,7 @@ function AttemptTimeline({
           homeworkId: sourceId,
           score: params.score,
           maxScore: params.maxScore,
+          expectedUpdatedAt: params.expectedUpdatedAt ?? null,
         });
       }
     },
@@ -953,12 +981,21 @@ function AttemptTimeline({
       qc.invalidateQueries({ queryKey: scoresQueryKeys.attemptHistory(sourceType, sourceId, enrollmentId) });
       qc.invalidateQueries({ queryKey: scoresQueryKeys.clinicTargets });
       qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
-      setEditingAttempt(null);
-      setEditScore("");
-      setEditPassScore("");
+      resetAttemptEditing();
       feedback.success("1차 점수가 수정되었습니다.");
     },
-    onError: () => feedback.error("점수 수정에 실패했습니다."),
+    onError: (error) => {
+      const conflict = getHomeworkScoreCellConflict(error);
+      if (conflict) {
+        setHomeworkFirstEditConflict(conflict.serverValue);
+        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
+        feedback.warning(
+          `다른 화면이 먼저 저장했습니다. 최신 서버값 ${homeworkConflictValueLabel(conflict.serverValue)}, 내 입력 ${editScore}을 유지했습니다. 확인 후 내 점수 다시 적용을 눌러 주세요.`,
+        );
+        return;
+      }
+      feedback.error("점수 수정에 실패했습니다.");
+    },
   });
 
   function handleEditSubmit(attemptIndex: number) {
@@ -989,9 +1026,23 @@ function AttemptTimeline({
 
     if (attemptIndex === 1) {
       // 1차: 기존 성적 PATCH API (Result + ExamAttempt 동기화 + progress pipeline)
+      let expectedUpdatedAt: string | null | undefined;
+      if (!isExam) {
+        const snapshot = homeworkFirstEditSnapshot;
+        if (
+          snapshot == null
+          || snapshot.sourceId !== sourceId
+          || snapshot.enrollmentId !== enrollmentId
+        ) {
+          feedback.error("과제 점수의 편집 시작 버전을 확인할 수 없습니다. 편집을 다시 열어 주세요.");
+          return;
+        }
+        expectedUpdatedAt = snapshot.expectedUpdatedAt;
+      }
       editFirstMutation.mutate({
         score: val,
         maxScore: data?.max_score ?? undefined,
+        expectedUpdatedAt,
       });
     } else {
       // 2차+: update-retake API
@@ -1048,6 +1099,10 @@ function AttemptTimeline({
     onStartNewAttemptHandled?.();
   }, [canAddRetake, data, onStartNewAttemptHandled, startNewAttempt]);
 
+  useEffect(() => {
+    resetAttemptEditing();
+  }, [enrollmentId, resetAttemptEditing, sourceId, sourceType]);
+
   return (
     <div className="student-scores-drawer__retry-section">
       {isLoading && (
@@ -1086,6 +1141,13 @@ function AttemptTimeline({
                           setEditingAttempt(a.attempt_index);
                           setEditScore(a.score != null ? String(a.score) : "");
                           setEditPassScore(a.attempt_index >= 2 && attemptPassScore != null ? String(attemptPassScore) : "");
+                          setHomeworkFirstEditConflict(null);
+                          setHomeworkFirstEditSnapshot(!isExam && a.attempt_index === 1 ? {
+                            sourceId,
+                            enrollmentId,
+                            attemptIndex: 1,
+                            expectedUpdatedAt: homeworkUpdatedAt ?? null,
+                          } : null);
                         }}
                         title="점수 수정"
                       >
@@ -1115,9 +1177,7 @@ function AttemptTimeline({
                         if (e.key === "Escape") {
                           e.preventDefault();
                           e.stopPropagation();
-                          setEditingAttempt(null);
-                          setEditScore("");
-                          setEditPassScore("");
+                          resetAttemptEditing();
                         }
                       }}
                       placeholder="점수"
@@ -1156,11 +1216,30 @@ function AttemptTimeline({
                     <button
                       type="button"
                       className="ssd-attempt-card__cancel"
-                      onClick={() => { setEditingAttempt(null); setEditScore(""); setEditPassScore(""); }}
+                      onClick={resetAttemptEditing}
                       disabled={isMutating}
                     >
                       취소
                     </button>
+                    {!isExam && a.attempt_index === 1 && homeworkFirstEditConflict && (
+                      <div className="ssd-attempt-card__conflict" role="alert">
+                        <span>
+                          최신 서버값 {homeworkConflictValueLabel(homeworkFirstEditConflict)} · 내 입력 {editScore || "미입력"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setHomeworkFirstEditSnapshot((current) => current ? {
+                              ...current,
+                              expectedUpdatedAt: homeworkFirstEditConflict.updated_at,
+                            } : current);
+                            setHomeworkFirstEditConflict(null);
+                          }}
+                        >
+                          내 점수 다시 적용
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="ssd-attempt-card__score-row">

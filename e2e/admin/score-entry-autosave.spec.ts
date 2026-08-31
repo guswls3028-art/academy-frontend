@@ -14,6 +14,12 @@ type ScoreRouteOptions = {
   scoreSummaryColumnDefault?: "exam_wrong";
   nullScoresPassedFalse?: boolean;
   nullHomeworkScoresPassedFalse?: boolean;
+  activeEditors?: Array<{
+    client_id: string;
+    editor_user_id: number;
+    editor_name: string;
+    active_cell: { type: "homework"; enrollmentId: number; homeworkId: number };
+  }>;
 };
 
 function createLocalJwt() {
@@ -29,6 +35,7 @@ function createLocalJwt() {
 async function openScores(
   page: Page,
   routeOptions: ScoreRouteOptions = {},
+  navigationTimeoutMs = 45_000,
 ): Promise<void> {
   const baseUrl = getBaseUrl("admin");
   test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(baseUrl), "성적 입력 route-mock 검증은 로컬 dev 서버 전용");
@@ -45,12 +52,12 @@ async function openScores(
   await installScoreRoutes(page, routeOptions);
   await page.goto(`${baseUrl}/workspace/lectures/9001/sessions/9002/scores`, {
     waitUntil: "domcontentloaded",
-    timeout: 45_000,
+    timeout: navigationTimeoutMs,
   });
   await expect(page).toHaveURL(/\/workspace\/lectures\/9001\/sessions\/9002\/scores/);
 }
 
-async function ensureScoreEditing(page: Page): Promise<void> {
+async function ensureScoreEditing(page: Page, loadingTimeoutMs = 30_000): Promise<void> {
   const cells = page.locator(".ds-scores-cell-editable");
   const saveAndLockButton = page.getByRole("button", { name: "저장하고 잠금", exact: true });
   const isStableEditingState = await saveAndLockButton.isVisible().catch(() => false)
@@ -58,10 +65,10 @@ async function ensureScoreEditing(page: Page): Promise<void> {
   if (isStableEditingState) return;
 
   const editButton = page.getByRole("button", { name: "수정", exact: true });
-  await expect(editButton).toBeVisible();
+  await expect(editButton).toBeVisible({ timeout: loadingTimeoutMs });
   await editButton.click();
-  await expect(saveAndLockButton).toBeVisible();
-  await expect(cells.first()).toBeVisible();
+  await expect(saveAndLockButton).toBeVisible({ timeout: loadingTimeoutMs });
+  await expect(cells.first()).toBeVisible({ timeout: loadingTimeoutMs });
 }
 
 const scorePatches: Array<Record<string, unknown>> = [];
@@ -82,6 +89,9 @@ let homeworkMaxScore = 100;
 let homeworkGradingMode: "SCORE" | "COMPLETION" = "SCORE";
 let homeworkAssignedRows = [false, true];
 let currentHomeworkScores: Array<number | null> = [null, 45];
+let currentHomeworkVersions: Array<string | null> = [null, "2026-08-30T09:00:02+09:00"];
+let homeworkVersionCounter = 2;
+let activeEditors: NonNullable<ScoreRouteOptions["activeEditors"]> = [];
 
 async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): Promise<void> {
   scorePatches.length = 0;
@@ -105,6 +115,11 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
   homeworkGradingMode = options.homeworkGradingMode ?? "SCORE";
   homeworkAssignedRows = [...(options.homeworkAssignedRows ?? [false, true])];
   currentHomeworkScores = [...(options.initialHomeworkScores ?? [null, 45])];
+  currentHomeworkVersions = currentHomeworkScores.map((score, index) => (
+    score == null ? null : `2026-08-30T09:00:${String(index + 1).padStart(2, "0")}+09:00`
+  ));
+  homeworkVersionCounter = currentHomeworkScores.length;
+  activeEditors = [...(options.activeEditors ?? [])];
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -183,6 +198,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
                     : currentHomeworkScores[index]! < 60,
                 is_locked: false,
                 meta: {},
+                updated_at: currentHomeworkVersions[index],
               },
             }] : [],
             clinic_required: score == null ? false : score < 60,
@@ -214,19 +230,19 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
 
     if (path.endsWith("/score-draft/")) {
       if (method === "GET") {
-        await route.fulfill({ json: { changes: currentDraft } });
+        await route.fulfill({ json: { changes: currentDraft, active_editors: activeEditors } });
         return;
       }
       if (method === "PUT") {
-        if (failNextDraftPut) {
+        const body = request.postDataJSON() as { changes?: unknown[] };
+        if (failNextDraftPut && (body.changes?.length ?? 0) > 0) {
           failNextDraftPut = false;
           await route.fulfill({ status: 500, json: { detail: "draft put failed once" } });
           return;
         }
-        const body = request.postDataJSON() as { changes?: unknown[] };
         draftPuts.push(body as Record<string, unknown>);
         currentDraft = body.changes ?? [];
-        await route.fulfill({ json: { changes: currentDraft } });
+        await route.fulfill({ json: { changes: currentDraft, active_editors: activeEditors } });
         return;
       }
     }
@@ -260,10 +276,72 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
       homeworkPatches.push(body);
       const enrollmentId = Number(body.enrollment_id);
       const rowIndex = enrollmentId - 9201;
+      const expectedUpdatedAt = body.expected_updated_at == null
+        ? null
+        : String(body.expected_updated_at);
+      const currentUpdatedAt = currentHomeworkVersions[rowIndex] ?? null;
+      if (expectedUpdatedAt !== currentUpdatedAt) {
+        await route.fulfill({
+          status: 409,
+          json: {
+            detail: "다른 화면에서 이 과제 점수가 먼저 저장되었습니다.",
+            code: "SCORE_CELL_CONFLICT",
+            server_value: {
+              score: currentHomeworkScores[rowIndex] ?? null,
+              max_score: homeworkMaxScore,
+              meta_status: null,
+              updated_at: currentUpdatedAt,
+            },
+            expected_updated_at: expectedUpdatedAt,
+          },
+        });
+        return;
+      }
       if (rowIndex >= 0 && rowIndex < currentHomeworkScores.length) {
         currentHomeworkScores[rowIndex] = typeof body.score === "number" ? body.score : null;
+        homeworkVersionCounter += 1;
+        currentHomeworkVersions[rowIndex] = `2026-08-30T09:01:${String(homeworkVersionCounter).padStart(2, "0")}+09:00`;
       }
-      await route.fulfill({ json: { ok: true } });
+      await route.fulfill({
+        json: {
+          score: currentHomeworkScores[rowIndex] ?? null,
+          max_score: homeworkMaxScore,
+          meta: null,
+          updated_at: currentHomeworkVersions[rowIndex] ?? null,
+        },
+      });
+      return;
+    }
+
+    if (path.endsWith("/api/v1/results/admin/attempt-history/") && method === "GET") {
+      const requestUrl = new URL(request.url());
+      const enrollmentId = Number(requestUrl.searchParams.get("enrollment_id"));
+      const rowIndex = enrollmentId - 9201;
+      const homeworkId = requestUrl.searchParams.get("homework_id");
+      const isHomework = homeworkId != null;
+      const score = isHomework ? currentHomeworkScores[rowIndex] : currentScores[rowIndex];
+      const maxScore = isHomework ? homeworkMaxScore : 100;
+      await route.fulfill({
+        json: {
+          source_type: isHomework ? "homework" : "exam",
+          source_id: isHomework ? Number(homeworkId) : 9101,
+          source_title: isHomework ? "단원 복습" : "주간 확인",
+          pass_score: 60,
+          max_score: maxScore,
+          attempts: [{
+            attempt_index: 1,
+            score,
+            max_score: maxScore,
+            pass_score: 60,
+            passed: score == null ? null : score >= 60,
+            at: "2026-08-30T09:00:00+09:00",
+            source: "grade",
+            meta_status: null,
+          }],
+          clinic_link_id: null,
+          resolved: score == null ? null : score >= 60,
+        },
+      });
       return;
     }
 
@@ -369,9 +447,371 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
       return;
     }
 
+    // Workspace chrome loads these counters/lists independently of the score route.
+    // Keep this route-mock test self-contained instead of waiting on a local API proxy.
+    if (path.endsWith("/api/v1/clinic/participants/") && method === "GET") {
+      await route.fulfill({ json: { count: 0, results: [] } });
+      return;
+    }
+
+    if (path.endsWith("/api/v1/students/registration_requests/") && method === "GET") {
+      await route.fulfill({ json: { count: 0, results: [] } });
+      return;
+    }
+
+    if (path.endsWith("/api/v1/submissions/submissions/pending/") && method === "GET") {
+      await route.fulfill({ json: [] });
+      return;
+    }
+
+    if (path.endsWith("/api/v1/results/admin/teacher-dashboard-counts/") && method === "GET") {
+      await route.fulfill({ json: { video_failed: 0 } });
+      return;
+    }
+
+    if (
+      (path.endsWith("/api/v1/community/admin/reports/pending-count/")
+        || path.endsWith("/api/v1/community/notifications/unread-count/"))
+      && method === "GET"
+    ) {
+      await route.fulfill({ json: { count: 0 } });
+      return;
+    }
+
+    if (path.endsWith("/api/v1/community/admin/posts/") && method === "GET") {
+      await route.fulfill({ json: { count: 0, results: [] } });
+      return;
+    }
+
     await route.fallback();
   });
 }
+
+test("같은 계정의 다른 화면이 선택한 과제 셀을 표시하고 다른 셀은 입력한다", async ({ page }) => {
+  await openScores(page, {
+    includeHomework: true,
+    homeworkAssignedRows: [true, true],
+    activeEditors: [{
+      client_id: "other-screen",
+      editor_user_id: 12,
+      editor_name: "박철",
+      active_cell: { type: "homework", enrollmentId: 9201, homeworkId: 9151 },
+    }],
+  });
+  await ensureScoreEditing(page);
+
+  const occupiedCell = page.locator('[data-score-cell="homework:9201:9151"]');
+  const availableCell = page.locator('[data-score-cell="homework:9202:9151"]');
+  await expect(occupiedCell).toHaveAttribute("data-collaborator-active", "true");
+  await expect(occupiedCell).toContainText("박철 입력 중");
+  await expect(occupiedCell).not.toHaveAttribute("data-editable", "true");
+  await expect(availableCell).toHaveAttribute("data-editable", "true");
+
+  await availableCell.click();
+  await expect.poll(
+    () => draftPuts.some((put) => JSON.stringify(put.active_cell) === JSON.stringify({
+      type: "homework",
+      enrollmentId: 9202,
+      homeworkId: 9151,
+    })),
+  ).toBe(true);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(occupiedCell).toBeVisible();
+  const occupiedBox = await occupiedCell.boundingBox();
+  const labelBox = await occupiedCell.locator(".ds-scores-collaborator-label").boundingBox();
+  expect(occupiedBox).not.toBeNull();
+  expect(labelBox).not.toBeNull();
+  expect(labelBox!.x + labelBox!.width).toBeLessThanOrEqual(occupiedBox!.x + occupiedBox!.width + 1);
+});
+
+test("두 브라우저가 서로 다른 과제 셀 저장을 실시간 수렴하고 reload 뒤에도 유지한다", async ({ browser }) => {
+  test.setTimeout(300_000);
+  const contextA = await browser.newContext({ serviceWorkers: "block" });
+  const contextB = await browser.newContext({ serviceWorkers: "block" });
+  try {
+    const pageA = await contextA.newPage();
+    const pageB = await contextB.newPage();
+    const routeOptions: ScoreRouteOptions = {
+      includeHomework: true,
+      homeworkAssignedRows: [true, true],
+      initialHomeworkScores: [10, 20],
+    };
+    await openScores(pageA, routeOptions, 90_000);
+    await ensureScoreEditing(pageA, 90_000);
+    await openScores(pageB, routeOptions, 90_000);
+    await ensureScoreEditing(pageB, 90_000);
+
+    const pageAFirst = pageA.getByRole("textbox", { name: "자동저장학생1 · 단원 복습 점수 입력" });
+    const pageASecondCell = pageA.locator('[data-score-cell="homework:9202:9151"]');
+    const pageBFirstCell = pageB.locator('[data-score-cell="homework:9201:9151"]');
+    const pageBSecond = pageB.getByRole("textbox", { name: "자동저장학생2 · 단원 복습 점수 입력" });
+
+    await pageAFirst.fill("71");
+    await pageA.keyboard.press("Control+s");
+    await expect.poll(() => currentHomeworkScores[0]).toBe(71);
+    await expect(pageBFirstCell).toContainText("71", { timeout: 10_000 });
+
+    await pageBSecond.fill("82");
+    await pageB.keyboard.press("Control+s");
+    await expect.poll(() => currentHomeworkScores[1]).toBe(82);
+    await expect(pageASecondCell).toContainText("82", { timeout: 10_000 });
+
+    await pageA.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
+    await pageB.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
+    await expect(pageA.locator('[data-score-cell="homework:9201:9151"]')).toContainText("71", { timeout: 90_000 });
+    await expect(pageA.locator('[data-score-cell="homework:9202:9151"]')).toContainText("82", { timeout: 90_000 });
+    await expect(pageB.locator('[data-score-cell="homework:9201:9151"]')).toContainText("71", { timeout: 90_000 });
+    await expect(pageB.locator('[data-score-cell="homework:9202:9151"]')).toContainText("82", { timeout: 90_000 });
+  } finally {
+    await contextA.close();
+    await contextB.close();
+  }
+});
+
+test("같은 과제 셀 경쟁은 conflict로 서버값을 보존하고 내 초안을 명시적으로 재적용한다", async ({ browser }) => {
+  test.setTimeout(300_000);
+  // Presence 전파 전에 두 화면이 같은 version을 읽은 race window를 재현한다.
+  // 동일 셀 선택 자체의 SCORE_EDIT_LOCKED는 backend test_score_draft_edit_lease.py가 별도로 봉인한다.
+  const contextA = await browser.newContext({ serviceWorkers: "block" });
+  const contextB = await browser.newContext({ serviceWorkers: "block" });
+  try {
+    const pageA = await contextA.newPage();
+    const pageB = await contextB.newPage();
+    const routeOptions: ScoreRouteOptions = {
+      includeHomework: true,
+      homeworkAssignedRows: [true, true],
+      initialHomeworkScores: [10, 20],
+    };
+    await openScores(pageA, routeOptions, 90_000);
+    await ensureScoreEditing(pageA, 90_000);
+    await openScores(pageB, routeOptions, 90_000);
+    await ensureScoreEditing(pageB, 90_000);
+
+    const pageAInput = pageA.getByRole("textbox", { name: "자동저장학생1 · 단원 복습 점수 입력" });
+    const pageBInput = pageB.getByRole("textbox", { name: "자동저장학생1 · 단원 복습 점수 입력" });
+    let pageBScoreReads = 0;
+    pageB.on("response", (response) => {
+      if (/\/results\/admin\/sessions\/9002\/scores\/$/.test(new URL(response.url()).pathname)) {
+        pageBScoreReads += 1;
+      }
+    });
+
+    await pageBInput.fill("88");
+    const readsBeforeWinner = pageBScoreReads;
+    await pageAInput.fill("77");
+    await pageA.keyboard.press("Control+s");
+    await expect.poll(() => currentHomeworkScores[0]).toBe(77);
+    await expect.poll(() => pageBScoreReads, { timeout: 10_000 }).toBeGreaterThan(readsBeforeWinner);
+    await expect(pageBInput).toHaveText("88");
+
+    await pageB.keyboard.press("Control+s");
+    const conflict = pageB.getByRole("alert").filter({ hasText: "최신 서버값 77" });
+    await expect(conflict).toContainText("내 입력 88");
+    await expect(pageBInput).toHaveText("88");
+    expect(currentHomeworkScores[0]).toBe(77);
+
+    await conflict.getByRole("button", { name: "내 점수 다시 적용" }).click();
+    await pageB.keyboard.press("Control+s");
+    await expect.poll(() => currentHomeworkScores[0]).toBe(88);
+    await expect(pageA.locator('[data-score-cell="homework:9201:9151"]')).toContainText("88", { timeout: 10_000 });
+
+    await pageA.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
+    await pageB.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
+    await expect(pageA.locator('[data-score-cell="homework:9201:9151"]')).toContainText("88", { timeout: 90_000 });
+    await expect(pageB.locator('[data-score-cell="homework:9201:9151"]')).toContainText("88", { timeout: 90_000 });
+  } finally {
+    await contextA.close();
+    await contextB.close();
+  }
+});
+
+test("선택만 한 과제 셀은 원격 저장 뒤 옛 version으로 conflict하고 명시 재적용한다", async ({ browser }) => {
+  test.setTimeout(300_000);
+  const contextA = await browser.newContext({ serviceWorkers: "block" });
+  const contextB = await browser.newContext({ serviceWorkers: "block" });
+  try {
+    const pageA = await contextA.newPage();
+    const pageB = await contextB.newPage();
+    const routeOptions: ScoreRouteOptions = {
+      includeHomework: true,
+      homeworkAssignedRows: [true, true],
+      initialHomeworkScores: [10, 20],
+    };
+    await openScores(pageA, routeOptions, 90_000);
+    await ensureScoreEditing(pageA, 90_000);
+    await openScores(pageB, routeOptions, 90_000);
+    await ensureScoreEditing(pageB, 90_000);
+
+    const pageAInput = pageA.getByRole("textbox", { name: "자동저장학생1 · 단원 복습 점수 입력" });
+    const pageBInput = pageB.getByRole("textbox", { name: "자동저장학생1 · 단원 복습 점수 입력" });
+    let pageBObservedHomeworkScore: number | null | undefined;
+    pageB.on("response", async (response) => {
+      if (/\/results\/admin\/sessions\/9002\/scores\/$/.test(new URL(response.url()).pathname)) {
+        const body = await response.json().catch(() => null) as {
+          rows?: Array<{ homeworks?: Array<{ block?: { score?: number | null } }> }>;
+        } | null;
+        if (!body) return;
+        pageBObservedHomeworkScore = body.rows?.[0]?.homeworks?.[0]?.block?.score;
+      }
+    });
+
+    await pageBInput.click();
+    await expect(pageBInput).toHaveText("10");
+
+    await pageAInput.fill("77");
+    await pageA.keyboard.press("Control+s");
+    await expect.poll(() => currentHomeworkScores[0]).toBe(77);
+    await expect.poll(() => pageBObservedHomeworkScore, { timeout: 10_000 }).toBe(77);
+    await expect(pageBInput).toHaveText("10");
+
+    await pageBInput.fill("88");
+    await pageB.keyboard.press("Control+s");
+    const conflict = pageB.getByRole("alert").filter({ hasText: "최신 서버값 77" });
+    await expect(conflict).toContainText("내 입력 88");
+    await expect(pageBInput).toHaveText("88");
+    expect(currentHomeworkScores[0]).toBe(77);
+
+    await conflict.getByRole("button", { name: "내 점수 다시 적용" }).click();
+    await pageB.keyboard.press("Control+s");
+    await expect.poll(() => currentHomeworkScores[0]).toBe(88);
+    await expect(pageA.locator('[data-score-cell="homework:9201:9151"]')).toContainText("88", { timeout: 10_000 });
+
+    await pageA.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
+    await pageB.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
+    await expect(pageA.locator('[data-score-cell="homework:9201:9151"]')).toContainText("88", { timeout: 90_000 });
+    await expect(pageB.locator('[data-score-cell="homework:9201:9151"]')).toContainText("88", { timeout: 90_000 });
+  } finally {
+    await contextA.close();
+    await contextB.close();
+  }
+});
+
+test("완료형 과제 셀은 focus 시 version을 고정해 원격 저장 뒤 stale 변경을 막는다", async ({ browser }) => {
+  test.setTimeout(300_000);
+  const contextA = await browser.newContext({ serviceWorkers: "block" });
+  const contextB = await browser.newContext({ serviceWorkers: "block" });
+  try {
+    const pageA = await contextA.newPage();
+    const pageB = await contextB.newPage();
+    const routeOptions: ScoreRouteOptions = {
+      includeHomework: true,
+      homeworkAssignedRows: [true, true],
+      homeworkGradingMode: "COMPLETION",
+      initialHomeworkScores: [0, 1],
+    };
+    await openScores(pageA, routeOptions, 90_000);
+    await ensureScoreEditing(pageA, 90_000);
+    await openScores(pageB, routeOptions, 90_000);
+    await ensureScoreEditing(pageB, 90_000);
+
+    const pageASelect = pageA.getByRole("combobox", { name: "자동저장학생1 · 단원 복습 완료 상태" });
+    const pageBSelect = pageB.getByRole("combobox", { name: "자동저장학생1 · 단원 복습 완료 상태" });
+    let pageBObservedHomeworkScore: number | null | undefined;
+    pageB.on("response", async (response) => {
+      if (/\/results\/admin\/sessions\/9002\/scores\/$/.test(new URL(response.url()).pathname)) {
+        const body = await response.json().catch(() => null) as {
+          rows?: Array<{ homeworks?: Array<{ block?: { score?: number | null } }> }>;
+        } | null;
+        if (!body) return;
+        pageBObservedHomeworkScore = body.rows?.[0]?.homeworks?.[0]?.block?.score;
+      }
+    });
+
+    await pageBSelect.focus();
+    await expect(pageBSelect).toHaveValue("미완료");
+
+    await pageASelect.selectOption("완료");
+    await pageA.keyboard.press("Control+s");
+    await expect.poll(() => currentHomeworkScores[0]).toBe(1);
+    await expect.poll(() => pageBObservedHomeworkScore, { timeout: 10_000 }).toBe(1);
+    await expect(pageBSelect).toHaveValue("미완료");
+
+    await pageBSelect.selectOption("미입력");
+    await pageB.keyboard.press("Control+s");
+    const conflict = pageB.getByRole("alert").filter({ hasText: "최신 서버값 1" });
+    await expect(conflict).toContainText("내 입력 미입력");
+    await expect(pageBSelect).toHaveValue("미입력");
+    expect(currentHomeworkScores[0]).toBe(1);
+
+    await conflict.getByRole("button", { name: "내 점수 다시 적용" }).click();
+    await pageB.keyboard.press("Control+s");
+    await expect.poll(() => currentHomeworkScores[0]).toBeNull();
+
+    await pageA.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
+    await pageB.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
+    await expect(pageA.locator('[data-score-cell="homework:9201:9151"]')).toContainText("미입력", { timeout: 90_000 });
+    await expect(pageB.locator('[data-score-cell="homework:9201:9151"]')).toContainText("미입력", { timeout: 90_000 });
+  } finally {
+    await contextA.close();
+    await contextB.close();
+  }
+});
+
+test("학생 상세 1차 과제 편집은 시작 version을 고정해 원격 저장을 덮어쓰지 않는다", async ({ browser }) => {
+  test.setTimeout(300_000);
+  const contextA = await browser.newContext({ serviceWorkers: "block" });
+  const contextB = await browser.newContext({ serviceWorkers: "block" });
+  try {
+    const pageA = await contextA.newPage();
+    const pageB = await contextB.newPage();
+    const routeOptions: ScoreRouteOptions = {
+      includeHomework: true,
+      homeworkAssignedRows: [true, true],
+      initialHomeworkScores: [10, 20],
+    };
+    await openScores(pageA, routeOptions, 90_000);
+    await ensureScoreEditing(pageA, 90_000);
+    await openScores(pageB, routeOptions, 90_000);
+    await ensureScoreEditing(pageB, 90_000);
+
+    await pageB.getByText("자동저장학생1", { exact: true }).first().click();
+    const drawer = pageB.getByRole("complementary", { name: /자동저장학생1 학생 상세/ });
+    await expect(drawer).toBeVisible();
+    await drawer.getByRole("button", { name: /^단원 복습/ }).click();
+    const attemptCard = drawer.locator(".ssd-attempt-card").filter({ hasText: "1차 과제" });
+    await attemptCard.getByTitle("점수 수정").click();
+    const drawerScoreInput = attemptCard.getByRole("spinbutton").first();
+    await expect(drawerScoreInput).toHaveValue("10");
+
+    let pageBObservedHomeworkScore: number | null | undefined;
+    pageB.on("response", async (response) => {
+      if (/\/results\/admin\/sessions\/9002\/scores\/$/.test(new URL(response.url()).pathname)) {
+        const body = await response.json().catch(() => null) as {
+          rows?: Array<{ homeworks?: Array<{ block?: { score?: number | null } }> }>;
+        } | null;
+        if (!body) return;
+        pageBObservedHomeworkScore = body.rows?.[0]?.homeworks?.[0]?.block?.score;
+      }
+    });
+
+    const pageAInput = pageA.getByRole("textbox", { name: "자동저장학생1 · 단원 복습 점수 입력" });
+    await pageAInput.fill("77");
+    await pageA.keyboard.press("Control+s");
+    await expect.poll(() => currentHomeworkScores[0]).toBe(77);
+    await expect.poll(() => pageBObservedHomeworkScore, { timeout: 10_000 }).toBe(77);
+    await expect(drawerScoreInput).toHaveValue("10");
+
+    await drawerScoreInput.fill("88");
+    await attemptCard.getByRole("button", { name: "저장", exact: true }).click();
+    const conflict = attemptCard.getByRole("alert").filter({ hasText: "최신 서버값 77" });
+    await expect(conflict).toContainText("내 입력 88");
+    await expect(drawerScoreInput).toHaveValue("88");
+    expect(currentHomeworkScores[0]).toBe(77);
+
+    await conflict.getByRole("button", { name: "내 점수 다시 적용" }).click();
+    await attemptCard.getByRole("button", { name: "저장", exact: true }).click();
+    await expect.poll(() => currentHomeworkScores[0]).toBe(88);
+
+    await pageA.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
+    await pageB.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
+    await expect(pageA.locator('[data-score-cell="homework:9201:9151"]')).toContainText("88", { timeout: 90_000 });
+    await expect(pageB.locator('[data-score-cell="homework:9201:9151"]')).toContainText("88", { timeout: 90_000 });
+  } finally {
+    await contextA.close();
+    await contextB.close();
+  }
+});
 
 test.describe("성적 입력 잠금과 Excel 단축키", () => {
   test.setTimeout(120_000);
@@ -690,7 +1130,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await openScores(page);
 
     const editButton = page.getByRole("button", { name: "수정", exact: true });
-    await expect(editButton).toBeVisible();
+    await expect(editButton).toBeVisible({ timeout: 30_000 });
     await expect(page.getByRole("status")).toContainText("입력 잠금됨");
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath("score-entry-locked-1366.png"), fullPage: true });
@@ -719,7 +1159,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await page.setViewportSize({ width: 1366, height: 900 });
     await ensureScoreEditing(page);
 
-    await expect(cells.nth(0)).toHaveAttribute("role", "textbox");
+    await expect(cells.nth(0)).toHaveAttribute("role", "textbox", { timeout: 30_000 });
     await expect(cells.nth(0)).toHaveAttribute("aria-label", /자동저장학생1.*주간 확인/);
     await cells.nth(0).fill("");
     await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
@@ -815,7 +1255,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(page).toHaveURL(/\/attendance/);
     await page.getByRole("tab", { name: "성적", exact: true }).first().click();
     const recoveryDialog = page.getByRole("dialog", { name: /임시저장된 변경 1건/ });
-    await expect(recoveryDialog).toBeVisible({ timeout: 10_000 });
+    await expect(recoveryDialog).toBeVisible({ timeout: 30_000 });
     await expect(editButton).toBeDisabled();
     await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeDisabled();
     const releasedBeforeRecoveryNavigation = draftCommits.filter(
