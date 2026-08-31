@@ -83,6 +83,7 @@ let currentDraft: unknown[] = [];
 let failNextDraftCommit = false;
 let failNextLeaseRelease = false;
 let failNextDraftPut = false;
+let failNextPresenceDraftPut = false;
 let delayNextScorePatchMs = 0;
 let includeHomework = false;
 let homeworkMaxScore = 100;
@@ -109,6 +110,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
   failNextDraftCommit = false;
   failNextLeaseRelease = false;
   failNextDraftPut = false;
+  failNextPresenceDraftPut = false;
   delayNextScorePatchMs = 0;
   includeHomework = options.includeHomework ?? false;
   homeworkMaxScore = options.homeworkMaxScore ?? 100;
@@ -234,7 +236,15 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
         return;
       }
       if (method === "PUT") {
-        const body = request.postDataJSON() as { changes?: unknown[] };
+        const body = request.postDataJSON() as { changes?: unknown[]; active_cell?: unknown };
+        if (failNextPresenceDraftPut && (body.changes?.length ?? 0) === 0 && body.active_cell != null) {
+          failNextPresenceDraftPut = false;
+          await route.fulfill({
+            status: 409,
+            json: { detail: "이 차시는 다른 화면에서 수정 중입니다.", code: "SCORE_EDIT_LOCKED" },
+          });
+          return;
+        }
         if (failNextDraftPut && (body.changes?.length ?? 0) > 0) {
           failNextDraftPut = false;
           await route.fulfill({ status: 500, json: { detail: "draft put failed once" } });
@@ -523,6 +533,25 @@ test("같은 계정의 다른 화면이 선택한 과제 셀을 표시하고 다
   expect(occupiedBox).not.toBeNull();
   expect(labelBox).not.toBeNull();
   expect(labelBox!.x + labelBox!.width).toBeLessThanOrEqual(occupiedBox!.x + occupiedBox!.width + 1);
+});
+
+test("일시적인 셀 점유 충돌 뒤 정상 presence가 오면 편집 잠금을 마칠 수 있다", async ({ page }) => {
+  await openScores(page, {
+    includeHomework: true,
+    homeworkAssignedRows: [true, true],
+    initialHomeworkScores: [10, 20],
+  });
+  await ensureScoreEditing(page);
+
+  const saveAndLock = page.getByRole("button", { name: "저장하고 잠금", exact: true });
+  failNextPresenceDraftPut = true;
+  await page.getByRole("textbox", { name: "자동저장학생1 · 단원 복습 점수 입력" }).click();
+  await expect(saveAndLock).toBeDisabled();
+
+  await page.getByRole("textbox", { name: "자동저장학생2 · 단원 복습 점수 입력" }).click();
+  await expect(saveAndLock).toBeEnabled();
+  await saveAndLock.click();
+  await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
 });
 
 test("두 브라우저가 서로 다른 과제 셀 저장을 실시간 수렴하고 reload 뒤에도 유지한다", async ({ browser }) => {
