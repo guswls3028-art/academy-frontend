@@ -8,8 +8,14 @@ export type TeacherClinicSession = {
   title?: string | null;
   date?: string | null;
   start_time?: string | null;
+  end_time?: string | null;
+  duration_minutes?: number | null;
   location?: string | null;
   participant_count?: number | null;
+  booked_count?: number | null;
+  max_participants?: number | null;
+  is_full?: boolean | null;
+  allow_multi_slot_booking?: boolean;
 };
 
 export type TeacherClinicParticipantStatus =
@@ -47,7 +53,10 @@ export async function fetchClinicSessions(params: {
   date_to: string;
 }): Promise<TeacherClinicSession[]> {
   const res = await api.get("/clinic/sessions/", { params });
-  return listFromApiResponse<TeacherClinicSession>(res.data);
+  return listFromApiResponse<TeacherClinicSession>(res.data).map((session) => ({
+    ...session,
+    allow_multi_slot_booking: session.allow_multi_slot_booking === true,
+  }));
 }
 
 /** 클리닉 세션의 참가자 목록 */
@@ -124,6 +133,7 @@ export async function createClinicSession(payload: {
   target_grade?: number | null;
   target_school_type?: string | null;
   section?: number | null;
+  allow_multi_slot_booking: boolean;
 }): Promise<TeacherClinicSession> {
   const res = await api.post("/clinic/sessions/", payload);
   return res.data;
@@ -150,6 +160,14 @@ export async function createClinicParticipant(payload: {
   return res.data;
 }
 
+export async function createClinicParticipantsBulk(payload: {
+  session_ids: number[];
+  student_ids: number[];
+}): Promise<{ count: number; participants: TeacherClinicParticipant[] }> {
+  const res = await api.post("/clinic/participants/bulk-create/", payload);
+  return res.data;
+}
+
 /* ─── Passcard settings ─── */
 export type ClinicColorTuple = [string, string, string];
 
@@ -161,6 +179,7 @@ export type ClinicSettingsPayload = {
 
 export type ClinicSettings = ClinicSettingsPayload & {
   saved_colors?: ClinicColorTuple;
+  multi_slot_booking_default?: boolean;
 };
 
 export async function fetchClinicSettings(): Promise<ClinicSettings> {

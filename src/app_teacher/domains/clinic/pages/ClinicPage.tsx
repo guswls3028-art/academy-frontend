@@ -6,7 +6,7 @@
 // sectionMode 가드 제거(2026-05-02): PC 어드민 ClinicHomePage는 sectionMode 무관하게
 // 동작하는데 모바일만 sectionMode=true 학원으로 가렸음. 림글리쉬(sectionMode=false)
 // 처럼 클리닉 운영 중인 학원에서 모바일 페이지가 EmptyState로 가려져 신고 발생.
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { Plus, ChevronLeft, ChevronRight } from "@teacher/shared/ui/Icons";
@@ -21,6 +21,7 @@ import {
   completeParticipant,
   remindParticipant,
   createClinicSession,
+  fetchClinicSettings,
   deleteClinicSession,
   type TeacherClinicSession,
 } from "../api";
@@ -425,6 +426,7 @@ function ParticipantList({
         open={addOpen}
         onClose={() => setAddOpen(false)}
         sessionId={sessionId}
+        availableSessions={availableSessions}
         alreadyParticipantStudentIds={alreadyStudentIds}
       />
       {actionDialog && (
@@ -563,6 +565,24 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
   const [location, setLocation] = useState("");
   const [capacity, setCapacity] = useState("10");
   const [sectionId, setSectionId] = useState<number | null>(null);
+  const [allowMultiSlotBooking, setAllowMultiSlotBooking] = useState(false);
+  const multiSlotTouchedRef = useRef(false);
+
+  const settingsQ = useQuery({
+    queryKey: teacherClinicQueryKeys.settings,
+    queryFn: fetchClinicSettings,
+    enabled: open,
+    staleTime: 60_000,
+  });
+
+  useEffect(() => {
+    if (!open) {
+      multiSlotTouchedRef.current = false;
+      return;
+    }
+    if (!settingsQ.data || multiSlotTouchedRef.current) return;
+    setAllowMultiSlotBooking(settingsQ.data.multi_slot_booking_default === true);
+  }, [open, settingsQ.data]);
 
   // 정규형 클리닉일 때만 CLINIC type section 목록 조회
   const sectionsQ = useQuery<Section[]>({
@@ -590,6 +610,7 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
       duration_minutes: duration,
       location: location.trim(),
       max_participants: capacityNum,
+      allow_multi_slot_booking: allowMultiSlotBooking,
       ...(showSectionPicker ? { section: sectionId } : {}),
     }),
     onSuccess: () => {
@@ -641,6 +662,33 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
           <Fld label="장소 *" value={location} onChange={setLocation} placeholder="예: 3층 자습실" />
           <div style={{ width: 80 }}><Fld label="정원 *" value={capacity} onChange={setCapacity} type="number" placeholder="명" /></div>
         </div>
+        <label
+          className="flex items-start gap-2 cursor-pointer"
+          style={{
+            padding: "10px",
+            border: "1px solid var(--tc-border)",
+            borderRadius: "var(--tc-radius-sm)",
+            background: "var(--tc-surface-soft)",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={allowMultiSlotBooking}
+            onChange={(event) => {
+              multiSlotTouchedRef.current = true;
+              setAllowMultiSlotBooking(event.target.checked);
+            }}
+            style={{ marginTop: 2 }}
+          />
+          <span className="flex flex-col gap-0.5">
+            <strong className="text-xs" style={{ color: "var(--tc-text)" }}>
+              같은 날 여러 시간대 예약
+            </strong>
+            <small className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+              켜면 이 옵션이 켜진 클리닉끼리 한 학생을 여러 시간대에 예약할 수 있습니다.
+            </small>
+          </span>
+        </label>
         <button onClick={() => mutation.mutate()} disabled={!canSubmit || mutation.isPending}
           className="w-full text-sm font-bold cursor-pointer mt-1"
           style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: canSubmit ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: canSubmit ? "#fff" : "var(--tc-text-muted)" }}>

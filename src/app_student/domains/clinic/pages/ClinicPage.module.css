@@ -304,6 +304,12 @@
   letter-spacing: -0.03em;
 }
 
+.openScheduleGuide {
+  margin: 5px 0 0;
+  color: var(--stu-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
 .openScheduleSummary {
   display: flex;
   flex: 0 0 auto;
@@ -511,6 +517,7 @@
 .recommendedBadge,
 .bookedBadge,
 .fullBadge,
+.selectedBadge,
 .selectHint {
   padding: 4px 8px;
   border-radius: 999px;
@@ -519,6 +526,10 @@
   white-space: nowrap;
 }
 
+.selectedBadge {
+  background: var(--stu-primary);
+  color: var(--stu-on-primary, #fff);
+}
 .recommendedBadge {
   background: color-mix(in srgb, var(--stu-primary) 10%, transparent);
   color: var(--stu-primary);
@@ -542,26 +553,57 @@
 .selectionPanel {
   display: grid;
   gap: var(--stu-space-3);
+  margin-top: var(--stu-space-2);
   padding: var(--stu-space-3);
-  border-top: 1px solid color-mix(in srgb, var(--stu-primary) 25%, var(--stu-border));
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 25%, var(--stu-border));
+  border-radius: 12px;
   background: color-mix(in srgb, var(--stu-primary) 5%, var(--stu-surface));
 }
 
-.selectionPanel > p {
+.selectionSummary {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  margin: 0;
+  gap: 3px;
 }
-
-.selectionPanel > p strong {
+.selectionSummary > span {
+  color: var(--stu-primary);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.02em;
+}
+.selectionSummary > strong {
   color: var(--stu-text);
-  font-size: 14px;
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+  letter-spacing: -0.04em;
 }
 
-.selectionPanel > p span {
+.selectionSummary > small {
   color: var(--stu-text-muted);
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.selectionSlots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.selectionSlots > span {
+  padding: 5px 8px;
+  border: 1px solid color-mix(in srgb, var(--stu-primary) 20%, var(--stu-border));
+  border-radius: 999px;
+  background: var(--stu-surface);
+  color: var(--stu-primary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.selectionSubmit {
+  width: 100%;
 }
 
 .preferenceFieldset {
@@ -918,9 +960,14 @@
   .recommendedBadge,
   .bookedBadge,
   .fullBadge,
+  .selectedBadge,
   .selectHint {
     padding: 4px 6px;
     font-size: 10px;
+  }
+
+  .selectionSummary > strong {
+    font-size: 21px;
   }
 
   .bookingCard {

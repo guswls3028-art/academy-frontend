@@ -15,7 +15,7 @@ import { formatYmd, todayYmd } from "@student/shared/utils/date";
 import {
   cancelClinicBookingRequest,
   changeClinicBooking,
-  createClinicBookingRequest,
+  createClinicBookingRequests,
   fetchAvailableClinicSessions,
   fetchMyClinicBookingRequests,
   type ClinicBookingRequest,
@@ -26,6 +26,7 @@ import {
   type ClinicCurrentTarget,
 } from "../api/clinicSummary.api";
 import { studentClinicQueryKeys } from "../queryKeys";
+import ClinicMultiSlotSelectionPanel from "../components/ClinicMultiSlotSelectionPanel";
 import styles from "./ClinicPage.module.css";
 
 type ApiErrorBody = { detail?: string; message?: string };
@@ -131,7 +132,7 @@ export default function ClinicPage() {
   const confirm = useConfirm();
   const runTrackedTask = useTrackedTask();
   const [activeTab, setActiveTab] = useState<ClinicTab>("book");
-  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
+  const [selectedSessionIds, setSelectedSessionIds] = useState<number[]>([]);
   const [changingBookingId, setChangingBookingId] = useState<number | null>(null);
   const [memo, setMemo] = useState("");
   const [preferredStart, setPreferredStart] = useState("");
@@ -243,37 +244,50 @@ export default function ClinicPage() {
     }));
   }, [orderedSessions]);
   const visibleSessionGroups = sessionGroups.slice(0, visibleDateCount);
-  const selectedSession =
-    orderedSessions.find((session) => session.id === selectedSessionId) ?? null;
+  const selectedSessions = orderedSessions.filter((session) => (
+    selectedSessionIds.includes(session.id)
+  ));
+  const selectedSession = selectedSessions.length === 1 ? selectedSessions[0] : null;
+  const activeBookedSessions = orderedSessions.filter((session) => myRequests.some(
+    (request) => request.session === session.id &&
+      (request.status === "pending" || request.status === "booked"),
+  ));
 
   useEffect(() => {
-    if (selectedSessionId === null) return;
-    const activeRequest = myRequests.some(
-      (request) =>
-        request.session === selectedSession?.id &&
-        (request.status === "pending" || request.status === "booked"),
-    );
-    if (
-      selectedSession &&
-      !isSessionFull(selectedSession) &&
-      selectedSession.id !== changingBooking?.session &&
-      !activeRequest
-    ) {
-      return;
-    }
-    setSelectedSessionId(null);
-  }, [changingBooking?.session, myRequests, selectedSession, selectedSessionId]);
+    setSelectedSessionIds((current) => {
+      const available = current.filter((sessionId) => {
+        const session = orderedSessions.find((item) => item.id === sessionId);
+        if (!session || isSessionFull(session) || session.id === changingBooking?.session) {
+          return false;
+        }
+        return !myRequests.some(
+          (request) => request.session === session.id &&
+            (request.status === "pending" || request.status === "booked"),
+        );
+      });
+      const policySafe = available.length > 1 && available.some((sessionId) => (
+        orderedSessions.find((session) => session.id === sessionId)?.allow_multi_slot_booking !== true
+      ))
+        ? available.slice(0, 1)
+        : available;
+      return policySafe.length === current.length && policySafe.every((id, index) => id === current[index])
+        ? current
+        : policySafe;
+    });
+  }, [changingBooking?.session, myRequests, orderedSessions]);
 
   const bookingMutation = useMutation({
     mutationFn: (data: {
-      session: number;
+      session_ids: number[];
       student_request_memo?: string;
       preferred_start_time?: string;
       preferred_end_time?: string;
     }) =>
-      runTrackedTask("clinic.booking.create", () => createClinicBookingRequest(data)),
+      runTrackedTask("clinic.booking.create", () => createClinicBookingRequests(data)),
     onSuccess: (data, variables) => {
-      const session = sessions.find((item) => item.id === variables.session);
+      const session = variables.session_ids.length === 1
+        ? sessions.find((item) => item.id === variables.session_ids[0])
+        : null;
       const bookedCount = session ? (session.booked_count ?? 0) + 1 : null;
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.availableSessions });
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.bookings });
@@ -283,9 +297,11 @@ export default function ClinicPage() {
       setMemo("");
       setPreferredStart("");
       setPreferredEnd("");
-      const message = data.status === "booked"
-        ? "예약이 확정되었습니다."
-        : "예약 신청이 접수되었습니다.";
+      setSelectedSessionIds([]);
+      const allBooked = data.every((booking) => booking.status === "booked");
+      const message = variables.session_ids.length > 1
+        ? `${variables.session_ids.length}개 시간대 예약${allBooked ? "이 확정되었습니다." : " 신청이 접수되었습니다."}`
+        : allBooked ? "예약이 확정되었습니다." : "예약 신청이 접수되었습니다.";
       studentToast.success(
         bookedCount == null ? message : `${message} (현재 예약인원 ${bookedCount}명)`,
       );
@@ -367,8 +383,15 @@ export default function ClinicPage() {
 
   const submitBooking = () => {
     if (mutationsPending) return;
-    if (!selectedSessionId) {
+    if (selectedSessionIds.length === 0) {
       studentToast.info("예약할 클리닉 일정을 선택해 주세요.");
+      return;
+    }
+    if (
+      selectedSessionIds.length > 1 &&
+      selectedSessions.some((session) => session.allow_multi_slot_booking !== true)
+    ) {
+      studentToast.info("여러 시간대 예약이 가능한 일정끼리만 함께 선택해 주세요.");
       return;
     }
     if (selectedSession?.allow_time_preference && (preferredStart || preferredEnd) && (
@@ -381,7 +404,7 @@ export default function ClinicPage() {
       return;
     }
     bookingMutation.mutate({
-      session: selectedSessionId,
+      session_ids: selectedSessionIds,
       student_request_memo: memo.trim() || undefined,
       preferred_start_time: selectedSession?.allow_time_preference ? preferredStart || undefined : undefined,
       preferred_end_time: selectedSession?.allow_time_preference ? preferredEnd || undefined : undefined,
@@ -394,6 +417,7 @@ export default function ClinicPage() {
       studentToast.error("변경할 예약을 찾을 수 없습니다.");
       return;
     }
+    const selectedSessionId = selectedSessionIds[0];
     if (!selectedSessionId) {
       studentToast.info("변경할 클리닉 일정을 선택해 주세요.");
       return;
@@ -422,7 +446,7 @@ export default function ClinicPage() {
 
   const startChangingBooking = (request: ClinicBookingRequest) => {
     setChangingBookingId(request.id);
-    setSelectedSessionId(null);
+    setSelectedSessionIds([]);
     setMemo(request.student_request_memo ?? "");
     setPreferredStart("");
     setPreferredEnd("");
@@ -597,6 +621,7 @@ export default function ClinicPage() {
                   className={styles.changeCancelButton}
                   onClick={() => {
                     setChangingBookingId(null);
+                    setSelectedSessionIds([]);
                     setMemo("");
                     setPreferredStart("");
                     setPreferredEnd("");
@@ -612,6 +637,11 @@ export default function ClinicPage() {
                 <div>
                   <p className={styles.openScheduleEyebrow}>예약 가능한 수업</p>
                   <h2 id="clinic-open-schedule-title">열린 일정</h2>
+                  <p className={styles.openScheduleGuide}>
+                    {changingBooking
+                      ? "변경할 시간대 하나를 선택해 주세요."
+                      : "‘여러 시간대 가능’ 일정끼리는 같은 날짜에 함께 선택할 수 있어요."}
+                  </p>
                 </div>
                 <div
                   className={styles.openScheduleSummary}
@@ -631,6 +661,9 @@ export default function ClinicPage() {
                 <div className={styles.dateGroupList}>
                   {visibleSessionGroups.map((group) => {
                     const parts = dateParts(group.date);
+                    const selectedInGroup = group.sessions.filter((session) => (
+                      selectedSessionIds.includes(session.id)
+                    ));
                     return (
                       <section
                         key={group.date}
@@ -646,7 +679,7 @@ export default function ClinicPage() {
                         <div className={styles.dateSessions}>
                           {group.sessions.map((session) => {
                             const full = isSessionFull(session);
-                            const selected = selectedSessionId === session.id;
+                            const selected = selectedSessionIds.includes(session.id);
                             const recommended = sessionMatchesTargets(
                               session,
                               currentTargetLectureIds,
@@ -657,7 +690,24 @@ export default function ClinicPage() {
                                 request.session === session.id &&
                                 (request.status === "pending" || request.status === "booked"),
                             );
-                            const disabled = full || currentChangingSession || !!activeRequest;
+                            const policyBlockedBySelection = !selected && selectedSessions.some(
+                              (item) => item.date === session.date,
+                            ) && (
+                              session.allow_multi_slot_booking !== true ||
+                              selectedSessions.some((item) => (
+                                item.date === session.date && item.allow_multi_slot_booking !== true
+                              ))
+                            );
+                            const policyBlockedByExisting = activeBookedSessions.some((activeSession) => (
+                              activeSession.id !== session.id &&
+                              activeSession.date === session.date &&
+                              (
+                                activeSession.allow_multi_slot_booking !== true ||
+                                session.allow_multi_slot_booking !== true
+                              )
+                            ));
+                            const disabled = full || currentChangingSession || !!activeRequest ||
+                              (!changingBooking && (policyBlockedBySelection || policyBlockedByExisting));
                             const remaining = session.max_participants == null
                               ? null
                               : Math.max(
@@ -676,7 +726,19 @@ export default function ClinicPage() {
                                   disabled={disabled}
                                   aria-pressed={selected}
                                   onClick={() => {
-                                    setSelectedSessionId(session.id);
+                                    setSelectedSessionIds((current) => {
+                                      if (changingBooking) return [session.id];
+                                      if (current.includes(session.id)) {
+                                        return current.filter((id) => id !== session.id);
+                                      }
+                                      const currentSession = orderedSessions.find(
+                                        (item) => item.id === current[0],
+                                      );
+                                      if (currentSession && currentSession.date !== session.date) {
+                                        return [session.id];
+                                      }
+                                      return [...current, session.id];
+                                    });
                                     setPreferredStart("");
                                     setPreferredEnd("");
                                   }}
@@ -710,6 +772,11 @@ export default function ClinicPage() {
                                         희망 시간 입력 가능
                                       </span>
                                     )}
+                                    <span className={styles.preferenceBadge}>
+                                      {session.allow_multi_slot_booking === true
+                                        ? "여러 시간대 가능"
+                                        : "한 타임만 예약"}
+                                    </span>
                                   </div>
                                   <span className={styles.sessionAside}>
                                     {recommended && !activeRequest && !currentChangingSession && (
@@ -723,91 +790,36 @@ export default function ClinicPage() {
                                       <span className={styles.bookedBadge}>현재 예약</span>
                                     ) : full ? (
                                       <span className={styles.fullBadge}>정원 마감</span>
+                                    ) : policyBlockedBySelection || policyBlockedByExisting ? (
+                                      <span className={styles.fullBadge}>한 타임만 가능</span>
+                                    ) : selected ? (
+                                      <span className={styles.selectedBadge}>선택됨</span>
                                     ) : remaining == null ? (
-                                      <span className={styles.selectHint}>선택</span>
+                                      <span className={styles.selectHint}>추가 선택</span>
                                     ) : (
                                       <span className={styles.selectHint}>잔여 {remaining}명</span>
                                     )}
                                   </span>
                                 </button>
-
-                                {selected && !disabled && (
-                                  <div className={styles.selectionPanel}>
-                                    <p>
-                                      <strong>{parts.month}월 {parts.day}일 {parts.weekday}요일</strong>
-                                      <span>{formatTime(session.start_time)} · {session.location || "장소 추후 안내"}</span>
-                                    </p>
-                                    {session.allow_time_preference && (
-                                      <fieldset className={styles.preferenceFieldset}>
-                                        <legend>
-                                          희망 이용 시간 <small>(선택)</small>
-                                        </legend>
-                                        <p>
-                                          운영 시간 안에서 원하는 구간을 남겨 주세요. 학원 확인 후 최종 배정됩니다.
-                                        </p>
-                                        <div className={styles.preferenceInputs}>
-                                          <label>
-                                            <span>시작</span>
-                                            <input
-                                              type="time"
-                                              aria-label="희망 시작 시간"
-                                              min={session.start_time.slice(0, 5)}
-                                              max={session.end_time?.slice(0, 5)}
-                                              step={300}
-                                              value={preferredStart}
-                                              onChange={(event) => setPreferredStart(event.target.value)}
-                                            />
-                                          </label>
-                                          <span aria-hidden>–</span>
-                                          <label>
-                                            <span>종료</span>
-                                            <input
-                                              type="time"
-                                              aria-label="희망 종료 시간"
-                                              min={session.start_time.slice(0, 5)}
-                                              max={session.end_time?.slice(0, 5)}
-                                              step={300}
-                                              value={preferredEnd}
-                                              onChange={(event) => setPreferredEnd(event.target.value)}
-                                            />
-                                          </label>
-                                        </div>
-                                      </fieldset>
-                                    )}
-                                    <label className={styles.memoField}>
-                                      <span>학원에 전할 내용 <small>(선택)</small></span>
-                                      <textarea
-                                        value={memo}
-                                        onChange={(event) => setMemo(event.target.value)}
-                                        placeholder="준비물이나 전달할 내용이 있으면 적어 주세요."
-                                        className="stu-textarea"
-                                        rows={2}
-                                      />
-                                    </label>
-                                    <button
-                                      type="button"
-                                      className="stu-btn stu-btn--primary"
-                                      disabled={mutationsPending}
-                                      onClick={changingBooking ? submitChange : submitBooking}
-                                    >
-                                      {changeMutation.isPending || bookingMutation.isPending
-                                        ? "처리 중…"
-                                        : changingBooking
-                                          ? "이 일정으로 변경하기"
-                                          : "이 일정 예약하기"}
-                                    </button>
-                                    {(bookingMutation.isError || changeMutation.isError) && (
-                                      <p className={styles.errorText}>
-                                        {changingBooking
-                                          ? "일정 변경에 실패했습니다. 기존 예약은 유지됩니다."
-                                          : "예약 신청에 실패했습니다."} 다시 시도해 주세요.
-                                      </p>
-                                    )}
-                                  </div>
-                                )}
                               </article>
                             );
                           })}
+                          {selectedInGroup.length > 0 && (
+                            <ClinicMultiSlotSelectionPanel
+                              selectedSessions={selectedInGroup}
+                              selectedSession={selectedSession}
+                              memo={memo}
+                              preferredStart={preferredStart}
+                              preferredEnd={preferredEnd}
+                              pending={changeMutation.isPending || bookingMutation.isPending}
+                              changingBooking={!!changingBooking}
+                              hasError={bookingMutation.isError || changeMutation.isError}
+                              onMemoChange={setMemo}
+                              onPreferredStartChange={setPreferredStart}
+                              onPreferredEndChange={setPreferredEnd}
+                              onSubmit={changingBooking ? submitChange : submitBooking}
+                            />
+                          )}
                         </div>
                       </section>
                     );

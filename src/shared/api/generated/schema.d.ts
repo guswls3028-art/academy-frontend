@@ -789,6 +789,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clinic/participants/bulk-create/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Create every selected same-day slot atomically for a student or staff selection. */
+        post: operations["clinic_participants_bulk_create_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clinic/participants/by_session/": {
         parameters: {
             query?: never;
@@ -7798,6 +7815,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/results/admin/clinic-bookings/bulk-create/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Create every selected same-day slot atomically for a student or staff selection. */
+        post: operations["results_admin_clinic_bookings_bulk_create_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/results/admin/clinic-bookings/by_session/": {
         parameters: {
             query?: never;
@@ -12192,6 +12226,8 @@ export interface components {
             status?: string;
         };
         ClinicSession: {
+            /** @description 같은 날짜의 다른 클리닉 시간대도 함께 예약할 수 있으면 True. */
+            allow_multi_slot_booking?: boolean;
             /** @description 학생이 세션 범위 안의 희망 시작·종료 시각을 요청할 수 있으면 True. */
             allow_time_preference?: boolean;
             readonly available_slots: string;
@@ -12309,6 +12345,23 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
         };
+        /** @description Create one student's or several staff-selected students' same-day slots atomically. */
+        ClinicSessionParticipantBulkCreateRequest: {
+            /** @default  */
+            memo: string;
+            /** Format: time */
+            preferred_end_time?: string | null;
+            /** Format: time */
+            preferred_start_time?: string | null;
+            session_ids: number[];
+            student_ids?: number[];
+            /** @default  */
+            student_request_memo: string;
+        };
+        ClinicSessionParticipantBulkCreateResponse: {
+            count: number;
+            participants: components["schemas"]["ClinicSessionParticipant"][];
+        };
         /**
          * @description ✅ 예약 등록(생성) 전용
          *     - 선생: student, enrollment_id 직접 지정 가능
@@ -12410,6 +12463,8 @@ export interface components {
             tenant: number;
         };
         ClinicSessionRequest: {
+            /** @description 같은 날짜의 다른 클리닉 시간대도 함께 예약할 수 있으면 True. */
+            allow_multi_slot_booking?: boolean;
             /** @description 학생이 세션 범위 안의 희망 시작·종료 시각을 요청할 수 있으면 True. */
             allow_time_preference?: boolean;
             /** Format: date */
@@ -14889,6 +14944,8 @@ export interface components {
             tenant?: number;
         };
         PatchedClinicSessionRequest: {
+            /** @description 같은 날짜의 다른 클리닉 시간대도 함께 예약할 수 있으면 True. */
+            allow_multi_slot_booking?: boolean;
             /** @description 학생이 세션 범위 안의 희망 시작·종료 시각을 요청할 수 있으면 True. */
             allow_time_preference?: boolean;
             /** Format: date */
@@ -19253,6 +19310,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClinicSessionParticipant"];
+                };
+            };
+        };
+    };
+    clinic_participants_bulk_create_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClinicSessionParticipantBulkCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ClinicSessionParticipantBulkCreateRequest"];
+                "multipart/form-data": components["schemas"]["ClinicSessionParticipantBulkCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClinicSessionParticipantBulkCreateResponse"];
                 };
             };
         };
@@ -30892,6 +30974,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClinicSessionParticipant"];
+                };
+            };
+        };
+    };
+    results_admin_clinic_bookings_bulk_create_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClinicSessionParticipantBulkCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ClinicSessionParticipantBulkCreateRequest"];
+                "multipart/form-data": components["schemas"]["ClinicSessionParticipantBulkCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClinicSessionParticipantBulkCreateResponse"];
                 };
             };
         };

@@ -13,6 +13,7 @@ import { useConfirm } from "@/shared/ui/confirm";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { fetchClinicSessionTree, updateClinicSession } from "../api/clinicSessions.api";
+import { fetchClinicSettings } from "../api/clinicSettings.api";
 import {
   buildClinicCreateConfirmationMessage,
   buildClinicCreateConfirmationReview,
@@ -47,48 +48,7 @@ import {
   toHHmmss,
   todayISO,
 } from "./clinicCreatePanel.utils";
-
-type Props = {
-  date?: string;
-  hideDatePicker?: boolean;
-  selectedTargetEnrollmentIds?: number[];
-  onChangeSelectedTargetEnrollmentIds?: (ids: number[]) => void;
-  onDateChange?: (date: string) => void;
-  onCreated?: (createdDate?: string) => void;
-  /** When true, renders as a flat form (no card shell) — use inside AdminModal */
-  asModal?: boolean;
-  /** Edit mode: pass existing session to pre-fill form */
-  editSession?: {
-    id: number;
-    title?: string;
-    date: string;
-    start_time: string; // "HH:MM" or "HH:MM:SS"
-    duration_minutes: number;
-    location: string;
-    max_participants: number;
-    target_grade?: number | null;
-    target_school_type?: string | null;
-    target_lecture_ids?: number[];
-    section?: number | null;
-    allow_time_preference?: boolean;
-  };
-  /** Copy mode: pre-fill settings from an existing session while creating a new session */
-  copySession?: {
-    title?: string;
-    date: string;
-    start_time: string;
-    duration_minutes: number;
-    location: string;
-    max_participants: number;
-    target_grade?: number | null;
-    target_school_type?: string | null;
-    target_lecture_ids?: number[];
-    section?: number | null;
-    allow_time_preference?: boolean;
-  };
-  onUpdated?: (notice: ClinicSessionUpdateNotice) => void;
-  onPendingChange?: (pending: boolean) => void;
-};
+import type { ClinicCreatePanelProps } from "./clinicCreatePanel.types";
 
 export default function ClinicCreatePanel({
   date,
@@ -102,7 +62,7 @@ export default function ClinicCreatePanel({
   copySession,
   onUpdated,
   onPendingChange,
-}: Props) {
+}: ClinicCreatePanelProps) {
   const { message } = App.useApp();
   const confirm = useConfirm();
   const qc = useQueryClient();
@@ -122,6 +82,12 @@ export default function ClinicCreatePanel({
     staleTime: 60_000,
   });
   const sourceSession = editSession ?? copySession;
+  const clinicSettingsQ = useQuery({
+    queryKey: clinicQueryKeys.settings,
+    queryFn: fetchClinicSettings,
+    enabled: !sourceSession,
+    staleTime: 60_000,
+  });
   const [selectedSectionId, setSelectedSectionId] = useState<number | null>(
     sourceSession?.section ?? null
   );
@@ -214,6 +180,15 @@ export default function ClinicCreatePanel({
   const [memo, setMemo] = useState("");
   const [maxParticipants, setMaxParticipants] = useState<number>(sourceSession?.max_participants ?? 10);
   const [allowTimePreference, setAllowTimePreference] = useState(sourceSession?.allow_time_preference ?? false);
+  const [allowMultiSlotBooking, setAllowMultiSlotBooking] = useState(
+    sourceSession?.allow_multi_slot_booking ?? false,
+  );
+  const multiSlotTouchedRef = useRef(false);
+
+  useEffect(() => {
+    if (sourceSession || multiSlotTouchedRef.current || !clinicSettingsQ.data) return;
+    setAllowMultiSlotBooking(clinicSettingsQ.data.multi_slot_booking_default === true);
+  }, [clinicSettingsQ.data, sourceSession]);
 
   const [savedLocations, setSavedLocations] = useState<string[]>(() => getSavedLocations());
   const [loadPopoverOpen, setLoadPopoverOpen] = useState(false);
@@ -284,6 +259,7 @@ export default function ClinicCreatePanel({
       memo?: string;
       section?: number | null;
       allow_time_preference?: boolean;
+      allow_multi_slot_booking?: boolean;
     }) => {
       const res = await api.post("/clinic/sessions/", payload);
       return res.data as { id: number };
@@ -339,6 +315,8 @@ export default function ClinicCreatePanel({
             afterFilterSummary: confirmationFilterSummary,
             beforeAllowTimePreference: editSession.allow_time_preference ?? false,
             afterAllowTimePreference: allowTimePreference,
+            beforeAllowMultiSlotBooking: editSession.allow_multi_slot_booking ?? false,
+            afterAllowMultiSlotBooking: allowMultiSlotBooking,
           }),
           confirmText: "확인하고 수정",
           cancelText: "다시 확인",
@@ -361,6 +339,7 @@ export default function ClinicCreatePanel({
           target_school_type: targetSchoolType,
           target_lecture_ids: targetLectureIds.length > 0 ? targetLectureIds : [],
           allow_time_preference: allowTimePreference,
+          allow_multi_slot_booking: allowMultiSlotBooking,
           ...(showSectionPicker ? { section: selectedSectionId } : {}),
         });
         message.success("클리닉이 수정되었습니다.");
@@ -406,6 +385,7 @@ export default function ClinicCreatePanel({
           selectedCount,
           selectedStudentSummary,
           allowTimePreference,
+          allowMultiSlotBooking,
         }),
         confirmText: "확인하고 만들기",
         cancelText: "다시 확인",
@@ -429,6 +409,7 @@ export default function ClinicCreatePanel({
         target_lecture_ids: targetLectureIds.length > 0 ? targetLectureIds : [],
         memo: memo.trim() || undefined,
         allow_time_preference: allowTimePreference,
+        allow_multi_slot_booking: allowMultiSlotBooking,
         ...(showSectionPicker ? { section: selectedSectionId } : {}),
       });
 
@@ -670,6 +651,17 @@ export default function ClinicCreatePanel({
         <label className="clinic-create__time-preference">
           <input type="checkbox" checked={allowTimePreference} onChange={(event) => setAllowTimePreference(event.target.checked)} />
           <span><strong>학생 희망 시간 받기</strong><small>학생이 이 일정 안에서 원하는 시작·종료 시간을 요청할 수 있습니다. 최종 시간은 교직원이 배정합니다.</small></span>
+        </label>
+        <label className="clinic-create__time-preference">
+          <input
+            type="checkbox"
+            checked={allowMultiSlotBooking}
+            onChange={(event) => {
+              multiSlotTouchedRef.current = true;
+              setAllowMultiSlotBooking(event.target.checked);
+            }}
+          />
+          <span><strong>같은 날 여러 시간대 예약</strong><small>켜면 이 옵션이 켜진 클리닉끼리 한 학생을 여러 시간대에 예약할 수 있습니다.</small></span>
         </label>
       </div>
       {/* 제목 + 정원 (한 행) */}

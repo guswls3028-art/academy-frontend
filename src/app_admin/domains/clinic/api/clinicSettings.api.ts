@@ -5,6 +5,7 @@ export type ClinicSettings = {
   colors: [string, string, string];
   use_daily_random?: boolean;
   auto_approve_booking?: boolean;
+  multi_slot_booking_default?: boolean;
   saved_colors?: [string, string, string];
 };
 
@@ -15,6 +16,7 @@ export async function fetchClinicSettings(): Promise<ClinicSettings> {
     colors: [colors[0] || "#ef4444", colors[1] || "#3b82f6", colors[2] || "#22c55e"],
     use_daily_random: !!res.data?.use_daily_random,
     auto_approve_booking: !!res.data?.auto_approve_booking,
+    multi_slot_booking_default: res.data?.multi_slot_booking_default === true,
     saved_colors: res.data?.saved_colors
       ? [res.data.saved_colors[0], res.data.saved_colors[1], res.data.saved_colors[2]]
       : undefined,
@@ -40,6 +42,7 @@ export async function updateClinicSettings(
     colors: [c[0] || "#ef4444", c[1] || "#3b82f6", c[2] || "#22c55e"],
     use_daily_random: !!res.data?.use_daily_random,
     auto_approve_booking: !!res.data?.auto_approve_booking,
+    multi_slot_booking_default: res.data?.multi_slot_booking_default === true,
     saved_colors: res.data?.saved_colors
       ? [res.data.saved_colors[0], res.data.saved_colors[1], res.data.saved_colors[2]]
       : undefined,

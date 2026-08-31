@@ -52,6 +52,7 @@ const sessions = [
     max_participants: 8,
     participant_count: 0,
     booked_count: 0,
+    allow_multi_slot_booking: false,
   },
   {
     id: 701,
@@ -63,6 +64,7 @@ const sessions = [
     max_participants: 10,
     participant_count: 0,
     booked_count: 0,
+    allow_multi_slot_booking: false,
   },
   {
     id: 702,
@@ -75,6 +77,7 @@ const sessions = [
     participant_count: 0,
     booked_count: 0,
     target_lecture_ids: [31, 32],
+    allow_multi_slot_booking: true,
   },
 ];
 
@@ -184,6 +187,7 @@ async function installApi(
         saved_colors: ["#ef4444", "#3b82f6", "#22c55e"],
         use_daily_random: false,
         auto_approve_booking: true,
+        multi_slot_booking_default: false,
       });
     }
     if (path === "/clinic/settings/" && method === "PATCH") {
@@ -491,6 +495,7 @@ test("같은 날짜에 여러 클리닉 시간대를 시간순으로 보고 계�
   const dialog = page.getByRole("dialog").filter({ hasText: "클리닉 만들기" });
   await expect(dialog.getByRole("heading", { name: "클리닉 만들기" })).toBeVisible();
   await expect(dialog).toContainText("현재 3개 시간대가 있습니다.");
+  await expect(dialog.getByRole("checkbox", { name: /같은 날 여러 시간대 예약/ })).not.toBeChecked();
 });
 
 test("주간 날짜 탐색에서 원하는 날짜의 일정 열로 바로 이동한다", async ({ page }) => {
@@ -692,6 +697,7 @@ test("클리닉 생성은 일정 요약을 최종 확인한 뒤에만 저장한�
   const parentModalContent = parentModalHost.locator(".admin-modal__inner");
   const createButton = createDialog.getByRole("button", { name: /클리닉 만들기/ });
   await expect(createDialog).toBeVisible({ timeout: 60_000 });
+  await expect(createDialog.getByRole("checkbox", { name: /같은 날 여러 시간대 예약/ })).toBeChecked();
   await createDialog.getByLabel("학생 희망 시간 받기").check();
   await expect(parentModalHost).not.toHaveClass(/ant-zoom-appear/);
   await expect(createButton).toBeEnabled();
@@ -714,6 +720,7 @@ test("클리닉 생성은 일정 요약을 최종 확인한 뒤에만 저장한�
   await expect(confirmation.getByText("12명", { exact: true })).toBeVisible();
   await expect(confirmation.getByText("고2 물리 심화, 고2 화학 심화", { exact: true })).toBeVisible();
   await expect(confirmation.getByText("학생 요청 받음", { exact: true })).toBeVisible();
+  await expect(confirmation.getByText("여러 시간대 허용", { exact: true })).toBeVisible();
   await expect(confirmation.getByRole("button", { name: "다시 확인" })).toBeVisible();
   const backdropBox = await page.locator("[data-confirm-dialog]").boundingBox();
   expect(backdropBox).not.toBeNull();
@@ -763,6 +770,7 @@ test("클리닉 생성은 일정 요약을 최종 확인한 뒤에만 저장한�
     location: "2층 보강실",
     max_participants: 12,
     allow_time_preference: true,
+    allow_multi_slot_booking: true,
   });
   releaseCreate();
   await expect(createDialog).toHaveCount(0);
@@ -783,6 +791,9 @@ test("빈 클리닉도 일정 카드에서 수정하고 최종 확인한 뒤에�
 
   const editDialog = page.getByRole("dialog", { name: "클리닉 일정 수정" });
   await expect(editDialog.getByRole("heading", { name: "클리닉 일정 수정" })).toBeVisible();
+  const multiSlotToggle = editDialog.getByRole("checkbox", { name: /같은 날 여러 시간대 예약/ });
+  await expect(multiSlotToggle).toBeChecked();
+  await multiSlotToggle.uncheck();
   await editDialog.getByRole("button", { name: "−1시간" }).click();
   const editButton = editDialog.getByRole("button", { name: "클리닉 수정", exact: true });
   await editButton.click();
@@ -790,6 +801,7 @@ test("빈 클리닉도 일정 카드에서 수정하고 최종 확인한 뒤에�
   const confirmation = page.getByRole("alertdialog", { name: "클리닉 일정 수정 확인" });
   await expect(confirmation).toContainText(`${saturday} · 17:00–18:30 · 2층 보강실`);
   await expect(confirmation).toContainText(`${saturday} · 17:00–17:30 · 2층 보강실`);
+  await expect(confirmation.getByText("여러 시간대 → 한 타임", { exact: true })).toBeVisible();
   expect(state.updatePayloads).toHaveLength(0);
 
   await confirmation.getByRole("button", { name: "다시 확인" }).click();
@@ -812,6 +824,7 @@ test("빈 클리닉도 일정 카드에서 수정하고 최종 확인한 뒤에�
       duration_minutes: 30,
       location: "2층 보강실",
       max_participants: 12,
+      allow_multi_slot_booking: false,
     },
   });
   releaseUpdate();
