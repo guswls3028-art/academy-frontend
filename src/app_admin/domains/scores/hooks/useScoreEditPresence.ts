@@ -16,6 +16,7 @@ type Options = {
   isActive: boolean;
   activeCell: ScoreActiveCell | null;
   onPresenceError: (message: string, lockConflict: boolean) => void;
+  onPresenceSuccess: () => void;
 };
 
 export function useScoreEditPresence({
@@ -25,6 +26,7 @@ export function useScoreEditPresence({
   isActive,
   activeCell,
   onPresenceError,
+  onPresenceSuccess,
 }: Options) {
   const [activeEditors, setActiveEditors] = useState<ScoreActiveEditor[]>([]);
   const activeCellRef = useRef<ScoreActiveCell | null>(activeCell);
@@ -39,7 +41,10 @@ export function useScoreEditPresence({
     // and overwrite or consume the autosave result. saveNow includes activeCell.
     if (snapshot.length > 0) return;
     const request = putScoreDraft(sessionId, snapshot, { activeCell })
-      .then((data) => setActiveEditors(data.active_editors))
+      .then((data) => {
+        setActiveEditors(data.active_editors);
+        onPresenceSuccess();
+      })
       .catch((error) => {
         const locked = isScoreEditLockedError(error);
         onPresenceError(
@@ -53,7 +58,7 @@ export function useScoreEditPresence({
     void request.finally(() => {
       if (presencePromiseRef.current === request) presencePromiseRef.current = null;
     });
-  }, [activeCell, isActive, onPresenceError, panelRef, savePromiseRef, sessionId]);
+  }, [activeCell, isActive, onPresenceError, onPresenceSuccess, panelRef, savePromiseRef, sessionId]);
 
   useEffect(() => {
     if (!isActive) {
@@ -76,7 +81,10 @@ export function useScoreEditPresence({
       const snapshot = panelRef.current?.getPendingSnapshot?.() ?? [];
       if (snapshot.length > 0) return;
       const request = putScoreDraft(sessionId, [], { activeCell: activeCellRef.current })
-        .then((data) => setActiveEditors(data.active_editors))
+        .then((data) => {
+          setActiveEditors(data.active_editors);
+          onPresenceSuccess();
+        })
         .catch((error) => {
           onPresenceError(
             "수정 권한 유지에 실패했습니다. 저장 후 다시 시도해 주세요.",
@@ -89,7 +97,7 @@ export function useScoreEditPresence({
       });
     }, 60_000);
     return () => window.clearInterval(interval);
-  }, [isActive, onPresenceError, panelRef, savePromiseRef, sessionId]);
+  }, [isActive, onPresenceError, onPresenceSuccess, panelRef, savePromiseRef, sessionId]);
 
   return { activeEditors, setActiveEditors, activeCellRef, presencePromiseRef };
 }

@@ -105,10 +105,19 @@ export function useScoreEditDraft({
   const savePromiseRef = useRef<Promise<number> | null>(null);
   const lastSaveAttemptAtRef = useRef(0);
   const needsDraftCommitRef = useRef(false);
+  const presenceErrorRef = useRef(false);
   const onPresenceError = useCallback((message: string, lockConflict: boolean) => {
+    presenceErrorRef.current = true;
     if (lockConflict) setEditLockConflict(true);
     setDraftStatus("error");
     setDraftError(message);
+  }, []);
+  const onPresenceSuccess = useCallback(() => {
+    if (!presenceErrorRef.current) return;
+    presenceErrorRef.current = false;
+    setEditLockConflict(false);
+    setDraftStatus("idle");
+    setDraftError(null);
   }, []);
   const { activeEditors, setActiveEditors, activeCellRef, presencePromiseRef } = useScoreEditPresence({
     sessionId,
@@ -117,6 +126,7 @@ export function useScoreEditDraft({
     isActive,
     activeCell,
     onPresenceError,
+    onPresenceSuccess,
   });
 
   const saveNow = useCallback(async function savePendingScores(
