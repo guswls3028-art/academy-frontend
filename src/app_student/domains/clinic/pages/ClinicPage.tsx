@@ -26,6 +26,7 @@ import {
   type ClinicCurrentTarget,
 } from "../api/clinicSummary.api";
 import { studentClinicQueryKeys } from "../queryKeys";
+import ClinicMultiSlotSelectionPanel from "../components/ClinicMultiSlotSelectionPanel";
 import styles from "./ClinicPage.module.css";
 
 type ApiErrorBody = { detail?: string; message?: string };
@@ -124,41 +125,6 @@ function hasValidPreferredRange(
 function preferredRangeText(request: ClinicBookingRequest): string | null {
   if (!request.preferred_start_time || !request.preferred_end_time) return null;
   return `희망 ${formatTime(request.preferred_start_time)}–${formatTime(request.preferred_end_time)}`;
-}
-
-function timeToMinutes(value: string | undefined): number | null {
-  if (!value) return null;
-  const [hours, minutes] = value.slice(0, 5).split(":").map(Number);
-  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
-  return hours * 60 + minutes;
-}
-
-function selectedTimeSummary(selectedSessions: ClinicSession[]): {
-  range: string;
-  duration: string;
-} {
-  if (selectedSessions.length === 0) return { range: "", duration: "" };
-  const ranges = selectedSessions.map((session) => ({
-    start: formatTime(session.start_time),
-    end: session.end_time ? formatTime(session.end_time) : formatTime(session.start_time),
-  }));
-  const contiguous = ranges.every((range, index) => (
-    index === 0 || ranges[index - 1].end === range.start
-  ));
-  const range = contiguous
-    ? `${ranges[0].start}–${ranges[ranges.length - 1].end}`
-    : ranges.map((item) => `${item.start}–${item.end}`).join(", ");
-  const totalMinutes = selectedSessions.reduce((total, session) => {
-    const start = timeToMinutes(session.start_time);
-    const end = timeToMinutes(session.end_time);
-    return start == null || end == null ? total : total + Math.max(end - start, 0);
-  }, 0);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  const duration = hours > 0
-    ? `${hours}시간${minutes > 0 ? ` ${minutes}분` : ""}`
-    : `${minutes}분`;
-  return { range, duration };
 }
 
 export default function ClinicPage() {
@@ -698,7 +664,6 @@ export default function ClinicPage() {
                     const selectedInGroup = group.sessions.filter((session) => (
                       selectedSessionIds.includes(session.id)
                     ));
-                    const timeSummary = selectedTimeSummary(selectedInGroup);
                     return (
                       <section
                         key={group.date}
@@ -840,97 +805,20 @@ export default function ClinicPage() {
                             );
                           })}
                           {selectedInGroup.length > 0 && (
-                            <section
-                              className={styles.selectionPanel}
-                              aria-label="선택한 클리닉 시간"
-                            >
-                              <div className={styles.selectionSummary}>
-                                <span>선택한 이용 시간</span>
-                                <strong>{timeSummary.range}</strong>
-                                <small>
-                                  {selectedInGroup.length}개 시간대 · 총 {timeSummary.duration}
-                                </small>
-                              </div>
-                              <div className={styles.selectionSlots} aria-label="선택한 시간대 목록">
-                                {selectedInGroup.map((session) => (
-                                  <span key={session.id}>
-                                    {formatTime(session.start_time)}–
-                                    {session.end_time
-                                      ? formatTime(session.end_time)
-                                      : formatTime(session.start_time)}
-                                  </span>
-                                ))}
-                              </div>
-                              {selectedInGroup.length === 1 && selectedSession?.allow_time_preference && (
-                                <fieldset className={styles.preferenceFieldset}>
-                                  <legend>
-                                    희망 이용 시간 <small>(선택)</small>
-                                  </legend>
-                                  <p>
-                                    운영 시간 안에서 원하는 구간을 남겨 주세요. 학원 확인 후 최종 배정됩니다.
-                                  </p>
-                                  <div className={styles.preferenceInputs}>
-                                    <label>
-                                      <span>시작</span>
-                                      <input
-                                        type="time"
-                                        aria-label="희망 시작 시간"
-                                        min={selectedSession.start_time.slice(0, 5)}
-                                        max={selectedSession.end_time?.slice(0, 5)}
-                                        step={300}
-                                        value={preferredStart}
-                                        onChange={(event) => setPreferredStart(event.target.value)}
-                                      />
-                                    </label>
-                                    <span aria-hidden>–</span>
-                                    <label>
-                                      <span>종료</span>
-                                      <input
-                                        type="time"
-                                        aria-label="희망 종료 시간"
-                                        min={selectedSession.start_time.slice(0, 5)}
-                                        max={selectedSession.end_time?.slice(0, 5)}
-                                        step={300}
-                                        value={preferredEnd}
-                                        onChange={(event) => setPreferredEnd(event.target.value)}
-                                      />
-                                    </label>
-                                  </div>
-                                </fieldset>
-                              )}
-                              <label className={styles.memoField}>
-                                <span>학원에 전할 내용 <small>(선택)</small></span>
-                                <textarea
-                                  aria-label="학원에 전할 내용 (선택)"
-                                  value={memo}
-                                  onChange={(event) => setMemo(event.target.value)}
-                                  placeholder="준비물이나 전달할 내용이 있으면 적어 주세요."
-                                  className="stu-textarea"
-                                  rows={2}
-                                />
-                              </label>
-                              <button
-                                type="button"
-                                className={`stu-btn stu-btn--primary ${styles.selectionSubmit}`}
-                                disabled={mutationsPending}
-                                onClick={changingBooking ? submitChange : submitBooking}
-                              >
-                                {changeMutation.isPending || bookingMutation.isPending
-                                  ? "처리 중…"
-                                  : changingBooking
-                                    ? "이 일정으로 변경하기"
-                                    : selectedInGroup.length > 1
-                                      ? `${selectedInGroup.length}개 시간대 예약하기`
-                                      : "이 일정 예약하기"}
-                              </button>
-                              {(bookingMutation.isError || changeMutation.isError) && (
-                                <p className={styles.errorText}>
-                                  {changingBooking
-                                    ? "일정 변경에 실패했습니다. 기존 예약은 유지됩니다."
-                                    : "예약 신청에 실패했습니다."} 다시 시도해 주세요.
-                                </p>
-                              )}
-                            </section>
+                            <ClinicMultiSlotSelectionPanel
+                              selectedSessions={selectedInGroup}
+                              selectedSession={selectedSession}
+                              memo={memo}
+                              preferredStart={preferredStart}
+                              preferredEnd={preferredEnd}
+                              pending={changeMutation.isPending || bookingMutation.isPending}
+                              changingBooking={!!changingBooking}
+                              hasError={bookingMutation.isError || changeMutation.isError}
+                              onMemoChange={setMemo}
+                              onPreferredStartChange={setPreferredStart}
+                              onPreferredEndChange={setPreferredEnd}
+                              onSubmit={changingBooking ? submitChange : submitBooking}
+                            />
                           )}
                         </div>
                       </section>

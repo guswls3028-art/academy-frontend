@@ -48,50 +48,7 @@ import {
   toHHmmss,
   todayISO,
 } from "./clinicCreatePanel.utils";
-
-type Props = {
-  date?: string;
-  hideDatePicker?: boolean;
-  selectedTargetEnrollmentIds?: number[];
-  onChangeSelectedTargetEnrollmentIds?: (ids: number[]) => void;
-  onDateChange?: (date: string) => void;
-  onCreated?: (createdDate?: string) => void;
-  /** When true, renders as a flat form (no card shell) — use inside AdminModal */
-  asModal?: boolean;
-  /** Edit mode: pass existing session to pre-fill form */
-  editSession?: {
-    id: number;
-    title?: string;
-    date: string;
-    start_time: string; // "HH:MM" or "HH:MM:SS"
-    duration_minutes: number;
-    location: string;
-    max_participants: number;
-    target_grade?: number | null;
-    target_school_type?: string | null;
-    target_lecture_ids?: number[];
-    section?: number | null;
-    allow_time_preference?: boolean;
-    allow_multi_slot_booking?: boolean;
-  };
-  /** Copy mode: pre-fill settings from an existing session while creating a new session */
-  copySession?: {
-    title?: string;
-    date: string;
-    start_time: string;
-    duration_minutes: number;
-    location: string;
-    max_participants: number;
-    target_grade?: number | null;
-    target_school_type?: string | null;
-    target_lecture_ids?: number[];
-    section?: number | null;
-    allow_time_preference?: boolean;
-    allow_multi_slot_booking?: boolean;
-  };
-  onUpdated?: (notice: ClinicSessionUpdateNotice) => void;
-  onPendingChange?: (pending: boolean) => void;
-};
+import type { ClinicCreatePanelProps } from "./clinicCreatePanel.types";
 
 export default function ClinicCreatePanel({
   date,
@@ -105,7 +62,7 @@ export default function ClinicCreatePanel({
   copySession,
   onUpdated,
   onPendingChange,
-}: Props) {
+}: ClinicCreatePanelProps) {
   const { message } = App.useApp();
   const confirm = useConfirm();
   const qc = useQueryClient();

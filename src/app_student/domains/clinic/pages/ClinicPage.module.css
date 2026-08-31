@@ -310,7 +310,6 @@
   font-size: 12px;
   line-height: 1.45;
 }
-
 .openScheduleSummary {
   display: flex;
   flex: 0 0 auto;
@@ -531,7 +530,6 @@
   background: var(--stu-primary);
   color: var(--stu-on-primary, #fff);
 }
-
 .recommendedBadge {
   background: color-mix(in srgb, var(--stu-primary) 10%, transparent);
   color: var(--stu-primary);
@@ -567,14 +565,12 @@
   flex-direction: column;
   gap: 3px;
 }
-
 .selectionSummary > span {
   color: var(--stu-primary);
   font-size: 11px;
   font-weight: 850;
   letter-spacing: 0.02em;
 }
-
 .selectionSummary > strong {
   color: var(--stu-text);
   font-size: 24px;
