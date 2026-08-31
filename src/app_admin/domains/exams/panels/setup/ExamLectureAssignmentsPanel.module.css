@@ -1,0 +1,163 @@
+.panel {
+  overflow: hidden;
+  border: 1px solid var(--border-divider);
+  border-radius: 14px;
+  background: var(--bg-surface);
+  box-shadow: 0 12px 32px rgb(15 23 42 / 5%);
+}
+
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--border-divider);
+  background: linear-gradient(125deg, color-mix(in srgb, var(--color-primary) 7%, transparent), transparent 55%);
+}
+
+.eyebrow {
+  color: var(--color-primary);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .12em;
+}
+
+.header h2 {
+  margin: 4px 0 0;
+  color: var(--color-text-primary);
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: -.03em;
+}
+
+.header p {
+  margin: 6px 0 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  padding: 12px 24px;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-surface-soft);
+  font-size: 12px;
+}
+
+.summary span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+}
+
+.summary small {
+  margin-left: auto;
+  color: var(--color-text-muted);
+}
+
+.lanes {
+  display: grid;
+}
+
+.lane {
+  --lane-color: var(--color-primary);
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto minmax(260px, auto);
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-divider);
+  box-shadow: inset 3px 0 0 var(--lane-color);
+}
+
+.lane:first-child { border-top: 0; }
+
+.laneIdentity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.lectureChip {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 11px;
+  color: #fff;
+  background: var(--lane-color);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.lane h3 {
+  overflow: hidden;
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lane p {
+  overflow: hidden;
+  margin: 3px 0 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cutoffEditor {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--border-divider);
+  border-radius: 10px;
+  padding: 6px 7px 6px 10px;
+  background: var(--color-bg-surface-soft);
+}
+
+.cutoffEditor > svg { color: var(--color-primary); }
+.cutoffEditor label { display: flex; align-items: center; gap: 6px; }
+.cutoffEditor label span { color: var(--color-text-muted); font-size: 10px; font-weight: 800; }
+.cutoffEditor input { width: 64px; border: 0; padding: 4px; color: var(--color-text-primary); background: transparent; font-weight: 900; text-align: right; }
+.cutoffEditor b { color: var(--color-text-secondary); font-size: 11px; }
+
+.formGrid { display: grid; gap: 16px; }
+.formGrid label { display: grid; gap: 7px; }
+.formGrid label > span { color: var(--color-text-secondary); font-size: 12px; font-weight: 850; }
+.formGrid select,
+.formGrid input { width: 100%; border: 1px solid var(--border-divider); border-radius: 9px; padding: 10px 12px; color: var(--color-text-primary); background: var(--bg-surface); }
+.formGrid small { color: var(--color-text-muted); font-size: 11px; }
+.scoreInput { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; }
+.scoreInput b { color: var(--color-text-secondary); font-size: 12px; }
+
+@media (max-width: 860px) {
+  .lane { grid-template-columns: minmax(0, 1fr) auto; }
+  .cutoffEditor { grid-column: 1 / -1; justify-self: stretch; }
+}
+
+@media (max-width: 560px) {
+  .header { align-items: stretch; flex-direction: column; padding: 18px 16px; }
+  .header > button { width: 100%; }
+  .summary { align-items: flex-start; flex-direction: column; padding: 12px 16px; }
+  .summary small { margin-left: 0; }
+  .lane { grid-template-columns: 1fr; padding: 15px 16px; }
+  .laneCounts { justify-self: start; }
+  .cutoffEditor { grid-column: auto; }
+  .cutoffEditor label { flex: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel, .lane { scroll-behavior: auto; }
+}

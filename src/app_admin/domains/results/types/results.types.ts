@@ -170,6 +170,8 @@ export type AdminExamResultRow = {
   lecture_title?: string | null;
   lecture_color?: string | null;
   lecture_chip_label?: string | null;
+  lecture_id?: number;
+  pass_score?: number;
   name_highlight_clinic_target?: boolean;
   exam_not_submitted_count?: number;
 };

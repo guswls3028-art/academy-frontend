@@ -14,6 +14,7 @@ async function installApi(page: Page, options: {
   passScore?: number;
   resultStatus?: "NOT_SUBMITTED" | "PROCESSING" | "PARTIAL" | "DONE" | "FAILED";
   remediated?: boolean;
+  sharedExam?: boolean;
 }) {
   let exportCalls = 0;
   let analysisExportCalls = 0;
@@ -52,8 +53,93 @@ async function installApi(page: Page, options: {
       });
       return;
     }
+    if (path === "/exams/77/lecture-assignments/") {
+      const assignments = options.sharedExam
+        ? [
+            {
+              lecture_id: 101,
+              lecture_title: "A학교 강의",
+              lecture_color: "#2563eb",
+              lecture_chip_label: "A",
+              pass_score: 60,
+              uses_default_pass_score: true,
+              roster_count: 1,
+              selected_count: 1,
+              sessions: [{ session_id: 1001, session_title: "중간고사", session_label: "1회차" }],
+            },
+            {
+              lecture_id: 202,
+              lecture_title: "B학교 강의",
+              lecture_color: "#dc2626",
+              lecture_chip_label: "B",
+              pass_score: 70,
+              uses_default_pass_score: false,
+              roster_count: 1,
+              selected_count: 1,
+              sessions: [{ session_id: 2001, session_title: "중간고사", session_label: "1회차" }],
+            },
+          ]
+        : [{
+            lecture_id: 101,
+            lecture_title: "공통수학2 정규반",
+            lecture_color: "#2563eb",
+            lecture_chip_label: "공",
+            pass_score: passScore,
+            uses_default_pass_score: true,
+            roster_count: options.hasResults ? 1 : 0,
+            selected_count: options.hasResults ? 1 : 0,
+            sessions: [{ session_id: 1001, session_title: "진단평가", session_label: "1회차" }],
+          }];
+      await json(route, {
+        exam_id: 77,
+        default_pass_score: passScore,
+        total_roster_count: assignments.reduce((sum, item) => sum + item.roster_count, 0),
+        total_selected_count: assignments.reduce((sum, item) => sum + item.selected_count, 0),
+        assignments,
+      });
+      return;
+    }
     if (path === "/results/admin/exams/77/results/") {
-      await json(route, options.hasResults ? [{
+      const lectureId = new URL(request.url()).searchParams.get("lecture_id");
+      const sharedRows = [
+        {
+          enrollment_id: 901,
+          student_name: "A학생",
+          final_score: 65,
+          exam_max_score: 100,
+          ranking_score: 65,
+          result_status: "DONE",
+          passed: true,
+          remediated: false,
+          final_pass: true,
+          achievement: "PASS",
+          rank: 1,
+          cohort_size: lectureId ? 1 : 2,
+          lecture_id: 101,
+          lecture_title: "A학교 강의",
+          pass_score: 60,
+        },
+        {
+          enrollment_id: 902,
+          student_name: "B학생",
+          final_score: 65,
+          exam_max_score: 100,
+          ranking_score: 65,
+          result_status: "DONE",
+          passed: false,
+          remediated: false,
+          final_pass: false,
+          achievement: "FAIL",
+          rank: 1,
+          cohort_size: lectureId ? 1 : 2,
+          lecture_id: 202,
+          lecture_title: "B학교 강의",
+          pass_score: 70,
+        },
+      ];
+      const rows = options.sharedExam
+        ? sharedRows.filter((row) => lectureId == null || String(row.lecture_id) === lectureId)
+        : [{
         enrollment_id: 901,
         student_name: "김학생",
         final_score: 60,
@@ -66,8 +152,11 @@ async function installApi(page: Page, options: {
         achievement: options.remediated ? "REMEDIATED" : passScore > 0 ? "PASS" : null,
         rank: 1,
         cohort_size: 1,
+        lecture_id: 101,
         lecture_title: "공통수학2 정규반",
-      }] : []);
+        pass_score: passScore,
+      }];
+      await json(route, options.hasResults ? rows : []);
       return;
     }
     if (path === "/results/admin/exams/77/questions/") {
@@ -164,7 +253,7 @@ test("수업 브리핑을 한눈에 확인하고 전문 분석 리포트를 내�
   ).toBeVisible();
 
   await page.setViewportSize({ width: 1280, height: 900 });
-  const passSummary = page.getByText("합격 1 · 미달 0 · 보충 완료 0", { exact: true });
+  const passSummary = page.getByText("합격 1 · 미달 0 · 기준 적용 1명 · 보충 완료 0", { exact: true });
   await expect(passSummary).toBeVisible();
   const passSummaryLayout = await passSummary.evaluate((element) => {
     const style = window.getComputedStyle(element);
@@ -247,4 +336,72 @@ test("수동 통과 학생을 보충 완료로 별도 집계한다", async ({ pa
   });
 
   await expect(page.getByText(/보충 완료 1/)).toBeVisible();
+});
+
+test("공유 시험은 전체와 강의별 성적을 각 강의 커트라인으로 전환한다", async ({ page }, testInfo) => {
+  await installApi(page, { hasResults: true, sharedExam: true });
+  await gotoAndSettle(page, `${BASE}/e2e-exam-results-export-harness.html`, {
+    timeout: 60_000,
+  });
+
+  await expect(page.getByRole("heading", { name: "어느 강의 성적을 볼까요?" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /전체 성적 2명 강의별 컷 적용/ })).toHaveAttribute("aria-pressed", "true");
+  const studentResults = page.getByRole("region", { name: "시험 학생별 결과" });
+  await expect(studentResults.getByText("A학생", { exact: true }).last()).toBeVisible();
+  await expect(studentResults.getByText("B학생", { exact: true }).last()).toBeVisible();
+  await expect(page.getByText("합격 1 · 미달 1 · 기준 적용 2명 · 보충 완료 0", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: /B학교 강의 1명 귀가 기준 70점/ }).click();
+  await expect(page.getByRole("button", { name: /B학교 강의 1명 귀가 기준 70점/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: /전체 성적 2명 강의별 컷 적용/ })).toBeVisible();
+  await expect(studentResults.getByText("B학생", { exact: true }).last()).toBeVisible();
+  await expect(studentResults.getByText("A학생", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("합격 0 · 미달 1 · 기준 적용 1명 · 보충 완료 0", { exact: true })).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const scopePanel = page.getByRole("heading", { name: "어느 강의 성적을 볼까요?" }).locator("xpath=ancestor::section");
+  const box = await scopePanel.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+  const screenshot = testInfo.outputPath("shared-exam-scope-390.png");
+  await page.screenshot({ path: screenshot, fullPage: true });
+  await testInfo.attach("shared-exam-scope-390", {
+    path: screenshot,
+    contentType: "image/png",
+  });
+});
+
+test("시험 설정에서 다른 강의 차시와 귀가 기준을 390px에서도 선택한다", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoAndSettle(page, `${BASE}/e2e-exam-results-export-harness.html?visual=assignments`, {
+    timeout: 60_000,
+  });
+
+  const panel = page.getByRole("heading", { name: "시험을 보는 강의" }).locator("xpath=ancestor::section");
+  await expect(page.getByText("2개 강의", { exact: true })).toBeVisible();
+  await expect(page.getByText("대상 2명", { exact: true })).toBeVisible();
+  await expect(page.getByRole("spinbutton", { name: "A학교 강의 귀가 기준 점수" })).toHaveValue("60");
+  await expect(page.getByRole("spinbutton", { name: "B학교 강의 귀가 기준 점수" })).toHaveValue("70");
+
+  const panelBox = await panel.boundingBox();
+  expect(panelBox).not.toBeNull();
+  expect(panelBox!.x).toBeGreaterThanOrEqual(0);
+  expect(panelBox!.x + panelBox!.width).toBeLessThanOrEqual(390);
+
+  await page.getByRole("button", { name: "강의 추가" }).click();
+  const dialog = page.getByRole("dialog", { name: "이 시험에 강의 추가" });
+  await dialog.getByRole("combobox", { name: "강의" }).selectOption("202");
+  await expect(dialog.getByRole("spinbutton")).toHaveValue("70");
+  await dialog.getByRole("combobox", { name: "강의" }).selectOption("303");
+  await expect(dialog.getByRole("combobox", { name: /시험 차시/ })).toHaveValue("3001");
+  await expect(dialog.getByRole("spinbutton")).toHaveValue("60");
+  await expect(dialog.getByRole("button", { name: "강의 연결" })).toBeEnabled();
+
+  const screenshot = testInfo.outputPath("shared-exam-assignments-390.png");
+  await page.screenshot({ path: screenshot, fullPage: true });
+  await testInfo.attach("shared-exam-assignments-390", {
+    path: screenshot,
+    contentType: "image/png",
+  });
 });

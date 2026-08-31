@@ -15,6 +15,7 @@ export type ExamResultsInsightModel = {
   topTenAverage: number;
   highest: number;
   hasPassCriterion: boolean;
+  passCriterionCount: number;
   passCount: number;
   failCount: number;
   passRate: number;
@@ -109,12 +110,31 @@ export function buildExamResultsInsightModel({
   });
   const scores = scoredRows.map(({ score }) => score);
   const scoreRates = scores.map((score) => Math.min(100, Math.max(0, (score / safeMaxScore) * 100)));
-  const hasPassCriterion = Number.isFinite(passScore) && passScore > 0;
+  const passCriteria = scoredRows.map(({ row }) => (
+    typeof row.pass_score === "number" && Number.isFinite(row.pass_score)
+      ? row.pass_score
+      : passScore
+  ));
+  const criterionRows = scoredRows.flatMap((scoredRow, index) => {
+    const criterion = passCriteria[index];
+    return Number.isFinite(criterion) && criterion > 0
+      ? [{ ...scoredRow, criterion }]
+      : [];
+  });
+  const hasPassCriterion = criterionRows.length > 0;
+  const hasUnconfiguredPassCriteria = criterionRows.length < scoredRows.length;
+  const uniquePassCriteria = new Set(passCriteria);
+  const passCriterionLabel = uniquePassCriteria.size > 1
+    ? "강의별 기준"
+    : `${passCriteria[0] ?? passScore}점 기준`;
   const passCount = hasPassCriterion
-    ? scoredRows.filter(({ row, score }) => row.passed === true || (row.passed == null && score >= passScore)).length
+    ? criterionRows.filter(({ row, score, criterion }) => (
+      row.passed === true
+      || (row.passed == null && score >= criterion)
+    )).length
     : 0;
-  const failCount = hasPassCriterion ? Math.max(scores.length - passCount, 0) : 0;
-  const passRate = hasPassCriterion && scores.length > 0 ? passCount / scores.length : 0;
+  const failCount = hasPassCriterion ? Math.max(criterionRows.length - passCount, 0) : 0;
+  const passRate = hasPassCriterion ? passCount / criterionRows.length : 0;
   const remediatedCount = scoredRows.filter(({ row }) => row.remediated === true).length;
   const stdRate = populationStdDev(scoreRates);
 
@@ -173,10 +193,16 @@ export function buildExamResultsInsightModel({
       detail: "합격 컷이 설정되지 않아 합격·미달 인원을 계산하지 않았습니다. 시험 설정에서 기준 점수를 먼저 확인하세요.",
       tone: "attention",
     };
+  } else if (hasUnconfiguredPassCriteria) {
+    cutReview = {
+      title: "일부 강의 기준 설정 필요",
+      detail: `귀가 기준이 없는 ${scoredRows.length - criterionRows.length}명은 합격률에서 제외했습니다. 강의별 기준을 먼저 확인하세요.`,
+      tone: "attention",
+    };
   } else if (scores.length < 5) {
     cutReview = {
       title: "컷 판단 보류",
-      detail: `현재 ${passScore}점 기준을 유지하고 표본이 쌓인 뒤 검토하세요.`,
+      detail: `현재 ${passCriterionLabel}을 유지하고 표본이 쌓인 뒤 검토하세요.`,
       tone: "neutral",
     };
   } else if (failRate >= 0.6) {
@@ -237,6 +263,7 @@ export function buildExamResultsInsightModel({
     topTenAverage: topTenAverage(scores),
     highest: scores.length > 0 ? Math.max(...scores) : 0,
     hasPassCriterion,
+    passCriterionCount: criterionRows.length,
     passCount,
     failCount,
     passRate,
