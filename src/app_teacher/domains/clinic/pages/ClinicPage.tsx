@@ -6,7 +6,7 @@
 // sectionMode 가드 제거(2026-05-02): PC 어드민 ClinicHomePage는 sectionMode 무관하게
 // 동작하는데 모바일만 sectionMode=true 학원으로 가렸음. 림글리쉬(sectionMode=false)
 // 처럼 클리닉 운영 중인 학원에서 모바일 페이지가 EmptyState로 가려져 신고 발생.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { Plus, ChevronLeft, ChevronRight } from "@teacher/shared/ui/Icons";
@@ -566,6 +566,7 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
   const [capacity, setCapacity] = useState("10");
   const [sectionId, setSectionId] = useState<number | null>(null);
   const [allowMultiSlotBooking, setAllowMultiSlotBooking] = useState(false);
+  const multiSlotTouchedRef = useRef(false);
 
   const settingsQ = useQuery({
     queryKey: teacherClinicQueryKeys.settings,
@@ -575,7 +576,11 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
   });
 
   useEffect(() => {
-    if (!open || !settingsQ.data) return;
+    if (!open) {
+      multiSlotTouchedRef.current = false;
+      return;
+    }
+    if (!settingsQ.data || multiSlotTouchedRef.current) return;
     setAllowMultiSlotBooking(settingsQ.data.multi_slot_booking_default === true);
   }, [open, settingsQ.data]);
 
@@ -669,7 +674,10 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
           <input
             type="checkbox"
             checked={allowMultiSlotBooking}
-            onChange={(event) => setAllowMultiSlotBooking(event.target.checked)}
+            onChange={(event) => {
+              multiSlotTouchedRef.current = true;
+              setAllowMultiSlotBooking(event.target.checked);
+            }}
             style={{ marginTop: 2 }}
           />
           <span className="flex flex-col gap-0.5">

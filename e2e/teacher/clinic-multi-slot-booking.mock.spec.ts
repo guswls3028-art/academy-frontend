@@ -73,6 +73,10 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   ]);
   const bulkPayloads: unknown[] = [];
   const createdSessionPayloads: unknown[] = [];
+  let releaseSettings: (() => void) | undefined;
+  const settingsGate = new Promise<void>((resolve) => {
+    releaseSettings = resolve;
+  });
 
   await page.addInitScript((token) => {
     localStorage.setItem("access", token);
@@ -114,6 +118,7 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
       });
     }
     if (path === "/clinic/settings/" && request.method() === "GET") {
+      await settingsGate;
       return json({ multi_slot_booking_default: false });
     }
     if (path === "/clinic/sessions/" && request.method() === "GET") return json(sessions);
@@ -222,6 +227,8 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   const multiSlotToggle = createSheet.getByRole("checkbox", { name: /같은 날 여러 시간대 예약/ });
   await expect(multiSlotToggle).not.toBeChecked();
   await multiSlotToggle.check();
+  releaseSettings?.();
+  await expect(multiSlotToggle).toBeChecked();
   await createSheet.locator('input[type="time"]').first().fill("17:00");
   await createSheet.getByPlaceholder("예: 3층 자습실").fill("클리닉 2실");
   await createSheet.getByRole("button", { name: "생성", exact: true }).click();
