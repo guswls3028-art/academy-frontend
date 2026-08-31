@@ -504,8 +504,8 @@ export default function ClinicConsoleWorkspace({
   const timeLabel = hhmmText(session?.start_time, "—");
   const dateLabel = dayjs(selectedDate).format("M월 D일 (dd)");
   const rosterParticipants = useMemo(
-    () => participants.filter(isActiveRosterParticipant),
-    [participants],
+    () => (isAggregate ? participants : participants.filter(isActiveRosterParticipant)),
+    [isAggregate, participants],
   );
   const changeNoticeStudentIds = useMemo(() => {
     const ids = new Set<number>();
