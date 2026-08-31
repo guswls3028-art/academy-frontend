@@ -8,9 +8,14 @@ function extractTemplateVars(body: string): string[] {
 export function compactGradesPayloadVars(
   body: string,
   vars?: Record<string, string>,
+  hasPerStudentSubstitution = false,
 ): Record<string, string> | undefined {
   if (!vars) return undefined;
-  const requiredKeys = new Set([...GRADES_ENVELOPE_CONTEXT_KEYS, ...extractTemplateVars(body)]);
+  const requiredKeys = new Set(
+    hasPerStudentSubstitution
+      ? GRADES_ENVELOPE_CONTEXT_KEYS
+      : [...GRADES_ENVELOPE_CONTEXT_KEYS, ...extractTemplateVars(body)],
+  );
   const compact = Object.fromEntries(
     Object.entries(vars).filter(([key]) => requiredKeys.has(key)),
   );

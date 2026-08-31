@@ -487,17 +487,21 @@ export default function SendMessageModal({
     const currentBody = body.trim();
     payload.raw_body = currentBody;
     if (subject.trim()) payload.raw_subject = subject.trim();
-    const payloadExtraVars = effectiveBlockCategory === "grades"
-      ? compactGradesPayloadVars(currentBody, alimtalkExtraVars)
-      : alimtalkExtraVars;
-    if (payloadExtraVars) payload.alimtalk_extra_vars = payloadExtraVars;
-    if (scheduledSendAtIso) payload.scheduled_send_at = scheduledSendAtIso;
     const computedPerStudentVars = recomputePerStudentVarsRef?.current
       ? recomputePerStudentVarsRef.current(currentBody)
       : alimtalkExtraVarsPerStudent;
     const perStudentVars = effectiveBlockCategory === "grades"
       ? compactGradesPerStudentPayloadVars(currentBody, computedPerStudentVars)
       : computedPerStudentVars;
+    const payloadExtraVars = effectiveBlockCategory === "grades"
+      ? compactGradesPayloadVars(
+          currentBody,
+          alimtalkExtraVars,
+          Boolean(perStudentVars && Object.keys(perStudentVars).length > 0),
+        )
+      : alimtalkExtraVars;
+    if (payloadExtraVars) payload.alimtalk_extra_vars = payloadExtraVars;
+    if (scheduledSendAtIso) payload.scheduled_send_at = scheduledSendAtIso;
     if (perStudentVars && Object.keys(perStudentVars).length > 0) {
       payload.alimtalk_extra_vars_per_student = perStudentVars;
     }
