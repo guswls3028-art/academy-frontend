@@ -11,6 +11,8 @@ import type { APIRequestContext, Page } from "@playwright/test";
 
 import { getApiBaseUrl, getBaseUrl } from "../helpers/auth";
 import { acknowledgeFirstLoginGuideIfVisible } from "../helpers/firstLoginGuide";
+import { installAccountNotificationGuard } from "../helpers/accountNotificationSafety";
+import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle, waitForRenderSettled } from "../helpers/wait";
 
 test.setTimeout(240_000);
@@ -117,13 +119,9 @@ async function expectApi<T = unknown>(
 }
 
 async function seedBrowser(page: Page, tokens: Tokens): Promise<void> {
-  await page.addInitScript(({ access, refresh, code }) => {
-    localStorage.setItem("access", access);
-    localStorage.setItem("refresh", refresh);
-    localStorage.setItem("tenant_code", code);
-    sessionStorage.setItem("tenantCode", code);
-  }, { access: tokens.access, refresh: tokens.refresh, code: CODE });
-  await page.goto(`${BASE}/login`, { waitUntil: "commit", timeout: 20_000 });
+  if (new URL(page.url()).origin !== new URL(BASE).origin) {
+    await page.goto(`${BASE}/login`, { waitUntil: "commit", timeout: 20_000 });
+  }
   await page.evaluate(({ access, refresh, code }) => {
     localStorage.setItem("access", access);
     localStorage.setItem("refresh", refresh);
@@ -206,7 +204,7 @@ test.describe.serial("[real-use] 클리닉 여러 시간대 예약", () => {
     await cleanup(request);
   });
 
-  test("학생 UI와 교직원 경로에서 ON은 저장되고 OFF는 실패 폐쇄한다", async ({ page, request }) => {
+  test("학생 UI와 교직원 경로에서 ON은 저장되고 OFF는 실패 폐쇄한다", async ({ page, request, browser }) => {
     const teacher = await login(request, TEACHER_USER);
     const student = await login(request, STUDENT_USER);
     created.teacherAccess = teacher.access;
@@ -256,7 +254,9 @@ test.describe.serial("[real-use] 클리닉 여러 시간대 예약", () => {
     const selection = page.getByRole("region", { name: "선택한 클리닉 시간" });
     await expect(selection).toContainText("17:00–19:00");
     await expect(selection).toContainText("2개 시간대");
+    await selection.scrollIntoViewIfNeeded();
     expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await page.screenshot({ path: "test-results/clinic-multi-slot-realuse-student-390.png", fullPage: true });
     await selection.getByLabel("학원에 전할 내용 (선택)").fill("실사용 두 시간 연속 참여");
     await selection.getByRole("button", { name: "2개 시간대 예약하기" }).click();
     await expect(page.getByRole("status")).toContainText("2개 시간대 예약 신청이 접수되었습니다.");
@@ -299,13 +299,23 @@ test.describe.serial("[real-use] 클리닉 여러 시간대 예약", () => {
     }
     expect(await participantsFor(request, sessions[2].id)).toHaveLength(0);
 
-    await seedBrowser(page, teacher);
-    await page.setViewportSize({ width: 1100, height: 800 });
-    await gotoAndSettle(page, `${BASE}/workspace/mobile/clinic`, { timeout: 30_000 });
-    await page.getByRole("button", { name: `${MARKER} 17시` }).click();
-    await waitForRenderSettled(page, { timeout: 20_000 });
-    await expect(page.getByText("검증학생 01", { exact: true })).toBeVisible();
-    await expect(page.getByText(SECOND_STUDENT_NAME, { exact: true })).toBeVisible();
-    expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    const teacherContext = await browser.newContext({ viewport: { width: 1100, height: 800 } });
+    const teacherPage = await teacherContext.newPage();
+    installAccountNotificationGuard(teacherPage.request);
+    const strictTeacher = attachStrictBrowserGuards(teacherPage);
+    try {
+      await seedBrowser(teacherPage, teacher);
+      await gotoAndSettle(teacherPage, `${BASE}/workspace/mobile/clinic`, { timeout: 30_000 });
+      await acknowledgeFirstLoginGuideIfVisible(teacherPage);
+      await teacherPage.getByRole("button", { name: `${MARKER} 17시` }).click();
+      await waitForRenderSettled(teacherPage, { timeout: 20_000 });
+      await expect(teacherPage.getByText("검증학생 01", { exact: true })).toBeVisible();
+      await expect(teacherPage.getByText(SECOND_STUDENT_NAME, { exact: true })).toBeVisible();
+      expect(await teacherPage.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+      await teacherPage.screenshot({ path: "test-results/clinic-multi-slot-realuse-teacher-1100.png", fullPage: true });
+      strictTeacher.assertZeroDefects();
+    } finally {
+      await teacherContext.close();
+    }
   });
 });
