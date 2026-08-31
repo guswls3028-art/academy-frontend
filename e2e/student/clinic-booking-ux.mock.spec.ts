@@ -630,6 +630,27 @@ test.describe("학생 클리닉 예약 UX", () => {
     expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   });
 
+  test("다른 날짜로 옮길 때는 한 타임 전용 일정도 바로 선택할 수 있다", async ({ page }) => {
+    const state = createState();
+    state.bookings = [];
+    await seed(page);
+    await installApi(page, state);
+    await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+
+    const openDateRegion = page.getByRole("region", { name: koreanDateLabel(openDate) });
+    const bookedDateRegion = page.getByRole("region", { name: koreanDateLabel(bookedDate) });
+    await openDateRegion.getByRole("button", { name: /토요일 5시 클리닉/ }).click();
+
+    const singleSlotOnOtherDate = bookedDateRegion.getByRole("button", {
+      name: /대수 오답 클리닉/,
+    });
+    await expect(singleSlotOnOtherDate).toBeEnabled();
+    await singleSlotOnOtherDate.click();
+    await expect(singleSlotOnOtherDate).toHaveAttribute("aria-pressed", "true");
+    await expect(openDateRegion.getByRole("button", { name: /토요일 5시 클리닉/ }))
+      .toHaveAttribute("aria-pressed", "false");
+  });
+
   test("미해소 대상의 승인 대기 예약을 귀가 불가 상태로 표시하고 reload 후 유지한다", async ({ page }) => {
     const state = createState();
     await seed(page);

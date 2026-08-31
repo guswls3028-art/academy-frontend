@@ -725,9 +725,13 @@ export default function ClinicPage() {
                                 request.session === session.id &&
                                 (request.status === "pending" || request.status === "booked"),
                             );
-                            const policyBlockedBySelection = !selected && selectedSessions.length > 0 && (
+                            const policyBlockedBySelection = !selected && selectedSessions.some(
+                              (item) => item.date === session.date,
+                            ) && (
                               session.allow_multi_slot_booking !== true ||
-                              selectedSessions.some((item) => item.allow_multi_slot_booking !== true)
+                              selectedSessions.some((item) => (
+                                item.date === session.date && item.allow_multi_slot_booking !== true
+                              ))
                             );
                             const policyBlockedByExisting = activeBookedSessions.some((activeSession) => (
                               activeSession.id !== session.id &&
