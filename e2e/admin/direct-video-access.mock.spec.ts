@@ -1,4 +1,4 @@
-import type { Page, Route } from "@playwright/test";
+import type { Locator, Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
@@ -168,6 +168,41 @@ async function installApp(page: Page): Promise<Evidence> {
   return evidence;
 }
 
+async function expectRevokeCtaLayout(page: Page, direct: Locator): Promise<void> {
+  const revokeButton = direct.getByRole("button", { name: "회수", exact: true });
+  const label = revokeButton.locator(".ds-button__label");
+  await expect(revokeButton).toBeVisible();
+  await expect(revokeButton).toHaveText("회수");
+
+  const metrics = await label.evaluate((element) => {
+    const labelRect = element.getBoundingClientRect();
+    const buttonRect = element.parentElement?.getBoundingClientRect();
+    const rowRect = element.closest(".direct-video-access__revoke")?.getBoundingClientRect();
+    return {
+      labelClientWidth: element.clientWidth,
+      labelScrollWidth: element.scrollWidth,
+      labelLeft: labelRect.left,
+      labelRight: labelRect.right,
+      buttonLeft: buttonRect?.left ?? -1,
+      buttonRight: buttonRect?.right ?? -1,
+      rowLeft: rowRect?.left ?? -1,
+      rowRight: rowRect?.right ?? -1,
+      viewportWidth: window.innerWidth,
+    };
+  });
+  expect(metrics.labelClientWidth, "회수 CTA 라벨 너비가 확보되어야 한다").toBeGreaterThan(0);
+  expect(metrics.labelScrollWidth, "회수 CTA 라벨이 말줄임되지 않아야 한다").toBeLessThanOrEqual(metrics.labelClientWidth);
+  expect(metrics.labelLeft).toBeGreaterThanOrEqual(metrics.buttonLeft - 1);
+  expect(metrics.labelRight).toBeLessThanOrEqual(metrics.buttonRight + 1);
+  expect(metrics.buttonLeft).toBeGreaterThanOrEqual(metrics.rowLeft - 1);
+  expect(metrics.buttonRight).toBeLessThanOrEqual(metrics.rowRight + 1);
+  expect(metrics.rowLeft).toBeGreaterThanOrEqual(-1);
+  expect(metrics.rowRight).toBeLessThanOrEqual(metrics.viewportWidth + 1);
+  await expect.poll(
+    () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
+  ).toBeLessThanOrEqual(1);
+}
+
 test.use({ serviceWorkers: "block" });
 test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "로컬 route-mock 전용");
 
@@ -210,6 +245,13 @@ test("교직원은 명시 확인으로 영상 1개만 승인하고 사유와 함
     confirmed_regrant: false,
   }]);
 
+  await expectRevokeCtaLayout(page, direct);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("region", { name: "학생 시청 현황" }).getByRole("button", { name: "권한 관리" }).click();
+  await page.getByRole("button", { name: "수강 등록 없이 영상만" }).click();
+  await expect(direct.getByText("사용 중", { exact: true })).toBeVisible();
+  await expectRevokeCtaLayout(page, direct);
+
   await direct.getByRole("textbox", { name: "테스트학생 회수 사유" }).fill("보강 제공 종료");
   await direct.getByRole("button", { name: "회수", exact: true }).click();
   const revokeDialog = page.getByRole("alertdialog", { name: "개별 영상 권한 회수" });
@@ -225,10 +267,7 @@ test("교직원은 명시 확인으로 영상 1개만 승인하고 사유와 함
     || path.includes("notification")
   ))).toEqual([]);
 
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole("region", { name: "학생 시청 현황" }).getByRole("button", { name: "권한 관리" }).click();
-  await page.getByRole("button", { name: "수강 등록 없이 영상만" }).click();
-  await expect(page.getByRole("region", { name: "수강 등록 없이 영상만" })).toBeVisible();
+  await expect(direct).toBeVisible();
   await expect.poll(
     () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
   ).toBeLessThanOrEqual(1);
