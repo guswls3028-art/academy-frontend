@@ -102,6 +102,25 @@ test("학생별 치환 본문이 있으면 중복 성적 변수 대신 치환 �
   });
 });
 
+test("학생별 치환 본문이 있으면 공유 payload에는 강의와 차시만 남긴다", () => {
+  const compact = compactGradesPayloadVars(
+    "#{학생명} 학생의 #{시험1_점수}점 성적표입니다.",
+    {
+      강의명: "수학",
+      차시명: "4주차",
+      학생명: "첫 학생",
+      시험1_점수: "50",
+      시험성적: "첫 학생 50점",
+    },
+    true,
+  );
+
+  expect(compact).toEqual({
+    강의명: "수학",
+    차시명: "4주차",
+  });
+});
+
 test("미입력 점수는 미제출·불합격·보충 필요로 변환하지 않는다", () => {
   const row = scoreRow(null);
   const detail = buildScoreDetail(row, scoreMeta);
