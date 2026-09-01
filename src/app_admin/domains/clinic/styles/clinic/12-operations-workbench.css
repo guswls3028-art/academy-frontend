@@ -457,6 +457,11 @@
   background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface));
 }
 
+.clinic-workbench .clinic-ops__drawer-status-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .clinic-workbench .clinic-ops__drawer-body {
   gap: 18px;
   padding: 18px 20px 28px;

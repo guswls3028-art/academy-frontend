@@ -233,3 +233,86 @@ test("클리닉 작업대의 긴 한글 제목은 desktop과 390px에서 잘리�
     expect(metrics.scrollHeight).toBeGreaterThan(metrics.lineHeight * 1.5);
   }
 });
+
+test("desktop 학생 작업대 운영 버튼은 세로로 찌그러지지 않는다", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await page.setContent(`
+    <style>
+      .clinic-ops__drawer-status-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        width: 580px;
+      }
+
+      .clinic-ops__drawer-status-btn {
+        flex: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 10px 16px;
+        border: 1px solid #d0d5dd;
+        font-size: 14px;
+        line-height: 22px;
+      }
+
+      .clinic-ops__drawer-status-btn--manage,
+      .clinic-ops__drawer-status-btn--cancel {
+        flex: 1 1 132px;
+      }
+
+      .clinic-ops__drawer-status-btn > i {
+        width: 16px;
+        height: 16px;
+        flex: 0 0 16px;
+      }
+    </style>
+    <section class="clinic-workbench">
+      <div class="clinic-ops__drawer-status-actions" data-testid="drawer-actions">
+        <button class="clinic-ops__drawer-status-btn"><i></i><span>등원</span></button>
+        <button class="clinic-ops__drawer-status-btn"><i></i><span>재촉</span></button>
+        <button class="clinic-ops__drawer-status-btn"><i></i><span>결석</span></button>
+        <button class="clinic-ops__drawer-status-btn"><i></i><span>미등원 하원</span></button>
+        <button class="clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--manage"><i></i><span>일정 변경</span></button>
+        <button class="clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--cancel"><i></i><span>명단에서 빼기</span></button>
+      </div>
+    </section>
+  `);
+  await page.addStyleTag({ path: WORKBENCH_CSS });
+
+  const metrics = await page.getByTestId("drawer-actions").evaluate((element) => {
+    const style = getComputedStyle(element);
+    const buttons = Array.from(element.querySelectorAll("button"));
+    const rows = new Set(buttons.map((button) => Math.round(button.getBoundingClientRect().top)));
+    return {
+      display: style.display,
+      columns: style.gridTemplateColumns.split(" ").filter(Boolean).length,
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+      rows: rows.size,
+      buttons: buttons.map((button) => {
+        const box = button.getBoundingClientRect();
+        const label = button.querySelector("span")?.getBoundingClientRect();
+        return {
+          width: box.width,
+          height: box.height,
+          right: box.right,
+          labelHeight: label?.height ?? 0,
+        };
+      }),
+      right: element.getBoundingClientRect().right,
+    };
+  });
+
+  expect(metrics.display).toBe("grid");
+  expect(metrics.columns).toBe(3);
+  expect(metrics.rows).toBe(2);
+  expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth);
+  for (const button of metrics.buttons) {
+    expect(button.width).toBeGreaterThan(170);
+    expect(button.height).toBeLessThanOrEqual(48);
+    expect(button.labelHeight).toBeLessThanOrEqual(24);
+    expect(button.right).toBeLessThanOrEqual(metrics.right + 1);
+  }
+});
