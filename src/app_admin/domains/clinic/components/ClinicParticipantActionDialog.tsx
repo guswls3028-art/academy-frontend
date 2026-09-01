@@ -9,7 +9,7 @@ export type ClinicRecipient = "student" | "parent" | "both";
 export type ClinicParticipantAction = "arrive" | "late" | "checkout" | "remind" | "absent";
 
 export type ClinicParticipantActionPayload = {
-  send_to?: ClinicRecipient;
+  send_to: ClinicRecipient;
   mode?: "once" | "repeat";
   interval_minutes?: number;
   repeat_until?: string;
@@ -118,7 +118,7 @@ export default function ClinicParticipantActionDialog({
       return;
     }
     if (action === "checkout") {
-      onConfirm({});
+      onConfirm({ send_to: sendTo });
       return;
     }
     onConfirm(action === "remind" ? { send_to: sendTo, mode: "once" } : { send_to: sendTo });
