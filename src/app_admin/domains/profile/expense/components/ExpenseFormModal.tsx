@@ -20,12 +20,14 @@ type ExpenseFormPayload = Omit<Form, "amount"> & {
 export default function ExpenseFormModal({
   open,
   initial,
+  defaultDate,
   submitting,
   onClose,
   onSubmit,
 }: {
   open: boolean;
   initial?: Expense | null;
+  defaultDate?: string;
   submitting?: boolean;
   onClose: () => void;
   onSubmit: (data: ExpenseFormPayload) => Promise<void> | void;
@@ -54,14 +56,14 @@ export default function ExpenseFormModal({
     } else {
       const _d = new Date();
       setForm({
-        date: `${_d.getFullYear()}-${String(_d.getMonth() + 1).padStart(2, "0")}-${String(_d.getDate()).padStart(2, "0")}`,
+        date: defaultDate ?? `${_d.getFullYear()}-${String(_d.getMonth() + 1).padStart(2, "0")}-${String(_d.getDate()).padStart(2, "0")}`,
         title: "",
         amount: "",
         memo: "",
       });
     }
     setErr("");
-  }, [open, initial]);
+  }, [defaultDate, open, initial]);
 
   const canSubmit = useMemo(() => {
     const amount = Number(form.amount);

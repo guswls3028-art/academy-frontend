@@ -100,10 +100,20 @@ function StaffManagerToggle({
   );
 }
 
-function getThisMonthRange() {
+function getSelectedMonthRange(location: ReturnType<typeof useLocation>) {
   const d = new Date();
-  const y = d.getFullYear();
-  const m = d.getMonth() + 1;
+  const backgroundLocation = (location.state as {
+    backgroundLocation?: { search?: string };
+  } | null)?.backgroundLocation;
+  const search = new URLSearchParams(backgroundLocation?.search ?? location.search);
+  const requestedYear = Number(search.get("year"));
+  const requestedMonth = Number(search.get("month"));
+  const y = Number.isInteger(requestedYear) && requestedYear >= 2000
+    ? requestedYear
+    : d.getFullYear();
+  const m = Number.isInteger(requestedMonth) && requestedMonth >= 1 && requestedMonth <= 12
+    ? requestedMonth
+    : d.getMonth() + 1;
   const from = `${y}-${String(m).padStart(2, "0")}-01`;
   const last = new Date(y, m, 0).getDate();
   const to = `${y}-${String(m).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
@@ -156,7 +166,7 @@ export default function StaffDetailOverlay({
     navigate(-1);
   }, [closeOverride, location.key, navigate]);
 
-  const { y, m, from, to } = getThisMonthRange();
+  const { y, m, from, to } = getSelectedMonthRange(location);
 
   const staffQ = useQuery({
     queryKey: staffQueryKeys.staffDetail(sid),
@@ -241,10 +251,10 @@ export default function StaffDetailOverlay({
   const canManage = true; // meQ guard 통과 = payroll manager 확정
 
   const tabItems: Array<{ key: StaffTabKey; label: string; children: ReactNode }> = [
-    { key: "summary", label: "요약", children: <StaffSummaryTab staffId={sid} /> },
+    { key: "summary", label: "요약", children: <StaffSummaryTab staffId={sid} year={y} month={m} /> },
     { key: "worktype", label: "시급·근무유형", children: <StaffWorkTypeTab staffId={sid} /> },
-    { key: "records", label: "근무기록", children: <StaffWorkRecordsTab staffId={sid} /> },
-    { key: "expenses", label: "비용", children: <StaffExpensesTab staffId={sid} /> },
+    { key: "records", label: "근무기록", children: <StaffWorkRecordsTab staffId={sid} year={y} month={m} /> },
+    { key: "expenses", label: "비용", children: <StaffExpensesTab staffId={sid} year={y} month={m} /> },
     { key: "history", label: "급여 히스토리", children: <StaffPayrollHistoryTab /> },
     { key: "report", label: "리포트", children: <StaffReportTab /> },
   ];

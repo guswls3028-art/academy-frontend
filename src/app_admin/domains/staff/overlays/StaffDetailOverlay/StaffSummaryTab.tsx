@@ -6,14 +6,18 @@ import { LockBadge } from "../../components/StatusBadge";
 import { staffQueryKeys } from "../../queryKeys";
 import { Button, EmptyState } from "@/shared/ui/ds";
 
-export default function StaffSummaryTab({ staffId }: { staffId: number }) {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth() + 1;
-
-  const from = `${y}-${String(m).padStart(2, "0")}-01`;
-  const last = new Date(y, m, 0).getDate();
-  const to = `${y}-${String(m).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
+export default function StaffSummaryTab({
+  staffId,
+  year,
+  month,
+}: {
+  staffId: number;
+  year: number;
+  month: number;
+}) {
+  const from = `${year}-${String(month).padStart(2, "0")}-01`;
+  const last = new Date(year, month, 0).getDate();
+  const to = `${year}-${String(month).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
 
   const summaryQ = useQuery({
     queryKey: staffQueryKeys.summaryRange(staffId, from, to),
@@ -21,8 +25,8 @@ export default function StaffSummaryTab({ staffId }: { staffId: number }) {
   });
 
   const locksQ = useQuery({
-    queryKey: staffQueryKeys.workMonthLocksForMonth(staffId, y, m),
-    queryFn: () => fetchWorkMonthLocks({ staff: staffId, year: y, month: m }),
+    queryKey: staffQueryKeys.workMonthLocksForMonth(staffId, year, month),
+    queryFn: () => fetchWorkMonthLocks({ staff: staffId, year, month }),
   });
 
   if (summaryQ.isError || locksQ.isError) {
@@ -64,7 +68,7 @@ export default function StaffSummaryTab({ staffId }: { staffId: number }) {
         ].join(" ")}
       >
         <div>
-          <div className="text-sm font-semibold">이번달 요약</div>
+          <div className="text-sm font-semibold">선택 월 요약</div>
           <div className="text-xs text-[var(--text-muted)]">
             {from} ~ {to}
           </div>
