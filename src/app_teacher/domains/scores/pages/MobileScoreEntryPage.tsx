@@ -518,7 +518,7 @@ function ScoreEntryList({
       {/* KPI 1줄 — 입력 진행 + 평균 (+ 합격률, pass_score > 0 일 때만) */}
       {stats && (() => {
         // pass_score=0/null 은 합격선 의미 없음 → KPI 합격 타일 숨김
-        const showPass = examPassScore != null && examPassScore > 0;
+        const showPass = !wrongCompletionOnly && examPassScore != null && examPassScore > 0;
         return (
           <div
             className={cx(
@@ -614,7 +614,9 @@ function ScoreEntryList({
               >
                 {name}
               </span>
-              <AchievementBadge passed={r.final_pass ?? r.passed} achievement={r.achievement} />
+              {!wrongCompletionOnly && (
+                <AchievementBadge passed={r.final_pass ?? r.passed} achievement={r.achievement} />
+              )}
               <div className="flex items-center gap-1 shrink-0">
                 <input
                   ref={(el) => {

@@ -147,7 +147,7 @@ export default function ExamResultPage() {
           )}
         </div>
 
-        {r.correction_status && (
+        {(wrongCompletionOnly || r.correction_status) && (
           <CorrectionStatusCard status={r.correction_status} wrongCompletionOnly={wrongCompletionOnly} />
         )}
 
@@ -230,17 +230,22 @@ function CorrectionStatusCard({
   status,
   wrongCompletionOnly,
 }: {
-  status: "PENDING" | "COMPLETED" | "NOT_REQUIRED";
+  status: "PENDING" | "COMPLETED" | "NOT_REQUIRED" | null | undefined;
   wrongCompletionOnly: boolean;
 }) {
-  const wrongCompletion = wrongCompletionOnly ? wrongCompletionLabel(status) : null;
-  const content = wrongCompletion
+  const content = wrongCompletionOnly
     ? {
-        label: wrongCompletion,
-        tone: status === "PENDING" ? "danger" as const : "success" as const,
-        description: status === "PENDING"
-          ? "확인할 오답이 남아 있어요. 수업 안내에 따라 오답을 정리해 주세요."
-          : "선생님 확인 기준으로 이 시험의 오답 정리가 완료됐어요.",
+        label: wrongCompletionLabel(status),
+        tone: status == null
+          ? "muted" as const
+          : status === "PENDING"
+            ? "danger" as const
+            : "success" as const,
+        description: status == null
+          ? "채점이 완료되면 오답 확인 상태를 알려드려요."
+          : status === "PENDING"
+            ? "확인할 오답이 남아 있어요. 수업 안내에 따라 오답을 정리해 주세요."
+            : "선생님 확인 기준으로 이 시험의 오답 정리가 완료됐어요.",
       }
     : status === "COMPLETED"
     ? {
@@ -263,7 +268,7 @@ function CorrectionStatusCard({
   return (
     <section
       className={styles.correctionCard}
-      data-status={status.toLowerCase()}
+      data-status={status?.toLowerCase() ?? "waiting"}
       aria-label="테스트 오답 확인 상태"
     >
       <div className={styles.correctionHeading}>

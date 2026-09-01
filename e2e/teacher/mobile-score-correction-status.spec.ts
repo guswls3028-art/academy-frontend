@@ -135,6 +135,8 @@ test.describe("교사 모바일 테스트 오답 상태", () => {
     await expect(filters.getByRole("button", { name: "확인 필요 1" })).toBeVisible();
     await expect(filters.getByRole("button", { name: "처리됨 1" })).toBeVisible();
     await expect(filters.getByRole("button", { name: "채점 대기 1" })).toBeVisible();
+    await expect(page.getByText("채점 대기", { exact: true })).toBeVisible();
+    await expect(page.locator("main")).not.toContainText(/PASS|보강\s?합격|합격/);
 
     await filters.getByRole("button", { name: "확인 필요 1" }).click();
     await expect(page.getByText("김확인", { exact: true })).toBeVisible();
@@ -149,7 +151,7 @@ test.describe("교사 모바일 테스트 오답 상태", () => {
     await expect(filters.getByRole("button", { name: "확인 필요 0" })).toBeVisible();
     await filters.getByRole("button", { name: "처리됨 2" }).click();
     await expect(page.getByRole("button", { name: "김확인 오답 완료; 눌러서 오답 미완료로 변경" })).toBeVisible();
-    await expect(page.locator("main")).not.toContainText(/PASS|보강\s?합격/);
+    await expect(page.locator("main")).not.toContainText(/PASS|보강\s?합격|합격/);
 
     await filters.getByRole("button", { name: /전체/ }).click();
     await page.getByRole("searchbox", { name: "학생 이름 검색" }).fill("박완료");

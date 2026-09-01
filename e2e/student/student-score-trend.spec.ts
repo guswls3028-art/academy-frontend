@@ -520,10 +520,13 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
 
     const completedCard = page.getByRole("link").filter({ hasText: "Ymath 주간 테스트 1회" });
     const pendingCard = page.getByRole("link").filter({ hasText: "Ymath 주간 테스트 2회" });
+    const waitingCard = page.getByRole("link").filter({ hasText: "미응시 테스트" });
     await expect(completedCard).toContainText("오답 완료");
     await expect(pendingCard).toContainText("오답 미완료");
+    await expect(waitingCard).toContainText("채점 대기");
     await expect(completedCard).not.toContainText(/PASS|보강\s?합격|합격/);
     await expect(pendingCard).not.toContainText(/PASS|보강\s?합격|합격/);
+    await expect(waitingCard).not.toContainText(/PASS|보강\s?합격|합격/);
     await expect(completedCard).toContainText("7, 9번");
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 

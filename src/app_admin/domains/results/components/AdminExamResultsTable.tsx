@@ -22,7 +22,7 @@ import {
   achievementTone,
 } from "@/shared/scoring/achievement";
 import { compareKoreanText, compareNullableNumbers } from "@/shared/utils/dataOrdering";
-import { useWrongCompletionDisplay, wrongCompletionLabel } from "@/shared/scoring/assessmentStatusDisplay";
+import { wrongCompletionLabel } from "@/shared/scoring/assessmentStatusDisplay";
 import "./AdminExamResultsTable.css";
 
 function toBadgeTone(t: ReturnType<typeof achievementTone>): BadgeTone {
@@ -35,12 +35,13 @@ type ResultStatusFilter = "all" | "done" | "waiting" | "working" | "failed";
 export default function AdminExamResultsTable({
   rows,
   onSelectEnrollment,
+  wrongCompletionOnly,
 }: {
   rows: AdminExamResultRow[];
   onSelectEnrollment: (id: number) => void;
+  wrongCompletionOnly: boolean;
 }) {
   const tenantLabels = useTenantLabels();
-  const wrongCompletionOnly = useWrongCompletionDisplay();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<ResultSort>("rank");
   const [statusFilter, setStatusFilter] = useState<ResultStatusFilter>("all");
@@ -339,10 +340,10 @@ function ExamCorrectionBadge({
   return (
     <Badge
       variant="solid"
-      tone={status === "PENDING" ? "warning" : label ? "success" : "muted"}
+      tone={status == null ? "muted" : status === "PENDING" ? "warning" : "success"}
       size="xs"
     >
-      {label ?? "채점 대기"}
+      {label}
     </Badge>
   );
 }

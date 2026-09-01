@@ -1082,8 +1082,8 @@ test.describe("학생별 회차 누적 성적 추이", () => {
 
     await expect(pendingGroup.getByText("오답 미완료", { exact: true })).toBeVisible();
     await expect(completedGroup.getByText("오답 완료", { exact: true })).toBeVisible();
-    await expect(pendingGroup).not.toContainText(/PASS|보강\s?합격/);
-    await expect(completedGroup).not.toContainText(/PASS|보강\s?합격/);
+    await expect(pendingGroup).not.toContainText(/PASS|보강\s?합격|합격/);
+    await expect(completedGroup).not.toContainText(/PASS|보강\s?합격|합격/);
     await expect(notSubmittedGroup.getByText("채점 대기", { exact: true })).toBeVisible();
     await expect(notSubmittedGroup.getByRole("button", { name: "오답 수정" })).toHaveCount(0);
 

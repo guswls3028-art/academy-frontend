@@ -39,10 +39,14 @@ export default function LectureExamGroup({ group, labels }: { group: ExamGroup; 
           const hasQuestionAnalysis = Number(e.total_questions ?? 0) > 0 && e.meta_status !== "NOT_SUBMITTED";
           const wrongCount = Number(e.wrong_count ?? 0);
           const wrongNumbers = wrongPreview(e.wrong_question_numbers);
-          const correction = wrongCompletionOnly && wrongCompletionLabel(e.correction_status)
+          const correction = wrongCompletionOnly
             ? {
-                label: wrongCompletionLabel(e.correction_status)!,
-                tone: e.correction_status === "PENDING" ? "danger" as const : "success" as const,
+                label: wrongCompletionLabel(e.correction_status),
+                tone: e.correction_status == null
+                  ? "muted" as const
+                  : e.correction_status === "PENDING"
+                    ? "danger" as const
+                    : "success" as const,
               }
             : e.correction_status === "COMPLETED"
             ? { label: "오답 완료", tone: "success" as const }

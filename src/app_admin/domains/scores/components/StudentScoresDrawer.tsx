@@ -1423,7 +1423,7 @@ function CorrectionStatusBadge({
   const wrongLabel = wrongExamCompletionOnly ? wrongCompletionLabel(block.correction_status) : null;
   if (wrongLabel) {
     return (
-      <Badge tone={block.correction_status === "PENDING" ? "warning" : "success"} size="xs">
+      <Badge tone={block.correction_status == null ? "muted" : block.correction_status === "PENDING" ? "warning" : "success"} size="xs">
         {wrongLabel}
       </Badge>
     );

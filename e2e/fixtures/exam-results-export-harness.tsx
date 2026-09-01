@@ -10,6 +10,8 @@ import api from "@/shared/api/axios";
 import "@/index.css";
 
 const visualMode = new URLSearchParams(window.location.search).get("visual");
+const wrongCompletionOnly = new URLSearchParams(window.location.search)
+  .get("assessmentStatusDisplay") === "wrong_completion";
 
 if (visualMode === "shared" || visualMode === "assignments") {
   const sharedRows = [
@@ -156,7 +158,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <main className="mx-auto max-w-6xl p-4">
           {visualMode === "assignments"
             ? <ExamLectureAssignmentsPanel examId={77} maxScore={100} />
-            : <ExamResultsViewerPanel examId={77} />}
+            : <ExamResultsViewerPanel examId={77} wrongCompletionOnly={wrongCompletionOnly} />}
         </main>
       </BrowserRouter>
     </QueryClientProvider>

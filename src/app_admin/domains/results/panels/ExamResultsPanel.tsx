@@ -32,6 +32,7 @@ import { useAdminExam } from "@admin/domains/exams/hooks/useAdminExam";
 type Props = {
   examId: number;
   lectureId?: number | null;
+  wrongCompletionOnly?: boolean;
 };
 
 async function fetchAdminExamResults(examId: number, lectureId?: number | null) {
@@ -47,7 +48,7 @@ async function fetchAdminExamResults(examId: number, lectureId?: number | null) 
     : [];
 }
 
-export default function ExamResultsPanel({ examId, lectureId = null }: Props) {
+export default function ExamResultsPanel({ examId, lectureId = null, wrongCompletionOnly = false }: Props) {
   const [searchParams] = useSearchParams();
 
   const initialEnrollmentId = Number(
@@ -99,6 +100,7 @@ export default function ExamResultsPanel({ examId, lectureId = null }: Props) {
         <AdminExamResultsTable
           rows={rows}
           onSelectEnrollment={setSelectedEnrollmentId}
+          wrongCompletionOnly={wrongCompletionOnly}
         />
       </div>
 
