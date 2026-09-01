@@ -68,6 +68,11 @@ export interface NotificationLogItem {
   provider_message_reference?: string;
   /** provider 접수 식별자가 기록되었는지 여부 */
   provider_evidence?: boolean;
+  provider_delivery_status?: "unavailable" | "provider_accepted" | "delivered" | "failed";
+  provider_status_code?: string;
+  provider_delivery_checked_at?: string | null;
+  provider_delivery_updated_at?: string | null;
+  provider_delivery_failure_reason?: string;
   /** 실제 발송된 메시지 본문 */
   message_body?: string;
   message_body_included?: boolean;
@@ -82,6 +87,7 @@ export interface NotificationLogParams {
   page?: number;
   page_size?: number;
   status?: "success" | "failure" | "sent" | "active" | "attention" | "failed";
+  scope?: "clinic";
 }
 
 export interface NotificationLogResponse {
@@ -89,7 +95,7 @@ export interface NotificationLogResponse {
   count: number;
 }
 
-export type ScheduledNotificationStatus = "pending" | "sent" | "failed" | "cancelled";
+export type ScheduledNotificationStatus = "pending" | "dispatching" | "sent" | "failed" | "cancelled";
 
 export interface ScheduledNotificationItem {
   id: number;
@@ -169,6 +175,7 @@ export async function fetchScheduledNotifications(params?: {
   page?: number;
   page_size?: number;
   status?: ScheduledNotificationStatus;
+  scope?: "clinic";
 }): Promise<ScheduledNotificationResponse> {
   const res = await api.get<ScheduledNotificationResponse>(`${PREFIX}/scheduled/`, { params });
   return res.data;
@@ -275,9 +282,10 @@ export async function fetchMessagingOperationsStatus(): Promise<MessagingOperati
 
 /** 발송 로그 단건 상세 */
 export async function fetchNotificationLogDetail(
-  id: number
+  id: number,
+  params?: { verify_provider?: boolean },
 ): Promise<NotificationLogItem> {
-  const res = await api.get<NotificationLogItem>(`${PREFIX}/log/${id}/`);
+  const res = await api.get<NotificationLogItem>(`${PREFIX}/log/${id}/`, { params });
   return res.data;
 }
 
@@ -551,7 +559,7 @@ export const AUTO_SEND_TRIGGER_LABELS: Record<string, string> = {
   clinic_cancelled: "클리닉 예약 취소",
   clinic_check_in: "참석(입실)",
   clinic_absent: "결석",
-  clinic_self_study_completed: "클리닉 완료(하원)",
+  clinic_self_study_completed: "클리닉 자율학습 완료",
   clinic_result_notification: "클리닉 결과 안내",
   counseling_reservation_created: "상담 예약 완료",
   payment_complete: "결제 완료",

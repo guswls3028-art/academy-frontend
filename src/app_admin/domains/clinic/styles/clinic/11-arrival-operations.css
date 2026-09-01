@@ -46,6 +46,25 @@
 .clinic-ops__att-btn--checkout { color: #6941c6; background: #f4f3ff; }
 .clinic-ops__att-btn--noshow { color: var(--scale-Error700); background: color-mix(in srgb, var(--color-error) 7%, var(--color-bg-surface)); }
 .clinic-ops__att-btn--attend { color: var(--scale-Success700); background: color-mix(in srgb, var(--color-success) 8%, var(--color-bg-surface)); }
+.clinic-ops__att-btn--reschedule { color: var(--color-brand-primary); background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface)); }
+.clinic-ops__att-btn--cancel { color: var(--scale-Error700); background: color-mix(in srgb, var(--color-error) 7%, var(--color-bg-surface)); }
+
+.clinic-ops__drawer-status-btn--manage,
+.clinic-ops__drawer-status-btn--cancel {
+  flex: 1 1 132px;
+}
+
+.clinic-ops__drawer-status-btn--manage {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 34%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-brand-primary) 7%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+}
+
+.clinic-ops__drawer-status-btn--cancel {
+  border-color: color-mix(in srgb, var(--color-error) 30%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-error) 6%, var(--color-bg-surface));
+  color: var(--scale-Error700);
+}
 
 .clinic-reschedule__backdrop {
   position: fixed;

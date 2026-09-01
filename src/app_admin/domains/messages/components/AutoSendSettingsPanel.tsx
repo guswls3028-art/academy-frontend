@@ -92,7 +92,7 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
   clinic_absent:
     "\"결석\" 처리 시 학부모에게 결석 알림을 발송합니다.",
   clinic_self_study_completed:
-    "\"완료\" 버튼을 누르면 학부모에게 하원(완료) 안내를 발송합니다.",
+    "자율학습 완료를 확정하면 학부모에게 학습 완료 안내를 발송합니다. 출결 하원 기록과는 별개입니다.",
   clinic_cancelled:
     "클리닉 예약이 취소되면 학부모에게 취소 안내를 발송합니다.",
   clinic_result_notification:

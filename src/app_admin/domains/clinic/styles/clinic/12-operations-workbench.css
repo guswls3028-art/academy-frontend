@@ -253,6 +253,7 @@
 
 .clinic-ops__student-row .clinic-ops__card-actions {
   gap: 6px;
+  flex-wrap: wrap;
   overflow: visible;
   border: 0;
   border-radius: 0;

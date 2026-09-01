@@ -53,6 +53,7 @@ export type ClinicParticipant = {
   is_late?: boolean;
   checked_out_at?: string | null;
   checked_out_by_name?: string | null;
+  checkout_mode?: "" | "arrival_recorded" | "arrival_not_recorded";
 
   // 학생 SSOT 표시용
   lecture_title?: string | null;
@@ -232,7 +233,11 @@ export async function remindClinicParticipant(
 
 export async function checkoutClinicParticipant(
   id: number,
-  payload: { send_to: ClinicRecipient },
+  payload: {
+    confirm_without_arrival?: boolean;
+    expected_session_id?: number;
+    expected_student_id?: number;
+  } = {},
 ) {
   const res = await api.post(`/clinic/participants/${id}/checkout/`, payload);
   return res.data as ClinicParticipantMutationResult;

@@ -19,6 +19,7 @@ type Props = {
   action: ClinicParticipantAction;
   participantName: string;
   selectedDate: string;
+  withoutArrival?: boolean;
   busy?: boolean;
   onClose: () => void;
   onConfirm: (payload: ClinicParticipantActionPayload) => void;
@@ -42,8 +43,8 @@ const ACTION_COPY: Record<
   },
   checkout: {
     title: "하원 처리",
-    eyebrow: "등원 학생만 가능",
-    description: "하원 시각을 자율학습 완료와 별도로 기록하고 승인된 전용 알림톡만 요청합니다.",
+    eyebrow: "하원 기록",
+    description: "하원 시각을 자율학습 완료와 별도로 기록합니다. 하원 알림톡은 발송하지 않습니다.",
     confirm: "하원 확정",
   },
   remind: {
@@ -77,11 +78,19 @@ export default function ClinicParticipantActionDialog({
   action,
   participantName,
   selectedDate,
+  withoutArrival = false,
   busy = false,
   onClose,
   onConfirm,
 }: Props) {
-  const copy = ACTION_COPY[action];
+  const copy = action === "checkout" && withoutArrival
+    ? {
+        title: "하원 처리",
+        eyebrow: "미등원 하원",
+        description: "등원 기록은 만들지 않습니다. 선택한 학생과 일정에 하원 시각만 남깁니다.",
+        confirm: "미등원 하원 확정",
+      }
+    : ACTION_COPY[action];
   const [sendTo, setSendTo] = useState<ClinicRecipient>(() => defaultRecipient(action));
   const [mode, setMode] = useState<"once" | "repeat">("once");
   const [intervalMinutes, setIntervalMinutes] = useState("60");
@@ -106,6 +115,10 @@ export default function ClinicParticipantActionDialog({
         interval_minutes: Number(intervalMinutes),
         repeat_until: dayjs(`${selectedDate}T${repeatUntil}:00`).format(),
       });
+      return;
+    }
+    if (action === "checkout") {
+      onConfirm({ send_to: sendTo });
       return;
     }
     onConfirm(action === "remind" ? { send_to: sendTo, mode: "once" } : { send_to: sendTo });
@@ -174,7 +187,7 @@ export default function ClinicParticipantActionDialog({
             </fieldset>
           )}
 
-          <fieldset className={styles.fieldset}>
+          {action !== "checkout" && <fieldset className={styles.fieldset}>
             <legend>알림톡 수신자</legend>
             <div className={styles.recipientGrid}>
               {([
@@ -190,7 +203,7 @@ export default function ClinicParticipantActionDialog({
               ))}
             </div>
             <p className={styles.note}>승인된 전용 알림톡 템플릿이 없으면 발송하지 않습니다.</p>
-          </fieldset>
+          </fieldset>}
 
           <footer className={styles.footer}>
             <span><kbd>Esc</kbd> 취소 · <kbd>Enter</kbd> 확정</span>
