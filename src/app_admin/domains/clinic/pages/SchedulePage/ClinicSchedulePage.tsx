@@ -226,7 +226,6 @@ export default function ClinicSchedulePage() {
   };
 
   const loading = sessionsQ.isLoading || participantsQ.listQ.isLoading;
-  const isCurrentWeek = weekFrom === mondayOfWeek(today).format("YYYY-MM-DD");
   const isCurrentMonth = dayjs(today).isSame(monthStart, "month");
   const monthHasSessions = (monthSessionsQ.data ?? []).some((session) =>
     dayjs(session.date).isSame(monthStart, "month")
@@ -264,7 +263,7 @@ export default function ClinicSchedulePage() {
               intent="primary"
               size="md"
               leftIcon={<CalendarPlus size={ICON_FOR_BUTTON.md} />}
-              onClick={() => openCreate(isCurrentWeek ? today : weekFrom)}
+              onClick={() => openCreate(selectedDate)}
             >
               클리닉 만들기
             </Button>
@@ -285,13 +284,13 @@ export default function ClinicSchedulePage() {
                     iconOnly
                     aria-label="이전 달"
                     leftIcon={<ChevronLeft size={ICON_FOR_BUTTON.sm} />}
-                    onClick={() => setMonthAnchor(monthStart.subtract(1, "month").format("YYYY-MM-DD"))}
+                    onClick={() => selectCalendarDate(monthStart.subtract(1, "month").format("YYYY-MM-DD"))}
                   />
                   <Button
                     intent="secondary"
                     size="sm"
                     disabled={isCurrentMonth}
-                    onClick={() => setMonthAnchor(today)}
+                    onClick={() => selectCalendarDate(today)}
                   >
                     이번 달
                   </Button>
@@ -301,7 +300,7 @@ export default function ClinicSchedulePage() {
                     iconOnly
                     aria-label="다음 달"
                     leftIcon={<ChevronRight size={ICON_FOR_BUTTON.sm} />}
-                    onClick={() => setMonthAnchor(monthStart.add(1, "month").format("YYYY-MM-DD"))}
+                    onClick={() => selectCalendarDate(monthStart.add(1, "month").format("YYYY-MM-DD"))}
                   />
                   <Button
                     intent="ghost"

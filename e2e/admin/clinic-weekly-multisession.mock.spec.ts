@@ -551,6 +551,30 @@ test("월간 달력에서 원하는 날짜를 고르면 그날 일정만 명확�
   await page.screenshot({ path: "test-results/admin-clinic-calendar-forwardfix-390.png", fullPage: false });
 });
 
+test("월간 이동만 해도 선택 상세와 새 클리닉 날짜를 표시 월에 맞춘다", async ({ page }) => {
+  const nextMonthStart = dateInMonth(1, 1);
+  const nextMonthValue = new Date(`${nextMonthStart}T12:00:00`);
+  const nextMonthLabel = `${nextMonthValue.getMonth() + 1}월 ${nextMonthValue.getDate()}일`;
+
+  await seed(page);
+  await installApi(page);
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
+
+  const overview = page.getByRole("region", { name: "월간 날짜 탐색" });
+  await overview.getByRole("button", { name: "다음 달" }).click();
+
+  const nextMonthFirstDay = overview.getByRole("gridcell", {
+    name: new RegExp(`${nextMonthLabel} .*요일`),
+  });
+  await expect(nextMonthFirstDay).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("region", { name: new RegExp(`${nextMonthLabel}.*일정`) })).toBeVisible();
+
+  await page.getByRole("button", { name: "클리닉 만들기", exact: true }).click();
+  const dialog = page.getByRole("dialog").filter({ hasText: "클리닉 만들기" });
+  await expect(dialog).toContainText(nextMonthLabel);
+});
+
 test("상시 월간 달력에서 다음 달 날짜를 고르면 선택한 날짜 상세로 이어진다", async ({ page }) => {
   const nextMonthDate = dateInMonth(1, 15);
   const nextMonthDateValue = new Date(`${nextMonthDate}T12:00:00`);
