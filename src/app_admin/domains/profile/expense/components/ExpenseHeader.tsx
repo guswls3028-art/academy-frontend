@@ -4,6 +4,7 @@ import { Expense } from "../../api/profile.api";
 import { downloadExpenseExcel } from "../../excel/expenseExcel";
 import { FiPlus, FiDownload } from "react-icons/fi";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useRef } from "react";
 
 export default function ExpenseHeader({
   range,
@@ -14,8 +15,9 @@ export default function ExpenseHeader({
   range: { from: string; to: string };
   resetRangeToMonth: (m?: string) => void;
   rowsForExcel: Expense[];
-  onCreate: () => void;
+  onCreate: (selectedMonth: string) => void;
 }) {
+  const monthInputRef = useRef<HTMLInputElement>(null);
   const monthValue =
     range.from?.slice(0, 7) || (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; })();
 
@@ -36,6 +38,7 @@ export default function ExpenseHeader({
           </Button>
 
           <input
+            ref={monthInputRef}
             type="month"
             value={monthValue}
             onChange={(e) => resetRangeToMonth(e.target.value)}
@@ -61,7 +64,11 @@ export default function ExpenseHeader({
             type="button"
             intent="primary"
             size="sm"
-            onClick={onCreate}
+            onClick={() => {
+              const selectedMonth = monthInputRef.current?.value || monthValue;
+              resetRangeToMonth(selectedMonth);
+              onCreate(selectedMonth);
+            }}
             leftIcon={<FiPlus size={14} />}
           >
             지출 등록
