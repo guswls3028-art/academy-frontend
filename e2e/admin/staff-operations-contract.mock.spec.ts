@@ -704,12 +704,10 @@ test.describe("직원 운영 계약", () => {
       onWorkRecordPatch: (id, body) => { patched = { id, body }; },
     });
 
-    await gotoAndSettle(page, `${BASE}/workspace/staff/home`, {
+    await gotoAndSettle(page, `${BASE}/workspace/staff/attendance?staffId=1&year=2026&month=8`, {
       timeout: 30_000,
     });
-    const staffName = page.getByText("김조교", { exact: true }).first();
-    await expect(staffName).toBeVisible({ timeout: 20_000 });
-    await staffName.click();
+    await page.getByRole("button", { name: "김조교 직원 상세 열기" }).click();
 
     const staffDetail = page.getByTestId("staff-detail-overlay");
     await staffDetail.getByRole("tab", { name: "근무기록", exact: true }).click();
@@ -802,12 +800,10 @@ test.describe("직원 운영 계약", () => {
       onExpensePatch: (id, body) => { patched = { id, body }; },
     });
 
-    await gotoAndSettle(page, `${BASE}/workspace/staff/home`, {
+    await gotoAndSettle(page, `${BASE}/workspace/staff/expenses?staffId=1&year=2026&month=8`, {
       timeout: 30_000,
     });
-    const staffName = page.getByText("김조교", { exact: true }).first();
-    await expect(staffName).toBeVisible({ timeout: 20_000 });
-    await staffName.click();
+    await page.getByRole("button", { name: "김조교 직원 상세 열기" }).click();
 
     const staffDetail = page.getByTestId("staff-detail-overlay");
     await staffDetail.getByRole("tab", { name: "비용", exact: true }).click();
@@ -1181,6 +1177,7 @@ test.describe("직원 운영 계약", () => {
     await gotoAndSettle(page, `${BASE}/workspace/profile/expense`, {
       timeout: 30_000,
     });
+    await page.locator('input[type="month"]').fill("2026-08");
     await expect(page.getByText("개인 교통비", { exact: true })).toBeVisible();
     const createTrigger = page.getByRole("button", { name: "지출 등록" });
     await createTrigger.click();

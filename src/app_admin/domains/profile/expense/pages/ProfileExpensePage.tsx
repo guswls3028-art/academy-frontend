@@ -85,6 +85,7 @@ export default function ProfileExpensePage() {
       <ExpenseFormModal
         open={domain.open}
         initial={domain.editing}
+        defaultDate={range.from}
         submitting={domain.submitting}
         onClose={domain.close}
         onSubmit={domain.submit}
