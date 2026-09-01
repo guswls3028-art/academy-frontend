@@ -34,6 +34,7 @@ export const routeMockSpecs = [
   "e2e/admin/enrollment-excel-existing-only.mock.spec.ts",
   "e2e/admin/landing-editor-sections.mock.spec.ts",
   "e2e/admin/manual-exam-grading.mock.spec.ts",
+  "e2e/admin/omr-subjective-entry.mock.spec.ts",
   "e2e/admin/omr-batch-progress.mock.spec.ts",
   "e2e/admin/homework-media-review.mock.spec.ts",
   "e2e/admin/messaging-operations-control.mock.spec.ts",

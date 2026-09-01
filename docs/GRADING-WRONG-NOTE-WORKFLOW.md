@@ -75,15 +75,21 @@ HWPX는 문제·선생님 필기 해설 원본을 이미지로 보존하고 제�
 
 1. **강의 → 차시 → 성적**으로 이동한다.
 2. 성적표의 시험명을 누르면 현재 시험에 대한 작업 메뉴가 열린다.
-3. 시험 채점 계약에 따라 **정오표 작성**, **OMR 검토**, **시험 설정** 중
-   가능한 항목만 활성화한다.
+3. 상단의 **OMR 스캔 등록**은 `choice`·`mixed` 시험만, **서술형 점수 입력**
+   또는 **정오표 입력**은 `written`·`mixed` 시험만 자동으로 대상으로 삼는다.
+   가능한 시험이 하나면 바로 열고, 여러 개면 해당 작업이 가능한 시험만 선택기에
+   표시한다. 시험명을 눌러 여는 메뉴에서도 같은 계약으로 **정오표 작성**,
+   **OMR 검토**, **시험 설정** 중 가능한 항목만 활성화한다.
 4. **시험 설정**에서는 OMR 자동채점, 정오 직접입력, 문항별 점수 직접입력을
    선택한다. 전환은 기존 문항·정답·성적을 삭제하지 않는다.
 
 OMR과 직접 채점은 대체 관계로 가정하지 않는다. 객관식 OMR 시험은 계속
 OMR 등록·검토를 쓸 수 있고, 직접 채점 시험과 혼합 시험은 정오표를 쓴다.
 혼합 시험의 OMR 문항은 정오표에 보이지만 읽기 전용이고, 직접 채점 문항만
-수정할 수 있다.
+수정할 수 있다. 혼합 시험을 상단 직접 채점 진입점에서 열어도 같은 채점표에서
+서술형 입력을 이어가며 **OMR 답안 등록**과 **OMR 결과 보정**으로 이동할 수 있다.
+이 진입점은 새 채점 모드를 만들거나 결과를 자동 확정하지 않으며 기존 저장,
+충돌 재시도, 재조회 계약을 그대로 사용한다.
 
 ### OMR 학생 확인 계약
 
@@ -109,13 +115,16 @@ OMR 등록·검토를 쓸 수 있고, 직접 채점 시험과 혼합 시험은 �
 주요 소유 구현:
 
 - 진입과 작업 메뉴:
-  `src/app_admin/domains/lectures/pages/scores/SessionScoresEntryPage.tsx`
+  `src/app_admin/domains/lectures/pages/scores/SessionScoresEntryPage.tsx`,
+  `SessionOmrUploadAction.tsx`, `SessionManualGradingAction.tsx`
 - 정오표:
   `src/app_admin/domains/results/components/ManualExamGradingGrid.tsx`
 - API:
   `src/app_admin/domains/results/api/manualExamGrading.ts`
 - OMR 검토와 학생 확정:
   `src/app_admin/domains/results/components/omr-review/OmrReviewWorkspace.tsx`
+- OMR·서술형 진입 회귀:
+  `e2e/admin/omr-subjective-entry.mock.spec.ts`
 - 오답노트:
   `src/app_admin/domains/results/components/WrongNotePanel.tsx`
 
