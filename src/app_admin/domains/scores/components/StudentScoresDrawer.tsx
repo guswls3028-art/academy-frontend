@@ -23,6 +23,11 @@ import {
   type SessionScoresResponse,
 } from "../api/sessionScores";
 import { deriveAchievement, deriveFinalPass, achievementLabel, achievementTone } from "@/shared/scoring/achievement";
+import { useWrongCompletionDisplay, wrongCompletionLabel } from "@/shared/scoring/assessmentStatusDisplay";
+import {
+  getSessionRowExamReviewSummary,
+  type SessionRowExamReviewSummary,
+} from "@/shared/scoring/sessionScoreRows";
 import { fetchAdminExamResultDetail } from "@admin/domains/results/api/adminExamResultDetail";
 import { fetchAttemptHistory, type AttemptHistoryResponse } from "../api/attemptHistory";
 import { submitClinicRetake, updateClinicRetake } from "@admin/domains/clinic/api/clinicLinks.api";
@@ -105,6 +110,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
   const [expandedHwId, setExpandedHwId] = useState<number | null>(null);
   const { openSendMessageModal } = useSendMessageModal();
   const labels = useTenantLabels();
+  const wrongCompletionOnly = useWrongCompletionDisplay();
   const qc = useQueryClient();
   // SSOT: 일괄 발송 path(SessionScoresEntryPage)와 동일하게 React Query cache에서 lecture/session 메타 조회.
   // row.lecture_title/session_title는 backend serializer가 안 보내는 케이스가 있어 단독 fallback 불충분.
@@ -117,6 +123,10 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
 
   const attentionSummary = useMemo(
     () => getSessionRowAttentionSummary(row),
+    [row],
+  );
+  const examReviewSummary = useMemo(
+    () => getSessionRowExamReviewSummary(row),
     [row],
   );
   const clinicRequired = !isSessionRowProgressCompleted(row) && !!row.clinic_required;
@@ -349,11 +359,15 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
         {/* Body */}
         <div className="student-scores-drawer__body">
           {/* ── Final verdict banner ── */}
-          <VerdictBanner
-            kind={verdict}
-            clinicRequired={clinicRequired}
-            summary={attentionSummary}
-          />
+          {wrongCompletionOnly ? (
+            <ExamCorrectionBanner summary={examReviewSummary} />
+          ) : (
+            <VerdictBanner
+              kind={verdict}
+              clinicRequired={clinicRequired}
+              summary={attentionSummary}
+            />
+          )}
 
           {/* ── Overall summary ── */}
           {(stats.count > 0 || attentionCount > 0) && (
@@ -362,7 +376,18 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
               <div className="student-scores-drawer__summary">
                 {/* 2026-05-13 학원장 호소 fix: "0% 합격률" 의미 불명확.
                     → "{N/M 이수}" 분수 첫째 + 백분율 둘째. Achievement SSOT 와 동일 단어 "이수". */}
-                {stats.examPassRate != null && (
+                {wrongCompletionOnly && examReviewSummary.kind !== "none" ? (
+                  <div className="student-scores-drawer__summary-row">
+                    <span className="student-scores-drawer__summary-label">시험 오답</span>
+                    <span className="student-scores-drawer__summary-value">
+                      {examReviewSummary.completedTitles.length + examReviewSummary.notRequiredTitles.length}/
+                      {examReviewSummary.completedTitles.length
+                        + examReviewSummary.notRequiredTitles.length
+                        + examReviewSummary.incompleteTitles.length
+                        + examReviewSummary.pendingTitles.length} 오답 완료
+                    </span>
+                  </div>
+                ) : stats.examPassRate != null && (
                   <div className="student-scores-drawer__summary-row">
                     <span className="student-scores-drawer__summary-label">시험</span>
                     <span className="student-scores-drawer__summary-value">
@@ -402,7 +427,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
                 )}
                 {attentionSummary.failedTitles.length > 0 && (
                   <div className="student-scores-drawer__summary-row" data-tone="failed">
-                    <span className="student-scores-drawer__summary-label">미달 항목</span>
+                    <span className="student-scores-drawer__summary-label">{wrongCompletionOnly ? "확인 필요 항목" : "미달 항목"}</span>
                     <span className="student-scores-drawer__summary-value">
                       {attentionSummary.failedTitles.join(", ")}
                     </span>
@@ -516,11 +541,13 @@ function ExamResultCard({
   onToggle: () => void;
   onOpenDetail?: () => void;
 }) {
+  const wrongCompletionOnly = useWrongCompletionDisplay();
   const metaExam = meta?.exams?.find((e) => e.exam_id === exam.exam_id);
   const maxScore = exam.block.max_score ?? metaExam?.max_score ?? null;
   const percent = pctNum(exam.block.score, maxScore);
   const [retakeRequested, setRetakeRequested] = useState(false);
-  const canStartRetake = exam.block.passed === false
+  const canStartRetake = !wrongCompletionOnly
+    && exam.block.passed === false
     && exam.clinic_link_id != null
     && exam.block.teacher_resolved !== true
     && exam.block.correction_status !== "COMPLETED";
@@ -532,7 +559,7 @@ function ExamResultCard({
           <div className="student-scores-drawer__exam-title-row">
             <span className="student-scores-drawer__exam-title">{exam.title}</span>
             <span className="student-scores-drawer__status-badges">
-              <PassBadge block={exam.block} />
+              {!wrongCompletionOnly && <PassBadge block={exam.block} />}
             </span>
           </div>
           <div className="student-scores-drawer__exam-score-row">
@@ -774,6 +801,7 @@ function HomeworkResultCard({
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const wrongCompletionOnly = useWrongCompletionDisplay();
   const metaHw = meta?.homeworks?.find((h) => h.homework_id === hw.homework_id);
   const hwMaxScore = hw.block.max_score ?? metaHw?.max_score ?? null;
   const percent = pctNum(hw.block.score, hwMaxScore);
@@ -785,7 +813,7 @@ function HomeworkResultCard({
           <span className="student-scores-drawer__hw-title">{hw.title}</span>
           <span className="student-scores-drawer__status-badges">
             <CorrectionStatusBadge block={hw.block} sourceType="homework" />
-            {hw.block.score != null && <PassBadge block={hw.block} />}
+            {!wrongCompletionOnly && hw.block.score != null && <PassBadge block={hw.block} />}
           </span>
         </div>
         <div className="student-scores-drawer__hw-score-row">
@@ -876,6 +904,7 @@ function AttemptTimeline({
 }) {
   const qc = useQueryClient();
   const labels = useTenantLabels();
+  const wrongCompletionOnly = useWrongCompletionDisplay();
   const [showNewAttempt, setShowNewAttempt] = useState(false);
   const [retakeScore, setRetakeScore] = useState("");
   const [retakePassScore, setRetakePassScore] = useState("");
@@ -894,6 +923,8 @@ function AttemptTimeline({
   }, []);
 
   const isExam = sourceType === "exam";
+  const wrongExamCompletionOnly = isExam && wrongCompletionOnly;
+  const neutralOutcomeLabels = wrongCompletionOnly;
   const retakeLabel = isExam ? "재시험" : "재시도";
   const sourceLabel = isExam ? "시험" : "과제";
 
@@ -921,7 +952,9 @@ function AttemptTimeline({
       setRetakeScore("");
       setRetakePassScore("");
       setShowNewAttempt(false);
-      if (result.passed) {
+      if (neutralOutcomeLabels) {
+        feedback.success(`${result.attempt_index}차 점수를 ${result.score}점으로 저장했습니다.`);
+      } else if (result.passed) {
         feedback.success(`${result.attempt_index}차 합격! (${result.score}점) — 자동 통과`);
       } else {
         feedback.warning(`${result.attempt_index}차 미통과 (${result.score}점)`);
@@ -944,7 +977,9 @@ function AttemptTimeline({
       qc.invalidateQueries({ queryKey: scoresQueryKeys.clinicTargets });
       qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
       resetAttemptEditing();
-      if (result.passed) {
+      if (neutralOutcomeLabels) {
+        feedback.success(`${result.attempt_index}차 점수가 ${result.score}점으로 수정되었습니다.`);
+      } else if (result.passed) {
         feedback.success(`${result.attempt_index}차 수정 → 합격! (${result.score}점)`);
       } else {
         feedback.info(`${result.attempt_index}차 점수가 ${result.score}점으로 수정되었습니다.`);
@@ -1087,7 +1122,7 @@ function AttemptTimeline({
   }
 
   const nextAttemptIndex = (data?.attempts?.length ?? 0) + 1;
-  const canAddRetake = !!data?.clinic_link_id && !data?.resolved;
+  const canAddRetake = !wrongExamCompletionOnly && !!data?.clinic_link_id && !data?.resolved;
   const newAttemptPassScoreLabel = isExam
     ? (retakePassScore.trim() || (data?.pass_score != null ? String(data.pass_score) : ""))
     : (data?.pass_score != null ? String(data.pass_score) : "");
@@ -1124,7 +1159,7 @@ function AttemptTimeline({
             return (
               <div
                 key={a.attempt_index}
-                className={`ssd-attempt-card ${a.passed === null ? "" : a.passed ? "ssd-attempt-card--passed" : "ssd-attempt-card--failed"}`}
+                className={`ssd-attempt-card ${neutralOutcomeLabels || a.passed === null ? "" : a.passed ? "ssd-attempt-card--passed" : "ssd-attempt-card--failed"}`}
               >
                 <div className="ssd-attempt-card__header">
                   <span className="ssd-attempt-card__label">
@@ -1156,9 +1191,11 @@ function AttemptTimeline({
                         </svg>
                       </button>
                     )}
-                    <span className={`ssd-attempt-card__badge ${a.passed === null ? "" : a.passed ? "ssd-attempt-card__badge--pass" : "ssd-attempt-card__badge--fail"}`}>
-                      {a.passed === null ? "-" : a.passed ? labels.pass : labels.fail}
-                    </span>
+                    {!wrongExamCompletionOnly && (
+                      <span className={`ssd-attempt-card__badge ${a.passed === null ? "" : a.passed ? "ssd-attempt-card__badge--pass" : "ssd-attempt-card__badge--fail"}`}>
+                        {a.passed === null ? "-" : neutralOutcomeLabels ? a.passed ? "완료" : "미완료" : a.passed ? labels.pass : labels.fail}
+                      </span>
+                    )}
                   </span>
                 </div>
 
@@ -1188,7 +1225,7 @@ function AttemptTimeline({
                       autoFocus
                     />
                     <span className="ssd-attempt-card__max">/ {attemptMax}</span>
-                    {isExam && a.attempt_index >= 2 && (
+                    {isExam && !wrongExamCompletionOnly && a.attempt_index >= 2 && (
                       <label className="ssd-attempt-card__field">
                         <span>컷</span>
                         <input
@@ -1248,14 +1285,14 @@ function AttemptTimeline({
                     </span>
                     <span className="ssd-attempt-card__max">/ {attemptMax}</span>
                     {a.score != null && attemptMax != null && attemptMax > 0 && (
-                      <span className={`ssd-attempt-card__pct ${a.passed ? "ssd-attempt-card__pct--pass" : "ssd-attempt-card__pct--fail"}`}>
+                      <span className={`ssd-attempt-card__pct ${neutralOutcomeLabels ? "" : a.passed ? "ssd-attempt-card__pct--pass" : "ssd-attempt-card__pct--fail"}`}>
                         {Math.round((a.score / attemptMax) * 100)}%
                       </span>
                     )}
                   </div>
                 )}
 
-                {attemptPassScore != null && !isEditing && (
+                {!neutralOutcomeLabels && attemptPassScore != null && !isEditing && (
                   <div className="ssd-attempt-card__cutline">
                     합격 기준: {attemptPassScore}점
                   </div>
@@ -1342,7 +1379,7 @@ function AttemptTimeline({
                   취소
                 </button>
               </div>
-              {newAttemptPassScoreLabel && (
+              {!neutralOutcomeLabels && newAttemptPassScoreLabel && (
                 <div className="ssd-attempt-card__cutline">
                   합격 기준: {newAttemptPassScoreLabel}점
                 </div>
@@ -1351,9 +1388,9 @@ function AttemptTimeline({
           )}
 
           {/* 통과 완료 표시 */}
-          {data.clinic_link_id && data.resolved && (
+          {!wrongExamCompletionOnly && data.clinic_link_id && data.resolved && (
             <div className="ssd-resolved-banner">
-              클리닉 통과 완료
+              {neutralOutcomeLabels ? sourceType === "exam" ? "오답 완료" : "과제 확인 완료" : "클리닉 통과 완료"}
             </div>
           )}
 
@@ -1381,6 +1418,16 @@ function CorrectionStatusBadge({
   block: ScoreBlock;
   sourceType: "exam" | "homework";
 }) {
+  const wrongCompletionOnly = useWrongCompletionDisplay();
+  const wrongExamCompletionOnly = sourceType === "exam" && wrongCompletionOnly;
+  const wrongLabel = wrongExamCompletionOnly ? wrongCompletionLabel(block.correction_status) : null;
+  if (wrongLabel) {
+    return (
+      <Badge tone={block.correction_status == null ? "muted" : block.correction_status === "PENDING" ? "warning" : "success"} size="xs">
+        {wrongLabel}
+      </Badge>
+    );
+  }
   if (block.correction_status === "PENDING") {
     return (
       <Badge tone="warning" size="xs">
@@ -1423,13 +1470,15 @@ function CorrectionStatusControl({
   compact?: boolean;
 }) {
   const qc = useQueryClient();
+  const wrongCompletionOnly = useWrongCompletionDisplay();
+  const wrongExamCompletionOnly = sourceType === "exam" && wrongCompletionOnly;
   const [note, setNote] = useState(block.correction_note ?? "");
   const [completionReasonRequested, setCompletionReasonRequested] = useState(false);
   const noteRef = useRef<HTMLTextAreaElement>(null);
   const persistedNote = block.correction_note ?? "";
   const status = block.correction_status ?? null;
   const isHomework = sourceType === "homework";
-  const title = isHomework ? "교사 완료 판정" : "교사 최종 판정";
+  const title = isHomework ? "교사 완료 판정" : wrongExamCompletionOnly ? "테스트 오답 확인" : "교사 최종 판정";
   const noteId = `assessment-note-${sourceType}-${sourceId}`;
   const noteHintId = `${noteId}-hint`;
 
@@ -1497,6 +1546,10 @@ function CorrectionStatusControl({
       }
       feedback.success(variables.action === "note"
         ? "비고를 저장했습니다."
+        : wrongExamCompletionOnly
+          ? variables.completed
+            ? "오답 완료로 저장했습니다. 원점수는 그대로 유지됩니다."
+            : "오답 미완료로 저장했습니다."
         : variables.completed
           ? `${title}을 확정했습니다. 원점수는 그대로 유지됩니다.`
           : `${title}을 해제해 Clinic 대상을 다시 계산합니다.`);
@@ -1523,7 +1576,13 @@ function CorrectionStatusControl({
         : !isHomework && status === "NOT_REQUIRED"
           ? "만점 결과는 오답 확인이 필요하지 않습니다."
           : undefined;
-  const description = isHomework
+  const description = wrongExamCompletionOnly
+    ? status === "COMPLETED" || status === "NOT_REQUIRED"
+      ? "오답 확인이 완료됐습니다. 원점수와 기존 성적 이력은 그대로 유지됩니다."
+      : status === "PENDING"
+        ? "확인할 오답이 남아 있습니다. 완료하면 같은 상태 기록만 갱신됩니다."
+        : "점수를 입력하면 실제 오답 확인 상태를 기록할 수 있습니다."
+    : isHomework
     ? status === "COMPLETED"
       ? "교사가 협의 후 완료로 확정했습니다. 원점수와 제출 기록은 그대로 유지됩니다."
       : status === "PENDING"
@@ -1550,11 +1609,17 @@ function CorrectionStatusControl({
         className="ssd-correction-quick-toggle"
         data-status={completed ? "completed" : "pending"}
         aria-pressed={completed}
-        aria-label={completed
-          ? "교사 PASS에서 보완 필요로 변경"
-          : "보완 필요에서 교사 PASS로 변경"}
+        aria-label={wrongExamCompletionOnly
+          ? `${completed ? "오답 완료" : "오답 미완료"}; 눌러서 ${completed ? "오답 미완료" : "오답 완료"}로 변경`
+          : completed
+            ? "교사 PASS에서 보완 필요로 변경"
+            : "보완 필요에서 교사 PASS로 변경"}
         title={disabled
           ? "점수 초안을 먼저 저장한 뒤 판정을 변경해 주세요."
+          : wrongExamCompletionOnly
+            ? completed
+              ? "원점수는 유지하고 오답 미완료로 변경합니다."
+              : "원점수는 유지하고 오답 완료로 변경합니다."
           : completed
             ? "원점수는 유지하고 다시 보완 대상으로 전환합니다."
             : "원점수는 유지하고 교사 PASS로 확정합니다."}
@@ -1574,7 +1639,11 @@ function CorrectionStatusControl({
         }}
         disabled={commonDisabled}
       >
-        {mutation.isPending ? "저장 중…" : completed ? "PASS ✓" : "보완 필요 → PASS"}
+        {mutation.isPending
+          ? "저장 중…"
+          : wrongExamCompletionOnly
+            ? completed ? "오답 완료" : "오답 미완료"
+            : completed ? "PASS ✓" : "보완 필요 → PASS"}
       </button>
     );
   }
@@ -1615,7 +1684,7 @@ function CorrectionStatusControl({
             && mutation.variables.completed === false
           }
         >
-          {isHomework ? "미완료" : "보완 필요"}
+          {isHomework ? "미완료" : wrongExamCompletionOnly ? "오답 미완료" : "보완 필요"}
         </Button>
         <Button
           size="sm"
@@ -1644,12 +1713,12 @@ function CorrectionStatusControl({
             && mutation.variables.completed === true
           }
         >
-          {isHomework ? "완료 확정" : "통과 확정"}
+          {isHomework ? "완료 확정" : wrongExamCompletionOnly ? "오답 완료" : "통과 확정"}
         </Button>
       </div>
       <div className="ssd-correction-control__note">
         <label htmlFor={noteId}>
-          판정 사유 <span>통과·완료 시 필수 · 500자 이내</span>
+          {wrongExamCompletionOnly ? "오답 확인 근거" : "판정 사유"} <span>{wrongExamCompletionOnly ? "완료 시 필수" : "통과·완료 시 필수"} · 500자 이내</span>
         </label>
         {completionReasonRequested && !completionReasonReady && (
           <span
@@ -1657,7 +1726,7 @@ function CorrectionStatusControl({
             className="ssd-correction-control__note-hint"
             role="alert"
           >
-            {isHomework ? "완료 확정" : "통과 확정"} 사유를 2자 이상 입력해 주세요.
+            {isHomework ? "완료 확정" : wrongExamCompletionOnly ? "오답 완료" : "통과 확정"} 사유를 2자 이상 입력해 주세요.
           </span>
         )}
         <textarea
@@ -1708,7 +1777,7 @@ function CorrectionStatusControl({
         )}
         {!completionReasonRequested && !completionReasonReady && (
           <span id={noteHintId} className="ssd-correction-control__note-hint" role="status">
-            통과 또는 완료 확정 전 판정 사유를 2자 이상 입력해 주세요.
+            {wrongExamCompletionOnly ? "오답 완료 전 확인 근거" : "통과 또는 완료 확정 전 판정 사유"}를 2자 이상 입력해 주세요.
           </span>
         )}
       </div>
@@ -1808,6 +1877,46 @@ function VerdictBanner({
       </span>
       <span className="student-scores-drawer__verdict-text">
         <span className="student-scores-drawer__verdict-label">현재 상태</span>
+        <span className="student-scores-drawer__verdict-value">{value}</span>
+        <span className="student-scores-drawer__verdict-detail">{detail}</span>
+      </span>
+    </div>
+  );
+}
+
+function ExamCorrectionBanner({ summary }: { summary: SessionRowExamReviewSummary }) {
+  const tone = summary.kind === "incomplete"
+    ? "warning"
+    : summary.kind === "complete" || summary.kind === "clear"
+      ? "success"
+      : "muted";
+  const value = summary.kind === "incomplete"
+    ? "오답 미완료"
+    : summary.kind === "complete" || summary.kind === "clear"
+      ? "오답 완료"
+      : summary.kind === "pending"
+        ? "채점 대기"
+        : "평가 없음";
+  const detail = summary.kind === "incomplete"
+    ? `${summary.incompleteTitles.join(", ")}의 오답 확인이 남아 있습니다.`
+    : summary.kind === "pending"
+      ? `${summary.pendingTitles.join(", ")}의 점수를 먼저 입력해 주세요.`
+      : summary.kind === "none"
+        ? "등록된 시험이 없습니다."
+        : "필요한 시험 오답 확인이 모두 완료됐습니다.";
+  const Icon = summary.kind === "incomplete"
+    ? AlertTriangle
+    : summary.kind === "complete" || summary.kind === "clear"
+      ? CheckCircle2
+      : CircleDashed;
+
+  return (
+    <div className="student-scores-drawer__verdict" data-tone={tone}>
+      <span className="student-scores-drawer__verdict-icon" aria-hidden>
+        <Icon size={ICON.md} strokeWidth={2.35} />
+      </span>
+      <span className="student-scores-drawer__verdict-text">
+        <span className="student-scores-drawer__verdict-label">테스트 오답</span>
         <span className="student-scores-drawer__verdict-value">{value}</span>
         <span className="student-scores-drawer__verdict-detail">{detail}</span>
       </span>

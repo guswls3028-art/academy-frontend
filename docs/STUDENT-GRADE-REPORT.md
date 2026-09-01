@@ -38,9 +38,15 @@ fail-closed한다. 점수와 답안은 이 빠른 판정에서 변경하지 않�
   시험 상세에서도 동일한 `테스트 오답` 상태와 다음 행동 안내를 확인한다.
 - 이 배지는 점수나 오답 개수로 프론트엔드가 추측하지 않고, 교사가 차시 성적표에서
   저장한 백엔드 `correction_status`를 그대로 사용한다.
-- 만점이라 별도 확인이 필요 없거나 시험의 차시를 안전하게 하나로 확정할 수 없으면
-  완료/미완료 배지를 표시하지 않는다.
+- 만점의 `NOT_REQUIRED`는 일반 학원에서 `오답 없음`, Ymath에서 `오답 완료`로
+  표시한다. 시험의 차시를 안전하게 하나로 확정할 수 없는 `null`은 어느 학원에서도
+  완료로 추정하지 않는다.
 - 교사가 완료한 뒤 실제 점수나 답안이 바뀌면 서버가 다시 미완료로 판정한다.
+- `assessment_status_display=wrong_completion`인 Ymath는 시험·학생 상세·홈·클리닉
+  상태 카드에서 `PENDING`을 **오답 미완료**, `COMPLETED`와 `NOT_REQUIRED`를
+  **오답 완료**로만 표시한다. PASS·합격·보강 합격 뱃지와 재시험 추가 액션은
+  함께 노출하지 않지만, 원점수·내부 성취·기존 재시험과 Clinic 이력은 삭제하거나
+  다시 쓰지 않는다. `null`은 완료로 추정하지 않고 채점 대기로 남긴다.
 - 시험 원점수가 합격 기준보다 낮아도 교사가 현장 해결을 확인한 최종 상태는 원점수를
   그대로 표시하면서 `보강/교사 통과` 완료로 읽고 재시험 필요·미통과 통계에서 제외한다.
 - 과제는 점수·제출 여부와 독립적인 `teacher_resolved`를 읽는다. 점수 없는 미제출
@@ -125,6 +131,12 @@ YMath의 초기 구성은 `score_trend`, `score_comparison`, `lecture_average`�
 - `e2e/student/assignment-session-scope.mock.spec.ts`
 - `e2e/admin/student-score-trend.spec.ts`: 학생 상세의 시험별 오답 상태, 2자 사유,
   exact 차시·수강·시험 mutation, persisted readback, 390px overflow를 검증한다.
+- `e2e/admin/score-entry-autosave.spec.ts`, `e2e/teacher/mobile-score-correction-status.spec.ts`:
+  Ymath 교사 성적표와 우측 학생 상세에서 PASS 없이 같은 correction PATCH가
+  완료·해제되는지 검증한다.
+- `e2e/student/student-score-trend.spec.ts`, `e2e/student/clinic-booking-ux.mock.spec.ts`:
+  Ymath 학생 성적·시험 상세·클리닉 상태 카드의 오답 완료 표현과 데스크톱/390px
+  overflow 부재를 검증한다.
 - `e2e/admin/assessment-inspection-notes.spec.ts`: 펼치지 않은 카드의 390px 빠른 PASS,
   원점수 보존, 데스크톱 동일 원시험 재시험 입력과 1차/2차 분리를 검증한다.
 

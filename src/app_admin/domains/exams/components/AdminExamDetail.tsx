@@ -6,6 +6,7 @@ import ExamTabs from "./common/ExamTabs";
 import ExamHeader from "./common/ExamHeader";
 import { EmptyState } from "@/shared/ui/ds";
 import { useAssessmentEditGuard } from "@/shared/ui/assessment/AssessmentEditGuard";
+import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 
 import ExamSetupPanel from "../panels/setup/ExamSetupPanel";
 import ExamAssetsPanel from "../panels/ExamAssetsPanel";
@@ -23,6 +24,7 @@ type Props = {
 export default function AdminExamDetail({ examId, mode = "design", sessionId }: Props) {
   const { data: exam, isLoading, isError, refetch } = useAdminExam(examId);
   const { confirmDiscard } = useAssessmentEditGuard();
+  const wrongCompletionOnly = useWrongCompletionDisplay();
   const [tab, setTab] = useState<ExamTabKey>("setup");
 
   useEffect(() => {
@@ -106,7 +108,9 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
       )}
       {tab === "assets" && mode === "design" && <ExamAssetsPanel examId={examId} />}
       {tab === "submissions" && <ExamSubmissionsPanel examId={examId} sessionId={sessionId} />}
-      {tab === "results" && <ExamResultsViewerPanel examId={examId} />}
+      {tab === "results" && (
+        <ExamResultsViewerPanel examId={examId} wrongCompletionOnly={wrongCompletionOnly} />
+      )}
     </div>
   );
 }

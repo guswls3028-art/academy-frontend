@@ -35,6 +35,7 @@ import {
   achievementLabel,
   achievementTone,
 } from "@/shared/scoring/achievement";
+import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 import {
   CHOICE_LABELS,
   choiceAnswerMatches,
@@ -104,6 +105,7 @@ function questionKindFromNumber(
 export default function StudentResultDrawer({ examId, enrollmentId, studentName, examTitle, scoreSessionId, readOnly = false, onClose }: Props) {
   const qc = useQueryClient();
   const tenantLabels = useTenantLabels();
+  const wrongCompletionOnly = useWrongCompletionDisplay();
   const [mainTab, setMainTab] = useState<"answer" | "wrong">("answer");
   const [selectedAttempt, setSelectedAttempt] = useState(1);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -298,7 +300,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
               <h1 className="srd-modal__title">{examTitle} 답안 상세</h1>
               <span className="srd-modal__student-badge"><StudentNameWithLectureChip name={studentName} enrollmentId={enrollmentId} /></span>
               {(() => {
-                if (!detail) return null;
+                if (!detail || wrongCompletionOnly) return null;
                 const ach = deriveAchievement({
                   achievement: detail.achievement,
                   is_pass: detail.passed,
@@ -348,7 +350,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
           </header>
 
           {/* 보강 합격 안내 배너: 1차 불합격 → 클리닉 해소 */}
-          {detail?.remediated && detail.clinic_retake && (
+          {!wrongCompletionOnly && detail?.remediated && detail.clinic_retake && (
             <div
               className="srd-modal__remediated-banner"
               // eslint-disable-next-line no-restricted-syntax
@@ -387,7 +389,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
           {/* ── 시도 차수 탭 (2차 이상 있을 때만) ── */}
           {attemptQ.isError && (
             <div className="srd-modal__error" role="alert">
-              <span>재시험 이력을 불러오지 못했습니다.</span>{" "}
+              <span>{wrongCompletionOnly ? "추가 점수 이력을" : "재시험 이력을"} 불러오지 못했습니다.</span>{" "}
               <Button intent="secondary" size="sm" onClick={() => void attemptQ.refetch()}>다시 시도</Button>
             </div>
           )}
@@ -402,7 +404,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                     className={`srd-attempt-tab ${selectedAttempt === n ? "srd-attempt-tab--active" : ""} ${entry?.passed === true ? "srd-attempt-tab--pass" : ""}`}
                     onClick={() => { setSelectedAttempt(n); setIsEditMode(false); }}
                   >
-                    {n}차{n === 1 ? " 응시" : " 재시험"}
+                    {n}차{n === 1 ? " 응시" : wrongCompletionOnly ? " 추가 기록" : " 재시험"}
                     {entry && (
                       <span className={`srd-attempt-tab__score ${entry.passed === true ? "srd-attempt-tab__score--pass" : entry.passed === false ? "srd-attempt-tab__score--fail" : ""}`}>
                         {entry.score ?? "—"}점
@@ -692,14 +694,17 @@ function StateC_NoQuestions({ examId, examTitle, onClose }: { examId: number; ex
 
 function RetakeAttemptView({ attempt, maxScore, passScore }: { attempt: AttemptEntry; maxScore: number; passScore: number | null }) {
   const labels = useTenantLabels();
+  const wrongCompletionOnly = useWrongCompletionDisplay();
   return (
     <div className="srd-retake-view">
-      <div className={`srd-retake-view__card ${attempt.passed === null ? "" : attempt.passed ? "srd-retake-view__card--pass" : "srd-retake-view__card--fail"}`}>
+      <div className={`srd-retake-view__card ${wrongCompletionOnly || attempt.passed === null ? "" : attempt.passed ? "srd-retake-view__card--pass" : "srd-retake-view__card--fail"}`}>
         <div className="srd-retake-view__header">
-          <span className="srd-retake-view__label">{attempt.attempt_index}차 재시험 결과</span>
-          <span className={`srd-retake-view__badge ${attempt.passed === null ? "" : attempt.passed ? "srd-retake-view__badge--pass" : "srd-retake-view__badge--fail"}`}>
-            {attempt.passed === null ? "미정" : attempt.passed ? labels.pass : labels.fail}
-          </span>
+          <span className="srd-retake-view__label">{attempt.attempt_index}차 {wrongCompletionOnly ? "추가 점수 기록" : "재시험 결과"}</span>
+          {!wrongCompletionOnly && (
+            <span className={`srd-retake-view__badge ${attempt.passed === null ? "" : attempt.passed ? "srd-retake-view__badge--pass" : "srd-retake-view__badge--fail"}`}>
+              {attempt.passed === null ? "미정" : attempt.passed ? labels.pass : labels.fail}
+            </span>
+          )}
         </div>
         <div className="srd-retake-view__score">
           <span className="srd-retake-view__score-val">{attempt.score ?? "—"}</span>
@@ -708,8 +713,8 @@ function RetakeAttemptView({ attempt, maxScore, passScore }: { attempt: AttemptE
             <span className="srd-retake-view__pct">{Math.round((attempt.score / maxScore) * 100)}%</span>
           )}
         </div>
-        {passScore != null && <div className="srd-retake-view__cutline">합격 기준: {passScore}점</div>}
-        <div className="srd-retake-view__note">재시험은 총점만 기록됩니다. 문항별 상세는 1차 응시에서 확인하세요.</div>
+        {!wrongCompletionOnly && passScore != null && <div className="srd-retake-view__cutline">합격 기준: {passScore}점</div>}
+        <div className="srd-retake-view__note">{wrongCompletionOnly ? "추가 기록은" : "재시험은"} 총점만 기록됩니다. 문항별 상세는 1차 응시에서 확인하세요.</div>
       </div>
     </div>
   );

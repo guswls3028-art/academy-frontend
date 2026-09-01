@@ -17,6 +17,7 @@ import type {
 } from "@/shared/api/contracts/studentGradeReportLayout";
 import { STUDENT_GRADE_REPORT_ANALYTICS_SECTION_IDS } from "@/shared/api/contracts/studentGradeReportLayout";
 import type { MyExamGradeSummary, MyGradesAnalytics, MyHomeworkGradeSummary } from "../api/grades.api";
+import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 import styles from "./GradesStatsTab.module.css";
 
 type Props = {
@@ -46,6 +47,7 @@ export default function GradesStatsTab({
   analyticsError,
   reportLayout,
 }: Props) {
+  const wrongCompletionOnly = useWrongCompletionDisplay();
   const examStats = useMemo(() => {
     if (exams.length === 0) return null;
     const scoredExams = exams.filter((e) => e.total_score != null);
@@ -58,7 +60,13 @@ export default function GradesStatsTab({
     let passCount = 0;
     let judgedCount = 0;
     for (const e of exams) {
-      if (e.achievement) {
+      if (wrongCompletionOnly) {
+        if (e.correction_status === "PENDING") judgedCount += 1;
+        if (e.correction_status === "COMPLETED" || e.correction_status === "NOT_REQUIRED") {
+          passCount += 1;
+          judgedCount += 1;
+        }
+      } else if (e.achievement) {
         if (e.achievement === "PASS" || e.achievement === "REMEDIATED") {
           passCount += 1;
           judgedCount += 1;
@@ -76,7 +84,7 @@ export default function GradesStatsTab({
       ? Math.round((rankedExams.reduce((s, e) => s + e.rank!, 0) / rankedExams.length) * 10) / 10
       : null;
     return { avgPct: Math.round(avgPct), passRate: Math.round(passRate), count: exams.length, avgRank };
-  }, [exams]);
+  }, [exams, wrongCompletionOnly]);
 
   const hwStats = useMemo(() => {
     if (homeworks.length === 0) return null;
@@ -114,7 +122,9 @@ export default function GradesStatsTab({
       if (!byLecture.has(key)) byLecture.set(key, { total: 0, pass: 0, scores: [] });
       const entry = byLecture.get(key)!;
       entry.total++;
-      if (e.is_pass) entry.pass++;
+      if (wrongCompletionOnly
+        ? e.correction_status === "COMPLETED" || e.correction_status === "NOT_REQUIRED"
+        : e.is_pass) entry.pass++;
       entry.scores.push(e.max_score > 0 ? (e.total_score / e.max_score) * 100 : 0);
     }
     if (byLecture.size < 2) return null;
@@ -127,7 +137,7 @@ export default function GradesStatsTab({
       .sort((a, b) => a.avg - b.avg);
     const weakest = lectureStats[0];
     return weakest && weakest.avg < 70 ? weakest : null;
-  }, [exams]);
+  }, [exams, wrongCompletionOnly]);
 
   const homeworkPassPct = hwStats && hwStats.total > 0 ? (hwStats.passed / hwStats.total) * 100 : 0;
   const homeworkFailPct = hwStats && hwStats.total > 0 ? (hwStats.failed / hwStats.total) * 100 : 0;
@@ -164,7 +174,10 @@ export default function GradesStatsTab({
       "score_comparison",
       <ScoreComparisonSection
         analytics={analytics!}
-        metrics={reportLayout.score_comparison_metrics}
+        metrics={{
+          ...reportLayout.score_comparison_metrics,
+          pass_rate: reportLayout.score_comparison_metrics.pass_rate && !wrongCompletionOnly,
+        }}
       />,
     ),
     lecture_average: withAnalyticsState(
@@ -187,7 +200,7 @@ export default function GradesStatsTab({
           />
           <div className={styles.summaryStats}>
             <StatGrid>
-              <StatCard label="합격률" value={`${examStats.passRate}%`} accent={examStats.passRate >= 70 ? "success" : examStats.passRate > 0 ? "danger" : undefined} />
+              <StatCard label={wrongCompletionOnly ? "오답 완료율" : "합격률"} value={`${examStats.passRate}%`} accent={examStats.passRate >= 70 ? "success" : examStats.passRate > 0 ? "danger" : undefined} />
               <StatCard label="시험 수" value={`${examStats.count}건`} />
               {examStats.avgRank != null
                 ? <StatCard label="평균 등수" value={`${examStats.avgRank}등`} />
@@ -228,7 +241,7 @@ export default function GradesStatsTab({
         <div className={styles.weaknessText}>
           <span className={styles.weaknessEmphasis}>{weakestLecture.name}</span> 강좌의
           평균 득점률이 <strong className={styles.weaknessEmphasis}>{weakestLecture.avg}%</strong>로 가장 낮습니다.
-          {weakestLecture.passRate < 50 && ` 합격률도 ${weakestLecture.passRate}%입니다.`}
+          {weakestLecture.passRate < 50 && ` ${wrongCompletionOnly ? "오답 완료율" : "합격률"}도 ${weakestLecture.passRate}%입니다.`}
         </div>
       </section>
     ) : null,
@@ -238,7 +251,7 @@ export default function GradesStatsTab({
         <StatGrid>
           <StatCard label="채점 완료" value={`${hwStats.graded}/${hwStats.total}건`} />
           <StatCard label="평균 득점률" value={hwStats.avgPct != null ? `${hwStats.avgPct}%` : "-"} />
-          <StatCard label="합격률" value={`${hwStats.passRate}%`} accent={hwStats.passRate >= 70 ? "success" : hwStats.passRate > 0 ? "danger" : undefined} />
+          <StatCard label={wrongCompletionOnly ? "완료율" : "합격률"} value={`${hwStats.passRate}%`} accent={hwStats.passRate >= 70 ? "success" : hwStats.passRate > 0 ? "danger" : undefined} />
         </StatGrid>
         {hwStats.total > 0 && (
           <svg className={styles.homeworkBar} viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">

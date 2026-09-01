@@ -12,6 +12,7 @@ import { scoresQueryKeys } from "@admin/domains/scores/api/queryKeys";
 import { adminStudentsQueryKeys } from "../queryKeys";
 import type { StudentExamGrade } from "@/shared/api/contracts/studentGrades";
 import { achievementLabel, achievementTone } from "@/shared/scoring/achievement";
+import { useWrongCompletionDisplay, wrongCompletionLabel } from "@/shared/scoring/assessmentStatusDisplay";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { Badge, Button, ICON, type BadgeTone } from "@/shared/ui/ds";
@@ -40,15 +41,21 @@ function exactExamBlock(data: SessionScoresResponse | undefined, exam: StudentEx
   return entries.length === 1 ? entries[0].block : null;
 }
 
-function statusPresentation(status: CorrectionStatus): { label: string; tone: BadgeTone } {
+function statusPresentation(status: CorrectionStatus, wrongCompletionOnly: boolean): { label: string; tone: BadgeTone } {
   if (status === "PENDING") return { label: "오답 미완료", tone: "warning" };
   if (status === "COMPLETED") return { label: "오답 완료", tone: "success" };
-  if (status === "NOT_REQUIRED") return { label: "오답 없음", tone: "muted" };
+  if (status === "NOT_REQUIRED") {
+    return {
+      label: wrongCompletionOnly ? wrongCompletionLabel(status) ?? "오답 완료" : "오답 없음",
+      tone: wrongCompletionOnly ? "success" : "muted",
+    };
+  }
   return { label: "채점 대기", tone: "muted" };
 }
 
 export default function StudentExamCorrectionCard({ exam, studentId, onNavigate }: Props) {
   const labels = useTenantLabels();
+  const wrongCompletionOnly = useWrongCompletionDisplay();
   const qc = useQueryClient();
   const [editorOpen, setEditorOpen] = useState(false);
   const [note, setNote] = useState("");
@@ -75,7 +82,7 @@ export default function StudentExamCorrectionCard({ exam, studentId, onNavigate 
   const identityMismatch = correctionQuery.isSuccess && block == null;
   const stateUnavailable = !hasExactIdentity || correctionQuery.isError || identityMismatch;
   const canEdit = !stateUnavailable && (status === "PENDING" || status === "COMPLETED");
-  const presentation = statusPresentation(status);
+  const presentation = statusPresentation(status, wrongCompletionOnly);
   const rawAchievementTone = exam.achievement ? achievementTone(exam.achievement) : "muted";
   const examAchievementTone: BadgeTone = rawAchievementTone === "warn" ? "warning" : rawAchievementTone;
   const navPath = hasExactIdentity && isPositiveInteger(exam.lecture_id)
@@ -186,17 +193,17 @@ export default function StudentExamCorrectionCard({ exam, studentId, onNavigate 
               {Math.round(exam.total_score)}<span className={layoutStyles.scoreMax}>/{exam.max_score ?? 100}</span>
             </span>
           )}
-          {exam.achievement && (
+          {!wrongCompletionOnly && exam.achievement && (
             <Badge variant="solid" size="sm" tone={examAchievementTone}>
               {achievementLabel(exam.achievement, { pass: labels.pass, fail: labels.fail })}
             </Badge>
           )}
-          {!exam.achievement && (exam.remediated === true || exam.final_pass === true) && (
+          {!wrongCompletionOnly && !exam.achievement && (exam.remediated === true || exam.final_pass === true) && (
             <Badge variant="solid" size="sm" tone={exam.remediated ? "warning" : "success"}>
               {exam.remediated ? "보강합격" : labels.pass}
             </Badge>
           )}
-          {exam.is_pass != null && !exam.achievement && exam.remediated !== true && exam.final_pass !== true && (
+          {!wrongCompletionOnly && exam.is_pass != null && !exam.achievement && exam.remediated !== true && exam.final_pass !== true && (
             <Badge variant="solid" size="sm" tone={exam.is_pass ? "success" : "danger"}>
               {exam.is_pass ? "합" : "불"}
             </Badge>

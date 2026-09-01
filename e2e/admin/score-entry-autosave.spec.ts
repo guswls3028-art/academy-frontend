@@ -12,6 +12,7 @@ type ScoreRouteOptions = {
   homeworkAssignedRows?: boolean[];
   homeworkGradingMode?: "SCORE" | "COMPLETION";
   scoreSummaryColumnDefault?: "exam_wrong";
+  assessmentStatusDisplay?: "wrong_completion";
   nullScoresPassedFalse?: boolean;
   nullHomeworkScoresPassedFalse?: boolean;
   activeEditors?: Array<{
@@ -40,9 +41,14 @@ async function openScores(
   const baseUrl = getBaseUrl("admin");
   test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(baseUrl), "성적 입력 route-mock 검증은 로컬 dev 서버 전용");
   await installLocalAuthApiStubs(page, {
-    programFeatureFlags: routeOptions.scoreSummaryColumnDefault
-      ? { score_summary_column_default: routeOptions.scoreSummaryColumnDefault }
-      : {},
+    programFeatureFlags: {
+      ...(routeOptions.scoreSummaryColumnDefault
+        ? { score_summary_column_default: routeOptions.scoreSummaryColumnDefault }
+        : {}),
+      ...(routeOptions.assessmentStatusDisplay
+        ? { assessment_status_display: routeOptions.assessmentStatusDisplay }
+        : {}),
+    },
   });
   await installTenantOneInitScript(page);
   await page.addInitScript((token) => {
@@ -74,6 +80,7 @@ async function ensureScoreEditing(page: Page, loadingTimeoutMs = 30_000): Promis
 const scorePatches: Array<Record<string, unknown>> = [];
 const homeworkPatches: Array<Record<string, unknown>> = [];
 const assignmentPuts: Array<{ path: string; enrollmentIds: number[] }> = [];
+const correctionPatches: Array<Record<string, unknown>> = [];
 const scorePatchHeaders: Array<Record<string, string>> = [];
 const draftPuts: Array<Record<string, unknown>> = [];
 const draftCommits: Array<Record<string, unknown>> = [];
@@ -98,6 +105,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
   scorePatches.length = 0;
   homeworkPatches.length = 0;
   assignmentPuts.length = 0;
+  correctionPatches.length = 0;
   scorePatchHeaders.length = 0;
   draftPuts.length = 0;
   draftCommits.length = 0;
@@ -207,6 +215,25 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
             progress_completed: false,
             updated_at: "2026-07-25T12:00:00+09:00",
           })),
+        },
+      });
+      return;
+    }
+
+    if (/\/api\/v1\/results\/admin\/sessions\/\d+\/score-correction\/$/.test(path) && method === "PATCH") {
+      const body = request.postDataJSON() as Record<string, unknown>;
+      correctionPatches.push(body);
+      const rowIndex = Number(body.enrollment_id) - 9201;
+      const completed = body.completed === true;
+      if (rowIndex >= 0 && rowIndex < currentCorrectionStatuses.length) {
+        currentCorrectionStatuses[rowIndex] = completed ? "COMPLETED" : "PENDING";
+      }
+      await route.fulfill({
+        json: {
+          correction_status: completed ? "COMPLETED" : "PENDING",
+          correction_completed_at: completed ? "2026-09-01T12:00:00+09:00" : null,
+          correction_note: body.note ?? "",
+          correction_updated_at: "2026-09-01T12:00:00+09:00",
         },
       });
       return;
@@ -1053,6 +1080,43 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(page.getByRole("columnheader", { name: /^판정/ })).toBeVisible();
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("columnheader", { name: /^판정/ })).toBeVisible();
+  });
+
+  test("Ymath 학생 상세는 PASS 대신 오답 완료 상태와 같은 안전한 변경 액션만 제공한다", async ({ page }) => {
+    await openScores(page, {
+      initialScores: [52],
+      initialCorrectionStatuses: ["PENDING"],
+      scoreSummaryColumnDefault: "exam_wrong",
+      assessmentStatusDisplay: "wrong_completion",
+    }, 90_000);
+
+    await page.getByText("자동저장학생1", { exact: true }).first().click();
+    const drawer = page.getByRole("complementary", { name: /자동저장학생1 학생 상세/ });
+    await expect(drawer).toBeVisible();
+    await expect(drawer.locator(".student-scores-drawer__verdict-value")).toHaveText("오답 미완료");
+    await expect(drawer).not.toContainText(/PASS|보강\s?합격/);
+
+    const correctionToggle = drawer.getByRole("button", {
+      name: "오답 미완료; 눌러서 오답 완료로 변경",
+    });
+    await correctionToggle.click();
+    await expect.poll(() => correctionPatches.length).toBe(1);
+    expect(correctionPatches[0]).toMatchObject({
+      enrollment_id: 9201,
+      source_type: "exam",
+      source_id: 9101,
+      completed: true,
+    });
+    await expect(drawer.locator(".student-scores-drawer__verdict-value")).toHaveText("오답 완료");
+    await expect(drawer).not.toContainText(/PASS|보강\s?합격/);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByText("자동저장학생1", { exact: true }).first().click();
+    await expect(drawer).toBeVisible();
+    await expect.poll(() => drawer.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      return bounds.left >= 0 && bounds.right <= window.innerWidth && element.scrollWidth <= element.clientWidth;
+    })).toBe(true);
   });
 
   test("미배정 시험·과제는 셀과 상단에서 드러나고 누락 전부 배정으로 복구된다", async ({ page }, testInfo) => {

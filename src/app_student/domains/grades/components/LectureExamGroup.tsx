@@ -4,6 +4,7 @@
 import { Link } from "react-router";
 import { IconExam, IconChevronRight } from "@student/shared/ui/icons/Icons";
 import { Badge } from "@/shared/ui/ds";
+import { useWrongCompletionDisplay, wrongCompletionLabel } from "@/shared/scoring/assessmentStatusDisplay";
 import GradeBadge from "./GradeBadge";
 import type { MyExamGradeSummary } from "../api/grades.api";
 import styles from "./LectureGradeGroup.module.css";
@@ -29,6 +30,7 @@ function wrongPreview(numbers?: number[]): string {
 }
 
 export default function LectureExamGroup({ group, labels }: { group: ExamGroup; labels?: { pass?: string; fail?: string } }) {
+  const wrongCompletionOnly = useWrongCompletionDisplay();
   return (
     <div>
       <LectureGroupHeader label={group.label} count={group.exams.length} avgPct={group.avgPct} />
@@ -37,7 +39,16 @@ export default function LectureExamGroup({ group, labels }: { group: ExamGroup; 
           const hasQuestionAnalysis = Number(e.total_questions ?? 0) > 0 && e.meta_status !== "NOT_SUBMITTED";
           const wrongCount = Number(e.wrong_count ?? 0);
           const wrongNumbers = wrongPreview(e.wrong_question_numbers);
-          const correction = e.correction_status === "COMPLETED"
+          const correction = wrongCompletionOnly
+            ? {
+                label: wrongCompletionLabel(e.correction_status),
+                tone: e.correction_status == null
+                  ? "muted" as const
+                  : e.correction_status === "PENDING"
+                    ? "danger" as const
+                    : "success" as const,
+              }
+            : e.correction_status === "COMPLETED"
             ? { label: "오답 완료", tone: "success" as const }
             : e.correction_status === "PENDING"
               ? { label: "오답 미완료", tone: "danger" as const }
@@ -86,7 +97,9 @@ export default function LectureExamGroup({ group, labels }: { group: ExamGroup; 
                   )}
                 </div>
                 <div className={styles.statusBlock}>
-                  <GradeBadge passed={e.is_pass} achievement={e.achievement} label={labels} />
+                  {!wrongCompletionOnly && (
+                    <GradeBadge passed={e.is_pass} achievement={e.achievement} label={labels} />
+                  )}
                   <div className={styles.statusMeta}>
                     {e.rank != null && e.cohort_size != null && e.cohort_size > 1 && e.meta_status !== "NOT_SUBMITTED" && (
                       <span className={styles.rankBadge}>

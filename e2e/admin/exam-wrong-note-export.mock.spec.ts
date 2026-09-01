@@ -150,6 +150,7 @@ async function installApi(page: Page, options: {
         remediated: options.remediated ?? false,
         final_pass: options.remediated || (passScore > 0 ? true : null),
         achievement: options.remediated ? "REMEDIATED" : passScore > 0 ? "PASS" : null,
+        correction_status: "PENDING",
         rank: 1,
         cohort_size: 1,
         lecture_id: 101,
@@ -235,6 +236,32 @@ test("현재 사이트의 학생별 오답 엑셀을 데스크톱과 모바일�
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe("7월 진단평가_학생별_오답.xlsx");
   expect(calls.exportCalls).toBe(1);
+});
+
+test("provider 없이 주입된 Ymath 정책은 합격 대신 오답 완료 여부를 표시한다", async ({ page }) => {
+  await installApi(page, { hasResults: true });
+  await gotoAndSettle(
+    page,
+    `${BASE}/e2e-exam-results-export-harness.html?assessmentStatusDisplay=wrong_completion`,
+    { timeout: 60_000 },
+  );
+
+  const table = page.getByRole("region", { name: "시험 학생별 결과" }).getByRole("table");
+  await expect(table.getByRole("columnheader", { name: "오답" })).toBeVisible();
+  await expect(table.getByText("오답 미완료", { exact: true })).toBeVisible();
+  await expect(table.getByText("합격", { exact: true })).toHaveCount(0);
+});
+
+test("provider 없는 미지정 정책은 비 Ymath 합격 표시를 유지한다", async ({ page }) => {
+  await installApi(page, { hasResults: true });
+  await gotoAndSettle(page, `${BASE}/e2e-exam-results-export-harness.html`, {
+    timeout: 60_000,
+  });
+
+  const table = page.getByRole("region", { name: "시험 학생별 결과" }).getByRole("table");
+  await expect(table.getByRole("columnheader", { name: "합격" })).toBeVisible();
+  await expect(table.getByRole("cell").getByText("합격", { exact: true })).toBeVisible();
+  await expect(table.getByText("오답 미완료", { exact: true })).toHaveCount(0);
 });
 
 test("수업 브리핑을 한눈에 확인하고 전문 분석 리포트를 내려받는다", async ({ page }, testInfo) => {

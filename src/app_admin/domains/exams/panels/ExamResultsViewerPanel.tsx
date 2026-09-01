@@ -35,7 +35,10 @@ import { fetchExamLectureAssignments } from "../api/examLectureAssignments";
 import { buildExamResultsInsightModel } from "./examResultsInsights";
 import styles from "./ExamResultsViewerPanel.module.css";
 
-type Props = { examId: number };
+type Props = {
+  examId: number;
+  wrongCompletionOnly?: boolean;
+};
 
 async function fetchResults(examId: number, lectureId: number | null): Promise<AdminExamResultRow[]> {
   const response = await api.get(`/results/admin/exams/${examId}/results/`, {
@@ -55,7 +58,7 @@ async function fetchQuestionStats(examId: number, lectureId: number | null): Pro
   return raw;
 }
 
-export default function ExamResultsViewerPanel({ examId }: Props) {
+export default function ExamResultsViewerPanel({ examId, wrongCompletionOnly = false }: Props) {
   const [selectedLectureId, setSelectedLectureId] = useState<number | null>(null);
   const { data: exam } = useAdminExam(examId);
   const assignmentsQ = useQuery({
@@ -387,6 +390,7 @@ export default function ExamResultsViewerPanel({ examId }: Props) {
           key={`${examId}:${selectedLectureId ?? "all"}`}
           examId={examId}
           lectureId={selectedLectureId}
+          wrongCompletionOnly={wrongCompletionOnly}
         />
       </section>
     </div>
