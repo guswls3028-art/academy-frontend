@@ -13,10 +13,10 @@ function isLocalBase(url: string): boolean {
   }
 }
 
-function fakeJwt(): string {
+function fakeJwt(tenantCode = "hakwonplus"): string {
   const payload = Buffer.from(JSON.stringify({
     exp: Math.floor(Date.now() / 1000) + 60 * 60,
-    tenant_code: "hakwonplus",
+    tenant_code: tenantCode,
     user_id: 771,
   })).toString("base64url");
   return `e30.${payload}.sig`;
@@ -45,6 +45,11 @@ type MockState = {
 type IdcardMockControl = {
   delayMs?: number;
   fail?: boolean;
+};
+
+type ProgramMockOptions = {
+  tenantCode?: string;
+  assessmentStatusDisplay?: "wrong_completion";
 };
 
 const bookingStatusLabels: Record<string, string> = {
@@ -159,14 +164,15 @@ function validIdcardBookings(state: MockState) {
   });
 }
 
-async function seed(page: Page) {
+async function seed(page: Page, programOptions: ProgramMockOptions = {}) {
   test.skip(!isLocalBase(BASE), "학생 클리닉 route-mock 검증은 로컬 dev 서버 전용");
-  await page.addInitScript((token) => {
+  const tenantCode = programOptions.tenantCode ?? "hakwonplus";
+  await page.addInitScript(({ token, tenant }) => {
     localStorage.setItem("access", token);
     localStorage.setItem("refresh", token);
-    localStorage.setItem("tenant_code", "hakwonplus");
-    sessionStorage.setItem("tenantCode", "hakwonplus");
-  }, fakeJwt());
+    localStorage.setItem("tenant_code", tenant);
+    sessionStorage.setItem("tenantCode", tenant);
+  }, { token: fakeJwt(tenantCode), tenant: tenantCode });
 }
 
 async function installApi(
@@ -174,6 +180,7 @@ async function installApi(
   state: MockState,
   idcardResult: "SUCCESS" | "FAIL" = "FAIL",
   idcardControl?: IdcardMockControl,
+  programOptions: ProgramMockOptions = {},
 ) {
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
@@ -187,11 +194,14 @@ async function installApi(
 
     if (method === "OPTIONS") return route.fulfill({ status: 204 });
     if (path === "/core/program/") {
+      const tenantCode = programOptions.tenantCode ?? "hakwonplus";
       return json({
-        tenantCode: "hakwonplus",
-        display_name: "학원플러스",
+        tenantCode,
+        display_name: tenantCode === "ymath" ? "Ymath" : "학원플러스",
         ui_config: {},
-        feature_flags: {},
+        feature_flags: programOptions.assessmentStatusDisplay
+          ? { assessment_status_display: programOptions.assessmentStatusDisplay }
+          : {},
         is_active: true,
       });
     }
@@ -815,5 +825,34 @@ test.describe("학생 클리닉 예약 UX", () => {
     expect(backgroundImage).toContain("59, 130, 246");
     expect(backgroundImage).toContain("34, 197, 94");
     await page.screenshot({ path: "test-results/student-clinic-passcard-pass-390.png", fullPage: true });
+  });
+
+  test("Ymath 패스카드는 합격 대신 오답 완료 여부만 데스크톱과 모바일에 표시한다", async ({ page }) => {
+    const state = createState();
+    const programOptions: ProgramMockOptions = {
+      tenantCode: "ymath",
+      assessmentStatusDisplay: "wrong_completion",
+    };
+    await seed(page, programOptions);
+    await installApi(page, state, "SUCCESS", undefined, programOptions);
+    await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+    const appArea = page.locator("[data-guide='dash-apps']");
+    const statusCardLink = appArea.getByRole("link", { name: "오답 상태 카드", exact: true });
+    await expect(statusCardLink).toHaveAttribute("href", "/student/idcard");
+    await expect(appArea).not.toContainText("패스카드");
+    await statusCardLink.click();
+    await expect(page).toHaveURL(/\/student\/idcard$/);
+
+    const passcard = page.getByTestId("clinic-passcard");
+    await expect(page.getByRole("heading", { name: "오답 완료" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "차시별 상태" }).getByText("오답 완료", { exact: true })).toBeVisible();
+    await expect(passcard).not.toContainText(/PASS|보강\s?합격|합격자/);
+    await expect.poll(() => page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    )).toBe(true);
+
+    await page.setViewportSize({ width: 1100, height: 820 });
+    await expect(passcard).toBeVisible();
+    await expect.poll(() => passcard.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   });
 });

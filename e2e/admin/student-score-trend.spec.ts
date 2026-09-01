@@ -79,8 +79,10 @@ const grades = {
       title: "Ymath 주간 테스트 2회",
       total_score: 90,
       max_score: 100,
-      is_pass: true,
-      achievement: "PASS",
+      is_pass: false,
+      final_pass: true,
+      remediated: true,
+      achievement: "REMEDIATED",
       retake_count: 2,
       session_id: 702,
       session_title: "2차시",
@@ -396,7 +398,7 @@ async function installApi(page: Page, options: {
         display_name: "Ymath",
         is_active: true,
         ui_config: {},
-        feature_flags: {},
+        feature_flags: { assessment_status_display: "wrong_completion" },
       } });
       return;
     }
@@ -1080,6 +1082,8 @@ test.describe("학생별 회차 누적 성적 추이", () => {
 
     await expect(pendingGroup.getByText("오답 미완료", { exact: true })).toBeVisible();
     await expect(completedGroup.getByText("오답 완료", { exact: true })).toBeVisible();
+    await expect(pendingGroup).not.toContainText(/PASS|보강\s?합격/);
+    await expect(completedGroup).not.toContainText(/PASS|보강\s?합격/);
     await expect(notSubmittedGroup.getByText("채점 대기", { exact: true })).toBeVisible();
     await expect(notSubmittedGroup.getByRole("button", { name: "오답 수정" })).toHaveCount(0);
 

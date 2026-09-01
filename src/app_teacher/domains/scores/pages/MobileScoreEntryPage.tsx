@@ -35,6 +35,7 @@ import {
 import { teacherScoresQueryKeys } from "../queryKeys";
 import useAuth from "@/auth/hooks/useAuth";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 import styles from "./MobileScoreEntryPage.module.css";
 
 type Tone = "success" | "warning" | "danger" | "muted";
@@ -199,6 +200,7 @@ function ScoreEntryList({
   draftScope: string | null;
 }) {
   const qc = useQueryClient();
+  const wrongCompletionOnly = useWrongCompletionDisplay();
   const { data: rawResults, isLoading: resultsLoading } = useQuery({
     queryKey: teacherScoresQueryKeys.examResults(examId),
     queryFn: () => fetchExamResults(examId),
@@ -399,7 +401,9 @@ function ScoreEntryList({
     onSuccess: (data, variables) => {
       setCachedCorrection(variables.enrollmentId, data);
       const student = results.find((row) => getExamResultEnrollmentId(row) === variables.enrollmentId);
-      feedback.success(`${student?.student_name ?? "학생"}을 ${variables.completed ? "원점수 유지·교사 통과" : "보완 필요"}로 저장했습니다.`);
+      feedback.success(`${student?.student_name ?? "학생"}을 ${wrongCompletionOnly
+        ? variables.completed ? "오답 완료" : "오답 미완료"
+        : variables.completed ? "원점수 유지·교사 통과" : "보완 필요"}로 저장했습니다.`);
     },
     onError: (error, _variables, context?: { previous?: SessionScoresResponse }) => {
       qc.setQueryData(scoresQueryKeys.sessionScores(sessionId), context?.previous);
@@ -649,12 +653,15 @@ function ScoreEntryList({
               </div>
             </div>
             <div className={styles.reviewRow}>
-              <span>{draftDirty ? "점수를 먼저 저장하면 최종 판정을 바꿀 수 있습니다." : "원점수 유지 판정"}</span>
+              <span>{draftDirty
+                ? `점수를 먼저 저장하면 ${wrongCompletionOnly ? "오답 상태" : "최종 판정"}을 바꿀 수 있습니다.`
+                : wrongCompletionOnly ? "오답 확인 상태" : "원점수 유지 판정"}</span>
               <ReviewStatusControl
                 status={correctionStatus}
                 disabled={draftDirty || reviewSaving}
                 saving={reviewSaving}
                 studentName={name}
+                wrongCompletionOnly={wrongCompletionOnly}
                 onToggle={() => reviewMut.mutate({
                   enrollmentId,
                   completed: correctionStatus !== "COMPLETED",
@@ -744,33 +751,41 @@ function ReviewStatusControl({
   disabled,
   saving,
   studentName,
+  wrongCompletionOnly,
   onToggle,
 }: {
   status: CorrectionStatus;
   disabled: boolean;
   saving: boolean;
   studentName: string;
+  wrongCompletionOnly: boolean;
   onToggle: () => void;
 }) {
   if (status === "NOT_REQUIRED") {
-    return <Badge size="sm" tone="success">보완 불필요</Badge>;
+    return <Badge size="sm" tone="success">{wrongCompletionOnly ? "오답 완료" : "보완 불필요"}</Badge>;
   }
   if (status == null) {
     return <Badge size="sm" tone="neutral">채점 대기</Badge>;
   }
 
   const completed = status === "COMPLETED";
+  const currentLabel = wrongCompletionOnly
+    ? completed ? "오답 완료" : "오답 미완료"
+    : completed ? "교사 판정 통과" : "교사 판정 보완 필요";
+  const nextLabel = wrongCompletionOnly
+    ? completed ? "오답 미완료" : "오답 완료"
+    : completed ? "보완 필요" : "통과";
   return (
     <button
       type="button"
       className={styles.reviewToggle}
       data-completed={completed}
       aria-pressed={completed}
-      aria-label={`${studentName} 교사 판정 ${completed ? "통과" : "보완 필요"}; 눌러서 ${completed ? "보완 필요" : "통과"}로 변경`}
+      aria-label={`${studentName} ${currentLabel}; 눌러서 ${nextLabel}로 변경`}
       disabled={disabled}
       onClick={onToggle}
     >
-      {saving ? "저장 중" : completed ? "교사 통과" : "보완 필요"}
+      {saving ? "저장 중" : wrongCompletionOnly ? currentLabel : completed ? "교사 통과" : "보완 필요"}
     </button>
   );
 }

@@ -42,6 +42,7 @@ import { DomainTable, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domai
 import type { TableColumnDef } from "@/shared/ui/domain";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 
 import "./ScoreCollaborationPresence.css";
 
@@ -464,6 +465,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   onSelectionChange,
 }: Props, ref) {
   const qc = useQueryClient();
+  const wrongCompletionOnly = useWrongCompletionDisplay();
   const homeworkInputRefs = useRef<Record<string, HTMLElement | null>>({});
   const examInputRefs = useRef<Record<string, HTMLSpanElement | null>>({});
   const examObjectiveInputRefs = useRef<Record<string, HTMLSpanElement | null>>({});
@@ -2498,7 +2500,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     if (summary.kind === "none") {
                       return <span className="text-[var(--color-text-muted)]" title="테스트 없음">-</span>;
                     }
-                    const badgeMeta = EXAM_REVIEW_BADGE_META[summary.kind];
+                    const defaultBadgeMeta = EXAM_REVIEW_BADGE_META[summary.kind];
+                    const badgeMeta = wrongCompletionOnly && summary.kind !== "pending"
+                      ? {
+                          ...defaultBadgeMeta,
+                          label: summary.kind === "incomplete" ? "오답 미완료" : "오답 완료",
+                        }
+                      : defaultBadgeMeta;
                     const detail = summary.kind === "incomplete"
                       ? [
                           `미완료 ${summary.incompleteTitles.length}`,

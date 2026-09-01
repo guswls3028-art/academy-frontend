@@ -144,8 +144,10 @@ function gradesFor(points: TrendPoint[]) {
         title: point.title,
         total_score: point.score,
         max_score: point.max_score,
-        is_pass: true,
-        achievement: "PASS",
+        is_pass: index === 1 ? false : true,
+        achievement: index === 1 ? "REMEDIATED" : "PASS",
+        remediated: index === 1,
+        final_pass: true,
         meta_status: null,
         retake_count: point.retake_count,
         session_title: point.session_title,
@@ -317,7 +319,7 @@ async function installApi(
         display_name: "Ymath",
         is_active: true,
         ui_config: {},
-        feature_flags: {},
+        feature_flags: { assessment_status_display: "wrong_completion" },
       } });
       return;
     }
@@ -338,6 +340,38 @@ async function installApi(
         is_superuser: false,
         tenantRole: "student",
         linkedStudents: [],
+      } });
+      return;
+    }
+    if (path.endsWith("/student/results/me/exams/302/items/")) {
+      await route.fulfill({ json: { items: [] } });
+      return;
+    }
+    if (path.endsWith("/student/results/me/exams/302/")) {
+      await route.fulfill({ json: {
+        exam_id: 302,
+        attempt_id: 402,
+        total_score: 90,
+        max_score: 100,
+        is_pass: false,
+        final_pass: true,
+        remediated: true,
+        clinic_required: false,
+        is_provisional: false,
+        meta_status: null,
+        submitted_at: "2026-07-08T18:00:00+09:00",
+        can_retake: false,
+        answer_visibility: "hidden",
+        answers_visible: false,
+        correction_status: "PENDING",
+        clinic_retake: { attempt_index: 2, score: 80, pass_score: 60 },
+        analysis: {
+          total_questions: 20,
+          correct_count: 17,
+          wrong_count: 3,
+          accuracy_rate: 85,
+          wrong_question_numbers: [5, 11, 13],
+        },
       } });
       return;
     }
@@ -481,14 +515,25 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
 
   test("시험 카드에서 교사가 확인한 오답 완료와 미완료 상태를 바로 확인한다", async ({ page }) => {
     await installApi(page, "student");
+    await page.setViewportSize({ width: 1100, height: 820 });
     await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
 
     const completedCard = page.getByRole("link").filter({ hasText: "Ymath 주간 테스트 1회" });
     const pendingCard = page.getByRole("link").filter({ hasText: "Ymath 주간 테스트 2회" });
     await expect(completedCard).toContainText("오답 완료");
     await expect(pendingCard).toContainText("오답 미완료");
-    await expect(completedCard).toContainText("합격");
+    await expect(completedCard).not.toContainText(/PASS|보강\s?합격|합격/);
+    await expect(pendingCard).not.toContainText(/PASS|보강\s?합격|합격/);
     await expect(completedCard).toContainText("7, 9번");
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+
+    await pendingCard.click();
+    const correctionStatus = page.getByRole("region", { name: "테스트 오답 확인 상태" });
+    await expect(correctionStatus).toContainText("오답 미완료");
+    await expect(page.locator("main")).not.toContainText(/PASS|보강\s?합격/);
+    await page.goBack({ waitUntil: "domcontentloaded" });
+    await page.setViewportSize({ width: 390, height: 844 });
+
     const correctionFilter = page.getByRole("group", { name: "테스트 오답 확인 필터" });
     await expect(correctionFilter.getByRole("button", { name: "전체 4" })).toHaveAttribute("aria-pressed", "true");
     await correctionFilter.getByRole("button", { name: "확인 필요 2" }).click();

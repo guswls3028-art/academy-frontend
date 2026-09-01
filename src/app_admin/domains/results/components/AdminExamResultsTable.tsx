@@ -22,6 +22,7 @@ import {
   achievementTone,
 } from "@/shared/scoring/achievement";
 import { compareKoreanText, compareNullableNumbers } from "@/shared/utils/dataOrdering";
+import { useWrongCompletionDisplay, wrongCompletionLabel } from "@/shared/scoring/assessmentStatusDisplay";
 import "./AdminExamResultsTable.css";
 
 function toBadgeTone(t: ReturnType<typeof achievementTone>): BadgeTone {
@@ -39,6 +40,7 @@ export default function AdminExamResultsTable({
   onSelectEnrollment: (id: number) => void;
 }) {
   const tenantLabels = useTenantLabels();
+  const wrongCompletionOnly = useWrongCompletionDisplay();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<ResultSort>("rank");
   const [statusFilter, setStatusFilter] = useState<ResultStatusFilter>("all");
@@ -171,7 +173,9 @@ export default function AdminExamResultsTable({
                       임시
                     </Badge>
                   )}
-                  {achievement && (
+                  {wrongCompletionOnly ? (
+                    <ExamCorrectionBadge status={r.correction_status} />
+                  ) : achievement && (
                     <Badge variant="solid" tone={toBadgeTone(achievementTone(achievement))}>
                       {achievementLabel(achievement, { pass: tenantLabels.pass, fail: tenantLabels.fail })}
                     </Badge>
@@ -197,7 +201,7 @@ export default function AdminExamResultsTable({
             <th style={{ textAlign: "left" }}>학생</th>
             <th>1차점수</th>
             <th>상태</th>
-            <th>{tenantLabels.pass}</th>
+            <th>{wrongCompletionOnly ? "오답" : tenantLabels.pass}</th>
           </tr>
         </thead>
         <tbody>
@@ -290,7 +294,9 @@ export default function AdminExamResultsTable({
                 </td>
 
                 <td>
-                  {achievement ? (
+                  {wrongCompletionOnly ? (
+                    <ExamCorrectionBadge status={r.correction_status} />
+                  ) : achievement ? (
                     <Badge
                       variant="solid"
                       tone={toBadgeTone(achievementTone(achievement))}
@@ -321,5 +327,22 @@ export default function AdminExamResultsTable({
       </table>
       </div>
     </div>
+  );
+}
+
+function ExamCorrectionBadge({
+  status,
+}: {
+  status: AdminExamResultRow["correction_status"];
+}) {
+  const label = wrongCompletionLabel(status);
+  return (
+    <Badge
+      variant="solid"
+      tone={status === "PENDING" ? "warning" : label ? "success" : "muted"}
+      size="xs"
+    >
+      {label ?? "채점 대기"}
+    </Badge>
   );
 }

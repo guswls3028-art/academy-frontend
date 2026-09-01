@@ -143,6 +143,8 @@ export type AdminExamResultRow = {
   clinic_retake?: ClinicRetakeInfo | null;
   is_provisional?: boolean;
   meta_status?: string | null;
+  correction_session_id?: number | null;
+  correction_status?: "PENDING" | "COMPLETED" | "NOT_REQUIRED" | null;
 
   /**
    * ✅ 제출/채점 파이프라인 상태

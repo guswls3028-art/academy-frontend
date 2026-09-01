@@ -12,10 +12,12 @@ import { useMyExamResult } from "@student/domains/exams/hooks/useMyExamResult";
 import { useMyExamResultItems } from "@student/domains/exams/hooks/useMyExamResultItems";
 import type { ExamResultAnalysis, MyExamResultItem } from "@student/domains/exams/api/results";
 import GradeBadge from "@student/domains/grades/components/GradeBadge";
+import { useWrongCompletionDisplay, wrongCompletionLabel } from "@/shared/scoring/assessmentStatusDisplay";
 import styles from "./ExamResultPage.module.css";
 
 export default function ExamResultPage() {
   const { examId } = useParams();
+  const wrongCompletionOnly = useWrongCompletionDisplay();
   const safeId = Number(examId);
 
   const resultQ = useMyExamResult(Number.isFinite(safeId) ? safeId : undefined);
@@ -119,13 +121,15 @@ export default function ExamResultPage() {
           <div className={styles.scoreText}>
             {r.total_score} / {r.max_score}점
           </div>
-          <GradeBadge
-            passed={finalPass}
-            achievement={achievement}
-            showNotSubmitted={r.total_score == null}
-          />
+          {!wrongCompletionOnly && (
+            <GradeBadge
+              passed={finalPass}
+              achievement={achievement}
+              showNotSubmitted={r.total_score == null}
+            />
+          )}
           {/* 클리닉 재시험 통과 정보 (드리프트 해소 UX) */}
-          {r.remediated && r.clinic_retake && (
+          {!wrongCompletionOnly && r.remediated && r.clinic_retake && (
             <div className={styles.remediatedPill}>
               클리닉 재시험 통과
               {typeof r.clinic_retake.score === "number" && (
@@ -144,7 +148,7 @@ export default function ExamResultPage() {
         </div>
 
         {r.correction_status && (
-          <CorrectionStatusCard status={r.correction_status} />
+          <CorrectionStatusCard status={r.correction_status} wrongCompletionOnly={wrongCompletionOnly} />
         )}
 
         {hasQuestionAnalysis && (
@@ -158,7 +162,7 @@ export default function ExamResultPage() {
 
         {/* ── Clinic CTA (불합격 + 미해소 클리닉 대상) ── */}
         {r.clinic_required && finalPass === false && r.meta_status !== "NOT_SUBMITTED" && (
-          <ClinicRequiredCard />
+          <ClinicRequiredCard wrongCompletionOnly={wrongCompletionOnly} />
         )}
 
         {/* ── Rank & Comparison ── */}
@@ -224,10 +228,21 @@ export default function ExamResultPage() {
 
 function CorrectionStatusCard({
   status,
+  wrongCompletionOnly,
 }: {
   status: "PENDING" | "COMPLETED" | "NOT_REQUIRED";
+  wrongCompletionOnly: boolean;
 }) {
-  const content = status === "COMPLETED"
+  const wrongCompletion = wrongCompletionOnly ? wrongCompletionLabel(status) : null;
+  const content = wrongCompletion
+    ? {
+        label: wrongCompletion,
+        tone: status === "PENDING" ? "danger" as const : "success" as const,
+        description: status === "PENDING"
+          ? "확인할 오답이 남아 있어요. 수업 안내에 따라 오답을 정리해 주세요."
+          : "선생님 확인 기준으로 이 시험의 오답 정리가 완료됐어요.",
+      }
+    : status === "COMPLETED"
     ? {
         label: "오답 완료",
         tone: "success" as const,
@@ -262,7 +277,7 @@ function CorrectionStatusCard({
 
 /* ── Clinic Required CTA ── */
 
-function ClinicRequiredCard() {
+function ClinicRequiredCard({ wrongCompletionOnly }: { wrongCompletionOnly: boolean }) {
   return (
     <Link
       to="/student/clinic"
@@ -270,7 +285,7 @@ function ClinicRequiredCard() {
     >
       <div className={styles.clinicText}>
         <div className={styles.clinicTitle}>
-          보강 클리닉 대상
+          {wrongCompletionOnly ? "오답 미완료" : "보강 클리닉 대상"}
         </div>
         <div className={`stu-muted ${styles.clinicDesc}`}>
           클리닉 페이지에서 일정을 예약하세요.

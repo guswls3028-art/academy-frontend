@@ -35,6 +35,7 @@ import { useNotificationCounts } from "@student/domains/notifications/hooks/useN
 import type { NotificationCounts } from "@student/domains/notifications/api/notifications.api";
 import NotificationBadge from "@student/shared/ui/components/NotificationBadge";
 import type { StudentSession } from "@student/domains/sessions/api/sessions.api";
+import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 import styles from "./DashboardPage.module.css";
 
 /* ============================================================================
@@ -217,6 +218,7 @@ function QuickAction({
 
 export default function DashboardPage() {
   const { user } = useAuthContext();
+  const wrongCompletionOnly = useWrongCompletionDisplay();
   const feesEnabled = useFeesEnabled();
   const dashboardQ = useStudentDashboard();
   const sessionsQ = useMySessions();
@@ -270,13 +272,15 @@ export default function DashboardPage() {
   const failedExams = useMemo(
     () => (grades?.exams ?? []).filter((e) => (
       e.lecture_active !== false
-      && (
+      && (wrongCompletionOnly
+        ? e.correction_status === "PENDING"
+        : (
         e.achievement === "FAIL"
         || e.achievement === "NOT_SUBMITTED"
         || (e.achievement == null && e.is_pass === false)
-      )
+        ))
     )),
-    [grades?.exams],
+    [grades?.exams, wrongCompletionOnly],
   );
   const failedHomeworks = useMemo(
     () => (grades?.homeworks ?? []).filter((h) => (
@@ -390,6 +394,7 @@ export default function DashboardPage() {
         hasNotices={hasNotices}
         tenantInfo={dashboard?.tenant_info ?? null}
         feesEnabled={feesEnabled}
+        wrongCompletionOnly={wrongCompletionOnly}
       />
       </>
     );
@@ -493,7 +498,7 @@ export default function DashboardPage() {
                   to="/student/grades"
                   icon={<IconClipboard />}
                   iconBg="var(--stu-warn-bg)"
-                  label={`과제 미통과 ${failedHomeworks.length}건`}
+                  label={`${wrongCompletionOnly ? "과제 미완료" : "과제 미통과"} ${failedHomeworks.length}건`}
                   labelColor="var(--stu-warn-text)"
                   detail={preview.join(", ") + more}
                 />
@@ -508,7 +513,7 @@ export default function DashboardPage() {
                   to="/student/exams"
                   icon={<IconExam />}
                   iconBg="var(--stu-danger-bg)"
-                  label={`재시험 필요 ${failedExams.length}건`}
+                  label={`${wrongCompletionOnly ? "오답 미완료" : "재시험 필요"} ${failedExams.length}건`}
                   labelColor="var(--stu-danger)"
                   detail={preview.join(", ") + more}
                 />
@@ -614,7 +619,7 @@ export default function DashboardPage() {
       )}
 
       <div data-guide="dash-stats">
-        <LearningStatusCard grades={grades ?? null} sessions={sessions ?? null} />
+        <LearningStatusCard grades={grades ?? null} sessions={sessions ?? null} wrongCompletionOnly={wrongCompletionOnly} />
       </div>
 
       {!hasUrgentNotice && (
@@ -639,7 +644,7 @@ export default function DashboardPage() {
             icon={<IconNotice />} />
           <AppIcon to="/student/inventory" label="보관함"
             icon={<IconFolder />} />
-          <AppIcon to="/student/idcard" label="클리닉 패스카드"
+          <AppIcon to="/student/idcard" label={wrongCompletionOnly ? "오답 상태 카드" : "클리닉 패스카드"}
             icon={<IconClinic />} />
         </div>
       </section>
@@ -677,6 +682,7 @@ type ParentDashboardViewProps = {
   hasNotices: boolean;
   tenantInfo: StudentDashboardResponse["tenant_info"] | null;
   feesEnabled: boolean;
+  wrongCompletionOnly: boolean;
 };
 
 function ParentDashboardView({
@@ -698,6 +704,7 @@ function ParentDashboardView({
   hasNotices,
   tenantInfo,
   feesEnabled,
+  wrongCompletionOnly,
 }: ParentDashboardViewProps) {
   const supportCount = failedExams.length + failedHomeworks.length;
   const attentionCount =
@@ -835,9 +842,9 @@ function ParentDashboardView({
               to="/student/grades"
               icon={<IconGrade />}
               iconBg="var(--stu-warn-bg)"
-              label={`보충 확인 ${supportCount}건`}
+              label={`${wrongCompletionOnly ? "오답·과제 확인" : "보충 확인"} ${supportCount}건`}
               labelColor="var(--stu-warn-text)"
-              detail="미통과 시험·과제를 확인해 주세요"
+              detail={wrongCompletionOnly ? "오답 미완료와 과제 미완료를 확인해 주세요" : "미통과 시험·과제를 확인해 주세요"}
             />
           )}
           {clinicUpcoming && (
@@ -878,7 +885,7 @@ function ParentDashboardView({
         </section>
       )}
 
-      <LearningStatusCard grades={grades} sessions={sessions} />
+      <LearningStatusCard grades={grades} sessions={sessions} wrongCompletionOnly={wrongCompletionOnly} />
 
       {!hasUrgentNotice && (
         <NoticeStrip notices={notices} hasNotices={hasNotices} />
@@ -920,9 +927,11 @@ function ParentMetric({
 function LearningStatusCard({
   grades,
   sessions,
+  wrongCompletionOnly,
 }: {
   grades: MyGradesSummary | null;
   sessions: StudentSession[] | null;
+  wrongCompletionOnly: boolean;
 }) {
   /* 최근 4주 수업 활동 */
   const recentSessionCount = useMemo(() => {
@@ -946,12 +955,16 @@ function LearningStatusCard({
   const hwRate = hwCount > 0 ? Math.round((passedHw / hwCount) * 100) : null;
 
   /* 시험 합격률 (점수 평균 대신 합격/총합 비율) */
-  const examTotal = grades?.exams?.filter((e) => e.is_pass != null).length ?? 0;
-  const examPassed = grades?.exams?.filter((e) => (
-    e.achievement === "PASS"
-    || e.achievement === "REMEDIATED"
-    || (e.achievement == null && e.is_pass === true)
-  )).length ?? 0;
+  const examTotal = grades?.exams?.filter((e) => wrongCompletionOnly
+    ? e.correction_status != null
+    : e.is_pass != null).length ?? 0;
+  const examPassed = grades?.exams?.filter((e) => wrongCompletionOnly
+    ? e.correction_status === "COMPLETED" || e.correction_status === "NOT_REQUIRED"
+    : (
+      e.achievement === "PASS"
+      || e.achievement === "REMEDIATED"
+      || (e.achievement == null && e.is_pass === true)
+    )).length ?? 0;
   const examRate = examTotal > 0 ? Math.round((examPassed / examTotal) * 100) : null;
 
   const hasData = recentSessionCount > 0 || hwCount > 0 || examTotal > 0;
@@ -973,9 +986,9 @@ function LearningStatusCard({
         <div className={styles.statGrid}>
           <Stat label="수업" value={recentSessionCount} unit="회" tone="var(--stu-text)" />
           <Divider />
-          <Stat label="과제 통과" value={hwRate} unit={hwRate != null ? "%" : ""} tone={tone(hwRate)} />
+          <Stat label={wrongCompletionOnly ? "과제 완료" : "과제 통과"} value={hwRate} unit={hwRate != null ? "%" : ""} tone={tone(hwRate)} />
           <Divider />
-          <Stat label="시험 합격" value={examRate} unit={examRate != null ? "%" : ""} tone={tone(examRate)} />
+          <Stat label={wrongCompletionOnly ? "오답 완료" : "시험 합격"} value={examRate} unit={examRate != null ? "%" : ""} tone={tone(examRate)} />
         </div>
       ) : (
         <div className={styles.learningEmpty}>

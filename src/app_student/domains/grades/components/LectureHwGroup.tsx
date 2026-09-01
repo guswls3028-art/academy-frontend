@@ -4,6 +4,7 @@
 import { IconClipboard } from "@student/shared/ui/icons/Icons";
 import GradeBadge from "./GradeBadge";
 import type { MyHomeworkGradeSummary } from "../api/grades.api";
+import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 import styles from "./LectureGradeGroup.module.css";
 
 export type HwGroup = {
@@ -16,6 +17,7 @@ export type HwGroup = {
 const HOMEWORK_SCORE_NUMBER = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 1 });
 
 export default function LectureHwGroup({ group }: { group: HwGroup }) {
+  const wrongCompletionOnly = useWrongCompletionDisplay();
   return (
     <div>
       <div className={styles.groupHeader}>
@@ -71,7 +73,7 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
                     showNotSubmitted
                     notSubmittedLabel="미제출"
                     emptyLabel="검사 전"
-                    remediatedLabel={h.teacher_resolved ? "교사 확인 완료" : "보강 완료"}
+                    remediatedLabel={h.teacher_resolved || wrongCompletionOnly ? "교사 확인 완료" : "보강 완료"}
                     size="sm"
                   />
                 </div>

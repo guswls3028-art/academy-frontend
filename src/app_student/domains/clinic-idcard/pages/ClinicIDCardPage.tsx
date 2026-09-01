@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import LectureChip from "@/shared/ui/chips/LectureChip";
+import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 import { fetchClinicIdcard } from "../api/idcard";
 import "../styles/idcard.css";
 
@@ -44,6 +45,8 @@ function useServerClock(serverDatetime?: string) {
 }
 
 export default function ClinicIDCardPage() {
+  const wrongCompletionOnly = useWrongCompletionDisplay();
+  const cardLabel = wrongCompletionOnly ? "오답 상태 카드를" : "패스카드를";
   const query = useQuery({
     queryKey: studentQueryKeys.clinicIdcard,
     queryFn: fetchClinicIdcard,
@@ -53,13 +56,13 @@ export default function ClinicIDCardPage() {
   const now = useServerClock(query.data?.server_datetime);
 
   if (query.isLoading) {
-    return <div className="clinic-idcard-state" role="status">패스카드를 불러오는 중…</div>;
+    return <div className="clinic-idcard-state" role="status">{cardLabel} 불러오는 중…</div>;
   }
 
   if (query.isError || !query.data) {
     return (
       <div className="clinic-idcard-state clinic-idcard-state--error" role="alert">
-        <strong>패스카드를 불러오지 못했습니다.</strong>
+        <strong>{cardLabel} 불러오지 못했습니다.</strong>
         <span>네트워크를 확인한 뒤 다시 시도해 주세요.</span>
         <button type="button" onClick={() => query.refetch()}>다시 시도</button>
       </div>
@@ -116,11 +119,15 @@ export default function ClinicIDCardPage() {
           />
         </div>
 
-        <section className="clinic-idcard__verdict" aria-label="현재 클리닉 상태">
+        <section className="clinic-idcard__verdict" aria-label={wrongCompletionOnly ? "현재 오답 상태" : "현재 클리닉 상태"}>
           <span className="clinic-idcard__verdict-mark" aria-hidden>{isBookingConfirmed || !isClinicTarget ? "✓" : "!"}</span>
           <div>
-            <p>{isBookingConfirmed ? (data.booking_status === "booked" ? "다음 클리닉 예약됨" : data.booking_status_label) : isPendingApproval ? "클리닉 대상 · 승인 대기" : isClinicTarget ? "과락 요소 있음" : "과락 요소 없음"}</p>
-            <h1>{isBookingConfirmed ? "예약완료" : isClinicTarget ? "대상자" : "합격자"}</h1>
+            <p>{isBookingConfirmed
+              ? (data.booking_status === "booked" ? "다음 클리닉 예약됨" : data.booking_status_label)
+              : wrongCompletionOnly
+                ? (isPendingApproval ? "오답 미완료 · 승인 대기" : isClinicTarget ? "오답 확인 필요" : "오답 확인 완료")
+                : isPendingApproval ? "클리닉 대상 · 승인 대기" : isClinicTarget ? "과락 요소 있음" : "과락 요소 없음"}</p>
+            <h1>{isBookingConfirmed ? "예약완료" : wrongCompletionOnly ? (isClinicTarget ? "오답 미완료" : "오답 완료") : isClinicTarget ? "대상자" : "합격자"}</h1>
             <span>
               {isBookingConfirmed
                 ? "다음 클리닉 수강완료 처리 전까지 예약완료 상태를 유지합니다."
@@ -191,7 +198,9 @@ export default function ClinicIDCardPage() {
                         className={`clinic-idcard__history-item ${history.clinic_required ? "clinic-idcard__history-item--fail" : "clinic-idcard__history-item--pass"}`}
                       >
                         <strong>{history.session_order}차시</strong>
-                        <span>{history.clinic_required ? "클리닉 대상" : "합격"}</span>
+                        <span>{wrongCompletionOnly
+                          ? (history.clinic_required ? "오답 미완료" : "오답 완료")
+                          : history.clinic_required ? "클리닉 대상" : "합격"}</span>
                       </div>
                     ))}
                   </div>

@@ -15,6 +15,7 @@ import {
   defaultStudentGradeReportLayout,
   STUDENT_GRADE_REPORT_ANALYTICS_SECTION_IDS,
 } from "@/shared/api/contracts/studentGradeReportLayout";
+import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 
 const TABS = [
   { key: "home", label: "요약" },
@@ -23,6 +24,7 @@ const TABS = [
 
 export default function GradesPage() {
   const [tab, setTab] = useState("home");
+  const wrongCompletionOnly = useWrongCompletionDisplay();
   const { data, isLoading, isError, refetch } = useMyGradesSummary();
   const reportLayout = data?.report_layout ?? defaultStudentGradeReportLayout();
   const hasVisibleAnalytics = reportLayout.sections.some(
@@ -44,7 +46,9 @@ export default function GradesPage() {
   const shellDescription =
     tab === "stats"
       ? "시험과 과제 결과가 어떤 방향으로 움직이는지 확인합니다."
-      : "최근 시험, 과제, 통과 여부를 학생 기준으로 정리합니다.";
+      : wrongCompletionOnly
+        ? "최근 시험의 오답 완료 여부와 과제 현황을 학생 기준으로 정리합니다."
+        : "최근 시험, 과제, 통과 여부를 학생 기준으로 정리합니다.";
 
   return (
     <DomainTabShell
