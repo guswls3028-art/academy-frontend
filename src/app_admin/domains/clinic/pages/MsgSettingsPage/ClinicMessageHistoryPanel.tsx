@@ -9,7 +9,8 @@ import {
   fetchScheduledNotifications,
   type NotificationLogItem,
   type ScheduledNotificationItem,
-} from "@admin/domains/messages/api/messages.api";
+  clinicMessageHistoryQueryKeys,
+} from "@admin/domains/messages/public/clinicMessageHistory";
 import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import styles from "./ClinicMessageHistoryPanel.module.css";
@@ -116,12 +117,12 @@ function logRow(item: NotificationLogItem): HistoryRow {
 
 export default function ClinicMessageHistoryPanel() {
   const logsQ = useQuery({
-    queryKey: ["clinic", "message-history", "logs"],
+    queryKey: clinicMessageHistoryQueryKeys.logs,
     queryFn: () => fetchNotificationLog({ scope: "clinic", page_size: 20 }),
     staleTime: 30_000,
   });
   const scheduledQ = useQuery({
-    queryKey: ["clinic", "message-history", "scheduled"],
+    queryKey: clinicMessageHistoryQueryKeys.scheduled,
     queryFn: () => fetchScheduledNotifications({ scope: "clinic", page_size: 20 }),
     staleTime: 30_000,
   });
