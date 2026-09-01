@@ -994,6 +994,28 @@ test("예약 학생은 운영 명단에서 바로 일정을 변경하거나 취�
   const workbench = page.getByRole("dialog", { name: "모바일확인 학생 클리닉 워크벤치" });
   await expect(workbench.getByRole("button", { name: "일정 변경", exact: true })).toBeVisible();
   await expect(workbench.getByRole("button", { name: "명단에서 빼기", exact: true })).toBeVisible();
+  const mobileStatusActions = workbench.locator(".clinic-ops__drawer-status-actions");
+  const mobileStatusButtons = mobileStatusActions.locator(".clinic-ops__drawer-status-btn");
+  await expect(mobileStatusButtons).toHaveCount(6);
+  const mobileStatusBounds = await mobileStatusButtons.evaluateAll((buttons) =>
+    buttons.map((button) => {
+      const box = button.getBoundingClientRect();
+      const containerBox = button.parentElement?.getBoundingClientRect();
+      return {
+        left: box.left,
+        right: box.right,
+        width: box.width,
+        height: box.height,
+        containerLeft: containerBox?.left ?? 0,
+        containerRight: containerBox?.right ?? 0,
+      };
+    }),
+  );
+  expect(mobileStatusBounds.every((box) => box.width >= 140 && box.height >= 44 && box.height <= 60)).toBe(true);
+  expect(mobileStatusBounds.every((box) =>
+    box.left >= box.containerLeft - 1 && box.right <= box.containerRight + 1
+  )).toBe(true);
+  await expect(mobileStatusButtons.first()).toHaveCSS("word-break", "keep-all");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
