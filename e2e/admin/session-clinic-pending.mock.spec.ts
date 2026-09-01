@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
@@ -7,6 +9,10 @@ const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const LECTURE_ID = 7721;
 const SESSION_ID = 7722;
 const CLINIC_SECTION_ID = 7723;
+const WORKBENCH_CSS = path.resolve(
+  process.cwd(),
+  "src/app_admin/domains/clinic/styles/clinic/12-operations-workbench.css",
+);
 
 function fakeJwt(): string {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
@@ -183,4 +189,47 @@ test("미응시 검토 대기와 실제 클리닉 대상을 분리해 표시한�
   await expect(pendingRow).not.toContainText("시험 미통과");
   await expect(normalRow).toContainText("정상");
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+});
+
+test("클리닉 작업대의 긴 한글 제목은 desktop과 390px에서 잘리지 않는다", async ({ page }) => {
+  await page.setContent(`
+    <main style="width: min(320px, calc(100vw - 32px)); margin: 16px;">
+      <section class="clinic-workbench__active-panel">
+        <strong class="clinic-workbench__target-title" data-testid="target-title">
+          부교재 매우 긴 산화 환원과 화학 평형 확인 과제와 추가 복습 범위
+        </strong>
+      </section>
+    </main>
+  `);
+  await page.addStyleTag({ path: WORKBENCH_CSS });
+
+  const title = page.getByTestId("target-title");
+  await expect(title).toHaveText(
+    "부교재 매우 긴 산화 환원과 화학 평형 확인 과제와 추가 복습 범위",
+  );
+
+  for (const viewport of [
+    { width: 1366, height: 850 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport);
+    const metrics = await title.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+        scrollHeight: element.scrollHeight,
+        lineHeight: Number.parseFloat(style.lineHeight),
+        overflowWrap: style.overflowWrap,
+        textOverflow: style.textOverflow,
+        whiteSpace: style.whiteSpace,
+      };
+    });
+
+    expect(metrics.whiteSpace).toBe("normal");
+    expect(metrics.overflowWrap).toBe("anywhere");
+    expect(metrics.textOverflow).toBe("clip");
+    expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth);
+    expect(metrics.scrollHeight).toBeGreaterThan(metrics.lineHeight * 1.5);
+  }
 });
