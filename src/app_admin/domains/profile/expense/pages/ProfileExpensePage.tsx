@@ -64,7 +64,7 @@ export default function ProfileExpensePage() {
                 <Button
                   intent="primary"
                   size="md"
-                  onClick={domain.openCreate}
+                  onClick={() => domain.openCreate(range.from.slice(0, 7))}
                   className="mt-4"
                 >
                   + 지출 등록
@@ -85,7 +85,7 @@ export default function ProfileExpensePage() {
       <ExpenseFormModal
         open={domain.open}
         initial={domain.editing}
-        defaultDate={range.from}
+        defaultDate={domain.createDefaultDate ?? range.from}
         submitting={domain.submitting}
         onClose={domain.close}
         onSubmit={domain.submit}

@@ -1157,6 +1157,27 @@ test.describe("직원 운영 계약", () => {
     });
   });
 
+  test("개인 지출 등록을 열어도 선택한 과거 월과 기본 날짜를 유지한다", async ({ page }) => {
+    await mockStaffApi(page, { profileExpenses: [] });
+
+    await gotoAndSettle(page, `${BASE}/workspace/profile/expense`, {
+      timeout: 30_000,
+    });
+    const monthInput = page.locator('input[type="month"]');
+    await monthInput.evaluate((input: HTMLInputElement) => {
+      input.value = "2026-08";
+    });
+    await monthInput.focus();
+    await page.keyboard.press("Tab");
+    await expect(monthInput).toHaveValue("2026-08");
+
+    await page.getByRole("button", { name: "지출 등록", exact: true }).click();
+
+    await expect(monthInput).toHaveValue("2026-08");
+    const dialog = page.getByRole("dialog", { name: "지출 등록" });
+    await expect(dialog.locator("#profile-expense-date")).toContainText("2026년 08월 01일");
+  });
+
   test("개인 지출도 공용 모달의 이름·Enter 저장·확인창 계약을 따른다", async ({ page }) => {
     let createdBody: Record<string, unknown> | null = null;
     let deletedId: number | null = null;

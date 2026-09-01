@@ -86,20 +86,24 @@ export function useExpenseDomain(month: string, range: { from: string; to: strin
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
+  const [createDefaultDate, setCreateDefaultDate] = useState<string | null>(null);
 
-  const openCreate = () => {
+  const openCreate = (selectedMonth?: string) => {
     setEditing(null);
+    setCreateDefaultDate(selectedMonth ? `${selectedMonth}-01` : range.from);
     setOpen(true);
   };
 
   const openEdit = (row: Expense) => {
     setEditing(row);
+    setCreateDefaultDate(null);
     setOpen(true);
   };
 
   const close = () => {
     setOpen(false);
     setEditing(null);
+    setCreateDefaultDate(null);
   };
 
   const submit = async (form: ExpenseMutationPayload) => {
@@ -143,6 +147,7 @@ export function useExpenseDomain(month: string, range: { from: string; to: strin
 
     open,
     editing,
+    createDefaultDate,
     submitting: createMut.isPending || updateMut.isPending,
     deletingId: deleteMut.isPending ? deleteMut.variables : null,
 
