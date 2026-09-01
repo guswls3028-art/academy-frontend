@@ -311,6 +311,7 @@ test("desktop 학생 작업대 운영 버튼은 세로로 찌그러지지 않는
   expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth);
   for (const button of metrics.buttons) {
     expect(button.width).toBeGreaterThan(170);
+    expect(button.height).toBeGreaterThanOrEqual(44);
     expect(button.height).toBeLessThanOrEqual(48);
     expect(button.labelHeight).toBeLessThanOrEqual(24);
     expect(button.right).toBeLessThanOrEqual(metrics.right + 1);
