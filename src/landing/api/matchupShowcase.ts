@@ -69,7 +69,12 @@ export async function fetchMatchupShowcaseList(opts?: { skipAuth?: boolean }): P
 export async function fetchMatchupShowcaseDetail(id: number, opts?: { skipAuth?: boolean }): Promise<MatchupShowcaseCard> {
   const cfg: ApiRequestConfig | undefined = opts?.skipAuth ? ({ skipAuth: true } as ApiRequestConfig) : undefined;
   const { data } = await api.get<MatchupShowcaseCard>(`${BASE}/${id}/`, cfg);
-  return data;
+  try {
+    const view = await api.post<{ view_count: number }>(`${BASE}/${id}/view/`, undefined, cfg);
+    return { ...data, view_count: view.data.view_count };
+  } catch {
+    return data;
+  }
 }
 
 /** staff publish — hit_report_id 로부터 PDF snapshot 생성 + 게시. */

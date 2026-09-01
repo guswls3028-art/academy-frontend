@@ -183,7 +183,7 @@ export async function fetchStudentSessionVideos(
 
 /**
  * 학생 앱 전용: 비디오 재생 정보 가져오기
- * 백엔드: GET /student/video/videos/{videoId}/playback/
+ * 백엔드: POST /student/video/videos/{videoId}/playback/
  * - 비디오 정보와 재생 URL, 정책을 함께 반환
  */
 export async function fetchStudentVideoPlayback(
@@ -197,9 +197,11 @@ export async function fetchStudentVideoPlayback(
   if (Number.isNaN(Number(videoId)) || videoId < 1) {
     throw new Error("유효한 영상이 아닙니다.");
   }
-  const res = await api.get(`/student/video/videos/${videoId}/playback/`, {
+  const path = `/student/video/videos/${videoId}/playback/`;
+  const config = {
     params: Object.keys(params).length > 0 ? params : undefined,
-  });
+  };
+  const res = await api.post(path, undefined, config);
   const data = res?.data;
   if (data == null || typeof data !== "object") {
     throw new Error("재생 정보를 받지 못했습니다.");

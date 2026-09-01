@@ -125,6 +125,10 @@
 전체 건수와 최신 100건 제한 여부를 구분하고, 각 행의 **증거 상세**는 서버 수신
 시각·사용 주체·검증된 대상·증거 번호를 제공한다. 내부 route ID나 토큰은 사용자
 화면에 표시하지 않는다.
+조건을 읽기 전에 `POST /students/{studentId}/activities/view/`로 열람 증거를
+먼저 남긴다. 이 명시적 기록 API가 없거나 실패하면 활동 GET으로 우회하지 않고
+열람을 실패 폐쇄한다. 과거처럼 GET 처리 중 감사 행을 쓰는 backend는 지원하지
+않는다.
 
 계정정보 재전송은 저장되어 있지 않은 현재 비밀번호를 노출하지 않는다. 선생님
 모바일 학생 상세의 버튼은 기존 학생/학부모 비밀번호 재설정 시트를 열고, 대상
@@ -181,6 +185,23 @@
   발생하면 이전 성공이 현재 거절 상태를 지우거나 발급된 URL을 다시 mount하지 않는다.
   허용 상태에서는 30초 주기로 재검증하며, fatal 거절 뒤의 타이머·`visibilitychange`와 영상 화면
   이탈 뒤에는 추가 access-check 요청을 보내지 않는다.
+
+재생 URL·현재 정책·감시 세션을 새로 발급하는 bootstrap은
+`POST /student/video/videos/{videoId}/playback/`이다. `GET`은
+`access_check=true` 재검증에만 사용하며 활동·조회수·재생 세션을 만들지 않는다.
+교차 저장소 배포에서는 명시적 POST를 제공하는 backend를 먼저 live seal한 뒤
+frontend를 반영한다. 새 frontend는 POST가 실패하면 bootstrap을 실패 폐쇄하며
+기존 GET bootstrap으로 재시도하지 않는다. 따라서 rollback 대상 backend도
+명시적 POST 계약을 제공해야 한다.
+영상 홈 GET은 공개 영상 컨테이너가 아직 없을 때 `public:null`을 그대로 빈 상태로
+표시하고 학생 조회를 이유로 강의나 차시를 만들지 않는다.
+
+시험 결과 본문은 GET으로 먼저 표시한 뒤
+`POST /students/me/activity/exam-result-open/`으로 대상 열람 증거를 별도 기록한다.
+활동 기록 실패는 유효한 성적 화면을 막지 않는다. 학부모의 선택 자녀 결과 GET은
+동일하게 허용하지만 학생 본인의 활동으로 기록하지 않으며, 서버의
+`accepted:false`를 재시도 오류로 표시하지 않는다. 백엔드의 공통 읽기 무변경
+경계는 `backend/docs/architecture/safe-http-mutation-boundary.md`가 소유한다.
 
 ## 영상 건너뛰기 계약
 

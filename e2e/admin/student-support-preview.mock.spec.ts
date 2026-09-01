@@ -19,14 +19,54 @@ function jwt(userId: number): string {
 const ADMIN_ACCESS = jwt(12);
 const SUPPORT_ACCESS = jwt(99);
 
+test("student activity audit fails closed when the explicit POST endpoint is unavailable", async ({ page }) => {
+  const methods: string[] = [];
+  await page.addInitScript((access) => {
+    localStorage.setItem("access", access);
+    localStorage.setItem("refresh", `${access}-refresh`);
+  }, ADMIN_ACCESS);
+  await page.route("**/api/v1/students/1001/activities/**", async (route) => {
+    methods.push(route.request().method());
+    if (route.request().method() === "POST") {
+      return route.fulfill({ status: 404, json: { detail: "Not found" } });
+    }
+    return route.fulfill({ status: 200, json: { count: 0, results: [] } });
+  });
+
+  await page.goto(`${BASE}/favicon.svg`);
+  const outcome = await page.evaluate(async () => {
+    const { fetchStudentActivities } = await import(
+      "/src/shared/studentSupport/studentSupport.api.ts"
+    );
+    try {
+      await fetchStudentActivities(1001, {
+        days: 7,
+        includeSupport: false,
+      });
+      return "resolved";
+    } catch {
+      return "rejected";
+    }
+  });
+
+  expect(outcome).toBe("rejected");
+  expect(methods).toEqual(["POST"]);
+});
+
 type MockEvidence = {
   activityQueries: string[];
+  activityAudits: Array<Record<string, unknown>>;
   screenRecords: Array<{ authorization: string; body: Record<string, unknown> }>;
   supportEnds: Array<{ path: string; authorization: string }>;
 };
 
 async function installApp(page: Page): Promise<MockEvidence> {
-  const evidence: MockEvidence = { activityQueries: [], screenRecords: [], supportEnds: [] };
+  const evidence: MockEvidence = {
+    activityQueries: [],
+    activityAudits: [],
+    screenRecords: [],
+    supportEnds: [],
+  };
   await installTenantOneInitScript(page);
   await page.addInitScript((access) => {
     localStorage.setItem("access", access);
@@ -90,6 +130,10 @@ async function installApp(page: Page): Promise<MockEvidence> {
         session_id: "11111111-1111-4111-8111-111111111111",
         student: { id: 1001, name: "지원학생" },
       });
+    }
+    if (path === "/students/1001/activities/view/" && request.method() === "POST") {
+      evidence.activityAudits.push(request.postDataJSON() as Record<string, unknown>);
+      return json({ accepted: true }, 202);
     }
     if (path === "/students/1001/activities/" && request.method() === "GET") {
       evidence.activityQueries.push(url.search);
@@ -201,6 +245,9 @@ test("학생 활동은 대리보기를 기본 제외하고 팝업 토큰은 교�
   await activityPanel.getByLabel("기록 검색").fill("중간고사");
   await activityPanel.getByRole("button", { name: "검색", exact: true }).click();
   await expect.poll(() => evidence.activityQueries.some((query) => query.includes("q=%EC%A4%91%EA%B0%84%EA%B3%A0%EC%82%AC"))).toBe(true);
+  await expect.poll(() => evidence.activityAudits.some(
+    (audit) => audit.query === "중간고사" && audit.include_support === true,
+  )).toBe(true);
   await activityPanel.getByText("영상 재생 화면 열기", { exact: true }).click();
   await expect(activityPanel.getByText("중간고사 해설 영상", { exact: true })).toBeVisible();
   await expect(activityPanel.getByText("ACT-2", { exact: true })).toBeVisible();

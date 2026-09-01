@@ -178,7 +178,7 @@ async function installApp(
 test.use({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
 test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "로컬 route-mock 전용");
 
-test("개별 영상 학생 재생은 exact-only·로컬 이어보기·짧은 갱신·무쓰기 경계를 지킨다", async ({ page }) => {
+test("개별 영상 학생 재생은 canonical bootstrap·exact-only·로컬 이어보기·짧은 갱신 경계를 지킨다", async ({ page }) => {
   const { evidence, revoke } = await installApp(page);
   await page.goto(`${BASE}/student/video/play?video=902&session=802`, {
     waitUntil: "domcontentloaded",
@@ -209,15 +209,17 @@ test("개별 영상 학생 재생은 exact-only·로컬 이어보기·짧은 갱
   })).toBe(125);
 
   await page.clock.runFor(26_000);
-  await expect.poll(() => evidence.playbackRequests).toBeGreaterThanOrEqual(2);
+  await expect.poll(() => evidence.playbackRequests).toBe(2);
+  expect(evidence.mutationPaths.filter(
+    (path) => path === "/student/video/videos/902/playback/",
+  )).toHaveLength(evidence.playbackRequests);
   expect(evidence.requestedPaths.filter((path) => (
     path.includes("/progress")
     || path.includes("/comments")
     || path.includes("/like")
   ))).toEqual([]);
   expect(evidence.mutationPaths.filter((path) => (
-    path.includes("playback")
-    || path.includes("progress")
+    path.includes("progress")
     || path.includes("comments")
     || path.includes("like")
     || path.includes("activity")
@@ -228,6 +230,7 @@ test("개별 영상 학생 재생은 exact-only·로컬 이어보기·짧은 갱
   await expect(page.getByRole("heading", { name: "재생을 시작할 수 없어요" })).toBeVisible();
   await expect(page.getByText("현재 이 영상을 시청할 권한이 없습니다.", { exact: true })).toBeVisible();
   expect(evidence.accessChecks).toBeGreaterThanOrEqual(2);
+  expect(evidence.playbackRequests).toBe(2);
   await expect.poll(
     () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
   ).toBeLessThanOrEqual(1);

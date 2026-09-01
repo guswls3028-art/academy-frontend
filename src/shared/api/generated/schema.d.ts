@@ -4814,6 +4814,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/landing-public/board/{id}/view/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Record an intentional detail open without mutating the GET request. */
+        post: operations["landing_public_board_view_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/landing-public/matchup-showcase/": {
         parameters: {
             query?: never;
@@ -4937,6 +4954,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/landing-public/matchup-showcase/{id}/view/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description 공개 매치업 적중보고서 게시판.
+         *
+         *     list/retrieve/pdf_stream/preview_image: 비로그인 OK (PUBLISHED + window 만 노출 / EXPIRED는 카드만)
+         *     publish/unpublish/destroy/partial_update: staff (owner/admin) only
+         *
+         *     xframe_exempt: pdf_stream 학생 카톡 iframe embed 용. DRF action method-level
+         *     @method_decorator는 dispatch 우회되어 미작동 — class-level dispatch decorator로 강제.
+         *     (commit 4638d55a)
+         */
+        post: operations["landing_public_matchup_showcase_view_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/landing-public/matchup-showcase/publish-upload/": {
         parameters: {
             query?: never;
@@ -5038,6 +5081,23 @@ export interface paths {
         get: operations["landing_public_problem_review_showcase_pdf_retrieve"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/landing-public/problem-review-showcase/{id}/view/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Public, tenant-scoped snapshots of teacher-reviewed exam analyses. */
+        post: operations["landing_public_problem_review_showcase_view_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5432,6 +5492,28 @@ export interface paths {
          *     publish/unpublish/refresh/destroy: staff only
          */
         post: operations["landing_public_showcase_unpublish_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/landing-public/showcase/{id}/view/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description 공개 시험 성적 showcase.
+         *
+         *     list/retrieve: 비로그인 OK (published 만, expired 시 list 메타만)
+         *     publish/unpublish/refresh/destroy: staff only
+         */
+        post: operations["landing_public_showcase_view_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -9746,10 +9828,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description GET /student/video/videos/{video_id}/playback/ */
+        /** @description GET access check / POST playback bootstrap for one student video. */
         get: operations["student_video_videos_playback_retrieve"];
         put?: never;
-        post?: never;
+        /** @description GET access check / POST playback bootstrap for one student video. */
+        post: operations["student_video_videos_playback_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -9968,6 +10051,23 @@ export interface paths {
         get: operations["students_activity_list"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/students/{student_id}/activities/view/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Record an explicit staff access to one student's activity timeline. */
+        post: operations["students_activity_view_audit_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -10304,6 +10404,23 @@ export interface paths {
         put?: never;
         /** @description Record a successful student-app screen open with server receipt time. */
         post: operations["students_activity_record"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/students/me/activity/exam-result-open/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Record an exam-result open only after exact result access succeeds. */
+        post: operations["students_exam_result_open_activity_record"];
         delete?: never;
         options?: never;
         head?: never;
@@ -12109,6 +12226,19 @@ export interface components {
          * @enum {string}
          */
         CategoryEccEnum: "free" | "tip" | "story" | "question" | "other";
+        /**
+         * @description * `arrival_recorded` - Arrival recorded
+         *     * `arrival_not_recorded` - Arrival not recorded
+         * @enum {string}
+         */
+        CheckoutModeEnum: "arrival_recorded" | "arrival_not_recorded";
+        ClinicCheckoutRequestRequest: {
+            /** @default false */
+            confirm_without_arrival: boolean;
+            expected_session_id?: number;
+            expected_student_id?: number;
+            send_to?: components["schemas"]["SendToEnum"];
+        };
         ClinicLink: {
             approved?: boolean;
             /** Format: date-time */
@@ -12206,9 +12336,6 @@ export interface components {
          * @enum {string}
          */
         ClinicReasonEnum: "exam" | "homework" | "both";
-        ClinicRecipientActionRequest: {
-            send_to: components["schemas"]["SendToEnum"];
-        };
         ClinicReminderRequestRequest: {
             interval_minutes?: number;
             /** @default once */
@@ -12293,6 +12420,13 @@ export interface components {
             checked_out_at?: string | null;
             checked_out_by?: number | null;
             readonly checked_out_by_name: string;
+            /**
+             * @description 하원 처리 당시 등원 기록의 존재 여부. arrival_not_recorded는 등원을 추정하거나 생성하지 않은 명시적 예외 처리다.
+             *
+             *     * `arrival_recorded` - Arrival recorded
+             *     * `arrival_not_recorded` - Arrival not recorded
+             */
+            checkout_mode?: components["schemas"]["CheckoutModeEnum"] | components["schemas"]["BlankEnum"];
             clinic_reason?: (components["schemas"]["ClinicReasonEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
             /**
              * Format: date-time
@@ -12435,6 +12569,13 @@ export interface components {
              */
             checked_out_at?: string | null;
             checked_out_by?: number | null;
+            /**
+             * @description 하원 처리 당시 등원 기록의 존재 여부. arrival_not_recorded는 등원을 추정하거나 생성하지 않은 명시적 예외 처리다.
+             *
+             *     * `arrival_recorded` - Arrival recorded
+             *     * `arrival_not_recorded` - Arrival not recorded
+             */
+            checkout_mode?: components["schemas"]["CheckoutModeEnum"] | components["schemas"]["BlankEnum"];
             clinic_reason?: (components["schemas"]["ClinicReasonEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
             /**
              * Format: date-time
@@ -14916,6 +15057,13 @@ export interface components {
              */
             checked_out_at?: string | null;
             checked_out_by?: number | null;
+            /**
+             * @description 하원 처리 당시 등원 기록의 존재 여부. arrival_not_recorded는 등원을 추정하거나 생성하지 않은 명시적 예외 처리다.
+             *
+             *     * `arrival_recorded` - Arrival recorded
+             *     * `arrival_not_recorded` - Arrival not recorded
+             */
+            checkout_mode?: components["schemas"]["CheckoutModeEnum"] | components["schemas"]["BlankEnum"];
             clinic_reason?: (components["schemas"]["ClinicReasonEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
             /**
              * Format: date-time
@@ -16193,6 +16341,9 @@ export interface components {
             subject?: string;
             title?: string;
         };
+        PublicViewCount: {
+            readonly view_count: number;
+        };
         /**
          * @description 🔧 PATCH:
          *     - ExamQuestion.region_meta(bbox)가 이미 모델/서비스에서 저장되는데
@@ -17253,29 +17404,6 @@ export interface components {
         StudentActivityAcceptedSchema: {
             accepted: boolean;
         };
-        StudentActivityFeedSchema: {
-            count: number;
-            days: components["schemas"]["DaysEnum"];
-            has_more: boolean;
-            include_support: boolean;
-            query: string;
-            results: components["schemas"]["StudentActivityItemSchema"][];
-            student: components["schemas"]["StudentSupportSummarySchema"];
-            total_count: number;
-        };
-        StudentActivityItemSchema: {
-            actor_label: string;
-            actor_mode: components["schemas"]["ActorModeEnum"];
-            category: components["schemas"]["StudentActivityItemSchemaCategoryEnum"];
-            device_class: components["schemas"]["DeviceClassEnum"];
-            evidence_id: string;
-            id: number;
-            label: string;
-            /** Format: date-time */
-            occurred_at: string;
-            screen_id: string;
-            target_label: string;
-        };
         /**
          * @description * `login` - login
          *     * `home` - home
@@ -17291,10 +17419,41 @@ export interface components {
          *     * `guide` - guide
          * @enum {string}
          */
-        StudentActivityItemSchemaCategoryEnum: "login" | "home" | "homework" | "video" | "exam" | "result" | "attendance" | "clinic" | "notice" | "profile" | "fee" | "guide";
+        StudentActivityCategory: "login" | "home" | "homework" | "video" | "exam" | "result" | "attendance" | "clinic" | "notice" | "profile" | "fee" | "guide";
+        StudentActivityFeedSchema: {
+            count: number;
+            days: components["schemas"]["DaysEnum"];
+            has_more: boolean;
+            include_support: boolean;
+            query: string;
+            results: components["schemas"]["StudentActivityItemSchema"][];
+            student: components["schemas"]["StudentSupportSummarySchema"];
+            total_count: number;
+        };
+        StudentActivityItemSchema: {
+            actor_label: string;
+            actor_mode: components["schemas"]["ActorModeEnum"];
+            category: components["schemas"]["StudentActivityCategory"];
+            device_class: components["schemas"]["DeviceClassEnum"];
+            evidence_id: string;
+            id: number;
+            label: string;
+            /** Format: date-time */
+            occurred_at: string;
+            screen_id: string;
+            target_label: string;
+        };
         StudentActivityRecordSchemaRequest: {
             device_class: components["schemas"]["DeviceClassEnum"];
             screen_id: string;
+        };
+        StudentActivityViewAuditSchemaRequest: {
+            category?: components["schemas"]["StudentActivityCategory"] | components["schemas"]["BlankEnum"];
+            /** @default 30 */
+            days: components["schemas"]["DaysEnum"];
+            /** @default false */
+            include_support: boolean;
+            query?: string;
         };
         StudentCreate: {
             /** @description 주소 (선택) */
@@ -17543,6 +17702,9 @@ export interface components {
             lecture: number;
             status?: components["schemas"]["Status2d4Enum"];
             student: number;
+        };
+        StudentExamResultOpenSchemaRequest: {
+            exam_id: number;
         };
         StudentFee: {
             /**
@@ -19090,11 +19252,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
-                "application/json": components["schemas"]["ClinicRecipientActionRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["ClinicRecipientActionRequest"];
-                "multipart/form-data": components["schemas"]["ClinicRecipientActionRequest"];
+                "application/json": components["schemas"]["ClinicCheckoutRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ClinicCheckoutRequestRequest"];
+                "multipart/form-data": components["schemas"]["ClinicCheckoutRequestRequest"];
             };
         };
         responses: {
@@ -26042,6 +26204,28 @@ export interface operations {
             };
         };
     };
+    landing_public_board_view_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description public board post을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicViewCount"];
+                };
+            };
+        };
+    };
     landing_public_matchup_showcase_retrieve: {
         parameters: {
             query?: never;
@@ -26186,6 +26370,28 @@ export interface operations {
             };
         };
     };
+    landing_public_matchup_showcase_view_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description public matchup showcase을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicViewCount"];
+                };
+            };
+        };
+    };
     landing_public_matchup_showcase_publish_upload_create: {
         parameters: {
             query?: never;
@@ -26286,6 +26492,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublicProblemReviewShowcase"];
+                };
+            };
+        };
+    };
+    landing_public_problem_review_showcase_view_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description public problem review showcase을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicViewCount"];
                 };
             };
         };
@@ -26758,6 +26986,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    landing_public_showcase_view_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description public exam showcase을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicViewCount"];
+                };
             };
         };
     };
@@ -30754,11 +31004,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
-                "application/json": components["schemas"]["ClinicRecipientActionRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["ClinicRecipientActionRequest"];
-                "multipart/form-data": components["schemas"]["ClinicRecipientActionRequest"];
+                "application/json": components["schemas"]["ClinicCheckoutRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ClinicCheckoutRequestRequest"];
+                "multipart/form-data": components["schemas"]["ClinicCheckoutRequestRequest"];
             };
         };
         responses: {
@@ -33785,6 +34035,27 @@ export interface operations {
             };
         };
     };
+    student_video_videos_playback_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                video_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentVideoPlayback"];
+                };
+            };
+        };
+    };
     student_video_videos_progress_create: {
         parameters: {
             query?: never;
@@ -34099,6 +34370,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudentActivityFeedSchema"];
+                };
+            };
+        };
+    };
+    students_activity_view_audit_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                student_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["StudentActivityViewAuditSchemaRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StudentActivityViewAuditSchemaRequest"];
+                "multipart/form-data": components["schemas"]["StudentActivityViewAuditSchemaRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentActivityAcceptedSchema"];
                 };
             };
         };
@@ -34596,6 +34894,31 @@ export interface operations {
                 "application/json": components["schemas"]["StudentActivityRecordSchemaRequest"];
                 "application/x-www-form-urlencoded": components["schemas"]["StudentActivityRecordSchemaRequest"];
                 "multipart/form-data": components["schemas"]["StudentActivityRecordSchemaRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentActivityAcceptedSchema"];
+                };
+            };
+        };
+    };
+    students_exam_result_open_activity_record: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudentExamResultOpenSchemaRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StudentExamResultOpenSchemaRequest"];
+                "multipart/form-data": components["schemas"]["StudentExamResultOpenSchemaRequest"];
             };
         };
         responses: {
