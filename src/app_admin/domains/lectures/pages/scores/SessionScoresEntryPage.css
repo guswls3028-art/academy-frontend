@@ -298,12 +298,14 @@
     0 1px 3px rgba(15, 23, 42, 0.045);
 }
 
-.scores-omr-action {
+.scores-omr-action,
+.scores-manual-action {
   position: relative;
   flex-shrink: 0;
 }
 
-.scores-entry-page .scores-omr-primary.ds-button {
+.scores-entry-page .scores-omr-primary.ds-button,
+.scores-entry-page .scores-manual-primary.ds-button {
   min-height: 38px;
   padding-inline: var(--space-4);
   font-weight: 800;
@@ -331,6 +333,11 @@
 
 .scores-omr-picker {
   left: 0;
+}
+
+.scores-manual-picker {
+  width: max-content;
+  max-width: min(360px, calc(100vw - 32px));
 }
 
 .scores-more-menu {

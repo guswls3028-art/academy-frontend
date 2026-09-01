@@ -20,6 +20,7 @@ import { useScoreEditDraft } from "@admin/domains/scores/public/useScoreEditDraf
 import type { ScoreActiveCell } from "@admin/domains/scores/public/scoreDraft";
 import {
   fetchSessionScores,
+  type SessionScoreMeta,
   type SessionScoreRow,
   type SessionScoresResponse,
   type SessionScoresExamReviewFilter,
@@ -48,6 +49,9 @@ import SessionOmrUploadAction, {
   SessionOmrUploadModal,
   type SessionOmrUploadTarget,
 } from "./SessionOmrUploadAction";
+import SessionManualGradingAction, {
+  type SessionManualGradingTarget,
+} from "./SessionManualGradingAction";
 import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/api/sessionAssessmentQueries";
 import { adminResultsQueryKeys } from "@admin/domains/results/queryKeys";
 import { useTrackedTask } from "@/shared/productAnalytics";
@@ -58,6 +62,7 @@ import {
   matchesSessionRowExamReviewFilter,
   matchesSessionScoreStudentSearch,
 } from "@/shared/scoring/sessionScoreRows";
+import "./SessionScoresEntryActions.css";
 import "./SessionScoresEntryPage.css";
 
 type SessionScoresEntryPageProps = {
@@ -100,6 +105,16 @@ function isCompletelyBlankScoreSheet(data: SessionScoresResponse | undefined): b
       (block.meta == null || Object.keys(block.meta).length === 0)
     );
   });
+}
+
+function resolveExamGradingMode(
+  exam: SessionScoreMeta["exams"][number],
+): "choice" | "written" | "mixed" {
+  if (exam.grading_mode) return exam.grading_mode;
+  const hasChoice = Number(exam.choice_count ?? 0) > 0 || Number(exam.objective_max_score ?? 0) > 0;
+  const hasEssay = Number(exam.essay_count ?? 0) > 0 || Number(exam.subjective_max_score ?? 0) > 0;
+  if (hasChoice && hasEssay) return "mixed";
+  return hasEssay ? "written" : "choice";
 }
 
 const ScorePrintPreviewModal = lazy(() => import("@admin/domains/scores/public/ScorePrintPreviewModal"));
@@ -643,7 +658,60 @@ export default function SessionScoresEntryPage({
      이전엔 line 581 (selectionBar 아래) 에서 선언 → TDZ ReferenceError 발생, 페이지 crash.
      selectionBar 보다 위로 이동. */
   const hasExamsOrHomeworks = (data?.meta?.exams?.length ?? 0) > 0 || (data?.meta?.homeworks?.length ?? 0) > 0;
-  const examOptions = data?.meta?.exams ?? [];
+  const examOptions = useMemo(() => data?.meta?.exams ?? [], [data?.meta?.exams]);
+  const omrExamOptions = useMemo(
+    () => examOptions.filter((exam) => resolveExamGradingMode(exam) !== "written"),
+    [examOptions],
+  );
+  const manualExamOptions = useMemo<SessionManualGradingTarget[]>(
+    () => examOptions.flatMap((exam) => {
+      const gradingMode = resolveExamGradingMode(exam);
+      if (gradingMode === "choice") return [];
+      return [{
+        examId: exam.exam_id,
+        title: exam.title,
+        gradingMode,
+        manualGradingMethod: exam.manual_grading_method ?? "score",
+      }];
+    }),
+    [examOptions],
+  );
+
+  const openExamGrading = async (
+    examId: number,
+    title: string,
+    gradingMode: "choice" | "written" | "mixed",
+    manualGradingMethod: "correctness" | "score",
+    action: "manual" | "omr",
+  ) => {
+    if (recoveryBlocked) {
+      feedback.info("이전 입력 복구 여부를 먼저 확인해 주세요.");
+      return;
+    }
+    if (isEditMode) {
+      if (!await saveScoresNow()) return;
+      setIsSaving(true);
+      const released = await draft.releaseEditLease();
+      setIsSaving(false);
+      if (!released) return;
+      setIsEditMode(false);
+    }
+    if (action === "omr") {
+      setOmrReviewExam({ examId, title });
+      return;
+    }
+    if (gradingMode === "choice") {
+      feedback.info("이 시험은 OMR 검토에서 채점해 주세요.");
+      return;
+    }
+    setManualGradingDirty(false);
+    setGradingExam({
+      examId,
+      title,
+      gradingMode,
+      manualGradingMethod,
+    });
+  };
 
   useEffect(() => {
     if (
@@ -1058,7 +1126,7 @@ export default function SessionScoresEntryPage({
           SSOT: 차시 성적 화면에서 OMR 스캔 등록을 가장 먼저 보여준다.
           시험 상세/제출관리는 등록이 아니라 조회/재처리 보조 동선으로 둔다. */}
       <SessionOmrUploadAction
-        exams={examOptions}
+        exams={omrExamOptions}
         onRefresh={invalidateScores}
         onPrepareOpen={async () => {
           if (!isEditMode) return true;
@@ -1069,6 +1137,26 @@ export default function SessionScoresEntryPage({
           }
           setIsEditMode(false);
           return true;
+        }}
+        disabled={
+          recoveryBlocked ||
+          isSaving ||
+          draft.hasPendingChanges ||
+          draft.draftStatus === "saving" ||
+          draft.draftStatus === "error"
+        }
+      />
+
+      <SessionManualGradingAction
+        exams={manualExamOptions}
+        onSelect={(exam) => {
+          void openExamGrading(
+            exam.examId,
+            exam.title,
+            exam.gradingMode,
+            exam.manualGradingMethod,
+            "manual",
+          );
         }}
         disabled={
           recoveryBlocked ||
@@ -1499,35 +1587,9 @@ export default function SessionScoresEntryPage({
           examReviewFilter={examReviewFilter}
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={setSelectedEnrollmentIds}
-          onOpenExamGrading={(examId, title, gradingMode, manualGradingMethod, action) => { void (async () => {
-            if (recoveryBlocked) {
-              feedback.info("이전 입력 복구 여부를 먼저 확인해 주세요.");
-              return;
-            }
-            if (isEditMode) {
-              if (!await saveScoresNow()) return;
-              setIsSaving(true);
-              const released = await draft.releaseEditLease();
-              setIsSaving(false);
-              if (!released) return;
-              setIsEditMode(false);
-            }
-            if (action === "omr") {
-              setOmrReviewExam({ examId, title });
-              return;
-            }
-            if (gradingMode === "choice") {
-              feedback.info("이 시험은 OMR 검토에서 채점해 주세요.");
-              return;
-            }
-            setManualGradingDirty(false);
-            setGradingExam({
-              examId,
-              title,
-              gradingMode,
-              manualGradingMethod,
-            });
-          })(); }}
+          onOpenExamGrading={(examId, title, gradingMode, manualGradingMethod, action) => {
+            void openExamGrading(examId, title, gradingMode, manualGradingMethod, action);
+          }}
         />
       )}
 

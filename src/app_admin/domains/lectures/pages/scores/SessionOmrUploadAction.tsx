@@ -162,7 +162,7 @@ export default function SessionOmrUploadAction({
         </Button>
         {showPicker && (
           <div className="scores-omr-picker" role="listbox" aria-label="OMR 시험 선택">
-            <div className="scores-omr-picker__title">시험 선택</div>
+            <div className="scores-omr-picker__title">OMR 등록할 시험 선택</div>
             {exams.map((exam) => (
               <button
                 key={exam.exam_id}

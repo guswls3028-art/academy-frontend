@@ -1,0 +1,21 @@
+@media (max-width: 520px) {
+  .scores-omr-action,
+  .scores-manual-action {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .scores-entry-page .scores-omr-primary.ds-button,
+  .scores-entry-page .scores-manual-primary.ds-button {
+    width: 100%;
+    min-height: 44px !important;
+    justify-content: center;
+  }
+
+  .scores-omr-picker,
+  .scores-manual-picker {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+}
