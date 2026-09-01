@@ -49,7 +49,6 @@ export default function HitReportBoardPreviewStrip({ open = true }: Props) {
         setTimeout(() => setRecentlyAddedId(null), 3000);
       }
     } catch (e) {
-      console.error(e);
       const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       setError(detail || "게시판 불러오기 실패");
     } finally {
