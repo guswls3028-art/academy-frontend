@@ -213,6 +213,16 @@ function getStatusLabel(status: string): string {
   return "미확인";
 }
 
+function getParticipantStatusLabel(participant: ClinicParticipant): string {
+  if (participant.checked_out_at) {
+    return participant.checkout_mode === "arrival_not_recorded"
+      ? "미등원 하원 완료"
+      : "하원 완료";
+  }
+  if (participant.status === "attended" && participant.is_late) return "지각 등원";
+  return getStatusLabel(participant.status);
+}
+
 function preferredTimeText(participant: ClinicParticipant): string | null {
   if (!participant.preferred_start_time || !participant.preferred_end_time) return null;
   return `${hhmmText(participant.preferred_start_time, "-")}–${hhmmText(participant.preferred_end_time, "-")}`;
@@ -685,6 +695,7 @@ export default function ClinicConsoleWorkspace({
   async function handleClinicAction(payload: ClinicParticipantActionPayload) {
     if (!actionDialog || mutatingIds.has(actionDialog.participant.id)) return;
     const { participant: p, action } = actionDialog;
+    const recipient: ClinicRecipient = payload.send_to ?? (action === "remind" ? "student" : "parent");
     setMutatingIds((prev) => new Set(prev).add(p.id));
     try {
       let notification: ClinicNotificationOutcome = null;
@@ -693,16 +704,21 @@ export default function ClinicConsoleWorkspace({
         const result = await patchClinicParticipantStatus(p.id, {
           status: action === "absent" ? "no_show" : "attended",
           is_late: action === "late",
-          send_to: payload.send_to,
+          send_to: recipient,
         });
         notification = result.notification;
       } else if (action === "checkout") {
-        const result = await checkoutClinicParticipant(p.id, { send_to: payload.send_to });
+        const withoutArrival = !p.checked_in_at;
+        const result = await checkoutClinicParticipant(p.id, withoutArrival ? {
+          confirm_without_arrival: true,
+          expected_session_id: p.session,
+          expected_student_id: p.student,
+        } : {});
         notification = result.notification;
       } else {
         reminder = await remindClinicParticipant(p.id, {
           mode: payload.mode ?? "once",
-          send_to: payload.send_to,
+          send_to: recipient,
           interval_minutes: payload.interval_minutes,
           repeat_until: payload.repeat_until,
         });
@@ -711,7 +727,7 @@ export default function ClinicConsoleWorkspace({
       setActionDialog(null);
       await invalidateAll();
       if (action === "absent") {
-        await openRescheduleDialog(p, "absence", payload.send_to);
+        await openRescheduleDialog(p, "absence", recipient);
         reportClinicNotification(`${p.student_name} 결석 처리 완료`, notification);
       } else if (action === "remind" && reminder) {
         const scheduled = reminder.scheduled ?? 0;
@@ -726,7 +742,11 @@ export default function ClinicConsoleWorkspace({
         }
       } else {
         const label = action === "arrive" ? "등원" : action === "late" ? "지각 등원" : "하원";
-        reportClinicNotification(`${p.student_name} ${label} 처리 완료`, notification);
+        if (action === "checkout") {
+          feedback.success(`${p.student_name} ${p.checked_in_at ? "하원" : "미등원 하원"} 처리 완료`);
+        } else {
+          reportClinicNotification(`${p.student_name} ${label} 처리 완료`, notification);
+        }
       }
     } catch (error) {
       await invalidateAll();
@@ -1865,11 +1885,7 @@ export default function ClinicConsoleWorkspace({
                         <span className="clinic-ops__status-badge-pending-indicator">
                           {pendingStatus === "attended" ? "출석 예정" : "결석 예정"}
                         </span>
-                      ) : p.checked_out_at
-                        ? "하원 완료"
-                        : p.status === "attended" && p.is_late
-                        ? "지각 등원"
-                        : getStatusLabel(p.status)}
+                      ) : getParticipantStatusLabel(p)}
                       </span>
                       {isAggregate && (
                         <div
@@ -1926,7 +1942,16 @@ export default function ClinicConsoleWorkspace({
                     )}
 
                     {hasSingleOperableParticipant && <div className="clinic-ops__card-actions" onClick={(e) => e.stopPropagation()}>
-                      {isApprovalRequest ? (
+                      {p.checked_out_at ? (
+                        <button
+                          type="button"
+                          className="clinic-ops__att-btn clinic-ops__att-btn--checkout"
+                          disabled
+                          aria-label={getParticipantStatusLabel(p)}
+                        >
+                          {getParticipantStatusLabel(p)}
+                        </button>
+                      ) : isApprovalRequest ? (
                         <>
                           <button
                             type="button"
@@ -1963,11 +1988,12 @@ export default function ClinicConsoleWorkspace({
                           <button
                             type="button"
                             className="clinic-ops__att-btn clinic-ops__att-btn--checkout"
-                            disabled
-                            aria-label="하원"
-                            title="등원 처리 후 사용할 수 있습니다."
+                            disabled={isMutating}
+                            aria-label="미등원 하원"
+                            title="등원 기록을 만들지 않고 하원 시각만 남깁니다."
+                            onClick={() => setActionDialog({ participant: p, action: "checkout" })}
                           >
-                            등원 후 하원
+                            미등원 하원
                           </button>
                           <button type="button" className="clinic-ops__att-btn clinic-ops__att-btn--reschedule" onClick={() => openRescheduleDialog(p, "booking")} disabled={isMutating} aria-label="일정 변경">
                             <CalendarClock size={14} aria-hidden /> 일정 변경
@@ -2180,7 +2206,7 @@ export default function ClinicConsoleWorkspace({
                       }}
                     >
                       <span>{contextLabel}</span>
-                      <em>{participant.checked_out_at ? "하원 완료" : getStatusLabel(participant.status)}</em>
+                      <em>{getParticipantStatusLabel(participant)}</em>
                     </button>
                   );
                 })}
@@ -2204,11 +2230,7 @@ export default function ClinicConsoleWorkspace({
                     ? "clinic-ops__status-badge--approval"
                     : "clinic-ops__status-badge--pending"
                 }`}>
-                  {drawerParticipant.checked_out_at
-                    ? "하원 완료"
-                    : drawerParticipant.status === "attended" && drawerParticipant.is_late
-                    ? "지각 등원"
-                    : getStatusLabel(drawerParticipant.status)}
+                  {getParticipantStatusLabel(drawerParticipant)}
                 </span>
               </div>
               {!isApprovalPending(drawerParticipant.status) && (
@@ -2224,7 +2246,11 @@ export default function ClinicConsoleWorkspace({
                 </div>
               )}
               <div className="clinic-ops__drawer-status-actions">
-                {isApprovalPending(drawerParticipant.status) ? (
+                {drawerParticipant.checked_out_at ? (
+                  <button type="button" className="clinic-ops__drawer-status-btn" disabled>
+                    {getParticipantStatusLabel(drawerParticipant)}
+                  </button>
+                ) : isApprovalPending(drawerParticipant.status) ? (
                   <>
                     <button type="button" className="clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--approve" disabled={mutatingIds.has(drawerParticipant.id)} onClick={() => handleBookingDecision(drawerParticipant, "booked")}>
                       <CheckCircle size={16} aria-hidden /> 예약 승인
@@ -2238,6 +2264,7 @@ export default function ClinicConsoleWorkspace({
                     <button type="button" className="clinic-ops__drawer-status-btn" disabled={mutatingIds.has(drawerParticipant.id)} onClick={() => setActionDialog({ participant: drawerParticipant, action: "arrive" })}>등원</button>
                     <button type="button" className="clinic-ops__drawer-status-btn" disabled={mutatingIds.has(drawerParticipant.id)} onClick={() => setActionDialog({ participant: drawerParticipant, action: "remind" })}>재촉</button>
                     <button type="button" className="clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--reject" disabled={mutatingIds.has(drawerParticipant.id)} onClick={() => setActionDialog({ participant: drawerParticipant, action: "absent" })}>결석</button>
+                    <button type="button" className="clinic-ops__drawer-status-btn" disabled={mutatingIds.has(drawerParticipant.id)} onClick={() => setActionDialog({ participant: drawerParticipant, action: "checkout" })}>미등원 하원</button>
                     <button type="button" className="clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--manage" disabled={mutatingIds.has(drawerParticipant.id)} onClick={() => openRescheduleDialog(drawerParticipant, "booking")}>
                       <CalendarClock size={15} aria-hidden /> 일정 변경
                     </button>
@@ -2843,6 +2870,7 @@ export default function ClinicConsoleWorkspace({
           action={actionDialog.action}
           participantName={actionDialog.participant.student_name}
           selectedDate={selectedDate}
+          withoutArrival={!actionDialog.participant.checked_in_at}
           busy={mutatingIds.has(actionDialog.participant.id)}
           onClose={() => setActionDialog(null)}
           onConfirm={handleClinicAction}

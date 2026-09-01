@@ -1,14 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
 import {
   CalendarPlus,
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
   Clock3,
   Copy,
   MapPin,
@@ -41,7 +39,6 @@ import styles from "./ClinicSchedulePage.module.css";
 dayjs.locale("ko");
 
 const ACTIVE_STATUSES = new Set(["pending", "booked", "attended", "no_show"]);
-const DAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"];
 const MONTH_DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
 function mondayOfWeek(value: string) {
@@ -85,13 +82,8 @@ export default function ClinicSchedulePage() {
   const weekEnd = useMemo(() => weekStart.add(6, "day"), [weekStart]);
   const weekFrom = weekStart.format("YYYY-MM-DD");
   const weekTo = weekEnd.format("YYYY-MM-DD");
-  const days = useMemo(
-    () => Array.from({ length: 7 }, (_, index) => weekStart.add(index, "day")),
-    [weekStart]
-  );
   const [selectedDate, setSelectedDate] = useState(today);
   const [monthAnchor, setMonthAnchor] = useState(today);
-  const [monthOpen, setMonthOpen] = useState(false);
   const monthStart = useMemo(() => dayjs(monthAnchor).startOf("month"), [monthAnchor]);
   const monthGridStart = useMemo(
     () => monthStart.subtract(monthStart.day(), "day"),
@@ -103,10 +95,6 @@ export default function ClinicSchedulePage() {
   );
   const monthFrom = monthGridStart.format("YYYY-MM-DD");
   const monthTo = monthGridStart.add(41, "day").format("YYYY-MM-DD");
-  const boardViewportRef = useRef<HTMLDivElement | null>(null);
-  const dayRefs = useRef(new Map<string, HTMLElement>());
-  const dateNavRefs = useRef(new Map<string, HTMLButtonElement>());
-  const pendingCalendarFocusRef = useRef<string | null>(null);
 
   const sessionsQ = useQuery({
     queryKey: clinicQueryKeys.sessionsMonthRange(weekFrom, weekTo),
@@ -131,7 +119,6 @@ export default function ClinicSchedulePage() {
         ordering: "date,start_time,id",
       }),
     staleTime: 30_000,
-    enabled: monthOpen,
   });
   const sessionsByDate = useMemo(() => {
     const grouped = new Map<string, ClinicSessionDetail[]>();
@@ -164,11 +151,6 @@ export default function ClinicSchedulePage() {
     }
     return grouped;
   }, [participantsQ.listQ.data]);
-
-  const activeBookingCount = useMemo(
-    () => activeParticipants(participantsQ.listQ.data ?? []).length,
-    [participantsQ.listQ.data]
-  );
 
   const [createDate, setCreateDate] = useState<string | null>(null);
   const [copySource, setCopySource] = useState<ClinicSessionDetail | null>(null);
@@ -214,11 +196,9 @@ export default function ClinicSchedulePage() {
   };
 
   const selectCalendarDate = (dateISO: string) => {
-    pendingCalendarFocusRef.current = dateISO;
     setMonthAnchor(dateISO);
     setWeekAnchor(dateISO);
     setSelectedDate(dateISO);
-    setMonthOpen(false);
   };
 
   const handleAddParticipants = async (selection: ClinicTargetSelectResult) => {
@@ -255,44 +235,20 @@ export default function ClinicSchedulePage() {
     ? `${weekStart.format("YYYY년 M월 D일")} – ${weekEnd.format("D일")}`
     : `${weekStart.format("YYYY년 M월 D일")} – ${weekEnd.format("M월 D일")}`;
 
-  useEffect(() => {
-    if (loading) return;
-    const targetDate = selectedDate >= weekFrom && selectedDate <= weekTo
-      ? selectedDate
-      : (today >= weekFrom && today <= weekTo ? today : weekFrom);
-    if (targetDate !== selectedDate) setSelectedDate(targetDate);
-
-    const frame = window.requestAnimationFrame(() => {
-      const viewport = boardViewportRef.current;
-      const day = dayRefs.current.get(targetDate);
-      const dateNavButton = dateNavRefs.current.get(targetDate);
-      if (pendingCalendarFocusRef.current === targetDate && dateNavButton) {
-        pendingCalendarFocusRef.current = null;
-        dateNavButton.focus({ preventScroll: true });
-      }
-      if (!viewport || !day) return;
-      const viewportBox = viewport.getBoundingClientRect();
-      const dayBox = day.getBoundingClientRect();
-      const fullyVisible = dayBox.left >= viewportBox.left && dayBox.right <= viewportBox.right;
-      if (fullyVisible) return;
-      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      viewport.scrollTo({
-        left: Math.min(day.offsetLeft, viewport.scrollWidth - viewport.clientWidth),
-        behavior: reducedMotion ? "auto" : "smooth",
-      });
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [loading, selectedDate, today, weekFrom, weekTo]);
+  const selectedDaySessions = sessionsByDate.get(selectedDate) ?? [];
+  const selectedDayParticipants = activeParticipants(
+    selectedDaySessions.flatMap((session) => participantsBySession.get(session.id) ?? [])
+  );
 
   return (
     <div className={`clinic-page ${styles.page}`}>
       <section className={styles.shell} aria-labelledby="clinic-schedule-title">
         <header className={styles.header}>
           <div>
-            <p className={styles.eyebrow}>WEEKLY RESERVATION BOARD</p>
+            <p className={styles.eyebrow}>MONTHLY RESERVATION CALENDAR</p>
             <h2 id="clinic-schedule-title" className={styles.title}>예약 일정</h2>
             <p className={styles.description}>
-              한 주의 클리닉을 열고, 카드에서 바로 학생을 배정하세요.
+              달력에서 날짜를 고르고, 그날의 시간대와 예약 학생을 관리하세요.
             </p>
           </div>
           <div className={styles.headerActions}>
@@ -315,88 +271,11 @@ export default function ClinicSchedulePage() {
           </div>
         </header>
 
-        <div className={styles.toolbar}>
-          <div className={styles.weekControls} aria-label="주간 이동">
-            <Button
-              intent="ghost"
-              size="sm"
-              iconOnly
-              aria-label="이전 주"
-              leftIcon={<ChevronLeft size={ICON_FOR_BUTTON.sm} />}
-              onClick={() => {
-                const previousWeek = weekStart.subtract(7, "day").format("YYYY-MM-DD");
-                setWeekAnchor(previousWeek);
-                setMonthAnchor(previousWeek);
-              }}
-            />
-            <Button
-              intent="secondary"
-              size="sm"
-              disabled={isCurrentWeek}
-              onClick={() => {
-                setWeekAnchor(today);
-                setMonthAnchor(today);
-              }}
-            >
-              이번 주
-            </Button>
-            <Button
-              intent="ghost"
-              size="sm"
-              iconOnly
-              aria-label="다음 주"
-              leftIcon={<ChevronRight size={ICON_FOR_BUTTON.sm} />}
-              onClick={() => {
-                const nextWeek = weekStart.add(7, "day").format("YYYY-MM-DD");
-                setWeekAnchor(nextWeek);
-                setMonthAnchor(nextWeek);
-              }}
-            />
-            <strong className={styles.range}>{rangeLabel}</strong>
-          </div>
-          <div className={styles.summary}>
-            <span>세션 <strong>{sessionsQ.data?.length ?? 0}</strong>개</span>
-            <span>예약 <strong>{activeBookingCount}</strong>명</span>
-            <Button
-              intent="ghost"
-              size="sm"
-              iconOnly
-              aria-label="일정 새로고침"
-              leftIcon={<RefreshCcw size={ICON_FOR_BUTTON.sm} />}
-              onClick={refreshWeek}
-            />
-          </div>
-        </div>
-
         <section
-          className={`${styles.monthOverview} ${monthOpen ? styles.monthOverviewOpen : ""}`}
+          className={styles.monthOverview}
           aria-label="월간 날짜 탐색"
         >
-          <button
-            type="button"
-            className={styles.monthDisclosure}
-            aria-expanded={monthOpen}
-            aria-controls="clinic-month-calendar"
-            onClick={() => setMonthOpen((current) => !current)}
-          >
-            <span className={styles.monthDisclosureCopy}>
-              <span className={styles.monthDisclosureIcon} aria-hidden>
-                <CalendarDays size={ICON.md} />
-              </span>
-              <span className={styles.monthDisclosureText}>
-                <strong>월간 보기</strong>
-                <small>{monthStart.format("YYYY년 M월")} · 날짜를 멀리 이동할 때 펼쳐보세요</small>
-              </span>
-            </span>
-            <ChevronDown
-              size={ICON.md}
-              className={`${styles.monthDisclosureChevron} ${monthOpen ? styles.monthDisclosureChevronOpen : ""}`}
-              aria-hidden
-            />
-          </button>
-
-          {monthOpen && (
-            <div id="clinic-month-calendar" className={styles.monthPanel}>
+          <div id="clinic-month-calendar" className={styles.monthPanel}>
               <div className={styles.monthOverviewHeader}>
                 <strong className={styles.monthTitle}>{monthStart.format("YYYY년 M월")}</strong>
                 <div className={styles.monthControls} aria-label="월간 이동">
@@ -423,6 +302,14 @@ export default function ClinicSchedulePage() {
                     aria-label="다음 달"
                     leftIcon={<ChevronRight size={ICON_FOR_BUTTON.sm} />}
                     onClick={() => setMonthAnchor(monthStart.add(1, "month").format("YYYY-MM-DD"))}
+                  />
+                  <Button
+                    intent="ghost"
+                    size="sm"
+                    iconOnly
+                    aria-label="일정 새로고침"
+                    leftIcon={<RefreshCcw size={ICON_FOR_BUTTON.sm} />}
+                    onClick={refreshWeek}
                   />
                 </div>
               </div>
@@ -489,13 +376,15 @@ export default function ClinicSchedulePage() {
                           onClick={() => selectCalendarDate(dateISO)}
                         >
                           <span className={styles.monthDayNumber}>{date.format("D")}</span>
-                          <span className={styles.monthDayCount}>
-                            {monthSessionsQ.isLoading
-                              ? "—"
-                              : monthSessionsQ.isError
-                                ? "확인 실패"
-                                : `${sessionCount}개`}
-                          </span>
+                          {(monthSessionsQ.isLoading || monthSessionsQ.isError || sessionCount > 0) && (
+                            <span className={styles.monthDayCount}>
+                              {monthSessionsQ.isLoading
+                                ? "—"
+                                : monthSessionsQ.isError
+                                  ? "확인 실패"
+                                  : `${sessionCount}개`}
+                            </span>
+                          )}
                         </button>
                       );
                     })}
@@ -503,240 +392,142 @@ export default function ClinicSchedulePage() {
                 ))}
               </div>
             </div>
-          )}
         </section>
 
-        <nav className={styles.dateNavigator} aria-label="주간 날짜 선택">
-          {days.map((date, index) => {
-            const dateISO = date.format("YYYY-MM-DD");
-            const daySessions = sessionsByDate.get(dateISO) ?? [];
-            const dayParticipants = activeParticipants(
-              daySessions.flatMap((session) => participantsBySession.get(session.id) ?? [])
-            );
-            const isToday = dateISO === today;
-            const isSelected = dateISO === selectedDate;
-            const loadLabel = loading
-              ? "일정 불러오는 중"
-              : sessionsQ.isError || participantsQ.listQ.isError
-                ? "일정 확인 실패"
-                : `클리닉 ${daySessions.length}개, 예약 ${dayParticipants.length}명`;
-
-            return (
-              <button
-                key={dateISO}
-                ref={(element) => {
-                  if (element) dateNavRefs.current.set(dateISO, element);
-                  else dateNavRefs.current.delete(dateISO);
-                }}
-                type="button"
-                className={`${styles.dateNavButton} ${isSelected ? styles.dateNavButtonSelected : ""}`}
-                aria-label={`${date.format("M월 D일")} ${DAY_LABELS[index]}요일, ${loadLabel}`}
-                aria-current={isToday ? "date" : undefined}
-                aria-pressed={isSelected}
-                onClick={() => {
-                  setSelectedDate(dateISO);
-                  setMonthAnchor(dateISO);
-                }}
+        <section className={styles.selectedDay} aria-labelledby="clinic-selected-day-title">
+          <header className={styles.selectedDayHeader}>
+            <div>
+              <p>{rangeLabel}</p>
+              <h3 id="clinic-selected-day-title">
+                {dayjs(selectedDate).format("M월 D일 (ddd)")} 일정
+                {selectedDate === today && <span className={styles.todayBadge}>오늘</span>}
+              </h3>
+            </div>
+            <div className={styles.selectedDayActions}>
+              {selectedDaySessions.length > 0 && <span>시간대 {selectedDaySessions.length}개</span>}
+              {selectedDayParticipants.length > 0 && <span>예약 {selectedDayParticipants.length}명</span>}
+              <Button
+                intent="primary"
+                size="sm"
+                leftIcon={<CalendarPlus size={ICON_FOR_BUTTON.sm} />}
+                onClick={() => openCreate(selectedDate)}
               >
-                <span className={styles.dateNavWeekday}>
-                  {DAY_LABELS[index]}
-                  {isToday && <span className={styles.dateNavToday} aria-hidden>오늘</span>}
-                </span>
-                <strong className={styles.dateNavDate}>{date.format("D")}</strong>
-                <span className={styles.dateNavLoad}>
-                  {loading
-                    ? "—"
-                    : sessionsQ.isError || participantsQ.listQ.isError
-                      ? "확인 실패"
-                      : `${daySessions.length}개`}
-                </span>
-              </button>
-            );
-          })}
-        </nav>
+                시간대 추가
+              </Button>
+            </div>
+          </header>
 
-        {loading ? (
-          <div className={styles.loading}>예약 일정을 불러오는 중입니다.</div>
-        ) : sessionsQ.isError || participantsQ.listQ.isError ? (
-          <div className={styles.error}>
-            <EmptyState title="예약 일정을 불러오지 못했습니다." description="잠시 후 다시 시도해주세요." />
-            <Button intent="secondary" size="sm" onClick={refreshWeek}>다시 불러오기</Button>
-          </div>
-        ) : (
-          <div
-            ref={boardViewportRef}
-            className={styles.boardViewport}
-            data-clinic-board-viewport
-          >
-            <div className={styles.board} role="grid" aria-label={`${rangeLabel} 클리닉 예약 일정`}>
-              {days.map((date, index) => {
-                const dateISO = date.format("YYYY-MM-DD");
-                const daySessions = sessionsByDate.get(dateISO) ?? [];
-                const dayParticipants = activeParticipants(
-                  daySessions.flatMap((session) => participantsBySession.get(session.id) ?? [])
-                );
-                const dayCapacity = daySessions.reduce(
-                  (sum, session) => sum + Math.max(0, session.max_participants || 0),
-                  0
-                );
-                const isToday = dateISO === today;
+          {loading ? (
+            <div className={styles.loading}>선택한 날짜의 일정을 불러오는 중입니다.</div>
+          ) : sessionsQ.isError || participantsQ.listQ.isError ? (
+            <div className={styles.error}>
+              <EmptyState title="선택한 날짜의 일정을 불러오지 못했습니다." description="잠시 후 다시 시도해주세요." />
+              <Button intent="secondary" size="sm" onClick={refreshWeek}>다시 불러오기</Button>
+            </div>
+          ) : selectedDaySessions.length === 0 ? (
+            <div className={styles.selectedDayEmpty}>
+              <Clock3 size={ICON.lg} aria-hidden />
+              <strong>이 날짜에는 열린 시간대가 없습니다</strong>
+              <span>시간대를 만들면 예약 학생과 운영 현황이 여기에 표시됩니다.</span>
+            </div>
+          ) : (
+            <div className={styles.selectedDayGrid} data-clinic-selected-day-grid>
+              {selectedDaySessions.map((session) => {
+                const rows = activeParticipants(participantsBySession.get(session.id) ?? []);
+                const capacity = Math.max(1, session.max_participants || 1);
+                const fillPercent = Math.min(100, Math.round((rows.length / capacity) * 100));
+                const visibleRows = rows.slice(0, 3);
 
                 return (
-                  <section
-                    key={dateISO}
-                    ref={(element) => {
-                      if (element) dayRefs.current.set(dateISO, element);
-                      else dayRefs.current.delete(dateISO);
-                    }}
-                    className={`${styles.day} ${isToday ? styles.today : ""}`}
-                    role="gridcell"
-                    aria-label={`${date.format("M월 D일")} ${DAY_LABELS[index]}요일`}
-                  >
-                    <div className={styles.dayHeader}>
-                      <div>
-                        <span className={styles.dayName}>
-                          {DAY_LABELS[index]}
-                          {isToday && <span className={styles.todayBadge}>오늘</span>}
-                        </span>
-                        <strong className={styles.dayDate}>{date.format("M/D")}</strong>
-                      </div>
-                      <span className={styles.dayLoad}>
-                        <strong>{daySessions.length}개</strong>
-                        <span>{dayParticipants.length}/{dayCapacity || 0}명</span>
+                  <article key={session.id} className={styles.sessionCard}>
+                    <div className={styles.cardTop}>
+                      <span className={styles.time}>
+                        <Clock3 size={ICON.sm} aria-hidden />
+                        {session.start_time.slice(0, 5)}–{sessionEndTime(session)}
                       </span>
+                      <div className={styles.cardMetaActions}>
+                        <span className={`${styles.capacity} ${rows.length >= capacity ? styles.capacityFull : ""}`}>
+                          <Users size={ICON.sm} aria-hidden />
+                          {rows.length}/{session.max_participants || 0}
+                        </span>
+                        <Button
+                          intent="ghost"
+                          size="sm"
+                          iconOnly
+                          aria-label={`${session.title || "클리닉"} ${session.start_time.slice(0, 5)} 일정 수정`}
+                          title="일정 수정"
+                          leftIcon={<Settings size={ICON_FOR_BUTTON.sm} />}
+                          onClick={() => setEditingSession(session)}
+                        />
+                      </div>
                     </div>
-
-                    <div className={styles.dayBody}>
-                      <button
-                        type="button"
-                        className={styles.dayAddButton}
-                        aria-label={`${date.format("M월 D일")} 클리닉 시간대 추가`}
-                        onClick={() => openCreate(dateISO)}
+                    <h3 className={styles.sessionTitle}>{session.title || "클리닉"}</h3>
+                    <p className={styles.location}>
+                      <MapPin size={ICON.sm} aria-hidden />
+                      {session.location || "장소 미정"}
+                    </p>
+                    <div className={styles.progress} aria-label={`정원 ${fillPercent}% 예약`}>
+                      {/* eslint-disable-next-line no-restricted-syntax -- 예약률은 API 데이터에 따라 연속적으로 변한다. */}
+                      <span style={{ width: `${fillPercent}%` }} />
+                    </div>
+                    <div className={styles.participants}>
+                      {visibleRows.length === 0 ? (
+                        <span className={styles.noParticipants}>아직 예약한 학생이 없습니다.</span>
+                      ) : visibleRows.map((participant) => (
+                        <StudentDetailLink
+                          key={participant.id}
+                          studentId={participant.student}
+                          studentName={participant.student_name}
+                        >
+                          <StudentNameWithLectureChip
+                            name={participant.student_name}
+                            lectures={participantLectures(participant)}
+                            profilePhotoUrl={participant.profile_photo_url}
+                            avatarSize={20}
+                            enrollmentId={participant.enrollment_id}
+                            clinicHighlight={participant.name_highlight_clinic_target}
+                            density="compact"
+                            maxLectureChips={1}
+                          />
+                        </StudentDetailLink>
+                      ))}
+                      {rows.length > visibleRows.length && (
+                        <span className={styles.moreParticipants}>+{rows.length - visibleRows.length}명 더</span>
+                      )}
+                    </div>
+                    <div className={styles.cardActions}>
+                      <Button
+                        intent="primary"
+                        size="sm"
+                        leftIcon={<UserPlus size={ICON_FOR_BUTTON.sm} />}
+                        onClick={() => setTargetSession(session)}
                       >
-                        <CalendarPlus size={ICON.sm} aria-hidden />
-                        <span>{daySessions.length === 0 ? "첫 시간대 만들기" : "시간대 추가"}</span>
-                      </button>
-
-                      {daySessions.length === 0 ? (
-                        <div className={styles.emptyDay}>
-                          <Clock3 size={ICON.lg} aria-hidden />
-                          <strong>아직 열린 시간대가 없습니다</strong>
-                          <span>위 버튼에서 첫 수업을 개설하세요.</span>
-                        </div>
-                      ) : daySessions.map((session) => {
-                          const rows = activeParticipants(participantsBySession.get(session.id) ?? []);
-                          const capacity = Math.max(1, session.max_participants || 1);
-                          const fillPercent = Math.min(100, Math.round((rows.length / capacity) * 100));
-                          const visibleRows = rows.slice(0, 3);
-
-                          return (
-                            <article key={session.id} className={styles.sessionCard}>
-                              <div className={styles.cardTop}>
-                                <span className={styles.time}>
-                                  <Clock3 size={ICON.sm} aria-hidden />
-                                  {session.start_time.slice(0, 5)}–{sessionEndTime(session)}
-                                </span>
-                                <div className={styles.cardMetaActions}>
-                                  <span
-                                    className={`${styles.capacity} ${
-                                      rows.length >= capacity ? styles.capacityFull : ""
-                                    }`}
-                                  >
-                                    <Users size={ICON.sm} aria-hidden />
-                                    {rows.length}/{session.max_participants || 0}
-                                  </span>
-                                  <Button
-                                    intent="ghost"
-                                    size="sm"
-                                    iconOnly
-                                    aria-label={`${session.title || "클리닉"} ${session.start_time.slice(0, 5)} 일정 수정`}
-                                    title="일정 수정"
-                                    leftIcon={<Settings size={ICON_FOR_BUTTON.sm} />}
-                                    onClick={() => setEditingSession(session)}
-                                  />
-                                </div>
-                              </div>
-                              <h3 className={styles.sessionTitle}>
-                                {session.title || "클리닉"}
-                              </h3>
-                              <p className={styles.location}>
-                                <MapPin size={ICON.sm} aria-hidden />
-                                {session.location || "장소 미정"}
-                              </p>
-                              <div className={styles.progress} aria-label={`정원 ${fillPercent}% 예약`}>
-                                {/* eslint-disable-next-line no-restricted-syntax -- 예약률은 API 데이터에 따라 연속적으로 변한다. */}
-                                <span style={{ width: `${fillPercent}%` }} />
-                              </div>
-
-                              <div className={styles.participants}>
-                                {visibleRows.length === 0 ? (
-                                  <span className={styles.noParticipants}>아직 예약한 학생이 없습니다.</span>
-                                ) : (
-                                  visibleRows.map((participant) => (
-                                    <StudentDetailLink
-                                      key={participant.id}
-                                      studentId={participant.student}
-                                      studentName={participant.student_name}
-                                    >
-                                      <StudentNameWithLectureChip
-                                        name={participant.student_name}
-                                        lectures={participantLectures(participant)}
-                                        profilePhotoUrl={participant.profile_photo_url}
-                                        avatarSize={20}
-                                        enrollmentId={participant.enrollment_id}
-                                        clinicHighlight={participant.name_highlight_clinic_target}
-                                        density="compact"
-                                        maxLectureChips={1}
-                                      />
-                                    </StudentDetailLink>
-                                  ))
-                                )}
-                                {rows.length > visibleRows.length && (
-                                  <span className={styles.moreParticipants}>
-                                    +{rows.length - visibleRows.length}명 더
-                                  </span>
-                                )}
-                              </div>
-
-                              <div className={styles.cardActions}>
-                                <Button
-                                  intent="primary"
-                                  size="sm"
-                                  leftIcon={<UserPlus size={ICON_FOR_BUTTON.sm} />}
-                                  onClick={() => setTargetSession(session)}
-                                >
-                                  학생 추가
-                                </Button>
-                                <Button
-                                  intent="ghost"
-                                  size="sm"
-                                  aria-label={`${session.title || "클리닉"} 설정 복사`}
-                                  title="설정 복사"
-                                  leftIcon={<Copy size={ICON_FOR_BUTTON.sm} />}
-                                  onClick={() => openCreate(session.date, session)}
-                                >
-                                  복사
-                                </Button>
-                                <Button
-                                  intent="ghost"
-                                  size="sm"
-                                  onClick={() =>
-                                    navigate(`/workspace/clinic/operations?date=${session.date}&session=${session.id}`)
-                                  }
-                                >
-                                  명단 관리
-                                </Button>
-                              </div>
-                            </article>
-                          );
-                        })}
+                        학생 추가
+                      </Button>
+                      <Button
+                        intent="ghost"
+                        size="sm"
+                        aria-label={`${session.title || "클리닉"} 설정 복사`}
+                        title="설정 복사"
+                        leftIcon={<Copy size={ICON_FOR_BUTTON.sm} />}
+                        onClick={() => openCreate(session.date, session)}
+                      >
+                        복사
+                      </Button>
+                      <Button
+                        intent="ghost"
+                        size="sm"
+                        onClick={() => navigate(`/workspace/clinic/operations?date=${session.date}&session=${session.id}`)}
+                      >
+                        명단 관리
+                      </Button>
                     </div>
-                  </section>
+                  </article>
                 );
               })}
             </div>
-          </div>
-        )}
+          )}
+        </section>
       </section>
 
       <AdminModal

@@ -379,17 +379,20 @@ async function installApi(
       const payload = request.postDataJSON() as Record<string, unknown>;
       operationsState?.checkoutPayloads?.push({ id, ...payload });
       const participant = operationsState?.participants.find((row) => row.id === id);
-      if (!participant || participant.status !== "attended") {
-        return json({ detail: "등원 후 하원할 수 있습니다." }, 400);
+      if (!participant) return json({ detail: "not found" }, 404);
+      const hasArrival = participant.status === "attended" && Boolean(participant.checked_in_at);
+      const confirmedWithoutArrival = participant.status === "booked"
+        && payload.confirm_without_arrival === true
+        && payload.expected_session_id === participant.session
+        && payload.expected_student_id === participant.student;
+      if (!hasArrival && !confirmedWithoutArrival) {
+        return json({ detail: "등원 기록 없이 하원하려면 현재 학생과 일정을 다시 확인해야 합니다." }, 409);
       }
       participant.checked_out_at = `${saturday}T15:00:00+09:00`;
+      participant.checkout_mode = hasArrival ? "arrival_recorded" : "arrival_not_recorded";
       return json({
         ...participant,
-        notification: operationsState?.checkoutNotification ?? {
-          requested: 1,
-          failed: 0,
-          send_to: payload.send_to ?? "parent",
-        },
+        notification: operationsState?.checkoutNotification ?? null,
       });
     }
     const remindMatch = path.match(/^\/clinic\/participants\/(\d+)\/remind\/$/);
@@ -479,15 +482,17 @@ test("같은 날짜에 여러 클리닉 시간대를 시간순으로 보고 계�
   await page.setViewportSize({ width: 1366, height: 850 });
   await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
 
-  const saturdayCell = page.getByRole("gridcell", { name: `${saturdayLabel} 토요일`, exact: true });
+  const saturdayCell = page.getByRole("gridcell", { name: new RegExp(`${saturdayLabel} 토요일, 클리닉 3개`) });
   await expect(saturdayCell).toContainText("3개", { timeout: 20_000 });
-  await expect(saturdayCell.getByRole("article")).toHaveCount(3);
-  await expect(saturdayCell.getByRole("article")).toContainText([
+  await saturdayCell.click();
+  const selectedDay = page.getByRole("region", { name: new RegExp(`${saturdayLabel}.*일정`) });
+  await expect(selectedDay.getByRole("article")).toHaveCount(3);
+  await expect(selectedDay.getByRole("article")).toContainText([
     "13:00–14:30",
     "17:00–18:30",
     "19:00–20:30",
   ]);
-  const middleSession = saturdayCell.getByRole("article").filter({ hasText: "토요일 5시 클리닉" });
+  const middleSession = selectedDay.getByRole("article").filter({ hasText: "토요일 5시 클리닉" });
   const settingsButton = middleSession.getByRole("button", { name: "토요일 5시 클리닉 17:00 일정 수정" });
   const capacity = middleSession.getByText("0/12", { exact: true });
   const studentAdd = middleSession.getByRole("button", { name: "학생 추가", exact: true });
@@ -501,9 +506,7 @@ test("같은 날짜에 여러 클리닉 시간대를 시간순으로 보고 계�
   expect(Math.abs((settingsBox?.y ?? 0) - (capacityBox?.y ?? 0))).toBeLessThanOrEqual(8);
   expect(settingsBox?.y ?? 0).toBeLessThan(studentAddBox?.y ?? 0);
 
-  const addTimeButton = saturdayCell.getByRole("button", {
-    name: `${saturdayLabel} 클리닉 시간대 추가`,
-  });
+  const addTimeButton = selectedDay.getByRole("button", { name: "시간대 추가", exact: true });
   await expect(addTimeButton).toBeVisible();
   await expect(addTimeButton).toContainText("시간대 추가");
   await page.screenshot({ path: "test-results/admin-clinic-multisession-1366.png", fullPage: false });
@@ -515,49 +518,40 @@ test("같은 날짜에 여러 클리닉 시간대를 시간순으로 보고 계�
   await expect(dialog.getByRole("checkbox", { name: /같은 날 여러 시간대 예약/ })).not.toBeChecked();
 });
 
-test("주간 날짜 탐색에서 원하는 날짜의 일정 열로 바로 이동한다", async ({ page }) => {
+test("월간 달력에서 원하는 날짜를 고르면 그날 일정만 명확히 표시한다", async ({ page }) => {
   await seed(page);
   await installApi(page);
   await page.setViewportSize({ width: 1366, height: 850 });
   await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
 
-  const navigator = page.getByRole("navigation", { name: "주간 날짜 선택" });
-  await expect(navigator.getByRole("button")).toHaveCount(7);
-  const saturdayButton = navigator.getByRole("button", {
-    name: new RegExp(`${saturdayLabel} 토요일, 클리닉 3개, 예약 0명`),
+  const calendar = page.getByRole("grid", { name: /클리닉 월간 달력/ });
+  await expect(calendar).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "주간 날짜 선택" })).toHaveCount(0);
+  const saturdayButton = calendar.getByRole("gridcell", {
+    name: new RegExp(`${saturdayLabel} 토요일, 클리닉 3개`),
   });
   await expect(saturdayButton).toContainText("3개");
   await saturdayButton.click();
-  await expect(saturdayButton).toHaveAttribute("aria-pressed", "true");
-
-  const desktopViewport = page.locator("[data-clinic-board-viewport]");
-  const saturdayCell = page.getByRole("gridcell", { name: `${saturdayLabel} 토요일`, exact: true });
-  await expect.poll(async () => {
-    const [viewportBox, dayBox] = await Promise.all([
-      desktopViewport.boundingBox(),
-      saturdayCell.boundingBox(),
-    ]);
-    if (!viewportBox || !dayBox) return false;
-    return dayBox.x >= viewportBox.x - 1 && dayBox.x < viewportBox.x + viewportBox.width;
-  }).toBe(true);
+  await expect(saturdayButton).toHaveAttribute("aria-selected", "true");
+  const selectedDay = page.getByRole("region", { name: new RegExp(`${saturdayLabel}.*일정`) });
+  await expect(selectedDay.getByRole("article")).toHaveCount(3);
   await page.screenshot({ path: "test-results/admin-clinic-calendar-forwardfix-1366.png", fullPage: false });
 
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
-  const mobileNavigator = page.getByRole("navigation", { name: "주간 날짜 선택" });
-  const mobileSaturdayButton = mobileNavigator.getByRole("button", {
-    name: new RegExp(`${saturdayLabel} 토요일, 클리닉 3개, 예약 0명`),
+  const mobileSaturdayButton = page.getByRole("grid", { name: /클리닉 월간 달력/ }).getByRole("gridcell", {
+    name: new RegExp(`${saturdayLabel} 토요일, 클리닉 3개`),
   });
   await mobileSaturdayButton.click();
-  await expect(mobileSaturdayButton).toHaveAttribute("aria-pressed", "true");
+  await expect(mobileSaturdayButton).toHaveAttribute("aria-selected", "true");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  expect(await page.locator("[data-clinic-board-viewport]").evaluate(
-    (element) => element.scrollWidth > element.clientWidth,
+  expect(await page.locator("[data-clinic-selected-day-grid]").evaluate(
+    (element) => element.scrollWidth <= element.clientWidth,
   )).toBe(true);
   await page.screenshot({ path: "test-results/admin-clinic-calendar-forwardfix-390.png", fullPage: false });
 });
 
-test("월간 달력에서 날짜를 찾은 뒤 기존 주간 레일과 일정 카드로 이어진다", async ({ page }) => {
+test("상시 월간 달력에서 다음 달 날짜를 고르면 선택한 날짜 상세로 이어진다", async ({ page }) => {
   const nextMonthDate = dateInMonth(1, 15);
   const nextMonthDateValue = new Date(`${nextMonthDate}T12:00:00`);
   const nextMonthLabel = `${nextMonthDateValue.getMonth() + 1}월 ${nextMonthDateValue.getDate()}일`;
@@ -589,13 +583,9 @@ test("월간 달력에서 날짜를 찾은 뒤 기존 주간 레일과 일정 �
   await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
 
   const overview = page.getByRole("region", { name: "월간 날짜 탐색" });
-  const disclosure = overview.getByRole("button", { name: /월간 보기/ });
-  await expect(disclosure).toBeVisible({ timeout: 30_000 });
-  await expect(disclosure).toHaveAttribute("aria-expanded", "false");
-  await expect(overview.getByRole("grid", { name: /클리닉 월간 달력/ })).toHaveCount(0);
-  await disclosure.click();
-  await expect(disclosure).toHaveAttribute("aria-expanded", "true");
   const calendar = overview.getByRole("grid", { name: /클리닉 월간 달력/ });
+  await expect(calendar).toBeVisible({ timeout: 30_000 });
+  await expect(overview.getByRole("button", { name: /월간 보기/ })).toHaveCount(0);
   await expect(calendar.getByRole("columnheader")).toHaveText(["일", "월", "화", "수", "목", "금", "토"]);
   await expect(calendar.getByRole("gridcell")).toHaveCount(42);
   await overview.getByRole("button", { name: "다음 달" }).click();
@@ -604,29 +594,17 @@ test("월간 달력에서 날짜를 찾은 뒤 기존 주간 레일과 일정 �
   });
   await monthDate.focus();
   await monthDate.press("Enter");
-  await expect(disclosure).toHaveAttribute("aria-expanded", "false");
-  await expect(calendar).toHaveCount(0);
-
-  const navigator = page.getByRole("navigation", { name: "주간 날짜 선택" });
-  const weekDate = navigator.getByRole("button", {
-    name: new RegExp(`${nextMonthLabel} ${weekday}요일, 클리닉 1개, 예약 0명`),
-  });
-  await expect(weekDate).toHaveAttribute("aria-pressed", "true");
-  await expect(weekDate).toBeFocused();
-  const selectedCell = page.getByRole("gridcell", {
-    name: `${nextMonthLabel} ${weekday}요일`,
-    exact: true,
-  });
-  await expect(selectedCell.getByRole("article")).toContainText("다음 달 선택 클리닉");
-  await expect(selectedCell.getByRole("button", { name: "학생 추가", exact: true })).toBeVisible();
+  await expect(monthDate).toHaveAttribute("aria-selected", "true");
+  const selectedDay = page.getByRole("region", { name: new RegExp(`${nextMonthLabel}.*일정`) });
+  await expect(selectedDay.getByRole("article")).toContainText("다음 달 선택 클리닉");
+  await expect(selectedDay.getByRole("button", { name: "학생 추가", exact: true })).toBeVisible();
   expect(clinicMutations).toEqual([]);
 
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  expect(await page.locator("[data-clinic-board-viewport]").evaluate(
-    (element) => element.scrollWidth > element.clientWidth,
+  expect(await page.locator("[data-clinic-selected-day-grid]").evaluate(
+    (element) => element.scrollWidth <= element.clientWidth,
   )).toBe(true);
-  await disclosure.click();
   await expect(calendar.getByRole("gridcell")).toHaveCount(42);
   await page.emulateMedia({ reducedMotion: "reduce" });
   expect(await calendar.getByRole("gridcell").first()
@@ -634,7 +612,7 @@ test("월간 달력에서 날짜를 찾은 뒤 기존 주간 레일과 일정 �
   expect(clinicMutations).toEqual([]);
 });
 
-test("월간 달력은 조회 중·실패를 0개로 단정하지 않고 성공한 빈 달만 0개로 표시한다", async ({ page }) => {
+test("월간 달력은 조회 중·실패·빈 날짜에 0개를 반복 표시하지 않는다", async ({ page }) => {
   let releaseSessionRead = () => {};
   const sessionReadGate = new Promise<void>((resolve) => { releaseSessionRead = resolve; });
   const state: ScheduleState = {
@@ -652,15 +630,13 @@ test("월간 달력은 조회 중·실패를 0개로 단정하지 않고 성공�
   });
 
   const overview = page.getByRole("region", { name: "월간 날짜 탐색" });
-  const disclosure = overview.getByRole("button", { name: /월간 보기/ });
-  await expect(disclosure).toBeVisible({ timeout: 30_000 });
-  await disclosure.click();
+  await expect(overview.getByRole("grid", { name: /클리닉 월간 달력/ })).toBeVisible({ timeout: 30_000 });
   await expect(overview.getByText("월간 일정을 불러오는 중입니다.")).toBeVisible({ timeout: 20_000 });
   await expect(overview.getByText("0개", { exact: true })).toHaveCount(0);
 
   releaseSessionRead();
   await expect(overview.getByText("이번 달에 열린 시간대가 없습니다.")).toBeVisible();
-  await expect(overview.getByText("0개", { exact: true }).first()).toBeVisible();
+  await expect(overview.getByText("0개", { exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
   state.failSessionRead = true;
@@ -673,7 +649,7 @@ test("월간 달력은 조회 중·실패를 0개로 단정하지 않고 성공�
   await expect(overview.getByText("이번 달에 열린 시간대가 없습니다.")).toBeVisible();
 });
 
-test("주간 날짜 탐색은 일정 조회 실패를 0개로 확정 표시하지 않는다", async ({ page }) => {
+test("월간 날짜 탐색은 일정 조회 실패를 0개로 확정 표시하지 않는다", async ({ page }) => {
   const state: ScheduleState = {
     createPayloads: [],
     updatePayloads: [],
@@ -684,12 +660,12 @@ test("주간 날짜 탐색은 일정 조회 실패를 0개로 확정 표시하�
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
 
-  const navigator = page.getByRole("navigation", { name: "주간 날짜 선택" });
-  await expect(navigator.getByRole("button", { name: /일정 확인 실패/ })).toHaveCount(7, {
+  const calendar = page.getByRole("grid", { name: /클리닉 월간 달력/ });
+  await expect(calendar.getByRole("gridcell", { name: /일정 확인 실패/ })).toHaveCount(42, {
     timeout: 20_000,
   });
-  await expect(navigator.getByText("확인 실패", { exact: true })).toHaveCount(7);
-  await expect(navigator.getByText("0개", { exact: true })).toHaveCount(0);
+  await expect(calendar.getByText("확인 실패", { exact: true })).toHaveCount(42);
+  await expect(calendar.getByText("0개", { exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
@@ -719,8 +695,8 @@ test("클리닉 생성은 일정 요약을 최종 확인한 뒤에만 저장한�
   await page.setViewportSize({ width: 1366, height: 850 });
   await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
 
-  const saturdayCell = page.getByRole("gridcell", { name: `${saturdayLabel} 토요일`, exact: true });
-  const sourceSession = saturdayCell.getByRole("article").filter({ hasText: "토요일 5시 클리닉" });
+  const selectedDay = page.getByRole("region", { name: new RegExp(`${saturdayLabel}.*일정`) });
+  const sourceSession = selectedDay.getByRole("article").filter({ hasText: "토요일 5시 클리닉" });
   await sourceSession.getByRole("button", { name: "토요일 5시 클리닉 설정 복사" }).click();
 
   const createDialog = page.getByRole("dialog", { name: "클리닉 설정 복사" });
@@ -817,8 +793,8 @@ test("빈 클리닉도 일정 카드에서 수정하고 최종 확인한 뒤에�
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
 
-  const saturdayCell = page.getByRole("gridcell", { name: `${saturdayLabel} 토요일`, exact: true });
-  await saturdayCell.getByRole("button", { name: "토요일 5시 클리닉 17:00 일정 수정" }).click();
+  const selectedDay = page.getByRole("region", { name: new RegExp(`${saturdayLabel}.*일정`) });
+  await selectedDay.getByRole("button", { name: "토요일 5시 클리닉 17:00 일정 수정" }).click();
 
   const editDialog = page.getByRole("dialog", { name: "클리닉 일정 수정" });
   await expect(editDialog.getByRole("heading", { name: "클리닉 일정 수정" })).toBeVisible();
@@ -860,7 +836,7 @@ test("빈 클리닉도 일정 카드에서 수정하고 최종 확인한 뒤에�
   });
   releaseUpdate();
   await expect(editDialog).toHaveCount(0);
-  await expect(saturdayCell.getByRole("article").filter({ hasText: "토요일 5시 클리닉" }))
+  await expect(selectedDay.getByRole("article").filter({ hasText: "토요일 5시 클리닉" }))
     .toContainText("17:00–17:30");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
@@ -898,8 +874,8 @@ test("예약자가 있는 일정 수정은 운영 화면의 수정 알림으로 
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
 
-  const saturdayCell = page.getByRole("gridcell", { name: `${saturdayLabel} 토요일`, exact: true });
-  await saturdayCell.getByRole("button", { name: "토요일 5시 클리닉 17:00 일정 수정" }).click();
+  const selectedDay = page.getByRole("region", { name: new RegExp(`${saturdayLabel}.*일정`) });
+  await selectedDay.getByRole("button", { name: "토요일 5시 클리닉 17:00 일정 수정" }).click();
   const editDialog = page.getByRole("dialog", { name: "클리닉 일정 수정" });
   await editDialog.getByRole("button", { name: "−1시간" }).click();
   await editDialog.getByRole("button", { name: "클리닉 수정", exact: true }).click();
@@ -994,6 +970,60 @@ test("예약 학생은 운영 명단에서 바로 일정을 변경하거나 취�
   const workbench = page.getByRole("dialog", { name: "모바일확인 학생 클리닉 워크벤치" });
   await expect(workbench.getByRole("button", { name: "일정 변경", exact: true })).toBeVisible();
   await expect(workbench.getByRole("button", { name: "명단에서 빼기", exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test("권한 있는 교직원은 등원 기록을 만들지 않고 정확한 학생·일정을 재확인해 하원한다", async ({ page }) => {
+  const state: OperationsState = {
+    participants: [{
+      id: 913,
+      session: 701,
+      student: 613,
+      student_name: "미등원하원 학생",
+      enrollment_id: 1713,
+      session_date: saturday,
+      session_title: "토요일 1시 클리닉",
+      session_start_time: "13:00:00",
+      session_end_time: "14:30:00",
+      session_location: "1층 세미나실",
+      status: "booked",
+      checked_in_at: null,
+      checked_out_at: null,
+      checkout_mode: "",
+      completed_at: null,
+      is_late: false,
+    }],
+    targets: [],
+    checkoutPayloads: [],
+  };
+
+  await seed(page);
+  await installApi(page, undefined, state);
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await gotoAndSettle(
+    page,
+    `${BASE}/workspace/clinic/operations?date=${saturday}&session=701`,
+    { timeout: 45_000 },
+  );
+
+  const card = page.locator(".clinic-ops__card").filter({ hasText: "미등원하원 학생" });
+  await card.getByRole("button", { name: "미등원 하원", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "하원 처리" });
+  await expect(dialog).toContainText("등원 기록은 만들지 않습니다.");
+  await expect(dialog.getByRole("group", { name: "알림톡 수신자" })).toHaveCount(0);
+  await dialog.getByRole("button", { name: "미등원 하원 확정", exact: true }).click();
+
+  await expect.poll(() => state.checkoutPayloads).toEqual([{
+    id: 913,
+    confirm_without_arrival: true,
+    expected_session_id: 701,
+    expected_student_id: 613,
+  }]);
+  await expect(card).toContainText("미등원 하원 완료");
+  await expect(card).not.toContainText("등원 완료");
+  await expect(page.getByText(/알림톡 요청/)).toHaveCount(0);
+
+  await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
@@ -1153,9 +1183,9 @@ test("현장 콘솔은 16·17·18시 등원 학생을 한 화면에서 시간대
   await expect(planToggle).toBeFocused();
   await expect(exactContextWorkbench.locator(".clinic-workbench__active-panel")).toContainText("부교재 화학평형");
   await exactContextWorkbench.getByRole("button", { name: "하원 처리", exact: true }).click();
-  await page.getByRole("dialog", { name: "하원 처리" }).getByLabel("학부모").check();
+  await expect(page.getByRole("dialog", { name: "하원 처리" }).getByRole("group", { name: "알림톡 수신자" })).toHaveCount(0);
   await page.keyboard.press("Enter");
-  await expect.poll(() => state.checkoutPayloads?.[0]).toEqual({ id: 824, send_to: "parent" });
+  await expect.poll(() => state.checkoutPayloads?.[0]).toEqual({ id: 824 });
   await expect(queue.getByText("다섯시 현장학생", { exact: true })).toHaveCount(1);
 
   await taskButton.click();
@@ -1192,9 +1222,8 @@ test("현장 콘솔은 16·17·18시 등원 학생을 한 화면에서 시간대
   await page.setViewportSize({ width: 1366, height: 850 });
   const fourOClockCard = queue.locator(".clinic-ops__card").filter({ hasText: "네시 현장학생" });
   await fourOClockCard.getByRole("button", { name: "하원", exact: true }).click();
-  await page.getByRole("dialog", { name: "하원 처리" }).getByLabel("학부모").check();
   await page.keyboard.press("Enter");
-  await expect.poll(() => state.checkoutPayloads?.[1]).toEqual({ id: 821, send_to: "parent" });
+  await expect.poll(() => state.checkoutPayloads?.[1]).toEqual({ id: 821 });
   await expect(fourOClockCard).toHaveCount(0);
   await expect(page.getByRole("group", { name: "클리닉 운영 범위" }).getByRole("button", { name: "현장 2명", exact: true })).toBeVisible();
 });
@@ -1630,10 +1659,10 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
   await expect(examWorkbench.getByRole("button", { name: "면제" })).toHaveCount(0);
   await page.keyboard.press("Escape");
 
-  await expect(studentCard.getByRole("button", { name: "하원", exact: true })).toBeDisabled();
-  await expect(studentCard.getByRole("button", { name: "하원", exact: true })).toHaveAttribute(
+  await expect(studentCard.getByRole("button", { name: "미등원 하원", exact: true })).toBeEnabled();
+  await expect(studentCard.getByRole("button", { name: "미등원 하원", exact: true })).toHaveAttribute(
     "title",
-    "등원 처리 후 사용할 수 있습니다.",
+    "등원 기록을 만들지 않고 하원 시각만 남깁니다.",
   );
   await studentCard.getByRole("button", { name: "등원", exact: true }).click();
   await page.getByRole("dialog", { name: "등원 처리" }).getByLabel("둘 다").check();
@@ -1643,9 +1672,8 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
   });
   await expect(studentCard.getByRole("button", { name: "하원", exact: true })).toBeEnabled();
   await studentCard.getByRole("button", { name: "하원", exact: true }).click();
-  await page.getByRole("dialog", { name: "하원 처리" }).getByLabel("학부모").check();
   await page.keyboard.press("Enter");
-  await expect.poll(() => state.checkoutPayloads?.[0]).toEqual({ id: 801, send_to: "parent" });
+  await expect.poll(() => state.checkoutPayloads?.[0]).toEqual({ id: 801 });
   await expect(studentCard).toContainText("하원 완료");
 
   const lateCard = page.locator(".clinic-ops__card").filter({ hasText: "지각 학생" });
@@ -1887,10 +1915,10 @@ test("클리닉 상태 저장과 알림톡 요청의 부분 실패를 성공으�
 
   const checkoutCard = page.locator(".clinic-ops__card").filter({ hasText: "하원 알림 실패" });
   await checkoutCard.getByRole("button", { name: "하원", exact: true }).click();
-  await page.getByRole("dialog", { name: "하원 처리" }).getByLabel("학부모").check();
   await page.keyboard.press("Enter");
-  await expect.poll(() => state.checkoutPayloads).toEqual([{ id: 901, send_to: "parent" }]);
-  await expect(page.getByText(/하원 처리 완료 상태는 저장됐지만 알림톡 요청 0건 완료, 1건 실패/)).toBeVisible();
+  await expect.poll(() => state.checkoutPayloads).toEqual([{ id: 901 }]);
+  await expect(page.getByText(/하원 알림 실패 하원 처리 완료/)).toBeVisible();
+  await expect(page.getByText(/하원 처리 완료 상태는 저장됐지만 알림톡/)).toHaveCount(0);
 
   const reminderCard = page.locator(".clinic-ops__card").filter({ hasText: "재촉 부분 성공" });
   await reminderCard.getByRole("button", { name: "재촉", exact: true }).click();

@@ -2,6 +2,7 @@
 // 클리닉 메시지 설정 — 알림톡 설정
 
 import AutoSendSettingsPanel from "@admin/domains/messages/components/AutoSendSettingsPanel";
+import ClinicMessageHistoryPanel from "./ClinicMessageHistoryPanel";
 
 const CLINIC_TRIGGERS = [
   "clinic_reservation_created",
@@ -12,7 +13,6 @@ const CLINIC_TRIGGERS = [
   "clinic_reservation_changed",
   "clinic_result_notification",
   "clinic_reminder",
-  "counseling_reservation_created",
 ];
 
 export default function ClinicMsgSettingsPage() {
@@ -22,8 +22,9 @@ export default function ClinicMsgSettingsPage() {
         triggerKeys={CLINIC_TRIGGERS}
         channelMode="alimtalk"
         title="알림톡 자동발송"
-        description="클리닉 이벤트 발생 시 알림톡(카카오)으로 자동 발송합니다."
+        description="승인된 클리닉 전용 양식이 있는 이벤트만 알림톡으로 발송합니다. 하원 처리는 기록만 남기며 발송하지 않습니다."
       />
+      <ClinicMessageHistoryPanel />
     </div>
   );
 }
