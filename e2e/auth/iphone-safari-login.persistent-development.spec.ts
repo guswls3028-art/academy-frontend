@@ -66,8 +66,10 @@ async function dismissFirstLoginGuide(page: Page): Promise<void> {
 
 async function logoutAndVerify(page: Page, role: LoginRole): Promise<void> {
   if (role === "staff") {
-    await page.getByRole("button", { name: "프로필 메뉴" }).click();
-    await page.getByRole("menuitem", { name: "로그아웃", exact: true }).click();
+    await page.getByRole("button", { name: "메뉴", exact: true }).click();
+    const drawer = page.getByRole("navigation", { name: "선생님 메뉴" });
+    await expect(drawer).toBeVisible();
+    await drawer.getByRole("button", { name: "로그아웃", exact: true }).click();
   } else {
     await page.getByRole("button", { name: "메뉴 열기" }).click();
     const drawer = page.getByRole("dialog", { name: "메뉴" });

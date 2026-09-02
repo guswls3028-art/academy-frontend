@@ -250,6 +250,17 @@ test("persistent UAT logout verifies active generation envelope and landing", ()
   assert.match(source, /toHaveURL\(`\$\{BASE\}\/`/);
 });
 
+test("persistent UAT uses the mobile teacher drawer for staff logout", () => {
+  const source = fs.readFileSync(
+    path.join(root, "e2e/auth/iphone-safari-login.persistent-development.spec.ts"),
+    "utf8",
+  );
+  assert.match(source, /getByRole\("button", \{ name: "메뉴", exact: true \}\)/);
+  assert.match(source, /getByRole\("navigation", \{ name: "선생님 메뉴" \}\)/);
+  assert.match(source, /drawer\.getByRole\("button", \{ name: "로그아웃", exact: true \}\)/);
+  assert.doesNotMatch(source, /name: "프로필 메뉴"/);
+});
+
 test("Windows cleanup terminates a child listener process and closes its port", {
   skip: process.platform !== "win32",
 }, async () => {
