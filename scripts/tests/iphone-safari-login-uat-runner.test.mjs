@@ -13,6 +13,7 @@ import {
   assertNoViteInputResidue,
   assertRuntimeIdentity,
   assertWindowsOwnedPort,
+  buildPnpmInvocation,
   buildRuntimeInspectionPython,
   isLoopbackPortFree,
   terminateWindowsProcessTree,
@@ -181,6 +182,20 @@ test("tracked Vite env inputs are allowed while local override residue fails", (
   } finally {
     fs.rmSync(checkout, { recursive: true, force: true });
   }
+});
+
+test("Windows pnpm invocation uses cmd instead of spawning a cmd shim directly", () => {
+  assert.deepEqual(
+    buildPnpmInvocation(["--version"], "win32", "C:\\Windows\\System32\\cmd.exe"),
+    {
+      command: "C:\\Windows\\System32\\cmd.exe",
+      args: ["/d", "/s", "/c", "pnpm", "--version"],
+    },
+  );
+  assert.deepEqual(
+    buildPnpmInvocation(["--version"], "linux"),
+    { command: "pnpm", args: ["--version"] },
+  );
 });
 
 test("runner contract owns port 18000 before health and awaits process-tree cleanup", () => {

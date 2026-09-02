@@ -209,6 +209,8 @@ listener PID가 새로 띄운 AWS SSM process tree에 속할 때만 tunnel 소�
 proxy를 동일하게 고정하며 `reuseExistingServer=false`인 전용 5174 서버를 소유한다. trace·video·screenshot은
 항상 끄고 임시 결과와 표준출력에 일회성 비밀번호가 섞였는지도 검사한다. 필수 환경이
 하나라도 없으면 skip이 아니라 nonzero로 종료한다.
+Windows runner는 `pnpm.cmd` shim을 직접 spawn하지 않고 `ComSpec`을 통해 Playwright를
+시작하며, child-process 시작 오류를 테스트 실패와 구분되는 명시 오류로 반환한다.
 실제 실행은 backend/frontend PR 병합과 persistent-development 후보 배포 뒤에만
 허용한다. tenant code는 setup 전에 runner가 고정한다. runtime preflight가 실패하면
 destructive cleanup을 실행하지 않는다. preflight 성공 뒤 setup SSM dispatch 직전에

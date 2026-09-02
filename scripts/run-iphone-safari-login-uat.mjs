@@ -86,6 +86,16 @@ export function assertNoViteInputResidue(root) {
   }
 }
 
+export function buildPnpmInvocation(args, platform = process.platform, comspec = process.env.ComSpec) {
+  if (platform === "win32") {
+    return {
+      command: comspec || "cmd.exe",
+      args: ["/d", "/s", "/c", "pnpm", ...args],
+    };
+  }
+  return { command: "pnpm", args };
+}
+
 function awsJson(profile, args) {
   const output = execFileSync(
     "aws",
@@ -540,9 +550,12 @@ async function main() {
     }
     fs.writeFileSync(manifestPath, JSON.stringify(manifest), { encoding: "utf8", mode: 0o600 });
 
+    const pnpm = buildPnpmInvocation([
+      "exec", "playwright", "test", "--config=playwright.iphone-login-uat.config.ts", "--project=chromium", "--project=webkit",
+    ]);
     const result = spawnSync(
-      process.platform === "win32" ? "pnpm.cmd" : "pnpm",
-      ["exec", "playwright", "test", "--config=playwright.iphone-login-uat.config.ts", "--project=chromium", "--project=webkit"],
+      pnpm.command,
+      pnpm.args,
       {
         encoding: "utf8",
         env: {
@@ -557,6 +570,7 @@ async function main() {
         maxBuffer: 16 * 1024 * 1024,
       },
     );
+    if (result.error) fail(`Playwright runner failed to start: ${result.error.message}`);
     const combined = `${result.stdout || ""}${result.stderr || ""}`;
     leaked = combined.includes(secret) || secretAppearsInTree(outputDir, secret);
     process.stdout.write(combined.split(secret).join("[REDACTED]"));
