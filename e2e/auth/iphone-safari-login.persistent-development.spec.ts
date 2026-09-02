@@ -64,6 +64,18 @@ async function dismissFirstLoginGuide(page: Page): Promise<void> {
   }
 }
 
+async function continueStaffWithoutClockIn(page: Page): Promise<void> {
+  const clockInChoice = page.getByRole("dialog", {
+    name: "오늘 어떤 방식으로 시작할까요?",
+  });
+  if (await clockInChoice.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await clockInChoice
+      .getByRole("button", { name: /출근하지 않고 로그인/ })
+      .click();
+    await expect(clockInChoice).not.toBeVisible();
+  }
+}
+
 async function logoutAndVerify(page: Page, role: LoginRole): Promise<void> {
   if (role === "staff") {
     await page.getByRole("button", { name: "메뉴", exact: true }).click();
@@ -131,6 +143,9 @@ test.describe("persistent-development iPhone Safari login UAT", () => {
 
       await expect(page).toHaveURL(new RegExp(`${account.landing_path}(?:/|$)`), { timeout: 45_000 });
       await dismissFirstLoginGuide(page);
+      if (account.role === "staff") {
+        await continueStaffWithoutClockIn(page);
+      }
       await logoutAndVerify(page, account.role);
     }
   });

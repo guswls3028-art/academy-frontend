@@ -196,6 +196,8 @@ student·parent·staff 각 10명일 때만 Chromium·WebKit 390px에서 30계정
 로그인 → `/core/me/` 역할 landing → UI 로그아웃과 access·refresh 제거를 확인한다.
 staff 로그아웃은 관리자 헤더의 프로필 메뉴가 아니라 `/workspace/mobile`의
 `선생님 메뉴` 드로어에서 실행해 실제 강사 모바일 화면 계약을 검증한다.
+조교 출근 선택창이 표시되면 `출근하지 않고 로그인`으로 근무시간을 만들지 않은 채
+로그인 완료 상태를 확인한 뒤 같은 드로어에서 로그아웃한다.
 검수 대상 exact SHA의 untracked 포함 깨끗한 checkout만 허용한다. exact SHA에 추적된
 `.env.development`·`.env.production`은 허용하지만, Git에 추적되지 않은 `.env*` 로컬
 override가 하나라도 남아 있으면 runner가 실패 폐쇄한다. runner가 exact

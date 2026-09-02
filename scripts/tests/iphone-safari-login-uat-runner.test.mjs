@@ -261,6 +261,16 @@ test("persistent UAT uses the mobile teacher drawer for staff logout", () => {
   assert.doesNotMatch(source, /name: "프로필 메뉴"/);
 });
 
+test("persistent UAT clears the staff clock-in prerequisite without recording work", () => {
+  const source = fs.readFileSync(
+    path.join(root, "e2e/auth/iphone-safari-login.persistent-development.spec.ts"),
+    "utf8",
+  );
+  assert.match(source, /name: "오늘 어떤 방식으로 시작할까요\?"/);
+  assert.match(source, /name: \/출근하지 않고 로그인\//);
+  assert.match(source, /if \(account\.role === "staff"\) \{\s*await continueStaffWithoutClockIn\(page\)/);
+});
+
 test("Windows cleanup terminates a child listener process and closes its port", {
   skip: process.platform !== "win32",
 }, async () => {
