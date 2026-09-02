@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import net from "node:net";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -9,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import {
   assertDevelopmentParameterIdentity,
   assertLoopbackPortFree,
+  assertNoViteInputResidue,
   assertRuntimeIdentity,
   assertWindowsOwnedPort,
   buildRuntimeInspectionPython,
@@ -161,6 +163,24 @@ test("pre-bound loopback port fails closed before tunnel startup", async () => {
     await close(server);
   }
   assert.equal(await isLoopbackPortFree(port), true);
+});
+
+test("tracked Vite env inputs are allowed while local override residue fails", () => {
+  const checkout = fs.mkdtempSync(path.join(os.tmpdir(), "academy-iphone-login-uat-env-"));
+  try {
+    execFileSync("git", ["init", "--quiet", checkout], { windowsHide: true });
+    fs.writeFileSync(path.join(checkout, ".env.development"), "VITE_DEV_PROXY_TARGET=http://127.0.0.1:9\n");
+    execFileSync("git", ["-C", checkout, "add", ".env.development"], { windowsHide: true });
+    assert.doesNotThrow(() => assertNoViteInputResidue(checkout));
+
+    fs.writeFileSync(path.join(checkout, ".env.local"), "VITE_DEV_PROXY_TARGET=http://127.0.0.1:8\n");
+    assert.throws(
+      () => assertNoViteInputResidue(checkout),
+      /forbidden untracked Vite env residue: \.env\.local/,
+    );
+  } finally {
+    fs.rmSync(checkout, { recursive: true, force: true });
+  }
 });
 
 test("runner contract owns port 18000 before health and awaits process-tree cleanup", () => {

@@ -194,7 +194,9 @@ pnpm test:e2e:iphone-safari-uat
 runner는 두 URL이 loopback이고 tenant가 `qa-ymath-realuse-*`, 계정이
 student·parent·staff 각 10명일 때만 Chromium·WebKit 390px에서 30계정 전부의
 로그인 → `/core/me/` 역할 landing → UI 로그아웃과 access·refresh 제거를 확인한다.
-검수 대상 exact SHA의 untracked 포함 깨끗한 checkout만 허용한다. runner가 exact
+검수 대상 exact SHA의 untracked 포함 깨끗한 checkout만 허용한다. exact SHA에 추적된
+`.env.development`·`.env.production`은 허용하지만, Git에 추적되지 않은 `.env*` 로컬
+override가 하나라도 남아 있으면 runner가 실패 폐쇄한다. runner가 exact
 persistent-development instance id·backend SHA·candidate digest와
 `apps.api.config.settings.development`, `academy_api_development`,
 `academy_api_development_app`, `academy-development-artifacts`,

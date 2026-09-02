@@ -71,9 +71,19 @@ function assertExactCheckout(root, expectedSha, label) {
   if (dirty) fail(`${label} checkout must be clean, including untracked files.`);
 }
 
-function assertNoViteInputResidue(root) {
-  const residue = VITE_INPUT_RESIDUE.filter((name) => fs.existsSync(path.join(root, name)));
-  if (residue.length) fail(`Frontend checkout contains forbidden Vite env residue: ${residue.join(", ")}`);
+export function assertNoViteInputResidue(root) {
+  const residue = VITE_INPUT_RESIDUE.filter((name) => {
+    if (!fs.existsSync(path.join(root, name))) return false;
+    const tracked = spawnSync(
+      "git",
+      ["-C", root, "ls-files", "--error-unmatch", "--", name],
+      { stdio: "ignore", windowsHide: true },
+    );
+    return tracked.status !== 0;
+  });
+  if (residue.length) {
+    fail(`Frontend checkout contains forbidden untracked Vite env residue: ${residue.join(", ")}`);
+  }
 }
 
 function awsJson(profile, args) {
