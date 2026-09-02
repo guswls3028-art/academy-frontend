@@ -68,12 +68,11 @@ async function continueStaffWithoutClockIn(page: Page): Promise<void> {
   const clockInChoice = page.getByRole("dialog", {
     name: "오늘 어떤 방식으로 시작할까요?",
   });
-  if (await clockInChoice.isVisible({ timeout: 3_000 }).catch(() => false)) {
-    await clockInChoice
-      .getByRole("button", { name: /출근하지 않고 로그인/ })
-      .click();
-    await expect(clockInChoice).not.toBeVisible();
-  }
+  await expect(clockInChoice).toBeVisible({ timeout: 45_000 });
+  await clockInChoice
+    .getByRole("button", { name: /출근하지 않고 로그인/ })
+    .click();
+  await expect(clockInChoice).not.toBeVisible();
 }
 
 async function logoutAndVerify(page: Page, role: LoginRole): Promise<void> {
@@ -89,7 +88,8 @@ async function logoutAndVerify(page: Page, role: LoginRole): Promise<void> {
     await page.locator(".stu-logout-dialog__confirm").click();
   }
 
-  await expect(page).toHaveURL(`${BASE}/`, { timeout: 45_000 });
+  const logoutUrl = role === "staff" ? `${BASE}/login` : `${BASE}/`;
+  await expect(page).toHaveURL(logoutUrl, { timeout: 45_000 });
   await expect.poll(() => page.evaluate(() => {
     const pointer = localStorage.getItem("academy:auth-active-generation:v1");
     return {

@@ -247,7 +247,8 @@ test("persistent UAT logout verifies active generation envelope and landing", ()
   assert.match(source, /academy:auth-active-generation:v1/);
   assert.match(source, /academy:auth-tokens:v1:\$\{pointer\}/);
   assert.match(source, /activeEnvelope:\s*null/);
-  assert.match(source, /toHaveURL\(`\$\{BASE\}\/`/);
+  assert.match(source, /role === "staff" \? `\$\{BASE\}\/login` : `\$\{BASE\}\/`/);
+  assert.match(source, /toHaveURL\(logoutUrl/);
 });
 
 test("persistent UAT uses the mobile teacher drawer for staff logout", () => {
@@ -267,6 +268,7 @@ test("persistent UAT clears the staff clock-in prerequisite without recording wo
     "utf8",
   );
   assert.match(source, /name: "오늘 어떤 방식으로 시작할까요\?"/);
+  assert.match(source, /expect\(clockInChoice\)\.toBeVisible\(\{ timeout: 45_000 \}\)/);
   assert.match(source, /name: \/출근하지 않고 로그인\//);
   assert.match(source, /if \(account\.role === "staff"\) \{\s*await continueStaffWithoutClockIn\(page\)/);
 });
