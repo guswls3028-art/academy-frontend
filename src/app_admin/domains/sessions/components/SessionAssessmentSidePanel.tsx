@@ -420,6 +420,10 @@ export default function SessionAssessmentSidePanel({
   // Auto-select or repair deleted/stale exam/homework query params on assessment tabs.
   useEffect(() => {
     if (!sessionId || !lectureId) return;
+    if (
+      window.location.pathname !== location.pathname
+      || window.location.search !== location.search
+    ) return;
     const path = location.pathname;
     const basePath = `/workspace/lectures/${lectureId}/sessions/${sessionId}`;
     if (path.startsWith(`${basePath}/exams`)) {
@@ -479,7 +483,7 @@ export default function SessionAssessmentSidePanel({
         );
       }
     }
-  }, [location.pathname, location.state, skipAutoSelect, sessionId, lectureId, examId, homeworkId, exams, homeworks, examsLoading, hwLoading, navigate]);
+  }, [location.pathname, location.search, location.state, skipAutoSelect, sessionId, lectureId, examId, homeworkId, exams, homeworks, examsLoading, hwLoading, navigate]);
 
   const invalidateExams = () => qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.exams(sessionId) });
   const invalidateExamsSummary = () => qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.examsSummary(sessionId) });
