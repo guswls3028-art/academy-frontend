@@ -275,6 +275,84 @@ test.use({ serviceWorkers: "block" });
 test.skip(!isLocalBase(BASE), "Local route-mock spec. Set E2E_BASE_URL to localhost to run.");
 
 test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
+  test("로컬 테넌트 로그인에서 만료 세션을 발견해도 같은 테넌트 로그인으로 복구한다", async ({ page }) => {
+    const tenantCode = "qa-ymath-realuse-session-expiry";
+    const access = createE2eJwt();
+    const programTenantHeaders: string[] = [];
+    let mainNavigationCount = 0;
+
+    page.on("framenavigated", (frame) => {
+      if (frame === page.mainFrame()) mainNavigationCount += 1;
+    });
+
+    await page.addInitScript(({ token, code, pointerKey, generationPrefix }) => {
+      const seedKey = "e2e.session-expiry.seeded";
+      if (sessionStorage.getItem(seedKey) === "1") return;
+      sessionStorage.setItem(seedKey, "1");
+      const generation = "local-tenant-expiry-generation";
+      localStorage.setItem(`${generationPrefix}${generation}`, JSON.stringify({
+        access: token,
+        refresh: "expired-local-tenant-refresh",
+        generation,
+      }));
+      localStorage.setItem(pointerKey, generation);
+      sessionStorage.setItem("tenantCode", code);
+    }, {
+      token: access,
+      code: tenantCode,
+      pointerKey: AUTH_ACTIVE_GENERATION_KEY,
+      generationPrefix: AUTH_GENERATION_PREFIX,
+    });
+
+    await page.route("**/api/v1/**", async (route) => {
+      await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+    });
+    await page.route("**/api/v1/core/program/**", async (route) => {
+      const header = route.request().headers()["x-tenant-code"] || "";
+      programTenantHeaders.push(header);
+      if (header !== tenantCode) {
+        await route.fulfill({
+          status: 401,
+          contentType: "application/json",
+          body: JSON.stringify({ detail: "Tenant not found" }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          tenantCode,
+          display_name: "격리 검증 학원",
+          ui_config: {},
+          feature_flags: {},
+          is_active: true,
+        }),
+      });
+    });
+    await page.route("**/api/v1/core/me/", async (route) => {
+      await route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "session expired" }),
+      });
+    });
+    await page.route("**/api/v1/token/refresh/", async (route) => {
+      await route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "refresh expired" }),
+      });
+    });
+
+    await page.goto(`${BASE}/login/${tenantCode}`);
+    await expect.poll(() => mainNavigationCount).toBeGreaterThanOrEqual(2);
+    await expect(page).toHaveURL(`${BASE}/login/${tenantCode}`);
+    await expect(page.getByText("세션이 만료되었습니다. 다시 로그인해 주세요.")).toBeVisible();
+    expect(programTenantHeaders.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(programTenantHeaders)).toEqual(new Set([tenantCode]));
+  });
+
   test("만료 시점에 열린 두 탭은 회전 refresh를 한 번만 사용한다", async ({ page, context }) => {
     const refresh = await stubConcurrentRefresh(context);
 
@@ -385,7 +463,7 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
     await expect(sibling).toHaveURL(/\/workspace\/dashboard(?:\/|$)/);
 
     await gotoAndSettle(page, `${BASE}/workspace/dashboard`, { timeout: 20_000 });
-    await page.waitForURL(`${BASE}/login`, { timeout: 20_000, waitUntil: "domcontentloaded" });
+    await page.waitForURL(`${BASE}/login/hakwonplus`, { timeout: 20_000, waitUntil: "domcontentloaded" });
     await expect(page.getByText("세션이 만료되었습니다. 다시 로그인해 주세요.")).toBeVisible();
     await expect(sibling).toHaveURL(/\/login(?:\/|$)/);
 

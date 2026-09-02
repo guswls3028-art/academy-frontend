@@ -71,9 +71,29 @@ function assertExactCheckout(root, expectedSha, label) {
   if (dirty) fail(`${label} checkout must be clean, including untracked files.`);
 }
 
-function assertNoViteInputResidue(root) {
-  const residue = VITE_INPUT_RESIDUE.filter((name) => fs.existsSync(path.join(root, name)));
-  if (residue.length) fail(`Frontend checkout contains forbidden Vite env residue: ${residue.join(", ")}`);
+export function assertNoViteInputResidue(root) {
+  const residue = VITE_INPUT_RESIDUE.filter((name) => {
+    if (!fs.existsSync(path.join(root, name))) return false;
+    const tracked = spawnSync(
+      "git",
+      ["-C", root, "ls-files", "--error-unmatch", "--", name],
+      { stdio: "ignore", windowsHide: true },
+    );
+    return tracked.status !== 0;
+  });
+  if (residue.length) {
+    fail(`Frontend checkout contains forbidden untracked Vite env residue: ${residue.join(", ")}`);
+  }
+}
+
+export function buildPnpmInvocation(args, platform = process.platform, comspec = process.env.ComSpec) {
+  if (platform === "win32") {
+    return {
+      command: comspec || "cmd.exe",
+      args: ["/d", "/s", "/c", "pnpm", ...args],
+    };
+  }
+  return { command: "pnpm", args };
 }
 
 function awsJson(profile, args) {
@@ -494,6 +514,7 @@ async function main() {
   const { instanceId, releaseId } = selectActiveDevelopmentInstance(profile, backendSha);
   const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), "academy-iphone-login-uat-"));
   const manifestPath = path.join(outputDir, "manifest.json");
+  const playwrightOutputDir = path.join(outputDir, "playwright");
   let tunnel = null;
   let tunnelPids = [];
   let testExit = 1;
@@ -530,9 +551,12 @@ async function main() {
     }
     fs.writeFileSync(manifestPath, JSON.stringify(manifest), { encoding: "utf8", mode: 0o600 });
 
+    const pnpm = buildPnpmInvocation([
+      "exec", "playwright", "test", "--config=playwright.iphone-login-uat.config.ts", "--project=chromium", "--project=webkit",
+    ]);
     const result = spawnSync(
-      process.platform === "win32" ? "pnpm.cmd" : "pnpm",
-      ["exec", "playwright", "test", "--config=playwright.iphone-login-uat.config.ts", "--project=chromium", "--project=webkit"],
+      pnpm.command,
+      pnpm.args,
       {
         encoding: "utf8",
         env: {
@@ -540,13 +564,14 @@ async function main() {
           E2E_BASE_URL: FRONTEND_ORIGIN,
           E2E_API_URL: API_ORIGIN,
           E2E_LOGIN_UAT_MANIFEST: manifestPath,
-          E2E_LOGIN_UAT_OUTPUT_DIR: outputDir,
+          E2E_LOGIN_UAT_OUTPUT_DIR: playwrightOutputDir,
           YMATH_REALUSE_SCENARIO_PASSWORD: secret,
           VITE_DEV_PROXY_TARGET: API_ORIGIN,
         },
         maxBuffer: 16 * 1024 * 1024,
       },
     );
+    if (result.error) fail(`Playwright runner failed to start: ${result.error.message}`);
     const combined = `${result.stdout || ""}${result.stderr || ""}`;
     leaked = combined.includes(secret) || secretAppearsInTree(outputDir, secret);
     process.stdout.write(combined.split(secret).join("[REDACTED]"));

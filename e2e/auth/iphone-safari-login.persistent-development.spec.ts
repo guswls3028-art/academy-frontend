@@ -64,10 +64,23 @@ async function dismissFirstLoginGuide(page: Page): Promise<void> {
   }
 }
 
+async function continueStaffWithoutClockIn(page: Page): Promise<void> {
+  const clockInChoice = page.getByRole("dialog", {
+    name: "오늘 어떤 방식으로 시작할까요?",
+  });
+  await expect(clockInChoice).toBeVisible({ timeout: 45_000 });
+  await clockInChoice
+    .getByRole("button", { name: /출근하지 않고 로그인/ })
+    .click();
+  await expect(clockInChoice).not.toBeVisible();
+}
+
 async function logoutAndVerify(page: Page, role: LoginRole): Promise<void> {
   if (role === "staff") {
-    await page.getByRole("button", { name: "프로필 메뉴" }).click();
-    await page.getByRole("menuitem", { name: "로그아웃", exact: true }).click();
+    await page.getByRole("button", { name: "메뉴", exact: true }).click();
+    const drawer = page.getByRole("navigation", { name: "선생님 메뉴" });
+    await expect(drawer).toBeVisible();
+    await drawer.getByRole("button", { name: "로그아웃", exact: true }).click();
   } else {
     await page.getByRole("button", { name: "메뉴 열기" }).click();
     const drawer = page.getByRole("dialog", { name: "메뉴" });
@@ -75,7 +88,8 @@ async function logoutAndVerify(page: Page, role: LoginRole): Promise<void> {
     await page.locator(".stu-logout-dialog__confirm").click();
   }
 
-  await expect(page).toHaveURL(`${BASE}/`, { timeout: 45_000 });
+  const logoutUrl = role === "staff" ? `${BASE}/login` : `${BASE}/`;
+  await expect(page).toHaveURL(logoutUrl, { timeout: 45_000 });
   await expect.poll(() => page.evaluate(() => {
     const pointer = localStorage.getItem("academy:auth-active-generation:v1");
     return {
@@ -129,6 +143,9 @@ test.describe("persistent-development iPhone Safari login UAT", () => {
 
       await expect(page).toHaveURL(new RegExp(`${account.landing_path}(?:/|$)`), { timeout: 45_000 });
       await dismissFirstLoginGuide(page);
+      if (account.role === "staff") {
+        await continueStaffWithoutClockIn(page);
+      }
       await logoutAndVerify(page, account.role);
     }
   });

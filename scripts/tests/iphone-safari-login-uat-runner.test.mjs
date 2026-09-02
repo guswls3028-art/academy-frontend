@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import net from "node:net";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -9,8 +10,10 @@ import { fileURLToPath } from "node:url";
 import {
   assertDevelopmentParameterIdentity,
   assertLoopbackPortFree,
+  assertNoViteInputResidue,
   assertRuntimeIdentity,
   assertWindowsOwnedPort,
+  buildPnpmInvocation,
   buildRuntimeInspectionPython,
   isLoopbackPortFree,
   terminateWindowsProcessTree,
@@ -163,6 +166,49 @@ test("pre-bound loopback port fails closed before tunnel startup", async () => {
   assert.equal(await isLoopbackPortFree(port), true);
 });
 
+test("tracked Vite env inputs are allowed while local override residue fails", () => {
+  const checkout = fs.mkdtempSync(path.join(os.tmpdir(), "academy-iphone-login-uat-env-"));
+  try {
+    execFileSync("git", ["init", "--quiet", checkout], { windowsHide: true });
+    fs.writeFileSync(path.join(checkout, ".env.development"), "VITE_DEV_PROXY_TARGET=http://127.0.0.1:9\n");
+    execFileSync("git", ["-C", checkout, "add", ".env.development"], { windowsHide: true });
+    assert.doesNotThrow(() => assertNoViteInputResidue(checkout));
+
+    fs.writeFileSync(path.join(checkout, ".env.local"), "VITE_DEV_PROXY_TARGET=http://127.0.0.1:8\n");
+    assert.throws(
+      () => assertNoViteInputResidue(checkout),
+      /forbidden untracked Vite env residue: \.env\.local/,
+    );
+  } finally {
+    fs.rmSync(checkout, { recursive: true, force: true });
+  }
+});
+
+test("Windows pnpm invocation uses cmd instead of spawning a cmd shim directly", () => {
+  assert.deepEqual(
+    buildPnpmInvocation(["--version"], "win32", "C:\\Windows\\System32\\cmd.exe"),
+    {
+      command: "C:\\Windows\\System32\\cmd.exe",
+      args: ["/d", "/s", "/c", "pnpm", "--version"],
+    },
+  );
+  assert.deepEqual(
+    buildPnpmInvocation(["--version"], "linux"),
+    { command: "pnpm", args: ["--version"] },
+  );
+});
+
+test("login manifest stays outside the Playwright-cleaned output directory", () => {
+  const source = fs.readFileSync(
+    path.join(root, "scripts/run-iphone-safari-login-uat.mjs"),
+    "utf8",
+  );
+  assert.match(source, /const manifestPath = path\.join\(outputDir, "manifest\.json"\)/);
+  assert.match(source, /const playwrightOutputDir = path\.join\(outputDir, "playwright"\)/);
+  assert.match(source, /E2E_LOGIN_UAT_OUTPUT_DIR: playwrightOutputDir/);
+  assert.doesNotMatch(source, /E2E_LOGIN_UAT_OUTPUT_DIR: outputDir/);
+});
+
 test("runner contract owns port 18000 before health and awaits process-tree cleanup", () => {
   const source = fs.readFileSync(
     path.join(root, "scripts/run-iphone-safari-login-uat.mjs"),
@@ -201,7 +247,41 @@ test("persistent UAT logout verifies active generation envelope and landing", ()
   assert.match(source, /academy:auth-active-generation:v1/);
   assert.match(source, /academy:auth-tokens:v1:\$\{pointer\}/);
   assert.match(source, /activeEnvelope:\s*null/);
-  assert.match(source, /toHaveURL\(`\$\{BASE\}\/`/);
+  assert.match(source, /role === "staff" \? `\$\{BASE\}\/login` : `\$\{BASE\}\/`/);
+  assert.match(source, /toHaveURL\(logoutUrl/);
+});
+
+test("persistent UAT uses the mobile teacher drawer for staff logout", () => {
+  const source = fs.readFileSync(
+    path.join(root, "e2e/auth/iphone-safari-login.persistent-development.spec.ts"),
+    "utf8",
+  );
+  assert.match(source, /getByRole\("button", \{ name: "메뉴", exact: true \}\)/);
+  assert.match(source, /getByRole\("navigation", \{ name: "선생님 메뉴" \}\)/);
+  assert.match(source, /drawer\.getByRole\("button", \{ name: "로그아웃", exact: true \}\)/);
+  assert.doesNotMatch(source, /name: "프로필 메뉴"/);
+});
+
+test("persistent UAT clears the staff clock-in prerequisite without recording work", () => {
+  const source = fs.readFileSync(
+    path.join(root, "e2e/auth/iphone-safari-login.persistent-development.spec.ts"),
+    "utf8",
+  );
+  assert.match(source, /name: "오늘 어떤 방식으로 시작할까요\?"/);
+  assert.match(source, /expect\(clockInChoice\)\.toBeVisible\(\{ timeout: 45_000 \}\)/);
+  assert.match(source, /name: \/출근하지 않고 로그인\//);
+  assert.match(source, /if \(account\.role === "staff"\) \{\s*await continueStaffWithoutClockIn\(page\)/);
+});
+
+test("teacher PWA registration tolerates an unavailable blocked registration", () => {
+  const source = fs.readFileSync(
+    path.join(root, "src/app_teacher/shared/hooks/useTeacherSW.ts"),
+    "utf8",
+  );
+  assert.match(source, /const serviceWorker = navigator\.serviceWorker/);
+  assert.match(source, /if \(!serviceWorker\?\.register\) return/);
+  assert.match(source, /\.then\(\(registration\) => \{\s*if \(!registration\) return/);
+  assert.doesNotMatch(source, /navigator\.serviceWorker\s*\.register/);
 });
 
 test("Windows cleanup terminates a child listener process and closes its port", {

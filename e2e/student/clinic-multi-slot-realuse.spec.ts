@@ -23,6 +23,7 @@ const BASE = getBaseUrl("admin").replace(/\/+$/, "");
 const CODE = (process.env.E2E_CLINIC_MULTI_SLOT_TENANT_CODE || "").trim().toLowerCase();
 const PASSWORD = process.env.E2E_CLINIC_MULTI_SLOT_PASSWORD || "";
 const TEACHER_USER = process.env.E2E_CLINIC_MULTI_SLOT_TEACHER || "ymath-qa-teacher";
+const EXPECTED_TEACHER_ROLE = (process.env.E2E_CLINIC_MULTI_SLOT_EXPECT_TEACHER_ROLE || "").trim();
 const STUDENT_USER = process.env.E2E_CLINIC_MULTI_SLOT_STUDENT || "ymath-qa-student-01";
 const SECOND_STUDENT_NAME = process.env.E2E_CLINIC_MULTI_SLOT_SECOND_STUDENT || "검증학생 02";
 const MARKER = `[multi-slot-${Date.now()}]`;
@@ -208,6 +209,16 @@ test.describe.serial("[real-use] 클리닉 여러 시간대 예약", () => {
     const teacher = await login(request, TEACHER_USER);
     const student = await login(request, STUDENT_USER);
     created.teacherAccess = teacher.access;
+    if (EXPECTED_TEACHER_ROLE) {
+      const teacherMe = await expectApi<{ is_staff: boolean; tenantRole: string }>(
+        request,
+        "GET",
+        "/core/me/",
+        teacher.access,
+      );
+      expect(teacherMe.is_staff).toBe(true);
+      expect(teacherMe.tenantRole).toBe(EXPECTED_TEACHER_ROLE);
+    }
 
     const sessionSpecs = [
       { title: `${MARKER} 17시`, start_time: "17:00:00", allow_multi_slot_booking: true },

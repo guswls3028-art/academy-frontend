@@ -131,6 +131,9 @@ API와 성공 후 세션 처리를 소유한다. 비밀번호 원문, 토큰, �
 - access 401에서 refresh가 실패하면 토큰을 한 번만 정리하고 `/login`으로 이동한다.
   현재 pathname/query/hash는 `session_return_path`에 보관해 재로그인 성공 후
   원래 화면으로 복귀하며, 로그인 화면은 `session_expired` 안내를 표시한다.
+  localhost·프리뷰처럼 host만으로 테넌트를 확정할 수 없는 환경은 만료 처리 직전의
+  정확한 테넌트 코드를 보존해 `/login/{tenantCode}`로 이동한다. 토큰 정리 때문에
+  개발용 기본 테넌트로 바뀌거나 `tenant-required` 오류 화면에 고립되면 안 된다.
 - refresh가 200을 반환했더라도 재시도한 원 요청이 다시 401이면 stale 세션으로
   간주한다. 회전된 토큰을 남기거나 요청마다 refresh를 반복하지 않고 같은 세션
   종료 경계로 닫는다.
@@ -194,7 +197,14 @@ pnpm test:e2e:iphone-safari-uat
 runner는 두 URL이 loopback이고 tenant가 `qa-ymath-realuse-*`, 계정이
 student·parent·staff 각 10명일 때만 Chromium·WebKit 390px에서 30계정 전부의
 로그인 → `/core/me/` 역할 landing → UI 로그아웃과 access·refresh 제거를 확인한다.
-검수 대상 exact SHA의 untracked 포함 깨끗한 checkout만 허용한다. runner가 exact
+staff 로그아웃은 관리자 헤더의 프로필 메뉴가 아니라 `/workspace/mobile`의
+`선생님 메뉴` 드로어에서 실행해 실제 강사 모바일 화면 계약을 검증한다.
+조교 출근 선택창이 표시되면 `출근하지 않고 로그인`으로 근무시간을 만들지 않은 채
+로그인 완료 상태를 확인한 뒤 같은 드로어에서 로그아웃하고 `/login` 도착을 확인한다.
+학생·학부모의 학생 앱 로그아웃은 `/` 도착을 확인한다.
+검수 대상 exact SHA의 untracked 포함 깨끗한 checkout만 허용한다. exact SHA에 추적된
+`.env.development`·`.env.production`은 허용하지만, Git에 추적되지 않은 `.env*` 로컬
+override가 하나라도 남아 있으면 runner가 실패 폐쇄한다. runner가 exact
 persistent-development instance id·backend SHA·candidate digest와
 `apps.api.config.settings.development`, `academy_api_development`,
 `academy_api_development_app`, `academy-development-artifacts`,
@@ -207,6 +217,10 @@ listener PID가 새로 띄운 AWS SSM process tree에 속할 때만 tunnel 소�
 proxy를 동일하게 고정하며 `reuseExistingServer=false`인 전용 5174 서버를 소유한다. trace·video·screenshot은
 항상 끄고 임시 결과와 표준출력에 일회성 비밀번호가 섞였는지도 검사한다. 필수 환경이
 하나라도 없으면 skip이 아니라 nonzero로 종료한다.
+Windows runner는 `pnpm.cmd` shim을 직접 spawn하지 않고 `ComSpec`을 통해 Playwright를
+시작하며, child-process 시작 오류를 테스트 실패와 구분되는 명시 오류로 반환한다.
+합성 로그인 manifest는 Playwright가 실행 시작 시 정리하는 결과 디렉터리의 부모에
+별도 보관해 Chromium·WebKit 모두 같은 검증 입력을 읽도록 한다.
 실제 실행은 backend/frontend PR 병합과 persistent-development 후보 배포 뒤에만
 허용한다. tenant code는 setup 전에 runner가 고정한다. runtime preflight가 실패하면
 destructive cleanup을 실행하지 않는다. preflight 성공 뒤 setup SSM dispatch 직전에
