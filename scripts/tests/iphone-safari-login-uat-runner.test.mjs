@@ -271,6 +271,17 @@ test("persistent UAT clears the staff clock-in prerequisite without recording wo
   assert.match(source, /if \(account\.role === "staff"\) \{\s*await continueStaffWithoutClockIn\(page\)/);
 });
 
+test("teacher PWA registration tolerates an unavailable blocked registration", () => {
+  const source = fs.readFileSync(
+    path.join(root, "src/app_teacher/shared/hooks/useTeacherSW.ts"),
+    "utf8",
+  );
+  assert.match(source, /const serviceWorker = navigator\.serviceWorker/);
+  assert.match(source, /if \(!serviceWorker\?\.register\) return/);
+  assert.match(source, /\.then\(\(registration\) => \{\s*if \(!registration\) return/);
+  assert.doesNotMatch(source, /navigator\.serviceWorker\s*\.register/);
+});
+
 test("Windows cleanup terminates a child listener process and closes its port", {
   skip: process.platform !== "win32",
 }, async () => {

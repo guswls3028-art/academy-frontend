@@ -28,7 +28,8 @@ type TeacherInstallMeta = {
 
 export function useTeacherSW() {
   useEffect(() => {
-    if (!("serviceWorker" in navigator)) return;
+    const serviceWorker = navigator.serviceWorker;
+    if (!serviceWorker?.register) return;
 
     const installMeta = getTeacherInstallMeta();
 
@@ -50,9 +51,10 @@ export function useTeacherSW() {
     });
 
     // SW 등록
-    navigator.serviceWorker
+    serviceWorker
       .register("/teacher-sw.js", { scope: WORKSPACE_PATHS.mobile })
       .then((registration) => {
+        if (!registration) return;
         // 업데이트 발견 시
         registration.addEventListener("updatefound", () => {
           const newWorker = registration.installing;
@@ -61,7 +63,7 @@ export function useTeacherSW() {
           newWorker.addEventListener("statechange", () => {
             if (
               newWorker.state === "activated" &&
-              navigator.serviceWorker.controller
+              serviceWorker.controller
             ) {
               // 새 SW 활성화됨 — VersionChecker가 이미 reload 처리하므로
               // 여기서는 추가 reload 하지 않음.

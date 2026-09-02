@@ -30,6 +30,10 @@
 `/teacher`로 보존한다. 실제 `start_url`과 `scope`는 `/workspace/mobile`이다.
 `/teacher-manifest.json`, `/teacher-sw.js`, `/teacher-app/*` 같은 자산·백엔드
 계약 이름은 브라우저 라우트가 아니므로 이 규칙의 변경 대상이 아니다.
+브라우저가 Service Worker를 지원하지 않거나 자동화·보안 정책으로 등록 결과를
+제공하지 않으면 모바일 업무 화면은 등록만 건너뛰고 일반 SPA로 계속 동작한다.
+이 비지원 경계에서 빈 registration을 업데이트 대상으로 사용해 브라우저 오류를
+만들면 안 된다.
 
 ## 구현 경계
 
