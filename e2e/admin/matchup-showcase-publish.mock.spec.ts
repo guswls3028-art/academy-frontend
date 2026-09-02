@@ -72,7 +72,7 @@ test("showcase status failure blocks publish until an explicit retry succeeds", 
     preview_url: "/api/v1/landing-public/matchup-showcase/501/preview/?tenant=tchul",
   };
 
-  await page.context().route("**/api/v1/**", async (route) => {
+  const handleApi = async (route: Route) => {
     const request = route.request();
     const pathname = new URL(request.url()).pathname;
     if (request.method() === "OPTIONS") {
@@ -133,7 +133,9 @@ test("showcase status failure blocks publish until an explicit retry succeeds", 
       return;
     }
     await fulfillJson(route, { count: 0, results: [] });
-  });
+  };
+  await page.route("**/api/v1/**", handleApi);
+  await page.context().route("**/api/v1/**", handleApi);
 
   await page.setViewportSize({ width: 1366, height: 900 });
   await page.goto(`${BASE}/workspace/storage/hit-reports`, { waitUntil: "domcontentloaded", timeout: 120_000 });
