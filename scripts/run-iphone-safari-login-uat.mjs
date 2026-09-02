@@ -514,6 +514,7 @@ async function main() {
   const { instanceId, releaseId } = selectActiveDevelopmentInstance(profile, backendSha);
   const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), "academy-iphone-login-uat-"));
   const manifestPath = path.join(outputDir, "manifest.json");
+  const playwrightOutputDir = path.join(outputDir, "playwright");
   let tunnel = null;
   let tunnelPids = [];
   let testExit = 1;
@@ -563,7 +564,7 @@ async function main() {
           E2E_BASE_URL: FRONTEND_ORIGIN,
           E2E_API_URL: API_ORIGIN,
           E2E_LOGIN_UAT_MANIFEST: manifestPath,
-          E2E_LOGIN_UAT_OUTPUT_DIR: outputDir,
+          E2E_LOGIN_UAT_OUTPUT_DIR: playwrightOutputDir,
           YMATH_REALUSE_SCENARIO_PASSWORD: secret,
           VITE_DEV_PROXY_TARGET: API_ORIGIN,
         },

@@ -211,6 +211,8 @@ proxy를 동일하게 고정하며 `reuseExistingServer=false`인 전용 5174 �
 하나라도 없으면 skip이 아니라 nonzero로 종료한다.
 Windows runner는 `pnpm.cmd` shim을 직접 spawn하지 않고 `ComSpec`을 통해 Playwright를
 시작하며, child-process 시작 오류를 테스트 실패와 구분되는 명시 오류로 반환한다.
+합성 로그인 manifest는 Playwright가 실행 시작 시 정리하는 결과 디렉터리의 부모에
+별도 보관해 Chromium·WebKit 모두 같은 검증 입력을 읽도록 한다.
 실제 실행은 backend/frontend PR 병합과 persistent-development 후보 배포 뒤에만
 허용한다. tenant code는 setup 전에 runner가 고정한다. runtime preflight가 실패하면
 destructive cleanup을 실행하지 않는다. preflight 성공 뒤 setup SSM dispatch 직전에

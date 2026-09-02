@@ -198,6 +198,17 @@ test("Windows pnpm invocation uses cmd instead of spawning a cmd shim directly",
   );
 });
 
+test("login manifest stays outside the Playwright-cleaned output directory", () => {
+  const source = fs.readFileSync(
+    path.join(root, "scripts/run-iphone-safari-login-uat.mjs"),
+    "utf8",
+  );
+  assert.match(source, /const manifestPath = path\.join\(outputDir, "manifest\.json"\)/);
+  assert.match(source, /const playwrightOutputDir = path\.join\(outputDir, "playwright"\)/);
+  assert.match(source, /E2E_LOGIN_UAT_OUTPUT_DIR: playwrightOutputDir/);
+  assert.doesNotMatch(source, /E2E_LOGIN_UAT_OUTPUT_DIR: outputDir/);
+});
+
 test("runner contract owns port 18000 before health and awaits process-tree cleanup", () => {
   const source = fs.readFileSync(
     path.join(root, "scripts/run-iphone-safari-login-uat.mjs"),
