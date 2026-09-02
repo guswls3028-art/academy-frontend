@@ -279,8 +279,16 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
     const tenantCode = "qa-ymath-realuse-session-expiry";
     const access = createE2eJwt();
     const programTenantHeaders: string[] = [];
+    let mainNavigationCount = 0;
+
+    page.on("framenavigated", (frame) => {
+      if (frame === page.mainFrame()) mainNavigationCount += 1;
+    });
 
     await page.addInitScript(({ token, code, pointerKey, generationPrefix }) => {
+      const seedKey = "e2e.session-expiry.seeded";
+      if (sessionStorage.getItem(seedKey) === "1") return;
+      sessionStorage.setItem(seedKey, "1");
       const generation = "local-tenant-expiry-generation";
       localStorage.setItem(`${generationPrefix}${generation}`, JSON.stringify({
         access: token,
@@ -338,6 +346,7 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
     });
 
     await page.goto(`${BASE}/login/${tenantCode}`);
+    await expect.poll(() => mainNavigationCount).toBeGreaterThanOrEqual(2);
     await expect(page).toHaveURL(`${BASE}/login/${tenantCode}`);
     await expect(page.getByText("세션이 만료되었습니다. 다시 로그인해 주세요.")).toBeVisible();
     expect(programTenantHeaders.length).toBeGreaterThanOrEqual(2);
