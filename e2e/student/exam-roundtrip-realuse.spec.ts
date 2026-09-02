@@ -30,6 +30,7 @@ const SESSION_ID = Number(process.env.E2E_EXAM_SESSION_ID || 0);
 const PRIMARY_STUDENT_ID = Number(process.env.E2E_EXAM_PRIMARY_STUDENT_ID || 0);
 const PEER_STUDENT_ID = Number(process.env.E2E_EXAM_PEER_STUDENT_ID || 0);
 const MARKER = `[qa-exam-${Date.now()}]`;
+const EXAM_TITLE = `${MARKER} 학생 시험 roundtrip`;
 
 type Tokens = { access: string; refresh: string };
 type ApiResult<T> = { status: number; body: T };
@@ -204,6 +205,7 @@ test.describe.serial("[real-use] 학생 온라인 시험 roundtrip", () => {
     const primary = await login(request, PRIMARY_USER);
     const peer = await login(request, PEER_USER);
     created.adminAccess = admin.access;
+    const strict = attachStrictBrowserGuards(page);
 
     const enrollmentBody = await expectApi<unknown>(
       request,
@@ -217,16 +219,37 @@ test.describe.serial("[real-use] 학생 온라인 시험 roundtrip", () => {
     expect(primaryEnrollment, "primary enrollment").toBeTruthy();
     expect(peerEnrollment, "peer enrollment").toBeTruthy();
 
-    const exam = await expectApi<{ id: number }>(request, "POST", "/exams/", admin.access, {
-      title: `${MARKER} 학생 시험 roundtrip`,
-      description: "격리 QA 학생 제출/채점/결과 확인",
-      exam_type: "regular",
-      session_id: SESSION_ID,
-      pass_score: 50,
-      max_score: 100,
-      answer_visibility: "hidden",
-    });
-    created.examId = Number(exam.id);
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await gotoAndSettle(page, `${BASE}/login/${CODE}`, { timeout: 30_000 });
+    await page.getByTestId("login-username").fill(ADMIN_USER);
+    await page.getByTestId("login-password").fill(PASSWORD);
+    await page.getByTestId("login-submit").click();
+    await expect(page).toHaveURL(/\/workspace(?:\/|$)/, { timeout: 30_000 });
+    await acknowledgeFirstLoginGuideIfVisible(page);
+    await gotoAndSettle(
+      page,
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams`,
+      { timeout: 30_000 },
+    );
+    await page.getByRole("button", { name: "시험 추가", exact: true }).first().click();
+    await page.getByText("빠르게 여러 개 만들기", { exact: true }).click();
+    await page.getByLabel("시험 1 제목").fill(EXAM_TITLE);
+    await page.getByLabel("시험 1 만점").fill("100");
+    await page.getByLabel("시험 1 커트라인").fill("50");
+    const createResponse = page.waitForResponse((response) => (
+      response.request().method() === "POST"
+      && new URL(response.url()).pathname.endsWith("/api/v1/exams/")
+    ));
+    await page.getByRole("button", { name: "1개 시험 만들기", exact: true }).click();
+    const createdExamResponse = await createResponse;
+    expect(createdExamResponse.status()).toBe(201);
+    created.examId = Number((await createdExamResponse.json() as { id: number }).id);
+    expect(created.examId).toBeGreaterThan(0);
+    await expect(page.getByText(EXAM_TITLE).first()).toBeVisible({ timeout: 20_000 });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await waitForRenderSettled(page, { timeout: 20_000 });
+    await expect(page.getByRole("heading", { name: EXAM_TITLE, exact: true })).toBeVisible();
+    expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
 
     const questions = await expectApi<QuestionRow[]>(
       request,
@@ -263,12 +286,15 @@ test.describe.serial("[real-use] 학생 온라인 시험 roundtrip", () => {
     const peerResult = await waitForResult(request, peer.access, created.examId);
     expect(peerResult.total_score).toBe(20);
 
+    await page.evaluate(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+    });
     await seedBrowser(page, primary);
-    const strict = attachStrictBrowserGuards(page);
     await page.setViewportSize({ width: 390, height: 844 });
     await gotoAndSettle(page, `${BASE}/student/exams/${created.examId}/submit`, { timeout: 30_000 });
     await acknowledgeFirstLoginGuideIfVisible(page);
-    await expect(page.getByText(`${MARKER} 학생 시험 roundtrip`)).toBeVisible();
+    await expect(page.getByText(EXAM_TITLE)).toBeVisible();
     for (const [index, answer] of ["1", "4", "3", "4", "1"].entries()) {
       await page.getByLabel(`${index + 1}번 답`).fill(answer);
     }
@@ -300,12 +326,13 @@ test.describe.serial("[real-use] 학생 온라인 시험 roundtrip", () => {
 
     await page.setViewportSize({ width: 1366, height: 900 });
     await gotoAndSettle(page, `${BASE}/student/grades`, { timeout: 30_000 });
-    await expect(page.getByText(`${MARKER} 학생 시험 roundtrip`)).toBeVisible();
-    await expect(page.getByTestId("grade-wrong-summary")).toContainText("오답 2문항");
-    await expect(page.getByText("1/2등")).toBeVisible();
+    const gradeCard = page.getByRole("link").filter({ hasText: EXAM_TITLE }).first();
+    await expect(gradeCard).toBeVisible();
+    await expect(gradeCard.getByTestId("grade-wrong-summary")).toContainText("오답 2문항");
+    await expect(gradeCard.getByText("1/2등")).toBeVisible();
     await page.reload({ waitUntil: "domcontentloaded" });
     await waitForRenderSettled(page, { timeout: 20_000 });
-    await expect(page.getByText(`${MARKER} 학생 시험 roundtrip`)).toBeVisible();
+    await expect(gradeCard).toBeVisible();
     expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
 
     const logBody = await expectApi<{ count: number }>(
