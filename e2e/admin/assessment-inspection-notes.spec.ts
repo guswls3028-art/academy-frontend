@@ -28,6 +28,7 @@ async function installApi(
     failCorrection?: boolean;
     failScoreRefreshAfterCorrection?: boolean;
     passedPendingOnly?: boolean;
+    explicitTargetOnly?: boolean;
   } = {},
 ) {
   const baseUrl = getBaseUrl("admin");
@@ -198,6 +199,41 @@ async function installApi(
             progress_status: "in_progress",
             correction_pending_count: 1,
             name_highlight_followup_required: true,
+          }],
+        });
+        return;
+      }
+      if (options.explicitTargetOnly) {
+        await fulfill({
+          meta: {
+            session_title: "4차시",
+            lecture_title: "중등 수학 심화",
+            exams: [
+              { exam_id: 3101, title: "식물의 호흡과 광합성", pass_score: 70, max_score: 100, display_order: 1, questions: [] },
+              { exam_id: 3102, title: "순환", pass_score: 70, max_score: 100, display_order: 2, questions: [] },
+            ],
+            homeworks: [],
+          },
+          rows: [{
+            enrollment_id: 9101,
+            student_id: 7101,
+            student_name: "윤지용 학생",
+            exams: [{
+              exam_id: 3101,
+              title: "식물의 호흡과 광합성",
+              pass_score: 70,
+              block: { score: 85, max_score: 100, passed: true, final_pass: true, achievement: "PASS", clinic_required: false, meta: null },
+              items: [],
+              attempt_count: 1,
+              attempts: [],
+            }],
+            homeworks: [],
+            updated_at: "2026-07-29T16:30:00+09:00",
+            clinic_required: false,
+            progress_completed: true,
+            progress_status: "completed",
+            correction_pending_count: 0,
+            name_highlight_followup_required: false,
           }],
         });
         return;
@@ -597,6 +633,28 @@ test.describe("시험·과제 수동 검사 상태", () => {
     await row.locator('[data-col-type="name"]').click();
     const drawer = page.locator(".student-scores-drawer");
     await expect(drawer.getByText(/보완 필요/)).toBeVisible();
+  });
+
+  test("공유시험 비대상 시험은 학생 이수율과 클리닉 판정에 포함하지 않는다", async ({ page }) => {
+    await installApi(page, { explicitTargetOnly: true });
+    const baseUrl = getBaseUrl("admin");
+    await page.goto(
+      `${baseUrl}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "load", timeout: 45_000 },
+    );
+
+    const row = page.locator('tbody tr[role="button"]').first();
+    await row.locator('[data-col-type="name"]').click();
+    const drawer = page.locator(".student-scores-drawer");
+
+    await expect(drawer.getByText("1/1 이수", { exact: false })).toBeVisible();
+    await expect(drawer.getByText("식물의 호흡과 광합성", { exact: true })).toBeVisible();
+    await expect(drawer.getByText("순환", { exact: true })).toHaveCount(0);
+    await expect(drawer.getByText("클리닉 대상", { exact: true })).toHaveCount(0);
+
+    await page.reload({ waitUntil: "load" });
+    await page.locator('tbody tr[role="button"]').first().locator('[data-col-type="name"]').click();
+    await expect(page.locator(".student-scores-drawer").getByText("1/1 이수", { exact: false })).toBeVisible();
   });
 
   test("점수 없는 과제도 완료/미완료와 비고를 저장하고 다시 불러온다", async ({ page }, testInfo) => {
