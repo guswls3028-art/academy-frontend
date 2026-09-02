@@ -128,9 +128,27 @@ export function resetSessionEnding() {
   isSessionEnding = false;
 }
 
+function getExpiredSessionLoginPath(): string {
+  try {
+    const hostname = window.location.hostname.trim().toLowerCase();
+    const requiresExplicitTenantPath =
+      hostname === "localhost"
+      || hostname === "127.0.0.1"
+      || hostname.endsWith(".pages.dev")
+      || hostname.endsWith(".trycloudflare.com");
+    if (!requiresExplicitTenantPath) return "/login";
+
+    const tenantCode = getTenantCodeForApiRequest()?.trim();
+    return tenantCode ? `/login/${encodeURIComponent(tenantCode)}` : "/login";
+  } catch {
+    return "/login";
+  }
+}
+
 function endExpiredSession(expectedGeneration?: string | null) {
   const supportWindow = isStudentSupportWindow();
   if (!supportWindow && isSessionEnding) return;
+  const loginPath = getExpiredSessionLoginPath();
   clearTokens(expectedGeneration);
   if (supportWindow) {
     window.location.href = "/support-preview-ended";
@@ -142,7 +160,7 @@ function endExpiredSession(expectedGeneration?: string | null) {
     setSessionItem("session_expired", "1");
   } catch { /* ignore */ }
   saveReturnPath();
-  window.location.href = "/login";
+  window.location.href = loginPath;
 }
 
 function shouldSkipAuth(url?: string, config?: ApiRequestConfig) {

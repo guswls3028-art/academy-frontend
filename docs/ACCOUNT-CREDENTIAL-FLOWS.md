@@ -131,6 +131,9 @@ API와 성공 후 세션 처리를 소유한다. 비밀번호 원문, 토큰, �
 - access 401에서 refresh가 실패하면 토큰을 한 번만 정리하고 `/login`으로 이동한다.
   현재 pathname/query/hash는 `session_return_path`에 보관해 재로그인 성공 후
   원래 화면으로 복귀하며, 로그인 화면은 `session_expired` 안내를 표시한다.
+  localhost·프리뷰처럼 host만으로 테넌트를 확정할 수 없는 환경은 만료 처리 직전의
+  정확한 테넌트 코드를 보존해 `/login/{tenantCode}`로 이동한다. 토큰 정리 때문에
+  개발용 기본 테넌트로 바뀌거나 `tenant-required` 오류 화면에 고립되면 안 된다.
 - refresh가 200을 반환했더라도 재시도한 원 요청이 다시 401이면 stale 세션으로
   간주한다. 회전된 토큰을 남기거나 요청마다 refresh를 반복하지 않고 같은 세션
   종료 경계로 닫는다.
