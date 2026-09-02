@@ -16,7 +16,7 @@ async function fulfillJson(route: Route, json: unknown, status = 200) {
   await route.fulfill({ status, contentType: "application/json", json });
 }
 
-test("old report buttons publish the real public showcase exactly once", async ({ page }) => {
+test("showcase status failure blocks publish until an explicit retry succeeds", async ({ page }) => {
   const access = localJwt();
   await page.addInitScript(({ token }) => {
     localStorage.setItem("access", token);
@@ -26,6 +26,8 @@ test("old report buttons publish the real public showcase exactly once", async (
   }, { token: access });
 
   let publishCalls = 0;
+  let showcaseListCalls = 0;
+  let showcaseStatusAvailable = false;
   let legacyToggleCalls = 0;
   let published = false;
   const report = {
@@ -70,7 +72,7 @@ test("old report buttons publish the real public showcase exactly once", async (
     preview_url: "/api/v1/landing-public/matchup-showcase/501/preview/?tenant=tchul",
   };
 
-  await page.route("**/api/v1/**", async (route) => {
+  const handleApi = async (route: Route) => {
     const request = route.request();
     const pathname = new URL(request.url()).pathname;
     if (request.method() === "OPTIONS") {
@@ -115,6 +117,13 @@ test("old report buttons publish the real public showcase exactly once", async (
       return;
     }
     if (pathname.endsWith("/landing-public/matchup-showcase/") && request.method() === "GET") {
+      showcaseListCalls += 1;
+      // Keep every initial read failed regardless of dev-only remounts. The test
+      // opens the mock boundary only immediately before the explicit retry.
+      if (!showcaseStatusAvailable) {
+        await fulfillJson(route, { detail: "temporary unavailable" }, 503);
+        return;
+      }
       await fulfillJson(route, { count: published ? 1 : 0, results: published ? [card] : [] });
       return;
     }
@@ -124,14 +133,25 @@ test("old report buttons publish the real public showcase exactly once", async (
       return;
     }
     await fulfillJson(route, { count: 0, results: [] });
-  });
+  };
+  await page.route("**/api/v1/**", handleApi);
+  await page.context().route("**/api/v1/**", handleApi);
 
   await page.setViewportSize({ width: 1366, height: 900 });
   await page.goto(`${BASE}/workspace/storage/hit-reports`, { waitUntil: "domcontentloaded", timeout: 120_000 });
 
   await expect(page.getByRole("heading", { name: /적중 보고서/ })).toBeVisible();
   const action = page.getByTestId("hit-report-showcase-action");
+  await expect(page.getByRole("alert")).toContainText("자료실 공개 상태를 확인하지 못했습니다");
+  await expect(action).toBeDisabled();
+  expect(publishCalls).toBe(0);
+
+  const failedListCalls = showcaseListCalls;
+  showcaseStatusAvailable = true;
+  await page.getByRole("button", { name: "자료실 상태 다시 확인" }).click();
+  await expect.poll(() => showcaseListCalls).toBeGreaterThan(failedListCalls);
   await expect(action).toContainText("자료실 게시");
+  await expect(action).toBeEnabled();
   await expect(action).toHaveAttribute("data-showcase-on", "false");
   await action.click();
 
@@ -140,6 +160,15 @@ test("old report buttons publish the real public showcase exactly once", async (
   await expect(action).toHaveAttribute("data-showcase-on", "true");
   await expect(page.getByTestId("hit-report-board-preview-strip")).toContainText("1건 게시 중");
   expect(legacyToggleCalls).toBe(0);
+
+  const mobilePage = await page.context().newPage();
+  await mobilePage.setViewportSize({ width: 390, height: 844 });
+  await mobilePage.goto(`${BASE}/workspace/storage/hit-reports`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+  const mobileAction = mobilePage.getByTestId("hit-report-showcase-action");
+  await expect(mobileAction).toBeVisible();
+  await expect(mobileAction).toBeEnabled();
+  expect(await mobilePage.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+  await mobilePage.close();
 
   await action.click();
   await expect(page).toHaveURL(/\/landing\/matchup-board\?manage=1$/);

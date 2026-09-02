@@ -7,7 +7,7 @@
 // draft 인지 + 클릭 시 매치업 페이지 + 편집기 자동 오픈.
 /* eslint-disable no-restricted-syntax */
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router";
 import { FileText, Filter, RefreshCw, AlertTriangle } from "lucide-react";
 import { ICON, Button } from "@/shared/ui/ds";
@@ -30,6 +30,7 @@ import HitReportPreviewModal from "../components/matchup/HitReportPreviewModal";
 
 type Tab = "mine" | "all";
 type StatusFilter = "" | "draft" | "submitted";
+type ShowcaseLoadState = "loading" | "ready" | "error";
 
 export default function HitReportListPage() {
   const navigate = useNavigate();
@@ -47,6 +48,8 @@ export default function HitReportListPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showcaseByReport, setShowcaseByReport] = useState<Map<number, number>>(new Map());
+  const [showcaseLoadState, setShowcaseLoadState] = useState<ShowcaseLoadState>("loading");
+  const showcaseLoadRequestRef = useRef(0);
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
@@ -72,22 +75,38 @@ export default function HitReportListPage() {
   useEffect(() => { void load(); }, [load]);
 
   const loadShowcases = useCallback(async () => {
-    if (!isAcademyAdmin) return;
-    const resp = await fetchMatchupShowcaseList();
-    setShowcaseByReport(new Map(
-      resp.results
-        .filter(isActiveMatchupShowcase)
-        .flatMap((card) => card.hit_report_id_ref ? [[card.hit_report_id_ref, card.id] as const] : []),
-    ));
+    const requestId = ++showcaseLoadRequestRef.current;
+    if (!isAcademyAdmin) {
+      setShowcaseLoadState("ready");
+      return;
+    }
+    setShowcaseLoadState("loading");
+    try {
+      const resp = await fetchMatchupShowcaseList();
+      if (showcaseLoadRequestRef.current !== requestId) return;
+      setShowcaseByReport(new Map(
+        resp.results
+          .filter(isActiveMatchupShowcase)
+          .flatMap((card) => card.hit_report_id_ref ? [[card.hit_report_id_ref, card.id] as const] : []),
+      ));
+      setShowcaseLoadState("ready");
+    } catch {
+      if (showcaseLoadRequestRef.current !== requestId) return;
+      setShowcaseLoadState("error");
+    }
   }, [isAcademyAdmin]);
 
   // staff 목록에는 숨김/만료 자료도 섞이므로 현재 공개 중인 스냅샷만 chip에 반영한다.
   useEffect(() => {
-    void loadShowcases().catch(() => {});
+    void loadShowcases();
   }, [loadShowcases]);
 
   const handleShowcasePublish = useCallback(async (report: HitReportListItem) => {
     if (togglingId !== null) return;
+    if (showcaseLoadState !== "ready") {
+      feedback.error("자료실 공개 상태를 먼저 다시 확인해 주세요.");
+      return;
+    }
     if (showcaseByReport.has(report.id)) {
       navigate("/landing/matchup-board?manage=1");
       return;
@@ -112,7 +131,7 @@ export default function HitReportListPage() {
     } finally {
       setTogglingId(null);
     }
-  }, [navigate, showcaseByReport, togglingId]);
+  }, [navigate, showcaseByReport, showcaseLoadState, togglingId]);
 
   // 1클릭 공유 링크 복사 (#67, 2026-05-12) — 학원장/선생이 학생/학부모 카톡 share용.
   // backend: 없으면 generate, 있으면 그대로 반환. clipboard에 절대 URL 복사.
@@ -264,9 +283,36 @@ export default function HitReportListPage() {
         </div>
       </div>
 
-      {/* 학원장 포탈 widget (2026-05-11) — 작성/관리(admin) ↔ 학원 게시판(landing) 단일 흐름.
-          공개 자료실 게시 후 자동 reload, 새 게시 카드 ✨ pulse 3초. */}
-      {isAcademyAdmin && <HitReportBoardPreviewStrip />}
+        {/* 학원장 포탈 widget (2026-05-11) — 작성/관리(admin) ↔ 학원 게시판(landing) 단일 흐름.
+            공개 자료실 게시 후 자동 reload, 새 게시 카드 ✨ pulse 3초. */}
+        {isAcademyAdmin && <HitReportBoardPreviewStrip />}
+
+        {isAcademyAdmin && showcaseLoadState === "error" && (
+          <div
+            role="alert"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              flexWrap: "wrap",
+              padding: "10px 14px",
+              border: "1px solid var(--color-status-warning-border, #f59e0b)",
+              borderRadius: 10,
+              background: "var(--color-status-warning-bg, #fffbeb)",
+              color: "var(--color-text-primary)",
+              fontSize: 13,
+            }}
+          >
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <AlertTriangle size={ICON.sm} aria-hidden />
+              자료실 공개 상태를 확인하지 못했습니다. 중복 게시를 막기 위해 게시 기능을 잠갔습니다.
+            </span>
+            <Button intent="secondary" size="sm" onClick={() => void loadShowcases()}>
+              자료실 상태 다시 확인
+            </Button>
+          </div>
+        )}
 
       {/* Draft alert banner — 학원장 시각 인지 자극 */}
       {draftCount > 0 && (
@@ -353,7 +399,7 @@ export default function HitReportListPage() {
                 showAuthor={tab === "all"}
                 onClick={() => handleRowClick(r)}
                 showcaseOn={showcaseByReport.has(r.id)}
-                showcaseToggling={togglingId === r.id}
+                showcaseToggling={togglingId === r.id || showcaseLoadState !== "ready"}
                 onShowcaseToggle={isAcademyAdmin ? () => handleShowcasePublish(r) : undefined}
                 onShareCopy={() => handleShareCopy(r.id)}
                 shareLoading={sharingId === r.id}
