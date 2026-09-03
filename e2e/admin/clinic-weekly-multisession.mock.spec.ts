@@ -865,6 +865,35 @@ test("빈 클리닉도 일정 카드에서 수정하고 최종 확인한 뒤에�
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
+test("운영 화면은 빈 세션 선택을 유지해 첫 학생을 desktop과 390px에서 추가한다", async ({ page }) => {
+  await seed(page);
+  await installApi(page, undefined, { participants: [], targets: [] });
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await gotoAndSettle(
+    page,
+    `${BASE}/workspace/clinic/operations?date=${saturday}&session=702`,
+    { timeout: 45_000 },
+  );
+
+  await expect(page).toHaveURL(new RegExp(`session=702`));
+  const desktopAddButton = page.getByRole("button", { name: "학생 추가", exact: true });
+  await expect(desktopAddButton).toBeVisible();
+  await expect(page.getByRole("button", { name: "학생 추가하기", exact: true })).toBeVisible();
+  await desktopAddButton.click();
+  const desktopDialog = page.getByRole("dialog", { name: "대상자 선택" });
+  await expect(desktopDialog).toBeVisible();
+  await desktopDialog.getByRole("button", { name: "대화상자 종료" }).click();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(new RegExp(`session=702`));
+  const mobileAddButton = page.getByRole("button", { name: "학생 추가하기", exact: true });
+  await expect(mobileAddButton).toBeVisible();
+  await mobileAddButton.click();
+  await expect(page.getByRole("dialog", { name: "대상자 선택" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
 test("예약자가 있는 일정 수정은 운영 화면의 수정 알림으로 인계한다", async ({ page }) => {
   const state: ScheduleState = {
     createPayloads: [],
