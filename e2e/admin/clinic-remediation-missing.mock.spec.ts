@@ -176,7 +176,7 @@ test("여러 강의를 듣는 클리닉 대상자는 학생 한 행에 아바타
     if (path === "/core/me/") {
       return json({ id: 12, username: "admin", name: "관리자", is_staff: true, is_superuser: true, tenantRole: "admin", must_change_password: false });
     }
-    if (path === "/clinic/sessions/" && method === "GET") {
+    if ((path === "/clinic/sessions/" || path === "/clinic/sessions/tree/") && method === "GET") {
       return json([{
         id: 7001,
         date,
@@ -213,6 +213,7 @@ test("여러 강의를 듣는 클리닉 대상자는 학생 한 행에 아바타
         },
       ]);
     }
+    if (path === "/messaging/auto-send/" && method === "GET") return json([]);
     if (path === "/clinic/participants/" && method === "GET") return json({ count: 0, next: null, previous: null, results: [] });
     if (path === "/lectures/sections/" || path === "/staffs/currently-working/") return json([]);
     if (path.startsWith("/community/") || path.startsWith("/student/notifications/")) return json({ count: 0, results: [] });
@@ -223,9 +224,12 @@ test("여러 강의를 듣는 클리닉 대상자는 학생 한 행에 아바타
   await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
   const sessionCard = page.getByRole("article").filter({ hasText: "중복 행 회귀 검증" });
   await expect(sessionCard).toBeVisible({ timeout: 30_000 });
-  await sessionCard.getByRole("button", { name: "학생 추가", exact: true }).click();
+  await sessionCard.getByRole("button", { name: "학생 관리", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/workspace/clinic/operations\\?scope=day&date=${date}&session=7001$`));
+  await page.getByRole("button", { name: "학생 추가", exact: true }).click();
 
-  const targetGrid = page.getByRole("grid", { name: "미통과 대상자 명단" });
+  const targetDialog = page.getByRole("dialog").filter({ hasText: "대상자 선택" });
+  const targetGrid = targetDialog.getByRole("grid", { name: "미통과 대상자 명단" });
   const studentRows = targetGrid.locator("tbody tr").filter({ hasText: "유현진" });
   await expect(studentRows).toHaveCount(1);
   await expect(studentRows.locator(".student-name-chip__avatar img")).toHaveAttribute("src", /^data:image\/gif/);
@@ -236,10 +240,11 @@ test("여러 강의를 듣는 클리닉 대상자는 학생 한 행에 아바타
   if (process.env.CAPTURE_CLINIC_TARGET === "1") {
     await page.screenshot({ path: testInfo.outputPath("clinic-target-student-row-1366.png") });
   }
+  await targetDialog.getByRole("button", { name: "취소", exact: true }).click();
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(sessionCard).toBeVisible({ timeout: 30_000 });
-  await sessionCard.getByRole("button", { name: "학생 추가", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/workspace/clinic/operations\\?scope=day&date=${date}&session=7001$`));
+  await page.getByRole("button", { name: "학생 추가하기", exact: true }).click();
   await expect(studentRows).toHaveCount(1);
   await expect(studentRows.locator("[data-lecture-chip]")).toHaveText(["A", "B"]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
