@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/community/pages/NoticeAdminPage.tsx
 // 공지사항 관리 — QnA 탭 참고: 좌측 폴더 트리(전체/강의/차시 공지) + 우측 목록·상세
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCommunityScope } from "../context/useCommunityScope";
@@ -12,6 +12,7 @@ import {
   updatePost,
   deletePost,
   createPost,
+  uploadPostAttachments,
   resolveNodeIdFromScope,
   resolvePostNodeIdsForCreate,
   type PostEntity,
@@ -35,7 +36,8 @@ import { resolveScopeType } from "../utils/scopeBadge";
 import PostReadView from "../components/PostReadView";
 import CommunityContextBar from "../components/CommunityContextBar";
 import CommunityEmptyState from "../components/CommunityEmptyState";
-import { stripHtml } from "../utils/communityHelpers";
+import { stripHtml, formatFileSize } from "../utils/communityHelpers";
+import { createClientRequestKey } from "@/shared/api/contracts/community";
 import "@admin/domains/community/qna-inbox.css";
 import "@admin/domains/community/notice-tree.css";
 import "@admin/domains/community/board-admin.css";
@@ -620,8 +622,11 @@ function NoticeCreatePane({
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [isUrgent, setIsUrgent] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  const [createdPostId, setCreatedPostId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const attachmentUploadKeyRef = useRef<string | null>(null);
 
   const resolvedScope = useMemo(
     () => resolvePostNodeIdsForCreate(scopeNodes, scopeParams),
@@ -635,23 +640,42 @@ function NoticeCreatePane({
     : "전체 대상";
 
   const canSubmit = title.trim().length > 0 && resolvedScope.kind !== "invalid" && !submitting;
+  const attachmentsLocked = createdPostId != null;
+
+  const addFiles = useCallback((selectedFiles: File[]) => {
+    if (attachmentsLocked || selectedFiles.length === 0) return;
+    attachmentUploadKeyRef.current = null;
+    setFiles((previous) => [...previous, ...selectedFiles].slice(0, 10));
+  }, [attachmentsLocked]);
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
     setError(null);
+    let postId = createdPostId;
     try {
-      await createPost({
-        post_type: "notice",
-        title: title.trim(),
-        content,
-        node_ids: resolvedScope.nodeIds,
-        is_urgent: isUrgent || undefined,
-      });
+      if (postId == null) {
+        const post = await createPost({
+          post_type: "notice",
+          title: title.trim(),
+          content,
+          node_ids: resolvedScope.nodeIds,
+          is_urgent: isUrgent || undefined,
+        });
+        postId = post.id;
+        setCreatedPostId(post.id);
+      }
+      if (files.length > 0) {
+        const uploadKey = attachmentUploadKeyRef.current ?? createClientRequestKey();
+        attachmentUploadKeyRef.current = uploadKey;
+        await uploadPostAttachments(postId, files, uploadKey);
+      }
       onSuccess();
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? (e as Error)?.message ?? "등록에 실패했습니다.";
-      setError(msg);
+      setError(postId == null
+        ? msg
+        : `공지는 저장됐지만 첨부파일 등록에 실패했습니다. 선택한 파일은 유지됩니다. ${msg}`);
       setSubmitting(false);
     }
   };
@@ -682,17 +706,60 @@ function NoticeCreatePane({
       <div className="cms-form__body cms-form__body--scrollable">
         <div className="cms-form__field">
           <label className="community-field__label community-field__label--required">제목</label>
-          <input className="ds-input cms-form__input--full" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="공지 제목을 입력하세요" autoFocus />
+          <input className="ds-input cms-form__input--full" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="공지 제목을 입력하세요" readOnly={attachmentsLocked} autoFocus />
         </div>
 
         <div className="cms-form__field">
           <label className="community-field__label">내용</label>
-          <RichTextEditor value={content} onChange={setContent} placeholder="공지 내용을 입력하세요..." minHeight={250} />
+          <RichTextEditor
+            value={content}
+            onChange={setContent}
+            placeholder="공지 내용을 입력하세요..."
+            minHeight={250}
+            onFileAttach={addFiles}
+            readOnly={attachmentsLocked}
+          />
         </div>
+
+        {files.length > 0 && (
+          <div className="cms-form__field">
+            <div className="cms-attach__header">
+              <label className="community-field__label cms-form__label--no-margin">
+                첨부파일 ({files.length}/10)
+              </label>
+            </div>
+            <div className="cms-attach__list">
+              {files.map((file, index) => (
+                <div key={`${file.name}-${index}`} className="cms-attach__item">
+                  <span className="cms-attach__item-name">{file.name}</span>
+                  <span className="cms-attach__item-size">{formatFileSize(file.size)}</span>
+                  <button
+                    type="button"
+                    className="cms-attach__item-remove"
+                    onClick={() => {
+                      if (attachmentsLocked) return;
+                      attachmentUploadKeyRef.current = null;
+                      setFiles((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
+                    }}
+                    disabled={attachmentsLocked}
+                    aria-label={`${file.name} 제거`}
+                  >
+                    &times;
+                  </button>
+                </div>
+              ))}
+            </div>
+            {attachmentsLocked && (
+              <p className="text-xs text-[var(--color-text-muted)] mt-2">
+                공지가 이미 저장되어 첨부파일을 변경할 수 없습니다. 같은 파일로 다시 시도해 주세요.
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="cms-form__field--inline">
           <label className={`cms-form__checkbox-label ${isUrgent ? "cms-form__checkbox-label--urgent" : ""}`}>
-            <input type="checkbox" checked={isUrgent} onChange={(e) => setIsUrgent(e.target.checked)} />
+            <input type="checkbox" checked={isUrgent} onChange={(e) => setIsUrgent(e.target.checked)} disabled={attachmentsLocked} />
             긴급 공지
           </label>
           {isUrgent && <span className="cms-detail__saved-msg">학생 앱에서 강조 표시됩니다</span>}
@@ -703,7 +770,9 @@ function NoticeCreatePane({
         <div className="cms-form__actions">
           <Button intent="secondary" size="sm" onClick={onCancel}>취소</Button>
           <Button intent="primary" size="sm" onClick={handleSubmit} disabled={!canSubmit}>
-            {submitting ? "등록 중…" : "등록"}
+            {submitting
+              ? createdPostId != null ? "첨부 재시도 중…" : "등록 중…"
+              : createdPostId != null ? "첨부 다시 시도" : "등록"}
           </Button>
         </div>
       </div>

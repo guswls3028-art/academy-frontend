@@ -55,18 +55,6 @@ const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 
 type CssVariableStyle<TName extends string> = CSSProperties & Record<TName, string>;
 
-type ImageInsertView<TNode, TTransaction> = {
-  state: {
-    schema: {
-      nodes: Record<string, { create: (attrs: { src: string }) => TNode }>;
-    };
-    tr: {
-      replaceSelectionWith: (node: TNode) => TTransaction;
-    };
-  };
-  dispatch: (transaction: TTransaction) => void;
-};
-
 function ColorPalette({
   currentColor,
   onColorChange,
@@ -159,25 +147,24 @@ export default function RichTextEditor({
     "--rich-editor-min-height": `${minHeight}px`,
   };
 
-  /** Insert image file as base64 into ProseMirror view */
-  const insertImageIntoView = useCallback(
-    <TNode, TTransaction,>(file: File, view: ImageInsertView<TNode, TTransaction>) => {
-      if (!file.type.startsWith("image/")) return;
-      if (file.size > MAX_IMAGE_SIZE_BYTES) {
-        feedback.warning("이미지 크기는 5MB를 초과할 수 없습니다.");
+  const attachImages = useCallback(
+    (files: File[]) => {
+      const accepted = files.filter((file) => {
+        if (!file.type.startsWith("image/")) return false;
+        if (file.size > MAX_IMAGE_SIZE_BYTES) {
+          feedback.warning(`${file.name}: 이미지 크기는 5MB를 초과할 수 없습니다.`);
+          return false;
+        }
+        return true;
+      });
+      if (accepted.length === 0) return;
+      if (!onFileAttach) {
+        feedback.warning("이 작성 화면에서는 이미지를 첨부할 수 없습니다.");
         return;
       }
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = reader.result as string;
-        const { schema } = view.state;
-        const node = schema.nodes.image.create({ src: dataUrl });
-        const tr = view.state.tr.replaceSelectionWith(node);
-        view.dispatch(tr);
-      };
-      reader.readAsDataURL(file);
+      onFileAttach(accepted);
     },
-    [],
+    [onFileAttach],
   );
 
   const editor = useEditor({
@@ -199,7 +186,7 @@ export default function RichTextEditor({
       }),
       Image.configure({
         inline: false,
-        allowBase64: true,
+        allowBase64: false,
       }),
       Placeholder.configure({ placeholder }),
     ],
@@ -209,26 +196,26 @@ export default function RichTextEditor({
       onChange(e.getHTML());
     },
     editorProps: {
-      handlePaste: (view, event) => {
+      handlePaste: (_view, event) => {
         const items = event.clipboardData?.items;
         if (!items) return false;
         for (const item of Array.from(items)) {
           if (item.type.startsWith("image/")) {
             event.preventDefault();
             const file = item.getAsFile();
-            if (file) insertImageIntoView(file, view);
+            if (file) attachImages([file]);
             return true;
           }
         }
         return false;
       },
-      handleDrop: (view, event) => {
+      handleDrop: (_view, event) => {
         const files = event.dataTransfer?.files;
         if (!files || files.length === 0) return false;
         const imageFiles = Array.from(files).filter((f) => f.type.startsWith("image/"));
         if (imageFiles.length === 0) return false;
         event.preventDefault();
-        imageFiles.forEach((file) => insertImageIntoView(file, view));
+        attachImages(imageFiles);
         return true;
       },
     },
@@ -241,30 +228,15 @@ export default function RichTextEditor({
     }
   }, [editor, value]);
 
-  // --- Image upload (base64) ---
+  // Images are persisted through the canonical attachment API. The backend
+  // deliberately strips data: URLs from rich HTML.
   const handleImageUpload = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
-      if (!files || !editor) return;
-
-      Array.from(files).forEach((file) => {
-        if (!file.type.startsWith("image/")) return;
-        if (file.size > MAX_IMAGE_SIZE_BYTES) {
-          feedback.warning("이미지 크기는 5MB를 초과할 수 없습니다.");
-          return;
-        }
-        const reader = new FileReader();
-        reader.onload = () => {
-          const dataUrl = reader.result as string;
-          editor.chain().focus().setImage({ src: dataUrl }).run();
-        };
-        reader.readAsDataURL(file);
-      });
-
-      // reset so the same file can be re-selected
+      if (files) attachImages(Array.from(files));
       e.target.value = "";
     },
-    [editor],
+    [attachImages],
   );
 
   // --- File attach ---

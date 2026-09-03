@@ -213,7 +213,28 @@ test.describe("커뮤니티 QnA 작업대", () => {
     expect(overflow).toBeLessThanOrEqual(1);
   });
 
-  test("큰 이미지를 넣은 공지 작성 폼 안에서 등록 버튼까지 스크롤할 수 있다", async ({ page }) => {
+  test("데스크톱 공지 이미지를 본문 data URL이 아닌 첨부파일로 저장한다", async ({ page }) => {
+    const createBodies: unknown[] = [];
+    let uploadRequests = 0;
+    let uploadContentType = "";
+    let multipartFilenameCount = 0;
+    await page.route("**/api/v1/community/posts/991/attachments/", async (route) => {
+      uploadRequests += 1;
+      uploadContentType = route.request().headers()["content-type"] || "";
+      multipartFilenameCount = (route.request().postDataBuffer()?.toString("utf8").match(/filename="29번-정답-정오\.svg"/g) || []).length;
+      await route.fulfill({ status: 201, headers: CORS_HEADERS, contentType: "application/json", body: "[]" });
+    });
+    await page.route("**/api/v1/community/posts/", async (route) => {
+      if (route.request().method() !== "POST") return route.fallback();
+      createBodies.push(route.request().postDataJSON());
+      await route.fulfill({
+        status: 201,
+        headers: CORS_HEADERS,
+        contentType: "application/json",
+        body: JSON.stringify({ id: 991, post_type: "notice", title: "29번 정답 정오", content: "", attachments: [], mappings: [] }),
+      });
+    });
+
     await page.setViewportSize({ width: 1366, height: 768 });
     await gotoAndSettle(page, `${BASE}/workspace/community/notice`, { timeout: 60_000 });
 
@@ -229,18 +250,30 @@ test.describe("커뮤니티 QnA 작업대", () => {
 
     const formBody = page.locator(".qna-inbox__thread > .cms-form__body");
     const submit = page.getByRole("button", { name: "등록", exact: true });
-    await expect(formBody.locator(".ProseMirror img")).toBeVisible();
-    await expect.poll(() => formBody.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeGreaterThan(0);
+    await expect(formBody.getByText("29번-정답-정오.svg", { exact: true })).toBeVisible();
+    await expect(formBody.locator(".ProseMirror img")).toHaveCount(0);
+    await submit.click();
 
-    const initialFormScrollTop = await formBody.evaluate((element) => element.scrollTop);
-    await submit.scrollIntoViewIfNeeded();
-    await expect.poll(() => formBody.evaluate((element) => element.scrollTop)).toBeGreaterThan(initialFormScrollTop);
-    await expect(submit).toBeInViewport();
+    await expect(page.getByText("공지가 등록되었습니다.")).toBeVisible();
+    expect(createBodies).toHaveLength(1);
+    expect(createBodies[0]).toEqual({
+      post_type: "notice",
+      title: "29번 정답 정오",
+      content: "",
+      node_ids: [],
+    });
+    expect(uploadRequests).toBe(1);
+    expect(uploadContentType).toContain("multipart/form-data");
+    expect(multipartFilenameCount).toBe(1);
   });
 
-  test("390px에서 큰 이미지 위로 스크롤해 공지를 한 번만 등록한다", async ({ page }) => {
+  test("390px에서 공지 이미지를 첨부파일로 한 번만 등록한다", async ({ page }) => {
     const noticeImageSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="720" height="1600"><rect width="720" height="1600" fill="#fff"/><text x="40" y="100" font-size="48">29번 정답 정오</text></svg>';
     const createBodies: unknown[] = [];
+    let uploadRequests = 0;
+    let uploadContentType = "";
+    let multipartFilenameCount = 0;
+    const uploadKeys: string[] = [];
     let releaseCreate: (() => void) | undefined;
     const createGate = new Promise<void>((resolve) => {
       releaseCreate = resolve;
@@ -262,6 +295,20 @@ test.describe("커뮤니티 QnA 작업대", () => {
         }),
       });
     });
+    await page.route("**/api/v1/community/posts/991/attachments/", async (route) => {
+      uploadRequests += 1;
+      uploadContentType = route.request().headers()["content-type"] || "";
+      const body = route.request().postDataBuffer()?.toString("utf8") ?? "";
+      multipartFilenameCount += (body.match(/filename="29번-정답-정오\.svg"/g) || []).length;
+      const uploadKey = body.match(/name="idempotency_key"\r\n\r\n([^\r\n]+)/)?.[1];
+      if (uploadKey) uploadKeys.push(uploadKey);
+      await route.fulfill({
+        status: uploadRequests === 1 ? 503 : 201,
+        headers: CORS_HEADERS,
+        contentType: "application/json",
+        body: uploadRequests === 1 ? JSON.stringify({ detail: "첨부 응답 연결이 끊겼습니다." }) : "[]",
+      });
+    });
 
     await page.setViewportSize({ width: 390, height: 844 });
     await gotoAndSettle(page, `${BASE}/workspace/community/notice`, { timeout: 60_000 });
@@ -276,25 +323,8 @@ test.describe("커뮤니티 QnA 작업대", () => {
 
     const formBody = page.locator(".qna-inbox__thread > .cms-form__body");
     const submit = page.getByRole("button", { name: "등록", exact: true });
-    await expect(formBody.locator(".ProseMirror img")).toBeVisible();
-    const initialOuterScrollTop = await formBody.evaluate((element) => {
-      let current = element.parentElement;
-      while (current) {
-        const overflowY = getComputedStyle(current).overflowY;
-        if (/(auto|scroll)/.test(overflowY) && current.scrollHeight > current.clientHeight) {
-          current.dataset.noticeScrollOwner = "true";
-          return current.scrollTop;
-        }
-        current = current.parentElement;
-      }
-      throw new Error("공지 작성 화면의 바깥 세로 스크롤 영역을 찾지 못했습니다.");
-    });
-    const outerScroller = page.locator('[data-notice-scroll-owner="true"]');
-
-    await formBody.hover();
-    await page.mouse.wheel(0, 800);
-    await expect.poll(() => outerScroller.evaluate((element) => element.scrollTop)).toBeGreaterThan(initialOuterScrollTop);
-    await expect(submit).toBeInViewport();
+    await expect(formBody.getByText("29번-정답-정오.svg", { exact: true })).toBeVisible();
+    await expect(formBody.locator(".ProseMirror img")).toHaveCount(0);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(1);
 
@@ -306,13 +336,28 @@ test.describe("커뮤니티 QnA 작업대", () => {
     expect(createBodies[0]).toEqual({
       post_type: "notice",
       title: "29번 정답 정오",
-      content: `<img src="data:image/svg+xml;base64,${Buffer.from(noticeImageSvg).toString("base64")}"><p></p>`,
+      content: "",
       node_ids: [],
     });
 
     releaseCreate?.();
-    await expect(page.getByText("공지가 등록되었습니다.")).toBeVisible();
+    await expect(page.getByText("공지는 저장됐지만 첨부파일 등록에 실패했습니다.", { exact: false })).toBeVisible();
     await expect.poll(() => createBodies).toHaveLength(1);
+    expect(uploadRequests).toBe(1);
+    expect(uploadContentType).toContain("multipart/form-data");
+    expect(multipartFilenameCount).toBe(1);
+    expect(uploadKeys).toHaveLength(1);
+    await expect(page.getByRole("button", { name: "첨부 다시 시도", exact: true })).toBeVisible();
+    await expect(page.getByPlaceholder("공지 제목을 입력하세요")).toHaveAttribute("readonly", "");
+    await expect(page.locator(".cms-attach__item-remove")).toBeDisabled();
+
+    await page.getByRole("button", { name: "첨부 다시 시도", exact: true }).click();
+    await expect(page.getByText("공지가 등록되었습니다.")).toBeVisible();
+    expect(createBodies).toHaveLength(1);
+    expect(uploadRequests).toBe(2);
+    expect(multipartFilenameCount).toBe(2);
+    expect(uploadKeys).toHaveLength(2);
+    expect(uploadKeys[1]).toBe(uploadKeys[0]);
   });
 
   test.describe("iPad 프로필 자료 첨부 게이트", () => {
