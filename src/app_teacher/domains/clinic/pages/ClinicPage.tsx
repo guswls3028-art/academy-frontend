@@ -265,6 +265,11 @@ function ParticipantList({
     sendTo: ClinicParticipantActionPayload["send_to"];
   } | null>(null);
   const [replacementSessionId, setReplacementSessionId] = useState("");
+  const [replacementPreferredStart, setReplacementPreferredStart] = useState("");
+  const [replacementPreferredEnd, setReplacementPreferredEnd] = useState("");
+  const replacementSession = availableSessions.find(
+    (session) => session.id === Number(replacementSessionId),
+  );
 
   const { data: participants, isLoading } = useQuery({
     queryKey: teacherClinicQueryKeys.participants(sessionId),
@@ -311,6 +316,8 @@ function ParticipantList({
       teacherToast.success(`${label} 처리가 완료되었습니다.`);
       if (variables.action === "absent") {
         setReplacementSessionId("");
+        setReplacementPreferredStart(variables.participant.preferred_start_time?.slice(0, 5) ?? "");
+        setReplacementPreferredEnd(variables.participant.preferred_end_time?.slice(0, 5) ?? "");
         setReschedule({ participant: variables.participant, sendTo: variables.payload.send_to });
       }
     },
@@ -324,11 +331,19 @@ function ParticipantList({
         new_session_id: Number(replacementSessionId),
         memo: "결석 후 보충 일정 이동",
         send_to: reschedule.sendTo,
+        ...(replacementSession?.allow_time_preference && replacementPreferredStart && replacementPreferredEnd
+          ? {
+              preferred_start_time: replacementPreferredStart,
+              preferred_end_time: replacementPreferredEnd,
+            }
+          : {}),
       });
     },
     onSuccess: () => {
       setReschedule(null);
       setReplacementSessionId("");
+      setReplacementPreferredStart("");
+      setReplacementPreferredEnd("");
       qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.sessions });
       qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participants(sessionId) });
       teacherToast.success("보충 일정으로 이동했습니다.");
@@ -390,6 +405,16 @@ function ParticipantList({
                   className="text-sm"
                 />
                 <StatusBadge status={st} isLate={!!p.is_late} checkedOut={!!p.checked_out_at} />
+                {p.preferred_start_time && p.preferred_end_time && (
+                  <span className="text-[11px] font-semibold" style={{ color: "var(--tc-primary)" }}>
+                    희망 {p.preferred_start_time.slice(0, 5)}–{p.preferred_end_time.slice(0, 5)}
+                  </span>
+                )}
+                {p.student_request_memo && (
+                  <span className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+                    {p.student_request_memo}
+                  </span>
+                )}
                 <span className="text-[10px] font-semibold" style={{ color: "var(--tc-text-muted)" }}>
                   미등원 → {p.is_late ? "지각 등원" : "등원"} → 하원
                 </span>
@@ -472,6 +497,12 @@ function ParticipantList({
                 ))}
             </select>
           </label>
+          {replacementSession?.allow_time_preference && (
+            <div className="grid grid-cols-2 gap-2" aria-label="학생 희망 시간">
+              <Fld label="희망 시작" value={replacementPreferredStart} onChange={setReplacementPreferredStart} type="time" />
+              <Fld label="희망 종료" value={replacementPreferredEnd} onChange={setReplacementPreferredEnd} type="time" />
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -566,6 +597,7 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
   const [capacity, setCapacity] = useState("10");
   const [sectionId, setSectionId] = useState<number | null>(null);
   const [allowMultiSlotBooking, setAllowMultiSlotBooking] = useState(false);
+  const [allowTimePreference, setAllowTimePreference] = useState(false);
   const multiSlotTouchedRef = useRef(false);
 
   const settingsQ = useQuery({
@@ -611,12 +643,14 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
       location: location.trim(),
       max_participants: capacityNum,
       allow_multi_slot_booking: allowMultiSlotBooking,
+      allow_time_preference: allowTimePreference,
       ...(showSectionPicker ? { section: sectionId } : {}),
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.sessions });
       teacherToast.success("클리닉이 만들어졌습니다.");
       setTitle(""); setStartTime(""); setEndTime(""); setLocation(""); setCapacity("10"); setSectionId(null);
+      setAllowTimePreference(false);
       onClose();
     },
     onError: (e) => teacherToast.error(extractApiError(e, "클리닉을 만들지 못했습니다.")),
@@ -686,6 +720,30 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
             </strong>
             <small className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
               켜면 이 옵션이 켜진 클리닉끼리 한 학생을 여러 시간대에 예약할 수 있습니다.
+            </small>
+          </span>
+        </label>
+        <label
+          className="flex items-start gap-2 cursor-pointer"
+          style={{
+            padding: "10px",
+            border: "1px solid var(--tc-border)",
+            borderRadius: "var(--tc-radius-sm)",
+            background: "var(--tc-surface-soft)",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={allowTimePreference}
+            onChange={(event) => setAllowTimePreference(event.target.checked)}
+            style={{ marginTop: 2 }}
+          />
+          <span className="flex flex-col gap-0.5">
+            <strong className="text-xs" style={{ color: "var(--tc-text)" }}>
+              학생 희망 시간 받기
+            </strong>
+            <small className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+              학생이 이 시간대 안에서 희망 시작과 종료를 함께 보낼 수 있습니다.
             </small>
           </span>
         </label>

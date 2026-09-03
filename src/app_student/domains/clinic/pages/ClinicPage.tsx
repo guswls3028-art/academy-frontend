@@ -25,15 +25,15 @@ import {
   fetchStudentClinicSummary,
   type ClinicCurrentTarget,
 } from "../api/clinicSummary.api";
+import { clinicDateParts } from "../clinicDate";
 import { studentClinicQueryKeys } from "../queryKeys";
+import ClinicBookingCalendar from "../components/ClinicBookingCalendar";
 import ClinicMultiSlotSelectionPanel from "../components/ClinicMultiSlotSelectionPanel";
+import { resolveClinicSessionSelection } from "../components/clinicSessionSelection";
 import styles from "./ClinicPage.module.css";
 
 type ApiErrorBody = { detail?: string; message?: string };
 type ClinicTab = "book" | "schedule";
-
-const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
-const VISIBLE_DATE_STEP = 6;
 
 function isSessionFull(session: ClinicSession): boolean {
   if (typeof session.is_full === "boolean") return session.is_full;
@@ -91,17 +91,6 @@ function displayTargetText(value: string | null | undefined, fallback: string): 
   return value?.trim() || fallback;
 }
 
-function dateParts(date: string) {
-  const [year, month, day] = date.split("-").map(Number);
-  const weekday = WEEKDAYS[new Date(year, month - 1, day).getDay()];
-  return {
-    month,
-    day,
-    weekday,
-    ariaLabel: `${year}년 ${month}월 ${day}일 ${weekday}요일`,
-  };
-}
-
 function sortBookings(left: ClinicBookingRequest, right: ClinicBookingRequest) {
   return `${left.session_date} ${left.session_start_time}`.localeCompare(
     `${right.session_date} ${right.session_start_time}`,
@@ -132,12 +121,14 @@ export default function ClinicPage() {
   const confirm = useConfirm();
   const runTrackedTask = useTrackedTask();
   const [activeTab, setActiveTab] = useState<ClinicTab>("book");
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSessionIds, setSelectedSessionIds] = useState<number[]>([]);
+  const [rangeStartSessionId, setRangeStartSessionId] = useState<number | null>(null);
+  const [selectionNotice, setSelectionNotice] = useState<string | null>(null);
   const [changingBookingId, setChangingBookingId] = useState<number | null>(null);
   const [memo, setMemo] = useState("");
   const [preferredStart, setPreferredStart] = useState("");
   const [preferredEnd, setPreferredEnd] = useState("");
-  const [visibleDateCount, setVisibleDateCount] = useState(VISIBLE_DATE_STEP);
 
   const {
     data: myRequests = [],
@@ -243,15 +234,28 @@ export default function ClinicPage() {
       sessions: dateSessions,
     }));
   }, [orderedSessions]);
-  const visibleSessionGroups = sessionGroups.slice(0, visibleDateCount);
+  const selectedSessionGroup = sessionGroups.find((group) => group.date === selectedDate) ?? null;
+  const selectedDateParts = selectedSessionGroup ? clinicDateParts(selectedSessionGroup.date) : null;
   const selectedSessions = orderedSessions.filter((session) => (
     selectedSessionIds.includes(session.id)
   ));
+  const selectedSessionsInGroup = selectedSessionGroup?.sessions.filter((session) => (
+    selectedSessionIds.includes(session.id)
+  )) ?? [];
   const selectedSession = selectedSessions.length === 1 ? selectedSessions[0] : null;
   const activeBookedSessions = orderedSessions.filter((session) => myRequests.some(
     (request) => request.session === session.id &&
       (request.status === "pending" || request.status === "booked"),
   ));
+
+  useEffect(() => {
+    if (sessionGroups.length === 0) {
+      setSelectedDate(null);
+      return;
+    }
+    if (selectedDate && sessionGroups.some((group) => group.date === selectedDate)) return;
+    setSelectedDate(sessionGroups[0].date);
+  }, [selectedDate, sessionGroups]);
 
   useEffect(() => {
     setSelectedSessionIds((current) => {
@@ -276,6 +280,14 @@ export default function ClinicPage() {
     });
   }, [changingBooking?.session, myRequests, orderedSessions]);
 
+  useEffect(() => {
+    setRangeStartSessionId((current) => (
+      current != null && selectedSessionIds.includes(current)
+        ? current
+        : selectedSessionIds[0] ?? null
+    ));
+  }, [selectedSessionIds]);
+
   const bookingMutation = useMutation({
     mutationFn: (data: {
       session_ids: number[];
@@ -298,6 +310,8 @@ export default function ClinicPage() {
       setPreferredStart("");
       setPreferredEnd("");
       setSelectedSessionIds([]);
+      setRangeStartSessionId(null);
+      setSelectionNotice(null);
       const allBooked = data.every((booking) => booking.status === "booked");
       const message = variables.session_ids.length > 1
         ? `${variables.session_ids.length}개 시간대 예약${allBooked ? "이 확정되었습니다." : " 신청이 접수되었습니다."}`
@@ -446,11 +460,45 @@ export default function ClinicPage() {
 
   const startChangingBooking = (request: ClinicBookingRequest) => {
     setChangingBookingId(request.id);
+    setSelectedDate(request.session_date);
     setSelectedSessionIds([]);
+    setRangeStartSessionId(null);
+    setSelectionNotice(null);
     setMemo(request.student_request_memo ?? "");
     setPreferredStart("");
     setPreferredEnd("");
     setActiveTab("book");
+  };
+
+  const selectCalendarDate = (date: string) => {
+    setSelectedDate(date);
+    setSelectedSessionIds((current) => current.filter((sessionId) => (
+      orderedSessions.find((session) => session.id === sessionId)?.date === date
+    )));
+    setRangeStartSessionId((current) => (
+      orderedSessions.find((session) => session.id === current)?.date === date ? current : null
+    ));
+    setPreferredStart("");
+    setPreferredEnd("");
+    setSelectionNotice(null);
+  };
+
+  const selectSessionRange = (session: ClinicSession) => {
+    setPreferredStart("");
+    setPreferredEnd("");
+    const groupSessions = sessionGroups.find((group) => group.date === session.date)?.sessions ?? [];
+    const result = resolveClinicSessionSelection({
+      session,
+      changingBooking: !!changingBooking,
+      activeBookedSessions,
+      groupSessions,
+      rangeStartSessionId,
+      selectedSessionIds,
+      bookings: myRequests,
+    });
+    setSelectedSessionIds(result.sessionIds);
+    setRangeStartSessionId(result.rangeStartSessionId);
+    setSelectionNotice(result.notice);
   };
 
   if (requestsLoading || sessionsLoading) {
@@ -622,6 +670,8 @@ export default function ClinicPage() {
                   onClick={() => {
                     setChangingBookingId(null);
                     setSelectedSessionIds([]);
+                    setRangeStartSessionId(null);
+                    setSelectionNotice(null);
                     setMemo("");
                     setPreferredStart("");
                     setPreferredEnd("");
@@ -652,32 +702,32 @@ export default function ClinicPage() {
                 </div>
               </header>
 
-              {visibleSessionGroups.length === 0 ? (
+              {sessionGroups.length === 0 ? (
                 <EmptyState
                   title="지금 예약 가능한 일정이 없습니다"
                   description="학원에서 클리닉 일정을 열면 이곳에 날짜별로 표시됩니다."
                 />
               ) : (
-                <div className={styles.dateGroupList}>
-                  {visibleSessionGroups.map((group) => {
-                    const parts = dateParts(group.date);
-                    const selectedInGroup = group.sessions.filter((session) => (
-                      selectedSessionIds.includes(session.id)
-                    ));
-                    return (
-                      <section
-                        key={group.date}
-                        className={styles.dateGroup}
-                        aria-label={parts.ariaLabel}
-                      >
-                        <time className={styles.dateTicket} dateTime={group.date}>
-                          <span>{parts.month}월</span>
-                          <strong>{parts.day}</strong>
-                          <span>{parts.weekday}요일</span>
-                          <small>{group.sessions.length}개 수업</small>
-                        </time>
-                        <div className={styles.dateSessions}>
-                          {group.sessions.map((session) => {
+                <>
+                  <ClinicBookingCalendar
+                    sessions={orderedSessions}
+                    bookings={myRequests}
+                    selectedDate={selectedDate}
+                    onDateSelect={selectCalendarDate}
+                  />
+                  {selectedSessionGroup && selectedDateParts && (
+                    <section
+                      className={styles.dateGroup}
+                      aria-label={selectedDateParts.ariaLabel}
+                    >
+                      <time className={styles.dateTicket} dateTime={selectedSessionGroup.date}>
+                        <span>{selectedDateParts.month}월</span>
+                        <strong>{selectedDateParts.day}</strong>
+                        <span>{selectedDateParts.weekday}요일</span>
+                        <small>{selectedSessionGroup.sessions.length}개 수업</small>
+                      </time>
+                      <div className={styles.dateSessions}>
+                        {selectedSessionGroup.sessions.map((session) => {
                             const full = isSessionFull(session);
                             const selected = selectedSessionIds.includes(session.id);
                             const recommended = sessionMatchesTargets(
@@ -706,8 +756,7 @@ export default function ClinicPage() {
                                 session.allow_multi_slot_booking !== true
                               )
                             ));
-                            const disabled = full || currentChangingSession || !!activeRequest ||
-                              (!changingBooking && (policyBlockedBySelection || policyBlockedByExisting));
+                            const disabled = full || currentChangingSession || !!activeRequest;
                             const remaining = session.max_participants == null
                               ? null
                               : Math.max(
@@ -725,23 +774,7 @@ export default function ClinicPage() {
                                   className={styles.sessionSelectButton}
                                   disabled={disabled}
                                   aria-pressed={selected}
-                                  onClick={() => {
-                                    setSelectedSessionIds((current) => {
-                                      if (changingBooking) return [session.id];
-                                      if (current.includes(session.id)) {
-                                        return current.filter((id) => id !== session.id);
-                                      }
-                                      const currentSession = orderedSessions.find(
-                                        (item) => item.id === current[0],
-                                      );
-                                      if (currentSession && currentSession.date !== session.date) {
-                                        return [session.id];
-                                      }
-                                      return [...current, session.id];
-                                    });
-                                    setPreferredStart("");
-                                    setPreferredEnd("");
-                                  }}
+                                  onClick={() => selectSessionRange(session)}
                                 >
                                   <div className={styles.sessionPrimary}>
                                     <span className={styles.sessionTime}>
@@ -803,38 +836,32 @@ export default function ClinicPage() {
                                 </button>
                               </article>
                             );
-                          })}
-                          {selectedInGroup.length > 0 && (
-                            <ClinicMultiSlotSelectionPanel
-                              selectedSessions={selectedInGroup}
-                              selectedSession={selectedSession}
-                              memo={memo}
-                              preferredStart={preferredStart}
-                              preferredEnd={preferredEnd}
-                              pending={changeMutation.isPending || bookingMutation.isPending}
-                              changingBooking={!!changingBooking}
-                              hasError={bookingMutation.isError || changeMutation.isError}
-                              onMemoChange={setMemo}
-                              onPreferredStartChange={setPreferredStart}
-                              onPreferredEndChange={setPreferredEnd}
-                              onSubmit={changingBooking ? submitChange : submitBooking}
-                            />
-                          )}
-                        </div>
-                      </section>
-                    );
-                  })}
-                </div>
-              )}
-
-              {visibleDateCount < sessionGroups.length && (
-                <button
-                  type="button"
-                  className={styles.moreDatesButton}
-                  onClick={() => setVisibleDateCount((count) => count + VISIBLE_DATE_STEP)}
-                >
-                  다음 일정 더 보기
-                </button>
+                        })}
+                        {selectionNotice && (
+                          <p className={styles.selectionNotice} role="status">
+                            {selectionNotice}
+                          </p>
+                        )}
+                        {selectedSessionsInGroup.length > 0 && (
+                          <ClinicMultiSlotSelectionPanel
+                            selectedSessions={selectedSessionsInGroup}
+                            selectedSession={selectedSession}
+                            memo={memo}
+                            preferredStart={preferredStart}
+                            preferredEnd={preferredEnd}
+                            pending={changeMutation.isPending || bookingMutation.isPending}
+                            changingBooking={!!changingBooking}
+                            hasError={bookingMutation.isError || changeMutation.isError}
+                            onMemoChange={setMemo}
+                            onPreferredStartChange={setPreferredStart}
+                            onPreferredEndChange={setPreferredEnd}
+                            onSubmit={changingBooking ? submitChange : submitBooking}
+                          />
+                        )}
+                      </div>
+                    </section>
+                  )}
+                </>
               )}
             </section>
           </>
@@ -855,7 +882,7 @@ export default function ClinicPage() {
                 <h3>승인 대기 <span>{pendingBookings.length}</span></h3>
                 <div className={styles.bookingList}>
                   {pendingBookings.map((request) => {
-                    const parts = dateParts(request.session_date);
+                    const parts = clinicDateParts(request.session_date);
                     return (
                       <article key={request.id} className={`${styles.bookingCard} ${styles.bookingCardPending}`}>
                         <time dateTime={request.session_date} className={styles.bookingDate}>
@@ -910,7 +937,7 @@ export default function ClinicPage() {
                 <h3>예약 확정 <span>{approvedBookings.length}</span></h3>
                 <div className={styles.bookingList}>
                   {approvedBookings.map((request) => {
-                    const parts = dateParts(request.session_date);
+                    const parts = clinicDateParts(request.session_date);
                     return (
                       <article key={request.id} className={`${styles.bookingCard} ${styles.bookingCardApproved}`}>
                         <time dateTime={request.session_date} className={styles.bookingDate}>

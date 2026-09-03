@@ -47,7 +47,7 @@ function participantStudentKey(participant: ClinicParticipant): string {
 export default function ClinicOperationsConsolePage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [sp] = useSearchParams();
+  const [sp, setSp] = useSearchParams();
   const qc = useQueryClient();
   const dateParam = sp.get("date");
   const sessionParam = sp.get("session");
@@ -94,6 +94,27 @@ export default function ClinicOperationsConsolePage() {
       window.requestAnimationFrame(() => selectorTriggerRef.current?.focus());
     }
   }, []);
+
+  const selectConsoleDate = useCallback((date: string) => {
+    setSelectedDate(date);
+    setConsoleScope("day");
+    setSelectedSessionId(null);
+    const next = new URLSearchParams(sp);
+    next.set("scope", "day");
+    next.set("date", date);
+    next.delete("session");
+    setSp(next, { replace: true });
+  }, [setSp, sp]);
+
+  const selectConsoleSession = useCallback((sessionId: number) => {
+    setConsoleScope("day");
+    setSelectedSessionId(sessionId);
+    const next = new URLSearchParams(sp);
+    next.set("scope", "day");
+    next.set("date", selectedDate);
+    next.set("session", String(sessionId));
+    setSp(next, { replace: true });
+  }, [selectedDate, setSp, sp]);
 
   useEffect(() => {
     if (!selectorOpen) return;
@@ -274,12 +295,12 @@ export default function ClinicOperationsConsolePage() {
   useEffect(() => {
     if (
       selectedSessionId != null &&
-      !participants.listQ.isLoading &&
-      !allRows.some((participant) => participant.session === selectedSessionId)
+      !treeQ.isLoading &&
+      activeSession == null
     ) {
       setSelectedSessionId(null);
     }
-  }, [allRows, participants.listQ.isLoading, selectedSessionId]);
+  }, [activeSession, selectedSessionId, treeQ.isLoading]);
 
   const headerDesc = "오늘 예약·배정 학생의 출석과 미통과 처리를 한 흐름에서 진행합니다.";
 
@@ -428,28 +449,18 @@ export default function ClinicOperationsConsolePage() {
                 todayISO={todayISO()}
                 year={ym.year}
                 month={ym.month}
-                onSelectDay={(date) => {
-                  setSelectedDate(date);
-                  setConsoleScope("day");
-                  setSelectedSessionId(null);
-                  closeSelector();
-                }}
+                onSelectDay={selectConsoleDate}
                 onPrevMonth={() => {
                   const d = dayjs(selectedDate).subtract(1, "month");
-                  setSelectedDate(d.startOf("month").format("YYYY-MM-DD"));
-                  setConsoleScope("day");
-                  setSelectedSessionId(null);
+                  selectConsoleDate(d.startOf("month").format("YYYY-MM-DD"));
                 }}
                 onNextMonth={() => {
                   const d = dayjs(selectedDate).add(1, "month");
-                  setSelectedDate(d.startOf("month").format("YYYY-MM-DD"));
-                  setConsoleScope("day");
-                  setSelectedSessionId(null);
+                  selectConsoleDate(d.startOf("month").format("YYYY-MM-DD"));
                 }}
                 selectedSessionId={selectedSessionId}
                 onSelectSession={(sessionId) => {
-                  setConsoleScope("day");
-                  setSelectedSessionId(sessionId);
+                  selectConsoleSession(sessionId);
                   closeSelector();
                 }}
                 onCreateClick={() => {

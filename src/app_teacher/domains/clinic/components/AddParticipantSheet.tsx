@@ -32,6 +32,18 @@ function toMinutes(value?: string | null): number {
   return Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : 0;
 }
 
+function sessionEndMinutes(session: TeacherClinicSession): number {
+  if (session.end_time) return toMinutes(session.end_time);
+  return toMinutes(session.start_time) + (session.duration_minutes ?? 0);
+}
+
+function isFull(session: TeacherClinicSession): boolean {
+  return session.is_full === true || (
+    session.max_participants != null
+    && (session.booked_count ?? session.participant_count ?? 0) >= session.max_participants
+  );
+}
+
 export default function AddParticipantSheet({
   open,
   onClose,
@@ -60,6 +72,31 @@ export default function AddParticipantSheet({
   const selectedRange = firstSelected && lastSelected
     ? `${hhmm(firstSelected.start_time)}–${hhmm(lastSelected.end_time ?? lastSelected.start_time)}`
     : "시간대를 선택하세요";
+
+  const selectThrough = (targetSession: TeacherClinicSession) => {
+    const anchorIndex = sessions.findIndex((session) => session.id === sessionId);
+    const targetIndex = sessions.findIndex((session) => session.id === targetSession.id);
+    if (anchorIndex < 0 || targetIndex < 0) return;
+    const startIndex = Math.min(anchorIndex, targetIndex);
+    const endIndex = Math.max(anchorIndex, targetIndex);
+    const range = sessions.slice(startIndex, endIndex + 1);
+    const isContinuous = range.every((session, index) => (
+      index === 0 || sessionEndMinutes(range[index - 1]) === toMinutes(session.start_time)
+    ));
+    if (!isContinuous) {
+      teacherToast.info("이어진 시간대만 함께 선택할 수 있습니다.");
+      return;
+    }
+    if (range.some((session) => session.allow_multi_slot_booking !== true)) {
+      teacherToast.info("여러 시간대 예약을 허용한 일정끼리만 선택할 수 있습니다.");
+      return;
+    }
+    if (range.some((session) => session.id !== sessionId && isFull(session))) {
+      teacherToast.info("정원이 남아 있는 시간대만 함께 선택할 수 있습니다.");
+      return;
+    }
+    setSelectedSessionIds(range.map((session) => session.id));
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -131,10 +168,7 @@ export default function AddParticipantSheet({
             {sessions.map((session) => {
               const checked = selectedSessionIds.includes(session.id);
               const fixed = session.id === sessionId;
-              const full = session.is_full === true || (
-                session.max_participants != null
-                && (session.booked_count ?? session.participant_count ?? 0) >= session.max_participants
-              );
+              const full = isFull(session);
               const policyBlocked = !checked && (
                 session.allow_multi_slot_booking !== true || !selectedSessionsAllowMultiple
               );
@@ -144,11 +178,7 @@ export default function AddParticipantSheet({
                   type="button"
                   aria-pressed={checked}
                   disabled={fixed || full || policyBlocked}
-                  onClick={() => setSelectedSessionIds((current) => (
-                    current.includes(session.id)
-                      ? current.filter((id) => id !== session.id)
-                      : [...current, session.id]
-                  ))}
+                  onClick={() => selectThrough(session)}
                   className="text-xs font-bold cursor-pointer disabled:cursor-not-allowed"
                   style={{
                     padding: "7px 9px",

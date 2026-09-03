@@ -55,40 +55,6 @@
     display: block;
   }
 
-  .clinic-console__mobile-date-switcher {
-    display: grid;
-    grid-template-columns: 38px minmax(0, 1fr) 38px;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 10px;
-    border-bottom: 1px solid var(--color-border-divider);
-    background: var(--color-bg-surface);
-  }
-
-  .clinic-console__mobile-date-switcher button {
-    display: grid;
-    width: 36px;
-    height: 36px;
-    place-items: center;
-    border: 1px solid var(--color-border-divider);
-    border-radius: 10px;
-    background: var(--color-bg-surface-soft);
-    color: var(--color-text-secondary);
-    cursor: pointer;
-  }
-
-  .clinic-console__mobile-date-switcher strong {
-    min-width: 0;
-    color: var(--color-text-primary);
-    font-size: 14px;
-    text-align: center;
-  }
-
-  .clinic-console__selector-overlay .clinic-scheduler-panel__nav--sidebar,
-  .clinic-console__selector-overlay .clinic-scheduler-panel__mini-cal--sidebar {
-    display: none;
-  }
-
   .clinic-sidebar__section-filter {
     flex-wrap: nowrap;
     padding: 7px 10px;
@@ -115,23 +81,13 @@
   }
 
   .clinic-sidebar__session-list {
-    display: flex;
+    display: grid;
     gap: 7px;
     padding: 0 10px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scroll-snap-type: x proximity;
-    scrollbar-width: none;
-  }
-
-  .clinic-sidebar__session-list::-webkit-scrollbar {
-    display: none;
   }
 
   .clinic-sidebar__session-list > li {
-    width: min(250px, 72vw);
-    flex: 0 0 min(250px, 72vw);
-    scroll-snap-align: start;
+    min-width: 0;
   }
 
   .clinic-console__sidebar-session {

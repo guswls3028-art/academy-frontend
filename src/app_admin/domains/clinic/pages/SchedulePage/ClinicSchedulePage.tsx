@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
@@ -72,18 +72,44 @@ function addResultMessage(result: Awaited<ReturnType<typeof addParticipantsToSes
   return parts.join(" · ");
 }
 
+function moveCalendarFocus(event: KeyboardEvent<HTMLDivElement>) {
+  const offsets: Record<string, number> = {
+    ArrowLeft: -1,
+    ArrowRight: 1,
+    ArrowUp: -7,
+    ArrowDown: 7,
+  };
+  const offset = offsets[event.key];
+  if (!offset || !(event.target instanceof HTMLButtonElement)) return;
+  const date = event.target.dataset.calendarDate;
+  if (!date) return;
+  const nextDate = dayjs(date).add(offset, "day").format("YYYY-MM-DD");
+  const nextCell = event.currentTarget.querySelector<HTMLButtonElement>(
+    `[data-calendar-date="${nextDate}"]`,
+  );
+  if (!nextCell) return;
+  event.preventDefault();
+  nextCell.focus();
+}
+
 export default function ClinicSchedulePage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const today = dayjs().format("YYYY-MM-DD");
-  const [weekAnchor, setWeekAnchor] = useState(today);
+  const requestedInitialDate = searchParams.get("date");
+  const initialDate = requestedInitialDate
+    && /^\d{4}-\d{2}-\d{2}$/.test(requestedInitialDate)
+    && dayjs(requestedInitialDate).isValid()
+    ? requestedInitialDate
+    : today;
+  const [weekAnchor, setWeekAnchor] = useState(initialDate);
   const weekStart = useMemo(() => mondayOfWeek(weekAnchor), [weekAnchor]);
   const weekEnd = useMemo(() => weekStart.add(6, "day"), [weekStart]);
   const weekFrom = weekStart.format("YYYY-MM-DD");
   const weekTo = weekEnd.format("YYYY-MM-DD");
-  const [selectedDate, setSelectedDate] = useState(today);
-  const [monthAnchor, setMonthAnchor] = useState(today);
+  const [selectedDate, setSelectedDate] = useState(initialDate);
+  const [monthAnchor, setMonthAnchor] = useState(initialDate);
   const monthStart = useMemo(() => dayjs(monthAnchor).startOf("month"), [monthAnchor]);
   const monthGridStart = useMemo(
     () => monthStart.subtract(monthStart.day(), "day"),
@@ -175,7 +201,7 @@ export default function ClinicSchedulePage() {
 
     const next = new URLSearchParams(searchParams);
     next.delete("create");
-    next.delete("date");
+    next.set("date", date);
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams, today]);
 
@@ -199,6 +225,9 @@ export default function ClinicSchedulePage() {
     setMonthAnchor(dateISO);
     setWeekAnchor(dateISO);
     setSelectedDate(dateISO);
+    const next = new URLSearchParams(searchParams);
+    next.set("date", dateISO);
+    setSearchParams(next, { replace: true });
   };
 
   const handleAddParticipants = async (selection: ClinicTargetSelectResult) => {
@@ -244,7 +273,6 @@ export default function ClinicSchedulePage() {
       <section className={styles.shell} aria-labelledby="clinic-schedule-title">
         <header className={styles.header}>
           <div>
-            <p className={styles.eyebrow}>MONTHLY RESERVATION CALENDAR</p>
             <h2 id="clinic-schedule-title" className={styles.title}>예약 일정</h2>
             <p className={styles.description}>
               달력에서 날짜를 고르고, 그날의 시간대와 예약 학생을 관리하세요.
@@ -257,7 +285,7 @@ export default function ClinicSchedulePage() {
               leftIcon={<Copy size={ICON_FOR_BUTTON.md} />}
               onClick={() => setImportOpen(true)}
             >
-              이전 주 불러오기
+              이전 주 복사
             </Button>
             <Button
               intent="primary"
@@ -329,7 +357,9 @@ export default function ClinicSchedulePage() {
                     </Button>
                   </>
                 ) : monthHasSessions ? (
-                  <span>날짜를 선택하면 해당 주의 일정으로 이동합니다.</span>
+                  <span>
+                    선택 {dayjs(selectedDate).format("M월 D일")} · 시간대 {selectedDaySessions.length}개
+                  </span>
                 ) : (
                   <span>이번 달에 열린 시간대가 없습니다.</span>
                 )}
@@ -339,6 +369,7 @@ export default function ClinicSchedulePage() {
                 className={styles.monthCalendar}
                 role="grid"
                 aria-label={`${monthStart.format("YYYY년 M월")} 클리닉 월간 달력`}
+                onKeyDown={moveCalendarFocus}
               >
                 <div className={styles.monthWeekdays} role="row">
                   {MONTH_DAY_LABELS.map((label) => (
@@ -349,7 +380,12 @@ export default function ClinicSchedulePage() {
                   <div key={weekIndex} className={styles.monthWeek} role="row">
                     {monthDays.slice(weekIndex * 7, weekIndex * 7 + 7).map((date) => {
                       const dateISO = date.format("YYYY-MM-DD");
-                      const sessionCount = monthSessionsByDate.get(dateISO)?.length ?? 0;
+                      const dateSessions = monthSessionsByDate.get(dateISO) ?? [];
+                      const sessionCount = dateSessions.length;
+                      const isFull = sessionCount > 0 && dateSessions.every((session) =>
+                        session.max_participants > 0
+                        && (session.booked_count ?? session.participant_count ?? 0) >= session.max_participants
+                      );
                       const isSelected = dateISO === selectedDate;
                       const isToday = dateISO === today;
                       const isOutsideMonth = !date.isSame(monthStart, "month");
@@ -357,7 +393,9 @@ export default function ClinicSchedulePage() {
                         ? "일정 불러오는 중"
                         : monthSessionsQ.isError
                           ? "일정 확인 실패"
-                          : `클리닉 ${sessionCount}개`;
+                          : sessionCount === 0
+                            ? "열린 클리닉 없음"
+                            : `클리닉 ${sessionCount}개, ${isFull ? "마감" : "예약 가능"}`;
 
                       return (
                         <button
@@ -368,10 +406,13 @@ export default function ClinicSchedulePage() {
                             isSelected ? styles.monthDaySelected : ""
                           } ${isToday ? styles.monthDayToday : ""} ${
                             isOutsideMonth ? styles.monthDayOutside : ""
+                          } ${sessionCount > 0 ? (isFull ? styles.monthDayFull : styles.monthDayOpen) : ""
                           }`}
                           aria-label={`${date.format("M월 D일")} ${MONTH_DAY_LABELS[date.day()]}요일, ${loadLabel}`}
                           aria-current={isToday ? "date" : undefined}
                           aria-selected={isSelected}
+                          data-calendar-date={dateISO}
+                          tabIndex={isSelected ? 0 : -1}
                           onClick={() => selectCalendarDate(dateISO)}
                         >
                           <span className={styles.monthDayNumber}>{date.format("D")}</span>

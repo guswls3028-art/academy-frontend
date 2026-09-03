@@ -15,6 +15,13 @@
 - ON에서 OFF로 바꿔도 기존 예약은 화면에서 제거하지 않습니다. 서버가 이후 같은
   날짜의 충돌하는 새 예약만 `409`로 거부합니다.
 
+## 빈 세션 운영
+
+운영 화면의 `session` 선택은 참가자 목록이 아니라 세션 tree를 기준으로 유지합니다.
+따라서 아직 참가자가 0명인 유효한 세션도 desktop과 390px에서 세션 제목·수정·삭제·
+`학생 추가` 동선을 그대로 보여 주며, 첫 학생을 추가하기 전에 일간 합계 화면으로
+자동 복귀하지 않습니다. 선택한 세션이 tree에서 실제로 사라졌을 때만 선택을 해제합니다.
+
 ## 소유 구현과 검증
 
 - 세션 타입·조회·수정: `api/clinicSessions.api.ts`
@@ -23,6 +30,7 @@
 - 저장 전 검토 문구: `components/clinicScheduleConfirmation.ts`
 - 이전 주 복사: `components/PreviousWeekImportModal.tsx`
 - 서버 정책·원자성·동시성: backend `docs/domain/clinic-booking.md`
+- 빈 세션 운영 회귀: `e2e/admin/clinic-weekly-multisession.mock.spec.ts`
 
 관리자 mock E2E는 기존 clinic weekly spec의 선행 owner merge 뒤 같은 파일에서
 다중 예약 정책을 추가 검증합니다. 현재 기능의 직접 focused 검증은 teacher/student

@@ -1,7 +1,6 @@
 .loadingStack,
 .pageStack,
 .targetList,
-.dateGroupList,
 .dateSessions,
 .bookingList {
   display: flex;
@@ -61,7 +60,6 @@
 .tabButton:focus-visible,
 .sessionSelectButton:focus-visible,
 .changeCancelButton:focus-visible,
-.moreDatesButton:focus-visible,
 .bookingActions button:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--stu-primary) 30%, transparent);
   outline-offset: 2px;
@@ -332,10 +330,6 @@
   color: var(--stu-text-muted);
   font-size: 11px;
   font-weight: 700;
-}
-
-.dateGroupList {
-  gap: 0;
 }
 
 .dateGroup {
@@ -705,19 +699,16 @@
   line-height: 1.45;
 }
 
-.moreDatesButton {
-  display: block;
-  width: calc(100% - (var(--stu-space-4) * 2));
-  min-height: 44px;
-  margin: var(--stu-space-3) var(--stu-space-4) var(--stu-space-4);
-  border: 1px solid var(--stu-border);
+.selectionNotice {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--stu-warn-border);
   border-radius: 10px;
-  background: var(--stu-surface-soft);
-  color: var(--stu-text);
-  cursor: pointer;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 750;
+  background: var(--stu-warn-bg);
+  color: var(--stu-warn-text);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
 }
 
 .myScheduleHeader > span {

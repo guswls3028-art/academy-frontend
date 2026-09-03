@@ -551,6 +551,49 @@ test("월간 달력에서 원하는 날짜를 고르면 그날 일정만 명확�
   await page.screenshot({ path: "test-results/admin-clinic-calendar-forwardfix-390.png", fullPage: false });
 });
 
+test("월간 달력은 42일 경계를 유지하고 방향키와 Space로 날짜를 선택한다", async ({ page }) => {
+  await seed(page);
+  await installApi(page);
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule`, { timeout: 45_000 });
+
+  const calendar = page.getByRole("grid", { name: /클리닉 월간 달력/ });
+  const cells = calendar.getByRole("gridcell");
+  await expect(cells).toHaveCount(42);
+  await expect(cells.first()).toHaveAccessibleName(/7월 26일 일요일/);
+  await expect(cells.last()).toHaveAccessibleName(/9월 5일 토요일/);
+  await expect(page.getByText("MONTHLY RESERVATION CALENDAR", { exact: true })).toHaveCount(0);
+
+  const selectedCell = calendar.getByRole("gridcell", {
+    name: new RegExp(`${saturdayLabel} 토요일`),
+  });
+  const previousWeekCell = calendar.getByRole("gridcell", { name: /8월 22일 토요일/ });
+  const nextCell = calendar.getByRole("gridcell", { name: /8월 30일 일요일/ });
+  await selectedCell.focus();
+  await selectedCell.press("ArrowUp");
+  await expect(previousWeekCell).toBeFocused();
+  await previousWeekCell.press("ArrowDown");
+  await expect(selectedCell).toBeFocused();
+  await selectedCell.press("ArrowRight");
+  await expect(nextCell).toBeFocused();
+  await nextCell.press("Space");
+  await expect(nextCell).toHaveAttribute("aria-selected", "true");
+  await expect(nextCell).toHaveAttribute("tabindex", "0");
+  await expect(page.getByRole("region", { name: /8월 30일.*일정/ })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: "test-results/admin-clinic-calendar-keyboard-1366.png", fullPage: false });
+  await expect(page).toHaveURL(new RegExp(`/workspace/clinic/schedule\\?date=${dateInMonth(0, 30)}$`));
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(nextCell).toHaveAttribute("aria-selected", "true");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await calendar.scrollIntoViewIfNeeded();
+  await expect(calendar).toBeVisible();
+  await expect(nextCell).toHaveAttribute("aria-selected", "true");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: "test-results/admin-clinic-calendar-keyboard-390.png", fullPage: false });
+});
+
 test("월간 이동만 해도 선택 상세와 새 클리닉 날짜를 표시 월에 맞춘다", async ({ page }) => {
   const nextMonthStart = dateInMonth(1, 1);
   const nextMonthValue = new Date(`${nextMonthStart}T12:00:00`);
@@ -706,7 +749,7 @@ test("결석 후 새 일정 만들기는 선택 날짜의 생성 창을 바로 �
   const dialog = page.getByRole("dialog").filter({ hasText: "클리닉 만들기" });
   await expect(dialog.getByRole("heading", { name: "클리닉 만들기" })).toBeVisible();
   await expect(dialog).toContainText(`${Number(saturday.slice(5, 7))}월 ${Number(saturday.slice(8, 10))}일`);
-  await expect(page).toHaveURL(/\/workspace\/clinic\/schedule$/);
+  await expect(page).toHaveURL(new RegExp(`/workspace/clinic/schedule\\?date=${saturday}$`));
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
@@ -863,6 +906,118 @@ test("빈 클리닉도 일정 카드에서 수정하고 최종 확인한 뒤에�
   await expect(selectedDay.getByRole("article").filter({ hasText: "토요일 5시 클리닉" }))
     .toContainText("17:00–17:30");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test("운영 화면은 빈 세션 선택을 유지해 첫 학생을 desktop과 390px에서 추가한다", async ({ page }) => {
+  await seed(page);
+  await installApi(page, undefined, { participants: [], targets: [] });
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await gotoAndSettle(
+    page,
+    `${BASE}/workspace/clinic/operations?date=${saturday}&session=702`,
+    { timeout: 45_000 },
+  );
+
+  await expect(page).toHaveURL(new RegExp(`session=702`));
+  const desktopAddButton = page.getByRole("button", { name: "학생 추가", exact: true });
+  await expect(desktopAddButton).toBeVisible();
+  await expect(page.getByRole("button", { name: "학생 추가하기", exact: true })).toBeVisible();
+  await desktopAddButton.click();
+  const desktopDialog = page.getByRole("dialog", { name: "대상자 선택" });
+  await expect(desktopDialog).toBeVisible();
+  await desktopDialog.getByRole("button", { name: "대화상자 종료" }).click();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(new RegExp(`session=702`));
+  const mobileAddButton = page.getByRole("button", { name: "학생 추가하기", exact: true });
+  await expect(mobileAddButton).toBeVisible();
+  await mobileAddButton.click();
+  await expect(page.getByRole("dialog", { name: "대상자 선택" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test("운영 일정 선택기는 날짜를 고른 뒤 모든 수업을 보여주고 수업 선택 때만 닫힌다", async ({ page }) => {
+  const nextDate = dateInMonth(0, 30);
+  const state: ScheduleState = {
+    createPayloads: [],
+    updatePayloads: [],
+    sessions: [
+      ...sessions,
+      {
+        ...sessions[0],
+        id: 704,
+        title: "일요일 4시 클리닉",
+        date: nextDate,
+        start_time: "16:00:00",
+        location: "4층 교실",
+        participant_count: 8,
+        booked_count: 8,
+      },
+      {
+        ...sessions[0],
+        id: 705,
+        title: "일요일 8시 클리닉",
+        date: nextDate,
+        start_time: "20:00:00",
+        location: "5층 교실",
+        participant_count: 8,
+        booked_count: 8,
+      },
+    ],
+  };
+  await seed(page);
+  await installApi(page, undefined, { participants: [], targets: [] }, state);
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await gotoAndSettle(
+    page,
+    `${BASE}/workspace/clinic/operations?scope=day&date=${saturday}&session=701`,
+    { timeout: 45_000 },
+  );
+
+  const trigger = page.getByRole("button", { name: /일정.*8월 29일/ });
+  await trigger.click();
+  const selector = page.getByRole("dialog", { name: "날짜·수업 선택" });
+  const calendar = selector.getByRole("grid", { name: /클리닉 월간 달력/ });
+  const cells = calendar.getByRole("gridcell");
+  await expect(cells).toHaveCount(42);
+  await expect(cells.first()).toHaveAccessibleName(/7월 26일 일요일/);
+  await expect(cells.last()).toHaveAccessibleName(/9월 5일 토요일/);
+
+  const selectedCell = calendar.getByRole("gridcell", { name: /8월 29일 토요일/ });
+  const nextCell = calendar.getByRole("gridcell", { name: /8월 30일 일요일/ });
+  await expect(selectedCell).toHaveAccessibleName(/3개, 예약 가능/);
+  await expect(selectedCell).toHaveAttribute("aria-current", "date");
+  await expect(selectedCell).toHaveAttribute("aria-selected", "true");
+  await expect(nextCell).toHaveAccessibleName(/2개, 마감/);
+  await expect(nextCell).toHaveAttribute("aria-selected", "false");
+  await selectedCell.focus();
+  await selectedCell.press("ArrowRight");
+  await expect(nextCell).toBeFocused();
+  await nextCell.press("Space");
+  await expect(nextCell).toHaveAttribute("aria-selected", "true");
+  await expect(nextCell).toHaveAttribute("tabindex", "0");
+  await expect(selector).toBeVisible();
+  const sessionButtons = selector.locator(".clinic-console__sidebar-session");
+  await expect(sessionButtons).toHaveCount(2);
+  await expect(sessionButtons).toContainText(["16:00", "20:00"]);
+  await expect(page).toHaveURL(new RegExp(`scope=day&date=${nextDate}$`));
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: "test-results/admin-clinic-selector-calendar-1366.png", fullPage: false });
+
+  await sessionButtons.filter({ hasText: "20:00" }).click();
+  await expect(selector).toHaveCount(0);
+  await expect(page).toHaveURL(new RegExp(`date=${nextDate}&session=705$`));
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("button", { name: /일정.*8월 30일.*20:00/ })).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: /일정.*8월 30일.*20:00/ }).click();
+  await expect(calendar).toBeVisible();
+  await expect(cells).toHaveCount(42);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(await selector.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await page.screenshot({ path: "test-results/admin-clinic-selector-calendar-390.png", fullPage: false });
 });
 
 test("예약자가 있는 일정 수정은 운영 화면의 수정 알림으로 인계한다", async ({ page }) => {
@@ -1105,6 +1260,11 @@ test("승인 대기 목록은 학생 희망 시간과 요청사항을 함께 보
 });
 
 test("현장 콘솔은 16·17·18시 등원 학생을 한 화면에서 시간대 이동 없이 처리한다", async ({ page }) => {
+  const onsiteSessions = [
+    { ...sessions[0], id: 704, date: today, start_time: "16:00:00", location: "1층 세미나실" },
+    { ...sessions[0], id: 705, date: today, start_time: "17:00:00", location: "2층 보강실" },
+    { ...sessions[0], id: 706, date: today, start_time: "18:00:00", location: "3층 자습실" },
+  ];
   const onsiteParticipants: Array<Record<string, unknown>> = [
     {
       id: 821, session: 704, student: 521, student_name: "네시 현장학생",
@@ -1162,7 +1322,11 @@ test("현장 콘솔은 16·17·18시 등원 학생을 한 화면에서 시간대
   };
 
   await seed(page);
-  await installApi(page, undefined, state);
+  await installApi(page, undefined, state, {
+    createPayloads: [],
+    updatePayloads: [],
+    sessions: onsiteSessions,
+  });
   await page.setViewportSize({ width: 1366, height: 850 });
   await gotoAndSettle(page, `${BASE}/workspace/clinic/operations?scope=onsite`, { timeout: 45_000 });
 

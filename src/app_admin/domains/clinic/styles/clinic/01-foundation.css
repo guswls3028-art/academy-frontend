@@ -172,13 +172,19 @@
 
 .clinic-scheduler-panel__mini-cal-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.clinic-scheduler-panel__mini-cal-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 2px;
 }
 
 .clinic-scheduler-panel__mini-cal-cell {
+  width: 100%;
+  min-width: 0;
   aspect-ratio: 1;
-  max-width: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -242,6 +248,10 @@
   opacity: 0.9;
 }
 
+.clinic-scheduler-panel__mini-cal-cell--outside {
+  opacity: 0.45;
+}
+
 /* 오늘/선택 시 상태 배경 덮어씀 — 오늘은 테두리 강조 */
 .clinic-scheduler-panel__mini-cal-cell--today {
   background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface)) !important;
@@ -252,6 +262,12 @@
 .clinic-scheduler-panel__mini-cal-cell--selected {
   background: var(--color-brand-primary) !important;
   color: var(--color-text-inverse, #fff);
+}
+
+.clinic-scheduler-panel__mini-cal-grid .clinic-scheduler-panel__mini-cal-cell--selected {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: -2px;
+  font-weight: 800;
 }
 
 .clinic-scheduler-panel__mini-cal-dot {

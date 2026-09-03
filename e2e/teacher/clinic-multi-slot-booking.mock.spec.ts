@@ -61,15 +61,40 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
       is_full: false,
       allow_multi_slot_booking: false,
     },
+    {
+      id: 705,
+      title: "야간 클리닉",
+      date,
+      start_time: "21:00:00",
+      end_time: "22:00:00",
+      duration_minutes: 60,
+      location: "클리닉 1실",
+      participant_count: 0,
+      booked_count: 0,
+      max_participants: 10,
+      is_full: false,
+      allow_multi_slot_booking: true,
+    },
   ];
   const students = [
     { id: 801, name: "김학생", grade: 2, school: "가람중", is_managed: true },
     { id: 802, name: "이학생", grade: 2, school: "나래중", is_managed: true },
+    { id: 803, name: "정학생", grade: 2, school: "다온중", is_managed: true },
   ];
   const participants = new Map<number, Array<Record<string, unknown>>>([
-    [701, []],
+    [701, [{
+      id: 900,
+      session: 701,
+      student: 803,
+      student_name: "정학생",
+      status: "booked",
+      preferred_start_time: "17:15:00",
+      preferred_end_time: "17:45:00",
+      student_request_memo: "오답 정리 뒤 참여",
+    }]],
     [702, []],
     [703, []],
+    [705, []],
   ]);
   const bulkPayloads: unknown[] = [];
   const createdSessionPayloads: unknown[] = [];
@@ -162,6 +187,8 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   const firstSessionButton = page.getByRole("button", { name: /오후 클리닉 A/ });
   await expect(firstSessionButton).toBeVisible({ timeout: 30_000 });
   await firstSessionButton.click();
+  await expect(page.getByText("희망 17:15–17:45")).toBeVisible();
+  await expect(page.getByText("오답 정리 뒤 참여")).toBeVisible();
   await page.getByRole("button", { name: "학생 추가" }).click();
 
   const sheet = page.getByRole("dialog", { name: "학생 추가" });
@@ -173,6 +200,9 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   expect(mobileBackdropBox?.x).toBe(0);
   expect(mobileBackdropBox?.width).toBe(390);
   await expect(sheet.getByRole("button", { name: /19:00–20:00 · 한 타임/ })).toBeDisabled();
+  await sheet.getByRole("button", { name: /21:00–22:00/ }).click();
+  await expect(sheet.getByRole("region", { name: "선택한 클리닉 시간" })).toContainText("17:00–18:00");
+  await expect(page.getByText("이어진 시간대만 함께 선택할 수 있습니다.")).toBeVisible();
   await sheet.getByRole("button", { name: /18:00–19:00/ }).click();
   await expect(sheet.getByRole("region", { name: "선택한 클리닉 시간" })).toContainText("17:00–19:00");
   expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
@@ -225,8 +255,11 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   await page.getByRole("button", { name: "클리닉 만들기" }).click();
   const createSheet = page.getByRole("dialog", { name: "클리닉 만들기" });
   const multiSlotToggle = createSheet.getByRole("checkbox", { name: /같은 날 여러 시간대 예약/ });
+  const timePreferenceToggle = createSheet.getByRole("checkbox", { name: /학생 희망 시간 받기/ });
   await expect(multiSlotToggle).not.toBeChecked();
+  await expect(timePreferenceToggle).not.toBeChecked();
   await multiSlotToggle.check();
+  await timePreferenceToggle.check();
   releaseSettings?.();
   await expect(multiSlotToggle).toBeChecked();
   await createSheet.locator('input[type="time"]').first().fill("17:00");
@@ -235,6 +268,7 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   await expect.poll(() => createdSessionPayloads).toEqual([
     expect.objectContaining({
       allow_multi_slot_booking: true,
+      allow_time_preference: true,
       start_time: "17:00:00",
       location: "클리닉 2실",
     }),

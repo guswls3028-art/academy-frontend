@@ -1,8 +1,4 @@
 /* Clinic operations is a dispatch console: rows are for scanning, the workbench is for mutation. */
-.clinic-console__mobile-date-switcher {
-  display: none;
-}
-
 .clinic-console__live-controls {
   position: sticky;
   top: 0;

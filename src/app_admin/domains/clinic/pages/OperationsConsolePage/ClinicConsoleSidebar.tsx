@@ -4,7 +4,7 @@
  * 재설계: 세션 항목에 출석 진행 미니 바 + 인원 상세 표시
  */
 
-import { useMemo } from "react";
+import { useMemo, type KeyboardEvent } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
 import { Clock, MapPin, Plus, Copy, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
@@ -15,18 +15,32 @@ dayjs.locale("ko");
 
 const DOW = ["일", "월", "화", "수", "목", "금", "토"];
 
-function buildMonthGrid(year: number, month: number): (string | null)[] {
+function buildMonthGrid(year: number, month: number): string[] {
   const first = dayjs(`${year}-${String(month).padStart(2, "0")}-01`);
-  const daysInMonth = first.daysInMonth();
-  const startDow = first.day();
-  const leadingEmpty = startDow;
-  const totalCells = Math.ceil((leadingEmpty + daysInMonth) / 7) * 7;
-  const grid: (string | null)[] = [];
-  for (let i = 0; i < leadingEmpty; i++) grid.push(null);
-  for (let i = 0; i < daysInMonth; i++)
-    grid.push(first.add(i, "day").format("YYYY-MM-DD"));
-  while (grid.length < totalCells) grid.push(null);
-  return grid;
+  const gridStart = first.subtract(first.day(), "day");
+  return Array.from({ length: 42 }, (_, index) =>
+    gridStart.add(index, "day").format("YYYY-MM-DD")
+  );
+}
+
+function moveCalendarFocus(event: KeyboardEvent<HTMLDivElement>) {
+  const offsets: Record<string, number> = {
+    ArrowLeft: -1,
+    ArrowRight: 1,
+    ArrowUp: -7,
+    ArrowDown: 7,
+  };
+  const offset = offsets[event.key];
+  if (!offset || !(event.target instanceof HTMLButtonElement)) return;
+  const date = event.target.dataset.calendarDate;
+  if (!date) return;
+  const nextDate = dayjs(date).add(offset, "day").format("YYYY-MM-DD");
+  const nextCell = event.currentTarget.querySelector<HTMLButtonElement>(
+    `[data-calendar-date="${nextDate}"]`,
+  );
+  if (!nextCell) return;
+  event.preventDefault();
+  nextCell.focus();
 }
 
 type Props = {
@@ -117,27 +131,6 @@ export default function ClinicConsoleSidebar({
 
   return (
     <>
-      <div
-        className="clinic-console__mobile-date-switcher"
-        role="group"
-        aria-label="클리닉 날짜 선택"
-      >
-        <button
-          type="button"
-          onClick={() => onSelectDay(dayjs(selectedDay).subtract(1, "day").format("YYYY-MM-DD"))}
-          aria-label="이전 날짜"
-        >
-          <ChevronLeft size={17} aria-hidden />
-        </button>
-        <strong>{dayjs(selectedDay).format("M월 D일 (ddd)")}</strong>
-        <button
-          type="button"
-          onClick={() => onSelectDay(dayjs(selectedDay).add(1, "day").format("YYYY-MM-DD"))}
-          aria-label="다음 날짜"
-        >
-          <ChevronRight size={17} aria-hidden />
-        </button>
-      </div>
       <div className="clinic-scheduler-panel__nav clinic-scheduler-panel__nav--sidebar">
         <button
           type="button"
@@ -159,48 +152,64 @@ export default function ClinicConsoleSidebar({
           <ChevronRight size={16} />
         </button>
       </div>
-      <div className="clinic-scheduler-panel__mini-cal clinic-scheduler-panel__mini-cal--sidebar">
-        <div className="clinic-scheduler-panel__mini-cal-dow">
+      <div
+        className="clinic-scheduler-panel__mini-cal clinic-scheduler-panel__mini-cal--sidebar"
+        role="grid"
+        aria-label={`${year}년 ${month}월 클리닉 월간 달력`}
+        onKeyDown={moveCalendarFocus}
+      >
+        <div className="clinic-scheduler-panel__mini-cal-dow" role="row">
           {DOW.map((d) => (
-            <span key={d} className="clinic-scheduler-panel__mini-cal-dow-cell">
+            <span key={d} className="clinic-scheduler-panel__mini-cal-dow-cell" role="columnheader">
               {d}
             </span>
           ))}
         </div>
         <div className="clinic-scheduler-panel__mini-cal-grid">
-          {grid.map((date, i) => {
-            if (!date) {
-              return (
-                <div
-                  key={`empty-${i}`}
-                  className="clinic-scheduler-panel__mini-cal-cell clinic-scheduler-panel__mini-cal-cell--empty"
-                />
-              );
-            }
-            const isSelected = date === selectedDay;
-            const isToday = date === todayISO;
-            const isPast = date < todayISO;
-            const count = sessionsByDate[date]?.length ?? 0;
-            const hasClinic = count > 0;
-            return (
-              <button
-                key={date}
-                type="button"
-                onClick={() => onSelectDay(date)}
-                className={cx(
-                  "clinic-scheduler-panel__mini-cal-cell",
-                  hasClinic &&
-                    "clinic-scheduler-panel__mini-cal-cell--status-normal",
-                  isSelected &&
-                    "clinic-scheduler-panel__mini-cal-cell--selected",
-                  isToday && "clinic-scheduler-panel__mini-cal-cell--today",
-                  isPast && "clinic-scheduler-panel__mini-cal-cell--past"
-                )}
-              >
-                {dayjs(date).format("D")}
-              </button>
-            );
-          })}
+          {Array.from({ length: 6 }, (_, weekIndex) => (
+            <div key={weekIndex} className="clinic-scheduler-panel__mini-cal-week" role="row">
+              {grid.slice(weekIndex * 7, weekIndex * 7 + 7).map((date) => {
+                const isSelected = date === selectedDay;
+                const isToday = date === todayISO;
+                const isPast = date < todayISO;
+                const isOutsideMonth = dayjs(date).month() + 1 !== month;
+                const daySessions = sessionsByDate[date] ?? [];
+                const count = daySessions.length;
+                const isFull = count > 0 && daySessions.every((session) =>
+                  (session.max_participants ?? 0) > 0
+                  && (session.booked_count ?? session.participant_count ?? 0) >= (session.max_participants ?? 0)
+                );
+                const availability = count === 0
+                  ? "수업 없음"
+                  : `${count}개, ${isFull ? "마감" : "예약 가능"}`;
+                return (
+                  <button
+                    key={date}
+                    type="button"
+                    role="gridcell"
+                    aria-label={`${dayjs(date).format("M월 D일 dddd")}, ${availability}`}
+                    aria-current={isToday ? "date" : undefined}
+                    aria-selected={isSelected}
+                    data-calendar-date={date}
+                    tabIndex={isSelected ? 0 : -1}
+                    onClick={() => onSelectDay(date)}
+                    className={cx(
+                      "clinic-scheduler-panel__mini-cal-cell",
+                      count > 0 && (isFull
+                        ? "clinic-scheduler-panel__mini-cal-cell--status-full"
+                        : "clinic-scheduler-panel__mini-cal-cell--status-normal"),
+                      isSelected && "clinic-scheduler-panel__mini-cal-cell--selected",
+                      isToday && "clinic-scheduler-panel__mini-cal-cell--today",
+                      isPast && "clinic-scheduler-panel__mini-cal-cell--past",
+                      isOutsideMonth && "clinic-scheduler-panel__mini-cal-cell--outside",
+                    )}
+                  >
+                    {dayjs(date).format("D")}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </div>
       </div>
 
