@@ -811,6 +811,11 @@ test.describe("학생 클리닉 예약 UX", () => {
     await expect(selection).toContainText("3개 시간대");
     await expect(selection).toContainText("총 3시간");
     await selection.scrollIntoViewIfNeeded();
+    const mobileDateGroupBox = await openDateRegion.boundingBox();
+    const mobileSessionCardBox = await openDateRegion.locator("article").first().boundingBox();
+    expect(mobileDateGroupBox).not.toBeNull();
+    expect(mobileSessionCardBox).not.toBeNull();
+    expect(mobileSessionCardBox!.width / mobileDateGroupBox!.width).toBeGreaterThan(0.9);
     expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
     await page.screenshot({ path: "test-results/student-clinic-multi-slot-390.png", fullPage: true });
 
