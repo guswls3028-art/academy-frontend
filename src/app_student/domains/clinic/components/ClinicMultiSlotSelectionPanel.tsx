@@ -31,7 +31,7 @@ function timeToMinutes(value: string | undefined): number | null {
   return hours * 60 + minutes;
 }
 
-function selectedTimeSummary(selectedSessions: ClinicSession[]): {
+function selectedTimeSummary(selectedSessions: Pick<ClinicSession, "start_time" | "end_time">[]): {
   range: string;
   duration: string;
 } {
@@ -80,7 +80,13 @@ export default function ClinicMultiSlotSelectionPanel({
   onBookingEndChange,
   onSubmit,
 }: Props) {
-  const timeSummary = selectedTimeSummary(selectedSessions);
+  const isTimeRange = selectedSessions.length === 1 && selectedSession?.booking_mode === "time_range";
+  const sessionSummary = selectedTimeSummary(selectedSessions);
+  const timeSummary = isTimeRange
+    ? bookingStart && bookingEnd
+      ? selectedTimeSummary([{ start_time: bookingStart, end_time: bookingEnd }])
+      : null
+    : sessionSummary;
   const availableStartSlots = availability?.slots.filter((slot) => slot.remaining_capacity > 0) ?? [];
   const bookingStartMinutes = timeToMinutes(bookingStart);
   const availableEndSlots = availability?.slots.filter((slot) => {
@@ -99,17 +105,19 @@ export default function ClinicMultiSlotSelectionPanel({
     <section className={styles.selectionPanel} aria-label="선택한 클리닉 시간">
       <div className={styles.selectionSummary}>
         <span>선택한 이용 시간</span>
-        <strong>{timeSummary.range}</strong>
-        <small>{selectedSessions.length}개 시간대 · 총 {timeSummary.duration}</small>
+        <strong>{timeSummary?.range ?? "시작·종료 시간을 선택하세요"}</strong>
+        <small>{isTimeRange
+          ? timeSummary ? `총 ${timeSummary.duration}` : `운영 ${sessionSummary.range}`
+          : `${selectedSessions.length}개 시간대 · 총 ${sessionSummary.duration}`}</small>
       </div>
-      <div className={styles.selectionSlots} aria-label="선택한 시간대 목록">
+      {!isTimeRange && <div className={styles.selectionSlots} aria-label="선택한 시간대 목록">
         {selectedSessions.map((session) => (
           <span key={session.id}>
             {formatTime(session.start_time)}–{formatTime(session.end_time ?? session.start_time)}
           </span>
         ))}
-      </div>
-      {selectedSessions.length === 1 && selectedSession?.booking_mode === "time_range" && (
+      </div>}
+      {isTimeRange && (
         <fieldset className={styles.preferenceFieldset}>
           <legend>실제 이용 시간</legend>
           <p>{availabilityPending ? "남은 시간을 확인하는 중입니다." : `${availability?.interval_minutes ?? 60}분 간격 · 최대 ${availability?.max_stay_minutes ?? selectedSession.booking_max_stay_minutes ?? 240}분`}</p>
