@@ -3,6 +3,8 @@
 export const studentClinicQueryKeys = {
   bookings: ["student", "clinic", "bookings"] as const,
   availableSessions: ["student", "clinic", "available-sessions"] as const,
+  availability: (sessionId: number | undefined) =>
+    ["student", "clinic", "availability", sessionId] as const,
   summary: ["student", "clinic", "summary"] as const,
   notificationCounts: ["student", "notifications", "counts"] as const,
 };

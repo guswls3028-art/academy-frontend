@@ -619,7 +619,7 @@ export default function ClinicConsoleWorkspace({
   }, [drawerParticipant, rosterParticipants]);
   const drawerContextRequired = drawerParticipantGroup.length > 1 && !drawerParticipantContextConfirmed;
   const participantNotificationQ = useQuery({
-    queryKey: ["clinic", "participant-notifications", drawerParticipantId],
+    queryKey: clinicQueryKeys.participantNotifications(drawerParticipantId),
     queryFn: () => fetchNotificationLog({
       scope: "clinic",
       origin_id_prefix: `clinic_participant:${drawerParticipantId}:`,
