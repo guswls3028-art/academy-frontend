@@ -1,6 +1,5 @@
 // PATH: src/app_admin/domains/tools/stopwatch/pages/StopwatchPage.tsx
-// 타이머/스톱워치 도구 페이지 — 모드 전환, 프로젝터/전체화면 상태 공유, ZIP 다운로드
-// 선생님이 직접 다운로드하도록 카드 UI로 명확하게 안내 (제목/설명/크기/실행 방법)
+// 타이머/스톱워치 도구 페이지 — 모드 전환, 프로젝터/전체화면, 안전한 PWA 설치
 
 import { useMemo, useState, useEffect, useCallback } from "react";
 import {
@@ -10,30 +9,20 @@ import {
   getTenantDefById,
 } from "@/shared/tenant";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { getLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
+import { useA2HS } from "@/shared/pwa/useA2HS";
 import TimerCore from "../components/TimerCore";
 import StopwatchCore from "../components/StopwatchCore";
-import { fetchTimerDownloadUrl } from "../api/timer.api";
 import styles from "./StopwatchPage.module.css";
 
 type Mode = "timer" | "stopwatch";
-
-function getPcTimerDownloadedKey(): string {
-  const result = resolveTenantCode();
-  if (!result.ok) return "pcTimerDownloaded:unknown";
-  return `pcTimerDownloaded:${result.code}`;
-}
 
 export default function StopwatchPage() {
   const [mode, setMode] = useState<Mode>("timer");
   const [projector, setProjector] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [downloading, setDownloading] = useState(false);
-  // 첫 방문이면 가이드 펼침, 한 번이라도 다운로드한 적 있으면 접힘 (타이머 영역 확보)
-  const [helpOpen, setHelpOpen] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return getLocalItem(getPcTimerDownloadedKey()) !== "1";
-  });
+  const [installing, setInstalling] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(true);
+  const { canInstall, isInstalled, promptInstall } = useA2HS();
 
   const { logoUrl, academyName } = useMemo(() => {
     const result = resolveTenantCode();
@@ -54,33 +43,21 @@ export default function StopwatchPage() {
     return () => document.removeEventListener("fullscreenchange", handler);
   }, []);
 
-  const handleDownloadZip = useCallback(async () => {
-    setDownloading(true);
+  const handleInstall = useCallback(async () => {
+    if (!canInstall) {
+      setHelpOpen(true);
+      return;
+    }
+
+    setInstalling(true);
     try {
-      const { download_url, filename } = await fetchTimerDownloadUrl();
-      const a = document.createElement("a");
-      a.href = download_url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      try {
-        setLocalItem(getPcTimerDownloadedKey(), "1");
-      } catch {
-        // localStorage can be unavailable in private or embedded browser contexts.
-      }
-      feedback.success("다운로드가 시작되었습니다. 압축 파일을 풀고 실행하세요.");
-    } catch (err: unknown) {
-      const status = (err as { response?: { status?: number } })?.response?.status;
-      if (status === 404) {
-        feedback.error("이 학원에 대한 타이머 프로그램이 아직 준비되지 않았습니다. 관리자에게 문의해주세요.");
-      } else {
-        feedback.error("다운로드에 실패했습니다. 잠시 후 다시 시도하거나 관리자에게 문의해주세요.");
+      if (await promptInstall()) {
+        feedback.success("안전한 웹 타이머 앱을 설치했습니다.");
       }
     } finally {
-      setDownloading(false);
+      setInstalling(false);
     }
-  }, []);
+  }, [canInstall, promptInstall]);
 
   const shared = {
     logoUrl,
@@ -106,9 +83,9 @@ export default function StopwatchPage() {
 
   return (
     <div className={styles.page}>
-      {/* PC 다운로드 카드 — 타이머 영역 밖 상단. 전체화면 시 숨김. */}
+      {/* 안전한 PC 설치 카드 — unsigned EXE/ZIP 대신 PWA만 안내한다. */}
       {!isFullscreen && (
-        <section className={styles.downloadCard} aria-labelledby="pc-timer-download-title">
+        <section className={styles.downloadCard} aria-labelledby="pc-timer-install-title">
           <div className={styles.cardRow}>
           <div className={styles.cardLeft}>
             <div className={styles.cardIcon} aria-hidden>
@@ -119,16 +96,18 @@ export default function StopwatchPage() {
               </svg>
             </div>
             <div className={styles.cardText}>
-              <h3 id="pc-timer-download-title" className={styles.cardTitle}>
-                PC 전용 타이머 프로그램
+              <h3 id="pc-timer-install-title" className={styles.cardTitle}>
+                안전한 PC 타이머
               </h3>
               <p className={styles.cardDesc}>
-                인터넷 없이도 사용 가능한 Windows 전용 프로그램입니다. 수업 중 브라우저 오류·인터넷 끊김 걱정 없이 안정적으로 쓸 수 있습니다.
+                지금 보고 있는 화면이 공식 타이머입니다. 서명되지 않은 실행 파일 없이도 Windows 앱처럼 설치해 사용할 수 있습니다.
               </p>
               <span className={styles.cardMeta}>
                 <span>Windows 10 / 11</span>
                 <span className={styles.metaDot} aria-hidden />
-                <span>ZIP 압축 파일</span>
+                <span>웹/PWA</span>
+                <span className={styles.metaDot} aria-hidden />
+                <span>현재 학원 HTTPS 주소</span>
               </span>
             </div>
           </div>
@@ -136,9 +115,9 @@ export default function StopwatchPage() {
           <div className={styles.cardRight}>
             <button
               className={styles.downloadBtn}
-              onClick={handleDownloadZip}
-              disabled={downloading}
-              aria-busy={downloading}
+              onClick={() => void handleInstall()}
+              disabled={installing || isInstalled}
+              aria-busy={installing}
               type="button"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -146,7 +125,15 @@ export default function StopwatchPage() {
                 <polyline points="7 10 12 15 17 10" />
                 <line x1="12" y1="15" x2="12" y2="3" />
               </svg>
-              <span>{downloading ? "다운로드 중..." : "Windows용 다운로드"}</span>
+              <span>
+                {isInstalled
+                  ? "앱으로 실행 중"
+                  : installing
+                    ? "설치 확인 중..."
+                    : canInstall
+                      ? "이 PC에 앱으로 설치"
+                      : "설치 방법 보기"}
+              </span>
             </button>
             <button
               className={styles.helpToggle}
@@ -176,33 +163,23 @@ export default function StopwatchPage() {
 
           {helpOpen && (
             <div id="pc-timer-help-panel" className={styles.helpPanel}>
-              <p className={styles.helpTitle}>다운로드 후 실행하는 법</p>
+              <p className={styles.helpTitle}>Windows에서 안전하게 설치하는 법</p>
               <ol className={styles.helpSteps}>
-                <li>다운로드된 ZIP 파일을 <b>우클릭 → "압축 풀기"</b>(또는 "모두 추출") 합니다.</li>
-                <li>압축이 풀린 폴더 안의 <b>Timer</b> 파일을 더블클릭하여 실행합니다.</li>
-                <li>바탕화면에 바로 가기를 만들어 두면 다음부터 한 번에 실행할 수 있습니다.</li>
+                <li>Edge 또는 Chrome 주소창의 <b>앱 설치 아이콘</b>을 선택합니다.</li>
+                <li>아이콘이 없으면 브라우저 메뉴의 <b>앱 → 이 사이트를 앱으로 설치</b>를 선택합니다.</li>
+                <li>설치 후에는 시작 메뉴나 작업 표시줄에서 학원 타이머를 엽니다.</li>
               </ol>
 
               <div className={styles.helpWarning}>
                 <div className={styles.warnHeader}>
-                  <span className={styles.warnIcon} aria-hidden>⚠</span>
-                  <strong>"Windows에서 PC를 보호했습니다" 경고가 뜨면 (정상입니다)</strong>
+                  <span className={styles.warnIcon} aria-hidden>✓</span>
+                  <strong>Smart App Control은 켠 상태로 유지하세요</strong>
                 </div>
                 <p className={styles.warnDesc}>
-                  학원 자체 제작 프로그램이라 Microsoft에 등록되어 있지 않을 뿐, 안전한 프로그램입니다. 아래 두 단계만 누르면 정상 실행됩니다.
+                  기존 <b>English_Timer (1).exe</b>, <b>English_Timer.exe</b>, <b>Timer.exe</b>는 서명된 새 버전이 아닙니다. 실행하지 말고 삭제한 뒤 이 웹/PWA 타이머를 사용하세요.
                 </p>
-                <ol className={styles.warnSteps}>
-                  <li>
-                    <span className={styles.stepBadge}>1</span>
-                    경고창의 <b>"추가 정보"</b> 글씨 클릭
-                  </li>
-                  <li>
-                    <span className={styles.stepBadge}>2</span>
-                    아래쪽에 나타나는 <b>"실행"</b> 버튼 클릭
-                  </li>
-                </ol>
                 <p className={styles.warnNote}>
-                  ※ 첫 실행 1번만 나타납니다. 이후에는 바로 실행됩니다.
+                  파일을 내려받지 않으므로 같은 이름의 <b>(1)</b> 중복본도 생기지 않습니다.
                 </p>
               </div>
             </div>
