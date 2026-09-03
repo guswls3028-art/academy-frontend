@@ -237,6 +237,7 @@ export async function checkoutClinicParticipant(
     confirm_without_arrival?: boolean;
     expected_session_id?: number;
     expected_student_id?: number;
+    send_to?: ClinicRecipient;
   } = {},
 ) {
   const res = await api.post(`/clinic/participants/${id}/checkout/`, payload);

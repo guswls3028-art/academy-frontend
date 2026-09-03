@@ -7,6 +7,7 @@ import ClinicMessageHistoryPanel from "./ClinicMessageHistoryPanel";
 const CLINIC_TRIGGERS = [
   "clinic_reservation_created",
   "clinic_check_in",
+  "clinic_check_out",
   "clinic_absent",
   "clinic_self_study_completed",
   "clinic_cancelled",
@@ -22,7 +23,7 @@ export default function ClinicMsgSettingsPage() {
         triggerKeys={CLINIC_TRIGGERS}
         channelMode="alimtalk"
         title="알림톡 자동발송"
-        description="승인된 클리닉 전용 양식이 있는 이벤트만 알림톡으로 발송합니다. 하원 처리는 기록만 남기며 발송하지 않습니다."
+        description="예약·등원·하원 등 클리닉 이벤트를 승인된 공용 알림톡 양식으로 발송합니다."
       />
       <ClinicMessageHistoryPanel />
     </div>

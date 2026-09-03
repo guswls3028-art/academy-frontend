@@ -119,6 +119,7 @@ const TRIGGER_TO_TEMPLATE_TYPE: Record<string, AlimtalkTemplateType> = {
   clinic_reservation_created: "clinic_info",
   clinic_reminder: "clinic_info",
   clinic_check_in: "clinic_info",
+  clinic_check_out: "clinic_info",
   clinic_absent: "clinic_info",
   clinic_self_study_completed: "clinic_info",
   clinic_result_notification: "clinic_info",

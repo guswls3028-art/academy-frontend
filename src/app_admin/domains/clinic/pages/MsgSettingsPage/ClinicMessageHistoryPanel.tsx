@@ -178,7 +178,7 @@ export default function ClinicMessageHistoryPanel() {
       <div className={styles.policy} role="note">
         <ShieldCheck size={18} aria-hidden />
         <span>
-          <strong>하원 처리는 알림톡을 보내지 않습니다.</strong>
+          <strong>하원 알림톡도 예약·등원과 같은 승인된 클리닉 안내 양식으로 발송합니다.</strong>
           승인된 양식의 고정 문구·변수는 읽기 전용이며, 공급사가 허용한 안내 영역만 수정할 수 있습니다.
         </span>
       </div>

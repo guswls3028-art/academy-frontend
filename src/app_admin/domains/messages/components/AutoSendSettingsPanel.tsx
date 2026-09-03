@@ -89,6 +89,8 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
     "클리닉 예약이 변경/취소되면 학생·학부모에게 변경 내용을 안내합니다.",
   clinic_check_in:
     "\"참석\" 버튼을 누르면 학부모에게 입실 알림을 발송합니다.",
+  clinic_check_out:
+    "\"하원\" 버튼을 누르면 선택한 학생·학부모에게 실제 하원 시각을 안내합니다.",
   clinic_absent:
     "\"결석\" 처리 시 학부모에게 결석 알림을 발송합니다.",
   clinic_self_study_completed:

@@ -44,7 +44,7 @@ const ACTION_COPY: Record<
   checkout: {
     title: "하원 처리",
     eyebrow: "하원 기록",
-    description: "하원 시각을 자율학습 완료와 별도로 기록합니다. 하원 알림톡은 발송하지 않습니다.",
+    description: "하원 시각을 자율학습 완료와 별도로 기록하고 선택한 수신자에게 알립니다.",
     confirm: "하원 확정",
   },
   remind: {
@@ -87,7 +87,7 @@ export default function ClinicParticipantActionDialog({
     ? {
         title: "하원 처리",
         eyebrow: "미등원 하원",
-        description: "등원 기록은 만들지 않습니다. 선택한 학생과 일정에 하원 시각만 남깁니다.",
+        description: "등원 기록은 만들지 않고 하원 시각만 남긴 뒤 선택한 수신자에게 알립니다.",
         confirm: "미등원 하원 확정",
       }
     : ACTION_COPY[action];
@@ -187,7 +187,7 @@ export default function ClinicParticipantActionDialog({
             </fieldset>
           )}
 
-          {action !== "checkout" && <fieldset className={styles.fieldset}>
+          <fieldset className={styles.fieldset}>
             <legend>알림톡 수신자</legend>
             <div className={styles.recipientGrid}>
               {([
@@ -202,8 +202,8 @@ export default function ClinicParticipantActionDialog({
                 </label>
               ))}
             </div>
-            <p className={styles.note}>승인된 전용 알림톡 템플릿이 없으면 발송하지 않습니다.</p>
-          </fieldset>}
+            <p className={styles.note}>승인된 공용 알림톡 양식이 없으면 발송하지 않습니다.</p>
+          </fieldset>
 
           <footer className={styles.footer}>
             <span><kbd>Esc</kbd> 취소 · <kbd>Enter</kbd> 확정</span>
