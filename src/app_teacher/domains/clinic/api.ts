@@ -16,6 +16,7 @@ export type TeacherClinicSession = {
   max_participants?: number | null;
   is_full?: boolean | null;
   allow_multi_slot_booking?: boolean;
+  allow_time_preference?: boolean;
 };
 
 export type TeacherClinicParticipantStatus =
@@ -45,6 +46,9 @@ export type TeacherClinicParticipant = {
   lecture_title?: string | null;
   lecture_color?: string | null;
   lecture_chip_label?: string | null;
+  preferred_start_time?: string | null;
+  preferred_end_time?: string | null;
+  student_request_memo?: string | null;
 };
 
 /** 오늘 날짜 기준 클리닉 세션 목록 */
@@ -56,6 +60,7 @@ export async function fetchClinicSessions(params: {
   return listFromApiResponse<TeacherClinicSession>(res.data).map((session) => ({
     ...session,
     allow_multi_slot_booking: session.allow_multi_slot_booking === true,
+    allow_time_preference: session.allow_time_preference === true,
   }));
 }
 
@@ -107,6 +112,8 @@ export async function changeParticipantBooking(
     new_session_id: number;
     memo?: string;
     send_to: TeacherClinicRecipient;
+    preferred_start_time?: string;
+    preferred_end_time?: string;
   },
 ): Promise<TeacherClinicParticipant> {
   const res = await api.post(`/clinic/participants/${participantId}/change-booking/`, payload);
@@ -134,6 +141,7 @@ export async function createClinicSession(payload: {
   target_school_type?: string | null;
   section?: number | null;
   allow_multi_slot_booking: boolean;
+  allow_time_preference: boolean;
 }): Promise<TeacherClinicSession> {
   const res = await api.post("/clinic/sessions/", payload);
   return res.data;

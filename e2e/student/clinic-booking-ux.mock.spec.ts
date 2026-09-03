@@ -75,6 +75,18 @@ const sessions = [
     target_lecture_names: [{ id: 41, title: "대수 정규반", color: "#2563eb", chip_label: "대수" }],
   },
   {
+    id: 102,
+    title: "대수 마감 클리닉",
+    date: bookedDate,
+    start_time: "16:30:00",
+    end_time: "17:30:00",
+    location: "2층 보강실",
+    participant_count: 8,
+    booked_count: 8,
+    max_participants: 8,
+    target_lecture_names: [{ id: 41, title: "대수 정규반", color: "#2563eb", chip_label: "대수" }],
+  },
+  {
     id: 201,
     title: "토요일 1시 클리닉",
     date: openDate,
@@ -84,6 +96,7 @@ const sessions = [
     participant_count: 3,
     booked_count: 3,
     max_participants: 10,
+    allow_multi_slot_booking: true,
     target_lecture_names: [{ id: 77, title: "기하 정규반", color: "#7c3aed", chip_label: "기하" }],
   },
   {
@@ -111,6 +124,32 @@ const sessions = [
     booked_count: 1,
     max_participants: 8,
     allow_multi_slot_booking: true,
+    target_lecture_names: [{ id: 78, title: "미적분 정규반", color: "#ea580c", chip_label: "미적" }],
+  },
+  {
+    id: 204,
+    title: "토요일 7시 클리닉",
+    date: openDate,
+    start_time: "19:00:00",
+    end_time: "20:00:00",
+    location: "3층 자습실",
+    participant_count: 2,
+    booked_count: 2,
+    max_participants: 8,
+    allow_multi_slot_booking: true,
+    target_lecture_names: [{ id: 78, title: "미적분 정규반", color: "#ea580c", chip_label: "미적" }],
+  },
+  {
+    id: 205,
+    title: "토요일 8시 클리닉",
+    date: openDate,
+    start_time: "20:00:00",
+    end_time: "21:00:00",
+    location: "3층 자습실",
+    participant_count: 0,
+    booked_count: 0,
+    max_participants: 8,
+    allow_multi_slot_booking: false,
     target_lecture_names: [{ id: 78, title: "미적분 정규반", color: "#ea580c", chip_label: "미적" }],
   },
 ];
@@ -480,26 +519,89 @@ test.describe("학생 클리닉 예약 UX", () => {
 
     await expect(page.getByRole("heading", { name: "열린 일정" })).toBeVisible();
     const bookedDateRegion = page.getByRole("region", { name: koreanDateLabel(bookedDate) });
-    const openDateRegion = page.getByRole("region", { name: koreanDateLabel(openDate) });
     await expect(bookedDateRegion).toContainText("대수 오답 클리닉");
+    await page.getByTestId(`clinic-calendar-day-${openDate}`).click();
+    const openDateRegion = page.getByRole("region", { name: koreanDateLabel(openDate) });
     await expect(openDateRegion).toContainText("토요일 5시 클리닉");
     await expect(openDateRegion).toContainText("17:00–18:00");
     await expect(openDateRegion).toContainText("1층 세미나실");
     await expect(openDateRegion).toContainText("내 보강과 맞음");
-    await expect(openDateRegion.getByText("3개 수업", { exact: true })).toBeVisible();
-    await expect(page.getByLabel("2일, 4개 시간대")).toBeVisible();
+    await expect(openDateRegion.getByText("5개 수업", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("2일, 7개 시간대")).toBeVisible();
     await expect(openDateRegion.locator("button span").filter({ hasText: /^\d{2}:\d{2}–/ })).toHaveText([
       "13:00–14:30",
       "17:00–18:00",
       "18:00–19:00",
+      "19:00–20:00",
+      "20:00–21:00",
     ]);
-    await expect(page.getByRole("button", { name: "이전 달" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "이전 달" })).toBeVisible();
 
     const dateNumber = openDateRegion.locator("time strong");
     await expect(dateNumber).toHaveText(String(Number(openDate.split("-")[2])));
     const fontSize = await dateNumber.evaluate((element) => getComputedStyle(element).fontSize);
     expect(Number.parseFloat(fontSize)).toBeGreaterThanOrEqual(27);
     await page.screenshot({ path: "test-results/student-clinic-open-dates-390.png", fullPage: true });
+  });
+
+  test("월간 달력에서 날짜를 직접 골라 선택일의 전체 시간대를 탐색한다", async ({ page }) => {
+    const state = createState();
+    await seed(page);
+    await installApi(page, state);
+    await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+
+    const calendar = page.getByRole("grid", { name: "클리닉 월간 일정" });
+    await expect(calendar).toBeVisible();
+    await expect(calendar.getByRole("columnheader")).toHaveCount(7);
+    const days = calendar.getByRole("gridcell");
+    await expect(days).toHaveCount(42);
+    expect(await days.first().getAttribute("data-weekday-index")).toBe("0");
+    expect((await calendar.evaluate((element) => getComputedStyle(element).gridTemplateColumns))
+      .split(" ")).toHaveLength(7);
+
+    const bookedDay = page.getByTestId(`clinic-calendar-day-${bookedDate}`);
+    await expect(bookedDay).toHaveAttribute("data-booked", "true");
+    await expect(bookedDay).toHaveAttribute("data-full", "true");
+    await expect(bookedDay).toHaveAccessibleName(/예약 있음, 마감/);
+    const openDay = page.getByTestId(`clinic-calendar-day-${openDate}`);
+    await expect(openDay).toHaveAttribute("data-open", "true");
+    const today = page.getByTestId(`clinic-calendar-day-${dateAfter(0)}`);
+    await expect(today).toHaveAttribute("aria-current", "date");
+    await expect(today).toHaveAttribute("data-today", "true");
+    await expect(today).toHaveClass(/today/);
+    await bookedDay.click();
+    await expect(bookedDay).toHaveAttribute("aria-pressed", "true");
+
+    await bookedDay.focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(page.getByTestId(`clinic-calendar-day-${dateAfter(3)}`)).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    await expect(page.getByTestId(`clinic-calendar-day-${dateAfter(10)}`)).toBeFocused();
+    await openDay.focus();
+    await expect(openDay).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(openDay).toHaveAttribute("aria-pressed", "true");
+    const selectedDay = page.getByRole("region", { name: koreanDateLabel(openDate) });
+    await expect(selectedDay.getByRole("button", { name: /토요일 1시 클리닉/ })).toBeVisible();
+    await expect(selectedDay.getByRole("button", { name: /토요일 5시 클리닉/ })).toBeVisible();
+    await expect(selectedDay.getByRole("button", { name: /토요일 6시 클리닉/ })).toBeVisible();
+    await expect(selectedDay.getByRole("button", { name: /토요일 7시 클리닉/ })).toBeVisible();
+    await expect(selectedDay.getByRole("button", { name: /토요일 8시 클리닉/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: "다음 일정 더 보기" })).toHaveCount(0);
+
+    for (const viewport of [
+      { width: 390, height: 844, name: "390" },
+      { width: 1366, height: 900, name: "1366" },
+    ]) {
+      await page.setViewportSize(viewport);
+      expect(await page.locator("body").evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      )).toBe(true);
+      await page.screenshot({
+        path: `test-results/student-clinic-calendar-${viewport.name}.png`,
+        fullPage: true,
+      });
+    }
   });
 
   test("보강 항목을 최근순으로 전부 표시한다", async ({ page }) => {
@@ -534,6 +636,7 @@ test.describe("학생 클리닉 예약 UX", () => {
     await page.getByRole("tab", { name: "내 일정 1" }).click();
     await page.getByRole("button", { name: "일정 바꾸기" }).click();
     await expect(page.getByRole("region", { name: "변경 중인 예약" })).toContainText("대수 오답 클리닉");
+    await page.getByTestId(`clinic-calendar-day-${openDate}`).click();
     const openDateRegion = page.getByRole("region", { name: koreanDateLabel(openDate) });
     const openSessionButton = openDateRegion.getByRole("button", { name: /토요일 5시 클리닉/ });
     await openSessionButton.click();
@@ -568,6 +671,7 @@ test.describe("학생 클리닉 예약 UX", () => {
     await installApi(page, state);
     await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
 
+    await page.getByTestId(`clinic-calendar-day-${openDate}`).click();
     const openDateRegion = page.getByRole("region", { name: koreanDateLabel(openDate) });
     await openDateRegion.getByRole("button", { name: /토요일 5시 클리닉/ }).click();
     await page.getByLabel("희망 시작 시간").fill("17:30");
@@ -598,46 +702,78 @@ test.describe("학생 클리닉 예약 UX", () => {
     await expect(page.getByText("예약 신청이 취소되었습니다.")).toBeVisible();
   });
 
-  test("같은 날의 1시간 시간대 두 개를 17시부터 19시까지 한 번에 예약한다", async ({ page }) => {
+  test("시작과 종료를 골라 사이의 연속 시간대까지 한 번에 예약한다", async ({ page }) => {
     const state = createState();
     await seed(page);
     await installApi(page, state);
     await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
 
+    await page.getByTestId(`clinic-calendar-day-${openDate}`).click();
     const openDateRegion = page.getByRole("region", { name: koreanDateLabel(openDate) });
     await openDateRegion.getByRole("button", { name: /토요일 5시 클리닉/ }).click();
-    await openDateRegion.getByRole("button", { name: /토요일 6시 클리닉/ }).click();
+    await openDateRegion.getByRole("button", { name: /토요일 7시 클리닉/ }).click();
 
     const selection = page.getByRole("region", { name: "선택한 클리닉 시간" });
-    await expect(selection).toContainText("17:00–19:00");
-    await expect(selection).toContainText("2개 시간대");
-    await expect(selection).toContainText("총 2시간");
+    await expect(selection).toContainText("17:00–20:00");
+    await expect(selection).toContainText("3개 시간대");
+    await expect(selection).toContainText("총 3시간");
     await selection.scrollIntoViewIfNeeded();
     expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
     await page.screenshot({ path: "test-results/student-clinic-multi-slot-390.png", fullPage: true });
 
     await page.setViewportSize({ width: 1100, height: 800 });
-    await expect(selection).toContainText("17:00–19:00");
+    await expect(selection).toContainText("17:00–20:00");
     await selection.scrollIntoViewIfNeeded();
     expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
     await page.screenshot({ path: "test-results/student-clinic-multi-slot-1100.png", fullPage: true });
 
-    await selection.getByLabel("학원에 전할 내용 (선택)").fill("두 시간 연속 참여");
-    await selection.getByRole("button", { name: "2개 시간대 예약하기" }).click();
+    await selection.getByLabel("학원에 전할 내용 (선택)").fill("세 시간 연속 참여");
+    await selection.getByRole("button", { name: "3개 시간대 예약하기" }).click();
 
     await expect.poll(() => state.bookingPayloads).toEqual([{
-      session_ids: [202, 203],
-      student_request_memo: "두 시간 연속 참여",
+      session_ids: [202, 203, 204],
+      student_request_memo: "세 시간 연속 참여",
     }]);
-    await expect(page.getByRole("status")).toContainText("2개 시간대 예약 신청이 접수되었습니다.");
+    await expect(page.getByRole("status")).toContainText("3개 시간대 예약 신청이 접수되었습니다.");
 
-    await page.getByRole("tab", { name: "내 일정 3" }).click();
+    await page.getByRole("tab", { name: "내 일정 4" }).click();
     await expect(page.locator("article").filter({ hasText: "토요일 5시 클리닉" })).toBeVisible();
     await expect(page.locator("article").filter({ hasText: "토요일 6시 클리닉" })).toBeVisible();
+    await expect(page.locator("article").filter({ hasText: "토요일 7시 클리닉" })).toBeVisible();
     await page.reload({ waitUntil: "domcontentloaded" });
-    await page.getByRole("tab", { name: "내 일정 3" }).click();
-    await expect(page.locator("article").filter({ hasText: "토요일 6시 클리닉" })).toContainText("두 시간 연속 참여");
+    await page.getByRole("tab", { name: "내 일정 4" }).click();
+    await expect(page.locator("article").filter({ hasText: "토요일 6시 클리닉" })).toContainText("세 시간 연속 참여");
     expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await page.getByRole("tab", { name: "예약하기" }).click();
+    await expect(page.getByTestId(`clinic-calendar-day-${openDate}`))
+      .toHaveAttribute("data-booked-count", "3");
+  });
+
+  test("연속 범위의 빈 구간과 한 타임 전용 정책을 설명하고 기존 선택을 지킨다", async ({ page }) => {
+    const state = createState();
+    state.bookings = [];
+    await seed(page);
+    await installApi(page, state);
+    await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+
+    await page.getByTestId(`clinic-calendar-day-${openDate}`).click();
+    const openDateRegion = page.getByRole("region", { name: koreanDateLabel(openDate) });
+    const onePm = openDateRegion.getByRole("button", { name: /토요일 1시 클리닉/ });
+    const fivePm = openDateRegion.getByRole("button", { name: /토요일 5시 클리닉/ });
+    const eightPm = openDateRegion.getByRole("button", { name: /토요일 8시 클리닉/ });
+
+    await onePm.click();
+    await fivePm.click();
+    await expect(page.getByRole("status")).toContainText("시간 사이에 빈 구간이 있어");
+    await expect(onePm).toHaveAttribute("aria-pressed", "true");
+    await expect(fivePm).toHaveAttribute("aria-pressed", "false");
+
+    await onePm.click();
+    await fivePm.click();
+    await eightPm.click();
+    await expect(page.getByRole("status")).toContainText("한 타임 전용 일정이 포함되어");
+    await expect(fivePm).toHaveAttribute("aria-pressed", "true");
+    await expect(eightPm).toHaveAttribute("aria-pressed", "false");
   });
 
   test("다른 날짜로 옮길 때는 한 타임 전용 일정도 바로 선택할 수 있다", async ({ page }) => {
@@ -647,17 +783,21 @@ test.describe("학생 클리닉 예약 UX", () => {
     await installApi(page, state);
     await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
 
+    await page.getByTestId(`clinic-calendar-day-${openDate}`).click();
     const openDateRegion = page.getByRole("region", { name: koreanDateLabel(openDate) });
-    const bookedDateRegion = page.getByRole("region", { name: koreanDateLabel(bookedDate) });
     await openDateRegion.getByRole("button", { name: /토요일 5시 클리닉/ }).click();
 
+    await page.getByTestId(`clinic-calendar-day-${bookedDate}`).click();
+    const bookedDateRegion = page.getByRole("region", { name: koreanDateLabel(bookedDate) });
     const singleSlotOnOtherDate = bookedDateRegion.getByRole("button", {
       name: /대수 오답 클리닉/,
     });
     await expect(singleSlotOnOtherDate).toBeEnabled();
     await singleSlotOnOtherDate.click();
     await expect(singleSlotOnOtherDate).toHaveAttribute("aria-pressed", "true");
-    await expect(openDateRegion.getByRole("button", { name: /토요일 5시 클리닉/ }))
+    await page.getByTestId(`clinic-calendar-day-${openDate}`).click();
+    await expect(page.getByRole("region", { name: koreanDateLabel(openDate) })
+      .getByRole("button", { name: /토요일 5시 클리닉/ }))
       .toHaveAttribute("aria-pressed", "false");
   });
 
@@ -797,6 +937,7 @@ test.describe("학생 클리닉 예약 UX", () => {
     await installApi(page, state);
     await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
 
+    await page.getByTestId(`clinic-calendar-day-${openDate}`).click();
     const openDateRegion = page.getByRole("region", { name: koreanDateLabel(openDate) });
     await openDateRegion.getByRole("button", { name: /토요일 5시 클리닉/ }).click();
     await page.getByRole("button", { name: "이 일정 예약하기" }).click();
