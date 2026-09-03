@@ -607,24 +607,12 @@ export interface paths {
          *     - 운영 핵심 엔드포인트
          */
         get: operations["clinic_participants_retrieve"];
-        /**
-         * @description ✅ 클리닉 예약 / 출석 / 미이행 / 취소 관리
-         *     - 운영 핵심 엔드포인트
-         */
-        put: operations["clinic_participants_update"];
+        put?: never;
         post?: never;
-        /**
-         * @description ✅ 클리닉 예약 / 출석 / 미이행 / 취소 관리
-         *     - 운영 핵심 엔드포인트
-         */
-        delete: operations["clinic_participants_destroy"];
+        delete?: never;
         options?: never;
         head?: never;
-        /**
-         * @description ✅ 클리닉 예약 / 출석 / 미이행 / 취소 관리
-         *     - 운영 핵심 엔드포인트
-         */
-        patch: operations["clinic_participants_partial_update"];
+        patch?: never;
         trace?: never;
     };
     "/api/v1/clinic/participants/{id}/change-booking/": {
@@ -7358,7 +7346,7 @@ export interface paths {
         };
         get: operations["progress_clinic_links_list"];
         put?: never;
-        post: operations["progress_clinic_links_create"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -7373,12 +7361,12 @@ export interface paths {
             cookie?: never;
         };
         get: operations["progress_clinic_links_retrieve"];
-        put: operations["progress_clinic_links_update"];
+        put?: never;
         post?: never;
-        delete: operations["progress_clinic_links_destroy"];
+        delete?: never;
         options?: never;
         head?: never;
-        patch: operations["progress_clinic_links_partial_update"];
+        patch?: never;
         trace?: never;
     };
     "/api/v1/progress/clinic-links/{id}/carry-over/": {
@@ -7715,24 +7703,12 @@ export interface paths {
          *     - 운영 핵심 엔드포인트
          */
         get: operations["results_admin_clinic_bookings_retrieve"];
-        /**
-         * @description ✅ 클리닉 예약 / 출석 / 미이행 / 취소 관리
-         *     - 운영 핵심 엔드포인트
-         */
-        put: operations["results_admin_clinic_bookings_update"];
+        put?: never;
         post?: never;
-        /**
-         * @description ✅ 클리닉 예약 / 출석 / 미이행 / 취소 관리
-         *     - 운영 핵심 엔드포인트
-         */
-        delete: operations["results_admin_clinic_bookings_destroy"];
+        delete?: never;
         options?: never;
         head?: never;
-        /**
-         * @description ✅ 클리닉 예약 / 출석 / 미이행 / 취소 관리
-         *     - 운영 핵심 엔드포인트
-         */
-        patch: operations["results_admin_clinic_bookings_partial_update"];
+        patch?: never;
         trace?: never;
     };
     "/api/v1/results/admin/clinic-bookings/{id}/change-booking/": {
@@ -11951,7 +11927,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description GET /api/v1/tools/timer/download/ — 현재 테넌트의 타이머 ZIP presigned URL 반환. */
+        /** @description GET /api/v1/tools/timer/download/ — unsigned 레거시 배포의 종단 응답. */
         get: operations["tools_timer_download_retrieve"];
         put?: never;
         post?: never;
@@ -12259,7 +12235,7 @@ export interface components {
             /** @description 해소 근거: {exam_id, attempt_id, homework_id, score, ...} */
             resolution_evidence?: unknown;
             /**
-             * @description 해소 유형: 시험통과/과제통과/수동해소/면제/원본삭제/레거시
+             * @description 해소 유형: 시험통과/과제통과/수동해소/면제/원본삭제/시험미응시/레거시
              *
              *     * `EXAM_PASS` - 시험 통과
              *     * `HOMEWORK_PASS` - 과제 통과
@@ -12267,6 +12243,7 @@ export interface components {
              *     * `WAIVED` - 면제
              *     * `CARRIED_OVER` - 다음 차수로 이월
              *     * `SOURCE_REMOVED` - 원본 삭제
+             *     * `NOT_SUBMITTED` - 시험 미응시 전환
              *     * `BOOKING_LEGACY` - 레거시(예약 기반)
              */
             resolution_type?: (components["schemas"]["ClinicLinkResolutionTypeEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
@@ -12300,7 +12277,7 @@ export interface components {
             /** @description 해소 근거: {exam_id, attempt_id, homework_id, score, ...} */
             resolution_evidence?: unknown;
             /**
-             * @description 해소 유형: 시험통과/과제통과/수동해소/면제/원본삭제/레거시
+             * @description 해소 유형: 시험통과/과제통과/수동해소/면제/원본삭제/시험미응시/레거시
              *
              *     * `EXAM_PASS` - 시험 통과
              *     * `HOMEWORK_PASS` - 과제 통과
@@ -12308,6 +12285,7 @@ export interface components {
              *     * `WAIVED` - 면제
              *     * `CARRIED_OVER` - 다음 차수로 이월
              *     * `SOURCE_REMOVED` - 원본 삭제
+             *     * `NOT_SUBMITTED` - 시험 미응시 전환
              *     * `BOOKING_LEGACY` - 레거시(예약 기반)
              */
             resolution_type?: (components["schemas"]["ClinicLinkResolutionTypeEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
@@ -12322,10 +12300,11 @@ export interface components {
          *     * `WAIVED` - 면제
          *     * `CARRIED_OVER` - 다음 차수로 이월
          *     * `SOURCE_REMOVED` - 원본 삭제
+         *     * `NOT_SUBMITTED` - 시험 미응시 전환
          *     * `BOOKING_LEGACY` - 레거시(예약 기반)
          * @enum {string}
          */
-        ClinicLinkResolutionTypeEnum: "EXAM_PASS" | "HOMEWORK_PASS" | "MANUAL_OVERRIDE" | "WAIVED" | "CARRIED_OVER" | "SOURCE_REMOVED" | "BOOKING_LEGACY";
+        ClinicLinkResolutionTypeEnum: "EXAM_PASS" | "HOMEWORK_PASS" | "MANUAL_OVERRIDE" | "WAIVED" | "CARRIED_OVER" | "SOURCE_REMOVED" | "NOT_SUBMITTED" | "BOOKING_LEGACY";
         ClinicPlanReplaceRequest: {
             planned_clinic_link_ids: number[];
         };
@@ -12435,6 +12414,7 @@ export interface components {
             completed_at?: string | null;
             completed_by?: number | null;
             readonly completed_by_name: string;
+            readonly completion_history: unknown;
             /** Format: date-time */
             readonly created_at: string;
             readonly enrollment_id: number;
@@ -15018,35 +14998,6 @@ export interface components {
             /** Format: time */
             start_time?: string;
             work_type?: string;
-        };
-        PatchedClinicLinkRequest: {
-            approved?: boolean;
-            /**
-             * Format: int64
-             * @description 클리닉 차수: 1차, 2차, 3차...
-             */
-            cycle_no?: number;
-            is_auto?: boolean;
-            memo?: string | null;
-            meta?: unknown;
-            reason?: components["schemas"]["ClinicLinkReasonEnum"];
-            /** @description 해소 근거: {exam_id, attempt_id, homework_id, score, ...} */
-            resolution_evidence?: unknown;
-            /**
-             * @description 해소 유형: 시험통과/과제통과/수동해소/면제/원본삭제/레거시
-             *
-             *     * `EXAM_PASS` - 시험 통과
-             *     * `HOMEWORK_PASS` - 과제 통과
-             *     * `MANUAL_OVERRIDE` - 관리자 수동 해소
-             *     * `WAIVED` - 면제
-             *     * `CARRIED_OVER` - 다음 차수로 이월
-             *     * `SOURCE_REMOVED` - 원본 삭제
-             *     * `BOOKING_LEGACY` - 레거시(예약 기반)
-             */
-            resolution_type?: (components["schemas"]["ClinicLinkResolutionTypeEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
-            /** Format: date-time */
-            resolved_at?: string | null;
-            session?: number;
         };
         PatchedClinicSessionParticipantRequest: {
             /** Format: date-time */
@@ -18341,6 +18292,12 @@ export interface components {
             mustChangePassword: boolean;
             userId: number;
         };
+        TrustedTimerDistributionRequired: {
+            code: string;
+            detail: string;
+            distribution: string;
+            web_path: string;
+        };
         /**
          * @description * `exam` - exam
          *     * `homework` - homework
@@ -19131,80 +19088,6 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClinicSessionParticipant"];
-                };
-            };
-        };
-    };
-    clinic_participants_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ClinicSessionParticipantRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["ClinicSessionParticipantRequest"];
-                "multipart/form-data": components["schemas"]["ClinicSessionParticipantRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClinicSessionParticipant"];
-                };
-            };
-        };
-    };
-    clinic_participants_destroy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No response body */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    clinic_participants_partial_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["PatchedClinicSessionParticipantRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedClinicSessionParticipantRequest"];
-                "multipart/form-data": components["schemas"]["PatchedClinicSessionParticipantRequest"];
-            };
-        };
         responses: {
             200: {
                 headers: {
@@ -30278,31 +30161,6 @@ export interface operations {
             };
         };
     };
-    progress_clinic_links_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ClinicLinkRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["ClinicLinkRequest"];
-                "multipart/form-data": components["schemas"]["ClinicLinkRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClinicLink"];
-                };
-            };
-        };
-    };
     progress_clinic_links_retrieve: {
         parameters: {
             query?: never;
@@ -30314,83 +30172,6 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClinicLink"];
-                };
-            };
-        };
-    };
-    progress_clinic_links_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description clinic link을 식별하는 고유한 정수 값. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ClinicLinkRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["ClinicLinkRequest"];
-                "multipart/form-data": components["schemas"]["ClinicLinkRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClinicLink"];
-                };
-            };
-        };
-    };
-    progress_clinic_links_destroy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description clinic link을 식별하는 고유한 정수 값. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No response body */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    progress_clinic_links_partial_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description clinic link을 식별하는 고유한 정수 값. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["PatchedClinicLinkRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedClinicLinkRequest"];
-                "multipart/form-data": components["schemas"]["PatchedClinicLinkRequest"];
-            };
-        };
         responses: {
             200: {
                 headers: {
@@ -30883,80 +30664,6 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClinicSessionParticipant"];
-                };
-            };
-        };
-    };
-    results_admin_clinic_bookings_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ClinicSessionParticipantRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["ClinicSessionParticipantRequest"];
-                "multipart/form-data": components["schemas"]["ClinicSessionParticipantRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClinicSessionParticipant"];
-                };
-            };
-        };
-    };
-    results_admin_clinic_bookings_destroy: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No response body */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    results_admin_clinic_bookings_partial_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["PatchedClinicSessionParticipantRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedClinicSessionParticipantRequest"];
-                "multipart/form-data": components["schemas"]["PatchedClinicSessionParticipantRequest"];
-            };
-        };
         responses: {
             200: {
                 headers: {
@@ -37375,12 +37082,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No response body */
-            200: {
+            410: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["TrustedTimerDistributionRequired"];
+                };
             };
         };
     };

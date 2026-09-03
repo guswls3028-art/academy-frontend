@@ -1,13 +1,11 @@
 // PATH: src/app_teacher/domains/tools/pages/StopwatchPage.tsx
-// 모바일 스톱워치 — 내장 타이머 + PC 타이머 exe 다운로드 옵션
+// 모바일 스톱워치 — 내장 타이머 + 안전한 PWA 설치 안내
 import { useEffect, useRef, useState } from "react";
-import { ICON } from "@/shared/ui/ds";
+import { useA2HS } from "@/shared/pwa/useA2HS";
 import { cx } from "@/shared/utils/cx";
 import { useNavigate } from "react-router";
 import { SectionTitle, BackButton } from "@teacher/shared/ui/Card";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
-import { Download } from "@teacher/shared/ui/Icons";
-import { fetchTimerDownloadUrl } from "@/shared/api/contracts/tools";
 import styles from "./StopwatchPage.module.css";
 
 const TIMER_TICK_MS = 30;
@@ -29,6 +27,8 @@ export default function StopwatchPage() {
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [laps, setLaps] = useState<Lap[]>([]);
+  const [installing, setInstalling] = useState(false);
+  const { canInstall, isInstalled, promptInstall } = useA2HS();
   const lastStartRef = useRef<number>(0);
   const baseRef = useRef<number>(0);
 
@@ -71,18 +71,14 @@ export default function StopwatchPage() {
     });
   };
 
-  const handleDownloadExe = async () => {
+  const handleInstall = async () => {
+    if (!canInstall) return;
+
+    setInstalling(true);
     try {
-      const { download_url, filename } = await fetchTimerDownloadUrl();
-      const a = document.createElement("a");
-      a.href = download_url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      teacherToast.success("PC 타이머 다운로드 시작");
-    } catch {
-      teacherToast.error("PC 타이머가 준비되지 않았습니다.");
+      if (await promptInstall()) teacherToast.success("타이머 앱을 설치했습니다.");
+    } finally {
+      setInstalling(false);
     }
   };
 
@@ -160,19 +156,28 @@ export default function StopwatchPage() {
         </>
       )}
 
-      {/* PC 타이머 다운로드 */}
-      <SectionTitle>PC 타이머</SectionTitle>
+      <SectionTitle>PC에서 안전하게 사용</SectionTitle>
       <section className={styles.pcCard}>
         <div className={styles.pcDescription}>
-          학원 전용 PC 타이머(.exe)를 다운로드합니다. 테넌트 브랜딩이 적용된 큰 화면 타이머입니다.
+          이 화면이 공식 타이머입니다. Windows에서는 브라우저 앱으로 설치해 시작 메뉴와 작업 표시줄에서 바로 열 수 있습니다.
         </div>
-        <button
-          type="button"
-          onClick={handleDownloadExe}
-          className={styles.downloadButton}
-        >
-          <Download size={ICON.xs} /> PC 타이머 (.exe) 받기
-        </button>
+        {canInstall || isInstalled ? (
+          <button
+            type="button"
+            onClick={() => void handleInstall()}
+            className={styles.downloadButton}
+            disabled={installing || isInstalled}
+          >
+            {isInstalled ? "앱으로 실행 중" : installing ? "설치 확인 중..." : "이 기기에 앱으로 설치"}
+          </button>
+        ) : (
+          <p className={styles.securityNote}>
+            Edge·Chrome 메뉴에서 <b>앱 → 이 사이트를 앱으로 설치</b>를 선택하세요.
+          </p>
+        )}
+        <p className={styles.securityNote}>
+          Smart App Control을 끄거나 기존 English_Timer 실행 파일을 열 필요가 없습니다.
+        </p>
       </section>
     </div>
   );

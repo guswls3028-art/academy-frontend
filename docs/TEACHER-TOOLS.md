@@ -156,13 +156,32 @@ catalog와 route, 실제 페이지를 함께 추가해 목록 증가가 기존 �
 표시한다. 1분 미만 경고에서는 상태 점으로 빨강 의미를 유지하되, 밝은 기본
 화면은 진한 경고색, 검은 프로젝터 화면은 흰색 숫자를 사용해 대비를 보장한다.
 
+### Windows 설치와 Smart App Control
+
+정식 PC 경로는 별도 EXE가 아니라 현재 HTTPS 화면과 PWA다. 관리자 화면의
+`안전한 PC 타이머`에서 Edge·Chrome 설치 프롬프트를 사용할 수 있고, 강사
+화면은 같은 방식의 앱 설치 또는 브라우저 메뉴 경로를 안내한다. 설치할 수
+없는 브라우저에서도 타이머 본체는 그대로 동작해야 하며 설치 안내만 보조
+상태로 남는다. 같은 이름의 파일을 반복 다운로드하지 않으므로 `(1)` 중복본도
+생기지 않는다.
+
+과거 `English_Timer.exe`, `English_Timer (1).exe`, `Timer.exe`와 ZIP 배포는
+서명된 새 버전이 아니다. 화면은 Smart App Control이나 SmartScreen을 끄거나
+`추가 정보 → 실행`으로 우회하라고 안내하지 않는다. 기존 파일은 실행하지
+않고 삭제하도록 안내하며, 백엔드의 과거 download endpoint는 R2 URL 대신
+HTTP 410으로 fail-closed한다. 코드서명·publisher·version·SHA-256·timestamp와
+Smart App Control enforcement 장치 검증을 모두 갖춘 release 전에는 EXE/MSIX
+다운로드를 다시 노출하지 않는다. 배포 정본은
+[타이머 Windows 배포와 신뢰 경계](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/timer-distribution.md)다.
+
 배포 교체 중 lazy JavaScript 또는 CSS 자산을 받지 못하면 현재 입력을 서버에
 전송하지 않은 채 cache-bust 새로고침으로 최신 앱 셸을 다시 받는다. 짧은 시간에
 반복되면 무한 새로고침을 막고 복구 중 안내, 수동 새로고침, 일반화된 오류만
 표시한다. 내부 asset 경로나 provider 오류는 정상 사용자 흐름에 노출하지 않는다.
 브라우저 검증은 두 정식 경로에서 CSP 오류 0건, 타이머 숫자 고정폭, 모드 전환,
 390px와 1366px 가로 overflow 없음까지 확인한다.
-로컬 회귀는 `e2e/admin/stopwatch-visual-runtime.mock.spec.ts`, 전체 정적 화면 감사는
+로컬 회귀는 `e2e/admin/stopwatch-visual-runtime.mock.spec.ts`에서 관리자 PWA
+설치 프롬프트와 강사 안전 안내까지 확인한다. 전체 정적 화면 감사는
 `e2e/visual/design-system-route-audit.spec.ts`가 소유한다.
 
 ## AI 풀이·해설 사용자 흐름

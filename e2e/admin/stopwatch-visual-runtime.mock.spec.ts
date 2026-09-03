@@ -59,6 +59,34 @@ async function installApi(page: Page) {
 }
 
 async function assertDesktopTimerSurface(page: Page) {
+  const installCard = page.getByRole("region", { name: "안전한 PC 타이머" });
+  await expect(installCard).toContainText("지금 보고 있는 화면이 공식 타이머입니다.");
+  await expect(installCard).toContainText("Smart App Control은 켠 상태로 유지하세요");
+  await expect(installCard).toContainText("English_Timer (1).exe");
+  await expect(page.getByRole("button", { name: "Windows용 다운로드" })).toHaveCount(0);
+  await expect(page.getByText("추가 정보", { exact: true })).toHaveCount(0);
+
+  await page.evaluate(() => {
+    const event = new Event("beforeinstallprompt", { cancelable: true }) as Event & {
+      prompt: () => Promise<void>;
+      userChoice: Promise<{ outcome: "accepted" }>;
+    };
+    Object.defineProperty(event, "prompt", {
+      value: async () => {
+        document.body.dataset.pwaPrompted = "true";
+      },
+    });
+    Object.defineProperty(event, "userChoice", {
+      value: Promise.resolve({ outcome: "accepted" as const }),
+    });
+    window.dispatchEvent(event);
+  });
+  const installButton = page.getByRole("button", { name: "이 PC에 앱으로 설치" });
+  await expect(installButton).toBeVisible();
+  await installButton.click();
+  await expect(page.locator("body")).toHaveAttribute("data-pwa-prompted", "true");
+  await expect(page.getByRole("button", { name: "앱으로 실행 중" })).toBeDisabled();
+
   await page.getByRole("button", { name: "1분", exact: true }).click();
   const display = page.getByTestId("timer-display");
   await expect(display).toBeVisible();
@@ -82,6 +110,9 @@ async function assertMobileStopwatchSurface(page: Page) {
   await expect(page.getByTestId("mobile-stopwatch-display")).toHaveText("00:00.00");
   await expect(page.getByRole("button", { name: "시작", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "리셋", exact: true })).toBeVisible();
+  await expect(page.getByText("PC에서 안전하게 사용", { exact: true })).toBeVisible();
+  await expect(page.getByText("Smart App Control을 끄거나 기존 English_Timer 실행 파일을 열 필요가 없습니다.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /PC 타이머.*받기/ })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
 }
 
