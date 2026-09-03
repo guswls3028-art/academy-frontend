@@ -2110,6 +2110,14 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
   await expect(workbench).toBeVisible();
   await expect(workbench).toContainText("희망 13:30–14:00 · 14시 전에 끝내주세요.");
   expect(await workbench.evaluate((element) => getComputedStyle(element).animationName)).toBe("none");
+  const mobileItemSwitcherBox = await workbench.locator(".clinic-workbench__item-switcher").boundingBox();
+  const mobileActiveSectionBox = await workbench
+    .locator(".clinic-workbench__item-switcher + .clinic-ops__drawer-section")
+    .boundingBox();
+  expect(mobileItemSwitcherBox).not.toBeNull();
+  expect(mobileActiveSectionBox).not.toBeNull();
+  expect(mobileItemSwitcherBox!.y + mobileItemSwitcherBox!.height)
+    .toBeLessThanOrEqual(mobileActiveSectionBox!.y);
   await page.screenshot({ path: "test-results/admin-clinic-operations-workbench-390.png", fullPage: false });
 });
 
