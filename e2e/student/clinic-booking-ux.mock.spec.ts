@@ -741,9 +741,10 @@ test.describe("학생 클리닉 예약 UX", () => {
       date: openDate,
       start_time: "16:00:00",
       end_time: "18:00:00",
-      participant_count: 2,
-      booked_count: 2,
+      participant_count: 4,
+      booked_count: 4,
       max_participants: 3,
+      is_full: false,
       booking_mode: "time_range",
       booking_interval_minutes: 30,
       booking_max_stay_minutes: 90,
@@ -769,11 +770,13 @@ test.describe("학생 클리닉 예약 UX", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
     await page.getByTestId(`clinic-calendar-day-${openDate}`).click();
+    await expect(page.getByRole("region", { name: koreanDateLabel(openDate) })).not.toContainText("잔여 0");
     await page.getByRole("region", { name: koreanDateLabel(openDate) })
       .getByRole("button", { name: /자율 이용 클리닉/ }).click();
 
     const selection = page.getByRole("region", { name: "선택한 클리닉 시간" });
     await expect(selection).toContainText("30분 간격 · 최대 90분");
+    await expect(selection).toContainText("시작·종료 시간을 선택하세요");
     const start = selection.getByLabel("예약 시작 시간");
     await expect(start.locator("option")).toHaveText([
       "선택",
@@ -784,6 +787,16 @@ test.describe("학생 클리닉 예약 UX", () => {
     await start.selectOption("16:00");
     const end = selection.getByLabel("예약 종료 시간");
     await expect(end.locator("option")).toHaveText(["선택", "16:30", "17:00"]);
+    await end.selectOption("17:00");
+    await expect(selection.locator("strong").first()).toHaveText("16:00–17:00");
+    await expect(selection).toContainText("총 1시간");
+    await expect(selection).not.toContainText("총 2시간");
+    await start.selectOption("16:30");
+    await expect(selection).toContainText("시작·종료 시간을 선택하세요");
+    await end.selectOption("17:00");
+    await expect(selection.locator("strong").first()).toHaveText("16:30–17:00");
+    await expect(selection).toContainText("총 30분");
+    await start.selectOption("16:00");
     await end.selectOption("17:00");
     await selection.getByRole("button", { name: "이 일정 예약하기" }).click();
 

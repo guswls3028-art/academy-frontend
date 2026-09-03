@@ -19,6 +19,7 @@ import { AdminModal, ModalHeader } from "@/shared/ui/modal";
 import { Button, EmptyState, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
+import { isClinicSessionFull } from "@/shared/utils/clinicSessionCapacity";
 
 import { fetchClinicSessions, type ClinicSessionDetail } from "../../api/clinicSessions.api";
 import type { ClinicParticipant } from "../../api/clinicParticipants.api";
@@ -344,10 +345,7 @@ export default function ClinicSchedulePage() {
                       const dateISO = date.format("YYYY-MM-DD");
                       const dateSessions = monthSessionsByDate.get(dateISO) ?? [];
                       const sessionCount = dateSessions.length;
-                      const isFull = sessionCount > 0 && dateSessions.every((session) =>
-                        session.max_participants > 0
-                        && (session.booked_count ?? session.participant_count ?? 0) >= session.max_participants
-                      );
+                      const isFull = sessionCount > 0 && dateSessions.every(isClinicSessionFull);
                       const isSelected = dateISO === selectedDate;
                       const isToday = dateISO === today;
                       const isOutsideMonth = !date.isSame(monthStart, "month");
@@ -449,7 +447,9 @@ export default function ClinicSchedulePage() {
                         </div>
                         <span className={styles.dayLoad}>
                           <strong>{daySessions.length}개</strong>
-                          <span>{dayParticipants.length}/{dayCapacity || 0}명</span>
+                          <span>{daySessions.some((session) => session.booking_mode === "time_range")
+                            ? `예약 ${dayParticipants.length}명`
+                            : `${dayParticipants.length}/${dayCapacity || 0}명`}</span>
                         </span>
                       </div>
                       <div className={styles.dayBody}>
@@ -469,6 +469,7 @@ export default function ClinicSchedulePage() {
                         ) : daySessions.map((session) => {
                           const rows = activeParticipants(participantsBySession.get(session.id) ?? []);
                           const capacity = Math.max(1, session.max_participants || 1);
+                          const isTimeRange = session.booking_mode === "time_range";
                           const fillPercent = Math.min(100, Math.round((rows.length / capacity) * 100));
                           return (
                             <article key={session.id} className={styles.sessionCard}>
@@ -477,8 +478,8 @@ export default function ClinicSchedulePage() {
                                   {session.start_time.slice(0, 5)}–{sessionEndTime(session)}
                                 </span>
                                 <div className={styles.cardMetaActions}>
-                                  <span className={`${styles.capacity} ${rows.length >= capacity ? styles.capacityFull : ""}`}>
-                                    <Users size={ICON.sm} aria-hidden />{rows.length}/{session.max_participants || 0}
+                                  <span className={`${styles.capacity} ${(isTimeRange ? isClinicSessionFull(session) : rows.length >= capacity) ? styles.capacityFull : ""}`}>
+                                    <Users size={ICON.sm} aria-hidden />{isTimeRange ? `예약 ${rows.length}명` : `${rows.length}/${session.max_participants || 0}`}
                                   </span>
                                   <Button intent="ghost" size="sm" iconOnly title="일정 수정"
                                     aria-label={`${session.title || "클리닉"} 일정 수정`}
@@ -492,10 +493,11 @@ export default function ClinicSchedulePage() {
                               </div>
                               <h3 className={styles.sessionTitle}>{session.title || "클리닉"}</h3>
                               <p className={styles.location}><MapPin size={ICON.sm} aria-hidden />{session.location || "장소 미정"}</p>
-                              <div className={styles.progress} aria-label={`정원 ${fillPercent}% 예약`}>
+                              {isTimeRange && <p className={styles.location}>동시 정원 {session.max_participants}명</p>}
+                              {!isTimeRange && <div className={styles.progress} aria-label={`정원 ${fillPercent}% 예약`}>
                                 {/* eslint-disable-next-line no-restricted-syntax -- 예약률은 API 데이터에 따라 연속적으로 변한다. */}
                                 <span style={{ width: `${fillPercent}%` }} />
-                              </div>
+                              </div>}
                               <div className={styles.participants}>
                                 {rows.length === 0 ? <span className={styles.noParticipants}>예약 학생이 없습니다.</span>
                                   : rows.map((participant) => (

@@ -600,6 +600,38 @@ test("주간 보드는 0·1·3·8명과 정원 초과를 자르지 않고 한 �
   await expect(board.getByRole("article")).toHaveCount(5);
 });
 
+test("시간 범위 수업은 누적 예약이 동시 정원보다 많아도 열린 구간을 마감하지 않는다", async ({ page }) => {
+  const range = {
+    ...sessions[0], id: 799, title: "시간 범위 정원 검증", booking_mode: "time_range",
+    booking_interval_minutes: 30, booking_max_stay_minutes: 120,
+    participant_count: 3, booked_count: 3, max_participants: 2, is_full: false,
+  };
+  const participants = Array.from({ length: 3 }, (_, index) => ({
+    id: 7900 + index, session: range.id, student: 790 + index,
+    student_name: `시간 범위 학생 ${index + 1}`, session_date: range.date,
+    session_title: range.title, session_start_time: range.start_time,
+    session_location: range.location, status: "booked",
+  }));
+  await seed(page);
+  await installApi(page, undefined, { participants, targets: [] }, {
+    createPayloads: [], updatePayloads: [], sessions: [range],
+  });
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/schedule?date=${saturday}`, { timeout: 45_000 });
+  const card = page.getByRole("article").filter({ hasText: range.title });
+  await expect(card).toContainText("예약 3명");
+  await expect(card).toContainText("동시 정원 2명");
+  await expect(card).not.toContainText("3/2");
+  await expect(card.locator('[aria-label^="정원 "]')).toHaveCount(0);
+  await expect(page.getByRole("grid", { name: /클리닉 월간 달력/ })
+    .locator(`[data-calendar-date="${saturday}"]`)).toHaveAttribute("aria-label", /예약 가능/);
+  await card.getByRole("button", { name: "학생 관리", exact: true }).click();
+  await expect(page.getByRole("grid", { name: /클리닉 월간 달력/ })
+    .locator(`[data-calendar-date="${saturday}"]`)).toHaveAttribute("aria-label", /예약 가능/);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
 test("월간 달력에서 원하는 날짜를 고르면 그날 일정만 명확히 표시한다", async ({ page }) => {
   await seed(page);
   await installApi(page);

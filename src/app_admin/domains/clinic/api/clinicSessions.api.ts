@@ -15,6 +15,7 @@ export type ClinicSessionTreeNode = {
 
   participant_count: number;
   booked_count: number;
+  is_full?: boolean;
   pending_count?: number;
   booked_confirmed_count?: number;
   no_show_count: number;
@@ -118,6 +119,7 @@ export async function fetchClinicSessionTree(params: {
       duration_minutes: toOptionalNumber(row.duration_minutes),
       participant_count: toNumber(row.participant_count),
       booked_count: toNumber(row.booked_count),
+      is_full: typeof row.is_full === "boolean" ? row.is_full : undefined,
       pending_count: toNumber(row.pending_count),
       booked_confirmed_count: toNumber(row.booked_confirmed_count),
       no_show_count: toNumber(row.no_show_count),
@@ -202,6 +204,7 @@ export async function fetchClinicSessions(params: {
       target_lecture_ids: toNumberArray(row.target_lecture_ids),
       participant_count: toNumber(row.participant_count),
       booked_count: toNumber(row.booked_count),
+      is_full: typeof row.is_full === "boolean" ? row.is_full : undefined,
       pending_count: toNumber(row.pending_count),
       booked_confirmed_count: toNumber(row.booked_confirmed_count),
       section: toNullableNumber(row.section),
@@ -228,6 +231,7 @@ export type ClinicSessionDetail = {
   target_lecture_ids?: number[];
   participant_count: number;
   booked_count: number;
+  is_full?: boolean;
   pending_count?: number;
   booked_confirmed_count?: number;
   section?: number | null;

@@ -9,6 +9,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/ko";
 import { Clock, MapPin, Plus, Copy, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { cx } from "@/shared/utils/cx";
+import { isClinicSessionFull } from "@/shared/utils/clinicSessionCapacity";
 import type { ClinicSessionTreeNode } from "../../api/clinicSessions.api";
 
 dayjs.locale("ko");
@@ -175,10 +176,7 @@ export default function ClinicConsoleSidebar({
                 const isOutsideMonth = dayjs(date).month() + 1 !== month;
                 const daySessions = sessionsByDate[date] ?? [];
                 const count = daySessions.length;
-                const isFull = count > 0 && daySessions.every((session) =>
-                  (session.max_participants ?? 0) > 0
-                  && (session.booked_count ?? session.participant_count ?? 0) >= (session.max_participants ?? 0)
-                );
+                const isFull = count > 0 && daySessions.every(isClinicSessionFull);
                 const availability = count === 0
                   ? "수업 없음"
                   : `${count}개, ${isFull ? "마감" : "예약 가능"}`;

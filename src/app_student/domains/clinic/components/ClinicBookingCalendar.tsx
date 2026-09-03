@@ -5,6 +5,7 @@ import type {
   ClinicSession,
 } from "../api/clinicBooking.api";
 import { CLINIC_WEEKDAYS, clinicDateParts } from "../clinicDate";
+import { isClinicSessionFull as isFull } from "@/shared/utils/clinicSessionCapacity";
 import styles from "./ClinicBookingCalendar.module.css";
 
 type Props = {
@@ -25,12 +26,6 @@ function toYmdLocal(date: Date): string {
     String(date.getMonth() + 1).padStart(2, "0"),
     String(date.getDate()).padStart(2, "0"),
   ].join("-");
-}
-
-function isFull(session: ClinicSession): boolean {
-  if (typeof session.is_full === "boolean") return session.is_full;
-  return session.max_participants != null &&
-    (session.booked_count ?? session.participant_count ?? 0) >= session.max_participants;
 }
 
 export default function ClinicBookingCalendar({

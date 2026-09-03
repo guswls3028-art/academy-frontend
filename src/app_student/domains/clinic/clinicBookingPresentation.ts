@@ -3,13 +3,7 @@ import { hhmmText as formatTime } from "@/shared/ui/time/timeFormat";
 import type { ClinicBookingRequest, ClinicSession } from "./api/clinicBooking.api";
 import type { ClinicCurrentTarget } from "./api/clinicSummary.api";
 
-export function isSessionFull(session: ClinicSession): boolean {
-  if (typeof session.is_full === "boolean") return session.is_full;
-  return (
-    session.max_participants != null &&
-    (session.booked_count ?? 0) >= session.max_participants
-  );
-}
+export { isClinicSessionFull as isSessionFull } from "@/shared/utils/clinicSessionCapacity";
 
 export function sessionMatchesTargets(
   session: ClinicSession,
