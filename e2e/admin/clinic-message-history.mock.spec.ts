@@ -80,6 +80,24 @@ async function installApi(page: Page, verifyQueries: string[]) {
         minutes_before: 30,
         created_at: "2026-09-01T08:00:00+09:00",
         updated_at: "2026-09-01T08:00:00+09:00",
+      }, {
+        id: 502,
+        trigger: "clinic_check_out",
+        template: 302,
+        template_name: "클리닉 하원 알림",
+        template_subject: "클리닉 하원",
+        template_body: "클리닉에서 하원하였습니다.",
+        template_solapi_status: "APPROVED",
+        effective_template_solapi_status: "APPROVED",
+        effective_template_source: "unified",
+        effective_template_is_approved: true,
+        effective_template_type: "clinic_info",
+        template_is_system: true,
+        enabled: true,
+        message_mode: "alimtalk",
+        minutes_before: null,
+        created_at: "2026-09-03T22:00:00+09:00",
+        updated_at: "2026-09-03T22:00:00+09:00",
       }]);
     }
     if (path === "/messaging/templates/301/") {
@@ -168,8 +186,10 @@ test("클리닉 알림 설정은 예약부터 최종 전달까지 상태를 구�
   for (const label of ["예약", "대기", "전송 중", "공급사 접수", "최종 전달", "실패", "취소", "발송 안 함"]) {
     await expect(panel.getByText(label, { exact: true })).toBeVisible();
   }
-  await expect(panel).toContainText("하원 처리는 알림톡을 보내지 않습니다.");
+  await expect(panel).toContainText("하원 알림톡도 예약·등원과 같은 승인된 클리닉 안내 양식으로 발송합니다.");
   await expect(panel).toContainText("고정 문구·변수는 읽기 전용");
+  await expect(page.getByText("클리닉 하원", { exact: true })).toBeVisible();
+  await expect(page.getByRole("switch", { name: "클리닉 하원 자동 발송" })).toBeChecked();
   await expect(page.getByText(/SMS|LMS/)).toHaveCount(0);
 
   const reminderCard = page.locator('[data-channel-active="true"]').filter({ hasText: "클리닉 시작 N분 전" });

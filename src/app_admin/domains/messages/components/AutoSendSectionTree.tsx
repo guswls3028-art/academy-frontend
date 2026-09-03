@@ -156,6 +156,7 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
     triggers: [
       "clinic_reservation_created",
       "clinic_check_in",
+      "clinic_check_out",
       "clinic_absent",
       "clinic_self_study_completed",
       "clinic_cancelled",
@@ -167,6 +168,7 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
     children: [
       triggerChild("clinic_reservation_created", <CalendarPlus size={16} aria-hidden />),
       triggerChild("clinic_check_in", <Bell size={16} aria-hidden />),
+      triggerChild("clinic_check_out", <Bell size={16} aria-hidden />),
       triggerChild("clinic_absent", <Bell size={16} aria-hidden />),
       triggerChild("clinic_self_study_completed", <BookCheck size={16} aria-hidden />),
       triggerChild("clinic_cancelled", <Bell size={16} aria-hidden />),

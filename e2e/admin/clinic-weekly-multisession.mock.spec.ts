@@ -392,7 +392,11 @@ async function installApi(
       participant.checkout_mode = hasArrival ? "arrival_recorded" : "arrival_not_recorded";
       return json({
         ...participant,
-        notification: operationsState?.checkoutNotification ?? null,
+        notification: operationsState?.checkoutNotification ?? {
+          requested: 1,
+          failed: 0,
+          send_to: payload.send_to ?? "parent",
+        },
       });
     }
     const remindMatch = path.match(/^\/clinic\/participants\/(\d+)\/remind\/$/);
@@ -1232,8 +1236,8 @@ test("권한 있는 교직원은 등원 기록을 만들지 않고 정확한 학
   const card = page.locator(".clinic-ops__card").filter({ hasText: "미등원하원 학생" });
   await card.getByRole("button", { name: "미등원 하원", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "하원 처리" });
-  await expect(dialog).toContainText("등원 기록은 만들지 않습니다.");
-  await expect(dialog.getByRole("group", { name: "알림톡 수신자" })).toHaveCount(0);
+  await expect(dialog).toContainText("등원 기록은 만들지 않고 하원 시각만 남긴 뒤");
+  await dialog.getByLabel("학부모").check();
   await dialog.getByRole("button", { name: "미등원 하원 확정", exact: true }).click();
 
   await expect.poll(() => state.checkoutPayloads).toEqual([{
@@ -1241,10 +1245,11 @@ test("권한 있는 교직원은 등원 기록을 만들지 않고 정확한 학
     confirm_without_arrival: true,
     expected_session_id: 701,
     expected_student_id: 613,
+    send_to: "parent",
   }]);
   await expect(card).toContainText("미등원 하원 완료");
   await expect(card).not.toContainText("등원 완료");
-  await expect(page.getByText(/알림톡 요청/)).toHaveCount(0);
+  await expect(page.getByText(/알림톡 요청 완료 \(1건\)/)).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -1415,9 +1420,9 @@ test("현장 콘솔은 16·17·18시 등원 학생을 한 화면에서 시간대
   await expect(planToggle).toBeFocused();
   await expect(exactContextWorkbench.locator(".clinic-workbench__active-panel")).toContainText("부교재 화학평형");
   await exactContextWorkbench.getByRole("button", { name: "하원 처리", exact: true }).click();
-  await expect(page.getByRole("dialog", { name: "하원 처리" }).getByRole("group", { name: "알림톡 수신자" })).toHaveCount(0);
+  await page.getByRole("dialog", { name: "하원 처리" }).getByLabel("학부모").check();
   await page.keyboard.press("Enter");
-  await expect.poll(() => state.checkoutPayloads?.[0]).toEqual({ id: 824 });
+  await expect.poll(() => state.checkoutPayloads?.[0]).toEqual({ id: 824, send_to: "parent" });
   await expect(queue.getByText("다섯시 현장학생", { exact: true })).toHaveCount(1);
 
   await taskButton.click();
@@ -1454,8 +1459,9 @@ test("현장 콘솔은 16·17·18시 등원 학생을 한 화면에서 시간대
   await page.setViewportSize({ width: 1366, height: 850 });
   const fourOClockCard = queue.locator(".clinic-ops__card").filter({ hasText: "네시 현장학생" });
   await fourOClockCard.getByRole("button", { name: "하원", exact: true }).click();
+  await page.getByRole("dialog", { name: "하원 처리" }).getByLabel("학부모").check();
   await page.keyboard.press("Enter");
-  await expect.poll(() => state.checkoutPayloads?.[1]).toEqual({ id: 821 });
+  await expect.poll(() => state.checkoutPayloads?.[1]).toEqual({ id: 821, send_to: "parent" });
   await expect(fourOClockCard).toHaveCount(0);
   await expect(page.getByRole("group", { name: "클리닉 운영 범위" }).getByRole("button", { name: "현장 2명", exact: true })).toBeVisible();
 });
@@ -1904,8 +1910,9 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
   });
   await expect(studentCard.getByRole("button", { name: "하원", exact: true })).toBeEnabled();
   await studentCard.getByRole("button", { name: "하원", exact: true }).click();
+  await page.getByRole("dialog", { name: "하원 처리" }).getByLabel("학부모").check();
   await page.keyboard.press("Enter");
-  await expect.poll(() => state.checkoutPayloads?.[0]).toEqual({ id: 801 });
+  await expect.poll(() => state.checkoutPayloads?.[0]).toEqual({ id: 801, send_to: "parent" });
   await expect(studentCard).toContainText("하원 완료");
 
   const lateCard = page.locator(".clinic-ops__card").filter({ hasText: "지각 학생" });
@@ -2147,10 +2154,10 @@ test("클리닉 상태 저장과 알림톡 요청의 부분 실패를 성공으�
 
   const checkoutCard = page.locator(".clinic-ops__card").filter({ hasText: "하원 알림 실패" });
   await checkoutCard.getByRole("button", { name: "하원", exact: true }).click();
+  await page.getByRole("dialog", { name: "하원 처리" }).getByLabel("학부모").check();
   await page.keyboard.press("Enter");
-  await expect.poll(() => state.checkoutPayloads).toEqual([{ id: 901 }]);
-  await expect(page.getByText(/하원 알림 실패 하원 처리 완료/)).toBeVisible();
-  await expect(page.getByText(/하원 처리 완료 상태는 저장됐지만 알림톡/)).toHaveCount(0);
+  await expect.poll(() => state.checkoutPayloads).toEqual([{ id: 901, send_to: "parent" }]);
+  await expect(page.getByText(/하원 처리 완료 상태는 저장됐지만 알림톡 요청 0건 완료, 1건 실패/)).toBeVisible();
 
   const reminderCard = page.locator(".clinic-ops__card").filter({ hasText: "재촉 부분 성공" });
   await reminderCard.getByRole("button", { name: "재촉", exact: true }).click();

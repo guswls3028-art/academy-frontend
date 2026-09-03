@@ -713,7 +713,8 @@ export default function ClinicConsoleWorkspace({
           confirm_without_arrival: true,
           expected_session_id: p.session,
           expected_student_id: p.student,
-        } : {});
+          send_to: recipient,
+        } : { send_to: recipient });
         notification = result.notification;
       } else {
         reminder = await remindClinicParticipant(p.id, {
@@ -742,11 +743,11 @@ export default function ClinicConsoleWorkspace({
         }
       } else {
         const label = action === "arrive" ? "등원" : action === "late" ? "지각 등원" : "하원";
-        if (action === "checkout") {
-          feedback.success(`${p.student_name} ${p.checked_in_at ? "하원" : "미등원 하원"} 처리 완료`);
-        } else {
-          reportClinicNotification(`${p.student_name} ${label} 처리 완료`, notification);
-        }
+        const checkoutLabel = p.checked_in_at ? "하원" : "미등원 하원";
+        reportClinicNotification(
+          `${p.student_name} ${action === "checkout" ? checkoutLabel : label} 처리 완료`,
+          notification,
+        );
       }
     } catch (error) {
       await invalidateAll();
@@ -1503,8 +1504,9 @@ export default function ClinicConsoleWorkspace({
           const CLINIC_TRIGGERS = [
             { key: "clinic_reservation_created", label: "예약 완료", desc: "클리닉 예약이 완료되면 학부모에게 예약 안내를 발송합니다." },
             { key: "clinic_check_in", label: "참석", desc: "출석 버튼을 누르면 학부모에게 입실 알림을 발송합니다." },
+            { key: "clinic_check_out", label: "하원", desc: "하원 버튼을 누르면 선택한 수신자에게 하원 시각을 안내합니다." },
             { key: "clinic_absent", label: "결석", desc: "불참 버튼을 누르면 학부모에게 결석 알림을 발송합니다." },
-            { key: "clinic_self_study_completed", label: "클리닉 완료", desc: "완료 버튼을 누르면 학부모에게 하원 안내를 발송합니다." },
+            { key: "clinic_self_study_completed", label: "클리닉 완료", desc: "완료 버튼을 누르면 학부모에게 자율학습 완료를 안내합니다." },
             { key: "clinic_cancelled", label: "취소", desc: "클리닉 예약 취소 시 학부모에게 취소 안내를 발송합니다." },
             { key: "clinic_reservation_changed", label: "예약 변경", desc: "클리닉 예약이 변경되면 학부모에게 변경 내용을 안내합니다." },
             { key: "clinic_result_notification", label: "결과 안내", desc: "시험/과제 통과로 클리닉 대상이 해소되면 결과를 안내합니다." },

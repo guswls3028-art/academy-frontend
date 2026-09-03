@@ -489,6 +489,7 @@ export type AutoSendTrigger =
   | "clinic_reservation_changed"
   | "clinic_cancelled"
   | "clinic_check_in"
+  | "clinic_check_out"
   | "clinic_absent"
   | "clinic_self_study_completed"
   | "clinic_result_notification"
@@ -568,6 +569,7 @@ export const AUTO_SEND_TRIGGER_LABELS: Record<string, string> = {
   clinic_reservation_changed: "클리닉 예약 변경",
   clinic_cancelled: "클리닉 예약 취소",
   clinic_check_in: "참석(입실)",
+  clinic_check_out: "클리닉 하원",
   clinic_absent: "결석",
   clinic_self_study_completed: "클리닉 자율학습 완료",
   clinic_result_notification: "클리닉 결과 안내",
