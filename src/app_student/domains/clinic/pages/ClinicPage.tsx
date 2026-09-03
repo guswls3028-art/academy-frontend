@@ -25,15 +25,15 @@ import {
   fetchStudentClinicSummary,
   type ClinicCurrentTarget,
 } from "../api/clinicSummary.api";
+import { clinicDateParts } from "../clinicDate";
 import { studentClinicQueryKeys } from "../queryKeys";
 import ClinicBookingCalendar from "../components/ClinicBookingCalendar";
 import ClinicMultiSlotSelectionPanel from "../components/ClinicMultiSlotSelectionPanel";
+import { resolveClinicSessionSelection } from "../components/clinicSessionSelection";
 import styles from "./ClinicPage.module.css";
 
 type ApiErrorBody = { detail?: string; message?: string };
 type ClinicTab = "book" | "schedule";
-
-const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
 
 function isSessionFull(session: ClinicSession): boolean {
   if (typeof session.is_full === "boolean") return session.is_full;
@@ -89,17 +89,6 @@ function sortTargetsNewestFirst(
 
 function displayTargetText(value: string | null | undefined, fallback: string): string {
   return value?.trim() || fallback;
-}
-
-function dateParts(date: string) {
-  const [year, month, day] = date.split("-").map(Number);
-  const weekday = WEEKDAYS[new Date(year, month - 1, day).getDay()];
-  return {
-    month,
-    day,
-    weekday,
-    ariaLabel: `${year}년 ${month}월 ${day}일 ${weekday}요일`,
-  };
 }
 
 function sortBookings(left: ClinicBookingRequest, right: ClinicBookingRequest) {
@@ -246,7 +235,7 @@ export default function ClinicPage() {
     }));
   }, [orderedSessions]);
   const selectedSessionGroup = sessionGroups.find((group) => group.date === selectedDate) ?? null;
-  const selectedDateParts = selectedSessionGroup ? dateParts(selectedSessionGroup.date) : null;
+  const selectedDateParts = selectedSessionGroup ? clinicDateParts(selectedSessionGroup.date) : null;
   const selectedSessions = orderedSessions.filter((session) => (
     selectedSessionIds.includes(session.id)
   ));
@@ -497,69 +486,19 @@ export default function ClinicPage() {
   const selectSessionRange = (session: ClinicSession) => {
     setPreferredStart("");
     setPreferredEnd("");
-    setSelectionNotice(null);
-
-    if (changingBooking) {
-      setSelectedSessionIds([session.id]);
-      setRangeStartSessionId(session.id);
-      return;
-    }
-
-    const policyBlockedByExisting = activeBookedSessions.some((activeSession) => (
-      activeSession.id !== session.id &&
-      activeSession.date === session.date &&
-      (
-        activeSession.allow_multi_slot_booking !== true ||
-        session.allow_multi_slot_booking !== true
-      )
-    ));
-    if (policyBlockedByExisting) {
-      setSelectionNotice("이미 한 타임 전용 예약이 있어 같은 날 다른 시간대를 함께 선택할 수 없어요.");
-      return;
-    }
-
     const groupSessions = sessionGroups.find((group) => group.date === session.date)?.sessions ?? [];
-    const anchorId = rangeStartSessionId ?? selectedSessionIds[0];
-    const anchor = groupSessions.find((item) => item.id === anchorId);
-    if (!anchor || anchor.date !== session.date) {
-      setSelectedSessionIds([session.id]);
-      setRangeStartSessionId(session.id);
-      return;
-    }
-    if (anchor.id === session.id) {
-      setSelectedSessionIds((current) => current.length === 1 ? [] : [session.id]);
-      setRangeStartSessionId((current) => current === session.id ? null : session.id);
-      return;
-    }
-
-    const anchorIndex = groupSessions.findIndex((item) => item.id === anchor.id);
-    const endIndex = groupSessions.findIndex((item) => item.id === session.id);
-    const range = groupSessions.slice(
-      Math.min(anchorIndex, endIndex),
-      Math.max(anchorIndex, endIndex) + 1,
-    );
-    if (range.some((item) => item.allow_multi_slot_booking !== true)) {
-      setSelectionNotice("한 타임 전용 일정이 포함되어 여러 시간대를 함께 선택할 수 없어요.");
-      return;
-    }
-    if (range.some((item) => (
-      isSessionFull(item) ||
-      myRequests.some((request) => (
-        request.session === item.id &&
-        (request.status === "pending" || request.status === "booked")
-      ))
-    ))) {
-      setSelectionNotice("사이에 마감되었거나 이미 예약한 시간대가 있어 연속 선택할 수 없어요.");
-      return;
-    }
-    const contiguous = range.every((item, index) => (
-      index === 0 || range[index - 1].end_time?.slice(0, 5) === item.start_time.slice(0, 5)
-    ));
-    if (!contiguous) {
-      setSelectionNotice("시간 사이에 빈 구간이 있어 연속으로 선택할 수 없어요.");
-      return;
-    }
-    setSelectedSessionIds(range.map((item) => item.id));
+    const result = resolveClinicSessionSelection({
+      session,
+      changingBooking: !!changingBooking,
+      activeBookedSessions,
+      groupSessions,
+      rangeStartSessionId,
+      selectedSessionIds,
+      bookings: myRequests,
+    });
+    setSelectedSessionIds(result.sessionIds);
+    setRangeStartSessionId(result.rangeStartSessionId);
+    setSelectionNotice(result.notice);
   };
 
   if (requestsLoading || sessionsLoading) {
@@ -943,7 +882,7 @@ export default function ClinicPage() {
                 <h3>승인 대기 <span>{pendingBookings.length}</span></h3>
                 <div className={styles.bookingList}>
                   {pendingBookings.map((request) => {
-                    const parts = dateParts(request.session_date);
+                    const parts = clinicDateParts(request.session_date);
                     return (
                       <article key={request.id} className={`${styles.bookingCard} ${styles.bookingCardPending}`}>
                         <time dateTime={request.session_date} className={styles.bookingDate}>
@@ -998,7 +937,7 @@ export default function ClinicPage() {
                 <h3>예약 확정 <span>{approvedBookings.length}</span></h3>
                 <div className={styles.bookingList}>
                   {approvedBookings.map((request) => {
-                    const parts = dateParts(request.session_date);
+                    const parts = clinicDateParts(request.session_date);
                     return (
                       <article key={request.id} className={`${styles.bookingCard} ${styles.bookingCardApproved}`}>
                         <time dateTime={request.session_date} className={styles.bookingDate}>

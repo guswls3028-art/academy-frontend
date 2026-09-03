@@ -4,9 +4,8 @@ import type {
   ClinicBookingRequest,
   ClinicSession,
 } from "../api/clinicBooking.api";
+import { CLINIC_WEEKDAYS, clinicDateParts } from "../clinicDate";
 import styles from "./ClinicBookingCalendar.module.css";
-
-const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
 
 type Props = {
   sessions: ClinicSession[];
@@ -20,17 +19,12 @@ function parseYmd(value: string): Date {
   return new Date(year, month - 1, day);
 }
 
-function formatYmdLocal(date: Date): string {
+function toYmdLocal(date: Date): string {
   return [
     date.getFullYear(),
     String(date.getMonth() + 1).padStart(2, "0"),
     String(date.getDate()).padStart(2, "0"),
   ].join("-");
-}
-
-function dateLabel(value: string): string {
-  const date = parseYmd(value);
-  return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 ${WEEKDAYS[date.getDay()]}요일`;
 }
 
 function isFull(session: ClinicSession): boolean {
@@ -52,7 +46,7 @@ export default function ClinicBookingCalendar({
   });
   const [focusedDate, setFocusedDate] = useState<string | null>(selectedDate);
   const dayButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const today = formatYmdLocal(new Date());
+  const today = toYmdLocal(new Date());
 
   useEffect(() => {
     if (!selectedDate) return;
@@ -89,7 +83,7 @@ export default function ClinicBookingCalendar({
     return Array.from({ length: 42 }, (_value, index) => {
       const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + index);
       return {
-        date: formatYmdLocal(date),
+        date: toYmdLocal(date),
         day: date.getDate(),
         weekdayIndex: date.getDay(),
         currentMonth: date.getMonth() === visibleMonth.getMonth(),
@@ -101,7 +95,7 @@ export default function ClinicBookingCalendar({
     setFocusedDate((current) => (
       current && days.some((day) => day.date === current)
         ? current
-        : formatYmdLocal(visibleMonth)
+        : toYmdLocal(visibleMonth)
     ));
   }, [days, visibleMonth]);
 
@@ -130,7 +124,7 @@ export default function ClinicBookingCalendar({
         </button>
       </header>
       <div className={styles.grid} role="grid" aria-label="클리닉 월간 일정">
-        {WEEKDAYS.map((weekday) => (
+        {CLINIC_WEEKDAYS.map((weekday) => (
           <div key={weekday} className={styles.weekday} role="columnheader">
             {weekday}
           </div>
@@ -164,7 +158,7 @@ export default function ClinicBookingCalendar({
                 data-booked-count={bookingCount}
                 data-full={hasFull ? "true" : "false"}
                 data-today={isToday ? "true" : "false"}
-                aria-label={`${dateLabel(day.date)}${markers.length ? `, ${markers.join(", ")}` : ""}`}
+                aria-label={`${clinicDateParts(day.date).ariaLabel}${markers.length ? `, ${markers.join(", ")}` : ""}`}
                 aria-pressed={selectedDate === day.date}
                 aria-current={isToday ? "date" : undefined}
                 aria-disabled={!selectable}
