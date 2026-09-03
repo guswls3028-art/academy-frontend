@@ -715,6 +715,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clinic/participants/{id}/retry-notification/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Retry a confirmed failed clinic Alimtalk from its exact durable payload. */
+        post: operations["clinic_participants_retry_notification_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clinic/participants/{id}/set_status/": {
         parameters: {
             query?: never;
@@ -867,6 +884,27 @@ export interface paths {
          *     - 모든 participant 통계는 BACKEND 단일진실
          */
         patch: operations["clinic_sessions_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/clinic/sessions/{id}/availability/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description ✅ 클리닉 세션 CRUD
+         *     - 예약 페이지 / 운영 페이지 공용
+         *     - 모든 participant 통계는 BACKEND 단일진실
+         */
+        get: operations["clinic_sessions_availability_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/clinic/sessions/{id}/send_reminder/": {
@@ -7811,6 +7849,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/results/admin/clinic-bookings/{id}/retry-notification/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Retry a confirmed failed clinic Alimtalk from its exact durable payload. */
+        post: operations["results_admin_clinic_bookings_retry_notification_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/results/admin/clinic-bookings/{id}/set_status/": {
         parameters: {
             query?: never;
@@ -12208,6 +12263,32 @@ export interface components {
          * @enum {string}
          */
         CheckoutModeEnum: "arrival_recorded" | "arrival_not_recorded";
+        ClinicAvailabilityResponse: {
+            booking_mode: components["schemas"]["ClinicAvailabilityResponseBookingModeEnum"];
+            interval_minutes: components["schemas"]["IntervalMinutesEnum"];
+            max_stay_minutes: number;
+            slots: components["schemas"]["ClinicAvailabilitySlot"][];
+            window: components["schemas"]["ClinicAvailabilityWindow"];
+        };
+        /**
+         * @description * `fixed_slot` - fixed_slot
+         *     * `time_range` - time_range
+         * @enum {string}
+         */
+        ClinicAvailabilityResponseBookingModeEnum: "fixed_slot" | "time_range";
+        ClinicAvailabilitySlot: {
+            /** Format: time */
+            end_time: string;
+            remaining_capacity: number;
+            /** Format: time */
+            start_time: string;
+        };
+        ClinicAvailabilityWindow: {
+            /** Format: time */
+            end_time: string;
+            /** Format: time */
+            start_time: string;
+        };
         ClinicCheckoutRequestRequest: {
             /** @default false */
             confirm_without_arrival: boolean;
@@ -12305,6 +12386,19 @@ export interface components {
          * @enum {string}
          */
         ClinicLinkResolutionTypeEnum: "EXAM_PASS" | "HOMEWORK_PASS" | "MANUAL_OVERRIDE" | "WAIVED" | "CARRIED_OVER" | "SOURCE_REMOVED" | "NOT_SUBMITTED" | "BOOKING_LEGACY";
+        ClinicNotificationRetryRequestRequest: {
+            log_id: number;
+        };
+        ClinicNotificationRetryResponse: {
+            origin_id: string;
+            outbox_id: number;
+            status: components["schemas"]["ClinicNotificationRetryResponseStatusEnum"];
+        };
+        /**
+         * @description * `accepted` - accepted
+         * @enum {string}
+         */
+        ClinicNotificationRetryResponseStatusEnum: "accepted";
         ClinicPlanReplaceRequest: {
             planned_clinic_link_ids: number[];
         };
@@ -12338,6 +12432,23 @@ export interface components {
             allow_time_preference?: boolean;
             readonly available_slots: string;
             readonly booked_count: string;
+            /**
+             * Format: int64
+             * @description 시간 범위 예약의 선택 간격 스냅샷입니다.
+             */
+            booking_interval_minutes?: number;
+            /**
+             * Format: int64
+             * @description 시간 범위 예약의 최대 체류 분 스냅샷입니다.
+             */
+            booking_max_stay_minutes?: number;
+            /**
+             * @description 세션 생성 시 고정된 예약 방식 스냅샷입니다.
+             *
+             *     * `fixed_slot` - 고정 시간대
+             *     * `time_range` - 시간 범위
+             */
+            booking_mode?: components["schemas"]["ClinicSessionBookingModeEnum"];
             /** Format: date-time */
             readonly created_at: string;
             readonly created_by: number;
@@ -12389,7 +12500,23 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
         };
+        /**
+         * @description * `fixed_slot` - 고정 시간대
+         *     * `time_range` - 시간 범위
+         * @enum {string}
+         */
+        ClinicSessionBookingModeEnum: "fixed_slot" | "time_range";
         ClinicSessionParticipant: {
+            /**
+             * Format: time
+             * @description 시간 범위 방식에서 확정된 실제 예약 종료 시각입니다.
+             */
+            booking_end_time?: string | null;
+            /**
+             * Format: time
+             * @description 시간 범위 방식에서 확정된 실제 예약 시작 시각입니다.
+             */
+            booking_start_time?: string | null;
             /** Format: date-time */
             checked_in_at?: string | null;
             /**
@@ -12432,6 +12559,9 @@ export interface components {
             /** Format: time */
             readonly preferred_start_time: string;
             readonly profile_photo_url: string;
+            readonly recipient_contacts: {
+                [key: string]: string;
+            }[];
             /** Format: date */
             requested_date?: string | null;
             /** Format: time */
@@ -12461,6 +12591,10 @@ export interface components {
         };
         /** @description Create one student's or several staff-selected students' same-day slots atomically. */
         ClinicSessionParticipantBulkCreateRequest: {
+            /** Format: time */
+            booking_end_time?: string | null;
+            /** Format: time */
+            booking_start_time?: string | null;
             /** @default  */
             memo: string;
             /** Format: time */
@@ -12483,6 +12617,16 @@ export interface components {
          *     - session 또는 (requested_date + requested_start_time) 중 하나 필수
          */
         ClinicSessionParticipantCreate: {
+            /**
+             * Format: time
+             * @description 시간 범위 방식에서 확정된 실제 예약 종료 시각입니다.
+             */
+            booking_end_time?: string | null;
+            /**
+             * Format: time
+             * @description 시간 범위 방식에서 확정된 실제 예약 시작 시각입니다.
+             */
+            booking_start_time?: string | null;
             clinic_reason?: (components["schemas"]["ClinicReasonEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
             enrollment_id?: number | null;
             memo?: string | null;
@@ -12515,6 +12659,16 @@ export interface components {
          *     - session 또는 (requested_date + requested_start_time) 중 하나 필수
          */
         ClinicSessionParticipantCreateRequest: {
+            /**
+             * Format: time
+             * @description 시간 범위 방식에서 확정된 실제 예약 종료 시각입니다.
+             */
+            booking_end_time?: string | null;
+            /**
+             * Format: time
+             * @description 시간 범위 방식에서 확정된 실제 예약 시작 시각입니다.
+             */
+            booking_start_time?: string | null;
             clinic_reason?: (components["schemas"]["ClinicReasonEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
             enrollment_id?: number | null;
             memo?: string | null;
@@ -12541,6 +12695,16 @@ export interface components {
             student_request_memo?: string;
         };
         ClinicSessionParticipantRequest: {
+            /**
+             * Format: time
+             * @description 시간 범위 방식에서 확정된 실제 예약 종료 시각입니다.
+             */
+            booking_end_time?: string | null;
+            /**
+             * Format: time
+             * @description 시간 범위 방식에서 확정된 실제 예약 시작 시각입니다.
+             */
+            booking_start_time?: string | null;
             /** Format: date-time */
             checked_in_at?: string | null;
             /**
@@ -12588,6 +12752,23 @@ export interface components {
             allow_multi_slot_booking?: boolean;
             /** @description 학생이 세션 범위 안의 희망 시작·종료 시각을 요청할 수 있으면 True. */
             allow_time_preference?: boolean;
+            /**
+             * Format: int64
+             * @description 시간 범위 예약의 선택 간격 스냅샷입니다.
+             */
+            booking_interval_minutes?: number;
+            /**
+             * Format: int64
+             * @description 시간 범위 예약의 최대 체류 분 스냅샷입니다.
+             */
+            booking_max_stay_minutes?: number;
+            /**
+             * @description 세션 생성 시 고정된 예약 방식 스냅샷입니다.
+             *
+             *     * `fixed_slot` - 고정 시간대
+             *     * `time_range` - 시간 범위
+             */
+            booking_mode?: components["schemas"]["ClinicSessionBookingModeEnum"];
             /** Format: date */
             date: string;
             /** Format: int64 */
@@ -13636,6 +13817,12 @@ export interface components {
          * @enum {string}
          */
         InactiveVideoEntitlementSource: "STAFF_AUTHORIZATION";
+        /**
+         * @description * `30` - 30
+         *     * `60` - 60
+         * @enum {integer}
+         */
+        IntervalMinutesEnum: 30 | 60;
         InvoiceDetail: {
             /**
              * Format: int64
@@ -15000,6 +15187,16 @@ export interface components {
             work_type?: string;
         };
         PatchedClinicSessionParticipantRequest: {
+            /**
+             * Format: time
+             * @description 시간 범위 방식에서 확정된 실제 예약 종료 시각입니다.
+             */
+            booking_end_time?: string | null;
+            /**
+             * Format: time
+             * @description 시간 범위 방식에서 확정된 실제 예약 시작 시각입니다.
+             */
+            booking_start_time?: string | null;
             /** Format: date-time */
             checked_in_at?: string | null;
             /**
@@ -15047,6 +15244,23 @@ export interface components {
             allow_multi_slot_booking?: boolean;
             /** @description 학생이 세션 범위 안의 희망 시작·종료 시각을 요청할 수 있으면 True. */
             allow_time_preference?: boolean;
+            /**
+             * Format: int64
+             * @description 시간 범위 예약의 선택 간격 스냅샷입니다.
+             */
+            booking_interval_minutes?: number;
+            /**
+             * Format: int64
+             * @description 시간 범위 예약의 최대 체류 분 스냅샷입니다.
+             */
+            booking_max_stay_minutes?: number;
+            /**
+             * @description 세션 생성 시 고정된 예약 방식 스냅샷입니다.
+             *
+             *     * `fixed_slot` - 고정 시간대
+             *     * `time_range` - 시간 범위
+             */
+            booking_mode?: components["schemas"]["ClinicSessionBookingModeEnum"];
             /** Format: date */
             date?: string;
             /** Format: int64 */
@@ -19278,6 +19492,53 @@ export interface operations {
             };
         };
     };
+    clinic_participants_retry_notification_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClinicNotificationRetryRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ClinicNotificationRetryRequestRequest"];
+                "multipart/form-data": components["schemas"]["ClinicNotificationRetryRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClinicNotificationRetryResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     clinic_participants_set_status_partial_update: {
         parameters: {
             query?: never;
@@ -19547,6 +19808,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClinicSession"];
+                };
+            };
+        };
+    };
+    clinic_sessions_availability_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClinicAvailabilityResponse"];
                 };
             };
         };
@@ -29751,7 +30033,10 @@ export interface operations {
     };
     messaging_log_retrieve: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description PII가 없는 원천 식별자 접두사. 클리닉 참가자별 발송 이력 조회에 사용합니다. */
+                origin_id_prefix?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -30850,6 +31135,53 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClinicReminderResponse"];
+                };
+            };
+        };
+    };
+    results_admin_clinic_bookings_retry_notification_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClinicNotificationRetryRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ClinicNotificationRetryRequestRequest"];
+                "multipart/form-data": components["schemas"]["ClinicNotificationRetryRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClinicNotificationRetryResponse"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };

@@ -1,6 +1,6 @@
 /* Schedule overlay and multi-session context controls for the clinic dispatch console. */
 .clinic-console__schedule-bar {
-  display: flex;
+  display: none;
   min-width: 0;
   align-items: center;
   justify-content: space-between;
@@ -200,6 +200,9 @@
 }
 
 @media (max-width: 640px) {
+  .clinic-console__schedule-bar {
+    display: flex;
+  }
   .clinic-console__schedule-hint {
     display: none;
   }

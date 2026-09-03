@@ -55,6 +55,10 @@
     display: block;
   }
 
+  .clinic-operations-shell__sidebar {
+    display: none;
+  }
+
   .clinic-sidebar__section-filter {
     flex-wrap: nowrap;
     padding: 7px 10px;
@@ -222,7 +226,7 @@
 
   .clinic-ops__student-row .clinic-ops__card-reasons {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
     gap: 8px;
     overflow: visible;

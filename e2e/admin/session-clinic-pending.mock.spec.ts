@@ -273,7 +273,7 @@ test("desktop 학생 작업대 운영 버튼은 세로로 찌그러지지 않는
         <button class="clinic-ops__drawer-status-btn"><i></i><span>등원</span></button>
         <button class="clinic-ops__drawer-status-btn"><i></i><span>재촉</span></button>
         <button class="clinic-ops__drawer-status-btn"><i></i><span>결석</span></button>
-        <button class="clinic-ops__drawer-status-btn"><i></i><span>미등원 하원</span></button>
+        <button class="clinic-ops__drawer-status-btn"><i></i><span>하원</span></button>
         <button class="clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--manage"><i></i><span>일정 변경</span></button>
         <button class="clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--cancel"><i></i><span>명단에서 빼기</span></button>
       </div>

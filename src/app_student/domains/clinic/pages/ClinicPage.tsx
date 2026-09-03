@@ -17,104 +17,32 @@ import {
   changeClinicBooking,
   createClinicBookingRequests,
   fetchAvailableClinicSessions,
+  fetchClinicAvailability,
   fetchMyClinicBookingRequests,
   type ClinicBookingRequest,
   type ClinicSession,
 } from "../api/clinicBooking.api";
-import {
-  fetchStudentClinicSummary,
-  type ClinicCurrentTarget,
-} from "../api/clinicSummary.api";
+import { fetchStudentClinicSummary } from "../api/clinicSummary.api";
 import { clinicDateParts } from "../clinicDate";
 import { studentClinicQueryKeys } from "../queryKeys";
 import ClinicBookingCalendar from "../components/ClinicBookingCalendar";
 import ClinicMultiSlotSelectionPanel from "../components/ClinicMultiSlotSelectionPanel";
 import { resolveClinicSessionSelection } from "../components/clinicSessionSelection";
+import {
+  displayTargetText,
+  hasValidPreferredRange,
+  isSessionFull,
+  preferredRangeText,
+  sessionMatchesTargets,
+  sortBookings,
+  sortTargetsNewestFirst,
+  targetReasonLabel,
+  targetResolutionLink,
+} from "../clinicBookingPresentation";
 import styles from "./ClinicPage.module.css";
 
 type ApiErrorBody = { detail?: string; message?: string };
 type ClinicTab = "book" | "schedule";
-
-function isSessionFull(session: ClinicSession): boolean {
-  if (typeof session.is_full === "boolean") return session.is_full;
-  return (
-    session.max_participants != null &&
-    (session.booked_count ?? 0) >= session.max_participants
-  );
-}
-
-function sessionMatchesTargets(
-  session: ClinicSession,
-  targetLectureIds: ReadonlySet<number>,
-): boolean {
-  if (targetLectureIds.size === 0) return false;
-  const sessionLectureIds = (session.target_lecture_names ?? []).map(
-    (lecture) => lecture.id,
-  );
-  return (
-    sessionLectureIds.length === 0 ||
-    sessionLectureIds.some((lectureId) => targetLectureIds.has(lectureId))
-  );
-}
-
-function targetReasonLabel(target: ClinicCurrentTarget): string {
-  return target.source_type === "homework" ? "과제 보강" : "시험 보강";
-}
-
-function targetResolutionLink(target: ClinicCurrentTarget): { to: string; label: string } | null {
-  const sourceId = Number(target.source_id);
-  if (!Number.isInteger(sourceId) || sourceId <= 0) return null;
-  if (target.source_type === "homework") {
-    return {
-      to: `/student/submit/assignment?sessionId=${target.session_id}&homeworkId=${sourceId}`,
-      label: "과제 온라인 제출",
-    };
-  }
-  if (target.source_type === "exam") {
-    return { to: `/student/exams/${sourceId}`, label: "시험 확인·제출" };
-  }
-  return null;
-}
-
-function sortTargetsNewestFirst(
-  left: ClinicCurrentTarget,
-  right: ClinicCurrentTarget,
-): number {
-  const createdDifference = String(right.created_at ?? "").localeCompare(
-    String(left.created_at ?? ""),
-  );
-  if (createdDifference !== 0) return createdDifference;
-  return right.clinic_link_id - left.clinic_link_id;
-}
-
-function displayTargetText(value: string | null | undefined, fallback: string): string {
-  return value?.trim() || fallback;
-}
-
-function sortBookings(left: ClinicBookingRequest, right: ClinicBookingRequest) {
-  return `${left.session_date} ${left.session_start_time}`.localeCompare(
-    `${right.session_date} ${right.session_start_time}`,
-  );
-}
-
-function hasValidPreferredRange(
-  session: ClinicSession,
-  preferredStart: string,
-  preferredEnd: string,
-): boolean {
-  const sessionStart = session.start_time.slice(0, 5);
-  const sessionEnd = session.end_time?.slice(0, 5);
-  return !!sessionEnd && (
-    sessionStart <= preferredStart &&
-    preferredStart < preferredEnd &&
-    preferredEnd <= sessionEnd
-  );
-}
-
-function preferredRangeText(request: ClinicBookingRequest): string | null {
-  if (!request.preferred_start_time || !request.preferred_end_time) return null;
-  return `희망 ${formatTime(request.preferred_start_time)}–${formatTime(request.preferred_end_time)}`;
-}
 
 export default function ClinicPage() {
   const queryClient = useQueryClient();
@@ -129,6 +57,8 @@ export default function ClinicPage() {
   const [memo, setMemo] = useState("");
   const [preferredStart, setPreferredStart] = useState("");
   const [preferredEnd, setPreferredEnd] = useState("");
+  const [bookingStart, setBookingStart] = useState("");
+  const [bookingEnd, setBookingEnd] = useState("");
 
   const {
     data: myRequests = [],
@@ -243,6 +173,12 @@ export default function ClinicPage() {
     selectedSessionIds.includes(session.id)
   )) ?? [];
   const selectedSession = selectedSessions.length === 1 ? selectedSessions[0] : null;
+  const availabilityQ = useQuery({
+    queryKey: studentClinicQueryKeys.availability(selectedSession?.id),
+    queryFn: () => fetchClinicAvailability(selectedSession!.id),
+    enabled: selectedSession?.booking_mode === "time_range",
+    staleTime: 10_000,
+  });
   const activeBookedSessions = orderedSessions.filter((session) => myRequests.some(
     (request) => request.session === session.id &&
       (request.status === "pending" || request.status === "booked"),
@@ -294,6 +230,8 @@ export default function ClinicPage() {
       student_request_memo?: string;
       preferred_start_time?: string;
       preferred_end_time?: string;
+      booking_start_time?: string;
+      booking_end_time?: string;
     }) =>
       runTrackedTask("clinic.booking.create", () => createClinicBookingRequests(data)),
     onSuccess: (data, variables) => {
@@ -309,6 +247,8 @@ export default function ClinicPage() {
       setMemo("");
       setPreferredStart("");
       setPreferredEnd("");
+      setBookingStart("");
+      setBookingEnd("");
       setSelectedSessionIds([]);
       setRangeStartSessionId(null);
       setSelectionNotice(null);
@@ -353,6 +293,8 @@ export default function ClinicPage() {
       studentRequestMemo?: string;
       preferredStartTime?: string;
       preferredEndTime?: string;
+      bookingStartTime?: string;
+      bookingEndTime?: string;
     }) =>
       runTrackedTask(
         "clinic.booking.change",
@@ -362,6 +304,8 @@ export default function ClinicPage() {
           data.studentRequestMemo,
           data.preferredStartTime,
           data.preferredEndTime,
+          data.bookingStartTime,
+          data.bookingEndTime,
         ),
       ),
     onSuccess: (data, variables) => {
@@ -376,6 +320,8 @@ export default function ClinicPage() {
       setMemo("");
       setPreferredStart("");
       setPreferredEnd("");
+      setBookingStart("");
+      setBookingEnd("");
       const message = data.status === "booked"
         ? "일정 변경이 확정되었습니다."
         : "일정 변경 신청이 접수되었습니다.";
@@ -417,11 +363,17 @@ export default function ClinicPage() {
       studentToast.info("희망 시작과 종료를 운영 시간 안에서 확인해 주세요.");
       return;
     }
+    if (selectedSession?.booking_mode === "time_range" && (!bookingStart || !bookingEnd)) {
+      studentToast.info("실제 이용 시작과 종료 시간을 선택해 주세요.");
+      return;
+    }
     bookingMutation.mutate({
       session_ids: selectedSessionIds,
       student_request_memo: memo.trim() || undefined,
       preferred_start_time: selectedSession?.allow_time_preference ? preferredStart || undefined : undefined,
       preferred_end_time: selectedSession?.allow_time_preference ? preferredEnd || undefined : undefined,
+      booking_start_time: selectedSession?.booking_mode === "time_range" ? bookingStart : undefined,
+      booking_end_time: selectedSession?.booking_mode === "time_range" ? bookingEnd : undefined,
     });
   };
 
@@ -449,12 +401,18 @@ export default function ClinicPage() {
       studentToast.info("희망 시작과 종료를 운영 시간 안에서 확인해 주세요.");
       return;
     }
+    if (selectedSession?.booking_mode === "time_range" && (!bookingStart || !bookingEnd)) {
+      studentToast.info("실제 이용 시작과 종료 시간을 선택해 주세요.");
+      return;
+    }
     changeMutation.mutate({
       oldId: changingBooking.id,
       newSessionId: selectedSessionId,
       studentRequestMemo: memo.trim() || undefined,
       preferredStartTime: selectedSession?.allow_time_preference ? preferredStart || undefined : undefined,
       preferredEndTime: selectedSession?.allow_time_preference ? preferredEnd || undefined : undefined,
+      bookingStartTime: selectedSession?.booking_mode === "time_range" ? bookingStart : undefined,
+      bookingEndTime: selectedSession?.booking_mode === "time_range" ? bookingEnd : undefined,
     });
   };
 
@@ -467,6 +425,8 @@ export default function ClinicPage() {
     setMemo(request.student_request_memo ?? "");
     setPreferredStart("");
     setPreferredEnd("");
+    setBookingStart("");
+    setBookingEnd("");
     setActiveTab("book");
   };
 
@@ -480,12 +440,16 @@ export default function ClinicPage() {
     ));
     setPreferredStart("");
     setPreferredEnd("");
+    setBookingStart("");
+    setBookingEnd("");
     setSelectionNotice(null);
   };
 
   const selectSessionRange = (session: ClinicSession) => {
     setPreferredStart("");
     setPreferredEnd("");
+    setBookingStart("");
+    setBookingEnd("");
     const groupSessions = sessionGroups.find((group) => group.date === session.date)?.sessions ?? [];
     const result = resolveClinicSessionSelection({
       session,
@@ -849,12 +813,18 @@ export default function ClinicPage() {
                             memo={memo}
                             preferredStart={preferredStart}
                             preferredEnd={preferredEnd}
+                            bookingStart={bookingStart}
+                            bookingEnd={bookingEnd}
+                            availability={availabilityQ.data}
+                            availabilityPending={availabilityQ.isLoading}
                             pending={changeMutation.isPending || bookingMutation.isPending}
                             changingBooking={!!changingBooking}
                             hasError={bookingMutation.isError || changeMutation.isError}
                             onMemoChange={setMemo}
                             onPreferredStartChange={setPreferredStart}
                             onPreferredEndChange={setPreferredEnd}
+                            onBookingStartChange={setBookingStart}
+                            onBookingEndChange={setBookingEnd}
                             onSubmit={changingBooking ? submitChange : submitBooking}
                           />
                         )}

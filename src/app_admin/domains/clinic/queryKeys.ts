@@ -13,6 +13,8 @@ export const clinicQueryKeys = {
   sessionsMonth: ["clinic-sessions-month"] as const,
   sessionsMonthRange: (from: string, to: string) => ["clinic-sessions-month", from, to] as const,
   notificationCounts: ["admin", "notification-counts"] as const,
+  participantNotifications: (participantId: number | null) =>
+    ["clinic", "participant-notifications", participantId] as const,
   studentSearch: (q: string) => ["clinic-student-search", q] as const,
   studentsPaginated: (page: number, search: string, ordering: string) =>
     ["clinic-students-paginated", page, search, ordering] as const,

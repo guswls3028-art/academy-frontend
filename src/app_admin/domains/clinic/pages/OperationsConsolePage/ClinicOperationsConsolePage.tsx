@@ -313,6 +313,37 @@ export default function ClinicOperationsConsolePage() {
         </div>
 
         <div className={`${panelStyles.body} clinic-operations-shell__body`}>
+          <aside className={`${panelStyles.tree} clinic-operations-shell__sidebar`} aria-label="날짜와 클리닉 수업">
+            <ClinicConsoleSidebar
+              sessions={filteredTree}
+              selectedDay={selectedDate}
+              todayISO={todayISO()}
+              year={ym.year}
+              month={ym.month}
+              onSelectDay={selectConsoleDate}
+              onPrevMonth={() => {
+                const d = dayjs(selectedDate).subtract(1, "month");
+                selectConsoleDate(d.startOf("month").format("YYYY-MM-DD"));
+              }}
+              onNextMonth={() => {
+                const d = dayjs(selectedDate).add(1, "month");
+                selectConsoleDate(d.startOf("month").format("YYYY-MM-DD"));
+              }}
+              selectedSessionId={selectedSessionId}
+              onSelectSession={selectConsoleSession}
+              onCreateClick={() => setCreateModalOpen(true)}
+              onImportClick={() => setImportModalOpen(true)}
+              onEditSession={(sessionId) => void handleEditSession(sessionId)}
+              onDeleteSession={handleDeleteSession}
+              showSectionFilter={showSectionFilter}
+              sectionFilter={sectionFilter}
+              sectionFilterOptions={sectionOptionsAll}
+              onSectionFilterChange={(value) => {
+                setSectionFilter(value);
+                setSelectedSessionId(null);
+              }}
+            />
+          </aside>
           <div className={`${panelStyles.content} clinic-operations-shell__content`}>
             <div className={panelStyles.contentInner} style={WIDE_CONTENT_STYLE}>
               <div className="clinic-console__live-controls">
@@ -333,7 +364,6 @@ export default function ClinicOperationsConsolePage() {
                         : `${dayjs(selectedDate).format("M월 D일")} ${selectedSessionId == null ? "전체" : activeSession?.start_time?.slice(0, 5) || "시간대"}`}
                     </strong>
                   </button>
-                  <span className="clinic-console__schedule-hint">달력과 수업은 필요할 때 열고, 학생 작업대는 그대로 유지됩니다.</span>
                 </div>
                 <div
                   className="clinic-console__scope-rail"

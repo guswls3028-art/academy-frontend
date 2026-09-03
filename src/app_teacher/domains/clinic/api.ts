@@ -17,6 +17,9 @@ export type TeacherClinicSession = {
   is_full?: boolean | null;
   allow_multi_slot_booking?: boolean;
   allow_time_preference?: boolean;
+  booking_mode?: "fixed_slot" | "time_range";
+  booking_interval_minutes?: 30 | 60;
+  booking_max_stay_minutes?: number;
 };
 
 export type TeacherClinicParticipantStatus =
@@ -142,6 +145,9 @@ export async function createClinicSession(payload: {
   section?: number | null;
   allow_multi_slot_booking: boolean;
   allow_time_preference: boolean;
+  booking_mode: "fixed_slot" | "time_range";
+  booking_interval_minutes: 30 | 60;
+  booking_max_stay_minutes: number;
 }): Promise<TeacherClinicSession> {
   const res = await api.post("/clinic/sessions/", payload);
   return res.data;
@@ -183,11 +189,22 @@ export type ClinicSettingsPayload = {
   auto_approve_booking?: boolean;
   use_daily_random?: boolean;
   colors?: ClinicColorTuple;
+  booking_mode?: "fixed_slot" | "time_range";
+  booking_interval_minutes?: 30 | 60;
+  booking_max_stay_minutes?: number;
 };
 
 export type ClinicSettings = ClinicSettingsPayload & {
   saved_colors?: ClinicColorTuple;
   multi_slot_booking_default?: boolean;
+  booking_mode: "fixed_slot" | "time_range";
+  booking_interval_minutes: 30 | 60;
+  booking_max_stay_minutes: number;
+  capabilities?: {
+    student_operations: { read: boolean; write: boolean };
+    student_contacts: { read: boolean; write: boolean };
+    booking_policy: { read: boolean; write: boolean };
+  };
 };
 
 export async function fetchClinicSettings(): Promise<ClinicSettings> {

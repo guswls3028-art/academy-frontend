@@ -30,6 +30,9 @@ export type ClinicSessionTreeNode = {
   allow_time_preference?: boolean;
   /** 같은 날짜의 다른 허용 세션을 함께 예약할 수 있는지 */
   allow_multi_slot_booking: boolean;
+  booking_mode?: "fixed_slot" | "time_range";
+  booking_interval_minutes?: 30 | 60;
+  booking_max_stay_minutes?: number;
 };
 
 function normalizeDate(s: string): string {
@@ -78,6 +81,14 @@ function toSectionType(value: unknown): "CLASS" | "CLINIC" | null {
   return value === "CLASS" || value === "CLINIC" ? value : null;
 }
 
+function toBookingMode(value: unknown): "fixed_slot" | "time_range" {
+  return value === "time_range" ? "time_range" : "fixed_slot";
+}
+
+function toBookingInterval(value: unknown): 30 | 60 {
+  return value === 30 ? 30 : 60;
+}
+
 /**
  * 운영 좌측 트리 전용
  * GET /clinic/sessions/tree/?year=YYYY&month=MM[&section=ID|unassigned]
@@ -116,6 +127,9 @@ export async function fetchClinicSessionTree(params: {
       section_type: toSectionType(row.section_type),
       allow_time_preference: row.allow_time_preference === true,
       allow_multi_slot_booking: row.allow_multi_slot_booking === true,
+      booking_mode: toBookingMode(row.booking_mode),
+      booking_interval_minutes: toBookingInterval(row.booking_interval_minutes),
+      booking_max_stay_minutes: toNumber(row.booking_max_stay_minutes, 240),
     }));
 }
 
@@ -155,6 +169,9 @@ export async function updateClinicSession(
     section?: number | null;
     allow_time_preference?: boolean;
     allow_multi_slot_booking?: boolean;
+    booking_mode?: "fixed_slot" | "time_range";
+    booking_interval_minutes?: 30 | 60;
+    booking_max_stay_minutes?: number;
   }
 ): Promise<void> {
   await api.patch(`/clinic/sessions/${sessionId}/`, payload);
@@ -192,6 +209,9 @@ export async function fetchClinicSessions(params: {
       section_type: toSectionType(row.section_type),
       allow_time_preference: row.allow_time_preference === true,
       allow_multi_slot_booking: row.allow_multi_slot_booking === true,
+      booking_mode: toBookingMode(row.booking_mode),
+      booking_interval_minutes: toBookingInterval(row.booking_interval_minutes),
+      booking_max_stay_minutes: toNumber(row.booking_max_stay_minutes, 240),
     }));
 }
 
@@ -215,4 +235,7 @@ export type ClinicSessionDetail = {
   section_type?: "CLASS" | "CLINIC" | null;
   allow_time_preference?: boolean;
   allow_multi_slot_booking: boolean;
+  booking_mode?: "fixed_slot" | "time_range";
+  booking_interval_minutes?: 30 | 60;
+  booking_max_stay_minutes?: number;
 };

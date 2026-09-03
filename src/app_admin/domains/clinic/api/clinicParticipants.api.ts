@@ -43,6 +43,13 @@ export type ClinicParticipant = {
   status: ClinicParticipantStatus;
   preferred_start_time?: string | null;
   preferred_end_time?: string | null;
+  booking_start_time?: string | null;
+  booking_end_time?: string | null;
+  recipient_contacts?: Array<{
+    role: "student" | "parent";
+    name: string;
+    phone: string;
+  }>;
   /** 학생·학부모 작성 출처가 확인된 요청사항 */
   student_request_memo?: string;
   /** 작성 출처가 불명확한 레거시 운영 메모. 학생에게 노출하지 않음 */
@@ -274,4 +281,16 @@ export async function completeClinicParticipant(
 export async function uncompleteClinicParticipant(id: number) {
   const res = await api.post(`/clinic/participants/${id}/uncomplete/`);
   return res.data as ClinicParticipant;
+}
+
+export async function retryClinicParticipantNotification(id: number, logId: number) {
+  const res = await api.post(`/clinic/participants/${id}/retry-notification/`, {
+    log_id: logId,
+  });
+  return res.data as {
+    ok: true;
+    status: "queued";
+    log_id: number;
+    origin_id: string;
+  };
 }

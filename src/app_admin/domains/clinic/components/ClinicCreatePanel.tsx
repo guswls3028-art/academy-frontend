@@ -1,13 +1,8 @@
-// PATH: src/app_admin/domains/clinic/components/ClinicCreatePanel.tsx
-// 클리닉 생성 — 대상 필터(학년/학교/강의) + 시간/장소/정원/대상자
-
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Input, App, Popover, Select } from "antd";
 import dayjs from "dayjs";
 import { Save, FolderOpen, Trash2, ChevronDown, ChevronUp } from "lucide-react";
-
 import { DatePicker } from "@/shared/ui/date";
-import { TimeRangeInput } from "@/shared/ui/time";
 import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -49,6 +44,8 @@ import {
   todayISO,
 } from "./clinicCreatePanel.utils";
 import type { ClinicCreatePanelProps } from "./clinicCreatePanel.types";
+import ClinicTimePolicyFields from "./ClinicTimePolicyFields";
+import { useClinicBookingPolicy } from "../hooks/useClinicBookingPolicy";
 
 export default function ClinicCreatePanel({
   date,
@@ -85,7 +82,7 @@ export default function ClinicCreatePanel({
   const clinicSettingsQ = useQuery({
     queryKey: clinicQueryKeys.settings,
     queryFn: fetchClinicSettings,
-    enabled: !sourceSession,
+    enabled: true,
     staleTime: 60_000,
   });
   const [selectedSectionId, setSelectedSectionId] = useState<number | null>(
@@ -179,16 +176,20 @@ export default function ClinicCreatePanel({
   const [room, setRoom] = useState(sourceSession?.location ?? "");
   const [memo, setMemo] = useState("");
   const [maxParticipants, setMaxParticipants] = useState<number>(sourceSession?.max_participants ?? 10);
-  const [allowTimePreference, setAllowTimePreference] = useState(sourceSession?.allow_time_preference ?? false);
-  const [allowMultiSlotBooking, setAllowMultiSlotBooking] = useState(
-    sourceSession?.allow_multi_slot_booking ?? false,
-  );
-  const multiSlotTouchedRef = useRef(false);
-
-  useEffect(() => {
-    if (sourceSession || multiSlotTouchedRef.current || !clinicSettingsQ.data) return;
-    setAllowMultiSlotBooking(clinicSettingsQ.data.multi_slot_booking_default === true);
-  }, [clinicSettingsQ.data, sourceSession]);
+  const {
+    allowTimePreference,
+    setAllowTimePreference,
+    allowMultiSlotBooking,
+    setAllowMultiSlotBooking,
+    bookingMode,
+    setBookingMode,
+    bookingIntervalMinutes,
+    setBookingIntervalMinutes,
+    bookingMaxStayMinutes,
+    setBookingMaxStayMinutes,
+    saveDefaultPolicy,
+    savingDefaultPolicy,
+  } = useClinicBookingPolicy({ sourceSession, settings: clinicSettingsQ.data });
 
   const [savedLocations, setSavedLocations] = useState<string[]>(() => getSavedLocations());
   const [loadPopoverOpen, setLoadPopoverOpen] = useState(false);
@@ -260,6 +261,9 @@ export default function ClinicCreatePanel({
       section?: number | null;
       allow_time_preference?: boolean;
       allow_multi_slot_booking?: boolean;
+      booking_mode: "fixed_slot" | "time_range";
+      booking_interval_minutes: 30 | 60;
+      booking_max_stay_minutes: number;
     }) => {
       const res = await api.post("/clinic/sessions/", payload);
       return res.data as { id: number };
@@ -283,6 +287,15 @@ export default function ClinicCreatePanel({
     const duration = durationMinutes(start, end);
     if (duration <= 0)
       return message.error("종료 시간은 시작 시간 이후여야 합니다.");
+    if (bookingMode === "time_range" && duration % bookingIntervalMinutes !== 0) {
+      return message.warning(`시간 범위 운영 시간은 ${bookingIntervalMinutes}분 단위로 맞춰주세요.`);
+    }
+    if (
+      bookingMaxStayMinutes < bookingIntervalMinutes ||
+      bookingMaxStayMinutes % bookingIntervalMinutes !== 0
+    ) {
+      return message.warning("최대 체류 시간은 예약 간격의 배수여야 합니다.");
+    }
     if (!room.trim()) return message.warning("장소/룸을 입력해주세요.");
 
     if (isEdit && editSession) {
@@ -339,7 +352,10 @@ export default function ClinicCreatePanel({
           target_school_type: targetSchoolType,
           target_lecture_ids: targetLectureIds.length > 0 ? targetLectureIds : [],
           allow_time_preference: allowTimePreference,
-          allow_multi_slot_booking: allowMultiSlotBooking,
+          allow_multi_slot_booking: bookingMode === "fixed_slot" && allowMultiSlotBooking,
+          booking_mode: bookingMode,
+          booking_interval_minutes: bookingIntervalMinutes,
+          booking_max_stay_minutes: bookingMaxStayMinutes,
           ...(showSectionPicker ? { section: selectedSectionId } : {}),
         });
         message.success("클리닉이 수정되었습니다.");
@@ -409,7 +425,10 @@ export default function ClinicCreatePanel({
         target_lecture_ids: targetLectureIds.length > 0 ? targetLectureIds : [],
         memo: memo.trim() || undefined,
         allow_time_preference: allowTimePreference,
-        allow_multi_slot_booking: allowMultiSlotBooking,
+        allow_multi_slot_booking: bookingMode === "fixed_slot" && allowMultiSlotBooking,
+        booking_mode: bookingMode,
+        booking_interval_minutes: bookingIntervalMinutes,
+        booking_max_stay_minutes: bookingMaxStayMinutes,
         ...(showSectionPicker ? { section: selectedSectionId } : {}),
       });
 
@@ -636,34 +655,23 @@ export default function ClinicCreatePanel({
       )}
 
       {/* 시간 */}
-      <div className="clinic-create__field">
-        <label className="clinic-create__label">시간</label>
-        <div role="group" aria-label="시간 선택">
-          <TimeRangeInput
-            value={timeRange}
-            onChange={setTimeRange}
-            startLabel="시작"
-            endLabel="종료"
-            startPlaceholder="시작"
-            endPlaceholder="종료"
-          />
-        </div>
-        <label className="clinic-create__time-preference">
-          <input type="checkbox" checked={allowTimePreference} onChange={(event) => setAllowTimePreference(event.target.checked)} />
-          <span><strong>학생 희망 시간 받기</strong><small>학생이 이 일정 안에서 원하는 시작·종료 시간을 요청할 수 있습니다. 최종 시간은 교직원이 배정합니다.</small></span>
-        </label>
-        <label className="clinic-create__time-preference">
-          <input
-            type="checkbox"
-            checked={allowMultiSlotBooking}
-            onChange={(event) => {
-              multiSlotTouchedRef.current = true;
-              setAllowMultiSlotBooking(event.target.checked);
-            }}
-          />
-          <span><strong>같은 날 여러 시간대 예약</strong><small>켜면 이 옵션이 켜진 클리닉끼리 한 학생을 여러 시간대에 예약할 수 있습니다.</small></span>
-        </label>
-      </div>
+      <ClinicTimePolicyFields
+        timeRange={timeRange}
+        onTimeRangeChange={setTimeRange}
+        bookingMode={bookingMode}
+        onBookingModeChange={setBookingMode}
+        bookingIntervalMinutes={bookingIntervalMinutes}
+        onBookingIntervalMinutesChange={setBookingIntervalMinutes}
+        bookingMaxStayMinutes={bookingMaxStayMinutes}
+        onBookingMaxStayMinutesChange={setBookingMaxStayMinutes}
+        canSaveDefault={!isEdit && clinicSettingsQ.data?.capabilities.booking_policy.write === true}
+        savingDefault={savingDefaultPolicy}
+        onSaveDefault={saveDefaultPolicy}
+        allowTimePreference={allowTimePreference}
+        onAllowTimePreferenceChange={setAllowTimePreference}
+        allowMultiSlotBooking={allowMultiSlotBooking}
+        onAllowMultiSlotBookingChange={setAllowMultiSlotBooking}
+      />
       {/* 제목 + 정원 (한 행) */}
       <div className="clinic-create__row">
         <div className="clinic-create__field clinic-create__field--grow">

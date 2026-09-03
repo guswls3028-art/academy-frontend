@@ -11,26 +11,8 @@
 }
 
 @media (min-width: 1100px) {
-  .shell {
-    display: grid;
-    grid-template-columns: minmax(430px, 0.9fr) minmax(0, 1.1fr);
-    align-items: start;
-  }
-
-  .header {
-    grid-column: 1 / -1;
-  }
-
   .monthOverview {
-    min-width: 0;
-    align-self: stretch;
-    border-right: 1px solid var(--color-border-divider);
-    border-bottom: 0;
-  }
-
-  .selectedDay {
-    min-width: 0;
-    align-self: stretch;
+    border-bottom: 1px solid var(--color-border-divider);
   }
 }
 
@@ -411,7 +393,7 @@
   display: grid;
   grid-template-columns: repeat(7, minmax(160px, 1fr));
   min-width: 1120px;
-  min-height: 560px;
+  min-height: 0;
 }
 
 .day {
@@ -488,7 +470,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  min-height: 490px;
+  min-height: 240px;
   padding: var(--space-3);
 }
 
@@ -565,15 +547,22 @@
 }
 
 .cardTop {
+  min-width: 0;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: var(--space-2);
 }
 
 .cardMetaActions {
   display: flex;
+  width: 100%;
+  min-width: 0;
   align-items: center;
   gap: 4px;
-  flex: 0 0 auto;
+}
+
+.cardMetaActions .capacity {
+  margin-right: auto;
 }
 
 .time {
@@ -653,15 +642,11 @@
 
 .cardActions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   align-items: center;
   gap: 4px;
   padding-top: var(--space-2);
   border-top: 1px solid var(--color-border-divider);
-}
-
-.cardActions > :first-child {
-  grid-column: 1 / -1;
 }
 
 .cardActions > * {
@@ -774,6 +759,25 @@
 
   .summary {
     justify-content: flex-end;
+  }
+
+  .boardViewport {
+    overflow-x: visible;
+    scrollbar-gutter: auto;
+  }
+
+  .board {
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+  }
+
+  .day {
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border-divider);
+  }
+
+  .day:last-child {
+    border-bottom: 0;
   }
 
   .monthOverview {

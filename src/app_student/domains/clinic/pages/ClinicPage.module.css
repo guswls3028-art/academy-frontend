@@ -648,7 +648,8 @@
   font-weight: 750;
 }
 
-.preferenceInputs input {
+.preferenceInputs input,
+.preferenceInputs select {
   width: 100%;
   min-width: 0;
   min-height: 42px;
@@ -662,7 +663,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-.preferenceInputs input:focus-visible {
+.preferenceInputs input:focus-visible,
+.preferenceInputs select:focus-visible {
   border-color: var(--stu-primary);
   outline: 2px solid color-mix(in srgb, var(--stu-primary) 24%, transparent);
   outline-offset: 1px;
@@ -926,19 +928,26 @@
   }
 
   .dateGroup {
-    grid-template-columns: 62px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--stu-space-2);
     padding: var(--stu-space-3);
   }
-
   .dateTicket {
-    min-height: 90px;
+    width: 100%;
+    min-height: 44px;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 4px;
+    padding: 8px 10px;
   }
-
   .dateTicket strong {
+    margin: 0;
     font-size: 27px;
+    letter-spacing: -0.03em;
   }
-
+  .dateTicket small {
+    margin: 0 0 0 auto;
+  }
   .sessionSelectButton {
     min-height: 90px;
     padding: 11px;

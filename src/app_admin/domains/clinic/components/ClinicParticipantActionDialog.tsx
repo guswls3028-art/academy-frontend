@@ -86,9 +86,9 @@ export default function ClinicParticipantActionDialog({
   const copy = action === "checkout" && withoutArrival
     ? {
         title: "하원 처리",
-        eyebrow: "미등원 하원",
+        eyebrow: "하원",
         description: "등원 기록은 만들지 않고 하원 시각만 남긴 뒤 선택한 수신자에게 알립니다.",
-        confirm: "미등원 하원 확정",
+        confirm: "하원 확정",
       }
     : ACTION_COPY[action];
   const [sendTo, setSendTo] = useState<ClinicRecipient>(() => defaultRecipient(action));
