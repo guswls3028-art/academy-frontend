@@ -544,11 +544,33 @@ test("월간 달력에서 원하는 날짜를 고르면 그날 일정만 명확�
   });
   await mobileSaturdayButton.click();
   await expect(mobileSaturdayButton).toHaveAttribute("aria-selected", "true");
+  const mobileCalendarTargets = await page.getByRole("grid", { name: /클리닉 월간 달력/ })
+    .getByRole("gridcell")
+    .evaluateAll((elements) => elements.map((element) => {
+      const bounds = element.getBoundingClientRect();
+      return Math.min(bounds.width, bounds.height);
+    }));
+  expect(Math.min(...mobileCalendarTargets)).toBeGreaterThanOrEqual(44);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   expect(await page.locator("[data-clinic-selected-day-grid]").evaluate(
     (element) => element.scrollWidth <= element.clientWidth,
   )).toBe(true);
   await page.screenshot({ path: "test-results/admin-clinic-calendar-forwardfix-390.png", fullPage: false });
+
+  await page.setViewportSize({ width: 312, height: 675 });
+  const zoomedCalendarTargets = await page.getByRole("grid", { name: /클리닉 월간 달력/ })
+    .getByRole("gridcell")
+    .evaluateAll((elements) => elements.map((element) => {
+      const bounds = element.getBoundingClientRect();
+      return Math.min(bounds.width, bounds.height) * 1.25;
+    }));
+  expect(Math.min(...zoomedCalendarTargets)).toBeGreaterThanOrEqual(44);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  for (const buttonName of ["이전 주 복사", "클리닉 만들기"]) {
+    const action = page.getByRole("button", { name: buttonName, exact: true });
+    await expect(action).toBeVisible();
+    expect(await action.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  }
 });
 
 test("월간 달력은 42일 경계를 유지하고 방향키와 Space로 날짜를 선택한다", async ({ page }) => {

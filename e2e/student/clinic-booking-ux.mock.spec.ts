@@ -594,6 +594,15 @@ test.describe("학생 클리닉 예약 UX", () => {
       { width: 1366, height: 900, name: "1366" },
     ]) {
       await page.setViewportSize(viewport);
+      if (viewport.width === 390) {
+        const mobileCalendarTargets = await calendar.locator("button").evaluateAll(
+          (elements) => elements.map((element) => {
+            const bounds = element.getBoundingClientRect();
+            return Math.min(bounds.width, bounds.height);
+          }),
+        );
+        expect(Math.min(...mobileCalendarTargets)).toBeGreaterThanOrEqual(44);
+      }
       expect(await page.locator("body").evaluate(
         (element) => element.scrollWidth <= element.clientWidth,
       )).toBe(true);
@@ -602,6 +611,18 @@ test.describe("학생 클리닉 예약 UX", () => {
         fullPage: true,
       });
     }
+
+    await page.setViewportSize({ width: 312, height: 675 });
+    const zoomedCalendarTargets = await calendar.locator("button").evaluateAll(
+      (elements) => elements.map((element) => {
+        const bounds = element.getBoundingClientRect();
+        return Math.min(bounds.width, bounds.height) * 1.25;
+      }),
+    );
+    expect(Math.min(...zoomedCalendarTargets)).toBeGreaterThanOrEqual(44);
+    expect(await page.locator("body").evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    )).toBe(true);
   });
 
   test("보강 항목을 최근순으로 전부 표시한다", async ({ page }) => {

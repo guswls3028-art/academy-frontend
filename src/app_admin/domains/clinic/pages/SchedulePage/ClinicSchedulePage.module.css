@@ -789,7 +789,12 @@
   }
 
   .monthPanel {
-    padding: var(--space-2);
+    padding: var(--space-2) 2px;
+  }
+
+  .monthWeekdays,
+  .monthWeek {
+    column-gap: 1px;
   }
 
   .monthOverviewHeader {
@@ -870,6 +875,26 @@
 
   .dateNavLoad {
     font-size: 9px;
+  }
+}
+
+@media (max-width: 360px) {
+  .headerActions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .headerActions > * {
+    width: 100%;
+  }
+
+  .monthPanel {
+    padding-inline: 0;
+  }
+
+  .monthWeekdays,
+  .monthWeek {
+    column-gap: 0;
   }
 }
 
