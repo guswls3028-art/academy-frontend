@@ -149,7 +149,10 @@ function OperationsStrip({
     return <div className={styles.operationsStrip} data-tone="warning">운영 상태를 불러오지 못했습니다.</div>;
   }
 
-  const hasRisk = status.risks.length > 0 || !["ok", "idle"].includes(status.worker.status);
+  const unresolvedActionRequired = status.unresolved?.action_required ?? status.log_24h.ambiguous;
+  const hasRisk = status.risks.length > 0
+    || unresolvedActionRequired > 0
+    || !["ok", "idle"].includes(status.worker.status);
   return (
     <section className={styles.operationsStrip} data-tone={hasRisk ? "warning" : "success"} aria-label="알림톡 운영 요약">
       <div className={styles.operationsLead}>
@@ -170,8 +173,8 @@ function OperationsStrip({
             + status.log_24h.retryable_failed
           ).toLocaleString()}</strong> 진행 중
         </span>
-        <span data-warning={status.log_24h.ambiguous > 0 ? "true" : undefined}>
-          <strong>{status.log_24h.ambiguous.toLocaleString()}</strong> 확인 필요
+        <span data-warning={unresolvedActionRequired > 0 ? "true" : undefined}>
+          <strong>{unresolvedActionRequired.toLocaleString()}</strong> 미확정 전체
         </span>
         <span data-warning={status.log_24h.failed > 0 ? "true" : undefined}>
           <strong>{status.log_24h.failed.toLocaleString()}</strong> 실패
@@ -295,11 +298,27 @@ function LogDetailModal({
     enabled: open && Boolean(item),
     staleTime: 30 * 1000,
   });
+  const providerQ = useQuery({
+    queryKey: messageQueryKeys.logProviderDelivery(item?.id ?? 0),
+    queryFn: () => fetchNotificationLogDetail(item!.id, { verify_provider: true }),
+    enabled: false,
+    retry: false,
+  });
   if (!item) return null;
 
-  const detail = detailQ.data ?? item;
+  const detail = providerQ.data ?? detailQ.data ?? item;
   const state = deliveryState(detail);
   const StateIcon = state.icon;
+  const providerStatus = providerQ.data?.provider_delivery_status;
+  const providerState = providerStatus === "delivered"
+    ? { label: "최종 전달 확인", tone: "success" as const, detail: "공급사가 최종 전달 완료로 보고했습니다." }
+    : providerStatus === "failed"
+      ? { label: "최종 전달 실패", tone: "danger" as const, detail: "공급사가 최종 전달 실패로 보고했습니다." }
+      : providerStatus === "provider_accepted"
+        ? { label: "공급사 접수", tone: "info" as const, detail: "공급사 접수는 확인됐지만 최종 전달 완료 상태는 아닙니다." }
+        : providerStatus === "unavailable"
+          ? { label: "최종 상태 확인 불가", tone: "warning" as const, detail: "공급사 최종 상태를 확인할 수 없습니다." }
+          : null;
 
   return (
     <AdminModal open={open} onClose={onClose} type="inspect" width={820} noMinimize className={styles.detailModal}>
@@ -381,6 +400,26 @@ function LogDetailModal({
                       : "아직 공급사 접수 근거가 기록되지 않았습니다."}
                   </small>
                 </span>
+              </section>
+
+              <section className={styles.evidenceRow} data-confirmed={providerStatus === "delivered" ? "true" : "false"} aria-live="polite">
+                <RefreshCw size={ICON.md} aria-hidden />
+                <span>
+                  <strong>{providerState?.label ?? "최종 전달 상태 미확인"}</strong>
+                  <small>
+                    {providerState
+                      ? (detail.provider_delivery_failure_reason || providerState.detail)
+                      : "공급사 접수 기록과 최종 전달 상태는 다를 수 있습니다."}
+                  </small>
+                </span>
+                <Button
+                  size="sm"
+                  intent="secondary"
+                  disabled={providerQ.isFetching}
+                  onClick={() => void providerQ.refetch()}
+                >
+                  {providerQ.isFetching ? "확인 중" : "최종 상태 확인"}
+                </Button>
               </section>
 
               {detail.failure_reason && (

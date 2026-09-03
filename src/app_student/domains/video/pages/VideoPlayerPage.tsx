@@ -382,7 +382,7 @@ export default function VideoPlayerPage() {
   });
   useEffect(() => {
     const expiresAt = playbackData?.playback_expires_at;
-    if (!isDirectAccess || !expiresAt || fatalError) return;
+    if (!playbackData?.playback_token || !expiresAt || fatalError) return;
     let active = true;
     const refreshDelay = Math.max(1_000, expiresAt * 1000 - Date.now() - 45_000);
     const timer = window.setTimeout(() => {
@@ -391,11 +391,11 @@ export default function VideoPlayerPage() {
         if (!active) return;
         const refreshedExpiry = result.data?.playback_expires_at ?? 0;
         if (result.error || refreshedExpiry * 1000 <= Date.now()) {
-          setFatalError("개별 영상 권한을 다시 확인하지 못했습니다. 다시 시도해 주세요.");
+          setFatalError("재생 권한을 다시 확인하지 못했습니다. 다시 시도해 주세요.");
         }
       }).catch(() => {
         if (!active) return;
-        setFatalError("개별 영상 권한을 다시 확인하지 못했습니다. 다시 시도해 주세요.");
+        setFatalError("재생 권한을 다시 확인하지 못했습니다. 다시 시도해 주세요.");
       }).finally(() => {
         if (!active) return;
         setPolicyRebootstrapPending(false);
@@ -405,7 +405,7 @@ export default function VideoPlayerPage() {
       active = false;
       window.clearTimeout(timer);
     };
-  }, [fatalError, isDirectAccess, playbackData?.playback_expires_at, refetchPlayback]);
+  }, [fatalError, playbackData?.playback_expires_at, playbackData?.playback_token, refetchPlayback]);
   useEffect(() => {
     const response = (currentAccessQuery.error as {
       response?: { status?: number; data?: { detail?: unknown } };

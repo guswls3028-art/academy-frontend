@@ -260,6 +260,16 @@ export interface MessagingOperationsStatus {
     action_required: number;
     total: number;
   };
+  unresolved?: {
+    sending: number;
+    ambiguous: number;
+    action_required: number;
+    age_buckets: {
+      under_1h: number;
+      from_1h_to_24h: number;
+      over_24h: number;
+    };
+  };
   templates: {
     approved: number;
     owner_approved: number;
