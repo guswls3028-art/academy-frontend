@@ -741,9 +741,10 @@ test.describe("학생 클리닉 예약 UX", () => {
       date: openDate,
       start_time: "16:00:00",
       end_time: "18:00:00",
-      participant_count: 2,
-      booked_count: 2,
+      participant_count: 4,
+      booked_count: 4,
       max_participants: 3,
+      is_full: false,
       booking_mode: "time_range",
       booking_interval_minutes: 30,
       booking_max_stay_minutes: 90,
@@ -769,6 +770,7 @@ test.describe("학생 클리닉 예약 UX", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
     await page.getByTestId(`clinic-calendar-day-${openDate}`).click();
+    await expect(page.getByRole("region", { name: koreanDateLabel(openDate) })).not.toContainText("잔여 0");
     await page.getByRole("region", { name: koreanDateLabel(openDate) })
       .getByRole("button", { name: /자율 이용 클리닉/ }).click();
 

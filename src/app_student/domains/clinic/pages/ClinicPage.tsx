@@ -721,7 +721,7 @@ export default function ClinicPage() {
                               )
                             ));
                             const disabled = full || currentChangingSession || !!activeRequest;
-                            const remaining = session.max_participants == null
+                            const remaining = session.booking_mode === "time_range" || session.max_participants == null
                               ? null
                               : Math.max(
                                   0,
@@ -770,7 +770,9 @@ export default function ClinicPage() {
                                       </span>
                                     )}
                                     <span className={styles.preferenceBadge}>
-                                      {session.allow_multi_slot_booking === true
+                                      {session.booking_mode === "time_range"
+                                        ? "시간 선택 예약"
+                                        : session.allow_multi_slot_booking === true
                                         ? "여러 시간대 가능"
                                         : "한 타임만 예약"}
                                     </span>
@@ -792,7 +794,9 @@ export default function ClinicPage() {
                                     ) : selected ? (
                                       <span className={styles.selectedBadge}>선택됨</span>
                                     ) : remaining == null ? (
-                                      <span className={styles.selectHint}>추가 선택</span>
+                                      <span className={styles.selectHint}>
+                                        {session.booking_mode === "time_range" ? "시간 선택" : "추가 선택"}
+                                      </span>
                                     ) : (
                                       <span className={styles.selectHint}>잔여 {remaining}명</span>
                                     )}

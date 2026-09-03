@@ -160,13 +160,14 @@ export default function ClinicHomePage() {
         noShow: pg?.noShow ?? s.no_show_count ?? 0,
         approvalPending: pg?.pending ?? s.pending_count ?? 0,
         maxParticipants: s.max_participants ?? null,
+        isTimeRange: s.booking_mode === "time_range",
         sectionLabel: s.section_label ?? null,
       };
     });
     // 참가자에만 있고 세션 트리에 없는 경우 (혹시 모를 정합성 보장)
     for (const pg of participantGroups) {
       if (!todaySessions.some((s) => s.id === pg.sessionId)) {
-        merged.push({ ...pg, approvalPending: 0, maxParticipants: null, sectionLabel: null });
+        merged.push({ ...pg, approvalPending: 0, maxParticipants: null, isTimeRange: false, sectionLabel: null });
       }
     }
     merged.sort((a, b) => (a.time > b.time ? 1 : a.time < b.time ? -1 : 0));
@@ -386,7 +387,8 @@ export default function ClinicHomePage() {
                           <span className="clinic-home__timeline-card-location">{s.location}</span>
                         )}
                         <span className="clinic-home__timeline-card-fill">
-                          예약 {s.reserved}{s.maxParticipants != null ? `/${s.maxParticipants}` : ""}명
+                          예약 {s.reserved}{!s.isTimeRange && s.maxParticipants != null ? `/${s.maxParticipants}` : ""}명
+                          {s.isTimeRange && s.maxParticipants != null ? ` · 동시 정원 ${s.maxParticipants}명` : ""}
                           {s.approvalPending > 0 && (
                             <span className="clinic-home__timeline-card-alert"> · 승인 대기 {s.approvalPending}</span>
                           )}

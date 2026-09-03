@@ -2,6 +2,7 @@ import type {
   ClinicBookingRequest,
   ClinicSession,
 } from "../api/clinicBooking.api";
+import { isClinicSessionFull as isFull } from "@/shared/utils/clinicSessionCapacity";
 
 type SelectionInput = {
   session: ClinicSession;
@@ -18,12 +19,6 @@ type SelectionResult = {
   rangeStartSessionId: number | null;
   notice: string | null;
 };
-
-function isFull(session: ClinicSession): boolean {
-  if (typeof session.is_full === "boolean") return session.is_full;
-  return session.max_participants != null
-    && (session.booked_count ?? session.participant_count ?? 0) >= session.max_participants;
-}
 
 export function resolveClinicSessionSelection({
   session,
