@@ -39,7 +39,7 @@ const logs = [
     claimed_at: "2026-08-23T02:20:01Z",
     success: false,
     status: "ambiguous",
-    amount_deducted: "15.00",
+    amount_deducted: "0.00",
     recipient_summary: "김민서 0108****",
     template_summary: "클리닉 예약 안내",
     notification_type: "clinic_reservation_created",
@@ -49,9 +49,9 @@ const logs = [
     message_body: "",
     message_body_included: false,
     body_visibility: "available",
-    provider_evidence: true,
-    provider_message_reference: "•••• B67890",
-    provider_message_id: "group-provider-B67890",
+    provider_evidence: false,
+    provider_message_reference: "",
+    provider_message_id: "",
   },
   {
     id: 903,
@@ -77,6 +77,7 @@ const logs = [
 
 async function installMessagingLogApp(page: Page) {
   const detailRequests: number[] = [];
+  const providerVerifyRequests: number[] = [];
   const access = localJwt();
   await page.addInitScript(({ accessToken }) => {
     localStorage.setItem("tenant_code", "hakwonplus");
@@ -134,10 +135,17 @@ async function installMessagingLogApp(page: Page) {
     if (detailMatch) {
       const id = Number(detailMatch[1]);
       detailRequests.push(id);
+      const verifyProvider = new URL(request.url()).searchParams.get("verify_provider") === "true";
+      if (verifyProvider) providerVerifyRequests.push(id);
       const item = logs.find((entry) => entry.id === id);
       if (!item) return json({ detail: "Not found." }, 404);
       return json({
         ...item,
+        ...(verifyProvider && id === 902 ? {
+          provider_delivery_status: "unavailable",
+          provider_delivery_checked_at: "2026-08-23T02:30:00Z",
+          provider_delivery_failure_reason: "공급사 접수 식별 정보가 없어 최종 상태를 확인할 수 없습니다.",
+        } : {}),
         message_body: id === 901
           ? "[보안] 계정/인증 알림 본문은 저장하지 않습니다."
           : "8월 24일 오후 3시 클리닉 예약이 완료되었습니다.",
@@ -154,9 +162,15 @@ async function installMessagingLogApp(page: Page) {
           processing: 0,
           sending: 0,
           retryable_failed: 1,
+          ambiguous: 0,
+          action_required: 0,
+          total: 20,
+        },
+        unresolved: {
+          sending: 0,
           ambiguous: 1,
           action_required: 1,
-          total: 21,
+          age_buckets: { under_1h: 0, from_1h_to_24h: 0, over_24h: 1 },
         },
         auto_send: { enabled: 4, enabled_without_template: 0, enabled_unapproved_template: 0 },
         risks: [],
@@ -168,7 +182,7 @@ async function installMessagingLogApp(page: Page) {
     if (pathname === "/landing/has-published/") return json({ has_published: false });
     return json({ count: 0, results: [] });
   });
-  return detailRequests;
+  return { detailRequests, providerVerifyRequests };
 }
 
 async function openLog(page: Page) {
@@ -181,12 +195,12 @@ test.use({ serviceWorkers: "block" });
 test.describe("알림톡 발송 기록 UX", () => {
   test("provider lifecycle를 실패로 뭉개지 않고 보안 본문을 설명한다", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 900 });
-    const detailRequests = await installMessagingLogApp(page);
+    const { detailRequests } = await installMessagingLogApp(page);
     await openLog(page);
 
     const operationsSummary = page.getByRole("region", { name: "알림톡 운영 요약" });
     await expect(operationsSummary).toContainText("1 진행 중");
-    await expect(operationsSummary).toContainText("1 확인 필요");
+    await expect(operationsSummary).toContainText("1 미확정 전체");
     await expect(operationsSummary).toContainText("1 실패");
     const logRegion = page.getByRole("region", { name: "알림톡 발송 기록" });
     await expect(logRegion.getByText("접수 완료", { exact: true })).toBeVisible();
@@ -200,21 +214,25 @@ test.describe("알림톡 발송 기록 UX", () => {
     await expect(dialog.getByRole("region", { name: "카카오 알림톡 미리보기" })).toBeVisible();
     await expect(dialog.getByText("우리 학원 알림톡", { exact: true })).toBeVisible();
     await expect(dialog.getByText(/보안을 위해 본문을 저장하지 않았습니다/)).toBeVisible();
-    await expect(dialog.getByText(/공급사 접수 기록/)).toBeVisible();
+    await expect(dialog.getByText("공급사 접수 기록 있음", { exact: true })).toBeVisible();
     await expect(dialog.getByText(/group-provider-A12345/)).toBeVisible();
     expect(detailRequests).toContain(901);
   });
 
   test("상세를 열 때만 저장된 일반 본문을 조회한다", async ({ page }) => {
     await page.setViewportSize({ width: 1100, height: 800 });
-    const detailRequests = await installMessagingLogApp(page);
+    const { detailRequests, providerVerifyRequests } = await installMessagingLogApp(page);
     await openLog(page);
 
     expect(detailRequests).toEqual([]);
     await page.getByRole("button", { name: /김민서/ }).click();
     const dialog = page.getByRole("dialog").last();
     await expect(dialog.getByText("8월 24일 오후 3시 클리닉 예약이 완료되었습니다.")).toBeVisible();
+    await dialog.getByRole("button", { name: "최종 상태 확인" }).click();
+    await expect(dialog.getByText("최종 상태 확인 불가", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("공급사 접수 식별 정보가 없어 최종 상태를 확인할 수 없습니다.", { exact: true })).toBeVisible();
     expect(detailRequests).toContain(902);
+    expect(providerVerifyRequests).toEqual([902]);
   });
 
   test("390px에서 로그와 상세가 가로로 잘리지 않는다", async ({ page }) => {

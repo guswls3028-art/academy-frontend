@@ -236,7 +236,7 @@ test("개별 영상 학생 재생은 canonical bootstrap·exact-only·로컬 이
   ).toBeLessThanOrEqual(1);
 });
 
-test("기존 수강 재생은 canonical bootstrap 뒤 화면 활동을 한 번만 기록한다", async ({ page }) => {
+test("기존 수강 재생은 canonical bootstrap 뒤 화면 활동을 한 번만 기록하고 만료 전에 갱신한다", async ({ page }) => {
   const { evidence } = await installApp(page, "enrolled");
   await page.goto(`${BASE}/student/video/play?video=902&enrollment=702&session=802`, {
     waitUntil: "domcontentloaded",
@@ -249,6 +249,9 @@ test("기존 수강 재생은 canonical bootstrap 뒤 화면 활동을 한 번�
   ).toBe(1);
   await page.clock.runFor(5_000);
   expect(evidence.activityBodies.filter((body) => body.screen_id === "student.video.player")).toHaveLength(1);
+
+  await page.clock.runFor(21_000);
+  await expect.poll(() => evidence.playbackRequests).toBe(2);
 });
 
 test("bootstrap 실패는 학생 화면 활동을 기록하지 않는다", async ({ page }) => {

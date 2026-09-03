@@ -185,6 +185,10 @@
   발생하면 이전 성공이 현재 거절 상태를 지우거나 발급된 URL을 다시 mount하지 않는다.
   허용 상태에서는 30초 주기로 재검증하며, fatal 거절 뒤의 타이머·`visibilitychange`와 영상 화면
   이탈 뒤에는 추가 access-check 요청을 보내지 않는다.
+- 서버가 발급한 `playback_token`과 만료 시각이 있으면 개별 허용 영상뿐 아니라 기존
+  수강 영상도 만료 45초 전에 canonical bootstrap을 다시 요청한다. 갱신된 만료 시각이
+  이미 지났거나 재발급에 실패하면 이전 CDN 주소를 계속 사용하지 않고 플레이어를 닫아
+  재생 권한 재확인 실패를 표시한다.
 
 재생 URL·현재 정책·감시 세션을 새로 발급하는 bootstrap은
 `POST /student/video/videos/{videoId}/playback/`이다. `GET`은
