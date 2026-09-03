@@ -4,6 +4,7 @@ import {
   createEmptyOperationalNotificationCounts,
   fetchOperationalNotificationCounts,
   type OperationalNotificationCounts,
+  type OperationalNotificationCountsResult,
   type OperationalNotificationItem,
   type OperationalNotificationSource,
 } from "@/shared/api/contracts/notifications";
@@ -18,16 +19,24 @@ export function useOperationalNotificationCounts() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const includeConsult = user?.tenantRole === "owner";
+  const queryKey = notificationQueryKeys.operationalCountsForRole(includeConsult);
   const q = useQuery({
-    queryKey: notificationQueryKeys.operationalCountsForRole(includeConsult),
-    queryFn: () => fetchOperationalNotificationCounts(
-      () => queryClient.fetchQuery({
-        queryKey: arrivalOverviewQueryKey,
-        queryFn: fetchArrivalOverview,
-        staleTime: 20 * 1000,
-      }),
-      { includeConsult },
-    ),
+    queryKey,
+    queryFn: async () => {
+      return fetchOperationalNotificationCounts(
+        () => queryClient.fetchQuery({
+          queryKey: arrivalOverviewQueryKey,
+          queryFn: fetchArrivalOverview,
+          staleTime: 20 * 1000,
+        }),
+        {
+          includeConsult,
+          includeRegistrationRequests:
+            queryClient.getQueryData<OperationalNotificationCountsResult>(queryKey)
+              ?.selfRegistrationDisabled !== true,
+        },
+      );
+    },
     staleTime: 20 * 1000,
     refetchInterval: 30 * 1000,
   });

@@ -40,6 +40,7 @@ export type OperationalNotificationSource =
 export type OperationalNotificationCountsResult = {
   counts: OperationalNotificationCounts;
   failures: OperationalNotificationSource[];
+  selfRegistrationDisabled: boolean;
 };
 
 export type OperationalNotificationItem = {
@@ -56,6 +57,7 @@ export type AdminNotificationItem = OperationalNotificationItem;
 
 type OperationalNotificationOptions = {
   includeConsult?: boolean;
+  includeRegistrationRequests?: boolean;
 };
 
 type ListEnvelope<T> = {
@@ -143,15 +145,25 @@ async function fetchClinicPendingCount(): Promise<number | null> {
   }
 }
 
-async function fetchRegistrationRequestsPendingCount(): Promise<number | null> {
+type RegistrationRequestsPendingCount = {
+  count: number | null;
+  selfRegistrationDisabled: boolean;
+};
+
+async function fetchRegistrationRequestsPendingCount(): Promise<RegistrationRequestsPendingCount> {
   try {
     const res = await api.get("/students/registration_requests/", {
       params: { status: "pending", page: 1, page_size: 1 },
     });
-    return countFromListEnvelope(res.data);
+    return {
+      count: countFromListEnvelope(res.data),
+      selfRegistrationDisabled: false,
+    };
   } catch (error) {
-    if (isSelfRegistrationDisabledError(error)) return 0;
-    return null;
+    if (isSelfRegistrationDisabledError(error)) {
+      return { count: 0, selfRegistrationDisabled: true };
+    }
+    return { count: null, selfRegistrationDisabled: false };
   }
 }
 
@@ -211,6 +223,7 @@ export async function fetchOperationalNotificationCounts(
   options: OperationalNotificationOptions = {},
 ): Promise<OperationalNotificationCountsResult> {
   const includeConsult = options.includeConsult ?? true;
+  const includeRegistrationRequests = options.includeRegistrationRequests ?? true;
   const [
     clinicPendingRes,
     qnaCount,
@@ -226,7 +239,9 @@ export async function fetchOperationalNotificationCounts(
     fetchClinicPendingCount(),
     countPendingPosts("qna"),
     countPendingPosts("counsel"),
-    fetchRegistrationRequestsPendingCount(),
+    includeRegistrationRequests
+      ? fetchRegistrationRequestsPendingCount()
+      : Promise.resolve({ count: 0, selfRegistrationDisabled: true }),
     fetchRecentSubmissionsCount(),
     fetchDashboardVideoFailedCount(),
     includeConsult ? fetchConsultUnread() : Promise.resolve(0),
@@ -239,7 +254,7 @@ export async function fetchOperationalNotificationCounts(
   if (qnaCount === null) failures.push("qna");
   if (counselCount === null) failures.push("counsel");
   if (clinicPendingRes === null) failures.push("clinic");
-  if (registrationRequestsRes === null) failures.push("registration_requests");
+  if (registrationRequestsRes.count === null) failures.push("registration_requests");
   if (recentSubmissionsRes === null) failures.push("submissions");
   if (videoFailedRes === null) failures.push("video_failed");
   if (includeConsult && consultRes === null) failures.push("consult");
@@ -250,7 +265,7 @@ export async function fetchOperationalNotificationCounts(
   const qna = qnaCount ?? 0;
   const counsel = counselCount ?? 0;
   const clinicPending = clinicPendingRes ?? 0;
-  const registrationRequestsPending = registrationRequestsRes ?? 0;
+  const registrationRequestsPending = registrationRequestsRes.count ?? 0;
   const recentSubmissions = recentSubmissionsRes ?? 0;
   const videoFailed = videoFailedRes ?? 0;
   const consultUnread = consultRes ?? 0;
@@ -279,7 +294,11 @@ export async function fetchOperationalNotificationCounts(
 
   const requestedSourceCount = includeConsult ? 10 : 9;
   if (failures.length === requestedSourceCount) {
-    return { counts: createEmptyOperationalNotificationCounts(), failures };
+    return {
+      counts: createEmptyOperationalNotificationCounts(),
+      failures,
+      selfRegistrationDisabled: registrationRequestsRes.selfRegistrationDisabled,
+    };
   }
 
   return {
@@ -300,6 +319,7 @@ export async function fetchOperationalNotificationCounts(
       total,
     },
     failures,
+    selfRegistrationDisabled: registrationRequestsRes.selfRegistrationDisabled,
   };
 }
 
