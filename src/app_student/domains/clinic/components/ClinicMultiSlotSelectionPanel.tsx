@@ -1,6 +1,6 @@
 import { hhmmText as formatTime } from "@/shared/ui/time/timeFormat";
 
-import type { ClinicSession } from "../api/clinicBooking.api";
+import type { ClinicAvailability, ClinicSession } from "../api/clinicBooking.api";
 import styles from "../pages/ClinicPage.module.css";
 
 type Props = {
@@ -9,12 +9,18 @@ type Props = {
   memo: string;
   preferredStart: string;
   preferredEnd: string;
+  bookingStart: string;
+  bookingEnd: string;
+  availability?: ClinicAvailability;
+  availabilityPending: boolean;
   pending: boolean;
   changingBooking: boolean;
   hasError: boolean;
   onMemoChange: (value: string) => void;
   onPreferredStartChange: (value: string) => void;
   onPreferredEndChange: (value: string) => void;
+  onBookingStartChange: (value: string) => void;
+  onBookingEndChange: (value: string) => void;
   onSubmit: () => void;
 };
 
@@ -60,15 +66,35 @@ export default function ClinicMultiSlotSelectionPanel({
   memo,
   preferredStart,
   preferredEnd,
+  bookingStart,
+  bookingEnd,
+  availability,
+  availabilityPending,
   pending,
   changingBooking,
   hasError,
   onMemoChange,
   onPreferredStartChange,
   onPreferredEndChange,
+  onBookingStartChange,
+  onBookingEndChange,
   onSubmit,
 }: Props) {
   const timeSummary = selectedTimeSummary(selectedSessions);
+  const availableStartSlots = availability?.slots.filter((slot) => slot.remaining_capacity > 0) ?? [];
+  const bookingStartMinutes = timeToMinutes(bookingStart);
+  const availableEndSlots = availability?.slots.filter((slot) => {
+    const slotStart = timeToMinutes(slot.start_time);
+    const slotEnd = timeToMinutes(slot.end_time);
+    if (bookingStartMinutes == null || slotStart == null || slotEnd == null || slotStart < bookingStartMinutes) return false;
+    if (slotEnd - bookingStartMinutes > (availability?.max_stay_minutes ?? 0)) return false;
+    return (availability?.slots ?? [])
+      .filter((candidate) => {
+        const candidateStart = timeToMinutes(candidate.start_time);
+        return candidateStart != null && candidateStart >= bookingStartMinutes && candidateStart < slotEnd;
+      })
+      .every((candidate) => candidate.remaining_capacity > 0);
+  }) ?? [];
   return (
     <section className={styles.selectionPanel} aria-label="선택한 클리닉 시간">
       <div className={styles.selectionSummary}>
@@ -83,6 +109,40 @@ export default function ClinicMultiSlotSelectionPanel({
           </span>
         ))}
       </div>
+      {selectedSessions.length === 1 && selectedSession?.booking_mode === "time_range" && (
+        <fieldset className={styles.preferenceFieldset}>
+          <legend>실제 이용 시간</legend>
+          <p>{availabilityPending ? "남은 시간을 확인하는 중입니다." : `${availability?.interval_minutes ?? 60}분 간격 · 최대 ${availability?.max_stay_minutes ?? selectedSession.booking_max_stay_minutes ?? 240}분`}</p>
+          <div className={styles.preferenceInputs}>
+            <label>
+              <span>시작</span>
+              <select aria-label="예약 시작 시간" value={bookingStart}
+                disabled={availabilityPending}
+                onChange={(event) => {
+                  onBookingStartChange(event.target.value);
+                  onBookingEndChange("");
+                }}>
+                <option value="">선택</option>
+                {availableStartSlots.map((slot) => (
+                  <option key={slot.start_time} value={slot.start_time}>{slot.start_time} · 잔여 {slot.remaining_capacity}</option>
+                ))}
+              </select>
+            </label>
+            <span aria-hidden>–</span>
+            <label>
+              <span>종료</span>
+              <select aria-label="예약 종료 시간" value={bookingEnd}
+                disabled={!bookingStart || availabilityPending}
+                onChange={(event) => onBookingEndChange(event.target.value)}>
+                <option value="">선택</option>
+                {availableEndSlots.map((slot) => (
+                  <option key={slot.end_time} value={slot.end_time}>{slot.end_time}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </fieldset>
+      )}
       {selectedSessions.length === 1 && selectedSession?.allow_time_preference && (
         <fieldset className={styles.preferenceFieldset}>
           <legend>희망 이용 시간 <small>(선택)</small></legend>

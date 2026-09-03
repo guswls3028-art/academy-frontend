@@ -40,6 +40,8 @@ type MockState = {
   bookingPayloads: Array<Record<string, unknown>>;
   cancelledIds: number[];
   changePayloads: Array<Record<string, unknown>>;
+  sessions?: Array<Record<string, unknown>>;
+  availability?: Record<number, Record<string, unknown>>;
 };
 
 type IdcardMockControl = {
@@ -221,6 +223,7 @@ async function installApi(
   idcardControl?: IdcardMockControl,
   programOptions: ProgramMockOptions = {},
 ) {
+  const sessionRows = state.sessions ?? sessions;
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
@@ -257,14 +260,19 @@ async function installApi(
         must_change_password: false,
       });
     }
-    if (path === "/clinic/sessions/" && method === "GET") return json(sessions);
+    if (path === "/clinic/sessions/" && method === "GET") return json(sessionRows);
+    const availabilityMatch = path.match(/^\/clinic\/sessions\/(\d+)\/availability\/$/);
+    if (availabilityMatch && method === "GET") {
+      const sessionId = Number(availabilityMatch[1]);
+      return json(state.availability?.[sessionId] ?? { detail: "not found" }, state.availability?.[sessionId] ? 200 : 404);
+    }
     if (path === "/clinic/participants/" && method === "GET") {
       return json({ count: state.bookings.length, results: state.bookings });
     }
     if (path === "/clinic/participants/bulk-create/" && method === "POST") {
       const payload = request.postDataJSON() as Record<string, unknown>;
       state.bookingPayloads.push(payload);
-      const selectedSessions = sessions.filter((session) => (
+      const selectedSessions = sessionRows.filter((session) => (
         (payload.session_ids as number[]).includes(session.id)
       ));
       const bookings = selectedSessions.map((session, index) => ({
@@ -721,6 +729,70 @@ test.describe("학생 클리닉 예약 UX", () => {
 
     await expect.poll(() => state.cancelledIds).toEqual([503]);
     await expect(page.getByText("예약 신청이 취소되었습니다.")).toBeVisible();
+  });
+
+  test("시간 범위 예약은 서버 잔여 정원과 최대 체류 안의 연속 구간만 제출한다", async ({ page }) => {
+    const state = createState();
+    state.bookings = [];
+    state.sessions = [{
+      ...sessions[0],
+      id: 206,
+      title: "자율 이용 클리닉",
+      date: openDate,
+      start_time: "16:00:00",
+      end_time: "18:00:00",
+      participant_count: 2,
+      booked_count: 2,
+      max_participants: 3,
+      booking_mode: "time_range",
+      booking_interval_minutes: 30,
+      booking_max_stay_minutes: 90,
+      allow_multi_slot_booking: false,
+    }];
+    state.availability = {
+      206: {
+        booking_mode: "time_range",
+        interval_minutes: 30,
+        max_stay_minutes: 90,
+        window: { start_time: "16:00", end_time: "18:00" },
+        slots: [
+          { start_time: "16:00", end_time: "16:30", remaining_capacity: 2 },
+          { start_time: "16:30", end_time: "17:00", remaining_capacity: 1 },
+          { start_time: "17:00", end_time: "17:30", remaining_capacity: 0 },
+          { start_time: "17:30", end_time: "18:00", remaining_capacity: 2 },
+        ],
+      },
+    };
+
+    await seed(page);
+    await installApi(page, state);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+    await page.getByTestId(`clinic-calendar-day-${openDate}`).click();
+    await page.getByRole("region", { name: koreanDateLabel(openDate) })
+      .getByRole("button", { name: /자율 이용 클리닉/ }).click();
+
+    const selection = page.getByRole("region", { name: "선택한 클리닉 시간" });
+    await expect(selection).toContainText("30분 간격 · 최대 90분");
+    const start = selection.getByLabel("예약 시작 시간");
+    await expect(start.locator("option")).toHaveText([
+      "선택",
+      "16:00 · 잔여 2",
+      "16:30 · 잔여 1",
+      "17:30 · 잔여 2",
+    ]);
+    await start.selectOption("16:00");
+    const end = selection.getByLabel("예약 종료 시간");
+    await expect(end.locator("option")).toHaveText(["선택", "16:30", "17:00"]);
+    await end.selectOption("17:00");
+    await selection.getByRole("button", { name: "이 일정 예약하기" }).click();
+
+    await expect.poll(() => state.bookingPayloads).toEqual([{
+      session_ids: [206],
+      booking_start_time: "16:00",
+      booking_end_time: "17:00",
+    }]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
   test("시작과 종료를 골라 사이의 연속 시간대까지 한 번에 예약한다", async ({ page }) => {

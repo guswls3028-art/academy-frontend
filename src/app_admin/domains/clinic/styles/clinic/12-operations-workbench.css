@@ -134,7 +134,17 @@
 }
 
 .clinic-operations-shell__body {
-  display: block;
+  display: flex;
+  align-items: stretch;
+}
+
+.clinic-operations-shell__sidebar {
+  width: 288px;
+  min-width: 256px;
+  max-width: 304px;
+  flex: 0 0 288px;
+  overflow: auto;
+  border-right: 1px solid var(--color-border-divider);
 }
 
 .clinic-operations-shell__content {
@@ -309,7 +319,9 @@
 }
 
 .clinic-ops__student-row .clinic-ops__card-reasons {
-  flex-wrap: nowrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 220px));
+  grid-auto-rows: 1fr;
   align-items: stretch;
   gap: 8px;
   max-height: none;
@@ -322,7 +334,8 @@
   grid-template-rows: auto auto auto;
   min-width: 0;
   min-height: 62px;
-  flex: 1 1 180px;
+  width: 100%;
+  max-width: 220px;
   align-content: center;
   align-items: start;
   column-gap: 6px;
@@ -363,7 +376,11 @@
   color: var(--color-text-primary);
   font-size: 12px;
   line-height: 1.4;
+  display: -webkit-box;
+  overflow: hidden;
   overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   white-space: normal;
 }
 
@@ -465,6 +482,133 @@
 .clinic-workbench .clinic-ops__drawer-body {
   gap: 18px;
   padding: 18px 20px 28px;
+}
+
+.clinic-workbench__contacts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 7px;
+}
+
+.clinic-workbench__contact {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 10px;
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.clinic-workbench__contact span {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clinic-workbench__contact strong {
+  flex: 0 0 auto;
+  font-size: 12px;
+}
+
+.clinic-workbench__section-heading,
+.clinic-workbench__notification-list li > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.clinic-workbench__section-heading > span,
+.clinic-workbench__notification-list time {
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+
+.clinic-workbench__notification-list {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.clinic-workbench__notification-list li {
+  display: grid;
+  gap: 4px;
+  padding: 10px 11px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 10px;
+}
+
+.clinic-workbench__notification-list strong,
+.clinic-workbench__notification-list > li > span {
+  font-size: 11px;
+}
+
+.clinic-workbench__notification-list small {
+  color: var(--scale-Error700);
+  font-size: 10px;
+}
+
+.clinic-workbench__notification-list button,
+.clinic-workbench__notification-empty button {
+  justify-self: start;
+  padding: 5px 8px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  color: var(--color-brand-primary);
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.clinic-workbench__notification-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.clinic-workbench__drawer-footer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 20px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-bg-surface) 96%, transparent);
+}
+
+.clinic-workbench__drawer-footer span {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clinic-workbench__drawer-footer button {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--color-brand-primary);
+  color: white;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .clinic-workbench__plan-summary {

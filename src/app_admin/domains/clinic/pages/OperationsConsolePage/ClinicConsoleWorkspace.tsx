@@ -6,7 +6,7 @@
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
@@ -53,6 +53,7 @@ import {
   remindClinicParticipant,
   replaceClinicParticipantPlan,
   patchClinicParticipantStaffMemo,
+  retryClinicParticipantNotification,
   uncompleteClinicParticipant,
 } from "../../api/clinicParticipants.api";
 import { fetchClinicSessions } from "../../api/clinicSessions.api";
@@ -92,6 +93,10 @@ import ClinicParticipantActionDialog, {
   type ClinicRecipient,
 } from "../../components/ClinicParticipantActionDialog";
 import { useConfirm } from "@/shared/ui/confirm";
+import {
+  fetchNotificationLog,
+  type NotificationLogItem,
+} from "@admin/domains/messages/public/clinicMessageHistory";
 
 dayjs.locale("ko");
 
@@ -216,7 +221,7 @@ function getStatusLabel(status: string): string {
 function getParticipantStatusLabel(participant: ClinicParticipant): string {
   if (participant.checked_out_at) {
     return participant.checkout_mode === "arrival_not_recorded"
-      ? "미등원 하원 완료"
+      ? "하원 완료"
       : "하원 완료";
   }
   if (participant.status === "attended" && participant.is_late) return "지각 등원";
@@ -226,6 +231,15 @@ function getParticipantStatusLabel(participant: ClinicParticipant): string {
 function preferredTimeText(participant: ClinicParticipant): string | null {
   if (!participant.preferred_start_time || !participant.preferred_end_time) return null;
   return `${hhmmText(participant.preferred_start_time, "-")}–${hhmmText(participant.preferred_end_time, "-")}`;
+}
+
+function notificationStatusLabel(item: NotificationLogItem): string {
+  if (item.status === "sent") return "발송 완료";
+  if (item.status === "processing" || item.status === "sending") return "발송 처리 중";
+  if (item.status === "retryable_failed") return "재시도 가능";
+  if (item.status === "failed") return "발송 실패";
+  if (item.status === "ambiguous") return "확인 필요";
+  return item.success ? "발송 완료" : "상태 확인 중";
 }
 
 function getResolutionLabel(type: string | null | undefined): string {
@@ -604,6 +618,24 @@ export default function ClinicConsoleWorkspace({
     return rosterParticipants.filter((participant) => participantStudentKey(participant) === key);
   }, [drawerParticipant, rosterParticipants]);
   const drawerContextRequired = drawerParticipantGroup.length > 1 && !drawerParticipantContextConfirmed;
+  const participantNotificationQ = useQuery({
+    queryKey: ["clinic", "participant-notifications", drawerParticipantId],
+    queryFn: () => fetchNotificationLog({
+      scope: "clinic",
+      origin_id_prefix: `clinic_participant:${drawerParticipantId}:`,
+      page_size: 50,
+    }),
+    enabled: drawerParticipantId != null,
+    refetchInterval: drawerParticipantId != null ? 3_000 : false,
+  });
+  const retryNotificationM = useMutation({
+    mutationFn: (logId: number) => retryClinicParticipantNotification(drawerParticipantId!, logId),
+    onSuccess: async () => {
+      await participantNotificationQ.refetch();
+      feedback.success("알림톡 재시도를 요청했습니다.");
+    },
+    onError: (error: unknown) => feedback.error(clinicActionErrorMessage(error, "알림톡을 재시도하지 못했습니다.")),
+  });
 
   useEffect(() => {
     setStaffMemoDraft(drawerParticipant?.staff_memo ?? "");
@@ -743,7 +775,7 @@ export default function ClinicConsoleWorkspace({
         }
       } else {
         const label = action === "arrive" ? "등원" : action === "late" ? "지각 등원" : "하원";
-        const checkoutLabel = p.checked_in_at ? "하원" : "미등원 하원";
+        const checkoutLabel = "하원";
         reportClinicNotification(
           `${p.student_name} ${action === "checkout" ? checkoutLabel : label} 처리 완료`,
           notification,
@@ -1785,8 +1817,6 @@ export default function ClinicConsoleWorkspace({
             }
             const targets = getTargetsForParticipant(p);
             const unresolvedTargets = targets.filter((target) => !target.resolved_at);
-            const visibleTargets = unresolvedTargets.slice(0, 4);
-            const hiddenTargetCount = unresolvedTargets.length - visibleTargets.length;
             const plannedIds = new Set(
               group.participants.flatMap((participant) => participant.planned_clinic_link_ids ?? []),
             );
@@ -1991,11 +2021,11 @@ export default function ClinicConsoleWorkspace({
                             type="button"
                             className="clinic-ops__att-btn clinic-ops__att-btn--checkout"
                             disabled={isMutating}
-                            aria-label="미등원 하원"
+                            aria-label="하원"
                             title="등원 기록을 만들지 않고 하원 시각만 남깁니다."
                             onClick={() => setActionDialog({ participant: p, action: "checkout" })}
                           >
-                            미등원 하원
+                            하원
                           </button>
                           <button type="button" className="clinic-ops__att-btn clinic-ops__att-btn--reschedule" onClick={() => openRescheduleDialog(p, "booking")} disabled={isMutating} aria-label="일정 변경">
                             <CalendarClock size={14} aria-hidden /> 일정 변경
@@ -2049,7 +2079,7 @@ export default function ClinicConsoleWorkspace({
                           과제 조회 실패
                         </span>
                       ) : unresolvedTargets.length > 0 ? (
-                        visibleTargets.map((t) => {
+                        unresolvedTargets.map((t) => {
                           const targetParticipant = participantForTarget(group.participants, t);
                           const targetIsPlanned = isPositiveClinicIdentifier(t.clinic_link_id) && plannedIds.has(t.clinic_link_id);
                           return (
@@ -2065,6 +2095,7 @@ export default function ClinicConsoleWorkspace({
                             } ${targetIsPlanned ? "clinic-ops__task-chip--planned" : ""}`}
                             aria-pressed={targetIsPlanned}
                             aria-label={`${p.student_name} ${t.clinic_reason === "homework" ? "과제" : "시험"} ${getTargetDisplayTitle(t)} ${getTargetContext(t)} ${formatScoreDetail(t)}`}
+                            title={`${getTargetDisplayTitle(t)} · ${getTargetContext(t)} · ${formatScoreDetail(t)}`}
                             onClick={(event) => openDrawer(
                               targetParticipant?.id ?? p.id,
                               clinicTargetKey(t),
@@ -2100,27 +2131,6 @@ export default function ClinicConsoleWorkspace({
                         <span className="clinic-ops__reason-tag clinic-ops__reason-tag--self">
                           자율 학습 참여
                         </span>
-                      )}
-                      {hiddenTargetCount > 0 && (
-                        <button
-                          type="button"
-                          className="clinic-ops__task-overflow"
-                          aria-label={`${p.student_name} 미완료 항목 ${hiddenTargetCount}개 더 보기`}
-                          onClick={(event) => {
-                            const target = unresolvedTargets[visibleTargets.length];
-                            const targetParticipant = target ? participantForTarget(group.participants, target) : undefined;
-                            openDrawer(
-                              targetParticipant?.id ?? p.id,
-                              target ? clinicTargetKey(target) : null,
-                              event.currentTarget,
-                              targetParticipant != null,
-                            );
-                          }}
-                        >
-                          <strong>+{hiddenTargetCount}</strong>
-                          <span>전체 보기</span>
-                          <ArrowRightCircle size={15} aria-hidden />
-                        </button>
                       )}
                     </div>
                   </div>
@@ -2266,7 +2276,7 @@ export default function ClinicConsoleWorkspace({
                     <button type="button" className="clinic-ops__drawer-status-btn" disabled={mutatingIds.has(drawerParticipant.id)} onClick={() => setActionDialog({ participant: drawerParticipant, action: "arrive" })}>등원</button>
                     <button type="button" className="clinic-ops__drawer-status-btn" disabled={mutatingIds.has(drawerParticipant.id)} onClick={() => setActionDialog({ participant: drawerParticipant, action: "remind" })}>재촉</button>
                     <button type="button" className="clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--reject" disabled={mutatingIds.has(drawerParticipant.id)} onClick={() => setActionDialog({ participant: drawerParticipant, action: "absent" })}>결석</button>
-                    <button type="button" className="clinic-ops__drawer-status-btn" disabled={mutatingIds.has(drawerParticipant.id)} onClick={() => setActionDialog({ participant: drawerParticipant, action: "checkout" })}>미등원 하원</button>
+                    <button type="button" className="clinic-ops__drawer-status-btn" disabled={mutatingIds.has(drawerParticipant.id)} onClick={() => setActionDialog({ participant: drawerParticipant, action: "checkout" })}>하원</button>
                     <button type="button" className="clinic-ops__drawer-status-btn clinic-ops__drawer-status-btn--manage" disabled={mutatingIds.has(drawerParticipant.id)} onClick={() => openRescheduleDialog(drawerParticipant, "booking")}>
                       <CalendarClock size={15} aria-hidden /> 일정 변경
                     </button>
@@ -2313,6 +2323,65 @@ export default function ClinicConsoleWorkspace({
                     </button>
                   </span>
                 </div>
+                {!!drawerParticipant.recipient_contacts?.length && (
+                  <div className="clinic-workbench__contacts" aria-label="연락처">
+                    {drawerParticipant.recipient_contacts.map((contact) => (
+                      <a
+                        key={`${contact.role}:${contact.phone}`}
+                        href={`tel:${contact.phone}`}
+                        className="clinic-workbench__contact"
+                      >
+                        <span>{contact.role === "parent" ? "학부모" : "학생"} · {contact.name}</span>
+                        <strong>{contact.phone}</strong>
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="clinic-ops__drawer-section">
+                <div className="clinic-workbench__section-heading">
+                  <h4 className="clinic-ops__drawer-section-title">알림톡 처리 기록</h4>
+                  {participantNotificationQ.isFetching && <span>상태 확인 중…</span>}
+                </div>
+                {participantNotificationQ.isError ? (
+                  <div className="clinic-workbench__notification-empty" role="alert">
+                    <span>발송 기록을 불러오지 못했습니다.</span>
+                    <button type="button" onClick={() => participantNotificationQ.refetch()}>다시 불러오기</button>
+                  </div>
+                ) : (participantNotificationQ.data?.results.length ?? 0) === 0 ? (
+                  <div className="clinic-workbench__notification-empty">
+                    <span>이 학생 일정의 발송 기록이 없습니다.</span>
+                    <button type="button" onClick={() => participantNotificationQ.refetch()}>새로고침</button>
+                  </div>
+                ) : (
+                  <ol className="clinic-workbench__notification-list">
+                    {participantNotificationQ.data?.results.map((item) => {
+                      const retryable = item.status === "failed" || item.status === "retryable_failed";
+                      return (
+                        <li key={item.id}>
+                          <div>
+                            <strong>{notificationStatusLabel(item)}</strong>
+                            <time dateTime={item.sent_at}>{dayjs(item.sent_at).format("M/D HH:mm")}</time>
+                          </div>
+                          <span>{item.template_summary || item.notification_type || "클리닉 알림톡"}</span>
+                          {(item.failure_reason || item.failure_code) && (
+                            <small>{item.failure_reason || item.failure_code}</small>
+                          )}
+                          {retryable && (
+                            <button
+                              type="button"
+                              disabled={retryNotificationM.isPending}
+                              onClick={() => retryNotificationM.mutate(item.id)}
+                            >
+                              {retryNotificationM.isPending ? "재시도 요청 중…" : "알림톡 재시도"}
+                            </button>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                )}
               </div>
 
               {!clinicTargetsLoading && !clinicTargetsError && !drawerContextRequired && (
@@ -2764,6 +2833,10 @@ export default function ClinicConsoleWorkspace({
                   {staffMemoSaving ? "저장 중…" : "인수인계 메모 저장"}
                 </button>
               </div>
+            </div>
+            <div className="clinic-workbench__drawer-footer">
+              <span>{drawerParticipant.student_name} · {hhmmText(drawerParticipant.session_start_time, "시간 미정")}</span>
+              <button type="button" onClick={closeDrawer}>작업대 닫기</button>
             </div>
           </div>
         </>

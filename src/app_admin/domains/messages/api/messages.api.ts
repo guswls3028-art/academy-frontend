@@ -45,6 +45,8 @@ export type NotificationBodyVisibility =
 
 export interface NotificationLogItem {
   id: number;
+  /** PII-free lifecycle correlation key. */
+  origin_id?: string;
   sent_at: string;
   /** 성공 여부 */
   success: boolean;
@@ -88,6 +90,7 @@ export interface NotificationLogParams {
   page_size?: number;
   status?: "success" | "failure" | "sent" | "active" | "attention" | "failed";
   scope?: "clinic";
+  origin_id_prefix?: string;
 }
 
 export interface NotificationLogResponse {
