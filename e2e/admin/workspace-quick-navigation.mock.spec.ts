@@ -143,4 +143,33 @@ test.describe("업무 화면 빠른 이동", () => {
     await page.keyboard.press("Escape");
     await expect(dialog).not.toBeVisible();
   });
+
+  for (const width of [1366, 390]) {
+    test(`${width}px에서 이전 닫기 이벤트가 다시 연 메뉴를 닫지 않는다`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const path = width === 390 ? "/workspace/mobile" : "/workspace/dashboard";
+      await page.goto(`${BASE}${path}`, { waitUntil: "domcontentloaded" });
+      await page.getByRole("button", { name: "빠른 이동" }).click();
+      const dialog = page.getByRole("dialog", { name: "빠른 이동" });
+      await expect(dialog).toBeVisible();
+
+      await dialog.evaluate(async (element) => {
+        const modal = element as HTMLDialogElement;
+        const closed = new Promise<void>((resolve) => {
+          modal.addEventListener("close", () => resolve(), { once: true });
+        });
+        // Native close dispatch is queued; force reopening before it arrives.
+        modal.close();
+        modal.showModal();
+        await closed;
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      });
+
+      await expect(dialog).toBeVisible();
+      await dialog.getByRole("textbox", { name: "메뉴 검색" }).fill("시험");
+      await expect(dialog.getByRole("heading", { name: "검색 결과" })).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(dialog).not.toBeVisible();
+    });
+  }
 });
