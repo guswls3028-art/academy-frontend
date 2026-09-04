@@ -117,7 +117,6 @@ export const controlledWriteSpecs = [
   "e2e/flows/notice-roundtrip.spec.ts",
   "e2e/flows/qna-roundtrip.spec.ts",
   "e2e/flows/clinic-roundtrip.spec.ts",
-  "e2e/admin/session-assessment-realuse.spec.ts",
   "e2e/admin/omr-review-realuse.spec.ts",
   "e2e/student/homework-submission-realuse.spec.ts",
   "e2e/student/clinic-remediation-realuse.spec.ts",

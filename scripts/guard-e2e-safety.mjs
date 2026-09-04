@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { assertReadOnlyAssessmentSource } from "./run-development-release-canary.mjs";
 import {
   controlledWriteSpecs,
   e2eGateSpecs,
@@ -27,10 +28,18 @@ const requirements = new Map([
   ["e2e/flows/notice-roundtrip.spec.ts", "productionWriteOptInSkipReason"],
   ["e2e/flows/qna-roundtrip.spec.ts", "productionWriteOptInSkipReason"],
   ["e2e/flows/clinic-roundtrip.spec.ts", "productionWriteOptInSkipReason"],
-  ["e2e/admin/session-assessment-realuse.spec.ts", "productionWriteOptInSkipReason"],
 ]);
 
 const failures = [];
+const assessmentPath = "e2e/admin/session-assessment-realuse.spec.ts";
+const assessment = fs.readFileSync(path.join(root, assessmentPath), "utf8");
+try { assertReadOnlyAssessmentSource(assessment); }
+catch {
+  failures.push(`${assessmentPath}: reviewed read-only assessment must retain strict fixture and no business-write method or write opt-in skip`);
+}
+if (controlledWriteSpecs.includes(assessmentPath)) {
+  failures.push(`${assessmentPath}: read-only assessment must not be classified as controlled business writes`);
+}
 const packageJson = JSON.parse(
   fs.readFileSync(path.join(root, "package.json"), "utf8"),
 );

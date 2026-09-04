@@ -48,10 +48,20 @@ for (const required of [
   "run: pnpm audit --prod",
   "permissions:\n  contents: read",
   "github.event.pull_request.user.login != 'dependabot[bot]'",
+  "cancel-in-progress: ${{ github.event_name == 'pull_request' }}",
+  "needs: [quality-check, hangul-companion-check, candidate-preview, development-canary]",
+  "needs.development-canary.result == 'success'",
+  "node scripts/run-development-release-canary.mjs",
+  "E2E_RELEASE_API_MODE: readonly",
+  'E2E_ALLOW_PRODUCTION_WRITES: "0"',
 ]) {
   if (!quality.includes(required)) {
     failures.push(`quality-gate.yml: missing deployment governance marker ${required}`);
   }
+}
+const productionJob = quality.split("\n  e2e-roundtrip:")[1]?.split("\n  rollback-on-e2e-failure:")[0] || "";
+if (!productionJob || /notice-roundtrip|qna-roundtrip|clinic-roundtrip|E2E_ALLOW_PRODUCTION_WRITES: "1"/.test(productionJob)) {
+  failures.push("quality-gate.yml: automatic production canary must not create synthetic business rows");
 }
 for (const required of [
   "E2E_ALLOW_PRODUCTION_WRITES=0",

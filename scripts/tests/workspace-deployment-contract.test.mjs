@@ -73,7 +73,7 @@ test("an isolated candidate preview gates the production deploy", () => {
   assert.ok(deployIndex > previewIndex, "production deploy must follow preview");
   assert.match(
     workflow,
-    /needs: \[quality-check, hangul-companion-check, candidate-preview\]/,
+    /needs: \[quality-check, hangul-companion-check, candidate-preview, development-canary\]/,
   );
   assert.match(workflow, /--branch="\$\{PREVIEW_BRANCH\}"/);
   assert.match(workflow, /for ATTEMPT in \$\(seq 1 60\)/);

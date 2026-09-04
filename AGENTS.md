@@ -57,8 +57,15 @@ pnpm test:e2e:gate
 ```
 
 Production delivery goes through `.github/workflows/quality-gate.yml`.
-PR E2E is login/read-only/mock only; production writes require the controlled
-manual canary flag or the rollback-bound post-deploy job. Cloudflare uses
+PR E2E is login/read-only/mock only. Automatic release QA must not create
+production synthetic business rows; run notice/QnA/clinic roundtrips on the same
+deployment artifact against a verified isolated development runtime and require
+non-skipped assertions plus tenant/user cleanup zero before promotion. Do not run
+the old production-writing post-deploy workflow while this migration is incomplete.
+Existing-account authentication and the reviewed dashboard observation are separate
+from business mutation; report their writes separately, never as total writes zero.
+Explicitly assigned controlled manual canaries retain their separate safety gates.
+Cloudflare uses
 separate preview, production, and infrastructure-scoped API tokens plus
 `preview`, `production`, and `production-rollback` environments. Confirm
 deployed revision, rollback readiness, and the affected user flow. Ordinary
