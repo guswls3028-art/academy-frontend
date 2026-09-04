@@ -23,6 +23,103 @@ test("each run has an independent non-published ownership capability", () => {
   assert.match(source, /process\.on\("SIGTERM", interrupt\)/);
 });
 
+test("fixed-document operation failures expose only allowlisted PII-free observations", () => {
+  assert.equal(typeof runner.observeFixedOperationResult, "function");
+  const sessionId = "session-secret-123";
+  const result = runner.observeFixedOperationResult("Inspect", {
+    code: 1,
+    stdout: [
+      `Starting session with SessionId: ${sessionId}`,
+      JSON.stringify({
+        status: "DEVELOPMENT_QA_FAILED",
+        error_type: "AssertionError",
+        message: "student-name token-secret capability-secret password-secret",
+      }),
+      "raw-output-secret",
+    ].join("\n"),
+  });
+
+  assert.deepEqual(result.observation, {
+    action: "Inspect",
+    exitCode: 1,
+    jsonLineCount: 1,
+    sessionIdObserved: true,
+    payloadStatus: "DEVELOPMENT_QA_FAILED",
+    errorType: "AssertionError",
+  });
+  const published = JSON.stringify(result.observation);
+  for (const forbidden of [sessionId, "student-name", "token-secret", "capability-secret", "password-secret", "raw-output-secret"]) {
+    assert.doesNotMatch(published, new RegExp(forbidden));
+  }
+});
+
+test("fixed-document operation observation preserves malformed and multiple JSON fail-closed signals", () => {
+  const malformed = runner.observeFixedOperationResult("Setup", { code: 0, stdout: "{malformed" });
+  assert.deepEqual(malformed.observation, {
+    action: "Setup",
+    exitCode: 0,
+    jsonLineCount: 1,
+    sessionIdObserved: false,
+    payloadStatus: null,
+    errorType: null,
+  });
+  assert.ok(malformed.parseError);
+  assert.equal(malformed.payload, null);
+
+  const multiple = runner.observeFixedOperationResult("Cleanup", {
+    code: 0,
+    stdout: '{"status":"YMATH_REALUSE_SCENARIO_DESTROYED"}\n{"status":"DEVELOPMENT_QA_FAILED"}',
+  });
+  assert.equal(multiple.observation.jsonLineCount, 2);
+  assert.equal(multiple.payload, null);
+  assert.equal(multiple.parseError, null);
+});
+
+test("fixed-document operation observation rejects unreviewed values", () => {
+  const result = runner.observeFixedOperationResult("DeleteEverything", {
+    code: 999,
+    stdout: JSON.stringify({ status: "student-name", error_type: "SecretProviderError" }),
+  });
+  assert.deepEqual(result.observation, {
+    action: null,
+    exitCode: null,
+    jsonLineCount: 1,
+    sessionIdObserved: false,
+    payloadStatus: null,
+    errorType: "OtherError",
+  });
+  assert.doesNotMatch(JSON.stringify(result.observation), /DeleteEverything|student-name|SecretProviderError/);
+});
+
+test("Inspect match evidence records booleans without publishing compared values", () => {
+  assert.equal(typeof runner.inspectMatchObservation, "function");
+  const manifest = { releaseImageTag: "release-secret", images: { "academy-api": { digest: "sha256:digest-secret" } } };
+  const inspected = {
+    status: "DEVELOPMENT_QA_IDENTITY_PASS",
+    remaining: { tenants: 0, users: 0 },
+    release_id: manifest.releaseImageTag,
+    digest: manifest.images["academy-api"].digest,
+  };
+  assert.deepEqual(runner.inspectMatchObservation(inspected, manifest), {
+    statusMatches: true,
+    remainingZero: true,
+    releaseMatches: true,
+    digestMatches: true,
+  });
+  const invalid = [
+    [{ ...inspected, status: "DEVELOPMENT_QA_FAILED" }, "statusMatches"],
+    [{ ...inspected, remaining: { tenants: 0, users: 1 } }, "remainingZero"],
+    [{ ...inspected, release_id: "other-release" }, "releaseMatches"],
+    [{ ...inspected, digest: "sha256:other-digest" }, "digestMatches"],
+  ];
+  for (const [payload, expectedFalse] of invalid) {
+    const observation = runner.inspectMatchObservation(payload, manifest);
+    assert.equal(observation[expectedFalse], false);
+    assert.equal(Object.values(observation).filter((value) => value === false).length, 1);
+    assert.doesNotMatch(JSON.stringify(observation), /release-secret|digest-secret|other-release|other-digest/);
+  }
+});
+
 test("a timed-out owned process is killed and reaped even if SIGTERM is ignored", { timeout: 10_000 }, async () => {
   assert.equal(typeof runner.ownedProcess, "function");
   const child = runner.ownedProcess(process.execPath, ["-e",

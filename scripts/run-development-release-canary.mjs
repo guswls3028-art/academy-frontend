@@ -22,6 +22,53 @@ const canonical = (value) => JSON.stringify(value, function (_key, item) {
   return item && typeof item === "object" && !Array.isArray(item)
     ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item;
 });
+const FIXED_ACTIONS = new Set(["Inspect", "Setup", "Cleanup"]);
+const FIXED_STATUSES = new Set([
+  "DEVELOPMENT_QA_FAILED",
+  "DEVELOPMENT_QA_IDENTITY_PASS",
+  "YMATH_REALUSE_SCENARIO_READY",
+  "YMATH_REALUSE_SCENARIO_DESTROYED",
+  "YMATH_REALUSE_SCENARIO_ABSENT",
+]);
+const FIXED_ERROR_TYPES = new Set([
+  "AssertionError", "BotoCoreError", "ClientError", "CommandError", "ConnectionError", "DatabaseError",
+  "IntegrityError", "KeyError", "OperationalError", "PermissionError", "RuntimeError", "TimeoutError",
+  "TypeError", "ValueError",
+]);
+
+export function observeFixedOperationResult(action, result) {
+  const stdout = typeof result?.stdout === "string" ? result.stdout : "";
+  const jsonLines = stdout.split(/\r?\n/).filter((line) => line.trim().startsWith("{"));
+  let payload = null;
+  let parseError = null;
+  if (jsonLines.length === 1) {
+    try { payload = JSON.parse(jsonLines[0]); }
+    catch (error) { parseError = error; }
+  }
+  const errorType = typeof payload?.error_type === "string" && payload.error_type.length > 0
+    ? (FIXED_ERROR_TYPES.has(payload.error_type) ? payload.error_type : "OtherError") : null;
+  return {
+    observation: {
+      action: FIXED_ACTIONS.has(action) ? action : null,
+      exitCode: Number.isInteger(result?.code) && result.code >= -1 && result.code <= 255 ? result.code : null,
+      jsonLineCount: jsonLines.length,
+      sessionIdObserved: /Starting session with SessionId:\s*[A-Za-z0-9_.:-]+/.test(stdout),
+      payloadStatus: FIXED_STATUSES.has(payload?.status) ? payload.status : null,
+      errorType,
+    },
+    payload,
+    parseError,
+  };
+}
+
+export function inspectMatchObservation(payload, manifest) {
+  return {
+    statusMatches: payload?.status === "DEVELOPMENT_QA_IDENTITY_PASS",
+    remainingZero: canonical(payload?.remaining) === canonical({ tenants: 0, users: 0 }),
+    releaseMatches: payload?.release_id === manifest?.releaseImageTag,
+    digestMatches: payload?.digest === manifest?.images?.["academy-api"]?.digest,
+  };
+}
 
 export function assertReadOnlyAssessmentSource(source) {
   assert.ok(source.includes('from "../fixtures/strictTest"'), "Assessment must use the release-aware strict fixture");
@@ -252,6 +299,9 @@ export async function run() {
     ReleaseId: [manifest.releaseImageTag], ApiDigest: [manifest.images["academy-api"].digest] };
   const sessions = new Set();
   const processes = [];
+  let operationObservation = null;
+  let inspectObservation = null;
+  let primaryFailed = false;
   function session(name, parameters = {}) {
     const current = aws(["ssm", "get-document", "--name", name, "--document-format", "JSON"]);
     assert.equal(canonical(JSON.parse(current.Content)), expectedDocuments.get(name), "Fixed document changed before operation");
@@ -269,12 +319,15 @@ export async function run() {
   async function operation(action) {
     const process = session(QA_DOCUMENT, { ...common, Action: [action] });
     const result = await process.done;
+    const observed = observeFixedOperationResult(action, result);
+    if (action !== "Cleanup" || !primaryFailed) operationObservation = observed.observation;
     remember(process);
     if (action !== "Cleanup") assert.equal(interrupted, false, "Development run interrupted");
     assert.equal(result.code, 0, `Fixed development ${action} command failed`);
-    const lines = result.stdout.split(/\r?\n/).filter((line) => line.trim().startsWith("{"));
-    assert.equal(lines.length, 1, "Missing/ambiguous fixed operation readback");
-    const payload = JSON.parse(lines[0]);
+    assert.equal(observed.observation.jsonLineCount, 1, "Missing/ambiguous fixed operation readback");
+    if (observed.parseError) throw observed.parseError;
+    const payload = observed.payload;
+    assert.ok(payload, "Missing fixed operation payload");
     assert.notEqual(payload.status, "DEVELOPMENT_QA_FAILED", `Development ${action} boundary failed`);
     assert.equal(payload.tenant_code, tenant);
     return payload;
@@ -300,6 +353,7 @@ export async function run() {
       instanceId, tenantCode: tenant, artifactSha256: fingerprint, cases: counts || null,
       documentSha256: Object.fromEntries([...expectedDocuments].map(([name, content]) => [name, sha(content)])),
       cleanup: cleanup ? { tenantCode: tenant, remaining: cleanup.remaining } : null,
+      operationObservation, inspectObservation,
       passed, failures: errors };
     fs.mkdirSync(path.join(ROOT, "test-results"), { recursive: true });
     fs.writeFileSync(path.join(ROOT, "test-results/development-release.json"), JSON.stringify(evidence, null, 2));
@@ -313,6 +367,7 @@ export async function run() {
     await assertFreePort(18000);
     await assertFreePort(4173);
     const inspected = await operation("Inspect");
+    inspectObservation = inspectMatchObservation(inspected, manifest);
     assert.equal(inspected.status, "DEVELOPMENT_QA_IDENTITY_PASS");
     assert.deepEqual(inspected.remaining, { tenants: 0, users: 0 }, "Never reuse an existing QA tenant");
     assert.equal(inspected.release_id, manifest.releaseImageTag);
@@ -336,7 +391,7 @@ export async function run() {
     const result = await tests.done;
     assert.equal(result.code, 0, "Required development real-use failed (raw credential-bearing report is not published)");
     counts = assertReleaseSummary(JSON.parse(result.stdout));
-  } catch { failures.push("development identity/setup/real-use failed"); }
+  } catch { primaryFailed = true; failures.push("development identity/setup/real-use failed"); }
   finally {
     finalizing = true;
     // No test process may still mutate the scenario while Cleanup is running.

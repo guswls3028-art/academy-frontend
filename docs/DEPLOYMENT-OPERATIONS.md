@@ -198,10 +198,13 @@ profile, 종료 방지, inbound0, SSM Online을 확인한다. 원본 artifact의
 결합한다. 이름 정규식이나 runner run 문자열만으로 destroy 권한을 주지 않는다.
 missing/duplicate/foreign owner는 destroy 전 거부하며, 이미 부재하면 0 readback만 한다.
 상세 감사 행 보존과 capability 신뢰 경계는 backend 상시 개발 런타임 문서가 소유한다.
-결과는 test 수/상태,
-release/image/artifact identity, cleanup 수와 실패 분류만 담은
-`test-results/development-release.json`으로 남긴다. raw Playwright JSON은 메모리에서
-검증하고 개발 trace/video/screenshot은 저장하지 않아 credential 노출을 막는다.
+결과는 test 수/상태, release/image/artifact identity, cleanup 수와 실패 분류를
+`test-results/development-release.json`으로 남긴다. 고정 document operation은
+allowlist된 action/exit code/JSON line 수/session ID 관측 여부/status/error type만
+기록하고, Inspect identity 검사는 status/잔여 0/release/digest 일치 여부를 네 개의
+boolean으로만 기록한다. raw output·오류 message·session ID·token·capability·password·
+사용자 정보는 증거에 기록하지 않는다. raw Playwright JSON은 메모리에서 검증하고 개발
+trace/video/screenshot은 저장하지 않아 credential 노출을 막는다.
 소유 SSM session도 종료 후 재조회한다. 강제 취소·접근 상실 등으로 cleanup 또는
 소유 session 종료가 증명되지 않으면 promotion 실패이며 수동 exact-target 복구가
 필요하다. 그런 상태를 cleanup0으로 보고하지 않는다.
@@ -210,7 +213,10 @@ runner는 Setup 전부터 `passed:false`/`cleanup:null`인 미완료 증거를 �
 실패/timeout은 finally로 들어가 test process를 먼저 stop/reap한 뒤 Cleanup을 시도하고,
 소유 SSM session들의 종료 API와 Active/History readback 후 최종 증거를 쓴다. Cleanup
 실패·소유 session ID/종료 readback 누락은 각각 실패 분류로 남아 승격을 차단한다.
-원문 capability는 Playwright env, evidence, stdout에 넣지 않는다.
+operation exit/JSON/status와 Inspect 네 비교의 PII-free 관측은 기존 exit 0, 단일 JSON,
+허용 status, exact identity assertion을 대체하거나 완화하지 않는다. primary 작업 실패 후
+Cleanup 결과가 기존 primary operation 관측을 덮어쓰지 않는다. 원문 capability는
+Playwright env, evidence, stdout에 넣지 않는다.
 
 로컬 child 제한은 QA operation 240초, tunnel 25분, tests 20분이다. timeout은 TERM 후
 5초 뒤 KILL로 강제 종료하고 reap한다(Linux는 소유 process group). AWS metadata CLI도
