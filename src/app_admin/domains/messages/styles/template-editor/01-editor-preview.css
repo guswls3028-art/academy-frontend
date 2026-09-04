@@ -3,7 +3,13 @@
  */
 
 /* ----- 좌측: 미리보기 + 블록 ----- */
+.template-edit-modal .template-editor {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
 .template-editor__left {
+  width: 300px;
   background: color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface));
   border: 1px solid var(--color-border-divider);
   border-left: 4px solid var(--color-primary);
@@ -262,12 +268,58 @@
 }
 
 .template-editor__body-blocks {
+  width: 240px;
   border-left: 1px solid var(--color-border-divider);
   padding-left: 12px;
 }
 
 .template-editor__block-list {
   min-height: 200px;
+}
+
+@media (max-width: 640px) {
+  .template-edit-modal .modal-body {
+    padding: var(--space-3);
+  }
+
+  .template-edit-modal .template-editor {
+    flex: none;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .template-edit-modal .template-editor__right {
+    order: 1;
+    flex: none;
+    padding: var(--space-3);
+  }
+
+  .template-edit-modal .template-editor__left {
+    order: 2;
+    width: 100%;
+  }
+
+  .template-edit-modal .template-editor__body-row {
+    flex-direction: column;
+    flex: none;
+    padding: var(--space-2);
+  }
+
+  .template-edit-modal .template-editor__body-blocks {
+    width: 100%;
+    border-left: 0;
+    border-top: 1px solid var(--color-border-divider);
+    padding-top: var(--space-3);
+    padding-left: 0;
+  }
+
+  .template-edit-modal .template-editor__block-list {
+    min-height: 0;
+  }
+
+  .template-edit-modal .template-editor__textarea {
+    font-size: 16px;
+  }
 }
 
 /* 삽입 블록 태그 — 색상·태그 스타일 */

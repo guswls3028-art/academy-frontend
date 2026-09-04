@@ -137,14 +137,13 @@ export default function TemplateEditModal({
   const fieldsDisabled = isPending || isSystem;
 
   return (
-    <AdminModal open={open} onClose={onClose} width={1000} zIndex={zIndex} onEnterConfirm={!isPending && !isSystem ? handleSubmit : undefined}>
+    <AdminModal open={open} onClose={onClose} width={1000} zIndex={zIndex} className="template-edit-modal" onEnterConfirm={!isPending && !isSystem ? handleSubmit : undefined}>
       <ModalHeader title={title} />
       <ModalBody>
-        <div className="template-editor flex gap-5" style={{ minHeight: 0, flex: "1 1 auto" }}>
+        <div className="template-editor flex gap-5">
           {/* 좌측: 카테고리 + 미리보기 */}
           <div
             className="template-editor__left shrink-0 flex flex-col gap-4 p-4 overflow-hidden"
-            style={{ width: 300 }}
           >
             {/* 카테고리 (읽기 전용) */}
             <section>
@@ -284,7 +283,7 @@ export default function TemplateEditModal({
                   style={{ resize: "vertical", fontFamily: "inherit", minHeight: 280 }}
                 />
               </div>
-              <div className="template-editor__body-blocks shrink-0 flex flex-col" style={{ width: 240 }}>
+              <div className="template-editor__body-blocks shrink-0 flex flex-col">
                 <div className="template-editor__blocks-title mb-2">정보 넣기</div>
                 <div className="template-editor__block-list flex flex-col content-start overflow-auto p-1">
                   {alimtalkType && activeTab === "alimtalk" ? (
