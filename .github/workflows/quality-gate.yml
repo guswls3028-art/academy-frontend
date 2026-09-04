@@ -33,7 +33,8 @@ jobs:
   quality-check:
     name: Typecheck + Lint + Build
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Registry setup can consume 7 minutes before the blocking checks begin.
+    timeout-minutes: 15
     env:
       # Cloudflare Git builds expose the same commit as CF_PAGES_COMMIT_SHA.
       # Using a shared commit version keeps dual build outputs deterministic.
@@ -54,6 +55,8 @@ jobs:
         run: pnpm install --frozen-lockfile --shamefully-hoist
 
       - name: Production dependency audit
+        env:
+          npm_config_fetch_timeout: "120000"
         run: pnpm audit --prod
 
       # 차단 게이트: 타입 에러 = 배포 차단

@@ -206,8 +206,9 @@ export default function QuickNavigationDialog({
         event.preventDefault();
         onClose();
       }}
-      onClose={() => {
-        if (open) onClose();
+      onClose={(event) => {
+        // A queued close from the previous opening must not close a reopened dialog.
+        if (open && !event.currentTarget.open) onClose();
       }}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
