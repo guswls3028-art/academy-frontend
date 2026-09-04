@@ -193,13 +193,39 @@ profile, 종료 방지, inbound0, SSM Online을 확인한다. 원본 artifact의
 
 고정 NonInteractiveCommands 세션의 Inspect/Setup/Cleanup만 사용하고 임의 shell 입력,
 기존 qa tenant 재사용/reset, 광역 command stdout 조회는 허용하지 않는다. Setup의
-실패/응답 유실도 exact tenant destroy/readback을 시도한다. 결과는 test 수/상태,
+실패/응답 유실도 동일 256-bit run capability로 exact tenant cleanup/readback을 시도한다.
+서버는 생성 transaction에 기록한 tenant ID/code와 capability digest를 cleanup 요청과
+결합한다. 이름 정규식이나 runner run 문자열만으로 destroy 권한을 주지 않는다.
+missing/duplicate/foreign owner는 destroy 전 거부하며, 이미 부재하면 0 readback만 한다.
+상세 감사 행 보존과 capability 신뢰 경계는 backend 상시 개발 런타임 문서가 소유한다.
+결과는 test 수/상태,
 release/image/artifact identity, cleanup 수와 실패 분류만 담은
 `test-results/development-release.json`으로 남긴다. raw Playwright JSON은 메모리에서
 검증하고 개발 trace/video/screenshot은 저장하지 않아 credential 노출을 막는다.
 소유 SSM session도 종료 후 재조회한다. 강제 취소·접근 상실 등으로 cleanup 또는
 소유 session 종료가 증명되지 않으면 promotion 실패이며 수동 exact-target 복구가
 필요하다. 그런 상태를 cleanup0으로 보고하지 않는다.
+
+runner는 Setup 전부터 `passed:false`/`cleanup:null`인 미완료 증거를 저장한다. 일반
+실패/timeout은 finally로 들어가 test process를 먼저 stop/reap한 뒤 Cleanup을 시도하고,
+소유 SSM session들의 종료 API와 Active/History readback 후 최종 증거를 쓴다. Cleanup
+실패·소유 session ID/종료 readback 누락은 각각 실패 분류로 남아 승격을 차단한다.
+원문 capability는 Playwright env, evidence, stdout에 넣지 않는다.
+
+로컬 child 제한은 QA operation 240초, tunnel 25분, tests 20분이다. timeout은 TERM 후
+5초 뒤 KILL로 강제 종료하고 reap한다(Linux는 소유 process group). AWS metadata CLI도
+20초 제한이다. SIGINT/SIGTERM은 작업 중 child를 중단하여 finally를 시도하고 무조건
+실패 처리한다. 정리 중 추가 신호는 새 작업을 시작하지 않으며 cleanup 완료를 기다린다.
+job timeout은 40분이며 main의 후속 push에 의한 자동 취소는 꺼져 있다.
+
+GitHub 강제 취소의 짧은 grace, SIGKILL, runner/host 소실, IAM·네트워크 상실에서는
+finally 실행·evidence 업로드·tenant cleanup을 보장할 수 없다. 미완료 파일이 있으면
+실패 상태가 유지되고, 파일이 없거나 job이 cancelled/failed여도 deploy success 조건을
+만족하지 못한다. 서버 세션 제한(QA 5분/Port 25분, idle 각 5분)은 tunnel/세션의 수명만
+제한하며 tenant 자동 삭제 장치가 아니다. 그런 잔여는 HOLD 상태에서 exact ownership을
+검토해 별도 복구해야 하고 capability 분실을 이유로 다른 run의 자원을 자동 채택하지 않는다.
+문서의 시간 제한·Linux process-group escalation·실제 AWS 종료 동작은 로컬 Windows
+child 종료 회귀나 IAM simulation만으로 검증됐다고 표현하지 않는다.
 
 로컬 경계/실패 회귀는 `scripts/tests/development-release-canary.test.mjs`가 소유한다.
 workflow 계약의 failure-first RED→GREEN, 실제 loopback HTTP/Chromium 중계,

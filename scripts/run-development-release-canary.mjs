@@ -90,6 +90,7 @@ function aws(args) {
   try {
     return JSON.parse(execFileSync("aws", [...args, "--region", REGION, "--output", "json"], {
       encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 8 * 1024 * 1024,
+      timeout: 20_000, killSignal: "SIGKILL",
     }));
   } catch { throw new Error(`AWS operation failed: ${args[0]} ${args[1]}`); }
 }
@@ -138,13 +139,32 @@ function serveArtifact(directory) {
   });
 }
 
-function ownedProcess(command, args, options = {}, timeout = 240_000) {
+export function createRunOwnership(env) {
+  assert.match(env.GITHUB_RUN_ID || "", /^[0-9]+$/);
+  assert.match(env.GITHUB_RUN_ATTEMPT || "", /^[0-9]+$/);
+  const tenant = `qa-ymath-realuse-fe-${env.GITHUB_RUN_ID}-${env.GITHUB_RUN_ATTEMPT}-${crypto.randomBytes(6).toString("hex")}`;
+  assert.ok(tenant.length <= 50, "QA tenant exceeds the database code boundary");
+  return { tenant, capability: crypto.randomBytes(32).toString("hex") };
+}
+
+export function ownedProcess(command, args, options = {}, timeout = 240_000, killGrace = 5_000) {
   const child = spawn(command, args, { cwd: ROOT, env: process.env, stdio: ["ignore", "pipe", "pipe"],
     detached: process.platform !== "win32", windowsHide: true, ...options });
+  let escalation;
+  let closed = false;
+  const kill = (signal) => {
+    if (closed || !child.pid) return;
+    try {
+      if (process.platform === "win32") child.kill(signal);
+      else process.kill(-child.pid, signal);
+    } catch { /* already exited */ }
+  };
   const stop = () => {
-    if (child.exitCode !== null || !child.pid) return;
-    if (process.platform === "win32") child.kill();
-    else { try { process.kill(-child.pid, "SIGTERM"); } catch { /* already exited */ } }
+    // An exited group leader can leave a descendant holding the output pipes.
+    // Wait for close, not exitCode, before considering the whole process reaped.
+    if (closed || !child.pid) return;
+    kill("SIGTERM");
+    escalation ??= setTimeout(() => kill("SIGKILL"), killGrace);
   };
   let stdout = "";
   let failed = false;
@@ -153,8 +173,8 @@ function ownedProcess(command, args, options = {}, timeout = 240_000) {
   child.stderr.resume();
   const timer = setTimeout(() => { failed = true; stop(); }, timeout);
   const done = new Promise((resolve) => {
-    child.once("error", () => { failed = true; clearTimeout(timer); resolve({ code: -1, stdout }); });
-    child.once("close", (code) => { clearTimeout(timer); resolve({ code: failed ? -1 : code, stdout }); });
+    child.once("error", () => { closed = true; failed = true; clearTimeout(timer); clearTimeout(escalation); resolve({ code: -1, stdout }); });
+    child.once("close", (code) => { closed = true; clearTimeout(timer); clearTimeout(escalation); resolve({ code: failed ? -1 : code, stdout }); });
   });
   return { child, done, stop, output: () => stdout };
 }
@@ -168,8 +188,9 @@ async function assertFreePort(port) {
   await new Promise((resolve) => probe.close(resolve));
 }
 
-async function waitPort(port) {
+async function waitPort(port, interrupted) {
   for (let attempt = 0; attempt < 60; attempt += 1) {
+    assert.equal(interrupted(), false, "Development run interrupted");
     const open = await new Promise((resolve) => {
       const socket = net.connect({ host: "127.0.0.1", port });
       socket.once("connect", () => { socket.destroy(); resolve(true); });
@@ -225,9 +246,10 @@ export async function run() {
   const online = aws(["ssm", "describe-instance-information", "--filters", `Key=InstanceIds,Values=${instanceId}`]).InstanceInformationList;
   assert.equal(online.length, 1);
   assert.equal(online[0].PingStatus, "Online");
-  const tenant = `qa-ymath-realuse-fe-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT}-${crypto.randomBytes(6).toString("hex")}`;
-  assert.match(tenant, /^qa-ymath-realuse-fe-[0-9]+-[0-9]+-[a-f0-9]{12}$/);
-  const common = { TenantCode: [tenant], ReleaseId: [manifest.releaseImageTag], ApiDigest: [manifest.images["academy-api"].digest] };
+  const { tenant, capability } = createRunOwnership(process.env);
+  assert.ok(identity.Arn.endsWith(`/academy-fe-qa-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT}`));
+  const common = { TenantCode: [tenant], OwnershipCapability: [capability],
+    ReleaseId: [manifest.releaseImageTag], ApiDigest: [manifest.images["academy-api"].digest] };
   const sessions = new Set();
   const processes = [];
   function session(name, parameters = {}) {
@@ -248,6 +270,7 @@ export async function run() {
     const process = session(QA_DOCUMENT, { ...common, Action: [action] });
     const result = await process.done;
     remember(process);
+    if (action !== "Cleanup") assert.equal(interrupted, false, "Development run interrupted");
     assert.equal(result.code, 0, `Fixed development ${action} command failed`);
     const lines = result.stdout.split(/\r?\n/).filter((line) => line.trim().startsWith("{"));
     assert.equal(lines.length, 1, "Missing/ambiguous fixed operation readback");
@@ -260,7 +283,32 @@ export async function run() {
   let setupAttempted = false;
   let cleanup;
   let counts;
+  let tests;
+  let interrupted = false;
+  let finalizing = false;
   const failures = [];
+  const interrupt = () => {
+    interrupted = true;
+    if (!finalizing) {
+      tests?.stop();
+      for (const process of processes) process.stop();
+    }
+  };
+  const writeEvidence = (passed, errors = failures) => {
+    const evidence = { frontendSha: process.env.GITHUB_SHA, backendGovernanceSha: revision,
+      backendReleaseId: manifest.releaseImageTag, apiDigest: manifest.images["academy-api"].digest,
+      instanceId, tenantCode: tenant, artifactSha256: fingerprint, cases: counts || null,
+      documentSha256: Object.fromEntries([...expectedDocuments].map(([name, content]) => [name, sha(content)])),
+      cleanup: cleanup ? { tenantCode: tenant, remaining: cleanup.remaining } : null,
+      passed, failures: errors };
+    fs.mkdirSync(path.join(ROOT, "test-results"), { recursive: true });
+    fs.writeFileSync(path.join(ROOT, "test-results/development-release.json"), JSON.stringify(evidence, null, 2));
+    return evidence;
+  };
+  // A killed/lost runner cannot turn an unfinished attempt into cleanup success.
+  writeEvidence(false, ["development attempt unfinished; cleanup not proven"]);
+  process.on("SIGINT", interrupt);
+  process.on("SIGTERM", interrupt);
   try {
     await assertFreePort(18000);
     await assertFreePort(4173);
@@ -272,13 +320,14 @@ export async function run() {
     setupAttempted = true;
     assert.equal((await operation("Setup")).status, "YMATH_REALUSE_SCENARIO_READY");
     const tunnel = session(PORT_DOCUMENT);
-    await waitPort(18000);
+    await waitPort(18000, () => interrupted);
     remember(tunnel);
     server = await serveArtifact(path.join(bundle, "dist"));
     const secret = aws(["ssm", "get-parameter", "--name", PASSWORD_PARAMETER, "--with-decryption"]);
     assert.equal(secret.Parameter.Name, PASSWORD_PARAMETER);
     assert.ok(secret.Parameter.Value);
-    const tests = ownedProcess(process.execPath, [path.join(ROOT, "node_modules/@playwright/test/cli.js"), "test", "--config=playwright.development-release.config.ts"], {
+    assert.equal(interrupted, false, "Development run interrupted");
+    tests = ownedProcess(process.execPath, [path.join(ROOT, "node_modules/@playwright/test/cli.js"), "test", "--config=playwright.development-release.config.ts"], {
       env: { ...process.env, E2E_BASE_URL: WEB_ORIGIN, E2E_API_URL: API_ORIGIN, API_BASE_URL: API_ORIGIN,
         E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict",
         E2E_TENANT_CODE: tenant, E2E_ADMIN_USER: "ymath-qa-teacher", E2E_STUDENT_USER: "ymath-qa-student-01",
@@ -289,6 +338,10 @@ export async function run() {
     counts = assertReleaseSummary(JSON.parse(result.stdout));
   } catch { failures.push("development identity/setup/real-use failed"); }
   finally {
+    finalizing = true;
+    // No test process may still mutate the scenario while Cleanup is running.
+    if (tests) { tests.stop(); await tests.done; }
+    if (interrupted) failures.push("development run interrupted; promotion forbidden");
     if (setupAttempted) {
       try { cleanup = await operation("Cleanup"); assertCleanup(cleanup, tenant); }
       catch { failures.push("development cleanup failed or zero residue not proven"); }
@@ -296,6 +349,7 @@ export async function run() {
     for (const process of processes) {
       try { remember(process); } catch { failures.push("session ownership readback failed"); }
       process.stop();
+      await process.done;
     }
     for (const sessionId of sessions) {
       try {
@@ -313,16 +367,16 @@ export async function run() {
         assert.equal(terminated, true, "Owned session termination readback missing");
       } catch { failures.push("owned SSM session cleanup not proven"); }
     }
-    if (server) await new Promise((resolve) => server.close(resolve));
-    if (artifactFingerprint(bundle) !== fingerprint) failures.push("deployment artifact changed during QA");
-    const evidence = { frontendSha: process.env.GITHUB_SHA, backendGovernanceSha: revision,
-      backendReleaseId: manifest.releaseImageTag, apiDigest: manifest.images["academy-api"].digest,
-      instanceId, artifactSha256: fingerprint, cases: counts || null,
-      documentSha256: Object.fromEntries([...expectedDocuments].map(([name, content]) => [name, sha(content)])),
-      cleanup: cleanup ? { tenantCode: tenant, remaining: cleanup.remaining } : null,
-      passed: failures.length === 0 && Boolean(counts) && Boolean(cleanup), failures };
-    fs.mkdirSync(path.join(ROOT, "test-results"), { recursive: true });
-    fs.writeFileSync(path.join(ROOT, "test-results/development-release.json"), JSON.stringify(evidence, null, 2));
+    if (server) {
+      server.closeAllConnections();
+      await new Promise((resolve) => server.close(resolve));
+    }
+    try { if (artifactFingerprint(bundle) !== fingerprint) failures.push("deployment artifact changed during QA"); }
+    catch { failures.push("deployment artifact final readback failed"); }
+    if (interrupted && !failures.some((failure) => failure.includes("interrupted"))) failures.push("development run interrupted; promotion forbidden");
+    process.off("SIGINT", interrupt);
+    process.off("SIGTERM", interrupt);
+    const evidence = writeEvidence(failures.length === 0 && Boolean(counts) && Boolean(cleanup));
     assert.equal(evidence.passed, true, "Development release gate failed; see PII-free evidence");
   }
 }

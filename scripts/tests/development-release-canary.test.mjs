@@ -6,6 +6,34 @@ import http from "node:http";
 import { chromium } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import { assertReleaseSummary, assertCleanup, assertManifest, assertActiveInstance, assertReadOnlyAssessmentSource } from "../run-development-release-canary.mjs";
+import * as runner from "../run-development-release-canary.mjs";
+
+test("each run has an independent non-published ownership capability", () => {
+  assert.equal(typeof runner.createRunOwnership, "function");
+  const env = { GITHUB_RUN_ID: "123", GITHUB_RUN_ATTEMPT: "1" };
+  const first = runner.createRunOwnership(env);
+  const second = runner.createRunOwnership(env);
+  assert.match(first.capability, /^[a-f0-9]{64}$/);
+  assert.notEqual(first.capability, second.capability);
+  assert.notEqual(first.tenant, second.tenant);
+  assert.throws(() => runner.createRunOwnership({ ...env, GITHUB_RUN_ID: "123-other" }));
+  const source = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+  assert.match(source, /OwnershipCapability: \[capability\]/);
+  assert.match(source, /writeEvidence\(false, \["development attempt unfinished; cleanup not proven"\]\)/);
+  assert.match(source, /process\.on\("SIGTERM", interrupt\)/);
+});
+
+test("a timed-out owned process is killed and reaped even if SIGTERM is ignored", { timeout: 10_000 }, async () => {
+  assert.equal(typeof runner.ownedProcess, "function");
+  const child = runner.ownedProcess(process.execPath, ["-e",
+    'process.on("SIGTERM", () => {}); process.stdout.write("ready"); setInterval(() => {}, 10);'], {}, 1_000, 100);
+  try {
+    const result = await child.done;
+    assert.equal(result.code, -1);
+    assert.match(result.stdout, /ready/);
+    assert.throws(() => process.kill(child.child.pid, 0));
+  } finally { child.stop(); }
+});
 
 const workflow = readFileSync(new URL("../../.github/workflows/quality-gate.yml", import.meta.url), "utf8").replaceAll("\r\n", "\n");
 const job = (name) => workflow.match(new RegExp(`^  ${name}:\\n[\\s\\S]*?(?=^  [a-z][a-z0-9-]*:|$(?![\\s\\S]))`, "m"))?.[0] ?? "";
