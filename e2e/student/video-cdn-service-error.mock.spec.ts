@@ -1,5 +1,9 @@
 import { expect, test } from "../fixtures/strictTest";
 import type { Page } from "@playwright/test";
+import { guardUnmockedYouTubeRequests, installYouTubeSdkFixture } from "../helpers/youtubeSdkFixture";
+import {
+  assertYoutubeReadyPlayPause, installStudentYoutubeScenario, openStudentYoutubeScenario,
+} from "../helpers/studentYoutubeScenario";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 
@@ -1010,6 +1014,8 @@ test.describe("student video access races on desktop", () => {
   });
 
   test("재시도 playback v2가 access v2보다 먼저 와도 한 번에 복구한다", async ({ page }) => {
+    const unexpectedYouTubeRequests = await guardUnmockedYouTubeRequests(page);
+    const youtube = await installYouTubeSdkFixture(page);
     let playbackRequests = 0;
     let accessChecks = 0;
     let expiredCdnRequests = 0;
@@ -1195,6 +1201,36 @@ test.describe("student video access races on desktop", () => {
       accessChecks: 2,
       expiredCdnRequests: 1,
     });
+    expect(unexpectedYouTubeRequests, "Route-mock playback must not depend on the live YouTube SDK").toEqual([]);
+    await expect.poll(async () => (await youtube.snapshot()).players.filter((player) => player.ready && !player.destroyed).length).toBe(1);
+    await expect(page.getByText("재생 화면을 준비하고 있어요…")).toHaveCount(0);
+  });
+
+  test("YouTube SDK fixture는 비동기 ready·재생·일시정지와 오류 후 재시도를 전달한다", async ({ page }) => {
+    const unexpectedYouTubeRequests = await guardUnmockedYouTubeRequests(page);
+    const youtube = await installYouTubeSdkFixture(page);
+    const requests = await installStudentYoutubeScenario(page);
+    await openStudentYoutubeScenario(page, BASE);
+    await assertYoutubeReadyPlayPause(page);
+    const first = await youtube.snapshot();
+    expect(first.sdkReady).toBe(1);
+    expect(first.players).toHaveLength(1);
+    expect(first.players[0].calls).toEqual(expect.arrayContaining(["onReady", "playVideo", "pauseVideo"]));
+
+    await youtube.emitError(150);
+    await expect(page.getByText("YouTube에서 이 영상의 퍼가기를 허용하지 않았습니다.", { exact: true })).toBeVisible();
+    await expect.poll(async () => (await youtube.snapshot()).players[0].destroyed).toBe(true);
+    const beforeRetry = requests.filter(({ path }) => path.endsWith("/562/playback/")).length;
+    await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+    await expect.poll(async () => (await youtube.snapshot()).players.filter((player) => player.ready && !player.destroyed).length).toBe(1);
+    await assertYoutubeReadyPlayPause(page);
+    const retried = await youtube.snapshot();
+    expect(retried.sdkReady).toBe(1);
+    expect(retried.players).toHaveLength(2);
+    expect(retried.players[0].calls).toContain("onError:150");
+    expect(retried.players[1].calls).toEqual(expect.arrayContaining(["onReady", "playVideo", "pauseVideo"]));
+    expect(requests.filter(({ path }) => path.endsWith("/562/playback/")).length).toBeGreaterThan(beforeRetry);
+    expect(unexpectedYouTubeRequests).toEqual([]);
   });
 
   test("같은 영상 정책 재부트스트랩 성공은 후속 403을 되돌리지 않는다", async ({ page }) => {

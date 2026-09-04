@@ -1082,6 +1082,121 @@ test.describe("직원 운영 계약", () => {
     });
   });
 
+  test("확인창의 지연 초기 포커스는 사용자가 Tab으로 선택한 취소를 빼앗지 않는다", async ({ page }) => {
+    await page.addInitScript(() => {
+      const requestFrame = window.requestAnimationFrame.bind(window);
+      const cancelFrame = window.cancelAnimationFrame.bind(window);
+      const held = new Map<number, FrameRequestCallback>();
+      // Only defer this component's initial-focus frame, not application animation.
+      window.requestAnimationFrame = (callback) => {
+        if (new Error().stack?.includes("/src/shared/ui/confirm/ConfirmDialog.tsx")) {
+          const id = requestFrame(() => {});
+          held.set(id, callback);
+          return id;
+        }
+        return requestFrame(callback);
+      };
+      window.cancelAnimationFrame = (id) => {
+        held.delete(id);
+        cancelFrame(id);
+      };
+      Object.assign(window, {
+        confirmFocusFrames: () => held.size,
+        releaseConfirmFocusFrames: () => {
+          const callbacks = [...held.values()];
+          held.clear();
+          callbacks.forEach((callback) => callback(performance.now()));
+          return callbacks.length;
+        },
+      });
+    });
+    let deletedId: number | null = null;
+    await mockStaffApi(page, {
+      expenses: [{
+        id: 31, staff: 1, staff_name: "김조교", date: "2026-08-01",
+        title: "교재 구입", amount: 30000, memo: "영수증 있음", status: "PENDING",
+        approved_at: null, approved_by: null, approved_by_name: null,
+        created_at: "2026-08-01T01:00:00Z", updated_at: "2026-08-01T01:00:00Z",
+      }],
+      onExpenseDelete: (id) => { deletedId = id; },
+    });
+    await page.goto(`${BASE}/workspace/staff/expenses?staffId=1&year=2026&month=8`, {
+      waitUntil: "domcontentloaded",
+    });
+    const trigger = page.getByTestId("staff-expense-31").getByRole("button", { name: "삭제" });
+    await trigger.click();
+    const dialog = page.getByRole("alertdialog", { name: "선결제 환급 삭제" });
+    const confirm = dialog.getByRole("button", { name: "삭제" });
+    const cancel = dialog.getByRole("button", { name: "취소" });
+    await expect(confirm).toBeFocused();
+    await expect.poll(() => page.evaluate(() => (
+      window as unknown as { confirmFocusFrames: () => number }
+    ).confirmFocusFrames())).toBe(1);
+    await page.keyboard.press("Tab");
+    await expect(cancel).toBeFocused();
+    expect(await page.evaluate(() => (
+      window as unknown as { releaseConfirmFocusFrames: () => number }
+    ).releaseConfirmFocusFrames())).toBe(1);
+    await expect(cancel).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(confirm).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(dialog).not.toBeVisible();
+    await expect(trigger).toBeFocused();
+    expect(deletedId).toBeNull();
+
+    // The deferred correction must still recover focus that escaped the card.
+    await trigger.click();
+    await expect(confirm).toBeFocused();
+    await confirm.evaluate((button) => button.blur());
+    expect(await page.evaluate(() => (
+      window as unknown as { releaseConfirmFocusFrames: () => number }
+    ).releaseConfirmFocusFrames())).toBe(1);
+    await expect(confirm).toBeFocused();
+    await cancel.click();
+    await expect(dialog).not.toBeVisible();
+    await expect(trigger).toBeFocused();
+    expect(deletedId).toBeNull();
+  });
+
+  test("일반 확인창은 Escape와 취소 후 진입 버튼으로 포커스를 복구한다", async ({ page }) => {
+    let deletedId: number | null = null;
+    await mockStaffApi(page, {
+      expenses: [{
+        id: 31, staff: 1, staff_name: "김조교", date: "2026-08-01",
+        title: "교재 구입", amount: 30000, memo: "영수증 있음", status: "PENDING",
+        approved_at: null, approved_by: null, approved_by_name: null,
+        created_at: "2026-08-01T01:00:00Z", updated_at: "2026-08-01T01:00:00Z",
+      }],
+      onExpenseDelete: (id) => { deletedId = id; },
+    });
+    await page.goto(`${BASE}/workspace/staff/expenses?staffId=1&year=2026&month=8`, {
+      waitUntil: "domcontentloaded",
+    });
+    const trigger = page.getByTestId("staff-expense-31").getByRole("button", { name: "삭제" });
+    const dialog = page.getByRole("alertdialog", { name: "선결제 환급 삭제" });
+    for (const closeWithEscape of [true, false]) {
+      await trigger.click();
+      await expect(dialog.getByRole("button", { name: "삭제" })).toBeFocused();
+      await page.keyboard.press("Tab");
+      await expect(dialog.getByRole("button", { name: "취소" })).toBeFocused();
+      await page.keyboard.press("Shift+Tab");
+      await expect(dialog.getByRole("button", { name: "삭제" })).toBeFocused();
+      if (closeWithEscape) await page.keyboard.press("Escape");
+      else await dialog.getByRole("button", { name: "취소" }).click();
+      await expect(dialog).not.toBeVisible();
+      await expect(trigger).toBeFocused();
+      expect(deletedId).toBeNull();
+    }
+    await trigger.click();
+    await expect(dialog).toBeVisible();
+    await trigger.evaluate((button) => button.remove());
+    await page.keyboard.press("Escape");
+    await expect(dialog).not.toBeVisible();
+    await expect(trigger).toHaveCount(0);
+    expect(deletedId).toBeNull();
+  });
+
   test("미마감 월의 조교 근무 기록을 수정하면 기존 PATCH 계약으로 저장한다", async ({ page }) => {
     const workRecords = [
       {
