@@ -33,7 +33,8 @@ jobs:
   quality-check:
     name: Typecheck + Lint + Build
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Registry setup can consume 7 minutes before the blocking checks begin.
+    timeout-minutes: 15
     env:
       # Cloudflare Git builds expose the same commit as CF_PAGES_COMMIT_SHA.
       # Using a shared commit version keeps dual build outputs deterministic.
