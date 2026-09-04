@@ -81,6 +81,8 @@ async function installApi(page: Page) {
 }
 
 test.describe("업무 화면 빠른 이동", () => {
+  test.use({ serviceWorkers: "block" });
+
   test.beforeEach(async ({ page }) => {
     await seed(page);
     await installApi(page);
