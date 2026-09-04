@@ -180,10 +180,35 @@ test("Inspect match evidence records booleans without publishing compared values
   }
 });
 
-test("a timed-out owned process is killed and reaped even if SIGTERM is ignored", { timeout: 10_000 }, async () => {
+test("fixed SSM sessions keep stdin open until delayed JSON readback closes the client", async () => {
+  const syntheticClient = [
+    'process.stdout.write("\\nStarting session with SessionId: academy-fe-qa-unit-safe\\n");',
+    'process.stdin.once("end", () => process.exit(0));',
+    "process.stdin.resume();",
+    'setTimeout(() => { process.stdout.write(\'{"status":"DEVELOPMENT_QA_IDENTITY_PASS"}\\n\'); process.exit(0); }, 100);',
+  ].join("\n");
+  const closedInput = runner.ownedProcess(process.execPath, ["-e", syntheticClient]);
+  const keptOpen = runner.ownedProcess(process.execPath, ["-e", syntheticClient],
+    { stdio: ["pipe", "pipe", "pipe"] });
+  const [closedResult, openResult] = await Promise.all([closedInput.done, keptOpen.done]);
+  assert.deepEqual(runner.observeFixedOperationResult("Inspect", closedResult).observation, {
+    action: "Inspect", exitCode: 0, jsonLineCount: 0, sessionIdObserved: true,
+    payloadStatus: null, errorType: null,
+  });
+  assert.deepEqual(runner.observeFixedOperationResult("Inspect", openResult).observation, {
+    action: "Inspect", exitCode: 0, jsonLineCount: 1, sessionIdObserved: true,
+    payloadStatus: "DEVELOPMENT_QA_IDENTITY_PASS", errorType: null,
+  });
+  const source = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+  assert.match(source,
+    /"--parameters", JSON\.stringify\(parameters\)\],\s*\{ stdio: \["pipe", "pipe", "pipe"\] \},/);
+});
+
+test("a timed-out owned process with held-open stdin is killed and reaped", { timeout: 10_000 }, async () => {
   assert.equal(typeof runner.ownedProcess, "function");
   const child = runner.ownedProcess(process.execPath, ["-e",
-    'process.on("SIGTERM", () => {}); process.stdout.write("ready"); setInterval(() => {}, 10);'], {}, 1_000, 100);
+    'process.on("SIGTERM", () => {}); process.stdin.resume(); process.stdout.write("ready"); setInterval(() => {}, 10);'],
+  { stdio: ["pipe", "pipe", "pipe"] }, 1_000, 100);
   try {
     const result = await child.done;
     assert.equal(result.code, -1);

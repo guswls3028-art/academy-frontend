@@ -376,7 +376,8 @@ export async function run() {
     const current = aws(["ssm", "get-document", "--name", name, "--document-format", "JSON"]);
     assert.equal(canonical(JSON.parse(current.Content)), expectedDocuments.get(name), "Fixed document changed before operation");
     const process = ownedProcess("aws", ["ssm", "start-session", "--region", REGION, "--target", instanceId,
-      "--document-name", name, "--parameters", JSON.stringify(parameters)], {}, name === PORT_DOCUMENT ? 25 * 60_000 : 240_000);
+      "--document-name", name, "--parameters", JSON.stringify(parameters)],
+    { stdio: ["pipe", "pipe", "pipe"] }, name === PORT_DOCUMENT ? 25 * 60_000 : 240_000);
     processes.push(process);
     return process;
   }
