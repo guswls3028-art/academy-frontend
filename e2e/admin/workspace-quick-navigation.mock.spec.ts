@@ -116,6 +116,70 @@ test.describe("업무 화면 빠른 이동", () => {
     await expect(dialog.getByRole("button", { name: /가이드 메인/ }).first()).toBeVisible();
   });
 
+  test("닫기 직후 재열기에서 지연된 native close는 최근 사용 대화상자를 닫지 않는다", async ({ page }) => {
+    await page.addInitScript(() => {
+      const held: Array<{ dialog: HTMLDialogElement; event: Event }> = [];
+      let deferClose = true;
+      document.addEventListener("close", (event) => {
+        const dialog = event.target;
+        if (!deferClose || !(dialog instanceof HTMLDialogElement)
+          || dialog.getAttribute("aria-labelledby") !== "quick-navigation-title") return;
+        event.stopImmediatePropagation();
+        held.push({ dialog, event });
+      }, true);
+      Object.assign(window, {
+        pendingNavigationCloseEvents: () => held.length,
+        releaseNavigationCloseEvents: () => {
+          deferClose = false;
+          const events = held.splice(0);
+          // Replay only actual native close events after the dialog has reopened.
+          events.forEach(({ dialog, event }) => dialog.dispatchEvent(event));
+          return events.length;
+        },
+      });
+    });
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await page.goto(`${BASE}/workspace/dashboard`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "빠른 이동" }).click();
+    const dialog = page.getByRole("dialog", { name: "빠른 이동" });
+    const search = dialog.getByRole("textbox", { name: "메뉴 검색" });
+    await expect(search).toBeFocused();
+    await search.fill("매뉴얼");
+    await expect(dialog.getByRole("button", { name: /가이드 메인/ })).toBeVisible();
+    await search.press("Enter");
+    await expect(page).toHaveURL(/\/workspace\/guide(?:\/|$)/);
+    await expect(dialog).not.toBeVisible();
+    await expect.poll(() => page.evaluate(() => (
+      window as unknown as { pendingNavigationCloseEvents: () => number }
+    ).pendingNavigationCloseEvents())).toBe(1);
+
+    await page.keyboard.press("Control+K");
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("heading", { name: "최근 사용" })).toBeVisible();
+    expect(await page.evaluate(() => (
+      window as unknown as { releaseNavigationCloseEvents: () => number }
+    ).releaseNavigationCloseEvents())).toBe(1);
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("button", { name: /가이드 메인/ }).first()).toBeVisible();
+
+    // An actual native close still synchronizes parent state for the next shortcut.
+    await dialog.evaluate((element) => new Promise<void>((resolve) => {
+      element.addEventListener("close", () => {
+        requestAnimationFrame(() => resolve());
+      }, { once: true });
+      (element as HTMLDialogElement).close();
+    }));
+    await expect(dialog).not.toBeVisible();
+    await page.keyboard.press("Control+K");
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(dialog).not.toBeVisible();
+    await page.reload();
+    await page.getByRole("button", { name: "빠른 이동" }).click();
+    await expect(dialog.getByRole("heading", { name: "최근 사용" })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: /가이드 메인/ }).first()).toBeVisible();
+  });
+
   test("390px에서 중복 홈 대신 빠른 이동을 제공하고 가로 넘침이 없다", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${BASE}/workspace/mobile`, { waitUntil: "domcontentloaded" });

@@ -207,6 +207,10 @@ frontend를 반영한다. 새 frontend는 POST가 실패하면 bootstrap을 실�
 `accepted:false`를 재시도 오류로 표시하지 않는다. 백엔드의 공통 읽기 무변경
 경계는 `backend/docs/architecture/safe-http-mutation-boundary.md`가 소유한다.
 
+영상 정책 응답 순서의 SDK fixture 회귀와 공개 YouTube 실제 재생 검증은
+[`e2e/README.md`의 YouTube 검증 경계](../e2e/README.md#youtube-응답-순서-회귀와-실제-sdk-검증)를 따른다.
+순서 회귀의 mock PASS와 실제 외부 SDK의 ready·재생·일시정지 PASS는 별도 증거다.
+
 ## 영상 건너뛰기 계약
 
 - 기본 `Video.allow_skip=false`와 `PROCTORED_CLASS` 재생은 임의 앞으로 탐색 대신

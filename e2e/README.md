@@ -37,6 +37,7 @@ e2e/
 | `pnpm test:e2e:gate:mock` | 모든 활성 `*.mock.spec.ts` | `127.0.0.1:9` proxy, 실제 API 요청 금지 |
 | `pnpm test:e2e:controlled-writes` | 통제 쓰기 canary | 명시적 workflow opt-in, 재시도 0 |
 | `pnpm test:e2e:bundle-smoke` | 빌드 산출물 부팅 | 로컬 preview, strict browser |
+| `pnpm test:e2e:youtube-integration` | 실제 YouTube SDK 준비·재생·일시정지 | 로컬 앱·합성 API, 공개 YouTube SDK/미디어만 실제 통신, 재시도 0 |
 | `pnpm test:e2e:visual-audit` | 9개 운영 route surface | read-only, 한 job·한 browser 설치·직렬 실행 |
 
 `pnpm test:e2e`는 연구/진단 spec까지 포함한 전체 디렉터리를 실행하므로 릴리스
@@ -81,6 +82,60 @@ pnpm exec playwright test e2e/admin/example.mock.spec.ts --project=chromium --wo
 `pnpm guard:test-coverage`가 실패한다.
 
 ## 반복 감사
+
+### YouTube 응답 순서 회귀와 실제 SDK 검증
+
+`student/video-cdn-service-error.mock.spec.ts`의 playback v2/access v2 응답 순서
+회귀는 앱의 정책 일치·재시도·이전 CDN 재사용 금지를 검증한다. 해당 case만
+`helpers/youtubeSdkFixture.ts`로 외부 SDK를 대체한다. 실제 SDK 로딩 속도나
+공급자 스크립트의 Permissions Policy 오류가 이 앱 순서 검증에 섞이지 않도록
+분리한 것이며 영상 제품 코드·권한·공용 strict console 정책은 변경하지 않는다.
+다른 영상 case의 외부 SDK 사용까지 일괄 변경하지 않는다.
+
+fixture는 실제 앱의 `iframe_api` 로더를 통과하고 비동기 SDK-ready/플레이어-ready,
+재생·일시정지 상태 이벤트, 시간 조회, 음량·배속·seek·destroy 메서드를 제공한다.
+같은 spec의 fixture 계약 테스트는 앱 화면과 SDK 호출 기록으로 ready→사용자 재생→
+시간 증가→일시정지를 확인하고, 제어된 `onError(150)` 후 오류 UI·destroy·다시 시도·
+새 플레이어 복구를 확인한다. SDK fixture 밖으로 나가는 YouTube 요청은 차단 후
+명시적 assertion 실패로 처리하며, 통신 차단이나 heading 표시만으로 성공하지 않는다.
+
+실제 외부 SDK 경계는 `smoke/youtube-player.integration.spec.ts`가 소유한다.
+공개 영상 `VnqgmOJaMGc`와 실제 `iframe_api`/embed를 사용하고, SDK callback으로
+갱신되는 앱의 준비 상태·양수 duration, 명시적 사용자 재생 클릭 뒤 currentTime 증가,
+일시정지 뒤 시간 정지를 검증한다. API·인증·수강·진도는 메모리 내 합성 응답으로만
+처리하며 실제 계정·학생 활동·생산 기록을 생성하지 않는다. 실패 시 vendor 응답과
+console 출처를 artifact에 남긴다. 외부 미가용·embed 거절·권한 정책·console 오류는
+실패이며 skip/green 변환이나 권한 완화를 허용하지 않는다. 실제 공급자 장애를
+인위적으로 발생시키지 않으며, 오류/retry 주입 검증은 위 fixture 결과와 구분한다.
+
+실행 책임은 학생 영상 SDK/정책·이 fixture 경계를 변경하는 작업의 소유자다.
+그 변경의 완료 전에 focused 회귀와 실제 smoke를 모두 실행하고 정확한 SHA·브라우저·
+trace·결과를 handoff한다. 현재 실제 smoke는 자동 PR CI/스케줄에 연결되어 있지 않다.
+명시적 아래 명령으로 실행하며, 새 workflow·스케줄 연결은 별도 검토 대상이다.
+응답 순서/fixture 회귀는 기존 `pr-route-mocks`에 등록된 동일 파일에서 매 PR 실행된다.
+실제 smoke의 로컬 PASS는 PR 전체 CI나 생산 배포 검증을 대체하지 않는다.
+
+```powershell
+# 검증할 정확한 checkout에서 별도 터미널로 실행
+$env:VITE_DEV_PROXY_TARGET = "http://127.0.0.1:9"
+pnpm dev --host 127.0.0.1 --port 5174 --strictPort
+
+# 같은 checkout의 테스트 터미널
+$env:CI = "true"
+$env:E2E_BASE_URL = "http://127.0.0.1:5174"
+$env:E2E_LOCAL_BASE_URL = "http://127.0.0.1:5174"
+$env:E2E_STRICT = "strict"
+$env:E2E_ALLOW_PRODUCTION_WRITES = "0"
+$env:E2E_ALLOW_REAL_ALIMTALK = "0"
+pnpm exec playwright test e2e/student/video-cdn-service-error.mock.spec.ts --config=playwright.pr-gate.config.ts --project=pr-route-mocks --no-deps --retries=0
+pnpm test:e2e:youtube-integration --trace=on --reporter=list
+```
+
+실제 CI 응답 순서 case는 Desktop Chrome 프로젝트의 기본 viewport를 describe에서
+1366×768로 재정의하고 `serviceWorkers: "block"`을 사용한다. 실제 SDK smoke도
+동일한 viewport/service-worker 경계를 사용하고 추가 permissions를 부여하지 않는다.
+
+### 전 메뉴 감사
 
 전 메뉴 감사는 아래 한 spec이 관리자/개발자 desktop, 학생 390px, 선생님 390px
 scope를 차례로 실행한다. workflow는 의존성 설치·Chromium 설치·Vite 기동을 한

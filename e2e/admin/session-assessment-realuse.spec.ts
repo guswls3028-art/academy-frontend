@@ -1,12 +1,10 @@
 import { test, expect } from "../fixtures/strictTest";
 import type { Locator, Page } from "@playwright/test";
 import { apiCall } from "../helpers/api";
-import { getApiBaseUrl, loginViaUI } from "../helpers/auth";
-import { productionWriteOptInSkipReason } from "../helpers/safety";
+import { loginViaUI } from "../helpers/auth";
 import { waitForRenderSettled } from "../helpers/wait";
 
 const VISIBLE_DIALOG = "[role='dialog']:visible, .admin-modal-overlay:visible";
-const PRODUCTION_WRITE_BLOCK = productionWriteOptInSkipReason(getApiBaseUrl());
 
 type ListEnvelope<T> = T[] | { results?: T[]; items?: T[] };
 
@@ -241,8 +239,6 @@ function assessmentRemote(page: Page): Locator {
 }
 
 test.describe("admin real-use session assessment flow", () => {
-  test.skip(Boolean(PRODUCTION_WRITE_BLOCK), PRODUCTION_WRITE_BLOCK ?? "");
-
   test.setTimeout(420_000);
   test.use({ viewport: { width: 1440, height: 900 } });
 

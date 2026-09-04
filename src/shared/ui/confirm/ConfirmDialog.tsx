@@ -157,7 +157,9 @@ export default function ConfirmDialog({
     focusInitialAction();
     // Ant Design 기반 부모 모달의 자체 초기 포커스보다 한 프레임 뒤에
     // 최상위 확인창 포커스를 확정한다.
-    const focusFrame = window.requestAnimationFrame(focusInitialAction);
+    const focusFrame = window.requestAnimationFrame(() => {
+      if (!cardRef.current?.contains(document.activeElement)) focusInitialAction();
+    });
     const focusTimers = [60, 180, 360].map((delay) => window.setTimeout(() => {
       if (!cardRef.current?.contains(document.activeElement)) focusInitialAction();
     }, delay));
@@ -256,7 +258,6 @@ export default function ConfirmDialog({
             <button
               ref={cancelBtnRef}
               type="button"
-              autoFocus={hasReview}
               className="confirm-dialog__button confirm-dialog__button--cancel"
               onClick={(event) => {
                 event.preventDefault();
@@ -269,7 +270,6 @@ export default function ConfirmDialog({
             <button
               ref={confirmBtnRef}
               type="button"
-              autoFocus={!hasReview}
               className={`confirm-dialog__button ${danger ? "confirm-dialog__button--danger" : "confirm-dialog__button--confirm"}`}
               onClick={(event) => {
                 event.preventDefault();

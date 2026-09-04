@@ -8,7 +8,8 @@ on:
 
 concurrency:
   group: frontend-quality-${{ github.ref }}
-  cancel-in-progress: true
+  # Never interrupt an owned development scenario/cleanup during main delivery.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -128,6 +129,9 @@ jobs:
             e2e/pwa-branding-contract.spec.ts \
             --project=chromium \
             --reporter=list
+
+      - name: Release QA boundary contracts
+        run: node --test scripts/tests/development-release-canary.test.mjs
 
       # 차단 게이트: 빌드 실패 = 서비스 장애
       - name: Build
@@ -330,14 +334,62 @@ jobs:
             exit 1
           fi
 
-  # ── 3. Cloudflare 운영 배포 (preview 통과 후) ──
+  development-canary:
+    name: Same-artifact isolated development real-use
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    needs: [quality-check, hangul-companion-check, candidate-preview]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: deploy-bundle
+          path: .deploy-bundle
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install locked test dependencies
+        run: pnpm install --frozen-lockfile --shamefully-hoist
+      - name: Check bundled AWS tools and install Chromium
+        run: |
+          aws --version
+          session-manager-plugin --version
+          pnpm exec playwright install chromium
+      - name: Assume frontend development QA role
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6
+        with:
+          role-to-assume: arn:aws:iam::809466760795:role/academy-frontend-development-qa
+          role-session-name: academy-fe-qa-${{ github.run_id }}-${{ github.run_attempt }}
+          role-duration-seconds: 3600
+          aws-region: ap-northeast-2
+          allowed-account-ids: 809466760795
+      - name: Run required real-use and exact cleanup-zero gate
+        run: node scripts/run-development-release-canary.mjs
+      - name: Upload PII-free development release evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: development-release-evidence
+          path: test-results/development-release.json
+          retention-days: 14
+          if-no-files-found: error
+
+  # ── 3. Cloudflare 운영 배포 (same-artifact development/cleanup 통과 후) ──
   deploy:
     name: Deploy to Cloudflare Pages
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 25
-    needs: [quality-check, hangul-companion-check, candidate-preview]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [quality-check, hangul-companion-check, candidate-preview, development-canary]
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/main'
+      && needs.development-canary.result == 'success'
     outputs:
       baseline_deployment_id: ${{ steps.production-baseline.outputs.deployment_id }}
       baseline_version: ${{ steps.production-baseline.outputs.version }}
@@ -757,15 +809,16 @@ jobs:
           echo "::error::Rollback was requested but the baseline version did not propagate"
           exit 1
 
-  # ── 3. E2E 왕복 플로우 + 전체 테넌트 공개 화면 가용성 (배포 후) ──
+  # ── 운영 synthetic business writes 0: 기존 계정 인증/관측은 별도 계수 ──
   e2e-roundtrip:
-    name: E2E 왕복 테스트 + tenant availability
+    name: Production read-only user flow + tenant availability
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [deploy]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     env:
-      # Tenant 1 (hakwonplus) — production-like test tenant
+      # Existing production accounts only; no synthetic business rows.
+      E2E_TENANT_CODE: hakwonplus
       E2E_BASE_URL: https://hakwonplus.com
       E2E_API_URL: https://api.hakwonplus.com
       # legacy alias (일부 spec 이 API_BASE_URL 을 참조하던 시기 호환용)
@@ -774,10 +827,11 @@ jobs:
       E2E_ADMIN_PASS: ${{ secrets.E2E_ADMIN_PASS }}
       E2E_STUDENT_USER: ${{ secrets.E2E_STUDENT_USER }}
       E2E_STUDENT_PASS: ${{ secrets.E2E_STUDENT_PASS }}
-      # 운영 side effect 없는 왕복 회귀와 session assessment는 strict 모드 적용 —
-      # 배포 후 검증이라 console error 발견 시 즉시 fail 해야 함.
+      # Authentication and reviewed dashboard observation writes are separate
+      # from business mutation; never report this as total database writes zero.
       E2E_STRICT: strict
-      E2E_ALLOW_PRODUCTION_WRITES: "1"
+      E2E_ALLOW_PRODUCTION_WRITES: "0"
+      E2E_RELEASE_API_MODE: readonly
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -903,16 +957,13 @@ jobs:
           exit 1
 
       - name: Run production canary (login smoke)
-        run: pnpm test:e2e:canary
+        run: pnpm test:e2e:canary --retries=0
 
       - name: Verify all tenant public screens are open
         run: pnpm verify:tenant-availability
 
-      - name: Run 왕복 플로우 테스트 (차단 게이트)
-        run: pnpm exec playwright test e2e/flows/notice-roundtrip.spec.ts e2e/flows/qna-roundtrip.spec.ts e2e/flows/clinic-roundtrip.spec.ts --reporter=list
-
       - name: Run 차시 성적/시험/과제 실사용 테스트 (차단 게이트)
-        run: pnpm exec playwright test e2e/admin/session-assessment-realuse.spec.ts --reporter=list
+        run: pnpm exec playwright test e2e/admin/session-assessment-realuse.spec.ts --reporter=list --retries=0
 
       - name: Upload Playwright report
         if: always()

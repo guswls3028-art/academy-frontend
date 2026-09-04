@@ -206,6 +206,47 @@ async function expectRevokeCtaLayout(page: Page, direct: Locator): Promise<void>
 test.use({ serviceWorkers: "block" });
 test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "로컬 route-mock 전용");
 
+test("검토 확인창은 취소에 시작하고 Escape와 취소 후 진입 버튼으로 복귀한다", async ({ page }) => {
+  const evidence = await installApp(page);
+  await gotoAndSettle(page, `${BASE}/workspace/videos/tree?videoId=901&lectureId=701&sessionId=801`);
+  await page.getByRole("region", { name: "학생 시청 현황" }).getByRole("button", { name: "권한 관리" }).click();
+  await page.getByRole("button", { name: "수강 등록 없이 영상만" }).click();
+  const direct = page.getByRole("region", { name: "수강 등록 없이 영상만" });
+  await direct.getByRole("searchbox", { name: "개별 영상 권한 학생 검색" }).fill("테스트학생");
+  await page.clock.runFor(350);
+  await direct.getByRole("button", { name: /테스트학생.*로그인 가능/ }).click();
+  await direct.getByPlaceholder("왜 수강 등록 없이 이 영상만 열어야 하는지 남겨 주세요.").fill("단일 보강 영상 제공 요청");
+  const trigger = direct.getByRole("button", { name: "영상 1개 열기" });
+  const dialog = page.getByRole("alertdialog", { name: "개별 영상 권한 승인" });
+  const cancel = dialog.getByRole("button", { name: "취소" });
+  const confirm = dialog.getByRole("button", { name: "영상 1개 열기" });
+  for (const closeWithEscape of [true, false]) {
+    await trigger.click();
+    await expect(cancel).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(confirm).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(cancel).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(confirm).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(cancel).toBeFocused();
+    if (closeWithEscape) await page.keyboard.press("Escape");
+    else await cancel.click();
+    await expect(dialog).not.toBeVisible();
+    await expect(trigger).toBeFocused();
+    expect(evidence.grantBodies).toEqual([]);
+  }
+  await trigger.click();
+  await expect(cancel).toBeFocused();
+  await trigger.evaluate((button) => button.remove());
+  await cancel.click();
+  await expect(dialog).not.toBeVisible();
+  await expect(trigger).toHaveCount(0);
+  expect(evidence.grantBodies).toEqual([]);
+  expect(evidence.revokeBodies).toEqual([]);
+});
+
 test("교직원은 명시 확인으로 영상 1개만 승인하고 사유와 함께 회수한다", async ({ page }) => {
   const evidence = await installApp(page);
   await page.setViewportSize({ width: 1366, height: 900 });
