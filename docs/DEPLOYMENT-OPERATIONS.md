@@ -199,7 +199,14 @@ profile, 종료 방지, inbound0, SSM Online을 확인한다. 원본 artifact의
 missing/duplicate/foreign owner는 destroy 전 거부하며, 이미 부재하면 0 readback만 한다.
 상세 감사 행 보존과 capability 신뢰 경계는 backend 상시 개발 런타임 문서가 소유한다.
 결과는 test 수/상태, release/image/artifact identity, cleanup 수와 실패 분류를
-`test-results/development-release.json`으로 남긴다. 고정 document operation은
+`test-results/development-release.json`으로 남긴다. runner는 첫 preflight assertion보다
+먼저 null-safe 미완료 envelope를 쓴다. `preflightStage`는
+`process|bundle|governance|iam|document|host|ssm|complete`만, `preflightChecks`는
+bundle/governance/IAM/document/host/SSM의 boolean만 기록한다. 정상 진행 중 terminal은
+`preflight_running|qa_running`, 종료 시 `preflight_failed|qa_failed|passed` 중 하나다.
+따라서 Inspect 전에 실패해도 마지막 stage와 그 전까지 통과한 prerequisite만 식별하며,
+경로·ARN·role/principal/session ID·raw output/error·secret·tenant capability·password·PII는
+envelope에 넣지 않는다. 고정 document operation은
 allowlist된 action/exit code/JSON line 수/session ID 관측 여부/status/error type만
 기록하고, Inspect identity 검사는 status/잔여 0/release/digest 일치 여부를 네 개의
 boolean으로만 기록한다. raw output·오류 message·session ID·token·capability·password·
@@ -213,6 +220,11 @@ runner는 Setup 전부터 `passed:false`/`cleanup:null`인 미완료 증거를 �
 실패/timeout은 finally로 들어가 test process를 먼저 stop/reap한 뒤 Cleanup을 시도하고,
 소유 SSM session들의 종료 API와 Active/History readback 후 최종 증거를 쓴다. Cleanup
 실패·소유 session ID/종료 readback 누락은 각각 실패 분류로 남아 승격을 차단한다.
+artifact 비교는 archive/content SHA256 원문을 항상 함께 보존한다. 다만 source 변경이
+version SHA와 Vite content-hash filename 치환뿐이고, 이전→현재 SHA 및 일대일 hashed
+filename을 정규화한 모든 변경 파일이 byte-equal이면 제품 의미가 같은 증거로 인정한다.
+정규화 후 한 파일이라도 다르거나 파일 수·크기 대응이 비고유하면 동일 artifact로
+간주하지 않고 차이를 열거한 뒤 중단한다.
 operation exit/JSON/status와 Inspect 네 비교의 PII-free 관측은 기존 exit 0, 단일 JSON,
 허용 status, exact identity assertion을 대체하거나 완화하지 않는다. primary 작업 실패 후
 Cleanup 결과가 기존 primary operation 관측을 덮어쓰지 않는다. 원문 capability는
