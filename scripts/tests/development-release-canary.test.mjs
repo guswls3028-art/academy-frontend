@@ -23,6 +23,66 @@ test("each run has an independent non-published ownership capability", () => {
   assert.match(source, /process\.on\("SIGTERM", interrupt\)/);
 });
 
+test("every pre-Inspect failure persists an allowlisted PII-free preflight bucket", async () => {
+  assert.equal(typeof runner.runPreflightStages, "function");
+  const names = ["process", "bundle", "governance", "iam", "document", "host", "ssm"];
+  for (const failedStage of names) {
+    const snapshots = [];
+    const stages = names.map((name) => [name, async () => {
+      if (name === failedStage) {
+        throw new Error("C:/secret/path arn:secret principal-secret session-secret capability-secret password-secret student-name");
+      }
+    }]);
+    await assert.rejects(() => runner.runPreflightStages(stages,
+      (evidence) => snapshots.push(structuredClone(evidence)), "a".repeat(40)));
+    const evidence = snapshots.at(-1);
+    assert.equal(evidence.preflightStage, failedStage);
+    assert.equal(evidence.terminalOutcome, "preflight_failed");
+    assert.equal(evidence.passed, false);
+    assert.deepEqual(evidence.failures, ["development preflight unfinished; cleanup not proven"]);
+    assert.deepEqual(Object.keys(evidence.preflightChecks), names.slice(1));
+    for (const [name, passed] of Object.entries(evidence.preflightChecks)) {
+      assert.equal(passed, names.indexOf(name) < names.indexOf(failedStage));
+    }
+    const published = JSON.stringify(evidence);
+    for (const forbidden of ["C:/secret/path", "arn:secret", "principal-secret", "session-secret",
+      "capability-secret", "password-secret", "student-name"]) {
+      assert.doesNotMatch(published, new RegExp(forbidden));
+    }
+  }
+});
+
+test("preflight writes an inert envelope before checks and marks only reviewed prerequisites", async () => {
+  const snapshots = [];
+  const names = ["process", "bundle", "governance", "iam", "document", "host", "ssm"];
+  const evidence = await runner.runPreflightStages(names.map((name) => [name, async () => {}]),
+    (current) => snapshots.push(structuredClone(current)), "not-a-reviewed-sha secret-path");
+  assert.deepEqual(snapshots[0], {
+    frontendSha: null,
+    backendGovernanceSha: null,
+    backendReleaseId: null,
+    apiDigest: null,
+    instanceId: null,
+    tenantCode: null,
+    artifactSha256: null,
+    cases: null,
+    documentSha256: {},
+    cleanup: null,
+    operationObservation: null,
+    inspectObservation: null,
+    preflightStage: "process",
+    preflightChecks: { bundle: false, governance: false, iam: false, document: false, host: false, ssm: false },
+    terminalOutcome: "preflight_running",
+    passed: false,
+    failures: ["development preflight unfinished; cleanup not proven"],
+  });
+  assert.equal(evidence.preflightStage, "complete");
+  assert.deepEqual(evidence.preflightChecks,
+    { bundle: true, governance: true, iam: true, document: true, host: true, ssm: true });
+  assert.equal(evidence.terminalOutcome, "qa_running");
+  assert.doesNotMatch(JSON.stringify(snapshots), /not-a-reviewed-sha|secret-path/);
+});
+
 test("fixed-document operation failures expose only allowlisted PII-free observations", () => {
   assert.equal(typeof runner.observeFixedOperationResult, "function");
   const sessionId = "session-secret-123";

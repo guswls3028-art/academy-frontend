@@ -35,6 +35,44 @@ const FIXED_ERROR_TYPES = new Set([
   "IntegrityError", "KeyError", "OperationalError", "PermissionError", "RuntimeError", "TimeoutError",
   "TypeError", "ValueError",
 ]);
+const PREFLIGHT_STAGES = ["process", "bundle", "governance", "iam", "document", "host", "ssm"];
+const PREFLIGHT_CHECKS = PREFLIGHT_STAGES.slice(1);
+
+function initialPreflightEvidence(frontendSha) {
+  return {
+    frontendSha: /^[a-f0-9]{40}$/.test(frontendSha || "") ? frontendSha : null,
+    backendGovernanceSha: null, backendReleaseId: null, apiDigest: null, instanceId: null,
+    tenantCode: null, artifactSha256: null, cases: null, documentSha256: {}, cleanup: null,
+    operationObservation: null, inspectObservation: null,
+    preflightStage: "process",
+    preflightChecks: Object.fromEntries(PREFLIGHT_CHECKS.map((name) => [name, false])),
+    terminalOutcome: "preflight_running", passed: false,
+    failures: ["development preflight unfinished; cleanup not proven"],
+  };
+}
+
+export async function runPreflightStages(stages, persist, frontendSha) {
+  const evidence = initialPreflightEvidence(frontendSha);
+  persist(evidence);
+  try {
+    assert.deepEqual(stages.map(([name]) => name), PREFLIGHT_STAGES, "Unexpected development preflight stages");
+    for (const [name, check] of stages) {
+      evidence.preflightStage = name;
+      persist(evidence);
+      await check();
+      if (Object.hasOwn(evidence.preflightChecks, name)) evidence.preflightChecks[name] = true;
+      persist(evidence);
+    }
+    evidence.preflightStage = "complete";
+    evidence.terminalOutcome = "qa_running";
+    persist(evidence);
+    return evidence;
+  } catch (error) {
+    evidence.terminalOutcome = "preflight_failed";
+    persist(evidence);
+    throw error;
+  }
+}
 
 export function observeFixedOperationResult(action, result) {
   const stdout = typeof result?.stdout === "string" ? result.stdout : "";
@@ -250,51 +288,83 @@ async function waitPort(port, interrupted) {
 }
 
 export async function run() {
-  assert.equal(process.env.GITHUB_ACTIONS, "true", "Official CI only; no implicit local synthetic run");
-  assert.equal(process.env.GITHUB_EVENT_NAME, "push");
-  assert.equal(process.env.GITHUB_REF, "refs/heads/main");
-  assert.match(process.env.GITHUB_SHA || "", /^[a-f0-9]{40}$/);
-  const identity = aws(["sts", "get-caller-identity"]);
-  assert.equal(identity.Account, ACCOUNT);
-  assert.match(identity.Arn, /:assumed-role\/academy-frontend-development-qa\/academy-fe-qa-[0-9-]+$/);
-  const bundle = path.join(ROOT, ".deploy-bundle");
-  const fingerprint = artifactFingerprint(bundle);
-  assert.equal(JSON.parse(fs.readFileSync(path.join(bundle, "dist/version.json"), "utf8")).version, process.env.GITHUB_SHA);
-  const backend = "https://api.github.com/repos/guswls3028-art/academy-backend/commits/main";
-  const revision = (await publicJson(backend)).sha;
-  assert.match(revision, /^[a-f0-9]{40}$/);
-  const raw = `https://raw.githubusercontent.com/guswls3028-art/academy-backend/${revision}/`;
-  const manifest = await publicJson(`${raw}docs/reports/release-manifest.latest.json`);
-  assertManifest(manifest);
-  const expectedBoundary = await publicJson(`${raw}scripts/v1/templates/iam/policy_api_development_parameter_boundary.json`);
-  const expanded = JSON.parse(JSON.stringify(expectedBoundary).replaceAll("__REGION__", REGION).replaceAll("__ACCOUNT_ID__", ACCOUNT));
-  const hostRole = "academy-api-development-role";
-  assert.deepEqual(aws(["iam", "list-role-policies", "--role-name", hostRole]).PolicyNames, ["academy-api-development-runtime"]);
-  const attachments = aws(["iam", "list-attached-role-policies", "--role-name", hostRole]).AttachedPolicies;
-  assert.deepEqual(attachments.map((item) => item.PolicyArn), ["arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"]);
-  const hostPolicy = aws(["iam", "get-role-policy", "--role-name", hostRole, "--policy-name", "academy-api-development-runtime"]).PolicyDocument;
-  for (const statement of expanded.Statement) assert.equal(canonical(hostPolicy.Statement.find((item) => item.Sid === statement.Sid)), canonical(statement), "Development parameter deny is not applied");
-  const documents = [[QA_DOCUMENT, "frontend_development_qa.json"], [PORT_DOCUMENT, "frontend_development_api_port.json"]];
-  const expectedDocuments = new Map();
-  for (const [name, file] of documents) {
-    const expected = await publicJson(`${raw}scripts/v1/templates/ssm/${file}`);
-    const actual = aws(["ssm", "get-document", "--name", name, "--document-format", "JSON"]);
-    assert.equal(actual.DocumentType, "Session");
-    assert.equal(actual.Status, "Active");
-    assert.equal(canonical(JSON.parse(actual.Content)), canonical(expected), "Fixed SSM document content drift");
-    expectedDocuments.set(name, canonical(expected));
-  }
-  const discovered = aws(["ec2", "describe-instances", "--filters", "Name=tag:Name,Values=academy-v1-api-development", "Name=tag:Lifecycle,Values=active", "Name=instance-state-name,Values=running"]);
-  const instance = assertActiveInstance(discovered.Reservations.flatMap((item) => item.Instances), manifest);
-  const instanceId = instance.InstanceId;
-  assert.equal(aws(["ec2", "describe-instance-attribute", "--instance-id", instanceId, "--attribute", "disableApiTermination"]).DisableApiTermination.Value, true);
-  const groups = aws(["ec2", "describe-security-groups", "--group-ids", ...instance.SecurityGroups.map((item) => item.GroupId)]).SecurityGroups;
-  assert.ok(groups.length > 0 && groups.every((group) => group.IpPermissions.length === 0), "Development ingress must be zero");
-  const online = aws(["ssm", "describe-instance-information", "--filters", `Key=InstanceIds,Values=${instanceId}`]).InstanceInformationList;
-  assert.equal(online.length, 1);
-  assert.equal(online[0].PingStatus, "Online");
-  const { tenant, capability } = createRunOwnership(process.env);
-  assert.ok(identity.Arn.endsWith(`/academy-fe-qa-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT}`));
+  const evidencePath = path.join(ROOT, "test-results/development-release.json");
+  const persistEvidence = (evidence) => {
+    fs.mkdirSync(path.dirname(evidencePath), { recursive: true });
+    fs.writeFileSync(evidencePath, JSON.stringify(evidence, null, 2));
+  };
+  let identity;
+  let bundle;
+  let fingerprint;
+  let revision;
+  let raw;
+  let manifest;
+  let expectedDocuments;
+  let instance;
+  let instanceId;
+  let tenant;
+  let capability;
+  const evidence = await runPreflightStages([
+    ["process", () => {
+      assert.equal(process.env.GITHUB_ACTIONS, "true", "Official CI only; no implicit local synthetic run");
+      assert.equal(process.env.GITHUB_EVENT_NAME, "push");
+      assert.equal(process.env.GITHUB_REF, "refs/heads/main");
+      assert.match(process.env.GITHUB_SHA || "", /^[a-f0-9]{40}$/);
+      identity = aws(["sts", "get-caller-identity"]);
+      assert.equal(identity.Account, ACCOUNT);
+      assert.match(identity.Arn, /:assumed-role\/academy-frontend-development-qa\/academy-fe-qa-[0-9-]+$/);
+      ({ tenant, capability } = createRunOwnership(process.env));
+      assert.ok(identity.Arn.endsWith(`/academy-fe-qa-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT}`));
+    }],
+    ["bundle", () => {
+      bundle = path.join(ROOT, ".deploy-bundle");
+      fingerprint = artifactFingerprint(bundle);
+      assert.equal(JSON.parse(fs.readFileSync(path.join(bundle, "dist/version.json"), "utf8")).version, process.env.GITHUB_SHA);
+    }],
+    ["governance", async () => {
+      const backend = "https://api.github.com/repos/guswls3028-art/academy-backend/commits/main";
+      revision = (await publicJson(backend)).sha;
+      assert.match(revision, /^[a-f0-9]{40}$/);
+      raw = `https://raw.githubusercontent.com/guswls3028-art/academy-backend/${revision}/`;
+      manifest = await publicJson(`${raw}docs/reports/release-manifest.latest.json`);
+      assertManifest(manifest);
+    }],
+    ["iam", async () => {
+      const expectedBoundary = await publicJson(`${raw}scripts/v1/templates/iam/policy_api_development_parameter_boundary.json`);
+      const expanded = JSON.parse(JSON.stringify(expectedBoundary).replaceAll("__REGION__", REGION).replaceAll("__ACCOUNT_ID__", ACCOUNT));
+      const hostRole = "academy-api-development-role";
+      assert.deepEqual(aws(["iam", "list-role-policies", "--role-name", hostRole]).PolicyNames, ["academy-api-development-runtime"]);
+      const attachments = aws(["iam", "list-attached-role-policies", "--role-name", hostRole]).AttachedPolicies;
+      assert.deepEqual(attachments.map((item) => item.PolicyArn), ["arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"]);
+      const hostPolicy = aws(["iam", "get-role-policy", "--role-name", hostRole, "--policy-name", "academy-api-development-runtime"]).PolicyDocument;
+      for (const statement of expanded.Statement) assert.equal(canonical(hostPolicy.Statement.find((item) => item.Sid === statement.Sid)), canonical(statement), "Development parameter deny is not applied");
+    }],
+    ["document", async () => {
+      const documents = [[QA_DOCUMENT, "frontend_development_qa.json"], [PORT_DOCUMENT, "frontend_development_api_port.json"]];
+      expectedDocuments = new Map();
+      for (const [name, file] of documents) {
+        const expected = await publicJson(`${raw}scripts/v1/templates/ssm/${file}`);
+        const actual = aws(["ssm", "get-document", "--name", name, "--document-format", "JSON"]);
+        assert.equal(actual.DocumentType, "Session");
+        assert.equal(actual.Status, "Active");
+        assert.equal(canonical(JSON.parse(actual.Content)), canonical(expected), "Fixed SSM document content drift");
+        expectedDocuments.set(name, canonical(expected));
+      }
+    }],
+    ["host", () => {
+      const discovered = aws(["ec2", "describe-instances", "--filters", "Name=tag:Name,Values=academy-v1-api-development", "Name=tag:Lifecycle,Values=active", "Name=instance-state-name,Values=running"]);
+      instance = assertActiveInstance(discovered.Reservations.flatMap((item) => item.Instances), manifest);
+      instanceId = instance.InstanceId;
+      assert.equal(aws(["ec2", "describe-instance-attribute", "--instance-id", instanceId, "--attribute", "disableApiTermination"]).DisableApiTermination.Value, true);
+      const groups = aws(["ec2", "describe-security-groups", "--group-ids", ...instance.SecurityGroups.map((item) => item.GroupId)]).SecurityGroups;
+      assert.ok(groups.length > 0 && groups.every((group) => group.IpPermissions.length === 0), "Development ingress must be zero");
+    }],
+    ["ssm", () => {
+      const online = aws(["ssm", "describe-instance-information", "--filters", `Key=InstanceIds,Values=${instanceId}`]).InstanceInformationList;
+      assert.equal(online.length, 1);
+      assert.equal(online[0].PingStatus, "Online");
+    }],
+  ], persistEvidence, process.env.GITHUB_SHA);
   const common = { TenantCode: [tenant], OwnershipCapability: [capability],
     ReleaseId: [manifest.releaseImageTag], ApiDigest: [manifest.images["academy-api"].digest] };
   const sessions = new Set();
@@ -347,16 +417,15 @@ export async function run() {
       for (const process of processes) process.stop();
     }
   };
-  const writeEvidence = (passed, errors = failures) => {
-    const evidence = { frontendSha: process.env.GITHUB_SHA, backendGovernanceSha: revision,
+  const writeEvidence = (passed, errors = failures, terminalOutcome = "qa_running") => {
+    Object.assign(evidence, { frontendSha: process.env.GITHUB_SHA, backendGovernanceSha: revision,
       backendReleaseId: manifest.releaseImageTag, apiDigest: manifest.images["academy-api"].digest,
       instanceId, tenantCode: tenant, artifactSha256: fingerprint, cases: counts || null,
       documentSha256: Object.fromEntries([...expectedDocuments].map(([name, content]) => [name, sha(content)])),
       cleanup: cleanup ? { tenantCode: tenant, remaining: cleanup.remaining } : null,
       operationObservation, inspectObservation,
-      passed, failures: errors };
-    fs.mkdirSync(path.join(ROOT, "test-results"), { recursive: true });
-    fs.writeFileSync(path.join(ROOT, "test-results/development-release.json"), JSON.stringify(evidence, null, 2));
+      terminalOutcome, passed, failures: errors });
+    persistEvidence(evidence);
     return evidence;
   };
   // A killed/lost runner cannot turn an unfinished attempt into cleanup success.
@@ -431,8 +500,9 @@ export async function run() {
     if (interrupted && !failures.some((failure) => failure.includes("interrupted"))) failures.push("development run interrupted; promotion forbidden");
     process.off("SIGINT", interrupt);
     process.off("SIGTERM", interrupt);
-    const evidence = writeEvidence(failures.length === 0 && Boolean(counts) && Boolean(cleanup));
-    assert.equal(evidence.passed, true, "Development release gate failed; see PII-free evidence");
+    const passed = failures.length === 0 && Boolean(counts) && Boolean(cleanup);
+    const resultEvidence = writeEvidence(passed, failures, passed ? "passed" : "qa_failed");
+    assert.equal(resultEvidence.passed, true, "Development release gate failed; see PII-free evidence");
   }
 }
 
