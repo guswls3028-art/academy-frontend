@@ -16,6 +16,13 @@ const PASSWORD_PARAMETER = "/academy/api/development/ymath-realuse-password";
 const WEB_ORIGIN = "http://localhost:4173";
 const API_ORIGIN = "http://127.0.0.1:18000";
 const FLOW_COUNTS = { "notice-roundtrip.spec.ts": 3, "qna-roundtrip.spec.ts": 4, "clinic-roundtrip.spec.ts": 3 };
+const ZERO_RESIDUE = {
+  activity_audits: 0,
+  listeners: 0,
+  outstanding_tokens: 0,
+  processes: 0,
+  r2_objects: 0,
+};
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const sha = (value) => crypto.createHash("sha256").update(value).digest("hex");
 const canonical = (value) => JSON.stringify(value, function (_key, item) {
@@ -43,7 +50,8 @@ function initialPreflightEvidence(frontendSha) {
     frontendSha: /^[a-f0-9]{40}$/.test(frontendSha || "") ? frontendSha : null,
     backendGovernanceSha: null, backendReleaseId: null, apiDigest: null, instanceId: null,
     tenantCode: null, artifactSha256: null, cases: null, documentSha256: {}, cleanup: null,
-    operationObservation: null, inspectObservation: null,
+    operationObservation: null, inspectObservation: null, playwrightObservation: null,
+    sessionCleanupObservation: null,
     preflightStage: "process",
     preflightChecks: Object.fromEntries(PREFLIGHT_CHECKS.map((name) => [name, false])),
     terminalOutcome: "preflight_running", passed: false,
@@ -103,6 +111,7 @@ export function inspectMatchObservation(payload, manifest) {
   return {
     statusMatches: payload?.status === "DEVELOPMENT_QA_IDENTITY_PASS",
     remainingZero: canonical(payload?.remaining) === canonical({ tenants: 0, users: 0 }),
+    residueZero: canonical(payload?.residue) === canonical(ZERO_RESIDUE),
     releaseMatches: payload?.release_id === manifest?.releaseImageTag,
     digestMatches: payload?.digest === manifest?.images?.["academy-api"]?.digest,
   };
@@ -141,10 +150,95 @@ export function assertReleaseSummary(report, expected = FLOW_COUNTS) {
   return counts;
 }
 
+export function observePlaywrightResult(result, expected = FLOW_COUNTS) {
+  const statuses = ["expected", "skipped", "unexpected", "flaky"];
+  const files = Object.fromEntries(Object.keys(expected).map((file) => [file, {
+    expected: 0,
+    skipped: 0,
+    unexpected: 0,
+    flaky: 0,
+    attempts: 0,
+  }]));
+  const caseCounts = Object.fromEntries(Object.keys(expected).map((file) => [file, 0]));
+  const observation = {
+    classification: new Set(["exit", "timeout", "overflow", "spawn_error"]).has(result?.classification)
+      ? result.classification : null,
+    exitCode: Number.isInteger(result?.code) && result.code >= -1 && result.code <= 255 ? result.code : null,
+    reportParsed: false,
+    reportErrors: 0,
+    stats: { expected: 0, skipped: 0, unexpected: 0, flaky: 0 },
+    caseCounts,
+    files,
+    unexpectedFiles: 0,
+  };
+  let report = null;
+  try {
+    report = JSON.parse(typeof result?.stdout === "string" ? result.stdout : "");
+    observation.reportParsed = Boolean(report && typeof report === "object" && !Array.isArray(report));
+  } catch { /* Parsing state is recorded without publishing raw output. */ }
+  if (!observation.reportParsed) return { observation, report: null };
+
+  observation.reportErrors = Array.isArray(report.errors) ? report.errors.length : 0;
+  for (const status of statuses) {
+    const count = report.stats?.[status];
+    observation.stats[status] = Number.isInteger(count) && count >= 0 ? count : 0;
+  }
+  const visit = (suite) => {
+    for (const spec of suite?.specs || []) {
+      const file = path.basename(String(spec.file || suite.file || ""));
+      if (!Object.hasOwn(files, file)) {
+        observation.unexpectedFiles += 1;
+        continue;
+      }
+      for (const test of spec.tests || []) {
+        caseCounts[file] += 1;
+        const status = statuses.includes(test.status) ? test.status : "unexpected";
+        files[file][status] += 1;
+        files[file].attempts += Array.isArray(test.results) ? test.results.length : 0;
+      }
+    }
+    for (const child of suite?.suites || []) visit(child);
+  };
+  visit(report);
+  return { observation, report };
+}
+
+export function assessSessionCleanup({ active, history, terminateSucceeded, postReadAttempts }) {
+  const activeCount = Array.isArray(active) ? active.length : 0;
+  const historyCount = Array.isArray(history) ? history.length : 0;
+  const historyStatus = historyCount === 1 && ["Terminated", "Terminating"].includes(history[0]?.Status)
+    ? history[0].Status : null;
+  const historyEndDateObserved = historyCount === 1 && history[0]?.EndDate != null;
+  const boundedAttempts = Number.isInteger(postReadAttempts) && postReadAttempts > 0
+    ? postReadAttempts : 0;
+  let classification = "unverified";
+  let proven = false;
+  if (activeCount > 0) classification = "active";
+  else if (historyCount === 1 && historyStatus === "Terminated") {
+    classification = "terminated";
+    proven = true;
+  } else if (historyCount === 1 && historyStatus === "Terminating" && historyEndDateObserved
+      && terminateSucceeded === true && boundedAttempts > 0) {
+    classification = "terminating_verified";
+    proven = true;
+  }
+  return {
+    activeCount,
+    historyCount,
+    historyStatus,
+    historyEndDateObserved,
+    terminateSucceeded: terminateSucceeded === true,
+    postReadAttempts: boundedAttempts,
+    classification,
+    proven,
+  };
+}
+
 export function assertCleanup(payload, tenantCode) {
   assert.equal(payload.tenant_code, tenantCode, "Wrong cleanup tenant");
   assert.ok(["YMATH_REALUSE_SCENARIO_DESTROYED", "YMATH_REALUSE_SCENARIO_ABSENT"].includes(payload.status));
   assert.deepEqual(payload.remaining, { tenants: 0, users: 0 }, "Cleanup residue must be numeric zero");
+  assert.deepEqual(payload.residue, ZERO_RESIDUE, "Owned token/activity/R2/process/listener residue must be zero");
 }
 
 export function assertManifest(manifest) {
@@ -237,6 +331,7 @@ export function ownedProcess(command, args, options = {}, timeout = 240_000, kil
     detached: process.platform !== "win32", windowsHide: true, ...options });
   let escalation;
   let closed = false;
+  let classification = "exit";
   const kill = (signal) => {
     if (closed || !child.pid) return;
     try {
@@ -252,14 +347,30 @@ export function ownedProcess(command, args, options = {}, timeout = 240_000, kil
     escalation ??= setTimeout(() => kill("SIGKILL"), killGrace);
   };
   let stdout = "";
-  let failed = false;
-  child.stdout.on("data", (data) => { stdout += data; if (stdout.length > 16 * 1024 * 1024) { failed = true; stop(); } });
+  child.stdout.on("data", (data) => {
+    stdout += data;
+    if (stdout.length > 16 * 1024 * 1024 && classification === "exit") {
+      classification = "overflow";
+      stop();
+    }
+  });
   // Raw stderr may contain request payloads or credentials. Never relay it.
   child.stderr.resume();
-  const timer = setTimeout(() => { failed = true; stop(); }, timeout);
+  const timer = setTimeout(() => { classification = "timeout"; stop(); }, timeout);
   const done = new Promise((resolve) => {
-    child.once("error", () => { closed = true; failed = true; clearTimeout(timer); clearTimeout(escalation); resolve({ code: -1, stdout }); });
-    child.once("close", (code) => { closed = true; clearTimeout(timer); clearTimeout(escalation); resolve({ code: failed ? -1 : code, stdout }); });
+    child.once("error", () => {
+      closed = true;
+      classification = "spawn_error";
+      clearTimeout(timer);
+      clearTimeout(escalation);
+      resolve({ code: -1, stdout, classification });
+    });
+    child.once("close", (code) => {
+      closed = true;
+      clearTimeout(timer);
+      clearTimeout(escalation);
+      resolve({ code: classification === "exit" ? code : -1, stdout, classification });
+    });
   });
   return { child, done, stop, output: () => stdout };
 }
@@ -371,6 +482,8 @@ export async function run() {
   const processes = [];
   let operationObservation = null;
   let inspectObservation = null;
+  let playwrightObservation = null;
+  let sessionCleanupObservation = null;
   let primaryFailed = false;
   function session(name, parameters = {}) {
     const current = aws(["ssm", "get-document", "--name", name, "--document-format", "JSON"]);
@@ -421,10 +534,11 @@ export async function run() {
   const writeEvidence = (passed, errors = failures, terminalOutcome = "qa_running") => {
     Object.assign(evidence, { frontendSha: process.env.GITHUB_SHA, backendGovernanceSha: revision,
       backendReleaseId: manifest.releaseImageTag, apiDigest: manifest.images["academy-api"].digest,
-      instanceId, tenantCode: tenant, artifactSha256: fingerprint, cases: counts || null,
+      instanceId, tenantCode: tenant, artifactSha256: fingerprint,
+      cases: counts || playwrightObservation?.caseCounts || null,
       documentSha256: Object.fromEntries([...expectedDocuments].map(([name, content]) => [name, sha(content)])),
-      cleanup: cleanup ? { tenantCode: tenant, remaining: cleanup.remaining } : null,
-      operationObservation, inspectObservation,
+      cleanup: cleanup ? { tenantCode: tenant, remaining: cleanup.remaining, residue: cleanup.residue } : null,
+      operationObservation, inspectObservation, playwrightObservation, sessionCleanupObservation,
       terminalOutcome, passed, failures: errors });
     persistEvidence(evidence);
     return evidence;
@@ -440,6 +554,7 @@ export async function run() {
     inspectObservation = inspectMatchObservation(inspected, manifest);
     assert.equal(inspected.status, "DEVELOPMENT_QA_IDENTITY_PASS");
     assert.deepEqual(inspected.remaining, { tenants: 0, users: 0 }, "Never reuse an existing QA tenant");
+    assert.deepEqual(inspected.residue, ZERO_RESIDUE, "Never reuse existing QA residue");
     assert.equal(inspected.release_id, manifest.releaseImageTag);
     assert.equal(inspected.digest, manifest.images["academy-api"].digest);
     setupAttempted = true;
@@ -459,8 +574,12 @@ export async function run() {
         E2E_ADMIN_PASS: secret.Parameter.Value, E2E_STUDENT_PASS: secret.Parameter.Value },
     }, 20 * 60_000);
     const result = await tests.done;
+    const observed = observePlaywrightResult(result);
+    playwrightObservation = observed.observation;
+    writeEvidence(false, ["development real-use result observed; cleanup not proven"]);
     assert.equal(result.code, 0, "Required development real-use failed (raw credential-bearing report is not published)");
-    counts = assertReleaseSummary(JSON.parse(result.stdout));
+    assert.ok(observed.report, "Required development report was not parseable");
+    counts = assertReleaseSummary(observed.report);
   } catch { primaryFailed = true; failures.push("development identity/setup/real-use failed"); }
   finally {
     finalizing = true;
@@ -476,21 +595,47 @@ export async function run() {
       process.stop();
       await process.done;
     }
+    sessionCleanupObservation = { sessions: [] };
     for (const sessionId of sessions) {
+      let observation = assessSessionCleanup({
+        active: [],
+        history: [],
+        terminateSucceeded: false,
+        postReadAttempts: 0,
+      });
       try {
         const filters = ["--filters", `key=SessionId,value=${sessionId}`];
-        if (aws(["ssm", "describe-sessions", "--state", "Active", ...filters]).Sessions.length) {
-          assert.equal(aws(["ssm", "terminate-session", "--session-id", sessionId]).SessionId, sessionId);
+        const initialActive = aws(["ssm", "describe-sessions", "--state", "Active", ...filters]).Sessions;
+        const initialHistory = aws(["ssm", "describe-sessions", "--state", "History", ...filters]).Sessions;
+        assert.ok(initialActive.length <= 1 && initialHistory.length <= 1, "Ambiguous owned session readback");
+        let terminateSucceeded = false;
+        if (!(initialActive.length === 0 && initialHistory.length === 1
+            && initialHistory[0].Status === "Terminated")) {
+          terminateSucceeded = aws(["ssm", "terminate-session", "--session-id", sessionId]).SessionId === sessionId;
+          assert.equal(terminateSucceeded, true, "Explicit owned session termination failed");
         }
-        let terminated = false;
+        observation = assessSessionCleanup({
+          active: initialActive,
+          history: initialHistory,
+          terminateSucceeded,
+          postReadAttempts: 0,
+        });
         for (let attempt = 0; attempt < 10; attempt += 1) {
           const active = aws(["ssm", "describe-sessions", "--state", "Active", ...filters]).Sessions;
           const history = aws(["ssm", "describe-sessions", "--state", "History", ...filters]).Sessions;
-          if (active.length === 0 && history.length === 1 && history[0].Status === "Terminated") { terminated = true; break; }
+          assert.ok(active.length <= 1 && history.length <= 1, "Ambiguous owned session readback");
+          observation = assessSessionCleanup({
+            active,
+            history,
+            terminateSucceeded,
+            postReadAttempts: attempt + 1,
+          });
+          if (observation.proven) break;
           await delay(1_000);
         }
-        assert.equal(terminated, true, "Owned session termination readback missing");
-      } catch { failures.push("owned SSM session cleanup not proven"); }
+      } catch { /* The allowlisted observation below records the unproven boundary. */ }
+      sessionCleanupObservation.sessions.push(observation);
+      if (!observation.proven) failures.push("owned SSM session cleanup not proven");
     }
     if (server) {
       server.closeAllConnections();
