@@ -319,6 +319,10 @@ test.describe("성적 알림톡 학생별 개인화", () => {
     await selectBothStudentsAndOpen(page);
 
     const modal = page.getByRole("dialog", { name: "알림톡 발송" });
+    await expect(modal.getByRole("checkbox", { name: "학부모" })).toBeChecked();
+    const studentRecipientCheckbox = modal.getByRole("checkbox", { name: "학생" });
+    await expect(studentRecipientCheckbox).toBeChecked();
+    await studentRecipientCheckbox.uncheck();
     const requestButton = modal.locator(".send-modal__send-btn");
     await expect(requestButton).toBeEnabled();
     await requestButton.click();
