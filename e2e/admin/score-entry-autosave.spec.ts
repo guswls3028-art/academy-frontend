@@ -1015,9 +1015,9 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
             template_type: "score",
           },
           preview_recipients: [{
-            student_id: 9201,
+            student_id: 9301,
             student_name: "자동저장학생1",
-            phone: "010****2222",
+            phone: sendTo === "parent" ? "010****2222" : "010****3333",
             excluded: false,
             exclude_reason: "",
             full_message_body: "자동저장학생1 학생의 수업 결과입니다.",
@@ -1047,6 +1047,14 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(dialog.getByRole("checkbox", { name: "학생" })).toBeChecked();
     await expect(dialog.getByRole("checkbox", { name: "학생" })).toBeEnabled();
     await expect.poll(() => [...new Set(preflightTargets)].sort()).toEqual(["parent", "student"]);
+    await dialog.getByRole("button", { name: "학부모 1명 + 학생 1명에게 알림톡 발송" }).click();
+    const combinedConfirm = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
+    const combinedRecipient = combinedConfirm.getByRole("radio", { name: /자동저장학생1/ });
+    await expect(combinedRecipient).toContainText("학부모 010****2222");
+    await expect(combinedRecipient).toContainText("학생 010****3333");
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await combinedConfirm.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    await combinedConfirm.getByRole("button", { name: "돌아가기" }).click();
     await dialog.getByRole("checkbox", { name: "학부모" }).uncheck();
     await expect(dialog.getByRole("checkbox", { name: "학생" })).toBeChecked();
     await expect(dialog).not.toContainText("성적 알림은 보호자에게만 발송됩니다.");
