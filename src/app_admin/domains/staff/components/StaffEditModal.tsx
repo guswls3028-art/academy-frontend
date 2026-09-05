@@ -36,7 +36,6 @@ export default function StaffEditModal({
     pay_type: "HOURLY" as "HOURLY" | "MONTHLY",
     position: "ASSISTANT" as StaffPosition,
     role: "ASSISTANT" as "TEACHER" | "ASSISTANT",
-    is_manager: false,
     is_active: true,
   });
 
@@ -48,7 +47,6 @@ export default function StaffEditModal({
       pay_type: staff.pay_type ?? "HOURLY",
       position: staff.position ?? "ASSISTANT",
       role: staff.role === "TEACHER" ? "TEACHER" : "ASSISTANT",
-      is_manager: !!(staff.can_manage_staff ?? staff.is_manager),
       is_active: !!staff.is_active,
     });
   }, [open, staff]);
@@ -69,7 +67,6 @@ export default function StaffEditModal({
         is_active: form.is_active,
       };
       if (canEditStaffAccountRole(staff.account_role)) {
-        payload.is_manager = form.is_manager;
         if (form.is_active) payload.role = form.role;
       }
       await patchStaffDetail(staff.id, payload);
@@ -202,18 +199,6 @@ export default function StaffEditModal({
 
           {canEditStaffAccountRole(staff?.account_role) && (
             <div className="modal-form-group modal-form-group--neutral">
-              <label className={styles.managerPermission}>
-                <input
-                  type="checkbox"
-                  checked={form.is_manager}
-                  onChange={(event) => setForm((previous) => ({ ...previous, is_manager: event.target.checked }))}
-                  disabled={busy || !form.is_active}
-                />
-                <span>
-                  <strong>직원관리 권한</strong>
-                  <small>직원·시급·비용·급여를 조회하고 변경할 수 있습니다.</small>
-                </span>
-              </label>
             </div>
           )}
 
@@ -230,7 +215,7 @@ export default function StaffEditModal({
               {form.is_active ? "재직" : "퇴사"}
             </Badge>
             <p className="staff-helper">
-              퇴사 처리하면 로그인이 중지되고 직원관리 권한을 잃습니다. 기존 근무·비용·급여 이력은 보존됩니다.
+              퇴사 처리하면 로그인이 중지됩니다. 기존 근무·비용·급여 이력은 보존됩니다.
             </p>
           </div>
         </div>

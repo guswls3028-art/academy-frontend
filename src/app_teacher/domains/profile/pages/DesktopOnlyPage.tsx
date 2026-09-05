@@ -289,7 +289,7 @@ export default function DesktopOnlyPage() {
     queryFn: fetchStaffMe,
     enabled: hasWorkspaceAccess,
   });
-  const isPayrollManager = hasWorkspaceAccess && Boolean(staffMe?.is_payroll_manager);
+  const isPayrollManager = isTenantAdmin && Boolean(staffMe?.is_payroll_manager);
 
   const visibleFeatures = useMemo(() => FEATURES.filter((feature) => {
     if (!hasWorkspaceAccess) return false;

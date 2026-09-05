@@ -8,6 +8,7 @@ import { StaffWorkspace } from "./components/StaffWorkspace";
 import { fetchStaffMe } from "@/shared/staff/api";
 import { staffQueryKeys } from "./queryKeys";
 import { Button, EmptyState } from "@/shared/ui/ds";
+import useAuth from "@/auth/hooks/useAuth";
 
 const STAFF_MAIN_TABS = [
   { key: "home", label: "홈", path: "/workspace/staff/home" },
@@ -36,6 +37,7 @@ function isPayrollRoute(pathname: string) {
 
 export default function StaffLayout() {
   const location = useLocation();
+  const { user } = useAuth();
   const {
     data: staffMe,
     isLoading,
@@ -61,7 +63,11 @@ export default function StaffLayout() {
       />
     );
   }
-  if (!staffMe.is_payroll_manager) {
+  const tenantRole = user?.tenantRole;
+  const isTenantAdmin = tenantRole === "owner"
+    || tenantRole === "admin"
+    || Boolean(user?.is_superuser);
+  if (!isTenantAdmin || !staffMe.is_payroll_manager) {
     return <Navigate to="/workspace/dashboard" replace />;
   }
 

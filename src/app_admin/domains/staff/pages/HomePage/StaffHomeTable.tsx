@@ -14,7 +14,6 @@ import { fetchWorkTypes, createStaffWorkType, type WorkType } from "../../api/st
 import { staffQueryKeys } from "../../queryKeys";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
-import { useConfirm } from "@/shared/ui/confirm";
 import {
   staffAccountRoleLabel,
   staffPositionLabel,
@@ -115,7 +114,6 @@ const COL = {
   name: TABLE_COL.nameCompact,
   phone: TABLE_COL.phone,
   status: TABLE_COL.statusBadge,
-  manager: 88,
   payType: 124,
   workTypeTags: 380,
 } as const;
@@ -126,7 +124,6 @@ const STAFF_HOME_COLUMN_DEFS: TableColumnDef[] = [
   { key: "name", label: "이름", defaultWidth: COL.name, minWidth: 80 },
   { key: "phone", label: "전화번호", defaultWidth: COL.phone, minWidth: 90 },
   { key: "status", label: "상태", defaultWidth: COL.status, minWidth: 50 },
-  { key: "manager", label: "직원관리", defaultWidth: COL.manager, minWidth: 60 },
   { key: "payType", label: "급여유형", defaultWidth: COL.payType, minWidth: 80 },
   { key: "workTypeTags", label: "시급태그", defaultWidth: COL.workTypeTags, minWidth: 120 },
 ];
@@ -200,7 +197,6 @@ export function StaffHomeTable({
     (owner?.phone ?? "").toLowerCase().includes(needle);
   const hasOwner = !!owner?.name && ownerMatchesSearch;
   const qc = useQueryClient();
-  const confirm = useConfirm();
   const [internalSelected, setInternalSelected] = useState<number[]>([]);
   const [sort, setSort] = useState("");
   const { columnWidths, setColumnWidth } = useTableColumnPrefs("staff-home", STAFF_HOME_COLUMN_DEFS);
@@ -234,9 +230,6 @@ export function StaffHomeTable({
       } else if (key === "account") {
         aVal = a.account_role;
         bVal = b.account_role;
-      } else if (key === "manager") {
-        aVal = (a.can_manage_staff ?? a.is_manager) ? 1 : 0;
-        bVal = (b.can_manage_staff ?? b.is_manager) ? 1 : 0;
       } else if (key === "payType") {
         aVal = a.pay_type;
         bVal = b.pay_type;
@@ -262,7 +255,6 @@ export function StaffHomeTable({
     (columnWidths.name ?? COL.name) +
     (columnWidths.phone ?? COL.phone) +
     (columnWidths.status ?? COL.status) +
-    (columnWidths.manager ?? COL.manager) +
     (columnWidths.payType ?? COL.payType) +
     (columnWidths.workTypeTags ?? COL.workTypeTags);
 
@@ -277,7 +269,6 @@ export function StaffHomeTable({
 
   // --- 행별 inline mutation 상태 추적 (Set으로 동시 mutation 지원) ---
   const [pendingPayType, setPendingPayType] = useState<Set<number>>(new Set());
-  const [pendingManager, setPendingManager] = useState<Set<number>>(new Set());
 
   const patchPayTypeM = useMutation({
     mutationFn: ({ staffId, pay_type }: { staffId: number; pay_type: "HOURLY" | "MONTHLY" }) => {
@@ -292,22 +283,6 @@ export function StaffHomeTable({
     onError: (e: unknown, vars) => {
       feedback.error(extractApiError(e, "급여 유형 변경에 실패했습니다."));
       setPendingPayType((prev) => { const n = new Set(prev); n.delete(vars.staffId); return n; });
-    },
-  });
-
-  const patchManagerM = useMutation({
-    mutationFn: ({ staffId, is_manager }: { staffId: number; is_manager: boolean }) => {
-      setPendingManager((prev) => new Set(prev).add(staffId));
-      return patchStaffDetail(staffId, { is_manager });
-    },
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
-      qc.invalidateQueries({ queryKey: staffQueryKeys.staff });
-      setPendingManager((prev) => { const n = new Set(prev); n.delete(vars.staffId); return n; });
-    },
-    onError: (e: unknown, vars) => {
-      feedback.error(extractApiError(e, "직원관리 권한 변경에 실패했습니다."));
-      setPendingManager((prev) => { const n = new Set(prev); n.delete(vars.staffId); return n; });
     },
   });
 
@@ -367,7 +342,6 @@ export function StaffHomeTable({
           <col style={{ width: columnWidths.name ?? COL.name }} />
           <col style={{ width: columnWidths.phone ?? COL.phone }} />
           <col style={{ width: columnWidths.status ?? COL.status }} />
-          <col style={{ width: columnWidths.manager ?? COL.manager }} />
           <col style={{ width: columnWidths.payType ?? COL.payType }} />
           <col style={{ width: columnWidths.workTypeTags ?? COL.workTypeTags }} />
           {/* eslint-enable no-restricted-syntax */}
@@ -389,11 +363,10 @@ export function StaffHomeTable({
               />
             </th>
             <StaffHomeSortableTh colKey="position" label="직위" widthKey="position" width={columnWidths.position ?? COL.position} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
-            <StaffHomeSortableTh colKey="account" label="계정" widthKey="account" width={columnWidths.account ?? COL.account} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} title="강의 담당 여부와 로그인 계정의 시스템 역할입니다. 직위·직원관리 권한과 별개입니다." />
+            <StaffHomeSortableTh colKey="account" label="계정" widthKey="account" width={columnWidths.account ?? COL.account} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} title="강의 담당 여부와 로그인 계정의 시스템 역할입니다. 직원·급여 관리 권한은 대표·관리자 계정에만 있습니다." />
             <StaffHomeSortableTh colKey="name" label="이름" widthKey="name" width={columnWidths.name ?? COL.name} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
             <StaffHomeSortableTh colKey="phone" label="전화번호" widthKey="phone" width={columnWidths.phone ?? COL.phone} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
             <StaffHomeSortableTh colKey="status" label="상태" widthKey="status" width={columnWidths.status ?? COL.status} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
-            <StaffHomeSortableTh colKey="manager" label="직원관리" widthKey="manager" width={columnWidths.manager ?? COL.manager} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} title="강사·직원 계정의 직원 관리(시급·급여·비용) 접근 권한입니다. 대표·관리자는 항상 접근할 수 있고, OFF여도 본인 출퇴근 등 일반 기능은 사용할 수 있습니다." />
             <StaffHomeSortableTh colKey="payType" label="급여유형" widthKey="payType" width={columnWidths.payType ?? COL.payType} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
             <StaffHomeSortableTh colKey="workTypeTags" label="시급태그" widthKey="workTypeTags" width={columnWidths.workTypeTags ?? COL.workTypeTags} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
           </tr>
@@ -501,7 +474,7 @@ export function StaffHomeTable({
                     <span>{staffPositionLabel(r.position, r.role)} · {staffAccountRoleLabel(r.account_role, r.role)}</span>
                     <span>{r.phone || "연락처 없음"}</span>
                     <span>
-                      {r.is_active ? "재직" : "퇴사"} · {r.pay_type === "HOURLY" ? "시급" : "월급 확인"} · 직원관리 {(r.can_manage_staff ?? r.is_manager) ? "ON" : "OFF"}
+                      {r.is_active ? "재직" : "퇴사"} · {r.pay_type === "HOURLY" ? "시급" : "월급 확인"}
                     </span>
                   </span>
                 </span>
@@ -513,45 +486,6 @@ export function StaffHomeTable({
                 <Badge variant="solid" actionable status={r.is_active ? "active" : "inactive"}>
                   {r.is_active ? "재직" : "퇴사"}
                 </Badge>
-              </td>
-              <td className="align-middle" onClick={(e) => e.stopPropagation()}>
-                {canManage && r.account_role !== "ADMIN" && r.account_role !== "OWNER" ? (
-                  <Badge
-                    as="button"
-                    variant="solid"
-                    actionable
-                    status={(r.can_manage_staff ?? r.is_manager) ? "active" : "inactive"}
-                    disabled={pendingManager.has(r.id)}
-                    onClick={async () => {
-                      const nextManager = !(r.can_manage_staff ?? r.is_manager);
-                      const ok = await confirm({
-                        title: nextManager ? "직원관리 권한 부여" : "직원관리 권한 회수",
-                        message: nextManager
-                          ? `${r.name}에게 직원·시급·비용·급여 관리 권한을 부여하시겠습니까?`
-                          : `${r.name}의 직원·급여 관리 권한을 해제하시겠습니까?`,
-                        confirmText: nextManager ? "권한 부여" : "권한 해제",
-                        danger: nextManager,
-                      });
-                      if (ok) {
-                        patchManagerM.mutate({
-                          staffId: r.id,
-                          is_manager: nextManager,
-                        });
-                      }
-                    }}
-                    ariaLabel={(r.can_manage_staff ?? r.is_manager) ? "직원관리 권한 회수" : "직원관리 권한 부여"}
-                  >
-                    {pendingManager.has(r.id) ? "…" : (r.can_manage_staff ?? r.is_manager) ? "ON" : "OFF"}
-                  </Badge>
-                ) : (
-                  <Badge
-                    variant="solid"
-                    status={(r.can_manage_staff ?? r.is_manager) ? "active" : "inactive"}
-                    title={r.account_role === "ADMIN" ? "관리자 계정은 직원관리 권한이 항상 있습니다." : undefined}
-                  >
-                    {(r.can_manage_staff ?? r.is_manager) ? "ON" : "OFF"}
-                  </Badge>
-                )}
               </td>
               <td className="align-middle" onClick={(e) => e.stopPropagation()}>
                 {!canManage ? (
