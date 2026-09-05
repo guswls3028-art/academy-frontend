@@ -29,6 +29,8 @@ export const adminExamsQueryKeys = {
   examQuestionStats: (examId: number, lectureId?: number | null) =>
     ["exam-question-stats", examId, lectureId ?? "all"] as const,
   examSubmissions: (examId: number) => ["exam-submissions", examId] as const,
+  omrUploadLedger: (examId: number) =>
+    ["exam-submissions", examId, "omr-upload-ledger"] as const,
 
   examQuestions: (examId: number | null | undefined) => ["exam-questions", examId] as const,
   answerKey: (examId: number | null | undefined) => ["answer-key", examId] as const,
