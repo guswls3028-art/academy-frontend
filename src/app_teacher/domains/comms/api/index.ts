@@ -236,6 +236,8 @@ export interface MessageLogItem {
   failure_reason?: string | null;
   message_body?: string;
   message_mode?: string;
+  provider_message_id?: string;
+  provider_evidence?: boolean;
 }
 
 export async function fetchMessageLog(page = 1, pageSize = 20): Promise<{ results: MessageLogItem[]; count: number }> {

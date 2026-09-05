@@ -29,7 +29,7 @@ import { staffQueryKeys } from "../../queryKeys";
 
 import { LockBadge } from "../../components/StatusBadge";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
-import { Badge, Button, CloseButton, EmptyState } from "@/shared/ui/ds";
+import { Button, CloseButton, EmptyState } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -51,54 +51,6 @@ import {
 import styles from "./StaffDetailOverlay.module.css";
 
 type StaffTabKey = "summary" | "worktype" | "records" | "expenses" | "history" | "report";
-
-function StaffManagerToggle({
-  staffId,
-  isManager,
-}: {
-  staffId: number;
-  isManager: boolean;
-}) {
-  const qc = useQueryClient();
-  const confirm = useConfirm();
-  const mutation = useMutation({
-    mutationFn: (payload: { is_manager: boolean }) =>
-      patchStaffDetail(staffId, payload),
-    onSuccess: () => {
-      feedback.success(isManager ? "직원관리 권한을 회수했습니다." : "직원관리 권한을 부여했습니다.");
-      qc.invalidateQueries({ queryKey: staffQueryKeys.staffs });
-      qc.invalidateQueries({ queryKey: staffQueryKeys.staffDetail(staffId) });
-    },
-    onError: (error: unknown) => {
-      feedback.error(extractApiError(error, "직원관리 권한 변경에 실패했습니다."));
-    },
-  });
-  return (
-    <button
-      type="button"
-      className={styles.managerToggle}
-      data-active={isManager ? "true" : "false"}
-      disabled={mutation.isPending}
-      onClick={async () => {
-        const nextManager = !isManager;
-        const ok = await confirm({
-          title: nextManager ? "직원관리 권한 부여" : "직원관리 권한 회수",
-          message: nextManager
-            ? "직원·시급·비용·급여 정보를 조회하고 관리할 수 있게 됩니다. 권한을 부여하시겠습니까?"
-            : "직원·급여 관리 접근 권한을 해제하시겠습니까?",
-          confirmText: nextManager ? "권한 부여" : "권한 해제",
-          danger: nextManager,
-        });
-        if (ok) mutation.mutate({ is_manager: nextManager });
-      }}
-      aria-label={isManager ? "직원관리 권한 있음, 권한 회수" : "직원관리 권한 없음, 권한 부여"}
-      title={isManager ? "눌러서 직원관리 권한 회수" : "눌러서 직원관리 권한 부여"}
-    >
-      <span className={styles.managerDot} aria-hidden />
-      {mutation.isPending ? "변경 중" : isManager ? "권한 있음" : "권한 없음"}
-    </button>
-  );
-}
 
 function getSelectedMonthRange(location: ReturnType<typeof useLocation>) {
   const d = new Date();
@@ -422,22 +374,6 @@ export default function StaffDetailOverlay({
                     <InfoRow label="급여유형" value={staff.pay_type === "HOURLY" ? "시급" : "월급(수동 확인)"} />
                     <InfoRow label="직위" value={staffPositionLabel(staff.position, staff.role)} />
                     <InfoRow label="계정 유형" value={staffAccountRoleLabel(staff.account_role, staff.role)} />
-                    <div className="ds-overlay-info-row" title="강사·조교의 직원 관리(시급·급여·비용) 접근 권한입니다. 대표·관리자는 항상 접근할 수 있고, OFF여도 본인 출퇴근 등 일반 기능은 사용할 수 있습니다.">
-                      <span className="ds-overlay-info-row__label">직원관리 권한</span>
-                      <span className="ds-overlay-info-row__value">
-                        {canManage && canEditStaffAccountRole(staff.account_role) ? (
-                          <StaffManagerToggle staffId={staff.id} isManager={!!(staff.can_manage_staff ?? staff.is_manager)} />
-                        ) : (
-                          <Badge
-                            variant="solid"
-                            status={(staff.can_manage_staff ?? staff.is_manager) ? "active" : "inactive"}
-                            title={staff.account_role === "ADMIN" ? "관리자 계정은 직원관리 권한이 항상 있습니다." : undefined}
-                          >
-                            {(staff.can_manage_staff ?? staff.is_manager) ? "ON" : "OFF"}
-                          </Badge>
-                        )}
-                      </span>
-                    </div>
                     <InfoRow label="등록일" value={staff.created_at?.slice(0, 10)} />
                   </div>
                 </div>

@@ -489,7 +489,6 @@ test.describe("직원 운영 계약", () => {
     const directorRow = page.getByText("박철", { exact: true }).first().locator("xpath=ancestor::tr");
     await expect(directorRow.getByText("실장", { exact: true })).toBeVisible();
     await expect(directorRow.getByText("관리자 계정", { exact: true })).toBeVisible();
-    await expect(directorRow.getByText("ON", { exact: true })).toBeVisible();
     await expect(directorRow.getByRole("button", { name: /권한/ })).toHaveCount(0);
 
     const downloadPromise = page.waitForEvent("download");
@@ -498,7 +497,7 @@ test.describe("직원 운영 계약", () => {
     const headers = workbookRows[0];
     const directorExport = workbookRows.find((row) => row[headers.indexOf("이름")] === "박철");
     expect(directorExport?.[headers.indexOf("직위")]).toBe("실장");
-    expect(directorExport?.[headers.indexOf("직원관리권한")]).toBe("ON");
+    expect(headers).not.toContain("직원관리권한");
 
     await directorRow.getByText("박철", { exact: true }).click();
     const detail = page.getByTestId("staff-detail-overlay");
@@ -517,7 +516,7 @@ test.describe("직원 운영 계약", () => {
     });
   });
 
-  test("직원 추가에서 직위·계정·직원관리 권한을 분리해 선택한다", async ({ page }) => {
+  test("직원 추가에서 직위·계정만 선택하고 급여 권한 토글은 제공하지 않는다", async ({ page }) => {
     await mockStaffApi(page);
     await page.setViewportSize({ width: 1366, height: 900 });
     await page.goto(`${BASE}/workspace/staff/home`, {
@@ -529,7 +528,7 @@ test.describe("직원 운영 계약", () => {
     await expect(createDialog.getByRole("radiogroup", { name: "직위 선택" })).toBeVisible();
     await expect(createDialog.getByRole("radio", { name: /실장/ })).toBeVisible();
     await expect(createDialog.getByRole("radio", { name: /직원 계정/ })).toBeVisible();
-    await expect(createDialog.getByText("직원관리 권한", { exact: true })).toBeVisible();
+    await expect(createDialog.getByText("직원관리 권한", { exact: true })).toHaveCount(0);
     await page.screenshot({
       path: "test-results/staff-create-identity-1366.png",
       fullPage: false,
@@ -613,9 +612,7 @@ test.describe("직원 운영 계약", () => {
     await expect(staffRow).toBeVisible();
     await expect(staffDetail.getByLabel("재직 상태: 재직")).toBeVisible();
     await expect(staffDetail.getByRole("button", { name: "정보 수정" })).toBeVisible();
-    const managerToggle = staffDetail.getByRole("button", { name: "직원관리 권한 없음, 권한 부여" });
-    await expect(managerToggle).toBeVisible();
-    await expect(managerToggle).toHaveAttribute("title", "눌러서 직원관리 권한 부여");
+    await expect(staffDetail.getByText("직원관리 권한", { exact: true })).toHaveCount(0);
     const summaryTab = staffDetail.getByRole("tab", { name: "요약", exact: true });
     const workTypeTab = staffDetail.getByRole("tab", { name: "시급·근무유형", exact: true });
     await expect(summaryTab).toHaveAttribute("aria-selected", "true");

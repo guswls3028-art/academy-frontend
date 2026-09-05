@@ -15,10 +15,10 @@ export function useAvailableAdminNavigation() {
   const { user } = useAuth();
 
   return useMemo(() => {
-    const isStaffAdmin = Boolean(staffMe?.is_payroll_manager);
     const isTenantAdmin = user?.tenantRole === "owner"
       || user?.tenantRole === "admin"
       || Boolean(user?.is_superuser);
+    const isStaffAdmin = isTenantAdmin && Boolean(staffMe?.is_payroll_manager);
     const flags = program?.feature_flags ?? {};
 
     return ADMIN_NAV_GROUPS.map((group) => ({

@@ -7,8 +7,9 @@
 제품 메시지는 알림톡만 사용하며 SMS/LMS 또는 대체 발송을 화면에 노출하지
 않는다.
 
-소유 화면은
-`src/app_admin/domains/messages/pages/MessageLogPage.tsx`이고 API 투영 계약은
+소유 화면은 데스크톱
+`src/app_admin/domains/messages/pages/MessageLogPage.tsx`와 모바일
+`src/app_teacher/domains/comms/pages/MessageLogPage.tsx`이고 API 투영 계약은
 `backend/docs/domain/messaging-delivery-log.md`에 있다.
 
 ## 정보 구조와 상태 표시
@@ -43,15 +44,17 @@
 기록이다. 미리보기는 저장된 로그를 읽기 쉽게 투영할 뿐 실제 카카오톡 화면,
 수신 확인 또는 재발송 기능이 아니다.
 
-- `available`: owner/admin에게 저장된 개인정보 제거 본문 표시
+- `available`: 현재 tenant의 owner/admin/teacher/staff에게 저장된 비민감 본문 표시
 - `sensitive_redacted`: 자격증명·인증 유형이므로 원문이 저장되지 않았다는
   보안 안내 표시
-- `restricted`: staff/teacher에게 본문 권한 제한 안내 표시
+- `restricted`: 과거 클라이언트 호환 값. 현재 직원 로그에서는 사용하지 않음
 - `not_recorded`: 저장된 본문이 없음을 표시하며 내용을 추정하지 않음
 
-공급자 증거는 서버가 owner/admin에게 정확한 메시지 ID를 반환하면 운영 대사용
-근거로 표시하고, 그 외 역할은 마스킹 참조와 확인 여부만 표시한다. 실패 사유는
-서버의 안전한 요약만 사용하고 공급자 원문을 렌더링하지 않는다.
+현재 tenant의 모든 직원은 실제 수신 전화와 정확한 공급자 메시지 ID를 운영
+대사용 근거로 표시한다. 모바일도 이름을 다시 마스킹하거나 서버의 정확한 ID를
+숨기지 않는다. 계정·인증 알림 본문은 서버가 저장 전에 보안 안내로 대체하고,
+실패 사유는 서버의 안전한 요약만 사용해 공급자 원문을 렌더링하지 않는다. 과거
+로그가 마스킹 요약만 보존한 경우 현재 연락처를 수신 당시 값으로 추정하지 않는다.
 
 ## 반응형·접근성 계약
 
@@ -66,9 +69,10 @@
 
 ```powershell
 pnpm typecheck
-pnpm exec eslint src/app_admin/domains/messages/pages/MessageLogPage.tsx src/app_admin/domains/messages/api/messages.api.ts src/app_admin/domains/messages/queryKeys.ts e2e/admin/messaging-log-ux.mock.spec.ts
+pnpm exec eslint src/app_admin/domains/messages/pages/MessageLogPage.tsx src/app_admin/domains/messages/api/messages.api.ts src/app_teacher/domains/comms/pages/MessageLogPage.tsx src/app_teacher/domains/comms/api/index.ts e2e/admin/messaging-log-ux.mock.spec.ts e2e/teacher/full-workspace-parity.mock.spec.ts
 $env:E2E_BASE_URL='http://127.0.0.1:5187'
 pnpm exec playwright test e2e/admin/messaging-log-ux.mock.spec.ts --project=chromium --reporter=list
+pnpm exec playwright test e2e/teacher/full-workspace-parity.mock.spec.ts --project=chromium --retries=0 --reporter=list -g "발송 이력은"
 ```
 
 E2E는 대시보드 상태와 발송 내역 진입점, 정확한 상태명, 상세를 열 때만

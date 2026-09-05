@@ -94,8 +94,7 @@
   color: var(--color-success);
 }
 
-.statusDot,
-.managerDot {
+.statusDot {
   width: 7px;
   height: 7px;
   flex: 0 0 auto;
@@ -104,8 +103,7 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-text-muted) 12%, transparent);
 }
 
-.statusValue[data-active="true"] .statusDot,
-.managerToggle[data-active="true"] .managerDot {
+.statusValue[data-active="true"] .statusDot {
   background: var(--color-success);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 14%, transparent);
 }
@@ -124,40 +122,6 @@
 .destructiveAction.destructiveAction:hover:not(:disabled) {
   background: color-mix(in srgb, var(--color-danger) 8%, transparent);
   color: var(--color-danger);
-}
-
-.managerToggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 6px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--color-text-muted);
-  font: inherit;
-  font-size: 11px;
-  font-weight: 750;
-  cursor: pointer;
-}
-
-.managerToggle[data-active="true"] {
-  color: var(--color-success);
-}
-
-.managerToggle:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-brand-primary) 7%, transparent);
-  color: var(--color-brand-primary);
-}
-
-.managerToggle:focus-visible {
-  outline: 2px solid var(--color-border-focus);
-  outline-offset: 2px;
-}
-
-.managerToggle:disabled {
-  cursor: wait;
-  opacity: 0.62;
 }
 
 .staffTabs {

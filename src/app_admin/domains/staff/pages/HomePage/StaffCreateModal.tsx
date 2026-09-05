@@ -37,7 +37,6 @@ export default function StaffCreateModal({ open, onClose }: Props) {
     phone: "",
     position: "ASSISTANT" as StaffPosition,
     permission_role: "ASSISTANT" as PermissionRole,
-    is_manager: false,
   });
 
   const createM = useMutation({
@@ -49,7 +48,6 @@ export default function StaffCreateModal({ open, onClose }: Props) {
         phone: form.phone,
         role: form.permission_role,
         position: form.position,
-        is_manager: form.is_manager,
       });
     },
     onSuccess: () => {
@@ -63,7 +61,6 @@ export default function StaffCreateModal({ open, onClose }: Props) {
         phone: "",
         position: "ASSISTANT",
         permission_role: "ASSISTANT",
-        is_manager: false,
       });
     },
     onError: (e: unknown) => {
@@ -81,7 +78,6 @@ export default function StaffCreateModal({ open, onClose }: Props) {
         phone: "",
         position: "ASSISTANT",
         permission_role: "ASSISTANT",
-        is_manager: false,
       });
     }
   }, [open]);
@@ -217,17 +213,6 @@ export default function StaffCreateModal({ open, onClose }: Props) {
                 <span>강의 담당자로 배정 가능</span>
               </button>
             </div>
-            <label className={styles.managerPermission}>
-              <input
-                type="checkbox"
-                checked={form.is_manager}
-                onChange={(event) => setForm((previous) => ({ ...previous, is_manager: event.target.checked }))}
-              />
-              <span>
-                <strong>직원관리 권한</strong>
-                <small>직원·시급·비용·급여 정보를 조회하고 변경할 수 있습니다.</small>
-              </span>
-            </label>
           </section>
         </div>
       </ModalBody>
