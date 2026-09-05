@@ -64,6 +64,7 @@ export async function fetchStudents(params?: {
   const { status, ...rest } = params ?? {};
   const normalizedParams = {
     page_size: 50,
+    ordering: "name,id",
     ...rest,
     ...(status === "active" ? { is_managed: true } : {}),
     ...(status === "inactive" ? { is_managed: false } : {}),

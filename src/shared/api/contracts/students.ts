@@ -384,15 +384,18 @@ const ORDERING_MAP: Record<string, string> = {
   gender: "gender",
 };
 
-function buildOrdering(sort: string): string | undefined {
-  if (!sort) return undefined;
+function buildOrdering(sort: string): string {
+  if (!sort) return "name,id";
 
   const isDesc = sort.startsWith("-");
   const key = isDesc ? sort.slice(1) : sort;
 
   const mapped = ORDERING_MAP[key];
-  if (!mapped) return undefined;
+  if (!mapped) return "name,id";
 
+  if (mapped === "name") {
+    return isDesc ? "-name,-id" : "name,id";
+  }
   return isDesc ? `-${mapped}` : mapped;
 }
 
@@ -412,7 +415,7 @@ export async function fetchStudents(
   const params: Record<string, unknown> = {
     search: search || undefined,
     ...filters,
-    ordering: ordering || undefined,
+    ordering,
     page,
     deleted: deleted ? "true" : undefined,
   };

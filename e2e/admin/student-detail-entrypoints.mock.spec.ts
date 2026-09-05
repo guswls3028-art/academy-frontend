@@ -21,6 +21,7 @@ function localJwt(): string {
 async function installApi(
   page: Page,
   onAccountGuidance?: (target: "student" | "parent") => void,
+  onStudentOrdering?: (ordering: string | null) => void,
 ) {
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
@@ -137,6 +138,7 @@ async function installApi(
       });
     }
     if (path === "/students/") {
+      onStudentOrdering?.(requestUrl.searchParams.get("ordering"));
       return json({
         count: 1,
         results: [{
@@ -307,6 +309,37 @@ test("학생 목록 행에서 연 상세는 Escape 뒤 같은 학생 행으로 �
 
   await expect(overlay).toHaveCount(0);
   await expect(studentRow).toBeFocused();
+});
+
+test("학생 목록은 가나다순을 기본으로 유지하고 정렬 해제도 가나다순으로 돌아간다", async ({ page }) => {
+  await installTenantOneInitScript(page);
+  await page.addInitScript((jwt) => {
+    localStorage.setItem("access", jwt);
+    localStorage.setItem("refresh", `${jwt}-refresh`);
+  }, localJwt());
+  const orderings: Array<string | null> = [];
+  await installApi(page, undefined, (ordering) => orderings.push(ordering));
+
+  await gotoAndSettle(page, `${BASE}/workspace/students/home`, { timeout: 45_000 });
+
+  const nameHeader = page.getByRole("columnheader", { name: /이름/ });
+  await expect(nameHeader).toHaveAttribute("aria-sort", "ascending");
+  await expect.poll(() => orderings.at(-1)).toBe("name,id");
+
+  await nameHeader.click();
+  await expect(nameHeader).toHaveAttribute("aria-sort", "descending");
+  await expect.poll(() => orderings.at(-1)).toBe("-name,-id");
+
+  await nameHeader.click();
+  await expect(nameHeader).toHaveAttribute("aria-sort", "ascending");
+  expect(orderings).toContain("name,id");
+
+  const studentRow = page.locator('tr[data-student-detail-trigger="1002"]');
+  await studentRow.click();
+  await expect(page.getByTestId("student-detail-overlay")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(studentRow).toBeFocused();
+  await expect(nameHeader).toHaveAttribute("aria-sort", "ascending");
 });
 
 test("교사용 모바일 학생 상세는 아이디 안내와 비밀번호 초기화를 분리한다", async ({ page }) => {
