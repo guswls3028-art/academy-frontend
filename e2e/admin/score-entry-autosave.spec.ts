@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "../fixtures/strictTest";
 import { getBaseUrl } from "../helpers/auth";
 import { installLocalAuthApiStubs, installTenantOneInitScript } from "../helpers/localAuthApiStubs";
+import { realMessagingSkipReason } from "../helpers/safety";
 
 type ScoreRouteOptions = {
   initialScores?: Array<number | null>;
@@ -39,7 +40,11 @@ async function openScores(
   navigationTimeoutMs = 45_000,
 ): Promise<void> {
   const baseUrl = getBaseUrl("admin");
-  test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(baseUrl), "성적 입력 route-mock 검증은 로컬 dev 서버 전용");
+  const mockOnlyReason = realMessagingSkipReason(baseUrl, "", "0");
+  test.skip(
+    !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(baseUrl),
+    mockOnlyReason ?? "성적 입력 route-mock 검증은 로컬 dev 서버 전용",
+  );
   await installLocalAuthApiStubs(page, {
     programFeatureFlags: {
       ...(routeOptions.scoreSummaryColumnDefault
@@ -976,7 +981,61 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(page.getByRole("dialog", { name: "알림톡 발송" })).toHaveCount(0);
   });
 
-  test("성적 알림 모달은 보호자만 선택하고 학생 수신을 잠근다", async ({ page }) => {
+  test("성적 알림 모달은 보호자와 학생 수신을 모두 선택할 수 있다", async ({ page }) => {
+    const preflightTargets: string[] = [];
+    const sendTargets: string[] = [];
+    await page.route("**/messaging/send/preflight/", async (route) => {
+      const payload = route.request().postDataJSON() as { send_to?: string };
+      const sendTo = payload.send_to ?? "";
+      preflightTargets.push(sendTo);
+      await route.fulfill({
+        json: {
+          ok: true,
+          can_send: true,
+          mode: "now",
+          send_to: sendTo,
+          recipient: {
+            selected: 1,
+            resolved: 1,
+            valid_phone: 1,
+            skipped_no_phone: 0,
+            duplicate_phone: 0,
+            unique_phone: 1,
+            invalid_or_deleted: 0,
+            limit: 200,
+          },
+          template: {
+            ok: true,
+            source: "unified",
+            name: "수업 결과 기본형",
+            solapi_template_id: "KA01TP_TEST_SCORE",
+            solapi_status: "APPROVED",
+            detail: "발송 가능",
+            uses_unified_template: true,
+            template_type: "score",
+          },
+          preview_recipients: [{
+            student_id: 9301,
+            student_name: "자동저장학생1",
+            phone: sendTo === "parent" ? "010****2222" : "010****3333",
+            excluded: false,
+            exclude_reason: "",
+            full_message_body: "자동저장학생1 학생의 수업 결과입니다.",
+          }],
+          limits: { hourly_limit: 500, sent_last_hour: 0, remaining_this_hour: 500 },
+          blockers: [],
+          warnings: [],
+        },
+      });
+    });
+    await page.route("**/messaging/send/", async (route) => {
+      const payload = route.request().postDataJSON() as { send_to?: string };
+      sendTargets.push(payload.send_to ?? "");
+      await route.fulfill({
+        json: { detail: "접수", enqueued: 1, scheduled: 0, enqueue_failed: 0, skipped_no_phone: 0 },
+      });
+    });
+
     await openScores(page, { initialScores: [65, 52] });
 
     await page.getByRole("checkbox", { name: "자동저장학생1 선택" }).check();
@@ -985,9 +1044,27 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     const dialog = page.getByRole("dialog", { name: "알림톡 발송" });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole("checkbox", { name: "학부모" })).toBeChecked();
-    await expect(dialog.getByRole("checkbox", { name: "학생" })).not.toBeChecked();
-    await expect(dialog.getByRole("checkbox", { name: "학생" })).toBeDisabled();
-    await expect(dialog).toContainText("성적 알림은 보호자에게만 발송됩니다.");
+    await expect(dialog.getByRole("checkbox", { name: "학생" })).toBeChecked();
+    await expect(dialog.getByRole("checkbox", { name: "학생" })).toBeEnabled();
+    await expect.poll(() => [...new Set(preflightTargets)].sort()).toEqual(["parent", "student"]);
+    await dialog.getByRole("button", { name: "학부모 1명 + 학생 1명에게 알림톡 발송" }).click();
+    const combinedConfirm = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
+    const combinedRecipient = combinedConfirm.getByRole("radio", { name: /자동저장학생1/ });
+    await expect(combinedRecipient).toContainText("학부모 010****2222");
+    await expect(combinedRecipient).toContainText("학생 010****3333");
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await combinedConfirm.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    await combinedConfirm.getByRole("button", { name: "돌아가기" }).click();
+    await dialog.getByRole("checkbox", { name: "학부모" }).uncheck();
+    await expect(dialog.getByRole("checkbox", { name: "학생" })).toBeChecked();
+    await expect(dialog).not.toContainText("성적 알림은 보호자에게만 발송됩니다.");
+    await expect.poll(() => preflightTargets.at(-1)).toBe("student");
+
+    await dialog.getByRole("button", { name: "학생 1명에게 알림톡 발송" }).click();
+    await page.getByRole("dialog", { name: "보내기 전 마지막 확인" })
+      .getByRole("button", { name: "발송하기" })
+      .click();
+    await expect.poll(() => sendTargets).toEqual(["student"]);
   });
 
   test("마지막 열을 테스트 오답으로 바꾸면 실제 오답 확인 완료 상태가 사용자별로 유지된다", async ({ page }, testInfo) => {
