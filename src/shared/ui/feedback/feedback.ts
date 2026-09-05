@@ -29,22 +29,31 @@ export function setNotificationApi(
  *  "다음 단계 1클릭" 안내가 필요한 경우 사용. action 미지원 환경은 message 로 fallback. */
 type ToastAction = { label: string; onClick: () => void };
 
+function passiveMessage(content: string) {
+  return {
+    content,
+    duration: 2,
+    pauseOnHover: false,
+    style: { pointerEvents: "none" as const },
+  };
+}
+
 export const feedback = {
   success(text: string) {
-    messageApiRef.current?.success({ content: text, duration: 2 });
+    messageApiRef.current?.success(passiveMessage(text));
   },
   error(text: string) {
-    messageApiRef.current?.error({ content: text, duration: 2 });
+    messageApiRef.current?.error(passiveMessage(text));
   },
   info(text: string) {
-    messageApiRef.current?.info({ content: text, duration: 2 });
+    messageApiRef.current?.info(passiveMessage(text));
   },
   warning(text: string) {
-    messageApiRef.current?.warning({ content: text, duration: 2 });
+    messageApiRef.current?.warning(passiveMessage(text));
   },
   /** alias — console-style .warn() 호출 호환 */
   warn(text: string) {
-    messageApiRef.current?.warning({ content: text, duration: 2 });
+    messageApiRef.current?.warning(passiveMessage(text));
   },
 
   /** 강조 CTA 토스트 — 학원장 mental model "다음 단계로 1클릭".
