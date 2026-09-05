@@ -10,6 +10,10 @@ export type ClinicSessionTreeNode = {
   location: string;
   /** 대상 학년 (null = 전체) */
   target_grade?: number | null;
+  /** 대상 학교유형 (null = 전체) */
+  target_school_type?: string | null;
+  /** 대상 강의 ID 목록 (빈 배열 = 전체) */
+  target_lecture_ids?: number[];
   /** 세션 길이(분) */
   duration_minutes?: number;
 
@@ -93,16 +97,32 @@ function toBookingInterval(value: unknown): 30 | 60 {
 /**
  * 운영 좌측 트리 전용
  * GET /clinic/sessions/tree/?year=YYYY&month=MM[&section=ID|unassigned]
+ * GET /clinic/sessions/tree/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
  * 응답 date를 YYYY-MM-DD로 정규화해 색상/필터 정합성 보장
  */
-export async function fetchClinicSessionTree(params: {
+export async function fetchClinicSessionTree(params: ({
   year: number;
   month: number; // 1~12
+  date_from?: never;
+  date_to?: never;
+} | {
+  year?: never;
+  month?: never;
+  date_from: string;
+  date_to: string;
+}) & {
   /** 반 FK ID 또는 "unassigned" (미지정만). 생략 = 전체 */
   section?: number | "unassigned" | null;
 }) {
-  const { section, ...rest } = params;
-  const query: Record<string, string | number> = { ...rest };
+  const query: Record<string, string | number> = {};
+  if (typeof params.date_from === "string" && typeof params.date_to === "string") {
+    query.date_from = params.date_from;
+    query.date_to = params.date_to;
+  } else if (typeof params.year === "number" && typeof params.month === "number") {
+    query.year = params.year;
+    query.month = params.month;
+  }
+  const { section } = params;
   if (section === "unassigned") query.section = "unassigned";
   else if (typeof section === "number") query.section = section;
   const res = await api.get("/clinic/sessions/tree/", { params: query });
@@ -116,6 +136,8 @@ export async function fetchClinicSessionTree(params: {
       start_time: toStringValue(row.start_time),
       location: toStringValue(row.location),
       target_grade: toNullableNumber(row.target_grade),
+      target_school_type: row.target_school_type == null ? null : toStringValue(row.target_school_type),
+      target_lecture_ids: toNumberArray(row.target_lecture_ids) ?? [],
       duration_minutes: toOptionalNumber(row.duration_minutes),
       participant_count: toNumber(row.participant_count),
       booked_count: toNumber(row.booked_count),
