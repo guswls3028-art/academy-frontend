@@ -43,19 +43,38 @@ export type TeacherScoreExam = {
 export type TeacherHomeworkDetail = {
   id: number;
   title: string;
+  session_id: number | null;
   session_title: string | null;
   due_date: string | null;
   max_score: number | null;
 };
 
+export type HomeworkSubmissionMediaFile = {
+  id: string;
+  position: number;
+  original_filename: string;
+  media_kind: "image" | "video";
+  file_size: number;
+  status: string;
+  error_message: string;
+  removed_at: string | null;
+};
+
 export type HomeworkSubmission = {
   id: number;
+  enrollment_id: number;
   student_id: number | null;
   student_name: string;
   student_phone: string | null;
   parent_phone: string | null;
   submitted_at: string | null;
   status: string | null;
+  files: HomeworkSubmissionMediaFile[];
+  teacher_reviewed: boolean;
+  teacher_review_source: "manual" | "score" | null;
+  teacher_review_note: string;
+  teacher_reviewed_at: string | null;
+  teacher_review_updated_at: string | null;
 };
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -199,6 +218,7 @@ export function normalizeHomework(value: unknown): TeacherHomeworkDetail | null 
   return {
     id,
     title: toStringValue(record.title) ?? "과제",
+    session_id: toNumber(record.session_id ?? record.session),
     session_title: toStringValue(record.session_title),
     due_date: toStringValue(record.due_date) ?? toStringValue(meta.due_date),
     max_score: toNumber(record.max_score ?? meta.default_max_score ?? meta.max_score),
@@ -212,12 +232,36 @@ function normalizeHomeworkSubmission(value: unknown): HomeworkSubmission | null 
 
   return {
     id,
+    enrollment_id: toNumber(record.enrollment_id) ?? 0,
     student_id: getStudentId(record),
     student_name: getStudentName(record),
     student_phone: toStringValue(record.student_phone),
     parent_phone: toStringValue(record.parent_phone),
-    submitted_at: toStringValue(record.submitted_at),
+    submitted_at: toStringValue(record.submitted_at) ?? toStringValue(record.created_at),
     status: toStringValue(record.status),
+    files: (Array.isArray(record.files) ? record.files : []).map((fileValue) => {
+      const file = asRecord(fileValue);
+      const mediaKind: HomeworkSubmissionMediaFile["media_kind"] = file.media_kind === "video"
+        ? "video"
+        : "image";
+      return {
+        id: String(file.id ?? ""),
+        position: toNumber(file.position) ?? 0,
+        original_filename: toStringValue(file.original_filename) ?? "제출 파일",
+        media_kind: mediaKind,
+        file_size: toNumber(file.file_size) ?? 0,
+        status: toStringValue(file.status) ?? "uploaded",
+        error_message: toStringValue(file.error_message) ?? "",
+        removed_at: toStringValue(file.removed_at),
+      };
+    }).filter((file) => file.id.length > 0),
+    teacher_reviewed: record.teacher_reviewed === true,
+    teacher_review_source: record.teacher_review_source === "manual" || record.teacher_review_source === "score"
+      ? record.teacher_review_source
+      : null,
+    teacher_review_note: toStringValue(record.teacher_review_note) ?? "",
+    teacher_reviewed_at: toStringValue(record.teacher_reviewed_at),
+    teacher_review_updated_at: toStringValue(record.teacher_review_updated_at),
   };
 }
 

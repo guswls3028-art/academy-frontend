@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/submissions/pages/SubmissionsInboxPage.tsx
 /**
  * Submissions Inbox (제출함)
- * - 학생이 제출한 시험/과제를 한 곳에서 확인하고 1-click 으로 처리
+ * - 시험 OMR/답안 제출을 한 곳에서 확인하고 처리
  * - 필터 탭: 대기 중 | 완료 | 실패 | 전체
  * - 5초 자동 새로고침
  *
@@ -322,7 +322,7 @@ export default function SubmissionsInboxPage() {
 
   function handleNavigate(row: PendingSubmissionRow) {
     if (!isTargetResolved(row) || !row.lecture_id || !row.session_id || !row.target_id) {
-      feedback.error("원본 시험/과제 정보를 찾을 수 없어 이동할 수 없습니다. 폐기 후 다시 업로드해 주세요.");
+      feedback.error("원본 시험 정보를 찾을 수 없어 이동할 수 없습니다. 폐기 후 다시 업로드해 주세요.");
       return;
     }
     if (row.target_type === "exam") {
@@ -360,7 +360,7 @@ export default function SubmissionsInboxPage() {
 
   function handleStartIdentify(row: PendingSubmissionRow) {
     if (!row.target_id) {
-      feedback.error("원본 시험/과제 정보가 없어 학생을 지정할 수 없습니다.");
+      feedback.error("원본 시험 정보가 없어 학생을 지정할 수 없습니다.");
       return;
     }
     lastPickedEnrollmentRef.current = null;
@@ -442,7 +442,7 @@ export default function SubmissionsInboxPage() {
               스캔/AI 업로드 후 학생 매칭이 안 된 제출입니다. 행의 <b>학생 지정</b> 버튼을 눌러 매칭하면 자동 채점 큐에 들어갑니다.
               {orphanCount > 0 && (
                 <>
-                  {" "}원본 시험/과제를 찾을 수 없는 {orphanCount}건은 <b>일괄 폐기</b>로 정리하세요.
+                  {" "}원본 시험을 찾을 수 없는 {orphanCount}건은 <b>일괄 폐기</b>로 정리하세요.
                 </>
               )}
             </span>
