@@ -29,7 +29,6 @@ import {
   compactGradesPayloadVars,
   compactGradesPerStudentPayloadVars,
 } from "./scorePayloadVars";
-import { getManualRecipientSelection } from "./recipientPolicy";
 import {
   fetchMessageTemplates,
   preflightSendMessage,
@@ -292,7 +291,6 @@ export default function SendMessageModal({
   const queryClient = useQueryClient();
   const confirm = useConfirm();
   const runTrackedTask = useTrackedTask();
-  const recipientPolicy = getManualRecipientSelection(blockCategory);
 
   // ─── State ───
   const [subject, setSubject] = useState("");
@@ -300,8 +298,8 @@ export default function SendMessageModal({
   const [freeContent] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
-  const [sendToParent, setSendToParent] = useState(recipientPolicy.parent);
-  const [sendToStudent, setSendToStudent] = useState(recipientPolicy.student);
+  const [sendToParent, setSendToParent] = useState(true);
+  const [sendToStudent, setSendToStudent] = useState(true);
   const [sending, setSending] = useState(false);
   const [sendTiming, setSendTiming] = useState<SendTiming>("now");
   const [scheduledAt, setScheduledAt] = useState(defaultScheduledLocalValue);
@@ -651,9 +649,8 @@ export default function SendMessageModal({
     setBody(initialDisplayBody);
     setSelectedTemplateId(initialTemplateId ?? null);
     setSelectedPresetId(initialLetterPresetId ?? null);
-    const nextRecipientPolicy = getManualRecipientSelection(blockCategory);
-    setSendToParent(nextRecipientPolicy.parent);
-    setSendToStudent(nextRecipientPolicy.student);
+    setSendToParent(true);
+    setSendToStudent(true);
     setShowSaveForm(false);
     setSaveTemplateName("");
     setShowPickerModal(false);
@@ -1036,12 +1033,7 @@ export default function SendMessageModal({
                     <span>학부모</span>
                   </label>
                   <label className="send-modal__check">
-                    <input
-                      type="checkbox"
-                      checked={sendToStudent}
-                      onChange={(e) => setSendToStudent(e.target.checked)}
-                      disabled={sending || recipientPolicy.studentLocked}
-                    />
+                    <input type="checkbox" checked={sendToStudent} onChange={(e) => setSendToStudent(e.target.checked)} disabled={sending} />
                     <span>학생</span>
                   </label>
                   {sendToTargets.length === 0 && (
@@ -1049,10 +1041,6 @@ export default function SendMessageModal({
                   )}
                 </div>
               )}
-              {hasRecipients && recipientPolicy.studentLocked && (
-                <div className="send-modal__hint">성적 알림은 보호자에게만 발송됩니다.</div>
-              )}
-
               {/* 적용된 양식 — inline */}
               {hasRecipients && (selectedTemplate || selectedPreset) && (
                 <div className="send-modal__applied-tpl">

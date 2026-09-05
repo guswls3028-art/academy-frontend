@@ -9,7 +9,6 @@ import {
   buildScoreVars,
   collectUnenteredScoreItems,
 } from "../../src/shared/scoring/scoreReport";
-import { getManualRecipientSelection } from "../../src/app_admin/domains/messages/components/recipientPolicy";
 import type {
   SessionScoreMeta,
   SessionScoreRow,
@@ -148,17 +147,4 @@ test("교사가 명시한 미응시·미제출 상태만 해당 문구로 표시
   expect(vars["시험1"]).toBe("미응시");
   expect(vars["과제1"]).toBe("미제출");
   expect(collectUnenteredScoreItems(row)).toEqual([]);
-});
-
-test("성적 알림 수신자는 보호자만 기본 선택하고 학생 선택을 잠근다", () => {
-  expect(getManualRecipientSelection("grades")).toEqual({
-    parent: true,
-    student: false,
-    studentLocked: true,
-  });
-  expect(getManualRecipientSelection("attendance")).toEqual({
-    parent: true,
-    student: true,
-    studentLocked: false,
-  });
 });
