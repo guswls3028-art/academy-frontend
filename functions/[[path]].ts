@@ -326,8 +326,8 @@ const FALLBACK_META: Record<string, TenantMeta> = {
   "www.dnbacademy.co.kr": { title: "DnB 보습학원", description: "DnB 보습학원 – 보습 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/dnb/favicon.png", image: "/tenants/dnb/og-image.png", imageWidth: 800, imageHeight: 420 },
   "movementhui.com":    { title: "이동휘원소 과학연구소", description: "이동휘원소 과학연구소 학습 플랫폼 – 학생·학부모·선생님 로그인", favicon: "/tenants/movementhui/favicon.png", image: "/tenants/movementhui/og-image.png", imageWidth: 500, imageHeight: 500 },
   "www.movementhui.com": { title: "이동휘원소 과학연구소", description: "이동휘원소 과학연구소 학습 플랫폼 – 학생·학부모·선생님 로그인", favicon: "/tenants/movementhui/favicon.png", image: "/tenants/movementhui/og-image.png", imageWidth: 500, imageHeight: 500 },
-  "godmin.kr":          { title: "신과함께", description: "신과함께 학습 플랫폼 – 학생·학부모·선생님 로그인", favicon: "/tenants/godmin/favicon.png", image: "/tenants/godmin/og-image.png", imageWidth: 1200, imageHeight: 630 },
-  "www.godmin.kr":      { title: "신과함께", description: "신과함께 학습 플랫폼 – 학생·학부모·선생님 로그인", favicon: "/tenants/godmin/favicon.png", image: "/tenants/godmin/og-image.png", imageWidth: 1200, imageHeight: 630 },
+  "godmin.kr":          { title: "신민T 통합과학 | 신과함께", description: "13년 차 통합과학 강사 신민T의 수업 철학과 학습 관리, 수강생·학부모 전용 학습 플랫폼.", favicon: "/tenants/godmin/favicon.png", image: "/tenants/godmin/og-image.png", imageWidth: 1200, imageHeight: 630 },
+  "www.godmin.kr":      { title: "신민T 통합과학 | 신과함께", description: "13년 차 통합과학 강사 신민T의 수업 철학과 학습 관리, 수강생·학부모 전용 학습 플랫폼.", favicon: "/tenants/godmin/favicon.png", image: "/tenants/godmin/og-image.png", imageWidth: 1200, imageHeight: 630 },
 };
 
 const FALLBACK_TEACHER_PWA: Record<string, TenantPwaMeta> = {

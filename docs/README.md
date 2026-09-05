@@ -31,6 +31,7 @@
 | [TENANT-BRANDING.md](TENANT-BRANDING.md) | 신규 테넌트 로그인·역할별 공용 헤더 브랜딩 계약과 검증표 |
 | [DEV-TENANT-OPERATIONS.md](DEV-TENANT-OPERATIONS.md) | 개발자 콘솔 테넌트·소유자 생성, 기존 계정 승격, 실패 안전 UI 계약 |
 | [TCHUL-PUBLIC-SITE.md](TCHUL-PUBLIC-SITE.md) | tchul 공식 홈페이지의 정보 구조, 매치업 PDF 게시·공유, 반응형·실패 처리 계약 |
+| [GODMIN-PUBLIC-SITE.md](GODMIN-PUBLIC-SITE.md) | 신과함께 공개 홈페이지의 신민T 프로필·수업 철학·학습 관리·반응형·출처 계약 |
 | [PRODUCT-USAGE-ANALYTICS.md](PRODUCT-USAGE-ANALYTICS.md) | 역할별 화면·CTA·대표 업무 사용 신호와 실패 안전 계약 |
 | [TEACHER-TOOLS.md](TEACHER-TOOLS.md) | 강사 도구함 확장 규칙과 AI 풀이·해설 Beta 상호작용 계약 |
 | [PROBLEM-REVIEW-REPORT.md](PROBLEM-REVIEW-REPORT.md) | 시험지 업로드부터 검수 편집, PDF/PPTX 다운로드까지 문제 리뷰 리포트 화면 계약 |

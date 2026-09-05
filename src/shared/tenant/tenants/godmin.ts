@@ -20,7 +20,7 @@ export const godmin: TenantDef = {
       foreground: "#24483d",
       accent: "#147a62",
     },
-    ogDescription: "신과함께 학습 플랫폼 – 학생·학부모·선생님 로그인",
+    ogDescription: "13년 차 통합과학 강사 신민T의 수업 철학과 학습 관리, 수강생·학부모 전용 학습 플랫폼.",
     ogImageUrl: "/tenants/godmin/og-image.png",
   },
   dedicatedLoginPage: false,
