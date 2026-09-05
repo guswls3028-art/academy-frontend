@@ -197,8 +197,11 @@ profile, 종료 방지, inbound0, SSM Online을 확인한다. 원본 artifact의
 서버는 생성 transaction에 기록한 tenant ID/code와 capability digest를 cleanup 요청과
 결합한다. 이름 정규식이나 runner run 문자열만으로 destroy 권한을 주지 않는다.
 missing/duplicate/foreign owner는 destroy 전 거부하며, 이미 부재하면 0 readback만 한다.
-상세 감사 행 보존과 capability 신뢰 경계는 backend 상시 개발 런타임 문서가 소유한다.
-결과는 test 수/상태, release/image/artifact identity, cleanup 수와 실패 분류를
+Cleanup과 Inspect는 tenant/user 외에도 exact scenario의 outstanding token, synthetic
+activity audit, exact R2 prefix object, 원격 container process/listener 잔여를 모두
+numeric으로 받고 하나라도 0이 아니면 실패한다. 상세 삭제 allowlist와 setup seal 보존,
+capability 신뢰 경계는 backend 상시 개발 런타임 문서가 소유한다. 결과는 test 수/상태,
+release/image/artifact identity, 이 다섯 residue 수와 실패 분류를
 `test-results/development-release.json`으로 남긴다. runner는 첫 preflight assertion보다
 먼저 null-safe 미완료 envelope를 쓴다. `preflightStage`는
 `process|bundle|governance|iam|document|host|ssm|complete`만, `preflightChecks`는
@@ -208,11 +211,23 @@ bundle/governance/IAM/document/host/SSM의 boolean만 기록한다. 정상 진�
 경로·ARN·role/principal/session ID·raw output/error·secret·tenant capability·password·PII는
 envelope에 넣지 않는다. 고정 document operation은
 allowlist된 action/exit code/JSON line 수/session ID 관측 여부/status/error type만
-기록하고, Inspect identity 검사는 status/잔여 0/release/digest 일치 여부를 네 개의
+기록하고, Inspect identity 검사는 status/tenant-user 0/다섯 residue 0/release/digest
+일치 여부를 다섯 개의
 boolean으로만 기록한다. raw output·오류 message·session ID·token·capability·password·
-사용자 정보는 증거에 기록하지 않는다. raw Playwright JSON은 메모리에서 검증하고 개발
-trace/video/screenshot은 저장하지 않아 credential 노출을 막는다.
-소유 SSM session도 종료 후 재조회한다. 강제 취소·접근 상실 등으로 cleanup 또는
+사용자 정보는 증거에 기록하지 않는다. Playwright가 nonzero/timeout/output overflow/
+spawn error로 끝나도 exit code와 해당 allowlisted 분류, JSON parse 여부, global
+expected/skipped/unexpected/flaky/error 수, 세 고정 spec basename별 case/status/attempt
+수는 assertion 전에 저장한다. raw report의 title, path, error, stdout은 저장하지 않으며
+`cases:null`로 실패 원인을 접지 않는다. raw Playwright JSON은 메모리에서만 검증하고
+개발 trace/video/screenshot은 저장하지 않아 credential 노출을 막는다.
+
+소유 SSM session도 종료 후 bounded 재조회한다. Active가 하나라도 남으면 항상 실패한다.
+History `Terminated`는 종료 증거로 인정한다. History가 `Terminating`이면 EndDate 관측,
+exact session에 대한 명시적 `TerminateSession` 성공, 그 뒤의 bounded Active/History
+재조회를 모두 만족한 경우에만 `terminating_verified`로 투명하게 기록해 종료 증거로
+인정한다. 세 조건 중 하나라도 없거나 history가 비고유하면 `unverified`로 실패한다.
+증거에는 session ID 대신 active/history 수, allowlisted status, EndDate 관측 boolean,
+명시 종료 성공 boolean, 재조회 횟수와 분류만 기록한다. 강제 취소·접근 상실 등으로 cleanup 또는
 소유 session 종료가 증명되지 않으면 promotion 실패이며 수동 exact-target 복구가
 필요하다. 그런 상태를 cleanup0으로 보고하지 않는다.
 
@@ -225,7 +240,7 @@ version SHA와 Vite content-hash filename 치환뿐이고, 이전→현재 SHA �
 filename을 정규화한 모든 변경 파일이 byte-equal이면 제품 의미가 같은 증거로 인정한다.
 정규화 후 한 파일이라도 다르거나 파일 수·크기 대응이 비고유하면 동일 artifact로
 간주하지 않고 차이를 열거한 뒤 중단한다.
-operation exit/JSON/status와 Inspect 네 비교의 PII-free 관측은 기존 exit 0, 단일 JSON,
+operation exit/JSON/status와 Inspect 다섯 비교의 PII-free 관측은 기존 exit 0, 단일 JSON,
 허용 status, exact identity assertion을 대체하거나 완화하지 않는다. primary 작업 실패 후
 Cleanup 결과가 기존 primary operation 관측을 덮어쓰지 않는다. 원문 capability는
 Playwright env, evidence, stdout에 넣지 않는다.
