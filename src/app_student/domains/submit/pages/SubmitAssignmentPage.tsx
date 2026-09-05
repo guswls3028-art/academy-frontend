@@ -164,6 +164,7 @@ export default function SubmitAssignmentPage() {
             `/submissions/submissions/homework/${selected.id}/media/`,
             body,
             {
+              timeout: 5 * 60_000,
               headers: { "Content-Type": "multipart/form-data" },
               onUploadProgress: (event) => {
                 if (!event.total) return;
@@ -239,7 +240,8 @@ export default function SubmitAssignmentPage() {
       const signature = `${file.name}:${file.size}:${file.lastModified}`;
       if (localSignatures.has(signature)) { rejected.push(`${file.name}: 이미 선택됨`); continue; }
       if (!isSupportedSubmissionFile(file)) { rejected.push(`${file.name}: 지원하지 않는 형식`); continue; }
-      if (file.size <= 0 || file.size > limits.max_file_size_bytes) { rejected.push(`${file.name}: 파일당 ${formatCompactFileSize(limits.max_file_size_bytes)} 초과`); continue; }
+      if (file.size <= 0) { rejected.push(`${file.name}: 빈 파일`); continue; }
+      if (file.size > limits.max_file_size_bytes) { rejected.push(`${file.name}: 파일당 ${formatCompactFileSize(limits.max_file_size_bytes)} 초과`); continue; }
       const persistedRetry = existing.find((serverFile) => (
         serverFile.status === "failed"
         && serverFile.client_file_id != null

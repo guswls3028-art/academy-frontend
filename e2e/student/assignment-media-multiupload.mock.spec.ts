@@ -25,7 +25,7 @@ function multipartFilename(body: string): string {
 
 type Media = Record<string, unknown>;
 
-async function installApi(page: Page) {
+async function installApi(page: Page, firstUploadDelayMs = 450) {
   test.skip(
     !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE),
     "과제 다건 업로드 route-mock 검증은 로컬 dev 서버 전용",
@@ -50,6 +50,7 @@ async function installApi(page: Page) {
     created_at: "2026-08-23T00:00:00Z",
   }];
   const failedClientIds = new Set<string>();
+  const uploadClientIds: string[] = [];
   let uploadAttempts = 0;
 
   await page.addInitScript((jwt) => {
@@ -109,7 +110,8 @@ async function installApi(page: Page) {
       const position = Number(multipartValue(body, "position"));
       const filename = multipartFilename(body);
       const isVideo = /\.mp4$/i.test(filename);
-      await new Promise((resolve) => setTimeout(resolve, 450));
+      uploadClientIds.push(clientId);
+      await new Promise((resolve) => setTimeout(resolve, uploadAttempts === 1 ? firstUploadDelayMs : 450));
       const payload: Media = {
         id: String(801 + files.length),
         legacy: false,
@@ -142,7 +144,7 @@ async function installApi(page: Page) {
     return json({ count: 0, results: [] });
   });
 
-  return { files, getUploadAttempts: () => uploadAttempts };
+  return { files, getUploadAttempts: () => uploadAttempts, getUploadClientIds: () => [...uploadClientIds] };
 }
 
 test("390px에서 사진·동영상을 다건 선택하고 부분 실패만 재시도한 뒤 새로고침해도 유지한다", async ({ page }, testInfo) => {
@@ -159,19 +161,28 @@ test("390px에서 사진·동영상을 다건 선택하고 부분 실패만 재�
   ]);
   await expect(page.getByText("풀이-1.png", { exact: true })).toBeVisible();
   await expect(page.getByText("설명-2.mp4", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "이번에 제출할 파일" }).locator("article")).toHaveCount(2);
   await expect(page.getByText("3/20", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "파일 2개 제출하기" }).click();
   await expect(page.getByRole("button", { name: "파일별로 제출 중…" })).toBeDisabled();
   await expect(page.getByRole("alert")).toContainText("1개는 제출됐고 1개는 실패했습니다.");
   await expect(page.getByText("풀이-1.png", { exact: true })).toBeVisible();
+  await expect(page.getByText("설명-2.mp4", { exact: true })).toBeVisible();
   await expect(page.getByText(/성공한 파일은 유지되며 이 파일만 다시 시도/)).toBeVisible();
+  await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "실패한 파일 1개 다시 제출" })).toBeEnabled();
+  const [imageClientId, videoClientId] = state.getUploadClientIds();
+  expect(imageClientId).toBeTruthy();
+  expect(videoClientId).toBeTruthy();
+  expect(imageClientId).not.toBe(videoClientId);
 
   await page.getByRole("button", { name: "실패한 파일 1개 다시 제출" }).click();
   await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible();
   expect(state.getUploadAttempts()).toBe(3);
+  expect(state.getUploadClientIds()).toEqual([imageClientId, videoClientId, videoClientId]);
   expect(state.files).toHaveLength(3);
+  expect(new Set(state.files.filter((file) => !file.legacy).map((file) => file.client_file_id))).toHaveProperty("size", 2);
 
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
@@ -184,4 +195,66 @@ test("390px에서 사진·동영상을 다건 선택하고 부분 실패만 재�
   const mobileScreenshot = testInfo.outputPath("student-homework-media-390.png");
   await page.screenshot({ path: mobileScreenshot, fullPage: true });
   await testInfo.attach("student-homework-media-390", { path: mobileScreenshot, contentType: "image/png" });
+});
+
+test("desktop에서 정상 파일은 유지하고 빈 파일·비지원 형식은 이유를 명시한다", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 900 });
+  const state = await installApi(page);
+  await page.goto(`${BASE}/student/submit/assignment`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await page.locator('input[type="file"]').setInputFiles([
+    { name: "정상-풀이.png", mimeType: "image/png", buffer: Buffer.from("valid-photo") },
+    { name: "빈-사진.png", mimeType: "image/png", buffer: Buffer.alloc(0) },
+    { name: "메모.txt", mimeType: "text/plain", buffer: Buffer.from("not-media") },
+  ]);
+
+  const pending = page.getByRole("region", { name: "이번에 제출할 파일" });
+  await expect(pending.getByText("정상-풀이.png", { exact: true })).toBeVisible();
+  await expect(pending.getByText("빈-사진.png", { exact: true })).toHaveCount(0);
+  await expect(pending.getByText("메모.txt", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("alert")).toContainText("빈-사진.png: 빈 파일");
+  await expect(page.getByRole("alert")).toContainText("메모.txt: 지원하지 않는 형식");
+  await expect(page.getByRole("button", { name: "파일 1개 제출하기", exact: true })).toBeEnabled();
+
+  await page.getByRole("button", { name: "파일 1개 제출하기", exact: true }).click();
+  await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible();
+  expect(state.getUploadAttempts()).toBe(1);
+  expect(state.files).toHaveLength(2);
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  const restored = page.getByRole("region", { name: "이미 제출한 파일" });
+  await expect(restored.getByText("정상-풀이.png", { exact: true })).toBeVisible();
+  await expect(restored.locator('[data-status="uploaded"]')).toHaveCount(2);
+});
+
+test("390px에서 20초 넘는 사진 업로드도 다건 제출과 새로고침까지 완료한다", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const state = await installApi(page, 22_000);
+  await page.goto(`${BASE}/student/submit/assignment`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await page.locator('input[type="file"]').setInputFiles([
+    { name: "느린-사진.png", mimeType: "image/png", buffer: Buffer.from("slow-photo") },
+    { name: "다음-사진.png", mimeType: "image/png", buffer: Buffer.from("next-photo") },
+  ]);
+  const pending = page.getByRole("region", { name: "이번에 제출할 파일" });
+  await expect(pending.getByText("느린-사진.png", { exact: true })).toBeVisible();
+  await expect(pending.getByText("다음-사진.png", { exact: true })).toBeVisible();
+  await expect(pending.locator("article")).toHaveCount(2);
+
+  await page.getByRole("button", { name: "파일 2개 제출하기", exact: true }).click();
+  await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible({ timeout: 45_000 });
+  expect(state.getUploadAttempts()).toBe(2);
+  expect(state.files).toHaveLength(3);
+  expect(new Set(state.getUploadClientIds())).toHaveProperty("size", 2);
+  await expect(page.getByRole("alert")).toHaveCount(0);
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  const restored = page.getByRole("region", { name: "이미 제출한 파일" });
+  await expect(restored.locator('[data-status="uploaded"]')).toHaveCount(3);
+  await expect(restored.getByText("느린-사진.png", { exact: true })).toBeVisible();
+  await expect(restored.getByText("다음-사진.png", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
 });
