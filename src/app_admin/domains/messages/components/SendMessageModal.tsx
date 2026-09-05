@@ -117,7 +117,7 @@ type SendTiming = "now" | "scheduled";
 type ConfirmPreviewRecipient = {
   studentId: number;
   studentName: string;
-  phone: string;
+  targetPhones: Array<{ sendTo: SendToType; phone: string }>;
   excluded: boolean;
   excludeReason: string;
   fullMessageBody: string;
@@ -597,15 +597,26 @@ export default function SendMessageModal({
         const next: ConfirmPreviewRecipient = {
           studentId: recipient.student_id,
           studentName: recipient.student_name,
-          phone: recipient.phone,
+          targetPhones: [{ sendTo: result.send_to, phone: recipient.phone }],
           excluded: recipient.excluded,
           excludeReason: recipient.exclude_reason,
           fullMessageBody: recipient.full_message_body,
         };
         const existing = merged.get(next.studentId);
-        if (!existing || (existing.excluded && !next.excluded)) {
+        if (!existing) {
           merged.set(next.studentId, next);
+          continue;
         }
+        const targetPhones = [
+          ...existing.targetPhones.filter(({ sendTo }) => sendTo !== result.send_to),
+          ...next.targetPhones,
+        ];
+        merged.set(
+          next.studentId,
+          existing.excluded && !next.excluded
+            ? { ...next, targetPhones }
+            : { ...existing, targetPhones },
+        );
       }
     }
     return studentIds
@@ -1624,7 +1635,11 @@ export default function SendMessageModal({
                           >
                             <span>
                               {recipient.studentName}
-                              <small>{recipient.phone}</small>
+                              <small>
+                                {recipient.targetPhones
+                                  .map(({ sendTo, phone }) => `${formatSendTargetLabel(sendTo)} ${phone}`)
+                                  .join(" · ")}
+                              </small>
                             </span>
                             <small>{selected ? "미리보기 중" : "보기"}</small>
                           </button>
