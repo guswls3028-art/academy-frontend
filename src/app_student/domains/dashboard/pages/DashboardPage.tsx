@@ -212,6 +212,23 @@ function QuickAction({
   );
 }
 
+function ContentShortcut({
+  to, icon, label, detail,
+}: {
+  to: string;
+  icon: ReactNode;
+  label: string;
+  detail: string;
+}) {
+  return (
+    <Link to={to} className={styles.contentShortcut}>
+      <span className={styles.contentShortcutIcon}>{icon}</span>
+      <span className={styles.contentShortcutLabel}>{label}</span>
+      <span className={styles.contentShortcutDetail}>{detail}</span>
+    </Link>
+  );
+}
+
 /* ============================================================================
  * 페이지
  * ========================================================================== */
@@ -549,6 +566,39 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
+      </section>
+
+      <section className={styles.contentHub} aria-label="학원 소식·자료">
+        <div className={styles.contentHubHeader}>
+          <div>
+            <h2 className={styles.contentHubTitle}>학원 소식·자료</h2>
+            <p className={styles.contentHubDescription}>공지와 수업 자료를 여기서 바로 찾아요.</p>
+          </div>
+          <Link to="/student/community?tab=notice" className={styles.contentHubAll}>
+            전체 보기
+            <IconChevronRight aria-hidden="true" />
+          </Link>
+        </div>
+        <div className={styles.contentShortcutGrid}>
+          <ContentShortcut
+            to="/student/notices"
+            icon={<IconNotice />}
+            label="공지사항"
+            detail="꼭 읽을 안내"
+          />
+          <ContentShortcut
+            to="/student/community?tab=materials"
+            icon={<IconFolder />}
+            label="자료실"
+            detail="수업 자료 받기"
+          />
+          <ContentShortcut
+            to="/student/community?tab=board"
+            icon={<IconBoard />}
+            label="게시판"
+            detail="함께 보는 글"
+          />
+        </div>
       </section>
 
       <section className={styles.quickSection} aria-label="자주 쓰는 일">
