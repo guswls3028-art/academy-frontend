@@ -50,27 +50,24 @@ export default function PreviousWeekImportModal({ open, onClose, currentDate }: 
     };
   }, [currentDate]);
 
-  // 이전 주 + 이번 주 세션 조회 (중복 감지용)
-  const prevWeekYM = useMemo(() => {
-    const d = dayjs(prevWeek.start);
-    return { year: d.year(), month: d.month() + 1 };
-  }, [prevWeek.start]);
-
-  const currentWeekYM = useMemo(() => {
-    const d = dayjs(currentDate);
-    return { year: d.year(), month: d.month() + 1 };
+  const currentWeek = useMemo(() => {
+    const start = mondayOfWeek(currentDate);
+    return {
+      start: start.format("YYYY-MM-DD"),
+      end: start.add(6, "day").format("YYYY-MM-DD"),
+    };
   }, [currentDate]);
 
   const sessionsQ = useQuery({
-    queryKey: clinicQueryKeys.sessionsTreeImport(prevWeekYM.year, prevWeekYM.month, "import"),
-    queryFn: () => fetchClinicSessionTree({ year: prevWeekYM.year, month: prevWeekYM.month }),
+    queryKey: clinicQueryKeys.sessionsTreeImport(prevWeek.start, prevWeek.end, "import"),
+    queryFn: () => fetchClinicSessionTree({ date_from: prevWeek.start, date_to: prevWeek.end }),
     enabled: open,
   });
 
-  // 이번 주 세션도 조회 (다른 월일 수 있으므로 별도)
+  // 이번 주 세션도 정확한 7일 범위로 조회해 월 경계와 무관하게 중복을 감지한다.
   const currentWeekSessionsQ = useQuery({
-    queryKey: clinicQueryKeys.sessionsTreeImport(currentWeekYM.year, currentWeekYM.month, "import-current"),
-    queryFn: () => fetchClinicSessionTree({ year: currentWeekYM.year, month: currentWeekYM.month }),
+    queryKey: clinicQueryKeys.sessionsTreeImport(currentWeek.start, currentWeek.end, "import-current"),
+    queryFn: () => fetchClinicSessionTree({ date_from: currentWeek.start, date_to: currentWeek.end }),
     enabled: open,
   });
   const dependencyLoading = sessionsQ.isLoading || currentWeekSessionsQ.isLoading;
@@ -79,30 +76,17 @@ export default function PreviousWeekImportModal({ open, onClose, currentDate }: 
   // 이번 주 기존 세션의 날짜+시간+장소 키 세트 (중복 감지용)
   const currentWeekKeys = useMemo(() => {
     const keys = new Set<string>();
-    const weekStart = mondayOfWeek(currentDate);
-    const weekEnd = weekStart.add(6, "day").format("YYYY-MM-DD");
-    const weekStartStr = weekStart.format("YYYY-MM-DD");
     for (const s of currentWeekSessionsQ.data ?? []) {
-      if (s.date >= weekStartStr && s.date <= weekEnd) {
-        keys.add(`${s.date}|${s.start_time.slice(0, 5)}|${s.location}`);
-      }
-    }
-    // 같은 월 데이터도 포함
-    for (const s of sessionsQ.data ?? []) {
-      if (s.date >= weekStartStr && s.date <= weekEnd) {
+      if (s.date >= currentWeek.start && s.date <= currentWeek.end) {
         keys.add(`${s.date}|${s.start_time.slice(0, 5)}|${s.location}`);
       }
     }
     return keys;
-  }, [currentWeekSessionsQ.data, sessionsQ.data, currentDate]);
+  }, [currentWeek.end, currentWeek.start, currentWeekSessionsQ.data]);
 
   // 이전 주 세션 → 이번 주 매핑 날짜 계산 + 중복 여부
-  const mapToCurrentWeek = (sessionDate: string) => {
-    const prevDay = dayjs(sessionDate);
-    const currentWeekStart = mondayOfWeek(currentDate);
-    const mondayIndex = (prevDay.day() + 6) % 7;
-    return currentWeekStart.add(mondayIndex, "day").format("YYYY-MM-DD");
-  };
+  const mapToCurrentWeek = (sessionDate: string) =>
+    dayjs(sessionDate).add(7, "day").format("YYYY-MM-DD");
 
   // 이전 주 날짜에 해당하는 세션만 필터
   const prevWeekSessions = useMemo(() => {
@@ -180,7 +164,14 @@ export default function PreviousWeekImportModal({ open, onClose, currentDate }: 
             location: s.location,
             max_participants: s.max_participants ?? 20,
             target_grade: s.target_grade ?? null,
+            target_school_type: s.target_school_type ?? null,
+            target_lecture_ids: s.target_lecture_ids ?? [],
+            section: s.section ?? null,
+            allow_time_preference: s.allow_time_preference === true,
             allow_multi_slot_booking: s.allow_multi_slot_booking === true,
+            booking_mode: s.booking_mode ?? "fixed_slot",
+            booking_interval_minutes: s.booking_interval_minutes ?? 60,
+            booking_max_stay_minutes: s.booking_max_stay_minutes ?? 240,
           });
         })
       );

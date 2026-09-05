@@ -118,6 +118,29 @@ function clinicActionErrorMessage(error: unknown, fallback: string): string {
   return typeof detail === "string" && detail.trim() ? detail : fallback;
 }
 
+type ParticipantAddFailure = {
+  selectionId: number;
+  studentName: string;
+  reason: string;
+  resolution: string;
+};
+
+function participantAddResolution(reason: string): string {
+  if (/같은 날|여러 시간대|한 시간대/.test(reason)) {
+    return "기존 예약을 취소하거나, 여러 시간대 예약이 허용된 일정으로 변경한 뒤 다시 추가해 주세요.";
+  }
+  if (/이미 해당 세션|이미 등록|중복/.test(reason)) {
+    return "현재 명단을 새로고침해 이미 등록된 예약을 확인해 주세요.";
+  }
+  if (/정원|마감/.test(reason)) {
+    return "정원이 남은 시간대를 선택하거나 일정 정원을 조정한 뒤 다시 추가해 주세요.";
+  }
+  if (/지난 날짜/.test(reason)) {
+    return "오늘 이후의 클리닉을 선택해 다시 추가해 주세요.";
+  }
+  return "학생의 기존 예약과 일정 상태를 확인한 뒤 다시 시도해 주세요.";
+}
+
 function reportClinicNotification(
   successMessage: string,
   notification: ClinicNotificationOutcome,
@@ -375,6 +398,7 @@ export default function ClinicConsoleWorkspace({
   const pendingPlanFocusRef = useRef<{ participantId: number; clinicLinkId: number } | null>(null);
   const [studentOverlayId, setStudentOverlayId] = useState<number | null>(null);
   const [addStudentModalOpen, setAddStudentModalOpen] = useState(false);
+  const [participantAddFailures, setParticipantAddFailures] = useState<ParticipantAddFailure[]>([]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   // Per-participant pending tracking for rapid processing
   const [mutatingIds, setMutatingIds] = useState<Set<number>>(new Set());
@@ -2999,6 +3023,51 @@ export default function ClinicConsoleWorkspace({
         document.body,
       )}
 
+      {participantAddFailures.length > 0 && createPortal(
+        <div
+          className="clinic-reschedule__backdrop"
+          onMouseDown={(event) => event.target === event.currentTarget && setParticipantAddFailures([])}
+        >
+          <section
+            className="clinic-reschedule__dialog max-h-[min(80vh,720px)] overflow-y-auto"
+            role="dialog"
+            aria-modal="true"
+            aria-label="학생 추가 실패 안내"
+          >
+            <header>
+              <div>
+                <span>예약 확인 필요</span>
+                <h2>학생을 추가하지 못했습니다</h2>
+                <p>추가하지 못한 학생별 원인과 해결 방법을 확인해 주세요.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setParticipantAddFailures([])}
+                aria-label="학생 추가 실패 안내 닫기"
+                autoFocus
+              >
+                <X size={18} aria-hidden />
+              </button>
+            </header>
+            <div className="clinic-reschedule__select">
+              <ul className="grid gap-3 m-0 pl-5" aria-label="추가하지 못한 학생">
+                {participantAddFailures.map((failure) => (
+                  <li key={failure.selectionId}>
+                    <strong>{failure.studentName}</strong>
+                    <p>{failure.reason}</p>
+                    <p><strong>해결:</strong> {failure.resolution}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="clinic-reschedule__choices">
+              <button type="button" onClick={() => setParticipantAddFailures([])}>확인</button>
+            </div>
+          </section>
+        </div>,
+        document.body,
+      )}
+
       <NotificationPreviewModal
         open={changeNoticeOpen}
         onClose={() => setChangeNoticeOpen(false)}
@@ -3029,11 +3098,18 @@ export default function ClinicConsoleWorkspace({
         initialMode="targets"
         onConfirm={async (result: ClinicTargetSelectResult) => {
           setAddStudentModalOpen(false);
+          setParticipantAddFailures([]);
           const allIds =
             result.kind === "enrollment"
               ? [...result.enrollmentIds]
               : [...result.studentIds];
           if (!session || allIds.length === 0) return;
+          const selectedNameById = new Map(
+            allIds.map((selectedId, index) => [
+              selectedId,
+              result.selectedNames[index] || "이름을 확인할 수 없는 학생",
+            ]),
+          );
 
           const existingStudentIds = new Set(
             rosterParticipants.map((p) => p.student)
@@ -3070,22 +3146,34 @@ export default function ClinicConsoleWorkspace({
               );
             })
           );
-          const failed = results.filter(
-            (r) => r.status === "rejected"
-          ).length;
+          const failures = results.flatMap((requestResult, index) => {
+            if (requestResult.status !== "rejected") return [];
+            const reason = clinicActionErrorMessage(
+              requestResult.reason,
+              "학생 추가 요청을 처리하지 못했습니다.",
+            );
+            return [{
+              selectionId: ids[index],
+              studentName: selectedNameById.get(ids[index]) || "이름을 확인할 수 없는 학생",
+              reason,
+              resolution: participantAddResolution(reason),
+            }];
+          });
           qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
           qc.invalidateQueries({ queryKey: clinicQueryKeys.sessionsTree });
-          const added = ids.length - failed;
-          if (skipped > 0 && failed > 0) {
+          const added = ids.length - failures.length;
+          if (failures.length > 0) {
+            setParticipantAddFailures(failures);
+            const failedNames = failures.map((failure) => failure.studentName).join(", ");
+            const prefix = added > 0 ? `${added}명은 추가되었습니다. ` : "";
+            const skippedText = skipped > 0 ? `${skipped}명은 이미 등록되어 건너뛰었습니다. ` : "";
             feedback.warning(
-              `${added}명 추가 (${skipped}명 이미 등록, ${failed}명 실패)`
+              `${prefix}${skippedText}${failedNames} 학생을 추가하지 못했습니다. 원인과 해결 방법을 확인해 주세요.`,
             );
           } else if (skipped > 0) {
             feedback.success(
               `${added}명 추가 (${skipped}명은 이미 등록되어 건너뜀)`
             );
-          } else if (failed > 0) {
-            feedback.warning(`${added}명 추가, ${failed}명 실패`);
           } else {
             feedback.success(`${ids.length}명이 추가되었습니다.`);
           }
