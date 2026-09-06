@@ -25,6 +25,7 @@ async function installTeacherApi(
     failResultsInitially?: boolean;
     failScoreSheetInitially?: boolean;
     subjectivePending?: boolean;
+    requireSameAccountHandoff?: boolean;
   } = {},
 ) {
   let pendingStatus: "PENDING" | "COMPLETED" = "PENDING";
@@ -34,6 +35,7 @@ async function installTeacherApi(
   let currentScore = 70;
   let failResults = options.failResultsInitially ?? false;
   let failScoreSheet = options.failScoreSheetInitially ?? false;
+  let scoreDraftPayload: Record<string, unknown> | null = null;
 
   await page.addInitScript(({ token }) => {
     localStorage.setItem("access", token);
@@ -102,6 +104,19 @@ async function installTeacherApi(
         ],
       } });
     }
+    if (path.endsWith(`/results/admin/sessions/${SESSION_ID}/score-draft/`) && request.method() === "PUT") {
+      scoreDraftPayload = request.postDataJSON() as Record<string, unknown>;
+      if (options.requireSameAccountHandoff && scoreDraftPayload.take_over_same_user !== true) {
+        return route.fulfill({
+          status: 409,
+          json: { detail: "이 차시는 다른 화면에서 수정 중입니다.", code: "SCORE_EDIT_LOCKED" },
+        });
+      }
+      return route.fulfill({ json: { changes: scoreDraftPayload.changes ?? [] } });
+    }
+    if (path.endsWith(`/results/admin/sessions/${SESSION_ID}/score-draft/commit/`) && request.method() === "POST") {
+      return route.fulfill({ status: 204, body: "" });
+    }
     if (path.endsWith(`/results/admin/sessions/${SESSION_ID}/score-correction/`) && request.method() === "PATCH") {
       correctionPayload = request.postDataJSON() as Record<string, unknown>;
       pendingStatus = correctionPayload.completed ? "COMPLETED" : "PENDING";
@@ -165,6 +180,7 @@ async function installTeacherApi(
       failResults = false;
       failScoreSheet = false;
     },
+    scoreDraftPayload: () => scoreDraftPayload,
   };
 }
 
@@ -207,6 +223,34 @@ test.describe("교사 모바일 테스트 오답 상태", () => {
     await expect(page.getByText("김확인", { exact: true })).toHaveCount(0);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
     await page.screenshot({ path: "test-results/teacher-correction-status/mobile-score-entry-390.png", fullPage: true });
+  });
+
+  test("같은 계정의 PC 초안이 있어도 아이폰 점수 수정은 안전하게 인계한다", async ({ page }) => {
+    const api = await installTeacherApi(page, { requireSameAccountHandoff: true });
+    await page.goto(`${BASE}/workspace/mobile/scores/${SESSION_ID}?exam=${EXAM_ID}`, { waitUntil: "domcontentloaded" });
+
+    const scoreInput = page.locator("input[inputmode=decimal]").first();
+    await scoreInput.focus();
+    await scoreInput.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+    await scoreInput.pressSequentially("71");
+    await expect(scoreInput).toHaveValue("71");
+    await scoreInput.press("Enter");
+
+    await expect.poll(api.scoreDraftPayload).toMatchObject({
+      take_over_same_user: true,
+      changes: [{
+        type: "examTotal",
+        examId: EXAM_ID,
+        enrollmentId: 101,
+        score: 71,
+        maxScore: 100,
+      }],
+    });
+    await expect.poll(api.scorePayload).toMatchObject({
+      score: 71,
+      max_score: 100,
+    });
+    await expect(page.locator("main")).not.toContainText("다른 화면에서 수정 중");
   });
 
   test("미저장 점수는 tenant·account 범위에서만 복구하고 legacy key를 가져오지 않는다", async ({ page }) => {
