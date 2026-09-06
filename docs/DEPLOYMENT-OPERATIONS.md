@@ -181,8 +181,9 @@ exact tenant 경계를 그대로 적용한다.
 겹친 정상 요청은 브라우저가 중간 폐기하지 않으며, drain 중 발생한 upstream/CORS 오류는
 그대로 실패한다. 종료 차단 이후 새로 시작된 background 요청만 transport 전에 abort한다.
 실사용 실패 증거에는 Playwright 원문 대신 통과·실패 수, 고정된 flow 파일명,
-allowlist된 경계 단계 코드만 남긴다. URL query, header, token, 계정명과 원문 오류는
-artifact에 기록하지 않는다.
+allowlist된 경계 단계 코드만 남긴다. browser route의 안전한 조회 재시도 횟수도
+숫자로만 남긴다. URL query, header, token, 계정명과 원문 오류는 artifact에 기록하지
+않는다.
 
 개발 transport는 artifact가 가리키는 정확한 `https://api.hakwonplus.com/api/`만
 SSM의 `http://127.0.0.1:<port>/api/`로 전달한다. 웹 origin은 개발 settings가 실제로
@@ -194,6 +195,11 @@ redirect를 따라가지 않는다. Playwright가 누락된 CORS 헤더를 보�
 외부에 전달한 뒤에야 감지되는 일을 막는다. 이것은 원본 CORS header 검증이며 브라우저의
 native preflight 전체를 별도로 검증했다는 뜻은 아니다. 가짜 응답이나 CORS/error
 무시 규칙으로 통과시키지 않고 기존 strict browser assertion도 유지한다.
+검증을 통과한 `GET`/`HEAD`/`OPTIONS`의 `route.fetch` 자체가 응답 전에 끊긴 경우에만
+같은 URL/header와 `maxRedirects=0`으로 500ms 뒤 정확히 한 번 재시도한다. mutation,
+인증/관측 POST, context 폐기, redirect, CORS 불일치, 응답을 받은 뒤의 browser
+`fulfill` 실패는 재시도하지 않는다. 두 번째 조회 fetch 실패도 즉시 fail-closed이며,
+fetch와 fulfill 실패는 서로 다른 allowlist 단계 코드로 남긴다.
 
 운영 mode의 tenant는 `hakwonplus`로 명시하며 GET/HEAD/OPTIONS 외 허용은 다음뿐이다.
 

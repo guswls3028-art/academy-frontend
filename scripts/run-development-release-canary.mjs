@@ -18,7 +18,7 @@ const API_ORIGIN = "http://127.0.0.1:18000";
 const FLOW_COUNTS = { "notice-roundtrip.spec.ts": 3, "qna-roundtrip.spec.ts": 4, "clinic-roundtrip.spec.ts": 3 };
 const RELEASE_BOUNDARY_CODES = new Set([
   "api-origin", "context-disposed", "cors", "credentials", "mutation", "observation-schema",
-  "origin", "redirect", "tenant", "transport",
+  "origin", "redirect", "tenant", "transport", "fetch-transport", "fulfill-transport",
 ]);
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const sha = (value) => crypto.createHash("sha256").update(value).digest("hex");
@@ -59,7 +59,7 @@ export function observeReleaseTestResult(stdout) {
   const observation = {
     reportStatus: "unparsed",
     stats: { expected: null, skipped: null, unexpected: null, flaky: null },
-    failedFiles: [], boundaryCodes: [], runnerErrorCount: null,
+    failedFiles: [], boundaryCodes: [], runnerErrorCount: null, readFetchRetries: null,
   };
   let report;
   try { report = JSON.parse(typeof stdout === "string" ? stdout : ""); }
@@ -71,6 +71,8 @@ export function observeReleaseTestResult(stdout) {
   observation.runnerErrorCount = safeCount(Array.isArray(report?.errors) ? report.errors.length : null);
   const failedFiles = new Set();
   const messages = [];
+  let readFetchRetries = 0;
+  let transportEvidenceCount = 0;
   const collectErrors = (errors) => {
     for (const error of Array.isArray(errors) ? errors : []) {
       if (typeof error?.message === "string") messages.push(error.message);
@@ -85,7 +87,22 @@ export function observeReleaseTestResult(stdout) {
         const failed = test.expectedStatus !== "passed" || test.status !== "expected"
           || results.length !== 1 || results[0]?.status !== "passed";
         if (failed && Object.hasOwn(FLOW_COUNTS, file)) failedFiles.add(file);
-        for (const result of results) collectErrors(result?.errors || (result?.error ? [result.error] : []));
+        for (const result of results) {
+          collectErrors(result?.errors || (result?.error ? [result.error] : []));
+          for (const output of Array.isArray(result?.stdout) ? result.stdout : []) {
+            const text = typeof output === "string" ? output : output?.text;
+            for (const line of typeof text === "string" ? text.split(/\r?\n/) : []) {
+              let payload;
+              try { payload = JSON.parse(line); } catch { continue; }
+              const retries = payload?.transport?.readFetchRetries;
+              if (["development", "readonly"].includes(payload?.releaseApiMode)
+                && Number.isInteger(retries) && retries >= 0 && retries <= 1000) {
+                readFetchRetries += retries;
+                transportEvidenceCount += 1;
+              }
+            }
+          }
+        }
       }
     }
     for (const child of Array.isArray(suite?.suites) ? suite.suites : []) visit(child);
@@ -95,6 +112,7 @@ export function observeReleaseTestResult(stdout) {
   observation.boundaryCodes = [...new Set(messages.flatMap((message) =>
     [...message.matchAll(/Release request rejected \[([a-z-]+)\]/g)].map((match) => match[1])
       .filter((code) => RELEASE_BOUNDARY_CODES.has(code))))].sort();
+  observation.readFetchRetries = transportEvidenceCount > 0 ? readFetchRetries : null;
   return observation;
 }
 
