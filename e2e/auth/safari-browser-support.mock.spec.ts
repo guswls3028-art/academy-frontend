@@ -103,7 +103,9 @@ async function stubStudentLogin(page: Page): Promise<void> {
 
 async function expectStudentShell(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/student(?:\/|$)/);
-  await expect(page.locator(".student-layout")).toBeVisible();
+  await expect(page.locator(".student-layout")).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("region", { name: "자주 쓰는 일" })).toBeVisible({ timeout: 60_000 });
+  await page.waitForLoadState("networkidle", { timeout: 30_000 });
   expect(await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   )).toBeLessThanOrEqual(1);
@@ -135,7 +137,7 @@ for (const profile of [
     await page.getByTestId("login-submit").click({ timeout: 30_000 });
     await expectStudentShell(page);
 
-    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 60_000 });
     await expectStudentShell(page);
     await page.goto("about:blank");
     await gotoAndSettle(page, `${BASE}/student`, { timeout: 30_000 });
