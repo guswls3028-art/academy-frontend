@@ -112,3 +112,14 @@
   max-width: 100%;
   padding: 0;
 }
+
+/* Safari 14~16.1: color-mix()은 장식 향상일 뿐 학생 앱 기능의 전제 조건이 아니다. */
+html[data-color-mix="unsupported"] .student-layout {
+  --stu-tint-primary: var(--stu-surface-soft);
+  --stu-tint-hover: var(--stu-border-subtle);
+  --video-surface: var(--stu-surface);
+  --video-surface-strong: var(--stu-surface-1);
+  --video-surface-soft: var(--stu-surface-soft);
+  --video-line: var(--stu-border);
+  --video-line-strong: var(--stu-border-strong);
+}
