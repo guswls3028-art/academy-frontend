@@ -206,6 +206,9 @@ document 내용 및 host parameter deny를 읽고, unique active 인스턴스의
 profile, 종료 방지, inbound0, SSM Online을 확인한다. 원본 artifact의 hash와 revision을
 실행 전후 비교한다. 신규 계정 password는 정확한 개발 SecureString 하나만 메모리에서
 사용하며 운영 credential은 development job에 전달하지 않는다.
+개발 배포 실사용의 `loginViaUI`는 새 QA 계정에 표시되는 일회성 `계정 안내`를 정확한
+`확인` 동작으로 완료한 뒤 공지·Q&A·클리닉 흐름을 계속한다. 이 완료 쓰기는
+`qa-ymath-realuse-*` 개발 tenant에서만 허용되며 운영 read-only 실행에는 적용하지 않는다.
 
 고정 NonInteractiveCommands 세션의 Inspect/Setup/Cleanup만 사용하고 임의 shell 입력,
 기존 qa tenant 재사용/reset, 광역 command stdout 조회는 허용하지 않는다. Setup의
