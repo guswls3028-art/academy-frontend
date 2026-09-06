@@ -504,6 +504,27 @@ table.ds-table {
   background: color-mix(in srgb, var(--color-primary) 9%, var(--color-bg-surface)) !important;
 }
 
+/* 모바일에서는 선택·이름·출결 세 열을 모두 고정하면 평가 열이 완전히 가려진다.
+ * 이름만 고정해 행 맥락을 남기고 선택/출결은 표와 함께 스크롤한다. */
+@media (max-width: 640px) {
+  .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table thead th[data-col-type="select"],
+  .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody td[data-col-type="select"],
+  .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table thead th[data-col-type="attendance"],
+  .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody td[data-col-type="attendance"] {
+    position: static !important;
+  }
+
+  .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table thead th[data-col-type="name"],
+  .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody td[data-col-type="name"] {
+    left: 0;
+  }
+
+  .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table thead th[data-col-type="attendance"],
+  .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody td[data-col-type="attendance"] {
+    box-shadow: none;
+  }
+}
+
 /* 출결 테이블 — 패딩·세로 간격만 축소, 폰트는 students(SSOT)와 동일하게 셀 단위로 적용 */
 .ds-table-wrap .ds-table.ds-table--attendance.ds-table--flat thead th {
   padding: 4px 12px;

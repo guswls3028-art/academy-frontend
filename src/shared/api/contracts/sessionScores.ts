@@ -71,6 +71,8 @@ export type SessionScoreRow = {
   enrollment_id: number;
   student_id?: number | null;
   student_name: string;
+  attendance_status?: string | null;
+  assessment_todo_eligible?: boolean;
   profile_photo_url?: string | null;
   lecture_title?: string | null;
   lecture_color?: string | null;
