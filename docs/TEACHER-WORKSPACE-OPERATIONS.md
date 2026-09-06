@@ -271,6 +271,7 @@ tenant 403의 오류·재시도, 다른 기기 당일 예약의 visible-page 자
 
 ```powershell
 pnpm exec playwright test e2e/teacher/teacher-business-workflow.mock.spec.ts --project=chromium --reporter=list
+pnpm exec playwright test e2e/teacher/clinic-notification-outcome.mock.spec.ts --project=chromium --reporter=list --retries=0
 pnpm exec playwright test e2e/admin/clinic-remediation-missing.mock.spec.ts --project=chromium --reporter=list --retries=0
 pnpm exec playwright test e2e/admin/clinic-weekly-multisession.mock.spec.ts --project=chromium --reporter=list
 pnpm typecheck

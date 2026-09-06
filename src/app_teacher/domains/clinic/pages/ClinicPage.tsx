@@ -39,6 +39,7 @@ import ClinicParticipantActionDialog, {
   type ClinicParticipantActionPayload,
 } from "@admin/domains/clinic/components/ClinicParticipantActionDialog";
 import type { TeacherClinicParticipant } from "../api";
+import { formatClinicOutcomeNotice } from "../notificationOutcome";
 
 function durationMinutes(start: string, end: string): number {
   const [sh, sm] = start.split(":").map(Number);
@@ -300,20 +301,20 @@ function ParticipantList({
       if (action === "checkout") {
         return checkoutParticipant(participant.id, { send_to: payload.send_to });
       }
-      await remindParticipant(participant.id, {
+      return remindParticipant(participant.id, {
         mode: payload.mode ?? "once",
         send_to: payload.send_to,
         interval_minutes: payload.interval_minutes,
         repeat_until: payload.repeat_until,
       });
-      return participant;
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: (data, variables) => {
       setActionDialog(null);
       qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participants(sessionId) });
       qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.sessions });
       const label = variables.action === "arrive" ? "등원" : variables.action === "late" ? "지각 등원" : variables.action === "checkout" ? "하원" : variables.action === "remind" ? "재촉" : "결석";
-      teacherToast.success(`${label} 처리가 완료되었습니다.`);
+      const notice = formatClinicOutcomeNotice(label, data.notification);
+      teacherToast[notice.tone](notice.message);
       if (variables.action === "absent") {
         setReplacementSessionId("");
         setReplacementPreferredStart(variables.participant.preferred_start_time?.slice(0, 5) ?? "");
@@ -339,23 +340,25 @@ function ParticipantList({
           : {}),
       });
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       setReschedule(null);
       setReplacementSessionId("");
       setReplacementPreferredStart("");
       setReplacementPreferredEnd("");
       qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.sessions });
       qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participants(sessionId) });
-      teacherToast.success("보충 일정으로 이동했습니다.");
+      const notice = formatClinicOutcomeNotice("보충 일정 이동", data?.notification);
+      teacherToast[notice.tone](notice.message);
     },
     onError: (e) => teacherToast.error(extractApiError(e, "보충 일정을 옮기지 못했습니다.")),
   });
 
   const completeMut = useMutation({
     mutationFn: (participantId: number) => completeParticipant(participantId),
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participants(sessionId) });
-      teacherToast.success("완료 처리되었습니다.");
+      const notice = formatClinicOutcomeNotice("자율학습 완료", data.notification);
+      teacherToast[notice.tone](notice.message);
     },
     onError: (e) => teacherToast.error(extractApiError(e, "완료 처리에 실패했습니다.")),
   });

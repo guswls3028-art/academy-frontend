@@ -60,9 +60,9 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
   lecture_session_reminder:
     "수업 시작 전 학생·학부모에게 수업 일시/교실/강사를 리마인드합니다. 분 전 설정 필수.",
   check_in_complete:
-    "입실(출석) 처리가 완료되면 학부모에게 출석 확인 알림을 발송합니다.",
+    "일반 출결 저장과는 분리됩니다. 선생님이 대상을 확인한 뒤 직접 발송할 때만 사용합니다.",
   absent_occurred:
-    "결석이 확인되면 학부모에게 결석 알림을 즉시 발송합니다.",
+    "일반 결석 저장과는 분리됩니다. 선생님이 대상을 확인한 뒤 직접 발송할 때만 사용합니다.",
   exam_scheduled_days_before:
     "시험 예정일 N일 전에 학생·학부모에게 시험명/일정을 안내합니다.",
   exam_start_minutes_before:

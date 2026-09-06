@@ -26,6 +26,10 @@ export interface NotificationPreviewPayload {
 
 export interface NotificationConfirmResult {
   batch_id: string;
+  /** 큐 또는 예약 outbox가 요청을 받아들인 건수. 공급사 최종 전달 건수가 아니다. */
+  accepted_count?: number;
+  pending_count?: number;
+  /** 레거시 필드: 즉시 큐 접수 건수이며 최종 전달 성공 건수가 아니다. */
   sent_count: number;
   failed_count: number;
   blocked_count: number;

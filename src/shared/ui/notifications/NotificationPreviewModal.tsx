@@ -81,6 +81,10 @@ function handleRecipientRadioKeyDown(event: React.KeyboardEvent<HTMLButtonElemen
   buttons[nextIndex]?.click();
 }
 
+function acceptedCount(result: NotificationConfirmResult): number {
+  return result.accepted_count ?? result.sent_count + (result.pending_count ?? 0);
+}
+
 export default function NotificationPreviewModal(props: Props) {
   const { open, onClose, sendTo = "parent" } = props;
   const [preview, setPreview] = useState<NotificationPreviewPayload | null>(null);
@@ -138,10 +142,17 @@ export default function NotificationPreviewModal(props: Props) {
       setConfirmed(true);
       setConfirmResult(data);
       props.onConfirmed?.(data);
-      feedback.success(`${data.sent_count}건 발송 완료`);
+      const accepted = acceptedCount(data);
+      if (accepted === 0) {
+        feedback.warning("발송 요청이 접수되지 않았습니다. 차단·실패 사유를 확인해 주세요.");
+      } else if (data.failed_count > 0 || data.blocked_count > 0) {
+        feedback.warning(`${accepted}건 발송 요청 접수 · 실패 ${data.failed_count}건 · 차단 ${data.blocked_count}건`);
+      } else {
+        feedback.success(`${accepted}건 발송 요청 접수 — 실제 전달 결과는 발송 내역에서 확인하세요.`);
+      }
     },
     onError: (err: unknown) => {
-      feedback.error(extractApiError(err, "발송에 실패했습니다."));
+      feedback.error(extractApiError(err, "발송 요청에 실패했습니다."));
     },
   });
 
@@ -336,16 +347,18 @@ export default function NotificationPreviewModal(props: Props) {
               </label>
             )}
 
-            {/* 발송 완료 */}
+            {/* 발송 요청 접수 결과 */}
             {confirmed && confirmResult && (
               <div className="notification-preview__done">
-                <strong>{confirmResult.sent_count}건 발송 완료</strong>
+                <strong>{acceptedCount(confirmResult)}건 발송 요청 접수</strong>
                 <span>배치 {confirmResult.batch_id.slice(0, 8)}</span>
                 {(confirmResult.failed_count > 0 || confirmResult.blocked_count > 0) && (
                   <span>
                     실패 {confirmResult.failed_count}건 · 차단 {confirmResult.blocked_count}건
                   </span>
                 )}
+                <span>공급사 접수·최종 전달과는 다릅니다.</span>
+                <a href="/workspace/message/log">발송 내역에서 실제 전달 결과 확인</a>
               </div>
             )}
           </div>
