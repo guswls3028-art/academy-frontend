@@ -65,6 +65,15 @@ test("workspace quick navigation cannot fall out of the route-mock PR gate", () 
   assert.ok(gateSpecs.has("e2e/admin/workspace-quick-navigation.mock.spec.ts"));
 });
 
+test("notification preview distinguishes request acceptance from delivery", () => {
+  const source = read("src/shared/ui/notifications/NotificationPreviewModal.tsx");
+
+  assert.match(source, /발송 요청 접수/);
+  assert.match(source, /실제 전달 결과는 발송 내역에서 확인/);
+  assert.match(source, /\/workspace\/message\/log/);
+  assert.doesNotMatch(source, /건 발송 완료/);
+});
+
 test("critical mobile interactions share the executable surface contract", () => {
   for (const spec of criticalInteractionSpecs) {
     assert.ok(gateSpecs.has(spec), `${spec} must run in the PR gate`);
