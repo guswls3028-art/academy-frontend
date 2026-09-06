@@ -69,7 +69,9 @@ pnpm journey-receipt:issue -- `
 ```
 
 Quality gate는 receipt를 다시 열어 exact PR head/current registry/current CI run과 모든
-report/screenshot byte hash를 대조한다. 다른 SHA/run, 만료, 누락/skip/flaky/retry,
+report/screenshot byte hash를 대조한다. PR build의 명시적 candidate SHA는 GitHub의
+자동 merge SHA보다 우선해 `version.json`에도 같은 exact head를 기록한다. 다른
+SHA/run, 만료, 누락/skip/flaky/retry,
 서술만 있는 결과, provider count나 cleanup residue가 0이 아닌 결과는 실패한다.
 통과한 PII-free receipt JSON은 exact head가 포함된 CI artifact로 14일 보존한다.
 Receipt용 workflow/test/runner를 먼저 병합하는 PR은 제품 path mapping에서 제외되므로

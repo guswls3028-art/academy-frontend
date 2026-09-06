@@ -22,11 +22,13 @@ function resolveBuildVersion(): string {
   // A wall-clock version makes those otherwise identical builds produce
   // different entry/lazy chunk hashes, so whichever deployment finishes last
   // can invalidate the other one's assets. Platform commit identifiers take
-  // precedence so a stale dashboard override cannot break this invariant.
+  // precedence so a stale dashboard override cannot break this invariant. In
+  // GitHub Actions, the workflow's explicit candidate wins over the automatic
+  // pull-request merge SHA.
   for (const candidate of [
     process.env.CF_PAGES_COMMIT_SHA,
-    process.env.GITHUB_SHA,
     process.env.VITE_BUILD_VERSION,
+    process.env.GITHUB_SHA,
   ]) {
     const value = candidate?.trim();
     if (value) return value;
