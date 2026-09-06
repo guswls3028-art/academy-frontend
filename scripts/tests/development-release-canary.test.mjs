@@ -320,6 +320,27 @@ test("cleanup requires the exact owned tenant and numeric zero tenant/user resid
   }
 });
 
+test("owned SSM cleanup accepts only exact terminalized history with zero active sessions", () => {
+  const sessionId = "academy-fe-qa-unit-safe";
+  const target = "i-0123456789abcdef0";
+  const terminal = (Status) => ({ SessionId: sessionId, Target: target, Status, EndDate: "2026-09-07T01:57:58+09:00" });
+  for (const status of ["Terminated", "Terminating"]) {
+    assert.equal(runner.isOwnedSessionTerminal([], [terminal(status)], sessionId, target), true);
+  }
+  const invalid = [
+    [[terminal("Connected")], [terminal("Terminating")]],
+    [[], []],
+    [[], [terminal("Terminated"), terminal("Terminated")]],
+    [[], [{ ...terminal("Terminated"), SessionId: `${sessionId}-foreign` }]],
+    [[], [{ ...terminal("Terminated"), Target: "i-foreign" }]],
+    [[], [{ ...terminal("Terminated"), EndDate: null }]],
+    ...["Connected", "Connecting", "Disconnected", "Failed"].map((Status) => [[], [terminal(Status)]]),
+  ];
+  for (const [active, history] of invalid) {
+    assert.equal(runner.isOwnedSessionTerminal(active, history, sessionId, target), false);
+  }
+});
+
 test("manifest and instance identity must match uniquely before setup", () => {
   const revision = "a".repeat(40);
   const release = `sha-${revision}-run-123-1`;

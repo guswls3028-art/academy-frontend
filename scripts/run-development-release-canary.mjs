@@ -194,6 +194,16 @@ export function assertCleanup(payload, tenantCode) {
   assert.deepEqual(payload.remaining, { tenants: 0, users: 0 }, "Cleanup residue must be numeric zero");
 }
 
+export function isOwnedSessionTerminal(active, history, sessionId, target) {
+  if (!Array.isArray(active) || active.length !== 0 || !Array.isArray(history) || history.length !== 1) return false;
+  if (typeof sessionId !== "string" || !sessionId.startsWith("academy-fe-qa-")) return false;
+  const session = history[0];
+  return session?.SessionId === sessionId
+    && session?.Target === target
+    && session?.EndDate != null
+    && ["Terminated", "Terminating"].includes(session?.Status);
+}
+
 export function assertManifest(manifest) {
   assert.equal(manifest.schemaVersion, 1);
   assert.equal(manifest.complete, true);
@@ -535,7 +545,7 @@ export async function run() {
         for (let attempt = 0; attempt < 10; attempt += 1) {
           const active = aws(["ssm", "describe-sessions", "--state", "Active", ...filters]).Sessions;
           const history = aws(["ssm", "describe-sessions", "--state", "History", ...filters]).Sessions;
-          if (active.length === 0 && history.length === 1 && history[0].Status === "Terminated") { terminated = true; break; }
+          if (isOwnedSessionTerminal(active, history, sessionId, instanceId)) { terminated = true; break; }
           await delay(1_000);
         }
         assert.equal(terminated, true, "Owned session termination readback missing");

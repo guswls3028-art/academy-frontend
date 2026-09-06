@@ -244,7 +244,10 @@ boolean으로만 기록한다. raw output·오류 message·session ID·token·ca
 trace/video/screenshot은 저장하지 않아 credential 노출을 막는다.
 소유 SSM session도 종료 후 재조회한다. 강제 취소·접근 상실 등으로 cleanup 또는
 소유 session 종료가 증명되지 않으면 promotion 실패이며 수동 exact-target 복구가
-필요하다. 그런 상태를 cleanup0으로 보고하지 않는다.
+필요하다. 그런 상태를 cleanup0으로 보고하지 않는다. 정확한 session ID와 target에 대해
+Active 0건, History 1건, `EndDate` 존재를 모두 요구한다. 그 조건에서 AWS가 반환하는
+`Terminated`와 종료 API 직후의 `Terminating`만 terminalized로 인정한다. active 잔존,
+누락·중복 history, 다른 session/target, 종료시각 누락과 그 밖의 status는 계속 실패한다.
 
 runner는 Setup 전부터 `passed:false`/`cleanup:null`인 미완료 증거를 저장한다. 일반
 실패/timeout은 finally로 들어가 test process를 먼저 stop/reap한 뒤 Cleanup을 시도하고,
