@@ -994,6 +994,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
           can_send: true,
           mode: "now",
           send_to: sendTo,
+          preflight_identity: `e2e-${sendTo}`,
           recipient: {
             selected: 1,
             resolved: 1,

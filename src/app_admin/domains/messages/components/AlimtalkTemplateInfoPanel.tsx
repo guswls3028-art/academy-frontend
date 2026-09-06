@@ -8,7 +8,7 @@ import { getBlockColor } from "../constants/templateBlocks";
 import {
   getAlimtalkTemplateLabel,
   getAlimtalkTemplateType,
-  getAlimtalkTemplateTypeFromCategory,
+  getAlimtalkTemplateTypeForManualEvent,
   isAlimtalkTemplateBodyEditable,
   type AlimtalkTemplateType,
 } from "../constants/alimtalkEnvelope";
@@ -16,7 +16,7 @@ import {
 export {
   getAlimtalkTemplateLabel,
   getAlimtalkTemplateType,
-  getAlimtalkTemplateTypeFromCategory,
+  getAlimtalkTemplateTypeForManualEvent,
   isAlimtalkTemplateBodyEditable,
 };
 export type { AlimtalkTemplateType };

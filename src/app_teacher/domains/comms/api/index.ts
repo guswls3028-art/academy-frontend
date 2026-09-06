@@ -194,6 +194,8 @@ export async function sendMessage(payload: {
   raw_subject?: string;
   template_id?: number;
   block_category?: string;
+  manual_event?: "lesson_result" | "attendance_notice" | "clinic_reservation_notice" | "clinic_change_notice";
+  preflight_identity?: string;
   scheduled_send_at?: string | null;
 }): Promise<{ detail: string; enqueued: number; scheduled?: number; enqueue_failed?: number; skipped_no_phone?: number }> {
   const res = await api.post("/messaging/send/", payload);
@@ -202,6 +204,7 @@ export async function sendMessage(payload: {
 
 export interface MessageSendPreflight {
   can_send: boolean;
+  preflight_identity: string;
   recipient: {
     selected: number;
     resolved?: number;

@@ -13,7 +13,6 @@ import type {
 } from "@/shared/api/contracts/sessionScores";
 import { SCORE_TEMPLATE_SLOT_LIMIT } from "@/shared/scoring/scoreTemplateSlots";
 import { deriveFinalPass } from "@/shared/scoring/achievement";
-import { DEFAULT_GRADES_PRESET_BODY } from "@/shared/messaging/gradeTemplatePreset";
 
 export type ScoreReportOptions = {
   lectureName?: string;
@@ -668,18 +667,6 @@ export function substituteScoreVars(
     .trim();
 
   return result;
-}
-
-/**
- * 일괄 발송 fallback 범용 양식 본문 (변수 그대로).
- * 학원장이 grades 카테고리에 user_default 양식을 미지정한 경우 send modal initialBody.
- * 학원장 임근혁 보고(2026-05-13): 첫 학생 데이터로 치환된 텍스트가 textarea에 박히면
- * "수정 즉시 다수 학생 반영" 의도가 깨지고 학원장이 양식 수정 부담 호소.
- * → fallback도 변수 형태(범용 양식)로 통일. backend가 학생별 #{학생이름}/#{시험성적} 치환.
- */
-export function buildGenericScoreTemplate(options: ScoreReportOptions = {}): string {
-  void options;
-  return DEFAULT_GRADES_PRESET_BODY;
 }
 
 export function buildScoreDetail(

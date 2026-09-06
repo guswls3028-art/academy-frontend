@@ -10,12 +10,18 @@ type SendPayload = {
   student_ids?: number[];
   send_to?: string;
   block_category?: string;
+  manual_event?: string;
+  preflight_identity?: string;
+  template_id?: number;
+  template_version?: string;
   raw_body?: string;
   alimtalk_extra_vars?: Record<string, string>;
   alimtalk_extra_vars_per_student?: Record<string, Record<string, string>>;
 };
 
 type PreflightMode = "success" | "stale";
+const CURRENT_SCORE_TEMPLATE_ID = 7703;
+const CURRENT_SCORE_TEMPLATE_VERSION = "2026-09-05T13:00:00Z";
 
 function createLocalJwt() {
   const encode = (payload: unknown) => Buffer.from(JSON.stringify(payload)).toString("base64url");
@@ -204,7 +210,69 @@ async function installScoreAlimtalkRoutes(
     }
 
     if (path.endsWith("/api/v1/messaging/templates/") && method === "GET") {
-      await route.fulfill({ json: [] });
+      await route.fulfill({
+        json: [
+          {
+            id: 7701,
+            category: "grades",
+            name: "폐기된 구형 점수 양식",
+            subject: "",
+            body: "폐기된 구형 점수 안내입니다.",
+            is_system: false,
+            is_user_default: true,
+            retired_at: "2026-09-06T00:00:00Z",
+            solapi_template_id: "",
+            solapi_status: "",
+            alimtalk_envelope_type: "score",
+            alimtalk_readiness: "ready",
+            created_at: "2026-04-01T00:00:00Z",
+            updated_at: "2026-04-01T00:00:00Z",
+          },
+          {
+            id: 7702,
+            category: "grades",
+            name: "수업 결과 기본형",
+            subject: "",
+            body: "#{학생이름}님. 임의 최신 문구입니다.\n#{시험성적}",
+            is_system: false,
+            is_user_default: false,
+            solapi_template_id: "",
+            solapi_status: "",
+            alimtalk_envelope_type: "score",
+            alimtalk_readiness: "ready",
+            created_at: "2026-09-05T13:30:00Z",
+            updated_at: "2026-09-05T13:30:00Z",
+          },
+          {
+            id: CURRENT_SCORE_TEMPLATE_ID,
+            category: "grades",
+            name: "선생님이 선택할 현행 문구",
+            subject: "",
+            body: "#{학생이름} 학생의 현행 수업 결과입니다.\n#{시험성적}",
+            is_system: false,
+            is_user_default: true,
+            solapi_template_id: "",
+            solapi_status: "",
+            alimtalk_envelope_type: "score",
+            alimtalk_readiness: "ready",
+            created_at: "2026-09-05T12:00:00Z",
+            updated_at: CURRENT_SCORE_TEMPLATE_VERSION,
+          },
+          {
+            id: 7704,
+            category: "grades",
+            name: "시스템 성적 기본 문구",
+            subject: "",
+            body: "자동 적용되면 안 되는 시스템 문구",
+            is_system: true,
+            is_user_default: false,
+            solapi_template_id: "",
+            solapi_status: "",
+            created_at: "2026-05-01T00:00:00Z",
+            updated_at: "2026-05-01T00:00:00Z",
+          },
+        ],
+      });
       return;
     }
 
@@ -225,6 +293,7 @@ async function installScoreAlimtalkRoutes(
           can_send: true,
           mode: "now",
           send_to: payload.send_to ?? "parent",
+          preflight_identity: `e2e-${payload.send_to ?? "parent"}`,
           recipient: {
             selected: 2,
             resolved: 2,
@@ -238,12 +307,16 @@ async function installScoreAlimtalkRoutes(
           template: {
             ok: true,
             source: "unified",
-            name: "성적 안내",
-            solapi_template_id: "E2E_GRADES",
+            name: "성적표발송",
+            solapi_template_id: "KA01TP260406105458211774JKJ3OU55",
             solapi_status: "APPROVED",
             detail: "",
             uses_unified_template: true,
-            template_type: "grades",
+            template_type: "score",
+            provider_template_version: "Wy7Z91sBXK",
+            provider_template_structure_fingerprint: "54f3fb7aca49daaf",
+            provider_template_content_fingerprint: "a5605726f724dd9b",
+            provider_template_header_fingerprint: "dbaf4d19b3af2b21",
           },
           preview_recipients: [9301, 9302].map((studentId, index) => ({
             student_id: studentId,
@@ -306,6 +379,13 @@ async function selectBothStudentsAndOpen(page: Page) {
   await expect(page.getByRole("dialog", { name: "알림톡 발송" })).toBeVisible();
 }
 
+async function writeExplicitScoreMemo(page: Page) {
+  const modal = page.getByRole("dialog", { name: "알림톡 발송" });
+  const textarea = modal.locator("textarea");
+  await expect(textarea).toHaveValue("");
+  await textarea.fill("#{학생이름}님 수업 결과입니다.\n#{시험성적}");
+}
+
 test.describe("성적 알림톡 학생별 개인화", () => {
   test.setTimeout(120_000);
   test.use({ viewport: { width: 1366, height: 900 }, serviceWorkers: "block" });
@@ -317,6 +397,7 @@ test.describe("성적 알림톡 학생별 개인화", () => {
     await page.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
     await expect(page.getByRole("checkbox", { name: "개인화학생1 선택" })).toBeVisible();
     await selectBothStudentsAndOpen(page);
+    await writeExplicitScoreMemo(page);
 
     const modal = page.getByRole("dialog", { name: "알림톡 발송" });
     await expect(modal.getByRole("checkbox", { name: "학부모" })).toBeChecked();
@@ -346,6 +427,7 @@ test.describe("성적 알림톡 학생별 개인화", () => {
 
     const latestPreflight = preflightPayloads.at(-1);
     expect(latestPreflight?.send_to).toBe("parent");
+    expect(latestPreflight?.manual_event).toBe("lesson_result");
     expect(latestPreflight?.alimtalk_extra_vars).toEqual({
       강의명: "개인화 검증반",
       차시명: "개인화 검증 차시",
@@ -375,6 +457,8 @@ test.describe("성적 알림톡 학생별 개인화", () => {
       강의명: "개인화 검증반",
       차시명: "개인화 검증 차시",
     });
+    expect(sendPayloads[0]?.manual_event).toBe("lesson_result");
+    expect(sendPayloads[0]?.preflight_identity).toBe("e2e-parent");
     expect(sendPayloads[0]?.alimtalk_extra_vars_per_student).toEqual(
       latestPreflight?.alimtalk_extra_vars_per_student,
     );
@@ -384,6 +468,7 @@ test.describe("성적 알림톡 학생별 개인화", () => {
     const preflightPayloads: SendPayload[] = [];
     await openPersonalizedScores(page, "stale", preflightPayloads, []);
     await selectBothStudentsAndOpen(page);
+    await writeExplicitScoreMemo(page);
 
     const modal = page.getByRole("dialog", { name: "알림톡 발송" });
     const staleMessage = modal
@@ -398,5 +483,61 @@ test.describe("성적 알림톡 학생별 개인화", () => {
     await expect(staleMessage).toBeVisible();
     expect(await modal.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath("score-alimtalk-stale-390.png") });
+  });
+
+  test("기본·최신·퇴역 문구를 자동 적용하지 않고 명시 선택한 문구 identity만 유지한다", async ({ page }) => {
+    const preflightPayloads: SendPayload[] = [];
+    const sendPayloads: SendPayload[] = [];
+    await openPersonalizedScores(page, "success", preflightPayloads, sendPayloads);
+    await selectBothStudentsAndOpen(page);
+
+    const modal = page.getByRole("dialog", { name: "알림톡 발송" });
+    await expect(modal.locator("textarea")).toHaveValue("");
+    await expect(modal.locator(".send-modal__applied-tpl-name")).toHaveCount(0);
+    await expect(modal.getByText("폐기된 구형 점수 양식", { exact: true })).toHaveCount(0);
+    await expect(modal.getByText("수업 결과 기본형", { exact: true })).toHaveCount(0);
+    expect(preflightPayloads).toHaveLength(0);
+
+    await modal.getByRole("button", { name: /문구 (선택|변경)/ }).click();
+    const picker = page.getByRole("dialog", { name: "문구 선택" });
+    await expect(picker.getByText("폐기된 구형 점수 양식", { exact: true })).toHaveCount(0);
+    await expect(picker.getByText("시스템 성적 기본 문구", { exact: true })).toHaveCount(0);
+    await expect(picker.getByText("수업 결과 기본형", { exact: true })).toBeVisible();
+    await picker.getByRole("button").filter({ hasText: "선생님이 선택할 현행 문구" }).click();
+    await picker.getByRole("button", { name: "이 문구 적용" }).click();
+
+    await expect(modal.locator(".send-modal__applied-tpl-name")).toHaveText("선생님이 선택할 현행 문구");
+    await expect(modal.locator("textarea")).toContainText("현행 수업 결과");
+    await expect.poll(() => preflightPayloads.at(-1)?.template_id).toBe(CURRENT_SCORE_TEMPLATE_ID);
+    expect(preflightPayloads.at(-1)).toMatchObject({
+      template_version: CURRENT_SCORE_TEMPLATE_VERSION,
+    });
+
+    await modal.getByRole("checkbox", { name: "학생" }).uncheck();
+    await modal.locator(".send-modal__send-btn").click();
+    const confirm = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
+    await expect(confirm).toContainText("현행 수업 결과");
+    await confirm.getByRole("button", { name: "발송하기" }).click();
+
+    expect(sendPayloads).toHaveLength(1);
+    expect(sendPayloads[0]).toMatchObject({
+      template_id: CURRENT_SCORE_TEMPLATE_ID,
+      template_version: CURRENT_SCORE_TEMPLATE_VERSION,
+      preflight_identity: "e2e-parent",
+    });
+  });
+
+  test("명시한 선생님메모가 없으면 발송 전 확인으로 진행하지 않는다", async ({ page }) => {
+    const preflightPayloads: SendPayload[] = [];
+    await openPersonalizedScores(page, "success", preflightPayloads, []);
+    await page.getByRole("checkbox", { name: "개인화학생1 선택" }).check();
+    await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
+
+    const modal = page.getByRole("dialog", { name: "알림톡 발송" });
+    await expect(modal).toBeVisible();
+    await expect(modal.locator("textarea")).toHaveValue("");
+    await expect(modal.locator(".send-modal__send-btn")).toBeDisabled();
+    await expect(page.getByRole("dialog", { name: "보내기 전 마지막 확인" })).toHaveCount(0);
+    expect(preflightPayloads).toHaveLength(0);
   });
 });

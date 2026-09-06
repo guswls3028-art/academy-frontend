@@ -1,8 +1,24 @@
+import type { Route } from "@playwright/test";
+
 import { test, expect } from "../fixtures/strictTest";
-import { loginViaUI } from "../helpers/auth";
 import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "https://hakwonplus.com";
+
+function localJwt(): string {
+  const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
+  return `${encode({ alg: "none" })}.${encode({
+    exp: Math.floor(Date.now() / 1000) + 3600,
+    tenant_code: "yedam",
+    user_id: 12,
+  })}.sig`;
+}
+
+const json = (route: Route, body: unknown, status = 200) => route.fulfill({
+  status,
+  contentType: "application/json",
+  body: JSON.stringify(body),
+});
 
 const MOCK_STUDENTS = [
   {
@@ -40,7 +56,46 @@ const MOCK_STUDENTS = [
 ];
 
 test("알림톡 발송 직전 카카오 디자인과 학생별 문구를 확인한다", async ({ page }) => {
-  await loginViaUI(page, "admin");
+  await page.addInitScript((token) => {
+    localStorage.setItem("access", token);
+    localStorage.setItem("refresh", `${token}-refresh`);
+    localStorage.setItem("tenant_code", "yedam");
+    sessionStorage.setItem("tenantCode", "yedam");
+  }, localJwt());
+  await page.route("**/api/v1/**", async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^\/api\/v1/, "");
+    if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204, body: "" });
+    if (path === "/core/program/") {
+      return json(route, {
+        tenantCode: "yedam",
+        display_name: "예담학원",
+        ui_config: {},
+        feature_flags: {},
+        is_active: true,
+      });
+    }
+    if (path === "/core/me/") {
+      return json(route, {
+        id: 12,
+        username: "owner",
+        name: "관리자",
+        is_staff: true,
+        is_superuser: false,
+        tenantRole: "owner",
+        must_change_password: false,
+      });
+    }
+    if (path === "/messaging/info/") {
+      return json(route, {
+        alimtalk_available: true,
+        delivery_policy: "common_alimtalk_only",
+        messaging_provider: "solapi",
+        messaging_disabled: false,
+        messaging_disabled_reason: "",
+      });
+    }
+    return json(route, { count: 0, next: null, previous: null, results: [] });
+  });
 
   await page.route("**/api/v1/students/**", async (route) => {
     if (route.request().method() !== "GET") {
@@ -70,6 +125,7 @@ test("알림톡 발송 직전 카카오 디자인과 학생별 문구를 확인�
         can_send: true,
         mode: "now",
         send_to: requestBody.send_to || "parent",
+        preflight_identity: `e2e-${requestBody.send_to || "parent"}`,
         recipient: {
           selected: 2,
           resolved: 2,
@@ -118,6 +174,11 @@ test("알림톡 발송 직전 카카오 디자인과 학생별 문구를 확인�
   await page.getByLabel("전체 선택").check();
   await page.getByRole("button", { name: "알림톡 보내기" }).click();
 
+  const composeDialog = page.getByRole("dialog", { name: /알림톡 발송/ });
+  await composeDialog.getByRole("button", { name: /출석 안내/ }).click();
+  await composeDialog.getByPlaceholder(
+    "학원장님이 학생/학부모에게 전할 안내 메시지를 자유롭게 입력하세요.",
+  ).fill("테스트 안내입니다.");
   const sendButton = page.locator(".send-modal__send-btn");
   await expect(sendButton).toBeEnabled();
   await sendButton.click();

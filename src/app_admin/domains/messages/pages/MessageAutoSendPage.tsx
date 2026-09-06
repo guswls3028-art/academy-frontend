@@ -425,7 +425,6 @@ export default function MessageAutoSendPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingConfigsRef = useRef<Partial<AutoSendConfigItem>[]>([]);
   const hasPendingDebouncedSaveRef = useRef(false);
-  const autoProvisionedRef = useRef(false);
   useEffect(() => {
     setLocalConfigs(configs);
   }, [configs]);
@@ -440,17 +439,6 @@ export default function MessageAutoSendPage() {
       }
     };
   }, []);
-
-  // 기본 템플릿이 없으면 자동 프로비저닝 (1회)
-  useEffect(() => {
-    if (autoProvisionedRef.current) return;
-    if (isLoading) return;
-    const hasNoTemplates = configs.length === 0 || configs.every((c) => !c.template);
-    if (hasNoTemplates && configs.length > 0) {
-      autoProvisionedRef.current = true;
-      provisionMut.mutate();
-    }
-  }, [configs, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateMut = useMutation({
     mutationFn: updateAutoSendConfigs,

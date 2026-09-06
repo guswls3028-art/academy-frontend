@@ -41,9 +41,8 @@ import {
 } from "@/shared/utils/safeLocalStorage";
 import { useConfirm } from "@/shared/ui/confirm";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
-import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
-import { substituteScoreVars, buildScoreVars, buildGenericScoreTemplate, buildScoreDetail } from "@/shared/scoring/scoreReport";
-import { DEFAULT_GRADES_PRESET_ID } from "@/shared/messaging/gradeTemplatePreset";
+import { substituteScoreVars, buildScoreVars, buildScoreDetail } from "@/shared/scoring/scoreReport";
+import { createExplicitScoreLetterState } from "@admin/domains/messages/utils/scoreLetterSelection";
 import { fetchSessionScores } from "@/shared/api/contracts/sessionScores";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import useAuth from "@/auth/hooks/useAuth";
@@ -408,17 +407,12 @@ export default function SessionAttendancePage({
         // 학원장 limglish 보고: drawer path는 차시명 정상, 일괄 path는 빈 → 두 path 결과 다름. SSOT로 통일.
         let lectureName = "";
         let sessionTitle = "";
-        let initialBody: string | undefined;
-        let initialTemplateId: number | null = null;
-        let initialLetterPresetId: string | null = null;
+        const scoreLetter = createExplicitScoreLetterState();
         let scoreDetail = "";
         let firstScoreVars: Record<string, string> = {};
         let recomputePerStudentVars: ((currentBody: string) => Record<number, Record<string, string>>) | undefined;
         try {
-          const [templates, scoresData] = await Promise.all([
-            fetchMessageTemplates("grades"),
-            fetchSessionScores(sessionId),
-          ]);
+          const scoresData = await fetchSessionScores(sessionId);
           // backend SSOT meta 1순위 → qc cache → ""
           const lecture = qc.getQueryData<{ title?: string; name?: string }>(
             adminLectureQueryKeys.lecture(lectureId),
@@ -429,20 +423,12 @@ export default function SessionAttendancePage({
           lectureName = scoresData.meta?.lecture_title ?? lecture?.title ?? lecture?.name ?? "";
           sessionTitle = scoresData.meta?.session_title ?? session?.title ?? "";
 
-          const hasScoreVars = (body: string) => /#{(시험\d|과제\d|시험성적|시험총점|학생이름)}/.test(body);
-          const userDefault = templates.find((t) => t.is_user_default && !t.is_system);
-          const userWithScoreVars = templates.find((t) => !t.is_system && hasScoreVars(t.body));
-          const chosenTpl = userDefault ?? userWithScoreVars;
-
           const firstRow = scoresData.rows.find((r) => r.student_id === studentIds[0]);
           if (firstRow) {
             scoreDetail = buildScoreDetail(firstRow, scoresData.meta);
             firstScoreVars = buildScoreVars(firstRow, scoresData.meta, { lectureName, sessionTitle });
           }
 
-          initialBody = chosenTpl?.body ?? buildGenericScoreTemplate({ lectureName, sessionTitle });
-          initialTemplateId = chosenTpl?.id ?? null;
-          initialLetterPresetId = chosenTpl ? null : DEFAULT_GRADES_PRESET_ID;
           // SSOT (2026-05-14): modal이 currentBody (학원장 수정본) 기반으로 학생별 재계산.
           // 직전 결함: 사전 계산된 _body_subst 만 보내면 학원장 textarea 수정이 silent discard.
           recomputePerStudentVars = (currentBody: string) => {
@@ -468,17 +454,15 @@ export default function SessionAttendancePage({
           );
           lectureName = lecture?.title ?? lecture?.name ?? "";
           sessionTitle = session?.title ?? "";
-          initialBody = buildGenericScoreTemplate({ lectureName, sessionTitle });
-          initialLetterPresetId = DEFAULT_GRADES_PRESET_ID;
         }
 
         openSendMessageModal({
           studentIds,
           recipientLabel: `수업결과 발송 — ${selectedIds.length}명`,
           blockCategory: "grades",
-          initialBody,
-          initialTemplateId,
-          initialLetterPresetId,
+          manualEvent: "lesson_result",
+          initialBody: scoreLetter.body,
+          initialTemplateId: scoreLetter.templateId,
           alimtalkExtraVars: {
             강의명: lectureName,
             차시명: sessionTitle,

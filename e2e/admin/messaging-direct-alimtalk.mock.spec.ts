@@ -87,6 +87,7 @@ async function installMocks(
         can_send: true,
         mode: "now",
         send_to: sendTo,
+        preflight_identity: `e2e-${sendTo}`,
         recipient: {
           selected: 1,
           resolved: 1,
@@ -177,7 +178,15 @@ test("메시지 화면에서 학생 선택과 알림톡 발송창까지 정확�
   );
   await page.getByRole("checkbox", { name: "김알림 선택" }).check();
   await page.getByRole("button", { name: "알림톡 보내기", exact: true }).click();
-  await expect(page.getByRole("dialog").filter({ hasText: "알림톡 발송" })).toBeVisible();
+  const dialog = page.getByRole("dialog").filter({ hasText: "알림톡 발송" });
+  await expect(dialog).toBeVisible();
+  expect(state.requests.filter(
+    ({ method, path }) => method === "POST" && path === "/messaging/send/preflight/",
+  )).toEqual([]);
+  await dialog.getByRole("button", { name: /출석 안내/ }).click();
+  await dialog.getByPlaceholder("학원장님이 학생/학부모에게 전할 안내 메시지를 자유롭게 입력하세요.").fill(
+    "테스트 안내입니다.",
+  );
   await expect.poll(() => state.requests.filter(
     ({ method, path }) => method === "POST" && path === "/messaging/send/preflight/",
   ).length).toBeGreaterThan(0);

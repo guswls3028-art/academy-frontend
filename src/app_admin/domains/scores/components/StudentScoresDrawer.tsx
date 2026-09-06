@@ -37,7 +37,7 @@ import {
   patchHomeworkQuick,
   type HomeworkScoreCellValue,
 } from "../api/patchHomeworkQuick";
-import { buildGenericScoreTemplate, buildScoreVars, buildScoreDetail, substituteScoreVars, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
+import { buildScoreVars, buildScoreDetail, substituteScoreVars, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
 import {
   getSessionRowAttentionCountLabel,
   getSessionRowAttentionSummary,
@@ -46,9 +46,8 @@ import {
   type SessionRowAttentionSummary,
   type SessionScoresTableVerdictKind,
 } from "../utils/sessionScoreRowVerdict";
-import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
+import { createExplicitScoreLetterState } from "@admin/domains/messages/utils/scoreLetterSelection";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
-import { DEFAULT_GRADES_PRESET_ID } from "@/shared/messaging/gradeTemplatePreset";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { scoresQueryKeys } from "../api/queryKeys";
@@ -240,26 +239,9 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
     // Phase #5 (2026-05-12) — 학원장 커스텀 합/불 라벨 메시지 본문에 반영.
     const reportOptions = { lectureName, sessionTitle, passLabel: labels.pass, failLabel: labels.fail };
 
-    // 성적 양식 우선순위:
-    // ① 사용자 기본(is_user_default) → ② 성적변수 포함 사용자 양식 → ③ 기본 제공 편지지 프리셋
-    let body: string;
-    let initialTemplateId: number | null = null;
-    let initialLetterPresetId: string | null = null;
-    try {
-      const templates = await fetchMessageTemplates("grades");
-      const hasScoreVars = (b: string) => /#{(시험\d|과제\d|시험성적|시험이력|시험목록|시험총점|학생이름)}/.test(b);
-      const userDefault = templates.find((t) => t.is_user_default && !t.is_system);
-      const userWithScoreVars = templates.find((t) => !t.is_system && hasScoreVars(t.body));
-      const chosenTpl = userDefault ?? userWithScoreVars;
-      body = chosenTpl
-        ? chosenTpl.body
-        : buildGenericScoreTemplate(reportOptions);
-      initialTemplateId = chosenTpl?.id ?? null;
-      initialLetterPresetId = chosenTpl ? null : DEFAULT_GRADES_PRESET_ID;
-    } catch {
-      body = buildGenericScoreTemplate(reportOptions);
-      initialLetterPresetId = DEFAULT_GRADES_PRESET_ID;
-    }
+    // 수업 결과 발송은 빈 명시적 메모로 시작한다. 저장 문구는 발송창에서
+    // 선생님이 이번 발송에 직접 선택한 경우에만 적용한다.
+    const scoreLetter = createExplicitScoreLetterState();
 
     const scoreDetail = buildScoreDetail(currentRow, currentMeta, { passLabel: labels.pass, failLabel: labels.fail });
     // SSOT (2026-05-14): 단건 path 도 학원장이 textarea 본문에 #{학생이름}/#{시험성적} 다시 쓰면
@@ -278,9 +260,9 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
       studentIds: sid != null ? [sid] : [],
       recipientLabel: `${currentRow.student_name} 성적 발송`,
       blockCategory: "grades",
-      initialBody: body,
-      initialTemplateId,
-      initialLetterPresetId,
+      manualEvent: "lesson_result",
+      initialBody: scoreLetter.body,
+      initialTemplateId: scoreLetter.templateId,
       alimtalkExtraVars: {
         강의명: lectureName,
         차시명: sessionTitle,

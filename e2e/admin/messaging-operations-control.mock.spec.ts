@@ -153,6 +153,7 @@ async function installMessagingApp(page: Page, initialEnabled: boolean) {
         can_send: true,
         mode: "now",
         send_to: body.send_to || "parent",
+        preflight_identity: `e2e-${body.send_to || "parent"}`,
         recipient: {
           selected: 1,
           resolved: 1,
