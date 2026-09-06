@@ -176,9 +176,10 @@ APIRequestContext와 browser request 검사, strict browser assertion을 받는�
 `GET /api/v1/core/og-meta/?hostname=<현재 web hostname>` 한 건은 tenant header 없이
 허용하고, 다른 hostname, 추가·중복 query, 다른 method와 그 밖의 API 요청은 기존
 exact tenant 경계를 그대로 적용한다.
-명시적 browser context 종료는 종료 직전과 직후에 경계 결함을 검사한다. 종료가
-진행 중일 때 발생한 정확한 Playwright request-context disposal만 수명주기 종료로
-분류하며, 그 전에 발생했거나 다른 upstream/CORS 오류는 계속 실패한다.
+명시적 browser context 종료는 새 요청을 먼저 차단하고, 이미 검사 중인 route를 실제
+응답 또는 실패까지 drain한 뒤 경계 결함을 검사하고 context를 닫는다. 따라서 종료와
+겹친 정상 요청은 브라우저가 중간 폐기하지 않으며, drain 중 발생한 upstream/CORS 오류는
+그대로 실패한다. 종료 차단 이후 새로 시작된 background 요청만 transport 전에 abort한다.
 실사용 실패 증거에는 Playwright 원문 대신 통과·실패 수, 고정된 flow 파일명,
 allowlist된 경계 단계 코드만 남긴다. URL query, header, token, 계정명과 원문 오류는
 artifact에 기록하지 않는다.
@@ -243,7 +244,10 @@ boolean으로만 기록한다. raw output·오류 message·session ID·token·ca
 trace/video/screenshot은 저장하지 않아 credential 노출을 막는다.
 소유 SSM session도 종료 후 재조회한다. 강제 취소·접근 상실 등으로 cleanup 또는
 소유 session 종료가 증명되지 않으면 promotion 실패이며 수동 exact-target 복구가
-필요하다. 그런 상태를 cleanup0으로 보고하지 않는다.
+필요하다. 그런 상태를 cleanup0으로 보고하지 않는다. 정확한 session ID와 target에 대해
+Active 0건, History 1건, `EndDate` 존재를 모두 요구한다. 그 조건에서 AWS가 반환하는
+`Terminated`와 종료 API 직후의 `Terminating`만 terminalized로 인정한다. active 잔존,
+누락·중복 history, 다른 session/target, 종료시각 누락과 그 밖의 status는 계속 실패한다.
 
 runner는 Setup 전부터 `passed:false`/`cleanup:null`인 미완료 증거를 저장한다. 일반
 실패/timeout은 finally로 들어가 test process를 먼저 stop/reap한 뒤 Cleanup을 시도하고,

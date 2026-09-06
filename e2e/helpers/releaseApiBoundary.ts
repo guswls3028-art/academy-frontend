@@ -150,10 +150,11 @@ export async function installReleaseContextGuard(context: BrowserContext, bounda
   const observations = { attempted: 0, accepted: 0 };
   const authentication = { attempted: 0, accepted: 0 };
   const defects: string[] = [];
+  const activeRoutes = new Set<Promise<void>>();
   let closing = false;
   installReleaseRequestGuard(context.request, boundary, observations, authentication,
     () => defects.push("APIRequestContext release boundary violation"));
-  await context.route("**/*", async (route) => {
+  const handleRoute = async (route: Parameters<Parameters<BrowserContext["route"]>[1]>[0]) => {
     const request = route.request();
     try {
       const upstream = developmentUpstream(boundary, request.url());
@@ -182,18 +183,29 @@ export async function installReleaseContextGuard(context: BrowserContext, bounda
       }
     } catch (error) {
       // Upstream errors can contain credential-bearing URLs. Emit no raw error.
-      const disposedDuringClose = closing && error instanceof Error
-        && error.message.startsWith("route.fetch: Request context disposed.");
-      if (!disposedDuringClose) defects.push(`Release request rejected [${releaseRequestFailureCode(error)}]`);
+      defects.push(`Release request rejected [${releaseRequestFailureCode(error)}]`);
       await route.abort("blockedbyclient");
       return;
     }
     await route.continue();
+  };
+  await context.route("**/*", async (route) => {
+    if (closing) {
+      try { await route.abort("blockedbyclient"); } catch { /* Context teardown already owns this request. */ }
+      return;
+    }
+    const handling = handleRoute(route);
+    activeRoutes.add(handling);
+    try { await handling; }
+    finally { activeRoutes.delete(handling); }
   });
   return {
     observations,
     authentication,
-    beginClose() { closing = true; },
+    async beginClose() {
+      closing = true;
+      await Promise.allSettled([...activeRoutes]);
+    },
     assertClean() {
       if (defects.length) throw new Error(`Release API boundary failed: ${[...new Set(defects)].join("; ")}`);
     },
