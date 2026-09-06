@@ -32,6 +32,26 @@
 시간대 추가로 의미가 바뀌지 않습니다. 패스카드·ID 카드와 출석 상태도 각
 `SessionParticipant` 행을 기존 방식으로 읽습니다.
 
+## 참가자 상태 운영
+
+- `pending`은 **승인 대기**로 표시하고 선생님이 **예약 승인**(`booked`) 또는
+  **예약 거절**(`rejected`)할 수 있습니다. 서버가 tenant·역할·허용 전이를 다시
+  검증하며 프론트에서 다른 전이를 추정하지 않습니다.
+- `booked` 학생의 등원 기록을 현장에서 놓친 경우에도 **하원**을 선택할 수 있습니다.
+  이때 현재 참가자의 `session`과 `student`를 확인값으로 보내고
+  `confirm_without_arrival=true`를 명시합니다. 서버는 등원이나 출석 상태를 만들지
+  않고 하원 시각만 기록합니다.
+- `attended` 참가자의 자율학습 완료와 **완료 취소**는 별도 상태입니다. 완료 취소는
+  출석·등원·하원 이력을 유지하고 `completed_at`만 서버 계약에 따라 되돌립니다.
+- 학생명 노란 하이라이트는 참가자 응답의
+  `name_highlight_clinic_target`을 그대로 사용합니다. 예약·출석·완료로 과락을
+  해결했다고 클라이언트에서 재판정하지 않으며, 학생 패스카드와 같은 서버 SSOT를
+  따릅니다.
+
+모든 성공 동작은 참가자 목록을 다시 읽어 서버 상태를 표시하고, 실패하면 현재 행을
+임의로 바꾸지 않은 채 오류를 안내합니다. 상태와 하이라이트는 새로고침 후에도 서버
+응답과 동일해야 합니다.
+
 ## 학생 희망 시간
 
 세션 생성 시 **학생 희망 시간 받기**를 켜면 `allow_time_preference=true`를
@@ -45,7 +65,7 @@
 - API와 타입: `src/app_teacher/domains/clinic/api.ts`
 - 다중 시간·학생 선택: `components/AddParticipantSheet.tsx`
 - 세션 생성 정책·참가자 화면: `pages/ClinicPage.tsx`
-- 원자 요청·새로고침·390px 가로 넘침 회귀:
+- 원자 요청·상태 전이 payload·하이라이트·새로고침·390px/데스크톱 가로 넘침 회귀:
   `e2e/teacher/clinic-multi-slot-booking.mock.spec.ts`
 
 학생 신청 화면 계약은 `src/app_student/domains/clinic/README.md`, 서버 원자성·

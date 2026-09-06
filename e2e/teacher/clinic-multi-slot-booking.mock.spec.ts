@@ -274,3 +274,194 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
     }),
   ]);
 });
+
+test("선생님이 모바일과 데스크톱에서 예약 승인부터 하원·완료 취소까지 같은 lifecycle을 운영한다", async ({ page }) => {
+  const date = "2026-09-06";
+  const session = {
+    id: 711,
+    title: "상태 검수 클리닉",
+    date,
+    start_time: "17:00:00",
+    end_time: "19:00:00",
+    duration_minutes: 120,
+    location: "클리닉 2실",
+    participant_count: 4,
+    booked_count: 1,
+    max_participants: 10,
+    is_full: false,
+    allow_multi_slot_booking: false,
+  };
+  const participants = [
+    {
+      id: 910,
+      session: session.id,
+      student: 810,
+      student_name: "승인 검수 학생",
+      status: "pending",
+      name_highlight_clinic_target: true,
+    },
+    {
+      id: 911,
+      session: session.id,
+      student: 811,
+      student_name: "거절 검수 학생",
+      status: "pending",
+      name_highlight_clinic_target: true,
+    },
+    {
+      id: 912,
+      session: session.id,
+      student: 812,
+      student_name: "미등원 검수 학생",
+      status: "booked",
+      checked_in_at: null,
+      checked_out_at: null,
+      name_highlight_clinic_target: false,
+    },
+    {
+      id: 913,
+      session: session.id,
+      student: 813,
+      student_name: "완료 검수 학생",
+      status: "attended",
+      checked_in_at: `${date}T17:00:00+09:00`,
+      completed_at: `${date}T18:00:00+09:00`,
+      name_highlight_clinic_target: true,
+    },
+  ];
+  const statusPayloads: unknown[] = [];
+  const checkoutPayloads: unknown[] = [];
+  const uncompletedIds: number[] = [];
+
+  await page.addInitScript((token) => {
+    localStorage.setItem("access", token);
+    localStorage.setItem("refresh", token);
+    localStorage.setItem("tenant_code", "hakwonplus");
+    sessionStorage.setItem("tenantCode", "hakwonplus");
+    localStorage.setItem("teacher:preferAdmin", "0");
+  }, fakeJwt());
+
+  await page.route("**/api/v1/**", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const path = url.pathname.replace(/^\/api\/v1/, "");
+    const json = (body: unknown, status = 200) => route.fulfill({
+      status,
+      contentType: "application/json",
+      body: JSON.stringify(body),
+    });
+
+    if (request.method() === "OPTIONS") return route.fulfill({ status: 204 });
+    if (path === "/core/program/") {
+      return json({
+        tenantCode: "hakwonplus",
+        display_name: "학원플러스",
+        ui_config: {},
+        feature_flags: {},
+        is_active: true,
+      });
+    }
+    if (path === "/core/me/") {
+      return json({
+        id: 71,
+        username: "teacher",
+        name: "담당 선생님",
+        is_staff: true,
+        is_superuser: false,
+        tenantRole: "teacher",
+        must_change_password: false,
+      });
+    }
+    if (path === "/clinic/sessions/" && request.method() === "GET") return json([session]);
+    if (path === "/clinic/participants/" && request.method() === "GET") {
+      return json({ count: participants.length, results: participants });
+    }
+
+    const statusMatch = path.match(/^\/clinic\/participants\/(\d+)\/set_status\/$/);
+    if (statusMatch && request.method() === "PATCH") {
+      const id = Number(statusMatch[1]);
+      const payload = request.postDataJSON() as { status: string };
+      statusPayloads.push({ id, ...payload });
+      const participant = participants.find((row) => row.id === id)!;
+      participant.status = payload.status;
+      participant.name_highlight_clinic_target = payload.status !== "booked";
+      return json(participant);
+    }
+
+    const checkoutMatch = path.match(/^\/clinic\/participants\/(\d+)\/checkout\/$/);
+    if (checkoutMatch && request.method() === "POST") {
+      const id = Number(checkoutMatch[1]);
+      const payload = request.postDataJSON();
+      checkoutPayloads.push({ id, ...payload });
+      const participant = participants.find((row) => row.id === id)!;
+      participant.checked_out_at = `${date}T18:30:00+09:00`;
+      return json(participant);
+    }
+
+    const uncompleteMatch = path.match(/^\/clinic\/participants\/(\d+)\/uncomplete\/$/);
+    if (uncompleteMatch && request.method() === "POST") {
+      const id = Number(uncompleteMatch[1]);
+      uncompletedIds.push(id);
+      const participant = participants.find((row) => row.id === id)!;
+      participant.completed_at = null;
+      participant.name_highlight_clinic_target = false;
+      return json(participant);
+    }
+
+    return json({ count: 0, results: [] });
+  });
+
+  await page.goto(`${BASE}/workspace/mobile/clinic`, {
+    waitUntil: "domcontentloaded",
+    timeout: 30_000,
+  });
+  await page.getByRole("button", { name: /상태 검수 클리닉/ }).click();
+
+  const approveRow = page.getByTestId("teacher-clinic-participant-910");
+  const rejectRow = page.getByTestId("teacher-clinic-participant-911");
+  const checkoutRow = page.getByTestId("teacher-clinic-participant-912");
+  const completedRow = page.getByTestId("teacher-clinic-participant-913");
+
+  await expect(approveRow).toContainText("승인 대기");
+  await expect(approveRow.locator(".ds-student-name--clinic-highlight")).toHaveText("승인 검수 학생");
+  await approveRow.getByRole("button", { name: "예약 승인" }).click();
+  await expect.poll(() => statusPayloads).toContainEqual({ id: 910, status: "booked" });
+  await expect(approveRow).toContainText("미등원");
+  await expect(approveRow.locator(".ds-student-name--clinic-highlight")).toHaveCount(0);
+
+  await rejectRow.getByRole("button", { name: "예약 거절" }).click();
+  await expect.poll(() => statusPayloads).toContainEqual({ id: 911, status: "rejected" });
+  await expect(rejectRow).toContainText("거절");
+  await expect(rejectRow.locator(".ds-student-name--clinic-highlight")).toHaveText("거절 검수 학생");
+
+  await checkoutRow.getByRole("button", { name: "하원" }).click();
+  const checkoutDialog = page.getByRole("dialog", { name: "하원 처리" });
+  await expect(checkoutDialog).toContainText("등원 기록은 만들지 않고 하원 시각만 남긴 뒤");
+  await checkoutDialog.getByRole("button", { name: "하원 확정" }).click();
+  await expect.poll(() => checkoutPayloads).toEqual([{
+    id: 912,
+    confirm_without_arrival: true,
+    expected_session_id: 711,
+    expected_student_id: 812,
+    send_to: "parent",
+  }]);
+  await expect(checkoutRow).toContainText("하원 완료");
+
+  await expect(completedRow.locator(".ds-student-name--clinic-highlight")).toHaveText("완료 검수 학생");
+  await completedRow.getByRole("button", { name: "완료 취소" }).click();
+  await expect.poll(() => uncompletedIds).toEqual([913]);
+  await expect(completedRow.getByRole("button", { name: "자율학습 완료" })).toBeVisible();
+  await expect(completedRow.locator(".ds-student-name--clinic-highlight")).toHaveCount(0);
+
+  expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await page.reload({ waitUntil: "domcontentloaded", timeout: 30_000 });
+  await page.getByRole("button", { name: /상태 검수 클리닉/ }).click();
+  await expect(page.getByTestId("teacher-clinic-participant-910")).toContainText("미등원");
+  await expect(page.getByTestId("teacher-clinic-participant-911")).toContainText("거절");
+  await expect(page.getByTestId("teacher-clinic-participant-912")).toContainText("하원 완료");
+  await expect(page.getByTestId("teacher-clinic-participant-913").getByRole("button", { name: "자율학습 완료" })).toBeVisible();
+
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await expect(page.getByTestId("teacher-clinic-participant-910")).toBeVisible();
+  expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+});

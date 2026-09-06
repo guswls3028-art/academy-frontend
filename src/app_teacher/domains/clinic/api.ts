@@ -23,6 +23,7 @@ export type TeacherClinicSession = {
 };
 
 export type TeacherClinicParticipantStatus =
+  | "pending"
   | "booked"
   | "attended"
   | "no_show"
@@ -44,6 +45,7 @@ export type TeacherClinicParticipant = {
   is_late?: boolean | null;
   completed_at?: string | null;
   is_completed?: boolean | null;
+  name_highlight_clinic_target?: boolean;
   planned_clinic_link_ids?: number[];
   profile_photo_url?: string | null;
   lecture_title?: string | null;
@@ -103,7 +105,12 @@ export async function remindParticipant(
 
 export async function checkoutParticipant(
   participantId: number,
-  payload: { send_to: TeacherClinicRecipient },
+  payload: {
+    send_to: TeacherClinicRecipient;
+    confirm_without_arrival?: boolean;
+    expected_session_id?: number;
+    expected_student_id?: number;
+  },
 ): Promise<TeacherClinicParticipant> {
   const res = await api.post(`/clinic/participants/${participantId}/checkout/`, payload);
   return res.data;
@@ -129,6 +136,14 @@ export async function completeParticipant(
   payload: { send_to?: TeacherClinicRecipient } = {},
 ): Promise<TeacherClinicParticipant> {
   const res = await api.post(`/clinic/participants/${participantId}/complete/`, payload);
+  return res.data;
+}
+
+/** 참가자 완료 취소 */
+export async function uncompleteParticipant(
+  participantId: number,
+): Promise<TeacherClinicParticipant> {
+  const res = await api.post(`/clinic/participants/${participantId}/uncomplete/`);
   return res.data;
 }
 
