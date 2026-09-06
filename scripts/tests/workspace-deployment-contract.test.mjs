@@ -78,7 +78,7 @@ test("an isolated candidate preview gates the production deploy", () => {
   assert.match(workflow, /--branch="\$\{PREVIEW_BRANCH\}"/);
   assert.match(workflow, /for ATTEMPT in \$\(seq 1 60\)/);
   assert.match(workflow, /Preview version did not propagate/);
-  assert.match(workflow, /CANDIDATE_SHA: \$\{\{ github\.sha \}\}/);
+  assert.match(workflow, /CANDIDATE_SHA: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/);
   assert.match(
     workflow,
     /Candidate artifact version does not match the checked-out revision/,
