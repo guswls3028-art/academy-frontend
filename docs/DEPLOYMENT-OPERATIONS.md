@@ -45,6 +45,13 @@ cache-bust 재요청과 최신 자산 전파 확인 경로까지 도달한다.
 출근 선택 UI는 로그아웃·학생·학부모 화면에서 import하지 않아, 그 자산의 일시적인
 캐시·네트워크 실패가 로그인이나 학생 앱 전체를 업데이트 복구 화면으로 바꾸지 않는다.
 
+브라우저 지원선은 `vite.config.ts`의 build target을 따른다. `color-mix()` 같은 선택적
+CSS 표현 기능의 미지원만으로 로그인 전 root를 덮거나 브라우저 교체를 요구하지 않는다.
+대신 `data-color-mix="unsupported"`에서 학생 핵심 surface/tint token을 정적 색으로
+대체해 로그인, 학생 shell, 탐색과 입력을 그대로 유지한다. 전체화면 복구 안내는 실제
+entry module 또는 route-critical asset이 실행되지 못한 경우에만 제한된 cache-bust
+재요청과 함께 사용한다.
+
 Cloudflare Git production auto-deploy는 direct-upload workflow와 경쟁하면 안
 된다. workflow는 project source 설정과 reserved production branch 부재를
 readback하며, drift이면 upload 전에 실패한다.

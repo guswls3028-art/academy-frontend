@@ -116,7 +116,10 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
   draftPuts.length = 0;
   draftCommits.length = 0;
   currentScores = [...(options.initialScores ?? [65, 52])];
-  currentSubjectiveScores = [...(options.initialSubjectiveScores ?? [5, 10])];
+  currentSubjectiveScores = [...(
+    options.initialSubjectiveScores
+    ?? currentScores.map((score) => (score == null ? null : 0))
+  )];
   currentCorrectionStatuses = [...(
     options.initialCorrectionStatuses
     ?? currentScores.map((score) => (score == null ? null : score >= 100 ? "NOT_REQUIRED" : "PENDING"))
