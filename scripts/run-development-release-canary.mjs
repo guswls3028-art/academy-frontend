@@ -16,6 +16,10 @@ const PASSWORD_PARAMETER = "/academy/api/development/ymath-realuse-password";
 const WEB_ORIGIN = "http://localhost:4173";
 const API_ORIGIN = "http://127.0.0.1:18000";
 const FLOW_COUNTS = { "notice-roundtrip.spec.ts": 3, "qna-roundtrip.spec.ts": 4, "clinic-roundtrip.spec.ts": 3 };
+const RELEASE_BOUNDARY_CODES = new Set([
+  "api-origin", "context-disposed", "cors", "credentials", "mutation", "observation-schema",
+  "origin", "redirect", "tenant", "transport",
+]);
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const sha = (value) => crypto.createHash("sha256").update(value).digest("hex");
 const canonical = (value) => JSON.stringify(value, function (_key, item) {
@@ -43,12 +47,55 @@ function initialPreflightEvidence(frontendSha) {
     frontendSha: /^[a-f0-9]{40}$/.test(frontendSha || "") ? frontendSha : null,
     backendGovernanceSha: null, backendReleaseId: null, apiDigest: null, instanceId: null,
     tenantCode: null, artifactSha256: null, cases: null, documentSha256: {}, cleanup: null,
-    operationObservation: null, inspectObservation: null,
+    operationObservation: null, inspectObservation: null, realUseObservation: null,
     preflightStage: "process",
     preflightChecks: Object.fromEntries(PREFLIGHT_CHECKS.map((name) => [name, false])),
     terminalOutcome: "preflight_running", passed: false,
     failures: ["development preflight unfinished; cleanup not proven"],
   };
+}
+
+export function observeReleaseTestResult(stdout) {
+  const observation = {
+    reportStatus: "unparsed",
+    stats: { expected: null, skipped: null, unexpected: null, flaky: null },
+    failedFiles: [], boundaryCodes: [], runnerErrorCount: null,
+  };
+  let report;
+  try { report = JSON.parse(typeof stdout === "string" ? stdout : ""); }
+  catch { return observation; }
+  observation.reportStatus = "parsed";
+  const safeCount = (value) => Number.isInteger(value) && value >= 0 && value <= 1000 ? value : null;
+  observation.stats = Object.fromEntries(Object.keys(observation.stats)
+    .map((name) => [name, safeCount(report?.stats?.[name])]));
+  observation.runnerErrorCount = safeCount(Array.isArray(report?.errors) ? report.errors.length : null);
+  const failedFiles = new Set();
+  const messages = [];
+  const collectErrors = (errors) => {
+    for (const error of Array.isArray(errors) ? errors : []) {
+      if (typeof error?.message === "string") messages.push(error.message);
+    }
+  };
+  collectErrors(report?.errors);
+  const visit = (suite) => {
+    for (const spec of Array.isArray(suite?.specs) ? suite.specs : []) {
+      const file = path.basename(String(spec.file || suite.file || ""));
+      for (const test of Array.isArray(spec.tests) ? spec.tests : []) {
+        const results = Array.isArray(test.results) ? test.results : [];
+        const failed = test.expectedStatus !== "passed" || test.status !== "expected"
+          || results.length !== 1 || results[0]?.status !== "passed";
+        if (failed && Object.hasOwn(FLOW_COUNTS, file)) failedFiles.add(file);
+        for (const result of results) collectErrors(result?.errors || (result?.error ? [result.error] : []));
+      }
+    }
+    for (const child of Array.isArray(suite?.suites) ? suite.suites : []) visit(child);
+  };
+  for (const suite of Array.isArray(report?.suites) ? report.suites : []) visit(suite);
+  observation.failedFiles = [...failedFiles].sort();
+  observation.boundaryCodes = [...new Set(messages.flatMap((message) =>
+    [...message.matchAll(/Release request rejected \[([a-z-]+)\]/g)].map((match) => match[1])
+      .filter((code) => RELEASE_BOUNDARY_CODES.has(code))))].sort();
+  return observation;
 }
 
 export async function runPreflightStages(stages, persist, frontendSha) {
@@ -407,6 +454,7 @@ export async function run() {
   let setupAttempted = false;
   let cleanup;
   let counts;
+  let realUseObservation;
   let tests;
   let interrupted = false;
   let finalizing = false;
@@ -424,7 +472,7 @@ export async function run() {
       instanceId, tenantCode: tenant, artifactSha256: fingerprint, cases: counts || null,
       documentSha256: Object.fromEntries([...expectedDocuments].map(([name, content]) => [name, sha(content)])),
       cleanup: cleanup ? { tenantCode: tenant, remaining: cleanup.remaining } : null,
-      operationObservation, inspectObservation,
+      operationObservation, inspectObservation, realUseObservation: realUseObservation || null,
       terminalOutcome, passed, failures: errors });
     persistEvidence(evidence);
     return evidence;
@@ -459,6 +507,7 @@ export async function run() {
         E2E_ADMIN_PASS: secret.Parameter.Value, E2E_STUDENT_PASS: secret.Parameter.Value },
     }, 20 * 60_000);
     const result = await tests.done;
+    realUseObservation = observeReleaseTestResult(result.stdout);
     assert.equal(result.code, 0, "Required development real-use failed (raw credential-bearing report is not published)");
     counts = assertReleaseSummary(JSON.parse(result.stdout));
   } catch { primaryFailed = true; failures.push("development identity/setup/real-use failed"); }

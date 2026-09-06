@@ -15,6 +15,20 @@ function isExactPublicTenantMetadataRead(boundary: ReleaseBoundary, target: URL,
     && target.searchParams.get("hostname") === new URL(boundary.webOrigin).hostname;
 }
 
+function releaseRequestFailureCode(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  if (message.includes("missing or foreign QA tenant")) return "tenant";
+  if (message.includes("escaped the verified API boundary")) return "origin";
+  if (message.includes("must use the verified API origin")) return "api-origin";
+  if (message.includes("cannot contain credentials")) return "credentials";
+  if (message.includes("observation payload")) return "observation-schema";
+  if (message.includes("business mutation refused")) return "mutation";
+  if (message.includes("redirect refused")) return "redirect";
+  if (message.includes("CORS boundary mismatch")) return "cors";
+  if (message.startsWith("route.fetch: Request context disposed.")) return "context-disposed";
+  return "transport";
+}
+
 export function releaseBoundaryFromEnv(env: Record<string, string | undefined>): ReleaseBoundary | null {
   if (!env.E2E_RELEASE_API_MODE) return null;
   const mode = env.E2E_RELEASE_API_MODE;
@@ -170,7 +184,7 @@ export async function installReleaseContextGuard(context: BrowserContext, bounda
       // Upstream errors can contain credential-bearing URLs. Emit no raw error.
       const disposedDuringClose = closing && error instanceof Error
         && error.message.startsWith("route.fetch: Request context disposed.");
-      if (!disposedDuringClose) defects.push("Release request rejected or real upstream transport failed");
+      if (!disposedDuringClose) defects.push(`Release request rejected [${releaseRequestFailureCode(error)}]`);
       await route.abort("blockedbyclient");
       return;
     }

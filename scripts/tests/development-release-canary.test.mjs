@@ -5,7 +5,7 @@ import { stripTypeScriptTypes } from "node:module";
 import http from "node:http";
 import { chromium } from "@playwright/test";
 import { execFileSync } from "node:child_process";
-import { assertReleaseSummary, assertCleanup, assertManifest, assertActiveInstance, assertReadOnlyAssessmentSource } from "../run-development-release-canary.mjs";
+import { assertReleaseSummary, assertCleanup, assertManifest, assertActiveInstance, assertReadOnlyAssessmentSource, observeReleaseTestResult } from "../run-development-release-canary.mjs";
 import * as runner from "../run-development-release-canary.mjs";
 
 test("each run has an independent non-published ownership capability", () => {
@@ -70,6 +70,7 @@ test("preflight writes an inert envelope before checks and marks only reviewed p
     cleanup: null,
     operationObservation: null,
     inspectObservation: null,
+    realUseObservation: null,
     preflightStage: "process",
     preflightChecks: { bundle: false, governance: false, iam: false, document: false, host: false, ssm: false },
     terminalOutcome: "preflight_running",
@@ -266,6 +267,33 @@ function completeFlowReport() {
     })),
   ] };
 }
+
+test("real-use failure observation publishes only allowlisted counts, files, and boundary codes", () => {
+  const report = completeFlowReport();
+  const failed = report.suites[0].specs[0].tests[0];
+  failed.status = "unexpected";
+  failed.results[0] = {
+    status: "failed",
+    errors: [{ message: "Release request rejected [tenant] secret-token student-name" }],
+  };
+  report.errors.push({ message: "Release request rejected [cors] C:/secret/path" });
+  report.stats.unexpected = 1;
+  report.stats.expected = 9;
+  assert.deepEqual(observeReleaseTestResult(JSON.stringify(report)), {
+    reportStatus: "parsed",
+    stats: { expected: 9, skipped: 0, unexpected: 1, flaky: 0 },
+    failedFiles: ["notice-roundtrip.spec.ts"],
+    boundaryCodes: ["cors", "tenant"],
+    runnerErrorCount: 1,
+  });
+  const published = JSON.stringify(observeReleaseTestResult(JSON.stringify(report)));
+  assert.doesNotMatch(published, /secret-token|student-name|C:\/secret\/path/);
+  assert.deepEqual(observeReleaseTestResult("not-json secret-token"), {
+    reportStatus: "unparsed",
+    stats: { expected: null, skipped: null, unexpected: null, flaky: null },
+    failedFiles: [], boundaryCodes: [], runnerErrorCount: null,
+  });
+});
 
 test("all ten real-use cases are mandatory; missing, skip, failure, retry and global errors fail closed", () => {
   assert.doesNotThrow(() => assertReleaseSummary(completeFlowReport()));
@@ -491,7 +519,7 @@ test("intentional context close ignores only request-context disposal", async ()
 
   const beforeClose = await makeGuard("route.fetch: Request context disposed.");
   await beforeClose.handler(beforeClose.route);
-  assert.throws(() => beforeClose.guard.assertClean(), /Release API boundary failed/);
+  assert.throws(() => beforeClose.guard.assertClean(), /Release request rejected \[context-disposed\]/);
 
   const duringClose = await makeGuard("route.fetch: Request context disposed.\nCall log omitted");
   duringClose.guard.beginClose();
@@ -501,7 +529,7 @@ test("intentional context close ignores only request-context disposal", async ()
   const realFailure = await makeGuard("Real API CORS boundary mismatch");
   realFailure.guard.beginClose();
   await realFailure.handler(realFailure.route);
-  assert.throws(() => realFailure.guard.assertClean(), /Release API boundary failed/);
+  assert.throws(() => realFailure.guard.assertClean(), /Release request rejected \[cors\]/);
 });
 
 test("real Chromium receives the unmodified loopback HTTP response through the transport boundary", async () => {
