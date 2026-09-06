@@ -92,6 +92,28 @@ async function recoverEmptySpaRoot(page: Page): Promise<void> {
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
 }
 
+export async function dismissDevelopmentFirstLoginGuide(
+  page: Page,
+  tenantCode: string,
+  releaseMode = process.env.E2E_RELEASE_API_MODE,
+): Promise<void> {
+  if (releaseMode !== "development") return;
+  if (!/^qa-ymath-realuse-[a-z0-9-]+$/.test(tenantCode)) {
+    throw new Error("Development first-login guide dismissal requires an exact disposable QA tenant");
+  }
+
+  const dialog = page.locator(
+    `[data-first-login-tenant="${tenantCode}"] [role="dialog"]`,
+  );
+  const visible = await dialog.waitFor({ state: "visible", timeout: 3_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!visible) return;
+
+  await dialog.getByRole("button", { name: "확인", exact: true }).click();
+  await dialog.waitFor({ state: "hidden", timeout: 10_000 });
+}
+
 /* ── Credentials ── */
 const CREDS: Record<TenantRole, { base: string; code: string; userEnv: string; passEnv: string }> = {
   "admin":          { base: BASE,     code: DEFAULT_TENANT_CODE, userEnv: "E2E_ADMIN_USER",      passEnv: "E2E_ADMIN_PASS" },
@@ -206,6 +228,7 @@ export async function loginViaUI(
   // SPA 의 useEffect 데이터 fetch 안정화 — networkidle 기반 (waitForTimeout 제거)
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
   await recoverEmptySpaRoot(page);
+  await dismissDevelopmentFirstLoginGuide(page, c.code);
 }
 
 /**
