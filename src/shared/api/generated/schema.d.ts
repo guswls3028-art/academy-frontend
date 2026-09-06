@@ -12097,6 +12097,7 @@ export interface components {
             final_pass?: boolean | null;
             /** Format: double */
             final_score: number | null;
+            grading_status?: (components["schemas"]["GradingStatusEnum"] | components["schemas"]["NullEnum"]) | null;
             /** @default false */
             is_provisional: boolean;
             lecture_chip_label?: string | null;
@@ -13564,6 +13565,11 @@ export interface components {
             errors: string[];
             skipped: number;
         };
+        /**
+         * @description * `subjective_pending` - subjective_pending
+         * @enum {string}
+         */
+        GradingStatusEnum: "subjective_pending";
         /**
          * @description * `account_inactive` - account_inactive
          *     * `password_setup_required` - password_setup_required

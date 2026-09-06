@@ -1540,18 +1540,21 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           const examMaxScore = block?.max_score ?? ex.max_score ?? null;
                           const isExamNotSubmitted = block?.meta?.status === "NOT_SUBMITTED";
                           const omrReviewStatus = getScoreBlockOmrReviewStatus(block);
+                          const subjectivePending = block?.grading_status === "subjective_pending";
                           const isEmptyScore = block?.score == null && !isExamNotSubmitted && !omrReviewStatus;
                           const scoreText = omrReviewStatus === "review" ? "검토" : isExamNotSubmitted ? "미응시" : block?.score == null ? "-" : scoreFormat === "fraction" && examMaxScore != null ? `${formatScoreNumber(block.score)}/${formatScoreNumber(Number(examMaxScore))}` : formatScoreNumber(block.score);
                           const hasRetakes = (entry?.attempt_count ?? 0) >= 2;
                           const hasClinicLink = entry?.clinic_link_id != null;
-                          const canEdit = isEditMode && examEditTotal && !block?.is_locked && !hasRetakes && !omrReviewStatus && !collaborator;
+                          const canEdit = isEditMode && examEditTotal && !block?.is_locked && !hasRetakes && !omrReviewStatus && !subjectivePending && !collaborator;
                           const showAddRetake = isEditMode && hasClinicLink && !hasRetakes && block?.passed === false;
-                          const progressStyle = canEdit ? undefined : scoreProgressStyle(block?.score, examMaxScore);
+                          const progressStyle = canEdit || subjectivePending ? undefined : scoreProgressStyle(block?.score, examMaxScore);
                           /* 2026-05-13 학원장 결정: 학생별 상태 = 진행중/이수/판정 — 클리닉 1차/2차/3차 정합.
                              셀 hover 시 tooltip 으로 노출. */
                           const achLabel = achievementLabel(block);
                           const cellTitle = omrReviewStatus === "review"
                             ? `${ex.title} · OMR 검토 필요`
+                            : subjectivePending
+                              ? `${ex.title} · 객관식 저장 완료 · 서술형 점수 입력 필요`
                             : `${ex.title} · ${scoreText} · ${achLabel}`;
                           return (
                             <td
@@ -1574,7 +1577,22 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     : {})}
                               className={`min-w-0 text-center align-middle ${showAddRetake ? "ds-scores-cell--with-retake-action" : ""} ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${collaborator ? "ds-scores-cell-collaborator" : isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                               title={collaborator ? `${collaborator.editor_name}님이 이 시험 점수를 입력 중입니다.` : cellTitle}
-                              onClick={(e) => { if (isEditMode) e.stopPropagation(); if (collaborator) feedback.info(`${collaborator.editor_name}님이 이 시험 점수를 입력 중입니다.`); else onSelectCell(row, "exam", ex.exam_id, "total"); }}
+                              onClick={(e) => {
+                                if (isEditMode) e.stopPropagation();
+                                if (collaborator) {
+                                  feedback.info(`${collaborator.editor_name}님이 이 시험 점수를 입력 중입니다.`);
+                                } else if (subjectivePending && onOpenExamGrading) {
+                                  onOpenExamGrading(
+                                    ex.exam_id,
+                                    ex.title,
+                                    resolveExamGradingMode(ex),
+                                    ex.manual_grading_method ?? "score",
+                                    "manual",
+                                  );
+                                } else {
+                                  onSelectCell(row, "exam", ex.exam_id, "total");
+                                }
+                              }}
                             >
                               {collaborator ? (
                                 <span className="ds-scores-collaborator-label">{collaborator.editor_name} 입력 중</span>
@@ -1728,6 +1746,15 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     else if (e.key === "ArrowRight") { e.preventDefault(); e.stopPropagation(); onRequestMoveNext?.(); }
                                   }}
                                 />
+                              ) : subjectivePending ? (
+                                <span className="inline-flex max-w-full flex-col items-center gap-1">
+                                  <span className="text-xs font-semibold tabular-nums">
+                                    객관 {formatScoreNumber(Number(block?.objective_score ?? block?.score ?? 0))}
+                                  </span>
+                                  <Badge variant="solid" tone="warning" size="xs" title="눌러서 서술형 점수를 입력하세요.">
+                                    서술형 입력
+                                  </Badge>
+                                </span>
                               ) : isEditMode && hasRetakes ? (
                                 <div className="ds-cell-attempt-info" title="재시험 이력이 있습니다. 학생을 클릭하여 드로어에서 편집하세요.">
                                   <span className="ds-cell-score-locked">{scoreText}</span>

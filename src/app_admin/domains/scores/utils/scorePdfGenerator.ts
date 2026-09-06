@@ -2,9 +2,11 @@
 // 교사용 차시 성적표 — A4 가로, 테넌트 브랜딩, 안전한 다중 페이지 출력
 
 import type {
+  SessionScoreExamEntry,
   SessionScoreMeta,
   SessionScoreRow,
 } from "../api/sessionScores";
+import { isSubjectivePendingScoreBlock } from "@/shared/scoring/subjectivePending";
 import { getSessionScoresTableVerdict } from "./sessionScoreRowVerdict";
 import { resolveStudentScoreReportTheme } from "./studentScoreReportTheme";
 
@@ -406,13 +408,14 @@ function buildBodyRows(
     }
     for (const exam of exams) {
       const entry = row.exams?.find((item) => item.exam_id === exam.exam_id);
+      const scoreReady = entry?.block.score != null && !isSubjectivePendingScoreBlock(entry.block);
       cells.push(
-        entry?.block.score != null
+        scoreReady
           ? `<td class="num">${fmtScore(entry.block.score)}</td>`
-          : '<td class="no-score">-</td>',
+          : `<td class="no-score">${entry && isSubjectivePendingScoreBlock(entry.block) ? "입력중" : "-"}</td>`,
       );
       cells.push(
-        entry?.block.score != null
+        scoreReady
           ? `<td class="num">${passText(entry.block.passed)}</td>`
           : '<td class="no-score">-</td>',
       );
@@ -448,13 +451,22 @@ function buildSummaryRow(params: ScorePdfParams, hasAttendance: boolean): string
   if (hasAttendance) cells.push("<td></td>");
   for (const exam of meta.exams ?? []) {
     const scores = rows
-      .map((row) => row.exams?.find((item) => item.exam_id === exam.exam_id)?.block.score)
+      .map((row) => row.exams?.find((item) => item.exam_id === exam.exam_id))
+      .filter((entry): entry is SessionScoreExamEntry => (
+        entry != null && !isSubjectivePendingScoreBlock(entry.block)
+      ))
+      .map((entry) => entry.block.score)
       .filter((score): score is number => score != null);
     const average = scores.length > 0
       ? scores.reduce((sum, score) => sum + score, 0) / scores.length
       : null;
     const passed = rows.filter(
-      (row) => row.exams?.find((item) => item.exam_id === exam.exam_id)?.block.passed === true,
+      (row) => {
+        const entry = row.exams?.find((item) => item.exam_id === exam.exam_id);
+        return entry != null
+          && !isSubjectivePendingScoreBlock(entry.block)
+          && entry.block.passed === true;
+      },
     ).length;
     cells.push(`<td class="num">${average == null ? "-" : average.toFixed(1)}</td>`);
     cells.push(`<td class="num">${passed}/${scores.length}</td>`);

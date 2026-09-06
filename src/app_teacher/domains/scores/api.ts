@@ -32,6 +32,7 @@ export type TeacherExamResultRow = {
   submitted_at?: string | null;
   meta_status?: string | null;
   is_provisional?: boolean | null;
+  grading_status?: "subjective_pending" | null;
   correction_session_id?: number | null;
   correction_status?: "PENDING" | "COMPLETED" | "NOT_REQUIRED" | null;
 };
@@ -70,6 +71,22 @@ export async function updateResult(
     const res = await api.patch(
       `/results/admin/exams/${examId}/enrollments/${enrollmentId}/score/`,
       body,
+      { headers },
+    );
+    return res.data;
+  });
+}
+
+export async function updateSubjectiveResult(
+  sessionId: number,
+  examId: number,
+  enrollmentId: number,
+  score: number,
+): Promise<unknown> {
+  return runWithScoreEditLease(sessionId, async (headers) => {
+    const res = await api.patch(
+      `/results/admin/exams/${examId}/enrollments/${enrollmentId}/subjective/`,
+      { score },
       { headers },
     );
     return res.data;

@@ -6,6 +6,7 @@ import type {
   SessionScoreRow,
   SessionScoreMeta,
 } from "../api/sessionScores";
+import { isSubjectivePendingScoreBlock } from "@/shared/scoring/subjectivePending";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { deriveFinalPass } from "@/shared/scoring/achievement";
 import { loadPdfModules } from "@/shared/utils/pdfModules";
@@ -652,6 +653,7 @@ function isUnresolvedClinicBlock(block: ScoreBlock | null | undefined): boolean 
 
 function hasCompletedScoreSignal(block: ScoreBlock | null | undefined): boolean {
   if (!block) return false;
+  if (isSubjectivePendingScoreBlock(block)) return false;
   const finalPass = deriveFinalPass({
     achievement: block.achievement ?? null,
     is_pass: block.passed ?? null,
@@ -675,6 +677,9 @@ function analyze(rows: SessionScoreRow[], meta: SessionScoreMeta, attendanceMap?
   for (const row of filteredRows) {
     const allExams = row.exams ?? [];
     const allHws = row.homeworks ?? [];
+    if (allExams.some((entry) => isSubjectivePendingScoreBlock(entry.block))) {
+      continue;
+    }
     if (isSessionRowProgressCompleted(row)) {
       passed.push(row.student_name);
       continue;

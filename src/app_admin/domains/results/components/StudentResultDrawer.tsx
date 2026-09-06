@@ -331,11 +331,11 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                   variant="solid"
                   size="sm"
                   tone="warning"
-                  title="채점 미확정 — 임시 점수"
+                  title={detail.grading_status === "subjective_pending" ? "객관식 저장 완료 · 서술형 점수 입력 필요" : "채점 미확정 — 임시 점수"}
                   // eslint-disable-next-line no-restricted-syntax
                   style={{ marginLeft: 6 }}
                 >
-                  임시 점수
+                  {detail.grading_status === "subjective_pending" ? "서술형 입력 필요" : "임시 점수"}
                 </Badge>
               )}
             </div>

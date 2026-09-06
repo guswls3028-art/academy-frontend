@@ -10,6 +10,7 @@
  */
 import type { ScoreBlock, SessionScoreRow } from "../api/sessionScores";
 import { deriveFinalPass } from "@/shared/scoring/achievement";
+import { isSubjectivePendingScoreBlock } from "@/shared/scoring/subjectivePending";
 
 export function isSessionRowProgressCompleted(row: SessionScoreRow): boolean {
   return row.progress_completed === true || row.progress_status === "completed";
@@ -23,6 +24,7 @@ type AttentionKind = "missing" | "review" | "failed" | null;
 
 function blockAttentionKind(block: ScoreBlock, sourceType: "exam" | "homework"): AttentionKind {
   if (getScoreBlockOmrReviewStatus(block)) return "review";
+  if (sourceType === "exam" && isSubjectivePendingScoreBlock(block)) return "missing";
   const fp = deriveFinalPass({
     achievement: block.achievement ?? null,
     is_pass: block.passed ?? null,
