@@ -39,7 +39,7 @@ import ClinicParticipantActionDialog, {
   type ClinicParticipantActionPayload,
 } from "@admin/domains/clinic/components/ClinicParticipantActionDialog";
 import type { TeacherClinicParticipant } from "../api";
-import { formatClinicOutcomeNotice } from "../notificationOutcome";
+import { buildClinicOutcomeNotice } from "../notificationOutcome";
 
 function durationMinutes(start: string, end: string): number {
   const [sh, sm] = start.split(":").map(Number);
@@ -313,7 +313,7 @@ function ParticipantList({
       qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participants(sessionId) });
       qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.sessions });
       const label = variables.action === "arrive" ? "등원" : variables.action === "late" ? "지각 등원" : variables.action === "checkout" ? "하원" : variables.action === "remind" ? "재촉" : "결석";
-      const notice = formatClinicOutcomeNotice(label, data.notification);
+      const notice = buildClinicOutcomeNotice(label, data.notification);
       teacherToast[notice.tone](notice.message);
       if (variables.action === "absent") {
         setReplacementSessionId("");
@@ -347,7 +347,7 @@ function ParticipantList({
       setReplacementPreferredEnd("");
       qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.sessions });
       qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participants(sessionId) });
-      const notice = formatClinicOutcomeNotice("보충 일정 이동", data?.notification);
+      const notice = buildClinicOutcomeNotice("보충 일정 이동", data?.notification);
       teacherToast[notice.tone](notice.message);
     },
     onError: (e) => teacherToast.error(extractApiError(e, "보충 일정을 옮기지 못했습니다.")),
@@ -357,7 +357,7 @@ function ParticipantList({
     mutationFn: (participantId: number) => completeParticipant(participantId),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participants(sessionId) });
-      const notice = formatClinicOutcomeNotice("자율학습 완료", data.notification);
+      const notice = buildClinicOutcomeNotice("자율학습 완료", data.notification);
       teacherToast[notice.tone](notice.message);
     },
     onError: (e) => teacherToast.error(extractApiError(e, "완료 처리에 실패했습니다.")),

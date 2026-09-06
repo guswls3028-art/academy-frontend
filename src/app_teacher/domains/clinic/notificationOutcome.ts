@@ -14,7 +14,7 @@ const RECIPIENT_LABELS: Record<TeacherClinicRecipient, string> = {
   both: "학생·학부모",
 };
 
-export function formatClinicOutcomeNotice(
+export function buildClinicOutcomeNotice(
   actionLabel: string,
   notification?: TeacherClinicNotificationOutcome,
 ): ClinicOutcomeNotice {
