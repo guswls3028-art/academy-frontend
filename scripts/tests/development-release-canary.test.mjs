@@ -70,6 +70,8 @@ test("preflight writes an inert envelope before checks and marks only reviewed p
     cleanup: null,
     operationObservation: null,
     inspectObservation: null,
+    playwrightObservation: null,
+    sessionCleanupObservation: null,
     preflightStage: "process",
     preflightChecks: { bundle: false, governance: false, iam: false, document: false, host: false, ssm: false },
     terminalOutcome: "preflight_running",
@@ -157,18 +159,21 @@ test("Inspect match evidence records booleans without publishing compared values
   const inspected = {
     status: "DEVELOPMENT_QA_IDENTITY_PASS",
     remaining: { tenants: 0, users: 0 },
+    residue: { activity_audits: 0, listeners: 0, outstanding_tokens: 0, processes: 0, r2_objects: 0 },
     release_id: manifest.releaseImageTag,
     digest: manifest.images["academy-api"].digest,
   };
   assert.deepEqual(runner.inspectMatchObservation(inspected, manifest), {
     statusMatches: true,
     remainingZero: true,
+    residueZero: true,
     releaseMatches: true,
     digestMatches: true,
   });
   const invalid = [
     [{ ...inspected, status: "DEVELOPMENT_QA_FAILED" }, "statusMatches"],
     [{ ...inspected, remaining: { tenants: 0, users: 1 } }, "remainingZero"],
+    [{ ...inspected, residue: { activity_audits: 1 } }, "residueZero"],
     [{ ...inspected, release_id: "other-release" }, "releaseMatches"],
     [{ ...inspected, digest: "sha256:other-digest" }, "digestMatches"],
   ];
@@ -212,9 +217,16 @@ test("a timed-out owned process with held-open stdin is killed and reaped", { ti
   try {
     const result = await child.done;
     assert.equal(result.code, -1);
+    assert.equal(result.classification, "timeout");
     assert.match(result.stdout, /ready/);
     assert.throws(() => process.kill(child.child.pid, 0));
   } finally { child.stop(); }
+});
+
+test("an owned process spawn error has an explicit sanitized classification", async () => {
+  const child = runner.ownedProcess("academy-command-that-does-not-exist", []);
+  const result = await child.done;
+  assert.deepEqual(result, { code: -1, stdout: "", classification: "spawn_error" });
 });
 
 const workflow = readFileSync(new URL("../../.github/workflows/quality-gate.yml", import.meta.url), "utf8").replaceAll("\r\n", "\n");
@@ -267,6 +279,104 @@ function completeFlowReport() {
   ] };
 }
 
+test("nonzero Playwright exit preserves only sanitized report counts and file identifiers", () => {
+  const report = completeFlowReport();
+  report.suites[0].file = "C:/student-name/notice-roundtrip.spec.ts";
+  report.suites[0].specs[0].file = "C:/student-name/notice-roundtrip.spec.ts";
+  report.suites[0].specs[0].tests[0].status = "unexpected";
+  report.suites[0].specs[0].tests[0].results[0] = {
+    status: "failed",
+    error: { message: "password-secret capability-secret" },
+  };
+  report.stats.expected = 9;
+  report.stats.unexpected = 1;
+  report.errors.push({ message: "student-name token-secret" });
+
+  const observed = runner.observePlaywrightResult({
+    code: 1,
+    classification: "exit",
+    stdout: JSON.stringify(report),
+  });
+
+  assert.deepEqual(observed.observation, {
+    classification: "exit",
+    exitCode: 1,
+    reportParsed: true,
+    reportErrors: 1,
+    stats: { expected: 9, skipped: 0, unexpected: 1, flaky: 0 },
+    caseCounts: {
+      "notice-roundtrip.spec.ts": 3,
+      "qna-roundtrip.spec.ts": 4,
+      "clinic-roundtrip.spec.ts": 3,
+    },
+    files: {
+      "notice-roundtrip.spec.ts": { expected: 2, skipped: 0, unexpected: 1, flaky: 0, attempts: 3 },
+      "qna-roundtrip.spec.ts": { expected: 4, skipped: 0, unexpected: 0, flaky: 0, attempts: 4 },
+      "clinic-roundtrip.spec.ts": { expected: 3, skipped: 0, unexpected: 0, flaky: 0, attempts: 3 },
+    },
+    unexpectedFiles: 0,
+  });
+  assert.deepEqual(observed.report, report);
+  assert.doesNotMatch(
+    JSON.stringify(observed.observation),
+    /student-name|password-secret|capability-secret|token-secret/,
+  );
+  for (const classification of ["exit", "timeout", "overflow", "spawn_error"]) {
+    assert.equal(
+      runner.observePlaywrightResult({ classification, code: -1, stdout: "not-json" })
+        .observation.classification,
+      classification,
+    );
+  }
+  const source = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+  const resultBoundary = source.split("const result = await tests.done;", 2)[1];
+  assert.ok(
+    resultBoundary.indexOf("playwrightObservation = observed.observation;")
+      < resultBoundary.indexOf("assert.equal(result.code, 0"),
+    "Sanitized Playwright evidence must be assigned before the nonzero assertion",
+  );
+  assert.match(source, /cases: counts \|\| playwrightObservation\?\.caseCounts \|\| null/);
+});
+
+test("session cleanup accepts only terminated or the explicit bounded Terminating tuple", () => {
+  const terminated = runner.assessSessionCleanup({
+    active: [],
+    history: [{ Status: "Terminated" }],
+    terminateSucceeded: false,
+    postReadAttempts: 1,
+  });
+  assert.equal(terminated.classification, "terminated");
+  assert.equal(terminated.proven, true);
+
+  const boundedTerminating = runner.assessSessionCleanup({
+    active: [],
+    history: [{ Status: "Terminating", EndDate: "2026-09-05T06:21:34Z" }],
+    terminateSucceeded: true,
+    postReadAttempts: 2,
+  });
+  assert.deepEqual(boundedTerminating, {
+    activeCount: 0,
+    historyCount: 1,
+    historyStatus: "Terminating",
+    historyEndDateObserved: true,
+    terminateSucceeded: true,
+    postReadAttempts: 2,
+    classification: "terminating_verified",
+    proven: true,
+  });
+
+  for (const input of [
+    { active: [{ Status: "Active" }], history: [], terminateSucceeded: true, postReadAttempts: 1 },
+    { active: [], history: [{ Status: "Terminating" }], terminateSucceeded: true, postReadAttempts: 1 },
+    { active: [], history: [{ Status: "Terminating", EndDate: "set" }], terminateSucceeded: false, postReadAttempts: 1 },
+    { active: [], history: [], terminateSucceeded: true, postReadAttempts: 10 },
+  ]) {
+    const observation = runner.assessSessionCleanup(input);
+    assert.equal(observation.proven, false);
+    assert.ok(["active", "unverified"].includes(observation.classification));
+  }
+});
+
 test("all ten real-use cases are mandatory; missing, skip, failure, retry and global errors fail closed", () => {
   assert.doesNotThrow(() => assertReleaseSummary(completeFlowReport()));
   const corrupt = [
@@ -284,10 +394,17 @@ test("all ten real-use cases are mandatory; missing, skip, failure, retry and gl
 
 test("cleanup requires the exact owned tenant and numeric zero tenant/user residue", () => {
   const tenant = "qa-ymath-realuse-fe-123-1-abcdef123456";
-  const valid = { tenant_code: tenant, status: "YMATH_REALUSE_SCENARIO_DESTROYED", remaining: { tenants: 0, users: 0 } };
+  const residue = { activity_audits: 0, listeners: 0, outstanding_tokens: 0, processes: 0, r2_objects: 0 };
+  const valid = {
+    tenant_code: tenant,
+    status: "YMATH_REALUSE_SCENARIO_DESTROYED",
+    remaining: { tenants: 0, users: 0 },
+    residue,
+  };
   assert.doesNotThrow(() => assertCleanup(valid, tenant));
   for (const invalid of [{ ...valid, tenant_code: `${tenant}-foreign` }, { ...valid, remaining: { tenants: 0, users: 1 } },
-    { ...valid, remaining: { tenants: "0", users: 0 } }, { ...valid, status: "YMATH_REALUSE_SCENARIO_READY" }]) {
+    { ...valid, remaining: { tenants: "0", users: 0 } }, { ...valid, status: "YMATH_REALUSE_SCENARIO_READY" },
+    { ...valid, residue: { ...residue, outstanding_tokens: 1 } }]) {
     assert.throws(() => assertCleanup(invalid, tenant));
   }
 });
