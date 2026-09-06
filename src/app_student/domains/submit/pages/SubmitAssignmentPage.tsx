@@ -69,6 +69,11 @@ function apiErrorMessage(error: unknown, fallback = "제출에 실패했습니�
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
+function apiErrorCode(error: unknown): string {
+  const data = (error as { response?: { data?: Record<string, unknown> } } | null)?.response?.data;
+  return typeof data?.code === "string" ? data.code : "";
+}
+
 function mediaStatusLabel(file: HomeworkMediaFile): string {
   if (file.status === "failed") return "업로드 실패";
   if (file.status === "uploading") return "저장 중";
@@ -112,8 +117,11 @@ export default function SubmitAssignmentPage() {
     () => (grades?.homeworks ?? []).filter((homework) => (
       (requestedSessionId == null || Number(homework.session_id) === requestedSessionId)
       && homework.lecture_active !== false
-      && homework.teacher_resolved !== true
-      && homework.passed !== true
+      && (
+        homework.submission_media_locked == null
+          ? homework.teacher_resolved !== true && homework.passed !== true
+          : homework.submission_media_locked !== true
+      )
     )),
     [grades?.homeworks, requestedSessionId],
   );
@@ -151,6 +159,7 @@ export default function SubmitAssignmentPage() {
       if (candidates.length === 0) throw new Error("새로 제출할 파일을 선택해 주세요.");
       const succeeded: string[] = [];
       const failed: string[] = [];
+      let reviewLocked = false;
       for (const item of candidates) {
         updatePending(item.clientFileId, { status: "uploading", progress: 0, error: null });
         const body = new FormData();
@@ -176,13 +185,25 @@ export default function SubmitAssignmentPage() {
           ));
           succeeded.push(item.clientFileId);
         } catch (uploadError) {
+          if (apiErrorCode(uploadError) === "HOMEWORK_MEDIA_REVIEWED") {
+            reviewLocked = true;
+            break;
+          }
           failed.push(item.clientFileId);
           updatePending(item.clientFileId, { status: "failed", error: apiErrorMessage(uploadError, "이 파일을 올리지 못했습니다.") });
         }
       }
-      return { succeeded, failed };
+      return { succeeded, failed, reviewLocked };
     },
-    onSuccess: async ({ succeeded, failed }) => {
+    onSuccess: async ({ succeeded, failed, reviewLocked }) => {
+      if (reviewLocked) {
+        await qc.invalidateQueries({ queryKey: studentQueryKeys.gradesSummary });
+        setSelected(null);
+        setPendingFiles([]);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        setError("선생님 확인이 완료되어 제출 목록을 갱신했습니다. 보완이 필요하면 선생님에게 상태 변경을 요청해 주세요.");
+        return;
+      }
       setPendingFiles((current) => current.filter((item) => !succeeded.includes(item.clientFileId)));
       await mediaQ.refetch();
       qc.invalidateQueries({ queryKey: studentQueryKeys.gradesSummary });
