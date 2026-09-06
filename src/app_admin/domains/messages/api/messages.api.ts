@@ -10,16 +10,16 @@ const PREFIX = "/messaging";
 // ----------------------------------------
 
 export interface TenantMessagingInfo {
-  /** 알림톡 채널 출처: 공용 owner 채널 */
-  channel_source?: "common_owner" | "system_default";
-  /** 실제 발송에 사용되는 공용 PFID */
+  /** 알림톡 채널 출처. 검수 중에는 공용 채널이 계속 발송을 담당한다. */
+  channel_source?: "common_owner" | "tenant_pending" | "tenant_verified" | "tenant_suspended";
+  /** 레거시 호환 필드. 새 화면에서는 내부 PFID를 노출하지 않는다. */
   resolved_pf_id?: string;
   /** 공용 채널 기준 알림톡 발송 가능 여부 */
   alimtalk_available?: boolean;
   /** 실제 발송 공급자는 공용 솔라피로 고정 */
   messaging_provider?: "solapi";
   has_own_credentials?: boolean;
-  delivery_policy?: "common_alimtalk_only";
+  delivery_policy?: "verified_tenant_or_common_alimtalk";
   messaging_disabled?: boolean;
   messaging_disabled_reason?: string;
   /** 학원 대표/관리자가 직접 제어하는 전체 알림톡 사용 상태 */
@@ -27,6 +27,14 @@ export interface TenantMessagingInfo {
   /** 장애 확산 방지용 별도 운영 hold. 고객 설정과 구분한다. */
   messaging_ops_hold?: boolean;
   can_manage_messaging?: boolean;
+  custom_channel_status?: "not_configured" | "pending_templates" | "active" | "suspended";
+  custom_channel_registered?: boolean;
+  custom_channel_reference?: string;
+  custom_channel_approved_templates?: number;
+  custom_channel_required_templates?: number;
+  custom_channel_test_available?: boolean;
+  custom_channel_last_test_status?: "" | "sent" | "failed" | "ambiguous";
+  custom_channel_last_tested_at?: string | null;
 }
 
 export type NotificationLogStatus =

@@ -1,5 +1,5 @@
 // PATH: src/app_teacher/domains/comms/pages/MessagingSettingsPage.tsx
-// 메시지 설정 — 공용 알림톡 상태 + 자동발송. 테넌트별 공급자/키/PFID 편집은 노출하지 않는다.
+// 메시지 설정 — 검증된 우리 학원 채널 + 공용 fallback. 키/PFID 편집은 노출하지 않는다.
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -39,6 +39,43 @@ export default function MessagingSettingsPage() {
 
   const alimtalkAvailable = Boolean(info?.alimtalk_available);
   const messagingDisabled = Boolean(info?.messaging_disabled);
+  const customChannelActive = info?.custom_channel_status === "active";
+  const customChannelPending = info?.custom_channel_status === "pending_templates";
+  const customChannelSuspended = info?.custom_channel_status === "suspended";
+  const channelNeedsAttention = customChannelPending || customChannelSuspended;
+  let channelLabel = "공용 채널";
+  let channelSummary = "공용 채널 · 별도 입력 없음";
+  let channelBadge = alimtalkAvailable ? "연결됨" : "확인 필요";
+  let channelStatusLabel: string | undefined;
+  let noticeTitle = "알림톡 상태를 확인해 주세요.";
+  let noticeMessage = "학원에서 키를 입력하지 않습니다. 대표·관리자가 운영 담당자에게 상태 확인을 요청해 주세요.";
+  if (customChannelPending) {
+    channelLabel = "채널 준비 중";
+    channelSummary = `${info?.custom_channel_reference || "우리 학원 채널"} · ${info?.custom_channel_approved_templates ?? 0}/${info?.custom_channel_required_templates ?? 0} 승인`;
+    channelBadge = "검수 중";
+    channelStatusLabel = "검수 중";
+    noticeTitle = "우리 학원 채널 양식을 검수 중입니다.";
+    noticeMessage = `승인 양식 ${info?.custom_channel_approved_templates ?? 0}/${info?.custom_channel_required_templates ?? 0}개 · 완료 전에는 공용 채널로 정상 발송됩니다.`;
+  }
+  if (customChannelSuspended) {
+    channelLabel = "채널 사용 중지";
+    channelSummary = `${info?.custom_channel_reference || "우리 학원 채널"} · 전용 발송 중지`;
+    channelBadge = "점검 필요";
+    channelStatusLabel = "점검";
+    noticeTitle = "우리 학원 채널 발송을 확인해 주세요.";
+    noticeMessage = "승인 양식 상태가 달라 전용 채널 발송을 안전하게 막았습니다.";
+  }
+  if (customChannelActive) {
+    channelLabel = "우리 학원 채널";
+    channelSummary = `${info?.custom_channel_reference || "우리 학원 채널"} · 전용 발송`;
+  }
+  if (messagingDisabled) {
+    channelLabel = "운영 중지";
+    channelBadge = "운영 중지";
+    channelStatusLabel = "중지";
+    noticeTitle = "알림톡 발송이 중지되어 있습니다.";
+    noticeMessage = info?.messaging_disabled_reason || "운영 중지 상태입니다.";
+  }
   const readyAutoCount = (autoConfigs ?? []).filter((config) => config.effective_template_is_approved).length;
 
   return (
@@ -64,39 +101,35 @@ export default function MessagingSettingsPage() {
 
       {!isLoading && info && (
         <>
-          {!alimtalkAvailable && (
+          {(!alimtalkAvailable || customChannelPending || customChannelSuspended) && (
             <div className={styles.setupNotice}>
               <AlertCircle size={ICON.sm} className={styles.warnIcon} />
               <div className={`${styles.setupNoticeText} text-[12px]`}>
-                <strong className={styles.setupNoticeTitle}>{messagingDisabled ? "알림톡 발송이 중지되어 있습니다." : "공용 알림톡 상태를 확인해 주세요."}</strong>
-                <span className={styles.setupNoticeTail}>
-                  {messagingDisabled
-                    ? info.messaging_disabled_reason
-                    : "학원에서 키를 입력하지 않습니다. 대표·관리자가 운영 담당자에게 상태 확인을 요청해 주세요."}
-                </span>
+                <strong className={styles.setupNoticeTitle}>{noticeTitle}</strong>
+                <span className={styles.setupNoticeTail}>{noticeMessage}</span>
               </div>
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-2">
             <KpiStatCard icon={<Settings size={ICON.xs} />} label="공급자" value="공용 솔라피" status="ok" tone="provider" />
-            <KpiStatCard icon={<MessageCircle size={ICON.xs} />} label="채널" value={messagingDisabled ? "운영 중지" : "공용 채널"} status={alimtalkAvailable ? "ok" : "warn"} statusLabel={messagingDisabled ? "중지" : undefined} tone="sender" />
+            <KpiStatCard icon={<MessageCircle size={ICON.xs} />} label="채널" value={channelLabel} status={channelNeedsAttention ? "warn" : alimtalkAvailable ? "ok" : "warn"} statusLabel={channelStatusLabel} tone="sender" />
             <KpiStatCard icon={<Send size={ICON.xs} />} label="알림톡" value={messagingDisabled ? "운영 중지" : alimtalkAvailable ? "사용 가능" : "확인 필요"} status={alimtalkAvailable ? "ok" : "warn"} statusLabel={messagingDisabled ? "중지" : undefined} tone="kakao" />
             <KpiStatCard icon={<Lock size={ICON.xs} />} label="발송 정책" value="알림톡 전용" status="ok" tone="sms" />
           </div>
 
           <Card>
-            <SectionHeader icon={<Lock size={ICON.sm} />} title="공용 알림톡 정책" desc="학생·학부모 안내는 승인된 카카오 알림톡으로만 발송됩니다." badge="알림톡 전용" />
+            <SectionHeader icon={<Lock size={ICON.sm} />} title="알림톡 채널 정책" desc="학생·학부모 안내는 승인된 카카오 알림톡으로만 발송됩니다." badge="알림톡 전용" />
             <p className={`${styles.mutedText} text-[12px] leading-5`}>
-              공급자, API 키, 발신번호와 카카오 채널은 서비스가 공용으로 관리합니다. 저장한 문구는 발송 시 승인된 알림톡 양식에 안전하게 담깁니다.
+              공급자, API 키와 발신번호는 서비스가 공용으로 관리합니다. 운영자가 검증한 우리 학원 채널만 전용 채널로 연결하며 과거 직접 연동값은 사용하지 않습니다.
             </p>
           </Card>
 
           <Card>
-            <SectionHeader icon={<MessageCircle size={ICON.sm} />} title="알림톡 채널" desc="공용 채널과 발송 준비 상태를 확인합니다." badge={messagingDisabled ? "운영 중지" : alimtalkAvailable ? "연결됨" : "확인 필요"} />
+            <SectionHeader icon={<MessageCircle size={ICON.sm} />} title="알림톡 채널" desc="현재 적용되는 채널과 발송 준비 상태를 확인합니다." badge={channelBadge} />
             <div className="flex items-center justify-between gap-2">
-              <span className={`${styles.mutedText} text-[12px]`}>공용 채널 · 별도 입력 없음</span>
-              <StatusChip ok={alimtalkAvailable} label={messagingDisabled ? "운영 중지" : alimtalkAvailable ? "발송 가능" : "확인 필요"} />
+              <span className={`${styles.mutedText} text-[12px]`}>{channelSummary}</span>
+              <StatusChip ok={alimtalkAvailable && !channelNeedsAttention} label={channelBadge === "연결됨" ? "발송 가능" : channelBadge} />
             </div>
             <button type="button" onClick={() => navigate("/workspace/mobile/message-templates")}
               className={`${styles.secondaryButton} w-full text-xs font-semibold cursor-pointer mt-3`}>

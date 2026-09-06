@@ -55,7 +55,7 @@ async function installApi(page: Page, verifyQueries: string[]) {
         channel_source: "common_owner",
         alimtalk_available: true,
         messaging_provider: "solapi",
-        delivery_policy: "common_alimtalk_only",
+        delivery_policy: "verified_tenant_or_common_alimtalk",
         tenant_messaging_enabled: true,
         messaging_ops_hold: false,
         can_manage_messaging: true,

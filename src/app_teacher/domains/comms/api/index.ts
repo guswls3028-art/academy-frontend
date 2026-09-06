@@ -247,16 +247,24 @@ export async function fetchMessageLog(page = 1, pageSize = 20): Promise<{ result
 /* ─── Messaging Info & Templates ─── */
 export interface MessagingInfo {
   messaging_provider: "solapi";
-  channel_source?: "common_owner" | "system_default";
+  channel_source?: "common_owner" | "tenant_pending" | "tenant_verified" | "tenant_suspended";
   resolved_pf_id?: string;
   alimtalk_available?: boolean;
   has_own_credentials?: boolean;
-  delivery_policy?: "common_alimtalk_only";
+  delivery_policy?: "verified_tenant_or_common_alimtalk";
   messaging_disabled?: boolean;
   messaging_disabled_reason?: string;
   tenant_messaging_enabled?: boolean;
   messaging_ops_hold?: boolean;
   can_manage_messaging?: boolean;
+  custom_channel_status?: "not_configured" | "pending_templates" | "active" | "suspended";
+  custom_channel_registered?: boolean;
+  custom_channel_reference?: string;
+  custom_channel_approved_templates?: number;
+  custom_channel_required_templates?: number;
+  custom_channel_test_available?: boolean;
+  custom_channel_last_test_status?: "" | "sent" | "failed" | "ambiguous";
+  custom_channel_last_tested_at?: string | null;
 }
 
 export async function fetchMessagingInfo(): Promise<MessagingInfo> {

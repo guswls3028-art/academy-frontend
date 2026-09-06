@@ -80,6 +80,9 @@ export default function DashboardPage() {
       : messagingInfo.alimtalk_available
         ? "ready"
         : "disconnected";
+  const customChannelActive = messagingInfo?.custom_channel_status === "active";
+  const customChannelPending = messagingInfo?.custom_channel_status === "pending_templates";
+  const customChannelSuspended = messagingInfo?.custom_channel_status === "suspended";
   const alimtalkCopy = {
     loading: {
       title: "알림톡 상태를 확인하고 있습니다",
@@ -94,14 +97,20 @@ export default function DashboardPage() {
       tone: "danger" as const,
     },
     disconnected: {
-      title: "발송 준비를 확인해 주세요",
-      description: "현재 발송 준비가 완료되지 않았습니다. 설정 상태를 확인해 주세요.",
+      title: customChannelSuspended ? "우리 학원 채널 점검 필요" : "발송 준비를 확인해 주세요",
+      description: customChannelSuspended
+        ? "승인 양식 상태가 달라 전용 채널 발송을 안전하게 막았습니다. 메시지 설정에서 상태를 확인해 주세요."
+        : "현재 발송 준비가 완료되지 않았습니다. 설정 상태를 확인해 주세요.",
       badge: "설정 필요",
       tone: "warning" as const,
     },
     ready: {
       title: "알림톡 발송 가능",
-      description: "공용 알림톡 채널과 직접 발송 봉투가 준비되어 있습니다. 자동 안내별 준비 상태는 메시지 설정에서 확인하세요.",
+      description: customChannelActive
+        ? "우리 학원 카카오 채널과 승인 양식이 준비되어 있습니다."
+        : customChannelPending
+          ? `우리 학원 채널 양식 ${messagingInfo?.custom_channel_approved_templates ?? 0}/${messagingInfo?.custom_channel_required_templates ?? 0}개를 검수 중입니다. 완료 전에는 공용 채널로 정상 발송됩니다.`
+          : "공용 알림톡 채널과 직접 발송 봉투가 준비되어 있습니다. 자동 안내별 준비 상태는 메시지 설정에서 확인하세요.",
       badge: "정상",
       tone: "success" as const,
     },
@@ -210,7 +219,7 @@ export default function DashboardPage() {
                 </span>
                 <span className={styles.messageChannel}>
                   <strong>카카오 알림톡</strong>
-                  <small>우리 학원 안내 채널</small>
+                  <small>{customChannelActive ? "우리 학원 전용 채널" : customChannelSuspended ? "우리 학원 채널 점검 필요" : customChannelPending ? "우리 학원 채널 준비 중" : "공용 안내 채널"}</small>
                 </span>
                 <Badge tone={alimtalkCopy.tone} size="sm" variant="soft">
                   {alimtalkCopy.badge}
