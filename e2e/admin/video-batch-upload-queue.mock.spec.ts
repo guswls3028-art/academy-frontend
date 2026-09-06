@@ -284,8 +284,15 @@ test("multipart 파트에 ETag가 없으면 세 번 재시도한 뒤 exact uploa
   await dropLargeVideo(dialog, "101mb-multipart-missing-etag.mp4");
   await dialog.getByRole("button", { name: "업로드 (1개)" }).click();
 
-  await expect.poll(() => evidence.multipartAbortCount, { timeout: 30_000 }).toBe(1);
-  expect(evidence.multipartPutAttempts).toBe(8);
-  expect(evidence.multipartPutAttemptsByPart).toEqual({ 1: 4, 2: 4 });
-  expect(evidence.multipartCompleteParts).toEqual([]);
+  await expect.poll(() => ({
+    abortCount: evidence.multipartAbortCount,
+    completeParts: evidence.multipartCompleteParts,
+    putAttempts: evidence.multipartPutAttempts,
+    putAttemptsByPart: evidence.multipartPutAttemptsByPart,
+  }), { timeout: 30_000 }).toEqual({
+    abortCount: 1,
+    completeParts: [],
+    putAttempts: 8,
+    putAttemptsByPart: { 1: 4, 2: 4 },
+  });
 });
