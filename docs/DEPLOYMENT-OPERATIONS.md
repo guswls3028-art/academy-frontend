@@ -179,6 +179,9 @@ exact tenant 경계를 그대로 적용한다.
 명시적 browser context 종료는 종료 직전과 직후에 경계 결함을 검사한다. 종료가
 진행 중일 때 발생한 정확한 Playwright request-context disposal만 수명주기 종료로
 분류하며, 그 전에 발생했거나 다른 upstream/CORS 오류는 계속 실패한다.
+실사용 실패 증거에는 Playwright 원문 대신 통과·실패 수, 고정된 flow 파일명,
+allowlist된 경계 단계 코드만 남긴다. URL query, header, token, 계정명과 원문 오류는
+artifact에 기록하지 않는다.
 
 개발 transport는 artifact가 가리키는 정확한 `https://api.hakwonplus.com/api/`만
 SSM의 `http://127.0.0.1:<port>/api/`로 전달한다. 웹 origin은 개발 settings가 실제로
