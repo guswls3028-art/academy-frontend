@@ -967,7 +967,10 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
   test.use({ viewport: { width: 1366, height: 900 }, serviceWorkers: "block" });
 
   test("입력 이력이 전혀 없으면 바로 수정 상태로 열리고 저장 후 잠금은 유지된다", async ({ page }, testInfo) => {
-    await openScores(page, { initialScores: [null, null] });
+    await openScores(page, {
+      initialScores: [null, null],
+      initialSubjectiveScores: [null, null],
+    });
 
     const saveAndLockButton = page.getByRole("button", { name: "저장하고 잠금", exact: true });
     await expect(saveAndLockButton).toBeVisible({ timeout: 10_000 });
@@ -983,7 +986,10 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
   });
 
   test("변경 없는 자동 수정 상태에서는 빈 lease를 해제하고 OMR 등록을 연다", async ({ page }) => {
-    await openScores(page, { initialScores: [null, null] });
+    await openScores(page, {
+      initialScores: [null, null],
+      initialSubjectiveScores: [null, null],
+    });
 
     const omrButton = page.getByRole("button", { name: "OMR 스캔 등록" });
     await expect(omrButton).toBeEnabled({ timeout: 10_000 });
