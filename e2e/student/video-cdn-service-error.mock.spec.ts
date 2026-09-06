@@ -99,6 +99,10 @@ test.describe("student video CDN service errors", () => {
     await expect.poll(async () => (await youtube.snapshot()).players[0]?.state).toBe(1);
     const beforeUpdate = await youtube.snapshot();
 
+    await page.evaluate(() => {
+      window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true }));
+    });
+
     await expect(page.getByRole("status")).toContainText("새 버전이 준비됐어요", {
       timeout: 8_000,
     });

@@ -53,11 +53,9 @@ export function useVersionChecker(): boolean {
         if (active) setUpdateAvailable(true);
       }
     };
-    const firstTimeout = window.setTimeout(() => void detect(), 5_000);
     const interval = window.setInterval(() => void detect(), CHECK_INTERVAL);
     return () => {
       active = false;
-      window.clearTimeout(firstTimeout);
       window.clearInterval(interval);
     };
   }, [updateAvailable]);
