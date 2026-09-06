@@ -154,5 +154,13 @@ export async function updateStudentHomeworkGrade(
       { headers },
     );
     return res.data;
+  }, {
+    changes: [{
+      type: "homework",
+      enrollmentId: grade.enrollment_id,
+      homeworkId: grade.homework_id,
+      score,
+    }],
+    takeOverSameUser: true,
   });
 }
