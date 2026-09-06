@@ -141,6 +141,25 @@ async function openLogin(page: Page) {
 
 test.use({ serviceWorkers: "block" });
 
+test("로그인 전과 학생 세션은 교직원 전용 출근 chunk를 요청하지 않는다", async ({ page }) => {
+  let staffClockChunkRequests = 0;
+  page.on("request", (request) => {
+    if (request.url().includes("StaffClockInChoiceDialog")) {
+      staffClockChunkRequests += 1;
+    }
+  });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await stubLoginFlow(page, "student");
+  await openLogin(page);
+  await page.getByTestId("login-username").fill("student.id-20");
+  await page.getByTestId("login-password").fill("Case-Sensitive-Pw");
+  await page.getByTestId("login-submit").click({ timeout: 30_000 });
+  await expect(page).toHaveURL(/\/student(?:\/|$)/);
+
+  await expect.poll(() => staffClockChunkRequests).toBe(0);
+});
+
 for (const role of ["student", "parent", "staff"] as const) {
   test(`iPhone 로그인은 ${role} 입력값을 바꾸지 않고 역할 홈까지 이동한다`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });

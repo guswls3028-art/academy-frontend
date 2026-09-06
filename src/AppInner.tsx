@@ -5,6 +5,7 @@ import { lazy, Suspense, useEffect, useRef } from "react";
 import { useLocation } from "react-router";
 
 import AppRouter from "@/core/router/AppRouter";
+import useAuth from "@/auth/hooks/useAuth";
 import { useVersionChecker } from "@/shared/ui/layout/VersionChecker";
 import SubscriptionExpiredOverlay from "@/shared/ui/SubscriptionExpiredOverlay";
 import { addNavigationBreadcrumb } from "@/shared/lib/sentryContext";
@@ -14,6 +15,17 @@ import ImpersonationBanner from "@dev/shared/components/ImpersonationBanner";
 const StaffClockInChoiceDialog = lazy(
   () => import("@/features/staff-clock/StaffClockInChoiceDialog"),
 );
+
+function StaffClockInChoiceGate() {
+  const { user } = useAuth();
+  if (user?.tenantRole !== "staff") return null;
+
+  return (
+    <Suspense fallback={null}>
+      <StaffClockInChoiceDialog />
+    </Suspense>
+  );
+}
 
 export default function AppInner() {
   useVersionChecker(); // 배포 자동 업데이트 (visibilitychange + pageshow + 폴링)
@@ -32,9 +44,7 @@ export default function AppInner() {
     <>
       <ImpersonationBanner />
       <AppRouter />
-      <Suspense fallback={null}>
-        <StaffClockInChoiceDialog />
-      </Suspense>
+      <StaffClockInChoiceGate />
       <SubscriptionExpiredOverlay />
       <BugReportButton />
     </>
