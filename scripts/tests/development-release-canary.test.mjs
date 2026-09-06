@@ -275,6 +275,7 @@ test("real-use failure observation publishes only allowlisted counts, files, and
   failed.results[0] = {
     status: "failed",
     errors: [{ message: "Release request rejected [tenant] secret-token student-name" }],
+    stdout: [{ text: `${JSON.stringify({ releaseApiMode: "development", transport: { readFetchRetries: 1 }, ignored: "safe" })}\n` }],
   };
   report.errors.push({ message: "Release request rejected [cors] C:/secret/path" });
   report.stats.unexpected = 1;
@@ -285,13 +286,14 @@ test("real-use failure observation publishes only allowlisted counts, files, and
     failedFiles: ["notice-roundtrip.spec.ts"],
     boundaryCodes: ["cors", "tenant"],
     runnerErrorCount: 1,
+    readFetchRetries: 1,
   });
   const published = JSON.stringify(observeReleaseTestResult(JSON.stringify(report)));
   assert.doesNotMatch(published, /secret-token|student-name|C:\/secret\/path/);
   assert.deepEqual(observeReleaseTestResult("not-json secret-token"), {
     reportStatus: "unparsed",
     stats: { expected: null, skipped: null, unexpected: null, flaky: null },
-    failedFiles: [], boundaryCodes: [], runnerErrorCount: null,
+    failedFiles: [], boundaryCodes: [], runnerErrorCount: null, readFetchRetries: null,
   });
 });
 
@@ -515,6 +517,65 @@ test("same-artifact proxy preserves the real response and never sends credential
   assert.throws(() => guard.assertClean(), /Release API boundary failed/);
 });
 
+test("same-artifact proxy retries only safe read fetch transport and identifies the failing stage", async () => {
+  const install = async () => {
+    let handler;
+    const context = {
+      on() {}, route: async (_pattern, callback) => { handler = callback; },
+      request: Object.fromEntries(["fetch", "get", "head", "post", "put", "patch", "delete"].map((verb) => [verb, async () => {}])),
+    };
+    return { guard: await installReleaseContextGuard(context, development), handler };
+  };
+  const response = { status: () => 200, ok: () => true, headers: () => ({
+    "access-control-allow-origin": development.webOrigin,
+    "access-control-allow-credentials": "true",
+  }) };
+  const makeRoute = (method, fetch, fulfill = async () => {}) => ({
+    request: () => ({
+      url: () => "https://api.hakwonplus.com/api/v1/core/program/",
+      method: () => method,
+      postDataJSON: () => undefined,
+      headerValue: async () => development.tenantCode,
+      allHeaders: async () => ({ origin: development.webOrigin, "x-tenant-code": development.tenantCode }),
+    }),
+    fetch,
+    fulfill,
+    abort: async () => {},
+    continue: async () => {},
+  });
+
+  const safeRead = await install();
+  let readAttempts = 0;
+  let fulfillments = 0;
+  await safeRead.handler(makeRoute("GET", async () => {
+    readAttempts += 1;
+    if (readAttempts < 2) throw new Error("unit loopback fetch interruption");
+    return response;
+  }, async () => { fulfillments += 1; }));
+  assert.equal(readAttempts, 2);
+  assert.equal(fulfillments, 1);
+  assert.deepEqual(safeRead.guard.transport, { readFetchRetries: 1 });
+  assert.doesNotThrow(() => safeRead.guard.assertClean());
+
+  const mutation = await install();
+  let mutationAttempts = 0;
+  await mutation.handler(makeRoute("POST", async () => {
+    mutationAttempts += 1;
+    throw new Error("unit mutation fetch interruption");
+  }));
+  assert.equal(mutationAttempts, 1, "mutations must never be replayed");
+  assert.throws(() => mutation.guard.assertClean(), /Release request rejected \[fetch-transport\]/);
+
+  const delivery = await install();
+  let deliveryFetches = 0;
+  await delivery.handler(makeRoute("GET", async () => {
+    deliveryFetches += 1;
+    return response;
+  }, async () => { throw new Error("unit browser delivery interruption"); }));
+  assert.equal(deliveryFetches, 1, "browser delivery failure must not replay upstream transport");
+  assert.throws(() => delivery.guard.assertClean(), /Release request rejected \[fulfill-transport\]/);
+});
+
 test("intentional context close drains active requests and blocks new teardown traffic", async () => {
   const makeGuard = async (message) => {
     let handler;
@@ -572,9 +633,12 @@ test("intentional context close drains active requests and blocks new teardown t
 
   let rejectFetch;
   let markFailureStarted;
+  let activeFailureFetches = 0;
   const failureStarted = new Promise((resolve) => { markFailureStarted = resolve; });
   const activeFailure = await makeGuard("unused");
   activeFailure.route.fetch = async () => {
+    activeFailureFetches += 1;
+    if (activeFailureFetches > 1) throw new Error("unit transport still unavailable");
     markFailureStarted();
     return new Promise((_resolve, reject) => { rejectFetch = reject; });
   };
@@ -583,9 +647,11 @@ test("intentional context close drains active requests and blocks new teardown t
   const failingDrain = activeFailure.guard.beginClose();
   rejectFetch(new Error("unit transport unavailable"));
   await Promise.all([failingHandling, failingDrain]);
-  assert.throws(() => activeFailure.guard.assertClean(), /Release request rejected \[transport\]/);
+  assert.equal(activeFailureFetches, 2);
+  assert.throws(() => activeFailure.guard.assertClean(), /Release request rejected \[fetch-transport\]/);
 
-  const realFailure = await makeGuard("Real API CORS boundary mismatch");
+  const realFailure = await makeGuard("unused");
+  realFailure.route.fetch = async () => ({ status: () => 200, headers: () => ({}) });
   await realFailure.handler(realFailure.route);
   assert.throws(() => realFailure.guard.assertClean(), /Release request rejected \[cors\]/);
 });

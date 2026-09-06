@@ -42,7 +42,8 @@ export const test = base.extend<StrictBrowserOptions>({
           await boundaryGuard.beginClose();
           check();
           console.log(JSON.stringify({ releaseApiMode: boundary.mode,
-            authentication: boundaryGuard.authentication, observation: boundaryGuard.observations }));
+            authentication: boundaryGuard.authentication, observation: boundaryGuard.observations,
+            transport: boundaryGuard.transport }));
         } finally {
           try { await close(closeOptions); }
           finally { explicitlyClosed = true; }

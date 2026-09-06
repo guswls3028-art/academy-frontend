@@ -149,6 +149,7 @@ export function developmentUpstream(boundary: ReleaseBoundary, rawUrl: string): 
 export async function installReleaseContextGuard(context: BrowserContext, boundary: ReleaseBoundary) {
   const observations = { attempted: 0, accepted: 0 };
   const authentication = { attempted: 0, accepted: 0 };
+  const transport = { readFetchRetries: 0 };
   const defects: string[] = [];
   const activeRoutes = new Set<Promise<void>>();
   let closing = false;
@@ -156,6 +157,10 @@ export async function installReleaseContextGuard(context: BrowserContext, bounda
     () => defects.push("APIRequestContext release boundary violation"));
   const handleRoute = async (route: Parameters<Parameters<BrowserContext["route"]>[1]>[0]) => {
     const request = route.request();
+    const reject = async (code: string) => {
+      defects.push(`Release request rejected [${code}]`);
+      try { await route.abort("blockedbyclient"); } catch { /* Context teardown already owns this request. */ }
+    };
     try {
       const upstream = developmentUpstream(boundary, request.url());
       let data: unknown;
@@ -168,7 +173,26 @@ export async function installReleaseContextGuard(context: BrowserContext, bounda
         delete headers.host;
         // Transport only: unchanged artifact -> real isolated HTTP response.
         // Never follow a redirect carrying QA credentials to another origin.
-        const response = await route.fetch({ url: upstream, headers, maxRedirects: 0 });
+        let response: Awaited<ReturnType<typeof route.fetch>>;
+        try {
+          response = await route.fetch({ url: upstream, headers, maxRedirects: 0 });
+        } catch (error) {
+          const code = releaseRequestFailureCode(error);
+          const safeRead = ["GET", "HEAD", "OPTIONS"].includes(request.method().toUpperCase());
+          if (!safeRead || code === "context-disposed") {
+            await reject(code === "context-disposed" ? code : "fetch-transport");
+            return;
+          }
+          transport.readFetchRetries += 1;
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          try {
+            response = await route.fetch({ url: upstream, headers, maxRedirects: 0 });
+          } catch (retryError) {
+            const retryCode = releaseRequestFailureCode(retryError);
+            await reject(retryCode === "context-disposed" ? retryCode : "fetch-transport");
+            return;
+          }
+        }
         if (response.status() >= 300 && response.status() < 400) throw new Error("Release API redirect refused");
         // Playwright adds CORS headers when absent. Reject such a response
         // BEFORE fulfill so this transport cannot conceal a real CORS defect.
@@ -178,13 +202,15 @@ export async function installReleaseContextGuard(context: BrowserContext, bounda
           throw new Error("Real API CORS boundary mismatch");
         }
         if (counter && (kind === "observation" ? response.status() === 202 : response.ok())) counter.accepted += 1;
-        await route.fulfill({ response });
+        try { await route.fulfill({ response }); }
+        catch {
+          await reject("fulfill-transport");
+        }
         return;
       }
     } catch (error) {
       // Upstream errors can contain credential-bearing URLs. Emit no raw error.
-      defects.push(`Release request rejected [${releaseRequestFailureCode(error)}]`);
-      await route.abort("blockedbyclient");
+      await reject(releaseRequestFailureCode(error));
       return;
     }
     await route.continue();
@@ -202,6 +228,7 @@ export async function installReleaseContextGuard(context: BrowserContext, bounda
   return {
     observations,
     authentication,
+    transport,
     async beginClose() {
       closing = true;
       await Promise.allSettled([...activeRoutes]);
