@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/messages/pages/MessageSettingsPage.tsx
-// 공용 알림톡 설정 상태 — 테넌트별 문자/공급자 직접 연동 UI는 노출하지 않는다.
+// 검증된 우리 학원 채널과 공용 fallback 상태. 공급자 키/PFID 편집은 노출하지 않는다.
 
 import {
   FiAlertCircle,
@@ -85,11 +85,55 @@ export default function MessageSettingsPage() {
   const { mutate: runTest, isPending: isTesting } = useTestCredentials();
   const [testResult, setTestResult] = useState<TestCredentialsResult | null>(null);
 
-  const channelSourceLabel = "공용 채널";
   const alimtalkAvailable = Boolean(info?.alimtalk_available);
   const messagingDisabled = Boolean(info?.messaging_disabled);
-  const setupSteps = [{ done: alimtalkAvailable, label: "알림톡 발송 준비" }];
+  const customChannelRegistered = Boolean(info?.custom_channel_registered);
+  const customChannelActive = info?.custom_channel_status === "active";
+  const customChannelPending = info?.custom_channel_status === "pending_templates";
+  const customChannelSuspended = info?.custom_channel_status === "suspended";
+  let channelSourceLabel = "공용 채널";
+  if (customChannelActive) channelSourceLabel = "우리 학원 채널";
+  if (customChannelPending) channelSourceLabel = "우리 학원 채널 준비 중";
+  if (customChannelSuspended) channelSourceLabel = "우리 학원 채널 사용 중지";
+
+  const setupSteps = [
+    { done: alimtalkAvailable, label: "알림톡 발송 준비" },
+    ...(customChannelRegistered
+      ? [{ done: customChannelActive, label: "우리 학원 채널 승인 양식" }]
+      : []),
+  ];
   const allSetupDone = setupSteps.every((s) => s.done);
+
+  let setupAlertTitle = "알림톡 연동 상태를 확인해 주세요.";
+  let setupAlertMessage = `${setupSteps.filter((step) => !step.done).map((step) => step.label).join(", ")} 설정이 필요합니다.`;
+  if (customChannelPending) {
+    setupAlertTitle = "우리 학원 채널 양식을 검수 중입니다.";
+    setupAlertMessage = "승인 전에는 공용 채널로 정상 발송됩니다.";
+  }
+  if (customChannelSuspended) {
+    setupAlertTitle = "우리 학원 채널 발송을 확인해 주세요.";
+    setupAlertMessage = "승인 양식 상태가 달라 전용 채널 발송을 안전하게 막았습니다.";
+  }
+  if (messagingDisabled) {
+    setupAlertTitle = "알림톡 발송이 운영 중지되었습니다.";
+    setupAlertMessage = info?.messaging_disabled_reason || "운영 중지 상태입니다.";
+  }
+
+  let channelDescription = alimtalkAvailable
+    ? "공용 채널이 연결되어 있습니다. 별도 채널 정보나 API 키를 입력할 필요가 없습니다."
+    : "공용 채널 연결 상태를 확인해 주세요. 학원에서 직접 연동 정보를 입력하지 않습니다.";
+  if (customChannelPending) {
+    channelDescription = `${info?.custom_channel_reference || "우리 학원 채널"} 확인 완료 · 승인 양식 ${info?.custom_channel_approved_templates ?? 0}/${info?.custom_channel_required_templates ?? 0}개를 준비하고 있습니다. 완료 전에는 공용 채널로 정상 발송됩니다.`;
+  }
+  if (customChannelSuspended) {
+    channelDescription = `${info?.custom_channel_reference || "우리 학원 채널"} 발송 중지 · 승인 양식 ${info?.custom_channel_approved_templates ?? 0}/${info?.custom_channel_required_templates ?? 0}개를 확인하고 있습니다.`;
+  }
+  if (customChannelActive) {
+    channelDescription = `${info?.custom_channel_reference || "우리 학원 채널"} 연결 완료 · 승인 양식 ${info?.custom_channel_approved_templates ?? 0}/${info?.custom_channel_required_templates ?? 0}개`;
+  }
+  if (messagingDisabled) {
+    channelDescription = info?.messaging_disabled_reason || "운영 중지 상태입니다.";
+  }
 
   return (
     <div className={styles.root}>
@@ -104,12 +148,8 @@ export default function MessageSettingsPage() {
         <div className={styles.setupAlert}>
           <FiAlertCircle size={16} className={styles.setupAlertIcon} />
           <div className={styles.setupAlertText}>
-            <strong className={styles.setupAlertTitle}>{messagingDisabled ? "알림톡 발송이 운영 중지되었습니다." : "알림톡 연동 상태를 확인해 주세요."}</strong>
-            <span className={styles.setupMissing}>
-              {messagingDisabled
-                ? info.messaging_disabled_reason
-                : `${setupSteps.filter((s) => !s.done).map((s) => s.label).join(", ")} 설정이 필요합니다.`}
-            </span>
+            <strong className={styles.setupAlertTitle}>{setupAlertTitle}</strong>
+            <span className={styles.setupMissing}>{setupAlertMessage}</span>
           </div>
         </div>
       )}
@@ -126,7 +166,7 @@ export default function MessageSettingsPage() {
           icon={<FiMessageCircle size={16} />}
           label="채널"
           value={channelSourceLabel}
-          status={alimtalkAvailable ? "ok" : "warn"}
+          status={customChannelPending || customChannelSuspended ? "warn" : alimtalkAvailable ? "ok" : "warn"}
           tone="channel"
         />
         <KpiCard
@@ -146,27 +186,26 @@ export default function MessageSettingsPage() {
       </div>
 
       <Card accent="primary">
-        <SectionTitle icon={<FiShield size={15} />}>공용 알림톡 정책</SectionTitle>
+        <SectionTitle icon={<FiShield size={15} />}>알림톡 채널 정책</SectionTitle>
         <Desc>
-          학생·학부모 안내는 공용 카카오 알림톡 채널로 발송됩니다.
-          테넌트별 공급자/API 키 직접 연동과 문자 발송은 사용하지 않습니다.
+          운영자가 공급자에서 확인한 우리 학원 채널만 전용 채널로 사용합니다.
+          검수 전에는 공용 채널이 발송을 이어가며, 과거 PFID·자체 키·문자 발송 경로는 사용하지 않습니다.
         </Desc>
       </Card>
 
       <Card>
         <SectionTitle icon={<FiMessageCircle size={15} />}>카카오 알림톡 채널</SectionTitle>
-        <Desc>
-          {alimtalkAvailable
-            ? "공용 채널이 연결되어 있습니다. 별도 채널 정보나 API 키를 입력할 필요가 없습니다."
-            : messagingDisabled
-              ? info?.messaging_disabled_reason
-              : "공용 채널 연결 상태를 확인해 주세요. 학원에서 직접 연동 정보를 입력하지 않습니다."}
-        </Desc>
+        <Desc>{channelDescription}</Desc>
+        {customChannelRegistered && info?.custom_channel_last_test_status && (
+          <p className={styles.pfidCurrent}>
+            최근 전용 채널 테스트: {info.custom_channel_last_test_status === "sent" ? "발송 접수 확인" : info.custom_channel_last_test_status === "ambiguous" ? "결과 확인 필요" : "실패"}
+          </p>
+        )}
       </Card>
 
       <Card accent="success">
         <SectionTitle icon={<FiCheckCircle size={15} />}>연동 테스트</SectionTitle>
-        <Desc>공용 알림톡 채널, 발신번호, 발송 준비 상태를 확인합니다.</Desc>
+        <Desc>현재 적용되는 알림톡 채널, 발신번호, 승인 양식 준비 상태를 확인합니다.</Desc>
         <div className={styles.testActions}>
           <Button
             intent="primary"

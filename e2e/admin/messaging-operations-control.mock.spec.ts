@@ -108,7 +108,7 @@ async function installMessagingApp(page: Page, initialEnabled: boolean) {
         messaging_provider: "solapi",
         channel_source: "common_owner",
         resolved_pf_id: "PF-COMMON",
-        delivery_policy: "common_alimtalk_only",
+        delivery_policy: "verified_tenant_or_common_alimtalk",
         alimtalk_available: tenantEnabled,
         tenant_messaging_enabled: tenantEnabled,
         messaging_ops_hold: false,

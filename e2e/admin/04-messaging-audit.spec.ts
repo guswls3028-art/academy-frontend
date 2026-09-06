@@ -10,13 +10,13 @@ test.describe("메시징 비즈니스 계약", () => {
     await loginViaUI(page, "admin");
   });
 
-  test("설정은 공용 알림톡 상태만 보여주고 테넌트별 공급자·키 편집을 노출하지 않는다", async ({ page }) => {
+  test("설정은 적용 채널 상태만 보여주고 공급자 키 편집을 노출하지 않는다", async ({ page }) => {
     await gotoAndSettle(page, `${BASE}/workspace/message/settings`);
 
     await expect(page.getByText("공용 솔라피", { exact: true })).toBeVisible();
     await expect(page.getByText("알림톡 전용", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "알림톡 연동 테스트" })).toBeVisible();
-    await expect(page.getByText(/API Key|API Secret|뿌리오|개별 채널/)).toHaveCount(0);
+    await expect(page.getByText(/API Key|API Secret|뿌리오/)).toHaveCount(0);
     await expect(page.getByText(/공용 PFID|현재 PFID/)).toHaveCount(0);
   });
 

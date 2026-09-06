@@ -48,7 +48,7 @@ test.describe("선생님 자동 발송 시점 초기화", () => {
         return json({
           messaging_provider: "solapi",
           alimtalk_available: true,
-          delivery_policy: "common_alimtalk_only",
+          delivery_policy: "verified_tenant_or_common_alimtalk",
           messaging_disabled: false,
         });
       }

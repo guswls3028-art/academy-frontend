@@ -17,16 +17,22 @@ function localJwt(): string {
 type MessagingState = {
   available: boolean;
   failInfo: boolean;
+  channelStatus: "not_configured" | "pending_templates" | "active" | "suspended";
   requests: Array<{ method: string; path: string }>;
 };
 
 async function installMocks(
   page: Page,
-  options: { available?: boolean; failInfo?: boolean } = {},
+  options: {
+    available?: boolean;
+    failInfo?: boolean;
+    channelStatus?: MessagingState["channelStatus"];
+  } = {},
 ): Promise<MessagingState> {
   const state: MessagingState = {
     available: options.available ?? true,
     failInfo: options.failInfo ?? false,
+    channelStatus: options.channelStatus ?? "not_configured",
     requests: [],
   };
 
@@ -72,11 +78,18 @@ async function installMocks(
     if (path === "/messaging/info/") {
       if (state.failInfo) return json(route, { detail: "temporary failure" }, 503);
       return json(route, {
-        alimtalk_available: state.available,
-        delivery_policy: "common_alimtalk_only",
+        alimtalk_available: state.available && state.channelStatus !== "suspended",
+        delivery_policy: "verified_tenant_or_common_alimtalk",
         messaging_provider: "solapi",
         messaging_disabled: !state.available,
         messaging_disabled_reason: state.available ? "" : "운영 중지 상태입니다.",
+        custom_channel_registered: state.channelStatus !== "not_configured",
+        custom_channel_status: state.channelStatus,
+        custom_channel_reference: state.channelStatus === "not_configured" ? "" : "채널 ····JTLe",
+        custom_channel_approved_templates: state.channelStatus === "active" ? 10 : 0,
+        custom_channel_required_templates: 10,
+        custom_channel_test_available: state.channelStatus !== "not_configured",
+        custom_channel_last_test_status: "sent",
       });
     }
     if (path === "/messaging/send/preflight/" && request.method() === "POST") {
@@ -200,6 +213,32 @@ test("알림톡 운영 중지 상태는 발송 진입을 비활성화하고 설�
     "/workspace/message/settings",
   );
   expect(state.requests.filter(({ method }) => method !== "GET")).toEqual([]);
+});
+
+test("등록된 우리 학원 채널의 양식 검수 상태를 내부 ID 없이 보여준다", async ({ page }) => {
+  await installMocks(page, { channelStatus: "pending_templates" });
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await gotoAndSettle(page, `${BASE}/workspace/message/settings`, { timeout: 30_000 });
+
+  await expect(page.getByText("우리 학원 채널 양식을 검수 중입니다.")).toBeVisible();
+  await expect(page.getByText(/채널 ····JTLe 확인 완료/)).toBeVisible();
+  await expect(page.getByText(/승인 양식 0\/10개/)).toBeVisible();
+  await expect(page.getByText("최근 전용 채널 테스트: 발송 접수 확인")).toBeVisible();
+  await expect(page.getByText(/KA01PF|API Key|API Secret|뿌리오/)).toHaveCount(0);
+  await expectNoHorizontalOverflow(page);
+});
+
+test("승인 양식이 달라진 전용 채널은 발송 중지 상태를 정확히 보여준다", async ({ page }) => {
+  await installMocks(page, { channelStatus: "suspended" });
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await gotoAndSettle(page, `${BASE}/workspace/message/settings`, { timeout: 30_000 });
+
+  await expect(page.getByText("우리 학원 채널 발송을 확인해 주세요.")).toBeVisible();
+  await expect(page.getByText(/전용 채널 발송을 안전하게 막았습니다/)).toBeVisible();
+  await expect(page.getByText(/채널 ····JTLe 발송 중지/)).toBeVisible();
+  await expectNoHorizontalOverflow(page);
 });
 
 test("알림톡 상태 조회 오류는 fail-closed로 막고 명시적 재확인 뒤에만 연다", async ({ page }) => {
