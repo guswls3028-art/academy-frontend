@@ -436,15 +436,11 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   }, [selectedEnrollmentId, selectedColIndex, editableCols, clampCol]);
 
   useEffect(() => {
-    if (!isEditMode || selectedCell?.type !== "homework") {
+    if (!isEditMode || !selectedCell) {
       onActiveCellChange?.(null);
       return;
     }
-    onActiveCellChange?.({
-      type: "homework",
-      enrollmentId: selectedCell.enrollmentId,
-      homeworkId: selectedCell.homeworkId,
-    });
+    onActiveCellChange?.(selectedCell);
   }, [isEditMode, onActiveCellChange, selectedCell]);
 
   if (isLoading) {

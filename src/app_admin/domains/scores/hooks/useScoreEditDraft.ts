@@ -402,7 +402,7 @@ export function useScoreEditDraft({
       if (isScoreEditLockedError(error)) setEditLockConflict(true);
       setDraftError(
         isScoreEditLockedError(error)
-          ? "다른 화면에서 이 차시를 수정 중입니다."
+          ? "다른 화면에서 같은 성적 셀을 수정 중입니다. 다른 셀은 계속 입력할 수 있습니다."
           : "수정 준비에 실패했습니다.",
       );
       return false;
@@ -420,6 +420,7 @@ export function useScoreEditDraft({
       const data = await putScoreDraft(sessionId, restoreChanges, {
         acknowledgeStale: true,
         activeCell: activeCellRef.current,
+        takeOverSameUser: true,
       });
       setActiveEditors(data.active_editors);
       setEditLockConflict(false);
@@ -438,7 +439,7 @@ export function useScoreEditDraft({
       if (isScoreEditLockedError(error)) setEditLockConflict(true);
       setDraftError(
         isScoreEditLockedError(error)
-          ? "다른 화면에서 이 차시를 수정 중입니다."
+          ? "다른 화면에서 같은 성적 셀을 수정 중입니다. 다른 셀은 계속 입력할 수 있습니다."
           : "임시저장 복원 준비에 실패했습니다.",
       );
       return false;

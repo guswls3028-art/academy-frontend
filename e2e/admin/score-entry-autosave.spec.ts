@@ -4,6 +4,7 @@ import { installLocalAuthApiStubs, installTenantOneInitScript } from "../helpers
 
 type ScoreRouteOptions = {
   initialScores?: Array<number | null>;
+  initialSubjectiveScores?: Array<number | null>;
   initialCorrectionStatuses?: Array<"PENDING" | "COMPLETED" | "NOT_REQUIRED" | null>;
   initialDraft?: unknown[];
   includeHomework?: boolean;
@@ -19,7 +20,11 @@ type ScoreRouteOptions = {
     client_id: string;
     editor_user_id: number;
     editor_name: string;
-    active_cell: { type: "homework"; enrollmentId: number; homeworkId: number };
+    active_cell: { enrollmentId: number } & (
+      | { type: "homework"; homeworkId: number }
+      | { type: "exam"; examId: number; sub: "total" | "objective" | "subjective" }
+      | { type: "exam"; examId: number; sub: "item"; questionId: number }
+    );
   }>;
 };
 
@@ -85,6 +90,7 @@ const scorePatchHeaders: Array<Record<string, string>> = [];
 const draftPuts: Array<Record<string, unknown>> = [];
 const draftCommits: Array<Record<string, unknown>> = [];
 let currentScores: Array<number | null> = [65, 52];
+let currentSubjectiveScores: Array<number | null> = [5, 10];
 let currentCorrectionStatuses: Array<"PENDING" | "COMPLETED" | "NOT_REQUIRED" | null> = ["PENDING", "PENDING"];
 let currentDraft: unknown[] = [];
 let failNextDraftCommit = false;
@@ -110,6 +116,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
   draftPuts.length = 0;
   draftCommits.length = 0;
   currentScores = [...(options.initialScores ?? [65, 52])];
+  currentSubjectiveScores = [...(options.initialSubjectiveScores ?? [5, 10])];
   currentCorrectionStatuses = [...(
     options.initialCorrectionStatuses
     ?? currentScores.map((score) => (score == null ? null : score >= 100 ? "NOT_REQUIRED" : "PENDING"))
@@ -148,8 +155,8 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
               title: "주간 확인",
               pass_score: 60,
               max_score: 100,
-              objective_max_score: 100,
-              subjective_max_score: 0,
+              objective_max_score: 80,
+              subjective_max_score: 20,
               display_order: 1,
             }],
             homeworks: includeHomework ? [{
@@ -184,7 +191,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
                 clinic_required: score == null ? false : score < 60,
                 is_locked: false,
                 objective_score: score,
-                subjective_score: score == null ? null : 0,
+                subjective_score: currentSubjectiveScores[index] ?? null,
                 correction_status: currentCorrectionStatuses[index] ?? null,
                 meta: {},
               },
@@ -302,6 +309,30 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
           exam_id: 9101,
           enrollment_id: enrollmentId,
           total_score: currentScores[rowIndex],
+          max_score: 100,
+        },
+      });
+      return;
+    }
+
+    if (/\/api\/v1\/results\/admin\/exams\/9101\/enrollments\/92\d+\/subjective\/$/.test(path) && method === "PATCH") {
+      const body = request.postDataJSON() as Record<string, unknown>;
+      scorePatches.push(body);
+      scorePatchHeaders.push(request.headers());
+      const enrollmentId = Number(path.match(/enrollments\/(\d+)\/subjective/)?.[1]);
+      const rowIndex = enrollmentId - 9201;
+      if (rowIndex >= 0 && rowIndex < currentSubjectiveScores.length && typeof body.score === "number") {
+        currentSubjectiveScores[rowIndex] = body.score;
+      }
+      await route.fulfill({
+        json: {
+          ok: true,
+          exam_id: 9101,
+          enrollment_id: enrollmentId,
+          objective_score: currentScores[rowIndex] ?? 0,
+          subjective_score: currentSubjectiveScores[rowIndex],
+          subjective_max_score: 20,
+          total_score: (currentScores[rowIndex] ?? 0) + (currentSubjectiveScores[rowIndex] ?? 0),
           max_score: 100,
         },
       });
@@ -544,13 +575,15 @@ test("같은 계정의 다른 화면이 선택한 과제 셀을 표시하고 다
   await expect(occupiedCell).not.toHaveAttribute("data-editable", "true");
   await expect(availableCell).toHaveAttribute("data-editable", "true");
 
-  await availableCell.click();
+  const input = availableCell.getByRole("textbox");
+  await input.click();
   await expect.poll(
-    () => draftPuts.some((put) => JSON.stringify(put.active_cell) === JSON.stringify({
-      type: "homework",
-      enrollmentId: 9202,
-      homeworkId: 9151,
-    })),
+    () => draftPuts.some((put) => {
+      const cell = put.active_cell as Record<string, unknown> | undefined;
+      return cell?.type === "homework"
+        && cell.enrollmentId === 9202
+        && cell.homeworkId === 9151;
+    }),
   ).toBe(true);
 
   await page.setViewportSize({ width: 390, height: 844 });
@@ -560,6 +593,59 @@ test("같은 계정의 다른 화면이 선택한 과제 셀을 표시하고 다
   expect(occupiedBox).not.toBeNull();
   expect(labelBox).not.toBeNull();
   expect(labelBox!.x + labelBox!.width).toBeLessThanOrEqual(occupiedBox!.x + occupiedBox!.width + 1);
+});
+
+test("다른 화면이 선택한 서술형 셀만 막고 같은 시험의 다른 학생은 계속 입력한다", async ({ page }) => {
+  await openScores(page, {
+    includeHomework: true,
+    activeEditors: [{
+      client_id: "homework-device",
+      editor_user_id: 43,
+      editor_name: "조교B",
+      active_cell: { type: "homework", enrollmentId: 9201, homeworkId: 9151 },
+    }, {
+      client_id: "other-device",
+      editor_user_id: 44,
+      editor_name: "조교A",
+      active_cell: { type: "exam", enrollmentId: 9201, examId: 9101, sub: "subjective" },
+    }],
+  });
+  await page.getByRole("button", { name: /표시 옵션/ }).click();
+  await page.getByRole("button", { name: "객관식 + 주관식", exact: true }).click();
+  await ensureScoreEditing(page);
+  await page.getByRole("group", { name: "시험 점수 입력 방식" }).getByRole("button", { name: "주관식", exact: true }).click();
+  await page.getByRole("button", { name: "주관식 입력", exact: true }).click();
+
+  const occupiedCell = page.locator('[data-score-cell="exam:9201:9101:subjective:"]');
+  const availableCell = page.locator('[data-score-cell="exam:9202:9101:subjective:"]');
+  await expect(occupiedCell).toHaveAttribute("data-collaborator-active", "true");
+  await expect(occupiedCell).toContainText("조교A 입력 중");
+  await expect(occupiedCell.getByRole("textbox")).toHaveCount(0);
+  await expect(availableCell.getByRole("textbox")).toHaveCount(1);
+
+  const subjectiveInput = availableCell.getByRole("textbox");
+  await subjectiveInput.click();
+  await expect.poll(
+    () => draftPuts.some((put) => {
+      const cell = put.active_cell as Record<string, unknown> | undefined;
+      return cell?.type === "exam"
+        && cell.enrollmentId === 9202
+        && cell.examId === 9101
+        && cell.sub === "subjective";
+    }),
+  ).toBe(true);
+
+  await subjectiveInput.fill("7");
+  await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+  await expect.poll(() => scorePatches.at(-1)?.score).toBe(7);
+  expect(scorePatchHeaders.at(-1)?.["x-score-session-id"]).toBe("9002");
+  await expect.poll(() => draftCommits.some((commit) => commit.release_lease === true)).toBe(true);
+  await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: /표시 옵션/ }).click();
+  await page.getByRole("button", { name: "객관식 + 주관식", exact: true }).click();
+  await expect(page.locator('[data-score-cell="exam:9202:9101:subjective:"]')).toContainText("7");
 });
 
 test("일시적인 셀 점유 충돌 뒤 정상 presence가 오면 편집 잠금을 마칠 수 있다", async ({ page }) => {
@@ -1373,6 +1459,9 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(recoveryDialog.getByRole("alert")).toContainText(/실패|failed|500/i);
     await recoveryDialog.getByRole("button", { name: "복원 후 수정" }).click();
     await expect(page.getByRole("button", { name: "저장하고 잠금", exact: true })).toBeVisible();
+    await expect.poll(
+      () => draftPuts.some((put) => put.take_over_same_user === true),
+    ).toBe(true);
     await expect.poll(() => scorePatches.at(-1)?.score, { timeout: 10_000 }).toBe(83);
     await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
     await expect(editButton).toBeVisible({ timeout: 10_000 });

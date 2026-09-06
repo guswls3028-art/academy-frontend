@@ -266,6 +266,11 @@ function pendingKeyForChange(p: PendingChange): string {
   return `homework:${p.enrollmentId}:${p.homeworkId}`;
 }
 
+function activeScoreCellKey(cell: ScoreActiveEditor["active_cell"]): string {
+  if (cell.type === "homework") return `homework:${cell.enrollmentId}:${cell.homeworkId}`;
+  return `exam:${cell.enrollmentId}:${cell.examId}:${cell.sub}:${cell.sub === "item" ? cell.questionId : ""}`;
+}
+
 function samePendingChange(a: PendingChange, b: PendingChange): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
@@ -532,11 +537,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     if (selectedVersion?.key === key) return selectedVersion.expectedUpdatedAt;
     return homeworkVersionByCell.get(key) ?? null;
   }, [homeworkVersionByCell]);
-  const homeworkCollaboratorByCell = useMemo(() => {
+  const collaboratorByCell = useMemo(() => {
     const collaborators = new Map<string, ScoreActiveEditor>();
     for (const editor of activeEditors) {
-      const cell = editor.active_cell;
-      collaborators.set(`homework:${cell.enrollmentId}:${cell.homeworkId}`, editor);
+      collaborators.set(activeScoreCellKey(editor.active_cell), editor);
     }
     return collaborators;
   }, [activeEditors]);
@@ -1528,6 +1532,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           selectedCell.type === "exam" &&
                           selectedCell.examId === ex.exam_id &&
                           (col.sub === "total" ? selectedCell.sub === "total" : col.sub === "objective" ? selectedCell.sub === "objective" : col.sub === "subjective" ? selectedCell.sub === "subjective" : col.sub === "item" && col.questionId != null ? selectedCell.sub === "item" && selectedCell.questionId === col.questionId : false);
+                        const collaborator = collaboratorByCell.get(
+                          `exam:${row.enrollment_id}:${ex.exam_id}:${col.sub}:${col.sub === "item" ? col.questionId : ""}`,
+                        ) ?? null;
 
                         if (col.sub === "total") {
                           const examMaxScore = block?.max_score ?? ex.max_score ?? null;
@@ -1537,7 +1544,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           const scoreText = omrReviewStatus === "review" ? "검토" : isExamNotSubmitted ? "미응시" : block?.score == null ? "-" : scoreFormat === "fraction" && examMaxScore != null ? `${formatScoreNumber(block.score)}/${formatScoreNumber(Number(examMaxScore))}` : formatScoreNumber(block.score);
                           const hasRetakes = (entry?.attempt_count ?? 0) >= 2;
                           const hasClinicLink = entry?.clinic_link_id != null;
-                          const canEdit = isEditMode && examEditTotal && !block?.is_locked && !hasRetakes && !omrReviewStatus;
+                          const canEdit = isEditMode && examEditTotal && !block?.is_locked && !hasRetakes && !omrReviewStatus && !collaborator;
                           const showAddRetake = isEditMode && hasClinicLink && !hasRetakes && block?.passed === false;
                           const progressStyle = canEdit ? undefined : scoreProgressStyle(block?.score, examMaxScore);
                           /* 2026-05-13 학원장 결정: 학생별 상태 = 진행중/이수/판정 — 클리닉 1차/2차/3차 정합.
@@ -1550,9 +1557,11 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                             <td
                               key={col.key}
                               data-col-type="score"
+                              data-score-cell={`exam:${row.enrollment_id}:${ex.exam_id}:total:`}
                               data-group-parity={groupParity}
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
                               {...(canEdit ? { "data-editable": "true" } : {})}
+                              {...(collaborator ? { "data-collaborator-active": "true" } : {})}
                               {...(isEmptyScore ? { "data-score-empty": "true" } : {})}
                               {...(progressStyle ? { "data-score-progress": "true", style: progressStyle } : {})}
                               {...(!isExamNotSubmitted && block?.score != null && block.passed != null ? { "data-pass-status": block.passed ? "pass" : "fail" } : {})}
@@ -1563,11 +1572,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   : block?.score != null && block.achievement
                                     ? { "data-achievement": block.achievement }
                                     : {})}
-                              className={`min-w-0 text-center align-middle ${showAddRetake ? "ds-scores-cell--with-retake-action" : ""} ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
-                              title={cellTitle}
-                              onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "total"); }}
+                              className={`min-w-0 text-center align-middle ${showAddRetake ? "ds-scores-cell--with-retake-action" : ""} ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${collaborator ? "ds-scores-cell-collaborator" : isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
+                              title={collaborator ? `${collaborator.editor_name}님이 이 시험 점수를 입력 중입니다.` : cellTitle}
+                              onClick={(e) => { if (isEditMode) e.stopPropagation(); if (collaborator) feedback.info(`${collaborator.editor_name}님이 이 시험 점수를 입력 중입니다.`); else onSelectCell(row, "exam", ex.exam_id, "total"); }}
                             >
-                              {canEdit ? (
+                              {collaborator ? (
+                                <span className="ds-scores-collaborator-label">{collaborator.editor_name} 입력 중</span>
+                              ) : canEdit ? (
                                 <span
                                   ref={(el) => {
                                     const k = `${row.enrollment_id}-${ex.exam_id}`;
@@ -1749,25 +1760,30 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           const isExamNotSubmitted = block?.meta?.status === "NOT_SUBMITTED";
                           const isEmptyScore = objScore == null && !isExamNotSubmitted && !omrReviewStatus;
                           const scoreText = omrReviewStatus === "review" ? "검토" : objScore == null ? "-" : formatScoreNumber(objScore);
-                          const canEdit = isEditMode && examEditObjective && !block?.is_locked && !omrReviewStatus;
+                          const canEdit = isEditMode && examEditObjective && !block?.is_locked && !omrReviewStatus && !collaborator;
                           const progressStyle = canEdit ? undefined : scoreProgressStyle(objScore, objectiveMax);
                           return (
                             <td
                               key={col.key}
                               data-col-type="score"
+                              data-score-cell={`exam:${row.enrollment_id}:${ex.exam_id}:objective:`}
                               data-group-parity={groupParity}
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
                               {...(isEmptyScore ? { "data-score-empty": "true" } : {})}
+                              {...(collaborator ? { "data-collaborator-active": "true" } : {})}
                               {...(progressStyle ? { "data-score-progress": "true", style: progressStyle } : {})}
                               {...(isExamNotSubmitted
                                 ? { "data-achievement": "NOT_SUBMITTED" }
                                 : objScore != null && block?.passed != null
                                   ? { "data-pass-status": block.passed ? "pass" : "fail" }
                                   : {})}
-                              className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
-                              onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "objective"); }}
+                              className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${collaborator ? "ds-scores-cell-collaborator" : isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
+                              title={collaborator ? `${collaborator.editor_name}님이 이 시험 점수를 입력 중입니다.` : undefined}
+                              onClick={(e) => { if (isEditMode) e.stopPropagation(); if (collaborator) feedback.info(`${collaborator.editor_name}님이 이 시험 점수를 입력 중입니다.`); else onSelectCell(row, "exam", ex.exam_id, "objective"); }}
                             >
-                              {canEdit ? (
+                              {collaborator ? (
+                                <span className="ds-scores-collaborator-label">{collaborator.editor_name} 입력 중</span>
+                              ) : canEdit ? (
                                 <span
                                   ref={(el) => {
                                     const k = `${row.enrollment_id}-${ex.exam_id}-objective`;
@@ -1868,26 +1884,30 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           const isExamNotSubmitted = block?.meta?.status === "NOT_SUBMITTED";
                           const isEmptyScore = subScore == null && !isExamNotSubmitted && !omrReviewStatus;
                           const scoreText = omrReviewStatus === "review" ? "검토" : subScore != null ? formatScoreNumber(subScore) : "-";
-                          const canEdit = col.editable && subjectiveMax > 0 && !block?.is_locked && !omrReviewStatus;
+                          const canEdit = col.editable && subjectiveMax > 0 && !block?.is_locked && !omrReviewStatus && !collaborator;
                           const progressStyle = canEdit ? undefined : scoreProgressStyle(subScore, subjectiveMax);
                           return (
                             <td
                               key={col.key}
                               data-col-type="score"
+                              data-score-cell={`exam:${row.enrollment_id}:${ex.exam_id}:subjective:`}
                               data-group-parity={groupParity}
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
                               {...(isEmptyScore ? { "data-score-empty": "true" } : {})}
+                              {...(collaborator ? { "data-collaborator-active": "true" } : {})}
                               {...(progressStyle ? { "data-score-progress": "true", style: progressStyle } : {})}
                               {...(isExamNotSubmitted
                                 ? { "data-achievement": "NOT_SUBMITTED" }
                                 : subScore != null && block?.passed != null
                                   ? { "data-pass-status": block.passed ? "pass" : "fail" }
                                   : {})}
-                              className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
-                              title={subjectiveMax > 0 ? `서술형 수기 점수 (0 ~ ${subjectiveMax})` : "채점 대상 서술형 문항 없음"}
-                              onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "subjective"); }}
+                              className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${collaborator ? "ds-scores-cell-collaborator" : isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
+                              title={collaborator ? `${collaborator.editor_name}님이 이 시험 점수를 입력 중입니다.` : subjectiveMax > 0 ? `서술형 수기 점수 (0 ~ ${subjectiveMax})` : "채점 대상 서술형 문항 없음"}
+                              onClick={(e) => { if (isEditMode) e.stopPropagation(); if (collaborator) feedback.info(`${collaborator.editor_name}님이 이 시험 점수를 입력 중입니다.`); else onSelectCell(row, "exam", ex.exam_id, "subjective"); }}
                             >
-                              {canEdit ? (
+                              {collaborator ? (
+                                <span className="ds-scores-collaborator-label">{collaborator.editor_name} 입력 중</span>
+                              ) : canEdit ? (
                                 <span
                                   ref={(el) => {
                                     const k = `${row.enrollment_id}-${ex.exam_id}-subjective`;
@@ -1987,22 +2007,27 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           const value = item?.score ?? null;
                           const maxScore = item?.max_score ?? q?.max_score ?? 0;
                           const isExamNotSubmitted = block?.meta?.status === "NOT_SUBMITTED";
-                          const canEdit = isEditMode && examEditSubjective && !block?.is_locked;
+                          const canEdit = isEditMode && examEditSubjective && !block?.is_locked && !collaborator;
                           const progressStyle = canEdit ? undefined : scoreProgressStyle(value, maxScore);
                           return (
                             <td
                               key={col.key}
                               data-col-type="score"
+                              data-score-cell={`exam:${row.enrollment_id}:${ex.exam_id}:item:${col.questionId}`}
                               data-group-parity={groupParity}
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
                               {...(canEdit ? { "data-editable": "true" } : {})}
+                              {...(collaborator ? { "data-collaborator-active": "true" } : {})}
                               {...(value == null && !isExamNotSubmitted ? { "data-score-empty": "true" } : {})}
                               {...(isExamNotSubmitted ? { "data-achievement": "NOT_SUBMITTED" } : {})}
                               {...(progressStyle ? { "data-score-progress": "true", style: progressStyle } : {})}
-                              className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""}`}
-                              onClick={(e) => { if (isEditMode) e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, col.questionId); }}
+                              className={`min-w-0 text-center align-middle ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${collaborator ? "ds-scores-cell-collaborator" : ""}`}
+                              title={collaborator ? `${collaborator.editor_name}님이 이 시험 문항을 입력 중입니다.` : undefined}
+                              onClick={(e) => { if (isEditMode) e.stopPropagation(); if (collaborator) feedback.info(`${collaborator.editor_name}님이 이 시험 문항을 입력 중입니다.`); else onSelectCell(row, "exam", ex.exam_id, col.questionId); }}
                             >
-                              {canEdit ? (
+                              {collaborator ? (
+                                <span className="ds-scores-collaborator-label">{collaborator.editor_name} 입력 중</span>
+                              ) : canEdit ? (
                                 <ScoreInputCell
                                   sessionId={sessionId}
                                   examId={ex.exam_id}
@@ -2087,7 +2112,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     selectedCell.type === "homework" &&
                     selectedCell.homeworkId === hw.homework_id;
                   const scoreCellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
-                  const collaborator = homeworkCollaboratorByCell.get(scoreCellKey) ?? null;
+                  const collaborator = collaboratorByCell.get(scoreCellKey) ?? null;
                   const cellConflict = homeworkConflicts[scoreCellKey] ?? null;
                   const canEditScore = isEditMode && homeworkEdit && !notEnrolledForHw && !collaborator;
                   const isNotSubmitted = block?.meta?.status === "NOT_SUBMITTED";
