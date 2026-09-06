@@ -494,7 +494,7 @@ test("same-artifact proxy preserves the real response and never sends credential
   assert.throws(() => guard.assertClean(), /Release API boundary failed/);
 });
 
-test("intentional context close ignores only request-context disposal", async () => {
+test("intentional context close drains active requests and blocks new teardown traffic", async () => {
   const makeGuard = async (message) => {
     let handler;
     const context = {
@@ -521,13 +521,50 @@ test("intentional context close ignores only request-context disposal", async ()
   await beforeClose.handler(beforeClose.route);
   assert.throws(() => beforeClose.guard.assertClean(), /Release request rejected \[context-disposed\]/);
 
-  const duringClose = await makeGuard("route.fetch: Request context disposed.\nCall log omitted");
-  duringClose.guard.beginClose();
-  await duringClose.handler(duringClose.route);
-  assert.doesNotThrow(() => duringClose.guard.assertClean());
+  let resolveFetch;
+  let markFetchStarted;
+  const fetchStarted = new Promise((resolve) => { markFetchStarted = resolve; });
+  const active = await makeGuard("unused");
+  let activeFetches = 0;
+  active.route.fetch = async () => {
+    activeFetches += 1;
+    markFetchStarted();
+    return new Promise((resolve) => { resolveFetch = resolve; });
+  };
+  active.route.fulfill = async () => {};
+  const handling = active.handler(active.route);
+  await fetchStarted;
+  let drained = false;
+  const draining = Promise.resolve(active.guard.beginClose()).then(() => { drained = true; });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(drained, false, "close must wait for the already-started inspected request");
+  resolveFetch({ status: () => 200, headers: () => ({
+    "access-control-allow-origin": development.webOrigin,
+    "access-control-allow-credentials": "true",
+  }) });
+  await Promise.all([handling, draining]);
+  assert.doesNotThrow(() => active.guard.assertClean());
+
+  await active.handler(active.route);
+  assert.equal(activeFetches, 1, "new traffic after close begins must be aborted before transport");
+  assert.doesNotThrow(() => active.guard.assertClean());
+
+  let rejectFetch;
+  let markFailureStarted;
+  const failureStarted = new Promise((resolve) => { markFailureStarted = resolve; });
+  const activeFailure = await makeGuard("unused");
+  activeFailure.route.fetch = async () => {
+    markFailureStarted();
+    return new Promise((_resolve, reject) => { rejectFetch = reject; });
+  };
+  const failingHandling = activeFailure.handler(activeFailure.route);
+  await failureStarted;
+  const failingDrain = activeFailure.guard.beginClose();
+  rejectFetch(new Error("unit transport unavailable"));
+  await Promise.all([failingHandling, failingDrain]);
+  assert.throws(() => activeFailure.guard.assertClean(), /Release request rejected \[transport\]/);
 
   const realFailure = await makeGuard("Real API CORS boundary mismatch");
-  realFailure.guard.beginClose();
   await realFailure.handler(realFailure.route);
   assert.throws(() => realFailure.guard.assertClean(), /Release request rejected \[cors\]/);
 });

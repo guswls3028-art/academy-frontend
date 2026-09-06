@@ -39,10 +39,10 @@ export const test = base.extend<StrictBrowserOptions>({
       const close = context.close.bind(context);
       context.close = async (closeOptions) => {
         try {
+          await boundaryGuard.beginClose();
           check();
           console.log(JSON.stringify({ releaseApiMode: boundary.mode,
             authentication: boundaryGuard.authentication, observation: boundaryGuard.observations }));
-          boundaryGuard.beginClose();
         } finally {
           try { await close(closeOptions); }
           finally { explicitlyClosed = true; }

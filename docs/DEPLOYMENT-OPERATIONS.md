@@ -176,9 +176,10 @@ APIRequestContext와 browser request 검사, strict browser assertion을 받는�
 `GET /api/v1/core/og-meta/?hostname=<현재 web hostname>` 한 건은 tenant header 없이
 허용하고, 다른 hostname, 추가·중복 query, 다른 method와 그 밖의 API 요청은 기존
 exact tenant 경계를 그대로 적용한다.
-명시적 browser context 종료는 종료 직전과 직후에 경계 결함을 검사한다. 종료가
-진행 중일 때 발생한 정확한 Playwright request-context disposal만 수명주기 종료로
-분류하며, 그 전에 발생했거나 다른 upstream/CORS 오류는 계속 실패한다.
+명시적 browser context 종료는 새 요청을 먼저 차단하고, 이미 검사 중인 route를 실제
+응답 또는 실패까지 drain한 뒤 경계 결함을 검사하고 context를 닫는다. 따라서 종료와
+겹친 정상 요청은 브라우저가 중간 폐기하지 않으며, drain 중 발생한 upstream/CORS 오류는
+그대로 실패한다. 종료 차단 이후 새로 시작된 background 요청만 transport 전에 abort한다.
 실사용 실패 증거에는 Playwright 원문 대신 통과·실패 수, 고정된 flow 파일명,
 allowlist된 경계 단계 코드만 남긴다. URL query, header, token, 계정명과 원문 오류는
 artifact에 기록하지 않는다.
