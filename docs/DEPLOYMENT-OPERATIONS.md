@@ -41,6 +41,10 @@ CSP 차단 의존성을 두지 않는다.
 일반 reload 화면으로 바꾸면 안 된다. 그래야 배포 직후 stale shell의 chunk 오류가
 cache-bust 재요청과 최신 자산 전파 확인 경로까지 도달한다.
 
+역할 전용 전역 UI의 lazy chunk는 해당 역할이 인증된 뒤에만 요청한다. 특히 교직원
+출근 선택 UI는 로그아웃·학생·학부모 화면에서 import하지 않아, 그 자산의 일시적인
+캐시·네트워크 실패가 로그인이나 학생 앱 전체를 업데이트 복구 화면으로 바꾸지 않는다.
+
 Cloudflare Git production auto-deploy는 direct-upload workflow와 경쟁하면 안
 된다. workflow는 project source 설정과 reserved production branch 부재를
 readback하며, drift이면 upload 전에 실패한다.
