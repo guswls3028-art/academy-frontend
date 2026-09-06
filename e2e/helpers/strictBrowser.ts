@@ -71,6 +71,10 @@ function isFailedResourceFromBlockedCors(text: string): boolean {
   return /^Failed to load resource: net::ERR_FAILED$/i.test(text.trim());
 }
 
+function isNeutralizedCloudflareBeaconIntegrity(text: string): boolean {
+  return /^Failed to find a valid digest in the 'integrity' attribute for resource 'https:\/\/static\.cloudflareinsights\.com\/beacon\.min\.js\/v[a-f0-9]{32,64}' with computed SHA-512 integrity '[A-Za-z0-9+/]{86}=='\. The resource has been blocked\.$/.test(text);
+}
+
 export type StrictBrowserGuards = {
   /** 누적 콘솔 error·pageerror 가 허용 목록 외 있으면 모드에 따라 실패/경고 */
   assertZeroDefects: () => void;
@@ -81,7 +85,11 @@ export type StrictBrowserGuards = {
  */
 export function attachStrictBrowserGuards(
   page: Page,
-  options?: { extraIgnore?: RegExp[]; allowRecoveredProductionCors?: boolean }
+  options?: {
+    extraIgnore?: RegExp[];
+    allowRecoveredProductionCors?: boolean;
+    allowNeutralizedCloudflareBeaconIntegrity?: boolean;
+  }
 ): StrictBrowserGuards {
   const mode = resolveMode();
   if (mode === "off") {
@@ -154,6 +162,7 @@ export function attachStrictBrowserGuards(
       pendingOptionalCorsResourceFailures -= 1;
       return;
     }
+    if (options?.allowNeutralizedCloudflareBeaconIntegrity && isNeutralizedCloudflareBeaconIntegrity(text)) return;
     if (allowed(text, extra)) return;
     consoleErrors.push(text);
   });

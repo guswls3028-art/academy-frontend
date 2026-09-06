@@ -185,6 +185,12 @@ API/E2E safety gate에서 항상 실행한다.
 배포 전에 실패해야 한다. 정식 direct deploy 후 운영 revision 전파와
 tenant·login·왕복·실사용 E2E를 통과해야 완료다.
 
+배포 후 production read-only login canary에서 앱이 자동 생성한 batch는 실제
+운영 분석 행을 만들지 않는다. 서버의 strict batch/event schema와 exact
+tenant/origin을 통과한 요청만 browser route에서 로컬 `202`로 중화하고 batch/event
+수를 PII-free 증거로 남긴다. 스키마가 다르거나 다른 mutation이면 canary가
+fail-closed 하며, 일반 제품 실행에서는 이 release 전용 경계가 활성화되지 않는다.
+
 Cloudflare API가 production 자동배포 플래그 변경을 성공으로 응답한
 뒤에도 기존 값을 유지하는 계정에서는 production branch를
 `github-actions-production`으로 예약해 배포 소유권을 분리한다. 이

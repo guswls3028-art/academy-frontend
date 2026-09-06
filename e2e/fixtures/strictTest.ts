@@ -29,7 +29,9 @@ export const test = base.extend<StrictBrowserOptions>({
       installAccountNotificationGuard(context.request);
       const boundaryGuard = await installReleaseContextGuard(context, boundary);
       const pages: ReturnType<typeof attachStrictBrowserGuards>[] = [];
-      context.on("page", (page) => pages.push(attachStrictBrowserGuards(page)));
+      context.on("page", (page) => pages.push(attachStrictBrowserGuards(page, {
+        allowNeutralizedCloudflareBeaconIntegrity: boundary.mode === "readonly",
+      })));
       const check = () => {
         boundaryGuard.assertClean();
         for (const guard of pages) guard.assertZeroDefects();
@@ -67,7 +69,9 @@ export const test = base.extend<StrictBrowserOptions>({
   },
   page: async ({ page, allowRecoveredProductionCors, strictBrowserAutoAssert }, continueWithFixture) => {
     installAccountNotificationGuard(page.request);
-    const strict = attachStrictBrowserGuards(page, { allowRecoveredProductionCors });
+    const boundary = releaseBoundaryFromEnv(process.env);
+    const strict = attachStrictBrowserGuards(page, { allowRecoveredProductionCors,
+      allowNeutralizedCloudflareBeaconIntegrity: boundary?.mode === "readonly" });
     await continueWithFixture(page);
     if (strictBrowserAutoAssert) strict.assertZeroDefects();
   },

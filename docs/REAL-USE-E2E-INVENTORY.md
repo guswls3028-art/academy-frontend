@@ -106,6 +106,9 @@ fatal·빈 화면 검사는 이미 정착된 페이지를 읽으며 같은 `netw
   `retries=0`, 종료 cleanup, backend residue 0을 모두 요구한다.
 - 운영 read-only와 shared tenant 감사는 worker 1을 유지한다.
 - 배포 후 canary 실패는 성공으로 완화하지 않고 저장된 baseline으로 rollback한다.
+- 배포 후 read-only login canary의 자동 product analytics batch와 Cloudflare Insights
+  script는 exact schema/host/path/header를 확인한 뒤 로컬에서만 중화한다. 운영 분석
+  행과 외부 RUM 요청은 0이며, 중화 횟수는 PII-free 숫자로 남기고 다른 요청은 실패한다.
 
 ## 6. 유지보수와 제거 기준
 

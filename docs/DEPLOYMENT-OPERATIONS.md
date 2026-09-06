@@ -201,6 +201,20 @@ native preflight 전체를 별도로 검증했다는 뜻은 아니다. 가짜 �
 `fulfill` 실패는 재시도하지 않는다. 두 번째 조회 fetch 실패도 즉시 fail-closed이며,
 fetch와 fulfill 실패는 서로 다른 allowlist 단계 코드로 남긴다.
 
+운영 read-only browser canary는 제품 동작과 무관한 자동 telemetry가 검사를
+자기 차단하지 않도록 두 경계만 네트워크 전에 로컬 중화한다. 인증 화면의 정확한
+`POST /api/v1/core/product-analytics/events/batch/`는 서버와 같은 top-level/event
+필드, 1~20건·64KB, UUID·시간·stable ID·route template·조건부 CTA/task 필드,
+exact tenant/origin을 모두 만족할 때만 로컬 `202`로 끝내며 운영 API에는 보내지
+않는다. Cloudflare가 삽입한 정확한 무자격증명
+`GET https://static.cloudflareinsights.com/beacon.min.js/v<32~64-hex>`도 빈 JavaScript
+`200`으로 흡수하여 후속 RUM 전송을 만들지 않는다. query, 다른 method/path/host,
+Authorization/Cookie/tenant header가 있는 beacon, 잘못된 analytics payload는 계속
+fail-closed 한다. 빈 JS는 Cloudflare가 HTML에 삽입한 SRI digest와 의도적으로 다르므로,
+release readonly strict browser는 이 exact host/path/SHA-512 mismatch 한 줄만 중화의
+자기 생성 신호로 제외한다. 다른 integrity, console error와 pageerror는 그대로
+실패한다. 중화한 batch/event/beacon 수만 PII-free release evidence에 남긴다.
+
 운영 mode의 tenant는 `hakwonplus`로 명시하며 GET/HEAD/OPTIONS 외 허용은 다음뿐이다.
 
 - 기존 계정의 정확한 `POST /api/v1/token/`, `POST /api/v1/token/refresh/` 인증.

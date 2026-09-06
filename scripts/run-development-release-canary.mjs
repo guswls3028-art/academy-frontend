@@ -59,7 +59,9 @@ export function observeReleaseTestResult(stdout) {
   const observation = {
     reportStatus: "unparsed",
     stats: { expected: null, skipped: null, unexpected: null, flaky: null },
-    failedFiles: [], boundaryCodes: [], runnerErrorCount: null, readFetchRetries: null,
+    failedFiles: [], boundaryCodes: [], runnerErrorCount: null,
+    readFetchRetries: null, suppressedAnalyticsBatches: null,
+    suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
   };
   let report;
   try { report = JSON.parse(typeof stdout === "string" ? stdout : ""); }
@@ -71,8 +73,12 @@ export function observeReleaseTestResult(stdout) {
   observation.runnerErrorCount = safeCount(Array.isArray(report?.errors) ? report.errors.length : null);
   const failedFiles = new Set();
   const messages = [];
-  let readFetchRetries = 0;
-  let transportEvidenceCount = 0;
+  const transportKeys = [
+    "readFetchRetries", "suppressedAnalyticsBatches",
+    "suppressedAnalyticsEvents", "suppressedCloudflareBeacons",
+  ];
+  const transportTotals = Object.fromEntries(transportKeys.map((key) => [key, 0]));
+  const transportEvidenceCounts = Object.fromEntries(transportKeys.map((key) => [key, 0]));
   const collectErrors = (errors) => {
     for (const error of Array.isArray(errors) ? errors : []) {
       if (typeof error?.message === "string") messages.push(error.message);
@@ -94,11 +100,14 @@ export function observeReleaseTestResult(stdout) {
             for (const line of typeof text === "string" ? text.split(/\r?\n/) : []) {
               let payload;
               try { payload = JSON.parse(line); } catch { continue; }
-              const retries = payload?.transport?.readFetchRetries;
-              if (["development", "readonly"].includes(payload?.releaseApiMode)
-                && Number.isInteger(retries) && retries >= 0 && retries <= 1000) {
-                readFetchRetries += retries;
-                transportEvidenceCount += 1;
+              if (["development", "readonly"].includes(payload?.releaseApiMode)) {
+                for (const key of transportKeys) {
+                  const value = safeCount(payload?.transport?.[key]);
+                  if (value !== null) {
+                    transportTotals[key] += value;
+                    transportEvidenceCounts[key] += 1;
+                  }
+                }
               }
             }
           }
@@ -112,7 +121,9 @@ export function observeReleaseTestResult(stdout) {
   observation.boundaryCodes = [...new Set(messages.flatMap((message) =>
     [...message.matchAll(/Release request rejected \[([a-z-]+)\]/g)].map((match) => match[1])
       .filter((code) => RELEASE_BOUNDARY_CODES.has(code))))].sort();
-  observation.readFetchRetries = transportEvidenceCount > 0 ? readFetchRetries : null;
+  for (const key of transportKeys) {
+    observation[key] = transportEvidenceCounts[key] > 0 ? transportTotals[key] : null;
+  }
   return observation;
 }
 
