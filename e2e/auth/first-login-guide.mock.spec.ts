@@ -1,5 +1,6 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
+import { dismissDevelopmentFirstLoginGuide } from "../helpers/auth";
 import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = (process.env.E2E_BASE_URL || "http://127.0.0.1:5174").replace(/\/+$/, "");
@@ -117,6 +118,17 @@ test.use({ serviceWorkers: "block" });
 test.skip(!isLocalBase(BASE), "Local route-mock spec. Set E2E_BASE_URL to localhost to run.");
 
 test.describe("생애 첫 접속 계정 안내", () => {
+  test("개발 배포 실사용 로그인은 일회성 계정 안내를 확인한 뒤 계속한다", async ({ page }) => {
+    const tenantCode = "qa-ymath-realuse-first-login-guide";
+    const apiState = await stubAuthenticatedApp(page, { role: "student", tenantCode });
+
+    await gotoAndSettle(page, `${BASE}/student/guide`, { timeout: 20_000 });
+    await dismissDevelopmentFirstLoginGuide(page, tenantCode, "development");
+
+    await expect(page.getByRole("dialog", { name: "계정 안내" })).not.toBeVisible();
+    expect(apiState.completionCount()).toBe(1);
+  });
+
   test("학생은 아이디와 권유형 안내를 한 번 확인하고 다시 보지 않는다", async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.addInitScript(() => {
