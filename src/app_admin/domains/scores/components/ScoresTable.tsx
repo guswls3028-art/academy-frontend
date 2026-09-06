@@ -45,6 +45,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 
 import "./ScoreCollaborationPresence.css";
+import "./ScoresTable.css";
 
 /** 컬럼 기본 너비 */
 const COL_EDIT = 36;

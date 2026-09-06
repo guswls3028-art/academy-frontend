@@ -1,0 +1,20 @@
+/* On mobile, three sticky identity columns cover every assessment cell.
+ * Keep only the student name sticky so one assessment remains readable. */
+@media (max-width: 640px) {
+  .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table thead th[data-col-type="select"],
+  .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody td[data-col-type="select"],
+  .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table thead th[data-col-type="attendance"],
+  .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody td[data-col-type="attendance"] {
+    position: static !important;
+  }
+
+  .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table thead th[data-col-type="name"],
+  .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody td[data-col-type="name"] {
+    left: 0;
+  }
+
+  .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table thead th[data-col-type="attendance"],
+  .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody td[data-col-type="attendance"] {
+    box-shadow: none;
+  }
+}
