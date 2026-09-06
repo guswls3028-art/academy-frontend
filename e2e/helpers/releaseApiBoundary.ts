@@ -29,6 +29,92 @@ function releaseRequestFailureCode(error: unknown): string {
   return "transport";
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_IN_PATH = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
+const STABLE_ANALYTICS_ID = /^[a-z0-9][a-z0-9.-]{0,119}$/;
+const ANALYTICS_EVENT_TYPES = new Set([
+  "screen_view", "screen_engaged", "cta_impression", "cta_click",
+  "task_start", "task_success", "task_failure",
+]);
+const ANALYTICS_EVENT_REQUIRED_KEYS = new Set([
+  "event_id", "event_type", "occurred_at", "session_id", "view_id", "feature_id",
+  "screen_id", "surface", "route_template", "device_class", "client_release",
+  "catalog_version", "synthetic",
+]);
+const ANALYTICS_EVENT_OPTIONAL_KEYS = new Set([
+  "interaction_id", "cta_id", "action_id", "placement_id", "position_index", "failure_category",
+]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function exactReadonlyAnalyticsEventCount(
+  boundary: ReleaseBoundary,
+  target: URL,
+  method: string,
+  tenantCode: string | undefined,
+  data: unknown,
+  bodyBytes: number,
+): number | null {
+  if (boundary.mode !== "readonly" || target.origin !== boundary.apiOrigin
+    || target.pathname !== "/api/v1/core/product-analytics/events/batch/"
+    || target.search || target.hash || method.toUpperCase() !== "POST") return null;
+  if (tenantCode !== boundary.tenantCode) return null;
+  if (!isRecord(data)
+    || !Number.isInteger(bodyBytes) || bodyBytes < 1 || bodyBytes > 64 * 1024
+    || Object.keys(data).sort().join(",") !== "events,schema_version"
+    || data.schema_version !== 1 || !Array.isArray(data.events)
+    || data.events.length < 1 || data.events.length > 20) {
+    throw new Error("Production observation payload is outside the reviewed analytics schema");
+  }
+  for (const event of data.events) {
+    if (!isRecord(event)
+      || Object.keys(event).some((key) => !ANALYTICS_EVENT_REQUIRED_KEYS.has(key) && !ANALYTICS_EVENT_OPTIONAL_KEYS.has(key))
+      || [...ANALYTICS_EVENT_REQUIRED_KEYS].some((key) => !Object.hasOwn(event, key))
+      || !UUID.test(String(event.event_id)) || !UUID.test(String(event.session_id)) || !UUID.test(String(event.view_id))
+      || (event.interaction_id !== undefined && !UUID.test(String(event.interaction_id)))
+      || !ANALYTICS_EVENT_TYPES.has(String(event.event_type))
+      || typeof event.occurred_at !== "string" || Number.isNaN(Date.parse(event.occurred_at))
+      || new Date(event.occurred_at).toISOString() !== event.occurred_at
+      || Date.parse(event.occurred_at) < Date.now() - 24 * 60 * 60 * 1000
+      || Date.parse(event.occurred_at) > Date.now() + 5 * 60 * 1000
+      || !STABLE_ANALYTICS_ID.test(String(event.feature_id))
+      || String(event.feature_id).length > 80
+      || !STABLE_ANALYTICS_ID.test(String(event.screen_id))
+      || String(event.screen_id).length > 100
+      || !["admin", "teacher", "student"].includes(String(event.surface))
+      || typeof event.route_template !== "string"
+      || event.route_template.length > 180 || !event.route_template.startsWith("/")
+      || event.route_template.includes("?") || event.route_template.includes("#") || event.route_template.includes("://")
+      || UUID_IN_PATH.test(event.route_template) || /\/\d+(?:\/|$)/.test(event.route_template)
+      || !["mobile", "tablet", "desktop"].includes(String(event.device_class))
+      || typeof event.client_release !== "string" || !/^[A-Za-z0-9._-]{1,64}$/.test(event.client_release)
+      || typeof event.catalog_version !== "string" || !/^[A-Za-z0-9._-]{1,32}$/.test(event.catalog_version)
+      || typeof event.synthetic !== "boolean"
+      || ["cta_id", "action_id", "placement_id"].some((key) => event[key] !== undefined
+        && (!STABLE_ANALYTICS_ID.test(String(event[key])) || String(event[key]).length > 80))
+      || (event.position_index !== undefined && (!Number.isInteger(event.position_index) || Number(event.position_index) < 0 || Number(event.position_index) > 32767))
+      || (event.failure_category !== undefined && !["validation", "network", "permission", "server", "unknown"].includes(String(event.failure_category)))
+      || (["cta_impression", "cta_click"].includes(String(event.event_type)) && (!event.cta_id || !event.placement_id))
+      || (event.event_type === "cta_click" && !event.interaction_id)
+      || (["task_start", "task_success", "task_failure"].includes(String(event.event_type)) && (!event.interaction_id || !event.action_id))
+      || (event.event_type === "task_failure" && !event.failure_category)
+      || (event.event_type !== "task_failure" && Boolean(event.failure_category))) {
+      throw new Error("Production observation payload is outside the reviewed analytics schema");
+    }
+  }
+  return data.events.length;
+}
+
+function isExactReadonlyCloudflareBeacon(boundary: ReleaseBoundary, target: URL, method: string): boolean {
+  return boundary.mode === "readonly"
+    && method.toUpperCase() === "GET"
+    && target.origin === "https://static.cloudflareinsights.com"
+    && /^\/beacon\.min\.js\/v[a-f0-9]{32,64}$/.test(target.pathname)
+    && !target.search && !target.hash && !target.username && !target.password;
+}
+
 export function releaseBoundaryFromEnv(env: Record<string, string | undefined>): ReleaseBoundary | null {
   if (!env.E2E_RELEASE_API_MODE) return null;
   const mode = env.E2E_RELEASE_API_MODE;
@@ -149,7 +235,12 @@ export function developmentUpstream(boundary: ReleaseBoundary, rawUrl: string): 
 export async function installReleaseContextGuard(context: BrowserContext, boundary: ReleaseBoundary) {
   const observations = { attempted: 0, accepted: 0 };
   const authentication = { attempted: 0, accepted: 0 };
-  const transport = { readFetchRetries: 0 };
+  const transport = {
+    readFetchRetries: 0,
+    suppressedAnalyticsBatches: 0,
+    suppressedAnalyticsEvents: 0,
+    suppressedCloudflareBeacons: 0,
+  };
   const defects: string[] = [];
   const activeRoutes = new Set<Promise<void>>();
   let closing = false;
@@ -163,9 +254,41 @@ export async function installReleaseContextGuard(context: BrowserContext, bounda
     };
     try {
       const upstream = developmentUpstream(boundary, request.url());
+      const target = new URL(upstream);
+      if (isExactReadonlyCloudflareBeacon(boundary, target, request.method())) {
+        const headers = await request.allHeaders();
+        if (headers.authorization || headers.cookie || headers["x-tenant-code"]) {
+          await reject("credentials");
+          return;
+        }
+        try {
+          await route.fulfill({ status: 200, contentType: "application/javascript; charset=utf-8", body: "" });
+          transport.suppressedCloudflareBeacons += 1;
+        } catch { await reject("fulfill-transport"); }
+        return;
+      }
       let data: unknown;
       try { data = request.postDataJSON(); } catch { data = undefined; }
-      const kind = assertReleaseRequestSafe(boundary, upstream, request.method(), await request.headerValue("x-tenant-code") || undefined, data);
+      let bodyBytes = 0;
+      try {
+        const raw = typeof request.postDataBuffer === "function" ? request.postDataBuffer() : null;
+        bodyBytes = raw?.byteLength ?? new TextEncoder().encode(JSON.stringify(data)).byteLength;
+      } catch { bodyBytes = 0; }
+      const tenantCode = await request.headerValue("x-tenant-code") || undefined;
+      const analyticsEvents = exactReadonlyAnalyticsEventCount(boundary, target, request.method(), tenantCode, data, bodyBytes);
+      if (analyticsEvents !== null) {
+        const headers = await request.allHeaders();
+        if (headers.origin !== boundary.webOrigin) throw new Error("Real API CORS boundary mismatch");
+        try {
+          await route.fulfill({ status: 202, contentType: "application/json; charset=utf-8",
+            headers: { "access-control-allow-origin": boundary.webOrigin, "access-control-allow-credentials": "true" },
+            body: JSON.stringify({ accepted: 0, ignored: "release_readonly" }) });
+          transport.suppressedAnalyticsBatches += 1;
+          transport.suppressedAnalyticsEvents += analyticsEvents;
+        } catch { await reject("fulfill-transport"); }
+        return;
+      }
+      const kind = assertReleaseRequestSafe(boundary, upstream, request.method(), tenantCode, data);
       const counter = kind === "observation" ? observations : kind === "authentication" ? authentication : null;
       if (counter) counter.attempted += 1;
       if (new URL(upstream).origin === boundary.apiOrigin) {

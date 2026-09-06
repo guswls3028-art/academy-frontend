@@ -275,7 +275,10 @@ test("real-use failure observation publishes only allowlisted counts, files, and
   failed.results[0] = {
     status: "failed",
     errors: [{ message: "Release request rejected [tenant] secret-token student-name" }],
-    stdout: [{ text: `${JSON.stringify({ releaseApiMode: "development", transport: { readFetchRetries: 1 }, ignored: "safe" })}\n` }],
+    stdout: [{ text: `${JSON.stringify({ releaseApiMode: "development", transport: {
+      readFetchRetries: 1, suppressedAnalyticsBatches: 2,
+      suppressedAnalyticsEvents: 3, suppressedCloudflareBeacons: 4,
+    }, ignored: "safe" })}\n` }],
   };
   report.errors.push({ message: "Release request rejected [cors] C:/secret/path" });
   report.stats.unexpected = 1;
@@ -287,13 +290,18 @@ test("real-use failure observation publishes only allowlisted counts, files, and
     boundaryCodes: ["cors", "tenant"],
     runnerErrorCount: 1,
     readFetchRetries: 1,
+    suppressedAnalyticsBatches: 2,
+    suppressedAnalyticsEvents: 3,
+    suppressedCloudflareBeacons: 4,
   });
   const published = JSON.stringify(observeReleaseTestResult(JSON.stringify(report)));
   assert.doesNotMatch(published, /secret-token|student-name|C:\/secret\/path/);
   assert.deepEqual(observeReleaseTestResult("not-json secret-token"), {
     reportStatus: "unparsed",
     stats: { expected: null, skipped: null, unexpected: null, flaky: null },
-    failedFiles: [], boundaryCodes: [], runnerErrorCount: null, readFetchRetries: null,
+    failedFiles: [], boundaryCodes: [], runnerErrorCount: null,
+    readFetchRetries: null, suppressedAnalyticsBatches: null,
+    suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
   });
 });
 
@@ -554,7 +562,12 @@ test("same-artifact proxy retries only safe read fetch transport and identifies 
   }, async () => { fulfillments += 1; }));
   assert.equal(readAttempts, 2);
   assert.equal(fulfillments, 1);
-  assert.deepEqual(safeRead.guard.transport, { readFetchRetries: 1 });
+  assert.deepEqual(safeRead.guard.transport, {
+    readFetchRetries: 1,
+    suppressedAnalyticsBatches: 0,
+    suppressedAnalyticsEvents: 0,
+    suppressedCloudflareBeacons: 0,
+  });
   assert.doesNotThrow(() => safeRead.guard.assertClean());
 
   const mutation = await install();
@@ -574,6 +587,163 @@ test("same-artifact proxy retries only safe read fetch transport and identifies 
   }, async () => { throw new Error("unit browser delivery interruption"); }));
   assert.equal(deliveryFetches, 1, "browser delivery failure must not replay upstream transport");
   assert.throws(() => delivery.guard.assertClean(), /Release request rejected \[fulfill-transport\]/);
+});
+
+test("production browser guard locally neutralizes only exact non-business telemetry", async () => {
+  const install = async () => {
+    let handler;
+    const context = {
+      on() {}, route: async (_pattern, callback) => { handler = callback; },
+      request: Object.fromEntries(["fetch", "get", "head", "post", "put", "patch", "delete"].map((verb) => [verb, async () => {}])),
+    };
+    return { guard: await installReleaseContextGuard(context, production), handler };
+  };
+  const analyticsPayload = {
+    schema_version: 1,
+    events: [{
+      event_id: "11111111-1111-4111-8111-111111111111",
+      event_type: "screen_view",
+      occurred_at: new Date().toISOString(),
+      session_id: "22222222-2222-4222-8222-222222222222",
+      view_id: "33333333-3333-4333-8333-333333333333",
+      feature_id: "students.directory",
+      screen_id: "student.dashboard.home",
+      surface: "student",
+      route_template: "/student/dashboard",
+      device_class: "mobile",
+      client_release: "a15dd0f95192cc907e6a418d6d1a0faf652cfe99",
+      catalog_version: "2026-07-29",
+      synthetic: false,
+    }],
+  };
+  const route = ({
+    url = "https://api.hakwonplus.com/api/v1/core/product-analytics/events/batch/",
+    method = "POST",
+    tenant = production.tenantCode,
+    data = analyticsPayload,
+    headers = { origin: production.webOrigin, "x-tenant-code": tenant },
+    bodyBytes,
+  } = {}) => {
+    const operations = [];
+    return { operations, value: {
+      request: () => ({
+        url: () => url,
+        method: () => method,
+        postDataJSON: () => data,
+        postDataBuffer: () => bodyBytes === undefined ? undefined : new Uint8Array(bodyBytes),
+        headerValue: async () => tenant,
+        allHeaders: async () => headers,
+      }),
+      fetch: async () => { operations.push("fetch"); throw new Error("must not reach network"); },
+      fulfill: async (options) => { operations.push({ fulfill: options }); },
+      abort: async () => { operations.push("abort"); },
+      continue: async () => { operations.push("continue"); },
+    } };
+  };
+
+  const analytics = await install();
+  const exact = route();
+  await analytics.handler(exact.value);
+  assert.equal(exact.operations.length, 1);
+  assert.equal(exact.operations[0].fulfill.status, 202);
+  assert.deepEqual(analytics.guard.transport, {
+    readFetchRetries: 0,
+    suppressedAnalyticsBatches: 1,
+    suppressedAnalyticsEvents: 1,
+    suppressedCloudflareBeacons: 0,
+  });
+  assert.doesNotThrow(() => analytics.guard.assertClean());
+
+  const event = analyticsPayload.events[0];
+  const schemaFailures = [
+    { data: { ...analyticsPayload, extra: true } },
+    { data: { ...analyticsPayload, events: [] } },
+    { data: { ...analyticsPayload, events: Array.from({ length: 21 }, () => event) } },
+    { data: { ...analyticsPayload, events: [{ ...event, student_name: "must-not-pass" }] } },
+    { data: { ...analyticsPayload, events: [{ ...event, event_type: "unknown" }] } },
+    { data: { ...analyticsPayload, events: [{ ...event, event_id: "not-a-uuid" }] } },
+    { data: { ...analyticsPayload, events: [{ ...event, occurred_at: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString() }] } },
+    { data: { ...analyticsPayload, events: [{ ...event, route_template: "/student/123" }] } },
+    { data: { ...analyticsPayload, events: [{ ...event, event_type: "task_start" }] } },
+    { bodyBytes: 64 * 1024 + 1 },
+  ];
+  for (const change of schemaFailures) {
+    const invalid = await install();
+    const unsafe = route(change);
+    await invalid.handler(unsafe.value);
+    assert.deepEqual(unsafe.operations, ["abort"]);
+    assert.throws(() => invalid.guard.assertClean(), /Release request rejected \[observation-schema\]/);
+  }
+  for (const change of [
+    { tenant: "foreign", headers: { origin: production.webOrigin, "x-tenant-code": "foreign" }, expected: "tenant" },
+    { url: "https://api.hakwonplus.com/api/v1/core/product-analytics/events/other/", expected: "mutation" },
+    { method: "PUT", expected: "mutation" },
+    { headers: { origin: "https://foreign.example", "x-tenant-code": production.tenantCode }, expected: "cors" },
+  ]) {
+    const invalid = await install();
+    const unsafe = route(change);
+    await invalid.handler(unsafe.value);
+    assert.deepEqual(unsafe.operations, ["abort"]);
+    assert.throws(() => invalid.guard.assertClean(), new RegExp(`Release request rejected \\[${change.expected}\\]`));
+  }
+
+  const beacon = await install();
+  const cloudflare = route({
+    url: "https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495",
+    method: "GET",
+    tenant: null,
+    data: null,
+  });
+  await beacon.handler(cloudflare.value);
+  assert.equal(cloudflare.operations.length, 1);
+  assert.equal(cloudflare.operations[0].fulfill.status, 200);
+  assert.equal(cloudflare.operations[0].fulfill.contentType, "application/javascript; charset=utf-8");
+  assert.deepEqual(beacon.guard.transport, {
+    readFetchRetries: 0,
+    suppressedAnalyticsBatches: 0,
+    suppressedAnalyticsEvents: 0,
+    suppressedCloudflareBeacons: 1,
+  });
+  assert.doesNotThrow(() => beacon.guard.assertClean());
+
+  for (const change of [
+    { url: "https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495?extra=1" },
+    { url: "https://static.cloudflareinsights.com/other.js" },
+    { url: "https://static.cloudflareinsights.com/beacon.min.js/vnot-a-valid-version" },
+    { method: "POST" },
+  ]) {
+    const rejected = await install();
+    const candidate = route({
+      url: "https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495",
+      method: "GET",
+      tenant: null,
+      data: null,
+      headers: { origin: production.webOrigin },
+      ...change,
+    });
+    await rejected.handler(candidate.value);
+    assert.deepEqual(candidate.operations, ["abort"]);
+    assert.throws(() => rejected.guard.assertClean(), /Release request rejected \[origin\]/);
+  }
+  for (const headers of [{ authorization: "Bearer must-not-pass" }, { cookie: "session=must-not-pass" }]) {
+    const rejected = await install();
+    const candidate = route({
+      url: "https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495",
+      method: "GET",
+      tenant: null,
+      data: null,
+      headers,
+    });
+    await rejected.handler(candidate.value);
+    assert.deepEqual(candidate.operations, ["abort"]);
+    assert.throws(() => rejected.guard.assertClean(), /Release request rejected \[credentials\]/);
+  }
+
+  const foreign = await install();
+  const other = route({ url: "https://foreign.example/script.js", method: "GET", tenant: undefined, data: undefined });
+  await foreign.handler(other.value);
+  assert.deepEqual(other.operations, ["abort"]);
+  assert.throws(() => foreign.guard.assertClean(), /Release request rejected \[origin\]/);
 });
 
 test("intentional context close drains active requests and blocks new teardown traffic", async () => {
