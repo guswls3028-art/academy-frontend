@@ -3,6 +3,7 @@ import type { Page } from "@playwright/test";
 import { guardUnmockedYouTubeRequests, installYouTubeSdkFixture } from "../helpers/youtubeSdkFixture";
 import {
   assertYoutubeReadyPlayPause, installStudentYoutubeScenario, openStudentYoutubeScenario,
+  YOUTUBE_QA_TITLE,
 } from "../helpers/studentYoutubeScenario";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
@@ -65,6 +66,58 @@ test.describe("student video CDN service errors", () => {
   test.use({
     viewport: { width: 390, height: 844 },
     serviceWorkers: "block",
+  });
+
+  test("새 배포를 감지해도 재생 화면과 재생 위치를 자동으로 갱신하지 않는다", async ({ page }) => {
+    let mainFrameNavigations = 0;
+    page.on("framenavigated", (frame) => {
+      if (frame === page.mainFrame()) mainFrameNavigations += 1;
+    });
+    await page.route("**/version.json?*", async (route) => {
+      await route.fulfill({
+        json: { version: "new-release-detected-by-continuity-test" },
+      });
+    });
+
+    const unexpectedYouTubeRequests = await guardUnmockedYouTubeRequests(page);
+    const youtube = await installYouTubeSdkFixture(page);
+    await installStudentYoutubeScenario(page);
+    await page.goto(
+      `${BASE}/student/video/play?video=562&enrollment=1304&session=394`,
+      { waitUntil: "domcontentloaded", timeout: 90_000 },
+    );
+    await expect(page.getByRole("heading", { name: YOUTUBE_QA_TITLE })).toBeVisible({
+      timeout: 60_000,
+    });
+    const openedUrl = page.url();
+    const openedNavigationCount = mainFrameNavigations;
+
+    await expect(page.getByText("재생 화면을 준비하고 있어요…")).toHaveCount(0, {
+      timeout: 30_000,
+    });
+    await page.getByRole("button", { name: "재생", exact: true }).click();
+    await expect.poll(async () => (await youtube.snapshot()).players[0]?.state).toBe(1);
+    const beforeUpdate = await youtube.snapshot();
+
+    await expect(page.getByRole("status")).toContainText("새 버전이 준비됐어요", {
+      timeout: 8_000,
+    });
+    await expect(page.getByRole("button", { name: "지금 새로고침" })).toBeVisible();
+    await expect.poll(async () => (
+      (await youtube.snapshot()).players[0]?.current ?? 0
+    )).toBeGreaterThan(beforeUpdate.players[0].current + 0.5);
+    const afterUpdate = await youtube.snapshot();
+
+    expect(page.url()).toBe(openedUrl);
+    expect(mainFrameNavigations).toBe(openedNavigationCount);
+    expect(afterUpdate.players).toHaveLength(1);
+    expect(afterUpdate.players[0]).toMatchObject({ destroyed: false, state: 1 });
+    expect(afterUpdate.players[0].current).toBeGreaterThan(beforeUpdate.players[0].current);
+    expect(unexpectedYouTubeRequests).toEqual([]);
+    expect(await page.evaluate(() => ({
+      body: document.body.scrollWidth <= document.body.clientWidth,
+      document: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    }))).toEqual({ body: true, document: true });
   });
 
   test("CDN 403을 학생 인터넷 문제로 안내하지 않고 새 재생 URL을 요청한다", async ({ page }) => {

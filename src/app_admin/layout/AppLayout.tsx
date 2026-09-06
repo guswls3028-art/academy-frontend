@@ -26,7 +26,7 @@ import useAuth from "@/auth/hooks/useAuth";
 import { NavIcon } from "./adminNavConfig";
 import { useAvailableAdminNavigation } from "./useAvailableAdminNavigation";
 
-// useVersionChecker가 자동 리로드 처리 — 수동 새로고침 배너 제거됨
+// 새 배포 안내는 AppInner의 전역 VersionUpdateNotice가 맡는다.
 
 const AppLayoutMobile = lazy(() => import("./AppLayoutMobile"));
 
@@ -60,7 +60,6 @@ function AppLayoutContent({ overlay }: { overlay?: ReactNode }) {
       {isMobile ? (
         <AdminLayoutProvider>
           <WorkboxProvider>
-            {/* 수동 새로고침 배너 제거 — useVersionChecker가 자동 리로드 처리 */}
             <Suspense fallback={null}>
               <AppLayoutMobile onOpenQuickNavigation={openQuickNavigation} />
             </Suspense>
@@ -80,7 +79,6 @@ function AppLayoutContent({ overlay }: { overlay?: ReactNode }) {
         color: "var(--color-text-primary)",
       }}
     >
-      {/* 수동 새로고침 배너 제거 — useVersionChecker가 자동 리로드 처리 */}
       <div
         style={{
           display: "grid",

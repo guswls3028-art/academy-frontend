@@ -56,7 +56,7 @@ const HAKWONPLUS_THEME_TENANTS = ["hakwonplus"];
 /** 9999번 공통 — commonlogo + 2번 색상 (common=9999 로컬 경로) */
 const COMMON_THEME_TENANTS = ["9999", "common"];
 
-// useVersionChecker가 자동 리로드 처리 — 수동 새로고침 배너 제거됨
+// 새 배포 안내는 AppInner의 전역 VersionUpdateNotice가 맡는다.
 
 export default function StudentLayout() {
   return (

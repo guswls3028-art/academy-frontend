@@ -1,0 +1,97 @@
+.notice {
+  position: fixed;
+  right: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: min(460px, calc(100vw - 40px));
+  padding: 12px 14px;
+  border: 1px solid var(--color-border-divider, #d7dee8);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 28%, var(--color-border-divider));
+  border-radius: 14px;
+  background: var(--color-bg-surface, #fff);
+  background: color-mix(in srgb, var(--color-bg-surface, #fff) 96%, transparent);
+  color: var(--color-text-primary, #172033);
+  box-shadow: 0 14px 38px rgb(15 23 42 / 18%);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  animation: version-notice-in 180ms ease-out;
+}
+
+.copy {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.copy strong {
+  font-size: 14px;
+}
+
+.copy span {
+  color: var(--color-text-secondary, #526075);
+}
+
+.refresh {
+  flex: none;
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--color-brand-primary, #2563eb);
+  color: var(--color-text-inverse, #fff);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+.refresh:hover {
+  filter: brightness(0.96);
+}
+
+.refresh:active {
+  transform: translateY(1px);
+}
+
+.refresh:focus-visible {
+  outline: 3px solid rgb(37 99 235 / 28%);
+  outline-color: color-mix(in srgb, var(--color-brand-primary) 28%, transparent);
+  outline-offset: 2px;
+}
+
+@keyframes version-notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .notice {
+    right: 12px;
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+    width: calc(100vw - 24px);
+    gap: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notice {
+    animation: none;
+  }
+
+  .refresh {
+    transition: none;
+  }
+}

@@ -29,6 +29,11 @@
    후속 E2E 실패는 별도 `production-rollback` environment가 승인 대기 없이
    baseline으로 보상하고 실제 version 복귀를 확인한다.
 
+열린 앱은 `version.json`에서 새 배포를 감지해도 자동으로 새로고침하지 않는다.
+학생 영상 재생, 시험·과제 입력, 교직원 성적·출결·클리닉 편집, 파일 업로드처럼
+중단 시 상태를 잃거나 업무가 끊기는 흐름을 전역으로 보호하며, 현재 화면을 유지한 채
+`새 버전이 준비됐어요` 안내와 사용자가 누르는 `지금 새로고침`만 제공한다.
+
 배포 교체 중 이전 앱 셸이 새 lazy JavaScript 또는 CSS asset을 가리키지 못하면
 `vite:preloadError`, window error/rejection, React ErrorBoundary가 같은
 `isChunkLoadError` 분류를 사용해 제한된 cache-bust reload를 수행한다.

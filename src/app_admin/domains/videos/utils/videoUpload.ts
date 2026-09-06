@@ -4,7 +4,6 @@
 
 import api from "@/shared/api/axios";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
-import { blockAutoReload } from "@/shared/ui/layout/VersionChecker";
 import type { UploadInitResponse } from "../api/videos.api";
 
 export interface VideoUploadParams {
@@ -27,7 +26,6 @@ export interface InitVideoResult {
 }
 
 let activeBrowserUploadCount = 0;
-let unblockBrowserUploadReload: (() => void) | null = null;
 let removeBrowserUploadBeforeUnload: (() => void) | null = null;
 
 function handleBrowserUploadBeforeUnload(e: BeforeUnloadEvent): string {
@@ -39,9 +37,6 @@ function handleBrowserUploadBeforeUnload(e: BeforeUnloadEvent): string {
 
 function installBrowserUploadGuard(): void {
   if (typeof window === "undefined") return;
-  if (!unblockBrowserUploadReload) {
-    unblockBrowserUploadReload = blockAutoReload();
-  }
   if (!removeBrowserUploadBeforeUnload) {
     window.addEventListener("beforeunload", handleBrowserUploadBeforeUnload);
     removeBrowserUploadBeforeUnload = () => {
@@ -54,8 +49,6 @@ function releaseBrowserUploadGuard(): void {
   if (activeBrowserUploadCount > 0) return;
   removeBrowserUploadBeforeUnload?.();
   removeBrowserUploadBeforeUnload = null;
-  unblockBrowserUploadReload?.();
-  unblockBrowserUploadReload = null;
 }
 
 function beginBrowserUploadGuard(): () => void {
