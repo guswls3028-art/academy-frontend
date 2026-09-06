@@ -28,11 +28,11 @@ export type PendingChange =
       expectedUpdatedAt?: string | null;
     };
 
-export type ScoreActiveCell = {
-  type: "homework";
-  enrollmentId: number;
-  homeworkId: number;
-};
+export type ScoreActiveCell = { enrollmentId: number } & (
+  | { type: "homework"; homeworkId: number }
+  | { type: "exam"; examId: number; sub: "total" | "objective" | "subjective"; questionId?: undefined }
+  | { type: "exam"; examId: number; sub: "item"; questionId: number }
+);
 
 export type ScoreActiveEditor = {
   client_id: string;
@@ -64,11 +64,12 @@ export async function getScoreDraft(
 export async function putScoreDraft(
   sessionId: number,
   changes: PendingChange[],
-  options?: { acknowledgeStale?: boolean; activeCell?: ScoreActiveCell | null },
+  options?: { acknowledgeStale?: boolean; activeCell?: ScoreActiveCell | null; takeOverSameUser?: boolean },
 ): Promise<ScoreDraftSnapshot> {
   const res = await api.put(`/results/admin/sessions/${sessionId}/score-draft/`, {
     changes,
     acknowledge_stale: options?.acknowledgeStale ?? false,
+    take_over_same_user: options?.takeOverSameUser ?? false,
     active_cell: options?.activeCell ?? null,
   }, {
     headers: await scoreEditorRequestHeaders(),

@@ -49,7 +49,7 @@ export function useScoreEditPresence({
         const locked = isScoreEditLockedError(error);
         onPresenceError(
           locked
-            ? "다른 직원이 같은 과제 셀을 입력 중입니다. 표시된 셀을 확인해 주세요."
+            ? "다른 직원이 같은 성적 셀을 입력 중입니다. 표시된 셀을 확인해 주세요."
             : "선택한 셀의 협업 상태를 알리지 못했습니다.",
           locked,
         );
