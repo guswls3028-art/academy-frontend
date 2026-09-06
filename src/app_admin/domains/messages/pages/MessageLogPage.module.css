@@ -55,6 +55,44 @@
   background: var(--color-bg-surface-soft);
 }
 
+.requestActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.exactRequestStrip {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 24%, var(--color-border-divider));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface));
+  color: var(--color-primary);
+}
+
+.exactRequestStrip > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.exactRequestStrip strong {
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
+.exactRequestStrip small {
+  overflow-wrap: anywhere;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .filterButton {
   min-height: 32px;
   padding: 5px 12px;

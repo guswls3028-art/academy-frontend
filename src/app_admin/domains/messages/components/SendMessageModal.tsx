@@ -13,6 +13,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router";
 import { Input } from "antd";
 import { Check, AlertCircle, AlertTriangle, Edit3, Tag, Shield, CalendarClock } from "lucide-react";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
@@ -246,6 +247,7 @@ export default function SendMessageModal({
   recomputePerStudentVarsRef,
 }: SendMessageModalProps) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const confirm = useConfirm();
   const runTrackedTask = useTrackedTask();
 
@@ -442,6 +444,7 @@ export default function SendMessageModal({
   const buildSendPayload = useCallback((
     sendTo: SendToType,
     preflightIdentity?: string,
+    clientRequestId?: string,
   ): Parameters<typeof sendMessage>[0] => {
     const payload: Parameters<typeof sendMessage>[0] = { send_to: sendTo, message_mode: "alimtalk" };
     payload.student_ids = studentIds;
@@ -450,6 +453,7 @@ export default function SendMessageModal({
     if (effectiveBlockCategory) payload.block_category = effectiveBlockCategory;
     if (effectiveManualEvent) payload.manual_event = effectiveManualEvent;
     if (preflightIdentity) payload.preflight_identity = preflightIdentity;
+    if (clientRequestId) payload.client_request_id = clientRequestId;
     const currentBody = body.trim();
     payload.raw_body = currentBody;
     if (subject.trim()) payload.raw_subject = subject.trim();
@@ -807,6 +811,7 @@ export default function SendMessageModal({
     let totalSkipped = 0;
     let totalEnqueueFailed = 0;
     const completedTargetLabels: string[] = [];
+    const clientRequestId = crypto.randomUUID();
     try {
       let completedCalls = 0;
       const totalCalls = sendToTargets.length;
@@ -821,7 +826,7 @@ export default function SendMessageModal({
             throw new Error("발송 전 확인 정보가 없습니다. 다시 확인해 주세요.");
           }
           const res = await sendMessage(
-            buildSendPayload(sendTo, preflightIdentity),
+            buildSendPayload(sendTo, preflightIdentity, clientRequestId),
           );
           totalEnqueued += res.enqueued ?? 0;
           totalScheduled += res.scheduled ?? 0;
@@ -858,6 +863,9 @@ export default function SendMessageModal({
         asyncStatusStore.completeTask(taskId, "error", "발송 접수 0건");
       }
       onClose();
+      if (accepted > 0 && sendTiming === "now") {
+        navigate(`/workspace/message/log?request_id=${encodeURIComponent(clientRequestId)}`);
+      }
     } catch (e: unknown) {
       const msg = e && typeof e === "object" && "response" in e
         ? (e as { response?: { data?: { detail?: string } } }).response?.data?.detail : null;

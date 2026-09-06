@@ -21,7 +21,17 @@ type StaffRole = "owner" | "admin" | "teacher";
 
 async function installWorkspaceMocks(
   page: Page,
-  { role, payrollManager = false }: { role: StaffRole; payrollManager?: boolean },
+  {
+    role,
+    payrollManager = false,
+    messageLogLifecycle = false,
+    onProviderVerify,
+  }: {
+    role: StaffRole;
+    payrollManager?: boolean;
+    messageLogLifecycle?: boolean;
+    onProviderVerify?: () => void;
+  },
 ) {
   const apiRequests: Array<{ method: string; path: string }> = [];
 
@@ -69,6 +79,38 @@ async function installWorkspaceMocks(
         is_payroll_manager: payrollManager,
         staff_id: role === "owner" ? 11 : 12,
         assigned_work_types: [],
+      });
+    }
+    if (messageLogLifecycle && path === "/messaging/log/") {
+      return json(route, {
+        count: 1,
+        results: [{
+          id: 501,
+          sent_at: "2026-09-05T22:48:00+09:00",
+          success: true,
+          status: "sent",
+          amount_deducted: "0",
+          recipient_summary: "김○○ 학생 010****1234",
+          template_summary: "수업 결과 기본형",
+          message_mode: "alimtalk",
+          provider_evidence: true,
+          provider_delivery_status: "provider_accepted",
+        }],
+      });
+    }
+    if (messageLogLifecycle && path === "/messaging/log/501/") {
+      if (new URL(request.url()).searchParams.get("verify_provider") === "true") onProviderVerify?.();
+      return json(route, {
+        id: 501,
+        sent_at: "2026-09-05T22:48:00+09:00",
+        success: true,
+        status: "sent",
+        amount_deducted: "0",
+        recipient_summary: "김○○ 학생 010****1234",
+        template_summary: "수업 결과 기본형",
+        message_mode: "alimtalk",
+        provider_evidence: true,
+        provider_delivery_status: "delivered",
       });
     }
 
@@ -210,6 +252,28 @@ test("Mac 데스크톱은 구형 모바일 강제값에 갇히지 않는다", as
   await expect(page.getByRole("button", { name: "사이드바 토글" })).toBeVisible();
   await expect(page.getByRole("button", { name: "메뉴 열기" })).toHaveCount(0);
   await expect(page.locator('aside[data-analytics-placement="admin.sidebar"]')).toBeVisible();
+});
+
+test("발송 내역은 공급사 접수와 최종 전달을 구분하고 다시 확인할 수 있다", async ({ page }) => {
+  let providerVerifyCount = 0;
+  await installWorkspaceMocks(page, {
+    role: "teacher",
+    messageLogLifecycle: true,
+    onProviderVerify: () => { providerVerifyCount += 1; },
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoAndSettle(page, `${BASE}/workspace/mobile/message-log`, { timeout: 20_000 });
+
+  await expect(page.getByText("공급사 접수", { exact: true })).toBeVisible();
+  await expect(page.getByText("성공", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "최종 상태 확인", exact: true }).click();
+  await expect(page.getByText("최종 전달", { exact: true })).toBeVisible();
+  await expect.poll(() => providerVerifyCount).toBe(1);
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByText("공급사 접수", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "최종 상태 확인", exact: true }).click();
+  await expect.poll(() => providerVerifyCount).toBe(2);
 });
 
 test("좁은 Mac 창의 선생님도 눈에 띄는 PC 버전 버튼으로 전환한다", async ({ page }) => {

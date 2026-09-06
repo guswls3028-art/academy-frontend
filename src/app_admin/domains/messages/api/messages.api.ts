@@ -45,7 +45,12 @@ export type NotificationBodyVisibility =
 
 export interface NotificationLogItem {
   id: number;
-  /** PII-free lifecycle correlation key. */
+  /** 수동 발송 요청과 worker 로그를 정확히 연결하는 요청 ID. */
+  request_id?: string;
+  /** 한 번의 API 접수 단위를 나타내는 batch ID. */
+  batch_id?: string;
+  /** PII-free lifecycle correlation identity. */
+  origin_type?: string;
   origin_id?: string;
   sent_at: string;
   /** 성공 여부 */
@@ -91,6 +96,10 @@ export interface NotificationLogParams {
   status?: "success" | "failure" | "sent" | "active" | "attention" | "failed";
   scope?: "clinic";
   origin_id_prefix?: string;
+  request_id?: string;
+  batch_id?: string;
+  origin_type?: string;
+  origin_id?: string;
 }
 
 export interface NotificationLogResponse {
@@ -454,6 +463,8 @@ export interface SendMessagePayload {
   manual_event?: ManualMessageEvent;
   /** preflight가 발급한 서명된 1회용 발송 정체성 */
   preflight_identity?: string;
+  /** 한 번의 사용자 발송 동작에서 학생·학부모 요청을 묶는 UUID */
+  client_request_id?: string;
   raw_body?: string;
   raw_subject?: string;
   /** 예약 발송 시각. 없으면 즉시 발송 */
@@ -472,9 +483,14 @@ export interface SendMessagePayload {
 export interface SendMessageResponse {
   detail: string;
   enqueued: number;
+  accepted_count?: number;
   scheduled?: number;
   enqueue_failed?: number;
   skipped_no_phone: number;
+  request_id?: string;
+  batch_id?: string;
+  origin_type?: string;
+  origin_id?: string;
 }
 
 export async function sendMessage(payload: SendMessagePayload): Promise<SendMessageResponse> {

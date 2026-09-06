@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -468,13 +469,17 @@ function PaginationBar({
 export default function MessageLogPage() {
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestId = searchParams.get("request_id")?.trim() || "";
+  const exactRequestMode = Boolean(requestId);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedItem, setSelectedItem] = useState<NotificationLogItem | null>(null);
   const { data, isLoading, isError, refetch } = useNotificationLog({
-    page: currentPage,
+    page: exactRequestMode ? 1 : currentPage,
     page_size: PAGE_SIZE,
-    status: statusFilter === "all" ? undefined : statusFilter,
+    status: exactRequestMode || statusFilter === "all" ? undefined : statusFilter,
+    request_id: requestId || undefined,
   });
   const { data: scheduledData } = useQuery({
     queryKey: messageQueryKeys.scheduledPending,
@@ -524,21 +529,43 @@ export default function MessageLogPage() {
             {!isLoading && <span className={styles.countText}>총 {count.toLocaleString()}건</span>}
           </p>
         </div>
-        <div className={styles.filterGroup} aria-label="발송 상태 필터">
-          {FILTER_OPTIONS.map((option) => (
-            <button
-              key={option.key}
-              type="button"
-              onClick={() => { setStatusFilter(option.key); setCurrentPage(1); }}
-              className={styles.filterButton}
-              data-active={statusFilter === option.key}
-              aria-pressed={statusFilter === option.key}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        {exactRequestMode ? (
+          <div className={styles.requestActions}>
+            <Button intent="secondary" size="sm" onClick={() => void refetch()} disabled={isLoading}>
+              <RefreshCw size={ICON.xs} aria-hidden />
+              다시 불러오기
+            </Button>
+            <Button intent="secondary" size="sm" onClick={() => setSearchParams({})}>
+              전체 발송 내역
+            </Button>
+          </div>
+        ) : (
+          <div className={styles.filterGroup} aria-label="발송 상태 필터">
+            {FILTER_OPTIONS.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => { setStatusFilter(option.key); setCurrentPage(1); }}
+                className={styles.filterButton}
+                data-active={statusFilter === option.key}
+                aria-pressed={statusFilter === option.key}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        )}
       </header>
+
+      {exactRequestMode && (
+        <section className={styles.exactRequestStrip} aria-label="방금 접수한 발송 요청">
+          <CheckCircle2 size={ICON.md} aria-hidden />
+          <span>
+            <strong>방금 접수한 요청만 확인 중</strong>
+            <small>처리 기록이 만들어지면 아래에 수신자별 상태가 표시됩니다.</small>
+          </span>
+        </section>
+      )}
 
       <OperationsStrip status={operationsStatus} loading={operationsLoading} />
 
@@ -570,10 +597,11 @@ export default function MessageLogPage() {
         </div>
       ) : results.length === 0 ? (
         <EmptyState
-          title={statusFilter === "all" ? "발송 내역이 없습니다" : `${FILTER_OPTIONS.find((item) => item.key === statusFilter)?.label} 기록이 없습니다`}
-          description={statusFilter === "all" ? "알림톡을 발송하면 처리 결과가 이곳에 기록됩니다." : "다른 상태 필터를 선택해 보세요."}
+          title={exactRequestMode ? "아직 수신자별 처리 기록이 없습니다" : statusFilter === "all" ? "발송 내역이 없습니다" : `${FILTER_OPTIONS.find((item) => item.key === statusFilter)?.label} 기록이 없습니다`}
+          description={exactRequestMode ? "접수 직후에는 워커 기록 생성까지 잠시 걸릴 수 있습니다. 다시 불러와 같은 요청의 상태를 확인해 주세요." : statusFilter === "all" ? "알림톡을 발송하면 처리 결과가 이곳에 기록됩니다." : "다른 상태 필터를 선택해 보세요."}
           tone="empty"
           scope="panel"
+          actions={exactRequestMode ? <Button intent="secondary" size="sm" onClick={() => void refetch()}>다시 불러오기</Button> : undefined}
         />
       ) : (
         <>
