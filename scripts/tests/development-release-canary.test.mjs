@@ -370,6 +370,32 @@ test("development requests require exact identity and cannot escape to productio
   assert.throws(() => assertReleaseRequestSafe(development, "https://api.hakwonplus.com/api/v1/community/posts/", "GET", development.tenantCode), /escaped/);
 });
 
+test("only the exact public tenant metadata read may omit the tenant header", () => {
+  assert.equal(assertReleaseRequestSafe(
+    development,
+    "http://127.0.0.1:18000/api/v1/core/og-meta/?hostname=localhost",
+    "GET",
+  ), "read");
+  assert.equal(assertReleaseRequestSafe(
+    production,
+    "https://api.hakwonplus.com/api/v1/core/og-meta/?hostname=hakwonplus.com",
+    "GET",
+  ), "read");
+  for (const url of [
+    "http://127.0.0.1:18000/api/v1/core/og-meta/?hostname=hakwonplus.com",
+    "http://127.0.0.1:18000/api/v1/core/og-meta/?hostname=localhost&extra=1",
+    "http://127.0.0.1:18000/api/v1/core/og-meta/?hostname=localhost&hostname=localhost",
+    "http://127.0.0.1:18000/api/v1/community/posts/",
+  ]) {
+    assert.throws(() => assertReleaseRequestSafe(development, url, "GET"), /QA tenant/);
+  }
+  assert.throws(() => assertReleaseRequestSafe(
+    development,
+    "http://127.0.0.1:18000/api/v1/core/og-meta/?hostname=localhost",
+    "POST",
+  ), /QA tenant/);
+});
+
 test("missing/unsafe release configuration fails before creating a scenario", () => {
   for (const overrides of [{}, { E2E_ALLOW_PRODUCTION_WRITES: "1" }, { E2E_API_URL: "https://api.hakwonplus.com" }]) {
     assert.throws(() => releaseBoundaryFromEnv({ E2E_RELEASE_API_MODE: "development", ...overrides }));
@@ -438,6 +464,44 @@ test("same-artifact proxy preserves the real response and never sends credential
     assert.deepEqual(calls.slice(before).map((call) => call.operation), ["upstream", "abort"]);
   }
   assert.throws(() => guard.assertClean(), /Release API boundary failed/);
+});
+
+test("intentional context close ignores only request-context disposal", async () => {
+  const makeGuard = async (message) => {
+    let handler;
+    const context = {
+      on() {}, route: async (_pattern, callback) => { handler = callback; },
+      request: Object.fromEntries(["fetch", "get", "head", "post", "put", "patch", "delete"].map((verb) => [verb, async () => {}])),
+    };
+    const guard = await installReleaseContextGuard(context, development);
+    const route = {
+      request: () => ({
+        url: () => "https://api.hakwonplus.com/api/v1/core/program/",
+        method: () => "GET",
+        postDataJSON: () => undefined,
+        headerValue: async () => development.tenantCode,
+        allHeaders: async () => ({ origin: development.webOrigin, "x-tenant-code": development.tenantCode }),
+      }),
+      fetch: async () => { throw new Error(message); },
+      abort: async () => {},
+      continue: async () => {},
+    };
+    return { guard, handler, route };
+  };
+
+  const beforeClose = await makeGuard("route.fetch: Request context disposed.");
+  await beforeClose.handler(beforeClose.route);
+  assert.throws(() => beforeClose.guard.assertClean(), /Release API boundary failed/);
+
+  const duringClose = await makeGuard("route.fetch: Request context disposed.\nCall log omitted");
+  duringClose.guard.beginClose();
+  await duringClose.handler(duringClose.route);
+  assert.doesNotThrow(() => duringClose.guard.assertClean());
+
+  const realFailure = await makeGuard("Real API CORS boundary mismatch");
+  realFailure.guard.beginClose();
+  await realFailure.handler(realFailure.route);
+  assert.throws(() => realFailure.guard.assertClean(), /Release API boundary failed/);
 });
 
 test("real Chromium receives the unmodified loopback HTTP response through the transport boundary", async () => {

@@ -34,14 +34,20 @@ export const test = base.extend<StrictBrowserOptions>({
         boundaryGuard.assertClean();
         for (const guard of pages) guard.assertZeroDefects();
       };
-      checks.push(check);
+      let explicitlyClosed = false;
+      checks.push(() => { if (!explicitlyClosed) check(); });
       const close = context.close.bind(context);
       context.close = async (closeOptions) => {
         try {
           check();
           console.log(JSON.stringify({ releaseApiMode: boundary.mode,
             authentication: boundaryGuard.authentication, observation: boundaryGuard.observations }));
-        } finally { await close(closeOptions); }
+          boundaryGuard.beginClose();
+        } finally {
+          try { await close(closeOptions); }
+          finally { explicitlyClosed = true; }
+        }
+        check();
       };
       return context;
     };
