@@ -6,7 +6,8 @@ import { useLocation } from "react-router";
 
 import AppRouter from "@/core/router/AppRouter";
 import useAuth from "@/auth/hooks/useAuth";
-import { useVersionChecker } from "@/shared/ui/layout/VersionChecker";
+import { VersionUpdateNotice } from "@/shared/ui/layout/VersionChecker";
+import { useVersionChecker } from "@/shared/ui/layout/useVersionChecker";
 import SubscriptionExpiredOverlay from "@/shared/ui/SubscriptionExpiredOverlay";
 import { addNavigationBreadcrumb } from "@/shared/lib/sentryContext";
 import BugReportButton from "@/shared/ui/feedback/BugReportButton";
@@ -28,7 +29,7 @@ function StaffClockInChoiceGate() {
 }
 
 export default function AppInner() {
-  useVersionChecker(); // 배포 자동 업데이트 (visibilitychange + pageshow + 폴링)
+  const updateAvailable = useVersionChecker();
 
   // Sentry breadcrumb: 라우트 변경 추적
   const location = useLocation();
@@ -47,6 +48,7 @@ export default function AppInner() {
       <StaffClockInChoiceGate />
       <SubscriptionExpiredOverlay />
       <BugReportButton />
+      <VersionUpdateNotice visible={updateAvailable} />
     </>
   );
 }

@@ -29,6 +29,11 @@
    후속 E2E 실패는 별도 `production-rollback` environment가 승인 대기 없이
    baseline으로 보상하고 실제 version 복귀를 확인한다.
 
+열린 앱은 `version.json`에서 새 배포를 감지해도 자동으로 새로고침하지 않는다.
+학생 영상 재생, 시험·과제 입력, 교직원 성적·출결·클리닉 편집, 파일 업로드처럼
+중단 시 상태를 잃거나 업무가 끊기는 흐름을 전역으로 보호하며, 현재 화면을 유지한 채
+`새 버전이 준비됐어요` 안내와 사용자가 누르는 `지금 새로고침`만 제공한다.
+
 배포 교체 중 이전 앱 셸이 새 lazy JavaScript 또는 CSS asset을 가리키지 못하면
 `vite:preloadError`, window error/rejection, React ErrorBoundary가 같은
 `isChunkLoadError` 분류를 사용해 제한된 cache-bust reload를 수행한다.
@@ -167,6 +172,13 @@ strict browser 및 기존 exact-baseline rollback 검증이 남는다. 기존 �
 APIRequestContext와 browser request 검사, strict browser assertion을 받는다.
 외부 origin, 다른/누락 tenant, 예상 밖 운영 mutation과 API redirect는 실패로 기록한다.
 예외를 test에서 catch해도 APIRequestContext 경계 위반은 teardown에서 실패한다.
+로그인 전에 호스트별 PWA 메타데이터를 찾는 공개 조회만 예외다. 정확한
+`GET /api/v1/core/og-meta/?hostname=<현재 web hostname>` 한 건은 tenant header 없이
+허용하고, 다른 hostname, 추가·중복 query, 다른 method와 그 밖의 API 요청은 기존
+exact tenant 경계를 그대로 적용한다.
+명시적 browser context 종료는 종료 직전과 직후에 경계 결함을 검사한다. 종료가
+진행 중일 때 발생한 정확한 Playwright request-context disposal만 수명주기 종료로
+분류하며, 그 전에 발생했거나 다른 upstream/CORS 오류는 계속 실패한다.
 
 개발 transport는 artifact가 가리키는 정확한 `https://api.hakwonplus.com/api/`만
 SSM의 `http://127.0.0.1:<port>/api/`로 전달한다. 웹 origin은 개발 settings가 실제로

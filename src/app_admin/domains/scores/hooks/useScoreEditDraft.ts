@@ -20,7 +20,6 @@ import {
   type ScoreActiveCell,
 } from "../api/scoreDraft";
 import { useScoreEditPresence } from "./useScoreEditPresence";
-import { blockAutoReload } from "@/shared/ui/layout/VersionChecker";
 import {
   getLocalItem,
   getTenantUserLocalKey,
@@ -484,13 +483,6 @@ export function useScoreEditDraft({
       return false;
     }
   }, [sessionId]);
-
-  // Pending changes block deployment auto-reload only while data is actually dirty.
-  useEffect(() => {
-    if (!isActive || !hasPendingChanges) return;
-    const unblock = blockAutoReload();
-    return unblock;
-  }, [isActive, hasPendingChanges]);
 
   useEffect(() => {
     if (!isActive) return;

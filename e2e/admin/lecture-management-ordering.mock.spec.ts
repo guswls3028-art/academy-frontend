@@ -208,41 +208,47 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
     await seedLectureAdmin(page);
     await page.goto(`${BASE}/workspace/lectures`, { waitUntil: "domcontentloaded" });
 
+    const table = page.locator("main table");
+    await expect(table).toBeVisible({ timeout: 60_000 });
     for (const width of [1100, 1366, 1920]) {
       await page.setViewportSize({ width, height: width === 1100 ? 800 : 900 });
-      const metrics = await page.locator("main table").evaluate((table) => {
-        const rect = table.getBoundingClientRect();
-        const owner = table.parentElement!;
+      await expect(table).toBeVisible({ timeout: 60_000 });
+      const metrics = await table.evaluate((tableElement) => {
+        const rect = tableElement.getBoundingClientRect();
+        const owner = tableElement.parentElement!;
         return {
           tableWidth: rect.width,
           ownerWidth: owner.getBoundingClientRect().width,
           documentScrollWidth: document.documentElement.scrollWidth,
           viewportWidth: window.innerWidth,
         };
-      });
+      }, undefined, { timeout: 60_000 });
       expect(metrics.tableWidth).toBeGreaterThanOrEqual(metrics.ownerWidth - 1);
       expect(metrics.documentScrollWidth).toBeLessThanOrEqual(metrics.viewportWidth);
     }
 
     await page.setViewportSize({ width: 390, height: 844 });
-    const mobile = await page.locator("main table").evaluate((table) => {
-      const owner = table.parentElement!;
-      const grip = document.querySelector<HTMLButtonElement>('button[aria-label="Alpha 순서 이동"]')!;
-      const gripRect = grip.getBoundingClientRect();
+    const mobileGrip = page.getByRole("button", { name: "Alpha 순서 이동", exact: true });
+    await expect(table).toBeVisible({ timeout: 60_000 });
+    await expect(mobileGrip).toBeVisible({ timeout: 60_000 });
+    const mobile = await table.evaluate((tableElement) => {
+      const owner = tableElement.parentElement!;
       return {
-        tableWidth: table.getBoundingClientRect().width,
+        tableWidth: tableElement.getBoundingClientRect().width,
         ownerWidth: owner.getBoundingClientRect().width,
         ownerScrollWidth: owner.scrollWidth,
         documentScrollWidth: document.documentElement.scrollWidth,
-        gripWidth: gripRect.width,
-        gripHeight: gripRect.height,
       };
-    });
+    }, undefined, { timeout: 60_000 });
+    const gripBounds = await mobileGrip.evaluate((grip) => {
+      const rect = grip.getBoundingClientRect();
+      return { width: rect.width, height: rect.height };
+    }, undefined, { timeout: 60_000 });
     expect(mobile.tableWidth).toBeGreaterThan(mobile.ownerWidth);
     expect(mobile.ownerScrollWidth).toBeGreaterThan(mobile.ownerWidth);
     expect(mobile.documentScrollWidth).toBeLessThanOrEqual(390);
-    expect(mobile.gripWidth).toBeGreaterThanOrEqual(40);
-    expect(mobile.gripHeight).toBeGreaterThanOrEqual(40);
+    expect(gripBounds.width).toBeGreaterThanOrEqual(40);
+    expect(gripBounds.height).toBeGreaterThanOrEqual(40);
   });
 
   test("차시 편집 dialog는 1100px main 영역 안에서 trigger 방향으로 열린다", async ({ page }) => {

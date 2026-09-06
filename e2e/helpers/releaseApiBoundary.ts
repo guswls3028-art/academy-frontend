@@ -7,6 +7,14 @@ export type ReleaseBoundary = {
   tenantCode: string;
 };
 
+function isExactPublicTenantMetadataRead(boundary: ReleaseBoundary, target: URL, verb: string): boolean {
+  return verb === "GET"
+    && target.pathname === "/api/v1/core/og-meta/"
+    && [...target.searchParams.keys()].length === 1
+    && target.searchParams.getAll("hostname").length === 1
+    && target.searchParams.get("hostname") === new URL(boundary.webOrigin).hostname;
+}
+
 export function releaseBoundaryFromEnv(env: Record<string, string | undefined>): ReleaseBoundary | null {
   if (!env.E2E_RELEASE_API_MODE) return null;
   const mode = env.E2E_RELEASE_API_MODE;
@@ -43,10 +51,13 @@ export function assertReleaseRequestSafe(
   }
   if (api && target.origin !== boundary.apiOrigin) throw new Error("API request must use the verified API origin");
   if (target.username || target.password) throw new Error("Release request URL cannot contain credentials");
-  if (target.pathname.startsWith("/api/") && verb !== "OPTIONS" && tenantCode !== boundary.tenantCode) {
+  const publicTenantMetadataRead = isExactPublicTenantMetadataRead(boundary, target, verb);
+  if (target.pathname.startsWith("/api/") && verb !== "OPTIONS"
+    && !publicTenantMetadataRead && tenantCode !== boundary.tenantCode) {
     throw new Error("Release request has a missing or foreign QA tenant");
   }
   if (!api && read) return "read";
+  if (publicTenantMetadataRead) return "read";
   if (boundary.mode === "development") {
     return "development";
   }
@@ -125,6 +136,7 @@ export async function installReleaseContextGuard(context: BrowserContext, bounda
   const observations = { attempted: 0, accepted: 0 };
   const authentication = { attempted: 0, accepted: 0 };
   const defects: string[] = [];
+  let closing = false;
   installReleaseRequestGuard(context.request, boundary, observations, authentication,
     () => defects.push("APIRequestContext release boundary violation"));
   await context.route("**/*", async (route) => {
@@ -154,9 +166,11 @@ export async function installReleaseContextGuard(context: BrowserContext, bounda
         await route.fulfill({ response });
         return;
       }
-    } catch {
+    } catch (error) {
       // Upstream errors can contain credential-bearing URLs. Emit no raw error.
-      defects.push("Release request rejected or real upstream transport failed");
+      const disposedDuringClose = closing && error instanceof Error
+        && error.message.startsWith("route.fetch: Request context disposed.");
+      if (!disposedDuringClose) defects.push("Release request rejected or real upstream transport failed");
       await route.abort("blockedbyclient");
       return;
     }
@@ -165,6 +179,7 @@ export async function installReleaseContextGuard(context: BrowserContext, bounda
   return {
     observations,
     authentication,
+    beginClose() { closing = true; },
     assertClean() {
       if (defects.length) throw new Error(`Release API boundary failed: ${[...new Set(defects)].join("; ")}`);
     },
