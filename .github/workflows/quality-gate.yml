@@ -362,7 +362,7 @@ jobs:
           session-manager-plugin --version
           pnpm exec playwright install chromium
       - name: Assume frontend development QA role
-        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6
+        uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c # v6
         with:
           role-to-assume: arn:aws:iam::809466760795:role/academy-frontend-development-qa
           role-session-name: academy-fe-qa-${{ github.run_id }}-${{ github.run_attempt }}
