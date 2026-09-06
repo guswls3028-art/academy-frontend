@@ -109,6 +109,9 @@ API와 성공 후 세션 처리를 소유한다. 비밀번호 원문, 토큰, �
 - 로그인 ID와 비밀번호 입력은 iPhone Safari의 자동 대문자·자동수정·맞춤법
   변형을 끈다. 사용자가 입력한 대소문자와 기호를 그대로 `/token/`에 보내며,
   모바일에서도 역할별 홈으로 이동하기 전에 `/core/me/` 성공을 확인한다.
+- build target 안의 Safari는 `color-mix()` 미지원만으로 로그인 전 차단하지 않는다.
+  Safari 14~16.1은 정적 학생 surface/tint fallback으로 로그인, 학생 shell, 새로고침과
+  cold load를 유지하며, 로그아웃·학생 경로는 교직원 출근 chunk를 요청하지 않는다.
 - access·refresh 토큰은 `activeGeneration` pointer와 generation별 단일 envelope로
   관리한다. login은 새 generation envelope를 먼저 쓴 뒤 pointer를 한 번 게시하고,
   refresh·logout·expiry는 자신이 시작한 generation만 변경하거나 제거한다. Web Lock
@@ -167,7 +170,7 @@ refresh 후 재요청 401의 단일 세션 종료와 복귀 경로 보존을 검
 
 ```powershell
 pnpm exec playwright test e2e/auth/account-password-flows.mock.spec.ts e2e/auth/account-recovery-modal.spec.ts e2e/auth/signup-tenant-policy.mock.spec.ts e2e/admin/staff-operations-contract.mock.spec.ts --project=chromium --reporter=list
-pnpm exec playwright test e2e/auth/iphone-safari-login.mock.spec.ts --config=playwright.pr-gate.config.ts --project=pr-route-mocks --project=pr-iphone-webkit --no-deps --reporter=list
+pnpm exec playwright test e2e/auth/iphone-safari-login.mock.spec.ts e2e/auth/safari-browser-support.mock.spec.ts --config=playwright.pr-gate.config.ts --project=pr-route-mocks --project=pr-iphone-webkit --no-deps --reporter=list
 pnpm exec playwright test e2e/auth/godmin-login-visual.mock.spec.ts --project=chromium --reporter=list
 pnpm exec playwright test e2e/student/student-content-resilience.mock.spec.ts --project=chromium --grep "학부모 내 비밀번호"
 pnpm exec playwright test e2e/admin/student-detail-entrypoints.mock.spec.ts --project=chromium --reporter=list
