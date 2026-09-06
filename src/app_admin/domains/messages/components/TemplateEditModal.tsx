@@ -22,7 +22,6 @@ import {
 import GradesBlockPanel from "./GradesBlockPanel";
 import AlimtalkTemplateInfoPanel, {
   getAlimtalkTemplateType,
-  getAlimtalkTemplateTypeFromCategory,
   getAutoFillBlockIds,
   isAlimtalkTemplateBodyEditable,
   renderAlimtalkFullPreview,
@@ -65,7 +64,7 @@ export default function TemplateEditModal({
   const [body, setBody] = useState("");
   const [activeTab, setActiveTab] = useState<EditorTab>("alimtalk");
   const [selectedCategory, setSelectedCategory] = useState<TemplateCategory>(category);
-  const alimtalkType = getAlimtalkTemplateType(trigger) ?? getAlimtalkTemplateTypeFromCategory(selectedCategory, name);
+  const alimtalkType = getAlimtalkTemplateType(trigger);
   const bodyEditableInEnvelope = isAlimtalkTemplateBodyEditable(alimtalkType);
   // Ant Design Input.TextArea ref는 래퍼 객체 — native textarea를 직접 찾는다
   const bodyWrapRef = useRef<HTMLDivElement>(null);

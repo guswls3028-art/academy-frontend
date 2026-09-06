@@ -194,6 +194,8 @@ export async function sendMessage(payload: {
   raw_subject?: string;
   template_id?: number;
   block_category?: string;
+  manual_event?: "lesson_result" | "attendance_notice" | "clinic_reservation_notice" | "clinic_change_notice";
+  preflight_identity?: string;
   scheduled_send_at?: string | null;
 }): Promise<{ detail: string; enqueued: number; scheduled?: number; enqueue_failed?: number; skipped_no_phone?: number }> {
   const res = await api.post("/messaging/send/", payload);
@@ -202,6 +204,7 @@ export async function sendMessage(payload: {
 
 export interface MessageSendPreflight {
   can_send: boolean;
+  preflight_identity: string;
   recipient: {
     selected: number;
     resolved?: number;
@@ -230,18 +233,39 @@ export interface MessageLogItem {
   id: number;
   sent_at: string;
   success: boolean;
+  status?: "processing" | "sending" | "sent" | "retryable_failed" | "failed" | "ambiguous" | string;
+  claimed_at?: string | null;
   amount_deducted: string;
   recipient_summary?: string;
   template_summary?: string;
   failure_reason?: string | null;
+  failure_code?: string;
+  provider_message_id?: string;
+  provider_message_reference?: string;
+  provider_evidence?: boolean;
+  provider_delivery_status?: "unavailable" | "provider_accepted" | "delivered" | "failed";
+  provider_delivery_failure_reason?: string;
   message_body?: string;
+  body_visibility?: "available" | "sensitive_redacted" | "restricted" | "not_recorded";
   message_mode?: string;
+  notification_type?: string;
+  request_id?: string;
+  batch_id?: string;
+  origin_type?: string;
+  origin_id?: string;
 }
 
 export async function fetchMessageLog(page = 1, pageSize = 20): Promise<{ results: MessageLogItem[]; count: number }> {
   const res = await api.get("/messaging/log/", { params: { page, page_size: pageSize } });
   const results = listFromApiResponse<MessageLogItem>(res.data);
   return { results, count: countFromApiResponse(res.data, results.length) };
+}
+
+export async function fetchMessageLogDetail(id: number, verifyProvider = false): Promise<MessageLogItem> {
+  const res = await api.get<MessageLogItem>(`/messaging/log/${id}/`, {
+    params: verifyProvider ? { verify_provider: true } : undefined,
+  });
+  return res.data;
 }
 
 /* ─── Messaging Info & Templates ─── */

@@ -24,10 +24,9 @@ export function useAutoSendConfig() {
 
   const toggleMut = useMutation({
     mutationFn: (args: { trigger: string; enabled: boolean }) => {
-      const next = configs.map((c) =>
-        c.trigger === args.trigger ? { ...c, enabled: args.enabled } : c,
-      );
-      return updateAutoSendConfigs(next);
+      return updateAutoSendConfigs([
+        { trigger: args.trigger, enabled: args.enabled },
+      ]);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: messageQueryKeys.autoSend });

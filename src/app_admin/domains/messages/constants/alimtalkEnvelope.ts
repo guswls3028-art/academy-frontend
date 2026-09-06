@@ -1,5 +1,4 @@
-import type { MessageTemplateCategory } from "../api/messages.api";
-import type { TemplateCategory } from "./templateBlocks";
+import type { ManualMessageEvent } from "../api/messages.api";
 
 export type AlimtalkTemplateType =
   | "clinic_info"
@@ -105,14 +104,11 @@ export function getAlimtalkEnvelopeSpec(
   return templateType ? ALIMTALK_ENVELOPE_SPECS[templateType] : null;
 }
 
-const CATEGORY_TO_TEMPLATE_TYPE: Partial<Record<MessageTemplateCategory | TemplateCategory, AlimtalkTemplateType>> = {
-  grades: "score",
-  attendance: "attendance",
-  lecture: "attendance",
-  exam: "attendance",
-  assignment: "attendance",
-  clinic: "clinic_info",
-  payment: "notice_payment",
+const MANUAL_EVENT_TO_TEMPLATE_TYPE: Record<ManualMessageEvent, AlimtalkTemplateType> = {
+  lesson_result: "score",
+  attendance_notice: "attendance",
+  clinic_reservation_notice: "clinic_info",
+  clinic_change_notice: "clinic_change",
 };
 
 const TRIGGER_TO_TEMPLATE_TYPE: Record<string, AlimtalkTemplateType> = {
@@ -143,40 +139,10 @@ const TRIGGER_TO_TEMPLATE_TYPE: Record<string, AlimtalkTemplateType> = {
   payment_due_days_before: "notice_payment",
 };
 
-function isClinicChangeTemplate(templateName = "", extraVars?: Record<string, unknown>): boolean {
-  const name = templateName.toLowerCase();
-  if (name.includes("변경") || name.includes("취소")) return true;
-  if (["change", "changed", "cancel", "cancelled", "canceled", "reschedule", "rescheduled"].some((k) => name.includes(k))) {
-    return true;
-  }
-  if (!extraVars) return false;
-  return Boolean(extraVars["클리닉기존일정"] || extraVars["클리닉변동사항"] || extraVars["클리닉수정자"]);
-}
-
-export function getAlimtalkTemplateTypeFromCategory(
-  category?: string,
-  templateName = "",
-  extraVars?: Record<string, unknown>,
+export function getAlimtalkTemplateTypeForManualEvent(
+  event?: ManualMessageEvent | null,
 ): AlimtalkTemplateType | null {
-  if (!category) return null;
-  const templateType = CATEGORY_TO_TEMPLATE_TYPE[category as MessageTemplateCategory | TemplateCategory];
-  if (templateType === "clinic_info" && isClinicChangeTemplate(templateName, extraVars)) {
-    return "clinic_change";
-  }
-  return templateType ?? null;
-}
-
-export function resolveManualAlimtalkTemplateType(
-  blockCategory?: string,
-  savedTemplateCategory?: string,
-  templateName = "",
-  extraVars?: Record<string, unknown>,
-): AlimtalkTemplateType | null {
-  if (savedTemplateCategory === "payment" || savedTemplateCategory === "signup") {
-    return getAlimtalkTemplateTypeFromCategory(savedTemplateCategory, templateName, extraVars);
-  }
-  return getAlimtalkTemplateTypeFromCategory(blockCategory, templateName, extraVars)
-    ?? getAlimtalkTemplateTypeFromCategory(savedTemplateCategory, templateName, extraVars);
+  return event ? MANUAL_EVENT_TO_TEMPLATE_TYPE[event] : null;
 }
 
 export function getAlimtalkTemplateType(trigger?: string): AlimtalkTemplateType | null {

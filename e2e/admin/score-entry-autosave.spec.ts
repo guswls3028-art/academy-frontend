@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "../fixtures/strictTest";
 import { getBaseUrl } from "../helpers/auth";
 import { installLocalAuthApiStubs, installTenantOneInitScript } from "../helpers/localAuthApiStubs";
+import { realMessagingSkipReason } from "../helpers/safety";
 
 type ScoreRouteOptions = {
   initialScores?: Array<number | null>;
@@ -44,7 +45,11 @@ async function openScores(
   navigationTimeoutMs = 45_000,
 ): Promise<void> {
   const baseUrl = getBaseUrl("admin");
-  test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(baseUrl), "성적 입력 route-mock 검증은 로컬 dev 서버 전용");
+  const mockOnlyReason = realMessagingSkipReason(baseUrl, "", "0");
+  test.skip(
+    !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(baseUrl),
+    mockOnlyReason ?? "성적 입력 route-mock 검증은 로컬 dev 서버 전용",
+  );
   await installLocalAuthApiStubs(page, {
     programFeatureFlags: {
       ...(routeOptions.scoreSummaryColumnDefault
@@ -1062,18 +1067,145 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(page.getByRole("dialog", { name: "알림톡 발송" })).toHaveCount(0);
   });
 
-  test("성적 알림 모달은 보호자만 선택하고 학생 수신을 잠근다", async ({ page }) => {
+  test("성적 알림 모달은 보호자와 학생 수신을 모두 선택할 수 있다", async ({ page }) => {
+    const preflightTargets: string[] = [];
+    const sendTargets: string[] = [];
+    const sendRequestIds: string[] = [];
+    const logRequestIds: string[] = [];
     await openScores(page, { initialScores: [65, 52] });
+
+    await page.route("**/messaging/send/preflight/", async (route) => {
+      const payload = route.request().postDataJSON() as { send_to?: string };
+      const sendTo = payload.send_to ?? "";
+      preflightTargets.push(sendTo);
+      await route.fulfill({
+        json: {
+          ok: true,
+          can_send: true,
+          mode: "now",
+          send_to: sendTo,
+          preflight_identity: `e2e-${sendTo}`,
+          recipient: {
+            selected: 1,
+            resolved: 1,
+            valid_phone: 1,
+            skipped_no_phone: 0,
+            duplicate_phone: 0,
+            unique_phone: 1,
+            invalid_or_deleted: 0,
+            limit: 200,
+          },
+          template: {
+            ok: true,
+            source: "unified",
+            name: "수업 결과 기본형",
+            solapi_template_id: "KA01TP_TEST_SCORE",
+            solapi_status: "APPROVED",
+            detail: "발송 가능",
+            uses_unified_template: true,
+            template_type: "score",
+          },
+          preview_recipients: [{
+            student_id: 9301,
+            student_name: "자동저장학생1",
+            phone: sendTo === "parent" ? "010****2222" : "010****3333",
+            excluded: false,
+            exclude_reason: "",
+            full_message_body: "자동저장학생1 학생의 수업 결과입니다.",
+          }],
+          limits: { hourly_limit: 500, sent_last_hour: 0, remaining_this_hour: 500 },
+          blockers: [],
+          warnings: [],
+        },
+      });
+    });
+    await page.route("**/messaging/send/", async (route) => {
+      const payload = route.request().postDataJSON() as { send_to?: string; client_request_id?: string };
+      sendTargets.push(payload.send_to ?? "");
+      sendRequestIds.push(payload.client_request_id ?? "");
+      await route.fulfill({
+        json: {
+          detail: "접수",
+          accepted_count: 1,
+          enqueued: 1,
+          scheduled: 0,
+          enqueue_failed: 0,
+          skipped_no_phone: 0,
+          request_id: payload.client_request_id,
+          batch_id: "8c3d785f-e6a9-4f14-bbd3-3dbe17278d09",
+          origin_type: "manual_send",
+          origin_id: payload.client_request_id,
+        },
+      });
+    });
+    await page.route("**/messaging/log/**", async (route) => {
+      const url = new URL(route.request().url());
+      const requestId = url.searchParams.get("request_id") ?? "";
+      logRequestIds.push(requestId);
+      await route.fulfill({
+        json: {
+          count: 1,
+          results: [{
+            id: 7001,
+            request_id: requestId,
+            batch_id: "8c3d785f-e6a9-4f14-bbd3-3dbe17278d09",
+            origin_type: "manual_send",
+            origin_id: requestId,
+            sent_at: "2026-09-05T22:48:00+09:00",
+            success: false,
+            status: "processing",
+            amount_deducted: "0",
+            recipient_summary: "자동저장학생1 학생 010****3333",
+            template_summary: "수업 결과 기본형",
+            message_mode: "alimtalk",
+            notification_type: "manual_send",
+          }],
+        },
+      });
+    });
 
     await page.getByRole("checkbox", { name: "자동저장학생1 선택" }).check();
     await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
 
     const dialog = page.getByRole("dialog", { name: "알림톡 발송" });
     await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "직접 작성", exact: true }).click();
+    await dialog.getByPlaceholder("학원장님이 학생/학부모에게 전할 안내 메시지를 자유롭게 입력하세요.")
+      .fill("#{학생이름} 학생의 수업 결과를 안내드립니다.\n#{시험성적}");
     await expect(dialog.getByRole("checkbox", { name: "학부모" })).toBeChecked();
-    await expect(dialog.getByRole("checkbox", { name: "학생" })).not.toBeChecked();
-    await expect(dialog.getByRole("checkbox", { name: "학생" })).toBeDisabled();
-    await expect(dialog).toContainText("성적 알림은 보호자에게만 발송됩니다.");
+    await expect(dialog.getByRole("checkbox", { name: "학생" })).toBeChecked();
+    await expect(dialog.getByRole("checkbox", { name: "학생" })).toBeEnabled();
+    await expect.poll(() => [...new Set(preflightTargets)].sort()).toEqual(["parent", "student"]);
+    await dialog.getByRole("button", { name: "학부모 1명 + 학생 1명에게 알림톡 발송" }).click();
+    const combinedConfirm = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
+    const combinedRecipient = combinedConfirm.getByRole("radio", { name: /자동저장학생1/ });
+    await expect(combinedRecipient).toContainText("학부모 010****2222");
+    await expect(combinedRecipient).toContainText("학생 010****3333");
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await combinedConfirm.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    await combinedConfirm.getByRole("button", { name: "돌아가기" }).click();
+    await dialog.getByRole("checkbox", { name: "학부모" }).uncheck();
+    await expect(dialog.getByRole("checkbox", { name: "학생" })).toBeChecked();
+    await expect(dialog).not.toContainText("성적 알림은 보호자에게만 발송됩니다.");
+    await expect.poll(() => preflightTargets.at(-1)).toBe("student");
+
+    await dialog.getByRole("checkbox", { name: "학부모" }).check();
+    await expect.poll(() => [...new Set(preflightTargets)].sort()).toEqual(["parent", "student"]);
+    await dialog.getByRole("button", { name: "학부모 1명 + 학생 1명에게 알림톡 발송" }).click();
+    await page.getByRole("dialog", { name: "보내기 전 마지막 확인" })
+      .getByRole("button", { name: "발송하기" })
+      .click();
+    await expect.poll(() => sendTargets).toEqual(["parent", "student"]);
+    await expect.poll(() => sendRequestIds[0]).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(new Set(sendRequestIds).size).toBe(1);
+    await expect(page).toHaveURL(new RegExp(`/workspace/message/log\\?request_id=${sendRequestIds[0]}$`));
+    await expect.poll(() => logRequestIds.at(-1)).toBe(sendRequestIds[0]);
+    await expect(page.getByText("방금 접수한 요청만 확인 중")).toBeVisible();
+    await expect(page.getByText("자동저장학생1 학생 010****3333")).toBeVisible();
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect.poll(() => logRequestIds.at(-1)).toBe(sendRequestIds[0]);
+    await expect(page.getByText("방금 접수한 요청만 확인 중")).toBeVisible();
   });
 
   test("마지막 열을 테스트 오답으로 바꾸면 실제 오답 확인 완료 상태가 사용자별로 유지된다", async ({ page }, testInfo) => {

@@ -55,9 +55,9 @@ const MESSAGE_RECIPIENT_OPTIONS: { value: MessageRecipient; label: string }[] = 
 ];
 
 const ALIMTALK_TYPE_OPTIONS = [
-  { value: "attendance", label: "출결·수업·시험·과제" },
-  { value: "grades", label: "성적 안내" },
-  { value: "clinic", label: "클리닉 안내" },
+  { value: "attendance", manualEvent: "attendance_notice", label: "출결·수업·시험·과제" },
+  { value: "grades", manualEvent: "lesson_result", label: "성적 안내" },
+  { value: "clinic", manualEvent: "clinic_reservation_notice", label: "클리닉 안내" },
 ] as const;
 
 function defaultScheduledLocalValue(): string {
@@ -633,6 +633,9 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
   const scheduleLabel = scheduledDate && !Number.isNaN(scheduledDate.getTime())
     ? scheduledDate.toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
     : "예약 시각";
+  const manualEvent = ALIMTALK_TYPE_OPTIONS.find(
+    (option) => option.value === alimtalkType,
+  )?.manualEvent;
 
   useEffect(() => {
     if (!open) return;
@@ -643,12 +646,14 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
   }, [initialSendTiming, open]);
 
   const sendMut = useMutation({
-    mutationFn: () => sendMessage({
+    mutationFn: (preflightIdentity: string) => sendMessage({
       student_ids: students.map((s) => s.id),
       send_to: sendTo,
       message_mode: "alimtalk",
       raw_body: body,
       block_category: alimtalkType,
+      manual_event: manualEvent,
+      preflight_identity: preflightIdentity,
       scheduled_send_at: scheduledSendAtIso,
     }),
     onSuccess: (res) => {
@@ -674,6 +679,7 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
         message_mode: "alimtalk",
         raw_body: body,
         block_category: alimtalkType,
+        manual_event: manualEvent,
         scheduled_send_at: scheduledSendAtIso,
       });
       setPreflight(checked);
@@ -688,6 +694,10 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
       teacherToast.error(blocker ? `${blocker.title}: ${blocker.detail}` : "현재 알림톡을 발송할 수 없습니다.");
       return;
     }
+    if (!checked.preflight_identity) {
+      teacherToast.error("발송 전 확인 정보가 없습니다. 다시 확인해 주세요.");
+      return;
+    }
     const skipped = checked.recipient.skipped_no_phone + (checked.recipient.invalid_or_deleted ?? 0);
     const duplicateNotice = checked.recipient.duplicate_phone
       ? ` 동일 번호 ${checked.recipient.duplicate_phone}건도 학생별 안내로 각각 포함됩니다.`
@@ -699,7 +709,7 @@ function BulkMessageSheet({ open, onClose, students, initialSendTiming, onDone }
         : `${recipientLabel} 알림톡 ${checked.recipient.valid_phone}건을 발송할까요?${skipped ? ` ${skipped}건은 연락처 없음·대상 변경으로 제외됩니다.` : ""}${duplicateNotice}`,
       confirmText: sendTiming === "scheduled" ? "예약" : "발송",
     });
-    if (ok) sendMut.mutate();
+    if (ok) sendMut.mutate(checked.preflight_identity);
   };
 
   return (

@@ -13,6 +13,7 @@ import {
 } from "react";
 
 import type { TemplateCategory } from "../constants/templateBlocks";
+import type { ManualMessageEvent } from "../api/messages.api";
 import { AdminModal, ModalBody, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 
 const SendMessageModal = lazy(() => import("../components/SendMessageModal"));
@@ -22,12 +23,12 @@ export type OpenSendMessageOptions = {
   recipientLabel?: string;
   /** 삽입 블록 카테고리. 미지정 시 "default" (모든 블록) */
   blockCategory?: TemplateCategory;
+  /** 승인 알림톡 봉투를 고르는 정확한 수동 이벤트 */
+  manualEvent?: ManualMessageEvent;
   /** 본문 사전 입력 (성적 발송 등) */
   initialBody?: string;
   /** 사전 적용된 저장 양식 ID */
   initialTemplateId?: number | null;
-  /** 사전 적용된 기본 제공 편지지 프리셋 ID */
-  initialLetterPresetId?: string | null;
   /** 알림톡 추가 치환 변수 (성적 발송 시 시험명/강의명/시험성적 등) */
   alimtalkExtraVars?: Record<string, string>;
   /** 학생별 개별 치환 변수 — key: student_id (대량 성적 발송 등) */
@@ -64,9 +65,9 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
   const [studentIds, setStudentIds] = useState<number[]>([]);
   const [recipientLabel, setRecipientLabel] = useState<string | undefined>();
   const [blockCategory, setBlockCategory] = useState<TemplateCategory | undefined>();
+  const [manualEvent, setManualEvent] = useState<ManualMessageEvent | undefined>();
   const [initialBody, setInitialBody] = useState<string | undefined>();
   const [initialTemplateId, setInitialTemplateId] = useState<number | null | undefined>();
-  const [initialLetterPresetId, setInitialLetterPresetId] = useState<string | null | undefined>();
   const [alimtalkExtraVars, setAlimtalkExtraVars] = useState<Record<string, string> | undefined>();
   const [alimtalkExtraVarsPerStudent, setAlimtalkExtraVarsPerStudent] = useState<Record<number, Record<string, string>> | undefined>();
   const recomputePerStudentVarsRef = useRef<((currentBody: string) => Record<number, Record<string, string>>) | undefined>(undefined);
@@ -76,9 +77,9 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
     setStudentIds(options.studentIds ?? []);
     setRecipientLabel(options.recipientLabel);
     setBlockCategory(options.blockCategory);
+    setManualEvent(options.manualEvent);
     setInitialBody(options.initialBody);
     setInitialTemplateId(options.initialTemplateId);
-    setInitialLetterPresetId(options.initialLetterPresetId);
     setAlimtalkExtraVars(options.alimtalkExtraVars);
     setAlimtalkExtraVarsPerStudent(options.alimtalkExtraVarsPerStudent);
     recomputePerStudentVarsRef.current = options.recomputePerStudentVars;
@@ -91,9 +92,9 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
     setStudentIds([]);
     setRecipientLabel(undefined);
     setBlockCategory(undefined);
+    setManualEvent(undefined);
     setInitialBody(undefined);
     setInitialTemplateId(undefined);
-    setInitialLetterPresetId(undefined);
     setAlimtalkExtraVars(undefined);
     setAlimtalkExtraVarsPerStudent(undefined);
     recomputePerStudentVarsRef.current = undefined;
@@ -123,9 +124,9 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
             initialStudentIds={studentIds}
             recipientLabel={recipientLabel}
             blockCategory={blockCategory}
+            manualEvent={manualEvent}
             initialBody={initialBody}
             initialTemplateId={initialTemplateId}
-            initialLetterPresetId={initialLetterPresetId}
             alimtalkExtraVars={alimtalkExtraVars}
             alimtalkExtraVarsPerStudent={alimtalkExtraVarsPerStudent}
             recomputePerStudentVarsRef={recomputePerStudentVarsRef}

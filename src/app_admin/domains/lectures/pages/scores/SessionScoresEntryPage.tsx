@@ -31,9 +31,8 @@ import { Button, EmptyState, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { DomainListToolbar, getStoredTableOption, setStoredTableOption } from "@/shared/ui/domain";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
-import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
-import { substituteScoreVars, buildScoreVars, buildScoreDetail, buildGenericScoreTemplate, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
-import { DEFAULT_GRADES_PRESET_ID } from "@/shared/messaging/gradeTemplatePreset";
+import { substituteScoreVars, buildScoreVars, buildScoreDetail, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
+import { createExplicitScoreLetterState } from "@admin/domains/messages/utils/scoreLetterSelection";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchSessionEnrollments } from "@/shared/api/contracts/sessionEnrollments";
 import { updateExamEnrollmentRows } from "@admin/domains/exams/api/examEnrollments";
@@ -813,34 +812,10 @@ export default function SessionScoresEntryPage({
               const sessionTitle = meta?.session_title ?? session?.title ?? "";
               const reportOptions = { lectureName, sessionTitle };
 
-              let initialBody: string | undefined;
-              let initialTemplateId: number | null = null;
-              let initialLetterPresetId: string | null = null;
+              const scoreLetter = createExplicitScoreLetterState();
               let scoreDetail = "";
 
-              try {
-                const templates = await fetchMessageTemplates("grades");
-                const hasScoreVars = (body: string) => /#{(시험\d|과제\d|시험성적|시험이력|시험목록|시험총점|학생이름)}/.test(body);
-                const userDefault = templates.find((t: any) => t.is_user_default && !t.is_system);
-                const userWithScoreVars = templates.find((t: any) => !t.is_system && hasScoreVars(t.body));
-                const chosenTpl = userDefault ?? userWithScoreVars;
-
-                // 학원장 임근혁 보고(2026-05-12 23:50):
-                // 일괄 발송 양식이 첫 학생으로 치환되어 나와 "특정 대상 한 명으로 하드코딩됐다"는 오해.
-                // → 양식 본문은 변수 그대로 (#{학생이름}/#{시험1명}/...) 노출.
-                initialBody = chosenTpl
-                  ? chosenTpl.body
-                  : buildGenericScoreTemplate(reportOptions);
-                initialTemplateId = chosenTpl?.id ?? null;
-                initialLetterPresetId = chosenTpl ? null : DEFAULT_GRADES_PRESET_ID;
-                scoreDetail = buildScoreDetail(selectedRows[0], meta);
-              } catch {
-                // 템플릿 조회 실패 시 — 범용 양식 fallback (변수 그대로)
-                initialBody = buildGenericScoreTemplate(reportOptions);
-                initialTemplateId = null;
-                initialLetterPresetId = DEFAULT_GRADES_PRESET_ID;
-                scoreDetail = buildScoreDetail(selectedRows[0], meta);
-              }
+              scoreDetail = buildScoreDetail(selectedRows[0], meta);
 
               // SSOT (2026-05-14): 학생별 변수 재계산 callback.
               // 학원장이 modal textarea에서 본문 수정 시 modal이 currentBody 기반으로 이 callback 호출 →
@@ -866,9 +841,9 @@ export default function SessionScoresEntryPage({
                 studentIds: activeStudentIds,
                 recipientLabel: `수업결과 발송 — 선택한 수강생 ${selectedEnrollmentIds.length}명`,
                 blockCategory: "grades",
-                initialBody,
-                initialTemplateId,
-                initialLetterPresetId,
+                manualEvent: "lesson_result",
+                initialBody: scoreLetter.body,
+                initialTemplateId: scoreLetter.templateId,
                 alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, 시험성적: scoreDetail, ...firstScoreVars },
                 recomputePerStudentVars,
               });

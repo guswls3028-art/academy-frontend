@@ -45,7 +45,12 @@ export type NotificationBodyVisibility =
 
 export interface NotificationLogItem {
   id: number;
-  /** PII-free lifecycle correlation key. */
+  /** 수동 발송 요청과 worker 로그를 정확히 연결하는 요청 ID. */
+  request_id?: string;
+  /** 한 번의 API 접수 단위를 나타내는 batch ID. */
+  batch_id?: string;
+  /** PII-free lifecycle correlation identity. */
+  origin_type?: string;
   origin_id?: string;
   sent_at: string;
   /** 성공 여부 */
@@ -91,6 +96,10 @@ export interface NotificationLogParams {
   status?: "success" | "failure" | "sent" | "active" | "attention" | "failed";
   scope?: "clinic";
   origin_id_prefix?: string;
+  request_id?: string;
+  batch_id?: string;
+  origin_type?: string;
+  origin_id?: string;
 }
 
 export interface NotificationLogResponse {
@@ -200,6 +209,8 @@ export interface SendPreflightResponse {
   can_send: boolean;
   mode: "now" | "scheduled";
   send_to: SendToType;
+  /** 이 preflight와 완전히 같은 발송 요청에만 1회 사용할 수 있는 서명값 */
+  preflight_identity: string;
   recipient: {
     selected: number;
     resolved: number;
@@ -219,6 +230,12 @@ export interface SendPreflightResponse {
     detail: string;
     uses_unified_template: boolean;
     template_type: string;
+    content_template_id?: number | null;
+    content_template_version?: string;
+    provider_template_version?: string;
+    provider_template_structure_fingerprint?: string;
+    provider_template_content_fingerprint?: string;
+    provider_template_header_fingerprint?: string;
   };
   preview_recipients: Array<{
     student_id: number;
@@ -332,6 +349,8 @@ export interface MessageTemplateItem {
   is_system: boolean;
   /** 사용자가 해당 카테고리에서 기본으로 지정한 양식 */
   is_user_default: boolean;
+  /** 과거 발송 감사용으로만 남은 비실행 문구 */
+  retired_at?: string | null;
   /** 솔라피에서 발급된 템플릿 ID (검수 신청 후) */
   solapi_template_id?: string;
   /** 검수 상태: 미신청 / PENDING / APPROVED / REJECTED */
@@ -376,7 +395,7 @@ export async function fetchMessageTemplates(
   const normalizedCategory = normalizeTemplateCategory(category);
   if (normalizedCategory) params.category = normalizedCategory;
   const res = await api.get<MessageTemplateItem[]>(`${PREFIX}/templates/`, { params });
-  return res.data;
+  return res.data.filter((template) => !template.retired_at);
 }
 
 export async function fetchMessageTemplate(id: number): Promise<MessageTemplateItem> {
@@ -426,6 +445,11 @@ export type SendToType = "student" | "parent";
 
 /** alimtalk=알림톡만 */
 export type MessageMode = "alimtalk";
+export type ManualMessageEvent =
+  | "lesson_result"
+  | "attendance_notice"
+  | "clinic_reservation_notice"
+  | "clinic_change_notice";
 
 export interface SendMessagePayload {
   student_ids?: number[];
@@ -433,14 +457,21 @@ export interface SendMessagePayload {
   /** alimtalk */
   message_mode?: MessageMode;
   template_id?: number | null;
+  /** 선택한 저장 성적 문구의 updated_at. 변경된 문구는 서버가 거절한다. */
+  template_version?: string;
+  /** 승인 봉투를 정확히 고르는 수동 비즈니스 이벤트. */
+  manual_event?: ManualMessageEvent;
+  /** preflight가 발급한 서명된 1회용 발송 정체성 */
+  preflight_identity?: string;
+  /** 한 번의 사용자 발송 동작에서 학생·학부모 요청을 묶는 UUID */
+  client_request_id?: string;
   raw_body?: string;
   raw_subject?: string;
   /** 예약 발송 시각. 없으면 즉시 발송 */
   scheduled_send_at?: string | null;
   /**
-   * 발송 진입점의 블록 카테고리 (grades/attendance/clinic 등).
-   * backend가 template_id 누락 또는 t.category 매핑 안 될 때 unified 봉투 fallback 매칭에 사용.
-   * 학원장 본문 어떻게 수정해도 봉투(검수 양식)는 유지되어 발송 (domain-policy §5).
+   * 본문 개인화 검증용 발송 진입점 범주 (grades/attendance/clinic 등).
+   * 승인 봉투는 이 값으로 추론하지 않고 manual_event로만 정한다.
    */
   block_category?: string;
   /** 알림톡 추가 치환 변수 (성적 발송 등) */
@@ -452,9 +483,14 @@ export interface SendMessagePayload {
 export interface SendMessageResponse {
   detail: string;
   enqueued: number;
+  accepted_count?: number;
   scheduled?: number;
   enqueue_failed?: number;
   skipped_no_phone: number;
+  request_id?: string;
+  batch_id?: string;
+  origin_type?: string;
+  origin_id?: string;
 }
 
 export async function sendMessage(payload: SendMessagePayload): Promise<SendMessageResponse> {

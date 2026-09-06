@@ -4,6 +4,8 @@
 
 관리자 앱의 `/workspace/message/log`는 현재 테넌트의 알림톡 처리 이력을 읽는
 운영 화면이다. 발송·재시도·재큐잉·공급자 선택 기능은 제공하지 않는다.
+교사용 앱의 `/workspace/mobile/message-log`도 같은 lifecycle을 읽으며, 두 화면
+모두 legacy `success` boolean을 최종 전달 성공으로 해석하지 않는다.
 제품 메시지는 알림톡만 사용하며 SMS/LMS 또는 대체 발송을 화면에 노출하지
 않는다.
 
@@ -30,6 +32,20 @@
 - `결과 확인 필요`: 결과가 모호하여 중복 방지를 위해 자동 재발송하지 않는
   상태다.
 - `발송 실패`: 종료된 실패만 나타낸다.
+
+직접 발송에서 **발송하기**를 누르면 화면은 한 사용자 동작의 UUID request ID를
+학생·학부모 API 요청에 함께 보낸다. 즉시 접수 후에는
+`/workspace/message/log?request_id=<UUID>`로 이동해 그 요청의 수신자별 로그만
+조회한다. worker 기록이 아직 없으면 빈 이력으로 오인하지 않고 **아직 수신자별
+처리 기록이 없습니다**와 **다시 불러오기**를 제공한다. URL을 새로고침해도 exact
+request filter가 유지된다. 내부 ID는 일반 목록에 노출하지 않으며, 방금 접수한
+요청 화면에도 URL의 request ID를 사용자용 문구로 다시 노출하지 않는다.
+
+교사용 목록의 상태명은 `요청됨`, `공급사 접수 확인 중`, `공급사 접수`, `재시도
+대기`, `결과 확인 필요`, `최종 실패`를 구분한다. provider ID가 있는 접수 건에서
+사용자가 **최종 상태 확인**을 눌러 read-only 확인한 결과만 `최종 전달` 또는
+`최종 실패`로 표시한다. 목록 전체 **다시 불러오기**와 건별 최종 상태 확인은
+각각 실패·재시도 상태를 제공한다.
 
 목록의 `기록 시각`은 모델의 `sent_at`, 즉 로그 행 생성 시각이다. 상세의
 `작업자 처리 시작`은 `claimed_at`이다. 공급자 처리 완료 시각은 현재 계약에
@@ -66,11 +82,11 @@
 
 ```powershell
 pnpm typecheck
-pnpm exec eslint src/app_admin/domains/messages/pages/MessageLogPage.tsx src/app_admin/domains/messages/api/messages.api.ts src/app_admin/domains/messages/queryKeys.ts e2e/admin/messaging-log-ux.mock.spec.ts
+pnpm exec eslint src/app_admin/domains/messages/pages/MessageLogPage.tsx src/app_admin/domains/messages/api/messages.api.ts src/app_admin/domains/messages/queryKeys.ts src/app_teacher/domains/comms/pages/MessageLogPage.tsx e2e/admin/messaging-log-ux.mock.spec.ts e2e/admin/score-entry-autosave.spec.ts e2e/teacher/full-workspace-parity.mock.spec.ts
 $env:E2E_BASE_URL='http://127.0.0.1:5187'
 pnpm exec playwright test e2e/admin/messaging-log-ux.mock.spec.ts --project=chromium --reporter=list
 ```
 
-E2E는 대시보드 상태와 발송 내역 진입점, 정확한 상태명, 상세를 열 때만
-발생하는 본문 조회, 카카오형 미리보기, 민감 본문·공급자 증거 안내와 390px
-overflow를 고정한다.
+E2E는 대시보드 상태와 발송 내역 진입점, request ID exact 조회와 reload, 정확한
+상태명, 상세를 열 때만 발생하는 본문 조회, 교사용 최종 상태 확인, 카카오형
+미리보기, 민감 본문·공급자 증거 안내와 390px overflow를 고정한다.

@@ -7,6 +7,8 @@ export const teacherCommsQueryKeys = {
   notificationCounts: ["admin", "notification-counts"] as const,
   scopeNodes: ["community-scope-nodes"] as const,
   messageLog: ["teacher-message-log"] as const,
+  messageLogDetail: (id: number) => ["teacher-message-log", "detail", id] as const,
+  messageLogProviderDelivery: (id: number) => ["teacher-message-log", "detail", id, "provider-delivery"] as const,
   templates: ["teacher-msg-templates"] as const,
   messagingInfo: ["teacher-messaging-info"] as const,
   autoSendConfigs: ["teacher-auto-send-configs"] as const,

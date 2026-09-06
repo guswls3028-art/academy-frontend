@@ -22,15 +22,14 @@ import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/mod
 import { Badge, Button, ICON } from "@/shared/ui/ds";
 import { renderPreviewWithActualData, TEMPLATE_CATEGORY_LABELS } from "../constants/templateBlocks";
 import type { TemplateCategory } from "../constants/templateBlocks";
-import type { MessageTemplateItem } from "../api/messages.api";
-import type { ProvidedTemplatePreset } from "../constants/templatePresets";
+import type { ManualMessageEvent, MessageTemplateItem } from "../api/messages.api";
 import {
   getAlimtalkTemplateLabel,
   renderAlimtalkFullPreview,
 } from "./AlimtalkTemplateInfoPanel";
 import {
   hideInternalAlimtalkMemoToken,
-  resolveManualAlimtalkTemplateType,
+  getAlimtalkTemplateTypeForManualEvent,
 } from "../constants/alimtalkEnvelope";
 import {
   isSystemMessageTemplate,
@@ -42,15 +41,12 @@ export type TemplatePickerModalProps = {
   open: boolean;
   onClose: () => void;
   templates: MessageTemplateItem[];
-  defaultPresets?: ProvidedTemplatePreset[];
   blockCategory: TemplateCategory;
+  manualEvent: ManualMessageEvent | null;
   selectedTemplateId: number | null;
-  selectedPresetId?: string | null;
   alimtalkExtraVars?: Record<string, string>;
   /** 양식 선택 — 모달은 자동 닫힘 */
   onPick: (t: MessageTemplateItem) => void;
-  /** 기본 제공 편지지 선택 — 모달은 자동 닫힘 */
-  onPickPreset?: (preset: ProvidedTemplatePreset) => void;
   /** 직접 작성 모드 선택 — 모달은 자동 닫힘 */
   onPickFreeForm: () => void;
   onSetDefault: (id: number) => Promise<void> | void;
@@ -66,13 +62,11 @@ export default function TemplatePickerModal({
   open,
   onClose,
   templates,
-  defaultPresets = [],
   blockCategory,
+  manualEvent,
   selectedTemplateId,
-  selectedPresetId,
   alimtalkExtraVars,
   onPick,
-  onPickPreset,
   onPickFreeForm,
   onSetDefault,
   onDuplicate,
@@ -81,7 +75,7 @@ export default function TemplatePickerModal({
   const [search, setSearch] = useState("");
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [previewKey, setPreviewKey] = useState<string | null>(
-    selectedPresetId ? `preset:${selectedPresetId}` : selectedTemplateId ? `template:${selectedTemplateId}` : null,
+    selectedTemplateId ? `template:${selectedTemplateId}` : null,
   );
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -93,19 +87,13 @@ export default function TemplatePickerModal({
     prevOpenRef.current = open;
     if (justOpened) {
       setPreviewKey(
-        selectedPresetId
-          ? `preset:${selectedPresetId}`
-          : selectedTemplateId
-            ? `template:${selectedTemplateId}`
-            : defaultPresets[0]
-              ? `preset:${defaultPresets[0].id}`
-              : null,
+        selectedTemplateId ? `template:${selectedTemplateId}` : null,
       );
       setSearch("");
       setShowAllCategories(false);
       setMenuOpenId(null);
     }
-  }, [open, selectedTemplateId, selectedPresetId, defaultPresets]);
+  }, [open, selectedTemplateId]);
 
   useEffect(() => {
     if (menuOpenId == null) return;
@@ -126,15 +114,8 @@ export default function TemplatePickerModal({
   // ─── 필터링 + 그룹화 ───
   const grouped = useMemo(() => {
     const q = search.toLowerCase().trim();
-    const presets = defaultPresets.filter((preset) => {
-      if (!q) return true;
-      return (
-        preset.name.toLowerCase().includes(q)
-        || preset.body.toLowerCase().includes(q)
-        || preset.description.toLowerCase().includes(q)
-      );
-    });
     const matched = templates.filter((t) => {
+      if (isSystemTpl(t)) return false;
       if (!categoryMatches(t)) return false;
       if (!q) return true;
       return t.name.toLowerCase().includes(q) || t.body.toLowerCase().includes(q);
@@ -149,8 +130,8 @@ export default function TemplatePickerModal({
       return savedTemplatePickerPriority(a, blockCategory)
         - savedTemplatePickerPriority(b, blockCategory);
     });
-    return { presets, my, sys };
-  }, [defaultPresets, templates, search, blockCategory, showAllCategories]); // eslint-disable-line react-hooks/exhaustive-deps
+    return { my, sys };
+  }, [templates, search, blockCategory, showAllCategories]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── 미리보기 대상 ───
   const previewTpl = useMemo(
@@ -159,26 +140,12 @@ export default function TemplatePickerModal({
       : null,
     [templates, previewKey],
   );
-  const previewPreset = useMemo(
-    () => previewKey?.startsWith("preset:")
-      ? defaultPresets.find((preset) => preset.id === previewKey.slice("preset:".length)) ?? null
-      : null,
-    [defaultPresets, previewKey],
-  );
-
-  const previewSourceBody = hideInternalAlimtalkMemoToken((previewTpl?.body ?? previewPreset?.body) || "");
-  const previewSourceCategory = (previewTpl?.category ?? previewPreset?.category ?? blockCategory) as TemplateCategory;
-  const previewTemplateName = previewTpl?.name ?? previewPreset?.name ?? "";
-  const previewAlimtalkType = resolveManualAlimtalkTemplateType(
-    blockCategory,
-    previewSourceCategory,
-    previewTemplateName,
-    alimtalkExtraVars,
-  );
+  const previewSourceBody = hideInternalAlimtalkMemoToken(previewTpl?.body || "");
+  const previewAlimtalkType = getAlimtalkTemplateTypeForManualEvent(manualEvent);
   const previewDisplayBody = previewAlimtalkType
     ? renderAlimtalkFullPreview(previewAlimtalkType, previewSourceBody)
     : previewSourceBody;
-  const previewBody = previewTpl || previewPreset
+  const previewBody = previewTpl
     ? renderPreviewWithActualData(previewDisplayBody, alimtalkExtraVars)
     : null;
   const previewChannelLabel = getAlimtalkTemplateLabel(previewAlimtalkType);
@@ -186,7 +153,7 @@ export default function TemplatePickerModal({
   if (!open) return null;
 
   const blockLabel = TEMPLATE_CATEGORY_LABELS[blockCategory] ?? "사용자";
-  const totalMatched = grouped.presets.length + grouped.my.length + grouped.sys.length;
+  const totalMatched = grouped.my.length + grouped.sys.length;
 
   // ─── 카드 ───
   const renderCard = (t: MessageTemplateItem) => {
@@ -256,42 +223,6 @@ export default function TemplatePickerModal({
     );
   };
 
-  const renderPresetCard = (preset: ProvidedTemplatePreset) => {
-    const isPreview = previewKey === `preset:${preset.id}`;
-    const isSelected = selectedPresetId === preset.id;
-    return (
-      <div
-        key={preset.id}
-        className="tpl-picker__card tpl-picker__card--preset"
-        data-preview={isPreview || undefined}
-        data-selected={isSelected || undefined}
-      >
-        <button
-          type="button"
-          onClick={() => setPreviewKey(`preset:${preset.id}`)}
-          onDoubleClick={() => { onPickPreset?.(preset); onClose(); }}
-          className="tpl-picker__card-body"
-        >
-          <div className="tpl-picker__card-title-row">
-            <Tag size={ICON.xs} className="tpl-picker__icon-primary" />
-            <span className="tpl-picker__card-name">{preset.name}</span>
-            <Badge tone="primary" size="xs">기본 제공</Badge>
-            {preset.recommended && <Badge tone="success" size="xs">추천</Badge>}
-            {isSelected && <Badge tone="info" size="xs">현재 적용</Badge>}
-          </div>
-          <div className="tpl-picker__card-preview">
-            {preset.description}
-          </div>
-          {preset.tags && preset.tags.length > 0 && (
-            <div className="tpl-picker__card-meta">
-              <span>{preset.tags.join(" · ")}</span>
-            </div>
-          )}
-        </button>
-      </div>
-    );
-  };
-
   return (
     <AdminModal open={open} onClose={onClose} width={1040} zIndex={1100} className="tpl-picker-modal" noMinimize>
       <ModalHeader
@@ -349,13 +280,6 @@ export default function TemplatePickerModal({
                 </div>
               </button>
 
-              {grouped.presets.length > 0 && (
-                <>
-                  <div className="tpl-picker__group-label">기본 제공 문구 · {grouped.presets.length}</div>
-                  {grouped.presets.map(renderPresetCard)}
-                </>
-              )}
-
               {grouped.my.length > 0 && (
                 <>
                   <div className="tpl-picker__group-label">내 문구 · {grouped.my.length}</div>
@@ -384,22 +308,17 @@ export default function TemplatePickerModal({
 
           {/* ═══ 우측: 미리보기 ═══ */}
           <div className="tpl-picker__right">
-            {previewTpl || previewPreset ? (
+            {previewTpl ? (
               <>
                 <div className="tpl-picker__preview-header">
                   <div className="tpl-picker__preview-title-row">
                     {previewTpl && isSystemTpl(previewTpl) && <Shield size={ICON.sm} className="tpl-picker__icon-sys" />}
-                    {previewPreset && <Tag size={ICON.sm} className="tpl-picker__icon-primary" />}
-                    <span className="tpl-picker__preview-name">{previewTpl?.name ?? previewPreset?.name}</span>
+                    <span className="tpl-picker__preview-name">{previewTpl.name}</span>
                   </div>
                   <div className="tpl-picker__preview-meta">
                     <span>
-                      {previewTpl
-                        ? (TEMPLATE_CATEGORY_LABELS[previewTpl.category as TemplateCategory] ?? previewTpl.category)
-                        : (TEMPLATE_CATEGORY_LABELS[previewPreset!.category] ?? previewPreset!.category)}
+                      {TEMPLATE_CATEGORY_LABELS[previewTpl.category as TemplateCategory] ?? previewTpl.category}
                     </span>
-                    {previewPreset && <Badge tone="primary" size="xs">기본 제공</Badge>}
-                    {previewPreset?.recommended && <Badge tone="success" size="xs">추천</Badge>}
                     {previewTpl?.alimtalk_readiness === "ready" && <Badge tone="success" size="xs">알림톡 준비됨</Badge>}
                     {previewTpl?.alimtalk_readiness === "provider_template_missing" && <Badge tone="warning" size="xs">발송 준비 필요</Badge>}
                     {previewTpl && isSystemTpl(previewTpl) && <Badge tone="info" size="xs">시스템</Badge>}
@@ -422,8 +341,7 @@ export default function TemplatePickerModal({
                     intent="primary"
                     size="lg"
                     onClick={() => {
-                      if (previewTpl) onPick(previewTpl);
-                      else if (previewPreset) onPickPreset?.(previewPreset);
+                      onPick(previewTpl);
                       onClose();
                     }}
                     className="tpl-picker__apply-btn"
