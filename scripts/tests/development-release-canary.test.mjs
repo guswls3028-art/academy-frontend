@@ -457,6 +457,8 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
     schema: "student-video-renewal/v1", contexts: 2, desktop: 1, mobile: 1,
     minimumPlaybackSeconds: 690, minimumWallSeconds: 690,
     bootstrapCount: 2, renewCount: 2, endBeforeRenewCount: 0,
+    initialMasterLoadCount: 2, initialMediaLoadCount: 4,
+    minimumRenewalAdvanceSeconds: 5, sourceReloadCount: 0,
     sameDomCount: 2, sameSessionCount: 2, tokenRotationCount: 2,
     progressPersistedCount: 2, maxReloadDriftSeconds: 2,
     consoleErrorCount: 0, pageErrorCount: 0, requestErrorCount: 0,
@@ -466,11 +468,33 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
     schemaMatches: true, contextCount: 2, desktopCount: 1, mobileCount: 1,
     minimumPlaybackSeconds: 690, minimumWallSeconds: 690,
     bootstrapCount: 2, renewCount: 2, endBeforeRenewCount: 0,
+    initialMasterLoadCount: 2, initialMediaLoadCount: 4,
+    minimumRenewalAdvanceSeconds: 5, sourceReloadCount: 0,
     sameDomCount: 2, sameSessionCount: 2, tokenRotationCount: 2,
     progressPersistedCount: 2, maxReloadDriftSeconds: 2,
     consoleErrorCount: 0, pageErrorCount: 0, requestErrorCount: 0,
     horizontalOverflowCount: 0,
   });
+  for (const invalidEvidence of [
+    { sourceReloadCount: 1 },
+    { minimumRenewalAdvanceSeconds: 4 },
+    { initialMasterLoadCount: 1 },
+    { initialMediaLoadCount: 3 },
+  ]) {
+    const invalidReport = completeFlowReport();
+    invalidReport.suites.at(-1).specs[0].tests[0].results[0].stdout = [{ text: `${JSON.stringify({ longVideoRealUse: {
+      schema: "student-video-renewal/v1", contexts: 2, desktop: 1, mobile: 1,
+      minimumPlaybackSeconds: 690, minimumWallSeconds: 690,
+      bootstrapCount: 2, renewCount: 2, endBeforeRenewCount: 0,
+      initialMasterLoadCount: 2, initialMediaLoadCount: 4,
+      minimumRenewalAdvanceSeconds: 5, sourceReloadCount: 0,
+      sameDomCount: 2, sameSessionCount: 2, tokenRotationCount: 2,
+      progressPersistedCount: 2, maxReloadDriftSeconds: 2,
+      consoleErrorCount: 0, pageErrorCount: 0, requestErrorCount: 0,
+      horizontalOverflowCount: 0, ...invalidEvidence,
+    } })}\n` }];
+    assert.equal(runner.observeReleaseTestResult(JSON.stringify(invalidReport)).longVideo, null);
+  }
   longResult.stdout[0].text = `${JSON.stringify({ longVideoRealUse: {
     schema: "student-video-renewal/v1", contexts: 2, studentName: "must-not-publish",
   } })}\n`;
@@ -533,6 +557,12 @@ test("official runner opts into two-student long-video setup without publishing 
   }
   assert.match(specSource, /bootstrapCountBeforeRenewal/);
   assert.doesNotMatch(specSource, /bootstrapCount:\s*states\.reduce\(\(total\) => total \+ 1/);
+  assert.match(specSource, /toBeGreaterThan\(MINIMUM_PLAYBACK_SECONDS\)/);
+  assert.match(specSource, /sourceReloadCount/);
+  assert.match(specSource, /expect\(payload\.play_url == null\)\.toBe\(true\)/);
+  assert.match(specSource, /state\.allowedMasterUrls\.size\)\.toBe\(2\)/);
+  assert.doesNotMatch(specSource, /state\.masterLoads\)\.toBeGreaterThanOrEqual\(2\)/);
+  assert.doesNotMatch(specSource, /state\.mediaLoads\)\.toBeGreaterThanOrEqual\(4\)/);
 });
 
 const policySource = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");

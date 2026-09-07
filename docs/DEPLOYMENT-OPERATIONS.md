@@ -245,9 +245,12 @@ profile, 종료 방지, inbound0, SSM Online을 확인한다. 원본 artifact의
 학생 2명과 900초 READY 영상 metadata만 만든다. 러너 메모리의 무음 HLS fixture를
 backend가 실제 반환한 `qa-fixtures/video-long/master.m3u8` signed URL에만 연결하며 R2에는
 객체를 쓰지 않는다. 1366×768과 390×844 두 Chromium context는 동시에 690초 이상 실제
-재생하고 발급 후 540~590초의 `/media/playback/renew/`를 각각 1회 확인한다. 갱신 전
-`/playback/end/` 0, bootstrap 1회, 동일 `<video>` DOM·감시 session, 토큰 교체,
-재생 위치·재생 상태·배속·음량 유지가 필수다. 이어서 진도 POST 성공값과 reload bootstrap의
+재생하고 최초 signed URL의 TTL이 690초보다 긴 상태에서 발급 후 540~590초의
+`/media/playback/renew/`를 각각 1회 확인한다. ACTIVE/PROCTORED 정상 갱신은 `play_url`을
+반환하지 않으며, 갱신 전 `/playback/end/` 0, bootstrap 1회, 동일 `<video>` DOM·감시
+session, 토큰 교체가 필수다. 최초 master/media 요청은 존재하되 갱신 전후 같은 source 요청
+count를 유지하면서 `currentTime`이 5초 이상 계속 전진하고 재생 상태·배속·음량도 유지해야
+한다. 이어서 진도 POST 성공값과 reload bootstrap의
 서버 위치 및 복원된 media 위치가 2초 이내인지 확인하고, console/page/request 오류와
 수평 overflow가 모두 0이어야 한다. 화면 이탈 후 사후 Inspect는 두 학생의 진도와 정확한
 4개 재생 session, active session 0, PLAYER_ERROR/violation 0을 숫자로 확인한다.

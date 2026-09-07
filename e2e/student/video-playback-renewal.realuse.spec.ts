@@ -38,6 +38,10 @@ type StudentObservation = {
   playbackSeconds: number;
   wallSeconds: number;
   bootstrapCountBeforeRenewal: number;
+  initialMasterLoads: number;
+  initialMediaLoads: number;
+  renewalAdvanceSeconds: number;
+  sourceReloadCount: number;
   sameDom: boolean;
   sameSession: boolean;
   tokenRotated: boolean;
@@ -59,11 +63,10 @@ function isPlaybackBootstrap(pathname: string, videoId: number): boolean {
   return pathname === `/api/v1/student/video/videos/${videoId}/playback/`;
 }
 
-function assertPlaybackPayload(payload: PlaybackPayload): asserts payload is PlaybackPayload & {
+function assertPlaybackIdentity(payload: PlaybackPayload): asserts payload is PlaybackPayload & {
   playback_token: string;
   playback_session_id: string;
   playback_expires_at: number;
-  play_url: string;
 } {
   expect(payload.playback_token).toEqual(expect.any(String));
   expect(String(payload.playback_token)).not.toBe("");
@@ -71,7 +74,26 @@ function assertPlaybackPayload(payload: PlaybackPayload): asserts payload is Pla
   expect(String(payload.playback_session_id)).not.toBe("");
   expect(payload.playback_expires_at).toEqual(expect.any(Number));
   expect(Number(payload.playback_expires_at)).toBeGreaterThan(Math.floor(Date.now() / 1000));
+}
+
+function assertBootstrapPayload(payload: PlaybackPayload): asserts payload is PlaybackPayload & {
+  playback_token: string;
+  playback_session_id: string;
+  playback_expires_at: number;
+  play_url: string;
+} {
+  assertPlaybackIdentity(payload);
   expect(payload.play_url).toEqual(expect.any(String));
+}
+
+function assertRenewalPayload(payload: PlaybackPayload): asserts payload is PlaybackPayload & {
+  playback_token: string;
+  playback_session_id: string;
+  playback_expires_at: number;
+  play_url?: null;
+} {
+  assertPlaybackIdentity(payload);
+  expect(payload.play_url == null).toBe(true);
 }
 
 function assertSignedMasterUrl(rawUrl: string, hlsPath: string): URL {
@@ -88,7 +110,7 @@ function assertSignedMasterUrl(rawUrl: string, hlsPath: string): URL {
   const expiresAt = Number(url.searchParams.get("exp"));
   const ttl = expiresAt - Math.floor(Date.now() / 1000);
   expect(Number.isInteger(expiresAt)).toBe(true);
-  expect(ttl).toBeGreaterThanOrEqual(600);
+  expect(ttl).toBeGreaterThan(MINIMUM_PLAYBACK_SECONDS);
   expect(ttl).toBeLessThanOrEqual(1_800);
   return url;
 }
@@ -103,16 +125,15 @@ async function captureResponse(
   if (response.status() < 200 || response.status() >= 300) return;
   if (isPlaybackBootstrap(url.pathname, videoId)) {
     const payload = await response.json() as PlaybackPayload;
-    assertPlaybackPayload(payload);
+    assertBootstrapPayload(payload);
     state.bootstraps.push({ ...payload, observedAt: Date.now() });
     state.allowedMasterUrls.add(payload.play_url);
     return;
   }
   if (url.pathname === "/api/v1/media/playback/renew/") {
     const payload = await response.json() as PlaybackPayload;
-    assertPlaybackPayload(payload);
+    assertRenewalPayload(payload);
     state.renewals.push({ ...payload, observedAt: Date.now() });
-    state.allowedMasterUrls.add(payload.play_url);
     return;
   }
   if (url.pathname === `/api/v1/student/video/videos/${videoId}/progress/`) {
@@ -209,6 +230,10 @@ function newObservation(viewport: "desktop" | "mobile"): StudentObservation {
     playbackSeconds: 0,
     wallSeconds: 0,
     bootstrapCountBeforeRenewal: 0,
+    initialMasterLoads: 0,
+    initialMediaLoads: 0,
+    renewalAdvanceSeconds: 0,
+    sourceReloadCount: 0,
     sameDom: false,
     sameSession: false,
     tokenRotated: false,
@@ -278,7 +303,7 @@ async function finishStudent(
   hlsPath: string,
 ): Promise<void> {
   const initial = state.bootstraps[0];
-  assertPlaybackPayload(initial);
+  assertBootstrapPayload(initial);
   const video = page.locator("video.svpVideo");
   await expect.poll(
     () => video.evaluate((element) => (element as HTMLVideoElement).currentTime),
@@ -291,17 +316,25 @@ async function finishStudent(
       paused: media.paused, rate: media.playbackRate, volume: media.volume, muted: media.muted,
     };
   });
+  state.initialMasterLoads = state.masterLoads;
+  state.initialMediaLoads = state.mediaLoads;
+  expect(state.initialMasterLoads).toBeGreaterThan(0);
+  expect(state.initialMediaLoads).toBeGreaterThanOrEqual(2);
   await expect.poll(() => state.renewals.length, { timeout: 10 * 60_000 }).toBe(1);
   const renewed = state.renewals[0];
-  assertPlaybackPayload(renewed);
+  assertRenewalPayload(renewed);
   const renewSeconds = (renewed.observedAt - initial.observedAt) / 1_000;
   expect(renewSeconds).toBeGreaterThanOrEqual(MINIMUM_RENEW_SECONDS);
   expect(renewSeconds).toBeLessThanOrEqual(MAXIMUM_RENEW_SECONDS);
   state.bootstrapCountBeforeRenewal = state.bootstraps.length;
   expect(state.bootstraps).toHaveLength(1);
   expect(state.endBeforeRenewCount).toBe(0);
-  await expect.poll(() => state.masterLoads).toBeGreaterThanOrEqual(2);
-  await expect.poll(() => state.mediaLoads).toBeGreaterThanOrEqual(4);
+
+  const renewedAtPosition = await video.evaluate((element) => (element as HTMLVideoElement).currentTime);
+  await expect.poll(
+    () => video.evaluate((element) => (element as HTMLVideoElement).currentTime),
+    { timeout: 15_000, intervals: [500] },
+  ).toBeGreaterThanOrEqual(renewedAtPosition + 5);
 
   const afterRenewal = await video.evaluate((element) => {
     const media = element as HTMLVideoElement;
@@ -313,10 +346,16 @@ async function finishStudent(
   state.sameDom = Boolean(beforeRenewal.marker) && afterRenewal.marker === beforeRenewal.marker;
   state.sameSession = initial.playback_session_id === renewed.playback_session_id;
   state.tokenRotated = initial.playback_token !== renewed.playback_token;
+  state.renewalAdvanceSeconds = Math.floor(afterRenewal.currentTime - renewedAtPosition);
+  state.sourceReloadCount = (state.masterLoads - state.initialMasterLoads) + (state.mediaLoads - state.initialMediaLoads);
   expect(state.sameDom).toBe(true);
   expect(state.sameSession).toBe(true);
   expect(state.tokenRotated).toBe(true);
-  expect(afterRenewal.currentTime).toBeGreaterThanOrEqual(beforeRenewal.currentTime - 2);
+  expect(afterRenewal.currentTime).toBeGreaterThanOrEqual(beforeRenewal.currentTime + 5);
+  expect(state.renewalAdvanceSeconds).toBeGreaterThanOrEqual(5);
+  expect(state.masterLoads).toBe(state.initialMasterLoads);
+  expect(state.mediaLoads).toBe(state.initialMediaLoads);
+  expect(state.sourceReloadCount).toBe(0);
   expect(afterRenewal.paused).toBe(false);
   expect(afterRenewal.rate).toBe(1);
   expect(afterRenewal.volume).toBeCloseTo(0.37, 2);
@@ -373,7 +412,7 @@ async function finishStudent(
   await state.responseChain;
   expect(state.bootstraps).toHaveLength(2);
   expect(state.renewals).toHaveLength(1);
-  expect(state.allowedMasterUrls.size).toBe(3);
+  expect(state.allowedMasterUrls.size).toBe(2);
   expect([...state.allowedMasterUrls].every((url) => new URL(url).pathname === `/${hlsPath}`)).toBe(true);
 }
 
@@ -412,6 +451,10 @@ test("two students play through renewal and persist progress without interruptio
     bootstrapCount: states.reduce((total, state) => total + state.bootstrapCountBeforeRenewal, 0),
     renewCount: states.reduce((total, state) => total + state.renewals.length, 0),
     endBeforeRenewCount: states.reduce((total, state) => total + state.endBeforeRenewCount, 0),
+    initialMasterLoadCount: states.reduce((total, state) => total + state.initialMasterLoads, 0),
+    initialMediaLoadCount: states.reduce((total, state) => total + state.initialMediaLoads, 0),
+    minimumRenewalAdvanceSeconds: Math.min(...states.map((state) => state.renewalAdvanceSeconds)),
+    sourceReloadCount: states.reduce((total, state) => total + state.sourceReloadCount, 0),
     sameDomCount: states.filter((state) => state.sameDom).length,
     sameSessionCount: states.filter((state) => state.sameSession).length,
     tokenRotationCount: states.filter((state) => state.tokenRotated).length,

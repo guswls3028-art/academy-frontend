@@ -69,10 +69,11 @@ function observeLongVideoBrowserEvidence(payload) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
   const expectedKeys = [
     "bootstrapCount", "consoleErrorCount", "contexts", "desktop", "endBeforeRenewCount",
-    "horizontalOverflowCount", "maxReloadDriftSeconds", "minimumPlaybackSeconds",
+    "horizontalOverflowCount", "initialMasterLoadCount", "initialMediaLoadCount",
+    "maxReloadDriftSeconds", "minimumPlaybackSeconds", "minimumRenewalAdvanceSeconds",
     "minimumWallSeconds", "mobile", "pageErrorCount", "progressPersistedCount",
     "renewCount", "requestErrorCount", "sameDomCount", "sameSessionCount", "schema",
-    "tokenRotationCount",
+    "sourceReloadCount", "tokenRotationCount",
   ];
   if (Object.keys(payload).sort().join(",") !== expectedKeys.sort().join(",")) return null;
   if (payload.schema !== "student-video-renewal/v1") return null;
@@ -82,6 +83,8 @@ function observeLongVideoBrowserEvidence(payload) {
     || payload.minimumPlaybackSeconds < 690 || payload.minimumPlaybackSeconds > 900
     || payload.minimumWallSeconds < 690 || payload.minimumWallSeconds > 1_000
     || payload.bootstrapCount !== 2 || payload.renewCount !== 2 || payload.endBeforeRenewCount !== 0
+    || payload.initialMasterLoadCount < 2 || payload.initialMediaLoadCount < 4
+    || payload.minimumRenewalAdvanceSeconds < 5 || payload.sourceReloadCount !== 0
     || payload.sameDomCount !== 2 || payload.sameSessionCount !== 2 || payload.tokenRotationCount !== 2
     || payload.progressPersistedCount !== 2 || payload.maxReloadDriftSeconds > 2
     || payload.consoleErrorCount !== 0 || payload.pageErrorCount !== 0
@@ -96,6 +99,10 @@ function observeLongVideoBrowserEvidence(payload) {
     bootstrapCount: payload.bootstrapCount,
     renewCount: payload.renewCount,
     endBeforeRenewCount: payload.endBeforeRenewCount,
+    initialMasterLoadCount: payload.initialMasterLoadCount,
+    initialMediaLoadCount: payload.initialMediaLoadCount,
+    minimumRenewalAdvanceSeconds: payload.minimumRenewalAdvanceSeconds,
+    sourceReloadCount: payload.sourceReloadCount,
     sameDomCount: payload.sameDomCount,
     sameSessionCount: payload.sameSessionCount,
     tokenRotationCount: payload.tokenRotationCount,
