@@ -32,6 +32,20 @@
 `학생 추가` 동선을 그대로 보여 주며, 첫 학생을 추가하기 전에 일간 합계 화면으로
 자동 복귀하지 않습니다. 선택한 세션이 tree에서 실제로 사라졌을 때만 선택을 해제합니다.
 
+## 학생 추가 실패와 재시도
+
+운영 화면의 **학생 추가**는 전체 학생 선택이면 `student_ids`, 미통과 대상자
+선택이면 정확한 `enrollment_ids`를 `POST /clinic/participants/bulk-create/`에
+보냅니다. 서버가 선택 전체를 원자적으로 저장하므로 일부만 추가한 뒤
+`0명 추가, 1명 실패`처럼 원인을 잃는 상태를 만들지 않습니다.
+
+기존 예약, 같은 날 시간대 정책, 정원 등으로 실패하면 서버의 구체적인 사유를
+표시하고 모달과 체크 선택을 그대로 유지합니다. 사용자는 선택을 조정하거나 같은
+자리에서 다시 시도할 수 있습니다. 성공한 뒤에는 참가자와 세션 tree를 다시 읽은
+후 모달을 닫아 저장된 명단을 즉시 보여 줍니다. 세션 생성 뒤 초기 학생 추가만
+실패한 경우에도 이미 만들어진 세션을 다시 만들도록 유도하지 않고, 실패 사유와
+운영 화면의 **학생 추가** 복구 경로를 안내합니다.
+
 ## 소유 구현과 검증
 
 - 세션 타입·조회·수정: `api/clinicSessions.api.ts`
@@ -41,6 +55,8 @@
 - 이전 주 복사: `components/PreviousWeekImportModal.tsx`
 - 서버 정책·원자성·동시성: backend `docs/domain/clinic-booking.md`
 - 빈 세션 운영 회귀: `e2e/admin/clinic-weekly-multisession.mock.spec.ts`
+- 학생 추가 충돌 사유·선택 보존·재시도 회귀:
+  `e2e/admin/clinic-weekly-multisession.mock.spec.ts`
 
 관리자 mock E2E는 기존 clinic weekly spec의 선행 owner merge 뒤 같은 파일에서
 다중 예약 정책을 추가 검증합니다. 현재 기능의 직접 focused 검증은 teacher/student
