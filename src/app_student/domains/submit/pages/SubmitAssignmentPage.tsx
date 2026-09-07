@@ -13,7 +13,6 @@ import studentApi from "@student/shared/api/student.api";
 import { IconChevronRight, IconExam, IconClipboard, IconImage, IconVideo } from "@student/shared/ui/icons/Icons";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
-import { useAuthContext } from "@/auth/context/AuthContext";
 import { useTrackedTask } from "@/shared/productAnalytics";
 import { formatCompactFileSize } from "@/shared/utils/fileSize";
 import styles from "./SubmitAssignmentPage.module.css";
@@ -97,13 +96,11 @@ export default function SubmitAssignmentPage() {
   const qc = useQueryClient();
   const [searchParams] = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { user } = useAuthContext();
   const runTrackedTask = useTrackedTask();
-  const isParent = user?.tenantRole === "parent";
   const [selected, setSelected] = useState<SelectedTarget | null>(null);
   const [pendingFiles, setPendingFiles] = useState<PendingMedia[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const gradesQ = useMyGradesSummary({ enabled: !isParent });
+  const gradesQ = useMyGradesSummary();
   const grades = gradesQ.data;
   const requestedSessionId = positiveId(searchParams.get("sessionId"));
   const requestedHomeworkId = positiveId(searchParams.get("homeworkId"));
@@ -318,12 +315,6 @@ export default function SubmitAssignmentPage() {
       : pendingFiles.some((file) => file.status === "failed")
         ? `실패한 파일 ${retryableCount}개 다시 제출`
         : `파일 ${retryableCount}개 제출하기`;
-
-  if (isParent) return (
-    <StudentPageShell title="과제 제출" onBack={() => window.history.back()}>
-      <EmptyState title="학부모 계정은 직접 제출할 수 없습니다." description="자녀 본인 계정으로 로그인 후 제출해 주세요. 자녀 진척 확인은 성적 페이지에서 가능합니다." />
-    </StudentPageShell>
-  );
 
   return (
     <StudentPageShell title="과제 제출" description="풀이 사진과 동영상을 한 번에 고르고, 파일별 결과를 확인하세요." descriptionMode="help" onBack={() => window.history.back()}>
