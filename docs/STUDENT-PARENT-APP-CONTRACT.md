@@ -194,6 +194,9 @@
   필요한 개별 허용·종료 수강 영상만 새 서명 URL로 같은 controller 안에서 교체한 뒤
   상태를 복원한다. 정책·모드가 바뀌었거나 갱신이 실패하면 이전 CDN 주소를 계속
   사용하지 않고 플레이어를 닫아 재생 권한 재확인 실패를 표시한다.
+  릴리스 검증은 격리 개발 tenant의 두 학생(1366px/390px)이 같은 artifact로 690초 이상
+  동시에 재생해 540~590초 갱신, 동일 DOM/session, 토큰 교체, 진도 reload 오차 2초 이하,
+  브라우저·요청·PLAYER_ERROR·위반 0과 cleanup0을 모두 통과해야 한다.
 
 재생 URL·현재 정책·감시 세션을 새로 발급하는 bootstrap은
 `POST /student/video/videos/{videoId}/playback/`이다. `GET`은

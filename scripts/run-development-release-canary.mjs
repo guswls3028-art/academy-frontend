@@ -6,6 +6,7 @@ import http from "node:http";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { gunzipSync } from "node:zlib";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REGION = "ap-northeast-2";
@@ -15,7 +16,15 @@ const PORT_DOCUMENT = "academy-frontend-development-api-port";
 const PASSWORD_PARAMETER = "/academy/api/development/ymath-realuse-password";
 const WEB_ORIGIN = "http://localhost:4173";
 const API_ORIGIN = "http://127.0.0.1:18000";
-const FLOW_COUNTS = { "notice-roundtrip.spec.ts": 3, "qna-roundtrip.spec.ts": 4, "clinic-roundtrip.spec.ts": 3 };
+const FLOW_COUNTS = {
+  "notice-roundtrip.spec.ts": 3,
+  "qna-roundtrip.spec.ts": 4,
+  "clinic-roundtrip.spec.ts": 3,
+  "video-playback-renewal.realuse.spec.ts": 1,
+};
+const SYNTHETIC_LONG_VIDEO_PATH = "qa-fixtures/video-long/master.m3u8";
+const SYNTHETIC_LONG_VIDEO_INIT_GZIP = "H4sIAAAAAAACCpVRP0sDMRx913YqikUqOnSoUMFBj95Zby516eCqILjES2pDE++4pEHdHQRHv4EO+i0cHJz8AG5ujo5u1UsV04qCj8u9/Mj7/QdQ6+mTlKtkEyggZ66SSKatACiWZZIYAEKaPsUEii+WPPt9w5tUTdtt/IkCUJjVGRkA2NcDm7P4R/T/5a0DmLdmg1GtANSYUPqHh715Z5JykntJOt37uIude0vrfSqyrxfDKXOVu5yypEuOqGC5xmtKftQDUDXSBnXLbNDxW41mrOeUMjPMRP3z/qr0gfjQXiutqKO5JCYOfh1SHfPoAvZYxcI2MXEU+mHoB82gLvjBcRi1HI+l0QiAT0y85XXuyqNnLB527spPK28XpXa+E/u7uj+/8VDqP849AKikRKWf+fNTUdoO+QsVpVXs2FWl1elUpRWl48SxV6Vhx3kHOrMMJ74LMqQ6X9aeZJZzLLuLkZRnJE2F67TGx9tv3OoksYMn1tkG3yamF4V+5AfNjXcsVg90JgMAAA==";
+const SYNTHETIC_LONG_VIDEO_MEDIA_GZIP = "H4sIAAAAAAACCu2ZQYscRRiGv5mQBUMQkURymMMHiWIg01vdOzusAwUbQzAXiSDkpp2aqurtYru7eqpr3ZmclrCHHLwFPIyXIPgbPAmLN3+BBnIwF9GLQq4RIzWbrUXw4E0iXx/mebum662HnkMXPQBwqfOLtu5UCQAQWHdmDgCjzqh5D1ZHD2Ab/uHoAbx/FZ4CHKxOB4e1tQUAvFEXpTq9ZlB5J8L4wIfxPmyddvZ3eseLXPCF8r2/1Q9G3u01AGs9gDOHAIPPw/X94y/PvZxHJBKJRCLx1eOb9DwnEolEIpGe50QikUgkEul5TiQSif+Ob39dK+EB+h+vnX3x4vaTm79++/PjW998ce1HfHz5t9/n2XiEQ5TWaUzHm+g2smwD2WiLySnDId5KsvFo/cOPbn4wHOH1OzdQWqUlDvGGbReVLjxmjG0MM5Zt4hBL79vJ+vr+/n7ymVHaVqJJrNtZD6skpa8rHKJtvbFNN0EppkJyhk4XPEWlp5WVu5xN2IShaES16HQ4w1pzZQR2e9Nac4Ztt+Bp+Myd4mnC2IQljGFt5lrloSvMyJ1odjRPxyhLZ2uR15qn6J2uKtNxhlvzLSU9ZyhnNWeotFD3bKN5ll5LUyxE5/O22zUtT08KZm1ui6LTYZIvnRaq4ylW1u6KUguVn451lZH6dIBh41ZLSFMLHzRM47WrhNSKM5xWe04scmnrVqyEbNN5J0yjVW4a70S4pnCi1qFqX5ud0rec4a5emMbzbPMk5rVpwupSN1ruharV9HBLnO7KcKMll67AeuqdDndSuoJnGwnDWVids2TMcNaGmhXFnI/fw1nbed3yEZo2d8Iby9NkxFDMOFv9y31ePzicvPMuvNb//odPAWDt+hIvfHV0nLYvnqS7MR3E9Cimo5h+eutl+hJiwpi2Y7ob00FMj2I6iin2LWPfMvYtY98y9i1j3zL2LWMf+ZEf+ZEf+ZEf+ZHf/8nvdf3gfu/ele8O4M8/Hsa93EXay5Ef+ZEf+ZEf+ZEf+b0ae7nDs788PAdnnj+7/cmc9nLkR37kR37kR37kR370Xo5+K/IjP/Ijv//a7y/rfhtCdUIAAA==";
 const RELEASE_BOUNDARY_CODES = new Set([
   "api-origin", "context-disposed", "cors", "credentials", "mutation", "observation-schema",
   "origin", "redirect", "tenant", "transport", "fetch-transport", "fulfill-transport",
@@ -48,10 +57,54 @@ function initialPreflightEvidence(frontendSha) {
     backendGovernanceSha: null, backendReleaseId: null, apiDigest: null, instanceId: null,
     tenantCode: null, artifactSha256: null, cases: null, documentSha256: {}, cleanup: null,
     operationObservation: null, inspectObservation: null, realUseObservation: null,
+    videoRuntimeObservation: null,
     preflightStage: "process",
     preflightChecks: Object.fromEntries(PREFLIGHT_CHECKS.map((name) => [name, false])),
     terminalOutcome: "preflight_running", passed: false,
     failures: ["development preflight unfinished; cleanup not proven"],
+  };
+}
+
+function observeLongVideoBrowserEvidence(payload) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+  const expectedKeys = [
+    "bootstrapCount", "consoleErrorCount", "contexts", "desktop", "endBeforeRenewCount",
+    "horizontalOverflowCount", "maxReloadDriftSeconds", "minimumPlaybackSeconds",
+    "minimumWallSeconds", "mobile", "pageErrorCount", "progressPersistedCount",
+    "renewCount", "requestErrorCount", "sameDomCount", "sameSessionCount", "schema",
+    "tokenRotationCount",
+  ];
+  if (Object.keys(payload).sort().join(",") !== expectedKeys.sort().join(",")) return null;
+  if (payload.schema !== "student-video-renewal/v1") return null;
+  const numericKeys = expectedKeys.filter((key) => key !== "schema");
+  if (numericKeys.some((key) => !Number.isInteger(payload[key]) || payload[key] < 0 || payload[key] > 10_000)) return null;
+  if (payload.contexts !== 2 || payload.desktop !== 1 || payload.mobile !== 1
+    || payload.minimumPlaybackSeconds < 690 || payload.minimumPlaybackSeconds > 900
+    || payload.minimumWallSeconds < 690 || payload.minimumWallSeconds > 1_000
+    || payload.bootstrapCount !== 2 || payload.renewCount !== 2 || payload.endBeforeRenewCount !== 0
+    || payload.sameDomCount !== 2 || payload.sameSessionCount !== 2 || payload.tokenRotationCount !== 2
+    || payload.progressPersistedCount !== 2 || payload.maxReloadDriftSeconds > 2
+    || payload.consoleErrorCount !== 0 || payload.pageErrorCount !== 0
+    || payload.requestErrorCount !== 0 || payload.horizontalOverflowCount !== 0) return null;
+  return {
+    schemaMatches: true,
+    contextCount: payload.contexts,
+    desktopCount: payload.desktop,
+    mobileCount: payload.mobile,
+    minimumPlaybackSeconds: payload.minimumPlaybackSeconds,
+    minimumWallSeconds: payload.minimumWallSeconds,
+    bootstrapCount: payload.bootstrapCount,
+    renewCount: payload.renewCount,
+    endBeforeRenewCount: payload.endBeforeRenewCount,
+    sameDomCount: payload.sameDomCount,
+    sameSessionCount: payload.sameSessionCount,
+    tokenRotationCount: payload.tokenRotationCount,
+    progressPersistedCount: payload.progressPersistedCount,
+    maxReloadDriftSeconds: payload.maxReloadDriftSeconds,
+    consoleErrorCount: payload.consoleErrorCount,
+    pageErrorCount: payload.pageErrorCount,
+    requestErrorCount: payload.requestErrorCount,
+    horizontalOverflowCount: payload.horizontalOverflowCount,
   };
 }
 
@@ -62,6 +115,7 @@ export function observeReleaseTestResult(stdout) {
     failedFiles: [], boundaryCodes: [], runnerErrorCount: null,
     readFetchRetries: null, suppressedAnalyticsBatches: null,
     suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
+    longVideo: null,
   };
   let report;
   try { report = JSON.parse(typeof stdout === "string" ? stdout : ""); }
@@ -79,6 +133,7 @@ export function observeReleaseTestResult(stdout) {
   ];
   const transportTotals = Object.fromEntries(transportKeys.map((key) => [key, 0]));
   const transportEvidenceCounts = Object.fromEntries(transportKeys.map((key) => [key, 0]));
+  const longVideoEvidence = [];
   const collectErrors = (errors) => {
     for (const error of Array.isArray(errors) ? errors : []) {
       if (typeof error?.message === "string") messages.push(error.message);
@@ -109,6 +164,8 @@ export function observeReleaseTestResult(stdout) {
                   }
                 }
               }
+              const longVideo = observeLongVideoBrowserEvidence(payload?.longVideoRealUse);
+              if (longVideo) longVideoEvidence.push(longVideo);
             }
           }
         }
@@ -124,6 +181,7 @@ export function observeReleaseTestResult(stdout) {
   for (const key of transportKeys) {
     observation[key] = transportEvidenceCounts[key] > 0 ? transportTotals[key] : null;
   }
+  observation.longVideo = longVideoEvidence.length === 1 ? longVideoEvidence[0] : null;
   return observation;
 }
 
@@ -182,6 +240,75 @@ export function inspectMatchObservation(payload, manifest) {
     releaseMatches: payload?.release_id === manifest?.releaseImageTag,
     digestMatches: payload?.digest === manifest?.images?.["academy-api"]?.digest,
   };
+}
+
+export function assertLongVideoSetup(payload) {
+  assert.equal(payload?.status, "YMATH_REALUSE_SCENARIO_READY");
+  assert.ok(Array.isArray(payload.student_ids) && payload.student_ids.length === 2
+    && payload.student_ids.every((id) => Number.isInteger(id) && id > 0));
+  assert.ok(Array.isArray(payload.session_ids) && payload.session_ids.length === 1
+    && Number.isInteger(payload.session_ids[0]) && payload.session_ids[0] > 0);
+  const fixture = payload.synthetic_long_video;
+  assert.equal(fixture?.access_mode, "PROCTORED_CLASS");
+  assert.equal(fixture?.duration_seconds, 900);
+  assert.equal(fixture?.hls_path, SYNTHETIC_LONG_VIDEO_PATH);
+  assert.equal(fixture?.video_accesses, 2);
+  assert.ok(Number.isInteger(fixture?.video_id) && fixture.video_id > 0);
+  return fixture;
+}
+
+export function observeLongVideoRuntime(state) {
+  const keys = [
+    "videos", "video_accesses", "proctored_video_accesses", "video_progresses",
+    "playback_sessions", "active_playback_sessions", "playback_events", "player_errors",
+    "violated_events",
+  ];
+  assert.ok(state && typeof state === "object" && !Array.isArray(state));
+  assert.ok(keys.every((key) => Number.isInteger(state[key]) && state[key] >= 0 && state[key] <= 1_000_000));
+  assert.equal(state.videos, 1);
+  assert.equal(state.video_accesses, 2);
+  assert.equal(state.proctored_video_accesses, 2);
+  assert.equal(state.video_progresses, 2);
+  assert.equal(state.playback_sessions, 4);
+  assert.equal(state.active_playback_sessions, 0);
+  assert.ok(state.playback_events >= 4);
+  assert.equal(state.player_errors, 0);
+  assert.equal(state.violated_events, 0);
+  return {
+    videoCount: state.videos,
+    videoAccessCount: state.video_accesses,
+    progressCount: state.video_progresses,
+    playbackSessionCount: state.playback_sessions,
+    activePlaybackSessionCount: state.active_playback_sessions,
+    playbackEventCount: state.playback_events,
+    playerErrorCount: state.player_errors,
+    violatedEventCount: state.violated_events,
+  };
+}
+
+const SYNTHETIC_LONG_VIDEO_ASSETS = new Map([
+  ["/__qa__/video-long/master.m3u8", {
+    contentType: "application/vnd.apple.mpegurl",
+    body: Buffer.from([
+      "#EXTM3U", "#EXT-X-VERSION:7", "#EXT-X-TARGETDURATION:900",
+      "#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-PLAYLIST-TYPE:VOD",
+      '#EXT-X-MAP:URI="init.mp4"', "#EXTINF:900.0,", "media.m4s", "#EXT-X-ENDLIST", "",
+    ].join("\n")),
+  }],
+  ["/__qa__/video-long/init.mp4", {
+    contentType: "video/mp4",
+    body: gunzipSync(Buffer.from(SYNTHETIC_LONG_VIDEO_INIT_GZIP, "base64")),
+  }],
+  ["/__qa__/video-long/media.m4s", {
+    contentType: "video/iso.segment",
+    body: gunzipSync(Buffer.from(SYNTHETIC_LONG_VIDEO_MEDIA_GZIP, "base64")),
+  }],
+]);
+
+export function syntheticLongVideoAsset(pathname) {
+  const asset = SYNTHETIC_LONG_VIDEO_ASSETS.get(pathname);
+  assert.ok(asset, "Unknown synthetic long-video asset");
+  return asset;
 }
 
 export function assertReadOnlyAssessmentSource(source) {
@@ -294,6 +421,16 @@ function serveArtifact(directory) {
     try {
       assert.ok(["GET", "HEAD"].includes(request.method));
       const route = decodeURIComponent(new URL(request.url, WEB_ORIGIN).pathname);
+      if (route.startsWith("/__qa__/video-long/")) {
+        const asset = syntheticLongVideoAsset(route);
+        response.writeHead(200, {
+          "content-type": asset.contentType,
+          "cache-control": "no-store",
+          "access-control-allow-origin": "*",
+        });
+        response.end(request.method === "HEAD" ? undefined : asset.body);
+        return;
+      }
       let file = path.resolve(directory, `.${route}`);
       assert.ok(file.startsWith(`${directory}${path.sep}`) || file === directory);
       if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) {
@@ -452,7 +589,8 @@ export async function run() {
     }],
   ], persistEvidence, process.env.GITHUB_SHA);
   const common = { TenantCode: [tenant], OwnershipCapability: [capability],
-    ReleaseId: [manifest.releaseImageTag], ApiDigest: [manifest.images["academy-api"].digest] };
+    ReleaseId: [manifest.releaseImageTag], ApiDigest: [manifest.images["academy-api"].digest],
+    SyntheticLongVideo: ["true"] };
   const sessions = new Set();
   const processes = [];
   let operationObservation = null;
@@ -494,6 +632,8 @@ export async function run() {
   let cleanup;
   let counts;
   let realUseObservation;
+  let videoRuntimeObservation;
+  let scenario;
   let tests;
   let interrupted = false;
   let finalizing = false;
@@ -512,6 +652,7 @@ export async function run() {
       documentSha256: Object.fromEntries([...expectedDocuments].map(([name, content]) => [name, sha(content)])),
       cleanup: cleanup ? { tenantCode: tenant, remaining: cleanup.remaining } : null,
       operationObservation, inspectObservation, realUseObservation: realUseObservation || null,
+      videoRuntimeObservation: videoRuntimeObservation || null,
       terminalOutcome, passed, failures: errors });
     persistEvidence(evidence);
     return evidence;
@@ -530,7 +671,8 @@ export async function run() {
     assert.equal(inspected.release_id, manifest.releaseImageTag);
     assert.equal(inspected.digest, manifest.images["academy-api"].digest);
     setupAttempted = true;
-    assert.equal((await operation("Setup")).status, "YMATH_REALUSE_SCENARIO_READY");
+    scenario = await operation("Setup");
+    const longVideo = assertLongVideoSetup(scenario);
     const tunnel = session(PORT_DOCUMENT);
     await waitPort(18000, () => interrupted);
     remember(tunnel);
@@ -543,12 +685,21 @@ export async function run() {
       env: { ...process.env, E2E_BASE_URL: WEB_ORIGIN, E2E_API_URL: API_ORIGIN, API_BASE_URL: API_ORIGIN,
         E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict",
         E2E_TENANT_CODE: tenant, E2E_ADMIN_USER: "ymath-qa-teacher", E2E_STUDENT_USER: "ymath-qa-student-01",
-        E2E_ADMIN_PASS: secret.Parameter.Value, E2E_STUDENT_PASS: secret.Parameter.Value },
+        E2E_STUDENT2_USER: "ymath-qa-student-02", E2E_LONG_VIDEO_ID: String(scenario.synthetic_long_video.video_id),
+        E2E_LONG_VIDEO_HLS_PATH: longVideo.hls_path,
+        E2E_ADMIN_PASS: secret.Parameter.Value, E2E_STUDENT_PASS: secret.Parameter.Value,
+        E2E_STUDENT2_PASS: secret.Parameter.Value },
     }, 20 * 60_000);
     const result = await tests.done;
     realUseObservation = observeReleaseTestResult(result.stdout);
     assert.equal(result.code, 0, "Required development real-use failed (raw credential-bearing report is not published)");
     counts = assertReleaseSummary(JSON.parse(result.stdout));
+    assert.ok(realUseObservation.longVideo, "Long-video browser evidence missing or invalid");
+    const postPlayback = await operation("Inspect");
+    assert.deepEqual(inspectMatchObservation(postPlayback, manifest), {
+      statusMatches: true, remainingZero: false, releaseMatches: true, digestMatches: true,
+    });
+    videoRuntimeObservation = observeLongVideoRuntime(postPlayback.video_state);
   } catch { primaryFailed = true; failures.push("development identity/setup/real-use failed"); }
   finally {
     finalizing = true;
@@ -589,7 +740,8 @@ export async function run() {
     if (interrupted && !failures.some((failure) => failure.includes("interrupted"))) failures.push("development run interrupted; promotion forbidden");
     process.off("SIGINT", interrupt);
     process.off("SIGTERM", interrupt);
-    const passed = failures.length === 0 && Boolean(counts) && Boolean(cleanup);
+    const passed = failures.length === 0 && Boolean(counts) && Boolean(cleanup)
+      && Boolean(realUseObservation?.longVideo) && Boolean(videoRuntimeObservation);
     const resultEvidence = writeEvidence(passed, failures, passed ? "passed" : "qa_failed");
     assert.equal(resultEvidence.passed, true, "Development release gate failed; see PII-free evidence");
   }
