@@ -881,8 +881,8 @@ test.describe("학생 클리닉 예약 UX", () => {
 
     await onePm.click();
     await fivePm.click();
-    await eightPm.click();
-    await expect(page.getByRole("status")).toContainText("한 타임 전용 일정이 포함되어");
+    await expect(eightPm).toBeDisabled();
+    await expect(eightPm).toContainText("한 타임만 가능");
     await expect(fivePm).toHaveAttribute("aria-pressed", "true");
     await expect(eightPm).toHaveAttribute("aria-pressed", "false");
   });

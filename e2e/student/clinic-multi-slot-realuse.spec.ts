@@ -157,28 +157,21 @@ async function cleanup(request: APIRequestContext): Promise<void> {
       };
     }
   };
-  const participantIds = new Set<number>();
+  for (const sessionId of [...created.sessionIds].reverse()) {
+    const result = await safe("DELETE", `/clinic/sessions/${sessionId}/`);
+    if (![200, 204, 404].includes(result.status)) {
+      failures.push(`delete session ${sessionId} -> ${result.status}`);
+    }
+  }
   for (const sessionId of created.sessionIds) {
     const result = await safe<unknown>(
       "GET",
       `/clinic/participants/by_session/?session_id=${sessionId}`,
     );
-    if (result.status === 200) {
-      listFrom(result.body).forEach((row) => participantIds.add(Number(row.id)));
-    } else if (result.status !== 404) {
-      failures.push(`list participants for session ${sessionId} -> ${result.status}`);
-    }
-  }
-  for (const participantId of participantIds) {
-    const result = await safe("DELETE", `/clinic/participants/${participantId}/`);
-    if (![200, 204, 404].includes(result.status)) {
-      failures.push(`delete participant ${participantId} -> ${result.status}`);
-    }
-  }
-  for (const sessionId of [...created.sessionIds].reverse()) {
-    const result = await safe("DELETE", `/clinic/sessions/${sessionId}/`);
-    if (![200, 204, 404].includes(result.status)) {
-      failures.push(`delete session ${sessionId} -> ${result.status}`);
+    if (result.status === 200 && listFrom(result.body).length > 0) {
+      failures.push(`owned clinic participant residue remains for session ${sessionId}`);
+    } else if (![200, 404].includes(result.status)) {
+      failures.push(`read back participants for session ${sessionId} -> ${result.status}`);
     }
   }
   const sessions = await safe<unknown>(
@@ -224,6 +217,7 @@ test.describe.serial("[real-use] 클리닉 여러 시간대 예약", () => {
       { title: `${MARKER} 17시`, start_time: "17:00:00", allow_multi_slot_booking: true },
       { title: `${MARKER} 18시`, start_time: "18:00:00", allow_multi_slot_booking: true },
       { title: `${MARKER} 19시`, start_time: "19:00:00", allow_multi_slot_booking: false },
+      { title: `${MARKER} 20시`, start_time: "20:00:00", allow_multi_slot_booking: true },
     ];
     const sessions: SessionRow[] = [];
     for (const spec of sessionSpecs) {
@@ -309,6 +303,7 @@ test.describe.serial("[real-use] 클리닉 여러 시간대 예약", () => {
       );
     }
     expect(await participantsFor(request, sessions[2].id)).toHaveLength(0);
+    expect(await participantsFor(request, sessions[3].id)).toHaveLength(0);
 
     const teacherContext = await browser.newContext({ viewport: { width: 1100, height: 800 } });
     const teacherPage = await teacherContext.newPage();
@@ -327,6 +322,49 @@ test.describe.serial("[real-use] 클리닉 여러 시간대 예약", () => {
       strictTeacher.assertZeroDefects();
     } finally {
       await teacherContext.close();
+    }
+
+    const changeSourceCard = page.locator("article").filter({ hasText: `${MARKER} 18시` });
+    await changeSourceCard.getByRole("button", { name: "일정 바꾸기" }).click();
+    await dateRegion.getByRole("button", { name: `${MARKER} 20시` }).click();
+    await page.getByRole("button", { name: "이 일정으로 변경하기" }).click();
+    await expect(page.getByText(/일정 변경(?: 신청이 접수|이 확정)되었습니다\./)).toBeVisible();
+
+    const changedRows = await participantsFor(request, sessions[3].id);
+    expect(changedRows.some((row) => row.student_name === "검증학생 01" && ["pending", "booked"].includes(row.status))).toBe(true);
+
+    const reconnectContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const reconnectPage = await reconnectContext.newPage();
+    installAccountNotificationGuard(reconnectPage.request);
+    const strictReconnect = attachStrictBrowserGuards(reconnectPage);
+    try {
+      await seedBrowser(reconnectPage, student);
+      await gotoAndSettle(reconnectPage, `${BASE}/student/clinic`, { timeout: 30_000 });
+      await acknowledgeFirstLoginGuideIfVisible(reconnectPage);
+      await reconnectPage.getByRole("tab", { name: /내 일정/ }).click();
+      await expect(reconnectPage.locator("article").filter({ hasText: `${MARKER} 17시` })).toBeVisible();
+      await expect(reconnectPage.locator("article").filter({ hasText: `${MARKER} 20시` })).toBeVisible();
+      await expect(reconnectPage.locator("article").filter({ hasText: `${MARKER} 18시` })).toHaveCount(0);
+
+      for (const title of [`${MARKER} 17시`, `${MARKER} 20시`]) {
+        const bookingCard = reconnectPage.locator("article").filter({ hasText: title });
+        await bookingCard.getByRole("button", { name: "예약 취소" }).click();
+        await reconnectPage.getByRole("alertdialog", { name: "예약 취소" })
+          .getByRole("button", { name: "예약 취소" })
+          .click();
+        await expect(reconnectPage.getByText("예약 신청이 취소되었습니다.")).toBeVisible();
+      }
+      expect(await reconnectPage.locator("body").evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      )).toBe(true);
+      strictReconnect.assertZeroDefects();
+    } finally {
+      await reconnectContext.close();
+    }
+
+    for (const session of [sessions[0], sessions[1], sessions[3]]) {
+      const rows = await participantsFor(request, session.id);
+      expect(rows.some((row) => row.student_name === "검증학생 01" && row.status === "cancelled")).toBe(true);
     }
   });
 });

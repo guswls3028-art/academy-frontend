@@ -720,7 +720,11 @@ export default function ClinicPage() {
                                 session.allow_multi_slot_booking !== true
                               )
                             ));
-                            const disabled = full || currentChangingSession || !!activeRequest;
+                            const disabled = full
+                              || currentChangingSession
+                              || !!activeRequest
+                              || policyBlockedBySelection
+                              || policyBlockedByExisting;
                             const remaining = session.booking_mode === "time_range" || session.max_participants == null
                               ? null
                               : Math.max(
