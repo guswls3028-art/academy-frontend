@@ -37,6 +37,7 @@ type CreatedState = {
   examId?: number;
   enrollmentIds: number[];
   sessionEnrollmentIds: number[];
+  submissionIds: number[];
 };
 
 type ResultBody = {
@@ -54,6 +55,7 @@ const created: CreatedState = {
   adminAccess: "",
   enrollmentIds: [],
   sessionEnrollmentIds: [],
+  submissionIds: [],
 };
 
 const runStamp = Date.now();
@@ -98,6 +100,9 @@ async function cleanup(request: APIRequestContext): Promise<void> {
     }
   };
 
+  for (const id of [...created.submissionIds].reverse()) {
+    await remove("DELETE", `/submissions/submissions/${id}/`);
+  }
   if (created.examId && created.sessionId) {
     await remove("DELETE", `/exams/${created.examId}/?session_id=${created.sessionId}`);
   }
@@ -112,6 +117,10 @@ async function cleanup(request: APIRequestContext): Promise<void> {
 
   await cleanupQaFamily(request, created.adminAccess, created.family);
   for (const [label, path] of [
+    ...created.submissionIds.map((id) => [
+      `submission ${id}`,
+      `/submissions/submissions/${id}/`,
+    ] as const),
     ...(created.examId && created.sessionId
       ? [[`exam ${created.examId}`, `/exams/${created.examId}/?session_id=${created.sessionId}`] as const]
       : []),
