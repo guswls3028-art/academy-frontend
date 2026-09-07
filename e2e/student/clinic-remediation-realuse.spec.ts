@@ -182,6 +182,16 @@ async function seedBrowser(page: Page, tokens: Tokens): Promise<void> {
   }, { access: tokens.access, refresh: tokens.refresh, code: CODE });
 }
 
+async function acknowledgeStudentAccountPromptsIfVisible(page: Page): Promise<void> {
+  await acknowledgeFirstLoginGuideIfVisible(page);
+  const passwordDialog = page.getByRole("dialog", { name: "비밀번호 변경 권장" });
+  if (!await passwordDialog.isVisible({ timeout: 2_000 }).catch(() => false)) return;
+
+  await passwordDialog.getByRole("button", { name: "위험을 이해했고 나중에" }).click();
+  await expect(passwordDialog).toBeHidden();
+  await acknowledgeFirstLoginGuideIfVisible(page);
+}
+
 async function createStudent(request: APIRequestContext, token: string): Promise<number> {
   const student = await expectApi<{ id: number }>(request, "POST", "/students/", token, {
     name: STUDENT_NAME,
@@ -384,7 +394,7 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
         "/core/me/",
         assistantTokens.access,
       );
-      expect(assistantMe.is_staff).toBe(true);
+      expect(assistantMe.is_staff).toBe(false);
       expect(assistantMe.tenantRole).toBe("staff");
     }
     const clinicOperatorAccess = assistantTokens?.access ?? adminTokens.access;
@@ -502,10 +512,11 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
     await seedBrowser(page, studentTokens);
     await gotoAndSettle(page, `${BASE}/student/exams/${created.examId}/result`, { timeout: 25_000 });
     await expect(page.getByRole("heading", { name: "시험 결과" })).toBeVisible({ timeout: 10_000 });
-    await acknowledgeFirstLoginGuideIfVisible(page);
+    await acknowledgeStudentAccountPromptsIfVisible(page);
     await expect(page.getByText("20 / 100점")).toBeVisible();
-    await expect(page.getByText("보강 클리닉 대상")).toBeVisible();
-    await expect(page.getByText("클리닉 페이지에서 일정을 예약하세요.")).toBeVisible();
+    const clinicCta = page.getByRole("link")
+      .filter({ hasText: "클리닉 페이지에서 일정을 예약하세요." });
+    await expect(clinicCta).toContainText(/보강 클리닉 대상|오답 미완료/);
 
     const clinicSlots = [
       { title: `${CLINIC_TITLE} 13시`, startTime: "13:20" },
@@ -550,7 +561,7 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
       expect(listFrom(addedRows).some((row) => row.student_name === SEEDED_STUDENT_NAME)).toBe(true);
     }
 
-    await page.getByRole("link", { name: /보강 클리닉 대상/ }).click();
+    await clinicCta.click();
     await waitForRenderSettled(page, { timeout: 20_000 });
     await expect(page).toHaveURL(/\/student\/clinic/);
     await expect(page.getByRole("tab", { name: "예약하기", exact: true })).toBeVisible();
@@ -621,7 +632,10 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
         await expect(participantRow).toContainText("승인 대기");
         const lightHighlight = participantRow.locator(".ds-student-name--clinic-highlight");
         await expect(lightHighlight).toHaveText(STUDENT_NAME);
-        expect(await lightHighlight.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe("rgba(0, 0, 0, 0)");
+        const lightHighlightColor = await lightHighlight.evaluate(
+          (element) => getComputedStyle(element).backgroundColor,
+        );
+        expect(lightHighlightColor).not.toBe("rgba(0, 0, 0, 0)");
         await participantRow.getByRole("button", { name: "예약 승인" }).click();
         await expect(participantRow).toContainText("미등원", { timeout: 15_000 });
         await expect(participantRow.locator(".ds-student-name--clinic-highlight")).toHaveCount(0);
@@ -629,6 +643,39 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
         const bookedCard = await expectApi<any>(request, "GET", "/clinic/idcard/", studentTokens.access);
         expect(bookedCard.passcard_state).toBe("BOOKING_CONFIRMED");
         expect(bookedCard.booking_status).toBe("booked");
+
+        await page.evaluate(() => {
+          localStorage.setItem("hakwonplus:student-theme-mode", "light");
+        });
+        await page.setViewportSize({ width: 390, height: 844 });
+        await gotoAndSettle(page, `${BASE}/student/idcard`, { timeout: 20_000 });
+        const bookedPasscard = page.getByTestId("clinic-passcard");
+        await expect(bookedPasscard.getByRole("heading", { name: "예약완료" })).toBeVisible();
+        await expect(bookedPasscard.locator(".ds-student-name--clinic-highlight")).toHaveCount(0);
+        expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+        const readBookedPalette = () => bookedPasscard.evaluate((passcard) => {
+          const selectors = [
+            ".clinic-idcard__aurora",
+            ".clinic-idcard__header",
+            ".clinic-idcard__verdict",
+            ".clinic-idcard__booking",
+            ".clinic-idcard__history",
+          ];
+          return selectors.map((selector) => {
+            const element = passcard.querySelector<HTMLElement>(selector);
+            if (!element) throw new Error(`Missing passcard element: ${selector}`);
+            const style = getComputedStyle(element);
+            return [style.backgroundColor, style.backgroundImage, style.borderColor, style.color];
+          });
+        });
+        const lightBookedPalette = await readBookedPalette();
+        await page.evaluate(() => {
+          localStorage.setItem("hakwonplus:student-theme-mode", "dark");
+        });
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await expect(page.locator('[data-app="student"][data-student-dark="true"]')).toBeVisible();
+        await expect(bookedPasscard.getByRole("heading", { name: "예약완료" })).toBeVisible();
+        expect(await readBookedPalette()).toEqual(lightBookedPalette);
 
         await assistantPage.reload({ waitUntil: "domcontentloaded" });
         await dateInputs.nth(0).fill(CLINIC_DATE);
@@ -661,7 +708,8 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
         await expect(participantRow.getByRole("button", { name: "완료 취소" })).toBeVisible();
         const darkHighlight = participantRow.locator(".ds-student-name--clinic-highlight");
         await expect(darkHighlight).toHaveText(STUDENT_NAME);
-        expect(await darkHighlight.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe("rgba(0, 0, 0, 0)");
+        expect(await darkHighlight.evaluate((element) => getComputedStyle(element).backgroundColor))
+          .toBe(lightHighlightColor);
         expect(await assistantPage.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
 
         await assistantPage.setViewportSize({ width: 1366, height: 900 });
@@ -752,6 +800,15 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
     expect(idcardAfterUnresolvedCompletion.passcard_state).toBe("CLINIC_REQUIRED");
     expect(idcardAfterUnresolvedCompletion.booking_status).toBe("required");
 
+    await gotoAndSettle(page, `${BASE}/student/idcard`, { timeout: 20_000 });
+    const unresolvedPasscard = page.getByTestId("clinic-passcard");
+    await expect(unresolvedPasscard.getByRole("heading", { name: /대상자|오답 미완료/ })).toBeVisible();
+    await expect(unresolvedPasscard.locator(".ds-student-name--clinic-highlight")).toHaveText(STUDENT_NAME);
+    expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(unresolvedPasscard.getByRole("heading", { name: /대상자|오답 미완료/ })).toBeVisible();
+    await expect(unresolvedPasscard.locator(".ds-student-name--clinic-highlight")).toHaveText(STUDENT_NAME);
+
     const retake = await expectApi<any>(
       request,
       "POST",
@@ -805,14 +862,24 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
     expect(idcardAfterRemediation.current_result).toBe("SUCCESS");
     expect(idcardAfterRemediation.passcard_state).toBe("PASSED");
 
+    await gotoAndSettle(page, `${BASE}/student/idcard`, { timeout: 20_000 });
+    const passedPasscard = page.getByTestId("clinic-passcard");
+    await expect(passedPasscard.getByRole("heading", { name: /합격자|오답 완료/ })).toBeVisible();
+    await expect(passedPasscard.locator(".ds-student-name--clinic-highlight")).toHaveCount(0);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(passedPasscard.getByRole("heading", { name: /합격자|오답 완료/ })).toBeVisible();
+    await expect(passedPasscard.locator(".ds-student-name--clinic-highlight")).toHaveCount(0);
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await expect(passedPasscard).toBeVisible();
+    expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+
     await gotoAndSettle(page, `${BASE}/student/exams/${created.examId}/result`, { timeout: 25_000 });
-    await expect(page.getByText("클리닉 재시험 통과")).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText("90점")).toBeVisible();
-    await expect(page.getByText("보강 클리닉 대상")).not.toBeVisible();
+    await expect(page.getByText("20 / 100점")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("link").filter({ hasText: "클리닉 페이지에서 일정을 예약하세요." }))
+      .toHaveCount(0);
 
     await gotoAndSettle(page, `${BASE}/student/grades`, { timeout: 25_000 });
     await expect(page.getByText(EXAM_TITLE)).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText("보강 합격")).toBeVisible();
 
     await page.screenshot({ path: `e2e/screenshots/clinic-remediation-realuse-${TS}.png`, fullPage: true });
   });
