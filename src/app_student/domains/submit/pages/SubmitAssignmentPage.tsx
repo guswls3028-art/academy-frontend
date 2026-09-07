@@ -121,6 +121,7 @@ export default function SubmitAssignmentPage() {
     () => (grades?.exams ?? []).filter((exam) => (
       (requestedSessionId == null || Number(exam.session_id) === requestedSessionId)
       && exam.lecture_active !== false
+      && exam.grading_status !== "subjective_pending"
       && exam.achievement !== "REMEDIATED"
       && (exam.is_pass === false || exam.achievement === "FAIL" || exam.achievement === "NOT_SUBMITTED"
         || exam.meta_status === "NOT_SUBMITTED" || exam.total_score == null)

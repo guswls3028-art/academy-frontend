@@ -37,6 +37,13 @@ export type TeacherExamResultRow = {
   correction_status?: "PENDING" | "COMPLETED" | "NOT_REQUIRED" | null;
 };
 
+export type ScoreUpdateResponse = {
+  ok: boolean;
+  saved: boolean;
+  projection_ready: boolean;
+  grading_status?: "subjective_pending" | null;
+};
+
 /** 세션에 연결된 시험 목록 (backend 필터: session_id) */
 export async function fetchSessionExams(sessionId: number): Promise<TeacherSessionExam[]> {
   const res = await api.get("/exams/", { params: { session_id: sessionId, page_size: 50 } });
@@ -62,7 +69,7 @@ export async function updateResult(
   examId: number,
   enrollmentId: number,
   payload: { score: number | null; maxScore?: number | null },
-): Promise<unknown> {
+): Promise<ScoreUpdateResponse> {
   const body: Record<string, unknown> = {
     score: payload.score,
     max_score: payload.maxScore ?? null,
@@ -82,7 +89,7 @@ export async function updateSubjectiveResult(
   examId: number,
   enrollmentId: number,
   score: number,
-): Promise<unknown> {
+): Promise<ScoreUpdateResponse> {
   return runWithScoreEditLease(sessionId, async (headers) => {
     const res = await api.patch(
       `/results/admin/exams/${examId}/enrollments/${enrollmentId}/subjective/`,

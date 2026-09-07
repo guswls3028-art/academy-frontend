@@ -261,8 +261,13 @@ test("assessment classification fails if a business write or skip is introduced"
 });
 
 function completeFlowReport() {
-  return { errors: [], stats: { expected: 10, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
-    ...Object.entries({ "notice-roundtrip.spec.ts": 3, "qna-roundtrip.spec.ts": 4, "clinic-roundtrip.spec.ts": 3 }).map(([file, count]) => ({
+  return { errors: [], stats: { expected: 11, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
+    ...Object.entries({
+      "notice-roundtrip.spec.ts": 3,
+      "qna-roundtrip.spec.ts": 4,
+      "clinic-roundtrip.spec.ts": 3,
+      "omr-review-realuse.spec.ts": 1,
+    }).map(([file, count]) => ({
       file, specs: Array.from({ length: count }, () => ({ file, tests: [{ expectedStatus: "passed", status: "expected", results: [{ status: "passed" }] }] })),
     })),
   ] };
@@ -282,10 +287,10 @@ test("real-use failure observation publishes only allowlisted counts, files, and
   };
   report.errors.push({ message: "Release request rejected [cors] C:/secret/path" });
   report.stats.unexpected = 1;
-  report.stats.expected = 9;
+  report.stats.expected = 10;
   assert.deepEqual(observeReleaseTestResult(JSON.stringify(report)), {
     reportStatus: "parsed",
-    stats: { expected: 9, skipped: 0, unexpected: 1, flaky: 0 },
+    stats: { expected: 10, skipped: 0, unexpected: 1, flaky: 0 },
     failedFiles: ["notice-roundtrip.spec.ts"],
     boundaryCodes: ["cors", "tenant"],
     runnerErrorCount: 1,
@@ -305,7 +310,7 @@ test("real-use failure observation publishes only allowlisted counts, files, and
   });
 });
 
-test("all ten real-use cases are mandatory; missing, skip, failure, retry and global errors fail closed", () => {
+test("all eleven real-use cases are mandatory; missing, skip, failure, retry and global errors fail closed", () => {
   assert.doesNotThrow(() => assertReleaseSummary(completeFlowReport()));
   const corrupt = [
     (report) => report.suites.pop(),
@@ -370,14 +375,15 @@ test("manifest and instance identity must match uniquely before setup", () => {
   }
 });
 
-test("development config discovers ten enabled cases without executing any API test", () => {
+test("development config discovers eleven enabled cases without executing any API test", () => {
   const cwd = new URL("../../", import.meta.url);
   const output = execFileSync(process.execPath, ["node_modules/@playwright/test/cli.js", "test",
     "--config=playwright.development-release.config.ts", "--list"], {
     cwd, encoding: "utf8", env: { ...process.env,
       E2E_API_URL: "http://127.0.0.1:18000", E2E_BASE_URL: "http://localhost:4173",
       E2E_TENANT_CODE: "qa-ymath-realuse-fe-123-1-abcdef123456",
-      E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict" },
+      E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict",
+      E2E_STUDENT_PASS: "development-discovery-only" },
   });
   const report = JSON.parse(output);
   let discovered = 0;
@@ -391,7 +397,7 @@ test("development config discovers ten enabled cases without executing any API t
     for (const child of suite.suites || []) visit(child);
   };
   visit(report);
-  assert.equal(discovered, 10);
+  assert.equal(discovered, 11);
   // Playwright's --list reporter counts all unexecuted cases as skipped. These
   // are discovery-only, never accepted by assertReleaseSummary as real-use proof.
   assert.equal(report.stats.expected, 0);

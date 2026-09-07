@@ -328,7 +328,7 @@ function ScoreEntryList({
       });
       return { previous };
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: (data, variables) => {
       setLocalScores((prev) => {
         const next = new Map(prev);
         next.delete(variables.enrollmentId);
@@ -347,7 +347,15 @@ function ScoreEntryList({
       void qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
       const student = results?.find((r) => getExamResultEnrollmentId(r) === variables.enrollmentId);
       const name = student?.student_name ?? "";
-      feedback.success(name ? `${name} 점수가 저장되었습니다.` : "점수가 저장되었습니다.");
+      if (variables.subjectiveOnly && !data.projection_ready) {
+        feedback.warning(
+          name
+            ? `${name} 점수는 저장됐지만, 남은 서술형 채점이 필요합니다.`
+            : "점수는 저장됐지만, 남은 서술형 채점이 필요합니다.",
+        );
+      } else {
+        feedback.success(name ? `${name} 점수가 저장되었습니다.` : "점수가 저장되었습니다.");
+      }
     },
     onError: (e, _vars, ctx?: { previous?: TeacherExamResultRow[] }) => {
       qc.setQueryData(teacherScoresQueryKeys.examResults(examId), ctx?.previous);

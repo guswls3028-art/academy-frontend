@@ -15,7 +15,12 @@ const PORT_DOCUMENT = "academy-frontend-development-api-port";
 const PASSWORD_PARAMETER = "/academy/api/development/ymath-realuse-password";
 const WEB_ORIGIN = "http://localhost:4173";
 const API_ORIGIN = "http://127.0.0.1:18000";
-const FLOW_COUNTS = { "notice-roundtrip.spec.ts": 3, "qna-roundtrip.spec.ts": 4, "clinic-roundtrip.spec.ts": 3 };
+const FLOW_COUNTS = {
+  "notice-roundtrip.spec.ts": 3,
+  "qna-roundtrip.spec.ts": 4,
+  "clinic-roundtrip.spec.ts": 3,
+  "omr-review-realuse.spec.ts": 1,
+};
 const RELEASE_BOUNDARY_CODES = new Set([
   "api-origin", "context-disposed", "cors", "credentials", "mutation", "observation-schema",
   "origin", "redirect", "tenant", "transport", "fetch-transport", "fulfill-transport",

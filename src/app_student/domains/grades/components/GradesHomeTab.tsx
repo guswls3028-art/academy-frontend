@@ -28,11 +28,11 @@ function groupExams(exams: MyExamGradeSummary[]): ExamGroup[] {
     if (arr) arr.push(e);
     else map.set(key, [e]);
   }
-  function calcAvgPct(items: MyExamGradeSummary[]): number {
+  function calcAvgPct(items: MyExamGradeSummary[]): number | null {
     const scored = items.filter((e) => e.total_score != null && e.max_score > 0);
     return scored.length > 0
       ? Math.round(scored.reduce((s, e) => s + (e.total_score! / e.max_score) * 100, 0) / scored.length)
-      : 0;
+      : null;
   }
   const groups: ExamGroup[] = [];
   for (const [key, items] of map) {
