@@ -74,6 +74,8 @@ export interface FileUploadZoneProps {
   disabled?: boolean;
   /** 단일 파일일 때 잘못된 파일 처리 (미지정 시 무시) */
   onInvalidFile?: (message: string) => void;
+  /** 다중 선택에 미지원 형식이 섞이면 유효 파일까지 포함해 선택 전체를 중단 */
+  rejectMixedInvalid?: boolean;
   /** 단일 파일 모드에서 파일 유효성 검사 (통과 시 true) */
   validateFile?: (file: File) => boolean;
 }
@@ -88,6 +90,7 @@ export default function FileUploadZone({
   hintText,
   disabled = false,
   onInvalidFile,
+  rejectMixedInvalid = false,
   validateFile,
 }: FileUploadZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -104,6 +107,11 @@ export default function FileUploadZone({
       list = list.filter((f) => patterns.some((p) => matchesAcceptPattern(f, p)));
       if (list.length === 0) {
         onInvalidFile?.("허용된 형식의 파일만 업로드할 수 있습니다.");
+        return;
+      }
+      const rejectedCount = files.length - list.length;
+      if (rejectMixedInvalid && rejectedCount > 0) {
+        onInvalidFile?.(`${files.length}개 중 ${rejectedCount}개 파일 형식을 확인해 주세요.`);
         return;
       }
     }

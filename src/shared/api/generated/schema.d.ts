@@ -14295,6 +14295,18 @@ export interface components {
             session_id?: number | null;
             total_count: number;
         };
+        OmrUploadBatchItemSummary: {
+            admission_status: string;
+            duplicate_of_submission_id: number | null;
+            failure_code: string | null;
+            failure_message: string | null;
+            id: string;
+            identifier_status: string | null;
+            ordinal: number;
+            status: string;
+            submission_id: number | null;
+            submission_status: string | null;
+        };
         OmrUploadBatchRetryRequestRequest: {
             item_ordinals: number[];
         };
@@ -14311,6 +14323,7 @@ export interface components {
             failed_ordinals: number[];
             /** Format: uuid */
             id: string;
+            items: components["schemas"]["OmrUploadBatchItemSummary"][];
             lecture_id: number | null;
             overall_status: string;
             pending_admission_ordinals: number[];
@@ -14336,6 +14349,7 @@ export interface components {
             failed_ordinals: number[];
             /** Format: uuid */
             id: string;
+            items: components["schemas"]["OmrUploadBatchItemSummary"][];
             lecture_id: number | null;
             overall_status: string;
             pending_admission_ordinals: number[];
@@ -14359,6 +14373,7 @@ export interface components {
             failed_ordinals: number[];
             /** Format: uuid */
             id: string;
+            items: components["schemas"]["OmrUploadBatchItemSummary"][];
             lecture_id: number | null;
             overall_status: string;
             pending_admission_ordinals: number[];

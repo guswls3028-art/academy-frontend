@@ -9,7 +9,11 @@ import { lazy, Suspense, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { useAdminExam } from "../hooks/useAdminExam";
-import type { ExamSubmissionRow } from "@/shared/api/contracts/submissions";
+import {
+  listOmrUploadBatchesApi,
+  type ExamSubmissionRow,
+  type OmrUploadBatchItemStatus,
+} from "@/shared/api/contracts/submissions";
 import {
   SUBMISSION_STATUS_LABEL,
   SUBMISSION_STATUS_TONE,
@@ -53,6 +57,27 @@ async function fetchExamSubmissionRows(examId: number): Promise<ExamSubmissionDi
   return [];
 }
 
+const OMR_LEDGER_STATUS_LABEL: Record<OmrUploadBatchItemStatus, string> = {
+  pending_admission: "파일 대기",
+  received: "접수됨",
+  duplicate: "중복 확인",
+  processing: "처리 중",
+  completed: "완료",
+  needs_identification: "학생 식별 필요",
+  failed: "실패",
+  superseded: "대체됨",
+};
+
+function omrLedgerStatusTone(
+  status: OmrUploadBatchItemStatus,
+): "neutral" | "info" | "success" | "warning" | "danger" {
+  if (status === "completed") return "success";
+  if (status === "received" || status === "processing") return "info";
+  if (status === "needs_identification") return "warning";
+  if (status === "failed") return "danger";
+  return "neutral";
+}
+
 export default function ExamSubmissionsPanel({ examId, sessionId: sessionIdProp }: Props) {
   const navigate = useNavigate();
   const previewRequestIdRef = useRef<number | null>(null);
@@ -69,6 +94,11 @@ export default function ExamSubmissionsPanel({ examId, sessionId: sessionIdProp 
   const q = useQuery({
     queryKey: adminExamsQueryKeys.examSubmissions(examId),
     queryFn: () => fetchExamSubmissionRows(examId),
+    refetchInterval: 5000,
+  });
+  const batchQ = useQuery({
+    queryKey: adminExamsQueryKeys.omrUploadLedger(examId),
+    queryFn: listOmrUploadBatchesApi,
     refetchInterval: 5000,
   });
 
@@ -105,12 +135,24 @@ export default function ExamSubmissionsPanel({ examId, sessionId: sessionIdProp 
   };
 
   const rows = q.data ?? [];
+  const ledgerBatches = (batchQ.data ?? []).filter((batch) => (
+    batch.exam_id === examId && (sessionId == null || batch.session_id === sessionId)
+  ));
   const openScores = () => {
     if (!canOpenScores) {
       feedback.info("차시 성적 화면에서 OMR을 등록할 수 있습니다.");
       return;
     }
     navigate(`/workspace/lectures/${lectureId}/sessions/${sessionId}/scores`);
+  };
+  const openBatchRetry = (batchId: string) => {
+    if (!canOpenScores) {
+      feedback.info("차시 성적 화면에서 미접수 파일을 다시 선택할 수 있습니다.");
+      return;
+    }
+    navigate(
+      `/workspace/lectures/${lectureId}/sessions/${sessionId}/scores?omrRetryBatchId=${encodeURIComponent(batchId)}&omrRetryExamId=${examId}`,
+    );
   };
 
   return (
@@ -129,6 +171,119 @@ export default function ExamSubmissionsPanel({ examId, sessionId: sessionIdProp 
         </div>
       </section>
 
+      <section className="space-y-3" aria-label="OMR 업로드 원장">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold text-[var(--color-text-primary)]">
+              OMR 업로드 원장
+            </div>
+            <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+              선택한 답안지 수와 각 장의 처리 상태를 그대로 보존합니다.
+            </p>
+          </div>
+          <Button type="button" intent="ghost" size="sm" onClick={() => batchQ.refetch()}>
+            원장 새로고침
+          </Button>
+        </div>
+
+        {batchQ.isLoading ? (
+          <EmptyState scope="panel" tone="loading" title="OMR 업로드 원장 불러오는 중…" />
+        ) : null}
+
+        {batchQ.isError ? (
+          <div className="rounded border border-red-600/30 bg-red-600/10 p-3 text-sm text-red-700">
+            OMR 업로드 원장을 불러오지 못했습니다.
+          </div>
+        ) : null}
+
+        {!batchQ.isLoading && !batchQ.isError && ledgerBatches.length === 0 ? (
+          <EmptyState scope="panel" tone="empty" title="최근 OMR 업로드가 없습니다." />
+        ) : null}
+
+        {ledgerBatches.map((batch) => {
+          const batchItems = batch.items ?? [];
+          const needsFileRetry = batchItems.some((item) => (
+            item.status === "failed" && item.admission_status === "failed"
+          ));
+          return (
+            <article
+              key={batch.id}
+              className="overflow-hidden rounded-lg border border-[var(--color-border-divider)]"
+              data-testid={`omr-ledger-batch-${batch.id}`}
+            >
+              <div className="flex flex-wrap items-center gap-2 bg-[var(--color-bg-surface-soft)] px-4 py-3">
+                <span className="text-sm font-semibold text-[var(--color-text-primary)]">
+                  OMR {batch.total_count}장
+                </span>
+                <Badge variant="soft" tone="info">접수 {batch.counts.received}</Badge>
+                <Badge variant="soft" tone="info">처리 {batch.counts.processing}</Badge>
+                <Badge variant="soft" tone="success">완료 {batch.counts.completed}</Badge>
+                <Badge variant="soft" tone="warning">
+                  식별 필요 {batch.counts.needs_identification}
+                </Badge>
+                <Badge variant="soft" tone={batch.counts.failed > 0 ? "danger" : "neutral"}>
+                  실패 {batch.counts.failed}
+                </Badge>
+                {needsFileRetry ? (
+                  <Button
+                    type="button"
+                    intent="secondary"
+                    size="sm"
+                    className="ml-auto"
+                    onClick={() => openBatchRetry(batch.id)}
+                  >
+                    미접수 파일 다시 선택
+                  </Button>
+                ) : null}
+              </div>
+
+              {batchItems.length === 0 ? (
+                <p className="px-4 py-3 text-xs text-[var(--color-text-muted)]">
+                  이 작업의 장별 원장 정보가 아직 준비되지 않았습니다.
+                </p>
+              ) : (
+                <ol className="divide-y divide-[var(--color-border-divider)]" aria-label={`OMR ${batch.total_count}장 상태`}>
+                  {batchItems.map((item) => (
+                    <li
+                      key={item.id}
+                      className="flex flex-wrap items-center gap-2 px-4 py-2.5"
+                      data-testid="omr-ledger-item"
+                    >
+                      <span className="min-w-20 text-sm font-medium text-[var(--color-text-primary)]">
+                        답안지 {item.ordinal}
+                      </span>
+                      <Badge variant="solid" tone={omrLedgerStatusTone(item.status)}>
+                        {OMR_LEDGER_STATUS_LABEL[item.status]}
+                      </Badge>
+                      {item.identifier_status ? (
+                        <span className="text-xs text-[var(--color-text-muted)]">
+                          식별 {item.identifier_status}
+                        </span>
+                      ) : null}
+                      {item.failure_message ? (
+                        <span className="min-w-0 flex-1 text-xs text-[var(--color-danger,#dc2626)]">
+                          {item.failure_message}
+                        </span>
+                      ) : <span className="flex-1" />}
+                      {item.status === "needs_identification" && item.submission_id != null ? (
+                        <Button
+                          type="button"
+                          intent="secondary"
+                          size="sm"
+                          onClick={() => setReviewSubmissionId(item.submission_id)}
+                        >
+                          식별하기
+                        </Button>
+                      ) : null}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </article>
+          );
+        })}
+      </section>
+
       {/* 제출 목록 */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -136,7 +291,15 @@ export default function ExamSubmissionsPanel({ examId, sessionId: sessionIdProp 
             제출관리 · <span className="text-[var(--color-text-muted)]">{rows.length}건</span>
           </div>
           <div className="flex items-center gap-2">
-            <Button type="button" intent="ghost" size="sm" onClick={() => q.refetch()}>
+            <Button
+              type="button"
+              intent="ghost"
+              size="sm"
+              onClick={() => {
+                void q.refetch();
+                void batchQ.refetch();
+              }}
+            >
               새로고침
             </Button>
           </div>

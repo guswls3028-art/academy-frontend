@@ -746,6 +746,56 @@ test.describe("OMR durable batch progress", () => {
     expect(uploadBodies[1]).not.toContain("partial-1.jpg");
   });
 
+  test("혼합 선택의 미지원 파일을 조용히 버리지 않고 전체 선택을 중단한다", async ({ page }) => {
+    const api = await installDashboardApi(page, { uploadFlow: true });
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "domcontentloaded" },
+    );
+
+    await openOmrUpload(page);
+    const dialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
+    await dialog.locator('input[type="file"]').setInputFiles([
+      ...Array.from({ length: 9 }, (_, index) => ({
+        name: `scan-${index + 1}.jpg`,
+        mimeType: "image/jpeg",
+        buffer: Buffer.from(`scan-${index + 1}`),
+      })),
+      {
+        name: "unsupported.txt",
+        mimeType: "text/plain",
+        buffer: Buffer.from("unsupported"),
+      },
+    ]);
+
+    await expect(dialog.getByText("10개 중 1개 파일 형식을 확인해 주세요.", { exact: true }))
+      .toBeVisible();
+    await expect(dialog.locator(".admin-omr-upload__file")).toHaveCount(0);
+    await expect(dialog.getByRole("button", { name: "등록 시작" })).toBeDisabled();
+    expect(api.uploadState().initializePosts).toBe(0);
+  });
+
+  test("0바이트 스캔은 batch 예약 전에 전체 선택을 중단한다", async ({ page }) => {
+    const api = await installDashboardApi(page, { uploadFlow: true });
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "domcontentloaded" },
+    );
+
+    await openOmrUpload(page);
+    const dialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
+    await dialog.locator('input[type="file"]').setInputFiles([
+      { name: "valid.jpg", mimeType: "image/jpeg", buffer: Buffer.from("valid") },
+      { name: "empty.jpg", mimeType: "image/jpeg", buffer: Buffer.alloc(0) },
+    ]);
+
+    await expect(dialog.getByText("빈 파일 1개가 있어 선택을 중단했습니다.", { exact: true }))
+      .toBeVisible();
+    await expect(dialog.locator(".admin-omr-upload__file")).toHaveCount(0);
+    await expect(dialog.getByRole("button", { name: "등록 시작" })).toBeDisabled();
+    expect(api.uploadState().initializePosts).toBe(0);
+  });
+
   test("재선택 파일을 삭제 후 추가해도 서버 ordinal 슬롯은 중복되지 않는다", async ({ page }) => {
     const api = await installDashboardApi(page, { resumeOrdinals: [21, 22] });
     const dialog = await openResumeOmrUpload(page);

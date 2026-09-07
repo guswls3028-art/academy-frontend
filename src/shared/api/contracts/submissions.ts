@@ -36,6 +36,29 @@ export type OmrUploadBatchCounts = {
   superseded: number;
 };
 
+export type OmrUploadBatchItemStatus =
+  | "pending_admission"
+  | "received"
+  | "duplicate"
+  | "processing"
+  | "completed"
+  | "needs_identification"
+  | "failed"
+  | "superseded";
+
+export type OmrUploadBatchItemSummary = {
+  id: string;
+  ordinal: number;
+  admission_status: "pending" | "received" | "duplicate" | "failed";
+  status: OmrUploadBatchItemStatus;
+  submission_id: number | null;
+  duplicate_of_submission_id: number | null;
+  submission_status: SubmissionStatus | null;
+  identifier_status: string | null;
+  failure_code: string | null;
+  failure_message: string | null;
+};
+
 export type OmrUploadBatchSummary = {
   id: string;
   exam_id: number;
@@ -47,6 +70,8 @@ export type OmrUploadBatchSummary = {
   failed_ordinals: number[];
   admission_failed_ordinals: number[];
   duplicate_ordinals: number[];
+  /** 서버 원장 도입 전 응답/테스트 mock과의 점진 호환을 위해 optional */
+  items?: OmrUploadBatchItemSummary[];
   terminal: boolean;
   overall_status: "receiving" | "processing" | "completed" | "needs_identification" | "failed";
   completion_notice_claimed: boolean;

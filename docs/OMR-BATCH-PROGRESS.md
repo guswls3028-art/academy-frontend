@@ -15,6 +15,9 @@
 할 수 있다. 회전은 CSS 미리보기만 바꾸지 않고 등록 직전에 실제 이미지 바이트로 적용한다.
 PDF는 브라우저에서 변환하지 않고 업로드 후 OMR 검토의 원본 회전 재판독을 사용한다.
 재접수 batch에서는 기존 ordinal을 지키기 위해 이동만 비활성화한다.
+선택에 미지원 형식이 하나라도 섞이거나 0바이트 파일이 있으면 유효 파일만 남겨 총수를
+줄이지 않고 선택 전체를 중단한다. 경고에는 선택 수와 문제 파일 수를 표시하며 서버
+batch는 만들지 않는다.
 
 ## 서버 정본과 브라우저 경계
 
@@ -49,6 +52,12 @@ PDF는 브라우저에서 변환하지 않고 업로드 후 OMR 검토의 원본
 terminal batch에는 서버가 반환한 exact exam id의 OMR 검토 화면을 직접 여는 `OMR 검토`
 CTA를 제공한다. 다른 시험이나 차시로 fallback하지 않는다.
 
+시험의 **제출관리 → OMR 업로드 원장**은 최근 batch별 총수와 모든 ordinal을 서버
+`items` 순서대로 표시한다. 안정 식별자는 `{batchId}:{ordinal}`이며 접수·처리·완료·
+식별 필요·실패를 한 행씩 보존한다. Submission이 만들어지지 않은 admission 실패도
+실패 이유와 **미접수 파일 다시 선택** CTA로 남고, 식별 필요 행은 기존 OMR 검토로
+연결된다. reload 뒤에도 서버 원장으로 동일한 행 수를 복구한다.
+
 ## 실패와 재시도
 
 - multipart 응답이 끊기면 batch detail을 다시 읽어 서버가 이미 받은 ordinal과
@@ -78,7 +87,9 @@ CTA를 제공한다. 다른 시험이나 차시로 fallback하지 않는다.
 - `e2e/admin/omr-batch-progress.mock.spec.ts`는 read-only GET, terminal claim 1회,
   22개 단일 multipart, 응답 중단 후 정확한 ordinal 재선택, reload 복구,
   삭제/재추가와 비우기/재선택 ordinal, query detail fail-closed, logout 중 지연 list/upload/retry/claim,
-  loading/error/empty와 수동 새로고침 partial failure, 390px overflow를 고정한다.
+  혼합 미지원 형식·0바이트 선택의 batch 생성 전 중단, loading/error/empty와 수동 새로고침
+  partial failure, 390px overflow를 고정한다. `manual-exam-grading.mock.spec.ts`는 제출관리
+  원장의 10개 안정 행, 실패·식별 수치, reload, 재선택 URL과 390px overflow를 고정한다.
 - 서버의 1/22/100 총수, 100건 중 부분 실패, 중복 없는 retry, tenant/creator scope와
   SHA-256 cross-batch 멱등성, PostgreSQL completion-claim race는
   `apps/domains/submissions/tests/test_exam_omr_batch_upload_pdf_guard.py`가 검증한다.
