@@ -185,7 +185,7 @@ async function seedBrowser(page: Page, tokens: Tokens): Promise<void> {
 async function acknowledgeStudentAccountPromptsIfVisible(page: Page): Promise<void> {
   await acknowledgeFirstLoginGuideIfVisible(page);
   const passwordDialog = page.getByRole("dialog", { name: "비밀번호 변경 권장" });
-  if (!await passwordDialog.isVisible({ timeout: 2_000 }).catch(() => false)) return;
+  if (!await passwordDialog.waitFor({ state: "visible", timeout: 2_000 }).then(() => true).catch(() => false)) return;
 
   await passwordDialog.getByRole("button", { name: "위험을 이해했고 나중에" }).click();
   await expect(passwordDialog).toBeHidden();
@@ -673,6 +673,7 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
           localStorage.setItem("hakwonplus:student-theme-mode", "dark");
         });
         await page.reload({ waitUntil: "domcontentloaded" });
+        await acknowledgeStudentAccountPromptsIfVisible(page);
         await expect(page.locator('[data-app="student"][data-student-dark="true"]')).toBeVisible();
         await expect(bookedPasscard.getByRole("heading", { name: "예약완료" })).toBeVisible();
         expect(await readBookedPalette()).toEqual(lightBookedPalette);
@@ -806,6 +807,7 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
     await expect(unresolvedPasscard.locator(".ds-student-name--clinic-highlight")).toHaveText(STUDENT_NAME);
     expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
     await page.reload({ waitUntil: "domcontentloaded" });
+    await acknowledgeStudentAccountPromptsIfVisible(page);
     await expect(unresolvedPasscard.getByRole("heading", { name: /대상자|오답 미완료/ })).toBeVisible();
     await expect(unresolvedPasscard.locator(".ds-student-name--clinic-highlight")).toHaveText(STUDENT_NAME);
 
@@ -867,18 +869,22 @@ test.describe.serial("[E2E] 학생 클리닉 보강 실사용 검증", () => {
     await expect(passedPasscard.getByRole("heading", { name: /합격자|오답 완료/ })).toBeVisible();
     await expect(passedPasscard.locator(".ds-student-name--clinic-highlight")).toHaveCount(0);
     await page.reload({ waitUntil: "domcontentloaded" });
+    await acknowledgeStudentAccountPromptsIfVisible(page);
     await expect(passedPasscard.getByRole("heading", { name: /합격자|오답 완료/ })).toBeVisible();
     await expect(passedPasscard.locator(".ds-student-name--clinic-highlight")).toHaveCount(0);
     await page.setViewportSize({ width: 1366, height: 900 });
     await expect(passedPasscard).toBeVisible();
     expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await page.screenshot({ path: `e2e/screenshots/clinic-remediation-passcard-${TS}.png`, fullPage: true });
 
     await gotoAndSettle(page, `${BASE}/student/exams/${created.examId}/result`, { timeout: 25_000 });
+    await acknowledgeStudentAccountPromptsIfVisible(page);
     await expect(page.getByText("20 / 100점")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("link").filter({ hasText: "클리닉 페이지에서 일정을 예약하세요." }))
       .toHaveCount(0);
 
     await gotoAndSettle(page, `${BASE}/student/grades`, { timeout: 25_000 });
+    await acknowledgeStudentAccountPromptsIfVisible(page);
     await expect(page.getByText(EXAM_TITLE)).toBeVisible({ timeout: 15_000 });
 
     await page.screenshot({ path: `e2e/screenshots/clinic-remediation-realuse-${TS}.png`, fullPage: true });
