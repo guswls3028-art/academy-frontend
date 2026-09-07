@@ -5,6 +5,7 @@ import { stripTypeScriptTypes } from "node:module";
 import http from "node:http";
 import { chromium } from "@playwright/test";
 import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { assertReleaseSummary, assertCleanup, assertManifest, assertActiveInstance, assertReadOnlyAssessmentSource, observeReleaseTestResult } from "../run-development-release-canary.mjs";
 import * as runner from "../run-development-release-canary.mjs";
 
@@ -71,6 +72,7 @@ test("preflight writes an inert envelope before checks and marks only reviewed p
     operationObservation: null,
     inspectObservation: null,
     realUseObservation: null,
+    videoRuntimeObservation: null,
     preflightStage: "process",
     preflightChecks: { bundle: false, governance: false, iam: false, document: false, host: false, ssm: false },
     terminalOutcome: "preflight_running",
@@ -261,8 +263,9 @@ test("assessment classification fails if a business write or skip is introduced"
 });
 
 function completeFlowReport() {
-  return { errors: [], stats: { expected: 10, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
-    ...Object.entries({ "notice-roundtrip.spec.ts": 3, "qna-roundtrip.spec.ts": 4, "clinic-roundtrip.spec.ts": 3 }).map(([file, count]) => ({
+  return { errors: [], stats: { expected: 11, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
+    ...Object.entries({ "notice-roundtrip.spec.ts": 3, "qna-roundtrip.spec.ts": 4, "clinic-roundtrip.spec.ts": 3,
+      "video-playback-renewal.realuse.spec.ts": 1 }).map(([file, count]) => ({
       file, specs: Array.from({ length: count }, () => ({ file, tests: [{ expectedStatus: "passed", status: "expected", results: [{ status: "passed" }] }] })),
     })),
   ] };
@@ -293,6 +296,7 @@ test("real-use failure observation publishes only allowlisted counts, files, and
     suppressedAnalyticsBatches: 2,
     suppressedAnalyticsEvents: 3,
     suppressedCloudflareBeacons: 4,
+    longVideo: null,
   });
   const published = JSON.stringify(observeReleaseTestResult(JSON.stringify(report)));
   assert.doesNotMatch(published, /secret-token|student-name|C:\/secret\/path/);
@@ -302,10 +306,11 @@ test("real-use failure observation publishes only allowlisted counts, files, and
     failedFiles: [], boundaryCodes: [], runnerErrorCount: null,
     readFetchRetries: null, suppressedAnalyticsBatches: null,
     suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
+    longVideo: null,
   });
 });
 
-test("all ten real-use cases are mandatory; missing, skip, failure, retry and global errors fail closed", () => {
+test("all eleven real-use cases are mandatory; missing, skip, failure, retry and global errors fail closed", () => {
   assert.doesNotThrow(() => assertReleaseSummary(completeFlowReport()));
   const corrupt = [
     (report) => report.suites.pop(),
@@ -370,7 +375,7 @@ test("manifest and instance identity must match uniquely before setup", () => {
   }
 });
 
-test("development config discovers ten enabled cases without executing any API test", () => {
+test("development config discovers eleven enabled cases without executing any API test", () => {
   const cwd = new URL("../../", import.meta.url);
   const output = execFileSync(process.execPath, ["node_modules/@playwright/test/cli.js", "test",
     "--config=playwright.development-release.config.ts", "--list"], {
@@ -391,11 +396,173 @@ test("development config discovers ten enabled cases without executing any API t
     for (const child of suite.suites || []) visit(child);
   };
   visit(report);
-  assert.equal(discovered, 10);
+  assert.equal(discovered, 11);
   // Playwright's --list reporter counts all unexecuted cases as skipped. These
   // are discovery-only, never accepted by assertReleaseSummary as real-use proof.
   assert.equal(report.stats.expected, 0);
   assert.throws(() => assertReleaseSummary(report));
+});
+
+test("long-video setup, runtime and PII-free browser evidence fail closed", () => {
+  assert.equal(typeof runner.assertLongVideoSetup, "function");
+  assert.equal(typeof runner.observeLongVideoRuntime, "function");
+  assert.equal(typeof runner.syntheticLongVideoAsset, "function");
+
+  const setup = {
+    status: "YMATH_REALUSE_SCENARIO_READY",
+    student_ids: [101, 102],
+    session_ids: [201],
+    synthetic_long_video: {
+      access_mode: "PROCTORED_CLASS",
+      duration_seconds: 900,
+      hls_path: "qa-fixtures/video-long/master.m3u8",
+      video_accesses: 2,
+      video_id: 301,
+    },
+  };
+  assert.doesNotThrow(() => runner.assertLongVideoSetup(setup));
+  for (const invalid of [
+    { ...setup, student_ids: [101] },
+    { ...setup, synthetic_long_video: { ...setup.synthetic_long_video, duration_seconds: 899 } },
+    { ...setup, synthetic_long_video: { ...setup.synthetic_long_video, hls_path: "foreign/master.m3u8" } },
+    { ...setup, synthetic_long_video: { ...setup.synthetic_long_video, video_accesses: 1 } },
+  ]) assert.throws(() => runner.assertLongVideoSetup(invalid));
+
+  const runtime = {
+    videos: 1, video_accesses: 2, proctored_video_accesses: 2, video_progresses: 2,
+    playback_sessions: 4, active_playback_sessions: 0, playback_events: 20,
+    player_errors: 0, violated_events: 0,
+  };
+  assert.deepEqual(runner.observeLongVideoRuntime(runtime), {
+    videoCount: 1, videoAccessCount: 2, progressCount: 2, playbackSessionCount: 4,
+    activePlaybackSessionCount: 0, playbackEventCount: 20, playerErrorCount: 0,
+    violatedEventCount: 0,
+  });
+  for (const invalid of [
+    { ...runtime, videos: 0 }, { ...runtime, video_progresses: 1 },
+    { ...runtime, active_playback_sessions: 1 }, { ...runtime, player_errors: 1 },
+    { ...runtime, violated_events: 1 },
+  ]) assert.throws(() => runner.observeLongVideoRuntime(invalid));
+
+  const master = runner.syntheticLongVideoAsset("/__qa__/video-long/master.m3u8");
+  assert.equal(master.contentType, "application/vnd.apple.mpegurl");
+  assert.match(master.body.toString(), /#EXTINF:900\.0,/);
+  assert.ok(runner.syntheticLongVideoAsset("/__qa__/video-long/init.mp4").body.length > 0);
+  assert.ok(runner.syntheticLongVideoAsset("/__qa__/video-long/media.m4s").body.length > 0);
+  assert.throws(() => runner.syntheticLongVideoAsset("/__qa__/video-long/foreign.m4s"));
+
+  const report = completeFlowReport();
+  const longResult = report.suites.at(-1).specs[0].tests[0].results[0];
+  longResult.stdout = [{ text: `${JSON.stringify({ longVideoRealUse: {
+    schema: "student-video-renewal/v1", contexts: 2, desktop: 1, mobile: 1,
+    minimumPlaybackSeconds: 690, minimumWallSeconds: 690,
+    bootstrapCount: 2, renewCount: 2, endBeforeRenewCount: 0,
+    initialMasterLoadCount: 2, initialMediaLoadCount: 4,
+    minimumRenewalAdvanceSeconds: 5, sourceReloadCount: 0,
+    sameDomCount: 2, sameSessionCount: 2, tokenRotationCount: 2,
+    progressPersistedCount: 2, maxReloadDriftSeconds: 2,
+    consoleErrorCount: 0, pageErrorCount: 0, requestErrorCount: 0,
+    horizontalOverflowCount: 0,
+  } })}\n` }];
+  assert.deepEqual(runner.observeReleaseTestResult(JSON.stringify(report)).longVideo, {
+    schemaMatches: true, contextCount: 2, desktopCount: 1, mobileCount: 1,
+    minimumPlaybackSeconds: 690, minimumWallSeconds: 690,
+    bootstrapCount: 2, renewCount: 2, endBeforeRenewCount: 0,
+    initialMasterLoadCount: 2, initialMediaLoadCount: 4,
+    minimumRenewalAdvanceSeconds: 5, sourceReloadCount: 0,
+    sameDomCount: 2, sameSessionCount: 2, tokenRotationCount: 2,
+    progressPersistedCount: 2, maxReloadDriftSeconds: 2,
+    consoleErrorCount: 0, pageErrorCount: 0, requestErrorCount: 0,
+    horizontalOverflowCount: 0,
+  });
+  for (const invalidEvidence of [
+    { sourceReloadCount: 1 },
+    { minimumRenewalAdvanceSeconds: 4 },
+    { initialMasterLoadCount: 1 },
+    { initialMediaLoadCount: 3 },
+  ]) {
+    const invalidReport = completeFlowReport();
+    invalidReport.suites.at(-1).specs[0].tests[0].results[0].stdout = [{ text: `${JSON.stringify({ longVideoRealUse: {
+      schema: "student-video-renewal/v1", contexts: 2, desktop: 1, mobile: 1,
+      minimumPlaybackSeconds: 690, minimumWallSeconds: 690,
+      bootstrapCount: 2, renewCount: 2, endBeforeRenewCount: 0,
+      initialMasterLoadCount: 2, initialMediaLoadCount: 4,
+      minimumRenewalAdvanceSeconds: 5, sourceReloadCount: 0,
+      sameDomCount: 2, sameSessionCount: 2, tokenRotationCount: 2,
+      progressPersistedCount: 2, maxReloadDriftSeconds: 2,
+      consoleErrorCount: 0, pageErrorCount: 0, requestErrorCount: 0,
+      horizontalOverflowCount: 0, ...invalidEvidence,
+    } })}\n` }];
+    assert.equal(runner.observeReleaseTestResult(JSON.stringify(invalidReport)).longVideo, null);
+  }
+  longResult.stdout[0].text = `${JSON.stringify({ longVideoRealUse: {
+    schema: "student-video-renewal/v1", contexts: 2, studentName: "must-not-publish",
+  } })}\n`;
+  assert.equal(runner.observeReleaseTestResult(JSON.stringify(report)).longVideo, null);
+});
+
+test("synthetic 900-second HLS fixture decodes and advances in real Chromium", { timeout: 15_000 }, async () => {
+  const server = http.createServer((request, response) => {
+    try {
+      const pathname = new URL(request.url, "http://unit").pathname;
+      if (pathname === "/") {
+        response.writeHead(200, { "content-type": "text/html" });
+        response.end('<!doctype html><video muted playsinline></video>');
+        return;
+      }
+      const asset = runner.syntheticLongVideoAsset(pathname);
+      response.writeHead(200, { "content-type": asset.contentType, "cache-control": "no-store" });
+      response.end(asset.body);
+    } catch {
+      response.writeHead(404);
+      response.end();
+    }
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  let browser;
+  try {
+    browser = await chromium.launch();
+    const page = await browser.newPage();
+    await page.goto(`http://127.0.0.1:${server.address().port}/`);
+    await page.addScriptTag({ path: fileURLToPath(new URL("../../node_modules/hls.js/dist/hls.min.js", import.meta.url)) });
+    await page.evaluate(() => {
+      const video = document.querySelector("video");
+      const hls = new window.Hls({ lowLatencyMode: false });
+      window.__unitHls = hls;
+      hls.loadSource("/__qa__/video-long/master.m3u8");
+      hls.attachMedia(video);
+    });
+    await assert.doesNotReject(async () => {
+      await page.waitForFunction(() => document.querySelector("video")?.duration === 900);
+      await page.evaluate(() => document.querySelector("video").play());
+      await page.waitForFunction(() => document.querySelector("video")?.currentTime >= 1);
+    });
+  } finally {
+    await browser?.close();
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("official runner opts into two-student long-video setup without publishing credentials", () => {
+  const runnerSource = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+  const configSource = readFileSync(new URL("../../playwright.development-release.config.ts", import.meta.url), "utf8");
+  const specSource = readFileSync(new URL("../../e2e/student/video-playback-renewal.realuse.spec.ts", import.meta.url), "utf8");
+  assert.match(runnerSource, /SyntheticLongVideo: \["true"\]/);
+  assert.match(runnerSource, /E2E_STUDENT2_USER: "ymath-qa-student-02"/);
+  assert.match(runnerSource, /E2E_LONG_VIDEO_ID: String\(scenario\.synthetic_long_video\.video_id\)/);
+  assert.match(configSource, /student\/video-playback-renewal\.realuse\.spec\.ts/);
+  assert.match(configSource, /timeout: 17 \* 60_000/);
+  for (const required of ["690", "540", "590", "1366", "390", "reload", "playback/end/", "media/playback/renew/"]) {
+    assert.match(specSource, new RegExp(required.replace("/", "\\/")));
+  }
+  assert.match(specSource, /bootstrapCountBeforeRenewal/);
+  assert.doesNotMatch(specSource, /bootstrapCount:\s*states\.reduce\(\(total\) => total \+ 1/);
+  assert.match(specSource, /toBeGreaterThan\(MINIMUM_PLAYBACK_SECONDS\)/);
+  assert.match(specSource, /sourceReloadCount/);
+  assert.match(specSource, /expect\(payload\.play_url == null\)\.toBe\(true\)/);
+  assert.match(specSource, /state\.allowedMasterUrls\.size\)\.toBe\(2\)/);
+  assert.doesNotMatch(specSource, /state\.masterLoads\)\.toBeGreaterThanOrEqual\(2\)/);
+  assert.doesNotMatch(specSource, /state\.mediaLoads\)\.toBeGreaterThanOrEqual\(4\)/);
 });
 
 const policySource = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");

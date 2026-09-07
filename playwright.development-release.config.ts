@@ -2,12 +2,17 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
-  testMatch: ["flows/notice-roundtrip.spec.ts", "flows/qna-roundtrip.spec.ts", "flows/clinic-roundtrip.spec.ts"],
+  testMatch: [
+    "flows/notice-roundtrip.spec.ts",
+    "flows/qna-roundtrip.spec.ts",
+    "flows/clinic-roundtrip.spec.ts",
+    "student/video-playback-renewal.realuse.spec.ts",
+  ],
   forbidOnly: true,
   fullyParallel: false,
   workers: 1,
   retries: 0,
-  timeout: 180_000,
+  timeout: 17 * 60_000,
   expect: { timeout: 10_000 },
   reporter: [["json"]],
   use: {
