@@ -46,7 +46,8 @@
 - 학생명 노란 하이라이트는 참가자 응답의
   `name_highlight_clinic_target`을 그대로 사용합니다. 예약·출석·완료로 과락을
   해결했다고 클라이언트에서 재판정하지 않으며, 학생 패스카드와 같은 서버 SSOT를
-  따릅니다.
+  따릅니다. `cancelled`·`rejected`·`no_show`는 예약확정에서 제외되므로, 과락이
+  남아 있으면 다시 `CLINIC_REQUIRED`와 노란 대상 하이라이트가 표시됩니다.
 
 모든 성공 동작은 참가자 목록을 다시 읽어 서버 상태를 표시하고, 실패하면 현재 행을
 임의로 바꾸지 않은 채 오류를 안내합니다. 상태와 하이라이트는 새로고침 후에도 서버
@@ -67,6 +68,16 @@
 - 세션 생성 정책·참가자 화면: `pages/ClinicPage.tsx`
 - 원자 요청·상태 전이 payload·하이라이트·새로고침·390px/데스크톱 가로 넘침 회귀:
   `e2e/teacher/clinic-multi-slot-booking.mock.spec.ts`
+- 격리된 `qa-ymath-realuse-*` 개발 테넌트의 실제 교사·조교 권한, 학생 예약,
+  `CLINIC_REQUIRED → BOOKING_CONFIRMED → CLINIC_REQUIRED → PASSED`, 재접속,
+  390px/데스크톱 및 light/dark 회귀:
+  `e2e/student/clinic-remediation-realuse.spec.ts`
+
+개발 실사용 모드는 API와 UI가 모두 loopback이어야 하고
+`E2E_CLINIC_REMEDIATION_DEVELOPMENT=1` 및 exact disposable tenant/password를
+명시해야 합니다. 이 모드에서는 실알림 opt-in을 거부하며, 생성한 조교·학생·강의·
+시험·클리닉 행을 스펙에서 지운 뒤 외부 시나리오 정리가 tenant/users 0을 다시
+검증합니다.
 
 학생 신청 화면 계약은 `src/app_student/domains/clinic/README.md`, 서버 원자성·
 권한·실패 계약은 백엔드 `docs/domain/clinic-booking.md`가 소유합니다.
