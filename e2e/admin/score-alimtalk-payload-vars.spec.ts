@@ -9,6 +9,9 @@ import {
   buildScoreVars,
   collectUnenteredScoreItems,
 } from "../../src/shared/scoring/scoreReport";
+import { buildAnonymousBillboardDocument } from "../../src/app_admin/domains/scores/utils/anonymousBillboardPdfGenerator";
+import { getClinicStats } from "../../src/app_admin/domains/scores/utils/clinicPdfGenerator";
+import { buildScorePdfHtml } from "../../src/app_admin/domains/scores/utils/scorePdfGenerator";
 import type {
   SessionScoreMeta,
   SessionScoreRow,
@@ -147,4 +150,48 @@ test("교사가 명시한 미응시·미제출 상태만 해당 문구로 표시
   expect(vars["시험1"]).toBe("미응시");
   expect(vars["과제1"]).toBe("미제출");
   expect(collectUnenteredScoreItems(row)).toEqual([]);
+});
+test("서술형 미완료 OMR의 객관식 점수는 발송·출력·순위·클리닉에 노출하지 않는다", () => {
+  const row = scoreRow(null);
+  row.exams[0].block = {
+    ...row.exams[0].block,
+    score: 80,
+    objective_score: 80,
+    subjective_score: null,
+    passed: null,
+    is_provisional: true,
+    grading_status: "subjective_pending",
+  };
+  row.homeworks[0].block = {
+    ...row.homeworks[0].block,
+    score: 10,
+    passed: true,
+  };
+
+  const vars = buildScoreVars(row, scoreMeta);
+  const detail = buildScoreDetail(row, scoreMeta);
+  const scorePdf = buildScorePdfHtml({
+    rows: [row],
+    meta: scoreMeta,
+    sessionTitle: "1회차",
+    lectureTitle: "통합과학",
+  });
+  const billboard = buildAnonymousBillboardDocument({
+    rows: [row],
+    meta: scoreMeta,
+    sessionTitle: "1회차",
+    lectureTitle: "통합과학",
+  });
+  const clinic = getClinicStats([row], scoreMeta, { [row.enrollment_id]: "PRESENT" });
+
+  expect(collectUnenteredScoreItems(row)).toEqual(["시험: 단원평가"]);
+  expect(vars["시험1"]).toBe("서술형 입력 필요");
+  expect(vars["시험총점"]).toBe("0");
+  expect(detail).toContain("서술형 입력 필요");
+  expect(detail).not.toContain("80/100");
+  expect(scorePdf).toContain("입력중");
+  expect(scorePdf).not.toContain(">80</td>");
+  expect(billboard.participantCount).toBe(0);
+  expect(billboard.rows).toEqual([]);
+  expect(clinic).toEqual({ clinicCount: 0, passedCount: 0, totalPresent: 1 });
 });

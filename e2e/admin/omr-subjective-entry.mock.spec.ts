@@ -93,13 +93,15 @@ async function installRoutes(page: Page) {
             attempt_count: 1,
             clinic_link_id: null,
             block: {
-              score: null,
+              score: exam.exam_id === MIXED_EXAM_ID ? 80 : null,
               max_score: 100,
               passed: null,
               clinic_required: false,
               is_locked: false,
-              objective_score: null,
+              objective_score: exam.exam_id === MIXED_EXAM_ID ? 80 : null,
               subjective_score: null,
+              is_provisional: exam.exam_id === MIXED_EXAM_ID,
+              grading_status: exam.exam_id === MIXED_EXAM_ID ? "subjective_pending" : null,
               correction_status: "NOT_REQUIRED",
               meta: {},
             },
@@ -243,7 +245,7 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     const unexpectedMutations = await openScores(page);
 
     const omrButton = page.getByRole("button", { name: "OMR 스캔 등록" });
-    const subjectiveButton = page.getByRole("button", { name: "서술형 점수 입력" });
+    const subjectiveButton = page.getByRole("button", { name: "서술형 점수 입력", exact: true });
     await expect(subjectiveButton).toBeVisible();
 
     await omrButton.click();
@@ -280,7 +282,7 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
 
     for (const button of [
       page.getByRole("button", { name: "OMR 스캔 등록" }),
-      page.getByRole("button", { name: "서술형 점수 입력" }),
+      page.getByRole("button", { name: "서술형 점수 입력", exact: true }),
     ]) {
       const box = await button.boundingBox();
       expect(box?.height).toBeGreaterThanOrEqual(44);
@@ -288,13 +290,40 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
       expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(390);
     }
 
-    await page.getByRole("button", { name: "서술형 점수 입력" }).click();
+    await page.getByRole("button", { name: "서술형 점수 입력", exact: true }).click();
     const picker = page.getByRole("listbox", { name: "직접 채점 시험 선택" });
     await expect(picker).toBeVisible();
     await expect.poll(() => page.evaluate(() => ({
       body: document.body.scrollWidth - document.body.clientWidth,
       document: document.documentElement.scrollWidth - document.documentElement.clientWidth,
     }))).toEqual({ body: 0, document: 0 });
+    expect(unexpectedMutations).toEqual([]);
+  });
+
+  test("객관식만 판독된 혼합형은 최종점수 대신 서술형 입력 동선을 바로 제공한다", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 900 });
+    const unexpectedMutations = await openScores(page);
+
+    const banner = page.getByTestId("subjective-pending-banner");
+    await expect(banner).toBeVisible();
+    await expect(banner).toContainText("1명의 서술형 점수 입력이 필요합니다");
+    await expect(banner).toContainText("학생 공개·석차·클리닉 반영은 보류 중입니다");
+    await expect(page.getByText("객관 80", { exact: true })).toBeVisible();
+    await expect(page.getByText("서술형 입력", { exact: true })).toBeVisible();
+
+    await page.getByRole("checkbox", { name: "테스트 학생 선택" }).check();
+    const scoreAlimtalkButton = page.getByRole("button", { name: "수업결과 알림톡 발송" });
+    await expect(scoreAlimtalkButton).toBeDisabled();
+    await expect(scoreAlimtalkButton).toHaveAttribute(
+      "title",
+      "서술형 점수 입력을 완료한 뒤 알림톡을 발송할 수 있습니다.",
+    );
+
+    await banner.getByRole("button", { name: "중대부고 2회차 혼합형 서술형 점수 입력" }).click();
+
+    const gradingDialog = page.getByRole("dialog").filter({ hasText: "중대부고 2회차 혼합형 혼합 채점" });
+    await expect(gradingDialog).toBeVisible();
+    await expect(gradingDialog.getByText("직접 문항 입력 중", { exact: true })).toBeVisible();
     expect(unexpectedMutations).toEqual([]);
   });
 });

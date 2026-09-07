@@ -143,6 +143,8 @@ export type SubmissionManualEditResult = {
   score?: number | null;
   total_score?: number | null;
   max_score?: number | null;
+  projection_ready?: boolean;
+  grading_status?: "subjective_pending" | string | null;
   detail?: string;
 };
 

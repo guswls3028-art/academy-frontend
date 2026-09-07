@@ -3,6 +3,7 @@ import type {
   SessionScoreMeta,
   SessionScoreRow,
 } from "@/shared/api/contracts/sessionScores";
+import { isSubjectivePendingScoreBlock } from "@/shared/scoring/subjectivePending";
 import type {
   StudentExamGrade,
   StudentExamTrendPoint,
@@ -662,6 +663,9 @@ function scorePercent(score: number | null | undefined, maxScore: number | null 
 
 function resultLabel(block: ScoreBlock | null | undefined): { text: string; className: string } {
   if (!block) return { text: "미응시", className: "status--missing" };
+  if (isSubjectivePendingScoreBlock(block)) {
+    return { text: "서술형 입력 필요", className: "status--warn" };
+  }
   if (getScoreBlockOmrReviewStatus(block) === "review") {
     return { text: "검토중", className: "status--warn" };
   }
@@ -736,14 +740,15 @@ function buildTrendSvg(points: StudentExamTrendPoint[], theme: StudentScoreRepor
 function buildCurrentAssessments(row: SessionScoreRow, meta: SessionScoreMeta) {
   const examRows = (meta.exams ?? []).map((exam) => {
     const entry = row.exams.find((item) => item.exam_id === exam.exam_id);
-    const score = entry?.block.score;
+    const subjectivePending = isSubjectivePendingScoreBlock(entry?.block);
+    const score = subjectivePending ? null : entry?.block.score;
     const maxScore = entry?.block.max_score ?? exam.max_score;
     const result = resultLabel(entry?.block);
     const scoreParts = [
       "시험",
       `통과 ${formatNumber(exam.pass_score)}점`,
-      entry?.block.objective_score != null ? `객관 ${formatNumber(entry.block.objective_score)}점` : null,
-      entry?.block.subjective_score != null ? `주관 ${formatNumber(entry.block.subjective_score)}점` : null,
+      !subjectivePending && entry?.block.objective_score != null ? `객관 ${formatNumber(entry.block.objective_score)}점` : null,
+      !subjectivePending && entry?.block.subjective_score != null ? `주관 ${formatNumber(entry.block.subjective_score)}점` : null,
     ].filter(Boolean).join(" · ");
     return `
       <div class="assessment-row">
@@ -819,7 +824,9 @@ function buildItemAnalysis(
   row: SessionScoreRow,
   meta: SessionScoreMeta,
 ): { examTitle: string; rows: string; hasItems: boolean; itemCount: number } {
-  const exam = row.exams.find((entry) => (entry.items?.length ?? 0) > 0);
+  const exam = row.exams.find((entry) => (
+    !isSubjectivePendingScoreBlock(entry.block) && (entry.items?.length ?? 0) > 0
+  ));
   const items = exam?.items ?? [];
   if (!exam || items.length === 0) {
     return {
@@ -881,7 +888,9 @@ function buildCoachingPoints(
 ): string[] {
   const points: string[] = [];
   const missingCount = [
-    ...row.exams.map((entry) => entry.block.score),
+    ...row.exams.map((entry) => (
+      isSubjectivePendingScoreBlock(entry.block) ? null : entry.block.score
+    )),
     ...row.homeworks.map((entry) => entry.block.score),
   ].filter((score) => score == null).length;
   const retakeCount = row.exams.reduce((sum, entry) => sum + Math.max(0, Number(entry.attempt_count ?? 0) - 1), 0);
@@ -973,6 +982,7 @@ export function buildStudentScoreReportHtml(params: StudentScoreReportParams): s
     .slice(-4);
   const summary = summarizeStudentScoreTrend(recentTrend);
   const currentExamScores = row.exams
+    .filter((entry) => !isSubjectivePendingScoreBlock(entry.block))
     .map((entry) => scorePercent(entry.block.score, entry.block.max_score))
     .filter((value): value is number => value != null);
   const currentExamAverage = currentExamScores.length > 0

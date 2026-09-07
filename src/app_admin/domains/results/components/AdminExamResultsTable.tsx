@@ -122,6 +122,7 @@ export default function AdminExamResultsTable({
       <div className="overflow-hidden border-y border-[var(--border-divider)] sm:hidden">
         {sorted.map((r) => {
           const frontStatus = deriveFrontResultStatus(r);
+          const subjectivePending = r.grading_status === "subjective_pending";
           const achievement = deriveAchievement(r);
           const rankingScore = r.ranking_score ?? r.final_score;
           const hasDifferentFinalScore = (
@@ -170,8 +171,8 @@ export default function AdminExamResultsTable({
                   )}
                   <FrontResultStatusBadge status={frontStatus} />
                   {r.is_provisional && (
-                    <Badge variant="solid" tone="warning" size="xs" title="채점 미확정 — 임시 점수">
-                      임시
+                    <Badge variant="solid" tone="warning" size="xs" title={subjectivePending ? "객관식 저장 완료 · 서술형 점수 입력 필요" : "채점 미확정 — 임시 점수"}>
+                      {subjectivePending ? "서술형 입력 필요" : "임시"}
                     </Badge>
                   )}
                   {wrongCompletionOnly ? (
@@ -208,6 +209,7 @@ export default function AdminExamResultsTable({
         <tbody>
           {sorted.map((r) => {
             const frontStatus = deriveFrontResultStatus(r);
+            const subjectivePending = r.grading_status === "subjective_pending";
             const achievement = deriveAchievement(r);
             const rankingScore = r.ranking_score ?? r.final_score;
             const hasDifferentFinalScore = (
@@ -282,9 +284,9 @@ export default function AdminExamResultsTable({
                         variant="solid"
                         tone="warning"
                         size="xs"
-                        title="채점 미확정 — 임시 점수"
+                        title={subjectivePending ? "객관식 저장 완료 · 서술형 점수 입력 필요" : "채점 미확정 — 임시 점수"}
                       >
-                        임시
+                        {subjectivePending ? "서술형 입력 필요" : "임시"}
                       </Badge>
                     )}
                   </span>

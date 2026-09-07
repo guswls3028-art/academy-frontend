@@ -32,8 +32,16 @@ export type TeacherExamResultRow = {
   submitted_at?: string | null;
   meta_status?: string | null;
   is_provisional?: boolean | null;
+  grading_status?: "subjective_pending" | null;
   correction_session_id?: number | null;
   correction_status?: "PENDING" | "COMPLETED" | "NOT_REQUIRED" | null;
+};
+
+export type ScoreUpdateResponse = {
+  ok: boolean;
+  saved: boolean;
+  projection_ready: boolean;
+  grading_status?: "subjective_pending" | null;
 };
 
 /** 세션에 연결된 시험 목록 (backend 필터: session_id) */
@@ -61,7 +69,7 @@ export async function updateResult(
   examId: number,
   enrollmentId: number,
   payload: { score: number | null; maxScore?: number | null },
-): Promise<unknown> {
+): Promise<ScoreUpdateResponse> {
   const body: Record<string, unknown> = {
     score: payload.score,
     max_score: payload.maxScore ?? null,
@@ -70,6 +78,22 @@ export async function updateResult(
     const res = await api.patch(
       `/results/admin/exams/${examId}/enrollments/${enrollmentId}/score/`,
       body,
+      { headers },
+    );
+    return res.data;
+  });
+}
+
+export async function updateSubjectiveResult(
+  sessionId: number,
+  examId: number,
+  enrollmentId: number,
+  score: number,
+): Promise<ScoreUpdateResponse> {
+  return runWithScoreEditLease(sessionId, async (headers) => {
+    const res = await api.patch(
+      `/results/admin/exams/${examId}/enrollments/${enrollmentId}/subjective/`,
+      { score },
       { headers },
     );
     return res.data;

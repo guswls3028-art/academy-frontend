@@ -32,6 +32,8 @@ export type StudentExamGrade = {
   recorded_at?: string | null;
   archived?: boolean;
   lecture_active?: boolean;
+  grading_status?: "subjective_pending" | null;
+  is_provisional?: boolean;
 };
 
 export type StudentHomeworkGrade = {

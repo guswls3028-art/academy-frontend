@@ -2,8 +2,9 @@
 /**
  * OMR 업로드/검토/재채점 실사용 canary.
  *
- * 운영 API로 강의/차시/학생/시험/OMR PDF를 만들고, 학원장 UI에서 실제 업로드와
- * OMR 검토 워크스페이스 저장을 통과한 뒤 학생 성적 projection까지 확인한다.
+ * production-shaped development API로 격리 강의/차시/학생/혼합형 시험/OMR PDF를
+ * 만들고, 실제 업로드·AI worker·검토·서술형 수기 채점·재접속을 통과한 뒤
+ * 학생/관리자 projection까지 확인한다.
  */
 import { test, expect } from "../fixtures/strictTest";
 import type { APIRequestContext, Page } from "@playwright/test";
@@ -15,8 +16,8 @@ test.setTimeout(360_000);
 
 const API = getApiBaseUrl().replace(/\/+$/, "");
 const BASE = getBaseUrl("admin").replace(/\/+$/, "");
-const CODE = "hakwonplus";
-const STUDENT_PASS = "test1234";
+const CODE = process.env.E2E_TENANT_CODE?.trim() || "";
+const STUDENT_PASS = process.env.E2E_STUDENT_PASS?.trim() || "";
 const TS = Date.now();
 const TODAY_KST = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
 
@@ -25,9 +26,21 @@ const SESSION_TITLE = `[E2E-${TS}] OMR 1차시`;
 const EXAM_TITLE = `[E2E-${TS}] OMR 업로드 검토 재채점`;
 const STUDENT_NAME = `[E2E-${TS}] OMR학생`;
 const STUDENT_USER = `e2eomr${String(TS).slice(-8)}`;
-const CONTROLLED_PHONE = "01031217466";
+const CONTROLLED_PHONE = `010${String(TS).slice(-8)}`;
 const EXPECTED_ANSWERS = Array.from({ length: 30 }, (_, index) => String((index % 5) + 1));
-const EXPECTED_SCORE = 30;
+const EXPECTED_OBJECTIVE_SCORE = 30;
+const EXPECTED_WRITTEN_SCORES = [8, 9] as const;
+const EXPECTED_SCORE = EXPECTED_OBJECTIVE_SCORE
+  + EXPECTED_WRITTEN_SCORES.reduce((sum, score) => sum + score, 0);
+
+function requireIsolatedScenario(): void {
+  if (!/^qa-ymath-realuse-[a-z0-9-]+$/.test(CODE)) {
+    throw new Error("OMR real-use requires an exact disposable qa-ymath-realuse-* tenant");
+  }
+  if (!STUDENT_PASS) {
+    throw new Error("OMR real-use requires E2E_STUDENT_PASS from the isolated development scenario");
+  }
+}
 
 type Tokens = { access: string; refresh: string };
 
@@ -100,15 +113,30 @@ async function expectApi<TBody = any>(
   return out.body;
 }
 
+async function expectParentApi<TBody = any>(
+  request: APIRequestContext,
+  path: string,
+  token: string,
+  studentId: number,
+): Promise<TBody> {
+  const response = await request.get(`${API}/api/v1${path}`, {
+    headers: {
+      ...headers(token),
+      "X-Student-Id": String(studentId),
+    },
+    timeout: 90_000,
+  });
+  let body: any = null;
+  try { body = await response.json(); } catch { body = null; }
+  expect(
+    response.status(),
+    `GET ${path} as parent -> ${response.status()} ${JSON.stringify(body)}`,
+  ).toBe(200);
+  return body as TBody;
+}
+
 async function seedBrowser(page: Page, tokens: Tokens, landingPath: string): Promise<void> {
   const payload = { access: tokens.access, refresh: tokens.refresh, code: CODE };
-  await page.addInitScript(({ access, refresh, code }) => {
-    localStorage.setItem("access", access);
-    localStorage.setItem("refresh", refresh);
-    localStorage.setItem("tenant_code", code);
-    sessionStorage.setItem("tenantCode", code);
-  }, payload);
-
   await page.goto(`${BASE}/login`, { waitUntil: "commit", timeout: 30_000 });
   await page.evaluate(({ access, refresh, code }) => {
     localStorage.setItem("access", access);
@@ -117,6 +145,18 @@ async function seedBrowser(page: Page, tokens: Tokens, landingPath: string): Pro
     sessionStorage.setItem("tenantCode", code);
   }, payload);
   await gotoAndSettle(page, `${BASE}${landingPath}`, { timeout: 45_000 });
+}
+
+async function chooseExamHeaderAction(
+  page: Page,
+  action: "문항별 점수 입력" | "OMR 검토",
+): Promise<void> {
+  const trigger = page.getByRole("button", { name: `${EXAM_TITLE} 작업 선택` });
+  await expect(trigger).toBeVisible({ timeout: 30_000 });
+  await trigger.click();
+  const menu = page.getByRole("menu", { name: `${EXAM_TITLE} 작업 선택` });
+  await expect(menu).toBeVisible();
+  await menu.getByRole("menuitem", { name: new RegExp(`^${action}`) }).click();
 }
 
 async function downloadOmrPdf(
@@ -129,10 +169,7 @@ async function downloadOmrPdf(
       exam_title: EXAM_TITLE,
       lecture_name: LECTURE_TITLE,
       session_name: SESSION_TITLE,
-      mc_count: 30,
-      essay_count: 0,
-      include_optional_essay_area: false,
-      n_choices: 5,
+      include_written_score_bubbles: false,
     },
     headers: headers(token),
     timeout: 180_000,
@@ -345,6 +382,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
   });
 
   test("OMR PDF 업로드 후 운영자 리뷰 저장이 성적과 학생 화면에 반영된다", async ({ page, request }) => {
+    requireIsolatedScenario();
     const adminTokens = await loginTokenViaRequest(request, "admin");
     created.adminAccess = adminTokens.access;
 
@@ -401,12 +439,16 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
 
     const exam = await expectApi<{ id: number }>(request, "POST", "/exams/", adminTokens.access, {
       title: EXAM_TITLE,
-      description: "OMR 30-question marked PDF -> recognition -> review -> grade canary",
+      description: "mixed OMR -> pending projection -> manual essay -> final projection canary",
       exam_type: "regular",
       session_id: created.sessionId,
       pass_score: 15,
-      max_score: 30,
+      max_score: 50,
+      grading_mode: "mixed",
+      manual_grading_method: "score",
+      choice_question_count: 30,
       answer_visibility: "hidden",
+      student_results_published: true,
     });
     created.examId = Number(exam.id);
 
@@ -415,16 +457,33 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       "POST",
       `/exams/${created.examId}/questions/init/`,
       adminTokens.access,
-      { total_questions: 30, default_score: 1 },
+      {
+        choice_count: 30,
+        choice_score: 1,
+        essay_count: 2,
+        essay_score: 10,
+        question_types: [
+          ...Array.from({ length: 30 }, () => "choice"),
+          "essay",
+          "essay",
+        ],
+      },
     );
     const questionIdsByNumber = questions
       .sort((a, b) => Number(a.number) - Number(b.number))
       .map((q) => Number(q.id));
+    const objectiveQuestionIds = questionIdsByNumber.slice(0, EXPECTED_ANSWERS.length);
+    const writtenQuestionIds = questionIdsByNumber.slice(EXPECTED_ANSWERS.length);
+    expect(objectiveQuestionIds).toHaveLength(30);
+    expect(writtenQuestionIds).toHaveLength(2);
 
     await expectApi(request, "POST", "/exams/answer-keys/", adminTokens.access, {
       exam: created.examId,
       answers: Object.fromEntries(
-        questionIdsByNumber.map((id, idx) => [String(id), EXPECTED_ANSWERS[idx]]),
+        questionIdsByNumber.map((id, idx) => [
+          String(id),
+          idx < EXPECTED_ANSWERS.length ? EXPECTED_ANSWERS[idx] : "서술형",
+        ]),
       ),
     });
 
@@ -487,10 +546,10 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       request,
       adminTokens.access,
       submissionId,
-      questionIdsByNumber.length,
+      objectiveQuestionIds.length,
     );
     expect(reviewDetail.answers.map((row: any) => Number(row.question_id)).sort((a: number, b: number) => a - b))
-      .toEqual([...questionIdsByNumber].sort((a, b) => a - b));
+      .toEqual([...objectiveQuestionIds].sort((a, b) => a - b));
     expect(Number(reviewDetail.enrollment_id)).toBe(created.enrollmentId);
     expect(
       [...reviewDetail.answers]
@@ -533,8 +592,10 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const wrongSaveResponse = await wrongSaveResponsePromise;
     expect(wrongSaveResponse.status()).toBe(200);
     const wrongSaveBody = await wrongSaveResponse.json() as { score?: number; total_score?: number };
-    expect(wrongSaveBody.score ?? wrongSaveBody.total_score).toBe(EXPECTED_SCORE - 1);
-    await expect(page.getByText(`저장 + 재채점 완료: ${EXPECTED_SCORE - 1}점`))
+    expect(wrongSaveBody.score ?? wrongSaveBody.total_score).toBe(EXPECTED_OBJECTIVE_SCORE - 1);
+    await expect(page.getByText(
+      `객관식 답안 저장 완료: ${EXPECTED_OBJECTIVE_SCORE - 1}점 · 서술형 채점 대기`,
+    ))
       .toBeVisible({ timeout: 20_000 });
     await expect(page.getByRole("button", { name: "변경 사항 없음" }))
       .toBeDisabled({ timeout: 20_000 });
@@ -552,17 +613,149 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     expect(saveResponse.status()).toBe(200);
     const saveBody = await saveResponse.json() as { graded?: boolean; score?: number; total_score?: number };
     expect(saveBody.graded).toBe(true);
-    expect(saveBody.score ?? saveBody.total_score).toBe(EXPECTED_SCORE);
+    expect(saveBody.score ?? saveBody.total_score).toBe(EXPECTED_OBJECTIVE_SCORE);
 
-    await expect(page.getByText(`저장 + 재채점 완료: ${EXPECTED_SCORE}점`)).toBeVisible({ timeout: 20_000 });
-    await expect(page.locator(".orw-list-row__score").filter({ hasText: `${EXPECTED_SCORE}점` }))
+    await expect(page.getByText(
+      `객관식 답안 저장 완료: ${EXPECTED_OBJECTIVE_SCORE}점 · 서술형 채점 대기`,
+    )).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator(".orw-list-row__score").filter({ hasText: `${EXPECTED_OBJECTIVE_SCORE}점` }))
       .toBeVisible({ timeout: 20_000 });
     await page.screenshot({ path: `e2e/screenshots/omr-review-realuse-admin-${TS}.png`, fullPage: true });
 
     const studentTokens = await loginToken(request, STUDENT_USER, STUDENT_PASS);
+    const pendingGrades = await expectApi<{ exams?: any[]; exam_summary?: { scored_count?: number } }>(
+      request,
+      "GET",
+      "/student/grades/",
+      studentTokens.access,
+    );
+    const pendingStudentExam = pendingGrades.exams?.find((row) => Number(row.exam_id) === created.examId);
+    expect(pendingStudentExam?.grading_status).toBe("subjective_pending");
+    expect(pendingStudentExam?.is_provisional).toBe(true);
+    expect(pendingStudentExam?.total_score).toBeNull();
+    expect(pendingStudentExam?.rank).toBeNull();
+    expect(pendingStudentExam?.wrong_question_numbers).toEqual([]);
+    expect(pendingGrades.exam_summary?.scored_count).toBe(0);
+
+    const pendingAnalytics = await expectApi<{ summary?: { scored_count?: number; avg_score_pct?: number | null } }>(
+      request,
+      "GET",
+      "/student/grades/analytics/",
+      studentTokens.access,
+    );
+    expect(pendingAnalytics.summary?.scored_count).toBe(0);
+    expect(pendingAnalytics.summary?.avg_score_pct).toBeNull();
+
+    const parentTokens = await loginToken(request, CONTROLLED_PHONE, STUDENT_PASS);
+    const pendingParentGrades = await expectParentApi<{
+      exams?: any[];
+      exam_summary?: { scored_count?: number };
+    }>(request, "/student/grades/", parentTokens.access, created.studentId);
+    const pendingParentExam = pendingParentGrades.exams?.find(
+      (row) => Number(row.exam_id) === created.examId,
+    );
+    expect(pendingParentExam?.grading_status).toBe("subjective_pending");
+    expect(pendingParentExam?.total_score).toBeNull();
+    expect(pendingParentExam?.rank).toBeNull();
+    expect(pendingParentGrades.exam_summary?.scored_count).toBe(0);
+
+    const pendingParentAnalytics = await expectParentApi<{
+      summary?: { scored_count?: number; avg_score_pct?: number | null };
+    }>(request, "/student/grades/analytics/", parentTokens.access, created.studentId);
+    expect(pendingParentAnalytics.summary?.scored_count).toBe(0);
+    expect(pendingParentAnalytics.summary?.avg_score_pct).toBeNull();
+
+    const pendingAdminGrades = await expectApi<{ exams?: any[]; exam_summary?: { scored_count?: number } }>(
+      request,
+      "GET",
+      `/results/admin/student-grades/?student_id=${created.studentId}`,
+      adminTokens.access,
+    );
+    const pendingAdminExam = pendingAdminGrades.exams?.find((row) => Number(row.exam_id) === created.examId);
+    expect(pendingAdminExam?.grading_status).toBe("subjective_pending");
+    expect(pendingAdminExam?.total_score).toBeNull();
+    expect(pendingAdminGrades.exam_summary?.scored_count).toBe(0);
+
+    const pendingExamSummary = await expectApi<{ avg_score?: number; pass_count?: number; fail_count?: number }>(
+      request,
+      "GET",
+      `/results/admin/exams/${created.examId}/summary/?lecture_id=${created.lectureId}`,
+      adminTokens.access,
+    );
+    expect(pendingExamSummary.avg_score).toBe(0);
+    expect(pendingExamSummary.pass_count).toBe(0);
+    expect(pendingExamSummary.fail_count).toBe(0);
+
+    await seedBrowser(page, studentTokens, "/student/grades");
+    await waitForRenderSettled(page, { timeout: 20_000 });
+    const pendingCard = page.getByRole("link").filter({ hasText: EXAM_TITLE });
+    await expect(pendingCard).toContainText("채점 진행 중", { timeout: 20_000 });
+    await expect(pendingCard).toContainText("서술형 채점 중");
+    await expect(pendingCard).not.toContainText(`${EXPECTED_OBJECTIVE_SCORE}/50점`);
+
+    await seedBrowser(page, parentTokens, "/student/grades");
+    await waitForRenderSettled(page, { timeout: 20_000 });
+    const pendingParentCard = page.getByRole("link").filter({ hasText: EXAM_TITLE });
+    await expect(pendingParentCard).toContainText("채점 진행 중", { timeout: 20_000 });
+    await expect(pendingParentCard).toContainText("서술형 채점 중");
+    await expect(pendingParentCard).not.toContainText(`${EXPECTED_OBJECTIVE_SCORE}/50점`);
+
+    await seedBrowser(
+      page,
+      adminTokens,
+      `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`,
+    );
+    await chooseExamHeaderAction(page, "문항별 점수 입력");
+    const gradingDialog = page.getByRole("dialog").filter({
+      hasText: `${EXAM_TITLE} 문항별 점수 입력`,
+    });
+    const firstWrittenCell = gradingDialog.getByRole("spinbutton", {
+      name: `${STUDENT_NAME} 31번 10점 만점 점수`,
+    });
+    const secondWrittenCell = gradingDialog.getByRole("spinbutton", {
+      name: `${STUDENT_NAME} 32번 10점 만점 점수`,
+    });
+    await expect(firstWrittenCell).toHaveValue("", { timeout: 30_000 });
+    await expect(secondWrittenCell).toHaveValue("");
+    await firstWrittenCell.fill(String(EXPECTED_WRITTEN_SCORES[0]));
+    await secondWrittenCell.fill(String(EXPECTED_WRITTEN_SCORES[1]));
+    await gradingDialog.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
+    await expect(gradingDialog.getByText("1명 · 결시 0명 · 성적 계산 완료", { exact: true }))
+      .toBeVisible({ timeout: 30_000 });
+    await gradingDialog.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
+    await expect(page.getByText("1명의 성적을 확정했습니다.")).toBeVisible({ timeout: 30_000 });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await chooseExamHeaderAction(page, "문항별 점수 입력");
+    const reloadedGradingDialog = page.getByRole("dialog").filter({
+      hasText: `${EXAM_TITLE} 문항별 점수 입력`,
+    });
+    await expect(reloadedGradingDialog.getByRole("spinbutton", {
+      name: `${STUDENT_NAME} 31번 10점 만점 점수`,
+    })).toHaveValue(String(EXPECTED_WRITTEN_SCORES[0]), { timeout: 30_000 });
+    await expect(reloadedGradingDialog.getByRole("spinbutton", {
+      name: `${STUDENT_NAME} 32번 10점 만점 점수`,
+    })).toHaveValue(String(EXPECTED_WRITTEN_SCORES[1]));
+    expect(await reloadedGradingDialog.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth + 1,
+    )).toBe(true);
+
     const studentResult = await waitForStudentResult(request, studentTokens.access, created.examId);
     expect(studentResult.total_score).toBe(EXPECTED_SCORE);
-    expect(studentResult.analysis.wrong_question_numbers).toEqual([]);
+    expect(studentResult.analysis.wrong_question_numbers).toEqual([31, 32]);
+
+    const finalParentGrades = await expectParentApi<{ exams?: any[] }>(
+      request,
+      "/student/grades/",
+      parentTokens.access,
+      created.studentId,
+    );
+    const finalParentExam = finalParentGrades.exams?.find(
+      (row) => Number(row.exam_id) === created.examId,
+    );
+    expect(finalParentExam?.grading_status).not.toBe("subjective_pending");
+    expect(finalParentExam?.total_score).toBe(EXPECTED_SCORE);
 
     await seedBrowser(page, studentTokens, "/student/grades");
     await waitForRenderSettled(page, { timeout: 20_000 });
