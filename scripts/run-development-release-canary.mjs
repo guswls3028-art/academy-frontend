@@ -253,8 +253,8 @@ export function assertLongVideoSetup(payload) {
   assert.equal(payload?.status, "YMATH_REALUSE_SCENARIO_READY");
   assert.ok(Array.isArray(payload.student_ids) && payload.student_ids.length === 2
     && payload.student_ids.every((id) => Number.isInteger(id) && id > 0));
-  assert.ok(Array.isArray(payload.session_ids) && payload.session_ids.length === 1
-    && Number.isInteger(payload.session_ids[0]) && payload.session_ids[0] > 0);
+  assert.ok(Array.isArray(payload.session_ids) && payload.session_ids.length === 2
+    && payload.session_ids.every((id) => Number.isInteger(id) && id > 0));
   const fixture = payload.synthetic_long_video;
   assert.equal(fixture?.access_mode, "PROCTORED_CLASS");
   assert.equal(fixture?.duration_seconds, 900);

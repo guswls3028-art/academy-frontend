@@ -242,7 +242,8 @@ profile, 종료 방지, inbound0, SSM Online을 확인한다. 원본 artifact의
 `qa-ymath-realuse-*` 개발 tenant에서만 허용되며 운영 read-only 실행에는 적용하지 않는다.
 
 같은 카나리는 기본값이 꺼진 backend `SyntheticLongVideo=true` 분기를 명시적으로 선택해
-학생 2명과 900초 READY 영상 metadata만 만든다. 러너 메모리의 무음 HLS fixture를
+학생 2명, 강의 2개별 session 1개(`session_ids` 2개), 900초 READY 영상 metadata만 만든다.
+러너 메모리의 무음 HLS fixture를
 backend가 실제 반환한 `qa-fixtures/video-long/master.m3u8` signed URL에만 연결하며 R2에는
 객체를 쓰지 않는다. 1366×768과 390×844 두 Chromium context는 동시에 690초 이상 실제
 재생하고 최초 signed URL의 TTL이 690초보다 긴 상태에서 발급 후 540~590초의

@@ -411,7 +411,7 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
   const setup = {
     status: "YMATH_REALUSE_SCENARIO_READY",
     student_ids: [101, 102],
-    session_ids: [201],
+    session_ids: [201, 202],
     synthetic_long_video: {
       access_mode: "PROCTORED_CLASS",
       duration_seconds: 900,
@@ -423,6 +423,9 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
   assert.doesNotThrow(() => runner.assertLongVideoSetup(setup));
   for (const invalid of [
     { ...setup, student_ids: [101] },
+    { ...setup, session_ids: [201] },
+    { ...setup, session_ids: [201, 202, 203] },
+    { ...setup, session_ids: [201, 0] },
     { ...setup, synthetic_long_video: { ...setup.synthetic_long_video, duration_seconds: 899 } },
     { ...setup, synthetic_long_video: { ...setup.synthetic_long_video, hls_path: "foreign/master.m3u8" } },
     { ...setup, synthetic_long_video: { ...setup.synthetic_long_video, video_accesses: 1 } },
