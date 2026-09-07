@@ -6284,6 +6284,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/media/playback/renew/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["media_playback_renew_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/media/playback/start/": {
         parameters: {
             query?: never;
@@ -7034,7 +7050,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description GET: 채널 공유 확인 (파트너 등록 여부) — 4단계, 스텁 가능 */
+        /** @description GET: effective tenant channel readiness. */
         get: operations["messaging_channel_check_retrieve"];
         put?: never;
         post?: never;
@@ -14232,6 +14248,15 @@ export interface components {
             readonly alimtalk_available: boolean;
             readonly can_manage_messaging: boolean;
             readonly channel_source: string;
+            readonly custom_channel_approved_templates: number;
+            readonly custom_channel_last_test_status: string;
+            /** Format: date-time */
+            readonly custom_channel_last_tested_at: string | null;
+            readonly custom_channel_reference: string;
+            readonly custom_channel_registered: boolean;
+            readonly custom_channel_required_templates: number;
+            readonly custom_channel_status: string;
+            readonly custom_channel_test_available: boolean;
             readonly delivery_policy: string;
             readonly has_own_credentials: boolean;
             kakao_pfid?: string;
@@ -15979,6 +16004,19 @@ export interface components {
         PendingSubmissionPreviewResponse: {
             /** Format: uri */
             url: string;
+        };
+        PlaybackRefreshRequestRequest: {
+            token: string;
+        };
+        PlaybackRenewResponse: {
+            access_mode: components["schemas"]["StudentVideoEffectiveAccessMode"];
+            monitoring_enabled: boolean;
+            ok: boolean;
+            play_url?: string | null;
+            playback_expires_at: number;
+            playback_session_id: string | null;
+            playback_token: string;
+            policy_version: number;
         };
         /**
          * @description * `DIRECTOR` - 실장
@@ -28753,6 +28791,31 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    media_playback_renew_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaybackRefreshRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PlaybackRefreshRequestRequest"];
+                "multipart/form-data": components["schemas"]["PlaybackRefreshRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaybackRenewResponse"];
+                };
             };
         };
     };

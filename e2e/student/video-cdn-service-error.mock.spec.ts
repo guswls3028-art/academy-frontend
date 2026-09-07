@@ -5,6 +5,7 @@ import {
   assertYoutubeReadyPlayPause, installStudentYoutubeScenario, openStudentYoutubeScenario,
   YOUTUBE_QA_TITLE,
 } from "../helpers/studentYoutubeScenario";
+import { waitForCondition } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 
@@ -524,6 +525,389 @@ test.describe("student video CDN service errors", () => {
     await expect(page.getByRole("heading", { name: "정책 전환 재생 영상" })).toBeVisible();
     await expect(page.getByText("온라인 수업 대체")).toHaveCount(1);
     expect(playbackRequests).toBe(2);
+  });
+});
+
+test.describe("student video playback grant renewal continuity", () => {
+  test.skip(!isLocalBase(BASE), "Local route-mock spec. Set E2E_BASE_URL to localhost to run.");
+
+  test.use({
+    viewport: { width: 390, height: 844 },
+    serviceWorkers: "block",
+  });
+
+  test("short-lived playback token renewal keeps the active HLS player mounted", async ({ page }) => {
+    let playbackRequests = 0;
+    let rejectBootstrap = false;
+    let fixedExpiryScenario = false;
+    let fixedExpirySeconds = 0;
+    let fixedExpiryRenewals = 0;
+    let renewalRequests = 0;
+    const endedTokens: string[] = [];
+    const refreshedTokens: string[] = [];
+    let releaseRenewal!: () => void;
+    let releaseSegment!: () => void;
+    const renewalGate = new Promise<void>((resolve) => {
+      releaseRenewal = resolve;
+    });
+    const segmentGate = new Promise<void>((resolve) => {
+      releaseSegment = resolve;
+    });
+
+    await page.addInitScript(({ token }) => {
+      localStorage.setItem("access", token);
+      localStorage.setItem("refresh", token);
+      localStorage.setItem("tenant_code", "godmin");
+      sessionStorage.setItem("tenantCode", "godmin");
+    }, { token: fakeJwt() });
+
+    await page.route("https://cdn.hakwonplus.com/e2e/grant-renewal/**", async (route) => {
+      if (new URL(route.request().url()).pathname.endsWith("/segment.ts")) {
+        await segmentGate;
+        await route.fulfill({ status: 200, contentType: "video/mp2t", body: "" });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        headers: { "access-control-allow-origin": "*" },
+        contentType: "application/vnd.apple.mpegurl",
+        body: "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:10\n#EXT-X-MEDIA-SEQUENCE:0\n#EXTINF:10,\nsegment.ts\n#EXT-X-ENDLIST\n",
+      });
+    });
+
+    await page.route("**/api/v1/**", async (route) => {
+      const url = new URL(route.request().url());
+      const path = url.pathname.replace(/^\/api\/v1/, "");
+      const json = (body: unknown, status = 200) => route.fulfill({ json: body, status });
+
+      if (path === "/core/program/") {
+        return json({
+          tenantCode: "godmin",
+          display_name: "과학 학원",
+          ui_config: {},
+          feature_flags: {},
+          is_active: true,
+        });
+      }
+      if (path === "/core/me/") {
+        return json({
+          id: 1772,
+          username: "student",
+          name: "학생",
+          is_staff: false,
+          is_superuser: false,
+          tenantRole: "student",
+          linkedStudentId: 1,
+          linkedStudentName: "학생",
+          must_change_password: false,
+        });
+      }
+      if (
+        path === "/student/video/videos/671/playback/"
+        || path === "/student/video/videos/672/playback/"
+      ) {
+        if (url.searchParams.get("access_check") === "1") {
+          return json({
+            ok: true,
+            access_mode: fixedExpiryScenario ? "FREE_REVIEW" : "PROCTORED_CLASS",
+            monitoring_enabled: !fixedExpiryScenario,
+            policy_version: 1,
+          });
+        }
+
+        playbackRequests += 1;
+        if (rejectBootstrap) {
+          await json({ detail: "temporary_unavailable" }, 503);
+          return;
+        }
+        const now = Math.floor(Date.now() / 1000);
+        if (fixedExpiryScenario) {
+          fixedExpirySeconds = now + 3;
+          return json({
+            video: {
+              id: 672,
+              session_id: 584,
+              enrollment_id: 1304,
+              title: "중3 구름과 강수 긴 영상",
+              status: "READY",
+              source_type: "s3",
+              duration: 8516,
+              progress: 10,
+              completed: false,
+              last_position: 321,
+              allow_skip: true,
+              max_speed: 2,
+              show_watermark: false,
+              access_mode: "FREE_REVIEW",
+            },
+            play_url: `https://cdn.hakwonplus.com/e2e/grant-renewal/master.m3u8?exp=${fixedExpirySeconds}&sig=fixed`,
+            playback_token: "fixed-expiry-token",
+            playback_session_id: null,
+            playback_expires_at: fixedExpirySeconds,
+            policy_version: 1,
+            policy: {
+              access_mode: "FREE_REVIEW",
+              monitoring_enabled: false,
+              allow_seek: true,
+              playback_rate: { max: 2, ui_control: true },
+              watermark: { enabled: false, mode: "overlay", fields: [] },
+              source: { type: "hls", provider: "uploaded", youtube_video_id: "" },
+            },
+          });
+        }
+        return json({
+          video: {
+            id: 671,
+            session_id: 584,
+            enrollment_id: 1304,
+            title: "중3 구름과 강수 긴 영상",
+            status: "READY",
+            source_type: "s3",
+            duration: 8516,
+            progress: 10,
+            completed: false,
+            last_position: 321,
+            allow_skip: true,
+            max_speed: 2,
+            show_watermark: true,
+            access_mode: "PROCTORED_CLASS",
+          },
+          play_url: `https://cdn.hakwonplus.com/e2e/grant-renewal/master.m3u8?exp=${now + 9_116}&sig=initial`,
+          playback_token: "initial-playback-token",
+          playback_session_id: "monitored-session",
+          playback_expires_at: now + 46,
+          policy_version: 1,
+          policy: {
+            access_mode: "PROCTORED_CLASS",
+            monitoring_enabled: true,
+            allow_seek: true,
+            playback_rate: { max: 2, ui_control: true },
+            watermark: { enabled: true, mode: "overlay", fields: ["user_id"] },
+            source: { type: "hls", provider: "uploaded", youtube_video_id: "" },
+          },
+        });
+      }
+      if (path === "/student/video/sessions/584/videos/") {
+        return json({ items: [] });
+      }
+      if (
+        path === "/student/video/videos/671/comments/"
+        || path === "/student/video/videos/672/comments/"
+      ) {
+        return json({ count: 0, results: [] });
+      }
+      if (path === "/media/playback/end/") {
+        const body = route.request().postDataJSON() as { token?: string };
+        if (body.token) endedTokens.push(body.token);
+        return json({ ok: true });
+      }
+      if (path === "/media/playback/renew/") {
+        const body = route.request().postDataJSON() as { token?: string };
+        if (body.token === "fixed-expiry-token") {
+          fixedExpiryRenewals += 1;
+          return json({
+            ok: true,
+            playback_token: "equivalent-fixed-expiry-token",
+            playback_session_id: null,
+            playback_expires_at: fixedExpirySeconds,
+            access_mode: "FREE_REVIEW",
+            monitoring_enabled: false,
+            policy_version: 1,
+            play_url: `https://cdn.hakwonplus.com/e2e/grant-renewal/master.m3u8?exp=${fixedExpirySeconds}&sig=equivalent`,
+          });
+        }
+        if (body.token === "initial-playback-token") {
+          renewalRequests += 1;
+          if (renewalRequests === 1) {
+            return json({ detail: "temporary_unavailable" }, 503);
+          }
+          await renewalGate;
+          const now = Math.floor(Date.now() / 1000);
+          return json({
+            ok: true,
+            playback_token: "renewed-playback-token",
+            playback_session_id: "monitored-session",
+            playback_expires_at: now + 600,
+            access_mode: "PROCTORED_CLASS",
+            monitoring_enabled: true,
+            policy_version: 1,
+          });
+        }
+        return json({ ok: true });
+      }
+      if (path === "/media/playback/refresh/") {
+        const body = route.request().postDataJSON() as { token?: string };
+        if (body.token) refreshedTokens.push(body.token);
+        return json({ ok: true });
+      }
+      if (path === "/media/playback/events/" || path === "/media/playback/heartbeat/") {
+        return json({ ok: true });
+      }
+      return json({});
+    });
+
+    await page.goto(
+      `${BASE}/student/video/play?video=671&enrollment=1304&session=584`,
+      { waitUntil: "domcontentloaded", timeout: 30_000 },
+    );
+    await expect(page.getByRole("heading", { name: "중3 구름과 강수 긴 영상" })).toBeVisible();
+    const originalVideo = await page.locator("video").elementHandle();
+    expect(originalVideo).not.toBeNull();
+    await originalVideo!.evaluate((element) => {
+      element.dataset.playbackContinuity = "active";
+    });
+    const endedBeforeRenewal = [...endedTokens];
+
+    await expect.poll(() => renewalRequests, { timeout: 10_000 }).toBe(2);
+    expect(playbackRequests).toBe(1);
+    await expect(page.getByRole("heading", { name: "중3 구름과 강수 긴 영상" })).toBeVisible();
+    expect(await originalVideo!.evaluate((element) => element.isConnected)).toBe(true);
+    expect(endedTokens).toEqual(endedBeforeRenewal);
+
+    releaseRenewal();
+    await expect.poll(async () => page.locator('video[data-playback-continuity="active"]').count()).toBe(1);
+    expect(await originalVideo!.evaluate((element) => element.isConnected)).toBe(true);
+    expect(endedTokens).toEqual(endedBeforeRenewal);
+    expect(playbackRequests).toBe(1);
+
+    await page.context().setOffline(true);
+    await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(false);
+    await page.context().setOffline(false);
+    await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(true);
+    expect(playbackRequests).toBe(1);
+    expect(await originalVideo!.evaluate((element) => element.isConnected)).toBe(true);
+
+    await cycleDocumentVisibility(page);
+    await expect.poll(() => refreshedTokens).toContain("renewed-playback-token");
+
+    await page.getByRole("link", { name: "학생 대시보드로 이동" }).click();
+    await expect(page).toHaveURL(/\/student\/dashboard$/);
+    await expect(page.locator(".vpp-root")).toHaveCount(0);
+    const staleGrantGcEndsAt = Date.now() + 100;
+    await waitForCondition(
+      async () => Date.now() >= staleGrantGcEndsAt,
+      { timeoutMs: 1_000, intervalMs: 25, description: "playback grant cache disposal" },
+    );
+    rejectBootstrap = true;
+    await page.goBack();
+    await expect.poll(() => playbackRequests).toBe(2);
+    await expect(page.locator("video")).toHaveCount(0);
+    const retryObservationEndsAt = Date.now() + 1_500;
+    await waitForCondition(
+      async () => Date.now() >= retryObservationEndsAt && playbackRequests === 2,
+      {
+        timeoutMs: 3_000,
+        intervalMs: 100,
+        description: "lost playback response does not retry or render the ended cached grant",
+      },
+    );
+
+    await page.getByRole("link", { name: "학생 대시보드로 이동" }).click();
+    await expect(page).toHaveURL(/\/student\/dashboard$/);
+    await expect(page.locator(".vpp-root")).toHaveCount(0);
+    const failedGrantGcEndsAt = Date.now() + 100;
+    await waitForCondition(
+      async () => Date.now() >= failedGrantGcEndsAt,
+      { timeoutMs: 1_000, intervalMs: 25, description: "failed playback cache disposal" },
+    );
+    rejectBootstrap = false;
+    fixedExpiryScenario = true;
+    await page.goto(
+      `${BASE}/student/video/play?video=672&enrollment=1304&session=584`,
+      { waitUntil: "domcontentloaded", timeout: 30_000 },
+    );
+    await expect(page.locator("video")).toHaveCount(1);
+    await expect.poll(() => fixedExpiryRenewals, { timeout: 5_000 }).toBe(1);
+    await expect(page.getByRole("heading", { name: "재생을 시작할 수 없어요" })).toBeVisible({ timeout: 5_000 });
+    expect(fixedExpiryRenewals).toBe(1);
+    releaseSegment();
+  });
+
+  test("short signed URL rotation preserves native HLS playback state", async ({ page }) => {
+    await page.goto(BASE, { waitUntil: "domcontentloaded", timeout: 30_000 });
+
+    const result = await page.evaluate(async () => {
+      const { StudentHlsController } = await import(
+        "/src/app_student/domains/video/playback/player/headless/StudentHlsController.ts"
+      );
+      document.body.replaceChildren();
+      const video = document.createElement("video");
+      document.body.appendChild(video);
+
+      let currentTime = 0;
+      let paused = true;
+      Object.defineProperty(video, "currentTime", {
+        configurable: true,
+        get: () => currentTime,
+        set: (value: number) => { currentTime = Number(value); },
+      });
+      Object.defineProperty(video, "duration", {
+        configurable: true,
+        get: () => 1_200,
+      });
+      Object.defineProperty(video, "paused", {
+        configurable: true,
+        get: () => paused,
+      });
+      video.canPlayType = () => "probably";
+      video.play = async () => {
+        paused = false;
+        video.dispatchEvent(new Event("play"));
+      };
+      video.pause = () => {
+        paused = true;
+        video.dispatchEvent(new Event("pause"));
+      };
+      video.load = () => {
+        window.setTimeout(() => video.dispatchEvent(new Event("loadedmetadata")), 0);
+      };
+
+      const controller = new StudentHlsController({
+        videoId: 671,
+        playUrl: "https://cdn.hakwonplus.com/e2e/short/master.m3u8?sig=initial",
+        policy: {
+          access_mode: "FREE_REVIEW",
+          monitoring_enabled: false,
+          allow_seek: true,
+          playback_rate: { max: 2, ui_control: true },
+        },
+        token: "student-placeholder",
+        enrollmentId: null,
+        initialPosition: 0,
+      });
+      await controller.attach(video);
+      currentTime = 321.25;
+      video.playbackRate = 1.5;
+      video.volume = 0.4;
+      video.muted = true;
+      await video.play();
+      const originalNode = video;
+
+      controller.setSource(
+        "https://cdn.hakwonplus.com/e2e/short/master.m3u8?sig=renewed",
+      );
+      await new Promise((resolve) => window.setTimeout(resolve, 50));
+
+      const state = {
+        sameNode: originalNode === video && video.isConnected,
+        currentTime: video.currentTime,
+        paused: video.paused,
+        rate: video.playbackRate,
+        volume: video.volume,
+        muted: video.muted,
+        src: video.src,
+      };
+      controller.dispose();
+      return state;
+    });
+
+    expect(result.sameNode).toBe(true);
+    expect(Math.abs(result.currentTime - 321.25)).toBeLessThanOrEqual(0.5);
+    expect(result.paused).toBe(false);
+    expect(result.rate).toBe(1.5);
+    expect(result.volume).toBeCloseTo(0.4, 2);
+    expect(result.muted).toBe(true);
+    expect(result.src).toContain("sig=renewed");
   });
 });
 

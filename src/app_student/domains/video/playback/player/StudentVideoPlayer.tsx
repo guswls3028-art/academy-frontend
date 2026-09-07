@@ -31,8 +31,8 @@ import {
   PlaybackPolicyHints,
 } from "./ForwardSkipPolicyUi";
 import { forwardSkipErrorMessage, type ForwardSkipBudgetState } from "./forwardSkipPolicy";
+import { initialControllerState, normalizePolicy, type Policy } from "./playerState";
 
-import type { AccessMode } from "@/shared/api/contracts/videos";
 import { resolveTenantCodeString } from "@/shared/tenant";
 import { isYouTubeSource } from "@/shared/media/video/youtube";
 import { requestVideoForwardSkip } from "../../api/video.api";
@@ -53,6 +53,7 @@ export type PlaybackBootstrap = {
   token: string;
   session_id: string | null;
   expires_at: number | null;
+  policy_version: number;
   access_mode: "FREE_REVIEW" | "PROCTORED_CLASS";
   monitoring_enabled: boolean;
   policy: Partial<Policy> | null | undefined;
@@ -74,60 +75,6 @@ type Props = {
   initialPosition?: number;
   onFatal?: (reason: string) => void;
   onLeaveProgress?: (data: LeaveProgressPayload) => void;
-};
-
-type Policy = {
-  access_mode?: AccessMode;
-  monitoring_enabled?: boolean;
-  allow_seek?: boolean;
-  seek?: {
-    mode?: string;
-    grace_seconds?: number;
-    enabled?: boolean;
-    step_seconds?: number;
-    limit_seconds?: number;
-    used_seconds?: number;
-    remaining_seconds?: number;
-    unavailable_reason?: "" | "duration_unavailable" | "limit_reached";
-  };
-  playback_rate?: { max?: number; ui_control?: boolean };
-  watermark?: { enabled?: boolean };
-  source?: { type?: string; provider?: string; youtube_video_id?: string | null };
-};
-
-function normalizePolicy(p: Partial<Policy> | null | undefined): Policy {
-  const policy: Policy = { ...(p || {}) };
-  const seek = { ...(policy.seek || {}) };
-  const playbackRate = { ...(policy.playback_rate || {}) };
-  const watermark = { ...(policy.watermark || {}) };
-  if (policy.monitoring_enabled == null) {
-    policy.monitoring_enabled = policy.access_mode === "PROCTORED_CLASS";
-  }
-  if (policy.allow_seek == null) policy.allow_seek = true;
-  if (!seek.mode) seek.mode = "free";
-  if (seek.grace_seconds == null) seek.grace_seconds = 3;
-  if (playbackRate.max == null) playbackRate.max = 16;
-  if (playbackRate.ui_control == null) playbackRate.ui_control = true;
-  if (watermark.enabled == null) watermark.enabled = false;
-  policy.seek = seek;
-  policy.playback_rate = playbackRate;
-  policy.watermark = watermark;
-  return policy;
-}
-
-const initialControllerState: ControllerState = {
-  ready: false,
-  playing: false,
-  buffering: false,
-  duration: 0,
-  current: 0,
-  volume: 1,
-  muted: false,
-  rate: 1,
-  toast: null,
-  qualities: [],
-  currentQuality: -1,
-  reconnecting: false,
 };
 
 function getActiveFullscreenElement(): Element | null {
@@ -201,6 +148,10 @@ export default function StudentVideoPlayer({
   const swipeHandledRef = useRef(false);
   const touchStartRef = useRef<{ y: number; volume: number; rightHalf: boolean } | null>(null);
   const currentRef = useRef(0);
+  const onFatalRef = useRef(onFatal);
+  const onLeaveProgressRef = useRef(onLeaveProgress);
+  onFatalRef.current = onFatal;
+  onLeaveProgressRef.current = onLeaveProgress;
 
   const { ready, playing, buffering, duration, current, volume, muted, rate, toast, qualities, currentQuality, reconnecting } = ctrlState;
 
@@ -212,27 +163,60 @@ export default function StudentVideoPlayer({
     setSkipBudget(policySkipBudget);
   }, [policySkipBudget]);
 
+  const controllerIdentity = JSON.stringify({
+    videoId: video.id,
+    enrollmentId,
+    source: isYoutube ? "youtube" : "hls",
+    youtubeVideoId: video.youtube_video_id || bootstrap.youtube_video_id || policy.source?.youtube_video_id || null,
+    policyVersion: bootstrap.policy_version,
+    accessMode: bootstrap.access_mode,
+    monitoringEnabled,
+    allowSeek: policy.allow_seek,
+    seek: policy.seek,
+    playbackRate: policy.playback_rate,
+    watermark: policy.watermark,
+  });
+  const controllerConfigRef = useRef({
+    videoId: video.id,
+    playUrl: bootstrap.play_url || video.hls_url || "",
+    policy: bootstrap.policy,
+    token: bootstrap.token,
+    enrollmentId,
+    initialPosition,
+    isYoutube,
+    youtubeVideoId: video.youtube_video_id || bootstrap.youtube_video_id || policy.source?.youtube_video_id || null,
+  });
+  controllerConfigRef.current = {
+    videoId: video.id,
+    playUrl: bootstrap.play_url || video.hls_url || "",
+    policy: bootstrap.policy,
+    token: bootstrap.token,
+    enrollmentId,
+    initialPosition,
+    isYoutube,
+    youtubeVideoId: video.youtube_video_id || bootstrap.youtube_video_id || policy.source?.youtube_video_id || null,
+  };
 
   useEffect(() => {
-    if (!video || !bootstrap) return;
+    const config = controllerConfigRef.current;
     const attachTarget = isYoutube ? youtubeMountRef.current : videoElRef.current;
     if (!attachTarget) return;
 
     const commonOptions = {
-      videoId: video.id,
-      playUrl: bootstrap.play_url || video.hls_url || "",
-      policy: bootstrap.policy,
-      token: bootstrap.token,
-      enrollmentId,
-      initialPosition,
-      onFatal,
-      onLeaveProgress,
+      videoId: config.videoId,
+      playUrl: config.playUrl,
+      policy: config.policy,
+      token: config.token,
+      enrollmentId: config.enrollmentId,
+      initialPosition: config.initialPosition,
+      onFatal: (reason: string) => onFatalRef.current?.(reason),
+      onLeaveProgress: (data: LeaveProgressPayload) => onLeaveProgressRef.current?.(data),
     };
     let ctrl: StudentHlsController | StudentYoutubeController;
-    if (isYoutube) {
+    if (config.isYoutube) {
       ctrl = new StudentYoutubeController({
         ...commonOptions,
-        youtubeVideoId: video.youtube_video_id || bootstrap.youtube_video_id || policy.source?.youtube_video_id || null,
+        youtubeVideoId: config.youtubeVideoId,
       });
       ctrl.attach(attachTarget as HTMLDivElement);
     } else {
@@ -248,12 +232,16 @@ export default function StudentVideoPlayer({
       ctrl.dispose();
       controllerRef.current = null;
     };
-  }, [video, bootstrap, enrollmentId, initialPosition, onFatal, onLeaveProgress, isYoutube, policy.source?.youtube_video_id]);
+  }, [controllerIdentity, isYoutube]);
 
   useEffect(() => {
     const ctrl = controllerRef.current;
-    if (ctrl) ctrl.setToken(bootstrap.token);
-  }, [bootstrap.token]);
+    if (!ctrl) return;
+    ctrl.setToken(bootstrap.token);
+    if (ctrl instanceof StudentHlsController) {
+      ctrl.setSource(bootstrap.play_url || video.hls_url || "");
+    }
+  }, [bootstrap.play_url, bootstrap.token, video.hls_url]);
 
   useEffect(() => {
     const wrap = wrapElRef.current;

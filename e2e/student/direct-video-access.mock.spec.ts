@@ -16,6 +16,7 @@ function jwt(): string {
 
 type Evidence = {
   playbackRequests: number;
+  renewalRequests: number;
   accessChecks: number;
   requestedPaths: string[];
   mutationPaths: string[];
@@ -30,6 +31,7 @@ async function installApp(
 ): Promise<{ evidence: Evidence; revoke: () => void }> {
   const evidence: Evidence = {
     playbackRequests: 0,
+    renewalRequests: 0,
     accessChecks: 0,
     requestedPaths: [],
     mutationPaths: [],
@@ -145,6 +147,20 @@ async function installApp(
         },
       });
     }
+    if (path === "/media/playback/renew/") {
+      evidence.renewalRequests += 1;
+      if (revoked) return json({ detail: "현재 이 영상을 시청할 권한이 없습니다." }, 403);
+      return json({
+        ok: true,
+        playback_token: `direct-renewed-token-${evidence.renewalRequests}`,
+        playback_session_id: null,
+        playback_expires_at: baseEpoch + 670,
+        access_mode: "FREE_REVIEW",
+        monitoring_enabled: false,
+        policy_version: 1,
+        play_url: "https://cdn.example.test/direct/master.m3u8?renewed=1",
+      });
+    }
     if (path === "/student/video/sessions/802/videos/") {
       return json({
         items: [{
@@ -209,10 +225,13 @@ test("개별 영상 학생 재생은 canonical bootstrap·exact-only·로컬 이
   })).toBe(125);
 
   await page.clock.runFor(26_000);
-  await expect.poll(() => evidence.playbackRequests).toBe(2);
+  await expect.poll(() => evidence.renewalRequests).toBe(1);
   expect(evidence.mutationPaths.filter(
     (path) => path === "/student/video/videos/902/playback/",
-  )).toHaveLength(evidence.playbackRequests);
+  )).toHaveLength(1);
+  expect(evidence.mutationPaths.filter(
+    (path) => path === "/media/playback/renew/",
+  )).toHaveLength(1);
   expect(evidence.requestedPaths.filter((path) => (
     path.includes("/progress")
     || path.includes("/comments")
@@ -230,7 +249,8 @@ test("개별 영상 학생 재생은 canonical bootstrap·exact-only·로컬 이
   await expect(page.getByRole("heading", { name: "재생을 시작할 수 없어요" })).toBeVisible();
   await expect(page.getByText("현재 이 영상을 시청할 권한이 없습니다.", { exact: true })).toBeVisible();
   expect(evidence.accessChecks).toBeGreaterThanOrEqual(2);
-  expect(evidence.playbackRequests).toBe(2);
+  expect(evidence.playbackRequests).toBe(1);
+  expect(evidence.renewalRequests).toBe(1);
   await expect.poll(
     () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
   ).toBeLessThanOrEqual(1);
@@ -251,7 +271,8 @@ test("기존 수강 재생은 canonical bootstrap 뒤 화면 활동을 한 번�
   expect(evidence.activityBodies.filter((body) => body.screen_id === "student.video.player")).toHaveLength(1);
 
   await page.clock.runFor(21_000);
-  await expect.poll(() => evidence.playbackRequests).toBe(2);
+  await expect.poll(() => evidence.renewalRequests).toBe(1);
+  expect(evidence.playbackRequests).toBe(1);
 });
 
 test("bootstrap 실패는 학생 화면 활동을 기록하지 않는다", async ({ page }) => {
