@@ -8,6 +8,7 @@ import {
   checkStudentVideoAccess,
   fetchStudentVideoPlayback,
   fetchStudentSessionVideos,
+  renewStudentVideoPlayback,
   updateVideoProgress,
   toggleVideoLike,
   type StudentSessionVideosResponse,
@@ -160,8 +161,10 @@ export default function VideoPlayerPage() {
     queryFn: () => fetchStudentVideoPlayback(videoId!, enrollmentId ?? undefined),
     enabled: !!videoId,
     staleTime: 0,
+    gcTime: 0,
     refetchOnMount: "always",
-    retry: 1,
+    refetchOnReconnect: false,
+    retry: false,
   });
   const activityRecordedVideoRef = useRef<number | null>(null);
 
@@ -244,6 +247,7 @@ export default function VideoPlayerPage() {
       token: realToken || `student-${videoId}-${Date.now()}`,
       session_id: realSessionId || null,
       expires_at: realExpiresAt || null,
+      policy_version: Number(playbackData.policy_version),
       access_mode: accessMode,
       monitoring_enabled: playbackData.policy?.monitoring_enabled ?? false,
       policy: playbackData.policy || {},
@@ -382,30 +386,113 @@ export default function VideoPlayerPage() {
   });
   useEffect(() => {
     const expiresAt = playbackData?.playback_expires_at;
-    if (!playbackData?.playback_token || !expiresAt || fatalError) return;
+    const playbackToken = playbackData?.playback_token;
+    if (!playbackToken || !expiresAt || fatalError || !videoId) return;
     let active = true;
-    const refreshDelay = Math.max(1_000, expiresAt * 1000 - Date.now() - 45_000);
-    const timer = window.setTimeout(() => {
-      setPolicyRebootstrapPending(true);
-      void refetchPlayback().then((result) => {
-        if (!active) return;
-        const refreshedExpiry = result.data?.playback_expires_at ?? 0;
-        if (result.error || refreshedExpiry * 1000 <= Date.now()) {
-          setFatalError("재생 권한을 다시 확인하지 못했습니다. 다시 시도해 주세요.");
+    let timer: number | null = null;
+    let attempt = 0;
+    const expectedAccessMode = playbackData.policy?.access_mode ?? "FREE_REVIEW";
+    const expectedMonitoring = playbackData.policy?.monitoring_enabled ?? false;
+    const expectedPolicyVersion = Number(playbackData.policy_version);
+    const expectedSessionId = playbackData.playback_session_id ?? null;
+    const renewalScopeKey = policyTransitionScopeKey;
+    const renewalGeneration = policyTransitionGenerationRef.current;
+    const isCurrentRenewal = () => (
+      active
+      && policyTransitionScopeRef.current === renewalScopeKey
+      && policyTransitionGenerationRef.current === renewalGeneration
+    );
+    const failRenewal = () => {
+      if (!isCurrentRenewal()) return;
+      setFatalError("재생 권한을 다시 확인하지 못했습니다. 다시 시도해 주세요.");
+    };
+    const schedule = (delayMs: number) => {
+      timer = window.setTimeout(runRenewal, Math.min(delayMs, 2_147_000_000));
+    };
+    const runRenewal = () => {
+      timer = null;
+      void renewStudentVideoPlayback(playbackToken).then((renewed) => {
+        if (!isCurrentRenewal()) return;
+        const sessionMatches = expectedMonitoring
+          ? Boolean(expectedSessionId) && renewed.playback_session_id === expectedSessionId
+          : renewed.playback_session_id === null;
+        if (
+          renewed.access_mode !== expectedAccessMode
+          || renewed.monitoring_enabled !== expectedMonitoring
+          || renewed.policy_version !== expectedPolicyVersion
+          || !sessionMatches
+        ) {
+          setFatalError(POLICY_CHANGED_MESSAGE);
+          return;
         }
-      }).catch(() => {
-        if (!active) return;
-        setFatalError("재생 권한을 다시 확인하지 못했습니다. 다시 시도해 주세요.");
-      }).finally(() => {
-        if (!active) return;
-        setPolicyRebootstrapPending(false);
+        if (renewed.playback_expires_at <= expiresAt) {
+          const remainingMs = expiresAt * 1000 - Date.now();
+          if (remainingMs <= 0) {
+            failRenewal();
+          } else {
+            timer = window.setTimeout(failRenewal, remainingMs);
+          }
+          return;
+        }
+        let applied = false;
+        queryClient.setQueryData<StudentVideoPlayback>(
+          studentVideoQueryKeys.playback(videoId, enrollmentId),
+          (current) => {
+            const currentMode = current?.policy?.access_mode ?? "FREE_REVIEW";
+            const currentMonitoring = current?.policy?.monitoring_enabled ?? false;
+            if (
+              !current
+              || current.playback_token !== playbackToken
+              || (current.playback_session_id ?? null) !== expectedSessionId
+              || Number(current.policy_version) !== expectedPolicyVersion
+              || currentMode !== expectedAccessMode
+              || currentMonitoring !== expectedMonitoring
+            ) return current;
+            applied = true;
+            return {
+              ...current,
+              playback_token: renewed.playback_token,
+              playback_session_id: renewed.playback_session_id,
+              playback_expires_at: renewed.playback_expires_at,
+              play_url: renewed.play_url || current.play_url,
+              hls_url: renewed.play_url || current.hls_url,
+            };
+          },
+        );
+        if (applied && renewed.playback_expires_at * 1000 <= Date.now()) failRenewal();
+      }).catch((error: unknown) => {
+        if (!isCurrentRenewal()) return;
+        const status = (error as { response?: { status?: number } })?.response?.status;
+        if (status === 403 || status === 409 || Date.now() >= expiresAt * 1000) {
+          failRenewal();
+          return;
+        }
+        const retryDelays = [1_000, 3_000, 10_000];
+        const remainingMs = expiresAt * 1000 - Date.now();
+        const delayMs = retryDelays[Math.min(attempt, retryDelays.length - 1)];
+        attempt += 1;
+        schedule(Math.max(250, Math.min(delayMs, remainingMs)));
       });
-    }, Math.min(refreshDelay, 2_147_000_000));
+    };
+    const refreshDelay = Math.max(1_000, expiresAt * 1000 - Date.now() - 45_000);
+    schedule(refreshDelay);
     return () => {
       active = false;
-      window.clearTimeout(timer);
+      if (timer !== null) window.clearTimeout(timer);
     };
-  }, [fatalError, playbackData?.playback_expires_at, playbackData?.playback_token, refetchPlayback]);
+  }, [
+    enrollmentId,
+    fatalError,
+    playbackData?.playback_expires_at,
+    playbackData?.playback_token,
+    playbackData?.policy?.access_mode,
+    playbackData?.policy?.monitoring_enabled,
+    playbackData?.policy_version,
+    playbackData?.playback_session_id,
+    policyTransitionScopeKey,
+    queryClient,
+    videoId,
+  ]);
   useEffect(() => {
     const response = (currentAccessQuery.error as {
       response?: { status?: number; data?: { detail?: unknown } };

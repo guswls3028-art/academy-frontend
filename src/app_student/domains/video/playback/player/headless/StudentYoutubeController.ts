@@ -135,11 +135,7 @@ async function postHeartbeat(token: string) {
 
 async function postRefresh(token: string) {
   if (token.startsWith("student-")) return;
-  try {
-    await studentApi.post(`/media/playback/refresh/`, { token });
-  } catch {
-    ignoreBestEffortError();
-  }
+  await studentApi.post(`/media/playback/refresh/`, { token });
 }
 
 async function postEnd(token: string) {
@@ -149,6 +145,27 @@ async function postEnd(token: string) {
   } catch {
     ignoreBestEffortError();
   }
+}
+
+function postFinalEventsThenEnd(
+  token: string,
+  events: Array<{ type: EventType; occurred_at: number; payload?: Record<string, unknown> }>,
+  videoId: number,
+  enrollmentId: number | null,
+) {
+  let endStarted = false;
+  const end = () => {
+    if (endStarted) return;
+    endStarted = true;
+    void postEnd(token).catch(ignoreBestEffortError);
+  };
+  const timer = window.setTimeout(end, 1_000);
+  void postEvents(token, events, videoId, enrollmentId)
+    .catch(ignoreBestEffortError)
+    .finally(() => {
+      window.clearTimeout(timer);
+      end();
+    });
 }
 
 async function postEvents(
@@ -673,8 +690,7 @@ export class StudentYoutubeController {
     }
 
     if (monitoringEnabled && token) {
-      postEnd(token).catch(ignoreBestEffortError);
-      postEvents(token, batch, this.opts.videoId, this.opts.enrollmentId).catch(ignoreBestEffortError);
+      postFinalEventsThenEnd(token, batch, this.opts.videoId, this.opts.enrollmentId);
     }
   }
 }

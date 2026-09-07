@@ -242,6 +242,49 @@ export async function checkStudentVideoAccess(
   return data;
 }
 
+export type StudentVideoPlaybackRenewal = {
+  ok: true;
+  playback_token: string;
+  playback_session_id: string | null;
+  playback_expires_at: number;
+  access_mode: "FREE_REVIEW" | "PROCTORED_CLASS";
+  monitoring_enabled: boolean;
+  policy_version: number;
+  play_url?: string | null;
+};
+
+export async function renewStudentVideoPlayback(
+  token: string,
+): Promise<StudentVideoPlaybackRenewal> {
+  const res = await api.post<StudentVideoPlaybackRenewal>(
+    "/media/playback/renew/",
+    { token },
+  );
+  const data = res.data;
+  if (
+    data?.ok !== true
+    || typeof data.playback_token !== "string"
+    || !data.playback_token
+    || !Number.isInteger(data.playback_expires_at)
+    || data.playback_expires_at * 1000 <= Date.now()
+    || !["FREE_REVIEW", "PROCTORED_CLASS"].includes(data.access_mode)
+    || typeof data.monitoring_enabled !== "boolean"
+    || !Number.isInteger(data.policy_version)
+    || data.policy_version < 1
+    || !(
+      data.playback_session_id === null
+      || typeof data.playback_session_id === "string"
+    )
+    || !(
+      data.play_url == null
+      || (typeof data.play_url === "string" && data.play_url.length > 0)
+    )
+  ) {
+    throw new Error("재생 권한 갱신 응답이 올바르지 않습니다.");
+  }
+  return data;
+}
+
 export type StudentVideoAccessCheck = {
   ok: true;
   access_mode: "FREE_REVIEW" | "PROCTORED_CLASS";

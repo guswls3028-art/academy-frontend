@@ -43,9 +43,11 @@
 
 - 서버 진도 저장, 좋아요, 댓글, 조회수·활동·모니터링 쓰기를 요청하지 않는다.
 - 이어보기 위치는 현재 테넌트·사용자의 브라우저에만 최대 7일 보관한다.
-- `playback_expires_at` 45초 전에 재생 bootstrap을 다시 받아 짧은 서명 만료를
-  갱신한다. 30초 access check가 403을 받거나 갱신에 실패하면 즉시 재생을
-  닫고 다시 시도 경로를 제공한다.
+- `playback_expires_at` 45초 전에 `/media/playback/renew/`로 현재 범위를 다시
+  검증하고 토큰과 짧은 서명 URL을 갱신한다. 전체 bootstrap이나 새 감시 세션을
+  만들지 않고 같은 `<video>`와 controller에서 현재 위치·재생 상태·배속·음량·화질을
+  보존해 URL만 회전한다. 30초 access check가 403을 받거나 갱신에 실패하면 즉시
+  재생을 닫고 다시 시도 경로를 제공한다.
 - 일반 수강, 공개, 비활성 수강 권한 재생은 기존 `enrollment_id` 경로와 서버
   진도·소셜 동작을 그대로 유지한다.
 - 학생 재생 화면 활동 감사는 canonical bootstrap에서 `enrollment_id`가 확인된
@@ -63,6 +65,6 @@ OpenAPI 원본은 `scripts/openapi-backend-source.json`의 immutable backend SHA
 - `e2e/admin/direct-video-access.mock.spec.ts`: 검색 최소 길이, 명시 확인,
   exact grant/revoke payload, 이력 재조회, 390px overflow
 - `e2e/student/direct-video-access.mock.spec.ts`: exact-only 목록, 서버 진도·소셜·
-  활동 쓰기 0, 로컬 이어보기, 만료 전 bootstrap 갱신, 회수 403, 기존 수강 활동
+  활동 쓰기 0, 로컬 이어보기, 만료 전 무중단 token/URL 갱신, 회수 403, 기존 수강 활동
   정확히 1회, bootstrap 실패·취소 활동 0
 - `pnpm api-types:check`, `pnpm typecheck`, `pnpm lint`, `pnpm build`, PR Quality/E2E

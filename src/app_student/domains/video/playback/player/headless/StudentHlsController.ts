@@ -7,6 +7,7 @@ import studentApi from "@student/shared/api/student.api";
 import type Hls from "hls.js";
 import type { ErrorData, LevelSwitchedData, Level } from "hls.js";
 import { clamp, getEpochSec } from "../design/utils";
+import { resolveStudentVideoPlayUrl } from "../playbackUrl";
 
 const ignoreBestEffortError = () => undefined;
 
@@ -69,11 +70,7 @@ async function postHeartbeat(token: string) {
 
 async function postRefresh(token: string) {
   if (token.startsWith("student-")) return;
-  try {
-    await studentApi.post(`/media/playback/refresh/`, { token });
-  } catch {
-    ignoreBestEffortError();
-  }
+  await studentApi.post(`/media/playback/refresh/`, { token });
 }
 
 async function postEnd(token: string) {
@@ -83,6 +80,22 @@ async function postEnd(token: string) {
   } catch {
     ignoreBestEffortError();
   }
+}
+
+function postFinalEventsThenEnd(token: string, events: Array<{ type: EventType; occurred_at: number; payload?: Record<string, unknown> }>, videoId: number, enrollmentId: number | null) {
+  let endStarted = false;
+  const end = () => {
+    if (endStarted) return;
+    endStarted = true;
+    void postEnd(token).catch(ignoreBestEffortError);
+  };
+  const timer = window.setTimeout(end, 1_000);
+  void postEvents(token, events, videoId, enrollmentId)
+    .catch(ignoreBestEffortError)
+    .finally(() => {
+      window.clearTimeout(timer);
+      end();
+    });
 }
 
 async function postEvents(
@@ -183,6 +196,15 @@ export class StudentHlsController {
   private videoListeners: Array<{ ev: string; fn: EventListener }> = [];
   private docCleanups: Array<() => void> = [];
   private tokenRef: string;
+  private initialPositionApplied = false;
+  private pendingSourceResume: {
+    position: number;
+    wasPlaying: boolean;
+    rate: number;
+    volume: number;
+    muted: boolean;
+    quality: number;
+  } | null = null;
 
   constructor(opts: ControllerOptions) {
     this.opts = opts;
@@ -345,6 +367,72 @@ export class StudentHlsController {
 
   setToken(token: string) {
     this.tokenRef = token;
+  }
+  setSource(playUrl: string) {
+    if (this.disposed || !playUrl || playUrl === this.opts.playUrl) return;
+    const url = resolveStudentVideoPlayUrl(playUrl);
+    if (!url) {
+      this.opts.onFatal?.("잘못된 재생 URL 형식입니다.");
+      return;
+    }
+    const previousPlayUrl = this.opts.playUrl;
+    const el = this.el;
+    if (!el) return;
+
+    this.pendingSourceResume = {
+      position: Number(el.currentTime || this.state.current || 0),
+      wasPlaying: !el.paused,
+      rate: Number(el.playbackRate || this.state.rate || 1),
+      volume: Number(el.volume ?? this.state.volume),
+      muted: Boolean(el.muted),
+      quality: this.state.currentQuality,
+    };
+    this.setState({ buffering: true });
+    try {
+      if (this.hls) {
+        this.hls.loadSource(url);
+        this.hls.startLoad?.(this.pendingSourceResume.position);
+      } else {
+        el.src = url;
+        el.load();
+      }
+      this.opts.playUrl = playUrl;
+    } catch {
+      this.pendingSourceResume = null;
+      this.opts.playUrl = previousPlayUrl;
+      this.opts.onFatal?.("새 재생 권한을 영상에 적용하지 못했습니다.");
+    }
+  }
+
+  private resumeAfterSourceRefresh() {
+    const pending = this.pendingSourceResume;
+    const el = this.el;
+    if (!pending || !el || this.disposed) return;
+    this.pendingSourceResume = null;
+    this.seekGuardRef.initialSeekActive = true;
+    this.maxWatchedRef = Math.max(this.maxWatchedRef, pending.position);
+    this.lastTimeRef = pending.position;
+    try {
+      el.currentTime = pending.position;
+      el.playbackRate = pending.rate;
+      el.volume = pending.volume;
+      el.muted = pending.muted;
+      if (pending.quality >= 0 && this.hls) this.hls.currentLevel = pending.quality;
+      if (pending.wasPlaying) el.play().catch(ignoreBestEffortError);
+    } catch {
+      ignoreBestEffortError();
+    }
+    this.setState({
+      current: pending.position,
+      rate: pending.rate,
+      volume: pending.volume,
+      muted: pending.muted,
+      buffering: false,
+    });
+    const releaseGuard = setTimeout(() => {
+      this.seekGuardRef.initialSeekActive = false;
+    }, 200);
+    this.timeouts.push(releaseGuard);
   }
 
   /** 화질 선택. -1 = Auto(ABR). 다른 값은 hls.levels[index]. */
@@ -563,25 +651,9 @@ export class StudentHlsController {
     }
     el.src = "";
 
-    let url = this.opts.playUrl || "";
+    const url = resolveStudentVideoPlayUrl(this.opts.playUrl || "");
     if (!url) {
       this.opts.onFatal?.("재생 URL이 제공되지 않았습니다.");
-      return;
-    }
-
-    try {
-      new URL(url);
-    } catch {
-      const apiBase = String(import.meta.env.VITE_API_BASE_URL || "https://api.hakwonplus.com").trim();
-      const base = apiBase.endsWith("/") ? apiBase.slice(0, -1) : apiBase;
-      const path = url.startsWith("/") ? url : `/${url}`;
-      url = `${base}${path}`;
-    }
-
-    try {
-      new URL(url);
-    } catch {
-      this.opts.onFatal?.(`잘못된 재생 URL 형식입니다: ${url}`);
       return;
     }
 
@@ -598,6 +670,7 @@ export class StudentHlsController {
 
     try {
       const mod = await import("hls.js");
+      if (this.disposed || this.el !== el) return;
       const Hls = mod.default;
 
       if (Hls && Hls.isSupported()) {
@@ -736,7 +809,8 @@ export class StudentHlsController {
 
       // 이어보기: initialPosition이 있으면 해당 위치로 이동 (seek 정책 가드 우회)
       const initPos = this.opts.initialPosition;
-      if (initPos && initPos > 1 && d > 0 && Number.isFinite(d)) {
+      if (!this.initialPositionApplied && initPos && initPos > 1 && d > 0 && Number.isFinite(d)) {
+        this.initialPositionApplied = true;
         const safePos = Math.min(initPos, d - 1);
         if (safePos > 1) {
           this.seekGuardRef.initialSeekActive = true;
@@ -751,6 +825,7 @@ export class StudentHlsController {
           setTimeout(() => { this.seekGuardRef.initialSeekActive = false; }, 200);
         }
       }
+      this.resumeAfterSourceRefresh();
     };
 
     const onTime = () => {
@@ -882,6 +957,11 @@ export class StudentHlsController {
 
   dispose(): void {
     if (this.disposed) return;
+    this.flushProgress(true);
+
+    const monitoringEnabled = this.policy.monitoring_enabled ?? false;
+    const token = this.tokenRef;
+    const batch = this.eventQueue.splice(0, this.eventQueue.length);
     this.disposed = true;
 
     this.listeners.clear();
@@ -909,18 +989,10 @@ export class StudentHlsController {
       this.hls = null;
     }
 
-    const monitoringEnabled = this.policy.monitoring_enabled ?? false;
-    if (monitoringEnabled) {
-      const token = this.tokenRef;
-      if (token) postEnd(token).catch(ignoreBestEffortError);
-      try {
-        this.flushEvents();
-      } catch {
-        ignoreBestEffortError();
-      }
+    if (monitoringEnabled && token) {
+      postFinalEventsThenEnd(token, batch, this.opts.videoId, this.opts.enrollmentId);
     }
 
-    this.flushProgress(true);
     this.el = null;
   }
 }

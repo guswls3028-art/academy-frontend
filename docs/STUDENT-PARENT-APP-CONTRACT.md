@@ -186,9 +186,14 @@
   허용 상태에서는 30초 주기로 재검증하며, fatal 거절 뒤의 타이머·`visibilitychange`와 영상 화면
   이탈 뒤에는 추가 access-check 요청을 보내지 않는다.
 - 서버가 발급한 `playback_token`과 만료 시각이 있으면 개별 허용 영상뿐 아니라 기존
-  수강 영상도 만료 45초 전에 canonical bootstrap을 다시 요청한다. 갱신된 만료 시각이
-  이미 지났거나 재발급에 실패하면 이전 CDN 주소를 계속 사용하지 않고 플레이어를 닫아
-  재생 권한 재확인 실패를 표시한다.
+  수강 영상도 만료 45초 전에 `POST /media/playback/renew/`로 현재 권한을 갱신한다.
+  같은 영상·수강·정책이면 새 토큰과 만료 시각만 적용하고 `<video>` DOM, controller,
+  재생 위치·재생/일시정지·배속·음량·화질, 감시 `playback_session_id`를 유지한다.
+  따라서 갱신 중 로딩 화면, `/playback/end/`, 전체 bootstrap, 조회수·활동 중복이
+  없어야 한다. 일반 수강 영상의 기존 HLS 주소는 다시 불러오지 않고, 짧은 URL 경계가
+  필요한 개별 허용·종료 수강 영상만 새 서명 URL로 같은 controller 안에서 교체한 뒤
+  상태를 복원한다. 정책·모드가 바뀌었거나 갱신이 실패하면 이전 CDN 주소를 계속
+  사용하지 않고 플레이어를 닫아 재생 권한 재확인 실패를 표시한다.
 
 재생 URL·현재 정책·감시 세션을 새로 발급하는 bootstrap은
 `POST /student/video/videos/{videoId}/playback/`이다. `GET`은
