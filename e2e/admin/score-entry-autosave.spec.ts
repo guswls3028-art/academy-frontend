@@ -17,6 +17,8 @@ type ScoreRouteOptions = {
   assessmentStatusDisplay?: "wrong_completion";
   nullScoresPassedFalse?: boolean;
   nullHomeworkScoresPassedFalse?: boolean;
+  attendanceStatuses?: string[];
+  assessmentTodoEligible?: boolean[];
   activeEditors?: Array<{
     client_id: string;
     editor_user_id: number;
@@ -176,60 +178,65 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
               display_order: 2,
             }] : [],
           },
-          rows: currentScores.map((score, index) => ({
-            enrollment_id: 9201 + index,
-            student_id: 9301 + index,
-            student_name: `자동저장학생${index + 1}`,
-            lecture_title: "자동 저장 검증반",
-            lecture_color: "#2563eb",
-            lecture_chip_label: "자",
-            exams: [{
-              exam_id: 9101,
-              title: "주간 확인",
-              pass_score: 60,
-              attempt_count: 1,
-              clinic_link_id: null,
-              block: {
-                score,
-                max_score: 100,
-                passed: score == null
-                  ? options.nullScoresPassedFalse ? false : null
-                  : score >= 60,
-                achievement: score == null && options.nullScoresPassedFalse ? "FAIL" : undefined,
-                clinic_required: score == null ? false : score < 60,
-                is_locked: false,
-                objective_score: score,
-                subjective_score: currentSubjectiveScores[index] ?? null,
-                correction_status: currentCorrectionStatuses[index] ?? null,
-                meta: {},
-              },
-              attempt_count: score == null ? 0 : 1,
-            }],
-            homeworks: includeHomework && homeworkAssignedRows[index] ? [{
-              homework_id: 9151,
-              title: "단원 복습",
-              block: {
-                score: currentHomeworkScores[index],
-                max_score: homeworkMaxScore,
-                passed: currentHomeworkScores[index] == null
-                  ? options.nullHomeworkScoresPassedFalse ? false : null
-                  : homeworkGradingMode === "COMPLETION"
-                    ? currentHomeworkScores[index]! >= 1
-                    : currentHomeworkScores[index]! >= 60,
-                clinic_required: currentHomeworkScores[index] == null
-                  ? false
-                  : homeworkGradingMode === "COMPLETION"
-                    ? currentHomeworkScores[index]! < 1
-                    : currentHomeworkScores[index]! < 60,
-                is_locked: false,
-                meta: {},
-                updated_at: currentHomeworkVersions[index],
-              },
-            }] : [],
-            clinic_required: score == null ? false : score < 60,
-            progress_completed: false,
-            updated_at: "2026-07-25T12:00:00+09:00",
-          })),
+          rows: currentScores.map((score, index) => {
+            const assessmentTodoEligible = options.assessmentTodoEligible?.[index] ?? true;
+            return {
+              enrollment_id: 9201 + index,
+              student_id: 9301 + index,
+              student_name: `자동저장학생${index + 1}`,
+              attendance_status: options.attendanceStatuses?.[index] ?? "PRESENT",
+              assessment_todo_eligible: assessmentTodoEligible,
+              lecture_title: "자동 저장 검증반",
+              lecture_color: "#2563eb",
+              lecture_chip_label: "자",
+              exams: assessmentTodoEligible ? [{
+                exam_id: 9101,
+                title: "주간 확인",
+                pass_score: 60,
+                attempt_count: 1,
+                clinic_link_id: null,
+                block: {
+                  score,
+                  max_score: 100,
+                  passed: score == null
+                    ? options.nullScoresPassedFalse ? false : null
+                    : score >= 60,
+                  achievement: score == null && options.nullScoresPassedFalse ? "FAIL" : undefined,
+                  clinic_required: score == null ? false : score < 60,
+                  is_locked: false,
+                  objective_score: score,
+                  subjective_score: currentSubjectiveScores[index] ?? null,
+                  correction_status: currentCorrectionStatuses[index] ?? null,
+                  meta: {},
+                },
+                attempt_count: score == null ? 0 : 1,
+              }] : [],
+              homeworks: assessmentTodoEligible && includeHomework && homeworkAssignedRows[index] ? [{
+                homework_id: 9151,
+                title: "단원 복습",
+                block: {
+                  score: currentHomeworkScores[index],
+                  max_score: homeworkMaxScore,
+                  passed: currentHomeworkScores[index] == null
+                    ? options.nullHomeworkScoresPassedFalse ? false : null
+                    : homeworkGradingMode === "COMPLETION"
+                      ? currentHomeworkScores[index]! >= 1
+                      : currentHomeworkScores[index]! >= 60,
+                  clinic_required: currentHomeworkScores[index] == null
+                    ? false
+                    : homeworkGradingMode === "COMPLETION"
+                      ? currentHomeworkScores[index]! < 1
+                      : currentHomeworkScores[index]! < 60,
+                  is_locked: false,
+                  meta: {},
+                  updated_at: currentHomeworkVersions[index],
+                },
+              }] : [],
+              clinic_required: assessmentTodoEligible && score != null && score < 60,
+              progress_completed: false,
+              updated_at: "2026-07-25T12:00:00+09:00",
+            };
+          }),
         },
       });
       return;
@@ -459,7 +466,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
           results: currentScores.map((_, index) => ({
             id: 9401 + index,
             enrollment_id: 9201 + index,
-            status: "PRESENT",
+            status: options.attendanceStatuses?.[index] ?? "PRESENT",
           })),
         },
       });
@@ -968,7 +975,10 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
   test.use({ viewport: { width: 1366, height: 900 }, serviceWorkers: "block" });
 
   test("입력 이력이 전혀 없으면 바로 수정 상태로 열리고 저장 후 잠금은 유지된다", async ({ page }, testInfo) => {
-    await openScores(page, { initialScores: [null, null] });
+    await openScores(page, {
+      initialScores: [null, null],
+      initialSubjectiveScores: [null, null],
+    });
 
     const saveAndLockButton = page.getByRole("button", { name: "저장하고 잠금", exact: true });
     await expect(saveAndLockButton).toBeVisible({ timeout: 10_000 });
@@ -984,7 +994,10 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
   });
 
   test("변경 없는 자동 수정 상태에서는 빈 lease를 해제하고 OMR 등록을 연다", async ({ page }) => {
-    await openScores(page, { initialScores: [null, null] });
+    await openScores(page, {
+      initialScores: [null, null],
+      initialSubjectiveScores: [null, null],
+    });
 
     const omrButton = page.getByRole("button", { name: "OMR 스캔 등록" });
     await expect(omrButton).toBeEnabled({ timeout: 10_000 });
@@ -1299,6 +1312,58 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect.poll(() => assignmentPuts.length).toBe(2);
     expect(assignmentPuts.every((request) => request.enrollmentIds.join(",") === "9201,9202")).toBe(true);
     await expect(assignmentNotice).toHaveCount(0);
+  });
+
+  test("실제 결석은 roster에 남지만 시험·과제 todo와 일괄 배정에서 제외된다", async ({ page }, testInfo) => {
+    await openScores(page, {
+      includeHomework: true,
+      initialScores: [null, null],
+      initialHomeworkScores: [null, null],
+      homeworkAssignedRows: [false, false],
+      attendanceStatuses: ["ONLINE", "ABSENT"],
+      assessmentTodoEligible: [true, false],
+    });
+
+    await expect(page.getByText("자동저장학생1", { exact: true })).toBeVisible();
+    await expect(page.getByText("자동저장학생2", { exact: true })).toBeVisible();
+    await expect(page.getByText("결석 제외", { exact: true })).toHaveCount(2);
+    await expect(page.getByRole("cell", { name: "자동저장학생2 · 주간 확인 응시 대상 결석 제외" })).toBeVisible();
+    await expect(page.getByRole("cell", { name: "자동저장학생2 · 단원 복습 제출 대상 결석 제외" })).toBeVisible();
+
+    const absentCheckbox = page.getByRole("checkbox", { name: "자동저장학생2 선택" });
+    await expect(absentCheckbox).toBeDisabled();
+    await page.getByRole("checkbox", { name: "전체 선택" }).check();
+    await expect(page.getByText("1명 선택됨", { exact: true })).toBeVisible();
+
+    const assignmentNotice = page.getByRole("region", { name: "응시·제출 대상 미배정 안내" });
+    await expect(assignmentNotice).toContainText("1명의 응시·제출 배정이 누락됐습니다");
+    await expect(assignmentNotice).toContainText("시험 0칸 · 과제 1칸");
+    await assignmentNotice.getByRole("button", { name: "누락 전부 배정" }).click();
+    await expect.poll(() => assignmentPuts.length).toBe(2);
+    expect(assignmentPuts.every((request) => request.enrollmentIds.join(",") === "9201")).toBe(true);
+
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await page.screenshot({ path: testInfo.outputPath("attendance-todo-matrix-1366.png"), fullPage: true });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.getByText("자동저장학생2", { exact: true })).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await absentCheckbox.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath("attendance-todo-matrix-roster-390.png") });
+    const excludedHomework = page.getByRole("cell", { name: "자동저장학생2 · 단원 복습 제출 대상 결석 제외" });
+    await excludedHomework.evaluate((element) => {
+      const scroller = element.closest<HTMLElement>(".ds-table-wrap--domain-scroll");
+      if (scroller) {
+        scroller.scrollLeft = element.offsetLeft - scroller.clientWidth + element.clientWidth;
+      }
+    });
+    await expect(excludedHomework).toBeVisible();
+    await expect.poll(() => excludedHomework.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      const stickyName = element.parentElement?.querySelector<HTMLElement>('[data-col-type="name"]');
+      const stickyRight = stickyName?.getBoundingClientRect().right ?? 0;
+      return bounds.left >= stickyRight && bounds.right <= window.innerWidth;
+    })).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath("attendance-todo-matrix-excluded-390.png") });
   });
 
   test("키보드 이동은 미배정 칸을 건너뛰고 배정된 과제 점수는 셀에서 저장한다", async ({ page }) => {

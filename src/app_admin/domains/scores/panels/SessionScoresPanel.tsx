@@ -138,8 +138,12 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
 
   const allRows = useMemo<SessionScoreRow[]>(() => {
     const raw = data?.rows ?? [];
-    // 시험·과제 둘 다 대상 등록이 안 된 학생은 성적탭에서 제외
-    return raw.filter((r) => (r.exams?.length ?? 0) > 0 || (r.homeworks?.length ?? 0) > 0);
+    // 실제 결석은 현재 시험/과제 todo가 없어도 출결 roster에는 남긴다.
+    return raw.filter((r) => (
+      r.assessment_todo_eligible === false
+      || (r.exams?.length ?? 0) > 0
+      || (r.homeworks?.length ?? 0) > 0
+    ));
   }, [data]);
   const meta: SessionScoreMeta | null = data?.meta ?? null;
   const attendancePageSize = allRows.length > 50 ? Math.min(allRows.length, 500) : undefined;
@@ -187,13 +191,16 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   const attendanceMap = useMemo(() => {
     const list = attendanceList?.data ?? [];
     const map: Record<number, string> = {};
+    for (const row of allRows) {
+      if (row.attendance_status) map[row.enrollment_id] = row.attendance_status;
+    }
     for (const a of list) {
       const item = a as { enrollment_id?: number; enrollment?: number; status?: string };
       const eid = item?.enrollment_id ?? item?.enrollment;
       if (eid != null && item?.status) map[Number(eid)] = String(item.status);
     }
     return map;
-  }, [attendanceList]);
+  }, [allRows, attendanceList]);
 
   /** enrollment_id → attendance record id (for PATCH API) */
   const attendanceIdMap = useMemo(() => {
@@ -243,6 +250,19 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     if (summaryColumnMode !== "exam_wrong" || examReviewFilter === "all") return searchedRows;
     return searchedRows.filter((row) => matchesSessionRowExamReviewFilter(row, examReviewFilter));
   }, [allRows, examReviewFilter, search, summaryColumnMode]);
+
+  useEffect(() => {
+    if (!onSelectionChange || selectedEnrollmentIds.length === 0) return;
+    const eligibleIds = new Set(
+      allRows
+        .filter((row) => row.assessment_todo_eligible !== false)
+        .map((row) => row.enrollment_id),
+    );
+    const nextSelection = selectedEnrollmentIds.filter((id) => eligibleIds.has(id));
+    if (nextSelection.length !== selectedEnrollmentIds.length) {
+      onSelectionChange(nextSelection);
+    }
+  }, [allRows, onSelectionChange, selectedEnrollmentIds]);
 
   // 드로어에 항상 최신 rows 데이터를 전달 (쿼리 갱신 시 자동 반영)
   const drawerRow = useMemo(

@@ -45,6 +45,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 
 import "./ScoreCollaborationPresence.css";
+import "./ScoresTable.css";
 
 /** 컬럼 기본 너비 */
 const COL_EDIT = 36;
@@ -1084,9 +1085,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   }, [columnWidths.attendance, columnWidths.name, columnWidths.select]);
 
   const selectedSet = useMemo(() => new Set(selectedEnrollmentIds), [selectedEnrollmentIds]);
+  const selectableRows = useMemo(
+    () => rows.filter((row) => row.assessment_todo_eligible !== false),
+    [rows],
+  );
   const allSelected =
-    rows.length > 0 &&
-    rows.every((r) => selectedSet.has(r.enrollment_id));
+    selectableRows.length > 0 &&
+    selectableRows.every((r) => selectedSet.has(r.enrollment_id));
 
   return (
     <div>
@@ -1127,9 +1132,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 <input
                   type="checkbox"
                   checked={allSelected}
+                  disabled={selectableRows.length === 0}
                   onChange={(e) => {
                     if (e.target.checked) {
-                      onSelectionChange(rows.map((r) => r.enrollment_id));
+                      onSelectionChange(selectableRows.map((r) => r.enrollment_id));
                     } else {
                       onSelectionChange([]);
                     }
@@ -1416,6 +1422,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         {rows.map((row, rowIndex) => {
           const selected = selectedEnrollmentId === row.enrollment_id;
           const rowChecked = selectedSet.has(row.enrollment_id);
+          const assessmentTodoEligible = row.assessment_todo_eligible !== false;
           const { reason: clinicReason } = getClinicReason(row);
           const isEvenRow = rowIndex % 2 === 1;
 
@@ -1436,8 +1443,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     <input
                       type="checkbox"
                       checked={selectedSet.has(row.enrollment_id)}
+                      disabled={!assessmentTodoEligible}
                       onChange={(e) => {
                         e.stopPropagation();
+                        if (!assessmentTodoEligible) return;
                         if (e.target.checked) {
                           onSelectionChange([...selectedEnrollmentIds, row.enrollment_id]);
                         } else {
@@ -1446,7 +1455,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       }}
                       onClick={(e) => e.stopPropagation()}
                       aria-label={`${row.student_name} 선택`}
-                      className="cursor-pointer"
+                      title={!assessmentTodoEligible ? "실제 결석 차시는 학습 작업 대상에서 제외됩니다." : undefined}
+                      className={assessmentTodoEligible ? "cursor-pointer" : "cursor-not-allowed"}
                     />
                   ) : (
                     <span className="w-4 inline-block" />
@@ -1511,18 +1521,28 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                         // 시험 대상 미등록 → 회색 비활성 셀.
                         // P1-7 (2026-05-13): hover tooltip 추가 — 학원장이 "왜 입력 안 되지" 헷갈림 방지.
                         if (notEnrolledForExam) {
+                          const exclusionLabel = assessmentTodoEligible ? "미배정" : "결석 제외";
                           return (
                             <td
                               key={col.key}
                               className="ds-scores-cell-unassigned min-w-0 text-center align-middle"
                               data-col-type="score"
-                              data-assignment-state="missing"
+                              data-assignment-state={assessmentTodoEligible ? "missing" : "excluded"}
                               {...(colIdx === 0 ? { "data-group-start": "" } : {})}
                               data-group-parity={groupParity}
-                              title={`${ex.title} 응시 대상 미등록 — 상단 "수강생 일괄배정" 으로 추가하세요`}
-                              aria-label={`${row.student_name} · ${ex.title} 응시 대상 미배정`}
+                              title={assessmentTodoEligible
+                                ? `${ex.title} 응시 대상 미등록 — 상단 "수강생 일괄배정" 으로 추가하세요`
+                                : `${ex.title} · 실제 결석 차시 학습 작업 제외`}
+                              aria-label={`${row.student_name} · ${ex.title} 응시 대상 ${exclusionLabel}`}
                             >
-                              <Badge variant="soft" tone="warning" size="xs" shape="square">미배정</Badge>
+                              <Badge
+                                variant="soft"
+                                tone={assessmentTodoEligible ? "warning" : "muted"}
+                                size="xs"
+                                shape="square"
+                              >
+                                {exclusionLabel}
+                              </Badge>
                             </td>
                           );
                         }
@@ -2129,13 +2149,22 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           <td
                             className="ds-scores-cell-unassigned min-w-0 text-center align-middle"
                             data-col-type="score"
-                            data-assignment-state="missing"
+                            data-assignment-state={assessmentTodoEligible ? "missing" : "excluded"}
                             data-group-parity={hwParity}
                             {...(hwBodyIdx === 0 ? { "data-section-start": "" } : {})}
-                            title={`${hw.title} 제출 대상 미등록 — 상단 "수강생 일괄배정" 으로 추가하세요`}
-                            aria-label={`${row.student_name} · ${hw.title} 제출 대상 미배정`}
+                            title={assessmentTodoEligible
+                              ? `${hw.title} 제출 대상 미등록 — 상단 "수강생 일괄배정" 으로 추가하세요`
+                              : `${hw.title} · 실제 결석 차시 학습 작업 제외`}
+                            aria-label={`${row.student_name} · ${hw.title} 제출 대상 ${assessmentTodoEligible ? "미배정" : "결석 제외"}`}
                           >
-                            <Badge variant="soft" tone="warning" size="xs" shape="square">미배정</Badge>
+                            <Badge
+                              variant="soft"
+                              tone={assessmentTodoEligible ? "warning" : "muted"}
+                              size="xs"
+                              shape="square"
+                            >
+                              {assessmentTodoEligible ? "미배정" : "결석 제외"}
+                            </Badge>
                           </td>
                       ) : (
                       <td

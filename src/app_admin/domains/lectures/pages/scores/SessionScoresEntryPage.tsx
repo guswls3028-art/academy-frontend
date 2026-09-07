@@ -323,7 +323,14 @@ export default function SessionScoresEntryPage({
     setEnrollingAll(true);
     try {
       const enrollments = await fetchSessionEnrollments(numericSessionId);
-      const enrollmentIds = enrollments.map((e) => e.enrollment);
+      const eligibleEnrollmentIds = new Set(
+        (data?.rows ?? [])
+          .filter((row) => row.assessment_todo_eligible !== false)
+          .map((row) => row.enrollment_id),
+      );
+      const enrollmentIds = enrollments
+        .map((e) => e.enrollment)
+        .filter((enrollmentId) => eligibleEnrollmentIds.has(enrollmentId));
       if (enrollmentIds.length === 0) {
         feedback.error("세션에 등록된 수강생이 없습니다.");
         return;
@@ -507,6 +514,7 @@ export default function SessionScoresEntryPage({
 
   const examReviewOverview = useMemo(() => {
     const searchedRows = (data?.rows ?? [])
+      .filter((row) => row.assessment_todo_eligible !== false)
       .filter((row) => (row.exams?.length ?? 0) > 0 || (row.homeworks?.length ?? 0) > 0)
       .filter((row) => matchesSessionScoreStudentSearch(row.student_name ?? "", searchInput));
     const counts = { all: searchedRows.length, incomplete: 0, pending: 0, resolved: 0 };
@@ -574,6 +582,7 @@ export default function SessionScoresEntryPage({
     const affectedEnrollmentIds = new Set<number>();
 
     for (const row of rows) {
+      if (row.assessment_todo_eligible === false) continue;
       const assignedExamIds = new Set((row.exams ?? []).map((exam) => exam.exam_id));
       const assignedHomeworkIds = new Set((row.homeworks ?? []).map((homework) => homework.homework_id));
       for (const examId of examIds) {
