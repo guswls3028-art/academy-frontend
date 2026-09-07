@@ -16,6 +16,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router";
 import { Input } from "antd";
 import { Check, AlertCircle, AlertTriangle, Edit3, Tag, Shield, CalendarClock } from "lucide-react";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
@@ -289,6 +290,7 @@ export default function SendMessageModal({
   recomputePerStudentVarsRef,
 }: SendMessageModalProps) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const confirm = useConfirm();
   const runTrackedTask = useTrackedTask();
 
@@ -304,6 +306,8 @@ export default function SendMessageModal({
   const [sendTiming, setSendTiming] = useState<SendTiming>("now");
   const [scheduledAt, setScheduledAt] = useState(defaultScheduledLocalValue);
   const sendingRef = useRef(false);
+  const requestIdRef = useRef<string | null>(null);
+  const requestFingerprintRef = useRef("");
   const [templates, setTemplates] = useState<MessageTemplateItem[]>([]);
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [saveTemplateName, setSaveTemplateName] = useState("");
@@ -477,8 +481,9 @@ export default function SendMessageModal({
     && preflightPreviewReady
     && preflightBlockers.length === 0;
 
-  const buildSendPayload = useCallback((sendTo: SendToType): Parameters<typeof sendMessage>[0] => {
+  const buildSendPayload = useCallback((sendTo: SendToType, requestId?: string): Parameters<typeof sendMessage>[0] => {
     const payload: Parameters<typeof sendMessage>[0] = { send_to: sendTo, message_mode: "alimtalk" };
+    if (requestId) payload.request_id = requestId;
     payload.student_ids = studentIds;
     if (selectedTemplateId) payload.template_id = selectedTemplateId;
     if (effectiveBlockCategory) payload.block_category = effectiveBlockCategory;
@@ -678,6 +683,8 @@ export default function SendMessageModal({
     setConfirmPreviewStudentId(null);
     setConfirmRecipientsExpanded(false);
     sendingRef.current = false;
+    requestIdRef.current = null;
+    requestFingerprintRef.current = "";
   }, [open, blockCategory, initialBody, initialTemplateId, initialLetterPresetId]);
 
   // 자동 선택: 본 테넌트 양식 (카테고리 일치) > 시스템 기본.
@@ -891,14 +898,22 @@ export default function SendMessageModal({
     let totalSkipped = 0;
     let totalEnqueueFailed = 0;
     const completedTargetLabels: string[] = [];
+    const targets = sendToTargets;
+    const requestFingerprint = JSON.stringify(
+      targets.map((sendTo) => buildSendPayload(sendTo)),
+    );
+    if (!requestIdRef.current || requestFingerprintRef.current !== requestFingerprint) {
+      requestIdRef.current = globalThis.crypto.randomUUID();
+      requestFingerprintRef.current = requestFingerprint;
+    }
+    const requestId = requestIdRef.current;
     try {
       let completedCalls = 0;
       const totalCalls = sendToTargets.length;
 
-      const targets = sendToTargets;
       await runTrackedTask("messaging.alimtalk.request", async () => {
         for (const sendTo of targets) {
-          const res = await sendMessage(buildSendPayload(sendTo));
+          const res = await sendMessage(buildSendPayload(sendTo, requestId));
           totalEnqueued += res.enqueued ?? 0;
           totalScheduled += res.scheduled ?? 0;
           totalSkipped += res.skipped_no_phone ?? 0;
@@ -923,7 +938,18 @@ export default function SendMessageModal({
         const actionLabel = sendTiming === "scheduled"
           ? `${formatScheduleLabel(scheduledSendAtIso)} 예약 접수`
           : "발송 접수";
-        feedback.success(`${sendToLabel} 알림톡 ${accepted}건 ${actionLabel}${skippedNote} — 실제 성공·실패는 발송 내역에서 확인하세요.`);
+        if (sendTiming === "scheduled") {
+          feedback.success(`${sendToLabel} 알림톡 ${accepted}건 ${actionLabel}${skippedNote} — 실제 성공·실패는 발송 내역에서 확인하세요.`);
+        } else {
+          feedback.successWithAction({
+            message: `${sendToLabel} 알림톡 ${accepted}건 ${actionLabel}${skippedNote}`,
+            description: "요청 접수와 실제 전달은 다릅니다. 이 요청의 공급사 상태를 확인하세요.",
+            action: {
+              label: "발송 내역 확인",
+              onClick: () => navigate(`/workspace/message/log?origin_id=${encodeURIComponent(requestId)}`),
+            },
+          });
+        }
         asyncStatusStore.setTaskLabel(taskId, sendTiming === "scheduled" ? "알림톡 예약 접수 완료" : "알림톡 발송 접수 완료");
         asyncStatusStore.completeTask(taskId, "success");
       } else {

@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -468,6 +469,8 @@ function PaginationBar({
 export default function MessageLogPage() {
   const qc = useQueryClient();
   const confirm = useConfirm();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const originId = (searchParams.get("origin_id") || "").trim();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedItem, setSelectedItem] = useState<NotificationLogItem | null>(null);
@@ -475,6 +478,7 @@ export default function MessageLogPage() {
     page: currentPage,
     page_size: PAGE_SIZE,
     status: statusFilter === "all" ? undefined : statusFilter,
+    origin_id: originId || undefined,
   });
   const { data: scheduledData } = useQuery({
     queryKey: messageQueryKeys.scheduledPending,
@@ -541,6 +545,26 @@ export default function MessageLogPage() {
       </header>
 
       <OperationsStrip status={operationsStatus} loading={operationsLoading} />
+
+      {originId && (
+        <section className={styles.requestFilter} aria-label="이번 발송 요청 필터">
+          <span>
+            <strong>이번 발송 요청만 확인 중</strong>
+            <small>새로고침해도 같은 요청의 처리 기록만 유지됩니다.</small>
+          </span>
+          <Button
+            intent="secondary"
+            size="sm"
+            onClick={() => {
+              const next = new URLSearchParams(searchParams);
+              next.delete("origin_id");
+              setSearchParams(next, { replace: true });
+            }}
+          >
+            전체 내역 보기
+          </Button>
+        </section>
+      )}
 
       {pendingScheduled.length > 0 && (
         <section className={styles.scheduledPanel} aria-label="예약 발송">

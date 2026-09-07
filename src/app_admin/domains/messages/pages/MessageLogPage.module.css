@@ -101,6 +101,34 @@
   font-size: 12px;
 }
 
+.requestFilter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+  padding: 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--color-primary, #2563eb) 24%, var(--color-border-divider, #e2e8f0));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-primary, #2563eb) 6%, var(--color-bg-surface, #fff));
+}
+
+.requestFilter span {
+  display: grid;
+  gap: 2px;
+}
+
+.requestFilter small {
+  color: var(--color-text-muted, #64748b);
+}
+
+@media (max-width: 640px) {
+  .requestFilter {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 .operationsStrip[data-tone="warning"] {
   border-color: color-mix(in srgb, var(--color-status-warning, #d97706) 32%, #e8dda5);
 }

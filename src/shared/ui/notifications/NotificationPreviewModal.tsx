@@ -358,7 +358,9 @@ export default function NotificationPreviewModal(props: Props) {
                   </span>
                 )}
                 <span>공급사 접수·최종 전달과는 다릅니다.</span>
-                <a href="/workspace/message/log">발송 내역에서 실제 전달 결과 확인</a>
+                <a href={`/workspace/message/log?origin_id=${encodeURIComponent(confirmResult.batch_id)}`}>
+                  이 요청의 실제 전달 결과 확인
+                </a>
               </div>
             )}
           </div>
