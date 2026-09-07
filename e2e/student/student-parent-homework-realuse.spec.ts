@@ -57,6 +57,7 @@ const lectureTitle = `QA 과제 projection ${runStamp}`;
 const sessionTitle = `QA 과제 1차시 ${runStamp}`;
 const homeworkTitle = `QA 과제 제출 채점 ${runStamp}`;
 const uploadName = `qa-homework-${runStamp}.png`;
+const parentUploadName = `qa-parent-homework-${runStamp}.png`;
 
 async function waitForHomeworkSummary(
   request: APIRequestContext,
@@ -202,7 +203,7 @@ async function gradeHomework(request: APIRequestContext, adminAccess: string): P
   }
 }
 
-test.describe.serial("[real-use] 학생 과제에서 학부모 projection", () => {
+test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
   test.describe.configure({ retries: 0 });
   test.skip(!STUDENT_PARENT_REALUSE_ENABLED, "Enable only inside the isolated qa-* development runner.");
 
@@ -214,7 +215,7 @@ test.describe.serial("[real-use] 학생 과제에서 학부모 projection", () =
     await cleanup(request);
   });
 
-  test("390px 파일 제출·채점·학부모 read-only 성적·reload/relogin·desktop을 완료한다", async ({ page, request }) => {
+  test("390px 학생·학부모 파일 제출, 채점·reload/relogin·desktop을 완료한다", async ({ page, request }) => {
     const boundary = await installQaStudentParentBoundary(page, request);
     const browser = attachStrictBrowserGuards(page);
     const admin = await loginAdmin(request);
@@ -255,24 +256,48 @@ test.describe.serial("[real-use] 학생 과제에서 학부모 projection", () =
       expect(media.files).toContainEqual(expect.objectContaining({ original_filename: uploadName }));
     });
 
-    await gradeHomework(request, admin.access);
-    const graded = await waitForHomeworkSummary(
-      request,
-      studentTokens.access,
-      (row) => row.score === 92 && row.passed === true && row.achievement === "PASS",
-    );
-    expect(graded.title).toBe(homeworkTitle);
-    await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
-    await page.getByRole("button", { name: "과제 현황" }).click();
-    await expect(page.getByText(homeworkTitle).first()).toBeVisible();
-    await expect(page.getByText(/92\s*\/\s*100|92점|92/).first()).toBeVisible();
-    await assertNoHorizontalOverflow(page);
-
     await logoutStudentApp(page);
     await loginThroughUi(page, created.family.parentPhone, created.family.parentPassword);
     await gotoAndSettle(page, `${QA_BASE}/student/submit/assignment`, { timeout: 30_000 });
-    await expect(page.getByText("학부모 계정은 직접 제출할 수 없습니다.")).toBeVisible();
+    await expect(page.getByText("학부모 계정은 직접 제출할 수 없습니다.")).toHaveCount(0);
+    await page.getByText(homeworkTitle, { exact: true }).click();
+    await page.locator("input[type='file']").first().setInputFiles({
+      name: parentUploadName,
+      mimeType: "image/png",
+      buffer: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+        "base64",
+      ),
+    });
+    await page.getByRole("button", { name: "파일 1개 제출하기" }).click();
+    await expect(page.getByText("선택한 파일을 모두 제출했습니다.")).toBeVisible({ timeout: 45_000 });
+
     const parentTokens = await loginApi(request, created.family.parentPhone, created.family.parentPassword);
+    const parentMediaResponse = await request.get(
+      `${QA_API}/api/v1/submissions/submissions/homework/${created.homeworkId}/media/?enrollment_id=${created.enrollmentId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${parentTokens.access}`,
+          "X-Tenant-Code": QA_TENANT,
+          "X-Student-Id": String(student.id),
+        },
+        timeout: 60_000,
+      },
+    );
+    expect(parentMediaResponse.status()).toBe(200);
+    const parentMedia = await parentMediaResponse.json() as { files: Array<{ original_filename: string }> };
+    expect(parentMedia.files.map((file) => file.original_filename)).toEqual(
+      expect.arrayContaining([uploadName, parentUploadName]),
+    );
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await waitForRenderSettled(page, { timeout: 20_000 });
+    await page.getByText(homeworkTitle, { exact: true }).click();
+    await expect(page.getByText(uploadName, { exact: true })).toBeVisible();
+    await expect(page.getByText(parentUploadName, { exact: true })).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+
+    await gradeHomework(request, admin.access);
     await waitForHomeworkSummary(request, parentTokens.access, (row) => row.score === 92, student.id);
     await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
     await page.getByRole("button", { name: "과제 현황" }).click();
@@ -287,6 +312,19 @@ test.describe.serial("[real-use] 학생 과제에서 학부모 projection", () =
     await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
     await page.getByRole("button", { name: "과제 현황" }).click();
     await expect(page.getByText(homeworkTitle).first()).toBeVisible();
+
+    await logoutStudentApp(page);
+    await loginThroughUi(page, student.ps_number, student.password);
+    const graded = await waitForHomeworkSummary(
+      request,
+      studentTokens.access,
+      (row) => row.score === 92 && row.passed === true && row.achievement === "PASS",
+    );
+    expect(graded.title).toBe(homeworkTitle);
+    await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
+    await page.getByRole("button", { name: "과제 현황" }).click();
+    await expect(page.getByText(homeworkTitle).first()).toBeVisible();
+    await expect(page.getByText(/92\s*\/\s*100|92점|92/).first()).toBeVisible();
 
     await page.setViewportSize({ width: 1366, height: 900 });
     await assertNoHorizontalOverflow(page);

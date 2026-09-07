@@ -86,23 +86,6 @@ async function waitForResult(
   return latest;
 }
 
-async function submitByApi(
-  request: APIRequestContext,
-  student: QaStudent,
-  examId: number,
-  questionIds: number[],
-  answers: string[],
-): Promise<ResultBody> {
-  const studentTokens = await loginApi(request, student.ps_number, student.password);
-  await expectApi(request, "POST", `/student/exams/${examId}/submit/`, studentTokens.access, {
-    answers: questionIds.map((questionId, index) => ({
-      exam_question_id: questionId,
-      answer: answers[index],
-    })),
-  }, [201]);
-  return waitForResult(request, studentTokens.access, examId);
-}
-
 async function cleanup(request: APIRequestContext): Promise<void> {
   if (!created.adminAccess) return;
   const failures: string[] = [];
@@ -225,7 +208,7 @@ async function submitFirstStudentThroughUi(
   page: Page,
   student: QaStudent,
   examId: number,
-): Promise<void> {
+): Promise<number> {
   await page.setViewportSize({ width: 390, height: 844 });
   await loginThroughUi(page, student.ps_number, student.password);
   await gotoAndSettle(page, `${QA_BASE}/student/exams/${examId}/submit`, { timeout: 30_000 });
@@ -234,15 +217,24 @@ async function submitFirstStudentThroughUi(
     await page.getByLabel(`${number}번 답`).fill(answer);
   }
   await expect(page.getByText("5/5문항 (100%)")).toBeVisible();
+  const submitResponse = page.waitForResponse((response) => (
+    response.request().method() === "POST"
+    && new URL(response.url()).pathname.endsWith(`/api/v1/student/exams/${examId}/submit/`)
+  ));
   await page.getByRole("button", { name: "제출하기" }).click();
   await page.locator("[data-confirm-dialog]").getByRole("button", { name: "제출" }).click();
+  const submitted = await submitResponse;
+  expect(submitted.status()).toBe(201);
+  const submissionId = Number((await submitted.json() as { submission_id: number }).submission_id);
+  expect(submissionId).toBeGreaterThan(0);
   await page.waitForURL(`**/student/exams/${examId}/result`, { timeout: 45_000 });
   await waitForRenderSettled(page, { timeout: 20_000 });
   await expect(page.getByTestId("wrong-number-chip")).toHaveText(["2", "5"]);
   await assertNoHorizontalOverflow(page);
+  return submissionId;
 }
 
-test.describe.serial("[real-use] 학생 제출에서 학부모 성적 projection", () => {
+test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
   test.describe.configure({ retries: 0 });
   test.skip(!STUDENT_PARENT_REALUSE_ENABLED, "Enable only inside the isolated qa-* development runner.");
 
@@ -254,51 +246,26 @@ test.describe.serial("[real-use] 학생 제출에서 학부모 성적 projection
     await cleanup(request);
   });
 
-  test("390px 제출·authoritative result·학부모 자녀별 조회·reload/relogin·desktop을 완료한다", async ({ page, request }) => {
+  test("390px 학생·학부모 자녀별 제출·결과·reload/relogin·desktop을 완료한다", async ({ page, request }) => {
     const boundary = await installQaStudentParentBoundary(page, request);
     const browser = attachStrictBrowserGuards(page);
     const admin = await loginAdmin(request);
     created.adminAccess = admin.access;
     created.family = await createQaFamily(request, admin.access, "assessment", 2);
     const [primary, peer] = created.family.students;
-    const questionIds = await seedAssessment(request, admin.access, created.family);
+    await seedAssessment(request, admin.access, created.family);
 
-    const peerResult = await submitByApi(
-      request,
-      peer,
-      created.examId!,
-      questionIds,
-      ["5", "5", "5", "5", "5"],
-    );
-    expect(peerResult.total_score).toBe(20);
-
-    await submitFirstStudentThroughUi(page, primary, created.examId!);
+    created.submissionIds.push(await submitFirstStudentThroughUi(page, primary, created.examId!));
     const primaryTokens = await loginApi(request, primary.ps_number, primary.password);
     const primaryResult = await waitForResult(request, primaryTokens.access, created.examId!);
     expect(primaryResult).toMatchObject({
       total_score: 60,
-      rank: 1,
-      cohort_size: 2,
       analysis: { wrong_count: 2, wrong_question_numbers: [2, 5] },
     });
 
     await logoutStudentApp(page);
     await loginThroughUi(page, created.family.parentPhone, created.family.parentPassword);
-    await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
-    const firstCard = page.getByRole("link").filter({ hasText: examTitle }).first();
-    await expect(firstCard).toBeVisible();
-    await expect(firstCard.getByTestId("grade-wrong-summary")).toContainText("오답 2문항");
-    await expect(firstCard.getByText("1/2등")).toBeVisible();
-    await gotoAndSettle(page, `${QA_BASE}/student/notifications`, { timeout: 30_000 });
-    await expect(page.getByRole("heading", { name: "새 성적" })).toBeVisible();
-    await expect(page.getByText(examTitle, { exact: true })).toBeVisible();
-
     const parentTokens = await loginApi(request, created.family.parentPhone, created.family.parentPassword);
-    expect(await waitForResult(request, parentTokens.access, created.examId!, primary.id)).toMatchObject({
-      total_score: 60,
-      analysis: { wrong_question_numbers: [2, 5] },
-    });
-
     const switcher = page.getByRole("tablist", { name: "자녀 선택" });
     const peerTab = switcher.getByRole("tab", { name: peer.name });
     const peerRequest = page.waitForRequest((requestItem) => (
@@ -307,19 +274,77 @@ test.describe.serial("[real-use] 학생 제출에서 학부모 성적 projection
     ));
     await peerTab.click();
     await peerRequest;
-    await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
-    await expect(page.getByRole("link").filter({ hasText: examTitle }).first()).toBeVisible();
+    await gotoAndSettle(page, `${QA_BASE}/student/exams/${created.examId}/submit`, { timeout: 30_000 });
+    await expect(page.getByText(examTitle)).toBeVisible();
+    await expect(page.getByText("학부모 계정은 시험을 제출할 수 없습니다.")).toHaveCount(0);
+    for (const number of [1, 2, 3, 4, 5]) {
+      await page.getByLabel(`${number}번 답`).fill("5");
+    }
+    const parentSubmitResponse = page.waitForResponse((response) => (
+      response.request().method() === "POST"
+      && new URL(response.url()).pathname.endsWith(`/api/v1/student/exams/${created.examId}/submit/`)
+    ));
+    await page.getByRole("button", { name: "제출하기" }).click();
+    await page.locator("[data-confirm-dialog]").getByRole("button", { name: "제출" }).click();
+    const parentSubmitted = await parentSubmitResponse;
+    expect(parentSubmitted.status()).toBe(201);
+    const parentSubmissionId = Number((await parentSubmitted.json() as { submission_id: number }).submission_id);
+    expect(parentSubmissionId).toBeGreaterThan(0);
+    created.submissionIds.push(parentSubmissionId);
+    await page.waitForURL(`**/student/exams/${created.examId}/result`, { timeout: 45_000 });
+    await expect(page.getByTestId("wrong-number-chip")).toHaveText(["1", "2", "3", "4"]);
     expect(await waitForResult(request, parentTokens.access, created.examId!, peer.id)).toMatchObject({
       total_score: 20,
       analysis: { wrong_count: 4 },
     });
+    const teacherProjection = await expectApi<{
+      user: number;
+      target_type: string;
+      target_id: number;
+      meta: { submitted_by_user_id?: number };
+    }>(request, "GET", `/submissions/submissions/${parentSubmissionId}/`, admin.access);
+    expect(teacherProjection).toMatchObject({
+      target_type: "exam",
+      target_id: created.examId,
+    });
+    expect(teacherProjection.user).toBeGreaterThan(0);
+    expect(teacherProjection.meta.submitted_by_user_id).toBeGreaterThan(0);
+    expect(teacherProjection.meta.submitted_by_user_id).not.toBe(teacherProjection.user);
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await waitForRenderSettled(page, { timeout: 20_000 });
     await expect(page.getByRole("tab", { name: peer.name })).toHaveAttribute("aria-selected", "true");
+
+    await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
+    await expect(page.getByRole("link").filter({ hasText: examTitle }).first()).toBeVisible();
+    const primaryTab = page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: primary.name });
+    const primaryRequest = page.waitForRequest((requestItem) => (
+      requestItem.url().includes("/api/v1/student/")
+      && requestItem.headers()["x-student-id"] === String(primary.id)
+    ));
+    await primaryTab.click();
+    await primaryRequest;
+    await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
+    const firstCard = page.getByRole("link").filter({ hasText: examTitle }).first();
+    await expect(firstCard).toBeVisible();
+    await expect(firstCard.getByTestId("grade-wrong-summary")).toContainText("오답 2문항");
+    await expect(firstCard.getByText("1/2등")).toBeVisible();
+    expect(await waitForResult(request, parentTokens.access, created.examId!, primary.id)).toMatchObject({
+      total_score: 60,
+      rank: 1,
+      cohort_size: 2,
+      analysis: { wrong_question_numbers: [2, 5] },
+    });
+    await gotoAndSettle(page, `${QA_BASE}/student/notifications`, { timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "새 성적" })).toBeVisible();
+    await expect(page.getByText(examTitle, { exact: true })).toBeVisible();
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await waitForRenderSettled(page, { timeout: 20_000 });
+    await expect(page.getByRole("tab", { name: primary.name })).toHaveAttribute("aria-selected", "true");
     await logoutStudentApp(page);
     await loginThroughUi(page, created.family.parentPhone, created.family.parentPassword);
-    await expect(page.getByRole("tab", { name: peer.name })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("tab", { name: primary.name })).toHaveAttribute("aria-selected", "true");
 
     await page.setViewportSize({ width: 1366, height: 900 });
     await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });

@@ -291,7 +291,11 @@ frontend를 반영한다. 새 frontend는 POST가 실패하면 bootstrap을 실�
   정상 파일을 유지하면서 빈 파일과 비지원 형식을 각각 명시하는지 검증한다. 같은
   파일의 학부모 회귀는 선택 자녀 헤더, 제출, reload 복원, 390px overflow를 함께
   검증하고 `e2e/student/numeric-short-answer.spec.ts`는 학부모 온라인 시험 초안이
-  계정·자녀별로 분리된 채 재접속 후 제출되는지 검증한다.
+  계정·자녀별로 분리된 채 재접속 후 제출되는지 검증한다. 격리된 development
+  same-artifact 검증에서는 `student-parent-homework-realuse.spec.ts`와
+  `student-parent-assessment-realuse.spec.ts`가 학생 본인과 학부모 선택 자녀의 실제
+  제출, 성공 응답, reload/relogin 지속성, 성적·교사 후속 투영과 exact cleanup 0을
+  모두 완료해야 한다. skip이나 기존 read-only 안내 확인은 성공 증거가 아니다.
 
 ## 실패 동작과 검증
 
