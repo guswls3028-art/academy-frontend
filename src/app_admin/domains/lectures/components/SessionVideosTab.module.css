@@ -11,11 +11,39 @@
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
+.cardSelected {
+  border-color: var(--color-brand-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 14%, transparent);
+}
+
 .orderBar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 6px;
+}
+
+.cardSelection {
+  min-width: 0;
+}
+
+.selectionHitArea,
+.selectAllHitArea {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm, 14px);
+  font-weight: 600;
+}
+
+.selectionHitArea input,
+.selectAllHitArea input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-brand-primary);
 }
 
 .orderIndex {
@@ -110,6 +138,28 @@
   gap: 8px;
 }
 
+.bulkToolbar {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border-divider);
+  padding-bottom: var(--space-3);
+}
+
+.selectAllHitArea {
+  padding: 0 var(--space-1);
+}
+
+.selectedCount {
+  margin-right: auto;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm, 14px);
+  font-weight: 600;
+}
+
 .panel {
   border: 1px solid var(--color-border-divider);
   border-radius: var(--radius-xl);
@@ -156,4 +206,24 @@
   color: var(--color-text-muted);
   font-size: 12px;
   font-weight: 600;
+}
+
+@media (max-width: 520px) {
+  .panel {
+    padding: var(--space-3);
+  }
+
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bulkToolbar :global(.ds-button) {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .selectedCount {
+    margin-right: 0;
+    margin-left: auto;
+  }
 }

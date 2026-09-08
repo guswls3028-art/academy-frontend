@@ -251,6 +251,23 @@ export async function updateVideo(
   return normalizeVideo(res.data);
 }
 
+export type BulkVideoPolicyPayload = {
+  session_id: number;
+  video_ids: number[];
+  allow_skip?: boolean;
+  max_speed?: number;
+};
+
+export async function updateVideoPolicyBulk(
+  payload: BulkVideoPolicyPayload,
+): Promise<{ updated: number; changed: number }> {
+  const res = await api.post<{ updated: number; changed: number }>(
+    "/media/videos/bulk-policy/",
+    payload,
+  );
+  return res.data;
+}
+
 export async function reorderVideos(items: Array<{ id: number; order: number }>): Promise<void> {
   await api.post("/media/videos/reorder/", { items });
 }

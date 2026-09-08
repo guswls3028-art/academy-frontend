@@ -6,6 +6,7 @@ import { Button } from "@/shared/ui/ds";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { adminVideoQueryKeys } from "@admin/domains/videos/queryKeys";
+import VideoPolicyFields from "../components/VideoPolicyFields";
 import "./VideoEditModal.css";
 
 interface VideoEditModalProps {
@@ -14,6 +15,8 @@ interface VideoEditModalProps {
   videoId: number;
   initialTitle: string;
   initialOrder: number;
+  initialAllowSkip: boolean;
+  initialMaxSpeed: number;
   sessionId?: number;
 }
 
@@ -23,22 +26,47 @@ export default function VideoEditModal({
   videoId,
   initialTitle,
   initialOrder,
+  initialAllowSkip,
+  initialMaxSpeed,
 }: VideoEditModalProps) {
   const qc = useQueryClient();
   const [title, setTitle] = useState(initialTitle);
   const initialOrderValue = normalizeOrder(initialOrder) ?? 1;
   const [orderInput, setOrderInput] = useState(String(initialOrderValue));
+  const [allowSkipValue, setAllowSkipValue] = useState(String(initialAllowSkip));
+  const [maxSpeedValue, setMaxSpeedValue] = useState(String(initialMaxSpeed));
+  const [error, setError] = useState("");
   const orderValue = normalizeOrder(orderInput);
 
   useEffect(() => {
     if (open) {
       setTitle(initialTitle);
       setOrderInput(String(normalizeOrder(initialOrder) ?? 1));
+      setAllowSkipValue(String(initialAllowSkip));
+      setMaxSpeedValue(String(initialMaxSpeed));
+      setError("");
     }
-  }, [open, initialTitle, initialOrder]);
+  }, [open, initialTitle, initialOrder, initialAllowSkip, initialMaxSpeed]);
 
   const mutation = useMutation({
-    mutationFn: () => updateVideo(videoId, { title: title.trim(), order: orderValue ?? initialOrderValue }),
+    mutationFn: () => {
+      const payload: {
+        title?: string;
+        order?: number;
+        allow_skip?: boolean;
+        max_speed?: number;
+      } = {};
+      if (title.trim() !== initialTitle) payload.title = title.trim();
+      if (orderValue !== initialOrderValue) payload.order = orderValue ?? initialOrderValue;
+      if ((allowSkipValue === "true") !== initialAllowSkip) {
+        payload.allow_skip = allowSkipValue === "true";
+      }
+      if (Number(maxSpeedValue) !== initialMaxSpeed) {
+        payload.max_speed = Number(maxSpeedValue);
+      }
+      return updateVideo(videoId, payload);
+    },
+    onMutate: () => setError(""),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: adminVideoQueryKeys.sessionVideos });
       qc.invalidateQueries({ queryKey: adminVideoQueryKeys.statsForVideo(videoId) });
@@ -51,11 +79,17 @@ export default function VideoEditModal({
           ?.detail ||
         (e as Error)?.message ||
         "수정에 실패했습니다.";
+      setError(msg);
       feedback.error(msg);
     },
   });
 
-  const hasChanges = title.trim() !== initialTitle || orderValue !== initialOrderValue;
+  const hasChanges = (
+    title.trim() !== initialTitle
+    || orderValue !== initialOrderValue
+    || (allowSkipValue === "true") !== initialAllowSkip
+    || Number(maxSpeedValue) !== initialMaxSpeed
+  );
   const canSave = title.trim().length > 0 && orderValue != null && hasChanges && !mutation.isPending;
 
   const handleSave = () => {
@@ -106,6 +140,19 @@ export default function VideoEditModal({
               </span>
             </div>
           </div>
+          <VideoPolicyFields
+            allowSkipValue={allowSkipValue}
+            maxSpeedValue={maxSpeedValue}
+            onAllowSkipChange={setAllowSkipValue}
+            onMaxSpeedChange={setMaxSpeedValue}
+            allowUnchanged={false}
+            disabled={mutation.isPending}
+          />
+          {error && (
+            <div className="video-edit-error" role="alert">
+              {error}
+            </div>
+          )}
         </div>
       </ModalBody>
       <ModalFooter

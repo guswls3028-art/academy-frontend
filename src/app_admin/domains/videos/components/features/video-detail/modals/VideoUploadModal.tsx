@@ -601,17 +601,17 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
                 type="button"
                 role="switch"
                 aria-checked={allowSkip}
-                aria-label={`건너뛰기 ${allowSkip ? "허용" : "금지"}`}
+                aria-label={`자유 건너뛰기 ${allowSkip ? "허용" : "수강 중 제한"}`}
                 onClick={() => setAllowSkip((v) => !v)}
                 className="video-upload-modal__policy-item video-upload-modal__policy-toggle"
               >
-                <span className="video-upload-modal__policy-label">건너뛰기</span>
+                <span className="video-upload-modal__policy-label">자유 건너뛰기</span>
                 <span
                   className="video-upload-modal__policy-state"
                   data-on={allowSkip}
                   aria-hidden
                 >
-                  {allowSkip ? "허용" : "금지"}
+                  {allowSkip ? "허용" : "수강 중 제한"}
                 </span>
               </button>
               <div className="video-upload-modal__policy-item video-upload-modal__speed-wrap">
