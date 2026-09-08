@@ -83,6 +83,7 @@ test("preflight writes an inert envelope before checks and marks only reviewed p
     operationObservation: null,
     inspectObservation: null,
     realUseObservation: null,
+    realUseProcessObservation: null,
     videoRuntimeObservation: null,
     preflightStage: "process",
     preflightChecks: { bundle: false, governance: false, iam: false, document: false, host: false, ssm: false },
@@ -226,9 +227,41 @@ test("a timed-out owned process with held-open stdin is killed and reaped", { ti
   try {
     const result = await child.done;
     assert.equal(result.code, -1);
+    assert.equal(result.stopReason, "timeout");
+    assert.match(result.signal || "", /^SIG(?:TERM|KILL)$/);
+    assert.ok(result.durationMs >= 1_000 && result.durationMs < 10_000);
     assert.match(result.stdout, /ready/);
     assert.throws(() => process.kill(child.child.pid, 0));
   } finally { child.stop(); }
+});
+
+test("owned process observation exposes only allowlisted termination facts", () => {
+  assert.deepEqual(runner.observeOwnedProcessResult({
+    code: -1,
+    signal: "SIGTERM",
+    stopReason: "external-signal",
+    durationMs: 600_123,
+    stdout: "secret-token student-name",
+    pid: 12345,
+  }), {
+    exitCode: -1,
+    signal: "SIGTERM",
+    stopReason: "external-signal",
+    durationMs: 600_123,
+  });
+  const published = JSON.stringify(runner.observeOwnedProcessResult({
+    code: "secret-token",
+    signal: "student-name",
+    stopReason: "C:/secret/path",
+    durationMs: Number.POSITIVE_INFINITY,
+  }));
+  assert.deepEqual(JSON.parse(published), {
+    exitCode: null,
+    signal: null,
+    stopReason: null,
+    durationMs: null,
+  });
+  assert.doesNotMatch(published, /secret-token|student-name|secret\/path/);
 });
 
 const workflow = readFileSync(new URL("../../.github/workflows/quality-gate.yml", import.meta.url), "utf8").replaceAll("\r\n", "\n");
@@ -282,6 +315,38 @@ function completeFlowReport() {
   ] };
 }
 
+test("long-video result observation preserves only allowlisted execution facts", () => {
+  const report = completeFlowReport();
+  report.config = { timeout: 17 * 60_000, metadata: { credential: "secret-token" } };
+  const videoTest = report.suites.at(-1).specs[0].tests[0];
+  videoTest.status = "unexpected";
+  videoTest.results[0] = {
+    status: "interrupted",
+    duration: 600_123,
+    error: { message: "worker died with secret-token student-name" },
+  };
+  report.stats.expected = 10;
+  report.stats.unexpected = 1;
+  const observed = observeReleaseTestResult(JSON.stringify(report));
+  assert.deepEqual(observed.longVideoResult, {
+    configuredTimeoutMs: 17 * 60_000,
+    expectedStatus: "passed",
+    testStatus: "unexpected",
+    resultCount: 1,
+    resultStatus: "interrupted",
+    durationMs: 600_123,
+    errorCount: 1,
+  });
+  assert.doesNotMatch(JSON.stringify(observed), /secret-token|student-name/);
+});
+
+test("long-video response capture failures are explicitly joined instead of becoming unhandled", () => {
+  const source = readFileSync(new URL("../../e2e/student/video-playback-renewal.realuse.spec.ts", import.meta.url), "utf8");
+  assert.match(source, /responseFailure:\s*Promise<unknown>/);
+  assert.match(source, /await Promise\.race\(\[playbackProof,\s*state\.responseFailure\.then/s);
+  assert.match(source, /\.catch\(\(error\) => \{\s*state\.responseError/s);
+});
+
 test("real-use failure observation publishes only allowlisted counts, files, and boundary codes", () => {
   const report = completeFlowReport();
   const failed = report.suites[0].specs[0].tests[0];
@@ -310,6 +375,7 @@ test("real-use failure observation publishes only allowlisted counts, files, and
     longVideo: null,
     longVideoFailure: null,
     longVideoErrorCodes: [],
+    longVideoResult: null,
     longVideoCheckpoint: { desktop: null, mobile: null },
   });
   const published = JSON.stringify(observeReleaseTestResult(JSON.stringify(report)));
@@ -323,6 +389,7 @@ test("real-use failure observation publishes only allowlisted counts, files, and
     longVideo: null,
     longVideoFailure: null,
     longVideoErrorCodes: [],
+    longVideoResult: null,
     longVideoCheckpoint: { desktop: null, mobile: null },
   });
 });
