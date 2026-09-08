@@ -263,6 +263,8 @@ preflight는 일반 request 오류 집계에 남는다.
 desktop/mobile별 마지막 통과 단계만 고정 allowlist 값으로 남긴다. 이 checkpoint는
 실패 위치를 찾기 위한 관측 정보일 뿐, 성공 판정은 기존 690초 최종 증거와 cleanup 0을
 모두 충족해야 한다.
+재생 시작은 이미 재생 중인 정상 상태를 중복 클릭하지 않고, 일시정지 상태에서는 화면의
+실제 중앙 재생 버튼이 보이고 클릭되어 재생 상태로 전환되는 과정까지 확인한다.
 1366×768과 390×844 두 Chromium context는 동시에 690초 이상 실제
 재생하고 최초 signed URL의 TTL이 690초보다 긴 상태에서 발급 후 540~590초의
 `/media/playback/renew/`를 각각 1회 확인한다. ACTIVE/PROCTORED 정상 갱신은 `play_url`을
