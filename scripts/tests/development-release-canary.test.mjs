@@ -552,11 +552,12 @@ test("synthetic 900-second HLS fixture decodes and advances in real Chromium", {
   }
 });
 
-test("official runner opts into two-student long-video setup without publishing credentials", () => {
+test("official runner opts into two-student long-video setup without publishing credentials", async () => {
   const runnerSource = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
   const configSource = readFileSync(new URL("../../playwright.development-release.config.ts", import.meta.url), "utf8");
   const specSource = readFileSync(new URL("../../e2e/student/video-playback-renewal.realuse.spec.ts", import.meta.url), "utf8");
   const posterBridgeSource = readFileSync(new URL("../../e2e/helpers/syntheticVideoPosterBridge.ts", import.meta.url), "utf8");
+  const responseKindSource = readFileSync(new URL("../../e2e/helpers/videoPlaybackResponseKind.ts", import.meta.url), "utf8");
   assert.match(runnerSource, /SyntheticLongVideo: \["true"\]/);
   assert.match(runnerSource, /E2E_STUDENT2_USER: "ymath-qa-student-02"/);
   assert.match(runnerSource, /E2E_LONG_VIDEO_ID: String\(scenario\.synthetic_long_video\.video_id\)/);
@@ -573,6 +574,27 @@ test("official runner opts into two-student long-video setup without publishing 
   assert.match(specSource, /expect\(payload\.play_url == null\)\.toBe\(true\)/);
   assert.match(specSource, /state\.allowedMasterUrls\.size\)\.toBe\(2\)/);
   assert.match(specSource, /installSyntheticVideoPosterBridge/);
+  assert.match(specSource, /classifyVideoPlaybackResponse/);
+  assert.match(specSource, /state\.accessCheckCount\)\.toBeGreaterThanOrEqual\(1\)/);
+  const responseKindModule = await import(
+    `data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(responseKindSource)).toString("base64")}`
+  );
+  const playbackPath = "https://api.example.test/api/v1/student/video/videos/17/playback/";
+  assert.equal(responseKindModule.classifyVideoPlaybackResponse(playbackPath, "POST", 17), "bootstrap");
+  assert.equal(responseKindModule.classifyVideoPlaybackResponse(`${playbackPath}?access_check=1`, "GET", 17), "access");
+  assert.equal(responseKindModule.classifyVideoPlaybackResponse(`${playbackPath}?access_check=1&enrollment=23`, "GET", 17), "access");
+  for (const [url, method] of [
+    [playbackPath, "GET"],
+    [`${playbackPath}?access_check=1`, "POST"],
+    [`${playbackPath}?access_check=1&access_check=1`, "GET"],
+    [`${playbackPath}?access_check=1&enrollment=0`, "GET"],
+    [`${playbackPath}?access_check=1&extra=1`, "GET"],
+  ]) {
+    assert.equal(responseKindModule.classifyVideoPlaybackResponse(url, method, 17), "invalid");
+  }
+  assert.equal(responseKindModule.classifyVideoPlaybackResponse(
+    "https://api.example.test/api/v1/student/video/videos/18/playback/", "POST", 17,
+  ), "other");
   assert.match(specSource, /isSessionVideoList\(url\.pathname\)/);
   assert.match(specSource, /item\.id === videoId && item\.session_id === sessionId/);
   assert.match(specSource, /state\.sessionPosterCaptureCount \+= 1/);
