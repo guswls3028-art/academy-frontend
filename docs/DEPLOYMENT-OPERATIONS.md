@@ -269,6 +269,9 @@ Playwright가 failure snapshot 수집 자체를 중단한 경우에도 원문 �
 장시간 재생 결과에 한해 `test-timeout`, `context-closed`, `page-crashed`,
 `playback-below-690`, `poll-timeout`, `video-evaluate-failed`, `route-handler-failed` 중
 일치하는 고정 코드만 artifact에 남긴다. 코드가 없거나 여러 개여도 성공으로 간주하지 않는다.
+장시간 재생 중 response 관측 작업은 하나의 chain으로 직렬화하고 그 실패 promise를 재생
+완료 대기와 명시적으로 join한다. listener의 비동기 실패가 unhandled rejection으로 worker를
+종료시키거나 성공 증거에서 빠지는 것을 허용하지 않는다.
 재생 시작은 이미 재생 중인 정상 상태를 중복 클릭하지 않고, 일시정지 상태에서는 화면의
 실제 중앙 재생 버튼이 보이고 클릭되어 재생 상태로 전환되는 과정까지 확인한다.
 1366×768과 390×844 두 Chromium context는 동시에 690초 이상 실제
@@ -303,6 +306,9 @@ allowlist된 action/exit code/JSON line 수/session ID 관측 여부/status/erro
 boolean으로만 기록한다. raw output·오류 message·session ID·token·capability·password·
 사용자 정보는 증거에 기록하지 않는다. raw Playwright JSON은 메모리에서 검증하고 개발
 trace/video/screenshot은 저장하지 않아 credential 노출을 막는다.
+장시간 재생 실패는 추가로 설정 timeout, test/result 상태, result 수, 실행 시간, 오류 수만
+고정 allowlist로 남긴다. test child 종료 관측도 exit code, 허용 signal, 종료 사유, 실행
+시간만 남기며 stdout·stderr·process ID는 공개하지 않는다.
 소유 SSM session도 종료 후 재조회한다. 강제 취소·접근 상실 등으로 cleanup 또는
 소유 session 종료가 증명되지 않으면 promotion 실패이며 수동 exact-target 복구가
 필요하다. 그런 상태를 cleanup0으로 보고하지 않는다. 정확한 session ID와 target에 대해
@@ -328,6 +334,8 @@ Playwright env, evidence, stdout에 넣지 않는다.
 5초 뒤 KILL로 강제 종료하고 reap한다(Linux는 소유 process group). AWS metadata CLI도
 20초 제한이다. SIGINT/SIGTERM은 작업 중 child를 중단하여 finally를 시도하고 무조건
 실패 처리한다. 정리 중 추가 신호는 새 작업을 시작하지 않으며 cleanup 완료를 기다린다.
+test child를 기다리는 동안 runner는 60초마다 내용 없는 진행 신호만 출력한다. 이는 CI가
+장시간 정상 재생을 무출력 정지로 오인하지 않게 할 뿐 timeout이나 성공 조건을 완화하지 않는다.
 고정 QA 및 port-session client의 stdin은 원격 close나 기존 timeout/stop까지 빈 pipe로
 열어 두되 어떤 byte도 쓰지 않는다. Session Manager plugin이 닫힌 stdin의 EOF를 정상
 종료로 오인해 원격 JSON 전에 끝나는 것을 막기 위한 경계이며, 다른 child의 stdin은 계속

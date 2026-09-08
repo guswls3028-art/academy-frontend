@@ -83,6 +83,9 @@ type StudentObservation = {
   progressPersisted: boolean;
   reloadDriftSeconds: number;
   responseChain: Promise<void>;
+  responseFailure: Promise<unknown>;
+  responseError: unknown | null;
+  resolveResponseFailure: (error: unknown) => void;
   allowedMasterUrls: Set<string>;
   allowedPosterUrls: Set<string>;
   sessionPosterCaptureCount: number;
@@ -328,6 +331,8 @@ async function seedStudentSession(
 }
 
 function newObservation(viewport: "desktop" | "mobile"): StudentObservation {
+  let resolveResponseFailure: (error: unknown) => void = () => undefined;
+  const responseFailure = new Promise<unknown>((resolve) => { resolveResponseFailure = resolve; });
   return {
     viewport,
     bootstraps: [],
@@ -355,6 +360,9 @@ function newObservation(viewport: "desktop" | "mobile"): StudentObservation {
     progressPersisted: false,
     reloadDriftSeconds: Number.POSITIVE_INFINITY,
     responseChain: Promise.resolve(),
+    responseFailure,
+    responseError: null,
+    resolveResponseFailure,
     allowedMasterUrls: new Set(),
     allowedPosterUrls: new Set(),
     sessionPosterCaptureCount: 0,
@@ -449,7 +457,12 @@ async function prepareStudent(
     }
   });
   page.on("response", (response) => {
-    state.responseChain = state.responseChain.then(() => captureResponse(response, state, videoId));
+    state.responseChain = state.responseChain
+      .then(() => captureResponse(response, state, videoId))
+      .catch((error) => {
+        state.responseError ??= error;
+        state.resolveResponseFailure(error);
+      });
   });
   await installSyntheticHlsBridge(context, state, hlsPath, baseUrl);
   await installSyntheticVideoPosterBridge(context, state, tenantId, videoId);
@@ -564,11 +577,12 @@ async function finishStudent(
   expect(afterRenewal.muted).toBe(true);
   emitLongVideoCheckpoint(state.viewport, "renewal-advanced");
 
-  await expect.poll(async () => {
+  const playbackProof = expect.poll(async () => {
     const current = await video.evaluate((element) => (element as HTMLVideoElement).currentTime);
     const wall = (Date.now() - state.startedAt) / 1_000;
     return Math.min(current, wall);
   }, { timeout: 14 * 60_000, intervals: [1_000] }).toBeGreaterThanOrEqual(MINIMUM_PLAYBACK_SECONDS);
+  await Promise.race([playbackProof, state.responseFailure.then((error) => { throw error; })]);
   emitLongVideoCheckpoint(state.viewport, "playback-690");
 
   await expect.poll(async () => {
@@ -621,6 +635,7 @@ async function finishStudent(
   await endResponse;
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
   await state.responseChain;
+  if (state.responseError) throw state.responseError;
   expect(state.bootstraps).toHaveLength(2);
   expect(state.renewals).toHaveLength(1);
   expect(state.allowedMasterUrls.size).toBe(2);

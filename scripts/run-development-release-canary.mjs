@@ -46,6 +46,8 @@ const LONG_VIDEO_ERROR_PATTERNS = [
   ["video-evaluate-failed", /locator\.evaluate/i],
   ["route-handler-failed", /route\.(?:fetch|fulfill|fallback)/i],
 ];
+const PROCESS_STOP_REASONS = new Set(["exited", "external-signal", "spawn-error", "stdout-limit", "timeout", "requested"]);
+const PROCESS_SIGNALS = new Set(["SIGABRT", "SIGBUS", "SIGFPE", "SIGHUP", "SIGILL", "SIGINT", "SIGKILL", "SIGPIPE", "SIGQUIT", "SIGSEGV", "SIGTERM", "SIGTRAP"]);
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const sha = (value) => crypto.createHash("sha256").update(value).digest("hex");
 const canonical = (value) => JSON.stringify(value, function (_key, item) {
@@ -74,6 +76,7 @@ function initialPreflightEvidence(frontendSha) {
     backendGovernanceSha: null, backendReleaseId: null, apiDigest: null, instanceId: null,
     tenantCode: null, artifactSha256: null, cases: null, documentSha256: {}, cleanup: null,
     operationObservation: null, inspectObservation: null, realUseObservation: null,
+    realUseProcessObservation: null,
     videoRuntimeObservation: null,
     preflightStage: "process",
     preflightChecks: Object.fromEntries(PREFLIGHT_CHECKS.map((name) => [name, false])),
@@ -175,7 +178,7 @@ export function observeReleaseTestResult(stdout) {
     failedFiles: [], boundaryCodes: [], runnerErrorCount: null,
     readFetchRetries: null, suppressedAnalyticsBatches: null,
     suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
-    longVideo: null, longVideoFailure: null, longVideoErrorCodes: [],
+    longVideo: null, longVideoFailure: null, longVideoErrorCodes: [], longVideoResult: null,
     longVideoCheckpoint: { desktop: null, mobile: null },
   };
   let report;
@@ -196,6 +199,7 @@ export function observeReleaseTestResult(stdout) {
   const transportEvidenceCounts = Object.fromEntries(transportKeys.map((key) => [key, 0]));
   const longVideoEvidence = [];
   const longVideoFailureEvidence = [];
+  const longVideoResults = [];
   const longVideoMessages = [];
   const collectErrors = (errors) => {
     for (const error of Array.isArray(errors) ? errors : []) {
@@ -211,6 +215,28 @@ export function observeReleaseTestResult(stdout) {
         const failed = test.expectedStatus !== "passed" || test.status !== "expected"
           || results.length !== 1 || results[0]?.status !== "passed";
         if (failed && Object.hasOwn(FLOW_COUNTS, file)) failedFiles.add(file);
+        if (failed && file === "video-playback-renewal.realuse.spec.ts") {
+          const result = results.length === 1 ? results[0] : null;
+          const allowedTestStatuses = new Set(["expected", "unexpected", "flaky", "skipped"]);
+          const allowedResultStatuses = new Set(["passed", "failed", "timedOut", "skipped", "interrupted"]);
+          const configuredTimeoutMs = Number.isInteger(report?.config?.timeout)
+            && report.config.timeout >= 0 && report.config.timeout <= 2 * 60 * 60_000 ? report.config.timeout : null;
+          const durationMs = Number.isInteger(result?.duration)
+            && result.duration >= 0 && result.duration <= 2 * 60 * 60_000 ? result.duration : null;
+          const resultErrors = [
+            ...(Array.isArray(result?.errors) ? result.errors : []),
+            ...(result?.error ? [result.error] : []),
+          ];
+          longVideoResults.push({
+            configuredTimeoutMs,
+            expectedStatus: test.expectedStatus === "passed" ? "passed" : null,
+            testStatus: allowedTestStatuses.has(test.status) ? test.status : null,
+            resultCount: results.length,
+            resultStatus: allowedResultStatuses.has(result?.status) ? result.status : null,
+            durationMs,
+            errorCount: safeCount(resultErrors.length),
+          });
+        }
         for (const result of results) {
           const resultErrors = [
             ...(Array.isArray(result?.errors) ? result.errors : []),
@@ -269,6 +295,7 @@ export function observeReleaseTestResult(stdout) {
   }
   observation.longVideo = longVideoEvidence.length === 1 ? longVideoEvidence[0] : null;
   observation.longVideoFailure = longVideoFailureEvidence.length === 1 ? longVideoFailureEvidence[0] : null;
+  observation.longVideoResult = longVideoResults.length === 1 ? longVideoResults[0] : null;
   observation.longVideoErrorCodes = [...new Set(LONG_VIDEO_ERROR_PATTERNS
     .filter(([, pattern]) => longVideoMessages.some((message) => pattern.test(message)))
     .map(([code]) => code))].sort();
@@ -547,10 +574,12 @@ export function createRunOwnership(env) {
 }
 
 export function ownedProcess(command, args, options = {}, timeout = 240_000, killGrace = 5_000) {
+  const startedAt = Date.now();
   const child = spawn(command, args, { cwd: ROOT, env: process.env, stdio: ["ignore", "pipe", "pipe"],
     detached: process.platform !== "win32", windowsHide: true, ...options });
   let escalation;
   let closed = false;
+  let stopReason = null;
   const kill = (signal) => {
     if (closed || !child.pid) return;
     try {
@@ -558,24 +587,49 @@ export function ownedProcess(command, args, options = {}, timeout = 240_000, kil
       else process.kill(-child.pid, signal);
     } catch { /* already exited */ }
   };
-  const stop = () => {
+  const stop = (reason = "requested") => {
     // An exited group leader can leave a descendant holding the output pipes.
     // Wait for close, not exitCode, before considering the whole process reaped.
     if (closed || !child.pid) return;
+    stopReason ??= reason;
     kill("SIGTERM");
     escalation ??= setTimeout(() => kill("SIGKILL"), killGrace);
   };
   let stdout = "";
   let failed = false;
-  child.stdout.on("data", (data) => { stdout += data; if (stdout.length > 16 * 1024 * 1024) { failed = true; stop(); } });
+  child.stdout.on("data", (data) => { stdout += data; if (stdout.length > 16 * 1024 * 1024) { failed = true; stop("stdout-limit"); } });
   // Raw stderr may contain request payloads or credentials. Never relay it.
   child.stderr.resume();
-  const timer = setTimeout(() => { failed = true; stop(); }, timeout);
+  const timer = setTimeout(() => { failed = true; stop("timeout"); }, timeout);
   const done = new Promise((resolve) => {
-    child.once("error", () => { closed = true; failed = true; clearTimeout(timer); clearTimeout(escalation); resolve({ code: -1, stdout }); });
-    child.once("close", (code) => { closed = true; clearTimeout(timer); clearTimeout(escalation); resolve({ code: failed ? -1 : code, stdout }); });
+    child.once("error", () => {
+      closed = true; failed = true; stopReason ??= "spawn-error";
+      clearTimeout(timer); clearTimeout(escalation);
+      resolve({ code: -1, stdout, signal: null, stopReason, durationMs: Date.now() - startedAt });
+    });
+    child.once("close", (code, signal) => {
+      closed = true;
+      clearTimeout(timer); clearTimeout(escalation);
+      const safeSignal = PROCESS_SIGNALS.has(signal) ? signal : null;
+      stopReason ??= safeSignal ? "external-signal" : "exited";
+      resolve({ code: failed ? -1 : code, stdout, signal: safeSignal,
+        stopReason: PROCESS_STOP_REASONS.has(stopReason) ? stopReason : null,
+        durationMs: Date.now() - startedAt });
+    });
   });
   return { child, done, stop, output: () => stdout };
+}
+
+export function observeOwnedProcessResult(result) {
+  const exitCode = Number.isInteger(result?.code) && result.code >= -1 && result.code <= 255 ? result.code : null;
+  const durationMs = Number.isInteger(result?.durationMs)
+    && result.durationMs >= 0 && result.durationMs <= 2 * 60 * 60_000 ? result.durationMs : null;
+  return {
+    exitCode,
+    signal: PROCESS_SIGNALS.has(result?.signal) ? result.signal : null,
+    stopReason: PROCESS_STOP_REASONS.has(result?.stopReason) ? result.stopReason : null,
+    durationMs,
+  };
 }
 
 async function assertFreePort(port) {
@@ -723,6 +777,7 @@ export async function run() {
   let cleanup;
   let counts;
   let realUseObservation;
+  let realUseProcessObservation;
   let videoRuntimeObservation;
   let scenario;
   let tests;
@@ -743,6 +798,7 @@ export async function run() {
       documentSha256: Object.fromEntries([...expectedDocuments].map(([name, content]) => [name, sha(content)])),
       cleanup: cleanup ? { tenantCode: tenant, remaining: cleanup.remaining } : null,
       operationObservation, inspectObservation, realUseObservation: realUseObservation || null,
+      realUseProcessObservation: realUseProcessObservation || null,
       videoRuntimeObservation: videoRuntimeObservation || null,
       terminalOutcome, passed, failures: errors });
     persistEvidence(evidence);
@@ -782,7 +838,11 @@ export async function run() {
         E2E_ADMIN_PASS: secret.Parameter.Value, E2E_STUDENT_PASS: secret.Parameter.Value,
         E2E_STUDENT2_PASS: secret.Parameter.Value },
     }, 20 * 60_000);
-    const result = await tests.done;
+    const progressHeartbeat = setInterval(() => console.log("Development real-use remains active"), 60_000);
+    let result;
+    try { result = await tests.done; }
+    finally { clearInterval(progressHeartbeat); }
+    realUseProcessObservation = observeOwnedProcessResult(result);
     realUseObservation = observeReleaseTestResult(result.stdout);
     assert.equal(result.code, 0, "Required development real-use failed (raw credential-bearing report is not published)");
     counts = assertReleaseSummary(JSON.parse(result.stdout));
