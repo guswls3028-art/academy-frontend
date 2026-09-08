@@ -8,6 +8,7 @@ import {
 } from "../fixtures/strictTest";
 import { dismissDevelopmentFirstLoginGuide, getApiBaseUrl, getBaseUrl } from "../helpers/auth";
 import { installSyntheticVideoPosterBridge } from "../helpers/syntheticVideoPosterBridge";
+import { classifyVideoPlaybackResponse } from "../helpers/videoPlaybackResponseKind";
 
 const MINIMUM_PLAYBACK_SECONDS = 690;
 const MINIMUM_RENEW_SECONDS = 540;
@@ -29,6 +30,13 @@ type SessionVideoListPayload = {
     session_id?: unknown;
     thumbnail_url?: unknown;
   }>;
+};
+
+type AccessCheckPayload = {
+  ok?: unknown;
+  access_mode?: unknown;
+  monitoring_enabled?: unknown;
+  policy_version?: unknown;
 };
 
 type StudentObservation = {
@@ -61,6 +69,7 @@ type StudentObservation = {
   allowedMasterUrls: Set<string>;
   allowedPosterUrls: Set<string>;
   sessionPosterCaptureCount: number;
+  accessCheckCount: number;
   playbackApiOrigin: string | null;
   signedOrigins: Set<string>;
 };
@@ -70,10 +79,6 @@ function requiredEnv(name: string, pattern?: RegExp): string {
   expect(value, `${name} is required`).not.toBe("");
   if (pattern) expect(value, `${name} has an invalid shape`).toMatch(pattern);
   return value;
-}
-
-function isPlaybackBootstrap(pathname: string, videoId: number): boolean {
-  return pathname === `/api/v1/student/video/videos/${videoId}/playback/`;
 }
 
 function isSessionVideoList(pathname: string): boolean {
@@ -146,7 +151,13 @@ async function captureResponse(
   const url = new URL(response.url());
   if (response.status() >= 400) state.requestErrorCount += 1;
   if (response.status() < 200 || response.status() >= 300) return;
-  if (isPlaybackBootstrap(url.pathname, videoId)) {
+  const playbackResponseKind = classifyVideoPlaybackResponse(
+    response.url(), response.request().method(), videoId,
+  );
+  if (playbackResponseKind === "invalid") {
+    throw new Error("Unexpected playback endpoint response method or query");
+  }
+  if (playbackResponseKind === "bootstrap") {
     const payload = await response.json() as PlaybackPayload;
     assertBootstrapPayload(payload);
     expect(payload.video?.id).toBe(videoId);
@@ -160,6 +171,17 @@ async function captureResponse(
     const posterUrl = payload.video?.thumbnail_url;
     expect(typeof posterUrl === "string" && posterUrl.length > 0, "bootstrap must return its signed poster URL").toBe(true);
     state.allowedPosterUrls.add(String(posterUrl));
+    return;
+  }
+  if (playbackResponseKind === "access") {
+    expect(state.playbackApiOrigin).not.toBeNull();
+    expect(url.origin).toBe(state.playbackApiOrigin);
+    const payload = await response.json() as AccessCheckPayload;
+    expect(payload.ok).toBe(true);
+    expect(["FREE_REVIEW", "PROCTORED_CLASS"]).toContain(payload.access_mode);
+    expect(typeof payload.monitoring_enabled).toBe("boolean");
+    expect(Number.isSafeInteger(payload.policy_version) && Number(payload.policy_version) > 0).toBe(true);
+    state.accessCheckCount += 1;
     return;
   }
   if (isSessionVideoList(url.pathname)) {
@@ -296,6 +318,7 @@ function newObservation(viewport: "desktop" | "mobile"): StudentObservation {
     allowedMasterUrls: new Set(),
     allowedPosterUrls: new Set(),
     sessionPosterCaptureCount: 0,
+    accessCheckCount: 0,
     playbackApiOrigin: null,
     signedOrigins: new Set(),
   };
@@ -341,6 +364,7 @@ async function prepareStudent(
   await page.goto(`${baseUrl}/student/video/play?video=${videoId}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await dismissDevelopmentFirstLoginGuide(page, tenantCode);
   await expect.poll(() => state.bootstraps.length).toBe(1);
+  await expect.poll(() => state.accessCheckCount).toBeGreaterThanOrEqual(1);
   await expect.poll(() => state.sessionPosterCaptureCount).toBe(1);
   const video = page.locator("video.svpVideo");
   await expect(video).toHaveCount(1);

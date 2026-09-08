@@ -251,6 +251,10 @@ bounded canonical query shape가 모두 일치할 때만 유효한 메모리
 이미지로 치환한다. 브라우저의 response/request 이벤트 순서가 뒤집힐 수 있으므로 exact signed poster 후보만 응답 allowlist 등록을
 최대 3초 동안 기다리며, 그 안에 같은 exact URL과 HLS origin이 확인되지 않으면 기존 release guard가 거부한다. 다른 CDN
 path/query 형태는 즉시 거부하고, exact 형태여도 응답 URL이나 HLS origin이 일치하지 않으면 bounded wait 뒤 거부한다.
+재생 시작 응답은 동일 playback 경로의 정확한 query 없는 `POST`만 bootstrap으로
+분류한다. 주기적인 접근 확인은 `GET ?access_check=1`과 선택적인 양의 정수
+`enrollment` query로 별도 검증하며, method/query가 뒤바뀌거나 중복·추가된 경우에는
+카나리를 실패시킨다.
 1366×768과 390×844 두 Chromium context는 동시에 690초 이상 실제
 재생하고 최초 signed URL의 TTL이 690초보다 긴 상태에서 발급 후 540~590초의
 `/media/playback/renew/`를 각각 1회 확인한다. ACTIVE/PROCTORED 정상 갱신은 `play_url`을
