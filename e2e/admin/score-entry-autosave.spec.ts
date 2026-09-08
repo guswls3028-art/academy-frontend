@@ -1077,6 +1077,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
   test("성적 알림 모달은 보호자와 학생 수신을 모두 선택할 수 있다", async ({ page }) => {
     const preflightTargets: string[] = [];
     const sendTargets: string[] = [];
+    const sendModes: string[] = [];
     await page.route("**/messaging/send/preflight/", async (route) => {
       const payload = route.request().postDataJSON() as { send_to?: string };
       const sendTo = payload.send_to ?? "";
@@ -1122,8 +1123,12 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       });
     });
     await page.route("**/messaging/send/", async (route) => {
-      const payload = route.request().postDataJSON() as { send_to?: string };
+      const payload = route.request().postDataJSON() as {
+        send_to?: string;
+        message_mode?: string;
+      };
       sendTargets.push(payload.send_to ?? "");
+      sendModes.push(payload.message_mode ?? "");
       await route.fulfill({
         json: { detail: "접수", enqueued: 1, scheduled: 0, enqueue_failed: 0, skipped_no_phone: 0 },
       });
@@ -1158,6 +1163,15 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       .getByRole("button", { name: "발송하기" })
       .click();
     await expect.poll(() => sendTargets).toEqual(["student"]);
+    expect(sendModes).toEqual(["alimtalk"]);
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("checkbox", { name: "자동저장학생1 선택" }).check();
+    await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
+    const reloadedDialog = page.getByRole("dialog", { name: "알림톡 발송" });
+    await expect(reloadedDialog.getByRole("checkbox", { name: "학생" })).toBeEnabled();
+    await expect(reloadedDialog.getByRole("checkbox", { name: "학생" })).toBeChecked();
+    expect(await reloadedDialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
   });
 
   test("마지막 열을 테스트 오답으로 바꾸면 실제 오답 확인 완료 상태가 사용자별로 유지된다", async ({ page }, testInfo) => {

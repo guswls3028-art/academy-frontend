@@ -80,6 +80,7 @@ type InstallApiOptions = {
   };
   resultRows?: Array<Record<string, unknown>>;
   submissionRows?: Array<Record<string, unknown>>;
+  examCloseAt?: string | null;
   failFirstRotateRescan?: boolean;
 };
 
@@ -91,6 +92,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
   const examPatches: unknown[] = [];
   const manualEditGetIds: number[] = [];
   const manualEditBodies: unknown[] = [];
+  const confirmedEnrollmentBySubmission = new Map<number, number>();
   let inventoryPresignCount = 0;
   let previewRequestCount = 0;
   let manualEditPostCount = 0;
@@ -263,7 +265,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         exam_id: EXAM_ID,
         title: "7월 진단평가",
         open_at: null,
-        close_at: null,
+        close_at: options.examCloseAt ?? null,
         allow_retake: false,
         max_attempts: 1,
         display_order: 0,
@@ -315,7 +317,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         source_filename: segmentationStatus === "ready" ? "july.pdf" : "",
         display_order: 0,
         open_at: null,
-        close_at: null,
+        close_at: options.examCloseAt ?? null,
         template_exam_id: null,
         structure_owner_id: EXAM_ID,
         can_edit_structure: true,
@@ -340,6 +342,19 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       await json(options.submissionRows ?? []);
       return;
     }
+    if (path === `/submissions/submissions/exams/${EXAM_ID}/candidates/` && method === "GET") {
+      await json([{
+        enrollment_id: ENROLLMENT_ID,
+        student_name: "박서연",
+        student_phone_last4: "3333",
+        parent_phone_last4: "2222",
+        lecture_title: "공통수학2 정규반",
+        lecture_color: "#2563eb",
+        lecture_chip_label: "수2",
+        already_matched: false,
+      }]);
+      return;
+    }
     if (path === "/storage/inventory/presign/" && method === "POST") {
       inventoryPresignCount += 1;
       await json({ detail: "submission 파일은 inventory presign 대상이 아닙니다." }, 404);
@@ -361,16 +376,45 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     if (manualEditMatch) {
       const submissionId = Number(manualEditMatch[1]);
       if (method === "POST") {
+        const payload = request.postDataJSON() as {
+          identifier?: { enrollment_id?: number } | null;
+        };
         manualEditPostCount += 1;
-        manualEditBodies.push(request.postDataJSON());
-        await json({ submission_id: submissionId, status: "done", score: 100 });
+        manualEditBodies.push(payload);
+        const enrollmentId = Number(payload.identifier?.enrollment_id);
+        if (Number.isFinite(enrollmentId) && enrollmentId > 0) {
+          confirmedEnrollmentBySubmission.set(submissionId, enrollmentId);
+          const row = options.submissionRows?.find(
+            (candidate) => Number(candidate.id) === submissionId,
+          );
+          if (row) {
+            Object.assign(row, {
+              enrollment_id: enrollmentId,
+              student_name: "박서연",
+              status: "done",
+              score: 100,
+              manual_review_required: false,
+              detail_manual_review_required: false,
+              manual_review_reasons: [],
+              identifier_status: "matched",
+            });
+          }
+        }
+        await json({
+          submission_id: submissionId,
+          status: "done",
+          score: 100,
+          enrollment_id: confirmedEnrollmentBySubmission.get(submissionId) ?? null,
+        });
         return;
       }
       manualEditGetIds.push(submissionId);
       const selectedRow = options.submissionRows?.find(
         (row) => Number(row.id) === submissionId,
       );
-      const needsIdentification = submissionId === NOID_SUBMISSION_ID;
+      const confirmedEnrollmentId = confirmedEnrollmentBySubmission.get(submissionId);
+      const needsIdentification =
+        submissionId === NOID_SUBMISSION_ID && confirmedEnrollmentId == null;
       const manualReviewRequired = Boolean(
         selectedRow?.detail_manual_review_required ??
           selectedRow?.manual_review_required ??
@@ -386,7 +430,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         ),
         enrollment_id: needsIdentification
           ? null
-          : Number(
+          : confirmedEnrollmentId ?? Number(
               selectedRow?.detail_enrollment_id ??
                 selectedRow?.enrollment_id ??
                 ENROLLMENT_ID,
@@ -1715,6 +1759,62 @@ test.describe("문항별 직접 채점", () => {
       }),
     ]);
     await expect(page.getByText("저장 + 재채점 완료: 100점")).toBeVisible();
+  });
+
+  test("종료된 시험의 IDENTIFIER_INCOMPLETE 답안은 학생 연결 후 재채점되어 모바일 새로고침에도 유지된다", async ({ page }) => {
+    const apiState = await installApi(page, {
+      gradingMode: "choice",
+      editable: false,
+      examCloseAt: "2026-09-06T20:00:00+09:00",
+      submissionRows: [{
+        id: NOID_SUBMISSION_ID,
+        enrollment_id: 0,
+        student_name: "",
+        status: "needs_identification",
+        source: "omr_scan",
+        score: null,
+        file_key: "tenants/hakwonplus/submissions/incomplete.png",
+        created_at: "2026-09-06T19:40:00+09:00",
+        has_file: true,
+        manual_review_required: true,
+        detail_manual_review_required: true,
+        manual_review_reasons: ["IDENTIFIER_INCOMPLETE"],
+        identifier_status: "incomplete",
+      }],
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    const scoresUrl = `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`;
+    await page.goto(scoresUrl, { waitUntil: "domcontentloaded" });
+    await chooseExamHeaderAction(page, "OMR 검토");
+
+    let omrDialog = page.getByRole("dialog", { name: "OMR 검토" });
+    await expect(omrDialog).toBeVisible();
+    await omrDialog.locator(".orw-list-row").filter({ hasText: "미식별 학생" }).click();
+    await omrDialog.getByRole("button", { name: "학생 검색·연결" }).click();
+
+    const picker = page.getByRole("dialog", { name: "학생 선택" });
+    await expect(picker).toBeVisible();
+    await picker.getByPlaceholder("학생 이름 또는 전화번호 뒤 4자리").fill("박서연");
+    await picker.getByRole("button", { name: /박서연/ }).click();
+    await expect(omrDialog.getByText("박서연", { exact: true })).toBeVisible();
+
+    await omrDialog.getByRole("button", { name: "저장 + 재채점" }).click();
+    await expect.poll(() => apiState.manualEditPostCount).toBe(1);
+    expect(apiState.manualEditBodies).toEqual([
+      expect.objectContaining({
+        identifier: { enrollment_id: ENROLLMENT_ID },
+        note: "omr_review_ui",
+      }),
+    ]);
+    await expect(page.getByText("저장 + 재채점 완료: 100점")).toBeVisible();
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await chooseExamHeaderAction(page, "OMR 검토");
+    omrDialog = page.getByRole("dialog", { name: "OMR 검토" });
+    const persistedRow = omrDialog.locator(".orw-list-row").filter({ hasText: "박서연" });
+    await expect(persistedRow).toContainText("100점");
+    expect(await omrDialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
   });
 
   test("목록과 상세의 현재 학생이 다르면 식별자 확정을 막는다", async ({ page }) => {
