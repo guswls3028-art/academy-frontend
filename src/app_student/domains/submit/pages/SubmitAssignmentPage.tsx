@@ -13,7 +13,6 @@ import studentApi from "@student/shared/api/student.api";
 import { IconChevronRight, IconExam, IconClipboard, IconImage, IconVideo } from "@student/shared/ui/icons/Icons";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
-import { useAuthContext } from "@/auth/context/AuthContext";
 import { useTrackedTask } from "@/shared/productAnalytics";
 import { formatCompactFileSize } from "@/shared/utils/fileSize";
 import styles from "./SubmitAssignmentPage.module.css";
@@ -69,6 +68,11 @@ function apiErrorMessage(error: unknown, fallback = "제출에 실패했습니�
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
+function apiErrorCode(error: unknown): string {
+  const data = (error as { response?: { data?: Record<string, unknown> } } | null)?.response?.data;
+  return typeof data?.code === "string" ? data.code : "";
+}
+
 function mediaStatusLabel(file: HomeworkMediaFile): string {
   if (file.status === "failed") return "업로드 실패";
   if (file.status === "uploading") return "저장 중";
@@ -97,13 +101,11 @@ export default function SubmitAssignmentPage() {
   const qc = useQueryClient();
   const [searchParams] = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { user } = useAuthContext();
   const runTrackedTask = useTrackedTask();
-  const isParent = user?.tenantRole === "parent";
   const [selected, setSelected] = useState<SelectedTarget | null>(null);
   const [pendingFiles, setPendingFiles] = useState<PendingMedia[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const gradesQ = useMyGradesSummary({ enabled: !isParent });
+  const gradesQ = useMyGradesSummary();
   const grades = gradesQ.data;
   const requestedSessionId = positiveId(searchParams.get("sessionId"));
   const requestedHomeworkId = positiveId(searchParams.get("homeworkId"));
@@ -112,8 +114,11 @@ export default function SubmitAssignmentPage() {
     () => (grades?.homeworks ?? []).filter((homework) => (
       (requestedSessionId == null || Number(homework.session_id) === requestedSessionId)
       && homework.lecture_active !== false
-      && homework.teacher_resolved !== true
-      && homework.passed !== true
+      && (
+        homework.submission_media_locked == null
+          ? homework.teacher_resolved !== true && homework.passed !== true
+          : homework.submission_media_locked !== true
+      )
     )),
     [grades?.homeworks, requestedSessionId],
   );
@@ -151,6 +156,7 @@ export default function SubmitAssignmentPage() {
       if (candidates.length === 0) throw new Error("새로 제출할 파일을 선택해 주세요.");
       const succeeded: string[] = [];
       const failed: string[] = [];
+      let reviewLocked = false;
       for (const item of candidates) {
         updatePending(item.clientFileId, { status: "uploading", progress: 0, error: null });
         const body = new FormData();
@@ -176,13 +182,25 @@ export default function SubmitAssignmentPage() {
           ));
           succeeded.push(item.clientFileId);
         } catch (uploadError) {
+          if (apiErrorCode(uploadError) === "HOMEWORK_MEDIA_REVIEWED") {
+            reviewLocked = true;
+            break;
+          }
           failed.push(item.clientFileId);
           updatePending(item.clientFileId, { status: "failed", error: apiErrorMessage(uploadError, "이 파일을 올리지 못했습니다.") });
         }
       }
-      return { succeeded, failed };
+      return { succeeded, failed, reviewLocked };
     },
-    onSuccess: async ({ succeeded, failed }) => {
+    onSuccess: async ({ succeeded, failed, reviewLocked }) => {
+      if (reviewLocked) {
+        await qc.invalidateQueries({ queryKey: studentQueryKeys.gradesSummary });
+        setSelected(null);
+        setPendingFiles([]);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        setError("선생님 확인이 완료되어 제출 목록을 갱신했습니다. 보완이 필요하면 선생님에게 상태 변경을 요청해 주세요.");
+        return;
+      }
       setPendingFiles((current) => current.filter((item) => !succeeded.includes(item.clientFileId)));
       await mediaQ.refetch();
       qc.invalidateQueries({ queryKey: studentQueryKeys.gradesSummary });
@@ -318,12 +336,6 @@ export default function SubmitAssignmentPage() {
       : pendingFiles.some((file) => file.status === "failed")
         ? `실패한 파일 ${retryableCount}개 다시 제출`
         : `파일 ${retryableCount}개 제출하기`;
-
-  if (isParent) return (
-    <StudentPageShell title="과제 제출" onBack={() => window.history.back()}>
-      <EmptyState title="학부모 계정은 직접 제출할 수 없습니다." description="자녀 본인 계정으로 로그인 후 제출해 주세요. 자녀 진척 확인은 성적 페이지에서 가능합니다." />
-    </StudentPageShell>
-  );
 
   return (
     <StudentPageShell title="과제 제출" description="풀이 사진과 동영상을 한 번에 고르고, 파일별 결과를 확인하세요." descriptionMode="help" onBack={() => window.history.back()}>
