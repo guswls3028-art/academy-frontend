@@ -125,6 +125,40 @@ function observeLongVideoBrowserEvidence(payload) {
   };
 }
 
+function observeLongVideoFailure(payload) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+  if (Object.keys(payload).sort().join(",") !== "contexts,schema"
+    || payload.schema !== "student-video-renewal-failure/v1"
+    || !Array.isArray(payload.contexts) || payload.contexts.length !== 2) return null;
+  const expectedKeys = [
+    "accessCheckCount", "bootstrapCount", "consoleErrorCount", "currentTime", "duration", "ended",
+    "latestProgress", "masterLoads", "mediaLoads", "networkState", "pageErrorCount", "paused",
+    "progressCount", "readyState", "renewCount", "requestErrorCount", "videoMounted", "viewport",
+    "wallSeconds",
+  ];
+  const numericKeys = [
+    "accessCheckCount", "bootstrapCount", "consoleErrorCount", "masterLoads", "mediaLoads",
+    "pageErrorCount", "progressCount", "renewCount", "requestErrorCount", "wallSeconds",
+  ];
+  const nullableNumericKeys = ["currentTime", "duration", "latestProgress", "networkState", "readyState"];
+  const nullableBooleanKeys = ["ended", "paused"];
+  const contexts = payload.contexts.map((context) => {
+    if (!context || typeof context !== "object" || Array.isArray(context)
+      || Object.keys(context).sort().join(",") !== expectedKeys.sort().join(",")
+      || !["desktop", "mobile"].includes(context.viewport)
+      || typeof context.videoMounted !== "boolean"
+      || numericKeys.some((key) => !Number.isInteger(context[key]) || context[key] < 0 || context[key] > 10_000)
+      || nullableNumericKeys.some((key) => context[key] !== null
+        && (!Number.isInteger(context[key]) || context[key] < 0 || context[key] > 10_000))
+      || nullableBooleanKeys.some((key) => context[key] !== null && typeof context[key] !== "boolean")) return null;
+    return Object.fromEntries(expectedKeys.map((key) => [key, context[key]]));
+  });
+  if (contexts.some((context) => context === null)
+    || contexts.filter((context) => context.viewport === "desktop").length !== 1
+    || contexts.filter((context) => context.viewport === "mobile").length !== 1) return null;
+  return { schemaMatches: true, contexts };
+}
+
 export function observeReleaseTestResult(stdout) {
   const observation = {
     reportStatus: "unparsed",
@@ -132,7 +166,7 @@ export function observeReleaseTestResult(stdout) {
     failedFiles: [], boundaryCodes: [], runnerErrorCount: null,
     readFetchRetries: null, suppressedAnalyticsBatches: null,
     suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
-    longVideo: null, longVideoCheckpoint: { desktop: null, mobile: null },
+    longVideo: null, longVideoFailure: null, longVideoCheckpoint: { desktop: null, mobile: null },
   };
   let report;
   try { report = JSON.parse(typeof stdout === "string" ? stdout : ""); }
@@ -151,6 +185,7 @@ export function observeReleaseTestResult(stdout) {
   const transportTotals = Object.fromEntries(transportKeys.map((key) => [key, 0]));
   const transportEvidenceCounts = Object.fromEntries(transportKeys.map((key) => [key, 0]));
   const longVideoEvidence = [];
+  const longVideoFailureEvidence = [];
   const collectErrors = (errors) => {
     for (const error of Array.isArray(errors) ? errors : []) {
       if (typeof error?.message === "string") messages.push(error.message);
@@ -183,6 +218,8 @@ export function observeReleaseTestResult(stdout) {
               }
               const longVideo = observeLongVideoBrowserEvidence(payload?.longVideoRealUse);
               if (longVideo) longVideoEvidence.push(longVideo);
+              const longVideoFailure = observeLongVideoFailure(payload?.longVideoFailure);
+              if (longVideoFailure) longVideoFailureEvidence.push(longVideoFailure);
               const checkpoint = payload?.longVideoCheckpoint;
               if (checkpoint && typeof checkpoint === "object" && !Array.isArray(checkpoint)
                 && Object.keys(checkpoint).sort().join(",") === "schema,stage,viewport"
@@ -211,6 +248,7 @@ export function observeReleaseTestResult(stdout) {
     observation[key] = transportEvidenceCounts[key] > 0 ? transportTotals[key] : null;
   }
   observation.longVideo = longVideoEvidence.length === 1 ? longVideoEvidence[0] : null;
+  observation.longVideoFailure = longVideoFailureEvidence.length === 1 ? longVideoFailureEvidence[0] : null;
   return observation;
 }
 

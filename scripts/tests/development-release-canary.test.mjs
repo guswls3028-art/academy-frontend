@@ -297,6 +297,7 @@ test("real-use failure observation publishes only allowlisted counts, files, and
     suppressedAnalyticsEvents: 3,
     suppressedCloudflareBeacons: 4,
     longVideo: null,
+    longVideoFailure: null,
     longVideoCheckpoint: { desktop: null, mobile: null },
   });
   const published = JSON.stringify(observeReleaseTestResult(JSON.stringify(report)));
@@ -308,6 +309,7 @@ test("real-use failure observation publishes only allowlisted counts, files, and
     readFetchRetries: null, suppressedAnalyticsBatches: null,
     suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
     longVideo: null,
+    longVideoFailure: null,
     longVideoCheckpoint: { desktop: null, mobile: null },
   });
 });
@@ -491,6 +493,41 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
     consoleErrorCount: 0, pageErrorCount: 0, requestErrorCount: 0,
     horizontalOverflowCount: 0,
   });
+  longResult.stdout[0].text += `${JSON.stringify({ longVideoFailure: {
+    schema: "student-video-renewal-failure/v1",
+    contexts: ["desktop", "mobile"].map((viewport) => ({
+      viewport, videoMounted: true, currentTime: 675, duration: 900, wallSeconds: 690,
+      paused: false, ended: false, readyState: 4, networkState: 1,
+      bootstrapCount: 1, renewCount: 1, progressCount: 24, latestProgress: 674,
+      accessCheckCount: 24, masterLoads: 1, mediaLoads: 2,
+      consoleErrorCount: 0, pageErrorCount: 0, requestErrorCount: 0,
+    })),
+  } })}\n`;
+  assert.deepEqual(runner.observeReleaseTestResult(JSON.stringify(report)).longVideoFailure, {
+    schemaMatches: true,
+    contexts: ["desktop", "mobile"].map((viewport) => ({
+      accessCheckCount: 24, bootstrapCount: 1, consoleErrorCount: 0, currentTime: 675,
+      duration: 900, ended: false, latestProgress: 674, masterLoads: 1, mediaLoads: 2,
+      networkState: 1, pageErrorCount: 0, paused: false, progressCount: 24, readyState: 4,
+      renewCount: 1, requestErrorCount: 0, videoMounted: true, viewport, wallSeconds: 690,
+    })),
+  });
+  const unsafeFailureReport = structuredClone(report);
+  const unsafeFailureResult = unsafeFailureReport.suites.at(-1).specs[0].tests[0].results[0];
+  unsafeFailureResult.stdout = [{ text: JSON.stringify({ longVideoFailure: {
+    schema: "student-video-renewal-failure/v1",
+    contexts: [{
+      viewport: "desktop", videoMounted: false, currentTime: null, duration: null, wallSeconds: 0,
+      paused: null, ended: null, readyState: null, networkState: null,
+      bootstrapCount: 0, renewCount: 0, progressCount: 0, latestProgress: null,
+      accessCheckCount: 0, masterLoads: 0, mediaLoads: 0,
+      consoleErrorCount: 0, pageErrorCount: 0, requestErrorCount: 0,
+      studentName: "must-not-publish",
+    }],
+  } }) }];
+  const unsafeFailureObservation = runner.observeReleaseTestResult(JSON.stringify(unsafeFailureReport));
+  assert.equal(unsafeFailureObservation.longVideoFailure, null);
+  assert.doesNotMatch(JSON.stringify(unsafeFailureObservation), /must-not-publish/);
   for (const invalidEvidence of [
     { sourceReloadCount: 1 },
     { minimumRenewalAdvanceSeconds: 4 },

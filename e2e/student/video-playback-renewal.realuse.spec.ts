@@ -91,6 +91,28 @@ type StudentObservation = {
   signedOrigins: Set<string>;
 };
 
+type LongVideoFailureContext = {
+  viewport: "desktop" | "mobile";
+  videoMounted: boolean;
+  currentTime: number | null;
+  duration: number | null;
+  wallSeconds: number;
+  paused: boolean | null;
+  ended: boolean | null;
+  readyState: number | null;
+  networkState: number | null;
+  bootstrapCount: number;
+  renewCount: number;
+  progressCount: number;
+  latestProgress: number | null;
+  accessCheckCount: number;
+  masterLoads: number;
+  mediaLoads: number;
+  consoleErrorCount: number;
+  pageErrorCount: number;
+  requestErrorCount: number;
+};
+
 function requiredEnv(name: string, pattern?: RegExp): string {
   const value = process.env[name]?.trim() || "";
   expect(value, `${name} is required`).not.toBe("");
@@ -342,6 +364,58 @@ function newObservation(viewport: "desktop" | "mobile"): StudentObservation {
   };
 }
 
+async function captureFailureContext(
+  page: Page,
+  state: StudentObservation,
+): Promise<LongVideoFailureContext> {
+  let videoMounted = false;
+  let media: Pick<LongVideoFailureContext,
+    "currentTime" | "duration" | "paused" | "ended" | "readyState" | "networkState"> = {
+      currentTime: null,
+      duration: null,
+      paused: null,
+      ended: null,
+      readyState: null,
+      networkState: null,
+    };
+  try {
+    const video = page.locator("video.svpVideo");
+    videoMounted = await video.count() === 1;
+    if (videoMounted) {
+      media = await video.evaluate((element) => {
+        const current = element as HTMLVideoElement;
+        const integerOrNull = (value: number) => Number.isFinite(value) ? Math.floor(value) : null;
+        return {
+          currentTime: integerOrNull(current.currentTime),
+          duration: integerOrNull(current.duration),
+          paused: current.paused,
+          ended: current.ended,
+          readyState: current.readyState,
+          networkState: current.networkState,
+        };
+      });
+    }
+  } catch {
+    videoMounted = false;
+  }
+  return {
+    viewport: state.viewport,
+    videoMounted,
+    ...media,
+    wallSeconds: state.startedAt > 0 ? Math.max(0, Math.floor((Date.now() - state.startedAt) / 1_000)) : 0,
+    bootstrapCount: state.bootstraps.length,
+    renewCount: state.renewals.length,
+    progressCount: state.progressPositions.length,
+    latestProgress: state.progressPositions.length > 0 ? Math.floor(state.progressPositions.at(-1)!) : null,
+    accessCheckCount: state.accessCheckCount,
+    masterLoads: state.masterLoads,
+    mediaLoads: state.mediaLoads,
+    consoleErrorCount: state.consoleErrorCount,
+    pageErrorCount: state.pageErrorCount,
+    requestErrorCount: state.requestErrorCount,
+  };
+}
+
 async function prepareStudent(
   browser: Browser,
   viewport: { width: number; height: number },
@@ -576,6 +650,12 @@ test("two students play through renewal and persist progress without interruptio
   ]);
   try {
     await Promise.all(runs.map(({ page, state }) => finishStudent(page, state, videoId, hlsPath)));
+  } catch (error) {
+    console.log(JSON.stringify({ longVideoFailure: {
+      schema: "student-video-renewal-failure/v1",
+      contexts: await Promise.all(runs.map(({ page, state }) => captureFailureContext(page, state))),
+    } }));
+    throw error;
   } finally {
     await Promise.allSettled(runs.map(({ context }) => context.close()));
   }
