@@ -260,9 +260,11 @@ path/query 형태는 즉시 거부하고, exact 형태여도 응답 URL이나 HL
 전송 대상을 이미 검증하므로 제품 payload 응답 증거에서는 제외한다. 실패한
 preflight는 일반 request 오류 집계에 남는다.
 장시간 재생이 완료 전에 실패하면 artifact에는 사용자·URL·토큰·원문 오류 대신
-desktop/mobile별 마지막 통과 단계만 고정 allowlist 값으로 남긴다. 이 checkpoint는
-실패 위치를 찾기 위한 관측 정보일 뿐, 성공 판정은 기존 690초 최종 증거와 cleanup 0을
-모두 충족해야 한다.
+desktop/mobile별 마지막 통과 단계와 제한된 재생 상태만 고정 allowlist 값으로 남긴다.
+재생 상태는 각 화면의 video mount 여부, 정수 초의 현재 위치·길이·벽시계·최근 저장 위치,
+paused/ended, media ready/network 상태, bootstrap·renew·progress·access-check·media 요청과
+브라우저 오류 수만 허용한다. 이 checkpoint와 failure snapshot은 실패 위치를 찾기 위한
+관측 정보일 뿐, 성공 판정은 기존 690초 최종 증거와 cleanup 0을 모두 충족해야 한다.
 재생 시작은 이미 재생 중인 정상 상태를 중복 클릭하지 않고, 일시정지 상태에서는 화면의
 실제 중앙 재생 버튼이 보이고 클릭되어 재생 상태로 전환되는 과정까지 확인한다.
 1366×768과 390×844 두 Chromium context는 동시에 690초 이상 실제
