@@ -37,6 +37,15 @@ const RELEASE_BOUNDARY_CODES = new Set([
   "api-origin", "context-disposed", "cors", "credentials", "mutation", "observation-schema",
   "origin", "redirect", "tenant", "transport", "fetch-transport", "fulfill-transport",
 ]);
+const LONG_VIDEO_ERROR_PATTERNS = [
+  ["test-timeout", /Test timeout of [0-9]+ms exceeded/i],
+  ["context-closed", /Target page, context or browser has been closed|Test ended\.?/i],
+  ["page-crashed", /Page crashed|browser has disconnected/i],
+  ["playback-below-690", /toBeGreaterThanOrEqual[\s\S]{0,500}(?:Expected:\s*>=\s*690|690)/i],
+  ["poll-timeout", /Timeout [0-9]+ms exceeded while waiting on the predicate/i],
+  ["video-evaluate-failed", /locator\.evaluate/i],
+  ["route-handler-failed", /route\.(?:fetch|fulfill|fallback)/i],
+];
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const sha = (value) => crypto.createHash("sha256").update(value).digest("hex");
 const canonical = (value) => JSON.stringify(value, function (_key, item) {
@@ -166,7 +175,8 @@ export function observeReleaseTestResult(stdout) {
     failedFiles: [], boundaryCodes: [], runnerErrorCount: null,
     readFetchRetries: null, suppressedAnalyticsBatches: null,
     suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
-    longVideo: null, longVideoFailure: null, longVideoCheckpoint: { desktop: null, mobile: null },
+    longVideo: null, longVideoFailure: null, longVideoErrorCodes: [],
+    longVideoCheckpoint: { desktop: null, mobile: null },
   };
   let report;
   try { report = JSON.parse(typeof stdout === "string" ? stdout : ""); }
@@ -186,6 +196,7 @@ export function observeReleaseTestResult(stdout) {
   const transportEvidenceCounts = Object.fromEntries(transportKeys.map((key) => [key, 0]));
   const longVideoEvidence = [];
   const longVideoFailureEvidence = [];
+  const longVideoMessages = [];
   const collectErrors = (errors) => {
     for (const error of Array.isArray(errors) ? errors : []) {
       if (typeof error?.message === "string") messages.push(error.message);
@@ -202,6 +213,11 @@ export function observeReleaseTestResult(stdout) {
         if (failed && Object.hasOwn(FLOW_COUNTS, file)) failedFiles.add(file);
         for (const result of results) {
           collectErrors(result?.errors || (result?.error ? [result.error] : []));
+          if (file === "video-playback-renewal.realuse.spec.ts") {
+            for (const error of result?.errors || (result?.error ? [result.error] : [])) {
+              if (typeof error?.message === "string") longVideoMessages.push(error.message);
+            }
+          }
           for (const output of Array.isArray(result?.stdout) ? result.stdout : []) {
             const text = typeof output === "string" ? output : output?.text;
             for (const line of typeof text === "string" ? text.split(/\r?\n/) : []) {
@@ -249,6 +265,9 @@ export function observeReleaseTestResult(stdout) {
   }
   observation.longVideo = longVideoEvidence.length === 1 ? longVideoEvidence[0] : null;
   observation.longVideoFailure = longVideoFailureEvidence.length === 1 ? longVideoFailureEvidence[0] : null;
+  observation.longVideoErrorCodes = [...new Set(LONG_VIDEO_ERROR_PATTERNS
+    .filter(([, pattern]) => longVideoMessages.some((message) => pattern.test(message)))
+    .map(([code]) => code))].sort();
   return observation;
 }
 
