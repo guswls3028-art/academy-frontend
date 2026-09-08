@@ -26,6 +26,27 @@ type LongVideoCheckpointStage =
 type ResponseCaptureKind =
   | "bootstrap" | "access" | "session-list" | "renewal" | "progress" | "other";
 
+type ResponseFailureCode =
+  | "api-origin" | "method" | "session-identity" | "items-shape"
+  | "current-item" | "poster" | "playback-contract" | "other";
+
+const RESPONSE_FAILURE_CODES = new Set<ResponseFailureCode>([
+  "api-origin", "method", "session-identity", "items-shape",
+  "current-item", "poster", "playback-contract", "other",
+]);
+
+function codedResponseExpectation(code: ResponseFailureCode): string {
+  return `Long video response validation failed [${code}]`;
+}
+
+function responseFailureCode(error: unknown): ResponseFailureCode {
+  const message = error instanceof Error ? error.message : "";
+  const match = message.match(/Long video response validation failed \[([a-z-]+)\]/);
+  return match && RESPONSE_FAILURE_CODES.has(match[1] as ResponseFailureCode)
+    ? match[1] as ResponseFailureCode
+    : "other";
+}
+
 function emitLongVideoCheckpoint(
   viewport: "desktop" | "mobile",
   stage: LongVideoCheckpointStage,
@@ -89,6 +110,7 @@ type StudentObservation = {
   responseFailure: Promise<unknown>;
   responseError: unknown | null;
   responseFailureKind: ResponseCaptureKind | null;
+  responseFailureCode: ResponseFailureCode | null;
   resolveResponseFailure: (error: unknown) => void;
   allowedMasterUrls: Set<string>;
   allowedPosterUrls: Set<string>;
@@ -119,6 +141,7 @@ type LongVideoFailureContext = {
   pageErrorCount: number;
   requestErrorCount: number;
   responseFailureKind: ResponseCaptureKind | null;
+  responseFailureCode: ResponseFailureCode | null;
 };
 
 function requiredEnv(name: string, pattern?: RegExp): string {
@@ -215,7 +238,7 @@ async function captureResponse(
     response.url(), response.request().method(), videoId,
   );
   if (playbackResponseKind === "invalid") {
-    throw new Error("Unexpected playback endpoint response method or query");
+    throw new Error(codedResponseExpectation("playback-contract"));
   }
   if (playbackResponseKind === "bootstrap") {
     const payload = await response.json() as PlaybackPayload;
@@ -245,21 +268,21 @@ async function captureResponse(
     return;
   }
   if (isSessionVideoList(url.pathname)) {
-    expect(state.playbackApiOrigin).not.toBeNull();
-    expect(url.origin).toBe(state.playbackApiOrigin);
-    expect(response.request().method()).toBe("GET");
+    expect(state.playbackApiOrigin, codedResponseExpectation("api-origin")).not.toBeNull();
+    expect(url.origin, codedResponseExpectation("api-origin")).toBe(state.playbackApiOrigin);
+    expect(response.request().method(), codedResponseExpectation("method")).toBe("GET");
     const sessionId = sessionIdFromVideoList(url.pathname);
     const bootstrap = state.bootstraps[0];
     assertBootstrapPayload(bootstrap);
-    expect(bootstrap.video?.session_id).toBe(sessionId);
+    expect(bootstrap.video?.session_id, codedResponseExpectation("session-identity")).toBe(sessionId);
     const payload = await response.json() as SessionVideoListPayload;
-    expect(Array.isArray(payload.items)).toBe(true);
+    expect(Array.isArray(payload.items), codedResponseExpectation("items-shape")).toBe(true);
     const matchingItems = payload.items!.filter((item) =>
       item.id === videoId && item.session_id === sessionId);
-    expect(matchingItems).toHaveLength(1);
+    expect(matchingItems, codedResponseExpectation("current-item")).toHaveLength(1);
     const posterUrl = matchingItems[0].thumbnail_url;
     expect(typeof posterUrl === "string" && posterUrl.length > 0,
-      "session video list must return the current video's signed poster URL").toBe(true);
+      codedResponseExpectation("poster")).toBe(true);
     state.allowedPosterUrls.add(String(posterUrl));
     state.sessionPosterCaptureCount += 1;
     return;
@@ -380,6 +403,7 @@ function newObservation(viewport: "desktop" | "mobile"): StudentObservation {
     responseFailure,
     responseError: null,
     responseFailureKind: null,
+    responseFailureCode: null,
     resolveResponseFailure,
     allowedMasterUrls: new Set(),
     allowedPosterUrls: new Set(),
@@ -440,6 +464,7 @@ async function captureFailureContext(
     pageErrorCount: state.pageErrorCount,
     requestErrorCount: state.requestErrorCount,
     responseFailureKind: state.responseFailureKind,
+    responseFailureCode: state.responseFailureCode,
   };
 }
 
@@ -481,6 +506,7 @@ async function prepareStudent(
       .then(() => captureResponse(response, state, videoId))
       .catch((error) => {
         state.responseFailureKind ??= captureKind;
+        state.responseFailureCode ??= responseFailureCode(error);
         state.responseError ??= error;
         state.resolveResponseFailure(error);
       });
@@ -616,12 +642,14 @@ async function finishStudent(
   state.playbackSeconds = Math.floor(await video.evaluate((element) => (element as HTMLVideoElement).currentTime));
   state.wallSeconds = Math.floor((Date.now() - state.startedAt) / 1_000);
 
+  expect(state.sessionPosterCaptureCount).toBe(1);
   const bootstrapsBeforeReload = state.bootstraps.length;
   const sessionPosterCapturesBeforeReload = state.sessionPosterCaptureCount;
   await page.reload({ waitUntil: "domcontentloaded", timeout: 45_000 });
   await expect.poll(() => state.bootstraps.length).toBe(bootstrapsBeforeReload + 1);
   emitLongVideoCheckpoint(state.viewport, "reload-bootstrap");
   await expect.poll(() => state.sessionPosterCaptureCount).toBeGreaterThan(sessionPosterCapturesBeforeReload);
+  expect(state.sessionPosterCaptureCount).toBe(2);
   emitLongVideoCheckpoint(state.viewport, "reload-playlist");
   const reloadedBootstrap = state.bootstraps.at(-1)!;
   const apiPosition = Number(reloadedBootstrap.video?.last_position);
