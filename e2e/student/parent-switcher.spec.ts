@@ -1,208 +1,91 @@
 /**
- * 학부모 자녀 스위처 — 운영 환경 검증.
- *
- * 테스트 데이터: 1번 테넌트 임시 학부모 (phone=01099999990)
- *   - spec 시작 시 [E2E-{timestamp}] 자녀 2명 생성
- *   - spec 종료 시 생성 학생 soft delete → permanent delete
- *
- * 점검:
- *   1) 헤더 하단에 자녀 칩 2개 노출 (학생 계정 검증에선 노출 안 됨)
- *   2) 칩 클릭 → 활성 표시 전환 + 캐시 격리
- *   3) 풀페이지 스크린샷
+ * Two-child parent journey for the disposable production-shaped development tenant.
+ * No production origin, shared account, or uncontrolled recipient is permitted.
  */
-import type { APIRequestContext } from "@playwright/test";
-import { test, expect } from "../fixtures/strictTest";
+import { expect, test } from "../fixtures/strictTest";
+import {
+  assertAuthoritativeStudent,
+  assertNoHorizontalOverflow,
+  assertParentProjection,
+  assertQaStudentParentRuntime,
+  cleanupQaFamily,
+  createQaFamily,
+  installQaStudentParentBoundary,
+  loginAdmin,
+  loginApi,
+  loginThroughUi,
+  logoutStudentApp,
+  STUDENT_PARENT_REALUSE_ENABLED,
+  type QaFamily,
+} from "../helpers/qaStudentParentScenario";
+import { waitForRenderSettled } from "../helpers/wait";
+import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 
-const BASE = "https://hakwonplus.com";
-const API = "https://api.hakwonplus.com";
-const PARENT_PHONE = "01099999990";
-const PARENT_INITIAL_PASS = "9990";
-const PARENT_STABLE_PASS = "9990e2e";
-const ADMIN_USER = process.env.E2E_ADMIN_USER || "admin97";
-const ADMIN_PASS = process.env.E2E_ADMIN_PASS || "test1234";
-const TOKEN_MAX_ATTEMPTS = 5;
+test.setTimeout(240_000);
+test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+test.describe.serial("[real-use] 다중 자녀 학부모", () => {
+  test.describe.configure({ retries: 0 });
+  test.skip(!STUDENT_PARENT_REALUSE_ENABLED, "Enable only inside the isolated qa-* development runner.");
 
-function parseTokenThrottleWaitMs(responseText: string, retryAfter: string | null): number {
-  const headerSeconds = retryAfter ? Number.parseInt(retryAfter, 10) : Number.NaN;
-  if (Number.isFinite(headerSeconds) && headerSeconds > 0) {
-    return Math.min(headerSeconds + 1, 75) * 1000;
-  }
-  const bodySeconds = Number.parseInt(responseText.match(/(\d+)\s*초/)?.[1] || "", 10);
-  if (Number.isFinite(bodySeconds) && bodySeconds > 0) {
-    return Math.min(bodySeconds + 1, 75) * 1000;
-  }
-  return 5_000;
-}
+  let adminAccess = "";
+  let family: QaFamily | null = null;
 
-async function issueToken(request: APIRequestContext, username: string, password: string) {
-  let lastFailure = "";
-  for (let attempt = 0; attempt < TOKEN_MAX_ATTEMPTS; attempt += 1) {
-    const resp = await request.post(`${API}/api/v1/token/`, {
-      data: { username, password, tenant_code: "hakwonplus" },
-      headers: { "Content-Type": "application/json", "X-Tenant-Code": "hakwonplus" },
-      timeout: 60_000,
-    });
-    if (resp.status() === 200) {
-      return await resp.json() as { access: string; refresh: string };
-    }
-    const body = await resp.text();
-    lastFailure = `${resp.status()} ${body}`;
-    if (resp.status() !== 429 || attempt === TOKEN_MAX_ATTEMPTS - 1) break;
-    await sleep(parseTokenThrottleWaitMs(body, resp.headers()["retry-after"] || null));
-  }
-  throw new Error(`token issue failed for ${username}@hakwonplus: ${lastFailure}`);
-}
-
-async function tryIssueToken(request: APIRequestContext, username: string, password: string) {
-  for (let attempt = 0; attempt < TOKEN_MAX_ATTEMPTS; attempt += 1) {
-    const resp = await request.post(`${API}/api/v1/token/`, {
-      data: { username, password, tenant_code: "hakwonplus" },
-      headers: { "Content-Type": "application/json", "X-Tenant-Code": "hakwonplus" },
-      timeout: 60_000,
-    });
-
-    if (resp.status() === 200) {
-      return await resp.json() as { access: string; refresh: string };
-    }
-    const body = await resp.text();
-    if (resp.status() !== 429 || attempt === TOKEN_MAX_ATTEMPTS - 1) {
-      return null;
-    }
-    await sleep(parseTokenThrottleWaitMs(body, resp.headers()["retry-after"] || null));
-  }
-  return null;
-}
-
-async function ensureParentTokens(request: APIRequestContext) {
-  const stableTokens = await tryIssueToken(request, PARENT_PHONE, PARENT_STABLE_PASS);
-  if (stableTokens) {
-    return stableTokens;
-  }
-
-  const initialTokens = await issueToken(request, PARENT_PHONE, PARENT_INITIAL_PASS);
-  const resp = await request.post(`${API}/api/v1/core/change-password/`, {
-    data: { old_password: PARENT_INITIAL_PASS, new_password: PARENT_STABLE_PASS },
-    headers: {
-      Authorization: `Bearer ${initialTokens.access}`,
-      "Content-Type": "application/json",
-      "X-Tenant-Code": "hakwonplus",
-    },
-    timeout: 60_000,
+  test.beforeAll(() => {
+    assertQaStudentParentRuntime();
   });
-  expect(resp.status()).toBe(200);
 
-  return await issueToken(request, PARENT_PHONE, PARENT_STABLE_PASS);
-}
-
-async function createStudent(request: APIRequestContext, adminAccess: string, stamp: string, suffix: string) {
-  const resp = await request.post(`${API}/api/v1/students/`, {
-    data: {
-      name: `[E2E-${stamp}] 학부모전환 ${suffix}`,
-      ps_number: `E2E${stamp}${suffix}`,
-      no_phone: true,
-      phone: "",
-      parent_phone: PARENT_PHONE,
-      initial_password: "1234",
-      school_type: "HIGH",
-      grade: 1,
-      gender: suffix === "A" ? "M" : "F",
-      high_school: "E2E High",
-      memo: `[E2E-${stamp}] parent switcher fixture`,
-    },
-    headers: {
-      Authorization: `Bearer ${adminAccess}`,
-      "Content-Type": "application/json",
-      "X-Tenant-Code": "hakwonplus",
-    },
-    timeout: 60_000,
+  test.afterAll(async ({ request }) => {
+    await cleanupQaFamily(request, adminAccess, family);
   });
-  expect(resp.status()).toBe(201);
-  return await resp.json() as { id: number };
-}
 
-async function cleanupStudents(request: APIRequestContext, adminAccess: string, ids: number[]) {
-  if (ids.length === 0) return;
-  const headers = {
-    Authorization: `Bearer ${adminAccess}`,
-    "Content-Type": "application/json",
-    "X-Tenant-Code": "hakwonplus",
-  };
-  const soft = await request.post(`${API}/api/v1/students/bulk_delete/`, {
-    data: { ids },
-    headers,
-    timeout: 60_000,
-  });
-  expect([200, 204]).toContain(soft.status());
+  test("두 자녀 생성·전환·header 격리·reload·relogin을 완료한다", async ({ page, request }) => {
+    const boundary = await installQaStudentParentBoundary(page, request);
+    const browser = attachStrictBrowserGuards(page);
+    const admin = await loginAdmin(request);
+    adminAccess = admin.access;
+    family = await createQaFamily(request, admin.access, "switch", 2);
+    const [first, second] = family.students;
+    await assertAuthoritativeStudent(request, admin.access, first);
+    await assertAuthoritativeStudent(request, admin.access, second);
 
-  const permanent = await request.post(`${API}/api/v1/students/bulk_permanent_delete/`, {
-    data: { ids },
-    headers,
-    timeout: 60_000,
-  });
-  expect(permanent.status()).toBe(200);
-  const permanentBody = await permanent.json() as { deleted?: unknown };
-  expect(typeof permanentBody.deleted).toBe("number");
-}
+    const parent = await loginApi(request, family.parentPhone, family.parentPassword);
+    await assertParentProjection(request, parent.access, first);
 
-test.describe("학부모 자녀 스위처", () => {
-  test.use({ viewport: { width: 390, height: 844 } });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await loginThroughUi(page, family.parentPhone, family.parentPassword);
+    const switcher = page.getByRole("tablist", { name: "자녀 선택" });
+    await expect(switcher).toBeVisible();
+    const firstTab = switcher.getByRole("tab", { name: first.name });
+    const secondTab = switcher.getByRole("tab", { name: second.name });
+    await expect(firstTab).toHaveAttribute("aria-selected", "true");
+    await expect(page.locator(".stu-topbar__name")).toContainText(first.name);
 
-  test("다중 자녀 학부모 — 칩 노출 + 전환 + 스크린샷", async ({ page }) => {
-    const stamp = String(Date.now()).slice(-10);
-    const adminTokens = await issueToken(page.request, ADMIN_USER, ADMIN_PASS);
-    const createdIds: number[] = [];
+    const secondProjection = page.waitForRequest((requestItem) => (
+      requestItem.url().includes("/api/v1/student/")
+      && requestItem.headers()["x-student-id"] === String(second.id)
+    ));
+    await secondTab.click();
+    await secondProjection;
+    await expect(secondTab).toHaveAttribute("aria-selected", "true");
+    await expect(firstTab).toHaveAttribute("aria-selected", "false");
+    await expect(page.locator(".stu-topbar__name")).toContainText(second.name);
+    await assertParentProjection(request, parent.access, second, second.id);
+    await assertNoHorizontalOverflow(page);
 
-    try {
-      const first = await createStudent(page.request, adminTokens.access, stamp, "A");
-      const second = await createStudent(page.request, adminTokens.access, stamp, "B");
-      createdIds.push(first.id, second.id);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await waitForRenderSettled(page, { timeout: 20_000 });
+    await expect(switcher.getByRole("tab", { name: second.name })).toHaveAttribute("aria-selected", "true");
+    await expect(page.locator(".stu-topbar__name")).toContainText(second.name);
 
-      /* 학부모 토큰 발급 */
-      const tokens = await ensureParentTokens(page.request);
+    await logoutStudentApp(page);
+    await loginThroughUi(page, family.parentPhone, family.parentPassword);
+    await expect(page.getByRole("tab", { name: second.name })).toHaveAttribute("aria-selected", "true");
+    await expect(page.locator(".stu-topbar__name")).toContainText(second.name);
 
-      await page.goto(`${BASE}/login`, { waitUntil: "commit" });
-      await page.evaluate(({ access, refresh }) => {
-        localStorage.setItem("access", access);
-        localStorage.setItem("refresh", refresh);
-        sessionStorage.setItem("tenantCode", "hakwonplus");
-      }, tokens);
-
-      await page.goto(`${BASE}/student/dashboard`, { waitUntil: "load" });
-      await page.waitForLoadState("networkidle", { timeout: 12_000 }).catch(() => {});
-      await expect(page.getByRole("region", { name: "우리 아이 요약" })).toBeVisible({ timeout: 15_000 });
-
-      /* 자녀 스위처 — role=tablist + 자녀 2명 */
-      const switcher = page.getByRole("tablist", { name: "자녀 선택" });
-      await expect(switcher).toBeVisible({ timeout: 8_000 });
-
-      const tabs = switcher.getByRole("tab");
-      await expect(tabs).toHaveCount(2);
-
-      /* 첫 자녀 활성 */
-      const firstActive = await tabs.first().getAttribute("aria-selected");
-      expect(firstActive).toBe("true");
-
-      /* 초기 스크린샷 */
-      await page.screenshot({ path: "e2e/screenshots/parent-switcher-initial.png", fullPage: true });
-
-      /* 두 번째 자녀 클릭 → 활성 전환 */
-      await tabs.nth(1).click();
-      await page.waitForLoadState("networkidle", { timeout: 8_000 }).catch(() => {});
-
-      const secondActive = await tabs.nth(1).getAttribute("aria-selected");
-      expect(secondActive).toBe("true");
-      const firstActiveAfter = await tabs.first().getAttribute("aria-selected");
-      expect(firstActiveAfter).toBe("false");
-      await expect(page.getByRole("region", { name: "우리 아이 요약" })).toBeVisible({ timeout: 15_000 });
-
-      /* 전환 후 스크린샷 */
-      await page.screenshot({ path: "e2e/screenshots/parent-switcher-after-switch.png", fullPage: true });
-    } finally {
-      await cleanupStudents(page.request, adminTokens.access, createdIds);
-    }
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await assertNoHorizontalOverflow(page);
+    boundary.assertClean();
+    browser.assertZeroDefects();
   });
 });
