@@ -265,6 +265,10 @@ desktop/mobile별 마지막 통과 단계와 제한된 재생 상태만 고정 a
 paused/ended, media ready/network 상태, bootstrap·renew·progress·access-check·media 요청과
 브라우저 오류 수만 허용한다. 이 checkpoint와 failure snapshot은 실패 위치를 찾기 위한
 관측 정보일 뿐, 성공 판정은 기존 690초 최종 증거와 cleanup 0을 모두 충족해야 한다.
+Playwright가 failure snapshot 수집 자체를 중단한 경우에도 원문 오류는 공개하지 않고,
+장시간 재생 결과에 한해 `test-timeout`, `context-closed`, `page-crashed`,
+`playback-below-690`, `poll-timeout`, `video-evaluate-failed`, `route-handler-failed` 중
+일치하는 고정 코드만 artifact에 남긴다. 코드가 없거나 여러 개여도 성공으로 간주하지 않는다.
 재생 시작은 이미 재생 중인 정상 상태를 중복 클릭하지 않고, 일시정지 상태에서는 화면의
 실제 중앙 재생 버튼이 보이고 클릭되어 재생 상태로 전환되는 과정까지 확인한다.
 1366×768과 390×844 두 Chromium context는 동시에 690초 이상 실제

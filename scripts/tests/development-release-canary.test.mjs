@@ -298,6 +298,7 @@ test("real-use failure observation publishes only allowlisted counts, files, and
     suppressedCloudflareBeacons: 4,
     longVideo: null,
     longVideoFailure: null,
+    longVideoErrorCodes: [],
     longVideoCheckpoint: { desktop: null, mobile: null },
   });
   const published = JSON.stringify(observeReleaseTestResult(JSON.stringify(report)));
@@ -310,6 +311,7 @@ test("real-use failure observation publishes only allowlisted counts, files, and
     suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
     longVideo: null,
     longVideoFailure: null,
+    longVideoErrorCodes: [],
     longVideoCheckpoint: { desktop: null, mobile: null },
   });
 });
@@ -528,6 +530,18 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
   const unsafeFailureObservation = runner.observeReleaseTestResult(JSON.stringify(unsafeFailureReport));
   assert.equal(unsafeFailureObservation.longVideoFailure, null);
   assert.doesNotMatch(JSON.stringify(unsafeFailureObservation), /must-not-publish/);
+  const codedFailureReport = completeFlowReport();
+  const codedFailure = codedFailureReport.suites.at(-1).specs[0].tests[0];
+  codedFailure.status = "unexpected";
+  codedFailure.results[0] = { status: "failed", errors: [{
+    message: "locator.evaluate: Target page, context or browser has been closed\n"
+      + "expect(received).toBeGreaterThanOrEqual(expected)\nExpected: >= 690\nsecret-token",
+  }] };
+  const codedObservation = runner.observeReleaseTestResult(JSON.stringify(codedFailureReport));
+  assert.deepEqual(codedObservation.longVideoErrorCodes, [
+    "context-closed", "playback-below-690", "video-evaluate-failed",
+  ]);
+  assert.doesNotMatch(JSON.stringify(codedObservation), /secret-token/);
   for (const invalidEvidence of [
     { sourceReloadCount: 1 },
     { minimumRenewalAdvanceSeconds: 4 },
