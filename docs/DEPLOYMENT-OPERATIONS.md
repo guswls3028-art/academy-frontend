@@ -246,7 +246,8 @@ profile, 종료 방지, inbound0, SSM Online을 확인한다. 원본 artifact의
 러너 메모리의 무음 HLS fixture를
 backend가 실제 반환한 `qa-fixtures/video-long/master.m3u8` signed URL에만 연결하며 R2에는
 객체를 쓰지 않는다. READY fallback이 생성하는 별도 signed poster도 playback bootstrap과 정확한 session-video 목록 응답에서
-현재 video item으로 반환된 `thumbnail_url`, HLS origin, Setup tenant/video path, bounded canonical query shape가 모두 일치할 때만 유효한 메모리
+현재 video item으로 반환된 `thumbnail_url`, HLS origin, Setup tenant/video path, 6시간 TTL과 최대 60초의 cross-host clock skew만 허용하는
+bounded canonical query shape가 모두 일치할 때만 유효한 메모리
 이미지로 치환한다. 브라우저의 response/request 이벤트 순서가 뒤집힐 수 있으므로 exact signed poster 후보만 응답 allowlist 등록을
 최대 3초 동안 기다리며, 그 안에 같은 exact URL과 HLS origin이 확인되지 않으면 기존 release guard가 거부한다. 다른 CDN
 path/query 형태는 즉시 거부하고, exact 형태여도 응답 URL이나 HLS origin이 일치하지 않으면 bounded wait 뒤 거부한다.
