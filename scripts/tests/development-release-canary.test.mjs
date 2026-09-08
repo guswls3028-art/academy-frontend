@@ -461,6 +461,7 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
     minimumPlaybackSeconds: 690, minimumWallSeconds: 690,
     bootstrapCount: 2, renewCount: 2, endBeforeRenewCount: 0,
     initialMasterLoadCount: 2, initialMediaLoadCount: 4,
+    posterLoadCount: 2,
     minimumRenewalAdvanceSeconds: 5, sourceReloadCount: 0,
     sameDomCount: 2, sameSessionCount: 2, tokenRotationCount: 2,
     progressPersistedCount: 2, maxReloadDriftSeconds: 2,
@@ -472,6 +473,7 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
     minimumPlaybackSeconds: 690, minimumWallSeconds: 690,
     bootstrapCount: 2, renewCount: 2, endBeforeRenewCount: 0,
     initialMasterLoadCount: 2, initialMediaLoadCount: 4,
+    posterLoadCount: 2,
     minimumRenewalAdvanceSeconds: 5, sourceReloadCount: 0,
     sameDomCount: 2, sameSessionCount: 2, tokenRotationCount: 2,
     progressPersistedCount: 2, maxReloadDriftSeconds: 2,
@@ -483,6 +485,7 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
     { minimumRenewalAdvanceSeconds: 4 },
     { initialMasterLoadCount: 1 },
     { initialMediaLoadCount: 3 },
+    { posterLoadCount: 1 },
   ]) {
     const invalidReport = completeFlowReport();
     invalidReport.suites.at(-1).specs[0].tests[0].results[0].stdout = [{ text: `${JSON.stringify({ longVideoRealUse: {
@@ -490,6 +493,7 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
       minimumPlaybackSeconds: 690, minimumWallSeconds: 690,
       bootstrapCount: 2, renewCount: 2, endBeforeRenewCount: 0,
       initialMasterLoadCount: 2, initialMediaLoadCount: 4,
+      posterLoadCount: 2,
       minimumRenewalAdvanceSeconds: 5, sourceReloadCount: 0,
       sameDomCount: 2, sameSessionCount: 2, tokenRotationCount: 2,
       progressPersistedCount: 2, maxReloadDriftSeconds: 2,
@@ -550,6 +554,7 @@ test("official runner opts into two-student long-video setup without publishing 
   const runnerSource = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
   const configSource = readFileSync(new URL("../../playwright.development-release.config.ts", import.meta.url), "utf8");
   const specSource = readFileSync(new URL("../../e2e/student/video-playback-renewal.realuse.spec.ts", import.meta.url), "utf8");
+  const posterBridgeSource = readFileSync(new URL("../../e2e/helpers/syntheticVideoPosterBridge.ts", import.meta.url), "utf8");
   assert.match(runnerSource, /SyntheticLongVideo: \["true"\]/);
   assert.match(runnerSource, /E2E_STUDENT2_USER: "ymath-qa-student-02"/);
   assert.match(runnerSource, /E2E_LONG_VIDEO_ID: String\(scenario\.synthetic_long_video\.video_id\)/);
@@ -564,6 +569,9 @@ test("official runner opts into two-student long-video setup without publishing 
   assert.match(specSource, /sourceReloadCount/);
   assert.match(specSource, /expect\(payload\.play_url == null\)\.toBe\(true\)/);
   assert.match(specSource, /state\.allowedMasterUrls\.size\)\.toBe\(2\)/);
+  assert.match(specSource, /installSyntheticVideoPosterBridge/);
+  assert.match(posterBridgeSource, /state\.allowedPosterUrls\.has\(request\.url\(\)\)/);
+  assert.match(posterBridgeSource, /await route\.fallback\(\)/);
   assert.doesNotMatch(specSource, /state\.masterLoads\)\.toBeGreaterThanOrEqual\(2\)/);
   assert.doesNotMatch(specSource, /state\.mediaLoads\)\.toBeGreaterThanOrEqual\(4\)/);
 });
@@ -571,6 +579,10 @@ test("official runner opts into two-student long-video setup without publishing 
 const policySource = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");
 const policyModule = await import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(policySource)).toString("base64")}`);
 const { assertReleaseRequestSafe, releaseBoundaryFromEnv, installReleaseRequestGuard, installReleaseContextGuard } = policyModule;
+const posterBridgeSource = readFileSync(new URL("../../e2e/helpers/syntheticVideoPosterBridge.ts", import.meta.url), "utf8");
+const { installSyntheticVideoPosterBridge } = await import(
+  `data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(posterBridgeSource)).toString("base64")}`
+);
 const production = releaseBoundaryFromEnv({
   E2E_RELEASE_API_MODE: "readonly", E2E_ALLOW_PRODUCTION_WRITES: "0",
   E2E_BASE_URL: "https://hakwonplus.com", E2E_API_URL: "https://api.hakwonplus.com",
@@ -580,6 +592,93 @@ const development = releaseBoundaryFromEnv({
   E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0",
   E2E_BASE_URL: "http://localhost:4173", E2E_API_URL: "http://127.0.0.1:18000",
   E2E_TENANT_CODE: "qa-ymath-realuse-release-unit",
+});
+
+test("real Chromium bridges only the exact bootstrap poster and HLS origin", { timeout: 15_000 }, async () => {
+  const server = http.createServer((_request, response) => {
+    response.writeHead(200, { "content-type": "text/html" });
+    response.end("<!doctype html><main>release boundary fixture</main>");
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const webOrigin = `http://127.0.0.1:${server.address().port}`;
+  const mediaOrigin = "https://media.fixture.invalid";
+  const expiresAt = Math.floor(Date.now() / 1_000) + 1_500;
+  const signature = "a".repeat(43);
+  const masterUrl = `${mediaOrigin}/qa-fixtures/video-long/master.m3u8?exp=${expiresAt}&kid=v1&sig=${signature}&uid=11`;
+  const posterPath = "/tenants/7/video/hls/77/thumbnail.jpg";
+  const posterQuery = `v=1&exp=${expiresAt}&sig=${signature}&kid=v1`;
+  const posterUrl = `${mediaOrigin}${posterPath}?${posterQuery}`;
+  let browser;
+  try {
+    browser = await chromium.launch();
+    const context = await browser.newContext();
+    const guard = await installReleaseContextGuard(context, {
+      mode: "development", webOrigin, apiOrigin: "http://127.0.0.1:1", tenantCode: "qa-ymath-realuse-unit",
+    });
+    await context.route("**/qa-fixtures/video-long/**", async (route) => {
+      if (route.request().url() !== masterUrl) {
+        await route.fallback();
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/vnd.apple.mpegurl",
+        headers: { "access-control-allow-origin": webOrigin },
+        body: "#EXTM3U\n#EXT-X-ENDLIST\n",
+      });
+    });
+    const state = {
+      responseChain: Promise.resolve(),
+      allowedMasterUrls: new Set([masterUrl]),
+      allowedPosterUrls: new Set([posterUrl]),
+      posterLoads: 0,
+    };
+    await installSyntheticVideoPosterBridge(context, state, 77);
+    const page = await context.newPage();
+    await page.goto(webOrigin);
+    assert.equal(await page.evaluate(async (url) => (await fetch(url)).status, masterUrl), 200);
+    assert.equal(await page.evaluate((url) => new Promise((resolve) => {
+      const image = new Image();
+      image.onload = () => resolve(true);
+      image.onerror = () => resolve(false);
+      image.src = url;
+    }), posterUrl), true);
+    assert.equal(state.posterLoads, 1);
+    assert.doesNotThrow(() => guard.assertClean());
+    await context.close();
+
+    const rejected = [
+      `https://foreign.fixture.invalid${posterPath}?${posterQuery}`,
+      `${mediaOrigin}/tenants/7/video/hls/78/thumbnail.jpg?${posterQuery}`,
+      `${mediaOrigin}${posterPath}?v=1&exp=${expiresAt}&kid=v1`,
+    ];
+    for (const candidate of rejected) {
+      const rejectedContext = await browser.newContext();
+      const rejectedGuard = await installReleaseContextGuard(rejectedContext, {
+        mode: "development", webOrigin, apiOrigin: "http://127.0.0.1:1", tenantCode: "qa-ymath-realuse-unit",
+      });
+      const rejectedState = {
+        responseChain: Promise.resolve(),
+        allowedMasterUrls: new Set([masterUrl]),
+        allowedPosterUrls: new Set([candidate]),
+        posterLoads: 0,
+      };
+      await installSyntheticVideoPosterBridge(rejectedContext, rejectedState, 77);
+      const rejectedPage = await rejectedContext.newPage();
+      await rejectedPage.goto(webOrigin);
+      await rejectedPage.evaluate((url) => new Promise((resolve) => {
+        const image = new Image();
+        image.onload = image.onerror = () => resolve(undefined);
+        image.src = url;
+      }), candidate);
+      assert.throws(() => rejectedGuard.assertClean(), /Release request rejected \[origin\]/);
+      assert.equal(rejectedState.posterLoads, 0);
+      await rejectedContext.close();
+    }
+  } finally {
+    await browser?.close();
+    await new Promise((resolve) => server.close(resolve));
+  }
 });
 
 test("production permits reads and exact token authentication only", () => {

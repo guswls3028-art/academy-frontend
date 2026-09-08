@@ -7,6 +7,7 @@ import {
   type Response,
 } from "../fixtures/strictTest";
 import { dismissDevelopmentFirstLoginGuide, getApiBaseUrl, getBaseUrl } from "../helpers/auth";
+import { installSyntheticVideoPosterBridge } from "../helpers/syntheticVideoPosterBridge";
 
 const MINIMUM_PLAYBACK_SECONDS = 690;
 const MINIMUM_RENEW_SECONDS = 540;
@@ -19,7 +20,7 @@ type PlaybackPayload = {
   playback_expires_at?: unknown;
   play_url?: unknown;
   hls_url?: unknown;
-  video?: { last_position?: unknown };
+  video?: { last_position?: unknown; thumbnail_url?: unknown };
 };
 
 type StudentObservation = {
@@ -34,6 +35,7 @@ type StudentObservation = {
   horizontalOverflowCount: number;
   masterLoads: number;
   mediaLoads: number;
+  posterLoads: number;
   startedAt: number;
   playbackSeconds: number;
   wallSeconds: number;
@@ -49,6 +51,7 @@ type StudentObservation = {
   reloadDriftSeconds: number;
   responseChain: Promise<void>;
   allowedMasterUrls: Set<string>;
+  allowedPosterUrls: Set<string>;
   signedOrigins: Set<string>;
 };
 
@@ -128,6 +131,9 @@ async function captureResponse(
     assertBootstrapPayload(payload);
     state.bootstraps.push({ ...payload, observedAt: Date.now() });
     state.allowedMasterUrls.add(payload.play_url);
+    const posterUrl = payload.video?.thumbnail_url;
+    expect(typeof posterUrl === "string" && posterUrl.length > 0, "bootstrap must return its signed poster URL").toBe(true);
+    state.allowedPosterUrls.add(String(posterUrl));
     return;
   }
   if (url.pathname === "/api/v1/media/playback/renew/") {
@@ -226,6 +232,7 @@ function newObservation(viewport: "desktop" | "mobile"): StudentObservation {
     horizontalOverflowCount: 0,
     masterLoads: 0,
     mediaLoads: 0,
+    posterLoads: 0,
     startedAt: 0,
     playbackSeconds: 0,
     wallSeconds: 0,
@@ -241,6 +248,7 @@ function newObservation(viewport: "desktop" | "mobile"): StudentObservation {
     reloadDriftSeconds: Number.POSITIVE_INFINITY,
     responseChain: Promise.resolve(),
     allowedMasterUrls: new Set(),
+    allowedPosterUrls: new Set(),
     signedOrigins: new Set(),
   };
 }
@@ -276,12 +284,14 @@ async function prepareStudent(
     state.responseChain = state.responseChain.then(() => captureResponse(response, state, videoId));
   });
   await installSyntheticHlsBridge(context, state, hlsPath, baseUrl);
+  await installSyntheticVideoPosterBridge(context, state, videoId);
   await seedStudentSession(context, page, tenantCode, username, password);
   await page.goto(`${baseUrl}/student/video/play?video=${videoId}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await dismissDevelopmentFirstLoginGuide(page, tenantCode);
   await expect.poll(() => state.bootstraps.length).toBe(1);
   const video = page.locator("video.svpVideo");
   await expect(video).toHaveCount(1);
+  await expect.poll(() => state.posterLoads).toBeGreaterThanOrEqual(1);
   await expect.poll(() => video.evaluate((element) => Number((element as HTMLVideoElement).duration))).toBe(900);
   const marker = `${viewportName}-${Date.now()}`;
   await video.evaluate((element, value) => { element.setAttribute("data-e2e-node", value); }, marker);
@@ -414,6 +424,7 @@ async function finishStudent(
   expect(state.renewals).toHaveLength(1);
   expect(state.allowedMasterUrls.size).toBe(2);
   expect([...state.allowedMasterUrls].every((url) => new URL(url).pathname === `/${hlsPath}`)).toBe(true);
+  expect(state.allowedPosterUrls.size).toBeGreaterThanOrEqual(1);
 }
 
 test("two students play through renewal and persist progress without interruption", async ({ browser }) => {
@@ -453,6 +464,7 @@ test("two students play through renewal and persist progress without interruptio
     endBeforeRenewCount: states.reduce((total, state) => total + state.endBeforeRenewCount, 0),
     initialMasterLoadCount: states.reduce((total, state) => total + state.initialMasterLoads, 0),
     initialMediaLoadCount: states.reduce((total, state) => total + state.initialMediaLoads, 0),
+    posterLoadCount: states.reduce((total, state) => total + state.posterLoads, 0),
     minimumRenewalAdvanceSeconds: Math.min(...states.map((state) => state.renewalAdvanceSeconds)),
     sourceReloadCount: states.reduce((total, state) => total + state.sourceReloadCount, 0),
     sameDomCount: states.filter((state) => state.sameDom).length,

@@ -71,7 +71,7 @@ function observeLongVideoBrowserEvidence(payload) {
     "bootstrapCount", "consoleErrorCount", "contexts", "desktop", "endBeforeRenewCount",
     "horizontalOverflowCount", "initialMasterLoadCount", "initialMediaLoadCount",
     "maxReloadDriftSeconds", "minimumPlaybackSeconds", "minimumRenewalAdvanceSeconds",
-    "minimumWallSeconds", "mobile", "pageErrorCount", "progressPersistedCount",
+    "minimumWallSeconds", "mobile", "pageErrorCount", "posterLoadCount", "progressPersistedCount",
     "renewCount", "requestErrorCount", "sameDomCount", "sameSessionCount", "schema",
     "sourceReloadCount", "tokenRotationCount",
   ];
@@ -84,6 +84,7 @@ function observeLongVideoBrowserEvidence(payload) {
     || payload.minimumWallSeconds < 690 || payload.minimumWallSeconds > 1_000
     || payload.bootstrapCount !== 2 || payload.renewCount !== 2 || payload.endBeforeRenewCount !== 0
     || payload.initialMasterLoadCount < 2 || payload.initialMediaLoadCount < 4
+    || payload.posterLoadCount < 2
     || payload.minimumRenewalAdvanceSeconds < 5 || payload.sourceReloadCount !== 0
     || payload.sameDomCount !== 2 || payload.sameSessionCount !== 2 || payload.tokenRotationCount !== 2
     || payload.progressPersistedCount !== 2 || payload.maxReloadDriftSeconds > 2
@@ -101,6 +102,7 @@ function observeLongVideoBrowserEvidence(payload) {
     endBeforeRenewCount: payload.endBeforeRenewCount,
     initialMasterLoadCount: payload.initialMasterLoadCount,
     initialMediaLoadCount: payload.initialMediaLoadCount,
+    posterLoadCount: payload.posterLoadCount,
     minimumRenewalAdvanceSeconds: payload.minimumRenewalAdvanceSeconds,
     sourceReloadCount: payload.sourceReloadCount,
     sameDomCount: payload.sameDomCount,
