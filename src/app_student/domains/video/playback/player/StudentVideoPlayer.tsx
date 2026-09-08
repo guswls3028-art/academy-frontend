@@ -805,10 +805,13 @@ export default function StudentVideoPlayer({
               )}
 
               {ready && !playing && !reconnecting && usesCustomControls && (
-                <button className="svpBigPlay" type="button" onClick={togglePlay} onDoubleClick={(e) => e.stopPropagation()}>
-                  <span className="svpBigPlayIcon">▶</span>
-                  <span className="svpBigPlayText">재생</span>
-                </button>
+                <>
+                  <div className="svpPlayScrim" aria-hidden />
+                  <button className="svpBigPlay" type="button" onClick={togglePlay} onDoubleClick={(e) => e.stopPropagation()}>
+                    <span className="svpBigPlayIcon">▶</span>
+                    <span className="svpBigPlayText">재생</span>
+                  </button>
+                </>
               )}
 
               {/* 재연결 중: 화면 중앙에 명확히 표시 (버퍼링과 구분) */}

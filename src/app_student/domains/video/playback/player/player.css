@@ -267,18 +267,32 @@
   100% { transform: rotate(360deg); }
 }
 
-.svpBigPlay {
+.svpPlayScrim {
   position: absolute;
   inset: 0;
+  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.55));
+  pointer-events: none;
+  z-index: 19;
+}
+
+.svpBigPlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 88px;
+  height: 88px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.55));
+  padding: 0;
+  transform: translate(-50%, -50%);
+  background: transparent;
   border: 0;
+  border-radius: 999px;
   cursor: pointer;
   color: #fff;
-  z-index: 20;
+  z-index: 21;
 }
 
 .svpBigPlay:hover .svpBigPlayIcon {
