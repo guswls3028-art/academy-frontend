@@ -59,7 +59,7 @@ export const test = base.extend<StrictBrowserOptions>({
       browser.newContext = original;
       for (const check of checks) check();
     }
-  }, { scope: "worker" }],
+  }, { scope: "worker", timeout: 20 * 60_000 }],
   request: async ({ request }, continueWithFixture) => {
     const boundary = releaseBoundaryFromEnv(process.env);
     let violations = 0;

@@ -9,6 +9,17 @@ import { fileURLToPath } from "node:url";
 import { assertReleaseSummary, assertCleanup, assertManifest, assertActiveInstance, assertReadOnlyAssessmentSource, observeReleaseTestResult } from "../run-development-release-canary.mjs";
 import * as runner from "../run-development-release-canary.mjs";
 
+test("release-aware browser worker fixture outlives the 690-second playback proof", () => {
+  const source = readFileSync(new URL("../../e2e/fixtures/strictTest.ts", import.meta.url), "utf8");
+  assert.match(source, /scope:\s*["']worker["'][^}\]]*timeout:\s*20\s*\*\s*60_000/s);
+});
+
+test("long-video proof propagates strict context teardown failures", () => {
+  const source = readFileSync(new URL("../../e2e/student/video-playback-renewal.realuse.spec.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /Promise\.allSettled\(runs\.map\(\(\{ context \}\) => context\.close\(\)\)\)/);
+  assert.match(source, /await Promise\.all\(runs\.map\(\(\{ context \}\) => context\.close\(\)\)\)/);
+});
+
 test("each run has an independent non-published ownership capability", () => {
   assert.equal(typeof runner.createRunOwnership, "function");
   const env = { GITHUB_RUN_ID: "123", GITHUB_RUN_ATTEMPT: "1" };
