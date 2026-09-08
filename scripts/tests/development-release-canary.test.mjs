@@ -574,6 +574,8 @@ test("official runner opts into two-student long-video setup without publishing 
   const specSource = readFileSync(new URL("../../e2e/student/video-playback-renewal.realuse.spec.ts", import.meta.url), "utf8");
   const posterBridgeSource = readFileSync(new URL("../../e2e/helpers/syntheticVideoPosterBridge.ts", import.meta.url), "utf8");
   const responseKindSource = readFileSync(new URL("../../e2e/helpers/videoPlaybackResponseKind.ts", import.meta.url), "utf8");
+  const playerSource = readFileSync(new URL("../../src/app_student/domains/video/playback/player/StudentVideoPlayer.tsx", import.meta.url), "utf8");
+  const playerCssSource = readFileSync(new URL("../../src/app_student/domains/video/playback/player/player.css", import.meta.url), "utf8");
   assert.match(runnerSource, /SyntheticLongVideo: \["true"\]/);
   assert.match(runnerSource, /E2E_STUDENT2_USER: "ymath-qa-student-02"/);
   assert.match(runnerSource, /E2E_LONG_VIDEO_ID: String\(scenario\.synthetic_long_video\.video_id\)/);
@@ -600,6 +602,12 @@ test("official runner opts into two-student long-video setup without publishing 
   assert.match(specSource, /const pausedBeforeStart = await video\.evaluate/);
   assert.match(specSource, /if \(pausedBeforeStart\)/);
   assert.doesNotMatch(specSource, /await page\.locator\("button\.svpBigPlay"\)\.click\(\);/);
+  assert.match(playerSource, /className="svpPlayScrim"/);
+  const bigPlayRule = playerCssSource.match(/\.svpBigPlay\s*\{(?<body>[\s\S]*?)\}/)?.groups?.body || "";
+  assert.doesNotMatch(bigPlayRule, /inset:\s*0/);
+  assert.match(bigPlayRule, /width:\s*88px/);
+  assert.match(bigPlayRule, /height:\s*88px/);
+  assert.match(bigPlayRule, /z-index:\s*21/);
   const responseKindModule = await import(
     `data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(responseKindSource)).toString("base64")}`
   );
