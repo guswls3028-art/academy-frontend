@@ -377,6 +377,8 @@ export default function VideoDetailOverlay({
                     videoId={videoId}
                     initialTitle={video.title ?? ""}
                     initialOrder={video.order ?? 1}
+                    initialAllowSkip={video.allow_skip}
+                    initialMaxSpeed={video.max_speed}
                     sessionId={sessionId}
                   />
                 )}

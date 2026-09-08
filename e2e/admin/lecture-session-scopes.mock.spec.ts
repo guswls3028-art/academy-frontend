@@ -459,7 +459,7 @@ test("기존 전체 보기를 기본으로 유지하고 분리 보기에서 보�
   );
 });
 
-test("영상 추가 정책은 허용·금지를 표시하고 라벨 전체 클릭으로 전환된다", async ({ page }, testInfo) => {
+test("영상 추가 정책은 자유 이동의 정확한 상태를 표시하고 라벨 전체 클릭으로 전환된다", async ({ page }, testInfo) => {
   const state: MockState = {
     supplementTitle: "토요일 심화 클리닉",
     patchTitles: [],
@@ -490,28 +490,28 @@ test("영상 추가 정책은 허용·금지를 표시하고 라벨 전체 클�
   await expect(dialog).toBeVisible();
 
   const watermarkAllow = dialog.getByRole("switch", { name: "워터마크 허용" });
-  const skipDeny = dialog.getByRole("switch", { name: "건너뛰기 금지" });
+  const skipDeny = dialog.getByRole("switch", { name: "자유 건너뛰기 수강 중 제한" });
   await expect(watermarkAllow).toHaveAttribute("aria-checked", "true");
   await expect(watermarkAllow).toContainText("허용");
   await expect(skipDeny).toHaveAttribute("aria-checked", "false");
-  await expect(skipDeny).toContainText("금지");
+  await expect(skipDeny).toContainText("수강 중 제한");
 
   await watermarkAllow.getByText("워터마크", { exact: true }).click();
   const watermarkDeny = dialog.getByRole("switch", { name: "워터마크 금지" });
   await expect(watermarkDeny).toHaveAttribute("aria-checked", "false");
   await expect(watermarkDeny).toContainText("금지");
 
-  await skipDeny.getByText("건너뛰기", { exact: true }).click();
-  const skipAllow = dialog.getByRole("switch", { name: "건너뛰기 허용" });
+  await skipDeny.getByText("자유 건너뛰기", { exact: true }).click();
+  const skipAllow = dialog.getByRole("switch", { name: "자유 건너뛰기 허용" });
   await expect(skipAllow).toHaveAttribute("aria-checked", "true");
   await expect(skipAllow).toContainText("허용");
 
   await skipAllow.focus();
   await skipAllow.press("Space");
-  const skipDenyByKeyboard = dialog.getByRole("switch", { name: "건너뛰기 금지" });
+  const skipDenyByKeyboard = dialog.getByRole("switch", { name: "자유 건너뛰기 수강 중 제한" });
   await expect(skipDenyByKeyboard).toHaveAttribute("aria-checked", "false");
   await skipDenyByKeyboard.press("Enter");
-  await expect(dialog.getByRole("switch", { name: "건너뛰기 허용" }))
+  await expect(dialog.getByRole("switch", { name: "자유 건너뛰기 허용" }))
     .toHaveAttribute("aria-checked", "true");
 
   const policyRowMetrics = await dialog.locator(".video-upload-modal__policy-row").evaluate((element) => ({

@@ -35,7 +35,7 @@ export default function VideoPolicySection({ videoId, initial }: Props) {
           </label>
 
           <label className="flex items-center gap-2 cursor-pointer select-none">
-            <span className="video-policy-label">건너뛰기 허용</span>
+            <span className="video-policy-label">수강 중 자유 건너뛰기 허용</span>
             <ToggleSwitch checked={policy.allow_skip} onChange={setAllowSkip} />
           </label>
 
