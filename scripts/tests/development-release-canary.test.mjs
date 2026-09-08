@@ -597,6 +597,9 @@ test("official runner opts into two-student long-video setup without publishing 
   assert.match(specSource, /state\.accessCheckCount\)\.toBeGreaterThanOrEqual\(1\)/);
   assert.match(specSource, /longVideoCheckpoint/);
   assert.match(runnerSource, /longVideoCheckpoint/);
+  assert.match(specSource, /const pausedBeforeStart = await video\.evaluate/);
+  assert.match(specSource, /if \(pausedBeforeStart\)/);
+  assert.doesNotMatch(specSource, /await page\.locator\("button\.svpBigPlay"\)\.click\(\);/);
   const responseKindModule = await import(
     `data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(responseKindSource)).toString("base64")}`
   );

@@ -25,7 +25,8 @@ const FLOW_COUNTS = {
 const LONG_VIDEO_CHECKPOINT_STAGES = [
   "context-created", "routes-installed", "authenticated", "navigated",
   "bootstrap-observed", "access-observed", "playlist-observed", "video-mounted",
-  "poster-loaded", "metadata-ready", "playback-started", "position-530",
+  "poster-loaded", "metadata-ready", "marker-set", "playback-state-checked",
+  "play-control-visible", "play-clicked", "playback-running", "playback-started", "position-530",
   "renewal-observed", "renewal-advanced", "playback-690", "progress-observed",
   "reload-bootstrap", "reload-playlist", "reload-metadata", "reload-progress", "completed",
 ];

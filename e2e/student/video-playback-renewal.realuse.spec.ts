@@ -18,7 +18,8 @@ const SYNTHETIC_ASSET_PREFIX = "/__qa__/video-long/";
 type LongVideoCheckpointStage =
   | "context-created" | "routes-installed" | "authenticated" | "navigated"
   | "bootstrap-observed" | "access-observed" | "playlist-observed" | "video-mounted"
-  | "poster-loaded" | "metadata-ready" | "playback-started" | "position-530"
+  | "poster-loaded" | "metadata-ready" | "marker-set" | "playback-state-checked"
+  | "play-control-visible" | "play-clicked" | "playback-running" | "playback-started" | "position-530"
   | "renewal-observed" | "renewal-advanced" | "playback-690" | "progress-observed"
   | "reload-bootstrap" | "reload-playlist" | "reload-metadata" | "reload-progress" | "completed";
 
@@ -399,8 +400,18 @@ async function prepareStudent(
   emitLongVideoCheckpoint(viewportName, "metadata-ready");
   const marker = `${viewportName}-${Date.now()}`;
   await video.evaluate((element, value) => { element.setAttribute("data-e2e-node", value); }, marker);
-  await page.locator("button.svpBigPlay").click();
+  emitLongVideoCheckpoint(viewportName, "marker-set");
+  const pausedBeforeStart = await video.evaluate((element) => (element as HTMLVideoElement).paused);
+  emitLongVideoCheckpoint(viewportName, "playback-state-checked");
+  if (pausedBeforeStart) {
+    const playControl = page.locator("button.svpBigPlay");
+    await expect(playControl).toBeVisible();
+    emitLongVideoCheckpoint(viewportName, "play-control-visible");
+    await playControl.click();
+    emitLongVideoCheckpoint(viewportName, "play-clicked");
+  }
   await expect.poll(() => video.evaluate((element) => !(element as HTMLVideoElement).paused)).toBe(true);
+  emitLongVideoCheckpoint(viewportName, "playback-running");
   await video.evaluate((element) => {
     const media = element as HTMLVideoElement;
     media.volume = 0.37;
