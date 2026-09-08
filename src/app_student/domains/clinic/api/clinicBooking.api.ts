@@ -26,6 +26,8 @@ type ClinicParticipantRaw = {
   created_at: string;
   updated_at?: string;
   status_changed_at?: string;
+  can_self_cancel?: boolean;
+  self_cancel_reason?: string;
 };
 
 /**
@@ -77,6 +79,8 @@ export type ClinicBookingRequest = {
   created_at: string;
   updated_at?: string;
   status_changed_at?: string;
+  can_self_cancel: boolean;
+  self_cancel_reason: string;
 };
 
 function normalizeBookingStatus(status: ClinicParticipantRaw["status"]): ClinicBookingStatus | null {
@@ -196,6 +200,12 @@ export async function fetchMyClinicBookingRequests(): Promise<ClinicBookingReque
       created_at: raw.created_at,
       updated_at: raw.updated_at,
       status_changed_at: raw.status_changed_at,
+      can_self_cancel: raw.can_self_cancel ?? status === "pending",
+      self_cancel_reason: raw.self_cancel_reason ?? (
+        status === "pending"
+          ? "예약 신청을 직접 취소할 수 있습니다."
+          : "취소 가능 여부를 확인하려면 화면을 새로고침해 주세요."
+      ),
     }));
 }
 
@@ -245,6 +255,8 @@ export async function createClinicBookingRequests(data: {
       booking_start_time: participant.booking_start_time,
       booking_end_time: participant.booking_end_time,
       created_at: participant.created_at,
+      can_self_cancel: participant.can_self_cancel ?? status === "pending",
+      self_cancel_reason: participant.self_cancel_reason ?? "예약 신청을 직접 취소할 수 있습니다.",
     });
   });
 }
@@ -253,10 +265,20 @@ export async function createClinicBookingRequests(data: {
  * 클리닉 예약 신청 취소
  * PATCH /clinic/participants/{id}/set_status/
  */
-export async function cancelClinicBookingRequest(id: number): Promise<void> {
-  await api.patch(`/clinic/participants/${id}/set_status/`, {
+export type ClinicCancellationResult = {
+  notification?: {
+    requested: number;
+    failed: number;
+    send_to: "both";
+    targets: Array<{ target: "student" | "parent"; requested: boolean }>;
+  };
+};
+
+export async function cancelClinicBookingRequest(id: number): Promise<ClinicCancellationResult> {
+  const response = await api.patch<ClinicCancellationResult>(`/clinic/participants/${id}/set_status/`, {
     status: "cancelled",
   });
+  return response.data;
 }
 
 /**
@@ -302,6 +324,8 @@ export async function changeClinicBooking(
     booking_start_time: res.data.booking_start_time,
     booking_end_time: res.data.booking_end_time,
     created_at: res.data.created_at,
+    can_self_cancel: res.data.can_self_cancel ?? status === "pending",
+    self_cancel_reason: res.data.self_cancel_reason ?? "예약 신청을 직접 취소할 수 있습니다.",
   });
 }
 

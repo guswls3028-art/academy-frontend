@@ -849,7 +849,7 @@
 }
 
 .bookingActions button {
-  min-height: 32px;
+  min-height: 44px;
   padding: 5px 8px;
   border: 1px solid var(--stu-border);
   border-radius: 8px;
@@ -866,19 +866,45 @@
   color: var(--stu-danger);
 }
 
-.bookingActions button:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
+.approvedActions {
+  display: flex;
+  max-width: 180px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
 }
 
-.approvedHelp {
-  max-width: 130px;
+.approvedActions button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--stu-danger);
+  border-radius: 8px;
+  background: var(--stu-surface);
+  color: var(--stu-danger);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.approvedActions button:disabled {
+  border-color: var(--stu-border);
+  color: var(--stu-text-muted);
+  cursor: not-allowed;
+}
+
+.selfCancelHelp {
   margin: 0;
   color: var(--stu-text-muted);
   font-size: 11px;
   line-height: 1.45;
   text-align: right;
   word-break: keep-all;
+}
+
+.bookingActions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .rejectedList {
@@ -975,7 +1001,8 @@
   }
 
   .bookingActions,
-  .approvedHelp {
+  .approvedActions,
+  .selfCancelHelp {
     grid-column: 1 / -1;
   }
 
@@ -984,8 +1011,11 @@
     justify-content: flex-end;
   }
 
-  .approvedHelp {
+  .approvedActions {
     max-width: none;
+  }
+
+  .selfCancelHelp {
     text-align: left;
   }
 }

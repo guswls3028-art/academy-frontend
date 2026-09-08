@@ -297,7 +297,18 @@ async function installApi(
       expect(request.postDataJSON()).toEqual({ status: "cancelled" });
       state.cancelledIds.push(id);
       state.bookings = state.bookings.filter((booking) => booking.id !== id);
-      return json({ status: "cancelled" });
+      return json({
+        status: "cancelled",
+        notification: {
+          requested: 2,
+          failed: 0,
+          send_to: "both",
+          targets: [
+            { target: "parent", requested: true },
+            { target: "student", requested: true },
+          ],
+        },
+      });
     }
     if (path === "/clinic/idcard/" && method === "GET") {
       if (idcardControl?.delayMs) {
@@ -728,7 +739,57 @@ test.describe("학생 클리닉 예약 UX", () => {
       .click();
 
     await expect.poll(() => state.cancelledIds).toEqual([503]);
-    await expect(page.getByText("예약 신청이 취소되었습니다.")).toBeVisible();
+    await expect(page.getByText("예약이 취소되었고 학생·학부모님께 알림톡을 요청했습니다.")).toBeVisible();
+  });
+
+  test("확정 예약은 서버 판정에 따라 직접 취소하거나 정확한 제한 이유를 보여준다", async ({ page }) => {
+    const state = createState();
+    state.bookings = [
+      {
+        ...state.bookings[0],
+        id: 601,
+        status: "booked",
+        can_self_cancel: true,
+        self_cancel_reason: "같은 주의 다른 예약을 남기고 이 예약을 취소할 수 있습니다.",
+      },
+      {
+        ...state.bookings[0],
+        id: 602,
+        session: 102,
+        session_title: "필수 클리닉 마지막 예약",
+        status: "booked",
+        can_self_cancel: false,
+        self_cancel_reason: "필수 클리닉 대상자는 같은 주에 예약을 최소 1개 유지해야 합니다.",
+      },
+    ];
+    await seed(page);
+    await installApi(page, state);
+    await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: "내 일정 2" }).click();
+
+    const cancellable = page.locator("article").filter({ hasText: "대수 오답 클리닉" });
+    await expect(cancellable).toContainText("같은 주의 다른 예약을 남기고");
+    const cancelButton = cancellable.getByRole("button", { name: "예약 취소" });
+    await expect(cancelButton).toBeEnabled();
+    await cancelButton.click();
+    await expect(page.getByRole("alertdialog", { name: "예약 취소" }))
+      .toContainText("학생과 학부모님께 취소 알림톡");
+    await page.getByRole("alertdialog", { name: "예약 취소" })
+      .getByRole("button", { name: "예약 취소" })
+      .click();
+    await expect.poll(() => state.cancelledIds).toEqual([601]);
+
+    const protectedBooking = page.locator("article").filter({ hasText: "필수 클리닉 마지막 예약" });
+    await expect(protectedBooking).toContainText("같은 주에 예약을 최소 1개 유지");
+    await expect(protectedBooking.getByRole("button", { name: "취소 불가" })).toBeDisabled();
+    expect(await page.locator("body").evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    )).toBe(true);
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: "내 일정 1" }).click();
+    await expect(page.locator("article").filter({ hasText: "필수 클리닉 마지막 예약" }))
+      .toContainText("같은 주에 예약을 최소 1개 유지");
   });
 
   test("시간 범위 예약은 서버 잔여 정원과 최대 체류 안의 연속 구간만 제출한다", async ({ page }) => {
