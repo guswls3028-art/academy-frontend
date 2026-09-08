@@ -259,6 +259,10 @@ path/query 형태는 즉시 거부하고, exact 형태여도 응답 URL이나 HL
 브라우저의 CORS `OPTIONS` preflight는 공통 요청 경계에서 origin·path·query와
 전송 대상을 이미 검증하므로 제품 payload 응답 증거에서는 제외한다. 실패한
 preflight는 일반 request 오류 집계에 남는다.
+장시간 재생이 완료 전에 실패하면 artifact에는 사용자·URL·토큰·원문 오류 대신
+desktop/mobile별 마지막 통과 단계만 고정 allowlist 값으로 남긴다. 이 checkpoint는
+실패 위치를 찾기 위한 관측 정보일 뿐, 성공 판정은 기존 690초 최종 증거와 cleanup 0을
+모두 충족해야 한다.
 1366×768과 390×844 두 Chromium context는 동시에 690초 이상 실제
 재생하고 최초 signed URL의 TTL이 690초보다 긴 상태에서 발급 후 540~590초의
 `/media/playback/renew/`를 각각 1회 확인한다. ACTIVE/PROCTORED 정상 갱신은 `play_url`을
