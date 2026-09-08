@@ -11,8 +11,8 @@ import { installSyntheticVideoPosterBridge } from "../helpers/syntheticVideoPost
 import { classifyVideoPlaybackResponse } from "../helpers/videoPlaybackResponseKind";
 
 const MINIMUM_PLAYBACK_SECONDS = 690;
-const MINIMUM_RENEW_SECONDS = 540;
-const MAXIMUM_RENEW_SECONDS = 590;
+const MINIMUM_RENEW_SECONDS = 390;
+const MAXIMUM_RENEW_SECONDS = 500;
 const SYNTHETIC_ASSET_PREFIX = "/__qa__/video-long/";
 
 type LongVideoCheckpointStage =

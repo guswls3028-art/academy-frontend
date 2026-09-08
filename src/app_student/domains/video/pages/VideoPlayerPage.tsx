@@ -55,6 +55,7 @@ function useQueryParams() {
 }
 
 const POLICY_CHANGED_MESSAGE = "재생 정책이 변경되었습니다. 새 권한을 확인한 뒤 다시 시도해 주세요.";
+const PLAYBACK_RENEWAL_LEAD_MS = 180_000;
 
 function playbackMatchesAccess(
   playback: StudentVideoPlayback | undefined,
@@ -391,6 +392,8 @@ export default function VideoPlayerPage() {
     let active = true;
     let timer: number | null = null;
     let attempt = 0;
+    let renewalPending = false;
+    let recoveryPending = false;
     const expectedAccessMode = playbackData.policy?.access_mode ?? "FREE_REVIEW";
     const expectedMonitoring = playbackData.policy?.monitoring_enabled ?? false;
     const expectedPolicyVersion = Number(playbackData.policy_version);
@@ -407,11 +410,35 @@ export default function VideoPlayerPage() {
       setFatalError("재생 권한을 다시 확인하지 못했습니다. 다시 시도해 주세요.");
     };
     const schedule = (delayMs: number) => {
+      if (timer !== null) window.clearTimeout(timer);
       timer = window.setTimeout(runRenewal, Math.min(delayMs, 2_147_000_000));
     };
+    const recoverPlayback = () => {
+      if (!isCurrentRenewal() || recoveryPending) return;
+      recoveryPending = true;
+      void refetchPlayback().then((result) => {
+        if (!isCurrentRenewal()) return;
+        const recovered = result.data;
+        if (
+          result.error
+          || !recovered?.playback_token
+          || !recovered.playback_expires_at
+          || recovered.playback_expires_at * 1000 <= Date.now()
+        ) {
+          failRenewal();
+        }
+      }).catch(() => {
+        failRenewal();
+      }).finally(() => {
+        recoveryPending = false;
+      });
+    };
     const runRenewal = () => {
+      if (!isCurrentRenewal() || renewalPending) return;
       timer = null;
+      renewalPending = true;
       void renewStudentVideoPlayback(playbackToken).then((renewed) => {
+        renewalPending = false;
         if (!isCurrentRenewal()) return;
         const sessionMatches = expectedMonitoring
           ? Boolean(expectedSessionId) && renewed.playback_session_id === expectedSessionId
@@ -461,10 +488,11 @@ export default function VideoPlayerPage() {
         );
         if (applied && renewed.playback_expires_at * 1000 <= Date.now()) failRenewal();
       }).catch((error: unknown) => {
+        renewalPending = false;
         if (!isCurrentRenewal()) return;
         const status = (error as { response?: { status?: number } })?.response?.status;
         if (status === 403 || status === 409 || Date.now() >= expiresAt * 1000) {
-          failRenewal();
+          recoverPlayback();
           return;
         }
         const retryDelays = [1_000, 3_000, 10_000];
@@ -474,11 +502,36 @@ export default function VideoPlayerPage() {
         schedule(Math.max(250, Math.min(delayMs, remainingMs)));
       });
     };
-    const refreshDelay = Math.max(1_000, expiresAt * 1000 - Date.now() - 45_000);
+    const renewWhenDue = () => {
+      if (!isCurrentRenewal()) return;
+      const remainingMs = expiresAt * 1000 - Date.now();
+      if (remainingMs > PLAYBACK_RENEWAL_LEAD_MS) return;
+      if (timer !== null) {
+        window.clearTimeout(timer);
+        timer = null;
+      }
+      if (remainingMs <= 0) {
+        recoverPlayback();
+        return;
+      }
+      runRenewal();
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") renewWhenDue();
+    };
+    const refreshDelay = Math.max(1_000, expiresAt * 1000 - Date.now() - PLAYBACK_RENEWAL_LEAD_MS);
     schedule(refreshDelay);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pageshow", renewWhenDue);
+    window.addEventListener("focus", renewWhenDue);
+    window.addEventListener("online", renewWhenDue);
     return () => {
       active = false;
       if (timer !== null) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pageshow", renewWhenDue);
+      window.removeEventListener("focus", renewWhenDue);
+      window.removeEventListener("online", renewWhenDue);
     };
   }, [
     enrollmentId,
@@ -491,6 +544,7 @@ export default function VideoPlayerPage() {
     playbackData?.playback_session_id,
     policyTransitionScopeKey,
     queryClient,
+    refetchPlayback,
     videoId,
   ]);
   useEffect(() => {

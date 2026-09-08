@@ -648,7 +648,7 @@ test("official runner opts into two-student long-video setup without publishing 
   assert.match(runnerSource, /E2E_LONG_VIDEO_TENANT_ID: String\(scenario\.tenant_id\)/);
   assert.match(configSource, /student\/video-playback-renewal\.realuse\.spec\.ts/);
   assert.match(configSource, /timeout: 17 \* 60_000/);
-  for (const required of ["690", "540", "590", "1366", "390", "reload", "playback/end/", "media/playback/renew/"]) {
+  for (const required of ["690", "390", "500", "1366", "390", "reload", "playback/end/", "media/playback/renew/"]) {
     assert.match(specSource, new RegExp(required.replace("/", "\\/")));
   }
   assert.match(specSource, /bootstrapCountBeforeRenewal/);

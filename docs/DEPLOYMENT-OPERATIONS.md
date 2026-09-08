@@ -272,7 +272,7 @@ Playwright가 failure snapshot 수집 자체를 중단한 경우에도 원문 �
 재생 시작은 이미 재생 중인 정상 상태를 중복 클릭하지 않고, 일시정지 상태에서는 화면의
 실제 중앙 재생 버튼이 보이고 클릭되어 재생 상태로 전환되는 과정까지 확인한다.
 1366×768과 390×844 두 Chromium context는 동시에 690초 이상 실제
-재생하고 최초 signed URL의 TTL이 690초보다 긴 상태에서 발급 후 540~590초의
+재생하고 최초 signed URL의 TTL이 690초보다 긴 상태에서 발급 후 390~500초의
 `/media/playback/renew/`를 각각 1회 확인한다. ACTIVE/PROCTORED 정상 갱신은 `play_url`을
 반환하지 않으며, 갱신 전 `/playback/end/` 0, bootstrap 1회, 동일 `<video>` DOM·감시
 session, 토큰 교체가 필수다. 최초 master/media 요청은 존재하되 갱신 전후 같은 source 요청
