@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AxiosError } from "axios";
 import { Link } from "react-router";
 
-import { useConfirm } from "@/shared/ui/confirm";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { hhmmText as formatTime } from "@/shared/ui/time/timeFormat";
 import { useTrackedTask } from "@/shared/productAnalytics";
@@ -27,6 +26,7 @@ import { clinicDateParts } from "../clinicDate";
 import { studentClinicQueryKeys } from "../queryKeys";
 import ClinicBookingCalendar from "../components/ClinicBookingCalendar";
 import ClinicMultiSlotSelectionPanel from "../components/ClinicMultiSlotSelectionPanel";
+import ClinicSelfCancelControl from "../components/ClinicSelfCancelControl";
 import { resolveClinicSessionSelection } from "../components/clinicSessionSelection";
 import {
   displayTargetText,
@@ -46,7 +46,6 @@ type ClinicTab = "book" | "schedule";
 
 export default function ClinicPage() {
   const queryClient = useQueryClient();
-  const confirm = useConfirm();
   const runTrackedTask = useTrackedTask();
   const [activeTab, setActiveTab] = useState<ClinicTab>("book");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -881,34 +880,15 @@ export default function ClinicPage() {
                           )}
                           <span className={styles.pendingStatus}>승인 대기</span>
                         </div>
-                        <div className={styles.pendingActions}>
-                          <div className={styles.bookingActions}>
-                            <button type="button" onClick={() => startChangingBooking(request)}>
-                              일정 바꾸기
-                            </button>
-                            <button
-                              type="button"
-                              className={styles.dangerAction}
-                              disabled={cancelMutation.isPending || !request.can_self_cancel}
-                              aria-describedby={`clinic-cancel-help-${request.id}`}
-                              onClick={async () => {
-                                if (await confirm({
-                                  title: "예약 취소",
-                                  message: "이 예약을 취소할까요? 학생과 학부모님께 취소 알림톡이 요청됩니다.",
-                                  confirmText: "예약 취소",
-                                  danger: true,
-                                })) {
-                                  cancelMutation.mutate(request.id);
-                                }
-                              }}
-                            >
-                              {request.can_self_cancel ? "예약 취소" : "취소 불가"}
-                            </button>
-                          </div>
-                          <p id={`clinic-cancel-help-${request.id}`} className={styles.selfCancelHelp}>
-                            {request.self_cancel_reason}
-                          </p>
-                        </div>
+                        <ClinicSelfCancelControl
+                          booking={request}
+                          isPending={cancelMutation.isPending}
+                          onCancel={(id) => cancelMutation.mutate(id)}
+                        >
+                          <button type="button" onClick={() => startChangingBooking(request)}>
+                            일정 바꾸기
+                          </button>
+                        </ClinicSelfCancelControl>
                       </article>
                     );
                   })}
@@ -942,29 +922,11 @@ export default function ClinicPage() {
                           )}
                           <span className={styles.approvedStatus}>예약 확정</span>
                         </div>
-                        <div className={styles.approvedActions}>
-                          <button
-                            type="button"
-                            className={styles.dangerAction}
-                            disabled={cancelMutation.isPending || !request.can_self_cancel}
-                            aria-describedby={`clinic-cancel-help-${request.id}`}
-                            onClick={async () => {
-                              if (await confirm({
-                                title: "예약 취소",
-                                message: "이 예약을 취소할까요? 학생과 학부모님께 취소 알림톡이 요청됩니다.",
-                                confirmText: "예약 취소",
-                                danger: true,
-                              })) {
-                                cancelMutation.mutate(request.id);
-                              }
-                            }}
-                          >
-                            {request.can_self_cancel ? "예약 취소" : "취소 불가"}
-                          </button>
-                          <p id={`clinic-cancel-help-${request.id}`} className={styles.selfCancelHelp}>
-                            {request.self_cancel_reason}
-                          </p>
-                        </div>
+                        <ClinicSelfCancelControl
+                          booking={request}
+                          isPending={cancelMutation.isPending}
+                          onCancel={(id) => cancelMutation.mutate(id)}
+                        />
                       </article>
                     );
                   })}
