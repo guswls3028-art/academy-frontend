@@ -71,7 +71,7 @@ function observeLongVideoBrowserEvidence(payload) {
     "bootstrapCount", "consoleErrorCount", "contexts", "desktop", "endBeforeRenewCount",
     "horizontalOverflowCount", "initialMasterLoadCount", "initialMediaLoadCount",
     "maxReloadDriftSeconds", "minimumPlaybackSeconds", "minimumRenewalAdvanceSeconds",
-    "minimumWallSeconds", "mobile", "pageErrorCount", "progressPersistedCount",
+    "minimumWallSeconds", "mobile", "pageErrorCount", "posterLoadCount", "progressPersistedCount",
     "renewCount", "requestErrorCount", "sameDomCount", "sameSessionCount", "schema",
     "sourceReloadCount", "tokenRotationCount",
   ];
@@ -84,6 +84,7 @@ function observeLongVideoBrowserEvidence(payload) {
     || payload.minimumWallSeconds < 690 || payload.minimumWallSeconds > 1_000
     || payload.bootstrapCount !== 2 || payload.renewCount !== 2 || payload.endBeforeRenewCount !== 0
     || payload.initialMasterLoadCount < 2 || payload.initialMediaLoadCount < 4
+    || payload.posterLoadCount < 2
     || payload.minimumRenewalAdvanceSeconds < 5 || payload.sourceReloadCount !== 0
     || payload.sameDomCount !== 2 || payload.sameSessionCount !== 2 || payload.tokenRotationCount !== 2
     || payload.progressPersistedCount !== 2 || payload.maxReloadDriftSeconds > 2
@@ -101,6 +102,7 @@ function observeLongVideoBrowserEvidence(payload) {
     endBeforeRenewCount: payload.endBeforeRenewCount,
     initialMasterLoadCount: payload.initialMasterLoadCount,
     initialMediaLoadCount: payload.initialMediaLoadCount,
+    posterLoadCount: payload.posterLoadCount,
     minimumRenewalAdvanceSeconds: payload.minimumRenewalAdvanceSeconds,
     sourceReloadCount: payload.sourceReloadCount,
     sameDomCount: payload.sameDomCount,
@@ -251,6 +253,7 @@ export function inspectMatchObservation(payload, manifest) {
 
 export function assertLongVideoSetup(payload) {
   assert.equal(payload?.status, "YMATH_REALUSE_SCENARIO_READY");
+  assert.ok(Number.isInteger(payload?.tenant_id) && payload.tenant_id > 0);
   assert.ok(Array.isArray(payload.student_ids) && payload.student_ids.length === 2
     && payload.student_ids.every((id) => Number.isInteger(id) && id > 0));
   assert.ok(Array.isArray(payload.session_ids) && payload.session_ids.length === 2
@@ -692,7 +695,8 @@ export async function run() {
       env: { ...process.env, E2E_BASE_URL: WEB_ORIGIN, E2E_API_URL: API_ORIGIN, API_BASE_URL: API_ORIGIN,
         E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict",
         E2E_TENANT_CODE: tenant, E2E_ADMIN_USER: "ymath-qa-teacher", E2E_STUDENT_USER: "ymath-qa-student-01",
-        E2E_STUDENT2_USER: "ymath-qa-student-02", E2E_LONG_VIDEO_ID: String(scenario.synthetic_long_video.video_id),
+        E2E_STUDENT2_USER: "ymath-qa-student-02", E2E_LONG_VIDEO_TENANT_ID: String(scenario.tenant_id),
+        E2E_LONG_VIDEO_ID: String(scenario.synthetic_long_video.video_id),
         E2E_LONG_VIDEO_HLS_PATH: longVideo.hls_path,
         E2E_ADMIN_PASS: secret.Parameter.Value, E2E_STUDENT_PASS: secret.Parameter.Value,
         E2E_STUDENT2_PASS: secret.Parameter.Value },
