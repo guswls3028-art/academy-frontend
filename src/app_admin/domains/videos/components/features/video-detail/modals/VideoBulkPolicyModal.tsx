@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 
 import { updateVideoPolicyBulk } from "@admin/domains/videos/api/videos.api";
 import VideoPolicyFields from "../components/VideoPolicyFields";
-import { adminLectureQueryKeys } from "@admin/domains/lectures/queryKeys";
 import { Button } from "@/shared/ui/ds";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -15,7 +14,7 @@ type Props = {
   sessionId: number;
   videoIds: number[];
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: () => void | Promise<void>;
 };
 
 function errorMessage(error: unknown): string {
@@ -33,7 +32,6 @@ export default function VideoBulkPolicyModal({
   onClose,
   onSaved,
 }: Props) {
-  const queryClient = useQueryClient();
   const [allowSkipValue, setAllowSkipValue] = useState("");
   const [maxSpeedValue, setMaxSpeedValue] = useState("");
   const [error, setError] = useState("");
@@ -51,11 +49,8 @@ export default function VideoBulkPolicyModal({
     }),
     onMutate: () => setError(""),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: adminLectureQueryKeys.sessionVideos(sessionId),
-      });
+      await onSaved();
       feedback.success(`${videoIds.length}개 영상의 재생 설정을 변경했습니다.`);
-      onSaved();
     },
     onError: (mutationError: unknown) => {
       const message = errorMessage(mutationError);
