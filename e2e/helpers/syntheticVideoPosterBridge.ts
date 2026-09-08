@@ -12,9 +12,8 @@ const TRANSPARENT_PNG = Buffer.from(
   "base64",
 );
 
-function isExactSignedPosterUrl(
+function isExactSignedPosterShape(
   rawUrl: string,
-  state: SyntheticVideoPosterState,
   tenantId: number,
   videoId: number,
 ): boolean {
@@ -35,11 +34,31 @@ function isExactSignedPosterUrl(
       && /^[1-9][0-9]*$/.test(rawExpiry) && Number.isSafeInteger(expiresAt)
       && expiresAt - now > 690 && expiresAt - now <= 21_600
       && /^[1-9][0-9]*$/.test(rawVersion) && Number.isSafeInteger(version)
-      && version >= now - 1_800 && version <= now + 60
-      && [...state.allowedMasterUrls].some((master) => new URL(master).origin === target.origin);
+      && version >= now - 1_800 && version <= now + 60;
   } catch {
     return false;
   }
+}
+
+async function waitForExactResponseDerivedPoster(
+  rawUrl: string,
+  state: SyntheticVideoPosterState,
+  tenantId: number,
+  videoId: number,
+): Promise<boolean> {
+  if (!isExactSignedPosterShape(rawUrl, tenantId, videoId)) return false;
+  const target = new URL(rawUrl);
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    // Playwright may expose the dependent image request just before the
+    // response callback appends its URL. Re-read the current chain each time.
+    await state.responseChain;
+    if (state.allowedPosterUrls.has(rawUrl)
+      && [...state.allowedMasterUrls].some((master) => new URL(master).origin === target.origin)) {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return false;
 }
 
 export async function installSyntheticVideoPosterBridge(
@@ -50,10 +69,8 @@ export async function installSyntheticVideoPosterBridge(
 ): Promise<void> {
   await context.route(`**/tenants/${tenantId}/video/hls/${videoId}/thumbnail.jpg*`, async (route) => {
     const request = route.request();
-    await state.responseChain;
     if (request.method() !== "GET"
-      || !state.allowedPosterUrls.has(request.url())
-      || !isExactSignedPosterUrl(request.url(), state, tenantId, videoId)) {
+      || !await waitForExactResponseDerivedPoster(request.url(), state, tenantId, videoId)) {
       await route.fallback();
       return;
     }

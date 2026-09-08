@@ -577,7 +577,8 @@ test("official runner opts into two-student long-video setup without publishing 
   assert.match(specSource, /item\.id === videoId && item\.session_id === sessionId/);
   assert.match(specSource, /state\.sessionPosterCaptureCount \+= 1/);
   assert.match(specSource, /state\.sessionPosterCaptureCount\)\.toBeGreaterThan\(sessionPosterCapturesBeforeReload\)/);
-  assert.match(posterBridgeSource, /state\.allowedPosterUrls\.has\(request\.url\(\)\)/);
+  assert.match(posterBridgeSource, /state\.allowedPosterUrls\.has\(rawUrl\)/);
+  assert.match(posterBridgeSource, /for \(let attempt = 0; attempt < 60; attempt \+= 1\)/);
   assert.match(posterBridgeSource, /await route\.fallback\(\)/);
   assert.ok(posterBridgeSource.indexOf("await route.fulfill")
     < posterBridgeSource.indexOf("state.posterLoads += 1"));
@@ -619,6 +620,7 @@ test("real Chromium bridges only exact response-derived posters and HLS origin",
   const posterQuery = `v=${version}&exp=${expiresAt}&sig=${signature}&kid=v1`;
   const posterUrl = `${mediaOrigin}${posterPath}?${posterQuery}`;
   const sessionPosterUrl = `${mediaOrigin}${posterPath}?v=${version}&exp=${expiresAt + 1}&sig=${"b".repeat(43)}&kid=v1`;
+  const delayedSessionPosterUrl = `${mediaOrigin}${posterPath}?v=${version}&exp=${expiresAt + 2}&sig=${"c".repeat(43)}&kid=v1`;
   let browser;
   try {
     browser = await chromium.launch();
@@ -660,7 +662,18 @@ test("real Chromium bridges only exact response-derived posters and HLS origin",
       image.onerror = () => resolve(false);
       image.src = url;
     }), sessionPosterUrl), true);
-    assert.equal(state.posterLoads, 2);
+    setTimeout(() => {
+      state.responseChain = state.responseChain.then(async () => {
+        state.allowedPosterUrls.add(delayedSessionPosterUrl);
+      });
+    }, 100);
+    assert.equal(await page.evaluate((url) => new Promise((resolve) => {
+      const image = new Image();
+      image.onload = () => resolve(true);
+      image.onerror = () => resolve(false);
+      image.src = url;
+    }), delayedSessionPosterUrl), true);
+    assert.equal(state.posterLoads, 3);
     assert.doesNotThrow(() => guard.assertClean());
     await context.close();
 
