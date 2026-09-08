@@ -575,17 +575,24 @@ test("official runner opts into two-student long-video setup without publishing 
   assert.match(specSource, /state\.allowedMasterUrls\.size\)\.toBe\(2\)/);
   assert.match(specSource, /installSyntheticVideoPosterBridge/);
   assert.match(specSource, /classifyVideoPlaybackResponse/);
+  assert.match(specSource, /if \(response\.request\(\)\.method\(\) === "OPTIONS"\) return;/);
+  assert.ok(specSource.indexOf('response.request().method() === "OPTIONS"')
+    < specSource.indexOf("const playbackResponseKind = classifyVideoPlaybackResponse"));
   assert.match(specSource, /state\.accessCheckCount\)\.toBeGreaterThanOrEqual\(1\)/);
   const responseKindModule = await import(
     `data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(responseKindSource)).toString("base64")}`
   );
   const playbackPath = "https://api.example.test/api/v1/student/video/videos/17/playback/";
   assert.equal(responseKindModule.classifyVideoPlaybackResponse(playbackPath, "POST", 17), "bootstrap");
+  assert.equal(responseKindModule.classifyVideoPlaybackResponse(`${playbackPath}?enrollment=23`, "POST", 17), "bootstrap");
   assert.equal(responseKindModule.classifyVideoPlaybackResponse(`${playbackPath}?access_check=1`, "GET", 17), "access");
   assert.equal(responseKindModule.classifyVideoPlaybackResponse(`${playbackPath}?access_check=1&enrollment=23`, "GET", 17), "access");
   for (const [url, method] of [
     [playbackPath, "GET"],
     [`${playbackPath}?access_check=1`, "POST"],
+    [`${playbackPath}?enrollment=0`, "POST"],
+    [`${playbackPath}?enrollment=23&enrollment=24`, "POST"],
+    [`${playbackPath}?enrollment=23&extra=1`, "POST"],
     [`${playbackPath}?access_check=1&access_check=1`, "GET"],
     [`${playbackPath}?access_check=1&enrollment=0`, "GET"],
     [`${playbackPath}?access_check=1&extra=1`, "GET"],
