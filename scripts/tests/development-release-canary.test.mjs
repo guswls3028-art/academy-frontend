@@ -321,7 +321,10 @@ function completeFlowReport() {
 
 test("long-video result observation preserves only allowlisted execution facts", () => {
   const report = completeFlowReport();
-  report.config = { timeout: 17 * 60_000, metadata: { credential: "secret-token" } };
+  report.config = {
+    projects: [{ timeout: 17 * 60_000 }],
+    metadata: { credential: "secret-token" },
+  };
   const videoTest = report.suites.at(-1).specs[0].tests[0];
   videoTest.status = "unexpected";
   videoTest.results[0] = {
@@ -348,7 +351,10 @@ test("long-video response capture failures are explicitly joined instead of beco
   const source = readFileSync(new URL("../../e2e/student/video-playback-renewal.realuse.spec.ts", import.meta.url), "utf8");
   assert.match(source, /responseFailure:\s*Promise<unknown>/);
   assert.match(source, /await Promise\.race\(\[playbackProof,\s*state\.responseFailure\.then/s);
-  assert.match(source, /\.catch\(\(error\) => \{\s*state\.responseError/s);
+  assert.match(
+    source,
+    /\.catch\(\(error\) => \{\s*state\.responseFailureKind \?\?= captureKind;\s*state\.responseError/s,
+  );
 });
 
 test("real-use failure observation publishes only allowlisted counts, files, and boundary codes", () => {
@@ -586,6 +592,7 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
       bootstrapCount: 1, renewCount: 1, progressCount: 24, latestProgress: 674,
       accessCheckCount: 24, masterLoads: 1, mediaLoads: 2,
       consoleErrorCount: 0, pageErrorCount: 0, requestErrorCount: 0,
+      responseFailureKind: "access",
     })),
   } })}\n`;
   assert.deepEqual(runner.observeReleaseTestResult(JSON.stringify(report)).longVideoFailure, {
@@ -594,7 +601,8 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
       accessCheckCount: 24, bootstrapCount: 1, consoleErrorCount: 0, currentTime: 675,
       duration: 900, ended: false, latestProgress: 674, masterLoads: 1, mediaLoads: 2,
       networkState: 1, pageErrorCount: 0, paused: false, progressCount: 24, readyState: 4,
-      renewCount: 1, requestErrorCount: 0, videoMounted: true, viewport, wallSeconds: 690,
+      renewCount: 1, requestErrorCount: 0, responseFailureKind: "access",
+      videoMounted: true, viewport, wallSeconds: 690,
     })),
   });
   const unsafeFailureReport = structuredClone(report);
@@ -607,6 +615,7 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
       bootstrapCount: 0, renewCount: 0, progressCount: 0, latestProgress: null,
       accessCheckCount: 0, masterLoads: 0, mediaLoads: 0,
       consoleErrorCount: 0, pageErrorCount: 0, requestErrorCount: 0,
+      responseFailureKind: null,
       studentName: "must-not-publish",
     }],
   } }) }];

@@ -430,8 +430,10 @@ test("모바일 실패는 선택과 입력을 보존하고 오류를 표시하�
     dialog.getByLabel("최대 배속 설정"),
     dialog.getByRole("button", { name: "1개 영상에 적용" }),
   ]) {
-    const box = await control.boundingBox();
-    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+    await expect.poll(async () => {
+      const box = await control.boundingBox();
+      return box?.height ?? 0;
+    }).toBeGreaterThanOrEqual(44);
   }
   await page.screenshot({
     path: testInfo.outputPath("video-bulk-policy-error-390.png"),

@@ -266,7 +266,7 @@ paused/ended, media ready/network 상태, bootstrap·renew·progress·access-che
 브라우저 오류 수만 허용한다. 이 checkpoint와 failure snapshot은 실패 위치를 찾기 위한
 관측 정보일 뿐, 성공 판정은 기존 690초 최종 증거와 cleanup 0을 모두 충족해야 한다.
 Playwright가 failure snapshot 수집 자체를 중단한 경우에도 원문 오류는 공개하지 않고,
-장시간 재생 결과에 한해 `test-timeout`, `context-closed`, `page-crashed`,
+장시간 재생 결과에 한해 `test-timeout`, `fixture-timeout`, `context-closed`, `page-crashed`,
 `playback-below-690`, `poll-timeout`, `video-evaluate-failed`, `route-handler-failed` 중
 일치하는 고정 코드만 artifact에 남긴다. 코드가 없거나 여러 개여도 성공으로 간주하지 않는다.
 장시간 재생 중 response 관측 작업은 하나의 chain으로 직렬화하고 그 실패 promise를 재생
@@ -306,7 +306,8 @@ allowlist된 action/exit code/JSON line 수/session ID 관측 여부/status/erro
 boolean으로만 기록한다. raw output·오류 message·session ID·token·capability·password·
 사용자 정보는 증거에 기록하지 않는다. raw Playwright JSON은 메모리에서 검증하고 개발
 trace/video/screenshot은 저장하지 않아 credential 노출을 막는다.
-장시간 재생 실패는 추가로 설정 timeout, test/result 상태, result 수, 실행 시간, 오류 수만
+장시간 재생 실패는 추가로 설정 timeout, test/result 상태, result 수, 실행 시간, 오류 수와
+실패한 response 관측 종류(`bootstrap`, `access`, `session-list`, `renewal`, `progress`, `other`)만
 고정 allowlist로 남긴다. test child 종료 관측도 exit code, 허용 signal, 종료 사유, 실행
 시간만 남기며 stdout·stderr·process ID는 공개하지 않는다.
 소유 SSM session도 종료 후 재조회한다. 강제 취소·접근 상실 등으로 cleanup 또는
