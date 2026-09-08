@@ -247,7 +247,9 @@ profile, 종료 방지, inbound0, SSM Online을 확인한다. 원본 artifact의
 backend가 실제 반환한 `qa-fixtures/video-long/master.m3u8` signed URL에만 연결하며 R2에는
 객체를 쓰지 않는다. READY fallback이 생성하는 별도 signed poster도 playback bootstrap과 정확한 session-video 목록 응답에서
 현재 video item으로 반환된 `thumbnail_url`, HLS origin, Setup tenant/video path, bounded canonical query shape가 모두 일치할 때만 유효한 메모리
-이미지로 치환한다. 다른 CDN origin/path/query 요청은 기존 release guard가 거부한다.
+이미지로 치환한다. 브라우저의 response/request 이벤트 순서가 뒤집힐 수 있으므로 exact signed poster 후보만 응답 allowlist 등록을
+최대 3초 동안 기다리며, 그 안에 같은 exact URL과 HLS origin이 확인되지 않으면 기존 release guard가 거부한다. 다른 CDN
+path/query 형태는 즉시 거부하고, exact 형태여도 응답 URL이나 HLS origin이 일치하지 않으면 bounded wait 뒤 거부한다.
 1366×768과 390×844 두 Chromium context는 동시에 690초 이상 실제
 재생하고 최초 signed URL의 TTL이 690초보다 긴 상태에서 발급 후 540~590초의
 `/media/playback/renew/`를 각각 1회 확인한다. ACTIVE/PROCTORED 정상 갱신은 `play_url`을
