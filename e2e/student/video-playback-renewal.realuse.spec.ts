@@ -657,7 +657,7 @@ test("two students play through renewal and persist progress without interruptio
     } }));
     throw error;
   } finally {
-    await Promise.allSettled(runs.map(({ context }) => context.close()));
+    await Promise.all(runs.map(({ context }) => context.close()));
   }
 
   const states = runs.map(({ state }) => state);
