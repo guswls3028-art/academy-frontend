@@ -347,7 +347,7 @@ export default function SubmitAssignmentPage() {
             <Link to="/student/submit/assignment" className={styles.scopeLink}>전체 미완료 보기</Link>
           </div>
         )}
-        {uploadMut.isSuccess && uploadMut.data?.failed.length === 0 && (
+        {uploadMut.isSuccess && uploadMut.data?.failed.length === 0 && uploadMut.data.reviewLocked !== true && (
           <div className={styles.successMessage}><span>선택한 파일을 모두 제출했습니다.</span><Link to="/student/grades" className={styles.successLink}>성적 확인<IconChevronRight className={styles.successLinkIcon} aria-hidden="true" /></Link></div>
         )}
 

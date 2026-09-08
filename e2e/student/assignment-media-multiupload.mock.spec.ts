@@ -274,6 +274,7 @@ test("선택 뒤 교사 확인이 끝난 409는 재시도 파일로 남기지 �
   await page.getByRole("button", { name: "파일 1개 제출하기", exact: true }).click();
 
   await expect(page.getByRole("alert")).toContainText("선생님 확인이 완료되어 제출 목록을 갱신했습니다.");
+  await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /다시 제출/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /도형 풀이 인증/ })).toHaveCount(0);
   expect(state.getUploadAttempts()).toBe(1);

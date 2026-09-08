@@ -122,4 +122,6 @@ export const controlledWriteSpecs = [
   "e2e/admin/omr-review-realuse.spec.ts",
   "e2e/student/homework-submission-realuse.spec.ts",
   "e2e/student/clinic-remediation-realuse.spec.ts",
+  "e2e/student/student-parent-assessment-realuse.spec.ts",
+  "e2e/student/student-parent-homework-realuse.spec.ts",
 ];
