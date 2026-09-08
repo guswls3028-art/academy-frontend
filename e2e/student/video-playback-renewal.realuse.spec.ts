@@ -15,6 +15,22 @@ const MINIMUM_RENEW_SECONDS = 540;
 const MAXIMUM_RENEW_SECONDS = 590;
 const SYNTHETIC_ASSET_PREFIX = "/__qa__/video-long/";
 
+type LongVideoCheckpointStage =
+  | "context-created" | "routes-installed" | "authenticated" | "navigated"
+  | "bootstrap-observed" | "access-observed" | "playlist-observed" | "video-mounted"
+  | "poster-loaded" | "metadata-ready" | "playback-started" | "position-530"
+  | "renewal-observed" | "renewal-advanced" | "playback-690" | "progress-observed"
+  | "reload-bootstrap" | "reload-playlist" | "reload-metadata" | "reload-progress" | "completed";
+
+function emitLongVideoCheckpoint(
+  viewport: "desktop" | "mobile",
+  stage: LongVideoCheckpointStage,
+): void {
+  console.log(JSON.stringify({ longVideoCheckpoint: {
+    schema: "student-video-renewal-checkpoint/v1", viewport, stage,
+  } }));
+}
+
 type PlaybackPayload = {
   playback_token?: unknown;
   playback_session_id?: unknown;
@@ -340,6 +356,7 @@ async function prepareStudent(
   const context = await browser.newContext({ viewport, serviceWorkers: "block" });
   const page = await context.newPage();
   const state = newObservation(viewportName);
+  emitLongVideoCheckpoint(viewportName, "context-created");
   page.on("console", (message) => { if (message.type() === "error") state.consoleErrorCount += 1; });
   page.on("pageerror", () => { state.pageErrorCount += 1; });
   page.on("requestfailed", (request) => {
@@ -361,16 +378,25 @@ async function prepareStudent(
   });
   await installSyntheticHlsBridge(context, state, hlsPath, baseUrl);
   await installSyntheticVideoPosterBridge(context, state, tenantId, videoId);
+  emitLongVideoCheckpoint(viewportName, "routes-installed");
   await seedStudentSession(context, page, tenantCode, username, password);
+  emitLongVideoCheckpoint(viewportName, "authenticated");
   await page.goto(`${baseUrl}/student/video/play?video=${videoId}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await dismissDevelopmentFirstLoginGuide(page, tenantCode);
+  emitLongVideoCheckpoint(viewportName, "navigated");
   await expect.poll(() => state.bootstraps.length).toBe(1);
+  emitLongVideoCheckpoint(viewportName, "bootstrap-observed");
   await expect.poll(() => state.accessCheckCount).toBeGreaterThanOrEqual(1);
-  await expect.poll(() => state.sessionPosterCaptureCount).toBe(1);
+  emitLongVideoCheckpoint(viewportName, "access-observed");
+  await expect.poll(() => state.sessionPosterCaptureCount).toBeGreaterThanOrEqual(1);
+  emitLongVideoCheckpoint(viewportName, "playlist-observed");
   const video = page.locator("video.svpVideo");
   await expect(video).toHaveCount(1);
+  emitLongVideoCheckpoint(viewportName, "video-mounted");
   await expect.poll(() => state.posterLoads).toBeGreaterThanOrEqual(1);
+  emitLongVideoCheckpoint(viewportName, "poster-loaded");
   await expect.poll(() => video.evaluate((element) => Number((element as HTMLVideoElement).duration))).toBe(900);
+  emitLongVideoCheckpoint(viewportName, "metadata-ready");
   const marker = `${viewportName}-${Date.now()}`;
   await video.evaluate((element, value) => { element.setAttribute("data-e2e-node", value); }, marker);
   await page.locator("button.svpBigPlay").click();
@@ -381,6 +407,7 @@ async function prepareStudent(
     media.muted = true;
   });
   state.startedAt = Date.now();
+  emitLongVideoCheckpoint(viewportName, "playback-started");
   return { context, page, state };
 }
 
@@ -397,6 +424,7 @@ async function finishStudent(
     () => video.evaluate((element) => (element as HTMLVideoElement).currentTime),
     { timeout: 9 * 60_000, intervals: [1_000] },
   ).toBeGreaterThanOrEqual(530);
+  emitLongVideoCheckpoint(state.viewport, "position-530");
   const beforeRenewal = await video.evaluate((element) => {
     const media = element as HTMLVideoElement;
     return {
@@ -409,6 +437,7 @@ async function finishStudent(
   expect(state.initialMasterLoads).toBeGreaterThan(0);
   expect(state.initialMediaLoads).toBeGreaterThanOrEqual(2);
   await expect.poll(() => state.renewals.length, { timeout: 10 * 60_000 }).toBe(1);
+  emitLongVideoCheckpoint(state.viewport, "renewal-observed");
   const renewed = state.renewals[0];
   assertRenewalPayload(renewed);
   const renewSeconds = (renewed.observedAt - initial.observedAt) / 1_000;
@@ -448,17 +477,20 @@ async function finishStudent(
   expect(afterRenewal.rate).toBe(1);
   expect(afterRenewal.volume).toBeCloseTo(0.37, 2);
   expect(afterRenewal.muted).toBe(true);
+  emitLongVideoCheckpoint(state.viewport, "renewal-advanced");
 
   await expect.poll(async () => {
     const current = await video.evaluate((element) => (element as HTMLVideoElement).currentTime);
     const wall = (Date.now() - state.startedAt) / 1_000;
     return Math.min(current, wall);
   }, { timeout: 14 * 60_000, intervals: [1_000] }).toBeGreaterThanOrEqual(MINIMUM_PLAYBACK_SECONDS);
+  emitLongVideoCheckpoint(state.viewport, "playback-690");
 
   await expect.poll(async () => {
     const current = await video.evaluate((element) => (element as HTMLVideoElement).currentTime);
     return state.progressPositions.some((position) => position >= current - 2);
   }, { timeout: 35_000, intervals: [500] }).toBe(true);
+  emitLongVideoCheckpoint(state.viewport, "progress-observed");
   await video.evaluate((element) => (element as HTMLVideoElement).pause());
   const persistedPosition = state.progressPositions.at(-1)!;
   state.playbackSeconds = Math.floor(await video.evaluate((element) => (element as HTMLVideoElement).currentTime));
@@ -468,7 +500,9 @@ async function finishStudent(
   const sessionPosterCapturesBeforeReload = state.sessionPosterCaptureCount;
   await page.reload({ waitUntil: "domcontentloaded", timeout: 45_000 });
   await expect.poll(() => state.bootstraps.length).toBe(bootstrapsBeforeReload + 1);
+  emitLongVideoCheckpoint(state.viewport, "reload-bootstrap");
   await expect.poll(() => state.sessionPosterCaptureCount).toBeGreaterThan(sessionPosterCapturesBeforeReload);
+  emitLongVideoCheckpoint(state.viewport, "reload-playlist");
   const reloadedBootstrap = state.bootstraps.at(-1)!;
   const apiPosition = Number(reloadedBootstrap.video?.last_position);
   expect(Number.isFinite(apiPosition)).toBe(true);
@@ -476,6 +510,7 @@ async function finishStudent(
   const reloadedVideo = page.locator("video.svpVideo");
   await expect(reloadedVideo).toHaveCount(1);
   await expect.poll(() => reloadedVideo.evaluate((element) => Number((element as HTMLVideoElement).duration))).toBe(900);
+  emitLongVideoCheckpoint(state.viewport, "reload-metadata");
   await expect.poll(
     () => reloadedVideo.evaluate((element) => (element as HTMLVideoElement).currentTime),
   ).toBeGreaterThanOrEqual(persistedPosition - 2);
@@ -483,6 +518,7 @@ async function finishStudent(
   state.reloadDriftSeconds = Math.round(Math.abs(resumedPosition - persistedPosition));
   state.progressPersisted = state.reloadDriftSeconds <= 2;
   expect(state.progressPersisted).toBe(true);
+  emitLongVideoCheckpoint(state.viewport, "reload-progress");
 
   const overflow = await page.evaluate(() => Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth));
   state.horizontalOverflowCount += overflow > 1 ? 1 : 0;
@@ -505,6 +541,7 @@ async function finishStudent(
   expect(state.allowedMasterUrls.size).toBe(2);
   expect([...state.allowedMasterUrls].every((url) => new URL(url).pathname === `/${hlsPath}`)).toBe(true);
   expect(state.allowedPosterUrls.size).toBeGreaterThanOrEqual(1);
+  emitLongVideoCheckpoint(state.viewport, "completed");
 }
 
 test("two students play through renewal and persist progress without interruption", async ({ browser }) => {

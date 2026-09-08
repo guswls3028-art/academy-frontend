@@ -297,6 +297,7 @@ test("real-use failure observation publishes only allowlisted counts, files, and
     suppressedAnalyticsEvents: 3,
     suppressedCloudflareBeacons: 4,
     longVideo: null,
+    longVideoCheckpoint: { desktop: null, mobile: null },
   });
   const published = JSON.stringify(observeReleaseTestResult(JSON.stringify(report)));
   assert.doesNotMatch(published, /secret-token|student-name|C:\/secret\/path/);
@@ -307,6 +308,7 @@ test("real-use failure observation publishes only allowlisted counts, files, and
     readFetchRetries: null, suppressedAnalyticsBatches: null,
     suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
     longVideo: null,
+    longVideoCheckpoint: { desktop: null, mobile: null },
   });
 });
 
@@ -469,7 +471,14 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
     progressPersistedCount: 2, maxReloadDriftSeconds: 2,
     consoleErrorCount: 0, pageErrorCount: 0, requestErrorCount: 0,
     horizontalOverflowCount: 0,
+  } })}\n${JSON.stringify({ longVideoCheckpoint: {
+    schema: "student-video-renewal-checkpoint/v1", viewport: "desktop", stage: "playback-started",
+  } })}\n${JSON.stringify({ longVideoCheckpoint: {
+    schema: "student-video-renewal-checkpoint/v1", viewport: "mobile", stage: "navigated",
   } })}\n` }];
+  assert.deepEqual(runner.observeReleaseTestResult(JSON.stringify(report)).longVideoCheckpoint, {
+    desktop: "playback-started", mobile: "navigated",
+  });
   assert.deepEqual(runner.observeReleaseTestResult(JSON.stringify(report)).longVideo, {
     schemaMatches: true, contextCount: 2, desktopCount: 1, mobileCount: 1,
     minimumPlaybackSeconds: 690, minimumWallSeconds: 690,
@@ -508,6 +517,13 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
     schema: "student-video-renewal/v1", contexts: 2, studentName: "must-not-publish",
   } })}\n`;
   assert.equal(runner.observeReleaseTestResult(JSON.stringify(report)).longVideo, null);
+  longResult.stdout[0].text = `${JSON.stringify({ longVideoCheckpoint: {
+    schema: "student-video-renewal-checkpoint/v1", viewport: "desktop",
+    stage: "playback-started", studentName: "must-not-publish",
+  } })}\n`;
+  assert.deepEqual(runner.observeReleaseTestResult(JSON.stringify(report)).longVideoCheckpoint, {
+    desktop: null, mobile: null,
+  });
 });
 
 test("synthetic 900-second HLS fixture decodes and advances in real Chromium", { timeout: 15_000 }, async () => {
@@ -579,6 +595,8 @@ test("official runner opts into two-student long-video setup without publishing 
   assert.ok(specSource.indexOf('response.request().method() === "OPTIONS"')
     < specSource.indexOf("const playbackResponseKind = classifyVideoPlaybackResponse"));
   assert.match(specSource, /state\.accessCheckCount\)\.toBeGreaterThanOrEqual\(1\)/);
+  assert.match(specSource, /longVideoCheckpoint/);
+  assert.match(runnerSource, /longVideoCheckpoint/);
   const responseKindModule = await import(
     `data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(responseKindSource)).toString("base64")}`
   );

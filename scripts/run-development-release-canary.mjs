@@ -22,6 +22,13 @@ const FLOW_COUNTS = {
   "clinic-roundtrip.spec.ts": 3,
   "video-playback-renewal.realuse.spec.ts": 1,
 };
+const LONG_VIDEO_CHECKPOINT_STAGES = [
+  "context-created", "routes-installed", "authenticated", "navigated",
+  "bootstrap-observed", "access-observed", "playlist-observed", "video-mounted",
+  "poster-loaded", "metadata-ready", "playback-started", "position-530",
+  "renewal-observed", "renewal-advanced", "playback-690", "progress-observed",
+  "reload-bootstrap", "reload-playlist", "reload-metadata", "reload-progress", "completed",
+];
 const SYNTHETIC_LONG_VIDEO_PATH = "qa-fixtures/video-long/master.m3u8";
 const SYNTHETIC_LONG_VIDEO_INIT_GZIP = "H4sIAAAAAAACCpVRP0sDMRx913YqikUqOnSoUMFBj95Zby516eCqILjES2pDE++4pEHdHQRHv4EO+i0cHJz8AG5ujo5u1UsV04qCj8u9/Mj7/QdQ6+mTlKtkEyggZ66SSKatACiWZZIYAEKaPsUEii+WPPt9w5tUTdtt/IkCUJjVGRkA2NcDm7P4R/T/5a0DmLdmg1GtANSYUPqHh715Z5JykntJOt37uIude0vrfSqyrxfDKXOVu5yypEuOqGC5xmtKftQDUDXSBnXLbNDxW41mrOeUMjPMRP3z/qr0gfjQXiutqKO5JCYOfh1SHfPoAvZYxcI2MXEU+mHoB82gLvjBcRi1HI+l0QiAT0y85XXuyqNnLB527spPK28XpXa+E/u7uj+/8VDqP849AKikRKWf+fNTUdoO+QsVpVXs2FWl1elUpRWl48SxV6Vhx3kHOrMMJ74LMqQ6X9aeZJZzLLuLkZRnJE2F67TGx9tv3OoksYMn1tkG3yamF4V+5AfNjXcsVg90JgMAAA==";
 const SYNTHETIC_LONG_VIDEO_MEDIA_GZIP = "H4sIAAAAAAACCu2ZQYscRRiGv5mQBUMQkURymMMHiWIg01vdOzusAwUbQzAXiSDkpp2aqurtYru7eqpr3ZmclrCHHLwFPIyXIPgbPAmLN3+BBnIwF9GLQq4RIzWbrUXw4E0iXx/mebum662HnkMXPQBwqfOLtu5UCQAQWHdmDgCjzqh5D1ZHD2Ab/uHoAbx/FZ4CHKxOB4e1tQUAvFEXpTq9ZlB5J8L4wIfxPmyddvZ3eseLXPCF8r2/1Q9G3u01AGs9gDOHAIPPw/X94y/PvZxHJBKJRCLx1eOb9DwnEolEIpGe50QikUgkEul5TiQSif+Ob39dK+EB+h+vnX3x4vaTm79++/PjW998ce1HfHz5t9/n2XiEQ5TWaUzHm+g2smwD2WiLySnDId5KsvFo/cOPbn4wHOH1OzdQWqUlDvGGbReVLjxmjG0MM5Zt4hBL79vJ+vr+/n7ymVHaVqJJrNtZD6skpa8rHKJtvbFNN0EppkJyhk4XPEWlp5WVu5xN2IShaES16HQ4w1pzZQR2e9Nac4Ztt+Bp+Myd4mnC2IQljGFt5lrloSvMyJ1odjRPxyhLZ2uR15qn6J2uKtNxhlvzLSU9ZyhnNWeotFD3bKN5ll5LUyxE5/O22zUtT08KZm1ui6LTYZIvnRaq4ylW1u6KUguVn451lZH6dIBh41ZLSFMLHzRM47WrhNSKM5xWe04scmnrVqyEbNN5J0yjVW4a70S4pnCi1qFqX5ud0rec4a5emMbzbPMk5rVpwupSN1ruharV9HBLnO7KcKMll67AeuqdDndSuoJnGwnDWVids2TMcNaGmhXFnI/fw1nbed3yEZo2d8Iby9NkxFDMOFv9y31ePzicvPMuvNb//odPAWDt+hIvfHV0nLYvnqS7MR3E9Cimo5h+eutl+hJiwpi2Y7ob00FMj2I6iin2LWPfMvYtY98y9i1j3zL2LWMf+ZEf+ZEf+ZEf+ZHf/8nvdf3gfu/ele8O4M8/Hsa93EXay5Ef+ZEf+ZEf+ZEf+b0ae7nDs788PAdnnj+7/cmc9nLkR37kR37kR37kR370Xo5+K/IjP/Ijv//a7y/rfhtCdUIAAA==";
@@ -124,7 +131,7 @@ export function observeReleaseTestResult(stdout) {
     failedFiles: [], boundaryCodes: [], runnerErrorCount: null,
     readFetchRetries: null, suppressedAnalyticsBatches: null,
     suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
-    longVideo: null,
+    longVideo: null, longVideoCheckpoint: { desktop: null, mobile: null },
   };
   let report;
   try { report = JSON.parse(typeof stdout === "string" ? stdout : ""); }
@@ -175,6 +182,18 @@ export function observeReleaseTestResult(stdout) {
               }
               const longVideo = observeLongVideoBrowserEvidence(payload?.longVideoRealUse);
               if (longVideo) longVideoEvidence.push(longVideo);
+              const checkpoint = payload?.longVideoCheckpoint;
+              if (checkpoint && typeof checkpoint === "object" && !Array.isArray(checkpoint)
+                && Object.keys(checkpoint).sort().join(",") === "schema,stage,viewport"
+                && checkpoint.schema === "student-video-renewal-checkpoint/v1"
+                && ["desktop", "mobile"].includes(checkpoint.viewport)
+                && LONG_VIDEO_CHECKPOINT_STAGES.includes(checkpoint.stage)) {
+                const current = observation.longVideoCheckpoint[checkpoint.viewport];
+                if (current === null || LONG_VIDEO_CHECKPOINT_STAGES.indexOf(checkpoint.stage)
+                  > LONG_VIDEO_CHECKPOINT_STAGES.indexOf(current)) {
+                  observation.longVideoCheckpoint[checkpoint.viewport] = checkpoint.stage;
+                }
+              }
             }
           }
         }
