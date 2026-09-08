@@ -307,8 +307,12 @@ test("assessment classification fails if a business write or skip is introduced"
 });
 
 function completeFlowReport() {
-  return { errors: [], stats: { expected: 11, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
+  return { errors: [], stats: { expected: 18, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
     ...Object.entries({ "notice-roundtrip.spec.ts": 3, "qna-roundtrip.spec.ts": 4, "clinic-roundtrip.spec.ts": 3,
+      "student-parent-account-realuse.spec.ts": 1, "student-parent-assessment-realuse.spec.ts": 1,
+      "student-parent-clinic-realuse.spec.ts": 1, "student-parent-community-realuse.spec.ts": 1,
+      "student-parent-homework-realuse.spec.ts": 1,
+      "student-parent-learning-realuse.spec.ts": 1, "student-parent-storage-realuse.spec.ts": 1,
       "video-playback-renewal.realuse.spec.ts": 1 }).map(([file, count]) => ({
       file, specs: Array.from({ length: count }, () => ({ file, tests: [{ expectedStatus: "passed", status: "expected", results: [{ status: "passed" }] }] })),
     })),
@@ -394,7 +398,7 @@ test("real-use failure observation publishes only allowlisted counts, files, and
   });
 });
 
-test("all eleven real-use cases are mandatory; missing, skip, failure, retry and global errors fail closed", () => {
+test("all eighteen real-use cases are mandatory; missing, skip, failure, retry and global errors fail closed", () => {
   assert.doesNotThrow(() => assertReleaseSummary(completeFlowReport()));
   const corrupt = [
     (report) => report.suites.pop(),
@@ -459,14 +463,15 @@ test("manifest and instance identity must match uniquely before setup", () => {
   }
 });
 
-test("development config discovers eleven enabled cases without executing any API test", () => {
+test("development config discovers eighteen enabled cases without executing any API test", () => {
   const cwd = new URL("../../", import.meta.url);
   const output = execFileSync(process.execPath, ["node_modules/@playwright/test/cli.js", "test",
     "--config=playwright.development-release.config.ts", "--list"], {
     cwd, encoding: "utf8", env: { ...process.env,
       E2E_API_URL: "http://127.0.0.1:18000", E2E_BASE_URL: "http://localhost:4173",
       E2E_TENANT_CODE: "qa-ymath-realuse-fe-123-1-abcdef123456",
-      E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict" },
+      E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict",
+      E2E_STUDENT_PARENT_REALUSE: "1", E2E_ALLOW_REAL_ALIMTALK: "0" },
   });
   const report = JSON.parse(output);
   let discovered = 0;
@@ -480,7 +485,7 @@ test("development config discovers eleven enabled cases without executing any AP
     for (const child of suite.suites || []) visit(child);
   };
   visit(report);
-  assert.equal(discovered, 11);
+  assert.equal(discovered, 18);
   // Playwright's --list reporter counts all unexecuted cases as skipped. These
   // are discovery-only, never accepted by assertReleaseSummary as real-use proof.
   assert.equal(report.stats.expected, 0);

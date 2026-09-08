@@ -43,8 +43,11 @@
    하나만 선택했을 때만 입력할 수 있습니다.
 6. 학생이 세션을 고르고 신청하면 학원 설정에 따라 `pending` 또는
    `booked`가 됩니다.
-7. **내 일정**에서 `pending` 예약은 다른 날짜·시간으로 원자적으로
-   변경하거나 취소할 수 있습니다. `booked` 변경·취소는 학원에 요청합니다.
+7. **내 일정**에서 `pending` 예약은 다른 날짜·시간으로 원자적으로 변경할 수 있고,
+   `pending`과 `booked` 모두 서버가 허용한 경우 직접 취소할 수 있습니다. 필수 클리닉
+   대상자는 같은 월~일 주간 예약을 최소 1개 남겨야 하므로, 주간 활성 예약이 하나뿐이면
+   **취소 불가**와 다른 일정을 먼저 예약하라는 이유를 표시합니다. 2개 이상이면 하나를
+   취소할 수 있고 학생·학부모 양쪽 알림톡 접수 결과를 응답으로 확인합니다.
 
 ## 상태와 API 소유권
 
@@ -57,6 +60,8 @@
 - 단일·다중 신청: `POST /clinic/participants/bulk-create/`의 `session_ids`
 - 일정 변경: `POST /clinic/participants/{id}/change-booking/`
 - 취소: `PATCH /clinic/participants/{id}/set_status/`
+- 취소 판정: 참가자 응답의 `can_self_cancel` + `self_cancel_reason`. 프런트는
+  ClinicLink 또는 주간 예약 규칙을 재구현하지 않습니다.
 - 희망 시간: 신청·변경 payload의 `preferred_start_time` + `preferred_end_time`
 - 학생·학부모 요청: 신청·변경 payload와 응답의 `student_request_memo`만 사용합니다.
   작성 주체가 불명확한 기존 `memo`는 학생 화면에서 읽거나 표시하지 않습니다.
@@ -65,6 +70,10 @@
 - 예약·출석은 일정 상태이며 `ClinicLink`를 해소하지 않습니다. 시험·과제
   통과 또는 관리자 수동 처리만 미통과 대상을 해소합니다.
 - 학생·학부모 요청은 현재 선택된 학생과 테넌트로 실패 폐쇄됩니다.
+- 취소 성공은 먼저 예약 상태가 `cancelled`로 저장됐음을 알립니다. 알림톡 전달이 즉시
+  끝나지 않았으면 durable outbox의 자동 재시도 대기 상태를 표시합니다. 조교 확인이나
+  다른 메시지 수단, 사용자 재시도를 정상 종료 조건으로 떠넘기지 않습니다. 새로고침 뒤에도
+  취소 상태가 유지되어야 하며 provider 호출은 worker가 outbox를 재시도합니다.
 
 ## 패스카드 운영 경계
 
@@ -126,5 +135,7 @@
   `backend/tests/test_clinic_multi_slot_booking_api.py`
 - 기존 권한·다중 수강 연결·원자적 변경:
   `backend/apps/domains/clinic/tests.py::StudentClinicPermissionAPITest`
+- 학생·학부모 취소·주간 최소 1회·알림 대상·동시성:
+  `backend/tests/test_clinic_self_cancellation.py`
 - 대상 생성부터 동일 날짜 다중 시간대 예약·출석·재시험 해소:
   `e2e/student/clinic-remediation-realuse.spec.ts`

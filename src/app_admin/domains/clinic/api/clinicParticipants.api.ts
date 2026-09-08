@@ -194,6 +194,18 @@ export async function createClinicParticipant(payload: {
   return res.data as ClinicParticipant;
 }
 
+export async function createClinicParticipantsBulk(payload: {
+  session_ids: number[];
+  student_ids?: number[];
+  enrollment_ids?: number[];
+}) {
+  const res = await api.post<{
+    count: number;
+    participants: ClinicParticipant[];
+  }>("/clinic/participants/bulk-create/", payload);
+  return res.data;
+}
+
 export async function patchClinicParticipantStatus(
   id: number,
   payload: {

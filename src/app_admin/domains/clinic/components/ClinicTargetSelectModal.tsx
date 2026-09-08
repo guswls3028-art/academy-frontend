@@ -96,7 +96,9 @@ type Props = {
   initialMode?: "targets" | "students";
   initialSelectedIds?: number[];
   initialSelectedNames?: readonly string[];
-  onConfirm: (result: ClinicTargetSelectResult) => void;
+  onConfirm: (
+    result: ClinicTargetSelectResult,
+  ) => boolean | void | Promise<boolean | void>;
 };
 
 const EMPTY_IDS: number[] = [];
@@ -204,6 +206,7 @@ export default function ClinicTargetSelectModal({
   const [selectedIds, setSelectedIds] = useState<number[]>(() => [...stableIds]);
   const [selectedIdToName, setSelectedIdToName] = useState<Map<number, string>>(new Map());
   const [detailStudentId, setDetailStudentId] = useState<number | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
   const tableRef = useRef<HTMLDivElement>(null);
 
   const prevOpenRef = useRef(false);
@@ -387,22 +390,25 @@ export default function ClinicTargetSelectModal({
     return selectedIds.map((selectedId) => ({ id: selectedId, name: selectedIdToName.get(selectedId) ?? "(이름 없음)" }));
   }, [selectedIds, selectedIdToName]);
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (isError || selectedIds.length === 0) return;
     const selectedNames = selectedRowsForDisplay.map((row) => row.name);
-    if (mode === "targets") {
-      onConfirm({ ...enrollmentSelection(selectedIds), selectedNames });
-    } else {
-      onConfirm({ ...studentSelection(selectedIds), selectedNames });
+    setIsConfirming(true);
+    try {
+      const shouldClose = mode === "targets"
+        ? await onConfirm({ ...enrollmentSelection(selectedIds), selectedNames })
+        : await onConfirm({ ...studentSelection(selectedIds), selectedNames });
+      if (shouldClose !== false) onClose();
+    } finally {
+      setIsConfirming(false);
     }
-    onClose();
   };
 
   if (!open) return null;
 
   return (
     <>
-    <AdminModal open={true} onClose={onClose} type="action" width={840}>
+    <AdminModal open={true} onClose={isConfirming ? () => {} : onClose} type="action" width={840}>
       <ModalHeader
         type="action"
         title="대상자 선택"
@@ -724,7 +730,7 @@ export default function ClinicTargetSelectModal({
       <ModalFooter
         right={
           <>
-            <Button intent="secondary" onClick={onClose} className="text-[13px]">
+            <Button intent="secondary" onClick={onClose} disabled={isConfirming} className="text-[13px]">
               취소
             </Button>
             <Button
@@ -732,9 +738,9 @@ export default function ClinicTargetSelectModal({
               className="text-[13px]"
               onClick={handleConfirm}
               title={selectedIds.length === 0 ? "대상을 선택하거나 취소하세요." : undefined}
-              disabled={isLoading || isError || selectedIds.length === 0}
+              disabled={isLoading || isError || isConfirming || selectedIds.length === 0}
             >
-              선택 확정 ({selectedIds.length}명)
+              {isConfirming ? "추가 중…" : `선택 확정 (${selectedIds.length}명)`}
             </Button>
           </>
         }

@@ -46,7 +46,7 @@ import type {
 } from "../../api/clinicParticipants.api";
 import {
   patchClinicParticipantStatus,
-  createClinicParticipant,
+  createClinicParticipantsBulk,
   changeClinicParticipantBooking,
   checkoutClinicParticipant,
   completeClinicParticipant,
@@ -69,12 +69,12 @@ import {
 } from "../../api/clinicLinks.api";
 import { fetchAdminExam, updateAdminExam } from "@admin/domains/exams/api/adminExam";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import { useAutoSendConfig } from "@admin/domains/messages/hooks/useAutoSendConfig";
 import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPreviewModal";
 import ClinicTargetSelectModal from "../../components/ClinicTargetSelectModal";
 import type { ClinicTargetSelectResult } from "../../components/ClinicTargetSelectModal";
 import ClinicManualHomeworkCompleteDialog from "../../components/ClinicManualHomeworkCompleteDialog";
-import { buildParticipantPayload } from "../../utils/buildParticipantPayload";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { hhmmText } from "@/shared/ui/time/timeFormat";
 import { clinicQueryKeys } from "../../queryKeys";
@@ -3028,12 +3028,11 @@ export default function ClinicConsoleWorkspace({
         onClose={() => setAddStudentModalOpen(false)}
         initialMode="targets"
         onConfirm={async (result: ClinicTargetSelectResult) => {
-          setAddStudentModalOpen(false);
           const allIds =
             result.kind === "enrollment"
               ? [...result.enrollmentIds]
               : [...result.studentIds];
-          if (!session || allIds.length === 0) return;
+          if (!session || allIds.length === 0) return true;
 
           const existingStudentIds = new Set(
             rosterParticipants.map((p) => p.student)
@@ -3054,40 +3053,36 @@ export default function ClinicConsoleWorkspace({
             feedback.info(
               `선택한 ${allIds.length}명은 이미 등록되어 있습니다.`
             );
-            return;
+            return true;
           }
 
-          const results = await Promise.allSettled(
-            ids.map((selectedId) => {
-              const reason =
-                result.kind === "enrollment"
-                  ? clinicTargets?.find(
-                      (t) => t.enrollment_id === selectedId
-                    )?.clinic_reason
-                  : undefined;
-              return createClinicParticipant(
-                buildParticipantPayload(session.id, selectedId, result, reason)
+          try {
+            await createClinicParticipantsBulk({
+              session_ids: [session.id],
+              ...(result.kind === "enrollment"
+                ? { enrollment_ids: ids }
+                : { student_ids: ids }),
+            });
+            await Promise.all([
+              qc.invalidateQueries({ queryKey: clinicQueryKeys.participants }),
+              qc.invalidateQueries({ queryKey: clinicQueryKeys.sessionsTree }),
+            ]);
+            if (skipped > 0) {
+              feedback.success(
+                `${ids.length}명 추가 (${skipped}명은 이미 등록되어 건너뜀)`
               );
-            })
-          );
-          const failed = results.filter(
-            (r) => r.status === "rejected"
-          ).length;
-          qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
-          qc.invalidateQueries({ queryKey: clinicQueryKeys.sessionsTree });
-          const added = ids.length - failed;
-          if (skipped > 0 && failed > 0) {
-            feedback.warning(
-              `${added}명 추가 (${skipped}명 이미 등록, ${failed}명 실패)`
+            } else {
+              feedback.success(`${ids.length}명이 추가되었습니다.`);
+            }
+            return true;
+          } catch (error: unknown) {
+            feedback.error(
+              `학생을 추가하지 못했습니다. ${extractApiError(
+                error,
+                "선택을 유지했습니다. 잠시 후 다시 시도해 주세요.",
+              )}`,
             );
-          } else if (skipped > 0) {
-            feedback.success(
-              `${added}명 추가 (${skipped}명은 이미 등록되어 건너뜀)`
-            );
-          } else if (failed > 0) {
-            feedback.warning(`${added}명 추가, ${failed}명 실패`);
-          } else {
-            feedback.success(`${ids.length}명이 추가되었습니다.`);
+            return false;
           }
         }}
       />

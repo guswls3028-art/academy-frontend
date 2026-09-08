@@ -26,11 +26,9 @@ import {
 import { fetchLectures, type Lecture } from "@/shared/api/contracts/sessions";
 import { fetchAllSections, type Section } from "@/shared/api/contracts/lectureSections";
 import ClinicTargetSelectModal, { type ClinicTargetSelectResult } from "./ClinicTargetSelectModal";
-import { buildParticipantPayload } from "../utils/buildParticipantPayload";
 
 import api from "@/shared/api/axios";
-import { createClinicParticipant } from "../api/clinicParticipants.api";
-import { useClinicTargets } from "../hooks/useClinicTargets";
+import { createClinicParticipantsBulk } from "../api/clinicParticipants.api";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { clinicQueryKeys } from "../queryKeys";
@@ -66,7 +64,6 @@ export default function ClinicCreatePanel({
   const confirmationInFlightRef = useRef(false);
   const saveInFlightRef = useRef(false);
   const [isSaving, setIsSaving] = useState(false);
-  const { data: clinicTargets } = useClinicTargets();
   const slm = useSchoolLevelMode();
   const { sectionMode, clinicMode } = useSectionMode();
   const showSectionPicker = sectionMode && clinicMode === "regular";
@@ -88,18 +85,6 @@ export default function ClinicCreatePanel({
   const [selectedSectionId, setSelectedSectionId] = useState<number | null>(
     sourceSession?.section ?? null
   );
-
-  // enrollment_id → clinic_reason 매핑 (참가자 등록 시 사유 전달용)
-  const targetReasonMap = useMemo(() => {
-    const map = new Map<number, "exam" | "homework" | "both">();
-    if (!clinicTargets) return map;
-    for (const t of clinicTargets) {
-      if (t.clinic_reason && !map.has(t.enrollment_id)) {
-        map.set(t.enrollment_id, t.clinic_reason);
-      }
-    }
-    return map;
-  }, [clinicTargets]);
 
   const initialDate = date ?? sourceSession?.date ?? todayISO();
   const [selectedDate, setSelectedDate] = useState(dayjs(initialDate));
@@ -435,21 +420,21 @@ export default function ClinicCreatePanel({
       // B-01: 선택된 학생들을 참가자로 등록
       // Dispatch on selection.kind to prevent ID domain confusion
       if (uniqueSelected.length > 0 && selection) {
-        const results = await Promise.allSettled(
-          uniqueSelected.map((selectedId) => {
-            const reason = selection.kind === "enrollment" ? targetReasonMap.get(selectedId) : undefined;
-            return createClinicParticipant(
-              buildParticipantPayload(created.id, selectedId, selection, reason)
-            );
-          })
-        );
-        const failed = results.filter((r) => r.status === "rejected");
-        if (failed.length > 0) {
-          message.warning(
-            `클리닉이 만들어졌습니다. (${uniqueSelected.length - failed.length}명 등록, ${failed.length}명 실패)`
-          );
-        } else {
+        try {
+          await createClinicParticipantsBulk({
+            session_ids: [created.id],
+            ...(selection.kind === "enrollment"
+              ? { enrollment_ids: uniqueSelected }
+              : { student_ids: uniqueSelected }),
+          });
           message.success(`클리닉이 만들어졌습니다. (${uniqueSelected.length}명 등록)`);
+        } catch (participantError: unknown) {
+          message.warning(
+            `클리닉은 만들어졌지만 학생을 추가하지 못했습니다. ${apiErrorMessage(
+              participantError,
+              "운영 화면에서 학생 추가를 다시 시도해 주세요.",
+            )}`
+          );
         }
       } else {
         message.success("클리닉이 만들어졌습니다.");

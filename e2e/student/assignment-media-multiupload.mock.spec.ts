@@ -6,6 +6,8 @@ const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
 const HOMEWORK_ID = 8501;
 const ENROLLMENT_ID = 8601;
 
+test.use({ serviceWorkers: "block" });
+
 function fakeJwt(): string {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
   return `${encode({ alg: "none" })}.${encode({
@@ -24,8 +26,15 @@ function multipartFilename(body: string): string {
 }
 
 type Media = Record<string, unknown>;
+type Viewer = "student" | "parent";
 
-async function installApi(page: Page, firstUploadDelayMs = 450) {
+async function installApi(
+  page: Page,
+  firstUploadDelayMs = 450,
+  viewer: Viewer = "student",
+  homeworkOverrides: Record<string, unknown> = {},
+  reviewLockOnFirstUpload = false,
+) {
   test.skip(
     !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE),
     "과제 다건 업로드 route-mock 검증은 로컬 dev 서버 전용",
@@ -51,7 +60,9 @@ async function installApi(page: Page, firstUploadDelayMs = 450) {
   }];
   const failedClientIds = new Set<string>();
   const uploadClientIds: string[] = [];
+  const studentScopedHeaders: Array<string | undefined> = [];
   let uploadAttempts = 0;
+  let currentHomeworkOverrides = homeworkOverrides;
 
   await page.addInitScript((jwt) => {
     localStorage.setItem("access", jwt);
@@ -70,10 +81,31 @@ async function installApi(page: Page, firstUploadDelayMs = 450) {
       return json({ tenantCode: "hakwonplus", display_name: "학원플러스", is_active: true, feature_flags: {}, ui_config: {} });
     }
     if (path.endsWith("/core/me/")) {
-      return json({ id: 72, username: "student-72", name: "김하늘", is_staff: false, is_superuser: false, tenantRole: "student", linkedStudents: [] });
+      return json(viewer === "parent"
+        ? {
+            id: 920,
+            username: "parent-920",
+            name: "김보호",
+            is_staff: false,
+            is_superuser: false,
+            tenantRole: "parent",
+            linkedStudents: [{ id: 72, name: "김하늘" }],
+            linkedStudentName: "김하늘",
+          }
+        : { id: 72, username: "student-72", name: "김하늘", is_staff: false, is_superuser: false, tenantRole: "student", linkedStudents: [] });
     }
-    if (path.endsWith("/student/me/")) return json({ id: 72, name: "김하늘", is_student: true });
+    if (path.endsWith("/student/me/")) {
+      studentScopedHeaders.push(request.headers()["x-student-id"]);
+      return json({
+        id: 72,
+        name: "김하늘",
+        displayName: viewer === "parent" ? "김하늘 학생 학부모님" : "김하늘",
+        is_student: true,
+        isParentReadOnly: viewer === "parent",
+      });
+    }
     if (path.endsWith("/student/grades/")) {
+      studentScopedHeaders.push(request.headers()["x-student-id"]);
       return json({
         exams: [],
         homeworks: [{
@@ -86,6 +118,7 @@ async function installApi(page: Page, firstUploadDelayMs = 450) {
           passed: false,
           achievement: "NOT_SUBMITTED",
           lecture_title: "고1 수학",
+          ...currentHomeworkOverrides,
         }],
         exam_trend: [],
         exam_summary: {},
@@ -93,6 +126,7 @@ async function installApi(page: Page, firstUploadDelayMs = 450) {
       });
     }
     if (path.endsWith(`/submissions/submissions/homework/${HOMEWORK_ID}/media/`) && request.method() === "GET") {
+      studentScopedHeaders.push(request.headers()["x-student-id"]);
       return json({
         files,
         limits: {
@@ -103,7 +137,18 @@ async function installApi(page: Page, firstUploadDelayMs = 450) {
       });
     }
     if (path.endsWith(`/submissions/submissions/homework/${HOMEWORK_ID}/media/`) && request.method() === "POST") {
+      studentScopedHeaders.push(request.headers()["x-student-id"]);
       uploadAttempts += 1;
+      if (reviewLockOnFirstUpload && uploadAttempts === 1) {
+        currentHomeworkOverrides = {
+          ...currentHomeworkOverrides,
+          submission_media_locked: true,
+        };
+        return json({
+          code: "HOMEWORK_MEDIA_REVIEWED",
+          detail: "완료 또는 통과한 과제 파일은 변경할 수 없습니다.",
+        }, 409);
+      }
       const body = request.postData() ?? "";
       const clientId = multipartValue(body, "client_file_id");
       const batchId = multipartValue(body, "upload_batch_id");
@@ -140,12 +185,100 @@ async function installApi(page: Page, firstUploadDelayMs = 450) {
       else files.push(payload);
       return json(payload, 201);
     }
-    if (path.endsWith("/student/me/activity/homework-open/")) return json({ ok: true });
+    if (path.endsWith("/student/me/activity/homework-open/")) {
+      studentScopedHeaders.push(request.headers()["x-student-id"]);
+      return json({ ok: true });
+    }
     return json({ count: 0, results: [] });
   });
 
-  return { files, getUploadAttempts: () => uploadAttempts, getUploadClientIds: () => [...uploadClientIds] };
+  return {
+    files,
+    getUploadAttempts: () => uploadAttempts,
+    getUploadClientIds: () => [...uploadClientIds],
+    getStudentScopedHeaders: () => [...studentScopedHeaders],
+  };
 }
+
+test("학부모가 선택 자녀의 과제를 제출하고 새로고침 뒤에도 같은 파일을 확인한다", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const state = await installApi(page, 0, "parent");
+  await page.goto(`${BASE}/student/submit/assignment`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+  await expect(page.getByText("학부모 계정은 직접 제출할 수 없습니다.")).toHaveCount(0);
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "학부모-대리제출.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("parent-proxy-proof"),
+  });
+  await page.getByRole("button", { name: "파일 1개 제출하기", exact: true }).click();
+  await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible();
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await expect(page.getByRole("region", { name: "이미 제출한 파일" })
+    .getByText("학부모-대리제출.png", { exact: true })).toBeVisible();
+  expect(state.getStudentScopedHeaders().length).toBeGreaterThan(0);
+  expect(state.getStudentScopedHeaders().every((value) => value === "72")).toBe(true);
+  expect(await page.evaluate(() => localStorage.getItem("parent_selected_student_id_hakwonplus"))).toBe("72");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+});
+
+test("재응시 통과로 제출 파일이 잠긴 과제는 1차 실패 성적이어도 제출 대상에서 제외한다", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const state = await installApi(page, 450, "student", {
+    passed: false,
+    achievement: "FAIL",
+    retake_count: 2,
+    submission_media_locked: true,
+  });
+
+  const gradesResponse = page.waitForResponse(
+    (response) => new URL(response.url()).pathname.endsWith("/student/grades/"),
+    { timeout: 45_000 },
+  );
+  await page.goto(`${BASE}/student/submit/assignment`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  await gradesResponse;
+
+  await expect(page.getByRole("button", { name: /도형 풀이 인증/ })).toHaveCount(0);
+  await expect(page.getByText("제출할 미완료 과제·시험이 없습니다.", { exact: true })).toBeVisible();
+  expect(state.getUploadAttempts()).toBe(0);
+});
+
+test("1차 통과 뒤 최신 재응시가 불합격이면 현재 잠금 값에 따라 보완 제출을 허용한다", async ({ page }) => {
+  const state = await installApi(page, 450, "student", {
+    passed: true,
+    achievement: "PASS",
+    retake_count: 2,
+    submission_media_locked: false,
+  });
+
+  await page.goto(`${BASE}/student/submit/assignment`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+
+  await expect(page.getByRole("button", { name: /도형 풀이 인증/ })).toBeVisible();
+  expect(state.getUploadAttempts()).toBe(0);
+});
+
+test("선택 뒤 교사 확인이 끝난 409는 재시도 파일로 남기지 않고 제출 대상을 갱신한다", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const state = await installApi(page, 450, "student", {}, true);
+  await page.goto(`${BASE}/student/submit/assignment`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "확인-직전-사진.heic",
+    mimeType: "image/heic",
+    buffer: Buffer.from("mobile-photo"),
+  });
+
+  await page.getByRole("button", { name: "파일 1개 제출하기", exact: true }).click();
+
+  await expect(page.getByRole("alert")).toContainText("선생님 확인이 완료되어 제출 목록을 갱신했습니다.");
+  await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /다시 제출/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /도형 풀이 인증/ })).toHaveCount(0);
+  expect(state.getUploadAttempts()).toBe(1);
+});
 
 test("390px에서 사진·동영상을 다건 선택하고 부분 실패만 재시도한 뒤 새로고침해도 유지한다", async ({ page }, testInfo) => {
   test.setTimeout(90_000);

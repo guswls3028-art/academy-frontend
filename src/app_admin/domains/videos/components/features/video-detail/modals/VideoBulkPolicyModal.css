@@ -1,0 +1,25 @@
+.video-bulk-policy-modal .ant-modal-content {
+  max-width: calc(100vw - 24px);
+}
+
+.video-bulk-policy-modal .ds-button {
+  min-height: 44px;
+}
+
+.video-bulk-policy-modal__summary {
+  margin: 0 0 var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm, 14px);
+  line-height: 1.5;
+}
+
+.video-bulk-policy-modal__error {
+  margin-top: var(--space-3);
+  border: 1px solid var(--color-danger-border, #fecaca);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-soft, #fef2f2);
+  padding: var(--space-3);
+  color: var(--color-danger, #b91c1c);
+  font-size: var(--text-sm, 14px);
+  line-height: 1.5;
+}

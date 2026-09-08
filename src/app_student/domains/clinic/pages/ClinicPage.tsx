@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AxiosError } from "axios";
 import { Link } from "react-router";
 
-import { useConfirm } from "@/shared/ui/confirm";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { hhmmText as formatTime } from "@/shared/ui/time/timeFormat";
 import { useTrackedTask } from "@/shared/productAnalytics";
@@ -27,6 +26,7 @@ import { clinicDateParts } from "../clinicDate";
 import { studentClinicQueryKeys } from "../queryKeys";
 import ClinicBookingCalendar from "../components/ClinicBookingCalendar";
 import ClinicMultiSlotSelectionPanel from "../components/ClinicMultiSlotSelectionPanel";
+import ClinicSelfCancelControl from "../components/ClinicSelfCancelControl";
 import { resolveClinicSessionSelection } from "../components/clinicSessionSelection";
 import {
   displayTargetText,
@@ -46,7 +46,6 @@ type ClinicTab = "book" | "schedule";
 
 export default function ClinicPage() {
   const queryClient = useQueryClient();
-  const confirm = useConfirm();
   const runTrackedTask = useTrackedTask();
   const [activeTab, setActiveTab] = useState<ClinicTab>("book");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -272,14 +271,18 @@ export default function ClinicPage() {
   const cancelMutation = useMutation({
     mutationFn: (id: number) =>
       runTrackedTask("clinic.booking.cancel", () => cancelClinicBookingRequest(id)),
-    onSuccess: (_data, id) => {
+    onSuccess: (data, id) => {
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.bookings });
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.availableSessions });
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.summary });
       queryClient.invalidateQueries({ queryKey: studentQueryKeys.clinicIdcard });
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.notificationCounts });
       if (changingBookingId === id) setChangingBookingId(null);
-      studentToast.success("예약 신청이 취소되었습니다.");
+      if ((data.notification?.failed ?? 0) > 0) {
+        studentToast.info("예약 취소가 저장되었습니다. 안내 알림톡은 자동 재시도 대기 중입니다.");
+      } else {
+        studentToast.success("예약 취소가 저장되었습니다. 학생·학부모 안내 알림톡도 접수되었습니다.");
+      }
     },
     onError: (error: AxiosError<ApiErrorBody>) => {
       studentToast.error(error.response?.data?.detail || "취소에 실패했습니다.");
@@ -877,28 +880,15 @@ export default function ClinicPage() {
                           )}
                           <span className={styles.pendingStatus}>승인 대기</span>
                         </div>
-                        <div className={styles.bookingActions}>
+                        <ClinicSelfCancelControl
+                          booking={request}
+                          isPending={cancelMutation.isPending}
+                          onCancel={(id) => cancelMutation.mutate(id)}
+                        >
                           <button type="button" onClick={() => startChangingBooking(request)}>
                             일정 바꾸기
                           </button>
-                          <button
-                            type="button"
-                            className={styles.dangerAction}
-                            disabled={cancelMutation.isPending}
-                            onClick={async () => {
-                              if (await confirm({
-                                title: "예약 취소",
-                                message: "예약 신청을 취소할까요?",
-                                confirmText: "예약 취소",
-                                danger: true,
-                              })) {
-                                cancelMutation.mutate(request.id);
-                              }
-                            }}
-                          >
-                            예약 취소
-                          </button>
-                        </div>
+                        </ClinicSelfCancelControl>
                       </article>
                     );
                   })}
@@ -932,7 +922,11 @@ export default function ClinicPage() {
                           )}
                           <span className={styles.approvedStatus}>예약 확정</span>
                         </div>
-                        <p className={styles.approvedHelp}>변경이 필요하면 학원으로 연락해 주세요.</p>
+                        <ClinicSelfCancelControl
+                          booking={request}
+                          isPending={cancelMutation.isPending}
+                          onCancel={(id) => cancelMutation.mutate(id)}
+                        />
                       </article>
                     );
                   })}
