@@ -573,6 +573,10 @@ test("official runner opts into two-student long-video setup without publishing 
   assert.match(specSource, /expect\(payload\.play_url == null\)\.toBe\(true\)/);
   assert.match(specSource, /state\.allowedMasterUrls\.size\)\.toBe\(2\)/);
   assert.match(specSource, /installSyntheticVideoPosterBridge/);
+  assert.match(specSource, /isSessionVideoList\(url\.pathname\)/);
+  assert.match(specSource, /item\.id === videoId && item\.session_id === sessionId/);
+  assert.match(specSource, /state\.sessionPosterCaptureCount \+= 1/);
+  assert.match(specSource, /state\.sessionPosterCaptureCount\)\.toBeGreaterThan\(sessionPosterCapturesBeforeReload\)/);
   assert.match(posterBridgeSource, /state\.allowedPosterUrls\.has\(request\.url\(\)\)/);
   assert.match(posterBridgeSource, /await route\.fallback\(\)/);
   assert.ok(posterBridgeSource.indexOf("await route.fulfill")
@@ -599,7 +603,7 @@ const development = releaseBoundaryFromEnv({
   E2E_TENANT_CODE: "qa-ymath-realuse-release-unit",
 });
 
-test("real Chromium bridges only the exact bootstrap poster and HLS origin", { timeout: 15_000 }, async () => {
+test("real Chromium bridges only exact response-derived posters and HLS origin", { timeout: 45_000 }, async () => {
   const server = http.createServer((_request, response) => {
     response.writeHead(200, { "content-type": "text/html" });
     response.end("<!doctype html><main>release boundary fixture</main>");
@@ -614,6 +618,7 @@ test("real Chromium bridges only the exact bootstrap poster and HLS origin", { t
   const version = Math.floor(Date.now() / 1_000);
   const posterQuery = `v=${version}&exp=${expiresAt}&sig=${signature}&kid=v1`;
   const posterUrl = `${mediaOrigin}${posterPath}?${posterQuery}`;
+  const sessionPosterUrl = `${mediaOrigin}${posterPath}?v=${version}&exp=${expiresAt + 1}&sig=${"b".repeat(43)}&kid=v1`;
   let browser;
   try {
     browser = await chromium.launch();
@@ -636,7 +641,7 @@ test("real Chromium bridges only the exact bootstrap poster and HLS origin", { t
     const state = {
       responseChain: Promise.resolve(),
       allowedMasterUrls: new Set([masterUrl]),
-      allowedPosterUrls: new Set([posterUrl]),
+      allowedPosterUrls: new Set([posterUrl, sessionPosterUrl]),
       posterLoads: 0,
     };
     await installSyntheticVideoPosterBridge(context, state, 7, 77);
@@ -649,11 +654,22 @@ test("real Chromium bridges only the exact bootstrap poster and HLS origin", { t
       image.onerror = () => resolve(false);
       image.src = url;
     }), posterUrl), true);
-    assert.equal(state.posterLoads, 1);
+    assert.equal(await page.evaluate((url) => new Promise((resolve) => {
+      const image = new Image();
+      image.onload = () => resolve(true);
+      image.onerror = () => resolve(false);
+      image.src = url;
+    }), sessionPosterUrl), true);
+    assert.equal(state.posterLoads, 2);
     assert.doesNotThrow(() => guard.assertClean());
     await context.close();
 
     const rejected = [
+      {
+        url: `${mediaOrigin}${posterPath}?v=${version}&exp=${expiresAt + 2}&sig=${"c".repeat(43)}&kid=v1`,
+        kind: "poster",
+        responseDerived: false,
+      },
       { url: `https://foreign.fixture.invalid${posterPath}?${posterQuery}`, kind: "poster" },
       { url: `${mediaOrigin}/tenants/8/video/hls/77/thumbnail.jpg?${posterQuery}`, kind: "poster" },
       { url: `${mediaOrigin}/tenants/7/video/hls/78/thumbnail.jpg?${posterQuery}`, kind: "poster" },
@@ -664,7 +680,7 @@ test("real Chromium bridges only the exact bootstrap poster and HLS origin", { t
       { url: `${mediaOrigin}${posterPath}?v=0${version}&exp=${expiresAt}&sig=${signature}&kid=v1`, kind: "poster" },
       { url: masterUrl.replace("&uid=11", ""), kind: "hls" },
     ];
-    for (const { url: candidate, kind } of rejected) {
+    for (const { url: candidate, kind, responseDerived = true } of rejected) {
       const rejectedContext = await browser.newContext();
       const rejectedGuard = await installReleaseContextGuard(rejectedContext, {
         mode: "development", webOrigin, apiOrigin: "http://127.0.0.1:1", tenantCode: "qa-ymath-realuse-unit",
@@ -672,7 +688,7 @@ test("real Chromium bridges only the exact bootstrap poster and HLS origin", { t
       const rejectedState = {
         responseChain: Promise.resolve(),
         allowedMasterUrls: new Set([masterUrl]),
-        allowedPosterUrls: new Set([candidate]),
+        allowedPosterUrls: new Set(responseDerived ? [candidate] : [posterUrl]),
         posterLoads: 0,
       };
       await rejectedContext.route("**/qa-fixtures/video-long/**", async (route) => {
