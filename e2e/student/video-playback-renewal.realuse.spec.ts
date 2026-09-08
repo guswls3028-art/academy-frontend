@@ -151,6 +151,7 @@ async function captureResponse(
   const url = new URL(response.url());
   if (response.status() >= 400) state.requestErrorCount += 1;
   if (response.status() < 200 || response.status() >= 300) return;
+  if (response.request().method() === "OPTIONS") return;
   const playbackResponseKind = classifyVideoPlaybackResponse(
     response.url(), response.request().method(), videoId,
   );
