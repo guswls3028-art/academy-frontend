@@ -1151,12 +1151,15 @@ test("학생 추가 충돌은 구체적 사유를 보여주고 선택을 보존�
     { timeout: 45_000 },
   );
 
-  await page.getByRole("button", { name: "학생 추가하기", exact: true }).click();
+  const addStudentButton = page.getByRole("button", { name: "학생 추가하기", exact: true });
+  await expect(addStudentButton).toBeVisible({ timeout: 30_000 });
+  await addStudentButton.click();
   const dialog = page.getByRole("dialog", { name: "대상자 선택" });
   await dialog.getByRole("checkbox", { name: "기존예약 학생 선택" }).check();
   await dialog.getByRole("button", { name: "선택 확정 (1명)" }).click();
 
   await expect(page.getByText(/학생을 추가하지 못했습니다.*이미 해당 세션에 예약된 학생입니다/)).toBeVisible();
+  await expect(page.getByText(/0명 추가.*1명 실패/)).toHaveCount(0);
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("checkbox", { name: "기존예약 학생 선택" })).toBeChecked();
   expect(state.participantBulkPayloads).toEqual([{
@@ -1182,6 +1185,16 @@ test("학생 추가 충돌은 구체적 사유를 보여주고 선택을 보존�
   await expect(page.getByText("기존예약 학생", { exact: true })).toBeVisible();
   expect(state.participantBulkPayloads).toHaveLength(3);
   expect(state.participants).toHaveLength(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByText("기존예약 학생", { exact: true })).toBeVisible();
+  expect(state.participants).toHaveLength(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByText("기존예약 학생", { exact: true })).toBeVisible({ timeout: 30_000 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 

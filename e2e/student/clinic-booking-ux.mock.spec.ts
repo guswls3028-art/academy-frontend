@@ -786,10 +786,14 @@ test.describe("학생 클리닉 예약 UX", () => {
       (element) => element.scrollWidth <= element.clientWidth,
     )).toBe(true);
 
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.getByRole("tab", { name: "내 일정 1" }).click();
     await expect(page.locator("article").filter({ hasText: "필수 클리닉 마지막 예약" }))
       .toContainText("같은 주에 예약을 최소 1개 유지");
+    expect(await page.locator("body").evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    )).toBe(true);
   });
 
   test("시간 범위 예약은 서버 잔여 정원과 최대 체류 안의 연속 구간만 제출한다", async ({ page }) => {

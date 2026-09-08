@@ -295,12 +295,12 @@ export default function ClinicOperationsConsolePage() {
   useEffect(() => {
     if (
       selectedSessionId != null &&
-      !treeQ.isLoading &&
-      activeSession == null
+      treeQ.isSuccess &&
+      !(treeQ.data ?? []).some((session) => session.id === selectedSessionId)
     ) {
       setSelectedSessionId(null);
     }
-  }, [activeSession, selectedSessionId, treeQ.isLoading]);
+  }, [selectedSessionId, treeQ.data, treeQ.isSuccess]);
 
   const headerDesc = "오늘 예약·배정 학생의 출석과 미통과 처리를 한 흐름에서 진행합니다.";
 
