@@ -6,6 +6,8 @@ export default defineConfig({
     "flows/notice-roundtrip.spec.ts",
     "flows/qna-roundtrip.spec.ts",
     "flows/clinic-roundtrip.spec.ts",
+    "student/student-parent-assessment-realuse.spec.ts",
+    "student/student-parent-homework-realuse.spec.ts",
     "student/video-playback-renewal.realuse.spec.ts",
   ],
   forbidOnly: true,

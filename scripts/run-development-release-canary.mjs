@@ -20,6 +20,8 @@ const FLOW_COUNTS = {
   "notice-roundtrip.spec.ts": 3,
   "qna-roundtrip.spec.ts": 4,
   "clinic-roundtrip.spec.ts": 3,
+  "student-parent-assessment-realuse.spec.ts": 1,
+  "student-parent-homework-realuse.spec.ts": 1,
   "video-playback-renewal.realuse.spec.ts": 1,
 };
 const LONG_VIDEO_CHECKPOINT_STAGES = [
@@ -771,6 +773,7 @@ export async function run() {
     tests = ownedProcess(process.execPath, [path.join(ROOT, "node_modules/@playwright/test/cli.js"), "test", "--config=playwright.development-release.config.ts"], {
       env: { ...process.env, E2E_BASE_URL: WEB_ORIGIN, E2E_API_URL: API_ORIGIN, API_BASE_URL: API_ORIGIN,
         E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict",
+        E2E_STUDENT_PARENT_REALUSE: "1", E2E_ALLOW_REAL_ALIMTALK: "0",
         E2E_TENANT_CODE: tenant, E2E_ADMIN_USER: "ymath-qa-teacher", E2E_STUDENT_USER: "ymath-qa-student-01",
         E2E_STUDENT2_USER: "ymath-qa-student-02", E2E_LONG_VIDEO_TENANT_ID: String(scenario.tenant_id),
         E2E_LONG_VIDEO_ID: String(scenario.synthetic_long_video.video_id),

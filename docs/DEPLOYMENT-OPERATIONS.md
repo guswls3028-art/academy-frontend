@@ -349,7 +349,11 @@ workflow 계약의 failure-first RED→GREEN, 실제 loopback HTTP/Chromium 중�
 검증한다. `--list`는 실행하지 않은 discovery일 뿐 real-use 통과로 인정하지 않는다.
 GitHub Ubuntu 24.04 이미지의 기존 AWS CLI/Session Manager plugin을 재사용하고
 실행 버전을 출력한다. package/lockfile 변경이나 별도 latest installer는 없다.
-실제 frontend IAM role/document 적용과 11 PASS/0 SKIP/cleanup0 증거가 모두 있어야
+학생 본인과 학부모 선택 자녀의 온라인 시험 제출 및 과제 파일 업로드도 같은
+배포 artifact의 개발 카나리에서 각각 실행한다. 두 흐름 모두 교사용 결과 투영과
+재로그인 후 지속 상태를 확인한다. 다른 자녀/tenant 접근 거부는 backend 계약과 함께
+검증한다.
+실제 frontend IAM role/document 적용과 13 PASS/0 SKIP/cleanup0 증거가 모두 있어야
 이 전환 HOLD를 해제할 수 있다.
 
 ## 4. 공급망과 변경 관리
