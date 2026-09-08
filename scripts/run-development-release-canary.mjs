@@ -212,9 +212,13 @@ export function observeReleaseTestResult(stdout) {
           || results.length !== 1 || results[0]?.status !== "passed";
         if (failed && Object.hasOwn(FLOW_COUNTS, file)) failedFiles.add(file);
         for (const result of results) {
-          collectErrors(result?.errors || (result?.error ? [result.error] : []));
+          const resultErrors = [
+            ...(Array.isArray(result?.errors) ? result.errors : []),
+            ...(result?.error ? [result.error] : []),
+          ];
+          collectErrors(resultErrors);
           if (file === "video-playback-renewal.realuse.spec.ts") {
-            for (const error of result?.errors || (result?.error ? [result.error] : [])) {
+            for (const error of resultErrors) {
               if (typeof error?.message === "string") longVideoMessages.push(error.message);
             }
           }

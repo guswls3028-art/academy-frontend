@@ -542,6 +542,21 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
     "context-closed", "playback-below-690", "video-evaluate-failed",
   ]);
   assert.doesNotMatch(JSON.stringify(codedObservation), /secret-token/);
+  const playwrightErrorShapeReport = completeFlowReport();
+  const playwrightErrorShape = playwrightErrorShapeReport.suites.at(-1).specs[0].tests[0];
+  playwrightErrorShape.status = "unexpected";
+  playwrightErrorShape.results[0] = {
+    status: "failed",
+    errors: [],
+    error: {
+      message: "locator.evaluate: Target page, context or browser has been closed\nsecret-token",
+    },
+  };
+  const playwrightErrorShapeObservation = runner.observeReleaseTestResult(JSON.stringify(playwrightErrorShapeReport));
+  assert.deepEqual(playwrightErrorShapeObservation.longVideoErrorCodes, [
+    "context-closed", "video-evaluate-failed",
+  ]);
+  assert.doesNotMatch(JSON.stringify(playwrightErrorShapeObservation), /secret-token/);
   for (const invalidEvidence of [
     { sourceReloadCount: 1 },
     { minimumRenewalAdvanceSeconds: 4 },
