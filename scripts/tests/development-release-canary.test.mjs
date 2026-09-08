@@ -621,6 +621,7 @@ test("real Chromium bridges only exact response-derived posters and HLS origin",
   const posterUrl = `${mediaOrigin}${posterPath}?${posterQuery}`;
   const sessionPosterUrl = `${mediaOrigin}${posterPath}?v=${version}&exp=${expiresAt + 1}&sig=${"b".repeat(43)}&kid=v1`;
   const delayedSessionPosterUrl = `${mediaOrigin}${posterPath}?v=${version}&exp=${expiresAt + 2}&sig=${"c".repeat(43)}&kid=v1`;
+  const clockSkewPosterUrl = `${mediaOrigin}${posterPath}?v=${version}&exp=${Math.floor(Date.now() / 1_000) + 21_630}&sig=${"d".repeat(43)}&kid=v1`;
   let browser;
   try {
     browser = await chromium.launch();
@@ -643,7 +644,7 @@ test("real Chromium bridges only exact response-derived posters and HLS origin",
     const state = {
       responseChain: Promise.resolve(),
       allowedMasterUrls: new Set([masterUrl]),
-      allowedPosterUrls: new Set([posterUrl, sessionPosterUrl]),
+      allowedPosterUrls: new Set([posterUrl, sessionPosterUrl, clockSkewPosterUrl]),
       posterLoads: 0,
     };
     await installSyntheticVideoPosterBridge(context, state, 7, 77);
@@ -673,7 +674,13 @@ test("real Chromium bridges only exact response-derived posters and HLS origin",
       image.onerror = () => resolve(false);
       image.src = url;
     }), delayedSessionPosterUrl), true);
-    assert.equal(state.posterLoads, 3);
+    assert.equal(await page.evaluate((url) => new Promise((resolve) => {
+      const image = new Image();
+      image.onload = () => resolve(true);
+      image.onerror = () => resolve(false);
+      image.src = url;
+    }), clockSkewPosterUrl), true);
+    assert.equal(state.posterLoads, 4);
     assert.doesNotThrow(() => guard.assertClean());
     await context.close();
 
@@ -689,6 +696,7 @@ test("real Chromium bridges only exact response-derived posters and HLS origin",
       { url: `${mediaOrigin}${posterPath}?v=${version}&exp=${expiresAt}&kid=v1`, kind: "poster" },
       { url: `${posterUrl}&uid=11`, kind: "poster" },
       { url: `${mediaOrigin}${posterPath}?v=${version}&exp=${expiresAt + 21_600}&sig=${signature}&kid=v1`, kind: "poster" },
+      { url: `${mediaOrigin}${posterPath}?v=${version}&exp=${Math.floor(Date.now() / 1_000) + 21_720}&sig=${signature}&kid=v1`, kind: "poster" },
       { url: `${mediaOrigin}${posterPath}?v=1e3&exp=${expiresAt}&sig=${signature}&kid=v1`, kind: "poster" },
       { url: `${mediaOrigin}${posterPath}?v=0${version}&exp=${expiresAt}&sig=${signature}&kid=v1`, kind: "poster" },
       { url: masterUrl.replace("&uid=11", ""), kind: "hls" },

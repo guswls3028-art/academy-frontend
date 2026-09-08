@@ -11,6 +11,8 @@ const TRANSPARENT_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
   "base64",
 );
+const MAX_SIGNED_POSTER_TTL_SECONDS = 6 * 60 * 60;
+const MAX_CROSS_HOST_CLOCK_SKEW_SECONDS = 60;
 
 function isExactSignedPosterShape(
   rawUrl: string,
@@ -32,7 +34,8 @@ function isExactSignedPosterShape(
       && /^[A-Za-z0-9._-]{1,32}$/.test(target.searchParams.get("kid") || "")
       && /^[A-Za-z0-9_-]{43}$/.test(target.searchParams.get("sig") || "")
       && /^[1-9][0-9]*$/.test(rawExpiry) && Number.isSafeInteger(expiresAt)
-      && expiresAt - now > 690 && expiresAt - now <= 21_600
+      && expiresAt - now > 690
+      && expiresAt - now <= MAX_SIGNED_POSTER_TTL_SECONDS + MAX_CROSS_HOST_CLOCK_SKEW_SECONDS
       && /^[1-9][0-9]*$/.test(rawVersion) && Number.isSafeInteger(version)
       && version >= now - 1_800 && version <= now + 60;
   } catch {
