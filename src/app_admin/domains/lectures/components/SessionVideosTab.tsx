@@ -23,7 +23,7 @@ import styles from "./SessionVideosTab.module.css";
 const VideoUploadModal = lazy(() => import("@admin/domains/videos/components/features/video-detail/modals/VideoUploadModal"));
 const VideoEditModal = lazy(() => import("@admin/domains/videos/components/features/video-detail/modals/VideoEditModal"));
 const VideoReorderModal = lazy(() => import("@admin/domains/videos/components/VideoReorderModal"));
-const VideoBulkPolicyModal = lazy(() => import("@admin/domains/videos/components/features/video-detail/modals/VideoBulkPolicyModal"));
+const VideoBulkPolicyModal = lazy(() => import("@admin/domains/videos/public/VideoBulkPolicyModal"));
 
 /**
  * media 도메인 기준 Video 타입 (관리자 목록용)
@@ -529,7 +529,10 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
               .filter((video: MediaVideo) => selectedVideoIds.has(video.id))
               .map((video: MediaVideo) => video.id)}
             onClose={() => setBulkPolicyOpen(false)}
-            onSaved={() => {
+            onSaved={async () => {
+              await qc.invalidateQueries({
+                queryKey: adminLectureQueryKeys.sessionVideos(sessionId),
+              });
               setSelectedVideoIds(new Set());
               setBulkPolicyOpen(false);
             }}
