@@ -272,14 +272,18 @@ export default function ClinicPage() {
   const cancelMutation = useMutation({
     mutationFn: (id: number) =>
       runTrackedTask("clinic.booking.cancel", () => cancelClinicBookingRequest(id)),
-    onSuccess: (_data, id) => {
+    onSuccess: (data, id) => {
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.bookings });
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.availableSessions });
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.summary });
       queryClient.invalidateQueries({ queryKey: studentQueryKeys.clinicIdcard });
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.notificationCounts });
       if (changingBookingId === id) setChangingBookingId(null);
-      studentToast.success("예약 신청이 취소되었습니다.");
+      if ((data.notification?.failed ?? 0) > 0) {
+        studentToast.info("예약은 취소되었습니다. 일부 알림톡은 학원에서 확인합니다.");
+      } else {
+        studentToast.success("예약이 취소되었고 학생·학부모님께 알림톡을 요청했습니다.");
+      }
     },
     onError: (error: AxiosError<ApiErrorBody>) => {
       studentToast.error(error.response?.data?.detail || "취소에 실패했습니다.");
@@ -884,11 +888,12 @@ export default function ClinicPage() {
                           <button
                             type="button"
                             className={styles.dangerAction}
-                            disabled={cancelMutation.isPending}
+                            disabled={cancelMutation.isPending || !request.can_self_cancel}
+                            aria-describedby={`clinic-cancel-help-${request.id}`}
                             onClick={async () => {
                               if (await confirm({
                                 title: "예약 취소",
-                                message: "예약 신청을 취소할까요?",
+                                message: "이 예약을 취소할까요? 학생과 학부모님께 취소 알림톡이 요청됩니다.",
                                 confirmText: "예약 취소",
                                 danger: true,
                               })) {
@@ -896,9 +901,12 @@ export default function ClinicPage() {
                               }
                             }}
                           >
-                            예약 취소
+                            {request.can_self_cancel ? "예약 취소" : "취소 불가"}
                           </button>
                         </div>
+                        <p id={`clinic-cancel-help-${request.id}`} className={styles.selfCancelHelp}>
+                          {request.self_cancel_reason}
+                        </p>
                       </article>
                     );
                   })}
@@ -932,7 +940,29 @@ export default function ClinicPage() {
                           )}
                           <span className={styles.approvedStatus}>예약 확정</span>
                         </div>
-                        <p className={styles.approvedHelp}>변경이 필요하면 학원으로 연락해 주세요.</p>
+                        <div className={styles.approvedActions}>
+                          <button
+                            type="button"
+                            className={styles.dangerAction}
+                            disabled={cancelMutation.isPending || !request.can_self_cancel}
+                            aria-describedby={`clinic-cancel-help-${request.id}`}
+                            onClick={async () => {
+                              if (await confirm({
+                                title: "예약 취소",
+                                message: "이 예약을 취소할까요? 학생과 학부모님께 취소 알림톡이 요청됩니다.",
+                                confirmText: "예약 취소",
+                                danger: true,
+                              })) {
+                                cancelMutation.mutate(request.id);
+                              }
+                            }}
+                          >
+                            {request.can_self_cancel ? "예약 취소" : "취소 불가"}
+                          </button>
+                          <p id={`clinic-cancel-help-${request.id}`} className={styles.selfCancelHelp}>
+                            {request.self_cancel_reason}
+                          </p>
+                        </div>
                       </article>
                     );
                   })}
