@@ -260,6 +260,7 @@ async function prepareStudent(
   username: string,
   password: string,
   tenantCode: string,
+  tenantId: number,
   videoId: number,
   hlsPath: string,
   baseUrl: string,
@@ -271,7 +272,10 @@ async function prepareStudent(
   page.on("pageerror", () => { state.pageErrorCount += 1; });
   page.on("requestfailed", (request) => {
     const url = new URL(request.url());
-    if (url.pathname.startsWith("/api/") || url.pathname.startsWith(`/${hlsPath.split("/").slice(0, -1).join("/")}/`)) {
+    const expectedPoster = `/tenants/${tenantId}/video/hls/${videoId}/thumbnail.jpg`;
+    if (url.pathname.startsWith("/api/")
+      || url.pathname.startsWith(`/${hlsPath.split("/").slice(0, -1).join("/")}/`)
+      || url.pathname === expectedPoster) {
       state.requestErrorCount += 1;
     }
   });
@@ -284,7 +288,7 @@ async function prepareStudent(
     state.responseChain = state.responseChain.then(() => captureResponse(response, state, videoId));
   });
   await installSyntheticHlsBridge(context, state, hlsPath, baseUrl);
-  await installSyntheticVideoPosterBridge(context, state, videoId);
+  await installSyntheticVideoPosterBridge(context, state, tenantId, videoId);
   await seedStudentSession(context, page, tenantCode, username, password);
   await page.goto(`${baseUrl}/student/video/play?video=${videoId}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await dismissDevelopmentFirstLoginGuide(page, tenantCode);
@@ -434,6 +438,7 @@ test("two students play through renewal and persist progress without interruptio
   const student2 = requiredEnv("E2E_STUDENT2_USER", /^ymath-qa-student-02$/);
   const password1 = requiredEnv("E2E_STUDENT_PASS");
   const password2 = requiredEnv("E2E_STUDENT2_PASS");
+  const tenantId = Number(requiredEnv("E2E_LONG_VIDEO_TENANT_ID", /^[1-9][0-9]*$/));
   const videoId = Number(requiredEnv("E2E_LONG_VIDEO_ID", /^[1-9][0-9]*$/));
   const hlsPath = requiredEnv("E2E_LONG_VIDEO_HLS_PATH", /^qa-fixtures\/video-long\/master\.m3u8$/);
   const baseUrl = getBaseUrl();
@@ -441,9 +446,9 @@ test("two students play through renewal and persist progress without interruptio
 
   const runs = await Promise.all([
     prepareStudent(browser, { width: 1366, height: 768 }, "desktop", student1, password1,
-      tenantCode, videoId, hlsPath, baseUrl),
+      tenantCode, tenantId, videoId, hlsPath, baseUrl),
     prepareStudent(browser, { width: 390, height: 844 }, "mobile", student2, password2,
-      tenantCode, videoId, hlsPath, baseUrl),
+      tenantCode, tenantId, videoId, hlsPath, baseUrl),
   ]);
   try {
     await Promise.all(runs.map(({ page, state }) => finishStudent(page, state, videoId, hlsPath)));

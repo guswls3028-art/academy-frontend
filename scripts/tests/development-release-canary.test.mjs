@@ -410,6 +410,7 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
 
   const setup = {
     status: "YMATH_REALUSE_SCENARIO_READY",
+    tenant_id: 91,
     student_ids: [101, 102],
     session_ids: [201, 202],
     synthetic_long_video: {
@@ -422,6 +423,7 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
   };
   assert.doesNotThrow(() => runner.assertLongVideoSetup(setup));
   for (const invalid of [
+    { ...setup, tenant_id: 0 },
     { ...setup, student_ids: [101] },
     { ...setup, session_ids: [201] },
     { ...setup, session_ids: [201, 202, 203] },
@@ -558,6 +560,7 @@ test("official runner opts into two-student long-video setup without publishing 
   assert.match(runnerSource, /SyntheticLongVideo: \["true"\]/);
   assert.match(runnerSource, /E2E_STUDENT2_USER: "ymath-qa-student-02"/);
   assert.match(runnerSource, /E2E_LONG_VIDEO_ID: String\(scenario\.synthetic_long_video\.video_id\)/);
+  assert.match(runnerSource, /E2E_LONG_VIDEO_TENANT_ID: String\(scenario\.tenant_id\)/);
   assert.match(configSource, /student\/video-playback-renewal\.realuse\.spec\.ts/);
   assert.match(configSource, /timeout: 17 \* 60_000/);
   for (const required of ["690", "540", "590", "1366", "390", "reload", "playback/end/", "media/playback/renew/"]) {
@@ -572,6 +575,8 @@ test("official runner opts into two-student long-video setup without publishing 
   assert.match(specSource, /installSyntheticVideoPosterBridge/);
   assert.match(posterBridgeSource, /state\.allowedPosterUrls\.has\(request\.url\(\)\)/);
   assert.match(posterBridgeSource, /await route\.fallback\(\)/);
+  assert.ok(posterBridgeSource.indexOf("await route.fulfill")
+    < posterBridgeSource.indexOf("state.posterLoads += 1"));
   assert.doesNotMatch(specSource, /state\.masterLoads\)\.toBeGreaterThanOrEqual\(2\)/);
   assert.doesNotMatch(specSource, /state\.mediaLoads\)\.toBeGreaterThanOrEqual\(4\)/);
 });
@@ -606,7 +611,8 @@ test("real Chromium bridges only the exact bootstrap poster and HLS origin", { t
   const signature = "a".repeat(43);
   const masterUrl = `${mediaOrigin}/qa-fixtures/video-long/master.m3u8?exp=${expiresAt}&kid=v1&sig=${signature}&uid=11`;
   const posterPath = "/tenants/7/video/hls/77/thumbnail.jpg";
-  const posterQuery = `v=1&exp=${expiresAt}&sig=${signature}&kid=v1`;
+  const version = Math.floor(Date.now() / 1_000);
+  const posterQuery = `v=${version}&exp=${expiresAt}&sig=${signature}&kid=v1`;
   const posterUrl = `${mediaOrigin}${posterPath}?${posterQuery}`;
   let browser;
   try {
@@ -633,7 +639,7 @@ test("real Chromium bridges only the exact bootstrap poster and HLS origin", { t
       allowedPosterUrls: new Set([posterUrl]),
       posterLoads: 0,
     };
-    await installSyntheticVideoPosterBridge(context, state, 77);
+    await installSyntheticVideoPosterBridge(context, state, 7, 77);
     const page = await context.newPage();
     await page.goto(webOrigin);
     assert.equal(await page.evaluate(async (url) => (await fetch(url)).status, masterUrl), 200);
@@ -648,11 +654,17 @@ test("real Chromium bridges only the exact bootstrap poster and HLS origin", { t
     await context.close();
 
     const rejected = [
-      `https://foreign.fixture.invalid${posterPath}?${posterQuery}`,
-      `${mediaOrigin}/tenants/7/video/hls/78/thumbnail.jpg?${posterQuery}`,
-      `${mediaOrigin}${posterPath}?v=1&exp=${expiresAt}&kid=v1`,
+      { url: `https://foreign.fixture.invalid${posterPath}?${posterQuery}`, kind: "poster" },
+      { url: `${mediaOrigin}/tenants/8/video/hls/77/thumbnail.jpg?${posterQuery}`, kind: "poster" },
+      { url: `${mediaOrigin}/tenants/7/video/hls/78/thumbnail.jpg?${posterQuery}`, kind: "poster" },
+      { url: `${mediaOrigin}${posterPath}?v=${version}&exp=${expiresAt}&kid=v1`, kind: "poster" },
+      { url: `${posterUrl}&uid=11`, kind: "poster" },
+      { url: `${mediaOrigin}${posterPath}?v=${version}&exp=${expiresAt + 21_600}&sig=${signature}&kid=v1`, kind: "poster" },
+      { url: `${mediaOrigin}${posterPath}?v=1e3&exp=${expiresAt}&sig=${signature}&kid=v1`, kind: "poster" },
+      { url: `${mediaOrigin}${posterPath}?v=0${version}&exp=${expiresAt}&sig=${signature}&kid=v1`, kind: "poster" },
+      { url: masterUrl.replace("&uid=11", ""), kind: "hls" },
     ];
-    for (const candidate of rejected) {
+    for (const { url: candidate, kind } of rejected) {
       const rejectedContext = await browser.newContext();
       const rejectedGuard = await installReleaseContextGuard(rejectedContext, {
         mode: "development", webOrigin, apiOrigin: "http://127.0.0.1:1", tenantCode: "qa-ymath-realuse-unit",
@@ -663,14 +675,25 @@ test("real Chromium bridges only the exact bootstrap poster and HLS origin", { t
         allowedPosterUrls: new Set([candidate]),
         posterLoads: 0,
       };
-      await installSyntheticVideoPosterBridge(rejectedContext, rejectedState, 77);
+      await rejectedContext.route("**/qa-fixtures/video-long/**", async (route) => {
+        if (route.request().url() === masterUrl) {
+          await route.fulfill({ status: 200, contentType: "application/vnd.apple.mpegurl", body: "#EXTM3U\n" });
+          return;
+        }
+        await route.fallback();
+      });
+      await installSyntheticVideoPosterBridge(rejectedContext, rejectedState, 7, 77);
       const rejectedPage = await rejectedContext.newPage();
       await rejectedPage.goto(webOrigin);
-      await rejectedPage.evaluate((url) => new Promise((resolve) => {
-        const image = new Image();
-        image.onload = image.onerror = () => resolve(undefined);
-        image.src = url;
-      }), candidate);
+      if (kind === "hls") {
+        await rejectedPage.evaluate((url) => fetch(url).then(() => undefined).catch(() => undefined), candidate);
+      } else {
+        await rejectedPage.evaluate((url) => new Promise((resolve) => {
+          const image = new Image();
+          image.onload = image.onerror = () => resolve(undefined);
+          image.src = url;
+        }), candidate);
+      }
       assert.throws(() => rejectedGuard.assertClean(), /Release request rejected \[origin\]/);
       assert.equal(rejectedState.posterLoads, 0);
       await rejectedContext.close();

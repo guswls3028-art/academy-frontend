@@ -246,7 +246,7 @@ profile, 종료 방지, inbound0, SSM Online을 확인한다. 원본 artifact의
 러너 메모리의 무음 HLS fixture를
 backend가 실제 반환한 `qa-fixtures/video-long/master.m3u8` signed URL에만 연결하며 R2에는
 객체를 쓰지 않는다. READY fallback이 생성하는 별도 signed poster도 bootstrap 응답의 정확한
-`thumbnail_url`과 HLS origin, tenant/video path, query shape가 모두 일치할 때만 유효한 메모리
+`thumbnail_url`과 HLS origin, Setup tenant/video path, bounded canonical query shape가 모두 일치할 때만 유효한 메모리
 이미지로 치환한다. 다른 CDN origin/path/query 요청은 기존 release guard가 거부한다.
 1366×768과 390×844 두 Chromium context는 동시에 690초 이상 실제
 재생하고 최초 signed URL의 TTL이 690초보다 긴 상태에서 발급 후 540~590초의
