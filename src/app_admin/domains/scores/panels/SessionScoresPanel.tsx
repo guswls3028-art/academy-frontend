@@ -137,9 +137,9 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   });
 
   const allRows = useMemo<SessionScoreRow[]>(() => {
-    const raw = data?.rows ?? [];
-    // 시험·과제 둘 다 대상 등록이 안 된 학생은 성적탭에서 제외
-    return raw.filter((r) => (r.exams?.length ?? 0) > 0 || (r.homeworks?.length ?? 0) > 0);
+    // 차시 수강생 원장은 그대로 표시한다. 모든 평가가 미배정인 행도 숨기지 않아야
+    // 표의 미배정 셀과 상단 복구 동선으로 원인을 확인하고 바로 배정할 수 있다.
+    return data?.rows ?? [];
   }, [data]);
   const meta: SessionScoreMeta | null = data?.meta ?? null;
   const attendancePageSize = allRows.length > 50 ? Math.min(allRows.length, 500) : undefined;
