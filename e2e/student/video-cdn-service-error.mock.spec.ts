@@ -542,6 +542,8 @@ test.describe("student video playback grant renewal continuity", () => {
     let fixedExpiryScenario = false;
     let fixedExpirySeconds = 0;
     let fixedExpiryRenewals = 0;
+    let expiredRecoveryScenario = false;
+    let expiredRecoveryBootstraps = 0;
     let renewalRequests = 0;
     const endedTokens: string[] = [];
     const refreshedTokens: string[] = [];
@@ -605,6 +607,7 @@ test.describe("student video playback grant renewal continuity", () => {
       if (
         path === "/student/video/videos/671/playback/"
         || path === "/student/video/videos/672/playback/"
+        || path === "/student/video/videos/673/playback/"
       ) {
         if (url.searchParams.get("access_check") === "1") {
           return json({
@@ -621,6 +624,42 @@ test.describe("student video playback grant renewal continuity", () => {
           return;
         }
         const now = Math.floor(Date.now() / 1000);
+        if (expiredRecoveryScenario) {
+          expiredRecoveryBootstraps += 1;
+          const recovered = expiredRecoveryBootstraps > 1;
+          const recoveryExpiry = recovered ? now + 600 : now + 181;
+          return json({
+            video: {
+              id: 673,
+              session_id: 584,
+              enrollment_id: 1304,
+              title: "복귀 시 권한을 복구하는 긴 영상",
+              status: "READY",
+              source_type: "s3",
+              duration: 8516,
+              progress: 10,
+              completed: false,
+              last_position: 321,
+              allow_skip: true,
+              max_speed: 2,
+              show_watermark: true,
+              access_mode: "PROCTORED_CLASS",
+            },
+            play_url: `https://cdn.hakwonplus.com/e2e/grant-renewal/master.m3u8?exp=${recoveryExpiry}&sig=${recovered ? "recovered" : "expired"}`,
+            playback_token: recovered ? "recovered-playback-token" : "expired-playback-token",
+            playback_session_id: recovered ? "recovered-monitored-session" : "inactive-monitored-session",
+            playback_expires_at: recoveryExpiry,
+            policy_version: 1,
+            policy: {
+              access_mode: "PROCTORED_CLASS",
+              monitoring_enabled: true,
+              allow_seek: true,
+              playback_rate: { max: 2, ui_control: true },
+              watermark: { enabled: true, mode: "overlay", fields: ["user_id"] },
+              source: { type: "hls", provider: "uploaded", youtube_video_id: "" },
+            },
+          });
+        }
         if (fixedExpiryScenario) {
           fixedExpirySeconds = now + 3;
           return json({
@@ -675,7 +714,7 @@ test.describe("student video playback grant renewal continuity", () => {
           play_url: `https://cdn.hakwonplus.com/e2e/grant-renewal/master.m3u8?exp=${now + 9_116}&sig=initial`,
           playback_token: "initial-playback-token",
           playback_session_id: "monitored-session",
-          playback_expires_at: now + 46,
+          playback_expires_at: now + 181,
           policy_version: 1,
           policy: {
             access_mode: "PROCTORED_CLASS",
@@ -693,6 +732,7 @@ test.describe("student video playback grant renewal continuity", () => {
       if (
         path === "/student/video/videos/671/comments/"
         || path === "/student/video/videos/672/comments/"
+        || path === "/student/video/videos/673/comments/"
       ) {
         return json({ count: 0, results: [] });
       }
@@ -703,6 +743,9 @@ test.describe("student video playback grant renewal continuity", () => {
       }
       if (path === "/media/playback/renew/") {
         const body = route.request().postDataJSON() as { token?: string };
+        if (body.token === "expired-playback-token") {
+          return json({ detail: "playback_session_inactive" }, 409);
+        }
         if (body.token === "fixed-expiry-token") {
           fixedExpiryRenewals += 1;
           return json({
@@ -820,6 +863,20 @@ test.describe("student video playback grant renewal continuity", () => {
     await expect.poll(() => fixedExpiryRenewals, { timeout: 5_000 }).toBe(1);
     await expect(page.getByRole("heading", { name: "재생을 시작할 수 없어요" })).toBeVisible({ timeout: 5_000 });
     expect(fixedExpiryRenewals).toBe(1);
+
+    fixedExpiryScenario = false;
+    expiredRecoveryScenario = true;
+    await page.goto(
+      `${BASE}/student/video/play?video=673&enrollment=1304&session=584`,
+      { waitUntil: "domcontentloaded", timeout: 30_000 },
+    );
+    await expect(page.getByRole("heading", { name: "복귀 시 권한을 복구하는 긴 영상" })).toBeVisible();
+    const recoveryVideo = await page.locator("video").elementHandle();
+    expect(recoveryVideo).not.toBeNull();
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await expect.poll(() => expiredRecoveryBootstraps, { timeout: 5_000 }).toBe(2);
+    await expect(page.getByRole("heading", { name: "재생을 시작할 수 없어요" })).toHaveCount(0);
+    expect(await recoveryVideo!.evaluate((element) => element.isConnected)).toBe(true);
     releaseSegment();
   });
 

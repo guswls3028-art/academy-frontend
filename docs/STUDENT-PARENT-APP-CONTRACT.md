@@ -186,18 +186,22 @@
   허용 상태에서는 30초 주기로 재검증하며, fatal 거절 뒤의 타이머·`visibilitychange`와 영상 화면
   이탈 뒤에는 추가 access-check 요청을 보내지 않는다.
 - 서버가 발급한 `playback_token`과 만료 시각이 있으면 개별 허용 영상뿐 아니라 기존
-  수강 영상도 만료 45초 전에 `POST /media/playback/renew/`로 현재 권한을 갱신한다.
+  수강 영상도 만료 3분 전에 `POST /media/playback/renew/`로 현재 권한을 갱신한다.
+  `visibilitychange`, `pageshow`, 창 focus, 온라인 복귀 때 남은 시간이 3분 이하면
+  예약 타이머를 기다리지 않고 즉시 갱신한다. 기기 절전이나 백그라운드 정지로 기존
+  권한이 이미 만료됐거나 inactive 응답을 받으면 playback bootstrap을 다시 받아
+  현재 위치와 같은 `<video>` DOM을 유지한 채 재생을 복구한다.
   같은 영상·수강·정책이면 새 토큰과 만료 시각만 적용하고 `<video>` DOM, controller,
   재생 위치·재생/일시정지·배속·음량·화질, 감시 `playback_session_id`를 유지한다.
   따라서 갱신 중 로딩 화면, `/playback/end/`, 전체 bootstrap, 조회수·활동 중복이
   없어야 한다. 일반 수강 영상의 기존 HLS 주소는 다시 불러오지 않고, 짧은 URL 경계가
   필요한 개별 허용·종료 수강 영상만 새 서명 URL로 같은 controller 안에서 교체한 뒤
-  상태를 복원한다. 정책·모드가 바뀌었거나 갱신이 실패하면 이전 CDN 주소를 계속
-  사용하지 않고 플레이어를 닫아 재생 권한 재확인 실패를 표시한다.
+  상태를 복원한다. 최신 bootstrap도 거절되거나 유효한 새 권한을 주지 못하면 이전 CDN
+  주소를 계속 사용하지 않고 플레이어를 닫아 재생 권한 재확인 실패를 표시한다.
   ACTIVE/PROCTORED 상태가 그대로인 정상 갱신 응답에는 `play_url`이 없으므로 기존 HLS
   source와 요청 count를 유지한 채 토큰만 교체하고 재생을 계속한다.
   릴리스 검증은 격리 개발 tenant의 두 학생(1366px/390px)이 같은 artifact로 690초 이상
-  동시에 재생해 540~590초 갱신, 동일 DOM/session, 토큰 교체, 진도 reload 오차 2초 이하,
+  동시에 재생해 390~500초 갱신, 동일 DOM/session, 토큰 교체, 진도 reload 오차 2초 이하,
   브라우저·요청·PLAYER_ERROR·위반 0과 cleanup0을 모두 통과해야 한다.
 - 일시정지 상태의 어두운 오버레이는 포인터 입력을 받지 않는 표시 레이어이고, 실제
   재생 버튼은 영상 중앙의 독립된 88px 원형 터치 영역이다. 특히 390px 화면에서 버튼의
