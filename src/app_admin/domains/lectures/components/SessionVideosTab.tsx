@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/lectures/components/SessionVideosTab.tsx
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -23,6 +23,7 @@ import styles from "./SessionVideosTab.module.css";
 const VideoUploadModal = lazy(() => import("@admin/domains/videos/components/features/video-detail/modals/VideoUploadModal"));
 const VideoEditModal = lazy(() => import("@admin/domains/videos/components/features/video-detail/modals/VideoEditModal"));
 const VideoReorderModal = lazy(() => import("@admin/domains/videos/components/VideoReorderModal"));
+const VideoBulkPolicyModal = lazy(() => import("@admin/domains/videos/public/VideoBulkPolicyModal"));
 
 /**
  * media 도메인 기준 Video 타입 (관리자 목록용)
@@ -66,6 +67,8 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<MediaVideo | null>(null);
   const [reorderOpen, setReorderOpen] = useState(false);
+  const [bulkPolicyOpen, setBulkPolicyOpen] = useState(false);
+  const [selectedVideoIds, setSelectedVideoIds] = useState<Set<number>>(() => new Set());
   const asyncTasks = useAsyncStatus();
 
   const {
@@ -84,6 +87,32 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
       }),
     [rawVideos]
   );
+
+  useEffect(() => {
+    const visibleIds = new Set(videos.map((video: MediaVideo) => video.id));
+    setSelectedVideoIds((current) => {
+      const next = new Set([...current].filter((id) => visibleIds.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [videos]);
+
+  const allVideosSelected = (
+    videos.length > 0
+    && videos.every((video: MediaVideo) => selectedVideoIds.has(video.id))
+  );
+
+  const toggleAllVideos = (checked: boolean) => {
+    setSelectedVideoIds(checked ? new Set(videos.map((video: MediaVideo) => video.id)) : new Set());
+  };
+
+  const toggleVideo = (videoId: number, checked: boolean) => {
+    setSelectedVideoIds((current) => {
+      const next = new Set(current);
+      if (checked) next.add(videoId);
+      else next.delete(videoId);
+      return next;
+    });
+  };
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -228,14 +257,24 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
     return (
       <div
         key={video.id}
-        className={styles.card}
+        className={`${styles.card}${selectedVideoIds.has(video.id) ? ` ${styles.cardSelected}` : ""}`}
       >
         {/* Order controls */}
         {globalIndex != null && (
           <div className={styles.orderBar}>
-            <span className={styles.orderIndex}>
-              #{video.order ?? globalIndex + 1}
-            </span>
+            <div className={styles.cardSelection}>
+              <label className={styles.selectionHitArea}>
+                <input
+                  type="checkbox"
+                  checked={selectedVideoIds.has(video.id)}
+                  onChange={(event) => toggleVideo(video.id, event.target.checked)}
+                  aria-label={`${video.title} 선택`}
+                />
+                <span className={styles.orderIndex}>
+                  #{video.order ?? globalIndex + 1}
+                </span>
+              </label>
+            </div>
             <div className={styles.orderActions}>
               <button
                 type="button"
@@ -299,7 +338,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
             {video.show_watermark ? "워터마크" : "워터마크 없음"}
           </Badge>
           <Badge variant="solid" tone={video.allow_skip ? "neutral" : "warning"}>
-            {video.allow_skip ? "건너뛰기 허용" : "건너뛰기 금지"}
+            {video.allow_skip ? "자유 건너뛰기 허용" : "수강 중 자유 건너뛰기 제한"}
           </Badge>
           <Badge variant="solid" tone="neutral">
             최대 {video.max_speed.toFixed(2)}x
@@ -331,6 +370,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
               e.stopPropagation();
               setEditTarget(video);
             }}
+            aria-label={`${video.title} 수정`}
           >
             수정
           </Button>
@@ -398,7 +438,29 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
         ) : videos.length === 0 ? (
           <EmptyState mode="embedded" scope="panel" title="등록된 영상이 없습니다." />
         ) : (
-          <div className={styles.list}>
+          <>
+            <div className={styles.bulkToolbar} aria-label="영상 일괄 설정">
+              <label className={styles.selectAllHitArea}>
+                <input
+                  type="checkbox"
+                  checked={allVideosSelected}
+                  onChange={(event) => toggleAllVideos(event.target.checked)}
+                  aria-label="현재 목록 전체 선택"
+                />
+                <span>현재 목록 전체 선택</span>
+              </label>
+              <span className={styles.selectedCount} aria-live="polite">
+                {selectedVideoIds.size}개 선택
+              </span>
+              <Button
+                intent="secondary"
+                disabled={selectedVideoIds.size === 0}
+                onClick={() => setBulkPolicyOpen(true)}
+              >
+                선택한 영상 설정
+              </Button>
+            </div>
+            <div className={styles.list}>
             {/* 묶음 단위 (제목 1, 제목 2, ... 패턴) — 폴더처럼 표시 */}
             {Array.from(groupedVideos.groups.entries()).map(([baseTitle, groupVideos]) => (
               <div key={baseTitle}>
@@ -421,7 +483,8 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
                 {groupedVideos.ungrouped.map((video: MediaVideo) => renderVideoCard(video, videoIndexMap.get(video.id)))}
               </div>
             )}
-          </div>
+            </div>
+          </>
         )}
       </div>
 
@@ -439,6 +502,8 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
             videoId={editTarget.id}
             initialTitle={editTarget.title}
             initialOrder={editTarget.order ?? 1}
+            initialAllowSkip={editTarget.allow_skip}
+            initialMaxSpeed={editTarget.max_speed}
             sessionId={sessionId}
           />
         </Suspense>
@@ -451,6 +516,25 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
             videos={videos}
             onSaved={() => {
               qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sessionVideos(sessionId) });
+            }}
+          />
+        </Suspense>
+      )}
+      {bulkPolicyOpen && (
+        <Suspense fallback={null}>
+          <VideoBulkPolicyModal
+            open
+            sessionId={sessionId}
+            videoIds={videos
+              .filter((video: MediaVideo) => selectedVideoIds.has(video.id))
+              .map((video: MediaVideo) => video.id)}
+            onClose={() => setBulkPolicyOpen(false)}
+            onSaved={async () => {
+              await qc.invalidateQueries({
+                queryKey: adminLectureQueryKeys.sessionVideos(sessionId),
+              });
+              setSelectedVideoIds(new Set());
+              setBulkPolicyOpen(false);
             }}
           />
         </Suspense>

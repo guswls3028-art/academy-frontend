@@ -307,8 +307,12 @@ test("assessment classification fails if a business write or skip is introduced"
 });
 
 function completeFlowReport() {
-  return { errors: [], stats: { expected: 11, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
+  return { errors: [], stats: { expected: 18, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
     ...Object.entries({ "notice-roundtrip.spec.ts": 3, "qna-roundtrip.spec.ts": 4, "clinic-roundtrip.spec.ts": 3,
+      "student-parent-account-realuse.spec.ts": 1, "student-parent-assessment-realuse.spec.ts": 1,
+      "student-parent-clinic-realuse.spec.ts": 1, "student-parent-community-realuse.spec.ts": 1,
+      "student-parent-homework-realuse.spec.ts": 1,
+      "student-parent-learning-realuse.spec.ts": 1, "student-parent-storage-realuse.spec.ts": 1,
       "video-playback-renewal.realuse.spec.ts": 1 }).map(([file, count]) => ({
       file, specs: Array.from({ length: count }, () => ({ file, tests: [{ expectedStatus: "passed", status: "expected", results: [{ status: "passed" }] }] })),
     })),
@@ -317,7 +321,10 @@ function completeFlowReport() {
 
 test("long-video result observation preserves only allowlisted execution facts", () => {
   const report = completeFlowReport();
-  report.config = { timeout: 17 * 60_000, metadata: { credential: "secret-token" } };
+  report.config = {
+    projects: [{ timeout: 17 * 60_000 }],
+    metadata: { credential: "secret-token" },
+  };
   const videoTest = report.suites.at(-1).specs[0].tests[0];
   videoTest.status = "unexpected";
   videoTest.results[0] = {
@@ -344,7 +351,10 @@ test("long-video response capture failures are explicitly joined instead of beco
   const source = readFileSync(new URL("../../e2e/student/video-playback-renewal.realuse.spec.ts", import.meta.url), "utf8");
   assert.match(source, /responseFailure:\s*Promise<unknown>/);
   assert.match(source, /await Promise\.race\(\[playbackProof,\s*state\.responseFailure\.then/s);
-  assert.match(source, /\.catch\(\(error\) => \{\s*state\.responseError/s);
+  assert.match(
+    source,
+    /\.catch\(\(error\) => \{\s*state\.responseFailureKind \?\?= captureKind;\s*state\.responseError/s,
+  );
 });
 
 test("real-use failure observation publishes only allowlisted counts, files, and boundary codes", () => {
@@ -394,7 +404,7 @@ test("real-use failure observation publishes only allowlisted counts, files, and
   });
 });
 
-test("all eleven real-use cases are mandatory; missing, skip, failure, retry and global errors fail closed", () => {
+test("all eighteen real-use cases are mandatory; missing, skip, failure, retry and global errors fail closed", () => {
   assert.doesNotThrow(() => assertReleaseSummary(completeFlowReport()));
   const corrupt = [
     (report) => report.suites.pop(),
@@ -459,14 +469,15 @@ test("manifest and instance identity must match uniquely before setup", () => {
   }
 });
 
-test("development config discovers eleven enabled cases without executing any API test", () => {
+test("development config discovers eighteen enabled cases without executing any API test", () => {
   const cwd = new URL("../../", import.meta.url);
   const output = execFileSync(process.execPath, ["node_modules/@playwright/test/cli.js", "test",
     "--config=playwright.development-release.config.ts", "--list"], {
     cwd, encoding: "utf8", env: { ...process.env,
       E2E_API_URL: "http://127.0.0.1:18000", E2E_BASE_URL: "http://localhost:4173",
       E2E_TENANT_CODE: "qa-ymath-realuse-fe-123-1-abcdef123456",
-      E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict" },
+      E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict",
+      E2E_STUDENT_PARENT_REALUSE: "1", E2E_ALLOW_REAL_ALIMTALK: "0" },
   });
   const report = JSON.parse(output);
   let discovered = 0;
@@ -480,7 +491,7 @@ test("development config discovers eleven enabled cases without executing any AP
     for (const child of suite.suites || []) visit(child);
   };
   visit(report);
-  assert.equal(discovered, 11);
+  assert.equal(discovered, 18);
   // Playwright's --list reporter counts all unexecuted cases as skipped. These
   // are discovery-only, never accepted by assertReleaseSummary as real-use proof.
   assert.equal(report.stats.expected, 0);
@@ -581,6 +592,7 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
       bootstrapCount: 1, renewCount: 1, progressCount: 24, latestProgress: 674,
       accessCheckCount: 24, masterLoads: 1, mediaLoads: 2,
       consoleErrorCount: 0, pageErrorCount: 0, requestErrorCount: 0,
+      responseFailureKind: "access",
     })),
   } })}\n`;
   assert.deepEqual(runner.observeReleaseTestResult(JSON.stringify(report)).longVideoFailure, {
@@ -589,7 +601,8 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
       accessCheckCount: 24, bootstrapCount: 1, consoleErrorCount: 0, currentTime: 675,
       duration: 900, ended: false, latestProgress: 674, masterLoads: 1, mediaLoads: 2,
       networkState: 1, pageErrorCount: 0, paused: false, progressCount: 24, readyState: 4,
-      renewCount: 1, requestErrorCount: 0, videoMounted: true, viewport, wallSeconds: 690,
+      renewCount: 1, requestErrorCount: 0, responseFailureKind: "access",
+      videoMounted: true, viewport, wallSeconds: 690,
     })),
   });
   const unsafeFailureReport = structuredClone(report);
@@ -602,6 +615,7 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
       bootstrapCount: 0, renewCount: 0, progressCount: 0, latestProgress: null,
       accessCheckCount: 0, masterLoads: 0, mediaLoads: 0,
       consoleErrorCount: 0, pageErrorCount: 0, requestErrorCount: 0,
+      responseFailureKind: null,
       studentName: "must-not-publish",
     }],
   } }) }];

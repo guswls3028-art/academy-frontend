@@ -56,6 +56,8 @@ export type MyHomeworkGradeSummary = {
   achievement?: Achievement | null;
   /** 원점수·제출 여부와 독립적으로 교사가 현장 확인을 완료한 상태. */
   teacher_resolved?: boolean;
+  /** 최신 재응시 통과/교사 완료로 제출 파일 변경이 잠긴 상태. */
+  submission_media_locked?: boolean;
   retake_count?: number;
   grading_mode?: "SCORE" | "COMPLETION";
   display_order?: number;

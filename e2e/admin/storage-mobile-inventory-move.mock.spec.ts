@@ -35,6 +35,7 @@ type StorageHarness = {
   moveRequests: MoveBody[];
   unexpectedMutations: string[];
   inventoryReads: Array<{ scope: string | null; studentPs: string | null }>;
+  studentWriteHeaders: string[];
   setInventoryAvailable: (available: boolean) => void;
   removeInventoryItem: (scope: "admin" | "student", type: "file" | "folder", id: string) => void;
   renameInventoryItem: (scope: "admin" | "student", type: "file" | "folder", id: string, name: string) => void;
@@ -122,6 +123,7 @@ async function installStorageMocks(
   const moveRequests: MoveBody[] = [];
   const unexpectedMutations: string[] = [];
   const inventoryReads: Array<{ scope: string | null; studentPs: string | null }> = [];
+  const studentWriteHeaders: string[] = [];
   let inventoryAvailable = options.inventoryInitiallyAvailable ?? true;
   let holdNextInventoryRead = false;
   let releaseHeldInventoryRead: (() => void) | null = null;
@@ -172,6 +174,7 @@ async function installStorageMocks(
         tenantRole: role,
         linkedStudentId: role === "student" ? 901 : null,
         linkedStudentName: role === "student" ? "학생 사용자" : null,
+        linkedStudents: role === "parent" ? [{ id: 901, name: "학생 사용자" }] : [],
         must_change_password: false,
       });
     }
@@ -267,6 +270,7 @@ async function installStorageMocks(
       return json(route, { ok: true });
     }
     if (path === "/storage/inventory/upload/" && method === "POST") {
+      if (role === "parent") studentWriteHeaders.push(request.headers()["x-student-id"] || "");
       const uploaded = {
         id: "901",
         name: "refreshed-file.pdf",
@@ -294,6 +298,7 @@ async function installStorageMocks(
     moveRequests,
     unexpectedMutations,
     inventoryReads,
+    studentWriteHeaders,
     setInventoryAvailable: (available) => { inventoryAvailable = available; },
     removeInventoryItem: (scope, type, id) => {
       const inventory = scope === "student" ? studentInventory : adminInventory;
@@ -784,6 +789,24 @@ test.describe("저장소 모바일 파일·폴더 이동", () => {
     await expect(page.getByText("학생 모바일 파일.pdf", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "새 폴더", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "파일 업로드", exact: true })).toBeVisible();
+    expect(harness.unexpectedMutations).toEqual([]);
+  });
+
+  test("390px parent: 선택 자녀 자료함 업로드가 저장되고 reload 뒤 유지된다", async ({ page }) => {
+    const harness = await installStorageMocks(page, { role: "parent" });
+    await page.goto(`${BASE}/student/inventory`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    await expect(page.getByText("학부모 계정은 열람만 가능합니다.")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "파일 업로드", exact: true })).toBeVisible();
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "parent-upload.pdf",
+      mimeType: "application/pdf",
+      buffer: Buffer.from("parent-selected-child"),
+    });
+    await expect(page.getByText("새로고침 파일.pdf", { exact: true })).toBeVisible();
+    expect(harness.studentWriteHeaders).toEqual(["901"]);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByText("새로고침 파일.pdf", { exact: true })).toBeVisible();
+    await expectNoDocumentOverflow(page);
     expect(harness.unexpectedMutations).toEqual([]);
   });
 

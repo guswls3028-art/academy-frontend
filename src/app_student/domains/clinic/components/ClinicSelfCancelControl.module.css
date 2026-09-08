@@ -1,0 +1,70 @@
+.root {
+  display: flex;
+  max-width: 180px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.actions button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--stu-border);
+  border-radius: 8px;
+  background: var(--stu-surface);
+  color: var(--stu-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.actions .dangerAction {
+  border-color: var(--stu-danger);
+  color: var(--stu-danger);
+}
+
+.actions button:disabled {
+  border-color: var(--stu-border);
+  color: var(--stu-text-muted);
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.actions button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--stu-primary) 30%, transparent);
+  outline-offset: 2px;
+}
+
+.help {
+  margin: 0;
+  color: var(--stu-text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+  text-align: right;
+  word-break: keep-all;
+}
+
+@media (max-width: 520px) {
+  .root {
+    grid-column: 1 / -1;
+    max-width: none;
+  }
+
+  .actions {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+
+  .help {
+    text-align: left;
+  }
+}

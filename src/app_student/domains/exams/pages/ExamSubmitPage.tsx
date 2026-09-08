@@ -16,6 +16,7 @@ import {
 import { useAuthContext } from "@/auth/context/AuthContext";
 import { resolveTenantCodeString } from "@/shared/tenant";
 import { useTrackedTask } from "@/shared/productAnalytics";
+import { getParentStudentId } from "@student/shared/api/parentStudentSelection";
 import { studentExamQueryKeys } from "../queryKeys";
 import {
   getLocalItem,
@@ -59,19 +60,21 @@ export default function ExamSubmitPage() {
   const isParent = user?.tenantRole === "parent";
   const tenantCode = resolveTenantCodeString();
 
-  // 학부모는 응시 불가 — hook은 모두 호출하되 fetch/draft 동작을 차단해 자녀 데이터 오염 방지.
-  const examQ = useStudentExam(!isParent && Number.isFinite(safeId) ? safeId : undefined);
+  const examQ = useStudentExam(Number.isFinite(safeId) ? safeId : undefined);
   const questionsQ = useQuery({
     queryKey: studentExamQueryKeys.questions(tenantCode, safeId),
     queryFn: () => fetchStudentExamQuestions(safeId),
-    enabled: !isParent && Number.isFinite(safeId),
+    enabled: Number.isFinite(safeId),
   });
   const questions = useMemo(() => questionsQ.data ?? [], [questionsQ.data]);
   const loadingQuestions = questionsQ.isLoading;
 
-  // 학부모일 땐 draft 자체를 저장/복원하지 않음 — 자녀 draft 오염 방지.
+  const selectedStudentId = isParent ? getParentStudentId() : null;
   const draftKey = isParent
-    ? null
+    ? selectedStudentId == null ? null : getTenantUserLocalKey(
+        `exam-draft:${safeId}:student:${selectedStudentId ?? "unselected"}`,
+        user?.id,
+      )
     : getTenantUserLocalKey(`exam-draft:${safeId}`, user?.id);
   const previousDraftKey = !isParent && tenantCode && user?.id
     ? `exam_draft_${tenantCode}_${user.id}_${safeId}`
@@ -182,18 +185,6 @@ export default function ExamSubmitPage() {
     return (
       <StudentPageShell title="시험 입력" description="잘못된 접근입니다.">
         <EmptyState title="잘못된 주소입니다." />
-      </StudentPageShell>
-    );
-  }
-
-  // 학부모 가드 — fetch는 disabled, 화면도 즉시 차단.
-  if (isParent) {
-    return (
-      <StudentPageShell title="시험 응시" description="학부모는 시험에 응시할 수 없습니다.">
-        <EmptyState
-          title="학부모는 시험에 응시할 수 없습니다."
-          description="자녀(학생) 계정으로 로그인한 뒤 응시해 주세요."
-        />
       </StudentPageShell>
     );
   }

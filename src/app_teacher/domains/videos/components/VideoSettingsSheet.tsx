@@ -47,7 +47,12 @@ export default function VideoSettingsSheet({ open, onClose, video }: Props) {
   return (
     <BottomSheet open={open} onClose={onClose} title="영상 설정">
       <div className="flex flex-col gap-3" style={{ padding: "var(--tc-space-3) 0" }}>
-        <Toggle label="건너뛰기 허용" desc="학생이 영상을 건너뛸 수 있습니다" value={allowSkip} onChange={setAllowSkip} />
+        <Toggle
+          label="수강 중 자유 건너뛰기 허용"
+          desc="끄면 수강 중에는 허용된 10초 이동만 가능하고, 복습에서는 자유롭게 이동합니다"
+          value={allowSkip}
+          onChange={setAllowSkip}
+        />
         <Toggle label="워터마크 표시" desc="학생 이름이 영상 위에 표시됩니다" value={showWatermark} onChange={setShowWatermark} />
 
         <div>

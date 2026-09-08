@@ -16,8 +16,14 @@ function fakeJwt(): string {
   return `e30.${payload}.student`;
 }
 
-async function installApi(page: Page): Promise<Array<Record<string, unknown>>> {
+type Viewer = "student" | "parent";
+
+async function installApi(page: Page, viewer: Viewer = "student"): Promise<{
+  submissions: Array<Record<string, unknown>>;
+  studentScopedHeaders: Array<string | undefined>;
+}> {
   const submissions: Array<Record<string, unknown>> = [];
+  const studentScopedHeaders: Array<string | undefined> = [];
   await page.addInitScript(({ token }) => {
     localStorage.setItem("access", token);
     localStorage.setItem("refresh", "student-refresh");
@@ -37,14 +43,27 @@ async function installApi(page: Page): Promise<Array<Record<string, unknown>>> {
       return;
     }
     if (path.endsWith("/core/me/")) {
-      await route.fulfill({ json: { id: 11, username: "math-student", name: "김수학", is_staff: false, is_superuser: false, tenantRole: "student" } });
+      await route.fulfill({ json: viewer === "parent"
+        ? {
+            id: 910,
+            username: "math-parent",
+            name: "김보호",
+            is_staff: false,
+            is_superuser: false,
+            tenantRole: "parent",
+            linkedStudents: [{ id: 501, name: "김수학" }],
+            linkedStudentName: "김수학",
+          }
+        : { id: 11, username: "math-student", name: "김수학", is_staff: false, is_superuser: false, tenantRole: "student" } });
       return;
     }
     if (path.endsWith("/student/me/")) {
-      await route.fulfill({ json: { id: 11, name: "김수학", is_student: true } });
+      studentScopedHeaders.push(request.headers()["x-student-id"]);
+      await route.fulfill({ json: { id: viewer === "parent" ? 501 : 11, name: "김수학", is_student: true, isParentReadOnly: viewer === "parent" } });
       return;
     }
     if (path.endsWith("/student/exams/901/questions/")) {
+      studentScopedHeaders.push(request.headers()["x-student-id"]);
       await route.fulfill({
         json: [
           { id: 1001, number: 1, score: 5, answer_format: "text" },
@@ -54,11 +73,13 @@ async function installApi(page: Page): Promise<Array<Record<string, unknown>>> {
       return;
     }
     if (path.endsWith("/student/exams/901/submit/") && request.method() === "POST") {
+      studentScopedHeaders.push(request.headers()["x-student-id"]);
       submissions.push(request.postDataJSON() as Record<string, unknown>);
       await route.fulfill({ json: { submission_id: 7001, status: "submitted" } });
       return;
     }
     if (path.endsWith("/student/exams/901/")) {
+      studentScopedHeaders.push(request.headers()["x-student-id"]);
       await route.fulfill({
         json: {
           id: 901,
@@ -78,7 +99,7 @@ async function installApi(page: Page): Promise<Array<Record<string, unknown>>> {
     }
     await route.fulfill({ json: { count: 0, items: [], results: [] } });
   });
-  return submissions;
+  return { submissions, studentScopedHeaders };
 }
 
 test.describe("학생 수학 숫자 단답", () => {
@@ -86,7 +107,7 @@ test.describe("학생 수학 숫자 단답", () => {
   test.use({ serviceWorkers: "block", viewport: { width: 390, height: 844 } });
 
   test("0~999 입력과 같은 계정 재조회를 보존하고 제출 시 앞자리 0을 정규화한다", async ({ page }) => {
-    const submissions = await installApi(page);
+    const { submissions } = await installApi(page);
     await page.goto(`${BASE}/student/exams/901/submit`, { waitUntil: "domcontentloaded" });
 
     const numericInput = page.getByLabel("21번 답");
@@ -116,5 +137,36 @@ test.describe("학생 수학 숫자 단답", () => {
       ],
     });
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  });
+
+  test("학부모가 선택 자녀의 답안을 저장·재접속 후 제출하고 모든 요청을 자녀로 범위화한다", async ({ page }) => {
+    const state = await installApi(page, "parent");
+    await page.goto(`${BASE}/student/exams/901/submit`, { waitUntil: "domcontentloaded" });
+
+    await expect(page.getByText("학부모는 시험에 응시할 수 없습니다.")).toHaveCount(0);
+    await page.getByLabel("1번 답", { exact: true }).fill("3");
+    await page.getByLabel("21번 답").fill("008");
+    await expect.poll(() => page.evaluate(() => (
+      localStorage.getItem("exam-draft:901:student:501:hakwonplus:user:910")
+    ))).toContain('"1021":"008"');
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByLabel("1번 답", { exact: true })).toHaveValue("3");
+    await expect(page.getByLabel("21번 답")).toHaveValue("008");
+    await page.getByRole("button", { name: "제출하기" }).click();
+    await page.getByRole("button", { name: "제출", exact: true }).click();
+
+    await expect.poll(() => state.submissions.length).toBe(1);
+    expect(state.submissions[0]).toEqual({
+      answers: [
+        { exam_question_id: 1001, answer: "3" },
+        { exam_question_id: 1021, answer: "8" },
+      ],
+    });
+    expect(state.studentScopedHeaders.length).toBeGreaterThan(0);
+    expect(state.studentScopedHeaders.every((value) => value === "501")).toBe(true);
+    await expect.poll(() => page.evaluate(() => (
+      localStorage.getItem("exam-draft:901:student:501:hakwonplus:user:910")
+    ))).toBeNull();
   });
 });

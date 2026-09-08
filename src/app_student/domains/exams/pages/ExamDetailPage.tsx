@@ -13,15 +13,11 @@ import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
 import EmptyState from "../../../layout/EmptyState";
 import { useStudentExam } from "@student/domains/exams/hooks/useStudentExams";
 import { useMyExamResult } from "@student/domains/exams/hooks/useMyExamResult";
-import { useAuthContext } from "@/auth/context/AuthContext";
 import styles from "./ExamDetailPage.module.css";
 
 export default function ExamDetailPage() {
   const { examId } = useParams();
   const safeId = Number(examId);
-  const { user } = useAuthContext();
-  const isParent = user?.tenantRole === "parent";
-
   const examQ = useStudentExam(Number.isFinite(safeId) ? safeId : undefined);
 
   // ✅ 결과는 "단일 진실": can_retake 포함
@@ -103,10 +99,8 @@ export default function ExamDetailPage() {
               </Link>
             )}
 
-            {/* ✅ can_retake만 신뢰. null = 로딩 중(버튼 미표시). 학부모는 응시 불가. 마감된 시험은 응시 불가 */}
-            {isParent ? (
-              <div className={`stu-muted ${styles.hintText}`}>학부모는 시험에 응시할 수 없습니다.</div>
-            ) : isClosed ? (
+            {/* ✅ can_retake만 신뢰. null = 로딩 중(버튼 미표시). 마감된 시험은 응시 불가 */}
+            {isClosed ? (
               <div className={`stu-muted ${styles.hintText}`}>시험이 마감되었습니다</div>
             ) : canRetake === null ? (
               <div className={`stu-muted ${styles.hintText}`}>확인 중…</div>

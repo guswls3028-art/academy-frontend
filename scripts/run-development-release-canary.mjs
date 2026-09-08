@@ -20,6 +20,13 @@ const FLOW_COUNTS = {
   "notice-roundtrip.spec.ts": 3,
   "qna-roundtrip.spec.ts": 4,
   "clinic-roundtrip.spec.ts": 3,
+  "student-parent-account-realuse.spec.ts": 1,
+  "student-parent-assessment-realuse.spec.ts": 1,
+  "student-parent-clinic-realuse.spec.ts": 1,
+  "student-parent-community-realuse.spec.ts": 1,
+  "student-parent-homework-realuse.spec.ts": 1,
+  "student-parent-learning-realuse.spec.ts": 1,
+  "student-parent-storage-realuse.spec.ts": 1,
   "video-playback-renewal.realuse.spec.ts": 1,
 };
 const LONG_VIDEO_CHECKPOINT_STAGES = [
@@ -39,6 +46,7 @@ const RELEASE_BOUNDARY_CODES = new Set([
 ]);
 const LONG_VIDEO_ERROR_PATTERNS = [
   ["test-timeout", /Test timeout of [0-9]+ms exceeded/i],
+  ["fixture-timeout", /Fixture ["'][^"']+["'] timeout of [0-9]+ms exceeded/i],
   ["context-closed", /Target page, context or browser has been closed|Test ended\.?/i],
   ["page-crashed", /Page crashed|browser has disconnected/i],
   ["playback-below-690", /toBeGreaterThanOrEqual[\s\S]{0,500}(?:Expected:\s*>=\s*690|690)/i],
@@ -145,7 +153,7 @@ function observeLongVideoFailure(payload) {
   const expectedKeys = [
     "accessCheckCount", "bootstrapCount", "consoleErrorCount", "currentTime", "duration", "ended",
     "latestProgress", "masterLoads", "mediaLoads", "networkState", "pageErrorCount", "paused",
-    "progressCount", "readyState", "renewCount", "requestErrorCount", "videoMounted", "viewport",
+    "progressCount", "readyState", "renewCount", "requestErrorCount", "responseFailureKind", "videoMounted", "viewport",
     "wallSeconds",
   ];
   const numericKeys = [
@@ -154,6 +162,7 @@ function observeLongVideoFailure(payload) {
   ];
   const nullableNumericKeys = ["currentTime", "duration", "latestProgress", "networkState", "readyState"];
   const nullableBooleanKeys = ["ended", "paused"];
+  const responseCaptureKinds = new Set(["bootstrap", "access", "session-list", "renewal", "progress", "other"]);
   const contexts = payload.contexts.map((context) => {
     if (!context || typeof context !== "object" || Array.isArray(context)
       || Object.keys(context).sort().join(",") !== expectedKeys.sort().join(",")
@@ -162,7 +171,8 @@ function observeLongVideoFailure(payload) {
       || numericKeys.some((key) => !Number.isInteger(context[key]) || context[key] < 0 || context[key] > 10_000)
       || nullableNumericKeys.some((key) => context[key] !== null
         && (!Number.isInteger(context[key]) || context[key] < 0 || context[key] > 10_000))
-      || nullableBooleanKeys.some((key) => context[key] !== null && typeof context[key] !== "boolean")) return null;
+      || nullableBooleanKeys.some((key) => context[key] !== null && typeof context[key] !== "boolean")
+      || (context.responseFailureKind !== null && !responseCaptureKinds.has(context.responseFailureKind))) return null;
     return Object.fromEntries(expectedKeys.map((key) => [key, context[key]]));
   });
   if (contexts.some((context) => context === null)
@@ -219,8 +229,12 @@ export function observeReleaseTestResult(stdout) {
           const result = results.length === 1 ? results[0] : null;
           const allowedTestStatuses = new Set(["expected", "unexpected", "flaky", "skipped"]);
           const allowedResultStatuses = new Set(["passed", "failed", "timedOut", "skipped", "interrupted"]);
-          const configuredTimeoutMs = Number.isInteger(report?.config?.timeout)
-            && report.config.timeout >= 0 && report.config.timeout <= 2 * 60 * 60_000 ? report.config.timeout : null;
+          const configuredTimeouts = Array.isArray(report?.config?.projects)
+            ? report.config.projects.map((project) => project?.timeout)
+              .filter((timeout) => Number.isInteger(timeout)
+                && timeout >= 0 && timeout <= 2 * 60 * 60_000)
+            : [];
+          const configuredTimeoutMs = configuredTimeouts.length === 1 ? configuredTimeouts[0] : null;
           const durationMs = Number.isInteger(result?.duration)
             && result.duration >= 0 && result.duration <= 2 * 60 * 60_000 ? result.duration : null;
           const resultErrors = [
@@ -831,6 +845,7 @@ export async function run() {
     tests = ownedProcess(process.execPath, [path.join(ROOT, "node_modules/@playwright/test/cli.js"), "test", "--config=playwright.development-release.config.ts"], {
       env: { ...process.env, E2E_BASE_URL: WEB_ORIGIN, E2E_API_URL: API_ORIGIN, API_BASE_URL: API_ORIGIN,
         E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict",
+        E2E_STUDENT_PARENT_REALUSE: "1", E2E_ALLOW_REAL_ALIMTALK: "0",
         E2E_TENANT_CODE: tenant, E2E_ADMIN_USER: "ymath-qa-teacher", E2E_STUDENT_USER: "ymath-qa-student-01",
         E2E_STUDENT2_USER: "ymath-qa-student-02", E2E_LONG_VIDEO_TENANT_ID: String(scenario.tenant_id),
         E2E_LONG_VIDEO_ID: String(scenario.synthetic_long_video.video_id),

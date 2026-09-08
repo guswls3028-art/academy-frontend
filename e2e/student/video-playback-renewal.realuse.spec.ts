@@ -23,6 +23,9 @@ type LongVideoCheckpointStage =
   | "renewal-observed" | "renewal-advanced" | "playback-690" | "progress-observed"
   | "reload-bootstrap" | "reload-playlist" | "reload-metadata" | "reload-progress" | "completed";
 
+type ResponseCaptureKind =
+  | "bootstrap" | "access" | "session-list" | "renewal" | "progress" | "other";
+
 function emitLongVideoCheckpoint(
   viewport: "desktop" | "mobile",
   stage: LongVideoCheckpointStage,
@@ -85,6 +88,7 @@ type StudentObservation = {
   responseChain: Promise<void>;
   responseFailure: Promise<unknown>;
   responseError: unknown | null;
+  responseFailureKind: ResponseCaptureKind | null;
   resolveResponseFailure: (error: unknown) => void;
   allowedMasterUrls: Set<string>;
   allowedPosterUrls: Set<string>;
@@ -114,6 +118,7 @@ type LongVideoFailureContext = {
   consoleErrorCount: number;
   pageErrorCount: number;
   requestErrorCount: number;
+  responseFailureKind: ResponseCaptureKind | null;
 };
 
 function requiredEnv(name: string, pattern?: RegExp): string {
@@ -125,6 +130,18 @@ function requiredEnv(name: string, pattern?: RegExp): string {
 
 function isSessionVideoList(pathname: string): boolean {
   return /^\/api\/v1\/student\/video\/sessions\/[1-9][0-9]*\/videos\/$/.test(pathname);
+}
+
+function responseCaptureKind(response: Response, videoId: number): ResponseCaptureKind {
+  const url = new URL(response.url());
+  const playbackKind = classifyVideoPlaybackResponse(
+    response.url(), response.request().method(), videoId,
+  );
+  if (playbackKind === "bootstrap" || playbackKind === "access") return playbackKind;
+  if (isSessionVideoList(url.pathname)) return "session-list";
+  if (url.pathname === "/api/v1/media/playback/renew/") return "renewal";
+  if (url.pathname === `/api/v1/student/video/videos/${videoId}/progress/`) return "progress";
+  return "other";
 }
 
 function sessionIdFromVideoList(pathname: string): number {
@@ -362,6 +379,7 @@ function newObservation(viewport: "desktop" | "mobile"): StudentObservation {
     responseChain: Promise.resolve(),
     responseFailure,
     responseError: null,
+    responseFailureKind: null,
     resolveResponseFailure,
     allowedMasterUrls: new Set(),
     allowedPosterUrls: new Set(),
@@ -421,6 +439,7 @@ async function captureFailureContext(
     consoleErrorCount: state.consoleErrorCount,
     pageErrorCount: state.pageErrorCount,
     requestErrorCount: state.requestErrorCount,
+    responseFailureKind: state.responseFailureKind,
   };
 }
 
@@ -457,9 +476,11 @@ async function prepareStudent(
     }
   });
   page.on("response", (response) => {
+    const captureKind = responseCaptureKind(response, videoId);
     state.responseChain = state.responseChain
       .then(() => captureResponse(response, state, videoId))
       .catch((error) => {
+        state.responseFailureKind ??= captureKind;
         state.responseError ??= error;
         state.resolveResponseFailure(error);
       });

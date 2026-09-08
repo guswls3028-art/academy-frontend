@@ -17,6 +17,9 @@ type ScoreRouteOptions = {
   assessmentStatusDisplay?: "wrong_completion";
   nullScoresPassedFalse?: boolean;
   nullHomeworkScoresPassedFalse?: boolean;
+  examAssignedRows?: boolean[];
+  rowClinicRequired?: boolean[];
+  rowNameHighlightClinicTarget?: boolean[];
   activeEditors?: Array<{
     client_id: string;
     editor_user_id: number;
@@ -183,7 +186,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
             lecture_title: "자동 저장 검증반",
             lecture_color: "#2563eb",
             lecture_chip_label: "자",
-            exams: [{
+            exams: (options.examAssignedRows?.[index] ?? true) ? [{
               exam_id: 9101,
               title: "주간 확인",
               pass_score: 60,
@@ -204,7 +207,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
                 meta: {},
               },
               attempt_count: score == null ? 0 : 1,
-            }],
+            }] : [],
             homeworks: includeHomework && homeworkAssignedRows[index] ? [{
               homework_id: 9151,
               title: "단원 복습",
@@ -226,7 +229,8 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
                 updated_at: currentHomeworkVersions[index],
               },
             }] : [],
-            clinic_required: score == null ? false : score < 60,
+            clinic_required: options.rowClinicRequired?.[index] ?? (score == null ? false : score < 60),
+            name_highlight_clinic_target: options.rowNameHighlightClinicTarget?.[index] ?? false,
             progress_completed: false,
             updated_at: "2026-07-25T12:00:00+09:00",
           })),
@@ -1073,6 +1077,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
   test("성적 알림 모달은 보호자와 학생 수신을 모두 선택할 수 있다", async ({ page }) => {
     const preflightTargets: string[] = [];
     const sendTargets: string[] = [];
+    const sendModes: string[] = [];
     await page.route("**/messaging/send/preflight/", async (route) => {
       const payload = route.request().postDataJSON() as { send_to?: string };
       const sendTo = payload.send_to ?? "";
@@ -1118,8 +1123,12 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       });
     });
     await page.route("**/messaging/send/", async (route) => {
-      const payload = route.request().postDataJSON() as { send_to?: string };
+      const payload = route.request().postDataJSON() as {
+        send_to?: string;
+        message_mode?: string;
+      };
       sendTargets.push(payload.send_to ?? "");
+      sendModes.push(payload.message_mode ?? "");
       await route.fulfill({
         json: { detail: "접수", enqueued: 1, scheduled: 0, enqueue_failed: 0, skipped_no_phone: 0 },
       });
@@ -1154,6 +1163,15 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       .getByRole("button", { name: "발송하기" })
       .click();
     await expect.poll(() => sendTargets).toEqual(["student"]);
+    expect(sendModes).toEqual(["alimtalk"]);
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("checkbox", { name: "자동저장학생1 선택" }).check();
+    await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
+    const reloadedDialog = page.getByRole("dialog", { name: "알림톡 발송" });
+    await expect(reloadedDialog.getByRole("checkbox", { name: "학생" })).toBeEnabled();
+    await expect(reloadedDialog.getByRole("checkbox", { name: "학생" })).toBeChecked();
+    expect(await reloadedDialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
   });
 
   test("마지막 열을 테스트 오답으로 바꾸면 실제 오답 확인 완료 상태가 사용자별로 유지된다", async ({ page }, testInfo) => {
@@ -1299,6 +1317,34 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect.poll(() => assignmentPuts.length).toBe(2);
     expect(assignmentPuts.every((request) => request.enrollmentIds.join(",") === "9201,9202")).toBe(true);
     await expect(assignmentNotice).toHaveCount(0);
+  });
+
+  test("시험 미배정 학생은 클리닉 대상이나 이름 하이라이트로 남지 않고 새로고침해도 유지된다", async ({ page }, testInfo) => {
+    await openScores(page, {
+      initialScores: [85, 85],
+      examAssignedRows: [false, true],
+      rowClinicRequired: [false, false],
+      rowNameHighlightClinicTarget: [false, false],
+    }, 90_000);
+    await expect(page.getByText("총 2명", { exact: true })).toBeVisible({ timeout: 90_000 });
+
+    const firstRow = page.locator("tbody tr").filter({ hasText: "자동저장학생1" });
+    const unassignedCell = firstRow.locator(".ds-scores-cell-unassigned");
+    await expect(unassignedCell).toContainText("미배정");
+    await expect(unassignedCell).toHaveAttribute("aria-label", "자동저장학생1 · 주간 확인 응시 대상 미배정");
+    await expect(firstRow.locator('[data-col-type="clinic"]')).toContainText("-");
+    await expect(firstRow.getByText("대상", { exact: true })).toHaveCount(0);
+    await expect(firstRow.locator(".ds-student-name--clinic-highlight")).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath("exam-unassigned-not-clinic-1366.png"), fullPage: true });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    const reloadedFirstRow = page.locator("tbody tr").filter({ hasText: "자동저장학생1" });
+    await expect(reloadedFirstRow.locator(".ds-scores-cell-unassigned")).toContainText("미배정");
+    await expect(reloadedFirstRow.getByText("대상", { exact: true })).toHaveCount(0);
+    await expect(reloadedFirstRow.locator(".ds-student-name--clinic-highlight")).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath("exam-unassigned-not-clinic-390.png"), fullPage: true });
   });
 
   test("키보드 이동은 미배정 칸을 건너뛰고 배정된 과제 점수는 셀에서 저장한다", async ({ page }) => {

@@ -720,6 +720,8 @@ export default function VideoTreeView() {
           videoId={editTarget.id}
           initialTitle={editTarget.title}
           initialOrder={editTarget.order ?? 1}
+          initialAllowSkip={editTarget.allow_skip}
+          initialMaxSpeed={editTarget.max_speed}
         />
       )}
       {isOverlayOpen && (

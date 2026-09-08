@@ -141,6 +141,8 @@ type OperationsState = {
   notificationLogs?: Array<Record<string, unknown>>;
   notificationLogRequests?: string[];
   notificationRetryPayloads?: Array<Record<string, unknown>>;
+  participantBulkPayloads?: Array<Record<string, unknown>>;
+  participantBulkFailure?: { detail: string; status: number } | null;
 };
 
 async function installApi(
@@ -224,6 +226,44 @@ async function installApi(
       return json({ id: sessionId, ...payload });
     }
     if (path === "/clinic/sessions/tree/" && method === "GET") return json(sessionRows);
+    if (path === "/clinic/participants/bulk-create/" && method === "POST") {
+      const payload = request.postDataJSON() as Record<string, unknown>;
+      operationsState?.participantBulkPayloads?.push(payload);
+      if (operationsState?.participantBulkFailure) {
+        return json(
+          { detail: operationsState.participantBulkFailure.detail },
+          operationsState.participantBulkFailure.status,
+        );
+      }
+      const sessionId = Number((payload.session_ids as number[] | undefined)?.[0]);
+      const targetIds = (
+        (payload.enrollment_ids as number[] | undefined)
+        ?? (payload.student_ids as number[] | undefined)
+        ?? []
+      );
+      const created = targetIds.map((targetId, index) => {
+        const target = operationsState?.targets.find((row) => (
+          row.enrollment_id === targetId || row.student_id === targetId
+        ));
+        const row = {
+          id: 9900 + index,
+          session: sessionId,
+          student: target?.student_id ?? targetId,
+          student_name: target?.student_name ?? `학생 ${targetId}`,
+          enrollment_id: target?.enrollment_id ?? null,
+          session_date: saturday,
+          session_start_time: "17:00:00",
+          session_location: "2층 보강실",
+          session_title: "토요일 5시 클리닉",
+          status: "booked",
+          source: "manual",
+          clinic_reason: target?.clinic_reason ?? null,
+        };
+        operationsState?.participants.push(row);
+        return row;
+      });
+      return json({ count: created.length, participants: created }, 201);
+    }
     if (path === "/clinic/participants/" && method === "GET") {
       if (operationsState) {
         operationsState.participantRequests = (operationsState.participantRequests ?? 0) + 1;
@@ -1076,6 +1116,85 @@ test("운영 화면은 빈 세션 선택을 유지해 첫 학생을 desktop과 3
   await expect(mobileAddButton).toBeVisible();
   await mobileAddButton.click();
   await expect(page.getByRole("dialog", { name: "대상자 선택" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test("학생 추가 충돌은 구체적 사유를 보여주고 선택을 보존해 바로 재시도한다", async ({ page }) => {
+  const state: OperationsState = {
+    participants: [],
+    targets: [{
+      enrollment_id: 1201,
+      student_id: 501,
+      student_name: "기존예약 학생",
+      session_title: "수학 1차시",
+      clinic_reason: "exam",
+      reason: "score",
+      clinic_link_id: 8801,
+      session_id: 3101,
+      source_type: "exam",
+      source_id: 4101,
+      created_at: "2026-08-29T10:00:00+09:00",
+    }],
+    participantBulkPayloads: [],
+    participantBulkFailure: {
+      status: 409,
+      detail: "이미 해당 세션에 예약된 학생입니다.",
+    },
+  };
+
+  await seed(page);
+  await installApi(page, undefined, state);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoAndSettle(
+    page,
+    `${BASE}/workspace/clinic/operations?date=${saturday}&session=702`,
+    { timeout: 45_000 },
+  );
+
+  const addStudentButton = page.getByRole("button", { name: "학생 추가하기", exact: true });
+  await expect(addStudentButton).toBeVisible({ timeout: 30_000 });
+  await addStudentButton.click();
+  const dialog = page.getByRole("dialog", { name: "대상자 선택" });
+  await dialog.getByRole("checkbox", { name: "기존예약 학생 선택" }).check();
+  await dialog.getByRole("button", { name: "선택 확정 (1명)" }).click();
+
+  await expect(page.getByText(/학생을 추가하지 못했습니다.*이미 해당 세션에 예약된 학생입니다/)).toBeVisible();
+  await expect(page.getByText(/0명 추가.*1명 실패/)).toHaveCount(0);
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("checkbox", { name: "기존예약 학생 선택" })).toBeChecked();
+  expect(state.participantBulkPayloads).toEqual([{
+    session_ids: [702],
+    enrollment_ids: [1201],
+  }]);
+  expect(state.participants).toHaveLength(0);
+
+  state.participantBulkFailure = {
+    status: 409,
+    detail: "같은 날 한 시간대만 예약할 수 있습니다.",
+  };
+  await dialog.getByRole("button", { name: "선택 확정 (1명)" }).click();
+  await expect(page.getByText(/학생을 추가하지 못했습니다.*같은 날 한 시간대만 예약할 수 있습니다/)).toBeVisible();
+  await expect(dialog.getByRole("checkbox", { name: "기존예약 학생 선택" })).toBeChecked();
+  expect(state.participantBulkPayloads).toHaveLength(2);
+  expect(state.participants).toHaveLength(0);
+
+  state.participantBulkFailure = null;
+  await dialog.getByRole("button", { name: "선택 확정 (1명)" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText("1명이 추가되었습니다.", { exact: true })).toBeVisible();
+  await expect(page.getByText("기존예약 학생", { exact: true })).toBeVisible();
+  expect(state.participantBulkPayloads).toHaveLength(3);
+  expect(state.participants).toHaveLength(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByText("기존예약 학생", { exact: true })).toBeVisible();
+  expect(state.participants).toHaveLength(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByText("기존예약 학생", { exact: true })).toBeVisible({ timeout: 30_000 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 

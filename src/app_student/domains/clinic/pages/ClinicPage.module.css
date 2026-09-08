@@ -59,8 +59,7 @@
 
 .tabButton:focus-visible,
 .sessionSelectButton:focus-visible,
-.changeCancelButton:focus-visible,
-.bookingActions button:focus-visible {
+.changeCancelButton:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--stu-primary) 30%, transparent);
   outline-offset: 2px;
 }
@@ -841,46 +840,6 @@
   color: var(--stu-success-text, #065f46);
 }
 
-.bookingActions {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 6px;
-}
-
-.bookingActions button {
-  min-height: 32px;
-  padding: 5px 8px;
-  border: 1px solid var(--stu-border);
-  border-radius: 8px;
-  background: var(--stu-surface);
-  color: var(--stu-primary);
-  cursor: pointer;
-  font: inherit;
-  font-size: 11px;
-  font-weight: 750;
-  white-space: nowrap;
-}
-
-.bookingActions .dangerAction {
-  color: var(--stu-danger);
-}
-
-.bookingActions button:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.approvedHelp {
-  max-width: 130px;
-  margin: 0;
-  color: var(--stu-text-muted);
-  font-size: 11px;
-  line-height: 1.45;
-  text-align: right;
-  word-break: keep-all;
-}
-
 .rejectedList {
   overflow: hidden;
   border: 1px solid var(--stu-border);
@@ -974,20 +933,6 @@
     grid-template-columns: 54px minmax(0, 1fr);
   }
 
-  .bookingActions,
-  .approvedHelp {
-    grid-column: 1 / -1;
-  }
-
-  .bookingActions {
-    flex-direction: row;
-    justify-content: flex-end;
-  }
-
-  .approvedHelp {
-    max-width: none;
-    text-align: left;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

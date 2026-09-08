@@ -12,7 +12,7 @@
    `CLOUDFLARE_PREVIEW_API_TOKEN`으로 Cloudflare Pages preview에 direct
    upload한다. preview revision, Functions bundle, 핵심 route와 lazy asset을
    검증한다.
-3. `main` push에서는 동일 `deploy-bundle`의 개발 real-use 10개와 exact tenant/user
+3. `main` push에서는 동일 `deploy-bundle`의 개발 real-use 18개와 exact tenant/user
    cleanup0을 `development-canary` job에서 먼저 통과한다. 이 job의 success 없이는
    `deploy`가 시작되지 않는다. main 실행은 후속 push로 취소하지 않아 cleanup을 보존한다.
 4. 기존 운영 deployment id/version과 Pages production
@@ -266,7 +266,7 @@ paused/ended, media ready/network 상태, bootstrap·renew·progress·access-che
 브라우저 오류 수만 허용한다. 이 checkpoint와 failure snapshot은 실패 위치를 찾기 위한
 관측 정보일 뿐, 성공 판정은 기존 690초 최종 증거와 cleanup 0을 모두 충족해야 한다.
 Playwright가 failure snapshot 수집 자체를 중단한 경우에도 원문 오류는 공개하지 않고,
-장시간 재생 결과에 한해 `test-timeout`, `context-closed`, `page-crashed`,
+장시간 재생 결과에 한해 `test-timeout`, `fixture-timeout`, `context-closed`, `page-crashed`,
 `playback-below-690`, `poll-timeout`, `video-evaluate-failed`, `route-handler-failed` 중
 일치하는 고정 코드만 artifact에 남긴다. 코드가 없거나 여러 개여도 성공으로 간주하지 않는다.
 장시간 재생 중 response 관측 작업은 하나의 chain으로 직렬화하고 그 실패 promise를 재생
@@ -306,7 +306,8 @@ allowlist된 action/exit code/JSON line 수/session ID 관측 여부/status/erro
 boolean으로만 기록한다. raw output·오류 message·session ID·token·capability·password·
 사용자 정보는 증거에 기록하지 않는다. raw Playwright JSON은 메모리에서 검증하고 개발
 trace/video/screenshot은 저장하지 않아 credential 노출을 막는다.
-장시간 재생 실패는 추가로 설정 timeout, test/result 상태, result 수, 실행 시간, 오류 수만
+장시간 재생 실패는 추가로 설정 timeout, test/result 상태, result 수, 실행 시간, 오류 수와
+실패한 response 관측 종류(`bootstrap`, `access`, `session-list`, `renewal`, `progress`, `other`)만
 고정 allowlist로 남긴다. test child 종료 관측도 exit code, 허용 signal, 종료 사유, 실행
 시간만 남기며 stdout·stderr·process ID는 공개하지 않는다.
 소유 SSM session도 종료 후 재조회한다. 강제 취소·접근 상실 등으로 cleanup 또는
@@ -357,7 +358,12 @@ workflow 계약의 failure-first RED→GREEN, 실제 loopback HTTP/Chromium 중�
 검증한다. `--list`는 실행하지 않은 discovery일 뿐 real-use 통과로 인정하지 않는다.
 GitHub Ubuntu 24.04 이미지의 기존 AWS CLI/Session Manager plugin을 재사용하고
 실행 버전을 출력한다. package/lockfile 변경이나 별도 latest installer는 없다.
-실제 frontend IAM role/document 적용과 11 PASS/0 SKIP/cleanup0 증거가 모두 있어야
+학생 본인과 학부모 선택 자녀의 계정, 온라인 시험·과제 제출, 영상 진도,
+클리닉 예약·취소와 질문·상담도 같은 배포 artifact의 개발 카나리에서 실행한다.
+각 흐름은 저장 성공, reload/relogin 지속 상태와 해당 교사·학생 후속 투영을 확인한다.
+다른 자녀/tenant 접근 거부는 backend 계약과 함께 검증한다. 실제 메시지 provider는
+호출하지 않고 개발용 durable outbox 접수·재시도 상태만 확인한다.
+실제 frontend IAM role/document 적용과 18 PASS/0 SKIP/cleanup0 증거가 모두 있어야
 이 전환 HOLD를 해제할 수 있다.
 
 ## 4. 공급망과 변경 관리

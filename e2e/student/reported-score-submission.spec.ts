@@ -15,8 +15,9 @@ function fakeJwt(): string {
   return `e30.${payload}.student`;
 }
 
-async function installApi(page: Page): Promise<string[]> {
+async function installApi(page: Page, parent = false): Promise<{ uploads: string[]; studentIds: string[] }> {
   const uploads: string[] = [];
+  const studentIds: string[] = [];
   let submitted = false;
   const submission = {
     id: 701,
@@ -83,15 +84,24 @@ async function installApi(page: Page): Promise<string[]> {
       return;
     }
     if (path.endsWith("/core/me/")) {
-      await route.fulfill({ json: { id: 11, username: "student-11", name: "김학생", is_staff: false, is_superuser: false, tenantRole: "student" } });
+      await route.fulfill({ json: {
+        id: parent ? 91 : 11,
+        username: parent ? "parent-91" : "student-11",
+        name: parent ? "김학부모" : "김학생",
+        is_staff: false,
+        is_superuser: false,
+        tenantRole: parent ? "parent" : "student",
+        linkedStudents: parent ? [{ id: 11, name: "김학생" }] : [],
+      } });
       return;
     }
     if (path.endsWith("/student/me/")) {
-      await route.fulfill({ json: { id: 11, name: "김학생", ps_number: "S0011", grade: 2, school_type: "HIGH", high_school: "테스트고등학교" } });
+      await route.fulfill({ json: { id: 11, name: "김학생", ps_number: "S0011", grade: 2, school_type: "HIGH", high_school: "테스트고등학교", isParentReadOnly: parent } });
       return;
     }
     if (path.endsWith("/storage/inventory/upload/") && request.method() === "POST") {
       uploads.push(request.postData() || "");
+      studentIds.push(request.headers()["x-student-id"] || "");
       submitted = true;
       await route.fulfill({ json: inventoryFile });
       return;
@@ -102,7 +112,7 @@ async function installApi(page: Page): Promise<string[]> {
     }
     await route.fulfill({ json: { count: 0, results: [] } });
   });
-  return uploads;
+  return { uploads, studentIds };
 }
 
 test.describe("학생 성적표 자발 제출", () => {
@@ -110,7 +120,7 @@ test.describe("학생 성적표 자발 제출", () => {
   test.use({ serviceWorkers: "block", viewport: { width: 390, height: 844 } });
 
   test("학교 내신 정보와 원본을 함께 제출하고 확인 대기 상태를 본다", async ({ page }) => {
-    const uploads = await installApi(page);
+    const { uploads } = await installApi(page);
     await page.goto(`${BASE}/student/submit/score`, { waitUntil: "domcontentloaded" });
 
     await expect(page.getByText("정보 입력→성적표 제출→선생님 확인→통계 반영")).toBeVisible();
@@ -164,7 +174,7 @@ test.describe("학생 성적표 자발 제출", () => {
   });
 
   test("수행평가는 성적표 기재 시험명과 시험일을 함께 보낸다", async ({ page }) => {
-    const uploads = await installApi(page);
+    const { uploads } = await installApi(page);
     await page.goto(`${BASE}/student/submit/score`, { waitUntil: "domcontentloaded" });
     await page.getByTestId("score-exam-round").selectOption("performance");
     await page.getByTestId("score-exam-name").fill("수학 주제탐구 수행평가");
@@ -181,5 +191,25 @@ test.describe("학생 성적표 자발 제출", () => {
     await expect.poll(() => uploads.length).toBe(1);
     expect(uploads[0]).toContain("performance");
     expect(uploads[0]).toContain("수학 주제탐구 수행평가");
+  });
+
+  test("학부모가 선택 자녀의 성적표를 제출하고 reload 뒤 확인 대기 상태를 본다", async ({ page }) => {
+    const { uploads, studentIds } = await installApi(page, true);
+    await page.goto(`${BASE}/student/submit/score`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("학부모 계정은 성적표를 제출할 수 없습니다.")).toHaveCount(0);
+    await page.getByLabel("받은 점수").fill("91");
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "parent-score.jpg",
+      mimeType: "image/jpeg",
+      buffer: Buffer.from("parent-score-card"),
+    });
+    await page.getByRole("button", { name: "성적표 보내기" }).click();
+    await expect(page.getByText("성적표를 보냈습니다.")).toBeVisible();
+    expect(studentIds).toEqual(["11"]);
+    expect(uploads[0]).toContain('name="student_ps"');
+    expect(uploads[0]).toContain("S0011");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByText("확인 대기")).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   });
 });
