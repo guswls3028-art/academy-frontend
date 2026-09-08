@@ -20,7 +20,15 @@ type PlaybackPayload = {
   playback_expires_at?: unknown;
   play_url?: unknown;
   hls_url?: unknown;
-  video?: { last_position?: unknown; thumbnail_url?: unknown };
+  video?: { id?: unknown; session_id?: unknown; last_position?: unknown; thumbnail_url?: unknown };
+};
+
+type SessionVideoListPayload = {
+  items?: Array<{
+    id?: unknown;
+    session_id?: unknown;
+    thumbnail_url?: unknown;
+  }>;
 };
 
 type StudentObservation = {
@@ -52,6 +60,8 @@ type StudentObservation = {
   responseChain: Promise<void>;
   allowedMasterUrls: Set<string>;
   allowedPosterUrls: Set<string>;
+  sessionPosterCaptureCount: number;
+  playbackApiOrigin: string | null;
   signedOrigins: Set<string>;
 };
 
@@ -64,6 +74,16 @@ function requiredEnv(name: string, pattern?: RegExp): string {
 
 function isPlaybackBootstrap(pathname: string, videoId: number): boolean {
   return pathname === `/api/v1/student/video/videos/${videoId}/playback/`;
+}
+
+function isSessionVideoList(pathname: string): boolean {
+  return /^\/api\/v1\/student\/video\/sessions\/[1-9][0-9]*\/videos\/$/.test(pathname);
+}
+
+function sessionIdFromVideoList(pathname: string): number {
+  const match = pathname.match(/^\/api\/v1\/student\/video\/sessions\/([1-9][0-9]*)\/videos\/$/);
+  expect(match).not.toBeNull();
+  return Number(match![1]);
 }
 
 function assertPlaybackIdentity(payload: PlaybackPayload): asserts payload is PlaybackPayload & {
@@ -129,11 +149,37 @@ async function captureResponse(
   if (isPlaybackBootstrap(url.pathname, videoId)) {
     const payload = await response.json() as PlaybackPayload;
     assertBootstrapPayload(payload);
+    expect(payload.video?.id).toBe(videoId);
+    const bootstrapSessionId = payload.video?.session_id;
+    expect(typeof bootstrapSessionId === "number"
+      && Number.isSafeInteger(bootstrapSessionId) && bootstrapSessionId > 0).toBe(true);
+    if (state.playbackApiOrigin === null) state.playbackApiOrigin = url.origin;
+    expect(url.origin).toBe(state.playbackApiOrigin);
     state.bootstraps.push({ ...payload, observedAt: Date.now() });
     state.allowedMasterUrls.add(payload.play_url);
     const posterUrl = payload.video?.thumbnail_url;
     expect(typeof posterUrl === "string" && posterUrl.length > 0, "bootstrap must return its signed poster URL").toBe(true);
     state.allowedPosterUrls.add(String(posterUrl));
+    return;
+  }
+  if (isSessionVideoList(url.pathname)) {
+    expect(state.playbackApiOrigin).not.toBeNull();
+    expect(url.origin).toBe(state.playbackApiOrigin);
+    expect(response.request().method()).toBe("GET");
+    const sessionId = sessionIdFromVideoList(url.pathname);
+    const bootstrap = state.bootstraps[0];
+    assertBootstrapPayload(bootstrap);
+    expect(bootstrap.video?.session_id).toBe(sessionId);
+    const payload = await response.json() as SessionVideoListPayload;
+    expect(Array.isArray(payload.items)).toBe(true);
+    const matchingItems = payload.items!.filter((item) =>
+      item.id === videoId && item.session_id === sessionId);
+    expect(matchingItems).toHaveLength(1);
+    const posterUrl = matchingItems[0].thumbnail_url;
+    expect(typeof posterUrl === "string" && posterUrl.length > 0,
+      "session video list must return the current video's signed poster URL").toBe(true);
+    state.allowedPosterUrls.add(String(posterUrl));
+    state.sessionPosterCaptureCount += 1;
     return;
   }
   if (url.pathname === "/api/v1/media/playback/renew/") {
@@ -249,6 +295,8 @@ function newObservation(viewport: "desktop" | "mobile"): StudentObservation {
     responseChain: Promise.resolve(),
     allowedMasterUrls: new Set(),
     allowedPosterUrls: new Set(),
+    sessionPosterCaptureCount: 0,
+    playbackApiOrigin: null,
     signedOrigins: new Set(),
   };
 }
@@ -293,6 +341,7 @@ async function prepareStudent(
   await page.goto(`${baseUrl}/student/video/play?video=${videoId}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await dismissDevelopmentFirstLoginGuide(page, tenantCode);
   await expect.poll(() => state.bootstraps.length).toBe(1);
+  await expect.poll(() => state.sessionPosterCaptureCount).toBe(1);
   const video = page.locator("video.svpVideo");
   await expect(video).toHaveCount(1);
   await expect.poll(() => state.posterLoads).toBeGreaterThanOrEqual(1);
@@ -391,8 +440,10 @@ async function finishStudent(
   state.wallSeconds = Math.floor((Date.now() - state.startedAt) / 1_000);
 
   const bootstrapsBeforeReload = state.bootstraps.length;
+  const sessionPosterCapturesBeforeReload = state.sessionPosterCaptureCount;
   await page.reload({ waitUntil: "domcontentloaded", timeout: 45_000 });
   await expect.poll(() => state.bootstraps.length).toBe(bootstrapsBeforeReload + 1);
+  await expect.poll(() => state.sessionPosterCaptureCount).toBeGreaterThan(sessionPosterCapturesBeforeReload);
   const reloadedBootstrap = state.bootstraps.at(-1)!;
   const apiPosition = Number(reloadedBootstrap.video?.last_position);
   expect(Number.isFinite(apiPosition)).toBe(true);
