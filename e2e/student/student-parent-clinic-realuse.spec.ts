@@ -28,6 +28,7 @@ type ClinicParticipant = {
   student_name?: string;
   status: string;
   memo?: string;
+  can_self_cancel?: boolean;
 };
 
 let family: QaFamily | null = null;
@@ -160,7 +161,36 @@ test.describe.serial("[real-use] 학생 예약에서 학부모 클리닉 project
     await loginThroughUi(page, family.parentPhone, family.parentPassword);
     await gotoAndSettle(page, `${QA_BASE}/student/clinic`, { timeout: 30_000 });
     await page.getByRole("tab", { name: /내 일정/ }).click();
-    await expect(page.locator("article").filter({ hasText: sessionTitle })).toBeVisible();
+    const parentBookingCard = page.locator("article").filter({ hasText: sessionTitle });
+    await expect(parentBookingCard).toBeVisible();
+    const cancelButton = parentBookingCard.getByRole("button", { name: "예약 취소" });
+    await expect(cancelButton).toBeEnabled();
+    const cancelResponse = page.waitForResponse((response) => (
+      response.request().method() === "PATCH"
+      && new URL(response.url()).pathname.endsWith(`/api/v1/clinic/participants/${participantId}/set_status/`)
+    ));
+    await cancelButton.click();
+    await page.getByRole("alertdialog", { name: "예약 취소" })
+      .getByRole("button", { name: "예약 취소" })
+      .click();
+    const cancelled = await cancelResponse;
+    expect(cancelled.status()).toBe(200);
+    expect(await cancelled.json()).toMatchObject({
+      status: "cancelled",
+      notification: {
+        requested: 2,
+        send_to: "both",
+        targets: expect.arrayContaining([
+          { target: "student", requested: true },
+          { target: "parent", requested: true },
+        ]),
+      },
+    });
+    await expect(page.getByText(/예약 취소가 저장되었습니다/)).toBeVisible();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await waitForRenderSettled(page, { timeout: 20_000 });
+    await page.getByRole("tab", { name: /내 일정/ }).click();
+    await expect(page.locator("article").filter({ hasText: sessionTitle })).toHaveCount(0);
 
     await page.setViewportSize({ width: 1366, height: 900 });
     await assertNoHorizontalOverflow(page);

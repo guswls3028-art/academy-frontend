@@ -28,6 +28,8 @@ type MockState = {
   failNextBulk?: boolean;
 };
 
+type Viewer = "admin" | "student";
+
 function localJwt(): string {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
   return `${encode({ alg: "none" })}.${encode({
@@ -37,7 +39,7 @@ function localJwt(): string {
   })}.sig`;
 }
 
-async function installApi(page: Page, state: MockState) {
+async function installApi(page: Page, state: MockState, viewer: Viewer = "admin") {
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -60,14 +62,36 @@ async function installApi(page: Page, state: MockState) {
       });
     }
     if (path === "/core/me/") {
+      return json(viewer === "admin"
+        ? {
+            id: 12,
+            username: "admin",
+            name: "관리자",
+            is_staff: true,
+            is_superuser: true,
+            tenantRole: "admin",
+            must_change_password: false,
+          }
+        : {
+            id: 8600,
+            username: "policy-student",
+            name: "정책 확인 학생",
+            is_staff: false,
+            is_superuser: false,
+            tenantRole: "student",
+            linkedStudentId: 8600,
+            linkedStudentName: "정책 확인 학생",
+            must_change_password: false,
+          });
+    }
+    if (path === "/student/me/") {
       return json({
-        id: 12,
-        username: "admin",
-        name: "관리자",
-        is_staff: true,
-        is_superuser: true,
-        tenantRole: "admin",
-        must_change_password: false,
+        id: 8600,
+        username: "policy-student",
+        name: "정책 확인 학생",
+        ps_number: "policy-student",
+        is_student: true,
+        isParentReadOnly: false,
       });
     }
     if (path === `/lectures/lectures/${LECTURE_ID}/`) {
@@ -106,6 +130,74 @@ async function installApi(page: Page, state: MockState) {
     }
     if (path === "/media/videos/" && method === "GET") {
       return json({ count: state.videos.length, results: state.videos });
+    }
+    if (path === `/student/video/sessions/${SESSION_ID}/videos/` && method === "GET") {
+      return json({
+        items: state.videos.map((video) => ({
+          ...video,
+          session_id: SESSION_ID,
+          enrollment_id: 8601,
+          duration: 1_800,
+          progress: 0,
+          completed: false,
+          last_position: 0,
+          access_mode: "PROCTORED_CLASS",
+        })),
+      });
+    }
+    const playbackMatch = path.match(/^\/student\/video\/videos\/(\d+)\/playback\/$/);
+    if (playbackMatch && method === "GET" && url.searchParams.get("access_check") === "1") {
+      return json({
+        ok: true,
+        access_mode: "PROCTORED_CLASS",
+        monitoring_enabled: true,
+        policy_version: 7,
+      });
+    }
+    if (playbackMatch && method === "POST") {
+      const video = state.videos.find((row) => row.id === Number(playbackMatch[1]));
+      if (!video) return json({ detail: "영상을 찾을 수 없습니다." }, 404);
+      return json({
+        video: {
+          ...video,
+          session_id: SESSION_ID,
+          enrollment_id: 8601,
+          duration: 1_800,
+          progress: 0,
+          completed: false,
+          last_position: 0,
+          access_mode: "PROCTORED_CLASS",
+        },
+        play_url: `https://cdn.example.test/videos/${video.id}/master.m3u8`,
+        hls_url: `https://cdn.example.test/videos/${video.id}/master.m3u8`,
+        playback_token: "policy-playback-token",
+        playback_session_id: "policy-playback-session",
+        playback_expires_at: Math.floor(Date.now() / 1_000) + 600,
+        policy_version: 7,
+        policy: {
+          access_mode: "PROCTORED_CLASS",
+          monitoring_enabled: true,
+          allow_seek: video.allow_skip,
+          playback_rate: { max: video.max_speed, ui_control: true },
+          watermark: { enabled: video.show_watermark, mode: "overlay", fields: [] },
+          source: { type: "s3", provider: "uploaded" },
+        },
+      });
+    }
+    if (path.match(/^\/student\/video\/videos\/\d+\/progress\/$/) && method === "POST") {
+      const payload = request.postDataJSON() as { progress?: number; last_position?: number };
+      return json({
+        video_id: Number(path.split("/")[4]),
+        enrollment_id: 8601,
+        progress: payload.progress ?? 0,
+        last_position: payload.last_position ?? 0,
+        completed: false,
+      });
+    }
+    if (path === "/students/me/activity/" && method === "POST") return json({ ok: true });
+    if (path.includes("/playback/") && method === "POST") return json({ ok: true });
+    if (path.match(/^\/student\/video\/videos\/\d+\/comments\/$/)) {
+      return json({ comments: [], total: 0 });
     }
     if (path === "/media/videos/bulk-policy/" && method === "POST") {
       const payload = request.postDataJSON() as Record<string, unknown>;
@@ -161,6 +253,28 @@ async function openVideos(page: Page, state: MockState) {
   await expect(page.getByText("발전과 에너지원1", { exact: true })).toBeVisible();
 }
 
+async function openStudentPolicy(page: Page, state: MockState) {
+  await installTenantOneInitScript(page);
+  await page.addInitScript((jwt) => {
+    localStorage.setItem("access", jwt);
+    localStorage.setItem("refresh", `${jwt}-refresh`);
+  }, localJwt());
+  await page.route("https://cdn.example.test/**", async (route) => {
+    await new Promise<void>((resolve) => page.once("close", resolve));
+    try {
+      await route.abort();
+    } catch {
+      // Page teardown may have already disposed the pending media request.
+    }
+  });
+  await installApi(page, state, "student");
+  await page.goto(
+    `${BASE}/student/video/play?video=8501&session=${SESSION_ID}&enrollment=8601`,
+    { waitUntil: "domcontentloaded", timeout: 60_000 },
+  );
+  await expect(page.getByRole("heading", { name: "발전과 에너지원1" })).toBeVisible({ timeout: 60_000 });
+}
+
 function makeState(): MockState {
   return {
     videos: [
@@ -194,7 +308,7 @@ function makeState(): MockState {
   };
 }
 
-test("현재 영상 전체의 건너뛰기와 배속을 일괄 저장하고 새로고침 후 유지한다", async ({ page }) => {
+test("현재 영상 전체의 건너뛰기와 배속을 일괄 저장하고 새로고침 뒤 학생 정책에도 반영한다", async ({ page, browser }) => {
   const state = makeState();
   await page.setViewportSize({ width: 1366, height: 768 });
   await openVideos(page, state);
@@ -226,6 +340,49 @@ test("현재 영상 전체의 건너뛰기와 배속을 일괄 저장하고 새�
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.getByText("자유 건너뛰기 허용", { exact: true })).toHaveCount(2);
   await expect(page.getByText("최대 1.50x", { exact: true })).toHaveCount(2);
+
+  const studentContext = await browser.newContext({
+    viewport: { width: 1366, height: 900 },
+    serviceWorkers: "block",
+  });
+  const studentPage = await studentContext.newPage();
+  try {
+    await openStudentPolicy(studentPage, state);
+    await expect(studentPage.getByText("자유롭게 이동 가능", { exact: true })).toBeVisible();
+    await expect(studentPage.getByText("최대 1.5x까지 가능", { exact: true })).toBeVisible();
+    await studentPage.reload({ waitUntil: "domcontentloaded" });
+    await expect(studentPage.getByText("자유롭게 이동 가능", { exact: true })).toBeVisible();
+    await expect(studentPage.getByText("최대 1.5x까지 가능", { exact: true })).toBeVisible();
+    expect(await studentPage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  } finally {
+    await studentContext.close();
+  }
+});
+
+test("390px에서도 영상 일괄 설정을 저장하고 새로고침 후 유지한다", async ({ page }) => {
+  const state = makeState();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openVideos(page, state);
+
+  await page.getByRole("checkbox", { name: "현재 목록 전체 선택" }).check();
+  await page.getByRole("button", { name: "선택한 영상 설정" }).click();
+  const dialog = page.getByRole("dialog", { name: "영상 일괄 재생 설정" });
+  await dialog.getByLabel("건너뛰기 설정").selectOption("true");
+  await dialog.getByLabel("최대 배속 설정").selectOption("2");
+  await dialog.getByRole("button", { name: "2개 영상에 적용" }).click();
+
+  await expect.poll(() => state.bulkPayloads).toEqual([{
+    session_id: SESSION_ID,
+    video_ids: [8501, 8502],
+    allow_skip: true,
+    max_speed: 2,
+  }]);
+  await expect(page.getByText("자유 건너뛰기 허용", { exact: true })).toHaveCount(2);
+  await expect(page.getByText("최대 2.00x", { exact: true })).toHaveCount(2);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByText("자유 건너뛰기 허용", { exact: true })).toHaveCount(2);
+  await expect(page.getByText("최대 2.00x", { exact: true })).toHaveCount(2);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 test("단일 영상 수정에서 재생 정책을 함께 바꾸고 실제 PATCH로 저장한다", async ({ page }) => {

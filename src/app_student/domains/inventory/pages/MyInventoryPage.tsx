@@ -40,7 +40,6 @@ export default function MyInventoryPage() {
 
   const isLoading = profileQ.isLoading || inventoryQ.isLoading;
   const isError = profileQ.isError || inventoryQ.isError || (!profileQ.isLoading && !profileQ.isError && !ps);
-  const isParentReadOnly = !!profile?.isParentReadOnly;
   const folders = inventory?.folders ?? [];
   const files = inventory?.files ?? [];
   const shellTitle = tab === "stats" ? "자료 현황" : "학습 자료함";
@@ -84,7 +83,6 @@ export default function MyInventoryPage() {
           ps={ps}
           folders={folders}
           files={files}
-          isParentReadOnly={isParentReadOnly}
           queryKey={queryKey}
         />
       )}

@@ -35,7 +35,6 @@ type Props = {
   ps: string;
   folders: InventoryFolder[];
   files: InventoryFile[];
-  isParentReadOnly: boolean;
   queryKey: readonly unknown[];
 };
 
@@ -47,7 +46,7 @@ function FileIcon({ file }: { file: InventoryFile }) {
   return <IconFileText className={styles.fileIcon} />;
 }
 
-export default function InventoryHomeTab({ ps, folders, files, isParentReadOnly, queryKey }: Props) {
+export default function InventoryHomeTab({ ps, folders, files, queryKey }: Props) {
   const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
@@ -137,8 +136,7 @@ export default function InventoryHomeTab({ ps, folders, files, isParentReadOnly,
   return (
     <div className={styles.root}>
       {/* 액션 버튼 */}
-      {!isParentReadOnly && (
-        <div className={styles.actionBar}>
+      <div className={styles.actionBar}>
           <button type="button" className={`stu-btn stu-btn--secondary stu-btn--sm ${styles.actionButton}`} onClick={() => setShowNewFolder(true)}>
             <IconPlus className={styles.actionIcon} /> 새 폴더
           </button>
@@ -147,8 +145,7 @@ export default function InventoryHomeTab({ ps, folders, files, isParentReadOnly,
             <IconUpload className={styles.actionIcon} />
             {uploadMut.isPending ? "업로드 중…" : "파일 업로드"}
           </button>
-        </div>
-      )}
+      </div>
 
       <input ref={fileInputRef} type="file" accept="image/*,video/*,.pdf,.doc,.docx,.hwp,.hwpx,.xlsx,.xls" multiple onChange={onFileChange} style={{ display: "none" }} />
 
@@ -206,19 +203,12 @@ export default function InventoryHomeTab({ ps, folders, files, isParentReadOnly,
         </div>
       )}
 
-      {/* 학부모 안내 */}
-      {isParentReadOnly && (
-        <div style={{ padding: "var(--stu-space-3)", background: "var(--stu-surface-soft)", border: "1px solid var(--stu-border)", borderRadius: "var(--stu-radius)", fontSize: 14, color: "var(--stu-text-muted)", marginBottom: "var(--stu-space-3)" }}>
-          학부모 계정은 열람만 가능합니다. 파일 업로드·삭제는 학생 계정으로 로그인해 주세요.
-        </div>
-      )}
-
       {/* 빈 상태 */}
       {isEmpty && (
         <div style={{ textAlign: "center", padding: "var(--stu-space-8) var(--stu-space-4)", color: "var(--stu-text-muted)" }}>
           <IconFolder style={{ width: 48, height: 48, opacity: 0.3, margin: "0 auto 12px" }} />
           <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>파일이 없습니다</div>
-          <div style={{ fontSize: 13 }}>{isParentReadOnly ? "학생이 파일을 제출하면 여기에 표시됩니다." : "위쪽의 파일 업로드 버튼을 눌러 파일을 추가하세요."}</div>
+          <div style={{ fontSize: 13 }}>위쪽의 파일 업로드 버튼을 눌러 파일을 추가하세요.</div>
         </div>
       )}
 
@@ -230,12 +220,10 @@ export default function InventoryHomeTab({ ps, folders, files, isParentReadOnly,
               onClick={() => navigateToFolder(folder)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter") navigateToFolder(folder); }}>
               <IconFolder style={{ width: 20, height: 20, color: "var(--stu-primary)", flexShrink: 0 }} />
               <span style={{ flex: 1, minWidth: 0, fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{folder.name}</span>
-              {!isParentReadOnly && (
-                <button type="button" className="stu-btn stu-btn--ghost stu-btn--sm" style={{ padding: 4, flexShrink: 0 }}
-                  onClick={(e) => { e.stopPropagation(); setConfirmDelete({ type: "folder", id: folder.id, name: folder.name }); }} title="폴더 삭제">
-                  <IconTrash style={{ width: 14, height: 14, color: "var(--stu-text-muted)" }} />
-                </button>
-              )}
+              <button type="button" className="stu-btn stu-btn--ghost stu-btn--sm" style={{ padding: 4, flexShrink: 0 }}
+                onClick={(e) => { e.stopPropagation(); setConfirmDelete({ type: "folder", id: folder.id, name: folder.name }); }} title="폴더 삭제">
+                <IconTrash style={{ width: 14, height: 14, color: "var(--stu-text-muted)" }} />
+              </button>
               <IconChevronRight style={{ width: 16, height: 16, color: "var(--stu-text-muted)", flexShrink: 0 }} />
             </div>
           ))}
@@ -258,12 +246,10 @@ export default function InventoryHomeTab({ ps, folders, files, isParentReadOnly,
                 <button type="button" className="stu-btn stu-btn--ghost stu-btn--sm" style={{ padding: 6 }} onClick={() => handleDownload(file)} title="다운로드">
                   <IconDownload style={{ width: 16, height: 16 }} />
                 </button>
-                {!isParentReadOnly && (
-                  <button type="button" className="stu-btn stu-btn--ghost stu-btn--sm" style={{ padding: 6 }}
-                    onClick={() => setConfirmDelete({ type: "file", id: file.id, name: file.displayName || file.name })} title="삭제">
-                    <IconTrash style={{ width: 16, height: 16, color: "var(--stu-text-muted)" }} />
-                  </button>
-                )}
+                <button type="button" className="stu-btn stu-btn--ghost stu-btn--sm" style={{ padding: 6 }}
+                  onClick={() => setConfirmDelete({ type: "file", id: file.id, name: file.displayName || file.name })} title="삭제">
+                  <IconTrash style={{ width: 16, height: 16, color: "var(--stu-text-muted)" }} />
+                </button>
               </div>
             </div>
           ))}

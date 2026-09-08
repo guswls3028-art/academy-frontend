@@ -12,7 +12,7 @@
    `CLOUDFLARE_PREVIEW_API_TOKEN`으로 Cloudflare Pages preview에 direct
    upload한다. preview revision, Functions bundle, 핵심 route와 lazy asset을
    검증한다.
-3. `main` push에서는 동일 `deploy-bundle`의 개발 real-use 10개와 exact tenant/user
+3. `main` push에서는 동일 `deploy-bundle`의 개발 real-use 18개와 exact tenant/user
    cleanup0을 `development-canary` job에서 먼저 통과한다. 이 job의 success 없이는
    `deploy`가 시작되지 않는다. main 실행은 후속 push로 취소하지 않아 cleanup을 보존한다.
 4. 기존 운영 deployment id/version과 Pages production
@@ -349,11 +349,12 @@ workflow 계약의 failure-first RED→GREEN, 실제 loopback HTTP/Chromium 중�
 검증한다. `--list`는 실행하지 않은 discovery일 뿐 real-use 통과로 인정하지 않는다.
 GitHub Ubuntu 24.04 이미지의 기존 AWS CLI/Session Manager plugin을 재사용하고
 실행 버전을 출력한다. package/lockfile 변경이나 별도 latest installer는 없다.
-학생 본인과 학부모 선택 자녀의 온라인 시험 제출 및 과제 파일 업로드도 같은
-배포 artifact의 개발 카나리에서 각각 실행한다. 두 흐름 모두 교사용 결과 투영과
-재로그인 후 지속 상태를 확인한다. 다른 자녀/tenant 접근 거부는 backend 계약과 함께
-검증한다.
-실제 frontend IAM role/document 적용과 13 PASS/0 SKIP/cleanup0 증거가 모두 있어야
+학생 본인과 학부모 선택 자녀의 계정, 온라인 시험·과제 제출, 영상 진도,
+클리닉 예약·취소와 질문·상담도 같은 배포 artifact의 개발 카나리에서 실행한다.
+각 흐름은 저장 성공, reload/relogin 지속 상태와 해당 교사·학생 후속 투영을 확인한다.
+다른 자녀/tenant 접근 거부는 backend 계약과 함께 검증한다. 실제 메시지 provider는
+호출하지 않고 개발용 durable outbox 접수·재시도 상태만 확인한다.
+실제 frontend IAM role/document 적용과 18 PASS/0 SKIP/cleanup0 증거가 모두 있어야
 이 전환 HOLD를 해제할 수 있다.
 
 ## 4. 공급망과 변경 관리

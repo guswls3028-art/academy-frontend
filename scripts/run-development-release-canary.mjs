@@ -20,8 +20,13 @@ const FLOW_COUNTS = {
   "notice-roundtrip.spec.ts": 3,
   "qna-roundtrip.spec.ts": 4,
   "clinic-roundtrip.spec.ts": 3,
+  "student-parent-account-realuse.spec.ts": 1,
   "student-parent-assessment-realuse.spec.ts": 1,
+  "student-parent-clinic-realuse.spec.ts": 1,
+  "student-parent-community-realuse.spec.ts": 1,
   "student-parent-homework-realuse.spec.ts": 1,
+  "student-parent-learning-realuse.spec.ts": 1,
+  "student-parent-storage-realuse.spec.ts": 1,
   "video-playback-renewal.realuse.spec.ts": 1,
 };
 const LONG_VIDEO_CHECKPOINT_STAGES = [

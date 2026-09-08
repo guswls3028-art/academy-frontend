@@ -255,12 +255,7 @@ export default function SubmitScorePage() {
         </div>
 
         {profileLoading && <div className="stu-muted">프로필 불러오는 중…</div>}
-        {!profileLoading && profile?.isParentReadOnly && (
-          <div role="alert" className={`${styles.alert} ${styles.alertMuted}`}>
-            학부모 계정은 성적표를 제출할 수 없습니다. 자녀(학생) 계정으로 로그인해 주세요.
-          </div>
-        )}
-        {!profileLoading && profile && !ps && !profile.isParentReadOnly && (
+        {!profileLoading && profile && !ps && (
           <div role="alert" className={`${styles.alert} ${styles.alertPlain}`}>
             제출 기능을 사용할 수 없습니다. 관리자에게 문의해 주세요.
           </div>
@@ -277,8 +272,7 @@ export default function SubmitScorePage() {
           </div>
         )}
 
-        {!profile?.isParentReadOnly && (
-          <>
+        <>
             <section className={styles.formSection} aria-labelledby="score-source-title">
               <header className={styles.formHeader}>
                 <span>01</span>
@@ -379,8 +373,7 @@ export default function SubmitScorePage() {
             <button type="button" disabled={!canSubmit || uploadMut.isPending} onClick={() => uploadMut.mutate()} className={`stu-btn stu-btn--primary ${styles.submitButton}`}>
               {uploadMut.isPending ? "성적표 보내는 중…" : "성적표 보내기"}
             </button>
-          </>
-        )}
+        </>
 
         <section className={styles.recent} aria-labelledby="recent-score-title">
           <div className={styles.recentTitle}><h2 id="recent-score-title">최근 제출</h2><span>확인된 성적만 통계에 반영됩니다.</span></div>

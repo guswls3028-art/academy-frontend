@@ -42,6 +42,7 @@ type MockState = {
   changePayloads: Array<Record<string, unknown>>;
   sessions?: Array<Record<string, unknown>>;
   availability?: Record<number, Record<string, unknown>>;
+  cancelNotificationFailed?: number;
 };
 
 type IdcardMockControl = {
@@ -301,7 +302,7 @@ async function installApi(
         status: "cancelled",
         notification: {
           requested: 2,
-          failed: 0,
+          failed: state.cancelNotificationFailed ?? 0,
           send_to: "both",
           targets: [
             { target: "parent", requested: true },
@@ -739,7 +740,28 @@ test.describe("학생 클리닉 예약 UX", () => {
       .click();
 
     await expect.poll(() => state.cancelledIds).toEqual([503]);
-    await expect(page.getByText("예약이 취소되었고 학생·학부모님께 알림톡을 요청했습니다.")).toBeVisible();
+    await expect(page.getByText("예약 취소가 저장되었습니다. 학생·학부모 안내 알림톡도 접수되었습니다.")).toBeVisible();
+  });
+
+  test("취소 알림 지연은 조교 확인으로 끝내지 않고 durable 자동 재시도 상태를 보여준다", async ({ page }) => {
+    const state = createState();
+    state.cancelNotificationFailed = 1;
+    await seed(page);
+    await installApi(page, state);
+    await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+
+    await page.getByRole("tab", { name: "내 일정 1" }).click();
+    const bookingCard = page.locator("article").filter({ hasText: "대수 오답 클리닉" });
+    await bookingCard.getByRole("button", { name: "예약 취소" }).click();
+    await page.getByRole("alertdialog", { name: "예약 취소" })
+      .getByRole("button", { name: "예약 취소" })
+      .click();
+
+    await expect(page.getByText("예약 취소가 저장되었습니다. 안내 알림톡은 자동 재시도 대기 중입니다.")).toBeVisible();
+    await expect(page.getByText(/조교.*확인/)).toHaveCount(0);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: /내 일정/ }).click();
+    await expect(page.locator("article").filter({ hasText: "대수 오답 클리닉" })).toHaveCount(0);
   });
 
   test("확정 예약은 서버 판정에 따라 직접 취소하거나 정확한 제한 이유를 보여준다", async ({ page }) => {

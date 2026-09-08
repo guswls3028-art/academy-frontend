@@ -22,9 +22,11 @@ function fakeJwt(): string {
 
 async function installStudentApi(
   page: Page,
-  state: { failSubmit?: boolean; failAttachment?: boolean } = {},
+  state: { failSubmit?: boolean; failAttachment?: boolean; parent?: boolean } = {},
 ) {
   const token = fakeJwt();
+  const posts: Array<Record<string, unknown>> = [];
+  const writeHeaders: Array<{ studentId?: string; body: Record<string, unknown> }> = [];
   await page.addInitScript(({ jwt }) => {
     localStorage.setItem("access", jwt);
     localStorage.setItem("refresh", `${jwt}-refresh`);
@@ -42,10 +44,26 @@ async function installStudentApi(
       return json({ tenantCode: "hakwonplus", display_name: "학원플러스", is_active: true, ui_config: {}, feature_flags: {} });
     }
     if (path.endsWith("/core/me/")) {
-      return json({ id: AUTH_USER_ID, username: "student-12", name: "김하늘", is_staff: false, is_superuser: false, tenantRole: "student", linkedStudents: [] });
+      return json({
+        id: AUTH_USER_ID,
+        username: state.parent ? "parent-912" : "student-12",
+        name: state.parent ? "학부모" : "김하늘",
+        is_staff: false,
+        is_superuser: false,
+        tenantRole: state.parent ? "parent" : "student",
+        linkedStudents: state.parent ? [{ id: 12, name: "김하늘" }, { id: 13, name: "김바다" }] : [],
+      });
     }
     if (path.endsWith("/student/me/")) {
-      return json({ id: 12, username: "student-12", name: "김하늘", displayName: "김하늘", is_student: true, isParentReadOnly: false });
+      const selectedId = Number(request.headers()["x-student-id"] || 12);
+      return json({
+        id: selectedId,
+        username: `student-${selectedId}`,
+        name: selectedId === 13 ? "김바다" : "김하늘",
+        displayName: selectedId === 13 ? "김바다" : "김하늘",
+        is_student: true,
+        isParentReadOnly: Boolean(state.parent),
+      });
     }
     if (path.endsWith("/student/video/me/")) {
       return json({ lectures: [{ id: 71, title: "고1 수학" }] });
@@ -57,20 +75,29 @@ async function installStudentApi(
       return json([]);
     }
     if (path.endsWith("/community/posts/") && request.method() === "GET") {
-      return json({ count: 0, next: null, previous: null, results: [] });
+      const selectedId = Number(request.headers()["x-student-id"] || 12);
+      const postType = new URL(request.url()).searchParams.get("post_type");
+      const results = posts.filter((post) => post.created_by === selectedId && (!postType || post.post_type === postType));
+      return json({ count: results.length, next: null, previous: null, results });
     }
     if (path.endsWith("/community/posts/") && request.method() === "POST") {
       if (state.failSubmit) return json({ detail: "질문 전송 실패" }, 503);
-      return json({
-        id: 901,
-        post_type: "qna",
-        title: "저장된 질문",
-        content: "<p>저장된 본문</p>",
-        created_by: 12,
+      const body = request.postDataJSON() as Record<string, unknown>;
+      const selectedId = Number(request.headers()["x-student-id"] || 12);
+      writeHeaders.push({ studentId: request.headers()["x-student-id"], body });
+      const post = {
+        id: 901 + posts.length,
+        post_type: body.post_type,
+        title: body.title,
+        content: body.content,
+        created_by: selectedId,
+        author_role: state.parent ? "parent" : "student",
         created_at: "2026-08-25T10:00:00+09:00",
         mappings: [],
         attachments: [],
-      }, 201);
+      };
+      posts.push(post);
+      return json(post, 201);
     }
     if (path.endsWith("/attachments/") && request.method() === "POST") {
       if (state.failAttachment) return json({ detail: "첨부 업로드 실패" }, 503);
@@ -78,6 +105,7 @@ async function installStudentApi(
     }
     return json({ count: 0, next: null, previous: null, results: [] });
   });
+  return { writeHeaders };
 }
 
 async function openForm(page: Page, tab: "QnA" | "상담") {
@@ -350,5 +378,39 @@ test.describe("학생 커뮤니티 durable draft", () => {
 
     await page.getByRole("button", { name: "질문 보내기", exact: true }).click();
     await expect.poll(() => readDraft(page, QNA_KEY)).toBeNull();
+  });
+
+  test("학부모는 선택 자녀로 질문·상담을 작성하고 자녀별 초안과 reload 결과를 격리한다", async ({ page }) => {
+    const harness = await installStudentApi(page, { parent: true });
+    await openForm(page, "QnA");
+    await expect(page.getByText("학부모 계정은 질문 작성이 제한됩니다")).toHaveCount(0);
+    await page.getByPlaceholder("질문 제목").fill("하늘이 질문");
+    await page.locator(".ProseMirror").fill("학부모가 선택 자녀로 보냅니다.");
+    await flushPageDraft(page);
+    const firstChildKey = `student-community-draft:qna:student-12:hakwonplus:user:${AUTH_USER_ID}`;
+    expect((await readDraft(page, firstChildKey)).data.title).toBe("하늘이 질문");
+
+    await page.getByRole("button", { name: "질문 보내기", exact: true }).click();
+    await expect(page.getByText("하늘이 질문", { exact: true })).toBeVisible();
+    expect(harness.writeHeaders[0]).toMatchObject({ studentId: "12", body: { created_by: 12, post_type: "qna" } });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "QnA", exact: true }).click();
+    await expect(page.getByText("하늘이 질문", { exact: true })).toBeVisible();
+
+    await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: "김바다" }).click();
+    await page.goto(`${BASE}/student/community`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "QnA", exact: true }).click();
+    await expect(page.getByText("하늘이 질문", { exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "질문하기", exact: true }).click();
+    await expect(page.getByPlaceholder("질문 제목")).toHaveValue("");
+    await page.getByRole("button", { name: "뒤로", exact: true }).click();
+    await page.getByRole("button", { name: "상담", exact: true }).click();
+    await page.getByRole("button", { name: "상담 신청하기", exact: true }).click();
+    await page.getByPlaceholder("예: 진로 상담, 학습 방법 상담").fill("바다 상담");
+    await page.locator(".ProseMirror").fill("선택 자녀 상담 내용입니다.");
+    await page.getByRole("button", { name: "상담 신청하기", exact: true }).click();
+    await expect(page.getByText("바다 상담", { exact: true })).toBeVisible();
+    expect(harness.writeHeaders[1]).toMatchObject({ studentId: "13", body: { created_by: 13, post_type: "counsel" } });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
   });
 });

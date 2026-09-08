@@ -74,6 +74,26 @@ async function selectedGet<T>(
   return await response.json() as T;
 }
 
+async function selectedPost<T>(
+  request: APIRequestContext,
+  token: string,
+  path: string,
+  selectedStudentId: number,
+  data: Record<string, unknown>,
+): Promise<T> {
+  const response = await request.post(`${QA_API}/api/v1${path}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "X-Tenant-Code": QA_TENANT,
+      "X-Student-Id": String(selectedStudentId),
+    },
+    data,
+    timeout: 60_000,
+  });
+  expect([200, 201], `selected child POST ${path}`).toContain(response.status());
+  return await response.json() as T;
+}
+
 async function cleanup(request: APIRequestContext): Promise<void> {
   if (!created.adminAccess) return;
   const failures: string[] = [];
@@ -221,8 +241,8 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
 
     const primaryTokens = await loginApi(request, primary.ps_number, primary.password);
     await expectApi(request, "POST", `/student/video/videos/${created.videoId}/progress/`, primaryTokens.access, {
-      progress: 40,
-      last_position: 120,
+      progress: 20,
+      last_position: 60,
       enrollment_id: created.enrollmentIds[0],
     }, [200, 201]);
 
@@ -232,7 +252,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
       `/student/video/sessions/${created.sessionId}/videos/?enrollment=${created.enrollmentIds[0]}`,
       primaryTokens.access,
     );
-    expect(primaryVideos.items.find((video) => video.id === created.videoId)?.progress).toBeGreaterThanOrEqual(40);
+    expect(primaryVideos.items.find((video) => video.id === created.videoId)?.progress).toBeGreaterThanOrEqual(20);
 
     await page.setViewportSize({ width: 390, height: 844 });
     await loginThroughUi(page, primary.ps_number, primary.password);
@@ -252,7 +272,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
       { timeout: 30_000 },
     );
     await expect(page.getByText(videoTitle, { exact: true })).toBeVisible();
-    await expect(page.getByText("40% 진행", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("20% 진행", { exact: true }).first()).toBeVisible();
 
     await gotoAndSettle(page, `${QA_BASE}/student/community`, { timeout: 30_000 });
     await page.getByRole("button", { name: "자료실" }).click();
@@ -264,6 +284,25 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     await logoutStudentApp(page);
     await loginThroughUi(page, created.family.parentPhone, created.family.parentPassword);
     const parentTokens = await loginApi(request, created.family.parentPhone, created.family.parentPassword);
+    const parentProgress = await selectedPost<{
+      progress: number;
+      progress_percent?: number;
+      last_position: number;
+      enrollment_id: number;
+    }>(
+      request,
+      parentTokens.access,
+      `/student/video/videos/${created.videoId}/progress/`,
+      primary.id,
+      {
+        progress: 55,
+        last_position: 165,
+        enrollment_id: created.enrollmentIds[0],
+      },
+    );
+    expect(parentProgress.enrollment_id).toBe(created.enrollmentIds[0]);
+    expect(parentProgress.progress_percent ?? parentProgress.progress).toBeGreaterThanOrEqual(55);
+    expect(parentProgress.last_position).toBe(165);
     const primaryAttendance = await selectedGet<{
       recent: Array<{ lecture_title: string; status: string }>;
     }>(request, parentTokens.access, "/student/attendance/summary/", primary.id);
@@ -277,10 +316,19 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
       `/student/video/sessions/${created.sessionId}/videos/?enrollment=${created.enrollmentIds[0]}`,
       primary.id,
     );
-    expect(parentPrimaryVideos.items.find((video) => video.id === created.videoId)?.progress).toBeGreaterThanOrEqual(40);
+    expect(parentPrimaryVideos.items.find((video) => video.id === created.videoId)?.progress).toBeGreaterThanOrEqual(55);
 
     await gotoAndSettle(page, `${QA_BASE}/student/attendance`, { timeout: 30_000 });
     await expect(page.getByRole("link").filter({ hasText: lectureTitle }).first()).toContainText("출석");
+    await gotoAndSettle(
+      page,
+      `${QA_BASE}/student/video/sessions/${created.sessionId}?enrollment=${created.enrollmentIds[0]}`,
+      { timeout: 30_000 },
+    );
+    await expect(page.getByText("55% 진행", { exact: true }).first()).toBeVisible();
+    await page.getByText(videoTitle, { exact: true }).click();
+    await expect(page.getByRole("heading", { name: videoTitle })).toBeVisible();
+    await page.goBack({ waitUntil: "domcontentloaded" });
     const siblingTab = page.getByRole("tab", { name: sibling.name });
     await siblingTab.click();
     await gotoAndSettle(page, `${QA_BASE}/student/attendance`, { timeout: 30_000 });
@@ -306,6 +354,22 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     await logoutStudentApp(page);
     await loginThroughUi(page, created.family.parentPhone, created.family.parentPassword);
     await expect(page.getByRole("tab", { name: sibling.name })).toHaveAttribute("aria-selected", "true");
+    await page.getByRole("tab", { name: primary.name }).click();
+    await gotoAndSettle(
+      page,
+      `${QA_BASE}/student/video/sessions/${created.sessionId}?enrollment=${created.enrollmentIds[0]}`,
+      { timeout: 30_000 },
+    );
+    await expect(page.getByText("55% 진행", { exact: true }).first()).toBeVisible();
+
+    await logoutStudentApp(page);
+    await loginThroughUi(page, primary.ps_number, primary.password);
+    await gotoAndSettle(
+      page,
+      `${QA_BASE}/student/video/sessions/${created.sessionId}?enrollment=${created.enrollmentIds[0]}`,
+      { timeout: 30_000 },
+    );
+    await expect(page.getByText("55% 진행", { exact: true }).first()).toBeVisible();
 
     await page.setViewportSize({ width: 1366, height: 900 });
     await gotoAndSettle(page, `${QA_BASE}/student/community`, { timeout: 30_000 });

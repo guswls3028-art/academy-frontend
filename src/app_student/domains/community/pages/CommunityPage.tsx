@@ -16,6 +16,7 @@ import { formatCompactFileSize as formatAttachmentSize } from "@/shared/utils/fi
 import useAuth from "@/auth/hooks/useAuth";
 import { useDurableDraft, type DurableDraftStatus } from "@/shared/hooks/useDurableDraft";
 import { getTenantUserLocalKey } from "@/shared/utils/safeLocalStorage";
+import { getParentStudentId } from "@student/shared/api/parentStudentSelection";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
 import { fetchVideoMe } from "@student/domains/video/api/video.api";
 import { useMarkNotificationsSeen } from "@student/domains/notifications/hooks/useSeenNotifications";
@@ -386,16 +387,14 @@ function QnaTab({
 
   return (
     <div className="community-stack">
-      {!profile?.isParentReadOnly && (
-        <button
-          type="button"
-          className="stu-btn stu-btn--primary community-primary-action"
-          onClick={onForm}
-        >
-          <IconPlus className="community-icon-sm" />
-          질문하기
-        </button>
-      )}
+      <button
+        type="button"
+        className="stu-btn stu-btn--primary community-primary-action"
+        onClick={onForm}
+      >
+        <IconPlus className="community-icon-sm" />
+        질문하기
+      </button>
 
       <SegmentedTabs
         items={[
@@ -586,6 +585,11 @@ function isStudentCommunityDraftEmpty(value: StudentCommunityDraftData): boolean
     && !(value.attachments?.length);
 }
 
+function communityDraftStorageKey(kind: "qna" | "counsel", userId: number | undefined, parent: boolean): string | null {
+  const childScope = parent ? `:student-${getParentStudentId() ?? "unselected"}` : "";
+  return getTenantUserLocalKey(`student-community-draft:${kind}${childScope}`, userId);
+}
+
 function draftStatusText(status: DurableDraftStatus, savedAt: number | null): string | null {
   if (status === "saving") return "이 브라우저에 초안 저장 중…";
   if (status === "saved") {
@@ -671,7 +675,7 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
     attachments: attachmentMeta,
   }), [attachmentMeta, attachmentReselectRequired, categoryLabel, content, title]);
   const qnaDraft = useDurableDraft({
-    storageKey: getTenantUserLocalKey("student-community-draft:qna", user?.id),
+    storageKey: communityDraftStorageKey("qna", user?.id, Boolean(profile?.isParentReadOnly)),
     value: qnaDraftValue,
     isEmpty: isStudentCommunityDraftEmpty,
     isValid: isStudentCommunityDraftData,
@@ -754,14 +758,6 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
           description="작성 권한을 확인한 뒤 질문을 보낼 수 있습니다."
           onRetry={() => void profileQ.refetch()}
         />
-      </StudentPageShell>
-    );
-  }
-
-  if (profile?.isParentReadOnly) {
-    return (
-      <StudentPageShell title="질문 보내기" onBack={onBack}>
-        <EmptyState title="학부모 계정은 질문 작성이 제한됩니다" description="학생 계정으로 로그인하면 질문을 등록할 수 있습니다." />
       </StudentPageShell>
     );
   }
@@ -967,16 +963,14 @@ function CounselTab({
 
   return (
     <div className="community-stack">
-      {!profile?.isParentReadOnly && (
-        <button
-          type="button"
-          className="stu-btn stu-btn--primary community-primary-action"
-          onClick={onForm}
-        >
-          <IconPlus className="community-icon-sm" />
-          상담 신청하기
-        </button>
-      )}
+      <button
+        type="button"
+        className="stu-btn stu-btn--primary community-primary-action"
+        onClick={onForm}
+      >
+        <IconPlus className="community-icon-sm" />
+        상담 신청하기
+      </button>
 
       <SegmentedTabs
         items={[
@@ -1134,7 +1128,7 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
     attachments: attachmentMeta,
   }), [attachmentMeta, attachmentReselectRequired, categoryLabel, content, title]);
   const counselDraft = useDurableDraft({
-    storageKey: getTenantUserLocalKey("student-community-draft:counsel", user?.id),
+    storageKey: communityDraftStorageKey("counsel", user?.id, Boolean(profile?.isParentReadOnly)),
     value: counselDraftValue,
     isEmpty: isStudentCommunityDraftEmpty,
     isValid: isStudentCommunityDraftData,
@@ -1206,14 +1200,6 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
           description="작성 권한을 확인한 뒤 상담을 신청할 수 있습니다."
           onRetry={() => void profileQ.refetch()}
         />
-      </StudentPageShell>
-    );
-  }
-
-  if (profile?.isParentReadOnly) {
-    return (
-      <StudentPageShell title="상담 신청" onBack={onBack}>
-        <EmptyState title="학부모 계정은 상담 작성이 제한됩니다" description="학생 계정으로 로그인하면 상담을 신청할 수 있습니다." />
       </StudentPageShell>
     );
   }

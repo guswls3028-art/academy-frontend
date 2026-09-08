@@ -279,9 +279,9 @@ export default function ClinicPage() {
       queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.notificationCounts });
       if (changingBookingId === id) setChangingBookingId(null);
       if ((data.notification?.failed ?? 0) > 0) {
-        studentToast.info("예약은 취소되었습니다. 일부 알림톡은 학원에서 확인합니다.");
+        studentToast.info("예약 취소가 저장되었습니다. 안내 알림톡은 자동 재시도 대기 중입니다.");
       } else {
-        studentToast.success("예약이 취소되었고 학생·학부모님께 알림톡을 요청했습니다.");
+        studentToast.success("예약 취소가 저장되었습니다. 학생·학부모 안내 알림톡도 접수되었습니다.");
       }
     },
     onError: (error: AxiosError<ApiErrorBody>) => {
