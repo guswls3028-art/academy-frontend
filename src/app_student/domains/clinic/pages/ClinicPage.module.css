@@ -848,6 +848,14 @@
   gap: 6px;
 }
 
+.pendingActions {
+  display: flex;
+  max-width: 180px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
 .bookingActions button {
   min-height: 44px;
   padding: 5px 8px;
@@ -1001,8 +1009,9 @@
   }
 
   .bookingActions,
+  .pendingActions,
   .approvedActions,
-  .selfCancelHelp {
+  .approvedActions .selfCancelHelp {
     grid-column: 1 / -1;
   }
 
@@ -1011,6 +1020,7 @@
     justify-content: flex-end;
   }
 
+  .pendingActions,
   .approvedActions {
     max-width: none;
   }
