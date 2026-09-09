@@ -18,12 +18,17 @@ test("student-parent real-use creation follows mandatory account notice policy",
   const source = readFileSync(new URL("../../e2e/helpers/qaStudentParentScenario.ts", import.meta.url), "utf8");
   assert.match(source, /initial_password:\s*QA_STUDENT_PASSWORD/);
   assert.doesNotMatch(source, /send_welcome_message:\s*false/);
+  assert.doesNotMatch(source, /core\/change-password/);
+  assert.match(source, /await loginApi\(request, student\.ps_number, student\.password\)/);
+  assert.match(source, /await loginApi\(request, parentPhone, QA_STUDENT_PASSWORD\)/);
 });
 
 test("long-video proof propagates strict context teardown failures", () => {
   const source = readFileSync(new URL("../../e2e/student/video-playback-renewal.realuse.spec.ts", import.meta.url), "utf8");
   assert.doesNotMatch(source, /Promise\.allSettled\(runs\.map\(\(\{ context \}\) => context\.close\(\)\)\)/);
   assert.match(source, /await Promise\.all\(runs\.map\(\(\{ context \}\) => context\.close\(\)\)\)/);
+  assert.match(source, /const bootstrap = state\.bootstraps\.at\(-1\);/);
+  assert.doesNotMatch(source, /const bootstrap = state\.bootstraps\[0\];/);
 });
 
 test("each run has an independent non-published ownership capability", () => {

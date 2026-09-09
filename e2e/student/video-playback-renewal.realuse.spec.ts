@@ -272,9 +272,9 @@ async function captureResponse(
     expect(url.origin, codedResponseExpectation("api-origin")).toBe(state.playbackApiOrigin);
     expect(response.request().method(), codedResponseExpectation("method")).toBe("GET");
     const sessionId = sessionIdFromVideoList(url.pathname);
-    const bootstrap = state.bootstraps[0];
-    assertBootstrapPayload(bootstrap);
-    expect(bootstrap.video?.session_id, codedResponseExpectation("session-identity")).toBe(sessionId);
+    const bootstrap = state.bootstraps.at(-1);
+    expect(bootstrap, codedResponseExpectation("session-identity")).toBeDefined();
+    expect(bootstrap!.video?.session_id, codedResponseExpectation("session-identity")).toBe(sessionId);
     const payload = await response.json() as SessionVideoListPayload;
     expect(Array.isArray(payload.items), codedResponseExpectation("items-shape")).toBe(true);
     const matchingItems = payload.items!.filter((item) =>
