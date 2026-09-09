@@ -999,6 +999,7 @@ function AttemptTimeline({
           enrollmentId,
           score: params.score,
           maxScore: params.maxScore,
+          attemptIndex: 1,
         });
       } else {
         if (!sessionId) throw new Error("sessionId가 필요합니다.");
