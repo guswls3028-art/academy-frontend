@@ -211,6 +211,17 @@ async function stubAccountApp(
     });
   });
 
+  await page.route("**/api/v1/token/", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        access: createE2eJwt(),
+        refresh: "mock-account-relogin-refresh",
+      }),
+    });
+  });
+
   await page.route("**/api/v1/core/profile/update_me/", async (route) => {
     onProfileUpdate?.(route.request().postDataJSON() as Record<string, unknown>);
     await route.fulfill({
@@ -593,7 +604,7 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
     expect(await readAuthEnvelope(page)).toBeNull();
   });
 
-  test("임시 비밀번호 첫 로그인은 변경을 권장하되 나중에를 선택하면 계속 이용한다", async ({ page }) => {
+  test("임시 비밀번호 권장을 미루면 현재 인증 세션에서는 계속 이용하고 새 로그인에는 다시 안내한다", async ({ page }) => {
     await stubAccountApp(page, { mustChangePassword: true, tenantRole: "owner" });
 
     await gotoAndSettle(page, `${BASE}/workspace/dashboard`, { timeout: 20_000 });
@@ -606,13 +617,74 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
     await expect(dialog).not.toBeVisible();
     await expect.poll(() => page.evaluate(() => document.body.style.overflow)).toBe("");
     await expect(page).toHaveURL(`${BASE}/workspace/dashboard`);
+    expect(await page.evaluate(() => localStorage.getItem(
+      "academy:password-recommendation-dismissal:v1:hakwonplus:user:12",
+    ))).toBe("account-app-generation");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
+    await gotoAndSettle(page, `${BASE}/workspace/settings/profile`, { timeout: 20_000 });
+    await expect(dialog).toHaveCount(0);
+
     await page.reload();
-    const reopenedDialog = page.getByRole("dialog", { name: "비밀번호 변경 권장" });
-    await expect(reopenedDialog).toBeVisible();
-    await reopenedDialog.press("Escape");
-    await expect(reopenedDialog).not.toBeVisible();
+    await expect(dialog).toHaveCount(0);
+
+    await page.getByRole("button", { name: "로그아웃", exact: true }).click();
+    await expect(page).toHaveURL(/\/login(?:\/|$)/);
+    await page.getByTestId("login-username").fill("t1_admin97");
+    await page.getByTestId("login-password").fill("temporary-password");
+    await page.getByTestId("login-submit").click();
+    await expect(page).toHaveURL(/\/workspace(?:\/|$)/);
+    await expect(page.getByRole("dialog", { name: "비밀번호 변경 권장" })).toBeVisible();
+  });
+
+  test("권장 미루기 저장소를 읽을 수 없어도 현재 화면을 막지 않고 새로고침에는 실패 폐쇄한다", async ({ page }) => {
+    await stubAccountApp(page, { mustChangePassword: true, tenantRole: "owner" });
+    await gotoAndSettle(page, `${BASE}/workspace/dashboard`, { timeout: 20_000 });
+
+    const dialog = page.getByRole("dialog", { name: "비밀번호 변경 권장" });
+    await expect(dialog).toBeVisible();
+    await page.evaluate(() => {
+      const originalGetItem = Storage.prototype.getItem;
+      Storage.prototype.getItem = function getItem(key: string) {
+        if (key === "academy:auth-active-generation:v1") {
+          throw new DOMException("Storage blocked", "SecurityError");
+        }
+        return originalGetItem.call(this, key);
+      };
+    });
+
+    await dialog.getByRole("button", { name: "위험을 이해했고 나중에" }).click();
+    await expect(dialog).toHaveCount(0);
+
+    await page.reload();
+    await expect(page.getByRole("dialog", { name: "비밀번호 변경 권장" })).toBeVisible();
+  });
+
+  test("화면 표시 뒤 인증 generation이 바뀌면 이전 세션의 미루기로 새 로그인을 숨기지 않는다", async ({ page }) => {
+    await stubAccountApp(page, { mustChangePassword: true, tenantRole: "owner" });
+    await gotoAndSettle(page, `${BASE}/workspace/dashboard`, { timeout: 20_000 });
+
+    const dialog = page.getByRole("dialog", { name: "비밀번호 변경 권장" });
+    await expect(dialog).toBeVisible();
+    await page.evaluate(({ token, pointerKey, generationPrefix }) => {
+      const generation = "replacement-account-generation";
+      localStorage.setItem(`${generationPrefix}${generation}`, JSON.stringify({
+        access: token,
+        refresh: "replacement-account-refresh",
+        generation,
+      }));
+      localStorage.setItem(pointerKey, generation);
+    }, {
+      token: createE2eJwt(),
+      pointerKey: AUTH_ACTIVE_GENERATION_KEY,
+      generationPrefix: AUTH_GENERATION_PREFIX,
+    });
+
+    await dialog.getByRole("button", { name: "위험을 이해했고 나중에" }).click();
+    await expect(dialog).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem(
+      "academy:password-recommendation-dismissal:v1:hakwonplus:user:12",
+    ))).toBeNull();
   });
 
   test("권장 화면에서 비밀번호를 바꾸면 공통 API 뒤 재로그인한다", async ({ page }) => {

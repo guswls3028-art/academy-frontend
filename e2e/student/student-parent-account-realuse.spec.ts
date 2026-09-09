@@ -17,11 +17,12 @@ import {
   logoutStudentApp,
   QA_BASE,
   QA_TENANT,
+  reloadStudentApp,
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
 } from "../helpers/qaStudentParentScenario";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
-import { gotoAndSettle, waitForCondition, waitForRenderSettled } from "../helpers/wait";
+import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 
 test.setTimeout(300_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -105,10 +106,10 @@ test.describe.serial("[real-use] 학생/학부모 계정과 복구", () => {
     await loginApi(request, student.ps_number, student.password);
     await loginApi(request, family.parentPhone, family.parentPassword);
     await loginThroughUi(page, student.ps_number, student.password);
-    await expect(page.locator(".stu-topbar__name")).toContainText(student.name);
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await waitForRenderSettled(page, { timeout: 20_000 });
-    await expect(page.locator(".stu-topbar__name")).toContainText(student.name);
+    await gotoAndSettle(page, `${QA_BASE}/student/profile`, { timeout: 30_000 });
+    await expect(page.getByText(student.name, { exact: true }).first()).toBeVisible();
+    await reloadStudentApp(page);
+    await expect(page.getByText(student.name, { exact: true }).first()).toBeVisible();
 
     await logoutStudentApp(page);
     await loginThroughUi(page, family.parentPhone, family.parentPassword);

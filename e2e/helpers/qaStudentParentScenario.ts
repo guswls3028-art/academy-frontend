@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import type { APIRequestContext, Page } from "@playwright/test";
 import { expect } from "../fixtures/strictTest";
-import { acknowledgeFirstLoginGuideIfVisible } from "./firstLoginGuide";
+import { acknowledgeInitialAccountPromptsIfVisible } from "./firstLoginGuide";
 import {
   installReleaseContextGuard,
   installReleaseRequestGuard,
@@ -25,6 +25,10 @@ export type QaFamily = {
   parentPhone: string;
   parentPassword: string;
   students: QaStudent[];
+};
+
+type QaFamilyOptions = {
+  withStudentPhones?: boolean;
 };
 
 type ApiResult<T> = { status: number; body: T };
@@ -167,7 +171,13 @@ export async function loginThroughUi(
   await page.getByTestId("login-password").fill(password);
   await page.getByTestId("login-submit").click();
   await expect(page).toHaveURL(/\/student(?:\/|$)/, { timeout: 45_000 });
-  await acknowledgeFirstLoginGuideIfVisible(page);
+  await acknowledgeInitialAccountPromptsIfVisible(page);
+  await waitForRenderSettled(page, { timeout: 20_000 });
+}
+
+export async function reloadStudentApp(page: Page): Promise<void> {
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await acknowledgeInitialAccountPromptsIfVisible(page);
   await waitForRenderSettled(page, { timeout: 20_000 });
 }
 
@@ -184,6 +194,7 @@ export async function createQaFamily(
   adminAccess: string,
   scenarioKey: string,
   childCount: 1 | 2,
+  options: QaFamilyOptions = {},
 ): Promise<QaFamily> {
   const slug = stableDigits(`${QA_TENANT}:${scenarioKey}`, 8);
   const parentPhone = `010${slug}`;
@@ -191,11 +202,14 @@ export async function createQaFamily(
 
   try {
     for (let index = 1; index <= childCount; index += 1) {
+      const studentPhone = options.withStudentPhones
+        ? `010${stableDigits(`${QA_TENANT}:${scenarioKey}:student:${index}`, 8)}`
+        : "";
       const createdStudent = await expectApi<Omit<QaStudent, "password">>(request, "POST", "/students/", adminAccess, {
         name: `QA ${scenarioKey} 자녀 ${index}`,
         ps_number: `qa-sp-${scenarioKey}-${slug.slice(-4)}-${index}`,
-        no_phone: true,
-        phone: "",
+        no_phone: !studentPhone,
+        phone: studentPhone,
         parent_phone: parentPhone,
         initial_password: QA_STUDENT_PASSWORD,
         school_type: "HIGH",
@@ -255,6 +269,17 @@ export async function createQaFamily(
     parentPassword: QA_STUDENT_PASSWORD,
     students,
   };
+}
+
+export async function selectParentStudentThroughUi(page: Page, student: QaStudent): Promise<void> {
+  const tab = page
+    .getByRole("tablist", { name: "자녀 선택" })
+    .getByRole("tab", { name: student.name, exact: true });
+  await expect(tab).toBeVisible();
+  if (await tab.getAttribute("aria-selected") !== "true") {
+    await tab.click();
+  }
+  await expect(tab).toHaveAttribute("aria-selected", "true");
 }
 
 export async function assertAuthoritativeStudent(

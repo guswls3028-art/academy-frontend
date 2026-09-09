@@ -11,11 +11,13 @@ import {
   loginThroughUi,
   logoutStudentApp,
   QA_BASE,
+  reloadStudentApp,
+  selectParentStudentThroughUi,
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
 } from "../helpers/qaStudentParentScenario";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
-import { gotoAndSettle, waitForRenderSettled } from "../helpers/wait";
+import { gotoAndSettle } from "../helpers/wait";
 
 test.setTimeout(300_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -63,6 +65,7 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
 
     await page.setViewportSize({ width: 390, height: 844 });
     await loginThroughUi(page, family.parentPhone, family.parentPassword);
+    await selectParentStudentThroughUi(page, primary);
     await openCommunityTab(page, "QnA");
     await page.getByRole("button", { name: "질문하기", exact: true }).click();
     await page.getByPlaceholder("질문 제목").fill(qnaTitle);
@@ -97,17 +100,16 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
     postIds.push(counsel.id);
     await expect(page.getByText(counselTitle, { exact: true })).toBeVisible();
 
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await waitForRenderSettled(page, { timeout: 20_000 });
+    await reloadStudentApp(page);
     await page.getByRole("button", { name: "상담", exact: true }).click();
     await expect(page.getByText(counselTitle, { exact: true })).toBeVisible();
-    await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: sibling.name }).click();
+    await selectParentStudentThroughUi(page, sibling);
     await openCommunityTab(page, "QnA");
     await expect(page.getByText(qnaTitle, { exact: true })).toHaveCount(0);
     await page.getByRole("button", { name: "상담", exact: true }).click();
     await expect(page.getByText(counselTitle, { exact: true })).toHaveCount(0);
 
-    await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: primary.name }).click();
+    await selectParentStudentThroughUi(page, primary);
     await logoutStudentApp(page);
     await loginThroughUi(page, family.parentPhone, family.parentPassword);
     await openCommunityTab(page, "QnA");

@@ -623,7 +623,10 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
   }, [open, settingsQ.data]);
 
   useEffect(() => {
-    if (bookingMode === "time_range") setAllowMultiSlotBooking(false);
+    if (bookingMode === "time_range") {
+      setAllowMultiSlotBooking(false);
+      setAllowTimePreference(false);
+    }
   }, [bookingMode]);
 
   // 정규형 클리닉일 때만 CLINIC type section 목록 조회
@@ -658,7 +661,7 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
       location: location.trim(),
       max_participants: capacityNum,
       allow_multi_slot_booking: bookingMode === "fixed_slot" && allowMultiSlotBooking,
-      allow_time_preference: allowTimePreference,
+      allow_time_preference: bookingMode === "fixed_slot" && allowTimePreference,
       booking_mode: bookingMode,
       booking_interval_minutes: bookingIntervalMinutes,
       booking_max_stay_minutes: bookingMaxStayMinutes,
@@ -745,6 +748,21 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
             </>
           )}
         </div>
+        {bookingMode === "time_range" && (
+          <div
+            className="text-[11px]"
+            style={{
+              padding: "9px 10px",
+              border: "1px solid var(--tc-border)",
+              borderRadius: "var(--tc-radius-sm)",
+              background: "var(--tc-surface-soft)",
+              color: "var(--tc-text-muted)",
+            }}
+          >
+            학생이 예약 가능한 실제 시작·종료 시간을 직접 선택합니다.
+            별도의 희망 시간 요청은 받지 않습니다.
+          </div>
+        )}
         <div className="flex gap-2">
           <Fld label="장소 *" value={location} onChange={setLocation} placeholder="예: 3층 자습실" />
           <div style={{ width: 80 }}><Fld label="정원 *" value={capacity} onChange={setCapacity} type="number" placeholder="명" /></div>
@@ -776,7 +794,7 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
             </small>
           </span>
         </label>}
-        <label
+        {bookingMode === "fixed_slot" && <label
           className="flex items-start gap-2 cursor-pointer"
           style={{
             padding: "10px",
@@ -799,7 +817,7 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
               학생이 이 시간대 안에서 희망 시작과 종료를 함께 보낼 수 있습니다.
             </small>
           </span>
-        </label>
+        </label>}
         <button onClick={() => mutation.mutate()} disabled={!canSubmit || mutation.isPending}
           className="w-full text-sm font-bold cursor-pointer mt-1"
           style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: canSubmit ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: canSubmit ? "#fff" : "var(--tc-text-muted)" }}>

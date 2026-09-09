@@ -13,11 +13,12 @@ import {
   loginThroughUi,
   logoutStudentApp,
   QA_BASE,
+  reloadStudentApp,
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
 } from "../helpers/qaStudentParentScenario";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
-import { gotoAndSettle, waitForCondition, waitForRenderSettled } from "../helpers/wait";
+import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 
 test.setTimeout(300_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -80,12 +81,15 @@ async function cleanup(request: APIRequestContext): Promise<void> {
       failures.push(`${method} ${path} -> ${String(error)}`);
     }
   };
-  if (participantId) await remove("DELETE", `/clinic/participants/${participantId}/`);
   if (sessionId) await remove("DELETE", `/clinic/sessions/${sessionId}/`);
   await cleanupQaFamily(request, adminAccess, family);
   if (sessionId) {
     const residue = await api(request, "GET", `/clinic/sessions/${sessionId}/`, adminAccess);
     if (residue.status !== 404) failures.push(`verify clinic session ${sessionId} absent -> ${residue.status}`);
+  }
+  if (participantId) {
+    const residue = await api(request, "GET", `/clinic/participants/${participantId}/`, adminAccess);
+    if (residue.status !== 404) failures.push(`verify clinic participant ${participantId} absent -> ${residue.status}`);
   }
   if (failures.length) throw new Error(`student/parent clinic cleanup failed:\n${failures.join("\n")}`);
 }
@@ -107,7 +111,7 @@ test.describe.serial("[real-use] 학생 예약에서 학부모 클리닉 project
     const browser = attachStrictBrowserGuards(page);
     const admin = await loginAdmin(request);
     adminAccess = admin.access;
-    family = await createQaFamily(request, admin.access, "clinic", 1);
+    family = await createQaFamily(request, admin.access, "clinic", 1, { withStudentPhones: true });
     const student = family.students[0];
     const clinicSession = await expectApi<{ id: number }>(request, "POST", "/clinic/sessions/", admin.access, {
       title: sessionTitle,
@@ -153,8 +157,7 @@ test.describe.serial("[real-use] 학생 예약에서 학부모 클리닉 project
     await page.getByRole("tab", { name: /내 일정/ }).click();
     await expect(page.locator("article").filter({ hasText: sessionTitle })).toContainText(bookingMemo);
 
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await waitForRenderSettled(page, { timeout: 20_000 });
+    await reloadStudentApp(page);
     await page.getByRole("tab", { name: /내 일정/ }).click();
     await expect(page.locator("article").filter({ hasText: sessionTitle })).toBeVisible();
     await logoutStudentApp(page);
@@ -187,8 +190,7 @@ test.describe.serial("[real-use] 학생 예약에서 학부모 클리닉 project
       },
     });
     await expect(page.getByText(/예약 취소가 저장되었습니다/)).toBeVisible();
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await waitForRenderSettled(page, { timeout: 20_000 });
+    await reloadStudentApp(page);
     await page.getByRole("tab", { name: /내 일정/ }).click();
     await expect(page.locator("article").filter({ hasText: sessionTitle })).toHaveCount(0);
 

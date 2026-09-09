@@ -243,6 +243,10 @@ profile, 종료 방지, inbound0, SSM Online을 확인한다. 원본 artifact의
 
 같은 카나리는 기본값이 꺼진 backend `SyntheticLongVideo=true` 분기를 명시적으로 선택해
 학생 2명, 강의 2개별 session 1개(`session_ids` 2개), 900초 READY 영상 metadata만 만든다.
+학생·학부모 자녀 격리 시나리오는 `linkedStudents` 배열 순서를 기본 자녀 계약으로
+간주하지 않고, 각 쓰기·조회 전에 화면의 자녀 선택 탭으로 의도한 학생을 명시 선택한다.
+클리닉 취소 시나리오의 학생 연락처는 mock-only 개발 발송의 학생+학부모 2건 접수를
+검증하기 위한 합성 번호이며 운영 공급자나 운영 데이터에 연결하지 않는다.
 러너 메모리의 무음 HLS fixture를
 backend가 실제 반환한 `qa-fixtures/video-long/master.m3u8` signed URL에만 연결하며 R2에는
 객체를 쓰지 않는다. READY fallback이 생성하는 별도 signed poster도 playback bootstrap과 정확한 session-video 목록 응답에서

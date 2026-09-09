@@ -18,6 +18,8 @@ export async function patchExamTotalScoreQuick(params: {
   enrollmentId: number;
   score: number | null;
   maxScore?: number | null;
+  /** 학생 상세에서 정확한 1차 시험을 수정할 때만 지정 */
+  attemptIndex?: 1;
   /** "NOT_SUBMITTED" = 미응시 (/ + Enter) */
   metaStatus?: "NOT_SUBMITTED" | null;
 }) {
@@ -29,6 +31,7 @@ export async function patchExamTotalScoreQuick(params: {
     payload.score = params.score;
     payload.max_score = params.maxScore ?? null;
   }
+  if (params.attemptIndex != null) payload.attempt_index = params.attemptIndex;
 
   const res = await api.patch(
     `/results/admin/exams/${params.examId}/enrollments/${params.enrollmentId}/score/`,

@@ -34,6 +34,8 @@ async function installApi(
   viewer: Viewer = "student",
   homeworkOverrides: Record<string, unknown> = {},
   reviewLockOnFirstUpload = false,
+  backgroundMediaReadDelayMs = 0,
+  positionRaceUploadAttempts: readonly number[] = [],
 ) {
   test.skip(
     !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE),
@@ -58,10 +60,16 @@ async function installApi(
     removed_at: null,
     created_at: "2026-08-23T00:00:00Z",
   }];
+  const concurrentStudentUpload: Media = {
+    ...files[0],
+    id: "902",
+    original_filename: "학생-POST직전-제출.png",
+  };
   const failedClientIds = new Set<string>();
   const uploadClientIds: string[] = [];
   const studentScopedHeaders: Array<string | undefined> = [];
   let uploadAttempts = 0;
+  let mediaReadCount = 0;
   let currentHomeworkOverrides = homeworkOverrides;
 
   await page.addInitScript((jwt) => {
@@ -127,6 +135,10 @@ async function installApi(
     }
     if (path.endsWith(`/submissions/submissions/homework/${HOMEWORK_ID}/media/`) && request.method() === "GET") {
       studentScopedHeaders.push(request.headers()["x-student-id"]);
+      mediaReadCount += 1;
+      if (mediaReadCount === 2 && backgroundMediaReadDelayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, backgroundMediaReadDelayMs));
+      }
       return json({
         files,
         limits: {
@@ -156,6 +168,27 @@ async function installApi(
       const filename = multipartFilename(body);
       const isVideo = /\.mp4$/i.test(filename);
       uploadClientIds.push(clientId);
+      if (positionRaceUploadAttempts.includes(uploadAttempts)) {
+        files.push({
+          ...concurrentStudentUpload,
+          id: String(901 + uploadAttempts),
+          position: uploadAttempts - 1,
+          original_filename: uploadAttempts === 1
+            ? "학생-POST직전-제출.png"
+            : `학생-재시도직전-${uploadAttempts}.png`,
+        });
+      }
+      const positionOccupied = files.some((file) => (
+        Number(file.position) === position
+        && file.client_file_id !== clientId
+        && file.status !== "removed"
+      ));
+      if (positionOccupied) {
+        return json({
+          code: "HOMEWORK_MEDIA_POSITION_CONFLICT",
+          detail: "다른 제출 파일과 순서가 겹칩니다. 목록을 새로 확인한 뒤 다시 시도해 주세요.",
+        }, 409);
+      }
       await new Promise((resolve) => setTimeout(resolve, uploadAttempts === 1 ? firstUploadDelayMs : 450));
       const payload: Media = {
         id: String(801 + files.length),
@@ -223,6 +256,103 @@ test("학부모가 선택 자녀의 과제를 제출하고 새로고침 뒤에�
   expect(state.getStudentScopedHeaders().every((value) => value === "72")).toBe(true);
   expect(await page.evaluate(() => localStorage.getItem("parent_selected_student_id_hakwonplus"))).toBe("72");
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+});
+
+test("학생이 먼저 올린 직후 학부모는 백그라운드 재조회가 끝난 최신 순서로 제출한다", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const state = await installApi(page, 0, "parent", {}, false, 1_500);
+  const studentUpload = {
+    ...state.files[0],
+    id: "901",
+    original_filename: "학생-먼저-제출.png",
+  };
+  state.files.splice(0);
+
+  await page.goto(`${BASE}/student/submit/assignment`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await expect(page.getByText("0/20", { exact: true })).toBeVisible();
+
+  await page.getByRole("link", { name: "홈", exact: true }).click();
+  await expect(page).toHaveURL(/\/student\/dashboard$/);
+  state.files.push(studentUpload);
+  await page.goBack({ waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(/\/student\/submit\/assignment$/);
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+
+  const fileChooserPromise = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "사진·동영상 여러 개 선택", exact: true }).click();
+  const fileChooser = await fileChooserPromise;
+  await fileChooser.setFiles({
+    name: "학부모-이어서-제출.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("parent-after-student-proof"),
+  });
+  await page.getByRole("button", { name: "파일 1개 제출하기", exact: true }).click();
+
+  await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  expect(state.files.map((file) => file.position)).toEqual([0, 1]);
+  expect(state.getStudentScopedHeaders().length).toBeGreaterThan(0);
+  expect(state.getStudentScopedHeaders().every((value) => value === "72")).toBe(true);
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  const restored = page.getByRole("region", { name: "이미 제출한 파일" });
+  await expect(restored.getByText("학생-먼저-제출.png", { exact: true })).toBeVisible();
+  await expect(restored.getByText("학부모-이어서-제출.png", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem("parent_selected_student_id_hakwonplus"))).toBe("72");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+});
+
+test("목록 조회 직후 학생이 순서를 선점해도 학부모 파일은 한 번 재배정해 제출한다", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const state = await installApi(page, 0, "parent", {}, false, 0, [1]);
+  state.files.splice(0);
+
+  await page.goto(`${BASE}/student/submit/assignment`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "학부모-POST직전-제출.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("parent-post-race-proof"),
+  });
+  await page.getByRole("button", { name: "파일 1개 제출하기", exact: true }).click();
+
+  await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  expect(state.getUploadAttempts()).toBe(2);
+  expect(state.files.map((file) => file.position)).toEqual([0, 1]);
+  expect(state.getStudentScopedHeaders().length).toBeGreaterThan(0);
+  expect(state.getStudentScopedHeaders().every((value) => value === "72")).toBe(true);
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  const restored = page.getByRole("region", { name: "이미 제출한 파일" });
+  await expect(restored.getByText("학생-POST직전-제출.png", { exact: true })).toBeVisible();
+  await expect(restored.getByText("학부모-POST직전-제출.png", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+});
+
+test("재배정 직전에도 순서가 선점되면 자동 재시도는 한 번에서 멈춘다", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const state = await installApi(page, 0, "parent", {}, false, 0, [1, 2]);
+  state.files.splice(0);
+
+  await page.goto(`${BASE}/student/submit/assignment`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "학부모-유한재시도.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("bounded-position-retry"),
+  });
+  await page.getByRole("button", { name: "파일 1개 제출하기", exact: true }).click();
+
+  await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("alert")).toContainText("1개 파일을 올리지 못했습니다.");
+  await expect(page.getByRole("button", { name: "실패한 파일 1개 다시 제출", exact: true })).toBeEnabled();
+  expect(state.getUploadAttempts()).toBe(2);
+  expect(state.files.map((file) => file.position)).toEqual([0, 1]);
 });
 
 test("재응시 통과로 제출 파일이 잠긴 과제는 1차 실패 성적이어도 제출 대상에서 제외한다", async ({ page }) => {
@@ -305,6 +435,7 @@ test("390px에서 사진·동영상을 다건 선택하고 부분 실패만 재�
   await expect(page.getByText(/성공한 파일은 유지되며 이 파일만 다시 시도/)).toBeVisible();
   await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "실패한 파일 1개 다시 제출" })).toBeEnabled();
+  expect(state.getUploadAttempts()).toBe(2);
   const [imageClientId, videoClientId] = state.getUploadClientIds();
   expect(imageClientId).toBeTruthy();
   expect(videoClientId).toBeTruthy();

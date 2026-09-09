@@ -23,6 +23,44 @@ test("student-parent real-use creation follows mandatory account notice policy",
   assert.match(source, /await loginApi\(request, parentPhone, QA_STUDENT_PASSWORD\)/);
 });
 
+test("student-parent real-use selects the intended child and uses supported clinic cleanup", () => {
+  const scenarioSource = readFileSync(new URL("../../e2e/helpers/qaStudentParentScenario.ts", import.meta.url), "utf8");
+  const clinicSource = readFileSync(new URL("../../e2e/student/student-parent-clinic-realuse.spec.ts", import.meta.url), "utf8");
+  const childScopedSpecs = ["assessment", "community", "learning", "storage"].map((name) => (
+    readFileSync(new URL(`../../e2e/student/student-parent-${name}-realuse.spec.ts`, import.meta.url), "utf8")
+  ));
+
+  assert.match(scenarioSource, /export async function selectParentStudentThroughUi/);
+  assert.match(scenarioSource, /withStudentPhones\?: boolean/);
+  for (const source of childScopedSpecs) {
+    assert.match(source, /selectParentStudentThroughUi\(page,/);
+  }
+  assert.match(clinicSource, /createQaFamily\([^;]+\{ withStudentPhones: true \}\)/s);
+  assert.match(clinicSource, /remove\("DELETE", `\/clinic\/sessions\/\$\{sessionId\}\/`\)/);
+  assert.doesNotMatch(clinicSource, /remove\("DELETE", `\/clinic\/participants\//);
+  assert.match(clinicSource, /verify clinic participant \$\{participantId\} absent/);
+});
+
+test("student-parent real-use awaits and dismisses the actual initial-account prompts", () => {
+  const promptSource = readFileSync(new URL("../../e2e/helpers/firstLoginGuide.ts", import.meta.url), "utf8");
+  const scenarioSource = readFileSync(new URL("../../e2e/helpers/qaStudentParentScenario.ts", import.meta.url), "utf8");
+  const accountSource = readFileSync(new URL("../../e2e/student/student-parent-account-realuse.spec.ts", import.meta.url), "utf8");
+  const learningSource = readFileSync(new URL("../../e2e/student/student-parent-learning-realuse.spec.ts", import.meta.url), "utf8");
+  const runnerSource = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+
+  assert.match(promptSource, /getByRole\("dialog", \{ name: "비밀번호 변경 권장" \}\)/);
+  assert.match(promptSource, /waitFor\(\{ state: "visible", timeout: 5_000 \}\)/);
+  assert.match(promptSource, /getByRole\("button", \{ name: "위험을 이해했고 나중에", exact: true \}\)/);
+  assert.doesNotMatch(promptSource, /isVisible\(\{ timeout:/);
+  assert.match(scenarioSource, /await acknowledgeInitialAccountPromptsIfVisible\(page\);/);
+  assert.match(scenarioSource, /export async function reloadStudentApp/);
+  assert.match(accountSource, /gotoAndSettle\(page, `\$\{QA_BASE\}\/student\/profile`/);
+  assert.doesNotMatch(accountSource, /loginThroughUi\(page, student\.ps_number, student\.password\);\s*await expect\(page\.locator\("\.stu-topbar__name"\)\)/s);
+  assert.match(learningSource, /if \(!created\.videoId && created\.sessionId\)/);
+  assert.match(learningSource, /if \(!created\.videoId && created\.lectureId\)/);
+  assert.match(runnerSource, /"firstLoginGuide\.ts"/);
+});
+
 test("long-video proof propagates strict context teardown failures", () => {
   const source = readFileSync(new URL("../../e2e/student/video-playback-renewal.realuse.spec.ts", import.meta.url), "utf8");
   assert.doesNotMatch(source, /Promise\.allSettled\(runs\.map\(\(\{ context \}\) => context\.close\(\)\)\)/);
@@ -612,7 +650,8 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
       bootstrapCount: 1, renewCount: 1, progressCount: 24, latestProgress: 674,
       accessCheckCount: 24, masterLoads: 1, mediaLoads: 2,
       consoleErrorCount: 0, pageErrorCount: 0, requestErrorCount: 0,
-      responseFailureKind: "access", responseFailureCode: "api-origin",
+      responseFailureKind: viewport === "desktop" ? "video-home" : "access",
+      responseFailureCode: "api-origin",
     })),
   } })}\n`;
   assert.deepEqual(runner.observeReleaseTestResult(JSON.stringify(report)).longVideoFailure, {
@@ -621,7 +660,8 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
       accessCheckCount: 24, bootstrapCount: 1, consoleErrorCount: 0, currentTime: 675,
       duration: 900, ended: false, latestProgress: 674, masterLoads: 1, mediaLoads: 2,
       networkState: 1, pageErrorCount: 0, paused: false, progressCount: 24, readyState: 4,
-      renewCount: 1, requestErrorCount: 0, responseFailureKind: "access",
+      renewCount: 1, requestErrorCount: 0,
+      responseFailureKind: viewport === "desktop" ? "video-home" : "access",
       responseFailureCode: "api-origin",
       videoMounted: true, viewport, wallSeconds: 690,
     })),
@@ -815,6 +855,11 @@ test("official runner opts into two-student long-video setup without publishing 
   assert.match(specSource, /item\.id === videoId && item\.session_id === sessionId/);
   assert.match(specSource, /state\.sessionPosterCaptureCount \+= 1/);
   assert.match(specSource, /state\.sessionPosterCaptureCount\)\.toBeGreaterThan\(sessionPosterCapturesBeforeReload\)/);
+  assert.match(specSource, /url\.pathname === "\/api\/v1\/student\/video\/me\/"/);
+  assert.match(specSource, /lecture\.sessions\.some\(\(session\) => session\.id === sessionId\)/);
+  assert.match(specSource, /state\.homePosterCaptureCount \+= 1/);
+  assert.match(specSource, /state\.homePosterCaptureCount\)\.toBeGreaterThan\(homePosterCapturesBeforeExit\)/);
+  assert.match(specSource, /expect\(state\.requestErrorCount\)\.toBe\(0\);\s*expect\(state\.bootstraps\)/s);
   assert.match(posterBridgeSource, /state\.allowedPosterUrls\.has\(rawUrl\)/);
   assert.match(posterBridgeSource, /for \(let attempt = 0; attempt < 60; attempt \+= 1\)/);
   assert.match(posterBridgeSource, /await route\.fallback\(\)/);

@@ -46,7 +46,7 @@ const RELEASE_BOUNDARY_CODES = new Set([
 ]);
 const SAFE_FAILURE_SOURCE_FILES = new Set([
   ...Object.keys(FLOW_COUNTS),
-  "qaStudentParentScenario.ts", "releaseApiBoundary.ts", "strictBrowser.ts", "wait.ts",
+  "firstLoginGuide.ts", "qaStudentParentScenario.ts", "releaseApiBoundary.ts", "strictBrowser.ts", "wait.ts",
 ]);
 const LONG_VIDEO_ERROR_PATTERNS = [
   ["test-timeout", /Test timeout of [0-9]+ms exceeded/i],
@@ -166,7 +166,9 @@ function observeLongVideoFailure(payload) {
   ];
   const nullableNumericKeys = ["currentTime", "duration", "latestProgress", "networkState", "readyState"];
   const nullableBooleanKeys = ["ended", "paused"];
-  const responseCaptureKinds = new Set(["bootstrap", "access", "session-list", "renewal", "progress", "other"]);
+  const responseCaptureKinds = new Set([
+    "bootstrap", "access", "session-list", "video-home", "renewal", "progress", "other",
+  ]);
   const responseFailureCodes = new Set([
     "api-origin", "method", "session-identity", "items-shape",
     "current-item", "poster", "playback-contract", "other",

@@ -164,7 +164,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
       if (exam.block.score != null) {
         totalScore += exam.block.score;
         const metaExam = meta?.exams?.find((e) => e.exam_id === exam.exam_id);
-        const max = exam.block.max_score ?? metaExam?.max_score ?? 0;
+        const max = metaExam?.max_score ?? exam.block.max_score ?? 0;
         totalMax += max;
         count++;
       }
@@ -543,7 +543,7 @@ function ExamResultCard({
 }) {
   const wrongCompletionOnly = useWrongCompletionDisplay();
   const metaExam = meta?.exams?.find((e) => e.exam_id === exam.exam_id);
-  const maxScore = exam.block.max_score ?? metaExam?.max_score ?? null;
+  const maxScore = metaExam?.max_score ?? exam.block.max_score ?? null;
   const percent = pctNum(exam.block.score, maxScore);
   const [retakeRequested, setRetakeRequested] = useState(false);
   const canStartRetake = !wrongCompletionOnly
@@ -999,6 +999,7 @@ function AttemptTimeline({
           enrollmentId,
           score: params.score,
           maxScore: params.maxScore,
+          attemptIndex: 1,
         });
       } else {
         if (!sessionId) throw new Error("sessionId가 필요합니다.");
@@ -1044,7 +1045,9 @@ function AttemptTimeline({
       return;
     }
     const attempt = data?.attempts?.find((a) => a.attempt_index === attemptIndex);
-    const attemptMax = attempt?.max_score ?? data?.max_score ?? 100;
+    const attemptMax = isExam && attemptIndex === 1
+      ? (data?.max_score ?? 100)
+      : (attempt?.max_score ?? data?.max_score ?? 100);
     const passVal = isExam ? parseOptionalPositiveNumber(editPassScore) : null;
     if (passVal === false) {
       feedback.error("합격 기준을 올바르게 입력해주세요.");
@@ -1153,7 +1156,9 @@ function AttemptTimeline({
             const isEditing = editingAttempt === a.attempt_index;
             const canEdit = isEditMode && (a.attempt_index === 1 || (a.attempt_index >= 2 && data.clinic_link_id != null));
             const isMutating = editFirstMutation.isPending || updateMutation.isPending || retakeMutation.isPending;
-            const attemptMax = a.max_score ?? data.max_score;
+            const attemptMax = isExam && a.attempt_index === 1
+              ? data.max_score
+              : (a.max_score ?? data.max_score);
             const attemptPassScore = a.pass_score ?? data.pass_score;
 
             return (

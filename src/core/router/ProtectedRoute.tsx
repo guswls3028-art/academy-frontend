@@ -9,6 +9,10 @@ import { logout } from "@/auth/api/auth.api";
 import FirstLoginGuideModal from "@/auth/components/FirstLoginGuideModal";
 import AuthUnavailableState from "@/auth/components/AuthUnavailableState";
 import { getStudentSupportAccessToken } from "@/shared/auth/supportPreviewSession";
+import {
+  dismissPasswordRecommendationForAuthSession,
+  readPasswordRecommendationAuthSession,
+} from "@/shared/auth/passwordRecommendationSession";
 
 export type Role =
   | "owner"
@@ -32,7 +36,7 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
   } = useAuth();
   const { program, isLoading: programLoading, error: programError, refetch: refetchProgram } = useProgram();
   const [retrying, setRetrying] = useState(false);
-  const [passwordRecommendationDismissed, setPasswordRecommendationDismissed] = useState(false);
+  const [passwordRecommendationDismissedOwner, setPasswordRecommendationDismissedOwner] = useState<string | null>(null);
 
   if (programLoading || isLoading) {
     return (
@@ -118,6 +122,15 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
     return loginRedirect;
   }
 
+  const passwordRecommendationAuthSession = readPasswordRecommendationAuthSession(user.id);
+  const volatilePasswordRecommendationOwner =
+    `volatile:${program.tenantCode}:user:${encodeURIComponent(String(user.id))}`;
+  const currentPasswordRecommendationOwner =
+    passwordRecommendationAuthSession.owner ?? volatilePasswordRecommendationOwner;
+  const passwordRecommendationDismissed = Boolean(
+    passwordRecommendationDismissedOwner === currentPasswordRecommendationOwner
+      || passwordRecommendationAuthSession.dismissed,
+  );
   const showPasswordRecommendation = Boolean(
     user.must_change_password
       && PASSWORD_RECOMMENDATION_ROLES.includes(role)
@@ -125,13 +138,26 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
       && !passwordRecommendationDismissed,
   );
 
+  const dismissPasswordRecommendation = () => {
+    const result = dismissPasswordRecommendationForAuthSession(
+      user.id,
+      passwordRecommendationAuthSession.owner,
+    );
+    if (result.status === "owner-changed") return;
+    setPasswordRecommendationDismissedOwner(
+      result.status === "dismissed"
+        ? result.owner
+        : volatilePasswordRecommendationOwner,
+    );
+  };
+
   return (
     <>
       <Outlet />
       {showPasswordRecommendation ? (
         <ForcePasswordChangeModal
           onSuccess={logout}
-          onDismiss={() => setPasswordRecommendationDismissed(true)}
+          onDismiss={dismissPasswordRecommendation}
         />
       ) : user.first_login_guide_required && !isStudentSupportSession ? (
         <FirstLoginGuideModal

@@ -1537,7 +1537,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                         ) ?? null;
 
                         if (col.sub === "total") {
-                          const examMaxScore = block?.max_score ?? ex.max_score ?? null;
+                          // 시험 메타가 현재 정책의 단일 진실이다. row block은 과거
+                          // 응시 스냅샷일 수 있으므로 표시·입력·저장 분모로 쓰지 않는다.
+                          const examMaxScore = ex.max_score ?? block?.max_score ?? null;
                           const isExamNotSubmitted = block?.meta?.status === "NOT_SUBMITTED";
                           const omrReviewStatus = getScoreBlockOmrReviewStatus(block);
                           const isEmptyScore = block?.score == null && !isExamNotSubmitted && !omrReviewStatus;
@@ -1611,7 +1613,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     const cellKey = `examTotal:${row.enrollment_id}:${ex.exam_id}`;
                                     const serverValue: PendingChange = isExamNotSubmitted || block?.score == null
                                       ? { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: 0, metaStatus: "NOT_SUBMITTED" }
-                                      : { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: block.score, maxScore: block?.max_score ?? ex.max_score ?? 100 };
+                                      : { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: block.score, maxScore: examMaxScore ?? 100 };
                                     if (raw === "/" || raw === "미응시") {
                                       stageLivePendingChange(
                                         cellKey,
@@ -1620,7 +1622,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                       );
                                       return;
                                     }
-                                    const maxScore = block?.max_score ?? ex.max_score ?? 100;
+                                    const maxScore = examMaxScore ?? 100;
                                     const parsed = parseScoreInput(raw, maxScore);
                                     if (parsed != null && parsed >= 0 && parsed <= maxScore) {
                                       stageLivePendingChange(
@@ -1648,11 +1650,11 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                         { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: 0, metaStatus: "NOT_SUBMITTED" },
                                         isExamNotSubmitted || block?.score == null
                                           ? { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: 0, metaStatus: "NOT_SUBMITTED" }
-                                          : { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: block.score, maxScore: block?.max_score ?? ex.max_score ?? 100 },
+                                          : { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: block.score, maxScore: examMaxScore ?? 100 },
                                       );
                                       return;
                                     }
-                                    const metaMax = block?.max_score ?? ex.max_score ?? 100;
+                                    const metaMax = examMaxScore ?? 100;
                                     const parsed = parseScoreInput(raw, metaMax);
                                     if (parsed == null) {
                                       lastCommitInvalidRef.current = true;
@@ -1691,7 +1693,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                           { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: 0, metaStatus: "NOT_SUBMITTED" },
                                           isExamNotSubmitted || block?.score == null
                                             ? { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: 0, metaStatus: "NOT_SUBMITTED" }
-                                            : { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: block.score, maxScore: block?.max_score ?? ex.max_score ?? 100 },
+                                            : { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: block.score, maxScore: examMaxScore ?? 100 },
                                         );
                                       } else if (raw === "미응시") {
                                         const cellKey = `examTotal:${row.enrollment_id}:${ex.exam_id}`;
@@ -1700,11 +1702,11 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                           { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: 0, metaStatus: "NOT_SUBMITTED" },
                                           isExamNotSubmitted || block?.score == null
                                             ? { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: 0, metaStatus: "NOT_SUBMITTED" }
-                                            : { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: block.score, maxScore: block?.max_score ?? ex.max_score ?? 100 },
+                                            : { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: block.score, maxScore: examMaxScore ?? 100 },
                                         );
                                       } else {
                                         // 숫자 입력 → 점수 저장
-                                        const metaMax = block?.max_score ?? ex.max_score ?? 100;
+                                        const metaMax = examMaxScore ?? 100;
                                         const parsed = parseScoreInput(raw, metaMax);
                                         if (parsed != null && validateScore(parsed, metaMax)) {
                                           const cellKey = `examTotal:${row.enrollment_id}:${ex.exam_id}`;
@@ -2071,7 +2073,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     if (block?.score != null) {
                       hasAnyScore = true;
                       totalScore += Number(block.score);
-                      totalMaxScore += block.max_score ?? ex.max_score ?? 100;
+                      totalMaxScore += ex.max_score ?? block.max_score ?? 100;
                       if (block.passed != null) {
                         if (allPassed === null) allPassed = block.passed;
                         else if (!block.passed) allPassed = false;

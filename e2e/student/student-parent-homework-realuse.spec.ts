@@ -19,11 +19,12 @@ import {
   QA_API,
   QA_BASE,
   QA_TENANT,
+  reloadStudentApp,
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
 } from "../helpers/qaStudentParentScenario";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
-import { gotoAndSettle, waitForCondition, waitForRenderSettled } from "../helpers/wait";
+import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 
 test.setTimeout(360_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -290,8 +291,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       expect.arrayContaining([uploadName, parentUploadName]),
     );
 
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await waitForRenderSettled(page, { timeout: 20_000 });
+    await reloadStudentApp(page);
     await page.getByText(homeworkTitle, { exact: true }).click();
     await expect(page.getByText(uploadName, { exact: true })).toBeVisible();
     await expect(page.getByText(parentUploadName, { exact: true })).toBeVisible();
@@ -304,8 +304,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await expect(page.getByText(homeworkTitle).first()).toBeVisible();
     await expect(page.getByText(/92\s*\/\s*100|92점|92/).first()).toBeVisible();
 
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await waitForRenderSettled(page, { timeout: 20_000 });
+    await reloadStudentApp(page);
     await expect(page.getByText(homeworkTitle).first()).toBeVisible();
     await logoutStudentApp(page);
     await loginThroughUi(page, created.family.parentPhone, created.family.parentPassword);
