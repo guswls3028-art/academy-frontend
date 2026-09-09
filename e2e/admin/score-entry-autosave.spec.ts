@@ -7,6 +7,8 @@ type ScoreRouteOptions = {
   initialScores?: Array<number | null>;
   examMaxScore?: number;
   rowExamMaxScores?: number[];
+  includeExamRetake?: boolean;
+  includeSecondExam?: boolean;
   initialSubjectiveScores?: Array<number | null>;
   initialCorrectionStatuses?: Array<"PENDING" | "COMPLETED" | "NOT_REQUIRED" | null>;
   initialDraft?: unknown[];
@@ -87,6 +89,7 @@ async function ensureScoreEditing(page: Page, loadingTimeoutMs = 30_000): Promis
 
   const editButton = page.getByRole("button", { name: "수정", exact: true });
   await expect(editButton).toBeVisible({ timeout: loadingTimeoutMs });
+  await expect(editButton).toBeEnabled({ timeout: loadingTimeoutMs });
   await editButton.click();
   await expect(saveAndLockButton).toBeVisible({ timeout: loadingTimeoutMs });
   await expect(cells.first()).toBeVisible({ timeout: loadingTimeoutMs });
@@ -96,6 +99,7 @@ const scorePatches: Array<Record<string, unknown>> = [];
 const homeworkPatches: Array<Record<string, unknown>> = [];
 const assignmentPuts: Array<{ path: string; enrollmentIds: number[] }> = [];
 const correctionPatches: Array<Record<string, unknown>> = [];
+const retakePatches: Array<Record<string, unknown>> = [];
 const scorePatchHeaders: Array<Record<string, string>> = [];
 const draftPuts: Array<Record<string, unknown>> = [];
 const draftCommits: Array<Record<string, unknown>> = [];
@@ -116,12 +120,14 @@ let currentHomeworkScores: Array<number | null> = [null, 45];
 let currentHomeworkVersions: Array<string | null> = [null, "2026-08-30T09:00:02+09:00"];
 let homeworkVersionCounter = 2;
 let activeEditors: NonNullable<ScoreRouteOptions["activeEditors"]> = [];
+let currentExamRetakeScore = 90;
 
 async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): Promise<void> {
   scorePatches.length = 0;
   homeworkPatches.length = 0;
   assignmentPuts.length = 0;
   correctionPatches.length = 0;
+  retakePatches.length = 0;
   scorePatchHeaders.length = 0;
   draftPuts.length = 0;
   draftCommits.length = 0;
@@ -152,6 +158,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
   ));
   homeworkVersionCounter = currentHomeworkScores.length;
   activeEditors = [...(options.activeEditors ?? [])];
+  currentExamRetakeScore = 90;
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -173,7 +180,15 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
               objective_max_score: 80,
               subjective_max_score: 20,
               display_order: 1,
-            }],
+            }, ...(options.includeSecondExam ? [{
+              exam_id: 9102,
+              title: "두 번째 확인",
+              pass_score: 30,
+              max_score: 50,
+              objective_max_score: 50,
+              subjective_max_score: 0,
+              display_order: 2,
+            }] : [])],
             homeworks: includeHomework ? [{
               homework_id: 9151,
               title: "단원 복습",
@@ -190,7 +205,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
             lecture_title: "자동 저장 검증반",
             lecture_color: "#2563eb",
             lecture_chip_label: "자",
-            exams: (options.examAssignedRows?.[index] ?? true) ? [{
+            exams: [...((options.examAssignedRows?.[index] ?? true) ? [{
               exam_id: 9101,
               title: "주간 확인",
               pass_score: 60,
@@ -210,8 +225,25 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
                 correction_status: currentCorrectionStatuses[index] ?? null,
                 meta: {},
               },
-              attempt_count: score == null ? 0 : 1,
-            }] : [],
+              attempt_count: score == null ? 0 : options.includeExamRetake ? 2 : 1,
+            }] : []), ...(options.includeSecondExam ? [{
+              exam_id: 9102,
+              title: "두 번째 확인",
+              pass_score: 30,
+              attempt_count: 1,
+              clinic_link_id: null,
+              block: {
+                score: 40,
+                max_score: 40,
+                passed: true,
+                clinic_required: false,
+                is_locked: false,
+                objective_score: 40,
+                subjective_score: 0,
+                correction_status: "PENDING",
+                meta: {},
+              },
+            }] : [])],
             homeworks: includeHomework && homeworkAssignedRows[index] ? [{
               homework_id: 9151,
               title: "단원 복습",
@@ -421,9 +453,34 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
             at: "2026-08-30T09:00:00+09:00",
             source: "grade",
             meta_status: null,
-          }],
-          clinic_link_id: null,
+          }, ...(!isHomework && options.includeExamRetake ? [{
+            attempt_index: 2,
+            score: currentExamRetakeScore,
+            max_score: maxScore,
+            pass_score: 60,
+            passed: currentExamRetakeScore >= 60,
+            at: "2026-08-31T09:00:00+09:00",
+            source: "clinic",
+            meta_status: null,
+          }] : [])],
+          clinic_link_id: !isHomework && options.includeExamRetake ? 9601 : null,
           resolved: score == null ? null : score >= 60,
+        },
+      });
+      return;
+    }
+
+    if (path.endsWith("/api/v1/progress/clinic-links/9601/update-retake/") && method === "POST") {
+      const body = request.postDataJSON() as Record<string, unknown>;
+      retakePatches.push(body);
+      if (typeof body.score === "number") currentExamRetakeScore = body.score;
+      await route.fulfill({
+        json: {
+          attempt_index: body.attempt_index,
+          score: currentExamRetakeScore,
+          max_score: body.max_score,
+          pass_score: body.pass_score,
+          passed: currentExamRetakeScore >= 60,
         },
       });
       return;
@@ -1344,10 +1401,6 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect.poll(() => scorePatches.length, { timeout: 10_000 }).toBe(1);
     expect(scorePatches[0]).toMatchObject({ score: 102, max_score: 105 });
 
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("cell", { name: "102/105", exact: true })).toBeVisible();
-    await ensureScoreEditing(page);
-
     await page.getByText("자동저장학생1", { exact: true }).first().click();
     const drawer = page.getByRole("complementary", { name: /자동저장학생1 학생 상세/ });
     await expect(drawer).toBeVisible();
@@ -1362,6 +1415,55 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await firstAttempt.getByRole("button", { name: "저장", exact: true }).click();
     await expect.poll(() => scorePatches.length, { timeout: 10_000 }).toBe(2);
     expect(scorePatches[1]).toMatchObject({ score: 103, max_score: 105 });
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("cell", { name: "103/105", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "성적 도구" }).click();
+    await page.getByRole("menuitem").filter({ hasText: "개인 성적표" }).click();
+    const reportFrame = page.frameLocator('iframe[title="자동저장학생1 개인 성적표 미리보기"]');
+    await expect(reportFrame.getByText("103 / 105", { exact: true })).toBeVisible();
+    await expect(reportFrame.locator(".session-fact").filter({ hasText: "시험 평균" })).toContainText("98.1%");
+  });
+
+  test("시험 2개 합계는 각 시험의 현재 만점 합으로 표시한다", async ({ page }) => {
+    await openScores(page, {
+      initialScores: [97, 100],
+      examMaxScore: 105,
+      rowExamMaxScores: [97, 100],
+      includeSecondExam: true,
+    });
+
+    const firstRow = page.locator("tbody tr").filter({ hasText: "자동저장학생1" });
+    const summaryCell = firstRow.locator('[data-col-type="exam-summary"]');
+    await expect(summaryCell).toContainText("137/155");
+    await expect(summaryCell).not.toContainText("137/137");
+  });
+
+  test("학생 상세 2차 재시험은 당시 만점을 보존해 수정한다", async ({ page }) => {
+    await openScores(page, {
+      initialScores: [97, 100],
+      examMaxScore: 105,
+      rowExamMaxScores: [97, 100],
+      includeExamRetake: true,
+    });
+
+    await page.getByRole("button", { name: "수정", exact: true }).click();
+    await expect(page.getByRole("button", { name: "저장하고 잠금", exact: true })).toBeVisible();
+    await page.getByText("자동저장학생1", { exact: true }).first().click();
+    const drawer = page.getByRole("complementary", { name: /자동저장학생1 학생 상세/ });
+    await drawer.getByRole("button", { name: /^주간 확인/ }).click();
+    const firstAttempt = drawer.locator(".ssd-attempt-card").filter({ hasText: "1차 시험" });
+    const secondAttempt = drawer.locator(".ssd-attempt-card").filter({ hasText: "2차 재시험" });
+    await expect(firstAttempt.locator(".ssd-attempt-card__max")).toHaveText("/ 105");
+    await expect(secondAttempt.locator(".ssd-attempt-card__max")).toHaveText("/ 97");
+
+    await secondAttempt.getByTitle("점수 수정").click();
+    const retakeScoreInput = secondAttempt.getByRole("spinbutton").first();
+    await expect(retakeScoreInput).toHaveAttribute("max", "97");
+    await retakeScoreInput.fill("96");
+    await secondAttempt.getByRole("button", { name: "저장", exact: true }).click();
+    await expect.poll(() => retakePatches.length, { timeout: 10_000 }).toBe(1);
+    expect(retakePatches[0]).toMatchObject({ attempt_index: 2, score: 96, max_score: 97 });
   });
 
   test("시험 미배정 학생은 클리닉 대상이나 이름 하이라이트로 남지 않고 새로고침해도 유지된다", async ({ page }, testInfo) => {
