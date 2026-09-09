@@ -34,6 +34,7 @@ export default function ParentChildSwitcher() {
 
   /* module-level state(getParentStudentId)를 컴포넌트 state로 동기화 — 칩 활성 표시용 */
   const [currentId, setCurrentId] = useState<number | null>(() => getParentStudentId());
+  const [switchingId, setSwitchingId] = useState<number | null>(null);
 
   useEffect(() => {
     if (linked.length === 0) return;
@@ -48,19 +49,20 @@ export default function ParentChildSwitcher() {
   if (!isParent || linked.length < 2) return null;
 
   const handleSelect = (id: number) => {
-    if (id === currentId) return;
-    setParentStudentId(id);
-    setCurrentId(id);
-    /* 자녀 전환 직후에는 "잠깐 이전 자녀 데이터"도 노출되면 안 된다.
-     * resetQueries로 활성 화면 데이터를 비우고 다시 가져오며, 비활성 학생 캐시는 제거한다. */
+    if (id === currentId || switchingId != null) return;
     const studentScopePredicate = (query: { queryKey: readonly unknown[] }) =>
       isStudentScopedQueryKey(query.queryKey);
-    void qc.resetQueries({ predicate: studentScopePredicate });
-    qc.removeQueries({ predicate: studentScopePredicate });
-    void qc.invalidateQueries({
-      predicate: studentScopePredicate,
-    });
-    navigate("/student/dashboard");
+    setSwitchingId(id);
+    void (async () => {
+      /* 이전 자녀 요청을 먼저 취소한 다음 X-Student-Id를 바꾼다. 활성 화면은 새
+       * 자녀로 다시 채우고, 비활성 캐시는 제거해 전환 경합/혼합 노출을 막는다. */
+      await qc.cancelQueries({ predicate: studentScopePredicate });
+      setParentStudentId(id);
+      await qc.resetQueries({ predicate: studentScopePredicate });
+      qc.removeQueries({ predicate: studentScopePredicate, type: "inactive" });
+      setCurrentId(id);
+      navigate("/student/dashboard");
+    })().finally(() => setSwitchingId(null));
   };
 
   return (
@@ -80,6 +82,8 @@ export default function ParentChildSwitcher() {
             type="button"
             role="tab"
             aria-selected={active}
+            aria-busy={switchingId === s.id || undefined}
+            disabled={switchingId != null}
             onClick={() => handleSelect(s.id)}
             className={cx(styles.tab, active && styles.tabActive)}
           >

@@ -41,6 +41,42 @@ test("student-parent real-use selects the intended child and uses supported clin
   assert.match(clinicSource, /verify clinic participant \$\{participantId\} absent/);
 });
 
+test("student-parent cleanup seals hard-delete storage cleanup before reporting success", () => {
+  const source = readFileSync(new URL("../../e2e/helpers/qaStudentParentScenario.ts", import.meta.url), "utf8");
+
+  assert.match(source, /export type QaFamilyCleanupResult/);
+  assert.match(source, /expect\(deletion\.deleted\)\.toBe\(ids\.length\)/);
+  assert.match(source, /expect\(deletion\.storage_cleanup\)\.toEqual\(\{ pending: 0, failed: 0 \}\)/);
+  assert.match(source, /return deletion;/);
+});
+
+test("development canary seals required-student two-slot self-cancellation and mock delivery", () => {
+  const specName = "student-clinic-required-cancel-realuse.spec.ts";
+  const spec = readFileSync(new URL(`../../e2e/student/${specName}`, import.meta.url), "utf8");
+  const config = readFileSync(new URL("../../playwright.development-release.config.ts", import.meta.url), "utf8");
+  const runnerSource = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+
+  assert.match(config, new RegExp(specName.replaceAll(".", "\\.")));
+  assert.match(runnerSource, new RegExp(`"${specName}": 1`));
+  for (const required of [
+    "/student/exams/${created.examId}/submit/",
+    "/results/admin/clinic-targets/",
+    "/clinic/participants/bulk-create/",
+    "/set_status/",
+    "/messaging/scheduled/?scope=clinic&page_size=100",
+    "/messaging/log/?scope=clinic&status=success&origin_id_prefix=",
+    "provider_message_id",
+    "mock-",
+  ]) {
+    assert.ok(spec.includes(required), `missing required clinic cancellation evidence: ${required}`);
+  }
+  assert.match(spec, /requested:\s*2/);
+  assert.match(spec, /failed:\s*0/);
+  assert.match(spec, /send_to:\s*"both"/);
+  assert.match(spec, /expect\(cancelledRows\)\.toHaveLength\(2\)/);
+  assert.match(spec, /expect\(deliveryRows\)\.toHaveLength\(2\)/);
+});
+
 test("student-parent real-use awaits and dismisses the actual initial-account prompts", () => {
   const promptSource = readFileSync(new URL("../../e2e/helpers/firstLoginGuide.ts", import.meta.url), "utf8");
   const scenarioSource = readFileSync(new URL("../../e2e/helpers/qaStudentParentScenario.ts", import.meta.url), "utf8");
@@ -356,10 +392,11 @@ test("assessment classification fails if a business write or skip is introduced"
 });
 
 function completeFlowReport() {
-  return { errors: [], stats: { expected: 18, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
+  return { errors: [], stats: { expected: 19, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
     ...Object.entries({ "notice-roundtrip.spec.ts": 3, "qna-roundtrip.spec.ts": 4, "clinic-roundtrip.spec.ts": 3,
       "student-parent-account-realuse.spec.ts": 1, "student-parent-assessment-realuse.spec.ts": 1,
       "student-parent-clinic-realuse.spec.ts": 1, "student-parent-community-realuse.spec.ts": 1,
+      "student-clinic-required-cancel-realuse.spec.ts": 1,
       "student-parent-homework-realuse.spec.ts": 1,
       "student-parent-learning-realuse.spec.ts": 1, "student-parent-storage-realuse.spec.ts": 1,
       "video-playback-renewal.realuse.spec.ts": 1 }).map(([file, count]) => ({
@@ -462,7 +499,7 @@ test("real-use failure observation publishes only allowlisted counts, files, and
   });
 });
 
-test("all eighteen real-use cases are mandatory; missing, skip, failure, retry and global errors fail closed", () => {
+test("all nineteen real-use cases are mandatory; missing, skip, failure, retry and global errors fail closed", () => {
   assert.doesNotThrow(() => assertReleaseSummary(completeFlowReport()));
   const corrupt = [
     (report) => report.suites.pop(),
@@ -527,7 +564,7 @@ test("manifest and instance identity must match uniquely before setup", () => {
   }
 });
 
-test("development config discovers eighteen enabled cases without executing any API test", () => {
+test("development config discovers nineteen enabled cases without executing any API test", () => {
   const cwd = new URL("../../", import.meta.url);
   const output = execFileSync(process.execPath, ["node_modules/@playwright/test/cli.js", "test",
     "--config=playwright.development-release.config.ts", "--list"], {
@@ -549,7 +586,7 @@ test("development config discovers eighteen enabled cases without executing any 
     for (const child of suite.suites || []) visit(child);
   };
   visit(report);
-  assert.equal(discovered, 18);
+  assert.equal(discovered, 19);
   // Playwright's --list reporter counts all unexecuted cases as skipped. These
   // are discovery-only, never accepted by assertReleaseSummary as real-use proof.
   assert.equal(report.stats.expected, 0);

@@ -350,6 +350,8 @@ async function installApi(page: Page, options: {
   exportPagination?: boolean;
   failGrades?: boolean;
   failPerformance?: boolean;
+  homeworkHistory?: boolean;
+  homeworkPeriodBoundaries?: boolean;
   homeworkQuickEdit?: boolean;
   examCorrectionRequests?: Array<{
     sessionId: number;
@@ -545,7 +547,156 @@ async function installApi(page: Page, options: {
         await route.fulfill({ status: 500, json: { detail: "성적 조회 일시 실패" } });
         return;
       }
-      await route.fulfill({ json: options.homeworkQuickEdit ? {
+      await route.fulfill({ json: options.homeworkHistory ? {
+        ...grades,
+        homeworks: [
+          {
+            homework_id: 901,
+            enrollment_id: 201,
+            title: "이전 강의 7차시 과제",
+            grading_mode: "SCORE",
+            score: 80,
+            max_score: 100,
+            passed: true,
+            achievement: "PASS",
+            session_id: 801,
+            session_title: "7차시",
+            session_order: 7,
+            session_regular_order: 7,
+            session_type: "REGULAR",
+            session_date: "2026-05-03",
+            lecture_id: 601,
+            lecture_title: "대수 정규반",
+            display_order: 0,
+          },
+          {
+            homework_id: 902,
+            enrollment_id: 201,
+            title: "새 강의 1차시 과제",
+            grading_mode: "SCORE",
+            score: 90,
+            max_score: 100,
+            passed: true,
+            achievement: "PASS",
+            session_id: 802,
+            session_title: "1차시",
+            session_order: 1,
+            session_regular_order: 1,
+            session_type: "REGULAR",
+            session_date: "2026-07-12",
+            lecture_id: 602,
+            lecture_title: "대수 정규반",
+            lecture_chip_label: "A",
+            display_order: 0,
+          },
+          {
+            homework_id: 903,
+            enrollment_id: 201,
+            title: "새 강의 2차시 과제",
+            grading_mode: "SCORE",
+            score: null,
+            max_score: 100,
+            passed: null,
+            achievement: null,
+            session_id: 803,
+            session_title: "2차시",
+            session_order: 2,
+            session_regular_order: 2,
+            session_type: "REGULAR",
+            session_date: "2026-07-18",
+            lecture_id: 602,
+            lecture_title: "대수 정규반",
+            lecture_chip_label: "A",
+            display_order: 0,
+          },
+          {
+            homework_id: 905,
+            enrollment_id: 201,
+            title: "동명 최신 강의 과제",
+            grading_mode: "SCORE",
+            score: 95,
+            max_score: 100,
+            passed: true,
+            achievement: "PASS",
+            session_id: 805,
+            session_title: "1차시",
+            session_order: 1,
+            session_regular_order: 1,
+            session_type: "REGULAR",
+            session_date: "2026-07-18",
+            lecture_id: 604,
+            lecture_title: "대수 정규반",
+            lecture_chip_label: "B",
+            display_order: 0,
+          },
+          {
+            homework_id: 904,
+            enrollment_id: 201,
+            title: "날짜 미확인 과제",
+            grading_mode: "COMPLETION",
+            score: null,
+            max_score: 1,
+            passed: null,
+            achievement: null,
+            session_id: 804,
+            session_title: "차시 미확인",
+            session_order: null,
+            session_regular_order: null,
+            session_type: "REGULAR",
+            session_date: "잘못된-날짜",
+            lecture_id: 603,
+            lecture_title: "이관 강의",
+            display_order: 0,
+          },
+          {
+            homework_id: 906,
+            enrollment_id: 201,
+            title: "이관 동명 강의 과제",
+            grading_mode: "COMPLETION",
+            score: null,
+            max_score: 1,
+            passed: null,
+            achievement: null,
+            session_id: 806,
+            session_title: "차시 미확인",
+            session_order: null,
+            session_regular_order: null,
+            session_type: "REGULAR",
+            session_date: null,
+            lecture_id: 605,
+            lecture_title: "이관 강의",
+            display_order: 0,
+          },
+        ],
+      } : options.homeworkPeriodBoundaries ? {
+        ...grades,
+        homeworks: [
+          [911, "내일 과제", "2026-07-20"],
+          [912, "오늘 과제", "2026-07-19"],
+          [913, "29일 전 과제", "2026-06-20"],
+          [914, "30일 전 과제", "2026-06-19"],
+          [915, "89일 전 과제", "2026-04-21"],
+          [916, "90일 전 과제", "2026-04-20"],
+        ].map(([homeworkId, title, sessionDate], index) => ({
+          homework_id: homeworkId,
+          enrollment_id: 201,
+          title,
+          grading_mode: "SCORE",
+          score: 80,
+          max_score: 100,
+          passed: true,
+          achievement: "PASS",
+          session_id: 811 + index,
+          session_title: `${index + 1}차시`,
+          session_order: index + 1,
+          session_regular_order: index + 1,
+          session_type: "REGULAR",
+          session_date: sessionDate,
+          lecture_id: 610,
+          lecture_title: "기간 경계반",
+          display_order: 0,
+        })),
+      } : options.homeworkQuickEdit ? {
         ...grades,
         homeworks: [
           {
@@ -1203,6 +1354,94 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await expect.poll(homeworkActionsStayWithinCards).toBe(true);
     await expect(numericEditor).toBeVisible();
     await detailOverlay.screenshot({ path: "test-results/homework-completion/student-detail-390.png" });
+  });
+
+  test("학생 상세 과제는 실제 수업일 최신순이며 기간과 강의로 과거 이력을 좁힌다", async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 1100, height: 820 });
+    await installApi(page, { homeworkHistory: true });
+    await page.goto(`${BASE}/workspace/students/home`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: /윤지용 학생/ }).first().click();
+
+    const detailOverlay = page.getByTestId("student-detail-overlay");
+    await detailOverlay.getByRole("tab", { name: /과제/ }).click();
+    const homeworkTitles = detailOverlay.locator('span[class*="recordTitle"]');
+
+    await expect(homeworkTitles).toHaveText([
+      "새 강의 2차시 과제",
+      "동명 최신 강의 과제",
+      "새 강의 1차시 과제",
+      "이전 강의 7차시 과제",
+      "이관 동명 강의 과제",
+      "날짜 미확인 과제",
+    ]);
+    await expect(detailOverlay.getByText("2026. 7. 18.", { exact: true })).toHaveCount(2);
+    await expect(detailOverlay.getByText("날짜 미확인", { exact: true })).toHaveCount(2);
+
+    const lectureFilter = detailOverlay.getByRole("combobox", { name: "강의" });
+    await expect(lectureFilter.locator("option")).toHaveText([
+      "전체 강의",
+      "대수 정규반 · 2026. 7. 18. · A",
+      "대수 정규반 · 2026. 7. 18. · B",
+      "대수 정규반 · 2026. 5. 3.",
+      "이관 강의 · 강의 #603",
+      "이관 강의 · 강의 #605",
+    ]);
+    const lectureLabels = await lectureFilter.locator("option").allTextContents();
+    expect(new Set(lectureLabels).size).toBe(lectureLabels.length);
+    await lectureFilter.selectOption("601");
+    await expect(homeworkTitles).toHaveText(["이전 강의 7차시 과제"]);
+
+    await lectureFilter.selectOption("all");
+    await detailOverlay.getByRole("combobox", { name: "기간" }).selectOption("30");
+    await expect(homeworkTitles).toHaveText(["새 강의 2차시 과제", "동명 최신 강의 과제", "새 강의 1차시 과제"]);
+
+    await detailOverlay.getByRole("combobox", { name: "기간" }).selectOption("all");
+    await detailOverlay.getByRole("combobox", { name: "정렬" }).selectOption("session_asc");
+    await expect(homeworkTitles).toHaveText([
+      "이전 강의 7차시 과제",
+      "새 강의 1차시 과제",
+      "동명 최신 강의 과제",
+      "새 강의 2차시 과제",
+      "이관 동명 강의 과제",
+      "날짜 미확인 과제",
+    ]);
+
+    await detailOverlay.getByRole("combobox", { name: "정렬" }).selectOption("session_desc");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(homeworkTitles).toHaveText([
+      "새 강의 2차시 과제",
+      "동명 최신 강의 과제",
+      "새 강의 1차시 과제",
+      "이전 강의 7차시 과제",
+      "이관 동명 강의 과제",
+      "날짜 미확인 과제",
+    ]);
+    await expect.poll(() => detailOverlay.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await detailOverlay.screenshot({ path: testInfo.outputPath("student-homework-date-filters-390.png") });
+  });
+
+  test("과제 기간 필터는 KST 오늘을 포함하고 미래와 30·90일 바깥 경계를 제외한다", async ({ page }) => {
+    await installApi(page, { homeworkPeriodBoundaries: true });
+    await page.goto(`${BASE}/workspace/students/home`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: /윤지용 학생/ }).first().click();
+
+    const detailOverlay = page.getByTestId("student-detail-overlay");
+    await detailOverlay.getByRole("tab", { name: /과제/ }).click();
+    const homeworkTitles = detailOverlay.locator('span[class*="recordTitle"]');
+    const periodFilter = detailOverlay.getByRole("combobox", { name: "기간" });
+
+    await periodFilter.selectOption("30");
+    await expect(homeworkTitles).toHaveText(["오늘 과제", "29일 전 과제"]);
+
+    await periodFilter.selectOption("90");
+    await expect(homeworkTitles).toHaveText([
+      "오늘 과제",
+      "29일 전 과제",
+      "30일 전 과제",
+      "89일 전 과제",
+    ]);
+    await expect(detailOverlay.getByText("내일 과제", { exact: true })).toHaveCount(0);
+    await expect(detailOverlay.getByText("90일 전 과제", { exact: true })).toHaveCount(0);
   });
 
   test("학원 시험 결과가 없을 때 다음 상태를 이해할 수 있게 안내한다", async ({ page }) => {

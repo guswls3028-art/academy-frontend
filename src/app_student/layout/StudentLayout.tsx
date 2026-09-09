@@ -11,6 +11,7 @@ import {
   getParentStudentId,
   initParentStudentId,
   isStudentScopedQueryKey,
+  resetParentStudentIdInMemory,
   setParentStudentId,
 } from "@student/shared/api/parentStudentSelection";
 import { StudentThemeProvider } from "@student/shared/context/StudentThemeContext";
@@ -104,7 +105,7 @@ function StudentLayoutInner() {
   useEffect(() => {
     if (user?.tenantRole !== "parent") {
       const previousId = getParentStudentId();
-      setParentStudentId(null);
+      resetParentStudentIdInMemory();
       if (previousId != null) clearStudentScopedQueries();
       setParentSelectionReady(true);
       return;

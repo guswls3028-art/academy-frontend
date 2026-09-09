@@ -56,6 +56,7 @@ export type StudentHomeworkGrade = {
   session_order?: number | null;
   session_regular_order?: number | null;
   session_type?: "REGULAR" | "SUPPLEMENT" | null;
+  session_date?: string | null;
   lecture_id?: number | null;
   lecture_title?: string | null;
   lecture_color?: string | null;

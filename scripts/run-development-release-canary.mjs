@@ -22,6 +22,7 @@ const FLOW_COUNTS = {
   "clinic-roundtrip.spec.ts": 3,
   "student-parent-account-realuse.spec.ts": 1,
   "student-parent-assessment-realuse.spec.ts": 1,
+  "student-clinic-required-cancel-realuse.spec.ts": 1,
   "student-parent-clinic-realuse.spec.ts": 1,
   "student-parent-community-realuse.spec.ts": 1,
   "student-parent-homework-realuse.spec.ts": 1,

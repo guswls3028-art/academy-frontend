@@ -3,6 +3,7 @@
  * GradesPage에서 추출.
  */
 import { useState, useMemo } from "react";
+import { useSearchParams } from "react-router";
 import EmptyState from "@student/layout/EmptyState";
 import LectureExamGroup, { type ExamGroup } from "./LectureExamGroup";
 import LectureHwGroup, { type HwGroup } from "./LectureHwGroup";
@@ -116,7 +117,14 @@ type Props = {
 };
 
 export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
-  const [subTab, setSubTab] = useState<SubTab>("exams");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const subTab: SubTab = searchParams.get("view") === "homework" ? "homework" : "exams";
+  const setSubTab = (nextTab: SubTab) => {
+    const next = new URLSearchParams(searchParams);
+    if (nextTab === "homework") next.set("view", "homework");
+    else next.delete("view");
+    setSearchParams(next, { replace: true });
+  };
   const [examSort, setExamSort] = useState<SortMode>("lecture");
   const [examReview, setExamReview] = useState<ExamReviewFilter>("all");
   const [homeworkSort, setHomeworkSort] = useState<HomeworkSortMode>("session_desc");

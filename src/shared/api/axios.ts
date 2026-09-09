@@ -76,13 +76,8 @@ export function clearTokens(expectedGeneration?: string | null) {
   try {
     localStorage.removeItem("parent_selected_student_id");
     localStorage.removeItem("hakwonplus:excel-job-recovery:v1");
-    // tenant-scoped parent selection keys cleanup
-    for (let i = localStorage.length - 1; i >= 0; i -= 1) {
-      const k = localStorage.key(i);
-      if (k && k.startsWith("parent_selected_student_id_")) {
-        localStorage.removeItem(k);
-      }
-    }
+    // 선택 자녀는 인증정보가 아니라 테넌트별 사용자 선호다. 로그아웃 뒤에도 보존하고,
+    // 다음 학부모 로그인에서 연결된 자녀인지 initParentStudentId가 다시 검증한다.
     removeSessionItem("session_expired");
     removeSessionItem("session_return_path");
     removeSessionItem("tenantCode");

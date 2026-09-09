@@ -11,6 +11,11 @@ import styles from "./StudentsDetailOverlay.module.css";
 type SessionScope = "all" | "REGULAR" | "SUPPLEMENT";
 type StatusScope = "all" | "attention" | "done";
 type SortMode = "session_desc" | "session_asc" | "updated";
+type PeriodScope = "all" | "30" | "90";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const KOREAN_COLLATOR = new Intl.Collator("ko-KR", { numeric: true, sensitivity: "base" });
 
 type Props = {
   data: StudentHomeworkGrade[];
@@ -39,6 +44,62 @@ function isDone(homework: StudentHomeworkGrade) {
   return homework.achievement === "PASS"
     || homework.achievement === "REMEDIATED"
     || homework.passed === true;
+}
+
+function isoDateToDay(value: string | null | undefined): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value ?? "");
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const utc = Date.UTC(year, month - 1, day);
+  const parsed = new Date(utc);
+  if (
+    parsed.getUTCFullYear() !== year
+    || parsed.getUTCMonth() !== month - 1
+    || parsed.getUTCDate() !== day
+  ) return null;
+  return Math.floor(utc / DAY_MS);
+}
+
+function currentKstDay(now = Date.now()): number {
+  const shifted = new Date(now + KST_OFFSET_MS);
+  return Math.floor(Date.UTC(
+    shifted.getUTCFullYear(),
+    shifted.getUTCMonth(),
+    shifted.getUTCDate(),
+  ) / DAY_MS);
+}
+
+function sessionDateLabel(value: string | null | undefined): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value ?? "");
+  if (!match || isoDateToDay(value) == null) return "날짜 미확인";
+  return `${Number(match[1])}. ${Number(match[2])}. ${Number(match[3])}.`;
+}
+
+function compareSessionHistory(a: StudentHomeworkGrade, b: StudentHomeworkGrade, direction: "asc" | "desc") {
+  const aDay = isoDateToDay(a.session_date);
+  const bDay = isoDateToDay(b.session_date);
+  if (aDay == null && bDay != null) return 1;
+  if (aDay != null && bDay == null) return -1;
+  if (aDay != null && bDay != null && aDay !== bDay) {
+    return direction === "desc" ? bDay - aDay : aDay - bDay;
+  }
+
+  const aOrder = a.session_regular_order ?? a.session_order;
+  const bOrder = b.session_regular_order ?? b.session_order;
+  if (aOrder == null && bOrder != null) return 1;
+  if (aOrder != null && bOrder == null) return -1;
+  if (aOrder != null && bOrder != null && aOrder !== bOrder) {
+    return direction === "desc" ? bOrder - aOrder : aOrder - bOrder;
+  }
+
+  const lectureDiff = KOREAN_COLLATOR.compare(a.lecture_title ?? "", b.lecture_title ?? "");
+  if (lectureDiff !== 0) return lectureDiff;
+  const displayOrderDiff = (a.display_order ?? 0) - (b.display_order ?? 0);
+  if (displayOrderDiff !== 0) return displayOrderDiff;
+  if (a.homework_id !== b.homework_id) return b.homework_id - a.homework_id;
+  return a.enrollment_id - b.enrollment_id;
 }
 
 function ChevronIcon() {
@@ -72,6 +133,8 @@ export default function StudentHomeworkTab({
   const [sessionScope, setSessionScope] = useState<SessionScope>("all");
   const [statusScope, setStatusScope] = useState<StatusScope>("all");
   const [sortMode, setSortMode] = useState<SortMode>("session_desc");
+  const [periodScope, setPeriodScope] = useState<PeriodScope>("all");
+  const [lectureScope, setLectureScope] = useState("all");
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="과제 성적을 불러오는 중…" />;
   if (isError) {
@@ -87,8 +150,81 @@ export default function StudentHomeworkTab({
   }
   if (!data.length) return <EmptyState scope="panel" tone="empty" title="과제 성적이 없습니다." />;
 
+  const lectureOptions = Array.from(data.reduce((options, homework) => {
+    if (homework.lecture_id == null) return options;
+    const key = String(homework.lecture_id);
+    const day = isoDateToDay(homework.session_date);
+    const current = options.get(key);
+    if (!current || (day != null && (current.latestDay == null || day > current.latestDay))) {
+      options.set(key, {
+        id: key,
+        title: homework.lecture_title?.trim() || "이름 없는 강의",
+        latestDay: day,
+        latestDate: day != null ? homework.session_date ?? null : current?.latestDate ?? null,
+        chipLabel: homework.lecture_chip_label?.trim() || current?.chipLabel || null,
+      });
+    }
+    return options;
+  }, new Map<string, {
+    id: string;
+    title: string;
+    latestDay: number | null;
+    latestDate: string | null;
+    chipLabel: string | null;
+  }>()).values())
+    .sort((a, b) => {
+      if (a.latestDay == null && b.latestDay != null) return 1;
+      if (a.latestDay != null && b.latestDay == null) return -1;
+      if (a.latestDay !== b.latestDay) return (b.latestDay ?? 0) - (a.latestDay ?? 0);
+      const titleDiff = KOREAN_COLLATOR.compare(a.title, b.title);
+      if (titleDiff !== 0) return titleDiff;
+      return Number(a.id) - Number(b.id);
+    });
+  const duplicateLectureTitles = new Set(
+    lectureOptions
+      .filter((option, index, options) => options.some((candidate, candidateIndex) => (
+        candidateIndex !== index && candidate.title === option.title
+      )))
+      .map((option) => option.title),
+  );
+  const lectureBaseLabels = lectureOptions.map((option) => ({
+    id: option.id,
+    chipLabel: option.chipLabel,
+    label: duplicateLectureTitles.has(option.title) && option.latestDate
+      ? `${option.title} · ${sessionDateLabel(option.latestDate)}`
+      : option.title,
+  }));
+  const lectureBaseLabelCounts = lectureBaseLabels.reduce((counts, option) => {
+    counts.set(option.label, (counts.get(option.label) ?? 0) + 1);
+    return counts;
+  }, new Map<string, number>());
+  const lectureLabelCandidates = lectureBaseLabels.map((option) => ({
+    id: option.id,
+    label: (lectureBaseLabelCounts.get(option.label) ?? 0) > 1 && option.chipLabel
+      ? `${option.label} · ${option.chipLabel}`
+      : option.label,
+  }));
+  const lectureLabelCounts = lectureLabelCandidates.reduce((counts, option) => {
+    counts.set(option.label, (counts.get(option.label) ?? 0) + 1);
+    return counts;
+  }, new Map<string, number>());
+  const lectureLabels = new Map(lectureLabelCandidates.map((option) => [
+    option.id,
+    (lectureLabelCounts.get(option.label) ?? 0) > 1
+      ? `${option.label} · 강의 #${option.id}`
+      : option.label,
+  ]));
+  const periodDays = periodScope === "all" ? null : Number(periodScope);
+  const todayDay = currentKstDay();
+  const periodStartDay = periodDays == null ? null : todayDay - periodDays + 1;
+
   const visibleData = data
     .filter((homework) => {
+      if (lectureScope !== "all" && String(homework.lecture_id) !== lectureScope) return false;
+      if (periodStartDay != null) {
+        const sessionDay = isoDateToDay(homework.session_date);
+        if (sessionDay == null || sessionDay < periodStartDay || sessionDay > todayDay) return false;
+      }
       if (sessionScope !== "all" && homework.session_type !== sessionScope) return false;
       if (statusScope === "done") return isDone(homework);
       if (statusScope === "attention") return !isDone(homework);
@@ -98,18 +234,9 @@ export default function StudentHomeworkTab({
       if (sortMode === "updated") {
         const updatedDiff = Date.parse(b.score_updated_at ?? "") - Date.parse(a.score_updated_at ?? "");
         if (Number.isFinite(updatedDiff) && updatedDiff !== 0) return updatedDiff;
-      } else {
-        const aOrder = a.session_regular_order ?? a.session_order;
-        const bOrder = b.session_regular_order ?? b.session_order;
-        if (aOrder == null && bOrder != null) return 1;
-        if (aOrder != null && bOrder == null) return -1;
-        if (aOrder != null && bOrder != null && aOrder !== bOrder) {
-          return sortMode === "session_desc" ? bOrder - aOrder : aOrder - bOrder;
-        }
+        return compareSessionHistory(a, b, "desc");
       }
-      const displayOrderDiff = (a.display_order ?? 0) - (b.display_order ?? 0);
-      if (displayOrderDiff !== 0) return displayOrderDiff;
-      return b.homework_id - a.homework_id;
+      return compareSessionHistory(a, b, sortMode === "session_desc" ? "desc" : "asc");
     });
 
   return (
@@ -120,48 +247,72 @@ export default function StudentHomeworkTab({
           <span aria-live="polite">{visibleData.length}/{data.length}건 표시</span>
         </div>
         <div className={homeworkStyles.filters}>
-          <label>
-            <span>수업</span>
-            <select value={sessionScope} onChange={(event) => setSessionScope(event.target.value as SessionScope)}>
-              <option value="all">정규·보강 전체</option>
-              <option value="REGULAR">정규 수업</option>
-              <option value="SUPPLEMENT">보강</option>
-            </select>
-          </label>
-          <label>
-            <span>상태</span>
-            <select value={statusScope} onChange={(event) => setStatusScope(event.target.value as StatusScope)}>
-              <option value="all">전체 상태</option>
-              <option value="attention">확인 필요</option>
-              <option value="done">완료</option>
-            </select>
-          </label>
-          <label>
-            <span>정렬</span>
-            <select value={sortMode} onChange={(event) => setSortMode(event.target.value as SortMode)}>
-              <option value="session_desc">최근 차시순</option>
-              <option value="session_asc">1차시부터</option>
-              <option value="updated">최근 수정순</option>
-            </select>
-          </label>
+          <div className={homeworkStyles.filterRow}>
+            <label>
+              <span>기간</span>
+              <select value={periodScope} onChange={(event) => setPeriodScope(event.target.value as PeriodScope)}>
+                <option value="all">전체 기간</option>
+                <option value="30">최근 30일</option>
+                <option value="90">최근 90일</option>
+              </select>
+            </label>
+            <label className={homeworkStyles.lectureFilter}>
+              <span>강의</span>
+              <select value={lectureScope} onChange={(event) => setLectureScope(event.target.value)}>
+                <option value="all">전체 강의</option>
+                {lectureOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {lectureLabels.get(option.id)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className={homeworkStyles.filterRow}>
+            <label>
+              <span>수업</span>
+              <select value={sessionScope} onChange={(event) => setSessionScope(event.target.value as SessionScope)}>
+                <option value="all">전체 수업</option>
+                <option value="REGULAR">정규 수업</option>
+                <option value="SUPPLEMENT">보강</option>
+              </select>
+            </label>
+            <label>
+              <span>상태</span>
+              <select value={statusScope} onChange={(event) => setStatusScope(event.target.value as StatusScope)}>
+                <option value="all">전체 상태</option>
+                <option value="attention">확인 필요</option>
+                <option value="done">완료</option>
+              </select>
+            </label>
+            <label>
+              <span>정렬</span>
+              <select value={sortMode} onChange={(event) => setSortMode(event.target.value as SortMode)}>
+                <option value="session_desc">최신 수업일</option>
+                <option value="session_asc">오래된 수업일</option>
+                <option value="updated">최근 수정</option>
+              </select>
+            </label>
+          </div>
         </div>
       </section>
       {visibleData.length === 0 ? (
-        <EmptyState scope="panel" tone="empty" title="조건에 맞는 과제가 없습니다." description="수업 또는 상태 필터를 바꿔 주세요." />
+        <EmptyState scope="panel" tone="empty" title="조건에 맞는 과제가 없습니다." description="기간·강의 또는 세부 필터를 바꿔 주세요." />
       ) : (
         <div className={styles.tabList}>
-          {visibleData.map((homework, index) => {
+          {visibleData.map((homework) => {
             const canNavigate = Boolean(homework.lecture_id && homework.session_id);
             const navigationPath = canNavigate
               ? `/workspace/lectures/${homework.lecture_id}/sessions/${homework.session_id}/scores`
               : "";
-            const rowKey = `${homework.homework_id}-${homework.enrollment_id}-${index}`;
+            const rowKey = `${homework.homework_id}-${homework.enrollment_id}`;
             const isEditing = editingKey === rowKey;
             return (
               <div key={rowKey} className={styles.homeworkRecordGroup}>
                 <div
                   className={styles.tabRecord}
                   data-clickable={canNavigate ? "" : undefined}
+                  data-session-date={homework.session_date ?? ""}
                   onClick={canNavigate ? () => onNavigate(navigationPath) : undefined}
                 >
                   {homework.lecture_title && (
@@ -175,7 +326,8 @@ export default function StudentHomeworkTab({
                   <div className={styles.recordMain}>
                     <span className={styles.recordTitle}>{homework.title}</span>
                     <div className={styles.recordMetaRow}>
-                      {homework.session_title && <span>{homework.session_title}</span>}
+                      <span>{sessionDateLabel(homework.session_date)}</span>
+                      {homework.session_title && <span>· {homework.session_title}</span>}
                       {homework.session_type && <span>· {homework.session_type === "SUPPLEMENT" ? "보강" : "정규"}</span>}
                       <span>· {homework.grading_mode === "COMPLETION" ? "완료 체크" : "숫자 채점"}</span>
                       {(homework.retake_count ?? 0) > 1 && <span>· 재시도 {(homework.retake_count ?? 0) - 1}회</span>}
