@@ -12,6 +12,7 @@ import {
   logoutStudentApp,
   QA_BASE,
   reloadStudentApp,
+  selectParentStudentThroughUi,
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
 } from "../helpers/qaStudentParentScenario";
@@ -104,6 +105,7 @@ test.describe.serial("[real-use] 학생·학부모 선택 자녀 자료함·성�
     await logoutStudentApp(page);
 
     await loginThroughUi(page, family.parentPhone, family.parentPassword);
+    await selectParentStudentThroughUi(page, primary);
     await gotoAndSettle(page, `${QA_BASE}/student/inventory`, { timeout: 30_000 });
     await expect(page.getByText(studentFile, { exact: true })).toBeVisible();
     await uploadInventoryFile(page, parentFile, primary.id);
@@ -156,11 +158,11 @@ test.describe.serial("[real-use] 학생·학부모 선택 자녀 자료함·성�
     await reloadStudentApp(page);
     await expect(page.getByText("확인 대기")).toBeVisible();
 
-    await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: sibling.name }).click();
+    await selectParentStudentThroughUi(page, sibling);
     await gotoAndSettle(page, `${QA_BASE}/student/inventory`, { timeout: 30_000 });
     await expect(page.getByText(studentFile, { exact: true })).toHaveCount(0);
     await expect(page.getByText(parentFile, { exact: true })).toHaveCount(0);
-    await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: primary.name }).click();
+    await selectParentStudentThroughUi(page, primary);
     await logoutStudentApp(page);
     await loginThroughUi(page, family.parentPhone, family.parentPassword);
     await gotoAndSettle(page, `${QA_BASE}/student/inventory`, { timeout: 30_000 });

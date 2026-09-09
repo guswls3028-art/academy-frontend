@@ -20,6 +20,7 @@ import {
   QA_BASE,
   QA_TENANT,
   reloadStudentApp,
+  selectParentStudentThroughUi,
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
   type QaStudent,
@@ -276,14 +277,7 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     await logoutStudentApp(page);
     await loginThroughUi(page, created.family.parentPhone, created.family.parentPassword);
     const parentTokens = await loginApi(request, created.family.parentPhone, created.family.parentPassword);
-    const switcher = page.getByRole("tablist", { name: "자녀 선택" });
-    const peerTab = switcher.getByRole("tab", { name: peer.name });
-    const peerRequest = page.waitForRequest((requestItem) => (
-      requestItem.url().includes("/api/v1/student/")
-      && requestItem.headers()["x-student-id"] === String(peer.id)
-    ));
-    await peerTab.click();
-    await peerRequest;
+    await selectParentStudentThroughUi(page, peer);
     await gotoAndSettle(page, `${QA_BASE}/student/exams/${created.examId}/submit`, { timeout: 30_000 });
     await expect(page.getByText(examTitle)).toBeVisible();
     await expect(page.getByText("학부모 계정은 시험을 제출할 수 없습니다.")).toHaveCount(0);
@@ -298,6 +292,7 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     await page.locator("[data-confirm-dialog]").getByRole("button", { name: "제출" }).click();
     const parentSubmitted = await parentSubmitResponse;
     expect(parentSubmitted.status()).toBe(201);
+    expect(parentSubmitted.request().headers()["x-student-id"]).toBe(String(peer.id));
     const parentSubmissionId = Number((await parentSubmitted.json() as { submission_id: number }).submission_id);
     expect(parentSubmissionId).toBeGreaterThan(0);
     created.submissionIds.push(parentSubmissionId);
@@ -326,13 +321,7 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
 
     await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
     await expect(page.getByRole("link").filter({ hasText: examTitle }).first()).toBeVisible();
-    const primaryTab = page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: primary.name });
-    const primaryRequest = page.waitForRequest((requestItem) => (
-      requestItem.url().includes("/api/v1/student/")
-      && requestItem.headers()["x-student-id"] === String(primary.id)
-    ));
-    await primaryTab.click();
-    await primaryRequest;
+    await selectParentStudentThroughUi(page, primary);
     await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
     const firstCard = page.getByRole("link").filter({ hasText: examTitle }).first();
     await expect(firstCard).toBeVisible();

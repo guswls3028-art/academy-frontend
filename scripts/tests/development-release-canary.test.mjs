@@ -23,6 +23,24 @@ test("student-parent real-use creation follows mandatory account notice policy",
   assert.match(source, /await loginApi\(request, parentPhone, QA_STUDENT_PASSWORD\)/);
 });
 
+test("student-parent real-use selects the intended child and uses supported clinic cleanup", () => {
+  const scenarioSource = readFileSync(new URL("../../e2e/helpers/qaStudentParentScenario.ts", import.meta.url), "utf8");
+  const clinicSource = readFileSync(new URL("../../e2e/student/student-parent-clinic-realuse.spec.ts", import.meta.url), "utf8");
+  const childScopedSpecs = ["assessment", "community", "learning", "storage"].map((name) => (
+    readFileSync(new URL(`../../e2e/student/student-parent-${name}-realuse.spec.ts`, import.meta.url), "utf8")
+  ));
+
+  assert.match(scenarioSource, /export async function selectParentStudentThroughUi/);
+  assert.match(scenarioSource, /withStudentPhones\?: boolean/);
+  for (const source of childScopedSpecs) {
+    assert.match(source, /selectParentStudentThroughUi\(page,/);
+  }
+  assert.match(clinicSource, /createQaFamily\([^;]+\{ withStudentPhones: true \}\)/s);
+  assert.match(clinicSource, /remove\("DELETE", `\/clinic\/sessions\/\$\{sessionId\}\/`\)/);
+  assert.doesNotMatch(clinicSource, /remove\("DELETE", `\/clinic\/participants\//);
+  assert.match(clinicSource, /verify clinic participant \$\{participantId\} absent/);
+});
+
 test("student-parent real-use awaits and dismisses the actual initial-account prompts", () => {
   const promptSource = readFileSync(new URL("../../e2e/helpers/firstLoginGuide.ts", import.meta.url), "utf8");
   const scenarioSource = readFileSync(new URL("../../e2e/helpers/qaStudentParentScenario.ts", import.meta.url), "utf8");
