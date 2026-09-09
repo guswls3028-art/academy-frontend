@@ -1119,6 +1119,96 @@ test("운영 화면은 빈 세션 선택을 유지해 첫 학생을 desktop과 3
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
+test("달력에서 날짜를 고른 뒤 일정별 학생 관리로 추가·해제하고 새로고침 상태를 확인한다", async ({ page }) => {
+  const state: OperationsState = {
+    participants: [],
+    targets: [{
+      enrollment_id: 1202,
+      student_id: 502,
+      student_name: "달력진입 학생",
+      session_title: "과학 2차시",
+      clinic_reason: "homework",
+      reason: "missing",
+      clinic_link_id: 8802,
+      session_id: 3102,
+      source_type: "homework",
+      source_id: 4102,
+      created_at: "2026-08-29T10:00:00+09:00",
+    }],
+    participantBulkPayloads: [],
+    statusPayloads: [],
+  };
+
+  await seed(page);
+  await installApi(page, undefined, state);
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await gotoAndSettle(
+    page,
+    `${BASE}/workspace/clinic/operations?scope=day&date=${saturday}&session=701`,
+    { timeout: 45_000 },
+  );
+
+  const calendar = page.locator(".clinic-operations-shell__sidebar")
+    .getByRole("grid", { name: /클리닉 월간 달력/ });
+  const selectedDate = calendar.getByRole("gridcell", { name: /8월 29일 토요일/ });
+  await selectedDate.click();
+  await expect(page).toHaveURL(new RegExp(`scope=day&date=${saturday}$`));
+
+  const assignmentRegion = page.getByRole("region", { name: "배정 학생 관리" });
+  await expect(assignmentRegion).toContainText("3개 일정 · 배정 0명");
+  const manageButton = assignmentRegion.getByRole("button", {
+    name: "17:00 토요일 5시 클리닉 학생 관리, 0명 배정",
+  });
+  await expect(manageButton).toBeVisible();
+  expect((await manageButton.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(await assignmentRegion.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: "test-results/admin-clinic-calendar-student-manage-1366.png", fullPage: false });
+  await manageButton.focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(new RegExp(`date=${saturday}&session=702$`));
+
+  await page.getByRole("button", { name: "학생 추가하기", exact: true }).click();
+  const targetDialog = page.getByRole("dialog", { name: "대상자 선택" });
+  await targetDialog.getByRole("checkbox", { name: "달력진입 학생 선택" }).check();
+  await targetDialog.getByRole("button", { name: "선택 확정 (1명)" }).click();
+  await expect.poll(() => state.participantBulkPayloads?.[0]).toEqual({
+    session_ids: [702],
+    enrollment_ids: [1202],
+  });
+  await expect(page.locator(".clinic-ops__card").filter({ hasText: "달력진입 학생" })).toBeVisible();
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.locator(".clinic-ops__card").filter({ hasText: "달력진입 학생" })).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${BASE}/workspace/clinic/operations?scope=day&date=${saturday}`, {
+    waitUntil: "domcontentloaded",
+  });
+  const mobileAssignmentRegion = page.getByRole("region", { name: "배정 학생 관리" });
+  await expect(mobileAssignmentRegion).toContainText("3개 일정 · 배정 1명");
+  const mobileManageButton = mobileAssignmentRegion.getByRole("button", {
+    name: "17:00 토요일 5시 클리닉 학생 관리, 1명 배정",
+  });
+  await expect(mobileManageButton).toBeVisible();
+  expect((await mobileManageButton.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(await mobileAssignmentRegion.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await page.screenshot({ path: "test-results/admin-clinic-calendar-student-manage-390.png", fullPage: false });
+  await mobileManageButton.press("Enter");
+  await page.getByRole("button", { name: "달력진입 학생 학생 작업대 열기" }).click();
+  const workbench = page.getByRole("dialog", { name: "달력진입 학생 클리닉 워크벤치" });
+  await workbench.getByRole("button", { name: "명단에서 빼기", exact: true }).click();
+  const confirmation = page.getByRole("alertdialog", { name: "클리닉 명단에서 빼기" });
+  await confirmation.getByRole("button", { name: "명단에서 빼기", exact: true }).click();
+  await expect.poll(() => state.statusPayloads?.[0]).toEqual({
+    id: 9900,
+    status: "cancelled",
+    send_to: "parent",
+  });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.locator(".clinic-ops__card").filter({ hasText: "달력진입 학생" })).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
 test("학생 추가 충돌은 구체적 사유를 보여주고 선택을 보존해 바로 재시도한다", async ({ page }) => {
   const state: OperationsState = {
     participants: [],

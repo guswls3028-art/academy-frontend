@@ -19,7 +19,7 @@ const API_ORIGIN = "http://127.0.0.1:18000";
 const FLOW_COUNTS = {
   "notice-roundtrip.spec.ts": 3,
   "qna-roundtrip.spec.ts": 4,
-  "clinic-roundtrip.spec.ts": 3,
+  "clinic-roundtrip.spec.ts": 4,
   "student-parent-account-realuse.spec.ts": 1,
   "student-parent-assessment-realuse.spec.ts": 1,
   "student-parent-clinic-realuse.spec.ts": 1,
@@ -87,6 +87,7 @@ function initialPreflightEvidence(frontendSha) {
     frontendSha: /^[a-f0-9]{40}$/.test(frontendSha || "") ? frontendSha : null,
     backendGovernanceSha: null, backendReleaseId: null, apiDigest: null, instanceId: null,
     tenantCode: null, artifactSha256: null, cases: null, documentSha256: {}, cleanup: null,
+    crossTenantCleanup: null,
     operationObservation: null, inspectObservation: null, realUseObservation: null,
     realUseProcessObservation: null,
     videoRuntimeObservation: null,
@@ -710,6 +711,8 @@ export async function run() {
   let instanceId;
   let tenant;
   let capability;
+  let crossTenant;
+  let crossCapability;
   const evidence = await runPreflightStages([
     ["process", () => {
       assert.equal(process.env.GITHUB_ACTIONS, "true", "Official CI only; no implicit local synthetic run");
@@ -720,6 +723,9 @@ export async function run() {
       assert.equal(identity.Account, ACCOUNT);
       assert.match(identity.Arn, /:assumed-role\/academy-frontend-development-qa\/academy-fe-qa-[0-9-]+$/);
       ({ tenant, capability } = createRunOwnership(process.env));
+      ({ tenant: crossTenant, capability: crossCapability } = createRunOwnership(process.env));
+      assert.notEqual(crossTenant, tenant);
+      assert.notEqual(crossCapability, capability);
       assert.ok(identity.Arn.endsWith(`/academy-fe-qa-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT}`));
     }],
     ["bundle", () => {
@@ -771,9 +777,11 @@ export async function run() {
       assert.equal(online[0].PingStatus, "Online");
     }],
   ], persistEvidence, process.env.GITHUB_SHA);
-  const common = { TenantCode: [tenant], OwnershipCapability: [capability],
+  const ownerParameters = (ownerTenant, ownerCapability, syntheticLongVideo) => ({
+    TenantCode: [ownerTenant], OwnershipCapability: [ownerCapability],
     ReleaseId: [manifest.releaseImageTag], ApiDigest: [manifest.images["academy-api"].digest],
-    SyntheticLongVideo: ["true"] };
+    SyntheticLongVideo: [syntheticLongVideo ? "true" : "false"],
+  });
   const sessions = new Set();
   const processes = [];
   let operationObservation = null;
@@ -794,8 +802,11 @@ export async function run() {
     assert.ok(match[1].startsWith("academy-fe-qa-"), "Unexpected session ownership");
     sessions.add(match[1]);
   }
-  async function operation(action) {
-    const process = session(QA_DOCUMENT, { ...common, Action: [action] });
+  async function operation(action, ownerTenant = tenant, ownerCapability = capability, syntheticLongVideo = true) {
+    const process = session(QA_DOCUMENT, {
+      ...ownerParameters(ownerTenant, ownerCapability, syntheticLongVideo),
+      Action: [action],
+    });
     const result = await process.done;
     const observed = observeFixedOperationResult(action, result);
     if (action !== "Cleanup" || !primaryFailed) operationObservation = observed.observation;
@@ -807,12 +818,14 @@ export async function run() {
     const payload = observed.payload;
     assert.ok(payload, "Missing fixed operation payload");
     assert.notEqual(payload.status, "DEVELOPMENT_QA_FAILED", `Development ${action} boundary failed`);
-    assert.equal(payload.tenant_code, tenant);
+    assert.equal(payload.tenant_code, ownerTenant);
     return payload;
   }
   let server;
   let setupAttempted = false;
+  let crossSetupAttempted = false;
   let cleanup;
+  let crossTenantCleanup;
   let counts;
   let realUseObservation;
   let realUseProcessObservation;
@@ -835,6 +848,9 @@ export async function run() {
       instanceId, tenantCode: tenant, artifactSha256: fingerprint, cases: counts || null,
       documentSha256: Object.fromEntries([...expectedDocuments].map(([name, content]) => [name, sha(content)])),
       cleanup: cleanup ? { tenantCode: tenant, remaining: cleanup.remaining } : null,
+      crossTenantCleanup: crossTenantCleanup
+        ? { tenantCode: crossTenant, remaining: crossTenantCleanup.remaining }
+        : null,
       operationObservation, inspectObservation, realUseObservation: realUseObservation || null,
       realUseProcessObservation: realUseProcessObservation || null,
       videoRuntimeObservation: videoRuntimeObservation || null,
@@ -857,6 +873,11 @@ export async function run() {
     assert.equal(inspected.digest, manifest.images["academy-api"].digest);
     setupAttempted = true;
     scenario = await operation("Setup");
+    const crossInspected = await operation("Inspect", crossTenant, crossCapability, false);
+    assert.equal(crossInspected.status, "DEVELOPMENT_QA_IDENTITY_PASS");
+    assert.deepEqual(crossInspected.remaining, { tenants: 0, users: 0 }, "Never reuse the cross-tenant QA tenant");
+    crossSetupAttempted = true;
+    await operation("Setup", crossTenant, crossCapability, false);
     const longVideo = assertLongVideoSetup(scenario);
     const tunnel = session(PORT_DOCUMENT);
     await waitPort(18000, () => interrupted);
@@ -871,6 +892,7 @@ export async function run() {
         E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict",
         E2E_STUDENT_PARENT_REALUSE: "1", E2E_ALLOW_REAL_ALIMTALK: "0",
         E2E_TENANT_CODE: tenant, E2E_ADMIN_USER: "ymath-qa-teacher", E2E_STUDENT_USER: "ymath-qa-student-01",
+        E2E_CROSS_TENANT_CODE: crossTenant,
         E2E_STUDENT2_USER: "ymath-qa-student-02", E2E_LONG_VIDEO_TENANT_ID: String(scenario.tenant_id),
         E2E_LONG_VIDEO_ID: String(scenario.synthetic_long_video.video_id),
         E2E_LONG_VIDEO_HLS_PATH: longVideo.hls_path,
@@ -900,6 +922,12 @@ export async function run() {
     if (setupAttempted) {
       try { cleanup = await operation("Cleanup"); assertCleanup(cleanup, tenant); }
       catch { failures.push("development cleanup failed or zero residue not proven"); }
+    }
+    if (crossSetupAttempted) {
+      try {
+        crossTenantCleanup = await operation("Cleanup", crossTenant, crossCapability, false);
+        assertCleanup(crossTenantCleanup, crossTenant);
+      } catch { failures.push("cross-tenant development cleanup failed or zero residue not proven"); }
     }
     for (const process of processes) {
       try { remember(process); } catch { failures.push("session ownership readback failed"); }
@@ -931,7 +959,7 @@ export async function run() {
     if (interrupted && !failures.some((failure) => failure.includes("interrupted"))) failures.push("development run interrupted; promotion forbidden");
     process.off("SIGINT", interrupt);
     process.off("SIGTERM", interrupt);
-    const passed = failures.length === 0 && Boolean(counts) && Boolean(cleanup)
+    const passed = failures.length === 0 && Boolean(counts) && Boolean(cleanup) && Boolean(crossTenantCleanup)
       && Boolean(realUseObservation?.longVideo) && Boolean(videoRuntimeObservation);
     const resultEvidence = writeEvidence(passed, failures, passed ? "passed" : "qa_failed");
     assert.equal(resultEvidence.passed, true, "Development release gate failed; see PII-free evidence");

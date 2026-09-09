@@ -41,7 +41,8 @@ test("each run has an independent non-published ownership capability", () => {
   assert.notEqual(first.tenant, second.tenant);
   assert.throws(() => runner.createRunOwnership({ ...env, GITHUB_RUN_ID: "123-other" }));
   const source = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
-  assert.match(source, /OwnershipCapability: \[capability\]/);
+  assert.match(source, /OwnershipCapability: \[ownerCapability\]/);
+  assert.match(source, /\{ tenant: crossTenant, capability: crossCapability \} = createRunOwnership/);
   assert.match(source, /writeEvidence\(false, \["development attempt unfinished; cleanup not proven"\]\)/);
   assert.match(source, /process\.on\("SIGTERM", interrupt\)/);
 });
@@ -91,6 +92,7 @@ test("preflight writes an inert envelope before checks and marks only reviewed p
     cases: null,
     documentSha256: {},
     cleanup: null,
+    crossTenantCleanup: null,
     operationObservation: null,
     inspectObservation: null,
     realUseObservation: null,
@@ -318,8 +320,8 @@ test("assessment classification fails if a business write or skip is introduced"
 });
 
 function completeFlowReport() {
-  return { errors: [], stats: { expected: 18, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
-    ...Object.entries({ "notice-roundtrip.spec.ts": 3, "qna-roundtrip.spec.ts": 4, "clinic-roundtrip.spec.ts": 3,
+  return { errors: [], stats: { expected: 19, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
+    ...Object.entries({ "notice-roundtrip.spec.ts": 3, "qna-roundtrip.spec.ts": 4, "clinic-roundtrip.spec.ts": 4,
       "student-parent-account-realuse.spec.ts": 1, "student-parent-assessment-realuse.spec.ts": 1,
       "student-parent-clinic-realuse.spec.ts": 1, "student-parent-community-realuse.spec.ts": 1,
       "student-parent-homework-realuse.spec.ts": 1,
@@ -424,7 +426,7 @@ test("real-use failure observation publishes only allowlisted counts, files, and
   });
 });
 
-test("all eighteen real-use cases are mandatory; missing, skip, failure, retry and global errors fail closed", () => {
+test("all nineteen real-use cases are mandatory; missing, skip, failure, retry and global errors fail closed", () => {
   assert.doesNotThrow(() => assertReleaseSummary(completeFlowReport()));
   const corrupt = [
     (report) => report.suites.pop(),
@@ -437,6 +439,30 @@ test("all eighteen real-use cases are mandatory; missing, skip, failure, retry a
     (report) => { report.stats.flaky = 1; },
   ];
   for (const mutate of corrupt) { const report = completeFlowReport(); mutate(report); assert.throws(() => assertReleaseSummary(report)); }
+});
+
+test("clinic calendar student management is a mandatory real backend and cleanup-zero contract", () => {
+  const source = readFileSync(new URL("../../e2e/flows/clinic-roundtrip.spec.ts", import.meta.url), "utf8");
+  const runnerSource = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+
+  for (const required of [
+    "clinic-console__schedule-trigger",
+    "날짜·수업 선택",
+    "배정 학생 관리",
+    "/clinic/participants/bulk-create/",
+    "/set_status/",
+    ".reload",
+    "width: 390",
+    "날짜와 클리닉 수업",
+    "E2E_STUDENT2_USER",
+    "probeDevelopmentCrossTenantDenial",
+  ]) {
+    assert.match(source, new RegExp(required.replaceAll("/", "\\/")));
+  }
+  assert.doesNotMatch(source, /workspace\/clinic\/operations\?[^`"']*session=/);
+  assert.match(runnerSource, /E2E_CROSS_TENANT_CODE:/);
+  assert.match(runnerSource, /crossTenantCleanup/);
+  assert.match(runnerSource, /assertCleanup\(crossTenantCleanup, crossTenant\)/);
 });
 
 test("cleanup requires the exact owned tenant and numeric zero tenant/user residue", () => {
@@ -489,7 +515,7 @@ test("manifest and instance identity must match uniquely before setup", () => {
   }
 });
 
-test("development config discovers eighteen enabled cases without executing any API test", () => {
+test("development config discovers nineteen enabled cases without executing any API test", () => {
   const cwd = new URL("../../", import.meta.url);
   const output = execFileSync(process.execPath, ["node_modules/@playwright/test/cli.js", "test",
     "--config=playwright.development-release.config.ts", "--list"], {
@@ -511,7 +537,7 @@ test("development config discovers eighteen enabled cases without executing any 
     for (const child of suite.suites || []) visit(child);
   };
   visit(report);
-  assert.equal(discovered, 18);
+  assert.equal(discovered, 19);
   // Playwright's --list reporter counts all unexecuted cases as skipped. These
   // are discovery-only, never accepted by assertReleaseSummary as real-use proof.
   assert.equal(report.stats.expected, 0);
@@ -756,7 +782,8 @@ test("official runner opts into two-student long-video setup without publishing 
   const responseKindSource = readFileSync(new URL("../../e2e/helpers/videoPlaybackResponseKind.ts", import.meta.url), "utf8");
   const playerSource = readFileSync(new URL("../../src/app_student/domains/video/playback/player/StudentVideoPlayer.tsx", import.meta.url), "utf8");
   const playerCssSource = readFileSync(new URL("../../src/app_student/domains/video/playback/player/player.css", import.meta.url), "utf8");
-  assert.match(runnerSource, /SyntheticLongVideo: \["true"\]/);
+  assert.match(runnerSource, /SyntheticLongVideo: \[syntheticLongVideo \? "true" : "false"\]/);
+  assert.match(runnerSource, /scenario = await operation\("Setup"\)/);
   assert.match(runnerSource, /E2E_STUDENT2_USER: "ymath-qa-student-02"/);
   assert.match(runnerSource, /E2E_LONG_VIDEO_ID: String\(scenario\.synthetic_long_video\.video_id\)/);
   assert.match(runnerSource, /E2E_LONG_VIDEO_TENANT_ID: String\(scenario\.tenant_id\)/);
@@ -826,7 +853,13 @@ test("official runner opts into two-student long-video setup without publishing 
 
 const policySource = readFileSync(new URL("../../e2e/helpers/releaseApiBoundary.ts", import.meta.url), "utf8");
 const policyModule = await import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(policySource)).toString("base64")}`);
-const { assertReleaseRequestSafe, releaseBoundaryFromEnv, installReleaseRequestGuard, installReleaseContextGuard } = policyModule;
+const {
+  assertReleaseRequestSafe,
+  installReleaseContextGuard,
+  installReleaseRequestGuard,
+  probeDevelopmentCrossTenantDenial,
+  releaseBoundaryFromEnv,
+} = policyModule;
 const posterBridgeSource = readFileSync(new URL("../../e2e/helpers/syntheticVideoPosterBridge.ts", import.meta.url), "utf8");
 const { installSyntheticVideoPosterBridge } = await import(
   `data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(posterBridgeSource)).toString("base64")}`
@@ -1025,6 +1058,58 @@ test("only the exact public tenant metadata read may omit the tenant header", ()
 test("missing/unsafe release configuration fails before creating a scenario", () => {
   for (const overrides of [{}, { E2E_ALLOW_PRODUCTION_WRITES: "1" }, { E2E_API_URL: "https://api.hakwonplus.com" }]) {
     assert.throws(() => releaseBoundaryFromEnv({ E2E_RELEASE_API_MODE: "development", ...overrides }));
+  }
+});
+
+test("cross-tenant denial probe reaches only an existing sibling qa tenant with a read-only loopback request", async () => {
+  const names = [
+    "E2E_RELEASE_API_MODE",
+    "E2E_ALLOW_PRODUCTION_WRITES",
+    "E2E_API_URL",
+    "E2E_BASE_URL",
+    "E2E_TENANT_CODE",
+  ];
+  const previous = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  Object.assign(process.env, {
+    E2E_RELEASE_API_MODE: "development",
+    E2E_ALLOW_PRODUCTION_WRITES: "0",
+    E2E_API_URL: "http://127.0.0.1:18000",
+    E2E_BASE_URL: "http://localhost:4173",
+    E2E_TENANT_CODE: "qa-ymath-realuse-fe-123-1-primary000001",
+  });
+  globalThis.fetch = async (...args) => {
+    calls.push(args);
+    return new Response(null, { status: 403 });
+  };
+  try {
+    assert.equal(await probeDevelopmentCrossTenantDenial({
+      accessToken: "unit-token",
+      participantId: 71,
+      targetTenantCode: "qa-ymath-realuse-fe-123-1-sibling000001",
+    }), 403);
+    assert.equal(String(calls[0][0]), "http://127.0.0.1:18000/api/v1/clinic/participants/71/");
+    assert.equal(calls[0][1].method, "GET");
+    assert.equal(calls[0][1].redirect, "manual");
+    assert.equal(calls[0][1].headers["X-Tenant-Code"], "qa-ymath-realuse-fe-123-1-sibling000001");
+    await assert.rejects(() => probeDevelopmentCrossTenantDenial({
+      accessToken: "unit-token",
+      participantId: 71,
+      targetTenantCode: process.env.E2E_TENANT_CODE,
+    }), /distinct disposable QA tenant/);
+    await assert.rejects(() => probeDevelopmentCrossTenantDenial({
+      accessToken: "unit-token",
+      participantId: 0,
+      targetTenantCode: "qa-ymath-realuse-fe-123-1-sibling000001",
+    }), /exact participant/);
+    assert.equal(calls.length, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const name of names) {
+      if (previous[name] === undefined) delete process.env[name];
+      else process.env[name] = previous[name];
+    }
   }
 });
 
