@@ -632,7 +632,8 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
       bootstrapCount: 1, renewCount: 1, progressCount: 24, latestProgress: 674,
       accessCheckCount: 24, masterLoads: 1, mediaLoads: 2,
       consoleErrorCount: 0, pageErrorCount: 0, requestErrorCount: 0,
-      responseFailureKind: "access", responseFailureCode: "api-origin",
+      responseFailureKind: viewport === "desktop" ? "video-home" : "access",
+      responseFailureCode: "api-origin",
     })),
   } })}\n`;
   assert.deepEqual(runner.observeReleaseTestResult(JSON.stringify(report)).longVideoFailure, {
@@ -641,7 +642,8 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
       accessCheckCount: 24, bootstrapCount: 1, consoleErrorCount: 0, currentTime: 675,
       duration: 900, ended: false, latestProgress: 674, masterLoads: 1, mediaLoads: 2,
       networkState: 1, pageErrorCount: 0, paused: false, progressCount: 24, readyState: 4,
-      renewCount: 1, requestErrorCount: 0, responseFailureKind: "access",
+      renewCount: 1, requestErrorCount: 0,
+      responseFailureKind: viewport === "desktop" ? "video-home" : "access",
       responseFailureCode: "api-origin",
       videoMounted: true, viewport, wallSeconds: 690,
     })),

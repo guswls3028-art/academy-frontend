@@ -166,7 +166,9 @@ function observeLongVideoFailure(payload) {
   ];
   const nullableNumericKeys = ["currentTime", "duration", "latestProgress", "networkState", "readyState"];
   const nullableBooleanKeys = ["ended", "paused"];
-  const responseCaptureKinds = new Set(["bootstrap", "access", "session-list", "renewal", "progress", "other"]);
+  const responseCaptureKinds = new Set([
+    "bootstrap", "access", "session-list", "video-home", "renewal", "progress", "other",
+  ]);
   const responseFailureCodes = new Set([
     "api-origin", "method", "session-identity", "items-shape",
     "current-item", "poster", "playback-contract", "other",
