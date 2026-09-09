@@ -14,8 +14,10 @@ export const studentQueryKeys = {
     ["student-homework-media", homeworkId, enrollmentId] as const,
   dashboard: ["student-dashboard"] as const,
   communityUnread: ["student", "community-unread"] as const,
-  inventory: (ps: string) => ["student-inventory", ps] as const,
-  storageQuota: ["storage-quota"] as const,
+  inventory: (ps: string, selectedStudentId?: number) =>
+    ["student-inventory", selectedStudentId ?? null, ps] as const,
+  storageQuota: (selectedStudentId?: number) =>
+    ["storage-quota", selectedStudentId ?? null] as const,
   attendanceSummary: ["student", "attendance", "summary"] as const,
   notices: ["student-notices"] as const,
   notice: (noticeId: number | null) => ["student-notice", noticeId] as const,

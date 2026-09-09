@@ -87,7 +87,11 @@ function currentDeviceClass(): "mobile" | "tablet" | "desktop" {
   return "desktop";
 }
 
-export async function recordStudentScreenView(pathname: string): Promise<void> {
+export async function recordStudentScreenView(
+  pathname: string,
+  actorRole: string | null | undefined,
+): Promise<void> {
+  if (actorRole !== "student") return;
   const screenId = studentAuditScreenId(pathname);
   if (!screenId) return;
   const now = Date.now();

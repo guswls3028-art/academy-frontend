@@ -28,6 +28,7 @@ type PlaybackMode = "direct" | "enrolled" | "failure" | "pending";
 async function installApp(
   page: Page,
   mode: PlaybackMode = "direct",
+  viewer: "student" | "parent" = "student",
 ): Promise<{ evidence: Evidence; revoke: () => void }> {
   const evidence: Evidence = {
     playbackRequests: 0,
@@ -40,12 +41,13 @@ async function installApp(
   let revoked = false;
   const baseEpoch = Math.floor(CLOCK_START.getTime() / 1000);
   await page.clock.install({ time: CLOCK_START });
-  await page.addInitScript((token) => {
+  await page.addInitScript(({ token, parent }) => {
     localStorage.setItem("access", token);
     localStorage.setItem("refresh", `${token}-refresh`);
     localStorage.setItem("tenant_code", "tenant-one");
+    if (parent) localStorage.setItem("parent_selected_student_id_tenant-one", "502");
     sessionStorage.setItem("tenantCode", "tenant-one");
-  }, jwt());
+  }, { token: jwt(), parent: viewer === "parent" });
 
   await page.route("https://cdn.example.test/direct/**", async (route) => {
     // Keep media loading pending so this contract exercises direct access and
@@ -80,7 +82,18 @@ async function installApp(
       return json({ tenantCode: "tenant-one", display_name: "테스트 학원", feature_flags: {}, is_active: true });
     }
     if (path === "/core/me/") {
-      return json({
+      return json(viewer === "parent" ? {
+        id: 602,
+        username: "direct-parent",
+        name: "개별영상학부모",
+        is_staff: false,
+        is_superuser: false,
+        tenantRole: "parent",
+        linkedStudentId: 502,
+        linkedStudentName: "개별영상학생",
+        linkedStudents: [{ id: 502, name: "개별영상학생" }],
+        must_change_password: false,
+      } : {
         id: 502,
         username: "direct-student",
         name: "개별영상학생",
@@ -273,6 +286,19 @@ test("기존 수강 재생은 canonical bootstrap 뒤 화면 활동을 한 번�
   await page.clock.runFor(21_000);
   await expect.poll(() => evidence.renewalRequests).toBe(1);
   expect(evidence.playbackRequests).toBe(1);
+});
+
+test("학부모 영상 재생은 학생 전용 화면 활동 API를 호출하지 않는다", async ({ page }) => {
+  const { evidence } = await installApp(page, "enrolled", "parent");
+  await page.goto(`${BASE}/student/video/play?video=902&enrollment=702&session=802`, {
+    waitUntil: "domcontentloaded",
+    timeout: 45_000,
+  });
+
+  await expect(page.getByRole("heading", { name: "개별 허용된 중간고사 해설" })).toBeVisible();
+  await page.clock.runFor(5_000);
+  expect(evidence.activityBodies).toEqual([]);
+  expect(evidence.requestedPaths.filter((path) => path === "/students/me/activity/")).toEqual([]);
 });
 
 test("bootstrap 실패는 학생 화면 활동을 기록하지 않는다", async ({ page }) => {

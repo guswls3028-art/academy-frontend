@@ -36,6 +36,7 @@ type Props = {
   folders: InventoryFolder[];
   files: InventoryFile[];
   queryKey: readonly unknown[];
+  selectedStudentId?: number;
 };
 
 function FileIcon({ file }: { file: InventoryFile }) {
@@ -46,7 +47,7 @@ function FileIcon({ file }: { file: InventoryFile }) {
   return <IconFileText className={styles.fileIcon} />;
 }
 
-export default function InventoryHomeTab({ ps, folders, files, queryKey }: Props) {
+export default function InventoryHomeTab({ ps, folders, files, queryKey, selectedStudentId }: Props) {
   const deleteDialogTitleId = useId();
   const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -81,7 +82,7 @@ export default function InventoryHomeTab({ ps, folders, files, queryKey }: Props
   const uploadMut = useMutation({
     mutationFn: async (file: File) => {
       if (file.size > MAX_SIZE_MB * 1024 * 1024) throw new Error(`파일 크기는 ${MAX_SIZE_MB}MB 이하여야 합니다.`);
-      return uploadMyFile(ps, file, { folderId: currentFolderId });
+      return uploadMyFile(ps, file, { folderId: currentFolderId, selectedStudentId });
     },
     onSuccess: async () => { qc.invalidateQueries({ queryKey }); if (fileInputRef.current) fileInputRef.current.value = ""; const { studentToast } = await import("@student/shared/ui/feedback/studentToast"); studentToast.success("파일이 업로드되었습니다."); },
     onError: async (e: Error) => { const { studentToast } = await import("@student/shared/ui/feedback/studentToast"); studentToast.error(e.message || "파일 업로드에 실패했습니다."); },
@@ -106,22 +107,22 @@ export default function InventoryHomeTab({ ps, folders, files, queryKey }: Props
 
   const deleteMut = useMutation({
     mutationFn: async ({ type, id }: { type: "file" | "folder"; id: string }) => {
-      if (type === "file") return deleteMyFile(ps, id);
-      return deleteMyFolder(ps, id);
+      if (type === "file") return deleteMyFile(ps, id, selectedStudentId);
+      return deleteMyFolder(ps, id, selectedStudentId);
     },
     onSuccess: async () => { qc.invalidateQueries({ queryKey }); setConfirmDelete(null); const { studentToast } = await import("@student/shared/ui/feedback/studentToast"); studentToast.success("삭제되었습니다."); },
     onError: async () => { const { studentToast } = await import("@student/shared/ui/feedback/studentToast"); studentToast.error("삭제에 실패했습니다."); },
   });
 
   const createFolderMut = useMutation({
-    mutationFn: (name: string) => createMyFolder(ps, name, currentFolderId),
+    mutationFn: (name: string) => createMyFolder(ps, name, currentFolderId, selectedStudentId),
     onSuccess: async () => { qc.invalidateQueries({ queryKey }); setShowNewFolder(false); const { studentToast } = await import("@student/shared/ui/feedback/studentToast"); studentToast.success(`${newFolderName} 폴더가 생성되었습니다.`); setNewFolderName(""); },
     onError: async () => { const { studentToast } = await import("@student/shared/ui/feedback/studentToast"); studentToast.error("폴더 생성에 실패했습니다."); },
   });
 
   const handleDownload = async (file: InventoryFile) => {
     try {
-      const { url } = await getMyFileUrl(file.r2Key);
+      const { url } = await getMyFileUrl(file.r2Key, selectedStudentId);
       if (url) {
         const { downloadPresignedUrl } = await import("@/shared/utils/safeDownload");
         downloadPresignedUrl(url, file.name || "download");

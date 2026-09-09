@@ -14,6 +14,15 @@ export async function fetchStorageQuota(): Promise<StorageQuota> {
   return data;
 }
 
+export async function fetchSelectedStudentStorageQuota(
+  selectedStudentId: number,
+): Promise<StorageQuota> {
+  const { data } = await api.get<StorageQuota>("/storage/quota/", {
+    headers: selectedStudentHeaders(selectedStudentId),
+  });
+  return data;
+}
+
 export type InventoryFolder = {
   id: string;
   name: string;
@@ -106,13 +115,23 @@ export type InventoryListResponse = {
   files: InventoryFile[];
 };
 
+function selectedStudentHeaders(selectedStudentId?: number): Record<string, string> | undefined {
+  return Number.isInteger(selectedStudentId) && Number(selectedStudentId) > 0
+    ? { "X-Student-Id": String(selectedStudentId) }
+    : undefined;
+}
+
 export async function fetchInventoryList(
   scope: "admin" | "student",
-  studentPs?: string
+  studentPs?: string,
+  selectedStudentId?: number,
 ): Promise<InventoryListResponse> {
   const params: Record<string, string> = { scope };
   if (studentPs) params.student_ps = studentPs;
-  const { data } = await api.get<InventoryListResponse>("/storage/inventory/", { params });
+  const { data } = await api.get<InventoryListResponse>("/storage/inventory/", {
+    params,
+    headers: selectedStudentHeaders(selectedStudentId),
+  });
   return data;
 }
 
@@ -120,11 +139,14 @@ export async function createFolder(
   scope: "admin" | "student",
   parentId: string | null,
   name: string,
-  studentPs?: string
+  studentPs?: string,
+  selectedStudentId?: number,
 ): Promise<InventoryFolder> {
   const body: Record<string, unknown> = { scope, parent_id: parentId, name };
   if (studentPs) body.student_ps = studentPs;
-  const { data } = await api.post<InventoryFolder>("/storage/inventory/folders/", body);
+  const { data } = await api.post<InventoryFolder>("/storage/inventory/folders/", body, {
+    headers: selectedStudentHeaders(selectedStudentId),
+  });
   return data;
 }
 
@@ -136,6 +158,7 @@ export type UploadFilePayload = {
   icon: string;
   file: File;
   studentPs?: string;
+  selectedStudentId?: number;
   // 매치업 승격 토글 (admin scope + PDF/PNG/JPG일 때만 효과)
   promoteToMatchup?: boolean;
   subject?: string;
@@ -207,7 +230,10 @@ export async function uploadFile(payload: UploadFilePayload): Promise<UploadFile
   }
 
   const { data } = await api.post<UploadFileResponse>("/storage/inventory/upload/", form, {
-    headers: { "Content-Type": "multipart/form-data" },
+    headers: {
+      "Content-Type": "multipart/form-data",
+      ...selectedStudentHeaders(payload.selectedStudentId),
+    },
     // 파일 업로드는 axios 기본 20초 timeout이 부족 — 운영 사용자 보고 (2026-04-28):
     // 7개 동시 업로드 → "20000ms" 에러로 1개만 성공. 5분 override.
     timeout: 5 * 60_000,
@@ -215,10 +241,18 @@ export async function uploadFile(payload: UploadFilePayload): Promise<UploadFile
   return data;
 }
 
-export async function deleteFile(scope: "admin" | "student", fileId: string, studentPs?: string): Promise<void> {
+export async function deleteFile(
+  scope: "admin" | "student",
+  fileId: string,
+  studentPs?: string,
+  selectedStudentId?: number,
+): Promise<void> {
   const params: Record<string, string> = { scope };
   if (studentPs) params.student_ps = studentPs;
-  await api.delete(`/storage/inventory/files/${fileId}/`, { params });
+  await api.delete(`/storage/inventory/files/${fileId}/`, {
+    params,
+    headers: selectedStudentHeaders(selectedStudentId),
+  });
 }
 
 export type RecursiveDeleteResult = {
@@ -235,12 +269,16 @@ export async function deleteFolder(
   scope: "admin" | "student",
   folderId: string,
   studentPs?: string,
-  options?: { recursive?: boolean }
+  options?: { recursive?: boolean },
+  selectedStudentId?: number,
 ): Promise<RecursiveDeleteResult | void> {
   const params: Record<string, string> = { scope };
   if (studentPs) params.student_ps = studentPs;
   if (options?.recursive) params.recursive = "true";
-  const res = await api.delete(`/storage/inventory/folders/${folderId}/`, { params });
+  const res = await api.delete(`/storage/inventory/folders/${folderId}/`, {
+    params,
+    headers: selectedStudentHeaders(selectedStudentId),
+  });
   if (options?.recursive) {
     return res.data as RecursiveDeleteResult;
   }
@@ -268,10 +306,16 @@ export async function renameFile(
   await api.patch(`/storage/inventory/files/${fileId}/`, { displayName }, { params });
 }
 
-export async function getPresignedUrl(r2Key: string, expiresIn?: number): Promise<{ url: string }> {
+export async function getPresignedUrl(
+  r2Key: string,
+  expiresIn?: number,
+  selectedStudentId?: number,
+): Promise<{ url: string }> {
   const { data } = await api.post<{ url: string }>("/storage/inventory/presign/", {
     r2_key: r2Key,
     expires_in: expiresIn ?? 3600,
+  }, {
+    headers: selectedStudentHeaders(selectedStudentId),
   });
   return data;
 }

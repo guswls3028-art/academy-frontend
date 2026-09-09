@@ -29,11 +29,12 @@ export default function MyInventoryPage() {
   const profile = profileQ.data;
 
   const ps = profile?.ps_number || "";
-  const queryKey = studentQueryKeys.inventory(ps);
+  const selectedStudentId = profile?.isParentReadOnly ? profile.id : undefined;
+  const queryKey = studentQueryKeys.inventory(ps, selectedStudentId);
 
   const inventoryQ = useQuery({
     queryKey,
-    queryFn: () => fetchMyInventory(ps),
+    queryFn: () => fetchMyInventory(ps, selectedStudentId),
     enabled: !!ps,
   });
   const inventory = inventoryQ.data;
@@ -84,11 +85,16 @@ export default function MyInventoryPage() {
           folders={folders}
           files={files}
           queryKey={queryKey}
+          selectedStudentId={selectedStudentId}
         />
       )}
 
       {!isLoading && !isError && tab === "stats" && (
-        <InventoryStatsTab files={files} folders={folders} />
+        <InventoryStatsTab
+          files={files}
+          folders={folders}
+          selectedStudentId={selectedStudentId}
+        />
       )}
     </DomainTabShell>
   );

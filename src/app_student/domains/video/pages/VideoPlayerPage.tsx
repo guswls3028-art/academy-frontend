@@ -171,11 +171,12 @@ export default function VideoPlayerPage() {
 
   useEffect(() => {
     const resolvedEnrollmentId = playbackQuery.data?.video?.enrollment_id;
+    if (user?.tenantRole !== "student") return;
     if (!videoId || resolvedEnrollmentId == null) return;
     if (activityRecordedVideoRef.current === videoId) return;
     activityRecordedVideoRef.current = videoId;
-    void recordStudentScreenView("/student/video/play");
-  }, [playbackQuery.data?.video?.enrollment_id, videoId]);
+    void recordStudentScreenView("/student/video/play", user.tenantRole);
+  }, [playbackQuery.data?.video?.enrollment_id, user?.tenantRole, videoId]);
 
   // localStorage에 현재 videoId 저장 (side effect)
   useEffect(() => {

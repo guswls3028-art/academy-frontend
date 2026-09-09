@@ -17,8 +17,8 @@ import {
 export type { InventoryFile, InventoryFolder, InventoryListResponse };
 
 /** 내 인벤토리 목록 조회 */
-export function fetchMyInventory(studentPs: string): Promise<InventoryListResponse> {
-  return fetchInventoryList("student", studentPs);
+export function fetchMyInventory(studentPs: string, selectedStudentId?: number): Promise<InventoryListResponse> {
+  return fetchInventoryList("student", studentPs, selectedStudentId);
 }
 
 /** 내 인벤토리에 파일 업로드 */
@@ -30,6 +30,7 @@ export function uploadMyFile(
     displayName?: string;
     description?: string;
     icon?: string;
+    selectedStudentId?: number;
     scoreSubmission?: StudentScoreSubmissionPayload;
     scoreSubmissions?: StudentScoreSubmissionPayload[];
   }
@@ -37,6 +38,7 @@ export function uploadMyFile(
   return uploadFile({
     scope: "student",
     studentPs,
+    selectedStudentId: opts?.selectedStudentId,
     folderId: opts?.folderId ?? null,
     displayName: opts?.displayName || file.name,
     description: opts?.description || "",
@@ -48,27 +50,28 @@ export function uploadMyFile(
 }
 
 /** 내 인벤토리 파일 삭제 */
-export function deleteMyFile(studentPs: string, fileId: string): Promise<void> {
-  return deleteFile("student", fileId, studentPs);
+export function deleteMyFile(studentPs: string, fileId: string, selectedStudentId?: number): Promise<void> {
+  return deleteFile("student", fileId, studentPs, selectedStudentId);
 }
 
 /** 내 인벤토리 폴더 생성 */
 export function createMyFolder(
   studentPs: string,
   name: string,
-  parentId?: string | null
+  parentId?: string | null,
+  selectedStudentId?: number,
 ): Promise<InventoryFolder> {
-  return createFolder("student", parentId ?? null, name, studentPs);
+  return createFolder("student", parentId ?? null, name, studentPs, selectedStudentId);
 }
 
 /** 내 인벤토리 폴더 삭제 — 학생은 비어있을 때만 (recursive 옵션 미사용) */
-export async function deleteMyFolder(studentPs: string, folderId: string): Promise<void> {
-  await deleteFolder("student", folderId, studentPs);
+export async function deleteMyFolder(studentPs: string, folderId: string, selectedStudentId?: number): Promise<void> {
+  await deleteFolder("student", folderId, studentPs, undefined, selectedStudentId);
 }
 
 /** presigned URL (다운로드/미리보기) */
-export function getMyFileUrl(r2Key: string): Promise<{ url: string }> {
-  return getPresignedUrl(r2Key);
+export function getMyFileUrl(r2Key: string, selectedStudentId?: number): Promise<{ url: string }> {
+  return getPresignedUrl(r2Key, undefined, selectedStudentId);
 }
 
 /** 파일 타입에서 아이콘 추론 */

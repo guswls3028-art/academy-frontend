@@ -114,14 +114,16 @@ export default function SubmitScorePage() {
   });
 
   const ps = profile?.ps_number || "";
+  const selectedStudentId = profile?.isParentReadOnly ? profile.id : undefined;
+  const inventoryQueryKey = studentQueryKeys.inventory(ps, selectedStudentId);
   const {
     data: inventory,
     isLoading: inventoryLoading,
     isError: inventoryError,
     refetch: refetchInventory,
   } = useQuery({
-    queryKey: studentQueryKeys.inventory(ps),
-    queryFn: () => fetchMyInventory(ps),
+    queryKey: inventoryQueryKey,
+    queryFn: () => fetchMyInventory(ps, selectedStudentId),
     enabled: !!ps,
   });
 
@@ -202,13 +204,14 @@ export default function SubmitScorePage() {
         displayName: selectedFile.name,
         description: `성적표 제출 · ${sourceTitle} · ${scoreItems.length}과목`,
         icon: "file-text",
+        selectedStudentId,
         scoreSubmissions,
       });
     },
     onSuccess: () => {
       clearSelectedFile();
       setScoreItems([newScoreItem(nextItemId.current++)]);
-      void qc.invalidateQueries({ queryKey: studentQueryKeys.inventory(ps) });
+      void qc.invalidateQueries({ queryKey: inventoryQueryKey });
       studentToast.success("성적표를 선생님께 보냈습니다.");
     },
     onError: (e: Error) => setError(e.message || "제출에 실패했습니다."),
@@ -216,7 +219,7 @@ export default function SubmitScorePage() {
 
   const handleDownload = async (file: InventoryFile) => {
     try {
-      const { url } = await getMyFileUrl(file.r2Key);
+      const { url } = await getMyFileUrl(file.r2Key, selectedStudentId);
       if (url) window.open(url, "_blank", "noopener");
     } catch {
       studentToast.error("성적표를 열 수 없습니다.");

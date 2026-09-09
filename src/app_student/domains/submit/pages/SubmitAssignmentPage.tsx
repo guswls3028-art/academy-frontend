@@ -14,6 +14,7 @@ import { IconChevronRight, IconExam, IconClipboard, IconImage, IconVideo } from 
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { useTrackedTask } from "@/shared/productAnalytics";
+import { useAuthContext } from "@/auth/context/AuthContext";
 import { formatCompactFileSize } from "@/shared/utils/fileSize";
 import styles from "./SubmitAssignmentPage.module.css";
 
@@ -99,6 +100,8 @@ function LocalMediaPreview({ file }: { file: File }) {
 
 export default function SubmitAssignmentPage() {
   const qc = useQueryClient();
+  const { user } = useAuthContext();
+  const recordsStudentActivity = user?.tenantRole === "student";
   const [searchParams] = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const runTrackedTask = useTrackedTask();
@@ -371,7 +374,9 @@ export default function SubmitAssignmentPage() {
     const next: SelectedTarget = { type: "homework", id: homework.homework_id, title: homework.title, enrollmentId: homework.enrollment_id };
     const changed = selected?.id !== next.id || selected?.enrollmentId !== next.enrollmentId;
     setSelected(next);
-    void studentApi.post("/students/me/activity/homework-open/", { homework_id: homework.homework_id }).catch(() => undefined);
+    if (recordsStudentActivity) {
+      void studentApi.post("/students/me/activity/homework-open/", { homework_id: homework.homework_id }).catch(() => undefined);
+    }
     setError(null);
     uploadMut.reset();
     if (changed) {
@@ -391,11 +396,13 @@ export default function SubmitAssignmentPage() {
       title: requestedHomework.title,
       enrollmentId: requestedHomework.enrollment_id,
     });
-    void studentApi.post(
-      "/students/me/activity/homework-open/",
-      { homework_id: requestedHomework.homework_id },
-    ).catch(() => undefined);
-  }, [requestedHomeworkId, selected, unfinishedHomeworks]);
+    if (recordsStudentActivity) {
+      void studentApi.post(
+        "/students/me/activity/homework-open/",
+        { homework_id: requestedHomework.homework_id },
+      ).catch(() => undefined);
+    }
+  }, [recordsStudentActivity, requestedHomeworkId, selected, unfinishedHomeworks]);
   const retryableCount = pendingFiles.filter((file) => file.status !== "uploading").length;
   const canSubmit = selected != null && retryableCount > 0 && !uploadMut.isPending && !isPreparingFiles && !mediaQ.isFetching && !gradesQ.isError && !mediaQ.isError;
   const submitButtonLabel = uploadMut.isPending
