@@ -154,42 +154,101 @@ export default function SubmitAssignmentPage() {
     mutationFn: async () => {
       if (gradesQ.isError) throw new Error("제출 대상을 다시 불러온 뒤 제출해 주세요.");
       if (!selected) throw new Error("제출 대상을 선택해 주세요.");
+      const target = selected;
       const candidates = pendingFiles.filter((item) => item.status === "queued" || item.status === "failed");
       if (candidates.length === 0) throw new Error("새로 제출할 파일을 선택해 주세요.");
       const succeeded: string[] = [];
       const failed: string[] = [];
       let reviewLocked = false;
-      for (const item of candidates) {
-        updatePending(item.clientFileId, { status: "uploading", progress: 0, error: null });
+      let conflictIndex: number | null = null;
+      const uploadOne = async (item: PendingMedia, position: number) => {
+        updatePending(item.clientFileId, { position, status: "uploading", progress: 0, error: null });
         const body = new FormData();
-        body.append("enrollment_id", String(selected.enrollmentId));
+        body.append("enrollment_id", String(target.enrollmentId));
         body.append("client_file_id", item.clientFileId);
         body.append("upload_batch_id", item.uploadBatchId);
-        body.append("position", String(item.position));
+        body.append("position", String(position));
         body.append("file", item.file);
-        try {
-          await runTrackedTask("assignments.student.submit", () => studentApi.post(
-            `/submissions/submissions/homework/${selected.id}/media/`,
-            body,
-            {
-              timeout: 5 * 60_000,
-              headers: { "Content-Type": "multipart/form-data" },
-              onUploadProgress: (event) => {
-                if (!event.total) return;
-                updatePending(item.clientFileId, {
-                  progress: Math.min(100, Math.round((event.loaded / event.total) * 100)),
-                });
-              },
+        await runTrackedTask("assignments.student.submit", () => studentApi.post(
+          `/submissions/submissions/homework/${target.id}/media/`,
+          body,
+          {
+            timeout: 5 * 60_000,
+            headers: { "Content-Type": "multipart/form-data" },
+            onUploadProgress: (event) => {
+              if (!event.total) return;
+              updatePending(item.clientFileId, {
+                progress: Math.min(100, Math.round((event.loaded / event.total) * 100)),
+              });
             },
-          ));
+          },
+        ));
+      };
+      for (const [index, item] of candidates.entries()) {
+        try {
+          await uploadOne(item, item.position);
           succeeded.push(item.clientFileId);
         } catch (uploadError) {
-          if (apiErrorCode(uploadError) === "HOMEWORK_MEDIA_REVIEWED") {
+          const code = apiErrorCode(uploadError);
+          if (code === "HOMEWORK_MEDIA_REVIEWED") {
             reviewLocked = true;
+            break;
+          }
+          if (code === "HOMEWORK_MEDIA_POSITION_CONFLICT") {
+            conflictIndex = index;
             break;
           }
           failed.push(item.clientFileId);
           updatePending(item.clientFileId, { status: "failed", error: apiErrorMessage(uploadError, "이 파일을 올리지 못했습니다.") });
+        }
+      }
+      if (conflictIndex != null && !reviewLocked) {
+        const retryCandidates = candidates.slice(conflictIndex);
+        const refreshed = await mediaQ.refetch().catch(() => null);
+        if (!refreshed?.data || refreshed.isError) {
+          for (const item of retryCandidates) {
+            failed.push(item.clientFileId);
+            updatePending(item.clientFileId, {
+              status: "failed",
+              error: "최신 제출 목록을 확인하지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.",
+            });
+          }
+        } else {
+          const occupiedPositions = new Set(
+            refreshed.data.files
+              .filter((file) => file.status !== "removed")
+              .map((file) => file.position),
+          );
+          for (const item of retryCandidates) {
+            const persisted = refreshed.data.files.find((file) => (
+              file.status !== "removed" && file.client_file_id === item.clientFileId
+            ));
+            let position = persisted?.position ?? 0;
+            if (!persisted) {
+              while (occupiedPositions.has(position)) position += 1;
+            }
+            if (position >= refreshed.data.limits.max_files) {
+              failed.push(item.clientFileId);
+              updatePending(item.clientFileId, {
+                position,
+                status: "failed",
+                error: `현재 제출 파일이 최대 ${refreshed.data.limits.max_files}개입니다. 목록을 확인해 주세요.`,
+              });
+              continue;
+            }
+            occupiedPositions.add(position);
+            try {
+              await uploadOne(item, position);
+              succeeded.push(item.clientFileId);
+            } catch (retryError) {
+              if (apiErrorCode(retryError) === "HOMEWORK_MEDIA_REVIEWED") {
+                reviewLocked = true;
+                break;
+              }
+              failed.push(item.clientFileId);
+              updatePending(item.clientFileId, { status: "failed", error: apiErrorMessage(retryError, "이 파일을 올리지 못했습니다.") });
+            }
+          }
         }
       }
       return { succeeded, failed, reviewLocked };
