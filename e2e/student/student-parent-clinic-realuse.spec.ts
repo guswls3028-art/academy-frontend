@@ -13,11 +13,12 @@ import {
   loginThroughUi,
   logoutStudentApp,
   QA_BASE,
+  reloadStudentApp,
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
 } from "../helpers/qaStudentParentScenario";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
-import { gotoAndSettle, waitForCondition, waitForRenderSettled } from "../helpers/wait";
+import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 
 test.setTimeout(300_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -153,8 +154,7 @@ test.describe.serial("[real-use] 학생 예약에서 학부모 클리닉 project
     await page.getByRole("tab", { name: /내 일정/ }).click();
     await expect(page.locator("article").filter({ hasText: sessionTitle })).toContainText(bookingMemo);
 
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await waitForRenderSettled(page, { timeout: 20_000 });
+    await reloadStudentApp(page);
     await page.getByRole("tab", { name: /내 일정/ }).click();
     await expect(page.locator("article").filter({ hasText: sessionTitle })).toBeVisible();
     await logoutStudentApp(page);
@@ -187,8 +187,7 @@ test.describe.serial("[real-use] 학생 예약에서 학부모 클리닉 project
       },
     });
     await expect(page.getByText(/예약 취소가 저장되었습니다/)).toBeVisible();
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await waitForRenderSettled(page, { timeout: 20_000 });
+    await reloadStudentApp(page);
     await page.getByRole("tab", { name: /내 일정/ }).click();
     await expect(page.locator("article").filter({ hasText: sessionTitle })).toHaveCount(0);
 

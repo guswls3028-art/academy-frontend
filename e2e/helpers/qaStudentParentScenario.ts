@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import type { APIRequestContext, Page } from "@playwright/test";
 import { expect } from "../fixtures/strictTest";
-import { acknowledgeFirstLoginGuideIfVisible } from "./firstLoginGuide";
+import { acknowledgeInitialAccountPromptsIfVisible } from "./firstLoginGuide";
 import {
   installReleaseContextGuard,
   installReleaseRequestGuard,
@@ -167,7 +167,13 @@ export async function loginThroughUi(
   await page.getByTestId("login-password").fill(password);
   await page.getByTestId("login-submit").click();
   await expect(page).toHaveURL(/\/student(?:\/|$)/, { timeout: 45_000 });
-  await acknowledgeFirstLoginGuideIfVisible(page);
+  await acknowledgeInitialAccountPromptsIfVisible(page);
+  await waitForRenderSettled(page, { timeout: 20_000 });
+}
+
+export async function reloadStudentApp(page: Page): Promise<void> {
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await acknowledgeInitialAccountPromptsIfVisible(page);
   await waitForRenderSettled(page, { timeout: 20_000 });
 }
 
