@@ -34,11 +34,17 @@
 
 ## 학생 희망 시간
 
-세션 생성 시 **학생 희망 시간 받기**를 켜면 `allow_time_preference=true`를
+고정 시간대 세션 생성 시 **학생 희망 시간 받기**를 켜면 `allow_time_preference=true`를
 보냅니다. 학생이 보낸 희망 시작·종료와 요청 메모는 참가자 행에서 함께 보여
 교직원이 별도 화면 없이 확인할 수 있습니다. 결석 후 다른 세션으로 옮길 때 새
 세션도 희망 시간을 받는 경우에만 시작·종료를 함께 전송하며, 서버가 새 세션 범위
 안인지 다시 검증합니다.
+
+**시간 범위**는 학생이 availability에서 실제 시작·종료를 직접 선택하는 예약 방식이라
+희망 시간 요청과 함께 사용하지 않습니다. 만들기 시트에서 시간 범위를 선택하면 기존에
+체크한 희망 시간 옵션을 자동 해제하고 숨기며, 실제 시간 선택 방식이라는 안내를 표시합니다.
+생성 payload도 `allow_time_preference=false`로 보냅니다. 이미 두 값이 함께 저장된 레거시
+세션은 수정하거나 삭제하지 않으며, 학생 화면이 실제 예약 시간만 받아 호환합니다.
 
 ## 소유 구현과 검증
 
@@ -46,6 +52,8 @@
 - 다중 시간·학생 선택: `components/AddParticipantSheet.tsx`
 - 세션 생성 정책·참가자 화면: `pages/ClinicPage.tsx`
 - 원자 요청·새로고침·390px 가로 넘침 회귀:
+  `e2e/teacher/clinic-multi-slot-booking.mock.spec.ts`
+- 시간 범위·희망 시간 상호배타 생성 회귀:
   `e2e/teacher/clinic-multi-slot-booking.mock.spec.ts`
 
 학생 신청 화면 계약은 `src/app_student/domains/clinic/README.md`, 서버 원자성·

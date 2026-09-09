@@ -256,7 +256,14 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   const createSheet = page.getByRole("dialog", { name: "클리닉 만들기" });
   const multiSlotToggle = createSheet.getByRole("checkbox", { name: /같은 날 여러 시간대 예약/ });
   const timePreferenceToggle = createSheet.getByRole("checkbox", { name: /학생 희망 시간 받기/ });
+  const bookingMode = createSheet.getByLabel("예약 방식");
   await expect(multiSlotToggle).not.toBeChecked();
+  await expect(timePreferenceToggle).not.toBeChecked();
+  await timePreferenceToggle.check();
+  await bookingMode.selectOption("time_range");
+  await expect(createSheet.getByText("학생이 예약 가능한 실제 시작·종료 시간을 직접 선택합니다.")).toBeVisible();
+  await expect(timePreferenceToggle).toHaveCount(0);
+  await bookingMode.selectOption("fixed_slot");
   await expect(timePreferenceToggle).not.toBeChecked();
   await multiSlotToggle.check();
   await timePreferenceToggle.check();
