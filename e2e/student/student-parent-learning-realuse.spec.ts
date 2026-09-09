@@ -19,11 +19,12 @@ import {
   QA_API,
   QA_BASE,
   QA_TENANT,
+  reloadStudentApp,
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
 } from "../helpers/qaStudentParentScenario";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
-import { gotoAndSettle, waitForRenderSettled } from "../helpers/wait";
+import { gotoAndSettle } from "../helpers/wait";
 
 test.setTimeout(300_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -113,15 +114,21 @@ async function cleanup(request: APIRequestContext): Promise<void> {
     await remove("DELETE", `/enrollments/session-enrollments/${id}/`);
   }
   for (const id of created.enrollmentIds) await remove("DELETE", `/enrollments/${id}/`);
-  if (created.sessionId) await remove("DELETE", `/lectures/sessions/${created.sessionId}/`);
-  if (created.lectureId) await remove("DELETE", `/lectures/lectures/${created.lectureId}/`);
+  // Video deletion is intentionally soft so learning history remains protected.
+  // The fixed isolated-tenant cleanup removes those protected ancestors and proves zero residue.
+  if (!created.videoId && created.sessionId) {
+    await remove("DELETE", `/lectures/sessions/${created.sessionId}/`);
+  }
+  if (!created.videoId && created.lectureId) {
+    await remove("DELETE", `/lectures/lectures/${created.lectureId}/`);
+  }
   await cleanupQaFamily(request, created.adminAccess, created.family);
 
   for (const [label, path] of [
     ...(created.materialId ? [[`material ${created.materialId}`, `/community/posts/${created.materialId}/`] as const] : []),
     ...(created.videoId ? [[`video ${created.videoId}`, `/media/videos/${created.videoId}/`] as const] : []),
-    ...(created.sessionId ? [[`session ${created.sessionId}`, `/lectures/sessions/${created.sessionId}/`] as const] : []),
-    ...(created.lectureId ? [[`lecture ${created.lectureId}`, `/lectures/lectures/${created.lectureId}/`] as const] : []),
+    ...(!created.videoId && created.sessionId ? [[`session ${created.sessionId}`, `/lectures/sessions/${created.sessionId}/`] as const] : []),
+    ...(!created.videoId && created.lectureId ? [[`lecture ${created.lectureId}`, `/lectures/lectures/${created.lectureId}/`] as const] : []),
   ]) {
     const residue = await api(request, "GET", path, created.adminAccess);
     if (residue.status !== 404) failures.push(`verify ${label} absent -> ${residue.status}`);
@@ -348,8 +355,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     );
     expect(siblingVideos.items.find((video) => video.id === created.videoId)?.progress ?? 0).toBe(0);
 
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await waitForRenderSettled(page, { timeout: 20_000 });
+    await reloadStudentApp(page);
     await expect(page.getByRole("tab", { name: sibling.name })).toHaveAttribute("aria-selected", "true");
     await logoutStudentApp(page);
     await loginThroughUi(page, created.family.parentPhone, created.family.parentPassword);

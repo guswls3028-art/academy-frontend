@@ -23,6 +23,26 @@ test("student-parent real-use creation follows mandatory account notice policy",
   assert.match(source, /await loginApi\(request, parentPhone, QA_STUDENT_PASSWORD\)/);
 });
 
+test("student-parent real-use awaits and dismisses the actual initial-account prompts", () => {
+  const promptSource = readFileSync(new URL("../../e2e/helpers/firstLoginGuide.ts", import.meta.url), "utf8");
+  const scenarioSource = readFileSync(new URL("../../e2e/helpers/qaStudentParentScenario.ts", import.meta.url), "utf8");
+  const accountSource = readFileSync(new URL("../../e2e/student/student-parent-account-realuse.spec.ts", import.meta.url), "utf8");
+  const learningSource = readFileSync(new URL("../../e2e/student/student-parent-learning-realuse.spec.ts", import.meta.url), "utf8");
+  const runnerSource = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+
+  assert.match(promptSource, /getByRole\("dialog", \{ name: "비밀번호 변경 권장" \}\)/);
+  assert.match(promptSource, /waitFor\(\{ state: "visible", timeout: 5_000 \}\)/);
+  assert.match(promptSource, /getByRole\("button", \{ name: "위험을 이해했고 나중에", exact: true \}\)/);
+  assert.doesNotMatch(promptSource, /isVisible\(\{ timeout:/);
+  assert.match(scenarioSource, /await acknowledgeInitialAccountPromptsIfVisible\(page\);/);
+  assert.match(scenarioSource, /export async function reloadStudentApp/);
+  assert.match(accountSource, /gotoAndSettle\(page, `\$\{QA_BASE\}\/student\/profile`/);
+  assert.doesNotMatch(accountSource, /loginThroughUi\(page, student\.ps_number, student\.password\);\s*await expect\(page\.locator\("\.stu-topbar__name"\)\)/s);
+  assert.match(learningSource, /if \(!created\.videoId && created\.sessionId\)/);
+  assert.match(learningSource, /if \(!created\.videoId && created\.lectureId\)/);
+  assert.match(runnerSource, /"firstLoginGuide\.ts"/);
+});
+
 test("long-video proof propagates strict context teardown failures", () => {
   const source = readFileSync(new URL("../../e2e/student/video-playback-renewal.realuse.spec.ts", import.meta.url), "utf8");
   assert.doesNotMatch(source, /Promise\.allSettled\(runs\.map\(\(\{ context \}\) => context\.close\(\)\)\)/);

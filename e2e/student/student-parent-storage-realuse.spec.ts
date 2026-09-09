@@ -11,11 +11,12 @@ import {
   loginThroughUi,
   logoutStudentApp,
   QA_BASE,
+  reloadStudentApp,
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
 } from "../helpers/qaStudentParentScenario";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
-import { gotoAndSettle, waitForRenderSettled } from "../helpers/wait";
+import { gotoAndSettle } from "../helpers/wait";
 
 test.setTimeout(360_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -119,8 +120,7 @@ test.describe.serial("[real-use] 학생·학부모 선택 자녀 자료함·성�
     const folder = await folderResponse.json() as { id: string | number };
     folderIds.push(String(folder.id));
     await expect(page.getByText(folderName, { exact: true })).toBeVisible();
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await waitForRenderSettled(page, { timeout: 20_000 });
+    await reloadStudentApp(page);
     await expect(page.getByText(parentFile, { exact: true })).toBeVisible();
     const folderRow = page.getByRole("button").filter({ hasText: folderName });
     await expect(folderRow).toBeVisible();
@@ -153,8 +153,7 @@ test.describe.serial("[real-use] 학생·학부모 선택 자녀 자료함·성�
     const score = await scoreResponse.json() as { id: string | number };
     fileIds.push(String(score.id));
     await expect(page.getByText("확인 대기")).toBeVisible();
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await waitForRenderSettled(page, { timeout: 20_000 });
+    await reloadStudentApp(page);
     await expect(page.getByText("확인 대기")).toBeVisible();
 
     await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: sibling.name }).click();

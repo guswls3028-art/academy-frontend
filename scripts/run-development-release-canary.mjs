@@ -46,7 +46,7 @@ const RELEASE_BOUNDARY_CODES = new Set([
 ]);
 const SAFE_FAILURE_SOURCE_FILES = new Set([
   ...Object.keys(FLOW_COUNTS),
-  "qaStudentParentScenario.ts", "releaseApiBoundary.ts", "strictBrowser.ts", "wait.ts",
+  "firstLoginGuide.ts", "qaStudentParentScenario.ts", "releaseApiBoundary.ts", "strictBrowser.ts", "wait.ts",
 ]);
 const LONG_VIDEO_ERROR_PATTERNS = [
   ["test-timeout", /Test timeout of [0-9]+ms exceeded/i],

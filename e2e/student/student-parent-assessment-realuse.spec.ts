@@ -19,6 +19,7 @@ import {
   QA_API,
   QA_BASE,
   QA_TENANT,
+  reloadStudentApp,
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
   type QaStudent,
@@ -320,8 +321,7 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     expect(teacherProjection.meta.submitted_by_user_id).toBeGreaterThan(0);
     expect(teacherProjection.meta.submitted_by_user_id).not.toBe(teacherProjection.user);
 
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await waitForRenderSettled(page, { timeout: 20_000 });
+    await reloadStudentApp(page);
     await expect(page.getByRole("tab", { name: peer.name })).toHaveAttribute("aria-selected", "true");
 
     await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
@@ -348,8 +348,7 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     await expect(page.getByRole("heading", { name: "새 성적" })).toBeVisible();
     await expect(page.getByText(examTitle, { exact: true })).toBeVisible();
 
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await waitForRenderSettled(page, { timeout: 20_000 });
+    await reloadStudentApp(page);
     await expect(page.getByRole("tab", { name: primary.name })).toHaveAttribute("aria-selected", "true");
     await logoutStudentApp(page);
     await loginThroughUi(page, created.family.parentPhone, created.family.parentPassword);
