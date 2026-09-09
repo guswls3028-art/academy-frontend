@@ -5,6 +5,8 @@ import { realMessagingSkipReason } from "../helpers/safety";
 
 type ScoreRouteOptions = {
   initialScores?: Array<number | null>;
+  examMaxScore?: number;
+  rowExamMaxScores?: number[];
   initialSubjectiveScores?: Array<number | null>;
   initialCorrectionStatuses?: Array<"PENDING" | "COMPLETED" | "NOT_REQUIRED" | null>;
   initialDraft?: unknown[];
@@ -124,6 +126,8 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
   draftPuts.length = 0;
   draftCommits.length = 0;
   currentScores = [...(options.initialScores ?? [65, 52])];
+  const examMaxScore = options.examMaxScore ?? 100;
+  const rowExamMaxScores = options.rowExamMaxScores ?? currentScores.map(() => examMaxScore);
   currentSubjectiveScores = [...(
     options.initialSubjectiveScores
     ?? currentScores.map((score) => (score == null ? null : 0))
@@ -165,7 +169,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
               exam_id: 9101,
               title: "주간 확인",
               pass_score: 60,
-              max_score: 100,
+              max_score: examMaxScore,
               objective_max_score: 80,
               subjective_max_score: 20,
               display_order: 1,
@@ -194,7 +198,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
               clinic_link_id: null,
               block: {
                 score,
-                max_score: 100,
+                max_score: rowExamMaxScores[index] ?? examMaxScore,
                 passed: score == null
                   ? options.nullScoresPassedFalse ? false : null
                   : score >= 60,
@@ -321,7 +325,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
           exam_id: 9101,
           enrollment_id: enrollmentId,
           total_score: currentScores[rowIndex],
-          max_score: 100,
+          max_score: examMaxScore,
         },
       });
       return;
@@ -400,7 +404,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
       const homeworkId = requestUrl.searchParams.get("homework_id");
       const isHomework = homeworkId != null;
       const score = isHomework ? currentHomeworkScores[rowIndex] : currentScores[rowIndex];
-      const maxScore = isHomework ? homeworkMaxScore : 100;
+      const maxScore = isHomework ? homeworkMaxScore : (rowExamMaxScores[rowIndex] ?? examMaxScore);
       await route.fulfill({
         json: {
           source_type: isHomework ? "homework" : "exam",
@@ -1321,6 +1325,27 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect.poll(() => assignmentPuts.length).toBe(2);
     expect(assignmentPuts.every((request) => request.enrollmentIds.join(",") === "9201,9202")).toBe(true);
     await expect(assignmentNotice).toHaveCount(0);
+  });
+
+  test("시험 만점 변경 뒤 모든 학생 셀과 저장이 현재 만점 하나를 사용한다", async ({ page }) => {
+    await openScores(page, {
+      initialScores: [97, 100],
+      examMaxScore: 105,
+      rowExamMaxScores: [97, 100],
+    });
+
+    await expect(page.getByRole("cell", { name: "97/105", exact: true })).toBeVisible();
+    await expect(page.getByRole("cell", { name: "100/105", exact: true })).toBeVisible();
+    await ensureScoreEditing(page);
+
+    const firstExamCell = page.getByRole("textbox", { name: "자동저장학생1 · 주간 확인 점수 입력" });
+    await firstExamCell.fill("102");
+    await page.keyboard.press("Control+s");
+    await expect.poll(() => scorePatches.length, { timeout: 10_000 }).toBe(1);
+    expect(scorePatches[0]).toMatchObject({ score: 102, max_score: 105 });
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("cell", { name: "102/105", exact: true })).toBeVisible();
   });
 
   test("시험 미배정 학생은 클리닉 대상이나 이름 하이라이트로 남지 않고 새로고침해도 유지된다", async ({ page }, testInfo) => {
