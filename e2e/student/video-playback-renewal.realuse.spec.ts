@@ -7,6 +7,8 @@ import {
   type Response,
 } from "../fixtures/strictTest";
 import { dismissDevelopmentFirstLoginGuide, getApiBaseUrl, getBaseUrl } from "../helpers/auth";
+import { createSerialProofGate } from "../helpers/serialProofGate";
+import type { SerialProofGate } from "../helpers/serialProofGate";
 import { installSyntheticVideoPosterBridge } from "../helpers/syntheticVideoPosterBridge";
 import { classifyVideoPlaybackResponse } from "../helpers/videoPlaybackResponseKind";
 
@@ -151,17 +153,6 @@ type LongVideoFailureContext = {
   responseFailureKind: ResponseCaptureKind | null;
   responseFailureCode: ResponseFailureCode | null;
 };
-
-type SerialProofGate = <T>(proof: () => Promise<T>) => Promise<T>;
-
-function createSerialProofGate(): SerialProofGate {
-  let tail: Promise<void> = Promise.resolve();
-  return <T>(proof: () => Promise<T>) => {
-    const current = tail.then(proof);
-    tail = current.then(() => undefined, () => undefined);
-    return current;
-  };
-}
 
 function requiredEnv(name: string, pattern?: RegExp): string {
   const value = process.env[name]?.trim() || "";
@@ -763,9 +754,11 @@ test("two students play through renewal and persist progress without interruptio
   ]);
   const runReloadProof = createSerialProofGate();
   try {
-    await Promise.all(runs.map(({ page, state }) => (
+    const outcomes = await Promise.allSettled(runs.map(({ page, state }) => (
       finishStudent(page, state, videoId, hlsPath, runReloadProof)
     )));
+    const failure = outcomes.find((outcome): outcome is PromiseRejectedResult => outcome.status === "rejected");
+    if (failure) throw failure.reason;
   } catch (error) {
     console.log(JSON.stringify({ longVideoFailure: {
       schema: "student-video-renewal-failure/v1",

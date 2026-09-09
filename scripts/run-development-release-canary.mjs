@@ -49,6 +49,39 @@ const SAFE_FAILURE_SOURCE_FILES = new Set([
   ...Object.keys(FLOW_COUNTS),
   "firstLoginGuide.ts", "qaStudentParentScenario.ts", "releaseApiBoundary.ts", "strictBrowser.ts", "wait.ts",
 ]);
+const SAFE_FAILURE_STATIC_ENDPOINTS = new Set([
+  "/api/v1/core/tenant/by-host/",
+  "/api/v1/media/playback/end/",
+  "/api/v1/media/playback/renew/",
+  "/api/v1/storage/inventory/",
+  "/api/v1/storage/inventory/upload/",
+  "/api/v1/student/video/me/",
+  "/api/v1/students/me/activity/",
+  "/api/v1/students/me/activity/homework-open/",
+  "/api/v1/token/",
+  "/api/v1/token/refresh/",
+  "/clinic/participants/",
+  "/clinic/sessions/",
+  "/lectures/lectures/",
+  "/students/bulk_delete/",
+  "/students/bulk_permanent_delete/",
+]);
+const SAFE_FAILURE_ENDPOINT_SHAPES = [
+  [/^\/api\/v1\/student\/video\/sessions\/[1-9][0-9]*\/videos\/$/, "/api/v1/student/video/sessions/:id/videos/"],
+  [/^\/api\/v1\/student\/video\/videos\/[1-9][0-9]*\/progress\/$/, "/api/v1/student/video/videos/:id/progress/"],
+  [/^\/api\/v1\/storage\/inventory\/files\/[1-9][0-9]*\/$/, "/api/v1/storage/inventory/files/:id/"],
+  [/^\/api\/v1\/storage\/inventory\/folders\/[1-9][0-9]*\/$/, "/api/v1/storage/inventory/folders/:id/"],
+  [/^\/storage\/inventory\/files\/[1-9][0-9]*\/$/, "/storage/inventory/files/:id/"],
+  [/^\/storage\/inventory\/folders\/[1-9][0-9]*\/$/, "/storage/inventory/folders/:id/"],
+  [/^\/clinic\/participants\/[1-9][0-9]*\/$/, "/clinic/participants/:id/"],
+  [/^\/clinic\/sessions\/[1-9][0-9]*\/$/, "/clinic/sessions/:id/"],
+  [/^\/lectures\/lectures\/[1-9][0-9]*\/$/, "/lectures/lectures/:id/"],
+  [/^\/lectures\/sessions\/[1-9][0-9]*\/$/, "/lectures/sessions/:id/"],
+];
+const SAFE_FAILURE_QUERY_KEYS = new Set([
+  "access_check", "enrollment", "enrollment_id", "filter", "ids", "include_support",
+  "limit", "page", "page_size", "q", "scope", "status", "student_ps",
+]);
 const LONG_VIDEO_ERROR_PATTERNS = [
   ["test-timeout", /Test timeout of [0-9]+ms exceeded/i],
   ["fixture-timeout", /Fixture ["'][^"']+["'] timeout of [0-9]+ms exceeded/i],
@@ -198,11 +231,12 @@ function safePathTemplate(rawPath) {
   let target;
   try { target = new URL(rawPath, "https://release.invalid"); } catch { return null; }
   if (!/^[A-Za-z0-9_./:-]+$/.test(target.pathname)) return null;
-  const pathTemplate = target.pathname
-    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/gi, ":uuid")
-    .replace(/(^|\/)\d+(?=\/|$)/g, "$1:id");
+  const pathTemplate = SAFE_FAILURE_STATIC_ENDPOINTS.has(target.pathname)
+    ? target.pathname
+    : SAFE_FAILURE_ENDPOINT_SHAPES.find(([pattern]) => pattern.test(target.pathname))?.[1] ?? null;
+  if (!pathTemplate) return null;
   const queryKeys = [...new Set([...target.searchParams.keys()])]
-    .filter((key) => /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(key))
+    .filter((key) => SAFE_FAILURE_QUERY_KEYS.has(key))
     .sort();
   return { pathTemplate, queryKeys };
 }

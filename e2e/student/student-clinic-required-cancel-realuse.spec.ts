@@ -134,9 +134,9 @@ test.describe.serial("[development] 필수 클리닉 2회 예약 중 1회 취소
       start_date: todayKst,
       lecture_time: "월 17:00 ~ 19:00",
       color: "#2563eb",
-      chip_label: "필수취소",
+      chip_label: "필취",
       is_active: true,
-    });
+    }, [201]);
     created.lectureId = Number(lecture.id);
 
     const sourceSession = await expectApi<{ id: number }>(request, "POST", "/lectures/sessions/", admin.access, {
@@ -144,7 +144,7 @@ test.describe.serial("[development] 필수 클리닉 2회 예약 중 1회 취소
       title: `${marker} 원천 차시`,
       date: todayKst,
       order: 1,
-    });
+    }, [201]);
     created.sourceSessionId = Number(sourceSession.id);
 
     const enrollments = await expectApi<Array<{ id: number }>>(
@@ -158,7 +158,7 @@ test.describe.serial("[development] 필수 클리닉 2회 예약 중 1회 취소
     await expectApi(request, "POST", "/enrollments/session-enrollments/bulk_create/", admin.access, {
       session: created.sourceSessionId,
       enrollments: [created.enrollmentId],
-    });
+    }, [201]);
 
     const exam = await expectApi<{ id: number }>(request, "POST", "/exams/", admin.access, {
       title: `${marker} 필수 대상 시험`,
@@ -232,7 +232,7 @@ test.describe.serial("[development] 필수 클리닉 2회 예약 중 1회 취소
         target_school_type: null,
         target_lecture_ids: [created.lectureId],
         allow_multi_slot_booking: true,
-      });
+      }, [201]);
       created.clinicSessionIds.push(Number(session.id));
     }
 
