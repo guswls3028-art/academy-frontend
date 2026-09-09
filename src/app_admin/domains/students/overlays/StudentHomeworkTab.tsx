@@ -161,10 +161,17 @@ export default function StudentHomeworkTab({
         title: homework.lecture_title?.trim() || "이름 없는 강의",
         latestDay: day,
         latestDate: day != null ? homework.session_date ?? null : current?.latestDate ?? null,
+        chipLabel: homework.lecture_chip_label?.trim() || current?.chipLabel || null,
       });
     }
     return options;
-  }, new Map<string, { id: string; title: string; latestDay: number | null; latestDate: string | null }>()).values())
+  }, new Map<string, {
+    id: string;
+    title: string;
+    latestDay: number | null;
+    latestDate: string | null;
+    chipLabel: string | null;
+  }>()).values())
     .sort((a, b) => {
       if (a.latestDay == null && b.latestDay != null) return 1;
       if (a.latestDay != null && b.latestDay == null) return -1;
@@ -180,15 +187,43 @@ export default function StudentHomeworkTab({
       )))
       .map((option) => option.title),
   );
+  const lectureBaseLabels = lectureOptions.map((option) => ({
+    id: option.id,
+    chipLabel: option.chipLabel,
+    label: duplicateLectureTitles.has(option.title) && option.latestDate
+      ? `${option.title} · ${sessionDateLabel(option.latestDate)}`
+      : option.title,
+  }));
+  const lectureBaseLabelCounts = lectureBaseLabels.reduce((counts, option) => {
+    counts.set(option.label, (counts.get(option.label) ?? 0) + 1);
+    return counts;
+  }, new Map<string, number>());
+  const lectureLabelCandidates = lectureBaseLabels.map((option) => ({
+    id: option.id,
+    label: (lectureBaseLabelCounts.get(option.label) ?? 0) > 1 && option.chipLabel
+      ? `${option.label} · ${option.chipLabel}`
+      : option.label,
+  }));
+  const lectureLabelCounts = lectureLabelCandidates.reduce((counts, option) => {
+    counts.set(option.label, (counts.get(option.label) ?? 0) + 1);
+    return counts;
+  }, new Map<string, number>());
+  const lectureLabels = new Map(lectureLabelCandidates.map((option) => [
+    option.id,
+    (lectureLabelCounts.get(option.label) ?? 0) > 1
+      ? `${option.label} · 강의 #${option.id}`
+      : option.label,
+  ]));
   const periodDays = periodScope === "all" ? null : Number(periodScope);
-  const periodStartDay = periodDays == null ? null : currentKstDay() - periodDays + 1;
+  const todayDay = currentKstDay();
+  const periodStartDay = periodDays == null ? null : todayDay - periodDays + 1;
 
   const visibleData = data
     .filter((homework) => {
       if (lectureScope !== "all" && String(homework.lecture_id) !== lectureScope) return false;
       if (periodStartDay != null) {
         const sessionDay = isoDateToDay(homework.session_date);
-        if (sessionDay == null || sessionDay < periodStartDay) return false;
+        if (sessionDay == null || sessionDay < periodStartDay || sessionDay > todayDay) return false;
       }
       if (sessionScope !== "all" && homework.session_type !== sessionScope) return false;
       if (statusScope === "done") return isDone(homework);
@@ -227,9 +262,7 @@ export default function StudentHomeworkTab({
                 <option value="all">전체 강의</option>
                 {lectureOptions.map((option) => (
                   <option key={option.id} value={option.id}>
-                    {duplicateLectureTitles.has(option.title) && option.latestDate
-                      ? `${option.title} · ${sessionDateLabel(option.latestDate)}`
-                      : option.title}
+                    {lectureLabels.get(option.id)}
                   </option>
                 ))}
               </select>
