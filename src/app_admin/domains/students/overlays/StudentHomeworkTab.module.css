@@ -29,6 +29,12 @@
 }
 
 .filters {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+}
+
+.filterRow {
   display: flex;
   min-width: 0;
   align-items: flex-end;
@@ -36,7 +42,7 @@
   gap: 8px;
 }
 
-.filters label {
+.filterRow label {
   display: grid;
   gap: 4px;
   color: var(--color-text-muted);
@@ -44,7 +50,7 @@
   font-weight: 700;
 }
 
-.filters select {
+.filterRow select {
   min-height: 34px;
   padding: 0 28px 0 10px;
   border: 1px solid var(--color-border-default);
@@ -56,9 +62,13 @@
   font-weight: 650;
 }
 
-.filters select:focus-visible {
+.filterRow select:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--color-brand-primary) 28%, transparent);
   outline-offset: 1px;
+}
+
+.lectureFilter select {
+  min-width: 180px;
 }
 
 @media (max-width: 768px) {
@@ -75,11 +85,21 @@
   }
 
   .filters {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
   }
 
-  .filters select {
+  .filterRow {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .filterRow:first-child {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  }
+
+  .filterRow select,
+  .lectureFilter select {
     width: 100%;
     min-width: 0;
     padding-right: 18px;
