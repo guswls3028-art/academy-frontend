@@ -14,6 +14,12 @@ test("release-aware browser worker fixture outlives the 690-second playback proo
   assert.match(source, /scope:\s*["']worker["'][^}\]]*timeout:\s*20\s*\*\s*60_000/s);
 });
 
+test("student-parent real-use creation follows mandatory account notice policy", () => {
+  const source = readFileSync(new URL("../../e2e/helpers/qaStudentParentScenario.ts", import.meta.url), "utf8");
+  assert.match(source, /initial_password:\s*QA_STUDENT_PASSWORD/);
+  assert.doesNotMatch(source, /send_welcome_message:\s*false/);
+});
+
 test("long-video proof propagates strict context teardown failures", () => {
   const source = readFileSync(new URL("../../e2e/student/video-playback-renewal.realuse.spec.ts", import.meta.url), "utf8");
   assert.doesNotMatch(source, /Promise\.allSettled\(runs\.map\(\(\{ context \}\) => context\.close\(\)\)\)/);
