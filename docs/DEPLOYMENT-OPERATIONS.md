@@ -12,7 +12,7 @@
    `CLOUDFLARE_PREVIEW_API_TOKEN`으로 Cloudflare Pages preview에 direct
    upload한다. preview revision, Functions bundle, 핵심 route와 lazy asset을
    검증한다.
-3. `main` push에서는 동일 `deploy-bundle`의 개발 real-use 18개와 exact tenant/user
+3. `main` push에서는 동일 `deploy-bundle`의 개발 real-use 19개와 exact tenant/user
    cleanup0을 `development-canary` job에서 먼저 통과한다. 이 job의 success 없이는
    `deploy`가 시작되지 않는다. main 실행은 후속 push로 취소하지 않아 cleanup을 보존한다.
 4. 기존 운영 deployment id/version과 Pages production
@@ -158,9 +158,14 @@ suite를 연결한다. 다만 새 IAM role/document와 개발 host parameter den
 배포 승인 증거가 아니다.
 
 완성 조건은 같은 `deploy-bundle`을 재빌드/환경 치환 없이 검증된 상시 개발 API에
-연결하여 기존 notice 3개/QnA 4개/clinic 3개 assertion을 모두 실행하는 것이다.
-skip, 누락, 잘못된 release/image/tenant, cleanup 실패는 승격 실패다. 정확한 disposable
-`qa-*` tenant/account만 생성하고 종료 시 tenant/user 모두 0을 읽어야 한다.
+연결하여 기존 notice 3개/QnA 4개/clinic 4개 assertion을 모두 실행하는 것이다.
+클리닉의 네 번째 사례는 desktop의 실제 좌측 달력, 390px의 실제 **일정** overlay를
+각각 사용하며 URL로 세션을 바로 열지 않고 달력 날짜→선택일 전체→일정별 **학생 관리**를
+거친다. 실제 bulk-create와 reload GET,
+`cancelled` 전이와 두 번째 reload, 익명·같은 학원 다른 학생·별도 disposable qa tenant
+거부를 모두 통과해야 한다. skip, 누락, 잘못된 release/image/tenant, cleanup 실패는
+승격 실패다. 두 exact disposable `qa-*` tenant/account를 run별 capability로 각각
+생성하고 종료 시 양쪽 tenant/user 모두 숫자 0을 읽어야 한다.
 운영에는 revision/assets/login/tenant availability, 실제 조회-only assessment,
 strict browser 및 기존 exact-baseline rollback 검증이 남는다. 기존 운영 계정만
 인증하며 테스트 학생/공지/질문/클리닉 등 업무 데이터를 만들지 않는다.
@@ -365,7 +370,7 @@ GitHub Ubuntu 24.04 이미지의 기존 AWS CLI/Session Manager plugin을 재사
 각 흐름은 저장 성공, reload/relogin 지속 상태와 해당 교사·학생 후속 투영을 확인한다.
 다른 자녀/tenant 접근 거부는 backend 계약과 함께 검증한다. 실제 메시지 provider는
 호출하지 않고 개발용 durable outbox 접수·재시도 상태만 확인한다.
-실제 frontend IAM role/document 적용과 18 PASS/0 SKIP/cleanup0 증거가 모두 있어야
+실제 frontend IAM role/document 적용과 19 PASS/0 SKIP/양쪽 cleanup0 증거가 모두 있어야
 이 전환 HOLD를 해제할 수 있다.
 
 ## 4. 공급망과 변경 관리
