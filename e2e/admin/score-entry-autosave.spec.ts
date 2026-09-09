@@ -600,11 +600,15 @@ test("같은 계정의 다른 화면이 선택한 과제 셀을 표시하고 다
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(occupiedCell).toBeVisible();
-  const occupiedBox = await occupiedCell.boundingBox();
-  const labelBox = await occupiedCell.locator(".ds-scores-collaborator-label").boundingBox();
-  expect(occupiedBox).not.toBeNull();
-  expect(labelBox).not.toBeNull();
-  expect(labelBox!.x + labelBox!.width).toBeLessThanOrEqual(occupiedBox!.x + occupiedBox!.width + 1);
+  await expect.poll(async () => {
+    const [occupiedBox, labelBox] = await Promise.all([
+      occupiedCell.boundingBox(),
+      occupiedCell.locator(".ds-scores-collaborator-label").boundingBox(),
+    ]);
+    return occupiedBox !== null
+      && labelBox !== null
+      && labelBox.x + labelBox.width <= occupiedBox.x + occupiedBox.width + 1;
+  }).toBe(true);
 });
 
 test("다른 화면이 선택한 서술형 셀만 막고 같은 시험의 다른 학생은 계속 입력한다", async ({ page }) => {

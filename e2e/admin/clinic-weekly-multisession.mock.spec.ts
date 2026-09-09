@@ -1321,14 +1321,21 @@ test("예약자가 있는 일정 수정은 운영 화면의 수정 알림으로 
 
   const selectedDay = page.getByRole("grid", { name: /클리닉 예약 일정/ })
     .getByRole("gridcell", { name: new RegExp(`^${saturdayLabel}`) });
-  await selectedDay.getByRole("button", { name: "토요일 5시 클리닉 일정 수정" }).click();
+  await expect(selectedDay).toBeVisible();
+  const sessionEditButton = page.getByRole("button", { name: "토요일 5시 클리닉 일정 수정" });
+  await expect(sessionEditButton).toBeVisible({ timeout: 45_000 });
+  await sessionEditButton.click();
   const editDialog = page.getByRole("dialog", { name: "클리닉 일정 수정" });
   await editDialog.getByRole("button", { name: "−1시간" }).click();
+  await expect(editDialog.getByRole("button", { name: "종료 시간 선택" }))
+    .toContainText("오후 5:30");
   await editDialog.getByRole("button", { name: "클리닉 수정", exact: true }).click();
-  await page.getByRole("alertdialog", { name: "클리닉 일정 수정 확인" })
-    .getByRole("button", { name: "확인하고 수정" })
-    .click();
+  const confirmation = page.getByRole("alertdialog", { name: "클리닉 일정 수정 확인" });
+  await expect(confirmation).toContainText(`${saturday} · 17:00–17:30 · 2층 보강실`);
+  await confirmation.getByRole("button", { name: "확인하고 수정" }).click();
 
+  await expect.poll(() => state.updatePayloads).toHaveLength(1);
+  expect(state.updatePayloads[0]?.payload.duration_minutes).toBe(30);
   await expect(page).toHaveURL(new RegExp(`/workspace/clinic/operations\\?date=${saturday}&session=702$`));
   const changeAlert = page.locator(".clinic-ops__change-alert");
   await expect(changeAlert).toContainText(`${saturday} 17:00-18:30 2층 보강실`);
