@@ -24,7 +24,7 @@ type LongVideoCheckpointStage =
   | "reload-bootstrap" | "reload-playlist" | "reload-metadata" | "reload-progress" | "completed";
 
 type ResponseCaptureKind =
-  | "bootstrap" | "access" | "session-list" | "renewal" | "progress" | "other";
+  | "bootstrap" | "access" | "session-list" | "video-home" | "renewal" | "progress" | "other";
 
 type ResponseFailureCode =
   | "api-origin" | "method" | "session-identity" | "items-shape"
@@ -73,6 +73,13 @@ type SessionVideoListPayload = {
   }>;
 };
 
+type StudentVideoHomePayload = {
+  lectures?: Array<{
+    sessions?: Array<{ id?: unknown }>;
+    thumbnail_url?: unknown;
+  }>;
+};
+
 type AccessCheckPayload = {
   ok?: unknown;
   access_mode?: unknown;
@@ -115,6 +122,7 @@ type StudentObservation = {
   allowedMasterUrls: Set<string>;
   allowedPosterUrls: Set<string>;
   sessionPosterCaptureCount: number;
+  homePosterCaptureCount: number;
   accessCheckCount: number;
   playbackApiOrigin: string | null;
   signedOrigins: Set<string>;
@@ -162,6 +170,7 @@ function responseCaptureKind(response: Response, videoId: number): ResponseCaptu
   );
   if (playbackKind === "bootstrap" || playbackKind === "access") return playbackKind;
   if (isSessionVideoList(url.pathname)) return "session-list";
+  if (url.pathname === "/api/v1/student/video/me/") return "video-home";
   if (url.pathname === "/api/v1/media/playback/renew/") return "renewal";
   if (url.pathname === `/api/v1/student/video/videos/${videoId}/progress/`) return "progress";
   return "other";
@@ -287,6 +296,27 @@ async function captureResponse(
     state.sessionPosterCaptureCount += 1;
     return;
   }
+  if (url.pathname === "/api/v1/student/video/me/") {
+    expect(state.playbackApiOrigin, codedResponseExpectation("api-origin")).not.toBeNull();
+    expect(url.origin, codedResponseExpectation("api-origin")).toBe(state.playbackApiOrigin);
+    expect(response.request().method(), codedResponseExpectation("method")).toBe("GET");
+    const bootstrap = state.bootstraps.at(-1);
+    expect(bootstrap, codedResponseExpectation("session-identity")).toBeDefined();
+    const sessionId = bootstrap!.video?.session_id;
+    const payload = await response.json() as StudentVideoHomePayload;
+    expect(Array.isArray(payload.lectures), codedResponseExpectation("items-shape")).toBe(true);
+    const matchingLectures = payload.lectures!.filter((lecture) => (
+      Array.isArray(lecture.sessions)
+      && lecture.sessions.some((session) => session.id === sessionId)
+    ));
+    expect(matchingLectures, codedResponseExpectation("current-item")).toHaveLength(1);
+    const posterUrl = matchingLectures[0].thumbnail_url;
+    expect(typeof posterUrl === "string" && posterUrl.length > 0,
+      codedResponseExpectation("poster")).toBe(true);
+    state.allowedPosterUrls.add(String(posterUrl));
+    state.homePosterCaptureCount += 1;
+    return;
+  }
   if (url.pathname === "/api/v1/media/playback/renew/") {
     const payload = await response.json() as PlaybackPayload;
     assertRenewalPayload(payload);
@@ -408,6 +438,7 @@ function newObservation(viewport: "desktop" | "mobile"): StudentObservation {
     allowedMasterUrls: new Set(),
     allowedPosterUrls: new Set(),
     sessionPosterCaptureCount: 0,
+    homePosterCaptureCount: 0,
     accessCheckCount: 0,
     playbackApiOrigin: null,
     signedOrigins: new Set(),
@@ -677,6 +708,7 @@ async function finishStudent(
 
   const endCount = await page.locator('a[href="/student/video"]').count();
   expect(endCount).toBeGreaterThan(0);
+  const homePosterCapturesBeforeExit = state.homePosterCaptureCount;
   const endResponse = page.waitForResponse((response) =>
     new URL(response.url()).pathname === "/api/v1/media/playback/end/" && response.status() < 300,
   { timeout: 10_000 });
@@ -685,6 +717,8 @@ async function finishStudent(
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
   await state.responseChain;
   if (state.responseError) throw state.responseError;
+  expect(state.homePosterCaptureCount).toBeGreaterThan(homePosterCapturesBeforeExit);
+  expect(state.requestErrorCount).toBe(0);
   expect(state.bootstraps).toHaveLength(2);
   expect(state.renewals).toHaveLength(1);
   expect(state.allowedMasterUrls.size).toBe(2);

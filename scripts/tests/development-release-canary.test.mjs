@@ -835,6 +835,11 @@ test("official runner opts into two-student long-video setup without publishing 
   assert.match(specSource, /item\.id === videoId && item\.session_id === sessionId/);
   assert.match(specSource, /state\.sessionPosterCaptureCount \+= 1/);
   assert.match(specSource, /state\.sessionPosterCaptureCount\)\.toBeGreaterThan\(sessionPosterCapturesBeforeReload\)/);
+  assert.match(specSource, /url\.pathname === "\/api\/v1\/student\/video\/me\/"/);
+  assert.match(specSource, /lecture\.sessions\.some\(\(session\) => session\.id === sessionId\)/);
+  assert.match(specSource, /state\.homePosterCaptureCount \+= 1/);
+  assert.match(specSource, /state\.homePosterCaptureCount\)\.toBeGreaterThan\(homePosterCapturesBeforeExit\)/);
+  assert.match(specSource, /expect\(state\.requestErrorCount\)\.toBe\(0\);\s*expect\(state\.bootstraps\)/s);
   assert.match(posterBridgeSource, /state\.allowedPosterUrls\.has\(rawUrl\)/);
   assert.match(posterBridgeSource, /for \(let attempt = 0; attempt < 60; attempt \+= 1\)/);
   assert.match(posterBridgeSource, /await route\.fallback\(\)/);
