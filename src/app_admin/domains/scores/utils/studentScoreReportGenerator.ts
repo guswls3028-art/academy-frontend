@@ -972,8 +972,14 @@ export function buildStudentScoreReportHtml(params: StudentScoreReportParams): s
     .sort((a, b) => a.round_index - b.round_index)
     .slice(-4);
   const summary = summarizeStudentScoreTrend(recentTrend);
+  const currentExamMaxScores = new Map(
+    (meta.exams ?? []).map((exam) => [exam.exam_id, exam.max_score]),
+  );
   const currentExamScores = row.exams
-    .map((entry) => scorePercent(entry.block.score, entry.block.max_score))
+    .map((entry) => scorePercent(
+      entry.block.score,
+      currentExamMaxScores.get(entry.exam_id) ?? entry.block.max_score,
+    ))
     .filter((value): value is number => value != null);
   const currentExamAverage = currentExamScores.length > 0
     ? currentExamScores.reduce((sum, value) => sum + value, 0) / currentExamScores.length
