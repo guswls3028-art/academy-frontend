@@ -319,20 +319,26 @@ test.describe("학생 커뮤니티 durable draft", () => {
 
     const second = await context.newPage();
     await installStudentApi(second);
-    await second.clock.install();
     await openForm(second, "QnA");
     await expect(second.getByPlaceholder("질문 제목")).toHaveValue("첫 번째 탭 초안");
 
     await second.getByPlaceholder("질문 제목").fill("두 번째 탭 현재 입력");
+    await flushPageDraft(second);
+    await expect.poll(() => readDraftTitle(second)).toBe("두 번째 탭 현재 입력");
+    await expect(page.getByRole("alert")).toContainText("다른 탭에서 더 최신 초안");
+
     await page.getByPlaceholder("질문 제목").fill("더 최신 초안");
-    await flushPageDraft(page);
+    await page.getByRole("button", { name: "현재 내용 유지", exact: true }).click();
+    await expect.poll(() => readDraftTitle(page)).toBe("더 최신 초안");
     await expect(second.getByRole("alert")).toContainText("다른 탭에서 더 최신 초안");
-    await second.clock.runFor(1_500);
+    await flushPageDraft(second);
     await expect.poll(() => readDraftTitle(second)).toBe("더 최신 초안");
     await second.getByRole("button", { name: "다른 탭 초안 불러오기", exact: true }).click();
     await expect(second.getByPlaceholder("질문 제목")).toHaveValue("더 최신 초안");
 
     await second.getByPlaceholder("질문 제목").fill("현재 내용을 명시적으로 유지");
+    await flushPageDraft(second);
+    await expect.poll(() => readDraftTitle(second)).toBe("현재 내용을 명시적으로 유지");
     await expect(page.getByRole("alert")).toContainText("다른 탭에서 더 최신 초안");
     await page.getByRole("button", { name: "다른 탭 초안 불러오기", exact: true }).click();
     await expect(page.getByPlaceholder("질문 제목")).toHaveValue("현재 내용을 명시적으로 유지");
