@@ -104,6 +104,7 @@ export default function SubmitAssignmentPage() {
   const runTrackedTask = useTrackedTask();
   const [selected, setSelected] = useState<SelectedTarget | null>(null);
   const [pendingFiles, setPendingFiles] = useState<PendingMedia[]>([]);
+  const [isPreparingFiles, setIsPreparingFiles] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const gradesQ = useMyGradesSummary();
   const grades = gradesQ.data;
@@ -138,6 +139,7 @@ export default function SubmitAssignmentPage() {
     queryFn: () => fetchHomeworkMedia(selected!.id, selected!.enrollmentId),
     enabled: selected != null,
     retry: 1,
+    staleTime: 0,
   });
   const limits = mediaQ.data?.limits ?? DEFAULT_LIMITS;
   const pendingClientIds = useMemo(() => new Set(pendingFiles.map((file) => file.clientFileId)), [pendingFiles]);
@@ -233,13 +235,21 @@ export default function SubmitAssignmentPage() {
     onError: (removeError) => setError(apiErrorMessage(removeError, "파일을 변경하지 못했습니다.")),
   });
 
-  const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const onFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const incoming = Array.from(event.target.files ?? []);
     event.target.value = "";
     setError(null);
     uploadMut.reset();
     if (incoming.length === 0) return;
-    const existing = mediaQ.data?.files ?? [];
+    setIsPreparingFiles(true);
+    const refreshed = await mediaQ.refetch().catch(() => null);
+    setIsPreparingFiles(false);
+    if (!refreshed?.data || refreshed.isError) {
+      setError("현재 제출 파일을 다시 확인하지 못했습니다. 연결을 확인한 뒤 다시 선택해 주세요.");
+      return;
+    }
+    const existing = refreshed.data.files;
+    const currentLimits = refreshed.data.limits ?? DEFAULT_LIMITS;
     const unmatchedServerFiles = existing.filter(
       (file) => !file.client_file_id || !pendingClientIds.has(file.client_file_id),
     );
@@ -259,7 +269,7 @@ export default function SubmitAssignmentPage() {
       if (localSignatures.has(signature)) { rejected.push(`${file.name}: 이미 선택됨`); continue; }
       if (!isSupportedSubmissionFile(file)) { rejected.push(`${file.name}: 지원하지 않는 형식`); continue; }
       if (file.size <= 0) { rejected.push(`${file.name}: 빈 파일`); continue; }
-      if (file.size > limits.max_file_size_bytes) { rejected.push(`${file.name}: 파일당 ${formatCompactFileSize(limits.max_file_size_bytes)} 초과`); continue; }
+      if (file.size > currentLimits.max_file_size_bytes) { rejected.push(`${file.name}: 파일당 ${formatCompactFileSize(currentLimits.max_file_size_bytes)} 초과`); continue; }
       const persistedRetry = existing.find((serverFile) => (
         serverFile.status === "failed"
         && serverFile.client_file_id != null
@@ -280,11 +290,11 @@ export default function SubmitAssignmentPage() {
         });
         continue;
       }
-      if (activeCount >= limits.max_files) { rejected.push(`${file.name}: 최대 ${limits.max_files}개 초과`); continue; }
-      if (totalSize + file.size > limits.max_total_size_bytes) { rejected.push(`${file.name}: 전체 ${formatCompactFileSize(limits.max_total_size_bytes)} 초과`); continue; }
+      if (activeCount >= currentLimits.max_files) { rejected.push(`${file.name}: 최대 ${currentLimits.max_files}개 초과`); continue; }
+      if (totalSize + file.size > currentLimits.max_total_size_bytes) { rejected.push(`${file.name}: 전체 ${formatCompactFileSize(currentLimits.max_total_size_bytes)} 초과`); continue; }
       let position = 0;
       while (occupiedPositions.has(position)) position += 1;
-      if (position >= limits.max_files) { rejected.push(`${file.name}: 넣을 수 있는 순서가 없음`); continue; }
+      if (position >= currentLimits.max_files) { rejected.push(`${file.name}: 넣을 수 있는 순서가 없음`); continue; }
       occupiedPositions.add(position);
       localSignatures.add(signature);
       activeCount += 1;
@@ -328,7 +338,7 @@ export default function SubmitAssignmentPage() {
     ).catch(() => undefined);
   }, [requestedHomeworkId, selected, unfinishedHomeworks]);
   const retryableCount = pendingFiles.filter((file) => file.status !== "uploading").length;
-  const canSubmit = selected != null && retryableCount > 0 && !uploadMut.isPending && !gradesQ.isError && !mediaQ.isError;
+  const canSubmit = selected != null && retryableCount > 0 && !uploadMut.isPending && !isPreparingFiles && !mediaQ.isFetching && !gradesQ.isError && !mediaQ.isError;
   const submitButtonLabel = uploadMut.isPending
     ? "파일별로 제출 중…"
     : retryableCount === 0
@@ -358,12 +368,12 @@ export default function SubmitAssignmentPage() {
           {!gradesQ.isLoading && !gradesQ.isError && unfinishedHomeworks.length === 0 && unfinishedExams.length === 0 && <div className={styles.emptyTarget}>{requestedSessionId == null ? "제출할 미완료 과제·시험이 없습니다." : "이 차시에 제출할 미완료 과제·시험이 없습니다."}</div>}
           {!gradesQ.isError && <div className={styles.targetList}>
             {unfinishedHomeworks.map((homework) => (
-              <button key={`hw-${homework.homework_id}`} type="button" onClick={() => selectHomework(homework)} disabled={uploadMut.isPending} className={styles.targetItem} data-selected={selected?.id === homework.homework_id}>
+              <button key={`hw-${homework.homework_id}`} type="button" onClick={() => selectHomework(homework)} disabled={uploadMut.isPending || isPreparingFiles} className={styles.targetItem} data-selected={selected?.id === homework.homework_id}>
                 <span className={styles.targetIcon}><IconClipboard className={styles.targetIconSvg} /></span><span className={styles.targetBadge}>과제</span><span className={styles.targetTitle}>{homework.title}</span>{homework.lecture_title && <span className={`stu-muted ${styles.targetLecture}`}>{homework.lecture_title}</span>}
               </button>
             ))}
             {unfinishedExams.map((exam: MyExamGradeSummary) => (
-              <Link key={`ex-${exam.exam_id}`} to={`/student/exams/${exam.exam_id}/submit`} className={styles.targetItem} aria-disabled={uploadMut.isPending} tabIndex={uploadMut.isPending ? -1 : undefined} onClick={(event) => { if (uploadMut.isPending) event.preventDefault(); }}>
+              <Link key={`ex-${exam.exam_id}`} to={`/student/exams/${exam.exam_id}/submit`} className={styles.targetItem} aria-disabled={uploadMut.isPending || isPreparingFiles} tabIndex={uploadMut.isPending || isPreparingFiles ? -1 : undefined} onClick={(event) => { if (uploadMut.isPending || isPreparingFiles) event.preventDefault(); }}>
                 <span className={styles.targetIcon}><IconExam className={styles.targetIconSvg} /></span><span className={styles.targetBadge}>시험</span><span className={styles.targetTitle}>{exam.title}</span>{exam.lecture_title && <span className={`stu-muted ${styles.targetLecture}`}>{exam.lecture_title}</span>}
               </Link>
             ))}
@@ -377,8 +387,8 @@ export default function SubmitAssignmentPage() {
               <span className={styles.fileCount}>{visibleServerFiles.length + pendingFiles.length}/{limits.max_files}</span>
             </div>
             <input ref={fileInputRef} type="file" accept={ACCEPT} multiple onChange={onFileChange} className={styles.hiddenInput} />
-            <button type="button" className={`stu-btn stu-btn--secondary ${styles.fileButton}`} onClick={() => fileInputRef.current?.click()} disabled={uploadMut.isPending || mediaQ.isLoading || mediaQ.isError}>사진·동영상 여러 개 선택</button>
-            {mediaQ.isLoading && <div className={styles.mediaLoading}>현재 제출 파일을 확인하는 중…</div>}
+            <button type="button" className={`stu-btn stu-btn--secondary ${styles.fileButton}`} onClick={() => fileInputRef.current?.click()} disabled={uploadMut.isPending || isPreparingFiles || mediaQ.isFetching || mediaQ.isError}>사진·동영상 여러 개 선택</button>
+            {(isPreparingFiles || mediaQ.isFetching) && <div className={styles.mediaLoading}>현재 제출 파일을 최신 상태로 확인하는 중…</div>}
             {mediaQ.isError && <div className={styles.mediaQueryError} role="alert"><span>현재 제출 파일을 불러오지 못해 새 업로드를 잠갔습니다.</span><button type="button" className="stu-btn stu-btn--ghost stu-btn--sm" onClick={() => void mediaQ.refetch()}>다시 시도</button></div>}
 
             {visibleServerFiles.length > 0 && (
@@ -388,7 +398,7 @@ export default function SubmitAssignmentPage() {
                   <div className={styles.persistedFile} key={file.id} data-status={file.status}>
                     <span className={styles.persistedIcon}>{file.media_kind === "video" ? <IconVideo /> : <IconImage />}</span>
                     <span className={styles.persistedInfo}><b>{file.original_filename}</b><small>{formatCompactFileSize(file.file_size)} · {mediaStatusLabel(file)}</small>{file.error_message && <em>{file.error_message}</em>}</span>
-                    <button type="button" className="stu-btn stu-btn--ghost stu-btn--sm" onClick={() => removeMut.mutate(file)} disabled={uploadMut.isPending || removeMut.isPending}>빼기</button>
+                    <button type="button" className="stu-btn stu-btn--ghost stu-btn--sm" onClick={() => removeMut.mutate(file)} disabled={uploadMut.isPending || isPreparingFiles || removeMut.isPending}>빼기</button>
                   </div>
                 ))}</div>
               </section>

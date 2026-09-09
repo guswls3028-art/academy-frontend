@@ -326,8 +326,12 @@ frontend를 반영한다. 새 frontend는 POST가 실패하면 bootstrap을 실�
   전에 검사한다. 빈 파일과 비지원 형식은 파일명별 이유를 표시하고 같은 선택의 정상
   파일은 제출 목록에 유지한다. 서버의 tenant·배정·MIME/signature·용량 검증이
   정본이다. 현재 제출 파일 목록 조회 실패를 0개로 바꾸지 않고 재조회 전까지 새
-  업로드를 잠근다. 학부모도 선택한 연결 자녀 범위에서 같은 제출·재시도·삭제 흐름을
-  사용한다. 검수가 끝난 파일 변경은 역할과 무관하게 서버 오류를 그대로 안내한다.
+  업로드를 잠근다. 파일 선택 직전에도 서버 목록을 다시 읽은 뒤 그 최신 목록에서 빈
+  순서를 배정한다. 초기 조회나 백그라운드 재조회 중에는 선택 버튼과 제출 버튼을 잠시
+  비활성화하고 `최신 상태로 확인하는 중`을 표시하므로, 학생이 올린 직후 같은 자녀를
+  연 학부모가 캐시된 빈 목록의 0번 순서를 다시 쓰지 않는다. 학부모도 선택한 연결 자녀
+  범위에서 같은 제출·재시도·삭제 흐름을 사용한다. 검수가 끝난 파일 변경은 역할과
+  무관하게 서버 오류를 그대로 안내한다.
 - 집중 회귀는 `e2e/student/assignment-session-scope.mock.spec.ts`가 390px 범위 고정,
   대상 전환 초기화, 파일 형식 거부, 성공 후 초기화와 가로 넘침을 검증한다.
   `e2e/student/assignment-media-multiupload.mock.spec.ts`는 기존 단건 복원, 사진·동영상
@@ -337,7 +341,9 @@ frontend를 반영한다. 새 frontend는 POST가 실패하면 bootstrap을 실�
   제출과 reload 복원을 검증해 일반 API의 20초 제한 재유입을 막는다. desktop 회귀는
   정상 파일을 유지하면서 빈 파일과 비지원 형식을 각각 명시하는지 검증한다. 같은
   파일의 학부모 회귀는 선택 자녀 헤더, 제출, reload 복원, 390px overflow를 함께
-  검증하고 `e2e/student/numeric-short-answer.spec.ts`는 학부모 온라인 시험 초안이
+  검증한다. 학생 업로드 뒤 학부모 진입 회귀는 캐시된 빈 목록과 지연된 백그라운드
+  재조회를 재현하고, 학부모 요청의 `X-Student-Id`, 충돌 없는 다음 순서, reload 복원,
+  390px overflow를 함께 검증한다. `e2e/student/numeric-short-answer.spec.ts`는 학부모 온라인 시험 초안이
   계정·자녀별로 분리된 채 재접속 후 제출되는지 검증한다. 격리된 development
   same-artifact 검증에서는 `student-parent-homework-realuse.spec.ts`와
   `student-parent-assessment-realuse.spec.ts`가 학생 본인과 학부모 선택 자녀의 실제
