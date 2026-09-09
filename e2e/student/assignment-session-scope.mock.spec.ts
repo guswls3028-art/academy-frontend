@@ -302,6 +302,9 @@ test("교사 완료 과제는 원점수 없이도 완료로 표시되고 재제�
   });
 
   await page.getByRole("button", { name: /과제 현황/ }).click();
+  await expect(page).toHaveURL(/\/student\/grades\?view=homework$/);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("button", { name: /과제 현황/ })).toHaveAttribute("aria-pressed", "true");
   const card = page.locator('[class*="homeworkCard"]').filter({
     hasText: "수업 중 교사 확인 과제",
   });

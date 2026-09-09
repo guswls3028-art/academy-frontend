@@ -177,8 +177,16 @@ test.describe.serial("[real-use] 학생 예약에서 학부모 클리닉 project
       .getByRole("button", { name: "예약 취소" })
       .click();
     const cancelled = await cancelResponse;
-    expect(cancelled.status()).toBe(200);
-    expect(await cancelled.json()).toMatchObject({
+    const cancellationBody = await cancelled.json() as Record<string, unknown>;
+    const cancellationFailure = {
+      code: cancellationBody.code,
+      detail: cancellationBody.detail,
+    };
+    expect(
+      cancelled.status(),
+      `clinic cancellation failed: ${JSON.stringify(cancellationFailure)}`,
+    ).toBe(200);
+    expect(cancellationBody).toMatchObject({
       status: "cancelled",
       notification: {
         requested: 2,
