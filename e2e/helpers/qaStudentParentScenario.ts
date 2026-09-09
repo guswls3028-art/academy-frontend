@@ -38,14 +38,6 @@ export const QA_TENANT = (process.env.E2E_TENANT_CODE || "").trim().toLowerCase(
 export const QA_ADMIN_USER = (process.env.E2E_ADMIN_USER || "ymath-qa-teacher").trim();
 export const QA_ADMIN_PASSWORD = (process.env.E2E_ADMIN_PASS || "").trim();
 export const QA_STUDENT_PASSWORD = (process.env.E2E_STUDENT_PASS || "").trim();
-export const QA_STUDENT_STABLE_PASSWORD = (
-  process.env.E2E_STUDENT_STABLE_PASSWORD
-  || (QA_STUDENT_PASSWORD ? `${QA_STUDENT_PASSWORD}-student` : "")
-).trim();
-export const QA_PARENT_PASSWORD = (
-  process.env.E2E_STUDENT_PARENT_PASSWORD
-  || (QA_STUDENT_PASSWORD ? `${QA_STUDENT_PASSWORD}-parent` : "")
-).trim();
 
 const TOKEN_MAX_ATTEMPTS = 5;
 
@@ -70,9 +62,6 @@ export function assertQaStudentParentRuntime(): void {
   expect(QA_TENANT).toMatch(/^qa-ymath-realuse-[a-z0-9-]+$/);
   expect(QA_ADMIN_PASSWORD, "E2E_ADMIN_PASS is required").not.toBe("");
   expect(QA_STUDENT_PASSWORD, "E2E_STUDENT_PASS is required").not.toBe("");
-  expect(QA_STUDENT_STABLE_PASSWORD, "a derived or explicit student password is required").not.toBe(QA_STUDENT_PASSWORD);
-  expect(QA_PARENT_PASSWORD, "a derived or explicit parent password is required").not.toBe(QA_STUDENT_PASSWORD);
-  expect(QA_PARENT_PASSWORD).not.toBe(QA_STUDENT_STABLE_PASSWORD);
   expect(process.env.E2E_ALLOW_PRODUCTION_WRITES).toBe("0");
   expect(
     process.env.E2E_ALLOW_REAL_ALIMTALK,
@@ -159,28 +148,6 @@ export async function loginAdmin(request: APIRequestContext): Promise<QaTokens> 
   return loginApi(request, QA_ADMIN_USER, QA_ADMIN_PASSWORD);
 }
 
-async function ensureStableAccountPassword(
-  request: APIRequestContext,
-  username: string,
-  initialPassword: string,
-  stablePassword: string,
-): Promise<void> {
-  const stableAttempt = await request.post(`${QA_API}/api/v1/token/`, {
-    headers: headers(),
-    data: { username, password: stablePassword, tenant_code: QA_TENANT },
-    timeout: 60_000,
-  });
-  if (stableAttempt.status() === 200) return;
-  expect([400, 401], "unexpected stable account login response").toContain(stableAttempt.status());
-
-  const initialTokens = await loginApi(request, username, initialPassword);
-  await expectApi(request, "POST", "/core/change-password/", initialTokens.access, {
-    old_password: initialPassword,
-    new_password: stablePassword,
-  }, [200]);
-  await loginApi(request, username, stablePassword);
-}
-
 export async function seedBrowserAuth(page: Page, tokens: QaTokens): Promise<void> {
   await page.addInitScript(({ access, refresh, code }) => {
     localStorage.setItem("access", access);
@@ -239,7 +206,7 @@ export async function createQaFamily(
       }, [201]);
       expect(createdStudent.id).toBeGreaterThan(0);
       expect(createdStudent.parent_phone).toBe(parentPhone);
-      students.push({ ...createdStudent, password: QA_STUDENT_STABLE_PASSWORD });
+      students.push({ ...createdStudent, password: QA_STUDENT_PASSWORD });
     }
   } catch (creationError) {
     if (students.length > 0) {
@@ -262,25 +229,15 @@ export async function createQaFamily(
 
   try {
     for (const student of students) {
-      await ensureStableAccountPassword(
-        request,
-        student.ps_number,
-        QA_STUDENT_PASSWORD,
-        student.password,
-      );
+      await loginApi(request, student.ps_number, student.password);
     }
-    await ensureStableAccountPassword(
-      request,
-      parentPhone,
-      QA_STUDENT_PASSWORD,
-      QA_PARENT_PASSWORD,
-    );
+    await loginApi(request, parentPhone, QA_STUDENT_PASSWORD);
   } catch (stabilizationError) {
     try {
       await cleanupQaFamily(request, adminAccess, {
         scenarioKey,
         parentPhone,
-        parentPassword: QA_PARENT_PASSWORD,
+        parentPassword: QA_STUDENT_PASSWORD,
         students,
       });
     } catch (cleanupError) {
@@ -295,7 +252,7 @@ export async function createQaFamily(
   return {
     scenarioKey,
     parentPhone,
-    parentPassword: QA_PARENT_PASSWORD,
+    parentPassword: QA_STUDENT_PASSWORD,
     students,
   };
 }
