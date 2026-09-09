@@ -2,6 +2,7 @@ import { hhmmText as formatTime } from "@/shared/ui/time/timeFormat";
 
 import type { ClinicAvailability, ClinicSession } from "../api/clinicBooking.api";
 import styles from "../pages/ClinicPage.module.css";
+import timeStyles from "./ClinicTimeRangePicker.module.css";
 
 type Props = {
   selectedSessions: ClinicSession[];
@@ -140,8 +141,8 @@ export default function ClinicMultiSlotSelectionPanel({
         ))}
       </div>}
       {isTimeRange && (
-        <div className={styles.timePicker}>
-          <div className={styles.operatingInfo}>
+        <div className={timeStyles.timePicker}>
+          <div className={timeStyles.operatingInfo}>
             <span>운영 안내</span>
             <strong>{sessionSummary.range}</strong>
             <small>{availabilityPending
@@ -149,31 +150,31 @@ export default function ClinicMultiSlotSelectionPanel({
               : `${availability?.interval_minutes ?? 60}분 간격 · 최대 ${availability?.max_stay_minutes ?? selectedSession.booking_max_stay_minutes ?? 240}분`}</small>
           </div>
           {availabilityPending ? (
-            <div className={styles.availabilityState} role="status">
-              <span className={styles.availabilitySpinner} aria-hidden />
+            <div className={timeStyles.availabilityState} role="status">
+              <span className={timeStyles.availabilitySpinner} aria-hidden />
               예약 가능한 시간을 확인하고 있어요.
             </div>
           ) : availabilityError ? (
-            <div className={styles.availabilityState} role="alert">
+            <div className={timeStyles.availabilityState} role="alert">
               <strong>시간 정보를 불러오지 못했습니다.</strong>
               <span>네트워크 연결을 확인한 뒤 다시 불러와 주세요.</span>
               <button type="button" onClick={onAvailabilityRetry}>다시 확인</button>
             </div>
           ) : timeRangeUnavailable ? (
-            <div className={styles.availabilityState} role="status">
+            <div className={timeStyles.availabilityState} role="status">
               <strong>{hasAvailabilitySlots ? "예약 가능한 시간이 모두 마감되었습니다." : "이 날짜는 예약 가능한 시간이 없습니다."}</strong>
               <span>{hasAvailabilitySlots ? "다른 날짜를 선택해 주세요." : "휴무일이거나 아직 예약 시간이 열리지 않았습니다."}</span>
             </div>
           ) : (
             <>
-              <fieldset className={styles.timeStep}>
+              <fieldset className={timeStyles.timeStep}>
                 <legend><span>1</span> 시작 시간</legend>
-                <div className={styles.timeSlotGrid}>
+                <div className={timeStyles.timeSlotGrid}>
                   {availableStartSlots.map((slot) => (
                     <button
                       key={slot.start_time}
                       type="button"
-                      className={bookingStart === slot.start_time ? styles.timeSlotSelected : ""}
+                      className={bookingStart === slot.start_time ? timeStyles.timeSlotSelected : ""}
                       aria-pressed={bookingStart === slot.start_time}
                       aria-label={`${slot.start_time} 시작, 잔여 ${slot.remaining_capacity}자리`}
                       onClick={() => {
@@ -188,16 +189,16 @@ export default function ClinicMultiSlotSelectionPanel({
                 </div>
               </fieldset>
               {bookingStart && (
-                <fieldset className={styles.timeStep}>
+                <fieldset className={timeStyles.timeStep}>
                   <legend><span>2</span> 종료 시간</legend>
-                  <div className={styles.timeSlotGrid}>
+                  <div className={timeStyles.timeSlotGrid}>
                     {availableEndSlots.map((slot) => {
                       const duration = timeRangeDuration(bookingStart, slot.end_time);
                       return (
                         <button
                           key={slot.end_time}
                           type="button"
-                          className={bookingEnd === slot.end_time ? styles.timeSlotSelected : ""}
+                          className={bookingEnd === slot.end_time ? timeStyles.timeSlotSelected : ""}
                           aria-pressed={bookingEnd === slot.end_time}
                           aria-label={`${slot.end_time} 종료, 총 ${duration}`}
                           onClick={() => onBookingEndChange(slot.end_time)}
