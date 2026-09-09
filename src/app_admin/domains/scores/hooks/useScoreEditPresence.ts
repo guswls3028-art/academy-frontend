@@ -31,9 +31,11 @@ export function useScoreEditPresence({
   const [activeEditors, setActiveEditors] = useState<ScoreActiveEditor[]>([]);
   const activeCellRef = useRef<ScoreActiveCell | null>(activeCell);
   const presencePromiseRef = useRef<Promise<void> | null>(null);
+  const presenceRequestVersionRef = useRef(0);
   activeCellRef.current = activeCell;
 
   useEffect(() => {
+    const requestVersion = ++presenceRequestVersionRef.current;
     if (!isActive) return;
     if (savePromiseRef.current != null) return;
     const snapshot = panelRef.current?.getPendingSnapshot?.() ?? [];
@@ -42,10 +44,12 @@ export function useScoreEditPresence({
     if (snapshot.length > 0) return;
     const request = putScoreDraft(sessionId, snapshot, { activeCell })
       .then((data) => {
+        if (requestVersion !== presenceRequestVersionRef.current) return;
         setActiveEditors(data.active_editors);
         onPresenceSuccess();
       })
       .catch((error) => {
+        if (requestVersion !== presenceRequestVersionRef.current) return;
         const locked = isScoreEditLockedError(error);
         onPresenceError(
           locked
@@ -80,12 +84,15 @@ export function useScoreEditPresence({
       if (savePromiseRef.current != null) return;
       const snapshot = panelRef.current?.getPendingSnapshot?.() ?? [];
       if (snapshot.length > 0) return;
+      const requestVersion = ++presenceRequestVersionRef.current;
       const request = putScoreDraft(sessionId, [], { activeCell: activeCellRef.current })
         .then((data) => {
+          if (requestVersion !== presenceRequestVersionRef.current) return;
           setActiveEditors(data.active_editors);
           onPresenceSuccess();
         })
         .catch((error) => {
+          if (requestVersion !== presenceRequestVersionRef.current) return;
           onPresenceError(
             "수정 권한 유지에 실패했습니다. 저장 후 다시 시도해 주세요.",
             isScoreEditLockedError(error),

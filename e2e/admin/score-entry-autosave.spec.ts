@@ -111,6 +111,9 @@ let failNextDraftCommit = false;
 let failNextLeaseRelease = false;
 let failNextDraftPut = false;
 let failNextPresenceDraftPut = false;
+let delayNextPresenceDraftPutMs = 0;
+let delayedPresenceDraftPutStarted = false;
+let delayedPresenceDraftPutCompleted = false;
 let delayNextScorePatchMs = 0;
 let includeHomework = false;
 let homeworkMaxScore = 100;
@@ -147,6 +150,9 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
   failNextLeaseRelease = false;
   failNextDraftPut = false;
   failNextPresenceDraftPut = false;
+  delayNextPresenceDraftPutMs = 0;
+  delayedPresenceDraftPutStarted = false;
+  delayedPresenceDraftPutCompleted = false;
   delayNextScorePatchMs = 0;
   includeHomework = options.includeHomework ?? false;
   homeworkMaxScore = options.homeworkMaxScore ?? 100;
@@ -319,6 +325,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
       }
       if (method === "PUT") {
         const body = request.postDataJSON() as { changes?: unknown[]; active_cell?: unknown };
+        let delayedPresence = false;
         if (failNextPresenceDraftPut && (body.changes?.length ?? 0) === 0 && body.active_cell != null) {
           failNextPresenceDraftPut = false;
           await route.fulfill({
@@ -326,6 +333,13 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
             json: { detail: "이 차시는 다른 화면에서 수정 중입니다.", code: "SCORE_EDIT_LOCKED" },
           });
           return;
+        }
+        if (delayNextPresenceDraftPutMs > 0 && (body.changes?.length ?? 0) === 0 && body.active_cell != null) {
+          const delayMs = delayNextPresenceDraftPutMs;
+          delayNextPresenceDraftPutMs = 0;
+          delayedPresence = true;
+          delayedPresenceDraftPutStarted = true;
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
         }
         if (failNextDraftPut && (body.changes?.length ?? 0) > 0) {
           failNextDraftPut = false;
@@ -335,6 +349,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
         draftPuts.push(body as Record<string, unknown>);
         currentDraft = body.changes ?? [];
         await route.fulfill({ json: { changes: currentDraft, active_editors: activeEditors } });
+        if (delayedPresence) delayedPresenceDraftPutCompleted = true;
         return;
       }
     }
@@ -734,11 +749,20 @@ test("일시적인 셀 점유 충돌 뒤 정상 presence가 오면 편집 잠금
   await ensureScoreEditing(page);
 
   const saveAndLock = page.getByRole("button", { name: "저장하고 잠금", exact: true });
+  const firstStudent = page.getByRole("textbox", { name: "자동저장학생1 · 단원 복습 점수 입력" });
+  const secondStudent = page.getByRole("textbox", { name: "자동저장학생2 · 단원 복습 점수 입력" });
+
+  delayNextPresenceDraftPutMs = 500;
+  await secondStudent.click();
+  await expect.poll(() => delayedPresenceDraftPutStarted).toBe(true);
+
   failNextPresenceDraftPut = true;
-  await page.getByRole("textbox", { name: "자동저장학생1 · 단원 복습 점수 입력" }).click();
+  await firstStudent.click();
+  await expect.poll(() => failNextPresenceDraftPut).toBe(false);
+  await expect.poll(() => delayedPresenceDraftPutCompleted).toBe(true);
   await expect(saveAndLock).toBeDisabled();
 
-  await page.getByRole("textbox", { name: "자동저장학생2 · 단원 복습 점수 입력" }).click();
+  await secondStudent.click();
   await expect(saveAndLock).toBeEnabled();
   await saveAndLock.click();
   await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
