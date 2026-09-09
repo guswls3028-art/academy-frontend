@@ -13,6 +13,7 @@
 | 학원별 공용 취향 | tenant | 공지 24시간 닫기, 강의 과목·클리닉 위치 제안 |
 | 사용자 작성·복구 데이터 | tenant + user | 커뮤니티 글 초안, 영상 이어보기 |
 | 실행 결과를 바꾸는 운영 취향 | tenant + user | 매치업 분할 방식, 자동 재분석 동의, 공개 게시 확인 생략 |
+| 임시 비밀번호 변경 권장 미루기 | tenant + user + auth generation | 현재 로그인 동안 경로 이동·새로고침에서 반복 차단 방지 |
 
 tenant 또는 user를 확인할 수 없는 상태에서 tenant+user 키를 만들거나 읽지
 않는다. 소유 정보가 없던 기존 전역 초안은 다른 사용자에게 자동 귀속하지 않으며,
@@ -65,6 +66,9 @@ reference-count 예산 안에서 우회할 수 없다. 일반 브라우저 취�
 저장소가 비활성, 가득 참, 손상된 경우에도 API 조회·입력·제출은 계속 동작한다.
 만료되거나 파싱할 수 없는 보조값은 무시한다. 확인 생략이나 자동 실행 선호를 읽지
 못하면 확인을 다시 표시하는 쪽으로 실패한다.
+임시 비밀번호 변경 권장 미루기 marker도 현재 active auth generation과 정확히
+일치할 때만 적용한다. 로그아웃 뒤 새 generation, 다른 tenant 또는 다른 user의
+marker를 이어받지 않으며, 저장소를 읽을 수 없으면 변경 권장을 다시 표시한다.
 
 ## Verification
 
@@ -74,6 +78,7 @@ pnpm refactor:budget
 pnpm typecheck
 pnpm exec playwright test e2e/student/community-draft-autosave.mock.spec.ts --config=playwright.pr-gate.config.ts --project=pr-route-mocks
 pnpm exec playwright test e2e/refactor/landing-router.spec.ts --project=chromium
+pnpm exec playwright test e2e/auth/account-password-flows.mock.spec.ts --project=chromium
 pnpm exec playwright test e2e/admin/assessment-operations-workspace.mock.spec.ts e2e/admin/score-entry-autosave.spec.ts e2e/student/numeric-short-answer.spec.ts --config=playwright.pr-gate.config.ts --project=pr-route-mocks
 ```
 
