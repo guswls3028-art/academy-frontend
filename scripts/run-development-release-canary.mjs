@@ -44,6 +44,10 @@ const RELEASE_BOUNDARY_CODES = new Set([
   "api-origin", "context-disposed", "cors", "credentials", "mutation", "observation-schema",
   "origin", "redirect", "tenant", "transport", "fetch-transport", "fulfill-transport",
 ]);
+const SAFE_FAILURE_SOURCE_FILES = new Set([
+  ...Object.keys(FLOW_COUNTS),
+  "qaStudentParentScenario.ts", "releaseApiBoundary.ts", "strictBrowser.ts", "wait.ts",
+]);
 const LONG_VIDEO_ERROR_PATTERNS = [
   ["test-timeout", /Test timeout of [0-9]+ms exceeded/i],
   ["fixture-timeout", /Fixture ["'][^"']+["'] timeout of [0-9]+ms exceeded/i],
@@ -153,7 +157,7 @@ function observeLongVideoFailure(payload) {
   const expectedKeys = [
     "accessCheckCount", "bootstrapCount", "consoleErrorCount", "currentTime", "duration", "ended",
     "latestProgress", "masterLoads", "mediaLoads", "networkState", "pageErrorCount", "paused",
-    "progressCount", "readyState", "renewCount", "requestErrorCount", "responseFailureKind", "videoMounted", "viewport",
+    "progressCount", "readyState", "renewCount", "requestErrorCount", "responseFailureCode", "responseFailureKind", "videoMounted", "viewport",
     "wallSeconds",
   ];
   const numericKeys = [
@@ -163,6 +167,10 @@ function observeLongVideoFailure(payload) {
   const nullableNumericKeys = ["currentTime", "duration", "latestProgress", "networkState", "readyState"];
   const nullableBooleanKeys = ["ended", "paused"];
   const responseCaptureKinds = new Set(["bootstrap", "access", "session-list", "renewal", "progress", "other"]);
+  const responseFailureCodes = new Set([
+    "api-origin", "method", "session-identity", "items-shape",
+    "current-item", "poster", "playback-contract", "other",
+  ]);
   const contexts = payload.contexts.map((context) => {
     if (!context || typeof context !== "object" || Array.isArray(context)
       || Object.keys(context).sort().join(",") !== expectedKeys.sort().join(",")
@@ -172,6 +180,7 @@ function observeLongVideoFailure(payload) {
       || nullableNumericKeys.some((key) => context[key] !== null
         && (!Number.isInteger(context[key]) || context[key] < 0 || context[key] > 10_000))
       || nullableBooleanKeys.some((key) => context[key] !== null && typeof context[key] !== "boolean")
+      || (context.responseFailureCode !== null && !responseFailureCodes.has(context.responseFailureCode))
       || (context.responseFailureKind !== null && !responseCaptureKinds.has(context.responseFailureKind))) return null;
     return Object.fromEntries(expectedKeys.map((key) => [key, context[key]]));
   });
@@ -185,7 +194,7 @@ export function observeReleaseTestResult(stdout) {
   const observation = {
     reportStatus: "unparsed",
     stats: { expected: null, skipped: null, unexpected: null, flaky: null },
-    failedFiles: [], boundaryCodes: [], runnerErrorCount: null,
+    failedFiles: [], failureLocations: [], boundaryCodes: [], runnerErrorCount: null,
     readFetchRetries: null, suppressedAnalyticsBatches: null,
     suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
     longVideo: null, longVideoFailure: null, longVideoErrorCodes: [], longVideoResult: null,
@@ -200,6 +209,7 @@ export function observeReleaseTestResult(stdout) {
     .map((name) => [name, safeCount(report?.stats?.[name])]));
   observation.runnerErrorCount = safeCount(Array.isArray(report?.errors) ? report.errors.length : null);
   const failedFiles = new Set();
+  const failureLocations = new Map();
   const messages = [];
   const transportKeys = [
     "readFetchRetries", "suppressedAnalyticsBatches",
@@ -215,6 +225,16 @@ export function observeReleaseTestResult(stdout) {
     for (const error of Array.isArray(errors) ? errors : []) {
       if (typeof error?.message === "string") messages.push(error.message);
     }
+  };
+  const collectFailureLocation = (error, specFile) => {
+    const source = path.basename(String(error?.location?.file || ""));
+    const line = error?.location?.line;
+    const column = error?.location?.column;
+    if (!Object.hasOwn(FLOW_COUNTS, specFile) || !SAFE_FAILURE_SOURCE_FILES.has(source)
+      || !Number.isInteger(line) || line < 1 || line > 100_000
+      || !Number.isInteger(column) || column < 1 || column > 10_000) return;
+    const key = `${specFile}:${source}:${line}:${column}`;
+    failureLocations.set(key, { specFile, sourceFile: source, line, column });
   };
   collectErrors(report?.errors);
   const visit = (suite) => {
@@ -257,6 +277,7 @@ export function observeReleaseTestResult(stdout) {
             ...(result?.error ? [result.error] : []),
           ];
           collectErrors(resultErrors);
+          if (failed) for (const error of resultErrors) collectFailureLocation(error, file);
           if (file === "video-playback-renewal.realuse.spec.ts") {
             for (const error of resultErrors) {
               if (typeof error?.message === "string") longVideoMessages.push(error.message);
@@ -301,6 +322,9 @@ export function observeReleaseTestResult(stdout) {
   };
   for (const suite of Array.isArray(report?.suites) ? report.suites : []) visit(suite);
   observation.failedFiles = [...failedFiles].sort();
+  observation.failureLocations = [...failureLocations.values()]
+    .sort((a, b) => a.specFile.localeCompare(b.specFile)
+      || a.sourceFile.localeCompare(b.sourceFile) || a.line - b.line || a.column - b.column);
   observation.boundaryCodes = [...new Set(messages.flatMap((message) =>
     [...message.matchAll(/Release request rejected \[([a-z-]+)\]/g)].map((match) => match[1])
       .filter((code) => RELEASE_BOUNDARY_CODES.has(code))))].sort();

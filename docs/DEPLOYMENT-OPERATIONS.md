@@ -307,8 +307,10 @@ boolean으로만 기록한다. raw output·오류 message·session ID·token·ca
 사용자 정보는 증거에 기록하지 않는다. raw Playwright JSON은 메모리에서 검증하고 개발
 trace/video/screenshot은 저장하지 않아 credential 노출을 막는다.
 장시간 재생 실패는 추가로 설정 timeout, test/result 상태, result 수, 실행 시간, 오류 수와
-실패한 response 관측 종류(`bootstrap`, `access`, `session-list`, `renewal`, `progress`, `other`)만
-고정 allowlist로 남긴다. test child 종료 관측도 exit code, 허용 signal, 종료 사유, 실행
+실패한 response 관측 종류(`bootstrap`, `access`, `session-list`, `renewal`, `progress`, `other`) 및
+고정된 응답 계약 코드만 allowlist로 남긴다. 실패한 필수 실사용 파일은 원문 오류나 사용자
+값을 남기지 않고 allowlist된 spec/source 파일명과 정수 line/column만 함께 남겨 실제 실패
+지점을 찾을 수 있게 한다. test child 종료 관측도 exit code, 허용 signal, 종료 사유, 실행
 시간만 남기며 stdout·stderr·process ID는 공개하지 않는다.
 소유 SSM session도 종료 후 재조회한다. 강제 취소·접근 상실 등으로 cleanup 또는
 소유 session 종료가 증명되지 않으면 promotion 실패이며 수동 exact-target 복구가

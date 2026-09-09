@@ -325,10 +325,21 @@ export default function VideoPlayerPage() {
       }
       return updateVideoProgress(videoId, data, effectiveEnrollmentId);
     },
-    onSuccess: () => {
+    onSuccess: (confirmed) => {
       if (sessionId == null) return;
       const key = studentVideoQueryKeys.sessionVideos(sessionId, effectiveEnrollmentId ?? null);
-      setTimeout(() => queryClient.invalidateQueries({ queryKey: key }), 0);
+      const progress = Number.isFinite(confirmed.progress_percent)
+        ? confirmed.progress_percent
+        : confirmed.progress;
+      queryClient.setQueryData<StudentSessionVideosResponse>(key, (current) => current ? {
+        ...current,
+        items: current.items.map((item) => item.id === videoId ? {
+          ...item,
+          progress,
+          completed: confirmed.completed,
+          last_position: confirmed.last_position,
+        } : item),
+      } : current);
     },
   });
 

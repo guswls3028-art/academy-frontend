@@ -353,7 +353,7 @@ test("long-video response capture failures are explicitly joined instead of beco
   assert.match(source, /await Promise\.race\(\[playbackProof,\s*state\.responseFailure\.then/s);
   assert.match(
     source,
-    /\.catch\(\(error\) => \{\s*state\.responseFailureKind \?\?= captureKind;\s*state\.responseError/s,
+    /\.catch\(\(error\) => \{\s*state\.responseFailureKind \?\?= captureKind;\s*state\.responseFailureCode \?\?= responseFailureCode\(error\);\s*state\.responseError/s,
   );
 });
 
@@ -363,7 +363,10 @@ test("real-use failure observation publishes only allowlisted counts, files, and
   failed.status = "unexpected";
   failed.results[0] = {
     status: "failed",
-    errors: [{ message: "Release request rejected [tenant] secret-token student-name" }],
+    errors: [{
+      message: "Release request rejected [tenant] secret-token student-name",
+      location: { file: "C:/secret/qaStudentParentScenario.ts", line: 122, column: 9 },
+    }],
     stdout: [{ text: `${JSON.stringify({ releaseApiMode: "development", transport: {
       readFetchRetries: 1, suppressedAnalyticsBatches: 2,
       suppressedAnalyticsEvents: 3, suppressedCloudflareBeacons: 4,
@@ -376,6 +379,12 @@ test("real-use failure observation publishes only allowlisted counts, files, and
     reportStatus: "parsed",
     stats: { expected: 9, skipped: 0, unexpected: 1, flaky: 0 },
     failedFiles: ["notice-roundtrip.spec.ts"],
+    failureLocations: [{
+      specFile: "notice-roundtrip.spec.ts",
+      sourceFile: "qaStudentParentScenario.ts",
+      line: 122,
+      column: 9,
+    }],
     boundaryCodes: ["cors", "tenant"],
     runnerErrorCount: 1,
     readFetchRetries: 1,
@@ -393,7 +402,7 @@ test("real-use failure observation publishes only allowlisted counts, files, and
   assert.deepEqual(observeReleaseTestResult("not-json secret-token"), {
     reportStatus: "unparsed",
     stats: { expected: null, skipped: null, unexpected: null, flaky: null },
-    failedFiles: [], boundaryCodes: [], runnerErrorCount: null,
+    failedFiles: [], failureLocations: [], boundaryCodes: [], runnerErrorCount: null,
     readFetchRetries: null, suppressedAnalyticsBatches: null,
     suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
     longVideo: null,
@@ -592,7 +601,7 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
       bootstrapCount: 1, renewCount: 1, progressCount: 24, latestProgress: 674,
       accessCheckCount: 24, masterLoads: 1, mediaLoads: 2,
       consoleErrorCount: 0, pageErrorCount: 0, requestErrorCount: 0,
-      responseFailureKind: "access",
+      responseFailureKind: "access", responseFailureCode: "api-origin",
     })),
   } })}\n`;
   assert.deepEqual(runner.observeReleaseTestResult(JSON.stringify(report)).longVideoFailure, {
@@ -602,6 +611,7 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
       duration: 900, ended: false, latestProgress: 674, masterLoads: 1, mediaLoads: 2,
       networkState: 1, pageErrorCount: 0, paused: false, progressCount: 24, readyState: 4,
       renewCount: 1, requestErrorCount: 0, responseFailureKind: "access",
+      responseFailureCode: "api-origin",
       videoMounted: true, viewport, wallSeconds: 690,
     })),
   });
@@ -616,6 +626,7 @@ test("long-video setup, runtime and PII-free browser evidence fail closed", () =
       accessCheckCount: 0, masterLoads: 0, mediaLoads: 0,
       consoleErrorCount: 0, pageErrorCount: 0, requestErrorCount: 0,
       responseFailureKind: null,
+      responseFailureCode: null,
       studentName: "must-not-publish",
     }],
   } }) }];
