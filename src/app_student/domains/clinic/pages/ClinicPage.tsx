@@ -357,7 +357,7 @@ export default function ClinicPage() {
       studentToast.info("여러 시간대 예약이 가능한 일정끼리만 함께 선택해 주세요.");
       return;
     }
-    if (selectedSession?.allow_time_preference && (preferredStart || preferredEnd) && (
+    if (selectedSession?.booking_mode !== "time_range" && selectedSession?.allow_time_preference && (preferredStart || preferredEnd) && (
       !selectedSession ||
       !preferredStart ||
       !preferredEnd ||
@@ -373,8 +373,8 @@ export default function ClinicPage() {
     bookingMutation.mutate({
       session_ids: selectedSessionIds,
       student_request_memo: memo.trim() || undefined,
-      preferred_start_time: selectedSession?.allow_time_preference ? preferredStart || undefined : undefined,
-      preferred_end_time: selectedSession?.allow_time_preference ? preferredEnd || undefined : undefined,
+      preferred_start_time: selectedSession?.booking_mode !== "time_range" && selectedSession?.allow_time_preference ? preferredStart || undefined : undefined,
+      preferred_end_time: selectedSession?.booking_mode !== "time_range" && selectedSession?.allow_time_preference ? preferredEnd || undefined : undefined,
       booking_start_time: selectedSession?.booking_mode === "time_range" ? bookingStart : undefined,
       booking_end_time: selectedSession?.booking_mode === "time_range" ? bookingEnd : undefined,
     });
@@ -395,7 +395,7 @@ export default function ClinicPage() {
       studentToast.info("현재 예약과 다른 일정을 선택해 주세요.");
       return;
     }
-    if (selectedSession?.allow_time_preference && (preferredStart || preferredEnd) && (
+    if (selectedSession?.booking_mode !== "time_range" && selectedSession?.allow_time_preference && (preferredStart || preferredEnd) && (
       !selectedSession ||
       !preferredStart ||
       !preferredEnd ||
@@ -412,8 +412,8 @@ export default function ClinicPage() {
       oldId: changingBooking.id,
       newSessionId: selectedSessionId,
       studentRequestMemo: memo.trim() || undefined,
-      preferredStartTime: selectedSession?.allow_time_preference ? preferredStart || undefined : undefined,
-      preferredEndTime: selectedSession?.allow_time_preference ? preferredEnd || undefined : undefined,
+      preferredStartTime: selectedSession?.booking_mode !== "time_range" && selectedSession?.allow_time_preference ? preferredStart || undefined : undefined,
+      preferredEndTime: selectedSession?.booking_mode !== "time_range" && selectedSession?.allow_time_preference ? preferredEnd || undefined : undefined,
       bookingStartTime: selectedSession?.booking_mode === "time_range" ? bookingStart : undefined,
       bookingEndTime: selectedSession?.booking_mode === "time_range" ? bookingEnd : undefined,
     });
@@ -435,12 +435,29 @@ export default function ClinicPage() {
 
   const selectCalendarDate = (date: string) => {
     setSelectedDate(date);
-    setSelectedSessionIds((current) => current.filter((sessionId) => (
-      orderedSessions.find((session) => session.id === sessionId)?.date === date
-    )));
-    setRangeStartSessionId((current) => (
-      orderedSessions.find((session) => session.id === current)?.date === date ? current : null
-    ));
+    const dateSessions = sessionGroups.find((group) => group.date === date)?.sessions ?? [];
+    const onlySession = dateSessions.length === 1 ? dateSessions[0] : null;
+    const onlySessionHasActiveBooking = onlySession
+      ? myRequests.some((request) => (
+          request.session === onlySession.id
+          && (request.status === "pending" || request.status === "booked")
+        ))
+      : false;
+    const openTimeRangeSession = onlySession?.booking_mode === "time_range"
+      && !isSessionFull(onlySession)
+      && onlySession.id !== changingBooking?.session
+      && !onlySessionHasActiveBooking;
+    if (openTimeRangeSession && onlySession) {
+      setSelectedSessionIds([onlySession.id]);
+      setRangeStartSessionId(onlySession.id);
+    } else {
+      setSelectedSessionIds((current) => current.filter((sessionId) => (
+        orderedSessions.find((session) => session.id === sessionId)?.date === date
+      )));
+      setRangeStartSessionId((current) => (
+        orderedSessions.find((session) => session.id === current)?.date === date ? current : null
+      ));
+    }
     setPreferredStart("");
     setPreferredEnd("");
     setBookingStart("");
@@ -744,7 +761,10 @@ export default function ClinicPage() {
                                   onClick={() => selectSessionRange(session)}
                                 >
                                   <div className={styles.sessionPrimary}>
-                                    <span className={styles.sessionTime}>
+                                    <span className={session.booking_mode === "time_range"
+                                      ? styles.sessionOperatingHours
+                                      : styles.sessionTime}>
+                                      {session.booking_mode === "time_range" ? "운영 시간 " : ""}
                                       {formatTime(session.start_time)}
                                       {session.end_time ? `–${formatTime(session.end_time)}` : ""}
                                     </span>
@@ -767,7 +787,7 @@ export default function ClinicPage() {
                                         ))}
                                       </span>
                                     )}
-                                    {session.allow_time_preference && (
+                                    {session.booking_mode !== "time_range" && session.allow_time_preference && (
                                       <span className={styles.preferenceBadge}>
                                         희망 시간 입력 가능
                                       </span>
@@ -798,7 +818,7 @@ export default function ClinicPage() {
                                       <span className={styles.selectedBadge}>선택됨</span>
                                     ) : remaining == null ? (
                                       <span className={styles.selectHint}>
-                                        {session.booking_mode === "time_range" ? "시간 선택" : "추가 선택"}
+                                        {session.booking_mode === "time_range" ? "예약 시간 보기" : "추가 선택"}
                                       </span>
                                     ) : (
                                       <span className={styles.selectHint}>잔여 {remaining}명</span>
@@ -824,6 +844,7 @@ export default function ClinicPage() {
                             bookingEnd={bookingEnd}
                             availability={availabilityQ.data}
                             availabilityPending={availabilityQ.isLoading}
+                            availabilityError={availabilityQ.isError}
                             pending={changeMutation.isPending || bookingMutation.isPending}
                             changingBooking={!!changingBooking}
                             hasError={bookingMutation.isError || changeMutation.isError}
@@ -832,6 +853,7 @@ export default function ClinicPage() {
                             onPreferredEndChange={setPreferredEnd}
                             onBookingStartChange={setBookingStart}
                             onBookingEndChange={setBookingEnd}
+                            onAvailabilityRetry={() => availabilityQ.refetch()}
                             onSubmit={changingBooking ? submitChange : submitBooking}
                           />
                         )}

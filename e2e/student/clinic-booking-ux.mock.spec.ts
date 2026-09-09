@@ -42,6 +42,7 @@ type MockState = {
   changePayloads: Array<Record<string, unknown>>;
   sessions?: Array<Record<string, unknown>>;
   availability?: Record<number, Record<string, unknown>>;
+  availabilityDelayMs?: number;
   cancelNotificationFailed?: number;
 };
 
@@ -265,6 +266,9 @@ async function installApi(
     const availabilityMatch = path.match(/^\/clinic\/sessions\/(\d+)\/availability\/$/);
     if (availabilityMatch && method === "GET") {
       const sessionId = Number(availabilityMatch[1]);
+      if (state.availabilityDelayMs) {
+        await new Promise((resolve) => setTimeout(resolve, state.availabilityDelayMs));
+      }
       return json(state.availability?.[sessionId] ?? { detail: "not found" }, state.availability?.[sessionId] ? 200 : 404);
     }
     if (path === "/clinic/participants/" && method === "GET") {
@@ -851,40 +855,52 @@ test.describe("학생 클리닉 예약 UX", () => {
         ],
       },
     };
+    state.availabilityDelayMs = 350;
 
     await seed(page);
     await installApi(page, state);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
     await page.getByTestId(`clinic-calendar-day-${openDate}`).click();
-    await expect(page.getByRole("region", { name: koreanDateLabel(openDate) })).not.toContainText("잔여 0");
-    await page.getByRole("region", { name: koreanDateLabel(openDate) })
-      .getByRole("button", { name: /자율 이용 클리닉/ }).click();
+    const openDateRegion = page.getByRole("region", { name: koreanDateLabel(openDate) });
+    await expect(openDateRegion).not.toContainText("잔여 0");
+    await expect(openDateRegion).toContainText("운영 시간 16:00–18:00");
 
     const selection = page.getByRole("region", { name: "선택한 클리닉 시간" });
+    await expect(selection).toBeVisible();
+    await expect(selection).toContainText("예약 가능한 시간을 확인하고 있어요.");
     await expect(selection).toContainText("30분 간격 · 최대 90분");
-    await expect(selection).toContainText("시작·종료 시간을 선택하세요");
-    const start = selection.getByLabel("예약 시작 시간");
-    await expect(start.locator("option")).toHaveText([
-      "선택",
-      "16:00 · 잔여 2",
-      "16:30 · 잔여 1",
-      "17:30 · 잔여 2",
-    ]);
-    await start.selectOption("16:00");
-    const end = selection.getByLabel("예약 종료 시간");
-    await expect(end.locator("option")).toHaveText(["선택", "16:30", "17:00"]);
-    await end.selectOption("17:00");
+    await expect(selection).toContainText("예약할 시작 시간을 골라 주세요");
+    await expect(selection.getByRole("button", { name: "16:00 시작, 잔여 2자리" })).toBeVisible();
+    await expect(selection.getByRole("button", { name: "16:30 시작, 잔여 1자리" })).toBeVisible();
+    await expect(selection.getByRole("button", { name: "17:30 시작, 잔여 2자리" })).toBeVisible();
+    await expect(selection.getByRole("button", { name: /17:00 시작/ })).toHaveCount(0);
+    await selection.getByRole("button", { name: "16:00 시작, 잔여 2자리" }).click();
+    await expect(selection.getByRole("button", { name: "16:30 종료, 총 30분" })).toBeVisible();
+    await expect(selection.getByRole("button", { name: "17:00 종료, 총 1시간" })).toBeVisible();
+    await selection.getByRole("button", { name: "17:00 종료, 총 1시간" }).click();
     await expect(selection.locator("strong").first()).toHaveText("16:00–17:00");
     await expect(selection).toContainText("총 1시간");
     await expect(selection).not.toContainText("총 2시간");
-    await start.selectOption("16:30");
-    await expect(selection).toContainText("시작·종료 시간을 선택하세요");
-    await end.selectOption("17:00");
+    await selection.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: "test-results/student-clinic-time-range-390.png", fullPage: true });
+    const mobileSubmit = selection.getByRole("button", { name: "이 일정 예약하기" });
+    await mobileSubmit.evaluate((element) => element.scrollIntoView({ block: "center" }));
+    const mobileSubmitBox = await mobileSubmit.boundingBox();
+    expect(mobileSubmitBox).not.toBeNull();
+    expect(mobileSubmitBox!.y + mobileSubmitBox!.height).toBeLessThanOrEqual(780);
+    await page.screenshot({ path: "test-results/student-clinic-time-range-confirm-390.png", fullPage: true });
+    await selection.getByRole("button", { name: "16:30 시작, 잔여 1자리" }).click();
+    await expect(selection).toContainText("종료 시간을 골라 주세요");
+    await selection.getByRole("button", { name: "17:00 종료, 총 30분" }).click();
     await expect(selection.locator("strong").first()).toHaveText("16:30–17:00");
     await expect(selection).toContainText("총 30분");
-    await start.selectOption("16:00");
-    await end.selectOption("17:00");
+    await selection.getByRole("button", { name: "16:00 시작, 잔여 2자리" }).click();
+    await selection.getByRole("button", { name: "17:00 종료, 총 1시간" }).click();
+    await page.setViewportSize({ width: 1100, height: 800 });
+    await selection.scrollIntoViewIfNeeded();
+    expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await page.screenshot({ path: "test-results/student-clinic-time-range-1100.png", fullPage: true });
     await selection.getByRole("button", { name: "이 일정 예약하기" }).click();
 
     await expect.poll(() => state.bookingPayloads).toEqual([{
@@ -893,6 +909,61 @@ test.describe("학생 클리닉 예약 UX", () => {
       booking_end_time: "17:00",
     }]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
+  test("시간 범위의 오류·마감·휴무 상태에서 막히지 않고 다음 행동을 안내한다", async ({ page }) => {
+    const state = createState();
+    state.bookings = [];
+    state.sessions = [{
+      ...sessions[0],
+      id: 207,
+      title: "오후 자율 클리닉",
+      date: openDate,
+      start_time: "16:00:00",
+      end_time: "18:00:00",
+      booking_mode: "time_range",
+      booking_interval_minutes: 30,
+      booking_max_stay_minutes: 90,
+      is_full: false,
+    }];
+
+    await seed(page);
+    await installApi(page, state);
+    await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+    await page.getByTestId(`clinic-calendar-day-${openDate}`).click();
+    const selection = page.getByRole("region", { name: "선택한 클리닉 시간" });
+    await expect(selection).toContainText("시간 정보를 불러오지 못했습니다.");
+    await expect(selection.getByRole("button", { name: "이 일정 예약하기" })).toBeDisabled();
+
+    state.availability = {
+      207: {
+        booking_mode: "time_range",
+        interval_minutes: 30,
+        max_stay_minutes: 90,
+        window: { start_time: "16:00", end_time: "18:00" },
+        slots: [
+          { start_time: "16:00", end_time: "16:30", remaining_capacity: 0 },
+          { start_time: "16:30", end_time: "17:00", remaining_capacity: 0 },
+        ],
+      },
+    };
+    await selection.getByRole("button", { name: "다시 확인" }).click();
+    await expect(selection).toContainText("예약 가능한 시간이 모두 마감되었습니다.");
+    await expect(selection).toContainText("다른 날짜를 선택해 주세요.");
+
+    state.availability[207] = {
+      booking_mode: "time_range",
+      interval_minutes: 30,
+      max_stay_minutes: 90,
+      window: { start_time: "16:00", end_time: "18:00" },
+      slots: [],
+    };
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByTestId(`clinic-calendar-day-${openDate}`).click();
+    await expect(page.getByRole("region", { name: "선택한 클리닉 시간" }))
+      .toContainText("이 날짜는 예약 가능한 시간이 없습니다.");
+    await expect(page.getByRole("region", { name: "선택한 클리닉 시간" }))
+      .toContainText("휴무일이거나 아직 예약 시간이 열리지 않았습니다.");
   });
 
   test("시작과 종료를 골라 사이의 연속 시간대까지 한 번에 예약한다", async ({ page }) => {
