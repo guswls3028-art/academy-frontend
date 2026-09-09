@@ -339,8 +339,11 @@ filename을 정규화한 모든 변경 파일이 byte-equal이면 제품 의미�
 간주하지 않고 차이를 열거한 뒤 중단한다.
 operation exit/JSON/status와 Inspect 네 비교의 PII-free 관측은 기존 exit 0, 단일 JSON,
 허용 status, exact identity assertion을 대체하거나 완화하지 않는다. primary 작업 실패 후
-Cleanup 결과가 기존 primary operation 관측을 덮어쓰지 않는다. 원문 capability는
-Playwright env, evidence, stdout에 넣지 않는다.
+Cleanup 결과는 별도 `cleanupObservation`에 exit/status/error type만 남기며 기존 primary
+operation 관측을 덮어쓰지 않는다. Playwright 실패는 숫자/UUID를 치환한 API 경로 템플릿,
+HTTP method/status와 allowlist boundary code만 `failureDiagnostics`에 남긴다. query 값,
+응답 본문, 사용자명, token과 원문 capability는 evidence나 stdout에 넣지 않는다. 이 진단은
+실패를 성공으로 바꾸거나 cleanup0 및 positive journey 조건을 완화하지 않는다.
 
 로컬 child 제한은 QA operation 240초, tunnel 25분, tests 20분이다. timeout은 TERM 후
 5초 뒤 KILL로 강제 종료하고 reap한다(Linux는 소유 process group). AWS metadata CLI도
@@ -372,6 +375,8 @@ GitHub Ubuntu 24.04 이미지의 기존 AWS CLI/Session Manager plugin을 재사
 학생 본인과 학부모 선택 자녀의 계정, 온라인 시험·과제 제출, 영상 진도,
 클리닉 예약·취소와 질문·상담도 같은 배포 artifact의 개발 카나리에서 실행한다.
 각 흐름은 저장 성공, reload/relogin 지속 상태와 해당 교사·학생 후속 투영을 확인한다.
+장시간 영상의 두 학생 재생·갱신은 병렬로 유지하되, 단일 SSM loopback에 새로고침과
+목록 복귀 요청이 동시에 몰리지 않도록 마지막 reload·진도 복원·종료 증명만 직렬화한다.
 다른 자녀/tenant 접근 거부는 backend 계약과 함께 검증한다. 실제 메시지 provider는
 호출하지 않고 개발용 durable outbox 접수·재시도 상태만 확인한다.
 실제 frontend IAM role/document 적용과 19 PASS/0 SKIP/cleanup0 증거가 모두 있어야

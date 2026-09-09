@@ -88,7 +88,7 @@ function initialPreflightEvidence(frontendSha) {
     frontendSha: /^[a-f0-9]{40}$/.test(frontendSha || "") ? frontendSha : null,
     backendGovernanceSha: null, backendReleaseId: null, apiDigest: null, instanceId: null,
     tenantCode: null, artifactSha256: null, cases: null, documentSha256: {}, cleanup: null,
-    operationObservation: null, inspectObservation: null, realUseObservation: null,
+    operationObservation: null, cleanupObservation: null, inspectObservation: null, realUseObservation: null,
     realUseProcessObservation: null,
     videoRuntimeObservation: null,
     preflightStage: "process",
@@ -193,11 +193,55 @@ function observeLongVideoFailure(payload) {
   return { schemaMatches: true, contexts };
 }
 
+function safePathTemplate(rawPath) {
+  if (typeof rawPath !== "string" || rawPath.length < 1 || rawPath.length > 300 || !rawPath.startsWith("/")) return null;
+  let target;
+  try { target = new URL(rawPath, "https://release.invalid"); } catch { return null; }
+  if (!/^[A-Za-z0-9_./:-]+$/.test(target.pathname)) return null;
+  const pathTemplate = target.pathname
+    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/gi, ":uuid")
+    .replace(/(^|\/)\d+(?=\/|$)/g, "$1:id");
+  const queryKeys = [...new Set([...target.searchParams.keys()])]
+    .filter((key) => /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(key))
+    .sort();
+  return { pathTemplate, queryKeys };
+}
+
+function observeFailureDiagnostics(messages) {
+  const diagnostics = new Map();
+  const add = (diagnostic) => {
+    const key = JSON.stringify(diagnostic);
+    diagnostics.set(key, diagnostic);
+  };
+  for (const message of messages) {
+    for (const match of message.matchAll(/Release request rejected \[([a-z-]+)\]\s+(GET|HEAD|OPTIONS|POST|PUT|PATCH|DELETE)\s+(\/[^\s]*)/g)) {
+      const boundaryCode = RELEASE_BOUNDARY_CODES.has(match[1]) ? match[1] : null;
+      const path = safePathTemplate(match[3]);
+      if (boundaryCode && path) add({
+        code: "boundary", boundaryCode, method: match[2],
+        pathTemplate: path.pathTemplate, queryKeys: path.queryKeys, status: null,
+      });
+    }
+    for (const match of message.matchAll(/(?:^|\s)(GET|HEAD|OPTIONS|POST|PUT|PATCH|DELETE)\s+(\/[^\s]*)\s+returned\s+(\d{3})(?::|\s|$)/g)) {
+      const path = safePathTemplate(match[2]);
+      const status = Number(match[3]);
+      if (path && status >= 100 && status <= 599) add({
+        code: "api-status", boundaryCode: null, method: match[1],
+        pathTemplate: path.pathTemplate, queryKeys: path.queryKeys, status,
+      });
+    }
+  }
+  return [...diagnostics.values()].sort((a, b) => a.code.localeCompare(b.code)
+    || String(a.boundaryCode).localeCompare(String(b.boundaryCode))
+    || a.method.localeCompare(b.method) || a.pathTemplate.localeCompare(b.pathTemplate)
+    || a.queryKeys.join(",").localeCompare(b.queryKeys.join(",")) || Number(a.status) - Number(b.status));
+}
+
 export function observeReleaseTestResult(stdout) {
   const observation = {
     reportStatus: "unparsed",
     stats: { expected: null, skipped: null, unexpected: null, flaky: null },
-    failedFiles: [], failureLocations: [], boundaryCodes: [], runnerErrorCount: null,
+    failedFiles: [], failureLocations: [], boundaryCodes: [], failureDiagnostics: [], runnerErrorCount: null,
     readFetchRetries: null, suppressedAnalyticsBatches: null,
     suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
     longVideo: null, longVideoFailure: null, longVideoErrorCodes: [], longVideoResult: null,
@@ -331,6 +375,7 @@ export function observeReleaseTestResult(stdout) {
   observation.boundaryCodes = [...new Set(messages.flatMap((message) =>
     [...message.matchAll(/Release request rejected \[([a-z-]+)\]/g)].map((match) => match[1])
       .filter((code) => RELEASE_BOUNDARY_CODES.has(code))))].sort();
+  observation.failureDiagnostics = observeFailureDiagnostics(messages);
   for (const key of transportKeys) {
     observation[key] = transportEvidenceCounts[key] > 0 ? transportTotals[key] : null;
   }
@@ -780,6 +825,7 @@ export async function run() {
   const sessions = new Set();
   const processes = [];
   let operationObservation = null;
+  let cleanupObservation = null;
   let inspectObservation = null;
   let primaryFailed = false;
   function session(name, parameters = {}) {
@@ -801,7 +847,8 @@ export async function run() {
     const process = session(QA_DOCUMENT, { ...common, Action: [action] });
     const result = await process.done;
     const observed = observeFixedOperationResult(action, result);
-    if (action !== "Cleanup" || !primaryFailed) operationObservation = observed.observation;
+    if (action === "Cleanup") cleanupObservation = observed.observation;
+    else operationObservation = observed.observation;
     remember(process);
     if (action !== "Cleanup") assert.equal(interrupted, false, "Development run interrupted");
     assert.equal(result.code, 0, `Fixed development ${action} command failed`);
@@ -838,7 +885,7 @@ export async function run() {
       instanceId, tenantCode: tenant, artifactSha256: fingerprint, cases: counts || null,
       documentSha256: Object.fromEntries([...expectedDocuments].map(([name, content]) => [name, sha(content)])),
       cleanup: cleanup ? { tenantCode: tenant, remaining: cleanup.remaining } : null,
-      operationObservation, inspectObservation, realUseObservation: realUseObservation || null,
+      operationObservation, cleanupObservation, inspectObservation, realUseObservation: realUseObservation || null,
       realUseProcessObservation: realUseProcessObservation || null,
       videoRuntimeObservation: videoRuntimeObservation || null,
       terminalOutcome, passed, failures: errors });

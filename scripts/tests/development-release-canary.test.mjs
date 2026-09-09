@@ -105,6 +105,15 @@ test("long-video proof propagates strict context teardown failures", () => {
   assert.doesNotMatch(source, /const bootstrap = state\.bootstraps\[0\];/);
 });
 
+test("long-video proof serializes the reload and exit burst after concurrent playback", () => {
+  const source = readFileSync(new URL("../../e2e/student/video-playback-renewal.realuse.spec.ts", import.meta.url), "utf8");
+  assert.match(source, /function createSerialProofGate/);
+  assert.match(source, /const runReloadProof = createSerialProofGate\(\);/);
+  assert.match(source, /await runReloadProof\(async \(\) => \{/);
+  assert.match(source, /await page\.waitForLoadState\("networkidle", \{ timeout: 10_000 \}\);\s*await page\.reload/s);
+  assert.match(source, /finishStudent\(page, state, videoId, hlsPath, runReloadProof\)/);
+});
+
 test("each run has an independent non-published ownership capability", () => {
   assert.equal(typeof runner.createRunOwnership, "function");
   const env = { GITHUB_RUN_ID: "123", GITHUB_RUN_ATTEMPT: "1" };
@@ -166,6 +175,7 @@ test("preflight writes an inert envelope before checks and marks only reviewed p
     documentSha256: {},
     cleanup: null,
     operationObservation: null,
+    cleanupObservation: null,
     inspectObservation: null,
     realUseObservation: null,
     realUseProcessObservation: null,
@@ -443,15 +453,18 @@ test("long-video response capture failures are explicitly joined instead of beco
   );
 });
 
-test("real-use failure observation publishes only allowlisted counts, files, and boundary codes", () => {
+test("real-use failure observation publishes only allowlisted endpoint templates, status, and boundary codes", () => {
   const report = completeFlowReport();
   const failed = report.suites[0].specs[0].tests[0];
   failed.status = "unexpected";
   failed.results[0] = {
     status: "failed",
     errors: [{
-      message: "Release request rejected [tenant] secret-token student-name",
+      message: "Release request rejected [tenant] GET /api/v1/student/video/sessions/123/videos/ secret-token student-name",
       location: { file: "C:/secret/qaStudentParentScenario.ts", line: 122, column: 9 },
+    }, {
+      message: "POST /students/bulk_permanent_delete/?ids=secret-token returned 409: student-name",
+      location: { file: "C:/secret/qaStudentParentScenario.ts", line: 136, column: 5 },
     }],
     stdout: [{ text: `${JSON.stringify({ releaseApiMode: "development", transport: {
       readFetchRetries: 1, suppressedAnalyticsBatches: 2,
@@ -470,8 +483,28 @@ test("real-use failure observation publishes only allowlisted counts, files, and
       sourceFile: "qaStudentParentScenario.ts",
       line: 122,
       column: 9,
+    }, {
+      specFile: "notice-roundtrip.spec.ts",
+      sourceFile: "qaStudentParentScenario.ts",
+      line: 136,
+      column: 5,
     }],
     boundaryCodes: ["cors", "tenant"],
+    failureDiagnostics: [{
+      code: "api-status",
+      boundaryCode: null,
+      method: "POST",
+      pathTemplate: "/students/bulk_permanent_delete/",
+      queryKeys: ["ids"],
+      status: 409,
+    }, {
+      code: "boundary",
+      boundaryCode: "tenant",
+      method: "GET",
+      pathTemplate: "/api/v1/student/video/sessions/:id/videos/",
+      queryKeys: [],
+      status: null,
+    }],
     runnerErrorCount: 1,
     readFetchRetries: 1,
     suppressedAnalyticsBatches: 2,
@@ -488,7 +521,7 @@ test("real-use failure observation publishes only allowlisted counts, files, and
   assert.deepEqual(observeReleaseTestResult("not-json secret-token"), {
     reportStatus: "unparsed",
     stats: { expected: null, skipped: null, unexpected: null, flaky: null },
-    failedFiles: [], failureLocations: [], boundaryCodes: [], runnerErrorCount: null,
+    failedFiles: [], failureLocations: [], boundaryCodes: [], failureDiagnostics: [], runnerErrorCount: null,
     readFetchRetries: null, suppressedAnalyticsBatches: null,
     suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
     longVideo: null,
