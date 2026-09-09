@@ -27,6 +27,14 @@ export type QaFamily = {
   students: QaStudent[];
 };
 
+export type QaFamilyCleanupResult = {
+  deleted: number;
+  storage_cleanup: {
+    pending: number;
+    failed: number;
+  };
+};
+
 type QaFamilyOptions = {
   withStudentPhones?: boolean;
 };
@@ -333,15 +341,25 @@ export async function cleanupQaFamily(
   request: APIRequestContext,
   adminAccess: string,
   family: QaFamily | null,
-): Promise<void> {
-  if (!family?.students.length) return;
+): Promise<QaFamilyCleanupResult | null> {
+  if (!family?.students.length) return null;
   const ids = family.students.map((student) => student.id);
   await expectApi(request, "POST", "/students/bulk_delete/", adminAccess, { ids }, [200, 204]);
-  await expectApi(request, "POST", "/students/bulk_permanent_delete/", adminAccess, { ids }, [200]);
+  const deletion = await expectApi<QaFamilyCleanupResult>(
+    request,
+    "POST",
+    "/students/bulk_permanent_delete/",
+    adminAccess,
+    { ids },
+    [200],
+  );
+  expect(deletion.deleted).toBe(ids.length);
+  expect(deletion.storage_cleanup).toEqual({ pending: 0, failed: 0 });
   for (const id of ids) {
     const residue = await api(request, "GET", `/students/${id}/`, adminAccess);
     expect(residue.status, `student ${id} residue`).toBe(404);
   }
+  return deletion;
 }
 
 export async function assertNoHorizontalOverflow(page: Page): Promise<void> {
