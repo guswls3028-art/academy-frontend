@@ -19,6 +19,7 @@ import {
   checkoutParticipant,
   changeParticipantBooking,
   completeParticipant,
+  uncompleteParticipant,
   remindParticipant,
   createClinicSession,
   fetchClinicSettings,
@@ -298,6 +299,20 @@ function ParticipantList({
         });
       }
       if (action === "checkout") {
+        const withoutArrival = participant.status === "booked" && !participant.checked_in_at;
+        if (withoutArrival) {
+          const expectedSessionId = participant.session;
+          const expectedStudentId = participant.student;
+          if (!expectedSessionId || !expectedStudentId) {
+            throw new Error("예약의 세션과 학생을 확인할 수 없어 하원할 수 없습니다.");
+          }
+          return checkoutParticipant(participant.id, {
+            send_to: payload.send_to,
+            confirm_without_arrival: true,
+            expected_session_id: expectedSessionId,
+            expected_student_id: expectedStudentId,
+          });
+        }
         return checkoutParticipant(participant.id, { send_to: payload.send_to });
       }
       await remindParticipant(participant.id, {
@@ -360,6 +375,34 @@ function ParticipantList({
     onError: (e) => teacherToast.error(extractApiError(e, "완료 처리에 실패했습니다.")),
   });
 
+  const uncompleteMut = useMutation({
+    mutationFn: (participantId: number) => uncompleteParticipant(participantId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participants(sessionId) });
+      teacherToast.success("완료가 취소되었습니다.");
+    },
+    onError: (e) => teacherToast.error(extractApiError(e, "완료 취소에 실패했습니다.")),
+  });
+
+  const bookingStatusMut = useMutation({
+    mutationFn: ({
+      participantId,
+      status,
+    }: {
+      participantId: number;
+      status: "booked" | "rejected";
+    }) => patchParticipantStatus(participantId, { status }),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participants(sessionId) });
+      qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.sessions });
+      teacherToast.success(variables.status === "booked" ? "예약을 승인했습니다." : "예약을 거절했습니다.");
+    },
+    onError: (e, variables) => teacherToast.error(extractApiError(
+      e,
+      variables.status === "booked" ? "예약 승인에 실패했습니다." : "예약 거절에 실패했습니다.",
+    )),
+  });
+
   if (isLoading) return <div className="px-4 pb-4 text-sm" style={{ color: "var(--tc-text-muted)" }}>불러오는 중…</div>;
 
   const empty = !participants?.length;
@@ -387,6 +430,7 @@ function ParticipantList({
           return (
             <div
               key={p.id}
+              data-testid={`teacher-clinic-participant-${p.id}`}
               className="flex flex-col gap-2 py-2 border-b last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
               style={{ borderColor: "var(--tc-border)" }}
             >
@@ -397,6 +441,7 @@ function ParticipantList({
                   avatarSize={24}
                   chipSize={16}
                   density="compact"
+                  clinicHighlight={p.name_highlight_clinic_target === true}
                   lectures={p.lecture_title ? [{
                     lectureName: p.lecture_title,
                     color: p.lecture_color,
@@ -420,12 +465,34 @@ function ParticipantList({
                 </span>
               </div>
               <div className="flex flex-wrap justify-end gap-1">
+                {st === "pending" && (
+                  <>
+                    <SmallBtn
+                      label="예약 승인"
+                      color="var(--tc-success)"
+                      onClick={() => bookingStatusMut.mutate({ participantId: p.id, status: "booked" })}
+                      disabled={bookingStatusMut.isPending}
+                    />
+                    <SmallBtn
+                      label="예약 거절"
+                      color="var(--tc-danger)"
+                      onClick={() => bookingStatusMut.mutate({ participantId: p.id, status: "rejected" })}
+                      disabled={bookingStatusMut.isPending}
+                    />
+                  </>
+                )}
                 {st === "booked" && (
                   <>
                     <SmallBtn label="등원" color="var(--tc-success)" onClick={() => setActionDialog({ participant: p, action: "arrive" })} />
                     <SmallBtn label="재촉" color="var(--tc-warning)" onClick={() => setActionDialog({ participant: p, action: "remind" })} />
                     <SmallBtn label="결석" color="var(--tc-danger)" onClick={() => setActionDialog({ participant: p, action: "absent" })} />
-                    <SmallBtn label="하원" color="var(--tc-primary)" onClick={() => undefined} disabled />
+                    <SmallBtn
+                      label="하원"
+                      color="var(--tc-primary)"
+                      onClick={() => setActionDialog({ participant: p, action: "checkout" })}
+                      disabled={!p.session || !p.student}
+                      title={!p.session || !p.student ? "예약의 세션과 학생을 확인할 수 없어 하원할 수 없습니다." : undefined}
+                    />
                   </>
                 )}
                 {st === "no_show" && (
@@ -439,6 +506,14 @@ function ParticipantList({
                     label="자율학습 완료"
                     color="var(--tc-primary)"
                     onClick={() => completeMut.mutate(p.id)}
+                  />
+                )}
+                {p.completed_at && (
+                  <SmallBtn
+                    label="완료 취소"
+                    color="var(--tc-warning)"
+                    onClick={() => uncompleteMut.mutate(p.id)}
+                    disabled={uncompleteMut.isPending}
                   />
                 )}
               </div>
@@ -459,6 +534,7 @@ function ParticipantList({
           action={actionDialog.action}
           participantName={actionDialog.participant.student_name ?? actionDialog.participant.enrollment_name ?? "학생"}
           selectedDate={sessionDate}
+          withoutArrival={actionDialog.action === "checkout" && actionDialog.participant.status === "booked" && !actionDialog.participant.checked_in_at}
           busy={actionMut.isPending}
           onClose={() => setActionDialog(null)}
           onConfirm={(payload) => actionMut.mutate({ ...actionDialog, payload })}
@@ -531,11 +607,24 @@ function ParticipantList({
   );
 }
 
-function SmallBtn({ label, color, onClick, disabled = false }: { label: string; color: string; onClick: () => void; disabled?: boolean }) {
+function SmallBtn({
+  label,
+  color,
+  onClick,
+  disabled = false,
+  title,
+}: {
+  label: string;
+  color: string;
+  onClick: () => void;
+  disabled?: boolean;
+  title?: string;
+}) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
+      title={title}
       className="text-[11px] font-semibold px-2 py-1 rounded cursor-pointer"
       style={{
         color,
@@ -551,6 +640,7 @@ function SmallBtn({ label, color, onClick, disabled = false }: { label: string; 
 }
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  pending: { label: "승인 대기", color: "var(--tc-warning)" },
   booked: { label: "미등원", color: "var(--tc-info)" },
   attended: { label: "등원", color: "var(--tc-success)" },
   no_show: { label: "결석", color: "var(--tc-danger)" },
