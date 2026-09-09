@@ -1414,7 +1414,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await drawerScoreInput.fill("103");
     await firstAttempt.getByRole("button", { name: "저장", exact: true }).click();
     await expect.poll(() => scorePatches.length, { timeout: 10_000 }).toBe(2);
-    expect(scorePatches[1]).toMatchObject({ score: 103, max_score: 105 });
+    expect(scorePatches[1]).toMatchObject({ score: 103, max_score: 105, attempt_index: 1 });
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("cell", { name: "103/105", exact: true })).toBeVisible();
