@@ -3,7 +3,7 @@
  * 인벤토리 홈 탭 — 파일 브라우저 (MyInventoryPage에서 추출)
  * 폴더/파일 조회, 업로드, 다운로드, 삭제 + 브레드크럼
  */
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useId, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   uploadMyFile,
@@ -47,6 +47,7 @@ function FileIcon({ file }: { file: InventoryFile }) {
 }
 
 export default function InventoryHomeTab({ ps, folders, files, queryKey }: Props) {
+  const deleteDialogTitleId = useId();
   const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
@@ -259,8 +260,8 @@ export default function InventoryHomeTab({ ps, folders, files, queryKey }: Props
       {/* 삭제 확인 모달 */}
       {confirmDelete && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, display: "grid", placeItems: "center", padding: 16 }} onClick={() => setConfirmDelete(null)}>
-          <div style={{ background: "var(--stu-bg)", borderRadius: "var(--stu-radius-md)", padding: "var(--stu-space-5)", maxWidth: 340, width: "100%", boxShadow: "0 8px 32px rgba(0,0,0,0.2)" }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>{confirmDelete.type === "folder" ? "폴더 삭제" : "파일 삭제"}</div>
+          <div role="alertdialog" aria-modal="true" aria-labelledby={deleteDialogTitleId} style={{ background: "var(--stu-bg)", borderRadius: "var(--stu-radius-md)", padding: "var(--stu-space-5)", maxWidth: 340, width: "100%", boxShadow: "0 8px 32px rgba(0,0,0,0.2)" }} onClick={(e) => e.stopPropagation()}>
+            <div id={deleteDialogTitleId} style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>{confirmDelete.type === "folder" ? "폴더 삭제" : "파일 삭제"}</div>
             <div style={{ fontSize: 14, color: "var(--stu-text-muted)", marginBottom: 16 }}>
               <strong>{confirmDelete.name}</strong>을(를) 삭제하시겠습니까?
               {confirmDelete.type === "folder" && <div style={{ fontSize: 13, marginTop: 4 }}>비어있는 폴더만 삭제할 수 있습니다.</div>}

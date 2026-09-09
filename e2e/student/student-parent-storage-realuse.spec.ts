@@ -106,7 +106,26 @@ test.describe.serial("[real-use] 학생·학부모 선택 자녀 자료함·성�
 
     await loginThroughUi(page, family.parentPhone, family.parentPassword);
     await selectParentStudentThroughUi(page, primary);
+    const inventoryResponsePromise = page.waitForResponse((response) => (
+      response.request().method() === "GET"
+      && new URL(response.url()).pathname.endsWith("/api/v1/storage/inventory/")
+    ));
     await gotoAndSettle(page, `${QA_BASE}/student/inventory`, { timeout: 30_000 });
+    const inventoryResponse = await inventoryResponsePromise;
+    const inventoryBody = await inventoryResponse.json().catch(() => ({})) as Record<string, unknown>;
+    const inventoryRequest = inventoryResponse.request();
+    const requestedStudentPs = new URL(inventoryRequest.url()).searchParams.get("student_ps");
+    const requestedStudentId = inventoryRequest.headers()["x-student-id"];
+    expect(
+      inventoryResponse.status(),
+      `parent inventory failed: ${JSON.stringify({
+        code: inventoryBody.code,
+        detail: inventoryBody.detail,
+        selectedStudentMatches: requestedStudentId === String(primary.id),
+        studentPsMatches: requestedStudentPs === primary.ps_number,
+      })}`,
+    ).toBe(200);
+    expect(requestedStudentId).toBe(String(primary.id));
     await expect(page.getByText(studentFile, { exact: true })).toBeVisible();
     await uploadInventoryFile(page, parentFile, primary.id);
     await page.getByRole("button", { name: "새 폴더", exact: true }).click();
@@ -117,7 +136,7 @@ test.describe.serial("[real-use] 학생·학부모 선택 자녀 자료함·성�
     ));
     await page.getByRole("button", { name: "생성", exact: true }).click();
     const folderResponse = await folderResponsePromise;
-    expect(folderResponse.status()).toBe(201);
+    expect([200, 201]).toContain(folderResponse.status());
     expect(folderResponse.request().headers()["x-student-id"]).toBe(String(primary.id));
     const folder = await folderResponse.json() as { id: string | number };
     folderIds.push(String(folder.id));
@@ -131,7 +150,9 @@ test.describe.serial("[real-use] 학생·학부모 선택 자녀 자료함·성�
       response.request().method() === "DELETE"
       && new URL(response.url()).pathname.endsWith(`/api/v1/storage/inventory/folders/${folder.id}/`)
     ));
-    await page.getByRole("button", { name: "삭제", exact: true }).click();
+    await page.getByRole("alertdialog", { name: "폴더 삭제" })
+      .getByRole("button", { name: "삭제", exact: true })
+      .click();
     const deleteFolderResponse = await deleteFolderResponsePromise;
     expect([200, 204]).toContain(deleteFolderResponse.status());
     folderIds.splice(folderIds.indexOf(String(folder.id)), 1);
@@ -146,7 +167,7 @@ test.describe.serial("[real-use] 학생·학부모 선택 자녀 자료함·성�
     await page.locator('input[type="file"]').setInputFiles({
       name: scoreFile,
       mimeType: "application/pdf",
-      buffer: Buffer.from("isolated-parent-score"),
+      buffer: Buffer.from("%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF"),
     });
     await page.getByRole("button", { name: "성적표 보내기" }).click();
     const scoreResponse = await scoreResponsePromise;

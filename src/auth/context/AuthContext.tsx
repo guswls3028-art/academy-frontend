@@ -10,7 +10,7 @@ import React, {
 import { useQueryClient } from "@tanstack/react-query";
 import api, { clearTokens, getAccessToken, isSessionEnding, saveReturnPath } from "@/shared/api/axios";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { setParentStudentId } from "@student/shared/api/parentStudentSelection";
+import { resetParentStudentIdInMemory } from "@student/shared/api/parentStudentSelection";
 import { setSentryUser, clearSentryUser } from "@/shared/lib/sentryContext";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import {
@@ -115,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!isSessionEnding) clearTokens();
     asyncStatusStore.clearAll();
     clearSentryUser();
-    setParentStudentId(null);  // in-memory 정리 (localStorage는 clearTokens가 처리)
+    resetParentStudentIdInMemory();
     queryClient.clear();
     setUser(null);
     setAuthUnavailable(false);
@@ -199,7 +199,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (isStudentSupportWindow()) return;
     const clearCrossTabSession = () => {
       queryClient.clear();
-      setParentStudentId(null);
+      resetParentStudentIdInMemory();
       clearSentryUser();
       setUser(null);
       setAuthUnavailable(false);

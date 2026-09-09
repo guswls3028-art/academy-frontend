@@ -114,7 +114,18 @@ export async function expectApi<T = unknown>(
   statuses = [200, 201],
 ): Promise<T> {
   const result = await api<T>(request, method, path, token, data);
-  expect(statuses, `${method} ${path} returned ${result.status}`).toContain(result.status);
+  const body = result.body && typeof result.body === "object"
+    ? result.body as Record<string, unknown>
+    : {};
+  const failure = {
+    code: body.code,
+    detail: body.detail,
+    error_type: body.error_type,
+  };
+  expect(
+    statuses,
+    `${method} ${path} returned ${result.status}: ${JSON.stringify(failure)}`,
+  ).toContain(result.status);
   return result.body;
 }
 
