@@ -20,6 +20,7 @@ import {
   QA_BASE,
   QA_TENANT,
   reloadStudentApp,
+  selectParentStudentThroughUi,
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
 } from "../helpers/qaStudentParentScenario";
@@ -290,6 +291,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
 
     await logoutStudentApp(page);
     await loginThroughUi(page, created.family.parentPhone, created.family.parentPassword);
+    await selectParentStudentThroughUi(page, primary);
     const parentTokens = await loginApi(request, created.family.parentPhone, created.family.parentPassword);
     const parentProgress = await selectedPost<{
       progress: number;
@@ -336,8 +338,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     await page.getByText(videoTitle, { exact: true }).click();
     await expect(page.getByRole("heading", { name: videoTitle })).toBeVisible();
     await page.goBack({ waitUntil: "domcontentloaded" });
-    const siblingTab = page.getByRole("tab", { name: sibling.name });
-    await siblingTab.click();
+    await selectParentStudentThroughUi(page, sibling);
     await gotoAndSettle(page, `${QA_BASE}/student/attendance`, { timeout: 30_000 });
     await expect(page.getByRole("link").filter({ hasText: lectureTitle }).first()).toContainText("결석");
     const siblingAttendance = await selectedGet<{
@@ -360,7 +361,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     await logoutStudentApp(page);
     await loginThroughUi(page, created.family.parentPhone, created.family.parentPassword);
     await expect(page.getByRole("tab", { name: sibling.name })).toHaveAttribute("aria-selected", "true");
-    await page.getByRole("tab", { name: primary.name }).click();
+    await selectParentStudentThroughUi(page, primary);
     await gotoAndSettle(
       page,
       `${QA_BASE}/student/video/sessions/${created.sessionId}?enrollment=${created.enrollmentIds[0]}`,

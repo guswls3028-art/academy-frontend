@@ -81,12 +81,15 @@ async function cleanup(request: APIRequestContext): Promise<void> {
       failures.push(`${method} ${path} -> ${String(error)}`);
     }
   };
-  if (participantId) await remove("DELETE", `/clinic/participants/${participantId}/`);
   if (sessionId) await remove("DELETE", `/clinic/sessions/${sessionId}/`);
   await cleanupQaFamily(request, adminAccess, family);
   if (sessionId) {
     const residue = await api(request, "GET", `/clinic/sessions/${sessionId}/`, adminAccess);
     if (residue.status !== 404) failures.push(`verify clinic session ${sessionId} absent -> ${residue.status}`);
+  }
+  if (participantId) {
+    const residue = await api(request, "GET", `/clinic/participants/${participantId}/`, adminAccess);
+    if (residue.status !== 404) failures.push(`verify clinic participant ${participantId} absent -> ${residue.status}`);
   }
   if (failures.length) throw new Error(`student/parent clinic cleanup failed:\n${failures.join("\n")}`);
 }
@@ -108,7 +111,7 @@ test.describe.serial("[real-use] 학생 예약에서 학부모 클리닉 project
     const browser = attachStrictBrowserGuards(page);
     const admin = await loginAdmin(request);
     adminAccess = admin.access;
-    family = await createQaFamily(request, admin.access, "clinic", 1);
+    family = await createQaFamily(request, admin.access, "clinic", 1, { withStudentPhones: true });
     const student = family.students[0];
     const clinicSession = await expectApi<{ id: number }>(request, "POST", "/clinic/sessions/", admin.access, {
       title: sessionTitle,
