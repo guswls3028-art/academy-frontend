@@ -102,6 +102,7 @@ export function useScoreEditDraft({
   const [isDiscardingDraft, setIsDiscardingDraft] = useState(false);
   const [hasPendingChanges, setHasPendingChanges] = useState(false);
   const savePromiseRef = useRef<Promise<number> | null>(null);
+  const presencePausedRef = useRef(false);
   const lastSaveAttemptAtRef = useRef(0);
   const needsDraftCommitRef = useRef(false);
   const presenceErrorRef = useRef(false);
@@ -118,15 +119,30 @@ export function useScoreEditDraft({
     setDraftStatus("idle");
     setDraftError(null);
   }, []);
-  const { activeEditors, setActiveEditors, activeCellRef, presencePromiseRef } = useScoreEditPresence({
+  const {
+    activeEditors,
+    setActiveEditors,
+    activeCellRef,
+    presencePromiseRef,
+    invalidatePresenceReads,
+  } = useScoreEditPresence({
     sessionId,
     panelRef,
     savePromiseRef,
+    presencePausedRef,
     isActive,
     activeCell,
     onPresenceError,
     onPresenceSuccess,
   });
+
+  const drainPresenceQueue = useCallback(async (): Promise<void> => {
+    while (presencePromiseRef.current != null) {
+      const tail = presencePromiseRef.current;
+      await tail;
+      if (presencePromiseRef.current === tail) presencePromiseRef.current = null;
+    }
+  }, [presencePromiseRef]);
 
   const saveNow = useCallback(async function savePendingScores(
     preservedPanel?: SessionScoresPanelHandle | null,
@@ -142,19 +158,19 @@ export function useScoreEditDraft({
       return savedCount;
     }
 
-    const presenceRequest = presencePromiseRef.current;
-    if (presenceRequest) {
-      await presenceRequest;
-      if (savePromiseRef.current) return savePendingScores(preservedPanel);
-    }
-
+    // SPA 탭 전환은 panel ref를 즉시 해제할 수 있으므로 presence queue를
+    // 기다리기 전에 현재 handle을 보존한다.
     const panel = preservedPanel ?? panelRef.current;
+    await drainPresenceQueue();
+    if (savePromiseRef.current) return savePendingScores(panel);
+
     const snapshot = panel?.getPendingSnapshot?.() ?? [];
     if (snapshot.length === 0) {
       if (needsDraftCommitRef.current) {
         setDraftStatus("saving");
         setDraftError(null);
         try {
+          invalidatePresenceReads();
           await postScoreDraftCommit(sessionId, false);
           needsDraftCommitRef.current = false;
           if (draftTimestampKey) removeLocalItem(draftTimestampKey);
@@ -179,6 +195,7 @@ export function useScoreEditDraft({
 
     const run = (async () => {
       try {
+        invalidatePresenceReads();
         const draftResponse = await putScoreDraft(sessionId, snapshot, {
           activeCell: activeCellRef.current,
         });
@@ -189,6 +206,7 @@ export function useScoreEditDraft({
         const savedCount = await panel?.flushPendingChanges?.() ?? 0;
         const remaining = panel?.getPendingSnapshot?.() ?? [];
         if (remaining.length === 0) {
+          invalidatePresenceReads();
           await postScoreDraftCommit(sessionId, false);
           needsDraftCommitRef.current = false;
           if (draftTimestampKey) removeLocalItem(draftTimestampKey);
@@ -230,7 +248,7 @@ export function useScoreEditDraft({
     const remaining = panel?.getPendingSnapshot?.() ?? [];
     if (remaining.length > 0) return savedCount + await savePendingScores(panel);
     return savedCount;
-  }, [activeCellRef, draftTimestampKey, localDraftKey, panelRef, presencePromiseRef, sessionId, setActiveEditors]);
+  }, [activeCellRef, draftTimestampKey, drainPresenceQueue, invalidatePresenceReads, localDraftKey, panelRef, sessionId, setActiveEditors]);
 
   const requestAutosave = useCallback(() => {
     if (!isActive) return;
@@ -386,6 +404,8 @@ export function useScoreEditDraft({
   }, [isActive, panelRef, saveNow]);
 
   const beginEditing = useCallback(async (): Promise<boolean> => {
+    presencePausedRef.current = false;
+    invalidatePresenceReads();
     setIsStartingEdit(true);
     setDraftError(null);
     try {
@@ -408,9 +428,11 @@ export function useScoreEditDraft({
     } finally {
       setIsStartingEdit(false);
     }
-  }, [activeCellRef, sessionId, setActiveEditors]);
+  }, [activeCellRef, invalidatePresenceReads, sessionId, setActiveEditors]);
 
   const restoreDraft = useCallback(async (): Promise<boolean> => {
+    presencePausedRef.current = false;
+    invalidatePresenceReads();
     const panel = panelRef.current;
     if (restoreChanges.length > 0 && panel == null) return false;
     setIsStartingEdit(true);
@@ -445,12 +467,13 @@ export function useScoreEditDraft({
     } finally {
       setIsStartingEdit(false);
     }
-  }, [activeCellRef, restoreChanges, panelRef, sessionId, setActiveEditors]);
+  }, [activeCellRef, invalidatePresenceReads, restoreChanges, panelRef, sessionId, setActiveEditors]);
 
   const discardDraft = useCallback(async (): Promise<boolean> => {
     setIsDiscardingDraft(true);
     setDraftError(null);
     try {
+      invalidatePresenceReads();
       await postScoreDraftCommit(sessionId, true);
       needsDraftCommitRef.current = false;
       if (draftTimestampKey) removeLocalItem(draftTimestampKey);
@@ -467,22 +490,26 @@ export function useScoreEditDraft({
     } finally {
       setIsDiscardingDraft(false);
     }
-  }, [draftTimestampKey, localDraftKey, sessionId]);
+  }, [draftTimestampKey, invalidatePresenceReads, localDraftKey, sessionId]);
 
   const releaseEditLease = useCallback(async (): Promise<boolean> => {
+    presencePausedRef.current = true;
+    invalidatePresenceReads();
     try {
+      await drainPresenceQueue();
       await postScoreDraftCommit(sessionId, true);
       setEditLockConflict(false);
       setLeaseReleaseFailed(false);
       return true;
     } catch (error) {
+      presencePausedRef.current = false;
       if (isScoreEditLockedError(error)) setEditLockConflict(true);
       setLeaseReleaseFailed(true);
       setDraftStatus("error");
       setDraftError("입력 잠금 마무리에 실패했습니다. 다시 시도해 주세요.");
       return false;
     }
-  }, [sessionId]);
+  }, [drainPresenceQueue, invalidatePresenceReads, sessionId]);
 
   useEffect(() => {
     if (!isActive) return;

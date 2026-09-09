@@ -111,9 +111,13 @@ let failNextDraftCommit = false;
 let failNextLeaseRelease = false;
 let failNextDraftPut = false;
 let failNextPresenceDraftPut = false;
-let delayNextPresenceDraftPutMs = 0;
-let delayedPresenceDraftPutStarted = false;
-let delayedPresenceDraftPutCompleted = false;
+let holdNextPresenceDraftPut = false;
+let heldPresenceDraftPutStarted = false;
+let releaseHeldPresenceDraftPut: (() => void) | null = null;
+let holdNextDraftGet = false;
+let heldDraftGetStarted = false;
+let heldDraftGetCompleted = false;
+let releaseHeldDraftGet: (() => void) | null = null;
 let delayNextScorePatchMs = 0;
 let includeHomework = false;
 let homeworkMaxScore = 100;
@@ -124,6 +128,9 @@ let currentHomeworkVersions: Array<string | null> = [null, "2026-08-30T09:00:02+
 let homeworkVersionCounter = 2;
 let activeEditors: NonNullable<ScoreRouteOptions["activeEditors"]> = [];
 let currentExamRetakeScore = 90;
+let currentServerActiveCell: unknown = null;
+const serverDraftMutationOrder: string[] = [];
+const presenceConflictCells: unknown[] = [];
 
 async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): Promise<void> {
   scorePatches.length = 0;
@@ -150,9 +157,13 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
   failNextLeaseRelease = false;
   failNextDraftPut = false;
   failNextPresenceDraftPut = false;
-  delayNextPresenceDraftPutMs = 0;
-  delayedPresenceDraftPutStarted = false;
-  delayedPresenceDraftPutCompleted = false;
+  holdNextPresenceDraftPut = false;
+  heldPresenceDraftPutStarted = false;
+  releaseHeldPresenceDraftPut = null;
+  holdNextDraftGet = false;
+  heldDraftGetStarted = false;
+  heldDraftGetCompleted = false;
+  releaseHeldDraftGet = null;
   delayNextScorePatchMs = 0;
   includeHomework = options.includeHomework ?? false;
   homeworkMaxScore = options.homeworkMaxScore ?? 100;
@@ -165,6 +176,9 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
   homeworkVersionCounter = currentHomeworkScores.length;
   activeEditors = [...(options.activeEditors ?? [])];
   currentExamRetakeScore = 90;
+  currentServerActiveCell = null;
+  serverDraftMutationOrder.length = 0;
+  presenceConflictCells.length = 0;
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -314,32 +328,53 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
         return;
       }
       currentDraft = [];
+      if (body.release_lease === true) {
+        currentServerActiveCell = null;
+        serverDraftMutationOrder.push("release");
+      }
       await route.fulfill({ status: 204, body: "" });
       return;
     }
 
     if (path.endsWith("/score-draft/")) {
       if (method === "GET") {
-        await route.fulfill({ json: { changes: currentDraft, active_editors: activeEditors } });
+        let heldDraftGet = false;
+        const response = {
+          changes: [...currentDraft],
+          active_editors: activeEditors.map((editor) => ({
+            ...editor,
+            active_cell: { ...editor.active_cell },
+          })),
+        };
+        if (holdNextDraftGet) {
+          holdNextDraftGet = false;
+          heldDraftGet = true;
+          heldDraftGetStarted = true;
+          await new Promise<void>((resolve) => {
+            releaseHeldDraftGet = resolve;
+          });
+        }
+        await route.fulfill({ json: response });
+        if (heldDraftGet) heldDraftGetCompleted = true;
         return;
       }
       if (method === "PUT") {
         const body = request.postDataJSON() as { changes?: unknown[]; active_cell?: unknown };
-        let delayedPresence = false;
         if (failNextPresenceDraftPut && (body.changes?.length ?? 0) === 0 && body.active_cell != null) {
           failNextPresenceDraftPut = false;
+          presenceConflictCells.push(body.active_cell);
           await route.fulfill({
             status: 409,
             json: { detail: "이 차시는 다른 화면에서 수정 중입니다.", code: "SCORE_EDIT_LOCKED" },
           });
           return;
         }
-        if (delayNextPresenceDraftPutMs > 0 && (body.changes?.length ?? 0) === 0 && body.active_cell != null) {
-          const delayMs = delayNextPresenceDraftPutMs;
-          delayNextPresenceDraftPutMs = 0;
-          delayedPresence = true;
-          delayedPresenceDraftPutStarted = true;
-          await new Promise((resolve) => setTimeout(resolve, delayMs));
+        if (holdNextPresenceDraftPut && (body.changes?.length ?? 0) === 0 && body.active_cell != null) {
+          holdNextPresenceDraftPut = false;
+          heldPresenceDraftPutStarted = true;
+          await new Promise<void>((resolve) => {
+            releaseHeldPresenceDraftPut = resolve;
+          });
         }
         if (failNextDraftPut && (body.changes?.length ?? 0) > 0) {
           failNextDraftPut = false;
@@ -348,8 +383,10 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
         }
         draftPuts.push(body as Record<string, unknown>);
         currentDraft = body.changes ?? [];
+        currentServerActiveCell = body.active_cell ?? null;
+        const activeCell = body.active_cell as { enrollmentId?: unknown } | null | undefined;
+        serverDraftMutationOrder.push(`put:${String(activeCell?.enrollmentId ?? "none")}`);
         await route.fulfill({ json: { changes: currentDraft, active_editors: activeEditors } });
-        if (delayedPresence) delayedPresenceDraftPutCompleted = true;
         return;
       }
     }
@@ -752,20 +789,111 @@ test("일시적인 셀 점유 충돌 뒤 정상 presence가 오면 편집 잠금
   const firstStudent = page.getByRole("textbox", { name: "자동저장학생1 · 단원 복습 점수 입력" });
   const secondStudent = page.getByRole("textbox", { name: "자동저장학생2 · 단원 복습 점수 입력" });
 
-  delayNextPresenceDraftPutMs = 500;
+  holdNextPresenceDraftPut = true;
   await secondStudent.click();
-  await expect.poll(() => delayedPresenceDraftPutStarted).toBe(true);
+  await expect.poll(() => heldPresenceDraftPutStarted).toBe(true);
 
   failNextPresenceDraftPut = true;
   await firstStudent.click();
-  await expect.poll(() => failNextPresenceDraftPut).toBe(false);
-  await expect.poll(() => delayedPresenceDraftPutCompleted).toBe(true);
-  await expect(saveAndLock).toBeDisabled();
-
   await secondStudent.click();
   await expect(saveAndLock).toBeEnabled();
   await saveAndLock.click();
+
+  // eslint-disable-next-line no-restricted-syntax -- release 부재를 검증하는 failure-first bounded window.
+  await page.waitForTimeout(1_000);
+  expect(draftCommits.some((commit) => commit.release_lease === true)).toBe(false);
+
+  releaseHeldPresenceDraftPut?.();
   await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
+  expect(presenceConflictCells).toContainEqual(expect.objectContaining({ enrollmentId: 9201 }));
+  expect(currentDraft).toEqual([]);
+  expect(currentServerActiveCell).toBeNull();
+  expect(serverDraftMutationOrder.slice(-3)).toEqual(["put:9202", "put:9202", "release"]);
+  expect(serverDraftMutationOrder.at(-1)).toBe("release");
+});
+
+test("늦은 presence 조회는 더 최근 셀 선택의 협업 상태를 덮어쓰지 않는다", async ({ page }) => {
+  await openScores(page, {
+    includeHomework: true,
+    homeworkAssignedRows: [true, true],
+    initialHomeworkScores: [10, 20],
+  });
+  await ensureScoreEditing(page);
+
+  activeEditors = [{
+    client_id: "slow-reader",
+    editor_user_id: 44,
+    editor_name: "느린조교",
+    active_cell: { type: "homework", enrollmentId: 9201, homeworkId: 9151 },
+  }];
+  holdNextDraftGet = true;
+  await expect.poll(() => heldDraftGetStarted, { timeout: 10_000 }).toBe(true);
+
+  activeEditors = [{
+    client_id: "latest-reader",
+    editor_user_id: 45,
+    editor_name: "최신조교",
+    active_cell: { type: "homework", enrollmentId: 9202, homeworkId: 9151 },
+  }];
+  await page.getByRole("textbox", { name: "자동저장학생2 · 단원 복습 점수 입력" }).click();
+  await expect.poll(() => draftPuts.some((put) => {
+    const cell = put.active_cell as Record<string, unknown> | undefined;
+    return cell?.type === "homework" && cell.enrollmentId === 9202;
+  })).toBe(true);
+  await expect(page.getByText("최신조교 입력 중", { exact: true })).toBeVisible();
+
+  releaseHeldDraftGet?.();
+  await expect.poll(() => heldDraftGetCompleted).toBe(true);
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()));
+  }));
+  // eslint-disable-next-line no-restricted-syntax -- 늦은 응답이 React 상태를 덮을 기회를 보장한 뒤 부재를 단언한다.
+  await page.waitForTimeout(200);
+  expect(await page.locator(".ds-scores-collaborator-label").allTextContents()).toEqual([
+    "최신조교 입력 중",
+  ]);
+});
+
+test("저장하고 잠근 뒤 도착한 이전 presence 조회는 협업 표시를 되살리지 않는다", async ({ page }) => {
+  await openScores(page, {
+    includeHomework: true,
+    homeworkAssignedRows: [true, true],
+    initialHomeworkScores: [10, 20],
+  });
+  await ensureScoreEditing(page);
+
+  const input = page.getByRole("textbox", { name: "자동저장학생2 · 단원 복습 점수 입력" });
+  await input.click();
+  await expect.poll(() => draftPuts.some((put) => {
+    const cell = put.active_cell as Record<string, unknown> | undefined;
+    return cell?.type === "homework" && cell.enrollmentId === 9202;
+  })).toBe(true);
+
+  activeEditors = [{
+    client_id: "stale-reader",
+    editor_user_id: 44,
+    editor_name: "느린조교",
+    active_cell: { type: "homework", enrollmentId: 9201, homeworkId: 9151 },
+  }];
+  holdNextDraftGet = true;
+  await expect.poll(() => heldDraftGetStarted, { timeout: 10_000 }).toBe(true);
+
+  activeEditors = [];
+  await input.fill("21");
+  await page.getByRole("button", { name: "저장하고 잠금", exact: true }).click();
+  await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
+  expect(currentDraft).toEqual([]);
+  expect(currentServerActiveCell).toBeNull();
+  expect(serverDraftMutationOrder.at(-1)).toBe("release");
+
+  releaseHeldDraftGet?.();
+  await expect.poll(() => heldDraftGetCompleted).toBe(true);
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()));
+  }));
+  // eslint-disable-next-line no-restricted-syntax -- 늦은 응답이 React 상태를 덮을 기회를 보장한 뒤 부재를 단언한다.
+  await page.waitForTimeout(200);
+  expect(await page.locator(".ds-scores-collaborator-label").allTextContents()).toEqual([]);
 });
 
 test("두 브라우저가 서로 다른 과제 셀 저장을 실시간 수렴하고 reload 뒤에도 유지한다", async ({ browser }) => {
