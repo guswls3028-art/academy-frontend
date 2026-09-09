@@ -10,7 +10,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/ko";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
-import { CalendarDays, Clock3, X } from "lucide-react";
+import { CalendarDays, Clock3, Users, X } from "lucide-react";
 import { fetchClinicSessionTree, deleteClinicSession } from "../../api/clinicSessions.api";
 import type { ClinicSessionDetail } from "../../api/clinicSessions.api";
 import { useClinicParticipants } from "../../hooks/useClinicParticipants";
@@ -235,9 +235,9 @@ export default function ClinicOperationsConsolePage() {
 
   const sessionsForDay = useMemo(() => {
     const list = filteredTree;
-    return list.filter(
-      (s) => dayjs(s.date).format("YYYY-MM-DD") === selectedDate
-    );
+    return list
+      .filter((s) => dayjs(s.date).format("YYYY-MM-DD") === selectedDate)
+      .sort((a, b) => (a.start_time || "").localeCompare(b.start_time || ""));
   }, [filteredTree, selectedDate]);
 
   const activeSession = useMemo(
@@ -261,6 +261,31 @@ export default function ClinicOperationsConsolePage() {
   const allStudentCount = useMemo(
     () => new Set(allRows.map(participantStudentKey)).size,
     [allRows],
+  );
+  const activeAssignmentStudentKeysBySession = useMemo(() => {
+    const grouped = new Map<number, Set<string>>();
+    for (const participant of allRows) {
+      if (participant.status === "cancelled" || participant.status === "rejected") continue;
+      const students = grouped.get(participant.session) ?? new Set<string>();
+      students.add(participantStudentKey(participant));
+      grouped.set(participant.session, students);
+    }
+    return grouped;
+  }, [allRows]);
+  const activeAssignmentStudentCount = useMemo(
+    () => {
+      const visibleSessionIds = new Set(sessionsForDay.map((candidate) => candidate.id));
+      return new Set(
+        allRows
+          .filter((participant) => (
+            visibleSessionIds.has(participant.session)
+            && participant.status !== "cancelled"
+            && participant.status !== "rejected"
+          ))
+          .map(participantStudentKey),
+      ).size;
+    },
+    [allRows, sessionsForDay],
   );
   const rows = useMemo(
     () => selectedSessionId == null
@@ -432,6 +457,46 @@ export default function ClinicOperationsConsolePage() {
                   </div>
                 )}
               </div>
+
+              {consoleScope === "day"
+                && activeSession == null
+                && sessionsForDay.length > 0
+                && !participants.listQ.isLoading
+                && !participants.listQ.isError && (
+                <section
+                  className="clinic-console__assignment-handoff"
+                  aria-label="배정 학생 관리"
+                >
+                  <div className="clinic-console__assignment-summary">
+                    <Users size={17} aria-hidden />
+                    <strong>배정 학생</strong>
+                    <span>{sessionsForDay.length}개 일정 · 배정 {activeAssignmentStudentCount}명</span>
+                  </div>
+                  <div className="clinic-console__assignment-options">
+                    {sessionsForDay.map((candidate) => {
+                      const assignedCount = activeAssignmentStudentKeysBySession.get(candidate.id)?.size ?? 0;
+                      const time = candidate.start_time?.slice(0, 5) || "시간 미정";
+                      const title = candidate.title || candidate.location || "클리닉";
+                      return (
+                        <button
+                          key={candidate.id}
+                          type="button"
+                          className="clinic-console__assignment-option"
+                          aria-label={`${time} ${title} 학생 관리, ${assignedCount}명 배정`}
+                          onClick={() => selectConsoleSession(candidate.id)}
+                        >
+                          <span className="clinic-console__assignment-option-context">
+                            <strong>{time}</strong>
+                            <span>{title}</span>
+                          </span>
+                          <span className="clinic-console__assignment-option-count">{assignedCount}명</span>
+                          <span className="clinic-console__assignment-option-action">학생 관리</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
 
               <ClinicConsoleWorkspace
                 selectedDate={queryDate}

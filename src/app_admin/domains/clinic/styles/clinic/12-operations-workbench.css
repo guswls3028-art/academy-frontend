@@ -127,6 +127,105 @@
   outline-offset: 2px;
 }
 
+.clinic-console__assignment-handoff {
+  display: flex;
+  align-items: stretch;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 22%, var(--color-border-divider));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface));
+}
+
+.clinic-console__assignment-summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: max-content;
+  color: var(--color-text-primary);
+}
+
+.clinic-console__assignment-summary > svg {
+  color: var(--color-brand-primary);
+}
+
+.clinic-console__assignment-summary > strong {
+  font-size: 14px;
+}
+
+.clinic-console__assignment-summary > span {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.clinic-console__assignment-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.clinic-console__assignment-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  width: 100%;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.clinic-console__assignment-option:hover {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 45%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-brand-primary) 5%, var(--color-bg-surface));
+}
+
+.clinic-console__assignment-option:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+
+.clinic-console__assignment-option-context {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.clinic-console__assignment-option-context > strong {
+  color: var(--color-brand-primary);
+  font-size: 13px;
+}
+
+.clinic-console__assignment-option-context > span {
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clinic-console__assignment-option-count {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.clinic-console__assignment-option-action {
+  color: var(--color-brand-primary);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .clinic-operations-shell,
 .clinic-operations-shell__body,
 .clinic-operations-shell__content {
