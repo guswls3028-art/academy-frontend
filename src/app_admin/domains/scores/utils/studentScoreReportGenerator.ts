@@ -737,7 +737,7 @@ function buildCurrentAssessments(row: SessionScoreRow, meta: SessionScoreMeta) {
   const examRows = (meta.exams ?? []).map((exam) => {
     const entry = row.exams.find((item) => item.exam_id === exam.exam_id);
     const score = entry?.block.score;
-    const maxScore = entry?.block.max_score ?? exam.max_score;
+    const maxScore = exam.max_score ?? entry?.block.max_score;
     const result = resultLabel(entry?.block);
     const scoreParts = [
       "시험",

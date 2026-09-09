@@ -2073,7 +2073,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     if (block?.score != null) {
                       hasAnyScore = true;
                       totalScore += Number(block.score);
-                      totalMaxScore += block.max_score ?? ex.max_score ?? 100;
+                      totalMaxScore += ex.max_score ?? block.max_score ?? 100;
                       if (block.passed != null) {
                         if (allPassed === null) allPassed = block.passed;
                         else if (!block.passed) allPassed = false;

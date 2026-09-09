@@ -411,7 +411,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
           source_id: isHomework ? Number(homeworkId) : 9101,
           source_title: isHomework ? "단원 복습" : "주간 확인",
           pass_score: 60,
-          max_score: maxScore,
+          max_score: isHomework ? maxScore : examMaxScore,
           attempts: [{
             attempt_index: 1,
             score,
@@ -1346,6 +1346,22 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("cell", { name: "102/105", exact: true })).toBeVisible();
+    await ensureScoreEditing(page);
+
+    await page.getByText("자동저장학생1", { exact: true }).first().click();
+    const drawer = page.getByRole("complementary", { name: /자동저장학생1 학생 상세/ });
+    await expect(drawer).toBeVisible();
+    await drawer.getByRole("button", { name: /^주간 확인/ }).click();
+    const firstAttempt = drawer.locator(".ssd-attempt-card").filter({ hasText: "1차 시험" });
+    await expect(firstAttempt.locator(".ssd-attempt-card__score")).toHaveText("102");
+    await expect(firstAttempt.locator(".ssd-attempt-card__max")).toHaveText("/ 105");
+    await firstAttempt.getByTitle("점수 수정").click();
+    const drawerScoreInput = firstAttempt.getByRole("spinbutton").first();
+    await expect(drawerScoreInput).toHaveAttribute("max", "105");
+    await drawerScoreInput.fill("103");
+    await firstAttempt.getByRole("button", { name: "저장", exact: true }).click();
+    await expect.poll(() => scorePatches.length, { timeout: 10_000 }).toBe(2);
+    expect(scorePatches[1]).toMatchObject({ score: 103, max_score: 105 });
   });
 
   test("시험 미배정 학생은 클리닉 대상이나 이름 하이라이트로 남지 않고 새로고침해도 유지된다", async ({ page }, testInfo) => {
