@@ -19,7 +19,7 @@ const API_ORIGIN = "http://127.0.0.1:18000";
 const FLOW_COUNTS = {
   "notice-roundtrip.spec.ts": 3,
   "qna-roundtrip.spec.ts": 4,
-  "clinic-roundtrip.spec.ts": 3,
+  "clinic-roundtrip.spec.ts": 4,
   "student-parent-account-realuse.spec.ts": 1,
   "student-parent-assessment-realuse.spec.ts": 1,
   "student-clinic-required-cancel-realuse.spec.ts": 1,
@@ -132,6 +132,8 @@ function initialPreflightEvidence(frontendSha) {
     frontendSha: /^[a-f0-9]{40}$/.test(frontendSha || "") ? frontendSha : null,
     backendGovernanceSha: null, backendReleaseId: null, apiDigest: null, instanceId: null,
     tenantCode: null, artifactSha256: null, cases: null, documentSha256: {}, cleanup: null,
+    crossTenantCleanup: null,
+    crossPostCleanupInspectObservation: null,
     operationObservation: null, cleanupObservation: null, inspectObservation: null,
     postCleanupInspectOperationObservation: null, postCleanupInspectObservation: null,
     realUseObservation: null,
@@ -898,6 +900,8 @@ export async function run() {
   let instanceId;
   let tenant;
   let capability;
+  let crossTenant;
+  let crossCapability;
   const evidence = await runPreflightStages([
     ["process", () => {
       assert.equal(process.env.GITHUB_ACTIONS, "true", "Official CI only; no implicit local synthetic run");
@@ -908,6 +912,9 @@ export async function run() {
       assert.equal(identity.Account, ACCOUNT);
       assert.match(identity.Arn, /:assumed-role\/academy-frontend-development-qa\/academy-fe-qa-[0-9-]+$/);
       ({ tenant, capability } = createRunOwnership(process.env));
+      ({ tenant: crossTenant, capability: crossCapability } = createRunOwnership(process.env));
+      assert.notEqual(crossTenant, tenant);
+      assert.notEqual(crossCapability, capability);
       assert.ok(identity.Arn.endsWith(`/academy-fe-qa-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT}`));
     }],
     ["bundle", () => {
@@ -959,9 +966,13 @@ export async function run() {
       assert.equal(online[0].PingStatus, "Online");
     }],
   ], persistEvidence, process.env.GITHUB_SHA);
-  const common = { TenantCode: [tenant], OwnershipCapability: [capability],
+  const ownerParameters = (ownerTenant, ownerCapability, syntheticLongVideo) => ({
+    TenantCode: [ownerTenant], OwnershipCapability: [ownerCapability],
     ReleaseId: [manifest.releaseImageTag], ApiDigest: [manifest.images["academy-api"].digest],
-    SyntheticLongVideo: ["true"] };
+    SyntheticLongVideo: [syntheticLongVideo ? "true" : "false"],
+  });
+  const common = ownerParameters(tenant, capability, true);
+  const crossCommon = ownerParameters(crossTenant, crossCapability, false);
   const sessions = new Set();
   const processes = [];
   let operationObservation = null;
@@ -970,6 +981,7 @@ export async function run() {
   let postCleanupInspectOperationObservation = null;
   let postCleanupInspectObservation = null;
   let scenarioTenantId = null;
+  let crossScenarioTenantId = null;
   let primaryFailed = false;
   function session(name, parameters = {}) {
     const current = aws(["ssm", "get-document", "--name", name, "--document-format", "JSON"]);
@@ -986,15 +998,22 @@ export async function run() {
     assert.ok(match[1].startsWith("academy-fe-qa-"), "Unexpected session ownership");
     sessions.add(match[1]);
   }
-  async function operation(action, tenantId, observationTarget = "operation") {
-    const process = session(QA_DOCUMENT, fixedOperationParameters(common, action, tenantId));
-    const result = await process.done;
-    const observed = observeFixedOperationResult(action, result);
+  function recordOperationObservation(action, observed, observationTarget) {
     const capturedSetupTenantId = setupTenantIdFromOperation(action, observed, tenant);
     if (capturedSetupTenantId !== null) scenarioTenantId = capturedSetupTenantId;
     if (action === "Cleanup") cleanupObservation = observed.observation;
     else if (observationTarget === "post-cleanup") postCleanupInspectOperationObservation = observed.observation;
     else operationObservation = observed.observation;
+  }
+  function recordCrossOperationObservation(action, observed) {
+    const capturedSetupTenantId = setupTenantIdFromOperation(action, observed, crossTenant);
+    if (capturedSetupTenantId !== null) crossScenarioTenantId = capturedSetupTenantId;
+  }
+  async function executeOperation(action, operationCommon, ownerTenant, tenantId, recordObservation) {
+    const process = session(QA_DOCUMENT, fixedOperationParameters(operationCommon, action, tenantId));
+    const result = await process.done;
+    const observed = observeFixedOperationResult(action, result);
+    recordObservation(observed);
     remember(process);
     if (action !== "Cleanup") assert.equal(interrupted, false, "Development run interrupted");
     assert.equal(result.code, 0, `Fixed development ${action} command failed`);
@@ -1003,12 +1022,34 @@ export async function run() {
     const payload = observed.payload;
     assert.ok(payload, "Missing fixed operation payload");
     assert.notEqual(payload.status, "DEVELOPMENT_QA_FAILED", `Development ${action} boundary failed`);
-    assert.equal(payload.tenant_code, tenant);
+    assert.equal(payload.tenant_code, ownerTenant);
+    return { observed, payload };
+  }
+  async function operation(action, tenantId, observationTarget = "operation") {
+    const { payload } = await executeOperation(
+      action,
+      common,
+      tenant,
+      tenantId,
+      (observed) => recordOperationObservation(action, observed, observationTarget),
+    );
+    return payload;
+  }
+  async function crossOperation(action, tenantId) {
+    const { payload } = await executeOperation(
+      action,
+      crossCommon,
+      crossTenant,
+      tenantId,
+      (observed) => recordCrossOperationObservation(action, observed),
+    );
     return payload;
   }
   let server;
   let setupAttempted = false;
+  let crossSetupAttempted = false;
   let cleanup;
+  let crossTenantCleanup;
   let counts;
   let realUseObservation;
   let realUseProcessObservation;
@@ -1033,6 +1074,10 @@ export async function run() {
       cleanup: cleanup ? { tenantCode: tenant, remaining: cleanup.remaining } : null,
       operationObservation, cleanupObservation, inspectObservation,
       postCleanupInspectOperationObservation, postCleanupInspectObservation,
+      crossTenantCleanup: crossTenantCleanup
+        ? { tenantCode: crossTenant, tenantId: crossScenarioTenantId, remaining: crossTenantCleanup.remaining }
+        : null,
+      crossPostCleanupInspectObservation,
       realUseObservation: realUseObservation || null,
       realUseProcessObservation: realUseProcessObservation || null,
       videoRuntimeObservation: videoRuntimeObservation || null,
@@ -1057,6 +1102,13 @@ export async function run() {
     scenario = await operation("Setup");
     assert.ok(Number.isSafeInteger(scenario.tenant_id) && scenario.tenant_id > 0, "Setup tenant_id must be a positive integer");
     assert.equal(scenarioTenantId, scenario.tenant_id, "Setup tenant id capture drift");
+    const crossInspected = await crossOperation("Inspect");
+    assert.equal(crossInspected.status, "DEVELOPMENT_QA_IDENTITY_PASS");
+    assert.deepEqual(crossInspected.remaining, { tenants: 0, users: 0 }, "Never reuse the cross-tenant QA tenant");
+    crossSetupAttempted = true;
+    const crossScenario = await crossOperation("Setup");
+    assert.ok(Number.isSafeInteger(crossScenario.tenant_id) && crossScenario.tenant_id > 0, "Cross Setup tenant_id must be a positive integer");
+    assert.equal(crossScenarioTenantId, crossScenario.tenant_id, "Cross Setup tenant id capture drift");
     const longVideo = assertLongVideoSetup(scenario);
     const tunnel = session(PORT_DOCUMENT);
     await waitPort(18000, () => interrupted);
@@ -1071,6 +1123,7 @@ export async function run() {
         E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict",
         E2E_STUDENT_PARENT_REALUSE: "1", E2E_ALLOW_REAL_ALIMTALK: "0",
         E2E_TENANT_CODE: tenant, E2E_ADMIN_USER: "ymath-qa-teacher", E2E_STUDENT_USER: "ymath-qa-student-01",
+        E2E_CROSS_TENANT_CODE: crossTenant,
         E2E_STUDENT2_USER: "ymath-qa-student-02", E2E_LONG_VIDEO_TENANT_ID: String(scenario.tenant_id),
         E2E_LONG_VIDEO_ID: String(scenario.synthetic_long_video.video_id),
         E2E_LONG_VIDEO_HLS_PATH: longVideo.hls_path,
@@ -1111,6 +1164,25 @@ export async function run() {
         } catch { failures.push("development post-cleanup Inspect failed or runtime residue not proven zero"); }
       }
     }
+    if (crossSetupAttempted) {
+      if (!Number.isSafeInteger(crossScenarioTenantId) || crossScenarioTenantId < 1) {
+        failures.push("cross-tenant development cleanup refused without exact Setup tenant id");
+      } else {
+        try {
+          crossTenantCleanup = await crossOperation("Cleanup", crossScenarioTenantId);
+          assertCleanup(crossTenantCleanup, crossTenant, crossScenarioTenantId);
+        } catch { failures.push("cross-tenant development cleanup failed or zero residue not proven"); }
+        try {
+          const crossPostCleanup = await crossOperation("Inspect", crossScenarioTenantId);
+          crossPostCleanupInspectObservation = assertPostCleanupInspect(
+            crossPostCleanup,
+            crossTenant,
+            crossScenarioTenantId,
+            manifest,
+          );
+        } catch { failures.push("cross-tenant post-cleanup Inspect failed or runtime residue not proven zero"); }
+      }
+    }
     for (const process of processes) {
       try { remember(process); } catch { failures.push("session ownership readback failed"); }
       process.stop();
@@ -1143,7 +1215,8 @@ export async function run() {
     process.off("SIGTERM", interrupt);
     const passed = failures.length === 0 && Boolean(counts) && Boolean(cleanup)
       && Boolean(postCleanupInspectObservation) && Boolean(realUseObservation?.longVideo)
-      && Boolean(videoRuntimeObservation);
+      && Boolean(videoRuntimeObservation) && Boolean(crossTenantCleanup)
+      && Boolean(crossPostCleanupInspectObservation);
     const resultEvidence = writeEvidence(passed, failures, passed ? "passed" : "qa_failed");
     assert.equal(resultEvidence.passed, true, "Development release gate failed; see PII-free evidence");
   }

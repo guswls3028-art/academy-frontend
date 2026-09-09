@@ -354,9 +354,13 @@ GitHub E2E 성공만으로 운영 정리를 완료했다고 판정하지 않는�
 
 자동화 참고:
 
-- `e2e/flows/clinic-roundtrip.spec.ts`는 현재 세션 생성 API + 화면 로드 중심이다.
+- `e2e/flows/clinic-roundtrip.spec.ts`는 세션 생성과 화면 로드뿐 아니라, 동일 artifact를
+  상시 개발 API에 연결해 desktop 좌측 달력과 390px **일정** overlay의 실제 날짜 선택→일정별 **학생 관리**→
+  bulk-create→reload→`cancelled`→reload를 검증한다. 익명, 같은 학원 다른 학생,
+  별도 disposable qa tenant의 접근 거부와 양쪽 tenant/user cleanup0도 필수다.
 - `e2e/flows/clinic-ui-create.spec.ts`는 API-assisted라 UI 생성 검증으로는 부족하다.
-- [PROPOSED] 클리닉 UI 생성과 학생 예약/관리자 승인/해소를 하나의 canary로 신설한다.
+- 학생 예약/관리자 승인/학습 요건 해소는 이 배정·취소 사례와 별도 상태 전이이므로
+  기존 학생 클리닉 real-use와 함께 유지한다.
 
 ### S7. 영상 업로드/복습/시청률
 

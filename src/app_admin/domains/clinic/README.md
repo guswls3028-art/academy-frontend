@@ -48,6 +48,19 @@
 `학생 추가` 동선을 그대로 보여 주며, 첫 학생을 추가하기 전에 일간 합계 화면으로
 자동 복귀하지 않습니다. 선택한 세션이 tree에서 실제로 사라졌을 때만 선택을 해제합니다.
 
+## 달력에서 학생 관리
+
+`오늘 출석·진행`에서 달력 날짜를 고르면 선택일 전체 운영 화면을 유지하면서 상단
+`배정 학생 관리`에 그날의 세션별 활성 배정 인원을 표시합니다. 각 `학생 관리`는 새
+배정 로직을 만들지 않고 정확한 세션을 선택해 기존 `ClinicTargetSelectModal`과
+`POST /clinic/participants/bulk-create/` 흐름으로 들어갑니다. 취소·거절 이력은 활성
+배정 수에서 제외하되 서버 기록은 보존합니다.
+
+배포 카나리는 desktop의 좌측 달력과 390px의 `일정` overlay에서 실제 날짜를 선택해
+추가·reload GET·`cancelled`·reload를 확인합니다. 같은 학원 다른 학생과 별도 qa tenant의
+접근은 실제 개발 API가 거부해야 하며, 두 disposable tenant의 tenant/user 숫자 0 정리가
+확인되지 않으면 성공으로 판정하지 않습니다.
+
 ## 학생 추가 실패와 재시도
 
 운영 화면의 **학생 추가**는 전체 학생 선택이면 `student_ids`, 미통과 대상자
@@ -80,6 +93,8 @@
 - 이전 주 복사: `components/PreviousWeekImportModal.tsx`
 - 서버 정책·원자성·동시성: backend `docs/domain/clinic-booking.md`
 - 빈 세션 운영 회귀: `e2e/admin/clinic-weekly-multisession.mock.spec.ts`
+- 달력 학생 관리 실제 API·권한·지속성·cleanup 회귀:
+  `e2e/flows/clinic-roundtrip.spec.ts`
 - 학생 추가 충돌 사유·선택 보존·재시도 회귀:
   `e2e/admin/clinic-weekly-multisession.mock.spec.ts`
 - 시간 범위 공통 구간 payload·명단·reload·desktop/390 회귀:
