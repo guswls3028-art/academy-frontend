@@ -242,7 +242,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
         body: Buffer.from("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==", "base64"),
       });
     });
-    const youtube = await installYouTubeSdkFixture(page);
+    const youtube = await installYouTubeSdkFixture(page, { renderNativeControls: true });
     const browser = attachStrictBrowserGuards(page);
     const admin = await loginAdmin(request);
     created.adminAccess = admin.access;
@@ -340,12 +340,21 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     await expect(page.getByText("55% 진행", { exact: true }).first()).toBeVisible();
     await page.getByText(videoTitle, { exact: true }).click();
     await expect(page.getByRole("heading", { name: videoTitle })).toBeVisible();
-    await expect.poll(async () => (await youtube.snapshot()).players.some((player) => player.ready && !player.destroyed)).toBe(true);
+    await expect.poll(async () => (await youtube.snapshot()).players.some((player) => (
+      player.ready
+      && !player.destroyed
+      && player.controls === 1
+      && player.disableKeyboard === 0
+    ))).toBe(true);
     await expect(page.getByText("재생 화면을 준비하고 있어요…", { exact: true })).toBeHidden();
     // Unrestricted YouTube playback keeps the provider's native controls; the
     // Academy play button is reserved for monitored/budgeted-seek sessions.
     await expect(page.locator("[data-youtube-sdk-fixture]")).toBeVisible();
     await expect(page.getByRole("button", { name: "재생", exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "YouTube 재생", exact: true }).click();
+    await expect.poll(async () => (await youtube.snapshot()).players.some((player) => (
+      player.ready && !player.destroyed && player.state === 1 && player.calls.includes("playVideo")
+    ))).toBe(true);
     await page.goBack({ waitUntil: "domcontentloaded" });
     await selectParentStudentThroughUi(page, sibling);
     await gotoAndSettle(page, `${QA_BASE}/student/attendance`, { timeout: 30_000 });
