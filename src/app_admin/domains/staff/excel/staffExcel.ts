@@ -20,7 +20,6 @@ export function downloadStaffExcel(
     "이름",
     "전화번호",
     "상태",
-    "직원관리권한",
     "급여유형",
     "시급태그",
     "등록일",
@@ -32,7 +31,6 @@ export function downloadStaffExcel(
       r.name ?? "",
       r.phone ?? "",
       r.is_active ? "재직" : "퇴사",
-      (r.can_manage_staff ?? r.is_manager) ? "ON" : "OFF",
       PAY_TYPE_LABEL[r.pay_type] ?? r.pay_type,
       (r.staff_work_types ?? [])
         .map((swt) => swt.work_type?.name ?? "")
@@ -45,6 +43,6 @@ export function downloadStaffExcel(
     filename,
     sheetName: "직원목록",
     rows: data,
-    columnWidths: headers.map((_, i) => (i === 2 ? 14 : i === 6 ? 24 : 10)),
+    columnWidths: headers.map((_, i) => (i === 2 ? 14 : i === 5 ? 24 : 10)),
   });
 }

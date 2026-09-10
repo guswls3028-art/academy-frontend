@@ -155,7 +155,6 @@ export async function createStaff(payload: {
   phone?: string;
   role: "TEACHER" | "ASSISTANT";
   position: StaffPosition;
-  is_manager: boolean;
 }) {
   const res = await api.post("/staffs/", {
     username: payload.username,
@@ -164,7 +163,6 @@ export async function createStaff(payload: {
     phone: payload.phone || undefined,
     role: payload.role,
     position: payload.position,
-    is_manager: payload.is_manager,
   });
 
   return res.data as Staff;

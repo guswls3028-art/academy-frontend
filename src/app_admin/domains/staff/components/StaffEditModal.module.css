@@ -74,38 +74,6 @@
   font-size: 10px;
 }
 
-.managerPermission {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  padding: 11px;
-  border: 1px solid color-mix(in srgb, var(--color-warning) 22%, var(--color-border-divider));
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--color-warning) 6%, var(--color-bg-surface));
-}
-
-.managerPermission input {
-  width: 17px;
-  height: 17px;
-  margin-top: 1px;
-  accent-color: var(--color-brand-primary);
-}
-
-.managerPermission span {
-  display: grid;
-  gap: 2px;
-}
-
-.managerPermission strong {
-  color: var(--color-text-primary);
-  font-size: 12px;
-}
-
-.managerPermission small {
-  color: var(--color-text-muted);
-  font-size: 10px;
-}
-
 @media (max-width: 640px) {
   .positionGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

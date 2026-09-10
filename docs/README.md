@@ -21,6 +21,7 @@
 | [HOMEWORK-SCORING.md](HOMEWORK-SCORING.md) | 과제별 만점·합격 기준, 성적표 분모·저장 계약 |
 | [ATTENDANCE-ROSTER-SAFETY.md](ATTENDANCE-ROSTER-SAFETY.md) | 차시 수강생 일괄배정의 미입력 시작, 선택 검토·실행취소, 전체 현장 출석의 원자적 되돌리기 계약 |
 | [ARRIVAL-OPERATIONS.md](ARRIVAL-OPERATIONS.md) | 보강 예정 입력과 클리닉 예약을 합친 대시보드·우상단 알림 운영 계약 |
+| [ROLE-DATA-ACTION-POLICY.md](ROLE-DATA-ACTION-POLICY.md) | 역할별 라우트 guard, 식별 정보 표시, 급여·소유자 설정 차단 계약 |
 | [관리자](../src/app_admin/domains/clinic/README.md) · [선생님](../src/app_teacher/domains/clinic/README.md) · [학생](../src/app_student/domains/clinic/README.md) 클리닉 | 세션별 같은 날 다중 시간대 예약 정책과 역할별 생성·신청·추가 UX 계약 |
 | [LECTURE-SESSION-SCOPES.md](LECTURE-SESSION-SCOPES.md) | 강의 안의 정규 수업·보강 분리 진입, 보강 이름 생성·수정 계약 |
 | [REAL-USE-REVIEW-MANUAL.md](REAL-USE-REVIEW-MANUAL.md) | 실제 운영 흐름과 UI/UX 상품성을 함께 점검하는 반복 검수 매뉴얼 |

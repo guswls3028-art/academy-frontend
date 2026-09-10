@@ -17,7 +17,7 @@ function fakeJwt(): string {
   return `e30.${payload}.sig`;
 }
 
-type StaffRole = "owner" | "admin" | "teacher";
+type StaffRole = "owner" | "admin" | "teacher" | "staff";
 
 async function installWorkspaceMocks(
   page: Page,
@@ -69,6 +69,23 @@ async function installWorkspaceMocks(
         is_payroll_manager: payrollManager,
         staff_id: role === "owner" ? 11 : 12,
         assigned_work_types: [],
+      });
+    }
+    if (path === "/messaging/log/") {
+      return json(route, {
+        count: 1,
+        results: [{
+          id: 81,
+          sent_at: "2026-09-05T12:34:00Z",
+          success: true,
+          status: "sent",
+          amount_deducted: "1",
+          recipient_summary: "최정원 01091234567",
+          template_summary: "클리닉 예약 안내",
+          provider_message_id: "group-operational-proof",
+          provider_evidence: true,
+          message_mode: "alimtalk",
+        }],
       });
     }
 
@@ -234,17 +251,29 @@ test("좁은 Mac 창의 선생님도 눈에 띄는 PC 버전 버튼으로 전환
   ))).toBe("1");
 });
 
-test("390px 급여 관리자는 직원 운영만 추가되고 원장·수납 권한은 넓어지지 않는다", async ({ page }) => {
+test("390px 선생님은 오래된 급여 관리자 플래그가 있어도 직원 급여 운영을 보지 않는다", async ({ page }) => {
   await installWorkspaceMocks(page, { role: "teacher", payrollManager: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAndSettle(page, `${BASE}/workspace/mobile/desktop-only`, { timeout: 20_000 });
 
-  await expect(page.getByRole("button", { name: /직원 급여 운영/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /직원 급여 운영/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /홈페이지 편집/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /수납 템플릿/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /기능 플래그/ })).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
 });
+
+for (const role of ["teacher", "staff"] as const) {
+  test(`390px ${role} 발송 이력은 수신 전화와 공급사 증거를 가리지 않는다`, async ({ page }) => {
+    await installWorkspaceMocks(page, { role });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await gotoAndSettle(page, `${BASE}/workspace/mobile/message-log`, { timeout: 20_000 });
+
+    await expect(page.getByText("수신: 최정원 01091234567")).toBeVisible();
+    await expect(page.getByText(/공급사 증거: group-operational-proof/)).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  });
+}
 
 test("1366px 관리자는 관리자·수납 기능을 보되 대표원장·급여 기능은 보지 않는다", async ({ page }) => {
   await installWorkspaceMocks(page, { role: "admin", payrollManager: false });

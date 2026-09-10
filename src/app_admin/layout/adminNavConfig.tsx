@@ -28,7 +28,7 @@ export type AdminNavItem = {
   iconPath: string;
   /** 사용자가 메뉴 이름 대신 입력할 수 있는 실제 업무 표현 */
   keywords?: string[];
-  /** true면 is_payroll_manager(관리자 권한 on)일 때만 메뉴 노출 */
+  /** true면 owner/admin이면서 is_payroll_manager일 때만 메뉴 노출 */
   requiresStaffAdmin?: boolean;
   /** true면 TenantMembership role owner/admin일 때만 메뉴 노출 */
   requiresTenantAdmin?: boolean;
