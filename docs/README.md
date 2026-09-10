@@ -25,6 +25,7 @@
 | [LECTURE-SESSION-SCOPES.md](LECTURE-SESSION-SCOPES.md) | 강의 안의 정규 수업·보강 분리 진입, 보강 이름 생성·수정 계약 |
 | [REAL-USE-REVIEW-MANUAL.md](REAL-USE-REVIEW-MANUAL.md) | 실제 운영 흐름과 UI/UX 상품성을 함께 점검하는 반복 검수 매뉴얼 |
 | [REAL-USE-E2E-INVENTORY.md](REAL-USE-E2E-INVENTORY.md) | 기존 E2E 자산을 실사용 운영 리뷰 관점으로 분류한 인벤토리 |
+| [USER-JOURNEY-OUTCOME-GATE.md](USER-JOURNEY-OUTCOME-GATE.md) | guard-only 완료를 막는 역할별 긍정 결과·reload·projection·390px·cleanup 증거 계약 |
 | [DEPLOYMENT-OPERATIONS.md](DEPLOYMENT-OPERATIONS.md) | Cloudflare preview/production/rollback, scoped token, PR 무쓰기 E2E, Actions 공급망, backend/frontend release-bundle readback 계약 |
 | [DEV-INBOX-GUIDE.md](DEV-INBOX-GUIDE.md) | 학원 직원 문의 제출·답변 확인과 플랫폼 문의 처리 가이드 |
 | [DEVELOPER-CONSOLE.md](DEVELOPER-CONSOLE.md) | 개발자 콘솔 정보 구조, 운영 상태 레저, 반응형 메뉴, 조회 실패·쓰기 안전 계약 |

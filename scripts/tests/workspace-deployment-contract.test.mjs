@@ -68,9 +68,15 @@ test("workspace route contracts run before the deploy artifact is built", () => 
 test("an isolated candidate preview gates the production deploy", () => {
   const previewIndex = workflow.indexOf("\n  candidate-preview:");
   const deployIndex = workflow.indexOf("\n  deploy:", previewIndex);
+  const explicitVersionIndex = viteConfig.indexOf("process.env.VITE_BUILD_VERSION");
+  const githubVersionIndex = viteConfig.indexOf("process.env.GITHUB_SHA");
 
   assert.ok(previewIndex >= 0, "candidate preview job is missing");
   assert.ok(deployIndex > previewIndex, "production deploy must follow preview");
+  assert.ok(
+    explicitVersionIndex >= 0 && explicitVersionIndex < githubVersionIndex,
+    "the explicit PR candidate must win over GitHub's automatic merge SHA",
+  );
   assert.match(
     workflow,
     /needs: \[quality-check, hangul-companion-check, candidate-preview, development-canary\]/,
@@ -78,7 +84,7 @@ test("an isolated candidate preview gates the production deploy", () => {
   assert.match(workflow, /--branch="\$\{PREVIEW_BRANCH\}"/);
   assert.match(workflow, /for ATTEMPT in \$\(seq 1 60\)/);
   assert.match(workflow, /Preview version did not propagate/);
-  assert.match(workflow, /CANDIDATE_SHA: \$\{\{ github\.sha \}\}/);
+  assert.match(workflow, /CANDIDATE_SHA: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/);
   assert.match(
     workflow,
     /Candidate artifact version does not match the checked-out revision/,

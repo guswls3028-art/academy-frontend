@@ -1,0 +1,206 @@
+{
+  "schema_version": 1,
+  "journeys": [
+    {
+      "id": "score-result-messaging",
+      "availability": "generally_available",
+      "seal_status": "gap",
+      "known_gaps": ["Current main is parent-only; the separate student-and-parent recipient change is not merged or sealed, and same-artifact send-to-log reload, provider-disabled readback, and zero-residue cleanup evidence is missing."],
+      "actors": ["owner", "admin", "teacher"],
+      "projection_audiences": ["owner", "admin", "teacher", "staff", "student", "parent"],
+      "role_outcomes": {
+        "owner": "Owner must explicitly choose recipients and inspect the persisted request.",
+        "admin": "Admin must explicitly choose recipients and inspect the persisted request.",
+        "teacher": "Teacher must explicitly choose recipients and inspect the persisted request.",
+        "staff": "Staff direct send must be denied before provider dispatch.",
+        "student": "Student must see only the published result for the own account.",
+        "parent": "Parent must see only the selected child's published result."
+      },
+      "path_patterns": ["src/app_admin/domains/lectures/pages/scores/**", "src/app_admin/domains/scores/**", "src/app_admin/domains/messages/**", "src/shared/scoring/**", "src/app_student/domains/exams/**", "src/app_student/domains/grades/**", "src/app_teacher/domains/results/**"],
+      "must_match": ["src/app_admin/domains/messages/components/SendMessageModal.tsx", "src/app_admin/domains/lectures/pages/scores/SessionScoresEntryPage.tsx", "src/app_student/domains/exams/pages/ExamResultPage.tsx", "src/app_student/domains/grades/components/LectureExamGroup.tsx", "src/app_teacher/domains/results/pages/ResultsPage.tsx"],
+      "must_not_match": ["e2e/admin/score-alimtalk-personalization.mock.spec.ts", "docs/STUDENT-GRADE-REPORT.md", "src/app_admin/domains/clinic/pages/HomePage/ClinicHomePage.tsx"],
+      "start_state": "A tenant-scoped published result is visible and staff has made explicit recipient and letter choices.",
+      "valid_action": "An authorized teacher or owner previews and confirms one score-result message request.",
+      "invalid_case": "Stale result content, unauthorized role, or missing approved provider identity disables confirm and dispatches nothing.",
+      "persisted_outcome": "The selected student and guardian requests are acknowledged independently and the result remains unchanged.",
+      "reload_assertion": "Fresh result and delivery-log screens show the same recipient-specific states.",
+      "downstream_projections": ["staff score screen", "student result screen", "guardian result screen", "delivery log"],
+      "notification_intent": "Only checked recipients are requested and the teacher memo is explicit per send.",
+      "provider_dispatch_policy": "disabled_in_synthetic_qa",
+      "receipt_policy": {
+        "ttl_seconds": 21600,
+        "notification_mode": "explicit_recipients",
+        "required_cases": [
+          {"case_id": "score-send-valid-teacher", "kind": "valid", "actor": "teacher", "outcome_code": "requested"},
+          {"case_id": "score-send-invalid-staff", "kind": "invalid", "actor": "staff", "outcome_code": "forbidden"}
+        ],
+        "required_projections": [
+          {"projection_id": "owner-delivery-request", "audience": "owner"},
+          {"projection_id": "admin-delivery-request", "audience": "admin"},
+          {"projection_id": "teacher-delivery-request", "audience": "teacher"},
+          {"projection_id": "staff-delivery-log", "audience": "staff"},
+          {"projection_id": "student-published-result", "audience": "student"},
+          {"projection_id": "parent-selected-result", "audience": "parent"}
+        ]
+      },
+      "required_viewports": ["desktop-1366", "mobile-390"],
+      "cleanup_assertion": "Disposable tenant, users, results, delivery rows, queue items, and objects are zero after synthetic QA.",
+      "executable_evidence": [
+        {"path": "e2e/admin/score-alimtalk-personalization.mock.spec.ts", "runner": "pr_route_mock", "proves": ["explicit recipient action", "stale denial", "desktop and mobile confirmation"]}
+      ],
+      "docs": ["docs/USER-JOURNEY-OUTCOME-GATE.md", "docs/STUDENT-GRADE-REPORT.md", "docs/MESSAGING-OPERATIONS.md"]
+    },
+    {
+      "id": "omr-manual-descriptive",
+      "availability": "generally_available",
+      "seal_status": "gap",
+      "known_gaps": ["One same-artifact upload-to-identification-to-subjective-grading-to-publication replay with cross-role reload and zero-residue cleanup is missing."],
+      "actors": ["owner", "admin", "teacher", "staff"],
+      "projection_audiences": ["owner", "admin", "teacher", "staff", "student", "parent"],
+      "role_outcomes": {
+        "owner": "Owner can complete OMR review and manual grading within tenant scope.",
+        "admin": "Admin can complete OMR review and manual grading within tenant scope.",
+        "teacher": "Teacher can complete the authorized grading workflow.",
+        "staff": "Staff can perform permitted OMR operations while restricted grading actions stay denied.",
+        "student": "Student sees only the own published result projection.",
+        "parent": "Parent sees only the selected child's published result projection."
+      },
+      "path_patterns": ["src/app_admin/domains/submissions/**", "src/app_admin/domains/exams/**/*omr*", "src/app_admin/domains/exams/**/*Omr*", "src/app_admin/domains/results/components/ManualExamGrading*", "src/app_admin/domains/results/components/omr-review/**", "src/app_teacher/domains/exams/**/*Omr*", "src/app_teacher/domains/results/**", "src/app_student/domains/exams/**", "src/app_student/domains/grades/**"],
+      "must_match": ["src/app_admin/domains/submissions/components/AdminOmrBatchUploadBox.tsx", "src/app_admin/domains/results/components/ManualExamGradingGrid.tsx", "src/app_admin/domains/results/components/omr-review/OmrReviewWorkspace.tsx", "src/app_teacher/domains/exams/pages/OmrPage.tsx", "src/app_student/domains/exams/pages/ExamResultPage.tsx"],
+      "must_not_match": ["src/app_admin/domains/exams/ExamRoutes.tsx", "e2e/admin/manual-exam-grading.mock.spec.ts", "docs/OMR-BATCH-PROGRESS.md"],
+      "start_state": "A tenant-scoped OMR upload, identified roster entry, and subjective answer are available for staff review.",
+      "valid_action": "Authorized staff identifies the scan, saves objective and descriptive grading, and publishes the result.",
+      "invalid_case": "Ambiguous identity, stale edit version, or unauthorized role stays reviewable without adjacent mutation.",
+      "persisted_outcome": "The UI reports the exact received, processing, completed, needs-identification, failed, and graded states.",
+      "reload_assertion": "Reload restores saved correctness, subjective score, identification, and publication state.",
+      "downstream_projections": ["OMR workbox", "manual grading grid", "student result screen", "guardian result screen"],
+      "notification_intent": "Grading and publication do not silently request a notification.",
+      "provider_dispatch_policy": "disabled_in_synthetic_qa",
+      "receipt_policy": {
+        "ttl_seconds": 21600,
+        "notification_mode": "no_notification",
+        "required_cases": [
+          {"case_id": "omr-grade-valid-teacher", "kind": "valid", "actor": "teacher", "outcome_code": "published"},
+          {"case_id": "omr-grade-invalid-staff", "kind": "invalid", "actor": "staff", "outcome_code": "forbidden"}
+        ],
+        "required_projections": [
+          {"projection_id": "owner-grading-state", "audience": "owner"},
+          {"projection_id": "admin-grading-state", "audience": "admin"},
+          {"projection_id": "teacher-grading-state", "audience": "teacher"},
+          {"projection_id": "staff-review-state", "audience": "staff"},
+          {"projection_id": "student-published-result", "audience": "student"},
+          {"projection_id": "parent-selected-result", "audience": "parent"}
+        ]
+      },
+      "required_viewports": ["desktop-1366", "mobile-390"],
+      "cleanup_assertion": "Disposable scans, submissions, results, tenant users, queue items, and generated objects are zero after synthetic QA.",
+      "executable_evidence": [
+        {"path": "e2e/admin/manual-exam-grading.mock.spec.ts", "runner": "pr_route_mock", "proves": ["save and retry", "reload persistence", "desktop and mobile grading"]},
+        {"path": "e2e/admin/omr-batch-progress.mock.spec.ts", "runner": "pr_route_mock", "proves": ["OMR state projections", "reload recovery", "mobile workbox"]},
+        {"path": "e2e/admin/omr-review-realuse.spec.ts", "runner": "controlled_write", "proves": ["controlled-write review flow"]}
+      ],
+      "docs": ["docs/USER-JOURNEY-OUTCOME-GATE.md", "docs/GRADING-WRONG-NOTE-WORKFLOW.md", "docs/OMR-BATCH-PROGRESS.md"]
+    },
+    {
+      "id": "clinic-state",
+      "availability": "generally_available",
+      "seal_status": "gap",
+      "known_gaps": ["Same-artifact cross-role clinic mutation, reload projection, provider-disabled notification readback, and zero-residue cleanup evidence is missing."],
+      "actors": ["owner", "admin", "teacher", "staff", "student", "parent"],
+      "projection_audiences": ["owner", "admin", "teacher", "staff", "student", "parent"],
+      "role_outcomes": {
+        "owner": "Owner can configure, book, and advance allowed clinic states.",
+        "admin": "Admin can configure, book, and advance allowed clinic states.",
+        "teacher": "Teacher can operate clinic actions allowed by tenant capabilities.",
+        "staff": "Staff can operate clinic actions allowed by tenant capabilities.",
+        "student": "Student can request eligible bookings and see the own clinic state.",
+        "parent": "Parent sees only the selected child's clinic state and allowed actions."
+      },
+      "path_patterns": ["src/app_admin/domains/clinic/**", "src/app_admin/domains/sessions/components/SessionClinicTab*", "src/app_teacher/domains/clinic/**", "src/app_student/domains/clinic/**", "src/app_student/domains/clinic-idcard/**", "src/shared/api/**clinic**", "src/shared/contexts/ClinicHighlight*", "src/shared/contexts/clinicHighlight*", "src/shared/utils/clinicSessionCapacity.ts"],
+      "must_match": ["src/app_admin/domains/clinic/api/clinicParticipants.api.ts", "src/app_admin/domains/sessions/components/SessionClinicTab.tsx", "src/app_teacher/domains/clinic/pages/ClinicPage.tsx", "src/app_student/domains/clinic/pages/ClinicPage.tsx", "src/shared/contexts/ClinicHighlightContext.tsx"],
+      "must_not_match": ["e2e/flows/clinic-roundtrip.spec.ts", "docs/ARRIVAL-OPERATIONS.md", "src/app_admin/domains/exams/ExamRoutes.tsx"],
+      "start_state": "A tenant-scoped clinic session and eligible student booking state are visible.",
+      "valid_action": "An authorized role creates or changes a booking and advances an allowed clinic state.",
+      "invalid_case": "Invalid transition, stale state, capacity conflict, or unauthorized role leaves the prior state visible.",
+      "persisted_outcome": "Booking, participant status, operator outcome, and notification request outcome are displayed separately.",
+      "reload_assertion": "Admin, teacher, student, and guardian views restore the same clinic state after reload.",
+      "downstream_projections": ["operations queue", "teacher clinic view", "student clinic view", "guardian clinic view"],
+      "notification_intent": "Clinic mutation success is never presented as notification success when the request fails.",
+      "provider_dispatch_policy": "disabled_in_synthetic_qa",
+      "receipt_policy": {
+        "ttl_seconds": 21600,
+        "notification_mode": "separate_optional",
+        "required_cases": [
+          {"case_id": "clinic-state-valid-teacher", "kind": "valid", "actor": "teacher", "outcome_code": "advanced"},
+          {"case_id": "clinic-state-invalid-parent", "kind": "invalid", "actor": "parent", "outcome_code": "rejected"}
+        ],
+        "required_projections": [
+          {"projection_id": "owner-clinic-state", "audience": "owner"},
+          {"projection_id": "admin-clinic-state", "audience": "admin"},
+          {"projection_id": "teacher-clinic-state", "audience": "teacher"},
+          {"projection_id": "staff-clinic-state", "audience": "staff"},
+          {"projection_id": "student-clinic-state", "audience": "student"},
+          {"projection_id": "parent-selected-clinic-state", "audience": "parent"}
+        ]
+      },
+      "required_viewports": ["desktop-1366", "mobile-390"],
+      "cleanup_assertion": "Disposable sessions, bookings, participant plans, logs, tenant users, queues, and objects are zero after synthetic QA.",
+      "executable_evidence": [
+        {"path": "e2e/admin/clinic-weekly-multisession.mock.spec.ts", "runner": "pr_route_mock", "proves": ["state transition", "reload projection", "notification partial failure", "desktop and mobile"]},
+        {"path": "e2e/flows/clinic-roundtrip.spec.ts", "runner": "controlled_write", "proves": ["controlled-write clinic roundtrip"]}
+      ],
+      "docs": ["docs/USER-JOURNEY-OUTCOME-GATE.md", "src/app_admin/domains/clinic/README.md", "src/app_teacher/domains/clinic/README.md", "src/app_student/domains/clinic/README.md"]
+    },
+    {
+      "id": "messaging-template-recipient-log",
+      "availability": "generally_available",
+      "seal_status": "gap",
+      "known_gaps": ["Signed immutable template identity through request, worker, recipient log reload, provider-disabled readback, and zero-residue cleanup evidence is missing."],
+      "actors": ["owner", "admin", "teacher"],
+      "projection_audiences": ["owner", "admin", "teacher", "staff", "student", "parent"],
+      "role_outcomes": {
+        "owner": "Owner can request an exact approved notification and inspect provider evidence.",
+        "admin": "Admin can request an exact approved notification and inspect provider evidence.",
+        "teacher": "Teacher can request an exact approved notification within tenant scope.",
+        "staff": "Staff direct send is denied while explicitly permitted log projections remain scoped.",
+        "student": "Student is only an explicitly selected recipient for supported events.",
+        "parent": "Parent is only an explicitly selected recipient for supported events."
+      },
+      "path_patterns": ["src/app_admin/domains/messages/**", "src/app_admin/domains/admin-notifications/**", "src/app_teacher/domains/comms/**", "src/app_teacher/domains/notifications/**", "src/app_student/domains/notifications/**", "src/shared/messaging/**", "src/shared/api/contracts/notificationDispatch.ts", "src/shared/api/contracts/notifications.ts", "src/shared/ui/notifications/**", "src/shared/hooks/useOperationalNotificationCounts.ts"],
+      "must_match": ["src/app_admin/domains/messages/components/SendMessageModal.tsx", "src/app_teacher/domains/comms/pages/MessagingSettingsPage.tsx", "src/app_teacher/domains/notifications/pages/NotificationsPage.tsx", "src/app_student/domains/notifications/pages/NotificationsPage.tsx", "src/shared/ui/notifications/NotificationPreviewModal.tsx"],
+      "must_not_match": ["e2e/admin/messaging-log-ux.mock.spec.ts", "docs/MESSAGING-OPERATIONS.md", "src/app_admin/domains/clinic/pages/HomePage/ClinicHomePage.tsx"],
+      "start_state": "An explicit event, recipient set, letter snapshot, and exact approved provider identity are visible to an authorized actor.",
+      "valid_action": "The actor preflights and confirms the same immutable notification request.",
+      "invalid_case": "Missing, stale, mismatched, substituted, or unauthorized identity disables confirm and dispatches nothing.",
+      "persisted_outcome": "Recipient-specific request, retry, failure, and redacted provider evidence appear without becoming a future-send default.",
+      "reload_assertion": "Reload preserves delivery status, role-scoped log detail, and the separation between saved letter and provider envelope.",
+      "downstream_projections": ["teacher request result", "owner messaging summary", "role-scoped delivery log"],
+      "notification_intent": "Only the explicit event and recipients may dispatch; no template, content, channel, or recipient fallback is allowed.",
+      "provider_dispatch_policy": "disabled_in_synthetic_qa",
+      "receipt_policy": {
+        "ttl_seconds": 21600,
+        "notification_mode": "explicit_recipients",
+        "required_cases": [
+          {"case_id": "message-request-valid-teacher", "kind": "valid", "actor": "teacher", "outcome_code": "requested"},
+          {"case_id": "message-request-invalid-staff", "kind": "invalid", "actor": "staff", "outcome_code": "forbidden"}
+        ],
+        "required_projections": [
+          {"projection_id": "owner-delivery-log", "audience": "owner"},
+          {"projection_id": "admin-delivery-log", "audience": "admin"},
+          {"projection_id": "teacher-delivery-log", "audience": "teacher"},
+          {"projection_id": "staff-scoped-delivery-log", "audience": "staff"},
+          {"projection_id": "student-recipient-state", "audience": "student"},
+          {"projection_id": "parent-recipient-state", "audience": "parent"}
+        ]
+      },
+      "required_viewports": ["desktop-1366", "mobile-390"],
+      "cleanup_assertion": "Disposable templates, requests, logs, tokens, tenant users, queues, and objects are zero after synthetic QA.",
+      "executable_evidence": [
+        {"path": "e2e/admin/messaging-operations-control.mock.spec.ts", "runner": "pr_route_mock", "proves": ["activation state", "preflight UI", "desktop and mobile"]},
+        {"path": "e2e/admin/messaging-log-ux.mock.spec.ts", "runner": "pr_route_mock", "proves": ["role-scoped log", "redacted detail", "desktop and mobile"]},
+        {"path": "e2e/admin/messaging-direct-alimtalk.mock.spec.ts", "runner": "pr_route_mock", "proves": ["authorized direct entry", "disabled-state denial"]}
+      ],
+      "docs": ["docs/USER-JOURNEY-OUTCOME-GATE.md", "docs/MESSAGING-OPERATIONS.md"]
+    }
+  ]
+}
