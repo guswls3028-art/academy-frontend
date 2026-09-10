@@ -36,8 +36,9 @@ function isExactSignedPosterShape(
       && /^[1-9][0-9]*$/.test(rawExpiry) && Number.isSafeInteger(expiresAt)
       && expiresAt - now > 690
       && expiresAt - now <= MAX_SIGNED_POSTER_TTL_SECONDS + MAX_CROSS_HOST_CLOCK_SKEW_SECONDS
-      && /^[1-9][0-9]*$/.test(rawVersion) && Number.isSafeInteger(version)
-      && version >= now - 1_800 && version <= now + 60;
+      // `v` is the source-object content version, not a URL issuance time. It
+      // can legitimately predate this QA run; freshness is enforced by `exp`.
+      && /^[1-9][0-9]*$/.test(rawVersion) && Number.isSafeInteger(version);
   } catch {
     return false;
   }

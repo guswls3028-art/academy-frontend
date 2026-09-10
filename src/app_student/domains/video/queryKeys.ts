@@ -1,11 +1,19 @@
+import type { User } from "@/auth/context/AuthContext";
+import { getParentStudentId } from "@student/shared/api/parentStudentSelection";
+
+export function studentVideoQueryScope(user: Pick<User, "id" | "tenantRole"> | null): string {
+  const selectedStudentId = user?.tenantRole === "parent" ? getParentStudentId() : null;
+  return `${user?.tenantRole ?? "anonymous"}:${user?.id ?? "none"}:${selectedStudentId ?? "self"}`;
+}
+
 export const studentVideoQueryKeys = {
-  me: ["student-video-me"] as const,
-  stats: ["student-video-stats"] as const,
-  sessionVideos: (sessionId: number | null | undefined, enrollmentId?: number | null) =>
-    ["student-session-videos", sessionId, enrollmentId ?? null] as const,
-  playback: (videoId: number | null | undefined, enrollmentId?: number | null) =>
-    ["student-video-playback", videoId, enrollmentId ?? null] as const,
-  currentAccess: (videoId: number | null | undefined, enrollmentId?: number | null) =>
-    ["student-video-current-access", videoId, enrollmentId ?? null] as const,
-  comments: (videoId: number) => ["video-comments", videoId] as const,
+  me: (scope: string) => ["student-video-me", scope] as const,
+  stats: (scope: string) => ["student-video-stats", scope] as const,
+  sessionVideos: (scope: string, sessionId: number | null | undefined, enrollmentId?: number | null) =>
+    ["student-session-videos", scope, sessionId, enrollmentId ?? null] as const,
+  playback: (scope: string, videoId: number | null | undefined, enrollmentId?: number | null) =>
+    ["student-video-playback", scope, videoId, enrollmentId ?? null] as const,
+  currentAccess: (scope: string, videoId: number | null | undefined, enrollmentId?: number | null) =>
+    ["student-video-current-access", scope, videoId, enrollmentId ?? null] as const,
+  comments: (scope: string, videoId: number) => ["video-comments", scope, videoId] as const,
 };

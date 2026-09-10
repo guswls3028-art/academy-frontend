@@ -47,6 +47,7 @@ export type VideoMetaLite = {
   youtube_url?: string | null;
   thumbnail_url?: string | null;
   hls_url?: string | null;
+  progress?: number;
 };
 
 export type PlaybackBootstrap = {
@@ -183,6 +184,7 @@ export default function StudentVideoPlayer({
     token: bootstrap.token,
     enrollmentId,
     initialPosition,
+    initialProgress: video.progress,
     isYoutube,
     youtubeVideoId: video.youtube_video_id || bootstrap.youtube_video_id || policy.source?.youtube_video_id || null,
   });
@@ -193,6 +195,7 @@ export default function StudentVideoPlayer({
     token: bootstrap.token,
     enrollmentId,
     initialPosition,
+    initialProgress: video.progress,
     isYoutube,
     youtubeVideoId: video.youtube_video_id || bootstrap.youtube_video_id || policy.source?.youtube_video_id || null,
   };
@@ -209,6 +212,7 @@ export default function StudentVideoPlayer({
       token: config.token,
       enrollmentId: config.enrollmentId,
       initialPosition: config.initialPosition,
+      initialProgress: config.initialProgress,
       onFatal: (reason: string) => onFatalRef.current?.(reason),
       onLeaveProgress: (data: LeaveProgressPayload) => onLeaveProgressRef.current?.(data),
     };

@@ -19,7 +19,8 @@ import {
   isStudentVideoBlocked,
   isStudentVideoComplete,
 } from "../utils/videoAccess";
-import { studentVideoQueryKeys } from "../queryKeys";
+import { studentVideoQueryKeys, studentVideoQueryScope } from "../queryKeys";
+import { useAuthContext } from "@/auth/context/AuthContext";
 
 function progressWidthStyle(value: number): CSSProperties {
   return { "--video-progress": `${Math.min(Math.max(value, 0), 100)}%` } as CSSProperties;
@@ -175,6 +176,8 @@ export default function CourseDetailPage() {
   const { lectureId } = useParams<{ lectureId?: string }>();
   const location = useLocation();
   const nav = useNavigate();
+  const { user } = useAuthContext();
+  const queryScope = studentVideoQueryScope(user);
   // 공개 영상: 정적 라우트 video/courses/public 또는 pathname에 courses/public 포함 시
   const pathname = location.pathname.replace(/\/$/, "");
   const isPublic =
@@ -184,7 +187,7 @@ export default function CourseDetailPage() {
   const lectureIdNum = isPublic ? null : (lectureId ? parseInt(lectureId, 10) : null);
 
   const videoMeQ = useQuery({
-    queryKey: studentVideoQueryKeys.me,
+    queryKey: studentVideoQueryKeys.me(queryScope),
     queryFn: fetchVideoMe,
   });
   const videoMe = videoMeQ.data;
@@ -212,7 +215,7 @@ export default function CourseDetailPage() {
   // 모든 세션의 영상을 한꺼번에 fetch (N+1 → 부모에서 일괄 관리)
   const sessionVideoQueries = useQueries({
     queries: sessionsForQuery.map((s) => ({
-      queryKey: studentVideoQueryKeys.sessionVideos(s.id, enrollmentIdForQuery),
+      queryKey: studentVideoQueryKeys.sessionVideos(queryScope, s.id, enrollmentIdForQuery),
       queryFn: () => fetchStudentSessionVideos(s.id, enrollmentIdForQuery ?? undefined),
       enabled: !isLoading && !!s.id && s.id > 0,
       staleTime: 30_000,

@@ -24,13 +24,14 @@ test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off
 
 type Paged<T> = { count: number; results: T[] };
 type Participant = { id: number; status: string; student: number };
-type ScheduledNotification = { trigger: string; target_type: string };
 type NotificationLog = {
   notification_type: string;
   origin_id: string;
   provider_message_id: string;
+  recipient_summary: string;
   success: boolean;
   target_type: string;
+  template_summary: string;
 };
 
 const marker = `[required-cancel-${Date.now()}]`;
@@ -87,8 +88,8 @@ async function cleanup(request: APIRequestContext): Promise<void> {
     }
   };
 
-  for (const id of created.participantIds) await remove("DELETE", `/clinic/participants/${id}/`);
-  for (const id of [...created.clinicSessionIds].reverse()) await remove("DELETE", `/clinic/sessions/${id}/`);
+  // Permanently remove the disposable student first so its participant rows
+  // cascade without exercising the user-facing session-cancellation notifier.
   if (created.family) {
     try {
       const deletion = await cleanupQaFamily(request, created.adminAccess, created.family);
@@ -97,6 +98,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
       failures.push(`family cleanup -> ${error instanceof Error ? error.message : String(error)}`);
     }
   }
+  for (const id of [...created.clinicSessionIds].reverse()) await remove("DELETE", `/clinic/sessions/${id}/`);
   if (created.examId && created.sourceSessionId) {
     await remove("DELETE", `/exams/${created.examId}/?session_id=${created.sourceSessionId}`);
   }
@@ -294,20 +296,6 @@ test.describe.serial("[development] 필수 클리닉 2회 예약 중 1회 취소
       status: expect.stringMatching(/^(pending|booked)$/),
     }));
 
-    let cancelledRows: ScheduledNotification[] = [];
-    await waitForCondition(async () => {
-      const scheduled = await expectApi<Paged<ScheduledNotification>>(
-        request,
-        "GET",
-        "/messaging/scheduled/?scope=clinic&page_size=100",
-        admin.access,
-      );
-      cancelledRows = scheduled.results.filter((row) => row.trigger === "clinic_cancelled");
-      return cancelledRows.length === 2;
-    }, { timeoutMs: 30_000, intervalMs: 500, description: "two cancellation outboxes" });
-    expect(cancelledRows).toHaveLength(2);
-    expect(cancelledRows.map((row) => row.target_type).sort()).toEqual(["parent", "student"]);
-
     const originPrefix = `clinic_participant:${cancelParticipantId}:clinic_cancelled`;
     let deliveryRows: NotificationLog[] = [];
     await waitForCondition(async () => {
@@ -322,6 +310,10 @@ test.describe.serial("[development] 필수 클리닉 2회 예약 중 1회 취소
     }, { timeoutMs: 90_000, intervalMs: 1_000, description: "two mock cancellation deliveries" });
     expect(deliveryRows).toHaveLength(2);
     expect(deliveryRows.map((row) => row.target_type).sort()).toEqual(["parent", "student"]);
+    expect(new Set(deliveryRows.map((row) => row.recipient_summary)).size).toBe(2);
+    expect(deliveryRows.every((row) => row.recipient_summary.length > 0)).toBe(true);
+    expect(new Set(deliveryRows.map((row) => row.template_summary)).size).toBe(1);
+    expect(deliveryRows.every((row) => row.template_summary.length > 0)).toBe(true);
     expect(deliveryRows.every((row) => row.success)).toBe(true);
     expect(deliveryRows.every((row) => row.origin_id.startsWith(originPrefix))).toBe(true);
     expect(deliveryRows.every((row) => row.provider_message_id.startsWith("mock-"))).toBe(true);

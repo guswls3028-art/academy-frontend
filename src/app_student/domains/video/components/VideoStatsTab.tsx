@@ -9,7 +9,8 @@ import { StatCard, StatGrid } from "@student/shared/ui/components/StatCard";
 import ProgressRing from "@student/shared/ui/components/ProgressRing";
 import { IconVideo } from "@student/shared/ui/icons/Icons";
 import { fetchVideoStats } from "../api/video.api";
-import { studentVideoQueryKeys } from "../queryKeys";
+import { studentVideoQueryKeys, studentVideoQueryScope } from "../queryKeys";
+import { useAuthContext } from "@/auth/context/AuthContext";
 
 function formatDurationHM(seconds: number): string {
   if (seconds <= 0) return "0분";
@@ -24,8 +25,10 @@ function progressWidthStyle(value: number): CSSProperties {
 }
 
 export default function VideoStatsTab() {
+  const { user } = useAuthContext();
+  const queryScope = studentVideoQueryScope(user);
   const statsQ = useQuery({
-    queryKey: studentVideoQueryKeys.stats,
+    queryKey: studentVideoQueryKeys.stats(queryScope),
     queryFn: fetchVideoStats,
     staleTime: 60 * 1000,
   });

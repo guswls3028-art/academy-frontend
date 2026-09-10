@@ -22,7 +22,7 @@ import {
   studentVideoUnavailableLabel,
 } from "../utils/videoAccess";
 import { sortStudentVideos } from "../utils/videoSort";
-import { studentVideoQueryKeys } from "../queryKeys";
+import { studentVideoQueryKeys, studentVideoQueryScope } from "../queryKeys";
 import { getStudentCurrentVideoStorageKey } from "../utils/videoPlaybackStorage";
 
 function progressWidthStyle(value: number): CSSProperties {
@@ -174,6 +174,7 @@ export default function SessionDetailPage() {
   const nav = useNavigate();
   const qc = useQueryClient();
   const { user } = useAuthContext();
+  const queryScope = studentVideoQueryScope(user);
   const routeState = (location.state || {}) as {
     sessionTitle?: string;
     courseTitle?: string;
@@ -222,7 +223,7 @@ export default function SessionDetailPage() {
   }, [currentVideoStorageKey]);
 
   const { data: videosData, isLoading, isError, error: queryError, refetch } = useQuery({
-    queryKey: studentVideoQueryKeys.sessionVideos(sessionIdNum, enrollmentId),
+    queryKey: studentVideoQueryKeys.sessionVideos(queryScope, sessionIdNum, enrollmentId),
     queryFn: () => fetchStudentSessionVideos(sessionIdNum!, enrollmentId),
     enabled: !!sessionIdNum,
     retry: false,
@@ -345,7 +346,7 @@ export default function SessionDetailPage() {
                   isCurrent={isCurrent}
                   onPrefetch={(vid) => {
                     qc.prefetchQuery({
-                      queryKey: studentVideoQueryKeys.playback(vid, enrollmentId),
+                      queryKey: studentVideoQueryKeys.playback(queryScope, vid, enrollmentId),
                       queryFn: () => fetchStudentVideoPlayback(vid, enrollmentId ?? undefined),
                       staleTime: 60_000,
                     });

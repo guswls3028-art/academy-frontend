@@ -32,17 +32,17 @@ export default function TeacherDrawer({
   const panelRef = useRef<HTMLDivElement>(null);
   const { clearAuth, user } = useAuth();
   const [expandedGroup, setExpandedGroup] = useState("오늘 업무");
+  const activeGroupTitle = menuGroups.find((group) =>
+    group.items.some((item) => {
+      if (!item.path) return false;
+      if (item.path === "/workspace/mobile") return location.pathname === "/workspace/mobile";
+      return location.pathname.startsWith(item.path);
+    }),
+  )?.title;
 
   useEffect(() => {
-    const activeGroup = menuGroups.find((group) =>
-      group.items.some((item) => {
-        if (!item.path) return false;
-        if (item.path === "/workspace/mobile") return location.pathname === "/workspace/mobile";
-        return location.pathname.startsWith(item.path);
-      }),
-    );
-    if (activeGroup) setExpandedGroup(activeGroup.title);
-  }, [location.pathname, menuGroups]);
+    if (activeGroupTitle) setExpandedGroup(activeGroupTitle);
+  }, [location.pathname, activeGroupTitle]);
 
   // Body scroll lock
   useEffect(() => {

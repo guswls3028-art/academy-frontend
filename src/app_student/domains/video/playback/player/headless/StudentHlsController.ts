@@ -153,6 +153,7 @@ export interface ControllerOptions {
   token: string;
   enrollmentId: number | null;
   initialPosition?: number;
+  initialProgress?: number;
   onFatal?: (reason: string) => void;
   onLeaveProgress?: (data: { progress?: number; last_position?: number; completed?: boolean }) => void;
 }
@@ -617,14 +618,12 @@ export class StudentHlsController {
     const currentTime = Number(this.el.currentTime || 0);
     const maxWatched = Math.max(0, this.maxWatchedRef);
     const dur = Number(this.el.duration);
-    const progressPercent = dur > 0 && Number.isFinite(dur) ? Math.min(100, (maxWatched / dur) * 100) : 0;
-    const completed = dur > 0 && maxWatched >= dur - 0.5;
-    // last_position: 현재 재생 위치 (이어보기용), progress: 최대 시청 구간 기반 (진행률용)
-    this.opts.onLeaveProgress({
-      progress: progressPercent,
-      last_position: Math.round(currentTime),
-      completed,
-    });
+    // Do not overwrite server progress with a synthetic 0% before metadata is ready.
+    if (!(dur > 0 && Number.isFinite(dur))) return;
+    const baselineProgress = Math.min(100, Math.max(0, Number(this.opts.initialProgress) || 0));
+    const progressPercent = Math.max(baselineProgress, Math.min(100, (maxWatched / dur) * 100));
+    const completed = baselineProgress >= 100 || maxWatched >= dur - 0.5;
+    this.opts.onLeaveProgress({ progress: progressPercent, last_position: Math.round(currentTime), completed });
   }
 
   private lastSavedPosition = -1;

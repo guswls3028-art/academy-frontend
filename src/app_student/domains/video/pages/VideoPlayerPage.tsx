@@ -38,7 +38,7 @@ import {
   studentVideoUnavailableLabel,
 } from "../utils/videoAccess";
 import { sortStudentVideos } from "../utils/videoSort";
-import { studentVideoQueryKeys } from "../queryKeys";
+import { studentVideoQueryKeys, studentVideoQueryScope } from "../queryKeys";
 import {
   getStoredVideoPosition,
   getStudentCurrentVideoStorageKey,
@@ -139,6 +139,7 @@ export default function VideoPlayerPage() {
   const params = useParams();
   const queryClient = useQueryClient();
   const { user } = useAuthContext();
+  const queryScope = studentVideoQueryScope(user);
 
   const videoId =
     safeParseInt(params.videoId) ??
@@ -158,7 +159,7 @@ export default function VideoPlayerPage() {
 
   /* ─── Playback 데이터 (React Query) ─── */
   const playbackQuery = useQuery({
-    queryKey: studentVideoQueryKeys.playback(videoId, enrollmentId),
+    queryKey: studentVideoQueryKeys.playback(queryScope, videoId, enrollmentId),
     queryFn: () => fetchStudentVideoPlayback(videoId!, enrollmentId ?? undefined),
     enabled: !!videoId,
     staleTime: 0,
@@ -221,6 +222,7 @@ export default function VideoPlayerPage() {
       session_id: Number.isFinite(sessionIdValue) ? sessionIdValue : null,
       enrollment_id: vd.enrollment_id ?? null,
       last_position: vd.last_position ?? 0,
+      progress: vd.progress ?? 0,
       view_count: vd.view_count ?? 0,
       like_count: vd.like_count ?? 0,
       comment_count: vd.comment_count ?? 0,
@@ -273,7 +275,7 @@ export default function VideoPlayerPage() {
 
   /* ─── 세션 영상 목록 (React Query, dependent) ─── */
   const sessionVideosQuery = useQuery({
-    queryKey: studentVideoQueryKeys.sessionVideos(sessionId, effectiveEnrollmentId ?? null),
+    queryKey: studentVideoQueryKeys.sessionVideos(queryScope, sessionId, effectiveEnrollmentId ?? null),
     queryFn: () => fetchStudentSessionVideos(sessionId!, effectiveEnrollmentId ?? undefined),
     enabled: !!sessionId && !!videoId,
     staleTime: 60_000,
@@ -288,7 +290,7 @@ export default function VideoPlayerPage() {
   const onLikeConfirmed = useCallback((confirmed: ConfirmedLikeState) => {
     if (!videoId) return;
     queryClient.setQueryData<StudentVideoPlayback>(
-      studentVideoQueryKeys.playback(videoId, enrollmentId),
+      studentVideoQueryKeys.playback(queryScope, videoId, enrollmentId),
       (current) => current ? {
         ...current,
         video: {
@@ -298,8 +300,8 @@ export default function VideoPlayerPage() {
         },
       } : current,
     );
-    queryClient.setQueriesData<StudentSessionVideosResponse>(
-      { queryKey: ["student-session-videos"] },
+    if (sessionId != null) queryClient.setQueryData<StudentSessionVideosResponse>(
+      studentVideoQueryKeys.sessionVideos(queryScope, sessionId, effectiveEnrollmentId ?? null),
       (current) => current ? {
         ...current,
         items: current.items.map((item) => item.id === videoId ? {
@@ -309,7 +311,7 @@ export default function VideoPlayerPage() {
         } : item),
       } : current,
     );
-  }, [enrollmentId, queryClient, videoId]);
+  }, [effectiveEnrollmentId, enrollmentId, queryClient, queryScope, sessionId, videoId]);
 
   /* ─── 이어보기 위치 계산 ─── */
   const initialPosition = useMemo(() => {
@@ -328,7 +330,7 @@ export default function VideoPlayerPage() {
     },
     onSuccess: (confirmed) => {
       if (sessionId == null) return;
-      const key = studentVideoQueryKeys.sessionVideos(sessionId, effectiveEnrollmentId ?? null);
+      const key = studentVideoQueryKeys.sessionVideos(queryScope, sessionId, effectiveEnrollmentId ?? null);
       const progress = Number.isFinite(confirmed.progress_percent)
         ? confirmed.progress_percent
         : confirmed.progress;
@@ -390,7 +392,7 @@ export default function VideoPlayerPage() {
     policyTransitionRef.current = null;
   }, [policyTransitionScopeKey]);
   const currentAccessQuery = useQuery({
-    queryKey: studentVideoQueryKeys.currentAccess(videoId, effectiveEnrollmentId),
+    queryKey: studentVideoQueryKeys.currentAccess(queryScope, videoId, effectiveEnrollmentId),
     queryFn: () => checkStudentVideoAccess(videoId!, effectiveEnrollmentId),
     enabled: !!videoId && !!playbackQuery.data && !fatalError,
     retry: false,
@@ -475,7 +477,7 @@ export default function VideoPlayerPage() {
         }
         let applied = false;
         queryClient.setQueryData<StudentVideoPlayback>(
-          studentVideoQueryKeys.playback(videoId, enrollmentId),
+          studentVideoQueryKeys.playback(queryScope, videoId, enrollmentId),
           (current) => {
             const currentMode = current?.policy?.access_mode ?? "FREE_REVIEW";
             const currentMonitoring = current?.policy?.monitoring_enabled ?? false;
@@ -556,6 +558,7 @@ export default function VideoPlayerPage() {
     playbackData?.playback_session_id,
     policyTransitionScopeKey,
     queryClient,
+    queryScope,
     refetchPlayback,
     videoId,
   ]);

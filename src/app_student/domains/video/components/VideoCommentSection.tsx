@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { useConfirm } from "@/shared/ui/confirm";
+import { useAuthContext } from "@/auth/context/AuthContext";
 import { cx } from "@/shared/utils/cx";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
@@ -29,7 +30,7 @@ import {
   type VideoCommentItem,
 } from "../api/video.api";
 import { timeAgo } from "../utils/timeAgo";
-import { studentVideoQueryKeys } from "../queryKeys";
+import { studentVideoQueryKeys, studentVideoQueryScope } from "../queryKeys";
 import styles from "./VideoCommentSection.module.css";
 
 type CommentAvatarProps = {
@@ -71,11 +72,12 @@ function CommentActionButton({ children, disabled = false, icon, onClick }: Comm
 type CommentRowProps = {
   comment: VideoCommentItem;
   videoId: number;
+  queryScope: string;
   isReply?: boolean;
   onReply?: (parentId: number) => void;
 };
 
-function CommentRow({ comment, videoId, isReply = false, onReply }: CommentRowProps) {
+function CommentRow({ comment, videoId, queryScope, isReply = false, onReply }: CommentRowProps) {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const [editMode, setEditMode] = useState(false);
@@ -85,7 +87,7 @@ function CommentRow({ comment, videoId, isReply = false, onReply }: CommentRowPr
   const { mutate: saveComment, isPending: isSaving } = useMutation({
     mutationFn: (content: string) => editVideoComment(comment.id, content),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: studentVideoQueryKeys.comments(videoId) });
+      void qc.invalidateQueries({ queryKey: studentVideoQueryKeys.comments(queryScope, videoId) });
       setEditMode(false);
       studentToast.success("수정되었습니다.");
     },
@@ -97,7 +99,7 @@ function CommentRow({ comment, videoId, isReply = false, onReply }: CommentRowPr
   const { mutate: removeComment, isPending: isDeleting } = useMutation({
     mutationFn: () => deleteVideoComment(comment.id),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: studentVideoQueryKeys.comments(videoId) });
+      void qc.invalidateQueries({ queryKey: studentVideoQueryKeys.comments(queryScope, videoId) });
       studentToast.success("삭제되었습니다.");
     },
     onError: () => {
@@ -238,7 +240,7 @@ function CommentRow({ comment, videoId, isReply = false, onReply }: CommentRowPr
         )}
 
         {showReplies && replies.map((reply) => (
-          <CommentRow key={reply.id} comment={reply} videoId={videoId} isReply />
+          <CommentRow key={reply.id} comment={reply} videoId={videoId} queryScope={queryScope} isReply />
         ))}
       </div>
     </div>
@@ -252,11 +254,13 @@ type CreateCommentInput = {
 
 export default function VideoCommentSection({ videoId }: { videoId: number }) {
   const qc = useQueryClient();
+  const { user } = useAuthContext();
+  const queryScope = studentVideoQueryScope(user);
   const [newComment, setNewComment] = useState("");
   const [replyTo, setReplyTo] = useState<number | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: studentVideoQueryKeys.comments(videoId),
+    queryKey: studentVideoQueryKeys.comments(queryScope, videoId),
     queryFn: () => fetchVideoComments(videoId),
     enabled: videoId > 0,
   });
@@ -264,7 +268,7 @@ export default function VideoCommentSection({ videoId }: { videoId: number }) {
   const { mutate: createComment, isPending: isCreating } = useMutation({
     mutationFn: ({ content, parentId }: CreateCommentInput) => createVideoComment(videoId, content, parentId),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: studentVideoQueryKeys.comments(videoId) });
+      void qc.invalidateQueries({ queryKey: studentVideoQueryKeys.comments(queryScope, videoId) });
       setNewComment("");
       setReplyTo(null);
     },
@@ -349,6 +353,7 @@ export default function VideoCommentSection({ videoId }: { videoId: number }) {
               key={comment.id}
               comment={comment}
               videoId={videoId}
+              queryScope={queryScope}
               onReply={(parentId) => setReplyTo(parentId)}
             />
           ))}

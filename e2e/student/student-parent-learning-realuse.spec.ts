@@ -26,6 +26,7 @@ import {
 } from "../helpers/qaStudentParentScenario";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle } from "../helpers/wait";
+import { guardUnmockedYouTubeRequests, installYouTubeSdkFixture } from "../helpers/youtubeSdkFixture";
 
 test.setTimeout(300_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -233,6 +234,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
 
   test("강의·출결·영상 진행률·자료를 자녀별로 저장/조회하고 reload/relogin한다", async ({ page, request }) => {
     const boundary = await installQaStudentParentBoundary(page, request);
+    const unexpectedYouTubeRequests = await guardUnmockedYouTubeRequests(page);
     await page.route(/https:\/\/(?:i\.ytimg\.com|img\.youtube\.com)\//, async (route) => {
       await route.fulfill({
         status: 200,
@@ -240,6 +242,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
         body: Buffer.from("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==", "base64"),
       });
     });
+    const youtube = await installYouTubeSdkFixture(page);
     const browser = attachStrictBrowserGuards(page);
     const admin = await loginAdmin(request);
     created.adminAccess = admin.access;
@@ -337,6 +340,9 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     await expect(page.getByText("55% 진행", { exact: true }).first()).toBeVisible();
     await page.getByText(videoTitle, { exact: true }).click();
     await expect(page.getByRole("heading", { name: videoTitle })).toBeVisible();
+    await expect.poll(async () => (await youtube.snapshot()).players.some((player) => player.ready && !player.destroyed)).toBe(true);
+    await expect(page.getByText("재생 화면을 준비하고 있어요…", { exact: true })).toBeHidden();
+    await expect(page.getByRole("button", { name: "재생", exact: true })).toBeVisible();
     await page.goBack({ waitUntil: "domcontentloaded" });
     await selectParentStudentThroughUi(page, sibling);
     await gotoAndSettle(page, `${QA_BASE}/student/attendance`, { timeout: 30_000 });
@@ -385,5 +391,6 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     await assertNoHorizontalOverflow(page);
     boundary.assertClean();
     browser.assertZeroDefects();
+    expect(unexpectedYouTubeRequests).toEqual([]);
   });
 });
