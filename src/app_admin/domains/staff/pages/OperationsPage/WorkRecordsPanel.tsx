@@ -2,8 +2,8 @@
 // 월 전체 근무기록 — 섹션 카드 스타일 (staff-area), 전역 DS Button 사용
 
 import { useState } from "react";
-import { Pencil, Plus } from "lucide-react";
-import { Button, EmptyState } from "@/shared/ui/ds";
+import { AlertTriangle, Pencil, Plus } from "lucide-react";
+import { Badge, Button, EmptyState } from "@/shared/ui/ds";
 import { cx } from "@/shared/utils/cx";
 import { useConfirm } from "@/shared/ui/confirm";
 import { LockBadge } from "../../components/StatusBadge";
@@ -31,6 +31,7 @@ export default function WorkRecordsPanel() {
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<WorkRecord | null>(null);
+  const [reviewOnly, setReviewOnly] = useState(false);
 
   if (listQ.isLoading) {
     return (
@@ -58,6 +59,22 @@ export default function WorkRecordsPanel() {
   }
 
   const rows = listQ.data ?? [];
+  const duplicateKeys = rows.reduce((counts, record) => {
+    const key = [record.date, record.start_time, record.end_time ?? "OPEN", record.work_type].join("|");
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+    return counts;
+  }, new Map<string, number>());
+  const risksFor = (record: WorkRecord) => {
+    const risks: string[] = [];
+    const key = [record.date, record.start_time, record.end_time ?? "OPEN", record.work_type].join("|");
+    if ((duplicateKeys.get(key) ?? 0) > 1) risks.push("중복 의심");
+    if (!record.end_time) risks.push("미퇴근");
+    if ((record.work_hours ?? 0) >= 12) risks.push("12시간 이상");
+    if (record.is_manually_edited) risks.push("관리자 수정");
+    return risks;
+  };
+  const reviewCount = rows.reduce((count, record) => count + (risksFor(record).length > 0 ? 1 : 0), 0);
+  const visibleRows = reviewOnly ? rows.filter((record) => risksFor(record).length > 0) : rows;
 
   return (
     <section
@@ -111,6 +128,15 @@ export default function WorkRecordsPanel() {
             마감 상태를 확인하지 못했습니다. 새로고침 후 다시 시도해 주세요.
           </p>
         )}
+        {reviewCount > 0 && (
+          <div className="flex w-full flex-wrap items-center gap-2 rounded-lg border border-[color-mix(in_srgb,var(--color-warning)_35%,var(--color-border-divider))] bg-[color-mix(in_srgb,var(--color-warning)_7%,var(--color-bg-surface))] px-3 py-2 text-[11px] text-[var(--color-text-secondary)]">
+            <AlertTriangle size={15} className="shrink-0 text-[var(--color-warning-strong)]" />
+            <span className="min-w-0 flex-1">지급 전 확인할 기록 {reviewCount}건 · 경고는 기록을 숨기거나 수정을 막지 않습니다.</span>
+            <Button intent={reviewOnly ? "primary" : "secondary"} size="sm" onClick={() => setReviewOnly((value) => !value)}>
+              {reviewOnly ? "전체 기록" : "확인 기록만"}
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className={cx("staff-section-card__body", locked && "opacity-95")}>
@@ -120,7 +146,9 @@ export default function WorkRecordsPanel() {
           </div>
         ) : (
           <div className="space-y-3">
-            {rows.map((r) => (
+            {visibleRows.map((r) => {
+              const risks = risksFor(r);
+              return (
               <div
                 key={r.id}
                 data-testid={`staff-work-record-${r.id}`}
@@ -132,14 +160,21 @@ export default function WorkRecordsPanel() {
                     className="min-w-0"
                   >
                     <div className="staff-body font-semibold">
-                      {r.date} · {r.work_type_name}
+                      {formatDateWithWeekday(r.date)} · {r.work_type_name}
                     </div>
                     <div className="staff-helper mt-1">
-                      {r.start_time} ~ {r.end_time}{" "}
-                      {typeof r.break_minutes === "number" && r.break_minutes > 0
-                        ? `· 휴게 ${r.break_minutes}분`
-                        : ""}
+                      {formatTime(r.start_time)} ~ {r.end_time ? formatTime(r.end_time) : "근무 중"}
+                      {` · 휴게 ${(r.break_minutes ?? 0) + (r.meal_minutes ?? 0)}분`}
                     </div>
+                    <div className="staff-helper mt-1 tabular-nums">
+                      근무 {r.work_hours != null ? `${r.work_hours.toFixed(2)}시간` : "계산 전"}
+                      {` · 적용 시급 ${r.resolved_hourly_wage?.toLocaleString() ?? "-"}원`}
+                    </div>
+                    {risks.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1" aria-label="지급 전 확인 항목">
+                        {risks.map((risk) => <Badge key={risk} tone="warning" variant="soft">{risk}</Badge>)}
+                      </div>
+                    )}
                     {!!r.memo && (
                       <div className="staff-helper mt-1">메모: {r.memo}</div>
                     )}
@@ -212,7 +247,8 @@ export default function WorkRecordsPanel() {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -229,4 +265,16 @@ export default function WorkRecordsPanel() {
       </div>
     </section>
   );
+}
+
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
+function formatDateWithWeekday(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return value;
+  return `${month}/${day}(${WEEKDAYS[new Date(year, month - 1, day).getDay()]})`;
+}
+
+function formatTime(value: string) {
+  return value.slice(0, 5);
 }

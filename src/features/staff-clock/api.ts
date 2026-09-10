@@ -21,7 +21,13 @@ export type WorkCurrentStatus =
       break_started_at?: string;
     });
 
-export type WorkSummary = components["schemas"]["StaffWorkSummary"];
+export type WorkSummary = components["schemas"]["StaffWorkSummary"] & {
+  reference_business_income_tax: number;
+  reference_local_income_tax: number;
+  reference_deduction_total: number;
+  reference_net_work_amount: number;
+  reference_transfer_amount: number;
+};
 type WorkStartRequest = components["schemas"]["StaffWorkStartRequestRequest"];
 type PaginatedWorkRecords = components["schemas"]["PaginatedStaffWorkRecordList"];
 

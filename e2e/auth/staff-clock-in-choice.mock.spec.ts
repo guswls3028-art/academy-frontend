@@ -245,22 +245,38 @@ async function installClockApp(
       calls.summaryRanges.push(range);
       if (failures.monthAwareHistory) {
         const isSeptember = range.from === "2026-09-01";
+        const workAmount = isSeptember ? 37500 : 52000;
+        const businessIncomeTax = Math.round(workAmount * 0.03);
+        const deductionTotal = Math.round(workAmount * 0.033);
         return json({
           staff_id: 77,
           work_hours: isSeptember ? 2.5 : 4,
-          work_amount: isSeptember ? 37500 : 52000,
+          work_amount: workAmount,
           expense_amount: 0,
-          total_amount: isSeptember ? 37500 : 52000,
+          total_amount: workAmount,
+          reference_business_income_tax: businessIncomeTax,
+          reference_local_income_tax: deductionTotal - businessIncomeTax,
+          reference_deduction_total: deductionTotal,
+          reference_net_work_amount: workAmount - deductionTotal,
+          reference_transfer_amount: workAmount - deductionTotal,
         });
       }
       const extraHours = recordClosed ? 1 : 0;
       const extraAmount = recordClosed ? (activeWorkType === 41 ? 15000 : 13000) : 0;
+      const workAmount = 52000 + extraAmount;
+      const businessIncomeTax = Math.round(workAmount * 0.03);
+      const deductionTotal = Math.round(workAmount * 0.033);
       return json({
         staff_id: 77,
         work_hours: 4 + extraHours,
-        work_amount: 52000 + extraAmount,
+        work_amount: workAmount,
         expense_amount: 0,
-        total_amount: 52000 + extraAmount,
+        total_amount: workAmount,
+        reference_business_income_tax: businessIncomeTax,
+        reference_local_income_tax: deductionTotal - businessIncomeTax,
+        reference_deduction_total: deductionTotal,
+        reference_net_work_amount: workAmount - deductionTotal,
+        reference_transfer_amount: workAmount - deductionTotal,
       });
     }
     if (pathname === "/staffs/currently-working/") {
@@ -333,7 +349,8 @@ test.describe("조교 로그인 출근 선택", () => {
     await expect(page.getByRole("tab", { name: "근무 기록" })).toBeVisible();
     await expect(page.getByText("총 근무액 (공제 전)")).toBeVisible();
     await expect(page.getByText("52,000원").first()).toBeVisible();
-    await expect(page.getByText(/세후 수령액|3\.3%/)).toHaveCount(0);
+    await expect(page.getByText("3.3% 적용 시 참고 공제")).toBeVisible();
+    await expect(page.getByText("50,284원").first()).toBeVisible();
     await expect(page.getByRole("button", { name: "출근 유형 선택" })).toBeVisible();
 
     await page.reload({ waitUntil: "domcontentloaded" });
@@ -433,14 +450,14 @@ test.describe("조교 로그인 출근 선택", () => {
 
     await expect(page).toHaveURL(/\/workspace\/mobile\/my-records$/);
     await expect(page.getByRole("heading", { name: "근무 기록 / 지출" })).toBeVisible();
-    await expect(page.getByText("2026-09-06 · 클리닉 조교", { exact: true })).toBeVisible();
-    await expect(page.getByText("10:00 ~ 12:30 · 2.5시간", { exact: true })).toBeVisible();
+    await expect(page.getByText("9/6(일) · 클리닉 조교", { exact: true })).toBeVisible();
+    await expect(page.getByText("10:00 ~ 12:30 · 2.5시간 · 휴게 0분", { exact: true })).toBeVisible();
     await expect(page.getByText("적용 시급 15,000원", { exact: true })).toBeVisible();
     await expect(page.getByText("37,500원").first()).toBeVisible();
 
     await page.getByLabel("조회 월").fill("2026-08");
-    await expect(page.getByText("2026-08-18 · 현장 조교", { exact: true })).toBeVisible();
-    await expect(page.getByText("13:00 ~ 17:00 · 4시간", { exact: true })).toBeVisible();
+    await expect(page.getByText("8/18(화) · 현장 조교", { exact: true })).toBeVisible();
+    await expect(page.getByText("13:00 ~ 17:00 · 4시간 · 휴게 0분", { exact: true })).toBeVisible();
     await expect(page.getByText("적용 시급 13,000원", { exact: true })).toBeVisible();
     await expect(page.getByText("52,000원").first()).toBeVisible();
     expect(calls.recordRanges).toEqual(expect.arrayContaining([
@@ -452,6 +469,7 @@ test.describe("조교 로그인 출근 선택", () => {
       { from: "2026-08-01", to: "2026-08-31" },
     ]));
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: "test-results/staff-my-records-payroll-390.png", fullPage: true });
   });
 
   test("조교가 아닌 로그인은 근무 선택 세션을 만들지 않는다", async ({ page }) => {

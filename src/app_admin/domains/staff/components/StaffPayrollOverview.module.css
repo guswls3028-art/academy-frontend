@@ -53,6 +53,11 @@
   text-align: center;
 }
 
+.monthControl svg {
+  color: var(--color-text-primary);
+  stroke-width: 2.5;
+}
+
 .ledgerSummary {
   display: grid;
   grid-template-columns: minmax(240px, 1.15fr) minmax(360px, 1.85fr);
@@ -142,6 +147,100 @@
   background: color-mix(in srgb, var(--color-warning) 7%, var(--color-bg-surface));
   color: var(--color-text-secondary);
   font-size: 11px;
+}
+
+.attention span {
+  flex: 1;
+}
+
+.workTypeStrip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.workTypeStrip > strong {
+  flex: 0 0 auto;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.workTypeStrip > div,
+.rowTypes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.workTypeStrip span,
+.rowTypes > span {
+  padding: 5px 8px;
+  border: 1px solid color-mix(in srgb, var(--work-color, var(--color-brand-primary)) 28%, var(--color-border-divider));
+  border-left: 3px solid var(--work-color, var(--color-brand-primary));
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--work-color, var(--color-brand-primary)) 7%, var(--color-bg-surface));
+  color: var(--color-text-secondary);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.workTypeStrip b {
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.waterfall {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 13px;
+  background: var(--color-bg-surface);
+}
+
+.waterfallStep {
+  position: relative;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  min-height: 82px;
+  padding: 13px;
+}
+
+.waterfallStep + .waterfallStep {
+  border-left: 1px solid var(--color-border-divider);
+}
+
+.waterfallStep > span,
+.waterfallStep small {
+  color: var(--color-text-muted);
+  font-size: 9.5px;
+  line-height: 1.35;
+}
+
+.waterfallStep strong {
+  color: var(--color-text-primary);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.waterfallStep[data-accent="true"] {
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface));
+}
+
+.waterfallStep[data-accent="true"] strong {
+  color: var(--color-brand-primary);
+}
+
+.waterfall > p {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 9px 13px;
+  border-top: 1px solid var(--color-border-divider);
+  color: var(--color-text-muted);
+  font-size: 10px;
 }
 
 .attention svg {
@@ -276,6 +375,39 @@
     font-size: 18px;
   }
 
+  .workTypeStrip {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .waterfall {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .waterfallStep {
+    min-height: 74px;
+    padding: 11px;
+  }
+
+  .waterfallStep + .waterfallStep {
+    border-left: 0;
+    border-top: 1px solid var(--color-border-divider);
+  }
+
+  .waterfallStep:nth-child(even) {
+    border-left: 1px solid var(--color-border-divider);
+  }
+
+  .waterfallStep:last-of-type {
+    grid-column: 1 / -1;
+  }
+
+  .attention {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
   .tableWrap {
     display: none;
   }
@@ -326,5 +458,11 @@
     font-size: 13px;
     font-variant-numeric: tabular-nums;
     font-weight: 750;
+  }
+
+  .mobileNumbers {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 7px;
   }
 }

@@ -748,7 +748,7 @@ export interface paths {
         /**
          * @description PATCH /clinic/participants/{id}/set_status/
          *     - 상태 변경 + audit 기록
-         *     - 학생: 자신의 예약 신청(status="pending")만 취소 가능
+         *     - 학생/학부모: 자신의 pending/booked 예약 취소 가능. 필수 대상자는 같은 주 예약 1개 유지
          *     - 선생: 모든 상태 변경 가능
          */
         patch: operations["clinic_participants_set_status_partial_update"];
@@ -1508,10 +1508,10 @@ export interface paths {
         };
         /** @description 단건 조회: 학생/학부모는 published 공개 타입 또는 본인 작성 글만 허용. */
         get: operations["community_posts_retrieve"];
-        /** @description 학생은 본인 글만 수정 가능. 학부모는 수정 불가. */
+        /** @description 학생/학부모는 현재 학생 컨텍스트의 본인 글만 수정 가능. */
         put: operations["community_posts_update"];
         post?: never;
-        /** @description 학생은 본인 글만 삭제 가능. 학부모는 삭제 불가. */
+        /** @description 학생/학부모는 현재 학생 컨텍스트의 본인 글만 삭제 가능. */
         delete: operations["community_posts_destroy"];
         options?: never;
         head?: never;
@@ -6806,6 +6806,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/media/videos/bulk-policy/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Atomically update playback defaults for videos in one tenant session. */
+        post: operations["media_videos_bulk_policy_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/media/videos/comments/{comment_id}/": {
         parameters: {
             query?: never;
@@ -7898,7 +7915,7 @@ export interface paths {
         /**
          * @description PATCH /clinic/participants/{id}/set_status/
          *     - 상태 변경 + audit 기록
-         *     - 학생: 자신의 예약 신청(status="pending")만 취소 가능
+         *     - 학생/학부모: 자신의 pending/booked 예약 취소 가능. 필수 대상자는 같은 주 예약 1개 유지
          *     - 선생: 모든 상태 변경 가능
          */
         patch: operations["results_admin_clinic_bookings_set_status_partial_update"];
@@ -12533,6 +12550,7 @@ export interface components {
              * @description 시간 범위 방식에서 확정된 실제 예약 시작 시각입니다.
              */
             booking_start_time?: string | null;
+            readonly can_self_cancel: boolean;
             /** Format: date-time */
             checked_in_at?: string | null;
             /**
@@ -12582,6 +12600,7 @@ export interface components {
             requested_date?: string | null;
             /** Format: time */
             requested_start_time?: string | null;
+            readonly self_cancel_reason: string;
             session?: number | null;
             readonly session_date: string;
             readonly session_duration_minutes: string;
@@ -12611,6 +12630,7 @@ export interface components {
             booking_end_time?: string | null;
             /** Format: time */
             booking_start_time?: string | null;
+            enrollment_ids?: number[];
             /** @default  */
             memo: string;
             /** Format: time */
@@ -17433,6 +17453,11 @@ export interface components {
         };
         StaffWorkSummary: {
             expense_amount: number;
+            reference_business_income_tax: number;
+            reference_deduction_total: number;
+            reference_local_income_tax: number;
+            reference_net_work_amount: number;
+            reference_transfer_amount: number;
             staff_id: number;
             total_amount: number;
             work_amount: number;
@@ -18556,6 +18581,17 @@ export interface components {
          * @enum {string}
          */
         TypeEnum: "exam" | "homework";
+        VideoBulkPolicyRequest: {
+            allow_skip?: boolean;
+            /** Format: double */
+            max_speed?: number;
+            session_id: number;
+            video_ids: number[];
+        };
+        VideoBulkPolicyResponse: {
+            changed: number;
+            updated: number;
+        };
         /**
          * @description * `ENROLLED` - 수강생 전용
          *     * `PUBLIC` - 전체 공개
@@ -29744,6 +29780,36 @@ export interface operations {
         responses: {
             /** @description No response body */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    media_videos_bulk_policy_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VideoBulkPolicyRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoBulkPolicyResponse"];
+                };
+            };
+            /** @description Invalid policy fields or a non-exact tenant/session/video target */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };

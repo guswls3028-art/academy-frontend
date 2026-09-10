@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/staff/components/PayrollSummaryCard.tsx
-// 정산 KPI 배너 — 서버 집계값만 표시하며 세금·보험 공제는 계산하지 않는다.
+// 정산 KPI 배너 — 저장된 금액과 서버가 산출한 3.3% 비교 참고값만 표시한다.
 
 import { useQuery } from "@tanstack/react-query";
 import { fetchStaffSummaryByRange } from "../api/staff.detail.api";
@@ -72,7 +72,7 @@ export function PayrollSummaryCard() {
   const workHours = Number(s.work_hours) || 0;
   const baseWage = Number(s.work_amount) || 0;
   const allowance = Number(s.expense_amount) || 0;
-  const settlementTotal = Number(s.total_amount) || baseWage + allowance;
+  const settlementTotal = Number(s.total_amount) || 0;
 
   return (
     <div className={styles.root}>
@@ -89,9 +89,9 @@ export function PayrollSummaryCard() {
           sub="기록된 시간·단가 기준"
         />
         <KpiBox
-          label="정산 합계(공제 전)"
-          value={`${settlementTotal.toLocaleString()}원`}
-          sub={allowance > 0 ? `승인 선결제 환급 ${allowance.toLocaleString()}원 포함` : "승인 선결제 환급 없음"}
+          label="최종 이체 참고액"
+          value={`${s.reference_transfer_amount.toLocaleString()}원`}
+          sub="3.3% 적용 시 참고 · 환급 포함"
           accent
         />
       </div>
@@ -103,14 +103,18 @@ export function PayrollSummaryCard() {
         </summary>
         <div className={styles.detailBody}>
           <DetailRow label="총 근무시간" value={`${workHours.toFixed(1)} h`} />
-          <DetailRow label="근무기록 금액" value={`${baseWage.toLocaleString()}원`} />
-          <DetailRow label="승인 선결제 환급" value={`${allowance.toLocaleString()}원`} />
+          <DetailRow label="근무 공제 전 총액" value={`${baseWage.toLocaleString()}원`} />
+          <DetailRow label="사업소득세 3% 참고" value={`-${s.reference_business_income_tax.toLocaleString()}원`} />
+          <DetailRow label="지방소득세 0.3% 참고" value={`-${s.reference_local_income_tax.toLocaleString()}원`} />
+          <DetailRow label="3.3% 적용 시 참고 공제" value={`-${s.reference_deduction_total.toLocaleString()}원`} />
+          <DetailRow label="공제 후 근무 참고액" value={`${s.reference_net_work_amount.toLocaleString()}원`} />
+          <DetailRow label="승인 선결제 환급" value={`+${allowance.toLocaleString()}원`} />
           <div className={styles.netRow}>
-            <span className={styles.netLabel}>정산 합계(공제 전)</span>
-            <span className={styles.netValue}>{settlementTotal.toLocaleString()}원</span>
+            <span className={styles.netLabel}>최종 이체 참고액</span>
+            <span className={styles.netValue}>{s.reference_transfer_amount.toLocaleString()}원</span>
           </div>
           <p className={styles.kpiSub}>
-            세금·4대보험·기타 공제는 반영하지 않습니다. 실제 지급액은 계약 형태와 공제 내역을 확인해 확정하세요.
+            3.3% 적용을 자동 판정한 값이 아닙니다. 실제 공제 적용 여부와 지급액은 계약 형태와 세무 내역을 확인해 확정하세요. 공제 전 정산 합계는 {settlementTotal.toLocaleString()}원입니다.
           </p>
         </div>
       </details>

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState, type CSSProperties } from "react";
 import { AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -34,10 +35,12 @@ function statusTone(status: PayrollOverviewStatus) {
 }
 
 function rowIssues(row: StaffPayrollOverviewRow) {
-  if (row.settlement_status === "CLOSED") return [];
   const issues: string[] = [];
   if (row.open_work_record_count) issues.push(`진행 중 근무 ${row.open_work_record_count}건`);
   if (row.incomplete_work_record_count) issues.push(`계산 미완료 ${row.incomplete_work_record_count}건`);
+  if (row.duplicate_work_record_count) issues.push(`중복 의심 ${row.duplicate_work_record_count}건`);
+  if (row.abnormal_long_work_record_count) issues.push(`12시간 이상 ${row.abnormal_long_work_record_count}건`);
+  if (row.manually_edited_work_record_count) issues.push(`관리자 수정 ${row.manually_edited_work_record_count}건`);
   if (row.pending_expense_count) issues.push(`비용 대기 ${row.pending_expense_count}건`);
   if (row.is_active && row.assigned_work_type_count === 0) issues.push("시급태그 없음");
   if (row.pay_type === "MONTHLY") issues.push("월급 수동 확인");
@@ -48,6 +51,7 @@ function rowIssues(row: StaffPayrollOverviewRow) {
 export function StaffPayrollOverview({ year, month }: Props) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [reviewOnly, setReviewOnly] = useState(false);
   const overviewQ = useQuery({
     queryKey: staffQueryKeys.payrollOverview(year, month),
     queryFn: () => fetchStaffPayrollOverview(year, month),
@@ -87,6 +91,9 @@ export function StaffPayrollOverview({ year, month }: Props) {
   }
 
   const { totals, rows } = overviewQ.data;
+  const visibleRows = reviewOnly
+    ? rows.filter((row) => row.advisory_issue_count > 0 || row.settlement_status === "NEEDS_REVIEW" || row.settlement_status === "RECONCILIATION_REQUIRED")
+    : rows;
 
   return (
     <div className={styles.root} data-testid="staff-payroll-overview">
@@ -109,30 +116,55 @@ export function StaffPayrollOverview({ year, month }: Props) {
 
       <section className={styles.ledgerSummary} aria-label="월 급여 합계">
         <div className={styles.totalCard}>
-          <span>정산 합계(공제 전)</span>
-          <strong>{totals.total_amount.toLocaleString()}<small>원</small></strong>
-          <p>근무기록 {totals.work_amount.toLocaleString()}원 + 승인 선결제 환급 {totals.approved_expense_amount.toLocaleString()}원</p>
+          <span>근무 공제 전 총액</span>
+          <strong>{totals.work_amount.toLocaleString()}<small>원</small></strong>
+          <p>기록된 유급 분과 적용 시급으로 계산한 근무액입니다.</p>
         </div>
         <div className={styles.metricRail}>
           <Metric label="총 근무시간" value={`${totals.work_hours.toFixed(1)}h`} />
-          <Metric label="대상 직원" value={`${totals.staff_count}명`} sub={`마감 ${totals.closed_count}명`} />
+          <Metric label="승인 환급비" value={`${totals.approved_expense_amount.toLocaleString()}원`} sub={`대상 ${totals.staff_count}명 · 마감 ${totals.closed_count}명`} />
           <Metric
-            label="확인 필요"
-            value={`${totals.needs_review_count}명`}
+            label="지급 전 확인"
+            value={`${totals.advisory_issue_count}건`}
             sub={totals.pending_expense_amount ? `대기 비용 ${totals.pending_expense_amount.toLocaleString()}원` : "대기 비용 없음"}
-            warning={totals.needs_review_count > 0}
+            warning={totals.advisory_issue_count > 0 || totals.needs_review_count > 0}
           />
         </div>
       </section>
 
-      {totals.needs_review_count > 0 && (
+      {totals.work_type_breakdown.length > 0 && (
+        <section className={styles.workTypeStrip} aria-label="근무유형별 시간">
+          <strong>근무유형별</strong>
+          <div>
+            {totals.work_type_breakdown.map((item) => (
+              <span key={item.work_type_id} style={{ "--work-color": item.color } as CSSProperties}>
+                {item.work_type_name} <b>{item.work_hours.toFixed(1)}h</b>
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className={styles.waterfall} aria-label="3.3% 적용 시 참고 정산">
+        <WaterfallStep label="근무 공제 전" value={totals.work_amount} />
+        <WaterfallStep label="3.3% 참고 공제" value={-totals.reference_deduction_total} sub={`사업소득세 ${totals.reference_business_income_tax.toLocaleString()}원 + 지방소득세 ${totals.reference_local_income_tax.toLocaleString()}원`} />
+        <WaterfallStep label="공제 후 근무 참고" value={totals.reference_net_work_amount} />
+        <WaterfallStep label="승인 환급비" value={totals.approved_expense_amount} prefix="+" />
+        <WaterfallStep label="최종 이체 참고액" value={totals.reference_transfer_amount} accent />
+        <p><strong>3.3% 적용 시 참고</strong> 비교값입니다. 실제 공제 적용 여부와 지급액은 계약·세무 확인 후 확정하세요.</p>
+      </section>
+
+      {(totals.needs_review_count > 0 || totals.advisory_issue_count > 0) && (
         <div className={styles.attention} role="status">
           <AlertTriangle size={17} aria-hidden />
-          <span><strong>{totals.needs_review_count}명</strong>에게 월마감 전 확인할 항목이 있습니다. 아래 행의 사유를 먼저 처리하세요.</span>
+          <span><strong>지급 전 확인</strong> 중복·장시간·미퇴근·관리자 수정 이력을 먼저 살펴보세요. 경고는 기록을 숨기거나 수정을 막지 않습니다.</span>
+          <Button intent={reviewOnly ? "primary" : "secondary"} size="sm" onClick={() => setReviewOnly((value) => !value)}>
+            {reviewOnly ? "전체 직원 보기" : "확인 항목만 보기"}
+          </Button>
         </div>
       )}
 
-      {rows.length === 0 ? (
+      {visibleRows.length === 0 ? (
         <EmptyState scope="panel" title="표시할 직원이 없습니다" description="재직 직원이나 이달 근무·비용 기록이 없습니다." />
       ) : (
         <>
@@ -141,28 +173,31 @@ export function StaffPayrollOverview({ year, month }: Props) {
               <thead>
                 <tr>
                   <th>직원</th>
-                  <th>직위·계정</th>
+                  <th>근무 유형</th>
                   <th>근무시간</th>
-                  <th>근무기록 금액</th>
-                  <th>선결제 환급</th>
-                  <th>공제 전 합계</th>
+                  <th>근무 공제 전</th>
+                  <th>승인 환급</th>
+                  <th>최종 이체 참고</th>
                   <th>정산 상태</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => {
+                {visibleRows.map((row) => {
                   const issues = rowIssues(row);
                   return (
                     <tr key={row.staff_id} data-status={row.settlement_status}>
                       <td>
                         <button type="button" className={styles.staffLink} onClick={() => openStaff(row.staff_id)}>
                           <strong>{row.name}</strong>
-                          <span>{row.is_active ? "재직" : "퇴사"}</span>
+                          <span>{staffPositionLabel(row.position)} · {staffAccountRoleLabel(row.account_role)} · {row.is_active ? "재직" : "퇴사"}</span>
                         </button>
                       </td>
                       <td>
-                        <strong className={styles.identity}>{staffPositionLabel(row.position)}</strong>
-                        <span className={styles.subtle}>{staffAccountRoleLabel(row.account_role)}</span>
+                        <div className={styles.rowTypes}>
+                          {row.work_type_breakdown.map((item) => (
+                            <span key={item.work_type_id} style={{ "--work-color": item.color } as CSSProperties}>{item.work_type_name} {item.work_hours.toFixed(1)}h</span>
+                          ))}
+                        </div>
                       </td>
                       <td className={styles.number}>{row.work_hours.toFixed(1)}h</td>
                       <td className={styles.number}>{row.work_amount.toLocaleString()}원</td>
@@ -170,7 +205,7 @@ export function StaffPayrollOverview({ year, month }: Props) {
                         {row.approved_expense_amount.toLocaleString()}원
                         {row.pending_expense_count > 0 && <span className={styles.pending}>대기 {row.pending_expense_amount.toLocaleString()}원</span>}
                       </td>
-                      <td className={`${styles.number} ${styles.total}`}>{row.total_amount.toLocaleString()}원</td>
+                      <td className={`${styles.number} ${styles.total}`}>{row.reference_transfer_amount.toLocaleString()}원<span className={styles.subtle}>3.3% 적용 시 참고</span></td>
                       <td>
                         <Badge variant="solid" tone={statusTone(row.settlement_status)}>{STATUS_LABEL[row.settlement_status]}</Badge>
                         {issues.length > 0 && <span className={styles.issueText}>{issues.join(" · ")}</span>}
@@ -183,7 +218,7 @@ export function StaffPayrollOverview({ year, month }: Props) {
           </div>
 
           <div className={styles.mobileList}>
-            {rows.map((row) => {
+            {visibleRows.map((row) => {
               const issues = rowIssues(row);
               return (
                 <button key={row.staff_id} type="button" className={styles.mobileCard} onClick={() => openStaff(row.staff_id)}>
@@ -192,9 +227,10 @@ export function StaffPayrollOverview({ year, month }: Props) {
                     <Badge variant="solid" tone={statusTone(row.settlement_status)}>{STATUS_LABEL[row.settlement_status]}</Badge>
                   </span>
                   <span className={styles.mobileNumbers}>
-                    <span><small>근무</small>{row.work_hours.toFixed(1)}h</span>
-                    <span><small>공제 전 합계</small>{row.total_amount.toLocaleString()}원</span>
+                    <span><small>근무 · 공제 전</small>{row.work_hours.toFixed(1)}h · {row.work_amount.toLocaleString()}원</span>
+                    <span><small>최종 이체 참고</small>{row.reference_transfer_amount.toLocaleString()}원</span>
                   </span>
+                  <span className={styles.rowTypes}>{row.work_type_breakdown.map((item) => <span key={item.work_type_id} style={{ "--work-color": item.color } as CSSProperties}>{item.work_type_name} {item.work_hours.toFixed(1)}h</span>)}</span>
                   {issues.length > 0 && <span className={styles.issueText}>{issues.join(" · ")}</span>}
                 </button>
               );
@@ -202,6 +238,16 @@ export function StaffPayrollOverview({ year, month }: Props) {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function WaterfallStep({ label, value, sub, prefix, accent = false }: { label: string; value: number; sub?: string; prefix?: string; accent?: boolean }) {
+  return (
+    <div className={styles.waterfallStep} data-accent={accent ? "true" : undefined}>
+      <span>{label}</span>
+      <strong>{prefix}{value.toLocaleString()}원</strong>
+      {sub && <small>{sub}</small>}
     </div>
   );
 }

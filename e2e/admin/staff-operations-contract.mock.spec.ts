@@ -234,6 +234,16 @@ async function mockStaffApi(
           approved_expense_amount: 18000,
           pending_expense_amount: 30000,
           total_amount: 360000,
+          reference_business_income_tax: 10260,
+          reference_local_income_tax: 1026,
+          reference_deduction_total: 11286,
+          reference_net_work_amount: 330714,
+          reference_transfer_amount: 348714,
+          advisory_issue_count: 1,
+          work_type_breakdown: [
+            { work_type_id: 21, work_type_name: "채점", color: "#2563EB", record_count: 6, work_hours: 24, work_amount: 288000 },
+            { work_type_id: 22, work_type_name: "강의", color: "#16A34A", record_count: 1, work_hours: 4.5, work_amount: 54000 },
+          ],
           needs_review_count: 1,
           closed_count: 1,
         },
@@ -253,8 +263,18 @@ async function mockStaffApi(
             pending_expense_amount: 30000,
             pending_expense_count: 1,
             total_amount: 300000,
+            reference_business_income_tax: 8640,
+            reference_local_income_tax: 864,
+            reference_deduction_total: 9504,
+            reference_net_work_amount: 278496,
+            reference_transfer_amount: 290496,
+            work_type_breakdown: [{ work_type_id: 21, work_type_name: "채점", color: "#2563EB", record_count: 6, work_hours: 24, work_amount: 288000 }],
             open_work_record_count: 0,
             incomplete_work_record_count: 0,
+            duplicate_work_record_count: 0,
+            abnormal_long_work_record_count: 0,
+            manually_edited_work_record_count: 1,
+            advisory_issue_count: 1,
             assigned_work_type_count: 1,
             locked: false,
             snapshot_exists: false,
@@ -276,8 +296,18 @@ async function mockStaffApi(
             pending_expense_amount: 0,
             pending_expense_count: 0,
             total_amount: 60000,
+            reference_business_income_tax: 1620,
+            reference_local_income_tax: 162,
+            reference_deduction_total: 1782,
+            reference_net_work_amount: 52218,
+            reference_transfer_amount: 58218,
+            work_type_breakdown: [{ work_type_id: 22, work_type_name: "강의", color: "#16A34A", record_count: 1, work_hours: 4.5, work_amount: 54000 }],
             open_work_record_count: 0,
             incomplete_work_record_count: 0,
+            duplicate_work_record_count: 0,
+            abnormal_long_work_record_count: 0,
+            manually_edited_work_record_count: 0,
+            advisory_issue_count: 0,
             assigned_work_type_count: 0,
             locked: true,
             snapshot_exists: true,
@@ -320,6 +350,11 @@ async function mockStaffApi(
         work_amount: 288000,
         expense_amount: 12000,
         total_amount: 300000,
+        reference_business_income_tax: 8640,
+        reference_local_income_tax: 864,
+        reference_deduction_total: 9504,
+        reference_net_work_amount: 278496,
+        reference_transfer_amount: 290496,
       });
     }
     if (path === "/staffs/3/summary/" && request.method() === "GET") {
@@ -329,6 +364,11 @@ async function mockStaffApi(
         work_amount: 0,
         expense_amount: 0,
         total_amount: 0,
+        reference_business_income_tax: 0,
+        reference_local_income_tax: 0,
+        reference_deduction_total: 0,
+        reference_net_work_amount: 0,
+        reference_transfer_amount: 0,
       });
     }
     if (path === "/staffs/work-month-locks/" && request.method() === "GET") {
@@ -453,8 +493,8 @@ test.describe("직원 운영 계약", () => {
 
     const overview = page.getByTestId("staff-payroll-overview");
     await expect(overview.getByRole("heading", { name: "2026년 8월 급여판" })).toBeVisible();
-    await expect(overview.getByText("360,000원", { exact: true }).first()).toBeVisible();
-    await expect(overview.getByText("확인 필요").first()).toBeVisible();
+    await expect(overview.getByText("342,000원", { exact: true }).first()).toBeVisible();
+    await expect(overview.getByText("3.3% 적용 시 참고").first()).toBeVisible();
     const overviewTable = overview.getByRole("table");
     await expect(overviewTable.getByText("비용 대기 1건")).toBeVisible();
     await expect(overviewTable.getByRole("button", { name: /김조교/ })).toBeVisible();
@@ -473,7 +513,7 @@ test.describe("직원 운영 계약", () => {
     });
     const mobileOverview = page.getByTestId("staff-payroll-overview");
     await expect(mobileOverview).toBeVisible();
-    await expect(mobileOverview.getByText("360,000원", { exact: true }).first()).toBeVisible();
+    await expect(mobileOverview.getByText("348,714원", { exact: true }).first()).toBeVisible();
     const mobileLayout = await page.evaluate(() => {
       const overview = document.querySelector<HTMLElement>("[data-testid='staff-payroll-overview']");
       return {
@@ -703,8 +743,12 @@ test.describe("직원 운영 계약", () => {
         start_time: "14:00",
         end_time: "18:00",
         break_minutes: 0,
+        meal_minutes: 0,
         work_hours: 4,
         amount: 48000,
+        adjustment_amount: 0,
+        resolved_hourly_wage: 12000,
+        is_manually_edited: true,
         memo: "출근 입력 누락 보정",
         created_at: "2026-08-21T09:00:00Z",
         updated_at: "2026-08-21T09:00:00Z",
@@ -1221,8 +1265,12 @@ test.describe("직원 운영 계약", () => {
         start_time: "14:00",
         end_time: "18:00",
         break_minutes: 0,
+        meal_minutes: 0,
         work_hours: 4,
         amount: 48000,
+        adjustment_amount: 0,
+        resolved_hourly_wage: 12000,
+        is_manually_edited: true,
         memo: "출근 입력 누락 보정",
         created_at: "2026-08-21T09:00:00Z",
         updated_at: "2026-08-21T09:00:00Z",
@@ -1241,6 +1289,10 @@ test.describe("직원 운영 계약", () => {
 
     const row = page.getByTestId("staff-work-record-41");
     await expect(row).toBeVisible();
+    await expect(row.getByText("8/21(금) · 채점", { exact: true })).toBeVisible();
+    await expect(row.getByText("근무 4.00시간 · 적용 시급 12,000원", { exact: true })).toBeVisible();
+    await expect(row.getByText("관리자 수정", { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await row.getByRole("button", { name: "수정" }).click();
 
     const dialog = page.getByRole("dialog", { name: "근무 기록 수정" });

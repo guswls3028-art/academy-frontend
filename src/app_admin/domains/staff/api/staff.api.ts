@@ -51,6 +51,20 @@ export type StaffSummary = {
   work_amount: number;
   expense_amount: number;
   total_amount: number;
+  reference_business_income_tax: number;
+  reference_local_income_tax: number;
+  reference_deduction_total: number;
+  reference_net_work_amount: number;
+  reference_transfer_amount: number;
+};
+
+export type PayrollWorkTypeBreakdown = {
+  work_type_id: number;
+  work_type_name: string;
+  color: string;
+  record_count: number;
+  work_hours: number;
+  work_amount: number;
 };
 
 export type PayrollOverviewStatus =
@@ -74,8 +88,18 @@ export type StaffPayrollOverviewRow = {
   pending_expense_amount: number;
   pending_expense_count: number;
   total_amount: number;
+  reference_business_income_tax: number;
+  reference_local_income_tax: number;
+  reference_deduction_total: number;
+  reference_net_work_amount: number;
+  reference_transfer_amount: number;
+  work_type_breakdown: PayrollWorkTypeBreakdown[];
   open_work_record_count: number;
   incomplete_work_record_count: number;
+  duplicate_work_record_count: number;
+  abnormal_long_work_record_count: number;
+  manually_edited_work_record_count: number;
+  advisory_issue_count: number;
   assigned_work_type_count: number;
   settlement_status: PayrollOverviewStatus;
   can_close: boolean;
@@ -93,6 +117,13 @@ export type StaffPayrollOverview = {
     approved_expense_amount: number;
     pending_expense_amount: number;
     total_amount: number;
+    reference_business_income_tax: number;
+    reference_local_income_tax: number;
+    reference_deduction_total: number;
+    reference_net_work_amount: number;
+    reference_transfer_amount: number;
+    advisory_issue_count: number;
+    work_type_breakdown: PayrollWorkTypeBreakdown[];
     needs_review_count: number;
     closed_count: number;
   };
