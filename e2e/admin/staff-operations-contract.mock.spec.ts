@@ -753,7 +753,8 @@ test.describe("직원 운영 계약", () => {
       ["리포트", "/workspace/staff/reports"],
       ["비용/경비", "/workspace/staff/expenses"],
     ] as const) {
-      await page.getByRole("tab", { name: `${tabName} 탭` }).click();
+      const tab = page.getByRole("tab", { name: `${tabName} 탭` });
+      await tab.click();
       await expect(page).toHaveURL((url) => (
         url.pathname === pathname
         && url.searchParams.get("staffId") === "1"
@@ -763,6 +764,7 @@ test.describe("직원 운영 계약", () => {
         && url.searchParams.get("payrollSearch") === "김"
         && url.searchParams.get("payrollSort") === "amount-desc"
       ));
+      await expect(tab).toHaveAttribute("aria-selected", "true");
     }
 
     const overviewReturn = page.getByRole("button", { name: "전체 급여판", exact: true });
