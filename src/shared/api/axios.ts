@@ -80,7 +80,9 @@ export function clearTokens(expectedGeneration?: string | null) {
     // 다음 학부모 로그인에서 연결된 자녀인지 initParentStudentId가 다시 검증한다.
     removeSessionItem("session_expired");
     removeSessionItem("session_return_path");
-    removeSessionItem("tenantCode");
+    // tenantCode is non-auth routing context. Keep the exact tenant through
+    // logout so public bootstrap requests stay tenant-scoped on same-origin
+    // localhost and preview runtimes.
     removeSessionItem("product_analytics_session_id");
     window.dispatchEvent(new Event("product-analytics-session-reset"));
   } catch {
