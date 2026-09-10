@@ -493,6 +493,8 @@ test.describe("직원 운영 계약", () => {
 
     const overview = page.getByTestId("staff-payroll-overview");
     await expect(overview.getByRole("heading", { name: "2026년 8월 급여판" })).toBeVisible();
+    await expect(overview.getByRole("button", { name: "이전 달" })).toContainText("이전");
+    await expect(overview.getByRole("button", { name: "다음 달" })).toContainText("다음");
     await expect(overview.getByText("342,000원", { exact: true }).first()).toBeVisible();
     await expect(overview.getByText("3.3% 적용 시 참고").first()).toBeVisible();
     const overviewTable = overview.getByRole("table");

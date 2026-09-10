@@ -45,6 +45,10 @@
   background: var(--color-bg-surface-soft);
 }
 
+.monthControl > button {
+  min-width: 60px;
+}
+
 .monthControl strong {
   min-width: 74px;
   color: var(--color-text-primary);
@@ -353,7 +357,8 @@
   }
 
   .monthControl {
-    align-self: flex-start;
+    align-self: stretch;
+    justify-content: space-between;
   }
 
   .ledgerSummary {

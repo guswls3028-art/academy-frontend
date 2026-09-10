@@ -104,12 +104,12 @@ export function StaffPayrollOverview({ year, month }: Props) {
           <p>직원을 고르기 전에 근무·비용·마감 상태를 한 번에 확인합니다.</p>
         </div>
         <div className={styles.monthControl} aria-label="급여 현황 월 선택">
-          <Button intent="ghost" size="sm" iconOnly aria-label="이전 달" onClick={() => goMonth(-1)}>
-            <ChevronLeft size={18} />
+          <Button intent="ghost" size="sm" leftIcon={<ChevronLeft size={16} />} aria-label="이전 달" onClick={() => goMonth(-1)}>
+            이전
           </Button>
           <strong>{year}.{String(month).padStart(2, "0")}</strong>
-          <Button intent="ghost" size="sm" iconOnly aria-label="다음 달" onClick={() => goMonth(1)}>
-            <ChevronRight size={18} />
+          <Button intent="ghost" size="sm" rightIcon={<ChevronRight size={16} />} aria-label="다음 달" onClick={() => goMonth(1)}>
+            다음
           </Button>
         </div>
       </header>
