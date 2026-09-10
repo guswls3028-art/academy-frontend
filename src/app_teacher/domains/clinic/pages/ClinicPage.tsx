@@ -44,6 +44,10 @@ import {
   ClinicBookingModeSummary,
   type ClinicBookingMode,
 } from "@/shared/ui/clinic/ClinicBookingModeChoice";
+import {
+  isUnsupportedOvernightClinicRange,
+  UNSUPPORTED_OVERNIGHT_CLINIC_RANGE_MESSAGE,
+} from "@/shared/ui/clinic/clinicTimeRange";
 
 function durationMinutes(start: string, end: string): number {
   const [sh, sm] = start.split(":").map(Number);
@@ -202,7 +206,9 @@ function SessionCard({
             {session.title || "클리닉"}
           </div>
           <div className="flex gap-2 text-xs mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
-            {session.start_time && <span>{session.start_time.slice(0, 5)}</span>}
+            {session.booking_mode === "time_range" && session.start_time && session.end_time
+              ? <span>운영 {session.start_time.slice(0, 5)}–{session.end_time.slice(0, 5)}</span>
+              : session.start_time && <span>{session.start_time.slice(0, 5)}</span>}
             {session.location && <span>{session.location}</span>}
             {session.participant_count != null && (
               <span>참가 {session.participant_count}명</span>
@@ -668,12 +674,16 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
 
   const capacityNum = Number(capacity);
   const duration = startTime && endTime ? durationMinutes(startTime, endTime) : 60;
+  const hasUnsupportedOvernightRange = bookingMode === "time_range"
+    && isUnsupportedOvernightClinicRange(startTime, endTime);
   const canSubmit =
     !!date &&
     !!startTime &&
     !!location.trim() &&
     capacityNum > 0 &&
+    (bookingMode === "fixed_slot" || !!endTime) &&
     (!endTime || duration > 0) &&
+    !hasUnsupportedOvernightRange &&
     (bookingMode === "fixed_slot" || (
       duration % bookingIntervalMinutes === 0 &&
       bookingMaxStayMinutes >= bookingIntervalMinutes &&
@@ -745,11 +755,16 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
         <Fld label="날짜 *" value={date} onChange={setDate} type="date" />
         <div className="flex gap-2">
           <Fld label="시작 *" value={startTime} onChange={setStartTime} type="time" />
-          <Fld label="종료" value={endTime} onChange={setEndTime} type="time" />
+          <Fld label={bookingMode === "time_range" ? "종료 *" : "종료"} value={endTime} onChange={setEndTime} type="time" />
         </div>
         {endTime && duration <= 0 && (
           <div className="text-[11px]" style={{ color: "var(--tc-danger)" }}>
             종료 시간은 시작 시간 이후여야 합니다.
+          </div>
+        )}
+        {hasUnsupportedOvernightRange && (
+          <div className="text-[11px]" role="alert" style={{ color: "var(--tc-danger)" }}>
+            {UNSUPPORTED_OVERNIGHT_CLINIC_RANGE_MESSAGE}
           </div>
         )}
         {bookingMode === "time_range" && <div className="flex gap-2">
@@ -784,7 +799,7 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
             }}
           >
             학생이 예약 가능한 실제 시작·종료 시간을 직접 선택합니다.
-            별도의 희망 시간 요청은 받지 않습니다.
+            운영 종료 시간은 필수이며 별도의 희망 시간 요청은 받지 않습니다.
           </div>
         )}
         <div className="flex gap-2">

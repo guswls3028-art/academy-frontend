@@ -180,9 +180,14 @@
   text-align: center;
   transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
 }
-.slotGrid > button:hover,
-.slotGrid > button:focus-visible { border-color: var(--picker-primary); outline: none; }
+.slotGrid > button:hover:not(:disabled),
+.slotGrid > button:focus-visible {
+  border-color: var(--picker-primary);
+  outline: 3px solid color-mix(in srgb, var(--picker-primary) 32%, transparent);
+  outline-offset: 2px;
+}
 .slotGrid > button.selected { border-color: var(--picker-primary); background: var(--picker-primary); color: #fff; }
+.slotGrid > button:disabled { cursor: not-allowed; opacity: 0.58; }
 .slotGrid strong { font-size: 14px; font-variant-numeric: tabular-nums; font-weight: 900; }
 .slotGrid small { color: var(--picker-muted); font-size: 10px; font-weight: 700; }
 .slotGrid > button.selected small { color: inherit; }

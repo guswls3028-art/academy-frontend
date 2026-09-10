@@ -561,25 +561,6 @@
   background: color-mix(in srgb, var(--stu-primary) 5%, var(--stu-surface));
 }
 
-.revealTimePicker {
-  width: 100%;
-  min-height: 44px;
-  padding: 10px 14px;
-  border: 1px solid color-mix(in srgb, var(--stu-primary) 35%, var(--stu-border));
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--stu-primary) 7%, var(--stu-surface));
-  color: var(--stu-primary);
-  cursor: pointer;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 850;
-}
-
-.revealTimePicker:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--stu-primary) 30%, transparent);
-  outline-offset: 2px;
-}
-
 .selectionSummary {
   display: flex;
   flex-direction: column;

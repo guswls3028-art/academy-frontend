@@ -178,13 +178,13 @@ export default function AddParticipantSheet({
         >
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-bold" style={{ color: "var(--tc-text)" }}>
-              추가할 시간대
+              {isTimeRange ? "운영 시간" : "추가할 시간대"}
             </span>
-            <span className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+            {!isTimeRange && <span className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
               허용된 일정끼리 여러 개 선택
-            </span>
+            </span>}
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          {!isTimeRange && <div className="flex flex-wrap gap-1.5">
             {sessions.map((session) => {
               const checked = selectedSessionIds.includes(session.id);
               const fixed = session.id === sessionId;
@@ -214,7 +214,7 @@ export default function AddParticipantSheet({
                 </button>
               );
             })}
-          </div>
+          </div>}
           <section
             role="region"
             aria-label="선택한 클리닉 시간"
@@ -226,9 +226,9 @@ export default function AddParticipantSheet({
             >
               {selectedRange}
             </strong>
-            <span className="text-[11px] font-bold" style={{ color: "var(--tc-primary)" }}>
+            {!isTimeRange && <span className="text-[11px] font-bold" style={{ color: "var(--tc-primary)" }}>
               {selectedSessionIds.length}개 시간대
-            </span>
+            </span>}
           </section>
           {isTimeRange && (
             <ClinicActualTimePicker

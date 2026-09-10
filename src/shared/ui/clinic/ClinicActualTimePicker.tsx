@@ -1,4 +1,4 @@
-import type { RefObject } from "react";
+import { useEffect, type RefObject } from "react";
 
 import styles from "./ClinicActualTimePicker.module.css";
 
@@ -8,6 +8,8 @@ export type ClinicBookingAvailability = {
   window: { start_time: string; end_time: string };
   slots: Array<{ start_time: string; end_time: string; remaining_capacity: number }>;
 };
+
+const EMPTY_SLOTS: ClinicBookingAvailability["slots"] = [];
 
 type Props = {
   availability?: ClinicBookingAvailability;
@@ -55,21 +57,43 @@ export function ClinicActualTimePicker({
   selectionCount,
   headingRef,
 }: Props) {
-  const allSlots = availability?.slots ?? [];
-  const availableStartSlots = allSlots.filter((slot) => slot.remaining_capacity > 0);
+  const allSlots = availability?.slots ?? EMPTY_SLOTS;
+  const requiredCapacity = Math.max(selectionCount ?? 1, 1);
+  const hasRequiredCapacity = (remainingCapacity: number) => remainingCapacity >= requiredCapacity;
+  const availableStartSlots = allSlots.filter((slot) => hasRequiredCapacity(slot.remaining_capacity));
   const bookingStartIndex = allSlots.findIndex((slot) => slot.start_time === bookingStart);
   const intervalMinutes = availability?.interval_minutes ?? 60;
-  const availableEndSlots = bookingStartIndex < 0 ? [] : allSlots.filter((_slot, index) => (
+  const endSlots = bookingStartIndex < 0 ? [] : allSlots.filter((_slot, index) => (
     index >= bookingStartIndex
     && (index - bookingStartIndex + 1) * intervalMinutes <= (availability?.max_stay_minutes ?? 0)
-    && allSlots.slice(bookingStartIndex, index + 1)
-      .every((candidate) => candidate.remaining_capacity > 0)
   ));
   const hasSlots = (availability?.slots.length ?? 0) > 0;
   const unavailable = !loading && !error && availableStartSlots.length === 0;
   const bookingEndIndex = bookingStartIndex < 0
     ? -1
     : allSlots.findIndex((slot, index) => index >= bookingStartIndex && slot.end_time === bookingEnd);
+  const selectedRangeHasCapacity = bookingStartIndex >= 0 && bookingEndIndex >= bookingStartIndex
+    && allSlots.slice(bookingStartIndex, bookingEndIndex + 1)
+      .every((candidate) => hasRequiredCapacity(candidate.remaining_capacity));
+
+  useEffect(() => {
+    if (!bookingStart) return;
+    if (bookingStartIndex < 0 || allSlots[bookingStartIndex].remaining_capacity < requiredCapacity) {
+      onBookingStartChange("");
+      onBookingEndChange("");
+      return;
+    }
+    if (bookingEnd && !selectedRangeHasCapacity) onBookingEndChange("");
+  }, [
+    allSlots,
+    bookingEnd,
+    bookingStart,
+    bookingStartIndex,
+    onBookingEndChange,
+    onBookingStartChange,
+    requiredCapacity,
+    selectedRangeHasCapacity,
+  ]);
   const selectedRailStyle = bookingStartIndex >= 0 && bookingEndIndex >= bookingStartIndex
     ? {
         left: `${(bookingStartIndex / allSlots.length) * 100}%`,
@@ -103,8 +127,12 @@ export function ClinicActualTimePicker({
         </div>
       ) : unavailable ? (
         <div className={styles.state} role="status">
-          <strong>{hasSlots ? "예약 가능한 시간이 모두 마감되었습니다." : "이 날짜는 예약 가능한 시간이 없습니다."}</strong>
-          <span>{hasSlots ? "다른 날짜를 선택해 주세요." : "휴무일이거나 아직 예약 시간이 열리지 않았습니다."}</span>
+          <strong>{hasSlots
+            ? requiredCapacity > 1
+              ? `${requiredCapacity}명을 함께 예약할 수 있는 시간이 없습니다.`
+              : "예약 가능한 시간이 모두 마감되었습니다."
+            : "이 날짜는 예약 가능한 시간이 없습니다."}</strong>
+          <span>{hasSlots ? "선택 인원을 줄이거나 다른 날짜를 선택해 주세요." : "휴무일이거나 아직 예약 시간이 열리지 않았습니다."}</span>
         </div>
       ) : (
         <>
@@ -125,7 +153,7 @@ export function ClinicActualTimePicker({
                 <span className={styles.railSelection} data-testid="clinic-time-range-selection" style={selectedRailStyle} />
               )}
               {allSlots.map((slot) => (
-                <i key={slot.start_time} className={slot.remaining_capacity > 0 ? "" : styles.railClosed} />
+                <i key={slot.start_time} className={hasRequiredCapacity(slot.remaining_capacity) ? "" : styles.railClosed} />
               ))}
             </div>
             <small aria-hidden>선택한 구간이 파란 막대로 이어져 표시됩니다.</small>
@@ -133,41 +161,53 @@ export function ClinicActualTimePicker({
           <fieldset className={styles.step}>
             <legend><span>1</span> 시작 시간</legend>
             <div className={styles.slotGrid}>
-              {availableStartSlots.map((slot) => (
-                <button
-                  key={slot.start_time}
-                  type="button"
-                  className={bookingStart === slot.start_time ? styles.selected : ""}
-                  aria-pressed={bookingStart === slot.start_time}
-                  aria-label={`${slot.start_time} 시작, 잔여 ${slot.remaining_capacity}자리`}
-                  onClick={() => {
-                    onBookingStartChange(slot.start_time);
-                    onBookingEndChange("");
-                  }}
-                >
-                  <strong>{slot.start_time}</strong>
-                  <small>잔여 {slot.remaining_capacity}자리</small>
-                </button>
-              ))}
+              {allSlots.map((slot) => {
+                const hasCapacity = hasRequiredCapacity(slot.remaining_capacity);
+                return (
+                  <button
+                    key={slot.start_time}
+                    type="button"
+                    className={bookingStart === slot.start_time ? styles.selected : ""}
+                    aria-pressed={bookingStart === slot.start_time}
+                    aria-label={hasCapacity
+                      ? `${slot.start_time} 시작, 잔여 ${slot.remaining_capacity}자리`
+                      : `${slot.start_time} 시작, ${requiredCapacity}명 선택에는 잔여 ${slot.remaining_capacity}자리로 부족`}
+                    disabled={!hasCapacity}
+                    onClick={() => {
+                      onBookingStartChange(slot.start_time);
+                      onBookingEndChange("");
+                    }}
+                  >
+                    <strong>{slot.start_time}</strong>
+                    <small>{hasCapacity ? `잔여 ${slot.remaining_capacity}자리` : `${requiredCapacity}명 선택에는 부족`}</small>
+                  </button>
+                );
+              })}
             </div>
           </fieldset>
           {bookingStart && (
             <fieldset className={styles.step}>
               <legend><span>2</span> 종료 시간</legend>
               <div className={styles.slotGrid}>
-                {availableEndSlots.map((slot) => {
+                {endSlots.map((slot) => {
                   const duration = durationText(bookingStart, slot.end_time);
+                  const slotIndex = allSlots.indexOf(slot);
+                  const hasCapacity = allSlots.slice(bookingStartIndex, slotIndex + 1)
+                    .every((candidate) => hasRequiredCapacity(candidate.remaining_capacity));
                   return (
                     <button
                       key={slot.end_time}
                       type="button"
                       className={bookingEnd === slot.end_time ? styles.selected : ""}
                       aria-pressed={bookingEnd === slot.end_time}
-                      aria-label={`${slot.end_time} 종료, 총 ${duration}`}
+                      aria-label={hasCapacity
+                        ? `${slot.end_time} 종료, 총 ${duration}`
+                        : `${slot.end_time} 종료, ${requiredCapacity}명 선택에는 구간 잔여가 부족`}
+                      disabled={!hasCapacity}
                       onClick={() => onBookingEndChange(slot.end_time)}
                     >
                       <strong>{slot.end_time}</strong>
-                      <small>총 {duration}</small>
+                      <small>{hasCapacity ? `총 ${duration}` : `${requiredCapacity}명 선택에는 부족`}</small>
                     </button>
                   );
                 })}

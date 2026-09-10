@@ -20,6 +20,7 @@ type ClinicTimePolicyFieldsProps = {
   allowMultiSlotBooking: boolean;
   onAllowMultiSlotBookingChange: (value: boolean) => void;
   showBookingModeSelector?: boolean;
+  timeRangeError?: string;
 };
 
 export default function ClinicTimePolicyFields({
@@ -39,6 +40,7 @@ export default function ClinicTimePolicyFields({
   allowMultiSlotBooking,
   onAllowMultiSlotBookingChange,
   showBookingModeSelector = true,
+  timeRangeError,
 }: ClinicTimePolicyFieldsProps) {
   return (
     <div className="clinic-create__field">
@@ -53,6 +55,7 @@ export default function ClinicTimePolicyFields({
           endPlaceholder="종료"
         />
       </div>
+      {timeRangeError && <p className="clinic-create__time-error" role="alert">{timeRangeError}</p>}
       {(showBookingModeSelector || bookingMode === "time_range") && <div className="clinic-create__row">
         {showBookingModeSelector && <div className="clinic-create__field clinic-create__field--grow">
           <label className="clinic-create__label">예약 방식</label>

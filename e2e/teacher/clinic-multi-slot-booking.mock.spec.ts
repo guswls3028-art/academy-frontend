@@ -181,7 +181,7 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
         slots: [
           { start_time: "10:00", end_time: "10:30", remaining_capacity: 2 },
           { start_time: "10:30", end_time: "11:00", remaining_capacity: 2 },
-          { start_time: "11:00", end_time: "11:30", remaining_capacity: 2 },
+          { start_time: "11:00", end_time: "11:30", remaining_capacity: 1 },
         ],
       });
     }
@@ -310,27 +310,42 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole("button", { name: /자유 운영 클리닉/ }).click();
+  const freeTimeSessionButton = page.getByRole("button", { name: /자유 운영 클리닉/ });
+  await expect(freeTimeSessionButton).toContainText("운영 09:00–17:00");
+  await freeTimeSessionButton.click();
   await page.getByRole("button", { name: "학생 추가" }).click();
   const rangeSheet = page.getByRole("dialog", { name: "학생 추가" });
   await expect(rangeSheet.getByRole("heading", { name: "실제 이용 시간 선택" })).toBeVisible();
-  await rangeSheet.getByRole("button", { name: "10:00 시작, 잔여 2자리" }).click();
-  await rangeSheet.getByRole("button", { name: "11:30 종료, 총 1시간 30분" }).click();
+  await expect(rangeSheet.getByText("운영 시간", { exact: true }).first()).toBeVisible();
+  await expect(rangeSheet.getByText("추가할 시간대", { exact: true })).toHaveCount(0);
+  await expect(rangeSheet.getByText(/한 타임|개 시간대/)).toHaveCount(0);
   await rangeSheet.getByRole("button", { name: /김학생/ }).click();
   await rangeSheet.getByRole("button", { name: /이학생/ }).click();
+  const rangeStartButton = rangeSheet.getByRole("button", { name: "10:00 시작, 잔여 2자리" });
+  await rangeStartButton.focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  expect(await rangeStartButton.evaluate((element) => ({
+    outlineStyle: getComputedStyle(element).outlineStyle,
+    outlineWidth: getComputedStyle(element).outlineWidth,
+  }))).toEqual({ outlineStyle: "solid", outlineWidth: "3px" });
+  await rangeStartButton.click();
+  await expect(rangeSheet.getByRole("button", { name: "11:30 종료, 2명 선택에는 구간 잔여가 부족" })).toBeDisabled();
+  await expect(rangeSheet).toContainText("2명 선택에는 부족");
+  await rangeSheet.getByRole("button", { name: "11:00 종료, 총 1시간" }).click();
   await rangeSheet.getByRole("button", { name: "2명 추가" }).click();
   await expect.poll(() => bulkPayloads[1]).toEqual({
     session_ids: [706],
     student_ids: [801, 802],
     booking_start_time: "10:00",
-    booking_end_time: "11:30",
+    booking_end_time: "11:00",
   });
-  await expect(page.getByText("예약 10:00–11:30")).toHaveCount(2);
+  await expect(page.getByText("예약 10:00–11:00")).toHaveCount(2);
   expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   await page.reload({ waitUntil: "domcontentloaded", timeout: 30_000 });
   await page.setViewportSize({ width: 1100, height: 800 });
   await page.getByRole("button", { name: /자유 운영 클리닉/ }).click();
-  await expect(page.getByText("예약 10:00–11:30")).toHaveCount(2);
+  await expect(page.getByText("예약 10:00–11:00")).toHaveCount(2);
   expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
 
   await page.getByRole("button", { name: "클리닉 만들기" }).click();
@@ -345,6 +360,15 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   await createSheet.getByRole("button", { name: /자유지정 클리닉/ }).click();
   await expect(createSheet.getByText("학생이 예약 가능한 실제 시작·종료 시간을 직접 선택합니다.")).toBeVisible();
   await expect(timePreferenceToggle).toHaveCount(0);
+  const timeInputs = createSheet.locator('input[type="time"]');
+  await timeInputs.first().fill("23:00");
+  await timeInputs.nth(1).fill("01:00");
+  await createSheet.getByPlaceholder("예: 3층 자습실").fill("심야 자습실");
+  await expect(createSheet.getByText("익일 종료는 자정(00:00)까지만 지원합니다. 종료 시간을 같은 날 또는 00:00으로 선택해 주세요.")).toBeVisible();
+  await expect(createSheet.getByRole("button", { name: "생성", exact: true })).toBeDisabled();
+  await timeInputs.first().fill("18:00");
+  await timeInputs.nth(1).fill("00:00");
+  await expect(createSheet.getByRole("button", { name: "생성", exact: true })).toBeEnabled();
   await createSheet.getByRole("button", { name: "방식 다시 선택" }).click();
   await createSheet.getByRole("button", { name: /시간지정 클리닉/ }).click();
   multiSlotToggle = createSheet.getByRole("checkbox", { name: /같은 날 여러 시간대 예약/ });
