@@ -44,11 +44,8 @@ import {
 import type { ClinicCreatePanelProps } from "./clinicCreatePanel.types";
 import ClinicTimePolicyFields from "./ClinicTimePolicyFields";
 import { useClinicBookingPolicy } from "../hooks/useClinicBookingPolicy";
-import {
-  ClinicBookingModeChoice,
-  ClinicBookingModeSummary,
-  type ClinicBookingMode,
-} from "@/shared/ui/clinic/ClinicBookingModeChoice";
+import { ClinicBookingModeChoice, ClinicBookingModeSummary, type ClinicBookingMode }
+  from "@/shared/ui/clinic/ClinicBookingModeChoice";
 
 export default function ClinicCreatePanel({
   date,
@@ -607,10 +604,7 @@ export default function ClinicCreatePanel({
 
   const formFields = (
     <>
-      <ClinicBookingModeSummary
-        mode={bookingMode}
-        onChange={sourceSession ? undefined : () => setBookingModeChosen(false)}
-      />
+      <ClinicBookingModeSummary mode={bookingMode} onChange={sourceSession ? undefined : () => setBookingModeChosen(false)} />
       {/* 날짜 */}
       {!hideDatePicker && (
         <div className="clinic-create__field">
@@ -962,16 +956,11 @@ export default function ClinicCreatePanel({
     return (
       <div className="clinic-create clinic-create--modal">
         <div className="clinic-create__form">
-          {bookingModeChosen ? formFields : (
-            <ClinicBookingModeChoice
-              recommendedMode={clinicSettingsQ.data?.booking_mode ?? bookingMode}
-              onSelect={chooseBookingMode}
-            />
-          )}
+          {bookingModeChosen
+            ? formFields
+            : <ClinicBookingModeChoice recommendedMode={clinicSettingsQ.data?.booking_mode ?? bookingMode} onSelect={chooseBookingMode} />}
         </div>
-        {bookingModeChosen && <div className="clinic-create__footer">
-          {submitButton}
-        </div>}
+        {bookingModeChosen && <div className="clinic-create__footer">{submitButton}</div>}
         {targetSelectModal}
       </div>
     );
@@ -995,16 +984,11 @@ export default function ClinicCreatePanel({
 
       <div className="ds-card-modal__body clinic-create-body flex-1 min-h-0 flex flex-col">
         <div className="clinic-create__form">
-          {bookingModeChosen ? formFields : (
-            <ClinicBookingModeChoice
-              recommendedMode={clinicSettingsQ.data?.booking_mode ?? bookingMode}
-              onSelect={chooseBookingMode}
-            />
-          )}
+          {bookingModeChosen
+            ? formFields
+            : <ClinicBookingModeChoice recommendedMode={clinicSettingsQ.data?.booking_mode ?? bookingMode} onSelect={chooseBookingMode} />}
         </div>
-        {bookingModeChosen && <div className="clinic-create__footer">
-          {submitButton}
-        </div>}
+        {bookingModeChosen && <div className="clinic-create__footer">{submitButton}</div>}
       </div>
 
       {targetSelectModal}
