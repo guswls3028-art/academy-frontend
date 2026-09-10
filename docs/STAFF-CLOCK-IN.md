@@ -132,7 +132,7 @@ pnpm typecheck
 pnpm exec eslint src/features/staff-clock src/auth/pages/LoginPage.tsx src/AppInner.tsx src/app_teacher/domains/profile/pages/MyRecordsPage.tsx
 pnpm api-types:check
 pnpm guard:legacy-api
-pnpm exec playwright test e2e/auth/staff-clock-in-choice.mock.spec.ts e2e/admin/staff-operations-contract.mock.spec.ts e2e/teacher/dynamic-workspace-parity.mock.spec.ts --project=pr-route-mocks --workers=1 --retries=0 --reporter=list
+pnpm exec playwright test e2e/auth/staff-clock-in-choice.mock.spec.ts e2e/admin/staff-operations-contract.mock.spec.ts e2e/teacher/dynamic-workspace-parity.mock.spec.ts --config=playwright.pr-gate.config.ts --project=pr-route-mocks --no-deps --workers=1 --retries=0 --reporter=list
 pnpm build
 ```
 

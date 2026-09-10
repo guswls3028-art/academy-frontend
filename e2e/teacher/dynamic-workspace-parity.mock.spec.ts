@@ -275,6 +275,14 @@ test("모바일 직원 근태도 과거 월 날짜를 추측하지 않고 현재
   await month.fill("2026-09");
   await page.getByRole("button", { name: "근태 추가", exact: true }).click();
   await expect(page.locator('input[type="date"]').last()).toHaveValue("2026-09-10");
+  await page
+    .getByRole("dialog", { name: "근태 등록" })
+    .getByRole("button", { name: "닫기" })
+    .click();
+
+  await month.fill("2026-10");
+  await page.getByRole("button", { name: "근태 추가", exact: true }).click();
+  await expect(page.locator('input[type="date"]').last()).toHaveValue("");
 });
 
 test("390px 선생님은 학생 상세를 PC canonical로 열고 같은 모바일 상세로 한 번만 돌아온다", async ({ page }) => {

@@ -1330,6 +1330,18 @@ test.describe("직원 운영 계약", () => {
     await expect(
       page.getByRole("dialog", { name: "근무 기록 추가" }).locator("#work-record-date"),
     ).toContainText("2026년 09월 10일");
+    await page
+      .getByRole("dialog", { name: "근무 기록 추가" })
+      .getByRole("button", { name: "닫기" })
+      .click();
+
+    await page.goto(`${BASE}/workspace/staff/attendance?staffId=1&year=2026&month=10`, {
+      waitUntil: "domcontentloaded",
+    });
+    await page.getByRole("button", { name: "추가", exact: true }).click();
+    await expect(
+      page.getByRole("dialog", { name: "근무 기록 추가" }).locator("#work-record-date"),
+    ).toContainText("날짜 선택");
   });
 
   test("과거 월 선결제 환급 추가도 실제 날짜를 명시 선택한다", async ({ page }) => {
@@ -1372,6 +1384,18 @@ test.describe("직원 운영 계약", () => {
     await expect(
       page.getByRole("dialog", { name: "선결제 환급 추가" }).locator("#staff-expense-date"),
     ).toContainText("2026년 09월 10일");
+    await page
+      .getByRole("dialog", { name: "선결제 환급 추가" })
+      .getByRole("button", { name: "닫기" })
+      .click();
+
+    await page.goto(`${BASE}/workspace/staff/expenses?staffId=1&year=2026&month=10`, {
+      waitUntil: "domcontentloaded",
+    });
+    await page.getByRole("button", { name: "추가", exact: true }).click();
+    await expect(
+      page.getByRole("dialog", { name: "선결제 환급 추가" }).locator("#staff-expense-date"),
+    ).toContainText("날짜 선택");
   });
 
   test("개인 지출 등록을 열어도 선택한 과거 월과 기본 날짜를 유지한다", async ({ page }) => {
