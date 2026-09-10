@@ -1,27 +1,9 @@
 // PATH: src/app_admin/domains/staff/api/workRecords.api.ts
 import api from "@/shared/api/axios";
+import type { components } from "@/shared/api/generated/schema";
 
 /** Backend: WorkRecordSerializer — 급여 상세 화면의 정본 필드. */
-export type WorkRecord = {
-  id: number;
-  staff: number;
-  staff_name: string;
-  work_type: number;
-  work_type_name: string;
-  date: string;
-  start_time: string;
-  end_time: string | null;
-  break_minutes: number;
-  meal_minutes: number;
-  work_hours: number | null;
-  amount: number | null;
-  adjustment_amount: number;
-  resolved_hourly_wage: number | null;
-  is_manually_edited: boolean;
-  memo: string;
-  created_at: string;
-  updated_at: string;
-};
+export type WorkRecord = components["schemas"]["StaffWorkRecord"];
 
 /**
  * GET /staffs/work-records/

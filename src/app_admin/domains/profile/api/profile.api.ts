@@ -81,7 +81,12 @@ export type Attendance = {
 export type AttendanceSummary = {
   total_hours: number;
   total_amount: number;
-  total_after_tax?: number;
+  approved_expense_amount: number;
+  reference_business_income_tax: number;
+  reference_local_income_tax: number;
+  reference_deduction_total: number;
+  reference_net_work_amount: number;
+  reference_transfer_amount: number;
 };
 
 /* =====================

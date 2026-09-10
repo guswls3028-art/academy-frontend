@@ -239,7 +239,7 @@ async function mockStaffApi(
           reference_deduction_total: 11286,
           reference_net_work_amount: 330714,
           reference_transfer_amount: 348714,
-          advisory_issue_count: 1,
+          advisory_issue_count: 0,
           work_type_breakdown: [
             { work_type_id: 21, work_type_name: "채점", color: "#2563EB", record_count: 6, work_hours: 24, work_amount: 288000 },
             { work_type_id: 22, work_type_name: "강의", color: "#16A34A", record_count: 1, work_hours: 4.5, work_amount: 54000 },
@@ -273,8 +273,8 @@ async function mockStaffApi(
             incomplete_work_record_count: 0,
             duplicate_work_record_count: 0,
             abnormal_long_work_record_count: 0,
-            manually_edited_work_record_count: 1,
-            advisory_issue_count: 1,
+            manually_edited_work_record_count: 0,
+            advisory_issue_count: 0,
             assigned_work_type_count: 1,
             locked: false,
             snapshot_exists: false,
@@ -497,6 +497,10 @@ test.describe("직원 운영 계약", () => {
     await expect(overview.getByRole("button", { name: "다음 달" })).toContainText("다음");
     await expect(overview.getByText("342,000원", { exact: true }).first()).toBeVisible();
     await expect(overview.getByText("3.3% 적용 시 참고").first()).toBeVisible();
+    const reviewMetric = overview.getByText("지급 전 확인 직원", { exact: true }).locator("..");
+    await expect(reviewMetric.getByText("1명", { exact: true })).toBeVisible();
+    await expect(reviewMetric).toContainText("기록 점검 0건");
+    await expect(reviewMetric).toContainText("비용 대기 30,000원");
     const overviewTable = overview.getByRole("table");
     await expect(overviewTable.getByText("비용 대기 1건")).toBeVisible();
     await expect(overviewTable.getByRole("button", { name: /김조교/ })).toBeVisible();
@@ -505,6 +509,14 @@ test.describe("직원 운영 계약", () => {
       path: "test-results/staff-payroll-overview-1366.png",
       fullPage: true,
     });
+
+    await overview.getByRole("button", { name: "확인 항목만 보기" }).click();
+    await expect(overviewTable.getByRole("button", { name: /김조교/ })).toBeVisible();
+    await expect(overviewTable.getByRole("button", { name: /이퇴사/ })).toHaveCount(0);
+    await overview.getByRole("button", { name: "다음 달" }).click();
+    await expect(page).toHaveURL(/year=2026&month=9/);
+    await expect(overview.getByRole("heading", { name: "2026년 9월 급여판" })).toBeVisible();
+    await expect(overviewTable.getByRole("button", { name: /이퇴사/ })).toBeVisible();
 
     await overviewTable.getByRole("button", { name: /김조교/ }).click();
     await expect(page).toHaveURL(/staffId=1/);
@@ -516,6 +528,11 @@ test.describe("직원 운영 계약", () => {
     const mobileOverview = page.getByTestId("staff-payroll-overview");
     await expect(mobileOverview).toBeVisible();
     await expect(mobileOverview.getByText("348,714원", { exact: true }).first()).toBeVisible();
+    const kimPayrollCard = mobileOverview.getByRole("button", { name: /김조교/ });
+    await expect(kimPayrollCard).toContainText("재직");
+    await expect(kimPayrollCard).toContainText("승인 환급비");
+    await expect(kimPayrollCard).toContainText("12,000원");
+    await expect(mobileOverview.getByRole("button", { name: /이퇴사/ })).toContainText("퇴사");
     const mobileLayout = await page.evaluate(() => {
       const overview = document.querySelector<HTMLElement>("[data-testid='staff-payroll-overview']");
       return {
@@ -527,7 +544,7 @@ test.describe("직원 운영 계약", () => {
     expect(mobileLayout.fitsViewport).toBe(true);
     expect(mobileLayout.overviewTop).toBeLessThan(Number.MAX_SAFE_INTEGER);
     expect(mobileLayout.panelCount).toBe(1);
-    await mobileOverview.evaluate((node) => { node.scrollTop = 0; });
+    await kimPayrollCard.scrollIntoViewIfNeeded();
     await page.screenshot({
       path: "test-results/staff-payroll-overview-390.png",
       fullPage: false,
@@ -746,7 +763,7 @@ test.describe("직원 운영 계약", () => {
         end_time: "18:00",
         break_minutes: 0,
         meal_minutes: 0,
-        work_hours: 4,
+        work_hours: "4.00",
         amount: 48000,
         adjustment_amount: 0,
         resolved_hourly_wage: 12000,
@@ -1268,7 +1285,7 @@ test.describe("직원 운영 계약", () => {
         end_time: "18:00",
         break_minutes: 0,
         meal_minutes: 0,
-        work_hours: 4,
+        work_hours: "4.00",
         amount: 48000,
         adjustment_amount: 0,
         resolved_hourly_wage: 12000,

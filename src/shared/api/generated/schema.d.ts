@@ -17361,6 +17361,75 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
         };
+        StaffPayrollOverview: {
+            /** Format: date */
+            date_from: string;
+            /** Format: date */
+            date_to: string;
+            month: number;
+            rows: components["schemas"]["StaffPayrollOverviewRow"][];
+            totals: components["schemas"]["StaffPayrollOverviewTotals"];
+            year: number;
+        };
+        StaffPayrollOverviewRow: {
+            abnormal_long_work_record_count: number;
+            account_role: string;
+            advisory_issue_count: number;
+            approved_expense_amount: number;
+            assigned_work_type_count: number;
+            can_close: boolean;
+            can_manage_staff: boolean;
+            duplicate_work_record_count: number;
+            incomplete_work_record_count: number;
+            is_active: boolean;
+            manually_edited_work_record_count: number;
+            name: string;
+            open_work_record_count: number;
+            pay_type: string;
+            pending_expense_amount: number;
+            pending_expense_count: number;
+            position: string;
+            position_label: string;
+            reference_business_income_tax: number;
+            reference_deduction_total: number;
+            reference_local_income_tax: number;
+            reference_net_work_amount: number;
+            reference_transfer_amount: number;
+            settlement_status: string;
+            staff_id: number;
+            total_amount: number;
+            work_amount: number;
+            /** Format: double */
+            work_hours: number;
+            work_type_breakdown: components["schemas"]["StaffPayrollWorkTypeBreakdown"][];
+        };
+        StaffPayrollOverviewTotals: {
+            advisory_issue_count: number;
+            approved_expense_amount: number;
+            closed_count: number;
+            needs_review_count: number;
+            pending_expense_amount: number;
+            reference_business_income_tax: number;
+            reference_deduction_total: number;
+            reference_local_income_tax: number;
+            reference_net_work_amount: number;
+            reference_transfer_amount: number;
+            staff_count: number;
+            total_amount: number;
+            work_amount: number;
+            /** Format: double */
+            work_hours: number;
+            work_type_breakdown: components["schemas"]["StaffPayrollWorkTypeBreakdown"][];
+        };
+        StaffPayrollWorkTypeBreakdown: {
+            color: string | null;
+            record_count: number;
+            work_amount: number;
+            /** Format: double */
+            work_hours: number;
+            work_type_id: number | null;
+            work_type_name: string | null;
+        };
         StaffWorkCurrentStatus: {
             break_minutes?: number;
             /** Format: date-time */
@@ -32886,7 +32955,10 @@ export interface operations {
     };
     staffs_payroll_overview_retrieve: {
         parameters: {
-            query?: never;
+            query: {
+                month: number;
+                year: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -32898,7 +32970,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StaffWrite"];
+                    "application/json": components["schemas"]["StaffPayrollOverview"];
                 };
             };
         };

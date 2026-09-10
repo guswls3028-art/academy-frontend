@@ -53,6 +53,12 @@ export function useAttendanceDomain(
     () => ({
       total_hours: Number(summaryQ.data?.work_hours ?? 0),
       total_amount: Number(summaryQ.data?.work_amount ?? 0),
+      approved_expense_amount: Number(summaryQ.data?.expense_amount ?? 0),
+      reference_business_income_tax: Number(summaryQ.data?.reference_business_income_tax ?? 0),
+      reference_local_income_tax: Number(summaryQ.data?.reference_local_income_tax ?? 0),
+      reference_deduction_total: Number(summaryQ.data?.reference_deduction_total ?? 0),
+      reference_net_work_amount: Number(summaryQ.data?.reference_net_work_amount ?? 0),
+      reference_transfer_amount: Number(summaryQ.data?.reference_transfer_amount ?? 0),
     }),
     [summaryQ.data],
   );

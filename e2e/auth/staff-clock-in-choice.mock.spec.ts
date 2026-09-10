@@ -59,7 +59,7 @@ async function installClockApp(
     end_time: "17:00:00",
     break_minutes: 0,
     meal_minutes: 0,
-    work_hours: 4,
+    work_hours: "4.00",
     amount: 52000,
     resolved_hourly_wage: 13000,
     memo: "",
@@ -74,7 +74,7 @@ async function installClockApp(
     date: "2026-09-06",
     start_time: "10:00:00",
     end_time: "12:30:00",
-    work_hours: 2.5,
+    work_hours: "2.50",
     amount: 37500,
     resolved_hourly_wage: 15000,
     created_at: "2026-09-06T01:00:00Z",
@@ -198,7 +198,7 @@ async function installClockApp(
         end_time: "01:05:00",
         break_minutes: 0,
         meal_minutes: 0,
-        work_hours: 1,
+        work_hours: "1.00",
         amount: activeWorkType === 41 ? 15000 : 13000,
         resolved_hourly_wage: activeWorkType === 41 ? 15000 : 13000,
         memo: "",
@@ -230,7 +230,7 @@ async function installClockApp(
           date: "2026-08-20",
           start_time: "00:05:00",
           end_time: recordClosed ? "01:05:00" : null,
-          work_hours: recordClosed ? 1 : null,
+          work_hours: recordClosed ? "1.00" : null,
           amount: recordClosed ? (activeWorkType === 41 ? 15000 : 13000) : null,
           resolved_hourly_wage: activeWorkType === 41 ? 15000 : 13000,
         });
@@ -352,6 +352,7 @@ test.describe("조교 로그인 출근 선택", () => {
     await expect(page.getByText("3.3% 적용 시 참고 공제")).toBeVisible();
     await expect(page.getByText("50,284원").first()).toBeVisible();
     await expect(page.getByRole("button", { name: "출근 유형 선택" })).toBeVisible();
+    await page.screenshot({ path: "test-results/staff-my-records-payroll-desktop.png", fullPage: false });
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("dialog", { name: "오늘 어떤 방식으로 시작할까요?" })).toHaveCount(0);

@@ -51,7 +51,7 @@ function rowIssues(row: StaffPayrollOverviewRow) {
 export function StaffPayrollOverview({ year, month }: Props) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [reviewOnly, setReviewOnly] = useState(false);
+  const [reviewScope, setReviewScope] = useState<string | null>(null);
   const overviewQ = useQuery({
     queryKey: staffQueryKeys.payrollOverview(year, month),
     queryFn: () => fetchStaffPayrollOverview(year, month),
@@ -91,8 +91,16 @@ export function StaffPayrollOverview({ year, month }: Props) {
   }
 
   const { totals, rows } = overviewQ.data;
+  const currentScope = `${year}:${month}`;
+  const reviewRows = rows.filter(
+    (row) =>
+      row.advisory_issue_count > 0 ||
+      row.settlement_status === "NEEDS_REVIEW" ||
+      row.settlement_status === "RECONCILIATION_REQUIRED",
+  );
+  const reviewOnly = reviewScope === currentScope && reviewRows.length > 0;
   const visibleRows = reviewOnly
-    ? rows.filter((row) => row.advisory_issue_count > 0 || row.settlement_status === "NEEDS_REVIEW" || row.settlement_status === "RECONCILIATION_REQUIRED")
+    ? reviewRows
     : rows;
 
   return (
@@ -124,10 +132,10 @@ export function StaffPayrollOverview({ year, month }: Props) {
           <Metric label="총 근무시간" value={`${totals.work_hours.toFixed(1)}h`} />
           <Metric label="승인 환급비" value={`${totals.approved_expense_amount.toLocaleString()}원`} sub={`대상 ${totals.staff_count}명 · 마감 ${totals.closed_count}명`} />
           <Metric
-            label="지급 전 확인"
-            value={`${totals.advisory_issue_count}건`}
-            sub={totals.pending_expense_amount ? `대기 비용 ${totals.pending_expense_amount.toLocaleString()}원` : "대기 비용 없음"}
-            warning={totals.advisory_issue_count > 0 || totals.needs_review_count > 0}
+            label="지급 전 확인 직원"
+            value={`${totals.needs_review_count}명`}
+            sub={`기록 점검 ${totals.advisory_issue_count}건 · ${totals.pending_expense_amount ? `비용 대기 ${totals.pending_expense_amount.toLocaleString()}원` : "비용 대기 없음"}`}
+            warning={totals.needs_review_count > 0}
           />
         </div>
       </section>
@@ -136,9 +144,9 @@ export function StaffPayrollOverview({ year, month }: Props) {
         <section className={styles.workTypeStrip} aria-label="근무유형별 시간">
           <strong>근무유형별</strong>
           <div>
-            {totals.work_type_breakdown.map((item) => (
-              <span key={item.work_type_id} style={{ "--work-color": item.color } as CSSProperties}>
-                {item.work_type_name} <b>{item.work_hours.toFixed(1)}h</b>
+            {totals.work_type_breakdown.map((item, index) => (
+              <span key={item.work_type_id ?? `unknown-${index}`} style={{ "--work-color": item.color ?? undefined } as CSSProperties}>
+                {item.work_type_name ?? "근무유형 미지정"} <b>{item.work_hours.toFixed(1)}h</b>
               </span>
             ))}
           </div>
@@ -157,8 +165,8 @@ export function StaffPayrollOverview({ year, month }: Props) {
       {(totals.needs_review_count > 0 || totals.advisory_issue_count > 0) && (
         <div className={styles.attention} role="status">
           <AlertTriangle size={17} aria-hidden />
-          <span><strong>지급 전 확인</strong> 중복·장시간·미퇴근·관리자 수정 이력을 먼저 살펴보세요. 경고는 기록을 숨기거나 수정을 막지 않습니다.</span>
-          <Button intent={reviewOnly ? "primary" : "secondary"} size="sm" onClick={() => setReviewOnly((value) => !value)}>
+          <span><strong>지급 전 확인</strong> 근무기록 이상, 비용 대기, 시급태그 누락, 월급 수동 확인, 마감 대사를 먼저 살펴보세요. 경고는 기록을 숨기거나 수정을 막지 않습니다.</span>
+          <Button intent={reviewOnly ? "primary" : "secondary"} size="sm" onClick={() => setReviewScope(reviewOnly ? null : currentScope)}>
             {reviewOnly ? "전체 직원 보기" : "확인 항목만 보기"}
           </Button>
         </div>
@@ -194,8 +202,8 @@ export function StaffPayrollOverview({ year, month }: Props) {
                       </td>
                       <td>
                         <div className={styles.rowTypes}>
-                          {row.work_type_breakdown.map((item) => (
-                            <span key={item.work_type_id} style={{ "--work-color": item.color } as CSSProperties}>{item.work_type_name} {item.work_hours.toFixed(1)}h</span>
+                          {row.work_type_breakdown.map((item, index) => (
+                            <span key={item.work_type_id ?? `unknown-${index}`} style={{ "--work-color": item.color ?? undefined } as CSSProperties}>{item.work_type_name ?? "근무유형 미지정"} {item.work_hours.toFixed(1)}h</span>
                           ))}
                         </div>
                       </td>
@@ -223,14 +231,15 @@ export function StaffPayrollOverview({ year, month }: Props) {
               return (
                 <button key={row.staff_id} type="button" className={styles.mobileCard} onClick={() => openStaff(row.staff_id)}>
                   <span className={styles.mobileIdentity}>
-                    <span><strong>{row.name}</strong><small>{staffPositionLabel(row.position)} · {staffAccountRoleLabel(row.account_role)}</small></span>
+                    <span><strong>{row.name}</strong><small>{staffPositionLabel(row.position)} · {staffAccountRoleLabel(row.account_role)} · {row.is_active ? "재직" : "퇴사"}</small></span>
                     <Badge variant="solid" tone={statusTone(row.settlement_status)}>{STATUS_LABEL[row.settlement_status]}</Badge>
                   </span>
                   <span className={styles.mobileNumbers}>
                     <span><small>근무 · 공제 전</small>{row.work_hours.toFixed(1)}h · {row.work_amount.toLocaleString()}원</span>
+                    <span><small>승인 환급비</small>{row.approved_expense_amount.toLocaleString()}원</span>
                     <span><small>최종 이체 참고</small>{row.reference_transfer_amount.toLocaleString()}원</span>
                   </span>
-                  <span className={styles.rowTypes}>{row.work_type_breakdown.map((item) => <span key={item.work_type_id} style={{ "--work-color": item.color } as CSSProperties}>{item.work_type_name} {item.work_hours.toFixed(1)}h</span>)}</span>
+                  <span className={styles.rowTypes}>{row.work_type_breakdown.map((item, index) => <span key={item.work_type_id ?? `unknown-${index}`} style={{ "--work-color": item.color ?? undefined } as CSSProperties}>{item.work_type_name ?? "근무유형 미지정"} {item.work_hours.toFixed(1)}h</span>)}</span>
                   {issues.length > 0 && <span className={styles.issueText}>{issues.join(" · ")}</span>}
                 </button>
               );

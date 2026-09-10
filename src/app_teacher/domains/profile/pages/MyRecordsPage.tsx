@@ -332,29 +332,39 @@ function AttendanceContent({
           description="로그인 후 근무 유형을 선택해 출근하면 자동으로 기록됩니다."
         />
       ) : (
-        records.map((record) => (
-          <Card key={record.id} style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>
-                  {shortDateWeekday(record.date)} · {record.work_type_name}
+        records.map((record) => {
+          const numericWorkHours = record.work_hours == null
+            ? null
+            : Number(record.work_hours);
+          const workHoursText = numericWorkHours == null
+            ? "계산 전"
+            : Number.isFinite(numericWorkHours)
+              ? `${numericWorkHours.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}시간`
+              : "확인 필요";
+          return (
+            <Card key={record.id} style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>
+                    {shortDateWeekday(record.date)} · {record.work_type_name}
+                  </div>
+                  <div className="mt-0.5 text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+                    {record.start_time.slice(0, 5)} ~ {record.end_time?.slice(0, 5) ?? "근무 중"}
+                    {record.end_time ? ` · ${workHoursText}` : " · 진행 중"}
+                    {` · 휴게 ${(record.break_minutes ?? 0) + (record.meal_minutes ?? 0)}분`}
+                  </div>
+                  <div className="mt-1 text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+                    적용 시급 {record.resolved_hourly_wage?.toLocaleString() ?? "-"}원
+                    {record.is_manually_edited ? " · 관리자 수정" : ""}
+                  </div>
                 </div>
-                <div className="mt-0.5 text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
-                  {record.start_time.slice(0, 5)} ~ {record.end_time?.slice(0, 5) ?? "근무 중"}
-                  {record.end_time ? ` · ${record.work_hours ?? 0}시간` : " · 진행 중"}
-                  {` · 휴게 ${(record.break_minutes ?? 0) + (record.meal_minutes ?? 0)}분`}
-                </div>
-                <div className="mt-1 text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
-                  적용 시급 {record.resolved_hourly_wage?.toLocaleString() ?? "-"}원
-                  {record.is_manually_edited ? " · 관리자 수정" : ""}
+                <div className="shrink-0 text-right text-sm font-bold tabular-nums" style={{ color: "var(--tc-text)" }}>
+                  {record.end_time ? `${(record.amount ?? 0).toLocaleString()}원` : "계산 전"}
                 </div>
               </div>
-              <div className="shrink-0 text-right text-sm font-bold tabular-nums" style={{ color: "var(--tc-text)" }}>
-                {record.end_time ? `${(record.amount ?? 0).toLocaleString()}원` : "계산 전"}
-              </div>
-            </div>
-          </Card>
-        ))
+            </Card>
+          );
+        })
       )}
     </div>
   );
