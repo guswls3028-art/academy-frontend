@@ -73,5 +73,14 @@ export async function updateResult(
       { headers },
     );
     return res.data;
+  }, {
+    changes: [{
+      type: "examTotal",
+      examId,
+      enrollmentId,
+      score: payload.score,
+      maxScore: payload.maxScore ?? null,
+    }],
+    takeOverSameUser: true,
   });
 }

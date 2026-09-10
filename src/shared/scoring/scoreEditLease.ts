@@ -36,11 +36,18 @@ export function resolvedScoreEditorRecoveryId(): string {
 export async function runWithScoreEditLease<T>(
   sessionId: number,
   mutate: (headers: Record<string, string>) => Promise<T>,
+  options: {
+    changes?: Record<string, unknown>[];
+    takeOverSameUser?: boolean;
+  } = {},
 ): Promise<T> {
   const clientHeaders = await scoreEditorRequestHeaders();
   await api.put(
     `/results/admin/sessions/${sessionId}/score-draft/`,
-    { changes: [] },
+    {
+      changes: options.changes ?? [],
+      take_over_same_user: options.takeOverSameUser ?? false,
+    },
     { headers: clientHeaders },
   );
   const release = () => api.post(
