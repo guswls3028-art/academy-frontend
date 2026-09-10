@@ -141,6 +141,7 @@ export type StudentFormInput = {
   studentPhone?: string;
   omrCode?: string;
   parentPhone?: string;
+  parentInitialPassword?: string;
   schoolType?: StudentSchoolType | string | null;
   school?: string | null;
   grade?: string | number | null;
@@ -569,7 +570,6 @@ export async function createStudent(form: StudentFormInput) {
     origin_middle_school: schoolType === "HIGH" ? (form?.originMiddleSchool?.trim() || null) : null,
     is_managed: !!form?.active,
     custom_fields: form?.customFields ?? {},
-    send_welcome_message: true,
     no_phone: noPhone,
   };
 
@@ -604,11 +604,9 @@ export async function bulkCreateStudents(
     memo?: string | null;
     customFields?: StudentCustomFieldValues;
   }>,
-  sendWelcomeMessage = true
 ) {
   const payload = {
     initial_password: initialPassword,
-    send_welcome_message: sendWelcomeMessage,
     students: students.map((s) => ({
       name: s.name.trim(),
       phone: String(s.phone || "").replace(/\D/g, ""),
@@ -633,7 +631,6 @@ export async function bulkCreateStudents(
 export async function uploadStudentBulkFromExcel(
   file: File,
   passwordSettings: StudentInitialPasswordSettings,
-  sendWelcomeMessage = true
 ): Promise<{ job_id: string; status: string }> {
   const form = new FormData();
   form.append("file", file);
@@ -642,7 +639,6 @@ export async function uploadStudentBulkFromExcel(
     "initial_password",
     passwordSettings.mode === "fixed" ? passwordSettings.fixedPassword.trim() : "",
   );
-  form.append("send_welcome_message", String(sendWelcomeMessage));
   const res = await api.post("/students/bulk_create_from_excel/", form);
   return res.data as { job_id: string; status: string };
 }
@@ -670,6 +666,9 @@ export async function updateStudent(id: number, form: StudentFormInput) {
 
   if (form?.parentPhone !== undefined) {
     payload.parent_phone = normalizePhone(String(form.parentPhone));
+  }
+  if (form?.parentInitialPassword !== undefined) {
+    payload.parent_initial_password = String(form.parentInitialPassword).trim();
   }
   if (form?.studentPhone !== undefined || form?.noPhone === true) {
     const p = form?.noPhone === true
@@ -729,8 +728,16 @@ export async function bulkDeleteStudents(studentIds: number[]) {
 }
 
 /** 삭제된 학생 일괄 복원 */
-export async function bulkRestoreStudents(studentIds: number[]) {
-  const res = await api.post("/students/bulk_restore/", { ids: studentIds });
+export async function bulkRestoreStudents(
+  studentIds: number[],
+  parentInitialPassword?: string,
+) {
+  const res = await api.post("/students/bulk_restore/", {
+    ids: studentIds,
+    ...(parentInitialPassword?.trim()
+      ? { parent_initial_password: parentInitialPassword.trim() }
+      : {}),
+  });
   return res.data as BulkRestoreStudentsResult;
 }
 
@@ -761,11 +768,9 @@ export async function bulkResolveConflicts(
     action: "restore" | "delete";
     student_data: Record<string, unknown>;
   }>,
-  sendWelcomeMessage = true
 ) {
   const res = await api.post("/students/bulk_resolve_conflicts/", {
     initial_password: password,
-    send_welcome_message: sendWelcomeMessage,
     resolutions: resolutions.map((r) => ({
       row: r.row,
       student_id: r.student_id,
@@ -773,7 +778,12 @@ export async function bulkResolveConflicts(
       student_data: r.student_data,
     })),
   });
-  return res.data as { created: number; restored: number; failed: Array<{ row: number; name: string; error: string }> };
+  return res.data as {
+    created: number;
+    restored: number;
+    resolved: Array<{ row: number; student_id: number; state: "created" | "restored" }>;
+    failed: Array<{ row: number; name: string; error: string }>;
+  };
 }
 
 /* ===============================
@@ -1064,7 +1074,7 @@ export async function sendPasswordReset(params: {
   student_phone?: string;
   student_ps_number?: string;
   parent_phone?: string;
-  temp_password?: string;
+  temp_password: string;
 }): Promise<{ message: string }> {
   const { target, student_name, student_phone, student_ps_number, parent_phone, temp_password } = params;
   const body: Record<string, string | boolean> = {
@@ -1080,9 +1090,7 @@ export async function sendPasswordReset(params: {
   if (target === "parent" && parent_phone != null) {
     body.parent_phone = normalizePhone(String(parent_phone));
   }
-  if (temp_password?.trim()) {
-    body.temp_password = temp_password.trim();
-  }
+  body.temp_password = temp_password.trim();
   const res = await api.post<{ message: string }>("/students/password_reset_send/", body);
   return res.data;
 }

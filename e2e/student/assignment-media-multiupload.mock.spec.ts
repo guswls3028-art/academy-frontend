@@ -100,7 +100,6 @@ async function installApi(
             is_superuser: false,
             tenantRole: "parent",
             linkedStudents: [{ id: 72, name: "김하늘" }],
-            linkedStudentName: "김하늘",
           }
         : { id: 72, username: "student-72", name: "김하늘", is_staff: false, is_superuser: false, tenantRole: "student", linkedStudents: [] });
     }
@@ -271,7 +270,7 @@ test("학부모가 선택 자녀의 과제를 제출하고 새로고침 뒤에�
     .getByText("학부모-대리제출.png", { exact: true })).toBeVisible();
   expect(state.getStudentScopedHeaders().length).toBeGreaterThan(0);
   expect(state.getStudentScopedHeaders().every((value) => value === "72")).toBe(true);
-  expect(await page.evaluate(() => localStorage.getItem("parent_selected_student_id_hakwonplus"))).toBe("72");
+  expect(await page.evaluate(() => localStorage.getItem("parent_selected_student_id_hakwonplus_920"))).toBe("72");
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
 });
 
@@ -318,7 +317,7 @@ test("학생이 먼저 올린 직후 학부모는 백그라운드 재조회가 �
   const restored = page.getByRole("region", { name: "이미 제출한 파일" });
   await expect(restored.getByText("학생-먼저-제출.png", { exact: true })).toBeVisible();
   await expect(restored.getByText("학부모-이어서-제출.png", { exact: true })).toBeVisible();
-  expect(await page.evaluate(() => localStorage.getItem("parent_selected_student_id_hakwonplus"))).toBe("72");
+  expect(await page.evaluate(() => localStorage.getItem("parent_selected_student_id_hakwonplus_920"))).toBe("72");
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
 });
 

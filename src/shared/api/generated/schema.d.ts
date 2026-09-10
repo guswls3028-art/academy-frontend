@@ -10304,7 +10304,6 @@ export interface paths {
          * @description 충돌 해결 후 재시도 — 삭제된 학생과 번호 충돌 시 복원 또는 영구 삭제 후 재등록
          *     POST body: {
          *       "initial_password": "...",
-         *       "send_welcome_message": false,
          *       "resolutions": [ { "row": 1, "student_id": 123, "action": "restore"|"delete", "student_data": {...} } ]
          *     }
          */
@@ -10326,7 +10325,10 @@ export interface paths {
         put?: never;
         /**
          * @description 삭제된 학생 일괄 복원
-         *     POST body: { "ids": [1, 2, 3, ...] }
+         *     POST body: { "ids": [1, 2, 3, ...], "parent_initial_password": "optional" }
+         *
+         *     정상 학부모 계정의 비밀번호는 변경하지 않는다. 과거 데이터의 학부모
+         *     계정이 없거나 비밀번호를 쓸 수 없을 때만 명시된 초기 비밀번호를 사용한다.
          */
         post: operations["students_bulk_restore_create"];
         delete?: never;
@@ -15967,6 +15969,7 @@ export interface components {
             name?: string;
             /** @description 출신중학교 (고등학생 선택 입력) */
             origin_middle_school?: string | null;
+            parent_initial_password?: string;
             /** @description 정규화된 전화번호 (하이픈 제거, 예: 01012345678) */
             parent_phone?: string;
             /** @description 정규화된 전화번호 (하이픈 제거, 예: 01012345678) */
@@ -17853,8 +17856,6 @@ export interface components {
             /** @description 학생앱 일정 개별 숨김 ID 목록. 양수=LectureSession.id, 음수=ClinicSessionParticipant.id*-1. me/ 응답 ID 규약과 동일. 실제 데이터는 그대로 유지. */
             schedule_hidden_ids?: unknown;
             school_type?: components["schemas"]["SchoolTypeEnum"];
-            /** @default true */
-            send_welcome_message: boolean;
             /** @description True면 학생 전화 없음, 식별자(010+8자리)로 가입. 표시 시 '식별자 XXXX-XXXX' */
             uses_identifier?: boolean;
         };
@@ -18303,6 +18304,7 @@ export interface components {
             name: string;
             /** @description 출신중학교 (고등학생 선택 입력) */
             origin_middle_school?: string | null;
+            parent_initial_password?: string;
             /** @description 정규화된 전화번호 (하이픈 제거, 예: 01012345678) */
             parent_phone: string;
             /** @description 정규화된 전화번호 (하이픈 제거, 예: 01012345678) */
@@ -18539,6 +18541,7 @@ export interface components {
             /** @default true */
             enabled: boolean;
             grade?: string;
+            initial_password?: string;
             name: string;
             parent_phone?: string;
             remove_enrollment_id?: number | null;

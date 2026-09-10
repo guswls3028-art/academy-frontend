@@ -46,7 +46,7 @@ export type SendPasswordResetParams = {
   student_phone?: string;
   student_ps_number?: string;
   parent_phone?: string;
-  temp_password?: string;
+  temp_password: string;
 };
 
 export { sendStudentAccountGuidance };
@@ -161,9 +161,8 @@ export async function exportStudentsExcel() {
 export async function uploadStudentBulkExcel(
   file: File,
   passwordSettings: StudentInitialPasswordSettings,
-  sendWelcomeMessage = true,
 ) {
-  return uploadStudentBulkFromExcel(file, passwordSettings, sendWelcomeMessage);
+  return uploadStudentBulkFromExcel(file, passwordSettings);
 }
 
 /* ─── 학생 삭제 (soft delete) ─── */
@@ -251,7 +250,7 @@ export async function sendPasswordReset(params: SendPasswordResetParams): Promis
   if (params.target === "parent" && params.parent_phone) {
     body.parent_phone = normalizePhone(params.parent_phone);
   }
-  if (params.temp_password?.trim()) body.temp_password = params.temp_password.trim();
+  body.temp_password = params.temp_password.trim();
   const res = await api.post<{ message: string }>("/students/password_reset_send/", body);
   return res.data;
 }

@@ -7,7 +7,6 @@ import { useConfirm } from "@/shared/ui/confirm";
 import { useStudentsQuery } from "../hooks/useStudentsQuery";
 import {
   bulkDeleteStudents,
-  bulkRestoreStudents,
   bulkPermanentDeleteStudents,
   checkDeletedStudentDuplicates,
   fixDeletedStudentDuplicates,
@@ -23,6 +22,7 @@ import StudentCustomFieldsModal from "../components/StudentCustomFieldsModal";
 import StudentFilterModal from "../components/StudentFilterModal";
 import TagAddModal from "../components/TagAddModal";
 import PasswordResetModal, { type PwResetTarget } from "../components/PasswordResetModal";
+import RestoreStudentsModal from "../components/RestoreStudentsModal";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { adminStudentsQueryKeys } from "../queryKeys";
 
@@ -68,6 +68,7 @@ export default function StudentsHomePage() {
   const [passwordResetTarget, setPasswordResetTarget] = useState<PwResetTarget>("student");
   const [tagAdding, setTagAdding] = useState(false);
   const [passwordResetting, setPasswordResetting] = useState(false);
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
 
   useEffect(() => {
     setSort(isDeletedTab ? "-deletedAt" : "-registeredAt");
@@ -283,26 +284,7 @@ export default function StudentsHomePage() {
               intent="primary"
               size="sm"
               disabled={selectedCount === 0 || deleting}
-              onClick={async () => {
-                if (visibleSelectedIds.length === 0) return;
-                if (!(await confirm({ title: "학생 복원", message: `선택한 ${visibleSelectedIds.length}명의 계정과 삭제 전 수강 상태를 복원하시겠습니까? 그 사이 종료된 강의는 비활성으로 유지됩니다.`, confirmText: "복원" }))) return;
-                setDeleting(true);
-                try {
-                  const { restored, skipped = [] } = await bulkRestoreStudents(visibleSelectedIds);
-                  setSelectedIds([]);
-                  qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.students });
-                  if (skipped.length > 0) {
-                    const firstReason = skipped[0]?.reason ? `: ${skipped[0].reason}` : "";
-                    feedback.warning(`${restored}명 복원, ${skipped.length}명은 복원하지 못했습니다${firstReason}`);
-                  } else {
-                    feedback.success(`${restored}명 복원되었습니다.`);
-                  }
-                } catch (e: unknown) {
-                  feedback.error(e instanceof Error ? e.message : "복원 중 오류가 발생했습니다.");
-                } finally {
-                  setDeleting(false);
-                }
-              }}
+              onClick={() => setShowRestoreModal(true)}
             >
               {deleting ? "복원 중…" : "복원"}
             </Button>
@@ -621,6 +603,17 @@ export default function StudentsHomePage() {
         }}
         resetting={passwordResetting}
         setResetting={setPasswordResetting}
+      />
+
+      <RestoreStudentsModal
+        open={showRestoreModal}
+        onClose={() => setShowRestoreModal(false)}
+        selectedStudents={visibleSelectedStudents}
+        onSelectionChange={setSelectedIds}
+        onChanged={() => {
+          qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.students });
+          qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.student });
+        }}
       />
 
       {/* 퇴원 알림 수동 발송 모달 */}

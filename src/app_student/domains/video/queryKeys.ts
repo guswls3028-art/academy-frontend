@@ -1,5 +1,5 @@
 import type { User } from "@/auth/context/AuthContext";
-import { getParentStudentId } from "@student/shared/api/parentStudentSelection";
+import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 
 export function studentVideoQueryScope(user: Pick<User, "id" | "tenantRole"> | null): string {
   const selectedStudentId = user?.tenantRole === "parent" ? getParentStudentId() : null;

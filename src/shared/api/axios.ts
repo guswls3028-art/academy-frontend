@@ -7,6 +7,7 @@ import axios, {
   AxiosResponse,
   type AxiosHeaderValue,
 } from "axios";
+import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { captureApiError } from "@/shared/lib/sentryContext";
@@ -76,8 +77,8 @@ export function clearTokens(expectedGeneration?: string | null) {
   try {
     localStorage.removeItem("parent_selected_student_id");
     localStorage.removeItem("hakwonplus:excel-job-recovery:v1");
-    // 선택 자녀는 인증정보가 아니라 테넌트별 사용자 선호다. 로그아웃 뒤에도 보존하고,
-    // 다음 학부모 로그인에서 연결된 자녀인지 initParentStudentId가 다시 검증한다.
+    // 선택 자녀는 인증정보가 아니라 테넌트·학부모별 사용자 선호다. 로그아웃 뒤에도
+    // 보존하되 다음 학부모 로그인에서 연결된 자녀인지 다시 검증한다.
     removeSessionItem("session_expired");
     removeSessionItem("session_return_path");
     // tenantCode is non-auth routing context. Keep the exact tenant through
@@ -180,18 +181,8 @@ function setRequestHeader(config: AxiosRequestConfig, key: string, value: string
 function getParentSelectedStudentIdForHeader(): string | null {
   if (typeof window === "undefined") return null;
   if (!window.location.pathname.startsWith("/student")) return null;
-
-  const tenantCode = getTenantCodeForApiRequest();
-  if (!tenantCode) return null;
-
-  try {
-    const raw = localStorage.getItem(`parent_selected_student_id_${tenantCode}`);
-    if (!raw) return null;
-    const id = Number.parseInt(raw, 10);
-    return Number.isFinite(id) && id > 0 ? String(id) : null;
-  } catch {
-    return null;
-  }
+  const id = getParentStudentId();
+  return id != null ? String(id) : null;
 }
 
 function hasRequestHeader(config: AxiosRequestConfig, key: string): boolean {

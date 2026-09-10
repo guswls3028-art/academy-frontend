@@ -3,6 +3,7 @@ import api from "@/shared/api/axios";
 export type LectureOption = { id: number; title: string };
 export type OpsPreviewRow = {
   row_id: string; name: string; student_phone: string; parent_phone: string;
+  initial_password?: string; initial_password_required: boolean;
   school: string; school_type: "ELEMENTARY" | "MIDDLE" | "HIGH"; grade: string;
   selected_lecture_id: number | null; session_order: number | null; remove_enrollment_id: number | null;
   actions: { register_student: boolean; enroll_lecture: boolean; open_video: boolean; send_account_notice: boolean; correct_enrollment: boolean };
@@ -12,7 +13,7 @@ export type OpsPreviewRow = {
   issues: Array<{ code: string; message: string; blocking: boolean }>; can_confirm: boolean;
 };
 export type AnalyzeResult = { proposal_token: string; rows: OpsPreviewRow[]; lecture_options: LectureOption[]; privacy: string };
-export type ExecutionResult = { execution_id: string; status?: string; idempotent_replay: boolean; provider_receipt_note?: string; rows?: Array<{ row_id: string; account_creation: string; profile_link: { state: string }; enrollment: { correct_active_count: number; wrong_active_removed: boolean }; attendance: { status: string } | null; video_access: Array<{ access_mode: string; monitoring: boolean }>; account_notice: { state: string; provider_evidence?: { accepted_count: number; expected_count: number } }; real_playback_canary: { state: string; reason?: string } }> };
+export type ExecutionResult = { execution_id: string; status?: string; idempotent_replay: boolean; provider_receipt_note?: string; rows?: Array<{ row_id: string; student_login_id: string; account_creation: string; profile_link: { state: string }; enrollment: { correct_active_count: number; wrong_active_removed: boolean }; attendance: { status: string } | null; video_access: Array<{ access_mode: string; monitoring: boolean }>; account_notice: { state: string; provider_evidence?: { accepted_count: number; expected_count: number } }; real_playback_canary: { state: string; reason?: string } }> };
 
 export async function analyzeTeacherOps(images: File[], message: string, previous?: string) {
   const form = new FormData();
@@ -22,7 +23,7 @@ export async function analyzeTeacherOps(images: File[], message: string, previou
   return (await api.post<AnalyzeResult>("/teacher-app/ops-assistant/analyze/", form)).data;
 }
 export async function confirmTeacherOps(token: string, rows: OpsPreviewRow[]) {
-  return (await api.post<ExecutionResult>("/teacher-app/ops-assistant/confirm/", { proposal_token: token, rows: rows.map((row) => ({ row_id: row.row_id, enabled: true, name: row.name, student_phone: row.student_phone, parent_phone: row.parent_phone, school: row.school, school_type: row.school_type, grade: row.grade, selected_lecture_id: row.selected_lecture_id, session_order: row.session_order, remove_enrollment_id: row.remove_enrollment_id })) })).data;
+  return (await api.post<ExecutionResult>("/teacher-app/ops-assistant/confirm/", { proposal_token: token, rows: rows.map((row) => ({ row_id: row.row_id, enabled: true, name: row.name, student_phone: row.student_phone, parent_phone: row.parent_phone, initial_password: row.initial_password || "", school: row.school, school_type: row.school_type, grade: row.grade, selected_lecture_id: row.selected_lecture_id, session_order: row.session_order, remove_enrollment_id: row.remove_enrollment_id })) })).data;
 }
 export async function fetchTeacherOpsExecution(id: string) {
   return (await api.get<ExecutionResult>(`/teacher-app/ops-assistant/executions/${id}/`)).data;

@@ -33,8 +33,7 @@ export async function installStudentYoutubeScenario(page: Page) {
     });
     if (path === "/core/me/") return json({
       id: 1772, username: "synthetic-youtube-student", name: "합성 학생", is_staff: false,
-      is_superuser: false, tenantRole: "student", linkedStudentId: 1,
-      linkedStudentName: "합성 학생", must_change_password: false,
+      is_superuser: false, tenantRole: "student", must_change_password: false,
     });
     if (path === "/student/video/videos/562/playback/") {
       if (url.searchParams.get("access_check") === "1") return json({

@@ -25,7 +25,7 @@ import { useMySessions } from "@student/domains/sessions/hooks/useStudentSession
 import { useMyGradesSummary } from "@student/domains/grades/hooks/useMyGradesSummary";
 import type { MyExamGradeSummary, MyGradesSummary, MyHomeworkGradeSummary } from "@student/domains/grades/api/grades.api";
 import { useStudentExams } from "@student/domains/exams/hooks/useStudentExams";
-import { getParentStudentId } from "@student/shared/api/parentStudentSelection";
+import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 import {
   IconCalendar, IconGrade, IconExam, IconNotice,
   IconClipboard, IconClinic, IconFolder, IconChevronRight, IconCheck, IconBell, IconBoard,
@@ -368,9 +368,7 @@ export default function DashboardPage() {
     const selectedStudentId = getParentStudentId();
     const childName =
       user?.linkedStudents?.find((s) => s.id === selectedStudentId)?.name
-      ?? user?.linkedStudentName
-      ?? user?.linkedStudents?.[0]?.name
-      ?? "자녀";
+      ?? "선택한 자녀";
 
     return (
       <>

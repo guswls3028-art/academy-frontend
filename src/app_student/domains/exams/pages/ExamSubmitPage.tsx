@@ -16,7 +16,7 @@ import {
 import { useAuthContext } from "@/auth/context/AuthContext";
 import { resolveTenantCodeString } from "@/shared/tenant";
 import { useTrackedTask } from "@/shared/productAnalytics";
-import { getParentStudentId } from "@student/shared/api/parentStudentSelection";
+import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 import { studentExamQueryKeys } from "../queryKeys";
 import {
   getLocalItem,

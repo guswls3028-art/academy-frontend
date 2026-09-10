@@ -1102,6 +1102,11 @@ function PasswordResetSheet({ open, onClose, student }: {
   const hasParent = !!parentPhone;
 
   const handleSubmit = async () => {
+    const password = tempPassword.trim();
+    if (password.length < 4) {
+      teacherToast.error("설정할 임시 비밀번호를 4자 이상 입력해 주세요.");
+      return;
+    }
     if (target === "student" && !hasStudentAccount) {
       teacherToast.error("학생 계정 정보가 없어 변경할 수 없습니다.");
       return;
@@ -1124,7 +1129,7 @@ function PasswordResetSheet({ open, onClose, student }: {
               student_name: name,
               ...(psNumber ? { student_ps_number: psNumber } : {}),
               ...(studentPhone ? { student_phone: studentPhone } : {}),
-              ...(tempPassword.trim() ? { temp_password: tempPassword.trim() } : {}),
+              temp_password: password,
             });
           } else {
             if (!hasParent) { fail++; failReasons.push("학부모 번호 없음"); continue; }
@@ -1132,7 +1137,7 @@ function PasswordResetSheet({ open, onClose, student }: {
               target: "parent",
               student_name: name,
               parent_phone: parentPhone,
-              ...(tempPassword.trim() ? { temp_password: tempPassword.trim() } : {}),
+              temp_password: password,
             });
           }
           ok++;
@@ -1193,12 +1198,12 @@ function PasswordResetSheet({ open, onClose, student }: {
         {/* 임시 비밀번호 */}
         <div>
           <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>임시 비밀번호</label>
-          <input type="text" value={tempPassword} onChange={(e) => setTempPassword(e.target.value)}
-            placeholder="비워두면 자동 생성"
+          <input type="password" autoComplete="new-password" value={tempPassword} onChange={(e) => setTempPassword(e.target.value)}
+            placeholder="4자 이상 직접 입력"
             className="w-full text-sm"
             style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
           <p className="text-[11px] mt-1" style={{ color: "var(--tc-text-muted)" }}>
-            입력하면 선택한 대상 모두에게 동일 비밀번호가 설정됩니다.
+            필수 입력이며 선택한 대상 모두에게 동일 비밀번호가 설정됩니다.
           </p>
         </div>
 
@@ -1217,9 +1222,9 @@ function PasswordResetSheet({ open, onClose, student }: {
         </div>
 
         {/* Submit */}
-        <button onClick={handleSubmit} disabled={submitting}
+        <button onClick={handleSubmit} disabled={submitting || tempPassword.trim().length < 4}
           className="w-full text-sm font-bold cursor-pointer mt-1"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: submitting ? 0.6 : 1 }}>
+          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: submitting || tempPassword.trim().length < 4 ? 0.6 : 1 }}>
           {submitting ? "변경 중…" : "비밀번호 변경"}
         </button>
       </div>

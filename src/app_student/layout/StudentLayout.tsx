@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Outlet, useLocation } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
+import { UsersRound } from "lucide-react";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { useAuthContext } from "@/auth/context/AuthContext";
 import {
@@ -13,7 +14,7 @@ import {
   isStudentScopedQueryKey,
   resetParentStudentIdInMemory,
   setParentStudentId,
-} from "@student/shared/api/parentStudentSelection";
+} from "@/shared/api/parentStudentSelection";
 import { StudentThemeProvider } from "@student/shared/context/StudentThemeContext";
 import { useStudentTheme } from "@student/shared/context/studentTheme";
 import "../shared/ui/theme/tokens.css";
@@ -37,6 +38,7 @@ import {
   isStudentSupportWindow,
 } from "@/shared/auth/supportPreviewSession";
 import { endCurrentStudentSupportPreview } from "@/shared/studentSupport/studentSupport.api";
+import { logout } from "@/auth/api/auth.api";
 
 /** 2번(박철과학) 전용 테마 */
 const TCHUL_THEME_TENANTS = ["tchul"];
@@ -93,6 +95,7 @@ function StudentLayoutInner() {
   const queryClient = useQueryClient();
 
   const [parentSelectionReady, setParentSelectionReady] = useState(false);
+  const [selectedParentStudentId, setSelectedParentStudentId] = useState<number | null>(null);
 
   const clearStudentScopedQueries = useCallback(() => {
     const studentScopePredicate = (query: { queryKey: readonly unknown[] }) =>
@@ -103,26 +106,35 @@ function StudentLayoutInner() {
   }, [queryClient]);
 
   useEffect(() => {
-    if (user?.tenantRole !== "parent") {
+    if (!user) {
+      resetParentStudentIdInMemory();
+      setSelectedParentStudentId(null);
+      setParentSelectionReady(false);
+      return;
+    }
+    if (user.tenantRole !== "parent") {
       const previousId = getParentStudentId();
       resetParentStudentIdInMemory();
       if (previousId != null) clearStudentScopedQueries();
+      setSelectedParentStudentId(null);
       setParentSelectionReady(true);
       return;
     }
     const ids = user.linkedStudents?.map((s) => s.id) ?? [];
     if (!ids.length) {
       const previousId = getParentStudentId();
-      setParentStudentId(null);
+      setParentStudentId(null, user.id);
       if (previousId != null) clearStudentScopedQueries();
+      setSelectedParentStudentId(null);
       setParentSelectionReady(true);
       return;
     }
     const previousId = getParentStudentId();
-    const nextId = initParentStudentId(ids);
+    const nextId = initParentStudentId(ids, user.id);
     if (previousId !== nextId) clearStudentScopedQueries();
+    setSelectedParentStudentId(nextId);
     setParentSelectionReady(true);
-  }, [clearStudentScopedQueries, user?.tenantRole, user?.linkedStudents]);
+  }, [clearStudentScopedQueries, user]);
 
   useEffect(() => {
     if (!supportInfo?.expiresAt) {
@@ -174,6 +186,13 @@ function StudentLayoutInner() {
 
   // 영상 페이지 전체인지 확인 (영상 홈, 코스 상세, 세션 상세, 플레이어 모두 포함)
   const isVideoPage = location.pathname.startsWith("/student/video");
+  const isParent = user?.tenantRole === "parent";
+  const linkedStudents = user?.linkedStudents ?? [];
+  const linkedStudentCount = linkedStudents.length;
+  const hasValidParentSelection = !isParent || linkedStudents.some((student) => student.id === selectedParentStudentId);
+  const studentContextReady = user != null && parentSelectionReady && hasValidParentSelection;
+  const parentNeedsSelection = parentSelectionReady && isParent && linkedStudentCount > 1 && !hasValidParentSelection;
+  const parentHasNoStudent = parentSelectionReady && isParent && linkedStudentCount === 0;
 
   return (
     <div
@@ -247,22 +266,50 @@ function StudentLayoutInner() {
             </button>
           </div>
         )}
-        {parentSelectionReady && (
+        {studentContextReady && (
           <>
             <StudentTopBar tenantCode={tenantCode} onMenuClick={openDrawer} />
-            <ParentChildSwitcher />
+            {isParent && linkedStudentCount > 1 && (
+              <ParentChildSwitcher
+                selectedStudentId={selectedParentStudentId}
+                onSelectionChange={setSelectedParentStudentId}
+              />
+            )}
           </>
         )}
       </header>
 
       <main className="student-layout__main">
         <div className="student-layout__content">
-          {parentSelectionReady && <Outlet />}
+          {studentContextReady && <Outlet />}
+          {(parentNeedsSelection || parentHasNoStudent) && (
+            <section className="student-layout__parent-gate" aria-labelledby="parent-student-gate-title">
+              <div className="student-layout__parent-gate-icon" aria-hidden>
+                <UsersRound size={22} strokeWidth={2.25} />
+              </div>
+              <h1 id="parent-student-gate-title">
+                {parentNeedsSelection ? "확인할 자녀를 선택해 주세요" : "연결된 자녀가 없습니다"}
+              </h1>
+              <p>
+                {parentNeedsSelection
+                  ? "성적, 수강 일정, 과제와 영상은 선택한 자녀의 정보만 표시됩니다."
+                  : "학원에 자녀 계정 연결을 요청해 주세요. 다른 학생 정보는 임의로 표시하지 않습니다."}
+              </p>
+              {parentNeedsSelection && (
+                <ParentChildSwitcher
+                  selectedStudentId={selectedParentStudentId}
+                  onSelectionChange={setSelectedParentStudentId}
+                  variant="gate"
+                />
+              )}
+              <button type="button" onClick={logout}>로그아웃</button>
+            </section>
+          )}
         </div>
       </main>
 
-      <StudentTabBar />
-      <StudentDrawer open={drawerOpen} onClose={closeDrawer} />
+      {studentContextReady && <StudentTabBar />}
+      {studentContextReady && <StudentDrawer open={drawerOpen} onClose={closeDrawer} />}
     </div>
   );
 }

@@ -75,6 +75,7 @@ test("390px 선생님 등록은 실제 로그인 ID와 학생 화면 검수 동�
 
   const sheet = page.getByRole("dialog", { name: "학생 추가" });
   await sheet.getByPlaceholder("학생 이름").fill("즉시검수 학생");
+  await sheet.getByLabel("초기 비밀번호").fill("teacher-selected-password");
   await sheet.getByPlaceholder("010-").nth(0).fill("01080001111");
   await sheet.getByPlaceholder("010-").nth(1).fill("01070001111");
   await sheet.getByRole("button", { name: "등록", exact: true }).click();
@@ -83,6 +84,7 @@ test("390px 선생님 등록은 실제 로그인 ID와 학생 화면 검수 동�
   expect(createPayload).toMatchObject({
     phone: "01080001111",
     ps_number: "01080001111",
+    initial_password: "teacher-selected-password",
   });
   await expect(sheet.getByText("등록 완료 · 계정 준비됨", { exact: true })).toBeVisible();
   await expect(sheet.getByText("01080001111", { exact: true })).toBeVisible();

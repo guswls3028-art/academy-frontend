@@ -7,7 +7,7 @@
 
 import type { AxiosRequestConfig } from "axios";
 import api from "@/shared/api/axios";
-import { getParentStudentId } from "./parentStudentSelection";
+import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 
 function mergeStudentIdHeader(config?: AxiosRequestConfig): AxiosRequestConfig {
   const c = config ?? {};

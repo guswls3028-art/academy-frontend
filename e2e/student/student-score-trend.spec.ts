@@ -652,10 +652,16 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
     const selectedHeaders = await installApi(page, "parent");
     await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });
 
+    await expect(page.getByRole("heading", { name: "확인할 자녀를 선택해 주세요" })).toBeVisible();
+    expect(selectedHeaders).toEqual([]);
+    const switcher = page.getByRole("tablist", { name: "자녀 선택" });
+    await switcher.getByRole("tab", { name: "김첫째" }).click();
+    await expect(page).toHaveURL(/\/student\/dashboard/);
+    await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });
+
     const chart = page.getByTestId("student-score-trend");
     await expect(chart).toContainText("누적2회");
     await expect(chart).toContainText("최근2등 / 10명");
-    const switcher = page.getByRole("tablist", { name: "자녀 선택" });
     await switcher.getByRole("tab", { name: "김둘째" }).click();
     await expect(page).toHaveURL(/\/student\/dashboard/);
     await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });
@@ -669,6 +675,34 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
     expect(selectedHeaders).toContain("12");
     expect(selectedHeaders).not.toContain("missing");
     await page.screenshot({ path: "test-results/student-score-trend/parent-child-b-390.png", fullPage: true });
+  });
+
+  test("다자녀 학부모의 데스크톱 최초 진입도 선택 전에는 학생 요청과 탐색을 열지 않는다", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await page.addInitScript(() => {
+      localStorage.setItem("parent_selected_student_id_ymath", "11");
+      localStorage.setItem("parent_selected_student_id_ymath_2", "999999");
+    });
+    const requestsBeforeSelection: string[] = [];
+    page.on("request", (request) => {
+      const url = new URL(request.url());
+      if (!url.pathname.startsWith("/api/v1/")) return;
+      if (url.pathname.startsWith("/api/v1/core/")) return;
+      requestsBeforeSelection.push(url.pathname);
+    });
+    await installApi(page, "parent");
+    await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+
+    await expect(page.getByRole("heading", { name: "확인할 자녀를 선택해 주세요" })).toBeVisible();
+    await expect(page.getByRole("tablist", { name: "자녀 선택" })).toBeVisible();
+    await expect(page.locator(".stu-topbar")).toHaveCount(0);
+    await expect(page.locator(".stu-tabbar")).toHaveCount(0);
+    await expect.poll(() => requestsBeforeSelection).toEqual([]);
+    await expect.poll(() => page.evaluate(() => ({
+      legacy: localStorage.getItem("parent_selected_student_id_ymath"),
+      invalidScoped: localStorage.getItem("parent_selected_student_id_ymath_2"),
+    }))).toEqual({ legacy: null, invalidScoped: null });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 
   test("학생 다크 모드에서도 성장선과 글자 대비가 유지된다", async ({ page }) => {

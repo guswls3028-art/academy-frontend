@@ -52,12 +52,29 @@ test.describe.serial("[real-use] 다중 자녀 학부모", () => {
     const parent = await loginApi(request, family.parentPhone, family.parentPassword);
     await assertParentProjection(request, parent.access, first);
 
+    const studentScopedRequests: string[] = [];
+    page.on("request", (requestItem) => {
+      if (requestItem.url().includes("/api/v1/student/")) {
+        studentScopedRequests.push(requestItem.headers()["x-student-id"] ?? "missing");
+      }
+    });
     await page.setViewportSize({ width: 390, height: 844 });
     await loginThroughUi(page, family.parentPhone, family.parentPassword);
     const switcher = page.getByRole("tablist", { name: "자녀 선택" });
     await expect(switcher).toBeVisible();
     const firstTab = switcher.getByRole("tab", { name: first.name });
     const secondTab = switcher.getByRole("tab", { name: second.name });
+    await expect(firstTab).toHaveAttribute("aria-selected", "false");
+    await expect(secondTab).toHaveAttribute("aria-selected", "false");
+    await expect(page.getByRole("heading", { name: "확인할 자녀를 선택해 주세요" })).toBeVisible();
+    await expect.poll(() => studentScopedRequests).toEqual([]);
+
+    const firstProjection = page.waitForRequest((requestItem) => (
+      requestItem.url().includes("/api/v1/student/")
+      && requestItem.headers()["x-student-id"] === String(first.id)
+    ));
+    await firstTab.click();
+    await firstProjection;
     await expect(firstTab).toHaveAttribute("aria-selected", "true");
     await expect(page.locator(".stu-topbar__name")).toContainText(first.name);
 
@@ -82,6 +99,7 @@ test.describe.serial("[real-use] 다중 자녀 학부모", () => {
     await loginThroughUi(page, family.parentPhone, family.parentPassword);
     await expect(page.getByRole("tab", { name: second.name })).toHaveAttribute("aria-selected", "true");
     await expect(page.locator(".stu-topbar__name")).toContainText(second.name);
+    expect(studentScopedRequests).not.toContain("missing");
 
     await page.setViewportSize({ width: 1366, height: 900 });
     await assertNoHorizontalOverflow(page);
