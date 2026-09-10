@@ -51,6 +51,8 @@ export type TeacherClinicParticipant = {
   lecture_chip_label?: string | null;
   preferred_start_time?: string | null;
   preferred_end_time?: string | null;
+  booking_start_time?: string | null;
+  booking_end_time?: string | null;
   student_request_memo?: string | null;
 };
 

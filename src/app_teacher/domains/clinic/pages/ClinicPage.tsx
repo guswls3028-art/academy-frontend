@@ -415,6 +415,11 @@ function ParticipantList({
                     희망 {p.preferred_start_time.slice(0, 5)}–{p.preferred_end_time.slice(0, 5)}
                   </span>
                 )}
+                {p.booking_start_time && p.booking_end_time && (
+                  <span className="text-[11px] font-semibold" style={{ color: "var(--tc-primary)" }}>
+                    예약 {p.booking_start_time.slice(0, 5)}–{p.booking_end_time.slice(0, 5)}
+                  </span>
+                )}
                 {p.student_request_memo && (
                   <span className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
                     {p.student_request_memo}
@@ -853,7 +858,7 @@ function Fld({ label, value, onChange, placeholder, type = "text" }: {
   return (
     <div className="flex-1">
       <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>{label}</label>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+      <input type={type} aria-label={label.replace(/\s*\*$/, "")} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
         className="w-full text-sm"
         style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
     </div>
