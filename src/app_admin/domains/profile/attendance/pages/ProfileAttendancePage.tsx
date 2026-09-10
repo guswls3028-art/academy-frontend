@@ -19,10 +19,9 @@ export default function ProfileAttendancePage() {
 
   const domain = useAttendanceDomain(month, range);
 
-  const chartData = domain.rows.map((r) => ({
-    date: r.date,
-    hours: r.duration_hours,
-  }));
+  const chartData = domain.rows.flatMap((r) => r.duration_hours == null
+    ? []
+    : [{ date: r.date, hours: r.duration_hours }]);
 
   return (
     <>

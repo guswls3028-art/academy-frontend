@@ -31,6 +31,7 @@ type ClockFailureOptions = {
   showWorkingStaff?: boolean;
   mustChangePassword?: boolean;
   monthAwareHistory?: boolean;
+  incompleteHistory?: boolean;
 };
 
 async function installClockApp(
@@ -220,7 +221,11 @@ async function installClockApp(
             : [];
         return json({ count: records.length, next: null, previous: null, results: records });
       }
-      const records: Array<Record<string, unknown>> = [closedHistory];
+      const records: Array<Record<string, unknown>> = [
+        failures.incompleteHistory
+          ? { ...closedHistory, work_hours: null, amount: null }
+          : closedHistory,
+      ];
       if (current === "WORKING" || recordClosed) {
         records.unshift({
           ...closedHistory,
@@ -351,12 +356,46 @@ test.describe("조교 로그인 출근 선택", () => {
     await expect(page.getByText("52,000원").first()).toBeVisible();
     await expect(page.getByText("3.3% 적용 시 참고 공제")).toBeVisible();
     await expect(page.getByText("50,284원").first()).toBeVisible();
+    await expect(page.getByText("8/18(화)", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "출근 유형 선택" })).toBeVisible();
     await page.screenshot({ path: "test-results/staff-my-records-payroll-desktop.png", fullPage: false });
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("dialog", { name: "오늘 어떤 방식으로 시작할까요?" })).toHaveCount(0);
     await expect(page.getByRole("tab", { name: "근무 기록" })).toBeVisible();
+  });
+
+  test("계산되지 않은 종료 기록을 PC와 모바일에서 0원으로 오해시키지 않는다", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await installClockApp(
+      page,
+      "/workspace/profile/attendance",
+      "staff",
+      { incompleteHistory: true },
+    );
+
+    await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+    await page.getByTestId("login-username").fill("assistant77");
+    await page.getByTestId("login-password").fill("password");
+    await page.getByTestId("login-submit").click();
+    await page.getByRole("dialog", { name: "오늘 어떤 방식으로 시작할까요?" })
+      .getByRole("button", { name: /출근하지 않고 로그인/ })
+      .click();
+
+    const pcRow = page.getByRole("row").filter({ hasText: "8/18(화)" });
+    await expect(pcRow).toContainText("총 계산 전");
+    await expect(pcRow.getByText("계산 전", { exact: true })).toBeVisible();
+    await expect(pcRow.getByText("0원", { exact: true })).toHaveCount(0);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${BASE}/workspace/mobile/my-records`, { waitUntil: "domcontentloaded" });
+    const mobileCard = page.getByText("8/18(화) · 현장 조교", { exact: true })
+      .locator("..")
+      .locator("..");
+    await expect(mobileCard).toContainText("계산 전");
+    await expect(mobileCard).toContainText("계산 미완료");
+    await expect(mobileCard.getByText("0원", { exact: true })).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
   test("모바일에서 유형 출근 후 상태 확인과 퇴근까지 이어진다", async ({ page }) => {

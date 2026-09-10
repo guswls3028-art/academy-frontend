@@ -34,18 +34,22 @@ export function useAttendanceDomain(
   });
 
   const rows = useMemo<Attendance[]>(
-    () => (listQ.data ?? []).map((record) => ({
-      id: record.id,
-      date: record.date,
-      start_time: record.start_time,
-      end_time: record.end_time ?? null,
-      work_type: record.work_type_name,
-      memo: record.memo,
-      duration_hours: Number(record.work_hours ?? 0),
-      amount: Number(record.amount ?? 0),
-      hourly_rate: record.resolved_hourly_wage,
-      break_minutes: record.break_minutes,
-    })),
+    () => (listQ.data ?? []).map((record) => {
+      const durationHours = record.work_hours == null ? null : Number(record.work_hours);
+      const amount = record.amount == null ? null : Number(record.amount);
+      return {
+        id: record.id,
+        date: record.date,
+        start_time: record.start_time,
+        end_time: record.end_time ?? null,
+        work_type: record.work_type_name,
+        memo: record.memo,
+        duration_hours: durationHours != null && Number.isFinite(durationHours) ? durationHours : null,
+        amount: amount != null && Number.isFinite(amount) ? amount : null,
+        hourly_rate: record.resolved_hourly_wage,
+        break_minutes: record.break_minutes,
+      };
+    }),
     [listQ.data],
   );
 

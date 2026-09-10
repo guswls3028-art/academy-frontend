@@ -71,6 +71,9 @@ export default function WorkRecordsPanel() {
     const key = [record.date, record.start_time, record.end_time ?? "OPEN", record.work_type].join("|");
     if ((duplicateKeys.get(key) ?? 0) > 1) risks.push("중복 의심");
     if (!record.end_time) risks.push("미퇴근");
+    if (record.end_time && (record.work_hours == null || record.amount == null)) {
+      risks.push("계산 미완료");
+    }
     if (Number(record.work_hours ?? 0) >= 12) risks.push("12시간 이상");
     if (record.is_manually_edited) risks.push("관리자 수정");
     return risks;

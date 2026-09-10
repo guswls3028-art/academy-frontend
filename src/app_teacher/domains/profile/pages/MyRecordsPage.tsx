@@ -336,6 +336,15 @@ function AttendanceContent({
           const numericWorkHours = record.work_hours == null
             ? null
             : Number(record.work_hours);
+          const numericAmount = record.amount == null
+            ? null
+            : Number(record.amount);
+          const hasIncompleteCalculation = Boolean(record.end_time) && (
+            numericWorkHours == null
+            || !Number.isFinite(numericWorkHours)
+            || numericAmount == null
+            || !Number.isFinite(numericAmount)
+          );
           const workHoursText = numericWorkHours == null
             ? "계산 전"
             : Number.isFinite(numericWorkHours)
@@ -356,10 +365,13 @@ function AttendanceContent({
                   <div className="mt-1 text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
                     적용 시급 {record.resolved_hourly_wage?.toLocaleString() ?? "-"}원
                     {record.is_manually_edited ? " · 관리자 수정" : ""}
+                    {hasIncompleteCalculation ? " · 계산 미완료" : ""}
                   </div>
                 </div>
                 <div className="shrink-0 text-right text-sm font-bold tabular-nums" style={{ color: "var(--tc-text)" }}>
-                  {record.end_time ? `${(record.amount ?? 0).toLocaleString()}원` : "계산 전"}
+                  {record.end_time && numericAmount != null && Number.isFinite(numericAmount)
+                    ? `${numericAmount.toLocaleString()}원`
+                    : "계산 전"}
                 </div>
               </div>
             </Card>
