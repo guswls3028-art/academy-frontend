@@ -32,6 +32,12 @@ export type TeacherClinicParticipantStatus =
 
 export type TeacherClinicRecipient = "student" | "parent" | "both";
 
+export type TeacherClinicNotificationOutcome = {
+  requested: number;
+  failed: number;
+  send_to: TeacherClinicRecipient;
+};
+
 export type TeacherClinicParticipant = {
   id: number;
   session?: number | null;
@@ -52,6 +58,11 @@ export type TeacherClinicParticipant = {
   preferred_start_time?: string | null;
   preferred_end_time?: string | null;
   student_request_memo?: string | null;
+  notification?: TeacherClinicNotificationOutcome;
+};
+
+export type TeacherClinicActionResponse = Partial<TeacherClinicParticipant> & {
+  notification?: TeacherClinicNotificationOutcome;
 };
 
 /** 오늘 날짜 기준 클리닉 세션 목록 */
@@ -84,7 +95,7 @@ export async function patchParticipantStatus(
     is_late?: boolean;
     send_to?: TeacherClinicRecipient;
   },
-): Promise<TeacherClinicParticipant> {
+): Promise<TeacherClinicActionResponse> {
   const res = await api.patch(`/clinic/participants/${participantId}/set_status/`, payload);
   return res.data;
 }
@@ -97,14 +108,28 @@ export async function remindParticipant(
     interval_minutes?: number;
     repeat_until?: string;
   },
-): Promise<void> {
-  await api.post(`/clinic/participants/${participantId}/remind/`, payload);
+): Promise<TeacherClinicActionResponse> {
+  const res = await api.post(`/clinic/participants/${participantId}/remind/`, payload);
+  const data = res.data as TeacherClinicActionResponse & {
+    sent?: number;
+    scheduled?: number;
+    skipped?: number;
+  };
+  if (data.notification) return data;
+  return {
+    ...data,
+    notification: {
+      requested: (data.sent ?? 0) + (data.scheduled ?? 0),
+      failed: data.skipped ?? 0,
+      send_to: payload.send_to,
+    },
+  };
 }
 
 export async function checkoutParticipant(
   participantId: number,
   payload: { send_to: TeacherClinicRecipient },
-): Promise<TeacherClinicParticipant> {
+): Promise<TeacherClinicActionResponse> {
   const res = await api.post(`/clinic/participants/${participantId}/checkout/`, payload);
   return res.data;
 }
@@ -118,7 +143,7 @@ export async function changeParticipantBooking(
     preferred_start_time?: string;
     preferred_end_time?: string;
   },
-): Promise<TeacherClinicParticipant> {
+): Promise<TeacherClinicActionResponse> {
   const res = await api.post(`/clinic/participants/${participantId}/change-booking/`, payload);
   return res.data;
 }
@@ -127,7 +152,7 @@ export async function changeParticipantBooking(
 export async function completeParticipant(
   participantId: number,
   payload: { send_to?: TeacherClinicRecipient } = {},
-): Promise<TeacherClinicParticipant> {
+): Promise<TeacherClinicActionResponse> {
   const res = await api.post(`/clinic/participants/${participantId}/complete/`, payload);
   return res.data;
 }

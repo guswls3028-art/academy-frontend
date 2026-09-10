@@ -13,6 +13,7 @@ type SendPayload = {
   raw_body?: string;
   alimtalk_extra_vars?: Record<string, string>;
   alimtalk_extra_vars_per_student?: Record<string, Record<string, string>>;
+  request_id?: string;
 };
 
 type PreflightMode = "success" | "stale";
@@ -262,9 +263,107 @@ async function installScoreAlimtalkRoutes(
     }
 
     if (path.endsWith("/api/v1/messaging/send/") && method === "POST") {
-      sendPayloads.push(request.postDataJSON() as SendPayload);
+      const payload = request.postDataJSON() as SendPayload;
+      sendPayloads.push(payload);
       await route.fulfill({
-        json: { detail: "queued", enqueued: 2, scheduled: 0, enqueue_failed: 0, skipped_no_phone: 0 },
+        json: {
+          detail: "queued",
+          batch_id: payload.request_id,
+          accepted_count: 2,
+          enqueued: 2,
+          scheduled: 0,
+          enqueue_failed: 0,
+          skipped_no_phone: 0,
+        },
+      });
+      return;
+    }
+
+    if (path.endsWith("/api/v1/messaging/log/") && method === "GET") {
+      const originId = new URL(request.url()).searchParams.get("origin_id");
+      const logs = originId
+        ? (["parent", "student"] as const).map((target, index) => ({
+            id: 9701 + index,
+            origin_type: "manual_send",
+            origin_id: originId,
+            sent_at: "2026-09-07T10:00:00+09:00",
+            success: true,
+            status: "sent",
+            claimed_at: "2026-09-07T10:00:00+09:00",
+            amount_deducted: "7.00",
+            recipient_summary: `개인화학생1 ${target === "parent" ? "학부모" : "학생"}`,
+            template_summary: "성적 안내",
+            provider_message_id: "",
+            provider_evidence: true,
+            provider_message_reference: `•••• accepted-${index}`,
+            provider_delivery_status: "provider_accepted",
+            failure_code: "",
+            failure_reason: "",
+            body_visibility: "available",
+            message_body_included: false,
+            message_body: "",
+            message_mode: "alimtalk",
+            notification_type: "manual_send",
+            target_type: target,
+            target_id: "9301",
+            target_name: "개인화학생1",
+          }))
+        : [];
+      await route.fulfill({ json: { results: logs, count: logs.length } });
+      return;
+    }
+
+    if (/\/api\/v1\/messaging\/log\/970[12]\/$/.test(path) && method === "GET") {
+      const verifyProvider = new URL(request.url()).searchParams.get("verify_provider") === "true";
+      await route.fulfill({
+        json: {
+          id: Number(path.match(/(970[12])/)?.[1]),
+          sent_at: "2026-09-07T10:00:00+09:00",
+          success: true,
+          status: "sent",
+          claimed_at: "2026-09-07T10:00:00+09:00",
+          amount_deducted: "7.00",
+          recipient_summary: "개인화학생1 학부모",
+          template_summary: "성적 안내",
+          provider_message_id: "provider-e2e-proof",
+          provider_evidence: true,
+          provider_message_reference: "•••• proof",
+          provider_delivery_status: verifyProvider ? "delivered" : "provider_accepted",
+          provider_status_code: verifyProvider ? "DELIVERED" : "ACCEPTED",
+          provider_delivery_checked_at: verifyProvider ? "2026-09-07T10:01:00+09:00" : null,
+          provider_delivery_updated_at: "2026-09-07T10:00:30+09:00",
+          provider_delivery_failure_reason: "",
+          failure_code: "",
+          failure_reason: "",
+          body_visibility: "available",
+          message_body_included: true,
+          message_body: "개인화 성적 안내",
+          message_mode: "alimtalk",
+          notification_type: "manual_send",
+          target_type: "parent",
+          target_id: "9301",
+          target_name: "개인화학생1",
+        },
+      });
+      return;
+    }
+
+    if (path.endsWith("/api/v1/messaging/scheduled/") && method === "GET") {
+      await route.fulfill({ json: { results: [], count: 0 } });
+      return;
+    }
+
+    if (path.endsWith("/api/v1/messaging/operations/status/") && method === "GET") {
+      await route.fulfill({
+        json: {
+          checked_at: "2026-09-07T10:01:00+09:00",
+          worker: { status: "ok", last_seen_at: "2026-09-07T10:00:59+09:00", age_seconds: 1, instance: "mock", version: "mock" },
+          scheduled: { pending: 0, due_now: 0, overdue: 0, failed_24h: 0 },
+          log_24h: { sent: 2, failed: 0, processing: 0, sending: 0, retryable_failed: 0, ambiguous: 0, action_required: 0, total: 2 },
+          templates: { approved: 1, owner_approved: 1, freeform_available: true, freeform_template_name: "성적 안내" },
+          auto_send: { enabled: 0, enabled_without_template: 0, enabled_unapproved_template: 0, enabled_manual_only: 0 },
+          risks: [],
+        },
       });
       return;
     }
@@ -300,7 +399,9 @@ async function openPersonalizedScores(
 }
 
 async function selectBothStudentsAndOpen(page: Page) {
-  await page.getByRole("checkbox", { name: "개인화학생1 선택" }).check();
+  const firstStudent = page.getByRole("checkbox", { name: "개인화학생1 선택" });
+  await expect(firstStudent).toBeVisible({ timeout: 45_000 });
+  await firstStudent.check();
   await page.getByRole("checkbox", { name: "개인화학생2 선택" }).check();
   await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
   await expect(page.getByRole("dialog", { name: "알림톡 발송" })).toBeVisible();
@@ -310,19 +411,15 @@ test.describe("성적 알림톡 학생별 개인화", () => {
   test.setTimeout(120_000);
   test.use({ viewport: { width: 1366, height: 900 }, serviceWorkers: "block" });
 
-  test("서로 다른 성적을 미리보고 공유값 없이 보호자 발송을 접수한다", async ({ page }, testInfo) => {
+  test("학생·학부모 개인화 발송을 exact 요청 로그와 최종 전달 상태까지 확인한다", async ({ page }, testInfo) => {
     const preflightPayloads: SendPayload[] = [];
     const sendPayloads: SendPayload[] = [];
     await openPersonalizedScores(page, "success", preflightPayloads, sendPayloads);
-    await page.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
-    await expect(page.getByRole("checkbox", { name: "개인화학생1 선택" })).toBeVisible();
     await selectBothStudentsAndOpen(page);
 
     const modal = page.getByRole("dialog", { name: "알림톡 발송" });
     await expect(modal.getByRole("checkbox", { name: "학부모" })).toBeChecked();
-    const studentRecipientCheckbox = modal.getByRole("checkbox", { name: "학생" });
-    await expect(studentRecipientCheckbox).toBeChecked();
-    await studentRecipientCheckbox.uncheck();
+    await expect(modal.getByRole("checkbox", { name: "학생" })).toBeChecked();
     const requestButton = modal.locator(".send-modal__send-btn");
     await expect(requestButton).toBeEnabled();
     await requestButton.click();
@@ -344,8 +441,8 @@ test.describe("성적 알림톡 학생별 개인화", () => {
     await expect(preview).toContainText("20/100");
     await page.screenshot({ path: testInfo.outputPath("score-alimtalk-personalized-1366.png") });
 
-    const latestPreflight = preflightPayloads.at(-1);
-    expect(latestPreflight?.send_to).toBe("parent");
+    expect(new Set(preflightPayloads.map((payload) => payload.send_to))).toEqual(new Set(["parent", "student"]));
+    const latestPreflight = preflightPayloads.find((payload) => payload.send_to === "parent");
     expect(latestPreflight?.alimtalk_extra_vars).toEqual({
       강의명: "개인화 검증반",
       차시명: "개인화 검증 차시",
@@ -368,16 +465,35 @@ test.describe("성적 알림톡 학생별 개인화", () => {
     await page.screenshot({ path: testInfo.outputPath("score-alimtalk-personalized-390.png") });
 
     await confirm.getByRole("button", { name: "발송하기" }).click();
-    await expect(page.getByText(/학부모 알림톡 2건 발송 접수/)).toBeVisible();
+    await expect(page.getByText(/학부모·학생 알림톡 4건 발송 접수/)).toBeVisible();
     await expect(modal).toBeHidden();
-    expect(sendPayloads).toHaveLength(1);
-    expect(sendPayloads[0]?.alimtalk_extra_vars).toEqual({
-      강의명: "개인화 검증반",
-      차시명: "개인화 검증 차시",
-    });
-    expect(sendPayloads[0]?.alimtalk_extra_vars_per_student).toEqual(
-      latestPreflight?.alimtalk_extra_vars_per_student,
-    );
+    expect(sendPayloads).toHaveLength(2);
+    expect(new Set(sendPayloads.map((payload) => payload.send_to))).toEqual(new Set(["parent", "student"]));
+    expect(sendPayloads[0]?.request_id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(sendPayloads[1]?.request_id).toBe(sendPayloads[0]?.request_id);
+    for (const payload of sendPayloads) {
+      expect(payload.alimtalk_extra_vars).toEqual({
+        강의명: "개인화 검증반",
+        차시명: "개인화 검증 차시",
+      });
+      expect(payload.alimtalk_extra_vars_per_student).toEqual(
+        latestPreflight?.alimtalk_extra_vars_per_student,
+      );
+    }
+
+    await page.getByRole("button", { name: "발송 내역 확인" }).click();
+    await expect(page).toHaveURL(new RegExp(`/workspace/message/log\\?origin_id=${sendPayloads[0]?.request_id}$`));
+    await expect(page.getByLabel("이번 발송 요청 필터")).toBeVisible();
+    await expect(page.getByText("개인화학생1 학부모")).toBeVisible();
+    await expect(page.getByText("개인화학생1 학생")).toBeVisible();
+
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
+    await expect(page.getByLabel("이번 발송 요청 필터")).toBeVisible();
+    await page.getByRole("button", { name: /개인화학생1 학부모/ }).click();
+    const logDialog = page.getByRole("dialog", { name: "알림톡 발송 기록" });
+    await expect(logDialog.getByText("공급사 접수 기록 있음")).toBeVisible();
+    await logDialog.getByRole("button", { name: "최종 상태 확인" }).click();
+    await expect(logDialog.getByText("최종 전달 확인")).toBeVisible();
   });
 
   test("성적이 바뀐 미리보기는 이유를 표시하고 발송을 열지 않는다", async ({ page }, testInfo) => {

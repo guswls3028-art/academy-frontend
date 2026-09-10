@@ -54,6 +54,7 @@ export type NotificationBodyVisibility =
 export interface NotificationLogItem {
   id: number;
   /** PII-free lifecycle correlation key. */
+  origin_type?: string;
   origin_id?: string;
   sent_at: string;
   /** 성공 여부 */
@@ -98,6 +99,7 @@ export interface NotificationLogParams {
   page_size?: number;
   status?: "success" | "failure" | "sent" | "active" | "attention" | "failed";
   scope?: "clinic";
+  origin_id?: string;
   origin_id_prefix?: string;
 }
 
@@ -445,6 +447,8 @@ export interface SendMessagePayload {
   raw_subject?: string;
   /** 예약 발송 시각. 없으면 즉시 발송 */
   scheduled_send_at?: string | null;
+  /** One user action shared across student/parent requests and delivery logs. */
+  request_id?: string;
   /**
    * 발송 진입점의 블록 카테고리 (grades/attendance/clinic 등).
    * backend가 template_id 누락 또는 t.category 매핑 안 될 때 unified 봉투 fallback 매칭에 사용.
@@ -459,6 +463,8 @@ export interface SendMessagePayload {
 
 export interface SendMessageResponse {
   detail: string;
+  batch_id: string;
+  accepted_count: number;
   enqueued: number;
   scheduled?: number;
   enqueue_failed?: number;
