@@ -11,6 +11,7 @@ import {
 import { staffQueryKeys } from "../queryKeys";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { invalidatePayrollOverview } from "./invalidatePayrollOverview";
 
 export function useWorkMonthLock(params: { staff: number; year: number; month: number }) {
   const qc = useQueryClient();
@@ -39,6 +40,7 @@ export function useWorkMonthLock(params: { staff: number; year: number; month: n
         qc.invalidateQueries({ queryKey: staffQueryKeys.workRecords, refetchType: "all" }),
         qc.invalidateQueries({ queryKey: staffQueryKeys.expenses, refetchType: "all" }),
         qc.invalidateQueries({ queryKey: staffQueryKeys.payrollSnapshots, refetchType: "all" }),
+        invalidatePayrollOverview(qc),
       ]);
       feedback.success(`${params.year}년 ${params.month}월 마감이 완료되었습니다.`);
     },

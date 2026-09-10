@@ -47,7 +47,7 @@ export function useAttendanceDomain(
         duration_hours: durationHours != null && Number.isFinite(durationHours) ? durationHours : null,
         amount: amount != null && Number.isFinite(amount) ? amount : null,
         hourly_rate: record.resolved_hourly_wage,
-        break_minutes: record.break_minutes,
+        break_minutes: (record.break_minutes ?? 0) + (record.meal_minutes ?? 0),
       };
     }),
     [listQ.data],

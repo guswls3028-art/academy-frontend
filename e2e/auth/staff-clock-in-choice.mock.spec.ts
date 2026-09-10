@@ -32,6 +32,7 @@ type ClockFailureOptions = {
   mustChangePassword?: boolean;
   monthAwareHistory?: boolean;
   incompleteHistory?: boolean;
+  mealHistory?: boolean;
 };
 
 async function installClockApp(
@@ -59,9 +60,9 @@ async function installClockApp(
     start_time: "13:00:00",
     end_time: "17:00:00",
     break_minutes: 0,
-    meal_minutes: 0,
-    work_hours: "4.00",
-    amount: 52000,
+    meal_minutes: failures.mealHistory ? 30 : 0,
+    work_hours: failures.mealHistory ? "3.50" : "4.00",
+    amount: failures.mealHistory ? 45500 : 52000,
     resolved_hourly_wage: 13000,
     memo: "",
     created_at: "2026-08-18T04:00:00Z",
@@ -269,12 +270,14 @@ async function installClockApp(
       }
       const extraHours = recordClosed ? 1 : 0;
       const extraAmount = recordClosed ? (activeWorkType === 41 ? 15000 : 13000) : 0;
-      const workAmount = 52000 + extraAmount;
+      const baseHours = failures.mealHistory ? 3.5 : 4;
+      const baseAmount = failures.mealHistory ? 45500 : 52000;
+      const workAmount = baseAmount + extraAmount;
       const businessIncomeTax = Math.round(workAmount * 0.03);
       const deductionTotal = Math.round(workAmount * 0.033);
       return json({
         staff_id: 77,
-        work_hours: 4 + extraHours,
+        work_hours: baseHours + extraHours,
         work_amount: workAmount,
         expense_amount: 0,
         total_amount: workAmount,
@@ -364,6 +367,28 @@ test.describe("조교 로그인 출근 선택", () => {
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("dialog", { name: "오늘 어떤 방식으로 시작할까요?" })).toHaveCount(0);
     await expect(page.getByRole("tab", { name: "근무 기록" })).toBeVisible();
+  });
+
+  test("PC 본인 근무 기록은 휴게와 식사 시간을 합쳐 유급 시간 옆에 표시한다", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await installClockApp(
+      page,
+      "/workspace/profile/attendance",
+      "staff",
+      { mealHistory: true },
+    );
+
+    await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+    await page.getByTestId("login-username").fill("assistant77");
+    await page.getByTestId("login-password").fill("password");
+    await page.getByTestId("login-submit").click();
+    await page.getByRole("dialog", { name: "오늘 어떤 방식으로 시작할까요?" })
+      .getByRole("button", { name: /출근하지 않고 로그인/ })
+      .click();
+
+    const record = page.getByRole("row").filter({ hasText: "현장 조교" });
+    await expect(record).toContainText("총 3.5시간 · 휴게 30분");
+    await expect(page.getByText("45,500원").first()).toBeVisible();
   });
 
   test("계산되지 않은 종료 기록을 PC와 모바일에서 0원으로 오해시키지 않는다", async ({ page }) => {

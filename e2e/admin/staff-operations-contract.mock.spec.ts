@@ -569,6 +569,151 @@ test.describe("직원 운영 계약", () => {
     });
   });
 
+  test("근무 저장·환급 승인·월 마감 뒤 급여판으로 돌아오면 합계와 상태를 다시 조회한다", async ({ page }) => {
+    const workRecords = [
+      {
+        id: 41,
+        staff: 1,
+        staff_name: "김조교",
+        work_type: 21,
+        work_type_name: "채점",
+        date: "2026-08-21",
+        start_time: "14:00",
+        end_time: "18:00",
+        break_minutes: 0,
+        meal_minutes: 0,
+        work_hours: "4.00",
+        amount: 48000,
+        adjustment_amount: 0,
+        resolved_hourly_wage: 12000,
+        is_manually_edited: true,
+        memo: "출근 입력 누락 보정",
+        created_at: "2026-08-21T09:00:00Z",
+        updated_at: "2026-08-21T09:00:00Z",
+      },
+    ];
+    const expenses = [
+      {
+        id: 31,
+        staff: 1,
+        staff_name: "김조교",
+        date: "2026-08-01",
+        title: "교재 구입",
+        amount: 30000,
+        memo: "영수증 있음",
+        status: "PENDING",
+        approved_at: null,
+        approved_by: null,
+        approved_by_name: null,
+        created_at: "2026-08-01T01:00:00Z",
+        updated_at: "2026-08-01T01:00:00Z",
+      },
+    ];
+    let payrollRequests = 0;
+    let workSaved = false;
+    let expenseApproved = false;
+    let monthLocked = false;
+    await mockStaffApi(page, {
+      workRecords,
+      expenses,
+      onWorkRecordPatch: () => {
+        workSaved = true;
+      },
+      onExpensePatch: (_id, body) => {
+        expenseApproved = body.status === "APPROVED";
+      },
+      onWorkMonthLock: () => {
+        monthLocked = true;
+      },
+      transformPayrollOverview: (overview, { requestNumber }) => {
+        payrollRequests = requestNumber;
+        const totals = overview.totals as Record<string, unknown>;
+        const rows = overview.rows as Array<Record<string, unknown>>;
+        return {
+          ...overview,
+          totals: {
+            ...totals,
+            work_hours: workSaved ? 29.5 : 28.5,
+            work_amount: workSaved ? 354000 : 342000,
+            approved_expense_amount: expenseApproved ? 48000 : 18000,
+            pending_expense_amount: expenseApproved ? 0 : 30000,
+            total_amount: (workSaved ? 354000 : 342000) + (expenseApproved ? 48000 : 18000),
+            reference_transfer_amount:
+              (workSaved ? 360318 : 348714) + (expenseApproved ? 30000 : 0),
+            needs_review_count: monthLocked ? 0 : 1,
+            closed_count: monthLocked ? 2 : 1,
+          },
+          rows: rows.map((row) => row.staff_id === 1
+            ? {
+                ...row,
+                work_hours: workSaved ? 25 : 24,
+                work_amount: workSaved ? 300000 : 288000,
+                approved_expense_amount: expenseApproved ? 42000 : 12000,
+                pending_expense_amount: expenseApproved ? 0 : 30000,
+                pending_expense_count: expenseApproved ? 0 : 1,
+                reference_transfer_amount:
+                  (workSaved ? 302100 : 290496) + (expenseApproved ? 30000 : 0),
+                locked: monthLocked,
+                snapshot_exists: monthLocked,
+                settlement_status: monthLocked ? "CLOSED" : "NEEDS_REVIEW",
+                can_close: !monthLocked && expenseApproved,
+              }
+            : row),
+        };
+      },
+    });
+
+    await page.goto(`${BASE}/workspace/staff/attendance?year=2026&month=8`, {
+      waitUntil: "domcontentloaded",
+    });
+    const overview = page.getByTestId("staff-payroll-overview");
+    const openKim = () => overview.getByRole("button", { name: /김조교/ }).first().click();
+    await expect(overview.getByText("342,000원", { exact: true }).first()).toBeVisible();
+
+    await openKim();
+    const workRow = page.getByTestId("staff-work-record-41");
+    await workRow.getByRole("button", { name: "수정" }).click();
+    const workDialog = page.getByRole("dialog", { name: "근무 기록 수정" });
+    await workDialog.getByLabel("종료 시간 *", { exact: true }).fill("19:30");
+    await workDialog.getByLabel("휴게시간(분)", { exact: true }).fill("30");
+    await workDialog.getByRole("button", { name: "저장", exact: true }).click();
+    await expect.poll(() => workSaved).toBe(true);
+    const beforeWorkReturn = payrollRequests;
+    await page.goBack();
+    await expect.poll(() => payrollRequests).toBeGreaterThan(beforeWorkReturn);
+    await expect(overview.getByText("354,000원", { exact: true }).first()).toBeVisible();
+
+    await openKim();
+    await page.getByRole("tab", { name: "비용/경비 탭" }).click();
+    const pendingExpense = page.getByTestId("staff-expense-31");
+    await pendingExpense.getByRole("button", { name: "승인", exact: true }).click();
+    await page.getByRole("alertdialog", { name: "선결제 환급 승인" })
+      .getByRole("button", { name: "승인", exact: true })
+      .click();
+    await expect.poll(() => expenseApproved).toBe(true);
+    const beforeExpenseReturn = payrollRequests;
+    await page.goBack();
+    await page.goBack();
+    await expect.poll(() => payrollRequests).toBeGreaterThan(beforeExpenseReturn);
+    await expect(overview.getByText("48,000원", { exact: true }).first()).toBeVisible();
+    await expect(overview.getByText("390,318원", { exact: true }).first()).toBeVisible();
+
+    await openKim();
+    await page.getByRole("tab", { name: "월 마감 탭" }).click();
+    await page.getByRole("button", { name: "월 마감", exact: true }).click();
+    await page.getByRole("alertdialog", { name: "2026년 8월 마감" })
+      .getByRole("button", { name: "월 마감", exact: true })
+      .click();
+    await expect.poll(() => monthLocked).toBe(true);
+    const beforeLockReturn = payrollRequests;
+    await page.goBack();
+    await page.goBack();
+    await expect.poll(() => payrollRequests).toBeGreaterThan(beforeLockReturn);
+    await expect(overview.getByText("대상 2명 · 마감 2명", { exact: true })).toBeVisible();
+    const kimRow = overview.getByRole("table").getByRole("row").filter({ hasText: "김조교" });
+    await expect(kimRow.getByText("마감", { exact: true })).toBeVisible();
+  });
+
   test("자문 점검만 있는 직원도 KPI와 필터에 포함하고 0건 뒤 필터를 되살리지 않는다", async ({ page, context }) => {
     await page.clock.install({ time: new Date("2026-08-21T12:00:00+09:00") });
     let payrollMode: "advisory" | "none" = "advisory";
