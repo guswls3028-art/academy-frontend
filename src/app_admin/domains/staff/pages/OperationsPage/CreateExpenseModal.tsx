@@ -13,6 +13,7 @@ import {
 import { ActionButton } from "@/shared/ui/ds";
 import { DatePicker } from "@/shared/ui/date";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { selectedMonthEntryDate } from "@/shared/utils/selectedMonthEntryDate";
 
 export default function CreateExpenseModal({
   open,
@@ -24,6 +25,7 @@ export default function CreateExpenseModal({
   initial?: ExpenseRecord | null;
 }) {
   const { staffId, range, writeBlocked } = useWorkMonth();
+  const selectedMonth = range.from.slice(0, 7);
 
   const { createM, patchM } = useExpenses({
     staff: staffId,
@@ -32,7 +34,7 @@ export default function CreateExpenseModal({
   });
 
   const [form, setForm] = useState({
-    date: range.from,
+    date: selectedMonthEntryDate(selectedMonth),
     title: "",
     amount: "",
     memo: "",
@@ -41,13 +43,13 @@ export default function CreateExpenseModal({
   useEffect(() => {
     if (open) {
       setForm({
-        date: initial?.date ?? range.from,
+        date: initial?.date ?? selectedMonthEntryDate(selectedMonth),
         title: initial?.title ?? "",
         amount: initial ? String(initial.amount) : "",
         memo: initial?.memo ?? "",
       });
     }
-  }, [initial, open, range.from]);
+  }, [initial, open, selectedMonth]);
 
   if (writeBlocked) return null;
 
@@ -55,6 +57,10 @@ export default function CreateExpenseModal({
   const canSubmit = Boolean(form.title.trim()) && Number.isFinite(parsedAmount) && parsedAmount > 0;
 
   const handleSubmit = () => {
+    if (!form.date) {
+      feedback.warning("날짜를 선택해 주세요.");
+      return;
+    }
     if (!canSubmit) {
       feedback.warning("항목과 금액을 입력하세요.");
       return;
@@ -109,10 +115,11 @@ export default function CreateExpenseModal({
 
       <ModalBody>
         <div className="grid gap-3">
-          <Field id="staff-expense-date" label="날짜">
+          <Field id="staff-expense-date" label="날짜 *">
             <DatePicker
               id="staff-expense-date"
               value={form.date}
+              defaultViewDate={range.from}
               onChange={(v) =>
                 setForm((p) => ({ ...p, date: v }))
               }
