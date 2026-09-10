@@ -509,8 +509,10 @@ test("클리닉 대상자 선택 중 학생 상세를 열고 선택 화면으로
   const createClinicButton = page.getByRole("button", { name: "클리닉 만들기", exact: true });
   await expect(createClinicButton).toBeVisible({ timeout: 20_000 });
   await createClinicButton.click();
-  await expect(page.getByRole("heading", { name: "클리닉 만들기", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "대상자 추가", exact: true }).click();
+  const createDialog = page.getByRole("dialog").filter({ hasText: "클리닉 만들기" });
+  await expect(createDialog.getByRole("heading", { name: "클리닉 만들기", exact: true })).toBeVisible();
+  await createDialog.getByRole("button", { name: /시간지정 클리닉/ }).click();
+  await createDialog.getByRole("button", { name: "대상자 추가", exact: true }).click();
 
   const targetGrid = page.getByRole("grid", { name: "미통과 대상자 명단" });
   await expect(targetGrid).toBeVisible();
