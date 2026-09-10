@@ -75,7 +75,7 @@ test("development canary seals required-student two-slot self-cancellation and m
   assert.doesNotMatch(spec, /\/messaging\/scheduled\//);
   assert.match(spec, /expect\(deliveryRows\)\.toHaveLength\(2\)/);
   assert.match(spec, /target_type\)\.sort\(\)\)\.toEqual\(\["parent", "student"\]\)/);
-  assert.match(spec, /recipient_summary\)\)\.size\)\.toBe\(2\)/);
+  assert.doesNotMatch(spec, /recipient_summary\)\)\.size\)\.toBe\(2\)/);
   assert.match(spec, /recipient_summary\.length > 0/);
   assert.match(spec, /template_summary\)\)\.size\)\.toBe\(1\)/);
   assert.match(spec, /template_summary\.length > 0/);

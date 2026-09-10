@@ -23,7 +23,7 @@ export function StaffWorkspaceTabs({ staffId, year, month }: Props) {
   const pathname = location.pathname;
 
   const buildPath = (tabPath: string) => {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams(location.search);
     if (staffId != null) params.set("staffId", String(staffId));
     params.set("year", String(year));
     params.set("month", String(month));
@@ -43,7 +43,9 @@ export function StaffWorkspaceTabs({ staffId, year, month }: Props) {
             aria-selected={isActive}
             aria-label={`${tab.label} 탭`}
             className={`ds-tab ${isActive ? "is-active" : ""}`}
-            onClick={() => navigate(buildPath(tab.path))}
+            onClick={() => navigate(buildPath(tab.path), {
+              state: { ...location.state, focusStaffDetail: false },
+            })}
           >
             {tab.label}
           </button>

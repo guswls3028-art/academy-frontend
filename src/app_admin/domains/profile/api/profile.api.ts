@@ -70,8 +70,8 @@ export type Attendance = {
   end_time: string | null; // "HH:MM:SS"
   work_type: string;
   memo?: string | null;
-  duration_hours: number;
-  amount: number;
+  duration_hours: number | null;
+  amount: number | null;
   hourly_rate?: number | null;
   break_minutes?: number;
   created_at?: string;
@@ -81,7 +81,12 @@ export type Attendance = {
 export type AttendanceSummary = {
   total_hours: number;
   total_amount: number;
-  total_after_tax?: number;
+  approved_expense_amount: number;
+  reference_business_income_tax: number;
+  reference_local_income_tax: number;
+  reference_deduction_total: number;
+  reference_net_work_amount: number;
+  reference_transfer_amount: number;
 };
 
 /* =====================

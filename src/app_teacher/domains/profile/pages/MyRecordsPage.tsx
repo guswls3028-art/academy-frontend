@@ -10,7 +10,7 @@ import api from "@/shared/api/axios";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
-import { todayLocalISO } from "@/shared/utils/localDate";
+import { shortDateWeekday, todayLocalISO } from "@/shared/utils/localDate";
 import {
   fetchMyWorkRecords,
   fetchMyWorkSummary,
@@ -159,6 +159,10 @@ export default function MyRecordsPage() {
           hasStaffProfile={staffId != null}
           totalHours={Number(summaryQ.data?.work_hours ?? 0)}
           totalAmount={Number(summaryQ.data?.work_amount ?? 0)}
+          approvedExpense={Number(summaryQ.data?.expense_amount)}
+          referenceDeduction={Number(summaryQ.data?.reference_deduction_total)}
+          referenceNetWork={Number(summaryQ.data?.reference_net_work_amount)}
+          referenceTransfer={Number(summaryQ.data?.reference_transfer_amount)}
           onRetry={() => {
             void staffMeQ.refetch();
             void recordsQ.refetch();
@@ -249,6 +253,10 @@ function AttendanceContent({
   hasStaffProfile,
   totalHours,
   totalAmount,
+  approvedExpense,
+  referenceDeduction,
+  referenceNetWork,
+  referenceTransfer,
   onRetry,
 }: {
   records: WorkRecord[];
@@ -257,6 +265,10 @@ function AttendanceContent({
   hasStaffProfile: boolean;
   totalHours: number;
   totalAmount: number;
+  approvedExpense: number;
+  referenceDeduction: number;
+  referenceNetWork: number;
+  referenceTransfer: number;
   onRetry: () => void;
 }) {
   if (loading) return <EmptyState scope="panel" tone="loading" title="근무 기록을 불러오는 중" />;
@@ -293,7 +305,24 @@ function AttendanceContent({
             <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>총 근무액 (공제 전)</div>
             <div className="text-lg font-bold tabular-nums" style={{ color: "var(--tc-primary)" }}>{totalAmount.toLocaleString()}원</div>
           </div>
+          <div>
+            <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>승인 환급비</div>
+            <div className="text-base font-bold tabular-nums" style={{ color: "var(--tc-text)" }}>{approvedExpense.toLocaleString()}원</div>
+          </div>
+          <div>
+            <div className="text-[11px]" style={{ color: "var(--tc-text-muted)" }}>최종 이체 참고액</div>
+            <div className="text-base font-bold tabular-nums" style={{ color: "var(--tc-primary)" }}>{referenceTransfer.toLocaleString()}원</div>
+          </div>
         </div>
+        <div className="mt-3 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 border-t pt-3 text-[11px] tabular-nums" style={{ borderColor: "var(--tc-border)" }}>
+          <span style={{ color: "var(--tc-text-muted)" }}>근무 공제 전</span><strong>{totalAmount.toLocaleString()}원</strong>
+          <span style={{ color: "var(--tc-text-muted)" }}>3.3% 적용 시 참고 공제</span><strong>-{referenceDeduction.toLocaleString()}원</strong>
+          <span style={{ color: "var(--tc-text-muted)" }}>공제 후 근무 참고액</span><strong>{referenceNetWork.toLocaleString()}원</strong>
+          <span style={{ color: "var(--tc-text-muted)" }}>승인 환급비</span><strong>+{approvedExpense.toLocaleString()}원</strong>
+        </div>
+        <p className="mt-2 text-[10px] leading-relaxed" style={{ color: "var(--tc-text-muted)" }}>
+          3.3% 공제 적용을 자동 판정한 값이 아닙니다. 실제 지급액은 계약·세무 확인 후 확정됩니다.
+        </p>
       </Card>
       {records.length === 0 ? (
         <EmptyState
@@ -303,28 +332,51 @@ function AttendanceContent({
           description="로그인 후 근무 유형을 선택해 출근하면 자동으로 기록됩니다."
         />
       ) : (
-        records.map((record) => (
-          <Card key={record.id} style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>
-                  {record.date} · {record.work_type_name}
+        records.map((record) => {
+          const numericWorkHours = record.work_hours == null
+            ? null
+            : Number(record.work_hours);
+          const numericAmount = record.amount == null
+            ? null
+            : Number(record.amount);
+          const hasIncompleteCalculation = Boolean(record.end_time) && (
+            numericWorkHours == null
+            || !Number.isFinite(numericWorkHours)
+            || numericAmount == null
+            || !Number.isFinite(numericAmount)
+          );
+          const workHoursText = numericWorkHours == null
+            ? "계산 전"
+            : Number.isFinite(numericWorkHours)
+              ? `${numericWorkHours.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}시간`
+              : "확인 필요";
+          return (
+            <Card key={record.id} style={{ padding: "var(--tc-space-3) var(--tc-space-4)" }}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>
+                    {shortDateWeekday(record.date)} · {record.work_type_name}
+                  </div>
+                  <div className="mt-0.5 text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+                    {record.start_time.slice(0, 5)} ~ {record.end_time?.slice(0, 5) ?? "근무 중"}
+                    {record.end_time ? ` · ${workHoursText}` : " · 진행 중"}
+                    {` · 휴게 ${(record.break_minutes ?? 0) + (record.meal_minutes ?? 0)}분`}
+                  </div>
+                  <div className="mt-1 text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+                    적용 시급 {record.resolved_hourly_wage?.toLocaleString() ?? "-"}원
+                    {record.is_manually_edited ? " · 관리자 수정" : ""}
+                    {hasIncompleteCalculation ? " · 계산 미완료" : ""}
+                  </div>
                 </div>
-                <div className="mt-0.5 text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
-                  {record.start_time.slice(0, 5)} ~ {record.end_time?.slice(0, 5) ?? "근무 중"}
-                  {record.end_time ? ` · ${record.work_hours ?? 0}시간` : " · 진행 중"}
-                  {(record.break_minutes ?? 0) > 0 ? ` · 휴게 ${record.break_minutes}분` : ""}
-                </div>
-                <div className="mt-1 text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
-                  적용 시급 {record.resolved_hourly_wage?.toLocaleString() ?? "-"}원
+                <div className="shrink-0 text-right text-sm font-bold tabular-nums" style={{ color: "var(--tc-text)" }}>
+                  {record.end_time && numericAmount != null && Number.isFinite(numericAmount)
+                    ? `${numericAmount.toLocaleString()}원`
+                    : "계산 전"}
                 </div>
               </div>
-              <div className="shrink-0 text-right text-sm font-bold tabular-nums" style={{ color: "var(--tc-text)" }}>
-                {record.end_time ? `${(record.amount ?? 0).toLocaleString()}원` : "계산 전"}
-              </div>
-            </div>
-          </Card>
-        ))
+            </Card>
+          );
+        })
       )}
     </div>
   );

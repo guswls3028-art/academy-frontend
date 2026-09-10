@@ -70,6 +70,7 @@ export default function StaffLayout() {
       title="직원 관리"
       description="홈 · 직원 운영(근태 · 선결제 환급 · 월 마감 · 정산 참고 · 리포트)"
       tabs={STAFF_MAIN_TABS}
+      className="staff-domain-layout"
     >
       <div className="staff-area">
         {payroll ? <StaffWorkspace /> : <Outlet />}
