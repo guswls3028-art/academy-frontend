@@ -305,6 +305,15 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
     await expect.poll(() => programTenantHeaders.length).toBeGreaterThan(beforeLogoutProgramRequests);
     expect(new Set(programTenantHeaders)).toEqual(new Set(["hakwonplus"]));
     expect(await page.evaluate(() => sessionStorage.getItem("tenantCode"))).toBe("hakwonplus");
+    expect(await readAuthEnvelope(page)).toBeNull();
+
+    const beforeTenantSwitchRequests = programTenantHeaders.length;
+    await gotoAndSettle(page, `${BASE}/login/limglish`, { timeout: 20_000 });
+    await expect.poll(() => programTenantHeaders.length).toBeGreaterThan(beforeTenantSwitchRequests);
+    expect(new Set(programTenantHeaders.slice(beforeTenantSwitchRequests))).toEqual(
+      new Set(["limglish"]),
+    );
+    expect(await page.evaluate(() => sessionStorage.getItem("tenantCode"))).toBe("limglish");
   });
 
   test("로컬 테넌트 로그인에서 만료 세션을 발견해도 같은 테넌트 로그인으로 복구한다", async ({ page }) => {

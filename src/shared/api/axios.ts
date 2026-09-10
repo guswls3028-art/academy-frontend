@@ -82,7 +82,7 @@ export function clearTokens(expectedGeneration?: string | null) {
     removeSessionItem("session_return_path");
     // tenantCode is non-auth routing context. Keep the exact tenant through
     // logout so public bootstrap requests stay tenant-scoped on same-origin
-    // localhost and preview runtimes.
+    // localhost runtimes. Preview runtimes intentionally remain path/env-only.
     removeSessionItem("product_analytics_session_id");
     window.dispatchEvent(new Event("product-analytics-session-reset"));
   } catch {
