@@ -79,8 +79,6 @@ async function installApi(page: Page, state: MockState, viewer: Viewer = "admin"
             is_staff: false,
             is_superuser: false,
             tenantRole: "student",
-            linkedStudentId: 8600,
-            linkedStudentName: "정책 확인 학생",
             must_change_password: false,
           });
     }

@@ -100,7 +100,6 @@ async function installApi(
             is_superuser: false,
             tenantRole: "parent",
             linkedStudents: [{ id: 72, name: "김하늘" }],
-            linkedStudentName: "김하늘",
           }
         : { id: 72, username: "student-72", name: "김하늘", is_staff: false, is_superuser: false, tenantRole: "student", linkedStudents: [] });
     }

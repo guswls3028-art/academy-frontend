@@ -89,8 +89,6 @@ async function installApp(
         is_staff: false,
         is_superuser: false,
         tenantRole: "parent",
-        linkedStudentId: 502,
-        linkedStudentName: "개별영상학생",
         linkedStudents: [{ id: 502, name: "개별영상학생" }],
         must_change_password: false,
       } : {
@@ -100,8 +98,6 @@ async function installApp(
         is_staff: false,
         is_superuser: false,
         tenantRole: "student",
-        linkedStudentId: 502,
-        linkedStudentName: "개별영상학생",
         must_change_password: false,
       });
     }

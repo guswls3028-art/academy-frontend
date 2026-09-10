@@ -48,10 +48,6 @@ export interface User {
   is_superuser: boolean;
 
   tenantRole: TenantRole | null;
-  /** 학부모일 때 연결된 학생 ID (첫 번째) */
-  linkedStudentId?: number | null;
-  /** 학부모일 때 연결된 학생 이름. 표시용 "{name} 학생 학부모님" */
-  linkedStudentName?: string | null;
   /** 학부모일 때 연결된 자녀 목록 (삭제되지 않은 학생만) */
   linkedStudents?: { id: number; name: string }[] | null;
   /** 초기 비밀번호 변경 강제 여부 */
@@ -69,7 +65,6 @@ function normalizeUserDisplay(user: User | null): User | null {
   return {
     ...user,
     name: plainOptional(user.name) ?? null,
-    linkedStudentName: plainOptional(user.linkedStudentName),
     linkedStudents: Array.isArray(user.linkedStudents)
       ? user.linkedStudents.map((student) => ({
           ...student,

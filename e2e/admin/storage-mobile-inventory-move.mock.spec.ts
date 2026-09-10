@@ -172,8 +172,6 @@ async function installStorageMocks(
         is_staff: isWorkspaceStaff,
         is_superuser: false,
         tenantRole: role,
-        linkedStudentId: role === "student" ? 901 : null,
-        linkedStudentName: role === "student" ? "학생 사용자" : null,
         linkedStudents: role === "parent" ? [{ id: 901, name: "학생 사용자" }] : [],
         must_change_password: false,
       });

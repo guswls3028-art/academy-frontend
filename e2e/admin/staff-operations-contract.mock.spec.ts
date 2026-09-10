@@ -161,8 +161,6 @@ async function mockStaffApi(
         is_staff: true,
         is_superuser: true,
         tenantRole: "admin",
-        linkedStudentId: null,
-        linkedStudentName: null,
         linkedStudents: null,
         must_change_password: false,
       });

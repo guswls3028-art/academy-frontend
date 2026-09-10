@@ -52,7 +52,6 @@ async function installApi(page: Page, viewer: Viewer = "student"): Promise<{
             is_superuser: false,
             tenantRole: "parent",
             linkedStudents: [{ id: 501, name: "김수학" }],
-            linkedStudentName: "김수학",
           }
         : { id: 11, username: "math-student", name: "김수학", is_staff: false, is_superuser: false, tenantRole: "student" } });
       return;

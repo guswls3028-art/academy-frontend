@@ -122,8 +122,6 @@ test.describe("student proctored video forward-skip budget", () => {
           is_staff: false,
           is_superuser: false,
           tenantRole: "student",
-          linkedStudentId: 41,
-          linkedStudentName: "학생",
           must_change_password: false,
         });
       }

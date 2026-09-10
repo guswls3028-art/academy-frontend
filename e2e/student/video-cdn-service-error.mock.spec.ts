@@ -184,8 +184,6 @@ test.describe("student video CDN service errors", () => {
           is_staff: false,
           is_superuser: false,
           tenantRole: "student",
-          linkedStudentId: 1,
-          linkedStudentName: "학생",
           must_change_password: false,
         });
       }
@@ -286,8 +284,6 @@ test.describe("student video CDN service errors", () => {
           is_staff: false,
           is_superuser: false,
           tenantRole: "student",
-          linkedStudentId: 1,
-          linkedStudentName: "학생",
           must_change_password: false,
         });
       }
@@ -446,8 +442,6 @@ test.describe("student video CDN service errors", () => {
           is_staff: false,
           is_superuser: false,
           tenantRole: "student",
-          linkedStudentId: 1,
-          linkedStudentName: "학생",
           must_change_password: false,
         });
       }
@@ -599,8 +593,6 @@ test.describe("student video playback grant renewal continuity", () => {
           is_staff: false,
           is_superuser: false,
           tenantRole: "student",
-          linkedStudentId: 1,
-          linkedStudentName: "학생",
           must_change_password: false,
         });
       }
@@ -1062,8 +1054,6 @@ test.describe("student video access races on desktop", () => {
           is_staff: false,
           is_superuser: false,
           tenantRole: "student",
-          linkedStudentId: 1,
-          linkedStudentName: "학생",
           must_change_password: false,
         });
       }
@@ -1226,8 +1216,6 @@ test.describe("student video access races on desktop", () => {
           is_staff: false,
           is_superuser: false,
           tenantRole: "student",
-          linkedStudentId: 1,
-          linkedStudentName: "학생",
           must_change_password: false,
         });
       }
@@ -1426,8 +1414,6 @@ test.describe("student video access races on desktop", () => {
           is_staff: false,
           is_superuser: false,
           tenantRole: "student",
-          linkedStudentId: 1,
-          linkedStudentName: "학생",
           must_change_password: false,
         });
       }
@@ -1619,8 +1605,6 @@ test.describe("student video access races on desktop", () => {
           is_staff: false,
           is_superuser: false,
           tenantRole: "student",
-          linkedStudentId: 1,
-          linkedStudentName: "학생",
           must_change_password: false,
         });
       }
@@ -1814,8 +1798,6 @@ test.describe("student video access races on desktop", () => {
           is_staff: false,
           is_superuser: false,
           tenantRole: "student",
-          linkedStudentId: 1,
-          linkedStudentName: "학생",
           must_change_password: false,
         });
       }
@@ -1961,8 +1943,6 @@ test.describe("student video access races on desktop", () => {
           is_staff: false,
           is_superuser: false,
           tenantRole: "student",
-          linkedStudentId: 1,
-          linkedStudentName: "학생",
           must_change_password: false,
         });
       }
