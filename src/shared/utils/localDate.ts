@@ -29,3 +29,12 @@ export function addDaysLocal(dateStr: string, days: number): string {
   d.setDate(d.getDate() + days);
   return formatLocalDate(d);
 }
+
+const KOREAN_WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
+
+/** `yyyy-MM-dd`를 휴대폰용 `M/D(요일)`로 표시한다. */
+export function shortDateWeekday(value: string): string {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return value;
+  return `${month}/${day}(${KOREAN_WEEKDAYS[new Date(year, month - 1, day).getDay()]})`;
+}

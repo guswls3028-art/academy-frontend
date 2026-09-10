@@ -1,5 +1,6 @@
 // PATH: src/app_admin/domains/staff/api/staff.api.ts
 import api from "@/shared/api/axios";
+import type { components } from "@/shared/api/generated/schema";
 import type { StaffWorkType } from "./staffWorkType.api";
 
 export type StaffPosition = "DIRECTOR" | "INSTRUCTOR" | "ASSISTANT" | "STAFF";
@@ -51,7 +52,14 @@ export type StaffSummary = {
   work_amount: number;
   expense_amount: number;
   total_amount: number;
+  reference_business_income_tax: number;
+  reference_local_income_tax: number;
+  reference_deduction_total: number;
+  reference_net_work_amount: number;
+  reference_transfer_amount: number;
 };
+
+export type PayrollWorkTypeBreakdown = components["schemas"]["StaffPayrollWorkTypeBreakdown"];
 
 export type PayrollOverviewStatus =
   | "OPEN"
@@ -59,45 +67,21 @@ export type PayrollOverviewStatus =
   | "CLOSED"
   | "RECONCILIATION_REQUIRED";
 
-export type StaffPayrollOverviewRow = {
-  staff_id: number;
-  name: string;
+type GeneratedPayrollOverviewRow = components["schemas"]["StaffPayrollOverviewRow"];
+export type StaffPayrollOverviewRow = Omit<
+  GeneratedPayrollOverviewRow,
+  "position" | "account_role" | "pay_type" | "settlement_status"
+> & {
   position: StaffPosition;
-  position_label: string;
   account_role: StaffAccountRole;
-  is_active: boolean;
-  can_manage_staff: boolean;
   pay_type: "HOURLY" | "MONTHLY";
-  work_hours: number;
-  work_amount: number;
-  approved_expense_amount: number;
-  pending_expense_amount: number;
-  pending_expense_count: number;
-  total_amount: number;
-  open_work_record_count: number;
-  incomplete_work_record_count: number;
-  assigned_work_type_count: number;
   settlement_status: PayrollOverviewStatus;
-  can_close: boolean;
 };
 
-export type StaffPayrollOverview = {
-  year: number;
-  month: number;
-  date_from: string;
-  date_to: string;
-  totals: {
-    staff_count: number;
-    work_hours: number;
-    work_amount: number;
-    approved_expense_amount: number;
-    pending_expense_amount: number;
-    total_amount: number;
-    needs_review_count: number;
-    closed_count: number;
-  };
-  rows: StaffPayrollOverviewRow[];
-};
+export type StaffPayrollOverview = Omit<
+  components["schemas"]["StaffPayrollOverview"],
+  "rows"
+> & { rows: StaffPayrollOverviewRow[] };
 
 /**
  * GET /staffs/

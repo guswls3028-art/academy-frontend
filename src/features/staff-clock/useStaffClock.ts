@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import useAuth from "@/auth/hooks/useAuth";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { invalidatePayrollOverview } from "@/shared/staff/invalidatePayrollOverview";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import {
   endBreak,
@@ -74,6 +75,7 @@ export function useStaffClock() {
     queryClient.invalidateQueries({ queryKey: staffClockQueryKeys.personalRecordsRoot });
     queryClient.invalidateQueries({ queryKey: staffClockQueryKeys.personalSummaryRoot });
     queryClient.invalidateQueries({ queryKey: staffClockQueryKeys.currentlyWorking });
+    void invalidatePayrollOverview(queryClient);
   };
 
   const startMutation = useMutation({

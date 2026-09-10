@@ -7,6 +7,7 @@ import {
   useTableColumnPrefs,
   type TableColumnDef,
 } from "@/shared/ui/domain";
+import { shortDateWeekday } from "@/shared/utils/localDate";
 import styles from "./AttendanceCards.module.css";
 
 const COLUMN_DEFS: TableColumnDef[] = [
@@ -21,6 +22,10 @@ function fmtTime(value?: string | null) {
   return value ? value.slice(0, 5) : "근무 중";
 }
 
+function sortableNumber(value: number | null | undefined) {
+  return value == null || !Number.isFinite(value) ? Number.NEGATIVE_INFINITY : value;
+}
+
 export default function AttendanceTable({ rows }: { rows: Attendance[] }) {
   const [sort, setSort] = useState("-date");
   const { columnWidths, setColumnWidth } = useTableColumnPrefs(
@@ -33,7 +38,11 @@ export default function AttendanceTable({ rows }: { rows: Attendance[] }) {
     return [...rows].sort((a, b) => {
       let comparison = 0;
       if (key === "date") comparison = a.date.localeCompare(b.date, "ko");
-      else if (key === "amount") comparison = a.amount - b.amount;
+      else if (key === "amount") {
+        const left = sortableNumber(a.amount);
+        const right = sortableNumber(b.amount);
+        comparison = left === right ? 0 : left - right;
+      }
       else if (key === "hourly") {
         comparison = (a.hourly_rate ?? 0) - (b.hourly_rate ?? 0);
       }
@@ -89,21 +98,23 @@ export default function AttendanceTable({ rows }: { rows: Attendance[] }) {
       <tbody>
         {sortedRows.map((row) => (
           <tr key={row.id} className={styles.tableRow}>
-            <td className={styles.dateCell}>{row.date}</td>
+            <td className={styles.dateCell}>{shortDateWeekday(row.date)}</td>
             <td className={styles.secondaryCell}>{row.work_type}</td>
             <td className={styles.primaryCell}>
               <div>{fmtTime(row.start_time)} ~ {fmtTime(row.end_time)}</div>
               <div className={styles.durationDetail}>
                 {row.end_time == null
                   ? "진행 중"
-                  : `총 ${row.duration_hours}시간${row.break_minutes ? ` · 휴게 ${row.break_minutes}분` : ""}`}
+                  : row.duration_hours == null
+                    ? "총 계산 전"
+                    : `총 ${row.duration_hours}시간${row.break_minutes ? ` · 휴게 ${row.break_minutes}분` : ""}`}
               </div>
             </td>
             <td className={styles.secondaryAmountCell}>
               {row.hourly_rate != null ? `${row.hourly_rate.toLocaleString()}원` : "-"}
             </td>
             <td className={styles.totalAmountCell}>
-              {row.end_time == null ? "계산 전" : `${row.amount.toLocaleString()}원`}
+              {row.end_time == null || row.amount == null ? "계산 전" : `${row.amount.toLocaleString()}원`}
             </td>
           </tr>
         ))}

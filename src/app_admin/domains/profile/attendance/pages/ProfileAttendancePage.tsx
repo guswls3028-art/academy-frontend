@@ -19,10 +19,9 @@ export default function ProfileAttendancePage() {
 
   const domain = useAttendanceDomain(month, range);
 
-  const chartData = domain.rows.map((r) => ({
-    date: r.date,
-    hours: r.duration_hours,
-  }));
+  const chartData = domain.rows.flatMap((r) => r.duration_hours == null
+    ? []
+    : [{ date: r.date, hours: r.duration_hours }]);
 
   return (
     <>
@@ -33,12 +32,14 @@ export default function ProfileAttendancePage() {
           rowsForExcel={domain.allRows}
         />
 
-        <Section>
-          <div className="grid grid-cols-1 gap-[var(--space-6)] lg:grid-cols-2">
-            <AttendanceSummaryCard summary={domain.rangeSummary} />
-            <AttendanceChartCard data={chartData} />
-          </div>
-        </Section>
+        {!domain.isLoading && !domain.isError && domain.rangeSummary && (
+          <Section>
+            <div className="grid grid-cols-1 gap-[var(--space-6)] lg:grid-cols-2">
+              <AttendanceSummaryCard summary={domain.rangeSummary} />
+              <AttendanceChartCard data={chartData} />
+            </div>
+          </Section>
+        )}
 
         <Section>
           {domain.isError && (
@@ -68,7 +69,7 @@ export default function ProfileAttendancePage() {
             />
           )}
 
-          {domain.rows.length > 0 && (
+          {!domain.isError && domain.rows.length > 0 && (
             <AttendanceTable rows={domain.rows} />
           )}
         </Section>

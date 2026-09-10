@@ -10,6 +10,7 @@ import {
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { staffQueryKeys } from "../queryKeys";
+import { invalidatePayrollOverview } from "@/shared/staff/invalidatePayrollOverview";
 
 export type UseExpensesParams = {
   staff: number;
@@ -36,6 +37,7 @@ export function useExpenses(params: UseExpensesParams) {
     qc.invalidateQueries({ queryKey: staffQueryKeys.expenses });
     qc.invalidateQueries({ queryKey: staffQueryKeys.summaryForStaff(params.staff) });
     qc.invalidateQueries({ queryKey: staffQueryKeys.payrollSnapshots });
+    void invalidatePayrollOverview(qc);
   };
 
   const createM = useMutation({

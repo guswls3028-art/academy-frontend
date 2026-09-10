@@ -33,7 +33,10 @@ export function AttendanceCalendar({
     for (let d = 1; d <= last; d++) {
       const date = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
       const dayRecords = records.filter((r) => r.date === date);
-      const hours = dayRecords.reduce((sum, r) => sum + (r.work_hours ?? 0), 0);
+      const hours = dayRecords.reduce(
+        (sum, r) => sum + (Number(r.work_hours) || 0),
+        0,
+      );
       days.push({ date, day: d, hours });
     }
     return { days, firstDay };

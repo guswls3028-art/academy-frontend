@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useEffect, useRef, type CSSProperties } from "react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 
 import { Badge, Button, EmptyState } from "@/shared/ui/ds";
 import {
@@ -20,6 +21,15 @@ type Props = {
   month: number;
 };
 
+type PayrollFilter = "all" | "review" | "closed";
+type PayrollSort = "default" | "amount-desc" | "amount-asc";
+
+type PayrollNavigationState = {
+  focusPayrollOverview?: boolean;
+  payrollOverviewStaffId?: number;
+  payrollOverviewScrollTop?: number;
+};
+
 const STATUS_LABEL: Record<PayrollOverviewStatus, string> = {
   OPEN: "정산 중",
   NEEDS_REVIEW: "확인 필요",
@@ -34,10 +44,12 @@ function statusTone(status: PayrollOverviewStatus) {
 }
 
 function rowIssues(row: StaffPayrollOverviewRow) {
-  if (row.settlement_status === "CLOSED") return [];
   const issues: string[] = [];
   if (row.open_work_record_count) issues.push(`진행 중 근무 ${row.open_work_record_count}건`);
   if (row.incomplete_work_record_count) issues.push(`계산 미완료 ${row.incomplete_work_record_count}건`);
+  if (row.duplicate_work_record_count) issues.push(`중복 의심 ${row.duplicate_work_record_count}건`);
+  if (row.abnormal_long_work_record_count) issues.push(`12시간 이상 ${row.abnormal_long_work_record_count}건`);
+  if (row.manually_edited_work_record_count) issues.push(`관리자 수정 ${row.manually_edited_work_record_count}건`);
   if (row.pending_expense_count) issues.push(`비용 대기 ${row.pending_expense_count}건`);
   if (row.is_active && row.assigned_work_type_count === 0) issues.push("시급태그 없음");
   if (row.pay_type === "MONTHLY") issues.push("월급 수동 확인");
@@ -47,11 +59,61 @@ function rowIssues(row: StaffPayrollOverviewRow) {
 
 export function StaffPayrollOverview({ year, month }: Props) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const restoredOverviewKeyRef = useRef<string | null>(null);
   const overviewQ = useQuery({
     queryKey: staffQueryKeys.payrollOverview(year, month),
     queryFn: () => fetchStaffPayrollOverview(year, month),
   });
+  const reviewRows = overviewQ.data?.rows.filter(
+    (row) =>
+      row.advisory_issue_count > 0 ||
+      row.settlement_status === "NEEDS_REVIEW" ||
+      row.settlement_status === "RECONCILIATION_REQUIRED",
+  ) ?? [];
+  const filterParam = searchParams.get("payrollFilter");
+  const filter: PayrollFilter = filterParam === "review" || filterParam === "closed"
+    ? filterParam
+    : "all";
+  const sortParam = searchParams.get("payrollSort");
+  const sort: PayrollSort = sortParam === "amount-desc" || sortParam === "amount-asc"
+    ? sortParam
+    : "default";
+  const search = searchParams.get("payrollSearch") ?? "";
+
+  useEffect(() => {
+    const state = location.state as PayrollNavigationState | null;
+    if (!state?.focusPayrollOverview) return;
+    const restorationKey = [
+      location.key,
+      state.payrollOverviewStaffId ?? "",
+      state.payrollOverviewScrollTop ?? "",
+    ].join(":");
+    if (!overviewQ.data || restoredOverviewKeyRef.current === restorationKey) return;
+    const frame = requestAnimationFrame(() => {
+      const scrollContainer = rootRef.current?.closest("main");
+      if (scrollContainer && Number.isFinite(state.payrollOverviewScrollTop)) {
+        scrollContainer.scrollTop = state.payrollOverviewScrollTop ?? 0;
+      }
+      const matchingRows = state.payrollOverviewStaffId == null
+        ? []
+        : Array.from(rootRef.current?.querySelectorAll<HTMLElement>(
+          `[data-payroll-staff-id="${state.payrollOverviewStaffId}"]`,
+        ) ?? []);
+      const row = matchingRows.find((candidate) => candidate.getClientRects().length > 0);
+      if (row) {
+        row.scrollIntoView({ block: "nearest" });
+        row.focus({ preventScroll: true });
+      } else {
+        headingRef.current?.focus({ preventScroll: true });
+      }
+      restoredOverviewKeyRef.current = restorationKey;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [location.key, location.state, overviewQ.data]);
 
   const goMonth = (delta: number) => {
     const nextDate = new Date(year, month - 1 + delta);
@@ -63,9 +125,39 @@ export function StaffPayrollOverview({ year, month }: Props) {
   };
 
   const openStaff = (staffId: number) => {
-    navigate(
-      `/workspace/staff/attendance?staffId=${staffId}&year=${year}&month=${month}`,
-    );
+    const next = new URLSearchParams(searchParams);
+    next.set("staffId", String(staffId));
+    next.set("year", String(year));
+    next.set("month", String(month));
+    const scrollContainer = rootRef.current?.closest("main");
+    navigate(`/workspace/staff/attendance?${next.toString()}`, {
+      state: {
+        focusStaffDetail: true,
+        payrollOverviewStaffId: staffId,
+        payrollOverviewScrollTop: scrollContainer?.scrollTop ?? 0,
+      },
+    });
+  };
+
+  const setFilter = (nextFilter: PayrollFilter) => {
+    const next = new URLSearchParams(searchParams);
+    if (nextFilter === "all") next.delete("payrollFilter");
+    else next.set("payrollFilter", nextFilter);
+    setSearchParams(next, { replace: true });
+  };
+
+  const setSearch = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set("payrollSearch", value);
+    else next.delete("payrollSearch");
+    setSearchParams(next, { replace: true });
+  };
+
+  const setSort = (nextSort: PayrollSort) => {
+    const next = new URLSearchParams(searchParams);
+    if (nextSort === "default") next.delete("payrollSort");
+    else next.set("payrollSort", nextSort);
+    setSearchParams(next, { replace: true });
   };
 
   if (overviewQ.isError) {
@@ -87,53 +179,99 @@ export function StaffPayrollOverview({ year, month }: Props) {
   }
 
   const { totals, rows } = overviewQ.data;
+  const filterRows = filter === "review"
+    ? reviewRows
+    : filter === "closed"
+      ? rows.filter((row) => row.settlement_status === "CLOSED")
+      : rows;
+  const normalizedSearch = search.trim().toLocaleLowerCase("ko-KR");
+  const searchedRows = normalizedSearch
+    ? filterRows.filter((row) => row.name.toLocaleLowerCase("ko-KR").includes(normalizedSearch))
+    : filterRows;
+  const visibleRows = searchedRows
+    .map((row, serverIndex) => ({ row, serverIndex }))
+    .sort((a, b) => {
+      if (sort === "default") return a.serverIndex - b.serverIndex;
+      const difference = a.row.reference_transfer_amount - b.row.reference_transfer_amount;
+      if (difference === 0) return a.serverIndex - b.serverIndex;
+      return sort === "amount-asc" ? difference : -difference;
+    })
+    .map(({ row }) => row);
 
   return (
-    <div className={styles.root} data-testid="staff-payroll-overview">
+    <div ref={rootRef} className={styles.root} data-testid="staff-payroll-overview">
       <header className={styles.header}>
         <div>
           <span className={styles.eyebrow}>전체 현황</span>
-          <h2>{year}년 {month}월 급여판</h2>
+          <h2 ref={headingRef} tabIndex={-1}>{year}년 {month}월 급여판</h2>
           <p>직원을 고르기 전에 근무·비용·마감 상태를 한 번에 확인합니다.</p>
         </div>
         <div className={styles.monthControl} aria-label="급여 현황 월 선택">
-          <Button intent="ghost" size="sm" iconOnly aria-label="이전 달" onClick={() => goMonth(-1)}>
-            <ChevronLeft size={18} />
+          <Button className="staff-payroll-action" intent="ghost" size="sm" leftIcon={<ChevronLeft size={16} />} aria-label="이전 달" onClick={() => goMonth(-1)}>
+            이전
           </Button>
           <strong>{year}.{String(month).padStart(2, "0")}</strong>
-          <Button intent="ghost" size="sm" iconOnly aria-label="다음 달" onClick={() => goMonth(1)}>
-            <ChevronRight size={18} />
+          <Button className="staff-payroll-action" intent="ghost" size="sm" rightIcon={<ChevronRight size={16} />} aria-label="다음 달" onClick={() => goMonth(1)}>
+            다음
           </Button>
         </div>
       </header>
 
       <section className={styles.ledgerSummary} aria-label="월 급여 합계">
-        <div className={styles.totalCard}>
-          <span>정산 합계(공제 전)</span>
-          <strong>{totals.total_amount.toLocaleString()}<small>원</small></strong>
-          <p>근무기록 {totals.work_amount.toLocaleString()}원 + 승인 선결제 환급 {totals.approved_expense_amount.toLocaleString()}원</p>
+        <div className={styles.headlineMetric} data-testid="payroll-headline-metric">
+          <span>최종 이체 참고 총액</span>
+          <strong>{totals.reference_transfer_amount.toLocaleString()}<small>원</small></strong>
+          <p className={styles.summaryFormula}>공제 전 {totals.work_amount.toLocaleString()}원 − 참고 공제 {totals.reference_deduction_total.toLocaleString()}원 + 승인 환급 {totals.approved_expense_amount.toLocaleString()}원 = 이체 참고액 {totals.reference_transfer_amount.toLocaleString()}원</p>
+          <p>대상 {totals.staff_count}명 · 마감 {totals.closed_count}명 · 근무 {totals.work_hours.toFixed(1)}h</p>
         </div>
-        <div className={styles.metricRail}>
-          <Metric label="총 근무시간" value={`${totals.work_hours.toFixed(1)}h`} />
-          <Metric label="대상 직원" value={`${totals.staff_count}명`} sub={`마감 ${totals.closed_count}명`} />
-          <Metric
-            label="확인 필요"
-            value={`${totals.needs_review_count}명`}
-            sub={totals.pending_expense_amount ? `대기 비용 ${totals.pending_expense_amount.toLocaleString()}원` : "대기 비용 없음"}
-            warning={totals.needs_review_count > 0}
-          />
+        <div className={styles.headlineMetric} data-warning={reviewRows.length > 0 ? "true" : undefined} data-testid="payroll-headline-metric">
+          <span>확인 필요 인원</span>
+          <strong>{reviewRows.length}<small>명</small></strong>
+          <p>마감 차단 {totals.needs_review_count}명 · 기록 점검 {totals.advisory_issue_count}건 · {totals.pending_expense_amount ? `비용 대기 ${totals.pending_expense_amount.toLocaleString()}원` : "비용 대기 없음"}</p>
         </div>
       </section>
 
-      {totals.needs_review_count > 0 && (
+      {reviewRows.length > 0 && (
         <div className={styles.attention} role="status">
           <AlertTriangle size={17} aria-hidden />
-          <span><strong>{totals.needs_review_count}명</strong>에게 월마감 전 확인할 항목이 있습니다. 아래 행의 사유를 먼저 처리하세요.</span>
+          <span><strong>지급 전 확인</strong> 기록 이상·비용 대기·시급태그·월급·마감 대사를 확인하세요. 경고는 기록을 숨기거나 수정을 막지 않습니다.</span>
         </div>
       )}
 
-      {rows.length === 0 ? (
-        <EmptyState scope="panel" title="표시할 직원이 없습니다" description="재직 직원이나 이달 근무·비용 기록이 없습니다." />
+      <section className={styles.toolbar} aria-label="급여 직원 찾기">
+        <label className={styles.searchField}>
+          <Search size={16} aria-hidden />
+          <span className="sr-only">직원 이름 검색</span>
+          <input
+            type="search"
+            aria-label="직원 이름 검색"
+            placeholder="직원 이름 검색"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </label>
+        <div className={styles.segmented} role="group" aria-label="급여 직원 필터">
+          <button type="button" aria-pressed={filter === "all"} onClick={() => setFilter("all")}>전체</button>
+          <button type="button" aria-pressed={filter === "review"} onClick={() => setFilter("review")}>확인 필요</button>
+          <button type="button" aria-pressed={filter === "closed"} onClick={() => setFilter("closed")}>마감</button>
+        </div>
+        <label className={styles.sortField}>
+          <span className="sr-only">급여 직원 정렬</span>
+          <select aria-label="급여 직원 정렬" value={sort} onChange={(event) => setSort(event.target.value as PayrollSort)}>
+            <option value="default">기본순</option>
+            <option value="amount-desc">이체액 높은순</option>
+            <option value="amount-asc">이체액 낮은순</option>
+          </select>
+        </label>
+        <span className={styles.resultCount}>표시 {visibleRows.length}명</span>
+      </section>
+
+      {visibleRows.length === 0 ? (
+        <EmptyState
+          scope="panel"
+          title="조건에 맞는 직원이 없습니다"
+          description={search ? "검색어를 바꾸거나 전체 필터를 선택해 주세요." : "다른 상태 필터를 선택해 주세요."}
+        />
       ) : (
         <>
           <div className={styles.tableWrap}>
@@ -141,28 +279,31 @@ export function StaffPayrollOverview({ year, month }: Props) {
               <thead>
                 <tr>
                   <th>직원</th>
-                  <th>직위·계정</th>
+                  <th>근무 유형</th>
                   <th>근무시간</th>
-                  <th>근무기록 금액</th>
-                  <th>선결제 환급</th>
-                  <th>공제 전 합계</th>
+                  <th>근무 공제 전</th>
+                  <th>승인 환급</th>
+                  <th>최종 이체 참고</th>
                   <th>정산 상태</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => {
+                {visibleRows.map((row) => {
                   const issues = rowIssues(row);
                   return (
                     <tr key={row.staff_id} data-status={row.settlement_status}>
                       <td>
-                        <button type="button" className={styles.staffLink} onClick={() => openStaff(row.staff_id)}>
+                        <button type="button" className={styles.staffLink} data-payroll-staff-id={row.staff_id} onClick={() => openStaff(row.staff_id)}>
                           <strong>{row.name}</strong>
-                          <span>{row.is_active ? "재직" : "퇴사"}</span>
+                          <span>{staffPositionLabel(row.position)} · {staffAccountRoleLabel(row.account_role)} · {row.is_active ? "재직" : "퇴사"}</span>
                         </button>
                       </td>
                       <td>
-                        <strong className={styles.identity}>{staffPositionLabel(row.position)}</strong>
-                        <span className={styles.subtle}>{staffAccountRoleLabel(row.account_role)}</span>
+                        <div className={styles.rowTypes}>
+                          {row.work_type_breakdown.map((item, index) => (
+                            <span key={item.work_type_id ?? `unknown-${index}`} style={{ "--work-color": item.color ?? undefined } as CSSProperties}>{item.work_type_name ?? "근무유형 미지정"} {item.work_hours.toFixed(1)}h</span>
+                          ))}
+                        </div>
                       </td>
                       <td className={styles.number}>{row.work_hours.toFixed(1)}h</td>
                       <td className={styles.number}>{row.work_amount.toLocaleString()}원</td>
@@ -170,7 +311,7 @@ export function StaffPayrollOverview({ year, month }: Props) {
                         {row.approved_expense_amount.toLocaleString()}원
                         {row.pending_expense_count > 0 && <span className={styles.pending}>대기 {row.pending_expense_amount.toLocaleString()}원</span>}
                       </td>
-                      <td className={`${styles.number} ${styles.total}`}>{row.total_amount.toLocaleString()}원</td>
+                      <td className={`${styles.number} ${styles.total}`}>{row.reference_transfer_amount.toLocaleString()}원<span className={styles.subtle}>3.3% 적용 시 참고</span></td>
                       <td>
                         <Badge variant="solid" tone={statusTone(row.settlement_status)}>{STATUS_LABEL[row.settlement_status]}</Badge>
                         {issues.length > 0 && <span className={styles.issueText}>{issues.join(" · ")}</span>}
@@ -183,44 +324,70 @@ export function StaffPayrollOverview({ year, month }: Props) {
           </div>
 
           <div className={styles.mobileList}>
-            {rows.map((row) => {
+            {visibleRows.map((row) => {
               const issues = rowIssues(row);
               return (
-                <button key={row.staff_id} type="button" className={styles.mobileCard} onClick={() => openStaff(row.staff_id)}>
+                <button key={row.staff_id} type="button" className={styles.mobileRow} data-testid="payroll-mobile-row" data-payroll-staff-id={row.staff_id} onClick={() => openStaff(row.staff_id)}>
                   <span className={styles.mobileIdentity}>
-                    <span><strong>{row.name}</strong><small>{staffPositionLabel(row.position)} · {staffAccountRoleLabel(row.account_role)}</small></span>
-                    <Badge variant="solid" tone={statusTone(row.settlement_status)}>{STATUS_LABEL[row.settlement_status]}</Badge>
+                    <span>
+                      <strong>{row.name}</strong>
+                      <small>{staffPositionLabel(row.position)} · {staffAccountRoleLabel(row.account_role)} · {row.is_active ? "재직" : "퇴사"}</small>
+                      {issues.length > 0 && <span className={styles.issueText}>{issues.join(" · ")}</span>}
+                    </span>
+                    <span className={styles.mobileAmount}>
+                      <small>최종 이체 참고</small>
+                      <strong>{row.reference_transfer_amount.toLocaleString()}원</strong>
+                      <Badge variant="soft" tone={statusTone(row.settlement_status)}>{STATUS_LABEL[row.settlement_status]}</Badge>
+                    </span>
                   </span>
-                  <span className={styles.mobileNumbers}>
-                    <span><small>근무</small>{row.work_hours.toFixed(1)}h</span>
-                    <span><small>공제 전 합계</small>{row.total_amount.toLocaleString()}원</span>
+                  <span className={styles.mobileWork}>
+                    <span className={styles.rowTypes}>{row.work_type_breakdown.map((item, index) => <span key={item.work_type_id ?? `unknown-${index}`} style={{ "--work-color": item.color ?? undefined } as CSSProperties}>{item.work_type_name ?? "근무유형 미지정"} {item.work_hours.toFixed(1)}h</span>)}</span>
+                    <strong>{row.work_hours.toFixed(1)}h</strong>
                   </span>
-                  {issues.length > 0 && <span className={styles.issueText}>{issues.join(" · ")}</span>}
+                  <span className={styles.mobileMeta}>
+                    <span><small>공제 전</small><strong>{row.work_amount.toLocaleString()}원</strong></span>
+                    <span>
+                      <small>승인 환급</small><strong>{row.approved_expense_amount.toLocaleString()}원</strong>
+                      {row.pending_expense_count > 0 && <em>대기 {row.pending_expense_amount.toLocaleString()}원</em>}
+                    </span>
+                  </span>
                 </button>
               );
             })}
           </div>
         </>
       )}
+
+      {totals.work_type_breakdown.length > 0 && (
+        <section className={styles.workTypeStrip} aria-label="근무유형별 시간">
+          <strong>근무유형별</strong>
+          <div>
+            {totals.work_type_breakdown.map((item, index) => (
+              <span key={item.work_type_id ?? `unknown-${index}`} style={{ "--work-color": item.color ?? undefined } as CSSProperties}>
+                {item.work_type_name ?? "근무유형 미지정"} <b>{item.work_hours.toFixed(1)}h</b>
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className={styles.waterfall} aria-label="3.3% 적용 시 참고 정산">
+        <WaterfallStep label="근무 공제 전" value={totals.work_amount} />
+        <WaterfallStep label="3.3% 참고 공제" value={-totals.reference_deduction_total} sub={`사업소득세 ${totals.reference_business_income_tax.toLocaleString()}원 + 지방소득세 ${totals.reference_local_income_tax.toLocaleString()}원`} />
+        <WaterfallStep label="공제 후 근무 참고" value={totals.reference_net_work_amount} />
+        <WaterfallStep label="승인 환급비" value={totals.approved_expense_amount} prefix="+" />
+        <WaterfallStep label="최종 이체 참고액" value={totals.reference_transfer_amount} accent />
+        <p><strong>3.3% 적용 시 참고</strong> 비교값입니다. 실제 공제 적용 여부와 지급액은 계약·세무 확인 후 확정하세요.</p>
+      </section>
     </div>
   );
 }
 
-function Metric({
-  label,
-  value,
-  sub,
-  warning = false,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  warning?: boolean;
-}) {
+function WaterfallStep({ label, value, sub, prefix, accent = false }: { label: string; value: number; sub?: string; prefix?: string; accent?: boolean }) {
   return (
-    <div className={styles.metric} data-warning={warning ? "true" : "false"}>
+    <div className={styles.waterfallStep} data-accent={accent ? "true" : undefined}>
       <span>{label}</span>
-      <strong>{value}</strong>
+      <strong>{prefix}{value.toLocaleString()}원</strong>
       {sub && <small>{sub}</small>}
     </div>
   );

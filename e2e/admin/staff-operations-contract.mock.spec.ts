@@ -118,12 +118,23 @@ async function mockStaffApi(
     profileExpenses?: Array<Record<string, unknown>>;
     onProfileExpenseCreate?: (body: Record<string, unknown>) => void;
     onProfileExpenseDelete?: (id: number) => void;
+    transformPayrollOverview?: (
+      overview: Record<string, unknown>,
+      context: { year: number; month: number; requestNumber: number },
+    ) => Record<string, unknown>;
+    payrollOverviewDelayMs?: number;
+    enableStaffClock?: boolean;
+    onStaffClockStart?: () => void;
+    onStaffClockEnd?: () => void;
   },
 ) {
   let workMonthLocked = false;
+  let payrollOverviewRequestNumber = 0;
+  let ownClockState: "OFF" | "WORKING" = "OFF";
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
-    const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
+    const requestUrl = new URL(request.url());
+    const path = requestUrl.pathname.replace(/^\/api\/v1/, "");
     const json = (body: unknown, status = 200) =>
       route.fulfill({
         status,
@@ -157,6 +168,19 @@ async function mockStaffApi(
       });
     }
     if (path === "/staffs/me/" && request.method() === "GET") {
+      if (options?.enableStaffClock) {
+        return json({
+          is_authenticated: true,
+          is_superuser: false,
+          is_staff: true,
+          is_payroll_manager: true,
+          is_owner: false,
+          staff_id: 1,
+          assigned_work_types: [
+            { id: 21, name: "채점", hourly_wage: 12000 },
+          ],
+        });
+      }
       return json({
         is_authenticated: true,
         is_superuser: false,
@@ -169,6 +193,61 @@ async function mockStaffApi(
     }
     if (path === "/staffs/currently-working/" && request.method() === "GET") {
       return json([]);
+    }
+    if (options?.enableStaffClock && path === "/staffs/1/work-records/current/" && request.method() === "GET") {
+      return ownClockState === "OFF"
+        ? json({ status: "OFF" })
+        : json({
+            status: "WORKING",
+            work_record_id: 901,
+            date: "2026-08-21",
+            started_at: "14:00:00",
+            work_type: 21,
+            work_type_name: "채점",
+            hourly_wage: 12000,
+            break_minutes: 0,
+            break_total_seconds: 0,
+          });
+    }
+    if (options?.enableStaffClock && path === "/staffs/1/work-records/start-work/" && request.method() === "POST") {
+      ownClockState = "WORKING";
+      options.onStaffClockStart?.();
+      return json({
+        id: 901,
+        staff: 1,
+        staff_name: "김조교",
+        work_type: 21,
+        work_type_name: "채점",
+        date: "2026-08-21",
+        start_time: "14:00:00",
+        end_time: null,
+        break_minutes: 0,
+        meal_minutes: 0,
+        work_hours: null,
+        amount: null,
+        resolved_hourly_wage: 12000,
+        memo: "",
+      }, 201);
+    }
+    if (options?.enableStaffClock && path === "/staffs/work-records/901/end_work/" && request.method() === "POST") {
+      ownClockState = "OFF";
+      options.onStaffClockEnd?.();
+      return json({
+        id: 901,
+        staff: 1,
+        staff_name: "김조교",
+        work_type: 21,
+        work_type_name: "채점",
+        date: "2026-08-21",
+        start_time: "14:00:00",
+        end_time: "15:00:00",
+        break_minutes: 0,
+        meal_minutes: 0,
+        work_hours: "1.00",
+        amount: 12000,
+        resolved_hourly_wage: 12000,
+        memo: "",
+      });
     }
     if (path === "/lectures/attendance/arrival-overview/" && request.method() === "GET") {
       return json({
@@ -222,7 +301,7 @@ async function mockStaffApi(
       });
     }
     if (path === "/staffs/payroll-overview/" && request.method() === "GET") {
-      return json({
+      const overview: Record<string, unknown> = {
         year: 2026,
         month: 8,
         date_from: "2026-08-01",
@@ -234,6 +313,16 @@ async function mockStaffApi(
           approved_expense_amount: 18000,
           pending_expense_amount: 30000,
           total_amount: 360000,
+          reference_business_income_tax: 10260,
+          reference_local_income_tax: 1026,
+          reference_deduction_total: 11286,
+          reference_net_work_amount: 330714,
+          reference_transfer_amount: 348714,
+          advisory_issue_count: 0,
+          work_type_breakdown: [
+            { work_type_id: 21, work_type_name: "채점", color: "#2563EB", record_count: 6, work_hours: 24, work_amount: 288000 },
+            { work_type_id: 22, work_type_name: "강의", color: "#16A34A", record_count: 1, work_hours: 4.5, work_amount: 54000 },
+          ],
           needs_review_count: 1,
           closed_count: 1,
         },
@@ -253,8 +342,18 @@ async function mockStaffApi(
             pending_expense_amount: 30000,
             pending_expense_count: 1,
             total_amount: 300000,
+            reference_business_income_tax: 8640,
+            reference_local_income_tax: 864,
+            reference_deduction_total: 9504,
+            reference_net_work_amount: 278496,
+            reference_transfer_amount: 290496,
+            work_type_breakdown: [{ work_type_id: 21, work_type_name: "채점", color: "#2563EB", record_count: 6, work_hours: 24, work_amount: 288000 }],
             open_work_record_count: 0,
             incomplete_work_record_count: 0,
+            duplicate_work_record_count: 0,
+            abnormal_long_work_record_count: 0,
+            manually_edited_work_record_count: 0,
+            advisory_issue_count: 0,
             assigned_work_type_count: 1,
             locked: false,
             snapshot_exists: false,
@@ -276,8 +375,18 @@ async function mockStaffApi(
             pending_expense_amount: 0,
             pending_expense_count: 0,
             total_amount: 60000,
+            reference_business_income_tax: 1620,
+            reference_local_income_tax: 162,
+            reference_deduction_total: 1782,
+            reference_net_work_amount: 52218,
+            reference_transfer_amount: 58218,
+            work_type_breakdown: [{ work_type_id: 22, work_type_name: "강의", color: "#16A34A", record_count: 1, work_hours: 4.5, work_amount: 54000 }],
             open_work_record_count: 0,
             incomplete_work_record_count: 0,
+            duplicate_work_record_count: 0,
+            abnormal_long_work_record_count: 0,
+            manually_edited_work_record_count: 0,
+            advisory_issue_count: 0,
             assigned_work_type_count: 0,
             locked: true,
             snapshot_exists: true,
@@ -285,7 +394,16 @@ async function mockStaffApi(
             can_close: false,
           },
         ],
-      });
+      };
+      payrollOverviewRequestNumber += 1;
+      if (options?.payrollOverviewDelayMs) {
+        await new Promise((resolve) => setTimeout(resolve, options.payrollOverviewDelayMs));
+      }
+      return json(options?.transformPayrollOverview?.(overview, {
+        year: Number(requestUrl.searchParams.get("year")),
+        month: Number(requestUrl.searchParams.get("month")),
+        requestNumber: payrollOverviewRequestNumber,
+      }) ?? overview);
     }
     if (path === "/staffs/1/" && request.method() === "GET") {
       return json({
@@ -320,6 +438,11 @@ async function mockStaffApi(
         work_amount: 288000,
         expense_amount: 12000,
         total_amount: 300000,
+        reference_business_income_tax: 8640,
+        reference_local_income_tax: 864,
+        reference_deduction_total: 9504,
+        reference_net_work_amount: 278496,
+        reference_transfer_amount: 290496,
       });
     }
     if (path === "/staffs/3/summary/" && request.method() === "GET") {
@@ -329,6 +452,26 @@ async function mockStaffApi(
         work_amount: 0,
         expense_amount: 0,
         total_amount: 0,
+        reference_business_income_tax: 0,
+        reference_local_income_tax: 0,
+        reference_deduction_total: 0,
+        reference_net_work_amount: 0,
+        reference_transfer_amount: 0,
+      });
+    }
+    const summaryMatch = path.match(/^\/staffs\/(\d+)\/summary\/$/);
+    if (summaryMatch && request.method() === "GET") {
+      return json({
+        staff_id: Number(summaryMatch[1]),
+        work_hours: 0,
+        work_amount: 0,
+        expense_amount: 0,
+        total_amount: 0,
+        reference_business_income_tax: 0,
+        reference_local_income_tax: 0,
+        reference_deduction_total: 0,
+        reference_net_work_amount: 0,
+        reference_transfer_amount: 0,
       });
     }
     if (path === "/staffs/work-month-locks/" && request.method() === "GET") {
@@ -453,8 +596,15 @@ test.describe("직원 운영 계약", () => {
 
     const overview = page.getByTestId("staff-payroll-overview");
     await expect(overview.getByRole("heading", { name: "2026년 8월 급여판" })).toBeVisible();
-    await expect(overview.getByText("360,000원", { exact: true }).first()).toBeVisible();
-    await expect(overview.getByText("확인 필요").first()).toBeVisible();
+    await expect(overview.getByRole("button", { name: "이전 달" })).toContainText("이전");
+    await expect(overview.getByRole("button", { name: "다음 달" })).toContainText("다음");
+    await expect(overview.getByText("342,000원", { exact: true }).first()).toBeVisible();
+    await expect(overview.getByText(/공제 전 342,000원 − 참고 공제 11,286원 \+ 승인 환급 18,000원 = 이체 참고액 348,714원/)).toBeVisible();
+    await expect(overview.getByText("3.3% 적용 시 참고").first()).toBeVisible();
+    const reviewMetric = overview.getByText("확인 필요 인원", { exact: true }).locator("..");
+    await expect(reviewMetric.getByText("1명", { exact: true })).toBeVisible();
+    await expect(reviewMetric).toContainText("기록 점검 0건");
+    await expect(reviewMetric).toContainText("비용 대기 30,000원");
     const overviewTable = overview.getByRole("table");
     await expect(overviewTable.getByText("비용 대기 1건")).toBeVisible();
     await expect(overviewTable.getByRole("button", { name: /김조교/ })).toBeVisible();
@@ -463,6 +613,24 @@ test.describe("직원 운영 계약", () => {
       path: "test-results/staff-payroll-overview-1366.png",
       fullPage: true,
     });
+
+    const payrollFilter = overview.getByRole("group", { name: "급여 직원 필터" });
+    await payrollFilter.getByRole("button", { name: "확인 필요", exact: true }).click();
+    await expect(overviewTable.getByRole("button", { name: /김조교/ })).toBeVisible();
+    await expect(overviewTable.getByRole("button", { name: /이퇴사/ })).toHaveCount(0);
+    await overview.getByRole("button", { name: "다음 달" }).click();
+    await expect(page).toHaveURL(/year=2026&month=9/);
+    await expect(overview.getByRole("heading", { name: "2026년 9월 급여판" })).toBeVisible();
+    await expect(overviewTable.getByRole("button", { name: /이퇴사/ })).toHaveCount(0);
+    await expect(payrollFilter.getByRole("button", { name: "확인 필요", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await overview.getByRole("button", { name: "이전 달" }).click();
+    await expect(page).toHaveURL(/year=2026&month=8/);
+    await expect(overviewTable.getByRole("button", { name: /김조교/ })).toBeVisible();
+    await expect(overviewTable.getByRole("button", { name: /이퇴사/ })).toHaveCount(0);
+    await expect(payrollFilter.getByRole("button", { name: "확인 필요", exact: true })).toHaveAttribute("aria-pressed", "true");
+
+    await payrollFilter.getByRole("button", { name: "전체", exact: true }).click();
+    await expect(overviewTable.getByRole("button", { name: /이퇴사/ })).toBeVisible();
 
     await overviewTable.getByRole("button", { name: /김조교/ }).click();
     await expect(page).toHaveURL(/staffId=1/);
@@ -473,7 +641,22 @@ test.describe("직원 운영 계약", () => {
     });
     const mobileOverview = page.getByTestId("staff-payroll-overview");
     await expect(mobileOverview).toBeVisible();
-    await expect(mobileOverview.getByText("360,000원", { exact: true }).first()).toBeVisible();
+    await expect(mobileOverview.getByText("348,714원", { exact: true }).first()).toBeVisible();
+    const kimPayrollCard = mobileOverview.getByRole("button", { name: /김조교/ });
+    await expect(kimPayrollCard).toContainText("재직");
+    await expect(kimPayrollCard).toContainText("승인 환급");
+    await expect(kimPayrollCard).toContainText("12,000원");
+    await expect(mobileOverview.getByRole("button", { name: /이퇴사/ })).toContainText("퇴사");
+    const mobileControlReadback = await mobileOverview.evaluate((node) => {
+      const metricLabels = Array.from(node.querySelectorAll<HTMLElement>("[data-testid='payroll-headline-metric'] > span"));
+      const actionButtons = Array.from(node.querySelectorAll<HTMLElement>("[aria-label='이전 달'], [aria-label='다음 달']"));
+      return {
+        minimumMetricLabelFontSize: Math.min(...metricLabels.map((label) => Number.parseFloat(getComputedStyle(label).fontSize))),
+        minimumActionHeight: Math.min(...actionButtons.map((button) => button.getBoundingClientRect().height)),
+      };
+    });
+    expect(mobileControlReadback.minimumMetricLabelFontSize).toBeGreaterThanOrEqual(11);
+    expect(mobileControlReadback.minimumActionHeight).toBeGreaterThanOrEqual(40);
     const mobileLayout = await page.evaluate(() => {
       const overview = document.querySelector<HTMLElement>("[data-testid='staff-payroll-overview']");
       return {
@@ -485,11 +668,593 @@ test.describe("직원 운영 계약", () => {
     expect(mobileLayout.fitsViewport).toBe(true);
     expect(mobileLayout.overviewTop).toBeLessThan(Number.MAX_SAFE_INTEGER);
     expect(mobileLayout.panelCount).toBe(1);
-    await mobileOverview.evaluate((node) => { node.scrollTop = 0; });
+    await kimPayrollCard.scrollIntoViewIfNeeded();
     await page.screenshot({
       path: "test-results/staff-payroll-overview-390.png",
       fullPage: false,
     });
+  });
+
+  test("급여판 검색·상태 필터와 명시적 복귀가 같은 월과 URL 문맥을 유지한다", async ({ page }) => {
+    await mockStaffApi(page, {
+      transformPayrollOverview: (overview) => {
+        const rows = overview.rows as Array<Record<string, unknown>>;
+        return {
+          ...overview,
+          totals: {
+            ...(overview.totals as Record<string, unknown>),
+            staff_count: 3,
+            closed_count: 1,
+          },
+          rows: [
+            ...rows,
+            {
+              ...rows[0],
+              staff_id: 3,
+              name: "박철",
+              position: "DIRECTOR",
+              position_label: "실장",
+              account_role: "ADMIN",
+              advisory_issue_count: 0,
+              pending_expense_amount: 0,
+              pending_expense_count: 0,
+              settlement_status: "OPEN",
+              can_close: true,
+            },
+          ],
+        };
+      },
+    });
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await page.goto(`${BASE}/workspace/staff/attendance?year=2026&month=8`, {
+      waitUntil: "domcontentloaded",
+    });
+
+    const overview = page.getByTestId("staff-payroll-overview");
+    const filter = overview.getByRole("group", { name: "급여 직원 필터" });
+    const search = overview.getByRole("searchbox", { name: "직원 이름 검색" });
+    const sort = overview.getByRole("combobox", { name: "급여 직원 정렬" });
+    await expect(filter.getByRole("button", { name: "전체", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(sort).toHaveValue("default");
+    await expect(overview.getByRole("button", { name: /김조교/ })).toBeVisible();
+    await expect(overview.getByRole("button", { name: /이퇴사/ })).toBeVisible();
+    await expect(overview.getByRole("button", { name: /박철/ })).toBeVisible();
+
+    await sort.selectOption("amount-asc");
+    await expect(page).toHaveURL(/payrollSort=amount-asc/);
+    await expect(overview.locator("tbody tr").nth(0)).toContainText("이퇴사");
+    await expect(overview.locator("tbody tr").nth(1)).toContainText("김조교");
+    await expect(overview.locator("tbody tr").nth(2)).toContainText("박철");
+    await sort.selectOption("amount-desc");
+    await expect(page).toHaveURL(/payrollSort=amount-desc/);
+    await expect(overview.locator("tbody tr").nth(0)).toContainText("김조교");
+    await expect(overview.locator("tbody tr").nth(1)).toContainText("박철");
+    await expect(overview.locator("tbody tr").nth(2)).toContainText("이퇴사");
+
+    await search.fill("김");
+    await expect(page).toHaveURL(/payrollSearch=%EA%B9%80/);
+    await filter.getByRole("button", { name: "확인 필요", exact: true }).click();
+    await expect(page).toHaveURL(/payrollFilter=review/);
+    await expect(page).toHaveURL(/payrollSearch=%EA%B9%80/);
+    await expect(overview.getByRole("button", { name: /김조교/ })).toBeVisible();
+    await expect(overview.getByRole("button", { name: /이퇴사|박철/ })).toHaveCount(0);
+
+    await overview.getByRole("button", { name: /김조교/ }).click();
+    await expect(page).toHaveURL(/staffId=1/);
+    await expect(page).toHaveURL(/year=2026&month=8/);
+    await expect(page).toHaveURL(/payrollFilter=review/);
+    await expect(page).toHaveURL(/payrollSearch=%EA%B9%80/);
+    await expect(page).toHaveURL(/payrollSort=amount-desc/);
+
+    for (const [tabName, pathname] of [
+      ["근태", "/workspace/staff/attendance"],
+      ["월 마감", "/workspace/staff/month-lock"],
+      ["정산 참고", "/workspace/staff/payroll-snapshot"],
+      ["리포트", "/workspace/staff/reports"],
+      ["비용/경비", "/workspace/staff/expenses"],
+    ] as const) {
+      const tab = page.getByRole("tab", { name: `${tabName} 탭` });
+      await tab.click();
+      await expect(page).toHaveURL((url) => (
+        url.pathname === pathname
+        && url.searchParams.get("staffId") === "1"
+        && url.searchParams.get("year") === "2026"
+        && url.searchParams.get("month") === "8"
+        && url.searchParams.get("payrollFilter") === "review"
+        && url.searchParams.get("payrollSearch") === "김"
+        && url.searchParams.get("payrollSort") === "amount-desc"
+      ));
+      await expect(tab).toHaveAttribute("aria-selected", "true");
+    }
+
+    const overviewReturn = page.getByRole("button", { name: "전체 급여판", exact: true });
+    await overviewReturn.focus();
+    await expect(overviewReturn).toBeFocused();
+    await overviewReturn.click();
+    await expect(page).toHaveURL(/\/workspace\/staff\/attendance\?/);
+    await expect(page).not.toHaveURL(/staffId=/);
+    await expect(page).toHaveURL(/year=2026&month=8/);
+    await expect(page).toHaveURL(/payrollFilter=review/);
+    await expect(page).toHaveURL(/payrollSearch=%EA%B9%80/);
+    await expect(page).toHaveURL(/payrollSort=amount-desc/);
+    await expect(overview.getByRole("button", { name: /김조교/ })).toBeFocused();
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(filter.getByRole("button", { name: "확인 필요", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(search).toHaveValue("김");
+    await expect(sort).toHaveValue("amount-desc");
+    await expect(overview.getByRole("button", { name: /김조교/ })).toBeVisible();
+    await expect(overview.getByRole("button", { name: /이퇴사|박철/ })).toHaveCount(0);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await overview.getByRole("button", { name: /김조교/ }).click();
+    const detailHeader = page.getByTestId("staff-workspace-detail-header");
+    await expect(detailHeader).toBeFocused();
+    const detailHeaderBounds = await detailHeader.boundingBox();
+    expect(detailHeaderBounds).not.toBeNull();
+    expect(detailHeaderBounds!.y).toBeGreaterThanOrEqual(0);
+    expect(detailHeaderBounds!.y + detailHeaderBounds!.height).toBeLessThanOrEqual(844);
+    const mobileOverviewReturn = page.getByRole("button", { name: "전체 급여판", exact: true });
+    await expect(mobileOverviewReturn).toBeVisible();
+    await expect.poll(async () => (await mobileOverviewReturn.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(40);
+    const mobileReturnLayout = await page.evaluate(() => {
+      const button = Array.from(document.querySelectorAll<HTMLElement>("button"))
+        .find((node) => node.textContent?.includes("전체 급여판"));
+      const bounds = button?.getBoundingClientRect();
+      return {
+        documentFits: document.documentElement.scrollWidth <= window.innerWidth,
+        buttonFits: Boolean(bounds && bounds.left >= 0 && bounds.right <= window.innerWidth),
+      };
+    });
+    expect(mobileReturnLayout).toEqual({ documentFits: true, buttonFits: true });
+    await mobileOverviewReturn.focus();
+    await expect(mobileOverviewReturn).toBeFocused();
+    await page.screenshot({
+      path: "test-results/staff-payroll-detail-return-390.png",
+      fullPage: false,
+    });
+    await mobileOverviewReturn.press("Enter");
+    await expect(page).not.toHaveURL(/staffId=/);
+    await expect(page).toHaveURL(/year=2026&month=8/);
+    await expect(page).toHaveURL(/payrollFilter=review/);
+    await expect(page).toHaveURL(/payrollSearch=%EA%B9%80/);
+    await expect(page).toHaveURL(/payrollSort=amount-desc/);
+    await expect(overview.getByRole("button", { name: /김조교/ })).toBeFocused();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
+  test("390px 급여판은 20명의 긴 이름·큰 금액·혼합 상태를 장부형으로 탐색한다", async ({ page }) => {
+    await mockStaffApi(page, {
+      payrollOverviewDelayMs: 300,
+      transformPayrollOverview: (overview) => {
+        const base = (overview.rows as Array<Record<string, unknown>>)[0];
+        const rows = Array.from({ length: 20 }, (_, index) => {
+          const needsReview = index % 3 === 0;
+          const closed = index % 3 === 1;
+          const workAmount = 12_345_678 + index * 123_456;
+          const approvedExpense = 98_765 + index * 1_000;
+          const businessIncomeTax = Math.floor(workAmount * 0.03);
+          const localIncomeTax = Math.floor(businessIncomeTax * 0.1);
+          const deductionTotal = businessIncomeTax + localIncomeTax;
+          return {
+            ...base,
+            staff_id: 100 + index,
+            name: index === 0 ? "김민서윤하늘장기근무조교" : `직원 ${String(index + 1).padStart(2, "0")}`,
+            work_hours: 80 + index / 2,
+            work_amount: workAmount,
+            approved_expense_amount: approvedExpense,
+            pending_expense_amount: needsReview ? 250_000 : 0,
+            pending_expense_count: needsReview ? 1 : 0,
+            total_amount: workAmount + approvedExpense,
+            reference_business_income_tax: businessIncomeTax,
+            reference_local_income_tax: localIncomeTax,
+            reference_deduction_total: deductionTotal,
+            reference_net_work_amount: workAmount - deductionTotal,
+            reference_transfer_amount: workAmount - deductionTotal + approvedExpense,
+            work_type_breakdown: [{
+              work_type_id: 21,
+              work_type_name: "채점",
+              color: "#2563EB",
+              record_count: 12,
+              work_hours: 80 + index / 2,
+              work_amount: workAmount,
+            }],
+            duplicate_work_record_count: needsReview ? 1 : 0,
+            advisory_issue_count: needsReview ? 1 : 0,
+            assigned_work_type_count: 1,
+            locked: closed,
+            snapshot_exists: closed,
+            settlement_status: needsReview ? "NEEDS_REVIEW" : closed ? "CLOSED" : "OPEN",
+            can_close: !needsReview && !closed,
+          };
+        });
+        return {
+          ...overview,
+          totals: {
+            ...(overview.totals as Record<string, unknown>),
+            staff_count: 20,
+            closed_count: rows.filter((row) => row.settlement_status === "CLOSED").length,
+            needs_review_count: rows.filter((row) => row.settlement_status === "NEEDS_REVIEW").length,
+            work_hours: 1_695,
+            work_amount: 271_604_910,
+            approved_expense_amount: 2_165_300,
+            reference_business_income_tax: 8_148_147,
+            reference_local_income_tax: 814_815,
+            reference_deduction_total: 8_962_962,
+            reference_net_work_amount: 262_641_948,
+            reference_transfer_amount: 264_807_248,
+          },
+          rows,
+        };
+      },
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${BASE}/workspace/staff/attendance?year=2026&month=8`, {
+      waitUntil: "domcontentloaded",
+    });
+
+    const overview = page.getByTestId("staff-payroll-overview");
+    const headlineTotal = overview.getByText("최종 이체 참고 총액", { exact: true }).locator("..");
+    const reviewTotal = overview.getByText("확인 필요 인원", { exact: true }).locator("..");
+    await expect(headlineTotal).toContainText("264,807,248원");
+    await expect(reviewTotal).toContainText("7명");
+    await expect(overview.getByRole("searchbox", { name: "직원 이름 검색" })).toBeVisible();
+    await expect(overview.getByRole("group", { name: "급여 직원 필터" })).toBeVisible();
+
+    const initialLayout = await page.evaluate(() => {
+      const total = Array.from(document.querySelectorAll<HTMLElement>("[data-testid='payroll-headline-metric']"));
+      return {
+        documentFits: document.documentElement.scrollWidth <= window.innerWidth,
+        overviewFits: (document.querySelector<HTMLElement>("[data-testid='staff-payroll-overview']")?.scrollWidth ?? 0)
+          <= (document.querySelector<HTMLElement>("[data-testid='staff-payroll-overview']")?.clientWidth ?? 0),
+        headlineMetricsInFirstViewport: total.every((node) => {
+          const bounds = node.getBoundingClientRect();
+          return bounds.top >= 0 && bounds.bottom <= window.innerHeight;
+        }),
+      };
+    });
+    expect(initialLayout).toEqual({
+      documentFits: true,
+      overviewFits: true,
+      headlineMetricsInFirstViewport: true,
+    });
+
+    const mobileRows = overview.getByTestId("payroll-mobile-row");
+    await expect(mobileRows).toHaveCount(20);
+    const statusFilter = overview.getByRole("group", { name: "급여 직원 필터" });
+    await statusFilter.getByRole("button", { name: "확인 필요", exact: true }).click();
+    await expect(mobileRows).toHaveCount(7);
+    await statusFilter.getByRole("button", { name: "마감", exact: true }).click();
+    await expect(mobileRows).toHaveCount(7);
+    await statusFilter.getByRole("button", { name: "전체", exact: true }).click();
+    await expect(mobileRows).toHaveCount(20);
+
+    const bottomNav = page.getByRole("navigation", { name: "하단 메뉴" });
+    for (const rowIndex of [0, 9, 19]) {
+      const row = mobileRows.nth(rowIndex);
+      await row.evaluate((element) => element.scrollIntoView({ block: "center" }));
+      const [rowBounds, navBounds] = await Promise.all([row.boundingBox(), bottomNav.boundingBox()]);
+      expect(rowBounds, `row ${rowIndex + 1} bounds`).not.toBeNull();
+      expect(navBounds, "fixed bottom navigation bounds").not.toBeNull();
+      expect(rowBounds!.y).toBeGreaterThanOrEqual(0);
+      expect(rowBounds!.y + rowBounds!.height).toBeLessThanOrEqual(navBounds!.y);
+    }
+
+    const mobileMain = page.locator("main").first();
+    for (const rowIndex of [9, 19]) {
+      const row = mobileRows.nth(rowIndex);
+      await row.evaluate((element) => element.scrollIntoView({ block: "center" }));
+      const scrollTopBeforeDetail = await mobileMain.evaluate((element) => element.scrollTop);
+      await row.click();
+      const detailHeader = page.getByTestId("staff-workspace-detail-header");
+      await expect(detailHeader).toBeFocused();
+      const [detailBounds, navBounds] = await Promise.all([detailHeader.boundingBox(), bottomNav.boundingBox()]);
+      expect(detailBounds).not.toBeNull();
+      expect(navBounds).not.toBeNull();
+      expect(detailBounds!.y).toBeGreaterThanOrEqual(0);
+      expect(detailBounds!.y + detailBounds!.height).toBeLessThanOrEqual(navBounds!.y);
+      if (rowIndex === 19) {
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await expect(page.getByTestId("staff-workspace-detail-header")).toBeFocused();
+      }
+      await page.getByRole("button", { name: "전체 급여판", exact: true }).click();
+      await expect(page).not.toHaveURL(/staffId=/);
+      await expect(row).toBeFocused();
+      const scrollTopAfterReturn = await mobileMain.evaluate((element) => element.scrollTop);
+      expect(Math.abs(scrollTopAfterReturn - scrollTopBeforeDetail)).toBeLessThanOrEqual(2);
+      const [returnedRowBounds, returnedNavBounds] = await Promise.all([row.boundingBox(), bottomNav.boundingBox()]);
+      expect(returnedRowBounds).not.toBeNull();
+      expect(returnedNavBounds).not.toBeNull();
+      expect(returnedRowBounds!.y).toBeGreaterThanOrEqual(0);
+      expect(returnedRowBounds!.y + returnedRowBounds!.height).toBeLessThanOrEqual(returnedNavBounds!.y);
+    }
+    await mobileRows.first().evaluate((element) => element.scrollIntoView({ block: "center" }));
+    await page.screenshot({
+      path: "test-results/staff-payroll-overview-20-staff-390.png",
+      fullPage: false,
+    });
+
+    const search = overview.getByRole("searchbox", { name: "직원 이름 검색" });
+    await search.fill("김민서윤하늘");
+    const longNameRow = overview.getByRole("button", { name: /김민서윤하늘장기근무조교/ });
+    await expect(longNameRow).toBeVisible();
+    await expect(longNameRow).toContainText("중복 의심 1건");
+    await expect(longNameRow.getByText("공제 전", { exact: true }).locator("..")).toContainText("12,345,678원");
+    await expect(longNameRow.getByText("승인 환급", { exact: true }).locator("..")).toContainText("98,765원");
+    await expect(longNameRow).toContainText("최종 이체 참고");
+    await expect(longNameRow).toContainText("12,037,036원");
+    await longNameRow.evaluate((element) => element.scrollIntoView({ block: "center" }));
+
+    const filter = overview.getByRole("group", { name: "급여 직원 필터" });
+    await filter.getByRole("button", { name: "확인 필요", exact: true }).focus();
+    await expect(filter.getByRole("button", { name: "확인 필요", exact: true })).toBeFocused();
+    await page.screenshot({
+      path: "test-results/staff-payroll-overview-long-name-search-390.png",
+      fullPage: false,
+    });
+  });
+
+  test("상단 출근과 퇴근 성공은 열린 급여판을 각각 즉시 갱신한다", async ({ page }) => {
+    let payrollRequests = 0;
+    let clockStarted = false;
+    let clockEnded = false;
+    await mockStaffApi(page, {
+      enableStaffClock: true,
+      onStaffClockStart: () => {
+        clockStarted = true;
+      },
+      onStaffClockEnd: () => {
+        clockEnded = true;
+      },
+      transformPayrollOverview: (overview, { requestNumber }) => {
+        payrollRequests = requestNumber;
+        const totals = overview.totals as Record<string, unknown>;
+        const workAmount = clockEnded ? 354000 : clockStarted ? 343000 : 342000;
+        return {
+          ...overview,
+          totals: {
+            ...totals,
+            work_amount: workAmount,
+          },
+        };
+      },
+    });
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await page.goto(`${BASE}/workspace/staff/attendance?year=2026&month=8`, {
+      waitUntil: "domcontentloaded",
+    });
+
+    const overview = page.getByTestId("staff-payroll-overview");
+    await expect(overview.getByText("342,000원", { exact: true }).first()).toBeVisible();
+    const beforeStart = payrollRequests;
+    await page.getByRole("button", { name: "출근", exact: true }).click();
+    await expect.poll(() => clockStarted).toBe(true);
+    await expect.poll(() => payrollRequests).toBeGreaterThan(beforeStart);
+    await expect(overview.getByText("343,000원", { exact: true }).first()).toBeVisible();
+
+    const beforeEnd = payrollRequests;
+    await page.getByRole("button", { name: "퇴근", exact: true }).click();
+    await expect.poll(() => clockEnded).toBe(true);
+    await expect.poll(() => payrollRequests).toBeGreaterThan(beforeEnd);
+    await expect(overview.getByText("354,000원", { exact: true }).first()).toBeVisible();
+  });
+
+  test("근무 저장·환급 승인·월 마감 뒤 급여판으로 돌아오면 합계와 상태를 다시 조회한다", async ({ page }) => {
+    const workRecords = [
+      {
+        id: 41,
+        staff: 1,
+        staff_name: "김조교",
+        work_type: 21,
+        work_type_name: "채점",
+        date: "2026-08-21",
+        start_time: "14:00",
+        end_time: "18:00",
+        break_minutes: 0,
+        meal_minutes: 0,
+        work_hours: "4.00",
+        amount: 48000,
+        adjustment_amount: 0,
+        resolved_hourly_wage: 12000,
+        is_manually_edited: true,
+        memo: "출근 입력 누락 보정",
+        created_at: "2026-08-21T09:00:00Z",
+        updated_at: "2026-08-21T09:00:00Z",
+      },
+    ];
+    const expenses = [
+      {
+        id: 31,
+        staff: 1,
+        staff_name: "김조교",
+        date: "2026-08-01",
+        title: "교재 구입",
+        amount: 30000,
+        memo: "영수증 있음",
+        status: "PENDING",
+        approved_at: null,
+        approved_by: null,
+        approved_by_name: null,
+        created_at: "2026-08-01T01:00:00Z",
+        updated_at: "2026-08-01T01:00:00Z",
+      },
+    ];
+    let payrollRequests = 0;
+    let workSaved = false;
+    let expenseApproved = false;
+    let monthLocked = false;
+    await mockStaffApi(page, {
+      workRecords,
+      expenses,
+      onWorkRecordPatch: () => {
+        workSaved = true;
+      },
+      onExpensePatch: (_id, body) => {
+        expenseApproved = body.status === "APPROVED";
+      },
+      onWorkMonthLock: () => {
+        monthLocked = true;
+      },
+      transformPayrollOverview: (overview, { requestNumber }) => {
+        payrollRequests = requestNumber;
+        const totals = overview.totals as Record<string, unknown>;
+        const rows = overview.rows as Array<Record<string, unknown>>;
+        return {
+          ...overview,
+          totals: {
+            ...totals,
+            work_hours: workSaved ? 29.5 : 28.5,
+            work_amount: workSaved ? 354000 : 342000,
+            approved_expense_amount: expenseApproved ? 48000 : 18000,
+            pending_expense_amount: expenseApproved ? 0 : 30000,
+            total_amount: (workSaved ? 354000 : 342000) + (expenseApproved ? 48000 : 18000),
+            reference_transfer_amount:
+              (workSaved ? 360318 : 348714) + (expenseApproved ? 30000 : 0),
+            needs_review_count: monthLocked ? 0 : 1,
+            closed_count: monthLocked ? 2 : 1,
+          },
+          rows: rows.map((row) => row.staff_id === 1
+            ? {
+                ...row,
+                work_hours: workSaved ? 25 : 24,
+                work_amount: workSaved ? 300000 : 288000,
+                approved_expense_amount: expenseApproved ? 42000 : 12000,
+                pending_expense_amount: expenseApproved ? 0 : 30000,
+                pending_expense_count: expenseApproved ? 0 : 1,
+                reference_transfer_amount:
+                  (workSaved ? 302100 : 290496) + (expenseApproved ? 30000 : 0),
+                locked: monthLocked,
+                snapshot_exists: monthLocked,
+                settlement_status: monthLocked ? "CLOSED" : "NEEDS_REVIEW",
+                can_close: !monthLocked && expenseApproved,
+              }
+            : row),
+        };
+      },
+    });
+
+    await page.goto(`${BASE}/workspace/staff/attendance?year=2026&month=8`, {
+      waitUntil: "domcontentloaded",
+    });
+    const overview = page.getByTestId("staff-payroll-overview");
+    const openKim = () => overview.getByRole("button", { name: /김조교/ }).first().click();
+    await expect(overview.getByText("342,000원", { exact: true }).first()).toBeVisible();
+
+    await openKim();
+    const workRow = page.getByTestId("staff-work-record-41");
+    await workRow.getByRole("button", { name: "수정" }).click();
+    const workDialog = page.getByRole("dialog", { name: "근무 기록 수정" });
+    await workDialog.getByLabel("종료 시간 *", { exact: true }).fill("19:30");
+    await workDialog.getByLabel("휴게시간(분)", { exact: true }).fill("30");
+    await workDialog.getByRole("button", { name: "저장", exact: true }).click();
+    await expect.poll(() => workSaved).toBe(true);
+    const beforeWorkReturn = payrollRequests;
+    await page.goBack();
+    await expect.poll(() => payrollRequests).toBeGreaterThan(beforeWorkReturn);
+    await expect(overview.getByText("354,000원", { exact: true }).first()).toBeVisible();
+
+    await openKim();
+    await page.getByRole("tab", { name: "비용/경비 탭" }).click();
+    const pendingExpense = page.getByTestId("staff-expense-31");
+    await pendingExpense.getByRole("button", { name: "승인", exact: true }).click();
+    await page.getByRole("alertdialog", { name: "선결제 환급 승인" })
+      .getByRole("button", { name: "승인", exact: true })
+      .click();
+    await expect.poll(() => expenseApproved).toBe(true);
+    const beforeExpenseReturn = payrollRequests;
+    await page.goBack();
+    await page.goBack();
+    await expect.poll(() => payrollRequests).toBeGreaterThan(beforeExpenseReturn);
+    await expect(overview.getByText("+48,000원", { exact: true }).first()).toBeVisible();
+    await expect(overview.getByText("390,318원", { exact: true }).first()).toBeVisible();
+
+    await openKim();
+    await page.getByRole("tab", { name: "월 마감 탭" }).click();
+    await page.getByRole("button", { name: "월 마감", exact: true }).click();
+    await page.getByRole("alertdialog", { name: "2026년 8월 마감" })
+      .getByRole("button", { name: "월 마감", exact: true })
+      .click();
+    await expect.poll(() => monthLocked).toBe(true);
+    const beforeLockReturn = payrollRequests;
+    await page.goBack();
+    await page.goBack();
+    await expect.poll(() => payrollRequests).toBeGreaterThan(beforeLockReturn);
+    await expect(overview.getByText(/대상 2명 · 마감 2명/)).toBeVisible();
+    const kimRow = overview.getByRole("table").getByRole("row").filter({ hasText: "김조교" });
+    await expect(kimRow.getByText("마감", { exact: true })).toBeVisible();
+  });
+
+  test("자문 점검만 있는 직원도 KPI와 필터에 포함하고 0건이어도 선택 필터를 조용히 바꾸지 않는다", async ({ page, context }) => {
+    await page.clock.install({ time: new Date("2026-08-21T12:00:00+09:00") });
+    let payrollMode: "advisory" | "none" = "advisory";
+    let payrollRequestCount = 0;
+    await mockStaffApi(page, {
+      transformPayrollOverview: (overview, requestContext) => {
+        payrollRequestCount = requestContext.requestNumber;
+        const totals = overview.totals as Record<string, unknown>;
+        const rows = overview.rows as Array<Record<string, unknown>>;
+        const hasAdvisory = payrollMode === "advisory";
+        return {
+          ...overview,
+          totals: {
+            ...totals,
+            needs_review_count: 0,
+            advisory_issue_count: hasAdvisory ? 1 : 0,
+            pending_expense_amount: 0,
+          },
+          rows: rows.map((row) => row.staff_id === 1
+            ? {
+                ...row,
+                pending_expense_amount: 0,
+                pending_expense_count: 0,
+                manually_edited_work_record_count: hasAdvisory ? 1 : 0,
+                advisory_issue_count: hasAdvisory ? 1 : 0,
+                settlement_status: "OPEN",
+                can_close: true,
+              }
+            : row),
+        };
+      },
+    });
+
+    await page.goto(`${BASE}/workspace/staff/attendance?year=2026&month=8`, {
+      waitUntil: "domcontentloaded",
+    });
+
+    const overview = page.getByTestId("staff-payroll-overview");
+    const overviewTable = overview.getByRole("table");
+    const reviewMetric = overview.getByText("확인 필요 인원", { exact: true }).locator("..");
+    await expect(reviewMetric.getByText("1명", { exact: true })).toBeVisible();
+    await expect(reviewMetric).toContainText("마감 차단 0명");
+    await expect(reviewMetric).toContainText("기록 점검 1건");
+    await expect(reviewMetric).toHaveAttribute("data-warning", "true");
+    await expect(overview.getByRole("status")).toBeVisible();
+
+    const payrollFilter = overview.getByRole("group", { name: "급여 직원 필터" });
+    await payrollFilter.getByRole("button", { name: "확인 필요", exact: true }).click();
+    await expect(overviewTable.getByRole("button", { name: /김조교/ })).toBeVisible();
+    await expect(overviewTable.getByRole("button", { name: /이퇴사/ })).toHaveCount(0);
+
+    const refetchPayroll = async () => {
+      const previousRequestCount = payrollRequestCount;
+      await page.clock.fastForward(11_000);
+      await context.setOffline(true);
+      await context.setOffline(false);
+      await expect.poll(() => payrollRequestCount).toBeGreaterThan(previousRequestCount);
+    };
+
+    payrollMode = "none";
+    await refetchPayroll();
+    await expect(overview.getByRole("status")).toHaveCount(0);
+    await expect(overview.getByText("조건에 맞는 직원이 없습니다", { exact: true })).toBeVisible();
+    await expect(payrollFilter.getByRole("button", { name: "확인 필요", exact: true })).toHaveAttribute("aria-pressed", "true");
+
+    payrollMode = "advisory";
+    await refetchPayroll();
+    await expect(reviewMetric.getByText("1명", { exact: true })).toBeVisible();
+    await expect(payrollFilter.getByRole("button", { name: "확인 필요", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(overviewTable.getByRole("button", { name: /김조교/ })).toBeVisible();
+    await expect(overviewTable.getByRole("button", { name: /이퇴사/ })).toHaveCount(0);
   });
 
   test("실장 직위와 관리자 계정을 분리하고 고정 권한을 오해시키지 않는다", async ({ page }) => {
@@ -703,8 +1468,12 @@ test.describe("직원 운영 계약", () => {
         start_time: "14:00",
         end_time: "18:00",
         break_minutes: 0,
-        work_hours: 4,
+        meal_minutes: 0,
+        work_hours: "4.00",
         amount: 48000,
+        adjustment_amount: 0,
+        resolved_hourly_wage: 12000,
+        is_manually_edited: true,
         memo: "출근 입력 누락 보정",
         created_at: "2026-08-21T09:00:00Z",
         updated_at: "2026-08-21T09:00:00Z",
@@ -786,6 +1555,90 @@ test.describe("직원 운영 계약", () => {
       path: "test-results/staff-detail-work-record-edit-390.png",
       fullPage: false,
     });
+  });
+
+  test("퇴근했지만 계산되지 않은 기록도 지급 전 확인 필터에 포함한다", async ({ page }) => {
+    const workRecords = [
+      {
+        id: 43,
+        staff: 1,
+        staff_name: "김조교",
+        work_type: 21,
+        work_type_name: "채점",
+        date: "2026-08-20",
+        start_time: "14:00",
+        end_time: "18:00",
+        break_minutes: 0,
+        meal_minutes: 0,
+        work_hours: null,
+        amount: 48000,
+        adjustment_amount: 0,
+        resolved_hourly_wage: 12000,
+        is_manually_edited: false,
+        memo: "",
+        created_at: "2026-08-20T09:00:00Z",
+        updated_at: "2026-08-20T09:00:00Z",
+      },
+      {
+        id: 45,
+        staff: 1,
+        staff_name: "김조교",
+        work_type: 21,
+        work_type_name: "채점",
+        date: "2026-08-18",
+        start_time: "14:00",
+        end_time: "18:00",
+        break_minutes: 0,
+        meal_minutes: 0,
+        work_hours: "4.00",
+        amount: null,
+        adjustment_amount: 0,
+        resolved_hourly_wage: 12000,
+        is_manually_edited: false,
+        memo: "",
+        created_at: "2026-08-18T09:00:00Z",
+        updated_at: "2026-08-18T09:00:00Z",
+      },
+      {
+        id: 44,
+        staff: 1,
+        staff_name: "김조교",
+        work_type: 21,
+        work_type_name: "채점",
+        date: "2026-08-19",
+        start_time: "14:00",
+        end_time: "18:00",
+        break_minutes: 0,
+        meal_minutes: 0,
+        work_hours: "4.00",
+        amount: 48000,
+        adjustment_amount: 0,
+        resolved_hourly_wage: 12000,
+        is_manually_edited: false,
+        memo: "",
+        created_at: "2026-08-19T09:00:00Z",
+        updated_at: "2026-08-19T09:00:00Z",
+      },
+    ];
+    await mockStaffApi(page, { workRecords });
+
+    await gotoAndSettle(page, `${BASE}/workspace/staff/attendance?staffId=1&year=2026&month=8`, {
+      timeout: 30_000,
+    });
+
+    const incompleteRow = page.getByTestId("staff-work-record-43");
+    const incompleteAmountRow = page.getByTestId("staff-work-record-45");
+    const completeRow = page.getByTestId("staff-work-record-44");
+    await expect(incompleteRow.getByText("계산 미완료", { exact: true })).toBeVisible();
+    await expect(incompleteRow.getByText("근무 계산 전 · 적용 시급 12,000원", { exact: true })).toBeVisible();
+    await expect(incompleteAmountRow.getByText("계산 미완료", { exact: true })).toBeVisible();
+    await expect(incompleteAmountRow.getByText("근무 4.00시간 · 적용 시급 12,000원", { exact: true })).toBeVisible();
+    await expect(page.getByText("지급 전 확인할 기록 2건", { exact: false })).toBeVisible();
+
+    await page.getByRole("button", { name: "확인 기록만", exact: true }).click();
+    await expect(incompleteRow).toBeVisible();
+    await expect(incompleteAmountRow).toBeVisible();
+    await expect(completeRow).toHaveCount(0);
   });
 
   test("직원 상세 비용에서도 대기 환급을 본 화면과 같은 계약으로 수정한다", async ({ page }) => {
@@ -1221,8 +2074,12 @@ test.describe("직원 운영 계약", () => {
         start_time: "14:00",
         end_time: "18:00",
         break_minutes: 0,
-        work_hours: 4,
+        meal_minutes: 0,
+        work_hours: "4.00",
         amount: 48000,
+        adjustment_amount: 0,
+        resolved_hourly_wage: 12000,
+        is_manually_edited: true,
         memo: "출근 입력 누락 보정",
         created_at: "2026-08-21T09:00:00Z",
         updated_at: "2026-08-21T09:00:00Z",
@@ -1241,6 +2098,10 @@ test.describe("직원 운영 계약", () => {
 
     const row = page.getByTestId("staff-work-record-41");
     await expect(row).toBeVisible();
+    await expect(row.getByText("8/21(금) · 채점", { exact: true })).toBeVisible();
+    await expect(row.getByText("근무 4.00시간 · 적용 시급 12,000원", { exact: true })).toBeVisible();
+    await expect(row.getByText("관리자 수정", { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await row.getByRole("button", { name: "수정" }).click();
 
     const dialog = page.getByRole("dialog", { name: "근무 기록 수정" });
