@@ -533,7 +533,7 @@ export default function ClinicOperationsConsolePage() {
         closeDisabled={createSaving}
         width={520}
       >
-        <ClinicCreatePanel
+        {createModalOpen && <ClinicCreatePanel
           asModal
           date={selectedDate}
           onPendingChange={setCreateSaving}
@@ -550,7 +550,7 @@ export default function ClinicOperationsConsolePage() {
               setSelectedSessionId(null);
             }
           }}
-        />
+        />}
       </AdminModal>
 
       {/* 수정 모달 */}
