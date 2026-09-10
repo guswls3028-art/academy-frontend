@@ -26,6 +26,26 @@ record why, migration/compatibility behavior, and persisted-state handling.
 
 ## UI standard
 
+### Public feature availability
+
+- Every non-Beta action visible to an authorized production user must have a
+  usable positive path. A disabled control, guard message, explanatory panel,
+  support handoff, or hidden navigation route is not a completed repair for a
+  generally available workflow.
+- Only a feature visibly labeled `Beta` before entry may intentionally expose an
+  incomplete or temporarily unavailable path. Show the limitation and a safe
+  recovery/exit in the interface; never add Beta retroactively to excuse a
+  regression.
+- If the positive path cannot be operated safely, remove its public entry point
+  from that release rather than presenting an action that only rejects the user.
+- Verification must exercise the real authorized journey through the UI,
+  confirm its intended outcome, reload persistence, and downstream consuming
+  screens at the applicable desktop and 390px viewports. Guard/error assertions
+  supplement this proof and cannot replace it.
+- Treat a previously valid teacher, assistant, student, or guardian flow made
+  unusable by a policy, state guard, default, or navigation change as a product
+  regression even when the interface accurately explains the refusal.
+
 - Reuse the existing design system and role-app patterns.
 - Use `Badge` from `@/shared/ui/ds`; do not add raw `ds-badge` spans.
 - Use `ICON.*`, `ICON_FOR_BUTTON.*`, and `ICON_FOR_BADGE.*` tokens.
