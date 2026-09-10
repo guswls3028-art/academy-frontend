@@ -120,6 +120,14 @@ test("student-parent real-use awaits and dismisses the actual initial-account pr
   assert.match(runnerSource, /"firstLoginGuide\.ts"/);
 });
 
+test("parent reset receipt uses the phone-free target and always restores the QA password", () => {
+  const source = readFileSync(new URL("../../e2e/student/student-parent-account-realuse.spec.ts", import.meta.url), "utf8");
+
+  assert.match(source, /target_id: `parent:\$\{student\.id\}`/);
+  assert.doesNotMatch(source, /target_id: `parent:\$\{student\.id\}:\$\{family\.parentPhone\}`/);
+  assert.match(source, /try \{[\s\S]*temp_password: staffParentPassword[\s\S]*\} finally \{[\s\S]*temp_password: family\.parentPassword/);
+});
+
 test("long-video proof propagates strict context teardown failures", () => {
   const source = readFileSync(new URL("../../e2e/student/video-playback-renewal.realuse.spec.ts", import.meta.url), "utf8");
   assert.doesNotMatch(source, /Promise\.allSettled\(runs\.map\(\(\{ context \}\) => context\.close\(\)\)\)/);

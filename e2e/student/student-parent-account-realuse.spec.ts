@@ -110,24 +110,27 @@ test.describe.serial("[real-use] 학생/학부모 계정과 복구", () => {
     await loginApi(request, student.ps_number, student.password);
     await loginApi(request, family.parentPhone, family.parentPassword);
     const staffParentPassword = `Qp${String(Date.now()).slice(-8)}`;
-    await expectApi(request, "POST", "/students/password_reset_send/", adminAccess, {
-      target: "parent",
-      student_name: student.name,
-      parent_phone: family.parentPhone,
-      temp_password: staffParentPassword,
-    });
-    await waitForAccountReceipt(request, student.id, {
-      notification_type: "password_reset_parent",
-      target_id: `parent:${student.id}:${family.parentPhone}`,
-      target_name: student.name,
-    });
-    await loginApi(request, family.parentPhone, staffParentPassword);
-    await expectApi(request, "POST", "/students/password_reset_send/", adminAccess, {
-      target: "parent",
-      student_name: student.name,
-      parent_phone: family.parentPhone,
-      temp_password: family.parentPassword,
-    });
+    try {
+      await expectApi(request, "POST", "/students/password_reset_send/", adminAccess, {
+        target: "parent",
+        student_name: student.name,
+        parent_phone: family.parentPhone,
+        temp_password: staffParentPassword,
+      });
+      await waitForAccountReceipt(request, student.id, {
+        notification_type: "password_reset_parent",
+        target_id: `parent:${student.id}`,
+        target_name: student.name,
+      });
+      await loginApi(request, family.parentPhone, staffParentPassword);
+    } finally {
+      await expectApi(request, "POST", "/students/password_reset_send/", adminAccess, {
+        target: "parent",
+        student_name: student.name,
+        parent_phone: family.parentPhone,
+        temp_password: family.parentPassword,
+      });
+    }
     await loginApi(request, family.parentPhone, family.parentPassword);
     await loginThroughUi(page, student.ps_number, student.password);
     await gotoAndSettle(page, `${QA_BASE}/student/profile`, { timeout: 30_000 });
