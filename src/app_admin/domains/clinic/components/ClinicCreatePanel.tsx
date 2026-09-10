@@ -44,6 +44,11 @@ import {
 import type { ClinicCreatePanelProps } from "./clinicCreatePanel.types";
 import ClinicTimePolicyFields from "./ClinicTimePolicyFields";
 import { useClinicBookingPolicy } from "../hooks/useClinicBookingPolicy";
+import {
+  ClinicBookingModeChoice,
+  ClinicBookingModeSummary,
+  type ClinicBookingMode,
+} from "@/shared/ui/clinic/ClinicBookingModeChoice";
 
 export default function ClinicCreatePanel({
   date,
@@ -142,6 +147,7 @@ export default function ClinicCreatePanel({
   };
 
   const isEdit = !!editSession;
+  const [bookingModeChosen, setBookingModeChosen] = useState(Boolean(sourceSession));
 
   const [title, setTitle] = useState(sourceSession?.title ?? "");
   const [targetGrade, setTargetGrade] = useState<number | null>(sourceSession?.target_grade ?? null);
@@ -175,6 +181,15 @@ export default function ClinicCreatePanel({
     saveDefaultPolicy,
     savingDefaultPolicy,
   } = useClinicBookingPolicy({ sourceSession, settings: clinicSettingsQ.data });
+
+  const chooseBookingMode = (mode: ClinicBookingMode) => {
+    setBookingMode(mode);
+    if (mode === "time_range") {
+      setAllowMultiSlotBooking(false);
+      setAllowTimePreference(false);
+    }
+    setBookingModeChosen(true);
+  };
 
   const [savedLocations, setSavedLocations] = useState<string[]>(() => getSavedLocations());
   const [loadPopoverOpen, setLoadPopoverOpen] = useState(false);
@@ -312,7 +327,7 @@ export default function ClinicCreatePanel({
             beforeFilterSummary: previousFilterSummary,
             afterFilterSummary: confirmationFilterSummary,
             beforeAllowTimePreference: editSession.allow_time_preference ?? false,
-            afterAllowTimePreference: allowTimePreference,
+            afterAllowTimePreference: bookingMode === "fixed_slot" && allowTimePreference,
             beforeAllowMultiSlotBooking: editSession.allow_multi_slot_booking ?? false,
             afterAllowMultiSlotBooking: allowMultiSlotBooking,
           }),
@@ -336,7 +351,7 @@ export default function ClinicCreatePanel({
           target_grade: targetGrade,
           target_school_type: targetSchoolType,
           target_lecture_ids: targetLectureIds.length > 0 ? targetLectureIds : [],
-          allow_time_preference: allowTimePreference,
+          allow_time_preference: bookingMode === "fixed_slot" && allowTimePreference,
           allow_multi_slot_booking: bookingMode === "fixed_slot" && allowMultiSlotBooking,
           booking_mode: bookingMode,
           booking_interval_minutes: bookingIntervalMinutes,
@@ -385,7 +400,7 @@ export default function ClinicCreatePanel({
           filterSummary: confirmationFilterSummary,
           selectedCount,
           selectedStudentSummary,
-          allowTimePreference,
+          allowTimePreference: bookingMode === "fixed_slot" && allowTimePreference,
           allowMultiSlotBooking,
         }),
         confirmText: "확인하고 만들기",
@@ -409,7 +424,7 @@ export default function ClinicCreatePanel({
         target_school_type: targetSchoolType,
         target_lecture_ids: targetLectureIds.length > 0 ? targetLectureIds : [],
         memo: memo.trim() || undefined,
-        allow_time_preference: allowTimePreference,
+        allow_time_preference: bookingMode === "fixed_slot" && allowTimePreference,
         allow_multi_slot_booking: bookingMode === "fixed_slot" && allowMultiSlotBooking,
         booking_mode: bookingMode,
         booking_interval_minutes: bookingIntervalMinutes,
@@ -592,6 +607,10 @@ export default function ClinicCreatePanel({
 
   const formFields = (
     <>
+      <ClinicBookingModeSummary
+        mode={bookingMode}
+        onChange={sourceSession ? undefined : () => setBookingModeChosen(false)}
+      />
       {/* 날짜 */}
       {!hideDatePicker && (
         <div className="clinic-create__field">
@@ -656,6 +675,7 @@ export default function ClinicCreatePanel({
         onAllowTimePreferenceChange={setAllowTimePreference}
         allowMultiSlotBooking={allowMultiSlotBooking}
         onAllowMultiSlotBookingChange={setAllowMultiSlotBooking}
+        showBookingModeSelector={Boolean(sourceSession)}
       />
       {/* 제목 + 정원 (한 행) */}
       <div className="clinic-create__row">
@@ -942,11 +962,16 @@ export default function ClinicCreatePanel({
     return (
       <div className="clinic-create clinic-create--modal">
         <div className="clinic-create__form">
-          {formFields}
+          {bookingModeChosen ? formFields : (
+            <ClinicBookingModeChoice
+              recommendedMode={clinicSettingsQ.data?.booking_mode ?? bookingMode}
+              onSelect={chooseBookingMode}
+            />
+          )}
         </div>
-        <div className="clinic-create__footer">
+        {bookingModeChosen && <div className="clinic-create__footer">
           {submitButton}
-        </div>
+        </div>}
         {targetSelectModal}
       </div>
     );
@@ -970,11 +995,16 @@ export default function ClinicCreatePanel({
 
       <div className="ds-card-modal__body clinic-create-body flex-1 min-h-0 flex flex-col">
         <div className="clinic-create__form">
-          {formFields}
+          {bookingModeChosen ? formFields : (
+            <ClinicBookingModeChoice
+              recommendedMode={clinicSettingsQ.data?.booking_mode ?? bookingMode}
+              onSelect={chooseBookingMode}
+            />
+          )}
         </div>
-        <div className="clinic-create__footer">
+        {bookingModeChosen && <div className="clinic-create__footer">
           {submitButton}
-        </div>
+        </div>}
       </div>
 
       {targetSelectModal}

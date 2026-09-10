@@ -80,6 +80,10 @@
   -webkit-overflow-scrolling: touch;
 }
 
+.content:has([data-clinic-mode-choice]) {
+  flex-basis: auto;
+}
+
 .contentWithFooter {
   padding-bottom: var(--tc-space-3);
 }

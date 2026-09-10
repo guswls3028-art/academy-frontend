@@ -4,6 +4,22 @@
 운영하는 도메인입니다. 같은 날짜의 여러 시간대 예약 가능 여부는 서버의 세션별
 정책을 그대로 편집하며, 프론트가 tenant나 학생별 예외를 추정하지 않습니다.
 
+## 새 일정의 개설 방식 선택
+
+새 일정 만들기는 상세 폼보다 먼저 두 카드만 보여 줍니다.
+
+- **한 타임 예약 · 시간지정 클리닉**: 17:00–18:00처럼 정해진 타임 전체를
+  예약하는 기존 방식입니다.
+- **등원·하원 선택 · 자유지정 클리닉**: 15:00–22:00 운영 범위를 열고 학생이
+  그 안에서 16:00–19:00처럼 실제 시간을 고르는 독서실형 방식입니다.
+
+`GET /clinic/settings/`의 tenant 기본은 **학원 기본** 배지로 추천할 뿐이고,
+사용자가 카드를 직접 골라야 다음 입력으로 이동합니다. 선택 뒤에는 현재 방식을
+짧게 요약하고 **방식 다시 선택**을 제공하므로 실수로 세부 일정을 작성하기 전에
+돌아갈 수 있습니다. 수정·복사는 저장된 방식 snapshot을 그대로 열고 이 단계를
+건너뜁니다. 자유지정은 긴 세션 하나를 예약하므로 여러 고정 시간대 허용과 학생
+희망 시간 옵션을 자동으로 끄고 숨깁니다.
+
 ## 같은 날 여러 시간대 예약
 
 - 새 세션은 `GET /clinic/settings/`의 `multi_slot_booking_default`를 체크박스
@@ -51,12 +67,15 @@
 - 세션 타입·조회·수정: `api/clinicSessions.api.ts`
 - tenant 기본값 조회: `api/clinicSettings.api.ts`
 - 생성·복사·수정 UI: `components/ClinicCreatePanel.tsx`
+- 공용 개설 방식 카드: `src/shared/ui/clinic/ClinicBookingModeChoice.tsx`
 - 저장 전 검토 문구: `components/clinicScheduleConfirmation.ts`
 - 이전 주 복사: `components/PreviousWeekImportModal.tsx`
 - 서버 정책·원자성·동시성: backend `docs/domain/clinic-booking.md`
 - 빈 세션 운영 회귀: `e2e/admin/clinic-weekly-multisession.mock.spec.ts`
 - 학생 추가 충돌 사유·선택 보존·재시도 회귀:
   `e2e/admin/clinic-weekly-multisession.mock.spec.ts`
+- 개설 방식 선택·desktop/390px 경계·자유지정 생성 회귀:
+  `e2e/clinic/clinic-booking-modes-visual.mock.spec.ts`
 
 관리자 mock E2E는 기존 clinic weekly spec의 선행 owner merge 뒤 같은 파일에서
 다중 예약 정책을 추가 검증합니다. 현재 기능의 직접 focused 검증은 teacher/student
