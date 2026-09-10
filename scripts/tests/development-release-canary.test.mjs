@@ -72,10 +72,21 @@ test("development canary seals required-student two-slot self-cancellation and m
   assert.match(spec, /requested:\s*2/);
   assert.match(spec, /failed:\s*0/);
   assert.match(spec, /send_to:\s*"both"/);
-  assert.doesNotMatch(spec, /\/messaging\/scheduled\/\?scope=clinic/);
+  assert.doesNotMatch(spec, /\/messaging\/scheduled\//);
   assert.match(spec, /expect\(deliveryRows\)\.toHaveLength\(2\)/);
   assert.match(spec, /target_type\)\.sort\(\)\)\.toEqual\(\["parent", "student"\]\)/);
-  assert.match(spec, /cleanupQaFamily[\s\S]+clinicSessionIds/);
+  assert.match(spec, /recipient_summary\)\)\.size\)\.toBe\(2\)/);
+  assert.match(spec, /recipient_summary\.length > 0/);
+  assert.match(spec, /template_summary\)\)\.size\)\.toBe\(1\)/);
+  assert.match(spec, /template_summary\.length > 0/);
+  const cleanupSource = spec.slice(
+    spec.indexOf("async function cleanup("),
+    spec.indexOf("test.describe.serial("),
+  );
+  const familyCleanupIndex = cleanupSource.indexOf("cleanupQaFamily(");
+  const sessionCleanupIndex = cleanupSource.indexOf("created.clinicSessionIds");
+  assert.ok(familyCleanupIndex >= 0 && sessionCleanupIndex > familyCleanupIndex,
+    "family cleanup must remove participants before clinic session deletion");
   const chipLabel = spec.match(/chip_label:\s*"([^"]+)"/)?.[1] ?? "";
   assert.ok(chipLabel.length > 0 && [...chipLabel].length <= 2, "clinic chip_label must satisfy backend max_length=2");
   for (const createPath of [
