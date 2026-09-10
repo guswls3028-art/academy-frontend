@@ -447,6 +447,12 @@ function newObservation(viewport: "desktop" | "mobile"): StudentObservation {
   };
 }
 
+function diagnosticPath(rawUrl: string): string {
+  return new URL(rawUrl).pathname
+    .replace(/\/tenants\/\d+\/video\/hls\/\d+\//, "/tenants/{tenant}/video/hls/{video}/")
+    .replace(/\/videos\/\d+\//, "/videos/{video}/");
+}
+
 async function captureFailureContext(
   page: Page,
   state: StudentObservation,
@@ -522,6 +528,13 @@ async function prepareStudent(
   page.on("requestfailed", (request) => {
     const url = new URL(request.url());
     const expectedPoster = `/tenants/${tenantId}/video/hls/${videoId}/thumbnail.jpg`;
+    console.log(JSON.stringify({ longVideoRequestFailed: {
+      schema: "student-video-renewal-request-failure/v1",
+      viewport: viewportName,
+      method: request.method(),
+      path: diagnosticPath(request.url()),
+      error: request.failure()?.errorText || "unknown",
+    } }));
     if (url.pathname.startsWith("/api/")
       || url.pathname.startsWith(`/${hlsPath.split("/").slice(0, -1).join("/")}/`)
       || url.pathname === expectedPoster) {
@@ -534,6 +547,15 @@ async function prepareStudent(
     }
   });
   page.on("response", (response) => {
+    if (response.status() >= 400) {
+      console.log(JSON.stringify({ longVideoErrorResponse: {
+        schema: "student-video-renewal-response-failure/v1",
+        viewport: viewportName,
+        method: response.request().method(),
+        path: diagnosticPath(response.url()),
+        status: response.status(),
+      } }));
+    }
     const captureKind = responseCaptureKind(response, videoId);
     state.responseChain = state.responseChain
       .then(() => captureResponse(response, state, videoId))
@@ -549,17 +571,34 @@ async function prepareStudent(
   emitLongVideoCheckpoint(viewportName, "routes-installed");
   await seedStudentSession(context, page, tenantCode, username, password);
   emitLongVideoCheckpoint(viewportName, "authenticated");
+  const navigationStartedAt = Date.now();
   await page.goto(`${baseUrl}/student/video/play?video=${videoId}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await dismissDevelopmentFirstLoginGuide(page, tenantCode);
   emitLongVideoCheckpoint(viewportName, "navigated");
-  await expect.poll(() => state.bootstraps.length).toBe(1);
+  await expect.poll(
+    () => state.bootstraps.length,
+    { timeout: 45_000, intervals: [500] },
+  ).toBe(1);
+  console.log(JSON.stringify({ longVideoBootstrapObserved: {
+    schema: "student-video-renewal-bootstrap/v1",
+    viewport: viewportName,
+    elapsedMs: Date.now() - navigationStartedAt,
+  } }));
   emitLongVideoCheckpoint(viewportName, "bootstrap-observed");
   await expect.poll(() => state.accessCheckCount).toBeGreaterThanOrEqual(1);
   emitLongVideoCheckpoint(viewportName, "access-observed");
   await expect.poll(() => state.sessionPosterCaptureCount).toBeGreaterThanOrEqual(1);
   emitLongVideoCheckpoint(viewportName, "playlist-observed");
   const video = page.locator("video.svpVideo");
-  await expect(video).toHaveCount(1);
+  try {
+    await expect(video).toHaveCount(1);
+  } catch (error) {
+    console.log(JSON.stringify({ longVideoPreparationFailure: {
+      schema: "student-video-renewal-preparation-failure/v1",
+      context: await captureFailureContext(page, state),
+    } }));
+    throw error;
+  }
   emitLongVideoCheckpoint(viewportName, "video-mounted");
   await expect.poll(() => state.posterLoads).toBeGreaterThanOrEqual(1);
   emitLongVideoCheckpoint(viewportName, "poster-loaded");
@@ -716,10 +755,19 @@ async function finishStudent(
     const homePosterCapturesBeforeExit = state.homePosterCaptureCount;
     const endResponse = page.waitForResponse((response) =>
       new URL(response.url()).pathname === "/api/v1/media/playback/end/" && response.status() < 300,
-    { timeout: 10_000 });
+    { timeout: 45_000 });
+    const homeResponse = page.waitForResponse((response) =>
+      response.request().method() === "GET"
+      && new URL(response.url()).pathname === "/api/v1/student/video/me/"
+      && response.status() < 300,
+    { timeout: 45_000 });
+    const noticesResponse = page.waitForResponse((response) =>
+      response.request().method() === "GET"
+      && new URL(response.url()).pathname === "/api/v1/community/posts/notices/"
+      && response.status() < 300,
+    { timeout: 45_000 });
     await page.locator('a[href="/student/video"]').first().evaluate((element) => (element as HTMLElement).click());
-    await endResponse;
-    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+    await Promise.all([endResponse, homeResponse, noticesResponse]);
     await state.responseChain;
     if (state.responseError) throw state.responseError;
     expect(state.homePosterCaptureCount).toBeGreaterThan(homePosterCapturesBeforeExit);

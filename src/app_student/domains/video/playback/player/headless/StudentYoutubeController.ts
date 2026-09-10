@@ -643,8 +643,12 @@ export class StudentYoutubeController {
     const currentTime = this.safeCurrent();
     const duration = this.safeDuration();
     const maxWatched = Math.max(0, this.maxWatchedRef);
-    const progressPercent = duration > 0 ? Math.min(100, (maxWatched / duration) * 100) : 0;
-    const completed = duration > 0 && maxWatched >= duration - 0.5;
+    // Leaving before the SDK reports duration must not replace persisted
+    // progress with a fabricated 0% update.
+    if (!(duration > 0 && Number.isFinite(duration))) return;
+    const baselineProgress = Math.min(100, Math.max(0, Number(this.opts.initialProgress) || 0));
+    const progressPercent = Math.max(baselineProgress, Math.min(100, (maxWatched / duration) * 100));
+    const completed = baselineProgress >= 100 || maxWatched >= duration - 0.5;
     this.opts.onLeaveProgress({
       progress: progressPercent,
       last_position: Math.round(currentTime),

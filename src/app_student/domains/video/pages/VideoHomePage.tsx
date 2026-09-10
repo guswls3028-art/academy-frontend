@@ -10,7 +10,8 @@ import { IconPlay } from "@student/shared/ui/icons/Icons";
 import { fetchVideoMe } from "../api/video.api";
 import VideoHomeTab from "../components/VideoHomeTab";
 import VideoStatsTab from "../components/VideoStatsTab";
-import { studentVideoQueryKeys } from "../queryKeys";
+import { studentVideoQueryKeys, studentVideoQueryScope } from "../queryKeys";
+import { useAuthContext } from "@/auth/context/AuthContext";
 
 const TABS = [
   { key: "home", label: "강의" },
@@ -19,6 +20,8 @@ const TABS = [
 
 export default function VideoHomePage() {
   const [tab, setTab] = useState("home");
+  const { user } = useAuthContext();
+  const queryScope = studentVideoQueryScope(user);
 
   // Preload hls.js chunk for faster video playback start
   useEffect(() => {
@@ -26,7 +29,7 @@ export default function VideoHomePage() {
   }, []);
 
   const videoMeQ = useQuery({
-    queryKey: studentVideoQueryKeys.me,
+    queryKey: studentVideoQueryKeys.me(queryScope),
     queryFn: fetchVideoMe,
     staleTime: 60 * 1000,
     placeholderData: keepPreviousData,
