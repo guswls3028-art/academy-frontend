@@ -1,0 +1,21 @@
+.search {
+  border-radius: var(--tc-radius-sm);
+  transition: box-shadow 150ms ease;
+}
+
+.search:focus-within {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tc-primary) 24%, transparent);
+}
+
+.studentRow:focus-visible,
+.timeButton:focus-visible {
+  border-radius: var(--tc-radius-sm);
+  outline: 3px solid color-mix(in srgb, var(--tc-primary) 36%, transparent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search {
+    transition: none;
+  }
+}

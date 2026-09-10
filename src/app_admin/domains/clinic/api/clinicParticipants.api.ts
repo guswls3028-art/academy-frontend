@@ -198,6 +198,8 @@ export async function createClinicParticipantsBulk(payload: {
   session_ids: number[];
   student_ids?: number[];
   enrollment_ids?: number[];
+  booking_start_time?: string;
+  booking_end_time?: string;
 }) {
   const res = await api.post<{
     count: number;

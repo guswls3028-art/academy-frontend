@@ -143,6 +143,13 @@ type OperationsState = {
   notificationRetryPayloads?: Array<Record<string, unknown>>;
   participantBulkPayloads?: Array<Record<string, unknown>>;
   participantBulkFailure?: { detail: string; status: number } | null;
+  availabilityBySession?: Record<number, {
+    booking_mode: "fixed_slot" | "time_range";
+    interval_minutes: 30 | 60;
+    max_stay_minutes: number;
+    window: { start_time: string; end_time: string };
+    slots: Array<{ start_time: string; end_time: string; remaining_capacity: number }>;
+  }>;
 };
 
 async function installApi(
@@ -226,6 +233,12 @@ async function installApi(
       return json({ id: sessionId, ...payload });
     }
     if (path === "/clinic/sessions/tree/" && method === "GET") return json(sessionRows);
+    const availabilityMatch = path.match(/^\/clinic\/sessions\/(\d+)\/availability\/$/);
+    if (availabilityMatch && method === "GET") {
+      const sessionId = Number(availabilityMatch[1]);
+      const availability = operationsState?.availabilityBySession?.[sessionId];
+      return availability ? json(availability) : json({ detail: "not found" }, 404);
+    }
     if (path === "/clinic/participants/bulk-create/" && method === "POST") {
       const payload = request.postDataJSON() as Record<string, unknown>;
       operationsState?.participantBulkPayloads?.push(payload);
@@ -258,6 +271,8 @@ async function installApi(
           status: "booked",
           source: "manual",
           clinic_reason: target?.clinic_reason ?? null,
+          booking_start_time: payload.booking_start_time ?? null,
+          booking_end_time: payload.booking_end_time ?? null,
         };
         operationsState?.participants.push(row);
         return row;
@@ -1207,6 +1222,109 @@ test("달력에서 날짜를 고른 뒤 일정별 학생 관리로 추가·해�
   });
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.locator(".clinic-ops__card").filter({ hasText: "달력진입 학생" })).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test("시간 범위 클리닉은 관리자 다중 추가에 한 실제 구간을 적용하고 새로고침 뒤 명단에 유지한다", async ({ page }) => {
+  const rangeSession = {
+    ...sessions.find((session) => session.id === 702)!,
+    title: "토요일 자유 운영 클리닉",
+    start_time: "09:00:00",
+    duration_minutes: 480,
+    max_participants: 2,
+    booking_mode: "time_range" as const,
+    booking_interval_minutes: 30 as const,
+    booking_max_stay_minutes: 180,
+  };
+  const state: OperationsState = {
+    participants: [],
+    targets: [
+      {
+        enrollment_id: 1301,
+        student_id: 601,
+        student_name: "공통구간 학생A",
+        clinic_reason: "exam",
+        reason: "score",
+        clinic_link_id: 8901,
+        session_id: 3201,
+        source_type: "exam",
+        source_id: 4201,
+        created_at: "2026-08-29T10:00:00+09:00",
+      },
+      {
+        enrollment_id: 1302,
+        student_id: 602,
+        student_name: "공통구간 학생B",
+        clinic_reason: "homework",
+        reason: "missing",
+        clinic_link_id: 8902,
+        session_id: 3202,
+        source_type: "homework",
+        source_id: 4202,
+        created_at: "2026-08-29T10:00:00+09:00",
+      },
+    ],
+    participantBulkPayloads: [],
+    availabilityBySession: {
+      702: {
+        booking_mode: "time_range",
+        interval_minutes: 30,
+        max_stay_minutes: 180,
+        window: { start_time: "09:00", end_time: "17:00" },
+        slots: [
+          { start_time: "09:00", end_time: "09:30", remaining_capacity: 2 },
+          { start_time: "09:30", end_time: "10:00", remaining_capacity: 2 },
+          { start_time: "10:00", end_time: "10:30", remaining_capacity: 2 },
+          { start_time: "10:30", end_time: "11:00", remaining_capacity: 2 },
+          { start_time: "11:00", end_time: "11:30", remaining_capacity: 2 },
+          { start_time: "11:30", end_time: "12:00", remaining_capacity: 1 },
+        ],
+      },
+    },
+  };
+
+  await seed(page);
+  await installApi(page, undefined, state, {
+    createPayloads: [],
+    updatePayloads: [],
+    sessions: sessions.map((session) => session.id === 702 ? rangeSession : session),
+  });
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await gotoAndSettle(
+    page,
+    `${BASE}/workspace/clinic/operations?scope=day&date=${saturday}&session=702`,
+    { timeout: 45_000 },
+  );
+
+  const addButton = page.getByRole("button", { name: "학생 추가하기", exact: true });
+  await expect(addButton).toBeVisible({ timeout: 30_000 });
+  await addButton.click();
+  const targetDialog = page.getByRole("dialog", { name: "대상자 선택" });
+  await targetDialog.getByRole("checkbox", { name: "공통구간 학생A 선택" }).check();
+  await targetDialog.getByRole("checkbox", { name: "공통구간 학생B 선택" }).check();
+  await targetDialog.getByRole("button", { name: "선택 확정 (2명)" }).click();
+
+  const timeDialog = page.getByRole("dialog", { name: "실제 예약 시간 선택" });
+  await expect(timeDialog.getByText("09:00–17:00", { exact: true })).toBeVisible();
+  await timeDialog.getByRole("button", { name: "10:00 시작, 잔여 2자리" }).click();
+  await timeDialog.getByRole("button", { name: "11:30 종료, 총 1시간 30분" }).click();
+  await expect(timeDialog).toContainText("2명에게 같은 10:00–11:30 구간을 적용합니다.");
+  await timeDialog.getByRole("button", { name: "이 시간으로 2명 추가" }).click();
+
+  await expect.poll(() => state.participantBulkPayloads?.[0]).toEqual({
+    session_ids: [702],
+    enrollment_ids: [1301, 1302],
+    booking_start_time: "10:00",
+    booking_end_time: "11:30",
+  });
+  await expect(page.getByText("예약 10:00–11:30")).toHaveCount(2);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByText("예약 10:00–11:30")).toHaveCount(2);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByText("예약 10:00–11:30")).toHaveCount(2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 

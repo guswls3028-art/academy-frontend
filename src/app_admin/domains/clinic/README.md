@@ -62,6 +62,12 @@
 실패한 경우에도 이미 만들어진 세션을 다시 만들도록 유도하지 않고, 실패 사유와
 운영 화면의 **학생 추가** 복구 경로를 안내합니다.
 
+`time_range` 세션에서는 대상자 확정 뒤 학생 앱과 같은 실제 시간 선택기를 한 단계
+더 보여 줍니다. 세션의 운영 시작·종료는 바꾸지 않고 availability 안의 연속 구간만
+`booking_start_time`·`booking_end_time`으로 보냅니다. 여러 명을 한 번에 고르면 모두
+같은 구간을 사용하며 다른 구간은 추가 작업을 나눠야 합니다. 저장된 실제 구간은
+운영 명단에 표시되고 새로고침 뒤에도 서버 응답으로 복원됩니다.
+
 ## 소유 구현과 검증
 
 - 세션 타입·조회·수정: `api/clinicSessions.api.ts`
@@ -73,6 +79,8 @@
 - 서버 정책·원자성·동시성: backend `docs/domain/clinic-booking.md`
 - 빈 세션 운영 회귀: `e2e/admin/clinic-weekly-multisession.mock.spec.ts`
 - 학생 추가 충돌 사유·선택 보존·재시도 회귀:
+  `e2e/admin/clinic-weekly-multisession.mock.spec.ts`
+- 시간 범위 공통 구간 payload·명단·reload·desktop/390 회귀:
   `e2e/admin/clinic-weekly-multisession.mock.spec.ts`
 - 개설 방식 선택·desktop/390px 경계·자유지정 생성 회귀:
   `e2e/clinic/clinic-booking-modes-visual.mock.spec.ts`

@@ -111,3 +111,14 @@
     left: var(--tc-sidebar-w);
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet {
+    animation: none;
+    transform: none;
+  }
+
+  .closeButton:active {
+    transform: none;
+  }
+}

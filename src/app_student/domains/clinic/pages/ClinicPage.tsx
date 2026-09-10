@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AxiosError } from "axios";
 import { Link } from "react-router";
@@ -58,6 +58,8 @@ export default function ClinicPage() {
   const [preferredEnd, setPreferredEnd] = useState("");
   const [bookingStart, setBookingStart] = useState("");
   const [bookingEnd, setBookingEnd] = useState("");
+  const [autoSelectedTimeRangeSessionId, setAutoSelectedTimeRangeSessionId] = useState<number | null>(null);
+  const pickerHeadingRef = useRef<HTMLHeadingElement>(null);
 
   const {
     data: myRequests = [],
@@ -249,6 +251,7 @@ export default function ClinicPage() {
       setBookingStart("");
       setBookingEnd("");
       setSelectedSessionIds([]);
+      setAutoSelectedTimeRangeSessionId(null);
       setRangeStartSessionId(null);
       setSelectionNotice(null);
       const allBooked = data.every((booking) => booking.status === "booked");
@@ -450,7 +453,9 @@ export default function ClinicPage() {
     if (openTimeRangeSession && onlySession) {
       setSelectedSessionIds([onlySession.id]);
       setRangeStartSessionId(onlySession.id);
+      setAutoSelectedTimeRangeSessionId(onlySession.id);
     } else {
+      setAutoSelectedTimeRangeSessionId(null);
       setSelectedSessionIds((current) => current.filter((sessionId) => (
         orderedSessions.find((session) => session.id === sessionId)?.date === date
       )));
@@ -466,6 +471,7 @@ export default function ClinicPage() {
   };
 
   const selectSessionRange = (session: ClinicSession) => {
+    setAutoSelectedTimeRangeSessionId(null);
     setPreferredStart("");
     setPreferredEnd("");
     setBookingStart("");
@@ -483,6 +489,11 @@ export default function ClinicPage() {
     setSelectedSessionIds(result.sessionIds);
     setRangeStartSessionId(result.rangeStartSessionId);
     setSelectionNotice(result.notice);
+  };
+
+  const revealTimePicker = () => {
+    pickerHeadingRef.current?.scrollIntoView({ block: "start", behavior: "auto" });
+    pickerHeadingRef.current?.focus({ preventScroll: true });
   };
 
   if (requestsLoading || sessionsLoading) {
@@ -833,6 +844,15 @@ export default function ClinicPage() {
                             {selectionNotice}
                           </p>
                         )}
+                        {selectedSession?.id === autoSelectedTimeRangeSessionId && (
+                          <button
+                            type="button"
+                            className={styles.revealTimePicker}
+                            onClick={revealTimePicker}
+                          >
+                            아래에서 시간 선택
+                          </button>
+                        )}
                         {selectedSessionsInGroup.length > 0 && (
                           <ClinicMultiSlotSelectionPanel
                             selectedSessions={selectedSessionsInGroup}
@@ -855,6 +875,7 @@ export default function ClinicPage() {
                             onBookingEndChange={setBookingEnd}
                             onAvailabilityRetry={() => availabilityQ.refetch()}
                             onSubmit={changingBooking ? submitChange : submitBooking}
+                            pickerHeadingRef={pickerHeadingRef}
                           />
                         )}
                       </div>

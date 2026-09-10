@@ -242,6 +242,17 @@ test("학생은 자정 종료까지 선택한 구간을 연결된 시간 막대�
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
   await page.getByTestId(`clinic-calendar-day-${date}`).click();
+  const scrollBeforeCta = await page.evaluate(() => window.scrollY);
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  expect(await page.evaluate(() => window.scrollY)).toBe(scrollBeforeCta);
+  const pickerCta = page.getByRole("button", { name: "아래에서 시간 선택" });
+  await expect(pickerCta).toBeVisible();
+  await pickerCta.click();
+  const pickerHeading = page.getByRole("heading", { name: "실제 이용 시간 선택" });
+  await expect(pickerHeading).toBeFocused();
+  const pickerHeadingBox = await pickerHeading.boundingBox();
+  expect(pickerHeadingBox?.y ?? -1).toBeGreaterThanOrEqual(0);
+  expect((pickerHeadingBox?.y ?? 845) + (pickerHeadingBox?.height ?? 0)).toBeLessThanOrEqual(844);
   const selection = page.getByRole("region", { name: "선택한 클리닉 시간" });
   await selection.getByRole("button", { name: "21:00 시작, 잔여 5자리" }).click();
   await selection.getByRole("button", { name: "00:00 종료, 총 3시간" }).click();

@@ -45,6 +45,12 @@ tenant 기본은 **학원 기본** 배지로 추천하지만 교사가 직접 �
 5. 성공하면 선택한 모든 세션의 참가자와 세션 목록을 무효화하고 시트가 닫힙니다.
    실패하면 시트를 유지해 선택을 확인하고 다시 시도할 수 있습니다.
 
+자유지정 세션의 **학생 추가**는 같은 그래픽 실제 시간 선택기로 availability를 읽습니다.
+세션 운영시간은 고정한 채 시작·종료를 고르고, 선택한 여러 학생에게 한 공통 구간을
+보냅니다. 다른 시간 구간은 별도 추가로 나눕니다. 추가 시트는 검색 입력에 최초 포커스를
+두고 Tab/Shift+Tab을 가두며 Escape로 닫은 뒤 진입 버튼에 포커스를 돌립니다. 배경은
+클릭 동작이 없고 reduced-motion에서는 이동 애니메이션과 눌림 transform을 제거합니다.
+
 기존 참가자 일정 변경은 한 예약을 한 새 세션으로 옮기는 별도 흐름이며 다중
 시간대 추가로 의미가 바뀌지 않습니다. 패스카드·ID 카드와 출석 상태도 각
 `SessionParticipant` 행을 기존 방식으로 읽습니다.
@@ -70,6 +76,8 @@ tenant 기본은 **학원 기본** 배지로 추천하지만 교사가 직접 �
 - 세션 생성 정책·참가자 화면: `pages/ClinicPage.tsx`
 - 공용 개설 방식 카드: `src/shared/ui/clinic/ClinicBookingModeChoice.tsx`
 - 원자 요청·새로고침·390px 가로 넘침 회귀:
+  `e2e/teacher/clinic-multi-slot-booking.mock.spec.ts`
+- 실제 시간 공통 payload·명단 reload·focus trap·Escape·focus 복귀·reduced-motion 회귀:
   `e2e/teacher/clinic-multi-slot-booking.mock.spec.ts`
 - 시간 범위·희망 시간 상호배타 생성 회귀:
   `e2e/teacher/clinic-multi-slot-booking.mock.spec.ts`

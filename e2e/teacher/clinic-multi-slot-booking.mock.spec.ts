@@ -17,6 +17,7 @@ test.use({
 });
 
 test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에 원자적으로 추가한다", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const date = "2026-09-05";
   const sessions = [
     {
@@ -74,6 +75,23 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
       max_participants: 10,
       is_full: false,
       allow_multi_slot_booking: true,
+    },
+    {
+      id: 706,
+      title: "자유 운영 클리닉",
+      date,
+      start_time: "09:00:00",
+      end_time: "17:00:00",
+      duration_minutes: 480,
+      location: "클리닉 2실",
+      participant_count: 0,
+      booked_count: 0,
+      max_participants: 2,
+      is_full: false,
+      allow_multi_slot_booking: false,
+      booking_mode: "time_range",
+      booking_interval_minutes: 30,
+      booking_max_stay_minutes: 180,
     },
   ];
   const students = [
@@ -154,6 +172,19 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
       createdSessionPayloads.push(payload);
       return json({ id: 704, ...payload }, 201);
     }
+    if (path === "/clinic/sessions/706/availability/" && request.method() === "GET") {
+      return json({
+        booking_mode: "time_range",
+        interval_minutes: 30,
+        max_stay_minutes: 180,
+        window: { start_time: "09:00", end_time: "17:00" },
+        slots: [
+          { start_time: "10:00", end_time: "10:30", remaining_capacity: 2 },
+          { start_time: "10:30", end_time: "11:00", remaining_capacity: 2 },
+          { start_time: "11:00", end_time: "11:30", remaining_capacity: 2 },
+        ],
+      });
+    }
     if (path === "/students/" && request.method() === "GET") {
       return json({ count: students.length, results: students });
     }
@@ -163,7 +194,12 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
       return json({ count: rows.length, results: rows });
     }
     if (path === "/clinic/participants/bulk-create/" && request.method() === "POST") {
-      const payload = request.postDataJSON() as { session_ids: number[]; student_ids: number[] };
+      const payload = request.postDataJSON() as {
+        session_ids: number[];
+        student_ids: number[];
+        booking_start_time?: string;
+        booking_end_time?: string;
+      };
       bulkPayloads.push(payload);
       const created = payload.student_ids.flatMap((studentId) => payload.session_ids.map((sessionId) => {
         const student = students.find((item) => item.id === studentId)!;
@@ -173,6 +209,8 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
           student: studentId,
           student_name: student.name,
           status: "booked",
+          booking_start_time: payload.booking_start_time ?? null,
+          booking_end_time: payload.booking_end_time ?? null,
         };
         participants.set(sessionId, [...(participants.get(sessionId) ?? []), row]);
         return row;
@@ -192,9 +230,15 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   await expect(page.getByText("희망 17:15–17:45")).toBeVisible();
   await expect(page.getByText("예약 17:00–18:00")).toBeVisible();
   await expect(page.getByText("오답 정리 뒤 참여")).toBeVisible();
-  await page.getByRole("button", { name: "학생 추가" }).click();
+  const addStudentTrigger = page.getByRole("button", { name: "학생 추가" });
+  await addStudentTrigger.click();
 
   const sheet = page.getByRole("dialog", { name: "학생 추가" });
+  await expect(sheet.getByPlaceholder("학생 이름/전화 검색")).toBeFocused();
+  expect(await sheet.evaluate((element) => ({
+    animationName: getComputedStyle(element).animationName,
+    transform: getComputedStyle(element).transform,
+  }))).toEqual({ animationName: "none", transform: "none" });
   const backdrop = sheet.locator("xpath=preceding-sibling::div[1]");
   const mobileSheetBox = await sheet.boundingBox();
   const mobileBackdropBox = await backdrop.boundingBox();
@@ -233,8 +277,18 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   await page.screenshot({ path: "test-results/teacher-clinic-multi-slot-1100.png", fullPage: true });
 
   await backdrop.click({ position: { x: 12, y: 12 } });
+  await expect(sheet).toBeVisible();
+  const closeButton = sheet.getByRole("button", { name: "닫기" });
+  await closeButton.focus();
+  await page.keyboard.press("Shift+Tab");
+  expect(await sheet.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+  await expect(closeButton).not.toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(closeButton).toBeFocused();
+  await page.keyboard.press("Escape");
   await expect(sheet).toHaveCount(0);
-  await page.getByRole("button", { name: "학생 추가" }).click();
+  await expect(addStudentTrigger).toBeFocused();
+  await addStudentTrigger.click();
   const reopenedSheet = page.getByRole("dialog", { name: "학생 추가" });
   await reopenedSheet.getByRole("button", { name: /18:00–19:00/ }).click();
 
@@ -253,6 +307,30 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   await firstSessionButton.click();
   await expect(page.getByText("김학생", { exact: true })).toBeVisible();
   await expect(page.getByText("이학생", { exact: true })).toBeVisible();
+  expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: /자유 운영 클리닉/ }).click();
+  await page.getByRole("button", { name: "학생 추가" }).click();
+  const rangeSheet = page.getByRole("dialog", { name: "학생 추가" });
+  await expect(rangeSheet.getByRole("heading", { name: "실제 이용 시간 선택" })).toBeVisible();
+  await rangeSheet.getByRole("button", { name: "10:00 시작, 잔여 2자리" }).click();
+  await rangeSheet.getByRole("button", { name: "11:30 종료, 총 1시간 30분" }).click();
+  await rangeSheet.getByRole("button", { name: /김학생/ }).click();
+  await rangeSheet.getByRole("button", { name: /이학생/ }).click();
+  await rangeSheet.getByRole("button", { name: "2명 추가" }).click();
+  await expect.poll(() => bulkPayloads[1]).toEqual({
+    session_ids: [706],
+    student_ids: [801, 802],
+    booking_start_time: "10:00",
+    booking_end_time: "11:30",
+  });
+  await expect(page.getByText("예약 10:00–11:30")).toHaveCount(2);
+  expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await page.reload({ waitUntil: "domcontentloaded", timeout: 30_000 });
+  await page.setViewportSize({ width: 1100, height: 800 });
+  await page.getByRole("button", { name: /자유 운영 클리닉/ }).click();
+  await expect(page.getByText("예약 10:00–11:30")).toHaveCount(2);
   expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
 
   await page.getByRole("button", { name: "클리닉 만들기" }).click();
