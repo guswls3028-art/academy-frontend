@@ -2,7 +2,7 @@
 // PATH: src/app_teacher/domains/students/components/CreateStudentSheet.tsx
 // 학생 생성 바텀시트
 // R-11: 기존 인라인 style baseline. 마이그레이션은 별도 백로그.
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { MessageSquare } from "@teacher/shared/ui/Icons";
@@ -233,10 +233,12 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
 function Field({ label, value, onChange, placeholder, type = "text" }: {
   label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
 }) {
+  const inputId = useId();
+
   return (
     <div className="flex-1">
-      <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>{label}</label>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+      <label htmlFor={inputId} className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>{label}</label>
+      <input id={inputId} type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
         autoComplete={type === "password" ? "new-password" : undefined}
         className="w-full text-sm"
         style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
