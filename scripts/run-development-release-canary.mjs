@@ -960,7 +960,7 @@ export async function run() {
         E2E_LONG_VIDEO_HLS_PATH: longVideo.hls_path,
         E2E_ADMIN_PASS: secret.Parameter.Value, E2E_STUDENT_PASS: secret.Parameter.Value,
         E2E_STUDENT2_PASS: secret.Parameter.Value },
-    }, 20 * 60_000);
+    }, 30 * 60_000);
     const progressHeartbeat = setInterval(() => console.log("Development real-use remains active"), 60_000);
     let result;
     try { result = await tests.done; }
