@@ -4,7 +4,9 @@
 import { useState } from "react";
 import { AlertTriangle, Pencil, Plus } from "lucide-react";
 import { Badge, Button, EmptyState } from "@/shared/ui/ds";
+import { hhmmText } from "@/shared/ui/time";
 import { cx } from "@/shared/utils/cx";
+import { shortDateWeekday } from "@/shared/utils/localDate";
 import { useConfirm } from "@/shared/ui/confirm";
 import { LockBadge } from "../../components/StatusBadge";
 import { useWorkMonth } from "../../operations/context/workMonthHooks";
@@ -160,10 +162,10 @@ export default function WorkRecordsPanel() {
                     className="min-w-0"
                   >
                     <div className="staff-body font-semibold">
-                      {formatDateWithWeekday(r.date)} · {r.work_type_name}
+                      {shortDateWeekday(r.date)} · {r.work_type_name}
                     </div>
                     <div className="staff-helper mt-1">
-                      {formatTime(r.start_time)} ~ {r.end_time ? formatTime(r.end_time) : "근무 중"}
+                      {hhmmText(r.start_time)} ~ {hhmmText(r.end_time, "근무 중")}
                       {` · 휴게 ${(r.break_minutes ?? 0) + (r.meal_minutes ?? 0)}분`}
                     </div>
                     <div className="staff-helper mt-1 tabular-nums">
@@ -265,16 +267,4 @@ export default function WorkRecordsPanel() {
       </div>
     </section>
   );
-}
-
-const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
-
-function formatDateWithWeekday(value: string) {
-  const [year, month, day] = value.split("-").map(Number);
-  if (!year || !month || !day) return value;
-  return `${month}/${day}(${WEEKDAYS[new Date(year, month - 1, day).getDay()]})`;
-}
-
-function formatTime(value: string) {
-  return value.slice(0, 5);
 }

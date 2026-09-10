@@ -10,7 +10,7 @@ import api from "@/shared/api/axios";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
-import { todayLocalISO } from "@/shared/utils/localDate";
+import { shortDateWeekday, todayLocalISO } from "@/shared/utils/localDate";
 import {
   fetchMyWorkRecords,
   fetchMyWorkSummary,
@@ -337,7 +337,7 @@ function AttendanceContent({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-sm font-semibold" style={{ color: "var(--tc-text)" }}>
-                  {formatDateWithWeekday(record.date)} · {record.work_type_name}
+                  {shortDateWeekday(record.date)} · {record.work_type_name}
                 </div>
                 <div className="mt-0.5 text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
                   {record.start_time.slice(0, 5)} ~ {record.end_time?.slice(0, 5) ?? "근무 중"}
@@ -358,14 +358,6 @@ function AttendanceContent({
       )}
     </div>
   );
-}
-
-const RECORD_WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
-
-function formatDateWithWeekday(value: string) {
-  const [year, month, day] = value.split("-").map(Number);
-  if (!year || !month || !day) return value;
-  return `${month}/${day}(${RECORD_WEEKDAYS[new Date(year, month - 1, day).getDay()]})`;
 }
 
 function ExpenseFormSheet({
