@@ -300,8 +300,8 @@ export default function VideoPlayerPage() {
         },
       } : current,
     );
-    queryClient.setQueriesData<StudentSessionVideosResponse>(
-      { queryKey: ["student-session-videos"] },
+    if (sessionId != null) queryClient.setQueryData<StudentSessionVideosResponse>(
+      studentVideoQueryKeys.sessionVideos(queryScope, sessionId, effectiveEnrollmentId ?? null),
       (current) => current ? {
         ...current,
         items: current.items.map((item) => item.id === videoId ? {
@@ -311,7 +311,7 @@ export default function VideoPlayerPage() {
         } : item),
       } : current,
     );
-  }, [enrollmentId, queryClient, queryScope, videoId]);
+  }, [effectiveEnrollmentId, enrollmentId, queryClient, queryScope, sessionId, videoId]);
 
   /* ─── 이어보기 위치 계산 ─── */
   const initialPosition = useMemo(() => {

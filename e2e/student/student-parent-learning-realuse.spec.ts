@@ -341,6 +341,8 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     await page.getByText(videoTitle, { exact: true }).click();
     await expect(page.getByRole("heading", { name: videoTitle })).toBeVisible();
     await expect.poll(async () => (await youtube.snapshot()).players.some((player) => player.ready && !player.destroyed)).toBe(true);
+    await expect(page.getByText("재생 화면을 준비하고 있어요…", { exact: true })).toBeHidden();
+    await expect(page.getByRole("button", { name: "재생", exact: true })).toBeVisible();
     await page.goBack({ waitUntil: "domcontentloaded" });
     await selectParentStudentThroughUi(page, sibling);
     await gotoAndSettle(page, `${QA_BASE}/student/attendance`, { timeout: 30_000 });
