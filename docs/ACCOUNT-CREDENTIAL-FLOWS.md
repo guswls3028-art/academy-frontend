@@ -137,6 +137,14 @@ API와 성공 후 세션 처리를 소유한다. 비밀번호 원문, 토큰, �
   localhost·프리뷰처럼 host만으로 테넌트를 확정할 수 없는 환경은 만료 처리 직전의
   정확한 테넌트 코드를 보존해 `/login/{tenantCode}`로 이동한다. 토큰 정리 때문에
   개발용 기본 테넌트로 바뀌거나 `tenant-required` 오류 화면에 고립되면 안 된다.
+- 수동 로그아웃은 access·refresh와 현재 인증 generation envelope를 제거한다. 다만
+  계정 전환 경쟁에서 새 세션을 지우지 않도록 shared active-generation pointer는 보존한다.
+  현재 테넌트 코드는
+  비민감 라우팅 컨텍스트로 보존한다. 따라서 학생·학부모가 `/` 공개 화면으로 이동한
+  직후의 `/core/program/`을 포함한 API 요청도 같은 `X-Tenant-Code`를 유지하며,
+  localhost에서도 다른 학원이나 `tenant-required` 화면으로 이탈하지 않는다.
+  임시 preview host는 stale session 값으로 다른 학원을 선택하지 않도록 이 보존값을
+  API tenant 근거로 사용하지 않고 `/login/{tenantCode}` 또는 명시적 build env만 허용한다.
 - refresh가 200을 반환했더라도 재시도한 원 요청이 다시 401이면 stale 세션으로
   간주한다. 회전된 토큰을 남기거나 요청마다 refresh를 반복하지 않고 같은 세션
   종료 경계로 닫는다.

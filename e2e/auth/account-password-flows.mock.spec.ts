@@ -138,6 +138,7 @@ async function stubAccountApp(
     onPasswordChange,
     onLegacyPasswordChange,
     onStaffPasswordReset,
+    onProgramTenantHeader,
   }: {
     mustChangePassword?: boolean;
     tenantRole?: "owner" | "admin" | "teacher" | "staff";
@@ -145,6 +146,7 @@ async function stubAccountApp(
     onPasswordChange?: (body: Record<string, unknown>) => void;
     onLegacyPasswordChange?: () => void;
     onStaffPasswordReset?: (body: Record<string, unknown>) => void;
+    onProgramTenantHeader?: (tenantCode: string) => void;
   } = {},
 ) {
   const access = createE2eJwt();
@@ -179,6 +181,7 @@ async function stubAccountApp(
   });
 
   await page.route("**/api/v1/core/program/**", async (route) => {
+    onProgramTenantHeader?.(route.request().headers()["x-tenant-code"] || "");
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -286,6 +289,33 @@ test.use({ serviceWorkers: "block" });
 test.skip(!isLocalBase(BASE), "Local route-mock spec. Set E2E_BASE_URL to localhost to run.");
 
 test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
+  test("로그아웃 뒤 공개 프로그램 조회도 같은 테넌트 경계를 유지한다", async ({ page }) => {
+    const programTenantHeaders: string[] = [];
+    await stubAccountApp(page, {
+      tenantRole: "owner",
+      onProgramTenantHeader: (tenantCode) => programTenantHeaders.push(tenantCode),
+    });
+
+    await gotoAndSettle(page, `${BASE}/workspace/settings/profile`, { timeout: 20_000 });
+    await expect(page.getByRole("button", { name: "로그아웃", exact: true })).toBeVisible();
+    const beforeLogoutProgramRequests = programTenantHeaders.length;
+    await page.getByRole("button", { name: "로그아웃", exact: true }).click();
+    await expect(page).toHaveURL(/\/(?:login)?$/);
+    await gotoAndSettle(page, `${BASE}/login`, { timeout: 20_000 });
+    await expect.poll(() => programTenantHeaders.length).toBeGreaterThan(beforeLogoutProgramRequests);
+    expect(new Set(programTenantHeaders)).toEqual(new Set(["hakwonplus"]));
+    expect(await page.evaluate(() => sessionStorage.getItem("tenantCode"))).toBe("hakwonplus");
+    expect(await readAuthEnvelope(page)).toBeNull();
+
+    const beforeTenantSwitchRequests = programTenantHeaders.length;
+    await gotoAndSettle(page, `${BASE}/login/limglish`, { timeout: 20_000 });
+    await expect.poll(() => programTenantHeaders.length).toBeGreaterThan(beforeTenantSwitchRequests);
+    expect(new Set(programTenantHeaders.slice(beforeTenantSwitchRequests))).toEqual(
+      new Set(["limglish"]),
+    );
+    expect(await page.evaluate(() => sessionStorage.getItem("tenantCode"))).toBe("limglish");
+  });
+
   test("로컬 테넌트 로그인에서 만료 세션을 발견해도 같은 테넌트 로그인으로 복구한다", async ({ page }) => {
     const tenantCode = "qa-ymath-realuse-session-expiry";
     const access = createE2eJwt();

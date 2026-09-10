@@ -14,42 +14,65 @@ import { gotoAndSettle } from "../helpers/wait";
 const SS = "e2e/screenshots/final-edge";
 const BASE = process.env.E2E_BASE_URL!;
 const API = process.env.E2E_API_URL || "https://api.hakwonplus.com";
+const AUTH_ACTIVE_GENERATION_KEY = "academy:auth-active-generation:v1";
+const AUTH_GENERATION_PREFIX = "academy:auth-tokens:v1:";
 
-// ─── 1. sessionStorage 정리 검증 ───
+// ─── 1. 로그아웃 인증·테넌트 경계 검증 ───
 
-test.describe("1. 로그아웃 sessionStorage 정리", () => {
-  test("로그아웃 후 session_expired, tenantCode 잔존 없음", async ({ page }) => {
+test.describe("1. 로그아웃 인증·테넌트 경계", () => {
+  test("로그아웃은 인증 envelope를 제거하고 tenant routing context는 보존한다", async ({ page }) => {
     await loginViaUI(page, "admin");
-    await gotoAndSettle(page, `${BASE}/workspace`);
+    await gotoAndSettle(page, `${BASE}/workspace/settings/profile`);
 
     await page.evaluate(() => {
       sessionStorage.setItem("session_expired", "1");
       sessionStorage.setItem("tenantCode", "hakwonplus");
     });
 
-    const beforeLogout = await page.evaluate(() => ({
-      expired: sessionStorage.getItem("session_expired"),
-      tenant: sessionStorage.getItem("tenantCode"),
-    }));
+    const beforeLogout = await page.evaluate(({ activeKey, generationPrefix }) => {
+      const activeGeneration = localStorage.getItem(activeKey);
+      return {
+        activeGeneration,
+        activeEnvelope: activeGeneration
+          ? localStorage.getItem(`${generationPrefix}${activeGeneration}`)
+          : null,
+        expired: sessionStorage.getItem("session_expired"),
+        tenant: sessionStorage.getItem("tenantCode"),
+      };
+    }, {
+      activeKey: AUTH_ACTIVE_GENERATION_KEY,
+      generationPrefix: AUTH_GENERATION_PREFIX,
+    });
+    expect(beforeLogout.activeGeneration).toBeTruthy();
+    expect(beforeLogout.activeEnvelope).toBeTruthy();
     expect(beforeLogout.expired).toBe("1");
     expect(beforeLogout.tenant).toBe("hakwonplus");
 
-    await page.evaluate(() => {
-      localStorage.removeItem("access");
-      localStorage.removeItem("refresh");
-      localStorage.removeItem("parent_selected_student_id");
-      sessionStorage.removeItem("session_expired");
-      sessionStorage.removeItem("tenantCode");
-    });
+    await page.getByRole("button", { name: "로그아웃", exact: true }).click();
+    await expect(page).toHaveURL(/\/login(?:\/[^/?#]+)?(?:[?#].*)?$/);
 
-    const afterLogout = await page.evaluate(() => ({
-      expired: sessionStorage.getItem("session_expired"),
-      tenant: sessionStorage.getItem("tenantCode"),
-      access: localStorage.getItem("access"),
-    }));
+    const afterLogout = await page.evaluate(({ activeKey, generationPrefix }) => {
+      const activeGeneration = localStorage.getItem(activeKey);
+      return {
+        activeGeneration,
+        activeEnvelope: activeGeneration
+          ? localStorage.getItem(`${generationPrefix}${activeGeneration}`)
+          : null,
+        expired: sessionStorage.getItem("session_expired"),
+        tenant: sessionStorage.getItem("tenantCode"),
+        legacyAccess: localStorage.getItem("access"),
+        legacyRefresh: localStorage.getItem("refresh"),
+      };
+    }, {
+      activeKey: AUTH_ACTIVE_GENERATION_KEY,
+      generationPrefix: AUTH_GENERATION_PREFIX,
+    });
+    expect(afterLogout.activeGeneration).toBe(beforeLogout.activeGeneration);
+    expect(afterLogout.activeEnvelope, "active auth envelope 잔존").toBeNull();
     expect(afterLogout.expired, "session_expired 잔존").toBeNull();
-    expect(afterLogout.tenant, "tenantCode 잔존").toBeNull();
-    expect(afterLogout.access, "access 잔존").toBeNull();
+    expect(afterLogout.tenant, "tenant routing context 손실").toBe("hakwonplus");
+    expect(afterLogout.legacyAccess, "legacy access 잔존").toBeNull();
+    expect(afterLogout.legacyRefresh, "legacy refresh 잔존").toBeNull();
 
     await page.screenshot({ path: `${SS}/1-session-cleanup.png` });
   });
