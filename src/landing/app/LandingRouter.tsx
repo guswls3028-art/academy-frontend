@@ -4,6 +4,7 @@ import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import { resolveTenantCode } from "@/shared/tenant";
 
 const PublicLandingPage = lazy(() => import("@/landing/pages/PublicLandingPage"));
+const GodminLandingPage = lazy(() => import("@/landing/pages/GodminLandingPage"));
 const LandingReportDetailPage = lazy(() => import("@/landing/pages/LandingReportDetailPage"));
 const LandingReportsListPage = lazy(() => import("@/landing/pages/LandingReportsListPage"));
 const LandingShareReportPage = lazy(() => import("@/landing/pages/LandingShareReportPage"));
@@ -36,6 +37,7 @@ export default function LandingRouter() {
   const tenantResult = resolveTenantCode();
   const tenantCode = tenantResult.ok ? tenantResult.code : null;
   const isPromoTenant = tenantCode === "hakwonplus" || tenantCode === "9999";
+  const isGodmin = tenantCode === "godmin";
 
   if (isPromoTenant && !location.pathname.startsWith("/landing/admin")) {
     return <Navigate to="/promo" replace />;
@@ -43,7 +45,7 @@ export default function LandingRouter() {
 
   return (
     <Routes>
-      <Route index element={<PublicLandingPage />} />
+      <Route index element={isGodmin ? <GodminLandingPage /> : <PublicLandingPage />} />
       <Route path="reports" element={<LandingReportsListPage />} />
       <Route path="reports/:reportId" element={<LandingReportDetailPage />} />
       <Route path="share/:token" element={<LandingShareReportPage />} />
