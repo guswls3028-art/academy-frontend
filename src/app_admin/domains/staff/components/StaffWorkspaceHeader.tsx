@@ -61,11 +61,33 @@ export function StaffWorkspaceHeader({ staffId, year, month }: Props) {
     setSearchParams(next);
   };
 
+  const returnToOverview = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("staffId");
+    next.set("year", String(year));
+    next.set("month", String(month));
+    navigate(
+      {
+        pathname: "/workspace/staff/attendance",
+        search: `?${next.toString()}`,
+      },
+      { state: { focusPayrollOverview: true } },
+    );
+  };
+
   const primaryWageTag = staff?.staff_work_types?.[0];
 
   return (
     <div className="staff-panel__header flex flex-wrap items-center justify-between gap-4 border-b border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-border-divider)_4%,var(--color-bg-surface))]">
       <div className="flex items-center gap-3 flex-wrap">
+        <Button
+          intent="ghost"
+          size="sm"
+          leftIcon={<ChevronLeft size={16} />}
+          onClick={returnToOverview}
+        >
+          전체 급여판
+        </Button>
         {staff && (
           <button
             type="button"
