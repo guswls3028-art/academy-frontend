@@ -214,3 +214,25 @@ test("클리닉 알림 설정은 예약부터 최종 전달까지 상태를 구�
   await page.emulateMedia({ reducedMotion: "reduce" });
   expect(await panel.evaluate((element) => getComputedStyle(element).transitionDuration)).toBe("0s");
 });
+
+test("390px 클리닉 문구 편집은 입력과 고정 안내를 읽을 수 있는 폭으로 표시한다", async ({ page }) => {
+  await seed(page);
+  await installApi(page, []);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoAndSettle(page, `${BASE}/workspace/clinic/msg-settings`, { timeout: 45_000 });
+  const card = page.locator("div[data-channel-active][data-unimplemented]").filter({ hasText: "클리닉 시작 N분 전" });
+  await card.getByRole("button", { name: /^수정하기/ }).click();
+  const editor = page.getByRole("dialog").filter({ hasText: "문구 수정" });
+  await expect(editor.locator("textarea")).toBeVisible();
+  await expect(editor).toHaveCSS("opacity", "1");
+  await expect(editor).toHaveCSS("transform", "none");
+  await page.screenshot({ path: "test-results/clinic-editor-390.png" });
+  const bounds = await editor.locator("textarea").boundingBox();
+  expect(bounds?.width).toBeGreaterThanOrEqual(250);
+  expect(bounds!.x).toBeGreaterThanOrEqual(0);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
+  const overflow = await editor.evaluate((element) => element.scrollWidth > element.clientWidth);
+  expect(overflow).toBe(false);
+  await expect(editor.getByText("자동으로 들어가는 정보", { exact: true })).toBeVisible();
+  await expect(editor.getByRole("button", { name: "수정", exact: true })).toBeVisible();
+});
