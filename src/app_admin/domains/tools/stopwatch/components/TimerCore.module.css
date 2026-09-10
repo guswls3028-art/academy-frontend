@@ -312,6 +312,18 @@
   min-width: 3ch;
 }
 
+@media (max-width: 480px) {
+  .display {
+    font-size: 64px;
+  }
+
+  .display .sep,
+  .display .cs {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
 @keyframes blink {
   50% { opacity: 0.05; }
 }
