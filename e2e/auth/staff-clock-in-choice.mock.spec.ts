@@ -21,6 +21,8 @@ function localJwt(): string {
 type ClockMock = {
   startBodies: Array<Record<string, unknown>>;
   endCount: number;
+  recordRanges: Array<{ from: string | null; to: string | null }>;
+  summaryRanges: Array<{ from: string | null; to: string | null }>;
 };
 
 type ClockFailureOptions = {
@@ -28,6 +30,7 @@ type ClockFailureOptions = {
   currentlyWorking?: boolean;
   showWorkingStaff?: boolean;
   mustChangePassword?: boolean;
+  monthAwareHistory?: boolean;
 };
 
 async function installClockApp(
@@ -36,7 +39,12 @@ async function installClockApp(
   tenantRole: "staff" | "admin" = "staff",
   failures: ClockFailureOptions = {},
 ): Promise<ClockMock> {
-  const calls: ClockMock = { startBodies: [], endCount: 0 };
+  const calls: ClockMock = {
+    startBodies: [],
+    endCount: 0,
+    recordRanges: [],
+    summaryRanges: [],
+  };
   let current: "OFF" | "WORKING" = "OFF";
   let activeWorkType = 41;
   let recordClosed = false;
@@ -58,6 +66,20 @@ async function installClockApp(
     created_at: "2026-08-18T04:00:00Z",
     updated_at: "2026-08-18T08:00:00Z",
   };
+  const septemberHistory = {
+    ...closedHistory,
+    id: 801,
+    work_type: 41,
+    work_type_name: "클리닉 조교",
+    date: "2026-09-06",
+    start_time: "10:00:00",
+    end_time: "12:30:00",
+    work_hours: 2.5,
+    amount: 37500,
+    resolved_hourly_wage: 15000,
+    created_at: "2026-09-06T01:00:00Z",
+    updated_at: "2026-09-06T03:30:00Z",
+  };
 
   await page.addInitScript(({ path }) => {
     localStorage.setItem("tenant_code", "hakwonplus");
@@ -67,7 +89,8 @@ async function installClockApp(
 
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
-    const pathname = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
+    const requestUrl = new URL(request.url());
+    const pathname = requestUrl.pathname.replace(/^\/api\/v1/, "");
     const json = (body: unknown, status = 200) => route.fulfill({
       status,
       contentType: "application/json",
@@ -184,6 +207,19 @@ async function installClockApp(
       });
     }
     if (pathname === "/staffs/77/work-records/" && request.method() === "GET") {
+      const range = {
+        from: requestUrl.searchParams.get("date_from"),
+        to: requestUrl.searchParams.get("date_to"),
+      };
+      calls.recordRanges.push(range);
+      if (failures.monthAwareHistory) {
+        const records = range.from === "2026-09-01"
+          ? [septemberHistory]
+          : range.from === "2026-08-01"
+            ? [closedHistory]
+            : [];
+        return json({ count: records.length, next: null, previous: null, results: records });
+      }
       const records: Array<Record<string, unknown>> = [closedHistory];
       if (current === "WORKING" || recordClosed) {
         records.unshift({
@@ -202,6 +238,21 @@ async function installClockApp(
       return json({ count: records.length, next: null, previous: null, results: records });
     }
     if (pathname === "/staffs/77/summary/" && request.method() === "GET") {
+      const range = {
+        from: requestUrl.searchParams.get("date_from"),
+        to: requestUrl.searchParams.get("date_to"),
+      };
+      calls.summaryRanges.push(range);
+      if (failures.monthAwareHistory) {
+        const isSeptember = range.from === "2026-09-01";
+        return json({
+          staff_id: 77,
+          work_hours: isSeptember ? 2.5 : 4,
+          work_amount: isSeptember ? 37500 : 52000,
+          expense_amount: 0,
+          total_amount: isSeptember ? 37500 : 52000,
+        });
+      }
       const extraHours = recordClosed ? 1 : 0;
       const extraAmount = recordClosed ? (activeWorkType === 41 ? 15000 : 13000) : 0;
       return json({
@@ -326,6 +377,53 @@ test.describe("조교 로그인 출근 선택", () => {
     await expect(page.getByText("67,000원").first()).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: "test-results/staff-clock-mobile-390.png", fullPage: false });
+  });
+
+  test("조교가 모바일 메뉴에서 본인 근무기록을 열고 월별 시간과 금액을 확인한다", async ({ page }) => {
+    await page.clock.install({ time: new Date("2026-09-10T12:00:00+09:00") });
+    await page.setViewportSize({ width: 390, height: 844 });
+    const calls = await installClockApp(
+      page,
+      "/workspace/mobile",
+      "staff",
+      { monthAwareHistory: true },
+    );
+
+    await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+    await page.getByTestId("login-username").fill("assistant77");
+    await page.getByTestId("login-password").fill("password");
+    await page.getByTestId("login-submit").click();
+    await page.getByRole("dialog", { name: "오늘 어떤 방식으로 시작할까요?" })
+      .getByRole("button", { name: /출근하지 않고 로그인/ })
+      .click();
+
+    await page.getByRole("button", { name: "메뉴", exact: true }).click();
+    const menu = page.getByRole("navigation", { name: "선생님 메뉴" });
+    await expect(menu).toBeVisible();
+    await menu.getByRole("button", { name: /내 계정/ }).click();
+    await menu.getByRole("button", { name: "근무 기록 / 지출", exact: true }).click();
+
+    await expect(page).toHaveURL(/\/workspace\/mobile\/my-records$/);
+    await expect(page.getByRole("heading", { name: "근무 기록 / 지출" })).toBeVisible();
+    await expect(page.getByText("2026-09-06 · 클리닉 조교", { exact: true })).toBeVisible();
+    await expect(page.getByText("10:00 ~ 12:30 · 2.5시간", { exact: true })).toBeVisible();
+    await expect(page.getByText("적용 시급 15,000원", { exact: true })).toBeVisible();
+    await expect(page.getByText("37,500원").first()).toBeVisible();
+
+    await page.getByLabel("조회 월").fill("2026-08");
+    await expect(page.getByText("2026-08-18 · 현장 조교", { exact: true })).toBeVisible();
+    await expect(page.getByText("13:00 ~ 17:00 · 4시간", { exact: true })).toBeVisible();
+    await expect(page.getByText("적용 시급 13,000원", { exact: true })).toBeVisible();
+    await expect(page.getByText("52,000원").first()).toBeVisible();
+    expect(calls.recordRanges).toEqual(expect.arrayContaining([
+      { from: "2026-09-01", to: "2026-09-30" },
+      { from: "2026-08-01", to: "2026-08-31" },
+    ]));
+    expect(calls.summaryRanges).toEqual(expect.arrayContaining([
+      { from: "2026-09-01", to: "2026-09-30" },
+      { from: "2026-08-01", to: "2026-08-31" },
+    ]));
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
   test("조교가 아닌 로그인은 근무 선택 세션을 만들지 않는다", async ({ page }) => {

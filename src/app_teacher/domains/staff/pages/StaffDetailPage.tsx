@@ -12,6 +12,7 @@ import { Badge } from "@teacher/shared/ui/Badge";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { selectedMonthEntryDate } from "@/shared/utils/selectedMonthEntryDate";
 import { useConfirm } from "@/shared/ui/confirm";
 import {
   fetchStaffOne,
@@ -526,7 +527,7 @@ function WorkFormSheet({ open, onClose, staffId, month, editData }: {
 }) {
   const qc = useQueryClient();
   const isEdit = !!editData;
-  const defaultDate = editData?.date || `${month}-${String(new Date().getDate()).padStart(2, "0")}`;
+  const defaultDate = editData?.date || selectedMonthEntryDate(month);
   const [date, setDate] = useState(defaultDate);
   const [startTime, setStartTime] = useState(editData?.start_time?.slice(0, 5) || "09:00");
   const [endTime, setEndTime] = useState(editData?.end_time?.slice(0, 5) || "18:00");
@@ -538,12 +539,9 @@ function WorkFormSheet({ open, onClose, staffId, month, editData }: {
 
   useEffect(() => {
     if (!open) return;
-    const [year, monthValue] = month.split("-").map(Number);
-    const lastDay = new Date(year, monthValue, 0).getDate();
-    const safeDay = Math.min(new Date().getDate(), lastDay);
     setDate(
       editData?.date
-      || `${month}-${String(safeDay).padStart(2, "0")}`,
+      || selectedMonthEntryDate(month),
     );
     setStartTime(editData?.start_time?.slice(0, 5) || "09:00");
     setEndTime(editData?.end_time?.slice(0, 5) || "18:00");
@@ -570,6 +568,7 @@ function WorkFormSheet({ open, onClose, staffId, month, editData }: {
   const mutation = useMutation({
     mutationFn: () => {
       if (workTypeId == null) throw new Error("근무 유형을 선택하세요.");
+      if (!date) throw new Error("날짜를 선택해 주세요.");
       if (!date.startsWith(`${month}-`)) {
         throw new Error("선택한 기준월 안의 날짜를 입력해 주세요.");
       }
@@ -600,7 +599,7 @@ function WorkFormSheet({ open, onClose, staffId, month, editData }: {
   return (
     <BottomSheet open={open} onClose={onClose} title={isEdit ? "근태 편집" : "근태 등록"}>
       <div className="flex flex-col gap-2.5" style={{ padding: "var(--tc-space-3) 0" }}>
-        <Fld label="날짜" value={date} onChange={setDate} type="date" />
+        <Fld label="날짜 *" value={date} onChange={setDate} type="date" />
         <div className="flex gap-2">
           <Fld label="시작" value={startTime} onChange={setStartTime} type="time" />
           <Fld label="종료" value={endTime} onChange={setEndTime} type="time" />
@@ -666,7 +665,7 @@ function Fld({ label, value, onChange, placeholder, type = "text" }: {
   return (
     <div className="flex-1">
       <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>{label}</label>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} aria-label={label}
         className="w-full text-sm"
         style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
     </div>

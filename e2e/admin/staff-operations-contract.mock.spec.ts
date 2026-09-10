@@ -107,9 +107,11 @@ async function mockStaffApi(
     onPasswordReset?: (body: Record<string, unknown>) => void;
     workRecords?: Array<Record<string, unknown>>;
     onWorkRecordsFetch?: () => void;
+    onWorkRecordCreate?: (body: Record<string, unknown>) => void;
     onWorkRecordPatch?: (id: number, body: Record<string, unknown>) => void;
     expenses?: Array<Record<string, unknown>>;
     onExpensesFetch?: () => void;
+    onExpenseCreate?: (body: Record<string, unknown>) => void;
     onExpensePatch?: (id: number, body: Record<string, unknown>) => void;
     onExpenseDelete?: (id: number) => void;
     onWorkMonthLock?: (body: Record<string, unknown>) => void;
@@ -369,6 +371,11 @@ async function mockStaffApi(
       const workRecords = options?.workRecords ?? [];
       return json({ count: workRecords.length, next: null, previous: null, results: workRecords });
     }
+    if (path === "/staffs/work-records/" && request.method() === "POST") {
+      const body = request.postDataJSON() as Record<string, unknown>;
+      options?.onWorkRecordCreate?.(body);
+      return json({ id: 91, staff_name: "김조교", work_type_name: "채점", ...body }, 201);
+    }
     const workRecordMatch = path.match(/^\/staffs\/work-records\/(\d+)\/$/);
     if (workRecordMatch && request.method() === "PATCH") {
       const id = Number(workRecordMatch[1]);
@@ -381,6 +388,11 @@ async function mockStaffApi(
       options?.onExpensesFetch?.();
       const expenses = options?.expenses ?? [];
       return json({ count: expenses.length, next: null, previous: null, results: expenses });
+    }
+    if (path === "/staffs/expense-records/" && request.method() === "POST") {
+      const body = request.postDataJSON() as Record<string, unknown>;
+      options?.onExpenseCreate?.(body);
+      return json({ id: 92, staff_name: "김조교", status: "PENDING", ...body }, 201);
     }
     const expenseMatch = path.match(/^\/staffs\/expense-records\/(\d+)\/$/);
     if (expenseMatch && request.method() === "PATCH") {
@@ -1270,6 +1282,96 @@ test.describe("직원 운영 계약", () => {
       path: "test-results/staff-work-record-edit-390.png",
       fullPage: false,
     });
+  });
+
+  test("과거 월 근무기록 추가는 월 1일을 자동 입력하지 않고 실제 날짜를 명시 선택한다", async ({ page }) => {
+    await page.clock.install({ time: new Date("2026-09-10T12:00:00+09:00") });
+    let createdBody: Record<string, unknown> | null = null;
+    await mockStaffApi(page, {
+      workRecords: [],
+      onWorkRecordCreate: (body) => { createdBody = body; },
+    });
+    await page.goto(`${BASE}/workspace/staff/attendance?staffId=1&year=2026&month=8`, {
+      waitUntil: "domcontentloaded",
+    });
+
+    await page.getByRole("button", { name: "추가", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "근무 기록 추가" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.locator("#work-record-date")).toContainText("날짜 선택");
+
+    await dialog.getByLabel("근무유형 *", { exact: true }).selectOption("21");
+    await dialog.getByLabel("시작 시간 *", { exact: true }).fill("14:00");
+    await dialog.getByLabel("종료 시간 *", { exact: true }).fill("18:00");
+    await dialog.getByRole("button", { name: "추가", exact: true }).click();
+    expect(createdBody).toBeNull();
+    await expect(page.getByText("날짜를 선택해 주세요.", { exact: true })).toBeVisible();
+
+    await dialog.locator("#work-record-date").click();
+    const calendar = page.getByRole("dialog", { name: "날짜 선택" });
+    await expect(calendar.getByText("2026년 08월", { exact: true })).toBeVisible();
+    await calendar.getByRole("button", { name: "9", exact: true }).click();
+    await dialog.getByRole("button", { name: "추가", exact: true }).click();
+
+    await expect.poll(() => createdBody).toEqual({
+      staff: 1,
+      work_type: 21,
+      date: "2026-08-09",
+      start_time: "14:00",
+      end_time: "18:00",
+      break_minutes: 0,
+      memo: "",
+    });
+
+    await page.goto(`${BASE}/workspace/staff/attendance?staffId=1&year=2026&month=9`, {
+      waitUntil: "domcontentloaded",
+    });
+    await page.getByRole("button", { name: "추가", exact: true }).click();
+    await expect(
+      page.getByRole("dialog", { name: "근무 기록 추가" }).locator("#work-record-date"),
+    ).toContainText("2026년 09월 10일");
+  });
+
+  test("과거 월 선결제 환급 추가도 실제 날짜를 명시 선택한다", async ({ page }) => {
+    await page.clock.install({ time: new Date("2026-09-10T12:00:00+09:00") });
+    let createdBody: Record<string, unknown> | null = null;
+    await mockStaffApi(page, {
+      expenses: [],
+      onExpenseCreate: (body) => { createdBody = body; },
+    });
+    await page.goto(`${BASE}/workspace/staff/expenses?staffId=1&year=2026&month=8`, {
+      waitUntil: "domcontentloaded",
+    });
+
+    await page.getByRole("button", { name: "추가", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "선결제 환급 추가" });
+    await expect(dialog.locator("#staff-expense-date")).toContainText("날짜 선택");
+    await dialog.getByLabel("항목 *", { exact: true }).fill("교통비");
+    await dialog.getByLabel("금액(원) *", { exact: true }).fill("5000");
+    await dialog.getByRole("button", { name: "추가", exact: true }).click();
+    expect(createdBody).toBeNull();
+    await expect(page.getByText("날짜를 선택해 주세요.", { exact: true })).toBeVisible();
+
+    await dialog.locator("#staff-expense-date").click();
+    const calendar = page.getByRole("dialog", { name: "날짜 선택" });
+    await expect(calendar.getByText("2026년 08월", { exact: true })).toBeVisible();
+    await calendar.getByRole("button", { name: "9", exact: true }).click();
+    await dialog.getByRole("button", { name: "추가", exact: true }).click();
+    await expect.poll(() => createdBody).toEqual({
+      staff: 1,
+      date: "2026-08-09",
+      title: "교통비",
+      amount: 5000,
+      memo: "",
+    });
+
+    await page.goto(`${BASE}/workspace/staff/expenses?staffId=1&year=2026&month=9`, {
+      waitUntil: "domcontentloaded",
+    });
+    await page.getByRole("button", { name: "추가", exact: true }).click();
+    await expect(
+      page.getByRole("dialog", { name: "선결제 환급 추가" }).locator("#staff-expense-date"),
+    ).toContainText("2026년 09월 10일");
   });
 
   test("개인 지출 등록을 열어도 선택한 과거 월과 기본 날짜를 유지한다", async ({ page }) => {
