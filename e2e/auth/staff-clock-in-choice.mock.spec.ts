@@ -221,11 +221,12 @@ async function installClockApp(
             : [];
         return json({ count: records.length, next: null, previous: null, results: records });
       }
-      const records: Array<Record<string, unknown>> = [
-        failures.incompleteHistory
-          ? { ...closedHistory, work_hours: null, amount: null }
-          : closedHistory,
-      ];
+      const records: Array<Record<string, unknown>> = failures.incompleteHistory
+        ? [
+            { ...closedHistory, id: 802, date: "2026-08-19", work_hours: null },
+            { ...closedHistory, id: 803, amount: null },
+          ]
+        : [closedHistory];
       if (current === "WORKING" || recordClosed) {
         records.unshift({
           ...closedHistory,
@@ -382,19 +383,29 @@ test.describe("조교 로그인 출근 선택", () => {
       .getByRole("button", { name: /출근하지 않고 로그인/ })
       .click();
 
-    const pcRow = page.getByRole("row").filter({ hasText: "8/18(화)" });
-    await expect(pcRow).toContainText("총 계산 전");
-    await expect(pcRow.getByText("계산 전", { exact: true })).toBeVisible();
-    await expect(pcRow.getByText("0원", { exact: true })).toHaveCount(0);
+    const pcHoursRow = page.getByRole("row").filter({ hasText: "8/19(수)" });
+    await expect(pcHoursRow).toContainText("총 계산 전");
+    await expect(pcHoursRow.getByText("52,000원", { exact: true })).toBeVisible();
+    const pcAmountRow = page.getByRole("row").filter({ hasText: "8/18(화)" });
+    await expect(pcAmountRow).toContainText("총 4시간");
+    await expect(pcAmountRow.getByText("계산 전", { exact: true })).toBeVisible();
+    await expect(pcAmountRow.getByText("0원", { exact: true })).toHaveCount(0);
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${BASE}/workspace/mobile/my-records`, { waitUntil: "domcontentloaded" });
-    const mobileCard = page.getByText("8/18(화) · 현장 조교", { exact: true })
+    const mobileHoursCard = page.getByText("8/19(수) · 현장 조교", { exact: true })
       .locator("..")
       .locator("..");
-    await expect(mobileCard).toContainText("계산 전");
-    await expect(mobileCard).toContainText("계산 미완료");
-    await expect(mobileCard.getByText("0원", { exact: true })).toHaveCount(0);
+    await expect(mobileHoursCard).toContainText("계산 전");
+    await expect(mobileHoursCard).toContainText("계산 미완료");
+    await expect(mobileHoursCard.getByText("52,000원", { exact: true })).toBeVisible();
+    const mobileAmountCard = page.getByText("8/18(화) · 현장 조교", { exact: true })
+      .locator("..")
+      .locator("..");
+    await expect(mobileAmountCard).toContainText("4시간");
+    await expect(mobileAmountCard).toContainText("계산 전");
+    await expect(mobileAmountCard).toContainText("계산 미완료");
+    await expect(mobileAmountCard.getByText("0원", { exact: true })).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 

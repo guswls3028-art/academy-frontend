@@ -955,13 +955,33 @@ test.describe("직원 운영 계약", () => {
         break_minutes: 0,
         meal_minutes: 0,
         work_hours: null,
-        amount: null,
+        amount: 48000,
         adjustment_amount: 0,
         resolved_hourly_wage: 12000,
         is_manually_edited: false,
         memo: "",
         created_at: "2026-08-20T09:00:00Z",
         updated_at: "2026-08-20T09:00:00Z",
+      },
+      {
+        id: 45,
+        staff: 1,
+        staff_name: "김조교",
+        work_type: 21,
+        work_type_name: "채점",
+        date: "2026-08-18",
+        start_time: "14:00",
+        end_time: "18:00",
+        break_minutes: 0,
+        meal_minutes: 0,
+        work_hours: "4.00",
+        amount: null,
+        adjustment_amount: 0,
+        resolved_hourly_wage: 12000,
+        is_manually_edited: false,
+        memo: "",
+        created_at: "2026-08-18T09:00:00Z",
+        updated_at: "2026-08-18T09:00:00Z",
       },
       {
         id: 44,
@@ -991,13 +1011,17 @@ test.describe("직원 운영 계약", () => {
     });
 
     const incompleteRow = page.getByTestId("staff-work-record-43");
+    const incompleteAmountRow = page.getByTestId("staff-work-record-45");
     const completeRow = page.getByTestId("staff-work-record-44");
     await expect(incompleteRow.getByText("계산 미완료", { exact: true })).toBeVisible();
     await expect(incompleteRow.getByText("근무 계산 전 · 적용 시급 12,000원", { exact: true })).toBeVisible();
-    await expect(page.getByText("지급 전 확인할 기록 1건", { exact: false })).toBeVisible();
+    await expect(incompleteAmountRow.getByText("계산 미완료", { exact: true })).toBeVisible();
+    await expect(incompleteAmountRow.getByText("근무 4.00시간 · 적용 시급 12,000원", { exact: true })).toBeVisible();
+    await expect(page.getByText("지급 전 확인할 기록 2건", { exact: false })).toBeVisible();
 
     await page.getByRole("button", { name: "확인 기록만", exact: true }).click();
     await expect(incompleteRow).toBeVisible();
+    await expect(incompleteAmountRow).toBeVisible();
     await expect(completeRow).toHaveCount(0);
   });
 
