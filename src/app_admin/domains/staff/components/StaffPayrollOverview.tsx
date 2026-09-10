@@ -22,6 +22,13 @@ type Props = {
 };
 
 type PayrollFilter = "all" | "review" | "closed";
+type PayrollSort = "default" | "amount-desc" | "amount-asc";
+
+type PayrollNavigationState = {
+  focusPayrollOverview?: boolean;
+  payrollOverviewStaffId?: number;
+  payrollOverviewScrollTop?: number;
+};
 
 const STATUS_LABEL: Record<PayrollOverviewStatus, string> = {
   OPEN: "정산 중",
@@ -54,6 +61,7 @@ export function StaffPayrollOverview({ year, month }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const rootRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const overviewQ = useQuery({
     queryKey: staffQueryKeys.payrollOverview(year, month),
@@ -69,12 +77,34 @@ export function StaffPayrollOverview({ year, month }: Props) {
   const filter: PayrollFilter = filterParam === "review" || filterParam === "closed"
     ? filterParam
     : "all";
+  const sortParam = searchParams.get("payrollSort");
+  const sort: PayrollSort = sortParam === "amount-desc" || sortParam === "amount-asc"
+    ? sortParam
+    : "default";
   const search = searchParams.get("payrollSearch") ?? "";
 
   useEffect(() => {
-    if (location.state?.focusPayrollOverview) {
-      headingRef.current?.focus();
-    }
+    const state = location.state as PayrollNavigationState | null;
+    if (!state?.focusPayrollOverview) return;
+    const frame = requestAnimationFrame(() => {
+      const scrollContainer = rootRef.current?.closest("main");
+      if (scrollContainer && Number.isFinite(state.payrollOverviewScrollTop)) {
+        scrollContainer.scrollTop = state.payrollOverviewScrollTop ?? 0;
+      }
+      const matchingRows = state.payrollOverviewStaffId == null
+        ? []
+        : Array.from(rootRef.current?.querySelectorAll<HTMLElement>(
+          `[data-payroll-staff-id="${state.payrollOverviewStaffId}"]`,
+        ) ?? []);
+      const row = matchingRows.find((candidate) => candidate.getClientRects().length > 0);
+      if (row) {
+        row.scrollIntoView({ block: "nearest" });
+        row.focus({ preventScroll: true });
+      } else {
+        headingRef.current?.focus({ preventScroll: true });
+      }
+    });
+    return () => cancelAnimationFrame(frame);
   }, [location.state]);
 
   const goMonth = (delta: number) => {
@@ -91,7 +121,14 @@ export function StaffPayrollOverview({ year, month }: Props) {
     next.set("staffId", String(staffId));
     next.set("year", String(year));
     next.set("month", String(month));
-    navigate(`/workspace/staff/attendance?${next.toString()}`);
+    const scrollContainer = rootRef.current?.closest("main");
+    navigate(`/workspace/staff/attendance?${next.toString()}`, {
+      state: {
+        focusStaffDetail: true,
+        payrollOverviewStaffId: staffId,
+        payrollOverviewScrollTop: scrollContainer?.scrollTop ?? 0,
+      },
+    });
   };
 
   const setFilter = (nextFilter: PayrollFilter) => {
@@ -105,6 +142,13 @@ export function StaffPayrollOverview({ year, month }: Props) {
     const next = new URLSearchParams(searchParams);
     if (value) next.set("payrollSearch", value);
     else next.delete("payrollSearch");
+    setSearchParams(next, { replace: true });
+  };
+
+  const setSort = (nextSort: PayrollSort) => {
+    const next = new URLSearchParams(searchParams);
+    if (nextSort === "default") next.delete("payrollSort");
+    else next.set("payrollSort", nextSort);
     setSearchParams(next, { replace: true });
   };
 
@@ -133,12 +177,21 @@ export function StaffPayrollOverview({ year, month }: Props) {
       ? rows.filter((row) => row.settlement_status === "CLOSED")
       : rows;
   const normalizedSearch = search.trim().toLocaleLowerCase("ko-KR");
-  const visibleRows = normalizedSearch
+  const searchedRows = normalizedSearch
     ? filterRows.filter((row) => row.name.toLocaleLowerCase("ko-KR").includes(normalizedSearch))
     : filterRows;
+  const visibleRows = searchedRows
+    .map((row, serverIndex) => ({ row, serverIndex }))
+    .sort((a, b) => {
+      if (sort === "default") return a.serverIndex - b.serverIndex;
+      const difference = a.row.reference_transfer_amount - b.row.reference_transfer_amount;
+      if (difference === 0) return a.serverIndex - b.serverIndex;
+      return sort === "amount-asc" ? difference : -difference;
+    })
+    .map(({ row }) => row);
 
   return (
-    <div className={styles.root} data-testid="staff-payroll-overview">
+    <div ref={rootRef} className={styles.root} data-testid="staff-payroll-overview">
       <header className={styles.header}>
         <div>
           <span className={styles.eyebrow}>전체 현황</span>
@@ -160,6 +213,7 @@ export function StaffPayrollOverview({ year, month }: Props) {
         <div className={styles.headlineMetric} data-testid="payroll-headline-metric">
           <span>최종 이체 참고 총액</span>
           <strong>{totals.reference_transfer_amount.toLocaleString()}<small>원</small></strong>
+          <p className={styles.summaryFormula}>공제 전 {totals.work_amount.toLocaleString()}원 − 참고 공제 {totals.reference_deduction_total.toLocaleString()}원 + 승인 환급 {totals.approved_expense_amount.toLocaleString()}원 = 이체 참고액 {totals.reference_transfer_amount.toLocaleString()}원</p>
           <p>대상 {totals.staff_count}명 · 마감 {totals.closed_count}명 · 근무 {totals.work_hours.toFixed(1)}h</p>
         </div>
         <div className={styles.headlineMetric} data-warning={reviewRows.length > 0 ? "true" : undefined} data-testid="payroll-headline-metric">
@@ -193,6 +247,14 @@ export function StaffPayrollOverview({ year, month }: Props) {
           <button type="button" aria-pressed={filter === "review"} onClick={() => setFilter("review")}>확인 필요</button>
           <button type="button" aria-pressed={filter === "closed"} onClick={() => setFilter("closed")}>마감</button>
         </div>
+        <label className={styles.sortField}>
+          <span className="sr-only">급여 직원 정렬</span>
+          <select aria-label="급여 직원 정렬" value={sort} onChange={(event) => setSort(event.target.value as PayrollSort)}>
+            <option value="default">기본순</option>
+            <option value="amount-desc">이체액 높은순</option>
+            <option value="amount-asc">이체액 낮은순</option>
+          </select>
+        </label>
         <span className={styles.resultCount}>표시 {visibleRows.length}명</span>
       </section>
 
@@ -223,7 +285,7 @@ export function StaffPayrollOverview({ year, month }: Props) {
                   return (
                     <tr key={row.staff_id} data-status={row.settlement_status}>
                       <td>
-                        <button type="button" className={styles.staffLink} onClick={() => openStaff(row.staff_id)}>
+                        <button type="button" className={styles.staffLink} data-payroll-staff-id={row.staff_id} onClick={() => openStaff(row.staff_id)}>
                           <strong>{row.name}</strong>
                           <span>{staffPositionLabel(row.position)} · {staffAccountRoleLabel(row.account_role)} · {row.is_active ? "재직" : "퇴사"}</span>
                         </button>
@@ -257,7 +319,7 @@ export function StaffPayrollOverview({ year, month }: Props) {
             {visibleRows.map((row) => {
               const issues = rowIssues(row);
               return (
-                <button key={row.staff_id} type="button" className={styles.mobileRow} onClick={() => openStaff(row.staff_id)}>
+                <button key={row.staff_id} type="button" className={styles.mobileRow} data-testid="payroll-mobile-row" data-payroll-staff-id={row.staff_id} onClick={() => openStaff(row.staff_id)}>
                   <span className={styles.mobileIdentity}>
                     <span>
                       <strong>{row.name}</strong>

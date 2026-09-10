@@ -1,6 +1,7 @@
 // PATH: src/app_admin/domains/staff/components/StaffWorkspaceHeader.tsx
 // Persistent header when a staff is selected: name, role, pay type, wage tag, month selector, KPI chips
 
+import { useEffect, useRef } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useStaffs } from "../hooks/useStaffs";
@@ -34,6 +35,7 @@ export function StaffWorkspaceHeader({ staffId, year, month }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const headerRef = useRef<HTMLDivElement>(null);
   const { data: staffData } = useStaffs();
   const staffs = staffData?.staffs ?? [];
   const staff = staffs.find((s) => s.id === staffId);
@@ -51,6 +53,15 @@ export function StaffWorkspaceHeader({ staffId, year, month }: Props) {
   const allowance = s ? Number(s.expense_amount) || 0 : 0;
   const settlementTotal = s ? Number(s.total_amount) || basePay + allowance : 0;
   const isLoading = summaryQ.isLoading;
+
+  useEffect(() => {
+    if (!location.state?.focusStaffDetail) return;
+    const frame = requestAnimationFrame(() => {
+      headerRef.current?.scrollIntoView({ block: "start" });
+      headerRef.current?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [location.state, staffId]);
 
   const goMonth = (delta: number) => {
     const d = new Date(year, month - 1 + delta);
@@ -71,14 +82,25 @@ export function StaffWorkspaceHeader({ staffId, year, month }: Props) {
         pathname: "/workspace/staff/attendance",
         search: `?${next.toString()}`,
       },
-      { state: { focusPayrollOverview: true } },
+      {
+        state: {
+          focusPayrollOverview: true,
+          payrollOverviewStaffId: location.state?.payrollOverviewStaffId ?? staffId,
+          payrollOverviewScrollTop: location.state?.payrollOverviewScrollTop,
+        },
+      },
     );
   };
 
   const primaryWageTag = staff?.staff_work_types?.[0];
 
   return (
-    <div className="staff-panel__header flex flex-wrap items-center justify-between gap-4 border-b border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-border-divider)_4%,var(--color-bg-surface))]">
+    <div
+      ref={headerRef}
+      tabIndex={-1}
+      data-testid="staff-workspace-detail-header"
+      className="staff-panel__header flex flex-wrap items-center justify-between gap-4 border-b border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-border-divider)_4%,var(--color-bg-surface))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--color-border-focus)]"
+    >
       <div className="flex items-center gap-3 flex-wrap">
         <Button
           intent="ghost"

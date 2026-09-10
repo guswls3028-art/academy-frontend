@@ -112,6 +112,12 @@
   line-height: 1.45;
 }
 
+.headlineMetric .summaryFormula {
+  color: var(--color-text-secondary);
+  font-weight: 680;
+  font-variant-numeric: tabular-nums;
+}
+
 .attention {
   display: flex;
   align-items: center;
@@ -140,7 +146,7 @@
   display: flex;
   align-items: center;
   width: min(280px, 100%);
-  min-height: 38px;
+  min-height: 40px;
   gap: 7px;
   padding: 0 10px;
   border: 1px solid var(--color-border-divider);
@@ -166,6 +172,30 @@
   font-size: 12px;
 }
 
+.sortField {
+  flex: 0 0 156px;
+  min-width: 0;
+}
+
+.sortField select {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 28px 0 10px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 7px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.sortField select:focus-visible {
+  border-color: var(--color-border-focus);
+  outline: 3px solid color-mix(in srgb, var(--color-border-focus) 32%, transparent);
+  outline-offset: 1px;
+}
+
 .segmented {
   display: grid;
   grid-template-columns: repeat(3, minmax(74px, 1fr));
@@ -176,7 +206,7 @@
 }
 
 .segmented button {
-  min-height: 32px;
+  min-height: 40px;
   padding: 5px 10px;
   border: 0;
   border-radius: 5px;
@@ -234,7 +264,7 @@
   border-radius: 3px;
   background: color-mix(in srgb, var(--work-color, var(--color-brand-primary)) 6%, var(--color-bg-surface));
   color: var(--color-text-secondary);
-  font-size: 10px;
+  font-size: 11px;
   white-space: nowrap;
 }
 
@@ -263,7 +293,7 @@
 .waterfallStep > span,
 .waterfallStep small {
   color: var(--color-text-muted);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.35;
 }
 
@@ -289,7 +319,7 @@
   margin: 0;
   padding: 9px 12px;
   color: var(--color-text-muted);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.45;
 }
 
@@ -360,7 +390,7 @@
   display: block;
   margin-top: 3px;
   color: var(--color-text-muted);
-  font-size: 10.5px;
+  font-size: 11px;
 }
 
 .issueText,
@@ -408,7 +438,7 @@
 
   .headlineMetric > span { font-size: 10.5px; }
   .headlineMetric > strong { font-size: clamp(18px, 5.1vw, 23px); }
-  .headlineMetric p { font-size: 9px; }
+  .headlineMetric p { font-size: 11px; }
 
   .attention {
     align-items: flex-start;
@@ -424,8 +454,12 @@
   .searchField { width: 100%; }
 
   .segmented {
-    flex: 1 1 260px;
+    flex: 1 1 180px;
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .sortField {
+    flex: 0 1 115px;
   }
 
   .resultCount {
@@ -482,7 +516,7 @@
   .mobileMeta small {
     display: block;
     color: var(--color-text-muted);
-    font-size: 9.5px;
+    font-size: 11px;
   }
 
   .mobileAmount {
@@ -541,7 +575,7 @@
 
   .mobileMeta em {
     color: var(--color-warning-strong, #9a5a13);
-    font-size: 9px;
+    font-size: 11px;
     font-style: normal;
   }
 
