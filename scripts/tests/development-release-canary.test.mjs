@@ -75,6 +75,17 @@ test("development canary seals required-student two-slot self-cancellation and m
   assert.match(spec, /send_to:\s*"both"/);
   assert.match(spec, /expect\(cancelledRows\)\.toHaveLength\(2\)/);
   assert.match(spec, /expect\(deliveryRows\)\.toHaveLength\(2\)/);
+  const chipLabel = spec.match(/chip_label:\s*"([^"]+)"/)?.[1] ?? "";
+  assert.ok(chipLabel.length > 0 && [...chipLabel].length <= 2, "clinic chip_label must satisfy backend max_length=2");
+  for (const createPath of [
+    "/lectures/lectures/",
+    "/lectures/sessions/",
+    "/enrollments/session-enrollments/bulk_create/",
+    "/clinic/sessions/",
+  ]) {
+    const escapedPath = createPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    assert.match(spec, new RegExp(`${escapedPath}.*?\\}, \\[201\\]\\);`, "s"));
+  }
 });
 
 test("student-parent real-use awaits and dismisses the actual initial-account prompts", () => {
@@ -103,6 +114,33 @@ test("long-video proof propagates strict context teardown failures", () => {
   assert.match(source, /await Promise\.all\(runs\.map\(\(\{ context \}\) => context\.close\(\)\)\)/);
   assert.match(source, /const bootstrap = state\.bootstraps\.at\(-1\);/);
   assert.doesNotMatch(source, /const bootstrap = state\.bootstraps\[0\];/);
+});
+
+test("long-video proof serializes the reload and exit burst after concurrent playback", async () => {
+  const source = readFileSync(new URL("../../e2e/student/video-playback-renewal.realuse.spec.ts", import.meta.url), "utf8");
+  const gateSource = readFileSync(new URL("../../e2e/helpers/serialProofGate.ts", import.meta.url), "utf8");
+  const gateModule = await import(
+    `data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(gateSource)).toString("base64")}`
+  );
+  assert.match(source, /import \{ createSerialProofGate \} from "\.\.\/helpers\/serialProofGate"/);
+  assert.doesNotMatch(source, /function createSerialProofGate/);
+  assert.match(source, /const runReloadProof = createSerialProofGate\(\);/);
+  assert.match(source, /await runReloadProof\(async \(\) => \{/);
+  assert.match(source, /await page\.waitForLoadState\("networkidle", \{ timeout: 10_000 \}\);\s*await page\.reload/s);
+  assert.match(source, /finishStudent\(page, state, videoId, hlsPath, runReloadProof\)/);
+
+  const events = [];
+  const gate = gateModule.createSerialProofGate();
+  const first = gate(async () => {
+    events.push("first-start");
+    throw new Error("first-failure");
+  });
+  const second = gate(async () => {
+    events.push("second-start");
+  });
+  const outcomes = await Promise.allSettled([first, second]);
+  assert.deepEqual(events, ["first-start"]);
+  assert.deepEqual(outcomes.map((outcome) => outcome.status), ["rejected", "rejected"]);
 });
 
 test("each run has an independent non-published ownership capability", () => {
@@ -166,6 +204,7 @@ test("preflight writes an inert envelope before checks and marks only reviewed p
     documentSha256: {},
     cleanup: null,
     operationObservation: null,
+    cleanupObservation: null,
     inspectObservation: null,
     realUseObservation: null,
     realUseProcessObservation: null,
@@ -443,15 +482,26 @@ test("long-video response capture failures are explicitly joined instead of beco
   );
 });
 
-test("real-use failure observation publishes only allowlisted counts, files, and boundary codes", () => {
+test("real-use failure observation publishes only allowlisted endpoint templates, status, and boundary codes", () => {
   const report = completeFlowReport();
   const failed = report.suites[0].specs[0].tests[0];
   failed.status = "unexpected";
   failed.results[0] = {
     status: "failed",
     errors: [{
-      message: "Release request rejected [tenant] secret-token student-name",
+      message: "Release request rejected [tenant] GET /api/v1/student/video/sessions/123/videos/ secret-token student-name",
       location: { file: "C:/secret/qaStudentParentScenario.ts", line: 122, column: 9 },
+    }, {
+      message: "POST /students/bulk_permanent_delete/?ids=secret-token returned 409: student-name",
+      location: { file: "C:/secret/qaStudentParentScenario.ts", line: 136, column: 5 },
+    }, {
+      message: "GET /api/v1/parents/by-login/qaStudentName123/ returned 404: student-name",
+    }, {
+      message: "GET /api/v1/files/018f8e2a-7abc-7def-8123-0123456789ab/ returned 404: uuid-v7",
+    }, {
+      message: "GET /api/v1/files/01JQ3Z7VB8J7MQ19AY7WQ4F8NN/ returned 404: ulid",
+    }, {
+      message: "GET /api/v1/r2/tenantAlpha/objectHashABC123/ returned 404: object-key",
     }],
     stdout: [{ text: `${JSON.stringify({ releaseApiMode: "development", transport: {
       readFetchRetries: 1, suppressedAnalyticsBatches: 2,
@@ -470,8 +520,28 @@ test("real-use failure observation publishes only allowlisted counts, files, and
       sourceFile: "qaStudentParentScenario.ts",
       line: 122,
       column: 9,
+    }, {
+      specFile: "notice-roundtrip.spec.ts",
+      sourceFile: "qaStudentParentScenario.ts",
+      line: 136,
+      column: 5,
     }],
     boundaryCodes: ["cors", "tenant"],
+    failureDiagnostics: [{
+      code: "api-status",
+      boundaryCode: null,
+      method: "POST",
+      pathTemplate: "/students/bulk_permanent_delete/",
+      queryKeys: ["ids"],
+      status: 409,
+    }, {
+      code: "boundary",
+      boundaryCode: "tenant",
+      method: "GET",
+      pathTemplate: "/api/v1/student/video/sessions/:id/videos/",
+      queryKeys: [],
+      status: null,
+    }],
     runnerErrorCount: 1,
     readFetchRetries: 1,
     suppressedAnalyticsBatches: 2,
@@ -484,11 +554,14 @@ test("real-use failure observation publishes only allowlisted counts, files, and
     longVideoCheckpoint: { desktop: null, mobile: null },
   });
   const published = JSON.stringify(observeReleaseTestResult(JSON.stringify(report)));
-  assert.doesNotMatch(published, /secret-token|student-name|C:\/secret\/path/);
+  assert.doesNotMatch(
+    published,
+    /secret-token|student-name|C:\/secret\/path|qaStudentName123|018f8e2a-7abc-7def-8123-0123456789ab|01JQ3Z7VB8J7MQ19AY7WQ4F8NN|tenantAlpha|objectHashABC123/,
+  );
   assert.deepEqual(observeReleaseTestResult("not-json secret-token"), {
     reportStatus: "unparsed",
     stats: { expected: null, skipped: null, unexpected: null, flaky: null },
-    failedFiles: [], failureLocations: [], boundaryCodes: [], runnerErrorCount: null,
+    failedFiles: [], failureLocations: [], boundaryCodes: [], failureDiagnostics: [], runnerErrorCount: null,
     readFetchRetries: null, suppressedAnalyticsBatches: null,
     suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
     longVideo: null,

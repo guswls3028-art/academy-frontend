@@ -7,6 +7,8 @@ import {
   type Response,
 } from "../fixtures/strictTest";
 import { dismissDevelopmentFirstLoginGuide, getApiBaseUrl, getBaseUrl } from "../helpers/auth";
+import { createSerialProofGate } from "../helpers/serialProofGate";
+import type { SerialProofGate } from "../helpers/serialProofGate";
 import { installSyntheticVideoPosterBridge } from "../helpers/syntheticVideoPosterBridge";
 import { classifyVideoPlaybackResponse } from "../helpers/videoPlaybackResponseKind";
 
@@ -592,6 +594,7 @@ async function finishStudent(
   state: StudentObservation,
   videoId: number,
   hlsPath: string,
+  runReloadProof: SerialProofGate,
 ): Promise<void> {
   const initial = state.bootstraps[0];
   assertBootstrapPayload(initial);
@@ -673,58 +676,61 @@ async function finishStudent(
   state.playbackSeconds = Math.floor(await video.evaluate((element) => (element as HTMLVideoElement).currentTime));
   state.wallSeconds = Math.floor((Date.now() - state.startedAt) / 1_000);
 
-  expect(state.sessionPosterCaptureCount).toBe(1);
-  const bootstrapsBeforeReload = state.bootstraps.length;
-  const sessionPosterCapturesBeforeReload = state.sessionPosterCaptureCount;
-  await page.reload({ waitUntil: "domcontentloaded", timeout: 45_000 });
-  await expect.poll(() => state.bootstraps.length).toBe(bootstrapsBeforeReload + 1);
-  emitLongVideoCheckpoint(state.viewport, "reload-bootstrap");
-  await expect.poll(() => state.sessionPosterCaptureCount).toBeGreaterThan(sessionPosterCapturesBeforeReload);
-  expect(state.sessionPosterCaptureCount).toBe(2);
-  emitLongVideoCheckpoint(state.viewport, "reload-playlist");
-  const reloadedBootstrap = state.bootstraps.at(-1)!;
-  const apiPosition = Number(reloadedBootstrap.video?.last_position);
-  expect(Number.isFinite(apiPosition)).toBe(true);
-  expect(Math.abs(apiPosition - persistedPosition)).toBeLessThanOrEqual(2);
-  const reloadedVideo = page.locator("video.svpVideo");
-  await expect(reloadedVideo).toHaveCount(1);
-  await expect.poll(() => reloadedVideo.evaluate((element) => Number((element as HTMLVideoElement).duration))).toBe(900);
-  emitLongVideoCheckpoint(state.viewport, "reload-metadata");
-  await expect.poll(
-    () => reloadedVideo.evaluate((element) => (element as HTMLVideoElement).currentTime),
-  ).toBeGreaterThanOrEqual(persistedPosition - 2);
-  const resumedPosition = await reloadedVideo.evaluate((element) => (element as HTMLVideoElement).currentTime);
-  state.reloadDriftSeconds = Math.round(Math.abs(resumedPosition - persistedPosition));
-  state.progressPersisted = state.reloadDriftSeconds <= 2;
-  expect(state.progressPersisted).toBe(true);
-  emitLongVideoCheckpoint(state.viewport, "reload-progress");
+  await runReloadProof(async () => {
+    expect(state.sessionPosterCaptureCount).toBe(1);
+    const bootstrapsBeforeReload = state.bootstraps.length;
+    const sessionPosterCapturesBeforeReload = state.sessionPosterCaptureCount;
+    await page.waitForLoadState("networkidle", { timeout: 10_000 });
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 45_000 });
+    await expect.poll(() => state.bootstraps.length).toBe(bootstrapsBeforeReload + 1);
+    emitLongVideoCheckpoint(state.viewport, "reload-bootstrap");
+    await expect.poll(() => state.sessionPosterCaptureCount).toBeGreaterThan(sessionPosterCapturesBeforeReload);
+    expect(state.sessionPosterCaptureCount).toBe(2);
+    emitLongVideoCheckpoint(state.viewport, "reload-playlist");
+    const reloadedBootstrap = state.bootstraps.at(-1)!;
+    const apiPosition = Number(reloadedBootstrap.video?.last_position);
+    expect(Number.isFinite(apiPosition)).toBe(true);
+    expect(Math.abs(apiPosition - persistedPosition)).toBeLessThanOrEqual(2);
+    const reloadedVideo = page.locator("video.svpVideo");
+    await expect(reloadedVideo).toHaveCount(1);
+    await expect.poll(() => reloadedVideo.evaluate((element) => Number((element as HTMLVideoElement).duration))).toBe(900);
+    emitLongVideoCheckpoint(state.viewport, "reload-metadata");
+    await expect.poll(
+      () => reloadedVideo.evaluate((element) => (element as HTMLVideoElement).currentTime),
+    ).toBeGreaterThanOrEqual(persistedPosition - 2);
+    const resumedPosition = await reloadedVideo.evaluate((element) => (element as HTMLVideoElement).currentTime);
+    state.reloadDriftSeconds = Math.round(Math.abs(resumedPosition - persistedPosition));
+    state.progressPersisted = state.reloadDriftSeconds <= 2;
+    expect(state.progressPersisted).toBe(true);
+    emitLongVideoCheckpoint(state.viewport, "reload-progress");
 
-  const overflow = await page.evaluate(() => Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth));
-  state.horizontalOverflowCount += overflow > 1 ? 1 : 0;
-  expect(overflow).toBeLessThanOrEqual(1);
-  expect(state.consoleErrorCount).toBe(0);
-  expect(state.pageErrorCount).toBe(0);
-  expect(state.requestErrorCount).toBe(0);
+    const overflow = await page.evaluate(() => Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth));
+    state.horizontalOverflowCount += overflow > 1 ? 1 : 0;
+    expect(overflow).toBeLessThanOrEqual(1);
+    expect(state.consoleErrorCount).toBe(0);
+    expect(state.pageErrorCount).toBe(0);
+    expect(state.requestErrorCount).toBe(0);
 
-  const endCount = await page.locator('a[href="/student/video"]').count();
-  expect(endCount).toBeGreaterThan(0);
-  const homePosterCapturesBeforeExit = state.homePosterCaptureCount;
-  const endResponse = page.waitForResponse((response) =>
-    new URL(response.url()).pathname === "/api/v1/media/playback/end/" && response.status() < 300,
-  { timeout: 10_000 });
-  await page.locator('a[href="/student/video"]').first().evaluate((element) => (element as HTMLElement).click());
-  await endResponse;
-  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
-  await state.responseChain;
-  if (state.responseError) throw state.responseError;
-  expect(state.homePosterCaptureCount).toBeGreaterThan(homePosterCapturesBeforeExit);
-  expect(state.requestErrorCount).toBe(0);
-  expect(state.bootstraps).toHaveLength(2);
-  expect(state.renewals).toHaveLength(1);
-  expect(state.allowedMasterUrls.size).toBe(2);
-  expect([...state.allowedMasterUrls].every((url) => new URL(url).pathname === `/${hlsPath}`)).toBe(true);
-  expect(state.allowedPosterUrls.size).toBeGreaterThanOrEqual(1);
-  emitLongVideoCheckpoint(state.viewport, "completed");
+    const endCount = await page.locator('a[href="/student/video"]').count();
+    expect(endCount).toBeGreaterThan(0);
+    const homePosterCapturesBeforeExit = state.homePosterCaptureCount;
+    const endResponse = page.waitForResponse((response) =>
+      new URL(response.url()).pathname === "/api/v1/media/playback/end/" && response.status() < 300,
+    { timeout: 10_000 });
+    await page.locator('a[href="/student/video"]').first().evaluate((element) => (element as HTMLElement).click());
+    await endResponse;
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+    await state.responseChain;
+    if (state.responseError) throw state.responseError;
+    expect(state.homePosterCaptureCount).toBeGreaterThan(homePosterCapturesBeforeExit);
+    expect(state.requestErrorCount).toBe(0);
+    expect(state.bootstraps).toHaveLength(2);
+    expect(state.renewals).toHaveLength(1);
+    expect(state.allowedMasterUrls.size).toBe(2);
+    expect([...state.allowedMasterUrls].every((url) => new URL(url).pathname === `/${hlsPath}`)).toBe(true);
+    expect(state.allowedPosterUrls.size).toBeGreaterThanOrEqual(1);
+    emitLongVideoCheckpoint(state.viewport, "completed");
+  });
 }
 
 test("two students play through renewal and persist progress without interruption", async ({ browser }) => {
@@ -746,8 +752,13 @@ test("two students play through renewal and persist progress without interruptio
     prepareStudent(browser, { width: 390, height: 844 }, "mobile", student2, password2,
       tenantCode, tenantId, videoId, hlsPath, baseUrl),
   ]);
+  const runReloadProof = createSerialProofGate();
   try {
-    await Promise.all(runs.map(({ page, state }) => finishStudent(page, state, videoId, hlsPath)));
+    const outcomes = await Promise.allSettled(runs.map(({ page, state }) => (
+      finishStudent(page, state, videoId, hlsPath, runReloadProof)
+    )));
+    const failure = outcomes.find((outcome): outcome is PromiseRejectedResult => outcome.status === "rejected");
+    if (failure) throw failure.reason;
   } catch (error) {
     console.log(JSON.stringify({ longVideoFailure: {
       schema: "student-video-renewal-failure/v1",

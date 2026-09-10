@@ -54,12 +54,11 @@ export default function ParentChildSwitcher() {
       isStudentScopedQueryKey(query.queryKey);
     setSwitchingId(id);
     void (async () => {
-      /* 이전 자녀 요청을 먼저 취소한 다음 X-Student-Id를 바꾼다. 활성 화면은 새
-       * 자녀로 다시 채우고, 비활성 캐시는 제거해 전환 경합/혼합 노출을 막는다. */
+      /* 이전 자녀 요청을 먼저 취소하고 캐시에서 제거한다. resetQueries는 이전
+       * 화면의 queryFn을 다시 실행해 바뀐 전역 헤더와 섞을 수 있으므로 쓰지 않는다. */
       await qc.cancelQueries({ predicate: studentScopePredicate });
+      qc.removeQueries({ predicate: studentScopePredicate });
       setParentStudentId(id);
-      await qc.resetQueries({ predicate: studentScopePredicate });
-      qc.removeQueries({ predicate: studentScopePredicate, type: "inactive" });
       setCurrentId(id);
       navigate("/student/dashboard");
     })().finally(() => setSwitchingId(null));

@@ -20,6 +20,8 @@ export interface DatePickerProps {
   minDate?: string;
   /** true면 드롭다운을 트리거 아래로만 열림 (예: 클리닉 생성) */
   openBelow?: boolean;
+  /** 값이 비어 있을 때 처음 보여 줄 달을 정하는 YYYY-MM-DD 기준일. */
+  defaultViewDate?: string;
   id?: string;
   "data-testid"?: string;
 }
@@ -41,11 +43,14 @@ export default function DatePicker({
   disabled = false,
   minDate,
   openBelow = false,
+  defaultViewDate,
   id,
   "data-testid": dataTestId,
 }: DatePickerProps) {
   const [open, setOpen] = useState(false);
-  const [viewMonth, setViewMonth] = useState<Dayjs>(() => toDayjs(value) || dayjs());
+  const [viewMonth, setViewMonth] = useState<Dayjs>(
+    () => toDayjs(value) || toDayjs(defaultViewDate ?? "") || dayjs(),
+  );
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -56,8 +61,13 @@ export default function DatePicker({
   // value가 바뀌면 viewMonth 동기화
   useEffect(() => {
     const v = toDayjs(value);
-    if (v) setViewMonth(v);
-  }, [value]);
+    if (v) {
+      setViewMonth(v);
+      return;
+    }
+    const fallback = toDayjs(defaultViewDate ?? "");
+    if (fallback) setViewMonth(fallback);
+  }, [defaultViewDate, value]);
 
   // SSOT floating position — portal 모드만 사용 (inline은 부모 anchor)
   const dropdownStyle = useFloatingPosition(triggerRef, dropdownRef, open && !openBelow, {

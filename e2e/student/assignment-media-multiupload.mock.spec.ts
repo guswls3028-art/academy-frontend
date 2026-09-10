@@ -68,8 +68,10 @@ async function installApi(
   const failedClientIds = new Set<string>();
   const uploadClientIds: string[] = [];
   const studentScopedHeaders: Array<string | undefined> = [];
+  const activityRequests: string[] = [];
   let uploadAttempts = 0;
   let mediaReadCount = 0;
+  let homeworkActivityRequests = 0;
   let currentHomeworkOverrides = homeworkOverrides;
 
   await page.addInitScript((jwt) => {
@@ -218,9 +220,19 @@ async function installApi(
       else files.push(payload);
       return json(payload, 201);
     }
-    if (path.endsWith("/student/me/activity/homework-open/")) {
+    if (path.endsWith("/students/me/activity/homework-open/")) {
+      activityRequests.push(path);
+      homeworkActivityRequests += 1;
       studentScopedHeaders.push(request.headers()["x-student-id"]);
-      return json({ ok: true });
+      return viewer === "parent"
+        ? json({ detail: "기록할 수 없는 학생 활동입니다." }, 403)
+        : json({ accepted: true }, 202);
+    }
+    if (path.endsWith("/students/me/activity/")) {
+      activityRequests.push(path);
+      return viewer === "parent"
+        ? json({ detail: "기록할 수 없는 학생 활동입니다." }, 403)
+        : json({ accepted: true }, 202);
     }
     return json({ count: 0, results: [] });
   });
@@ -230,6 +242,8 @@ async function installApi(
     getUploadAttempts: () => uploadAttempts,
     getUploadClientIds: () => [...uploadClientIds],
     getStudentScopedHeaders: () => [...studentScopedHeaders],
+    getHomeworkActivityRequests: () => homeworkActivityRequests,
+    getActivityRequests: () => [...activityRequests],
   };
 }
 
@@ -240,6 +254,9 @@ test("학부모가 선택 자녀의 과제를 제출하고 새로고침 뒤에�
 
   await expect(page.getByText("학부모 계정은 직접 제출할 수 없습니다.")).toHaveCount(0);
   await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await page.waitForLoadState("networkidle");
+  expect(state.getHomeworkActivityRequests()).toBe(0);
+  expect(state.getActivityRequests()).toEqual([]);
   await page.locator('input[type="file"]').setInputFiles({
     name: "학부모-대리제출.png",
     mimeType: "image/png",
@@ -416,6 +433,11 @@ test("390px에서 사진·동영상을 다건 선택하고 부분 실패만 재�
   const state = await installApi(page);
   await page.goto(`${BASE}/student/submit/assignment`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
+  await expect.poll(() => state.getHomeworkActivityRequests()).toBe(1);
+  await expect.poll(() => state.getActivityRequests()).toEqual([
+    "/api/v1/students/me/activity/",
+    "/api/v1/students/me/activity/homework-open/",
+  ]);
 
   await expect(page.getByText("기존 제출.jpg", { exact: true })).toBeVisible();
   await page.locator('input[type="file"]').setInputFiles([

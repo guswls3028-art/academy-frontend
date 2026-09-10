@@ -74,7 +74,7 @@ export default function ProductAnalyticsProvider({
     // VideoPlayerPage owns this audit after playback bootstrap resolves so
     // direct entitlements never create student activity history.
     if (location.pathname === "/student/video/play") return;
-    void recordStudentScreenView(location.pathname);
+    void recordStudentScreenView(location.pathname, user.tenantRole);
   }, [location.pathname, route?.surface, user?.tenantRole]);
 
   useEffect(() => {

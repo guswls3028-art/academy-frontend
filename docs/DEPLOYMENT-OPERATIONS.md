@@ -278,9 +278,11 @@ Playwright가 failure snapshot 수집 자체를 중단한 경우에도 원문 �
 장시간 재생 결과에 한해 `test-timeout`, `fixture-timeout`, `context-closed`, `page-crashed`,
 `playback-below-690`, `poll-timeout`, `video-evaluate-failed`, `route-handler-failed` 중
 일치하는 고정 코드만 artifact에 남긴다. 코드가 없거나 여러 개여도 성공으로 간주하지 않는다.
-장시간 재생 중 response 관측 작업은 하나의 chain으로 직렬화하고 그 실패 promise를 재생
-완료 대기와 명시적으로 join한다. listener의 비동기 실패가 unhandled rejection으로 worker를
-종료시키거나 성공 증거에서 빠지는 것을 허용하지 않는다.
+장시간 재생 중 response 관측 작업은 하나의 poison-aware chain으로 직렬화한다. 첫 관측이
+실패하면 뒤에 대기 중인 관측은 새 작업을 시작하지 않고 같은 최초 실패로 거부한다. 모든
+예약 promise는 `allSettled`로 join해 in-flight 0을 만든 뒤 최초 실패를 다시 던진다.
+listener의 비동기 실패가 unhandled rejection으로 worker를 종료시키거나 성공 증거에서
+빠지는 것을 허용하지 않는다.
 재생 시작은 이미 재생 중인 정상 상태를 중복 클릭하지 않고, 일시정지 상태에서는 화면의
 실제 중앙 재생 버튼이 보이고 클릭되어 재생 상태로 전환되는 과정까지 확인한다.
 1366×768과 390×844 두 Chromium context는 동시에 690초 이상 실제
@@ -339,8 +341,14 @@ filename을 정규화한 모든 변경 파일이 byte-equal이면 제품 의미�
 간주하지 않고 차이를 열거한 뒤 중단한다.
 operation exit/JSON/status와 Inspect 네 비교의 PII-free 관측은 기존 exit 0, 단일 JSON,
 허용 status, exact identity assertion을 대체하거나 완화하지 않는다. primary 작업 실패 후
-Cleanup 결과가 기존 primary operation 관측을 덮어쓰지 않는다. 원문 capability는
-Playwright env, evidence, stdout에 넣지 않는다.
+Cleanup 결과는 별도 `cleanupObservation`에 exit/status/error type만 남기며 기존 primary
+operation 관측을 덮어쓰지 않는다. Playwright 실패는 고정 endpoint 또는 검토된 동적
+endpoint shape allowlist와 일치한 API 경로 템플릿, HTTP method/status와 allowlist boundary
+code만 `failureDiagnostics`에 남긴다. query 값, 응답 본문, 사용자명, token과 원문
+capability는 evidence나 stdout에 넣지 않는다. 알 수 없는 shape는 전체 폐기하며 UUIDv7,
+ULID, tenant slug와 object key를 일반 치환 문자열로 남기지 않는다. query도 허용된 키
+이름만 남기고 값은 모두 버린다. 이 진단은
+실패를 성공으로 바꾸거나 cleanup0 및 positive journey 조건을 완화하지 않는다.
 
 로컬 child 제한은 QA operation 240초, tunnel 25분, tests 20분이다. timeout은 TERM 후
 5초 뒤 KILL로 강제 종료하고 reap한다(Linux는 소유 process group). AWS metadata CLI도
@@ -372,6 +380,8 @@ GitHub Ubuntu 24.04 이미지의 기존 AWS CLI/Session Manager plugin을 재사
 학생 본인과 학부모 선택 자녀의 계정, 온라인 시험·과제 제출, 영상 진도,
 클리닉 예약·취소와 질문·상담도 같은 배포 artifact의 개발 카나리에서 실행한다.
 각 흐름은 저장 성공, reload/relogin 지속 상태와 해당 교사·학생 후속 투영을 확인한다.
+장시간 영상의 두 학생 재생·갱신은 병렬로 유지하되, 단일 SSM loopback에 새로고침과
+목록 복귀 요청이 동시에 몰리지 않도록 마지막 reload·진도 복원·종료 증명만 직렬화한다.
 다른 자녀/tenant 접근 거부는 backend 계약과 함께 검증한다. 실제 메시지 provider는
 호출하지 않고 개발용 durable outbox 접수·재시도 상태만 확인한다.
 실제 frontend IAM role/document 적용과 19 PASS/0 SKIP/cleanup0 증거가 모두 있어야

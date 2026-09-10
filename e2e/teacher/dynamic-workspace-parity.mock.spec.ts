@@ -28,6 +28,7 @@ type MockOptions = {
   examSessionIds?: number[];
   sessionOverrides?: Record<number, Record<string, unknown>>;
   communityPosts?: Array<Record<string, unknown>>;
+  onWorkRecordCreate?: (body: Record<string, unknown>) => void;
 };
 
 async function installWorkspaceMocks(page: Page, options: MockOptions = {}) {
@@ -49,6 +50,11 @@ async function installWorkspaceMocks(page: Page, options: MockOptions = {}) {
     const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
     apiRequests.push({ method: request.method(), path });
 
+    if (path === "/staffs/work-records/" && request.method() === "POST") {
+      const body = request.postDataJSON() as Record<string, unknown>;
+      options.onWorkRecordCreate?.(body);
+      return json(route, { id: 91, staff_name: "모바일 조교", work_type_name: "채점", ...body });
+    }
     if (request.method() !== "GET") {
       return json(route, { detail: "read-only parity test" });
     }
@@ -82,6 +88,29 @@ async function installWorkspaceMocks(page: Page, options: MockOptions = {}) {
         is_payroll_manager: role !== "teacher",
         staff_id: userId + 100,
         assigned_work_types: [],
+      });
+    }
+    if (path === "/staffs/8/") {
+      return json(route, {
+        id: 8,
+        name: "모바일 조교",
+        role: "ASSISTANT",
+        is_active: true,
+        pay_type: "HOURLY",
+      });
+    }
+    if (path === "/staffs/work-month-locks/") {
+      return json(route, { count: 0, next: null, previous: null, results: [] });
+    }
+    if (path === "/staffs/work-records/") {
+      return json(route, { count: 0, next: null, previous: null, results: [] });
+    }
+    if (path === "/staffs/work-types/") {
+      return json(route, {
+        count: 1,
+        next: null,
+        previous: null,
+        results: [{ id: 21, name: "채점", base_hourly_wage: 12000, is_active: true }],
       });
     }
     if (path === "/students/41/") {
@@ -209,6 +238,51 @@ test("동적 모바일 경로는 현재 executable canonical route만 가리킨�
   expect(adminRouter).toContain('path="sessions/:sessionId/:workflow"');
   expect(adminRouter).toContain('path="exams/:examId"');
   expect(teacherRouter).toContain('<RoleGuard allow={["owner", "admin"]}><StaffDetailPage /></RoleGuard>');
+});
+
+test("모바일 직원 근태도 과거 월 날짜를 추측하지 않고 현재 월만 오늘을 기본값으로 쓴다", async ({ page }) => {
+  await page.clock.install({ time: new Date("2026-09-10T12:00:00+09:00") });
+  let createdBody: Record<string, unknown> | null = null;
+  await installWorkspaceMocks(page, {
+    role: "owner",
+    userId: 1,
+    onWorkRecordCreate: (body) => { createdBody = body; },
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoAndSettle(page, `${BASE}/workspace/mobile/staff/8`, { timeout: 20_000 });
+
+  const month = page.locator('input[type="month"]');
+  await month.fill("2026-08");
+  await page.getByRole("button", { name: "근태 추가", exact: true }).click();
+  const date = page.locator('input[type="date"]').last();
+  await expect(date).toHaveValue("");
+  await page.getByRole("button", { name: "등록", exact: true }).click();
+  expect(createdBody).toBeNull();
+  await expect(page.getByText("날짜를 선택해 주세요.", { exact: true })).toBeVisible();
+
+  await date.fill("2026-08-09");
+  await page.getByRole("button", { name: "등록", exact: true }).click();
+  await expect.poll(() => createdBody).toEqual({
+    staff: 8,
+    date: "2026-08-09",
+    start_time: "09:00",
+    end_time: "18:00",
+    break_minutes: 0,
+    work_type: 21,
+    memo: undefined,
+  });
+
+  await month.fill("2026-09");
+  await page.getByRole("button", { name: "근태 추가", exact: true }).click();
+  await expect(page.locator('input[type="date"]').last()).toHaveValue("2026-09-10");
+  await page
+    .getByRole("dialog", { name: "근태 등록" })
+    .getByRole("button", { name: "닫기" })
+    .click();
+
+  await month.fill("2026-10");
+  await page.getByRole("button", { name: "근태 추가", exact: true }).click();
+  await expect(page.locator('input[type="date"]').last()).toHaveValue("");
 });
 
 test("390px 선생님은 학생 상세를 PC canonical로 열고 같은 모바일 상세로 한 번만 돌아온다", async ({ page }) => {

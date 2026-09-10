@@ -3,7 +3,10 @@
  */
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchStorageQuota } from "@/shared/api/contracts/storage";
+import {
+  fetchSelectedStudentStorageQuota,
+  fetchStorageQuota,
+} from "@/shared/api/contracts/storage";
 import { StatCard, StatGrid } from "@student/shared/ui/components/StatCard";
 import ProgressRing from "@student/shared/ui/components/ProgressRing";
 import EmptyState from "@student/layout/EmptyState";
@@ -15,6 +18,7 @@ import styles from "./InventoryStatsTab.module.css";
 type Props = {
   files: InventoryFile[];
   folders: InventoryFolder[];
+  selectedStudentId?: number;
 };
 
 type FileTypeGroup = {
@@ -43,10 +47,12 @@ function clampPercent(percent: number): number {
   return Math.max(0, Math.min(100, percent));
 }
 
-export default function InventoryStatsTab({ files, folders }: Props) {
+export default function InventoryStatsTab({ files, folders, selectedStudentId }: Props) {
   const quotaQ = useQuery({
-    queryKey: studentQueryKeys.storageQuota,
-    queryFn: fetchStorageQuota,
+    queryKey: studentQueryKeys.storageQuota(selectedStudentId),
+    queryFn: () => selectedStudentId == null
+      ? fetchStorageQuota()
+      : fetchSelectedStudentStorageQuota(selectedStudentId),
     staleTime: 60 * 1000,
   });
   const quota = quotaQ.data;

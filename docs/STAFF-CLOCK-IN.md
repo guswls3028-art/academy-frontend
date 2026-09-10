@@ -71,6 +71,12 @@ PC `근무 기록`과 모바일 `근무 기록 / 지출`은 정본 `WorkRecord`�
 `/staffs/{staff_id}/summary/`를 사용하며 `총 근무액 (공제 전)`만 표시한다.
 세금 3.3%나 실수령액을 임의로 추정하지 않는다.
 
+`tenantRole=staff` 조교도 모바일 상단 `메뉴`의 `내 계정 → 근무 기록 / 지출`을
+통해 이 화면에 진입한다. 조회 월을 바꾸면 그 달의 정확한 시작일·말일로 기록과
+합계를 다시 요청하며, 날짜·유형·시간·적용 시급·공제 전 금액을 390px 화면에서도
+가로 넘침 없이 확인한다. 서버는 연결된 `Staff.user`가 본인일 때만 `200`을
+반환하고 다른 직원 ID의 기록과 합계는 `403`으로 닫는다.
+
 이 화면은 레거시 `/core/profile/attendance/` 수기 기록을 읽거나 쓰지 않는다.
 기존 레거시 행은 백엔드에 보존되지만 근무유형·출근 시점 시급을 안전하게
 복원할 수 없으므로 현재 정산 기록과 자동 병합하지 않는다.
@@ -83,6 +89,10 @@ PC `근무 기록`과 모바일 `근무 기록 / 지출`은 정본 `WorkRecord`�
 `PATCH /staffs/work-records/{id}/` 계약을 사용하므로 금액과 근무시간은 서버가
 다시 계산하고 변경 이력을 감사 로그에 남긴다. 월 마감 상태를 확인 중이거나
 확인에 실패한 경우, 그리고 이미 마감된 월에는 추가·수정·삭제를 모두 막는다.
+현재 월에 새 기록을 추가할 때만 오늘을 날짜 후보로 채운다. 과거·미래 월은
+날짜를 비워 실제 근무일 선택을 요구하고, 날짜 선택기는 선택한 월에서 바로 열린다.
+수정 화면은 기존 날짜를 보존한다. 직원 선결제 환급의 관리자 수기 추가도 같은
+날짜 규칙을 사용한다. 개인 프로필 지출의 과거 월 첫날 기본값은 별도 계약이다.
 직원 상세의 `비용` 탭도 `/workspace/staff/expenses`와 같은 패널을 사용해 대기
 환급의 추가·수정·삭제·승인·반려와 상태 필터를 동일하게 제공한다.
 월 마감 성공 뒤에는 필터 객체를 포함한 근무기록·비용 목록 캐시를 루트 키로
@@ -122,7 +132,7 @@ pnpm typecheck
 pnpm exec eslint src/features/staff-clock src/auth/pages/LoginPage.tsx src/AppInner.tsx src/app_teacher/domains/profile/pages/MyRecordsPage.tsx
 pnpm api-types:check
 pnpm guard:legacy-api
-pnpm exec playwright test e2e/auth/staff-clock-in-choice.mock.spec.ts --project=chromium --reporter=list
+pnpm exec playwright test e2e/auth/staff-clock-in-choice.mock.spec.ts e2e/admin/staff-operations-contract.mock.spec.ts e2e/teacher/dynamic-workspace-parity.mock.spec.ts --config=playwright.pr-gate.config.ts --project=pr-route-mocks --no-deps --workers=1 --retries=0 --reporter=list
 pnpm build
 ```
 

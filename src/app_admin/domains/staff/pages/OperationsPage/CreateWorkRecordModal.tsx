@@ -16,6 +16,7 @@ import {
 import { ActionButton } from "@/shared/ui/ds";
 import { DatePicker } from "@/shared/ui/date";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { selectedMonthEntryDate } from "@/shared/utils/selectedMonthEntryDate";
 
 type Props = {
   open: boolean;
@@ -25,6 +26,7 @@ type Props = {
 
 export default function CreateWorkRecordModal({ open, onClose, initial = null }: Props) {
   const { staffId, range, writeBlocked } = useWorkMonth();
+  const selectedMonth = range.from.slice(0, 7);
 
   const { createM, patchM } = useWorkRecords({
     staff: staffId,
@@ -41,7 +43,7 @@ export default function CreateWorkRecordModal({ open, onClose, initial = null }:
   const staffWorkTypes = workTypesQ.data ?? [];
 
   const [form, setForm] = useState({
-    date: range.from,
+    date: selectedMonthEntryDate(selectedMonth),
     work_type: undefined as number | undefined,
     start_time: "",
     end_time: "",
@@ -52,7 +54,7 @@ export default function CreateWorkRecordModal({ open, onClose, initial = null }:
   useEffect(() => {
     if (open) {
       setForm({
-        date: initial?.date ?? range.from,
+        date: initial?.date ?? selectedMonthEntryDate(selectedMonth),
         work_type: initial?.work_type,
         start_time: initial?.start_time ?? "",
         end_time: initial?.end_time ?? "",
@@ -60,13 +62,17 @@ export default function CreateWorkRecordModal({ open, onClose, initial = null }:
         memo: initial?.memo ?? "",
       });
     }
-  }, [initial, open, range.from]);
+  }, [initial, open, selectedMonth]);
 
   if (writeBlocked) return null;
 
   const handleSubmit = () => {
     if (workTypesQ.isError || workTypesQ.isLoading) {
       feedback.error("근무유형을 다시 불러온 뒤 시도해 주세요.");
+      return;
+    }
+    if (!form.date) {
+      feedback.warning("날짜를 선택해 주세요.");
       return;
     }
     if (!form.work_type || !form.start_time || !form.end_time) {
@@ -138,10 +144,11 @@ export default function CreateWorkRecordModal({ open, onClose, initial = null }:
           </div>
         )}
         <div className="grid gap-3">
-          <Field label="날짜" htmlFor="work-record-date">
+          <Field label="날짜 *" htmlFor="work-record-date">
             <DatePicker
               value={form.date}
               id="work-record-date"
+              defaultViewDate={range.from}
               onChange={(v) =>
                 setForm((p) => ({ ...p, date: v }))
               }
