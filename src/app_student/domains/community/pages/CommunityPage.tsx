@@ -16,7 +16,7 @@ import { formatCompactFileSize as formatAttachmentSize } from "@/shared/utils/fi
 import useAuth from "@/auth/hooks/useAuth";
 import { useDurableDraft, type DurableDraftStatus } from "@/shared/hooks/useDurableDraft";
 import { getTenantUserLocalKey } from "@/shared/utils/safeLocalStorage";
-import { getParentStudentId } from "@student/shared/api/parentStudentSelection";
+import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
 import { fetchVideoMe } from "@student/domains/video/api/video.api";
 import { useMarkNotificationsSeen } from "@student/domains/notifications/hooks/useSeenNotifications";

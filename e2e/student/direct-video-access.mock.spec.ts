@@ -45,7 +45,7 @@ async function installApp(
     localStorage.setItem("access", token);
     localStorage.setItem("refresh", `${token}-refresh`);
     localStorage.setItem("tenant_code", "tenant-one");
-    if (parent) localStorage.setItem("parent_selected_student_id_tenant-one", "502");
+    if (parent) localStorage.setItem("parent_selected_student_id_tenant-one_602", "502");
     sessionStorage.setItem("tenantCode", "tenant-one");
   }, { token: jwt(), parent: viewer === "parent" });
 

@@ -10,7 +10,7 @@
 import { useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { resolveTenantCodeString } from "@/shared/tenant";
-import { getParentStudentId } from "@student/shared/api/parentStudentSelection";
+import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { getLocalItem, removeLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
 

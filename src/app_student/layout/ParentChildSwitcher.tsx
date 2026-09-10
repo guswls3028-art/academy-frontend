@@ -11,20 +11,28 @@
  *   2) "student-XXX" — 예: ["student-dashboard"], ["student-video-playback", ...]
  * React Query의 prefix 매칭은 ["student"]로 student-* 를 잡지 못하므로 predicate 사용.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthContext } from "@/auth/context/AuthContext";
 import { cx } from "@/shared/utils/cx";
 import {
-  getParentStudentId,
-  initParentStudentId,
   isStudentScopedQueryKey,
   setParentStudentId,
-} from "@student/shared/api/parentStudentSelection";
+} from "@/shared/api/parentStudentSelection";
 import styles from "./ParentChildSwitcher.module.css";
 
-export default function ParentChildSwitcher() {
+type Props = {
+  selectedStudentId: number | null;
+  onSelectionChange: (studentId: number) => void;
+  variant?: "bar" | "gate";
+};
+
+export default function ParentChildSwitcher({
+  selectedStudentId,
+  onSelectionChange,
+  variant = "bar",
+}: Props) {
   const { user } = useAuthContext();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -32,24 +40,12 @@ export default function ParentChildSwitcher() {
   const isParent = user?.tenantRole === "parent";
   const linked = useMemo(() => user?.linkedStudents ?? [], [user?.linkedStudents]);
 
-  /* module-level state(getParentStudentId)를 컴포넌트 state로 동기화 — 칩 활성 표시용 */
-  const [currentId, setCurrentId] = useState<number | null>(() => getParentStudentId());
   const [switchingId, setSwitchingId] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (linked.length === 0) return;
-    const ids = linked.map((s) => s.id);
-    let id = getParentStudentId();
-    if (id == null || !ids.includes(id)) {
-      id = initParentStudentId(ids);
-    }
-    setCurrentId(id);
-  }, [linked]);
 
   if (!isParent || linked.length < 2) return null;
 
   const handleSelect = (id: number) => {
-    if (id === currentId || switchingId != null) return;
+    if (id === selectedStudentId || switchingId != null || user == null) return;
     const studentScopePredicate = (query: { queryKey: readonly unknown[] }) =>
       isStudentScopedQueryKey(query.queryKey);
     setSwitchingId(id);
@@ -58,8 +54,8 @@ export default function ParentChildSwitcher() {
        * 화면의 queryFn을 다시 실행해 바뀐 전역 헤더와 섞을 수 있으므로 쓰지 않는다. */
       await qc.cancelQueries({ predicate: studentScopePredicate });
       qc.removeQueries({ predicate: studentScopePredicate });
-      setParentStudentId(id);
-      setCurrentId(id);
+      setParentStudentId(id, user.id);
+      onSelectionChange(id);
       navigate("/student/dashboard");
     })().finally(() => setSwitchingId(null));
   };
@@ -68,13 +64,13 @@ export default function ParentChildSwitcher() {
     <div
       role="tablist"
       aria-label="자녀 선택"
-      className={styles.root}
+      className={cx(styles.root, variant === "gate" && styles.rootGate)}
     >
       <span className={styles.label}>
         자녀
       </span>
       {linked.map((s) => {
-        const active = s.id === currentId;
+        const active = s.id === selectedStudentId;
         return (
           <button
             key={s.id}
@@ -84,7 +80,7 @@ export default function ParentChildSwitcher() {
             aria-busy={switchingId === s.id || undefined}
             disabled={switchingId != null}
             onClick={() => handleSelect(s.id)}
-            className={cx(styles.tab, active && styles.tabActive)}
+            className={cx(styles.tab, variant === "gate" && styles.tabGate, active && styles.tabActive)}
           >
             {s.name}
           </button>

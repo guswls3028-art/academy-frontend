@@ -388,6 +388,10 @@ test.describe("학생 커뮤니티 durable draft", () => {
 
   test("학부모는 선택 자녀로 질문·상담을 작성하고 자녀별 초안과 reload 결과를 격리한다", async ({ page }) => {
     const harness = await installStudentApi(page, { parent: true });
+    await page.goto(`${BASE}/student/community`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "확인할 자녀를 선택해 주세요" })).toBeVisible();
+    expect(harness.writeHeaders).toEqual([]);
+    await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: "김하늘" }).click();
     await openForm(page, "QnA");
     await expect(page.getByText("학부모 계정은 질문 작성이 제한됩니다")).toHaveCount(0);
     await page.getByPlaceholder("질문 제목").fill("하늘이 질문");

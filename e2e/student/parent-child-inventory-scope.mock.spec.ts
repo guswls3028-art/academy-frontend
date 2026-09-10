@@ -27,8 +27,8 @@ async function installApi(page: Page): Promise<InventoryScope[]> {
     localStorage.setItem("access", access);
     localStorage.setItem("refresh", `${access}-refresh`);
     localStorage.setItem("tenant_code", "hakwonplus");
-    if (!localStorage.getItem("parent_selected_student_id_hakwonplus")) {
-      localStorage.setItem("parent_selected_student_id_hakwonplus", "11");
+    if (!localStorage.getItem("parent_selected_student_id_hakwonplus_920")) {
+      localStorage.setItem("parent_selected_student_id_hakwonplus_920", "11");
     }
     sessionStorage.setItem("tenantCode", "hakwonplus");
   }, token);

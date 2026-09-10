@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import studentApi from "@student/shared/api/student.api";
-import { getParentStudentId } from "@student/shared/api/parentStudentSelection";
+import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";

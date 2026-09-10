@@ -108,6 +108,68 @@
   height: auto;
 }
 
+.student-layout__parent-gate {
+  width: min(100%, 460px);
+  margin: clamp(40px, 12vh, 112px) auto 24px;
+  padding: 28px 24px;
+  text-align: center;
+  background: var(--stu-surface);
+  border: 1px solid var(--stu-border);
+  border-radius: 22px;
+  box-shadow: 0 18px 44px rgb(15 23 42 / 8%);
+}
+
+.student-layout__parent-gate-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 16px;
+  place-items: center;
+  color: var(--stu-primary-contrast);
+  font-size: 20px;
+  font-weight: 850;
+  background: var(--stu-primary);
+  border-radius: 14px;
+}
+
+.student-layout__parent-gate h1 {
+  margin: 0;
+  color: var(--stu-text);
+  font-size: clamp(20px, 5vw, 24px);
+  line-height: 1.35;
+}
+
+.student-layout__parent-gate p {
+  margin: 10px auto 0;
+  color: var(--stu-text-muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.student-layout__parent-gate button {
+  min-height: 40px;
+  margin-top: 22px;
+  padding: 0 16px;
+  color: var(--stu-text-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--stu-border);
+  border-radius: 10px;
+}
+
+.student-layout__parent-gate button:hover {
+  color: var(--stu-text);
+  background: var(--stu-surface-soft);
+}
+
+.student-layout__parent-gate button:focus-visible {
+  outline: 2px solid var(--stu-primary);
+  outline-offset: 2px;
+}
+
 .student-layout[data-video-page="true"] .student-layout__content {
   max-width: 100%;
   padding: 0;

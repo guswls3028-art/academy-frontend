@@ -14,6 +14,20 @@
   display: none;
 }
 
+.rootGate {
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 22px;
+  padding: 0;
+  overflow: visible;
+  background: transparent;
+  border: 0;
+}
+
+.rootGate .label {
+  display: none;
+}
+
 .label {
   align-self: center;
   flex-shrink: 0;
@@ -49,4 +63,14 @@
   font-weight: 700;
   background: color-mix(in srgb, var(--stu-primary) 14%, var(--stu-surface-1));
   border-color: var(--stu-primary);
+}
+
+.tabGate {
+  min-width: min(148px, 100%);
+  max-width: 100%;
+  min-height: 44px;
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 12px;
 }
