@@ -54,7 +54,8 @@
 | 시험·과제 대상자 모달 | 이름 가나다순 | 이름·전화·학교·학년 검색, 이름 정·역순 |
 | 클리닉 대상자 모달 | 이름 가나다순 | 대상/전체 탭, 검색, 이름 정·역순, 서버 전체 페이지 정렬 |
 | 출결 명단 | 이름 가나다순 | 이름·전화 정렬과 계정별 브라우저 복원. 상태 변경 중에는 행 위치 고정, 상태별 확인은 필터 사용 |
-| 학생·강의·차시·직원 표 | 각 화면의 표시 헤더 기본값 | 검색·상태 필터와 헤더 정렬. 학생 명부의 `반` 정렬은 반별로 묶고 같은 반은 이름순, 반 미지정은 항상 마지막 |
+| 학생·강의 수강·차시 수강 표 | 학생 이름 가나다순 | 검색·상태 필터와 헤더 정렬. 상세 열기·선택·재조회 뒤에도 순서를 유지하며, 학생 명부의 `반` 정렬은 반별로 묶고 같은 반은 이름순, 반 미지정은 항상 마지막 |
+| 강의·차시·직원 표 | 각 화면의 표시 헤더 기본값 | 검색·상태 필터와 헤더 정렬 |
 | 클리닉·청구·제출 표 | 날짜·시각 또는 업무 상태순 | 도메인 필터와 안정적 ID 동률 처리 |
 
 클리닉 대상자 모달의 미통과 탭은 API의 수강별 대상 기록을 학생 ID로 묶는다.
@@ -86,6 +87,8 @@
 ## 구현과 검증
 
 - 공통 비교기: `src/shared/utils/dataOrdering.ts`
+- 학생 목록: `src/app_admin/domains/students/pages/StudentsHomePage.tsx`,
+  `src/shared/api/contracts/students.ts`
 - 시험 결과: `src/app_admin/domains/results/components/AdminExamResultsTable.tsx`
 - 과제 결과: `src/app_admin/domains/homework/panels/HomeworkResultsPanel.tsx`
 - 공용 대상자: `src/shared/ui/enrollment/EnrollmentManageModal.tsx`
