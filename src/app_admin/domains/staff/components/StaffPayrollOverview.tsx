@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -52,10 +52,27 @@ export function StaffPayrollOverview({ year, month }: Props) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [reviewScope, setReviewScope] = useState<string | null>(null);
+  const currentScope = `${year}:${month}`;
   const overviewQ = useQuery({
     queryKey: staffQueryKeys.payrollOverview(year, month),
     queryFn: () => fetchStaffPayrollOverview(year, month),
   });
+  const reviewRows = overviewQ.data?.rows.filter(
+    (row) =>
+      row.advisory_issue_count > 0 ||
+      row.settlement_status === "NEEDS_REVIEW" ||
+      row.settlement_status === "RECONCILIATION_REQUIRED",
+  ) ?? [];
+  const reviewRowCount = overviewQ.data ? reviewRows.length : null;
+
+  useEffect(() => {
+    if (
+      reviewScope !== null &&
+      (reviewScope !== currentScope || reviewRowCount === 0)
+    ) {
+      setReviewScope(null);
+    }
+  }, [currentScope, reviewRowCount, reviewScope]);
 
   const goMonth = (delta: number) => {
     const nextDate = new Date(year, month - 1 + delta);
@@ -91,13 +108,6 @@ export function StaffPayrollOverview({ year, month }: Props) {
   }
 
   const { totals, rows } = overviewQ.data;
-  const currentScope = `${year}:${month}`;
-  const reviewRows = rows.filter(
-    (row) =>
-      row.advisory_issue_count > 0 ||
-      row.settlement_status === "NEEDS_REVIEW" ||
-      row.settlement_status === "RECONCILIATION_REQUIRED",
-  );
   const reviewOnly = reviewScope === currentScope && reviewRows.length > 0;
   const visibleRows = reviewOnly
     ? reviewRows
@@ -133,9 +143,9 @@ export function StaffPayrollOverview({ year, month }: Props) {
           <Metric label="승인 환급비" value={`${totals.approved_expense_amount.toLocaleString()}원`} sub={`대상 ${totals.staff_count}명 · 마감 ${totals.closed_count}명`} />
           <Metric
             label="지급 전 확인 직원"
-            value={`${totals.needs_review_count}명`}
-            sub={`기록 점검 ${totals.advisory_issue_count}건 · ${totals.pending_expense_amount ? `비용 대기 ${totals.pending_expense_amount.toLocaleString()}원` : "비용 대기 없음"}`}
-            warning={totals.needs_review_count > 0}
+            value={`${reviewRows.length}명`}
+            sub={`마감 차단 ${totals.needs_review_count}명 · 기록 점검 ${totals.advisory_issue_count}건 · ${totals.pending_expense_amount ? `비용 대기 ${totals.pending_expense_amount.toLocaleString()}원` : "비용 대기 없음"}`}
+            warning={reviewRows.length > 0}
           />
         </div>
       </section>
@@ -162,7 +172,7 @@ export function StaffPayrollOverview({ year, month }: Props) {
         <p><strong>3.3% 적용 시 참고</strong> 비교값입니다. 실제 공제 적용 여부와 지급액은 계약·세무 확인 후 확정하세요.</p>
       </section>
 
-      {(totals.needs_review_count > 0 || totals.advisory_issue_count > 0) && (
+      {reviewRows.length > 0 && (
         <div className={styles.attention} role="status">
           <AlertTriangle size={17} aria-hidden />
           <span><strong>지급 전 확인</strong> 근무기록 이상, 비용 대기, 시급태그 누락, 월급 수동 확인, 마감 대사를 먼저 살펴보세요. 경고는 기록을 숨기거나 수정을 막지 않습니다.</span>

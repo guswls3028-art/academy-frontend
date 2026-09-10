@@ -451,6 +451,10 @@ test.describe("조교 로그인 출근 선택", () => {
 
     await expect(page).toHaveURL(/\/workspace\/mobile\/my-records$/);
     await expect(page.getByRole("heading", { name: "근무 기록 / 지출" })).toBeVisible();
+    await expect(page.getByText("3.3% 적용 시 참고 공제", { exact: true }).locator("..")).toContainText("-1,238원");
+    await expect(page.getByText("공제 후 근무 참고액", { exact: true }).locator("..")).toContainText("36,262원");
+    await expect(page.getByText("승인 환급비", { exact: true }).first().locator("..")).toContainText("0원");
+    await expect(page.getByText("최종 이체 참고액", { exact: true }).locator("..")).toContainText("36,262원");
     await expect(page.getByText("9/6(일) · 클리닉 조교", { exact: true })).toBeVisible();
     await expect(page.getByText("10:00 ~ 12:30 · 2.5시간 · 휴게 0분", { exact: true })).toBeVisible();
     await expect(page.getByText("적용 시급 15,000원", { exact: true })).toBeVisible();

@@ -118,12 +118,18 @@ async function mockStaffApi(
     profileExpenses?: Array<Record<string, unknown>>;
     onProfileExpenseCreate?: (body: Record<string, unknown>) => void;
     onProfileExpenseDelete?: (id: number) => void;
+    transformPayrollOverview?: (
+      overview: Record<string, unknown>,
+      context: { year: number; month: number; requestNumber: number },
+    ) => Record<string, unknown>;
   },
 ) {
   let workMonthLocked = false;
+  let payrollOverviewRequestNumber = 0;
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
-    const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
+    const requestUrl = new URL(request.url());
+    const path = requestUrl.pathname.replace(/^\/api\/v1/, "");
     const json = (body: unknown, status = 200) =>
       route.fulfill({
         status,
@@ -222,7 +228,7 @@ async function mockStaffApi(
       });
     }
     if (path === "/staffs/payroll-overview/" && request.method() === "GET") {
-      return json({
+      const overview: Record<string, unknown> = {
         year: 2026,
         month: 8,
         date_from: "2026-08-01",
@@ -315,7 +321,13 @@ async function mockStaffApi(
             can_close: false,
           },
         ],
-      });
+      };
+      payrollOverviewRequestNumber += 1;
+      return json(options?.transformPayrollOverview?.(overview, {
+        year: Number(requestUrl.searchParams.get("year")),
+        month: Number(requestUrl.searchParams.get("month")),
+        requestNumber: payrollOverviewRequestNumber,
+      }) ?? overview);
     }
     if (path === "/staffs/1/" && request.method() === "GET") {
       return json({
@@ -517,6 +529,12 @@ test.describe("직원 운영 계약", () => {
     await expect(page).toHaveURL(/year=2026&month=9/);
     await expect(overview.getByRole("heading", { name: "2026년 9월 급여판" })).toBeVisible();
     await expect(overviewTable.getByRole("button", { name: /이퇴사/ })).toBeVisible();
+    await expect(overview.getByRole("button", { name: "확인 항목만 보기" })).toBeVisible();
+    await overview.getByRole("button", { name: "이전 달" }).click();
+    await expect(page).toHaveURL(/year=2026&month=8/);
+    await expect(overviewTable.getByRole("button", { name: /김조교/ })).toBeVisible();
+    await expect(overviewTable.getByRole("button", { name: /이퇴사/ })).toBeVisible();
+    await expect(overview.getByRole("button", { name: "확인 항목만 보기" })).toBeVisible();
 
     await overviewTable.getByRole("button", { name: /김조교/ }).click();
     await expect(page).toHaveURL(/staffId=1/);
@@ -549,6 +567,78 @@ test.describe("직원 운영 계약", () => {
       path: "test-results/staff-payroll-overview-390.png",
       fullPage: false,
     });
+  });
+
+  test("자문 점검만 있는 직원도 KPI와 필터에 포함하고 0건 뒤 필터를 되살리지 않는다", async ({ page, context }) => {
+    await page.clock.install({ time: new Date("2026-08-21T12:00:00+09:00") });
+    let payrollMode: "advisory" | "none" = "advisory";
+    let payrollRequestCount = 0;
+    await mockStaffApi(page, {
+      transformPayrollOverview: (overview, requestContext) => {
+        payrollRequestCount = requestContext.requestNumber;
+        const totals = overview.totals as Record<string, unknown>;
+        const rows = overview.rows as Array<Record<string, unknown>>;
+        const hasAdvisory = payrollMode === "advisory";
+        return {
+          ...overview,
+          totals: {
+            ...totals,
+            needs_review_count: 0,
+            advisory_issue_count: hasAdvisory ? 1 : 0,
+            pending_expense_amount: 0,
+          },
+          rows: rows.map((row) => row.staff_id === 1
+            ? {
+                ...row,
+                pending_expense_amount: 0,
+                pending_expense_count: 0,
+                manually_edited_work_record_count: hasAdvisory ? 1 : 0,
+                advisory_issue_count: hasAdvisory ? 1 : 0,
+                settlement_status: "OPEN",
+                can_close: true,
+              }
+            : row),
+        };
+      },
+    });
+
+    await page.goto(`${BASE}/workspace/staff/attendance?year=2026&month=8`, {
+      waitUntil: "domcontentloaded",
+    });
+
+    const overview = page.getByTestId("staff-payroll-overview");
+    const overviewTable = overview.getByRole("table");
+    const reviewMetric = overview.getByText("지급 전 확인 직원", { exact: true }).locator("..");
+    await expect(reviewMetric.getByText("1명", { exact: true })).toBeVisible();
+    await expect(reviewMetric).toContainText("마감 차단 0명");
+    await expect(reviewMetric).toContainText("기록 점검 1건");
+    await expect(reviewMetric).toHaveAttribute("data-warning", "true");
+    await expect(overview.getByRole("status")).toBeVisible();
+
+    await overview.getByRole("button", { name: "확인 항목만 보기" }).click();
+    await expect(overviewTable.getByRole("button", { name: /김조교/ })).toBeVisible();
+    await expect(overviewTable.getByRole("button", { name: /이퇴사/ })).toHaveCount(0);
+
+    const refetchPayroll = async () => {
+      const previousRequestCount = payrollRequestCount;
+      await page.clock.fastForward(11_000);
+      await context.setOffline(true);
+      await context.setOffline(false);
+      await expect.poll(() => payrollRequestCount).toBeGreaterThan(previousRequestCount);
+    };
+
+    payrollMode = "none";
+    await refetchPayroll();
+    await expect(overview.getByRole("status")).toHaveCount(0);
+    await expect(overviewTable.getByRole("button", { name: /김조교/ })).toBeVisible();
+    await expect(overviewTable.getByRole("button", { name: /이퇴사/ })).toBeVisible();
+
+    payrollMode = "advisory";
+    await refetchPayroll();
+    await expect(reviewMetric.getByText("1명", { exact: true })).toBeVisible();
+    await expect(overview.getByRole("button", { name: "확인 항목만 보기" })).toBeVisible();
+    await expect(overviewTable.getByRole("button", { name: /김조교/ })).toBeVisible();
+    await expect(overviewTable.getByRole("button", { name: /이퇴사/ })).toBeVisible();
   });
 
   test("실장 직위와 관리자 계정을 분리하고 고정 권한을 오해시키지 않는다", async ({ page }) => {
