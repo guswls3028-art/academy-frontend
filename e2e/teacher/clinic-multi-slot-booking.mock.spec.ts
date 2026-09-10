@@ -90,6 +90,8 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
       status: "booked",
       preferred_start_time: "17:15:00",
       preferred_end_time: "17:45:00",
+      booking_start_time: "17:00:00",
+      booking_end_time: "18:00:00",
       student_request_memo: "오답 정리 뒤 참여",
     }]],
     [702, []],
@@ -188,6 +190,7 @@ test("선생님이 학생 여러 명을 17시부터 19시까지 두 시간대에
   await expect(firstSessionButton).toBeVisible({ timeout: 30_000 });
   await firstSessionButton.click();
   await expect(page.getByText("희망 17:15–17:45")).toBeVisible();
+  await expect(page.getByText("예약 17:00–18:00")).toBeVisible();
   await expect(page.getByText("오답 정리 뒤 참여")).toBeVisible();
   await page.getByRole("button", { name: "학생 추가" }).click();
 

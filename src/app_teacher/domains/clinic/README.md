@@ -17,6 +17,8 @@ tenant 기본은 **학원 기본** 배지로 추천하지만 교사가 직접 �
 자유지정을 고르면 여러 고정 시간대 허용과 학생 희망 시간은 자동으로 꺼집니다.
 만들기 시트는 1100px 이상에서 sidebar 오른쪽 작업 영역 안에만 놓이고, 390px에서는
 전체 화면 폭을 사용하며 두 카드·제목·시간 입력이 가로로 넘치지 않아야 합니다.
+학생이 자유지정 시간을 예약하면 참가자 목록에 `예약 16:00–19:00`처럼 실제
+시작·종료를 표시해 선생님이 등원·하원 확인 기준으로 바로 볼 수 있어야 합니다.
 
 ## 세션별 같은 날 예약 정책
 
@@ -73,6 +75,8 @@ tenant 기본은 **학원 기본** 배지로 추천하지만 교사가 직접 �
   `e2e/teacher/clinic-multi-slot-booking.mock.spec.ts`
 - 첫 선택·시트 경계·자유지정 생성 회귀:
   `e2e/clinic/clinic-booking-modes-visual.mock.spec.ts`
+- 선생님 개설 → 학생 구간 예약 → 새로고침 → 선생님 확인과 잔여 0 실사용:
+  `e2e/student/clinic-multi-slot-realuse.spec.ts`
 
 학생 신청 화면 계약은 `src/app_student/domains/clinic/README.md`, 서버 원자성·
 권한·실패 계약은 백엔드 `docs/domain/clinic-booking.md`가 소유합니다.
