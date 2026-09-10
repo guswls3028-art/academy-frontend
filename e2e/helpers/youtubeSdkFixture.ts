@@ -14,6 +14,8 @@ type FixturePlayerSnapshot = {
   videoId: string;
   ready: boolean;
   destroyed: boolean;
+  controls: number | null;
+  disableKeyboard: number | null;
   state: number;
   current: number;
   volume: number;
@@ -26,10 +28,14 @@ type FixtureControl = {
   emitError: (code: number) => void;
 };
 
-function bootYouTubeFixture() {
+function bootYouTubeFixture(renderNativeControls = false) {
   type Event = { target: Player; data?: number };
   type Options = {
     videoId: string;
+    playerVars?: {
+      controls?: number;
+      disablekb?: number;
+    };
     events?: {
       onReady?: (event: Event) => void;
       onStateChange?: (event: Event) => void;
@@ -59,6 +65,14 @@ function bootYouTubeFixture() {
     constructor(private element: HTMLElement, private options: Options) {
       players.push(this);
       element.dataset.youtubeSdkFixture = options.videoId;
+      if (renderNativeControls && options.playerVars?.controls === 1) {
+        const playButton = document.createElement("button");
+        playButton.type = "button";
+        playButton.textContent = "YouTube 재생";
+        playButton.setAttribute("aria-label", "YouTube 재생");
+        playButton.addEventListener("click", () => this.playVideo());
+        element.appendChild(playButton);
+      }
       // The real SDK resolves readiness asynchronously, never from its constructor.
       window.setTimeout(() => {
         if (this.destroyed) return;
@@ -121,6 +135,8 @@ function bootYouTubeFixture() {
     snapshot(): FixturePlayerSnapshot {
       return {
         videoId: this.options.videoId, ready: this.ready, destroyed: this.destroyed,
+        controls: this.options.playerVars?.controls ?? null,
+        disableKeyboard: this.options.playerVars?.disablekb ?? null,
         state: this.state, current: this.getCurrentTime(), volume: this.volume,
         muted: this.muted, calls: [...this.calls],
       };
@@ -143,11 +159,14 @@ function bootYouTubeFixture() {
 }
 
 /** Exercise the production SDK loader and callbacks; only vendor implementation is replaced. */
-export async function installYouTubeSdkFixture(page: Page) {
+export async function installYouTubeSdkFixture(
+  page: Page,
+  options: { renderNativeControls?: boolean } = {},
+) {
   await page.route("https://www.youtube.com/iframe_api", async (route) => {
     await route.fulfill({
       status: 200, contentType: "application/javascript",
-      body: `(${bootYouTubeFixture.toString()})();`,
+      body: `(${bootYouTubeFixture.toString()})(${JSON.stringify(options.renderNativeControls === true)});`,
     });
   });
   return {
