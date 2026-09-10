@@ -33,6 +33,7 @@ type ClockFailureOptions = {
   monthAwareHistory?: boolean;
   incompleteHistory?: boolean;
   mealHistory?: boolean;
+  summary?: boolean;
 };
 
 async function installClockApp(
@@ -245,6 +246,7 @@ async function installClockApp(
       return json({ count: records.length, next: null, previous: null, results: records });
     }
     if (pathname === "/staffs/77/summary/" && request.method() === "GET") {
+      if (failures.summary) return json({ detail: "summary unavailable" }, 503);
       const range = {
         from: requestUrl.searchParams.get("date_from"),
         to: requestUrl.searchParams.get("date_to"),
@@ -389,6 +391,27 @@ test.describe("조교 로그인 출근 선택", () => {
     const record = page.getByRole("row").filter({ hasText: "현장 조교" });
     await expect(record).toContainText("총 3.5시간 · 휴게 30분");
     await expect(page.getByText("45,500원").first()).toBeVisible();
+  });
+
+  test("본인 급여 합계 조회 실패를 0원 합계로 표시하지 않는다", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await installClockApp(
+      page,
+      "/workspace/profile/attendance",
+      "staff",
+      { summary: true },
+    );
+
+    await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
+    await page.getByTestId("login-username").fill("assistant77");
+    await page.getByTestId("login-password").fill("password");
+    await page.getByTestId("login-submit").click();
+    await page.getByRole("dialog", { name: "오늘 어떤 방식으로 시작할까요?" })
+      .getByRole("button", { name: /출근하지 않고 로그인/ })
+      .click();
+
+    await expect(page.getByText("근무 기록을 불러오지 못했습니다", { exact: true })).toBeVisible();
+    await expect(page.getByText("총 근무액 (공제 전)", { exact: true })).toHaveCount(0);
   });
 
   test("계산되지 않은 종료 기록을 PC와 모바일에서 0원으로 오해시키지 않는다", async ({ page }) => {

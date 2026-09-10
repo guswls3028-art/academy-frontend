@@ -9,7 +9,7 @@ import {
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { staffQueryKeys } from "../queryKeys";
-import { invalidatePayrollOverview } from "./invalidatePayrollOverview";
+import { invalidatePayrollOverview } from "@/shared/staff/invalidatePayrollOverview";
 
 export type UseWorkRecordsParams = {
   staff: number;

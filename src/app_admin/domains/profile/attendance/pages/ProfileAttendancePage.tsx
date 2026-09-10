@@ -32,12 +32,14 @@ export default function ProfileAttendancePage() {
           rowsForExcel={domain.allRows}
         />
 
-        <Section>
-          <div className="grid grid-cols-1 gap-[var(--space-6)] lg:grid-cols-2">
-            <AttendanceSummaryCard summary={domain.rangeSummary} />
-            <AttendanceChartCard data={chartData} />
-          </div>
-        </Section>
+        {!domain.isLoading && !domain.isError && domain.rangeSummary && (
+          <Section>
+            <div className="grid grid-cols-1 gap-[var(--space-6)] lg:grid-cols-2">
+              <AttendanceSummaryCard summary={domain.rangeSummary} />
+              <AttendanceChartCard data={chartData} />
+            </div>
+          </Section>
+        )}
 
         <Section>
           {domain.isError && (
@@ -67,7 +69,7 @@ export default function ProfileAttendancePage() {
             />
           )}
 
-          {domain.rows.length > 0 && (
+          {!domain.isError && domain.rows.length > 0 && (
             <AttendanceTable rows={domain.rows} />
           )}
         </Section>

@@ -122,10 +122,14 @@ async function mockStaffApi(
       overview: Record<string, unknown>,
       context: { year: number; month: number; requestNumber: number },
     ) => Record<string, unknown>;
+    enableStaffClock?: boolean;
+    onStaffClockStart?: () => void;
+    onStaffClockEnd?: () => void;
   },
 ) {
   let workMonthLocked = false;
   let payrollOverviewRequestNumber = 0;
+  let ownClockState: "OFF" | "WORKING" = "OFF";
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
     const requestUrl = new URL(request.url());
@@ -163,6 +167,19 @@ async function mockStaffApi(
       });
     }
     if (path === "/staffs/me/" && request.method() === "GET") {
+      if (options?.enableStaffClock) {
+        return json({
+          is_authenticated: true,
+          is_superuser: false,
+          is_staff: true,
+          is_payroll_manager: true,
+          is_owner: false,
+          staff_id: 1,
+          assigned_work_types: [
+            { id: 21, name: "채점", hourly_wage: 12000 },
+          ],
+        });
+      }
       return json({
         is_authenticated: true,
         is_superuser: false,
@@ -175,6 +192,61 @@ async function mockStaffApi(
     }
     if (path === "/staffs/currently-working/" && request.method() === "GET") {
       return json([]);
+    }
+    if (options?.enableStaffClock && path === "/staffs/1/work-records/current/" && request.method() === "GET") {
+      return ownClockState === "OFF"
+        ? json({ status: "OFF" })
+        : json({
+            status: "WORKING",
+            work_record_id: 901,
+            date: "2026-08-21",
+            started_at: "14:00:00",
+            work_type: 21,
+            work_type_name: "채점",
+            hourly_wage: 12000,
+            break_minutes: 0,
+            break_total_seconds: 0,
+          });
+    }
+    if (options?.enableStaffClock && path === "/staffs/1/work-records/start-work/" && request.method() === "POST") {
+      ownClockState = "WORKING";
+      options.onStaffClockStart?.();
+      return json({
+        id: 901,
+        staff: 1,
+        staff_name: "김조교",
+        work_type: 21,
+        work_type_name: "채점",
+        date: "2026-08-21",
+        start_time: "14:00:00",
+        end_time: null,
+        break_minutes: 0,
+        meal_minutes: 0,
+        work_hours: null,
+        amount: null,
+        resolved_hourly_wage: 12000,
+        memo: "",
+      }, 201);
+    }
+    if (options?.enableStaffClock && path === "/staffs/work-records/901/end_work/" && request.method() === "POST") {
+      ownClockState = "OFF";
+      options.onStaffClockEnd?.();
+      return json({
+        id: 901,
+        staff: 1,
+        staff_name: "김조교",
+        work_type: 21,
+        work_type_name: "채점",
+        date: "2026-08-21",
+        start_time: "14:00:00",
+        end_time: "15:00:00",
+        break_minutes: 0,
+        meal_minutes: 0,
+        work_hours: "1.00",
+        amount: 12000,
+        resolved_hourly_wage: 12000,
+        memo: "",
+      });
     }
     if (path === "/lectures/attendance/arrival-overview/" && request.method() === "GET") {
       return json({
@@ -567,6 +639,51 @@ test.describe("직원 운영 계약", () => {
       path: "test-results/staff-payroll-overview-390.png",
       fullPage: false,
     });
+  });
+
+  test("상단 출근과 퇴근 성공은 열린 급여판을 각각 즉시 갱신한다", async ({ page }) => {
+    let payrollRequests = 0;
+    let clockStarted = false;
+    let clockEnded = false;
+    await mockStaffApi(page, {
+      enableStaffClock: true,
+      onStaffClockStart: () => {
+        clockStarted = true;
+      },
+      onStaffClockEnd: () => {
+        clockEnded = true;
+      },
+      transformPayrollOverview: (overview, { requestNumber }) => {
+        payrollRequests = requestNumber;
+        const totals = overview.totals as Record<string, unknown>;
+        const workAmount = clockEnded ? 354000 : clockStarted ? 343000 : 342000;
+        return {
+          ...overview,
+          totals: {
+            ...totals,
+            work_amount: workAmount,
+          },
+        };
+      },
+    });
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await page.goto(`${BASE}/workspace/staff/attendance?year=2026&month=8`, {
+      waitUntil: "domcontentloaded",
+    });
+
+    const overview = page.getByTestId("staff-payroll-overview");
+    await expect(overview.getByText("342,000원", { exact: true }).first()).toBeVisible();
+    const beforeStart = payrollRequests;
+    await page.getByRole("button", { name: "출근", exact: true }).click();
+    await expect.poll(() => clockStarted).toBe(true);
+    await expect.poll(() => payrollRequests).toBeGreaterThan(beforeStart);
+    await expect(overview.getByText("343,000원", { exact: true }).first()).toBeVisible();
+
+    const beforeEnd = payrollRequests;
+    await page.getByRole("button", { name: "퇴근", exact: true }).click();
+    await expect.poll(() => clockEnded).toBe(true);
+    await expect.poll(() => payrollRequests).toBeGreaterThan(beforeEnd);
+    await expect(overview.getByText("354,000원", { exact: true }).first()).toBeVisible();
   });
 
   test("근무 저장·환급 승인·월 마감 뒤 급여판으로 돌아오면 합계와 상태를 다시 조회한다", async ({ page }) => {

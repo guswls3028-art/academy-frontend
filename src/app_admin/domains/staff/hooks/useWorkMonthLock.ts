@@ -11,7 +11,7 @@ import {
 import { staffQueryKeys } from "../queryKeys";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
-import { invalidatePayrollOverview } from "./invalidatePayrollOverview";
+import { invalidatePayrollOverview } from "@/shared/staff/invalidatePayrollOverview";
 
 export function useWorkMonthLock(params: { staff: number; year: number; month: number }) {
   const qc = useQueryClient();
