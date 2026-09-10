@@ -170,6 +170,10 @@
   background: color-mix(in srgb, var(--color-border-divider) 4%, var(--color-bg-surface));
 }
 
+.staff-area .ds-button.staff-payroll-action[data-size="sm"] {
+  min-height: 40px !important;
+}
+
 .staff-area .staff-panel__body {
   padding: 18px;
 }

@@ -103,6 +103,7 @@ export function StaffWorkspaceHeader({ staffId, year, month }: Props) {
     >
       <div className="flex items-center gap-3 flex-wrap">
         <Button
+          className="staff-payroll-action"
           intent="ghost"
           size="sm"
           leftIcon={<ChevronLeft size={16} />}
@@ -150,11 +151,11 @@ export function StaffWorkspaceHeader({ staffId, year, month }: Props) {
           </>
         )}
         <div className="flex items-center gap-0.5">
-          <Button intent="ghost" size="sm" leftIcon={<ChevronLeft size={16} />} aria-label="이전 달" onClick={() => goMonth(-1)}>
+          <Button className="staff-payroll-action" intent="ghost" size="sm" leftIcon={<ChevronLeft size={16} />} aria-label="이전 달" onClick={() => goMonth(-1)}>
             이전
           </Button>
           <span className="staff-section-title min-w-[88px] text-center">{ymLabel(year, month)}</span>
-          <Button intent="ghost" size="sm" rightIcon={<ChevronRight size={16} />} aria-label="다음 달" onClick={() => goMonth(1)}>
+          <Button className="staff-payroll-action" intent="ghost" size="sm" rightIcon={<ChevronRight size={16} />} aria-label="다음 달" onClick={() => goMonth(1)}>
             다음
           </Button>
         </div>

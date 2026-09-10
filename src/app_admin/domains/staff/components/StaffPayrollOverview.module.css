@@ -436,7 +436,7 @@
     padding: 11px 10px;
   }
 
-  .headlineMetric > span { font-size: 10.5px; }
+  .headlineMetric > span { font-size: 11px; }
   .headlineMetric > strong { font-size: clamp(18px, 5.1vw, 23px); }
   .headlineMetric p { font-size: 11px; }
 

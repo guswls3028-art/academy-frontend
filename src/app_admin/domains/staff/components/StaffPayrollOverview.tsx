@@ -63,6 +63,7 @@ export function StaffPayrollOverview({ year, month }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
   const rootRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const restoredOverviewKeyRef = useRef<string | null>(null);
   const overviewQ = useQuery({
     queryKey: staffQueryKeys.payrollOverview(year, month),
     queryFn: () => fetchStaffPayrollOverview(year, month),
@@ -86,6 +87,12 @@ export function StaffPayrollOverview({ year, month }: Props) {
   useEffect(() => {
     const state = location.state as PayrollNavigationState | null;
     if (!state?.focusPayrollOverview) return;
+    const restorationKey = [
+      location.key,
+      state.payrollOverviewStaffId ?? "",
+      state.payrollOverviewScrollTop ?? "",
+    ].join(":");
+    if (!overviewQ.data || restoredOverviewKeyRef.current === restorationKey) return;
     const frame = requestAnimationFrame(() => {
       const scrollContainer = rootRef.current?.closest("main");
       if (scrollContainer && Number.isFinite(state.payrollOverviewScrollTop)) {
@@ -103,9 +110,10 @@ export function StaffPayrollOverview({ year, month }: Props) {
       } else {
         headingRef.current?.focus({ preventScroll: true });
       }
+      restoredOverviewKeyRef.current = restorationKey;
     });
     return () => cancelAnimationFrame(frame);
-  }, [location.state]);
+  }, [location.key, location.state, overviewQ.data]);
 
   const goMonth = (delta: number) => {
     const nextDate = new Date(year, month - 1 + delta);
@@ -199,11 +207,11 @@ export function StaffPayrollOverview({ year, month }: Props) {
           <p>직원을 고르기 전에 근무·비용·마감 상태를 한 번에 확인합니다.</p>
         </div>
         <div className={styles.monthControl} aria-label="급여 현황 월 선택">
-          <Button intent="ghost" size="sm" leftIcon={<ChevronLeft size={16} />} aria-label="이전 달" onClick={() => goMonth(-1)}>
+          <Button className="staff-payroll-action" intent="ghost" size="sm" leftIcon={<ChevronLeft size={16} />} aria-label="이전 달" onClick={() => goMonth(-1)}>
             이전
           </Button>
           <strong>{year}.{String(month).padStart(2, "0")}</strong>
-          <Button intent="ghost" size="sm" rightIcon={<ChevronRight size={16} />} aria-label="다음 달" onClick={() => goMonth(1)}>
+          <Button className="staff-payroll-action" intent="ghost" size="sm" rightIcon={<ChevronRight size={16} />} aria-label="다음 달" onClick={() => goMonth(1)}>
             다음
           </Button>
         </div>

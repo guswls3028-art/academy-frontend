@@ -122,6 +122,7 @@ async function mockStaffApi(
       overview: Record<string, unknown>,
       context: { year: number; month: number; requestNumber: number },
     ) => Record<string, unknown>;
+    payrollOverviewDelayMs?: number;
     enableStaffClock?: boolean;
     onStaffClockStart?: () => void;
     onStaffClockEnd?: () => void;
@@ -395,6 +396,9 @@ async function mockStaffApi(
         ],
       };
       payrollOverviewRequestNumber += 1;
+      if (options?.payrollOverviewDelayMs) {
+        await new Promise((resolve) => setTimeout(resolve, options.payrollOverviewDelayMs));
+      }
       return json(options?.transformPayrollOverview?.(overview, {
         year: Number(requestUrl.searchParams.get("year")),
         month: Number(requestUrl.searchParams.get("month")),
@@ -643,6 +647,16 @@ test.describe("직원 운영 계약", () => {
     await expect(kimPayrollCard).toContainText("승인 환급");
     await expect(kimPayrollCard).toContainText("12,000원");
     await expect(mobileOverview.getByRole("button", { name: /이퇴사/ })).toContainText("퇴사");
+    const mobileControlReadback = await mobileOverview.evaluate((node) => {
+      const metricLabels = Array.from(node.querySelectorAll<HTMLElement>("[data-testid='payroll-headline-metric'] > span"));
+      const actionButtons = Array.from(node.querySelectorAll<HTMLElement>("[aria-label='이전 달'], [aria-label='다음 달']"));
+      return {
+        minimumMetricLabelFontSize: Math.min(...metricLabels.map((label) => Number.parseFloat(getComputedStyle(label).fontSize))),
+        minimumActionHeight: Math.min(...actionButtons.map((button) => button.getBoundingClientRect().height)),
+      };
+    });
+    expect(mobileControlReadback.minimumMetricLabelFontSize).toBeGreaterThanOrEqual(11);
+    expect(mobileControlReadback.minimumActionHeight).toBeGreaterThanOrEqual(40);
     const mobileLayout = await page.evaluate(() => {
       const overview = document.querySelector<HTMLElement>("[data-testid='staff-payroll-overview']");
       return {
@@ -718,6 +732,7 @@ test.describe("직원 운영 계약", () => {
     await expect(overview.locator("tbody tr").nth(2)).toContainText("이퇴사");
 
     await search.fill("김");
+    await expect(page).toHaveURL(/payrollSearch=%EA%B9%80/);
     await filter.getByRole("button", { name: "확인 필요", exact: true }).click();
     await expect(page).toHaveURL(/payrollFilter=review/);
     await expect(page).toHaveURL(/payrollSearch=%EA%B9%80/);
@@ -731,13 +746,24 @@ test.describe("직원 운영 계약", () => {
     await expect(page).toHaveURL(/payrollSearch=%EA%B9%80/);
     await expect(page).toHaveURL(/payrollSort=amount-desc/);
 
-    await page.getByRole("tab", { name: "비용/경비 탭" }).click();
-    await expect(page).toHaveURL(/\/workspace\/staff\/expenses\?/);
-    await expect(page).toHaveURL(/payrollFilter=review/);
-    await expect(page).toHaveURL(/payrollSearch=%EA%B9%80/);
-    await expect(page).toHaveURL(/payrollSort=amount-desc/);
-    await page.getByRole("tab", { name: "근태 탭" }).click();
-    await expect(page).toHaveURL(/\/workspace\/staff\/attendance\?/);
+    for (const [tabName, pathname] of [
+      ["근태", "/workspace/staff/attendance"],
+      ["월 마감", "/workspace/staff/month-lock"],
+      ["정산 참고", "/workspace/staff/payroll-snapshot"],
+      ["리포트", "/workspace/staff/reports"],
+      ["비용/경비", "/workspace/staff/expenses"],
+    ] as const) {
+      await page.getByRole("tab", { name: `${tabName} 탭` }).click();
+      await expect(page).toHaveURL((url) => (
+        url.pathname === pathname
+        && url.searchParams.get("staffId") === "1"
+        && url.searchParams.get("year") === "2026"
+        && url.searchParams.get("month") === "8"
+        && url.searchParams.get("payrollFilter") === "review"
+        && url.searchParams.get("payrollSearch") === "김"
+        && url.searchParams.get("payrollSort") === "amount-desc"
+      ));
+    }
 
     const overviewReturn = page.getByRole("button", { name: "전체 급여판", exact: true });
     await overviewReturn.focus();
@@ -768,6 +794,7 @@ test.describe("직원 운영 계약", () => {
     expect(detailHeaderBounds!.y + detailHeaderBounds!.height).toBeLessThanOrEqual(844);
     const mobileOverviewReturn = page.getByRole("button", { name: "전체 급여판", exact: true });
     await expect(mobileOverviewReturn).toBeVisible();
+    await expect.poll(async () => (await mobileOverviewReturn.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(40);
     const mobileReturnLayout = await page.evaluate(() => {
       const button = Array.from(document.querySelectorAll<HTMLElement>("button"))
         .find((node) => node.textContent?.includes("전체 급여판"));
@@ -796,6 +823,7 @@ test.describe("직원 운영 계약", () => {
 
   test("390px 급여판은 20명의 긴 이름·큰 금액·혼합 상태를 장부형으로 탐색한다", async ({ page }) => {
     await mockStaffApi(page, {
+      payrollOverviewDelayMs: 300,
       transformPayrollOverview: (overview) => {
         const base = (overview.rows as Array<Record<string, unknown>>)[0];
         const rows = Array.from({ length: 20 }, (_, index) => {
@@ -871,6 +899,24 @@ test.describe("직원 운영 계약", () => {
     await expect(overview.getByRole("searchbox", { name: "직원 이름 검색" })).toBeVisible();
     await expect(overview.getByRole("group", { name: "급여 직원 필터" })).toBeVisible();
 
+    const initialLayout = await page.evaluate(() => {
+      const total = Array.from(document.querySelectorAll<HTMLElement>("[data-testid='payroll-headline-metric']"));
+      return {
+        documentFits: document.documentElement.scrollWidth <= window.innerWidth,
+        overviewFits: (document.querySelector<HTMLElement>("[data-testid='staff-payroll-overview']")?.scrollWidth ?? 0)
+          <= (document.querySelector<HTMLElement>("[data-testid='staff-payroll-overview']")?.clientWidth ?? 0),
+        headlineMetricsInFirstViewport: total.every((node) => {
+          const bounds = node.getBoundingClientRect();
+          return bounds.top >= 0 && bounds.bottom <= window.innerHeight;
+        }),
+      };
+    });
+    expect(initialLayout).toEqual({
+      documentFits: true,
+      overviewFits: true,
+      headlineMetricsInFirstViewport: true,
+    });
+
     const mobileRows = overview.getByTestId("payroll-mobile-row");
     await expect(mobileRows).toHaveCount(20);
     const statusFilter = overview.getByRole("group", { name: "급여 직원 필터" });
@@ -905,6 +951,10 @@ test.describe("직원 운영 계약", () => {
       expect(navBounds).not.toBeNull();
       expect(detailBounds!.y).toBeGreaterThanOrEqual(0);
       expect(detailBounds!.y + detailBounds!.height).toBeLessThanOrEqual(navBounds!.y);
+      if (rowIndex === 19) {
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await expect(page.getByTestId("staff-workspace-detail-header")).toBeFocused();
+      }
       await page.getByRole("button", { name: "전체 급여판", exact: true }).click();
       await expect(page).not.toHaveURL(/staffId=/);
       await expect(row).toBeFocused();
@@ -920,21 +970,6 @@ test.describe("직원 운영 계약", () => {
     await page.screenshot({
       path: "test-results/staff-payroll-overview-20-staff-390.png",
       fullPage: false,
-    });
-
-    const layout = await page.evaluate(() => {
-      const total = Array.from(document.querySelectorAll<HTMLElement>("[data-testid='payroll-headline-metric']"));
-      return {
-        documentFits: document.documentElement.scrollWidth <= window.innerWidth,
-        overviewFits: (document.querySelector<HTMLElement>("[data-testid='staff-payroll-overview']")?.scrollWidth ?? 0)
-          <= (document.querySelector<HTMLElement>("[data-testid='staff-payroll-overview']")?.clientWidth ?? 0),
-        headlineMetricsInFirstViewport: total.every((node) => node.getBoundingClientRect().bottom <= window.innerHeight),
-      };
-    });
-    expect(layout).toEqual({
-      documentFits: true,
-      overviewFits: true,
-      headlineMetricsInFirstViewport: true,
     });
 
     const search = overview.getByRole("searchbox", { name: "직원 이름 검색" });
