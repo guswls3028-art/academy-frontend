@@ -400,8 +400,12 @@ test.describe("조교 로그인 출근 선택", () => {
     await page.getByRole("button", { name: "메뉴", exact: true }).click();
     const menu = page.getByRole("navigation", { name: "선생님 메뉴" });
     await expect(menu).toBeVisible();
-    await menu.getByRole("button", { name: /내 계정/ }).click();
-    await menu.getByRole("button", { name: "근무 기록 / 지출", exact: true }).click();
+    const accountGroupButton = menu.getByRole("button", { name: /내 계정/ });
+    await accountGroupButton.click();
+    await expect(accountGroupButton).toHaveAttribute("aria-expanded", "true");
+    const recordsButton = menu.getByRole("button", { name: "근무 기록 / 지출", exact: true });
+    await expect(recordsButton).toBeVisible();
+    await recordsButton.click();
 
     await expect(page).toHaveURL(/\/workspace\/mobile\/my-records$/);
     await expect(page.getByRole("heading", { name: "근무 기록 / 지출" })).toBeVisible();
