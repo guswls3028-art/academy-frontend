@@ -872,7 +872,12 @@ test.describe("학생 클리닉 예약 UX", () => {
     await expect(selection.getByRole("button", { name: "16:00 시작, 잔여 2자리" })).toBeVisible();
     await expect(selection.getByRole("button", { name: "16:30 시작, 잔여 1자리" })).toBeVisible();
     await expect(selection.getByRole("button", { name: "17:30 시작, 잔여 2자리" })).toBeVisible();
-    await expect(selection.getByRole("button", { name: /17:00 시작/ })).toHaveCount(0);
+    const fullStart = selection.getByRole("button", {
+      name: "17:00 시작, 1명 선택에는 잔여 0자리로 부족",
+    });
+    await expect(fullStart).toBeVisible();
+    await expect(fullStart).toBeDisabled();
+    await expect(fullStart).toContainText("1명 선택에는 부족");
     await selection.getByRole("button", { name: "16:00 시작, 잔여 2자리" }).click();
     await expect(selection.getByRole("button", { name: "16:30 종료, 총 30분" })).toBeVisible();
     await expect(selection.getByRole("button", { name: "17:00 종료, 총 1시간" })).toBeVisible();
