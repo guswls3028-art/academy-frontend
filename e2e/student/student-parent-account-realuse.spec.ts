@@ -39,10 +39,10 @@ type AccountNotificationLog = {
 let family: QaFamily | null = null;
 let adminAccess = "";
 
-async function waitForRecoveryReceipt(
+async function waitForAccountReceipt(
   request: APIRequestContext,
   studentId: number,
-  studentName: string,
+  expected: Pick<AccountNotificationLog, "notification_type" | "target_id" | "target_name">,
 ): Promise<AccountNotificationLog> {
   let matched: AccountNotificationLog | undefined;
   await waitForCondition(async () => {
@@ -53,9 +53,9 @@ async function waitForRecoveryReceipt(
       adminAccess,
     );
     matched = body.results.find((row) => (
-      row.notification_type === "password_reset_student"
-      && row.target_id === `student:${studentId}`
-      && row.target_name === studentName
+      row.notification_type === expected.notification_type
+      && row.target_id === expected.target_id
+      && row.target_name === expected.target_name
       && row.status === "sent"
       && row.success !== false
     ));
@@ -99,15 +99,43 @@ test.describe.serial("[real-use] 학생/학부모 계정과 복구", () => {
       { timeout: 30_000 },
     );
 
-    const receipt = await waitForRecoveryReceipt(request, student.id, student.name);
+    const receipt = await waitForAccountReceipt(request, student.id, {
+      notification_type: "password_reset_student",
+      target_id: `student:${student.id}`,
+      target_name: student.name,
+    });
     expect(receipt.recipient_summary).toContain(`${family.parentPhone.slice(0, 4)}****`);
     expect(receipt.recipient_summary).not.toContain(family.parentPhone);
 
     await loginApi(request, student.ps_number, student.password);
     await loginApi(request, family.parentPhone, family.parentPassword);
+    const staffParentPassword = `Qp${String(Date.now()).slice(-8)}`;
+    await expectApi(request, "POST", "/students/password_reset_send/", adminAccess, {
+      target: "parent",
+      student_name: student.name,
+      parent_phone: family.parentPhone,
+      temp_password: staffParentPassword,
+    });
+    await waitForAccountReceipt(request, student.id, {
+      notification_type: "password_reset_parent",
+      target_id: `parent:${student.id}:${family.parentPhone}`,
+      target_name: student.name,
+    });
+    await loginApi(request, family.parentPhone, staffParentPassword);
+    await expectApi(request, "POST", "/students/password_reset_send/", adminAccess, {
+      target: "parent",
+      student_name: student.name,
+      parent_phone: family.parentPhone,
+      temp_password: family.parentPassword,
+    });
+    await loginApi(request, family.parentPhone, family.parentPassword);
     await loginThroughUi(page, student.ps_number, student.password);
     await gotoAndSettle(page, `${QA_BASE}/student/profile`, { timeout: 30_000 });
     await expect(page.getByText(student.name, { exact: true }).first()).toBeVisible();
+    await page.getByRole("button", { name: "편집", exact: true }).click();
+    await expect(page.getByText("학부모 계정 연결 보호를 위해 학원에 요청해 주세요.")).toBeVisible();
+    await expect(page.getByLabel("학부모 전화번호 앞 4자리")).toHaveCount(0);
+    await page.getByRole("button", { name: "취소", exact: true }).click();
     await reloadStudentApp(page);
     await expect(page.getByText(student.name, { exact: true }).first()).toBeVisible();
 

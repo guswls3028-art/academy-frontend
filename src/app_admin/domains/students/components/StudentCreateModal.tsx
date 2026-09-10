@@ -11,8 +11,8 @@ import ExcelUploadZone from "@/shared/ui/excel/ExcelUploadZone";
 import {
   createStudent,
   uploadStudentBulkFromExcel,
-  bulkRestoreStudents,
-  bulkPermanentDeleteStudents,
+  bulkResolveConflicts,
+  getStudentDetail,
   mapStudent,
   type ClientStudent,
   type ClientStudentCustomFieldDefinition,
@@ -214,7 +214,9 @@ export default function StudentCreateModal({
 
   function validate(): string | null {
     if (!String(form.name || "").trim()) return "이름을 입력해 주세요.";
-    if (!String(form.initialPassword || "").trim()) return "초기 비밀번호를 입력해 주세요.";
+    if (String(form.initialPassword || "").trim().length < 4) {
+      return "초기 비밀번호를 4자 이상 입력해 주세요.";
+    }
 
     const parent = String(form.parentPhone || "").trim();
     if (!parent || parent.length !== 11) return "학부모 전화번호를 입력해 주세요. (010 뒤 8자리)";
@@ -330,9 +332,17 @@ export default function StudentCreateModal({
     if (!deletedStudentConflict || busy) return;
     setBusy(true);
     try {
-      const result = await bulkRestoreStudents([deletedStudentConflict.student.id]);
+      const result = await bulkResolveConflicts(
+        deletedStudentConflict.formData.initialPassword,
+        [{
+          row: 1,
+          student_id: deletedStudentConflict.student.id,
+          action: "restore",
+          student_data: { ...deletedStudentConflict.formData },
+        }],
+      );
       if (result.restored < 1) {
-        const reason = result.skipped?.[0]?.reason;
+        const reason = result.failed[0]?.error;
         feedback.error(reason || "복원에 실패했습니다.");
         return;
       }
@@ -362,7 +372,7 @@ export default function StudentCreateModal({
           { label: "학부모 연락처", value: formatPhone(deletedStudentConflict.student.parentPhone || "") || "미입력" },
           { label: "새 학생", value: deletedStudentConflict.formData.name.trim(), tone: "accent" },
         ],
-        note: "기존 학생은 복구할 수 없습니다. 영구삭제 뒤 새 학생 등록이 실패하면 기존 기록만 삭제된 상태가 될 수 있습니다. 가능하면 먼저 ‘복원’을 사용하세요.",
+        note: "기존 학생은 복구할 수 없습니다. 서버가 영구삭제와 새 계정 생성을 한 작업으로 처리하며, 새 등록이 실패하면 영구삭제도 취소합니다. 가능하면 먼저 ‘복원’을 사용하세요.",
       },
       confirmText: "영구삭제 후 재등록",
       cancelText: "취소",
@@ -372,19 +382,32 @@ export default function StudentCreateModal({
     if (!confirmed || busy) return;
     setBusy(true);
     try {
-      await bulkPermanentDeleteStudents([deletedStudentConflict.student.id]);
-      const student = await createStudent({
-        ...deletedStudentConflict.formData,
-        noPhone: !String(deletedStudentConflict.formData.studentPhone || "").trim(),
-      });
+      const result = await bulkResolveConflicts(
+        deletedStudentConflict.formData.initialPassword,
+        [{
+          row: 1,
+          student_id: deletedStudentConflict.student.id,
+          action: "delete",
+          student_data: { ...deletedStudentConflict.formData },
+        }],
+      );
+      const resolvedStudentId = result.resolved.find((row) => row.state === "created")?.student_id;
+      if (!resolvedStudentId) {
+        throw new Error(result.failed[0]?.error || "영구삭제 후 재등록에 실패했습니다.");
+      }
+      const student = await getStudentDetail(resolvedStudentId);
       const loginId = (student?.psNumber ?? deletedStudentConflict.formData.psNumber?.trim()) || "(자동 부여됨)";
       const parentPhone = String(deletedStudentConflict.formData.parentPhone || "").trim();
-      feedback.success(
-        `등록 완료\n` +
-        `학생 아이디: ${loginId}\n` +
-        (parentPhone ? `학부모 아이디: ${parentPhone} (신규 계정은 전화번호 뒤 4자리)\n` : "") +
-        `학생은 입력한 초기 비밀번호로 로그인하세요. 기존 학부모 계정은 비밀번호가 변경되지 않습니다.`
-      );
+      await presentStudentLoginReadback({
+        confirm,
+        studentId: student.id,
+        expectedLoginId: plannedStudentLoginId(
+          deletedStudentConflict.formData.psNumber,
+          deletedStudentConflict.formData.studentPhone,
+        ),
+        loginId,
+        parentPhone,
+      });
       setDeletedStudentConflict(null);
       onSuccess();
       onClose();
@@ -416,19 +439,7 @@ export default function StudentCreateModal({
 
   async function handleExcelRegister() {
     if (busy || confirmationInFlightRef.current || !selectedExcelFile || !parsedExcel) return;
-    const invalidStudentPhoneNames = parsedExcel.rows
-      .filter((row) => row.usesIdentifier || !/^010\d{8}$/.test(row.studentPhone))
-      .map((row) => row.name || "(이름 없음)");
-    if (
-      excelPasswordSettings.mode === "phone_last4"
-      && invalidStudentPhoneNames.length >= parsedExcel.rows.length
-    ) {
-      feedback.error(
-        "현재 방식으로 등록할 학생이 없습니다. 공통 비밀번호 또는 학생별 랜덤 비밀번호를 선택해 주세요.",
-      );
-      return;
-    }
-    if (!isStudentInitialPasswordReady(excelPasswordSettings, invalidStudentPhoneNames.length, true)) {
+    if (!isStudentInitialPasswordReady(excelPasswordSettings)) {
       feedback.error(
         excelPasswordSettings.mode === "fixed"
           ? "공통 초기 비밀번호를 4자 이상 입력해 주세요."
@@ -436,15 +447,10 @@ export default function StudentCreateModal({
       );
       return;
     }
-    const excludedCount = excelPasswordSettings.mode === "phone_last4"
-      ? invalidStudentPhoneNames.length
-      : 0;
-    const eligibleCount = Math.max(0, parsedExcel.rows.length - excludedCount);
-    const passwordModeLabel = excelPasswordSettings.mode === "phone_last4"
-      ? "학생 휴대폰 뒤 4자리"
-      : excelPasswordSettings.mode === "fixed"
-        ? "공통 비밀번호"
-        : "학생별 랜덤 비밀번호";
+    const eligibleCount = parsedExcel.rows.length;
+    const passwordModeLabel = excelPasswordSettings.mode === "fixed"
+      ? "직접 입력한 공통 비밀번호"
+      : "학생별 안전한 임시 비밀번호";
     confirmationInFlightRef.current = true;
     const confirmed = await confirm({
       title: "학생 일괄 등록 최종 확인",
@@ -455,9 +461,6 @@ export default function StudentCreateModal({
           { label: "파일", value: selectedExcelFile.name },
           { label: "전체 행", value: `${parsedExcel.rows.length}명` },
           { label: "등록 요청", value: `${eligibleCount}명`, tone: "accent" },
-          ...(excludedCount > 0
-            ? [{ label: "제외", value: `${excludedCount}명 · 학생 휴대폰 확인 필요`, tone: "warning" as const }]
-            : []),
           { label: "초기 비밀번호", value: passwordModeLabel },
         ],
         note: "학생 명부 등록 요청이며 강의 수강은 만들지 않습니다. 계정 안내 알림톡은 첫 수강 확정 때 별도로 발송됩니다.",
@@ -519,23 +522,13 @@ export default function StudentCreateModal({
         : mode === "excel" && selectedExcelFile
           ? handleExcelRegister
           : undefined;
+  const excelPasswordReady = isStudentInitialPasswordReady(excelPasswordSettings);
+  const excelRowCount = parsedExcel?.rows.length ?? 0;
   const invalidExcelStudentPhoneNames = parsedExcel?.rows
     .filter((row) => row.usesIdentifier || !/^010\d{8}$/.test(row.studentPhone))
     .map((row) => row.name || "(이름 없음)") ?? [];
-  const excelPasswordReady = isStudentInitialPasswordReady(
-    excelPasswordSettings,
-    invalidExcelStudentPhoneNames.length,
-    true,
-  );
-  const excelRowCount = parsedExcel?.rows.length ?? 0;
-  const excelStudentPhoneCount = Math.max(
-    0,
-    excelRowCount - invalidExcelStudentPhoneNames.length,
-  );
-  const excelExcludedRowCount = excelPasswordSettings.mode === "phone_last4"
-    ? invalidExcelStudentPhoneNames.length
-    : 0;
-  const excelEligibleRowCount = Math.max(0, excelRowCount - excelExcludedRowCount);
+  const excelStudentPhoneCount = parsedExcel?.rows.filter((row) => !row.usesIdentifier).length ?? 0;
+  const excelEligibleRowCount = excelRowCount;
 
   return (
     <AdminModal open={open} onClose={handleClose} type="action" width={MODAL_WIDTH.md} onEnterConfirm={enterConfirm}>
@@ -685,7 +678,8 @@ export default function StudentCreateModal({
               onChange={handleChange}
               className="ds-input"
               data-required="true"
-              data-invalid={!String(form.initialPassword || "").trim() ? "true" : "false"}
+              minLength={4}
+              data-invalid={String(form.initialPassword || "").trim().length < 4 ? "true" : "false"}
               disabled={busy}
             />
             <div className="modal-phone-row">
@@ -898,11 +892,9 @@ export default function StudentCreateModal({
                 {invalidExcelStudentPhoneNames.length > 0 ? (
                   <div
                     className={styles.phoneCoverageNotice}
-                    data-tone={excelExcludedRowCount > 0 ? "warning" : "ready"}
+                    data-tone="ready"
                   >
-                    {excelExcludedRowCount > 0
-                      ? `${excelExcludedRowCount}명은 현재 비밀번호 방식에서 제외됩니다. 모두 등록하려면 공통 비밀번호 또는 학생별 랜덤 비밀번호를 선택하세요.`
-                      : `${invalidExcelStudentPhoneNames.length}명도 자동 아이디를 받아 함께 등록됩니다.`}
+                    {invalidExcelStudentPhoneNames.length}명도 자동 아이디를 받아 함께 등록됩니다.
                   </div>
                 ) : null}
               </div>
@@ -923,8 +915,6 @@ export default function StudentCreateModal({
               value={excelPasswordSettings}
               onChange={setExcelPasswordSettings}
               disabled={busy}
-              invalidStudentPhoneNames={invalidExcelStudentPhoneNames}
-              allowPartialRows
             />
           </section>
 
@@ -950,9 +940,7 @@ export default function StudentCreateModal({
           mode === "choice" ? null : mode === "excel" ? (
             <span className={`modal-hint ${styles.footerHint}`}>
               {parsedExcel
-                ? excelExcludedRowCount > 0
-                  ? `${excelRowCount}명 확인 · 등록 ${excelEligibleRowCount}명 · 제외 ${excelExcludedRowCount}명`
-                  : `${excelRowCount}명 확인 · 전원 등록 요청 가능`
+                ? `${excelRowCount}명 확인 · 전원 등록 요청 가능`
                 : "엑셀 파일을 선택하면 등록 인원을 먼저 확인합니다"}
             </span>
           ) : null

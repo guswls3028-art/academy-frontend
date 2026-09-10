@@ -22,7 +22,7 @@ interface Props {
 export default function CreateStudentSheet({ open, onClose }: Props) {
   const qc = useQueryClient();
   const [name, setName] = useState("");
-  const [password, setPassword] = useState("0000");
+  const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [parentPhone, setParentPhone] = useState("");
   const [school, setSchool] = useState("");
@@ -52,6 +52,9 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
     }
     if (phone.trim() && !/^010\d{8}$/.test(normalizedPhone)) {
       return "학생 전화는 비우거나 010 뒤 8자리를 입력해 주세요.";
+    }
+    if (normalizedPhone && normalizedPhone === normalizedParentPhone) {
+      return "학생 로그인 ID와 학부모 로그인 ID는 서로 달라야 합니다.";
     }
     return null;
   }
@@ -95,11 +98,12 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
   });
 
   const resetAndClose = () => {
-    setName(""); setPassword("0000"); setPhone(""); setParentPhone("");
+    setName(""); setPassword(""); setPhone(""); setParentPhone("");
     setSchool(""); setGrade(""); setGender("");
     setSubmitError(""); setCreatedStudent(null);
     onClose();
   };
+  const formReady = validate() === null;
 
   return (
     <BottomSheet open={open} onClose={resetAndClose} title="학생 추가">
@@ -150,7 +154,7 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
       ) : (
       <div className="flex flex-col gap-2.5" style={{ padding: "var(--tc-space-3) 0" }}>
         <Field label="이름 *" value={name} onChange={setName} placeholder="학생 이름" />
-        <Field label="초기 비밀번호" value={password} onChange={setPassword} placeholder="0000" />
+        <Field label="초기 비밀번호" value={password} onChange={setPassword} placeholder="4자 이상 직접 입력" type="password" />
         <div className="flex gap-2">
           <Field label="학생 전화 (로그인 ID)" value={phone} onChange={setPhone} placeholder="010-" type="tel" />
           <Field label="학부모 전화" value={parentPhone} onChange={setParentPhone} placeholder="010-" type="tel" />
@@ -213,9 +217,9 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
         <div
           className="sticky bottom-0"
           style={{ padding: "8px 0 4px", background: "var(--tc-surface)" }}>
-          <button onClick={() => mutation.mutate()} disabled={!name.trim() || mutation.isPending}
+          <button onClick={() => mutation.mutate()} disabled={!formReady || mutation.isPending}
             className="w-full text-sm font-bold cursor-pointer"
-            style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: name.trim() ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: name.trim() ? "#fff" : "var(--tc-text-muted)" }}>
+            style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: formReady ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: formReady ? "#fff" : "var(--tc-text-muted)" }}>
             {mutation.isPending ? "등록 중..." : "등록"}
           </button>
         </div>
@@ -233,6 +237,7 @@ function Field({ label, value, onChange, placeholder, type = "text" }: {
     <div className="flex-1">
       <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>{label}</label>
       <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+        autoComplete={type === "password" ? "new-password" : undefined}
         className="w-full text-sm"
         style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
     </div>

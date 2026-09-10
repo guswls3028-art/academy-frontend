@@ -9,6 +9,7 @@ test.use({ serviceWorkers: "block" });
 
 test("선생님이 사진 실행표를 390px에서 확인하고 ONLINE 영상 권한을 확정한다", async ({ page }) => {
   const analyzeBodies: string[] = [];
+  const confirmBodies: Array<Record<string, unknown>> = [];
   const analyticsEvents: Array<Record<string, unknown>> = [];
   let analyzeCount = 0;
   await page.setViewportSize({ width: 390, height: 844 });
@@ -27,9 +28,10 @@ test("선생님이 사진 실행표를 390px에서 확인하고 ONLINE 영상 �
     if (path === "/teacher-app/ops-assistant/analyze/") {
       analyzeBodies.push(route.request().postData() || "");
       analyzeCount += 1;
-      return json({ proposal_token: `signed-preview-${analyzeCount}`, privacy: "원본 사진은 저장하지 않았습니다.", lecture_options: [{ id: 31, title: "해솔고1 과학반" }], rows: [{ row_id: "synthetic-row", name: "가온별", student_phone: "01033334444", parent_phone: "01011112222", school: "해솔고", school_type: "HIGH", grade: "1", selected_lecture_id: 31, session_order: 1, remove_enrollment_id: null, actions: { register_student: true, enroll_lecture: true, open_video: true, send_account_notice: true, correct_enrollment: false }, student_match: { status: "existing", id: 81, basis: ["name", "parent_phone", "school"] }, profile_changes: ["student.phone", "student.ps_number", "user.phone"], attendance_target: "ONLINE", correction_options: [], issues: [], can_confirm: true }] });
+      const isNew = analyzeCount === 3;
+      return json({ proposal_token: `signed-preview-${analyzeCount}`, privacy: "원본 사진은 저장하지 않았습니다.", lecture_options: [{ id: 31, title: "해솔고1 과학반" }], rows: [{ row_id: "synthetic-row", name: "가온별", student_phone: isNew ? "" : "01033334444", parent_phone: "01011112222", initial_password_required: isNew, school: "해솔고", school_type: "HIGH", grade: "1", selected_lecture_id: 31, session_order: 1, remove_enrollment_id: null, actions: { register_student: true, enroll_lecture: true, open_video: true, send_account_notice: true, correct_enrollment: false }, student_match: { status: isNew ? "new" : "existing", id: isNew ? null : 81, basis: isNew ? ["no_existing_match"] : ["name", "parent_phone", "school"] }, profile_changes: isNew ? [] : ["student.phone", "student.ps_number", "user.phone"], attendance_target: "ONLINE", correction_options: [], issues: [], can_confirm: true }] });
     }
-    if (path === "/teacher-app/ops-assistant/confirm/") return json({ execution_id: "00000000-0000-0000-0000-000000000001", idempotent_replay: false, provider_receipt_note: "공급사 접수와 카카오 열람은 다릅니다.", rows: [{ row_id: "synthetic-row", account_creation: "not_created", profile_link: { state: "updated" }, enrollment: { correct_active_count: 1, wrong_active_removed: false }, attendance: { status: "ONLINE" }, video_access: [{ access_mode: "PROCTORED_CLASS", monitoring: true }], account_notice: { state: "provider_received", provider_evidence: { accepted_count: 2, expected_count: 2 } }, real_playback_canary: { state: "not_run", reason: "separate_safe_boundary_required" } }] });
+    if (path === "/teacher-app/ops-assistant/confirm/") { confirmBodies.push(route.request().postDataJSON() as Record<string, unknown>); return json({ execution_id: "00000000-0000-0000-0000-000000000001", idempotent_replay: false, provider_receipt_note: "공급사 접수와 카카오 열람은 다릅니다.", rows: [{ row_id: "synthetic-row", student_login_id: "AUTO-2026", account_creation: "created", profile_link: { state: "unchanged" }, enrollment: { correct_active_count: 1, wrong_active_removed: false }, attendance: { status: "ONLINE" }, video_access: [{ access_mode: "PROCTORED_CLASS", monitoring: true }], account_notice: { state: "provider_received", provider_evidence: { accepted_count: 2, expected_count: 2 } }, real_playback_canary: { state: "not_run", reason: "separate_safe_boundary_required" } }] }); }
     if (path.includes("/teacher-app/ops-assistant/executions/")) return json({ status: "succeeded", rows: [] });
     return json({ count: 0, results: [] });
   });
@@ -62,9 +64,15 @@ test("선생님이 사진 실행표를 390px에서 확인하고 ONLINE 영상 �
   await expect.poll(() => analyzeBodies.length).toBe(3);
   expect(analyzeBodies[2]).toContain("previous_proposal_token");
   expect(analyzeBodies[2]).toContain("signed-preview-2");
+  await expect(page.getByLabel("새·누락 계정 초기 비밀번호")).toBeVisible();
+  await expect(page.getByRole("button", { name: "1명 확정하고 실행" })).toBeDisabled();
+  await page.getByLabel("새·누락 계정 초기 비밀번호").fill("teacher-choice-0982");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.getByRole("button", { name: "1명 확정하고 실행" }).click();
-  await expect(page.getByText("기존 연결 복구")).toBeVisible();
+  expect((confirmBodies[0].rows as Array<Record<string, unknown>>)[0].initial_password).toBe("teacher-choice-0982");
+  expect((confirmBodies[0].rows as Array<Record<string, unknown>>)[0].student_phone).toBe("");
+  await expect(page.getByText("AUTO-2026", { exact: true })).toBeVisible();
+  await expect(page.getByText("신규 계정 생성")).toBeVisible();
   await expect(page.getByText("ONLINE · PROCTORED_CLASS · monitoring=true")).toBeVisible();
   await expect(page.getByText("알림톡 공급사 접수 2/2")).toBeVisible();
   await expect(page.getByText("이번 실행에서 미검증")).toBeVisible();

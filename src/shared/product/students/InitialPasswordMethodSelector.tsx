@@ -9,8 +9,6 @@ interface Props {
   value: StudentInitialPasswordSettings;
   onChange: (next: StudentInitialPasswordSettings) => void;
   disabled?: boolean;
-  invalidStudentPhoneNames?: string[];
-  allowPartialRows?: boolean;
 }
 
 const OPTIONS: Array<{
@@ -19,19 +17,14 @@ const OPTIONS: Array<{
   description: string;
 }> = [
   {
-    value: "phone_last4",
-    label: "학생 휴대폰 번호 뒤 4자리",
-    description: "엑셀의 학생 전화번호를 기준으로 자동 설정합니다.",
-  },
-  {
     value: "fixed",
-    label: "공통 비밀번호 직접 입력",
-    description: "새로 등록되는 모든 학생에게 같은 비밀번호를 적용합니다.",
+    label: "직접 입력",
+    description: "새 학생과 새 학부모 계정에 입력한 비밀번호를 적용합니다.",
   },
   {
     value: "random",
-    label: "학생별 랜덤 비밀번호",
-    description: "등록 완료 후 학생별 비밀번호 목록이 자동으로 내려받아집니다.",
+    label: "학생별 안전한 임시 비밀번호",
+    description: "6자리 임시 비밀번호를 만들고 완료 후 목록을 내려받습니다.",
   },
 ];
 
@@ -39,15 +32,10 @@ export default function InitialPasswordMethodSelector({
   value,
   onChange,
   disabled = false,
-  invalidStudentPhoneNames = [],
-  allowPartialRows = false,
 }: Props) {
   const fieldId = useId();
   const radioName = `student-initial-password-mode-${fieldId}`;
   const fixedPasswordId = `student-excel-fixed-password-${fieldId}`;
-  const invalidCount = invalidStudentPhoneNames.length;
-  const invalidPreview = invalidStudentPhoneNames.slice(0, 4).join(", ");
-
   return (
     <fieldset className={styles.fieldset} disabled={disabled}>
       <legend className={styles.legend}>신규 학생 초기 비밀번호 방식</legend>
@@ -78,24 +66,14 @@ export default function InitialPasswordMethodSelector({
           <label htmlFor={fixedPasswordId}>공통 초기 비밀번호</label>
           <input
             id={fixedPasswordId}
-            type="text"
+            type="password"
             value={value.fixedPassword}
             onChange={(event) => onChange({ ...value, fixedPassword: event.target.value })}
             placeholder="4자 이상"
             minLength={4}
-            autoComplete="off"
+            autoComplete="new-password"
           />
           <span>4자 이상 입력해 주세요.</span>
-        </div>
-      ) : null}
-
-      {value.mode === "phone_last4" && invalidCount > 0 ? (
-        <div className={styles.phoneError} role={allowPartialRows ? "status" : "alert"}>
-          학생 전화번호가 없거나 올바르지 않은 학생이 {invalidCount}명 있습니다
-          {invalidPreview ? `: ${invalidPreview}` : ""}.
-          {allowPartialRows
-            ? " 해당 행은 등록하지 않고, 나머지 정상 행만 등록합니다."
-            : " 엑셀에서 010으로 시작하는 11자리 학생 전화번호를 입력해 주세요."}
         </div>
       ) : null}
     </fieldset>

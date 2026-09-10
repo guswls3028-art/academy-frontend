@@ -90,7 +90,7 @@ async function impersonateYmathOwner(page: Page): Promise<void> {
   }, impersonation.body);
 }
 
-test("학생 엑셀 등록에서 번호가 빠진 행만 제외하고 업로드를 허용한다", async ({ page }) => {
+test("학생 엑셀 등록은 명시적 비밀번호만 제공하고 번호 없는 행도 등록한다", async ({ page }) => {
   await loginViaUI(page, "admin");
 
   const studentMenu = page.getByText("학생", { exact: true }).first();
@@ -116,14 +116,12 @@ test("학생 엑셀 등록에서 번호가 빠진 행만 제외하고 업로드�
     buffer: workbookBuffer,
   });
 
-  const phoneMode = dialog.getByRole("radio", { name: "학생 휴대폰 번호 뒤 4자리" });
-  await expect(phoneMode).toBeChecked();
-  await expect(dialog.getByRole("status")).toContainText("해당 행은 등록하지 않고, 나머지 정상 행만 등록합니다");
-
   const registerButton = dialog.getByRole("button", { name: "등록", exact: true });
-  await expect(registerButton).toBeEnabled();
+  await expect(dialog.getByRole("radio", { name: "학생 휴대폰 번호 뒤 4자리" })).toHaveCount(0);
+  await expect(dialog.getByRole("radio", { name: "직접 입력" })).toBeChecked();
+  await expect(dialog.getByText("1명도 자동 아이디를 받아 함께 등록됩니다.")).toBeVisible();
+  await expect(registerButton).toBeDisabled();
 
-  await dialog.getByRole("radio", { name: "공통 비밀번호 직접 입력" }).check();
   const fixedPassword = dialog.getByLabel("공통 초기 비밀번호");
   await expect(fixedPassword).toBeVisible();
   await fixedPassword.fill("12");
@@ -131,14 +129,14 @@ test("학생 엑셀 등록에서 번호가 빠진 행만 제외하고 업로드�
   await fixedPassword.fill("1234");
   await expect(registerButton).toBeEnabled();
 
-  await dialog.getByRole("radio", { name: "학생별 랜덤 비밀번호" }).check();
-  await expect(dialog.getByText("등록 완료 후 학생별 비밀번호 목록이 자동으로 내려받아집니다.")).toBeVisible();
+  await dialog.getByRole("radio", { name: "학생별 안전한 임시 비밀번호" }).check();
+  await expect(dialog.getByText("6자리 임시 비밀번호를 만들고 완료 후 목록을 내려받습니다.")).toBeVisible();
   await expect(registerButton).toBeEnabled();
   await registerButton.click();
   const confirmation = page.getByRole("alertdialog", { name: "학생 일괄 등록 최종 확인" });
   await expect(confirmation.getByText("student-password-options.xlsx", { exact: true })).toBeVisible();
   await expect(confirmation.getByText("1명", { exact: true })).toBeVisible();
-  await expect(confirmation.getByText("학생별 랜덤 비밀번호", { exact: true })).toBeVisible();
+  await expect(confirmation.getByText("학생별 안전한 임시 비밀번호", { exact: true })).toBeVisible();
   await expect(confirmation.getByRole("button", { name: "다시 확인" })).toBeFocused();
   await confirmation.getByRole("button", { name: "다시 확인" }).click();
   await expect(dialog).toBeVisible();
@@ -199,7 +197,7 @@ test("Ymath 고객 제보 회귀: 소유자 화면에서 Excel 양식과 파일 
     mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     buffer: workbookBuffer,
   });
-  await expect(dialog.getByRole("status")).toContainText("학생 전화번호가 없거나 올바르지 않은 학생이 1명");
+  await expect(dialog.getByText("1명도 자동 아이디를 받아 함께 등록됩니다.")).toBeVisible();
   await expect(pageErrors, pageErrors.join("\n")).toEqual([]);
 });
 

@@ -43,7 +43,6 @@ export default function ProfilePage() {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState("");
-  const [editParentPhone, setEditParentPhone] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editGender, setEditGender] = useState<string>("");
   const [editAddress, setEditAddress] = useState("");
@@ -76,8 +75,6 @@ export default function ProfilePage() {
   useEffect(() => {
     if (profile) {
       setEditName(profile.name || "");
-      const p = (profile.parent_phone || "").replace(/\D/g, "");
-      setEditParentPhone(p.length >= 8 ? "010" + p.slice(-8) : profile.parent_phone || "");
       const ph = (profile.phone || "").replace(/\D/g, "");
       setEditPhone(ph.length >= 8 ? "010" + ph.slice(-8) : profile.phone || "");
       setEditGender(profile.gender || "");
@@ -109,8 +106,8 @@ export default function ProfilePage() {
       }
     },
     onError: (err: unknown) => {
-      const detail = (err as { response?: { data?: { detail?: string } } } | null)?.response?.data?.detail;
-      studentToast.error(typeof detail === "string" ? detail : "저장에 실패했습니다.");
+      const data = (err as { response?: { data?: { detail?: string } } } | null)?.response?.data;
+      studentToast.error(typeof data?.detail === "string" ? data.detail : "저장에 실패했습니다.");
     },
   });
 
@@ -156,7 +153,6 @@ export default function ProfilePage() {
   const startEdit = () => {
     if (profile) {
       setEditName(profile.name || "");
-      setEditParentPhone(profile.parent_phone || "");
       setEditPhone(profile.phone || "");
       setEditGender(profile.gender || "");
       setEditAddress(profile.address || "");
@@ -177,7 +173,6 @@ export default function ProfilePage() {
   };
 
   const saveProfile = () => {
-    const parentRaw = editParentPhone.replace(/\D/g, "");
     const phoneRaw = editPhone.replace(/\D/g, "");
     const gradeNum = editGrade.trim() ? parseInt(editGrade, 10) : null;
     const validGrades = slm.gradeRange(editSchoolType);
@@ -185,7 +180,6 @@ export default function ProfilePage() {
     setLastMutationSource("profile");
     updateProfileMutation.mutate({
       name: editName.trim() || undefined,
-      parent_phone: parentRaw.length >= 10 ? "010" + parentRaw.slice(-8) : undefined,
       phone: phoneRaw.length >= 10 ? "010" + phoneRaw.slice(-8) : (editPhone.trim() || null),
       gender: editGender === "M" || editGender === "F" ? editGender : null,
       address: editAddress.trim() || null,
@@ -400,17 +394,12 @@ export default function ProfilePage() {
 
             <div>
               <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>학부모 전화번호</div>
+              <div style={{ fontWeight: 600, fontSize: 16 }}>{valueOrEmpty(profile.parent_phone, formatPhone)}</div>
               {editing && !profile.isParentReadOnly ? (
-                <PhoneInput010Blocks
-                  value={editParentPhone}
-                  onChange={(v) => setEditParentPhone(v)}
-                  inputClassName="stu-input"
-                  blockClassName="stu-phone-block"
-                  aria-label="학부모 전화번호"
-                />
-              ) : (
-                <div style={{ fontWeight: 600, fontSize: 16 }}>{valueOrEmpty(profile.parent_phone, formatPhone)}</div>
-              )}
+                <div className="stu-muted" style={{ fontSize: 12, marginTop: 4 }}>
+                  학부모 계정 연결을 바꾸려면 학원에 요청해 주세요.
+                </div>
+              ) : null}
             </div>
 
             <div>

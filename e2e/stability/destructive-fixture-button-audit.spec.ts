@@ -510,9 +510,11 @@ test.describe.serial("[E2E] fixture 기반 파괴/상태변경 버튼 전수 감
     await selectStudentInUi(page, updatedName);
     await page.getByRole("button", { name: "비밀번호 변경", exact: true }).click();
     const pwDialog = await latestDialog(page, "비밀번호 일괄 변경");
-    await pwDialog.getByPlaceholder("비워두면 자동 생성").fill(tempPassword);
-    await setFirstSwitch(pwDialog, false);
-    await pwDialog.getByRole("button", { name: "비밀번호 변경", exact: true }).click();
+    const passwordSubmit = pwDialog.getByRole("button", { name: "비밀번호 변경", exact: true });
+    await expect(passwordSubmit).toBeDisabled();
+    await pwDialog.getByPlaceholder("4자 이상 직접 입력").fill(tempPassword);
+    await expect(passwordSubmit).toBeEnabled();
+    await passwordSubmit.click();
     await expect(pwDialog).toBeHidden({ timeout: 30_000 });
     await loginTokenForStudent(request, username, tempPassword);
 

@@ -75,6 +75,10 @@ export default function PasswordResetModal({
       feedback.info("선택한 학생이 없습니다.");
       return;
     }
+    if (password.length < 4) {
+      feedback.error("설정할 임시 비밀번호를 4자 이상 입력해 주세요.");
+      return;
+    }
     setResetting(true);
     let ok = 0;
     let fail = 0;
@@ -99,7 +103,7 @@ export default function PasswordResetModal({
                 student_name: s.name,
                 ...(s.psNumber?.trim() ? { student_ps_number: s.psNumber.trim() } : {}),
                 ...(studentPhone.length === 11 ? { student_phone: studentPhone } : {}),
-                ...(password ? { temp_password: password } : {}),
+                temp_password: password,
               });
             } else {
               const phone = normalizePhone(s.parentPhone);
@@ -112,7 +116,7 @@ export default function PasswordResetModal({
                 target: "parent",
                 student_name: s.name,
                 parent_phone: phone,
-                ...(password ? { temp_password: password } : {}),
+                temp_password: password,
               });
             }
             ok++;
@@ -152,16 +156,16 @@ export default function PasswordResetModal({
               임시 비밀번호
             </label>
             <input
-              type="text"
+              type="password"
               className="ds-input w-full"
-              placeholder="비워두면 자동 생성"
+              placeholder="4자 이상 직접 입력"
               value={tempPassword}
               onChange={(e) => setTempPassword(e.target.value)}
               disabled={resetting}
-              autoComplete="off"
+              autoComplete="new-password"
             />
             <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              입력하면 선택한 모든 대상에게 동일한 비밀번호가 설정됩니다.
+              필수 입력입니다. 선택한 모든 대상에게 동일한 비밀번호가 설정됩니다.
             </p>
           </div>
 
@@ -208,7 +212,7 @@ export default function PasswordResetModal({
               intent="primary"
               size="md"
               onClick={handleSubmit}
-              disabled={resetting || selectedStudents.length === 0}
+              disabled={resetting || selectedStudents.length === 0 || tempPassword.trim().length < 4}
               loading={resetting}
             >
               {resetting ? "발송 준비 중…" : "비밀번호 변경"}

@@ -296,6 +296,17 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     await loginThroughUi(page, created.family.parentPhone, created.family.parentPassword);
     await selectParentStudentThroughUi(page, primary);
     const parentTokens = await loginApi(request, created.family.parentPhone, created.family.parentPassword);
+    const missingSelection = await request.get(
+      `${QA_API}/api/v1/student/video/sessions/${created.sessionId}/videos/?enrollment=${created.enrollmentIds[0]}`,
+      {
+        headers: {
+          Authorization: `Bearer ${parentTokens.access}`,
+          "X-Tenant-Code": QA_TENANT,
+        },
+        timeout: 60_000,
+      },
+    );
+    expect(missingSelection.status()).toBe(403);
     const parentProgress = await selectedPost<{
       progress: number;
       progress_percent?: number;

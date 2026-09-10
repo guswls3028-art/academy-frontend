@@ -42,8 +42,8 @@ function reject(message: string): never {
 }
 
 function assertNoLegacyOptOut(payload: JsonPayload, endpoint: string): void {
-  if (payload.send_welcome_message === false) {
-    reject(`${endpoint} uses send_welcome_message=false, but account notices are mandatory now.`);
+  if ("send_welcome_message" in payload) {
+    reject(`${endpoint} uses removed send_welcome_message; account notice timing is not optional.`);
   }
   if (payload.skip_notify === true) {
     reject(`${endpoint} uses skip_notify=true, but password notices are mandatory now.`);

@@ -473,10 +473,7 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
       teacherToast.error(parseError || "엑셀 파일을 확인하고 있습니다.");
       return;
     }
-    const invalidStudentPhoneNames = parsed.rows
-      .filter((row) => row.usesIdentifier || !/^010\d{8}$/.test(row.studentPhone))
-      .map((row) => row.name || "(이름 없음)");
-    if (!isStudentInitialPasswordReady(passwordSettings, invalidStudentPhoneNames.length, true)) {
+    if (!isStudentInitialPasswordReady(passwordSettings)) {
       teacherToast.error(
         passwordSettings.mode === "fixed"
           ? "공통 초기 비밀번호를 4자 이상 입력해 주세요."
@@ -486,7 +483,7 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
     }
     setSubmitting(true);
     try {
-      const { job_id } = await uploadStudentBulkExcel(file, passwordSettings, true);
+      const { job_id } = await uploadStudentBulkExcel(file, passwordSettings);
       if (!job_id) {
         teacherToast.error("작업 ID를 받지 못했습니다. 다시 시도해 주세요.");
         return;
@@ -501,14 +498,11 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
     }
   };
 
-  const invalidStudentPhoneNames = parsed?.rows
-    .filter((row) => row.usesIdentifier || !/^010\d{8}$/.test(row.studentPhone))
-    .map((row) => row.name || "(이름 없음)") ?? [];
   const canSubmit =
     parsed != null
     && !parsing
     && !submitting
-    && isStudentInitialPasswordReady(passwordSettings, invalidStudentPhoneNames.length, true);
+    && isStudentInitialPasswordReady(passwordSettings);
 
   return (
     <BottomSheet open={open} onClose={handleClose} title="엑셀 가져오기">
@@ -536,8 +530,6 @@ function ExcelImportSheet({ open, file, onClose, onDone }: {
           value={passwordSettings}
           onChange={setPasswordSettings}
           disabled={submitting || parsing}
-          invalidStudentPhoneNames={invalidStudentPhoneNames}
-          allowPartialRows
         />
 
         {parsing ? (
@@ -905,7 +897,19 @@ function BulkPasswordSheet({ open, onClose, students, onDone }: {
   const [tempPw, setTempPw] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (open) {
+      setTarget("student");
+      setTempPw("");
+    }
+  }, [open]);
+
   const handleSubmit = async () => {
+    const password = tempPw.trim();
+    if (password.length < 4) {
+      teacherToast.error("설정할 임시 비밀번호를 4자 이상 입력해 주세요.");
+      return;
+    }
     setSubmitting(true);
     const targets: ("student" | "parent")[] = target === "both" ? ["student", "parent"] : [target];
     let ok = 0; let fail = 0;
@@ -915,7 +919,7 @@ function BulkPasswordSheet({ open, onClose, students, onDone }: {
           try {
             const baseParams = {
               student_name: s.name ?? s.displayName ?? "",
-              ...(tempPw.trim() ? { temp_password: tempPw.trim() } : {}),
+              temp_password: password,
             };
             if (t === "student") {
               if (!s.psNumber && !s.studentPhone) { fail++; continue; }
@@ -969,10 +973,10 @@ function BulkPasswordSheet({ open, onClose, students, onDone }: {
         </div>
         <div>
           <label className="text-[11px] font-semibold block mb-1" style={{ color: "var(--tc-text-muted)" }}>임시 비밀번호</label>
-          <input type="text" value={tempPw} onChange={(e) => setTempPw(e.target.value)} placeholder="비워두면 자동 생성"
+          <input type="password" autoComplete="new-password" value={tempPw} onChange={(e) => setTempPw(e.target.value)} placeholder="4자 이상 직접 입력"
             className="w-full text-sm"
             style={{ padding: "8px 10px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-strong)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", outline: "none" }} />
-          <p className="text-[11px] mt-1" style={{ color: "var(--tc-text-muted)" }}>입력하면 모든 대상에 동일 비밀번호가 설정됩니다.</p>
+          <p className="text-[11px] mt-1" style={{ color: "var(--tc-text-muted)" }}>필수 입력이며 모든 대상에 동일 비밀번호가 설정됩니다.</p>
         </div>
         <div className="flex items-center justify-between"
           style={{ padding: "10px 12px", borderRadius: "var(--tc-radius-sm)", border: "1px solid var(--tc-border-subtle)", background: "var(--tc-primary-bg)" }}>
@@ -986,9 +990,9 @@ function BulkPasswordSheet({ open, onClose, students, onDone }: {
             </div>
           </div>
         </div>
-        <button onClick={handleSubmit} disabled={submitting}
+        <button onClick={handleSubmit} disabled={submitting || tempPw.trim().length < 4}
           className="w-full text-sm font-bold cursor-pointer mt-1"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: submitting ? 0.6 : 1 }}>
+          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "#fff", opacity: submitting || tempPw.trim().length < 4 ? 0.6 : 1 }}>
           {submitting ? "변경 중…" : `${students.length}명 비밀번호 변경`}
         </button>
       </div>

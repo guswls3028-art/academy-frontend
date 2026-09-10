@@ -139,13 +139,12 @@ test.describe("신규 학생 Excel 등록 확인 화면", () => {
     await expect(dialog.getByText("읽은 학생").locator("..")).toContainText("3명");
     await expect(dialog.getByText("학생 전화번호 있음").locator("..")).toContainText("1명");
     await expect(dialog.getByText("없음·식별번호 사용").locator("..")).toContainText("2명");
-    await expect(dialog.getByText("2명은 현재 비밀번호 방식에서 제외됩니다.")).toBeVisible();
-    await expect(dialog.getByRole("status")).toHaveCount(1);
-    await expect(dialog.getByRole("button", { name: "1명 등록 요청" })).toBeVisible();
+    await expect(dialog.getByText("2명도 자동 아이디를 받아 함께 등록됩니다.")).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "3명 등록 요청" })).toBeDisabled();
     await expect(dialog.getByText("김지우a·김지우1·괄호 표기도 이름 그대로")).toBeVisible();
     await expect(dialog.getByText("형제·자매는 학부모 번호가 같아도 됩니다.")).toBeVisible();
 
-    await dialog.getByRole("radio", { name: "공통 비밀번호 직접 입력" }).check();
+    await dialog.getByRole("radio", { name: "직접 입력" }).check();
     await dialog.getByLabel("공통 초기 비밀번호").fill("0982");
     await expect(dialog.getByText("2명도 자동 아이디를 받아 함께 등록됩니다.")).toBeVisible();
     await expect(dialog.getByRole("button", { name: "3명 등록 요청" })).toBeEnabled();
@@ -158,7 +157,7 @@ test.describe("신규 학생 Excel 등록 확인 화면", () => {
     await openExcelRegistration(page);
 
     const dialog = page.getByRole("dialog");
-    await dialog.getByRole("radio", { name: "학생별 랜덤 비밀번호" }).check();
+    await dialog.getByRole("radio", { name: "학생별 안전한 임시 비밀번호" }).check();
     await expect(dialog.getByRole("button", { name: "3명 등록 요청" })).toBeEnabled();
     await expect(dialog.getByText("3명 확인 · 전원 등록 요청 가능")).not.toBeVisible();
 
@@ -174,7 +173,7 @@ test.describe("신규 학생 Excel 등록 확인 화면", () => {
     await dialog.getByRole("button", { name: "3명 등록 요청" }).click();
     const confirmation = page.getByRole("alertdialog", { name: "학생 일괄 등록 최종 확인" });
     await expect(confirmation.getByText("동명이인-학생등록.xlsx", { exact: true })).toBeVisible();
-    await expect(confirmation.getByText("학생별 랜덤 비밀번호", { exact: true })).toBeVisible();
+    await expect(confirmation.getByText("학생별 안전한 임시 비밀번호", { exact: true })).toBeVisible();
     await expect(confirmation.getByRole("button", { name: "다시 확인" })).toBeFocused();
     expect(await confirmation.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
     await confirmation.getByRole("button", { name: "다시 확인" }).click();
@@ -268,13 +267,16 @@ test.describe("신규 학생 Excel 등록 확인 화면", () => {
     await expect(dialog).toBeVisible();
   });
 
-  test("현재 비밀번호 방식의 등록 가능 인원이 0명이면 요청을 막는다", async ({ page }) => {
+  test("학생 전화가 전혀 없어도 명시적 비밀번호를 받은 뒤 전원 등록한다", async ({ page }) => {
     await installStudentPage(page);
     await openExcelRegistration(page, { allStudentPhonesMissing: true });
 
     const dialog = page.getByRole("dialog");
-    await expect(dialog.getByText("3명은 현재 비밀번호 방식에서 제외됩니다.")).toBeVisible();
-    await expect(dialog.getByRole("button", { name: "0명 등록 요청" })).toBeDisabled();
+    await expect(dialog.getByText("3명도 자동 아이디를 받아 함께 등록됩니다.")).toBeVisible();
+    const registerButton = dialog.getByRole("button", { name: "3명 등록 요청" });
+    await expect(registerButton).toBeDisabled();
+    await dialog.getByLabel("공통 초기 비밀번호").fill("0982");
+    await expect(registerButton).toBeEnabled();
   });
 
   test("완료 뒤 큰 결과창에서 신규·기존·실패 행과 안전한 사유를 보여주고 새로고침 뒤 복구한다", async ({ page }, testInfo) => {
@@ -297,7 +299,7 @@ test.describe("신규 학생 Excel 등록 확인 화면", () => {
     await openExcelRegistration(page);
 
     const uploadDialog = page.getByRole("dialog");
-    await uploadDialog.getByRole("radio", { name: "공통 비밀번호 직접 입력" }).check();
+    await uploadDialog.getByRole("radio", { name: "직접 입력" }).check();
     await uploadDialog.getByLabel("공통 초기 비밀번호").fill("0982");
     await uploadDialog.getByRole("button", { name: "3명 등록 요청" }).click();
     await confirmStudentImport(page);
@@ -373,7 +375,7 @@ test.describe("신규 학생 Excel 등록 확인 화면", () => {
     await openExcelRegistration(page);
 
     const uploadDialog = page.getByRole("dialog");
-    await uploadDialog.getByRole("radio", { name: "공통 비밀번호 직접 입력" }).check();
+    await uploadDialog.getByRole("radio", { name: "직접 입력" }).check();
     await uploadDialog.getByLabel("공통 초기 비밀번호").fill("0982");
     await uploadDialog.getByRole("button", { name: "3명 등록 요청" }).click();
     await confirmStudentImport(page);

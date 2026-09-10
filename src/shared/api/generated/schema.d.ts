@@ -748,7 +748,7 @@ export interface paths {
         /**
          * @description PATCH /clinic/participants/{id}/set_status/
          *     - 상태 변경 + audit 기록
-         *     - 학생: 자신의 예약 신청(status="pending")만 취소 가능
+         *     - 학생/학부모: 자신의 pending/booked 예약 취소 가능. 필수 대상자는 같은 주 예약 1개 유지
          *     - 선생: 모든 상태 변경 가능
          */
         patch: operations["clinic_participants_set_status_partial_update"];
@@ -1508,10 +1508,10 @@ export interface paths {
         };
         /** @description 단건 조회: 학생/학부모는 published 공개 타입 또는 본인 작성 글만 허용. */
         get: operations["community_posts_retrieve"];
-        /** @description 학생은 본인 글만 수정 가능. 학부모는 수정 불가. */
+        /** @description 학생/학부모는 현재 학생 컨텍스트의 본인 글만 수정 가능. */
         put: operations["community_posts_update"];
         post?: never;
-        /** @description 학생은 본인 글만 삭제 가능. 학부모는 삭제 불가. */
+        /** @description 학생/학부모는 현재 학생 컨텍스트의 본인 글만 삭제 가능. */
         delete: operations["community_posts_destroy"];
         options?: never;
         head?: never;
@@ -6806,6 +6806,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/media/videos/bulk-policy/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Atomically update playback defaults for videos in one tenant session. */
+        post: operations["media_videos_bulk_policy_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/media/videos/comments/{comment_id}/": {
         parameters: {
             query?: never;
@@ -7898,7 +7915,7 @@ export interface paths {
         /**
          * @description PATCH /clinic/participants/{id}/set_status/
          *     - 상태 변경 + audit 기록
-         *     - 학생: 자신의 예약 신청(status="pending")만 취소 가능
+         *     - 학생/학부모: 자신의 pending/booked 예약 취소 가능. 필수 대상자는 같은 주 예약 1개 유지
          *     - 선생: 모든 상태 변경 가능
          */
         patch: operations["results_admin_clinic_bookings_set_status_partial_update"];
@@ -10287,7 +10304,6 @@ export interface paths {
          * @description 충돌 해결 후 재시도 — 삭제된 학생과 번호 충돌 시 복원 또는 영구 삭제 후 재등록
          *     POST body: {
          *       "initial_password": "...",
-         *       "send_welcome_message": false,
          *       "resolutions": [ { "row": 1, "student_id": 123, "action": "restore"|"delete", "student_data": {...} } ]
          *     }
          */
@@ -10309,7 +10325,10 @@ export interface paths {
         put?: never;
         /**
          * @description 삭제된 학생 일괄 복원
-         *     POST body: { "ids": [1, 2, 3, ...] }
+         *     POST body: { "ids": [1, 2, 3, ...], "parent_initial_password": "optional" }
+         *
+         *     정상 학부모 계정의 비밀번호는 변경하지 않는다. 과거 데이터의 학부모
+         *     계정이 없거나 비밀번호를 쓸 수 없을 때만 명시된 초기 비밀번호를 사용한다.
          */
         post: operations["students_bulk_restore_create"];
         delete?: never;
@@ -12533,6 +12552,7 @@ export interface components {
              * @description 시간 범위 방식에서 확정된 실제 예약 시작 시각입니다.
              */
             booking_start_time?: string | null;
+            readonly can_self_cancel: boolean;
             /** Format: date-time */
             checked_in_at?: string | null;
             /**
@@ -12582,6 +12602,7 @@ export interface components {
             requested_date?: string | null;
             /** Format: time */
             requested_start_time?: string | null;
+            readonly self_cancel_reason: string;
             session?: number | null;
             readonly session_date: string;
             readonly session_duration_minutes: string;
@@ -12611,6 +12632,7 @@ export interface components {
             booking_end_time?: string | null;
             /** Format: time */
             booking_start_time?: string | null;
+            enrollment_ids?: number[];
             /** @default  */
             memo: string;
             /** Format: time */
@@ -15947,6 +15969,7 @@ export interface components {
             name?: string;
             /** @description 출신중학교 (고등학생 선택 입력) */
             origin_middle_school?: string | null;
+            parent_initial_password?: string;
             /** @description 정규화된 전화번호 (하이픈 제거, 예: 01012345678) */
             parent_phone?: string;
             /** @description 정규화된 전화번호 (하이픈 제거, 예: 01012345678) */
@@ -17341,6 +17364,75 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
         };
+        StaffPayrollOverview: {
+            /** Format: date */
+            date_from: string;
+            /** Format: date */
+            date_to: string;
+            month: number;
+            rows: components["schemas"]["StaffPayrollOverviewRow"][];
+            totals: components["schemas"]["StaffPayrollOverviewTotals"];
+            year: number;
+        };
+        StaffPayrollOverviewRow: {
+            abnormal_long_work_record_count: number;
+            account_role: string;
+            advisory_issue_count: number;
+            approved_expense_amount: number;
+            assigned_work_type_count: number;
+            can_close: boolean;
+            can_manage_staff: boolean;
+            duplicate_work_record_count: number;
+            incomplete_work_record_count: number;
+            is_active: boolean;
+            manually_edited_work_record_count: number;
+            name: string;
+            open_work_record_count: number;
+            pay_type: string;
+            pending_expense_amount: number;
+            pending_expense_count: number;
+            position: string;
+            position_label: string;
+            reference_business_income_tax: number;
+            reference_deduction_total: number;
+            reference_local_income_tax: number;
+            reference_net_work_amount: number;
+            reference_transfer_amount: number;
+            settlement_status: string;
+            staff_id: number;
+            total_amount: number;
+            work_amount: number;
+            /** Format: double */
+            work_hours: number;
+            work_type_breakdown: components["schemas"]["StaffPayrollWorkTypeBreakdown"][];
+        };
+        StaffPayrollOverviewTotals: {
+            advisory_issue_count: number;
+            approved_expense_amount: number;
+            closed_count: number;
+            needs_review_count: number;
+            pending_expense_amount: number;
+            reference_business_income_tax: number;
+            reference_deduction_total: number;
+            reference_local_income_tax: number;
+            reference_net_work_amount: number;
+            reference_transfer_amount: number;
+            staff_count: number;
+            total_amount: number;
+            work_amount: number;
+            /** Format: double */
+            work_hours: number;
+            work_type_breakdown: components["schemas"]["StaffPayrollWorkTypeBreakdown"][];
+        };
+        StaffPayrollWorkTypeBreakdown: {
+            color: string | null;
+            record_count: number;
+            work_amount: number;
+            /** Format: double */
+            work_hours: number;
+            work_type_id: number | null;
+            work_type_name: string | null;
+        };
         StaffWorkCurrentStatus: {
             break_minutes?: number;
             /** Format: date-time */
@@ -17433,6 +17525,11 @@ export interface components {
         };
         StaffWorkSummary: {
             expense_amount: number;
+            reference_business_income_tax: number;
+            reference_deduction_total: number;
+            reference_local_income_tax: number;
+            reference_net_work_amount: number;
+            reference_transfer_amount: number;
             staff_id: number;
             total_amount: number;
             work_amount: number;
@@ -17759,8 +17856,6 @@ export interface components {
             /** @description 학생앱 일정 개별 숨김 ID 목록. 양수=LectureSession.id, 음수=ClinicSessionParticipant.id*-1. me/ 응답 ID 규약과 동일. 실제 데이터는 그대로 유지. */
             schedule_hidden_ids?: unknown;
             school_type?: components["schemas"]["SchoolTypeEnum"];
-            /** @default true */
-            send_welcome_message: boolean;
             /** @description True면 학생 전화 없음, 식별자(010+8자리)로 가입. 표시 시 '식별자 XXXX-XXXX' */
             uses_identifier?: boolean;
         };
@@ -18209,6 +18304,7 @@ export interface components {
             name: string;
             /** @description 출신중학교 (고등학생 선택 입력) */
             origin_middle_school?: string | null;
+            parent_initial_password?: string;
             /** @description 정규화된 전화번호 (하이픈 제거, 예: 01012345678) */
             parent_phone: string;
             /** @description 정규화된 전화번호 (하이픈 제거, 예: 01012345678) */
@@ -18445,6 +18541,7 @@ export interface components {
             /** @default true */
             enabled: boolean;
             grade?: string;
+            initial_password?: string;
             name: string;
             parent_phone?: string;
             remove_enrollment_id?: number | null;
@@ -18556,6 +18653,17 @@ export interface components {
          * @enum {string}
          */
         TypeEnum: "exam" | "homework";
+        VideoBulkPolicyRequest: {
+            allow_skip?: boolean;
+            /** Format: double */
+            max_speed?: number;
+            session_id: number;
+            video_ids: number[];
+        };
+        VideoBulkPolicyResponse: {
+            changed: number;
+            updated: number;
+        };
         /**
          * @description * `ENROLLED` - 수강생 전용
          *     * `PUBLIC` - 전체 공개
@@ -29751,6 +29859,36 @@ export interface operations {
             };
         };
     };
+    media_videos_bulk_policy_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VideoBulkPolicyRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoBulkPolicyResponse"];
+                };
+            };
+            /** @description Invalid policy fields or a non-exact tenant/session/video target */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     media_videos_comments_destroy: {
         parameters: {
             query?: never;
@@ -32820,7 +32958,10 @@ export interface operations {
     };
     staffs_payroll_overview_retrieve: {
         parameters: {
-            query?: never;
+            query: {
+                month: number;
+                year: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -32832,7 +32973,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StaffWrite"];
+                    "application/json": components["schemas"]["StaffPayrollOverview"];
                 };
             };
         };

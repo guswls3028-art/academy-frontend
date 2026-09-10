@@ -32,6 +32,7 @@ type StudentEditForm = {
   psNumber: string;
   studentPhone: string;
   parentPhone: string;
+  parentInitialPassword: string;
   schoolType: SchoolType;
   school: string;
   grade: string;
@@ -66,6 +67,7 @@ function toEditForm(student: ClientStudent, defaultSchoolType: SchoolType): Stud
     psNumber: student.psNumber || "",
     studentPhone: student.studentPhone || "",
     parentPhone: student.parentPhone || "",
+    parentInitialPassword: "",
     schoolType: normalizeSchoolType(student.schoolType, defaultSchoolType),
     school: student.school || "",
     grade: student.grade ? String(student.grade) : "",
@@ -128,6 +130,7 @@ export default function EditStudentModal({
     ps_number: "psNumber",
     phone: "studentPhone",
     parent_phone: "parentPhone",
+    parent_initial_password: "parentInitialPassword",
     name: "name",
   };
 
@@ -162,6 +165,10 @@ export default function EditStudentModal({
     const parent = String(form.parentPhone || "").trim();
     if (!parent || parent.length !== 11) return "학부모 전화(010 뒤 8자리)를 입력해 주세요.";
     if (!/^010\d{8}$/.test(parent)) return "학부모 전화번호는 010 뒤 8자리 숫자여야 합니다.";
+    const parentPassword = String(form.parentInitialPassword || "").trim();
+    if (parentPassword && parentPassword.length < 4) {
+      return "학부모 계정 초기 비밀번호는 4자 이상이어야 합니다.";
+    }
 
     return null;
   }
@@ -269,6 +276,33 @@ export default function EditStudentModal({
                 data-required="true"
                 aria-label="학부모 전화"
               />
+              {fieldErrors.parentPhone ? (
+                <span className="modal-hint" role="alert">{fieldErrors.parentPhone}</span>
+              ) : null}
+            </div>
+            <div>
+              <label className="modal-phone-label" htmlFor="edit-parent-initial-password">
+                학부모 계정 초기 비밀번호
+              </label>
+              <input
+                id="edit-parent-initial-password"
+                name="parentInitialPassword"
+                type="password"
+                value={form.parentInitialPassword}
+                onChange={handleChange}
+                className="ds-input w-full"
+                placeholder="새·누락 계정을 만들 때 4자 이상"
+                minLength={4}
+                autoComplete="new-password"
+                disabled={busy}
+                aria-invalid={Boolean(fieldErrors.parentInitialPassword)}
+              />
+              <span className="modal-phone-desc">
+                기존 학부모 계정은 연결만 하고 비밀번호를 바꾸지 않습니다. 새 계정이나 누락 계정을 복구할 때만 이 값을 사용합니다.
+              </span>
+              {fieldErrors.parentInitialPassword ? (
+                <span className="modal-hint" role="alert">{fieldErrors.parentInitialPassword}</span>
+              ) : null}
             </div>
             <div className="modal-phone-row">
               <span className="modal-phone-label">학생 전화번호</span>

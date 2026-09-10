@@ -21,6 +21,8 @@ function localJwt(): string {
 async function installApi(
   page: Page,
   onAccountGuidance?: (target: "student" | "parent") => void,
+  onPasswordReset?: (payload: Record<string, unknown>) => void,
+  onStudentUpdate?: (payload: Record<string, unknown>) => void,
 ) {
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
@@ -107,17 +109,25 @@ async function installApi(
       });
     }
     if (path === "/students/1001/") {
+      const payload = request.method() === "PATCH"
+        ? request.postDataJSON() as Record<string, unknown>
+        : {};
+      if (request.method() === "PATCH") onStudentUpdate?.(payload);
       return json({
         id: 1001,
         name: "테스트학생",
         ps_number: "S1001",
         phone: "01033334444",
-        parent_phone: "01011112222",
+        parent_phone: payload.parent_phone ?? "01011112222",
         is_managed: true,
         account_state: "ACTIVE",
         tags: [],
         enrollments: [],
       });
+    }
+    if (path === "/students/password_reset_send/") {
+      onPasswordReset?.(request.postDataJSON() as Record<string, unknown>);
+      return json({ message: "임시 비밀번호를 설정하고 알림톡을 발송했습니다." });
     }
     if (path === "/students/1001/account-notifications/") {
       if (request.method() === "POST") {
@@ -316,7 +326,12 @@ test("교사용 모바일 학생 상세는 아이디 안내와 비밀번호 초�
     localStorage.setItem("refresh", `${jwt}-refresh`);
   }, localJwt());
   const guidanceTargets: string[] = [];
-  await installApi(page, (target) => guidanceTargets.push(target));
+  const passwordResets: Array<Record<string, unknown>> = [];
+  await installApi(
+    page,
+    (target) => guidanceTargets.push(target),
+    (payload) => passwordResets.push(payload),
+  );
   await page.setViewportSize({ width: 390, height: 844 });
 
   await gotoAndSettle(page, `${BASE}/workspace/mobile/students/1001`, {
@@ -348,7 +363,99 @@ test("교사용 모바일 학생 상세는 아이디 안내와 비밀번호 초�
   const resetSheet = page.getByRole("dialog").filter({ hasText: "비밀번호 초기화" }).last();
   await expect(resetSheet).toBeVisible();
   await expect(resetSheet.getByText("학생의 비밀번호를 변경합니다.", { exact: false })).toBeVisible();
-  await page.keyboard.press("Escape");
+  const submit = resetSheet.getByRole("button", { name: "비밀번호 변경", exact: true });
+  await expect(submit).toBeDisabled();
+  await resetSheet.getByRole("button", { name: "학부모", exact: true }).click();
+  await resetSheet.getByPlaceholder("4자 이상 직접 입력").fill("chosen0982");
+  await expect(submit).toBeEnabled();
+  await submit.click();
+  await expect.poll(() => passwordResets).toEqual([expect.objectContaining({
+    target: "parent",
+    parent_phone: "01011112222",
+    temp_password: "chosen0982",
+  })]);
+  await expect(resetSheet).toHaveCount(0);
+});
+
+test("학생 수정은 새 학부모 계정에만 명시적 초기 비밀번호를 보낸다", async ({ page }) => {
+  await installTenantOneInitScript(page);
+  await page.addInitScript((jwt) => {
+    localStorage.setItem("access", jwt);
+    localStorage.setItem("refresh", `${jwt}-refresh`);
+  }, localJwt());
+  const updates: Array<Record<string, unknown>> = [];
+  await installApi(page, undefined, undefined, (payload) => updates.push(payload));
+
+  await gotoAndSettle(page, `${BASE}/workspace/students/1001`, { timeout: 45_000 });
+  const overlay = page.getByTestId("student-detail-overlay");
+  await overlay.getByRole("button", { name: "정보 수정" }).click();
+  const dialog = page.getByRole("dialog", { name: "학생 수정" });
+  const parentPassword = dialog.getByLabel("학부모 계정 초기 비밀번호");
+  await expect(parentPassword).toBeVisible();
+  await expect(parentPassword).toHaveValue("");
+  await dialog.getByLabel("학부모 전화 앞 4자리").fill("2222");
+  await dialog.getByLabel("학부모 전화 뒤 4자리").fill("3333");
+  await parentPassword.fill("chosen0982");
+  await dialog.getByRole("button", { name: "저장", exact: true }).click();
+
+  await expect.poll(() => updates).toEqual([expect.objectContaining({
+    parent_phone: "01022223333",
+    parent_initial_password: "chosen0982",
+  })]);
+});
+
+test("삭제 학생 복원은 누락 학부모 계정에만 명시 비밀번호를 다시 받아 전송한다", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installTenantOneInitScript(page);
+  await page.addInitScript((jwt) => {
+    localStorage.setItem("access", jwt);
+    localStorage.setItem("refresh", `${jwt}-refresh`);
+  }, localJwt());
+  await installApi(page);
+
+  const restorePayloads: Record<string, unknown>[] = [];
+  await page.route("**/api/v1/students/bulk_restore/", async (route) => {
+    const payload = route.request().postDataJSON() as Record<string, unknown>;
+    restorePayloads.push(payload);
+    const hasPassword = payload.parent_initial_password === "teacher-selected-password";
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(hasPassword
+        ? { restored: 1 }
+        : {
+            restored: 0,
+            skipped: [{
+              id: 1002,
+              code: "parent_account_password_required",
+              reason: "새 학부모 계정을 만들려면 초기 비밀번호를 입력해 주세요.",
+            }],
+          }),
+    });
+  });
+
+  await gotoAndSettle(page, `${BASE}/workspace/students/deleted`, { timeout: 45_000 });
+  await page.getByRole("checkbox", { name: "클리닉학생 선택" }).check();
+  await page.getByRole("button", { name: "복원", exact: true }).click();
+
+  const dialog = page.getByRole("dialog", { name: "학생 복원" });
+  await expect(dialog).toBeVisible();
+  await expect.poll(
+    () => dialog.evaluate((element) => element.scrollWidth <= element.clientWidth),
+  ).toBe(true);
+  await expect(dialog.getByText(/정상 학부모 계정의 비밀번호는 바뀌지 않습니다/)).toBeVisible();
+  await dialog.getByRole("button", { name: "복원", exact: true }).click();
+  await expect(dialog).toBeVisible();
+  expect(restorePayloads[0]).toEqual({ ids: [1002] });
+
+  await dialog.getByLabel("누락 학부모 계정 초기 비밀번호 (선택)").fill("teacher-selected-password");
+  await dialog.getByRole("button", { name: "복원", exact: true }).click();
+
+  await expect(dialog).toHaveCount(0);
+  expect(restorePayloads[1]).toEqual({
+    ids: [1002],
+    parent_initial_password: "teacher-selected-password",
+  });
 });
 
 test("학생 상세의 클리닉 이력은 해당 날짜와 세션의 출석 화면을 연다", async ({ page }) => {
