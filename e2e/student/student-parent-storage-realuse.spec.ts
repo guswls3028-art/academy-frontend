@@ -177,6 +177,13 @@ test.describe.serial("[real-use] 학생·학부모 선택 자녀 자료함·성�
     expect(String(score.id)).not.toBe("");
     // A submitted score report is deliberately protected from direct inventory
     // deletion while its review is pending. cleanupQaFamily owns its teardown.
+    const protectedDelete = await api(
+      request,
+      "DELETE",
+      `/storage/inventory/files/${score.id}/?scope=student&student_ps=${encodeURIComponent(primary.ps_number)}`,
+      adminAccess,
+    );
+    expect(protectedDelete.status).toBe(409);
     await expect(page.getByText("확인 대기")).toBeVisible();
     await reloadStudentApp(page);
     await expect(page.getByText("확인 대기")).toBeVisible();

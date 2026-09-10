@@ -88,9 +88,8 @@ async function cleanup(request: APIRequestContext): Promise<void> {
     }
   };
 
-  // Participants are owned by their clinic sessions and intentionally have no
-  // standalone DELETE action. Deleting the sessions removes those rows.
-  for (const id of [...created.clinicSessionIds].reverse()) await remove("DELETE", `/clinic/sessions/${id}/`);
+  // Permanently remove the disposable student first so its participant rows
+  // cascade without exercising the user-facing session-cancellation notifier.
   if (created.family) {
     try {
       const deletion = await cleanupQaFamily(request, created.adminAccess, created.family);
@@ -99,6 +98,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
       failures.push(`family cleanup -> ${error instanceof Error ? error.message : String(error)}`);
     }
   }
+  for (const id of [...created.clinicSessionIds].reverse()) await remove("DELETE", `/clinic/sessions/${id}/`);
   if (created.examId && created.sourceSessionId) {
     await remove("DELETE", `/exams/${created.examId}/?session_id=${created.sourceSessionId}`);
   }
