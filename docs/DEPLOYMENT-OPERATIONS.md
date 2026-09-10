@@ -297,6 +297,10 @@ count를 유지하면서 `currentTime`이 5초 이상 계속 전진하고 재생
 서버 위치 및 복원된 media 위치가 2초 이내인지 확인하고, console/page/request 오류와
 수평 overflow가 모두 0이어야 한다. 화면 이탈 후 사후 Inspect는 두 학생의 진도와 정확한
 4개 재생 session, active session 0, PLAYER_ERROR/violation 0을 숫자로 확인한다.
+계정·학습·수강·영상 시나리오 전체를 한 worker에서 순차 실행하므로 Playwright 자식
+프로세스에는 30분을 허용한다. 40분 개발 카나리 job 안에서 결과 JSON 생성과 exact
+Cleanup/Inspect 및 세션 종료 확인 시간을 별도로 남기며, 30분을 넘기면 기존처럼 실패
+폐쇄하고 cleanup 0이 증명되기 전에는 운영 승격하지 않는다.
 
 고정 NonInteractiveCommands 세션의 Inspect/Setup/Cleanup만 사용하고 임의 shell 입력,
 기존 qa tenant 재사용/reset, 광역 command stdout 조회는 허용하지 않는다. Setup의

@@ -413,6 +413,13 @@ test("production promotion requires the non-skipped isolated development canary"
   assert.match(job("deploy"), /needs\.development-canary\.result == 'success'/);
 });
 
+test("expanded development real-use suite keeps time to report and clean up", () => {
+  const runner = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+  assert.match(runner, /}, 30 \* 60_000\);/);
+  assert.doesNotMatch(runner, /}, 20 \* 60_000\);/);
+  assert.match(job("development-canary"), /timeout-minutes: 40/);
+});
+
 test("production canary cannot create temporary business rows", () => {
   const production = job("e2e-roundtrip");
   assert.match(production, /E2E_ALLOW_PRODUCTION_WRITES: "0"/);
