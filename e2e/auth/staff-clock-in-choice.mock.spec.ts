@@ -388,6 +388,23 @@ test.describe("조교 로그인 출근 선택", () => {
       "staff",
       { monthAwareHistory: true },
     );
+    let signalClinicPendingRequest!: () => void;
+    const clinicPendingRequested = new Promise<void>((resolve) => {
+      signalClinicPendingRequest = resolve;
+    });
+    let releaseClinicPendingResponse!: () => void;
+    const clinicPendingResponseReleased = new Promise<void>((resolve) => {
+      releaseClinicPendingResponse = resolve;
+    });
+    await page.route("**/api/v1/clinic/participants/**", async (route) => {
+      signalClinicPendingRequest();
+      await clinicPendingResponseReleased;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }),
+      });
+    });
 
     await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
     await page.getByTestId("login-username").fill("assistant77");
@@ -400,10 +417,17 @@ test.describe("조교 로그인 출근 선택", () => {
     await page.getByRole("button", { name: "메뉴", exact: true }).click();
     const menu = page.getByRole("navigation", { name: "선생님 메뉴" });
     await expect(menu).toBeVisible();
+    await clinicPendingRequested;
+    const loadingBadge = menu.getByLabel("알림 센터 집계 중");
+    await expect(loadingBadge).toBeVisible();
     const accountGroupButton = menu.getByRole("button", { name: /내 계정/ });
     await accountGroupButton.click();
     await expect(accountGroupButton).toHaveAttribute("aria-expanded", "true");
     const recordsButton = menu.getByRole("button", { name: "근무 기록 / 지출", exact: true });
+    await expect(recordsButton).toBeVisible();
+    releaseClinicPendingResponse();
+    await expect(loadingBadge).toHaveCount(0);
+    await expect(accountGroupButton).toHaveAttribute("aria-expanded", "true");
     await expect(recordsButton).toBeVisible();
     await recordsButton.click();
 
