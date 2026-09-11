@@ -9,6 +9,42 @@ import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 
+async function expectWorkspaceTabsLayout(page: Page, expectedRows: number) {
+  const tabs = page.getByRole("tab", { name: "근태 탭", exact: true }).locator("..");
+  const layout = await tabs.evaluate((element) => {
+    const container = element.getBoundingClientRect();
+    return Array.from(element.querySelectorAll<HTMLButtonElement>("[role='tab']")).map((tab) => {
+      const bounds = tab.getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(tab);
+      const textRects = Array.from(range.getClientRects());
+      return {
+        label: tab.textContent?.trim(),
+        top: Math.round(bounds.top),
+        height: bounds.height,
+        textLines: new Set(textRects.map((rect) => Math.round(rect.top))).size,
+        textFits: textRects.every((rect) => rect.left >= bounds.left && rect.right <= bounds.right),
+        buttonFits: bounds.left >= Math.max(0, container.left)
+          && bounds.right <= Math.min(window.innerWidth, container.right),
+      };
+    });
+  });
+  const width = page.viewportSize()!.width;
+  await test.info().attach(`staff-workspace-tabs-${width}-layout`, {
+    body: JSON.stringify(layout, null, 2),
+    contentType: "application/json",
+  });
+  await page.screenshot({ path: test.info().outputPath(`staff-workspace-tabs-${width}.png`) });
+  expect(layout.map((tab) => tab.label)).toEqual(["근태", "비용/경비", "월 마감", "정산 참고", "리포트"]);
+  for (const tab of layout) {
+    expect(tab.textLines, `${tab.label} is readable on one line`).toBe(1);
+    expect(tab.textFits, `${tab.label} text stays inside its button`).toBe(true);
+    expect(tab.buttonFits, `${tab.label} is not clipped or horizontally hidden`).toBe(true);
+    if (width <= 640) expect(tab.height, `${tab.label} touch height`).toBeGreaterThanOrEqual(44);
+  }
+  expect(new Set(layout.map((tab) => tab.top)).size).toBe(expectedRows);
+}
+
 async function staffWorkbookRows(download: Download): Promise<string[][]> {
   const path = await download.path();
   if (!path) throw new Error("다운로드한 직원 목록의 로컬 경로를 확인할 수 없습니다.");
@@ -744,13 +780,17 @@ test.describe("직원 운영 계약", () => {
     await expect(page).toHaveURL(/payrollSearch=%EA%B9%80/);
     await expect(page).toHaveURL(/payrollSort=amount-desc/);
 
-    for (const [tabName, pathname] of [
+    await expect(page.getByRole("heading", { name: "선택 날짜 근무 상세", exact: true })).toBeVisible();
+    await expectWorkspaceTabsLayout(page, 1);
+
+    const detailRoutes = [
       ["근태", "/workspace/staff/attendance"],
       ["월 마감", "/workspace/staff/month-lock"],
       ["정산 참고", "/workspace/staff/payroll-snapshot"],
       ["리포트", "/workspace/staff/reports"],
       ["비용/경비", "/workspace/staff/expenses"],
-    ] as const) {
+    ] as const;
+    for (const [tabName, pathname] of detailRoutes) {
       const tab = page.getByRole("tab", { name: `${tabName} 탭` });
       await tab.click();
       await expect(page).toHaveURL((url) => (
@@ -807,10 +847,29 @@ test.describe("직원 운영 계약", () => {
     expect(mobileReturnLayout).toEqual({ documentFits: true, buttonFits: true });
     await mobileOverviewReturn.focus();
     await expect(mobileOverviewReturn).toBeFocused();
+    await expect(detailHeader).toContainText("근무기록 288,000원");
+    await expect(page.getByRole("heading", { name: "선택 날짜 근무 상세", exact: true })).toBeVisible();
+    await expectWorkspaceTabsLayout(page, 2);
     await page.screenshot({
       path: "test-results/staff-payroll-detail-return-390.png",
       fullPage: false,
     });
+    for (const [tabName, pathname] of detailRoutes) {
+      const tab = page.getByRole("tab", { name: `${tabName} 탭`, exact: true });
+      await tab.focus();
+      await expect(tab).toBeFocused();
+      await tab.press("Enter");
+      await expect(tab).toHaveAttribute("aria-selected", "true");
+      await expect(page).toHaveURL((url) => (
+        url.pathname === pathname
+        && url.searchParams.get("staffId") === "1"
+        && url.searchParams.get("year") === "2026"
+        && url.searchParams.get("month") === "8"
+        && url.searchParams.get("payrollFilter") === "review"
+        && url.searchParams.get("payrollSearch") === "김"
+        && url.searchParams.get("payrollSort") === "amount-desc"
+      ));
+    }
     await mobileOverviewReturn.press("Enter");
     await expect(page).not.toHaveURL(/staffId=/);
     await expect(page).toHaveURL(/year=2026&month=8/);
@@ -822,22 +881,95 @@ test.describe("직원 운영 계약", () => {
   });
 
   test("390px 급여판은 20명의 긴 이름·큰 금액·혼합 상태를 장부형으로 탐색한다", async ({ page }) => {
+    const payrollStaffs = Array.from({ length: 20 }, (_, index) => {
+      const id = 100 + index;
+      const name = index === 0 ? "김민서윤하늘장기근무조교" : `직원 ${String(index + 1).padStart(2, "0")}`;
+      const workAmount = 12_345_678 + index * 123_456;
+      const approvedExpense = 98_765 + index * 1_000;
+      const needsReview = index % 3 === 0;
+      const workRecords = Array.from({ length: 10 }, (_, recordIndex) => {
+        const amount = Math.floor(workAmount / 10) + (recordIndex < workAmount % 10 ? 1 : 0);
+        const workHours = 8 + index / 20;
+        return {
+          id: id * 100 + recordIndex,
+          staff: id,
+          staff_name: name,
+          work_type: 21,
+          work_type_name: "채점",
+          date: `2026-08-${String(needsReview && recordIndex === 1 ? 1 : recordIndex + 1).padStart(2, "0")}`,
+          start_time: "09:00",
+          end_time: `17:${String(index * 3).padStart(2, "0")}`,
+          break_minutes: 0,
+          meal_minutes: 0,
+          work_hours: workHours,
+          amount,
+          adjustment_amount: amount - workHours * 12_000,
+          resolved_hourly_wage: 12_000,
+          is_manually_edited: false,
+          memo: `${name} 8월 근무 ${recordIndex + 1}`,
+          created_at: "2026-08-20T09:00:00Z",
+          updated_at: "2026-08-20T09:00:00Z",
+        };
+      });
+      const expenses = [
+        {
+          id: id * 100 + 81,
+          staff: id,
+          staff_name: name,
+          date: "2026-08-12",
+          title: `${name} 8월 승인 환급`,
+          amount: approvedExpense,
+          memo: "선택 직원의 승인된 선결제",
+          status: "APPROVED",
+          approved_at: "2026-08-12T09:00:00Z",
+          approved_by: 12,
+          approved_by_name: "관리자",
+          created_at: "2026-08-12T08:00:00Z",
+          updated_at: "2026-08-12T09:00:00Z",
+        },
+        ...(needsReview ? [{
+          id: id * 100 + 82,
+          staff: id,
+          staff_name: name,
+          date: "2026-08-13",
+          title: `${name} 8월 대기 환급`,
+          amount: 250_000,
+          memo: "지급 전 확인할 선결제",
+          status: "PENDING",
+          approved_at: null,
+          approved_by: null,
+          approved_by_name: null,
+          created_at: "2026-08-13T08:00:00Z",
+          updated_at: "2026-08-13T08:00:00Z",
+        }] : []),
+      ];
+      return {
+        staff: {
+          ...activeStaff,
+          id,
+          name,
+          staff_work_types: activeStaff.staff_work_types.map((workType) => ({ ...workType, id: id * 100, staff: id })),
+        },
+        workAmount,
+        approvedExpense,
+        needsReview,
+        closed: index % 3 === 1,
+        workRecords,
+        expenses,
+      };
+    });
     await mockStaffApi(page, {
       payrollOverviewDelayMs: 300,
       transformPayrollOverview: (overview) => {
         const base = (overview.rows as Array<Record<string, unknown>>)[0];
-        const rows = Array.from({ length: 20 }, (_, index) => {
-          const needsReview = index % 3 === 0;
-          const closed = index % 3 === 1;
-          const workAmount = 12_345_678 + index * 123_456;
-          const approvedExpense = 98_765 + index * 1_000;
+        const rows = payrollStaffs.map(({ staff, workAmount, approvedExpense, needsReview, closed, workRecords }, index) => {
           const businessIncomeTax = Math.floor(workAmount * 0.03);
           const localIncomeTax = Math.floor(businessIncomeTax * 0.1);
           const deductionTotal = businessIncomeTax + localIncomeTax;
           return {
             ...base,
-            staff_id: 100 + index,
-            name: index === 0 ? "김민서윤하늘장기근무조교" : `직원 ${String(index + 1).padStart(2, "0")}`,
+            staff_id: staff.id,
+            name: staff.name,
             work_hours: 80 + index / 2,
             work_amount: workAmount,
             approved_expense_amount: approvedExpense,
@@ -853,7 +985,7 @@ test.describe("직원 운영 계약", () => {
               work_type_id: 21,
               work_type_name: "채점",
               color: "#2563EB",
-              record_count: 12,
+              record_count: workRecords.length,
               work_hours: 80 + index / 2,
               work_amount: workAmount,
             }],
@@ -873,18 +1005,82 @@ test.describe("직원 운영 계약", () => {
             staff_count: 20,
             closed_count: rows.filter((row) => row.settlement_status === "CLOSED").length,
             needs_review_count: rows.filter((row) => row.settlement_status === "NEEDS_REVIEW").length,
-            work_hours: 1_695,
-            work_amount: 271_604_910,
-            approved_expense_amount: 2_165_300,
-            reference_business_income_tax: 8_148_147,
-            reference_local_income_tax: 814_815,
-            reference_deduction_total: 8_962_962,
-            reference_net_work_amount: 262_641_948,
-            reference_transfer_amount: 264_807_248,
+            work_hours: rows.reduce((sum, row) => sum + row.work_hours, 0),
+            work_amount: rows.reduce((sum, row) => sum + row.work_amount, 0),
+            approved_expense_amount: rows.reduce((sum, row) => sum + row.approved_expense_amount, 0),
+            pending_expense_amount: rows.reduce((sum, row) => sum + row.pending_expense_amount, 0),
+            total_amount: rows.reduce((sum, row) => sum + row.total_amount, 0),
+            advisory_issue_count: rows.reduce((sum, row) => sum + row.advisory_issue_count, 0),
+            reference_business_income_tax: rows.reduce((sum, row) => sum + row.reference_business_income_tax, 0),
+            reference_local_income_tax: rows.reduce((sum, row) => sum + row.reference_local_income_tax, 0),
+            reference_deduction_total: rows.reduce((sum, row) => sum + row.reference_deduction_total, 0),
+            reference_net_work_amount: rows.reduce((sum, row) => sum + row.reference_net_work_amount, 0),
+            reference_transfer_amount: rows.reduce((sum, row) => sum + row.reference_transfer_amount, 0),
+            work_type_breakdown: [{
+              work_type_id: 21,
+              work_type_name: "채점",
+              color: "#2563EB",
+              record_count: payrollStaffs.reduce((sum, entry) => sum + entry.workRecords.length, 0),
+              work_hours: rows.reduce((sum, row) => sum + row.work_hours, 0),
+              work_amount: rows.reduce((sum, row) => sum + row.work_amount, 0),
+            }],
           },
           rows,
         };
       },
+    });
+    await page.route("**/api/v1/staffs/**", async (route) => {
+      if (route.request().method() !== "GET") return route.fallback();
+      const url = new URL(route.request().url());
+      const path = url.pathname.replace(/^\/api\/v1/, "");
+      const json = (body: unknown) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+      const list = (results: unknown[]) => json({ count: results.length, next: null, previous: null, results });
+      if (path === "/staffs/") return list(payrollStaffs.map((entry) => entry.staff));
+
+      const summaryMatch = path.match(/^\/staffs\/(\d+)\/summary\/$/);
+      const staffId = Number(summaryMatch?.[1] ?? url.searchParams.get("staff"));
+      const selected = payrollStaffs.find((entry) => entry.staff.id === staffId);
+      if (!selected) return route.fallback();
+      const dateFrom = url.searchParams.get("date_from");
+      const dateTo = url.searchParams.get("date_to");
+      const inRange = (record: { date: string }) => Boolean(dateFrom && dateTo && record.date >= dateFrom && record.date <= dateTo);
+      const workRecords = selected.workRecords.filter(inRange);
+      const expenses = selected.expenses.filter(inRange);
+      if (summaryMatch) {
+        const workAmount = workRecords.reduce((sum, record) => sum + record.amount, 0);
+        const approvedExpense = expenses.filter((expense) => expense.status === "APPROVED").reduce((sum, expense) => sum + expense.amount, 0);
+        const businessIncomeTax = Math.floor(workAmount * 0.03);
+        const localIncomeTax = Math.floor(businessIncomeTax * 0.1);
+        const deductionTotal = businessIncomeTax + localIncomeTax;
+        return json({
+          staff_id: staffId,
+          work_hours: workRecords.reduce((sum, record) => sum + record.work_hours, 0),
+          work_amount: workAmount,
+          expense_amount: approvedExpense,
+          total_amount: workAmount + approvedExpense,
+          reference_business_income_tax: businessIncomeTax,
+          reference_local_income_tax: localIncomeTax,
+          reference_deduction_total: deductionTotal,
+          reference_net_work_amount: workAmount - deductionTotal,
+          reference_transfer_amount: workAmount - deductionTotal + approvedExpense,
+        });
+      }
+      if (path === "/staffs/work-records/") return list(workRecords);
+      if (path === "/staffs/expense-records/") return list(expenses);
+      if (path === "/staffs/work-month-locks/") {
+        return list(selected.closed && url.searchParams.get("year") === "2026" && url.searchParams.get("month") === "8" ? [{
+          id: staffId,
+          staff: staffId,
+          staff_name: selected.staff.name,
+          year: 2026,
+          month: 8,
+          is_locked: true,
+          locked_by: 12,
+          locked_by_name: "관리자",
+          created_at: "2026-08-22T04:00:00Z",
+        }] : []);
+      }
+      return route.fallback();
     });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${BASE}/workspace/staff/attendance?year=2026&month=8`, {
@@ -894,7 +1090,8 @@ test.describe("직원 운영 계약", () => {
     const overview = page.getByTestId("staff-payroll-overview");
     const headlineTotal = overview.getByText("최종 이체 참고 총액", { exact: true }).locator("..");
     const reviewTotal = overview.getByText("확인 필요 인원", { exact: true }).locator("..");
-    await expect(headlineTotal).toContainText("264,807,248원");
+    await expect(headlineTotal).toContainText("263,613,302원");
+    await expect(headlineTotal).toContainText("공제 전 270,370,200원 − 참고 공제 8,922,198원 + 승인 환급 2,165,300원 = 이체 참고액 263,613,302원");
     await expect(reviewTotal).toContainText("7명");
     await expect(overview.getByRole("searchbox", { name: "직원 이름 검색" })).toBeVisible();
     await expect(overview.getByRole("group", { name: "급여 직원 필터" })).toBeVisible();
@@ -941,20 +1138,72 @@ test.describe("직원 운영 계약", () => {
     const mobileMain = page.locator("main").first();
     for (const rowIndex of [9, 19]) {
       const row = mobileRows.nth(rowIndex);
+      const selected = payrollStaffs[rowIndex];
+      const staffName = `직원 ${String(rowIndex + 1).padStart(2, "0")}`;
+      const workAmount = 12_345_678 + rowIndex * 123_456;
+      const approvedExpense = 98_765 + rowIndex * 1_000;
+      const detailHeader = page.getByTestId("staff-workspace-detail-header");
+      const assertSelectedMonth = async () => {
+        await expect(detailHeader.getByRole("button", { name: `${staffName} 직원 상세 열기`, exact: true })).toBeVisible();
+        await expect(detailHeader.getByText("2026년 8월", { exact: true })).toBeVisible();
+        await expect(detailHeader.getByText(`근무기록 ${workAmount.toLocaleString()}원`, { exact: true })).toBeVisible();
+        await expect(detailHeader.getByText(`승인 선결제 환급 ${approvedExpense.toLocaleString()}원`, { exact: true })).toBeVisible();
+        await expect(detailHeader.getByText(`공제 전 합계 ${(workAmount + approvedExpense).toLocaleString()}원`, { exact: true })).toBeVisible();
+      };
+      const assertSelectedWorkRecords = async () => {
+        await expect(page.getByTestId(/^staff-work-record-\d+$/)).toHaveCount(10);
+        const firstRecord = page.getByTestId(`staff-work-record-${selected.workRecords[0].id}`);
+        await expect(firstRecord).toContainText(`${staffName} 8월 근무 1`);
+        await expect(firstRecord).toContainText(`${selected.workRecords[0].amount.toLocaleString()}원`);
+        await expect(page.getByLabel("지급 전 확인 항목").getByText("중복 의심", { exact: true })).toHaveCount(selected.needsReview ? 2 : 0);
+        if (selected.needsReview) {
+          await expect(page.getByRole("button", { name: "확인 기록만", exact: true })).toBeVisible();
+        }
+      };
+      const assertSelectedExpenses = async () => {
+        await expect(page.getByTestId(/^staff-expense-\d+$/)).toHaveCount(selected.expenses.length);
+        const approved = page.getByTestId(`staff-expense-${selected.staff.id * 100 + 81}`);
+        await expect(approved).toContainText(`2026-08-12 · ${staffName} 8월 승인 환급`);
+        await expect(approved).toContainText(`${approvedExpense.toLocaleString()}원`);
+        await expect(approved).toHaveAttribute("data-expense-status", "APPROVED");
+        const pending = page.getByTestId(`staff-expense-${selected.staff.id * 100 + 82}`);
+        if (selected.needsReview) {
+          await expect(pending).toContainText(`2026-08-13 · ${staffName} 8월 대기 환급`);
+          await expect(pending).toContainText("250,000원");
+          await expect(pending).toHaveAttribute("data-expense-status", "PENDING");
+        } else {
+          await expect(pending).toHaveCount(0);
+        }
+      };
       await row.evaluate((element) => element.scrollIntoView({ block: "center" }));
       const scrollTopBeforeDetail = await mobileMain.evaluate((element) => element.scrollTop);
       await row.click();
-      const detailHeader = page.getByTestId("staff-workspace-detail-header");
       await expect(detailHeader).toBeFocused();
+      await assertSelectedMonth();
+      await assertSelectedWorkRecords();
       const [detailBounds, navBounds] = await Promise.all([detailHeader.boundingBox(), bottomNav.boundingBox()]);
       expect(detailBounds).not.toBeNull();
       expect(navBounds).not.toBeNull();
       expect(detailBounds!.y).toBeGreaterThanOrEqual(0);
       expect(detailBounds!.y + detailBounds!.height).toBeLessThanOrEqual(navBounds!.y);
-      if (rowIndex === 19) {
-        await page.reload({ waitUntil: "domcontentloaded" });
-        await expect(page.getByTestId("staff-workspace-detail-header")).toBeFocused();
-      }
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByTestId("staff-workspace-detail-header")).toBeFocused();
+      await assertSelectedMonth();
+      await assertSelectedWorkRecords();
+      const expensesTab = page.getByRole("tab", { name: "비용/경비 탭", exact: true });
+      await expensesTab.click();
+      await expect(expensesTab).toHaveAttribute("aria-selected", "true");
+      await expect(page).toHaveURL((url) => (
+        url.pathname === "/workspace/staff/expenses"
+        && url.searchParams.get("staffId") === String(selected.staff.id)
+        && url.searchParams.get("year") === "2026"
+        && url.searchParams.get("month") === "8"
+      ));
+      await assertSelectedMonth();
+      await assertSelectedExpenses();
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await assertSelectedMonth();
+      await assertSelectedExpenses();
       await page.getByRole("button", { name: "전체 급여판", exact: true }).click();
       await expect(page).not.toHaveURL(/staffId=/);
       await expect(row).toBeFocused();
@@ -965,6 +1214,9 @@ test.describe("직원 운영 계약", () => {
       expect(returnedNavBounds).not.toBeNull();
       expect(returnedRowBounds!.y).toBeGreaterThanOrEqual(0);
       expect(returnedRowBounds!.y + returnedRowBounds!.height).toBeLessThanOrEqual(returnedNavBounds!.y);
+      await expect(row).toContainText(staffName);
+      await expect(row).toContainText(`${workAmount.toLocaleString()}원`);
+      await expect(row).toContainText(selected.needsReview ? "중복 의심 1건 · 비용 대기 1건" : "마감");
     }
     await mobileRows.first().evaluate((element) => element.scrollIntoView({ block: "center" }));
     await page.screenshot({

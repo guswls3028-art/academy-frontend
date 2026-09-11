@@ -31,6 +31,18 @@
   .staff-domain-layout .domain-header__tabs-wrap .ds-tab {
     flex: 1 1 0;
   }
+
+  .staff-area .staff-workspace-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .staff-area .staff-workspace-tabs > .ds-tab {
+    justify-content: center;
+    min-height: 44px;
+    padding-inline: var(--space-2);
+    white-space: nowrap;
+  }
 }
 
 .staff-detail-entry {
