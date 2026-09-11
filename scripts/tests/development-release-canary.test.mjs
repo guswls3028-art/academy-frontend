@@ -758,7 +758,8 @@ test("cleanup and post-cleanup Inspect bind the exact Setup tenant id and requir
 
 test("strict browser fixture emits safe route diagnostics before an unrecovered transport fails the test", { timeout: 30_000 }, () => {
   const result = spawnSync(process.execPath, ["node_modules/@playwright/test/cli.js", "test",
-    "release-transport-diagnostic.fixture.ts", "--config=scripts/tests/fixtures/playwright.release-transport-diagnostic.config.ts"], {
+    "release-transport-diagnostic.fixture.ts", "--grep=unrecovered route transport",
+    "--config=scripts/tests/fixtures/playwright.release-transport-diagnostic.config.ts"], {
     cwd: fileURLToPath(new URL("../../", import.meta.url)), encoding: "utf8", timeout: 25_000,
     env: { ...process.env,
       E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict",
@@ -771,6 +772,20 @@ test("strict browser fixture emits safe route diagnostics before an unrecovered 
   assert.match(output, /Release API boundary failed: Release request rejected \[fetch-transport\] GET \/api\/v1\/student\/video\/sessions\/:id\/videos\/; Release request rejected \[fetch-transport\] GET/);
   assert.match(output, /"requestTransportDiagnostics":\[\{"method":"GET","pathTemplate":"\/api\/v1\/student\/video\/sessions\/:id\/videos\/","requestKind":"read","stage":"initial","transportCode":"transport"\},\{"method":"GET","pathTemplate":"\/api\/v1\/student\/video\/sessions\/:id\/videos\/","requestKind":"read","stage":"retry","transportCode":"transport"\}\]/);
   assert.doesNotMatch(output, /987654321|secret-student-name-839201|fixture-secret-query|fixture-secret-header/);
+});
+
+test("direct APIRequestContext mutation refusal stays path-safe and never reaches network", { timeout: 30_000 }, () => {
+  const result = spawnSync(process.execPath, ["node_modules/@playwright/test/cli.js", "test",
+    "release-transport-diagnostic.fixture.ts", "--grep=direct APIRequestContext mutations",
+    "--config=scripts/tests/fixtures/playwright.release-transport-diagnostic.config.ts"], {
+    cwd: fileURLToPath(new URL("../../", import.meta.url)), encoding: "utf8", timeout: 25_000,
+    env: { ...process.env, E2E_RELEASE_API_MODE: "", E2E_ALLOW_PRODUCTION_WRITES: "", E2E_STRICT: "" },
+  });
+  const output = `${result.stdout || ""}\n${result.stderr || ""}`;
+  assert.notEqual(result.status, 0, "direct business mutations must fail closed");
+  assert.match(output, /\{"networkCalls":0,"violations":2\}/);
+  assert.match(output, /Direct APIRequestContext fail-closed: Production release business mutation refused: POST \/api\/v1\/student\/video\/videos\/:id\/progress\/; Production release business mutation refused: PUT/);
+  assert.doesNotMatch(output, /987654321|secret-student-name-839201|fixture-direct-secret-query|fixture-direct-secret-header/);
 });
 
 test("owned SSM cleanup accepts only exact terminalized history with zero active sessions", () => {

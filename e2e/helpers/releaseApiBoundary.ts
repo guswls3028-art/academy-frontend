@@ -175,7 +175,8 @@ export function assertReleaseRequestSafe(
   }
   if (!read && !authentication) {
     // No payload, query string, token or recipient is included in diagnostics.
-    throw new Error(`Production release business mutation refused: ${verb} ${target.pathname}`);
+    const pathTemplate = safeRequestTransportPathTemplate(target.toString());
+    throw new Error(`Production release business mutation refused: ${verb}${pathTemplate ? ` ${pathTemplate}` : ""}`);
   }
   return authentication ? "authentication" : "read";
 }

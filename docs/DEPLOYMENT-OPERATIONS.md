@@ -190,6 +190,8 @@ initial·retry/고정 transport code만 담은 진단을 먼저 stdout에 남긴
 테스트를 실패시킨다. assertion이 진단 출력을 건너뛰거나 진단이 실패를 완화하는 것은 허용하지 않는다.
 경계 assertion의 실패 문구도 allowlist된 path template만 사용하고, 동적 식별자는 `:id`로
 치환한다. allowlist 밖 경로는 method와 고정 실패 code만 남기고 경로 전체를 생략한다.
+같은 규칙은 browser route뿐 아니라 direct APIRequestContext의 사전 mutation 거부에도
+적용하며, 거부된 요청은 실제 network transport에 도달하지 않아야 한다.
 실사용 실패 증거에는 Playwright 원문 대신 통과·실패 수, 고정된 flow 파일명,
 allowlist된 경계 단계 코드만 남긴다. browser route의 안전한 조회 재시도 횟수도
 숫자로만 남긴다. URL query, header, token, 계정명과 원문 오류는 artifact에 기록하지
