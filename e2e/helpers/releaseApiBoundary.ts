@@ -361,9 +361,8 @@ export async function installReleaseContextGuard(context: BrowserContext, bounda
   const handleRoute = async (route: Parameters<Parameters<BrowserContext["route"]>[1]>[0]) => {
     const request = route.request();
     const reject = async (code: string) => {
-      let pathname = "/";
-      try { pathname = new URL(request.url()).pathname; } catch { /* keep the inert path */ }
-      defects.push(`Release request rejected [${code}] ${request.method().toUpperCase()} ${pathname}`);
+      const pathTemplate = safeRequestTransportPathTemplate(request.url());
+      defects.push(`Release request rejected [${code}] ${request.method().toUpperCase()}${pathTemplate ? ` ${pathTemplate}` : ""}`);
       try { await route.abort("blockedbyclient"); } catch { /* Context teardown already owns this request. */ }
     };
     try {

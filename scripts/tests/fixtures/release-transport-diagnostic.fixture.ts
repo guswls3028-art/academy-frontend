@@ -5,9 +5,14 @@ test("unrecovered route transport remains a visible fixture failure", async ({ b
   const page = await context.newPage();
   await page.setContent("<!doctype html><title>release transport fixture</title>");
   await page.evaluate(async () => {
-    await fetch("https://api.hakwonplus.com/api/v1/core/tenant/by-host/?fixture-secret-query", {
-      headers: { "X-Tenant-Code": "qa-ymath-realuse-fixture-transport", "X-Fixture-Secret": "fixture-secret-header" },
-    }).catch(() => undefined);
+    const headers = {
+      "X-Tenant-Code": "qa-ymath-realuse-fixture-transport",
+      "X-Fixture-Secret": "fixture-secret-header",
+    };
+    await fetch("https://api.hakwonplus.com/api/v1/student/video/sessions/987654321/videos/?fixture-secret-query", { headers })
+      .catch(() => undefined);
+    await fetch("https://api.hakwonplus.com/api/v1/private/secret-student-name-839201/", { headers })
+      .catch(() => undefined);
   });
   await context.close();
 });

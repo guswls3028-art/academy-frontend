@@ -768,9 +768,9 @@ test("strict browser fixture emits safe route diagnostics before an unrecovered 
   });
   const output = `${result.stdout || ""}\n${result.stderr || ""}`;
   assert.notEqual(result.status, 0, "unrecovered route transport must fail closed");
-  assert.match(output, /Release API boundary failed: Release request rejected \[fetch-transport\]/);
-  assert.match(output, /"requestTransportDiagnostics":\[\{"method":"GET","pathTemplate":"\/api\/v1\/core\/tenant\/by-host\/","requestKind":"read","stage":"initial","transportCode":"transport"\},\{"method":"GET","pathTemplate":"\/api\/v1\/core\/tenant\/by-host\/","requestKind":"read","stage":"retry","transportCode":"transport"\}\]/);
-  assert.doesNotMatch(output, /fixture-secret-query|fixture-secret-header/);
+  assert.match(output, /Release API boundary failed: Release request rejected \[fetch-transport\] GET \/api\/v1\/student\/video\/sessions\/:id\/videos\/; Release request rejected \[fetch-transport\] GET/);
+  assert.match(output, /"requestTransportDiagnostics":\[\{"method":"GET","pathTemplate":"\/api\/v1\/student\/video\/sessions\/:id\/videos\/","requestKind":"read","stage":"initial","transportCode":"transport"\},\{"method":"GET","pathTemplate":"\/api\/v1\/student\/video\/sessions\/:id\/videos\/","requestKind":"read","stage":"retry","transportCode":"transport"\}\]/);
+  assert.doesNotMatch(output, /987654321|secret-student-name-839201|fixture-secret-query|fixture-secret-header/);
 });
 
 test("owned SSM cleanup accepts only exact terminalized history with zero active sessions", () => {
