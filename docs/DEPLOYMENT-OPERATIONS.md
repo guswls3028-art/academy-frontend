@@ -303,11 +303,18 @@ Cleanup/Inspect 및 세션 종료 확인 시간을 별도로 남기며, 30분을
 폐쇄하고 cleanup 0이 증명되기 전에는 운영 승격하지 않는다.
 
 고정 NonInteractiveCommands 세션의 Inspect/Setup/Cleanup만 사용하고 임의 shell 입력,
-기존 qa tenant 재사용/reset, 광역 command stdout 조회는 허용하지 않는다. Setup의
-실패/응답 유실도 동일 256-bit run capability로 exact tenant cleanup/readback을 시도한다.
+기존 qa tenant 재사용/reset, 광역 command stdout 조회는 허용하지 않는다. Setup이 실패해도
+응답에서 exact tenant ID가 검증되면 동일 256-bit run capability로 cleanup/readback을 시도한다.
+응답 유실로 exact ID를 얻지 못하면 다른 ID를 추측하지 않고 cleanup 미증명으로 실패한다.
 서버는 생성 transaction에 기록한 tenant ID/code와 capability digest를 cleanup 요청과
 결합한다. 이름 정규식이나 runner run 문자열만으로 destroy 권한을 주지 않는다.
 missing/duplicate/foreign owner는 destroy 전 거부하며, 이미 부재하면 0 readback만 한다.
+초기 Inspect와 Setup에는 `TenantId`를 보내지 않는다. Setup이 반환한 exact positive integer
+`tenant_id`만 메모리에 보존해 Cleanup과 그 직후 고정 Inspect에 `TenantId`로 전달하고,
+두 응답의 `tenant_id` echo가 같아야 한다. Cleanup 성공 여부와 무관하게 post-cleanup
+Inspect를 별도로 실행하며, exact tenant/users/R2 object/QA process/listener가 모두 숫자 0인
+경우에만 `postCleanupInspectObservation`을 통과시킨다. 이 readback이 없거나 하나라도
+남아 있으면 promotion은 실패한다.
 상세 감사 행 보존과 capability 신뢰 경계는 backend 상시 개발 런타임 문서가 소유한다.
 결과는 test 수/상태, release/image/artifact identity, cleanup 수와 실패 분류를
 `test-results/development-release.json`으로 남긴다. runner는 첫 preflight assertion보다
@@ -355,6 +362,11 @@ capability는 evidence나 stdout에 넣지 않는다. 알 수 없는 shape는 �
 ULID, tenant slug와 object key를 일반 치환 문자열로 남기지 않는다. query도 허용된 키
 이름만 남기고 값은 모두 버린다. 이 진단은
 실패를 성공으로 바꾸거나 cleanup0 및 positive journey 조건을 완화하지 않는다.
+직접 `APIRequestContext` 호출의 Promise가 전송 계층에서 거부되면 GET/HEAD만 500ms 뒤
+정확히 한 번 재시도한다. POST/PUT/PATCH/DELETE는 재전송하지 않는다. 각 전송 실패는
+allowlist된 path template이 있을 때만 method, read/mutation, initial/retry stage와
+`context-disposed|timeout|transport` 코드로 남기며 URL/query 값, raw 오류, 사용자 식별자는
+버린다. 두 번째 GET/HEAD 실패와 최초 mutation 실패는 일반화된 오류로 실패 폐쇄한다.
 
 로컬 child 제한은 QA operation 240초, tunnel 25분, tests 20분이다. timeout은 TERM 후
 5초 뒤 KILL로 강제 종료하고 reap한다(Linux는 소유 process group). AWS metadata CLI도

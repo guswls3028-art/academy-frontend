@@ -226,6 +226,8 @@ test("preflight writes an inert envelope before checks and marks only reviewed p
     operationObservation: null,
     cleanupObservation: null,
     inspectObservation: null,
+    postCleanupInspectOperationObservation: null,
+    postCleanupInspectObservation: null,
     realUseObservation: null,
     realUseProcessObservation: null,
     videoRuntimeObservation: null,
@@ -533,7 +535,13 @@ test("real-use failure observation publishes only allowlisted endpoint templates
     stdout: [{ text: `${JSON.stringify({ releaseApiMode: "development", transport: {
       readFetchRetries: 1, suppressedAnalyticsBatches: 2,
       suppressedAnalyticsEvents: 3, suppressedCloudflareBeacons: 4,
-    }, ignored: "safe" })}\n` }],
+    }, requestTransportDiagnostics: [{
+      method: "GET", pathTemplate: "/api/v1/core/tenant/by-host/", requestKind: "read",
+      stage: "initial", transportCode: "timeout",
+    }, {
+      method: "GET", pathTemplate: "/api/v1/parents/by-login/secret/", requestKind: "read",
+      stage: "retry", transportCode: "transport",
+    }], ignored: "safe" })}\n` }],
   };
   report.errors.push({ message: "Release request rejected [cors] C:/secret/path" });
   report.stats.unexpected = 1;
@@ -574,6 +582,13 @@ test("real-use failure observation publishes only allowlisted endpoint templates
     suppressedAnalyticsBatches: 2,
     suppressedAnalyticsEvents: 3,
     suppressedCloudflareBeacons: 4,
+    requestTransportDiagnostics: [{
+      method: "GET",
+      pathTemplate: "/api/v1/core/tenant/by-host/",
+      requestKind: "read",
+      stage: "initial",
+      transportCode: "timeout",
+    }],
     longVideo: null,
     longVideoFailure: null,
     longVideoErrorCodes: [],
@@ -591,6 +606,7 @@ test("real-use failure observation publishes only allowlisted endpoint templates
     failedFiles: [], failureLocations: [], boundaryCodes: [], failureDiagnostics: [], runnerErrorCount: null,
     readFetchRetries: null, suppressedAnalyticsBatches: null,
     suppressedAnalyticsEvents: null, suppressedCloudflareBeacons: null,
+    requestTransportDiagnostics: [],
     longVideo: null,
     longVideoFailure: null,
     longVideoErrorCodes: [],
@@ -616,12 +632,63 @@ test("all nineteen real-use cases are mandatory; missing, skip, failure, retry a
 
 test("cleanup requires the exact owned tenant and numeric zero tenant/user residue", () => {
   const tenant = "qa-ymath-realuse-fe-123-1-abcdef123456";
-  const valid = { tenant_code: tenant, status: "YMATH_REALUSE_SCENARIO_DESTROYED", remaining: { tenants: 0, users: 0 } };
-  assert.doesNotThrow(() => assertCleanup(valid, tenant));
+  const tenantId = 91;
+  const valid = { tenant_code: tenant, tenant_id: tenantId, status: "YMATH_REALUSE_SCENARIO_DESTROYED", remaining: { tenants: 0, users: 0 } };
+  assert.doesNotThrow(() => assertCleanup(valid, tenant, tenantId));
   for (const invalid of [{ ...valid, tenant_code: `${tenant}-foreign` }, { ...valid, remaining: { tenants: 0, users: 1 } },
-    { ...valid, remaining: { tenants: "0", users: 0 } }, { ...valid, status: "YMATH_REALUSE_SCENARIO_READY" }]) {
-    assert.throws(() => assertCleanup(invalid, tenant));
+    { ...valid, tenant_id: tenantId + 1 }, { ...valid, remaining: { tenants: "0", users: 0 } },
+    { ...valid, status: "YMATH_REALUSE_SCENARIO_READY" }]) {
+    assert.throws(() => assertCleanup(invalid, tenant, tenantId));
   }
+});
+
+test("cleanup and post-cleanup Inspect bind the exact Setup tenant id and require full zero residue", () => {
+  const tenant = "qa-ymath-realuse-fe-123-1-abcdef123456";
+  const tenantId = 91;
+  const common = {
+    TenantCode: [tenant], OwnershipCapability: ["a".repeat(64)],
+    ReleaseId: [`sha-${"b".repeat(40)}-run-123-1`], ApiDigest: [`sha256:${"c".repeat(64)}`],
+    SyntheticLongVideo: ["true"],
+  };
+  assert.deepEqual(runner.fixedOperationParameters(common, "Inspect"), { ...common, Action: ["Inspect"] });
+  assert.deepEqual(runner.fixedOperationParameters(common, "Setup"), { ...common, Action: ["Setup"] });
+  assert.deepEqual(runner.fixedOperationParameters(common, "Cleanup", tenantId), {
+    ...common, Action: ["Cleanup"], TenantId: ["91"],
+  });
+  assert.deepEqual(runner.fixedOperationParameters(common, "Inspect", tenantId), {
+    ...common, Action: ["Inspect"], TenantId: ["91"],
+  });
+  for (const invalid of [0, -1, 1.5, "91", null]) {
+    assert.throws(() => runner.fixedOperationParameters(common, "Cleanup", invalid));
+  }
+  assert.throws(() => runner.fixedOperationParameters(common, "Setup", tenantId));
+
+  const manifest = {
+    releaseImageTag: common.ReleaseId[0], images: { "academy-api": { digest: common.ApiDigest[0] } },
+  };
+  const valid = {
+    status: "DEVELOPMENT_QA_IDENTITY_PASS", tenant_code: tenant, tenant_id: tenantId,
+    release_id: manifest.releaseImageTag, digest: manifest.images["academy-api"].digest,
+    remaining: { tenants: 0, users: 0 },
+    residue: { activity_audits: 0, outstanding_tokens: 0, r2_objects: 0, processes: 0, listeners: 0 },
+  };
+  assert.deepEqual(runner.assertPostCleanupInspect(valid, tenant, tenantId, manifest), {
+    statusMatches: true, tenantIdMatches: true, tenantRemainingZero: true, userRemainingZero: true,
+    r2ObjectsZero: true, processesZero: true, listenersZero: true, releaseMatches: true, digestMatches: true,
+  });
+  for (const invalid of [
+    { ...valid, tenant_id: tenantId + 1 },
+    { ...valid, remaining: { ...valid.remaining, tenants: 1 } },
+    { ...valid, remaining: { ...valid.remaining, users: 1 } },
+    { ...valid, residue: { ...valid.residue, r2_objects: 1 } },
+    { ...valid, residue: { ...valid.residue, processes: 1 } },
+    { ...valid, residue: { ...valid.residue, listeners: 1 } },
+  ]) assert.throws(() => runner.assertPostCleanupInspect(invalid, tenant, tenantId, manifest));
+
+  const runnerSource = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+  assert.match(runnerSource, /postCleanupInspectObservation/);
+  assert.match(runnerSource, /operation\("Cleanup",\s*scenarioTenantId\)/);
+  assert.match(runnerSource, /operation\("Inspect",\s*scenarioTenantId,\s*"post-cleanup"\)/);
 });
 
 test("owned SSM cleanup accepts only exact terminalized history with zero active sessions", () => {
@@ -1223,6 +1290,71 @@ test("APIRequestContext mutation methods are rejected before network and redirec
   assert.throws(() => request.get("https://external.example/healthz", { headers: { authorization: "Bearer unit" } }), /escaped/);
 });
 
+test("APIRequestContext retries one transport rejection only for GET/HEAD and records safe diagnostics", async () => {
+  const install = (failures, diagnostics, transport, onViolation = () => {}) => {
+    const attempts = [];
+    const request = Object.fromEntries(["fetch", "get", "head", "post", "put", "patch", "delete"].map((verb) => [verb, async (url, options = {}) => {
+      const method = verb === "fetch" ? String(options.method || "GET").toUpperCase() : verb.toUpperCase();
+      attempts.push({ method, url });
+      const key = `${method} ${new URL(url).pathname}`;
+      if ((failures.get(key) || 0) > 0) {
+        failures.set(key, failures.get(key) - 1);
+        throw new Error(`socket failed for student-secret at ${url}`);
+      }
+      return { status: () => 200, ok: () => true };
+    }]));
+    installReleaseRequestGuard(request, development, undefined, undefined, onViolation, transport,
+      (diagnostic) => diagnostics.push(diagnostic));
+    return { request, attempts };
+  };
+
+  const diagnostics = [];
+  const transport = { readFetchRetries: 0 };
+  let violations = 0;
+  const failures = new Map([
+    ["GET /api/v1/core/tenant/by-host/", 1],
+    ["HEAD /api/v1/core/tenant/by-host/", 2],
+    ["POST /api/v1/token/", 1],
+    ["PUT /api/v1/core/tenant/by-host/", 1],
+    ["PATCH /api/v1/core/tenant/by-host/", 1],
+    ["DELETE /api/v1/core/tenant/by-host/", 1],
+    ["GET /api/v1/parents/by-login/student-secret/", 2],
+  ]);
+  const { request, attempts } = install(failures, diagnostics, transport, () => { violations += 1; });
+  const headers = { "x-tenant-code": development.tenantCode };
+
+  await request.get(`${development.apiOrigin}/api/v1/core/tenant/by-host/`, { headers });
+  await assert.rejects(() => request.head(`${development.apiOrigin}/api/v1/core/tenant/by-host/`, { headers }),
+    /Release APIRequestContext transport rejected/);
+  await assert.rejects(() => request.post(`${development.apiOrigin}/api/v1/token/`, { headers }),
+    /Release APIRequestContext transport rejected/);
+  for (const method of ["put", "patch", "delete"]) {
+    await assert.rejects(() => request[method](`${development.apiOrigin}/api/v1/core/tenant/by-host/`, { headers }),
+      /Release APIRequestContext transport rejected/);
+  }
+  await assert.rejects(() => request.get(`${development.apiOrigin}/api/v1/parents/by-login/student-secret/`, { headers }),
+    /Release APIRequestContext transport rejected/);
+
+  assert.equal(attempts.filter(({ method }) => method === "GET").length, 4);
+  assert.equal(attempts.filter(({ method }) => method === "HEAD").length, 2);
+  assert.equal(attempts.filter(({ method }) => method === "POST").length, 1, "mutation transport is never replayed");
+  for (const method of ["PUT", "PATCH", "DELETE"]) {
+    assert.equal(attempts.filter((attempt) => attempt.method === method).length, 1, `${method} transport is never replayed`);
+  }
+  assert.equal(transport.readFetchRetries, 3, "each GET/HEAD call gets at most one retry");
+  assert.equal(violations, 6, "only unrecovered transports fail the boundary");
+  assert.deepEqual(diagnostics, [
+    { method: "GET", pathTemplate: "/api/v1/core/tenant/by-host/", requestKind: "read", stage: "initial", transportCode: "transport" },
+    { method: "HEAD", pathTemplate: "/api/v1/core/tenant/by-host/", requestKind: "read", stage: "initial", transportCode: "transport" },
+    { method: "HEAD", pathTemplate: "/api/v1/core/tenant/by-host/", requestKind: "read", stage: "retry", transportCode: "transport" },
+    { method: "POST", pathTemplate: "/api/v1/token/", requestKind: "mutation", stage: "initial", transportCode: "transport" },
+    { method: "PUT", pathTemplate: "/api/v1/core/tenant/by-host/", requestKind: "mutation", stage: "initial", transportCode: "transport" },
+    { method: "PATCH", pathTemplate: "/api/v1/core/tenant/by-host/", requestKind: "mutation", stage: "initial", transportCode: "transport" },
+    { method: "DELETE", pathTemplate: "/api/v1/core/tenant/by-host/", requestKind: "mutation", stage: "initial", transportCode: "transport" },
+  ]);
+  assert.doesNotMatch(JSON.stringify(diagnostics), /student-secret|parents\/by-login/);
+});
+
 test("only the reviewed dashboard observation schema is permitted", () => {
   const url = "https://api.hakwonplus.com/api/v1/students/me/activity/";
   const valid = { screen_id: "student.dashboard.home", device_class: "desktop" };
@@ -1289,7 +1421,9 @@ test("same-artifact proxy retries only safe read fetch transport and identifies 
   }) };
   const makeRoute = (method, fetch, fulfill = async () => {}) => ({
     request: () => ({
-      url: () => "https://api.hakwonplus.com/api/v1/core/program/",
+      url: () => method === "POST"
+        ? "https://api.hakwonplus.com/api/v1/students/me/activity/"
+        : "https://api.hakwonplus.com/api/v1/core/tenant/by-host/",
       method: () => method,
       postDataJSON: () => undefined,
       headerValue: async () => development.tenantCode,
@@ -1317,6 +1451,10 @@ test("same-artifact proxy retries only safe read fetch transport and identifies 
     suppressedAnalyticsEvents: 0,
     suppressedCloudflareBeacons: 0,
   });
+  assert.deepEqual(safeRead.guard.requestTransportDiagnostics, [{
+    method: "GET", pathTemplate: "/api/v1/core/tenant/by-host/", requestKind: "read",
+    stage: "initial", transportCode: "transport",
+  }]);
   assert.doesNotThrow(() => safeRead.guard.assertClean());
 
   const mutation = await install();
@@ -1326,6 +1464,10 @@ test("same-artifact proxy retries only safe read fetch transport and identifies 
     throw new Error("unit mutation fetch interruption");
   }));
   assert.equal(mutationAttempts, 1, "mutations must never be replayed");
+  assert.deepEqual(mutation.guard.requestTransportDiagnostics, [{
+    method: "POST", pathTemplate: "/api/v1/students/me/activity/", requestKind: "mutation",
+    stage: "initial", transportCode: "transport",
+  }]);
   assert.throws(() => mutation.guard.assertClean(), /Release request rejected \[fetch-transport\]/);
 
   const delivery = await install();

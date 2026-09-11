@@ -45,7 +45,8 @@ export const test = base.extend<StrictBrowserOptions>({
           check();
           console.log(JSON.stringify({ releaseApiMode: boundary.mode,
             authentication: boundaryGuard.authentication, observation: boundaryGuard.observations,
-            transport: boundaryGuard.transport }));
+            transport: boundaryGuard.transport,
+            requestTransportDiagnostics: boundaryGuard.requestTransportDiagnostics }));
         } finally {
           try { await close(closeOptions); }
           finally { explicitlyClosed = true; }
@@ -63,9 +64,16 @@ export const test = base.extend<StrictBrowserOptions>({
   request: async ({ request }, continueWithFixture) => {
     const boundary = releaseBoundaryFromEnv(process.env);
     let violations = 0;
-    if (boundary) installReleaseRequestGuard(request, boundary, undefined, undefined, () => { violations += 1; });
+    const transport = { readFetchRetries: 0 };
+    const requestTransportDiagnostics: unknown[] = [];
+    if (boundary) installReleaseRequestGuard(request, boundary, undefined, undefined,
+      () => { violations += 1; }, transport,
+      (diagnostic) => requestTransportDiagnostics.push(diagnostic));
     try { await continueWithFixture(installAccountNotificationGuard(request)); }
-    finally { expect(violations, "APIRequestContext release boundary violations").toBe(0); }
+    finally {
+      if (boundary) console.log(JSON.stringify({ releaseApiMode: boundary.mode, transport, requestTransportDiagnostics }));
+      expect(violations, "APIRequestContext release boundary violations").toBe(0);
+    }
   },
   page: async ({ page, allowRecoveredProductionCors, strictBrowserAutoAssert }, continueWithFixture) => {
     installAccountNotificationGuard(page.request);
