@@ -223,6 +223,29 @@ async function installApp(page: Page): Promise<MockEvidence> {
 test.use({ serviceWorkers: "block", viewport: { width: 390, height: 844 } });
 test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "로컬 route-mock 전용");
 
+test("학생 화면 기록은 느린 정상 응답을 자체 취소하지 않는다", async ({ page }) => {
+  let completed = false;
+  await page.addInitScript((access) => {
+    localStorage.setItem("access", access);
+    localStorage.setItem("refresh", `${access}-refresh`);
+  }, SUPPORT_ACCESS);
+  await page.route("**/api/v1/students/me/activity/", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 4_500));
+    await route.fulfill({ status: 202, json: { accepted: true } });
+    completed = true;
+  });
+  await page.goto(`${BASE}/favicon.svg`);
+
+  await page.evaluate(async () => {
+    const { recordStudentScreenView } = await import(
+      "/src/shared/studentSupport/studentSupport.api.ts"
+    );
+    await recordStudentScreenView("/student/profile", "student");
+  });
+
+  expect(completed).toBe(true);
+});
+
 test("학생 활동은 대리보기를 기본 제외하고 팝업 토큰은 교직원 세션과 분리된다", async ({ page }) => {
   const evidence = await installApp(page);
   await gotoAndSettle(page, `${BASE}/workspace/students/1001`, { timeout: 45_000 });
