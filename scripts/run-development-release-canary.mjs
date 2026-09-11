@@ -530,6 +530,20 @@ export function observeFixedOperationResult(action, result) {
   };
 }
 
+export function setupTenantIdFromOperation(action, observed, tenantCode) {
+  if (action !== "Setup") return null;
+  const failedTenantId = observed?.observation?.tenantId;
+  if (observed?.observation?.payloadStatus === "DEVELOPMENT_QA_FAILED"
+    && Number.isSafeInteger(failedTenantId) && failedTenantId > 0) {
+    return failedTenantId;
+  }
+  const successfulTenantId = observed?.payload?.tenant_id;
+  return observed?.payload?.status === "YMATH_REALUSE_SCENARIO_READY"
+    && observed.payload.tenant_code === tenantCode
+    && Number.isSafeInteger(successfulTenantId) && successfulTenantId > 0
+    ? successfulTenantId : null;
+}
+
 export function inspectMatchObservation(payload, manifest) {
   return {
     statusMatches: payload?.status === "DEVELOPMENT_QA_IDENTITY_PASS",
@@ -976,10 +990,8 @@ export async function run() {
     const process = session(QA_DOCUMENT, fixedOperationParameters(common, action, tenantId));
     const result = await process.done;
     const observed = observeFixedOperationResult(action, result);
-    if (action === "Setup" && observed.payload?.tenant_code === tenant
-      && Number.isSafeInteger(observed.payload?.tenant_id) && observed.payload.tenant_id > 0) {
-      scenarioTenantId = observed.payload.tenant_id;
-    }
+    const capturedSetupTenantId = setupTenantIdFromOperation(action, observed, tenant);
+    if (capturedSetupTenantId !== null) scenarioTenantId = capturedSetupTenantId;
     if (action === "Cleanup") cleanupObservation = observed.observation;
     else if (observationTarget === "post-cleanup") postCleanupInspectOperationObservation = observed.observation;
     else operationObservation = observed.observation;

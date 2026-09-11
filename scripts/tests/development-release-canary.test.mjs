@@ -372,6 +372,35 @@ test("Cleanup and post-cleanup Inspect failures retain only exact safe stage, te
   assert.match(source, /postCleanupInspectOperationObservation, postCleanupInspectObservation/);
 });
 
+test("failed Setup captures only an exact positive safe-schema tenant id for final cleanup", () => {
+  const residue = { activity_audits: 0, outstanding_tokens: 0, listeners: 0, processes: 0, r2_objects: 0 };
+  const validFailure = runner.observeFixedOperationResult("Setup", { code: 1, stdout: JSON.stringify({
+    status: "DEVELOPMENT_QA_FAILED", error_type: "AssertionError",
+    failure_stage: "setup_readback", tenant_id: 73, residue,
+  }) });
+  assert.equal(runner.setupTenantIdFromOperation("Setup", validFailure, "qa-safe"), 73);
+  const validSuccess = runner.observeFixedOperationResult("Setup", { code: 0, stdout: JSON.stringify({
+    status: "YMATH_REALUSE_SCENARIO_READY", tenant_code: "qa-safe", tenant_id: 74,
+  }) });
+  assert.equal(runner.setupTenantIdFromOperation("Setup", validSuccess, "qa-safe"), 74);
+
+  for (const [action, payload] of [
+    ["Setup", { ...validFailure.payload, tenant_id: 0 }],
+    ["Setup", { ...validFailure.payload, tenant_id: -1 }],
+    ["Setup", { ...validFailure.payload, tenant_code: "qa-safe" }],
+    ["Cleanup", validFailure.payload],
+    ["Inspect", validFailure.payload],
+  ]) {
+    const observed = runner.observeFixedOperationResult(action, { code: 1, stdout: JSON.stringify(payload) });
+    assert.equal(runner.setupTenantIdFromOperation(action, observed, "qa-safe"), null);
+  }
+
+  const source = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+  assert.ok(source.indexOf("scenarioTenantId = capturedSetupTenantId") < source.indexOf("assert.equal(result.code"));
+  assert.match(source, /operation\("Cleanup",\s*scenarioTenantId\)/);
+  assert.match(source, /operation\("Inspect",\s*scenarioTenantId,\s*"post-cleanup"\)/);
+});
+
 test("Inspect match evidence records booleans without publishing compared values", () => {
   assert.equal(typeof runner.inspectMatchObservation, "function");
   const manifest = { releaseImageTag: "release-secret", images: { "academy-api": { digest: "sha256:digest-secret" } } };

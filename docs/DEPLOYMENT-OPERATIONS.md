@@ -311,7 +311,8 @@ Cleanup/Inspect 및 세션 종료 확인 시간을 별도로 남기며, 30분을
 
 고정 NonInteractiveCommands 세션의 Inspect/Setup/Cleanup만 사용하고 임의 shell 입력,
 기존 qa tenant 재사용/reset, 광역 command stdout 조회는 허용하지 않는다. Setup이 실패해도
-응답에서 exact tenant ID가 검증되면 동일 256-bit run capability로 cleanup/readback을 시도한다.
+exact `DEVELOPMENT_QA_FAILED` safe schema에서 positive tenant ID가 검증되면 동일 256-bit run
+capability로 cleanup/readback을 시도한다. 실패 schema에는 tenant code를 허용하지 않는다.
 응답 유실로 exact ID를 얻지 못하면 다른 ID를 추측하지 않고 cleanup 미증명으로 실패한다.
 서버는 생성 transaction에 기록한 tenant ID/code와 capability digest를 cleanup 요청과
 결합한다. 이름 정규식이나 runner run 문자열만으로 destroy 권한을 주지 않는다.
